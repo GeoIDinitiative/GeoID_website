@@ -1,0 +1,12 @@
+.DS_Store
+Thumbs.db
+*.bak
+*.aux.xml
+*.tif
+*.tiff
+*.rar
+*.zip
+__pycache__/
+*.pyc
+planet_explorer/venus/viewer/assets/Geology_VenusProject.ppkx
+planet_explorer/venus/viewer/assets/geology/SIM3178_Data.zip

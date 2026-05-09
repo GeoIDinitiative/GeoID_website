@@ -1,0 +1,57 @@
+<svg width="1400" height="420" viewBox="0 0 1400 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg_mer" x1="40" y1="40" x2="380" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#080E28"/>
+      <stop offset="1" stop-color="#040814"/>
+    </linearGradient>
+    <linearGradient id="arc_mer" x1="100" y1="90" x2="320" y2="330" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#16F4FF"/>
+      <stop offset="0.5" stop-color="#1D35FF"/>
+      <stop offset="1" stop-color="#FF1FB8"/>
+    </linearGradient>
+    <filter id="glow_mer">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1400" height="420" fill="#030810"/>
+  <rect x="36" y="36" width="348" height="348" rx="24" fill="url(#bg_mer)" stroke="#161E3C" stroke-width="1.5"/>
+
+  <!-- Globe outline circle -->
+  <circle cx="210" cy="210" r="118" stroke="#1A2448" stroke-width="2" fill="none"/>
+  <circle cx="210" cy="210" r="118" stroke="#16F4FF" stroke-width="1" fill="none" stroke-dasharray="6 10" opacity="0.3"/>
+
+  <!-- Vertical axis (prime meridian) -->
+  <line x1="210" y1="92" x2="210" y2="328" stroke="#1A2448" stroke-width="2"/>
+  <!-- Highlighted meridian arc — left side ellipse -->
+  <path d="M210,92 C164,120 140,162 140,210 C140,258 164,300 210,328"
+        stroke="url(#arc_mer)" stroke-width="9" fill="none" stroke-linecap="round" filter="url(#glow_mer)"/>
+
+  <!-- Horizontal equator -->
+  <line x1="92" y1="210" x2="328" y2="210" stroke="#1A2448" stroke-width="2"/>
+
+  <!-- Latitude rings — faint -->
+  <ellipse cx="210" cy="210" rx="80" ry="22" stroke="#1A2448" stroke-width="1.5" fill="none"/>
+  <ellipse cx="210" cy="162" rx="62" ry="16" stroke="#1A2448" stroke-width="1.2" fill="none"/>
+  <ellipse cx="210" cy="258" rx="62" ry="16" stroke="#1A2448" stroke-width="1.2" fill="none"/>
+
+  <!-- Pole dots -->
+  <circle cx="210" cy="92" r="7" fill="#16F4FF" filter="url(#glow_mer)"/>
+  <circle cx="210" cy="328" r="5" fill="#FF1FB8" opacity="0.8"/>
+
+  <!-- Crosshair at equator/meridian intersection -->
+  <circle cx="210" cy="210" r="14" fill="#030810" stroke="#16F4FF" stroke-width="5" filter="url(#glow_mer)"/>
+  <circle cx="210" cy="210" r="5" fill="#16F4FF"/>
+
+  <!-- Wordmark -->
+  <text x="450" y="176" fill="#FFFFFF" font-size="94" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="900" letter-spacing="-1">Meridian</text>
+
+  <!-- Accent rule -->
+  <rect x="452" y="198" width="100" height="5" rx="2" fill="#16F4FF"/>
+  <rect x="558" y="198" width="60" height="5" rx="2" fill="#1D35FF"/>
+  <rect x="624" y="198" width="60" height="5" rx="2" fill="#FF1FB8"/>
+
+  <text x="452" y="248" fill="#16F4FF" font-size="34" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="700" letter-spacing="6">SCIENTIFIC COMPUTING</text>
+  <text x="452" y="316" fill="#6A7FA8" font-size="26" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="400">A fixed reference for data, modelling and analysis</text>
+</svg>

@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="About the GeoID Initiative — democratizing geohazard science through real-time risk tracking, physics-based modelling, and open access intelligence.">
+  <title>GeoID Initiative — About</title>
+  <link rel="icon" type="image/png" href="../assets/GeoID_logo_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Work+Sans:wght@300;400;600;700;800&family=Archivo:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/shared.css">
+  <style>
+    /* ── Page-level overrides ── */
+    .page-wrap {
+      padding-top: var(--nav-h);
+    }
+
+    .page-utility {
+      position: sticky;
+      top: var(--nav-h);
+      z-index: 90;
+      border-radius: 0;
+      border-left: none;
+      border-right: none;
+      border-top: none;
+      padding: 0.45rem 1.5rem;
+      margin-bottom: 1.25rem;
+      justify-content: center;
+    }
+
+    .page-jump {
+      justify-content: center;
+      width: 100%;
+    }
+
+    .page-jump a {
+      border: none;
+      background: none;
+      border-radius: 0.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--muted);
+      padding: 0.34rem 0.68rem;
+    }
+
+    .page-jump a:hover {
+      color: var(--text);
+      background: rgba(88, 198, 179, 0.08);
+      border-color: transparent;
+    }
+
+    /* ── Shared tile base ── */
+    .glass-tile {
+      border: 1px solid var(--line);
+      border-radius: 1.35rem;
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── Hero tile — slideshow background ── */
+    .hero-tile {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 1.35rem;
+      box-shadow: var(--shadow);
+      min-height: 32rem;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hero-slides { position: absolute; inset: 0; }
+
+    .hero-slide {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      opacity: 0;
+      transition: opacity 1.5s ease-in-out;
+    }
+
+    .hero-slide.active { opacity: 1; }
+
+    .hero-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(160deg, rgba(3,8,16,0.72) 0%, rgba(3,8,16,0.52) 50%, rgba(3,8,16,0.38) 100%);
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      max-width: 58rem;
+      padding: 4rem 2.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .hero-logo-img {
+      height: 140px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 20px rgba(0,0,0,0.75));
+      margin-bottom: 0.25rem;
+    }
+
+    .hero-subtitle {
+      font-size: 0.68rem;
+      color: rgba(154,184,189,0.70);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      font-family: "Public Sans", sans-serif;
+      font-weight: 600;
+    }
+
+    .hero-content h1 {
+      font-family: "Archivo", "Work Sans", sans-serif;
+      font-size: clamp(2.8rem, 6vw, 4.8rem);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin: 0;
+    }
+
+    .hero-tagline {
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: rgba(200,220,236,0.88);
+      max-width: 44rem;
+      line-height: 1.5;
+    }
+
+    .hero-desc {
+      font-size: 0.92rem;
+      color: var(--muted);
+      line-height: 1.72;
+      max-width: 46rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 0.4rem;
+    }
+
+    /* ── Photo-background tile (used for How/Programs/CTA) ── */
+    .photo-tile {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 1.35rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1.25rem;
+    }
+
+    .photo-tile-bg {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      opacity: 0.62;
+    }
+
+    .photo-tile-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(160deg, rgba(4,10,20,0.68) 0%, rgba(4,10,20,0.52) 60%, rgba(4,10,20,0.38) 100%);
+    }
+
+    /* ── Solid cyan-base tile (Why GeoID / Vision) ── */
+    .cyan-tile {
+      position: relative;
+      overflow: hidden;
+      border: 1.5px solid rgba(88, 198, 179, 0.55);
+      border-radius: 1.35rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1.25rem;
+      background: rgba(5, 10, 16, 0.85);
+    }
+
+    .cyan-tile-content {
+      padding: 2.5rem 3rem;
+      text-align: center;
+      max-width: 72rem;
+      margin: 0 auto;
+    }
+
+    .photo-tile-content {
+      position: relative;
+      z-index: 1;
+      padding: 1.75rem 2rem;
+    }
+
+    /* ── Standard tile padding ── */
+    .tile-body {
+      padding: 1.75rem 2rem;
+    }
+
+    /* ── Split layout (2 columns inside a tile) ── */
+    .split-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 0;
+      align-items: stretch;
+      margin-top: 1.25rem;
+    }
+
+    .split-photo {
+      overflow: hidden;
+      line-height: 0;
+      border-radius: 0 1.1rem 1.1rem 0;
+      margin: -1.75rem -2rem -1.75rem 2rem;
+    }
+
+    .split-photo img {
+      width: 100%;
+      height: 100%;
+      min-height: 300px;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* ── Section heading pattern ── */
+    .tile-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.42rem;
+      font-size: 0.67rem;
+      font-family: "Public Sans", sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 0.75rem;
+    }
+    .tile-label::before {
+      content: '';
+      display: inline-block;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 7px rgba(88,198,179,0.62);
+      flex-shrink: 0;
+    }
+
+    .tile-title {
+      font-family: "Archivo", "Work Sans", sans-serif;
+      font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      margin: 0 0 0.9rem;
+      line-height: 1.1;
+    }
+
+    .tile-desc {
+      color: var(--muted);
+      line-height: 1.75;
+      max-width: 68rem;
+    }
+
+    .tile-desc p { margin-bottom: 0.85rem; }
+    .tile-desc p:last-child { margin-bottom: 0; }
+
+    /* ── Solution cards (3-col) ── */
+    .cards-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+
+    .solution-card {
+      border: 1px solid var(--cyan);
+      border-radius: 1.1rem;
+      padding: 2rem;
+      text-align: left;
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.05), transparent 36%),
+        linear-gradient(180deg, rgba(10,18,30,0.9), rgba(6,13,22,0.82));
+      transition: border-color 0.22s, transform 0.22s, box-shadow 0.22s;
+    }
+
+    .solution-card:hover {
+      border-color: rgba(88,198,179,0.70);
+      transform: translateY(-4px);
+      box-shadow: 0 16px 36px rgba(0,0,0,0.36), 0 0 0 1px rgba(88,198,179,0.12), 0 0 32px rgba(88,198,179,0.07);
+    }
+
+    .solution-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .solution-icon {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      border-radius: 12px;
+      background: rgba(88,198,179,0.12);
+      border: 1px solid rgba(88,198,179,0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--cyan);
+    }
+
+    .solution-card h3 {
+      font-family: "Public Sans", sans-serif;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0;
+      line-height: 1.25;
+    }
+
+    .solution-card p {
+      color: var(--muted);
+      font-size: 0.93rem;
+      line-height: 1.75;
+    }
+
+    /* ── Vision split ── */
+    /* vision-tile uses the tile itself as the 2-col grid */
+    .vision-tile {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: stretch;
+    }
+
+    .vision-left {
+      padding: 1.75rem 2rem;
+    }
+
+    .vision-grid { display: contents; }
+
+    .vision-text h3 {
+      font-family: "Public Sans", sans-serif;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 1rem;
+    }
+
+    .vision-text p {
+      color: var(--muted);
+      line-height: 1.75;
+      margin-bottom: 1rem;
+    }
+
+    .vision-text p:last-of-type { margin-bottom: 0; }
+
+    .vision-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+      margin-top: 1.5rem;
+    }
+
+    .stat-item {
+      border: 1px solid var(--cyan);
+      border-radius: 0.85rem;
+      padding: 1.1rem;
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.04), transparent 36%),
+        linear-gradient(180deg, rgba(10,18,30,0.9), rgba(6,13,22,0.82));
+      transition: border-color 0.2s;
+    }
+
+    .stat-item:hover { border-color: var(--cyan); }
+
+    .stat-number {
+      font-family: "Public Sans", sans-serif;
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--cyan);
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+      display: block;
+    }
+
+    .vision-image {
+      position: relative;
+      overflow: hidden;
+      line-height: 0;
+      border-radius: 0 1.35rem 1.35rem 0;
+    }
+
+    .vision-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      display: block;
+    }
+
+    .vision-image::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(to right,  rgba(5, 22, 30, 0.80) 0%, transparent 22%),
+        linear-gradient(to bottom, rgba(5, 22, 30, 0.70) 0%, transparent 18%),
+        linear-gradient(to top,    rgba(5, 22, 30, 0.70) 0%, transparent 18%),
+        linear-gradient(to left,   rgba(5, 22, 30, 0.40) 0%, transparent 12%);
+    }
+
+    /* ── Program cards ── */
+    .program-card {
+      border: 1px solid var(--cyan);
+      border-radius: 1.1rem;
+      overflow: hidden;
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+      transition: border-color 0.2s;
+    }
+
+    .program-card:hover { border-color: var(--cyan); }
+
+    .program-media {
+      height: 200px;
+      overflow: hidden;
+    }
+
+    .program-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      transition: transform 0.4s ease;
+    }
+
+    .program-card:hover .program-media img { transform: scale(1.04); }
+
+    .program-content { padding: 1.75rem; }
+
+    .program-tag {
+      display: inline-block;
+      font-size: 0.66rem;
+      font-family: "Public Sans", sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      border: 1px solid rgba(88,198,179,0.28);
+      padding: 0.16rem 0.55rem;
+      border-radius: 999px;
+      margin-bottom: 0.65rem;
+    }
+
+    .program-content h3 {
+      font-family: "Public Sans", sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 0.5rem;
+    }
+
+    .program-content p {
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.68;
+      margin-bottom: 0.5rem;
+    }
+
+    .program-content p:last-child { margin-bottom: 0; }
+
+    /* ── Theme pills ── */
+    .theme-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.6rem;
+      margin-top: 1.5rem;
+    }
+    .theme-pill {
+      font-size: 0.68rem;
+      font-family: "Public Sans", sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      border: 1px solid rgba(88,198,179,0.28);
+      padding: 0.28rem 0.75rem;
+      border-radius: 999px;
+    }
+
+    /* ── Product status badges ── */
+    .status-live {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.62rem;
+      font-family: "Public Sans", sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: #4ade80;
+      border: 1px solid rgba(74,222,128,0.35);
+      padding: 0.18rem 0.6rem;
+      border-radius: 999px;
+      margin-bottom: 0.5rem;
+    }
+    .status-live::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: #4ade80;
+      border-radius: 50%;
+      box-shadow: 0 0 6px rgba(74,222,128,0.8);
+      flex-shrink: 0;
+    }
+    .status-dev {
+      display: inline-block;
+      font-size: 0.62rem;
+      font-family: "Public Sans", sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: #f7bd68;
+      border: 1px solid rgba(247,189,104,0.35);
+      padding: 0.18rem 0.6rem;
+      border-radius: 999px;
+      margin-bottom: 0.35rem;
+    }
+    .status-collab {
+      display: inline-block;
+      font-size: 0.62rem;
+      font-family: "Public Sans", sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      border: 1px solid rgba(88,198,179,0.35);
+      padding: 0.18rem 0.6rem;
+      border-radius: 999px;
+      margin-bottom: 0.5rem;
+    }
+    .product-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.65rem; }
+
+    /* ── Ecosystem tree diagram ── */
+    .ecosystem-tree {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 1.75rem auto 0;
+      width: 100%;
+      max-width: 100%;
+    }
+    .eco-root-img {
+      width: clamp(5rem, 10vw, 8rem);
+      height: auto;
+      opacity: 0.92;
+      filter:
+        drop-shadow(0 0 28px rgba(88,198,179,0.44))
+        drop-shadow(0 4px 12px rgba(0,0,0,0.75));
+    }
+    .eco-stem {
+      width: 2px;
+      height: 2rem;
+      background: linear-gradient(to bottom, rgba(88,198,179,0.20), rgba(88,198,179,0.62));
+    }
+    .eco-children {
+      display: flex;
+      width: 100%;
+      position: relative;
+    }
+    .eco-children::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: calc(100% / 6);
+      right: calc(100% / 6);
+      height: 2px;
+      background: rgba(88,198,179,0.52);
+    }
+    .eco-child {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: calc(100% / 3);
+      padding-top: 2rem;
+      position: relative;
+    }
+    .eco-child::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 2rem;
+      background: rgba(88,198,179,0.42);
+    }
+    .eco-child-logo {
+      height: clamp(2.4rem, 4vw, 3.8rem);
+      width: auto;
+      max-width: 90%;
+      object-fit: contain;
+      opacity: 0.88;
+      filter: drop-shadow(0 2px 10px rgba(0,0,0,0.70));
+    }
+
+    /* ── CTA tile ── */
+    .cta-tile {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 1.35rem;
+      box-shadow: var(--shadow);
+      margin-bottom: 1.25rem;
+      text-align: center;
+    }
+
+    .cta-content {
+      position: relative;
+      z-index: 1;
+      padding: 3.5rem 2rem;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .cta-content h2 {
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+      font-weight: 800;
+      color: var(--text);
+      margin: 0 0 1rem;
+    }
+
+    .cta-content p {
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 1.75rem;
+    }
+
+    .cta-content--wide { max-width: 960px; }
+
+    .involve-section-heading {
+      font-family: "Public Sans", sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin: 0.25rem 0 0.6rem;
+    }
+
+    .involve-intro {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.65;
+      margin-bottom: 1.1rem !important;
+    }
+
+    .involve-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1rem;
+      margin-top: 0.4rem;
+      text-align: left;
+    }
+
+    .involve-card {
+      border: 1px solid var(--line);
+      border-radius: 1.1rem;
+      padding: 1.35rem;
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.05), transparent 36%),
+        linear-gradient(180deg, rgba(10,18,30,0.9), rgba(6,13,22,0.82));
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .involve-icon { font-size: 1.65rem; line-height: 1; }
+
+    .involve-card h3 {
+      margin: 0;
+      font-family: "Public Sans", sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .involve-card p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    @media (max-width: 640px) {
+      .involve-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Footer ── */
+    .site-footer {
+      margin-top: 2.5rem;
+      border-top: 1px solid var(--line);
+      background: rgba(5,10,16,0.7);
+      backdrop-filter: blur(12px);
+      padding: 3rem 0 1.5rem;
+    }
+
+    .footer-inner { max-width: 1840px; margin: 0 auto; padding: 0 1rem; }
+
+    .footer-content {
+      display: grid;
+      grid-template-columns: 2fr repeat(3, 1fr);
+      gap: 3rem;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .footer-brand-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .footer-brand-logo img { height: 32px; width: auto; }
+    .footer-brand p { color: var(--muted); font-size: 0.88rem; line-height: 1.68; }
+    .footer-brand p + p { margin-top: 0.75rem; }
+
+    .footer-section h4 {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.1rem;
+    }
+
+    .footer-section ul { list-style: none; padding: 0; margin: 0; }
+    .footer-section li { margin-bottom: 0.6rem; }
+    .footer-section a { color: var(--muted); text-decoration: none; font-size: 0.88rem; transition: color 0.18s; }
+    .footer-section a:hover { color: var(--text); }
+
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-top: 1.75rem;
+    }
+
+    .footer-bottom p { color: var(--muted); font-size: 0.82rem; }
+
+    .footer-social-links { display: flex; gap: 0.6rem; }
+
+    .footer-social-link {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); text-decoration: none;
+      transition: color 0.18s, background 0.18s;
+    }
+
+    .footer-social-link:hover { color: var(--cyan); background: var(--cyan-soft); }
+
+    /* ── Responsive ── */
+    @media (max-width: 1080px) {
+      .split-grid,
+      .vision-tile { grid-template-columns: 1fr; }
+      .vision-image { border-radius: 0 0 1.35rem 1.35rem; min-height: 280px; }
+      .split-grid .split-photo { order: -1; }
+      .cards-grid-3 { grid-template-columns: 1fr 1fr; }
+      .footer-content { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .cards-grid-3,
+      .vision-stats { grid-template-columns: 1fr; }
+      .footer-content { grid-template-columns: 1fr; gap: 2rem; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="../index.html" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="../assets/GeoID_logo_icon.png" alt="">
+      GeoID Initiative
+    </a>
+    <ul class="nav-links">
+      <li><a href="dashboard.html">Dashboard</a></li>      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="about.html">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="about.html" class="active" aria-current="page">Overview</a>
+          <a href="about_myGeoID.html">myGeoID App</a>
+          <a href="team.html">Our Team</a>
+          <a href="research.html">Research Hub</a>
+          <a href="learn.html">Resources</a>
+          <a href="involved.html">Get Involved</a>
+        </div>
+      </li>
+      <li><a href="interface.html"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
+
+      <li><a href="explorer.html">Explorer</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+      <a class="nav-act nav-act-member" href="involved.html">Membership</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+
+  <div class="page-wrap">
+    <section class="page-utility" aria-label="About page links">
+      <div class="page-jump">
+        <a href="about.html" class="active" aria-current="page">Overview</a>
+        <a href="about_myGeoID.html">myGeoID App</a>
+        <a href="team.html">Our Team</a>
+        <a href="research.html">Research Hub</a>
+        <a href="learn.html">Resources</a>
+        <a href="involved.html">Get Involved</a>
+      </div>
+    </section>
+    <div class="page-inner">
+
+      <!-- ── Hero — slideshow background ── -->
+      <div class="hero-tile" id="hero">
+        <div class="hero-slides" id="heroSlides">
+          <div class="hero-slide active" style="background-image: url('../GeoID_initiative/photos/iceland.jpg');"></div>
+          <div class="hero-slide" style="background-image: url('../assets/mars_explorer.png');"></div>
+          <div class="hero-slide" style="background-image: url('../GeoID_initiative/photos/IMG-1380.jpg');"></div>
+        </div>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <img class="hero-logo-img" src="../GeoID_initiative/photos/logo_title.png" alt="GeoID Logo">
+          <p class="hero-subtitle">Geodynamic Earth Observation Index for Disaster Mitigation</p>
+          <h1>The GeoID Initiative</h1>
+          <p class="hero-tagline">Geoscience without gatekeepers — making world-class hazard intelligence accessible to everyone</p>
+          <p class="hero-desc">GeoID is a multi-disciplinary open science initiative built around three interconnected platforms: a Solar System GIS explorer, a real-time geohazard risk tracker, and a modularised research environment. One scientific backbone — Earth observation data, physics-based modelling, and machine learning — delivered to curious students, exposed communities, and research scientists alike.</p>
+          <div class="hero-actions">
+            <a class="btn-primary" href="#products">Explore the Ecosystem</a>
+            <a class="btn-ghost" href="involved.html#questionnaire">Take our Survey</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── What is GeoID ── -->
+      <div class="cyan-tile" id="what">
+        <div class="cyan-tile-content">
+          <span class="tile-label">The GeoID Initiative</span>
+          <h2 class="tile-title">A Multi-Disciplinary Geoscience Ecosystem</h2>
+          <div class="tile-desc">
+            <p>GeoID is a multi-faceted, interdisciplinary initiative that colates, models, distributes, educates and informs — making the most complex geoscience workflows readily accessible to anyone motivated to study the natural world. From curious citizen to research scientist, GeoID lowers the barrier to entry at every level.</p>
+            <p>Born from the conviction that geoscience methods are world-class but their delivery is not, GeoID bypasses institutional gatekeeping, competitive funding bottlenecks, and academic silos. A modularised, preloaded workflow gives researchers the tools to conduct more studies, faster — while the same platform delivers clear, actionable risk intelligence directly to the public. We do not teach people to interpret complex science; we deliver the actionable insight directly. <strong style="color:var(--text);">We give the fish, not just the fishing rod.</strong></p>
+            <p>People engage with geoscience for three reasons: passionate curiosity, fear for their own safety, or because it is easy to access. GeoID is designed around all three — destigmatising the field, modularising its workflows, and making its outputs as intuitive as checking the weather app.</p>
+          </div>
+          <div class="theme-pills">
+            <span class="theme-pill">Social Psychology</span>
+            <span class="theme-pill">Civil Protection</span>
+            <span class="theme-pill">Academic Research</span>
+            <span class="theme-pill">Open Science</span>
+            <span class="theme-pill">Geodynamic Modelling</span>
+            <span class="theme-pill">Public Empowerment</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── The Challenge — photo background ── -->
+      <div class="photo-tile" id="why">
+        <div class="photo-tile-bg" style="background-image: url('../GeoID_initiative/photos/malaga.jpg');"></div>
+        <div class="photo-tile-overlay"></div>
+        <div class="photo-tile-content" style="text-align:center;">
+          <span class="tile-label">What We're Building</span>
+          <h2 class="tile-title">Hazard Intelligence, Finally Within Reach</h2>
+          <p class="tile-desc" style="margin:0 auto 1.75rem;">World-class geoscience already exists — the problem is that it never leaves the lab. GeoID is built to close that gap: taking the same physics-based models and satellite datasets used by research institutions and making them available to anyone, anywhere, in a format they can immediately understand and act on.</p>
+          <div class="cards-grid-3">
+            <article class="solution-card">
+              <div class="solution-card-header">
+                <div class="solution-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </div>
+                <h3>Global Reach, Local Clarity</h3>
+              </div>
+              <p>From the Andes to the Himalayas, from coastal Ireland to the Philippine archipelago — myGeoID delivers a continuously updated <strong>Factor of Safety</strong> for landslide and flood risk at any location on Earth. One signal, instantly interpretable, no training required.</p>
+            </article>
+            <article class="solution-card">
+              <div class="solution-card-header">
+                <div class="solution-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                </div>
+                <h3>Forecast-Driven, Not Reactive</h3>
+              </div>
+              <p>By ingesting NOAA GFS global weather forecast data, myGeoID anticipates rising instability before it becomes visible — giving communities, insurers, and first responders the lead time to act. Risk intelligence that looks forward, not just backward.</p>
+            </article>
+            <article class="solution-card">
+              <div class="solution-card-header">
+                <div class="solution-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <h3>Your Evidence, Your Power</h3>
+              </div>
+              <p>A transparent, independently published risk index means individuals can challenge insurers, hold authorities accountable, and make informed decisions about where they live and work — backed by the same evidence base that experts use, not a simplified substitute.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Three Products — photo background ── -->
+      <div class="photo-tile" id="products">
+        <div class="photo-tile-bg" style="background-image: url('../GeoID_initiative/photos/signal.jpeg');"></div>
+        <div class="photo-tile-overlay"></div>
+        <div class="photo-tile-content">
+          <span class="tile-label">Our Approach</span>
+          <h2 class="tile-title">Three Products, One Ecosystem</h2>
+          <p class="tile-desc">GeoID is structured around three interconnected platforms — each addressing a distinct audience and purpose while sharing a common scientific backbone of world-leading Earth observation data, finite element modelling, and machine learning.</p>
+
+          <div class="ecosystem-tree" aria-hidden="true">
+            <img class="eco-root-img" src="../assets/GeoID_logo_icon.png" alt="">
+            <div class="eco-stem"></div>
+            <div class="eco-children">
+              <div class="eco-child">
+                <img class="eco-child-logo" src="../assets/explorer_logo.png" alt="GeoID Explorer">
+              </div>
+              <div class="eco-child">
+                <img class="eco-child-logo" src="../assets/mygeoid_logo.png" alt="myGeoID">
+              </div>
+              <div class="eco-child">
+                <img class="eco-child-logo" src="../assets/GeoID research hub logo.png" alt="Research Hub">
+              </div>
+            </div>
+          </div>
+
+          <div class="cards-grid-3" style="margin-top:2rem;">
+            <article class="program-card" onclick="location.href='explorer.html'" style="cursor:pointer;">
+              <div class="program-media">
+                <img src="../assets/earth_hillshade.png" alt="GeoID Explorer" loading="lazy" decoding="async">
+              </div>
+              <div class="program-content">
+                <div class="product-badges">
+                  <span class="status-live">Live Now</span>
+                </div>
+                <h3>GeoID Explorer</h3>
+                <p>An interactive Solar System GIS environment for learning and custom modelling. Users can explore planetary surfaces, visualise geodynamic datasets, and engage with the natural world at scales from local terrain to Solar System bodies — no prior GIS expertise required.</p>
+                <p>The Earth and Mars viewers are freely available now, with tiered access to advanced GIS tools, modelled basemaps, and tour modes. Explorer is GeoID's gateway to spatial science.</p>
+              </div>
+            </article>
+            <article class="program-card" onclick="location.href='about_myGeoID.html'" style="cursor:pointer;">
+              <div class="program-media">
+                <img src="../assets/mygeoid_cropped.png" alt="myGeoID App" loading="lazy" decoding="async">
+              </div>
+              <div class="program-content">
+                <div class="product-badges">
+                  <span class="status-dev">In Development</span>
+                  <span class="status-collab">Open for Collaboration</span>
+                </div>
+                <h3>myGeoID App</h3>
+                <p>A living repository of real-time data and mapping streams that ingests NOAA GFS global forecast data to produce a continuously updated <strong>Factor of Safety</strong> index for landslide and flood risk — delivered as a clean, mobile-first risk tracker inspired by financial market dashboards.</p>
+                <p>myGeoID is actively seeking academic and industrial collaboration and funding. If you are a researcher, insurer, NGO, or civil protection authority, we want to hear from you.</p>
+              </div>
+            </article>
+            <article class="program-card" onclick="location.href='research.html'" style="cursor:pointer;">
+              <div class="program-media">
+                <img src="../assets/mesh.png" alt="GeoID Research Hub" loading="lazy" decoding="async">
+              </div>
+              <div class="program-content">
+                <div class="product-badges">
+                  <span class="status-dev">In Development</span>
+                </div>
+                <h3>Research Hub</h3>
+                <p>A PhD-level research environment that welds the GeoID Explorer GIS platform with a modularised finite element model builder and a project organisational tool. The Hub guides users through an entire research workflow — from data ingestion and preprocessing, through FEM simulation, to results synthesis and publication.</p>
+                <p>Pre-built functions handle universal data formats (CSV, JSON, GeoTIFF), reducing repetitive setup so researchers can focus on science, not infrastructure.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CTA — photo background ── -->
+      <div class="cta-tile">
+        <div class="photo-tile-bg" style="background-image: url('../GeoID_initiative/photos/raised.jpg');"></div>
+        <div class="photo-tile-overlay"></div>
+        <div class="cta-content cta-content--wide">
+          <span class="tile-label">Support GeoID</span>
+          <h2>Support the GeoID Initiative</h2>
+          <p>GeoID is in its infancy. Help transform Earth science into a global public safety utility by backing research, pilots, and open data infrastructure. We welcome collaborators and supporters at every level — from researchers and developers to funders and public authorities.</p>
+          <p class="involve-section-heading">Ways to Get Involved</p>
+          <p class="involve-intro">GeoID is in early research and pilot-proposal stages. Long-term, GeoID seeks to establish a dedicated research hub that creates pathways for geoscientist graduates who want to make a real difference. Any commercialisation is only considered after research outcomes are fulfilled.</p>
+          <div class="involve-grid">
+            <article class="involve-card">
+              <div class="involve-icon">🎓</div>
+              <h3>Researchers &amp; Universities</h3>
+              <p>Contribute modelling expertise, validation studies, and regional knowledge. Help shape the scientific direction of GeoID and co-author research outcomes from the platform.</p>
+            </article>
+            <article class="involve-card">
+              <div class="involve-icon">🏛️</div>
+              <h3>Public Authorities &amp; NGOs</h3>
+              <p>Pilot GeoID for early warning, community preparedness, and response planning. We welcome engagement from civil protection agencies and humanitarian organisations at all scales.</p>
+            </article>
+            <article class="involve-card">
+              <div class="involve-icon">⚙️</div>
+              <h3>Developers &amp; Data Scientists</h3>
+              <p>Help build scalable data pipelines, mobile tools, and open APIs. We need engineers who can bridge cutting-edge geoscience with accessible, real-world software.</p>
+            </article>
+            <article class="involve-card">
+              <div class="involve-icon">💰</div>
+              <h3>Funders &amp; Sponsors</h3>
+              <p>GeoID is currently seeking seed funding and pilot sponsorship to support development, data processing, and early deployments. All funding directly accelerates open-access hazard science.</p>
+            </article>
+          </div>
+          <div class="hero-actions" style="justify-content:center; margin-top:2rem;">
+            <a class="btn-primary" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+            <a class="btn-ghost" href="involved.html">Get Involved</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Footer ── -->
+      <footer class="site-footer">
+        <div class="footer-inner">
+          <div class="footer-content">
+            <div class="footer-brand">
+              <div class="footer-brand-logo">
+                <img src="../GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" loading="lazy" decoding="async">
+              </div>
+              <p>Democratizing geohazard science through real-time risk tracking and physics-based modeling. Empowering communities with actionable insights.</p>
+              <p>GeoID is a non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>
+            </div>
+            <div class="footer-section">              <h4>Navigation</h4>
+              <ul>
+                <li><a href="about.html">Overview</a></li>
+                <li><a href="interface.html">myGeoID App</a></li>
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="explorer.html">Explorer</a></li>
+                <li><a href="involved.html">Get Involved</a></li>
+                <li><a href="team.html">Our Team</a></li>
+                <li><a href="contact.html">Contact</a></li>
+              </ul>
+            </div>
+            <div class="footer-section">
+              <h4>Resources</h4>
+              <ul>
+                <li><a href="https://gitlab.com/dgmaths9/gales" target="_blank" rel="noopener">GALES Software</a></li>
+                <li><a href="https://www.copernicus.eu/" target="_blank" rel="noopener">Copernicus Programme</a></li>
+                <li><a href="https://earthdata.nasa.gov/" target="_blank" rel="noopener">NASA Earth Data</a></li>
+                <li><a href="https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs.php" target="_blank" rel="noopener">GFS NOAA API</a></li>
+              </ul>
+            </div>
+            <div class="footer-section">
+              <h4>Legal</h4>
+              <ul>
+                <li><a href="#" onclick="alert('Privacy Policy: GeoID respects your privacy. Contact us for our full privacy policy.'); return false;">Privacy Policy</a></li>
+                <li><a href="#" onclick="alert('Terms of Service: GeoID is provided for informational and research purposes. Contact us for full terms.'); return false;">Terms of Service</a></li>
+                <li><a href="#" onclick="alert('Disclaimer: GeoID provides estimated geohazard risk based on best available scientific methods.'); return false;">Disclaimer</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="footer-bottom">
+            <p>&copy; 2025 GeoID Solutions. Led by Owen McCluskey. All rights reserved.</p>
+            <div class="footer-social-links">
+              <a href="mailto:geoid.initiative@gmail.com" class="footer-social-link" aria-label="Email">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </a>
+              <a href="https://gitlab.com/dgmaths9/gales" target="_blank" rel="noopener" class="footer-social-link" aria-label="GitLab">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <div class="status-bar" role="status">
+    <div class="status-item"><span class="status-dot"></span>Initiative Active</div>
+    <span class="status-sep">·</span>
+    <div class="status-item"><span class="status-dot yellow"></span>Pilot Phase</div>
+    <div class="status-spacer"></div>
+    <div class="status-item">GeoID Initiative</div>
+    <span class="status-sep">·</span>
+    <div class="status-item">About Overview</div>
+  </div>
+
+  <script src="../scripts/site.js"></script>
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll('#heroSlides .hero-slide'));
+      if (slides.length < 2) return;
+      let current = 0;
+      setInterval(() => {
+        slides[current].classList.remove('active');
+        current = (current + 1) % slides.length;
+        slides[current].classList.add('active');
+      }, 6000);
+    })();
+  </script>
+</body>
+</html>

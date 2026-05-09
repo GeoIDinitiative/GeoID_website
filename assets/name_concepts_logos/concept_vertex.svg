@@ -1,0 +1,59 @@
+<svg width="1400" height="420" viewBox="0 0 1400 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg_vx" x1="40" y1="40" x2="380" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07102A"/>
+      <stop offset="1" stop-color="#040818"/>
+    </linearGradient>
+    <linearGradient id="tri_vx" x1="140" y1="90" x2="280" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#16F4FF"/>
+      <stop offset="0.55" stop-color="#1D35FF"/>
+      <stop offset="1" stop-color="#FF1FB8"/>
+    </linearGradient>
+    <linearGradient id="inner_vx" x1="170" y1="160" x2="250" y2="300" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1D35FF" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#FF1FB8" stop-opacity="0.4"/>
+    </linearGradient>
+    <filter id="glow_vx">
+      <feGaussianBlur stdDeviation="9" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1400" height="420" fill="#040916"/>
+  <rect x="36" y="36" width="348" height="348" rx="24" fill="url(#bg_vx)" stroke="#151E3A" stroke-width="1.5"/>
+
+  <!-- Outer triangle -->
+  <polygon points="210,82 326,300 94,300"
+           stroke="url(#tri_vx)" stroke-width="10" fill="none" stroke-linejoin="round" filter="url(#glow_vx)"/>
+
+  <!-- Inner inverted triangle (subdivision feel) -->
+  <polygon points="210,198 268,300 152,300"
+           stroke="url(#inner_vx)" stroke-width="5" fill="#0D1530" stroke-linejoin="round" opacity="0.9"/>
+
+  <!-- Medians (lines from vertices to midpoints) -->
+  <line x1="210" y1="82" x2="210" y2="300" stroke="#16F4FF" stroke-width="2" stroke-dasharray="5 7" opacity="0.35"/>
+  <line x1="326" y1="300" x2="152" y2="191" stroke="#16F4FF" stroke-width="2" stroke-dasharray="5 7" opacity="0.25"/>
+  <line x1="94" y1="300" x2="268" y2="191" stroke="#16F4FF" stroke-width="2" stroke-dasharray="5 7" opacity="0.25"/>
+
+  <!-- Apex vertex glow -->
+  <circle cx="210" cy="82" r="12" fill="#16F4FF" filter="url(#glow_vx)"/>
+  <circle cx="210" cy="82" r="5" fill="#FFFFFF"/>
+
+  <!-- Base vertices -->
+  <circle cx="326" cy="300" r="9" fill="#FF1FB8" filter="url(#glow_vx)"/>
+  <circle cx="94" cy="300" r="9" fill="#1D35FF" filter="url(#glow_vx)"/>
+
+  <!-- Centroid dot -->
+  <circle cx="210" cy="227" r="7" fill="#16F4FF" opacity="0.7"/>
+
+  <!-- Wordmark -->
+  <text x="450" y="178" fill="#FFFFFF" font-size="108" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="900" letter-spacing="-2">Vertex</text>
+
+  <!-- Triple-colour accent bars -->
+  <rect x="452" y="200" width="80" height="6" rx="3" fill="#16F4FF"/>
+  <rect x="538" y="200" width="80" height="6" rx="3" fill="#1D35FF"/>
+  <rect x="624" y="200" width="80" height="6" rx="3" fill="#FF1FB8"/>
+
+  <text x="452" y="250" fill="#16F4FF" font-size="34" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="700" letter-spacing="7">ENGINEERING STUDIO</text>
+  <text x="452" y="318" fill="#6A7FA8" font-size="26" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="400">Where every computation finds its point</text>
+</svg>

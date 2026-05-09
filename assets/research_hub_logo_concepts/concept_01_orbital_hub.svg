@@ -1,0 +1,30 @@
+<svg width="1400" height="420" viewBox="0 0 1400 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="40" y1="30" x2="380" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A0F33"/>
+      <stop offset="1" stop-color="#060A26"/>
+    </linearGradient>
+    <linearGradient id="orbit" x1="80" y1="80" x2="340" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#16F4FF"/>
+      <stop offset="1" stop-color="#1D35FF"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="120" y1="120" x2="300" y2="260" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF1FB8"/>
+      <stop offset="1" stop-color="#16F4FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="420" rx="28" fill="#050625"/>
+  <rect x="36" y="36" width="348" height="348" rx="28" fill="url(#bg)" stroke="#28439A" stroke-width="2"/>
+  <circle cx="210" cy="210" r="94" stroke="url(#orbit)" stroke-width="16"/>
+  <circle cx="210" cy="210" r="48" fill="#10184A" stroke="#16F4FF" stroke-width="10"/>
+  <circle cx="210" cy="116" r="16" fill="#16F4FF"/>
+  <circle cx="302" cy="236" r="14" fill="#FF1FB8"/>
+  <circle cx="126" cy="272" r="12" fill="#ECF1FF"/>
+  <path d="M210 116C258 128 290 176 302 236" stroke="#16F4FF" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+  <path d="M126 272C148 252 174 232 210 210" stroke="url(#accent)" stroke-width="5" stroke-linecap="round" opacity="0.9"/>
+  <path d="M210 210L302 236" stroke="#ECF1FF" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
+  <text x="450" y="170" fill="#ECF1FF" font-size="92" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="800" letter-spacing="1.5">GeoID</text>
+  <text x="455" y="246" fill="#16F4FF" font-size="38" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="700" letter-spacing="6">RESEARCH HUB</text>
+  <line x1="456" y1="272" x2="1040" y2="272" stroke="#28439A" stroke-width="3"/>
+  <text x="455" y="326" fill="#9AABD9" font-size="28" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="500">Data. Modelling. Analysis. Reporting.</text>
+</svg>

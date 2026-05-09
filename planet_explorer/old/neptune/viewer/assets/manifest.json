@@ -1,0 +1,100 @@
+{
+  "texture": {
+    "path": "neptune_color.jpg",
+    "width": 4096,
+    "source_page_url": "https://science.nasa.gov/3d-resources/neptune/"
+  },
+  "elevation": {
+    "path": "neptune_elevation.png",
+    "width": 2048,
+    "min_m": 0.0,
+    "max_m": 0.0,
+    "relief_m": 0.0,
+    "source_page_url": "synthetic-flat-dem"
+  },
+  "geology": {
+    "path": "neptune_geology_sim3292.png",
+    "size": [
+      4096,
+      2048
+    ],
+    "description": "Enhanced atmospheric context layer derived from the official NASA Neptune image."
+  },
+  "geology_interactive": {
+    "feature_path": "neptune_geology_features.json"
+  },
+  "geology_layers": [
+    {
+      "id": "enhanced-atmosphere",
+      "label": "Enhanced Atmosphere",
+      "path": "neptune_geology_sim3292.png",
+      "description": "Locally enhanced atmospheric context derived from the official NASA Neptune image.",
+      "source_page_url": "https://science.nasa.gov/3d-resources/neptune/",
+      "size": [
+        4096,
+        2048
+      ],
+      "default": true
+    }
+  ],
+  "layers": [
+    {
+      "id": "neptune-visible",
+      "label": "Visible Texture",
+      "path": "neptune_color.jpg",
+      "description": "Official NASA global Neptune image used as the primary globe texture.",
+      "source_page_url": "https://science.nasa.gov/3d-resources/neptune/",
+      "default": true
+    },
+    {
+      "id": "neptune-band-contrast",
+      "label": "Band Contrast",
+      "path": "neptune_tes_albedo.png",
+      "description": "Derived grayscale layer emphasizing Neptune's broad cloud bands and haze structure.",
+      "source_page_url": "https://science.nasa.gov/3d-resources/neptune/",
+      "size": [
+        2880,
+        1440
+      ]
+    },
+    {
+      "id": "neptune-storm-contrast",
+      "label": "Storm Contrast",
+      "path": "neptune_tes_thermal_inertia.png",
+      "description": "Derived contrast layer emphasizing bright methane cloud systems and dark vortices.",
+      "source_page_url": "https://science.nasa.gov/3d-resources/neptune/",
+      "size": [
+        2880,
+        1440
+      ]
+    }
+  ],
+  "seismic": {
+    "path": "neptune_insight_seismic_events.json",
+    "description": "Placeholder event catalog; no seismic dataset applies to Neptune in this workflow.",
+    "source_page_url": "https://science.nasa.gov/neptune/facts/",
+    "event_count": 0,
+    "located_event_count": 0,
+    "clustered_event_count": 0
+  },
+  "sources": {
+    "texture_url": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/image/neptune/Neptune.jpg",
+    "ring_texture_url": "synthetic-transparent-placeholder",
+    "dem_url": "synthetic-flat-dem",
+    "geology_url": "https://assets.science.nasa.gov/content/dam/science/cds/3d/resources/image/neptune/Neptune.jpg",
+    "geology_database_path": "https://science.nasa.gov/neptune/facts/",
+    "tes_albedo_url": "derived-grayscale-band-layer",
+    "tes_thermal_inertia_url": "derived-storm-contrast-layer",
+    "geology_notes_url": "https://science.nasa.gov/neptune/facts/",
+    "geology_dmu_url": "https://science.nasa.gov/neptune/facts/",
+    "geology_map_url": "https://science.nasa.gov/neptune/facts/",
+    "geology_database_url": "https://science.nasa.gov/neptune/facts/",
+    "geology_original_units_citation": "Neptune uses an atmosphere-focused context workflow rather than a solid-surface geology map database.",
+    "tes_albedo_page_url": "https://science.nasa.gov/3d-resources/neptune/",
+    "tes_thermal_inertia_page_url": "https://science.nasa.gov/3d-resources/neptune/",
+    "magnetic_anomaly_page_url": "https://science.nasa.gov/neptune/facts/",
+    "themis_day_ir_page_url": "https://science.nasa.gov/neptune/facts/",
+    "themis_night_ir_page_url": "https://science.nasa.gov/neptune/facts/"
+  },
+  "mineral_layers": []
+}

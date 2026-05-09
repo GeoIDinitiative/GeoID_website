@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GeoID Research Hub — coming soon. A modularised finite element modelling and project workflow environment for geoscience research.">
+  <title>GeoID Initiative — Research Hub</title>
+  <link rel="icon" type="image/png" href="../assets/GeoID_logo_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles/shared.css">
+  <style>
+    .page-wrap { padding-top: var(--nav-h); }
+
+    .page-utility {
+      position: sticky;
+      top: var(--nav-h);
+      z-index: 90;
+      border-radius: 0;
+      border-left: none;
+      border-right: none;
+      border-top: none;
+      padding: 0.45rem 1.5rem;
+      margin-bottom: 1.25rem;
+      justify-content: center;
+    }
+
+    .page-jump { justify-content: center; width: 100%; }
+
+    .page-jump a {
+      border: none;
+      background: none;
+      border-radius: 0.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
+      color: var(--muted);
+      padding: 0.34rem 0.68rem;
+    }
+
+    .page-jump a:hover {
+      color: var(--text);
+      background: rgba(88, 198, 179, 0.08);
+      border-color: transparent;
+    }
+
+    /* ── Under-construction hero ── */
+    .uc-hero {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 1.35rem;
+      box-shadow: var(--shadow);
+      min-height: 72vh;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      background:
+        radial-gradient(ellipse at 60% 30%, rgba(167,139,250,0.10), transparent 50%),
+        radial-gradient(ellipse at 20% 70%, rgba(88,198,179,0.08), transparent 45%),
+        linear-gradient(160deg, rgba(5,10,20,0.97), rgba(8,15,28,0.94));
+    }
+
+    .uc-bg-img {
+      position: absolute;
+      inset: 0;
+      background-image: url('../assets/mesh.png');
+      background-size: cover;
+      background-position: center;
+      opacity: 0.08;
+    }
+
+    .uc-content {
+      position: relative;
+      z-index: 1;
+      max-width: 52rem;
+      padding: 4rem 2.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .uc-logo {
+      height: 90px;
+      width: auto;
+      opacity: 0.88;
+      filter: drop-shadow(0 0 24px rgba(88,198,179,0.30)) drop-shadow(0 4px 12px rgba(0,0,0,0.70));
+      margin-bottom: 0.5rem;
+    }
+
+    .uc-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.62rem;
+      font-family: "Public Sans", sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #f7bd68;
+      border: 1px solid rgba(247,189,104,0.35);
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+    }
+
+    .uc-badge::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: #f7bd68;
+      border-radius: 50%;
+      box-shadow: 0 0 6px rgba(247,189,104,0.7);
+      flex-shrink: 0;
+    }
+
+    .uc-title {
+      font-family: "Archivo", "Work Sans", sans-serif;
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 700;
+      line-height: 1.1;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+
+    .uc-title span { color: var(--cyan); }
+
+    .uc-desc {
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.75;
+      max-width: 44rem;
+    }
+
+    .uc-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 0.75rem;
+    }
+
+    /* ── Footer ── */
+    .site-footer {
+      margin-top: 2.5rem;
+      border-top: 1px solid var(--line);
+      background: rgba(5,10,16,0.7);
+      backdrop-filter: blur(12px);
+      padding: 3rem 0 1.5rem;
+    }
+
+    .footer-inner { max-width: 1840px; margin: 0 auto; padding: 0 1rem; }
+
+    .footer-content {
+      display: grid;
+      grid-template-columns: 2fr repeat(3, 1fr);
+      gap: 3rem;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .footer-brand-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .footer-brand-logo img { height: 32px; width: auto; }
+    .footer-brand p { color: var(--muted); font-size: 0.88rem; line-height: 1.68; }
+    .footer-brand p + p { margin-top: 0.75rem; }
+
+    .footer-section h4 {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.1rem;
+    }
+
+    .footer-section ul { list-style: none; padding: 0; margin: 0; }
+    .footer-section li { margin-bottom: 0.6rem; }
+    .footer-section a { color: var(--muted); text-decoration: none; font-size: 0.88rem; transition: color 0.18s; }
+    .footer-section a:hover { color: var(--text); }
+
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-top: 1.75rem;
+    }
+
+    .footer-bottom p { color: var(--muted); font-size: 0.82rem; }
+
+    .footer-social-links { display: flex; gap: 0.6rem; }
+
+    .footer-social-link {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--muted); text-decoration: none;
+      transition: color 0.18s, background 0.18s;
+    }
+
+    .footer-social-link:hover { color: var(--cyan); background: var(--cyan-soft); }
+
+    @media (max-width: 1080px) {
+      .footer-content { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .footer-content { grid-template-columns: 1fr; gap: 2rem; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="../index.html" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="../assets/GeoID_logo_icon.png" alt="">
+      GeoID Initiative
+    </a>
+    <ul class="nav-links">
+      <li><a href="dashboard.html">Dashboard</a></li>
+      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle active" href="about.html">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="about.html">Overview</a>
+          <a href="about_myGeoID.html">myGeoID App</a>
+          <a href="team.html">Our Team</a>
+          <a href="research.html" class="active" aria-current="page">Research Hub</a>
+          <a href="learn.html">Resources</a>
+          <a href="involved.html">Get Involved</a>
+        </div>
+      </li>
+      <li><a href="interface.html"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
+      <li><a href="explorer.html">Explorer</a></li>
+      <li><a href="contact.html">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+      <a class="nav-act nav-act-member" href="involved.html">Membership</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+
+  <div class="page-wrap">
+    <section class="page-utility" aria-label="About section links">
+      <div class="page-jump">
+        <a href="about.html">Overview</a>
+        <a href="about_myGeoID.html">myGeoID App</a>
+        <a href="team.html">Our Team</a>
+        <a href="research.html" class="active" aria-current="page">Research Hub</a>
+        <a href="learn.html">Resources</a>
+        <a href="involved.html">Get Involved</a>
+      </div>
+    </section>
+
+    <div class="page-inner">
+      <div class="uc-hero">
+        <div class="uc-bg-img"></div>
+        <div class="uc-content">
+          <img class="uc-logo" src="../assets/GeoID research hub logo.png" alt="GeoID Research Hub">
+          <span class="uc-badge">In Development</span>
+          <h1 class="uc-title">Research <span>Hub</span></h1>
+          <p class="uc-desc">The GeoID Research Hub is currently under construction. It will unite the GeoID Explorer GIS environment with a modularised finite element model builder and a structured project workflow tool — guiding researchers from data ingestion through FEM simulation to publication-ready outputs.</p>
+          <p class="uc-desc">We are actively seeking academic and institutional collaborators to help shape the Research Hub's development. If you are a researcher, university, or organisation interested in contributing, we would love to hear from you.</p>
+          <div class="uc-actions">
+            <a class="btn-primary" href="contact.html">Contact Us</a>
+            <a class="btn-ghost" href="about.html#products">Learn More</a>
+          </div>
+        </div>
+      </div>
+
+      <footer class="site-footer">
+        <div class="footer-inner">
+          <div class="footer-content">
+            <div class="footer-brand">
+              <div class="footer-brand-logo">
+                <img src="../GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" loading="lazy" decoding="async">
+              </div>
+              <p>Democratizing geohazard science through real-time risk tracking and physics-based modeling. Empowering communities with actionable insights.</p>
+              <p>GeoID is a non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>
+            </div>
+            <div class="footer-section">              <h4>Navigation</h4>
+              <ul>
+                <li><a href="about.html">Overview</a></li>
+                <li><a href="interface.html">myGeoID App</a></li>
+                <li><a href="dashboard.html">Dashboard</a></li>
+                <li><a href="explorer.html">Explorer</a></li>
+                <li><a href="involved.html">Get Involved</a></li>
+                <li><a href="team.html">Our Team</a></li>
+                <li><a href="contact.html">Contact</a></li>
+              </ul>
+            </div>
+            <div class="footer-section">
+              <h4>Resources</h4>
+              <ul>
+                <li><a href="https://gitlab.com/dgmaths9/gales" target="_blank" rel="noopener">GALES Software</a></li>
+                <li><a href="https://www.copernicus.eu/" target="_blank" rel="noopener">Copernicus Programme</a></li>
+                <li><a href="https://earthdata.nasa.gov/" target="_blank" rel="noopener">NASA Earth Data</a></li>
+                <li><a href="https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs.php" target="_blank" rel="noopener">GFS NOAA API</a></li>
+              </ul>
+            </div>
+            <div class="footer-section">
+              <h4>Legal</h4>
+              <ul>
+                <li><a href="#" onclick="alert('Privacy Policy: GeoID respects your privacy. Contact us for our full privacy policy.'); return false;">Privacy Policy</a></li>
+                <li><a href="#" onclick="alert('Terms of Service: GeoID is provided for informational and research purposes. Contact us for full terms.'); return false;">Terms of Service</a></li>
+                <li><a href="#" onclick="alert('Disclaimer: GeoID provides estimated geohazard risk based on best available scientific methods.'); return false;">Disclaimer</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="footer-bottom">
+            <p>&copy; 2025 GeoID Solutions. Led by Owen McCluskey. All rights reserved.</p>
+            <div class="footer-social-links">
+              <a href="mailto:geoid.initiative@gmail.com" class="footer-social-link" aria-label="Email">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </a>
+              <a href="https://gitlab.com/dgmaths9/gales" target="_blank" rel="noopener" class="footer-social-link" aria-label="GitLab">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <div class="status-bar" role="status">
+    <div class="status-item"><span class="status-dot yellow"></span>In Development</div>
+    <span class="status-sep">·</span>
+    <div class="status-item">Research Hub</div>
+    <div class="status-spacer"></div>
+    <div class="status-item">GeoID Initiative</div>
+  </div>
+
+  <script src="../scripts/site.js"></script>
+</body>
+</html>

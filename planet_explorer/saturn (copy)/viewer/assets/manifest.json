@@ -1,0 +1,113 @@
+{
+  "texture": {
+    "path": "saturn_body_color.jpg",
+    "width": 4096,
+    "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/"
+  },
+  "saturn": {
+    "body_scale_y": 0.902,
+    "axial_tilt_deg": 26.7,
+    "rings": {
+      "path": "saturn_rings.png",
+      "inner_radius": 3.968,
+      "outer_radius": 7.264,
+      "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/"
+    }
+  },
+  "elevation": {
+    "path": "saturn_elevation.png",
+    "width": 2048,
+    "min_m": 0.0,
+    "max_m": 0.0,
+    "relief_m": 0.0,
+    "source_page_url": "synthetic-flat-dem"
+  },
+  "geology": {
+    "path": "saturn_geology_sim3292.png",
+    "size": [
+      4096,
+      2048
+    ],
+    "description": "Enhanced atmospheric context layer derived from the official NASA Saturn image."
+  },
+  "geology_interactive": {
+    "feature_path": "saturn_geology_features.json"
+  },
+  "geology_layers": [
+    {
+      "id": "enhanced-atmosphere",
+      "label": "Enhanced Atmosphere",
+      "path": "saturn_geology_sim3292.png",
+      "description": "Locally enhanced atmospheric context derived from the official NASA Saturn image.",
+      "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/",
+      "size": [
+        4096,
+        2048
+      ],
+      "default": true
+    }
+  ],
+  "layers": [
+    {
+      "id": "saturn-visible",
+      "label": "Saturn Body",
+      "path": "saturn_body_color.jpg",
+      "description": "Derived Saturn body texture for the oblate globe, separated from the ring system.",
+      "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/",
+      "default": true
+    },
+    {
+      "id": "saturn-band-contrast",
+      "label": "Band Contrast",
+      "path": "saturn_tes_albedo.png",
+      "description": "Derived grayscale layer emphasizing atmospheric bands and haze structure.",
+      "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/",
+      "size": [
+        2880,
+        1440
+      ]
+    },
+    {
+      "id": "saturn-storm-contrast",
+      "label": "Storm Contrast",
+      "path": "saturn_tes_thermal_inertia.png",
+      "description": "Derived high-contrast layer emphasizing vortices and cloud texture boundaries.",
+      "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/",
+      "size": [
+        2880,
+        1440
+      ]
+    }
+  ],
+  "seismic": {
+    "path": "saturn_insight_seismic_events.json",
+    "description": "Placeholder event catalog; no Mars-style seismic dataset applies to Saturn in this workflow.",
+    "source_page_url": "https://science.nasa.gov/saturn/facts/",
+    "event_count": 0,
+    "located_event_count": 0,
+    "clustered_event_count": 0
+  },
+  "sources": {
+    "texture_url": "saturn_color_upscaled.jpg",
+    "ring_texture_url": "https://assets.science.nasa.gov/content/dam/science/missions/hubble/releases/1990/11/STScI-01EVTBDACAJS4TJP8SKB5KW3X6.tif",
+    "dem_url": "synthetic-flat-dem",
+    "geology_url": "saturn_color_upscaled.jpg",
+    "geology_database_path": "https://science.nasa.gov/saturn/facts/",
+    "tes_albedo_url": "derived-grayscale-band-layer",
+    "tes_thermal_inertia_url": "derived-storm-contrast-layer",
+    "geology_notes_url": "https://science.nasa.gov/saturn/facts/",
+    "geology_dmu_url": "https://science.nasa.gov/saturn/facts/",
+    "geology_map_url": "https://science.nasa.gov/saturn/facts/",
+    "geology_database_url": "https://science.nasa.gov/saturn/facts/",
+    "geology_original_units_citation": "Saturn uses an atmosphere-focused context workflow rather than a solid-surface geology map database.",
+    "tes_albedo_page_url": "https://science.nasa.gov/solar-system/planets/saturn/",
+    "tes_thermal_inertia_page_url": "https://science.nasa.gov/solar-system/planets/saturn/",
+    "magnetic_anomaly_page_url": "https://science.nasa.gov/saturn/facts/",
+    "themis_day_ir_page_url": "https://science.nasa.gov/saturn/facts/",
+    "themis_night_ir_page_url": "https://science.nasa.gov/saturn/facts/",
+    "tethys_texture_page_url": "https://www.jpl.nasa.gov/images/pia11673-map-of-tethys-august-2010/",
+    "tes_mineral_products_url": "https://tes.mars.asu.edu/products/",
+    "insight_seismic_catalog_url": "https://raw.githubusercontent.com/UMD-InSight/InSight-seismic-data-downloader/main/events_mars_extended_multiorigin_v12_2022-07-01.xml"
+  },
+  "mineral_layers": []
+}

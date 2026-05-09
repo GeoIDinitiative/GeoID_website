@@ -1,0 +1,58 @@
+<svg width="1400" height="420" viewBox="0 0 1400 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="wave1" x1="80" y1="210" x2="340" y2="210" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#16F4FF"/>
+      <stop offset="1" stop-color="#1D35FF"/>
+    </linearGradient>
+    <linearGradient id="wave2" x1="80" y1="210" x2="340" y2="210" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1D35FF"/>
+      <stop offset="1" stop-color="#FF1FB8"/>
+    </linearGradient>
+    <linearGradient id="wave3" x1="80" y1="210" x2="340" y2="210" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF1FB8"/>
+      <stop offset="1" stop-color="#16F4FF"/>
+    </linearGradient>
+    <filter id="glow_flux">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <linearGradient id="bg_flux" x1="40" y1="40" x2="380" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#08102A"/>
+      <stop offset="1" stop-color="#030716"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1400" height="420" fill="#040818"/>
+  <rect x="36" y="36" width="348" height="348" rx="24" fill="url(#bg_flux)" stroke="#1A2448" stroke-width="1.5"/>
+
+  <!-- Flowing wave lines — 3 stacked sinusoidal paths -->
+  <path d="M88,152 C118,112 148,172 178,152 C208,132 238,192 268,152 C298,112 318,152 332,142"
+        stroke="url(#wave1)" stroke-width="10" fill="none" stroke-linecap="round" filter="url(#glow_flux)"/>
+
+  <path d="M88,210 C118,170 148,230 178,210 C208,190 238,250 268,210 C298,170 318,210 332,200"
+        stroke="url(#wave2)" stroke-width="10" fill="none" stroke-linecap="round" filter="url(#glow_flux)"/>
+
+  <path d="M88,268 C118,228 148,288 178,268 C208,248 238,308 268,268 C298,228 318,268 332,258"
+        stroke="url(#wave3)" stroke-width="10" fill="none" stroke-linecap="round" filter="url(#glow_flux)"/>
+
+  <!-- Flow dots -->
+  <circle cx="178" cy="152" r="8" fill="#16F4FF" filter="url(#glow_flux)"/>
+  <circle cx="268" cy="210" r="8" fill="#FF1FB8" filter="url(#glow_flux)"/>
+  <circle cx="178" cy="268" r="8" fill="#16F4FF" filter="url(#glow_flux)"/>
+
+  <!-- Left/right caps -->
+  <circle cx="88" cy="152" r="5" fill="#16F4FF" opacity="0.6"/>
+  <circle cx="88" cy="210" r="5" fill="#1D35FF" opacity="0.6"/>
+  <circle cx="88" cy="268" r="5" fill="#FF1FB8" opacity="0.6"/>
+
+  <!-- Wordmark -->
+  <text x="450" y="182" fill="#FFFFFF" font-size="112" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="900" letter-spacing="-3">Flux</text>
+
+  <!-- Three-colour underbar matching the waves -->
+  <rect x="452" y="204" width="120" height="6" rx="3" fill="#16F4FF"/>
+  <rect x="578" y="204" width="120" height="6" rx="3" fill="#1D35FF"/>
+  <rect x="704" y="204" width="120" height="6" rx="3" fill="#FF1FB8"/>
+
+  <text x="452" y="252" fill="#16F4FF" font-size="34" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="700" letter-spacing="7">RESEARCH PLATFORM</text>
+  <text x="452" y="318" fill="#6A7FA8" font-size="26" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="400">Simulation · Data · Signal · Insight</text>
+</svg>

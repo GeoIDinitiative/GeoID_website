@@ -1,0 +1,35 @@
+<svg width="1400" height="420" viewBox="0 0 1400 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="panel" x1="40" y1="40" x2="360" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10184A"/>
+      <stop offset="1" stop-color="#060A26"/>
+    </linearGradient>
+    <linearGradient id="pin" x1="160" y1="90" x2="270" y2="280" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#16F4FF"/>
+      <stop offset="1" stop-color="#FF1FB8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1400" height="420" rx="28" fill="#050625"/>
+  <rect x="36" y="36" width="348" height="348" rx="28" fill="url(#panel)" stroke="#28439A" stroke-width="2"/>
+  <g opacity="0.28" stroke="#9AABD9" stroke-width="2">
+    <line x1="88" y1="118" x2="332" y2="118"/>
+    <line x1="88" y1="180" x2="332" y2="180"/>
+    <line x1="88" y1="242" x2="332" y2="242"/>
+    <line x1="88" y1="304" x2="332" y2="304"/>
+    <line x1="118" y1="88" x2="118" y2="332"/>
+    <line x1="180" y1="88" x2="180" y2="332"/>
+    <line x1="242" y1="88" x2="242" y2="332"/>
+    <line x1="304" y1="88" x2="304" y2="332"/>
+  </g>
+  <path d="M210 94C159.742 94 119 134.742 119 185C119 254 210 330 210 330C210 330 301 254 301 185C301 134.742 260.258 94 210 94Z" fill="url(#pin)"/>
+  <circle cx="210" cy="185" r="40" fill="#050625" stroke="#ECF1FF" stroke-width="8"/>
+  <circle cx="210" cy="185" r="11" fill="#16F4FF"/>
+  <circle cx="118" cy="118" r="8" fill="#16F4FF"/>
+  <circle cx="304" cy="118" r="8" fill="#16F4FF"/>
+  <circle cx="118" cy="304" r="8" fill="#FF1FB8"/>
+  <circle cx="304" cy="304" r="8" fill="#FF1FB8"/>
+  <text x="450" y="168" fill="#ECF1FF" font-size="90" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="800">GeoID</text>
+  <text x="450" y="242" fill="#ECF1FF" font-size="42" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="600">Research Hub</text>
+  <rect x="450" y="270" width="280" height="10" rx="5" fill="#16F4FF"/>
+  <text x="450" y="325" fill="#9AABD9" font-size="28" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="500">Geospatial workflows for data, simulation, and insight</text>
+</svg>

@@ -1,0 +1,101 @@
+{
+  "texture": {
+    "path": "jupiter_color.jpg",
+    "width": 4096,
+    "source_page_url": "https://science.nasa.gov/solar-system/planets/jupiter/"
+  },
+  "elevation": {
+    "path": "jupiter_elevation.png",
+    "width": 2048,
+    "min_m": 0.0,
+    "max_m": 0.0,
+    "relief_m": 1.0,
+    "source_page_url": "synthetic-flat-dem"
+  },
+  "geology": {
+    "path": "jupiter_geology_sim3292.png",
+    "size": [
+      4096,
+      4096
+    ],
+    "description": "Enhanced atmospheric context layer derived from the official NASA Jupiter globe image."
+  },
+  "geology_interactive": {
+    "feature_path": "jupiter_geology_features.json"
+  },
+  "geology_layers": [
+    {
+      "id": "enhanced-atmosphere",
+      "label": "Enhanced Atmosphere",
+      "path": "jupiter_geology_sim3292.png",
+      "description": "Locally enhanced atmospheric context derived from the official NASA Jupiter image.",
+      "source_page_url": "https://science.nasa.gov/solar-system/planets/jupiter/",
+      "size": [
+        4096,
+        4096
+      ],
+      "default": true
+    }
+  ],
+  "layers": [
+    {
+      "id": "jupiter-visible",
+      "label": "Visible Texture",
+      "path": "jupiter_color.jpg",
+      "description": "Official NASA global Jupiter image used as the primary globe texture.",
+      "source_page_url": "https://science.nasa.gov/solar-system/planets/jupiter/",
+      "default": true
+    },
+    {
+      "id": "jupiter-band-contrast",
+      "label": "Band Contrast",
+      "path": "jupiter_tes_albedo.png",
+      "description": "Derived grayscale layer emphasizing band and zone structure.",
+      "source_page_url": "https://science.nasa.gov/solar-system/planets/jupiter/",
+      "size": [
+        2880,
+        2880
+      ]
+    },
+    {
+      "id": "jupiter-storm-contrast",
+      "label": "Storm Contrast",
+      "path": "jupiter_tes_thermal_inertia.png",
+      "description": "Derived high-contrast layer emphasizing vortices and cloud texture boundaries.",
+      "source_page_url": "https://science.nasa.gov/solar-system/planets/jupiter/",
+      "size": [
+        2880,
+        2880
+      ]
+    }
+  ],
+  "seismic": {
+    "path": "jupiter_insight_seismic_events.json",
+    "description": "Placeholder event catalog; no Mars-style seismic dataset applies to Jupiter in this workflow.",
+    "source_page_url": "https://science.nasa.gov/jupiter/facts/",
+    "event_count": 0,
+    "located_event_count": 0,
+    "clustered_event_count": 0
+  },
+  "sources": {
+    "texture_url": "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia00/pia00343/jpeg/PIA00343.jpg",
+    "dem_url": "synthetic-flat-dem",
+    "geology_url": "https://assets.science.nasa.gov/dynamicimage/assets/science/psd/photojournal/pia/pia00/pia00343/jpeg/PIA00343.jpg",
+    "geology_database_path": "https://science.nasa.gov/jupiter/facts/",
+    "tes_albedo_url": "derived-grayscale-band-layer",
+    "tes_thermal_inertia_url": "derived-storm-contrast-layer",
+    "geology_notes_url": "https://science.nasa.gov/jupiter/facts/",
+    "geology_dmu_url": "https://science.nasa.gov/jupiter/facts/",
+    "geology_map_url": "https://science.nasa.gov/jupiter/facts/",
+    "geology_database_url": "https://science.nasa.gov/jupiter/facts/",
+    "geology_original_units_citation": "Jupiter uses an atmosphere-focused context workflow rather than a solid-surface geology map database.",
+    "tes_albedo_page_url": "https://science.nasa.gov/solar-system/planets/jupiter/",
+    "tes_thermal_inertia_page_url": "https://science.nasa.gov/solar-system/planets/jupiter/",
+    "magnetic_anomaly_page_url": "https://science.nasa.gov/jupiter/facts/",
+    "themis_day_ir_page_url": "https://science.nasa.gov/jupiter/facts/",
+    "themis_night_ir_page_url": "https://science.nasa.gov/jupiter/facts/",
+    "tes_mineral_products_url": "https://tes.mars.asu.edu/products/",
+    "insight_seismic_catalog_url": "https://raw.githubusercontent.com/UMD-InSight/InSight-seismic-data-downloader/main/events_mars_extended_multiorigin_v12_2022-07-01.xml"
+  },
+  "mineral_layers": []
+}

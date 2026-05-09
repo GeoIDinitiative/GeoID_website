@@ -1,0 +1,61 @@
+<svg width="1400" height="420" viewBox="0 0 1400 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg_forge" x1="40" y1="40" x2="380" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D1226"/>
+      <stop offset="1" stop-color="#060A1A"/>
+    </linearGradient>
+    <linearGradient id="hex_forge" x1="130" y1="90" x2="290" y2="330" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FF6A00"/>
+      <stop offset="0.5" stop-color="#FF1FB8"/>
+      <stop offset="1" stop-color="#16F4FF"/>
+    </linearGradient>
+    <linearGradient id="spark1" x1="210" y1="100" x2="210" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#FF6A00" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="glow_forge" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1400" height="420" rx="0" fill="#050A1E"/>
+  <rect x="36" y="36" width="348" height="348" rx="24" fill="url(#bg_forge)" stroke="#1E2A50" stroke-width="1.5"/>
+
+  <!-- Hexagon mark -->
+  <polygon points="210,96 280,136 280,216 210,256 140,216 140,136" stroke="url(#hex_forge)" stroke-width="14" fill="none" stroke-linejoin="round" filter="url(#glow_forge)"/>
+
+  <!-- Inner hex smaller -->
+  <polygon points="210,138 246,158 246,200 210,220 174,200 174,158" fill="#0D1226" stroke="#FF6A00" stroke-width="5" stroke-linejoin="round" opacity="0.85"/>
+
+  <!-- Anvil/forge centre dot -->
+  <circle cx="210" cy="178" r="18" fill="#FF6A00" opacity="0.9" filter="url(#glow_forge)"/>
+  <circle cx="210" cy="178" r="8" fill="#FFFFFF"/>
+
+  <!-- Sparks -->
+  <line x1="210" y1="96" x2="210" y2="58" stroke="url(#spark1)" stroke-width="4" stroke-linecap="round"/>
+  <line x1="210" y1="96" x2="228" y2="62" stroke="url(#spark1)" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <line x1="210" y1="96" x2="192" y2="62" stroke="url(#spark1)" stroke-width="2.5" stroke-linecap="round" opacity="0.7"/>
+  <circle cx="210" cy="56" r="4" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="229" cy="60" r="3" fill="#FF6A00" opacity="0.8"/>
+  <circle cx="191" cy="60" r="3" fill="#16F4FF" opacity="0.8"/>
+
+  <!-- Bottom base bar -->
+  <rect x="148" y="260" width="124" height="16" rx="5" fill="#16F4FF" opacity="0.25"/>
+  <rect x="168" y="282" width="84" height="10" rx="4" fill="#16F4FF" opacity="0.12"/>
+
+  <!-- Wordmark -->
+  <text x="450" y="178" fill="#FFFFFF" font-size="110" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="900" letter-spacing="-2">Forge</text>
+
+  <!-- Tagline accent bar -->
+  <rect x="452" y="200" width="60" height="5" rx="2" fill="#FF6A00"/>
+  <rect x="518" y="200" width="60" height="5" rx="2" fill="#FF1FB8"/>
+  <rect x="584" y="200" width="60" height="5" rx="2" fill="#16F4FF"/>
+
+  <!-- Subtitle -->
+  <text x="452" y="248" fill="#16F4FF" font-size="34" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="700" letter-spacing="7">SIMULATION STUDIO</text>
+
+  <!-- Descriptor -->
+  <text x="452" y="316" fill="#6A7FA8" font-size="26" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="400">Build. Solve. Analyse. Ship.</text>
+</svg>

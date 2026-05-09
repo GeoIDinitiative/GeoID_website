@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Moon Feature Map Checker</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0d0f14; color: #c8cdd8;
+  font-family: 'Trebuchet MS', sans-serif;
+  display: flex; height: 100vh; overflow: hidden;
+}
+
+/* ── Sidebar ── */
+#sidebar {
+  width: 200px; min-width: 200px; background: #13161e;
+  border-right: 1px solid #1e2230; overflow-y: auto; padding: 10px 0;
+}
+#sidebar h1 {
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: #50566a; padding: 4px 12px 8px; border-bottom: 1px solid #1a1e2a;
+  margin-bottom: 6px;
+}
+.planet-label {
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: #3d6090; padding: 8px 12px 2px;
+}
+.moon-btn {
+  display: block; width: 100%; text-align: left; background: none; border: none;
+  color: #8a90a0; font-size: 12px; padding: 4px 12px 4px 20px;
+  cursor: pointer; transition: background 0.1s, color 0.1s;
+}
+.moon-btn:hover { background: #191e2c; color: #d0d4e0; }
+.moon-btn.active { background: #1a2240; color: #6eaaf4; border-left: 2px solid #4080cc; padding-left: 18px; }
+.moon-btn .fc { float: right; font-size: 10px; color: #30384a; }
+.moon-btn.active .fc { color: #305880; }
+
+/* ── Main area ── */
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+#header {
+  padding: 8px 14px 6px; background: #13161e; border-bottom: 1px solid #1e2230;
+  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+#hdr-name { font-size: 14px; color: #d0d4e4; font-weight: 600; }
+#hdr-conv {
+  font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 3px; background: #1a1f2e; color: #7080a8;
+}
+#hdr-hint { font-size: 10px; color: #383e52; margin-left: auto; }
+
+/* ── Split views ── */
+#views { flex: 1; display: flex; overflow: hidden; }
+
+/* Flat map panel */
+#flat-panel {
+  flex: 1; display: flex; flex-direction: column; border-right: 1px solid #1a1e2a; overflow: hidden;
+}
+#flat-label {
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: #40506a; padding: 5px 10px; background: #10131c; border-bottom: 1px solid #1a1e2a;
+  flex-shrink: 0;
+}
+#flat-scroll { flex: 1; overflow: auto; background: #090b10; position: relative; }
+#flat-canvas { display: block; }
+
+/* 3-D sphere panel */
+#sphere-panel {
+  width: 420px; min-width: 380px; display: flex; flex-direction: column; overflow: hidden;
+}
+#sphere-label {
+  font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: #40506a; padding: 5px 10px; background: #10131c; border-bottom: 1px solid #1a1e2a;
+  flex-shrink: 0;
+}
+#sphere-wrap { flex: 1; position: relative; overflow: hidden; background: #060810; }
+#sphere-canvas { display: block; width: 100%; height: 100%; }
+#sphere-hint {
+  position: absolute; bottom: 8px; left: 0; right: 0; text-align: center;
+  font-size: 10px; color: #30384a; pointer-events: none;
+}
+
+/* Tooltip */
+#tooltip {
+  position: fixed; background: #0e1120; border: 1px solid #252c3e;
+  color: #c0c8d8; font-size: 11px; padding: 7px 10px; border-radius: 5px;
+  pointer-events: none; display: none; z-index: 200; max-width: 210px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.8);
+}
+#tooltip .tt-name { font-weight: 700; color: #d8dce8; margin-bottom: 3px; font-size: 12px; }
+#tooltip .tt-type { color: #606880; font-size: 10px; margin-bottom: 5px; }
+#tooltip .tt-row { font-family: monospace; font-size: 10px; }
+#tooltip .tt-coord { color: #60a8e8; }
+#tooltip .tt-uv    { color: #60c880; }
+
+/* Empty state */
+#empty-msg {
+  display: flex; align-items: center; justify-content: center;
+  flex: 1; color: #1e2535; font-size: 13px;
+}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h1>Moon Checker</h1>
+  <div id="moon-list"></div>
+</div>
+
+<div id="main">
+  <div id="header">
+    <span id="hdr-name">Select a moon</span>
+    <span id="hdr-conv"></span>
+    <span id="hdr-hint">Flat map + viewer-accurate 3-D sphere · Dots must land on matching terrain in both views</span>
+  </div>
+  <div id="views">
+    <div id="flat-panel">
+      <div id="flat-label">Equirectangular color map · click anywhere to log lat/lon</div>
+      <div id="flat-scroll"><canvas id="flat-canvas"></canvas></div>
+    </div>
+    <div id="sphere-panel">
+      <div id="sphere-label">3-D viewer replica · drag to rotate</div>
+      <div id="sphere-wrap">
+        <canvas id="sphere-canvas"></canvas>
+        <div id="sphere-hint">drag to rotate · scroll to zoom</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<!-- Three.js (pinned minor version for stability) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.min.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// UV convention functions  — image-space (U,V) in [0,1]
+// These MUST match each viewer's rendering transform exactly.
+// ═══════════════════════════════════════════════════════════════
+const UV = {
+  // Left-edge, North-at-top
+  // Viewers: Jupiter (no rotation), Saturn left-edge moons, Neptune
+  leftNorth(lat, lon) {
+    return { u: ((lon % 360) + 360) % 360 / 360, v: (90 - lat) / 180 };
+  },
+
+  // Centered west-positive, North-at-top.
+  // Saturn USGS high-res textures use west-positive lon (old IAU standard).
+  // lon arg is east-positive (IAU 2015); converted to west-positive internally.
+  // Matches saturn-viewer: texture.repeat(-1,1)/offset(1,0) + rotation.y=π.
+  centeredNorth(lat, lon) {
+    const lon_west = ((360 - lon) % 360 + 360) % 360;
+    return { u: ((lon_west + 180) % 360) / 360, v: (90 - lat) / 180 };
+  },
+
+  // Mirror-U, South-at-top  (West-positive + south pole at image top)
+  // Viewers: Uranus moons (texture.repeat(-1,-1), offset(1,1))
+  mirrorUSouth(lat, lon) {
+    const l = ((lon % 360) + 360) % 360;
+    return { u: 1 - l / 360, v: (lat + 90) / 180 };
+  },
+};
+
+// Reverse UV → lat/lon for click-to-probe
+const UV_INV = {
+  leftNorth(u, v)      { return { lat: 90 - v * 180, lon: u * 360 }; },
+  centeredNorth(u, v)  {
+    const lon_west = ((u * 360 - 180) + 360) % 360;
+    return { lat: 90 - v * 180, lon: (360 - lon_west + 360) % 360 };
+  },
+  mirrorUSouth(u, v)   { return { lat: v * 180 - 90, lon: ((1 - u) * 360 + 360) % 360 }; },
+};
+
+// Three.js texture wrapping needed per convention on the sphere
+// (replicates the exact viewer logic)
+const SPHERE_TEX_SETUP = {
+  leftNorth(tex) {
+    // no extra transforms needed
+  },
+  centeredNorth(tex) {
+    // USGS textures use west-positive lon convention (old IAU standard).
+    // Flip horizontally so east-positive IAU 2015 coords map correctly.
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.repeat.set(-1, 1);
+    tex.offset.set(1, 0);
+  },
+  mirrorUSouth(tex) {
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(-1, -1);
+    tex.offset.set(1, 1);
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Moon database — extracted directly from each viewer's JS
+// ═══════════════════════════════════════════════════════════════
+const MOONS = [
+  // ── Jupiter ──────────────────────────────────────────────────
+  { planet:"Jupiter", name:"Io",       conv:"leftNorth",
+    tex:"planet_explorer/jupiter/viewer/assets/io_color_map.jpg",
+    features:[
+      {name:"Loki Patera",      type:"Volcanic patera",  lat: 12.6, lon:  51.2},
+      {name:"Prometheus Plume", type:"Volcanic plume",   lat: -1.5, lon: 206.1},
+    ]},
+  { planet:"Jupiter", name:"Europa",   conv:"leftNorth",
+    tex:"planet_explorer/jupiter/viewer/assets/europa_color_map.jpg",
+    features:[
+      {name:"Conamara Chaos",   type:"Chaos terrain",   lat:  9.7, lon:  86.0},
+      {name:"Chaos Terrain",    type:"Chaos terrain",   lat:  0.0, lon: 270.0},
+    ]},
+  { planet:"Jupiter", name:"Ganymede", conv:"leftNorth",
+    tex:"planet_explorer/jupiter/viewer/assets/ganymede_color_map.jpg",
+    features:[
+      {name:"Galileo Regio",    type:"Dark terrain",    lat: 20.0, lon: 235.0},
+      {name:"Uruk Sulcus",      type:"Grooved terrain", lat:  0.0, lon: 160.0},
+    ]},
+  { planet:"Jupiter", name:"Callisto", conv:"leftNorth",
+    tex:"planet_explorer/jupiter/viewer/assets/callisto_color_map.jpg",
+    features:[
+      {name:"Valhalla Basin",   type:"Multi-ring basin", lat: 15.9, lon: 304.0},
+      {name:"Asgard Basin",     type:"Impact basin",     lat: 30.0, lon: 218.0},
+    ]},
+
+  // ── Saturn left-edge moons ────────────────────────────────────
+  { planet:"Saturn", name:"Mimas",   conv:"leftNorth",
+    tex:"planet_explorer/saturn/viewer/assets/mimas_color_map.jpg",
+    features:[
+      {name:"Herschel Crater",    type:"Impact crater",     lat:  -1.4, lon: 248.2},
+      {name:"Leading Hemisphere", type:"Reference location", lat:   0.0, lon: 270.0},
+    ]},
+  { planet:"Saturn", name:"Iapetus", conv:"leftNorth",
+    tex:"planet_explorer/saturn/viewer/assets/iapetus_color_map.jpg",
+    features:[
+      {name:"Cassini Regio",    type:"Dark albedo province", lat: -28.1, lon: 267.4},
+      {name:"Roncevaux Terra",  type:"Bright terrain",       lat:  37.0, lon: 120.5},
+      {name:"Turgis Crater",    type:"Equatorial ridge",     lat:  16.9, lon: 331.6},
+    ]},
+
+  // ── Saturn centered (USGS high-res) moons ────────────────────
+  { planet:"Saturn", name:"Enceladus", conv:"centeredNorth",
+    tex:"planet_explorer/saturn/viewer/assets/enceladus_color_map.jpg",
+    features:[
+      {name:"Damascus Sulcus",   type:"Tiger stripe", lat: -80.6, lon:  74.1},
+      {name:"Baghdad Sulcus",    type:"Tiger stripe", lat: -86.9, lon: 129.5},
+      {name:"Cairo Sulcus",      type:"Tiger stripe", lat: -81.6, lon: 205.5},
+      {name:"South Polar Plume", type:"Plume source", lat: -90.0, lon:   0.0},
+    ]},
+  { planet:"Saturn", name:"Tethys", conv:"centeredNorth",
+    tex:"planet_explorer/saturn/viewer/assets/tethys_color.jpg",
+    features:[
+      {name:"Odysseus Crater",   type:"Impact basin",  lat:  32.8, lon: 231.1},
+      {name:"Ithaca Chasma",     type:"Canyon system", lat: -14.0, lon: 353.9},
+      {name:"Telemachus Crater", type:"Impact crater", lat:  54.0, lon:  20.6},
+    ]},
+  { planet:"Saturn", name:"Dione",  conv:"centeredNorth",
+    tex:"planet_explorer/saturn/viewer/assets/Dione_Color_Map.jpg",
+    features:[
+      {name:"Wispy Terrain",     type:"Tectonic terrain", lat:   0.0, lon:  90.0},
+      {name:"Padua Chasmata",    type:"Chasmata",         lat:  17.7, lon: 112.8},
+      {name:"Aeneas Crater",     type:"Impact crater",    lat:  25.9, lon: 313.7},
+    ]},
+  { planet:"Saturn", name:"Rhea",   conv:"centeredNorth",
+    tex:"planet_explorer/saturn/viewer/assets/rhea_color_map.jpg",
+    features:[
+      {name:"Inktomi Crater",    type:"Fresh crater",  lat: -14.1, lon: 247.9},
+      {name:"Tirawa Basin",      type:"Impact basin",  lat:  34.2, lon: 208.3},
+      {name:"Mamaldi Crater",    type:"Impact crater", lat: -14.0, lon: 318.0},
+    ]},
+  { planet:"Saturn", name:"Titan",  conv:"centeredNorth",
+    tex:"planet_explorer/saturn/viewer/assets/titan_color_map.jpg",
+    features:[
+      {name:"Kraken Mare",       type:"Hydrocarbon sea",    lat:  68.0, lon:  50.0},
+      {name:"Ligeia Mare",       type:"Hydrocarbon sea",    lat:  79.7, lon: 112.1},
+      {name:"Punga Mare",        type:"Hydrocarbon sea",    lat:  85.1, lon:  20.3},
+      {name:"Xanadu",            type:"Bright continent",   lat: -15.0, lon: 260.0},
+      {name:"Shangri-La",        type:"Dune sea",           lat: -10.0, lon: 195.0},
+      {name:"Belet",             type:"Dune sea",           lat:  -5.0, lon: 105.0},
+      {name:"Huygens Landing",   type:"Probe landing site", lat: -10.3, lon: 167.7},
+    ]},
+
+  // ── Uranus (West-positive + south-at-top) ─────────────────────
+  { planet:"Uranus", name:"Miranda", conv:"mirrorUSouth",
+    tex:"planet_explorer/uranus/viewer/assets/miranda_color_map.jpg",
+    features:[
+      {name:"Verona Rupes",      type:"Fault scarp", lat: -22.8, lon: 347.8},
+      {name:"Arden Corona",      type:"Corona",      lat: -35.0, lon:   0.0},
+    ]},
+  { planet:"Uranus", name:"Ariel",   conv:"mirrorUSouth",
+    tex:"planet_explorer/uranus/viewer/assets/ariel_color_map.jpg",
+    features:[
+      {name:"Kachina Chasmata",  type:"Canyon system", lat: -9.0, lon: 246.0},
+    ]},
+  { planet:"Uranus", name:"Umbriel", conv:"mirrorUSouth",
+    tex:"planet_explorer/uranus/viewer/assets/umbriel_color_map.jpg",
+    features:[
+      {name:"Wunda Crater",      type:"Impact crater", lat: -7.9, lon: 86.4},
+    ]},
+  { planet:"Uranus", name:"Titania", conv:"mirrorUSouth",
+    tex:"planet_explorer/uranus/viewer/assets/titania_color_map.jpg",
+    features:[
+      {name:"Messina Chasma",    type:"Rift valley", lat: -33.3, lon: 335.0},
+    ]},
+  { planet:"Uranus", name:"Oberon",  conv:"mirrorUSouth",
+    tex:"planet_explorer/uranus/viewer/assets/oberon_color_map.jpg",
+    features:[
+      {name:"Hamlet Crater",     type:"Impact crater", lat: -46.1, lon: 315.6},
+    ]},
+
+  // ── Neptune ───────────────────────────────────────────────────
+  { planet:"Neptune", name:"Triton", conv:"leftNorth",
+    tex:"planet_explorer/neptune/viewer/assets/triton_color_map.jpg",
+    features:[
+      {name:"Cipango Planum",    type:"Cantaloupe terrain", lat:  11.5, lon:  34.0},
+      {name:"Hili Plume",        type:"Geyser plume",       lat: -57.0, lon:  28.0},
+      {name:"South Polar Cap",   type:"Frost cap",          lat: -75.0, lon:   0.0},
+    ]},
+];
+
+const CONV_COLOR = { leftNorth:"#ff5050", centeredNorth:"#ff9030", mirrorUSouth:"#30c8ff" };
+const CONV_LABEL = {
+  leftNorth:     "Left-edge · North-at-top",
+  centeredNorth: "Centered · North-at-top  (mesh rotation.y = π)",
+  mirrorUSouth:  "Mirror-U · South-at-top  (tex repeat(−1,−1) offset(1,1))",
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Build sidebar
+// ═══════════════════════════════════════════════════════════════
+const listEl = document.getElementById("moon-list");
+[...new Set(MOONS.map(m => m.planet))].forEach(planet => {
+  const grp = document.createElement("div");
+  const lbl = document.createElement("div");
+  lbl.className = "planet-label"; lbl.textContent = planet;
+  grp.appendChild(lbl);
+  MOONS.filter(m => m.planet === planet).forEach(moon => {
+    const btn = document.createElement("button");
+    btn.className = "moon-btn"; btn.dataset.name = moon.name;
+    btn.innerHTML = `${moon.name}<span class="fc">${moon.features.length}</span>`;
+    btn.addEventListener("click", () => loadMoon(moon));
+    grp.appendChild(btn);
+  });
+  listEl.appendChild(grp);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// Flat-map canvas
+// ═══════════════════════════════════════════════════════════════
+const flatCanvas = document.getElementById("flat-canvas");
+const flatCtx    = flatCanvas.getContext("2d");
+const flatScroll = document.getElementById("flat-scroll");
+const tooltip    = document.getElementById("tooltip");
+let flatDots = [];
+let currentMoon = null;
+
+function drawGrid(W, H, conv) {
+  const uvFn = UV[conv];
+  flatCtx.lineWidth = 0.5;
+  flatCtx.font = "9px monospace";
+
+  // Latitude lines
+  [-60,-30,0,30,60].forEach(lat => {
+    const y = Math.round(uvFn(lat, 0).v * H);
+    flatCtx.strokeStyle = lat === 0 ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.10)";
+    flatCtx.lineWidth   = lat === 0 ? 1 : 0.5;
+    flatCtx.beginPath(); flatCtx.moveTo(0,y); flatCtx.lineTo(W,y); flatCtx.stroke();
+    flatCtx.fillStyle = "rgba(255,255,255,0.30)";
+    if (lat !== 0) flatCtx.fillText(`${lat}°`, 3, y - 2);
+    else           flatCtx.fillText("EQ", 3, y - 2);
+  });
+
+  // Longitude lines
+  flatCtx.lineWidth = 0.5;
+  [0,60,120,180,240,300].forEach(lon => {
+    const x = Math.round(uvFn(0, lon).u * W);
+    flatCtx.strokeStyle = "rgba(255,255,255,0.10)";
+    flatCtx.beginPath(); flatCtx.moveTo(x,0); flatCtx.lineTo(x,H); flatCtx.stroke();
+    flatCtx.fillStyle = "rgba(255,255,255,0.30)";
+    flatCtx.fillText(`${lon}°E`, x + 2, 10);
+  });
+}
+
+function drawFlatDot(px, py, r, color, label) {
+  flatCtx.beginPath(); flatCtx.arc(px, py, r+2.5, 0, Math.PI*2);
+  flatCtx.fillStyle = "rgba(255,255,255,0.9)"; flatCtx.fill();
+  flatCtx.beginPath(); flatCtx.arc(px, py, r, 0, Math.PI*2);
+  flatCtx.fillStyle = color; flatCtx.fill();
+
+  const fs = Math.max(10, r - 1);
+  flatCtx.font = `bold ${fs}px 'Trebuchet MS', sans-serif`;
+  flatCtx.lineWidth = 3; flatCtx.strokeStyle = "rgba(0,0,0,0.85)";
+  flatCtx.fillStyle = "#ffff70";
+  flatCtx.strokeText(label, px + r + 4, py + 4);
+  flatCtx.fillText(label,   px + r + 4, py + 4);
+}
+
+function renderFlatMap(moon, img) {
+  const maxW  = Math.min(1200, flatScroll.clientWidth - 4);
+  const scale = Math.min(1, maxW / img.naturalWidth);
+  const W = Math.round(img.naturalWidth  * scale);
+  const H = Math.round(img.naturalHeight * scale);
+  flatCanvas.width = W; flatCanvas.height = H;
+  flatCtx.drawImage(img, 0, 0, W, H);
+  drawGrid(W, H, moon.conv);
+
+  const uvFn = UV[moon.conv];
+  const r = Math.max(7, Math.round(Math.min(W,H) / 55));
+  flatDots = [];
+  moon.features.forEach(f => {
+    const {u,v} = uvFn(f.lat, f.lon);
+    const px = Math.round(u * W);
+    const py = Math.round(v * H);
+    drawFlatDot(px, py, r, CONV_COLOR[moon.conv], f.name);
+    flatDots.push({x:px, y:py, r:r+5, f, u, v});
+  });
+}
+
+flatCanvas.addEventListener("mousemove", e => {
+  const rect = flatCanvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const hit = flatDots.find(d => (mx-d.x)**2 + (my-d.y)**2 <= d.r**2);
+  if (hit) {
+    showTooltip(e.clientX, e.clientY, hit.f, hit.u, hit.v);
+    flatCanvas.style.cursor = "pointer";
+  } else {
+    hideTooltip(); flatCanvas.style.cursor = "crosshair";
+  }
+});
+flatCanvas.addEventListener("mouseleave", hideTooltip);
+
+flatCanvas.addEventListener("click", e => {
+  if (!currentMoon) return;
+  const rect = flatCanvas.getBoundingClientRect();
+  const u = (e.clientX - rect.left) / flatCanvas.width;
+  const v = (e.clientY - rect.top)  / flatCanvas.height;
+  const {lat, lon} = UV_INV[currentMoon.conv](u, v);
+  console.log(`[Flat map] clicked → lat ${lat.toFixed(2)}°  lon ${lon.toFixed(2)}°E  UV(${u.toFixed(3)}, ${v.toFixed(3)})`);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// Three.js sphere — viewer-accurate replica
+// ═══════════════════════════════════════════════════════════════
+const sphereWrap   = document.getElementById("sphere-wrap");
+const sphereCanvas = document.getElementById("sphere-canvas");
+
+const renderer = new THREE.WebGLRenderer({ canvas: sphereCanvas, antialias: true, alpha: true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setClearColor(0x060810, 1);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+camera.position.set(0, 0, 3);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(5, 3, 5);
+scene.add(dirLight);
+
+const texLoader = new THREE.TextureLoader();
+
+let sphereMesh = null;
+let markerGroup = new THREE.Group();
+scene.add(markerGroup);
+
+// Drag-to-rotate state
+let isDragging = false, lastX = 0, lastY = 0;
+let rotY = 0, rotX = 0;
+sphereCanvas.addEventListener("mousedown", e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; });
+window.addEventListener("mouseup",   () => isDragging = false);
+window.addEventListener("mousemove", e => {
+  if (!isDragging) return;
+  rotY += (e.clientX - lastX) * 0.008;
+  rotX += (e.clientY - lastY) * 0.008;
+  rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX));
+  lastX = e.clientX; lastY = e.clientY;
+});
+sphereCanvas.addEventListener("wheel", e => {
+  camera.position.z = Math.max(1.2, Math.min(8, camera.position.z + e.deltaY * 0.005));
+  e.preventDefault();
+}, {passive:false});
+
+// latLon → 3D vector (East-positive, same formula as all viewers)
+function latLonToVec3(lat, lon, r=1) {
+  const φ = THREE.MathUtils.degToRad(lat);
+  const λ = THREE.MathUtils.degToRad(lon);
+  return new THREE.Vector3(
+    -r * Math.cos(φ) * Math.cos(λ),
+     r * Math.sin(φ),
+     r * Math.cos(φ) * Math.sin(λ)
+  );
+}
+
+function makeMarker(lat, lon, color, label) {
+  const g = new THREE.Group();
+
+  // Dot on surface
+  const dotGeo = new THREE.SphereGeometry(0.025, 10, 10);
+  const dotMat = new THREE.MeshBasicMaterial({ color, depthTest: false });
+  const dot = new THREE.Mesh(dotGeo, dotMat);
+  dot.renderOrder = 2;
+  const pos = latLonToVec3(lat, lon, 1.015);
+  dot.position.copy(pos);
+  g.add(dot);
+
+  // Thin spike from surface
+  const spikeEnd = latLonToVec3(lat, lon, 1.08);
+  const pts = [pos.clone().multiplyScalar(0.995), spikeEnd];
+  const lineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+  const lineMat = new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: 0.7 });
+  const line = new THREE.Line(lineGeo, lineMat);
+  line.renderOrder = 2;
+  g.add(line);
+
+  // Canvas sprite label
+  const c2 = document.createElement("canvas");
+  c2.width = 256; c2.height = 48;
+  const cx2 = c2.getContext("2d");
+  cx2.font = "bold 20px 'Trebuchet MS', sans-serif";
+  cx2.fillStyle = "#ffff70";
+  cx2.strokeStyle = "rgba(0,0,0,0.9)";
+  cx2.lineWidth = 4;
+  cx2.strokeText(label, 4, 34);
+  cx2.fillText(label, 4, 34);
+  const spriteTex = new THREE.CanvasTexture(c2);
+  const spriteMat = new THREE.SpriteMaterial({ map: spriteTex, depthTest: false, transparent: true });
+  const sprite = new THREE.Sprite(spriteMat);
+  sprite.renderOrder = 3;
+  sprite.scale.set(0.55, 0.1, 1);
+  sprite.position.copy(spikeEnd).multiplyScalar(1.06);
+  g.add(sprite);
+
+  return g;
+}
+
+function buildSphere(moon, tex) {
+  // Clear previous
+  if (sphereMesh) { scene.remove(sphereMesh); sphereMesh.geometry.dispose(); sphereMesh.material.dispose(); }
+  markerGroup.clear();
+
+  SPHERE_TEX_SETUP[moon.conv](tex);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.needsUpdate = true;
+
+  const geo = new THREE.SphereGeometry(1, 64, 64);
+  const mat = new THREE.MeshStandardMaterial({ map: tex });
+  sphereMesh = new THREE.Mesh(geo, mat);
+
+  // Replicate viewer mesh rotation for centered moons
+  if (moon.conv === "centeredNorth") {
+    sphereMesh.rotation.y = Math.PI;
+  }
+
+  scene.add(sphereMesh);
+
+  // Add markers
+  moon.features.forEach(f => {
+    const marker = makeMarker(f.lat, f.lon, CONV_COLOR[moon.conv], f.name);
+    markerGroup.add(marker);
+  });
+
+  // Reset view angle
+  rotY = 0; rotX = 0;
+}
+
+// Resize sphere renderer
+function resizeSphere() {
+  const W = sphereWrap.clientWidth;
+  const H = sphereWrap.clientHeight;
+  renderer.setSize(W, H, false);
+  camera.aspect = W / H;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resizeSphere).observe(sphereWrap);
+resizeSphere();
+
+let moon_conv = "leftNorth"; // track current convention for rotation base
+
+// Render loop
+(function animate() {
+  requestAnimationFrame(animate);
+  if (sphereMesh) {
+    const baseY = moon_conv === "centeredNorth" ? Math.PI : 0;
+    sphereMesh.rotation.x = rotX;
+    sphereMesh.rotation.y = baseY + rotY;
+    markerGroup.rotation.x = rotX;
+    markerGroup.rotation.y = rotY;
+  }
+  renderer.render(scene, camera);
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// Load a moon into both views
+// ═══════════════════════════════════════════════════════════════
+function loadMoon(moon) {
+  document.querySelectorAll(".moon-btn").forEach(b => b.classList.remove("active"));
+  document.querySelector(`.moon-btn[data-name="${moon.name}"]`).classList.add("active");
+
+  document.getElementById("hdr-name").textContent = `${moon.planet}  ·  ${moon.name}`;
+  const ce = document.getElementById("hdr-conv");
+  ce.textContent = CONV_LABEL[moon.conv];
+  ce.style.borderLeft = `3px solid ${CONV_COLOR[moon.conv]}`;
+
+  currentMoon = moon;
+  moon_conv   = moon.conv;
+
+  // Load texture once, use for both views
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  img.onload = () => {
+    renderFlatMap(moon, img);
+    // Three.js texture from same URL
+    texLoader.load(moon.tex, tex => buildSphere(moon, tex));
+  };
+  img.onerror = () => {
+    flatCanvas.width = 400; flatCanvas.height = 80;
+    flatCtx.fillStyle = "#1a0f0f";
+    flatCtx.fillRect(0,0,400,80);
+    flatCtx.fillStyle = "#ff5050"; flatCtx.font = "13px monospace";
+    flatCtx.fillText("Texture missing: " + moon.tex, 10, 45);
+  };
+  img.src = moon.tex;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Tooltip helpers
+// ═══════════════════════════════════════════════════════════════
+function showTooltip(cx, cy, f, u, v) {
+  tooltip.innerHTML = `
+    <div class="tt-name">${f.name}</div>
+    <div class="tt-type">${f.type}</div>
+    <div class="tt-row tt-coord">lat ${f.lat >= 0 ? '+' : ''}${f.lat}°  lon ${f.lon}°E</div>
+    <div class="tt-row tt-uv">UV  (${u.toFixed(3)},  ${v.toFixed(3)})</div>`;
+  tooltip.style.display = "block";
+  tooltip.style.left = (cx + 14) + "px";
+  tooltip.style.top  = (cy - 8)  + "px";
+}
+function hideTooltip() { tooltip.style.display = "none"; }
+
+// Auto-load Io on start
+loadMoon(MOONS[0]);
+</script>
+</body>
+</html>

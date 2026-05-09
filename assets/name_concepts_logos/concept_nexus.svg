@@ -1,0 +1,64 @@
+<svg width="1400" height="420" viewBox="0 0 1400 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg_nex" x1="40" y1="40" x2="380" y2="380" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A102E"/>
+      <stop offset="1" stop-color="#050A1C"/>
+    </linearGradient>
+    <linearGradient id="edge_nex" x1="100" y1="100" x2="320" y2="320" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#16F4FF" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#1D35FF" stop-opacity="0.5"/>
+    </linearGradient>
+    <filter id="glow_nex">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1400" height="420" fill="#040A1C"/>
+  <rect x="36" y="36" width="348" height="348" rx="24" fill="url(#bg_nex)" stroke="#182040" stroke-width="1.5"/>
+
+  <!-- Hub centre -->
+  <circle cx="210" cy="210" r="28" fill="#0D1632" stroke="#16F4FF" stroke-width="8" filter="url(#glow_nex)"/>
+  <circle cx="210" cy="210" r="10" fill="#16F4FF"/>
+
+  <!-- Satellite nodes with edges -->
+  <!-- Top -->
+  <line x1="210" y1="182" x2="210" y2="114" stroke="url(#edge_nex)" stroke-width="3" stroke-dasharray="4 4"/>
+  <circle cx="210" cy="106" r="14" fill="#0D1632" stroke="#16F4FF" stroke-width="5"/>
+  <circle cx="210" cy="106" r="5" fill="#16F4FF"/>
+
+  <!-- Top-right -->
+  <line x1="232" y1="192" x2="289" y2="142" stroke="url(#edge_nex)" stroke-width="3" stroke-dasharray="4 4"/>
+  <circle cx="296" cy="136" r="12" fill="#0D1632" stroke="#FF1FB8" stroke-width="5"/>
+  <circle cx="296" cy="136" r="4" fill="#FF1FB8"/>
+
+  <!-- Right -->
+  <line x1="238" y1="210" x2="306" y2="210" stroke="url(#edge_nex)" stroke-width="3" stroke-dasharray="4 4"/>
+  <circle cx="314" cy="210" r="12" fill="#0D1632" stroke="#1D35FF" stroke-width="5"/>
+  <circle cx="314" cy="210" r="4" fill="#1D35FF"/>
+
+  <!-- Bottom-right -->
+  <line x1="230" y1="230" x2="282" y2="280" stroke="url(#edge_nex)" stroke-width="3" stroke-dasharray="4 4"/>
+  <circle cx="288" cy="287" r="11" fill="#0D1632" stroke="#16F4FF" stroke-width="4"/>
+  <circle cx="288" cy="287" r="4" fill="#16F4FF"/>
+
+  <!-- Bottom-left -->
+  <line x1="190" y1="232" x2="140" y2="282" stroke="url(#edge_nex)" stroke-width="3" stroke-dasharray="4 4"/>
+  <circle cx="133" cy="289" r="11" fill="#0D1632" stroke="#FF1FB8" stroke-width="4"/>
+  <circle cx="133" cy="289" r="4" fill="#FF1FB8"/>
+
+  <!-- Left -->
+  <line x1="182" y1="210" x2="122" y2="210" stroke="url(#edge_nex)" stroke-width="3" stroke-dasharray="4 4"/>
+  <circle cx="114" cy="210" r="11" fill="#0D1632" stroke="#16F4FF" stroke-width="4"/>
+  <circle cx="114" cy="210" r="4" fill="#16F4FF"/>
+
+  <!-- Wordmark -->
+  <text x="450" y="178" fill="#FFFFFF" font-size="110" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="900" letter-spacing="-1">Nexus</text>
+
+  <!-- Accent line -->
+  <line x1="452" y1="202" x2="920" y2="202" stroke="#1A2860" stroke-width="2"/>
+  <rect x="452" y="197" width="80" height="6" rx="3" fill="#16F4FF"/>
+
+  <text x="452" y="250" fill="#16F4FF" font-size="34" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="700" letter-spacing="7">ENGINEERING STUDIO</text>
+  <text x="452" y="318" fill="#6A7FA8" font-size="26" font-family="Avenir, Montserrat, Poppins, sans-serif" font-weight="400">Unified platform for computation and discovery</text>
+</svg>

@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeoID: Explorer | Transit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-a: #000000;
+      --bg-b: #000000;
+      --panel: rgba(6, 12, 22, 0.72);
+      --line: rgba(134, 217, 255, 0.2);
+      --text: #eef5ff;
+      --muted: #a9b8cf;
+      --accent: #f7bd68;
+      --accent-2: #84d8ff;
+      --shadow: 0 28px 90px rgba(0, 0, 0, 0.48);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      color: var(--text);
+      font-family: "Exo 2", "Trebuchet MS", "Segoe UI", sans-serif;
+      background: #000000;
+    }
+
+    .warp-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 1rem;
+    }
+
+    .panel {
+      position: relative;
+      display: grid;
+      gap: 1.2rem;
+      width: min(760px, 100%);
+      padding: clamp(1.4rem, 4vw, 2.4rem);
+      border-radius: 1.5rem;
+      border: 1px solid var(--line);
+      background:
+        radial-gradient(circle at top, rgba(132, 216, 255, 0.09), transparent 16rem),
+        linear-gradient(180deg, rgba(7, 15, 28, 0.88), rgba(6, 10, 18, 0.76));
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-top {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 1.2rem;
+      padding-right: 6.2rem;
+    }
+
+    .panel-brand {
+      display: block;
+      min-width: 0;
+    }
+
+    .panel-logo {
+      position: absolute;
+      top: 1.35rem;
+      right: 1.45rem;
+      width: 5rem;
+      height: 5rem;
+      object-fit: contain;
+      filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.34));
+      flex-shrink: 0;
+    }
+
+    .panel-copy {
+      max-width: 31rem;
+    }
+
+    .eta-top {
+      min-width: 12.5rem;
+      padding: 0.75rem 0.9rem;
+      border-radius: 0.95rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.035);
+      text-align: right;
+    }
+
+    .eta-top-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.58rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      font-family: "Courier New", monospace;
+    }
+
+    .eta-top-value {
+      margin: 0.28rem 0 0;
+      color: #fff4e3;
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .eyebrow,
+    .stat-label,
+    .progress-label {
+      margin: 0;
+      font-family: "Courier New", monospace;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow {
+      color: var(--accent);
+      font-size: 0.74rem;
+    }
+
+    .title {
+      margin: 0.18rem 0 0;
+      font-family: "Orbitron", sans-serif;
+      font-size: clamp(2.2rem, 6vw, 3.6rem);
+      line-height: 0.92;
+      text-transform: uppercase;
+      text-shadow: 0 0 28px rgba(255, 255, 255, 0.08);
+    }
+
+    .subtitle {
+      margin: 0.55rem 0 0;
+      color: #d7e3f0;
+      font-size: 0.98rem;
+      line-height: 1.55;
+      max-width: 42rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.85rem;
+    }
+
+    .stat {
+      padding: 0.95rem 1rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.6rem;
+    }
+
+    .stat-value {
+      display: block;
+      margin-top: 0.35rem;
+      font-size: clamp(1rem, 2vw, 1.25rem);
+      font-weight: 700;
+      color: #fff7ec;
+    }
+
+    .progress-wrap {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .travel-track {
+      position: relative;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 0.95rem;
+      margin-bottom: 0.95rem;
+    }
+
+    .travel-body {
+      position: relative;
+      height: 3.5rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .travel-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 2px;
+      transform: translateY(-50%);
+      background: linear-gradient(90deg, rgba(105, 176, 214, 0.28), rgba(246, 190, 104, 0.28));
+      box-shadow: 0 0 18px rgba(115, 188, 231, 0.14);
+    }
+
+    .travel-progress {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      width: 0%;
+      height: 2px;
+      transform: translateY(-50%);
+      background: linear-gradient(90deg, rgba(125, 194, 231, 0.92), rgba(247, 189, 104, 0.96));
+      box-shadow: 0 0 16px rgba(247, 189, 104, 0.26);
+    }
+
+    .travel-ship {
+      position: absolute;
+      top: 50%;
+      left: 0%;
+      width: 1rem;
+      height: 1rem;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #ffffff, #ffe2b1 72%, #ffb24f 100%);
+      box-shadow: 0 0 18px rgba(255, 221, 169, 0.58), 0 0 36px rgba(121, 199, 255, 0.16);
+    }
+
+    .travel-ship::before {
+      content: "";
+      position: absolute;
+      right: 48%;
+      top: 50%;
+      width: 2.8rem;
+      height: 0.28rem;
+      transform: translateY(-50%);
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(255,255,255,0), rgba(152, 214, 255, 0.28), rgba(255, 231, 183, 0.72));
+      filter: blur(1px);
+    }
+
+    .planet-node {
+      position: relative;
+      width: 3rem;
+      height: 3rem;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.12);
+      overflow: visible;
+      box-shadow: inset -0.5rem -0.55rem 0.95rem rgba(0, 0, 0, 0.3), 0 0 18px rgba(255,255,255,0.05);
+    }
+
+    .planet-node img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 50%;
+    }
+
+    .planet-node.has-image {
+      border: none;
+      background: none !important;
+      box-shadow: none !important;
+    }
+
+    .planet-node.earth {
+      background:
+        radial-gradient(circle at 30% 28%, rgba(255,255,255,0.4), transparent 24%),
+        radial-gradient(circle at 52% 54%, rgba(36, 92, 151, 0.3), transparent 58%),
+        linear-gradient(140deg, #6cd3ff, #2f76b4 56%, #183760 100%);
+    }
+
+    .planet-node.earth::after {
+      content: "";
+      position: absolute;
+      inset: 0.34rem 0.38rem 0.38rem 0.34rem;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 36% 34%, rgba(118, 214, 139, 0.95) 0 10%, transparent 12%),
+        radial-gradient(circle at 58% 42%, rgba(109, 195, 124, 0.9) 0 8%, transparent 10%),
+        radial-gradient(circle at 64% 62%, rgba(121, 210, 132, 0.86) 0 10%, transparent 12%),
+        radial-gradient(circle at 26% 64%, rgba(136, 219, 147, 0.84) 0 7%, transparent 9%);
+      opacity: 0.88;
+    }
+
+    .planet-node.target {
+      background:
+        radial-gradient(circle at 30% 28%, rgba(255,255,255,0.34), transparent 24%),
+        linear-gradient(135deg, var(--target-a, #d78958), var(--target-b, #7a3927));
+    }
+
+    .planet-node.target.ringed::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 4.1rem;
+      height: 1rem;
+      transform: translate(-50%, -50%) rotate(-12deg);
+      border-radius: 50%;
+      border: 4px solid rgba(234, 208, 168, 0.56);
+      box-shadow: 0 0 12px rgba(255, 223, 177, 0.14);
+    }
+
+    .planet-node.has-image::after,
+    .planet-node.has-image::before {
+      content: none;
+    }
+
+    .planet-label {
+      position: absolute;
+      top: calc(100% + 0.42rem);
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--muted);
+      font-size: 0.68rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-family: "Orbitron", sans-serif;
+      white-space: nowrap;
+    }
+
+    .progress-head {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 1rem;
+    }
+
+    .progress-label {
+      color: var(--accent-2);
+      font-size: 0.64rem;
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: nowrap;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .home-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.8rem;
+      padding: 0.75rem 1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      text-decoration: none;
+      transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+    }
+
+    .home-link:hover {
+      transform: translateY(-1px);
+      border-color: rgba(132, 216, 255, 0.3);
+      background: rgba(255,255,255,0.08);
+    }
+
+    @media (max-width: 720px) {
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-logo {
+        position: static;
+        width: 4.2rem;
+        height: 4.2rem;
+      }
+
+      .panel-brand {
+        display: grid;
+      }
+
+      .panel-copy {
+        max-width: none;
+      }
+
+      .eta-top {
+        min-width: 0;
+        text-align: left;
+      }
+
+      .footer,
+      .panel-top {
+        display: grid;
+      }
+
+      .footer {
+        justify-content: initial;
+      }
+    }
+  </style>
+</head>
+<body>
+  <iframe id="viewer-frame" src=""
+    style="position:fixed;inset:0;width:100%;height:100%;border:none;opacity:0;pointer-events:none;z-index:0;background:#000;display:none;"
+    allow="fullscreen"></iframe>
+  <canvas class="warp-canvas" id="warp-canvas" aria-hidden="true"></canvas>
+  <main class="shell" id="transit-shell">
+    <section class="panel" aria-live="polite">
+      <div class="panel-top">
+        <div class="panel-brand">
+          <div class="panel-copy">
+            <p class="eyebrow">GeoID: Explorer Transit Corridor</p>
+            <h1 class="title" id="title">Mars</h1>
+            <p class="subtitle" id="subtitle">Destination viewer initializing.</p>
+          </div>
+        </div>
+        <div class="eta-top">
+          <p class="eta-top-label">Estimated Date Of Arrival</p>
+          <p class="eta-top-value" id="eta-top">July 3, 2032</p>
+        </div>
+        <img class="panel-logo" src="../planet_explorer/mars/viewer/assets/logo.png" alt="GeoID: Explorer logo">
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <p class="stat-label">Distance</p>
+          <span class="stat-value" id="distance-km">225,000,000 km</span>
+        </div>
+        <div class="stat">
+          <p class="stat-label">Lightyear equivalent</p>
+          <span class="stat-value" id="distance-ly">0.000024 ly</span>
+        </div>
+        <div class="stat">
+          <p class="stat-label">Estimated arrival</p>
+          <span class="stat-value" id="eta">7 months, 12 days</span>
+        </div>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="travel-track" aria-hidden="true">
+          <div class="planet-node earth has-image">
+            <img src="../assets/earth_icon.png" alt="">
+            <span class="planet-label" id="origin-label">Earth</span>
+          </div>
+          <div class="travel-body">
+            <div class="travel-line"></div>
+            <div class="travel-progress" id="travel-progress"></div>
+            <div class="travel-ship" id="travel-ship"></div>
+          </div>
+          <div class="planet-node target has-image" id="target-planet">
+            <img id="target-planet-image" src="../assets/earth_icon.png" alt="">
+            <span class="planet-label" id="target-label">Mars</span>
+          </div>
+        </div>
+        <div class="progress-head">
+        </div>
+      </div>
+
+      <div class="footer">
+        <a class="home-link" href="../index.html" target="_top" rel="home">Return Home</a>
+        <span id="countdown">Launching viewer...</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const destinations = {
+      mercury: {
+        name: "Mercury",
+        km: 91600000,
+        lightYears: 0.00000968,
+        etaDays: 147,
+        target: "../planet_explorer/mercury/viewer/",
+        colors: ["#c7b8a3", "#6d6259"],
+        ringed: false,
+        icon: "../assets/mercury_icon.png"
+      },
+      venus: {
+        name: "Venus",
+        km: 41400000,
+        lightYears: 0.00000438,
+        etaDays: 109,
+        target: "../planet_explorer/venus/viewer/",
+        colors: ["#e6c48e", "#9e6f3f"],
+        ringed: false,
+        icon: "../assets/venus_icon.png"
+      },
+      earth: {
+        name: "ISS",
+        subtitle: "International Space Station",
+        km: 408,
+        lightYears: 0.0000000000431,
+        etaDays: 0.25,
+        target: "../planet_explorer/earth/viewer/",
+        colors: ["#b0d0f0", "#4a6e99"],
+        ringed: false,
+        icon: "../assets/ISS_icon.png",
+        originLabel: "Earth"
+      },
+      mars: {
+        name: "Mars",
+        km: 225000000,
+        lightYears: 0.000024,
+        etaDays: 222,
+        target: "../planet_explorer/mars/viewer/index.html",
+        colors: ["#d78958", "#7a3927"],
+        ringed: false,
+        icon: "../assets/mars_icon.png"
+      },
+      jupiter: {
+        name: "Jupiter",
+        km: 628700000,
+        lightYears: 0.00006645,
+        etaDays: 730,
+        target: "../planet_explorer/jupiter/viewer/",
+        colors: ["#dbc197", "#8f6038"],
+        ringed: false,
+        icon: "../assets/jupiter_icon.png"
+      },
+      saturn: {
+        name: "Saturn",
+        km: 1275000000,
+        lightYears: 0.00013475,
+        etaDays: 2555,
+        target: "../planet_explorer/saturn/viewer/",
+        colors: ["#efd2a4", "#9a7147"],
+        ringed: true,
+        icon: "../assets/saturn_icon.png"
+      },
+      uranus: {
+        name: "Uranus",
+        km: 2724000000,
+        lightYears: 0.0002879,
+        etaDays: 3285,
+        target: "../planet_explorer/uranus/viewer/",
+        colors: ["#b9ecff", "#5a9cb9"],
+        ringed: true,
+        icon: "../assets/uranus_icon.png"
+      },
+      neptune: {
+        name: "Neptune",
+        km: 4351000000,
+        lightYears: 0.00045983,
+        etaDays: 4380,
+        target: "../planet_explorer/neptune/viewer/",
+        colors: ["#5994ff", "#264e9d"],
+        ringed: true,
+        icon: "../assets/neptune_icon.png"
+      }
+    };
+
+    const params = new URLSearchParams(window.location.search);
+    const key = params.get("destination");
+    const selected = destinations[key] || destinations.mars;
+
+    const titleNode = document.getElementById("title");
+    const subtitleNode = document.getElementById("subtitle");
+    const kmNode = document.getElementById("distance-km");
+    const lyNode = document.getElementById("distance-ly");
+    const etaNode = document.getElementById("eta");
+    const etaTopNode = document.getElementById("eta-top");
+    const countdownNode = document.getElementById("countdown");
+    const travelProgressNode = document.getElementById("travel-progress");
+    const travelShipNode = document.getElementById("travel-ship");
+    const targetPlanetNode = document.getElementById("target-planet");
+    const targetPlanetImageNode = document.getElementById("target-planet-image");
+    const targetLabelNode = document.getElementById("target-label");
+    const canvas = document.getElementById("warp-canvas");
+
+    const etaText = formatEta(selected.etaDays);
+    const arrivalDate = new Date(Date.now() + selected.etaDays * 24 * 60 * 60 * 1000);
+    const arrivalDateText = selected.etaDays < 1
+      ? arrivalDate.toLocaleString(undefined, { month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })
+      : arrivalDate.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+    titleNode.textContent = selected.name;
+    subtitleNode.textContent = selected.subtitle || "Destination viewer initializing.";
+    kmNode.textContent = `${formatKm(selected.km)} km`;
+    lyNode.textContent = `${formatLightYears(selected.lightYears)} ly`;
+    etaNode.textContent = etaText;
+    etaTopNode.textContent = arrivalDateText;
+    targetLabelNode.textContent = selected.name;
+    targetPlanetNode.style.setProperty("--target-a", selected.colors[0]);
+    targetPlanetNode.style.setProperty("--target-b", selected.colors[1]);
+    targetPlanetImageNode.src = selected.icon;
+    targetPlanetNode.classList.toggle("ringed", selected.ringed);
+    if (selected.originLabel) {
+      document.getElementById("origin-label").textContent = selected.originLabel;
+    }
+
+    const transitMs = 4200;
+    const startedAt = performance.now();
+
+    // ── Warp animation ───────────────────────────────────────────────────────
+    // Run on a Worker thread via OffscreenCanvas so main-thread JS (viewer init,
+    // texture decode, script parse) cannot stutter the animation.
+    // Falls back to main-thread canvas on browsers without OffscreenCanvas (Safari).
+
+    const supportsOffscreen =
+      typeof OffscreenCanvas !== "undefined" &&
+      typeof canvas.transferControlToOffscreen === "function";
+
+    let stopAnimation; // called when transit ends
+
+    if (supportsOffscreen) {
+      const offscreen = canvas.transferControlToOffscreen();
+      const worker = new Worker("transit-worker.js");
+      worker.postMessage(
+        { type: "start", canvas: offscreen,
+          width: window.innerWidth, height: window.innerHeight,
+          dpr: Math.min(window.devicePixelRatio || 1, 2),
+          transitMs },
+        [offscreen]
+      );
+      window.addEventListener("resize", () => {
+        worker.postMessage({ type: "resize",
+          width: window.innerWidth, height: window.innerHeight,
+          dpr: Math.min(window.devicePixelRatio || 1, 2) });
+      });
+      stopAnimation = () => worker.postMessage({ type: "stop" });
+    } else {
+      // Fallback: main-thread canvas animation
+      const context = canvas.getContext("2d");
+      let animationFrame = 0;
+      const state = { width: 0, height: 0, dpr: 1, cx: 0, cy: 0, stars: [] };
+
+      function resizeCanvas() {
+        state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        state.width = window.innerWidth; state.height = window.innerHeight;
+        state.cx = state.width / 2; state.cy = state.height / 2;
+        canvas.width = Math.floor(state.width * state.dpr);
+        canvas.height = Math.floor(state.height * state.dpr);
+        canvas.style.width = `${state.width}px`; canvas.style.height = `${state.height}px`;
+        context.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+        const count = Math.round((state.width * state.height) / 2600);
+        state.stars = Array.from({ length: count }, () => ({
+          angle: Math.random() * Math.PI * 2,
+          radius: Math.pow(Math.random(), 1.9) * Math.max(state.width, state.height) * 0.42,
+          speed: 0.9 + Math.random() * 1.9, depth: 0.25 + Math.random() * 0.75,
+          size: 0.6 + Math.random() * 1.8, drift: (Math.random() - 0.5) * 0.002,
+          glow: 0.35 + Math.random() * 0.65,
+        }));
+      }
+
+      function renderWarp(now) {
+        const elapsed = Math.min(now - startedAt, transitMs);
+        const progress = elapsed / transitMs;
+        const acceleration = 1.2 + progress * 10.5;
+        const { width: w, height: h, cx, cy, stars } = state;
+        context.clearRect(0, 0, w, h);
+        const vig = context.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.85);
+        vig.addColorStop(0, "rgba(7,14,28,0.12)"); vig.addColorStop(0.18, "rgba(5,11,20,0)"); vig.addColorStop(1, "rgba(1,3,8,0.92)");
+        context.fillStyle = vig; context.fillRect(0, 0, w, h);
+        for (const s of stars) {
+          s.angle += s.drift;
+          const pr = s.radius;
+          s.radius += s.speed * acceleration * (0.55 + s.depth);
+          const x1 = cx + Math.cos(s.angle) * pr,   y1 = cy + Math.sin(s.angle) * pr;
+          const x2 = cx + Math.cos(s.angle) * s.radius, y2 = cy + Math.sin(s.angle) * s.radius;
+          if (x2 < -120 || x2 > w + 120 || y2 < -120 || y2 > h + 120) {
+            Object.assign(s, { angle: Math.random()*Math.PI*2, radius: Math.random()*Math.max(w,h)*0.06, speed: 0.9+Math.random()*1.9, depth: 0.25+Math.random()*0.75, size: 0.6+Math.random()*1.8, drift: (Math.random()-0.5)*0.002, glow: 0.35+Math.random()*0.65 });
+            continue;
+          }
+          const alpha = Math.min(0.98, 0.28 + progress * 0.42 + s.depth * 0.45);
+          const lw = Math.max(0.9, s.size * (0.75 + progress * 1.85));
+          const g = context.createLinearGradient(x1, y1, x2, y2);
+          g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.35, `rgba(255,255,255,${alpha*0.45})`); g.addColorStop(1, `rgba(255,255,255,${alpha})`);
+          context.strokeStyle = g; context.lineWidth = lw; context.lineCap = "round";
+          context.beginPath(); context.moveTo(x1, y1); context.lineTo(x2, y2); context.stroke();
+          if (Math.hypot(x2-x1, y2-y1) > 4) { context.fillStyle = `rgba(235,244,255,${alpha*s.glow})`; context.beginPath(); context.arc(x2, y2, Math.max(0.4, lw*0.42), 0, Math.PI*2); context.fill(); }
+        }
+        const core = context.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.12);
+        core.addColorStop(0, "rgba(0,0,0,0.98)"); core.addColorStop(0.18, "rgba(3,9,18,0.88)"); core.addColorStop(0.55, "rgba(16,42,82,0.08)"); core.addColorStop(1, "rgba(0,0,0,0)");
+        context.fillStyle = core; context.beginPath(); context.arc(cx, cy, Math.max(w, h) * 0.13, 0, Math.PI*2); context.fill();
+        animationFrame = requestAnimationFrame(renderWarp);
+      }
+
+      resizeCanvas();
+      window.addEventListener("resize", resizeCanvas);
+      animationFrame = requestAnimationFrame(renderWarp);
+      stopAnimation = () => cancelAnimationFrame(animationFrame);
+    }
+
+    // ── Progress tick (DOM, always main thread) ──────────────────────────────
+    function tick(now) {
+      const elapsed = Math.min(now - startedAt, transitMs);
+      const progress = elapsed / transitMs;
+      const secondsLeft = Math.max(0, Math.ceil((transitMs - elapsed) / 1000));
+      countdownNode.textContent = secondsLeft > 0
+        ? `Viewer opens in ${secondsLeft}s`
+        : "Launching viewer...";
+      travelProgressNode.style.width = `${progress * 100}%`;
+      travelShipNode.style.left = `${progress * 100}%`;
+      if (elapsed < transitMs) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    // ── Viewer preload + crossfade ────────────────────────────────────────────
+    const viewerFrame = document.getElementById("viewer-frame");
+    const transitShell = document.getElementById("transit-shell");
+    const CROSSFADE_MS = 400;
+    window._geoidReveal = false;
+    const targetUrl = selected.target + (selected.target.includes("?") ? "&" : "?") + "transit=1";
+    viewerFrame.src = targetUrl;
+
+    setTimeout(() => {
+      stopAnimation();
+      window._geoidReveal = true;
+      viewerFrame.style.display = "block";
+      try { viewerFrame.contentWindow.postMessage("geoid-reveal", "*"); } catch (_) {}
+
+      let crossed = false;
+      function doCrossfade() {
+        if (crossed) return;
+        crossed = true;
+        transitShell.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
+        transitShell.style.opacity = "0";
+        viewerFrame.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
+        viewerFrame.style.opacity = "1";
+        viewerFrame.style.zIndex = "2";
+        setTimeout(() => { viewerFrame.style.pointerEvents = "auto"; }, CROSSFADE_MS);
+      }
+
+      window.addEventListener("message", function onReady(e) {
+        if (e.data !== "geoid-ready") return;
+        window.removeEventListener("message", onReady);
+        doCrossfade();
+      });
+      setTimeout(doCrossfade, 600);
+    }, transitMs);
+
+    function formatKm(value) {
+      return new Intl.NumberFormat("en-US").format(value);
+    }
+
+    function formatLightYears(value) {
+      return value.toFixed(6);
+    }
+
+    function humanizeDays(totalDays) {
+      let remaining = totalDays;
+      const years = Math.floor(remaining / 365);
+      remaining -= years * 365;
+      const months = Math.floor(remaining / 30);
+      remaining -= months * 30;
+      const days = remaining;
+      return { years, months, days };
+    }
+
+    function formatEta(totalDays) {
+      if (totalDays < 1) {
+        const hours = Math.round(totalDays * 24);
+        return `~${hours} hour${hours === 1 ? "" : "s"}`;
+      }
+      const parts = humanizeDays(totalDays);
+      const tokens = [];
+      if (parts.years) tokens.push(`${parts.years} ${parts.years === 1 ? "year" : "years"}`);
+      if (parts.months) tokens.push(`${parts.months} ${parts.months === 1 ? "month" : "months"}`);
+      if (parts.days || tokens.length === 0) tokens.push(`${parts.days} ${parts.days === 1 ? "day" : "days"}`);
+      return tokens.join(", ");
+    }
+  </script>
+</body>
+</html>

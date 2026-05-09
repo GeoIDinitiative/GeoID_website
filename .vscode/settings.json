@@ -1,0 +1,14 @@
+{
+    "files.watcherExclude": {
+        "**/planet_explorer (copy)/**": true,
+        "**/planet_explorerog (copy)/**": true
+    },
+    "files.exclude": {
+        "**/planet_explorer (copy)": true,
+        "**/planet_explorerog (copy)": true
+    },
+    "python.analysis.exclude": [
+        "**/planet_explorer (copy)",
+        "**/planet_explorerog (copy)"
+    ]
+}
