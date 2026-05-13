@@ -17469,8 +17469,6 @@ ${error && error.message ? error.message : error}`;
         setStatus("Loaded base globe only. Elevation and geology layers unavailable.", true);
       } else if (!elevationMap) {
         setStatus("Loaded without terrain relief. Elevation map unavailable.", true);
-      } else if (!initialGeologyTexture) {
-        setStatus("Loaded without geology overlay. Overlay asset unavailable.", true);
       } else {
         resetStatus();
       }
