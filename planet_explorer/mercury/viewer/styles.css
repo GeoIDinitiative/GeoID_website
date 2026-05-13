@@ -1983,7 +1983,10 @@
       width: 1.45rem;
       height: 1.45rem;
       color: #bddfe6;
-      filter: none;
+          }
+
+    #freeze-view-toggle .freeze-icon {
+      filter: invert(1) sepia(1) hue-rotate(165deg) saturate(2.2) brightness(1.15);
     }
 
     #spin-toggle.is-locked::after {
