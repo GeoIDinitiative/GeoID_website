@@ -58,7 +58,7 @@ const manifest = {
     "dem_url": "https://astrogeology.usgs.gov/search/map/pluto_new_horizons_digital_elevation_model"
   },
   "planet": {
-    "axial_tilt_deg": 119.51
+    "axial_tilt_deg": 60.49
   },
   "updatedAt": "20260513-pluto"
 };

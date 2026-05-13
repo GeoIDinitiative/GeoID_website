@@ -1125,7 +1125,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     const saturnViewModeSelect = null; // Mars has no tilted/untilted toggle
     let spinPaused = false;
     let spinPauseStart = 0;
-    let spinOffset = 0;
+    let spinOffset = -450000;
     const spinToggleBtn = document.getElementById("spin-toggle");
     const spinToggleGlyph = document.getElementById("spin-toggle-glyph");
     const freezeViewToggleBtn = document.getElementById("freeze-view-toggle");
