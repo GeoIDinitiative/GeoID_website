@@ -3396,12 +3396,80 @@
       }
     }
 
+    function normalizeFeatureType(type) {
+      if (!type) return null;
+      const t = type.trim();
+      const IAU_PLAIN = {
+        "chasma":         "Canyon",
+        "chasmata":       "Canyon system",
+        "fossa":          "Fracture trench",
+        "fossae":         "Fracture trench system",
+        "mons":           "Mountain",
+        "montes":         "Mountain range",
+        "tholus":         "Dome-shaped hill",
+        "tholi":          "Dome-shaped hills",
+        "sulcus":         "Fracture groove system",
+        "sulci":          "Fracture groove systems",
+        "linea":          "Linear ridge",
+        "lineae":         "Linear ridge system",
+        "dorsum":         "Ridge",
+        "dorsa":          "Ridge system",
+        "rupes":          "Cliff / scarp",
+        "scopulus":       "Irregular escarpment",
+        "scopuli":        "Irregular escarpments",
+        "labyrinthus":    "Valley complex",
+        "vallis":         "Valley",
+        "valles":         "Valley system",
+        "lacus":          "Lake",
+        "palus":          "Marsh",
+        "paludes":        "Marshes",
+        "mare":           "Sea",
+        "maria":          "Seas",
+        "sinus":          "Bay",
+        "fretum":         "Strait",
+        "flumen":         "River channel",
+        "flumina":        "River channel system",
+        "planitia":       "Plain",
+        "planitiae":      "Plains",
+        "planum":         "Plateau",
+        "terra":          "Highland region",
+        "terrae":         "Highland regions",
+        "regio":          "Region",
+        "regiones":       "Regions",
+        "mensa":          "Mesa",
+        "mensae":         "Mesas",
+        "collis":         "Hill",
+        "colles":         "Hills",
+        "cavus":          "Hollow / pit",
+        "cavi":           "Hollows / pits",
+        "catena":         "Crater chain",
+        "catenae":        "Crater chains",
+        "patera":         "Volcanic depression",
+        "paterae":        "Volcanic depressions",
+        "fluctus":        "Lava flow",
+        "crater":         "Impact crater",
+        "impact crater":  "Impact crater",
+        "albedo feature": "Albedo region",
+        "facula":         "Bright spot",
+        "faculae":        "Bright spots",
+        "macula":         "Dark spot",
+        "maculae":        "Dark spots",
+        "corona":         "Ovoid terrain",
+        "coronae":        "Ovoid terrain features",
+        "plume":          "Eruptive plume",
+        "plumes":         "Eruptive plumes",
+      };
+      const key = t.toLowerCase();
+      if (IAU_PLAIN[key]) return IAU_PLAIN[key];
+      return t;
+    }
+
     function openFeature(feature, isCoreLabel) {
       syncScenePopupSelectionStyle(feature, Boolean(isCoreLabel));
       if (isCoreLabel) {
-        scenePopupKicker.textContent = feature.type || "Selected Feature";
+        scenePopupKicker.textContent = normalizeFeatureType(feature.type) || "Selected Feature";
       } else {
-        scenePopupKicker.textContent = feature.type || (
+        scenePopupKicker.textContent = normalizeFeatureType(feature.type) || (
           feature.theme === "volcanic"
             ? "Volcanic Feature"
             : feature.theme === "landing" || feature.theme === "mission"
