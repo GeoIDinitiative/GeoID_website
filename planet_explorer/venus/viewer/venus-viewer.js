@@ -6087,28 +6087,12 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         positions[(i * 3) + 2] = radius * Math.sin(phi) * Math.sin(theta);
       }
 
-      const starCanvas = document.createElement("canvas");
-      starCanvas.width = 16;
-      starCanvas.height = 16;
-      const ctx = starCanvas.getContext("2d");
-      const grd = ctx.createRadialGradient(8, 8, 0, 8, 8, 8);
-      grd.addColorStop(0, "rgba(255,255,255,1)");
-      grd.addColorStop(0.4, "rgba(255,255,255,0.8)");
-      grd.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.arc(8, 8, 8, 0, Math.PI * 2);
-      ctx.fill();
-
       const geometry = new THREERef.BufferGeometry();
       geometry.setAttribute("position", new THREERef.BufferAttribute(positions, 3));
       const material = new THREERef.PointsMaterial({
         color: 0xf3f7ff,
         size: 0.55,
         sizeAttenuation: true,
-        map: new THREERef.CanvasTexture(starCanvas),
-        transparent: true,
-        alphaTest: 0.01,
       });
       return new THREERef.Points(geometry, material);
     }
