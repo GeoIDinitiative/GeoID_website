@@ -1,15 +1,13 @@
 (function () {
       const TRACKS = [
+        "../../../assets/music/Andromeda.mp3",
         "../../../assets/music/Go Now, Explore... (1).mp3",
         "../../../assets/music/Go Now, Explore....mp3",
-        "../../../assets/music/Mars.mp3",
-        "../../../assets/music/Mars2.mp3",
-        "../../../assets/music/Olympus Mons2.mp3",
-        "../../../assets/music/Space Age.mp3",
-        "../../../assets/music/cfl_turningpages-stellar-opus-386735.mp3",
+        "../../../assets/music/infinity.mp3",
+        "../../../assets/music/Nebula (1).mp3",
         "../../../assets/music/nikitakondrashev-space-440026.mp3",
+        "../../../assets/music/Pale Blue Dot.mp3",
         "../../../assets/music/sigmamusicart-space-ambient-background-music-462074.mp3",
-        "../../../assets/music/slicedcorpse-retrowave-ambient-dreamwave-relaxing-music-v2-324013.mp3",
         "../../../assets/music/universfield-ambient-space-background-350710.mp3",
       ];
       let playlist = [];
