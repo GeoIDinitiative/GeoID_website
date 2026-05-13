@@ -1606,13 +1606,14 @@ export function updateLabelVisibility(
     const aPinned = Boolean(activePopupFeature && a.entry.item?.name === activePopupFeature.name);
     const bPinned = Boolean(activePopupFeature && b.entry.item?.name === activePopupFeature.name);
     if (aPinned !== bPinned) return aPinned ? -1 : 1;
-    // Higher theme-priority first (e.g. landing > crater > standard)
-    if (b.entry.priority !== a.entry.priority) return b.entry.priority - a.entry.priority;
-    // Within the same theme priority, sort by LOD tier so tier-1 landmarks
-    // always claim space before tier-5 minor features.
+    // LOD tier is the primary sort key: lower tier = more prominent landmark,
+    // always claims space before finer-detail features regardless of category.
     const aLod = a.entry.item?.lod ?? 3;
     const bLod = b.entry.item?.lod ?? 3;
     if (aLod !== bLod) return aLod - bLod;
+    // Within the same LOD tier, higher category priority wins
+    // (e.g. landing > volcanic > tectonic > crater > surface).
+    if (b.entry.priority !== a.entry.priority) return b.entry.priority - a.entry.priority;
     if (globalView) {
       if (a.entry._globalVisible !== b.entry._globalVisible) {
         return a.entry._globalVisible ? -1 : 1;
