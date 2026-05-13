@@ -1,75 +1,659 @@
 [
-  {"name":"Adlivun Cavus","type":"Cavus","lat":-15.40,"lon":188.86,"theme":"surface","description":"Adlivun Cavus is a depression or pit feature on Pluto. Named for the underworld in Inuit myths.","lod":5},
-  {"name":"Alcyonia Lacus","type":"Lacus","lat":36.44,"lon":151.95,"theme":"surface","description":"Alcyonia Lacus is a lake-like feature on Pluto. Named for a bottomless lake, one of the entrances to the underworld in Greek mythology.","lod":5},
-  {"name":"Al-Idrisi Montes","type":"Mons","lat":33.99,"lon":156.01,"theme":"surface","description":"Al-Idrisi Montes is a mountain range on Pluto. Named for Ash-Sharīf al-Idrīsī, Arabian mapmaker and geographer (1100–1165/66).","lod":2},
-  {"name":"Baret Montes","type":"Mons","lat":14.60,"lon":157.80,"theme":"surface","description":"Baret Montes is a mountain range on Pluto. Named for Jeanne Baret (Baré), first woman to have completed a circumnavigation voyage of the globe (1740–1807).","lod":2},
-  {"name":"Beatrice Fossa","type":"Fossa","lat":0.19,"lon":129.26,"theme":"tectonic","description":"Beatrice Fossa is a long narrow trough on Pluto. In The Inferno by Dante, Beatrice descends into hell to find Virgil and ask him to guide Dante, and later guides Dante through Paradise.","lod":2},
-  {"name":"Belton Regio","type":"Regio","lat":-9.21,"lon":91.42,"theme":"surface","description":"Belton Regio is a large distinct surface region on Pluto. Named for Michael J.S. Belton, British astronomer who chaired the first Planetary Science Decadal Survey establishing NASA's New Frontiers Program, including the New Horizons mission (1934–2018).","lod":1},
-  {"name":"Bower","type":"Crater","lat":45.36,"lon":233.39,"theme":"crater","description":"Bower is an impact crater on Pluto. Named for Ernest Clare Bower, American astronomer who calculated one of the first independent orbits of Pluto shortly after its 1930 discovery (1890–1964).","lod":4},
-  {"name":"Burney","type":"Crater","lat":45.68,"lon":133.79,"theme":"crater","description":"Burney is a large impact crater on Pluto. Named for Venetia Burney, British schoolgirl who suggested in 1930 the name 'Pluto' for Tombaugh's newly discovered planet (1918–2009).","lod":3},
-  {"name":"Challenger Colles","type":"Collis","lat":23.05,"lon":195.10,"theme":"tectonic","description":"Challenger Colles is a group of hills on Pluto. Named for the second fully operational US Space Shuttle, first launched 4 April 1983, lost during its tenth launch on 28 January 1986.","lod":3},
-  {"name":"Chandrayaan Linea","type":"Linea","lat":19.21,"lon":338.08,"theme":"tectonic","description":"Chandrayaan Linea is a linear feature on Pluto. Named for the series of Indian lunar probes, beginning in 2008.","lod":4},
-  {"name":"Coleman Mons","type":"Mons","lat":-24.17,"lon":167.98,"theme":"surface","description":"Coleman Mons is a mountain on Pluto. Named for Elizabeth 'Bessie' Coleman, early American aviator and first woman of African-American and Native American descent to earn a pilot's license (1892–1926).","lod":2},
-  {"name":"Columbia Colles","type":"Collis","lat":28.53,"lon":196.36,"theme":"tectonic","description":"Columbia Colles is a group of hills on Pluto. Named for the first fully operational US space shuttle, launched first 12 April 1981, lost during re-entry 1 February 2003.","lod":3},
-  {"name":"Coradini","type":"Crater","lat":42.88,"lon":191.43,"theme":"crater","description":"Coradini is an impact crater on Pluto. Named for Angioletta Coradini, Italian planetary scientist (1946–2011).","lod":5},
-  {"name":"Coughlin","type":"Crater","lat":15.24,"lon":150.54,"theme":"crater","description":"Coughlin is an impact crater on Pluto. Named for Thomas Boyd Coughlin, American mechanical/space engineer and first project manager of the New Horizons mission to Pluto (1941–2014).","lod":4},
-  {"name":"Djanggawul Fossae","type":"Fossa","lat":41.00,"lon":84.31,"theme":"tectonic","description":"Djanggawul Fossae is a system of long narrow troughs on Pluto. Named for ancestral beings in Yolngu (Australia) myth who traveled between the island of the dead and Australia.","lod":2},
-  {"name":"Dumuzi Fossa","type":"Fossa","lat":30.56,"lon":127.90,"theme":"tectonic","description":"Dumuzi Fossa is a long narrow trough on Pluto. In ancient Sumerian mythology, Dumuzi was a god of the harvest taken into the Underworld but permitted to return for half of each year, resulting in the cycle of seasons.","lod":2},
-  {"name":"Edgeworth","type":"Crater","lat":6.86,"lon":109.42,"theme":"crater","description":"Edgeworth is a large impact crater on Pluto. Named for Kenneth Edgeworth, Irish astronomer who first proposed the existence of a disk of bodies beyond Neptune, now known as the Edgeworth-Kuiper Belt (1880–1972).","lod":3},
-  {"name":"Elcano Montes","type":"Mons","lat":-26.04,"lon":143.70,"theme":"surface","description":"Elcano Montes is a mountain range on Pluto. Named for Juan Sebastián Elcano, Spanish explorer who completed the first circumnavigation of the Earth in 1522 (c.1476–1526).","lod":2},
-  {"name":"Elliot","type":"Crater","lat":12.04,"lon":138.86,"theme":"crater","description":"Elliot is an impact crater on Pluto. Named for James Elliot, American astronomer and discoverer of Pluto's atmosphere (1943–2011).","lod":3},
-  {"name":"Farinella","type":"Crater","lat":50.87,"lon":179.24,"theme":"crater","description":"Farinella is an impact crater on Pluto. Named for Paolo Farinella, Italian planetary scientist who investigated the formation and collisional evolution of small bodies and Kuiper Belt objects (1953–2000).","lod":5},
-  {"name":"Gibson","type":"Crater","lat":49.17,"lon":138.38,"theme":"crater","description":"Gibson is an impact crater on Pluto. Named for William C. Gibson, original Science Payload Manager of the New Horizons mission to Pluto and the Kuiper Belt (1945–2017).","lod":5},
-  {"name":"Giclas","type":"Crater","lat":39.79,"lon":201.82,"theme":"crater","description":"Giclas is an impact crater on Pluto. Named for Henry L. Giclas, astronomer at Lowell Observatory who obtained early photographic plates critical to the determination of Pluto's orbit (1910–2007).","lod":4},
-  {"name":"Hardaway","type":"Crater","lat":46.85,"lon":140.97,"theme":"crater","description":"Hardaway is a small impact crater on Pluto. Named for Lisa Hardaway, who led development of the RALPH instrument on New Horizons (1966–2017).","lod":5},
-  {"name":"Hardie","type":"Crater","lat":23.82,"lon":141.58,"theme":"crater","description":"Hardie is an impact crater on Pluto. Named for Robert H. Hardie, American astronomer who co-discovered Pluto's 6.4-day rotation period in 1955 (1923–1989).","lod":5},
-  {"name":"Harrington Regio","type":"Regio","lat":-7.05,"lon":282.54,"theme":"surface","description":"Harrington Regio is a large distinct surface region on Pluto. Named for Robert S. Harrington, considered the co-discoverer of Charon and first to calculate the Pluto system's mass (1942–1993).","lod":1},
-  {"name":"Hayabusa Terra","type":"Terra","lat":46.07,"lon":229.88,"theme":"surface","description":"Hayabusa Terra is an ancient highland region on Pluto. Named for the Japanese Hayabusa spacecraft that performed the first asteroid sample return (2003–2010).","lod":1},
-  {"name":"Hekla Cavus","type":"Cavus","lat":6.86,"lon":154.66,"theme":"surface","description":"Hekla Cavus is a depression or pit feature on Pluto. Named for the Icelandic volcano believed to be the entrance to Hell in medieval European times.","lod":5},
-  {"name":"Hermod Fossae","type":"Fossa","lat":-8.63,"lon":119.34,"theme":"tectonic","description":"Hermod Fossae is a system of long narrow troughs on Pluto. Named for the son of Odin who rode the horse Sleipnir into the underworld to retrieve his brother Balder in Norse mythology.","lod":2},
-  {"name":"Hillary Montes","type":"Mons","lat":3.26,"lon":169.58,"theme":"surface","description":"Hillary Montes is a mountain range on Pluto bordering Sputnik Planitia. Named for Edmund Hillary, New Zealand mountaineer (1919–2008).","lod":2},
-  {"name":"Hiten Linea","type":"Linea","lat":23.52,"lon":353.90,"theme":"tectonic","description":"Hiten Linea is a linear feature on Pluto. Named for the first Japanese spacecraft to the Moon, 1990.","lod":4},
-  {"name":"Hunahpu Valles","type":"Vallis","lat":49.09,"lon":154.41,"theme":"tectonic","description":"Hunahpu Valles is a valley system on Pluto. Named for one of the Hero Twins in Mayan mythology who defeated the lords of the Underworld in a ball game.","lod":3},
-  {"name":"Hyecho Palus","type":"Palus","lat":-17.43,"lon":167.44,"theme":"surface","description":"Hyecho Palus is a marshy low-lying terrain feature on Pluto. Named for the Korean traveler and scholar who crossed the Asian continent from China to Arabia and back (724–727) (704–787).","lod":5},
-  {"name":"Inanna Fossa","type":"Fossa","lat":33.05,"lon":129.29,"theme":"tectonic","description":"Inanna Fossa is a long narrow trough on Pluto. Inanna was the Queen of Heaven in ancient Sumerian mythology who visited the Underworld but was permitted to return in exchange for her husband Dumuzi's life.","lod":2},
-  {"name":"Kaknú Fossa","type":"Fossa","lat":-30.45,"lon":122.07,"theme":"tectonic","description":"Kaknú Fossa is a long narrow trough on Pluto. Named for the epic hero of Chochenyo/Ohlone mythology, an anthropomorphic being resembling a peregrine falcon who traveled to the underworld to battle the lord of the underworld.","lod":2},
-  {"name":"Khare","type":"Crater","lat":27.85,"lon":94.56,"theme":"crater","description":"Khare is an impact crater on Pluto. Named for Bishun Khare, Indian-born American atmosphere chemistry scientist who investigated tholins, the organic molecules that account for the darkest regions on Pluto (1933–2013).","lod":4},
-  {"name":"Kiladze","type":"Crater","lat":28.39,"lon":212.92,"theme":"crater","description":"Kiladze is an impact crater on Pluto. Named for Rolan Kiladze, Georgian astronomer who investigated the dynamics, astrometry and photometry of Pluto (1931–2010).","lod":4},
-  {"name":"Kowal","type":"Crater","lat":49.48,"lon":217.87,"theme":"crater","description":"Kowal is an impact crater on Pluto. Named for Charles T. Kowal, American astronomer and discoverer of 2060 Chiron (1940–2011).","lod":4},
-  {"name":"Lemminkäinen Vallis","type":"Vallis","lat":87.42,"lon":238.73,"theme":"tectonic","description":"Lemminkäinen Vallis is a large valley near Pluto's north pole. Named for Lemminkäinen, hero of the Finnish national epic The Kalevala, who travels to the Underworld to capture the black swan.","lod":3},
-  {"name":"Lowell Regio","type":"Regio","lat":86.00,"lon":338.00,"theme":"surface","description":"Lowell Regio is a large polar region on Pluto. Named for Percival Lowell, American astronomer who undertook extensive searches for trans-Neptunian planets in 1906–1916 (1855–1916).","lod":1},
-  {"name":"Luna Linea","type":"Linea","lat":19.88,"lon":22.78,"theme":"tectonic","description":"Luna Linea is a linear feature on Pluto. Named for the series of 24 unmanned Soviet lunar probes launched between 1959 and 1976.","lod":4},
-  {"name":"Lunokhod Planitia","type":"Planitia","lat":30.75,"lon":109.57,"theme":"surface","description":"Lunokhod Planitia is a broad plain on Pluto adjacent to Sputnik Planitia. Named for the Soviet lunar rovers (1970, 1973); Lunokhod 1 was the first remote-controlled wheeled robot on an extraterrestrial body.","lod":1},
-  {"name":"Mwindo Fossae","type":"Fossa","lat":34.74,"lon":245.78,"theme":"tectonic","description":"Mwindo Fossae is a system of long narrow troughs on Pluto. Named for the Nyanga (Eastern DRC) epic hero who traveled to the underworld and returned to become a wise and powerful king.","lod":2},
-  {"name":"Oort","type":"Crater","lat":7.86,"lon":92.05,"theme":"crater","description":"Oort is a large impact crater on Pluto. Named for Jan Hendrik Oort, Dutch astronomer who first described the Oort Cloud, a theoretical cloud of icy planetesimals believed to be the source of long-period comets (1900–1992).","lod":3},
-  {"name":"Piccard Mons","type":"Mons","lat":-35.26,"lon":176.79,"theme":"surface","description":"Piccard Mons is a large mountain on Pluto, likely a cryovolcanic edifice. Named for Auguste Piccard, Swiss-Belgian inventor and physicist known for his pioneering balloon flights into the upper atmosphere (1884–1962).","lod":2},
-  {"name":"Pigafetta Montes","type":"Mons","lat":-6.83,"lon":146.44,"theme":"surface","description":"Pigafetta Montes is a mountain range on Pluto. Named for Antonio Pigafetta, Italian scholar whose journal is the only original account of the first circumnavigation of the Earth under Magellan (c.1491–c.1531).","lod":2},
-  {"name":"Pioneer Terra","type":"Terra","lat":56.58,"lon":192.40,"theme":"surface","description":"Pioneer Terra is an ancient highland region on Pluto. Named for the early US lunar, planetary, and heliospheric missions including the first to Jupiter and Saturn, 1958–1997.","lod":1},
-  {"name":"Piri Rupes","type":"Rupes","lat":27.13,"lon":108.90,"theme":"tectonic","description":"Piri Rupes is an escarpment on Pluto. Named for Piri Reis (Ahmed Muhiddin), Ottoman navigator and cartographer who authored one of the earliest existing world maps in 1513 (c.1470–1553).","lod":4},
-  {"name":"Pulfrich","type":"Crater","lat":77.80,"lon":135.99,"theme":"crater","description":"Pulfrich is an impact crater on Pluto. Named for Carl Pulfrich, German physicist and inventor of the blink comparator which Clyde Tombaugh used for the discovery of Pluto (1858–1927).","lod":5},
-  {"name":"Ranger Planitia","type":"Planitia","lat":20.89,"lon":127.91,"theme":"surface","description":"Ranger Planitia is a broad plain on Pluto. Named for the series of US space probes sent to the Moon during 1961–1965; Ranger 7 obtained the first close-up images of an extraterrestrial surface in 1964.","lod":1},
-  {"name":"Ride Rupes","type":"Rupes","lat":-19.66,"lon":163.19,"theme":"tectonic","description":"Ride Rupes is an escarpment on Pluto. Named for Sally Ride, American physicist, astronaut, and first American woman in space (1951–2012).","lod":4},
-  {"name":"Rosetta Planitia","type":"Planitia","lat":-22.31,"lon":157.22,"theme":"surface","description":"Rosetta Planitia is a broad plain on Pluto. Named for the Rosetta mission, the first to orbit and land a spacecraft on a comet.","lod":1},
-  {"name":"Safronov Regio","type":"Regio","lat":-13.36,"lon":209.49,"theme":"surface","description":"Safronov Regio is a large distinct surface region on Pluto. Named for Viktor Safronov, Russian astronomer who proposed the planetesimal hypothesis for Solar System formation (1917–1999).","lod":1},
-  {"name":"Sharaf Regio","type":"Regio","lat":-11.38,"lon":238.67,"theme":"surface","description":"Sharaf Regio is a large distinct surface region on Pluto. Named for Shafika Gil'mievna Sharaf, Soviet astronomer who developed an analytical theory for Pluto's motion and derived new orbital elements (1915–2002).","lod":1},
-  {"name":"Simonelli","type":"Crater","lat":12.79,"lon":314.76,"theme":"crater","description":"Simonelli is a large impact crater on Pluto. Named for Damon Simonelli, American astronomer who investigated the formation history of Pluto (1959–2004).","lod":3},
-  {"name":"Sleipnir Fossa","type":"Fossa","lat":23.70,"lon":234.51,"theme":"tectonic","description":"Sleipnir Fossa is a long narrow trough on Pluto. Named for the powerful eight-legged horse in Norse mythology who carried Odin into the Underworld.","lod":2},
-  {"name":"Sputnik Planitia","type":"Planitia","lat":19.51,"lon":178.69,"theme":"surface","description":"Sputnik Planitia is a vast nitrogen-ice plain filling an ancient impact basin, forming the western lobe of Pluto's iconic heart-shaped Tombaugh Regio. Named for Soviet Sputnik 1, the first human-built satellite of the Earth (1957).","lod":1},
-  {"name":"Surveyor Linea","type":"Linea","lat":22.61,"lon":329.52,"theme":"tectonic","description":"Surveyor Linea is a linear feature on Pluto. Named for the series of seven unmanned US probes to the lunar surface, 1966–1968.","lod":4},
-  {"name":"Tabei Montes","type":"Mons","lat":-11.73,"lon":164.33,"theme":"surface","description":"Tabei Montes is a mountain range on Pluto. Named for Junko Tabei, Japanese mountaineer and first woman to climb both Mount Everest and the Seven Summits (1939–2016).","lod":2},
-  {"name":"Tartarus Dorsa","type":"Dorsum","lat":8.50,"lon":233.09,"theme":"tectonic","description":"Tartarus Dorsa is a ridge system of distinctive bladed terrain on Pluto formed by sublimation of methane ice. Named for the deepest, darkest pit of the Underworld in Greek mythology.","lod":3},
-  {"name":"Tenzing Montes","type":"Mons","lat":-15.61,"lon":177.38,"theme":"surface","description":"Tenzing Montes is a mountain range on Pluto bordering Sputnik Planitia. Named for Tenzing Norgay, Nepalese (Sherpa) mountaineer (1914–1986).","lod":2},
-  {"name":"Tombaugh Regio","type":"Regio","lat":7.62,"lon":183.22,"theme":"surface","description":"Tombaugh Regio is Pluto's iconic heart-shaped region, comprising the nitrogen-ice plain Sputnik Planitia to the west and the highland Tombaugh Highlands to the east. Named for Clyde William Tombaugh, American astronomer who discovered Pluto in 1930 (1906–1997).","lod":1},
-  {"name":"Uncama Fossa","type":"Fossa","lat":23.96,"lon":142.62,"theme":"tectonic","description":"Uncama Fossa is a long narrow trough on Pluto. Named for the Zulu tale hero who followed a porcupine underground and came upon the village of dead souls.","lod":2},
-  {"name":"Väinämöinen Vallis","type":"Vallis","lat":80.70,"lon":70.81,"theme":"tectonic","description":"Väinämöinen Vallis is a large valley near Pluto's north pole. Named for Väinämöinen, central character of the Finnish national epic The Kalevala, who traveled to the Underworld to seek knowledge.","lod":3},
-  {"name":"Vega Terra","type":"Terra","lat":33.96,"lon":85.49,"theme":"surface","description":"Vega Terra is an ancient highland region on Pluto. Named for the Soviet Vega 1 and Vega 2 spacecraft, first to fly balloons on another planet (Venus, 1985) and first to image a comet nucleus (1986).","lod":1},
-  {"name":"Venera Terra","type":"Terra","lat":56.89,"lon":117.62,"theme":"surface","description":"Venera Terra is an ancient highland region on Pluto. Named for the series of 16 Soviet spacecraft sent to Venus in 1961–1983, accomplishing numerous planetary exploration firsts.","lod":1},
-  {"name":"Viking Terra","type":"Terra","lat":12.34,"lon":150.97,"theme":"surface","description":"Viking Terra is an ancient highland region on Pluto. Named for the US Mars orbiter and lander missions that conducted the first successful explorations of the surface of Mars, 1976–1982.","lod":1},
-  {"name":"Virgil Fossae","type":"Fossa","lat":5.23,"lon":122.76,"theme":"tectonic","description":"Virgil Fossae is a prominent system of troughs on Pluto associated with cryovolcanic activity. Named for Virgil (70–19 BCE), the Italian poet who serves as Dante's guide through Hell and Purgatory in the Divine Comedy.","lod":2},
-  {"name":"Voyager Terra","type":"Terra","lat":60.08,"lon":153.52,"theme":"surface","description":"Voyager Terra is an ancient highland region on Pluto. Named for the US Voyager 1 and Voyager 2 spacecraft that performed the 'grand tour' of all four giant planets (1977–1989).","lod":1},
-  {"name":"Wright Mons","type":"Mons","lat":-21.36,"lon":173.24,"theme":"surface","description":"Wright Mons is a large mountain on Pluto, likely a cryovolcanic edifice. Named for Orville (1871–1948) and Wilbur (1867–1912) Wright, US aviation pioneers who flew the world's first successful powered aircraft in 1903.","lod":2},
-  {"name":"Yutu Linea","type":"Linea","lat":32.77,"lon":1.79,"theme":"tectonic","description":"Yutu Linea is a linear feature on Pluto. Named for the series of Chinese lunar probes, beginning in 2013.","lod":4},
-  {"name":"Zagar","type":"Crater","lat":-5.74,"lon":155.23,"theme":"crater","description":"Zagar is an impact crater on Pluto. Named for Francesco Zagar, Italian astronomer who carried out early studies of the orbit of Pluto (1900–1976).","lod":4},
-  {"name":"Zheng He Montes","type":"Mons","lat":19.01,"lon":160.57,"theme":"surface","description":"Zheng He Montes is a mountain range on Pluto. Named for Zheng He, Chinese explorer who led voyages to Asia, Africa, and the Middle East (1371–1433).","lod":2},
-  {"name":"Zond Linea","type":"Linea","lat":23.91,"lon":336.82,"theme":"tectonic","description":"Zond Linea is a linear feature on Pluto. Named for the series of eight unmanned Soviet lunar and interplanetary probes, 1964–1970.","lod":4}
+  {
+    "name": "Adlivun Cavus",
+    "type": "Cavus",
+    "lat": -15.4,
+    "lon": 188.86,
+    "theme": "surface",
+    "description": "Adlivun Cavus is a depression or pit feature on Pluto. Named for the underworld in Inuit myths.",
+    "lod": 5
+  },
+  {
+    "name": "Alcyonia Lacus",
+    "type": "Lacus",
+    "lat": 36.44,
+    "lon": 151.95,
+    "theme": "fluvial",
+    "description": "Alcyonia Lacus is a lake-like feature on Pluto. Named for a bottomless lake, one of the entrances to the underworld in Greek mythology.",
+    "lod": 5
+  },
+  {
+    "name": "Al-Idrisi Montes",
+    "type": "Mons",
+    "lat": 33.99,
+    "lon": 156.01,
+    "theme": "surface",
+    "description": "Al-Idrisi Montes is a mountain range on Pluto. Named for Ash-Sharīf al-Idrīsī, Arabian mapmaker and geographer (1100–1165/66).",
+    "lod": 2
+  },
+  {
+    "name": "Baret Montes",
+    "type": "Mons",
+    "lat": 14.6,
+    "lon": 157.8,
+    "theme": "surface",
+    "description": "Baret Montes is a mountain range on Pluto. Named for Jeanne Baret (Baré), first woman to have completed a circumnavigation voyage of the globe (1740–1807).",
+    "lod": 2
+  },
+  {
+    "name": "Beatrice Fossa",
+    "type": "Fossa",
+    "lat": 0.19,
+    "lon": 129.26,
+    "theme": "tectonic",
+    "description": "Beatrice Fossa is a long narrow trough on Pluto. In The Inferno by Dante, Beatrice descends into hell to find Virgil and ask him to guide Dante, and later guides Dante through Paradise.",
+    "lod": 2
+  },
+  {
+    "name": "Belton Regio",
+    "type": "Regio",
+    "lat": -9.21,
+    "lon": 91.42,
+    "theme": "surface",
+    "description": "Belton Regio is a large distinct surface region on Pluto. Named for Michael J.S. Belton, British astronomer who chaired the first Planetary Science Decadal Survey establishing NASA's New Frontiers Program, including the New Horizons mission (1934–2018).",
+    "lod": 1
+  },
+  {
+    "name": "Bower",
+    "type": "Crater",
+    "lat": 45.36,
+    "lon": 233.39,
+    "theme": "crater",
+    "description": "Bower is an impact crater on Pluto. Named for Ernest Clare Bower, American astronomer who calculated one of the first independent orbits of Pluto shortly after its 1930 discovery (1890–1964).",
+    "lod": 4
+  },
+  {
+    "name": "Burney",
+    "type": "Crater",
+    "lat": 45.68,
+    "lon": 133.79,
+    "theme": "crater",
+    "description": "Burney is a large impact crater on Pluto. Named for Venetia Burney, British schoolgirl who suggested in 1930 the name 'Pluto' for Tombaugh's newly discovered planet (1918–2009).",
+    "lod": 3
+  },
+  {
+    "name": "Challenger Colles",
+    "type": "Collis",
+    "lat": 23.05,
+    "lon": 195.1,
+    "theme": "surface",
+    "description": "Challenger Colles is a group of hills on Pluto. Named for the second fully operational US Space Shuttle, first launched 4 April 1983, lost during its tenth launch on 28 January 1986.",
+    "lod": 3
+  },
+  {
+    "name": "Chandrayaan Linea",
+    "type": "Linea",
+    "lat": 19.21,
+    "lon": 338.08,
+    "theme": "tectonic",
+    "description": "Chandrayaan Linea is a linear feature on Pluto. Named for the series of Indian lunar probes, beginning in 2008.",
+    "lod": 4
+  },
+  {
+    "name": "Coleman Mons",
+    "type": "Mons",
+    "lat": -24.17,
+    "lon": 167.98,
+    "theme": "surface",
+    "description": "Coleman Mons is a mountain on Pluto. Named for Elizabeth 'Bessie' Coleman, early American aviator and first woman of African-American and Native American descent to earn a pilot's license (1892–1926).",
+    "lod": 2
+  },
+  {
+    "name": "Columbia Colles",
+    "type": "Collis",
+    "lat": 28.53,
+    "lon": 196.36,
+    "theme": "surface",
+    "description": "Columbia Colles is a group of hills on Pluto. Named for the first fully operational US space shuttle, launched first 12 April 1981, lost during re-entry 1 February 2003.",
+    "lod": 3
+  },
+  {
+    "name": "Coradini",
+    "type": "Crater",
+    "lat": 42.88,
+    "lon": 191.43,
+    "theme": "crater",
+    "description": "Coradini is an impact crater on Pluto. Named for Angioletta Coradini, Italian planetary scientist (1946–2011).",
+    "lod": 5
+  },
+  {
+    "name": "Coughlin",
+    "type": "Crater",
+    "lat": 15.24,
+    "lon": 150.54,
+    "theme": "crater",
+    "description": "Coughlin is an impact crater on Pluto. Named for Thomas Boyd Coughlin, American mechanical/space engineer and first project manager of the New Horizons mission to Pluto (1941–2014).",
+    "lod": 4
+  },
+  {
+    "name": "Djanggawul Fossae",
+    "type": "Fossa",
+    "lat": 41.0,
+    "lon": 84.31,
+    "theme": "tectonic",
+    "description": "Djanggawul Fossae is a system of long narrow troughs on Pluto. Named for ancestral beings in Yolngu (Australia) myth who traveled between the island of the dead and Australia.",
+    "lod": 2
+  },
+  {
+    "name": "Dumuzi Fossa",
+    "type": "Fossa",
+    "lat": 30.56,
+    "lon": 127.9,
+    "theme": "tectonic",
+    "description": "Dumuzi Fossa is a long narrow trough on Pluto. In ancient Sumerian mythology, Dumuzi was a god of the harvest taken into the Underworld but permitted to return for half of each year, resulting in the cycle of seasons.",
+    "lod": 2
+  },
+  {
+    "name": "Edgeworth",
+    "type": "Crater",
+    "lat": 6.86,
+    "lon": 109.42,
+    "theme": "crater",
+    "description": "Edgeworth is a large impact crater on Pluto. Named for Kenneth Edgeworth, Irish astronomer who first proposed the existence of a disk of bodies beyond Neptune, now known as the Edgeworth-Kuiper Belt (1880–1972).",
+    "lod": 3
+  },
+  {
+    "name": "Elcano Montes",
+    "type": "Mons",
+    "lat": -26.04,
+    "lon": 143.7,
+    "theme": "surface",
+    "description": "Elcano Montes is a mountain range on Pluto. Named for Juan Sebastián Elcano, Spanish explorer who completed the first circumnavigation of the Earth in 1522 (c.1476–1526).",
+    "lod": 2
+  },
+  {
+    "name": "Elliot",
+    "type": "Crater",
+    "lat": 12.04,
+    "lon": 138.86,
+    "theme": "crater",
+    "description": "Elliot is an impact crater on Pluto. Named for James Elliot, American astronomer and discoverer of Pluto's atmosphere (1943–2011).",
+    "lod": 3
+  },
+  {
+    "name": "Farinella",
+    "type": "Crater",
+    "lat": 50.87,
+    "lon": 179.24,
+    "theme": "crater",
+    "description": "Farinella is an impact crater on Pluto. Named for Paolo Farinella, Italian planetary scientist who investigated the formation and collisional evolution of small bodies and Kuiper Belt objects (1953–2000).",
+    "lod": 5
+  },
+  {
+    "name": "Gibson",
+    "type": "Crater",
+    "lat": 49.17,
+    "lon": 138.38,
+    "theme": "crater",
+    "description": "Gibson is an impact crater on Pluto. Named for William C. Gibson, original Science Payload Manager of the New Horizons mission to Pluto and the Kuiper Belt (1945–2017).",
+    "lod": 5
+  },
+  {
+    "name": "Giclas",
+    "type": "Crater",
+    "lat": 39.79,
+    "lon": 201.82,
+    "theme": "crater",
+    "description": "Giclas is an impact crater on Pluto. Named for Henry L. Giclas, astronomer at Lowell Observatory who obtained early photographic plates critical to the determination of Pluto's orbit (1910–2007).",
+    "lod": 4
+  },
+  {
+    "name": "Hardaway",
+    "type": "Crater",
+    "lat": 46.85,
+    "lon": 140.97,
+    "theme": "crater",
+    "description": "Hardaway is a small impact crater on Pluto. Named for Lisa Hardaway, who led development of the RALPH instrument on New Horizons (1966–2017).",
+    "lod": 5
+  },
+  {
+    "name": "Hardie",
+    "type": "Crater",
+    "lat": 23.82,
+    "lon": 141.58,
+    "theme": "crater",
+    "description": "Hardie is an impact crater on Pluto. Named for Robert H. Hardie, American astronomer who co-discovered Pluto's 6.4-day rotation period in 1955 (1923–1989).",
+    "lod": 5
+  },
+  {
+    "name": "Harrington Regio",
+    "type": "Regio",
+    "lat": -7.05,
+    "lon": 282.54,
+    "theme": "surface",
+    "description": "Harrington Regio is a large distinct surface region on Pluto. Named for Robert S. Harrington, considered the co-discoverer of Charon and first to calculate the Pluto system's mass (1942–1993).",
+    "lod": 1
+  },
+  {
+    "name": "Hayabusa Terra",
+    "type": "Terra",
+    "lat": 46.07,
+    "lon": 229.88,
+    "theme": "surface",
+    "description": "Hayabusa Terra is an ancient highland region on Pluto. Named for the Japanese Hayabusa spacecraft that performed the first asteroid sample return (2003–2010).",
+    "lod": 1
+  },
+  {
+    "name": "Hekla Cavus",
+    "type": "Cavus",
+    "lat": 6.86,
+    "lon": 154.66,
+    "theme": "surface",
+    "description": "Hekla Cavus is a depression or pit feature on Pluto. Named for the Icelandic volcano believed to be the entrance to Hell in medieval European times.",
+    "lod": 5
+  },
+  {
+    "name": "Hermod Fossae",
+    "type": "Fossa",
+    "lat": -8.63,
+    "lon": 119.34,
+    "theme": "tectonic",
+    "description": "Hermod Fossae is a system of long narrow troughs on Pluto. Named for the son of Odin who rode the horse Sleipnir into the underworld to retrieve his brother Balder in Norse mythology.",
+    "lod": 2
+  },
+  {
+    "name": "Hillary Montes",
+    "type": "Mons",
+    "lat": 3.26,
+    "lon": 169.58,
+    "theme": "surface",
+    "description": "Hillary Montes is a mountain range on Pluto bordering Sputnik Planitia. Named for Edmund Hillary, New Zealand mountaineer (1919–2008).",
+    "lod": 2
+  },
+  {
+    "name": "Hiten Linea",
+    "type": "Linea",
+    "lat": 23.52,
+    "lon": 353.9,
+    "theme": "tectonic",
+    "description": "Hiten Linea is a linear feature on Pluto. Named for the first Japanese spacecraft to the Moon, 1990.",
+    "lod": 4
+  },
+  {
+    "name": "Hunahpu Valles",
+    "type": "Vallis",
+    "lat": 49.09,
+    "lon": 154.41,
+    "theme": "fluvial",
+    "description": "Hunahpu Valles is a valley system on Pluto. Named for one of the Hero Twins in Mayan mythology who defeated the lords of the Underworld in a ball game.",
+    "lod": 3
+  },
+  {
+    "name": "Hyecho Palus",
+    "type": "Palus",
+    "lat": -17.43,
+    "lon": 167.44,
+    "theme": "fluvial",
+    "description": "Hyecho Palus is a marshy low-lying terrain feature on Pluto. Named for the Korean traveler and scholar who crossed the Asian continent from China to Arabia and back (724–727) (704–787).",
+    "lod": 5
+  },
+  {
+    "name": "Inanna Fossa",
+    "type": "Fossa",
+    "lat": 33.05,
+    "lon": 129.29,
+    "theme": "tectonic",
+    "description": "Inanna Fossa is a long narrow trough on Pluto. Inanna was the Queen of Heaven in ancient Sumerian mythology who visited the Underworld but was permitted to return in exchange for her husband Dumuzi's life.",
+    "lod": 2
+  },
+  {
+    "name": "Kaknú Fossa",
+    "type": "Fossa",
+    "lat": -30.45,
+    "lon": 122.07,
+    "theme": "tectonic",
+    "description": "Kaknú Fossa is a long narrow trough on Pluto. Named for the epic hero of Chochenyo/Ohlone mythology, an anthropomorphic being resembling a peregrine falcon who traveled to the underworld to battle the lord of the underworld.",
+    "lod": 2
+  },
+  {
+    "name": "Khare",
+    "type": "Crater",
+    "lat": 27.85,
+    "lon": 94.56,
+    "theme": "crater",
+    "description": "Khare is an impact crater on Pluto. Named for Bishun Khare, Indian-born American atmosphere chemistry scientist who investigated tholins, the organic molecules that account for the darkest regions on Pluto (1933–2013).",
+    "lod": 4
+  },
+  {
+    "name": "Kiladze",
+    "type": "Crater",
+    "lat": 28.39,
+    "lon": 212.92,
+    "theme": "crater",
+    "description": "Kiladze is an impact crater on Pluto. Named for Rolan Kiladze, Georgian astronomer who investigated the dynamics, astrometry and photometry of Pluto (1931–2010).",
+    "lod": 4
+  },
+  {
+    "name": "Kowal",
+    "type": "Crater",
+    "lat": 49.48,
+    "lon": 217.87,
+    "theme": "crater",
+    "description": "Kowal is an impact crater on Pluto. Named for Charles T. Kowal, American astronomer and discoverer of 2060 Chiron (1940–2011).",
+    "lod": 4
+  },
+  {
+    "name": "Lemminkäinen Vallis",
+    "type": "Vallis",
+    "lat": 87.42,
+    "lon": 238.73,
+    "theme": "fluvial",
+    "description": "Lemminkäinen Vallis is a large valley near Pluto's north pole. Named for Lemminkäinen, hero of the Finnish national epic The Kalevala, who travels to the Underworld to capture the black swan.",
+    "lod": 3
+  },
+  {
+    "name": "Lowell Regio",
+    "type": "Regio",
+    "lat": 86.0,
+    "lon": 338.0,
+    "theme": "surface",
+    "description": "Lowell Regio is a large polar region on Pluto. Named for Percival Lowell, American astronomer who undertook extensive searches for trans-Neptunian planets in 1906–1916 (1855–1916).",
+    "lod": 1
+  },
+  {
+    "name": "Luna Linea",
+    "type": "Linea",
+    "lat": 19.88,
+    "lon": 22.78,
+    "theme": "tectonic",
+    "description": "Luna Linea is a linear feature on Pluto. Named for the series of 24 unmanned Soviet lunar probes launched between 1959 and 1976.",
+    "lod": 4
+  },
+  {
+    "name": "Lunokhod Planitia",
+    "type": "Planitia",
+    "lat": 30.75,
+    "lon": 109.57,
+    "theme": "surface",
+    "description": "Lunokhod Planitia is a broad plain on Pluto adjacent to Sputnik Planitia. Named for the Soviet lunar rovers (1970, 1973); Lunokhod 1 was the first remote-controlled wheeled robot on an extraterrestrial body.",
+    "lod": 1
+  },
+  {
+    "name": "Mwindo Fossae",
+    "type": "Fossa",
+    "lat": 34.74,
+    "lon": 245.78,
+    "theme": "tectonic",
+    "description": "Mwindo Fossae is a system of long narrow troughs on Pluto. Named for the Nyanga (Eastern DRC) epic hero who traveled to the underworld and returned to become a wise and powerful king.",
+    "lod": 2
+  },
+  {
+    "name": "Oort",
+    "type": "Crater",
+    "lat": 7.86,
+    "lon": 92.05,
+    "theme": "crater",
+    "description": "Oort is a large impact crater on Pluto. Named for Jan Hendrik Oort, Dutch astronomer who first described the Oort Cloud, a theoretical cloud of icy planetesimals believed to be the source of long-period comets (1900–1992).",
+    "lod": 3
+  },
+  {
+    "name": "Piccard Mons",
+    "type": "Mons",
+    "lat": -35.26,
+    "lon": 176.79,
+    "theme": "surface",
+    "description": "Piccard Mons is a large mountain on Pluto, likely a cryovolcanic edifice. Named for Auguste Piccard, Swiss-Belgian inventor and physicist known for his pioneering balloon flights into the upper atmosphere (1884–1962).",
+    "lod": 2
+  },
+  {
+    "name": "Pigafetta Montes",
+    "type": "Mons",
+    "lat": -6.83,
+    "lon": 146.44,
+    "theme": "surface",
+    "description": "Pigafetta Montes is a mountain range on Pluto. Named for Antonio Pigafetta, Italian scholar whose journal is the only original account of the first circumnavigation of the Earth under Magellan (c.1491–c.1531).",
+    "lod": 2
+  },
+  {
+    "name": "Pioneer Terra",
+    "type": "Terra",
+    "lat": 56.58,
+    "lon": 192.4,
+    "theme": "surface",
+    "description": "Pioneer Terra is an ancient highland region on Pluto. Named for the early US lunar, planetary, and heliospheric missions including the first to Jupiter and Saturn, 1958–1997.",
+    "lod": 1
+  },
+  {
+    "name": "Piri Rupes",
+    "type": "Rupes",
+    "lat": 27.13,
+    "lon": 108.9,
+    "theme": "tectonic",
+    "description": "Piri Rupes is an escarpment on Pluto. Named for Piri Reis (Ahmed Muhiddin), Ottoman navigator and cartographer who authored one of the earliest existing world maps in 1513 (c.1470–1553).",
+    "lod": 4
+  },
+  {
+    "name": "Pulfrich",
+    "type": "Crater",
+    "lat": 77.8,
+    "lon": 135.99,
+    "theme": "crater",
+    "description": "Pulfrich is an impact crater on Pluto. Named for Carl Pulfrich, German physicist and inventor of the blink comparator which Clyde Tombaugh used for the discovery of Pluto (1858–1927).",
+    "lod": 5
+  },
+  {
+    "name": "Ranger Planitia",
+    "type": "Planitia",
+    "lat": 20.89,
+    "lon": 127.91,
+    "theme": "surface",
+    "description": "Ranger Planitia is a broad plain on Pluto. Named for the series of US space probes sent to the Moon during 1961–1965; Ranger 7 obtained the first close-up images of an extraterrestrial surface in 1964.",
+    "lod": 1
+  },
+  {
+    "name": "Ride Rupes",
+    "type": "Rupes",
+    "lat": -19.66,
+    "lon": 163.19,
+    "theme": "tectonic",
+    "description": "Ride Rupes is an escarpment on Pluto. Named for Sally Ride, American physicist, astronaut, and first American woman in space (1951–2012).",
+    "lod": 4
+  },
+  {
+    "name": "Rosetta Planitia",
+    "type": "Planitia",
+    "lat": -22.31,
+    "lon": 157.22,
+    "theme": "surface",
+    "description": "Rosetta Planitia is a broad plain on Pluto. Named for the Rosetta mission, the first to orbit and land a spacecraft on a comet.",
+    "lod": 1
+  },
+  {
+    "name": "Safronov Regio",
+    "type": "Regio",
+    "lat": -13.36,
+    "lon": 209.49,
+    "theme": "surface",
+    "description": "Safronov Regio is a large distinct surface region on Pluto. Named for Viktor Safronov, Russian astronomer who proposed the planetesimal hypothesis for Solar System formation (1917–1999).",
+    "lod": 1
+  },
+  {
+    "name": "Sharaf Regio",
+    "type": "Regio",
+    "lat": -11.38,
+    "lon": 238.67,
+    "theme": "surface",
+    "description": "Sharaf Regio is a large distinct surface region on Pluto. Named for Shafika Gil'mievna Sharaf, Soviet astronomer who developed an analytical theory for Pluto's motion and derived new orbital elements (1915–2002).",
+    "lod": 1
+  },
+  {
+    "name": "Simonelli",
+    "type": "Crater",
+    "lat": 12.79,
+    "lon": 314.76,
+    "theme": "crater",
+    "description": "Simonelli is a large impact crater on Pluto. Named for Damon Simonelli, American astronomer who investigated the formation history of Pluto (1959–2004).",
+    "lod": 3
+  },
+  {
+    "name": "Sleipnir Fossa",
+    "type": "Fossa",
+    "lat": 23.7,
+    "lon": 234.51,
+    "theme": "tectonic",
+    "description": "Sleipnir Fossa is a long narrow trough on Pluto. Named for the powerful eight-legged horse in Norse mythology who carried Odin into the Underworld.",
+    "lod": 2
+  },
+  {
+    "name": "Sputnik Planitia",
+    "type": "Planitia",
+    "lat": 19.51,
+    "lon": 178.69,
+    "theme": "surface",
+    "description": "Sputnik Planitia is a vast nitrogen-ice plain filling an ancient impact basin, forming the western lobe of Pluto's iconic heart-shaped Tombaugh Regio. Named for Soviet Sputnik 1, the first human-built satellite of the Earth (1957).",
+    "lod": 1
+  },
+  {
+    "name": "Surveyor Linea",
+    "type": "Linea",
+    "lat": 22.61,
+    "lon": 329.52,
+    "theme": "tectonic",
+    "description": "Surveyor Linea is a linear feature on Pluto. Named for the series of seven unmanned US probes to the lunar surface, 1966–1968.",
+    "lod": 4
+  },
+  {
+    "name": "Tabei Montes",
+    "type": "Mons",
+    "lat": -11.73,
+    "lon": 164.33,
+    "theme": "surface",
+    "description": "Tabei Montes is a mountain range on Pluto. Named for Junko Tabei, Japanese mountaineer and first woman to climb both Mount Everest and the Seven Summits (1939–2016).",
+    "lod": 2
+  },
+  {
+    "name": "Tartarus Dorsa",
+    "type": "Dorsum",
+    "lat": 8.5,
+    "lon": 233.09,
+    "theme": "tectonic",
+    "description": "Tartarus Dorsa is a ridge system of distinctive bladed terrain on Pluto formed by sublimation of methane ice. Named for the deepest, darkest pit of the Underworld in Greek mythology.",
+    "lod": 3
+  },
+  {
+    "name": "Tenzing Montes",
+    "type": "Mons",
+    "lat": -15.61,
+    "lon": 177.38,
+    "theme": "surface",
+    "description": "Tenzing Montes is a mountain range on Pluto bordering Sputnik Planitia. Named for Tenzing Norgay, Nepalese (Sherpa) mountaineer (1914–1986).",
+    "lod": 2
+  },
+  {
+    "name": "Tombaugh Regio",
+    "type": "Regio",
+    "lat": 7.62,
+    "lon": 183.22,
+    "theme": "surface",
+    "description": "Tombaugh Regio is Pluto's iconic heart-shaped region, comprising the nitrogen-ice plain Sputnik Planitia to the west and the highland Tombaugh Highlands to the east. Named for Clyde William Tombaugh, American astronomer who discovered Pluto in 1930 (1906–1997).",
+    "lod": 1
+  },
+  {
+    "name": "Uncama Fossa",
+    "type": "Fossa",
+    "lat": 23.96,
+    "lon": 142.62,
+    "theme": "tectonic",
+    "description": "Uncama Fossa is a long narrow trough on Pluto. Named for the Zulu tale hero who followed a porcupine underground and came upon the village of dead souls.",
+    "lod": 2
+  },
+  {
+    "name": "Väinämöinen Vallis",
+    "type": "Vallis",
+    "lat": 80.7,
+    "lon": 70.81,
+    "theme": "fluvial",
+    "description": "Väinämöinen Vallis is a large valley near Pluto's north pole. Named for Väinämöinen, central character of the Finnish national epic The Kalevala, who traveled to the Underworld to seek knowledge.",
+    "lod": 3
+  },
+  {
+    "name": "Vega Terra",
+    "type": "Terra",
+    "lat": 33.96,
+    "lon": 85.49,
+    "theme": "surface",
+    "description": "Vega Terra is an ancient highland region on Pluto. Named for the Soviet Vega 1 and Vega 2 spacecraft, first to fly balloons on another planet (Venus, 1985) and first to image a comet nucleus (1986).",
+    "lod": 1
+  },
+  {
+    "name": "Venera Terra",
+    "type": "Terra",
+    "lat": 56.89,
+    "lon": 117.62,
+    "theme": "surface",
+    "description": "Venera Terra is an ancient highland region on Pluto. Named for the series of 16 Soviet spacecraft sent to Venus in 1961–1983, accomplishing numerous planetary exploration firsts.",
+    "lod": 1
+  },
+  {
+    "name": "Viking Terra",
+    "type": "Terra",
+    "lat": 12.34,
+    "lon": 150.97,
+    "theme": "surface",
+    "description": "Viking Terra is an ancient highland region on Pluto. Named for the US Mars orbiter and lander missions that conducted the first successful explorations of the surface of Mars, 1976–1982.",
+    "lod": 1
+  },
+  {
+    "name": "Virgil Fossae",
+    "type": "Fossa",
+    "lat": 5.23,
+    "lon": 122.76,
+    "theme": "tectonic",
+    "description": "Virgil Fossae is a prominent system of troughs on Pluto associated with cryovolcanic activity. Named for Virgil (70–19 BCE), the Italian poet who serves as Dante's guide through Hell and Purgatory in the Divine Comedy.",
+    "lod": 2
+  },
+  {
+    "name": "Voyager Terra",
+    "type": "Terra",
+    "lat": 60.08,
+    "lon": 153.52,
+    "theme": "surface",
+    "description": "Voyager Terra is an ancient highland region on Pluto. Named for the US Voyager 1 and Voyager 2 spacecraft that performed the 'grand tour' of all four giant planets (1977–1989).",
+    "lod": 1
+  },
+  {
+    "name": "Wright Mons",
+    "type": "Mons",
+    "lat": -21.36,
+    "lon": 173.24,
+    "theme": "surface",
+    "description": "Wright Mons is a large mountain on Pluto, likely a cryovolcanic edifice. Named for Orville (1871–1948) and Wilbur (1867–1912) Wright, US aviation pioneers who flew the world's first successful powered aircraft in 1903.",
+    "lod": 2
+  },
+  {
+    "name": "Yutu Linea",
+    "type": "Linea",
+    "lat": 32.77,
+    "lon": 1.79,
+    "theme": "tectonic",
+    "description": "Yutu Linea is a linear feature on Pluto. Named for the series of Chinese lunar probes, beginning in 2013.",
+    "lod": 4
+  },
+  {
+    "name": "Zagar",
+    "type": "Crater",
+    "lat": -5.74,
+    "lon": 155.23,
+    "theme": "crater",
+    "description": "Zagar is an impact crater on Pluto. Named for Francesco Zagar, Italian astronomer who carried out early studies of the orbit of Pluto (1900–1976).",
+    "lod": 4
+  },
+  {
+    "name": "Zheng He Montes",
+    "type": "Mons",
+    "lat": 19.01,
+    "lon": 160.57,
+    "theme": "surface",
+    "description": "Zheng He Montes is a mountain range on Pluto. Named for Zheng He, Chinese explorer who led voyages to Asia, Africa, and the Middle East (1371–1433).",
+    "lod": 2
+  },
+  {
+    "name": "Zond Linea",
+    "type": "Linea",
+    "lat": 23.91,
+    "lon": 336.82,
+    "theme": "tectonic",
+    "description": "Zond Linea is a linear feature on Pluto. Named for the series of eight unmanned Soviet lunar and interplanetary probes, 1964–1970.",
+    "lod": 4
+  }
 ]
