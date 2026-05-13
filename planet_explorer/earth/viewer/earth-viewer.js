@@ -5793,7 +5793,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       }
       const legendEntries = buildLegendEntries(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
       if (legendSection) {
-        if (legendEntries.length > 0 && _prevLegendEntryCount === 0) {
+        if (coreActive) {
+          legendSection.open = false;
+        } else if (legendEntries.length > 0 && _prevLegendEntryCount === 0) {
           legendSection.open = true;
         } else if (legendEntries.length === 0 && _prevLegendEntryCount > 0) {
           legendSection.open = false;
