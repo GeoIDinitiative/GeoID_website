@@ -1345,7 +1345,7 @@
     <span class="status-sep">·</span>
     <div class="status-item">
       <span class="status-dot dim"></span>
-      Mercury Through Neptune Charted
+      Mercury Through Pluto Charted
     </div>
   </div>
 
@@ -1359,10 +1359,11 @@
       jupiter: { title: "Jupiter", icon: "../assets/jupiter_icon.png", route: "transit.html?destination=jupiter", launchLabel: "Open Jupiter Viewer", copy: "Jupiter is the largest planet in the solar system, a giant world of turbulent cloud bands, immense storms like the Great Red Spot, and a powerful gravity field that dominates its moon system." },
       saturn:  { title: "Saturn",  icon: "../assets/saturn_icon.png",  route: "transit.html?destination=saturn",  launchLabel: "Open Saturn Viewer",  copy: "Saturn is a gas giant known for its bright ring system, pale banded atmosphere, low density, and a complex family of moons orbiting through an immense planetary environment." },
       uranus:  { title: "Uranus",  icon: "../assets/uranus_icon.png",  route: "transit.html?destination=uranus",  launchLabel: "Open Uranus Viewer",  copy: "Uranus is an ice giant tipped dramatically on its side, with a pale blue-green atmosphere, faint rings, deep cold, and seasons unlike any other major planet." },
-      neptune: { title: "Neptune", icon: "../assets/neptune_icon.png", route: "transit.html?destination=neptune", launchLabel: "Open Neptune Viewer", copy: "Neptune is a distant ice giant with a deep blue atmosphere, powerful winds, dark storms, faint rings, and an energetic weather system despite its great distance from the Sun." }
+      neptune: { title: "Neptune", icon: "../assets/neptune_icon.png", route: "transit.html?destination=neptune", launchLabel: "Open Neptune Viewer", copy: "Neptune is a distant ice giant with a deep blue atmosphere, powerful winds, dark storms, faint rings, and an energetic weather system despite its great distance from the Sun." },
+      pluto:   { title: "Pluto",   icon: "../assets/pluto_icon.png",   route: "transit.html?destination=pluto",   launchLabel: "Open Pluto Viewer",   copy: "Pluto is a distant dwarf planet at the edge of the solar system, with a nitrogen-ice heart, rugged mountain ranges, and a surface shaped by exotic ices far from the Sun." }
     };
 
-    const orbitKeys = ["mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"];
+    const orbitKeys = ["mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
     const stackTrack = document.getElementById("stack-track");
     let activePlanet = "mars";
     let dragStartX = null;
@@ -1585,5 +1586,6 @@
       new ResizeObserver(resize).observe(canvas.parentElement);
     })();
   </script>
+<script src="../styles/nav.js" defer></script>
 </body>
 </html>

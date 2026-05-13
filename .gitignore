@@ -10,3 +10,10 @@ __pycache__/
 *.pyc
 planet_explorer/venus/viewer/assets/Geology_VenusProject.ppkx
 planet_explorer/venus/viewer/assets/geology/SIM3178_Data.zip
+planet_explorer/backups/
+planet_explorer/old/
+planet_explorer/good/
+planet_explorer/.~lock.*
+moon.jpg
+music/
+*.orig

@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Neptune</title>
   <link rel="icon" href="assets/logo.png" type="image/png">
-  <link rel="preload" href="assets/neptune_color.jpg" as="image">
-  <link rel="preload" href="assets/neptune_elevation.png" as="image">
-  <link rel="preload" href="assets/neptune_geology_sim3292.png" as="image">
+  <link rel="preload" href="assets/neptune_color.jpg" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="assets/neptune_elevation.png" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="assets/neptune_geology_sim3292.png" as="fetch" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260508-neptune">
+  <link rel="stylesheet" href="styles.css?v=20260512-neptune">
   <style>html,body{background:#000;margin:0}</style>
 </head>
 <body>
@@ -25,7 +25,7 @@
       </div>
     </div>
     <div class="viewer-info" id="viewer-info">
-      <p>Drag to orbit, scroll to zoom, and inspect Neptune as a textured 3D globe with dynamic storm systems, faint rings, and optional derived context layers.</p>
+      <p>Drag to orbit, scroll to zoom, and inspect Neptune as a textured 3D globe with its ring arcs, Triton flyby trajectory, and optional atmospheric context layers.</p>
     </div>
     <div class="brand-hero">
       <div class="brand">
@@ -39,7 +39,7 @@
           <svg id="audio-icon-play" width="40" height="40" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><polygon points="3,1 13,7 3,13"/></svg>
           <svg id="audio-icon-pause" width="34" height="34" viewBox="0 0 14 14" fill="currentColor" style="display:none" aria-hidden="true"><rect x="2" y="1" width="4" height="12" rx="1"/><rect x="8" y="1" width="4" height="12" rx="1"/></svg>
         </button>
-        <p class="mars-audio-label">NASA Voyager 2 sounds of Neptune</p>
+        <p class="mars-audio-label">NASA Neptune radio emissions — Voyager 2</p>
       </div>
     </div>
     <audio id="mars-audio-el" preload="metadata">
@@ -64,14 +64,12 @@
               <label for="tour-mode-facet">Tour facet</label>
               <select id="tour-mode-facet" class="select"></select>
             </div>
-            <div class="row">
-              <label for="tour-mode-target">Current stop</label>
-              <select id="tour-mode-target" class="select"></select>
-            </div>
-            <div class="nav-arrow-row">
+            <p class="inline-nav-label">Current stop</p>
+            <div class="inline-nav-row">
               <button id="tour-mode-prev" class="btn-nav-arrow" type="button" disabled aria-label="Previous">
                 <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
               </button>
+              <select id="tour-mode-target" class="inline-nav-select"></select>
               <button id="tour-mode-next" class="btn-nav-arrow" type="button" disabled aria-label="Next">
                 <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
@@ -105,7 +103,7 @@
           </div>
         </div>
       </details>
-<details class="control-section">
+<details id="locations-section" class="control-section">
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
@@ -123,7 +121,11 @@
             <span class="checkbox-wrap"><input id="labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
-            <label for="volcanic-labels-toggle" style="color: #ff6b6b;">Volcanic features</label>
+            <label for="crater-labels-toggle" style="color: #ff5faa;">Impact craters</label>
+            <span class="checkbox-wrap"><input id="crater-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
+            <label for="volcanic-labels-toggle" style="color: #ff6b6b;">Cryovolcanic features</label>
             <span class="checkbox-wrap"><input id="volcanic-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
@@ -131,8 +133,16 @@
             <span class="checkbox-wrap"><input id="storm-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
-            <label for="landing-labels-toggle" style="color: #ffd166;">Mission locations</label>
+            <label for="landing-labels-toggle" style="color: #ffe500;">Mission locations</label>
             <span class="checkbox-wrap"><input id="landing-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
+            <label for="tectonic-labels-toggle" style="color: #b87333;">Canyons &amp; ridges</label>
+            <span class="checkbox-wrap"><input id="tectonic-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
+            <label for="fluvial-labels-toggle" style="color: #2d78e0;">Albedo features</label>
+            <span class="checkbox-wrap"><input id="fluvial-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
             <label for="flyby-paths-toggle" style="color: #ffffff;">Flyby trajectories</label>
@@ -140,16 +150,8 @@
           </div>
           <div id="flyby-legend" class="flyby-legend">
             <div class="flyby-legend-item">
-              <span class="flyby-legend-line" style="background:#ffbb44;"></span>
-              <span class="flyby-legend-name">Pioneer 11 <span class="flyby-legend-year">1979</span></span>
-            </div>
-            <div class="flyby-legend-item">
               <span class="flyby-legend-line" style="background:#66aaff;"></span>
-              <span class="flyby-legend-name">Voyager 1 <span class="flyby-legend-year">1980</span></span>
-            </div>
-            <div class="flyby-legend-item">
-              <span class="flyby-legend-line" style="background:#44dd88;"></span>
-              <span class="flyby-legend-name">Voyager 2 <span class="flyby-legend-year">1981</span></span>
+              <span class="flyby-legend-name">Voyager 2 <span class="flyby-legend-year">1989</span></span>
             </div>
           </div>
           <div class="row">
@@ -212,56 +214,15 @@
         </div>
         </div>
       </details>
-<details class="control-section">
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2 10.8c3.7 0 3-6.2 7-6.2 2.1 0 3.2 1.5 3.2 3.2 0 1.5-1 2.7-2.6 2.7-.8 0-1.5-.3-2.2-1.1.2 1.5 1 2.7 2.6 3.3" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Modeled Level</span></span></div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body">
-          <div class="control-stack">
-          <div class="row">
-            <label for="sea-toggle">Paleo-sea overlay</label>
-            <span class="checkbox-wrap"><input id="sea-toggle" type="checkbox"></span>
-          </div>
-          <div class="row">
-            <label for="sea-level-slider">Sea level</label>
-            <input id="sea-level-slider" class="slider" type="range" min="-8200" max="0" step="25" value="-4000">
-          </div>
-          <p class="compact-copy" id="sea-level-copy">Speculative northern-ocean highstand slider. Current level: <span id="sea-level-value">-4000 m</span></p>
-        </div>
-        </div>
-      </details>
-<details class="control-section">
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title">Regions</div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body">
-          <div class="control-stack">
-          <div class="row">
-            <label for="region-mask-select">Region mask</label>
-            <select id="region-mask-select" class="mini-select">
-              <option value="">None</option>
-              <option value="lowlands">Lowlands</option>
-              <option value="highlands">Highlands</option>
-              <option value="volcanic-provinces">Volcanic provinces</option>
-              <option value="basins">Basins</option>
-            </select>
-          </div>
-          <div class="row">
-            <label for="region-mask-opacity">Mask opacity</label>
-            <input id="region-mask-opacity" class="slider" type="range" min="0" max="1" step="0.01" value="0.45">
-          </div>
-          <p class="compact-copy">Use these masks to isolate broad physiographic provinces and modeled regional domains.</p>
-        </div>
-        </div>
-      </details>
+
+
+<!-- gas-giant stubs: elements expected by viewer JS, hidden -->
+<input id="sea-toggle" type="checkbox" style="display:none">
+<input id="sea-level-slider" type="range" style="display:none">
+<span id="sea-level-value" style="display:none"></span>
+<p id="sea-level-copy" style="display:none"></p>
+<select id="region-mask-select" style="display:none"><option value=""></option></select>
+<input id="region-mask-opacity" type="range" style="display:none">
 <details id="remove-atmosphere-section" class="control-section">
         <summary class="section-toggle">
           <div class="section-toggle-main">
@@ -298,6 +259,38 @@
               <span class="checkbox-wrap"><input id="core-labels-toggle" type="checkbox" checked></span>
             </div>
           </div>
+          <div class="core-wrap" id="core-wrap" hidden>
+            <div class="core-legend">
+              <div class="core-legend-row" id="core-layer-upper-atmosphere">
+                <span class="core-swatch" style="background:#3d6bbf"></span>
+                <div>
+                  <div class="core-legend-label">Upper Atmosphere</div>
+                  <div class="core-legend-copy">Bright blue cloud tops dominated by methane absorption, zonal banding, and storm systems including the Great Dark Spot observed by Voyager 2.</div>
+                </div>
+              </div>
+              <div class="core-legend-row" id="core-layer-atmosphere">
+                <span class="core-swatch" style="background:#6e98cc"></span>
+                <div>
+                  <div class="core-legend-label">Atmosphere</div>
+                  <div class="core-legend-copy">A deep fluid envelope of molecular hydrogen, helium, and methane transitioning inward from gas to supercritical fluid under increasing pressure.</div>
+                </div>
+              </div>
+              <div class="core-legend-row" id="core-layer-water-ice-mantle">
+                <span class="core-swatch" style="background:#b8c6d8"></span>
+                <div>
+                  <div class="core-legend-label">Water-Ice Mantle</div>
+                  <div class="core-legend-copy">Neptune's dominant interior layer — hot, dense water, ammonia, and methane ices in ionic or superionic states under megabar pressures.</div>
+                </div>
+              </div>
+              <div class="core-legend-row" id="core-layer-rocky-ice-core">
+                <span class="core-swatch" style="background:#7a5030"></span>
+                <div>
+                  <div class="core-legend-label">Rocky-Ice Core</div>
+                  <div class="core-legend-copy">A small dense core of silicate rock and iron-nickel metal roughly the size of Earth, under extreme temperature and pressure at Neptune's centre.</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </details>
 <details id="moon-viewer-section" class="control-section">
@@ -316,18 +309,24 @@
             <p class="compact-copy">Moon viewer recenters the scene on one moon at a time for a free 360 degree orbit.</p>
             <div id="moon-viewer-controls" style="display:none;">
               <div class="control-stack">
-                <div class="row">
-                  <label for="moon-viewer-select">Target moon</label>
-                  <select id="moon-viewer-select" class="mini-select"></select>
-                </div>
-                <div class="nav-arrow-row">
+                <p class="inline-nav-label">Target moon</p>
+                <div class="inline-nav-row">
                   <button id="moon-viewer-prev" class="btn-nav-arrow" type="button" disabled aria-label="Previous">
                     <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
+                  <select id="moon-viewer-select" class="inline-nav-select"></select>
                   <button id="moon-viewer-next" class="btn-nav-arrow" type="button" disabled aria-label="Next">
                     <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
                   </button>
                 </div>
+                <div class="moon-feature-tour-header" style="margin-top:0.6rem;">
+                  <span class="moon-feature-tour-label">Search</span>
+                </div>
+                <div class="search-row">
+                  <input id="moon-feature-search" class="input" placeholder="Search this moon's features" autocomplete="off">
+                  <button id="moon-feature-search-go" class="button" type="button">Go</button>
+                </div>
+                <div id="moon-feature-search-results" class="search-suggestions" hidden></div>
                 <div class="moon-feature-tour-header">
                   <span class="moon-feature-tour-label">Feature Tour</span>
                 </div>
@@ -335,19 +334,16 @@
                   <label for="moon-feature-type">Feature type</label>
                   <select id="moon-feature-type" class="select"></select>
                 </div>
-                <div class="row">
-                  <label for="moon-feature-tour-target">Current feature</label>
-                  <select id="moon-feature-tour-target" class="select"></select>
-                </div>
-                <div class="nav-arrow-row">
+                <p class="inline-nav-label">Current feature</p>
+                <div class="inline-nav-row">
                   <button id="moon-feature-tour-prev" class="btn-nav-arrow" type="button" disabled aria-label="Previous">
                     <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
+                  <select id="moon-feature-tour-target" class="inline-nav-select"></select>
                   <button id="moon-feature-tour-next" class="btn-nav-arrow" type="button" disabled aria-label="Next">
                     <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
                   </button>
                 </div>
-                <div id="moon-feature-search-results" class="search-suggestions" hidden></div>
               </div>
             </div>
           </div>
@@ -364,7 +360,7 @@
         <div class="section-body">
           <div class="section-summary-copy" id="legend-summary-copy" style="margin-bottom:0.5rem;">Active overlay symbologies and legend images.</div>
           <div id="legend-panel" class="legend-panel">
-            <p class="legend-empty">Enable geology, mineral, paleo-sea, region masks, or seismic overlays to populate the legend.</p>
+            <p class="legend-empty">Enable geology, mineral, or seismic overlays to populate the legend.</p>
           </div>
         </div>
       </details>
@@ -414,48 +410,6 @@
       
     </div>
     </div>
-    <div class="core-wrap" id="core-wrap" hidden>
-      <p class="core-title">Interior Model</p>
-      <p class="core-copy">
-        This cutaway is schematic. Neptune's deep structure is inferred from gravity, magnetic-field measurements, and atmospheric modeling rather than direct sampling.
-      </p>
-      <ul class="core-list">
-        <li>Upper atmosphere: visible cloud tops, haze layers, and active weather bands</li>
-        <li>Molecular envelope: most of Neptune by volume is a water-methane-ammonia ice mixture under increasing pressure — sometimes called an ice giant mantle</li>
-        <li>Metallic hydrogen layer: deep conductive hydrogen likely helps power the magnetic field</li>
-        <li>Heavy-element core: a rock-ice-rich central region is likely present but structurally uncertain</li>
-      </ul>
-      <div class="core-legend">
-        <div class="core-legend-row">
-          <span class="core-swatch" style="background:#d0b18a"></span>
-          <div>
-            <div class="core-legend-label">Upper Atmosphere</div>
-            <div class="core-legend-copy">Visible cloud tops and upper haze layers represented by the outer skin of the cutaway.</div>
-          </div>
-        </div>
-        <div class="core-legend-row">
-          <span class="core-swatch" style="background:#a29378"></span>
-          <div>
-            <div class="core-legend-label">Molecular Hydrogen Envelope</div>
-            <div class="core-legend-copy">A deep molecular hydrogen-helium envelope shown as the broad outer interior shell.</div>
-          </div>
-        </div>
-        <div class="core-legend-row">
-          <span class="core-swatch" style="background:#c0c6cf"></span>
-          <div>
-            <div class="core-legend-label">Metallic Hydrogen Layer</div>
-            <div class="core-legend-copy">High-pressure hydrogen likely becomes electrically conductive at depth, shown here as the inner amber shell.</div>
-          </div>
-        </div>
-        <div class="core-legend-row">
-          <span class="core-swatch" style="background:#8d9fbe"></span>
-          <div>
-            <div class="core-legend-label">Diffuse Heavy-Element Core</div>
-            <div class="core-legend-copy">A compact rock-ice-rich interior is likely present, but its size and sharpness remain uncertain.</div>
-          </div>
-        </div>
-      </div>
-    </div>
     <p class="status" id="status">© 2026 GeoID: Explorer. GeoID Solutions, led by Owen McCluskey. All rights reserved.</p>
   </section>
   <a class="hub-link" href="../../../html/explorer.html" target="_top" rel="home">Return Home</a>
@@ -464,12 +418,12 @@
   <button id="toolbar-tab" aria-label="Expand measure toolbox">TOOLS &nbsp;‹</button>
   <div id="top-right-controls">
     <button id="spin-toggle" type="button" title="Pause rotation" aria-label="Pause rotation">
-      <span class="viewer-control-glyph" id="spin-toggle-glyph" aria-hidden="true">⏸</span>
+      <svg class="viewer-control-icon" id="spin-toggle-glyph" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/>
+      </svg>
     </button>
     <button id="freeze-view-toggle" type="button" title="Freeze view" aria-label="Freeze view">
-      <svg class="viewer-control-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 7.2v9.6M7.9 9.6l8.2 4.8M7.9 14.4l8.2-4.8M9.3 7.7l1.6 2.8M14.7 7.7l-1.6 2.8M9.3 16.3l1.6-2.8M14.7 16.3l-1.6-2.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <img class="viewer-control-icon freeze-icon" src="../../../assets/snowflake_icon.png" alt="" aria-hidden="true">
     </button>
     <a href="https://geoidinitiative.com/" target="_blank" rel="noopener noreferrer" aria-label="Open GeoID Initiative website">
       <img id="top-right-logo" src="assets/logo.png" alt="GeoID logo">
@@ -695,7 +649,7 @@
         </section>
         <section class="viewer-help-section">
           <h3>Control Panel Layout</h3>
-          <p>The left panel runs from navigation to interpretation. <strong>Tour Mode</strong> steps through curated stop sequences by theme. <strong>Locations</strong> controls surface labels by category. <strong>Basemap &amp; Relief</strong> sets the globe texture and cloud displacement. <strong>Regions</strong> masks broad latitudinal zones. <strong>Core View</strong> shows Neptune's layered interior structure. <strong>Moon Viewer</strong> flies to Neptune's major moons. The bottom-right HUD shows live cursor latitude, longitude, and map scale.</p>
+          <p>The left panel runs from navigation to interpretation. <strong>Tour Mode</strong> steps through curated stop sequences by theme. <strong>Locations</strong> controls surface labels by category. <strong>Basemap</strong> sets the globe texture. <strong>Core View</strong> shows Neptune's layered interior structure. <strong>Moon Viewer</strong> flies to Triton and other Neptune moons. The bottom-right HUD shows live cursor latitude, longitude, and map scale.</p>
         </section>
         <section class="viewer-help-section">
           <h3>Tour Mode</h3>
@@ -703,26 +657,26 @@
         </section>
         <section class="viewer-help-section">
           <h3>Moon Viewer</h3>
-          <p>Select one of Neptune's moons — Triton, Proteus, Nereid, Larissa, or Galatea — from the Moon Viewer section to fly out to the moon in close orbit. The panel focuses to show moon-specific labels including Triton's polar caps, geysers, and cantaloupe terrain. Click any moon feature label for its description and orbital data.</p>
+          <p>Select Triton or another Neptune moon from the Moon Viewer section to fly out and explore its surface.</p>
         </section>
         <section class="viewer-help-section">
           <h3>Datasets Available</h3>
           <div class="viewer-help-grid">
             <article class="viewer-help-card">
               <h4>Global basemaps</h4>
-              <p>Saturn body colour map derived from Cassini and Hubble imagery, with band contrast and storm contrast enhancement layers.</p>
+              <p>Neptune body colour map derived from Voyager 2 and Hubble imagery.</p>
             </article>
             <article class="viewer-help-card">
               <h4>Atmosphere overlays</h4>
-              <p>Enhanced atmospheric context layer derived from the official NASA Neptune image, emphasising cloud banding and storm features.</p>
+              <p>Enhanced atmospheric context layer emphasising Neptune's dynamic storm features and cloud banding.</p>
             </article>
             <article class="viewer-help-card">
               <h4>Ring system</h4>
-              <p>Saturn's ring plane rendered as a textured disc with named ring regions from D ring to E ring, including the Cassini Division and Encke Gap.</p>
+              <p>Neptune's faint ring arcs rendered as a reference disc, including the Adams ring arc system.</p>
             </article>
             <article class="viewer-help-card">
               <h4>Major moons</h4>
-              <p>Seven major moons with textured globes: Titan, Enceladus, Mimas, Tethys, Dione, Rhea, and Iapetus, each with named surface features.</p>
+              <p>Triton — Neptune's largest and only major moon — with textured globe and named surface features.</p>
             </article>
             <article class="viewer-help-card">
               <h4>Storm and atmospheric features</h4>
@@ -730,17 +684,20 @@
             </article>
             <article class="viewer-help-card">
               <h4>Spacecraft encounters</h4>
-              <p>Reference points for Pioneer 11, Voyager 1, Voyager 2, and Cassini encounters, including the Cassini Grand Finale orbital entry region.</p>
+              <p>Reference points for Voyager 2's 1989 Neptune encounter, including the closest approach corridor near the north pole.</p>
             </article>
           </div>
+        </section>
+        <section class="viewer-help-section">
+          <h3>About Neptune</h3>
+          <p>Neptune is the eighth and most distant planet from the Sun, with an equatorial radius of ~24,764 km. An ice giant like Uranus, Neptune has the strongest sustained winds in the Solar System and features dynamic storm systems including the historic Great Dark Spot. It has a system of faint rings and 16 known moons. Triton, its largest moon, orbits in a retrograde direction and is likely a captured Kuiper Belt object. Voyager 2 remains the only spacecraft to have visited Neptune (1989).</p>
         </section>
         <section class="viewer-help-section">
           <h3>Measurements &amp; Tools</h3>
           <p>Open the <strong>Tools</strong> panel from the right-hand tab. Point distance measures the great-circle arc between two cloud-top clicks. Area measurement computes the enclosed polygon area. The profile tool draws a cross-section along a dragged path. All measurement results can be exported as CSV or PNG.</p>
         </section>
         <section class="viewer-help-section">
-          <h3>About Neptune</h3>
-          <p>Neptune is the eighth and outermost planet from the Sun, an ice giant with an equatorial radius of ~24,622 km. Its deep blue colour comes from methane and possibly other compounds absorbing red light. Neptune has the strongest sustained winds in the Solar System, reaching ~2,100 km/h. It has 16 known moons; the largest, Triton, orbits retrograde and is likely a captured Kuiper Belt object.</p>
+          
         </section>
       </div>
     </section>
@@ -762,7 +719,7 @@
       </div>
       <div id="metadata-sections"></div>
     </div>
-  </div><script src="neptune-manifest.js?v=20260508-neptune"></script>
+  </div><script src="neptune-manifest.js?v=20260512-neptune"></script>
 <script>
   const statusNode = document.getElementById("status");
   function setBootStatus(message, isError = false) {
@@ -793,7 +750,7 @@
         const viewerScriptVersion = String(
           window.__neptuneViewerManifest?.updatedAt
           || window.__neptuneViewerManifest?.version
-          || "20260508-neptune"
+          || "20260512-neptune"
         );
         viewerScript.src = `neptune-viewer.js?v=${encodeURIComponent(viewerScriptVersion)}&t=${Date.now()}`;
         viewerScript.addEventListener("load", () => resolve(), { once: true });
@@ -809,6 +766,24 @@
 </script>
 <script src="ui-controls.js" defer></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260508-neptune" defer></script>
+<script src="music.js?v=20260512-neptune" defer></script>
+  <div id="portrait-advisory" role="status" aria-live="polite">
+    <img src="../../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon">
+    <p id="portrait-advisory-text">Rotate to landscape for the best experience</p>
+    <button id="portrait-advisory-dismiss" type="button" aria-label="Dismiss">Got it</button>
+  </div>
+  <script>
+    (function () {
+      var advisory = document.getElementById("portrait-advisory");
+      var dismissBtn = document.getElementById("portrait-advisory-dismiss");
+      if (!advisory || !dismissBtn) return;
+      dismissBtn.addEventListener("click", function () {
+        advisory.classList.add("is-dismissed");
+      });
+      window.addEventListener("orientationchange", function () {
+        advisory.classList.remove("is-dismissed");
+      });
+    })();
+  </script>
 </body>
 </html>

@@ -160,11 +160,10 @@
       item.name = getFeatureDisplayName(item);
     });
     const TOUR_FACETS = [
-      { id: "highlights", label: "Highlights", filter: (item) => ["North Polar Hexagon", "Great White Spot", "Cassini Grand Finale Track", "Titan", "Enceladus", "Cassini Division"].includes(item.name) },
+      { id: "highlights", label: "Highlights", filter: (item) => ["Great Red Spot", "Oval BA", "North Equatorial Belt", "South Equatorial Belt", "North Polar Haze", "South Polar Cyclone Region", "Io", "Europa", "Ganymede", "Callisto"].includes(item.name) },
       { id: "atmosphere", label: "Atmosphere", filter: (item) => ["polar", "band", "storm"].includes(item.theme) },
-      { id: "rings", label: "Rings", filter: (item) => item.theme === "ring" || Boolean(item.ring_region) },
       { id: "moons", label: "Moons", filter: (item) => Array.isArray(item.moon_anchor) },
-      { id: "mission", label: "Mission", filter: (item) => item.theme === "landing" || /cassini|huygens/i.test(`${item.name} ${item.description || ""}`) },
+      { id: "mission", label: "Mission", filter: (item) => item.theme === "landing" || /juno|galileo/i.test(`${item.name} ${item.description || ""}`) },
     ];
     let activeTourFeature = null;
 
@@ -404,15 +403,12 @@
     let activePopupFeature = null;
     let activePopupIsCoreLabel = false;
     const coreWrap = document.getElementById("core-wrap");
+    const coreViewSection = document.getElementById("core-view-section");
     const legendSectionBody = legendPanel ? legendPanel.closest(".section-body") : null;
 
     function placeCoreSymbologyUnderLegend() {
-      if (!coreWrap || !legendSectionBody) return;
-      if (coreWrap.parentElement !== legendSectionBody) {
-        legendSectionBody.appendChild(coreWrap);
-      }
+      // Core legend stays inside the Core View section — do not move it.
     }
-    placeCoreSymbologyUnderLegend();
     let selectedGeologyOutline = null;
     let selectedGeologyBoundaryGroup = null;
     let selectedLabelEntry = null;
@@ -976,48 +972,59 @@
 
     const CORE_LAYER_DATA = [
       {
-        id: "upper-atmosphere",
-        name: "Upper Atmosphere",
-        type: "Cloud tops and haze",
-        description: "Jupiter's visible outer shell is the upper atmosphere: ammonia clouds, haze layers, zonal banding, and storm systems seen at the top of the deep hydrogen-helium envelope.",
+        id: "outer-atmosphere",
+        name: "Outer Atmosphere",
+        type: "Gas H, He with CH₄, NH₃, H₂O traces",
+        description: "Jupiter's outermost visible shell: ammonia clouds, haze layers, zonal banding, and storm systems at the top of the deep hydrogen-helium envelope.",
         depth: "Cloud tops through the upper troposphere",
-        composition: "Hydrogen and helium with ammonia ice, ammonium hydrosulfide, water-cloud layers below, and photochemical haze above.",
-        temperature: "~80-140 K near the visible cloud deck",
-        labelX: -1.9, labelY: 3.12,
+        composition: "Hydrogen and helium gas with ammonia ice, ammonium hydrosulfide, water-cloud layers, and photochemical haze.",
+        temperature: "~80–140 K near the visible cloud deck",
+        labelX: -1.60, labelY: 3.20,
         anchorY: 3.12,
       },
       {
-        id: "molecular-envelope",
-        name: "Molecular Envelope",
-        type: "Deep H2-He fluid shell",
-        description: "Most of Jupiter's volume is a convecting molecular hydrogen-helium envelope where pressure rises steadily inward and weather gives way to deep fluid dynamics.",
-        depth: "Outer atmosphere to the metallic transition",
-        composition: "Mostly molecular hydrogen and helium with dissolved heavier elements and cloud-forming volatiles.",
-        temperature: "Rises from the upper atmosphere into the thousands of kelvin at depth",
-        labelX: -2.35, labelY: 2.26,
-        anchorY: 2.26,
+        id: "inner-atmosphere",
+        name: "Inner Atmosphere",
+        type: "Liquid H and He",
+        description: "A layer of liquid hydrogen-helium where pressure rises steeply and the gas transitions from compressible to fluid behaviour.",
+        depth: "Below the cloud deck to the liquid–metallic transition",
+        composition: "Mostly liquid hydrogen and helium.",
+        temperature: "Rises from hundreds to thousands of kelvin with depth",
+        labelX: -1.90, labelY: 3.05,
+        anchorY: 2.86,
       },
       {
-        id: "metallic-hydrogen",
-        name: "Metallic Hydrogen Layer",
-        type: "Conductive deep interior",
-        description: "At extreme pressure, hydrogen is expected to enter a metallic state. This electrically conductive layer likely powers Jupiter's magnetic field and dominates the deep interior.",
-        depth: "Broad deep shell around the central heavy-element region",
-        composition: "Metallic hydrogen with helium and heavier-element material mixed into the deep interior.",
-        temperature: "Several thousand kelvin under immense pressure",
-        labelX: -1.65, labelY: 1.36,
-        anchorY: 1.36,
+        id: "fluid-transition",
+        name: "Fluid Transition",
+        type: "H and He transitioning to metallic form",
+        description: "A gradual transition zone where hydrogen shifts from a molecular to a metallic conducting state as pressure increases with depth.",
+        depth: "Between the liquid hydrogen envelope and fully metallic interior",
+        composition: "Hydrogen and helium in a mixed molecular-metallic state under extreme pressure.",
+        temperature: "Several thousand kelvin",
+        labelX: -2.20, labelY: 2.78,
+        anchorY: 2.62,
       },
       {
-        id: "heavy-element-core",
-        name: "Heavy-Element Core",
-        type: "Diffuse rock-ice-rich center",
-        description: "Jupiter likely contains a central concentration of rocks, ices, and metals, but current models suggest it may be diffuse and partially mixed outward rather than a sharply bounded solid core.",
+        id: "fluid-layer",
+        name: "Metallic Liquid Hydrogen Outer Core",
+        type: "H and He in metallic form",
+        description: "The dominant interior layer. Metallic hydrogen is electrically conducting and drives Jupiter's powerful magnetic field. It makes up the vast bulk of Jupiter's volume.",
+        depth: "From ~20,000 km depth to the central core",
+        composition: "Metallic hydrogen and helium under immense pressure.",
+        temperature: "Several thousand to tens of thousands of kelvin",
+        labelX: -2.10, labelY: 1.50,
+        anchorY: 1.47,
+      },
+      {
+        id: "inner-core",
+        name: "Inner Core",
+        type: "Solid rock, Fe, and frozen H₂O",
+        description: "Jupiter's central core of silicate rock, iron, and frozen water under enormous pressure. Current models suggest it may be partially diffuse rather than sharply bounded.",
         depth: "Central region",
-        composition: "Silicates, metals, and ices mixed with surrounding hydrogen under deep-interior conditions.",
-        temperature: "Hot dense interior; model dependent",
-        labelX: -0.95, labelY: 0.56,
-        anchorY: 0.56,
+        composition: "Silicates, iron, and water ice mixed under deep-interior conditions.",
+        temperature: "Estimated 20,000–30,000 K at the center",
+        labelX: -0.85, labelY: 0.25,
+        anchorY: 0,
       },
     ];
 
@@ -1999,48 +2006,6 @@
       const seismicActive = seismicToggle.checked;
       const entries = [];
 
-      if (geologyToggle.checked && selectedGeologyLayer) {
-        const rockLegend = geologyInteractiveState?.rock_legend || [];
-        entries.push({
-          title: "Solid Geology",
-          copy: "SIM 3292 geology simplified into rock-type classes for the active solid geology overlay.",
-          tags: ["geology", "units"],
-          symbols: rockLegend.map((unit) => ({
-            type: "swatch",
-            label: unit.label || unit.rock_type || "Rock type",
-            detail: unit.description || "Mapped geologic unit.",
-            color: unit.color || "#888888",
-          })),
-        });
-      }
-      if (
-        (geologyContactsToggle?.checked && (geologyInteractiveState?.contacts || []).length) ||
-        (geologyStructuresToggle?.checked && (geologyInteractiveState?.structures || []).length)
-      ) {
-        if (geologyContactsToggle?.checked) {
-          entries.push({
-            title: "Contacts",
-            copy: "",
-            tags: ["geology", "contacts"],
-            symbols: [
-              { type: "line", label: "Certain / border contact", detail: "Mapped polygon contacts and borders.", color: "#f3f1d8" },
-              { type: "line", label: "Approximate contact", detail: "Approximate or inferred contact trace.", color: "#aab8c6" },
-            ],
-          });
-        }
-        if (geologyStructuresToggle?.checked) {
-          entries.push({
-            title: "Structures and Faults",
-            copy: "SIM 3292 structural traces draped from the vector shapefiles.",
-            tags: ["geology", "structures"],
-            symbols: [
-              { type: "line", label: "Tectonic structure", detail: "Faults, fractures, graben, and related tectonic traces.", color: "#2c2c2c" },
-              { type: "line", label: "Volcanic structure", detail: "Volcanic ridges and related mapped structural traces.", color: "#f06a57" },
-              { type: "line", label: "Fluvial structure", detail: "Channels, valleys, and fluvial structural traces.", color: "#5aa7ff" },
-            ],
-          });
-        }
-      }
 
       if (selectedMineralLayer) {
         entries.push({
@@ -2132,38 +2097,6 @@
             ],
           });
         }
-      }
-
-      if (seismicActive) {
-        entries.push({
-          title: "Seismic symbology",
-          copy: "No seismic symbology is active for Jupiter in this package.",
-          tags: ["seismic", "measure"],
-          symbols: [
-            {
-              type: "ring",
-              label: "Catalog placeholder",
-              detail: "No active seismic markers are rendered for Jupiter.",
-            },
-            {
-              type: "dot",
-              label: "No located events",
-              detail: "Jupiter has no bundled seismic source-location catalog in this workflow.",
-            },
-            {
-              type: "line",
-              label: "Measurement boundary",
-              detail: "Cyan line shows active distance, area, or profile measurement segments.",
-            },
-            {
-              type: "swatch",
-              label: "Measurement vertex",
-              detail: "Pale marker shows interactive measurement vertices placed on the globe.",
-              color: "#ffd0b0",
-              borderColor: "#fff1df",
-            },
-          ],
-        });
       }
 
       return entries;
@@ -2430,7 +2363,7 @@
       if (!entries.length) {
         const empty = document.createElement("p");
         empty.className = "legend-empty";
-        empty.textContent = "Enable geology, mineral, paleo-sea, region masks, or seismic overlays to populate the legend.";
+        empty.textContent = "";
         legendPanel.appendChild(empty);
         legendSummaryCopy.textContent = "Active overlay symbologies and legend images.";
         return;
@@ -2767,12 +2700,8 @@
       if (!moonFeatureSearchInput || !moonFeatureSearchResults || !activeMoonViewerFeature) return;
       const query = String(moonFeatureSearchInput.value || "").trim().toLowerCase();
       const moonName = activeMoonViewerFeature.name;
-      if (!query) {
-        clearMoonFeatureSearchResults();
-        return;
-      }
       const results = moonFeatureData
-        .filter((f) => f.moon_name === moonName && f.name.toLowerCase().includes(query))
+        .filter((f) => f.moon_name === moonName && (!query || f.name.toLowerCase().includes(query)))
         .slice(0, 12);
       renderMoonFeatureSearchResults(results);
     }
@@ -3155,10 +3084,11 @@
 
     // Jupiter interior model — rFrac = 0 (centre) → 1 (surface)
     const JUPITER_INTERIOR_LAYERS = [
-      { name: "Heavy-Element Core",     rMin: 0.000, rMax: 0.160 },
-      { name: "Metallic Hydrogen Layer", rMin: 0.160, rMax: 0.420 },
-      { name: "Molecular Envelope",      rMin: 0.420, rMax: 0.850 },
-      { name: "Upper Atmosphere",        rMin: 0.850, rMax: 1.000 },
+      { name: "Inner Core",        rMin: 0.000, rMax: 0.120 },
+      { name: "Metallic Liquid Hydrogen Outer Core",       rMin: 0.120, rMax: 0.800 },
+      { name: "Fluid Transition",  rMin: 0.800, rMax: 0.835 },
+      { name: "Inner Atmosphere",  rMin: 0.835, rMax: 0.950 },
+      { name: "Outer Atmosphere",  rMin: 0.950, rMax: 1.000 },
     ];
     const JUPITER_INTERIOR_T_PTS = [[0.000, 25000], [0.160, 20000], [0.420, 12000], [0.850, 2000], [1.000, -134]];
     const JUPITER_INTERIOR_P_PTS = [[0.000, 20000], [0.160, 1500],  [0.420, 200],   [0.850, 1.0],  [1.000, 0.0001]];
@@ -3179,8 +3109,9 @@
     function jupiterInteriorTempC(rFrac) { return Math.round(_jupiterInteriorInterp(JUPITER_INTERIOR_T_PTS, rFrac)); }
     function jupiterInteriorPressureGPa(rFrac) { return Math.round(_jupiterInteriorInterp(JUPITER_INTERIOR_P_PTS, rFrac) * 10) / 10; }
     function jupiterInteriorLayerColor(name) {
-      return { "Upper Atmosphere": "#d0b18a", "Molecular Envelope": "#a29378", "Metallic Hydrogen Layer": "#c0c6cf", "Heavy-Element Core": "#8d9fbe" }[name] ?? "#ccc";
+      return { "Outer Atmosphere": "#d4b882", "Inner Atmosphere": "#7a6248", "Fluid Transition": "#5080b8", "Metallic Liquid Hydrogen Outer Core": "#b0bcc8", "Inner Core": "#c84020" }[name] ?? "#ccc";
     }
+
     function jupiterInteriorTempColor(tempC) {
       const t = Math.max(0, Math.min(1, (tempC + 134) / 25134));
       if (t < 0.33) { const f = t / 0.33; return `rgb(${Math.round(f*60)},${Math.round(f*200)},${Math.round(255-f*55)})`; }
@@ -3446,7 +3377,8 @@
     }
 
     function syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState = null) {
-      coreWrap.hidden = !coreToggle.checked;
+      if (coreWrap) coreWrap.hidden = !coreToggle.checked;
+      if (coreViewSection) coreViewSection.open = coreToggle.checked;
       const coreActive = coreToggle.checked;
       if (surfaceConditionsEl) surfaceConditionsEl.hidden = coreActive;
       if (interiorConditionsEl) {
@@ -3647,7 +3579,7 @@
       }
     `;
 
-    // ── CRUST: basaltic shell with fracture provinces and buried dikes ─────
+    // ── CRUST: outer atmosphere — cyan-blue gas shell ──────────────────────
     const CRUST_FRAG = `
       varying vec2 vUv;
       varying vec3 vNormal;
@@ -3665,20 +3597,20 @@
         float overturn = smoothstep(0.42, 0.80, bulk + plumeA * 0.34 - plumeB * 0.16);
         float wisps = pow(max(plumeA - 0.58, 0.0) * 2.1, 1.6);
         float weakBands = 0.5 + 0.5 * sin(nn.y * 8.0 + plumeB * 1.3);
-        vec3 mist = vec3(0.98,0.96,0.91);
-        vec3 cream = vec3(0.90,0.81,0.67);
-        vec3 warm = vec3(0.79,0.66,0.51);
-        vec3 shadow = vec3(0.63,0.50,0.37);
-        vec3 col = mix(shadow, warm, bulk * 0.46 + plumeB * 0.10);
-        col = mix(col, cream, overturn * 0.34 + cells * 0.08);
-        col = mix(col, mist, wisps * 0.14 + weakBands * 0.08);
+        vec3 pale  = vec3(0.60,0.82,0.92);
+        vec3 mid   = vec3(0.48,0.74,0.88);
+        vec3 deep  = vec3(0.36,0.62,0.78);
+        vec3 shadow= vec3(0.28,0.52,0.70);
+        vec3 col = mix(shadow, deep, bulk * 0.46 + plumeB * 0.10);
+        col = mix(col, mid, overturn * 0.34 + cells * 0.08);
+        col = mix(col, pale, wisps * 0.14 + weakBands * 0.08);
         float haze = pow(1.0 - abs(dot(nn, vec3(0.0,0.0,1.0))), 1.8);
-        col += vec3(0.13,0.12,0.10) * haze * 0.28;
+        col += vec3(0.10,0.14,0.18) * haze * 0.28;
         gl_FragColor = vec4(col, 1.0);
       }
     `;
 
-    // ── MANTLE: coherent plume heads, sinking slabs, and shear bands ───────
+    // ── MANTLE: inner atmosphere — warm brown convection (Saturn palette) ──
     const MANTLE_FRAG = `
       varying vec2 vUv;
       varying vec3 vNormal;
@@ -3709,7 +3641,7 @@
       }
     `;
 
-    // ── OUTER CORE: static convection cells and iron-sulfur circulation ────
+    // ── OUTER CORE: fluid layer — metallic hydrogen, warm golden-tan (Saturn palette) ──
     const CORE_FRAG = `
       varying vec2 vUv;
       varying vec3 vNormal;
@@ -3735,20 +3667,20 @@
         float cells = cellField(px*2.4)*w.x + cellField(py*2.4)*w.y + cellField(pz*2.4)*w.z;
         float walls = 1.0 - smoothstep(0.07, 0.16, cells);
         float bands = 0.5 + 0.5*sin(nn.y*13.0 + flow*3.0);
-        vec3 deep  = vec3(0.30,0.28,0.25);
-        vec3 mid   = vec3(0.48,0.43,0.36);
-        vec3 bright= vec3(0.67,0.60,0.49);
-        vec3 pale  = vec3(0.85,0.80,0.68);
+        vec3 deep  = vec3(0.52,0.56,0.60);
+        vec3 mid   = vec3(0.62,0.66,0.70);
+        vec3 bright= vec3(0.72,0.75,0.78);
+        vec3 pale  = vec3(0.82,0.84,0.87);
         vec3 col = mix(deep, mid, flow);
         col = mix(col, bright, bands * 0.26);
         col = mix(col, pale, walls * 0.22);
         float sheen = pow(1.0 - abs(dot(nn, vec3(0.0,0.0,1.0))), 3.0);
-        col += vec3(0.28,0.28,0.24) * sheen * 0.28;
+        col += vec3(0.10,0.12,0.14) * sheen * 0.28;
         gl_FragColor = vec4(col, 1.0);
       }
     `;
 
-    // ── INNER CORE: dense crystalline metal with central heat glow (static) ──
+    // ── INNER CORE: hot rock/iron/ice center — red-orange glow ───────────
     const INNER_CORE_FRAG = `
       varying vec2 vUv;
       varying vec3 vNormal;
@@ -3758,15 +3690,15 @@
         float base = fbm(vUv * 6.0 + vec2(1.8, 4.2));
         float grain = ridged(vUv * 10.0 + vec2(6.1, 2.7));
         float veins = pow(abs(sin((p.x + p.y) * 6.0 + fbm(vUv * 7.0) * 3.0)), 9.0);
-        vec3 dark = vec3(0.45,0.40,0.33);
-        vec3 mid  = vec3(0.61,0.56,0.47);
-        vec3 pale = vec3(0.73,0.69,0.58);
-        vec3 ice  = vec3(0.83,0.82,0.76);
+        vec3 dark = vec3(0.55,0.10,0.04);
+        vec3 mid  = vec3(0.72,0.22,0.08);
+        vec3 pale = vec3(0.85,0.38,0.14);
+        vec3 hot  = vec3(0.90,0.55,0.25);
         vec3 col = mix(dark, mid, base);
         col = mix(col, pale, grain * 0.34);
-        col = mix(col, ice, veins * 0.14);
+        col = mix(col, hot, veins * 0.14);
         float center = pow(clamp(1.0 - length(p), 0.0, 1.0), 2.2);
-        col += vec3(0.06,0.05,0.04) * center * 0.12;
+        col += vec3(0.18,0.08,0.02) * center * 0.40;
         gl_FragColor = vec4(col, 1.0);
       }
     `;
@@ -3793,16 +3725,16 @@
         float weakBands = 0.5 + 0.5 * sin(p.y * 9.2 + bulk * 1.7);
         float strongBands = 0.5 + 0.5 * sin(p.y * 15.0 + cells * 1.6 + 0.7);
         float polarFade = smoothstep(0.2, 1.0, abs(p.y));
-        vec3 mist = vec3(0.99,0.97,0.92);
-        vec3 cream = vec3(0.96,0.90,0.78);
-        vec3 honey = vec3(0.90,0.78,0.61);
-        vec3 warm = vec3(0.80,0.67,0.50);
-        vec3 shadow = vec3(0.63,0.51,0.38);
-        vec3 col = mix(shadow, warm, bulk * 0.26 + cells * 0.04);
-        col = mix(col, honey, overturn * 0.34);
-        col = mix(col, cream, weakBands * 0.26 + strongBands * 0.14 + pow(max(plumes - 0.56, 0.0) * 2.0, 1.4) * 0.12);
-        col = mix(col, mist, smoothstep(0.70, 0.99, r) * 0.30 + polarFade * 0.05);
-        col += vec3(0.12,0.10,0.07) * smoothstep(0.84, 1.0, r);
+        vec3 pale   = vec3(0.60,0.82,0.92);
+        vec3 bright = vec3(0.48,0.74,0.88);
+        vec3 mid    = vec3(0.40,0.66,0.82);
+        vec3 deep   = vec3(0.30,0.56,0.74);
+        vec3 shadow = vec3(0.22,0.46,0.66);
+        vec3 col = mix(shadow, deep, bulk * 0.26 + cells * 0.04);
+        col = mix(col, mid, overturn * 0.34);
+        col = mix(col, bright, weakBands * 0.26 + strongBands * 0.14 + pow(max(plumes - 0.56, 0.0) * 2.0, 1.4) * 0.12);
+        col = mix(col, pale, smoothstep(0.70, 0.99, r) * 0.30 + polarFade * 0.05);
+        col += vec3(0.08,0.10,0.14) * smoothstep(0.84, 1.0, r);
         col *= 1.0 - smoothstep(0.92, 1.02, r) * 0.06;
         gl_FragColor = vec4(col, 1.0);
       }
@@ -3856,14 +3788,65 @@
         float cells = cell(flow * 2.5);
         float walls = 1.0 - smoothstep(0.07, 0.16, cells);
         float bands = 0.5 + 0.5 * sin(p.y * 12.0 + bulk * 2.8);
-        vec3 deep  = vec3(0.30,0.28,0.25);
-        vec3 mid   = vec3(0.48,0.43,0.36);
-        vec3 bright= vec3(0.67,0.60,0.49);
-        vec3 pale  = vec3(0.85,0.80,0.68);
+        vec3 deep  = vec3(0.52,0.56,0.60);
+        vec3 mid   = vec3(0.62,0.66,0.70);
+        vec3 bright= vec3(0.72,0.75,0.78);
+        vec3 pale  = vec3(0.82,0.84,0.87);
         vec3 col = mix(deep, mid, bulk);
         col = mix(col, bright, bands * 0.22);
         col = mix(col, pale, walls * 0.18);
         col *= 1.0 - smoothstep(0.88, 1.02, r) * 0.10;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+
+    // ── FLUID TRANSITION: gradual H molecular→metallic transition ─────────
+    const FLUID_TRANSITION_FRAG = `
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      ${GLSL_NOISE}
+      void main(){
+        vec3 nn = normalize(vNormal);
+        vec3 w = abs(nn); w = pow(w, vec3(4.0)); w /= w.x + w.y + w.z;
+        vec2 px = swirl(nn.yz * 3.8 + vec2(2.1, 5.3), 0.32);
+        vec2 py = swirl(nn.xz * 3.8 + vec2(6.4, 1.8), 0.32);
+        vec2 pz = swirl(nn.xy * 3.8 + vec2(4.7, 7.1), 0.32);
+        float bulk = fbm(px * 1.60) * w.x + fbm(py * 1.60) * w.y + fbm(pz * 1.60) * w.z;
+        float convection = fbm(px * 2.7 + vec2(3.3, 0.8)) * w.x + fbm(py * 2.7 + vec2(3.3, 0.8)) * w.y + fbm(pz * 2.7 + vec2(3.3, 0.8)) * w.z;
+        float overturn = ridged(px * 3.1) * w.x + ridged(py * 3.1) * w.y + ridged(pz * 3.1) * w.z;
+        float weakBands = 0.5 + 0.5 * sin(nn.y * 7.0 + convection * 1.1);
+        vec3 deep  = vec3(0.22,0.38,0.62);
+        vec3 mid   = vec3(0.30,0.48,0.70);
+        vec3 light = vec3(0.40,0.56,0.76);
+        vec3 pale  = vec3(0.50,0.64,0.80);
+        vec3 col = mix(deep, mid, bulk * 0.54 + convection * 0.10);
+        col = mix(col, light, pow(max(overturn - 0.52, 0.0) * 2.1, 1.4) * 0.22 + weakBands * 0.06);
+        col = mix(col, pale, smoothstep(0.52, 0.88, bulk + overturn * 0.20) * 0.10);
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+
+    const FLUID_TRANSITION_SECTION_FRAG = `
+      varying vec2 vUv;
+      ${GLSL_NOISE}
+      void main(){
+        vec2 p = (vUv - 0.5) * 2.0;
+        float r = length(p);
+        vec2 flow = swirl(p * 2.0 + vec2(1.2, 0.6), 0.32);
+        float bulk = fbm(flow * 1.9 + vec2(3.1, 4.7));
+        float convection = fbm(flow * 3.2 + vec2(5.0, 1.2));
+        float plumes = ridged(flow * 3.6 + vec2(6.8, 2.1));
+        float weakBands = 0.5 + 0.5 * sin(p.y * 5.6 + convection * 1.1);
+        vec3 deep  = vec3(0.22,0.38,0.62);
+        vec3 mid   = vec3(0.30,0.48,0.70);
+        vec3 light = vec3(0.40,0.56,0.76);
+        vec3 pale  = vec3(0.50,0.64,0.80);
+        vec3 col = mix(deep, mid, bulk * 0.52 + convection * 0.10);
+        col = mix(col, light, pow(max(plumes - 0.53, 0.0) * 2.1, 1.4) * 0.22 + weakBands * 0.05);
+        col = mix(col, pale, smoothstep(0.54, 0.90, bulk + plumes * 0.18) * 0.10);
+        float outward = smoothstep(0.62, 1.00, r);
+        col = mix(col, pale, outward * 0.20);
+        col *= 1.0 - smoothstep(0.92, 1.02, r) * 0.05;
         gl_FragColor = vec4(col, 1.0);
       }
     `;
@@ -3877,13 +3860,14 @@
 
       const phiStart = -Math.PI / 2;
       const phiLength = Math.PI;
-      const JUPITER_HEAVY_CORE_RADIUS = 0.22;
-      const JUPITER_METALLIC_HYDROGEN_RADIUS = 0.58;
-      const JUPITER_MOLECULAR_ENVELOPE_RADIUS = 0.96;
-      
-      // ── Inner core: dense crystalline metallic interior ───────────────────
+      const JUPITER_INNER_CORE_RADIUS        = 0.12;
+      const JUPITER_FLUID_LAYER_RADIUS        = 0.80;
+      const JUPITER_FLUID_TRANSITION_RADIUS   = 0.835;
+      const JUPITER_INNER_ATMO_RADIUS         = 0.95;
+
+      // ── Inner core: hot rock/iron/ice sphere ─────────────────────────────
       const innerCoreMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * JUPITER_HEAVY_CORE_RADIUS, 96, 96, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * JUPITER_INNER_CORE_RADIUS, 96, 96, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -3894,9 +3878,9 @@
       innerCoreMesh.rotation.y = Math.PI;
       group.add(innerCoreMesh);
 
-      // ── Outer liquid core: animated Bénard convective cells ───────────────
+      // ── Fluid layer: fully metallic H/He, darker gray ────────────────────
       const outerCoreMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * JUPITER_METALLIC_HYDROGEN_RADIUS, 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * JUPITER_FLUID_LAYER_RADIUS, 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -3907,9 +3891,38 @@
       outerCoreMesh.rotation.y = Math.PI;
       group.add(outerCoreMesh);
 
-      // ── Mantle outer boundary shell ───────────────────────────────────────
+      // ── Fluid transition zone: molecular→metallic transition ─────────────
+      const fluidTransitionMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(radius * JUPITER_FLUID_TRANSITION_RADIUS, 128, 128, phiStart, phiLength),
+        new THREE.ShaderMaterial({
+          uniforms: {},
+          vertexShader: LAYER_VERT,
+          fragmentShader: FLUID_TRANSITION_FRAG,
+          side: THREE.BackSide,
+        }),
+      );
+      fluidTransitionMesh.rotation.y = Math.PI;
+      group.add(fluidTransitionMesh);
+
+      // ── Fluid transition inner boundary: wall against the fluid layer ─────
+      const fluidTransitionInnerBoundaryMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(radius * (JUPITER_FLUID_LAYER_RADIUS + 0.002), 128, 128, phiStart, phiLength),
+        new THREE.ShaderMaterial({
+          uniforms: {},
+          vertexShader: LAYER_VERT,
+          fragmentShader: FLUID_TRANSITION_FRAG,
+          side: THREE.FrontSide,
+          polygonOffset: true,
+          polygonOffsetFactor: -1,
+          polygonOffsetUnits: -1,
+        }),
+      );
+      fluidTransitionInnerBoundaryMesh.rotation.y = Math.PI;
+      group.add(fluidTransitionInnerBoundaryMesh);
+
+      // ── Inner atmosphere outer shell ─────────────────────────────────────
       const mantleMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * JUPITER_MOLECULAR_ENVELOPE_RADIUS, 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * JUPITER_INNER_ATMO_RADIUS, 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -3920,9 +3933,9 @@
       mantleMesh.rotation.y = Math.PI;
       group.add(mantleMesh);
 
-      // ── Mantle inner boundary shell: explicit inner wall around the core ──
+      // ── Inner atmosphere inner boundary: wall against the fluid transition ──
       const mantleInnerBoundaryMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * (JUPITER_METALLIC_HYDROGEN_RADIUS + 0.002), 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * (JUPITER_FLUID_TRANSITION_RADIUS + 0.002), 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -3936,8 +3949,7 @@
       mantleInnerBoundaryMesh.rotation.y = Math.PI;
       group.add(mantleInnerBoundaryMesh);
 
-      // ── Crust shell: fills gap between mantle and globe surface ──────────────
-      // BackSide only → inner face visible from cut; outer face suppressed (no rim).
+      // ── Outer atmosphere shell: fills gap between inner atmo and surface ──
       const crustMesh = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
@@ -3953,9 +3965,9 @@
       crustMesh.rotation.y = Math.PI;
       group.add(crustMesh);
 
-      // ── Crust inner boundary shell: explicit wall against the mantle ──────
+      // ── Outer atmosphere inner boundary: wall against the inner atmosphere ──
       const crustInnerBoundaryMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * JUPITER_MOLECULAR_ENVELOPE_RADIUS, 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * JUPITER_INNER_ATMO_RADIUS, 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -3969,18 +3981,20 @@
       crustInnerBoundaryMesh.rotation.y = Math.PI;
       group.add(crustInnerBoundaryMesh);
 
-      // ── Cross-section face (ring caps at x=0 plane) ───────────────────────
+      // ── Cross-section face rings at x=0 plane ────────────────────────────
       const CAP_X = -0.012;
-      const crustInnerRadius = radius * JUPITER_MOLECULAR_ENVELOPE_RADIUS;
-      const crustOuterRadius = radius + (elevationMap ? terrainRelief : 0);
+      const crustInnerRadius  = radius * JUPITER_INNER_ATMO_RADIUS;
+      const crustOuterRadius  = radius + (elevationMap ? terrainRelief : 0);
       const capDefs = [
-        { outer: crustOuterRadius, inner: crustInnerRadius, fragmentShader: CRUST_SECTION_FRAG },  // crust ring
-        { outer: crustInnerRadius, inner: radius * JUPITER_METALLIC_HYDROGEN_RADIUS,  fragmentShader: MANTLE_SECTION_FRAG },  // molecular envelope ring
-        { outer: radius * JUPITER_METALLIC_HYDROGEN_RADIUS,  inner: radius * JUPITER_HEAVY_CORE_RADIUS,  fragmentShader: CORE_SECTION_FRAG },  // metallic hydrogen ring
+        { outer: crustOuterRadius,                           inner: crustInnerRadius,                           fragmentShader: CRUST_SECTION_FRAG },
+        { outer: crustInnerRadius,                           inner: radius * JUPITER_FLUID_TRANSITION_RADIUS,   fragmentShader: MANTLE_SECTION_FRAG },
+        { outer: radius * JUPITER_FLUID_TRANSITION_RADIUS,  inner: radius * JUPITER_FLUID_LAYER_RADIUS,        fragmentShader: FLUID_TRANSITION_SECTION_FRAG },
+        { outer: radius * JUPITER_FLUID_LAYER_RADIUS,       inner: radius * JUPITER_INNER_CORE_RADIUS,         fragmentShader: CORE_SECTION_FRAG },
       ];
-      let crustRing = null;
+      let crustRing             = null;
       let molecularEnvelopeRing = null;
-      let metallicHydrogenRing = null;
+      let fluidTransitionRing   = null;
+      let metallicHydrogenRing  = null;
       for (const cap of capDefs) {
         const ring = new THREE.Mesh(
           new THREE.RingGeometry(cap.inner, cap.outer, 128),
@@ -4002,13 +4016,15 @@
           ring.renderOrder = 4;
         } else if (cap.outer === crustInnerRadius) {
           molecularEnvelopeRing = ring;
+        } else if (cap.inner === radius * JUPITER_FLUID_LAYER_RADIUS) {
+          fluidTransitionRing = ring;
         } else {
           metallicHydrogenRing = ring;
         }
         group.add(ring);
       }
 
-      // Outer-core cross-section cap disc — same convective cells shader
+      // Fluid layer cap disk
       const fluidCapMat = new THREE.ShaderMaterial({
         uniforms: {},
         vertexShader: SECTION_FACE_VERT,
@@ -4016,14 +4032,14 @@
         side: THREE.DoubleSide,
       });
       const fluidCapDisk = new THREE.Mesh(
-        new THREE.CircleGeometry(radius * JUPITER_METALLIC_HYDROGEN_RADIUS, 128),
+        new THREE.CircleGeometry(radius * JUPITER_FLUID_LAYER_RADIUS, 128),
         fluidCapMat,
       );
       fluidCapDisk.rotation.y = Math.PI / 2;
       fluidCapDisk.position.x = CAP_X - 0.001;
       group.add(fluidCapDisk);
 
-      // Inner-core centre cap disc — crystalline shader matches the shell
+      // Inner core centre cap disk
       const innerCapMat = new THREE.ShaderMaterial({
         uniforms: {},
         vertexShader: LAYER_VERT,
@@ -4031,7 +4047,7 @@
         side: THREE.DoubleSide,
       });
       const innerCapDisk = new THREE.Mesh(
-        new THREE.CircleGeometry(radius * JUPITER_HEAVY_CORE_RADIUS, 96),
+        new THREE.CircleGeometry(radius * JUPITER_INNER_CORE_RADIUS, 96),
         innerCapMat,
       );
       innerCapDisk.rotation.y = Math.PI / 2;
@@ -4041,14 +4057,13 @@
       // ── Layer labels ───────────────────────────────────────────────────────
       if (layerData && layerData.length > 0) {
         const markerGeo = new THREE.SphereGeometry(0.06, 10, 10);
-        const markerMat = new THREE.MeshBasicMaterial({ color: 0xffcf9d });
         const hitGeo = new THREE.SphereGeometry(0.28, 10, 10);
         const hitMat = new THREE.MeshBasicMaterial({
           transparent: true, opacity: 0.01, depthTest: false, depthWrite: false,
         });
 
+        const markerMat = new THREE.MeshBasicMaterial({ color: 0xffcf9d });
         for (const layer of layerData) {
-          const lx = layer.labelX;
           const ly = layer.labelY;
 
           // Dot marker at the layer surface on the cut face
@@ -4064,10 +4079,16 @@
           labelsGroup.add(hit);
           interactiveObjects.push(hit, dot);
 
-          // Connector line: from layer surface to the floating label
+          // Text sprite label — sprite center = line endpoint for correct billboard alignment
+          const labelTex = makeLabelTexture(layer.name);
+          const _sw = (labelTex.width / 200) * 1.4;
+          const _sh = (labelTex.height / 200) * 1.4;
+          const spriteCX = layer.labelX - _sw * 0.5;
+
+          // Connector line: from layer surface to the sprite center
           const lineGeo = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(CAP_X, layer.anchorY, 0),
-            new THREE.Vector3(lx, ly, 0),
+            new THREE.Vector3(spriteCX, ly, 0),
           ]);
           const lineMat = new THREE.LineBasicMaterial({
             color: 0xffcf9d, transparent: true, opacity: 0.45,
@@ -4075,15 +4096,13 @@
           const line = new THREE.Line(lineGeo, lineMat);
           labelsGroup.add(line);
 
-          // Text sprite label
-          const labelTex = makeLabelTexture(layer.name);
           const spriteMat = new THREE.SpriteMaterial({
             map: labelTex.texture, transparent: true, opacity: 0.88,
             depthTest: true, depthWrite: false,
           });
           const sprite = new THREE.Sprite(spriteMat);
-          sprite.scale.set((labelTex.width / 200) * 0.85, (labelTex.height / 200) * 0.85, 1);
-          sprite.position.set(lx - (labelTex.width / 200) * 0.85 * 0.5 - 0.05, ly, 0);
+          sprite.scale.set(_sw, _sh, 1);
+          sprite.position.set(spriteCX, ly, 0);
           sprite.userData.feature = layer;
           labelsGroup.add(sprite);
           interactiveObjects.push(sprite);
@@ -4105,6 +4124,9 @@
         molecularEnvelopeMesh: mantleMesh,
         molecularBoundaryMesh: mantleInnerBoundaryMesh,
         molecularEnvelopeRing: molecularEnvelopeRing,
+        fluidTransitionMesh,
+        fluidTransitionBoundaryMesh: fluidTransitionInnerBoundaryMesh,
+        fluidTransitionRing,
         metallicHydrogenMesh: outerCoreMesh,
         metallicHydrogenCapMesh: fluidCapDisk,
         metallicHydrogenRing: metallicHydrogenRing,
@@ -4116,36 +4138,77 @@
     function buildJupiterSolidInterior(radius) {
       const group = new THREE.Group();
       const CAP_X = -0.0006;
-      const metallicHydrogenMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xb7a789,
-        emissive: new THREE.Color(0x261b10),
+
+      // Fluid transition zone sphere
+      const fluidTransitionMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0x5080b8,
+        emissive: new THREE.Color(0x081020),
+        emissiveIntensity: 0.12,
+        roughness: 0.42,
+        metalness: 0.55,
+        clearcoat: 0.20,
+        clearcoatRoughness: 0.28,
+      });
+      const fluidTransitionCapMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0x5888c0,
+        emissive: new THREE.Color(0x0a1422),
         emissiveIntensity: 0.14,
-        roughness: 0.34,
-        metalness: 0.72,
-        clearcoat: 0.28,
+        roughness: 0.38,
+        metalness: 0.52,
+        clearcoat: 0.24,
+        clearcoatRoughness: 0.24,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+      });
+      const fluidTransitionSolidMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(radius * 0.835, 128, 128),
+        fluidTransitionMaterial,
+      );
+      fluidTransitionSolidMesh.rotation.y = Math.PI;
+      group.add(fluidTransitionSolidMesh);
+      const fluidTransitionCapMesh = new THREE.Mesh(
+        new THREE.RingGeometry(radius * 0.80, radius * 0.835, 128),
+        fluidTransitionCapMaterial,
+      );
+      fluidTransitionCapMesh.rotation.y = Math.PI / 2;
+      fluidTransitionCapMesh.position.x = CAP_X;
+      fluidTransitionCapMesh.renderOrder = 5;
+      fluidTransitionCapMesh.visible = false;
+      group.add(fluidTransitionCapMesh);
+
+      // Fluid layer sphere (metallic hydrogen — metallic grey)
+      const metallicHydrogenMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0xb0bcc8,
+        emissive: new THREE.Color(0x181c20),
+        emissiveIntensity: 0.18,
+        roughness: 0.50,
+        metalness: 0.25,
+        clearcoat: 0.30,
         clearcoatRoughness: 0.22,
       });
       const metallicHydrogenCapMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xc4b392,
-        emissive: new THREE.Color(0x2b1f13),
+        color: 0xb8c4d0,
+        emissive: new THREE.Color(0x1a1e22),
         emissiveIntensity: 0.18,
-        roughness: 0.28,
-        metalness: 0.68,
+        roughness: 0.46,
+        metalness: 0.25,
         clearcoat: 0.34,
-        clearcoatRoughness: 0.18,
+        clearcoatRoughness: 0.20,
         side: THREE.DoubleSide,
         polygonOffset: true,
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,
       });
       const metallicHydrogenMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * 0.58, 128, 128),
+        new THREE.SphereGeometry(radius * 0.80, 128, 128),
         metallicHydrogenMaterial,
       );
       metallicHydrogenMesh.rotation.y = Math.PI;
       group.add(metallicHydrogenMesh);
       const metallicHydrogenCapMesh = new THREE.Mesh(
-        new THREE.RingGeometry(radius * 0.22, radius * 0.58, 128),
+        new THREE.RingGeometry(radius * 0.12, radius * 0.80, 128),
         metallicHydrogenCapMaterial,
       );
       metallicHydrogenCapMesh.rotation.y = Math.PI / 2;
@@ -4154,17 +4217,18 @@
       metallicHydrogenCapMesh.visible = false;
       group.add(metallicHydrogenCapMesh);
 
+      // Inner core sphere (rock/iron/ice at 0.12R)
       const heavyElementCoreMaterial = new THREE.MeshStandardMaterial({
-        color: 0x7a6c5a,
-        emissive: new THREE.Color(0x18110c),
-        emissiveIntensity: 0.08,
-        roughness: 0.88,
-        metalness: 0.06,
+        color: 0xc84020,
+        emissive: new THREE.Color(0x4a0a04),
+        emissiveIntensity: 0.30,
+        roughness: 0.70,
+        metalness: 0.10,
       });
       const heavyElementCoreCapMaterial = new THREE.MeshStandardMaterial({
-        color: 0x8c7a63,
-        emissive: new THREE.Color(0x1b140e),
-        emissiveIntensity: 0.10,
+        color: 0xd85030,
+        emissive: new THREE.Color(0x540e06),
+        emissiveIntensity: 0.32,
         roughness: 0.82,
         metalness: 0.05,
         side: THREE.DoubleSide,
@@ -4173,13 +4237,13 @@
         polygonOffsetUnits: -3,
       });
       const heavyElementCoreMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * 0.22, 96, 96),
+        new THREE.SphereGeometry(radius * 0.12, 96, 96),
         heavyElementCoreMaterial,
       );
       heavyElementCoreMesh.rotation.y = Math.PI;
       group.add(heavyElementCoreMesh);
       const heavyElementCoreCapMesh = new THREE.Mesh(
-        new THREE.CircleGeometry(radius * 0.22, 96),
+        new THREE.CircleGeometry(radius * 0.12, 96),
         heavyElementCoreCapMaterial,
       );
       heavyElementCoreCapMesh.rotation.y = Math.PI / 2;
@@ -4191,6 +4255,10 @@
       group.visible = false;
       return {
         group,
+        fluidTransitionMesh: fluidTransitionSolidMesh,
+        fluidTransitionMaterial,
+        fluidTransitionCapMesh,
+        fluidTransitionCapMaterial,
         metallicHydrogenMesh,
         metallicHydrogenMaterial,
         metallicHydrogenCapMesh,
@@ -4247,7 +4315,7 @@
       const removeAtmosphere = Boolean(geologyToggle && geologyToggle.checked);
       for (const entry of cutawayResult.labelEntries) {
         const hiddenByAtmosphereRemoval = removeAtmosphere
-          && (entry.layerId === "upper-atmosphere" || entry.layerId === "molecular-envelope");
+          && (entry.layerId === "outer-atmosphere" || entry.layerId === "inner-atmosphere" || entry.layerId === "fluid-transition");
         const visible = labelsEnabled && !hiddenByAtmosphereRemoval;
         entry.dot.visible = visible;
         entry.hit.visible = visible;
@@ -4848,42 +4916,94 @@
 
       const FLYBY_DATA = [
         {
-          name: "Pioneer 11",
-          date: "1 Sep 1979",
-          color: 0xffbb44,
-          // Closest approach 1.35 Rs = 4.32 scene units, passed THROUGH the ring plane
+          name: "Pioneer 10",
+          date: "3 Dec 1973",
+          color: 0xffaa33,
+          // Source: JPL Horizons, Jupiter-centred ecliptic J2000 vectors (6 h cadence).
+          // Axis map: scene_x=X_ecl, scene_y=Z_ecl, scene_z=Y_ecl; scale=3.2/71492 sc/km.
+          // Closest sample 13.5 sc at Dec 4 00:00 TDB; actual periapsis ~5.84 sc occurred ~02:26 UTC Dec 4.
           waypoints: [
-            new THREE.Vector3(-4,  -20,  14),   // distant approach (south, from Jupiter direction)
-            new THREE.Vector3(-1,   -8,   6),    // mid-approach, descending toward ring plane
-            new THREE.Vector3( 3.5,  0,   2.5),  // periapsis in ring plane (~4.30 scene units from center)
-            new THREE.Vector3( 5.5,  7,  -1.5),  // post-periapsis, rising north
-            new THREE.Vector3( 8,   20,  -9),    // distant departure (north, toward heliopause)
+            new THREE.Vector3(-35.96, -10.19,  67.50),  // 3 Dec 00:00 TDB – 77 sc
+            new THREE.Vector3(-28.99,  -7.95,  37.44),  // 3 Dec 12:00 – 48 sc
+            new THREE.Vector3(-23.63,  -6.32,  19.98),  // 3 Dec 18:00 – 32 sc
+            new THREE.Vector3(-13.07,  -3.31,  -0.86),  // 4 Dec 00:00 – 13.5 sc ← closest sample
+            new THREE.Vector3( 14.69,   3.86,  -7.36),  // 4 Dec 06:00 – 16.7 sc
+            new THREE.Vector3( 33.61,   8.51,   3.02),  // 4 Dec 12:00 – 35 sc
+            new THREE.Vector3( 59.69,  14.82,  23.24),  // 5 Dec 00:00 – 65 sc
+          ],
+        },
+        {
+          name: "Pioneer 11",
+          date: "2 Dec 1974",
+          color: 0xffdd66,
+          // Source: JPL Horizons, Jupiter-centred ecliptic J2000 vectors (1 h cadence near periapsis).
+          // Closest sample 5.48 sc at Dec 3 05:00 TDB (actual periapsis ~5.13 sc = 114,000 km).
+          // Gravity assist southward toward Saturn; periapsis south of Jupiter's equatorial plane.
+          waypoints: [
+            new THREE.Vector3(-16.94, -14.80,  35.98),  // 2 Dec 18:00 – 40 sc
+            new THREE.Vector3( -5.31, -11.80,  20.03),  // 3 Dec 00:00 – 24 sc
+            new THREE.Vector3(  1.17,  -8.67,   9.36),  // 3 Dec 03:00 – 13 sc
+            new THREE.Vector3(  3.25,  -6.68,   4.75),  // 3 Dec 04:00 – 9 sc
+            new THREE.Vector3(  4.41,  -3.16,  -0.76),  // 3 Dec 05:00 – 5.48 sc ← closest sample
+            new THREE.Vector3(  2.25,   2.36,  -5.20),  // 3 Dec 06:00 – 6.1 sc
+            new THREE.Vector3( -1.72,   7.00,  -6.70),  // 3 Dec 07:00 – 9.8 sc
+            new THREE.Vector3( -9.03,  13.47,  -6.94),  // 3 Dec 09:00 – 18 sc
+            new THREE.Vector3(-18.29,  20.45,  -5.80),  // 3 Dec 12:00 – 28 sc
           ],
         },
         {
           name: "Voyager 1",
-          date: "12 Nov 1980",
+          date: "5 Mar 1979",
           color: 0x66aaff,
-          // Closest approach 3.09 Rs = 9.89 scene units, outside ring system
+          // Source: JPL Horizons, Jupiter-centred ecliptic J2000 vectors.
+          // Closest sample 15.6 sc at 5 Mar 12:00 TDB (actual periapsis 348,890 km = 15.62 sc ✓).
           waypoints: [
-            new THREE.Vector3(-22,   4,  18),   // distant approach (from inner solar system)
-            new THREE.Vector3(-14,   2,  13),   // mid-approach
-            new THREE.Vector3( -2,   0.5, 9.7), // periapsis (~9.92 scene units from center)
-            new THREE.Vector3(  5,  -2,   2),   // post-periapsis
-            new THREE.Vector3( 12,  14, -16),   // distant departure (north, out of ecliptic)
+            new THREE.Vector3( 48.91,   0.14, -88.36),  // 4 Mar 00:00 – 101 sc
+            new THREE.Vector3( 32.96,  -1.09, -25.48),  // 5 Mar 00:00 – 41.7 sc
+            new THREE.Vector3(  8.57,  -0.97,  13.00),  // 5 Mar 12:00 – 15.6 sc ← periapsis ✓
+            new THREE.Vector3(-100.29,   6.00,   5.08),  // 7 Mar 00:00 – 101 sc
           ],
         },
         {
           name: "Voyager 2",
-          date: "26 Aug 1981",
+          date: "9 Jul 1979",
           color: 0x44dd88,
-          // Closest approach 2.67 Rs = 8.54 scene units, outside ring system
+          // Source: JPL Horizons, Jupiter-centred ecliptic J2000 vectors.
+          // Closest sample 32.3 sc at 9 Jul 22:00 TDB (actual periapsis 721,670 km = 32.3 sc ✓).
+          // Grand tour trajectory onward to Saturn, Uranus, Neptune.
           waypoints: [
-            new THREE.Vector3(-20,  -2,  17),   // distant approach (slightly south)
-            new THREE.Vector3(-13,  -1,  11),   // mid-approach
-            new THREE.Vector3( -2.5, 0,  8.2),  // periapsis (~8.57 scene units from center)
-            new THREE.Vector3(  6,   2,   2),   // post-periapsis
-            new THREE.Vector3( 20,   5, -12),   // distant departure (toward Uranus, roughly ecliptic)
+            new THREE.Vector3( 75.50,   8.38, -127.58),  // 7 Jul 00:00 – 148 sc
+            new THREE.Vector3( 54.26,  -0.48,  -29.08),  // 9 Jul 00:00 – 61.6 sc
+            new THREE.Vector3( 20.92,  -3.84,   24.32),  // 9 Jul 22:00 – 32.3 sc ← periapsis ✓
+            new THREE.Vector3(-49.08,  -1.53,   45.64),  // 11 Jul 00:00 – 67 sc
+          ],
+        },
+        {
+          name: "Juno",
+          date: "2016+",
+          color: 0xff6699,
+          // Source: JPL Horizons, Jupiter-centred ecliptic J2000 vectors, 15-min cadence (PJ1, Aug 27 2016).
+          // Perijove at 12:45 TDB = 77,752 km = 3.47 sc, scene (+0.026, +1.388, +3.178).
+          // Dense sampling around perijove prevents CatmullRom from dipping through globe (r=3.2 sc).
+          waypoints: [
+            new THREE.Vector3( -0.93,  19.99, -52.81),  // 26 Aug 18:00 – 56.5 sc (approach)
+            new THREE.Vector3( -0.73,  18.43, -39.35),  // 27 Aug 00:00 – 43.5 sc
+            new THREE.Vector3( -0.49,  15.55, -23.21),  // 27 Aug 06:00 – 27.9 sc
+            new THREE.Vector3( -0.104,  7.258,  -1.427), // 27 Aug 11:45 – 7.44 sc
+            new THREE.Vector3( -0.075,  6.243,  -0.156), // 27 Aug 12:00 – 6.24 sc
+            new THREE.Vector3( -0.044,  4.995,   1.117), // 27 Aug 12:15 – 5.12 sc
+            new THREE.Vector3( -0.010,  3.407,   2.304), // 27 Aug 12:30 – 4.11 sc
+            new THREE.Vector3(  0.026,  1.388,   3.178), // 27 Aug 12:45 – 3.47 sc ← perijove
+            new THREE.Vector3(  0.055, -0.908,   3.378), // 27 Aug 13:00 – 3.51 sc
+            new THREE.Vector3(  0.073, -3.036,   2.880), // 27 Aug 13:15 – 4.34 sc
+            new THREE.Vector3(  0.083, -4.802,   2.015), // 27 Aug 13:30 – 5.17 sc
+            new THREE.Vector3(  0.087, -6.256,   1.011), // 27 Aug 13:45 – 6.33 sc
+            new THREE.Vector3(  0.087, -7.492,  -0.035), // 27 Aug 14:00 – 7.49 sc
+            new THREE.Vector3(  0.076, -11.12,  -4.111), // 27 Aug 15:00 – 11.85 sc
+            new THREE.Vector3(  0.057, -13.69,  -7.849), // 27 Aug 16:00 – 15.57 sc
+            new THREE.Vector3(  0.035, -15.72, -11.290), // 27 Aug 17:00 – 19.41 sc (departure)
+            new THREE.Vector3( -0.12,  -24.44, -30.80),  // 28 Aug 00:00 – 39.3 sc
+            new THREE.Vector3( -0.24,  -29.04, -44.21),  // 28 Aug 06:00 – 52.9 sc
           ],
         },
       ];
@@ -5067,7 +5187,7 @@
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-      return /landing site|probe|lander|rover|spacecraft|mission|flyby|cassini|huygens|voyager/.test(content);
+      return /landing site|probe|lander|rover|spacecraft|mission|flyby|pioneer|voyager|galileo|juno/.test(content);
     }
 
     /**
@@ -6112,27 +6232,29 @@
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,
       });
-      const JUPITER_MH_MAT  = new THREE.MeshStandardMaterial({ color: 0xa29378, roughness: 0.58, metalness: 0.44, side: THREE.BackSide });
-      const JUPITER_MH_OUTER = new THREE.MeshStandardMaterial({ color: 0xa29378, roughness: 0.58, metalness: 0.44, side: THREE.FrontSide });
-      const JUPITER_HC_MAT  = new THREE.MeshStandardMaterial({ color: 0x8a7a65, roughness: 0.82, metalness: 0.12, side: THREE.BackSide });
-      // Flat cap disks and rings: DoubleSide so they're visible from both directions.
-      const JUPITER_MH_FLAT = new THREE.MeshStandardMaterial({ color: 0xa29378, roughness: 0.58, metalness: 0.44, side: THREE.DoubleSide });
-      const JUPITER_HC_FLAT = new THREE.MeshStandardMaterial({ color: 0x8a7a65, roughness: 0.82, metalness: 0.12, side: THREE.DoubleSide });
+      const JUPITER_IA_OUTER = new THREE.MeshStandardMaterial({ color: 0x7a6248, roughness: 0.68, metalness: 0.10, side: THREE.FrontSide });
+      const JUPITER_FT_MAT   = new THREE.MeshStandardMaterial({ color: 0x5080b8, roughness: 0.50, metalness: 0.42, side: THREE.BackSide });
+      const JUPITER_FT_OUTER = new THREE.MeshStandardMaterial({ color: 0xb0bcc8, roughness: 0.55, metalness: 0.20, side: THREE.FrontSide });
+      const JUPITER_FT_FLAT  = new THREE.MeshStandardMaterial({ color: 0x5080b8, roughness: 0.50, metalness: 0.42, side: THREE.DoubleSide });
+      const JUPITER_MH_MAT   = new THREE.MeshStandardMaterial({ color: 0xb0bcc8, roughness: 0.55, metalness: 0.20, side: THREE.BackSide });
+      const JUPITER_MH_OUTER = new THREE.MeshStandardMaterial({ color: 0xb0bcc8, roughness: 0.55, metalness: 0.20, side: THREE.FrontSide });
+      const JUPITER_HC_MAT   = new THREE.MeshStandardMaterial({ color: 0xc84020, roughness: 0.72, metalness: 0.10, side: THREE.BackSide });
+      const JUPITER_MH_FLAT  = new THREE.MeshStandardMaterial({ color: 0xb0bcc8, roughness: 0.55, metalness: 0.20, side: THREE.DoubleSide });
+      const JUPITER_HC_FLAT  = new THREE.MeshStandardMaterial({ color: 0xc84020, roughness: 0.72, metalness: 0.10, side: THREE.DoubleSide });
       if (cutawayResult.crustRing) cutawayResult.crustRing.material = JUPITER_UPPER_FACE_MAT;
-      if (cutawayResult.metallicHydrogenMesh) cutawayResult.metallicHydrogenMesh.material = JUPITER_MH_MAT;
-      if (cutawayResult.molecularBoundaryMesh) cutawayResult.molecularBoundaryMesh.material = JUPITER_MH_OUTER;
-      if (cutawayResult.metallicHydrogenCapMesh) cutawayResult.metallicHydrogenCapMesh.material = JUPITER_MH_FLAT;
-      if (cutawayResult.metallicHydrogenRing) cutawayResult.metallicHydrogenRing.material = JUPITER_MH_FLAT;
+      if (cutawayResult.molecularBoundaryMesh) cutawayResult.molecularBoundaryMesh.material = JUPITER_IA_OUTER;
       if (cutawayResult.heavyElementCoreMesh) cutawayResult.heavyElementCoreMesh.material = JUPITER_HC_MAT;
       if (cutawayResult.heavyElementCoreCapMesh) cutawayResult.heavyElementCoreCapMesh.material = JUPITER_HC_FLAT;
       const jupiterSolidInterior = buildJupiterSolidInterior(3.2);
       const jupiterSolidInteriorGroup = jupiterSolidInterior.group;
       marsGroup.add(jupiterSolidInteriorGroup);
       const jupiterInteriorSphereMaterials = [
+        jupiterSolidInterior.fluidTransitionMaterial,
         jupiterSolidInterior.metallicHydrogenMaterial,
         jupiterSolidInterior.heavyElementCoreMaterial,
       ].filter(Boolean);
       const jupiterInteriorCapMaterials = [
+        jupiterSolidInterior.fluidTransitionCapMaterial,
         jupiterSolidInterior.metallicHydrogenCapMaterial,
         jupiterSolidInterior.heavyElementCoreCapMaterial,
       ].filter(Boolean);
@@ -6760,6 +6882,7 @@
         pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
         raycaster.setFromCamera(pointer, camera);
         const exposedTargets = [
+          jupiterSolidInterior?.fluidTransitionMesh,
           jupiterSolidInterior?.metallicHydrogenMesh,
           jupiterSolidInterior?.heavyElementCoreMesh,
         ].filter((mesh) => mesh && mesh.visible);
@@ -7293,9 +7416,13 @@
         const jupiterLabelsEnabled = !removeAtmosphere && labelsToggle.checked;
         globe.visible = !removeAtmosphere;
         // Solid interior only shown when removeAtmosphere AND core view is OFF.
-        // When core view is on, cutaway handles the interior — solid spheres must be hidden
-        // to avoid triggering expensive MeshPhysicalMaterial shader compilations.
         jupiterSolidInteriorGroup.visible = removeAtmosphere && !coreEnabled;
+        if (jupiterSolidInterior.fluidTransitionMesh) {
+          jupiterSolidInterior.fluidTransitionMesh.visible = false;
+        }
+        if (jupiterSolidInterior.fluidTransitionCapMesh) {
+          jupiterSolidInterior.fluidTransitionCapMesh.visible = false;
+        }
         if (jupiterSolidInterior.metallicHydrogenCapMesh) {
           jupiterSolidInterior.metallicHydrogenCapMesh.visible = false;
         }
@@ -7345,9 +7472,30 @@
         const showMolecular = coreEnabled && !removeAtmosphere;
         if (cutawayResult.molecularEnvelopeMesh) cutawayResult.molecularEnvelopeMesh.visible = showMolecular;
         if (cutawayResult.molecularEnvelopeRing) cutawayResult.molecularEnvelopeRing.visible = showMolecular;
-        // molecularBoundaryMesh = outer convex fill for metallic H layer: visible whenever core active.
-        if (cutawayResult.molecularBoundaryMesh) cutawayResult.molecularBoundaryMesh.visible = coreEnabled;
-        // Inner layers: always visible when core view is active (cutawayGroup visibility handles the rest).
+        // molecularBoundaryMesh = outermost cutaway shell.
+        // When atmosphere removed: repaint grey and scale down to 0.80R (metallic-H boundary)
+        // so it sits flush against the outer core with no gap.
+        if (cutawayResult.molecularBoundaryMesh) {
+          const mbMat = cutawayResult.molecularBoundaryMesh.material;
+          if (mbMat && mbMat.isMeshStandardMaterial) {
+            mbMat.color.set(removeAtmosphere ? 0xb0bcc8 : 0x7a6248);
+            mbMat.roughness          = removeAtmosphere ? 0.55 : 0.68;
+            mbMat.metalness          = removeAtmosphere ? 0.20 : 0.10;
+            mbMat.polygonOffset      = removeAtmosphere;
+            mbMat.polygonOffsetFactor = removeAtmosphere ? -2 : 0;
+            mbMat.polygonOffsetUnits  = removeAtmosphere ? -2 : 0;
+            mbMat.needsUpdate = true;
+          }
+          // 0.837R → 0.80R: scale = 0.80 / 0.837
+          cutawayResult.molecularBoundaryMesh.scale.setScalar(removeAtmosphere ? (0.80 / 0.837) : 1.0);
+          cutawayResult.molecularBoundaryMesh.visible = coreEnabled;
+        }
+        // Fluid transition: hide all three components when atmosphere is removed
+        // so the model visually ends at the metallic-H boundary (0.80R).
+        const showFluidTransition = coreEnabled && !removeAtmosphere;
+        if (cutawayResult.fluidTransitionMesh) cutawayResult.fluidTransitionMesh.visible = showFluidTransition;
+        if (cutawayResult.fluidTransitionBoundaryMesh) cutawayResult.fluidTransitionBoundaryMesh.visible = showFluidTransition;
+        if (cutawayResult.fluidTransitionRing) cutawayResult.fluidTransitionRing.visible = showFluidTransition;
         if (cutawayResult.metallicHydrogenMesh) cutawayResult.metallicHydrogenMesh.visible = coreEnabled;
         if (cutawayResult.heavyElementCoreMesh) cutawayResult.heavyElementCoreMesh.visible = coreEnabled;
         if (cutawayResult.metallicHydrogenRing) cutawayResult.metallicHydrogenRing.visible = coreEnabled;
@@ -7727,9 +7875,6 @@
 
       coreToggle.addEventListener("change", () => {
         const enabled = coreToggle.checked;
-        if (legendSection) {
-          legendSection.open = enabled;
-        }
         if (enabled && elevationMap) {
           terrainScale.value = "0";
           applyTerrainRelief(0, elevationMap, baseMaterial, geologyMaterial, mineralMaterial, seaMaterial, regionMaskMaterial, cutawayResult);
@@ -8051,13 +8196,10 @@
           }
           if (event.key === "Enter") {
             event.preventDefault();
-            const selected = activeMoonFeatureSearchIndex >= 0
-              ? activeMoonFeatureSearchResults[activeMoonFeatureSearchIndex]
-              : activeMoonFeatureSearchResults[0];
-            if (selected) {
-              focusSearchedFeature(selected, viewerCamera, viewerControls);
-              clearMoonFeatureSearchResults(true);
-            }
+            const activeBtn = moonFeatureSearchResults && moonFeatureSearchResults.querySelector(".search-suggestion.is-active");
+            const firstBtn  = moonFeatureSearchResults && moonFeatureSearchResults.querySelector(".search-suggestion");
+            if (activeBtn) { activeBtn.click(); }
+            else if (firstBtn) { firstBtn.click(); }
           }
         });
         document.addEventListener("pointerdown", (event) => {
@@ -8299,8 +8441,8 @@
                 const pPa = estimateJupiterCloudTopPressure();
                 const pGPa = pPa / 1e9;
                 icDepth.textContent = "0 km";
-                icLayer.textContent = "Upper Atmosphere (surface)";
-                icLayer.style.color = jupiterInteriorLayerColor("Upper Atmosphere");
+                icLayer.textContent = "Outer Atmosphere (surface)";
+                icLayer.style.color = jupiterInteriorLayerColor("Outer Atmosphere");
                 icTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC.toLocaleString()} °C`;
                 icTemp.style.color = jupiterInteriorTempColor(tempC);
                 icPressure.textContent = formatPressureGPa(pGPa);
@@ -8312,14 +8454,17 @@
             const removeAtmosphereActive = Boolean(geologyToggle && geologyToggle.checked);
             const visibleSurfaceTargets = removeAtmosphereActive
               ? [
+                jupiterSolidInterior?.fluidTransitionMesh,
                 jupiterSolidInterior?.metallicHydrogenMesh,
                 jupiterSolidInterior?.heavyElementCoreMesh,
+                cutawayResult?.fluidTransitionMesh,
                 cutawayResult?.metallicHydrogenMesh,
                 cutawayResult?.heavyElementCoreMesh,
               ]
               : [
                 cutawayResult?.atmosphereMesh,
                 cutawayResult?.molecularEnvelopeMesh,
+                cutawayResult?.fluidTransitionMesh,
                 cutawayResult?.metallicHydrogenMesh,
                 cutawayResult?.heavyElementCoreMesh,
               ];
@@ -8337,8 +8482,8 @@
                 const pPa = estimateJupiterCloudTopPressure();
                 const pGPa = pPa / 1e9;
                 icDepth.textContent = "0 km";
-                icLayer.textContent = "Upper Atmosphere (surface)";
-                icLayer.style.color = jupiterInteriorLayerColor("Upper Atmosphere");
+                icLayer.textContent = "Outer Atmosphere (surface)";
+                icLayer.style.color = jupiterInteriorLayerColor("Outer Atmosphere");
                 icTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC.toLocaleString()} °C`;
                 icTemp.style.color = jupiterInteriorTempColor(tempC);
                 icPressure.textContent = formatPressureGPa(pGPa);
@@ -8388,8 +8533,10 @@
               const coreSurfaceTargets = [
                 cutawayResult?.atmosphereMesh,
                 cutawayResult?.molecularEnvelopeMesh,
+                cutawayResult?.fluidTransitionMesh,
                 cutawayResult?.metallicHydrogenMesh,
                 cutawayResult?.heavyElementCoreMesh,
+                jupiterSolidInterior?.fluidTransitionMesh,
                 jupiterSolidInterior?.metallicHydrogenMesh,
                 jupiterSolidInterior?.heavyElementCoreMesh,
               ].filter((mesh) => mesh && mesh.visible);

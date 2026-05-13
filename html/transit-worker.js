@@ -9,6 +9,8 @@ let stars = [];
 let startedAt = null;
 let transitMs = 4200;
 let running = false;
+let _cachedVignette = null; // rebuilt only on resize
+let _cachedCore = null;
 
 self.onmessage = ({ data }) => {
   if (data.type === 'start') {
@@ -30,6 +32,7 @@ function applyResize(width, height, pixelRatio) {
   canvas.width  = Math.floor(w * dpr);
   canvas.height = Math.floor(h * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  _cachedVignette = null; _cachedCore = null; // invalidate on resize
   seedStars();
 }
 
@@ -70,11 +73,13 @@ function frame(now) {
 
   ctx.clearRect(0, 0, w, h);
 
-  const vignette = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.85);
-  vignette.addColorStop(0,    'rgba(7,14,28,0.12)');
-  vignette.addColorStop(0.18, 'rgba(5,11,20,0)');
-  vignette.addColorStop(1,    'rgba(1,3,8,0.92)');
-  ctx.fillStyle = vignette;
+  if (!_cachedVignette) {
+    _cachedVignette = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.85);
+    _cachedVignette.addColorStop(0,    'rgba(7,14,28,0.12)');
+    _cachedVignette.addColorStop(0.18, 'rgba(5,11,20,0)');
+    _cachedVignette.addColorStop(1,    'rgba(1,3,8,0.92)');
+  }
+  ctx.fillStyle = _cachedVignette;
   ctx.fillRect(0, 0, w, h);
 
   for (const star of stars) {
@@ -95,10 +100,11 @@ function frame(now) {
     const alpha     = Math.min(0.98, 0.28 + progress * 0.42 + star.depth * 0.45);
     const lineWidth = Math.max(0.9, star.size * (0.75 + progress * 1.85));
 
+    const a1 = (alpha * 0.45) | 0; // use integer alpha buckets to reuse string refs
     const grad = ctx.createLinearGradient(x1, y1, x2, y2);
-    grad.addColorStop(0,    'rgba(255,255,255,0)');
-    grad.addColorStop(0.35, `rgba(255,255,255,${(alpha * 0.45).toFixed(3)})`);
-    grad.addColorStop(1,    `rgba(255,255,255,${alpha.toFixed(3)})`);
+    grad.addColorStop(0, 'rgba(255,255,255,0)');
+    grad.addColorStop(0.35, `rgba(255,255,255,${Math.round(alpha * 45) / 100})`);
+    grad.addColorStop(1,    `rgba(255,255,255,${Math.round(alpha * 100) / 100})`);
 
     ctx.strokeStyle = grad;
     ctx.lineWidth   = lineWidth;
@@ -109,19 +115,21 @@ function frame(now) {
     ctx.stroke();
 
     if (Math.hypot(x2 - x1, y2 - y1) > 4) {
-      ctx.fillStyle = `rgba(235,244,255,${(alpha * star.glow).toFixed(3)})`;
+      ctx.fillStyle = `rgba(235,244,255,${Math.round(alpha * star.glow * 100) / 100})`;
       ctx.beginPath();
       ctx.arc(x2, y2, Math.max(0.4, lineWidth * 0.42), 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
-  const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.12);
-  core.addColorStop(0,    'rgba(0,0,0,0.98)');
-  core.addColorStop(0.18, 'rgba(3,9,18,0.88)');
-  core.addColorStop(0.55, 'rgba(16,42,82,0.08)');
-  core.addColorStop(1,    'rgba(0,0,0,0)');
-  ctx.fillStyle = core;
+  if (!_cachedCore) {
+    _cachedCore = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(w, h) * 0.12);
+    _cachedCore.addColorStop(0,    'rgba(0,0,0,0.98)');
+    _cachedCore.addColorStop(0.18, 'rgba(3,9,18,0.88)');
+    _cachedCore.addColorStop(0.55, 'rgba(16,42,82,0.08)');
+    _cachedCore.addColorStop(1,    'rgba(0,0,0,0)');
+  }
+  ctx.fillStyle = _cachedCore;
   ctx.beginPath();
   ctx.arc(cx, cy, Math.max(w, h) * 0.13, 0, Math.PI * 2);
   ctx.fill();

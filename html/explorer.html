@@ -1634,6 +1634,7 @@
                 <a class="viewer-link" href="transit.html?destination=saturn">Open Saturn</a>
                 <a class="viewer-link" href="transit.html?destination=uranus">Open Uranus</a>
                 <a class="viewer-link" href="transit.html?destination=neptune">Open Neptune</a>
+                <a class="viewer-link" href="transit.html?destination=pluto">Open Pluto</a>
               </div>
               <div class="hero-stats" aria-label="Explorer status">
                 <div class="stat-card">
@@ -1694,6 +1695,7 @@
           <div class="orbit-ring" data-orbit="saturn"></div>
           <div class="orbit-ring" data-orbit="uranus"></div>
           <div class="orbit-ring" data-orbit="neptune"></div>
+          <div class="orbit-ring" data-orbit="pluto"></div>
 
           <button type="button" class="planet-node is-live" data-planet="mercury" style="--icon-size: 22px;" aria-label="Open Mercury viewer">
             <img class="planet-icon" src="../assets/mercury_icon.png" alt="" aria-hidden="true">
@@ -1719,6 +1721,9 @@
           <button type="button" class="planet-node is-live" data-planet="neptune" style="--icon-size: 36px;" aria-label="Open Neptune viewer">
             <img class="planet-icon" src="../assets/neptune_icon.png" alt="" aria-hidden="true">
           </button>
+          <button type="button" class="planet-node is-live" data-planet="pluto" style="--icon-size: 20px;" aria-label="Open Pluto viewer">
+            <img class="planet-icon" src="../assets/pluto_icon.png" alt="" aria-hidden="true">
+          </button>
 
           <span class="planet-label" data-label="mercury">Mercury</span>
           <span class="planet-label" data-label="venus">Venus</span>
@@ -1728,6 +1733,7 @@
           <span class="planet-label" data-label="saturn">Saturn</span>
           <span class="planet-label" data-label="uranus">Uranus</span>
           <span class="planet-label" data-label="neptune">Neptune</span>
+          <span class="planet-label" data-label="pluto">Pluto</span>
         </div>
 
         </div>
@@ -1977,7 +1983,7 @@
     <div class="status-spacer"></div>
     <div class="status-item">GeoID Explorer</div>
     <span class="status-sep">·</span>
-    <div class="status-item"><span class="status-dot"></span>Mercury Through Neptune Charted</div>
+    <div class="status-item"><span class="status-dot"></span>Mercury Through Pluto Charted</div>
   </div>
 
   <script src="../scripts/site.js"></script>
@@ -2134,6 +2140,25 @@
           ["Why it matters", "Neptune turns distance into a design strength by making the far outer system part of the same atlas."],
           ["Best for", "Comparative outer-planet learning and atmospheric extremes."]
         ]
+      },
+      pluto: {
+        title: "Pluto",
+        icon: "../assets/pluto_icon.png",
+        eyebrow: "Dwarf planet",
+        status: "Viewer live",
+        live: true,
+        route: "transit.html?destination=pluto",
+        launchLabel: "Open Pluto Viewer",
+        secondaryLabel: "Pluto Transit",
+        secondaryHref: "transit.html?destination=pluto",
+        colors: ["#c39b72", "#7a5c3a"],
+        ring: false,
+        copy: "Pluto is a distant dwarf planet at the edge of the solar system, with a nitrogen-ice heart, rugged mountain ranges of water ice, and a surface shaped by exotic ices far from the Sun.",
+        tags: ["Tombaugh Regio", "Nitrogen ice", "Kuiper Belt"],
+        facts: [
+          ["Why it matters", "Pluto extends the atlas to the Kuiper Belt, showing how planetary bodies form and evolve at extreme distances from the Sun."],
+          ["Best for", "Teaching about dwarf planets, icy worlds, and the outer reaches of the solar system."]
+        ]
       }
     };
 
@@ -2142,20 +2167,21 @@
     const planetLabels = new Map(Array.from(document.querySelectorAll("[data-label]")).map((node) => [node.dataset.label, node]));
     const orbitRings = Array.from(document.querySelectorAll(".orbit-ring"));
     const solarStage = document.querySelector(".solar-stage");
-    const orbitKeys = ["mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"];
+    const orbitKeys = ["mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
 
     // ── Orbital model ─────────────────────────────────────────────────────────
     // Semi-major axes (AU) from NASA JPL mean elements
     const AU_SMA = {
       mercury: 0.38710, venus: 0.72333, earth: 1.00000, mars: 1.52366,
-      jupiter: 5.20336, saturn: 9.53707, uranus: 19.1913, neptune: 30.0690
+      jupiter: 5.20336, saturn: 9.53707, uranus: 19.1913, neptune: 30.0690,
+      pluto: 39.4817
     };
 
     // Orbit radii use a sqrt(AU) compression so inner/outer are both visible.
-    // True linear scale would make Mercury ~1% of Neptune's radius.
-    const _sqrtNep = Math.sqrt(AU_SMA.neptune);
+    // Normalised to Pluto's orbit so all planets fit within the stage.
+    const _sqrtOuter = Math.sqrt(AU_SMA.pluto);
     const ORBIT_R = Object.fromEntries(
-      Object.entries(AU_SMA).map(([k, v]) => [k, (Math.sqrt(v) / _sqrtNep) * 0.88])
+      Object.entries(AU_SMA).map(([k, v]) => [k, (Math.sqrt(v) / _sqrtOuter) * 0.88])
     );
 
     // J2000.0 mean longitudes (°) and daily motion (°/day) — IAU VSOP87 truncated
@@ -2167,7 +2193,8 @@
       jupiter: { L0:  34.396, n: 0.083092 },
       saturn:  { L0:  49.944, n: 0.033460 },
       uranus:  { L0: 313.232, n: 0.011733 },
-      neptune: { L0: 304.880, n: 0.005980 }
+      neptune: { L0: 304.880, n: 0.005980 },
+      pluto:   { L0: 238.929, n: 0.003975 }
     };
 
     // Days elapsed since J2000.0 epoch (1 Jan 2000, 12:00 TT)
@@ -2308,5 +2335,6 @@
       positionPlanets();
     });
   </script>
+<script src="../styles/nav.js" defer></script>
 </body>
 </html>

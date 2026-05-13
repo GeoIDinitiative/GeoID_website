@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Saturn</title>
   <link rel="icon" href="assets/logo.png" type="image/png">
-  <link rel="preload" href="assets/saturn_body_color.jpg" as="image">
-  <link rel="preload" href="assets/saturn_elevation.png" as="image">
-  <link rel="preload" href="assets/saturn_geology_sim3292.png" as="image">
+  <link rel="preload" href="assets/saturn_body_color.jpg" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="assets/saturn_elevation.png" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="assets/saturn_geology_sim3292.png" as="fetch" crossorigin="anonymous">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260509-saturn2">
+  <link rel="stylesheet" href="styles.css?v=20260510-saturn2">
   <style>html,body{background:#000;margin:0}</style>
 </head>
 <body>
@@ -121,6 +121,10 @@
             <span class="checkbox-wrap"><input id="labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
+            <label for="crater-labels-toggle" style="color: #ff5faa;">Impact craters</label>
+            <span class="checkbox-wrap"><input id="crater-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
             <label for="volcanic-labels-toggle" style="color: #ff6b6b;">Volcanic features</label>
             <span class="checkbox-wrap"><input id="volcanic-labels-toggle" type="checkbox" checked></span>
           </div>
@@ -129,8 +133,16 @@
             <span class="checkbox-wrap"><input id="storm-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
-            <label for="landing-labels-toggle" style="color: #ffd166;">Mission locations</label>
+            <label for="landing-labels-toggle" style="color: #ffe500;">Mission locations</label>
             <span class="checkbox-wrap"><input id="landing-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
+            <label for="tectonic-labels-toggle" style="color: #b87333;">Canyons &amp; ridges</label>
+            <span class="checkbox-wrap"><input id="tectonic-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
+            <label for="fluvial-labels-toggle" style="color: #2d78e0;">Lakes &amp; rivers</label>
+            <span class="checkbox-wrap"><input id="fluvial-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
             <label for="flyby-paths-toggle" style="color: #ffffff;">Flyby trajectories</label>
@@ -210,56 +222,15 @@
         </div>
         </div>
       </details>
-<details class="control-section">
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2 10.8c3.7 0 3-6.2 7-6.2 2.1 0 3.2 1.5 3.2 3.2 0 1.5-1 2.7-2.6 2.7-.8 0-1.5-.3-2.2-1.1.2 1.5 1 2.7 2.6 3.3" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Modeled Level</span></span></div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body">
-          <div class="control-stack">
-          <div class="row">
-            <label for="sea-toggle">Paleo-sea overlay</label>
-            <span class="checkbox-wrap"><input id="sea-toggle" type="checkbox"></span>
-          </div>
-          <div class="row">
-            <label for="sea-level-slider">Sea level</label>
-            <input id="sea-level-slider" class="slider" type="range" min="-8200" max="0" step="25" value="-4000">
-          </div>
-          <p class="compact-copy" id="sea-level-copy">Speculative northern-ocean highstand slider. Current level: <span id="sea-level-value">-4000 m</span></p>
-        </div>
-        </div>
-      </details>
-<details class="control-section">
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title">Regions</div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body">
-          <div class="control-stack">
-          <div class="row">
-            <label for="region-mask-select">Region mask</label>
-            <select id="region-mask-select" class="mini-select">
-              <option value="">None</option>
-              <option value="lowlands">Lowlands</option>
-              <option value="highlands">Highlands</option>
-              <option value="volcanic-provinces">Volcanic provinces</option>
-              <option value="basins">Basins</option>
-            </select>
-          </div>
-          <div class="row">
-            <label for="region-mask-opacity">Mask opacity</label>
-            <input id="region-mask-opacity" class="slider" type="range" min="0" max="1" step="0.01" value="0.45">
-          </div>
-          <p class="compact-copy">Use these masks to isolate broad physiographic provinces and modeled regional domains.</p>
-        </div>
-        </div>
-      </details>
+
+
+<!-- gas-giant stubs: elements expected by viewer JS, hidden -->
+<input id="sea-toggle" type="checkbox" style="display:none">
+<input id="sea-level-slider" type="range" style="display:none">
+<span id="sea-level-value" style="display:none"></span>
+<p id="sea-level-copy" style="display:none"></p>
+<select id="region-mask-select" style="display:none"><option value=""></option></select>
+<input id="region-mask-opacity" type="range" style="display:none">
 <details id="remove-atmosphere-section" class="control-section">
         <summary class="section-toggle">
           <div class="section-toggle-main">
@@ -397,7 +368,7 @@
         <div class="section-body">
           <div class="section-summary-copy" id="legend-summary-copy" style="margin-bottom:0.5rem;">Active overlay symbologies and legend images.</div>
           <div id="legend-panel" class="legend-panel">
-            <p class="legend-empty">Enable geology, mineral, paleo-sea, region masks, or seismic overlays to populate the legend.</p>
+            <p class="legend-empty">Enable geology, mineral, or seismic overlays to populate the legend.</p>
           </div>
         </div>
       </details>
@@ -455,12 +426,12 @@
   <button id="toolbar-tab" aria-label="Expand measure toolbox">TOOLS &nbsp;‹</button>
   <div id="top-right-controls">
     <button id="spin-toggle" type="button" title="Pause rotation" aria-label="Pause rotation">
-      <span class="viewer-control-glyph" id="spin-toggle-glyph" aria-hidden="true">⏸</span>
+      <svg class="viewer-control-icon" id="spin-toggle-glyph" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/>
+      </svg>
     </button>
     <button id="freeze-view-toggle" type="button" title="Freeze view" aria-label="Freeze view">
-      <svg class="viewer-control-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 7.2v9.6M7.9 9.6l8.2 4.8M7.9 14.4l8.2-4.8M9.3 7.7l1.6 2.8M14.7 7.7l-1.6 2.8M9.3 16.3l1.6-2.8M14.7 16.3l-1.6-2.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <img class="viewer-control-icon freeze-icon" src="../../../assets/snowflake_icon.png" alt="" aria-hidden="true">
     </button>
     <a href="https://geoidinitiative.com/" target="_blank" rel="noopener noreferrer" aria-label="Open GeoID Initiative website">
       <img id="top-right-logo" src="assets/logo.png" alt="GeoID logo">
@@ -686,7 +657,7 @@
         </section>
         <section class="viewer-help-section">
           <h3>Control Panel Layout</h3>
-          <p>The left panel runs from navigation to interpretation. <strong>Tour Mode</strong> steps through curated stop sequences by theme. <strong>Locations</strong> controls surface labels by category. <strong>Basemap &amp; Relief</strong> sets the globe texture and cloud displacement. <strong>Regions</strong> masks broad latitudinal zones. <strong>Core View</strong> shows Saturn's layered interior structure. <strong>Moon Viewer</strong> flies to Saturn's major moons. The bottom-right HUD shows live cursor latitude, longitude, and map scale.</p>
+          <p>The left panel runs from navigation to interpretation. <strong>Tour Mode</strong> steps through curated stop sequences by theme. <strong>Locations</strong> controls surface labels by category. <strong>Basemap &amp; Relief</strong> sets the globe texture and cloud displacement. <strong>Core View</strong> shows Saturn's layered interior structure. <strong>Moon Viewer</strong> flies to Saturn's major moons. The bottom-right HUD shows live cursor latitude, longitude, and map scale.</p>
         </section>
         <section class="viewer-help-section">
           <h3>Tour Mode</h3>
@@ -801,5 +772,23 @@
 <script src="ui-controls.js" defer></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
 <script src="music.js?v=20260430-saturn" defer></script>
+  <div id="portrait-advisory" role="status" aria-live="polite">
+    <img src="../../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon">
+    <p id="portrait-advisory-text">Rotate to landscape for the best experience</p>
+    <button id="portrait-advisory-dismiss" type="button" aria-label="Dismiss">Got it</button>
+  </div>
+  <script>
+    (function () {
+      var advisory = document.getElementById("portrait-advisory");
+      var dismissBtn = document.getElementById("portrait-advisory-dismiss");
+      if (!advisory || !dismissBtn) return;
+      dismissBtn.addEventListener("click", function () {
+        advisory.classList.add("is-dismissed");
+      });
+      window.addEventListener("orientationchange", function () {
+        advisory.classList.remove("is-dismissed");
+      });
+    })();
+  </script>
 </body>
 </html>

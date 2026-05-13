@@ -1,5 +1,6 @@
 import * as THREE from "./vendor/three.module.js";
     import { OrbitControls } from "./vendor/OrbitControls.js";
+import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterMoonFeature, getMoonFeatureConnectorStart, buildLabelLayer, buildMoonLayer, buildMoonFeatureLabelLayer, getEntryConnectorStart, updateLabelAnchors, rebuildLabelTextures, updateMoonFeatureLabelVisibility, updateMoonVisibility, updateLabelVisibility } from "./label-layer.js";
 
     if (!window.__ctxPatchDebug) {
       window.__ctxPatchDebug = { verbose: true };
@@ -46,6 +47,11 @@ import * as THREE from "./vendor/three.module.js";
     const volcanicLabelsToggle = document.getElementById("volcanic-labels-toggle");
     const landingLabelsToggle = document.getElementById("landing-labels-toggle");
     const habitationLabelsToggle = document.getElementById("habitation-labels-toggle");
+    const craterLabelsToggle = document.getElementById("crater-labels-toggle");
+    const fluvialLabelsToggle = document.getElementById("fluvial-labels-toggle");
+    const tectonicLabelsToggle = document.getElementById("tectonic-labels-toggle");
+    const lodSlider = document.getElementById("lod-slider");
+    let currentLodLevel = 3;
     const moonToggle = document.getElementById("moon-toggle");
     const baseLabelsToggle = document.getElementById("base-labels-toggle");
 
@@ -71,9 +77,12 @@ import * as THREE from "./vendor/three.module.js";
     const moonViewerSection = document.getElementById("moon-viewer-section");
     const legendSection = document.getElementById("legend-section");
     function openLegendSection() { if (legendSection) legendSection.open = true; }
-    const DEFAULT_NAVIGATE_BASE_LAYER_ID = "ctx-mosaic-color";
+    const DEFAULT_NAVIGATE_BASE_LAYER_ID = "venus-surface";
     const moonViewerControls = document.getElementById("moon-viewer-controls");
     const moonViewerSelect = document.getElementById("moon-viewer-select");
+    const moonFeatureSearchInput = document.getElementById("moon-feature-search");
+    const moonFeatureSearchGo = document.getElementById("moon-feature-search-go");
+    const moonFeatureSearchResults = document.getElementById("moon-feature-search-results");
     const moonViewerPrev = document.getElementById("moon-viewer-prev");
     const moonViewerNext = document.getElementById("moon-viewer-next");
     const moonFeatureTypeSelect = document.getElementById("moon-feature-type");
@@ -162,7 +171,7 @@ import * as THREE from "./vendor/three.module.js";
     const _VENUS_ROT_REAL_MS = 243.018 * 24 * 3600000; // rotation period in ms
     const _VENUS_MOON_SPEED_FACTOR = _VENUS_ROT_REAL_MS / _VENUS_DISPLAY_PERIOD_MS; // scaled
 
-    const labelData = [];
+    const labelData = await fetch(new URL('./label-data.json', import.meta.url)).then(r => r.json());
     const ringLabelData = [];
     const moonData = [];
     const MOON_ORBIT_ECCENTRICITY = Object.freeze({});
@@ -170,37 +179,56 @@ import * as THREE from "./vendor/three.module.js";
     const allFeatureData = [...labelData, ...ringLabelData, ...moonData, ...moonFeatureData];
     const TOUR_MODE_FACETS = [
       {
-        id: "craters",
-        label: "Craters and basins",
-        description: "Impact craters, basins, and related impact landforms.",
-        matches: (item) => /crater|basin/i.test(String(item.type || "")),
-      },
-      {
-        id: "missions",
-        label: "Mission locations",
-        description: "Historic Venus landers and rover landing sites.",
-        matches: (item) => item.theme === "landing" || /landing site|rover/i.test(String(item.type || "")),
+        id: "highlights",
+        label: "Highlights",
+        description: "A curated tour of Venus's most dramatic features, from Maxwell Montes and Ishtar Terra to vast volcanic coronae and deep canyon systems.",
+        matches: (item) => [
+          "Maxwell Montes",
+          "Aphrodite Terra",
+          "Ishtar Terra",
+          "Maat Mons",
+          "Sapas Mons",
+          "Artemis Corona",
+          "Diana Chasma",
+          "Cleopatra",
+          "Lakshmi Planum",
+          "Eistla Regio",
+          "Beta Regio",
+          "Ovda Regio",
+        ].includes(item.name),
       },
       {
         id: "volcanoes",
-        label: "Volcanoes and volcanic provinces",
-        description: "Shield volcanoes, paterae, calderas, and volcanic plains.",
+        label: "Volcanoes and coronae",
+        description: "Shield volcanoes, calderas, paterae, and the coronae unique to Venus.",
         matches: (item) => item.theme === "volcanic",
+      },
+      {
+        id: "craters",
+        label: "Impact craters",
+        description: "Named impact craters across the Venusian surface.",
+        matches: (item) => item.theme === "crater",
+      },
+      {
+        id: "tectonic",
+        label: "Ridges, chasms and tesserae",
+        description: "Chasmata, ridge belts, tessera terrain, and tectonic landforms.",
+        matches: (item) => item.theme === "tectonic",
+      },
+      {
+        id: "surface",
+        label: "Highlands and lowlands",
+        description: "Terrae, planitiae, plana, and broad surface regions of Venus.",
+        matches: (item) => item.theme === "surface",
       },
       {
         id: "polar",
         label: "Polar regions",
-        description: "Polar caps, troughs, and high-latitude ice-rich terrain.",
+        description: "High-latitude terrain features of Venus.",
         matches: (item) => {
           const lat = Number(item.lat);
           return Number.isFinite(lat) && Math.abs(lat) >= 65;
         },
-      },
-      {
-        id: "habitats",
-        label: "Future habitat candidates",
-        description: "Candidate future settlement and ice-access sites.",
-        matches: (item) => item.theme === "habitation" || /habitat candidate/i.test(String(item.type || "")),
       },
     ];
     const BASE_BUILDER_CATALOG = [
@@ -281,7 +309,7 @@ import * as THREE from "./vendor/three.module.js";
     const legendPanel = document.getElementById("legend-panel");
 
     if (brandLogo) {
-      brandLogo.src = "../../../assets/venus_icon.png?v=20260329d";
+      brandLogo.src = "../../../assets/venus_icon.png";
     }
     const legendSummaryCopy = document.getElementById("legend-summary-copy");
     const scenePopup = document.getElementById("scene-popup");
@@ -432,14 +460,14 @@ import * as THREE from "./vendor/three.module.js";
     const mosaicFocusConnector = document.getElementById("mosaic-focus-connector");
     const mosaicFocusLabel = document.getElementById("mosaic-focus-label");
 
+
+
     function estimateVenusTemperature(latDeg, elevMeters) {
-      const latRad = latDeg * Math.PI / 180;
-      const baseTempC = -20 - 80 * Math.sin(latRad) ** 2;
-      return Math.round(baseTempC - 2.5 * (elevMeters / 1000));
+      return Math.round(465 - 8.0 * (elevMeters / 1000));
     }
 
     function estimateVenusPressure(elevMeters) {
-      return Math.round(636 * Math.exp(-elevMeters / 11100));
+      return Math.round(9200 * Math.exp(-elevMeters / 15900));
     }
 
     const locatorCtx = hemisphereLocatorCanvas?.getContext("2d") ?? null;
@@ -595,18 +623,18 @@ import * as THREE from "./vendor/three.module.js";
       }
     }
 
-    // ── Venus interior model (depth-based) ────────────────────────────────────
-    // Layer boundaries as fraction of planetary radius
+    // ── Mars interior model (depth-based) ────────────────────────────────────
+    // Layer boundaries as fraction of planetary radius (from InSight + geophysical models)
     // rFrac = 0 → centre, rFrac = 1 → surface
     const VENUS_INTERIOR_LAYERS = [
-      { name: "Inner Core",   rMin: 0.000, rMax: 0.270 },
-      { name: "Outer Core",   rMin: 0.270, rMax: 0.520 },
-      { name: "Mantle",       rMin: 0.520, rMax: 0.993 },
-      { name: "Crust",        rMin: 0.993, rMax: 1.000 }
+      { name: "Inner Core",        rMin: 0.000, rMax: 0.200 },
+      { name: "Liquid Outer Core", rMin: 0.200, rMax: 0.480 },
+      { name: "Mantle",            rMin: 0.480, rMax: 0.985 },
+      { name: "Crust",             rMin: 0.985, rMax: 1.000 },
     ];
     // Piecewise-linear T (°C) and P (GPa) profiles keyed on rFrac (sorted low→high)
-    const VENUS_INTERIOR_T_PTS = [[0.0, 5000], [0.27, 4500], [0.52, 3000], [0.993, 460], [1.0, 460]];
-    const VENUS_INTERIOR_P_PTS = [[0.0, 300.0], [0.27, 260.0], [0.52, 120.0], [0.993, 9.2], [1.0, 0.0]];
+    const VENUS_INTERIOR_T_PTS = [[0.000, 5000], [0.200, 4500], [0.480, 3000], [0.985, 1000], [1.000, 465]];
+    const VENUS_INTERIOR_P_PTS = [[0.000, 290.0], [0.200, 260.0], [0.480, 120.0], [0.985, 10.0], [1.000, 0.009]];
 
     function _interiorInterp(pts, rFrac) {
       const r = Math.max(0, Math.min(1, rFrac));
@@ -636,10 +664,10 @@ import * as THREE from "./vendor/three.module.js";
     }
 
     const VENUS_INTERIOR_LAYER_COLORS = {
-      "Crust": "#d4b070",
-      "Mantle": "#c08040",
-      "Outer Core": "#e07030",
-      "Inner Core": "#f5d8a0"
+      "Crust":             "#d4b896",
+      "Mantle":            "#c07848",
+      "Liquid Outer Core": "#ff6633",
+      "Inner Core":        "#f5e0a8",
     };
 
     function venusInteriorLayerColor(layerName) {
@@ -648,7 +676,7 @@ import * as THREE from "./vendor/three.module.js";
 
     function venusInteriorTempColor(tempC) {
       // Interpolate blue → cyan → yellow → red across -50°C to 2100°C
-      const t = Math.max(0, Math.min(1, (tempC + 50) / 2150));
+      const t = Math.max(0, Math.min(1, (tempC + 0) / 5000));
       let r, g, b;
       if (t < 0.33) {
         const f = t / 0.33;
@@ -665,7 +693,7 @@ import * as THREE from "./vendor/three.module.js";
 
     function venusInteriorPressureColor(gpa) {
       // Interpolate green → yellow → red across 0–40 GPa
-      const t = Math.max(0, Math.min(1, gpa / 40));
+      const t = Math.max(0, Math.min(1, gpa / 290));
       const r = Math.round(t < 0.5 ? t * 2 * 220 : 220);
       const g = Math.round(t < 0.5 ? 200 : (1 - (t - 0.5) * 2) * 200);
       return `rgb(${r},${g},60)`;
@@ -678,18 +706,18 @@ import * as THREE from "./vendor/three.module.js";
       return Math.round((3 + jetStream + elevBoost) * 10) / 10;
     }
 
-    function estimateVenusIrradiance(latDeg, elevMeters) {
+    function estimateMarsIrradiance(latDeg, elevMeters) {
       const latRad = latDeg * Math.PI / 180;
       const latFactor = Math.max(0, Math.cos(latRad));
       const elevFactor = 1 + Math.max(0, elevMeters) / 300000;
       return Math.round(590 * latFactor * elevFactor);
     }
 
-    function estimateVenusRadiation(elevMeters) {
+    function estimateMarsRadiation(elevMeters) {
       return Math.round((0.5 * Math.exp(elevMeters / 14000) + 0.2) * 100) / 100;
     }
 
-    function estimateVenusDiurnalRange(latDeg, elevMeters) {
+    function estimateMarsDiurnalRange(latDeg, elevMeters) {
       const latRad = latDeg * Math.PI / 180;
       const base = 80 * Math.cos(latRad) ** 2 + 20;
       return Math.round(base + elevMeters / 3000);
@@ -712,10 +740,10 @@ import * as THREE from "./vendor/three.module.js";
       return null; // displayed as special string
     }
 
-    function estimateSpaceTemperature(cameraDistanceFromVenus) {
-      // Near Venus: ~−63 °C effective equilibrium. Far from Venus: bias to deep space ~−247 °C.
+    function estimateSpaceTemperature(cameraDistanceFromMars) {
+      // Near Mars: ~−63 °C effective equilibrium. Far from Mars: bias to deep space ~−247 °C.
       // Interpolate across camera distance to avoid sudden jumps.
-      const t = Math.max(0, Math.min(1, (cameraDistanceFromVenus - 3.5) / 30));
+      const t = Math.max(0, Math.min(1, (cameraDistanceFromMars - 3.5) / 30));
       return Math.round(-63 - 184 * t);
     }
 
@@ -744,21 +772,21 @@ import * as THREE from "./vendor/three.module.js";
       irradiance: {
         label: "Solar Irradiance", unit: "W/m²", min: 0, max: 590,
         stops: [[5,5,30],[30,10,100],[100,30,180],[220,120,30],[255,200,50],[255,250,200]],
-        compute: (lat, elev) => estimateVenusIrradiance(lat, elev),
+        compute: (lat, elev) => estimateMarsIrradiance(lat, elev),
         legendA: "#05051e", legendB: "#fffac8",
         description: "Mean annual solar irradiance at the surface. Peaks near the equator (~590 W/m²), minimal at poles.",
       },
       radiation: {
         label: "Surface Radiation Dose", unit: "mSv/day", min: 0.5, max: 2.0,
         stops: [[20,180,80],[120,210,40],[240,200,20],[240,100,20],[200,20,20]],
-        compute: (_lat, elev) => estimateVenusRadiation(elev),
+        compute: (_lat, elev) => estimateMarsRadiation(elev),
         legendA: "#14b450", legendB: "#c81414",
         description: "Estimated daily cosmic radiation dose. Increases with altitude as atmospheric shielding thins.",
       },
       diurnal: {
         label: "Diurnal Temp Range", unit: "°C", min: 20, max: 100,
         stops: [[40,80,200],[20,180,200],[40,200,80],[220,200,30],[240,100,20],[200,20,20]],
-        compute: (lat, elev) => estimateVenusDiurnalRange(lat, elev),
+        compute: (lat, elev) => estimateMarsDiurnalRange(lat, elev),
         legendA: "#2850c8", legendB: "#c81414",
         description: "Estimated daily temperature swing between surface day and night. Largest near the equator and at high elevation.",
       },
@@ -918,7 +946,7 @@ import * as THREE from "./vendor/three.module.js";
     const geoPopupDetail = document.getElementById("geo-popup-detail");
     const geoPopupAnchor = document.getElementById("geo-popup-anchor");
     let activeGeoPopupFeature = null;
-    let activeGeoPopupLocalPos = null;   // THREE.Vector3 in Venus body-local space (unspun)
+    let activeGeoPopupLocalPos = null;   // THREE.Vector3 in Mars body-local space (unspun)
     let selectedGeologyBoundaryGroup = null;
     let lastTimestamp = 0;
     let activeSearchResults = [];
@@ -929,11 +957,59 @@ import * as THREE from "./vendor/three.module.js";
     let activeMoonViewerFeature = null;
     let moonFeatureTypeFilter = "all";
     let activeMoonFeatureTour = null;
+    let activeMoonFeatureSearchResults = [];
+    let activeMoonFeatureSearchIndex = -1;
     let venusSceneGroup = null;
     let venusGlobeRef = null;   // set by init(); bridged so module-level openGeoPopup can access globe rotation
     let moonLayer = null;
+
+    function getMoonOccluders() {
+      if (!venusSceneGroup || !Array.isArray(moonData) || moonData.length === 0) return [];
+      const scale = venusSceneGroup.scale;
+      const radiusScale = Math.max(Math.abs(scale.x || 1), Math.abs(scale.y || 1), Math.abs(scale.z || 1));
+      const OCCLUDER_BUFFER = 1.55;
+      if (moonLayer && Array.isArray(moonLayer.entries) && moonLayer.entries.length > 0) {
+        return moonLayer.entries.map((entry) => {
+          const center = new THREE.Vector3();
+          entry.moonMesh.getWorldPosition(center);
+          return { name: entry.item.name, center, radius: entry.moonRadius * radiusScale * OCCLUDER_BUFFER };
+        });
+      }
+      return moonData.filter((item) => Array.isArray(item.moon_anchor)).map((item) => ({
+        name: item.name,
+        center: venusSceneGroup.localToWorld(new THREE.Vector3(item.moon_anchor[0], item.moon_anchor[1], item.moon_anchor[2])),
+        radius: Number(item.moon_radius || 0.1) * radiusScale * OCCLUDER_BUFFER,
+      }));
+    }
+
+    function _isPointOccludedByMoonOccluder(pointWorld, camera, occluder) {
+      const segment = pointWorld.clone().sub(camera.position);
+      const segmentLength = segment.length();
+      if (segmentLength <= 1e-5) return false;
+      const direction = segment.clone().divideScalar(segmentLength);
+      const offset = camera.position.clone().sub(occluder.center);
+      const b = 2 * offset.dot(direction);
+      const c = offset.lengthSq() - (occluder.radius * occluder.radius);
+      const discriminant = (b * b) - (4 * c);
+      if (discriminant <= 0) return false;
+      const root = Math.sqrt(discriminant);
+      const near = (-b - root) * 0.5;
+      const far = (-b + root) * 0.5;
+      const epsilon = 1e-4;
+      return (near > epsilon && near < segmentLength - epsilon)
+        || (far > epsilon && far < segmentLength - epsilon);
+    }
+
+    function isPointOccludedByAnyMoon(pointWorld, camera, ignoredMoonName = null) {
+      for (const occluder of getMoonOccluders()) {
+        if (ignoredMoonName && occluder.name === ignoredMoonName) continue;
+        if (_isPointOccludedByMoonOccluder(pointWorld, camera, occluder)) return true;
+      }
+      return false;
+    }
+
     let gisBases = [];
-    const saturnViewModeSelect = null; // Venus has no tilted/untilted toggle
+    const saturnViewModeSelect = null; // Mars has no tilted/untilted toggle
     let spinPaused = false;
     let spinPauseStart = 0;
     let spinOffset = 0;
@@ -964,20 +1040,12 @@ import * as THREE from "./vendor/three.module.js";
       const spinLocked = baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color";
       spinToggleBtn.classList.toggle("is-locked", spinLocked);
       if (spinPaused) {
-        if (spinToggleGlyph) {
-          spinToggleGlyph.textContent = "▶";
-        } else {
-          spinToggleBtn.textContent = "▶";
-        }
         spinToggleBtn.title = "Resume rotation";
+        spinToggleBtn.setAttribute("aria-label", "Resume rotation");
         spinToggleBtn.classList.add("is-paused");
       } else {
-        if (spinToggleGlyph) {
-          spinToggleGlyph.textContent = "⏸";
-        } else {
-          spinToggleBtn.textContent = "⏸";
-        }
         spinToggleBtn.title = "Pause rotation";
+        spinToggleBtn.setAttribute("aria-label", "Pause rotation");
         spinToggleBtn.classList.remove("is-paused");
       }
     }
@@ -1036,7 +1104,10 @@ import * as THREE from "./vendor/three.module.js";
     let _ctxZoomAnimStart = null;
     const CTX_ZOOM_ANIM_MS = 450;
     const DEFAULT_CAMERA_POSITION = Object.freeze({ x: 0, y: 1.4, z: 11.5 });
-    const MOON_VIEWER_TEXTURES = {};
+    const MOON_VIEWER_TEXTURES = {
+      "Phobos": "assets/phobos_color_map.jpg",
+      "Deimos": "assets/deimos_color_map.jpg",
+    };
     let currentMetadataState = null;
     const VENUS_MEAN_RADIUS_KM = 6051.8;
     let activeCutClipPlane = null;
@@ -1092,12 +1163,12 @@ import * as THREE from "./vendor/three.module.js";
         id: "inner-core",
         name: "Inner Core",
         type: "Deep interior (uncertain)",
-        description: "Whether Venus has a solid inner core is unconfirmed. InSight seismic data is ambiguous; low seismic activity limits deep-interior resolution.",
+        description: "Whether Mars has a solid inner core is unconfirmed. InSight seismic data is ambiguous; low seismic activity limits deep-interior resolution.",
         depth: "0 – ~300 km from centre (estimated)",
         composition: "Possibly denser iron-nickel alloy, or fully molten. State and exact composition remain unknown.",
         temperature: "~2,000 – 2,400°C (estimated)",
-        labelX: -0.8, labelY: 0.45,
-        anchorY: 0.45,
+        labelX: -1.0, labelY: 0,
+        anchorY: 0,
       },
     ];
 
@@ -1162,11 +1233,11 @@ import * as THREE from "./vendor/three.module.js";
     const CTX_SERVICE_CANDIDATES = [
       {
         name: "CTX",
-        serviceUrl: "https://astro.arcgis.com/arcgis/rest/services/OnVenus/CTX/MapServer",
+        serviceUrl: "https://astro.arcgis.com/arcgis/rest/services/OnMars/CTX/MapServer",
       },
       {
         name: "CTX1",
-        serviceUrl: "https://astro.arcgis.com/arcgis/rest/services/OnVenus/CTX1/MapServer",
+        serviceUrl: "https://astro.arcgis.com/arcgis/rest/services/OnMars/CTX1/MapServer",
       },
     ];
 
@@ -1236,7 +1307,7 @@ import * as THREE from "./vendor/three.module.js";
       let highestWorkingLevel = Math.max(0, Math.min(12, advertisedMaxLevel));
       for (let level = Math.max(13, highestWorkingLevel + 1); level <= advertisedMaxLevel; level += 1) {
         const probe = await probeCtxTileStatus(tileBase, level, 0, 0);
-        if ((probe.upstreamStatus || probe.httpStatus) >= 400) {
+        if ((probe.upstreamStatus || probe.httpStatus) >= 400 || (!probe.ok && probe.httpStatus === 0)) {
           break;
         }
         if (probe.ok) {
@@ -1297,7 +1368,11 @@ import * as THREE from "./vendor/three.module.js";
               continue;
             }
           }
-          const discoveredMaxLevel = await discoverCtxWorkingMaxLevel(candidate.tileBase, maxAvailableLevel);
+          // Only probe tile levels for proxy candidates — direct ArcGIS URLs are
+          // CORS-blocked for tiles on most origins and would just generate console errors.
+          const discoveredMaxLevel = candidate.viaProxy
+            ? await discoverCtxWorkingMaxLevel(candidate.tileBase, maxAvailableLevel)
+            : maxAvailableLevel;
           const workingMaxLevel = Math.max(minAvailableLevel, Math.min(maxAvailableLevel, discoveredMaxLevel));
           const preferredMinLevel = Math.max(minAvailableLevel, Math.min(3, maxAvailableLevel));
           window.__ctxDebug = {
@@ -1726,25 +1801,35 @@ import * as THREE from "./vendor/three.module.js";
     }
 
     function normalizeSeaLevelMeters(levelMeters) {
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -2886);
       const reliefMeters = Math.max(Number(manifest.elevation?.relief_m ?? 1), 1);
       return clamp((levelMeters - minMeters) / reliefMeters, 0, 1);
     }
 
-    function createSeaOverlayTextureState(elevationTexture) {
-      if (!elevationTexture || !elevationTexture.image) {
-        return null;
+    function createSeaOverlayTextureState(elevationTexture, samplerState = null) {
+      let sourcePixels, overlayW, overlayH;
+      if (samplerState) {
+        sourcePixels = samplerState.pixels;
+        overlayW = samplerState.width;
+        overlayH = samplerState.height;
+      } else {
+        if (!elevationTexture || !elevationTexture.image) return null;
+        const sourceCanvas = document.createElement("canvas");
+        sourceCanvas.width = elevationTexture.image.width;
+        sourceCanvas.height = elevationTexture.image.height;
+        const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
+        sourceContext.drawImage(elevationTexture.image, 0, 0);
+        sourcePixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
+        overlayW = sourceCanvas.width;
+        overlayH = sourceCanvas.height;
       }
-      const sourceCanvas = document.createElement("canvas");
-      sourceCanvas.width = elevationTexture.image.width;
-      sourceCanvas.height = elevationTexture.image.height;
-      const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
-      sourceContext.drawImage(elevationTexture.image, 0, 0);
-      const sourcePixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
+      if (!sourcePixels) return null;
 
+      // Overlay rendered at 1/4 source resolution — visually identical at globe scale,
+      // saves ~62 MB vs full-res (overlayCanvas + overlayImage each ~2 MB instead of ~33 MB).
       const overlayCanvas = document.createElement("canvas");
-      overlayCanvas.width = sourceCanvas.width;
-      overlayCanvas.height = sourceCanvas.height;
+      overlayCanvas.width = Math.max(1, overlayW >> 2);
+      overlayCanvas.height = Math.max(1, overlayH >> 2);
       const overlayContext = overlayCanvas.getContext("2d");
       const overlayImage = overlayContext.createImageData(overlayCanvas.width, overlayCanvas.height);
       const texture = new THREE.CanvasTexture(overlayCanvas);
@@ -1758,11 +1843,13 @@ import * as THREE from "./vendor/three.module.js";
 
       return {
         sourcePixels,
+        sourceWidth: overlayW,
+        sourceHeight: overlayH,
         overlayCanvas,
         overlayContext,
         overlayImage,
         texture,
-        minMeters: Number(manifest.elevation?.min_m ?? -8200),
+        minMeters: Number(manifest.elevation?.min_m ?? -2886),
         reliefMeters: Math.max(Number(manifest.elevation?.relief_m ?? 1), 1),
       };
     }
@@ -1774,51 +1861,60 @@ import * as THREE from "./vendor/three.module.js";
       const threshold = normalizeSeaLevelMeters(seaLevelMeters);
       const output = state.overlayImage.data;
       const source = state.sourcePixels;
+      const srcW = state.sourceWidth;
+      const outW = state.overlayCanvas.width;
+      const outH = state.overlayCanvas.height;
+      const scaleX = srcW / outW;
+      const scaleY = state.sourceHeight / outH;
       const coastalBand = 0.012;
       const shallowBandMeters = 400;
       const deepBandMeters = 3200;
-      for (let index = 0; index < source.length; index += 4) {
-        const elevationNorm = source[index] / 255;
-        if (elevationNorm > threshold) {
-          output[index] = 0;
-          output[index + 1] = 0;
-          output[index + 2] = 0;
-          output[index + 3] = 0;
-          continue;
+      for (let oy = 0; oy < outH; oy++) {
+        const sy = Math.floor(oy * scaleY);
+        for (let ox = 0; ox < outW; ox++) {
+          const index = (oy * outW + ox) * 4;
+          const elevationNorm = source[((sy * srcW) + Math.floor(ox * scaleX)) * 4] / 255;
+          if (elevationNorm > threshold) {
+            output[index] = 0;
+            output[index + 1] = 0;
+            output[index + 2] = 0;
+            output[index + 3] = 0;
+            continue;
+          }
+          const elevationMeters = state.minMeters + (elevationNorm * state.reliefMeters);
+          const depthMeters = Math.max(0, seaLevelMeters - elevationMeters);
+          const depthRatio = clamp(depthMeters / deepBandMeters, 0, 1);
+          const shallowRatio = clamp(depthMeters / shallowBandMeters, 0, 1);
+          const shorelineMix = clamp((coastalBand - (threshold - elevationNorm)) / coastalBand, 0, 1);
+          const shelfMix = 1 - shallowRatio;
+          const red = Math.round(
+            (18 * depthRatio) +
+            (42 * shelfMix) +
+            (86 * shorelineMix)
+          );
+          const green = Math.round(
+            62 +
+            (72 * shelfMix) +
+            (54 * shorelineMix) -
+            (28 * depthRatio)
+          );
+          const blue = Math.round(
+            128 +
+            (80 * shelfMix) +
+            (82 * depthRatio) +
+            (36 * shorelineMix)
+          );
+          const alpha = Math.round(
+            82 +
+            (62 * depthRatio) +
+            (36 * shallowRatio) +
+            (48 * shorelineMix)
+          );
+          output[index] = red;
+          output[index + 1] = green;
+          output[index + 2] = blue;
+          output[index + 3] = alpha;
         }
-        const elevationMeters = state.minMeters + (elevationNorm * state.reliefMeters);
-        const depthMeters = Math.max(0, seaLevelMeters - elevationMeters);
-        const depthRatio = clamp(depthMeters / deepBandMeters, 0, 1);
-        const shallowRatio = clamp(depthMeters / shallowBandMeters, 0, 1);
-        const shorelineMix = clamp((coastalBand - (threshold - elevationNorm)) / coastalBand, 0, 1);
-        const shelfMix = 1 - shallowRatio;
-        const red = Math.round(
-          (18 * depthRatio) +
-          (42 * shelfMix) +
-          (86 * shorelineMix)
-        );
-        const green = Math.round(
-          62 +
-          (72 * shelfMix) +
-          (54 * shorelineMix) -
-          (28 * depthRatio)
-        );
-        const blue = Math.round(
-          128 +
-          (80 * shelfMix) +
-          (82 * depthRatio) +
-          (36 * shorelineMix)
-        );
-        const alpha = Math.round(
-          82 +
-          (62 * depthRatio) +
-          (36 * shallowRatio) +
-          (48 * shorelineMix)
-        );
-        output[index] = red;
-        output[index + 1] = green;
-        output[index + 2] = blue;
-        output[index + 3] = alpha;
       }
       state.overlayContext.putImageData(state.overlayImage, 0, 0);
       state.texture.needsUpdate = true;
@@ -1828,13 +1924,21 @@ import * as THREE from "./vendor/three.module.js";
       if (!elevationTexture || !elevationTexture.image) {
         return null;
       }
+      // Downsample to ½ linear resolution (¼ total pixels) — saves ~25 MB vs full-res.
+      // Bilinear interpolation in sampleElevationNormalized keeps accuracy acceptable
+      // for label positioning and terrain relief at globe scale.
+      const srcW = elevationTexture.image.width;
+      const srcH = elevationTexture.image.height;
+      const width = Math.max(1, srcW >> 1);
+      const height = Math.max(1, srcH >> 1);
       const canvas = document.createElement("canvas");
-      canvas.width = elevationTexture.image.width;
-      canvas.height = elevationTexture.image.height;
+      canvas.width = width;
+      canvas.height = height;
       const context = canvas.getContext("2d", { willReadFrequently: true });
-      context.drawImage(elevationTexture.image, 0, 0);
-      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-      return { canvas, context, pixels, width: canvas.width, height: canvas.height };
+      context.drawImage(elevationTexture.image, 0, 0, width, height);
+      const pixels = context.getImageData(0, 0, width, height).data;
+      // canvas not returned — allows the backing store to be garbage collected.
+      return { pixels, width, height };
     }
 
     function lonToTextureU(lonDegrees) {
@@ -1877,7 +1981,7 @@ import * as THREE from "./vendor/three.module.js";
         return null;
       }
       const normalized = sampleElevationNormalized(state, latDegrees, lonDegrees);
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -2886);
       const reliefMeters = Number(manifest.elevation?.relief_m ?? 0);
       return minMeters + (normalized * reliefMeters);
     }
@@ -1886,7 +1990,7 @@ import * as THREE from "./vendor/three.module.js";
       if (elevationMeters === null || !Number.isFinite(elevationMeters)) {
         return `<span style="color:${textColor}">n/a</span>`;
       }
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -2886);
       const maxMeters = Number(manifest.elevation?.max_m ?? 21000);
       const t = clamp((elevationMeters - minMeters) / Math.max(1, maxMeters - minMeters), 0, 1);
       const stops = [
@@ -2002,7 +2106,7 @@ import * as THREE from "./vendor/three.module.js";
       const context = canvas.getContext("2d");
       const imageData = context.createImageData(width, height);
       const out = imageData.data;
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -2886);
       const reliefMeters = Number(manifest.elevation?.relief_m ?? 0);
       const zFactor = reliefMeters / 255;
       const zenith = THREE.MathUtils.degToRad(90 - altitudeDegrees);
@@ -2060,7 +2164,7 @@ import * as THREE from "./vendor/three.module.js";
       const context = canvas.getContext("2d");
       const imageData = context.createImageData(width, height);
       const out = imageData.data;
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -2886);
       const reliefMeters = Number(manifest.elevation?.relief_m ?? 0);
       const levels = new Float32Array(width * height);
       for (let y = 0; y < height; y += 1) {
@@ -2129,7 +2233,7 @@ import * as THREE from "./vendor/three.module.js";
       }
       const width = elevationSampler.width;
       const height = elevationSampler.height;
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -2886);
       const reliefMeters = Math.max(Number(manifest.elevation?.relief_m ?? 1), 1);
       const sampleStep = intervalMeters <= 500 ? 2 : intervalMeters <= 1000 ? 3 : 4;
       const nodes = new Map();
@@ -2440,7 +2544,7 @@ import * as THREE from "./vendor/three.module.js";
           for (let x = 0; x < width; x += 1) {
             const index = ((y * width) + x) * 4;
             const normalized = source ? source[index] / 255 : 0;
-            const elevationMeters = Number(manifest.elevation?.min_m ?? -8200) + normalized * Number(manifest.elevation?.relief_m ?? 0);
+            const elevationMeters = Number(manifest.elevation?.min_m ?? -2886) + normalized * Number(manifest.elevation?.relief_m ?? 0);
             const matches = maskId === "lowlands" ? elevationMeters <= thresholdMeters : elevationMeters > thresholdMeters;
             if (!matches) {
               continue;
@@ -2686,7 +2790,7 @@ import * as THREE from "./vendor/three.module.js";
       return vectorToLatLon(normal.normalize());
     }
 
-    const VENUS_RADIUS_METERS = 6051800;
+    const VENUS_RADIUS_METERS = 3396190;
     const HUD_BBOX_RAYCASTER = new THREE.Raycaster();
     const HUD_BBOX_SPHERE = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 3.2);
     const HUD_BBOX_HIT = new THREE.Vector3();
@@ -3255,7 +3359,7 @@ import * as THREE from "./vendor/three.module.js";
       return vertices;
     }
 
-    function buildVenusSurfacePolyline(vertices, closed = false, lift = 0.014) {
+    function buildMarsSurfacePolyline(vertices, closed = false, lift = 0.014) {
       if (!Array.isArray(vertices) || vertices.length < 2) {
         return [];
       }
@@ -3279,11 +3383,11 @@ import * as THREE from "./vendor/three.module.js";
       return points;
     }
 
-    function buildVenusPolygonFillMesh(vertices) {
+    function buildMarsPolygonFillMesh(vertices) {
       if (!Array.isArray(vertices) || vertices.length < 3) {
         return null;
       }
-      const boundary = buildVenusSurfacePolyline(vertices, true, 0.012);
+      const boundary = buildMarsSurfacePolyline(vertices, true, 0.012);
       if (boundary.length < 3) {
         return null;
       }
@@ -3549,10 +3653,10 @@ import * as THREE from "./vendor/three.module.js";
       if (!profileModalCanvas || !currentProfilePlotState?.samples?.length) {
         return;
       }
-      const baseName = String(currentProfilePlotState.title || "venus_elevation_profile")
+      const baseName = String(currentProfilePlotState.title || "mars_elevation_profile")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "") || "venus_elevation_profile";
+        .replace(/^_+|_+$/g, "") || "mars_elevation_profile";
       const link = document.createElement("a");
       link.href = profileModalCanvas.toDataURL("image/png");
       link.download = `${baseName}.png`;
@@ -4028,7 +4132,7 @@ import * as THREE from "./vendor/three.module.js";
 
       if (seaActive) {
         const seaLevelMeters = Number(seaLevelSlider?.value ?? 0);
-        const seaMinMeters = Number(seaLevelSlider?.min ?? -8200);
+        const seaMinMeters = Number(seaLevelSlider?.min ?? -2886);
         const seaColorCapMeters = 3200;
         const seaShallowBandMeters = 400;
         const maxDepthMeters = Math.max(0, seaLevelMeters - seaMinMeters);
@@ -4139,6 +4243,40 @@ import * as THREE from "./vendor/three.module.js";
         }
       }
 
+      if (coreToggle.checked) {
+        entries.push({
+          title: "",
+          copy: "",
+          tags: [],
+          symbols: [
+            {
+              type: "swatch",
+              label: "Crust",
+              detail: "Thin basaltic outer shell, thinnest under the great volcanic plains and thickest under the ancient southern highlands.",
+              color: VENUS_INTERIOR_LAYER_COLORS["Crust"],
+            },
+            {
+              type: "swatch",
+              label: "Mantle",
+              detail: "A thick shell of iron-rich silicate rock. Heat escapes slowly through an immobile lithosphere — Venus lacks active plate tectonics.",
+              color: VENUS_INTERIOR_LAYER_COLORS["Mantle"],
+            },
+            {
+              type: "swatch",
+              label: "Liquid Outer Core",
+              detail: "InSight seismic data confirmed a single large liquid iron core of ~1,830 km radius, kept liquid by its high sulfur content.",
+              color: VENUS_INTERIOR_LAYER_COLORS["Liquid Outer Core"],
+            },
+            {
+              type: "swatch",
+              label: "Inner Core",
+              detail: "Whether Mars has a solid inner core is unconfirmed — InSight seismic data is ambiguous and deep-interior resolution remains limited.",
+              color: VENUS_INTERIOR_LAYER_COLORS["Inner Core"],
+            },
+          ],
+        });
+      }
+
       return entries;
     }
 
@@ -4207,7 +4345,7 @@ import * as THREE from "./vendor/three.module.js";
           "Interior cutaway",
           "core",
           selectedBaseLayer,
-          "Interior layers are a schematic Venus model inferred from InSight seismic data, gravity measurements, and geochemical analysis.",
+          "Interior layers are a schematic Mars model inferred from InSight seismic data, gravity measurements, and geochemical analysis.",
         );
       }
 
@@ -4270,11 +4408,6 @@ import * as THREE from "./vendor/three.module.js";
         title: "Moon nomenclature",
         copy: "Phobos and Deimos feature names, locations, and classifications are derived from the IAU Working Group for Planetary System Nomenclature gazetteer, as maintained by the USGS Astrogeology Science Center.",
         links: [makeMetadataLink("USGS Planetary Nomenclature", "https://planetarynames.wr.usgs.gov/")],
-      });
-      sourceEntries.push({
-        title: "Venus ambient sound",
-        copy: "NASA InSight recording of ambient sound on the Martian surface.",
-        links: [makeMetadataLink("NASA InSight sounds", "https://venus.nasa.gov/news/8564/nasa-insight-lander-captures-stunning-sounds-of-venus/")],
       });
       sourceEntries.push({
         title: "Background music",
@@ -4438,10 +4571,12 @@ import * as THREE from "./vendor/three.module.js";
       for (const entry of entries) {
         const card = document.createElement("section");
         card.className = "legend-entry";
-        const title = document.createElement("p");
-        title.className = "layer-type-badge";
-        title.textContent = entry.title;
-        card.appendChild(title);
+        if (entry.title) {
+          const title = document.createElement("p");
+          title.className = "layer-type-badge";
+          title.textContent = entry.title;
+          card.appendChild(title);
+        }
         if (entry.copy) {
           const copy = document.createElement("p");
           copy.className = "metadata-section-copy";
@@ -4773,6 +4908,68 @@ import * as THREE from "./vendor/three.module.js";
       focusMoonFeatureTour(next);
     }
 
+    function renderMoonFeatureSearchResults(results, preserveIndex = false) {
+      activeMoonFeatureSearchResults = results;
+      if (!results.length) {
+        activeMoonFeatureSearchIndex = -1;
+      } else if (!preserveIndex || activeMoonFeatureSearchIndex < 0) {
+        activeMoonFeatureSearchIndex = 0;
+      } else {
+        activeMoonFeatureSearchIndex = Math.min(activeMoonFeatureSearchIndex, results.length - 1);
+      }
+      if (!moonFeatureSearchResults) return;
+      moonFeatureSearchResults.innerHTML = "";
+      if (!results.length) {
+        moonFeatureSearchResults.hidden = true;
+        return;
+      }
+      for (const [index, item] of results.entries()) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "search-suggestion" + (index === activeMoonFeatureSearchIndex ? " is-active" : "");
+        button.textContent = item.name;
+        const meta = document.createElement("span");
+        meta.className = "search-suggestion-meta";
+        meta.textContent = item.type || "Feature";
+        button.appendChild(meta);
+        button.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          moveCameraToFeature(item, viewerCamera, viewerControls, { animate: true });
+          openFeature(item, false);
+          clearMoonFeatureSearchResults(true);
+        });
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          moveCameraToFeature(item, viewerCamera, viewerControls, { animate: true });
+          openFeature(item, false);
+          clearMoonFeatureSearchResults(true);
+        });
+        moonFeatureSearchResults.appendChild(button);
+      }
+      moonFeatureSearchResults.hidden = false;
+    }
+
+    function clearMoonFeatureSearchResults(resetInput = false) {
+      if (resetInput && moonFeatureSearchInput) moonFeatureSearchInput.value = "";
+      if (moonFeatureSearchResults) {
+        moonFeatureSearchResults.hidden = true;
+        moonFeatureSearchResults.innerHTML = "";
+      }
+      activeMoonFeatureSearchResults = [];
+      activeMoonFeatureSearchIndex = -1;
+    }
+
+    function refreshMoonFeatureSearch() {
+      if (!moonFeatureSearchInput || !moonFeatureSearchResults || !activeMoonViewerFeature) return;
+      const query = String(moonFeatureSearchInput.value || "").trim().toLowerCase();
+      const results = moonFeatureData
+        .filter((f) => f.moon_name === activeMoonViewerFeature.name && (!query || f.name.toLowerCase().includes(query)))
+        .slice(0, 12);
+      renderMoonFeatureSearchResults(results);
+    }
+
     function syncMoonViewerControls(feature = activeMoonViewerFeature) {
       if (moonViewerSelect && feature) {
         moonViewerSelect.value = feature.name;
@@ -4816,6 +5013,7 @@ import * as THREE from "./vendor/three.module.js";
     function deactivateMoonViewer(camera, controls) {
       activeMoonViewerFeature = null;
       moonNavContext = "moon";
+      document.documentElement.removeAttribute("data-mode");
       controls.minDistance = DEFAULT_CONTROL_MIN_DISTANCE;
       controls.maxDistance = DEFAULT_CONTROL_MAX_DISTANCE;
       controls.target.set(0, 0, 0);
@@ -4840,6 +5038,12 @@ import * as THREE from "./vendor/three.module.js";
     function activateMoonViewer(feature, camera, controls) {
       if (!isMoonFeature(feature) || !venusSceneGroup) {
         return;
+      }
+      document.documentElement.setAttribute("data-mode", "moon");
+      if (moonViewerSection) {
+        setTimeout(() => {
+          moonViewerSection.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 50);
       }
       cancelCameraFlight();
       deactivateTourMode();
@@ -4866,7 +5070,7 @@ import * as THREE from "./vendor/three.module.js";
       if (direction.lengthSq() < 0.0001) {
         direction.set(0.55, 0.18, 1).normalize();
       }
-      // Offset the entry angle so Venus isn't dead-centre behind the moon.
+      // Offset the entry angle so Mars isn't dead-centre behind the moon.
       const _up = new THREE.Vector3(0, 1, 0);
       const _side = new THREE.Vector3().crossVectors(direction, _up).normalize();
       if (_side.lengthSq() > 0.0001) {
@@ -5055,7 +5259,7 @@ import * as THREE from "./vendor/three.module.js";
 
     let activeCameraFlight = null;
     let activeTourModeFeature = null;
-    let activeTourModeFacetId = TOUR_MODE_FACETS[0]?.id || "craters";
+    let activeTourModeFacetId = TOUR_MODE_FACETS[0]?.id || "highlights";
     let activeTourFlightTimeout = null;
 
     function clearPendingTourFlight() {
@@ -5165,7 +5369,7 @@ import * as THREE from "./vendor/three.module.js";
       syncTourModeControls(feature);
       activeTourFlightTimeout = window.setTimeout(() => {
         activeTourFlightTimeout = null;
-        moveCameraToFeature(feature, camera, controls, { animate: true });
+        moveCameraToFeature(feature, camera, controls, { animate: true, isTour: true });
       }, 700);
       setStatus(`${statusPrefix} ${feature.name}.`);
     }
@@ -5341,8 +5545,34 @@ import * as THREE from "./vendor/three.module.js";
         deactivateMoonViewer(camera, controls);
       }
       if (isMoonFeature(feature)) {
-        activateMoonViewer(feature, camera, controls);
-        onComplete?.();
+        if (!options.isTour) {
+          activateMoonViewer(feature, camera, controls);
+          onComplete?.();
+        } else {
+          // Tour mode: orbit the moon without switching to moon viewer
+          resumeSpin();
+          if (venusSceneGroup) {
+            const _tourTarget = venusSceneGroup.localToWorld(
+              new THREE.Vector3(feature.moon_anchor[0], feature.moon_anchor[1], feature.moon_anchor[2])
+            );
+            const _dir = _tourTarget.clone().normalize();
+            if (_dir.lengthSq() < 0.0001) _dir.set(0.55, 0.18, 1);
+            _dir.normalize();
+            const _side = new THREE.Vector3().crossVectors(_dir, new THREE.Vector3(0, 1, 0)).normalize();
+            if (_side.lengthSq() > 0.0001) _dir.addScaledVector(_side, 0.4).addScaledVector(new THREE.Vector3(0, 1, 0), 0.15).normalize();
+            const _pos = _tourTarget.clone().addScaledVector(_dir, getMoonViewerDistance(feature));
+            if (animate) {
+              animateCameraFlight(camera, controls, _pos, _tourTarget, 1800, onComplete || null);
+            } else {
+              camera.position.copy(_pos);
+              camera.up.set(0, 1, 0);
+              controls.target.copy(_tourTarget);
+              controls.object.position.copy(camera.position);
+              controls.update();
+              onComplete?.();
+            }
+          }
+        }
         return;
       }
       if (parentMoon) {
@@ -5359,7 +5589,21 @@ import * as THREE from "./vendor/three.module.js";
         controls.minDistance = getMoonViewerMinDistance(parentMoon);
         controls.maxDistance = getMoonViewerMaxDistance(parentMoon);
         const moonAnchor = new THREE.Vector3(parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]);
-        const targetLocal = moonLatLonToVector3(lat, lon, Number(parentMoon.moon_radius || 0.1) + 0.002).add(moonAnchor);
+        const _relToCenter = moonLatLonToVector3(lat, lon, Number(parentMoon.moon_radius || 0.1) + 0.002);
+        // Apply the moon's current self-rotation so the camera flies to where the
+        // feature actually sits on the spinning texture (same transform as the
+        // animation loop applies to feature marker positions).
+        const _moonAngle = parentMoon._currentAngle || 0;
+        if (_moonAngle !== 0) {
+          const _cosA = Math.cos(_moonAngle);
+          const _sinA = Math.sin(_moonAngle);
+          _relToCenter.set(
+            _relToCenter.x * _cosA - _relToCenter.z * _sinA,
+            _relToCenter.y,
+            _relToCenter.x * _sinA + _relToCenter.z * _cosA,
+          );
+        }
+        const targetLocal = _relToCenter.add(moonAnchor);
         const target = venusSceneGroup.localToWorld(targetLocal.clone());
         const moonCenter = venusSceneGroup.localToWorld(moonAnchor.clone());
         const direction = target.clone().sub(moonCenter).normalize();
@@ -5463,12 +5707,19 @@ import * as THREE from "./vendor/three.module.js";
       syncScenePopupSelectionStyle(null);
       syncMoonViewerPopup(null, false);
       activePopupIsCoreLabel = false;
+      if (typeof syncSelectionHalo === "function") syncSelectionHalo();
+      if (featureSearch) featureSearch.value = "";
+      clearFeatureSearchResults(true);
       resetStatus();
     }
 
     let applyPlanetViewMode = () => {};
 
     function reloadToDefaultGlobalView(camera, controls) {
+      if (baseLayerSelect && baseLayerSelect.value !== "venus-surface") {
+        baseLayerSelect.value = "venus-surface";
+        baseLayerSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       resumeSpin();
       resetExploreView(camera, controls);
       applyPlanetViewMode(saturnViewModeSelect ? saturnViewModeSelect.value : "tilted");
@@ -5529,6 +5780,7 @@ import * as THREE from "./vendor/three.module.js";
       return mineralLayers.find((layer) => layer.id === mineralSelect.value) || null;
     }
 
+    let _prevLegendEntryCount = 0;
     function syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState = null, geologyStructureLayers = []) {
       if (coreViewSection) coreViewSection.open = coreToggle.checked;
       // Toggle HUD between surface conditions and interior model readout
@@ -5543,7 +5795,16 @@ import * as THREE from "./vendor/three.module.js";
           icPressure.textContent = "—";
         }
       }
-      renderLegendPanel(buildLegendEntries(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers));
+      const legendEntries = buildLegendEntries(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
+      if (legendSection) {
+        if (legendEntries.length > 0 && _prevLegendEntryCount === 0) {
+          legendSection.open = true;
+        } else if (legendEntries.length === 0 && _prevLegendEntryCount > 0) {
+          legendSection.open = false;
+        }
+      }
+      _prevLegendEntryCount = legendEntries.length;
+      renderLegendPanel(legendEntries);
       currentMetadataState = buildMetadataState(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
       metadataButton.textContent = currentMetadataState?.sections?.some((section) => section.title === "Legend")
         ? "Open Metadata And Legend"
@@ -5553,14 +5814,53 @@ import * as THREE from "./vendor/three.module.js";
       }
     }
 
+    function normalizeFeatureType(type) {
+      if (!type) return null;
+      const t = type.trim();
+      const IAU_PLAIN = {
+        "chasma":         "Canyon",
+        "chasmata":       "Canyon system",
+        "fossa":          "Fracture trench",
+        "fossae":         "Fracture trench system",
+        "mons":           "Mountain",
+        "montes":         "Mountain range",
+        "sulcus":         "Fracture groove system",
+        "sulci":          "Fracture groove systems",
+        "linea":          "Linear ridge",
+        "lineae":         "Linear ridge system",
+        "dorsum":         "Ridge",
+        "dorsa":          "Ridge system",
+        "rupes":          "Cliff / scarp",
+        "vallis":         "Valley",
+        "valles":         "Valley system",
+        "lacus":          "Lake",
+        "mare":           "Sea",
+        "sinus":          "Bay",
+        "fretum":         "Strait",
+        "flumen":         "River channel",
+        "flumina":        "River channel system",
+        "regio":          "Region",
+        "planitia":       "Plain",
+        "planum":         "Plateau",
+        "catena":         "Crater chain",
+        "patera":         "Volcanic depression",
+        "crater":         "Impact crater",
+        "impact crater":  "Impact crater",
+        "albedo feature": "Albedo region",
+      };
+      const key = t.toLowerCase();
+      if (IAU_PLAIN[key]) return IAU_PLAIN[key];
+      return t;
+    }
+
     function openFeature(feature, isCoreLabel) {
       // Dismiss the geology floating popup when a regular feature popup opens
       closeGeoPopup();
       syncScenePopupSelectionStyle(feature, Boolean(isCoreLabel));
       if (isCoreLabel) {
-        scenePopupKicker.textContent = feature.type || "Selected Feature";
+        scenePopupKicker.textContent = normalizeFeatureType(feature.type) || "Selected Feature";
       } else {
-        scenePopupKicker.textContent = feature.type || (
+        scenePopupKicker.textContent = normalizeFeatureType(feature.type) || (
           feature.theme === "volcanic"
             ? "Volcanic Feature"
             : feature.theme === "landing" || feature.theme === "mission"
@@ -5571,7 +5871,7 @@ import * as THREE from "./vendor/three.module.js";
       scenePopupTitle.textContent = (
         feature.type === "Geologic unit polygon" && feature.rock_type
           ? feature.rock_type
-          : feature.name
+          : (feature.name || "").replace(/\s*\([^)]*\)\s*/g, " ").trim()
       );
       if (feature.moon_name && feature.lat !== undefined) {
         const elevStr = (feature.elevation_m !== undefined)
@@ -6145,9 +6445,9 @@ import * as THREE from "./vendor/three.module.js";
 
       const phiStart = -Math.PI / 2;
       const phiLength = Math.PI;
-      const VENUS_INNER_CORE_RADIUS = 0.270;  // possible solid iron inner core (~1630 km radius, unconstrained)
-      const VENUS_OUTER_CORE_RADIUS = 0.520;  // liquid iron-sulfide outer core (~3145 km outer boundary, model-dependent)
-      const VENUS_MANTLE_RADIUS = 0.993;  // silicate mantle, near-crust boundary
+      const VENUS_INNER_CORE_RADIUS = 0.20;    // possible solid iron inner core (~1,200 km)
+      const VENUS_OUTER_CORE_RADIUS = 0.48;    // liquid iron outer core (~1,700 km)
+      const VENUS_MANTLE_RADIUS = 0.985;       // silicate mantle
       
       // ── Inner core: dense crystalline metallic interior ───────────────────
       const innerCoreMesh = new THREE.Mesh(
@@ -6380,8 +6680,8 @@ import * as THREE from "./vendor/three.module.js";
       };
     }
 
-    function buildVenusSolidInterior(radius) {
-      // Unused for rocky planet — Venus interior shown via cutaway only.
+    function buildMarsSolidInterior(radius) {
+      // Unused for rocky planet — Mars interior shown via cutaway only.
       // Kept for API compatibility with applyPlanetDisplayState references.
       const group = new THREE.Group();
       const CAP_X = -0.0006;
@@ -6558,9 +6858,6 @@ import * as THREE from "./vendor/three.module.js";
       return normalizeDegrees360(360 - Number(lonDegrees || 0));
     }
 
-    function moonLatLonToVector3(latDegrees, lonDegrees, radius) {
-      return latLonToVector3(latDegrees, moonDataLonToSceneLon(lonDegrees), radius);
-    }
 
     function vectorToMoonLatLon(point) {
       const latLon = vectorToLatLon(point);
@@ -6570,1622 +6867,6 @@ import * as THREE from "./vendor/three.module.js";
       };
     }
 
-    function makeLabelTexture(labelInput, options = {}) {
-      const isObject = typeof labelInput === "object" && labelInput !== null;
-      const text = isObject ? (labelInput.name || "") : String(labelInput);
-      const theme = options.theme || (isObject ? labelInput.theme : "") || "standard";
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      const backingScale = 4;
-      const paddingX = 14;
-      const accentWidth = 6;
-      const bodyLeft = paddingX + accentWidth + 7;
-      const titleFont = "600 15px Orbitron, 'Exo 2', Aldrich, 'Trebuchet MS', sans-serif";
-      context.font = titleFont;
-      const textWidth = Math.ceil(context.measureText(text).width);
-      const logicalWidth = Math.max(110, textWidth + bodyLeft + paddingX);
-      const logicalHeight = 34;
-      canvas.width = logicalWidth * backingScale;
-      canvas.height = logicalHeight * backingScale;
-      context.scale(backingScale, backingScale);
-
-      const palette = options.customPalette || (theme === "volcanic"
-        ? {
-            bg: "rgba(28, 10, 10, 0.72)",
-            stroke: "rgba(255, 122, 96, 0.56)",
-            accent: "rgba(255, 88, 69, 0.92)",
-            title: "rgba(255, 234, 230, 0.96)",
-          }
-        : theme === "mission"
-          ? {
-              bg: "rgba(10, 22, 14, 0.74)",
-              stroke: "rgba(128, 229, 160, 0.42)",
-              accent: "rgba(98, 222, 132, 0.94)",
-              title: "rgba(237, 255, 242, 0.96)",
-            }
-        : theme === "moon"
-          ? {
-              bg: "rgba(10, 14, 22, 1.0)",
-              stroke: "rgba(255, 255, 255, 0.55)",
-              accent: "rgba(255, 255, 255, 0.96)",
-              title: "rgba(255, 255, 255, 1.0)",
-            }
-        : theme === "moon-poi"
-          ? {
-              bg: "rgba(9, 14, 24, 0.64)",
-              stroke: "rgba(90, 214, 233, 0.52)",
-              accent: "rgba(58, 238, 232, 1)",
-              title: "rgba(255, 255, 255, 0.96)",
-            }
-        : theme === "habitation"
-          ? {
-              bg: "rgba(8, 20, 11, 0.74)",
-              stroke: "rgba(112, 232, 146, 0.46)",
-              accent: "rgba(92, 222, 118, 0.96)",
-              title: "rgba(234, 255, 238, 0.96)",
-            }
-        : theme === "landing"
-          ? {
-              bg: "rgba(23, 18, 8, 0.74)",
-              stroke: "rgba(255, 215, 125, 0.58)",
-              accent: "rgba(255, 205, 92, 0.94)",
-              title: "rgba(255, 246, 223, 0.96)",
-            }
-        : {
-            bg: "rgba(9, 14, 24, 0.62)",
-            stroke: "rgba(90, 214, 233, 0.28)",
-            accent: "rgba(58, 214, 208, 0.92)",
-            title: "rgba(242, 247, 250, 0.94)",
-          });
-
-      context.textBaseline = "middle";
-      context.fillStyle = palette.bg;
-      context.strokeStyle = palette.stroke;
-      context.lineWidth = 1.6;
-      const radius = 14;
-      context.beginPath();
-      context.moveTo(radius, 1);
-      context.lineTo(logicalWidth - radius, 1);
-      context.quadraticCurveTo(logicalWidth - 1, 1, logicalWidth - 1, radius);
-      context.lineTo(logicalWidth - 1, logicalHeight - radius - 1);
-      context.quadraticCurveTo(logicalWidth - 1, logicalHeight - 1, logicalWidth - radius, logicalHeight - 1);
-      context.lineTo(radius, logicalHeight - 1);
-      context.quadraticCurveTo(1, logicalHeight - 1, 1, logicalHeight - radius);
-      context.lineTo(1, radius);
-      context.quadraticCurveTo(1, 1, radius, 1);
-      context.closePath();
-      context.fill();
-      context.stroke();
-
-      context.fillStyle = palette.accent;
-      context.beginPath();
-      context.moveTo(radius + 1, 4);
-      context.lineTo(radius + accentWidth, 4);
-      context.lineTo(radius + accentWidth, logicalHeight - 4);
-      context.lineTo(radius + 1, logicalHeight - 4);
-      context.closePath();
-      context.fill();
-
-      context.font = titleFont;
-      context.fillStyle = palette.title;
-      context.fillText(text, bodyLeft, logicalHeight / 2);
-
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.generateMipmaps = true;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.needsUpdate = true;
-      return { texture, width: logicalWidth, height: logicalHeight };
-    }
-
-
-    function isPointOccludedByPlanet(pointLocal, venusGroup, camera, bodyRadius = 3.2) {
-      const inverseWorld = venusGroup.matrixWorld.clone().invert();
-      const cameraLocal = camera.position.clone().applyMatrix4(inverseWorld);
-      const anchorLocal = pointLocal.clone();
-      const ray = anchorLocal.clone().sub(cameraLocal);
-      const segmentLength = ray.length();
-      if (segmentLength <= 1e-5) {
-        return false;
-      }
-      ray.divideScalar(segmentLength);
-      const b = 2 * cameraLocal.dot(ray);
-      const c = cameraLocal.lengthSq() - (bodyRadius * bodyRadius);
-      const discriminant = (b * b) - (4 * c);
-      if (discriminant <= 0) {
-        return false;
-      }
-      const root = Math.sqrt(discriminant);
-      const near = (-b - root) * 0.5;
-      const far = (-b + root) * 0.5;
-      const epsilon = 1e-4;
-      return (near > epsilon && near < segmentLength - epsilon)
-        || (far > epsilon && far < segmentLength - epsilon);
-    }
-
-    function getMoonOccluders() {
-      if (!venusSceneGroup || !Array.isArray(moonData) || moonData.length === 0) {
-        return [];
-      }
-      const scale = venusSceneGroup.scale;
-      const radiusScale = Math.max(
-        Math.abs(scale.x || 1),
-        Math.abs(scale.y || 1),
-        Math.abs(scale.z || 1),
-      );
-      // Use live moonMesh world positions so occlusion is accurate during orbits and in moon viewer mode.
-      // Buffer multiplier creates a larger exclusion zone so long label text that visually overlaps
-      // the moon body is also suppressed, not just labels whose anchor point is inside the sphere.
-      const OCCLUDER_BUFFER = 1.55;
-      if (moonLayer && Array.isArray(moonLayer.entries) && moonLayer.entries.length > 0) {
-        return moonLayer.entries.map((entry) => {
-          const center = new THREE.Vector3();
-          entry.moonMesh.getWorldPosition(center);
-          return {
-            name: entry.item.name,
-            center,
-            radius: entry.moonRadius * radiusScale * OCCLUDER_BUFFER,
-          };
-        });
-      }
-      return moonData
-        .filter((item) => Array.isArray(item.moon_anchor))
-        .map((item) => ({
-          name: item.name,
-          center: venusSceneGroup.localToWorld(new THREE.Vector3(
-            item.moon_anchor[0],
-            item.moon_anchor[1],
-            item.moon_anchor[2],
-          )),
-          radius: Number(item.moon_radius || 0.1) * radiusScale * OCCLUDER_BUFFER,
-        }));
-    }
-
-    function isPointOccludedByMoonOccluder(pointWorld, camera, occluder) {
-      const segment = pointWorld.clone().sub(camera.position);
-      const segmentLength = segment.length();
-      if (segmentLength <= 1e-5) {
-        return false;
-      }
-      const direction = segment.clone().divideScalar(segmentLength);
-      const offset = camera.position.clone().sub(occluder.center);
-      const b = 2 * offset.dot(direction);
-      const c = offset.lengthSq() - (occluder.radius * occluder.radius);
-      const discriminant = (b * b) - (4 * c);
-      if (discriminant <= 0) {
-        return false;
-      }
-      const root = Math.sqrt(discriminant);
-      const near = (-b - root) * 0.5;
-      const far = (-b + root) * 0.5;
-      const epsilon = 1e-4;
-      return (near > epsilon && near < segmentLength - epsilon)
-        || (far > epsilon && far < segmentLength - epsilon);
-    }
-
-    function isPointOccludedByAnyMoon(pointWorld, camera, ignoredMoonName = null) {
-      const occluders = getMoonOccluders();
-      for (const occluder of occluders) {
-        if (ignoredMoonName && occluder.name === ignoredMoonName) {
-          continue;
-        }
-        if (isPointOccludedByMoonOccluder(pointWorld, camera, occluder)) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    function buildMoonLayer(textureMap) {
-      const group = new THREE.Group();
-      const orbitGroup = new THREE.Group();
-      const labelGroup = new THREE.Group();
-      group.add(orbitGroup);
-      group.add(labelGroup);
-      const entries = [];
-      const interactiveObjects = [];
-
-      function getMoonOrbitPoint(semiMajorAxis, eccentricity, theta, y = 0) {
-        const semiMinorAxis = semiMajorAxis * Math.sqrt(Math.max(0, 1 - eccentricity * eccentricity));
-        return new THREE.Vector3(
-          Math.cos(theta) * semiMajorAxis,
-          y,
-          Math.sin(theta) * semiMinorAxis,
-        );
-      }
-
-      for (const item of moonData) {
-        const anchor = new THREE.Vector3(item.moon_anchor[0], item.moon_anchor[1], item.moon_anchor[2]);
-        const moonRadius = Number(item.moon_radius || 0.09);
-        const moonMesh = new THREE.Mesh(
-          new THREE.SphereGeometry(moonRadius, 96, 96),
-          new THREE.MeshStandardMaterial({
-            map: textureMap.get(item.name) || null,
-            color: new THREE.Color(textureMap.get(item.name) ? "#ffffff" : (item.moon_color || "#d8d2c8")),
-            roughness: 0.96,
-            metalness: 0.02,
-            transparent: false,
-            opacity: 1,
-            depthTest: true,
-            depthWrite: true,
-          }),
-        );
-        moonMesh.position.copy(anchor);
-        moonMesh.userData.feature = item;
-        group.add(moonMesh);
-
-        const orbitRadius = Math.hypot(anchor.x, anchor.z);
-        const orbitEccentricity = Number(item.orbit_eccentricity ?? MOON_ORBIT_ECCENTRICITY[item.name] ?? 0);
-        const orbitSemiMinorAxis = orbitRadius * Math.sqrt(Math.max(0, 1 - orbitEccentricity * orbitEccentricity));
-        const initialAngle = Math.atan2(orbitSemiMinorAxis > 0 ? (anchor.z / orbitSemiMinorAxis) : anchor.z, anchor.x / orbitRadius);
-        const orbitPoints = [];
-        for (let i = 0; i <= 128; i += 1) {
-          const theta = (i / 128) * Math.PI * 2;
-          orbitPoints.push(getMoonOrbitPoint(orbitRadius, orbitEccentricity, theta, anchor.y));
-        }
-        const orbitLine = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints(orbitPoints),
-          new THREE.LineBasicMaterial({
-            color: 0x8ea5b8,
-            transparent: true,
-            opacity: 0.18,
-          }),
-        );
-        orbitGroup.add(orbitLine);
-
-        const label = makeLabelTexture(item, { theme: "moon" });
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-          map: label.texture,
-          transparent: true,
-          opacity: 1.0,
-          depthTest: false,
-          depthWrite: false,
-        }));
-        sprite.renderOrder = 300;
-        sprite.scale.set((label.width / 200) * 0.42, (label.height / 200) * 0.42, 1);
-        const baseScale = sprite.scale.clone();
-        const lift = Number(item.moon_label_lift || 0.24);
-        const labelPos = anchor.clone().add(new THREE.Vector3(0, lift, 0));
-        sprite.position.copy(labelPos);
-        sprite.userData.feature = item;
-        labelGroup.add(sprite);
-
-        const line = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            anchor.clone().add(new THREE.Vector3(0, moonRadius * 0.4, 0)),
-            labelPos.clone().add(new THREE.Vector3(0, -0.06, 0)),
-          ]),
-          new THREE.LineBasicMaterial({
-            color: 0xd9e4ef,
-            transparent: true,
-            opacity: 0.36,
-            depthTest: true,
-            depthWrite: false,
-          }),
-        );
-        labelGroup.add(line);
-
-        interactiveObjects.push(moonMesh, sprite);
-        entries.push({ moonMesh, sprite, line, orbitLine, item, anchor, orbitRadius, orbitEccentricity, orbitSemiMinorAxis, initialAngle, moonRadius, lift, baseScale, priority: 6 });
-      }
-
-      return { group, orbitGroup, labelGroup, entries, interactiveObjects };
-    }
-
-    function isVolcanicMoonFeature(item) {
-      const content = [
-        item.theme,
-        item.type,
-        item.name,
-        item.description,
-        item.origin,
-        item.interpretation,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return /(?:cryo)?volcan|patera|caldera|plume|vent|eruption|lava|basalt/.test(content);
-    }
-
-    function getMoonFeatureConnectorStart(markerPoint, labelPoint, moonRadius) {
-      return markerPoint.clone();
-    }
-
-    function buildMoonFeatureLabelLayer() {
-      const group = new THREE.Group();
-      const entries = [];
-      const interactiveObjects = [];
-      const hitMaterial = new THREE.MeshBasicMaterial({
-        transparent: true,
-        opacity: 0.01,
-        depthTest: false,
-        depthWrite: false,
-      });
-
-      for (const item of moonFeatureData) {
-        const parentMoon = moonData.find((moon) => moon.name === item.moon_name);
-        if (!parentMoon || !Array.isArray(parentMoon.moon_anchor)) {
-          continue;
-        }
-        const lat = item.lat !== undefined ? item.lat : item.anchor_lat;
-        const lon = item.lon !== undefined ? item.lon : item.anchor_lon;
-        if (lat === undefined || lon === undefined) {
-          continue;
-        }
-        const moonAnchor = new THREE.Vector3(parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]);
-        const moonRadius = Number(parentMoon.moon_radius || 0.1);
-        const markerR = moonRadius * 0.01;
-        const hitR = moonRadius * 0.08;
-        const labelDistance = moonRadius * 0.12;
-        const anchor = moonLatLonToVector3(lat, lon, moonRadius + moonRadius * 0.02).add(moonAnchor);
-        const hitPoint = anchor.clone();
-        const surfacePoint = moonLatLonToVector3(lat, lon, moonRadius).add(moonAnchor);
-        const normal = anchor.clone().sub(moonAnchor).normalize();
-        const east = new THREE.Vector3(-normal.z, 0, normal.x);
-        if (east.lengthSq() < 0.0001) {
-          east.set(1, 0, 0);
-        }
-        east.normalize();
-        const up = normal.clone().cross(east).normalize();
-        const direction = normal.clone().multiplyScalar(0.82).addScaledVector(east, lat >= 0 ? 0.36 : -0.36).addScaledVector(up, lat > 35 ? -0.08 : 0.06).normalize();
-        const labelPos = anchor.clone().addScaledVector(normal, moonRadius * 0.12).addScaledVector(direction, labelDistance);
-        const relMarkerPos = anchor.clone().sub(moonAnchor);
-        const relHitPos = hitPoint.clone().sub(moonAnchor);
-        const relSurfacePoint = surfacePoint.clone().sub(moonAnchor);
-        const relLabelPos = labelPos.clone().sub(moonAnchor);
-
-        const marker = new THREE.Mesh(new THREE.SphereGeometry(markerR, 10, 10), new THREE.MeshBasicMaterial({
-          color: 0x4fe0db,
-          transparent: true,
-          opacity: 0.92,
-          depthTest: false,
-          depthWrite: false,
-        }));
-        marker.renderOrder = 210;
-        marker.position.copy(anchor);
-        marker.userData.feature = item;
-        group.add(marker);
-
-        const hitTarget = new THREE.Mesh(new THREE.SphereGeometry(hitR, 12, 12), hitMaterial);
-        hitTarget.renderOrder = 212;
-        hitTarget.position.copy(hitPoint);
-        hitTarget.userData.feature = item;
-        group.add(hitTarget);
-
-        const label = makeLabelTexture(item, { theme: "moon-poi" });
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-          map: label.texture,
-          transparent: true,
-          opacity: 0.92,
-          depthTest: false,
-          depthWrite: false,
-        }));
-        sprite.renderOrder = 211;
-        sprite.scale.set((label.width / 200) * moonRadius * 0.35, (label.height / 200) * moonRadius * 0.35, 1);
-        sprite.position.copy(labelPos);
-        sprite.userData.feature = item;
-        group.add(sprite);
-
-        const line = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            getMoonFeatureConnectorStart(anchor, labelPos, moonRadius),
-            labelPos.clone(),
-          ]),
-          new THREE.LineBasicMaterial({
-            color: 0x7be7e3,
-            transparent: true,
-            opacity: 0.42,
-            depthTest: false,
-            depthWrite: false,
-          }),
-        );
-        line.renderOrder = 210;
-        group.add(line);
-
-        const category = isVolcanicMoonFeature(item) ? "volcanic" : "moon";
-        interactiveObjects.push(hitTarget, marker, sprite);
-        entries.push({ item, parentMoon, moonAnchor, marker, hitTarget, sprite, line, surfacePoint, relMarkerPos, relHitPos, relSurfacePoint, relLabelPos, rel0MarkerPos: relMarkerPos.clone(), rel0HitPos: relHitPos.clone(), rel0SurfacePoint: relSurfacePoint.clone(), rel0LabelPos: relLabelPos.clone(), category, priority: 5 });
-      }
-
-      return { group, entries, interactiveObjects };
-    }
-
-    function updateMoonFeatureLabelVisibility(entries, venusGroup, camera, renderer, activeMoonFeature, volcanicEnabled = true) {
-      const projected = new THREE.Vector3();
-      const moonCenterWorld = new THREE.Vector3();
-      const surfaceWorldPosition = new THREE.Vector3();
-      const spriteWorldPosition = new THREE.Vector3();
-      const cameraDirection = new THREE.Vector3();
-      const connectorStart = new THREE.Vector3();
-      const viewportWidth = renderer.domElement.clientWidth || window.innerWidth;
-      const viewportHeight = renderer.domElement.clientHeight || window.innerHeight;
-      const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
-      const occupiedRects = [];
-      const candidates = [];
-
-      for (const entry of entries) {
-        const isActiveMoon = Boolean(activeMoonFeature) && entry.parentMoon.name === activeMoonFeature.name;
-        entry.marker.visible = false;
-        entry.hitTarget.visible = false;
-        entry.sprite.visible = false;
-        entry.line.visible = false;
-        const categoryEnabled = entry.category === "volcanic" ? volcanicEnabled : true;
-        if (!isActiveMoon || !categoryEnabled) {
-          continue;
-        }
-        moonCenterWorld.copy(entry.moonAnchor).applyMatrix4(venusGroup.matrixWorld);
-        surfaceWorldPosition.copy(entry.surfacePoint).applyMatrix4(venusGroup.matrixWorld);
-        cameraDirection.copy(camera.position).sub(surfaceWorldPosition).normalize();
-        const normal = surfaceWorldPosition.clone().sub(moonCenterWorld).normalize();
-        // In moon-viewer mode at close range, tighten backface culling to avoid limb labels
-        const _moonCamDist = camera.position.distanceTo(moonCenterWorld);
-        const _moonRelDist = _moonCamDist / Math.max(entry.parentMoon?.moon_radius || 0.001, 0.001);
-        const _minNormalDot = (activeMoonFeature && _moonRelDist < 2.5)
-          ? Math.min(0.25, (2.5 - _moonRelDist) * 0.12)
-          : 0.02;
-        if (normal.dot(cameraDirection) <= _minNormalDot) {
-          continue;
-        }
-        if (isPointOccludedByAnyMoon(surfaceWorldPosition, camera, entry.parentMoon.name)) {
-          continue;
-        }
-        entry.marker.visible = true;
-        entry.hitTarget.visible = true;
-        // Cap marker dot pixel radius in moon-viewer mode to keep it proportional at close zoom
-        if (activeMoonFeature) {
-          if (entry.marker.userData._baseMSX === undefined) {
-            entry.marker.userData._baseMSX = entry.marker.scale.x;
-            entry.marker.userData._baseMSY = entry.marker.scale.y;
-            entry.marker.userData._baseMSZ = entry.marker.scale.z;
-          } else {
-            entry.marker.scale.set(entry.marker.userData._baseMSX, entry.marker.userData._baseMSY, entry.marker.userData._baseMSZ);
-          }
-          const _geomR = entry.marker.geometry?.parameters?.radius ?? 0.001;
-          const _markerDist = Math.max(camera.position.distanceTo(surfaceWorldPosition), 0.001);
-          const _markerRadiusPx = _geomR * entry.marker.scale.x * (fovScale / _markerDist);
-          if (_markerRadiusPx > 8) {
-            entry.marker.scale.setScalar(8 / _markerRadiusPx);
-          }
-        }
-        entry.sprite.getWorldPosition(spriteWorldPosition);
-        if (isPointOccludedByAnyMoon(spriteWorldPosition, camera, entry.parentMoon.name)) {
-          entry.marker.visible = false;
-          entry.hitTarget.visible = false;
-          continue;
-        }
-        // Persist original scale so close-zoom capping is reversible when zooming back out
-        if (entry.sprite.userData._baseSX === undefined) {
-          entry.sprite.userData._baseSX = entry.sprite.scale.x;
-          entry.sprite.userData._baseSY = entry.sprite.scale.y;
-        } else {
-          entry.sprite.scale.set(entry.sprite.userData._baseSX, entry.sprite.userData._baseSY, 1);
-        }
-        // In moon-viewer mode, cap sprite pixel height so labels stay readable at any zoom.
-        // Use surface point distance as a stable reference — the sprite may be just behind
-        // the camera near-clip plane making its own distance unreliably small.
-        if (activeMoonFeature) {
-          const _refDist = Math.max(camera.position.distanceTo(surfaceWorldPosition), 0.001);
-          const _renderedH = entry.sprite.userData._baseSY * (fovScale / _refDist);
-          if (_renderedH > 52) {
-            const _r = 52 / _renderedH;
-            entry.sprite.scale.set(entry.sprite.userData._baseSX * _r, entry.sprite.userData._baseSY * _r, 1);
-          }
-        }
-        projected.copy(spriteWorldPosition).project(camera);
-        if (projected.z < -1 || projected.z > 1) {
-          if (!activeMoonFeature) {
-            entry.marker.visible = false;
-            entry.hitTarget.visible = false;
-            continue;
-          }
-          // Sprite is behind the camera at max zoom — reposition it next to the surface marker
-          const anchorProj = surfaceWorldPosition.clone().project(camera);
-          if (anchorProj.z < -1 || anchorProj.z > 1) continue;
-          const anchorSX = ((anchorProj.x + 1) * 0.5) * viewportWidth;
-          const anchorSY = ((1 - anchorProj.y) * 0.5) * viewportHeight;
-          if (anchorSX < 0 || anchorSX > viewportWidth || anchorSY < 0 || anchorSY > viewportHeight) continue;
-          const _nudgePPU = fovScale / Math.max(camera.position.distanceTo(surfaceWorldPosition), 0.001);
-          const nudgePx = Math.max(12, entry.sprite.scale.x * _nudgePPU * 0.7);
-          const nudgeX = (anchorSX + nudgePx < viewportWidth - 12) ? nudgePx : -nudgePx;
-          const nudgeSX = Math.max(12, Math.min(viewportWidth - 12, anchorSX + nudgeX));
-          const nudgeSY = Math.max(12, Math.min(viewportHeight - 12, anchorSY));
-          const repositioned = new THREE.Vector3(
-            (nudgeSX / viewportWidth) * 2 - 1,
-            1 - (nudgeSY / viewportHeight) * 2,
-            anchorProj.z,
-          ).unproject(camera);
-          const localRepositioned = venusGroup.worldToLocal(repositioned.clone());
-          entry.sprite.position.copy(localRepositioned);
-          if (entry.line?.geometry?.attributes?.position) {
-            const fp = entry.line.geometry.attributes.position.array;
-            fp[3] = localRepositioned.x; fp[4] = localRepositioned.y; fp[5] = localRepositioned.z;
-            entry.line.geometry.attributes.position.needsUpdate = true;
-          }
-          spriteWorldPosition.copy(repositioned);
-          projected.set(
-            (nudgeSX / viewportWidth) * 2 - 1,
-            1 - (nudgeSY / viewportHeight) * 2,
-            anchorProj.z,
-          );
-        }
-        const distance = camera.position.distanceTo(spriteWorldPosition);
-        const pixelsPerWorldUnit = fovScale / Math.max(distance, 0.001);
-        const rectWidth = Math.max(88, entry.sprite.scale.x * pixelsPerWorldUnit * 1.02);
-        const rectHeight = Math.max(26, entry.sprite.scale.y * pixelsPerWorldUnit * 1.06);
-        const screenX = ((projected.x + 1) * 0.5) * viewportWidth;
-        const screenY = ((1 - projected.y) * 0.5) * viewportHeight;
-        candidates.push({
-          entry,
-          distance,
-          rect: {
-            left: screenX - rectWidth * 0.5,
-            right: screenX + rectWidth * 0.5,
-            top: screenY - rectHeight * 0.5,
-            bottom: screenY + rectHeight * 0.5,
-          },
-        });
-      }
-
-      candidates.sort((a, b) => {
-        const aPinned = Boolean(activePopupFeature && a.entry.item.name === activePopupFeature.name);
-        const bPinned = Boolean(activePopupFeature && b.entry.item.name === activePopupFeature.name);
-        if (aPinned !== bPinned) {
-          return aPinned ? -1 : 1;
-        }
-        return a.distance - b.distance;
-      });
-      for (const candidate of candidates) {
-        const isPinned = Boolean(activePopupFeature && candidate.entry.item.name === activePopupFeature.name);
-        const overlaps = occupiedRects.some((rect) => (
-          candidate.rect.left - 2 < rect.right &&
-          candidate.rect.right + 2 > rect.left &&
-          candidate.rect.top - 2 < rect.bottom &&
-          candidate.rect.bottom + 2 > rect.top
-        ));
-        if (overlaps && !isPinned) {
-          continue;
-        }
-        candidate.entry.sprite.visible = true;
-        candidate.entry.line.visible = true;
-        connectorStart.copy(getMoonFeatureConnectorStart(
-          candidate.entry.marker.position,
-          candidate.entry.sprite.position,
-          candidate.entry.parentMoon?.moon_radius,
-        ));
-        candidate.entry.line.geometry.dispose();
-        candidate.entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-          connectorStart,
-          candidate.entry.sprite.position.clone(),
-        ]);
-        occupiedRects.push(candidate.rect);
-      }
-    }
-
-    function updateMoonVisibility(entries, venusGroup, camera, renderer, moonsEnabled, labelsEnabled) {
-      const projected = new THREE.Vector3();
-      const moonWorldPosition = new THREE.Vector3();
-      const spriteWorldPosition = new THREE.Vector3();
-      const viewportWidth = renderer.domElement.clientWidth || window.innerWidth;
-      const viewportHeight = renderer.domElement.clientHeight || window.innerHeight;
-      const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
-      const occupiedRects = [];
-      const candidates = [];
-      const activeMoonName = activeMoonViewerFeature?.name || null;
-
-      for (const entry of entries) {
-        const isMoonViewerFocus = Boolean(activeMoonViewerFeature) && entry.item?.name === activeMoonViewerFeature.name;
-        const labelScaleFactor = isMoonViewerFocus ? 0.58 : 1;
-        entry.orbitLine.visible = moonsEnabled && (!activeMoonName || isMoonViewerFocus);
-        entry.sprite.visible = false;
-        entry.line.visible = false;
-        if (entry.baseScale) {
-          entry.sprite.scale.set(
-            entry.baseScale.x * labelScaleFactor,
-            entry.baseScale.y * labelScaleFactor,
-            1,
-          );
-        }
-        if (!isMoonViewerFocus && isPointOccludedByPlanet(entry.moonMesh.position, venusGroup, camera)) {
-          entry.moonMesh.visible = false;
-          continue;
-        }
-
-        moonWorldPosition.copy(entry.moonMesh.position).applyMatrix4(venusGroup.matrixWorld);
-        projected.copy(moonWorldPosition).project(camera);
-        if (projected.z < -1 || projected.z > 1) {
-          entry.moonMesh.visible = false;
-          entry.orbitLine.visible = false;
-          continue;
-        }
-        entry.moonMesh.visible = true;
-        if (!moonsEnabled || !labelsEnabled) {
-          continue;
-        }
-
-        spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(venusGroup.matrixWorld);
-        if (isPointOccludedByAnyMoon(spriteWorldPosition, camera)) {
-          continue;
-        }
-        projected.copy(spriteWorldPosition).project(camera);
-        if (projected.z < -1 || projected.z > 1) {
-          continue;
-        }
-        const distance = camera.position.distanceTo(spriteWorldPosition);
-        const pixelsPerWorldUnit = fovScale / Math.max(distance, 0.001);
-        const rectWidth = entry.sprite.scale.x * pixelsPerWorldUnit * 1.02;
-        const rectHeight = entry.sprite.scale.y * pixelsPerWorldUnit * 1.06;
-        const screenX = ((projected.x + 1) * 0.5) * viewportWidth;
-        const screenY = ((1 - projected.y) * 0.5) * viewportHeight;
-        candidates.push({
-          entry,
-          distance,
-          rect: {
-            left: screenX - rectWidth * 0.5,
-            right: screenX + rectWidth * 0.5,
-            top: screenY - rectHeight * 0.5,
-            bottom: screenY + rectHeight * 0.5,
-          },
-        });
-      }
-
-      candidates.sort((a, b) => a.distance - b.distance);
-      for (const candidate of candidates) {
-        const overlaps = occupiedRects.some((rect) => (
-          candidate.rect.left - 3 < rect.right &&
-          candidate.rect.right + 3 > rect.left &&
-          candidate.rect.top - 2 < rect.bottom &&
-          candidate.rect.bottom + 2 > rect.top
-        ));
-        if (overlaps && candidate.entry.category !== "volcanic") {
-          continue;
-        }
-        candidate.entry.sprite.visible = true;
-        candidate.entry.line.visible = !(activeMoonViewerFeature && candidate.entry.item?.name === activeMoonViewerFeature.name);
-        occupiedRects.push(candidate.rect);
-      }
-    }
-
-    function buildLabelLayer(radius, elevationSampler, elevationCache, getTerrainRelief) {
-      const group = new THREE.Group();
-      const markerGeometry = new THREE.SphereGeometry(0.011, 10, 10);
-      const hitGeometry = new THREE.SphereGeometry(0.18, 14, 14);
-      const hitMaterial = new THREE.MeshBasicMaterial({
-        transparent: true,
-        opacity: 0,
-        depthTest: false,
-        depthWrite: false,
-      });
-      const entries = [];
-      const interactiveObjects = [];
-
-      function sampleLabelSurfacePoint(latDegrees, lonDegrees, lift = 0) {
-        return getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift);
-      }
-
-      function labelThemeStyle(theme) {
-        if (theme === "volcanic") {
-          return {
-            markerColor: 0xff735d,
-            lineColor: 0xff8c73,
-            spriteOpacity: 0.94,
-            priority: 2,
-            category: "volcanic",
-          };
-        }
-        if (theme === "landing") {
-          return {
-            markerColor: 0xffd163,
-            lineColor: 0xffdc8c,
-            spriteOpacity: 0.92,
-            priority: 3,
-            category: "landing",
-          };
-        }
-        if (theme === "mission") {
-          return {
-            markerColor: 0x63dc86,
-            lineColor: 0x82ef9f,
-            spriteOpacity: 0.92,
-            priority: 3,
-            category: "mission",
-          };
-        }
-        if (theme === "habitation") {
-          return {
-            markerColor: 0x65dc78,
-            lineColor: 0x86f19a,
-            spriteOpacity: 0.94,
-            priority: 4,
-            category: "habitation",
-          };
-        }
-        return {
-          markerColor: 0x34d7d1,
-          lineColor: 0x46d7d1,
-          spriteOpacity: 0.86,
-          priority: 1,
-          category: "surface",
-        };
-      }
-
-      let sortIndex = 0;
-      for (const item of labelData) {
-        const style = labelThemeStyle(item.theme);
-        const anchor = sampleLabelSurfacePoint(item.lat, item.lon, 0.0);
-        const marker = new THREE.Mesh(markerGeometry, new THREE.MeshBasicMaterial({
-          color: style.markerColor,
-          transparent: true,
-          opacity: 0.92,
-          depthTest: false,
-          depthWrite: false,
-        }));
-        marker.position.copy(anchor);
-        marker.renderOrder = 200;
-        marker.userData.feature = item;
-        group.add(marker);
-
-        const hitTarget = new THREE.Mesh(hitGeometry, hitMaterial);
-        hitTarget.position.copy(sampleLabelSurfacePoint(item.lat, item.lon, 0.002));
-        hitTarget.renderOrder = 202;
-        hitTarget.userData.feature = item;
-        group.add(hitTarget);
-
-        const label = makeLabelTexture(item, {
-          theme: item.theme === "landing" ? "landing" : item.theme,
-        });
-        const spriteMaterial = new THREE.SpriteMaterial({
-          map: label.texture,
-          transparent: true,
-          opacity: style.spriteOpacity,
-          depthTest: false,
-          depthWrite: false,
-        });
-        const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set((label.width / 200) * 0.66, (label.height / 200) * 0.66, 1);
-        const baseSpriteScale = sprite.scale.clone();
-        sprite.renderOrder = 201;
-        const normal = anchor.clone().normalize();
-        const east = new THREE.Vector3(-normal.z, 0, normal.x);
-        if (east.lengthSq() < 0.0001) {
-          east.set(1, 0, 0);
-        }
-        east.normalize();
-        const up = normal.clone().cross(east).normalize();
-        const direction = item.lat >= 0 ? east.clone().multiplyScalar(1.0) : east.clone().multiplyScalar(-1.0);
-        direction.addScaledVector(up, item.lat > 35 ? -0.28 : 0.18).normalize();
-        const labelDistance = item.label_distance !== undefined ? item.label_distance : 0.52;
-        const spritePos = anchor.clone().addScaledVector(normal, 0.22).addScaledVector(direction, labelDistance)
-          .addScaledVector(up, item.label_push_up || 0)
-          .addScaledVector(east, item.label_push_east || 0);
-        sprite.position.copy(spritePos);
-        sprite.userData.feature = item;
-        group.add(sprite);
-        const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-          anchor.clone(),
-          spritePos.clone(),
-        ]);
-        const line = new THREE.Line(lineGeometry, new THREE.LineBasicMaterial({
-          color: style.lineColor,
-          transparent: true,
-          opacity: 0.42,
-          depthTest: false,
-          depthWrite: false,
-        }));
-        line.renderOrder = 199;
-        group.add(line);
-        interactiveObjects.push(hitTarget, marker, sprite);
-
-        entries.push({
-          marker,
-          hitTarget,
-          sprite,
-          line,
-          surfacePoint: sampleLabelSurfacePoint(item.lat, item.lon, 0),
-          item,
-          priority: style.priority,
-          category: style.category,
-          baseScale: baseSpriteScale,
-          labelDistance,
-          labelPushUp: item.label_push_up || 0,
-          labelPushEast: item.label_push_east || 0,
-          labelOffsetFactor: 1,
-          labelAnchor: anchor.clone(),
-          labelNormal: normal.clone(),
-          labelDirection: direction.clone(),
-          labelUp: up.clone(),
-          labelEast: east.clone(),
-          markerBaseScale: marker.scale.clone(),
-          markerRadiusWorld: 0.011,
-          hitBaseScale: hitTarget.scale.clone(),
-          hitRadiusWorld: 0.18,
-          sortIndex,
-          _globalVisible: false,
-        });
-        sortIndex += 1;
-      }
-
-      return { group, entries, interactiveObjects };
-    }
-
-    const USER_PIN_WORLD_HEIGHT = 0.028;
-    const USER_PIN_LABEL_DISTANCE = 0.14;
-    const CTX_MOSAIC_MIN_SCALEBAR_METERS = 1000;
-
-    function getUserPinTargetPixelSize(scaleBarMeters = null) {
-      return 14;
-    }
-
-    function getEntryConnectorStart(entry) {
-      const isUserPin = entry?.item?.type === "User pin" || entry?.item?.type === "Imported pin";
-      if (isUserPin && entry?.marker?.position) {
-        return entry.marker.position.clone();
-      }
-      if (entry?.labelAnchor) {
-        return entry.labelAnchor.clone();
-      }
-      if (entry?.marker?.position) {
-        return entry.marker.position.clone();
-      }
-      return new THREE.Vector3();
-    }
-
-    function updateLabelAnchors(labelLayer, elevationSampler, elevationCache, getTerrainRelief, radius = 3.2) {
-      if (!labelLayer || !labelLayer.entries) {
-        return;
-      }
-      for (const entry of labelLayer.entries) {
-        const item = entry.item;
-        const anchor = getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0);
-        const hitPoint = getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0.01);
-        const surfacePoint = getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0);
-        const normal = anchor.clone().normalize();
-        const isUserPin = item?.type === "User pin" || item?.type === "Imported pin";
-        const east = new THREE.Vector3(-normal.z, 0, normal.x);
-        if (east.lengthSq() < 0.0001) {
-          east.set(1, 0, 0);
-        }
-        east.normalize();
-        const up = normal.clone().cross(east).normalize();
-        const direction = isUserPin
-          ? normal.clone()
-          : item.lat >= 0 ? east.clone().multiplyScalar(1.0) : east.clone().multiplyScalar(-1.0);
-        if (!isUserPin) {
-          direction.addScaledVector(up, item.lat > 35 ? -0.28 : 0.18).normalize();
-        }
-        const labelDistance = item.label_distance !== undefined ? item.label_distance : (isUserPin ? USER_PIN_LABEL_DISTANCE : 0.52);
-        const pinHeadPos = anchor.clone().addScaledVector(normal, isUserPin ? USER_PIN_WORLD_HEIGHT * 0.72 : 0);
-        const spritePos = isUserPin
-          ? pinHeadPos.clone().addScaledVector(normal, labelDistance)
-          : anchor.clone().addScaledVector(normal, 0.22).addScaledVector(direction, labelDistance)
-            .addScaledVector(up, item.label_push_up || 0)
-            .addScaledVector(east, item.label_push_east || 0);
-
-        entry.marker.position.copy(anchor);
-        entry.hitTarget.position.copy(hitPoint);
-        entry.sprite.position.copy(spritePos);
-        entry.surfacePoint.copy(surfacePoint);
-        entry.labelDistance = labelDistance;
-        entry.labelPushUp = isUserPin ? 0 : (item.label_push_up || 0);
-        entry.labelPushEast = isUserPin ? 0 : (item.label_push_east || 0);
-        entry.labelAnchor = isUserPin ? pinHeadPos.clone() : anchor.clone();
-        entry.labelNormal = normal.clone();
-        entry.labelDirection = direction.clone();
-        entry.labelUp = isUserPin ? normal.clone() : up.clone();
-        entry.labelEast = east.clone();
-        if (entry.line) {
-          const connectorStart = getEntryConnectorStart(entry);
-          entry.line.geometry.dispose();
-          entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-            connectorStart,
-            isUserPin
-              ? spritePos.clone().addScaledVector(normal, -Math.min(0.03, labelDistance * 0.18))
-              : spritePos.clone(),
-          ]);
-        }
-      }
-    }
-
-    function rebuildLabelTextures(labelLayer) {
-      if (!labelLayer || !labelLayer.entries) {
-        return;
-      }
-      for (const entry of labelLayer.entries) {
-        const nextLabel = makeLabelTexture(entry.item, {
-          theme: entry.item.theme,
-        });
-        const style = entry.item.theme === "volcanic"
-          ? { opacity: 0.92 }
-          : entry.item.theme === "landing" || entry.item.theme === "mission"
-            ? { opacity: 0.9 }
-            : entry.item.theme === "habitation"
-              ? { opacity: 0.94 }
-              : { opacity: 0.84 };
-                entry.sprite.material.map.dispose();
-        entry.sprite.material.map = nextLabel.texture;
-        entry.sprite.material.opacity = style.opacity;
-        entry.sprite.scale.set((nextLabel.width / 200) * 0.66, (nextLabel.height / 200) * 0.66, 1);
-        entry.sprite.material.needsUpdate = true;
-      }
-    }
-
-    function updateLabelVisibility(
-      entries,
-      venusGroup,
-      globe,
-      camera,
-      renderer,
-      surfaceLabelsEnabled,
-      volcanicLabelsEnabled,
-      landingLabelsEnabled,
-      habitationLabelsEnabled,
-      cutawayModeEnabled,
-      mosaicMode = false,
-      mosaicScaleBarMeters = null,
-    ) {
-      const groupWorldPosition = new THREE.Vector3();
-      const surfaceWorldPosition = new THREE.Vector3();
-      const cameraDirection = new THREE.Vector3();
-      const spriteWorldPosition = new THREE.Vector3();
-      const projected = new THREE.Vector3();
-      const tempSpritePos = new THREE.Vector3();
-      const tempLineEnd = new THREE.Vector3();
-      const viewportPadding = 12;
-      const viewportWidth = renderer.domElement.clientWidth || window.innerWidth;
-      const viewportHeight = renderer.domElement.clientHeight || window.innerHeight;
-      const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
-      const occupiedRects = [];
-      const candidates = [];
-      venusGroup.getWorldPosition(groupWorldPosition);
-      const cameraDistance = camera.position.distanceTo(groupWorldPosition);
-      const globalView = cameraDistance >= 7.2;
-      const resolvedScaleBarMeters = Number.isFinite(mosaicScaleBarMeters)
-        ? mosaicScaleBarMeters
-        : (Number.isFinite(window.__lastScaleBarMeters)
-            ? window.__lastScaleBarMeters
-            : (mosaicMode ? 50000 : null));
-      const hasScaleBar = Number.isFinite(resolvedScaleBarMeters);
-      const scaleBarMeters = hasScaleBar ? resolvedScaleBarMeters : null;
-      const useMosaicCloseLayout = mosaicMode && hasScaleBar && scaleBarMeters <= 200000;
-      const baseViewportPadding = 12;
-
-      const overlapsRect = (a, b, gapX = 3, gapY = 2) => (
-        a.left - gapX < b.right &&
-        a.right + gapX > b.left &&
-        a.top - gapY < b.bottom &&
-        a.bottom + gapY > b.top
-      );
-
-      const countRectOverlaps = (rect, rects, gapX = 3, gapY = 2) => {
-        let count = 0;
-        for (const other of rects) {
-          if (overlapsRect(rect, other, gapX, gapY)) {
-            count += 1;
-          }
-        }
-        return count;
-      };
-
-      const clampLabelCenter = (x, y, halfWidth, halfHeight, padding) => ({
-        x: clamp(x, padding + halfWidth, viewportWidth - padding - halfWidth),
-        y: clamp(y, padding + halfHeight, viewportHeight - padding - halfHeight),
-      });
-
-      const rectFromCenter = (x, y, width, height) => ({
-        left: x - width * 0.5,
-        right: x + width * 0.5,
-        top: y - height * 0.5,
-        bottom: y + height * 0.5,
-      });
-
-      const buildMosaicMetrics = (entry, distanceToSurface, pixelsPerWorldUnit) => {
-        const scaleLog = Math.log10(Math.max(scaleBarMeters || 50, 50));
-        const zoomStrength = clamp(1 - ((scaleLog - 1.7) / 4.8), 0, 1);
-        const nearStrength = clamp(1 - (distanceToSurface / 2.4), 0, 1);
-        const microScaleStrength = clamp(1 - ((scaleLog - 3.1) / 1.6), 0, 1);
-        const stableLabelPx = 36;
-        const closeZoomBoost = clamp(1 - ((scaleLog - 4.4) / 1.8), 0, 1);
-        const labelPx = clamp(
-          stableLabelPx + closeZoomBoost * 2 + nearStrength * 2,
-          36,
-          40,
-        );
-        const markerPx = clamp(
-          labelPx * (0.055 - microScaleStrength * 0.02 + nearStrength * 0.004),
-          1.4,
-          5.2,
-        );
-        const tangentPx = clamp(
-          labelPx * (0.88 + zoomStrength * 0.2 + microScaleStrength * 0.32) + nearStrength * 16,
-          58,
-          168,
-        );
-        const altitudeWorld = clamp(
-          (labelPx / Math.max(pixelsPerWorldUnit, 1e-6)) * (0.016 + nearStrength * 0.007 - microScaleStrength * 0.008),
-          0.001,
-          0.03,
-        );
-        const tangentWorld = clamp(
-          tangentPx / Math.max(pixelsPerWorldUnit, 1e-6),
-          0.08,
-          1.35,
-        );
-        const offsetFactor = clamp(
-          tangentWorld / Math.max(entry.labelDistance || 0.52, 0.06),
-          0.45,
-          2.8,
-        );
-        const viewportPadding = clamp(labelPx * 0.28, baseViewportPadding, 42);
-        return {
-          labelPx,
-          markerPx,
-          tangentPx,
-          altitudeWorld,
-          tangentWorld,
-          offsetFactor,
-          viewportPadding,
-          overlapGapX: clamp(labelPx * 0.04, 2, 8),
-          overlapGapY: clamp(labelPx * 0.025, 2, 6),
-        };
-      };
-
-      const applyLabelOffset = (entry, factor, normalLift, tempPos, tempEnd) => {
-        if (!entry.labelAnchor || !entry.labelDirection || !entry.labelNormal) {
-          return false;
-        }
-        entry.labelOffsetFactor = factor;
-        const distance = (entry.labelDistance || 0.52) * factor;
-        tempPos.copy(entry.labelAnchor)
-          .addScaledVector(entry.labelNormal, normalLift)
-          .addScaledVector(entry.labelDirection, distance)
-          .addScaledVector(entry.labelUp || new THREE.Vector3(), entry.labelPushUp || 0)
-          .addScaledVector(entry.labelEast || new THREE.Vector3(), entry.labelPushEast || 0);
-        entry.sprite.position.copy(tempPos);
-        if (entry.line) {
-          const connectorStart = getEntryConnectorStart(entry);
-          tempEnd.copy(tempPos);
-          entry.line.geometry.dispose();
-          entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-            connectorStart,
-            tempEnd.clone(),
-          ]);
-        }
-        return true;
-      };
-
-      const placeMosaicLabel = (entry, metrics, anchorProjected, occupiedRectsLocal) => {
-        const spriteParent = entry.sprite.parent || venusGroup;
-        const anchorScreenX = ((anchorProjected.x + 1) * 0.5) * viewportWidth;
-        const anchorScreenY = ((1 - anchorProjected.y) * 0.5) * viewportHeight;
-        const anchorViewportMargin = clamp(metrics.viewportPadding * 0.35, 8, 18);
-        if (
-          anchorProjected.x < -1 || anchorProjected.x > 1 ||
-          anchorProjected.y < -1 || anchorProjected.y > 1 ||
-          anchorScreenX < anchorViewportMargin ||
-          anchorScreenX > viewportWidth - anchorViewportMargin ||
-          anchorScreenY < anchorViewportMargin ||
-          anchorScreenY > viewportHeight - anchorViewportMargin
-        ) {
-          return null;
-        }
-        const anchorWorld = new THREE.Vector3();
-        entry.marker.getWorldPosition(anchorWorld);
-        const distanceToAnchor = camera.position.distanceTo(anchorWorld);
-        const pixelsPerWorldUnit = fovScale / Math.max(distanceToAnchor, 0.001);
-        const baseDirectionWorld = entry.labelAnchor.clone()
-          .addScaledVector(entry.labelDirection || new THREE.Vector3(1, 0, 0), metrics.tangentWorld);
-        const directionSampleWorld = spriteParent.localToWorld(baseDirectionWorld);
-        const directionProjected = directionSampleWorld.clone().project(camera);
-        let dirX = ((directionProjected.x + 1) * 0.5) * viewportWidth - anchorScreenX;
-        let dirY = ((1 - directionProjected.y) * 0.5) * viewportHeight - anchorScreenY;
-        if (directionProjected.z > 1 || directionProjected.z < -1 || !Number.isFinite(dirX) || !Number.isFinite(dirY)) {
-          dirX = 1;
-          dirY = -0.35;
-        }
-        const dirLength = Math.hypot(dirX, dirY) || 1;
-        dirX /= dirLength;
-        dirY /= dirLength;
-
-        const labelWidth = Math.max(40, entry.sprite.scale.x * pixelsPerWorldUnit * 1.02);
-        const labelHeight = Math.max(20, entry.sprite.scale.y * pixelsPerWorldUnit * 1.06);
-        const halfWidth = labelWidth * 0.5;
-        const halfHeight = labelHeight * 0.5;
-        const connectorPx = clamp(metrics.tangentPx * 0.62, 18, 72);
-
-        const angleOffsets = [0, 30, -30, 60, -60, 100, -100, 145, -145, 180];
-        const radialScales = [1, 1.28, 1.6, 1.95];
-        let best = null;
-
-        for (const angleDeg of angleOffsets) {
-          const angleRad = angleDeg * Math.PI / 180;
-          const cos = Math.cos(angleRad);
-          const sin = Math.sin(angleRad);
-          const rotatedX = dirX * cos - dirY * sin;
-          const rotatedY = dirX * sin + dirY * cos;
-          for (const radialScale of radialScales) {
-            const centerOffsetPx = connectorPx + Math.max(halfWidth * 0.96, halfHeight * 0.75) + (metrics.tangentPx * 0.35 * (radialScale - 1));
-            const rawX = anchorScreenX + rotatedX * centerOffsetPx;
-            const rawY = anchorScreenY + rotatedY * centerOffsetPx;
-            const clamped = clampLabelCenter(rawX, rawY, halfWidth, halfHeight, metrics.viewportPadding);
-            const rect = rectFromCenter(clamped.x, clamped.y, labelWidth, labelHeight);
-            const overlaps = countRectOverlaps(rect, occupiedRectsLocal, metrics.overlapGapX, metrics.overlapGapY);
-            const clampPenalty = Math.abs(clamped.x - rawX) + Math.abs(clamped.y - rawY);
-            const anglePenalty = Math.abs(angleDeg) * 0.2;
-            const radialPenalty = (radialScale - 1) * 12;
-            const score = overlaps * 1000 + clampPenalty + anglePenalty + radialPenalty;
-            if (!best || score < best.score) {
-              best = {
-                x: clamped.x,
-                y: clamped.y,
-                rect,
-                score,
-              };
-            }
-            if (overlaps === 0 && clampPenalty < 1) {
-              break;
-            }
-          }
-        }
-
-        if (!best) {
-          return null;
-        }
-
-        tempSpritePos.set(
-          (best.x / viewportWidth) * 2 - 1,
-          1 - (best.y / viewportHeight) * 2,
-          anchorProjected.z,
-        ).unproject(camera);
-        spriteParent.worldToLocal(tempSpritePos);
-        entry.sprite.position.copy(tempSpritePos);
-        if (entry.line) {
-          const connectorStart = getEntryConnectorStart(entry);
-          tempLineEnd.copy(entry.sprite.position);
-          entry.line.geometry.dispose();
-          entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-            connectorStart,
-            tempLineEnd.clone(),
-          ]);
-          entry.line.visible = true;
-        }
-        entry.sprite.visible = true;
-        entry.sprite.getWorldPosition(spriteWorldPosition);
-        projected.copy(spriteWorldPosition).project(camera);
-        return best.rect;
-      };
-
-      // In moon viewer mode: pre-compute the active moon's projected screen disk so we can
-      // cull surface markers that visually project onto the moon body. The standard geometric
-      // occluder test only catches markers physically behind the moon sphere; markers that are
-      // beside it in 3D can still overlap the moon's screen disk because depthTest is disabled.
-      let activeMoonScreenDisk = null;
-      if (activeMoonViewerFeature && moonLayer && Array.isArray(moonLayer.entries)) {
-        const activeMoonEntry = moonLayer.entries.find((e) => e.item?.name === activeMoonViewerFeature.name);
-        if (activeMoonEntry) {
-          const moonWorld = new THREE.Vector3();
-          activeMoonEntry.moonMesh.getWorldPosition(moonWorld);
-          const moonDistFromCam = camera.position.distanceTo(moonWorld);
-          const moonProj = moonWorld.clone().project(camera);
-          if (moonProj.z > -1 && moonProj.z < 1) {
-            const moonPPU = fovScale / Math.max(moonDistFromCam, 1e-6);
-            activeMoonScreenDisk = {
-              x: ((moonProj.x + 1) * 0.5) * viewportWidth,
-              y: ((1 - moonProj.y) * 0.5) * viewportHeight,
-              r: activeMoonEntry.moonRadius * moonPPU * 1.15,
-              distFromCam: moonDistFromCam,
-            };
-          }
-        }
-      }
-
-      for (const entry of entries) {
-        const isUserPinEntry = entry.item?.type === "User pin" || entry.item?.type === "Imported pin";
-        entry.marker.getWorldPosition(surfaceWorldPosition);
-        const normal = surfaceWorldPosition.clone().sub(groupWorldPosition).normalize();
-        cameraDirection.copy(camera.position).sub(surfaceWorldPosition).normalize();
-        const categoryEnabled = entry.category === "volcanic"
-          ? volcanicLabelsEnabled
-          : entry.category === "landing" || entry.category === "mission"
-            ? landingLabelsEnabled
-          : entry.category === "habitation"
-            ? habitationLabelsEnabled
-          : surfaceLabelsEnabled;
-        const survivesCut = !cutawayModeEnabled || (activeCutClipPlane ? activeCutClipPlane.distanceToPoint(surfaceWorldPosition) : surfaceWorldPosition.x) >= -0.02;
-        const facingThreshold = useMosaicCloseLayout ? -0.14 : 0.02;
-        const isVisible = categoryEnabled && survivesCut && normal.dot(cameraDirection) > facingThreshold;
-        entry.marker.visible = isVisible;
-        entry.hitTarget.visible = isVisible;
-        if (useMosaicCloseLayout) {
-          entry.marker.visible = isVisible;
-          entry.hitTarget.visible = isVisible;
-        }
-        entry.sprite.visible = false;
-        if (entry.line) {
-          entry.line.visible = false;
-        }
-        if (!isVisible) {
-          continue;
-        }
-        if (isPointOccludedByAnyMoon(surfaceWorldPosition, camera)) {
-          if (!useMosaicCloseLayout) {
-            entry.marker.visible = false;
-            entry.hitTarget.visible = false;
-          }
-          continue;
-        }
-
-        // Screen-space disk check: hide markers further from camera than the active moon
-        // that visually project onto the moon's disk (depthTest:false can't block them).
-        if (activeMoonScreenDisk) {
-          const markerDistFromCam = camera.position.distanceTo(surfaceWorldPosition);
-          if (markerDistFromCam > activeMoonScreenDisk.distFromCam) {
-            const p = surfaceWorldPosition.clone().project(camera);
-            if (p.z > -1 && p.z < 1) {
-              const sx = ((p.x + 1) * 0.5) * viewportWidth;
-              const sy = ((1 - p.y) * 0.5) * viewportHeight;
-              const dx = sx - activeMoonScreenDisk.x;
-              const dy = sy - activeMoonScreenDisk.y;
-              if (Math.sqrt(dx * dx + dy * dy) < activeMoonScreenDisk.r) {
-                entry.marker.visible = false;
-                entry.hitTarget.visible = false;
-                continue;
-              }
-            }
-          }
-        }
-
-        const baseScale = entry.baseScale;
-        let mosaicMetrics = null;
-        if (baseScale) {
-          const distanceToSurface = camera.position.distanceTo(surfaceWorldPosition);
-          const t = clamp((distanceToSurface - 0.2) / 6.2, 0, 1);
-          const easedT = Math.pow(t, 0.85);
-          const pixelsPerWorldUnit = fovScale / Math.max(distanceToSurface, 0.001);
-          const worldUnitsPerPixel = 1 / Math.max(pixelsPerWorldUnit, 1e-6);
-          let labelScale = 0.12 + (1.35 - 0.12) * easedT;
-          let scaleFactor = 0.03 + (1.35 - 0.03) * easedT;
-          // In moon viewer mode Venus is small and distant — scale labels down so they
-          // don't visually dominate the globe.
-          const moonViewerLabelMult = activeMoonViewerFeature ? 0.55 : 1.0;
-          const standardLabelPx = baseScale.y * pixelsPerWorldUnit * labelScale * moonViewerLabelMult;
-          const standardMarkerPx = ((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit) * scaleFactor * moonViewerLabelMult;
-          if (useMosaicCloseLayout) {
-            mosaicMetrics = buildMosaicMetrics(entry, distanceToSurface, pixelsPerWorldUnit);
-            labelScale = (mosaicMetrics.labelPx * moonViewerLabelMult) / Math.max(baseScale.y * pixelsPerWorldUnit, 1e-6);
-            scaleFactor = (mosaicMetrics.markerPx * moonViewerLabelMult) / Math.max((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit, 1e-6);
-          } else {
-            labelScale = standardLabelPx / Math.max(baseScale.y * pixelsPerWorldUnit, 1e-6);
-            scaleFactor = standardMarkerPx / Math.max((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit, 1e-6);
-          }
-          entry.sprite.scale.set(baseScale.x * labelScale, baseScale.y * labelScale, 1);
-          if (entry.markerBaseScale) {
-            let markerScale = clamp(scaleFactor, useMosaicCloseLayout ? 0.003 : 0.12, useMosaicCloseLayout ? 0.3 : 1.4);
-            if (useMosaicCloseLayout && isUserPinEntry) {
-              const targetPinPx = getUserPinTargetPixelSize(scaleBarMeters);
-              const targetPinScale = (worldUnitsPerPixel * targetPinPx) / Math.max(entry.markerBaseScale.x || 1e-6, 1e-6);
-              markerScale = clamp(targetPinScale, 0.035, 0.34);
-            }
-            if (useMosaicCloseLayout && scaleBarMeters <= 2000) {
-              const targetMarkerDiameterMeters = clamp(scaleBarMeters * 0.14, 100, 200);
-              const targetMarkerRadiusWorld = (targetMarkerDiameterMeters * 0.5) * (3.2 / VENUS_RADIUS_METERS);
-              const targetMarkerScale = targetMarkerRadiusWorld / Math.max((entry.markerRadiusWorld || 0.011) * (entry.markerBaseScale.x || 1), 1e-6);
-              if (!isUserPinEntry) {
-                markerScale = Math.min(markerScale, targetMarkerScale);
-              }
-            }
-            entry.marker.scale.set(
-              entry.markerBaseScale.x * markerScale,
-              entry.markerBaseScale.y * markerScale,
-              entry.markerBaseScale.z * markerScale,
-            );
-          }
-          if (entry.hitBaseScale) {
-            const hitScaleBase = useMosaicCloseLayout
-              ? (mosaicMetrics.markerPx * 2.4) / Math.max((entry.hitRadiusWorld || 1) * (entry.hitBaseScale.x || 1) * pixelsPerWorldUnit, 1e-6)
-              : scaleFactor * 1.35;
-            const hitScale = clamp(hitScaleBase, useMosaicCloseLayout ? 0.01 : 0.2, useMosaicCloseLayout ? 0.16 : 2.2);
-            entry.hitTarget.scale.set(
-              entry.hitBaseScale.x * hitScale,
-              entry.hitBaseScale.y * hitScale,
-              entry.hitBaseScale.z * hitScale,
-            );
-          }
-        }
-
-        if (useMosaicCloseLayout && isUserPinEntry && scaleBarMeters <= 2500) {
-          entry.sprite.visible = false;
-          if (entry.line) {
-            entry.line.visible = false;
-          }
-          continue;
-        }
-
-        if (useMosaicCloseLayout) {
-          if (mosaicMetrics) {
-            applyLabelOffset(entry, mosaicMetrics.offsetFactor, mosaicMetrics.altitudeWorld, tempSpritePos, tempLineEnd);
-          }
-        } else {
-          // In moon viewer mode pull labels closer to the surface so they don't spread
-          // wide of the (now-distant) Venus globe and visually dominate the scene.
-          const offsetFactor = activeMoonViewerFeature
-            ? Math.min(entry.labelOffsetFactor || 1, 0.5)
-            : (entry.labelOffsetFactor || 1);
-          applyLabelOffset(entry, offsetFactor, 0.22, tempSpritePos, tempLineEnd);
-        }
-        entry.sprite.getWorldPosition(spriteWorldPosition);
-        const forceLabel = useMosaicCloseLayout
-          ? true
-          : entry.marker?.visible && entry.hitTarget?.visible;
-        if (!forceLabel && isPointOccludedByAnyMoon(spriteWorldPosition, camera)) {
-          entry.marker.visible = false;
-          entry.hitTarget.visible = false;
-          continue;
-        }
-        projected.copy(spriteWorldPosition).project(camera);
-        if (projected.z < -1 || projected.z > 1) {
-          if (useMosaicCloseLayout) {
-            spriteWorldPosition.copy(surfaceWorldPosition);
-            projected.copy(spriteWorldPosition).project(camera);
-          } else if (!globalView) {
-            if (forceLabel && entry.labelAnchor && entry.labelNormal) {
-              applyLabelOffset(entry, 0.18, 0.28, tempSpritePos, tempLineEnd);
-              entry.sprite.position.copy(entry.labelAnchor).addScaledVector(entry.labelNormal, 0.28);
-              if (entry.line) {
-                const connectorStart = getEntryConnectorStart(entry);
-                entry.line.geometry.dispose();
-                entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-                  connectorStart,
-                  entry.sprite.position.clone(),
-                ]);
-              }
-              spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(venusGroup.matrixWorld);
-              projected.copy(spriteWorldPosition).project(camera);
-            }
-            if (projected.z < -1 || projected.z > 1) {
-              if (forceLabel) {
-                spriteWorldPosition.copy(surfaceWorldPosition);
-                projected.copy(spriteWorldPosition).project(camera);
-                if (projected.z < -1 || projected.z > 1) {
-                  continue;
-                }
-              } else {
-                continue;
-              }
-            }
-          } else {
-            continue;
-          }
-        }
-
-        if (useMosaicCloseLayout) {
-          const anchorWorld = new THREE.Vector3();
-          entry.marker.getWorldPosition(anchorWorld);
-          const anchorProjected = anchorWorld.clone().project(camera);
-          if (anchorProjected.z < -1 || anchorProjected.z > 1) {
-            continue;
-          }
-          const rect = placeMosaicLabel(entry, mosaicMetrics || buildMosaicMetrics(entry, camera.position.distanceTo(anchorWorld), fovScale / Math.max(camera.position.distanceTo(anchorWorld), 0.001)), anchorProjected, occupiedRects);
-          if (!rect) {
-            continue;
-          }
-          occupiedRects.push(rect);
-          continue;
-        }
-
-        const distance = camera.position.distanceTo(spriteWorldPosition);
-        const pixelsPerWorldUnit = fovScale / Math.max(distance, 0.001);
-        const rectFromProjected = (proj) => {
-          const width = entry.sprite.scale.x * pixelsPerWorldUnit * 1.02;
-          const height = entry.sprite.scale.y * pixelsPerWorldUnit * 1.06;
-          const sx = ((proj.x + 1) * 0.5) * viewportWidth;
-          const sy = ((1 - proj.y) * 0.5) * viewportHeight;
-          return {
-            left: sx - width * 0.5,
-            right: sx + width * 0.5,
-            top: sy - height * 0.5,
-            bottom: sy + height * 0.5,
-          };
-        };
-        let rect = rectFromProjected(projected);
-
-        const needsFit = !globalView && (rect.left < baseViewportPadding
-          || rect.right > viewportWidth - baseViewportPadding
-          || rect.top < baseViewportPadding
-          || rect.bottom > viewportHeight - baseViewportPadding);
-
-        if (needsFit && entry.labelAnchor) {
-          applyLabelOffset(entry, 0.6, 0.22, tempSpritePos, tempLineEnd);
-          spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(venusGroup.matrixWorld);
-          projected.copy(spriteWorldPosition).project(camera);
-          rect = rectFromProjected(projected);
-          if (
-            rect.left < baseViewportPadding
-            || rect.right > viewportWidth - baseViewportPadding
-            || rect.top < baseViewportPadding
-            || rect.bottom > viewportHeight - baseViewportPadding
-          ) {
-            applyLabelOffset(entry, 0.35, 0.22, tempSpritePos, tempLineEnd);
-            spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(venusGroup.matrixWorld);
-            projected.copy(spriteWorldPosition).project(camera);
-            rect = rectFromProjected(projected);
-          }
-          // At very close zoom the sprite may still be off-screen — use a pixel-space-capped offset
-          if (
-            rect.left < baseViewportPadding
-            || rect.right > viewportWidth - baseViewportPadding
-            || rect.top < baseViewportPadding
-            || rect.bottom > viewportHeight - baseViewportPadding
-          ) {
-            const _maxOffPx = Math.min(viewportWidth, viewportHeight) * 0.12;
-            const _adaptF = Math.min(0.30, _maxOffPx / Math.max(pixelsPerWorldUnit * (entry.labelDistance || 0.52), 1e-6));
-            if (_adaptF < 0.30) {
-              applyLabelOffset(entry, _adaptF, 0.22, tempSpritePos, tempLineEnd);
-              spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(venusGroup.matrixWorld);
-              projected.copy(spriteWorldPosition).project(camera);
-              rect = rectFromProjected(projected);
-            }
-          }
-        }
-        candidates.push({
-          entry,
-          distance,
-          rect,
-          pixelsPerWorldUnit,
-        });
-      }
-
-      candidates.sort((a, b) => {
-        const aPinned = Boolean(activePopupFeature && a.entry.item?.name === activePopupFeature.name);
-        const bPinned = Boolean(activePopupFeature && b.entry.item?.name === activePopupFeature.name);
-        if (aPinned !== bPinned) {
-          return aPinned ? -1 : 1;
-        }
-        if (b.entry.priority !== a.entry.priority) {
-          return b.entry.priority - a.entry.priority;
-        }
-        if (globalView) {
-          if (a.entry._globalVisible !== b.entry._globalVisible) {
-            return a.entry._globalVisible ? -1 : 1;
-          }
-          return a.entry.sortIndex - b.entry.sortIndex;
-        }
-        return a.distance - b.distance;
-      });
-
-      const placeForceLabel = (candidate) => {
-        const entry = candidate.entry;
-        if (!entry.labelAnchor || !entry.labelNormal || !entry.labelDirection) {
-          return false;
-        }
-        const placements = [
-          { factor: entry.labelOffsetFactor || 1, dir: 1, up: 0 },
-          { factor: 0.6, dir: 1, up: 0.12 },
-          { factor: 0.6, dir: -1, up: 0.12 },
-          { factor: 0.35, dir: -1, up: -0.08 },
-          { factor: 1.1, dir: -1, up: 0.04 },
-        ];
-        // At very close zoom the default offsets push the label far off-screen.
-        // Add pixel-space-constrained placements so the label stays readable at max zoom.
-        const _maxOffPx = Math.min(viewportWidth, viewportHeight) * 0.12;
-        const _adaptF = _maxOffPx / Math.max(candidate.pixelsPerWorldUnit * (entry.labelDistance || 0.52), 1e-6);
-        if (_adaptF < 0.30) {
-          placements.push(
-            { factor: _adaptF, dir: 1, up: 0 },
-            { factor: _adaptF, dir: -1, up: 0 },
-            { factor: _adaptF * 0.7, dir: 1, up: 0.08 },
-            { factor: _adaptF * 0.7, dir: -1, up: 0.08 },
-          );
-        }
-        for (const option of placements) {
-          const direction = entry.labelDirection.clone().multiplyScalar(option.dir);
-          tempSpritePos.copy(entry.labelAnchor)
-            .addScaledVector(entry.labelNormal, 0.22)
-            .addScaledVector(direction, (entry.labelDistance || 0.52) * option.factor)
-            .addScaledVector(entry.labelUp || new THREE.Vector3(), (entry.labelPushUp || 0) + option.up)
-            .addScaledVector(entry.labelEast || new THREE.Vector3(), entry.labelPushEast || 0);
-          entry.sprite.position.copy(tempSpritePos);
-          if (entry.line) {
-            const connectorStart = getEntryConnectorStart(entry);
-            tempLineEnd.copy(tempSpritePos);
-            entry.line.geometry.dispose();
-            entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-              connectorStart,
-              tempLineEnd.clone(),
-            ]);
-          }
-          spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(venusGroup.matrixWorld);
-          projected.copy(spriteWorldPosition).project(camera);
-          if (projected.z < -1 || projected.z > 1) {
-            continue;
-          }
-          const rect = {
-            left: ((projected.x + 1) * 0.5) * viewportWidth - (entry.sprite.scale.x * candidate.pixelsPerWorldUnit * 1.02) * 0.5,
-            right: ((projected.x + 1) * 0.5) * viewportWidth + (entry.sprite.scale.x * candidate.pixelsPerWorldUnit * 1.02) * 0.5,
-            top: ((1 - projected.y) * 0.5) * viewportHeight - (entry.sprite.scale.y * candidate.pixelsPerWorldUnit * 1.06) * 0.5,
-            bottom: ((1 - projected.y) * 0.5) * viewportHeight + (entry.sprite.scale.y * candidate.pixelsPerWorldUnit * 1.06) * 0.5,
-          };
-          const within = rect.left >= viewportPadding
-            && rect.right <= viewportWidth - viewportPadding
-            && rect.top >= viewportPadding
-            && rect.bottom <= viewportHeight - viewportPadding;
-          const overlaps = occupiedRects.some((occupied) => (
-            rect.left - 3 < occupied.right &&
-            rect.right + 3 > occupied.left &&
-            rect.top - 2 < occupied.bottom &&
-            rect.bottom + 2 > occupied.top
-          ));
-          if (within && !overlaps) {
-            candidate.rect = rect;
-            return true;
-          }
-        }
-        return false;
-      };
-
-      for (const candidate of candidates) {
-        const isPinned = Boolean(activePopupFeature && candidate.entry.item?.name === activePopupFeature.name);
-        if (useMosaicCloseLayout) {
-          const overlaps = occupiedRects.some((rect) => (
-            candidate.rect.left - 3 < rect.right &&
-            candidate.rect.right + 3 > rect.left &&
-            candidate.rect.top - 2 < rect.bottom &&
-            candidate.rect.bottom + 2 > rect.top
-          ));
-          if (overlaps && !isPinned) {
-            continue;
-          }
-          candidate.entry.sprite.visible = true;
-          if (candidate.entry.line) {
-            candidate.entry.line.visible = true;
-          }
-          occupiedRects.push(candidate.rect);
-          continue;
-        }
-        const forceLabel = candidate.entry.marker?.visible && candidate.entry.hitTarget?.visible;
-        if (!globalView) {
-          const outOfBounds = candidate.rect.left < baseViewportPadding
-            || candidate.rect.right > viewportWidth - baseViewportPadding
-            || candidate.rect.top < baseViewportPadding
-            || candidate.rect.bottom > viewportHeight - baseViewportPadding;
-          if (outOfBounds && forceLabel) {
-            if (!placeForceLabel(candidate)) {
-              // Keep the current placement if we still can't fit, but do not drop the label.
-            }
-          } else if (outOfBounds) {
-            if (!useMosaicCloseLayout) {
-              continue;
-            }
-          }
-        }
-        const overlaps = occupiedRects.some((rect) => (
-          candidate.rect.left - 3 < rect.right &&
-          candidate.rect.right + 3 > rect.left &&
-          candidate.rect.top - 2 < rect.bottom &&
-          candidate.rect.bottom + 2 > rect.top
-        ));
-        if (overlaps && forceLabel) {
-          if (!placeForceLabel(candidate)) {
-            // Fall back to original placement if we still can't fit.
-          }
-        } else if (overlaps) {
-          if (globalView && candidate.entry._globalVisible) {
-            // Keep previously visible labels stable in global view to avoid flicker.
-          } else {
-            continue;
-          }
-        }
-        candidate.entry.sprite.visible = true;
-        if (candidate.entry.line) {
-          candidate.entry.line.visible = true;
-        }
-        occupiedRects.push(candidate.rect);
-      }
-      if (globalView) {
-        for (const entry of entries) {
-          entry._globalVisible = !!entry.sprite.visible;
-        }
-      }
-    }
 
     function processMineralTexture(texture) {
       if (!texture || !texture.image) { return texture; }
@@ -8269,7 +6950,7 @@ import * as THREE from "./vendor/three.module.js";
       // the same material path.
       constructor(baseTexture, serviceConfig = {}, canvasWidth = 8192, canvasHeight = 4096) {
         this.serviceConfig = serviceConfig;
-        this.TILE_BASE = serviceConfig.tileBase || "https://astro.arcgis.com/arcgis/rest/services/OnVenus/CTX/MapServer/tile";
+        this.TILE_BASE = serviceConfig.tileBase || "https://astro.arcgis.com/arcgis/rest/services/OnMars/CTX/MapServer/tile";
         this.SERVICE_URL = serviceConfig.serviceUrl || this.TILE_BASE.replace(/\/tile$/, "");
         this.GLOBE_R = 3.2;
         this.MAX_INFLIGHT = 64; // HTTP/2 multiplexes many streams over one connection
@@ -8279,12 +6960,12 @@ import * as THREE from "./vendor/three.module.js";
         this.MAX_TILE_CACHE = 1024;
         this.MAX_FOCUS_TILES = 512;
         this.MAX_FOCUS_INFLIGHT = 48;
-        this.FOCUS_TEXTURE_MAX_SIZE = 8192;
+        this.FOCUS_TEXTURE_MAX_SIZE = 2048;
         this.FOCUS_UPDATE_INTERVAL_MS = 40;
         this.FOCUS_FULL_VIEW = false;
         this.BACKGROUND_STREAMING = false;
-        this.FORCE_MAX_LEVEL = 15;
-        this.ALLOWED_CTX_LEVELS = [5, 7, 9, 10, 11, 12, 15];
+        this.FORCE_MAX_LEVEL = 14;
+        this.ALLOWED_CTX_LEVELS = [5, 7, 9, 10, 11, 12, 14];
         this._focusLevelSmoothed = null;
         this._lastFocusLevelAt = 0;
         this.SCALE_STEPS = [
@@ -8338,6 +7019,7 @@ import * as THREE from "./vendor/three.module.js";
         this._focusQueue = [];
         this._focusQueuedKeys = new Set();
         this._focusInflight = 0;
+        this._focusRoundSuccesses = 0;
         this._focusEnqueuePausedUntil = 0;
         this._focusResolvedLevels = new Map();
         this._focusResolvedAnchor = null;
@@ -8610,6 +7292,7 @@ import * as THREE from "./vendor/three.module.js";
             if (!this._focusState || this._focusState.version !== item.version) {
               return;
             }
+            this._focusRoundSuccesses += 1;
             this._focusResolvedLevels.set(`${item.level}/${item.row}/${item.col}`, payload.level);
             if (payload.level < item.level) {
               this._noteResolvedFallbackCap(item.level, item.row, item.col, payload.level);
@@ -8640,6 +7323,10 @@ import * as THREE from "./vendor/three.module.js";
             this._focusControllers.delete(item.requestKey);
             this._focusInflight = Math.max(0, this._focusInflight - 1);
             if (this._focusInflight === 0 && this._focusQueue.length === 0 && this._focusState) {
+              if (this._focusRoundSuccesses === 0) {
+                // All tiles failed (e.g. CORS). Back off 30 s to stop the tight retry loop.
+                this._focusEnqueuePausedUntil = performance.now() + 30000;
+              }
               const effectiveLevel = this._estimateLocalFocusLevel(this._focusState.level, this._focusState.bbox);
               if (effectiveLevel < this._focusState.level) {
                 this._refreshFocus(
@@ -9380,6 +8067,7 @@ import * as THREE from "./vendor/three.module.js";
         const hadActiveFocus = this._focusDisplayState.active;
         const prevLevel = this._focusDisplayState.level;
         this._abortFocusFetches();
+        this._focusRoundSuccesses = 0;
         if (performance.now() < this._focusEnqueuePausedUntil) {
           return;
         }
@@ -9659,6 +8347,8 @@ import * as THREE from "./vendor/three.module.js";
         if (row < 0 || row >= nr) return;
         const key = `${level}/${row}/${col}`;
         if (this.loaded.has(key) || this.inflight.has(key) || this.queued.has(key)) return;
+        const _fu = this._failedUntil?.get(key) || 0;
+        if (_fu > performance.now()) return;
         // Globe world-space normal at (lat, lon): (−cosLat·cos(lon), sinLat, cosLat·sin(lon))
         const lonRad = ((col + 0.5) / nc * 360 - 180) * Math.PI / 180;
         const latRad = (90 - (row + 0.5) / nr * 180) * Math.PI / 180;
@@ -9809,23 +8499,11 @@ import * as THREE from "./vendor/three.module.js";
                     targetLevel = 12;
                   } else if (rawScaleBarMeters >= 1200) {
                     targetLevel = 13;
-                  } else if (rawScaleBarMeters >= 600) {
-                    targetLevel = 14;
-                  } else if (rawScaleBarMeters >= 300) {
-                    targetLevel = 15;
-                  } else if (rawScaleBarMeters >= 150) {
-                    targetLevel = 16;
                   } else {
-                    targetLevel = 17;
+                    targetLevel = 14;
                   }
                 } else if (Number.isFinite(esriLodLevel)) {
-                  if (esriLodLevel >= 17) {
-                    targetLevel = 17;
-                  } else if (esriLodLevel >= 16) {
-                    targetLevel = 16;
-                  } else if (esriLodLevel >= 15) {
-                    targetLevel = 15;
-                  } else if (esriLodLevel >= 14) {
+                  if (esriLodLevel >= 14) {
                     targetLevel = 14;
                   } else if (esriLodLevel >= 13) {
                     targetLevel = 13;
@@ -9861,8 +8539,21 @@ import * as THREE from "./vendor/three.module.js";
               if (Number.isFinite(targetLevel)) {
                 const budget = targetLevel >= 15 ? 240 : 1024;
                 const baseBbox = approxViewBbox || visibleBbox;
+                // At the 10 km scale-bar floor (level 9) approxViewBbox is derived
+                // from the central pixel's metersPerPixel and underestimates the
+                // viewport by ~72% due to perspective. Pad only at level 9 so the
+                // focus canvas covers the full screen without bloating the bbox at
+                // coarser levels (5/7/8) where the extra tiles overlap dark/blank
+                // Mars areas and trigger the 30-second all-failed backoff.
+                const _bboxPad = targetLevel === 9 ? 0.75 : 0;
                 const targetBbox = targetLevel >= 15
                   ? this._computeBudgetBbox(targetLevel, baseBbox, focusTarget, budget)
+                  : _bboxPad > 0 ? {
+                      latMin: baseBbox.latMin - (baseBbox.latMax - baseBbox.latMin) * _bboxPad,
+                      latMax: baseBbox.latMax + (baseBbox.latMax - baseBbox.latMin) * _bboxPad,
+                      lonMin: baseBbox.lonMin - (baseBbox.lonMax - baseBbox.lonMin) * _bboxPad,
+                      lonMax: baseBbox.lonMax + (baseBbox.lonMax - baseBbox.lonMin) * _bboxPad,
+                    }
                   : { ...baseBbox };
                 const tileRangeEstimate = this._getFocusTileRange(targetLevel, targetBbox);
                 const levelCap = targetLevel === 5 ? 512
@@ -10211,7 +8902,7 @@ import * as THREE from "./vendor/three.module.js";
         this.contourThickness = 1.15;
         this.contourTexel = new THREE.Vector2(1 / 4096, 1 / 2048);
         this.contourInterval = 0;
-        this.contourMinMeters = Number(manifest.elevation?.min_m ?? -8200);
+        this.contourMinMeters = Number(manifest.elevation?.min_m ?? -2886);
         this.contourReliefMeters = Math.max(Number(manifest.elevation?.relief_m ?? 1), 1);
       }
 
@@ -11683,6 +10374,12 @@ import * as THREE from "./vendor/three.module.js";
       const wheelZoomBodyCenter = new THREE.Vector3();
       const wheelZoomDirection = new THREE.Vector3();
       let lastSafeMosaicCameraPosition = camera.position.clone();
+      // Minimum scale-bar value (metres) allowed while in CTX mosaic mode.
+      // Below this the wheel-zoom guard blocks further zoom-in and the render-loop
+      // guard snaps the camera back to lastSafeMosaicCameraPosition.
+      // 10 km matches the old behaviour: CTX tiles only go up to level ~12 in
+      // most areas so zooming past 10 km just floods the network with 404s.
+      const CTX_MOSAIC_MIN_SCALEBAR_METERS = 10000;
       function getActiveZoomContext() {
         if (coreToggle.checked) return null;
         if (activeMoonViewerFeature) {
@@ -11796,6 +10493,26 @@ import * as THREE from "./vendor/three.module.js";
       }
       renderer.domElement.addEventListener("wheel", handleSurfaceWheelZoom, { passive: false });
 
+      // Touch pinch-to-zoom — feeds into the same zoom logic as the mouse wheel
+      {
+        let _pinchDist = null;
+        renderer.domElement.addEventListener("touchstart", (e) => {
+          _pinchDist = e.touches.length === 2
+            ? Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
+            : null;
+        }, { passive: true });
+        renderer.domElement.addEventListener("touchmove", (e) => {
+          if (e.touches.length !== 2 || _pinchDist === null) return;
+          const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          const delta = (_pinchDist - dist) * 2.2;
+          if (Math.abs(delta) > 0.5) {
+            handleSurfaceWheelZoom({ deltaY: delta, preventDefault: () => {} });
+            _pinchDist = dist;
+          }
+        }, { passive: true });
+        renderer.domElement.addEventListener("touchend", () => { _pinchDist = null; }, { passive: true });
+      }
+
       scene.add(new THREE.AmbientLight(0xbfd0ff, 0.85));
 
       const keyLight = new THREE.DirectionalLight(0xffdfbf, 1.9);
@@ -11822,10 +10539,10 @@ import * as THREE from "./vendor/three.module.js";
       let geologyInteractiveState = null;
       const layerTextures = new Map();
       const baseLayers = manifest.layers || [{
-        id: "viking-color",
-        label: "Venus Color Map - Viking",
+        id: "venus-surface",
+        label: "Venus basemap",
         path: manifest.texture.path,
-        description: "USGS Viking global color mosaic basemap.",
+        description: "Venus global basemap.",
       }];
       // Phase 1: load only the default base layer — non-default layers load in background.
       const baseTextureResults = await Promise.all(
@@ -11853,26 +10570,7 @@ import * as THREE from "./vendor/three.module.js";
       const geologyTextures = new Map();
       const mineralTextures = new Map();
       const mineralSamplerStates = new Map();
-      const SC_LAYERS = [
-        { id: "sc-temperature",  label: "Temperature",              path: "assets/venus_sc_temperature.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "temperature" },
-        { id: "sc-pressure",     label: "Pressure",                 path: "assets/venus_sc_pressure.png",           scGroup: "Surface Conditions — Atmospheric", scParamKey: "pressure" },
-        { id: "sc-wind",         label: "Wind Speed",               path: "assets/venus_sc_wind.png",               scGroup: "Surface Conditions — Atmospheric", scParamKey: "wind" },
-        { id: "sc-irradiance",   label: "Solar Irradiance",         path: "assets/venus_sc_irradiance.png",         scGroup: "Surface Conditions — Atmospheric", scParamKey: "irradiance" },
-        { id: "sc-radiation",    label: "Radiation Dose",           path: "assets/venus_sc_radiation.png",          scGroup: "Surface Conditions — Atmospheric", scParamKey: "radiation" },
-        { id: "sc-diurnal",      label: "Diurnal Temp Range",       path: "assets/venus_sc_diurnal.png",            scGroup: "Surface Conditions — Atmospheric", scParamKey: "diurnal" },
-        { id: "sc-atm_density",  label: "Atmospheric Density",      path: "assets/venus_sc_atm_density.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "atm_density" },
-        { id: "sc-sound_speed",  label: "Speed of Sound",           path: "assets/venus_sc_sound_speed.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "sound_speed" },
-        { id: "sc-co2_frost",    label: "CO₂ Frost Probability",    path: "assets/venus_sc_co2_frost.png",          scGroup: "Surface Conditions — Atmospheric", scParamKey: "co2_frost" },
-        { id: "sc-slope",        label: "Slope Gradient",           path: "assets/venus_sc_slope.png",              scGroup: "Surface Conditions — Terrain",      scParamKey: "slope" },
-        { id: "sc-roughness",    label: "Terrain Roughness",        path: "assets/venus_sc_roughness.png",          scGroup: "Surface Conditions — Terrain",      scParamKey: "roughness" },
-        { id: "sc-ice_depth",    label: "Permafrost Thickness",     path: "assets/venus_sc_ice_depth.png",          scGroup: "Surface Conditions — Habitability", scParamKey: "ice_depth" },
-        { id: "sc-dust_devil",   label: "Dust Devil Susceptibility",path: "assets/venus_sc_dust_devil.png",         scGroup: "Surface Conditions — Habitability", scParamKey: "dust_devil" },
-        { id: "sc-landing",      label: "Landing Zone Score",       path: "assets/venus_sc_landing_score.png",      scGroup: "Surface Conditions — Habitability", scParamKey: "landing_score" },
-        { id: "sc-solar",        label: "Solar Panel Output",       path: "assets/venus_sc_solar_output.png",       scGroup: "Surface Conditions — Habitability", scParamKey: "solar_output" },
-        { id: "sc-brine",        label: "Brine Stability",          path: "assets/venus_sc_brine_stability.png",    scGroup: "Surface Conditions — Habitability", scParamKey: "brine_stability" },
-        { id: "sc-magnetic",     label: "Magnetic Shielding",       path: "assets/venus_sc_magnetic_shielding.png", scGroup: "Surface Conditions — Habitability", scParamKey: "magnetic_shielding" },
-        { id: "sc-habitability", label: "Human Habitability",       path: "assets/venus_sc_habitability.png",       scGroup: "Surface Conditions — Habitability", scParamKey: "habitability" },
-      ];
+      const SC_LAYERS = [];
       baseLayers.push(...SC_LAYERS);
       // SC layers are not shown on first render — initialise as null, load in background.
       for (const layer of SC_LAYERS) {
@@ -11885,7 +10583,7 @@ import * as THREE from "./vendor/three.module.js";
       // ---- CTX Mosaic tile service ----
       // CTX lives on the displaced globe through a shared canvas texture, so terrain
       // deformation, geology overlays, and selection outlines all stay in one render path.
-      const ctxStreamer = new CTXCanvasLayer(layerTextures.get("viking-color") || null, ctxServiceConfig);
+      const ctxStreamer = new CTXCanvasLayer(layerTextures.get("venus-surface") || null, ctxServiceConfig);
       const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
       ctxStreamer.texture.anisotropy = maxAnisotropy;
       ctxStreamer.focusTexture.anisotropy = maxAnisotropy;
@@ -11909,10 +10607,11 @@ import * as THREE from "./vendor/three.module.js";
         description: `${ctxDescription} Colorized with Viking global mosaic.`,
         source_page_url: ctxServiceConfig.sourceServiceUrl || ctxServiceConfig.serviceUrl,
       };
-      baseLayers.unshift(CTX_LAYER);
-      baseLayers.unshift(CTX_COLOR_LAYER);
+      // CTX tile service not available for this planet
+      // baseLayers.unshift(CTX_LAYER);
+      // baseLayers.unshift(CTX_COLOR_LAYER);
       layerTextures.set("ctx-mosaic", ctxStreamer.texture);
-      layerTextures.set("ctx-mosaic-color", layerTextures.get("viking-color") || null);
+      layerTextures.set("ctx-mosaic-color", layerTextures.get("venus-surface") || null);
 
       setStatus("Preparing terrain layers...");
       // Phase 1: elevation + default geology only. Minerals and non-default geology load in background.
@@ -11949,6 +10648,18 @@ import * as THREE from "./vendor/three.module.js";
         layerTextures.set(ELEVATION_DEM_LAYER.id, elevationMap);
       }
       const elevationSampler = createElevationSamplerState(elevationMap);
+      // createSeaOverlayTextureState reads elevationMap.image pixel data — must be called before
+      // we null the image below. Pass elevationSampler so it shares the already-decoded pixel
+      // array rather than allocating a second identical ~33 MB Uint8ClampedArray.
+      const _earlySeaOverlayState = createSeaOverlayTextureState(elevationMap, elevationSampler);
+      // Upload to GPU first, then free the decoded bitmap (~32 MB renderer memory).
+      // version=0 permanently exits the re-upload condition `version > 0 && __version !== version`
+      // so Three.js never attempts to re-upload a null-image texture.
+      if (elevationMap) {
+        renderer.initTexture(elevationMap);
+        if (elevationMap.image) elevationMap.image = null;
+        elevationMap.version = 0;
+      }
       const getRequestedTerrainRelief = () => elevationMap ? Number(terrainScale.value) : 0;
       const getEffectiveTerrainRelief = () => {
         if (!elevationMap) return 0;
@@ -11964,7 +10675,7 @@ import * as THREE from "./vendor/three.module.js";
       const standardLayers = selectableBaseLayers.filter((l) => !l.scGroup);
       // Group standard layers into labelled optgroups
       const BASE_LAYER_GROUPS = [
-        { label: "Imagery",          ids: ["viking-color", "ctx-mosaic-color", "ctx-mosaic"] },
+        { label: "Imagery",          ids: ["venus-surface"] },
         { label: "Thermal & Albedo", ids: ["tes-albedo", "tes-thermal-inertia"] },
         { label: "Terrain",          ids: ["elevation-dem", "derived-hillshade", TERRAIN_PICKER_SLOPE_LAYER_ID] },
       ];
@@ -12072,22 +10783,23 @@ import * as THREE from "./vendor/three.module.js";
         option.textContent = layer.label;
         mineralSelect.appendChild(option);
       }
-      const initialLayer = baseLayers.find((layer) => layer.id === "viking-color")
+      const initialLayer = baseLayers.find((layer) => layer.id === "venus-surface")
         || baseLayers.find((layer) => layer.default)
         || baseLayers[0];
       baseLayerSelect.value = initialLayer.id;
       const initialGeologyLayer = geologyLayers.find((layer) => layer.default) || geologyLayers[0];
       mineralSelect.value = "";
       const seaLevelMaxMeters = 0;
-      const elevationMinMeters = Math.floor(Number(manifest.elevation?.min_m ?? -8200) / 25) * 25;
+      const rawElevMinMeters = Number(manifest.elevation?.min_m ?? -2886);
+      const elevationMinMeters = Math.floor(rawElevMinMeters / 25) * 25;
       seaLevelSlider.min = String(elevationMinMeters);
       seaLevelSlider.max = String(seaLevelMaxMeters);
       seaLevelSlider.value = String(clamp(Number(seaLevelSlider.value), elevationMinMeters, seaLevelMaxMeters));
-      if (seaLevelMin) seaLevelMin.textContent = `${elevationMinMeters.toLocaleString()} m`;
+      if (seaLevelMin) seaLevelMin.textContent = `−${Math.abs(rawElevMinMeters).toLocaleString()} m`;
       syncSeaLevelAxisValue();
 
       const planetConfig = manifest.planet || {};
-      const sphereGeometry = new THREE.SphereGeometry(3.2, 192, 192);
+      const sphereGeometry = new THREE.SphereGeometry(3.2, 128, 128);
       const initialBaseTexture = layerTextures.get(initialLayer.id) || null;
 
       const baseMaterial = new THREE.MeshStandardMaterial({
@@ -12107,7 +10819,7 @@ import * as THREE from "./vendor/three.module.js";
         shader.uniforms.uContourTexel = { value: new THREE.Vector2(1 / 4096, 1 / 2048) };
         shader.uniforms.uContourThickness = { value: 1.15 };
         shader.uniforms.uContourInterval = { value: 0 };
-        shader.uniforms.uContourMinMeters = { value: Number(manifest.elevation?.min_m ?? -8200) };
+        shader.uniforms.uContourMinMeters = { value: Number(manifest.elevation?.min_m ?? -2886) };
         shader.uniforms.uContourReliefMeters = { value: Math.max(Number(manifest.elevation?.relief_m ?? 1), 1) };
         baseMaterial.userData.contourShader = shader;
         shader.fragmentShader = shader.fragmentShader
@@ -12233,7 +10945,7 @@ uniform float uViewportWidth;`,
       };
       compareMaterial.needsUpdate = true;
       const compareGlobe = new THREE.Mesh(
-        new THREE.SphereGeometry(3.207, 192, 192),
+        new THREE.SphereGeometry(3.207, 128, 128),
         compareMaterial,
       );
       compareGlobe.rotation.y = Math.PI;
@@ -12267,7 +10979,7 @@ uniform float uViewportWidth;`,
         shader.uniforms.uContourTexel = { value: new THREE.Vector2(1 / 4096, 1 / 2048) };
         shader.uniforms.uContourThickness = { value: 1.15 };
         shader.uniforms.uContourInterval = { value: 0 };
-        shader.uniforms.uContourMinMeters = { value: Number(manifest.elevation?.min_m ?? -8200) };
+        shader.uniforms.uContourMinMeters = { value: Number(manifest.elevation?.min_m ?? -2886) };
         shader.uniforms.uContourReliefMeters = { value: Math.max(Number(manifest.elevation?.relief_m ?? 1), 1) };
         ctxFocusMaterial.userData.ctxShader = shader;
         shader.vertexShader = shader.vertexShader
@@ -12322,7 +11034,7 @@ uniform float uViewportWidth;`,
         ctxFocusMaterial.needsUpdate = true;
       };
       const ctxFocusGlobe = new THREE.Mesh(
-        new THREE.SphereGeometry(3.201, 192, 192),
+        new THREE.SphereGeometry(3.201, 128, 128),
         ctxFocusMaterial,
       );
       ctxFocusGlobe.rotation.y = Math.PI;
@@ -12340,6 +11052,11 @@ uniform float uViewportWidth;`,
         getTerrainRelief,
         maxAnisotropy,
       );
+      // Hard-cap the detail streamer at level 14. Tiles at level 15+ no longer exist
+      // in the CTX service; requesting them floods the network with 404 fallback chains
+      // (15→14→13→12, 48 inflight) and freezes the UI at close zoom.
+      ctxDetailStreamer.maxLevel = Math.min(ctxStreamer.FOCUS_MAX_LEVEL, 14);
+      ctxDetailStreamer.activationMinLevel = Math.min(ctxDetailStreamer.activationMinLevel, ctxDetailStreamer.maxLevel);
 
       // ── CTX detail diagnostics helpers ───────────────────────────────────────
       // console.table(window.ctxDiag())  — snapshot of the streamer state
@@ -12430,7 +11147,7 @@ uniform float uViewportWidth;`,
         polygonOffsetUnits: -2,
       });
       if (cutawayResult.crustRing) cutawayResult.crustRing.material = VENUS_UPPER_FACE_MAT;
-      const venusSolidInterior = buildVenusSolidInterior(3.2);
+      const venusSolidInterior = buildMarsSolidInterior(3.2);
       const venusSolidInteriorGroup = venusSolidInterior.group;
       venusGroup.add(venusSolidInteriorGroup);
       const venusInteriorSphereMaterials = [
@@ -12459,10 +11176,10 @@ uniform float uViewportWidth;`,
       };
       applyPlanetViewMode(saturnViewModeSelect ? saturnViewModeSelect.value : "tilted");
 
-      const GIS_BOOKMARK_STORAGE_KEY = "venus-gis-bookmarks-v1";
-      const GIS_STUDY_AREA_STORAGE_KEY = "venus-gis-study-areas-v1";
-      const GIS_BUFFER_STORAGE_KEY = "venus-gis-buffers-v1";
-      const GIS_BASE_STORAGE_KEY = "venus-gis-bases-v1";
+      const GIS_BOOKMARK_STORAGE_KEY = "mars-gis-bookmarks-v1";
+      const GIS_STUDY_AREA_STORAGE_KEY = "mars-gis-study-areas-v1";
+      const GIS_BUFFER_STORAGE_KEY = "mars-gis-buffers-v1";
+      const GIS_BASE_STORAGE_KEY = "mars-gis-bases-v1";
       const GIS_STORAGE_KEYS = [
         GIS_BOOKMARK_STORAGE_KEY,
         GIS_STUDY_AREA_STORAGE_KEY,
@@ -12481,7 +11198,7 @@ uniform float uViewportWidth;`,
         document.fonts.ready.catch(() => undefined),
         new Promise((resolve) => window.setTimeout(resolve, 1500)),
       ]);
-      const labelLayer = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief);
+      const labelLayer = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief, getReliefPoint, labelData);
       labelLayer.group.visible = true;
       venusGroup.add(labelLayer.group);
       let baseSiteLayer = buildBaseSiteLayer(initialGisBases, 3.2, elevationSampler, labelElevationCache, getTerrainRelief);
@@ -12494,10 +11211,10 @@ uniform float uViewportWidth;`,
       selectionRing.renderOrder = 203;
       selectionRing.visible = false;
       labelLayer.group.add(selectionRing);
-      moonLayer = buildMoonLayer(moonTextures);
+      moonLayer = buildMoonLayer(moonTextures, moonData, MOON_ORBIT_ECCENTRICITY);
       moonLayer.group.visible = true;
       venusGroup.add(moonLayer.group);
-      const moonFeatureLabelLayer = buildMoonFeatureLabelLayer();
+      const moonFeatureLabelLayer = buildMoonFeatureLabelLayer(moonData, moonFeatureData);
       moonFeatureLabelLayer.group.visible = true;
       venusGroup.add(moonFeatureLabelLayer.group);
       const moonSelectionRing = new THREE.Mesh(
@@ -12507,6 +11224,13 @@ uniform float uViewportWidth;`,
       moonSelectionRing.renderOrder = 203;
       moonSelectionRing.visible = false;
       moonFeatureLabelLayer.group.add(moonSelectionRing);
+      const moonSelectionCenterDot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.00045, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0, depthTest: false, depthWrite: false }),
+      );
+      moonSelectionCenterDot.renderOrder = 204;
+      moonSelectionCenterDot.visible = false;
+      moonFeatureLabelLayer.group.add(moonSelectionCenterDot);
       // Await the geology JSON before building vector layers so contacts/structures
       // are populated and layer.available is true when toggle disabled-states are set.
       // The fetch started early (line ~11719) and has been loading in parallel with
@@ -12536,7 +11260,7 @@ uniform float uViewportWidth;`,
               const _sc = document.createElement("canvas");
               _sc.width = _w;
               _sc.height = _h;
-              const _sctx = _sc.getContext("2d");
+              const _sctx = _sc.getContext("2d", { willReadFrequently: true });
               _sctx.drawImage(_img, 0, 0, _w, _h);
               geologyInteractiveState.samplerCtx = _sctx;
               geologyInteractiveState.samplerWidth = _w;
@@ -12660,7 +11384,7 @@ uniform float uViewportWidth;`,
       const geologyOutlineState = createGeologyOutlineState(THREE, geologyInteractiveState);
       if (geologyOutlineState) {
         const geologyOutlineMesh = new THREE.Mesh(
-          new THREE.SphereGeometry(3.209, 192, 192),
+          new THREE.SphereGeometry(3.209, 128, 128),
           new THREE.MeshBasicMaterial({
             map: geologyOutlineState.texture,
             transparent: true,
@@ -13242,14 +11966,14 @@ uniform float uViewportWidth;`,
         }
         const vertices = Array.isArray(activeBase.vertices) ? activeBase.vertices : [];
         if (vertices.length >= 3) {
-          const fillMesh = buildVenusPolygonFillMesh(vertices);
+          const fillMesh = buildMarsPolygonFillMesh(vertices);
           if (fillMesh) {
             const { r, g, b } = hexToRgb(activeBase.color || "#ff7846");
             fillMesh.material.color.setRGB(r / 255, g / 255, b / 255);
             fillMesh.material.opacity = 0.16;
             gisBaseGroup.add(fillMesh);
           }
-          const boundaryPoints = buildVenusSurfacePolyline(vertices, true, 0.02);
+          const boundaryPoints = buildMarsSurfacePolyline(vertices, true, 0.02);
           if (boundaryPoints.length >= 2) {
             const boundaryLine = new THREE.Line(
               new THREE.BufferGeometry().setFromPoints(boundaryPoints),
@@ -13286,14 +12010,14 @@ uniform float uViewportWidth;`,
           const def = BASE_BUILDER_CATALOG.find((entry) => entry.id === building.catalogId);
           const footprintVertices = buildBaseFootprintVertices(activeBase, building);
           if (!def || !footprintVertices) continue;
-          const mesh = buildVenusPolygonFillMesh(footprintVertices);
+          const mesh = buildMarsPolygonFillMesh(footprintVertices);
           if (mesh) {
             const { r, g, b } = hexToRgb(def.color);
             mesh.material.color.setRGB(r / 255, g / 255, b / 255);
             mesh.material.opacity = 0.46;
             gisBaseGroup.add(mesh);
           }
-          const linePoints = buildVenusSurfacePolyline(footprintVertices, true, 0.024);
+          const linePoints = buildMarsSurfacePolyline(footprintVertices, true, 0.024);
           if (linePoints.length >= 2) {
             const line = new THREE.Line(
               new THREE.BufferGeometry().setFromPoints(linePoints),
@@ -13621,8 +12345,8 @@ uniform float uViewportWidth;`,
         if (columnSet.has("temperature")) record.temperature_c = estimateVenusTemperature(lat, elevation || 0);
         if (columnSet.has("pressure")) record.pressure_pa = estimateVenusPressure(elevation || 0);
         if (columnSet.has("wind")) record.wind_m_s = estimateVenusWindSpeed(lat, elevation || 0);
-        if (columnSet.has("irradiance")) record.irradiance_w_m2 = estimateVenusIrradiance(lat, elevation || 0);
-        if (columnSet.has("radiation")) record.radiation_msv_day = estimateVenusRadiation(elevation || 0);
+        if (columnSet.has("irradiance")) record.irradiance_w_m2 = estimateMarsIrradiance(lat, elevation || 0);
+        if (columnSet.has("radiation")) record.radiation_msv_day = estimateMarsRadiation(elevation || 0);
         if (columnSet.has("geology")) {
           const geology = getGeologyFeatureAtLatLon(lat, lon, geologyInteractiveState);
           record.geology = geology?.rock_type || geology?.name || "";
@@ -13689,11 +12413,11 @@ uniform float uViewportWidth;`,
         if (!gisBufferState?.vertices?.length) {
           return;
         }
-        const fillMesh = buildVenusPolygonFillMesh(gisBufferState.vertices);
+        const fillMesh = buildMarsPolygonFillMesh(gisBufferState.vertices);
         if (fillMesh) {
           gisBufferGroup.add(fillMesh);
         }
-        const boundaryPoints = buildVenusSurfacePolyline(gisBufferState.vertices, true, 0.018);
+        const boundaryPoints = buildMarsSurfacePolyline(gisBufferState.vertices, true, 0.018);
         if (boundaryPoints.length >= 2) {
           const boundaryLine = new THREE.Line(
             new THREE.BufferGeometry().setFromPoints(boundaryPoints),
@@ -14765,7 +13489,7 @@ uniform float uViewportWidth;`,
           if (!feature || feature.geometry?.type !== "Polygon") {
             return;
           }
-          downloadJson("venus_study_area.geojson", { type: "FeatureCollection", features: [feature] });
+          downloadJson("mars_study_area.geojson", { type: "FeatureCollection", features: [feature] });
         });
       }
       if (gisStudyClearButton) {
@@ -14793,7 +13517,7 @@ uniform float uViewportWidth;`,
           if (!feature) {
             return;
           }
-          downloadJson("venus_buffer_zone.geojson", { type: "FeatureCollection", features: [feature] });
+          downloadJson("mars_buffer_zone.geojson", { type: "FeatureCollection", features: [feature] });
         });
       }
       if (gisBufferClear) {
@@ -14992,7 +13716,7 @@ uniform float uViewportWidth;`,
           if (!feature) {
             return;
           }
-          downloadJson("venus_study_geometry.geojson", {
+          downloadJson("mars_study_geometry.geojson", {
             type: "FeatureCollection",
             features: [feature],
           });
@@ -15074,7 +13798,7 @@ uniform float uViewportWidth;`,
           return context.centerLocal.clone().add(relVec);
         }
         // Store planetary measurements in the unspun body frame, then let the
-        // measurement overlay rotate with Venus so markers stay surface-locked.
+        // measurement overlay rotate with Mars so markers stay surface-locked.
         return localPoint.clone().applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
       }
 
@@ -15122,7 +13846,7 @@ uniform float uViewportWidth;`,
         pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
         raycaster.setFromCamera(pointer, camera);
         const candidates = [];
-        // Venus globe
+        // Mars globe
         const globeHit = raycaster.intersectObject(globe, false).find((e) => e.object.visible);
         if (globeHit) candidates.push(globeHit);
         // All moon meshes (visible or not — visibility check inside)
@@ -15143,7 +13867,7 @@ uniform float uViewportWidth;`,
         return candidates[0];
       }
 
-      function intersectVenusSurface(clientX, clientY) {
+      function intersectMarsSurface(clientX, clientY) {
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
@@ -15158,7 +13882,7 @@ uniform float uViewportWidth;`,
           return null;
         }
         // In moon-viewer mode only accept hits on the active moon — reject clicks that
-        // land on the Venus globe visible in the background.
+        // land on the Mars globe visible in the background.
         if (activeMoonViewerFeature && hit.context?.kind !== "moon") {
           return null;
         }
@@ -15751,7 +14475,7 @@ uniform float uViewportWidth;`,
         });
 
         geologyGlobe = new THREE.Mesh(
-          new THREE.SphereGeometry(3.202, 192, 192),
+          new THREE.SphereGeometry(3.202, 128, 128),
           geologyMaterial,
         );
         geologyGlobe.renderOrder = 45;
@@ -15776,7 +14500,7 @@ uniform float uViewportWidth;`,
         metalness: 0,
       });
       mineralGlobe = new THREE.Mesh(
-        new THREE.SphereGeometry(3.204, 192, 192),
+        new THREE.SphereGeometry(3.204, 128, 128),
         mineralMaterial,
       );
       mineralGlobe.renderOrder = 6;
@@ -15784,7 +14508,7 @@ uniform float uViewportWidth;`,
       mineralGlobe.visible = false;
       venusGroup.add(mineralGlobe);
 
-      const seaOverlayState = createSeaOverlayTextureState(elevationMap);
+      const seaOverlayState = _earlySeaOverlayState;
       if (seaOverlayState) {
         updateSeaOverlayTexture(seaOverlayState, Number(seaLevelSlider.value));
         seaMaterial = new THREE.MeshStandardMaterial({
@@ -15805,7 +14529,7 @@ uniform float uViewportWidth;`,
           emissiveIntensity: 0.2,
         });
         seaGlobe = new THREE.Mesh(
-          new THREE.SphereGeometry(3.206, 192, 192),
+          new THREE.SphereGeometry(3.206, 128, 128),
           seaMaterial,
         );
         seaGlobe.renderOrder = 46;
@@ -15837,7 +14561,7 @@ uniform float uViewportWidth;`,
           metalness: 0,
         });
         regionMaskGlobe = new THREE.Mesh(
-          new THREE.SphereGeometry(3.208, 192, 192),
+          new THREE.SphereGeometry(3.208, 128, 128),
           regionMaskMaterial,
         );
         regionMaskGlobe.renderOrder = 7;
@@ -15873,7 +14597,7 @@ uniform float uViewportWidth;`,
         // Rocky planet — globe is always visible; no "remove atmosphere" concept.
         const removeAtmosphere = false;
         const coreEnabled = Boolean(coreToggle && coreToggle.checked);
-        const venusLabelsEnabled = labelsToggle.checked;
+        const venusLabelsEnabled = labelsToggle.checked && !activeMoonViewerFeature;
         globe.visible = true;
         // Solid interior helper (gas-planet holdover) is never shown for rocky planets.
         // to avoid triggering expensive MeshPhysicalMaterial shader compilations.
@@ -15893,8 +14617,9 @@ uniform float uViewportWidth;`,
           material.needsUpdate = true;
         }
         if (baseMaterial) {
-          baseMaterial.map = !removeAtmosphere ? getLayerTextureById(baseLayerSelect.value) : null;
-          baseMaterial.color.set(!removeAtmosphere ? (baseMaterial.map ? 0xffffff : 0xd0b18a) : 0x6f675f);
+          const _bTex = !removeAtmosphere ? (getLayerTextureById(baseLayerSelect.value) || layerTextures.get("venus-surface") || null) : null;
+          baseMaterial.map = _bTex;
+          baseMaterial.color.set(!removeAtmosphere ? (_bTex ? 0xffffff : 0xd0b18a) : 0x6f675f);
           baseMaterial.needsUpdate = true;
         }
         if (compareGlobe) {
@@ -15955,6 +14680,16 @@ uniform float uViewportWidth;`,
           coreEnabled,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          !removeAtmosphere && (craterLabelsToggle?.checked ?? true),
+          !removeAtmosphere && (fluvialLabelsToggle?.checked ?? true),
+          !removeAtmosphere && (tectonicLabelsToggle?.checked ?? true),
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
         updateLabelVisibility(
           baseSiteLayer.entries,
@@ -15962,15 +14697,25 @@ uniform float uViewportWidth;`,
           globe,
           camera,
           renderer,
-          labelsToggle.checked,
+          labelsToggle.checked && !activeMoonViewerFeature,
           true,
           true,
           true,
           coreEnabled,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
-        baseSiteLayer.group.visible = Boolean(baseLabelsToggle?.checked);
+        baseSiteLayer.group.visible = Boolean(baseLabelsToggle?.checked) && !activeMoonViewerFeature;
         updateCoreLabelVisibility(cutawayResult, camera, Boolean(coreLabelsToggle && coreLabelsToggle.checked));
         moonFeatureLabelLayer.group.visible = labelsToggle.checked;
       }
@@ -16000,8 +14745,8 @@ uniform float uViewportWidth;`,
         }
         updateGeologyVectorLayer(geologyContactLayer);
         updateGeologyVectorLayer(geologyStructureLayer);
-        updateLabelAnchors(labelLayer, elevationSampler, labelElevationCache, getTerrainRelief, 3.2);
-        updateLabelAnchors(baseSiteLayer, elevationSampler, labelElevationCache, getTerrainRelief, 3.2);
+        updateLabelAnchors(labelLayer, elevationSampler, labelElevationCache, getTerrainRelief, 3.2, getReliefPoint);
+        updateLabelAnchors(baseSiteLayer, elevationSampler, labelElevationCache, getTerrainRelief, 3.2, getReliefPoint);
         renderActiveBaseOverlay();
         if (typeof updateSeismicAnchors === "function" && typeof seismicLayer !== "undefined" && typeof seismicElevationCache !== "undefined") {
           updateSeismicAnchors(seismicLayer, elevationSampler, seismicElevationCache, getTerrainRelief, 3.2);
@@ -16030,8 +14775,12 @@ uniform float uViewportWidth;`,
           dynamicHillshadeTexture = null;
         }
         const nextTexture = nextLayer ? getLayerTextureById(nextLayer.id) : null;
-        baseMaterial.map = nextTexture || null;
-        baseMaterial.color.set(nextTexture ? 0xffffff : 0xd0b18a);
+        if (!nextTexture && nextLayer?.path && layerTextures.get(nextLayer.id) === null) {
+          _loadBaseLayerOnDemand(nextLayer.id);
+        }
+        const _fallbackTex = nextTexture || layerTextures.get("venus-surface") || null;
+        baseMaterial.map = _fallbackTex;
+        baseMaterial.color.set(_fallbackTex ? 0xffffff : 0xd0b18a);
         baseMaterial.needsUpdate = true;
         if (hillshadeControls) {
           hillshadeControls.hidden = baseLayerSelect.value !== "derived-hillshade";
@@ -16040,7 +14789,6 @@ uniform float uViewportWidth;`,
           cutawayResult.crustRing.material.uniforms.uMap.value = nextTexture || null;
         }
         if (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color") {
-          applyPlanetViewMode("untilted");
           ctxStreamer.activate();
           ctxFocusGlobe.visible = false;
         } else {
@@ -16052,7 +14800,7 @@ uniform float uViewportWidth;`,
         if (ctxFocusMaterial?.userData?.ctxShader) {
           const shader = ctxFocusMaterial.userData.ctxShader;
           if (baseLayerSelect.value === "ctx-mosaic-color") {
-            shader.uniforms.uCtxColorMap.value = layerTextures.get("viking-color") || null;
+            shader.uniforms.uCtxColorMap.value = layerTextures.get("venus-surface") || null;
             shader.uniforms.uCtxColorMix.value = 1.0;
             shader.uniforms.uCtxColorLift.value = 1.15;
           } else {
@@ -16153,7 +14901,11 @@ uniform float uViewportWidth;`,
         volcanicLabelsToggle.checked = true;
         landingLabelsToggle.checked = true;
         habitationLabelsToggle.checked = true;
+        if (craterLabelsToggle) craterLabelsToggle.checked = true;
+        if (fluvialLabelsToggle) fluvialLabelsToggle.checked = true;
+        if (tectonicLabelsToggle) tectonicLabelsToggle.checked = true;
         if (baseLabelsToggle) baseLabelsToggle.checked = true;
+        if (lodSlider) { lodSlider.value = 5; currentLodLevel = 5; syncLodLabel(); }
         updateLabelVisibility(
           labelLayer.entries,
           venusGroup,
@@ -16167,6 +14919,16 @@ uniform float uViewportWidth;`,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
         baseSiteLayer.group.visible = Boolean(baseLabelsToggle?.checked);
       }
@@ -16177,6 +14939,9 @@ uniform float uViewportWidth;`,
           volcanicLabelsToggle.checked ||
           landingLabelsToggle.checked ||
           habitationLabelsToggle.checked ||
+          (craterLabelsToggle && craterLabelsToggle.checked) ||
+          (fluvialLabelsToggle && fluvialLabelsToggle.checked) ||
+          (tectonicLabelsToggle && tectonicLabelsToggle.checked) ||
           (baseLabelsToggle && baseLabelsToggle.checked) ||
           (moonToggle && moonToggle.checked)
         );
@@ -16234,7 +14999,6 @@ uniform float uViewportWidth;`,
         syncContourOverlay();
         syncSpinToggleBtn();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
-        if (baseLayers.find((l) => l.id === baseLayerSelect.value && l.scParamKey)) openLegendSection();
         syncGisPanel();
       });
       if (gisCompareLayerSelect) {
@@ -16295,7 +15059,7 @@ uniform float uViewportWidth;`,
       geologyMasterToggle.addEventListener("change", () => {
         if (geologySection) geologySection.open = geologyMasterToggle.checked;
         if (geologyMasterToggle.checked) {
-          openLegendSection();
+          setTimeout(() => geologySection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
           applyDefaultGeologyState();
         } else {
           geologyToggle.checked = false;
@@ -16324,6 +15088,9 @@ uniform float uViewportWidth;`,
       mineralSelect.addEventListener("change", () => {
         const nextMineralLayer = mineralLayers.find((layer) => layer.id === mineralSelect.value);
         const nextMineralTexture = nextMineralLayer ? mineralTextures.get(nextMineralLayer.id) : null;
+        if (!nextMineralTexture && nextMineralLayer?.path) {
+          _loadMineralLayerOnDemand(nextMineralLayer.id);
+        }
         if (mineralMaterial) {
           mineralMaterial.map = nextMineralTexture || null;
           mineralMaterial.needsUpdate = true;
@@ -16331,11 +15098,28 @@ uniform float uViewportWidth;`,
         if (mineralGlobe) {
           mineralGlobe.visible = Boolean(nextMineralTexture);
         }
-        if (mineralSelect.value) openLegendSection();
         syncGeologyMasterToggle();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
         syncGisPanel();
       });
+
+      const _syncMoonFeatureLabels = () => {
+        moonFeatureLabelLayer.group.visible = labelsToggle.checked || volcanicLabelsToggle.checked || landingLabelsToggle.checked || habitationLabelsToggle.checked || (craterLabelsToggle?.checked ?? true) || (fluvialLabelsToggle?.checked ?? true) || (tectonicLabelsToggle?.checked ?? true);
+        updateMoonFeatureLabelVisibility(
+          moonFeatureLabelLayer.entries,
+          venusGroup,
+          camera,
+          renderer,
+          activeMoonViewerFeature,
+          volcanicLabelsToggle.checked,
+          landingLabelsToggle.checked,
+          habitationLabelsToggle.checked,
+        
+          craterLabelsToggle?.checked ?? true,
+          activePopupFeature,
+          isPointOccludedByAnyMoon,
+        );
+      };
 
       labelsToggle.addEventListener("change", () => {
         updateLabelVisibility(
@@ -16351,8 +15135,19 @@ uniform float uViewportWidth;`,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
-        moonFeatureLabelLayer.group.visible = labelsToggle.checked;
+        updateMoonVisibility(moonLayer.entries, venusGroup, camera, renderer, moonToggle ? moonToggle.checked : true, labelsToggle.checked && !activeMoonViewerFeature, activeMoonViewerFeature, isPointOccludedByAnyMoon);
+        _syncMoonFeatureLabels();
         syncLocationsMasterToggle();
       });
 
@@ -16370,7 +15165,18 @@ uniform float uViewportWidth;`,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
+        _syncMoonFeatureLabels();
         syncLocationsMasterToggle();
       });
 
@@ -16388,7 +15194,18 @@ uniform float uViewportWidth;`,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
+        _syncMoonFeatureLabels();
         syncLocationsMasterToggle();
       });
 
@@ -16406,9 +15223,150 @@ uniform float uViewportWidth;`,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
+        _syncMoonFeatureLabels();
         syncLocationsMasterToggle();
       });
+
+      if (craterLabelsToggle) {
+        craterLabelsToggle.addEventListener("change", () => {
+          updateLabelVisibility(
+            labelLayer.entries,
+            venusGroup,
+            globe,
+            camera,
+            renderer,
+            labelsToggle.checked,
+            volcanicLabelsToggle.checked,
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+            coreToggle.checked,
+            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+            craterLabelsToggle.checked,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+          
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
+          _syncMoonFeatureLabels();
+          syncLocationsMasterToggle();
+        });
+      }
+
+      if (fluvialLabelsToggle) {
+        fluvialLabelsToggle.addEventListener("change", () => {
+          updateLabelVisibility(
+            labelLayer.entries,
+            venusGroup,
+            globe,
+            camera,
+            renderer,
+            labelsToggle.checked,
+            volcanicLabelsToggle.checked,
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+            coreToggle.checked,
+            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+            craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle.checked,
+            tectonicLabelsToggle?.checked ?? true,
+
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
+          syncLocationsMasterToggle();
+        });
+      }
+
+      if (tectonicLabelsToggle) {
+        tectonicLabelsToggle.addEventListener("change", () => {
+          updateLabelVisibility(
+            labelLayer.entries,
+            venusGroup,
+            globe,
+            camera,
+            renderer,
+            labelsToggle.checked,
+            volcanicLabelsToggle.checked,
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+            coreToggle.checked,
+            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+            craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle.checked,
+
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
+          syncLocationsMasterToggle();
+        });
+      }
+
+      const lodValueLabel = document.getElementById("lod-value-label");
+      const LOD_LABELS = ["", "Landmarks only", "Major features", "Standard", "Detailed", "All features"];
+      function syncLodLabel() {
+        if (lodValueLabel) lodValueLabel.textContent = LOD_LABELS[currentLodLevel] || "All features";
+      }
+      syncLodLabel();
+
+      if (lodSlider) {
+        lodSlider.addEventListener("input", () => {
+          currentLodLevel = parseInt(lodSlider.value, 10);
+          syncLodLabel();
+          updateLabelVisibility(
+            labelLayer.entries,
+            venusGroup,
+            globe,
+            camera,
+            renderer,
+            labelsToggle.checked,
+            volcanicLabelsToggle.checked,
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+            coreToggle.checked,
+            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+            craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+          
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
+          _syncMoonFeatureLabels();
+        });
+      }
 
       if (baseLabelsToggle) {
         baseLabelsToggle.addEventListener("change", () => {
@@ -16426,7 +15384,17 @@ uniform float uViewportWidth;`,
             coreToggle.checked,
             baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
             Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
-          );
+            true,
+            true,
+            true,
+          
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
           syncLocationsMasterToggle();
         });
       }
@@ -16440,6 +15408,8 @@ uniform float uViewportWidth;`,
             renderer,
             moonToggle.checked,
             labelsToggle.checked,
+            activeMoonViewerFeature,
+            isPointOccludedByAnyMoon,
           );
           syncLocationsMasterToggle();
         });
@@ -16454,6 +15424,9 @@ uniform float uViewportWidth;`,
         volcanicLabelsToggle.checked = on;
         landingLabelsToggle.checked = on;
         habitationLabelsToggle.checked = on;
+        if (craterLabelsToggle) craterLabelsToggle.checked = on;
+        if (fluvialLabelsToggle) fluvialLabelsToggle.checked = on;
+        if (tectonicLabelsToggle) tectonicLabelsToggle.checked = on;
         if (baseLabelsToggle) baseLabelsToggle.checked = on;
         if (moonToggle) moonToggle.checked = on;
         updateLabelVisibility(
@@ -16462,26 +15435,39 @@ uniform float uViewportWidth;`,
           globe,
           camera,
           renderer,
-          labelsToggle.checked,
-          volcanicLabelsToggle.checked,
-          landingLabelsToggle.checked,
-          habitationLabelsToggle.checked,
+          on,
+          on,
+          on,
+          on,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          on,
+          on,
+          on,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
         baseSiteLayer.group.visible = Boolean(baseLabelsToggle?.checked);
+        updateMoonVisibility(moonLayer.entries, venusGroup, camera, renderer, moonToggle ? moonToggle.checked : true, labelsToggle.checked && !activeMoonViewerFeature, activeMoonViewerFeature, isPointOccludedByAnyMoon);
+        _syncMoonFeatureLabels();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
       });
 
       coreToggle.addEventListener("change", () => {
         const enabled = coreToggle.checked;
         if (enabled) {
+          setTimeout(() => coreViewSection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
           resetActiveMeasurement();
           cursorReadout.hidden = true;
           lastScaleSampleLat = null;
           updateScaleHud(camera, globe, null, false);
-        } else {
+        } else if (!moonViewerToggle || !moonViewerToggle.checked) {
           resetExploreView(camera, controls);
         }
         if (enabled && elevationMap) {
@@ -16587,7 +15573,6 @@ uniform float uViewportWidth;`,
         if (seaGlobe) {
           seaGlobe.visible = seaToggle.checked;
         }
-        if (seaToggle.checked) openLegendSection();
         applyPlanetDisplayState();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
       });
@@ -16610,7 +15595,6 @@ uniform float uViewportWidth;`,
           : null;
         regionMaskMaterial.needsUpdate = true;
         regionMaskGlobe.visible = Boolean(regionMaskSelect.value);
-        if (regionMaskSelect.value) openLegendSection();
         applyPlanetDisplayState();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
       });
@@ -16742,7 +15726,7 @@ uniform float uViewportWidth;`,
       }
       if (csvPlotterExportPng) {
         csvPlotterExportPng.addEventListener("click", () => {
-          if (csvPlotterCanvas) exportCanvasPng(csvPlotterCanvas, "venus_csv_plot.png");
+          if (csvPlotterCanvas) exportCanvasPng(csvPlotterCanvas, "mars_csv_plot.png");
         });
       }
       if (gisStudyExtractButton) {
@@ -16785,6 +15769,7 @@ uniform float uViewportWidth;`,
             const firstFeature = getTourFeatureByIndex(0, activeTourModeFacetId);
             if (tourModeSection) {
               tourModeSection.open = true;
+              setTimeout(() => tourModeSection.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
             }
             if (firstFeature) {
               ensureNavigateBasemap();
@@ -16800,7 +15785,7 @@ uniform float uViewportWidth;`,
 
       if (tourModeFacet) {
         tourModeFacet.addEventListener("change", () => {
-          activeTourModeFacetId = tourModeFacet.value || TOUR_MODE_FACETS[0]?.id || "craters";
+          activeTourModeFacetId = tourModeFacet.value || TOUR_MODE_FACETS[0]?.id || "highlights";
           const nextFeature = getTourFeatureByIndex(0, activeTourModeFacetId);
           if (activeTourModeFeature) {
             presentTourFeature(nextFeature, camera, controls, "Touring");
@@ -16830,7 +15815,10 @@ uniform float uViewportWidth;`,
       }
 
       featureSearch.addEventListener("input", refreshSearchSuggestionsAfterTextEdit);
-      featureSearch.addEventListener("keyup", refreshSearchSuggestionsAfterTextEdit);
+      featureSearch.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "Enter" || e.key === "Escape") return;
+        refreshSearchSuggestionsAfterTextEdit();
+      });
       featureSearch.addEventListener("change", refreshSearchSuggestionsAfterTextEdit);
       featureSearch.addEventListener("focus", refreshSearchSuggestions);
       featureSearchResults.addEventListener("pointerdown", (event) => {
@@ -16854,7 +15842,15 @@ uniform float uViewportWidth;`,
         }
         if (event.key === "Enter") {
           event.preventDefault();
-          focusSearchedFeature(resolveFeatureSearchSelection(), camera, controls);
+          const activeBtn = featureSearchResults.querySelector(".search-suggestion.is-active");
+          const firstBtn  = featureSearchResults.querySelector(".search-suggestion");
+          if (activeBtn) {
+            activeBtn.click();
+          } else if (firstBtn) {
+            firstBtn.click();
+          } else {
+            focusSearchedFeature(resolveFeatureSearchSelection(), camera, controls);
+          }
         }
       });
       document.addEventListener("pointerdown", (event) => {
@@ -16918,6 +15914,57 @@ uniform float uViewportWidth;`,
           moonNavContext = "moon";
           resetActiveMeasurement(true);
           cycleMoonViewer(1, camera, controls);
+        });
+      }
+
+      if (moonFeatureSearchInput) {
+        moonFeatureSearchInput.addEventListener("input", refreshMoonFeatureSearch);
+        moonFeatureSearchInput.addEventListener("focus", refreshMoonFeatureSearch);
+        if (moonFeatureSearchResults) {
+          moonFeatureSearchResults.addEventListener("pointerdown", (e) => e.stopPropagation());
+          moonFeatureSearchResults.addEventListener("click", (e) => e.stopPropagation());
+        }
+        moonFeatureSearchInput.addEventListener("keydown", (event) => {
+          if (event.key === "ArrowDown" && activeMoonFeatureSearchResults.length) {
+            activeMoonFeatureSearchIndex = (activeMoonFeatureSearchIndex + 1) % activeMoonFeatureSearchResults.length;
+            renderMoonFeatureSearchResults(activeMoonFeatureSearchResults, true);
+            event.preventDefault();
+            return;
+          }
+          if (event.key === "ArrowUp" && activeMoonFeatureSearchResults.length) {
+            activeMoonFeatureSearchIndex = (activeMoonFeatureSearchIndex - 1 + activeMoonFeatureSearchResults.length) % activeMoonFeatureSearchResults.length;
+            renderMoonFeatureSearchResults(activeMoonFeatureSearchResults, true);
+            event.preventDefault();
+            return;
+          }
+          if (event.key === "Enter") {
+            event.preventDefault();
+            const activeBtn = moonFeatureSearchResults && moonFeatureSearchResults.querySelector(".search-suggestion.is-active");
+            const firstBtn  = moonFeatureSearchResults && moonFeatureSearchResults.querySelector(".search-suggestion");
+            if (activeBtn) { activeBtn.click(); }
+            else if (firstBtn) { firstBtn.click(); }
+          }
+        });
+        document.addEventListener("pointerdown", (event) => {
+          if (
+            event.target !== moonFeatureSearchInput &&
+            event.target !== moonFeatureSearchGo &&
+            !(moonFeatureSearchResults && moonFeatureSearchResults.contains(event.target))
+          ) {
+            clearMoonFeatureSearchResults();
+          }
+        });
+      }
+      if (moonFeatureSearchGo) {
+        moonFeatureSearchGo.addEventListener("click", () => {
+          const selected = activeMoonFeatureSearchIndex >= 0
+            ? activeMoonFeatureSearchResults[activeMoonFeatureSearchIndex]
+            : activeMoonFeatureSearchResults[0];
+          if (selected) {
+            moveCameraToFeature(selected, camera, controls, { animate: true });
+            openFeature(selected, false);
+            clearMoonFeatureSearchResults(true);
+          }
         });
       }
 
@@ -17054,7 +16101,7 @@ uniform float uViewportWidth;`,
           ? intersectMeasurementSurface(event.clientX, event.clientY)
           : (() => {
               const hit = intersectAnySurface(event.clientX, event.clientY);
-              // In moon-viewer mode ignore background Venus globe hits for cursor readout
+              // In moon-viewer mode ignore background Mars globe hits for cursor readout
               if (activeMoonViewerFeature && hit?.context?.kind !== "moon") return null;
               return hit;
             })();
@@ -17113,7 +16160,7 @@ uniform float uViewportWidth;`,
               : pressurePa < 500 ? "#c8a8e0"
               : pressurePa < 800 ? "#e8b878"
               : "#ff9966";
-            if (scContext) scContext.textContent = "VENUS SURFACE";
+            if (scContext) scContext.textContent = "MARS SURFACE";
           }
         } else {
           // No surface hit — cursor is in space
@@ -17140,14 +16187,24 @@ uniform float uViewportWidth;`,
             globe,
             camera,
             renderer,
-            labelsToggle.checked,
+            labelsToggle.checked && !activeMoonViewerFeature,
             volcanicLabelsToggle.checked,
             landingLabelsToggle.checked,
             habitationLabelsToggle.checked,
             true,
             baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
             Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
-          );
+            craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+          
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
           updateCoreLabelVisibility(
             cutawayResult,
             camera,
@@ -17247,7 +16304,7 @@ uniform float uViewportWidth;`,
         if (priorityHit) {
           hoveredFeature = priorityHit.object.userData.feature;
         } else {
-          const geologySurfaceHit = geologyToggle.checked ? intersectVenusSurface(event.clientX, event.clientY) : null;
+          const geologySurfaceHit = geologyToggle.checked ? intersectMarsSurface(event.clientX, event.clientY) : null;
           if (geologySurfaceHit) {
             // worldToLocal undoes venusGroup.rotation.z (axial tilt); then un-spin globe.rotation.y
             const hoverLocalHit = venusGroup.worldToLocal(geologySurfaceHit.point.clone());
@@ -17371,7 +16428,7 @@ uniform float uViewportWidth;`,
           return;
         }
         if (gisBasePlacementMode) {
-          const baseSurfaceHit = intersectVenusSurface(event.clientX, event.clientY);
+          const baseSurfaceHit = intersectMarsSurface(event.clientX, event.clientY);
           if (baseSurfaceHit) {
             const localPoint = venusGroup.worldToLocal(baseSurfaceHit.point.clone());
             const bodyPoint = localPoint.clone().applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
@@ -17383,7 +16440,7 @@ uniform float uViewportWidth;`,
         }
         // Priority 2: geology fill surface — use floating geo popup, not main scenePopup
         const clickSpinDelta = globe.rotation.y - Math.PI;
-        const surfaceHit = geologyToggle.checked ? intersectVenusSurface(event.clientX, event.clientY) : null;
+        const surfaceHit = geologyToggle.checked ? intersectMarsSurface(event.clientX, event.clientY) : null;
         if (surfaceHit) {
           // worldToLocal undoes venusGroup.rotation.z (axial tilt); then un-spin globe.rotation.y
           const clickLocalHit = venusGroup.worldToLocal(surfaceHit.point.clone());
@@ -17430,7 +16487,7 @@ uniform float uViewportWidth;`,
 
       function sampleFeatureAtViewport(nx, ny) {
         const { clientX, clientY } = viewportToClient(nx, ny);
-        const surfaceHit = intersectVenusSurface(clientX, clientY);
+        const surfaceHit = intersectMarsSurface(clientX, clientY);
         let geologyFeature = null;
         if (surfaceHit) {
           const sampleLocalHit = venusGroup.worldToLocal(surfaceHit.point.clone());
@@ -17633,6 +16690,7 @@ ${error && error.message ? error.message : error}`;
           fp[0] = connectorStart.x;  fp[1] = connectorStart.y;  fp[2] = connectorStart.z;
           fp[3] = sprite.position.x; fp[4] = sprite.position.y; fp[5] = sprite.position.z;
           line.geometry.attributes.position.needsUpdate = true;
+          line.geometry.computeBoundingSphere();
         }
       }
 
@@ -17643,6 +16701,94 @@ ${error && error.message ? error.message : error}`;
         camQuat: new THREE.Quaternion(),
         moving: false,
       };
+
+      // Force-upload a texture to GPU then release its CPU image backing store.
+      // Only used for textures that are actively rendered (moon textures, the
+      // default base/geology layers). Inactive layers are never pre-uploaded so
+      // they don't consume GPU memory until the user selects them.
+      function _freeTexImage(tex) {
+        if (!tex || !tex.image) return;
+        renderer.initTexture(tex);
+        tex.image = null;
+        tex.version = 0;
+      }
+
+      const _onDemandLoading = new Set();
+
+      async function _loadBaseLayerOnDemand(layerId) {
+        if (_onDemandLoading.has(layerId)) return;
+        const layer = baseLayers.find(l => l.id === layerId);
+        if (!layer?.path || layerTextures.get(layerId) !== null) return;
+        _onDemandLoading.add(layerId);
+        try {
+          const raw = await loadTextureSafe(textureLoader, layer.path);
+          let tex;
+          if (layer.scGroup) {
+            tex = raw;
+            if (tex) {
+              tex.colorSpace = THREE.SRGBColorSpace;
+              tex.wrapS = THREE.RepeatWrapping;
+              tex.wrapT = THREE.ClampToEdgeWrapping;
+              tex.repeat.set(1, 1);
+              tex.offset.set(0, 0);
+              tex.needsUpdate = true;
+            }
+          } else {
+            tex = applyTextureTransforms(raw, layer);
+            if (tex) tex.colorSpace = THREE.SRGBColorSpace;
+          }
+          if (tex) tex.onUpdate = () => { tex.image = null; tex.onUpdate = null; };
+          layerTextures.set(layerId, tex || null);
+          if (baseLayerSelect.value === layerId) syncBasemapVisibility();
+        } finally {
+          _onDemandLoading.delete(layerId);
+        }
+      }
+
+      async function _loadMineralLayerOnDemand(layerId) {
+        if (_onDemandLoading.has('m:' + layerId)) return;
+        const layer = mineralLayers.find(l => l.id === layerId);
+        if (!layer?.path || mineralTextures.get(layerId) != null) return;
+        _onDemandLoading.add('m:' + layerId);
+        try {
+          const raw = await loadTextureSafe(textureLoader, layer.path);
+          if (raw) raw.colorSpace = THREE.SRGBColorSpace;
+          const tex = raw ? processMineralTexture(raw) : null;
+          mineralTextures.set(layerId, tex);
+          mineralSamplerStates.set(layerId, createRasterSamplerState(tex));
+          _freeTexImage(raw);
+          _freeTexImage(tex);
+          if (mineralSelect.value === layerId) {
+            if (mineralMaterial) { mineralMaterial.map = tex || null; mineralMaterial.needsUpdate = true; }
+            if (mineralGlobe) mineralGlobe.visible = Boolean(tex);
+          }
+        } finally {
+          _onDemandLoading.delete('m:' + layerId);
+        }
+      }
+
+      // After the first rendered frame, free CPU images for textures already on GPU.
+      // Only the default base layer and default geology layer are GPU-uploaded at
+      // this point — on-demand layers are loaded later and freed at load time.
+      // IDs whose textures are streaming canvases — must never have their image nulled.
+      const _streamingLayerIds = new Set(["ctx-mosaic", "ctx-mosaic-color"]);
+
+      let _textureCleanupDone = false;
+      function _freeTextureImages() {
+        if (_textureCleanupDone) return;
+        _textureCleanupDone = true;
+        for (const [id, tex] of layerTextures) {
+          if (!_streamingLayerIds.has(id)) _freeTexImage(tex);
+        }
+        for (const tex of geologyTextures.values()) {
+          _freeTexImage(tex);
+        }
+        // Pre-warm the CTX canvas texture now (while the GL context is idle after
+        // the first frame) so the first CTX selection doesn't stall the render thread
+        // uploading 128 MB + mipmaps. The original background loader used to do this
+        // implicitly by iterating all layerTextures; the moon-only loader no longer does.
+        if (ctxStreamer?.texture) renderer.initTexture(ctxStreamer.texture);
+      }
 
       function render() {
         // ── Motion throttle ───────────────────────────────────────────────────
@@ -17755,14 +16901,21 @@ ${error && error.message ? error.message : error}`;
               lastSafeMosaicCameraPosition.copy(camera.position);
             }
           } else {
-            lastSafeMosaicCameraPosition.copy(camera.position);
+            // Only record a non-CTX position as "safe" if it is above the CTX
+            // zoom floor. This ensures that if the user switches to CTX while
+            // already zoomed past 10 km (e.g. on Viking), the snap target is a
+            // genuinely safe altitude rather than the too-close current position.
+            const _nonCtxScaleBar = estimateScaleBarMetersForCameraPosition(camera.position);
+            if (!Number.isFinite(_nonCtxScaleBar) || _nonCtxScaleBar >= CTX_MOSAIC_MIN_SCALEBAR_METERS) {
+              lastSafeMosaicCameraPosition.copy(camera.position);
+            }
           }
         }
         const _t = performance.now();
         const _spinT = getSpinTime();
         if (!coreToggle.checked) {
           updateMoonOrbits(moonLayer.entries, moonFeatureLabelLayer.entries, _spinT);
-          globe.rotation.y = Math.PI + _spinT * (2 * Math.PI / _VENUS_DISPLAY_PERIOD_MS);
+          globe.rotation.y = Math.PI - _spinT * (2 * Math.PI / _VENUS_DISPLAY_PERIOD_MS);
           const _spinDelta = globe.rotation.y - Math.PI;
           labelLayer.group.rotation.y = _spinDelta;
           if (contourLineLayer && contourLineLayer.group) contourLineLayer.group.rotation.y = _spinDelta;
@@ -17790,7 +16943,10 @@ ${error && error.message ? error.message : error}`;
           compareShader.uniforms.uViewportWidth.value = renderer.domElement.clientWidth || window.innerWidth || 1;
         }
         const removeAtmosphere = false; // Rocky planet — no atmosphere to remove.
-        const venusLabelsEnabled = labelsToggle.checked;
+        const venusLabelsEnabled = labelsToggle.checked && !activeMoonViewerFeature;
+        // Group-level kill switch: hide the entire label layer in moon viewer mode every frame,
+        // overriding any event listener that may have turned individual sprites back on.
+        labelLayer.group.visible = !activeMoonViewerFeature;
         // Label/moon visibility: expensive per-entry world-space work. Runs every
         // frame when still; every 3rd frame during rotation (imperceptible at 60fps).
         if (_heavyFrame) {
@@ -17811,7 +16967,17 @@ ${error && error.message ? error.message : error}`;
               false,
               useMosaicLabelLayout,
               mosaicScaleBarMeters,
-            );
+              craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
             updateMoonVisibility(
               moonLayer.entries,
               venusGroup,
@@ -17819,17 +16985,23 @@ ${error && error.message ? error.message : error}`;
               renderer,
               moonToggle ? moonToggle.checked : true,
               venusLabelsEnabled,
+              activeMoonViewerFeature,
+              isPointOccludedByAnyMoon,
             );
-            if (!activeMoonViewerFeature) {
-              updateMoonFeatureLabelVisibility(
-                moonFeatureLabelLayer.entries,
-                venusGroup,
-                camera,
-                renderer,
-                null,
-                volcanicLabelsToggle.checked,
-              );
-            }
+            updateMoonFeatureLabelVisibility(
+              moonFeatureLabelLayer.entries,
+              venusGroup,
+              camera,
+              renderer,
+              activeMoonViewerFeature || null,
+              volcanicLabelsToggle.checked,
+              landingLabelsToggle.checked,
+              habitationLabelsToggle.checked,
+
+          craterLabelsToggle?.checked ?? true,
+          activePopupFeature,
+          isPointOccludedByAnyMoon,
+        );
           } else {
             updateLabelVisibility(
               labelLayer.entries,
@@ -17844,7 +17016,17 @@ ${error && error.message ? error.message : error}`;
               true,
               useMosaicLabelLayout,
               mosaicScaleBarMeters,
-            );
+              craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
             updateMoonVisibility(
               moonLayer.entries,
               venusGroup,
@@ -17852,6 +17034,8 @@ ${error && error.message ? error.message : error}`;
               renderer,
               moonToggle ? moonToggle.checked : true,
               venusLabelsEnabled,
+              activeMoonViewerFeature,
+              isPointOccludedByAnyMoon,
             );
             updateMoonFeatureLabelVisibility(
               moonFeatureLabelLayer.entries,
@@ -17860,7 +17044,13 @@ ${error && error.message ? error.message : error}`;
               renderer,
               !labelsToggle.checked ? null : activeMoonViewerFeature,
               volcanicLabelsToggle.checked,
-            );
+              landingLabelsToggle.checked,
+              habitationLabelsToggle.checked,
+            
+          craterLabelsToggle?.checked ?? true,
+          activePopupFeature,
+          isPointOccludedByAnyMoon,
+        );
             updateCoreLabelVisibility(
               cutawayResult,
               camera,
@@ -17880,7 +17070,13 @@ ${error && error.message ? error.message : error}`;
             renderer,
             activeMoonViewerFeature,
             volcanicLabelsToggle.checked,
-          );
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+          
+          craterLabelsToggle?.checked ?? true,
+          activePopupFeature,
+          isPointOccludedByAnyMoon,
+        );
         }
 
         if (activePopupFeature && !scenePopup.hidden) {
@@ -17939,8 +17135,16 @@ ${error && error.message ? error.message : error}`;
               moonSelectionRing.visible = true;
               moonSelectionRing.position.copy(entryMarker.position);
               moonSelectionRing.material.opacity = 0.35 + pulse * 0.55;
-              const markerScale = entryMarker.scale?.x || 1;
-              moonSelectionRing.scale.setScalar((1.0 + pulse * 0.4) * markerScale);
+              // Scale ring to consistent apparent angular size regardless of camera distance.
+              // controls.target is the moon centre world position set by activateMoonViewer — reliable.
+              const _camDist = Math.max(0.001, camera.position.distanceTo(controls.target));
+              const _moonRingScale = (_camDist * 0.011) / 0.0008;
+              moonSelectionRing.scale.setScalar(_moonRingScale * (1.0 + pulse * 0.3));
+              moonSelectionCenterDot.position.copy(entryMarker.position);
+              moonSelectionCenterDot.scale.setScalar(_moonRingScale * 0.5);
+              moonSelectionCenterDot.visible = true;
+              moonSelectionCenterDot.material.color.setRGB(1.0, 0.83 + pulse * 0.14, 0.42 + pulse * 0.43);
+              moonSelectionCenterDot.material.opacity = 0.88 + pulse * 0.12;
               selectionRing.visible = false;
               coreSelectionRing.visible = false;
             }
@@ -17957,6 +17161,7 @@ ${error && error.message ? error.message : error}`;
           } else {
             selectionRing.visible = false;
             moonSelectionRing.visible = false;
+            moonSelectionCenterDot.visible = false;
             coreSelectionRing.visible = false;
           }
         }
@@ -18061,7 +17266,7 @@ ${error && error.message ? error.message : error}`;
           if (ctxFocusMaterial?.userData?.ctxShader) {
             const shader = ctxFocusMaterial.userData.ctxShader;
             const wantsColor = baseLayerSelect.value === "ctx-mosaic-color";
-            shader.uniforms.uCtxColorMap.value = wantsColor ? (layerTextures.get("viking-color") || null) : null;
+            shader.uniforms.uCtxColorMap.value = wantsColor ? (layerTextures.get("venus-surface") || null) : null;
             shader.uniforms.uCtxColorMix.value = wantsColor ? 1.0 : 0.0;
             shader.uniforms.uCtxColorLift.value = wantsColor ? 1.15 : 1.0;
           }
@@ -18116,6 +17321,7 @@ ${error && error.message ? error.message : error}`;
         }
         updateMeasureVisualScale();
         renderer.render(scene, camera);
+        _freeTextureImages();
         requestAnimationFrame((timestamp) => {
           lastTimestamp = Math.max(16, timestamp - (lastTimestamp || timestamp));
           render();
@@ -18136,73 +17342,26 @@ ${error && error.message ? error.message : error}`;
       }
       spinOffset = performance.now();
 
-      // Background-load all non-default layers in batches of 4.
-      // The globe is already rendering with default layers by the time this runs.
+      // Background-load moon textures so Phobos/Deimos render correctly on first zoom.
+      // All other layers (base, geology, mineral) load on demand when the user selects them.
       (function backgroundLoadLayers() {
-        const BATCH = 4;
-        const queue = [
-          // Non-default base layers (hillshade, slope, TES, etc.)
-          ...baseLayers
-            .filter(l => l.path && !l.scGroup && !layerTextures.get(l.id))
-            .map(layer => async () => {
-              const raw = await loadTextureSafe(textureLoader, layer.path);
-              const tex = applyTextureTransforms(raw, layer);
-              if (tex) tex.colorSpace = THREE.SRGBColorSpace;
-              layerTextures.set(layer.id, tex);
-            }),
-          // Moon textures (Phobos, Deimos)
-          ...moonData
-            .filter(item => MOON_VIEWER_TEXTURES[item.name])
-            .map(item => async () => {
-              const tex = await loadTextureSafe(textureLoader, MOON_VIEWER_TEXTURES[item.name]);
-              if (tex) tex.colorSpace = THREE.SRGBColorSpace;
-              moonTextures.set(item.name, tex || null);
-              if (tex && moonLayer?.entries) {
-                const entry = moonLayer.entries.find(e => e.item?.name === item.name);
-                if (entry?.moonMesh?.material) {
-                  entry.moonMesh.material.map = tex;
-                  entry.moonMesh.material.color.set("#ffffff");
-                  entry.moonMesh.material.needsUpdate = true;
-                }
+        const moonQueue = moonData
+          .filter(item => MOON_VIEWER_TEXTURES[item.name])
+          .map(item => async () => {
+            const tex = await loadTextureSafe(textureLoader, MOON_VIEWER_TEXTURES[item.name]);
+            if (tex) tex.colorSpace = THREE.SRGBColorSpace;
+            moonTextures.set(item.name, tex || null);
+            if (tex && moonLayer?.entries) {
+              const entry = moonLayer.entries.find(e => e.item?.name === item.name);
+              if (entry?.moonMesh?.material) {
+                entry.moonMesh.material.map = tex;
+                entry.moonMesh.material.color.set("#ffffff");
+                entry.moonMesh.material.needsUpdate = true;
               }
-            }),
-          // Surface condition layers (temperature, pressure, wind, etc.)
-          ...SC_LAYERS.map(layer => async () => {
-            const tex = await loadTextureSafe(textureLoader, layer.path);
-            if (tex) {
-              tex.colorSpace = THREE.SRGBColorSpace;
-              tex.wrapS = THREE.RepeatWrapping;
-              tex.wrapT = THREE.ClampToEdgeWrapping;
-              tex.repeat.set(1, 1);
-              tex.offset.set(0, 0);
-              tex.needsUpdate = true;
             }
-            layerTextures.set(layer.id, tex || null);
-          }),
-          // Non-default geology overlays
-          ...geologyLayers
-            .filter(l => !l.default)
-            .map(layer => async () => {
-              const raw = await loadTextureSafe(textureLoader, layer.path);
-              const tex = applyTextureTransforms(raw, layer);
-              if (tex) tex.colorSpace = THREE.SRGBColorSpace;
-              geologyTextures.set(layer.id, tex);
-            }),
-          // Mineral abundance maps
-          ...mineralLayers.map(layer => async () => {
-            const raw = await loadTextureSafe(textureLoader, layer.path);
-            if (raw) raw.colorSpace = THREE.SRGBColorSpace;
-            const tex = raw ? processMineralTexture(raw) : null;
-            mineralTextures.set(layer.id, tex);
-            mineralSamplerStates.set(layer.id, createRasterSamplerState(tex));
-          }),
-        ];
-        async function runQueue() {
-          for (let i = 0; i < queue.length; i += BATCH) {
-            await Promise.all(queue.slice(i, i + BATCH).map(fn => fn()));
-          }
-        }
-        runQueue().catch(() => {});
+            _freeTexImage(tex);
+          });
+        Promise.all(moonQueue.map(fn => fn())).catch(() => {});
       })();
 
       render();
@@ -18227,7 +17386,7 @@ ${error && error.message ? error.message : error}`;
             const _h = _img.naturalHeight || _img.height || 2048;
             const _sc = document.createElement("canvas");
             _sc.width = _w; _sc.height = _h;
-            const _sctx = _sc.getContext("2d");
+            const _sctx = _sc.getContext("2d", { willReadFrequently: true });
             _sctx.drawImage(_img, 0, 0, _w, _h);
             _state.samplerCtx = _sctx;
             _state.samplerWidth = _w;
@@ -18256,7 +17415,7 @@ ${error && error.message ? error.message : error}`;
 
     // NASA sounds audio player (play/pause only — no seek bar)
     (function () {
-      const audioEl = document.getElementById("venus-audio-el");
+      const audioEl = document.getElementById("mars-audio-el");
       const playBtn = document.getElementById("audio-play-btn");
       const iconPlay = document.getElementById("audio-icon-play");
       const iconPause = document.getElementById("audio-icon-pause");
@@ -18316,17 +17475,33 @@ ${error && error.message ? error.message : error}`;
     const toolbarCollapseBtn = document.getElementById("toolbar-collapse-btn");
     const toolbarTab = document.getElementById("toolbar-tab");
     const surfaceHud = document.getElementById("bottom-right-hud");
+    // Mobile: inject backdrop element for closing the panel by tapping outside
+    const backdrop = document.createElement("div");
+    backdrop.id = "mobile-panel-backdrop";
+    document.body.appendChild(backdrop);
+
+    const isMobileLayout = () => window.matchMedia("(max-width: 768px), (pointer: coarse) and (max-width: 1024px)").matches;
+
+    function openPanel() {
+      uiPanel?.classList.remove("is-collapsed");
+      navTab.style.display = "none";
+      surfaceHud?.classList.remove("nav-collapsed");
+      if (isMobileLayout()) backdrop.classList.add("is-visible");
+    }
+    function closePanel() {
+      uiPanel?.classList.add("is-collapsed");
+      navTab.style.display = "flex";
+      surfaceHud?.classList.add("nav-collapsed");
+      backdrop.classList.remove("is-visible");
+    }
+
     if (uiPanel && navCollapseBtn && navTab) {
-      navCollapseBtn.addEventListener("click", () => {
-        uiPanel.classList.add("is-collapsed");
-        navTab.style.display = "flex";
-        surfaceHud?.classList.add("nav-collapsed");
-      });
-      navTab.addEventListener("click", () => {
-        uiPanel.classList.remove("is-collapsed");
-        navTab.style.display = "none";
-        surfaceHud?.classList.remove("nav-collapsed");
-      });
+      // Auto-collapse on mobile at load
+      if (isMobileLayout()) closePanel();
+
+      navCollapseBtn.addEventListener("click", closePanel);
+      navTab.addEventListener("click", openPanel);
+      backdrop.addEventListener("click", closePanel);
     }
 
     if (toolbar && toolbarCollapseBtn && toolbarTab) {

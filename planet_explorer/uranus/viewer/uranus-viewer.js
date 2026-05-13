@@ -30,6 +30,9 @@
     const landingLabelsToggle = document.getElementById("landing-labels-toggle");
     const flybyPathsToggle = document.getElementById("flyby-paths-toggle");
     const habitationLabelsToggle = document.getElementById("habitation-labels-toggle");
+    const craterLabelsToggle = document.getElementById("crater-labels-toggle");
+    const tectonicLabelsToggle = document.getElementById("tectonic-labels-toggle");
+    const fluvialLabelsToggle = document.getElementById("fluvial-labels-toggle");
     const moonToggle = document.getElementById("moon-toggle");
     const seismicToggle = document.getElementById("seismic-toggle");
     const locationsMasterToggle = document.getElementById("locations-master-toggle");
@@ -62,109 +65,161 @@
     const seismicMagnitudeCopy = document.getElementById("seismic-magnitude-copy");
     const seismicTimelineSlider = document.getElementById("seismic-timeline-slider");
     const seismicTimelineReadout = document.getElementById("seismic-timeline-readout");
-    const labelData = [{"name":"North Polar Hood","type":"Polar haze cap","lat":70.0,"lon":20.0,"theme":"polar","description":"A bright high-latitude hood associated with Uranus' seasonal polar atmosphere."},{"name":"South Polar Region","type":"Polar atmosphere","lat":-70.0,"lon":210.0,"theme":"polar","description":"Representative southern polar atmosphere shaped by Uranus' extreme axial tilt."},{"name":"Equatorial Band","type":"Subtle cloud band","lat":0.0,"lon":0.0,"theme":"band","description":"A muted equatorial cloud band visible in enhanced contrast products."},{"name":"Northern Mid-Latitude Band","type":"Cloud band","lat":32.0,"lon":120.0,"theme":"band","description":"A representative northern mid-latitude band where methane haze and cloud contrast vary."},{"name":"Southern Mid-Latitude Band","type":"Cloud band","lat":-32.0,"lon":300.0,"theme":"band","description":"A representative southern band used for tracking subtle atmospheric circulation."},{"name":"North Temperate Belt","type":"Temperate belt","lat":45.0,"lon":60.0,"theme":"band","description":"A northern mid-latitude belt showing subtle banding in methane-sensitive imaging."},{"name":"South Temperate Belt","type":"Temperate belt","lat":-45.0,"lon":240.0,"theme":"band","description":"A southern temperate belt visible in high-contrast atmospheric views."},{"name":"Bright Cloud Complex","type":"Methane cloud complex","lat":28.0,"lon":80.0,"theme":"storm","description":"A representative bright methane cloud region in Uranus' upper atmosphere."},{"name":"Dark Spot Latitude","type":"Storm latitude","lat":-27.0,"lon":240.0,"theme":"storm","description":"Representative latitude for dark storm systems observed in Uranus monitoring campaigns."},{"name":"Epsilon Ring Equatorial Crossing","type":"Ring plane","lat":0.0,"lon":180.0,"theme":"landing","description":"Representative location where Uranus' ring plane intersects the equator in the texture projection."},{"name":"Voyager 2 Closest Approach","type":"Mission corridor","lat":-14.0,"lon":35.0,"theme":"landing","description":"Representative encounter region for Voyager 2's 1986 Uranus flyby."}];
-    const ringLabelData = [{"name":"6 Ring","type":"Narrow inner ring","theme":"ring","description":"One of Uranus' innermost narrow rings.","ring_region":"Inner narrow ring","ring_radius_km":"~41,800 km from Uranus center","ring_anchor":[4.4166,0,1.6075],"ring_label":[4.8394,0.18,1.7614],"ring_line_end":[4.6233,0.12,1.6827]},{"name":"Beta Ring","type":"Narrow ring","theme":"ring","description":"A narrow ring in the inner ring system of Uranus.","ring_region":"Inner ring system","ring_radius_km":"~45,700 km from Uranus center","ring_anchor":[1.7785,0,4.8864],"ring_label":[1.9324,0.18,5.3093],"ring_line_end":[1.8537,0.12,5.0931]},{"name":"Eta Ring","type":"Narrow ring","theme":"ring","description":"A narrow ring in the middle ring system of Uranus.","ring_region":"Middle ring system","ring_radius_km":"~47,200 km from Uranus center","ring_anchor":[-3.5996,0,4.2898],"ring_label":[-3.8889,0.18,4.6346],"ring_line_end":[-3.741,0.12,4.4584]},{"name":"Epsilon Ring","type":"Bright narrow ring","theme":"ring","description":"The brightest and outermost of Uranus' main narrow rings.","ring_region":"Outer main ring","ring_radius_km":"~51,100 km from Uranus center","ring_anchor":[-5.5426,0,-3.2],"ring_label":[-5.9323,0.18,-3.425],"ring_line_end":[-5.7331,0.12,-3.31]},{"name":"Mu Ring","type":"Diffuse dusty ring","theme":"ring","description":"A diffuse dusty outer ring discovered by Hubble.","ring_region":"Outer diffuse ring","ring_radius_km":"~97,700 km from Uranus center","ring_anchor":[3.6,0,-6.2354],"ring_label":[3.825,0.18,-6.6251],"ring_line_end":[3.71,0.12,-6.4259]}];
+    const labelData = [{"name":"North Polar Hood","type":"Polar haze cap","lat":70.0,"lon":20.0,"theme":"polar","description":"A bright polar hood driven by Uranus' extreme 97.77° axial tilt. The pole faces the Sun for 21 consecutive years, creating atmospheric dynamics unique in the solar system."},{"name":"South Polar Region","type":"Polar atmosphere","lat":-70.0,"lon":210.0,"theme":"polar","description":"Uranus' southern polar atmosphere. The planet's 97.77° tilt means each pole endures a 21-year polar night. When Voyager 2 visited in 1986, the south pole faced the Sun."},{"name":"Equatorial Band","type":"Subtle cloud band","lat":0.0,"lon":0.0,"theme":"band","description":"A muted equatorial cloud band visible in enhanced contrast products."},{"name":"Northern Mid-Latitude Band","type":"Cloud band","lat":32.0,"lon":120.0,"theme":"band","description":"A representative northern mid-latitude band where methane haze and cloud contrast vary."},{"name":"Southern Mid-Latitude Band","type":"Cloud band","lat":-32.0,"lon":300.0,"theme":"band","description":"A representative southern band used for tracking subtle atmospheric circulation."},{"name":"North Temperate Belt","type":"Temperate belt","lat":45.0,"lon":60.0,"theme":"band","description":"A northern mid-latitude belt showing subtle banding in methane-sensitive imaging."},{"name":"South Temperate Belt","type":"Temperate belt","lat":-45.0,"lon":240.0,"theme":"band","description":"A southern temperate belt visible in high-contrast atmospheric views."},{"name":"Bright Cloud Complex","type":"Methane cloud complex","lat":28.0,"lon":80.0,"theme":"storm","description":"A representative bright methane cloud in Uranus' upper atmosphere. Uranus hosts occasional bright outbursts at northern mid-latitudes, traceable over weeks with Earth-based telescopes."},{"name":"Dark Spot Latitude","type":"Storm latitude","lat":-27.0,"lon":240.0,"theme":"storm","description":"Representative latitude for dark vortex systems occasionally detected at Uranus. Unlike Jupiter's GRS, Uranian storms are short-lived and detected mainly through methane-band imaging."},{"name":"Epsilon Ring Equatorial Crossing","type":"Equatorial cloud band","lat":0.0,"lon":180.0,"theme":"band","description":"The equatorial atmosphere below the point where Uranus' tilted ring plane intersects the equatorial latitude. This is a cloud band in the upper atmosphere — the icy Epsilon Ring orbits ~51,000 km above this region. The near-perpendicular alignment of the ring system and the orbital path is a direct consequence of Uranus' 97.77° axial tilt."},{"name":"Voyager 2 Closest Approach","type":"Mission corridor","lat":-14.0,"lon":35.0,"theme":"landing","description":"Encounter region for Voyager 2's 24 January 1986 Uranus flyby — the only spacecraft to visit. Closest approach was ~81,500 km, revealing 10 new moons and 2 new rings."}];
+    const ringLabelData = [{"name":"6 Ring","type":"Narrow inner ring","theme":"ring","description":"One of Uranus' innermost narrow rings, orbiting ~41,900 km from the planet's center. The ring system was the first discovered by stellar occultation (1977) before Voyager's arrival.","ring_region":"Inner narrow ring","ring_radius_km":"~41,800 km from Uranus center","ring_anchor":[4.4166,0,1.6075],"ring_label":[4.8394,0.18,1.7614],"ring_line_end":[4.6233,0.12,1.6827]},{"name":"Beta Ring","type":"Narrow ring","theme":"ring","description":"A narrow ring ~45,661 km from Uranus' center. Part of the 1977 occultation discovery set. Uranus' rings are dark (geometric albedo ~0.03), narrower than Saturn's.","ring_region":"Inner ring system","ring_radius_km":"~45,700 km from Uranus center","ring_anchor":[1.7785,0,4.8864],"ring_label":[1.9324,0.18,5.3093],"ring_line_end":[1.8537,0.12,5.0931]},{"name":"Eta Ring","type":"Narrow ring","theme":"ring","description":"A narrow ring ~47,176 km from Uranus' center. The Eta ring shows both a narrow core and a broader fainter component, hinting at an active ring shepherd dynamic.","ring_region":"Middle ring system","ring_radius_km":"~47,200 km from Uranus center","ring_anchor":[-3.5996,0,4.2898],"ring_label":[-3.8889,0.18,4.6346],"ring_line_end":[-3.741,0.12,4.4584]},{"name":"Epsilon Ring","type":"Bright narrow ring","theme":"ring","description":"Uranus' brightest main narrow ring at ~51,100 km. Part of a system discovered in 1977 during a stellar occultation — rings appear nearly vertical when Uranus is at solstice.","ring_region":"Outer main ring","ring_radius_km":"~51,100 km from Uranus center","ring_anchor":[-5.5426,0,-3.2],"ring_label":[-5.9323,0.18,-3.425],"ring_line_end":[-5.7331,0.12,-3.31]},{"name":"Mu Ring","type":"Diffuse dusty ring","theme":"ring","description":"A broad diffuse outer ring ~97,700 km from Uranus, discovered by Hubble in 2003. Unlike the inner narrow rings, it resembles Jupiter's gossamer rings — dusty and widely spread.","ring_region":"Outer diffuse ring","ring_radius_km":"~97,700 km from Uranus center","ring_anchor":[3.6,0,-6.2354],"ring_label":[3.825,0.18,-6.6251],"ring_line_end":[3.71,0.12,-6.4259]}];
     const moonData = [{"name":"Miranda","type":"Major moon","theme":"moon","description":"A small icy moon with dramatic tectonic coronae and varied terrain, including Verona Rupes — one of the tallest cliffs in the Solar System.","moon_anchor":[6.8,0.08,4.4],"moon_radius":0.07,"moon_label_lift":0.19,"moon_color":"#b9b4aa","mean_radius_km":"236 km","orbit_distance_km":"~129,900 km","texture_source_url":null},{"name":"Ariel","type":"Major moon","theme":"moon","description":"A bright icy moon marked by canyons, scarps, and extensive resurfacing.","moon_anchor":[-7.6,-0.06,5.8],"moon_radius":0.092,"moon_label_lift":0.212,"moon_color":"#c9c6bd","mean_radius_km":"579 km","orbit_distance_km":"~190,900 km","texture_source_url":null},{"name":"Umbriel","type":"Major moon","theme":"moon","description":"A darker icy moon with an ancient cratered surface and a mysterious bright ring near its equator.","moon_anchor":[-9.8,0.04,-6.4],"moon_radius":0.09,"moon_label_lift":0.21,"moon_color":"#77736c","mean_radius_km":"585 km","orbit_distance_km":"~266,000 km","texture_source_url":null},{"name":"Titania","type":"Major moon","theme":"moon","description":"Uranus' largest moon, cut by major rift valleys and impact basins.","moon_anchor":[11.5,0.1,-8.6],"moon_radius":0.12,"moon_label_lift":0.24,"moon_color":"#aaa49b","mean_radius_km":"789 km","orbit_distance_km":"~436,300 km","texture_source_url":null},{"name":"Oberon","type":"Major moon","theme":"moon","description":"A distant major moon with old cratered terrain and bright crater deposits.","moon_anchor":[14.0,-0.12,8.8],"moon_radius":0.115,"moon_label_lift":0.235,"moon_color":"#8f8980","mean_radius_km":"761 km","orbit_distance_km":"~583,500 km","texture_source_url":null}];
-    const URANUS_EQUATORIAL_RADIUS_KM = 25559;
-    const URANUS_SCENE_RADIUS = 3.2;
-    const URANUS_KM_TO_SCENE = URANUS_SCENE_RADIUS / URANUS_EQUATORIAL_RADIUS_KM;
-    const URANUS_EXPOSED_INTERIOR_RFRAC = 0.58;
-    const URANUS_RING_REFERENCE_KM = {
-      dInner: 37000, cInner: 41900, bInner: 44700, cassiniInner: 46500,
-      aInner: 47200, aOuter: 51000, enckeCenter: 48300, keelerCenter: 50000,
-      fRing: 51100, mainOuter: 51500,
+    const SATURN_EQUATORIAL_RADIUS_KM = 25559;
+    const SATURN_SCENE_RADIUS = 3.2;
+    const SATURN_KM_TO_SCENE = SATURN_SCENE_RADIUS / SATURN_EQUATORIAL_RADIUS_KM;
+    const SATURN_EXPOSED_INTERIOR_RFRAC = 0.58;
+    const SATURN_RING_REFERENCE_KM = {
+      dInner: 66900,
+      cInner: 74500,
+      bInner: 92000,
+      cassiniInner: 117580,
+      aInner: 122170,
+      enckeCenter: 133584,
+      keelerCenter: 136505,
+      aOuter: 136780,
+      fRing: 140220,
+      mainOuter: 143000,
     };
+
+    const URANUS_RING_REFERENCE_KM = {
+      // Uranus ring system — actual measured radii (km from center)
+      innerClusterIn:  37000,  // zeta region inner boundary
+      innerClusterOut: 42700,  // past 6/5/4 ring cluster (41837–42571 km)
+      alphaBetaIn:     44600,  // alpha ring inner edge (~44718 km)
+      alphaBetaOut:    46200,  // beta ring outer edge (~45961 km)
+      etaGammaIn:      46900,  // eta ring inner (~47176 km)
+      etaGammaOut:     48700,  // delta ring outer (~48600 km)
+      epsilonInner:    50900,  // epsilon inner edge (varies 51100–51149 km; widen for visibility)
+      epsilonOuter:    51300,  // epsilon outer edge
+      mainOuter:       51500,  // outer boundary
+    };
+    function createCalibratedUranusRingTexture(baseTexture = null, outerRadiusKm = URANUS_RING_REFERENCE_KM.mainOuter) {
+      const size = 4096, center = (size-1)/2, maxRadius = size/2;
+      const canvas = document.createElement("canvas");
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      const imageData = ctx.createImageData(size, size);
+      const data = imageData.data;
+      let basePixels=null, baseWidth=0, baseHeight=0;
+      if (baseTexture?.image) {
+        const bc = document.createElement("canvas");
+        baseWidth = baseTexture.image.width || baseTexture.image.naturalWidth || 0;
+        baseHeight = baseTexture.image.height || baseTexture.image.naturalHeight || 0;
+        if (baseWidth && baseHeight) {
+          bc.width=baseWidth; bc.height=baseHeight;
+          const bctx=bc.getContext("2d",{willReadFrequently:true});
+          bctx.drawImage(baseTexture.image,0,0,baseWidth,baseHeight);
+          basePixels=bctx.getImageData(0,0,baseWidth,baseHeight).data;
+        }
+      }
+      const kmToUnit = km => km/outerRadiusKm;
+      const smoothBand = (r,iKm,oKm,eKm=170) => {
+        const i=kmToUnit(iKm),o=kmToUnit(oKm),e=eKm/outerRadiusKm;
+        return Math.min(Math.min(1,Math.max(0,(r-i)/e)),Math.min(1,Math.max(0,(o-r)/e)));
+      };
+      const sampleBase = (r,angle) => {
+        if (!basePixels) return null;
+        const bx=Math.max(0,Math.min(baseWidth-1,Math.round(((Math.cos(angle)*r)*0.5+0.5)*(baseWidth-1))));
+        const by=Math.max(0,Math.min(baseHeight-1,Math.round(((Math.sin(angle)*r)*0.5+0.5)*(baseHeight-1))));
+        const bi=(by*baseWidth+bx)*4;
+        if(basePixels[bi+3]<8) return null;
+        return [basePixels[bi],basePixels[bi+1],basePixels[bi+2]];
+      };
+      const R = URANUS_RING_REFERENCE_KM;
+      for (let y=0;y<size;y++) {
+        const dy=y-center;
+        for (let x=0;x<size;x++) {
+          const dx=x-center, r=Math.hypot(dx,dy)/maxRadius, angle=Math.atan2(dy,dx);
+          const i=(y*size+x)*4;
+          let alpha=0, shade=0;
+          if (r>=kmToUnit(R.innerClusterIn) && r<=1) {
+            const noise=0.5+0.25*Math.sin(r*1240)+0.14*Math.sin(r*3100+1.9)+0.07*Math.sin(x*0.021+y*0.015);
+            if (r<=kmToUnit(R.innerClusterOut)) {
+              // 6/5/4 ring cluster — faint inner group
+              alpha = 0.14 * smoothBand(r, R.innerClusterIn, R.innerClusterOut, 220);
+              shade = 55 + 22 * noise;
+            } else if (r>=kmToUnit(R.alphaBetaIn) && r<=kmToUnit(R.alphaBetaOut)) {
+              // alpha-beta ring cluster
+              alpha = 0.28 * smoothBand(r, R.alphaBetaIn, R.alphaBetaOut, 180);
+              shade = 68 + 32 * noise;
+            } else if (r>=kmToUnit(R.etaGammaIn) && r<=kmToUnit(R.etaGammaOut)) {
+              // eta-gamma-delta ring cluster
+              alpha = 0.32 * smoothBand(r, R.etaGammaIn, R.etaGammaOut, 160);
+              shade = 72 + 36 * noise;
+            } else if (r>=kmToUnit(R.epsilonInner) && r<=kmToUnit(R.epsilonOuter)) {
+              // epsilon ring — brightest, dominant ring
+              alpha = 0.86 * smoothBand(r, R.epsilonInner, R.epsilonOuter, 80);
+              shade = 148 + 62 * noise;
+            }
+          }
+          // Uranus rings: very dark charcoal, neutral to slightly blue-gray (albedo ~0.05)
+          const bc2=sampleBase(r,angle), pc=[shade*0.95, shade*0.96, shade*1.05];
+          const col=bc2?[bc2[0]*0.78+pc[0]*0.22,bc2[1]*0.78+pc[1]*0.22,bc2[2]*0.78+pc[2]*0.22]:pc;
+          data[i]=Math.max(0,Math.min(255,col[0]));data[i+1]=Math.max(0,Math.min(255,col[1]));
+          data[i+2]=Math.max(0,Math.min(255,col[2]));data[i+3]=Math.max(0,Math.min(255,alpha*255));
+        }
+      }
+      ctx.putImageData(imageData,0,0);
+      const tex=new THREE.CanvasTexture(canvas);
+      tex.colorSpace=THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;
+      tex.generateMipmaps=false; tex.minFilter=tex.magFilter=THREE.LinearFilter;
+      tex.needsUpdate=true; return tex;
+    }
 
     function georeferenceRingAndInnerMoonAnchors() {
       const ringAnchorKmByName = {
-        "D Ring": 70500,
-        "C Ring": 83250,
-        "B Ring": 104750,
-        "Cassini Division": 119750,
-        "A Ring": 129300,
-        "Encke Gap": 133584,
-        "Keeler Gap": 136505,
-        "F Ring": 140220,
-        // Display-compressed anchor for readability in this scene.
-        "G Ring": 148500,
-        // Display anchor is intentionally compressed for UI readability in this scene.
-        "E Ring": 150000,
+        "6 Ring":       41900,
+        "Beta Ring":    45661,
+        "Eta Ring":     47176,
+        "Epsilon Ring": 51100,
       };
       for (const entry of ringLabelData) {
         const radiusKm = ringAnchorKmByName[entry.name];
         if (!radiusKm || !Array.isArray(entry.ring_anchor)) continue;
         const [x, y, z] = entry.ring_anchor;
         const theta = Math.atan2(z, x);
-        const radiusScene = radiusKm * URANUS_KM_TO_SCENE;
+        const radiusScene = radiusKm * SATURN_KM_TO_SCENE;
         entry.ring_anchor = [
           Number((Math.cos(theta) * radiusScene).toFixed(4)),
           y,
           Number((Math.sin(theta) * radiusScene).toFixed(4)),
         ];
-        if (entry.name === "G Ring" || entry.name === "E Ring") {
-          const ax = entry.ring_anchor[0];
-          const az = entry.ring_anchor[2];
-          const ar = Math.hypot(ax, az) || 1;
-          const ux = ax / ar;
-          const uz = az / ar;
-          const tx = -uz;
-          const tz = ux;
-          const lineScale = entry.name === "G Ring" ? 1.012 : 1.018;
-          const labelScale = entry.name === "G Ring" ? 1.026 : 1.038;
-          const tangentOffset = entry.name === "G Ring" ? 0.05 : 0.08;
-          entry.ring_line_end = [
-            Number((ux * ar * lineScale).toFixed(4)),
-            0.12,
-            Number((uz * ar * lineScale).toFixed(4)),
-          ];
-          entry.ring_label = [
-            Number((ux * ar * labelScale + tx * tangentOffset).toFixed(4)),
-            0.18,
-            Number((uz * ar * labelScale + tz * tangentOffset).toFixed(4)),
-          ];
-        }
-      }
-
-      const moonOrbitKmByName = {
-        Pan: 133584,
-        Daphnis: 136505,
-        Atlas: 137670,
-        Prometheus: 139380,
-        Pandora: 141700,
-        Epimetheus: 151410,
-        Janus: 151460,
-        Aegaeon: 167500,
-        Methone: 194200,
-        Anthe: 197700,
-        Pallene: 212300,
-      };
-      for (const moon of moonData) {
-        const orbitKm = moonOrbitKmByName[moon.name];
-        if (!orbitKm || !Array.isArray(moon.moon_anchor)) continue;
-        const [x, y, z] = moon.moon_anchor;
-        const theta = Math.atan2(z, x);
-        const radiusScene = orbitKm * URANUS_KM_TO_SCENE;
-        moon.moon_anchor = [
-          Number((Math.cos(theta) * radiusScene).toFixed(4)),
-          y,
-          Number((Math.sin(theta) * radiusScene).toFixed(4)),
+        const ax = entry.ring_anchor[0];
+        const az = entry.ring_anchor[2];
+        const ar = Math.hypot(ax, az) || 1;
+        const ux = ax / ar;
+        const uz = az / ar;
+        const tx = -uz;
+        const tz = ux;
+        entry.ring_line_end = [
+          Number((ux * ar * 1.012).toFixed(4)),
+          0.12,
+          Number((uz * ar * 1.012).toFixed(4)),
+        ];
+        entry.ring_label = [
+          Number((ux * ar * 1.026 + tx * 0.05).toFixed(4)),
+          0.18,
+          Number((uz * ar * 1.026 + tz * 0.05).toFixed(4)),
         ];
       }
     }
     georeferenceRingAndInnerMoonAnchors();
 
     const moonFeatureData = [{"name":"Abans","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-15.5,"lon":108.7,"description":"Spirit of the iron mines.","dimension":"20.0 km"},{"name":"Agape","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-46.9,"lon":23.5,"description":"Spirit in Spenser's \u201c;Fairy Queene.\u201c","dimension":"34.0 km"},{"name":"Ataksak","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-53.1,"lon":135.7,"description":"Eskimo benevolent spirit.","dimension":"22.0 km"},{"name":"Befana","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-17.0,"lon":328.1,"description":"Good spirit who fills Italian children's stockings with toys on twelfth night.","dimension":"21.0 km"},{"name":"Berylune","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-22.5,"lon":32.1,"description":"Good spirit in Maeterlinck's \u201c;The Bluebird.\u201c","dimension":"29.0 km"},{"name":"Brownie Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-16.0,"lon":22.4,"description":"German good spirits who live in woods.","dimension":"343.0 km"},{"name":"Deive","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-22.3,"lon":337.0,"description":"Spirit of beautiful maiden.","dimension":"20.0 km"},{"name":"Djadek","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-12.0,"lon":108.9,"description":"Czech ancestral benevolent spirit and household guardian.","dimension":"22.0 km"},{"name":"Domovoy","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-71.5,"lon":20.3,"description":"Slavic spirit protector of home.","dimension":"71.0 km"},{"name":"Finvara","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-15.8,"lon":341.0,"description":"Irish king of spirits; provided horses and wine to men.","dimension":"31.0 km"},{"name":"Gwyn","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-77.5,"lon":337.5,"description":"Irish god of battle; leads mens' souls to Annwn.","dimension":"34.0 km"},{"name":"Huon","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-37.8,"lon":326.3,"description":"Replaced Oberon as King of Spirits when Oberon died.","dimension":"40.0 km"},{"name":"Kachina Chasmata","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-33.7,"lon":114.0,"description":"Pueblo (USA) good spirits who bring rain or other blessings.","dimension":"622.0 km"},{"name":"Kewpie Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-28.3,"lon":33.1,"description":"British race of quaint spirit babies.","dimension":"467.0 km"},{"name":"Korrigan Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-27.6,"lon":12.5,"description":"French wind spirits who cure diseases.","dimension":"365.0 km"},{"name":"Kra Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-32.1,"lon":5.8,"description":"Vital spirits (Gold Coast).","dimension":"142.0 km"},{"name":"Laica","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-21.3,"lon":315.6,"description":"Inca good spirit.","dimension":"30.0 km"},{"name":"Leprechaun Vallis","type":"Vallis","theme":"moon","moon_name":"Ariel","lat":-10.4,"lon":349.8,"description":"Spirits or dwarfs.","dimension":"328.0 km"},{"name":"Mab","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-38.8,"lon":7.8,"description":"Queen of Spirits, dethroned Titania.","dimension":"34.0 km"},{"name":"Melusine","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-52.9,"lon":351.1,"description":"Spirit heroine of medieval French story.","dimension":"50.0 km"},{"name":"Oonagh","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-21.9,"lon":115.6,"description":"Irish Queen of Fairies.","dimension":"39.0 km"},{"name":"Pixie Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-20.4,"lon":354.9,"description":"British spirits that live in rocks.","dimension":"278.0 km"},{"name":"Rima","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-18.3,"lon":99.2,"description":"Spirit in Hudson's \u201c;Green Mansions.\u201c","dimension":"41.0 km"},{"name":"Sprite Vallis","type":"Vallis","theme":"moon","moon_name":"Ariel","lat":-14.9,"lon":20.0,"description":"Earth spirits.","dimension":"305.0 km"},{"name":"Sylph Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-48.6,"lon":7.0,"description":"British air spirits who influence the temperaments man.","dimension":"349.0 km"},{"name":"Yangoor","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-68.7,"lon":80.3,"description":"Spirit that brings day.","dimension":"78.0 km"},{"name":"Alonso","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-44.0,"lon":7.4,"description":"King of Naples in \u201c;The Tempest.\u201c","dimension":"25.0 km"},{"name":"Arden Corona","type":"Corona","theme":"moon","moon_name":"Miranda","lat":-29.1,"lon":286.3,"description":"Forest, location of \u201c;As You Like It.\u201c","dimension":"318.0 km"},{"name":"Argier Rupes","type":"Rupes","theme":"moon","moon_name":"Miranda","lat":-43.2,"lon":37.2,"description":"Location of earlier action in \u201c;The Tempest.\u201c","dimension":"141.0 km"},{"name":"Dunsinane Regio","type":"Regio","theme":"moon","moon_name":"Miranda","lat":-31.5,"lon":348.1,"description":"Location of castle where Macbeth was defeated.","dimension":"244.0 km"},{"name":"Elsinore Corona","type":"Corona","theme":"moon","moon_name":"Miranda","lat":-24.8,"lon":102.9,"description":"Location of Hamlet's castle.","dimension":"323.0 km"},{"name":"Ephesus Regio","type":"Regio","theme":"moon","moon_name":"Miranda","lat":-15.0,"lon":110.0,"description":"Home of twins and setting for \u201c;The Comedy of Errors.\u201c","dimension":"225.0 km"},{"name":"Ferdinand","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-34.8,"lon":157.9,"description":"Son of King of Naples; loves Miranda in \u201c;The Tempest.\u201c","dimension":"17.0 km"},{"name":"Francisco","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-73.2,"lon":124.0,"description":"A lord of Naples in \u201c;The Tempest.\u201c","dimension":"14.0 km"},{"name":"Gonzalo","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-11.4,"lon":283.0,"description":"Honest old counselor of Naples in \u201c;The Tempest.\u201c","dimension":"11.0 km"},{"name":"Inverness Corona","type":"Corona","theme":"moon","moon_name":"Miranda","lat":-66.9,"lon":34.3,"description":"Location of Macbeth's castle.","dimension":"234.0 km"},{"name":"Mantua Regio","type":"Regio","theme":"moon","moon_name":"Miranda","lat":-39.6,"lon":179.8,"description":"Location of part of \u201c;Two Gentlemen From Verona.\u201c","dimension":"399.0 km"},{"name":"Naples Sulcus","type":"Sulcus","theme":"moon","moon_name":"Miranda","lat":-32.0,"lon":100.0,"description":"Destination in \u201c;The Tempest.\u201c","dimension":"260.0 km"},{"name":"Prospero","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-32.9,"lon":30.1,"description":"Rightful Duke of Mila in \u201c;The Tempest.\u201c","dimension":"21.0 km"},{"name":"Sicilia Regio","type":"Regio","theme":"moon","moon_name":"Miranda","lat":-30.0,"lon":42.8,"description":"Location of \u201c;Winter's Tale.\u201c","dimension":"174.0 km"},{"name":"Stephano","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-41.1,"lon":125.9,"description":"A drunken butler in \u201c;The Tempest.\u201c","dimension":"16.0 km"},{"name":"Syracusa Sulcus","type":"Sulcus","theme":"moon","moon_name":"Miranda","lat":-15.0,"lon":67.0,"description":"Home of twins in the \u201c;Comedy of Errors.\u201c","dimension":"40.0 km"},{"name":"Trinculo","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-63.7,"lon":196.6,"description":"A jester in \u201c;The Tempest.\u201c","dimension":"11.0 km"},{"name":"Verona Rupes","type":"Rupes","theme":"moon","moon_name":"Miranda","lat":-18.3,"lon":12.2,"description":"Where Romeo and Juliet lived.","dimension":"116.0 km"},{"name":"Antony","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-27.5,"lon":114.6,"description":"Shakespearean hero in \u201c;Anthony and Cleopatra.\u201c","dimension":"47.0 km"},{"name":"Caesar","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-26.6,"lon":118.9,"description":"Shakespearean hero in \u201c;Julius Caesar.\u201c","dimension":"76.0 km"},{"name":"Coriolanus","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-11.4,"lon":194.8,"description":"Shakespearean hero.","dimension":"120.0 km"},{"name":"Falstaff","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-22.1,"lon":161.0,"description":"Shakespearean character in \u201c;Merry Wives of Windsor.\u201c","dimension":"124.0 km"},{"name":"Hamlet","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-46.1,"lon":135.6,"description":"Shakespearean hero.","dimension":"206.0 km"},{"name":"Lear","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-5.4,"lon":148.5,"description":"Shakespearean hero in \u201c;King Lear.\u201c","dimension":"126.0 km"},{"name":"Macbeth","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-58.4,"lon":67.5,"description":"Shakespearean hero.","dimension":"203.0 km"},{"name":"Mommur Chasma","type":"Chasma","theme":"moon","moon_name":"Oberon","lat":-16.3,"lon":216.5,"description":"Spirit place, forest home of Oberon in \u201c;Midsummer Night's Dream.\u201c","dimension":"537.0 km"},{"name":"Othello","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-66.0,"lon":137.1,"description":"Shakespearean character.","dimension":"114.0 km"},{"name":"Romeo","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-28.7,"lon":90.6,"description":"Shakespearean character in \u201c;Romeo and Juliet.\u201c","dimension":"159.0 km"},{"name":"Bogle","type":"Impact crater","theme":"moon","moon_name":"Puck","lat":0.0,"lon":0.0,"description":"Scottish mischievous spirits.","dimension":""},{"name":"Butz","type":"Impact crater","theme":"moon","moon_name":"Puck","lat":0.0,"lon":0.0,"description":"German roguish or evil spirits.","dimension":""},{"name":"Lob","type":"Impact crater","theme":"moon","moon_name":"Puck","lat":0.0,"lon":0.0,"description":"British mischievous spirits.","dimension":""},{"name":"Adriana","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-20.1,"lon":176.1,"description":"Wife of Antipholus of Ephesus in \u201c;The Comedy of Errors.\u201c","dimension":"50.0 km"},{"name":"Belmont Chasma","type":"Chasma","theme":"moon","moon_name":"Titania","lat":-8.5,"lon":147.4,"description":"Location in \u201c;Merchant of Venice.\u201c","dimension":"258.0 km"},{"name":"Bona","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-55.8,"lon":188.8,"description":"Sister of the French queen in \u201c;Henry VI, part 3.\u201c","dimension":"51.0 km"},{"name":"Calphurnia","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-42.4,"lon":248.6,"description":"Wife of Julius Caesar.","dimension":"100.0 km"},{"name":"Elinor","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-44.8,"lon":206.4,"description":"Mother of King John.","dimension":"74.0 km"},{"name":"Gertrude","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-15.8,"lon":252.9,"description":"Mother of Hamlet.","dimension":"326.0 km"},{"name":"Imogen","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-23.8,"lon":218.8,"description":"Cymbelline's daughter.","dimension":"28.0 km"},{"name":"Iras","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-19.2,"lon":201.2,"description":"Attendant to Cleopatra in \u201c;Anthony and Cleopatra.\u201c","dimension":"33.0 km"},{"name":"Jessica","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-55.3,"lon":254.1,"description":"Shylock's daughter in \u201c;The Merchant of Venice.\u201c","dimension":"64.0 km"},{"name":"Katherine","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-51.2,"lon":208.1,"description":"Henry VIII's first queen.","dimension":"75.0 km"},{"name":"Lucetta","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-14.7,"lon":262.9,"description":"Waiting woman to Julia in \u201c;Two Gentlemen of Verona.\u201c","dimension":"58.0 km"},{"name":"Marina","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-15.5,"lon":224.0,"description":"Daughter to Pericles in \u201c;Pericles, Prince of Tyre.\u201c","dimension":"40.0 km"},{"name":"Messina Chasmata","type":"Chasma","theme":"moon","moon_name":"Titania","lat":-33.3,"lon":205.0,"description":"Location in \u201c;Much Ado About Nothing.\u201c","dimension":"1492.0 km"},{"name":"Mopsa","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-11.9,"lon":237.8,"description":"Shepardess in \u201c;The Winter's Tale.\u201c","dimension":"101.0 km"},{"name":"Phrynia","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-24.3,"lon":230.8,"description":"Alcibiades' mistress in \u201c;Timon of Athens.\u201c","dimension":"35.0 km"},{"name":"Rousillon Rupes","type":"Rupes","theme":"moon","moon_name":"Titania","lat":-14.7,"lon":153.5,"description":"Location in \u201c;All's Well That Ends Well.\u201c","dimension":"402.0 km"},{"name":"Ursula","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-12.4,"lon":134.8,"description":"Attendant to Hero and Beatrice in \u201c;Much Ado About Nothing.\u201c","dimension":"135.0 km"},{"name":"Valeria","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-34.5,"lon":175.8,"description":"Friend to Vergilia in \u201c;Coriolanus.\u201c","dimension":"59.0 km"},{"name":"Alberich","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-33.6,"lon":317.8,"description":"Dwarf who guarded Niebelung gold, also had a mantle of invisibility.","dimension":"52.0 km"},{"name":"Fin","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-37.4,"lon":315.7,"description":"Troll who helped build a church in Kallundburg, Zealand.","dimension":"43.0 km"},{"name":"Gob","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-12.7,"lon":332.2,"description":"King of gnomes.","dimension":"88.0 km"},{"name":"Kanaloa","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-10.8,"lon":14.3,"description":"Polynesian chief evil spirit.","dimension":"86.0 km"},{"name":"Malingee","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-22.9,"lon":346.1,"description":"Aboriginal spirit who travels at night.","dimension":"164.0 km"},{"name":"Minepa","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-42.7,"lon":351.8,"description":"Macouas and Banayis evil spirit.","dimension":"58.0 km"},{"name":"Peri","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-9.2,"lon":355.7,"description":"Persian evil spirit who disguised malevolence by charm; disturbed natural elements and heavenly bodies.","dimension":"61.0 km"},{"name":"Setibos","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-30.8,"lon":13.7,"description":"Chief devil.","dimension":"50.0 km"},{"name":"Skynd","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-1.8,"lon":28.3,"description":"Troll who stole three wives of a man living in Englerup.","dimension":"72.0 km"},{"name":"Vuver","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-4.7,"lon":48.4,"description":"Volga Finn evil spirit.","dimension":"98.0 km"},{"name":"Wokolo","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-30.0,"lon":358.2,"description":"Baramba (West Africa) devil spirit.","dimension":"208.0 km"},{"name":"Wunda","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-7.9,"lon":86.4,"description":"Australian dark spirit.","dimension":"131.0 km"},{"name":"Zlyden","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-23.3,"lon":33.8,"description":"Slavic evil spirit.","dimension":"44.0 km"}];
-    dedupeMoonFeatureData();
     const allFeatureData = [...labelData, ...ringLabelData, ...moonData, ...moonFeatureData];
     allFeatureData.forEach((item) => {
       item.name = getFeatureDisplayName(item);
     });
     const TOUR_FACETS = [
-      { id: "highlights", label: "Highlights", filter: (item) => ["North Polar Hexagon", "Great White Spot", "Cassini Grand Finale Track", "Titan", "Enceladus", "Cassini Division"].includes(item.name) },
+      { id: "highlights", label: "Highlights", filter: (item) => ["North Polar Hood", "Epsilon Ring", "Voyager 2 Closest Approach", "Miranda", "Titania"].includes(item.name) },
       { id: "atmosphere", label: "Atmosphere", filter: (item) => ["polar", "band", "storm"].includes(item.theme) },
       { id: "rings", label: "Rings", filter: (item) => item.theme === "ring" || Boolean(item.ring_region) },
       { id: "moons", label: "Moons", filter: (item) => Array.isArray(item.moon_anchor) },
-      { id: "mission", label: "Mission", filter: (item) => item.theme === "landing" || /cassini|huygens/i.test(`${item.name} ${item.description || ""}`) },
+      { id: "mission", label: "Mission", filter: (item) => item.theme === "landing" || /voyager/i.test(`${item.name} ${item.description || ""}`)},
     ];
     let activeTourFeature = null;
 
@@ -311,6 +366,7 @@
         if (tourModeControls) tourModeControls.style.display = enabled ? "" : "none";
         if (tourModeSection) tourModeSection.open = enabled;
         if (enabled) {
+          setTimeout(() => tourModeSection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
           populateTourTargets();
           focusTourFeature(getTourFeatures().find((feature) => feature.name === tourModeTarget?.value) || getTourFeatures()[0]);
         }
@@ -353,6 +409,7 @@
     const metadataClose = document.getElementById("metadata-close");
     const legendSection = document.getElementById("legend-section");
     const legendPanel = document.getElementById("legend-panel");
+    const coreViewSection = document.getElementById("core-view-section");
     const legendSummaryCopy = document.getElementById("legend-summary-copy");
     const scenePopup = document.getElementById("scene-popup");
     const scenePopupState = document.getElementById("scene-popup-state");
@@ -405,14 +462,6 @@
     let activePopupIsCoreLabel = false;
     const coreWrap = document.getElementById("core-wrap");
     const legendSectionBody = legendPanel ? legendPanel.closest(".section-body") : null;
-
-    function placeCoreSymbologyUnderLegend() {
-      if (!coreWrap || !legendSectionBody) return;
-      if (coreWrap.parentElement !== legendSectionBody) {
-        legendSectionBody.appendChild(coreWrap);
-      }
-    }
-    placeCoreSymbologyUnderLegend();
     let selectedGeologyOutline = null;
     let selectedGeologyBoundaryGroup = null;
     let selectedLabelEntry = null;
@@ -423,7 +472,7 @@
     let activeSearchIndex = -1;
     let viewerCamera = null;
     let viewerControls = null;
-    let viewerApplyUranusViewMode = null;
+    let viewerApplySaturnViewMode = null;
     let viewerSyncSelectionHalo = null;
     let activeMoonViewerFeature = null;
     let moonMeshMap = null;
@@ -431,7 +480,7 @@
     let activeMoonFeatureTour = null;
     let activeMoonFeatureSearchResults = [];
     let activeMoonFeatureSearchIndex = -1;
-    let uranusSceneGroup = null;
+    let saturnSceneGroup = null;
     let spinPaused = false;
     let spinPauseStart = 0;
     let spinOffset = 0;
@@ -492,10 +541,10 @@
 
     function exportCurrentProfilePng() {
       if (!profileModalCanvas || !currentProfilePlotState?.samples?.length) return;
-      const baseName = String(currentProfilePlotState.title || "uranus_elevation_profile")
+      const baseName = String(currentProfilePlotState.title || "saturn_elevation_profile")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "") || "uranus_elevation_profile";
+        .replace(/^_+|_+$/g, "") || "saturn_elevation_profile";
       const link = document.createElement("a");
       link.href = profileModalCanvas.toDataURL("image/png");
       link.download = `${baseName}.png`;
@@ -522,12 +571,6 @@
     }
     function syncSpinToggleBtn() {
       if (!spinToggleBtn) return;
-      const glyph = spinPaused ? "▶" : "⏸";
-      if (spinToggleGlyph) {
-        spinToggleGlyph.textContent = glyph;
-      } else {
-        spinToggleBtn.textContent = glyph;
-      }
       if (spinPaused) {
         spinToggleBtn.title = "Resume rotation";
         spinToggleBtn.setAttribute("aria-label", "Resume rotation");
@@ -599,37 +642,23 @@
     const DEFAULT_CONTROL_MAX_DISTANCE = 80;
     const DEFAULT_CAMERA_POSITION = Object.freeze({ x: -6.6, y: 3.4, z: 17 });
     // Moons whose texture has lon=0° (prime meridian / sub-Uranus) at the IMAGE CENTER rather
-    // than the left edge. All feature coordinates are stored in a unified left-edge CRS
-    // (lon=0° = left edge of the image) so no per-feature lon correction is needed.
-    // The only effect of this set is the tidal-lock rotation: π−angle instead of −angle,
-    // which places the texture center (local +X, sub-Uranus face) toward Uranus.
+    // than the left edge.
     const TEXTURE_CENTERED_MOONS = new Set(["Titania", "Oberon"]);
-    // Moons whose texture has east running right-to-left (mirrored); store lon_W, display is identity.
     const WEST_POSITIVE_TEXTURE_MOONS = new Set([]);
-    // Real sidereal periods (days). Negative = retrograde (Phoebe).
     const MOON_PERIODS_DAYS = {
       "Miranda": 1.4135, "Ariel": 2.5204, "Umbriel": 4.1442,
       "Titania": 8.7059, "Oberon": 13.4632,
     };
-    // Self-rotation periods (days) for moons that are NOT tidally locked.
-    // Hyperion tumbles chaotically (~13 d nominal); Phoebe rotates in 0.38638 d (9.273 h).
     const MOON_SELF_ROT_DAYS = {};
-    // Globe completes one rotation every 600,000 ms (10 min).
-    // Uranus's real sidereal day: 10 h 33 m 38 s = 10.5606 h (IAU).
-    const _PLANET_DISPLAY_PERIOD_MS = 600000;
-    const _PLANET_ROT_REAL_MS = 17.24 * 3600000; // retrograde sidereal day
-    const _MOON_SPEED_FACTOR = _PLANET_ROT_REAL_MS / _PLANET_DISPLAY_PERIOD_MS;
-
-    // Convert stored longitude back to IAU west-positive for display.
-    // WEST_POSITIVE_TEXTURE_MOONS (Hyperion): stored = lon_W, display is identity.
-    // TEXTURE_CENTERED_MOONS (Tethys, Titan): stored lon=0 at IAU 180°E → lon_W = (540−stored)%360.
-    // Standard moons: stored = lon_E → lon_W = (360−stored)%360.
+    const _SATURN_DISPLAY_PERIOD_MS = 600000;
+    const _SATURN_ROT_REAL_MS = 17.24 * 3600000;
+    const _MOON_SPEED_FACTOR = _SATURN_ROT_REAL_MS / _SATURN_DISPLAY_PERIOD_MS;
+    const _MOON_VIEWER_SELF_ROT_PERIOD_MS = 186000;
     function moonLonToW(lonStored, moonName) {
       if (WEST_POSITIVE_TEXTURE_MOONS.has(moonName)) return lonStored % 360;
       if (TEXTURE_CENTERED_MOONS.has(moonName)) return ((540 - lonStored) % 360);
       return ((360 - lonStored) % 360);
     }
-
     const MOON_VIEWER_TEXTURES = {
       Miranda: "assets/miranda_color_map.jpg",
       Ariel:   "assets/ariel_color_map.jpg",
@@ -640,9 +669,9 @@
     let currentMetadataState = null;
     let activeCutClipPlane = null;
     const MARS_MEAN_RADIUS_KM = 58232.0;
-    const URANUS_MEAN_RADIUS_KM = MARS_MEAN_RADIUS_KM; // 25362 km
+    const SATURN_MEAN_RADIUS_KM = MARS_MEAN_RADIUS_KM;
     let activeCameraFlight = null;
-    const uranusViewModeSelect = document.getElementById("uranus-view-mode");
+    const saturnViewModeSelect = document.getElementById("saturn-view-mode");
     function formatScaleDistance(valueKm) {
       if (!Number.isFinite(valueKm) || valueKm <= 0) return "-";
       if (valueKm >= 1000000) return `${(valueKm / 1000000).toFixed(valueKm >= 10000000 ? 0 : 1)}M km`;
@@ -754,7 +783,7 @@
       const worldHeight = 2 * distanceToTarget * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
       const scaleBarPixels = resolveScaleBarWidthPx();
       const worldBar = worldHeight * (scaleBarPixels / viewportHeight);
-      let kmPerWorldUnit = URANUS_MEAN_RADIUS_KM / URANUS_SCENE_RADIUS;
+      let kmPerWorldUnit = SATURN_MEAN_RADIUS_KM / SATURN_SCENE_RADIUS;
       if (activeMoonViewerFeature) {
         const _moonKm = Number(String(activeMoonViewerFeature.mean_radius_km || "").replace(/[^0-9.]/g, ""));
         const _moonWorld = Number(activeMoonViewerFeature.moon_radius || 0.1);
@@ -908,7 +937,7 @@
         _locatorDrawnLatLon = { ...latLon };
       }
     }
-    function configureUranusUi() {
+    function configureSaturnUi() {
       if (brandLogo) {
         brandLogo.src = "../../../assets/uranus_icon.png";
       }
@@ -928,7 +957,7 @@
           }
         }
         if (summary) summary.textContent = "Body texture and derived atmosphere layers.";
-        if (copy) copy.textContent = "Use this group for Uranus's body texture and derived atmospheric analysis layers.";
+        if (copy) copy.textContent = "Use this group for Saturn's body texture and derived atmospheric analysis layers.";
       }
       const terrainRow = terrainScale ? terrainScale.closest(".row") : null;
       if (terrainRow) terrainRow.style.display = "none";
@@ -937,7 +966,7 @@
         const geologyTitle = geologySection.querySelector(".section-title");
         const geologySummary = geologySection.querySelector(".section-toggle-main .section-summary-copy");
         if (geologyTitle) geologyTitle.textContent = "Remove Atmosphere";
-        if (geologySummary) geologySummary.textContent = "Hide Uranus's upper atmospheric shells in core view.";
+        if (geologySummary) geologySummary.textContent = "Hide Saturn's upper atmospheric shells in core view.";
         geologyOpacity.closest(".row").style.display = "none";
         geologyContactsToggle.closest(".row").style.display = "none";
         geologyStructuresToggle.closest(".row").style.display = "none";
@@ -947,7 +976,7 @@
         if (summaryBlocks[0]) summaryBlocks[0].textContent = "Core cutaway";
         if (summaryBlocks[1]) summaryBlocks[1].style.display = "none";
         const compactCopy = geologySection.querySelector(".compact-copy");
-        if (compactCopy) compactCopy.textContent = "Remove the upper atmosphere and surface maps in both exterior and core views, while keeping Uranus\'s deeper interior and rings visible.";
+        if (compactCopy) compactCopy.textContent = "Remove the upper atmosphere and surface maps in both exterior and core views, while keeping Saturn\'s deeper interior and rings visible.";
         geologyToggle.checked = false;
         geologyMasterToggle.checked = false;
       }
@@ -959,9 +988,9 @@
         seismicToggle.checked = false;
         seismicToggle.disabled = true;
       }
-      if (uranusViewModeSelect) uranusViewModeSelect.value = "tilted";
+      if (saturnViewModeSelect) saturnViewModeSelect.value = "tilted";
     }
-    configureUranusUi();
+    configureSaturnUi();
     const REGION_MASK_DEFS = {
       "volcanic-provinces": [
         { lat: 7, lon: 247, radiusDeg: 28, color: "rgba(255,96,76,0.78)" },
@@ -979,47 +1008,47 @@
     const CORE_LAYER_DATA = [
       {
         id: "upper-atmosphere",
-        name: "Upper Atmosphere",
-        type: "Cloud tops and haze",
-        description: "Uranus's visible outer shell is the upper atmosphere: ammonia clouds, haze layers, zonal banding, and storm systems seen at the top of the deep hydrogen-helium envelope.",
-        depth: "Cloud tops through the upper troposphere",
-        composition: "Hydrogen and helium with ammonia ice, ammonium hydrosulfide, water-cloud layers below, and photochemical haze above.",
-        temperature: "~80-140 K near the visible cloud deck",
-        labelX: -1.9, labelY: 3.12,
+        name: "Outer Atmosphere",
+        type: "Upper cloud layer",
+        description: "Uranus's outermost visible shell: methane clouds and haze absorbing red wavelengths and giving the planet its distinctive cyan-blue colour. The methane-rich upper troposphere is the source of Uranus's extreme colour.",
+        depth: "Cloud tops through upper troposphere",
+        composition: "Hydrogen and helium with methane ice clouds and photochemical haze.",
+        temperature: "~55–80 K near the visible cloud deck",
+        labelX: -1.80, labelY: 3.12,
         anchorY: 3.12,
       },
       {
-        id: "molecular-envelope",
-        name: "Molecular Envelope",
-        type: "Deep H2-He fluid shell",
-        description: "Most of Uranus's volume is a convecting molecular hydrogen-helium envelope where pressure rises steadily inward and weather gives way to deep fluid dynamics.",
-        depth: "Outer atmosphere to the metallic transition",
-        composition: "Mostly molecular hydrogen and helium with dissolved heavier elements and cloud-forming volatiles.",
-        temperature: "Rises from the upper atmosphere into the thousands of kelvin at depth",
-        labelX: -2.35, labelY: 2.26,
-        anchorY: 2.26,
+        id: "atmosphere",
+        name: "Atmosphere",
+        type: "Hydrogen-helium-methane gas envelope",
+        description: "The bulk of Uranus's gaseous outer shell: a deep convecting envelope of hydrogen, helium, and methane that grades inward into the hot, dense ice-fluid mantle.",
+        depth: "Below the visible cloud deck to the mantle boundary",
+        composition: "Molecular hydrogen and helium with methane, ammonia, and water vapour at depth.",
+        temperature: "Rises from cloud-deck temperatures to thousands of kelvin at depth",
+        labelX: -1.80, labelY: 2.72,
+        anchorY: 2.72,
       },
       {
-        id: "metallic-hydrogen",
-        name: "Metallic Hydrogen Layer",
-        type: "Conductive deep interior",
-        description: "At extreme pressure, hydrogen is expected to enter a metallic state. This electrically conductive layer likely powers Uranus's magnetic field and dominates the deep interior.",
-        depth: "Broad deep shell around the central heavy-element region",
-        composition: "Metallic hydrogen with helium and heavier-element material mixed into the deep interior.",
-        temperature: "Several thousand kelvin under immense pressure",
-        labelX: -1.65, labelY: 1.36,
-        anchorY: 1.36,
+        id: "mantle",
+        name: "Mantle",
+        type: "Water-ammonia-methane ice fluid",
+        description: "The defining feature of an ice giant: a deep hot, dense fluid of water, ammonia, and methane ices under extreme pressure. This 'slushy' layer constitutes the bulk of Uranus's mass and likely drives its magnetic field.",
+        depth: "Mid-interior from the base of the atmosphere to the rocky core",
+        composition: "Water, ammonia, and methane ices in a highly compressed ionic fluid.",
+        temperature: "Thousands of kelvin under extreme pressure",
+        labelX: -1.80, labelY: 1.44,
+        anchorY: 1.44,
       },
       {
-        id: "heavy-element-core",
-        name: "Heavy-Element Core",
-        type: "Diffuse rock-ice-rich center",
-        description: "Uranus likely contains a central concentration of rocks, ices, and metals, but current models suggest it may be diffuse and partially mixed outward rather than a sharply bounded solid core.",
+        id: "core",
+        name: "Core",
+        type: "Silicate and Fe-Ni rock",
+        description: "A small, dense rocky core of silicate rock and iron-nickel metal at Uranus's centre. Current models suggest it may be only 0.5–1 Earth masses — much smaller than the vast surrounding ice-fluid mantle.",
         depth: "Central region",
-        composition: "Silicates, metals, and ices mixed with surrounding hydrogen under deep-interior conditions.",
+        composition: "Silicate rocks, iron, and nickel under extreme pressure.",
         temperature: "Hot dense interior; model dependent",
-        labelX: -0.95, labelY: 0.56,
-        anchorY: 0.56,
+        labelX: -1.80, labelY: 0,
+        anchorY: 0,
       },
     ];
 
@@ -1038,7 +1067,27 @@
       });
     }
 
-    function createCalibratedUranusRingTexture(baseTexture = null, outerRadiusKm = URANUS_RING_REFERENCE_KM.mainOuter) {
+    // Cap any texture to maxW×maxH via canvas downsample before GPU upload.
+    // Prevents accidentally-oversized source images from consuming hundreds of MB of VRAM.
+    function capTextureSize(texture, maxW, maxH) {
+      if (!texture?.image) return texture;
+      const img = texture.image;
+      const w = img.width || img.naturalWidth || 0;
+      const h = img.height || img.naturalHeight || 0;
+      if (!w || !h || (w <= maxW && h <= maxH)) return texture;
+      const scale = Math.min(maxW / w, maxH / h);
+      const nw = Math.round(w * scale), nh = Math.round(h * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = nw; canvas.height = nh;
+      canvas.getContext('2d').drawImage(img, 0, 0, nw, nh);
+      const capped = new THREE.CanvasTexture(canvas);
+      capped.colorSpace = texture.colorSpace;
+      capped.wrapS = texture.wrapS; capped.wrapT = texture.wrapT;
+      texture.dispose();
+      return capped;
+    }
+
+    function createCalibratedSaturnRingTexture(baseTexture = null, outerRadiusKm = SATURN_RING_REFERENCE_KM.mainOuter) {
       const size = 4096;
       const center = (size - 1) / 2;
       const maxRadius = size / 2;
@@ -1098,40 +1147,40 @@
           let alpha = 0;
           let shade = 0;
 
-          if (r >= kmToUnit(URANUS_RING_REFERENCE_KM.dInner) && r <= 1) {
+          if (r >= kmToUnit(SATURN_RING_REFERENCE_KM.dInner) && r <= 1) {
             const noise =
               0.5
               + 0.25 * Math.sin(r * 980)
               + 0.13 * Math.sin(r * 2740 + 1.7)
               + 0.06 * Math.sin((x * 0.019) + (y * 0.013));
 
-            if (r < kmToUnit(URANUS_RING_REFERENCE_KM.cInner)) {
-              alpha = 0.16 * smoothBand(r, URANUS_RING_REFERENCE_KM.dInner, URANUS_RING_REFERENCE_KM.cInner, 260);
+            if (r < kmToUnit(SATURN_RING_REFERENCE_KM.cInner)) {
+              alpha = 0.16 * smoothBand(r, SATURN_RING_REFERENCE_KM.dInner, SATURN_RING_REFERENCE_KM.cInner, 260);
               shade = 72 + 28 * noise;
-            } else if (r < kmToUnit(URANUS_RING_REFERENCE_KM.bInner)) {
-              alpha = 0.36 * smoothBand(r, URANUS_RING_REFERENCE_KM.cInner, URANUS_RING_REFERENCE_KM.bInner, 220);
+            } else if (r < kmToUnit(SATURN_RING_REFERENCE_KM.bInner)) {
+              alpha = 0.36 * smoothBand(r, SATURN_RING_REFERENCE_KM.cInner, SATURN_RING_REFERENCE_KM.bInner, 220);
               shade = 82 + 42 * noise;
-            } else if (r < kmToUnit(URANUS_RING_REFERENCE_KM.cassiniInner)) {
-              alpha = 0.9 * smoothBand(r, URANUS_RING_REFERENCE_KM.bInner, URANUS_RING_REFERENCE_KM.cassiniInner, 190);
+            } else if (r < kmToUnit(SATURN_RING_REFERENCE_KM.cassiniInner)) {
+              alpha = 0.9 * smoothBand(r, SATURN_RING_REFERENCE_KM.bInner, SATURN_RING_REFERENCE_KM.cassiniInner, 190);
               shade = 150 + 74 * noise;
-            } else if (r < kmToUnit(URANUS_RING_REFERENCE_KM.aInner)) {
-              alpha = 0.18 * smoothBand(r, URANUS_RING_REFERENCE_KM.cassiniInner, URANUS_RING_REFERENCE_KM.aInner, 120);
+            } else if (r < kmToUnit(SATURN_RING_REFERENCE_KM.aInner)) {
+              alpha = 0.18 * smoothBand(r, SATURN_RING_REFERENCE_KM.cassiniInner, SATURN_RING_REFERENCE_KM.aInner, 120);
               shade = 35 + 28 * noise;
-            } else if (r < kmToUnit(URANUS_RING_REFERENCE_KM.aOuter)) {
-              alpha = 0.68 * smoothBand(r, URANUS_RING_REFERENCE_KM.aInner, URANUS_RING_REFERENCE_KM.aOuter, 160);
+            } else if (r < kmToUnit(SATURN_RING_REFERENCE_KM.aOuter)) {
+              alpha = 0.68 * smoothBand(r, SATURN_RING_REFERENCE_KM.aInner, SATURN_RING_REFERENCE_KM.aOuter, 160);
               shade = 126 + 62 * noise;
-              alpha *= narrowGap(r, URANUS_RING_REFERENCE_KM.enckeCenter, 325, 0.025);
-              shade *= narrowGap(r, URANUS_RING_REFERENCE_KM.enckeCenter, 325, 0.18);
-              alpha *= narrowGap(r, URANUS_RING_REFERENCE_KM.keelerCenter, 90, 0.04);
-              shade *= narrowGap(r, URANUS_RING_REFERENCE_KM.keelerCenter, 90, 0.22);
-            } else if (r < kmToUnit(URANUS_RING_REFERENCE_KM.fRing - 450)) {
-              alpha = 0.12 * smoothBand(r, URANUS_RING_REFERENCE_KM.aOuter, URANUS_RING_REFERENCE_KM.fRing - 450, 140);
+              alpha *= narrowGap(r, SATURN_RING_REFERENCE_KM.enckeCenter, 325, 0.025);
+              shade *= narrowGap(r, SATURN_RING_REFERENCE_KM.enckeCenter, 325, 0.18);
+              alpha *= narrowGap(r, SATURN_RING_REFERENCE_KM.keelerCenter, 90, 0.04);
+              shade *= narrowGap(r, SATURN_RING_REFERENCE_KM.keelerCenter, 90, 0.22);
+            } else if (r < kmToUnit(SATURN_RING_REFERENCE_KM.fRing - 450)) {
+              alpha = 0.12 * smoothBand(r, SATURN_RING_REFERENCE_KM.aOuter, SATURN_RING_REFERENCE_KM.fRing - 450, 140);
               shade = 40 + 28 * noise;
-            } else if (r < kmToUnit(URANUS_RING_REFERENCE_KM.fRing + 650)) {
-              alpha = 0.62 * smoothBand(r, URANUS_RING_REFERENCE_KM.fRing - 450, URANUS_RING_REFERENCE_KM.fRing + 650, 90);
+            } else if (r < kmToUnit(SATURN_RING_REFERENCE_KM.fRing + 650)) {
+              alpha = 0.62 * smoothBand(r, SATURN_RING_REFERENCE_KM.fRing - 450, SATURN_RING_REFERENCE_KM.fRing + 650, 90);
               shade = 158 + 48 * noise;
             } else {
-              alpha = 0.04 * smoothBand(r, URANUS_RING_REFERENCE_KM.fRing + 650, URANUS_RING_REFERENCE_KM.mainOuter, 190);
+              alpha = 0.04 * smoothBand(r, SATURN_RING_REFERENCE_KM.fRing + 650, SATURN_RING_REFERENCE_KM.mainOuter, 190);
               shade = 50 + 24 * noise;
             }
           }
@@ -1617,13 +1666,16 @@
       if (!elevationTexture || !elevationTexture.image) {
         return null;
       }
+      const MAX_W = 2048, MAX_H = 1024;
+      const w = Math.min(elevationTexture.image.width, MAX_W);
+      const h = Math.min(elevationTexture.image.height, MAX_H);
       const canvas = document.createElement("canvas");
-      canvas.width = elevationTexture.image.width;
-      canvas.height = elevationTexture.image.height;
+      canvas.width = w; canvas.height = h;
       const context = canvas.getContext("2d", { willReadFrequently: true });
-      context.drawImage(elevationTexture.image, 0, 0);
-      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-      return { canvas, context, pixels, width: canvas.width, height: canvas.height };
+      context.drawImage(elevationTexture.image, 0, 0, w, h);
+      const pixels = context.getImageData(0, 0, w, h).data;
+      // canvas and context not stored — freed by GC immediately (~32 MB saved)
+      return { pixels, width: w, height: h };
     }
 
     function lonToTextureU(lonDegrees) {
@@ -1925,7 +1977,7 @@
       if (context === "seismic") {
         return {
           badge: "Derived",
-          help: "Uranus does not include a Mars-style seismic event overlay in this package.",
+          help: "Saturn does not include a Mars-style seismic event overlay in this package.",
           tags: ["placeholder", "disabled"],
         };
       }
@@ -1994,175 +2046,21 @@
     }
 
     function buildLegendEntries(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState = null) {
-      const selectedGeologyLayer = getSelectedGeologyLayer(geologyLayers);
-      const selectedMineralLayer = getSelectedMineralLayer(mineralLayers);
-      const seaActive = seaToggle.checked;
-      const regionMaskActive = Boolean(regionMaskSelect.value);
-      const seismicActive = seismicToggle.checked;
       const entries = [];
+      const removeAtmosphere = Boolean(geologyToggle && geologyToggle.checked);
+      const coreActive = Boolean(coreToggle && coreToggle.checked);
 
-      if (geologyToggle.checked && selectedGeologyLayer) {
-        const rockLegend = geologyInteractiveState?.rock_legend || [];
+      if (removeAtmosphere && !coreActive) {
         entries.push({
-          title: "Solid Geology",
-          copy: "SIM 3292 geology simplified into rock-type classes for the active solid geology overlay.",
-          tags: ["geology", "units"],
-          symbols: rockLegend.map((unit) => ({
-            type: "swatch",
-            label: unit.label || unit.rock_type || "Rock type",
-            detail: unit.description || "Mapped geologic unit.",
-            color: unit.color || "#888888",
-          })),
-        });
-      }
-      if (
-        (geologyContactsToggle?.checked && (geologyInteractiveState?.contacts || []).length) ||
-        (geologyStructuresToggle?.checked && (geologyInteractiveState?.structures || []).length)
-      ) {
-        if (geologyContactsToggle?.checked) {
-          entries.push({
-            title: "Contacts",
-            copy: "",
-            tags: ["geology", "contacts"],
-            symbols: [
-              { type: "line", label: "Certain / border contact", detail: "Mapped polygon contacts and borders.", color: "#f3f1d8" },
-              { type: "line", label: "Approximate contact", detail: "Approximate or inferred contact trace.", color: "#aab8c6" },
-            ],
-          });
-        }
-        if (geologyStructuresToggle?.checked) {
-          entries.push({
-            title: "Structures and Faults",
-            copy: "SIM 3292 structural traces draped from the vector shapefiles.",
-            tags: ["geology", "structures"],
-            symbols: [
-              { type: "line", label: "Tectonic structure", detail: "Faults, fractures, graben, and related tectonic traces.", color: "#2c2c2c" },
-              { type: "line", label: "Volcanic structure", detail: "Volcanic ridges and related mapped structural traces.", color: "#f06a57" },
-              { type: "line", label: "Fluvial structure", detail: "Channels, valleys, and fluvial structural traces.", color: "#5aa7ff" },
-            ],
-          });
-        }
-      }
-
-      if (selectedMineralLayer) {
-        entries.push({
-          title: `${selectedMineralLayer.label} mineral scale`,
-          copy: "ASU TES mineral abundance legend for the currently selected mineral overlay.",
-          image: selectedMineralLayer.legend_path || "",
-          tags: ["mineral", "TES"],
-        });
-      }
-
-      if (seaActive) {
-        entries.push({
-          title: "Paleo-sea symbology",
-          copy: `Sea-level threshold model. Current level: ${Number(seaLevelSlider.value)} m.`,
-          tags: ["paleo-sea", "modeled"],
+          title: "",
+          copy: "",
+          tags: [],
           symbols: [
             {
-              type: "gradient",
-              label: "Modeled water fill",
-              detail: "Color ramps from shallow coastal cyan to deeper basin blue below the selected threshold.",
-              colorA: "#73d8ef",
-              colorB: "#2f86b8",
-            },
-            {
               type: "swatch",
-              label: "Shoreline highlight",
-              detail: "Brighter edge band marks terrain just below the current sea level.",
-              color: "#b0f0ff",
-            },
-          ],
-        });
-      }
-
-      if (regionMaskActive) {
-        if (regionMaskSelect.value === "lowlands") {
-          entries.push({
-            title: "Lowlands mask",
-            copy: "Threshold mask for elevations at or below -2500 m.",
-            tags: ["region-mask", "lowlands"],
-            symbols: [
-              {
-                type: "swatch",
-                label: "Northern lowlands",
-                detail: "Blue translucent fill marks terrain at or below the lowland threshold.",
-                color: "rgba(64,160,255,0.72)",
-              },
-            ],
-          });
-        } else if (regionMaskSelect.value === "highlands") {
-          entries.push({
-            title: "Highlands mask",
-            copy: "Threshold mask for elevations above -2500 m.",
-            tags: ["region-mask", "highlands"],
-            symbols: [
-              {
-                type: "swatch",
-                label: "Southern highlands",
-                detail: "Amber translucent fill marks terrain above the lowland-highland break.",
-                color: "rgba(255,170,82,0.72)",
-              },
-            ],
-          });
-        } else if (regionMaskSelect.value === "volcanic-provinces") {
-          entries.push({
-            title: "Volcanic province mask",
-            copy: "Curated translucent halos centered on the main volcanic provinces.",
-            tags: ["region-mask", "volcanic-provinces"],
-            symbols: [
-              {
-                type: "swatch",
-                label: "Province halo",
-                detail: "Warm red-orange halos mark the Tharsis, Elysium, and Syrtis Major volcanic regions.",
-                color: "rgba(255,112,82,0.78)",
-              },
-            ],
-          });
-        } else if (regionMaskSelect.value === "basins") {
-          entries.push({
-            title: "Impact basin mask",
-            copy: "Curated translucent halos centered on major impact basins.",
-            tags: ["region-mask", "basins"],
-            symbols: [
-              {
-                type: "swatch",
-                label: "Basin halo",
-                detail: "Blue halos mark the major Hellas, Isidis, Utopia, and Argyre basin regions.",
-                color: "rgba(84,166,255,0.76)",
-              },
-            ],
-          });
-        }
-      }
-
-      if (seismicActive) {
-        entries.push({
-          title: "Seismic symbology",
-          copy: "No seismic symbology is active for Uranus in this package.",
-          tags: ["seismic", "measure"],
-          symbols: [
-            {
-              type: "ring",
-              label: "Catalog placeholder",
-              detail: "No active seismic markers are rendered for Uranus.",
-            },
-            {
-              type: "dot",
-              label: "No located events",
-              detail: "Uranus has no bundled seismic source-location catalog in this workflow.",
-            },
-            {
-              type: "line",
-              label: "Measurement boundary",
-              detail: "Cyan line shows active distance, area, or profile measurement segments.",
-            },
-            {
-              type: "swatch",
-              label: "Measurement vertex",
-              detail: "Pale marker shows interactive measurement vertices placed on the globe.",
-              color: "#ffd0b0",
-              borderColor: "#fff1df",
+              label: "Mantle Surface",
+              detail: "Water-ammonia-methane ice-fluid mantle exposed at depth — the defining feature of Uranus as an ice giant.",
+              color: "#b8c2d0",
             },
           ],
         });
@@ -2236,7 +2134,7 @@
           "Seismic catalog",
           "seismic",
           selectedBaseLayer,
-          `No active seismic catalog is used for Uranus in this workflow.`,
+          `No active seismic catalog is used for Saturn in this workflow.`,
         );
       }
       if (coreEnabled) {
@@ -2244,7 +2142,7 @@
           "Interior cutaway",
           "core",
           selectedBaseLayer,
-          "Interior layers are a schematic Uranus model inferred from gravity, magnetic-field, and ring-seismology studies.",
+          "Interior layers are a schematic Saturn model inferred from gravity, magnetic-field, and ring-seismology studies.",
         );
       }
 
@@ -2275,10 +2173,10 @@
       ) {
         sourceEntries.push({
           title: "Atmospheric context references",
-          copy: "Use the source pages below for the enhanced atmosphere layer and related Uranus context references.",
+          copy: "Use the source pages below for the enhanced atmosphere layer and related Saturn context references.",
           citation: manifest.sources.geology_original_units_citation || "",
           links: [
-            makeMetadataLink("Uranus facts", manifest.sources.geology_notes_url),
+            makeMetadataLink("Saturn facts", manifest.sources.geology_notes_url),
             makeMetadataLink("Reference page", manifest.sources.geology_dmu_url),
             makeMetadataLink("Texture page", manifest.sources.geology_map_url),
             makeMetadataLink("Context source", manifest.sources.geology_database_url),
@@ -2288,19 +2186,19 @@
       if (seismicActive && manifest.seismic?.source_page_url) {
         sourceEntries.push({
           title: "Seismic catalog source",
-          copy: "No Mars-style seismic catalog is used for this Uranus workflow.",
+          copy: "No Mars-style seismic catalog is used for this Saturn workflow.",
           links: [makeMetadataLink("Catalog source", manifest.seismic.source_page_url)].filter(Boolean),
         });
       }
       sourceEntries.push({
         title: "Moon nomenclature",
-        copy: "Uranus moon feature names, locations, and classifications are derived from the IAU Working Group for Planetary System Nomenclature gazetteer, as maintained by the USGS Astrogeology Science Center.",
+        copy: "Saturn moon feature names, locations, and classifications are derived from the IAU Working Group for Planetary System Nomenclature gazetteer, as maintained by the USGS Astrogeology Science Center.",
         links: [makeMetadataLink("USGS Planetary Nomenclature", "https://planetarynames.wr.usgs.gov/")],
       });
       sourceEntries.push({
-        title: "Uranus radio emissions",
-        copy: "NASA sonification of radio emissions from Uranus and Enceladus.",
-        links: [makeMetadataLink("Sound of Uranus", "https://science.nasa.gov/resource/sound-of-uranus-radio-emissions-of-the-planet-and-enceladus/")],
+        title: "Saturn radio emissions",
+        copy: "NASA sonification of radio emissions from Saturn and Enceladus.",
+        links: [makeMetadataLink("Sound of Saturn", "https://science.nasa.gov/resource/sound-of-saturn-radio-emissions-of-the-planet-and-enceladus/")],
       });
       sourceEntries.push({
         title: "Background music",
@@ -2432,7 +2330,7 @@
       if (!entries.length) {
         const empty = document.createElement("p");
         empty.className = "legend-empty";
-        empty.textContent = "Enable geology, mineral, paleo-sea, region masks, or seismic overlays to populate the legend.";
+        empty.textContent = "";
         legendPanel.appendChild(empty);
         legendSummaryCopy.textContent = "Active overlay symbologies and legend images.";
         return;
@@ -2442,10 +2340,12 @@
       for (const entry of entries) {
         const card = document.createElement("section");
         card.className = "legend-entry";
-        const title = document.createElement("p");
-        title.className = "layer-type-badge";
-        title.textContent = entry.title;
-        card.appendChild(title);
+        if (entry.title) {
+          const title = document.createElement("p");
+          title.className = "layer-type-badge";
+          title.textContent = entry.title;
+          card.appendChild(title);
+        }
         if (entry.copy) {
           const copy = document.createElement("p");
           copy.className = "metadata-section-copy";
@@ -2769,12 +2669,8 @@
       if (!moonFeatureSearchInput || !moonFeatureSearchResults || !activeMoonViewerFeature) return;
       const query = String(moonFeatureSearchInput.value || "").trim().toLowerCase();
       const moonName = activeMoonViewerFeature.name;
-      if (!query) {
-        clearMoonFeatureSearchResults();
-        return;
-      }
       const results = moonFeatureData
-        .filter((f) => f.moon_name === moonName && f.name.toLowerCase().includes(query))
+        .filter((f) => f.moon_name === moonName && (!query || f.name.toLowerCase().includes(query)))
         .slice(0, 12);
       renderMoonFeatureSearchResults(results);
     }
@@ -2822,6 +2718,7 @@
     function deactivateMoonViewer(camera, controls) {
       activeMoonViewerFeature = null;
       moonNavContext = "moon";
+      document.documentElement.removeAttribute("data-mode");
       controls.minDistance = DEFAULT_CONTROL_MIN_DISTANCE;
       controls.maxDistance = DEFAULT_CONTROL_MAX_DISTANCE;
       controls.target.set(0, 0, 0);
@@ -2838,20 +2735,31 @@
     }
 
     function activateMoonViewer(feature, camera, controls) {
-      if (!isMoonFeature(feature) || !uranusSceneGroup) {
+      if (!isMoonFeature(feature) || !saturnSceneGroup) {
         return;
       }
+      document.documentElement.setAttribute("data-mode", "moon");
+      if (moonViewerSection) {
+        setTimeout(() => moonViewerSection.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+      }
       cancelCameraFlight();
+      resumeSpin();
+      if (tourModeToggle?.checked) {
+        activeTourFeature = null;
+        tourModeToggle.checked = false;
+        if (tourModeControls) tourModeControls.style.display = "none";
+        if (tourModeSection) tourModeSection.open = false;
+      }
       activeMoonViewerFeature = feature;
       controls.minDistance = getMoonViewerMinDistance(feature);
       controls.maxDistance = getMoonViewerMaxDistance(feature);
       const localTarget = new THREE.Vector3(feature.moon_anchor[0], feature.moon_anchor[1], feature.moon_anchor[2]);
-      const target = uranusSceneGroup.localToWorld(localTarget.clone());
+      const target = saturnSceneGroup.localToWorld(localTarget.clone());
       const direction = target.clone().normalize();
       if (direction.lengthSq() < 0.0001) {
         direction.set(0.55, 0.18, 1).normalize();
       }
-      // Offset the entry angle so Uranus isn't dead-centre behind the moon.
+      // Offset the entry angle so Saturn isn't dead-centre behind the moon.
       const _up = new THREE.Vector3(0, 1, 0);
       const _side = new THREE.Vector3().crossVectors(direction, _up).normalize();
       if (_side.lengthSq() > 0.0001) {
@@ -2893,7 +2801,7 @@
         <div class="webgl-fallback">
           <div class="webgl-fallback-card">
             <p class="eyebrow">Viewer Error</p>
-            <h2 style="margin:0 0 0.6rem;">Uranus viewer could not start.</h2>
+            <h2 style="margin:0 0 0.6rem;">Saturn viewer could not start.</h2>
             <p class="copy" style="margin:0 0 0.7rem;">${message}</p>
             <p class="compact-copy">Check WebGL support, local asset availability, or the browser console for more detail.</p>
           </div>
@@ -3022,9 +2930,9 @@
         return feature.name || "Moon";
       }
       if (feature.ring_region || /ring/i.test(feature.name || "")) {
-        return "Uranus";
+        return "Saturn";
       }
-      return "Uranus";
+      return "Saturn";
     }
 
     function renderFeatureSearchResults(results, preserveIndex = false) {
@@ -3131,14 +3039,14 @@
       requestAnimationFrame(step);
     }
 
-    // Uranus surface-conditions estimation helpers
+    // Saturn surface-conditions estimation helpers
     const _SUN_DIR = new THREE.Vector3(8, 4, 6).normalize();
-    function estimateUranusCloudTopTemp(latDeg) {
-      // Uranus cloud tops at 1 bar: ~-178°C at equator, colder toward poles
+    function estimateSaturnCloudTopTemp(latDeg) {
+      // Saturn cloud tops at 1 bar: ~-178°C at equator, colder toward poles
       const latRad = Math.abs(latDeg) * (Math.PI / 180);
       return Math.round(-178 - 14 * Math.pow(Math.sin(latRad), 2));
     }
-    function estimateUranusCloudTopPressure() {
+    function estimateSaturnCloudTopPressure() {
       return 101325; // 1 bar displayed as Pa
     }
     function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld) {
@@ -3155,16 +3063,16 @@
       return Math.round(-178 - 69 * t);
     }
 
-    // Uranus interior model — rFrac = 0 (centre) → 1 (surface)
-    const URANUS_INTERIOR_LAYERS = [
-      { name: "Heavy-Element Core",     rMin: 0.000, rMax: 0.160 },
-      { name: "Metallic Hydrogen Layer", rMin: 0.160, rMax: 0.420 },
-      { name: "Molecular Envelope",      rMin: 0.420, rMax: 0.850 },
-      { name: "Upper Atmosphere",        rMin: 0.850, rMax: 1.000 },
+    // Saturn interior model — rFrac = 0 (centre) → 1 (surface)
+    const SATURN_INTERIOR_LAYERS = [
+      { name: "Core",             rMin: 0.000, rMax: 0.150 },
+      { name: "Mantle",           rMin: 0.150, rMax: 0.750 },
+      { name: "Atmosphere",       rMin: 0.750, rMax: 0.950 },
+      { name: "Outer Atmosphere", rMin: 0.950, rMax: 1.000 },
     ];
-    const URANUS_INTERIOR_T_PTS = [[0.000, 25000], [0.160, 20000], [0.420, 12000], [0.850, 2000], [1.000, -134]];
-    const URANUS_INTERIOR_P_PTS = [[0.000, 20000], [0.160, 1500],  [0.420, 200],   [0.850, 1.0],  [1.000, 0.0001]];
-    function _uranusInteriorInterp(pts, rFrac) {
+    const SATURN_INTERIOR_T_PTS = [[0.000, 25000], [0.160, 20000], [0.420, 12000], [0.850, 2000], [1.000, -134]];
+    const SATURN_INTERIOR_P_PTS = [[0.000, 20000], [0.160, 1500],  [0.420, 200],   [0.850, 1.0],  [1.000, 0.0001]];
+    function _saturnInteriorInterp(pts, rFrac) {
       const r = Math.max(0, Math.min(1, rFrac));
       for (let i = 0; i < pts.length - 1; i++) {
         const [r0, v0] = pts[i], [r1, v1] = pts[i + 1];
@@ -3172,24 +3080,24 @@
       }
       return pts[pts.length - 1][1];
     }
-    function uranusInteriorLayerName(rFrac) {
-      for (const layer of URANUS_INTERIOR_LAYERS) {
+    function saturnInteriorLayerName(rFrac) {
+      for (const layer of SATURN_INTERIOR_LAYERS) {
         if (rFrac >= layer.rMin && rFrac <= layer.rMax) return layer.name;
       }
       return "Unknown";
     }
-    function uranusInteriorTempC(rFrac) { return Math.round(_uranusInteriorInterp(URANUS_INTERIOR_T_PTS, rFrac)); }
-    function uranusInteriorPressureGPa(rFrac) { return Math.round(_uranusInteriorInterp(URANUS_INTERIOR_P_PTS, rFrac) * 10) / 10; }
-    function uranusInteriorLayerColor(name) {
-      return { "Upper Atmosphere": "#d0b18a", "Molecular Envelope": "#a29378", "Metallic Hydrogen Layer": "#c0c6cf", "Heavy-Element Core": "#8d9fbe" }[name] ?? "#ccc";
+    function saturnInteriorTempC(rFrac) { return Math.round(_saturnInteriorInterp(SATURN_INTERIOR_T_PTS, rFrac)); }
+    function saturnInteriorPressureGPa(rFrac) { return Math.round(_saturnInteriorInterp(SATURN_INTERIOR_P_PTS, rFrac) * 10) / 10; }
+    function saturnInteriorLayerColor(name) {
+      return { "Outer Atmosphere": "#6a8fc8", "Atmosphere": "#9aaed4", "Mantle": "#b8c2d0", "Core": "#7a4020" }[name] ?? "#ccc";
     }
-    function uranusInteriorTempColor(tempC) {
+    function saturnInteriorTempColor(tempC) {
       const t = Math.max(0, Math.min(1, (tempC + 134) / 25134));
       if (t < 0.33) { const f = t / 0.33; return `rgb(${Math.round(f*60)},${Math.round(f*200)},${Math.round(255-f*55)})`; }
       if (t < 0.66) { const f = (t-0.33)/0.33; return `rgb(${Math.round(60+f*195)},${Math.round(200-f*60)},${Math.round(200-f*200)})`; }
       const f = (t-0.66)/0.34; return `rgb(255,${Math.round(140-f*140)},0)`;
     }
-    function uranusInteriorPressureColor(gpa) {
+    function saturnInteriorPressureColor(gpa) {
       const t = Math.max(0, Math.min(1, gpa / 20000));
       return `rgb(${Math.round(t<0.5?t*2*220:220)},${Math.round(t<0.5?200:(1-(t-0.5)*2)*200)},60)`;
     }
@@ -3277,20 +3185,48 @@
       if (!feature) {
         return;
       }
-      pauseSpin();
       const parentMoon = getMoonFeatureParent(feature);
       const isMoonScopedTarget = isMoonFeature(feature) || Boolean(parentMoon);
+      if (!isMoonScopedTarget) {
+        pauseSpin();
+      }
       if (!isMoonScopedTarget && activeMoonViewerFeature) {
         deactivateMoonViewer(camera, controls);
       }
       if (isMoonFeature(feature)) {
-        activateMoonViewer(feature, camera, controls);
+        if (!options.isTour) {
+          activateMoonViewer(feature, camera, controls);
+          return;
+        }
+        // Tour mode: orbit the moon without switching to moon viewer
+        resumeSpin();
+        if (saturnSceneGroup) {
+          const _tourTarget = saturnSceneGroup.localToWorld(
+            new THREE.Vector3(feature.moon_anchor[0], feature.moon_anchor[1], feature.moon_anchor[2])
+          );
+          const _dir = _tourTarget.clone().normalize();
+          if (_dir.lengthSq() < 0.0001) _dir.set(0.55, 0.18, 1);
+          _dir.normalize();
+          const _side = new THREE.Vector3().crossVectors(_dir, new THREE.Vector3(0, 1, 0)).normalize();
+          if (_side.lengthSq() > 0.0001) _dir.addScaledVector(_side, 0.4).addScaledVector(new THREE.Vector3(0, 1, 0), 0.15).normalize();
+          const _pos = _tourTarget.clone().addScaledVector(_dir, getMoonViewerDistance(feature));
+          if (options.animate) {
+            animateCameraFlight(camera, controls, _pos, _tourTarget, options.durationMs || 1800, options.onComplete || null);
+          } else {
+            camera.position.copy(_pos);
+            camera.up.set(0, 1, 0);
+            controls.target.copy(_tourTarget);
+            controls.object.position.copy(camera.position);
+            controls.update();
+            options.onComplete?.();
+          }
+        }
         return;
       }
       if (parentMoon) {
         const lat = feature.lat !== undefined ? feature.lat : feature.anchor_lat;
         const lon = feature.lon !== undefined ? feature.lon : feature.anchor_lon;
-        if (!parentMoon || !uranusSceneGroup || !Array.isArray(parentMoon.moon_anchor) || lat === undefined || lon === undefined) {
+        if (!parentMoon || !saturnSceneGroup || !Array.isArray(parentMoon.moon_anchor) || lat === undefined || lon === undefined) {
           return;
         }
         activeMoonViewerFeature = parentMoon;
@@ -3307,8 +3243,8 @@
         } else {
           targetLocal = latLonToVector3(lat, lon, Number(parentMoon.moon_radius || 0.1) + 0.002).add(moonAnchor);
         }
-        const target = uranusSceneGroup.localToWorld(targetLocal.clone());
-        const moonCenter = uranusSceneGroup.localToWorld(moonAnchor.clone());
+        const target = saturnSceneGroup.localToWorld(targetLocal.clone());
+        const moonCenter = saturnSceneGroup.localToWorld(moonAnchor.clone());
         const direction = target.clone().sub(moonCenter).normalize();
         if (direction.lengthSq() < 0.0001) {
           direction.set(0.55, 0.18, 1).normalize();
@@ -3330,13 +3266,13 @@
       let target = null;
       if (Array.isArray(feature.ring_anchor)) {
         target = new THREE.Vector3(feature.ring_anchor[0], feature.ring_anchor[1], feature.ring_anchor[2]);
-        if (uranusSceneGroup) {
-          target = uranusSceneGroup.localToWorld(target.clone());
+        if (saturnSceneGroup) {
+          target = saturnSceneGroup.localToWorld(target.clone());
         }
       } else if (Array.isArray(feature.moon_anchor)) {
         target = new THREE.Vector3(feature.moon_anchor[0], feature.moon_anchor[1], feature.moon_anchor[2]);
-        if (uranusSceneGroup) {
-          target = uranusSceneGroup.localToWorld(target.clone());
+        if (saturnSceneGroup) {
+          target = saturnSceneGroup.localToWorld(target.clone());
         }
       } else {
         const lat = feature.lat !== undefined ? feature.lat : feature.anchor_lat;
@@ -3345,10 +3281,10 @@
           return;
         }
         target = latLonToVector3(lat, lon, 3.2);
-        const _spinDelta = getSpinTime() * (2 * Math.PI / _PLANET_DISPLAY_PERIOD_MS);
+        const _spinDelta = getSpinTime() * (2 * Math.PI / _SATURN_DISPLAY_PERIOD_MS);
         target.applyAxisAngle(new THREE.Vector3(0, 1, 0), _spinDelta);
-        if (uranusSceneGroup) {
-          target = uranusSceneGroup.localToWorld(target.clone());
+        if (saturnSceneGroup) {
+          target = saturnSceneGroup.localToWorld(target.clone());
         }
       }
       const direction = target.clone().normalize();
@@ -3362,11 +3298,11 @@
       const cameraPosition = Array.isArray(feature.ring_anchor)
         ? target.clone().add(new THREE.Vector3(0, 1.8, 4.6))
         : target.clone().addScaledVector(direction, cameraDistance);
-      const uranusCenter = new THREE.Vector3(0, 0, 0);
+      const saturnCenter = new THREE.Vector3(0, 0, 0);
       if (options.animate) {
         if (options.isTour && !Array.isArray(feature.ring_anchor)) {
-          // Fly camera to face the feature but keep orbit centre at Uranus so navigation stays natural.
-          animateTourFlight(camera, controls, cameraPosition, uranusCenter, 2800, options.onComplete || null);
+          // Fly camera to face the feature but keep orbit centre at Saturn so navigation stays natural.
+          animateTourFlight(camera, controls, cameraPosition, saturnCenter, 2800, options.onComplete || null);
         } else {
           animateCameraFlight(camera, controls, cameraPosition, target, options.durationMs || 1800, options.onComplete || null);
         }
@@ -3374,7 +3310,7 @@
         camera.position.copy(cameraPosition);
         camera.up.set(0, 1, 0);
         controls.object.position.copy(camera.position);
-        controls.target.copy(options.isTour ? uranusCenter : target);
+        controls.target.copy(options.isTour ? saturnCenter : target);
         controls.update();
       }
     }
@@ -3397,13 +3333,16 @@
       syncScenePopupSelectionStyle(null);
       syncMoonViewerPopup(null, false);
       activePopupIsCoreLabel = false;
+      viewerSyncSelectionHalo?.();
+      if (featureSearch) featureSearch.value = "";
+      clearFeatureSearchResults(true);
       setStatus("Returned to the default global view.");
     }
 
     function reloadToDefaultGlobalView(camera, controls) {
       resumeSpin();
       resetExploreView(camera, controls);
-      viewerApplyUranusViewMode?.(uranusViewModeSelect ? uranusViewModeSelect.value : "tilted");
+      viewerApplySaturnViewMode?.(saturnViewModeSelect ? saturnViewModeSelect.value : "tilted");
       controls.saveState();
     }
 
@@ -3447,9 +3386,16 @@
       return mineralLayers.find((layer) => layer.id === mineralSelect.value) || null;
     }
 
+    let _prevLegendEntryCount = 0;
     function syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState = null) {
-      coreWrap.hidden = !coreToggle.checked;
+      if (coreWrap) coreWrap.hidden = !coreToggle.checked;
+      if (coreViewSection) coreViewSection.open = coreToggle.checked;
       const coreActive = coreToggle.checked;
+      const removeAtmosphere = Boolean(geologyToggle && geologyToggle.checked);
+      const _upperAtmRow = document.getElementById("core-layer-upper-atmosphere");
+      const _atmRow = document.getElementById("core-layer-atmosphere");
+      if (_upperAtmRow) _upperAtmRow.hidden = removeAtmosphere;
+      if (_atmRow) _atmRow.hidden = removeAtmosphere;
       if (surfaceConditionsEl) surfaceConditionsEl.hidden = coreActive;
       if (interiorConditionsEl) {
         interiorConditionsEl.hidden = !coreActive;
@@ -3458,7 +3404,16 @@
           icTemp.textContent = "—"; icPressure.textContent = "—";
         }
       }
-      renderLegendPanel(buildLegendEntries(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState));
+      const legendEntries = buildLegendEntries(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState);
+      if (legendSection) {
+        if (legendEntries.length > 0 && _prevLegendEntryCount === 0) {
+          legendSection.open = true;
+        } else if (legendEntries.length === 0 && _prevLegendEntryCount > 0) {
+          legendSection.open = false;
+        }
+      }
+      _prevLegendEntryCount = legendEntries.length;
+      renderLegendPanel(legendEntries);
       currentMetadataState = buildMetadataState(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState);
       metadataButton.textContent = currentMetadataState?.sections?.some((section) => section.title === "Legend")
         ? "Open Metadata And Legend"
@@ -3468,12 +3423,59 @@
       }
     }
 
+    function normalizeFeatureType(type) {
+      if (!type) return null;
+      const t = type.trim();
+      const IAU_PLAIN = {
+        "chasma":         "Canyon",
+        "chasmata":       "Canyon system",
+        "fossa":          "Fracture trench",
+        "fossae":         "Fracture trench system",
+        "mons":           "Mountain",
+        "montes":         "Mountain range",
+        "sulcus":         "Fracture groove system",
+        "sulci":          "Fracture groove systems",
+        "linea":          "Linear ridge",
+        "lineae":         "Linear ridge system",
+        "dorsum":         "Ridge",
+        "dorsa":          "Ridge system",
+        "rupes":          "Cliff / scarp",
+        "vallis":         "Valley",
+        "valles":         "Valley system",
+        "lacus":          "Lake",
+        "mare":           "Sea",
+        "sinus":          "Bay",
+        "fretum":         "Strait",
+        "flumen":         "River channel",
+        "flumina":        "River channel system",
+        "regio":          "Region",
+        "planitia":       "Plain",
+        "planum":         "Plateau",
+        "catena":         "Crater chain",
+        "patera":         "Volcanic depression",
+        "crater":         "Impact crater",
+        "impact crater":  "Impact crater",
+        "albedo feature": "Albedo region",
+        "facula":          "Bright spot",
+        "faculae":         "Bright spots",
+        "macula":          "Dark spot",
+        "maculae":         "Dark spots",
+        "corona":          "Ovoid terrain",
+        "coronae":         "Ovoid terrain features",
+        "plume, plumes":   "Eruptive plume",
+        "cavus, cavi":     "Hollow / pit",
+      };
+      const key = t.toLowerCase();
+      if (IAU_PLAIN[key]) return IAU_PLAIN[key];
+      return t;
+    }
+
     function openFeature(feature, isCoreLabel) {
       syncScenePopupSelectionStyle(feature, Boolean(isCoreLabel));
       if (isCoreLabel) {
-        scenePopupKicker.textContent = feature.type || "Selected Feature";
+        scenePopupKicker.textContent = normalizeFeatureType(feature.type) || "Selected Feature";
       } else {
-        scenePopupKicker.textContent = feature.type || (
+        scenePopupKicker.textContent = normalizeFeatureType(feature.type) || (
           feature.theme === "volcanic"
             ? "Volcanic Feature"
             : feature.theme === "landing" || feature.theme === "mission"
@@ -3484,7 +3486,7 @@
       scenePopupTitle.textContent = (
         feature.type === "Geologic unit polygon" && feature.rock_type
           ? feature.rock_type
-          : feature.name
+          : (feature.name || "").replace(/\s*\([^)]*\)\s*/g, " ").trim()
       );
       if (feature.moon_name && feature.lat !== undefined) {
         const elevStr = (feature.elevation_m !== undefined)
@@ -3667,15 +3669,15 @@
         float overturn = smoothstep(0.42, 0.80, bulk + plumeA * 0.34 - plumeB * 0.16);
         float wisps = pow(max(plumeA - 0.58, 0.0) * 2.1, 1.6);
         float weakBands = 0.5 + 0.5 * sin(nn.y * 8.0 + plumeB * 1.3);
-        vec3 mist = vec3(0.98,0.96,0.91);
-        vec3 cream = vec3(0.90,0.81,0.67);
-        vec3 warm = vec3(0.79,0.66,0.51);
-        vec3 shadow = vec3(0.63,0.50,0.37);
-        vec3 col = mix(shadow, warm, bulk * 0.46 + plumeB * 0.10);
-        col = mix(col, cream, overturn * 0.34 + cells * 0.08);
-        col = mix(col, mist, wisps * 0.14 + weakBands * 0.08);
+        vec3 bright = vec3(0.82,0.90,0.97);
+        vec3 mid    = vec3(0.62,0.76,0.90);
+        vec3 deep   = vec3(0.46,0.63,0.84);
+        vec3 shadow = vec3(0.34,0.52,0.78);
+        vec3 col = mix(shadow, deep, bulk * 0.46 + plumeB * 0.10);
+        col = mix(col, mid, overturn * 0.34 + cells * 0.08);
+        col = mix(col, bright, wisps * 0.14 + weakBands * 0.08);
         float haze = pow(1.0 - abs(dot(nn, vec3(0.0,0.0,1.0))), 1.8);
-        col += vec3(0.13,0.12,0.10) * haze * 0.28;
+        col += vec3(0.04,0.08,0.14) * haze * 0.28;
         gl_FragColor = vec4(col, 1.0);
       }
     `;
@@ -3697,21 +3699,21 @@
         float plumes = pow(max(overturn - 0.54, 0.0) * 2.2, 1.5);
         float eddies = fbm(px * 5.0 + vec2(8.1, 3.9)) * w.x + fbm(py * 5.0 + vec2(8.1, 3.9)) * w.y + fbm(pz * 5.0 + vec2(8.1, 3.9)) * w.z;
         float weakBands = 0.5 + 0.5 * sin(nn.y * 6.5 + convection * 1.2);
-        vec3 deep = vec3(0.24,0.18,0.14);
-        vec3 fluid = vec3(0.36,0.28,0.22);
-        vec3 amber = vec3(0.49,0.40,0.31);
-        vec3 mist = vec3(0.60,0.52,0.41);
+        vec3 deep  = vec3(0.40,0.54,0.74);
+        vec3 fluid = vec3(0.52,0.65,0.82);
+        vec3 bright = vec3(0.63,0.75,0.88);
+        vec3 mist  = vec3(0.72,0.82,0.92);
         vec3 col = mix(deep, fluid, bulk * 0.52 + convection * 0.10);
-        col = mix(col, amber, plumes * 0.26 + eddies * 0.08);
+        col = mix(col, bright, plumes * 0.26 + eddies * 0.08);
         col = mix(col, mist, smoothstep(0.48, 0.84, bulk + overturn * 0.24) * 0.12 + weakBands * 0.06);
-        vec3 upperBlend = vec3(0.78,0.67,0.54);
+        vec3 upperBlend = vec3(0.78,0.86,0.94);
         float lift = smoothstep(0.52, 0.96, bulk + convection * 0.22);
         col = mix(col, upperBlend, lift * 0.18);
         gl_FragColor = vec4(col, 1.0);
       }
     `;
 
-    // ── OUTER CORE: static convection cells and iron-sulfur circulation ────
+    // ── OUTER CORE: ice-fluid mantle (water-ammonia-methane ices) ────
     const CORE_FRAG = `
       varying vec2 vUv;
       varying vec3 vNormal;
@@ -3737,20 +3739,20 @@
         float cells = cellField(px*2.4)*w.x + cellField(py*2.4)*w.y + cellField(pz*2.4)*w.z;
         float walls = 1.0 - smoothstep(0.07, 0.16, cells);
         float bands = 0.5 + 0.5*sin(nn.y*13.0 + flow*3.0);
-        vec3 deep  = vec3(0.30,0.28,0.25);
-        vec3 mid   = vec3(0.48,0.43,0.36);
-        vec3 bright= vec3(0.67,0.60,0.49);
-        vec3 pale  = vec3(0.85,0.80,0.68);
+        vec3 deep  = vec3(0.56,0.62,0.70);
+        vec3 mid   = vec3(0.68,0.73,0.80);
+        vec3 bright= vec3(0.78,0.82,0.87);
+        vec3 pale  = vec3(0.88,0.91,0.94);
         vec3 col = mix(deep, mid, flow);
         col = mix(col, bright, bands * 0.26);
         col = mix(col, pale, walls * 0.22);
         float sheen = pow(1.0 - abs(dot(nn, vec3(0.0,0.0,1.0))), 3.0);
-        col += vec3(0.28,0.28,0.24) * sheen * 0.28;
+        col += vec3(0.06,0.08,0.12) * sheen * 0.28;
         gl_FragColor = vec4(col, 1.0);
       }
     `;
 
-    // ── INNER CORE: dense crystalline metal with central heat glow (static) ──
+    // ── INNER CORE: rocky silicate/Fe-Ni core ──
     const INNER_CORE_FRAG = `
       varying vec2 vUv;
       varying vec3 vNormal;
@@ -3760,15 +3762,15 @@
         float base = fbm(vUv * 6.0 + vec2(1.8, 4.2));
         float grain = ridged(vUv * 10.0 + vec2(6.1, 2.7));
         float veins = pow(abs(sin((p.x + p.y) * 6.0 + fbm(vUv * 7.0) * 3.0)), 9.0);
-        vec3 dark = vec3(0.45,0.40,0.33);
-        vec3 mid  = vec3(0.61,0.56,0.47);
-        vec3 pale = vec3(0.73,0.69,0.58);
-        vec3 ice  = vec3(0.83,0.82,0.76);
+        vec3 dark = vec3(0.38,0.18,0.08);
+        vec3 mid  = vec3(0.54,0.28,0.14);
+        vec3 pale = vec3(0.68,0.40,0.22);
+        vec3 warm = vec3(0.78,0.54,0.32);
         vec3 col = mix(dark, mid, base);
         col = mix(col, pale, grain * 0.34);
-        col = mix(col, ice, veins * 0.14);
+        col = mix(col, warm, veins * 0.14);
         float center = pow(clamp(1.0 - length(p), 0.0, 1.0), 2.2);
-        col += vec3(0.06,0.05,0.04) * center * 0.12;
+        col += vec3(0.10,0.04,0.02) * center * 0.12;
         gl_FragColor = vec4(col, 1.0);
       }
     `;
@@ -3795,16 +3797,15 @@
         float weakBands = 0.5 + 0.5 * sin(p.y * 9.2 + bulk * 1.7);
         float strongBands = 0.5 + 0.5 * sin(p.y * 15.0 + cells * 1.6 + 0.7);
         float polarFade = smoothstep(0.2, 1.0, abs(p.y));
-        vec3 mist = vec3(0.99,0.97,0.92);
-        vec3 cream = vec3(0.96,0.90,0.78);
-        vec3 honey = vec3(0.90,0.78,0.61);
-        vec3 warm = vec3(0.80,0.67,0.50);
-        vec3 shadow = vec3(0.63,0.51,0.38);
-        vec3 col = mix(shadow, warm, bulk * 0.26 + cells * 0.04);
-        col = mix(col, honey, overturn * 0.34);
-        col = mix(col, cream, weakBands * 0.26 + strongBands * 0.14 + pow(max(plumes - 0.56, 0.0) * 2.0, 1.4) * 0.12);
-        col = mix(col, mist, smoothstep(0.70, 0.99, r) * 0.30 + polarFade * 0.05);
-        col += vec3(0.12,0.10,0.07) * smoothstep(0.84, 1.0, r);
+        vec3 bright = vec3(0.84,0.91,0.97);
+        vec3 mid    = vec3(0.62,0.77,0.91);
+        vec3 deep   = vec3(0.46,0.64,0.85);
+        vec3 shadow = vec3(0.34,0.52,0.78);
+        vec3 col = mix(shadow, deep, bulk * 0.26 + cells * 0.04);
+        col = mix(col, mid, overturn * 0.34);
+        col = mix(col, bright, weakBands * 0.26 + strongBands * 0.14 + pow(max(plumes - 0.56, 0.0) * 2.0, 1.4) * 0.12);
+        col = mix(col, vec3(0.88,0.94,0.98), smoothstep(0.70, 0.99, r) * 0.30 + polarFade * 0.05);
+        col += vec3(0.02,0.05,0.10) * smoothstep(0.84, 1.0, r);
         col *= 1.0 - smoothstep(0.92, 1.02, r) * 0.06;
         gl_FragColor = vec4(col, 1.0);
       }
@@ -3822,14 +3823,14 @@
         float plumes = ridged(flow * 3.4 + vec2(7.2, 2.6));
         float eddies = fbm(flow * 5.4 + vec2(2.3, 8.1));
         float weakBands = 0.5 + 0.5 * sin(p.y * 4.8 + convection * 1.0);
-        vec3 deep = vec3(0.24,0.18,0.14);
-        vec3 fluid = vec3(0.36,0.28,0.22);
-        vec3 amber = vec3(0.49,0.40,0.31);
-        vec3 mist = vec3(0.60,0.52,0.41);
+        vec3 deep  = vec3(0.38,0.52,0.72);
+        vec3 fluid = vec3(0.50,0.63,0.80);
+        vec3 bright = vec3(0.62,0.73,0.87);
+        vec3 mist  = vec3(0.72,0.82,0.92);
         vec3 col = mix(deep, fluid, bulk * 0.50 + convection * 0.10);
-        col = mix(col, amber, pow(max(plumes - 0.55, 0.0) * 2.1, 1.45) * 0.24 + eddies * 0.06);
+        col = mix(col, bright, pow(max(plumes - 0.55, 0.0) * 2.1, 1.45) * 0.24 + eddies * 0.06);
         col = mix(col, mist, smoothstep(0.50, 0.86, bulk + plumes * 0.18) * 0.10 + weakBands * 0.05);
-        vec3 upperBlend = vec3(0.80,0.69,0.56);
+        vec3 upperBlend = vec3(0.80,0.88,0.95);
         float outward = smoothstep(0.58, 0.98, r);
         col = mix(col, upperBlend, outward * 0.24);
         col *= 1.0 - smoothstep(0.92, 1.02, r) * 0.05;
@@ -3858,10 +3859,10 @@
         float cells = cell(flow * 2.5);
         float walls = 1.0 - smoothstep(0.07, 0.16, cells);
         float bands = 0.5 + 0.5 * sin(p.y * 12.0 + bulk * 2.8);
-        vec3 deep  = vec3(0.30,0.28,0.25);
-        vec3 mid   = vec3(0.48,0.43,0.36);
-        vec3 bright= vec3(0.67,0.60,0.49);
-        vec3 pale  = vec3(0.85,0.80,0.68);
+        vec3 deep  = vec3(0.54,0.60,0.68);
+        vec3 mid   = vec3(0.66,0.72,0.78);
+        vec3 bright= vec3(0.76,0.81,0.86);
+        vec3 pale  = vec3(0.87,0.90,0.93);
         vec3 col = mix(deep, mid, bulk);
         col = mix(col, bright, bands * 0.22);
         col = mix(col, pale, walls * 0.18);
@@ -3879,13 +3880,13 @@
 
       const phiStart = -Math.PI / 2;
       const phiLength = Math.PI;
-      const URANUS_HEAVY_CORE_RADIUS = 0.22;
-      const URANUS_METALLIC_HYDROGEN_RADIUS = 0.58;
-      const URANUS_MOLECULAR_ENVELOPE_RADIUS = 0.96;
+      const SATURN_HEAVY_CORE_RADIUS = 0.15;
+      const SATURN_METALLIC_HYDROGEN_RADIUS = 0.75;
+      const SATURN_MOLECULAR_ENVELOPE_RADIUS = 0.95;
       
       // ── Inner core: dense crystalline metallic interior ───────────────────
       const innerCoreMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * URANUS_HEAVY_CORE_RADIUS, 96, 96, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * SATURN_HEAVY_CORE_RADIUS, 96, 96, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -3898,7 +3899,7 @@
 
       // ── Outer liquid core: animated Bénard convective cells ───────────────
       const outerCoreMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * URANUS_METALLIC_HYDROGEN_RADIUS, 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * SATURN_METALLIC_HYDROGEN_RADIUS, 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -3911,7 +3912,7 @@
 
       // ── Mantle outer boundary shell ───────────────────────────────────────
       const mantleMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * URANUS_MOLECULAR_ENVELOPE_RADIUS, 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * SATURN_MOLECULAR_ENVELOPE_RADIUS, 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -3924,7 +3925,7 @@
 
       // ── Mantle inner boundary shell: explicit inner wall around the core ──
       const mantleInnerBoundaryMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * (URANUS_METALLIC_HYDROGEN_RADIUS + 0.002), 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * (SATURN_METALLIC_HYDROGEN_RADIUS + 0.002), 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -3957,7 +3958,7 @@
 
       // ── Crust inner boundary shell: explicit wall against the mantle ──────
       const crustInnerBoundaryMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * URANUS_MOLECULAR_ENVELOPE_RADIUS, 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * SATURN_MOLECULAR_ENVELOPE_RADIUS, 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -3973,12 +3974,12 @@
 
       // ── Cross-section face (ring caps at x=0 plane) ───────────────────────
       const CAP_X = -0.012;
-      const crustInnerRadius = radius * URANUS_MOLECULAR_ENVELOPE_RADIUS;
+      const crustInnerRadius = radius * SATURN_MOLECULAR_ENVELOPE_RADIUS;
       const crustOuterRadius = radius + (elevationMap ? terrainRelief : 0);
       const capDefs = [
         { outer: crustOuterRadius, inner: crustInnerRadius, fragmentShader: CRUST_SECTION_FRAG },  // crust ring
-        { outer: crustInnerRadius, inner: radius * URANUS_METALLIC_HYDROGEN_RADIUS,  fragmentShader: MANTLE_SECTION_FRAG },  // molecular envelope ring
-        { outer: radius * URANUS_METALLIC_HYDROGEN_RADIUS,  inner: radius * URANUS_HEAVY_CORE_RADIUS,  fragmentShader: CORE_SECTION_FRAG },  // metallic hydrogen ring
+        { outer: crustInnerRadius, inner: radius * SATURN_METALLIC_HYDROGEN_RADIUS,  fragmentShader: MANTLE_SECTION_FRAG },  // molecular envelope ring
+        { outer: radius * SATURN_METALLIC_HYDROGEN_RADIUS,  inner: radius * SATURN_HEAVY_CORE_RADIUS,  fragmentShader: CORE_SECTION_FRAG },  // metallic hydrogen ring
       ];
       let crustRing = null;
       let molecularEnvelopeRing = null;
@@ -4018,7 +4019,7 @@
         side: THREE.DoubleSide,
       });
       const fluidCapDisk = new THREE.Mesh(
-        new THREE.CircleGeometry(radius * URANUS_METALLIC_HYDROGEN_RADIUS, 128),
+        new THREE.CircleGeometry(radius * SATURN_METALLIC_HYDROGEN_RADIUS, 128),
         fluidCapMat,
       );
       fluidCapDisk.rotation.y = Math.PI / 2;
@@ -4033,7 +4034,7 @@
         side: THREE.DoubleSide,
       });
       const innerCapDisk = new THREE.Mesh(
-        new THREE.CircleGeometry(radius * URANUS_HEAVY_CORE_RADIUS, 96),
+        new THREE.CircleGeometry(radius * SATURN_HEAVY_CORE_RADIUS, 96),
         innerCapMat,
       );
       innerCapDisk.rotation.y = Math.PI / 2;
@@ -4050,10 +4051,9 @@
         });
 
         for (const layer of layerData) {
-          const lx = layer.labelX;
           const ly = layer.labelY;
 
-          // Dot marker at the layer surface on the cut face
+          // Dot marker at the layer midpoint on the cut face
           const dot = new THREE.Mesh(markerGeo, markerMat.clone());
           dot.position.set(CAP_X, layer.anchorY, 0);
           dot.userData.feature = layer;
@@ -4066,10 +4066,19 @@
           labelsGroup.add(hit);
           interactiveObjects.push(hit, dot);
 
-          // Connector line: from layer surface to the floating label
+          // Build label texture first so we know its width before drawing the line.
+          // Sprites always face the camera in screen-space, so we must end the line
+          // at the sprite CENTER (not the edge) — that way the line terminates at the
+          // same 3D point regardless of planet tilt, and visually enters the label box.
+          const labelTex = makeLabelTexture(layer.name);
+          const _sw = (labelTex.width / 200) * 1.4;
+          const _sh = (labelTex.height / 200) * 1.4;
+          const spriteCX = layer.labelX - _sw * 0.5;
+
+          // Connector line: from layer surface to the sprite centre
           const lineGeo = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(CAP_X, layer.anchorY, 0),
-            new THREE.Vector3(lx, ly, 0),
+            new THREE.Vector3(spriteCX, ly, 0),
           ]);
           const lineMat = new THREE.LineBasicMaterial({
             color: 0xffcf9d, transparent: true, opacity: 0.45,
@@ -4077,15 +4086,14 @@
           const line = new THREE.Line(lineGeo, lineMat);
           labelsGroup.add(line);
 
-          // Text sprite label
-          const labelTex = makeLabelTexture(layer.name);
+          // Text sprite label — centred at the line endpoint
           const spriteMat = new THREE.SpriteMaterial({
             map: labelTex.texture, transparent: true, opacity: 0.88,
             depthTest: true, depthWrite: false,
           });
           const sprite = new THREE.Sprite(spriteMat);
-          sprite.scale.set((labelTex.width / 200) * 0.85, (labelTex.height / 200) * 0.85, 1);
-          sprite.position.set(lx - (labelTex.width / 200) * 0.85 * 0.5 - 0.05, ly, 0);
+          sprite.scale.set(_sw, _sh, 1);
+          sprite.position.set(spriteCX, ly, 0);
           sprite.userData.feature = layer;
           labelsGroup.add(sprite);
           interactiveObjects.push(sprite);
@@ -4115,39 +4123,39 @@
       };
     }
 
-    function buildUranusSolidInterior(radius) {
+    function buildSaturnSolidInterior(radius) {
       const group = new THREE.Group();
       const CAP_X = -0.0006;
       const metallicHydrogenMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xb7a789,
-        emissive: new THREE.Color(0x261b10),
-        emissiveIntensity: 0.14,
-        roughness: 0.34,
-        metalness: 0.72,
-        clearcoat: 0.28,
-        clearcoatRoughness: 0.22,
+        color: 0xb8c2d0,
+        emissive: new THREE.Color(0x0a0e18),
+        emissiveIntensity: 0.10,
+        roughness: 0.48,
+        metalness: 0.22,
+        clearcoat: 0.18,
+        clearcoatRoughness: 0.30,
       });
       const metallicHydrogenCapMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xc4b392,
-        emissive: new THREE.Color(0x2b1f13),
-        emissiveIntensity: 0.18,
-        roughness: 0.28,
-        metalness: 0.68,
-        clearcoat: 0.34,
-        clearcoatRoughness: 0.18,
+        color: 0xc6d0da,
+        emissive: new THREE.Color(0x0c1018),
+        emissiveIntensity: 0.12,
+        roughness: 0.42,
+        metalness: 0.18,
+        clearcoat: 0.22,
+        clearcoatRoughness: 0.26,
         side: THREE.DoubleSide,
         polygonOffset: true,
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,
       });
       const metallicHydrogenMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * 0.58, 128, 128),
+        new THREE.SphereGeometry(radius * 0.75, 128, 128),
         metallicHydrogenMaterial,
       );
       metallicHydrogenMesh.rotation.y = Math.PI;
       group.add(metallicHydrogenMesh);
       const metallicHydrogenCapMesh = new THREE.Mesh(
-        new THREE.RingGeometry(radius * 0.22, radius * 0.58, 128),
+        new THREE.RingGeometry(radius * 0.15, radius * 0.75, 128),
         metallicHydrogenCapMaterial,
       );
       metallicHydrogenCapMesh.rotation.y = Math.PI / 2;
@@ -4157,31 +4165,31 @@
       group.add(metallicHydrogenCapMesh);
 
       const heavyElementCoreMaterial = new THREE.MeshStandardMaterial({
-        color: 0x7a6c5a,
-        emissive: new THREE.Color(0x18110c),
+        color: 0x5e3518,
+        emissive: new THREE.Color(0x180a04),
         emissiveIntensity: 0.08,
-        roughness: 0.88,
-        metalness: 0.06,
+        roughness: 0.90,
+        metalness: 0.10,
       });
       const heavyElementCoreCapMaterial = new THREE.MeshStandardMaterial({
-        color: 0x8c7a63,
-        emissive: new THREE.Color(0x1b140e),
+        color: 0x6e4020,
+        emissive: new THREE.Color(0x1a0c06),
         emissiveIntensity: 0.10,
-        roughness: 0.82,
-        metalness: 0.05,
+        roughness: 0.84,
+        metalness: 0.08,
         side: THREE.DoubleSide,
         polygonOffset: true,
         polygonOffsetFactor: -3,
         polygonOffsetUnits: -3,
       });
       const heavyElementCoreMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * 0.22, 96, 96),
+        new THREE.SphereGeometry(radius * 0.15, 96, 96),
         heavyElementCoreMaterial,
       );
       heavyElementCoreMesh.rotation.y = Math.PI;
       group.add(heavyElementCoreMesh);
       const heavyElementCoreCapMesh = new THREE.Mesh(
-        new THREE.CircleGeometry(radius * 0.22, 96),
+        new THREE.CircleGeometry(radius * 0.15, 96),
         heavyElementCoreCapMaterial,
       );
       heavyElementCoreCapMesh.rotation.y = Math.PI / 2;
@@ -4249,7 +4257,7 @@
       const removeAtmosphere = Boolean(geologyToggle && geologyToggle.checked);
       for (const entry of cutawayResult.labelEntries) {
         const hiddenByAtmosphereRemoval = removeAtmosphere
-          && (entry.layerId === "upper-atmosphere" || entry.layerId === "molecular-envelope");
+          && (entry.layerId === "upper-atmosphere" || entry.layerId === "atmosphere");
         const visible = labelsEnabled && !hiddenByAtmosphereRemoval;
         entry.dot.visible = visible;
         entry.hit.visible = visible;
@@ -4273,12 +4281,12 @@
 
     function makeLabelTexture(labelInput, options = {}) {
       const isObject = typeof labelInput === "object" && labelInput !== null;
-      const text = isObject ? (labelInput.name || "") : String(labelInput);
+      const text = isObject ? ((labelInput.name || "").replace(/\s*\([^)]*\)\s*/g, " ").trim()) : String(labelInput);
       const theme = options.theme || (isObject ? labelInput.theme : "") || "standard";
       const small = options.small === true;
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
-      const backingScale = 4;
+      const backingScale = 2;
       const paddingX = small ? 8 : 14;
       const accentWidth = small ? 4 : 6;
       const bodyLeft = paddingX + accentWidth + (small ? 5 : 7);
@@ -4335,12 +4343,33 @@
               accent: "rgba(92, 222, 118, 0.96)",
               title: "rgba(234, 255, 238, 0.96)",
             }
+        : theme === "crater"
+          ? {
+              bg: "rgba(28, 8, 18, 0.74)",
+              stroke: "rgba(255, 95, 170, 0.50)",
+              accent: "rgba(255, 95, 170, 0.92)",
+              title: "rgba(255, 228, 242, 0.96)",
+            }
         : theme === "landing"
           ? {
-              bg: "rgba(23, 18, 8, 0.74)",
-              stroke: "rgba(255, 215, 125, 0.58)",
-              accent: "rgba(255, 205, 92, 0.94)",
-              title: "rgba(255, 246, 223, 0.96)",
+              bg: "rgba(22, 20, 0, 0.78)",
+              stroke: "rgba(255, 229, 0, 0.58)",
+              accent: "rgba(255, 229, 0, 0.96)",
+              title: "rgba(255, 252, 200, 0.96)",
+            }
+        : theme === "tectonic"
+          ? {
+              bg: "rgba(18, 10, 4, 0.76)",
+              stroke: "rgba(184, 115, 51, 0.50)",
+              accent: "rgba(184, 115, 51, 0.92)",
+              title: "rgba(255, 235, 210, 0.96)",
+            }
+        : theme === "fluvial"
+          ? {
+              bg: "rgba(6, 14, 32, 0.74)",
+              stroke: "rgba(45, 120, 224, 0.50)",
+              accent: "rgba(45, 120, 224, 0.92)",
+              title: "rgba(220, 236, 255, 0.96)",
             }
         : {
             bg: "rgba(9, 14, 24, 0.62)",
@@ -4387,6 +4416,7 @@
       texture.minFilter = THREE.LinearMipmapLinearFilter;
       texture.magFilter = THREE.LinearFilter;
       texture.needsUpdate = true;
+      texture.onUpdate = () => { texture.image = null; texture.onUpdate = null; };
       return { texture, width: logicalWidth, height: logicalHeight };
     }
 
@@ -4616,7 +4646,7 @@
       const hitGeometry = new THREE.SphereGeometry(0.22, 14, 14);
       const hitMaterial = new THREE.MeshBasicMaterial({
         transparent: true,
-        opacity: 0.01,
+        opacity: 0,
         depthTest: false,
         depthWrite: false,
       });
@@ -4711,10 +4741,10 @@
     }
 
     function getMoonOccluders() {
-      if (!uranusSceneGroup || !Array.isArray(moonData) || moonData.length === 0) {
+      if (!saturnSceneGroup || !Array.isArray(moonData) || moonData.length === 0) {
         return [];
       }
-      const scale = uranusSceneGroup.scale;
+      const scale = saturnSceneGroup.scale;
       const radiusScale = Math.max(
         Math.abs(scale.x || 1),
         Math.abs(scale.y || 1),
@@ -4724,7 +4754,7 @@
         .filter((item) => Array.isArray(item.moon_anchor))
         .map((item) => ({
           name: item.name,
-          center: uranusSceneGroup.localToWorld(new THREE.Vector3(
+          center: saturnSceneGroup.localToWorld(new THREE.Vector3(
             item.moon_anchor[0],
             item.moon_anchor[1],
             item.moon_anchor[2],
@@ -4768,15 +4798,80 @@
       return false;
     }
 
+    // Module-level scratch — pre-allocated objects reused every frame across all label functions.
+    const _scratch = {
+      // updateRingLabelVisibility
+      rProjected:   new THREE.Vector3(),
+      rMarkerWorld: new THREE.Vector3(),
+      rSpriteWorld: new THREE.Vector3(),
+      rOccupied: [], rCandidates: [],
+      rPool: Array.from({ length: 64 },  () => ({ entry: null, distance: 0, rect: { left: 0, right: 0, top: 0, bottom: 0 } })),
+      rCount: 0,
+      // updateMoonVisibility
+      mProjected:   new THREE.Vector3(),
+      mMoonWorld:   new THREE.Vector3(),
+      mSpriteWorld: new THREE.Vector3(),
+      mOccupied: [], mCandidates: [],
+      mPool: Array.from({ length: 32 },  () => ({ entry: null, distance: 0, rect: { left: 0, right: 0, top: 0, bottom: 0 } })),
+      mCount: 0,
+      // updateLabelVisibility
+      lGroupWorld:   new THREE.Vector3(),
+      lSurfaceWorld: new THREE.Vector3(),
+      lCameraDir:    new THREE.Vector3(),
+      lSpriteWorld:  new THREE.Vector3(),
+      lProjected:    new THREE.Vector3(),
+      lNormal:       new THREE.Vector3(),
+      lOccupied: [], lCandidates: [],
+      lPool: Array.from({ length: 512 }, () => ({ entry: null, distance: 0, rect: { left: 0, right: 0, top: 0, bottom: 0 } })),
+      lCount: 0,
+      // updateMoonFeatureLabelVisibility
+      fProjected:     new THREE.Vector3(),
+      fMoonCenter:    new THREE.Vector3(),
+      fSurfaceWorld:  new THREE.Vector3(),
+      fSpriteWorld:   new THREE.Vector3(),
+      fCameraDir:     new THREE.Vector3(),
+      fNormal:        new THREE.Vector3(),
+      fInvMarsLocal:  new THREE.Matrix4(),
+      fCamRight:      new THREE.Vector3(),
+      fCamUp:         new THREE.Vector3(),
+      fSgWorld:       new THREE.Vector3(),
+      fAnchorProj:    new THREE.Vector3(),
+      fRepos:         new THREE.Vector3(),
+      fMWorld:        new THREE.Vector3(),
+      fMProj:         new THREE.Vector3(),
+      fTryPos:        new THREE.Vector3(),
+      fTryWorld:      new THREE.Vector3(),
+      fTryProj:       new THREE.Vector3(),
+      fFullVec:       new THREE.Vector3(),
+      fDir:           new THREE.Vector3(),
+      fMw:            new THREE.Vector3(),
+      fTryP:          new THREE.Vector3(),
+      fOccupied: [], fCandidates: [],
+      fPool: Array.from({ length: 512 }, () => ({ entry: null, distance: 0, rect: { left: 0, right: 0, top: 0, bottom: 0 } })),
+      fCount: 0,
+      // popup anchor projection
+      popupAnchor:     new THREE.Vector3(),
+      popupProjected:  new THREE.Vector3(),
+      fBaked:          new THREE.Vector3(),
+      fIdentity:       new THREE.Matrix4(),
+      COMPASS_SIGNS: [
+        [+1,  0], [+1, +1], [ 0, +1], [-1, +1],
+        [-1,  0], [-1, -1], [ 0, -1], [+1, -1],
+      ],
+    };
+
     function updateRingLabelVisibility(entries, marsGroup, camera, renderer, labelsEnabled) {
-      const projected = new THREE.Vector3();
-      const markerWorldPosition = new THREE.Vector3();
-      const spriteWorldPosition = new THREE.Vector3();
+      const projected      = _scratch.rProjected;
+      const markerWorldPosition = _scratch.rMarkerWorld;
+      const spriteWorldPosition = _scratch.rSpriteWorld;
       const viewportWidth = renderer.domElement.clientWidth || window.innerWidth;
       const viewportHeight = renderer.domElement.clientHeight || window.innerHeight;
       const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
-      const occupiedRects = [];
-      const candidates = [];
+      const occupiedRects = _scratch.rOccupied;
+      const candidates    = _scratch.rCandidates;
+      occupiedRects.length = 0; candidates.length = 0;
+      _scratch.rCount = 0;
+      const _rPool = _scratch.rPool;
 
       for (const entry of entries) {
         entry.marker.visible = labelsEnabled;
@@ -4815,16 +4910,14 @@
         const rectHeight = Math.max(30, entry.sprite.scale.y * pixelsPerWorldUnit * 1.08);
         const screenX = ((projected.x + 1) * 0.5) * viewportWidth;
         const screenY = ((1 - projected.y) * 0.5) * viewportHeight;
-        candidates.push({
-          entry,
-          distance,
-          rect: {
-            left: screenX - rectWidth * 0.5,
-            right: screenX + rectWidth * 0.5,
-            top: screenY - rectHeight * 0.5,
-            bottom: screenY + rectHeight * 0.5,
-          },
-        });
+        {
+          const _ci = _scratch.rCount++;
+          const _cp = _rPool[_ci] ?? (_rPool[_ci] = { entry: null, distance: 0, rect: { left: 0, right: 0, top: 0, bottom: 0 } });
+          _cp.entry = entry; _cp.distance = distance;
+          _cp.rect.left = screenX - rectWidth * 0.5; _cp.rect.right = screenX + rectWidth * 0.5;
+          _cp.rect.top  = screenY - rectHeight * 0.5; _cp.rect.bottom = screenY + rectHeight * 0.5;
+          candidates.push(_cp);
+        }
       }
 
       candidates.sort((a, b) => a.distance - b.distance);
@@ -4850,42 +4943,17 @@
 
       const FLYBY_DATA = [
         {
-          name: "Pioneer 11",
-          date: "1 Sep 1979",
-          color: 0xffbb44,
-          // Closest approach 1.35 Rs = 4.32 scene units, passed THROUGH the ring plane
-          waypoints: [
-            new THREE.Vector3(-4,  -20,  14),   // distant approach (south, from Jupiter direction)
-            new THREE.Vector3(-1,   -8,   6),    // mid-approach, descending toward ring plane
-            new THREE.Vector3( 3.5,  0,   2.5),  // periapsis in ring plane (~4.30 scene units from center)
-            new THREE.Vector3( 5.5,  7,  -1.5),  // post-periapsis, rising north
-            new THREE.Vector3( 8,   20,  -9),    // distant departure (north, toward heliopause)
-          ],
-        },
-        {
-          name: "Voyager 1",
-          date: "12 Nov 1980",
-          color: 0x66aaff,
-          // Closest approach 3.09 Rs = 9.89 scene units, outside ring system
-          waypoints: [
-            new THREE.Vector3(-22,   4,  18),   // distant approach (from inner solar system)
-            new THREE.Vector3(-14,   2,  13),   // mid-approach
-            new THREE.Vector3( -2,   0.5, 9.7), // periapsis (~9.92 scene units from center)
-            new THREE.Vector3(  5,  -2,   2),   // post-periapsis
-            new THREE.Vector3( 12,  14, -16),   // distant departure (north, out of ecliptic)
-          ],
-        },
-        {
           name: "Voyager 2",
-          date: "26 Aug 1981",
-          color: 0x44dd88,
-          // Closest approach 2.67 Rs = 8.54 scene units, outside ring system
+          date: "24 Jan 1986",
+          color: 0x66aaff,
+          // Closest approach 81,500 km (~3.19 Ru = 10.2 scene units) at lat=-14°, lon=35°
+          // Arc sweeps around the +x/+z face of the planet — all waypoints ≥ 9.7 scene units from center
           waypoints: [
-            new THREE.Vector3(-20,  -2,  17),   // distant approach (slightly south)
-            new THREE.Vector3(-13,  -1,  11),   // mid-approach
-            new THREE.Vector3( -2.5, 0,  8.2),  // periapsis (~8.57 scene units from center)
-            new THREE.Vector3(  6,   2,   2),   // post-periapsis
-            new THREE.Vector3( 20,   5, -12),   // distant departure (toward Uranus, roughly ecliptic)
+            new THREE.Vector3( 21, -2, -18),  // distant incoming (right-back)
+            new THREE.Vector3( 14, -1, -12),  // mid-approach
+            new THREE.Vector3(8.1, -2.5, 5.7), // PERIAPSIS: lat=-14°, lon=35°, 3.19 Ru
+            new THREE.Vector3( -6, -1,  17),  // mid-departure
+            new THREE.Vector3(-10, -2,  26),  // distant departure toward Neptune
           ],
         },
       ];
@@ -4908,7 +4976,7 @@
         group.add(line);
 
         // Periapsis marker — small glowing dot at closest approach
-        const periapsisIdx = Math.round(points.length * 0.44);
+        const periapsisIdx = Math.round(points.length * 0.50);
         const periapsisPos = points[periapsisIdx];
         const dotGeo = new THREE.SphereGeometry(0.06, 8, 8);
         const dotMat = new THREE.MeshBasicMaterial({
@@ -5043,7 +5111,8 @@
         labelGroup.add(line);
 
         interactiveObjects.push(moonMesh, sprite);
-        entries.push({ moonMesh, sprite, line, orbitLine, item, anchor, orbitRadius, initialAngle, moonRadius, lift, priority: 6 });
+        // dot: moonMesh so entryMarker resolves to the moon sphere, not the label sprite.
+        entries.push({ moonMesh, dot: moonMesh, sprite, line, orbitLine, item, anchor, orbitRadius, initialAngle, moonRadius, lift, priority: 6 });
       }
 
       return { group, orbitGroup, labelGroup, entries, interactiveObjects };
@@ -5070,6 +5139,22 @@
         .join(" ")
         .toLowerCase();
       return /landing site|probe|lander|rover|spacecraft|mission|flyby|cassini|huygens|voyager/.test(content);
+    }
+
+    function isCraterMoonFeature(item) {
+      const content = [item.type, item.theme]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return /impact crater|crater/.test(content);
+    }
+
+    function isTectonicMoonFeature(item) {
+      return item.theme === "tectonic";
+    }
+
+    function isFluvialMoonFeature(item) {
+      return item.theme === "fluvial";
     }
 
     /**
@@ -5137,9 +5222,10 @@
           parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]
         );
 
-        const category = isVolcanicMoonFeature(item) ? "volcanic" : isMissionMoonFeature(item) ? "landing" : "moon";
-        const featureColor = category === "volcanic" ? 0xff5845 : category === "landing" ? 0xffd163 : 0x3ad6d0;
-        const featureTheme = category === "volcanic" ? "volcanic" : category === "landing" ? "landing" : "standard";
+        const category = isFluvialMoonFeature(item) ? "fluvial" : isTectonicMoonFeature(item) ? "tectonic" : isVolcanicMoonFeature(item) ? "volcanic" : isMissionMoonFeature(item) ? "landing" : isCraterMoonFeature(item) ? "crater" : "moon";
+        const featureColor = category === "volcanic" ? 0xff5845 : category === "landing" ? 0xffe500 : category === "crater" ? 0xff5faa : category === "tectonic" ? 0xb87333 : category === "fluvial" ? 0x1a5fbf : 0x3ad6d0;
+        const featureLineColor = category === "crater" ? 0xff82c0 : category === "tectonic" ? 0xd4965a : category === "fluvial" ? 0x2d78e0 : category === "landing" ? 0xffed4d : featureColor;
+        const featureTheme = category === "volcanic" ? "volcanic" : category === "landing" ? "landing" : category === "crater" ? "crater" : category === "tectonic" ? "tectonic" : category === "fluvial" ? "fluvial" : "standard";
 
         const marker = new THREE.Mesh(markerGeometry, new THREE.MeshBasicMaterial({
           color: featureColor,
@@ -5176,7 +5262,7 @@
             new THREE.Vector3(),
           ]),
           new THREE.LineBasicMaterial({
-            color: featureColor,
+            color: featureLineColor,
             transparent: true,
             opacity: 0.42,
             depthTest: false,
@@ -5184,6 +5270,7 @@
           }),
         );
         line.renderOrder = MOON_LABEL_RENDER_ORDER;
+        line.frustumCulled = false;
         group.add(line);
         interactiveObjects.push(hitTarget, marker, sprite);
         entries.push({
@@ -5197,17 +5284,35 @@
       return { group, entries, interactiveObjects };
     }
 
-    function updateMoonFeatureLabelVisibility(entries, marsGroup, camera, renderer, activeMoonFeature, volcanicEnabled = true, labelsEnabled = true, typeFilter = "all") {
-      const projected = new THREE.Vector3();
-      const moonCenterWorld = new THREE.Vector3();
-      const surfaceWorldPosition = new THREE.Vector3();
-      const spriteWorldPosition = new THREE.Vector3();
-      const cameraDirection = new THREE.Vector3();
+    function updateMoonFeatureLabelVisibility(entries, marsGroup, camera, renderer, activeMoonFeature, volcanicEnabled = true, labelsEnabled = true, typeFilter = "all", craterLabelsEnabled = true, tectonicLabelsEnabled = true, fluvialLabelsEnabled = true) {
+      const projected           = _scratch.fProjected;
+      const moonCenterWorld     = _scratch.fMoonCenter;
+      const surfaceWorldPosition = _scratch.fSurfaceWorld;
+      const spriteWorldPosition = _scratch.fSpriteWorld;
+      const cameraDirection     = _scratch.fCameraDir;
       const viewportWidth = renderer.domElement.clientWidth || window.innerWidth;
       const viewportHeight = renderer.domElement.clientHeight || window.innerHeight;
       const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
-      const occupiedRects = [];
-      const candidates = [];
+      const occupiedRects = _scratch.fOccupied;
+      const candidates    = _scratch.fCandidates;
+      occupiedRects.length = 0; candidates.length = 0;
+      _scratch.fCount = 0;
+      const _fPool = _scratch.fPool;
+      // Per-frame camera basis for screen-space compass placement fallback
+      _scratch.fInvMarsLocal.copy(marsGroup.matrixWorld).invert();
+      const _invMarsLocal  = _scratch.fInvMarsLocal;
+      const _camRightLocal = _scratch.fCamRight.setFromMatrixColumn(camera.matrixWorld, 0).transformDirection(_invMarsLocal);
+      const _camUpLocal    = _scratch.fCamUp.setFromMatrixColumn(camera.matrixWorld, 1).transformDirection(_invMarsLocal);
+
+      // Pre-computed placement cache (mirrors Mars updateLabelVisibility approach).
+      const _sgWorld = _scratch.fSgWorld;
+      marsGroup.getWorldPosition(_sgWorld);
+      const _camDistSaturn = camera.position.distanceTo(_sgWorld);
+      const COMPASS_SIGNS = _scratch.COMPASS_SIGNS;
+      if (!entries._sv) entries._sv = { q: new THREE.Quaternion(), d: 0, valid: false };
+      const _needsSolve = !entries._sv.valid
+        || entries._sv.q.dot(camera.quaternion) < 0.9962
+        || Math.abs(_camDistSaturn / Math.max(entries._sv.d, 1e-6) - 1) > 0.20;
 
       for (const entry of entries) {
         const isActiveMoon = Boolean(activeMoonFeature) && entry.parentMoon.name === activeMoonFeature.name;
@@ -5215,7 +5320,11 @@
         entry.hitTarget.visible = false;
         entry.sprite.visible = false;
         entry.line.visible = false;
-        const categoryEnabled = entry.category === "volcanic" ? volcanicEnabled : labelsEnabled;
+        const categoryEnabled = entry.category === "volcanic" ? volcanicEnabled
+          : entry.category === "crater" ? craterLabelsEnabled
+          : entry.category === "tectonic" ? tectonicLabelsEnabled
+          : entry.category === "fluvial" ? fluvialLabelsEnabled
+          : labelsEnabled;
         if (!isActiveMoon || !categoryEnabled) {
           continue;
         }
@@ -5225,7 +5334,7 @@
         moonCenterWorld.copy(entry.moonAnchor).applyMatrix4(marsGroup.matrixWorld);
         surfaceWorldPosition.copy(entry.surfacePoint).applyMatrix4(marsGroup.matrixWorld);
         cameraDirection.copy(camera.position).sub(surfaceWorldPosition).normalize();
-        const normal = surfaceWorldPosition.clone().sub(moonCenterWorld).normalize();
+        const normal = _scratch.fNormal.copy(surfaceWorldPosition).sub(moonCenterWorld).normalize();
         // In moon-viewer mode at close range, tighten backface culling to avoid limb labels
         const _moonCamDist = camera.position.distanceTo(moonCenterWorld);
         const _moonRelDist = _moonCamDist / Math.max(entry.parentMoon?.moon_radius || 0.001, 0.001);
@@ -5276,8 +5385,8 @@
         if (activeMoonFeature) {
           const _refDist = Math.max(camera.position.distanceTo(surfaceWorldPosition), 0.001);
           const _renderedH = entry.sprite.userData._baseSY * (fovScale / _refDist);
-          if (_renderedH > 52) {
-            const _r = 52 / _renderedH;
+          if (_renderedH > 24) {
+            const _r = 24 / _renderedH;
             entry.sprite.scale.set(entry.sprite.userData._baseSX * _r, entry.sprite.userData._baseSY * _r, 1);
           }
         }
@@ -5289,7 +5398,8 @@
             continue;
           }
           // Sprite is behind the camera at max zoom — reposition it next to the surface marker
-          const anchorProj = surfaceWorldPosition.clone().project(camera);
+          _scratch.fAnchorProj.copy(surfaceWorldPosition).project(camera);
+          const anchorProj = _scratch.fAnchorProj;
           if (anchorProj.z < -1 || anchorProj.z > 1) continue;
           const anchorSX = ((anchorProj.x + 1) * 0.5) * viewportWidth;
           const anchorSY = ((1 - anchorProj.y) * 0.5) * viewportHeight;
@@ -5299,12 +5409,12 @@
           const nudgeX = (anchorSX + nudgePx < viewportWidth - 12) ? nudgePx : -nudgePx;
           const nudgeSX = Math.max(12, Math.min(viewportWidth - 12, anchorSX + nudgeX));
           const nudgeSY = Math.max(12, Math.min(viewportHeight - 12, anchorSY));
-          const repositioned = new THREE.Vector3(
+          const repositioned = _scratch.fRepos.set(
             (nudgeSX / viewportWidth) * 2 - 1,
             1 - (nudgeSY / viewportHeight) * 2,
             anchorProj.z,
           ).unproject(camera);
-          const localRepositioned = marsGroup.worldToLocal(repositioned.clone());
+          const localRepositioned = marsGroup.worldToLocal(repositioned);
           entry.sprite.position.copy(localRepositioned);
           if (entry.line?.geometry?.attributes?.position) {
             const fp = entry.line.geometry.attributes.position.array;
@@ -5324,27 +5434,122 @@
         const rectHeight = Math.max(26, entry.sprite.scale.y * pixelsPerWorldUnit * 1.06);
         const screenX = ((projected.x + 1) * 0.5) * viewportWidth;
         const screenY = ((1 - projected.y) * 0.5) * viewportHeight;
-        candidates.push({
-          entry,
-          distance,
-          rect: {
-            left: screenX - rectWidth * 0.5,
-            right: screenX + rectWidth * 0.5,
-            top: screenY - rectHeight * 0.5,
-            bottom: screenY + rectHeight * 0.5,
-          },
-        });
+        {
+          const _ci = _scratch.fCount++;
+          const _cp = _fPool[_ci] ?? (_fPool[_ci] = { entry: null, distance: 0, rect: { left: 0, right: 0, top: 0, bottom: 0 } });
+          _cp.entry = entry; _cp.distance = distance;
+          _cp.rect.left = screenX - rectWidth * 0.5; _cp.rect.right = screenX + rectWidth * 0.5;
+          _cp.rect.top  = screenY - rectHeight * 0.5; _cp.rect.bottom = screenY + rectHeight * 0.5;
+          candidates.push(_cp);
+        }
       }
 
       candidates.sort((a, b) => {
         const aPinned = Boolean(activePopupFeature && a.entry.item.name === activePopupFeature.name);
         const bPinned = Boolean(activePopupFeature && b.entry.item.name === activePopupFeature.name);
-        if (aPinned !== bPinned) {
-          return aPinned ? -1 : 1;
-        }
+        if (aPinned !== bPinned) return aPinned ? -1 : 1;
         return a.distance - b.distance;
       });
-      for (const candidate of candidates) {
+
+      // Attempt to reposition an overlapping moon-feature label.
+      // Strategy mirrors Mars placeForceLabel:
+      //   1. Try the original bearing at shorter line lengths (current = maximum).
+      //   2. Only if that fails, try 8 compass directions sorted toward the
+      //      screen-radial outward direction.
+      // Only called in moon-viewer mode (close zoom).
+      const _tryCompassPlace = (candidate) => {
+        const entry = candidate.entry;
+        const ppu = fovScale / Math.max(candidate.distance, 0.001);
+
+        const _testPos = (tryPos) => {
+          const tryWorld = _scratch.fTryWorld.copy(tryPos);
+          marsGroup.localToWorld(tryWorld);
+          const tryProj  = _scratch.fTryProj.copy(tryWorld).project(camera);
+          if (tryProj.z < -1 || tryProj.z > 1) return false;
+          const tsx = ((tryProj.x + 1) * 0.5) * viewportWidth;
+          const tsy = ((1 - tryProj.y) * 0.5) * viewportHeight;
+          const trect = {
+            left:   tsx - entry.sprite.scale.x * ppu * 0.51,
+            right:  tsx + entry.sprite.scale.x * ppu * 0.51,
+            top:    tsy - entry.sprite.scale.y * ppu * 0.53,
+            bottom: tsy + entry.sprite.scale.y * ppu * 0.53,
+          };
+          if (occupiedRects.some((r) =>
+            trect.left - 2 < r.right && trect.right + 2 > r.left &&
+            trect.top - 2 < r.bottom && trect.bottom + 2 > r.top)) return false;
+          entry.sprite.position.copy(tryPos);
+          if (entry.line?.geometry?.attributes?.position) {
+            const fp = entry.line.geometry.attributes.position.array;
+            fp[3] = tryPos.x; fp[4] = tryPos.y; fp[5] = tryPos.z;
+            entry.line.geometry.attributes.position.needsUpdate = true;
+          }
+          candidate.rect = trect;
+          return true;
+        };
+
+        // Phase 1 — same bearing, progressively shorter lines.
+        // Current baked position is the maximum length; pull toward dot first.
+        const _baked = entry.localLabelPos;
+        const _mark  = entry.marker.position;
+        if (_baked) {
+          const _bakedWorld = marsGroup.localToWorld(_scratch.fBaked.copy(_baked).applyMatrix4(entry.moonMesh?.matrix || _scratch.fIdentity));
+          // direction from marker to baked label in local space
+          const _fullVec = _scratch.fFullVec.copy(entry.sprite.position).sub(_mark);
+          const _fullLen = _fullVec.length();
+          if (_fullLen > 0.001) {
+            const _dir = _scratch.fDir.copy(_fullVec).normalize();
+            for (const frac of [1.0, 0.75, 0.55, 0.38]) {
+              const tryPos = _scratch.fTryPos.copy(_mark).addScaledVector(_dir, _fullLen * frac);
+              if (_testPos(tryPos)) {
+                entry._pc = { phase: 1, offsetVec: tryPos.clone().sub(_mark) };
+                return true;
+              }
+            }
+          }
+        }
+
+        // Phase 2 — 8 compass directions sorted toward screen-radial outward.
+        const _mWorld = _scratch.fMWorld;
+        entry.marker.getWorldPosition(_mWorld);
+        const _mProj = _scratch.fMProj.copy(_mWorld).project(camera);
+        let _outR = 0, _outU = 0;
+        if (_mProj.z > -1 && _mProj.z < 1) {
+          const _dx = ((_mProj.x + 1) * 0.5) * viewportWidth  - viewportWidth  * 0.5;
+          const _dy = ((_mProj.y + 1) * 0.5) * viewportHeight - viewportHeight * 0.5;
+          const _dl = Math.sqrt(_dx * _dx + _dy * _dy);
+          if (_dl > 8) { _outR = _dx / _dl; _outU = -_dy / _dl; }
+        }
+        const hw = entry.sprite.scale.x * 0.5;
+        const hh = entry.sprite.scale.y * 0.5;
+        const gw = 10 / Math.max(ppu, 1);
+        const compassDirs = [
+          [ hw + gw,  0,         0 ], [ hw + gw,  hh + gw,   1 ],
+          [ 0,        hh + gw,   2 ], [-(hw + gw), hh + gw,  3 ],
+          [-(hw + gw), 0,        4 ], [-(hw + gw),-(hh + gw), 5 ],
+          [ 0,       -(hh + gw), 6 ], [ hw + gw, -(hh + gw), 7 ],
+        ];
+        compassDirs.sort((a, b) => {
+          const la = Math.sqrt(a[0]*a[0]+a[1]*a[1])||1;
+          const lb = Math.sqrt(b[0]*b[0]+b[1]*b[1])||1;
+          return ((b[0]/lb)*_outR+(b[1]/lb)*_outU) - ((a[0]/la)*_outR+(a[1]/la)*_outU);
+        });
+        for (const [rs, us, slotIdx] of compassDirs) {
+          const tryPos = _scratch.fTryPos.copy(_mark)
+            .addScaledVector(_camRightLocal, rs)
+            .addScaledVector(_camUpLocal,   us);
+          if (_testPos(tryPos)) {
+            entry._pc = { phase: 2, slotIdx };
+            return true;
+          }
+        }
+        return false;
+      };
+
+      if (_needsSolve) {
+        for (const entry of entries) entry._pc = { hidden: true };
+      }
+
+      if (_needsSolve) for (const candidate of candidates) {
         const isPinned = Boolean(activePopupFeature && candidate.entry.item.name === activePopupFeature.name);
         const overlaps = occupiedRects.some((rect) => (
           candidate.rect.left - 2 < rect.right &&
@@ -5353,23 +5558,76 @@
           candidate.rect.bottom + 2 > rect.top
         ));
         if (overlaps && !isPinned) {
-          continue;
+          if (!activeMoonFeature || !_tryCompassPlace(candidate)) {
+            continue;
+          }
         }
+        if (candidate.entry._pc?.hidden) candidate.entry._pc = { phase: 0 };
         candidate.entry.sprite.visible = true;
         candidate.entry.line.visible = true;
         occupiedRects.push(candidate.rect);
+      } // end _needsSolve commit loop
+
+      if (_needsSolve) {
+        entries._sv.q = camera.quaternion.clone();
+        entries._sv.d = _camDistSaturn;
+        entries._sv.valid = true;
+      } else {
+        // Apply cached placements every frame without re-running overlap checks.
+        for (const entry of entries) {
+          const _pc = entry._pc;
+          if (!_pc || _pc.hidden) continue;
+          if (!entry.marker?.visible) { entry.sprite.visible = false; continue; }
+
+          if (_pc.phase === 2) {
+            const _mw = _scratch.fMw;
+            entry.marker.getWorldPosition(_mw);
+            const _ppu = fovScale / Math.max(camera.position.distanceTo(_mw), 0.001);
+            const _hw = entry.sprite.scale.x * 0.5;
+            const _hh = entry.sprite.scale.y * 0.5;
+            const _gw = 10 / Math.max(_ppu, 1);
+            const [rs_s, us_s] = COMPASS_SIGNS[_pc.slotIdx];
+            const _mark = entry.marker.position;
+            const _tryP = _scratch.fTryP.copy(_mark)
+              .addScaledVector(_camRightLocal, rs_s * (_hw + _gw))
+              .addScaledVector(_camUpLocal,   us_s * (_hh + _gw));
+            entry.sprite.position.copy(_tryP);
+            if (entry.line?.geometry?.attributes?.position) {
+              const fp = entry.line.geometry.attributes.position.array;
+              fp[3] = _tryP.x; fp[4] = _tryP.y; fp[5] = _tryP.z;
+              entry.line.geometry.attributes.position.needsUpdate = true;
+              entry.line.geometry.computeBoundingSphere();
+            }
+          } else if (_pc.phase === 1) {
+            const _mark = entry.marker.position;
+            const _tryP = _scratch.fTryP.copy(_mark).add(_pc.offsetVec);
+            entry.sprite.position.copy(_tryP);
+            if (entry.line?.geometry?.attributes?.position) {
+              const fp = entry.line.geometry.attributes.position.array;
+              fp[3] = _tryP.x; fp[4] = _tryP.y; fp[5] = _tryP.z;
+              entry.line.geometry.attributes.position.needsUpdate = true;
+              entry.line.geometry.computeBoundingSphere();
+            }
+          }
+          // Phase 0: sprite already at baked position — just show.
+          entry.sprite.visible = true;
+          entry.line.visible = true;
+        }
       }
     }
 
     function updateMoonVisibility(entries, marsGroup, camera, renderer, moonsEnabled, labelsEnabled, inMoonViewer = false) {
-      const projected = new THREE.Vector3();
-      const moonWorldPosition = new THREE.Vector3();
-      const spriteWorldPosition = new THREE.Vector3();
+      const projected          = _scratch.mProjected;
+      const moonWorldPosition  = _scratch.mMoonWorld;
+      const spriteWorldPosition = _scratch.mSpriteWorld;
       const viewportWidth = renderer.domElement.clientWidth || window.innerWidth;
       const viewportHeight = renderer.domElement.clientHeight || window.innerHeight;
       const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
-      const occupiedRects = [];
-      const candidates = [];
+      const occupiedRects = _scratch.mOccupied;
+      const candidates    = _scratch.mCandidates;
+      occupiedRects.length = 0; candidates.length = 0;
+      _scratch.mCount = 0;
+      const _mPool = _scratch.mPool;
 
       for (const entry of entries) {
         entry.moonMesh.visible = moonsEnabled;
@@ -5413,16 +5671,14 @@
         const rectHeight = Math.max(28, entry.sprite.scale.y * pixelsPerWorldUnit * 1.06);
         const screenX = ((projected.x + 1) * 0.5) * viewportWidth;
         const screenY = ((1 - projected.y) * 0.5) * viewportHeight;
-        candidates.push({
-          entry,
-          distance,
-          rect: {
-            left: screenX - rectWidth * 0.5,
-            right: screenX + rectWidth * 0.5,
-            top: screenY - rectHeight * 0.5,
-            bottom: screenY + rectHeight * 0.5,
-          },
-        });
+        {
+          const _ci = _scratch.mCount++;
+          const _cp = _mPool[_ci] ?? (_mPool[_ci] = { entry: null, distance: 0, rect: { left: 0, right: 0, top: 0, bottom: 0 } });
+          _cp.entry = entry; _cp.distance = distance;
+          _cp.rect.left = screenX - rectWidth * 0.5; _cp.rect.right = screenX + rectWidth * 0.5;
+          _cp.rect.top  = screenY - rectHeight * 0.5; _cp.rect.bottom = screenY + rectHeight * 0.5;
+          candidates.push(_cp);
+        }
       }
 
       candidates.sort((a, b) => a.distance - b.distance);
@@ -5448,7 +5704,7 @@
       const hitGeometry = new THREE.SphereGeometry(0.18, 14, 14);
       const hitMaterial = new THREE.MeshBasicMaterial({
         transparent: true,
-        opacity: 0.01,
+        opacity: 0,
         depthTest: false,
         depthWrite: false,
       });
@@ -5480,9 +5736,9 @@
         }
         if (theme === "landing") {
           return {
-            markerColor: 0xffd163,
-            lineColor: 0xffdc8c,
-            spriteOpacity: 0.92,
+            markerColor: 0xffe500,
+            lineColor: 0xffed4d,
+            spriteOpacity: 0.95,
             priority: 3,
             category: "landing",
           };
@@ -5503,6 +5759,33 @@
             spriteOpacity: 0.94,
             priority: 4,
             category: "habitation",
+          };
+        }
+        if (theme === "crater") {
+          return {
+            markerColor: 0xff5faa,
+            lineColor: 0xff82c0,
+            spriteOpacity: 0.86,
+            priority: 2,
+            category: "crater",
+          };
+        }
+        if (theme === "tectonic") {
+          return {
+            markerColor: 0xb87333,
+            lineColor: 0xd4965a,
+            spriteOpacity: 0.86,
+            priority: 3,
+            category: "tectonic",
+          };
+        }
+        if (theme === "fluvial") {
+          return {
+            markerColor: 0x1a5fbf,
+            lineColor: 0x2d78e0,
+            spriteOpacity: 0.86,
+            priority: 3,
+            category: "fluvial",
           };
         }
         return {
@@ -5660,22 +5943,28 @@
       habitationLabelsEnabled,
       cutawayModeEnabled,
       stormLabelsEnabled = true,
+      craterLabelsEnabled = true,
+      tectonicLabelsEnabled = true,
+      fluvialLabelsEnabled = true,
     ) {
-      const groupWorldPosition = new THREE.Vector3();
-      const surfaceWorldPosition = new THREE.Vector3();
-      const cameraDirection = new THREE.Vector3();
-      const spriteWorldPosition = new THREE.Vector3();
-      const projected = new THREE.Vector3();
+      const groupWorldPosition   = _scratch.lGroupWorld;
+      const surfaceWorldPosition = _scratch.lSurfaceWorld;
+      const cameraDirection      = _scratch.lCameraDir;
+      const spriteWorldPosition  = _scratch.lSpriteWorld;
+      const projected            = _scratch.lProjected;
       const viewportWidth = renderer.domElement.clientWidth || window.innerWidth;
       const viewportHeight = renderer.domElement.clientHeight || window.innerHeight;
       const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
-      const occupiedRects = [];
-      const candidates = [];
+      const occupiedRects = _scratch.lOccupied;
+      const candidates    = _scratch.lCandidates;
+      occupiedRects.length = 0; candidates.length = 0;
+      _scratch.lCount = 0;
+      const _lPool = _scratch.lPool;
       marsGroup.getWorldPosition(groupWorldPosition);
 
       for (const entry of entries) {
         entry.marker.getWorldPosition(surfaceWorldPosition);
-        const normal = surfaceWorldPosition.clone().sub(groupWorldPosition).normalize();
+        const normal = _scratch.lNormal.copy(surfaceWorldPosition).sub(groupWorldPosition).normalize();
         cameraDirection.copy(camera.position).sub(surfaceWorldPosition).normalize();
         const categoryEnabled = entry.category === "volcanic"
           ? volcanicLabelsEnabled
@@ -5685,6 +5974,12 @@
             ? landingLabelsEnabled
           : entry.category === "habitation"
             ? habitationLabelsEnabled
+          : entry.category === "crater"
+            ? craterLabelsEnabled
+          : entry.category === "tectonic"
+            ? tectonicLabelsEnabled
+          : entry.category === "fluvial"
+            ? fluvialLabelsEnabled
           : surfaceLabelsEnabled;
         const survivesCut = !cutawayModeEnabled || (activeCutClipPlane ? activeCutClipPlane.distanceToPoint(surfaceWorldPosition) : surfaceWorldPosition.x) >= -0.02;
         const isVisible = categoryEnabled && survivesCut && normal.dot(cameraDirection) > 0.02;
@@ -5720,16 +6015,14 @@
         const rectHeight = Math.max(28, entry.sprite.scale.y * pixelsPerWorldUnit * 1.06);
         const screenX = ((projected.x + 1) * 0.5) * viewportWidth;
         const screenY = ((1 - projected.y) * 0.5) * viewportHeight;
-        candidates.push({
-          entry,
-          distance,
-          rect: {
-            left: screenX - rectWidth * 0.5,
-            right: screenX + rectWidth * 0.5,
-            top: screenY - rectHeight * 0.5,
-            bottom: screenY + rectHeight * 0.5,
-          },
-        });
+        {
+          const _ci = _scratch.lCount++;
+          const _cp = _lPool[_ci] ?? (_lPool[_ci] = { entry: null, distance: 0, rect: { left: 0, right: 0, top: 0, bottom: 0 } });
+          _cp.entry = entry; _cp.distance = distance;
+          _cp.rect.left = screenX - rectWidth * 0.5; _cp.rect.right = screenX + rectWidth * 0.5;
+          _cp.rect.top  = screenY - rectHeight * 0.5; _cp.rect.bottom = screenY + rectHeight * 0.5;
+          candidates.push(_cp);
+        }
       }
 
       candidates.sort((a, b) => {
@@ -5835,7 +6128,7 @@
 
       const wheelZoomBodyCenter = new THREE.Vector3();
       const wheelZoomDirection = new THREE.Vector3();
-      function getUranusZoomContext() {
+      function getSaturnZoomContext() {
         if (activeMoonViewerFeature) {
           const moonMesh = moonMeshMap ? moonMeshMap.get(activeMoonViewerFeature.name) : null;
           if (!moonMesh) return null;
@@ -5859,7 +6152,7 @@
       }
       function handleSurfaceWheelZoom(event) {
         if (freezeViewActive) return;
-        const zoomContext = getUranusZoomContext();
+        const zoomContext = getSaturnZoomContext();
         if (!zoomContext) return;
         const moonViewerMode = Boolean(activeMoonViewerFeature);
         const delta = Number(event.deltaY || 0);
@@ -5888,6 +6181,26 @@
       }
       renderer.domElement.addEventListener("wheel", handleSurfaceWheelZoom, { passive: false });
 
+      // Touch pinch-to-zoom — feeds into the same zoom logic as the mouse wheel
+      {
+        let _pinchDist = null;
+        renderer.domElement.addEventListener("touchstart", (e) => {
+          _pinchDist = e.touches.length === 2
+            ? Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
+            : null;
+        }, { passive: true });
+        renderer.domElement.addEventListener("touchmove", (e) => {
+          if (e.touches.length !== 2 || _pinchDist === null) return;
+          const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          const delta = (_pinchDist - dist) * 2.2;
+          if (Math.abs(delta) > 0.5) {
+            handleSurfaceWheelZoom({ deltaY: delta, preventDefault: () => {} });
+            _pinchDist = dist;
+          }
+        }, { passive: true });
+        renderer.domElement.addEventListener("touchend", () => { _pinchDist = null; }, { passive: true });
+      }
+
       scene.add(new THREE.AmbientLight(0xbfd0ff, 0.85));
 
       const keyLight = new THREE.DirectionalLight(0xffdfbf, 1.9);
@@ -5899,12 +6212,12 @@
       scene.add(rimLight);
 
       const marsGroup = new THREE.Group();
-      uranusSceneGroup = marsGroup;
+      saturnSceneGroup = marsGroup;
       scene.add(marsGroup);
       scene.add(buildStarfield(THREE));
       scene.add(buildSunObject());
 
-      setStatus("Loading Uranus textures...");
+      setStatus("Loading Saturn textures...");
       const textureLoader = new THREE.TextureLoader();
       const seismicCatalog = await loadJsonSafe(manifest.seismic ? manifest.seismic.path : "");
       const geologyFeaturePromise = loadJsonSafe(manifest.geology_interactive ? manifest.geology_interactive.feature_path : "");
@@ -5912,9 +6225,9 @@
       const layerTextures = new Map();
       const baseLayers = manifest.layers || [{
         id: "viking-color",
-        label: "Uranus Body",
+        label: "Saturn Body",
         path: manifest.texture.path,
-        description: "Derived Uranus body texture separated from the rings.",
+        description: "Derived Saturn body texture separated from the rings.",
       }];
       // Phase 1: load only the default base layer — non-default layers load in background.
       const baseTextureResults = await Promise.all(
@@ -5941,10 +6254,10 @@
       const mineralLayers = manifest.mineral_layers || [];
       const geologyTextures = new Map();
       const mineralTextures = new Map();
-      // Phase 1: elevation + default geology only. Non-default geology and minerals load in background.
+      // Phase 1: elevation only. All geology deferred until user first enables the layer.
       const [elevationMap, ...overlayMaps] = await Promise.all([
         loadTextureSafe(textureLoader, manifest.elevation.path),
-        ...geologyLayers.map((layer) => layer.default ? loadTextureSafe(textureLoader, layer.path) : Promise.resolve(null)),
+        ...geologyLayers.map(() => Promise.resolve(null)),
         ...mineralLayers.map(() => Promise.resolve(null)),
       ]);
       for (let index = 0; index < geologyLayers.length; index += 1) {
@@ -5966,6 +6279,11 @@
         elevationMap.colorSpace = THREE.NoColorSpace;
       }
       const elevationSampler = createElevationSamplerState(elevationMap);
+      if (elevationMap) {
+        renderer.initTexture(elevationMap);
+        if (elevationMap.image) elevationMap.image = null; // free decoded image pixels (~32 MB)
+        elevationMap.version = 0; // prevent re-upload loop: version=0 exits the upload condition
+      }
       const labelElevationCache = new Map();
       const seismicElevationCache = new Map();
       const popupElevationCache = new Map();
@@ -5986,7 +6304,7 @@
         option.textContent = layer.label;
         mineralSelect.appendChild(option);
       }
-      const initialLayer = baseLayers.find((layer) => layer.label === "Uranus Body")
+      const initialLayer = baseLayers.find((layer) => layer.label === "Saturn Body")
         || baseLayers.find((layer) => layer.default)
         || baseLayers[0];
       baseLayerSelect.value = initialLayer.id;
@@ -6000,7 +6318,7 @@
       seaLevelValue.textContent = `${seaLevelSlider.value} m`;
       seaLevelCopy.innerHTML = `Speculative northern-ocean highstand slider. Upper bound: ${seaLevelMaxMeters} m. Current level: <span id="sea-level-value">${seaLevelSlider.value} m</span>`;
 
-      const uranusConfig = manifest.uranus || {};
+      const saturnConfig = manifest.uranus || {};
       const sphereGeometry = new THREE.SphereGeometry(3.2, 192, 192);
       const initialBaseTexture = layerTextures.get(initialLayer.id) || null;
 
@@ -6015,12 +6333,12 @@
       globe.rotation.y = Math.PI;
       marsGroup.add(globe);
 
-      const ringsConfig = uranusConfig.rings || null;
+      const ringsConfig = saturnConfig.rings || null;
       let ringMaterial = null;
       if (ringsConfig && ringsConfig.path) {
         const ringOuterKm = Number.isFinite(Number(ringsConfig.outer_km))
           ? Number(ringsConfig.outer_km)
-          : URANUS_RING_REFERENCE_KM.mainOuter;
+          : SATURN_RING_REFERENCE_KM.mainOuter;
         const baseRingTexture = await loadTextureSafe(textureLoader, ringsConfig.path);
         const ringTexture = createCalibratedUranusRingTexture(baseRingTexture, ringOuterKm);
         if (baseRingTexture) {
@@ -6039,10 +6357,10 @@
           ringTexture.repeat.set(ringUvRepeat, ringUvRepeat);
           ringTexture.offset.set(0, 0);
           const innerRadius = Number.isFinite(Number(ringsConfig.inner_km))
-            ? Number(ringsConfig.inner_km) * URANUS_KM_TO_SCENE
+            ? Number(ringsConfig.inner_km) * SATURN_KM_TO_SCENE
             : Number(ringsConfig.inner_radius || 3.968);
           const outerRadius = Number.isFinite(Number(ringsConfig.outer_km))
-            ? Number(ringsConfig.outer_km) * URANUS_KM_TO_SCENE
+            ? Number(ringsConfig.outer_km) * SATURN_KM_TO_SCENE
             : Number(ringsConfig.outer_radius || 7.62);
           ringMaterial = new THREE.MeshStandardMaterial({
             map: ringTexture,
@@ -6052,7 +6370,7 @@
             side: THREE.DoubleSide,
             roughness: 0.94,
             metalness: 0,
-            emissive: new THREE.Color(0.04, 0.05, 0.09),
+            emissive: new THREE.Color(0.03, 0.04, 0.07),
             emissiveIntensity: 1.0,
             depthWrite: false,
             depthTest: true,
@@ -6078,7 +6396,7 @@
       // Replace all inner-layer shader materials with solid opaque MeshStandardMaterial.
       // BackSide on curved half-spheres = concave inner surface only (no donut).
       // molecularBoundaryMesh is the outer convex fill — override it too so it's fully opaque.
-      const URANUS_UPPER_FACE_MAT = new THREE.ShaderMaterial({
+      const SATURN_UPPER_FACE_MAT = new THREE.ShaderMaterial({
         uniforms: {
           uMap: { value: layerTextures.get(baseLayerSelect.value) || null },
         },
@@ -6095,13 +6413,13 @@
             float lat = asin(clamp(spherePoint.y, -1.0, 1.0));
             vec2 sampleUv = vec2(0.5 + lon / (6.28318530718), 0.5 - lat / 3.14159265359);
             vec3 texCol = texture2D(uMap, sampleUv).rgb;
-            vec3 uranusCream = vec3(0.90, 0.82, 0.68);
-            vec3 uranusPale = vec3(0.97, 0.92, 0.82);
+            vec3 saturnCream = vec3(0.90, 0.82, 0.68);
+            vec3 saturnPale = vec3(0.97, 0.92, 0.82);
             vec3 haze = vec3(0.98, 0.95, 0.88);
             float cloudMask = smoothstep(0.26, 0.86, texCol.r * 0.95 + texCol.g * 0.75 - texCol.b * 0.22);
-            vec3 toned = mix(texCol, uranusCream, 0.58);
+            vec3 toned = mix(texCol, saturnCream, 0.58);
             toned = pow(max(toned, vec3(0.0)), vec3(0.82));
-            toned = mix(toned, uranusPale, cloudMask * 0.24);
+            toned = mix(toned, saturnPale, cloudMask * 0.24);
             float rim = smoothstep(0.72, 0.99, r);
             vec3 col = mix(toned, haze, rim * 0.22);
             col *= vec3(1.02, 0.99, 0.94);
@@ -6114,37 +6432,37 @@
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,
       });
-      const URANUS_MH_MAT  = new THREE.MeshStandardMaterial({ color: 0xa29378, roughness: 0.58, metalness: 0.44, side: THREE.BackSide });
-      const URANUS_MH_OUTER = new THREE.MeshStandardMaterial({ color: 0xa29378, roughness: 0.58, metalness: 0.44, side: THREE.FrontSide });
-      const URANUS_HC_MAT  = new THREE.MeshStandardMaterial({ color: 0x8a7a65, roughness: 0.82, metalness: 0.12, side: THREE.BackSide });
+      const SATURN_MH_MAT  = new THREE.MeshStandardMaterial({ color: 0xb8c2d0, roughness: 0.48, metalness: 0.22, side: THREE.BackSide });
+      const SATURN_MH_OUTER = new THREE.MeshStandardMaterial({ color: 0xb8c2d0, roughness: 0.48, metalness: 0.22, side: THREE.FrontSide });
+      const SATURN_HC_MAT  = new THREE.MeshStandardMaterial({ color: 0x5e3518, roughness: 0.90, metalness: 0.10, side: THREE.BackSide });
       // Flat cap disks and rings: DoubleSide so they're visible from both directions.
-      const URANUS_MH_FLAT = new THREE.MeshStandardMaterial({ color: 0xa29378, roughness: 0.58, metalness: 0.44, side: THREE.DoubleSide });
-      const URANUS_HC_FLAT = new THREE.MeshStandardMaterial({ color: 0x8a7a65, roughness: 0.82, metalness: 0.12, side: THREE.DoubleSide });
-      if (cutawayResult.crustRing) cutawayResult.crustRing.material = URANUS_UPPER_FACE_MAT;
-      if (cutawayResult.metallicHydrogenMesh) cutawayResult.metallicHydrogenMesh.material = URANUS_MH_MAT;
-      if (cutawayResult.molecularBoundaryMesh) cutawayResult.molecularBoundaryMesh.material = URANUS_MH_OUTER;
-      if (cutawayResult.metallicHydrogenCapMesh) cutawayResult.metallicHydrogenCapMesh.material = URANUS_MH_FLAT;
-      if (cutawayResult.metallicHydrogenRing) cutawayResult.metallicHydrogenRing.material = URANUS_MH_FLAT;
-      if (cutawayResult.heavyElementCoreMesh) cutawayResult.heavyElementCoreMesh.material = URANUS_HC_MAT;
-      if (cutawayResult.heavyElementCoreCapMesh) cutawayResult.heavyElementCoreCapMesh.material = URANUS_HC_FLAT;
-      const uranusSolidInterior = buildUranusSolidInterior(3.2);
-      const uranusSolidInteriorGroup = uranusSolidInterior.group;
-      marsGroup.add(uranusSolidInteriorGroup);
-      const uranusInteriorSphereMaterials = [
-        uranusSolidInterior.metallicHydrogenMaterial,
-        uranusSolidInterior.heavyElementCoreMaterial,
+      const SATURN_MH_FLAT = new THREE.MeshStandardMaterial({ color: 0xb8c2d0, roughness: 0.48, metalness: 0.22, side: THREE.DoubleSide });
+      const SATURN_HC_FLAT = new THREE.MeshStandardMaterial({ color: 0x5e3518, roughness: 0.90, metalness: 0.10, side: THREE.DoubleSide });
+      if (cutawayResult.crustRing) cutawayResult.crustRing.material = SATURN_UPPER_FACE_MAT;
+      if (cutawayResult.metallicHydrogenMesh) cutawayResult.metallicHydrogenMesh.material = SATURN_MH_MAT;
+      if (cutawayResult.molecularBoundaryMesh) cutawayResult.molecularBoundaryMesh.material = SATURN_MH_OUTER;
+      if (cutawayResult.metallicHydrogenCapMesh) cutawayResult.metallicHydrogenCapMesh.material = SATURN_MH_FLAT;
+      if (cutawayResult.metallicHydrogenRing) cutawayResult.metallicHydrogenRing.material = SATURN_MH_FLAT;
+      if (cutawayResult.heavyElementCoreMesh) cutawayResult.heavyElementCoreMesh.material = SATURN_HC_MAT;
+      if (cutawayResult.heavyElementCoreCapMesh) cutawayResult.heavyElementCoreCapMesh.material = SATURN_HC_FLAT;
+      const saturnSolidInterior = buildSaturnSolidInterior(3.2);
+      const saturnSolidInteriorGroup = saturnSolidInterior.group;
+      marsGroup.add(saturnSolidInteriorGroup);
+      const saturnInteriorSphereMaterials = [
+        saturnSolidInterior.metallicHydrogenMaterial,
+        saturnSolidInterior.heavyElementCoreMaterial,
       ].filter(Boolean);
-      const uranusInteriorCapMaterials = [
-        uranusSolidInterior.metallicHydrogenCapMaterial,
-        uranusSolidInterior.heavyElementCoreCapMaterial,
+      const saturnInteriorCapMaterials = [
+        saturnSolidInterior.metallicHydrogenCapMaterial,
+        saturnSolidInterior.heavyElementCoreCapMaterial,
       ].filter(Boolean);
-      const uranusBodyScaleY = Number(uranusConfig.body_scale_y || 0.902);
-      const uranusAxialTiltDeg = Number(uranusConfig.axial_tilt_deg || 26.7);
-      marsGroup.scale.set(1, uranusBodyScaleY, 1);
-      const applyUranusViewMode = (mode = "tilted", resetCamera = false) => {
+      const saturnBodyScaleY = Number(saturnConfig.body_scale_y || 0.902);
+      const saturnAxialTiltDeg = Number(saturnConfig.axial_tilt_deg || 26.7);
+      marsGroup.scale.set(1, saturnBodyScaleY, 1);
+      const applySaturnViewMode = (mode = "tilted", resetCamera = false) => {
         const tiltRad = mode === "untilted"
           ? 0
-          : THREE.MathUtils.degToRad(uranusAxialTiltDeg);
+          : THREE.MathUtils.degToRad(saturnAxialTiltDeg);
         marsGroup.rotation.z = tiltRad;
         cutawayClipPlane.normal.set(Math.cos(tiltRad), Math.sin(tiltRad), 0).normalize();
         cutawayClipPlane.constant = 0;
@@ -6154,8 +6472,8 @@
           controls.update();
         }
       };
-      viewerApplyUranusViewMode = applyUranusViewMode;
-      applyUranusViewMode(uranusViewModeSelect ? uranusViewModeSelect.value : "tilted");
+      viewerApplySaturnViewMode = applySaturnViewMode;
+      applySaturnViewMode(saturnViewModeSelect ? saturnViewModeSelect.value : "tilted");
 
       await document.fonts.ready;
       const getTerrainRelief = () => 0;
@@ -6169,6 +6487,13 @@
       selectionRing.renderOrder = 203;
       selectionRing.visible = false;
       labelLayer.group.add(selectionRing);
+      const moonSelectionCenterDot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.018, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0, depthTest: false, depthWrite: false }),
+      );
+      moonSelectionCenterDot.renderOrder = 204;
+      moonSelectionCenterDot.visible = false;
+      labelLayer.group.add(moonSelectionCenterDot);
       const ringLabelLayer = buildRingLabelLayer();
       ringLabelLayer.group.visible = true;
       marsGroup.add(ringLabelLayer.group);
@@ -6193,6 +6518,20 @@
       const moonFeatureLabelLayer = buildMoonFeatureLabelLayer(moonMeshMap);
       moonFeatureLabelLayer.group.visible = true;
       marsGroup.add(moonFeatureLabelLayer.group);
+      const moonSurfaceSelectionRing = new THREE.Mesh(
+        new THREE.SphereGeometry(0.0008, 14, 14),
+        new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0, depthTest: false, depthWrite: false }),
+      );
+      moonSurfaceSelectionRing.renderOrder = 203;
+      moonSurfaceSelectionRing.visible = false;
+      moonFeatureLabelLayer.group.add(moonSurfaceSelectionRing);
+      const moonSurfaceCenterDot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.00045, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0, depthTest: false, depthWrite: false }),
+      );
+      moonSurfaceCenterDot.renderOrder = 204;
+      moonSurfaceCenterDot.visible = false;
+      moonFeatureLabelLayer.group.add(moonSurfaceCenterDot);
       // Verify Dione feature coordinates at startup — remove once confirmed correct.
       // Force dioneMesh.matrix current (position + rotation.y were set in the init loop above).
       (() => {
@@ -6268,6 +6607,8 @@
       let measurePoints = [];
       let measureProfileSamples = [];
       const measureVisuals = [];
+      const moonMeasureLines = []; // { line, moonMesh, moonLocalPts } — updated each frame
+      const moonMeasureFills = []; // { mesh, moonMesh, moonLocalBoundaryPts } — updated each frame
       const measureGroup = new THREE.Group();
       marsGroup.add(measureGroup);
       const geologyBoundaryGroup = new THREE.Group();
@@ -6428,15 +6769,8 @@
           entry.sprite.material.color.copy(entry._pulseBase.spriteColor);
           entry.sprite.material.opacity = entry._pulseBase.spriteOpacity;
         }
-        if (entry.dot?.material) {
+        if (entry.dot?.material && entry.dot !== entry.moonMesh) {
           entry.dot.material.color.copy(entry._pulseBase.dotColor);
-        }
-        if (entry.marker?.material) {
-          entry.marker.material.color.copy(entry._pulseBase.markerColor);
-          entry.marker.material.opacity = entry._pulseBase.markerOpacity;
-        }
-        if (entry.marker && entry._pulseBase.markerScale) {
-          entry.marker.scale.copy(entry._pulseBase.markerScale);
         }
         if (entry.line?.material) {
           entry.line.material.opacity = entry._pulseBase.lineOpacity;
@@ -6513,7 +6847,7 @@
       function updateSeismicTimelineReadout() {
         const cutoff = currentTimelineCutoff();
         if (!seismicTimelineEvents.length || cutoff === null) {
-          seismicTimelineReadout.textContent = "No seismic timeline is available for Uranus.";
+          seismicTimelineReadout.textContent = "No seismic timeline is available for Saturn.";
           return;
         }
         seismicTimelineReadout.textContent = `Showing events through ${new Date(cutoff).toLocaleDateString()}.`;
@@ -6566,6 +6900,8 @@
           }
         }
         measureVisuals.length = 0;
+        moonMeasureLines.length = 0;
+        moonMeasureFills.length = 0;
       }
 
       function setMeasureMode(nextMode) {
@@ -6627,7 +6963,7 @@
         }
         if (measureMode === "distance" && measurePoints.length >= 2) {
           const distanceKm = greatCircleDistanceKm(measurePoints[0], measurePoints[1]);
-          downloadCsv("uranus_distance_measurement.csv", [
+          downloadCsv("saturn_distance_measurement.csv", [
             ["type", "start_lat_deg", "start_lon_deg_e", "end_lat_deg", "end_lon_deg_e", "distance_km"],
             [
               "distance",
@@ -6652,7 +6988,7 @@
               index === 0 ? areaKm2.toFixed(3) : "",
             ]);
           });
-          downloadCsv("uranus_area_measurement.csv", rows);
+          downloadCsv("saturn_area_measurement.csv", rows);
           return;
         }
         if (measureMode === "profile" && measureProfileSamples.length >= 2) {
@@ -6667,7 +7003,7 @@
               sample.elevation.toFixed(3),
             ]);
           });
-          downloadCsv("uranus_profile_measurement.csv", rows);
+          downloadCsv("saturn_profile_measurement.csv", rows);
         }
       }
 
@@ -6722,11 +7058,11 @@
 
       function getActiveMeasureContext() {
         if (activeMoonViewerFeature) {
-          return getMoonMeasureContext(); // null if lookup fails — no Uranus fallback in moon viewer
+          return getMoonMeasureContext(); // null if lookup fails — no Saturn fallback in moon viewer
         }
         return getMoonMeasureContext() || {
           kind: "planet",
-          bodyName: "Uranus",
+          bodyName: "Saturn",
           radiusKm: MARS_MEAN_RADIUS_KM,
           radiusWorld: 3.2,
           centerLocal: new THREE.Vector3(0, 0, 0),
@@ -6743,7 +7079,7 @@
           return localPoint.clone();
         }
         // Store planetary measurements in the unspun body frame, then rotate the
-        // measurement overlay with Uranus so markers and area vertices stay locked.
+        // measurement overlay with Saturn so markers and area vertices stay locked.
         return localPoint.clone().applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
       }
 
@@ -6756,21 +7092,21 @@
         return intersections.find((entry) => entry.object.visible) || null;
       }
 
-      function intersectExposedUranusInteriorSurface(clientX, clientY) {
+      function intersectExposedSaturnInteriorSurface(clientX, clientY) {
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
         raycaster.setFromCamera(pointer, camera);
         const exposedTargets = [
-          uranusSolidInterior?.metallicHydrogenMesh,
-          uranusSolidInterior?.heavyElementCoreMesh,
+          saturnSolidInterior?.metallicHydrogenMesh,
+          saturnSolidInterior?.heavyElementCoreMesh,
         ].filter((mesh) => mesh && mesh.visible);
         if (!exposedTargets.length) return null;
         const hit = raycaster.intersectObjects(exposedTargets, false).find((entry) => entry.object.visible) || null;
         if (!hit) return null;
         const localPoint = marsGroup.worldToLocal(hit.point.clone());
         const latLon = vectorToLatLon(localPoint.clone());
-        return { ...hit, localPoint, lat: latLon.lat, lon: latLon.lon, context: { kind: "uranus-interior-surface" } };
+        return { ...hit, localPoint, lat: latLon.lat, lon: latLon.lon, context: { kind: "saturn-interior-surface" } };
       }
 
       function intersectMeasurementSurface(clientX, clientY) {
@@ -6793,7 +7129,9 @@
           : vectorToLatLonInMeasureContext(localPoint, context);
         // vectorToLatLon on the mesh-local hit gives lon in the texture's left-edge CRS,
         // which is what we store, so no correction needed.
-        return { ...hit, localPoint, lat: latLon.lat, lon: latLon.lon, context };
+        const moonMeshLocal = (context.kind === "moon" && context.mesh)
+          ? context.mesh.worldToLocal(hit.point.clone()) : null;
+        return { ...hit, localPoint, moonMeshLocal, lat: latLon.lat, lon: latLon.lon, context };
       }
 
       function getMeasurePointContext(pointLike) {
@@ -6820,14 +7158,26 @@
       function addMeasureMarker(point, index) {
         const context = getMeasurePointContext(point);
         const isMoon = context.kind === "moon";
+        const lift = isMoon ? 0.0025 : 0.018;
         const baseMarkerRadius = (isMoon
           ? THREE.MathUtils.clamp(context.radiusWorld * 0.024, 0.0022, 0.0038)
           : 0.05) * 0.5;
-        const markerPos = projectMeasurePoint(point, isMoon ? 0.0025 : 0.018);
-        // For moons the normal must point away from the moon center, not Uranus's origin.
-        const surfaceNormal = isMoon
-          ? markerPos.clone().sub(context.centerLocal).normalize()
-          : markerPos.clone().normalize();
+
+        // For moon hits with a stored moon-local point, use the current moonMesh matrix
+        // so the initial placement is accurate and per-frame updates can track rotation.
+        let markerPos, surfaceNormal, moonLocalLiftedPt = null, moonLocalNormal = null;
+        if (isMoon && point.moonMeshLocal && point.moonMesh) {
+          moonLocalNormal = point.moonMeshLocal.clone().normalize();
+          moonLocalLiftedPt = moonLocalNormal.clone().multiplyScalar(context.radiusWorld + lift);
+          markerPos = moonLocalLiftedPt.clone().applyMatrix4(point.moonMesh.matrix);
+          surfaceNormal = moonLocalNormal.clone().transformDirection(point.moonMesh.matrix);
+        } else {
+          markerPos = projectMeasurePoint(point, lift);
+          surfaceNormal = isMoon
+            ? markerPos.clone().sub(context.centerLocal).normalize()
+            : markerPos.clone().normalize();
+        }
+
         const marker = new THREE.Mesh(
           new THREE.SphereGeometry(baseMarkerRadius, 10, 10),
           new THREE.MeshBasicMaterial({
@@ -6880,10 +7230,48 @@
           targetMarkerPx: isMoon ? 11 : 8,
           targetLabelPx: isMoon ? 16 : 18,
           maxMarkerWorldRadius: isMoon ? context.radiusWorld * 0.06 : 0.04,
+          moonMesh: (isMoon && point.moonMesh) ? point.moonMesh : null,
+          moonLocalLiftedPt,
+          moonLocalNormal,
         });
       }
 
       function updateMeasureVisualScale() {
+        if (!measureVisuals.length && !moonMeasureLines.length && !moonMeasureFills.length) return;
+        // Update moon marker/label positions each frame to track moon rotation.
+        for (const visual of measureVisuals) {
+          if (!visual.moonMesh || !visual.moonLocalLiftedPt || !visual.moonLocalNormal) continue;
+          const newPos = visual.moonLocalLiftedPt.clone().applyMatrix4(visual.moonMesh.matrix);
+          visual.marker.position.copy(newPos);
+          visual.markerAnchor.copy(newPos);
+          visual.surfaceNormal.copy(visual.moonLocalNormal.clone().transformDirection(visual.moonMesh.matrix));
+        }
+        // Update moon arc line geometry each frame to track moon rotation.
+        for (const ml of moonMeasureLines) {
+          if (!ml.line || !ml.moonMesh || !ml.moonLocalPts?.length) continue;
+          const posAttr = ml.line.geometry.attributes.position;
+          for (let i = 0; i < ml.moonLocalPts.length; i++) {
+            const p = ml.moonLocalPts[i].clone().applyMatrix4(ml.moonMesh.matrix);
+            posAttr.setXYZ(i, p.x, p.y, p.z);
+          }
+          posAttr.needsUpdate = true;
+        }
+        // Update moon fill mesh geometry each frame to track moon rotation.
+        for (const mf of moonMeasureFills) {
+          if (!mf.mesh || !mf.moonMesh || !mf.moonLocalBoundaryPts?.length) continue;
+          const posAttr = mf.mesh.geometry.attributes.position;
+          const pts = mf.moonLocalBoundaryPts;
+          let vertIdx = 0;
+          const origin = pts[0].clone().applyMatrix4(mf.moonMesh.matrix);
+          for (let i = 1; i < pts.length - 1; i++) {
+            const b = pts[i].clone().applyMatrix4(mf.moonMesh.matrix);
+            const c = pts[i + 1].clone().applyMatrix4(mf.moonMesh.matrix);
+            posAttr.setXYZ(vertIdx++, origin.x, origin.y, origin.z);
+            posAttr.setXYZ(vertIdx++, b.x, b.y, b.z);
+            posAttr.setXYZ(vertIdx++, c.x, c.y, c.z);
+          }
+          posAttr.needsUpdate = true;
+        }
         if (!measureVisuals.length) return;
         const viewportHeight = renderer.domElement.clientHeight || window.innerHeight || 1;
         const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
@@ -7062,6 +7450,29 @@
         return mesh;
       }
 
+      function buildMoonLocalArcPts(mla, mlb, radiusWorld, lift) {
+        const va = mla.clone().normalize();
+        const vb = mlb.clone().normalize();
+        const angle = Math.acos(THREE.MathUtils.clamp(va.dot(vb), -1, 1));
+        const count = Math.max(40, Math.ceil((angle / Math.PI) * 96));
+        const r = radiusWorld + lift;
+        const pts = [];
+        for (let i = 0; i <= count; i++) {
+          const t = count === 0 ? 0 : i / count;
+          let dir;
+          if (angle < 1e-5) {
+            dir = va.clone();
+          } else {
+            const sinA = Math.sin(angle);
+            dir = va.clone().multiplyScalar(Math.sin((1 - t) * angle) / sinA)
+              .add(vb.clone().multiplyScalar(Math.sin(t * angle) / sinA))
+              .normalize();
+          }
+          pts.push(dir.multiplyScalar(r));
+        }
+        return pts;
+      }
+
       function updateMeasureVisualization() {
         clearMeasureGroup();
         if (!measurePoints.length) {
@@ -7073,10 +7484,32 @@
           return;
         }
         measurePanel.hidden = false;
-        measurePoints.forEach((item, idx) => addMeasureMarker(item.point, idx));
+        measurePoints.forEach((item, idx) => addMeasureMarker(item, idx));
         if (measurePoints.length >= 2) {
+          const _isMoonM = measurePoints[0]?.moonMesh && measurePoints[0]?.moonMeshLocal;
+          const _moonMesh = _isMoonM ? measurePoints[0].moonMesh : null;
+          const _moonCtx = _isMoonM ? getMeasurePointContext(measurePoints[0]) : null;
           let linePoints = [];
-          if (measureMode === "area") {
+          let moonLocalLineArcPts = null;
+          if (_isMoonM) {
+            moonLocalLineArcPts = [];
+            if (measureMode === "area") {
+              for (let i = 0; i < measurePoints.length - 1; i++) {
+                const mla = measurePoints[i].moonMeshLocal;
+                const mlb = measurePoints[i + 1].moonMeshLocal;
+                if (!mla || !mlb) continue;
+                const seg = buildMoonLocalArcPts(mla, mlb, _moonCtx.radiusWorld, 0.0025);
+                if (i > 0) seg.shift();
+                moonLocalLineArcPts.push(...seg);
+              }
+            } else {
+              moonLocalLineArcPts = buildMoonLocalArcPts(
+                measurePoints[0].moonMeshLocal, measurePoints[1].moonMeshLocal,
+                _moonCtx.radiusWorld, 0.0025,
+              );
+            }
+            linePoints = moonLocalLineArcPts.map((p) => p.clone().applyMatrix4(_moonMesh.matrix));
+          } else if (measureMode === "area") {
             for (let index = 0; index < measurePoints.length - 1; index += 1) {
               const arcPoints = buildMeasureArcPoints(measurePoints[index].point, measurePoints[index + 1].point);
               if (index > 0) {
@@ -7099,10 +7532,13 @@
           );
           line.renderOrder = 95;
           measureGroup.add(line);
+          if (_isMoonM && moonLocalLineArcPts) {
+            moonMeasureLines.push({ line, moonMesh: _moonMesh, moonLocalPts: moonLocalLineArcPts });
+          }
         }
         if (measureMode === "distance" && measurePoints.length >= 2) {
           const distanceKm = greatCircleDistanceKm(measurePoints[0], measurePoints[1]);
-          const body = measurePoints[0].bodyName || "Uranus";
+          const body = measurePoints[0].bodyName || "Saturn";
           measureMetric.innerHTML = `${body} distance: ${distanceKm.toFixed(1)} km`;
           showMeasurementResultCard(
             `Distance: ${distanceKm.toFixed(1)} km`,
@@ -7113,12 +7549,48 @@
           profileCanvas.hidden = true;
           hideProfileModal();
         } else if (measureMode === "area" && measurePoints.length >= 3) {
-          const boundaryPoints = buildMeasureBoundaryPoints(measurePoints.map((item) => item.point));
-          const fillMesh = buildAreaFillMesh(measurePoints);
-          if (fillMesh) {
-            measureGroup.add(fillMesh);
+          const _isMoonArea = measurePoints[0]?.moonMesh && measurePoints[0]?.moonMeshLocal;
+          const _moonMeshA = _isMoonArea ? measurePoints[0].moonMesh : null;
+          const _moonCtxA = _isMoonArea ? getMeasurePointContext(measurePoints[0]) : null;
+          let closingPoints;
+          let moonLocalPolygonPts = null;
+          if (_isMoonArea) {
+            moonLocalPolygonPts = [];
+            for (let i = 0; i < measurePoints.length; i++) {
+              const mla = measurePoints[i].moonMeshLocal;
+              const mlb = measurePoints[(i + 1) % measurePoints.length].moonMeshLocal;
+              if (!mla || !mlb) continue;
+              const seg = buildMoonLocalArcPts(mla, mlb, _moonCtxA.radiusWorld, 0.0025);
+              if (i > 0) seg.shift();
+              moonLocalPolygonPts.push(...seg);
+            }
+            const moonLocalClosingPts = [...moonLocalPolygonPts, moonLocalPolygonPts[0]];
+            closingPoints = moonLocalClosingPts.map((p) => p.clone().applyMatrix4(_moonMeshA.matrix));
+          } else {
+            const boundaryPoints = buildMeasureBoundaryPoints(measurePoints.map((item) => item.point));
+            closingPoints = [...boundaryPoints, boundaryPoints[0]];
           }
-          const closingPoints = [...boundaryPoints, boundaryPoints[0]];
+          if (_isMoonArea && moonLocalPolygonPts && moonLocalPolygonPts.length >= 3) {
+            const fillPositions = [];
+            const origin = moonLocalPolygonPts[0].clone().applyMatrix4(_moonMeshA.matrix);
+            for (let i = 1; i < moonLocalPolygonPts.length - 1; i++) {
+              const b = moonLocalPolygonPts[i].clone().applyMatrix4(_moonMeshA.matrix);
+              const c = moonLocalPolygonPts[i + 1].clone().applyMatrix4(_moonMeshA.matrix);
+              fillPositions.push(origin.x, origin.y, origin.z, b.x, b.y, b.z, c.x, c.y, c.z);
+            }
+            const fillGeo = new THREE.BufferGeometry();
+            fillGeo.setAttribute("position", new THREE.Float32BufferAttribute(fillPositions, 3));
+            const moonFillMesh = new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({
+              color: 0x58d0f6, transparent: true, opacity: 0.24,
+              side: THREE.DoubleSide, depthTest: false, depthWrite: false,
+            }));
+            moonFillMesh.renderOrder = 80;
+            measureGroup.add(moonFillMesh);
+            moonMeasureFills.push({ mesh: moonFillMesh, moonMesh: _moonMeshA, moonLocalBoundaryPts: moonLocalPolygonPts });
+          } else if (!_isMoonArea) {
+            const fillMesh = buildAreaFillMesh(measurePoints);
+            if (fillMesh) measureGroup.add(fillMesh);
+          }
           const polygonLine = new THREE.Line(
             new THREE.BufferGeometry().setFromPoints(closingPoints),
             new THREE.LineBasicMaterial({
@@ -7131,8 +7603,12 @@
           );
           polygonLine.renderOrder = 96;
           measureGroup.add(polygonLine);
+          if (_isMoonArea && moonLocalPolygonPts) {
+            const moonLocalClosingPts = [...moonLocalPolygonPts, moonLocalPolygonPts[0]];
+            moonMeasureLines.push({ line: polygonLine, moonMesh: _moonMeshA, moonLocalPts: moonLocalClosingPts });
+          }
           const areaKm2 = sphericalPolygonAreaKm2(measurePoints);
-          const body = measurePoints[0].bodyName || "Uranus";
+          const body = measurePoints[0].bodyName || "Saturn";
           measureMetric.innerHTML = `${body} area: ${areaKm2.toFixed(0)} km²`;
           showMeasurementResultCard(
             `Area: ${areaKm2.toFixed(0)} km²`,
@@ -7153,7 +7629,7 @@
           hideMeasurementResultCard();
           profileCanvas.hidden = true;
           showProfileModal(
-            `${measurePoints[0].bodyName || "Uranus"} Elevation Profile`,
+            `${measurePoints[0].bodyName || "Saturn"} Elevation Profile`,
             `Min ${min.toFixed(0)} m · Max ${max.toFixed(0)} m · Relief ${(max - min).toFixed(0)} m`,
             samples,
           );
@@ -7182,31 +7658,27 @@
       let seaMaterial = null;
       let regionMaskGlobe = null;
       let regionMaskMaterial = null;
-      const initialGeologyTexture = geologyTextures.get(initialGeologyLayer.id) || null;
-      if (initialGeologyTexture) {
-        geologyMaterial = new THREE.MeshStandardMaterial({
-          map: initialGeologyTexture,
-          displacementMap: elevationMap || null,
-          displacementScale: elevationMap ? Number(terrainScale.value) : 0,
-          transparent: true,
-          opacity: Number(geologyOpacity.value),
-          depthWrite: false,
-          polygonOffset: true,
-          polygonOffsetFactor: -1,
-          polygonOffsetUnits: -1,
-          roughness: 1,
-          metalness: 0,
-        });
-
-        geologyGlobe = new THREE.Mesh(
-          new THREE.SphereGeometry(3.202, 192, 192),
-          geologyMaterial,
-        );
-        geologyGlobe.rotation.y = Math.PI;
-        marsGroup.add(geologyGlobe);
-      } else {
-        geologyOpacity.disabled = true;
-      }
+      // Always create geology globe with map:null — texture applied lazily on first enable.
+      geologyMaterial = new THREE.MeshStandardMaterial({
+        map: null,
+        displacementMap: elevationMap || null,
+        displacementScale: elevationMap ? Number(terrainScale.value) : 0,
+        transparent: true,
+        opacity: Number(geologyOpacity.value),
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+        roughness: 1,
+        metalness: 0,
+      });
+      geologyGlobe = new THREE.Mesh(
+        new THREE.SphereGeometry(3.202, 192, 192),
+        geologyMaterial,
+      );
+      geologyGlobe.rotation.y = Math.PI;
+      geologyGlobe.visible = false; // hidden until user enables geology; prevents GPU upload on first render
+      marsGroup.add(geologyGlobe);
 
       mineralMaterial = new THREE.MeshStandardMaterial({
         map: null,
@@ -7289,26 +7761,26 @@
         regionMaskOpacity.disabled = true;
       }
 
-      function applyUranusAtmosphereRemoval() {
+      function applySaturnAtmosphereRemoval() {
         const removeAtmosphere = Boolean(geologyToggle && geologyToggle.checked);
         const coreEnabled = Boolean(coreToggle && coreToggle.checked);
-        const uranusLabelsEnabled = !removeAtmosphere && labelsToggle.checked;
+        const saturnLabelsEnabled = !removeAtmosphere && labelsToggle.checked && !activeMoonViewerFeature;
         globe.visible = !removeAtmosphere;
         // Solid interior only shown when removeAtmosphere AND core view is OFF.
         // When core view is on, cutaway handles the interior — solid spheres must be hidden
         // to avoid triggering expensive MeshPhysicalMaterial shader compilations.
-        uranusSolidInteriorGroup.visible = removeAtmosphere && !coreEnabled;
-        if (uranusSolidInterior.metallicHydrogenCapMesh) {
-          uranusSolidInterior.metallicHydrogenCapMesh.visible = false;
+        saturnSolidInteriorGroup.visible = removeAtmosphere && !coreEnabled;
+        if (saturnSolidInterior.metallicHydrogenCapMesh) {
+          saturnSolidInterior.metallicHydrogenCapMesh.visible = false;
         }
-        if (uranusSolidInterior.heavyElementCoreCapMesh) {
-          uranusSolidInterior.heavyElementCoreCapMesh.visible = false;
+        if (saturnSolidInterior.heavyElementCoreCapMesh) {
+          saturnSolidInterior.heavyElementCoreCapMesh.visible = false;
         }
-        for (const material of uranusInteriorSphereMaterials) {
+        for (const material of saturnInteriorSphereMaterials) {
           material.clippingPlanes = [];
           material.needsUpdate = true;
         }
-        for (const material of uranusInteriorCapMaterials) {
+        for (const material of saturnInteriorCapMaterials) {
           material.clippingPlanes = [];
           material.needsUpdate = true;
         }
@@ -7361,12 +7833,15 @@
           globe,
           camera,
           renderer,
-          uranusLabelsEnabled,
+          saturnLabelsEnabled,
           !removeAtmosphere && volcanicLabelsToggle.checked,
           !removeAtmosphere && landingLabelsToggle.checked,
           !removeAtmosphere && habitationLabelsToggle.checked,
           coreEnabled,
           stormLabelsToggle ? (!removeAtmosphere && stormLabelsToggle.checked) : true,
+          craterLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
         );
         updateRingLabelVisibility(
           ringLabelLayer.entries,
@@ -7400,19 +7875,22 @@
         if (mineralGlobe) {
           mineralGlobe.visible = false;
         }
-        applyUranusAtmosphereRemoval();
+        applySaturnAtmosphereRemoval();
       }
 
       function syncBasemapVisibility() {
         const nextLayer = baseLayers.find((layer) => layer.id === baseLayerSelect.value);
         const nextTexture = nextLayer ? layerTextures.get(nextLayer.id) : null;
+        if (!nextTexture && nextLayer?.path && layerTextures.get(nextLayer.id) == null) {
+          _loadBaseLayerOnDemand(nextLayer.id);
+        }
         baseMaterial.map = nextTexture || null;
         baseMaterial.color.set(nextTexture ? 0xffffff : 0xd0b18a);
         baseMaterial.needsUpdate = true;
         if (cutawayResult.crustRing && cutawayResult.crustRing.material && cutawayResult.crustRing.material.uniforms && cutawayResult.crustRing.material.uniforms.uMap) {
           cutawayResult.crustRing.material.uniforms.uMap.value = nextTexture || null;
         }
-        applyUranusAtmosphereRemoval();
+        applySaturnAtmosphereRemoval();
       }
 
       function applyDefaultGeologyState() {
@@ -7463,6 +7941,9 @@
           habitationLabelsToggle.checked,
           coreToggle.checked,
           stormLabelsToggle ? stormLabelsToggle.checked : true,
+          craterLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
         );
         updateSeismicVisibility(
           seismicLayer.entries,
@@ -7488,6 +7969,9 @@
           landingLabelsToggle.checked ||
           flybyPathsToggle.checked ||
           habitationLabelsToggle.checked ||
+          (craterLabelsToggle && craterLabelsToggle.checked) ||
+          (tectonicLabelsToggle && tectonicLabelsToggle.checked) ||
+          (fluvialLabelsToggle && fluvialLabelsToggle.checked) ||
           (moonToggle && moonToggle.checked) ||
           seismicToggle.checked
         );
@@ -7502,10 +7986,40 @@
         });
       });
 
+      const coreLayerUpperAtmosphere = document.getElementById("core-layer-upper-atmosphere");
+      const coreLayerAtmosphere = document.getElementById("core-layer-atmosphere");
+      function syncCoreLayerVisibility() {
+        const removeAtmosphere = Boolean(geologyToggle && geologyToggle.checked);
+        if (coreLayerUpperAtmosphere) coreLayerUpperAtmosphere.hidden = removeAtmosphere;
+        if (coreLayerAtmosphere) coreLayerAtmosphere.hidden = removeAtmosphere;
+      }
+      syncCoreLayerVisibility();
+
+      const _texLoadingIds = new Set();
       geologyToggle.addEventListener("change", () => {
+        if (geologyToggle.checked) {
+          // Lazy-load geology texture on first enable.
+          for (const layer of geologyLayers) {
+            if (layer.path && !geologyTextures.get(layer.id) && !_texLoadingIds.has(layer.id)) {
+              _texLoadingIds.add(layer.id);
+              (async () => {
+                try {
+                  const raw = await loadTextureSafe(textureLoader, layer.path);
+                  const tex = applyTextureTransforms(raw, layer);
+                  if (tex) tex.colorSpace = THREE.SRGBColorSpace;
+                  geologyTextures.set(layer.id, tex || null);
+                  if (geologyMaterial) { geologyMaterial.map = tex || null; geologyMaterial.needsUpdate = true; }
+                } finally {
+                  _texLoadingIds.delete(layer.id);
+                }
+              })();
+            }
+          }
+        }
         updateGeologyVisibility();
         syncSelectionHalo();
         syncGeologyMasterToggle();
+        syncCoreLayerVisibility();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState);
       });
 
@@ -7531,16 +8045,22 @@
         updateGeologyVisibility();
         syncSelectionHalo();
         syncGeologyMasterToggle();
+        syncCoreLayerVisibility();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState);
       });
 
       mineralSelect.addEventListener("change", () => {
+        const _nextMinLayer = mineralLayers.find(l => l.id === mineralSelect.value);
+        const _nextMinTex = _nextMinLayer ? mineralTextures.get(_nextMinLayer.id) : null;
+        if (!_nextMinTex && _nextMinLayer?.path) {
+          _loadMineralLayerOnDemand(_nextMinLayer.id);
+        }
         if (mineralMaterial) {
-          mineralMaterial.map = null;
+          mineralMaterial.map = _nextMinTex || null;
           mineralMaterial.needsUpdate = true;
         }
         if (mineralGlobe) {
-          mineralGlobe.visible = false;
+          mineralGlobe.visible = Boolean(_nextMinTex);
         }
         syncGeologyMasterToggle();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState);
@@ -7559,6 +8079,9 @@
           habitationLabelsToggle.checked,
           coreToggle.checked,
           stormLabelsToggle ? stormLabelsToggle.checked : true,
+          craterLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
         );
         syncLocationsMasterToggle();
       });
@@ -7576,6 +8099,9 @@
           habitationLabelsToggle.checked,
           coreToggle.checked,
           stormLabelsToggle ? stormLabelsToggle.checked : true,
+          craterLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
         );
         syncLocationsMasterToggle();
       });
@@ -7594,6 +8120,9 @@
             habitationLabelsToggle.checked,
             coreToggle.checked,
             stormLabelsToggle.checked,
+            craterLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
           );
           syncLocationsMasterToggle();
         });
@@ -7612,6 +8141,9 @@
           habitationLabelsToggle.checked,
           coreToggle.checked,
           stormLabelsToggle ? stormLabelsToggle.checked : true,
+          craterLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
         );
         syncLocationsMasterToggle();
       });
@@ -7639,9 +8171,78 @@
           habitationLabelsToggle.checked,
           coreToggle.checked,
           stormLabelsToggle ? stormLabelsToggle.checked : true,
+          craterLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
         );
         syncLocationsMasterToggle();
       });
+
+      if (craterLabelsToggle) {
+        craterLabelsToggle.addEventListener("change", () => {
+          updateLabelVisibility(
+            labelLayer.entries,
+            marsGroup,
+            globe,
+            camera,
+            renderer,
+            labelsToggle.checked,
+            volcanicLabelsToggle.checked,
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+            coreToggle.checked,
+            stormLabelsToggle ? stormLabelsToggle.checked : true,
+            craterLabelsToggle.checked,
+            tectonicLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+          );
+          syncLocationsMasterToggle();
+        });
+      }
+
+      if (tectonicLabelsToggle) {
+        tectonicLabelsToggle.addEventListener("change", () => {
+          updateLabelVisibility(
+            labelLayer.entries,
+            marsGroup,
+            globe,
+            camera,
+            renderer,
+            labelsToggle.checked,
+            volcanicLabelsToggle.checked,
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+            coreToggle.checked,
+            stormLabelsToggle ? stormLabelsToggle.checked : true,
+            craterLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle.checked,
+            fluvialLabelsToggle?.checked ?? true,
+          );
+          syncLocationsMasterToggle();
+        });
+      }
+
+      if (fluvialLabelsToggle) {
+        fluvialLabelsToggle.addEventListener("change", () => {
+          updateLabelVisibility(
+            labelLayer.entries,
+            marsGroup,
+            globe,
+            camera,
+            renderer,
+            labelsToggle.checked,
+            volcanicLabelsToggle.checked,
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+            coreToggle.checked,
+            stormLabelsToggle ? stormLabelsToggle.checked : true,
+            craterLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle.checked,
+          );
+          syncLocationsMasterToggle();
+        });
+      }
 
       seismicToggle.addEventListener("change", () => {
         seismicLayer.group.visible = seismicToggle.checked && seismicLayer.available;
@@ -7678,6 +8279,9 @@
         flybyPathLayer.group.visible = on;
         syncFlybyLegend();
         habitationLabelsToggle.checked = on;
+        if (craterLabelsToggle) craterLabelsToggle.checked = on;
+        if (tectonicLabelsToggle) tectonicLabelsToggle.checked = on;
+        if (fluvialLabelsToggle) fluvialLabelsToggle.checked = on;
         if (moonToggle) moonToggle.checked = on;
         seismicToggle.checked = on;
         seismicLayer.group.visible = on && seismicLayer.available;
@@ -7693,6 +8297,9 @@
           habitationLabelsToggle.checked,
           coreToggle.checked,
           stormLabelsToggle ? stormLabelsToggle.checked : true,
+          craterLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
         );
         updateSeismicVisibility(
           seismicLayer.entries,
@@ -7729,8 +8336,9 @@
 
       coreToggle.addEventListener("change", () => {
         const enabled = coreToggle.checked;
-        if (legendSection) {
-          legendSection.open = enabled;
+        if (enabled) {
+          if (coreViewSection) coreViewSection.open = true;
+          setTimeout(() => coreViewSection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
         }
         if (enabled && elevationMap) {
           terrainScale.value = "0";
@@ -7772,9 +8380,12 @@
         }
         cutawayGroup.visible = enabled;
         labelLayer.group.visible = true;
-        scenePopup.hidden = true;
-        scenePopupAnchor.hidden = true;
-        activePopupFeature = null;
+        const moonViewerActive = moonViewerToggle && moonViewerToggle.checked;
+        if (!moonViewerActive) {
+          scenePopup.hidden = true;
+          scenePopupAnchor.hidden = true;
+          activePopupFeature = null;
+        }
         syncSelectionHalo();
         baseLayerSelect.disabled = false;
         geologyToggle.disabled = false;
@@ -7825,7 +8436,7 @@
         if (seaGlobe) {
           seaGlobe.visible = seaToggle.checked;
         }
-        applyUranusAtmosphereRemoval();
+        applySaturnAtmosphereRemoval();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState);
       });
 
@@ -7848,7 +8459,7 @@
           : null;
         regionMaskMaterial.needsUpdate = true;
         regionMaskGlobe.visible = Boolean(regionMaskSelect.value);
-        applyUranusAtmosphereRemoval();
+        applySaturnAtmosphereRemoval();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState);
       });
 
@@ -7861,7 +8472,7 @@
       seismicMagnitudeMin.addEventListener("input", () => {
         const minMagnitude = Number(seismicMagnitudeMin.value);
         seismicMagnitudeCopy.textContent = minMagnitude <= 0
-          ? "No seismic magnitude filtering is available for Uranus."
+          ? "No seismic magnitude filtering is available for Saturn."
           : `Showing magnitude ${minMagnitude.toFixed(1)} and higher.`;
         updateSeismicVisibility(
           seismicLayer.entries,
@@ -8053,13 +8664,10 @@
           }
           if (event.key === "Enter") {
             event.preventDefault();
-            const selected = activeMoonFeatureSearchIndex >= 0
-              ? activeMoonFeatureSearchResults[activeMoonFeatureSearchIndex]
-              : activeMoonFeatureSearchResults[0];
-            if (selected) {
-              focusSearchedFeature(selected, viewerCamera, viewerControls);
-              clearMoonFeatureSearchResults(true);
-            }
+            const activeBtn = moonFeatureSearchResults && moonFeatureSearchResults.querySelector(".search-suggestion.is-active");
+            const firstBtn  = moonFeatureSearchResults && moonFeatureSearchResults.querySelector(".search-suggestion");
+            if (activeBtn) { activeBtn.click(); }
+            else if (firstBtn) { firstBtn.click(); }
           }
         });
         document.addEventListener("pointerdown", (event) => {
@@ -8085,10 +8693,10 @@
         });
       }
 
-      if (uranusViewModeSelect) {
-        uranusViewModeSelect.addEventListener("change", () => {
+      if (saturnViewModeSelect) {
+        saturnViewModeSelect.addEventListener("change", () => {
           resetExploreView(camera, controls);
-          applyUranusViewMode(uranusViewModeSelect.value);
+          applySaturnViewMode(saturnViewModeSelect.value);
         });
       }
 
@@ -8187,7 +8795,7 @@
             ? intersectMeasurementSurface(event.clientX, event.clientY)
             : intersectMarsSurface(event.clientX, event.clientY);
           if (!surfaceHit && removeAtmosphereActive) {
-            surfaceHit = intersectExposedUranusInteriorSurface(event.clientX, event.clientY);
+            surfaceHit = intersectExposedSaturnInteriorSurface(event.clientX, event.clientY);
           }
           if (surfaceHit) {
             const latLon = surfaceHit.context
@@ -8211,25 +8819,25 @@
                 scPressure.textContent = "< 10⁻⁶ Pa";
                 scPressure.style.color = "#aaaacc";
                 if (scContext) scContext.textContent = moonName.toUpperCase() + " SURFACE";
-              } else if (surfaceHit.context?.kind === "uranus-interior-surface") {
+              } else if (surfaceHit.context?.kind === "saturn-interior-surface") {
                 const local = surfaceHit.localPoint || marsGroup.worldToLocal(surfaceHit.point.clone());
-                const rFrac = Math.max(0, Math.min(1, local.length() / URANUS_SCENE_RADIUS));
-                const layerName = uranusInteriorLayerName(rFrac);
-                const tempC = uranusInteriorTempC(rFrac);
-                const pGPa = uranusInteriorPressureGPa(rFrac);
+                const rFrac = Math.max(0, Math.min(1, local.length() / SATURN_SCENE_RADIUS));
+                const layerName = saturnInteriorLayerName(rFrac);
+                const tempC = saturnInteriorTempC(rFrac);
+                const pGPa = saturnInteriorPressureGPa(rFrac);
                 scTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC.toLocaleString()} °C`;
-                scTemp.style.color = uranusInteriorTempColor(tempC);
+                scTemp.style.color = saturnInteriorTempColor(tempC);
                 scPressure.textContent = formatPressureGPa(pGPa);
-                scPressure.style.color = uranusInteriorPressureColor(pGPa);
+                scPressure.style.color = saturnInteriorPressureColor(pGPa);
                 if (scContext) scContext.textContent = `LAYER: ${layerName.toUpperCase()} (SURFACE)`;
               } else {
-                const tempC = estimateUranusCloudTopTemp(latLon.lat);
-                const pressurePa = estimateUranusCloudTopPressure();
+                const tempC = estimateSaturnCloudTopTemp(latLon.lat);
+                const pressurePa = estimateSaturnCloudTopPressure();
                 scTemp.textContent = `${tempC} °C`;
                 scTemp.style.color = tempC < -185 ? "#6ec6ff" : tempC < -178 ? "#90d8e8" : "#e8c97a";
                 scPressure.textContent = `${pressurePa.toLocaleString()} Pa`;
                 scPressure.style.color = "#c8a8e0";
-                if (scContext) scContext.textContent = "URANUS CLOUD TOPS";
+                if (scContext) scContext.textContent = "SATURN CLOUD TOPS";
               }
             }
           } else {
@@ -8265,6 +8873,10 @@
           landingLabelsToggle.checked,
           habitationLabelsToggle.checked,
           true,
+          true,
+          craterLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
         );
           updateCoreLabelVisibility(
             cutawayResult,
@@ -8297,16 +8909,16 @@
               if (signedDistance >= 0) {
                 const localHit = marsGroup.worldToLocal(coreGlobeHit.point.clone());
                 const latLon = vectorToLatLon(localHit.clone());
-                const tempC = estimateUranusCloudTopTemp(latLon.lat);
-                const pPa = estimateUranusCloudTopPressure();
+                const tempC = estimateSaturnCloudTopTemp(latLon.lat);
+                const pPa = estimateSaturnCloudTopPressure();
                 const pGPa = pPa / 1e9;
                 icDepth.textContent = "0 km";
                 icLayer.textContent = "Upper Atmosphere (surface)";
-                icLayer.style.color = uranusInteriorLayerColor("Upper Atmosphere");
+                icLayer.style.color = saturnInteriorLayerColor("Upper Atmosphere");
                 icTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC.toLocaleString()} °C`;
-                icTemp.style.color = uranusInteriorTempColor(tempC);
+                icTemp.style.color = saturnInteriorTempColor(tempC);
                 icPressure.textContent = formatPressureGPa(pGPa);
-                icPressure.style.color = uranusInteriorPressureColor(pGPa);
+                icPressure.style.color = saturnInteriorPressureColor(pGPa);
                 return;
               }
             }
@@ -8314,8 +8926,8 @@
             const removeAtmosphereActive = Boolean(geologyToggle && geologyToggle.checked);
             const visibleSurfaceTargets = removeAtmosphereActive
               ? [
-                uranusSolidInterior?.metallicHydrogenMesh,
-                uranusSolidInterior?.heavyElementCoreMesh,
+                saturnSolidInterior?.metallicHydrogenMesh,
+                saturnSolidInterior?.heavyElementCoreMesh,
                 cutawayResult?.metallicHydrogenMesh,
                 cutawayResult?.heavyElementCoreMesh,
               ]
@@ -8335,31 +8947,31 @@
               const localHit = marsGroup.worldToLocal(visibleSurfaceHit.point.clone());
               if (hitObject === cutawayResult?.atmosphereMesh) {
                 const latLon = vectorToLatLon(localHit.clone());
-                const tempC = estimateUranusCloudTopTemp(latLon.lat);
-                const pPa = estimateUranusCloudTopPressure();
+                const tempC = estimateSaturnCloudTopTemp(latLon.lat);
+                const pPa = estimateSaturnCloudTopPressure();
                 const pGPa = pPa / 1e9;
                 icDepth.textContent = "0 km";
                 icLayer.textContent = "Upper Atmosphere (surface)";
-                icLayer.style.color = uranusInteriorLayerColor("Upper Atmosphere");
+                icLayer.style.color = saturnInteriorLayerColor("Upper Atmosphere");
                 icTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC.toLocaleString()} °C`;
-                icTemp.style.color = uranusInteriorTempColor(tempC);
+                icTemp.style.color = saturnInteriorTempColor(tempC);
                 icPressure.textContent = formatPressureGPa(pGPa);
-                icPressure.style.color = uranusInteriorPressureColor(pGPa);
+                icPressure.style.color = saturnInteriorPressureColor(pGPa);
                 return;
               }
               const rScene = localHit.length();
               const rFrac = Math.max(0, Math.min(1, rScene / 3.2));
               const depthKm = Math.round((1.0 - rFrac) * 60268);
-              const layerName = uranusInteriorLayerName(rFrac);
-              const tempC = uranusInteriorTempC(rFrac);
-              const pGPa = uranusInteriorPressureGPa(rFrac);
+              const layerName = saturnInteriorLayerName(rFrac);
+              const tempC = saturnInteriorTempC(rFrac);
+              const pGPa = saturnInteriorPressureGPa(rFrac);
               icDepth.textContent = `${depthKm.toLocaleString()} km`;
-              icLayer.textContent = `${layerName} (shell surface)`;
-              icLayer.style.color = uranusInteriorLayerColor(layerName);
+              icLayer.textContent = `${layerName}`;
+              icLayer.style.color = saturnInteriorLayerColor(layerName);
               icTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC.toLocaleString()} °C`;
-              icTemp.style.color = uranusInteriorTempColor(tempC);
+              icTemp.style.color = saturnInteriorTempColor(tempC);
               icPressure.textContent = formatPressureGPa(pGPa);
-              icPressure.style.color = uranusInteriorPressureColor(pGPa);
+              icPressure.style.color = saturnInteriorPressureColor(pGPa);
               return;
             }
 
@@ -8368,20 +8980,20 @@
               const localHit = marsGroup.worldToLocal(coreHit.clone());
               const rScene = localHit.length();
               const GLOBE_R = 3.2;
-              const URANUS_R_KM = 60268;
+              const SATURN_R_KM = 60268;
               if (rScene <= GLOBE_R) {
                 const rFrac = rScene / GLOBE_R;
-                const depthKm = Math.round((1.0 - rFrac) * URANUS_R_KM);
-                const layerName = uranusInteriorLayerName(rFrac);
-                const tempC = uranusInteriorTempC(rFrac);
-                const pGPa = uranusInteriorPressureGPa(rFrac);
+                const depthKm = Math.round((1.0 - rFrac) * SATURN_R_KM);
+                const layerName = saturnInteriorLayerName(rFrac);
+                const tempC = saturnInteriorTempC(rFrac);
+                const pGPa = saturnInteriorPressureGPa(rFrac);
                 icDepth.textContent = `${depthKm.toLocaleString()} km`;
                 icLayer.textContent = layerName;
-                icLayer.style.color = uranusInteriorLayerColor(layerName);
+                icLayer.style.color = saturnInteriorLayerColor(layerName);
                 icTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC.toLocaleString()} °C`;
-                icTemp.style.color = uranusInteriorTempColor(tempC);
+                icTemp.style.color = saturnInteriorTempColor(tempC);
                 icPressure.textContent = formatPressureGPa(pGPa);
-                icPressure.style.color = uranusInteriorPressureColor(pGPa);
+                icPressure.style.color = saturnInteriorPressureColor(pGPa);
               } else {
                 icDepth.textContent = "—"; icLayer.textContent = "—"; icLayer.style.color = "";
                 icTemp.textContent = "—"; icTemp.style.color = ""; icPressure.textContent = "—"; icPressure.style.color = "";
@@ -8392,8 +9004,8 @@
                 cutawayResult?.molecularEnvelopeMesh,
                 cutawayResult?.metallicHydrogenMesh,
                 cutawayResult?.heavyElementCoreMesh,
-                uranusSolidInterior?.metallicHydrogenMesh,
-                uranusSolidInterior?.heavyElementCoreMesh,
+                saturnSolidInterior?.metallicHydrogenMesh,
+                saturnSolidInterior?.heavyElementCoreMesh,
               ].filter((mesh) => mesh && mesh.visible);
               const coreSurfaceHit = coreSurfaceTargets.length
                 ? raycaster.intersectObjects(coreSurfaceTargets, false).find((entry) => entry.object.visible)
@@ -8403,31 +9015,31 @@
                 const rScene = localHit.length();
                 const rFrac = Math.max(0, Math.min(1, rScene / 3.2));
                 const depthKm = Math.round((1.0 - rFrac) * 60268);
-                const layerName = uranusInteriorLayerName(rFrac);
-                const tempC = uranusInteriorTempC(rFrac);
-                const pGPa = uranusInteriorPressureGPa(rFrac);
+                const layerName = saturnInteriorLayerName(rFrac);
+                const tempC = saturnInteriorTempC(rFrac);
+                const pGPa = saturnInteriorPressureGPa(rFrac);
                 icDepth.textContent = `${depthKm.toLocaleString()} km`;
-                icLayer.textContent = `${layerName} (shell surface)`;
-                icLayer.style.color = uranusInteriorLayerColor(layerName);
+                icLayer.textContent = `${layerName}`;
+                icLayer.style.color = saturnInteriorLayerColor(layerName);
                 icTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC.toLocaleString()} °C`;
-                icTemp.style.color = uranusInteriorTempColor(tempC);
+                icTemp.style.color = saturnInteriorTempColor(tempC);
                 icPressure.textContent = formatPressureGPa(pGPa);
-                icPressure.style.color = uranusInteriorPressureColor(pGPa);
+                icPressure.style.color = saturnInteriorPressureColor(pGPa);
               } else {
                 const removeAtmosphereActive = Boolean(geologyToggle && geologyToggle.checked);
                 if (removeAtmosphereActive) {
-                  const rFrac = URANUS_EXPOSED_INTERIOR_RFRAC;
+                  const rFrac = SATURN_EXPOSED_INTERIOR_RFRAC;
                   const depthKm = Math.round((1.0 - rFrac) * 60268);
-                  const layerName = uranusInteriorLayerName(rFrac);
-                  const tempC = uranusInteriorTempC(rFrac);
-                  const pGPa = uranusInteriorPressureGPa(rFrac);
+                  const layerName = saturnInteriorLayerName(rFrac);
+                  const tempC = saturnInteriorTempC(rFrac);
+                  const pGPa = saturnInteriorPressureGPa(rFrac);
                   icDepth.textContent = `${depthKm.toLocaleString()} km`;
                   icLayer.textContent = `${layerName} (surface)`;
-                  icLayer.style.color = uranusInteriorLayerColor(layerName);
+                  icLayer.style.color = saturnInteriorLayerColor(layerName);
                   icTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC.toLocaleString()} °C`;
-                  icTemp.style.color = uranusInteriorTempColor(tempC);
+                  icTemp.style.color = saturnInteriorTempColor(tempC);
                   icPressure.textContent = formatPressureGPa(pGPa);
-                  icPressure.style.color = uranusInteriorPressureColor(pGPa);
+                  icPressure.style.color = saturnInteriorPressureColor(pGPa);
                 } else {
                   icDepth.textContent = "—"; icLayer.textContent = "—"; icLayer.style.color = "";
                   icTemp.textContent = "—"; icTemp.style.color = ""; icPressure.textContent = "—"; icPressure.style.color = "";
@@ -8502,6 +9114,8 @@
               lon: surfaceHit.lon,
               point: surfaceHit.localPoint.clone(),
               localPoint: surfaceHit.localPoint.clone(),
+              moonMeshLocal: surfaceHit.moonMeshLocal ? surfaceHit.moonMeshLocal.clone() : null,
+              moonMesh: (surfaceHit.context.kind === "moon" && surfaceHit.context.mesh) ? surfaceHit.context.mesh : null,
               bodyKind: context.kind,
               bodyName: context.bodyName,
               radiusKm: context.radiusKm,
@@ -8718,9 +9332,6 @@ ${error && error.message ? error.message : error}`;
 
 
       function updateMoonOrbits(moonEntries, featureEntries, t) {
-        if (activeMoonViewerFeature) {
-          return;
-        }
         const BASE_ORBIT_RADIUS = 8.4;
         const BASE_PERIOD_MS = 240000;
         const BASE_OMEGA = (2 * Math.PI) / BASE_PERIOD_MS;
@@ -8731,6 +9342,18 @@ ${error && error.message ? error.message : error}`;
             ? (2 * Math.PI * _MOON_SPEED_FACTOR * Math.sign(_periodDays)) / (Math.abs(_periodDays) * 86400000)
             : BASE_OMEGA * Math.pow(BASE_ORBIT_RADIUS / orbitRadius, 1.5);
           const angle = initialAngle + t * omega;
+          if (activeMoonViewerFeature && item.name === activeMoonViewerFeature.name) {
+            // Focused moon: fixed-rate self-rotation so surface features visibly sweep
+            // across the sphere regardless of the moon's actual orbital period.
+            const _viewerOmega = (2 * Math.PI) / _MOON_VIEWER_SELF_ROT_PERIOD_MS;
+            const _viewerAngle = t * _viewerOmega;
+            item._currentAngle = _viewerAngle;
+            moonMesh.rotation.y = TEXTURE_CENTERED_MOONS.has(item.name)
+              ? (Math.PI - _viewerAngle)
+              : -_viewerAngle;
+            moonMesh.updateMatrix();
+            continue;
+          }
           const x = Math.cos(angle) * orbitRadius;
           const z = Math.sin(angle) * orbitRadius;
           const y = anchor.y;
@@ -8779,10 +9402,13 @@ ${error && error.message ? error.message : error}`;
           fp[0] = wMark.x;  fp[1] = wMark.y;  fp[2] = wMark.z;
           fp[3] = wLabel.x; fp[4] = wLabel.y; fp[5] = wLabel.z;
           line.geometry.attributes.position.needsUpdate = true;
+          line.geometry.computeBoundingSphere();
         }
       }
 
+      let _renderRunning = true;
       function render() {
+        if (!_renderRunning) return;
         controls.update();
         // Tighten near plane in moon viewer so labels don't get GPU-clipped when zoomed close.
         const _moonViewerNear = activeMoonViewerFeature
@@ -8798,7 +9424,7 @@ ${error && error.message ? error.message : error}`;
         const _spinT = getSpinTime();
         if (!coreToggle.checked) {
           updateMoonOrbits(moonLayer.entries, moonFeatureLabelLayer.entries, _spinT);
-          globe.rotation.y = Math.PI + _spinT * (2 * Math.PI / _PLANET_DISPLAY_PERIOD_MS);
+          globe.rotation.y = Math.PI + _spinT * (2 * Math.PI / _SATURN_DISPLAY_PERIOD_MS);
           const _spinDelta = globe.rotation.y - Math.PI;
           labelLayer.group.rotation.y = _spinDelta;
           seismicLayer.group.rotation.y = _spinDelta;
@@ -8809,8 +9435,9 @@ ${error && error.message ? error.message : error}`;
         }
         updateMeasureVisualScale();
         const removeAtmosphere = Boolean(geologyToggle && geologyToggle.checked);
-        const uranusLabelsEnabled = labelsToggle.checked && !removeAtmosphere;
-        const uranusSeismicEnabled = seismicToggle.checked && !removeAtmosphere;
+        const saturnLabelsEnabled = labelsToggle.checked && !removeAtmosphere && !activeMoonViewerFeature;
+        const saturnSeismicEnabled = seismicToggle.checked && !removeAtmosphere;
+        labelLayer.group.visible = !activeMoonViewerFeature;
 
   
         if (!coreToggle.checked) {
@@ -8820,12 +9447,15 @@ ${error && error.message ? error.message : error}`;
             globe,
             camera,
             renderer,
-            uranusLabelsEnabled,
+            saturnLabelsEnabled,
             !removeAtmosphere && volcanicLabelsToggle.checked,
             !removeAtmosphere && landingLabelsToggle.checked,
             !removeAtmosphere && habitationLabelsToggle.checked,
             false,
             stormLabelsToggle ? (!removeAtmosphere && stormLabelsToggle.checked) : true,
+            craterLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
           );
           updateRingLabelVisibility(
             ringLabelLayer.entries,
@@ -8852,6 +9482,9 @@ ${error && error.message ? error.message : error}`;
             volcanicLabelsToggle.checked,
             labelsToggle.checked,
             moonFeatureTypeFilter,
+            craterLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
           );
           updateSeismicVisibility(
             seismicLayer.entries,
@@ -8859,7 +9492,7 @@ ${error && error.message ? error.message : error}`;
             globe,
             camera,
             renderer,
-            uranusSeismicEnabled,
+            saturnSeismicEnabled,
             false,
             seismicFilterSelect.value,
             seismicStatusSelect.value,
@@ -8873,12 +9506,15 @@ ${error && error.message ? error.message : error}`;
             globe,
             camera,
             renderer,
-            uranusLabelsEnabled,
-            uranusLabelsEnabled && volcanicLabelsToggle.checked,
-            uranusLabelsEnabled && landingLabelsToggle.checked,
-            uranusLabelsEnabled && habitationLabelsToggle.checked,
+            saturnLabelsEnabled,
+            !removeAtmosphere && volcanicLabelsToggle.checked,
+            !removeAtmosphere && landingLabelsToggle.checked,
+            !removeAtmosphere && habitationLabelsToggle.checked,
             true,
-            stormLabelsToggle ? (uranusLabelsEnabled && stormLabelsToggle.checked) : true,
+            stormLabelsToggle ? (!removeAtmosphere && stormLabelsToggle.checked) : true,
+            craterLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
           );
           updateRingLabelVisibility(
             ringLabelLayer.entries,
@@ -8905,6 +9541,9 @@ ${error && error.message ? error.message : error}`;
             volcanicLabelsToggle.checked,
             labelsToggle.checked,
             moonFeatureTypeFilter,
+            craterLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
           );
           updateSeismicVisibility(
             seismicLayer.entries,
@@ -8912,7 +9551,7 @@ ${error && error.message ? error.message : error}`;
             globe,
             camera,
             renderer,
-            uranusSeismicEnabled,
+            saturnSeismicEnabled,
             true,
             seismicFilterSelect.value,
             seismicStatusSelect.value,
@@ -8939,7 +9578,7 @@ ${error && error.message ? error.message : error}`;
             anchorPos = null;
           } else if (activePopupIsCoreLabel) {
             // Core label: use fixed label position in local space
-            anchorPos = new THREE.Vector3(
+            anchorPos = _scratch.popupAnchor.set(
               activePopupFeature.labelX,
               activePopupFeature.labelY,
               0,
@@ -8951,7 +9590,7 @@ ${error && error.message ? error.message : error}`;
             anchorPos.applyMatrix4(marsGroup.matrixWorld);
           }
           if (anchorPos) {
-            const projected = anchorPos.clone().project(camera);
+            const projected = _scratch.popupProjected.copy(anchorPos).project(camera);
             if (projected.z > 1) {
               scenePopup.hidden = true;
               scenePopupAnchor.hidden = true;
@@ -8992,58 +9631,67 @@ ${error && error.message ? error.message : error}`;
               spriteColor: selectedLabelEntry.sprite?.material?.color?.clone() ?? new THREE.Color(1, 1, 1),
               spriteOpacity: selectedLabelEntry.sprite?.material?.opacity ?? 1,
               dotColor: selectedLabelEntry.dot?.material?.color?.clone() ?? new THREE.Color(1, 1, 1),
-              markerColor: selectedLabelEntry.marker?.material?.color?.clone() ?? new THREE.Color(1, 1, 1),
-              markerOpacity: selectedLabelEntry.marker?.material?.opacity ?? 1,
-              markerScale: selectedLabelEntry.marker?.scale?.clone?.() || null,
               lineOpacity: selectedLabelEntry.line?.material?.opacity ?? 0.42,
             };
           }
           const pulse = (Math.sin(_t * 0.004) + 1) * 0.5;
           const _isMoonSurfaceEntry = moonFeatureLabelLayer.entries.some((e) => e === selectedLabelEntry);
           if (_isMoonSurfaceEntry) {
-            // Moon feature markers live in moonFeatureLabelLayer.group (unrotated),
-            // but selectionRing lives in labelLayer.group (rotated by _spinDelta).
-            // Un-rotate the marker position by -_spinDelta to place ring correctly.
-            const _yRot = -labelLayer.group.rotation.y;
-            const _cos = Math.cos(_yRot), _sin = Math.sin(_yRot);
-            const _p = entryMarker.position;
-            selectionRing.position.set(
-              _p.x * _cos + _p.z * _sin,
-              _p.y,
-              -_p.x * _sin + _p.z * _cos
-            );
-            selectionRing.scale.setScalar((0.002 / 0.036) * (1.2 + pulse * 0.05));
-            selectionRing.visible = true;
+            const _camDist = Math.max(0.001, camera.position.distanceTo(controls.target));
+            const _moonRingScale = (_camDist * 0.011) / 0.0008;
+            moonSurfaceSelectionRing.position.copy(entryMarker.position);
+            moonSurfaceSelectionRing.scale.setScalar(_moonRingScale * (1.0 + pulse * 0.3));
+            moonSurfaceSelectionRing.material.opacity = 0.35 + pulse * 0.55;
+            moonSurfaceSelectionRing.visible = true;
+            moonSurfaceCenterDot.position.copy(entryMarker.position);
+            moonSurfaceCenterDot.scale.setScalar(_moonRingScale * 0.5);
+            moonSurfaceCenterDot.material.color.setRGB(1.0, 0.83 + pulse * 0.14, 0.42 + pulse * 0.43);
+            moonSurfaceCenterDot.material.opacity = 0.88 + pulse * 0.12;
+            moonSurfaceCenterDot.visible = true;
+            selectionRing.visible = false;
+            moonSelectionCenterDot.visible = false;
           } else {
-            selectionRing.position.copy(entryMarker.position);
-            const markerScale = entryMarker.scale?.x || 1;
-            selectionRing.scale.setScalar((1.2 + pulse * 0.6) * markerScale);
-            selectionRing.visible = true;
+            const _moonEntry = moonLayer.entries.find((e) => e === selectedLabelEntry);
+            // Suppress the ring overlay on the moon body during tour mode — it covers the sphere.
+            if (_moonEntry && activeTourFeature) {
+              selectionRing.visible = false;
+            } else {
+              // entryMarker may live in moonLayer (no spin) while selectionRing is in
+              // labelLayer.group (rotated by Saturn's spin). Use world position to bridge
+              // the coordinate systems so the ring lands at the correct place.
+              const _ringWorldPos = new THREE.Vector3();
+              entryMarker.getWorldPosition(_ringWorldPos);
+              labelLayer.group.worldToLocal(_ringWorldPos);
+              selectionRing.position.copy(_ringWorldPos);
+              const markerScale = entryMarker.scale?.x || 1;
+              selectionRing.scale.setScalar((1.2 + pulse * 0.6) * markerScale);
+              selectionRing.visible = true;
+            }
+            moonSurfaceSelectionRing.visible = false;
+            moonSurfaceCenterDot.visible = false;
+            moonSelectionCenterDot.visible = false;
           }
           selectionRing.material.opacity = 0.35 + pulse * 0.55;
           if (selectedLabelEntry.sprite?.material) {
             selectedLabelEntry.sprite.material.color.setRGB(1.0, 0.83 + pulse * 0.14, 0.42 + pulse * 0.43);
             selectedLabelEntry.sprite.material.opacity = 0.78 + pulse * 0.22;
           }
-          if (selectedLabelEntry.dot?.material) {
+          if (selectedLabelEntry.dot?.material && selectedLabelEntry.dot !== selectedLabelEntry.moonMesh) {
             selectedLabelEntry.dot.material.color.setRGB(1.0, 0.83 + pulse * 0.14, 0.42 + pulse * 0.43);
-          }
-          if (selectedLabelEntry.marker?.material) {
-            selectedLabelEntry.marker.material.color.setRGB(1.0, 0.83 + pulse * 0.14, 0.42 + pulse * 0.43);
-            selectedLabelEntry.marker.material.opacity = 0.86 + pulse * 0.14;
-          }
-          if (selectedLabelEntry.marker?.scale && selectedLabelEntry._pulseBase?.markerScale) {
-            const ms = selectedLabelEntry._pulseBase.markerScale;
-            selectedLabelEntry.marker.scale.set(ms.x * (1 + pulse * 0.14), ms.y * (1 + pulse * 0.14), ms.z * (1 + pulse * 0.14));
           }
           if (selectedLabelEntry.line?.material) {
             selectedLabelEntry.line.material.opacity = 0.42 + pulse * 0.4;
           }
         } else {
           selectionRing.visible = false;
+          moonSelectionCenterDot.visible = false;
+          moonSurfaceSelectionRing.visible = false;
+          moonSurfaceCenterDot.visible = false;
         }
 
         renderer.render(scene, camera);
+        _freeTextureImages();
+        _freeLabelTexImages();
         requestAnimationFrame((timestamp) => {
           lastTimestamp = Math.max(16, timestamp - (lastTimestamp || timestamp));
           render();
@@ -9053,71 +9701,107 @@ ${error && error.message ? error.message : error}`;
       const hasAnyBaseTexture = baseLayers.some((layer) => layerTextures.get(layer.id));
       if (!hasAnyBaseTexture) {
         setStatus("Loaded fallback globe. Color texture missing.", true);
-      } else if (!elevationMap && !initialGeologyTexture) {
-        setStatus("Loaded base globe only. Elevation and geology layers unavailable.", true);
       } else if (!elevationMap) {
         setStatus("Loaded without terrain relief. Elevation map unavailable.", true);
-      } else if (!initialGeologyTexture) {
-        setStatus("Loaded without geology overlay. Overlay asset unavailable.", true);
       } else {
         setStatus("© 2026 GeoID: Explorer. GeoID Solutions, led by Owen McCluskey. All rights reserved.");
       }
 
-      // Background-load all non-default layers in batches of 4.
-      // The globe is already rendering with default layers by the time this runs.
-      (function backgroundLoadLayers() {
-        const BATCH = 4;
-        const queue = [
-          // Non-default base layers
-          ...baseLayers
-            .filter(l => l.path && !layerTextures.get(l.id))
-            .map(layer => async () => {
-              const raw = await loadTextureSafe(textureLoader, layer.path);
-              const tex = applyTextureTransforms(raw, layer);
-              if (tex) tex.colorSpace = THREE.SRGBColorSpace;
-              layerTextures.set(layer.id, tex);
-            }),
-          // Moon textures
-          ...moonData
-            .filter(item => MOON_VIEWER_TEXTURES[item.name])
-            .map(item => async () => {
-              const tex = await loadTextureSafe(textureLoader, MOON_VIEWER_TEXTURES[item.name]);
-              if (tex) tex.colorSpace = THREE.SRGBColorSpace;
-              moonTextures.set(item.name, tex || null);
-              if (tex && moonLayer) {
-                const entry = moonLayer.entries.find(e => e.item?.name === item.name);
-                if (entry && entry.moonMesh) {
-                  // All moon textures are already east-positive with lon=0° at the left edge.
-                  // No horizontal flip is applied.
-                  entry.moonMesh.material.map = tex;
-                  entry.moonMesh.material.color.set('#ffffff');
-                  entry.moonMesh.material.needsUpdate = true;
-                }
-              }
-            }),
-          // Non-default geology overlays
-          ...geologyLayers
-            .filter(l => !l.default)
-            .map(layer => async () => {
-              const raw = await loadTextureSafe(textureLoader, layer.path);
-              const tex = applyTextureTransforms(raw, layer);
-              if (tex) tex.colorSpace = THREE.SRGBColorSpace;
-              geologyTextures.set(layer.id, tex);
-            }),
-          // Mineral maps
-          ...mineralLayers.map(layer => async () => {
-            const raw = await loadTextureSafe(textureLoader, layer.path);
-            if (raw) raw.colorSpace = THREE.SRGBColorSpace;
-            const tex = raw ? processMineralTexture(raw) : null;
-            mineralTextures.set(layer.id, tex);
-          }),
-        ];
-        async function runQueue() {
-          for (let i = 0; i < queue.length; i += BATCH) {
-            await Promise.all(queue.slice(i, i + BATCH).map(fn => fn()));
+      function _freeTexImage(tex) {
+        if (!tex || !tex.image) return;
+        renderer.initTexture(tex);
+        tex.image = null;
+        tex.version = 0;
+      }
+
+      const _onDemandLoading = new Set();
+
+      async function _loadBaseLayerOnDemand(layerId) {
+        if (_onDemandLoading.has(layerId)) return;
+        const layer = baseLayers.find(l => l.id === layerId);
+        if (!layer?.path || layerTextures.get(layerId) != null) return;
+        _onDemandLoading.add(layerId);
+        try {
+          const raw = await loadTextureSafe(textureLoader, layer.path);
+          const tex = applyTextureTransforms(raw, layer);
+          if (tex) tex.colorSpace = THREE.SRGBColorSpace;
+          layerTextures.set(layerId, tex || null);
+          _freeTexImage(tex);
+          if (baseLayerSelect.value === layerId) syncBasemapVisibility();
+        } finally {
+          _onDemandLoading.delete(layerId);
+        }
+      }
+
+      async function _loadMineralLayerOnDemand(layerId) {
+        if (_onDemandLoading.has('m:' + layerId)) return;
+        const layer = mineralLayers.find(l => l.id === layerId);
+        if (!layer?.path || mineralTextures.get(layerId) != null) return;
+        _onDemandLoading.add('m:' + layerId);
+        try {
+          const raw = await loadTextureSafe(textureLoader, layer.path);
+          if (raw) raw.colorSpace = THREE.SRGBColorSpace;
+          const tex = raw ? processMineralTexture(raw) : null;
+          mineralTextures.set(layerId, tex);
+          mineralSamplerStates?.set(layerId, createRasterSamplerState?.(tex));
+          _freeTexImage(raw);
+          _freeTexImage(tex);
+          if (mineralSelect.value === layerId) {
+            if (mineralMaterial) { mineralMaterial.map = tex || null; mineralMaterial.needsUpdate = true; }
+            if (mineralGlobe) mineralGlobe.visible = Boolean(tex);
+          }
+        } finally {
+          _onDemandLoading.delete('m:' + layerId);
+        }
+      }
+
+      // Free CPU images for default textures already uploaded to GPU on first render.
+      let _textureCleanupDone = false;
+      function _freeTextureImages() {
+        if (_textureCleanupDone) return;
+        _textureCleanupDone = true;
+        for (const tex of [...layerTextures.values(), ...geologyTextures.values()]) {
+          _freeTexImage(tex);
+        }
+      }
+
+      // Force-upload all built label textures to GPU then free their canvas backing stores.
+      // Labels on the back hemisphere are never rendered so texture.onUpdate never fires —
+      // this covers them on the first frame after startup.
+      let _labelTexCleanupDone = false;
+      function _freeLabelTexImages() {
+        if (_labelTexCleanupDone) return;
+        _labelTexCleanupDone = true;
+        const layers = [labelLayer, moonLayer, moonFeatureLabelLayer].filter(Boolean);
+        for (const layer of layers) {
+          for (const entry of (layer.entries || [])) {
+            const map = entry.sprite?.material?.map || entry.label?.texture;
+            if (map) _freeTexImage(map);
           }
         }
-        runQueue().catch(() => {});
+      }
+
+      // Background-load moon textures so they render correctly on first zoom.
+      // Base/geology/mineral layers load on demand when the user selects them.
+      (function backgroundLoadLayers() {
+        const moonQueue = moonData
+          .filter(item => MOON_VIEWER_TEXTURES[item.name])
+          .map(item => async () => {
+            let tex = await loadTextureSafe(textureLoader, MOON_VIEWER_TEXTURES[item.name]);
+            if (tex) tex.colorSpace = THREE.SRGBColorSpace;
+            tex = capTextureSize(tex, 4096, 2048);
+            moonTextures.set(item.name, tex || null);
+            if (tex && moonLayer) {
+              const entry = moonLayer.entries.find(e => e.item?.name === item.name);
+              if (entry && entry.moonMesh) {
+                entry.moonMesh.material.map = tex;
+                entry.moonMesh.material.color.set('#ffffff');
+                entry.moonMesh.material.needsUpdate = true;
+              }
+            }
+            _freeTexImage(tex);
+          });
+        Promise.all(moonQueue.map(fn => fn())).catch(() => {});
       })();
       if (new URLSearchParams(window.location.search).get('transit') === '1') {
         const _startLoop = () => {
@@ -9147,6 +9831,32 @@ ${error && error.message ? error.message : error}`;
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState);
       }).catch(() => {});
       void runEmbeddedSmokeTest();
+
+      const _disposeSceneGPU = () => {
+        _renderRunning = false;
+        scene.traverse(obj => {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) {
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            for (const m of mats) {
+              if (m.map) {
+                m.map.image = null;
+                m.map.dispose();
+              }
+              m.dispose();
+            }
+          }
+        });
+        for (const [, tex] of layerTextures)   { if (tex?.isTexture) tex.dispose(); }
+        for (const [, tex] of mineralTextures)  { if (tex?.isTexture) tex.dispose(); }
+        for (const [, tex] of geologyTextures)  { if (tex?.isTexture) tex.dispose(); }
+        for (const [, tex] of moonTextures)     { if (tex?.isTexture) tex.dispose(); }
+        renderer.setSize(1, 1);
+        renderer.dispose();
+        renderer.forceContextLoss();
+      };
+      window.addEventListener('pagehide', _disposeSceneGPU);
+      window.addEventListener('unload',   _disposeSceneGPU);
     }
 
     init().catch((error) => {
@@ -9239,20 +9949,31 @@ ${error && error.message ? error.message : error}`;
     const navCollapseBtn = document.getElementById("nav-collapse-btn");
     const navTab = document.getElementById("nav-tab");
     const bottomRightHud = document.getElementById("bottom-right-hud");
+    // Mobile: inject backdrop element for closing the panel by tapping outside
+    const backdrop = document.createElement("div");
+    backdrop.id = "mobile-panel-backdrop";
+    document.body.appendChild(backdrop);
+
+    const isMobileLayout = () => window.matchMedia("(max-width: 768px), (pointer: coarse) and (max-width: 1024px)").matches;
+
+    function openPanel() {
+      uiPanel?.classList.remove("is-collapsed");
+      navTab.style.display = "none";
+      if (bottomRightHud) bottomRightHud.classList.remove("nav-collapsed");
+      if (isMobileLayout()) backdrop.classList.add("is-visible");
+    }
+    function closePanel() {
+      uiPanel?.classList.add("is-collapsed");
+      navTab.style.display = "flex";
+      if (bottomRightHud) bottomRightHud.classList.add("nav-collapsed");
+      backdrop.classList.remove("is-visible");
+    }
+
     if (uiPanel && navCollapseBtn && navTab) {
-      const syncNavCollapseHudState = () => {
-        if (!bottomRightHud) return;
-        bottomRightHud.classList.toggle("nav-collapsed", uiPanel.classList.contains("is-collapsed"));
-      };
-      navCollapseBtn.addEventListener("click", () => {
-        uiPanel.classList.add("is-collapsed");
-        navTab.style.display = "flex";
-        syncNavCollapseHudState();
-      });
-      navTab.addEventListener("click", () => {
-        uiPanel.classList.remove("is-collapsed");
-        navTab.style.display = "none";
-        syncNavCollapseHudState();
-      });
-      syncNavCollapseHudState();
+      // Auto-collapse on mobile at load
+      if (isMobileLayout()) closePanel();
+
+      navCollapseBtn.addEventListener("click", closePanel);
+      navTab.addEventListener("click", openPanel);
+      backdrop.addEventListener("click", closePanel);
     }

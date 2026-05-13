@@ -2,16 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Earth</title>
   <link rel="icon" href="assets/logo.png" type="image/png">
-  <link rel="preload" href="assets/earth_color.jpg" as="image">
-  <link rel="preload" href="assets/earth_elevation.png" as="image">
-  <link rel="preload" href="assets/earth_geology_sim3292.png" as="image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260331a">
+  <link rel="stylesheet" href="styles.css?v=20260510b">
 </head>
 <body>
   <div id="app"></div>
@@ -24,7 +21,7 @@
       </div>
     </div>
     <div class="viewer-info" id="viewer-info">
-      <p>Drag to orbit, scroll to zoom, and inspect Earth as a textured 3D globe with GEBCO topographic relief and bathymetry data.</p>
+      <p>Drag to orbit, scroll to zoom, and inspect Earth as a textured 3D globe with topographic relief and an optional geology context overlay.</p>
     </div>
     <div class="brand-hero">
       <div class="brand">
@@ -33,17 +30,20 @@
         </button>
         <h1>Earth</h1>
       </div>
-      <div class="brand-audio" hidden>
+      <div class="brand-audio" id="brand-audio" style="display:none">
         <button class="audio-play-btn" id="audio-play-btn" aria-label="Play / pause Earth sounds">
           <svg id="audio-icon-play" width="40" height="40" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><polygon points="3,1 13,7 3,13"/></svg>
           <svg id="audio-icon-pause" width="34" height="34" viewBox="0 0 14 14" fill="currentColor" style="display:none" aria-hidden="true"><rect x="2" y="1" width="4" height="12" rx="1"/><rect x="8" y="1" width="4" height="12" rx="1"/></svg>
         </button>
-        <p class="earth-audio-label">Earth audio unavailable</p>
+        <p class="audio-label">Sounds of Earth</p>
       </div>
     </div>
     <audio id="earth-audio-el" preload="metadata">
-      
+      <source src="assets/earth_ambient.wav" type="audio/wav">
     </audio>
+    <script>
+      (function(){var a=document.getElementById("earth-audio-el"),c=document.getElementById("brand-audio");if(!a||!c)return;a.addEventListener("canplay",function(){c.style.display="";},{once:true});a.addEventListener("error",function(){c.style.display="none";},true);})();
+    </script>
     <details id="tour-mode-section" class="control-section">
       <summary class="section-toggle">
         <div class="section-toggle-main">
@@ -63,14 +63,12 @@
               <label for="tour-mode-facet">Tour facet</label>
               <select id="tour-mode-facet" class="select"></select>
             </div>
-            <div class="row">
-              <label for="tour-mode-target">Current stop</label>
-              <select id="tour-mode-target" class="select"></select>
-            </div>
-            <div class="nav-arrow-row">
+            <p class="inline-nav-label">Current stop</p>
+            <div class="inline-nav-row">
               <button id="tour-mode-prev" class="btn-nav-arrow" type="button" disabled aria-label="Previous">
                 <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
               </button>
+              <select id="tour-mode-target" class="inline-nav-select"></select>
               <button id="tour-mode-next" class="btn-nav-arrow" type="button" disabled aria-label="Next">
                 <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
               </button>
@@ -119,7 +117,7 @@
         </summary>
         <div class="section-body">
           <div class="control-stack">
-          <div class="section-summary-copy" style="margin-bottom:0.5rem;">Named features and mission sites.</div>
+          <div class="section-summary-copy" style="margin-bottom:0.5rem;">Named geographic features and mission sites.</div>
           <div class="row">
             <label for="labels-toggle" style="color: #6fd6ff;">General</label>
             <span class="checkbox-wrap"><input id="labels-toggle" type="checkbox" checked></span>
@@ -129,16 +127,23 @@
             <span class="checkbox-wrap"><input id="volcanic-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
-            <label for="landing-labels-toggle" style="color: #ffd166;">Mission locations</label>
+            <label for="landing-labels-toggle" style="color: #ffe500;">Launch &amp; mission sites</label>
             <span class="checkbox-wrap"><input id="landing-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
-            <label for="habitation-labels-toggle" style="color: #6bcb77;">Mission concepts</label>
-            <span class="checkbox-wrap"><input id="habitation-labels-toggle" type="checkbox" checked></span>
-          </div>
-          <div class="row">
-            <label for="moon-toggle" style="color: #ffffff;">Moons</label>
+            <label for="moon-toggle" style="color: #ffffff;">Moon</label>
             <span class="checkbox-wrap"><input id="moon-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="lod-slider-row">
+            <div class="lod-slider-header">
+              <label for="lod-slider">Label density</label>
+              <span class="lod-value-label" id="lod-value-label">Standard</span>
+            </div>
+            <input id="lod-slider" type="range" min="1" max="5" value="3" step="1" class="lod-slider">
+            <div class="lod-tick-labels">
+              <span>Min</span>
+              <span>Max</span>
+            </div>
           </div>
         </div>
         </div>
@@ -301,9 +306,9 @@
             <span class="checkbox-wrap"><input id="sea-toggle" type="checkbox"></span>
           </div>
           <div class="slider-block">
-            <input id="sea-level-slider" class="slider" type="range" min="-8200" max="0" step="25" value="-4000">
+            <input id="sea-level-slider" class="slider" type="range" min="-10930" max="0" step="25" value="-5000">
             <div class="slider-axis">
-              <span id="sea-level-min" class="slider-axis-min">−8,200 m</span>
+              <span id="sea-level-min" class="slider-axis-min">−10,930 m</span>
               <span id="sea-level-value" class="slider-axis-current">−4,000 m</span>
               <span class="slider-axis-max">0 m</span>
             </div>
@@ -379,31 +384,31 @@
             </div>
             <div class="core-legend" style="margin-top:0.35rem;">
               <div class="core-legend-row">
-                <span class="core-swatch" style="background:#d8704b"></span>
+                <span class="core-swatch" style="background:#c8a882"></span>
                 <div>
                   <div class="core-legend-label">Crust</div>
-                  <div class="core-legend-copy">Oceanic crust 5–10 km thick; continental crust 30–70 km thick. The outermost layer where all surface geology occurs.</div>
+                  <div class="core-legend-copy">Thin basaltic shell, ~20–70 km thick, formed by ancient volcanic activity.</div>
                 </div>
               </div>
               <div class="core-legend-row">
-                <span class="core-swatch" style="background:#8b4513"></span>
+                <span class="core-swatch" style="background:#6b3a2a"></span>
                 <div>
                   <div class="core-legend-label">Mantle</div>
-                  <div class="core-legend-copy">Silicate rock from ~30 to 2,890 km depth. Convection in the mantle drives plate tectonics and volcanic activity at the surface.</div>
+                  <div class="core-legend-copy">Silicate rock making up the bulk of the planet, largely solidified and tectonically inactive.</div>
                 </div>
               </div>
               <div class="core-legend-row">
-                <span class="core-swatch" style="background:#f0a060"></span>
+                <span class="core-swatch" style="background:#d94f1e"></span>
                 <div>
-                  <div class="core-legend-label">Outer Core</div>
-                  <div class="core-legend-copy">Liquid iron-nickel layer from ~2,890 to 5,150 km depth. Its convective motion generates Earth's protective magnetic field.</div>
+                  <div class="core-legend-label">Liquid Outer Core</div>
+                  <div class="core-legend-copy">Liquid iron-nickel outer core; the source of Earth's global magnetic field via the geodynamo.</div>
                 </div>
               </div>
               <div class="core-legend-row">
                 <span class="core-swatch" style="background:#f0d59e"></span>
                 <div>
                   <div class="core-legend-label">Inner Core</div>
-                  <div class="core-legend-copy">Solid iron-nickel sphere, radius ~1,220 km. Constrained by seismic P-wave travel times and normal-mode observations.</div>
+                  <div class="core-legend-copy">Possible denser iron-rich centre; its solid or partially molten state remains uncertain.</div>
                 </div>
               </div>
             </div>
@@ -435,18 +440,24 @@
             <div class="section-summary-copy" style="margin-bottom:0.5rem;">Jump to Earth's Moon.</div>
             <div id="moon-viewer-controls" style="display:none;">
               <div class="control-stack">
-                <div class="row moon-viewer-select-row">
-                  <label for="moon-viewer-select">Target moon</label>
-                  <select id="moon-viewer-select" class="mini-select"></select>
-                </div>
-                <div class="nav-arrow-row">
+                <p class="inline-nav-label">Target moon</p>
+                <div class="inline-nav-row">
                   <button id="moon-viewer-prev" class="btn-nav-arrow" type="button" disabled aria-label="Previous">
                     <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
+                  <select id="moon-viewer-select" class="inline-nav-select"></select>
                   <button id="moon-viewer-next" class="btn-nav-arrow" type="button" disabled aria-label="Next">
                     <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
                   </button>
                 </div>
+                <div class="moon-feature-tour-header" style="margin-top:0.6rem;">
+                  <span class="moon-feature-tour-label">Search</span>
+                </div>
+                <div class="search-row">
+                  <input id="moon-feature-search" class="input" placeholder="Search this moon's features" autocomplete="off">
+                  <button id="moon-feature-search-go" class="button" type="button">Go</button>
+                </div>
+                <div id="moon-feature-search-results" class="search-suggestions" hidden></div>
                 <div class="moon-feature-tour-header">
                   <span class="moon-feature-tour-label">Feature Tour</span>
                 </div>
@@ -454,14 +465,12 @@
                   <label for="moon-feature-type">Feature type</label>
                   <select id="moon-feature-type" class="select"></select>
                 </div>
-                <div class="row">
-                  <label for="moon-feature-tour-target">Current feature</label>
-                  <select id="moon-feature-tour-target" class="select"></select>
-                </div>
-                <div class="nav-arrow-row">
+                <p class="inline-nav-label">Current feature</p>
+                <div class="inline-nav-row">
                   <button id="moon-feature-tour-prev" class="btn-nav-arrow" type="button" disabled aria-label="Previous">
                     <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
                   </button>
+                  <select id="moon-feature-tour-target" class="inline-nav-select"></select>
                   <button id="moon-feature-tour-next" class="btn-nav-arrow" type="button" disabled aria-label="Next">
                     <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
                   </button>
@@ -495,12 +504,12 @@
   <button id="toolbar-tab" aria-label="Expand measure toolbox">TOOLS &nbsp;‹</button>
   <div id="top-right-controls">
     <button id="spin-toggle" type="button" title="Pause rotation" aria-label="Pause rotation">
-      <span class="viewer-control-glyph" id="spin-toggle-glyph" aria-hidden="true">⏸</span>
+      <svg class="viewer-control-icon" id="spin-toggle-glyph" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/>
+      </svg>
     </button>
     <button id="freeze-view-toggle" type="button" title="Freeze view" aria-label="Freeze view">
-      <svg class="viewer-control-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 7.2v9.6M7.9 9.6l8.2 4.8M7.9 14.4l8.2-4.8M9.3 7.7l1.6 2.8M14.7 7.7l-1.6 2.8M9.3 16.3l1.6-2.8M14.7 16.3l-1.6-2.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <img class="viewer-control-icon freeze-icon" src="../../../assets/snowflake_icon.png" alt="" aria-hidden="true">
     </button>
     <a href="https://geoidinitiative.com/" target="_blank" rel="noopener noreferrer" aria-label="Open GeoID Initiative website">
       <img id="top-right-logo" src="assets/logo.png" alt="GeoID logo">
@@ -1021,7 +1030,7 @@
         </section>
         <section class="viewer-help-section">
           <h3>Control Panel Layout</h3>
-          <p>The left panel runs from navigation to interpretation. <strong>Navigate</strong> holds search and reset. <strong>Tour Mode</strong> steps through curated stop sequences. <strong>Locations</strong> controls surface labels and mission markers by category. <strong>Basemap &amp; Relief</strong> sets the globe texture and terrain displacement. <strong>Geology</strong> overlays GEBCO-derived bathymetric context and structural annotations. The science panels below add mineral, thermal, modelled environment, sea level, and region-mask layers. The bottom-right HUD shows live cursor latitude, longitude, elevation, and map scale.</p>
+          <p>The left panel runs from navigation to interpretation. <strong>Navigate</strong> holds search and reset. <strong>Tour Mode</strong> steps through curated stop sequences. <strong>Locations</strong> controls surface labels and mission markers by category. <strong>Basemap &amp; Relief</strong> sets the globe texture and terrain displacement. <strong>Geology</strong> overlays the USGS mapped units, contacts, and structures. The science panels below add mineral, thermal, modelled environment, sea level, and region-mask layers. The bottom-right HUD shows live cursor latitude, longitude, elevation, and map scale.</p>
         </section>
         <section class="viewer-help-section">
           <h3>CTX Mosaic — Why Rotation Is Disabled</h3>
@@ -1033,25 +1042,36 @@
           <h3>Tour Mode</h3>
           <p>Enable Tour Mode from the panel and choose a theme — craters, volcanoes, landing sites, or habitability. The viewer flies automatically to each stop in sequence. Use the <strong>Prev</strong> and <strong>Next</strong> buttons or the target dropdown to navigate. Your basemap, overlays, and sea-level setting are preserved across stops and carry forward when you exit tour mode. Switching theme mid-tour keeps your current configuration.</p>
         </section>
-<section class="viewer-help-section"><h3>Moon Viewer</h3><p>Select Moon from the Moon Viewer section to fly out to Earth's Moon. The panel focuses to show lunar labels — crater names, maria, and basins — and the Earth surface labels scale proportionally in the background. Click any lunar feature label for its description and data. Exit moon viewer with the close button or by clicking an Earth surface feature in search.</p></section>
+        <section class="viewer-help-section">
+          <h3>Moon Viewer</h3>
+          <p>Select Moon from the Moon Viewer section to fly out to the Moon. The panel focuses to show Moon-specific labels — crater names, mare basins, and landing sites. Click any feature label for its description. Exit moon viewer with the close button.</p>
+        </section>
         <section class="viewer-help-section">
           <h3>Datasets Available</h3>
           <div class="viewer-help-grid">
             <article class="viewer-help-card">
               <h4>Global basemaps</h4>
-              <p>NASA Earth surface texture, GEBCO-derived hillshade, and GEBCO-derived slope basemap.</p>
+              <p>Blue Marble colour composite, derived hillshade, derived slope, and SRTM/ETOPO global elevation products.</p>
             </article>
             <article class="viewer-help-card">
               <h4>Science rasters</h4>
-              <p>GEBCO 2025 bathymetry and topography products providing the highest-resolution global ocean-floor relief model.</p>
+              <p>GEBCO bathymetry, MODIS land-cover, and derived surface condition products.</p>
             </article>
             <article class="viewer-help-card">
               <h4>Geology</h4>
-              <p>GEBCO-derived bathymetric relief context overlay with interactive annotations of major landforms, ocean basins, and tectonic features.</p>
+              <p>USGS mapped units with interactive feature tooltips, interpreted contact lines, structural measurements, and tectonic boundaries.</p>
             </article>
             <article class="viewer-help-card">
-              <h4>Interior cutaway</h4>
-              <p>Cross-section of Earth's interior based on the Preliminary Reference Earth Model (PREM) and seismic constraints from the global seismograph network.</p>
+              <h4>Modelled environment</h4>
+              <p>Derived surface-condition layers: temperature, pressure, wind, dust-devil potential, irradiation, brine stability, landing score, and related habitability estimates.</p>
+            </article>
+            <article class="viewer-help-card">
+              <h4>Seismic events</h4>
+              <p>InSight seismic catalogue (UMD InSight v12, 2022) showing detected events by quality grade, magnitude, and distance from the lander.</p>
+            </article>
+            <article class="viewer-help-card">
+              <h4>Paleo-sea overlay</h4>
+              <p>Speculative sea-level threshold model. Drag the sea-level slider to explore flood depth from the minimum terrain elevation up to 0 m datum.</p>
             </article>
           </div>
         </section>
@@ -1061,7 +1081,7 @@
         </section>
         <section class="viewer-help-section">
           <h3>Suggested Workflow</h3>
-          <p>Start with the Earth surface texture or GEBCO hillshade for visual context. Add terrain relief to read ocean-basin depth and mountain elevation. Enable geology to identify major bathymetric provinces, then compare context overlays to investigate tectonic boundaries. Use the sea-level slider to explore ice-age inundation scenarios. For final interpretation, treat each layer as one line of evidence rather than a definitive answer.</p>
+          <p>Start with the color basemap for visual context. Add terrain relief or contours to read basin depth and elevation. Enable geology to identify mapped units, then compare mineral products or modelled layers to test a region for composition interest. Use the sea-level slider to visualise inundation scenarios. For final interpretation, treat each layer as one line of evidence rather than a definitive answer.</p>
         </section>
       </div>
     </section>
@@ -1235,7 +1255,7 @@
         const viewerScriptVersion = String(
           window.__earthViewerManifest?.updatedAt
           || window.__earthViewerManifest?.version
-          || "20260508-earth"
+          || "20260329-ctxsync"
         );
         viewerScript.src = `earth-viewer.js?v=${encodeURIComponent(viewerScriptVersion)}&t=${Date.now()}`;
         viewerScript.addEventListener("load", () => resolve(), { once: true });
@@ -1258,5 +1278,29 @@
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
 <script src="music.js?v=20260329a" defer></script>
 
+
+  <!-- Ghost checkboxes: keep JS toggle refs valid without showing in UI -->
+  <input type="checkbox" id="crater-labels-toggle" style="display:none">
+  <input type="checkbox" id="fluvial-labels-toggle" style="display:none">
+  <input type="checkbox" id="habitation-labels-toggle" style="display:none">
+  <input type="checkbox" id="tectonic-labels-toggle" style="display:none">
+  <div id="portrait-advisory" role="status" aria-live="polite">
+    <img src="../../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon">
+    <p id="portrait-advisory-text">Rotate to landscape for the best experience</p>
+    <button id="portrait-advisory-dismiss" type="button" aria-label="Dismiss">Got it</button>
+  </div>
+  <script>
+    (function () {
+      var advisory = document.getElementById("portrait-advisory");
+      var dismissBtn = document.getElementById("portrait-advisory-dismiss");
+      if (!advisory || !dismissBtn) return;
+      dismissBtn.addEventListener("click", function () {
+        advisory.classList.add("is-dismissed");
+      });
+      window.addEventListener("orientationchange", function () {
+        advisory.classList.remove("is-dismissed");
+      });
+    })();
+  </script>
 </body>
 </html>

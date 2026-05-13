@@ -62,7 +62,7 @@
     const seismicMagnitudeCopy = document.getElementById("seismic-magnitude-copy");
     const seismicTimelineSlider = document.getElementById("seismic-timeline-slider");
     const seismicTimelineReadout = document.getElementById("seismic-timeline-readout");
-    const labelData = [{"name":"Great Dark Spot","type":"Dark vortex","lat":-22.0,"lon":210.0,"theme":"storm","description":"Representative location for Neptune's large dark vortex systems observed by Voyager 2 and later monitoring."},{"name":"Scooter Cloud","type":"Bright methane cloud","lat":-42.0,"lon":150.0,"theme":"storm","description":"A bright fast-moving methane cloud feature associated with Neptune's dynamic weather."},{"name":"Dark Spot 2","type":"Small dark vortex","lat":-55.0,"lon":45.0,"theme":"storm","description":"A smaller dark spot observed by Voyager 2 south of the Great Dark Spot, tracking alongside it."},{"name":"South Polar Band","type":"Polar atmosphere","lat":-70.0,"lon":260.0,"theme":"polar","description":"Representative high-latitude southern atmosphere and cloud structure."},{"name":"North Polar Haze","type":"Polar haze","lat":68.0,"lon":30.0,"theme":"polar","description":"A northern high-latitude haze region in enhanced atmospheric views."},{"name":"Equatorial Zone","type":"Cloud zone","lat":0.0,"lon":0.0,"theme":"band","description":"A broad equatorial cloud zone shaped by Neptune's high-speed zonal winds."},{"name":"Southern Mid-Latitude Belt","type":"Cloud belt","lat":-35.0,"lon":95.0,"theme":"band","description":"A southern mid-latitude belt where bright methane clouds and darker bands recur."},{"name":"Northern Mid-Latitude Belt","type":"Cloud belt","lat":35.0,"lon":285.0,"theme":"band","description":"A representative northern band used for orientation in the cloud-top texture."},{"name":"South Polar Region","type":"Polar atmosphere","lat":-85.0,"lon":0.0,"theme":"polar","description":"Neptune's south polar region, which appears slightly brighter at thermal wavelengths due to seasonal heating."},{"name":"Triton Ring Plane Crossing Zone","type":"Ring plane zone","lat":0.0,"lon":180.0,"theme":"landing","description":"Equatorial zone used as orientation for Neptune's ring system and Triton's highly inclined retrograde orbit."},{"name":"Voyager 2 Closest Approach","type":"Mission corridor","lat":-30.0,"lon":45.0,"theme":"landing","description":"Representative encounter region for Voyager 2's 1989 Neptune flyby."}];
+    const labelData = [{"name":"Great Dark Spot","type":"Dark vortex","lat":-22.0,"lon":350.0,"theme":"storm","description":"Representative location for Neptune's large dark vortex systems observed by Voyager 2 and later monitoring."},{"name":"Scooter Cloud","type":"Bright methane cloud","lat":-42.0,"lon":150.0,"theme":"storm","description":"A bright fast-moving methane cloud feature associated with Neptune's dynamic weather."},{"name":"Dark Spot 2","type":"Small dark vortex","lat":-55.0,"lon":45.0,"theme":"storm","description":"A smaller dark spot observed by Voyager 2 south of the Great Dark Spot, tracking alongside it."},{"name":"South Polar Band","type":"Polar atmosphere","lat":-70.0,"lon":260.0,"theme":"polar","description":"Representative high-latitude southern atmosphere and cloud structure."},{"name":"North Polar Haze","type":"Polar haze","lat":68.0,"lon":30.0,"theme":"polar","description":"A northern high-latitude haze region in enhanced atmospheric views."},{"name":"Equatorial Zone","type":"Cloud zone","lat":0.0,"lon":0.0,"theme":"band","description":"A broad equatorial cloud zone shaped by Neptune's high-speed zonal winds."},{"name":"Southern Mid-Latitude Belt","type":"Cloud belt","lat":-35.0,"lon":95.0,"theme":"band","description":"A southern mid-latitude belt where bright methane clouds and darker bands recur."},{"name":"Northern Mid-Latitude Belt","type":"Cloud belt","lat":35.0,"lon":285.0,"theme":"band","description":"A representative northern band used for orientation in the cloud-top texture."},{"name":"South Polar Region","type":"Polar atmosphere","lat":-85.0,"lon":0.0,"theme":"polar","description":"Neptune's south polar region, which appears slightly brighter at thermal wavelengths due to seasonal heating."},{"name":"Triton Ring Plane Crossing Zone","type":"Ring plane zone","lat":0.0,"lon":180.0,"theme":"landing","description":"Equatorial zone used as orientation for Neptune's ring system and Triton's highly inclined retrograde orbit."},{"name":"Voyager 2 Closest Approach","type":"Mission corridor","lat":-30.0,"lon":45.0,"theme":"landing","description":"Representative encounter region for Voyager 2's 1989 Neptune flyby."}];
     const ringLabelData = [{"name":"Galle Ring","type":"Diffuse inner ring","theme":"ring","description":"Neptune's faint diffuse innermost ring.","ring_region":"Inner ring","ring_radius_km":"~41,900 km from Neptune center","ring_anchor":[4.5315,0,2.1131],"ring_label":[4.9394,0.18,2.3033],"ring_line_end":[4.7309,0.12,2.2061]},{"name":"Le Verrier Ring","type":"Narrow ring","theme":"ring","description":"A narrow ring in Neptune's middle ring system.","ring_region":"Middle ring","ring_radius_km":"~53,200 km from Neptune center","ring_anchor":[-1.6047,0,5.9887],"ring_label":[-1.7211,0.18,6.4234],"ring_line_end":[-1.6616,0.12,6.2012]},{"name":"Adams Ring","type":"Arc-bearing ring","theme":"ring","description":"Neptune's outermost and brightest ring, famous for its distinct bright arcs — Liberté, Égalité, and Fraternité.","ring_region":"Outer main ring","ring_radius_km":"~62,900 km from Neptune center","ring_anchor":[4.5886,0,-6.5532],"ring_label":[4.8467,0.18,-6.9218],"ring_line_end":[4.7148,0.12,-6.7334]}];
     const moonData = [{"name":"Triton","type":"Major moon","theme":"moon","description":"Neptune's largest moon, a captured Kuiper Belt object with nitrogen geysers and a retrograde orbit that slowly decays toward Neptune.","moon_anchor":[7.8,0.1,5.8],"moon_radius":0.135,"moon_label_lift":0.255,"moon_color":"#d7c7b9","mean_radius_km":"1,353 km","orbit_distance_km":"~354,800 km","texture_source_url":null},{"name":"Proteus","type":"Inner moon","theme":"moon","description":"A dark irregular inner moon and one of Neptune's largest regular satellites, discovered by Voyager 2.","moon_anchor":[-8.8,-0.06,6.6],"moon_radius":0.07,"moon_label_lift":0.19,"moon_color":"#5c5853","mean_radius_km":"210 km","orbit_distance_km":"~117,600 km","texture_source_url":null},{"name":"Nereid","type":"Irregular moon","theme":"moon","description":"A distant moon with a highly eccentric orbit, discovered before the Voyager encounter.","moon_anchor":[-12.4,0.12,-8.0],"moon_radius":0.052,"moon_label_lift":0.172,"moon_color":"#8b8174","mean_radius_km":"170 km","orbit_distance_km":"~5,513,400 km","texture_source_url":null},{"name":"Larissa","type":"Inner moon","theme":"moon","description":"A small dark inner moon orbiting near Neptune's rings.","moon_anchor":[9.8,-0.08,-7.6],"moon_radius":0.044,"moon_label_lift":0.164,"moon_color":"#615d58","mean_radius_km":"97 km","orbit_distance_km":"~73,500 km","texture_source_url":null},{"name":"Galatea","type":"Inner moon","theme":"moon","description":"An inner moon whose gravity helps confine structure in Neptune's Adams ring arcs.","moon_anchor":[6.2,0.05,-8.4],"moon_radius":0.038,"moon_label_lift":0.158,"moon_color":"#6a6660","mean_radius_km":"88 km","orbit_distance_km":"~62,000 km","texture_source_url":null}];
     const NEPTUNE_EQUATORIAL_RADIUS_KM = 24622;
@@ -70,25 +70,19 @@
     const NEPTUNE_KM_TO_SCENE = NEPTUNE_SCENE_RADIUS / NEPTUNE_EQUATORIAL_RADIUS_KM;
     const NEPTUNE_EXPOSED_INTERIOR_RFRAC = 0.58;
     const NEPTUNE_RING_REFERENCE_KM = {
-      dInner: 41900, cInner: 53200, bInner: 53450, cassiniInner: 62000,
-      aInner: 62400, aOuter: 62950, enckeCenter: 62200, keelerCenter: 62700,
-      fRing: 62932, mainOuter: 63000,
+      galleInner:      41900,
+      galleOuter:      42900,
+      leVerrierCenter: 53200,
+      lassellOuter:    57600,
+      adamsInner:      62500,
+      mainOuter:       63200,
     };
 
     function georeferenceRingAndInnerMoonAnchors() {
       const ringAnchorKmByName = {
-        "D Ring": 70500,
-        "C Ring": 83250,
-        "B Ring": 104750,
-        "Cassini Division": 119750,
-        "A Ring": 129300,
-        "Encke Gap": 133584,
-        "Keeler Gap": 136505,
-        "F Ring": 140220,
-        // Display-compressed anchor for readability in this scene.
-        "G Ring": 148500,
-        // Display anchor is intentionally compressed for UI readability in this scene.
-        "E Ring": 150000,
+        "Galle Ring": 42400,
+        "Le Verrier Ring": 53200,
+        "Adams Ring": 62850,
       };
       for (const entry of ringLabelData) {
         const radiusKm = ringAnchorKmByName[entry.name];
@@ -101,28 +95,23 @@
           y,
           Number((Math.sin(theta) * radiusScene).toFixed(4)),
         ];
-        if (entry.name === "G Ring" || entry.name === "E Ring") {
-          const ax = entry.ring_anchor[0];
-          const az = entry.ring_anchor[2];
-          const ar = Math.hypot(ax, az) || 1;
-          const ux = ax / ar;
-          const uz = az / ar;
-          const tx = -uz;
-          const tz = ux;
-          const lineScale = entry.name === "G Ring" ? 1.012 : 1.018;
-          const labelScale = entry.name === "G Ring" ? 1.026 : 1.038;
-          const tangentOffset = entry.name === "G Ring" ? 0.05 : 0.08;
-          entry.ring_line_end = [
-            Number((ux * ar * lineScale).toFixed(4)),
-            0.12,
-            Number((uz * ar * lineScale).toFixed(4)),
-          ];
-          entry.ring_label = [
-            Number((ux * ar * labelScale + tx * tangentOffset).toFixed(4)),
-            0.18,
-            Number((uz * ar * labelScale + tz * tangentOffset).toFixed(4)),
-          ];
-        }
+        const ax = entry.ring_anchor[0];
+        const az = entry.ring_anchor[2];
+        const ar = Math.hypot(ax, az) || 1;
+        const ux = ax / ar;
+        const uz = az / ar;
+        const tx = -uz;
+        const tz = ux;
+        entry.ring_line_end = [
+          Number((ux * ar * 1.014).toFixed(4)),
+          0.12,
+          Number((uz * ar * 1.014).toFixed(4)),
+        ];
+        entry.ring_label = [
+          Number((ux * ar * 1.030 + tx * 0.06).toFixed(4)),
+          0.18,
+          Number((uz * ar * 1.030 + tz * 0.06).toFixed(4)),
+        ];
       }
 
       const moonOrbitKmByName = {
@@ -351,6 +340,7 @@
     const metadataSubtitle = document.getElementById("metadata-subtitle");
     const metadataSections = document.getElementById("metadata-sections");
     const metadataClose = document.getElementById("metadata-close");
+    const coreViewSection = document.getElementById("core-view-section");
     const legendSection = document.getElementById("legend-section");
     const legendPanel = document.getElementById("legend-panel");
     const legendSummaryCopy = document.getElementById("legend-summary-copy");
@@ -404,15 +394,6 @@
     let activePopupFeature = null;
     let activePopupIsCoreLabel = false;
     const coreWrap = document.getElementById("core-wrap");
-    const legendSectionBody = legendPanel ? legendPanel.closest(".section-body") : null;
-
-    function placeCoreSymbologyUnderLegend() {
-      if (!coreWrap || !legendSectionBody) return;
-      if (coreWrap.parentElement !== legendSectionBody) {
-        legendSectionBody.appendChild(coreWrap);
-      }
-    }
-    placeCoreSymbologyUnderLegend();
     let selectedGeologyOutline = null;
     let selectedGeologyBoundaryGroup = null;
     let selectedLabelEntry = null;
@@ -977,45 +958,45 @@
         id: "upper-atmosphere",
         name: "Upper Atmosphere",
         type: "Cloud tops and haze",
-        description: "Neptune's visible outer shell is the upper atmosphere: ammonia clouds, haze layers, zonal banding, and storm systems seen at the top of the deep hydrogen-helium envelope.",
+        description: "Neptune's visible outer layer: bright methane cloud tops, zonal banding, and storm systems at the uppermost level of the hydrogen-helium-methane envelope.",
         depth: "Cloud tops through the upper troposphere",
-        composition: "Hydrogen and helium with ammonia ice, ammonium hydrosulfide, water-cloud layers below, and photochemical haze above.",
-        temperature: "~80-140 K near the visible cloud deck",
-        labelX: -1.9, labelY: 3.12,
+        composition: "Hydrogen and helium with methane clouds, photochemical haze, and traces of ethane and acetylene.",
+        temperature: "~55–72 K at the tropopause cold trap; ~80–140 K at the visible cloud deck",
+        labelX: -1.80, labelY: 3.12,
         anchorY: 3.12,
       },
       {
-        id: "molecular-envelope",
-        name: "Molecular Envelope",
-        type: "Deep H2-He fluid shell",
-        description: "Most of Neptune's volume is a convecting molecular hydrogen-helium envelope where pressure rises steadily inward and weather gives way to deep fluid dynamics.",
-        depth: "Outer atmosphere to the metallic transition",
-        composition: "Mostly molecular hydrogen and helium with dissolved heavier elements and cloud-forming volatiles.",
-        temperature: "Rises from the upper atmosphere into the thousands of kelvin at depth",
-        labelX: -2.35, labelY: 2.26,
-        anchorY: 2.26,
+        id: "atmosphere",
+        name: "Atmosphere",
+        type: "Hydrogen-helium-methane gas envelope",
+        description: "A deep fluid atmosphere of hydrogen, helium, and methane that transitions inward from gas to supercritical fluid conditions.",
+        depth: "Below the cloud tops, deepening into high-pressure fluid",
+        composition: "Mostly molecular hydrogen and helium, with methane (about 1–2%), driving Neptune's vivid blue color.",
+        temperature: "Rises from cloud-top temperatures into thousands of kelvin at depth",
+        labelX: -1.80, labelY: 2.72,
+        anchorY: 2.72,
       },
       {
-        id: "metallic-hydrogen",
-        name: "Metallic Hydrogen Layer",
-        type: "Conductive deep interior",
-        description: "At extreme pressure, hydrogen is expected to enter a metallic state. This electrically conductive layer likely powers Neptune's magnetic field and dominates the deep interior.",
-        depth: "Broad deep shell around the central heavy-element region",
-        composition: "Metallic hydrogen with helium and heavier-element material mixed into the deep interior.",
-        temperature: "Several thousand kelvin under immense pressure",
-        labelX: -1.65, labelY: 1.36,
-        anchorY: 1.36,
+        id: "water-ice-mantle",
+        name: "Water-Ice Mantle",
+        type: "High-pressure ices and ionic fluid",
+        description: "Neptune's dominant interior layer: a hot, dense mixture of water, ammonia, and methane under extreme pressure — behaving more like an electrically conductive fluid than solid ice.",
+        depth: "Beneath the gas envelope to near the rocky core",
+        composition: "Water, ammonia, and methane ices in ionic or superionic states under megabar pressures.",
+        temperature: "Several thousand to ~7,000 K",
+        labelX: -1.80, labelY: 1.44,
+        anchorY: 1.44,
       },
       {
-        id: "heavy-element-core",
-        name: "Heavy-Element Core",
-        type: "Diffuse rock-ice-rich center",
-        description: "Neptune likely contains a central concentration of rocks, ices, and metals, but current models suggest it may be diffuse and partially mixed outward rather than a sharply bounded solid core.",
+        id: "rocky-ice-core",
+        name: "Rocky-Ice Core",
+        type: "Silicate and metal core",
+        description: "A small dense core of rock and metal at Neptune's center, roughly the size of Earth, under immense pressure from the overlying icy mantle.",
         depth: "Central region",
-        composition: "Silicates, metals, and ices mixed with surrounding hydrogen under deep-interior conditions.",
-        temperature: "Hot dense interior; model dependent",
-        labelX: -0.95, labelY: 0.56,
-        anchorY: 0.56,
+        composition: "Silicates, iron-nickel metals, and residual ices under extreme pressure and temperature.",
+        temperature: "Up to ~7,000 K; model dependent",
+        labelX: -1.80, labelY: 0.0,
+        anchorY: 0.0,
       },
     ];
 
@@ -1094,46 +1075,42 @@
           let alpha = 0;
           let shade = 0;
 
-          if (r >= kmToUnit(NEPTUNE_RING_REFERENCE_KM.dInner) && r <= 1) {
+          if (r >= kmToUnit(NEPTUNE_RING_REFERENCE_KM.galleInner) && r <= 1) {
             const noise =
               0.5
               + 0.25 * Math.sin(r * 980)
               + 0.13 * Math.sin(r * 2740 + 1.7)
               + 0.06 * Math.sin((x * 0.019) + (y * 0.013));
 
-            if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.cInner)) {
-              alpha = 0.16 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.dInner, NEPTUNE_RING_REFERENCE_KM.cInner, 260);
-              shade = 72 + 28 * noise;
-            } else if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.bInner)) {
-              alpha = 0.36 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.cInner, NEPTUNE_RING_REFERENCE_KM.bInner, 220);
-              shade = 82 + 42 * noise;
-            } else if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.cassiniInner)) {
-              alpha = 0.9 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.bInner, NEPTUNE_RING_REFERENCE_KM.cassiniInner, 190);
-              shade = 150 + 74 * noise;
-            } else if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.aInner)) {
-              alpha = 0.18 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.cassiniInner, NEPTUNE_RING_REFERENCE_KM.aInner, 120);
-              shade = 35 + 28 * noise;
-            } else if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.aOuter)) {
-              alpha = 0.68 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.aInner, NEPTUNE_RING_REFERENCE_KM.aOuter, 160);
-              shade = 126 + 62 * noise;
-              alpha *= narrowGap(r, NEPTUNE_RING_REFERENCE_KM.enckeCenter, 325, 0.025);
-              shade *= narrowGap(r, NEPTUNE_RING_REFERENCE_KM.enckeCenter, 325, 0.18);
-              alpha *= narrowGap(r, NEPTUNE_RING_REFERENCE_KM.keelerCenter, 90, 0.04);
-              shade *= narrowGap(r, NEPTUNE_RING_REFERENCE_KM.keelerCenter, 90, 0.22);
-            } else if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.fRing - 450)) {
-              alpha = 0.12 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.aOuter, NEPTUNE_RING_REFERENCE_KM.fRing - 450, 140);
-              shade = 40 + 28 * noise;
-            } else if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.fRing + 650)) {
-              alpha = 0.62 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.fRing - 450, NEPTUNE_RING_REFERENCE_KM.fRing + 650, 90);
-              shade = 158 + 48 * noise;
+            if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.galleOuter)) {
+              // Galle ring — diffuse inner ring
+              alpha = 0.38 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.galleInner, NEPTUNE_RING_REFERENCE_KM.galleOuter, 300);
+              shade = 60 + 30 * noise;
+            } else if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.leVerrierCenter - 80)) {
+              // gap between Galle and Le Verrier
+              alpha = 0;
+              shade = 0;
+            } else if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.leVerrierCenter + 80)) {
+              // Le Verrier — narrow bright ring
+              alpha = 0.82 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.leVerrierCenter - 80, NEPTUNE_RING_REFERENCE_KM.leVerrierCenter + 80, 80);
+              shade = 140 + 60 * noise;
+            } else if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.lassellOuter)) {
+              // Lassell — faint broad sheet between Le Verrier and Adams
+              alpha = 0.12 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.leVerrierCenter + 80, NEPTUNE_RING_REFERENCE_KM.lassellOuter, 400);
+              shade = 50 + 22 * noise;
+            } else if (r < kmToUnit(NEPTUNE_RING_REFERENCE_KM.adamsInner)) {
+              // gap before Adams
+              alpha = 0;
+              shade = 0;
             } else {
-              alpha = 0.04 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.fRing + 650, NEPTUNE_RING_REFERENCE_KM.mainOuter, 190);
-              shade = 50 + 24 * noise;
+              // Adams ring — dominant outer ring
+              alpha = 0.92 * smoothBand(r, NEPTUNE_RING_REFERENCE_KM.adamsInner, NEPTUNE_RING_REFERENCE_KM.mainOuter, 100);
+              shade = 160 + 65 * noise;
             }
           }
 
           const baseColor = sampleBaseColor(r, angle);
-          const proceduralColor = [shade * 1.08, shade * 1.02, shade * 0.92];
+          const proceduralColor = [shade * 1.10, shade * 0.95, shade * 0.78];
           const color = baseColor
             ? [
               baseColor[0] * 0.78 + proceduralColor[0] * 0.22,
@@ -1997,48 +1974,6 @@
       const seismicActive = seismicToggle.checked;
       const entries = [];
 
-      if (geologyToggle.checked && selectedGeologyLayer) {
-        const rockLegend = geologyInteractiveState?.rock_legend || [];
-        entries.push({
-          title: "Solid Geology",
-          copy: "SIM 3292 geology simplified into rock-type classes for the active solid geology overlay.",
-          tags: ["geology", "units"],
-          symbols: rockLegend.map((unit) => ({
-            type: "swatch",
-            label: unit.label || unit.rock_type || "Rock type",
-            detail: unit.description || "Mapped geologic unit.",
-            color: unit.color || "#888888",
-          })),
-        });
-      }
-      if (
-        (geologyContactsToggle?.checked && (geologyInteractiveState?.contacts || []).length) ||
-        (geologyStructuresToggle?.checked && (geologyInteractiveState?.structures || []).length)
-      ) {
-        if (geologyContactsToggle?.checked) {
-          entries.push({
-            title: "Contacts",
-            copy: "",
-            tags: ["geology", "contacts"],
-            symbols: [
-              { type: "line", label: "Certain / border contact", detail: "Mapped polygon contacts and borders.", color: "#f3f1d8" },
-              { type: "line", label: "Approximate contact", detail: "Approximate or inferred contact trace.", color: "#aab8c6" },
-            ],
-          });
-        }
-        if (geologyStructuresToggle?.checked) {
-          entries.push({
-            title: "Structures and Faults",
-            copy: "SIM 3292 structural traces draped from the vector shapefiles.",
-            tags: ["geology", "structures"],
-            symbols: [
-              { type: "line", label: "Tectonic structure", detail: "Faults, fractures, graben, and related tectonic traces.", color: "#2c2c2c" },
-              { type: "line", label: "Volcanic structure", detail: "Volcanic ridges and related mapped structural traces.", color: "#f06a57" },
-              { type: "line", label: "Fluvial structure", detail: "Channels, valleys, and fluvial structural traces.", color: "#5aa7ff" },
-            ],
-          });
-        }
-      }
 
       if (selectedMineralLayer) {
         entries.push({
@@ -2428,7 +2363,7 @@
       if (!entries.length) {
         const empty = document.createElement("p");
         empty.className = "legend-empty";
-        empty.textContent = "Enable geology, mineral, paleo-sea, region masks, or seismic overlays to populate the legend.";
+        empty.textContent = "";
         legendPanel.appendChild(empty);
         legendSummaryCopy.textContent = "Active overlay symbologies and legend images.";
         return;
@@ -2765,12 +2700,8 @@
       if (!moonFeatureSearchInput || !moonFeatureSearchResults || !activeMoonViewerFeature) return;
       const query = String(moonFeatureSearchInput.value || "").trim().toLowerCase();
       const moonName = activeMoonViewerFeature.name;
-      if (!query) {
-        clearMoonFeatureSearchResults();
-        return;
-      }
       const results = moonFeatureData
-        .filter((f) => f.moon_name === moonName && f.name.toLowerCase().includes(query))
+        .filter((f) => f.moon_name === moonName && (!query || f.name.toLowerCase().includes(query)))
         .slice(0, 12);
       renderMoonFeatureSearchResults(results);
     }
@@ -3153,10 +3084,10 @@
 
     // Neptune interior model — rFrac = 0 (centre) → 1 (surface)
     const NEPTUNE_INTERIOR_LAYERS = [
-      { name: "Heavy-Element Core",     rMin: 0.000, rMax: 0.160 },
-      { name: "Metallic Hydrogen Layer", rMin: 0.160, rMax: 0.420 },
-      { name: "Molecular Envelope",      rMin: 0.420, rMax: 0.850 },
-      { name: "Upper Atmosphere",        rMin: 0.850, rMax: 1.000 },
+      { name: "Rocky-Ice Core",    rMin: 0.000, rMax: 0.150 },
+      { name: "Water-Ice Mantle",  rMin: 0.150, rMax: 0.750 },
+      { name: "Atmosphere",        rMin: 0.750, rMax: 0.950 },
+      { name: "Upper Atmosphere",  rMin: 0.950, rMax: 1.000 },
     ];
     const NEPTUNE_INTERIOR_T_PTS = [[0.000, 25000], [0.160, 20000], [0.420, 12000], [0.850, 2000], [1.000, -134]];
     const NEPTUNE_INTERIOR_P_PTS = [[0.000, 20000], [0.160, 1500],  [0.420, 200],   [0.850, 1.0],  [1.000, 0.0001]];
@@ -3177,7 +3108,7 @@
     function neptuneInteriorTempC(rFrac) { return Math.round(_neptuneInteriorInterp(NEPTUNE_INTERIOR_T_PTS, rFrac)); }
     function neptuneInteriorPressureGPa(rFrac) { return Math.round(_neptuneInteriorInterp(NEPTUNE_INTERIOR_P_PTS, rFrac) * 10) / 10; }
     function neptuneInteriorLayerColor(name) {
-      return { "Upper Atmosphere": "#d0b18a", "Molecular Envelope": "#a29378", "Metallic Hydrogen Layer": "#c0c6cf", "Heavy-Element Core": "#8d9fbe" }[name] ?? "#ccc";
+      return { "Upper Atmosphere": "#3d6bbf", "Atmosphere": "#6e98cc", "Water-Ice Mantle": "#b8c6d8", "Rocky-Ice Core": "#7a5030" }[name] ?? "#ccc";
     }
     function neptuneInteriorTempColor(tempC) {
       const t = Math.max(0, Math.min(1, (tempC + 134) / 25134));
@@ -3445,6 +3376,7 @@
 
     function syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState = null) {
       coreWrap.hidden = !coreToggle.checked;
+      if (coreViewSection) coreViewSection.open = coreToggle.checked;
       const coreActive = coreToggle.checked;
       if (surfaceConditionsEl) surfaceConditionsEl.hidden = coreActive;
       if (interiorConditionsEl) {
@@ -3645,7 +3577,7 @@
       }
     `;
 
-    // ── CRUST: basaltic shell with fracture provinces and buried dikes ─────
+    // ── UPPER ATMOSPHERE: Neptune cloud tops — bright blue ─────
     const CRUST_FRAG = `
       varying vec2 vUv;
       varying vec3 vNormal;
@@ -3663,20 +3595,20 @@
         float overturn = smoothstep(0.42, 0.80, bulk + plumeA * 0.34 - plumeB * 0.16);
         float wisps = pow(max(plumeA - 0.58, 0.0) * 2.1, 1.6);
         float weakBands = 0.5 + 0.5 * sin(nn.y * 8.0 + plumeB * 1.3);
-        vec3 mist = vec3(0.98,0.96,0.91);
-        vec3 cream = vec3(0.90,0.81,0.67);
-        vec3 warm = vec3(0.79,0.66,0.51);
-        vec3 shadow = vec3(0.63,0.50,0.37);
-        vec3 col = mix(shadow, warm, bulk * 0.46 + plumeB * 0.10);
-        col = mix(col, cream, overturn * 0.34 + cells * 0.08);
-        col = mix(col, mist, wisps * 0.14 + weakBands * 0.08);
+        vec3 mist = vec3(0.86,0.93,0.98);
+        vec3 cloud = vec3(0.48,0.68,0.92);
+        vec3 mid = vec3(0.30,0.52,0.82);
+        vec3 deep = vec3(0.18,0.38,0.72);
+        vec3 col = mix(deep, mid, bulk * 0.46 + plumeB * 0.10);
+        col = mix(col, cloud, overturn * 0.34 + cells * 0.08);
+        col = mix(col, mist, wisps * 0.18 + weakBands * 0.06);
         float haze = pow(1.0 - abs(dot(nn, vec3(0.0,0.0,1.0))), 1.8);
-        col += vec3(0.13,0.12,0.10) * haze * 0.28;
+        col += vec3(0.05,0.10,0.18) * haze * 0.28;
         gl_FragColor = vec4(col, 1.0);
       }
     `;
 
-    // ── MANTLE: coherent plume heads, sinking slabs, and shear bands ───────
+    // ── ATMOSPHERE: hydrogen-helium-methane gas envelope ───────
     const MANTLE_FRAG = `
       varying vec2 vUv;
       varying vec3 vNormal;
@@ -3693,21 +3625,21 @@
         float plumes = pow(max(overturn - 0.54, 0.0) * 2.2, 1.5);
         float eddies = fbm(px * 5.0 + vec2(8.1, 3.9)) * w.x + fbm(py * 5.0 + vec2(8.1, 3.9)) * w.y + fbm(pz * 5.0 + vec2(8.1, 3.9)) * w.z;
         float weakBands = 0.5 + 0.5 * sin(nn.y * 6.5 + convection * 1.2);
-        vec3 deep = vec3(0.24,0.18,0.14);
-        vec3 fluid = vec3(0.36,0.28,0.22);
-        vec3 amber = vec3(0.49,0.40,0.31);
-        vec3 mist = vec3(0.60,0.52,0.41);
+        vec3 deep = vec3(0.28,0.38,0.62);
+        vec3 fluid = vec3(0.38,0.50,0.74);
+        vec3 mid = vec3(0.50,0.62,0.82);
+        vec3 mist = vec3(0.62,0.72,0.90);
         vec3 col = mix(deep, fluid, bulk * 0.52 + convection * 0.10);
-        col = mix(col, amber, plumes * 0.26 + eddies * 0.08);
+        col = mix(col, mid, plumes * 0.26 + eddies * 0.08);
         col = mix(col, mist, smoothstep(0.48, 0.84, bulk + overturn * 0.24) * 0.12 + weakBands * 0.06);
-        vec3 upperBlend = vec3(0.78,0.67,0.54);
+        vec3 upperBlend = vec3(0.38,0.58,0.90);
         float lift = smoothstep(0.52, 0.96, bulk + convection * 0.22);
         col = mix(col, upperBlend, lift * 0.18);
         gl_FragColor = vec4(col, 1.0);
       }
     `;
 
-    // ── OUTER CORE: static convection cells and iron-sulfur circulation ────
+    // ── WATER-ICE MANTLE: high-pressure water, ammonia, methane ices ────
     const CORE_FRAG = `
       varying vec2 vUv;
       varying vec3 vNormal;
@@ -3733,20 +3665,20 @@
         float cells = cellField(px*2.4)*w.x + cellField(py*2.4)*w.y + cellField(pz*2.4)*w.z;
         float walls = 1.0 - smoothstep(0.07, 0.16, cells);
         float bands = 0.5 + 0.5*sin(nn.y*13.0 + flow*3.0);
-        vec3 deep  = vec3(0.30,0.28,0.25);
-        vec3 mid   = vec3(0.48,0.43,0.36);
-        vec3 bright= vec3(0.67,0.60,0.49);
-        vec3 pale  = vec3(0.85,0.80,0.68);
+        vec3 deep  = vec3(0.60,0.64,0.70);
+        vec3 mid   = vec3(0.72,0.76,0.80);
+        vec3 bright= vec3(0.82,0.85,0.88);
+        vec3 pale  = vec3(0.90,0.92,0.94);
         vec3 col = mix(deep, mid, flow);
         col = mix(col, bright, bands * 0.26);
         col = mix(col, pale, walls * 0.22);
         float sheen = pow(1.0 - abs(dot(nn, vec3(0.0,0.0,1.0))), 3.0);
-        col += vec3(0.28,0.28,0.24) * sheen * 0.28;
+        col += vec3(0.18,0.22,0.28) * sheen * 0.28;
         gl_FragColor = vec4(col, 1.0);
       }
     `;
 
-    // ── INNER CORE: dense crystalline metal with central heat glow (static) ──
+    // ── INNER CORE: rocky-ice core — silicate rock and metal ──
     const INNER_CORE_FRAG = `
       varying vec2 vUv;
       varying vec3 vNormal;
@@ -3755,16 +3687,16 @@
         vec2 p = (vUv - 0.5) * 2.0;
         float base = fbm(vUv * 6.0 + vec2(1.8, 4.2));
         float grain = ridged(vUv * 10.0 + vec2(6.1, 2.7));
-        float veins = pow(abs(sin((p.x + p.y) * 6.0 + fbm(vUv * 7.0) * 3.0)), 9.0);
-        vec3 dark = vec3(0.45,0.40,0.33);
-        vec3 mid  = vec3(0.61,0.56,0.47);
-        vec3 pale = vec3(0.73,0.69,0.58);
-        vec3 ice  = vec3(0.83,0.82,0.76);
+        float crack = ridged(vUv * 4.2 + vec2(3.3, 7.1));
+        vec3 dark = vec3(0.28,0.16,0.07);
+        vec3 mid  = vec3(0.46,0.28,0.13);
+        vec3 pale = vec3(0.60,0.40,0.20);
+        vec3 warm = vec3(0.72,0.54,0.32);
         vec3 col = mix(dark, mid, base);
-        col = mix(col, pale, grain * 0.34);
-        col = mix(col, ice, veins * 0.14);
+        col = mix(col, pale, grain * 0.38);
+        col = mix(col, warm, crack * 0.18);
         float center = pow(clamp(1.0 - length(p), 0.0, 1.0), 2.2);
-        col += vec3(0.06,0.05,0.04) * center * 0.12;
+        col += vec3(0.14,0.08,0.03) * center * 0.22;
         gl_FragColor = vec4(col, 1.0);
       }
     `;
@@ -3791,16 +3723,16 @@
         float weakBands = 0.5 + 0.5 * sin(p.y * 9.2 + bulk * 1.7);
         float strongBands = 0.5 + 0.5 * sin(p.y * 15.0 + cells * 1.6 + 0.7);
         float polarFade = smoothstep(0.2, 1.0, abs(p.y));
-        vec3 mist = vec3(0.99,0.97,0.92);
-        vec3 cream = vec3(0.96,0.90,0.78);
-        vec3 honey = vec3(0.90,0.78,0.61);
-        vec3 warm = vec3(0.80,0.67,0.50);
-        vec3 shadow = vec3(0.63,0.51,0.38);
-        vec3 col = mix(shadow, warm, bulk * 0.26 + cells * 0.04);
-        col = mix(col, honey, overturn * 0.34);
-        col = mix(col, cream, weakBands * 0.26 + strongBands * 0.14 + pow(max(plumes - 0.56, 0.0) * 2.0, 1.4) * 0.12);
+        vec3 mist = vec3(0.86,0.93,0.98);
+        vec3 cloud = vec3(0.48,0.68,0.92);
+        vec3 mid = vec3(0.32,0.52,0.82);
+        vec3 deep = vec3(0.20,0.38,0.72);
+        vec3 shadow = vec3(0.14,0.28,0.60);
+        vec3 col = mix(shadow, deep, bulk * 0.26 + cells * 0.04);
+        col = mix(col, mid, overturn * 0.34);
+        col = mix(col, cloud, weakBands * 0.26 + strongBands * 0.14 + pow(max(plumes - 0.56, 0.0) * 2.0, 1.4) * 0.12);
         col = mix(col, mist, smoothstep(0.70, 0.99, r) * 0.30 + polarFade * 0.05);
-        col += vec3(0.12,0.10,0.07) * smoothstep(0.84, 1.0, r);
+        col += vec3(0.02,0.06,0.14) * smoothstep(0.84, 1.0, r);
         col *= 1.0 - smoothstep(0.92, 1.02, r) * 0.06;
         gl_FragColor = vec4(col, 1.0);
       }
@@ -3818,14 +3750,14 @@
         float plumes = ridged(flow * 3.4 + vec2(7.2, 2.6));
         float eddies = fbm(flow * 5.4 + vec2(2.3, 8.1));
         float weakBands = 0.5 + 0.5 * sin(p.y * 4.8 + convection * 1.0);
-        vec3 deep = vec3(0.24,0.18,0.14);
-        vec3 fluid = vec3(0.36,0.28,0.22);
-        vec3 amber = vec3(0.49,0.40,0.31);
-        vec3 mist = vec3(0.60,0.52,0.41);
+        vec3 deep = vec3(0.26,0.36,0.62);
+        vec3 fluid = vec3(0.38,0.50,0.74);
+        vec3 mid = vec3(0.50,0.62,0.82);
+        vec3 mist = vec3(0.62,0.72,0.90);
         vec3 col = mix(deep, fluid, bulk * 0.50 + convection * 0.10);
-        col = mix(col, amber, pow(max(plumes - 0.55, 0.0) * 2.1, 1.45) * 0.24 + eddies * 0.06);
+        col = mix(col, mid, pow(max(plumes - 0.55, 0.0) * 2.1, 1.45) * 0.24 + eddies * 0.06);
         col = mix(col, mist, smoothstep(0.50, 0.86, bulk + plumes * 0.18) * 0.10 + weakBands * 0.05);
-        vec3 upperBlend = vec3(0.80,0.69,0.56);
+        vec3 upperBlend = vec3(0.42,0.60,0.90);
         float outward = smoothstep(0.58, 0.98, r);
         col = mix(col, upperBlend, outward * 0.24);
         col *= 1.0 - smoothstep(0.92, 1.02, r) * 0.05;
@@ -3854,10 +3786,10 @@
         float cells = cell(flow * 2.5);
         float walls = 1.0 - smoothstep(0.07, 0.16, cells);
         float bands = 0.5 + 0.5 * sin(p.y * 12.0 + bulk * 2.8);
-        vec3 deep  = vec3(0.30,0.28,0.25);
-        vec3 mid   = vec3(0.48,0.43,0.36);
-        vec3 bright= vec3(0.67,0.60,0.49);
-        vec3 pale  = vec3(0.85,0.80,0.68);
+        vec3 deep  = vec3(0.58,0.63,0.70);
+        vec3 mid   = vec3(0.70,0.74,0.80);
+        vec3 bright= vec3(0.80,0.83,0.87);
+        vec3 pale  = vec3(0.88,0.90,0.93);
         vec3 col = mix(deep, mid, bulk);
         col = mix(col, bright, bands * 0.22);
         col = mix(col, pale, walls * 0.18);
@@ -3875,9 +3807,9 @@
 
       const phiStart = -Math.PI / 2;
       const phiLength = Math.PI;
-      const NEPTUNE_HEAVY_CORE_RADIUS = 0.22;
-      const NEPTUNE_METALLIC_HYDROGEN_RADIUS = 0.58;
-      const NEPTUNE_MOLECULAR_ENVELOPE_RADIUS = 0.96;
+      const NEPTUNE_HEAVY_CORE_RADIUS = 0.15;
+      const NEPTUNE_METALLIC_HYDROGEN_RADIUS = 0.75;
+      const NEPTUNE_MOLECULAR_ENVELOPE_RADIUS = 0.95;
       
       // ── Inner core: dense crystalline metallic interior ───────────────────
       const innerCoreMesh = new THREE.Mesh(
@@ -4046,7 +3978,6 @@
         });
 
         for (const layer of layerData) {
-          const lx = layer.labelX;
           const ly = layer.labelY;
 
           // Dot marker at the layer surface on the cut face
@@ -4062,10 +3993,19 @@
           labelsGroup.add(hit);
           interactiveObjects.push(hit, dot);
 
-          // Connector line: from layer surface to the floating label
+          // Build label texture first so we know its width before drawing the line.
+          // Sprites always face the camera in screen-space, so we must end the line
+          // at the sprite CENTER (not the edge) — that way the line terminates at the
+          // same 3D point regardless of planet tilt, and visually enters the label box.
+          const labelTex = makeLabelTexture(layer.name);
+          const _sw = (labelTex.width / 200) * 1.4;
+          const _sh = (labelTex.height / 200) * 1.4;
+          const spriteCX = layer.labelX - _sw * 0.5;
+
+          // Connector line: from layer surface to the sprite centre
           const lineGeo = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(CAP_X, layer.anchorY, 0),
-            new THREE.Vector3(lx, ly, 0),
+            new THREE.Vector3(spriteCX, ly, 0),
           ]);
           const lineMat = new THREE.LineBasicMaterial({
             color: 0xffcf9d, transparent: true, opacity: 0.45,
@@ -4073,15 +4013,14 @@
           const line = new THREE.Line(lineGeo, lineMat);
           labelsGroup.add(line);
 
-          // Text sprite label
-          const labelTex = makeLabelTexture(layer.name);
+          // Text sprite label — centred at the line endpoint
           const spriteMat = new THREE.SpriteMaterial({
             map: labelTex.texture, transparent: true, opacity: 0.88,
             depthTest: true, depthWrite: false,
           });
           const sprite = new THREE.Sprite(spriteMat);
-          sprite.scale.set((labelTex.width / 200) * 0.85, (labelTex.height / 200) * 0.85, 1);
-          sprite.position.set(lx - (labelTex.width / 200) * 0.85 * 0.5 - 0.05, ly, 0);
+          sprite.scale.set(_sw, _sh, 1);
+          sprite.position.set(spriteCX, ly, 0);
           sprite.userData.feature = layer;
           labelsGroup.add(sprite);
           interactiveObjects.push(sprite);
@@ -4115,35 +4054,35 @@
       const group = new THREE.Group();
       const CAP_X = -0.0006;
       const metallicHydrogenMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xb7a789,
-        emissive: new THREE.Color(0x261b10),
+        color: 0xb8c6d6,
+        emissive: new THREE.Color(0x0a1422),
         emissiveIntensity: 0.14,
-        roughness: 0.34,
-        metalness: 0.72,
-        clearcoat: 0.28,
-        clearcoatRoughness: 0.22,
+        roughness: 0.52,
+        metalness: 0.18,
+        clearcoat: 0.18,
+        clearcoatRoughness: 0.32,
       });
       const metallicHydrogenCapMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0xc4b392,
-        emissive: new THREE.Color(0x2b1f13),
+        color: 0xc4d0de,
+        emissive: new THREE.Color(0x0d1828),
         emissiveIntensity: 0.18,
-        roughness: 0.28,
-        metalness: 0.68,
-        clearcoat: 0.34,
-        clearcoatRoughness: 0.18,
+        roughness: 0.46,
+        metalness: 0.14,
+        clearcoat: 0.22,
+        clearcoatRoughness: 0.28,
         side: THREE.DoubleSide,
         polygonOffset: true,
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,
       });
       const metallicHydrogenMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * 0.58, 128, 128),
+        new THREE.SphereGeometry(radius * 0.75, 128, 128),
         metallicHydrogenMaterial,
       );
       metallicHydrogenMesh.rotation.y = Math.PI;
       group.add(metallicHydrogenMesh);
       const metallicHydrogenCapMesh = new THREE.Mesh(
-        new THREE.RingGeometry(radius * 0.22, radius * 0.58, 128),
+        new THREE.RingGeometry(radius * 0.15, radius * 0.75, 128),
         metallicHydrogenCapMaterial,
       );
       metallicHydrogenCapMesh.rotation.y = Math.PI / 2;
@@ -4153,31 +4092,31 @@
       group.add(metallicHydrogenCapMesh);
 
       const heavyElementCoreMaterial = new THREE.MeshStandardMaterial({
-        color: 0x7a6c5a,
-        emissive: new THREE.Color(0x18110c),
-        emissiveIntensity: 0.08,
-        roughness: 0.88,
-        metalness: 0.06,
+        color: 0x5e3518,
+        emissive: new THREE.Color(0x1a0800),
+        emissiveIntensity: 0.10,
+        roughness: 0.90,
+        metalness: 0.08,
       });
       const heavyElementCoreCapMaterial = new THREE.MeshStandardMaterial({
-        color: 0x8c7a63,
-        emissive: new THREE.Color(0x1b140e),
-        emissiveIntensity: 0.10,
-        roughness: 0.82,
-        metalness: 0.05,
+        color: 0x6e4220,
+        emissive: new THREE.Color(0x200a00),
+        emissiveIntensity: 0.12,
+        roughness: 0.86,
+        metalness: 0.06,
         side: THREE.DoubleSide,
         polygonOffset: true,
         polygonOffsetFactor: -3,
         polygonOffsetUnits: -3,
       });
       const heavyElementCoreMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * 0.22, 96, 96),
+        new THREE.SphereGeometry(radius * 0.15, 96, 96),
         heavyElementCoreMaterial,
       );
       heavyElementCoreMesh.rotation.y = Math.PI;
       group.add(heavyElementCoreMesh);
       const heavyElementCoreCapMesh = new THREE.Mesh(
-        new THREE.CircleGeometry(radius * 0.22, 96),
+        new THREE.CircleGeometry(radius * 0.15, 96),
         heavyElementCoreCapMaterial,
       );
       heavyElementCoreCapMesh.rotation.y = Math.PI / 2;
@@ -4245,7 +4184,7 @@
       const removeAtmosphere = Boolean(geologyToggle && geologyToggle.checked);
       for (const entry of cutawayResult.labelEntries) {
         const hiddenByAtmosphereRemoval = removeAtmosphere
-          && (entry.layerId === "upper-atmosphere" || entry.layerId === "molecular-envelope");
+          && (entry.layerId === "upper-atmosphere" || entry.layerId === "atmosphere");
         const visible = labelsEnabled && !hiddenByAtmosphereRemoval;
         entry.dot.visible = visible;
         entry.hit.visible = visible;
@@ -6091,16 +6030,16 @@
             float lat = asin(clamp(spherePoint.y, -1.0, 1.0));
             vec2 sampleUv = vec2(0.5 + lon / (6.28318530718), 0.5 - lat / 3.14159265359);
             vec3 texCol = texture2D(uMap, sampleUv).rgb;
-            vec3 neptuneCream = vec3(0.90, 0.82, 0.68);
-            vec3 neptunePale = vec3(0.97, 0.92, 0.82);
-            vec3 haze = vec3(0.98, 0.95, 0.88);
-            float cloudMask = smoothstep(0.26, 0.86, texCol.r * 0.95 + texCol.g * 0.75 - texCol.b * 0.22);
-            vec3 toned = mix(texCol, neptuneCream, 0.58);
+            vec3 neptuneBlue = vec3(0.28, 0.50, 0.82);
+            vec3 neptunePale = vec3(0.52, 0.70, 0.92);
+            vec3 haze = vec3(0.72, 0.84, 0.96);
+            float cloudMask = smoothstep(0.26, 0.86, texCol.b * 0.90 + texCol.g * 0.40 - texCol.r * 0.20);
+            vec3 toned = mix(texCol, neptuneBlue, 0.62);
             toned = pow(max(toned, vec3(0.0)), vec3(0.82));
-            toned = mix(toned, neptunePale, cloudMask * 0.24);
+            toned = mix(toned, neptunePale, cloudMask * 0.28);
             float rim = smoothstep(0.72, 0.99, r);
             vec3 col = mix(toned, haze, rim * 0.22);
-            col *= vec3(1.02, 0.99, 0.94);
+            col *= vec3(0.88, 0.96, 1.04);
             col *= 1.0 - smoothstep(0.94, 1.02, r) * 0.04;
             gl_FragColor = vec4(col, 1.0);
           }
@@ -6110,12 +6049,12 @@
         polygonOffsetFactor: -2,
         polygonOffsetUnits: -2,
       });
-      const NEPTUNE_MH_MAT  = new THREE.MeshStandardMaterial({ color: 0xa29378, roughness: 0.58, metalness: 0.44, side: THREE.BackSide });
-      const NEPTUNE_MH_OUTER = new THREE.MeshStandardMaterial({ color: 0xa29378, roughness: 0.58, metalness: 0.44, side: THREE.FrontSide });
-      const NEPTUNE_HC_MAT  = new THREE.MeshStandardMaterial({ color: 0x8a7a65, roughness: 0.82, metalness: 0.12, side: THREE.BackSide });
+      const NEPTUNE_MH_MAT  = new THREE.MeshStandardMaterial({ color: 0xb8c6d6, roughness: 0.52, metalness: 0.12, side: THREE.BackSide });
+      const NEPTUNE_MH_OUTER = new THREE.MeshStandardMaterial({ color: 0xb8c6d6, roughness: 0.52, metalness: 0.12, side: THREE.FrontSide });
+      const NEPTUNE_HC_MAT  = new THREE.MeshStandardMaterial({ color: 0x5e3518, roughness: 0.90, metalness: 0.08, side: THREE.BackSide });
       // Flat cap disks and rings: DoubleSide so they're visible from both directions.
-      const NEPTUNE_MH_FLAT = new THREE.MeshStandardMaterial({ color: 0xa29378, roughness: 0.58, metalness: 0.44, side: THREE.DoubleSide });
-      const NEPTUNE_HC_FLAT = new THREE.MeshStandardMaterial({ color: 0x8a7a65, roughness: 0.82, metalness: 0.12, side: THREE.DoubleSide });
+      const NEPTUNE_MH_FLAT = new THREE.MeshStandardMaterial({ color: 0xb8c6d6, roughness: 0.52, metalness: 0.12, side: THREE.DoubleSide });
+      const NEPTUNE_HC_FLAT = new THREE.MeshStandardMaterial({ color: 0x5e3518, roughness: 0.90, metalness: 0.08, side: THREE.DoubleSide });
       if (cutawayResult.crustRing) cutawayResult.crustRing.material = NEPTUNE_UPPER_FACE_MAT;
       if (cutawayResult.metallicHydrogenMesh) cutawayResult.metallicHydrogenMesh.material = NEPTUNE_MH_MAT;
       if (cutawayResult.molecularBoundaryMesh) cutawayResult.molecularBoundaryMesh.material = NEPTUNE_MH_OUTER;
@@ -7725,8 +7664,9 @@
 
       coreToggle.addEventListener("change", () => {
         const enabled = coreToggle.checked;
-        if (legendSection) {
-          legendSection.open = enabled;
+        if (enabled) {
+          if (coreViewSection) coreViewSection.open = true;
+          setTimeout(() => coreViewSection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
         }
         if (enabled && elevationMap) {
           terrainScale.value = "0";
@@ -8049,13 +7989,10 @@
           }
           if (event.key === "Enter") {
             event.preventDefault();
-            const selected = activeMoonFeatureSearchIndex >= 0
-              ? activeMoonFeatureSearchResults[activeMoonFeatureSearchIndex]
-              : activeMoonFeatureSearchResults[0];
-            if (selected) {
-              focusSearchedFeature(selected, viewerCamera, viewerControls);
-              clearMoonFeatureSearchResults(true);
-            }
+            const activeBtn = moonFeatureSearchResults && moonFeatureSearchResults.querySelector(".search-suggestion.is-active");
+            const firstBtn  = moonFeatureSearchResults && moonFeatureSearchResults.querySelector(".search-suggestion");
+            if (activeBtn) { activeBtn.click(); }
+            else if (firstBtn) { firstBtn.click(); }
           }
         });
         document.addEventListener("pointerdown", (event) => {

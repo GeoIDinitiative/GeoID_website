@@ -63,7 +63,7 @@
         if (audio.paused) { manuallyPaused = false; audio.play().catch(() => {}); }
         else              { manuallyPaused = true;  audio.pause(); }
       });
-      const nasaAudioEl = document.getElementById("mars-audio-el");
+      const nasaAudioEl = document.getElementById("venus-audio-el");
       if (nasaAudioEl) {
         nasaAudioEl.addEventListener("play", () => { nasaActive = true; if (!audio.paused) audio.pause(); });
         const nasaStop = () => { nasaActive = false; if (!manuallyPaused) audio.play().catch(() => {}); };

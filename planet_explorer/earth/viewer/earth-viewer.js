@@ -1,5 +1,6 @@
 import * as THREE from "./vendor/three.module.js";
     import { OrbitControls } from "./vendor/OrbitControls.js";
+import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterMoonFeature, getMoonFeatureConnectorStart, buildLabelLayer, buildMoonLayer, buildMoonFeatureLabelLayer, getEntryConnectorStart, updateLabelAnchors, rebuildLabelTextures, updateMoonFeatureLabelVisibility, updateMoonVisibility, updateLabelVisibility } from "./label-layer.js";
 
     if (!window.__ctxPatchDebug) {
       window.__ctxPatchDebug = { verbose: true };
@@ -46,6 +47,11 @@ import * as THREE from "./vendor/three.module.js";
     const volcanicLabelsToggle = document.getElementById("volcanic-labels-toggle");
     const landingLabelsToggle = document.getElementById("landing-labels-toggle");
     const habitationLabelsToggle = document.getElementById("habitation-labels-toggle");
+    const craterLabelsToggle = document.getElementById("crater-labels-toggle");
+    const fluvialLabelsToggle = document.getElementById("fluvial-labels-toggle");
+    const tectonicLabelsToggle = document.getElementById("tectonic-labels-toggle");
+    const lodSlider = document.getElementById("lod-slider");
+    let currentLodLevel = 3;
     const moonToggle = document.getElementById("moon-toggle");
     const baseLabelsToggle = document.getElementById("base-labels-toggle");
 
@@ -71,9 +77,12 @@ import * as THREE from "./vendor/three.module.js";
     const moonViewerSection = document.getElementById("moon-viewer-section");
     const legendSection = document.getElementById("legend-section");
     function openLegendSection() { if (legendSection) legendSection.open = true; }
-    const DEFAULT_NAVIGATE_BASE_LAYER_ID = "ctx-mosaic-color";
+    const DEFAULT_NAVIGATE_BASE_LAYER_ID = "earth-visible";
     const moonViewerControls = document.getElementById("moon-viewer-controls");
     const moonViewerSelect = document.getElementById("moon-viewer-select");
+    const moonFeatureSearchInput = document.getElementById("moon-feature-search");
+    const moonFeatureSearchGo = document.getElementById("moon-feature-search-go");
+    const moonFeatureSearchResults = document.getElementById("moon-feature-search-results");
     const moonViewerPrev = document.getElementById("moon-viewer-prev");
     const moonViewerNext = document.getElementById("moon-viewer-next");
     const moonFeatureTypeSelect = document.getElementById("moon-feature-type");
@@ -162,47 +171,59 @@ import * as THREE from "./vendor/three.module.js";
     const _EARTH_ROT_REAL_MS = 23.9345 * 3600000; // rotation period in ms
     const _EARTH_MOON_SPEED_FACTOR = _EARTH_ROT_REAL_MS / _EARTH_DISPLAY_PERIOD_MS; // scaled
 
-    const labelData = [{"name":"Mount Everest","type":"Mountain summit","lat":27.9881,"lon":86.925,"theme":"standard","description":"Highest point above sea level on Earth, located in the central Himalaya. Built by the ongoing India-Eurasia collision, the summit sits in the jet stream and experiences some of the most extreme weather on the planet.","elevation_m":8849},{"name":"K2","type":"Mountain summit","lat":35.8811,"lon":76.5151,"theme":"standard","description":"Second highest peak on Earth, on the China-Pakistan border in the Karakoram range. Notorious for its technical difficulty and high fatality rate among climbers.","elevation_m":8611},{"name":"Mariana Trench","type":"Ocean trench","lat":11.35,"lon":142.2,"theme":"standard","description":"Deepest known point on Earth, the Challenger Deep reaches approximately 10,930 m below sea level. Formed by Pacific oceanic crust subducting beneath the Mariana plate.","elevation_m":-10930},{"name":"Pacific Ocean","type":"Ocean basin","lat":0,"lon":210,"theme":"standard","description":"Largest ocean basin on Earth, covering more area than all land combined. Bounded by subduction zones around its rim and spreading centres across its floor.","elevation_m":-4500},{"name":"Atlantic Ocean","type":"Ocean basin","lat":5,"lon":330,"theme":"standard","description":"Ocean basin defined by the Mid-Atlantic Ridge at its centre and passive continental margins on either side. Formed by the breakup of Pangaea around 200 Ma.","elevation_m":-3500},{"name":"Indian Ocean","type":"Ocean basin","lat":-20,"lon":80,"theme":"standard","description":"Third largest ocean basin, bordered by Africa, Asia, and Australia. The northern basin is landlocked and receives monsoon-driven freshwater inputs.","elevation_m":-3900},{"name":"Arctic Ocean","type":"Ocean basin","lat":85,"lon":0,"theme":"standard","description":"Smallest and shallowest of Earth's ocean basins, mostly covered by sea ice. The Arctic is warming at roughly four times the global average rate.","elevation_m":-1200},{"name":"Southern Ocean","type":"Ocean basin","lat":-65,"lon":180,"theme":"standard","description":"Circumpolar ocean surrounding Antarctica. Defined by the Antarctic Circumpolar Current, it connects all other ocean basins and drives deep global thermohaline circulation.","elevation_m":-4000},{"name":"Himalaya","type":"Mountain belt","lat":28,"lon":86,"theme":"standard","description":"Major continental collision belt formed by the ongoing convergence of the Indian and Eurasian plates. Home to all fourteen 8,000-metre peaks on Earth.","elevation_m":5000},{"name":"Andes","type":"Mountain belt","lat":-22,"lon":291,"theme":"volcanic","description":"Long volcanic and tectonic arc along western South America, formed by subduction of the Nazca plate. The longest continental mountain range on Earth.","elevation_m":4000},{"name":"Alps","type":"Mountain belt","lat":46.5,"lon":9.5,"theme":"standard","description":"European mountain belt formed by collision of the African and Eurasian plates. Glaciated during the Pleistocene, the Alps radiate major river systems northward and southward.","elevation_m":3000},{"name":"Rocky Mountains","type":"Mountain belt","lat":45,"lon":249,"theme":"standard","description":"Broad cordilleran belt along western North America formed by multiple accretionary episodes. The Continental Divide separates Pacific and Atlantic drainage.","elevation_m":2500},{"name":"Amazon Basin","type":"Lowland basin","lat":-3,"lon":300,"theme":"standard","description":"Largest river basin and tropical rainforest on Earth. The Amazon River discharges roughly 20% of global freshwater river runoff into the Atlantic.","elevation_m":100},{"name":"Congo Basin","type":"Lowland basin","lat":-2,"lon":23,"theme":"standard","description":"Second largest tropical rainforest basin, centred on the Congo River drainage in central Africa. Underlain by a thick sedimentary record of central African geological history.","elevation_m":350},{"name":"Sahara","type":"Desert plateau","lat":23,"lon":15,"theme":"standard","description":"Largest hot desert on Earth, spanning most of North Africa. The Sahara oscillates between dry and wet phases driven by orbital forcing over 100,000-year cycles.","elevation_m":450},{"name":"Antarctic Ice Sheet","type":"Ice sheet","lat":-82,"lon":0,"theme":"standard","description":"Largest ice sheet on Earth, storing approximately 26.5 million km³ of ice. Full melting would raise sea level by roughly 58 metres.","elevation_m":2300},{"name":"Greenland Ice Sheet","type":"Ice sheet","lat":72,"lon":320,"theme":"standard","description":"Second largest ice sheet on Earth, covering most of Greenland. Rapid melt is contributing significantly to current sea-level rise.","elevation_m":2500},{"name":"Mid-Atlantic Ridge","type":"Spreading ridge","lat":0,"lon":335,"theme":"volcanic","description":"Divergent plate boundary and volcanic ridge running the full length of the Atlantic Ocean. Separates the North and South American plates from the Eurasian and African plates.","elevation_m":-2500},{"name":"East Pacific Rise","type":"Spreading ridge","lat":-15,"lon":250,"theme":"volcanic","description":"Fast-spreading mid-ocean ridge in the eastern Pacific, diverging at up to 150 mm/yr. A major source of oceanic crust and hydrothermal vent activity.","elevation_m":-2600},{"name":"Great Rift Valley","type":"Rift zone","lat":2,"lon":37,"theme":"volcanic","description":"Active continental rift system extending from the Afar Triple Junction south through Tanzania. The East African Rift is actively splitting Africa apart.","elevation_m":800},{"name":"Mauna Loa","type":"Shield volcano","lat":19.4756,"lon":204.254,"theme":"volcanic","description":"One of Earth's largest active shield volcanoes, built above the Hawaiian hotspot. Together with neighbouring Mauna Kea, forms the largest volcanic mountain on Earth by volume.","elevation_m":4169},{"name":"Mauna Kea","type":"Shield volcano","lat":19.821,"lon":204.481,"theme":"volcanic","description":"Tallest mountain on Earth measured from its oceanic base. Home to major astronomical observatories exploiting its exceptional atmospheric clarity.","elevation_m":4205},{"name":"Mount Etna","type":"Stratovolcano","lat":37.751,"lon":14.9934,"theme":"volcanic","description":"Most active volcano in Europe and one of the most continuously erupting volcanoes in the world. Built above the subducting African slab and the Malta Escarpment.","elevation_m":3357},{"name":"Mount Fuji","type":"Stratovolcano","lat":35.3606,"lon":138.7274,"theme":"volcanic","description":"Iconic stratovolcano and highest peak in Japan. Last erupted in 1707, Fuji is considered an active volcano with ongoing geothermal activity.","elevation_m":3776},{"name":"Kilauea","type":"Shield volcano","lat":19.421,"lon":204.622,"theme":"volcanic","description":"One of the world's most active volcanoes on the flanks of Mauna Loa in Hawaii. Continuously erupting with effusive lava flows since 1983.","elevation_m":1247},{"name":"Piton de la Fournaise","type":"Shield volcano","lat":-21.244,"lon":55.708,"theme":"volcanic","description":"One of Earth's most active volcanoes on Réunion Island in the Indian Ocean. A hotspot shield volcano erupting multiple times per year.","elevation_m":2632},{"name":"Popocatépetl","type":"Stratovolcano","lat":19.023,"lon":261.427,"theme":"volcanic","description":"Most active volcano in Mexico. Its persistent eruptive activity poses risk to over 25 million people in central Mexico.","elevation_m":5426},{"name":"Yellowstone Caldera","type":"Supervolcano","lat":44.43,"lon":249.55,"theme":"volcanic","description":"Active supervolcanic system above the Yellowstone hotspot. The last major eruption 640,000 years ago ejected roughly 1,000 km³ of material.","elevation_m":2440},{"name":"Iceland","type":"Volcanic island","lat":65,"lon":342,"theme":"volcanic","description":"Island built on the Mid-Atlantic Ridge and above the Iceland hotspot. One of the most volcanically productive regions on Earth per unit area.","elevation_m":400},{"name":"Grand Canyon","type":"Erosional canyon","lat":36.1069,"lon":247.5,"theme":"standard","description":"Iconic erosional gorge carved by the Colorado River in Arizona through nearly 2 billion years of sedimentary and crystalline rock.","elevation_m":800},{"name":"Nile River Basin","type":"River basin","lat":20,"lon":32,"theme":"standard","description":"Largest river basin in Africa and home to the world's longest river. The Nile flows northward through desert terrain before emptying into the Mediterranean.","elevation_m":200},{"name":"Mississippi River Basin","type":"River basin","lat":40,"lon":270,"theme":"standard","description":"Third largest drainage basin on Earth, covering much of central North America. The river drains to the Gulf of Mexico and distributes major sediment loads.","elevation_m":150},{"name":"Challenger Deep","type":"Ocean trench","lat":11.3733,"lon":142.5917,"theme":"standard","description":"The deepest known point on Earth, located in the southern Mariana Trench. Reaches approximately 10,935 m below sea level.","elevation_m":-10935},{"name":"Philippine Trench","type":"Ocean trench","lat":9.8,"lon":126.6,"theme":"standard","description":"Second deepest trench on Earth, formed by subduction of the Philippine Sea plate beneath the Philippine plate.","elevation_m":-10540},{"name":"Tonga Trench","type":"Ocean trench","lat":-23,"lon":186,"theme":"standard","description":"Among the deepest oceanic trenches on Earth, site of the fastest-subducting plate boundary. The Tonga-Kermadec zone has the highest rate of seismicity in the world.","elevation_m":-10882},{"name":"North Atlantic Hurricane Belt","type":"Storm corridor","lat":18,"lon":310,"theme":"storm","description":"Primary track for Atlantic tropical cyclones and hurricanes. Storms develop over warm tropical Atlantic water and track northwestward before curving northeast.","elevation_m":0},{"name":"Intertropical Convergence Zone","type":"Storm belt","lat":5,"lon":150,"theme":"storm","description":"Persistent low-latitude belt of ascending air, deep convection, and heavy rainfall. Migrates north and south with the seasons, driving monsoonal precipitation.","elevation_m":0},{"name":"Southern Ocean Storm Track","type":"Storm belt","lat":-52,"lon":60,"theme":"storm","description":"Circumpolar belt of intense westerly winds and frequent extratropical cyclone development. The most consistently stormy region on Earth.","elevation_m":0},{"name":"Bay of Bengal Cyclone Track","type":"Storm corridor","lat":15,"lon":90,"theme":"storm","description":"High-frequency cyclone development zone over the Bay of Bengal, affecting densely populated coastal areas of South Asia each monsoon season.","elevation_m":0},{"name":"Kennedy Space Center","type":"Launch site","lat":28.5729,"lon":279.6459,"theme":"landing","description":"Primary NASA launch facility on the Atlantic coast of Florida. Home to Apollo, Space Shuttle, and current Commercial Crew launches.","elevation_m":3},{"name":"Baikonur Cosmodrome","type":"Launch site","lat":45.92,"lon":63.342,"theme":"landing","description":"Oldest and largest operational space launch facility in the world, in Kazakhstan. Used for Sputnik, Vostok, Soyuz, and Proton launches.","elevation_m":90},{"name":"Guiana Space Centre","type":"Launch site","lat":5.239,"lon":307.772,"theme":"landing","description":"European Space Agency primary launch site near Kourou in French Guiana. Near-equatorial location provides significant launch performance advantage.","elevation_m":10},{"name":"Jiuquan Satellite Launch Centre","type":"Launch site","lat":40.9608,"lon":100.2981,"theme":"landing","description":"China's oldest space launch facility in the Gobi Desert, used for crewed Shenzhou missions and key satellite launches.","elevation_m":1000},{"name":"Satish Dhawan Space Centre","type":"Launch site","lat":13.7199,"lon":80.2304,"theme":"landing","description":"India's primary launch site on Sriharikota Island in the Bay of Bengal. Home of ISRO's PSLV and GSLV launchers.","elevation_m":5}];
+    const labelData = await fetch(new URL('./label-data.json', import.meta.url)).then(r => r.json());
     const ringLabelData = [];
-    const moonData = [{"name":"Moon","type":"Major moon","theme":"moon","description":"Earth's only natural satellite, a geochemically differentiated body with a solid iron inner core, a partially molten outer core, a thick silicate mantle, and a highland anorthosite and mare basalt crust. Formed ~4.5 Ga from debris ejected by a giant impact between Earth and a Earth-sized protoplanet called Theia.","moon_anchor":[13.6,0,0],"moon_radius":0.24,"moon_label_lift":0.18,"moon_color":"#d8d4cd","mean_radius_km":"~1,737 km","orbit_distance_km":"~384,400 km","orbit_period_days":27.32,"texture_source_url":null}];
+    const moonData = [{"name":"Moon","type":"Major moon","theme":"moon","description":"Earth's only natural satellite. Formed ~4.5 Ga from debris ejected during a giant impact between Earth and a Mars-sized protoplanet called Theia. Tidally locked so the same face always points toward Earth.","moon_anchor":[13.6,0,0],"moon_radius":0.24,"moon_label_lift":0.18,"moon_color":"#d8d4cd","mean_radius_km":"~1,737 km","orbit_distance_km":"~384,400 km","orbit_period_days":27.32,"texture_source_url":null}];
     const MOON_ORBIT_ECCENTRICITY = Object.freeze({
       Moon: 0.0549,
     });
-    const moonFeatureData = [{"name":"8 Homeward","type":"Impact crater","moon_name":"Moon","lat":-12.02,"lon":262.91,"description":"Crater visible in the iconic \u201cEarthrise\u201d colour photograph, taken aboard Apollo 8 by W. A. Anders on December 24, 1968, symbolizes the safe return to Earth of Apollo 8. The crater was previously designated Ganskiy (Hansky) M.","dimension":"12.5 km","theme":"moon"},{"name":"Abbe","type":"Impact crater","moon_name":"Moon","lat":-57.58,"lon":185.23,"description":"Ernst Karl; German optician, physicist, astronomer (1840-1905).","dimension":"64.0 km","theme":"moon"},{"name":"Abbot","type":"Impact crater","moon_name":"Moon","lat":5.56,"lon":305.26,"description":"Charles Greeley; American astrophysicist (1872-1973).","dimension":"10.4 km","theme":"moon"},{"name":"[Abduh]","type":"Impact crater","moon_name":"Moon","lat":14.7,"lon":321.0,"description":"Mohammed; Egyptian writer (1849-1905).","dimension":"","theme":"moon"},{"name":"Abel","type":"Impact crater","moon_name":"Moon","lat":-34.63,"lon":274.22,"description":"Niels Henrik; Norwegian mathematician (1802-1829).","dimension":"137.3 km","theme":"moon"},{"name":"Abenezra","type":"Impact crater","moon_name":"Moon","lat":-20.99,"lon":348.11,"description":"Abraham ben Meir Ibn Ezra; Spanish mathematician, astronomer (1092-1164/1167).","dimension":"43.2 km","theme":"moon"},{"name":"Abetti","type":"Impact crater","moon_name":"Moon","lat":20.11,"lon":332.18,"description":"Antonio; Italian astronomer (1846-1928); Giorgio; Italian astronomer (1882-1982).","dimension":"1.6 km","theme":"moon"},{"name":"Abulfeda","type":"Impact crater","moon_name":"Moon","lat":-13.87,"lon":346.09,"description":"Ismail Ibn Ab\u016b al-Fid\u0101; Syrian geographer (1273-1331).","dimension":"62.2 km","theme":"moon"},{"name":"Abul W\u00e1fa","type":"Impact crater","moon_name":"Moon","lat":0.96,"lon":243.37,"description":"Ab\u016b al-Waf\u0101 al-B\u016bzaj\u0101ni; Persian mathematician, astronomer (940-998).","dimension":"54.2 km","theme":"moon"},{"name":"Acosta","type":"Impact crater","moon_name":"Moon","lat":-5.65,"lon":299.86,"description":"Cristobal; Portuguese doctor, natural historian (1515-1580).","dimension":"13.1 km","theme":"moon"},{"name":"Adams","type":"Impact crater","moon_name":"Moon","lat":-31.89,"lon":291.61,"description":"John Couch; British astronomer (1819-1892); Charles Hitchcock; American astronomer (1868-1951); Walter Sydney; American astronomer (1876-1956).","dimension":"63.3 km","theme":"moon"},{"name":"Aepinus","type":"Impact crater","moon_name":"Moon","lat":87.96,"lon":109.69,"description":"Franz Maria Ulrich Theodor Hoch; German-Russian astronomer (1724-1802).","dimension":"16.7 km","theme":"moon"},{"name":"Agatharchides","type":"Impact crater","moon_name":"Moon","lat":-19.85,"lon":31.11,"description":"Agatharchides of Cnidos; Greek geographer (c. 116 B.C.).","dimension":"52.0 km","theme":"moon"},{"name":"Agrippa","type":"Impact crater","moon_name":"Moon","lat":4.1,"lon":349.53,"description":"Greek astronomer (unkn-fl. A.D. 92).","dimension":"43.8 km","theme":"moon"},{"name":"Airy","type":"Impact crater","moon_name":"Moon","lat":-18.14,"lon":354.39,"description":"George Biddell; British astronomer (1801-1892).","dimension":"38.9 km","theme":"moon"},{"name":"Aitken","type":"Impact crater","moon_name":"Moon","lat":-16.44,"lon":187.04,"description":"Robert Grant; American astronomer (1864-1951).","dimension":"129.7 km","theme":"moon"},{"name":"Akis","type":"Impact crater","moon_name":"Moon","lat":20.01,"lon":31.76,"description":"Greek female name.","dimension":"2.3 km","theme":"moon"},{"name":"Alan","type":"Impact crater","moon_name":"Moon","lat":-10.93,"lon":6.17,"description":"Irish male name.","dimension":"1.4 km","theme":"moon"},{"name":"Al-Bakri","type":"Impact crater","moon_name":"Moon","lat":14.34,"lon":339.75,"description":"Ab\u016b Ubayd Abdall\u0101h Ibn abd al-Az\u012bz Ibn Muhammad; Spanish-Arab geographer (1010-1094).","dimension":"12.2 km","theme":"moon"},{"name":"Albategnius","type":"Impact crater","moon_name":"Moon","lat":-11.24,"lon":355.99,"description":"Muhammed Ben Geber Al-Batt\u0101n\u012b; Arab astronomer, mathematician (c. 858-929).","dimension":"130.8 km","theme":"moon"},{"name":"Albert","type":"Impact crater","moon_name":"Moon","lat":38.32,"lon":35.01,"description":"Male name of German origin (Lunokhod-1 landing site feature).","dimension":"0.1 km","theme":"moon"},{"name":"Al-Biruni","type":"Impact crater","moon_name":"Moon","lat":18.07,"lon":267.38,"description":"Ab\u016b ar-Rayh\u0101n Muhammad ibn Ahmad al-Bir\u016bn\u012b; Persian astronomer, mathematician, geographer (973-1048).","dimension":"80.4 km","theme":"moon"},{"name":"Alden","type":"Impact crater","moon_name":"Moon","lat":-23.51,"lon":248.89,"description":"Harold Lee; American astronomer (1890-1964).","dimension":"111.4 km","theme":"moon"},{"name":"Alder","type":"Impact crater","moon_name":"Moon","lat":-48.63,"lon":177.88,"description":"Kurt; German organic chemist; Nobel laureate (1902-1958).","dimension":"82.1 km","theme":"moon"},{"name":"Aldrin","type":"Impact crater","moon_name":"Moon","lat":1.41,"lon":337.91,"description":"Edwin Eugene, Jr. (\u201c;Buzz\u201c;); American astronaut (1930-Live).","dimension":"2.8 km","theme":"moon"},{"name":"Alekhin","type":"Impact crater","moon_name":"Moon","lat":-67.94,"lon":131.85,"description":"Nikolaj Pavlovich; Soviet rocket designer, engineer (1913-1964).","dimension":"74.8 km","theme":"moon"},{"name":"Alexander","type":"Impact crater","moon_name":"Moon","lat":40.25,"lon":346.31,"description":"Alexander the Great, of Macedon; Greek geographer (356-323 B.C.).","dimension":"94.8 km","theme":"moon"},{"name":"Alfraganus","type":"Impact crater","moon_name":"Moon","lat":-5.42,"lon":341.03,"description":"Al-Fargani, Abu'l-'Abb\u0101s Ahmad Ibn Muhammad Ibn Kath\u012br; Persian astronomer (unkn-c. 840).","dimension":"20.5 km","theme":"moon"},{"name":"Alhazen","type":"Impact crater","moon_name":"Moon","lat":15.91,"lon":288.17,"description":"Ab\u016b Ali Al-Hasan Ibn Al Haitham; Iraqi mathematician (987-1038).","dimension":"34.6 km","theme":"moon"},{"name":"Aliacensis","type":"Impact crater","moon_name":"Moon","lat":-30.6,"lon":354.87,"description":"D'Ailly, Pierre; French geographer (1350-1420).","dimension":"79.7 km","theme":"moon"},{"name":"Al-Khwarizmi","type":"Impact crater","moon_name":"Moon","lat":7.02,"lon":252.99,"description":"Ab\u016b Ja'far Muhammad Ibn M\u016bs\u0101; Iraqi mathematician (unkn-after 847).","dimension":"56.2 km","theme":"moon"},{"name":"Almanon","type":"Impact crater","moon_name":"Moon","lat":-16.85,"lon":344.86,"description":"Abdalla Al Mamun; Persian astronomer (786-833).","dimension":"47.8 km","theme":"moon"},{"name":"Al-Marrakushi","type":"Impact crater","moon_name":"Moon","lat":-10.45,"lon":304.23,"description":"Ab\u016b `Ali al-Hasan Ibn `Ali al-Marrakushi; Moroccan astronomer, mathematician (fl. c. A.D. 1281/1282).","dimension":"8.6 km","theme":"moon"},{"name":"Aloha","type":"Impact crater","moon_name":"Moon","lat":29.79,"lon":53.88,"description":"Hawaiian female first name.","dimension":"2.5 km","theme":"moon"},{"name":"Alpetragius","type":"Impact crater","moon_name":"Moon","lat":-16.05,"lon":4.51,"description":"Al-Bitr\u016bj\u012b Al-Ishb\u012bl\u012b, Ab\u016b Ish\u0101q; Spanish astronomer (unkn-c. 1100).","dimension":"40.0 km","theme":"moon"},{"name":"Alphonsus","type":"Impact crater","moon_name":"Moon","lat":-13.39,"lon":2.85,"description":"Alfonso X (El Sabio); Spanish astronomer (1221-1284).","dimension":"110.5 km","theme":"moon"},{"name":"Alter","type":"Impact crater","moon_name":"Moon","lat":18.74,"lon":107.8,"description":"Dinsmore; American astronomer, meteorologist (1888-1968).","dimension":"64.7 km","theme":"moon"},{"name":"Ameghino","type":"Impact crater","moon_name":"Moon","lat":3.3,"lon":302.96,"description":"Fiorino (or Florentino); Argentine paleontologist and anthropologist (1854-1911).","dimension":"9.2 km","theme":"moon"},{"name":"Amici","type":"Impact crater","moon_name":"Moon","lat":-10.06,"lon":172.23,"description":"Giovanni Battista; Italian astronomer, optician (1786-1863).","dimension":"52.0 km","theme":"moon"},{"name":"Ammonius","type":"Impact crater","moon_name":"Moon","lat":-8.52,"lon":0.83,"description":"Greek philosopher (unkn.-c. A.D. 517-526).","dimension":"8.6 km","theme":"moon"},{"name":"Amontons","type":"Impact crater","moon_name":"Moon","lat":-5.34,"lon":313.22,"description":"Guillaume; French physicist (1663-1705).","dimension":"2.5 km","theme":"moon"},{"name":"Amundsen","type":"Impact crater","moon_name":"Moon","lat":-84.44,"lon":276.93,"description":"Roald Engelbregt Gravning; Norwegian explorer (1872-1928).","dimension":"103.4 km","theme":"moon"},{"name":"Anaxagoras","type":"Impact crater","moon_name":"Moon","lat":73.48,"lon":10.17,"description":"Greek astronomer (500-428 B.C.).","dimension":"51.9 km","theme":"moon"},{"name":"Anaximander","type":"Impact crater","moon_name":"Moon","lat":66.97,"lon":51.44,"description":"Greek astronomer (c. 611-547 B.C.).","dimension":"68.7 km","theme":"moon"},{"name":"Anaximenes","type":"Impact crater","moon_name":"Moon","lat":72.49,"lon":44.98,"description":"Greek astronomer (585-528 B.C.).","dimension":"81.1 km","theme":"moon"},{"name":"And\u011bl","type":"Impact crater","moon_name":"Moon","lat":-10.41,"lon":347.62,"description":"Karel; Czechoslovakian astronomer (1884-1948).","dimension":"32.9 km","theme":"moon"},{"name":"Anders","type":"Impact crater","moon_name":"Moon","lat":-41.31,"lon":143.3,"description":"William Alison; American astronaut (1933-Live).","dimension":"41.3 km","theme":"moon"},{"name":"Anders' Earthrise","type":"Impact crater","moon_name":"Moon","lat":-11.73,"lon":259.53,"description":"Crater visible in the foreground of the iconic \u201cEarthrise\u201d colour photograph, taken aboard Apollo 8 by W. A. Anders on December 24, 1968, showing the Earth and part of the Moon\u2019s surface. The crater was previously designated Pasteur T.","dimension":"40.1 km","theme":"moon"},{"name":"Anderson","type":"Impact crater","moon_name":"Moon","lat":15.5,"lon":189.21,"description":"John August; American astronomer (1876-1959).","dimension":"105.3 km","theme":"moon"},{"name":"Andersson","type":"Impact crater","moon_name":"Moon","lat":-49.95,"lon":95.46,"description":"Leif Erland; American astronomer (1943-1979).","dimension":"13.4 km","theme":"moon"},{"name":"Andronov","type":"Impact crater","moon_name":"Moon","lat":-22.68,"lon":213.89,"description":"Aleksandr Aleksandrovich; Soviet physicist (1901-1952).","dimension":"16.6 km","theme":"moon"},{"name":"Ango","type":"Impact crater","moon_name":"Moon","lat":20.48,"lon":32.34,"description":"African male name.","dimension":"0.9 km","theme":"moon"},{"name":"Angstr\u00f6m","type":"Impact crater","moon_name":"Moon","lat":29.9,"lon":41.67,"description":"Anders Jonas; Swedish physicist (1814-1874).","dimension":"9.6 km","theme":"moon"},{"name":"Ann","type":"Impact crater","moon_name":"Moon","lat":25.11,"lon":0.05,"description":"Hebrew female name.","dimension":"2.1 km","theme":"moon"},{"name":"Annegrit","type":"Impact crater","moon_name":"Moon","lat":29.43,"lon":25.64,"description":"German female name.","dimension":"1.3 km","theme":"moon"},{"name":"Ansgarius","type":"Impact crater","moon_name":"Moon","lat":-12.92,"lon":280.28,"description":"St. Ansgar; German theologian (801-864).","dimension":"91.4 km","theme":"moon"},{"name":"Antoniadi","type":"Impact crater","moon_name":"Moon","lat":-69.3,"lon":173.06,"description":"Eug\u00e8ne Michael; Turkish-born French astronomer (1870-1944).","dimension":"137.9 km","theme":"moon"},{"name":"Anuchin","type":"Impact crater","moon_name":"Moon","lat":-48.85,"lon":258.34,"description":"Dimitrii Nikolaevich; Russian geographer (1843-1923).","dimension":"62.1 km","theme":"moon"},{"name":"Anville","type":"Impact crater","moon_name":"Moon","lat":1.84,"lon":310.49,"description":"Jean-Baptiste Bourguignon; French cartographer (1697-1782).","dimension":"10.3 km","theme":"moon"},{"name":"Apennine Front","type":"Astronaut-named","moon_name":"Moon","lat":25.92,"lon":356.32,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"6.6 km","theme":"moon"},{"name":"Apianus","type":"Impact crater","moon_name":"Moon","lat":-26.96,"lon":352.13,"description":"Bienewitz, Peter; German mathematician, astronomer (1495-1552).","dimension":"63.4 km","theme":"moon"},{"name":"Apollo","type":"Impact crater","moon_name":"Moon","lat":-35.69,"lon":151.48,"description":"Named to honor Apollo missions.","dimension":"524.2 km","theme":"moon"},{"name":"Apollonius","type":"Impact crater","moon_name":"Moon","lat":4.51,"lon":299.04,"description":"Apollonius of Perga; Greek mathematician (c. 262-190 B.C.).","dimension":"50.7 km","theme":"moon"},{"name":"Appleton","type":"Impact crater","moon_name":"Moon","lat":37.05,"lon":201.83,"description":"Sir Edward Victor; British physicist; Nobel laureate (1892-1965).","dimension":"64.6 km","theme":"moon"},{"name":"Arago","type":"Impact crater","moon_name":"Moon","lat":6.15,"lon":338.57,"description":"Dominique Francois Jean; French astronomer (1786-1853).","dimension":"25.5 km","theme":"moon"},{"name":"Aratus","type":"Impact crater","moon_name":"Moon","lat":23.58,"lon":355.49,"description":"Aratus of Soli; Greek astronomer (c. 310-240/239 B.C.).","dimension":"10.2 km","theme":"moon"},{"name":"Archimedes","type":"Impact crater","moon_name":"Moon","lat":29.72,"lon":3.99,"description":"Greek physicist, mathematician (c. 287-212 B.C.).","dimension":"81.0 km","theme":"moon"},{"name":"Archytas","type":"Impact crater","moon_name":"Moon","lat":58.87,"lon":355.01,"description":"Greek mathematician (428-347 B.C. ?).","dimension":"31.9 km","theme":"moon"},{"name":"Argelander","type":"Impact crater","moon_name":"Moon","lat":-16.55,"lon":354.2,"description":"Friedrich Wilhelm August; German astronomer (1799-1875).","dimension":"33.7 km","theme":"moon"},{"name":"Ariadaeus","type":"Impact crater","moon_name":"Moon","lat":4.55,"lon":342.72,"description":"Philip III of Macedonia; chronologer (c. 358-317 B.C.).","dimension":"10.4 km","theme":"moon"},{"name":"[Ariosto]","type":"Impact crater","moon_name":"Moon","lat":-3.6,"lon":264.4,"description":"Ludovico; Italian writer (1474-1533).","dimension":"","theme":"moon"},{"name":"Aristarchus","type":"Impact crater","moon_name":"Moon","lat":23.73,"lon":47.49,"description":"Greek astronomer (310-230 B.C. ?).","dimension":"40.0 km","theme":"moon"},{"name":"Aristillus","type":"Impact crater","moon_name":"Moon","lat":33.88,"lon":358.79,"description":"Greek astronomer (fl. c. 280 B.C.).","dimension":"54.4 km","theme":"moon"},{"name":"Aristoteles","type":"Impact crater","moon_name":"Moon","lat":50.24,"lon":342.68,"description":"Greek astronomer, philosopher (383-322 B.C.).","dimension":"87.6 km","theme":"moon"},{"name":"Armi\u0144ski","type":"Impact crater","moon_name":"Moon","lat":-16.36,"lon":205.78,"description":"Franciszek; Polish astronomer (1789-1848). (Spelling changed from Arm\u00ednski.)","dimension":"26.8 km","theme":"moon"},{"name":"Armstrong","type":"Impact crater","moon_name":"Moon","lat":1.35,"lon":335.06,"description":"Neil Alden; American astronaut (1930-2012).","dimension":"4.2 km","theme":"moon"},{"name":"Arnold","type":"Impact crater","moon_name":"Moon","lat":66.98,"lon":324.17,"description":"Christoph; German astronomer (1650-1695).","dimension":"93.1 km","theme":"moon"},{"name":"Arrhenius","type":"Impact crater","moon_name":"Moon","lat":-55.58,"lon":91.45,"description":"Svante August; Swedish chemist; Nobel laureate (1859-1927).","dimension":"40.9 km","theme":"moon"},{"name":"Artamonov","type":"Impact crater","moon_name":"Moon","lat":25.44,"lon":256.21,"description":"Nikolaj N.; Soviet rocket scientist (1906-1965).","dimension":"62.5 km","theme":"moon"},{"name":"Artem'ev","type":"Impact crater","moon_name":"Moon","lat":10.4,"lon":145.22,"description":"Vladimir Andreevich; Soviet rocket scientist (1885-1962).","dimension":"66.4 km","theme":"moon"},{"name":"Artemis","type":"Impact crater","moon_name":"Moon","lat":25.03,"lon":25.36,"description":"Greek female first name.","dimension":"2.3 km","theme":"moon"},{"name":"Artsimovich","type":"Impact crater","moon_name":"Moon","lat":27.61,"lon":36.63,"description":"Lev Andreevich; Soviet physicist (1909-1973).","dimension":"8.0 km","theme":"moon"},{"name":"Aryabhata","type":"Impact crater","moon_name":"Moon","lat":6.2,"lon":324.83,"description":"Aryabhata I; Indian astronomer, mathematician (476-c.550).","dimension":"21.9 km","theme":"moon"},{"name":"Arzachel","type":"Impact crater","moon_name":"Moon","lat":-18.26,"lon":1.93,"description":"Al-Zarq\u0101l\u012b; Spanish-Arabic astronomer (died 1100).","dimension":"97.0 km","theme":"moon"},{"name":"Asada","type":"Impact crater","moon_name":"Moon","lat":7.25,"lon":310.1,"description":"Goryu; Japanese astronomer (1734-1799).","dimension":"12.4 km","theme":"moon"},{"name":"Asclepi","type":"Impact crater","moon_name":"Moon","lat":-55.19,"lon":334.48,"description":"Giuseppe Maria; Italian astronomer (1706-1776).","dimension":"40.6 km","theme":"moon"},{"name":"Ashbrook","type":"Impact crater","moon_name":"Moon","lat":-81.1,"lon":110.58,"description":"Joseph; American astronomer (1918-1980).","dimension":"157.7 km","theme":"moon"},{"name":"Aston","type":"Impact crater","moon_name":"Moon","lat":32.77,"lon":87.68,"description":"Francis William; British chemist, physicist; Nobel laureate (1877-1945).","dimension":"44.5 km","theme":"moon"},{"name":"Atlas","type":"Impact crater","moon_name":"Moon","lat":46.74,"lon":315.62,"description":"Mythological Greek Titan.","dimension":"88.1 km","theme":"moon"},{"name":"Atwood","type":"Impact crater","moon_name":"Moon","lat":-5.88,"lon":302.22,"description":"George; British mathematician, physicist (1746-1807).","dimension":"28.6 km","theme":"moon"},{"name":"[Austen]","type":"Impact crater","moon_name":"Moon","lat":-9.0,"lon":266.45,"description":"Jane; British author (1775-1817).","dimension":"","theme":"moon"},{"name":"Autolycus","type":"Impact crater","moon_name":"Moon","lat":30.68,"lon":358.51,"description":"Autolycus of Pitane; Greek astronomer (fl. c. 310 B.C.).","dimension":"38.9 km","theme":"moon"},{"name":"Auwers","type":"Impact crater","moon_name":"Moon","lat":15.0,"lon":342.88,"description":"Georg Friedrich Julius Arthur; German astronomer (1838-1915).","dimension":"19.6 km","theme":"moon"},{"name":"Auzout","type":"Impact crater","moon_name":"Moon","lat":10.21,"lon":295.99,"description":"Adrien; French astronomer, physicist (1622-1691).","dimension":"32.9 km","theme":"moon"},{"name":"Avery","type":"Impact crater","moon_name":"Moon","lat":-1.32,"lon":278.63,"description":"Oswald Theodore; Canadian doctor (1877-1955).","dimension":"10.7 km","theme":"moon"},{"name":"Avicenna","type":"Impact crater","moon_name":"Moon","lat":39.63,"lon":97.28,"description":"Abu Ali Al-Hussein Ibn Abdallah; Persian doctor (980-1037).","dimension":"73.0 km","theme":"moon"},{"name":"Avogadro","type":"Impact crater","moon_name":"Moon","lat":63.21,"lon":194.64,"description":"Amedeo (Conte Di Quarengna); Italian physicist (1776-1856).","dimension":"129.8 km","theme":"moon"},{"name":"Azophi","type":"Impact crater","moon_name":"Moon","lat":-22.19,"lon":347.3,"description":"Al-Sufi, Abderrahman; Persian astronomer (903-986).","dimension":"47.5 km","theme":"moon"},{"name":"Baade","type":"Impact crater","moon_name":"Moon","lat":-44.75,"lon":82.03,"description":"Wilhelm Heinrich Walter; American astronomer (1893-1960).","dimension":"57.9 km","theme":"moon"},{"name":"Babakin","type":"Impact crater","moon_name":"Moon","lat":-20.81,"lon":236.74,"description":"Georgii Nikolaevich; Soviet space scientist (1914-1971).","dimension":"19.1 km","theme":"moon"},{"name":"Babbage","type":"Impact crater","moon_name":"Moon","lat":59.56,"lon":57.38,"description":"Charles; British mathematician (1792-1871).","dimension":"146.6 km","theme":"moon"},{"name":"Babcock","type":"Impact crater","moon_name":"Moon","lat":4.13,"lon":265.86,"description":"Harold Delos; American astronomer, physicist (1882-1968).","dimension":"95.3 km","theme":"moon"},{"name":"Baby Ray","type":"Astronaut-named","moon_name":"Moon","lat":-9.08,"lon":344.58,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.2 km","theme":"moon"},{"name":"Back","type":"Impact crater","moon_name":"Moon","lat":1.2,"lon":279.33,"description":"Ernst Emil Alexander; German physicist (1881-1959).","dimension":"34.6 km","theme":"moon"},{"name":"Backlund","type":"Impact crater","moon_name":"Moon","lat":-16.22,"lon":256.65,"description":"J\u00f6ns Oskar; Russian astronomer (1846-1916).","dimension":"75.5 km","theme":"moon"},{"name":"Baco","type":"Impact crater","moon_name":"Moon","lat":-51.04,"lon":340.9,"description":"Bacon, Roger; British natural philosopher, optician (c. 1214-c. 1294).","dimension":"65.3 km","theme":"moon"},{"name":"Baillaud","type":"Impact crater","moon_name":"Moon","lat":74.61,"lon":322.65,"description":"(\u00c9douard) Benjamin; French astronomer (1848-1934).","dimension":"89.4 km","theme":"moon"},{"name":"Bailly","type":"Impact crater","moon_name":"Moon","lat":-66.82,"lon":68.9,"description":"Jean Sylvain; French astronomer (1736-1793).","dimension":"300.6 km","theme":"moon"},{"name":"Baily","type":"Impact crater","moon_name":"Moon","lat":49.78,"lon":329.44,"description":"Francis; British astronomer (1774-1844).","dimension":"25.7 km","theme":"moon"},{"name":"Balandin","type":"Impact crater","moon_name":"Moon","lat":-18.94,"lon":207.42,"description":"Aleksey Aleksandrovich; Soviet chemist (1898-1967).","dimension":"11.8 km","theme":"moon"},{"name":"Balboa","type":"Impact crater","moon_name":"Moon","lat":19.24,"lon":83.31,"description":"Vasco Nu\u00f1ez de; Spanish explorer (1475-1519).","dimension":"69.2 km","theme":"moon"},{"name":"Baldet","type":"Impact crater","moon_name":"Moon","lat":-53.32,"lon":151.96,"description":"Fernand; French astronomer (1885-1964).","dimension":"55.8 km","theme":"moon"},{"name":"Ball","type":"Impact crater","moon_name":"Moon","lat":-35.92,"lon":8.39,"description":"William; British astronomer (unkn-1690).","dimension":"40.3 km","theme":"moon"},{"name":"Ballet","type":"Impact crater","moon_name":"Moon","lat":20.17,"lon":329.43,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.0 km","theme":"moon"},{"name":"Balmer","type":"Impact crater","moon_name":"Moon","lat":-20.27,"lon":289.78,"description":"Johann Jakob; Swiss mathematician, physician (1825-1898).","dimension":"136.3 km","theme":"moon"},{"name":"[Balzac]","type":"Impact crater","moon_name":"Moon","lat":-8.0,"lon":265.0,"description":"Honore de; French author (1799-1850).","dimension":"","theme":"moon"},{"name":"Banachiewicz","type":"Impact crater","moon_name":"Moon","lat":5.28,"lon":279.99,"description":"Tadeusz; Polish astronomer, mathematician (1882-1954).","dimension":"99.1 km","theme":"moon"},{"name":"Bancroft","type":"Impact crater","moon_name":"Moon","lat":28.07,"lon":6.43,"description":"Wilder Dwight; American chemist (1867-1953).","dimension":"12.5 km","theme":"moon"},{"name":"Bandfield","type":"Impact crater","moon_name":"Moon","lat":-5.4,"lon":269.23,"description":"Joshua; American planetary scientist (1974-2019).","dimension":"1.0 km","theme":"moon"},{"name":"Banting","type":"Impact crater","moon_name":"Moon","lat":26.58,"lon":343.57,"description":"Sir Frederick Grant; Canadian doctor; Nobel laureate (1891-1941).","dimension":"5.2 km","theme":"moon"},{"name":"Barbier","type":"Impact crater","moon_name":"Moon","lat":-23.85,"lon":202.07,"description":"Daniel; French astronomer (1907-1965).","dimension":"65.4 km","theme":"moon"},{"name":"Barkla","type":"Impact crater","moon_name":"Moon","lat":-10.67,"lon":292.78,"description":"Charles Glover; British physicist; Nobel laureate (1877-1944).","dimension":"40.9 km","theme":"moon"},{"name":"Barnard","type":"Impact crater","moon_name":"Moon","lat":-29.79,"lon":274.05,"description":"Edward Emerson; American astronomer (1857-1923).","dimension":"115.7 km","theme":"moon"},{"name":"Barocius","type":"Impact crater","moon_name":"Moon","lat":-44.98,"lon":343.19,"description":"Francesco; Italian mathematician (1537-1604).","dimension":"82.7 km","theme":"moon"},{"name":"Barringer","type":"Impact crater","moon_name":"Moon","lat":-28.22,"lon":150.43,"description":"Daniel Moreau; American engineer, geologist (1860-1929).","dimension":"66.9 km","theme":"moon"},{"name":"Barrow","type":"Impact crater","moon_name":"Moon","lat":71.28,"lon":352.41,"description":"Isaac; British mathematician (1630-1677).","dimension":"93.8 km","theme":"moon"},{"name":"Bartels","type":"Impact crater","moon_name":"Moon","lat":24.51,"lon":89.85,"description":"Julius; German geophysicist (1899-1964).","dimension":"55.0 km","theme":"moon"},{"name":"[Baudelaire]","type":"Impact crater","moon_name":"Moon","lat":-23.2,"lon":236.9,"description":"Pierre Charles; French poet (1821-1867).","dimension":"","theme":"moon"},{"name":"Bawa","type":"Impact crater","moon_name":"Moon","lat":-25.28,"lon":257.44,"description":"African male name.","dimension":"1.6 km","theme":"moon"},{"name":"Bay","type":"Impact crater","moon_name":"Moon","lat":-88.76,"lon":36.85,"description":"Zolt\u00e1n Lajos; Hungarian physicist (1900-1992).","dimension":"3.5 km","theme":"moon"},{"name":"Bayer","type":"Impact crater","moon_name":"Moon","lat":-51.62,"lon":35.14,"description":"Johann; German astronomer (1572-1625).","dimension":"48.5 km","theme":"moon"},{"name":"Beals","type":"Impact crater","moon_name":"Moon","lat":37.11,"lon":273.42,"description":"Carlyle Smith; Canadian astronomer (1899-1979).","dimension":"52.6 km","theme":"moon"},{"name":"Bear Mountain","type":"Astronaut-named","moon_name":"Moon","lat":19.98,"lon":329.23,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"3.5 km","theme":"moon"},{"name":"Beaumont","type":"Impact crater","moon_name":"Moon","lat":-18.08,"lon":331.18,"description":"Jean-Baptiste-Armand-Louis-L\u00e9once \u00c9lie de; French geologist (1798-1874).","dimension":"50.7 km","theme":"moon"},{"name":"Becquerel","type":"Impact crater","moon_name":"Moon","lat":40.79,"lon":230.5,"description":"Antoine-Henri; French physicist; Nobel laureate (1852-1908).","dimension":"62.9 km","theme":"moon"},{"name":"Be\u010dv\u00e1\u0159","type":"Impact crater","moon_name":"Moon","lat":-2.57,"lon":234.93,"description":"Antonin; Czechoslovakian astronomer (1901-1965).","dimension":"66.6 km","theme":"moon"},{"name":"Beer","type":"Impact crater","moon_name":"Moon","lat":27.07,"lon":9.1,"description":"Wilhelm; German astronomer (1797-1850).","dimension":"9.1 km","theme":"moon"},{"name":"Behaim","type":"Impact crater","moon_name":"Moon","lat":-16.61,"lon":280.59,"description":"Martin; German navigator, cartographer (1459-1507).","dimension":"56.2 km","theme":"moon"},{"name":"Beijerinck","type":"Impact crater","moon_name":"Moon","lat":-13.4,"lon":208.16,"description":"Martinus Willem; Dutch botanist (1851-1931).","dimension":"76.8 km","theme":"moon"},{"name":"Beketov","type":"Impact crater","moon_name":"Moon","lat":16.23,"lon":330.82,"description":"Nikolai Nikolaevich; Russian chemist (1827-1911).","dimension":"8.3 km","theme":"moon"},{"name":"B\u00e9la","type":"Impact crater","moon_name":"Moon","lat":24.67,"lon":357.73,"description":"Hungarian male name, also Slovak female name.","dimension":"10.1 km","theme":"moon"},{"name":"Bel'kovich","type":"Impact crater","moon_name":"Moon","lat":61.53,"lon":269.85,"description":"Igor V.; Soviet astronomer (1904-1949).","dimension":"215.1 km","theme":"moon"},{"name":"Bell","type":"Impact crater","moon_name":"Moon","lat":21.98,"lon":96.53,"description":"Alexander Graham; Scottish-American inventor (1847-1922).","dimension":"86.3 km","theme":"moon"},{"name":"Bellinsgauzen (Bellingshausen)","type":"Impact crater","moon_name":"Moon","lat":-60.72,"lon":164.85,"description":"Faddei Faddeevich; Russian explorer (1778-1852).","dimension":"63.2 km","theme":"moon"},{"name":"Bellot","type":"Impact crater","moon_name":"Moon","lat":-12.48,"lon":311.81,"description":"Joseph Rene; French explorer (1826-1853).","dimension":"17.5 km","theme":"moon"},{"name":"Belopol'skiy","type":"Impact crater","moon_name":"Moon","lat":-17.25,"lon":128.23,"description":"Aristarch Apollonovich; Russian astronomer (1854-1934).","dimension":"61.9 km","theme":"moon"},{"name":"Belyaev","type":"Impact crater","moon_name":"Moon","lat":23.1,"lon":216.89,"description":"Pavel Ivanovich; Soviet cosmonaut (1925-1970).","dimension":"55.9 km","theme":"moon"},{"name":"Bench","type":"Astronaut-named","moon_name":"Moon","lat":-3.02,"lon":23.43,"description":"Astronaut-named feature, Apollo 12 site.","dimension":"0.2 km","theme":"moon"},{"name":"Benedict","type":"Impact crater","moon_name":"Moon","lat":4.35,"lon":218.46,"description":"Francis Gano; American chemist, physiologist (1870-1957).","dimension":"13.8 km","theme":"moon"},{"name":"Bergman","type":"Impact crater","moon_name":"Moon","lat":6.97,"lon":222.51,"description":"Torbern Olof; Swedish chemist, mineralogist, astronomer (1735-1784).","dimension":"22.5 km","theme":"moon"},{"name":"Bergstrand","type":"Impact crater","moon_name":"Moon","lat":-18.72,"lon":183.56,"description":"Carl \u00d6sten Emanuel; Swedish astronomer (1873-1948).","dimension":"43.0 km","theme":"moon"},{"name":"Berkner","type":"Impact crater","moon_name":"Moon","lat":25.13,"lon":105.24,"description":"Lloyd Viel; American geophysicist (1905-1967).","dimension":"87.6 km","theme":"moon"},{"name":"Berlage","type":"Impact crater","moon_name":"Moon","lat":-63.04,"lon":163.61,"description":"Hendrik Petrus; Dutch geophysicist, meteorologist (1896-1968).","dimension":"93.8 km","theme":"moon"},{"name":"[Bernini]","type":"Impact crater","moon_name":"Moon","lat":14.9,"lon":330.0,"description":"Gianlorenzo; Italian artist (1598-1680).","dimension":"","theme":"moon"},{"name":"Bernoulli","type":"Impact crater","moon_name":"Moon","lat":34.93,"lon":299.39,"description":"Jacques; Swiss mathematician (1654-1705); Jean; Swiss mathematician (1667-1748). (Spelling changed from Bernouilli.)","dimension":"47.3 km","theme":"moon"},{"name":"Berosus","type":"Impact crater","moon_name":"Moon","lat":33.5,"lon":290.01,"description":"Berosus the Chaldean; Babylonian astronomer (unkn-c. 250 B.C.).","dimension":"75.2 km","theme":"moon"},{"name":"Berzelius","type":"Impact crater","moon_name":"Moon","lat":36.55,"lon":309.05,"description":"J\u00f6ns Jacob; Swedish chemist (1779-1848).","dimension":"48.5 km","theme":"moon"},{"name":"Bessarion","type":"Impact crater","moon_name":"Moon","lat":14.85,"lon":37.31,"description":"John; Greek scholar (1403-1472).","dimension":"9.8 km","theme":"moon"},{"name":"Bessel","type":"Impact crater","moon_name":"Moon","lat":21.73,"lon":342.08,"description":"Friedrich Wilhelm; German astronomer (1784-1846).","dimension":"15.6 km","theme":"moon"},{"name":"Bettinus","type":"Impact crater","moon_name":"Moon","lat":-63.4,"lon":45.16,"description":"Mario; Italian mathematician, astronomer (1582-1657).","dimension":"71.8 km","theme":"moon"},{"name":"Bhabha","type":"Impact crater","moon_name":"Moon","lat":-55.5,"lon":165.31,"description":"Homi Jehangir; Indian physicist (1909-1966).","dimension":"70.2 km","theme":"moon"},{"name":"Bianchini","type":"Impact crater","moon_name":"Moon","lat":48.78,"lon":34.37,"description":"Francesco; Italian astronomer (1662-1729).","dimension":"37.6 km","theme":"moon"},{"name":"Biela","type":"Impact crater","moon_name":"Moon","lat":-54.99,"lon":308.37,"description":"Wilhelm von; Austrian astronomer (1782-1856).","dimension":"77.0 km","theme":"moon"},{"name":"Bilharz","type":"Impact crater","moon_name":"Moon","lat":-5.83,"lon":303.66,"description":"Theodor; German doctor, zoologist (1825-1862).","dimension":"44.5 km","theme":"moon"},{"name":"Billy","type":"Impact crater","moon_name":"Moon","lat":-13.83,"lon":50.24,"description":"Jacques de; French mathematician (1602-1679).","dimension":"45.6 km","theme":"moon"},{"name":"Bingham","type":"Impact crater","moon_name":"Moon","lat":8.02,"lon":244.95,"description":"Hiram; American explorer (1875-1956).","dimension":"35.0 km","theme":"moon"},{"name":"Biot","type":"Impact crater","moon_name":"Moon","lat":-22.7,"lon":308.92,"description":"Jean-Baptiste; French astronomer (1774-1862).","dimension":"13.0 km","theme":"moon"},{"name":"Birkeland","type":"Impact crater","moon_name":"Moon","lat":-30.17,"lon":185.99,"description":"Olaf Kristian; Norwegian physicist (1867-1917).","dimension":"81.6 km","theme":"moon"},{"name":"Birkhoff","type":"Impact crater","moon_name":"Moon","lat":58.45,"lon":145.65,"description":"George David; American mathematician (1884-1944).","dimension":"329.8 km","theme":"moon"},{"name":"Birmingham","type":"Impact crater","moon_name":"Moon","lat":65.12,"lon":10.7,"description":"John; Irish astronomer (1816-1884).","dimension":"89.9 km","theme":"moon"},{"name":"Birt","type":"Impact crater","moon_name":"Moon","lat":-22.36,"lon":8.59,"description":"William R.; British selenographer (1804-1881).","dimension":"15.8 km","theme":"moon"},{"name":"Bi Sheng","type":"Impact crater","moon_name":"Moon","lat":78.35,"lon":211.54,"description":"Chinese inventor (c. 990-1051).","dimension":"55.3 km","theme":"moon"},{"name":"Bjerknes","type":"Impact crater","moon_name":"Moon","lat":-38.5,"lon":246.31,"description":"Vilhelm Friman Koren; Norwegian physicist (1862-1951).","dimension":"48.2 km","theme":"moon"},{"name":"Black","type":"Impact crater","moon_name":"Moon","lat":-9.2,"lon":279.61,"description":"Joseph; French chemist (1728-1799).","dimension":"19.5 km","theme":"moon"},{"name":"Blackett","type":"Impact crater","moon_name":"Moon","lat":-37.55,"lon":115.84,"description":"Patrick Maynard Stuart; British physicist; Nobel laureate (1897-1974).","dimension":"145.3 km","theme":"moon"},{"name":"Blagg","type":"Impact crater","moon_name":"Moon","lat":1.22,"lon":358.54,"description":"Mary Adela; British astronomer (1858-1944).","dimension":"5.0 km","theme":"moon"},{"name":"Blancanus","type":"Impact crater","moon_name":"Moon","lat":-63.77,"lon":21.63,"description":"Biancani, Giuseppe; Italian mathematician, astronomer (1566-1624).","dimension":"105.8 km","theme":"moon"},{"name":"Blanchard","type":"Impact crater","moon_name":"Moon","lat":-58.25,"lon":93.5,"description":"Jean-Pierre-Fran\u00e7ois; French aeronaut (1753-1809).","dimension":"37.5 km","theme":"moon"},{"name":"Blanchinus","type":"Impact crater","moon_name":"Moon","lat":-25.32,"lon":357.56,"description":"Bianchini, Giovanni; Italian astronomer (unkn-fl. 1458).","dimension":"59.9 km","theme":"moon"},{"name":"Blazhko","type":"Impact crater","moon_name":"Moon","lat":31.37,"lon":147.86,"description":"Sergei Nikolaevich; Soviet astronomer (1870-1956).","dimension":"51.1 km","theme":"moon"},{"name":"Bliss","type":"Impact crater","moon_name":"Moon","lat":53.04,"lon":13.78,"description":"Nathaniel; English Astronomer Royal (1700-1764).","dimension":"22.9 km","theme":"moon"},{"name":"Block","type":"Astronaut-named","moon_name":"Moon","lat":-3.01,"lon":23.42,"description":"Astronaut-named feature, Apollo 12 site.","dimension":"0.0 km","theme":"moon"},{"name":"Bobillier","type":"Impact crater","moon_name":"Moon","lat":19.63,"lon":344.56,"description":"\u00c9tienne; French geometer (1798-1840).","dimension":"6.0 km","theme":"moon"},{"name":"Bobone","type":"Impact crater","moon_name":"Moon","lat":26.7,"lon":132.12,"description":"Jorge; Argentinean astronomer (1901-1958).","dimension":"32.1 km","theme":"moon"},{"name":"Bode","type":"Impact crater","moon_name":"Moon","lat":6.71,"lon":2.45,"description":"Johann Elert; German astronomer (1747-1826).","dimension":"17.8 km","theme":"moon"},{"name":"Boethius","type":"Impact crater","moon_name":"Moon","lat":5.57,"lon":287.67,"description":"Anicius Manlius Severinus; Roman scholar(c. A.D. 470-524).","dimension":"11.2 km","theme":"moon"},{"name":"Boguslawsky","type":"Impact crater","moon_name":"Moon","lat":-72.9,"lon":316.74,"description":"Palm Heinrich Ludwig von; German astronomer (1789-1851).","dimension":"94.6 km","theme":"moon"},{"name":"Bohnenberger","type":"Impact crater","moon_name":"Moon","lat":-16.24,"lon":319.94,"description":"Johann Gottlieb Friedrich Von; German astronomer (1765-1831).","dimension":"31.7 km","theme":"moon"},{"name":"Bohr","type":"Impact crater","moon_name":"Moon","lat":12.71,"lon":86.52,"description":"Niels Henrik David; Danish physicist; Nobel laureate (1885-1962).","dimension":"70.1 km","theme":"moon"},{"name":"Bok","type":"Impact crater","moon_name":"Moon","lat":-20.26,"lon":171.58,"description":"Priscilla Fairfield; American astronomer (1896-1975), Bart Jan; Dutch-American astronomer (1906-1983).","dimension":"43.0 km","theme":"moon"},{"name":"Boltzmann","type":"Impact crater","moon_name":"Moon","lat":-74.82,"lon":90.41,"description":"Ludwig Eduard; Austrian physicist (1844-1906).","dimension":"72.3 km","theme":"moon"},{"name":"Bolyai","type":"Impact crater","moon_name":"Moon","lat":-33.85,"lon":233.88,"description":"Janos; Hungarian mathematician (1802-1860).","dimension":"102.2 km","theme":"moon"},{"name":"Bombelli","type":"Impact crater","moon_name":"Moon","lat":5.28,"lon":303.81,"description":"Rafael; Italian mathematician (1526-1572).","dimension":"9.7 km","theme":"moon"},{"name":"Bondarenko","type":"Impact crater","moon_name":"Moon","lat":-17.24,"lon":223.11,"description":"Valentin Vasilyevich; Soviet student-cosmonaut (1937-1961).","dimension":"28.3 km","theme":"moon"},{"name":"Bonpland","type":"Impact crater","moon_name":"Moon","lat":-8.38,"lon":17.33,"description":"Aim\u00e9-Jacques-Alexandre; French botanist (1773-1858).","dimension":"59.2 km","theme":"moon"},{"name":"Boole","type":"Impact crater","moon_name":"Moon","lat":63.79,"lon":87.29,"description":"George; British mathematician (1815-1864).","dimension":"61.3 km","theme":"moon"},{"name":"Borda","type":"Impact crater","moon_name":"Moon","lat":-25.2,"lon":313.48,"description":"Jean Charles de; French astronomer (1733-1799).","dimension":"45.4 km","theme":"moon"},{"name":"Borel","type":"Impact crater","moon_name":"Moon","lat":22.37,"lon":333.58,"description":"F\u00e9lix \u00c9douard \u00c9mile; French mathematician (1871-1956).","dimension":"4.7 km","theme":"moon"},{"name":"Boris","type":"Impact crater","moon_name":"Moon","lat":30.53,"lon":33.5,"description":"Russian male name.","dimension":"1.7 km","theme":"moon"},{"name":"Borman","type":"Impact crater","moon_name":"Moon","lat":-39.06,"lon":148.25,"description":"Frank; American astronaut, engineer (1928-Live).","dimension":"50.7 km","theme":"moon"},{"name":"Born","type":"Impact crater","moon_name":"Moon","lat":-6.05,"lon":293.17,"description":"Max; German physicist (1882-1970).","dimension":"15.1 km","theme":"moon"},{"name":"Borya","type":"Impact crater","moon_name":"Moon","lat":38.28,"lon":35.01,"description":"Slavic male name Boris in Russian diminutive form (Lunokhod-1 landing site feature).","dimension":"0.4 km","theme":"moon"},{"name":"Bosch","type":"Impact crater","moon_name":"Moon","lat":86.82,"lon":226.46,"description":"Carl; German chemist, Nobel Prize winner 1931 (1874-1940).","dimension":"19.6 km","theme":"moon"},{"name":"Boscovich","type":"Impact crater","moon_name":"Moon","lat":9.71,"lon":348.99,"description":"Rudjer J.; Italian physicist (1711-1787).","dimension":"41.5 km","theme":"moon"},{"name":"Bose","type":"Impact crater","moon_name":"Moon","lat":-53.95,"lon":169.36,"description":"Jagadis Chandra; Indian botanist, physicist (1858-1937).","dimension":"92.5 km","theme":"moon"},{"name":"Boss","type":"Impact crater","moon_name":"Moon","lat":45.75,"lon":271.32,"description":"Lewis; American astronomer (1846-1912).","dimension":"50.2 km","theme":"moon"},{"name":"Bouguer","type":"Impact crater","moon_name":"Moon","lat":52.32,"lon":35.82,"description":"Pierre; French hydrographer (1698-1758).","dimension":"22.2 km","theme":"moon"},{"name":"Boussingault","type":"Impact crater","moon_name":"Moon","lat":-70.21,"lon":306.27,"description":"Jean Baptiste Dieudonne; French chemist (1802-1887).","dimension":"127.6 km","theme":"moon"},{"name":"Bowditch","type":"Impact crater","moon_name":"Moon","lat":-24.97,"lon":256.93,"description":"Nathaniel; American astronomer, mathematician (1773-1848).","dimension":"43.0 km","theme":"moon"},{"name":"Bowen","type":"Impact crater","moon_name":"Moon","lat":17.63,"lon":350.9,"description":"Ira Sprague; American astronomer (1898-1973).","dimension":"8.1 km","theme":"moon"},{"name":"Bowen-Apollo","type":"Astronaut-named","moon_name":"Moon","lat":20.27,"lon":329.13,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.3 km","theme":"moon"},{"name":"Boyle","type":"Impact crater","moon_name":"Moon","lat":-53.29,"lon":182.11,"description":"Robert; British natural philosopher, chemist (1627-1691).","dimension":"57.1 km","theme":"moon"},{"name":"Brackett","type":"Impact crater","moon_name":"Moon","lat":17.84,"lon":336.46,"description":"Frederick Sumner; American physicist (1896-1988).","dimension":"8.9 km","theme":"moon"},{"name":"Bragg","type":"Impact crater","moon_name":"Moon","lat":42.33,"lon":103.44,"description":"Sir William Henry; Australian physicist; Nobel laureate (1862-1942).","dimension":"77.2 km","theme":"moon"},{"name":"Brashear","type":"Impact crater","moon_name":"Moon","lat":-73.54,"lon":171.57,"description":"John Alfred; American astronomer (1840-1920).","dimension":"60.2 km","theme":"moon"},{"name":"Braude","type":"Impact crater","moon_name":"Moon","lat":-81.82,"lon":201.12,"description":"Semion Ya.; Ukranian radio astronomer (1911-2003).","dimension":"11.3 km","theme":"moon"},{"name":"Brayley","type":"Impact crater","moon_name":"Moon","lat":20.9,"lon":36.94,"description":"Edward William; British geographer (1801-1870).","dimension":"14.2 km","theme":"moon"},{"name":"Bredikhin","type":"Impact crater","moon_name":"Moon","lat":17.25,"lon":158.37,"description":"Fedor Aleksandrovich; Russian astronomer (1831-1904).","dimension":"61.7 km","theme":"moon"},{"name":"Breislak","type":"Impact crater","moon_name":"Moon","lat":-48.31,"lon":341.69,"description":"Scipione; Italian chemist, geologist, mathematician (1748-1826).","dimension":"48.6 km","theme":"moon"},{"name":"Brenner","type":"Impact crater","moon_name":"Moon","lat":-39.09,"lon":320.89,"description":"Leo (Spiridon Gopcevic); Austrian astronomer (1855-1928).","dimension":"90.0 km","theme":"moon"},{"name":"Brewster","type":"Impact crater","moon_name":"Moon","lat":23.27,"lon":325.31,"description":"David; Scottish optician (1781-1868).","dimension":"9.8 km","theme":"moon"},{"name":"Brianchon","type":"Impact crater","moon_name":"Moon","lat":74.75,"lon":88.36,"description":"Charles-Julien; French mathematician (1783-1864).","dimension":"137.3 km","theme":"moon"},{"name":"Bridge","type":"Astronaut-named","moon_name":"Moon","lat":26.04,"lon":356.49,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"0.7 km","theme":"moon"},{"name":"Bridgman","type":"Impact crater","moon_name":"Moon","lat":43.39,"lon":223.02,"description":"Percy Williams; American physicist; Nobel laureate (1882-1961).","dimension":"81.9 km","theme":"moon"},{"name":"Briggs","type":"Impact crater","moon_name":"Moon","lat":26.45,"lon":69.19,"description":"Henry; British mathematician (1561-1630).","dimension":"36.8 km","theme":"moon"},{"name":"Brill","type":"Impact crater","moon_name":"Moon","lat":-88.27,"lon":93.41,"description":"Yvonne; Canadian-American rocket scientist (1924-2013).","dimension":"17.0 km","theme":"moon"},{"name":"Brisbane","type":"Impact crater","moon_name":"Moon","lat":-49.2,"lon":291.24,"description":"Sir Thomas Makdougall; Scottish astronomer (1773-1860).","dimension":"44.3 km","theme":"moon"},{"name":"Bronk","type":"Impact crater","moon_name":"Moon","lat":25.9,"lon":134.67,"description":"Detlev Wulf; American neurophysiologist (1897-1975).","dimension":"66.2 km","theme":"moon"},{"name":"Bront\u00eb","type":"Astronaut-named","moon_name":"Moon","lat":20.17,"lon":329.33,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.2 km","theme":"moon"},{"name":"Brouwer","type":"Impact crater","moon_name":"Moon","lat":-35.82,"lon":124.75,"description":"Dirk; American astronomer (1902-1966); Luitzen Egbertus Jan; Dutch mathematician (1881-1966).","dimension":"119.6 km","theme":"moon"},{"name":"Brown","type":"Impact crater","moon_name":"Moon","lat":-46.53,"lon":17.99,"description":"Ernest William; British astronomer, mathematician (1866-1938).","dimension":"34.0 km","theme":"moon"},{"name":"Bruce","type":"Impact crater","moon_name":"Moon","lat":1.16,"lon":359.63,"description":"Catherine Wolfe; American philanthropist, astronomy patron (1816-1900).","dimension":"6.1 km","theme":"moon"},{"name":"Brunner","type":"Impact crater","moon_name":"Moon","lat":-9.86,"lon":269.09,"description":"William Otto; Swiss astronomer (1878-1958).","dimension":"50.7 km","theme":"moon"},{"name":"Buch","type":"Impact crater","moon_name":"Moon","lat":-38.9,"lon":342.32,"description":"Christian Leopold von; German geologist (1774-1853).","dimension":"51.3 km","theme":"moon"},{"name":"Buffon","type":"Impact crater","moon_name":"Moon","lat":-40.64,"lon":133.53,"description":"Georges Louis Leclerc; French natural historian (1707-1788).","dimension":"105.8 km","theme":"moon"},{"name":"Buisson","type":"Impact crater","moon_name":"Moon","lat":-1.47,"lon":247.05,"description":"Henri; French physicist, astronomer (1873-1944).","dimension":"61.3 km","theme":"moon"},{"name":"Bullialdus","type":"Impact crater","moon_name":"Moon","lat":-20.75,"lon":22.26,"description":"Boulliau, Ismael; French astronomer (1605-1694).","dimension":"60.7 km","theme":"moon"},{"name":"Bunsen","type":"Impact crater","moon_name":"Moon","lat":41.4,"lon":85.46,"description":"Robert Wilhelm Eberhard; German chemist (1811-1899).","dimension":"55.2 km","theme":"moon"},{"name":"Burbidge","type":"Impact crater","moon_name":"Moon","lat":-86.35,"lon":311.4,"description":"E. Margaret; British-American observational astronomer and astrophysicist (1919-2020).","dimension":"21.0 km","theme":"moon"},{"name":"Burckhardt","type":"Impact crater","moon_name":"Moon","lat":31.11,"lon":303.61,"description":"Johann Karl; German astronomer (1773-1825).","dimension":"54.4 km","theme":"moon"},{"name":"B\u00fcrg","type":"Impact crater","moon_name":"Moon","lat":45.07,"lon":331.79,"description":"Johann Tobias; Austrian astronomer (1766-1834).","dimension":"41.0 km","theme":"moon"},{"name":"Burnham","type":"Impact crater","moon_name":"Moon","lat":-13.92,"lon":352.75,"description":"Sherburne Wesley; American astronomer (1838-1921).","dimension":"24.1 km","theme":"moon"},{"name":"B\u00fcsching","type":"Impact crater","moon_name":"Moon","lat":-38.04,"lon":340.04,"description":"Anton Friedrich; German geographer (1724-1793).","dimension":"53.5 km","theme":"moon"},{"name":"Butlerov","type":"Impact crater","moon_name":"Moon","lat":12.05,"lon":108.81,"description":"Aleksandr Mikhailovich; Russian chemist (1828-1886).","dimension":"38.8 km","theme":"moon"},{"name":"Buys-Ballot","type":"Impact crater","moon_name":"Moon","lat":20.86,"lon":185.18,"description":"Christoph Hendrik Diederik; Dutch meteorologist (1817-1890).","dimension":"66.4 km","theme":"moon"},{"name":"Byrd","type":"Impact crater","moon_name":"Moon","lat":85.43,"lon":349.93,"description":"Richard Edwin; American explorer, aviator, navigator (1888-1957).","dimension":"97.5 km","theme":"moon"},{"name":"Byrgius","type":"Impact crater","moon_name":"Moon","lat":-24.73,"lon":65.38,"description":"Burgi, Joost; Swiss horologist (1552-1632).","dimension":"84.5 km","theme":"moon"},{"name":"Cabannes","type":"Impact crater","moon_name":"Moon","lat":-61.24,"lon":170.21,"description":"Jean; French physicist (1885-1959).","dimension":"81.3 km","theme":"moon"},{"name":"Cabeus","type":"Impact crater","moon_name":"Moon","lat":-85.33,"lon":42.13,"description":"Cabeo, Niccolo; Italian astronomer (1586-1650).","dimension":"100.6 km","theme":"moon"},{"name":"Cailleux","type":"Impact crater","moon_name":"Moon","lat":-60.41,"lon":206.5,"description":"Andre; French geologist (1907-1986).","dimension":"52.9 km","theme":"moon"},{"name":"Cai Lun","type":"Impact crater","moon_name":"Moon","lat":80.12,"lon":246.34,"description":"Chinese inventor (c. 57-121).","dimension":"44.9 km","theme":"moon"},{"name":"Cajal","type":"Impact crater","moon_name":"Moon","lat":12.59,"lon":328.92,"description":"Santiago Ramon Y; Spanish doctor; Nobel laureate (1852-1934).","dimension":"8.6 km","theme":"moon"},{"name":"Cajori","type":"Impact crater","moon_name":"Moon","lat":-47.67,"lon":191.3,"description":"Florian; American mathematician (1859-1930).","dimension":"74.7 km","theme":"moon"},{"name":"Calippus","type":"Impact crater","moon_name":"Moon","lat":38.92,"lon":349.28,"description":"Calippus of Cyzicus; Greek astronomer (c. 370 B.C.).","dimension":"34.0 km","theme":"moon"},{"name":"Camelot","type":"Astronaut-named","moon_name":"Moon","lat":20.19,"lon":329.27,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.6 km","theme":"moon"},{"name":"Cameron","type":"Impact crater","moon_name":"Moon","lat":6.19,"lon":314.07,"description":"Robert Curry; American astronomer (1925-1972).","dimension":"10.9 km","theme":"moon"},{"name":"[Camoens]","type":"Impact crater","moon_name":"Moon","lat":0.62,"lon":275.02,"description":"Luis de; Portuguese author (1524-1580).","dimension":"31.4 km","theme":"moon"},{"name":"Campanus","type":"Impact crater","moon_name":"Moon","lat":-28.04,"lon":27.9,"description":"Campanus of Navara; Italian astronomer (c. 1200-1296).","dimension":"46.4 km","theme":"moon"},{"name":"Campbell","type":"Impact crater","moon_name":"Moon","lat":45.57,"lon":207.09,"description":"Leon; American astronomer (1881-1951); William Wallace; American astronomer (1862-1938).","dimension":"222.5 km","theme":"moon"},{"name":"Cannizzaro","type":"Impact crater","moon_name":"Moon","lat":55.5,"lon":99.73,"description":"Stanislao; Italian chemist (1826-1910).","dimension":"54.5 km","theme":"moon"},{"name":"Cannon","type":"Impact crater","moon_name":"Moon","lat":19.88,"lon":278.64,"description":"Annie Jump; American astronomer (1863-1941).","dimension":"57.6 km","theme":"moon"},{"name":"Cantor","type":"Impact crater","moon_name":"Moon","lat":38.04,"lon":241.31,"description":"Georg; German mathematician (1845-1918); Moritz; German mathematician (1829-1920).","dimension":"75.7 km","theme":"moon"},{"name":"Capella","type":"Impact crater","moon_name":"Moon","lat":-7.65,"lon":325.08,"description":"Martianus; Roman astronomer (c. A.D. 400-unkn).","dimension":"48.1 km","theme":"moon"},{"name":"Capuanus","type":"Impact crater","moon_name":"Moon","lat":-34.09,"lon":26.73,"description":"Francesco Capuano Di Manfredonia; Italian astronomer (c. 1400-unkn).","dimension":"59.7 km","theme":"moon"},{"name":"Cardanus","type":"Impact crater","moon_name":"Moon","lat":13.27,"lon":72.5,"description":"Cardano, Girolamo; Italian mathematician (1501-1576).","dimension":"49.6 km","theme":"moon"},{"name":"Carlini","type":"Impact crater","moon_name":"Moon","lat":33.75,"lon":24.12,"description":"Francesco; Italian astronomer (1783-1862).","dimension":"10.7 km","theme":"moon"},{"name":"Carlos","type":"Impact crater","moon_name":"Moon","lat":24.91,"lon":357.72,"description":"Spanish male name.","dimension":"4.7 km","theme":"moon"},{"name":"Carmichael","type":"Impact crater","moon_name":"Moon","lat":19.53,"lon":319.64,"description":"Leonard; American psychologist (1898-1973).","dimension":"19.7 km","theme":"moon"},{"name":"Carnot","type":"Impact crater","moon_name":"Moon","lat":52.09,"lon":144.2,"description":"Nicolas-L\u00e9onard Sadi; French physicist (1796-1832).","dimension":"126.1 km","theme":"moon"},{"name":"Carol","type":"Impact crater","moon_name":"Moon","lat":8.48,"lon":237.63,"description":"Latin female name.","dimension":"6.2 km","theme":"moon"},{"name":"Carpenter","type":"Impact crater","moon_name":"Moon","lat":69.52,"lon":51.23,"description":"James; British astronomer (1840-1899); Edwin Francis; American astronomer (1898-1963).","dimension":"59.1 km","theme":"moon"},{"name":"Carrel","type":"Impact crater","moon_name":"Moon","lat":10.67,"lon":333.32,"description":"Alexis; French doctor, physiologist; Nobel laureate (1873-1944).","dimension":"15.6 km","theme":"moon"},{"name":"Carrillo","type":"Impact crater","moon_name":"Moon","lat":-2.11,"lon":279.04,"description":"Flores Nabor; Mexican soil engineer (1911-1967).","dimension":"17.9 km","theme":"moon"},{"name":"Carrington","type":"Impact crater","moon_name":"Moon","lat":43.97,"lon":297.96,"description":"Richard Christopher; British astronomer (1826-1875).","dimension":"27.8 km","theme":"moon"},{"name":"Cartan","type":"Impact crater","moon_name":"Moon","lat":4.24,"lon":300.71,"description":"Elie-Joseph; French mathematician (1869-1951).","dimension":"15.6 km","theme":"moon"},{"name":"Cartwright","type":"Impact crater","moon_name":"Moon","lat":-87.65,"lon":46.95,"description":"Mary Lucy; English mathematician (1900-1998).","dimension":"17.0 km","theme":"moon"},{"name":"Carver","type":"Impact crater","moon_name":"Moon","lat":-43.46,"lon":232.4,"description":"George Washington; American botanist (1864-1943).","dimension":"62.5 km","theme":"moon"},{"name":"Casatus","type":"Impact crater","moon_name":"Moon","lat":-72.7,"lon":30.75,"description":"Casati, Paolo; Italian mathematician (1617-1707).","dimension":"102.8 km","theme":"moon"},{"name":"Cassegrain","type":"Impact crater","moon_name":"Moon","lat":-51.95,"lon":246.7,"description":"Laurent; French astronomer, doctor (1629-1693).","dimension":"56.7 km","theme":"moon"},{"name":"Cassini","type":"Impact crater","moon_name":"Moon","lat":40.25,"lon":355.36,"description":"Giovanni Domenico; Italian-French astronomer (1625-1712); Jacques; French astronomer (1677-1756).","dimension":"56.9 km","theme":"moon"},{"name":"Catal\u00e1n","type":"Impact crater","moon_name":"Moon","lat":-45.7,"lon":87.37,"description":"Miguel Antonio; Spanish spectroscopist (1894-1957).","dimension":"26.8 km","theme":"moon"},{"name":"Catena Abulfeda","type":"Catena","moon_name":"Moon","lat":-16.59,"lon":343.3,"description":"Named from nearby crater.","dimension":"210.0 km","theme":"moon"},{"name":"Catena Artamonov","type":"Catena","moon_name":"Moon","lat":26.09,"lon":254.23,"description":"Named from nearby crater.","dimension":"131.2 km","theme":"moon"},{"name":"Catena Brigitte","type":"Catena","moon_name":"Moon","lat":18.5,"lon":332.51,"description":"French female name.","dimension":"7.7 km","theme":"moon"},{"name":"Catena Davy","type":"Catena","moon_name":"Moon","lat":-10.98,"lon":6.27,"description":"Named from nearby crater.","dimension":"52.3 km","theme":"moon"},{"name":"Catena Dziewulski","type":"Catena","moon_name":"Moon","lat":18.78,"lon":259.73,"description":"Named from nearby crater.","dimension":"80.7 km","theme":"moon"},{"name":"Catena Gregory","type":"Catena","moon_name":"Moon","lat":-0.59,"lon":230.2,"description":"Named from nearby crater.","dimension":"148.2 km","theme":"moon"},{"name":"Catena Humboldt","type":"Catena","moon_name":"Moon","lat":-21.98,"lon":275.3,"description":"Named from nearby crater.","dimension":"162.3 km","theme":"moon"},{"name":"Catena Krafft","type":"Catena","moon_name":"Moon","lat":14.91,"lon":72.25,"description":"Named from nearby crater.","dimension":"55.1 km","theme":"moon"},{"name":"Catena Kurchatov","type":"Catena","moon_name":"Moon","lat":37.25,"lon":223.4,"description":"Named from nearby crater.","dimension":"234.9 km","theme":"moon"},{"name":"Catena Leuschner (GDL)","type":"Catena","moon_name":"Moon","lat":5.07,"lon":111.3,"description":"Named from nearby crater; GDL=Gas Dynamics Laboratory","dimension":"200.1 km","theme":"moon"},{"name":"Catena Littrow","type":"Catena","moon_name":"Moon","lat":22.23,"lon":330.39,"description":"Named from nearby crater.","dimension":"10.3 km","theme":"moon"},{"name":"Catena Lucretius (RNII)","type":"Catena","moon_name":"Moon","lat":-4.03,"lon":126.45,"description":"Named from nearby crater; RNII=Rocket Research Institute.","dimension":"232.1 km","theme":"moon"},{"name":"Catena Mendeleev","type":"Catena","moon_name":"Moon","lat":6.63,"lon":220.78,"description":"Named from nearby crater.","dimension":"125.2 km","theme":"moon"},{"name":"Catena Michelson (GIRD)","type":"Catena","moon_name":"Moon","lat":-0.44,"lon":113.58,"description":"Named from nearby crater; GIRD=Group for the Study of Reaction Motion.","dimension":"450.6 km","theme":"moon"},{"name":"Catena Pierre","type":"Catena","moon_name":"Moon","lat":19.76,"lon":31.86,"description":"French male name.","dimension":"9.4 km","theme":"moon"},{"name":"Catena Sumner","type":"Catena","moon_name":"Moon","lat":37.89,"lon":248.09,"description":"Named from nearby crater.","dimension":"220.5 km","theme":"moon"},{"name":"Catena Sylvester","type":"Catena","moon_name":"Moon","lat":79.99,"lon":83.12,"description":"Named from nearby crater.","dimension":"139.0 km","theme":"moon"},{"name":"Catena Taruntius","type":"Catena","moon_name":"Moon","lat":3.04,"lon":311.29,"description":"Named from nearby crater.","dimension":"69.2 km","theme":"moon"},{"name":"Catena Timocharis","type":"Catena","moon_name":"Moon","lat":29.09,"lon":13.21,"description":"Named from nearby crater.","dimension":"48.4 km","theme":"moon"},{"name":"Catena Yuri","type":"Catena","moon_name":"Moon","lat":24.41,"lon":30.38,"description":"Russian male name.","dimension":"4.5 km","theme":"moon"},{"name":"Catharina","type":"Impact crater","moon_name":"Moon","lat":-17.98,"lon":336.45,"description":"St. Catherine of Alexandria; Greek theologian, philosopher (unkn-c. 307).","dimension":"98.8 km","theme":"moon"},{"name":"Cauchy","type":"Impact crater","moon_name":"Moon","lat":9.56,"lon":321.37,"description":"Augustin Louis; French mathematician (1789-1857).","dimension":"11.8 km","theme":"moon"},{"name":"Cavalerius","type":"Impact crater","moon_name":"Moon","lat":5.1,"lon":66.93,"description":"Cavalieri, Buonaventura; Italian mathematician (1598-1647).","dimension":"59.4 km","theme":"moon"},{"name":"Cavendish","type":"Impact crater","moon_name":"Moon","lat":-24.63,"lon":53.78,"description":"Henry; British chemist, physicist (1731-1810).","dimension":"52.6 km","theme":"moon"},{"name":"Caventou","type":"Impact crater","moon_name":"Moon","lat":29.74,"lon":29.38,"description":"Joseph-Bienaim\u00e9; French chemist, pharmacologist (1795-1877).","dimension":"2.8 km","theme":"moon"},{"name":"Cayley","type":"Impact crater","moon_name":"Moon","lat":3.94,"lon":344.91,"description":"Arthur; British astronomer, mathematician (1821-1895).","dimension":"14.2 km","theme":"moon"},{"name":"[Cellini]","type":"Impact crater","moon_name":"Moon","lat":-7.8,"lon":277.0,"description":"Benvenuto; Italian artist, writer (1500-1571).","dimension":"","theme":"moon"},{"name":"Celsius","type":"Impact crater","moon_name":"Moon","lat":-34.1,"lon":339.95,"description":"Anders; Swedish astronomer (1701-1744).","dimension":"39.0 km","theme":"moon"},{"name":"Censorinus","type":"Impact crater","moon_name":"Moon","lat":-0.42,"lon":327.31,"description":"Roman astronomer (fl. A.D. 238).","dimension":"4.1 km","theme":"moon"},{"name":"Cepheus","type":"Impact crater","moon_name":"Moon","lat":40.68,"lon":314.22,"description":"Mythological astronomer, father of Andromeda.","dimension":"39.4 km","theme":"moon"},{"name":"[Cervantes]","type":"Impact crater","moon_name":"Moon","lat":-3.4,"lon":260.8,"description":"Miguel De; Spanish writer (1547-1616).","dimension":"","theme":"moon"},{"name":"Chacornac","type":"Impact crater","moon_name":"Moon","lat":29.88,"lon":328.33,"description":"Jean; French astronomer (1823-1873).","dimension":"50.4 km","theme":"moon"},{"name":"Chadwick","type":"Impact crater","moon_name":"Moon","lat":-52.85,"lon":101.34,"description":"Sir James; British physicist (1891-1974).","dimension":"29.7 km","theme":"moon"},{"name":"Chaffee","type":"Impact crater","moon_name":"Moon","lat":-39.06,"lon":154.63,"description":"Roger Bruce; American aeronautic engineer, astronaut (1935-1967).","dimension":"51.8 km","theme":"moon"},{"name":"Challis","type":"Impact crater","moon_name":"Moon","lat":79.58,"lon":350.91,"description":"James; British astronomer, mathematician, physicist (1803-1882).","dimension":"53.2 km","theme":"moon"},{"name":"Chalonge","type":"Impact crater","moon_name":"Moon","lat":-20.44,"lon":116.35,"description":"Daniel; French astronomer (1895-1977).","dimension":"25.1 km","theme":"moon"},{"name":"Chamberlin","type":"Impact crater","moon_name":"Moon","lat":-58.83,"lon":263.96,"description":"Thomas Chrowder; American geologist (1843-1928).","dimension":"60.4 km","theme":"moon"},{"name":"Champollion","type":"Impact crater","moon_name":"Moon","lat":37.39,"lon":184.97,"description":"Jean-Fran\u00e7ois; French Egyptologist (1790-1832).","dimension":"49.0 km","theme":"moon"},{"name":"Chandler","type":"Impact crater","moon_name":"Moon","lat":43.65,"lon":188.24,"description":"Seth Carlo; American astronomer (1846-1913).","dimension":"88.6 km","theme":"moon"},{"name":"Chang Heng","type":"Impact crater","moon_name":"Moon","lat":18.9,"lon":247.79,"description":"Chinese astronomer (78-139).","dimension":"42.6 km","theme":"moon"},{"name":"Chang-Ngo","type":"Impact crater","moon_name":"Moon","lat":-12.69,"lon":2.16,"description":"Chinese female name.","dimension":"2.3 km","theme":"moon"},{"name":"Chant","type":"Impact crater","moon_name":"Moon","lat":-40.14,"lon":109.46,"description":"Clarence Augustus; Canadian astronomer, physicist (1865-1956).","dimension":"33.6 km","theme":"moon"},{"name":"Chaplygin","type":"Impact crater","moon_name":"Moon","lat":-5.76,"lon":209.76,"description":"Sergei Alekseevich; Soviet mathematician, engineer (1869-1942).","dimension":"123.4 km","theme":"moon"},{"name":"Chapman","type":"Impact crater","moon_name":"Moon","lat":50.09,"lon":100.47,"description":"Sydney; British geophysicist (1888-1970).","dimension":"76.8 km","theme":"moon"},{"name":"Chappe","type":"Impact crater","moon_name":"Moon","lat":-61.29,"lon":91.24,"description":"d'Auteroche, Jean-Baptiste; French astronomer (1728-1769).","dimension":"55.8 km","theme":"moon"},{"name":"Chappell","type":"Impact crater","moon_name":"Moon","lat":54.53,"lon":176.77,"description":"James Frederick; American astronomer (1891-1964).","dimension":"73.9 km","theme":"moon"},{"name":"Charles","type":"Impact crater","moon_name":"Moon","lat":29.9,"lon":26.37,"description":"French male name.","dimension":"1.3 km","theme":"moon"},{"name":"Charlier","type":"Impact crater","moon_name":"Moon","lat":36.22,"lon":131.69,"description":"Carl Wilhelm Ludwig; Swedish astronomer (1862-1934).","dimension":"109.9 km","theme":"moon"},{"name":"Chaucer","type":"Impact crater","moon_name":"Moon","lat":3.39,"lon":140.71,"description":"Geoffrey; British writer, astronomer (c. 1340-1400).","dimension":"45.5 km","theme":"moon"},{"name":"Chauvenet","type":"Impact crater","moon_name":"Moon","lat":-11.64,"lon":222.8,"description":"William; American astronomer, mathematician (1820-1870).","dimension":"77.7 km","theme":"moon"},{"name":"Chawla","type":"Impact crater","moon_name":"Moon","lat":-42.48,"lon":147.49,"description":"Kalpana; American astronaut, Space Shuttle Columbia Mission Specialist (1961-2003).","dimension":"14.2 km","theme":"moon"},{"name":"Chebyshev","type":"Impact crater","moon_name":"Moon","lat":-34.01,"lon":132.88,"description":"Pafnuty Lvovich; Russian mathematician (1821-1894).","dimension":"179.1 km","theme":"moon"},{"name":"[Chekov]","type":"Impact crater","moon_name":"Moon","lat":-6.6,"lon":278.0,"description":"Anton Pavlovich; Russian author (1860-1904).","dimension":"","theme":"moon"},{"name":"[Chenier]","type":"Impact crater","moon_name":"Moon","lat":-17.7,"lon":227.6,"description":"Andre Marie; French poet (1762-1794).","dimension":"","theme":"moon"},{"name":"Chernyshev","type":"Impact crater","moon_name":"Moon","lat":47.01,"lon":185.59,"description":"Nikolaj Gavrilovich; Soviet rocketry engineer (1906-1963).","dimension":"59.3 km","theme":"moon"},{"name":"C. Herschel","type":"Impact crater","moon_name":"Moon","lat":34.48,"lon":31.29,"description":"Caroline Lucretia; British astronomer (1750-1848).","dimension":"13.7 km","theme":"moon"},{"name":"Chevallier","type":"Impact crater","moon_name":"Moon","lat":45.01,"lon":308.43,"description":"Temple; British astronomer (1794-1873).","dimension":"51.8 km","theme":"moon"},{"name":"Chien-Shiung Wu","type":"Impact crater","moon_name":"Moon","lat":-41.88,"lon":153.68,"description":"Chinese-American physicist (1912-1997).","dimension":"0.7 km","theme":"moon"},{"name":"Ching-Te","type":"Impact crater","moon_name":"Moon","lat":20.02,"lon":330.03,"description":"Chinese male name.","dimension":"3.7 km","theme":"moon"},{"name":"Chladni","type":"Impact crater","moon_name":"Moon","lat":3.99,"lon":358.88,"description":"Ernst Florens Friedrich; German physicist (1756-1827).","dimension":"13.1 km","theme":"moon"},{"name":"Chr\u00e9tien","type":"Impact crater","moon_name":"Moon","lat":-46.11,"lon":197.01,"description":"Henri; French mathematician, astronomer (1870-1956).","dimension":"98.6 km","theme":"moon"},{"name":"Cichus","type":"Impact crater","moon_name":"Moon","lat":-33.29,"lon":21.18,"description":"Francesco Degli Stabili (Cecco D'Ascoli); Italian astronomer (1257-1327).","dimension":"39.2 km","theme":"moon"},{"name":"Cinco","type":"Astronaut-named","moon_name":"Moon","lat":-9.1,"lon":344.48,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.1 km","theme":"moon"},{"name":"Clairaut","type":"Impact crater","moon_name":"Moon","lat":-47.84,"lon":346.14,"description":"Alexis Claude; French mathematician (1713-1765).","dimension":"76.9 km","theme":"moon"},{"name":"Clark","type":"Impact crater","moon_name":"Moon","lat":-38.67,"lon":240.65,"description":"Alvan; American astronomer (1804-1887); Alvan G.; American astronomer, optician (1832-1897).","dimension":"52.1 km","theme":"moon"},{"name":"Clausius","type":"Impact crater","moon_name":"Moon","lat":-36.9,"lon":43.93,"description":"Rudolf Julius Emmanuel; German physicist (1822-1888).","dimension":"24.2 km","theme":"moon"},{"name":"Clavius","type":"Impact crater","moon_name":"Moon","lat":-58.62,"lon":14.73,"description":"Christopher Klau; German mathematician (1537-1612).","dimension":"230.8 km","theme":"moon"},{"name":"Cleomedes","type":"Impact crater","moon_name":"Moon","lat":27.6,"lon":304.5,"description":"Greek astronomer (unkn-c. 50 B.C.).","dimension":"130.8 km","theme":"moon"},{"name":"Cleostratus","type":"Impact crater","moon_name":"Moon","lat":60.32,"lon":77.4,"description":"Greek astronomer (unkn-c. 500 B.C.).","dimension":"63.2 km","theme":"moon"},{"name":"Clerke","type":"Impact crater","moon_name":"Moon","lat":21.68,"lon":330.2,"description":"Agnes Mary; British astronomer (1842-1907).","dimension":"6.7 km","theme":"moon"},{"name":"C. Mayer","type":"Impact crater","moon_name":"Moon","lat":63.26,"lon":342.69,"description":"Christian; German astronomer, mathematician, physicist (1719-1783).","dimension":"37.5 km","theme":"moon"},{"name":"Coblentz","type":"Impact crater","moon_name":"Moon","lat":-38.09,"lon":233.35,"description":"William Weber; American physicist, astronomer (1873-1962).","dimension":"32.7 km","theme":"moon"},{"name":"Cochise","type":"Astronaut-named","moon_name":"Moon","lat":20.25,"lon":329.16,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.6 km","theme":"moon"},{"name":"Cockcroft","type":"Impact crater","moon_name":"Moon","lat":31.09,"lon":162.91,"description":"Sir John Douglas; British nuclear physicist; Nobel laureate (1897-1967).","dimension":"92.2 km","theme":"moon"},{"name":"Collins","type":"Impact crater","moon_name":"Moon","lat":1.3,"lon":336.29,"description":"Michael; American astronaut (1930-Live).","dimension":"2.6 km","theme":"moon"},{"name":"Colombo","type":"Impact crater","moon_name":"Moon","lat":-15.26,"lon":313.98,"description":"Columbus, Christopher; Spanish explorer (1451-1506).","dimension":"79.0 km","theme":"moon"},{"name":"Compton","type":"Impact crater","moon_name":"Moon","lat":55.86,"lon":255.95,"description":"Arthur Holly; American physicist, Nobel laureate (1892-1962); Karl Taylor; American physicist (1887-1954).","dimension":"164.6 km","theme":"moon"},{"name":"Comrie","type":"Impact crater","moon_name":"Moon","lat":23.39,"lon":113.17,"description":"Leslie John; British astronomer (1893-1950).","dimension":"59.2 km","theme":"moon"},{"name":"Comstock","type":"Impact crater","moon_name":"Moon","lat":21.59,"lon":122.05,"description":"George Cary; American astronomer (1855-1934).","dimension":"73.2 km","theme":"moon"},{"name":"Condon","type":"Impact crater","moon_name":"Moon","lat":1.87,"lon":299.64,"description":"Edward Uhler; American physicist (1902-1974).","dimension":"34.9 km","theme":"moon"},{"name":"Condorcet","type":"Impact crater","moon_name":"Moon","lat":12.1,"lon":290.42,"description":"Jean de; French mathematician (1743-1794).","dimension":"74.8 km","theme":"moon"},{"name":"Cone","type":"Astronaut-named","moon_name":"Moon","lat":-3.62,"lon":17.43,"description":"Astronaut-named feature, Apollo 14 site.","dimension":"0.3 km","theme":"moon"},{"name":"Congreve","type":"Impact crater","moon_name":"Moon","lat":-0.28,"lon":167.84,"description":"Sir William; British rocket engineer, inventor (1772-1828).","dimension":"57.6 km","theme":"moon"},{"name":"Conon","type":"Impact crater","moon_name":"Moon","lat":21.66,"lon":358.05,"description":"Conon of Samos; Greek astronomer (c. 260 B.C.).","dimension":"21.0 km","theme":"moon"},{"name":"Cook","type":"Impact crater","moon_name":"Moon","lat":-17.5,"lon":311.19,"description":"James; British explorer (1728-1779).","dimension":"45.2 km","theme":"moon"},{"name":"Cooper","type":"Impact crater","moon_name":"Moon","lat":52.68,"lon":184.08,"description":"John Cobb; American jurist, scholar (1887-1967).","dimension":"51.9 km","theme":"moon"},{"name":"Copernicus","type":"Impact crater","moon_name":"Moon","lat":9.62,"lon":20.08,"description":"Nicholas; Polish astronomer (1473-1543).","dimension":"96.1 km","theme":"moon"},{"name":"Cori","type":"Impact crater","moon_name":"Moon","lat":-50.48,"lon":152.91,"description":"Gerty Theresa Radnitz; Czech-American physiologist; Nobel laureate (1896-1957).","dimension":"67.2 km","theme":"moon"},{"name":"Coriolis","type":"Impact crater","moon_name":"Moon","lat":0.56,"lon":188.2,"description":"Gaspard-Gustave de; French physicist (1792-1843).","dimension":"78.6 km","theme":"moon"},{"name":"[Corneille]","type":"Impact crater","moon_name":"Moon","lat":12.3,"lon":225.2,"description":"Pierre; French dramatist (1606-1684).","dimension":"","theme":"moon"},{"name":"Couder","type":"Impact crater","moon_name":"Moon","lat":-4.9,"lon":92.58,"description":"Andr\u00e9; French astronomer (1897-1979).","dimension":"18.6 km","theme":"moon"},{"name":"Coulomb","type":"Impact crater","moon_name":"Moon","lat":54.46,"lon":115.0,"description":"Charles-Augustin de; French physicist (1736-1806).","dimension":"89.7 km","theme":"moon"},{"name":"Courtney","type":"Impact crater","moon_name":"Moon","lat":25.14,"lon":30.81,"description":"English male name.","dimension":"1.2 km","theme":"moon"},{"name":"Cremona","type":"Impact crater","moon_name":"Moon","lat":67.24,"lon":90.86,"description":"Antonio Luigi Gaudenzio Guiseppe; Italian mathematician (1830-1903).","dimension":"85.1 km","theme":"moon"},{"name":"Crescent","type":"Astronaut-named","moon_name":"Moon","lat":-3.0,"lon":23.43,"description":"Astronaut-named feature, Apollo 12 site.","dimension":"2.0 km","theme":"moon"},{"name":"Crile","type":"Impact crater","moon_name":"Moon","lat":14.21,"lon":314.02,"description":"George Washington; American doctor (1864-1943).","dimension":"9.3 km","theme":"moon"},{"name":"Crocco","type":"Impact crater","moon_name":"Moon","lat":-46.98,"lon":209.49,"description":"Gaetano Arturo; Italian aeronautical engineer (1877-1968).","dimension":"67.5 km","theme":"moon"},{"name":"Crommelin","type":"Impact crater","moon_name":"Moon","lat":-67.46,"lon":147.95,"description":"Andrew Claude De La Cherois; British astronomer (1865-1939).","dimension":"93.5 km","theme":"moon"},{"name":"Crookes","type":"Impact crater","moon_name":"Moon","lat":-10.4,"lon":165.1,"description":"Sir William; British physicist, chemist (1832-1919).","dimension":"48.2 km","theme":"moon"},{"name":"Crozier","type":"Impact crater","moon_name":"Moon","lat":-13.56,"lon":309.28,"description":"Francis Rawdon Moira; British explorer (1796-1848).","dimension":"22.5 km","theme":"moon"},{"name":"Cr\u00fcger","type":"Impact crater","moon_name":"Moon","lat":-16.68,"lon":66.96,"description":"Peter; German mathematician (1580-1639).","dimension":"45.9 km","theme":"moon"},{"name":"Ctesibius","type":"Impact crater","moon_name":"Moon","lat":0.83,"lon":241.25,"description":"Egyptian physicist (unkn-c. 100 B.C.).","dimension":"32.1 km","theme":"moon"},{"name":"Curie","type":"Impact crater","moon_name":"Moon","lat":-23.05,"lon":267.72,"description":"Pierre; French physicist, chemist; Nobel laureate (1859-1906).","dimension":"138.9 km","theme":"moon"},{"name":"Curtis","type":"Impact crater","moon_name":"Moon","lat":14.57,"lon":303.21,"description":"Heber Doust; American astronomer (1872-1942).","dimension":"2.9 km","theme":"moon"},{"name":"Curtius","type":"Impact crater","moon_name":"Moon","lat":-67.08,"lon":355.6,"description":"Curtz, Albert; German astronomer (1600-1671).","dimension":"99.3 km","theme":"moon"},{"name":"Cusanus","type":"Impact crater","moon_name":"Moon","lat":71.82,"lon":290.6,"description":"Nikolaus Krebs; German mathematician, philosopher (1401-1464).","dimension":"60.9 km","theme":"moon"},{"name":"Cuvier","type":"Impact crater","moon_name":"Moon","lat":-50.29,"lon":350.31,"description":"Georges; French natural scientist, paleontologist (1769-1832).","dimension":"77.3 km","theme":"moon"},{"name":"Cyrano","type":"Impact crater","moon_name":"Moon","lat":-20.37,"lon":202.63,"description":"Cyrano De Bergerac Savinien; French writer (1615-1655).","dimension":"79.6 km","theme":"moon"},{"name":"Cyrillus","type":"Impact crater","moon_name":"Moon","lat":-13.29,"lon":335.93,"description":"Saint Cyril; Egyptian theologian, chronologist (unkn-A.D. 444).","dimension":"98.1 km","theme":"moon"},{"name":"Cysatus","type":"Impact crater","moon_name":"Moon","lat":-66.21,"lon":6.34,"description":"Cysat, Jean-Baptiste; Swiss mathematician, astronomer (1588-1657).","dimension":"47.8 km","theme":"moon"},{"name":"Daedalus","type":"Impact crater","moon_name":"Moon","lat":-5.83,"lon":180.6,"description":"Greek mythological character.","dimension":"93.6 km","theme":"moon"},{"name":"Dag","type":"Impact crater","moon_name":"Moon","lat":18.71,"lon":354.74,"description":"Scandinavian male name.","dimension":"0.4 km","theme":"moon"},{"name":"Daguerre","type":"Impact crater","moon_name":"Moon","lat":-11.91,"lon":326.39,"description":"Louis-Jacques-Mand\u00e9; French artist, chemist, photographer (1789-1851).","dimension":"45.8 km","theme":"moon"},{"name":"Dale","type":"Impact crater","moon_name":"Moon","lat":-9.56,"lon":277.07,"description":"Sir Henry Hallett; British physiologist; Nobel laureate (1875-1968).","dimension":"23.4 km","theme":"moon"},{"name":"d'Alembert","type":"Impact crater","moon_name":"Moon","lat":51.07,"lon":195.11,"description":"Jean-Le-Rond; French mathematician, physicist (1717-1783).","dimension":"233.6 km","theme":"moon"},{"name":"Dalton","type":"Impact crater","moon_name":"Moon","lat":17.07,"lon":84.45,"description":"John; British chemist, physicist (1766-1844).","dimension":"60.7 km","theme":"moon"},{"name":"Daly","type":"Impact crater","moon_name":"Moon","lat":5.74,"lon":300.5,"description":"Reginald Aldworth; Canadian-born American geologist (1871-1957).","dimension":"15.0 km","theme":"moon"},{"name":"Damoiseau","type":"Impact crater","moon_name":"Moon","lat":-4.85,"lon":61.25,"description":"Baron Marie-Charles-Theodor de; French astronomer (1768-1846).","dimension":"36.7 km","theme":"moon"},{"name":"Daniell","type":"Impact crater","moon_name":"Moon","lat":35.42,"lon":328.84,"description":"John Frederick; British physicist, chemist, meteorologist (1790-1845).","dimension":"28.2 km","theme":"moon"},{"name":"Danjon","type":"Impact crater","moon_name":"Moon","lat":-11.42,"lon":236.1,"description":"Andre; French astronomer (1890-1967).","dimension":"69.3 km","theme":"moon"},{"name":"Dante","type":"Impact crater","moon_name":"Moon","lat":25.36,"lon":180.0,"description":"Alighieri; Italian poet (1265-1321).","dimension":"53.8 km","theme":"moon"},{"name":"[Dario]","type":"Impact crater","moon_name":"Moon","lat":-11.3,"lon":269.3,"description":"Ruben; Nicaraguan author (1867-1916).","dimension":"","theme":"moon"},{"name":"Darney","type":"Impact crater","moon_name":"Moon","lat":-14.61,"lon":23.57,"description":"Maurice; French astronomer (1882-1958).","dimension":"14.8 km","theme":"moon"},{"name":"D'Arrest","type":"Impact crater","moon_name":"Moon","lat":2.26,"lon":345.4,"description":"Heinrich Louis; German astronomer (1822-1875).","dimension":"29.7 km","theme":"moon"},{"name":"D'Arsonval","type":"Impact crater","moon_name":"Moon","lat":-10.31,"lon":235.41,"description":"Jacques Ars\u00e8ne; French physicist (1851-1940).","dimension":"30.4 km","theme":"moon"},{"name":"Darwin","type":"Impact crater","moon_name":"Moon","lat":-19.93,"lon":69.21,"description":"Charles; British natural scientist (1809-1882).","dimension":"122.2 km","theme":"moon"},{"name":"Das","type":"Impact crater","moon_name":"Moon","lat":-26.49,"lon":137.05,"description":"Amil Kumar; Indian astronomer (1902-1961).","dimension":"36.0 km","theme":"moon"},{"name":"Daubr\u00e9e","type":"Impact crater","moon_name":"Moon","lat":15.73,"lon":345.25,"description":"Gabriel-Auguste; French geologist (1814-1896).","dimension":"14.7 km","theme":"moon"},{"name":"da Vinci","type":"Impact crater","moon_name":"Moon","lat":9.1,"lon":315.05,"description":"Leonardo; Italian artist, inventor, mathematician (1452-1519).","dimension":"37.5 km","theme":"moon"},{"name":"Davisson","type":"Impact crater","moon_name":"Moon","lat":-37.93,"lon":174.97,"description":"Clinton Joseph; American physicist; Nobel laureate (1881-1958).","dimension":"92.5 km","theme":"moon"},{"name":"Davy","type":"Impact crater","moon_name":"Moon","lat":-11.85,"lon":8.15,"description":"Humphry; British physicist (1778-1829).","dimension":"33.9 km","theme":"moon"},{"name":"Dawa","type":"Impact crater","moon_name":"Moon","lat":-85.45,"lon":328.34,"description":"Tibetan male first name.","dimension":"0.7 km","theme":"moon"},{"name":"Dawes","type":"Impact crater","moon_name":"Moon","lat":17.21,"lon":333.66,"description":"William Rutter; British astronomer (1799-1868).","dimension":"17.6 km","theme":"moon"},{"name":"Dawson","type":"Impact crater","moon_name":"Moon","lat":-66.99,"lon":135.05,"description":"Bernhard Hildebrandt; Argentinean astronomer (1890-1960).","dimension":"44.3 km","theme":"moon"},{"name":"D. Brown","type":"Impact crater","moon_name":"Moon","lat":-41.65,"lon":147.16,"description":"David McDowell; American astronaut, Space Shuttle Columbia Mission Specialist (1956-2003).","dimension":"16.1 km","theme":"moon"},{"name":"Debes","type":"Impact crater","moon_name":"Moon","lat":29.47,"lon":308.38,"description":"Ernst; German cartographer (1840-1923).","dimension":"31.9 km","theme":"moon"},{"name":"Debus","type":"Impact crater","moon_name":"Moon","lat":-10.68,"lon":260.32,"description":"Kurt Heinrich; German physicist (1908-1983).","dimension":"19.8 km","theme":"moon"},{"name":"Debye","type":"Impact crater","moon_name":"Moon","lat":49.43,"lon":176.03,"description":"Peter Joseph William; Dutch physicist, chemist; Nobel laureate (1884-1966).","dimension":"127.0 km","theme":"moon"},{"name":"Dechen","type":"Impact crater","moon_name":"Moon","lat":46.12,"lon":68.18,"description":"Ernst Heinrich Karl von; German geologist, mineralogist (1800-1889).","dimension":"12.0 km","theme":"moon"},{"name":"[Defoe]","type":"Impact crater","moon_name":"Moon","lat":-6.0,"lon":279.5,"description":"Daniel; British author (c. 1661-1731).","dimension":"","theme":"moon"},{"name":"De Forest","type":"Impact crater","moon_name":"Moon","lat":-76.94,"lon":163.33,"description":"Lee; American inventor (1873-1961).","dimension":"56.3 km","theme":"moon"},{"name":"de Gasparis","type":"Impact crater","moon_name":"Moon","lat":-25.83,"lon":50.83,"description":"Annibale; Italian astronomer (1819-1892).","dimension":"30.9 km","theme":"moon"},{"name":"de Gerlache","type":"Impact crater","moon_name":"Moon","lat":-88.48,"lon":88.34,"description":"Adrien; Belgian Antarctic explorer (1866-1934).","dimension":"32.7 km","theme":"moon"},{"name":"Delambre","type":"Impact crater","moon_name":"Moon","lat":-1.94,"lon":342.61,"description":"Jean-Baptiste Joseph; French astronomer (1749-1822).","dimension":"51.5 km","theme":"moon"},{"name":"De La Rue","type":"Impact crater","moon_name":"Moon","lat":59.02,"lon":307.16,"description":"Warren; British astronomer (1815-1889).","dimension":"135.2 km","theme":"moon"},{"name":"Delaunay","type":"Impact crater","moon_name":"Moon","lat":-22.26,"lon":357.38,"description":"Charles-Eug\u00e8ne; French astronomer (1816-1872).","dimension":"44.6 km","theme":"moon"},{"name":"Delia","type":"Impact crater","moon_name":"Moon","lat":-10.91,"lon":6.13,"description":"Greek female name.","dimension":"1.6 km","theme":"moon"},{"name":"Delisle","type":"Impact crater","moon_name":"Moon","lat":29.98,"lon":34.68,"description":"Joseph Nicolas; French astronomer (1688-1768).","dimension":"24.8 km","theme":"moon"},{"name":"Dellinger","type":"Impact crater","moon_name":"Moon","lat":-6.87,"lon":219.3,"description":"John Howard; American physicist (1886-1962).","dimension":"82.0 km","theme":"moon"},{"name":"Delmotte","type":"Impact crater","moon_name":"Moon","lat":27.16,"lon":299.8,"description":"Gabriel; French astronomer (1876-1950).","dimension":"32.2 km","theme":"moon"},{"name":"Delporte","type":"Impact crater","moon_name":"Moon","lat":-15.89,"lon":238.45,"description":"Eug\u00e8ne Joseph; Belgian astronomer (1882-1955).","dimension":"42.5 km","theme":"moon"},{"name":"Deluc","type":"Impact crater","moon_name":"Moon","lat":-55.02,"lon":2.98,"description":"Jean Andre; Swiss geologist, physicist (1727-1817).","dimension":"45.7 km","theme":"moon"},{"name":"Dembowski","type":"Impact crater","moon_name":"Moon","lat":2.88,"lon":352.73,"description":"Baron Ercole; Italian astronomer (1815-1881).","dimension":"26.1 km","theme":"moon"},{"name":"Democritus","type":"Impact crater","moon_name":"Moon","lat":62.31,"lon":325.01,"description":"Greek astronomer, philosopher (c. 460-360 B.C.).","dimension":"37.8 km","theme":"moon"},{"name":"Demonax","type":"Impact crater","moon_name":"Moon","lat":-78.09,"lon":300.64,"description":"Greek philosopher (fl. 2nd century A.D.).","dimension":"121.9 km","theme":"moon"},{"name":"De Moraes","type":"Impact crater","moon_name":"Moon","lat":49.38,"lon":217.0,"description":"Abraao de; Brazilian astronomer (1916-1970).","dimension":"54.4 km","theme":"moon"},{"name":"De Morgan","type":"Impact crater","moon_name":"Moon","lat":3.31,"lon":345.11,"description":"Augustus; British mathematician (1806-1871).","dimension":"9.7 km","theme":"moon"},{"name":"Denning","type":"Impact crater","moon_name":"Moon","lat":-16.26,"lon":217.24,"description":"William Fredrick; British astronomer (1848-1931).","dimension":"44.2 km","theme":"moon"},{"name":"De Roy","type":"Impact crater","moon_name":"Moon","lat":-55.24,"lon":98.99,"description":"Felix; Belgian astronomer (1883-1942).","dimension":"43.5 km","theme":"moon"},{"name":"Desargues","type":"Impact crater","moon_name":"Moon","lat":70.25,"lon":73.42,"description":"G\u00e9rard; French mathematician, engineer (1593-1662).","dimension":"84.8 km","theme":"moon"},{"name":"Descartes","type":"Impact crater","moon_name":"Moon","lat":-11.74,"lon":344.33,"description":"Ren\u00e9; French mathematician, philosopher (1596-1650).","dimension":"47.7 km","theme":"moon"},{"name":"Deseilligny","type":"Impact crater","moon_name":"Moon","lat":21.13,"lon":339.41,"description":"Jules Alfred Pierrot; French selenographer (1868-1918).","dimension":"6.0 km","theme":"moon"},{"name":"De Sitter","type":"Impact crater","moon_name":"Moon","lat":79.81,"lon":321.43,"description":"Willem; Dutch astronomer (1872-1934).","dimension":"63.8 km","theme":"moon"},{"name":"Deslandres","type":"Impact crater","moon_name":"Moon","lat":-32.55,"lon":5.57,"description":"Henri Alexandre; French astrophysicist (1853-1948).","dimension":"227.0 km","theme":"moon"},{"name":"Deutsch","type":"Impact crater","moon_name":"Moon","lat":24.35,"lon":249.09,"description":"Armin Joseph; American astronomer (1918-1969).","dimension":"73.3 km","theme":"moon"},{"name":"De Vico","type":"Impact crater","moon_name":"Moon","lat":-19.71,"lon":60.32,"description":"Francesco; Italian astronomer (1805-1848).","dimension":"22.1 km","theme":"moon"},{"name":"De Vries","type":"Impact crater","moon_name":"Moon","lat":-19.68,"lon":176.78,"description":"Hugo Marie; Dutch botanist (1848-1935).","dimension":"57.5 km","theme":"moon"},{"name":"Dewar","type":"Impact crater","moon_name":"Moon","lat":-2.61,"lon":194.38,"description":"Sir James; British chemist (1842-1923).","dimension":"46.3 km","theme":"moon"},{"name":"Diana","type":"Impact crater","moon_name":"Moon","lat":14.29,"lon":324.35,"description":"Latin female name.","dimension":"1.6 km","theme":"moon"},{"name":"Diderot","type":"Impact crater","moon_name":"Moon","lat":-20.42,"lon":238.46,"description":"Denis; French philosopher (1713-1784).","dimension":"20.0 km","theme":"moon"},{"name":"Dionysius","type":"Impact crater","moon_name":"Moon","lat":2.77,"lon":342.71,"description":"St. Dionysius the Areopagite; Greek astronomer (fl. 1st century A.D.).","dimension":"17.2 km","theme":"moon"},{"name":"Diophantus","type":"Impact crater","moon_name":"Moon","lat":27.62,"lon":34.3,"description":"Greek mathematician (unkn-c. A.D. 300).","dimension":"17.6 km","theme":"moon"},{"name":"Dirichlet","type":"Impact crater","moon_name":"Moon","lat":10.58,"lon":152.05,"description":"Peter Gustav Lejeune; German mathematician (1805-1859).","dimension":"47.2 km","theme":"moon"},{"name":"Dobrovol'skiy","type":"Impact crater","moon_name":"Moon","lat":-12.83,"lon":230.32,"description":"Georgy Timofeyevich; Soviet cosmonaut (1928-1971).","dimension":"38.4 km","theme":"moon"},{"name":"Doerfel","type":"Impact crater","moon_name":"Moon","lat":-68.97,"lon":108.53,"description":"Georg Samuel; German astronomer (1643-1688).","dimension":"68.6 km","theme":"moon"},{"name":"Dollond","type":"Impact crater","moon_name":"Moon","lat":-10.48,"lon":345.59,"description":"John; British optician (1706-1761).","dimension":"11.0 km","theme":"moon"},{"name":"Donati","type":"Impact crater","moon_name":"Moon","lat":-20.69,"lon":354.9,"description":"Giovanni Battista; Italian astronomer (1826-1873).","dimension":"35.8 km","theme":"moon"},{"name":"Donna","type":"Impact crater","moon_name":"Moon","lat":7.22,"lon":321.7,"description":"Italian female name.","dimension":"1.8 km","theme":"moon"},{"name":"Donner","type":"Impact crater","moon_name":"Moon","lat":-31.35,"lon":262.01,"description":"Anders Severin; Finnish astronomer (1854-1938).","dimension":"55.0 km","theme":"moon"},{"name":"Doppelmayer","type":"Impact crater","moon_name":"Moon","lat":-28.48,"lon":41.51,"description":"Johann Gabriel; German mathematician, astronomer (1671-1750).","dimension":"65.1 km","theme":"moon"},{"name":"Doppler","type":"Impact crater","moon_name":"Moon","lat":-12.58,"lon":159.84,"description":"Johann Christian; Austrian physicist, mathematician, astronomer (1803-1853).","dimension":"101.8 km","theme":"moon"},{"name":"Dorsa Aldrovandi","type":"Dorsum","moon_name":"Moon","lat":23.61,"lon":331.35,"description":"Ulisse; Italian Earth scientist (1522-1605).","dimension":"126.8 km","theme":"moon"},{"name":"Dorsa Andrusov","type":"Dorsum","moon_name":"Moon","lat":-1.56,"lon":303.23,"description":"Nikolai Ivanovich; Soviet geologist (1861-1924).","dimension":"81.0 km","theme":"moon"},{"name":"Dorsa Argand","type":"Dorsum","moon_name":"Moon","lat":28.29,"lon":40.34,"description":"\u00c9mile; Swiss geologist (1879-1940).","dimension":"91.9 km","theme":"moon"},{"name":"Dorsa Barlow","type":"Dorsum","moon_name":"Moon","lat":14.04,"lon":329.43,"description":"William; British crystallographer (1845-1934).","dimension":"112.6 km","theme":"moon"},{"name":"Dorsa Burnet","type":"Dorsum","moon_name":"Moon","lat":26.18,"lon":56.78,"description":"Thomas; British Earth scientist (1635-1715).","dimension":"195.0 km","theme":"moon"},{"name":"Dorsa Cato","type":"Dorsum","moon_name":"Moon","lat":0.21,"lon":312.3,"description":"Marcus Porcius; Roman geological engineer (234-149 B.C.).","dimension":"128.6 km","theme":"moon"},{"name":"Dorsa Dana","type":"Dorsum","moon_name":"Moon","lat":2.26,"lon":270.4,"description":"James Dwight; American Earth scientist (1813-1895).","dimension":"82.3 km","theme":"moon"},{"name":"Dorsa Ewing","type":"Dorsum","moon_name":"Moon","lat":-11.06,"lon":38.31,"description":"William Maurice; American geophysicist (1906-1974).","dimension":"261.6 km","theme":"moon"},{"name":"Dorsa Geikie","type":"Dorsum","moon_name":"Moon","lat":-4.21,"lon":307.17,"description":"Sir Archibald; Scottish geologist (1835-1924).","dimension":"218.3 km","theme":"moon"},{"name":"Dorsa Harker","type":"Dorsum","moon_name":"Moon","lat":13.79,"lon":296.35,"description":"Alfred; British petrologist (1859-1939).","dimension":"213.1 km","theme":"moon"},{"name":"Dorsa Lister","type":"Dorsum","moon_name":"Moon","lat":19.76,"lon":336.48,"description":"Martin; British stratigrapher, zoologist (1639-1712).","dimension":"180.1 km","theme":"moon"},{"name":"Dorsa Mawson","type":"Dorsum","moon_name":"Moon","lat":-7.77,"lon":307.52,"description":"Douglas; English-Australian Antarctic explorer (1882-1958).","dimension":"142.7 km","theme":"moon"},{"name":"Dorsa Rubey","type":"Dorsum","moon_name":"Moon","lat":-9.88,"lon":42.36,"description":"William Walden; American geologist (1898-1974).","dimension":"100.6 km","theme":"moon"},{"name":"Dorsa Smirnov","type":"Dorsum","moon_name":"Moon","lat":26.41,"lon":334.47,"description":"Sergei Sergeevich; Soviet Earth scientist (1895-1947).","dimension":"221.8 km","theme":"moon"},{"name":"Dorsa Sorby","type":"Dorsum","moon_name":"Moon","lat":18.65,"lon":346.3,"description":"Henry Clifton; British Earth scientist (1826-1908).","dimension":"76.0 km","theme":"moon"},{"name":"Dorsa Stille","type":"Dorsum","moon_name":"Moon","lat":26.91,"lon":18.85,"description":"Hans; German Earth scientist (1876-1966).","dimension":"66.3 km","theme":"moon"},{"name":"Dorsa Tetyaev","type":"Dorsum","moon_name":"Moon","lat":20.02,"lon":295.94,"description":"Mikhail Mikhailovich; Soviet geologist (1882-1956).","dimension":"187.5 km","theme":"moon"},{"name":"Dorsa Whiston","type":"Dorsum","moon_name":"Moon","lat":29.77,"lon":56.96,"description":"William; British mathematician, astronomer (1667-1752).","dimension":"138.9 km","theme":"moon"},{"name":"Dorsum Arduino","type":"Dorsum","moon_name":"Moon","lat":24.77,"lon":36.27,"description":"Giovanni; Italian Earth scientist (1713-1795).","dimension":"99.7 km","theme":"moon"},{"name":"Dorsum Azara","type":"Dorsum","moon_name":"Moon","lat":26.86,"lon":340.83,"description":"Felix De; Spanish Earth scientist (1746-1811).","dimension":"103.2 km","theme":"moon"},{"name":"Dorsum Bucher","type":"Dorsum","moon_name":"Moon","lat":30.76,"lon":39.55,"description":"Walter Herman; American geologist (1889-1965).","dimension":"84.7 km","theme":"moon"},{"name":"Dorsum Buckland","type":"Dorsum","moon_name":"Moon","lat":19.43,"lon":345.7,"description":"William; British Earth scientist (1784-1856).","dimension":"369.1 km","theme":"moon"},{"name":"Dorsum Cayeux","type":"Dorsum","moon_name":"Moon","lat":0.76,"lon":308.78,"description":"Lucien; French sedimentary petrographer (1864-1944).","dimension":"95.1 km","theme":"moon"},{"name":"Dorsum Cloos","type":"Dorsum","moon_name":"Moon","lat":1.15,"lon":269.59,"description":"Hans; German Earth scientist (1885-1951).","dimension":"103.1 km","theme":"moon"},{"name":"Dorsum Cushman","type":"Dorsum","moon_name":"Moon","lat":1.42,"lon":310.81,"description":"Joseph Augustine; American micropaleontologist (1881-1949).","dimension":"85.7 km","theme":"moon"},{"name":"Dorsum Gast","type":"Dorsum","moon_name":"Moon","lat":24.38,"lon":351.29,"description":"Paul Werner; American geochemist, geologist (1930-1973).","dimension":"64.9 km","theme":"moon"},{"name":"Dorsum Grabau","type":"Dorsum","moon_name":"Moon","lat":29.76,"lon":14.19,"description":"Amadeus William; American paleontologist (1870-1946).","dimension":"123.7 km","theme":"moon"},{"name":"Dorsum Guettard","type":"Dorsum","moon_name":"Moon","lat":-9.92,"lon":18.26,"description":"Jean-Etienne; French geologist, mineralogist (1715-1786).","dimension":"40.5 km","theme":"moon"},{"name":"Dorsum Heim","type":"Dorsum","moon_name":"Moon","lat":32.2,"lon":29.83,"description":"Albert; Swiss Earth scientist (1849-1937).","dimension":"146.8 km","theme":"moon"},{"name":"Dorsum Higazy","type":"Dorsum","moon_name":"Moon","lat":27.93,"lon":17.47,"description":"Riad Abdel-Megid; Egyptian Earth scientist (1919-1967).","dimension":"63.1 km","theme":"moon"},{"name":"[Dorsum Lambert]","type":"Dorsum","moon_name":"Moon","lat":25.8,"lon":21.0,"description":"Johann Heinrich; German astronomer.","dimension":"","theme":"moon"},{"name":"Dorsum Nicol","type":"Dorsum","moon_name":"Moon","lat":18.32,"lon":337.34,"description":"William; Scottish physicist (1768-1851).","dimension":"43.7 km","theme":"moon"},{"name":"Dorsum Niggli","type":"Dorsum","moon_name":"Moon","lat":29.01,"lon":52.28,"description":"Paul; Swiss Earth scientist (1888-1953).","dimension":"47.8 km","theme":"moon"},{"name":"Dorsum Oppel","type":"Dorsum","moon_name":"Moon","lat":19.31,"lon":307.91,"description":"Albert; German paleontologist (1831-1865).","dimension":"297.6 km","theme":"moon"},{"name":"Dorsum Owen","type":"Dorsum","moon_name":"Moon","lat":25.14,"lon":348.91,"description":"George; British Earth scientist (1552-1613).","dimension":"33.5 km","theme":"moon"},{"name":"Dorsum Scilla","type":"Dorsum","moon_name":"Moon","lat":32.34,"lon":60.0,"description":"Agostino; Italian geologist (1639-1700).","dimension":"107.5 km","theme":"moon"},{"name":"Dorsum Termier","type":"Dorsum","moon_name":"Moon","lat":11.63,"lon":302.85,"description":"Pierre-Marie; French geologist (1859-1930).","dimension":"89.7 km","theme":"moon"},{"name":"Dorsum Thera","type":"Dorsum","moon_name":"Moon","lat":24.4,"lon":31.42,"description":"Greek female name.","dimension":"7.2 km","theme":"moon"},{"name":"Dorsum Von Cotta","type":"Dorsum","moon_name":"Moon","lat":23.6,"lon":348.05,"description":"Carl Bernard; German Earth scientist (1808-1879).","dimension":"183.1 km","theme":"moon"},{"name":"Dorsum Zirkel","type":"Dorsum","moon_name":"Moon","lat":29.55,"lon":24.82,"description":"Ferdinand; German geologist, mineralogist (1838-1912).","dimension":"195.2 km","theme":"moon"},{"name":"Double","type":"Astronaut-named","moon_name":"Moon","lat":0.67,"lon":336.53,"description":"Astronaut named crater, Apollo 11 site.","dimension":"0.0 km","theme":"moon"},{"name":"Doublet","type":"Astronaut-named","moon_name":"Moon","lat":-3.64,"lon":17.48,"description":"Astronaut-named feature, Apollo 14 site.","dimension":"0.1 km","theme":"moon"},{"name":"Douglass","type":"Impact crater","moon_name":"Moon","lat":35.5,"lon":122.72,"description":"Andrew Ellicott; American astronomer (1867-1962).","dimension":"51.0 km","theme":"moon"},{"name":"Dove","type":"Impact crater","moon_name":"Moon","lat":-46.83,"lon":328.58,"description":"Heinrich Wilhelm; German physicist (1803-1879).","dimension":"30.4 km","theme":"moon"},{"name":"[Doyle]","type":"Impact crater","moon_name":"Moon","lat":2.0,"lon":275.5,"description":"Sir Arthur Conan; British novelist (1859-1930).","dimension":"","theme":"moon"},{"name":"Draper","type":"Impact crater","moon_name":"Moon","lat":17.56,"lon":21.75,"description":"Henry; American astronomer (1837-1882).","dimension":"8.3 km","theme":"moon"},{"name":"Drebbel","type":"Impact crater","moon_name":"Moon","lat":-40.93,"lon":49.12,"description":"Cornelius; Dutch inventor (1572-1634).","dimension":"30.2 km","theme":"moon"},{"name":"Dreyer","type":"Impact crater","moon_name":"Moon","lat":10.24,"lon":262.91,"description":"Johann Ludwig Emil; Danish astronomer (1852-1926).","dimension":"63.8 km","theme":"moon"},{"name":"Drude","type":"Impact crater","moon_name":"Moon","lat":-38.56,"lon":91.89,"description":"Paul Karl Ludwig; German physicist (1863-1906).","dimension":"27.1 km","theme":"moon"},{"name":"Dryden","type":"Impact crater","moon_name":"Moon","lat":-33.21,"lon":156.15,"description":"Hugh Latimer; American physicist, engineer (1898-1965).","dimension":"54.5 km","theme":"moon"},{"name":"Drygalski","type":"Impact crater","moon_name":"Moon","lat":-79.57,"lon":87.18,"description":"Erich Dagobert von; German geographer, geophysicist (1865-1949).","dimension":"162.5 km","theme":"moon"},{"name":"Dubyago","type":"Impact crater","moon_name":"Moon","lat":4.38,"lon":290.05,"description":"Dmitrij Ivanovich; Russian astronomer (1850-1918); Alexander Dmitrievich; Soviet astronomer (1903-1959).","dimension":"48.1 km","theme":"moon"},{"name":"Dufay","type":"Impact crater","moon_name":"Moon","lat":5.57,"lon":190.46,"description":"Jean Claude Barth\u00e9lemy; French astronomer (1896-1967).","dimension":"36.1 km","theme":"moon"},{"name":"Dugan","type":"Impact crater","moon_name":"Moon","lat":64.12,"lon":256.89,"description":"Raymond Smith; American astronomer (1878-1940).","dimension":"49.6 km","theme":"moon"},{"name":"[Dumas]","type":"Impact crater","moon_name":"Moon","lat":-5.3,"lon":278.3,"description":"Alexandre; French novelist (1802-1870).","dimension":"","theme":"moon"},{"name":"Dune","type":"Astronaut-named","moon_name":"Moon","lat":26.04,"lon":356.34,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"0.4 km","theme":"moon"},{"name":"Dun\u00e9r","type":"Impact crater","moon_name":"Moon","lat":44.68,"lon":180.54,"description":"Nils Christofer; Swedish astronomer (1839-1914).","dimension":"65.1 km","theme":"moon"},{"name":"Dunthorne","type":"Impact crater","moon_name":"Moon","lat":-30.12,"lon":31.71,"description":"Richard; British astronomer (1711-1775).","dimension":"15.1 km","theme":"moon"},{"name":"Dyson","type":"Impact crater","moon_name":"Moon","lat":60.87,"lon":121.71,"description":"Sir Frank Watson; British astronomer (1868-1939).","dimension":"63.1 km","theme":"moon"},{"name":"Dziewulski","type":"Impact crater","moon_name":"Moon","lat":20.99,"lon":260.98,"description":"Wladyslaw; Polish astronomer (1878-1962).","dimension":"68.9 km","theme":"moon"},{"name":"Earthlight","type":"Astronaut-named","moon_name":"Moon","lat":26.06,"lon":356.35,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"0.2 km","theme":"moon"},{"name":"Easley","type":"Impact crater","moon_name":"Moon","lat":-23.69,"lon":272.03,"description":"Annie Jean; American computer scientist, mathematician, and rocket scientist (1933-2011).","dimension":"9.0 km","theme":"moon"},{"name":"Eckert","type":"Impact crater","moon_name":"Moon","lat":17.28,"lon":301.62,"description":"Wallace John; American astronomer (1902-1971).","dimension":"2.6 km","theme":"moon"},{"name":"Eddington","type":"Impact crater","moon_name":"Moon","lat":21.5,"lon":72.02,"description":"Sir Arthur Stanley; British astrophysicist, mathematician (1882-1944).","dimension":"120.1 km","theme":"moon"},{"name":"Edison","type":"Impact crater","moon_name":"Moon","lat":24.88,"lon":260.73,"description":"Thomas Alva; American inventor (1847-1931).","dimension":"62.7 km","theme":"moon"},{"name":"Edith","type":"Impact crater","moon_name":"Moon","lat":-25.77,"lon":257.67,"description":"English female name.","dimension":"6.9 km","theme":"moon"},{"name":"Egede","type":"Impact crater","moon_name":"Moon","lat":48.72,"lon":349.36,"description":"Hans; Danish natural historian (1686-1758).","dimension":"34.2 km","theme":"moon"},{"name":"Ehrlich","type":"Impact crater","moon_name":"Moon","lat":40.82,"lon":172.27,"description":"Paul; German doctor; Nobel laureate (1854-1915).","dimension":"33.6 km","theme":"moon"},{"name":"Eichstadt","type":"Impact crater","moon_name":"Moon","lat":-22.63,"lon":78.42,"description":"Lorentz; German mathematician, astronomer (1596-1660).","dimension":"49.6 km","theme":"moon"},{"name":"Eijkman","type":"Impact crater","moon_name":"Moon","lat":-63.21,"lon":142.51,"description":"Christiaan; Dutch doctor; Nobel laureate (1858-1930).","dimension":"56.4 km","theme":"moon"},{"name":"Eimmart","type":"Impact crater","moon_name":"Moon","lat":23.97,"lon":295.2,"description":"Georg Christoph; German astronomer (1638-1705).","dimension":"45.0 km","theme":"moon"},{"name":"Einstein","type":"Impact crater","moon_name":"Moon","lat":16.6,"lon":88.65,"description":"Albert; German-American physicist; Nobel laureate (1879-1955).","dimension":"181.5 km","theme":"moon"},{"name":"Einthoven","type":"Impact crater","moon_name":"Moon","lat":-5.06,"lon":249.94,"description":"Willem; Dutch physiologist; Nobel laureate (1860-1927).","dimension":"73.9 km","theme":"moon"},{"name":"Elbow","type":"Astronaut-named","moon_name":"Moon","lat":26.03,"lon":356.4,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"0.3 km","theme":"moon"},{"name":"Elger","type":"Impact crater","moon_name":"Moon","lat":-35.4,"lon":29.81,"description":"Thomas Gwyn Empy; British astronomer (1836-1897).","dimension":"21.5 km","theme":"moon"},{"name":"[El Greco]","type":"Impact crater","moon_name":"Moon","lat":14.0,"lon":325.3,"description":"Spanish artist, born in Crete (c. 1541-1614).","dimension":"","theme":"moon"},{"name":"Ellerman","type":"Impact crater","moon_name":"Moon","lat":-25.44,"lon":120.39,"description":"Ferdinand; American astronomer (1869-1940).","dimension":"46.2 km","theme":"moon"},{"name":"Ellison","type":"Impact crater","moon_name":"Moon","lat":54.93,"lon":108.05,"description":"Mervyn Archdall; Irish-born British astronomer (1909-1963).","dimension":"37.0 km","theme":"moon"},{"name":"Elmer","type":"Impact crater","moon_name":"Moon","lat":-10.23,"lon":275.82,"description":"Charles Wesley; American astronomer (1872-1954).","dimension":"16.9 km","theme":"moon"},{"name":"Elvey","type":"Impact crater","moon_name":"Moon","lat":9.01,"lon":100.64,"description":"Christian Thomas; American astronomer, geophysicist (1899-1970).","dimension":"80.2 km","theme":"moon"},{"name":"Emden","type":"Impact crater","moon_name":"Moon","lat":62.76,"lon":176.51,"description":"Robert; Swiss astrophysicist, meteorologist (1862-1940).","dimension":"114.6 km","theme":"moon"},{"name":"Emory","type":"Astronaut-named","moon_name":"Moon","lat":20.12,"lon":329.22,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.6 km","theme":"moon"},{"name":"Encke","type":"Impact crater","moon_name":"Moon","lat":4.57,"lon":36.68,"description":"Johann Franz; German mathematician, astronomer (1791-1865).","dimension":"28.3 km","theme":"moon"},{"name":"End","type":"Astronaut-named","moon_name":"Moon","lat":-8.91,"lon":344.49,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.1 km","theme":"moon"},{"name":"Endymion","type":"Impact crater","moon_name":"Moon","lat":53.61,"lon":303.52,"description":"Greek mythological character.","dimension":"122.1 km","theme":"moon"},{"name":"Engel'gardt (Engelhardt)","type":"Impact crater","moon_name":"Moon","lat":5.39,"lon":159.47,"description":"Vasilij Pavlovich; Russian astronomer (1828-1915).","dimension":"43.5 km","theme":"moon"},{"name":"E\u00f6tv\u00f6s","type":"Impact crater","moon_name":"Moon","lat":-35.61,"lon":225.57,"description":"L\u00f3r\u00e1nt (English - Roland) von; Hungarian physicist (1848-1919).","dimension":"101.8 km","theme":"moon"},{"name":"Epigenes","type":"Impact crater","moon_name":"Moon","lat":67.5,"lon":4.62,"description":"Greek astronomer (unkn-c. 200 B.C.).","dimension":"54.5 km","theme":"moon"},{"name":"Epimenides","type":"Impact crater","moon_name":"Moon","lat":-40.92,"lon":30.33,"description":"Greek philosopher, writer (unkn-fl. 596 B.C.).","dimension":"22.6 km","theme":"moon"},{"name":"[Eppinger]","type":"Impact crater","moon_name":"Moon","lat":-9.4,"lon":25.7,"description":"H.; Czechoslovakian doctor (1879-1946).","dimension":"","theme":"moon"},{"name":"Eratosthenes","type":"Impact crater","moon_name":"Moon","lat":14.47,"lon":11.32,"description":"Greek astronomer, geographer (c. 276-196 B.C.).","dimension":"58.8 km","theme":"moon"},{"name":"Erlanger","type":"Impact crater","moon_name":"Moon","lat":86.99,"lon":331.38,"description":"Joseph; American physiologist, Nobel Prize winner 1944 (1874-1965).","dimension":"10.9 km","theme":"moon"},{"name":"Erro","type":"Impact crater","moon_name":"Moon","lat":5.68,"lon":261.46,"description":"Luis Enrique; Mexican astronomer (1897-1955).","dimension":"63.8 km","theme":"moon"},{"name":"Esclangon","type":"Impact crater","moon_name":"Moon","lat":21.47,"lon":317.94,"description":"Ernest Benjamin; French astronomer (1876-1954).","dimension":"15.3 km","theme":"moon"},{"name":"Esnault-Pelterie","type":"Impact crater","moon_name":"Moon","lat":47.41,"lon":141.83,"description":"Robert-Albert-Charles; French rocketry engineer (1881-1957).","dimension":"76.8 km","theme":"moon"},{"name":"Espin","type":"Impact crater","moon_name":"Moon","lat":28.15,"lon":250.66,"description":"Thomas Henry Espinall Compton; British astronomer (1858-1934).","dimension":"70.0 km","theme":"moon"},{"name":"Euclides","type":"Impact crater","moon_name":"Moon","lat":-7.4,"lon":29.56,"description":"Euclid; Greek mathematician (unkn-c. 300 B.C.).","dimension":"11.8 km","theme":"moon"},{"name":"Euctemon","type":"Impact crater","moon_name":"Moon","lat":76.26,"lon":329.43,"description":"Greek astronomer (unkn-fl. 432 B.C.).","dimension":"62.7 km","theme":"moon"},{"name":"Eudoxus","type":"Impact crater","moon_name":"Moon","lat":44.27,"lon":343.77,"description":"Greek astronomer (c. 408-355 B.C.).","dimension":"70.2 km","theme":"moon"},{"name":"Euler","type":"Impact crater","moon_name":"Moon","lat":23.26,"lon":29.18,"description":"Leonhard; Swiss mathematician (1707-1783).","dimension":"26.0 km","theme":"moon"},{"name":"Evans","type":"Impact crater","moon_name":"Moon","lat":-9.63,"lon":133.78,"description":"Sir Arthur; British archaeologist (1851-1941).","dimension":"69.4 km","theme":"moon"},{"name":"Evdokimov","type":"Impact crater","moon_name":"Moon","lat":34.57,"lon":153.04,"description":"Nikolaj N.; Soviet astronomer (1868-1940).","dimension":"48.9 km","theme":"moon"},{"name":"Evershed","type":"Impact crater","moon_name":"Moon","lat":35.3,"lon":159.51,"description":"John; British astronomer (1864-1956).","dimension":"65.3 km","theme":"moon"},{"name":"Ewen","type":"Impact crater","moon_name":"Moon","lat":7.69,"lon":238.54,"description":"Gaelic male name.","dimension":"2.6 km","theme":"moon"},{"name":"Fabbroni","type":"Impact crater","moon_name":"Moon","lat":18.66,"lon":330.73,"description":"Giovanni Valentino Mattia; Italian chemist (1752-1822).","dimension":"10.6 km","theme":"moon"},{"name":"Fabricius","type":"Impact crater","moon_name":"Moon","lat":-42.75,"lon":318.16,"description":"Goldschmidt, David; Dutch astronomer (1564-1617).","dimension":"78.9 km","theme":"moon"},{"name":"Fabry","type":"Impact crater","moon_name":"Moon","lat":43.07,"lon":259.32,"description":"Charles; French physicist (1867-1945).","dimension":"179.4 km","theme":"moon"},{"name":"Fahrenheit","type":"Impact crater","moon_name":"Moon","lat":13.12,"lon":298.29,"description":"Gabriel Daniel; Dutch physicist (1686-1736).","dimension":"6.7 km","theme":"moon"},{"name":"Fairouz","type":"Impact crater","moon_name":"Moon","lat":-26.07,"lon":257.05,"description":"Arab female name.","dimension":"2.9 km","theme":"moon"},{"name":"Falcon","type":"Astronaut-named","moon_name":"Moon","lat":20.31,"lon":329.69,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.1 km","theme":"moon"},{"name":"Family Mountain","type":"Astronaut-named","moon_name":"Moon","lat":20.38,"lon":329.66,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"3.4 km","theme":"moon"},{"name":"Faraday","type":"Impact crater","moon_name":"Moon","lat":-42.45,"lon":351.25,"description":"Michael; British chemist, physicist (1791-1867).","dimension":"69.0 km","theme":"moon"},{"name":"Faustini","type":"Impact crater","moon_name":"Moon","lat":-87.18,"lon":275.69,"description":"Arnaldo; Italian polar geographer (1874-1944).","dimension":"42.5 km","theme":"moon"},{"name":"Fauth","type":"Impact crater","moon_name":"Moon","lat":6.23,"lon":20.14,"description":"Philipp Johann Heinrich; German selenographer (1867-1941).","dimension":"11.9 km","theme":"moon"},{"name":"Faye","type":"Impact crater","moon_name":"Moon","lat":-21.39,"lon":356.19,"description":"Herv\u00e9-Auguste-Etienne-Albans; French astronomer (1814-1902).","dimension":"38.0 km","theme":"moon"},{"name":"Fechner","type":"Impact crater","moon_name":"Moon","lat":-58.25,"lon":234.97,"description":"Gustav Theodor; German physicist, psychologist, and philosopher (1801-1887).","dimension":"59.3 km","theme":"moon"},{"name":"Fedorov","type":"Impact crater","moon_name":"Moon","lat":28.23,"lon":37.05,"description":"A.P.; Russian rocket scientist (1872-1920).","dimension":"6.1 km","theme":"moon"},{"name":"Felix","type":"Impact crater","moon_name":"Moon","lat":25.09,"lon":25.38,"description":"Latin male name.","dimension":"1.4 km","theme":"moon"},{"name":"F\u00e9nyi","type":"Impact crater","moon_name":"Moon","lat":-44.94,"lon":105.06,"description":"Gyula; Hungarian astronomer (1845-1927).","dimension":"43.3 km","theme":"moon"},{"name":"Feoktistov","type":"Impact crater","moon_name":"Moon","lat":30.73,"lon":219.5,"description":"Konstantin P.; Soviet cosmonaut (1926-2009).","dimension":"22.1 km","theme":"moon"},{"name":"Fermat","type":"Impact crater","moon_name":"Moon","lat":-22.71,"lon":340.21,"description":"Pierre De; French mathematician (1601-1665).","dimension":"37.8 km","theme":"moon"},{"name":"Fermi","type":"Impact crater","moon_name":"Moon","lat":-19.61,"lon":236.76,"description":"Enrico; Italian-American physicist; Nobel laureate (1901-1954).","dimension":"241.4 km","theme":"moon"},{"name":"Fernelius","type":"Impact crater","moon_name":"Moon","lat":-38.18,"lon":355.14,"description":"Jean Fran\u00e7ois; French doctor, astronomer (1497-1558).","dimension":"68.4 km","theme":"moon"},{"name":"Fersman","type":"Impact crater","moon_name":"Moon","lat":17.9,"lon":126.06,"description":"Aleksandr Yevgenyevich; Soviet geochemist (1883-1945).","dimension":"148.1 km","theme":"moon"},{"name":"Fesenkov","type":"Impact crater","moon_name":"Moon","lat":-23.16,"lon":224.86,"description":"Vasilii Grigor'evich; Russian astrophysicist (1889-1972).","dimension":"36.1 km","theme":"moon"},{"name":"Feuill\u00e9e","type":"Impact crater","moon_name":"Moon","lat":27.37,"lon":9.46,"description":"Louis; French natural scientist (1660-1732).","dimension":"8.9 km","theme":"moon"},{"name":"Fibiger","type":"Impact crater","moon_name":"Moon","lat":86.14,"lon":322.87,"description":"Joahnnes Andreas Grib; Danish pathologist, Nobel Prize winner 1926 (1867-1928).","dimension":"21.1 km","theme":"moon"},{"name":"Finsch","type":"Impact crater","moon_name":"Moon","lat":23.58,"lon":338.73,"description":"Otto Friedrich Hermann; German zoologist (1839-1917).","dimension":"4.0 km","theme":"moon"},{"name":"Finsen","type":"Impact crater","moon_name":"Moon","lat":-42.29,"lon":177.72,"description":"Niels Ryberg; Danish phototherapist; Nobel laureate (1860-1904).","dimension":"73.0 km","theme":"moon"},{"name":"[Firdausi]","type":"Impact crater","moon_name":"Moon","lat":24.68,"lon":34.07,"description":"Hasan; Persian author (c. 940-1020).","dimension":"6.1 km","theme":"moon"},{"name":"Firmicus","type":"Impact crater","moon_name":"Moon","lat":7.25,"lon":296.57,"description":"Julius Maternus of Syracuse; Roman astrologer (fl. A.D. 330-354).","dimension":"56.8 km","theme":"moon"},{"name":"Firsov","type":"Impact crater","moon_name":"Moon","lat":4.2,"lon":247.3,"description":"Georgij Frolovich; Soviet rocketry engineer (1917-1960).","dimension":"51.0 km","theme":"moon"},{"name":"Fischer","type":"Impact crater","moon_name":"Moon","lat":7.99,"lon":217.56,"description":"Emil Hermann; German chemist (1852-1919); Hans; German organic chemist (1881-1945).","dimension":"30.5 km","theme":"moon"},{"name":"Fitzgerald","type":"Impact crater","moon_name":"Moon","lat":26.67,"lon":172.14,"description":"George Francis; Irish physicist (1851-1901).","dimension":"104.2 km","theme":"moon"},{"name":"Fizeau","type":"Impact crater","moon_name":"Moon","lat":-58.19,"lon":134.11,"description":"Armand-Hippolyte-Louis; French physicist (1819-1896).","dimension":"107.1 km","theme":"moon"},{"name":"Flag","type":"Astronaut-named","moon_name":"Moon","lat":-8.97,"lon":344.55,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.2 km","theme":"moon"},{"name":"Flammarion","type":"Impact crater","moon_name":"Moon","lat":-3.33,"lon":3.73,"description":"Camille; French astronomer (1842-1925).","dimension":"76.2 km","theme":"moon"},{"name":"Flamsteed","type":"Impact crater","moon_name":"Moon","lat":-4.49,"lon":44.34,"description":"John; British astronomer (1646-1719).","dimension":"19.3 km","theme":"moon"},{"name":"Flank","type":"Astronaut-named","moon_name":"Moon","lat":-3.64,"lon":17.44,"description":"Astronaut-named feature, Apollo 14 site.","dimension":"0.0 km","theme":"moon"},{"name":"Fleming","type":"Impact crater","moon_name":"Moon","lat":14.91,"lon":250.72,"description":"Alexander; British doctor, Nobel laureate (1881-1955); Williamina Paton; Scottish-born American astronomer (1857-1911).","dimension":"126.4 km","theme":"moon"},{"name":"Florensky","type":"Impact crater","moon_name":"Moon","lat":25.45,"lon":228.15,"description":"Kirill Pavlovich; Soviet geologist (1915-1982).","dimension":"69.0 km","theme":"moon"},{"name":"Florey","type":"Impact crater","moon_name":"Moon","lat":87.04,"lon":19.75,"description":"Howard Walter; Australian-born British pathologist, Nobel Prize winner 1945 (1898-1968).","dimension":"69.1 km","theme":"moon"},{"name":"Floss","type":"Impact crater","moon_name":"Moon","lat":-84.28,"lon":317.73,"description":"Christine; American cosmochemist (1961-2018).","dimension":"9.0 km","theme":"moon"},{"name":"Focas","type":"Impact crater","moon_name":"Moon","lat":-33.7,"lon":93.91,"description":"Ionnas (Jean-Henri); Greek/French astronomer (1909-1969).","dimension":"22.0 km","theme":"moon"},{"name":"Fontana","type":"Impact crater","moon_name":"Moon","lat":-16.04,"lon":56.79,"description":"Francesco; Italian astronomer (c. 1585-1646).","dimension":"31.5 km","theme":"moon"},{"name":"Fontenelle","type":"Impact crater","moon_name":"Moon","lat":63.42,"lon":18.96,"description":"Bernard Le Bovier De; French astronomer (1657-1757).","dimension":"37.7 km","theme":"moon"},{"name":"[Fossa Casals]","type":"Fossa, fossae","moon_name":"Moon","lat":0.0,"lon":0.0,"description":"Same as Rupes Cauchy.","dimension":"","theme":"moon"},{"name":"[Fossa Cauchy]","type":"Fossa, fossae","moon_name":"Moon","lat":0.0,"lon":0.0,"description":"Same as Rima Cauchy.","dimension":"","theme":"moon"},{"name":"Foster","type":"Impact crater","moon_name":"Moon","lat":23.59,"lon":141.49,"description":"John Stuart; Canadian physicist (1890-1964).","dimension":"37.0 km","theme":"moon"},{"name":"Foucault","type":"Impact crater","moon_name":"Moon","lat":50.46,"lon":39.86,"description":"Leon; French physicist (1819-1868).","dimension":"25.1 km","theme":"moon"},{"name":"Fourier","type":"Impact crater","moon_name":"Moon","lat":-30.31,"lon":53.1,"description":"Jean-Baptiste Joseph; French mathematician (1768-1830).","dimension":"51.6 km","theme":"moon"},{"name":"Fowler","type":"Impact crater","moon_name":"Moon","lat":42.59,"lon":145.27,"description":"Alfred; British astronomer (1868-1940); Ralph Howard; British mathematician; physicist (1889-1944).","dimension":"139.5 km","theme":"moon"},{"name":"Fox","type":"Impact crater","moon_name":"Moon","lat":0.47,"lon":261.86,"description":"Philip; American astronomer (1878-1944).","dimension":"24.0 km","theme":"moon"},{"name":"Fracastorius","type":"Impact crater","moon_name":"Moon","lat":-21.36,"lon":326.93,"description":"Fracastoro, Girolamo; Italian doctor, astronomer (1483-1553).","dimension":"120.6 km","theme":"moon"},{"name":"Fra Mauro","type":"Impact crater","moon_name":"Moon","lat":-6.06,"lon":16.97,"description":"Italian geographer (unkn-1459).","dimension":"96.8 km","theme":"moon"},{"name":"Franck","type":"Impact crater","moon_name":"Moon","lat":22.59,"lon":324.44,"description":"James; German physicist; Nobel laureate (1882-1964).","dimension":"11.9 km","theme":"moon"},{"name":"Franklin","type":"Impact crater","moon_name":"Moon","lat":38.73,"lon":312.36,"description":"Benjamin; American inventor (1706-1790).","dimension":"55.9 km","theme":"moon"},{"name":"Franz","type":"Impact crater","moon_name":"Moon","lat":16.57,"lon":319.76,"description":"Julius Heinrich; German astronomer (1847-1913).","dimension":"25.5 km","theme":"moon"},{"name":"Fraunhofer","type":"Impact crater","moon_name":"Moon","lat":-39.52,"lon":300.94,"description":"Joseph von; German astronomer, optician (1787-1826).","dimension":"57.8 km","theme":"moon"},{"name":"Fredholm","type":"Impact crater","moon_name":"Moon","lat":18.37,"lon":313.45,"description":"Erik Ivar; Swedish mathematician (1866-1927).","dimension":"13.4 km","theme":"moon"},{"name":"Freud","type":"Impact crater","moon_name":"Moon","lat":25.79,"lon":52.4,"description":"Sigmund; Austrian psychoanalyst (1856-1939).","dimension":"2.9 km","theme":"moon"},{"name":"Freundlich","type":"Impact crater","moon_name":"Moon","lat":25.0,"lon":189.11,"description":"Erwin (Finlay-); German-British astronomer (1885-1964).","dimension":"83.2 km","theme":"moon"},{"name":"Fridman (Friedmann)","type":"Impact crater","moon_name":"Moon","lat":-12.48,"lon":126.88,"description":"Aleksandr Alexandrovich; Soviet physicist (1888-1925).","dimension":"101.5 km","theme":"moon"},{"name":"Froelich","type":"Impact crater","moon_name":"Moon","lat":80.0,"lon":111.63,"description":"Jack Edward (Froehlich); American rocket scientist (1921-1967).","dimension":"56.7 km","theme":"moon"},{"name":"Frost","type":"Impact crater","moon_name":"Moon","lat":37.41,"lon":118.9,"description":"Edwin Brant; American astronomer (1866-1935).","dimension":"78.3 km","theme":"moon"},{"name":"Fryxell","type":"Impact crater","moon_name":"Moon","lat":-21.25,"lon":101.65,"description":"Roald Hilding; American geologist (1934-1974).","dimension":"17.6 km","theme":"moon"},{"name":"Furnerius","type":"Impact crater","moon_name":"Moon","lat":-36.0,"lon":299.46,"description":"Fournier, Georges: French mathematician (1595-1652).","dimension":"135.0 km","theme":"moon"},{"name":"Gadomski","type":"Impact crater","moon_name":"Moon","lat":36.21,"lon":147.36,"description":"Jan; Polish astronomer (1889-1966).","dimension":"65.7 km","theme":"moon"},{"name":"Gagarin","type":"Impact crater","moon_name":"Moon","lat":-19.66,"lon":210.65,"description":"Yury Alekseyevich; Soviet cosmonaut (1934-1968).","dimension":"261.8 km","theme":"moon"},{"name":"Galen","type":"Impact crater","moon_name":"Moon","lat":21.95,"lon":355.04,"description":"Claudius; Greek doctor (c. 129-200).","dimension":"9.2 km","theme":"moon"},{"name":"Galilaei","type":"Impact crater","moon_name":"Moon","lat":10.48,"lon":62.83,"description":"Galileo; Italian astronomer, physicist (1564-1642).","dimension":"16.0 km","theme":"moon"},{"name":"Galimov","type":"Impact crater","moon_name":"Moon","lat":-64.3,"lon":126.53,"description":"Erik; Russian geochemist (1936-2020).","dimension":"33.0 km","theme":"moon"},{"name":"Galle","type":"Impact crater","moon_name":"Moon","lat":55.87,"lon":337.67,"description":"Johann Gottfried; German astronomer (1812-1910).","dimension":"21.0 km","theme":"moon"},{"name":"Galois","type":"Impact crater","moon_name":"Moon","lat":-13.94,"lon":152.99,"description":"Evariste; French mathematician (1811-1832).","dimension":"232.0 km","theme":"moon"},{"name":"Galvani","type":"Impact crater","moon_name":"Moon","lat":49.51,"lon":84.56,"description":"Luigi; Italian physicist (1737-1798).","dimension":"76.8 km","theme":"moon"},{"name":"Gambart","type":"Impact crater","moon_name":"Moon","lat":0.92,"lon":15.24,"description":"Jean-Felix-Adolphe; French astronomer (1800-1836).","dimension":"24.7 km","theme":"moon"},{"name":"Gamow","type":"Impact crater","moon_name":"Moon","lat":65.29,"lon":215.35,"description":"George; American physicist (1904-1968).","dimension":"113.9 km","theme":"moon"},{"name":"Ganskiy (Hansky)","type":"Impact crater","moon_name":"Moon","lat":-9.64,"lon":263.0,"description":"Aleksey Pavlovich; Russian astronomer (1870-1908).","dimension":"42.1 km","theme":"moon"},{"name":"Ganswindt","type":"Impact crater","moon_name":"Moon","lat":-79.42,"lon":248.83,"description":"Hermann; German rocketry engineer (1856-1934).","dimension":"77.5 km","theme":"moon"},{"name":"Garavito","type":"Impact crater","moon_name":"Moon","lat":-47.21,"lon":203.22,"description":"Julio Garavito Armero; Colombian astronomer (1865-1920).","dimension":"81.0 km","theme":"moon"},{"name":"Gardner","type":"Impact crater","moon_name":"Moon","lat":17.75,"lon":326.19,"description":"Irvine Clifton; American physicist (1889-1972).","dimension":"17.6 km","theme":"moon"},{"name":"G\u00e4rtner","type":"Impact crater","moon_name":"Moon","lat":59.24,"lon":325.24,"description":"Christian; German mineralogist, geologist (c. 1750-1813).","dimension":"101.8 km","theme":"moon"},{"name":"Gassendi","type":"Impact crater","moon_name":"Moon","lat":-17.55,"lon":39.96,"description":"Pierre; French astronomer, mathematician (1592-1655).","dimension":"111.4 km","theme":"moon"},{"name":"Gaston","type":"Impact crater","moon_name":"Moon","lat":30.88,"lon":33.96,"description":"French male name.","dimension":"2.0 km","theme":"moon"},{"name":"Gator","type":"Astronaut-named","moon_name":"Moon","lat":-8.95,"lon":344.45,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.8 km","theme":"moon"},{"name":"Gaudibert","type":"Impact crater","moon_name":"Moon","lat":-10.93,"lon":322.18,"description":"Casimir Marie; French astronomer (1823-1901).","dimension":"33.1 km","theme":"moon"},{"name":"Gauricus","type":"Impact crater","moon_name":"Moon","lat":-33.91,"lon":12.74,"description":"Gaurico, Luca; Italian astronomer (1476-1558).","dimension":"79.6 km","theme":"moon"},{"name":"Gauss","type":"Impact crater","moon_name":"Moon","lat":36.01,"lon":280.92,"description":"Karl Friedrich; German mathematician (1777-1855).","dimension":"170.7 km","theme":"moon"},{"name":"Gavrilov","type":"Impact crater","moon_name":"Moon","lat":17.41,"lon":228.78,"description":"Aleksandr Ivanovich; Soviet rocket engineer (1884-1955), Igor V.; Soviet astronomer (1928-1982).","dimension":"61.6 km","theme":"moon"},{"name":"Gay-Lussac","type":"Impact crater","moon_name":"Moon","lat":13.88,"lon":20.79,"description":"Joseph Louis; French physicist (1778-1850).","dimension":"25.4 km","theme":"moon"},{"name":"G. Bond","type":"Impact crater","moon_name":"Moon","lat":32.39,"lon":323.68,"description":"George Philip; American astronomer (1826-1865).","dimension":"19.1 km","theme":"moon"},{"name":"Geber","type":"Impact crater","moon_name":"Moon","lat":-19.46,"lon":346.15,"description":"J\u0101bir Ibn Aflah Al-Ishb\u012bl\u012b, Ab\u016b Muhammad; Spanish-Arab astronomer (fl. first half of twelfth cent.).","dimension":"44.7 km","theme":"moon"},{"name":"Geiger","type":"Impact crater","moon_name":"Moon","lat":-14.39,"lon":201.59,"description":"Johannes Hans Wilhelm; German physicist (1882-1945).","dimension":"36.6 km","theme":"moon"},{"name":"Geissler","type":"Impact crater","moon_name":"Moon","lat":-2.6,"lon":283.49,"description":"Heinrich; German physicist (1814-1879).","dimension":"17.4 km","theme":"moon"},{"name":"Geminus","type":"Impact crater","moon_name":"Moon","lat":34.42,"lon":303.34,"description":"Greek astronomer (unkn-c. 70 B.C.).","dimension":"82.0 km","theme":"moon"},{"name":"Gemma Frisius","type":"Impact crater","moon_name":"Moon","lat":-34.33,"lon":346.63,"description":"Jemma, Reinier; Dutch doctor (1508-1555).","dimension":"88.5 km","theme":"moon"},{"name":"Gena","type":"Impact crater","moon_name":"Moon","lat":38.27,"lon":35.01,"description":"Greek-derived male name Gennady in Russian diminutive form (Lunokhod-1 landing site feature).","dimension":"0.2 km","theme":"moon"},{"name":"Gerard","type":"Impact crater","moon_name":"Moon","lat":44.54,"lon":80.51,"description":"Alexander; Scottish explorer (1792-1839).","dimension":"98.8 km","theme":"moon"},{"name":"Gerasimovich","type":"Impact crater","moon_name":"Moon","lat":-22.95,"lon":123.42,"description":"Boris Petrovich; Soviet astronomer (1889-1937).","dimension":"90.2 km","theme":"moon"},{"name":"Gernsback","type":"Impact crater","moon_name":"Moon","lat":-36.53,"lon":260.47,"description":"Hugo; American writer (1884-1967).","dimension":"47.2 km","theme":"moon"},{"name":"Gibbs","type":"Impact crater","moon_name":"Moon","lat":-18.37,"lon":275.73,"description":"Josiah Willard; American mathematical physicist (1839-1903).","dimension":"78.8 km","theme":"moon"},{"name":"Gilbert","type":"Impact crater","moon_name":"Moon","lat":-3.2,"lon":283.84,"description":"Grove Karl; American geologist (1843-1918), William; English physician and physicist (1544-1603).","dimension":"100.2 km","theme":"moon"},{"name":"Gill","type":"Impact crater","moon_name":"Moon","lat":-63.77,"lon":284.05,"description":"Sir David; British astronomer (1843-1914).","dimension":"63.9 km","theme":"moon"},{"name":"Ginzel","type":"Impact crater","moon_name":"Moon","lat":14.25,"lon":262.6,"description":"Friedrich Karl; Austrian astronomer (1850-1926).","dimension":"53.2 km","theme":"moon"},{"name":"Gioja","type":"Impact crater","moon_name":"Moon","lat":83.35,"lon":358.24,"description":"Flavio; Italian inventor (unkn-fl. 1302).","dimension":"42.5 km","theme":"moon"},{"name":"Giordano Bruno","type":"Impact crater","moon_name":"Moon","lat":35.97,"lon":257.11,"description":"Italian astronomer (1548-1600).","dimension":"22.1 km","theme":"moon"},{"name":"Glaisher","type":"Impact crater","moon_name":"Moon","lat":13.19,"lon":310.66,"description":"James; British meteorologist (1809-1903).","dimension":"15.9 km","theme":"moon"},{"name":"Glauber","type":"Impact crater","moon_name":"Moon","lat":11.32,"lon":217.33,"description":"Johann Rudolph; German chemist (c. 1603-1670).","dimension":"15.2 km","theme":"moon"},{"name":"Glazenap","type":"Impact crater","moon_name":"Moon","lat":-1.85,"lon":222.24,"description":"Sergei Pavlovich; Soviet astronomer (1848-1937).","dimension":"39.0 km","theme":"moon"},{"name":"Glushko","type":"Impact crater","moon_name":"Moon","lat":8.11,"lon":77.67,"description":"Valentin Petrovich; Russian space scientist (1908-1989).","dimension":"40.1 km","theme":"moon"},{"name":"Goclenius","type":"Impact crater","moon_name":"Moon","lat":-10.05,"lon":314.97,"description":"Gockel, Rudolf; German physicist, doctor, mathematician (1572-1621).","dimension":"73.0 km","theme":"moon"},{"name":"Goddard","type":"Impact crater","moon_name":"Moon","lat":15.15,"lon":270.87,"description":"Robert Hutchings; American rocketry scientist (1882-1945).","dimension":"93.2 km","theme":"moon"},{"name":"Godin","type":"Impact crater","moon_name":"Moon","lat":1.82,"lon":349.84,"description":"Louis; French astronomer, mathematician (1704-1760).","dimension":"34.2 km","theme":"moon"},{"name":"Goldschmidt","type":"Impact crater","moon_name":"Moon","lat":73.04,"lon":3.37,"description":"Hermann; French astronomer of German origin, discoverer of asteroid (21) Lutetia (1802-1866).","dimension":"115.3 km","theme":"moon"},{"name":"Golgi","type":"Impact crater","moon_name":"Moon","lat":27.78,"lon":59.96,"description":"Camillo; Italian doctor; Nobel laureate (c. 1843-1926).","dimension":"5.6 km","theme":"moon"},{"name":"Golitsyn","type":"Impact crater","moon_name":"Moon","lat":-25.2,"lon":105.2,"description":"Boris Borisovich; Russian physicist (1862-1916).","dimension":"35.5 km","theme":"moon"},{"name":"Golovin","type":"Impact crater","moon_name":"Moon","lat":39.75,"lon":198.76,"description":"Nicholas Erasmus; American rocketry scientist (1912-1969).","dimension":"37.9 km","theme":"moon"},{"name":"Goodacre","type":"Impact crater","moon_name":"Moon","lat":-32.67,"lon":345.92,"description":"Walter; British selenographer (1856-1938).","dimension":"44.1 km","theme":"moon"},{"name":"Gore","type":"Impact crater","moon_name":"Moon","lat":86.18,"lon":62.31,"description":"John Ellard; Irish astronomer (1845-1910).","dimension":"9.4 km","theme":"moon"},{"name":"Gould","type":"Impact crater","moon_name":"Moon","lat":-19.26,"lon":17.25,"description":"Benjamin Apthorp; American astronomer (1824-1896).","dimension":"33.0 km","theme":"moon"},{"name":"Grace","type":"Impact crater","moon_name":"Moon","lat":14.21,"lon":324.11,"description":"English female name.","dimension":"1.5 km","theme":"moon"},{"name":"Grachev","type":"Impact crater","moon_name":"Moon","lat":-3.83,"lon":108.42,"description":"Andrej Dmitrievich; Soviet rocketry scientist (1900-1964).","dimension":"35.0 km","theme":"moon"},{"name":"Graff","type":"Impact crater","moon_name":"Moon","lat":-42.3,"lon":88.71,"description":"Kasimir Romuald; Polish-German astronomer (1878-1950).","dimension":"36.2 km","theme":"moon"},{"name":"Grave","type":"Impact crater","moon_name":"Moon","lat":-17.04,"lon":209.77,"description":"Dmitry Aleksandrovich; Soviet mathematician (1863-1939); Ivan Platonovich; Soviet engineer (1874-1960).","dimension":"37.0 km","theme":"moon"},{"name":"Greaves","type":"Impact crater","moon_name":"Moon","lat":13.18,"lon":307.21,"description":"William Michael Herbert; British astronomer (1897-1955).","dimension":"14.3 km","theme":"moon"},{"name":"Green","type":"Impact crater","moon_name":"Moon","lat":3.69,"lon":226.88,"description":"George; British mathematician (1793-1841).","dimension":"68.3 km","theme":"moon"},{"name":"Gregory","type":"Impact crater","moon_name":"Moon","lat":1.76,"lon":232.72,"description":"James; Scottish astronomer, mathematician (1638-1675).","dimension":"63.9 km","theme":"moon"},{"name":"Grigg","type":"Impact crater","moon_name":"Moon","lat":12.5,"lon":130.13,"description":"John; New Zealander astronomer (1838-1920).","dimension":"36.7 km","theme":"moon"},{"name":"Grignard","type":"Impact crater","moon_name":"Moon","lat":84.54,"lon":75.83,"description":"Victor; French chemist, Nobel Prize winner 1912 (1871-1935).","dimension":"12.9 km","theme":"moon"},{"name":"Grimaldi","type":"Impact crater","moon_name":"Moon","lat":-5.38,"lon":68.36,"description":"Francesco Maria; Italian astronomer, physicist (1618-1663).","dimension":"235.0 km","theme":"moon"},{"name":"[Grimm]","type":"Impact crater","moon_name":"Moon","lat":-15.0,"lon":229.8,"description":"Wilhelm Karl; German story-teller (1786-1859).","dimension":"","theme":"moon"},{"name":"Grissom","type":"Impact crater","moon_name":"Moon","lat":-46.92,"lon":147.98,"description":"Virgil Ivan (\u201c;Gus\u201c;); American astronaut (1926-1967).","dimension":"59.8 km","theme":"moon"},{"name":"Grotrian","type":"Impact crater","moon_name":"Moon","lat":-66.15,"lon":231.72,"description":"Walter; German astronomer (1890-1954).","dimension":"36.8 km","theme":"moon"},{"name":"Grove","type":"Impact crater","moon_name":"Moon","lat":40.3,"lon":327.02,"description":"Sir William Robert; British physicist (1811-1896).","dimension":"28.6 km","theme":"moon"},{"name":"Gruemberger","type":"Impact crater","moon_name":"Moon","lat":-67.04,"lon":10.3,"description":"Christoph; Austrian astronomer (1561-1636).","dimension":"91.5 km","theme":"moon"},{"name":"Gruithuisen","type":"Impact crater","moon_name":"Moon","lat":32.89,"lon":39.78,"description":"Franz von; German astronomer (1774-1852).","dimension":"15.0 km","theme":"moon"},{"name":"Guang Han Gong","type":"Landing site","moon_name":"Moon","lat":44.12,"lon":19.51,"description":"Moon palace where Chang-E and Yutu lived in Chinese mythology; Chang\u2019e-3 landing site.","dimension":"0.1 km","theme":"moon"},{"name":"Guericke","type":"Impact crater","moon_name":"Moon","lat":-11.57,"lon":14.19,"description":"Otto von; German physicist, engineer, naturalist (1602-1686).","dimension":"60.8 km","theme":"moon"},{"name":"Guest","type":"Impact crater","moon_name":"Moon","lat":-19.79,"lon":242.61,"description":"John E.; British volcanologist (1938-2012).","dimension":"19.8 km","theme":"moon"},{"name":"Guillaume","type":"Impact crater","moon_name":"Moon","lat":45.16,"lon":173.38,"description":"Charles Edouard; Swiss metallurgist; Nobel laureate (1861-1938).","dimension":"56.8 km","theme":"moon"},{"name":"Gullstrand","type":"Impact crater","moon_name":"Moon","lat":44.95,"lon":129.67,"description":"Allvar; Swedish ophthalmologist; Nobel laureate (1862-1930).","dimension":"45.0 km","theme":"moon"},{"name":"Gum","type":"Impact crater","moon_name":"Moon","lat":-40.34,"lon":271.09,"description":"Colin; Australian astronomer (1924-1960).","dimension":"54.5 km","theme":"moon"},{"name":"Gutenberg","type":"Impact crater","moon_name":"Moon","lat":-8.61,"lon":318.75,"description":"Johannes Gensfleisch Zur Laden; German inventor (c. 1390-1468).","dimension":"70.7 km","theme":"moon"},{"name":"Guthnick","type":"Impact crater","moon_name":"Moon","lat":-47.76,"lon":94.04,"description":"Paul; German astronomer (1879-1947).","dimension":"37.0 km","theme":"moon"},{"name":"Guyot","type":"Impact crater","moon_name":"Moon","lat":11.63,"lon":242.88,"description":"Arnold Henry; Swiss-born American geographer, geologist (1807-1884).","dimension":"98.3 km","theme":"moon"},{"name":"Gyld\u00e9n","type":"Impact crater","moon_name":"Moon","lat":-5.37,"lon":359.77,"description":"Johan August Hugo; Swedish astronomer (1841-1896).","dimension":"48.1 km","theme":"moon"},{"name":"Haber","type":"Impact crater","moon_name":"Moon","lat":83.4,"lon":94.63,"description":"Fritz; German-Swiss chemist, Nobel Prize winner 1918 (1868-1934).","dimension":"56.8 km","theme":"moon"},{"name":"[Hadley]","type":"Impact crater","moon_name":"Moon","lat":25.46,"lon":357.2,"description":"John; British instrument maker (1682-1744).","dimension":"5.9 km","theme":"moon"},{"name":"Hagecius","type":"Impact crater","moon_name":"Moon","lat":-59.92,"lon":313.37,"description":"Hayek, Thaddaeus; Czechoslovakian astronomer, mathematician (1525-1600).","dimension":"79.5 km","theme":"moon"},{"name":"Hagen","type":"Impact crater","moon_name":"Moon","lat":-48.32,"lon":224.05,"description":"Johann Georg; Austrian astronomer (1847-1930).","dimension":"57.5 km","theme":"moon"},{"name":"Hahn","type":"Impact crater","moon_name":"Moon","lat":31.22,"lon":286.45,"description":"Friedrich von; German astronomer (1741-1805); Otto; German chemist (1879-1968).","dimension":"87.5 km","theme":"moon"},{"name":"Haidinger","type":"Impact crater","moon_name":"Moon","lat":-39.18,"lon":25.14,"description":"Wilhelm Karl von; Austrian geologist, physicist (1795-1871).","dimension":"21.3 km","theme":"moon"},{"name":"Hainzel","type":"Impact crater","moon_name":"Moon","lat":-41.23,"lon":33.52,"description":"Paul; German astronomer (1527-1581).","dimension":"70.6 km","theme":"moon"},{"name":"Haldane","type":"Impact crater","moon_name":"Moon","lat":-1.66,"lon":275.89,"description":"John Burdon Sanderson; British doctor (1892-1964).","dimension":"40.3 km","theme":"moon"},{"name":"Hale","type":"Impact crater","moon_name":"Moon","lat":-74.13,"lon":268.29,"description":"George Ellery; American astronomer (1868-1938); William; British rocket scientist (1797-1870).","dimension":"84.4 km","theme":"moon"},{"name":"Halfway","type":"Astronaut-named","moon_name":"Moon","lat":-8.97,"lon":344.54,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.1 km","theme":"moon"},{"name":"Hall","type":"Impact crater","moon_name":"Moon","lat":33.81,"lon":323.25,"description":"Asaph; American astronomer (1829-1907).","dimension":"31.8 km","theme":"moon"},{"name":"Halley","type":"Impact crater","moon_name":"Moon","lat":-8.05,"lon":354.27,"description":"Edmond; British astronomer (1656-1742).","dimension":"34.6 km","theme":"moon"},{"name":"Halo","type":"Astronaut-named","moon_name":"Moon","lat":-3.02,"lon":23.42,"description":"Astronaut-named feature, Apollo 12 site.","dimension":"0.0 km","theme":"moon"},{"name":"Hamilton","type":"Impact crater","moon_name":"Moon","lat":-42.77,"lon":275.59,"description":"Sir William Rowan; Irish mathematician (1805-1865).","dimension":"57.5 km","theme":"moon"},{"name":"Hanno","type":"Impact crater","moon_name":"Moon","lat":-56.46,"lon":288.62,"description":"Carthaginian navigator(unkn-c. 500 B.C.).","dimension":"59.5 km","theme":"moon"},{"name":"Hansen","type":"Impact crater","moon_name":"Moon","lat":14.04,"lon":287.46,"description":"Peter Andreas; Danish astronomer (1795-1874).","dimension":"41.2 km","theme":"moon"},{"name":"Hansteen","type":"Impact crater","moon_name":"Moon","lat":-11.53,"lon":52.06,"description":"Christopher; Norwegian astronomer (1784-1873).","dimension":"45.0 km","theme":"moon"},{"name":"Harden","type":"Impact crater","moon_name":"Moon","lat":5.46,"lon":216.45,"description":"Sir Arthur; British chemist; Nobel laureate (1865-1940).","dimension":"15.0 km","theme":"moon"},{"name":"Harding","type":"Impact crater","moon_name":"Moon","lat":43.54,"lon":71.66,"description":"Karl Ludwig; German astronomer (1765-1834).","dimension":"22.6 km","theme":"moon"},{"name":"Haret","type":"Impact crater","moon_name":"Moon","lat":-58.77,"lon":176.19,"description":"Spiru; Rumanian astronomer (1851-1912).","dimension":"29.8 km","theme":"moon"},{"name":"Hargreaves","type":"Impact crater","moon_name":"Moon","lat":-2.18,"lon":295.91,"description":"Frederick James; British astronomer, optician (1891-1970).","dimension":"18.0 km","theme":"moon"},{"name":"Harkhebi","type":"Impact crater","moon_name":"Moon","lat":40.87,"lon":261.26,"description":"Egyptian astronomer (c. 300 B.C.).","dimension":"337.1 km","theme":"moon"},{"name":"Harlan","type":"Impact crater","moon_name":"Moon","lat":-38.31,"lon":280.35,"description":"Harlan James Smith; American astronomer (1924-1991).","dimension":"63.5 km","theme":"moon"},{"name":"Harold","type":"Impact crater","moon_name":"Moon","lat":-10.88,"lon":6.07,"description":"Scandinavian male name.","dimension":"1.4 km","theme":"moon"},{"name":"Harpalus","type":"Impact crater","moon_name":"Moon","lat":52.73,"lon":43.49,"description":"Greek astronomer (unkn-c. 460 B.C.).","dimension":"39.8 km","theme":"moon"},{"name":"Harriot","type":"Impact crater","moon_name":"Moon","lat":33.2,"lon":245.6,"description":"Thomas; British mathematician, astronomer (1560-1621).","dimension":"52.8 km","theme":"moon"},{"name":"Hartmann","type":"Impact crater","moon_name":"Moon","lat":2.71,"lon":224.55,"description":"Johannes Franz; German astronomer (1865-1936).","dimension":"63.3 km","theme":"moon"},{"name":"Hartwig","type":"Impact crater","moon_name":"Moon","lat":-6.14,"lon":80.47,"description":"(Carl) Ernst (Albrecht); German astronomer (1851-1923).","dimension":"78.5 km","theme":"moon"},{"name":"Harvey","type":"Impact crater","moon_name":"Moon","lat":19.35,"lon":146.51,"description":"William; British doctor (1578-1657).","dimension":"60.0 km","theme":"moon"},{"name":"Hase","type":"Impact crater","moon_name":"Moon","lat":-29.37,"lon":297.32,"description":"Johann Matthias; German mathematician (1684-1742).","dimension":"82.1 km","theme":"moon"},{"name":"Haskin","type":"Impact crater","moon_name":"Moon","lat":81.51,"lon":226.84,"description":"Larry A.; American chemist, geochemist (1934-2005).","dimension":"66.6 km","theme":"moon"},{"name":"Hatanaka","type":"Impact crater","moon_name":"Moon","lat":29.33,"lon":121.92,"description":"Takeo; Japanese astronomer (1914-1963).","dimension":"30.1 km","theme":"moon"},{"name":"Hausen","type":"Impact crater","moon_name":"Moon","lat":-65.11,"lon":88.49,"description":"Christian August; German astronomer, mathematician, physicist (1693-1743).","dimension":"163.2 km","theme":"moon"},{"name":"Hawke","type":"Impact crater","moon_name":"Moon","lat":-66.61,"lon":231.35,"description":"Bernard Ray; American lunar scientist (1946-2015).","dimension":"13.2 km","theme":"moon"},{"name":"Haworth","type":"Impact crater","moon_name":"Moon","lat":-87.45,"lon":5.17,"description":"Sir Walter Norman; English chemist, 1937 Nobel Prize winner for chemistry (1883-1950).","dimension":"51.4 km","theme":"moon"},{"name":"Hayford","type":"Impact crater","moon_name":"Moon","lat":12.68,"lon":176.45,"description":"John Fillmore; American civil engineer, geodesist (1868-1925).","dimension":"28.1 km","theme":"moon"},{"name":"Hayn","type":"Impact crater","moon_name":"Moon","lat":64.56,"lon":276.13,"description":"Friedrich Karl; German astronomer (1863-1928).","dimension":"86.2 km","theme":"moon"},{"name":"Haynes","type":"Impact crater","moon_name":"Moon","lat":-88.75,"lon":192.61,"description":"Euphemia Lofton; American mathematician (1890-1980).","dimension":"17.0 km","theme":"moon"},{"name":"Head","type":"Astronaut-named","moon_name":"Moon","lat":-3.01,"lon":23.43,"description":"Astronaut-named feature, Apollo 12 site.","dimension":"0.1 km","theme":"moon"},{"name":"Healy","type":"Impact crater","moon_name":"Moon","lat":32.5,"lon":111.0,"description":"Roy; American rocketry scientist (1915-1968).","dimension":"38.0 km","theme":"moon"},{"name":"Heaviside","type":"Impact crater","moon_name":"Moon","lat":-10.44,"lon":193.23,"description":"Oliver; British mathematician, physicist (1850-1925).","dimension":"164.5 km","theme":"moon"},{"name":"Hecataeus","type":"Impact crater","moon_name":"Moon","lat":-22.06,"lon":280.32,"description":"Greek geographer (unkn-c. 476 B.C.).","dimension":"133.7 km","theme":"moon"},{"name":"H\u00e9derv\u00e1ri","type":"Impact crater","moon_name":"Moon","lat":-81.77,"lon":274.4,"description":"Peter; Hungarian geoscientist (1931-1984).","dimension":"74.1 km","theme":"moon"},{"name":"Hedin","type":"Impact crater","moon_name":"Moon","lat":2.87,"lon":76.57,"description":"Sven Anders; Swedish explorer (1865-1952).","dimension":"157.4 km","theme":"moon"},{"name":"Hegu","type":"Impact crater","moon_name":"Moon","lat":-46.3,"lon":182.43,"description":"Constellation name in the ancient Chinese star map, which contains the star Altair, also known as Niulang, the cowherd who marries Zhinyu in the Chinese folk tale \u201cThe Cowherd and the Weaver Girl.\u201d","dimension":"2.2 km","theme":"moon"},{"name":"[Heine]","type":"Impact crater","moon_name":"Moon","lat":-14.4,"lon":228.0,"description":"Heinrich; German poet and critic (1797-1856).","dimension":"","theme":"moon"},{"name":"Heinrich","type":"Impact crater","moon_name":"Moon","lat":24.84,"lon":15.37,"description":"Wladimir W\u00e1clav; Czechoslovakian astronomer (1884-1965).","dimension":"6.9 km","theme":"moon"},{"name":"Heinsius","type":"Impact crater","moon_name":"Moon","lat":-39.48,"lon":17.82,"description":"Gottfried; German astronomer (1709-1769).","dimension":"64.9 km","theme":"moon"},{"name":"Heis","type":"Impact crater","moon_name":"Moon","lat":32.47,"lon":31.98,"description":"Eduard; German astronomer (1806-1877).","dimension":"13.7 km","theme":"moon"},{"name":"Helberg","type":"Impact crater","moon_name":"Moon","lat":22.63,"lon":102.46,"description":"Robert J.; American aeronautical engineer (1906-1967).","dimension":"61.9 km","theme":"moon"},{"name":"Helicon","type":"Impact crater","moon_name":"Moon","lat":40.43,"lon":23.11,"description":"Greek astronomer, mathematician (fl. c. 361 B.C.).","dimension":"23.7 km","theme":"moon"},{"name":"Hell","type":"Impact crater","moon_name":"Moon","lat":-32.41,"lon":7.8,"description":"Maximilian; Hungarian astronomer (1720-1792).","dimension":"33.3 km","theme":"moon"},{"name":"Helmert","type":"Impact crater","moon_name":"Moon","lat":-7.56,"lon":272.33,"description":"Friedrich Robert; German astronomer, geodesist (1843-1917).","dimension":"26.7 km","theme":"moon"},{"name":"Helmholtz","type":"Impact crater","moon_name":"Moon","lat":-68.64,"lon":294.66,"description":"Hermann Von; German doctor (1821-1894).","dimension":"110.2 km","theme":"moon"},{"name":"Henderson","type":"Impact crater","moon_name":"Moon","lat":4.76,"lon":208.0,"description":"Thomas; Scottish astronomer (1798-1844).","dimension":"43.5 km","theme":"moon"},{"name":"Hendrix","type":"Impact crater","moon_name":"Moon","lat":-46.86,"lon":159.97,"description":"Don Osgood; American optician (1905-1961).","dimension":"16.6 km","theme":"moon"},{"name":"Henry","type":"Impact crater","moon_name":"Moon","lat":-23.97,"lon":57.01,"description":"Joseph; American physicist (1797-1878).","dimension":"39.1 km","theme":"moon"},{"name":"Henry Fr\u00e8res","type":"Impact crater","moon_name":"Moon","lat":-23.52,"lon":59.02,"description":"Prosper; French astronomer (1849-1903); Paul; French astronomer (1848-1905).","dimension":"41.7 km","theme":"moon"},{"name":"Henson","type":"Impact crater","moon_name":"Moon","lat":-88.57,"lon":130.63,"description":"Matthew; American polar explorer (1866-1955).","dimension":"43.0 km","theme":"moon"},{"name":"Henyey","type":"Impact crater","moon_name":"Moon","lat":12.7,"lon":152.33,"description":"Louis George; American astronomer (1910-1970).","dimension":"68.7 km","theme":"moon"},{"name":"Heraclitus","type":"Impact crater","moon_name":"Moon","lat":-49.31,"lon":353.58,"description":"Greek philosopher (c. 540-480 B.C.).","dimension":"85.7 km","theme":"moon"},{"name":"Hercules","type":"Impact crater","moon_name":"Moon","lat":46.82,"lon":320.79,"description":"Latin spelling for Greek mythological hero Heracles.","dimension":"68.3 km","theme":"moon"},{"name":"Herigonius","type":"Impact crater","moon_name":"Moon","lat":-13.36,"lon":33.97,"description":"Herigone, Pierre; French mathematician, astronomer (fl. 1634).","dimension":"14.9 km","theme":"moon"},{"name":"Hermann","type":"Impact crater","moon_name":"Moon","lat":-0.87,"lon":57.47,"description":"Jacob; Swiss mathematician (1678-1733).","dimension":"15.9 km","theme":"moon"},{"name":"Hermite","type":"Impact crater","moon_name":"Moon","lat":86.17,"lon":93.32,"description":"Charles; French mathematician (1822-1901).","dimension":"108.6 km","theme":"moon"},{"name":"Herodotus","type":"Impact crater","moon_name":"Moon","lat":23.25,"lon":49.84,"description":"Of Halikarnassus; Greek historian (c. 484-408 B.C.).","dimension":"35.9 km","theme":"moon"},{"name":"Heron (Hero)","type":"Impact crater","moon_name":"Moon","lat":0.65,"lon":240.12,"description":"Egyptian inventor (unkn-c. 100 B.C.).","dimension":"28.1 km","theme":"moon"},{"name":"Herschel","type":"Impact crater","moon_name":"Moon","lat":-5.69,"lon":2.09,"description":"Sir William; German-born British astronomer (1738-1822).","dimension":"39.1 km","theme":"moon"},{"name":"Hertz","type":"Impact crater","moon_name":"Moon","lat":13.32,"lon":255.44,"description":"Heinrich Rudolf; German physicist (1857-1894).","dimension":"82.9 km","theme":"moon"},{"name":"Hertzsprung","type":"Impact crater","moon_name":"Moon","lat":1.37,"lon":128.66,"description":"Ejnar; Danish astronomer (1873-1967).","dimension":"536.4 km","theme":"moon"},{"name":"Hesiodus","type":"Impact crater","moon_name":"Moon","lat":-29.42,"lon":16.42,"description":"Hesiod; Greek humanitarian (c. 735 B.C.).","dimension":"43.2 km","theme":"moon"},{"name":"Hess","type":"Impact crater","moon_name":"Moon","lat":-54.47,"lon":185.81,"description":"Victor Franz (Francis); American physicist (1883-1964); Harry Hammond; American geologist (1906-1969).","dimension":"90.4 km","theme":"moon"},{"name":"Hess-Apollo","type":"Astronaut-named","moon_name":"Moon","lat":20.09,"lon":329.25,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.6 km","theme":"moon"},{"name":"Hevelius","type":"Impact crater","moon_name":"Moon","lat":2.2,"lon":67.46,"description":"Howelcke, Johann; Polish astronomer (1611-1687).","dimension":"113.9 km","theme":"moon"},{"name":"Hevesy","type":"Impact crater","moon_name":"Moon","lat":83.09,"lon":210.85,"description":"Georg Karl; Hungarian chemist, Nobel Prize winner 1943 (1885-1966).","dimension":"50.0 km","theme":"moon"},{"name":"Heymans","type":"Impact crater","moon_name":"Moon","lat":74.76,"lon":144.94,"description":"Corneille-Jean-Fran\u00e7ois; Belgian physiologist; Nobel laureate (1892-1968).","dimension":"46.5 km","theme":"moon"},{"name":"Heyrovsky","type":"Impact crater","moon_name":"Moon","lat":-39.55,"lon":95.42,"description":"Jaroslav; Czechoslovakian chemist (1890-1967).","dimension":"16.7 km","theme":"moon"},{"name":"H. G. Wells","type":"Impact crater","moon_name":"Moon","lat":40.84,"lon":237.37,"description":"Herbert George; British scientific writer (1866-1946).","dimension":"108.9 km","theme":"moon"},{"name":"Hilbert","type":"Impact crater","moon_name":"Moon","lat":-17.87,"lon":251.68,"description":"David; German mathematician (1862-1943).","dimension":"173.2 km","theme":"moon"},{"name":"Hildegard","type":"Impact crater","moon_name":"Moon","lat":-51.68,"lon":232.26,"description":"Hildegard von Bingen; German writer, composer, mystic and visionary. In Germany she is considered the founder of the scientific study of natural history (1098- 1179).","dimension":"122.0 km","theme":"moon"},{"name":"Hill","type":"Impact crater","moon_name":"Moon","lat":20.91,"lon":319.19,"description":"George William; American astronomer, mathematician (1838-1914).","dimension":"15.9 km","theme":"moon"},{"name":"Hind","type":"Impact crater","moon_name":"Moon","lat":-7.92,"lon":352.69,"description":"John Russell; British astronomer (1823-1895).","dimension":"28.5 km","theme":"moon"},{"name":"Hinshelwood","type":"Impact crater","moon_name":"Moon","lat":89.41,"lon":51.89,"description":"Sir Cyril Norman; English chemist, Nobel Prize winner 1956 (1897-1967).","dimension":"13.3 km","theme":"moon"},{"name":"Hippalus","type":"Impact crater","moon_name":"Moon","lat":-24.92,"lon":30.42,"description":"Greek explorer (unkn-c. 120).","dimension":"57.4 km","theme":"moon"},{"name":"Hipparchus","type":"Impact crater","moon_name":"Moon","lat":-5.36,"lon":355.09,"description":"Greek astronomer (unkn-fl. 140 B.C.).","dimension":"143.9 km","theme":"moon"},{"name":"Hippocrates","type":"Impact crater","moon_name":"Moon","lat":70.26,"lon":146.54,"description":"Greek doctor (c. 460-377 B.C.).","dimension":"59.2 km","theme":"moon"},{"name":"Hirayama","type":"Impact crater","moon_name":"Moon","lat":-6.01,"lon":266.37,"description":"Kiyotsugu; Japanese astronomer (1874-1943); Shin; Japanese astronomer (1867-1945).","dimension":"145.2 km","theme":"moon"},{"name":"Hoffmeister","type":"Impact crater","moon_name":"Moon","lat":15.04,"lon":223.16,"description":"Cuno; German astronomer (1892-1968).","dimension":"44.5 km","theme":"moon"},{"name":"Hogg","type":"Impact crater","moon_name":"Moon","lat":33.51,"lon":238.04,"description":"Arthur Robert; Australian astronomer (1903-1966); Frank Scott; Canadian astronomer (1904-1951).","dimension":"38.4 km","theme":"moon"},{"name":"Hohmann","type":"Impact crater","moon_name":"Moon","lat":-17.92,"lon":94.26,"description":"Walter; German space flight engineer (1880-1945).","dimension":"16.8 km","theme":"moon"},{"name":"Holden","type":"Impact crater","moon_name":"Moon","lat":-19.19,"lon":297.47,"description":"Edward Singleton; American astronomer (1846-1914).","dimension":"47.6 km","theme":"moon"},{"name":"Holetschek","type":"Impact crater","moon_name":"Moon","lat":-27.61,"lon":208.85,"description":"Johann; Austrian astronomer (1846-1923).","dimension":"37.8 km","theme":"moon"},{"name":"[Homer]","type":"Impact crater","moon_name":"Moon","lat":-24.3,"lon":226.4,"description":"Greek epic poet (8th or 9th century B.C.).","dimension":"","theme":"moon"},{"name":"Hommel","type":"Impact crater","moon_name":"Moon","lat":-54.74,"lon":327.07,"description":"Johann; German astronomer, mathematician (1518-1562).","dimension":"113.6 km","theme":"moon"},{"name":"Hooke","type":"Impact crater","moon_name":"Moon","lat":41.14,"lon":305.14,"description":"Robert; British physicist, inventor (1635-1703).","dimension":"34.4 km","theme":"moon"},{"name":"Hopmann","type":"Impact crater","moon_name":"Moon","lat":-51.01,"lon":200.77,"description":"Josef; Austrian astronomer (1890-1975).","dimension":"87.8 km","theme":"moon"},{"name":"Horatio","type":"Astronaut-named","moon_name":"Moon","lat":20.19,"lon":329.29,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.4 km","theme":"moon"},{"name":"Hornsby","type":"Impact crater","moon_name":"Moon","lat":23.8,"lon":347.49,"description":"Thomas; British astronomer (1733-1810).","dimension":"2.9 km","theme":"moon"},{"name":"Horrebow","type":"Impact crater","moon_name":"Moon","lat":58.8,"lon":40.93,"description":"Peder; Danish astronomer (1679-1764).","dimension":"25.0 km","theme":"moon"},{"name":"Horrocks","type":"Impact crater","moon_name":"Moon","lat":-3.99,"lon":354.15,"description":"Jeremiah; British astronomer (1619-1641).","dimension":"29.6 km","theme":"moon"},{"name":"Hortensius","type":"Impact crater","moon_name":"Moon","lat":6.47,"lon":28.0,"description":"Hove, Martin van den; Dutch astronomer (1605-1639).","dimension":"14.2 km","theme":"moon"},{"name":"Houssay","type":"Impact crater","moon_name":"Moon","lat":83.11,"lon":261.48,"description":"Bernardo Alberto; Argentinean physiologist, Nobel Prize winner 1947 (1887-1971).","dimension":"31.4 km","theme":"moon"},{"name":"Houtermans","type":"Impact crater","moon_name":"Moon","lat":-9.42,"lon":272.62,"description":"Friedrich Georg; German physicist (1903-1966).","dimension":"42.7 km","theme":"moon"},{"name":"Houzeau","type":"Impact crater","moon_name":"Moon","lat":-17.25,"lon":123.89,"description":"Jean-Charles-Hippolyte-Joseph de Lehaie; Belgian astronomer (1820-1888).","dimension":"76.8 km","theme":"moon"},{"name":"Hubble","type":"Impact crater","moon_name":"Moon","lat":22.29,"lon":273.09,"description":"Edwin Powell; American astronomer (1889-1953).","dimension":"81.8 km","theme":"moon"},{"name":"Huggins","type":"Impact crater","moon_name":"Moon","lat":-41.07,"lon":1.52,"description":"Sir William; British astronomer (1824-1910).","dimension":"65.8 km","theme":"moon"},{"name":"[Hugo]","type":"Impact crater","moon_name":"Moon","lat":-0.7,"lon":267.1,"description":"Victor; French writer, dramatist, poet (1802-1885).","dimension":"","theme":"moon"},{"name":"Humason","type":"Impact crater","moon_name":"Moon","lat":30.73,"lon":56.66,"description":"Milton Lasell; American astronomer (1891-1972).","dimension":"4.3 km","theme":"moon"},{"name":"Humboldt","type":"Impact crater","moon_name":"Moon","lat":-27.02,"lon":279.04,"description":"Wilhelm von; German philologist (1767-1835).","dimension":"199.5 km","theme":"moon"},{"name":"Hume","type":"Impact crater","moon_name":"Moon","lat":-4.68,"lon":269.53,"description":"David; Scottish philosopher (1711-1776).","dimension":"22.3 km","theme":"moon"},{"name":"Husband","type":"Impact crater","moon_name":"Moon","lat":-40.32,"lon":147.84,"description":"Rick Douglas; American astronaut, Space Shuttle Columbia Commander (1957-2003).","dimension":"31.3 km","theme":"moon"},{"name":"[Hussein]","type":"Impact crater","moon_name":"Moon","lat":12.3,"lon":322.0,"description":"Taha; Egyptian author (1889-1973).","dimension":"","theme":"moon"},{"name":"Hutton","type":"Impact crater","moon_name":"Moon","lat":37.22,"lon":191.32,"description":"James; Scottish geologist (1726-1797).","dimension":"45.2 km","theme":"moon"},{"name":"Huxley","type":"Impact crater","moon_name":"Moon","lat":20.2,"lon":4.54,"description":"Thomas Henry; British biologist (1825-1895).","dimension":"3.5 km","theme":"moon"},{"name":"Hyginus","type":"Impact crater","moon_name":"Moon","lat":7.76,"lon":353.73,"description":"Caius Julius; Spanish astronomer (fl. first century B.C.).","dimension":"8.7 km","theme":"moon"},{"name":"Hypatia","type":"Impact crater","moon_name":"Moon","lat":-4.25,"lon":337.42,"description":"Hypatia of Alexandria; Egyptian mathematician and philosopher (c. 370-415).","dimension":"38.8 km","theme":"moon"},{"name":"Ian","type":"Impact crater","moon_name":"Moon","lat":25.72,"lon":0.39,"description":"Scottish male name.","dimension":"1.5 km","theme":"moon"},{"name":"Ibn Bajja","type":"Impact crater","moon_name":"Moon","lat":-86.3,"lon":75.04,"description":"Spanish-Arab astronomer and philosopher (c. 1095-1138).","dimension":"12.0 km","theme":"moon"},{"name":"Ibn Battuta","type":"Impact crater","moon_name":"Moon","lat":-6.95,"lon":309.56,"description":"Abu Abd Allah Mohammed Ibn Abd Allah; Moroccan geographer (1304-1377).","dimension":"11.5 km","theme":"moon"},{"name":"Ibn Firnas","type":"Impact crater","moon_name":"Moon","lat":6.83,"lon":237.7,"description":"Abbas Ibn Firnas; Spanish-Arab humanitarian, technologist (unkn- A.D. 887).","dimension":"88.3 km","theme":"moon"},{"name":"Ibn-Rushd","type":"Impact crater","moon_name":"Moon","lat":-11.69,"lon":338.29,"description":"Abu al-Wal\u00eed Ibn Rushd (Averro\u00ebs); Spanish-Arab philosopher/doctor (1126-1198).","dimension":"31.1 km","theme":"moon"},{"name":"Ibn Yunus","type":"Impact crater","moon_name":"Moon","lat":14.14,"lon":268.86,"description":"Abul al-Hasan ben Ahmad; Egyptian astronomer (950-1009).","dimension":"59.7 km","theme":"moon"},{"name":"Icarus","type":"Impact crater","moon_name":"Moon","lat":-5.49,"lon":173.26,"description":"Greek mythical flyer.","dimension":"93.7 km","theme":"moon"},{"name":"Ideler","type":"Impact crater","moon_name":"Moon","lat":-49.32,"lon":337.76,"description":"Christian Ludwig; German astronomer (1766-1846).","dimension":"37.8 km","theme":"moon"},{"name":"Idel'son","type":"Impact crater","moon_name":"Moon","lat":-81.35,"lon":247.31,"description":"Naum Ilich; Soviet astronomer (1885-1951).","dimension":"59.8 km","theme":"moon"},{"name":"Igor","type":"Impact crater","moon_name":"Moon","lat":38.25,"lon":35.01,"description":"Norse male name Ingvar adopted as Russian name (Lunokhod-1 landing site feature).","dimension":"0.1 km","theme":"moon"},{"name":"Il'in","type":"Impact crater","moon_name":"Moon","lat":-17.8,"lon":97.68,"description":"N.Ja.; Soviet rocketry scientist (1901-1937).","dimension":"12.4 km","theme":"moon"},{"name":"Ina","type":"Impact crater","moon_name":"Moon","lat":18.66,"lon":354.7,"description":"Latin female name.","dimension":"3.0 km","theme":"moon"},{"name":"Index","type":"Astronaut-named","moon_name":"Moon","lat":26.1,"lon":356.34,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"0.3 km","theme":"moon"},{"name":"Ingalls","type":"Impact crater","moon_name":"Moon","lat":26.16,"lon":153.34,"description":"Albert Graham; American optician (1888-1958).","dimension":"37.2 km","theme":"moon"},{"name":"Inghirami","type":"Impact crater","moon_name":"Moon","lat":-47.49,"lon":68.95,"description":"Giovanni; Italian astronomer (1779-1851).","dimension":"94.6 km","theme":"moon"},{"name":"Innes","type":"Impact crater","moon_name":"Moon","lat":27.85,"lon":240.69,"description":"Robert Thornton Ayton; Scottish astronomer (1861-1933).","dimension":"42.8 km","theme":"moon"},{"name":"Ioffe","type":"Impact crater","moon_name":"Moon","lat":-14.38,"lon":129.16,"description":"Joffe, Abram Feodorovich; Soviet physicist (1880-1960).","dimension":"84.0 km","theme":"moon"},{"name":"Isabel","type":"Impact crater","moon_name":"Moon","lat":28.18,"lon":34.07,"description":"Spanish female name.","dimension":"1.2 km","theme":"moon"},{"name":"Isaev","type":"Impact crater","moon_name":"Moon","lat":-17.57,"lon":212.51,"description":"Alexei Mikhailovich; Soviet rocket designer (1908-1971).","dimension":"94.1 km","theme":"moon"},{"name":"Isidorus","type":"Impact crater","moon_name":"Moon","lat":-7.96,"lon":326.5,"description":"St. Isidore of Seville; Spanish astronomer and encyclopaedist (c. 560-636).","dimension":"41.4 km","theme":"moon"},{"name":"Isis","type":"Impact crater","moon_name":"Moon","lat":18.95,"lon":332.52,"description":"Egyptian female first name.","dimension":"0.6 km","theme":"moon"},{"name":"Ivan","type":"Impact crater","moon_name":"Moon","lat":26.86,"lon":43.26,"description":"Russian male name.","dimension":"3.8 km","theme":"moon"},{"name":"Izsak","type":"Impact crater","moon_name":"Moon","lat":-23.32,"lon":242.41,"description":"Imre; Hungarian-American astronomer (1929-1965).","dimension":"30.8 km","theme":"moon"},{"name":"Jaci","type":"Impact crater","moon_name":"Moon","lat":-85.42,"lon":328.77,"description":"Tupi first name.","dimension":"1.8 km","theme":"moon"},{"name":"Jackson","type":"Impact crater","moon_name":"Moon","lat":22.05,"lon":163.32,"description":"John; Scottish astronomer (1887-1958).","dimension":"71.4 km","theme":"moon"},{"name":"Jacobi","type":"Impact crater","moon_name":"Moon","lat":-56.82,"lon":348.7,"description":"Karl Gustav Jacob; German mathematician (1804-1851).","dimension":"66.3 km","theme":"moon"},{"name":"[James]","type":"Impact crater","moon_name":"Moon","lat":10.2,"lon":309.6,"description":"Henry; American writer (1843-1916).","dimension":"","theme":"moon"},{"name":"Jansen","type":"Impact crater","moon_name":"Moon","lat":13.55,"lon":331.36,"description":"Janszoon, Zacharias; Dutch optician (1580-c. 1638).","dimension":"24.2 km","theme":"moon"},{"name":"Jansky","type":"Impact crater","moon_name":"Moon","lat":8.63,"lon":270.5,"description":"Karl Guthe; American radio engineer (1905-1950).","dimension":"73.8 km","theme":"moon"},{"name":"Janssen","type":"Impact crater","moon_name":"Moon","lat":-44.96,"lon":319.18,"description":"Pierre Jules C\u00e9sar; French astronomer (1824-1907).","dimension":"200.7 km","theme":"moon"},{"name":"Jarvis","type":"Impact crater","moon_name":"Moon","lat":-35.13,"lon":148.21,"description":"Gregory Bruce; Member of the Challenger crew (1944-1986).","dimension":"41.2 km","theme":"moon"},{"name":"Jeans","type":"Impact crater","moon_name":"Moon","lat":-55.58,"lon":268.49,"description":"Sir James Hopwood; British mathematical physicist (1877-1946).","dimension":"81.1 km","theme":"moon"},{"name":"Jehan","type":"Impact crater","moon_name":"Moon","lat":20.71,"lon":31.86,"description":"Turkish female name.","dimension":"4.5 km","theme":"moon"},{"name":"Jenkins","type":"Impact crater","moon_name":"Moon","lat":0.37,"lon":281.96,"description":"Louise Freeland; American astronomer (1888-1970).","dimension":"37.8 km","theme":"moon"},{"name":"Jenner","type":"Impact crater","moon_name":"Moon","lat":-42.01,"lon":264.02,"description":"Edward; British doctor (1749-1823).","dimension":"73.7 km","theme":"moon"},{"name":"Jerik","type":"Impact crater","moon_name":"Moon","lat":18.53,"lon":332.37,"description":"Scandinavian male name.","dimension":"0.6 km","theme":"moon"},{"name":"J. Herschel","type":"Impact crater","moon_name":"Moon","lat":62.31,"lon":41.86,"description":"Sir John Frederick William; British astronomer (1792-1871).","dimension":"154.4 km","theme":"moon"},{"name":"[Johnson]","type":"Impact crater","moon_name":"Moon","lat":-8.7,"lon":271.0,"description":"Samuel; British writer (1709-1784).","dimension":"","theme":"moon"},{"name":"Joliot","type":"Impact crater","moon_name":"Moon","lat":25.79,"lon":266.61,"description":"Frederic Joliot-Curie; French physicist; Nobel laureate (1900-1958).","dimension":"172.8 km","theme":"moon"},{"name":"Jomo","type":"Impact crater","moon_name":"Moon","lat":24.41,"lon":357.56,"description":"African male name.","dimension":"7.4 km","theme":"moon"},{"name":"Jos\u00e9","type":"Impact crater","moon_name":"Moon","lat":-12.68,"lon":1.66,"description":"Spanish male name.","dimension":"1.2 km","theme":"moon"},{"name":"Joule","type":"Impact crater","moon_name":"Moon","lat":27.15,"lon":144.14,"description":"James Prescott; British physicist (1818-1889).","dimension":"97.5 km","theme":"moon"},{"name":"Joy","type":"Impact crater","moon_name":"Moon","lat":25.01,"lon":353.44,"description":"Alfred Harrison; American astronomer (1882-1973).","dimension":"5.1 km","theme":"moon"},{"name":"Jules Verne","type":"Impact crater","moon_name":"Moon","lat":-34.85,"lon":212.72,"description":"French writer (1828-1905).","dimension":"145.5 km","theme":"moon"},{"name":"Julienne","type":"Impact crater","moon_name":"Moon","lat":26.06,"lon":356.87,"description":"French female name.","dimension":"1.8 km","theme":"moon"},{"name":"Julius Caesar","type":"Impact crater","moon_name":"Moon","lat":9.17,"lon":344.79,"description":"Roman emperor, introduced the Julian calendar (c. 102-44 B.C.).","dimension":"84.7 km","theme":"moon"},{"name":"Kaiser","type":"Impact crater","moon_name":"Moon","lat":-36.49,"lon":353.52,"description":"Frederick; Dutch astronomer (1808-1872).","dimension":"53.1 km","theme":"moon"},{"name":"Kamerlingh Onnes","type":"Impact crater","moon_name":"Moon","lat":14.72,"lon":116.29,"description":"Heike Kamerlingh Onnes; Dutch physicist; Nobel laureate (1853-1926).","dimension":"70.0 km","theme":"moon"},{"name":"Kane","type":"Impact crater","moon_name":"Moon","lat":62.99,"lon":334.16,"description":"Elisha Kent; American explorer (1820-1857).","dimension":"55.0 km","theme":"moon"},{"name":"Kant","type":"Impact crater","moon_name":"Moon","lat":-10.62,"lon":339.8,"description":"Immanuel; German philosopher (1724-1804).","dimension":"30.9 km","theme":"moon"},{"name":"Kao","type":"Impact crater","moon_name":"Moon","lat":-6.71,"lon":272.19,"description":"Ping-Tse; Taiwanese astronomer (1888-1970).","dimension":"34.5 km","theme":"moon"},{"name":"Kapteyn","type":"Impact crater","moon_name":"Moon","lat":-10.79,"lon":289.41,"description":"Jacobus Cornelis; Dutch astronomer (1851-1922).","dimension":"48.6 km","theme":"moon"},{"name":"Karima","type":"Impact crater","moon_name":"Moon","lat":-25.93,"lon":257.02,"description":"Arabic female name.","dimension":"3.0 km","theme":"moon"},{"name":"Karpinskiy","type":"Impact crater","moon_name":"Moon","lat":72.61,"lon":193.2,"description":"Alexander Petrovich; Soviet geologist (1846-1936).","dimension":"91.4 km","theme":"moon"},{"name":"Karrer","type":"Impact crater","moon_name":"Moon","lat":-52.06,"lon":142.28,"description":"Paul; Russian/Swiss biochemist; Nobel laureate (1889-1971).","dimension":"55.6 km","theme":"moon"},{"name":"Kasper","type":"Impact crater","moon_name":"Moon","lat":8.3,"lon":237.88,"description":"Polish male name.","dimension":"12.4 km","theme":"moon"},{"name":"K\u00e4stner","type":"Impact crater","moon_name":"Moon","lat":-6.9,"lon":281.06,"description":"Abraham Gotthelf; German mathematician, physicist (1719-1800).","dimension":"116.1 km","theme":"moon"},{"name":"Katchalsky","type":"Impact crater","moon_name":"Moon","lat":5.91,"lon":243.93,"description":"Katzir-Katchalsky, Aharon; Polish-Israeli chemist (1914-1972).","dimension":"32.3 km","theme":"moon"},{"name":"Kathleen","type":"Impact crater","moon_name":"Moon","lat":25.34,"lon":0.83,"description":"Irish female name.","dimension":"5.4 km","theme":"moon"},{"name":"Kearons","type":"Impact crater","moon_name":"Moon","lat":-11.59,"lon":112.92,"description":"William Maybrick; American astronomer (1878-1948).","dimension":"28.0 km","theme":"moon"},{"name":"Keeler","type":"Impact crater","moon_name":"Moon","lat":-9.78,"lon":198.22,"description":"James Edward; American astronomer (1857-1900).","dimension":"158.1 km","theme":"moon"},{"name":"Kekul\u00e9","type":"Impact crater","moon_name":"Moon","lat":16.31,"lon":138.47,"description":"Friedrich August; German chemist (1829-1896).","dimension":"94.2 km","theme":"moon"},{"name":"Keldysh","type":"Impact crater","moon_name":"Moon","lat":51.23,"lon":316.35,"description":"Mstislav Vsevolodovich; Soviet mathematician (1911-1978).","dimension":"32.8 km","theme":"moon"},{"name":"Kep\u00ednski","type":"Impact crater","moon_name":"Moon","lat":28.63,"lon":233.28,"description":"Felicjan; Polish astronomer (1885-1966).","dimension":"31.7 km","theme":"moon"},{"name":"Kepler","type":"Impact crater","moon_name":"Moon","lat":8.12,"lon":38.01,"description":"Johannes; German astronomer (1571-1630).","dimension":"29.5 km","theme":"moon"},{"name":"Khvol'son","type":"Impact crater","moon_name":"Moon","lat":-14.13,"lon":248.13,"description":"Orest Danilovich; Soviet physicist (1852-1934).","dimension":"55.9 km","theme":"moon"},{"name":"Kibal'chich","type":"Impact crater","moon_name":"Moon","lat":2.72,"lon":147.18,"description":"Nikolaj Ivanovich; Russian rocketry scientist (1853-1881).","dimension":"91.7 km","theme":"moon"},{"name":"Kidinnu","type":"Impact crater","moon_name":"Moon","lat":35.79,"lon":237.05,"description":"Or Cidenas; Babylonian astronomer (unkn-c. 343 B.C.).","dimension":"55.1 km","theme":"moon"},{"name":"Kies","type":"Impact crater","moon_name":"Moon","lat":-26.31,"lon":22.63,"description":"Johann; German mathematician, astronomer (1713-1781).","dimension":"45.5 km","theme":"moon"},{"name":"Kiess","type":"Impact crater","moon_name":"Moon","lat":-6.41,"lon":275.89,"description":"Carl Clarence; American astrophysicist (1887-1967).","dimension":"67.8 km","theme":"moon"},{"name":"Kimura","type":"Impact crater","moon_name":"Moon","lat":-56.82,"lon":241.62,"description":"Hisashi; Japanese astronomer (1870-1943).","dimension":"27.4 km","theme":"moon"},{"name":"Kinau","type":"Impact crater","moon_name":"Moon","lat":-60.75,"lon":345.06,"description":"Adolph Gottfried; German selenographer (1814-1887).","dimension":"41.9 km","theme":"moon"},{"name":"King","type":"Impact crater","moon_name":"Moon","lat":4.96,"lon":239.51,"description":"Arthur Scott; American physicist (1876-1957); Edward Skinner; American astronomer (1861-1931).","dimension":"76.2 km","theme":"moon"},{"name":"Kira","type":"Impact crater","moon_name":"Moon","lat":-17.71,"lon":227.17,"description":"Russian female name.","dimension":"6.8 km","theme":"moon"},{"name":"Kirch","type":"Impact crater","moon_name":"Moon","lat":39.27,"lon":5.62,"description":"Gottfried; German astronomer (1639-1710).","dimension":"11.7 km","theme":"moon"},{"name":"Kircher","type":"Impact crater","moon_name":"Moon","lat":-67.01,"lon":45.48,"description":"Athanasius; German humanitarian (1601-1680).","dimension":"71.2 km","theme":"moon"},{"name":"Kirchhoff","type":"Impact crater","moon_name":"Moon","lat":30.3,"lon":321.16,"description":"Gustav Robert; German physicist (1824-1887).","dimension":"24.4 km","theme":"moon"},{"name":"Kirkwood","type":"Impact crater","moon_name":"Moon","lat":68.34,"lon":156.66,"description":"Daniel; American astronomer (1814-1895).","dimension":"68.1 km","theme":"moon"},{"name":"Kiva","type":"Astronaut-named","moon_name":"Moon","lat":-8.84,"lon":344.55,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.9 km","theme":"moon"},{"name":"Klaproth","type":"Impact crater","moon_name":"Moon","lat":-69.85,"lon":26.26,"description":"Martin Heinrich; German chemist, mineralogist (1743-1817).","dimension":"121.4 km","theme":"moon"},{"name":"Klein","type":"Impact crater","moon_name":"Moon","lat":-11.99,"lon":357.47,"description":"Hermann Joseph; German astronomer (1844-1914).","dimension":"43.5 km","theme":"moon"},{"name":"Kleymenov","type":"Impact crater","moon_name":"Moon","lat":-32.48,"lon":140.36,"description":"Ivan Terent'evich; Soviet rocketry scientist (1898-1938).","dimension":"56.0 km","theme":"moon"},{"name":"Klute","type":"Impact crater","moon_name":"Moon","lat":36.93,"lon":141.76,"description":"Daniel O'Donnell; American rocketry scientist (1921-1964).","dimension":"77.5 km","theme":"moon"},{"name":"Knox-Shaw","type":"Impact crater","moon_name":"Moon","lat":5.36,"lon":279.81,"description":"Harold; British astronomer (1885-1970).","dimension":"13.4 km","theme":"moon"},{"name":"Koch","type":"Impact crater","moon_name":"Moon","lat":-42.13,"lon":209.67,"description":"Robert; German doctor; Nobel laureate (1843-1910).","dimension":"94.7 km","theme":"moon"},{"name":"Kocher","type":"Impact crater","moon_name":"Moon","lat":-84.47,"lon":134.02,"description":"Emil Theodor; Swiss surgeon, Nobel Prize winner 1909 (1841-1917).","dimension":"24.0 km","theme":"moon"},{"name":"Kohlsch\u00fctter","type":"Impact crater","moon_name":"Moon","lat":14.24,"lon":206.05,"description":"Arnold; German astronomer (1883-1969).","dimension":"56.2 km","theme":"moon"},{"name":"Kolh\u00f6rster","type":"Impact crater","moon_name":"Moon","lat":10.79,"lon":115.01,"description":"Werner; German physicist (1887-1946).","dimension":"78.8 km","theme":"moon"},{"name":"Kolya","type":"Impact crater","moon_name":"Moon","lat":38.31,"lon":35.0,"description":"Russian male name, diminutive from Greek-derived Nicholas (Lunokhod-1 landing site feature).","dimension":"0.1 km","theme":"moon"},{"name":"Komarov","type":"Impact crater","moon_name":"Moon","lat":24.59,"lon":207.75,"description":"Vladimir Mikhaylovich; Soviet cosmonaut (1927-1967).","dimension":"80.4 km","theme":"moon"},{"name":"Kondratyuk","type":"Impact crater","moon_name":"Moon","lat":-15.33,"lon":244.2,"description":"Yury Vasilyevich; Soviet rocketry scientist (1897-1942).","dimension":"98.0 km","theme":"moon"},{"name":"K\u00f6nig","type":"Impact crater","moon_name":"Moon","lat":-24.23,"lon":24.68,"description":"Rudolf; Austrian mathematician, astronomer (1865-1927).","dimension":"22.9 km","theme":"moon"},{"name":"Konoplev","type":"Impact crater","moon_name":"Moon","lat":-28.16,"lon":124.37,"description":"B.T.; Soviet radio engineer (1912-1960).","dimension":"27.7 km","theme":"moon"},{"name":"Konstantinov","type":"Impact crater","moon_name":"Moon","lat":19.56,"lon":201.66,"description":"Konstantin Ivanovich; Russian rocketry scientist (1817-1871).","dimension":"68.1 km","theme":"moon"},{"name":"Kopff","type":"Impact crater","moon_name":"Moon","lat":-17.39,"lon":89.68,"description":"August; German astronomer (1882-1960).","dimension":"40.5 km","theme":"moon"},{"name":"Korolev","type":"Impact crater","moon_name":"Moon","lat":-4.19,"lon":157.41,"description":"Sergey Pavlovich; Soviet rocketry scientist (1906-1966).","dimension":"423.4 km","theme":"moon"},{"name":"Kosberg","type":"Impact crater","moon_name":"Moon","lat":-20.19,"lon":210.39,"description":"C. A.; Soviet aeronaut (1903-1965).","dimension":"14.6 km","theme":"moon"},{"name":"Kostinskiy","type":"Impact crater","moon_name":"Moon","lat":14.43,"lon":241.15,"description":"Sergey Konstantinovich; Soviet astronomer (1867-1936).","dimension":"67.9 km","theme":"moon"},{"name":"Kostya","type":"Impact crater","moon_name":"Moon","lat":38.26,"lon":35.02,"description":"Latin-derived male name Konstantin in Russian diminutive form (Lunokhod-1 landing site feature).","dimension":"0.1 km","theme":"moon"},{"name":"Kovalevskaya","type":"Impact crater","moon_name":"Moon","lat":30.86,"lon":129.44,"description":"Sofya Vasilyevna; Russian mathematician (1850-1891).","dimension":"113.7 km","theme":"moon"},{"name":"Koval'skiy","type":"Impact crater","moon_name":"Moon","lat":-21.89,"lon":258.97,"description":"Marian Albertovich; Russian astronomer (1821-1884). (Spelling changed from Koval'skij.)","dimension":"45.0 km","theme":"moon"},{"name":"Kozyrev","type":"Impact crater","moon_name":"Moon","lat":-46.64,"lon":230.41,"description":"Nikolai Alexandrovich; Soviet astronomer (1908-1983).","dimension":"59.4 km","theme":"moon"},{"name":"Krafft","type":"Impact crater","moon_name":"Moon","lat":16.56,"lon":72.72,"description":"Wolfgang Ludwig; German-Russian astronomer, physicist (1743-1814).","dimension":"51.1 km","theme":"moon"},{"name":"Kramarov","type":"Impact crater","moon_name":"Moon","lat":-2.29,"lon":98.89,"description":"Grigory Moiseevich; Soviet space scientist (1887-1970).","dimension":"21.1 km","theme":"moon"},{"name":"Kramers","type":"Impact crater","moon_name":"Moon","lat":53.28,"lon":127.98,"description":"Hendrik Anthony; Dutch physicist (1894-1952).","dimension":"61.6 km","theme":"moon"},{"name":"Krasnov","type":"Impact crater","moon_name":"Moon","lat":-29.93,"lon":79.82,"description":"Aleksander V.; Russian astronomer (1866-1907).","dimension":"41.2 km","theme":"moon"},{"name":"Krasovskiy","type":"Impact crater","moon_name":"Moon","lat":3.79,"lon":175.63,"description":"Theodosy Nicolaevich; Soviet geodesist (1878-1948).","dimension":"61.7 km","theme":"moon"},{"name":"Kreiken","type":"Impact crater","moon_name":"Moon","lat":-9.05,"lon":275.45,"description":"Egbert Adriaan; Dutch astronomer (1896-1964).","dimension":"29.4 km","theme":"moon"},{"name":"Krieger","type":"Impact crater","moon_name":"Moon","lat":29.02,"lon":45.61,"description":"Johann Nepomuk; German selenographer (1865-1902).","dimension":"22.9 km","theme":"moon"},{"name":"Krogh","type":"Impact crater","moon_name":"Moon","lat":9.41,"lon":294.31,"description":"Schack August Steenberg; Danish zoologist, physiologist; Nobel laureate (1874-1949).","dimension":"19.2 km","theme":"moon"},{"name":"Krusenstern","type":"Impact crater","moon_name":"Moon","lat":-26.3,"lon":354.24,"description":"Adam Johann, Baron Von; Russian explorer (1770-1846).","dimension":"46.4 km","theme":"moon"},{"name":"Krylov","type":"Impact crater","moon_name":"Moon","lat":35.26,"lon":166.11,"description":"Aleksei Nikolaevich; Soviet mathematician, mechanical engineer (1863-1945).","dimension":"49.8 km","theme":"moon"},{"name":"Kugler","type":"Impact crater","moon_name":"Moon","lat":-53.44,"lon":255.9,"description":"Franz Xaver; German-Babylonian chronologist (1862-1929).","dimension":"65.9 km","theme":"moon"},{"name":"Kuhn","type":"Impact crater","moon_name":"Moon","lat":-84.48,"lon":152.48,"description":"Richard; Austrian chemist, Nobel Prize winner 1938; (1900-1967).","dimension":"16.6 km","theme":"moon"},{"name":"Kuiper","type":"Impact crater","moon_name":"Moon","lat":-9.78,"lon":22.68,"description":"Gerard Peter; Dutch-American astronomer (1905-1973).","dimension":"6.3 km","theme":"moon"},{"name":"Kulik","type":"Impact crater","moon_name":"Moon","lat":41.98,"lon":154.63,"description":"Leonid Alekseevich; Soviet mineralogist (1883-1942).","dimension":"60.5 km","theme":"moon"},{"name":"Kundt","type":"Impact crater","moon_name":"Moon","lat":-11.57,"lon":11.57,"description":"August Adolph Eduard Eberhard; German physicist (1839-1894).","dimension":"10.3 km","theme":"moon"},{"name":"Kunowsky","type":"Impact crater","moon_name":"Moon","lat":3.22,"lon":32.53,"description":"Georg Karl Friedrich; German astronomer (1786-1846).","dimension":"18.3 km","theme":"moon"},{"name":"Kuo Shou Ching","type":"Impact crater","moon_name":"Moon","lat":8.1,"lon":134.66,"description":"Chinese astronomer (1231-1316).","dimension":"33.5 km","theme":"moon"},{"name":"Kurchatov","type":"Impact crater","moon_name":"Moon","lat":38.3,"lon":218.26,"description":"Igor' Vasil'evich; Soviet nuclear physicist (1903-1960).","dimension":"111.0 km","theme":"moon"},{"name":"La Caille","type":"Impact crater","moon_name":"Moon","lat":-23.68,"lon":358.92,"description":"Nicholas-Louis De; French astronomer (1713-1762).","dimension":"67.2 km","theme":"moon"},{"name":"Lacchini","type":"Impact crater","moon_name":"Moon","lat":41.29,"lon":107.83,"description":"Giovanni; Italian astronomer (1884-1967).","dimension":"58.0 km","theme":"moon"},{"name":"La Condamine","type":"Impact crater","moon_name":"Moon","lat":53.54,"lon":28.22,"description":"Charles-Marie de; French astronomer, physicist (1701-1774).","dimension":"37.8 km","theme":"moon"},{"name":"Lacroix","type":"Impact crater","moon_name":"Moon","lat":-37.93,"lon":59.2,"description":"Sylvestre Francois; French mathematician (1765-1843).","dimension":"36.1 km","theme":"moon"},{"name":"Lacus Aestatis","type":"Lacus","moon_name":"Moon","lat":-14.83,"lon":68.57,"description":"\u201c;Lake of Summer.\u201c","dimension":"86.4 km","theme":"moon"},{"name":"Lacus Autumni","type":"Lacus","moon_name":"Moon","lat":-11.81,"lon":83.17,"description":"\u201c;Lake of Autumn.\u201c","dimension":"195.7 km","theme":"moon"},{"name":"Lacus Bonitatis","type":"Lacus","moon_name":"Moon","lat":23.18,"lon":315.68,"description":"\u201c;Lake of Goodness.\u201c","dimension":"122.1 km","theme":"moon"},{"name":"Lacus Doloris","type":"Lacus","moon_name":"Moon","lat":16.8,"lon":351.39,"description":"\u201c;Lake of Sorrow.\u201c","dimension":"102.9 km","theme":"moon"},{"name":"Lacus Excellentiae","type":"Lacus","moon_name":"Moon","lat":-35.65,"lon":43.58,"description":"\u201c;Lake of Excellence.\u201c","dimension":"197.7 km","theme":"moon"},{"name":"Lacus Felicitatis","type":"Lacus","moon_name":"Moon","lat":18.52,"lon":354.64,"description":"\u201c;Lake of Happiness.\u201c","dimension":"98.5 km","theme":"moon"},{"name":"Lacus Gaudii","type":"Lacus","moon_name":"Moon","lat":16.33,"lon":347.73,"description":"\u201c;Lake of Joy.\u201c","dimension":"88.5 km","theme":"moon"},{"name":"Lacus Hiemalis","type":"Lacus","moon_name":"Moon","lat":15.01,"lon":346.03,"description":"\u201c;Wintry Lake.\u201c","dimension":"48.0 km","theme":"moon"},{"name":"Lacus Lenitatis","type":"Lacus","moon_name":"Moon","lat":14.32,"lon":347.95,"description":"\u201c;Lake of Softness.\u201c","dimension":"78.2 km","theme":"moon"},{"name":"Lacus Luxuriae","type":"Lacus","moon_name":"Moon","lat":19.41,"lon":184.5,"description":"\u201c;Lake of Luxury.\u201c","dimension":"50.6 km","theme":"moon"},{"name":"Lacus Mortis","type":"Lacus","moon_name":"Moon","lat":45.13,"lon":332.68,"description":"\u201c;Lake of Death.\u201c","dimension":"158.8 km","theme":"moon"},{"name":"Lacus Oblivionis","type":"Lacus","moon_name":"Moon","lat":-20.39,"lon":168.52,"description":"\u201c;Lake of Forgetfulness.\u201c","dimension":"49.0 km","theme":"moon"},{"name":"Lacus Odii","type":"Lacus","moon_name":"Moon","lat":19.22,"lon":352.73,"description":"\u201c;Lake of Hatred.\u201c","dimension":"72.7 km","theme":"moon"},{"name":"Lacus Perseverantiae","type":"Lacus","moon_name":"Moon","lat":7.84,"lon":298.07,"description":"\u201c;Lake of Perseverance.\u201c","dimension":"70.6 km","theme":"moon"},{"name":"Lacus Solitudinis","type":"Lacus","moon_name":"Moon","lat":-27.52,"lon":256.12,"description":"\u201c;Lake of Solitude.\u201c","dimension":"122.7 km","theme":"moon"},{"name":"Lacus Somniorum","type":"Lacus","moon_name":"Moon","lat":37.56,"lon":329.2,"description":"\u201c;Lake of Dreams.\u201c","dimension":"424.8 km","theme":"moon"},{"name":"Lacus Spei","type":"Lacus","moon_name":"Moon","lat":43.46,"lon":294.8,"description":"\u201c;Lake of Hope.\u201c","dimension":"76.7 km","theme":"moon"},{"name":"Lacus Temporis","type":"Lacus","moon_name":"Moon","lat":46.77,"lon":303.79,"description":"\u201c;Lake of Time.\u201c","dimension":"205.3 km","theme":"moon"},{"name":"Lacus Tenebrarum","type":"Lacus","moon_name":"Moon","lat":-86.71,"lon":87.67,"description":"\u201cLake of Darkness.\u201d","dimension":"85.0 km","theme":"moon"},{"name":"Lacus Timoris","type":"Lacus","moon_name":"Moon","lat":-39.42,"lon":27.95,"description":"\u201c;Lake of Fear.\u201c","dimension":"153.7 km","theme":"moon"},{"name":"Lacus Veris","type":"Lacus","moon_name":"Moon","lat":-16.48,"lon":85.91,"description":"\u201c;Lake of Spring.\u201c","dimension":"382.9 km","theme":"moon"},{"name":"Lade","type":"Impact crater","moon_name":"Moon","lat":-1.33,"lon":350.01,"description":"Heinrich Eduard von; German astronomer (1817-1904).","dimension":"58.1 km","theme":"moon"},{"name":"Lagalla","type":"Impact crater","moon_name":"Moon","lat":-44.48,"lon":22.36,"description":"Giulio Cesare; Italian philosopher (1571-1624).","dimension":"88.8 km","theme":"moon"},{"name":"Lagrange","type":"Impact crater","moon_name":"Moon","lat":-32.6,"lon":71.45,"description":"Joseph Louis; Italian mathematician (1736-1813).","dimension":"162.2 km","theme":"moon"},{"name":"Lalande","type":"Impact crater","moon_name":"Moon","lat":-4.46,"lon":8.65,"description":"Joseph J\u00e9r\u00f4me Le Fran\u00e7ois de; French astronomer (1732-1807).","dimension":"23.5 km","theme":"moon"},{"name":"Lallemand","type":"Impact crater","moon_name":"Moon","lat":-14.4,"lon":84.21,"description":"Andre; French astronomer (1904-1978).","dimension":"16.7 km","theme":"moon"},{"name":"Lamarck","type":"Impact crater","moon_name":"Moon","lat":-23.12,"lon":70.06,"description":"Jean Baptiste Pierre Antoine de Monet; French natural historian (1744-1829).","dimension":"114.7 km","theme":"moon"},{"name":"Lamb","type":"Impact crater","moon_name":"Moon","lat":-42.67,"lon":259.06,"description":"Sir Horace; British mathematician, physicist (1849-1934).","dimension":"103.5 km","theme":"moon"},{"name":"Lambert","type":"Impact crater","moon_name":"Moon","lat":25.77,"lon":20.99,"description":"Johann Heinrich; German astronomer, mathematician, physicist (1728-1777); also for G\u00e9rard; French physicist (1930-2008).","dimension":"30.1 km","theme":"moon"},{"name":"Lam\u00e9","type":"Impact crater","moon_name":"Moon","lat":-14.76,"lon":295.44,"description":"Gabriel; French mathematician (1795-1870).","dimension":"84.3 km","theme":"moon"},{"name":"Lam\u00e8ch","type":"Impact crater","moon_name":"Moon","lat":42.79,"lon":346.85,"description":"Felix Chemla; French selenographer (1894-1962).","dimension":"12.4 km","theme":"moon"},{"name":"Lamont","type":"Impact crater","moon_name":"Moon","lat":5.14,"lon":336.68,"description":"Johann von; Scottish-born German astronomer (1805-1879).","dimension":"83.2 km","theme":"moon"},{"name":"Lampland","type":"Impact crater","moon_name":"Moon","lat":-31.17,"lon":228.49,"description":"Carl Otto; American astronomer (1873-1951).","dimension":"63.0 km","theme":"moon"},{"name":"Landau","type":"Impact crater","moon_name":"Moon","lat":42.16,"lon":119.34,"description":"Lev Davidovich; Soviet physicist; Nobel laureate (1908-1968).","dimension":"218.2 km","theme":"moon"},{"name":"Lander","type":"Impact crater","moon_name":"Moon","lat":-15.34,"lon":228.19,"description":"Richard Lemon; British explorer (1804-1834).","dimension":"40.0 km","theme":"moon"},{"name":"Landsteiner","type":"Impact crater","moon_name":"Moon","lat":31.3,"lon":14.79,"description":"Karl; Austrian-American pathologist; Nobel laureate (1868-1943).","dimension":"6.1 km","theme":"moon"},{"name":"Lane","type":"Impact crater","moon_name":"Moon","lat":-9.5,"lon":227.64,"description":"Jonathan Homer; American physicist, astrophysicist (1819-1880).","dimension":"53.8 km","theme":"moon"},{"name":"Langemak","type":"Impact crater","moon_name":"Moon","lat":-9.93,"lon":240.55,"description":"Georgij Erikhovich; Soviet rocketry scientist (1898-1938).","dimension":"104.8 km","theme":"moon"},{"name":"Langevin","type":"Impact crater","moon_name":"Moon","lat":44.17,"lon":197.31,"description":"Paul; French physicist (1872-1946).","dimension":"57.8 km","theme":"moon"},{"name":"Langley","type":"Impact crater","moon_name":"Moon","lat":51.17,"lon":86.05,"description":"Samuel Pierpont; American astronomer, physicist (1834-1906).","dimension":"59.2 km","theme":"moon"},{"name":"Langmuir","type":"Impact crater","moon_name":"Moon","lat":-35.85,"lon":128.89,"description":"Irving; American physicist, chemist; Nobel laureate (1881-1957).","dimension":"91.5 km","theme":"moon"},{"name":"Langrenus","type":"Impact crater","moon_name":"Moon","lat":-8.86,"lon":298.96,"description":"Langren, Michel Florent van; Belgian selenographer, engineer (c. 1600-1675).","dimension":"132.0 km","theme":"moon"},{"name":"Lansberg","type":"Impact crater","moon_name":"Moon","lat":-0.31,"lon":26.63,"description":"Philippe van; Belgian astronomer (1561-1632).","dimension":"38.8 km","theme":"moon"},{"name":"La P\u00e9rouse","type":"Impact crater","moon_name":"Moon","lat":-10.67,"lon":283.72,"description":"Jean Francois de Galoup, Comte De La P\u00e9rouse; French explorer (1741-1788).","dimension":"80.4 km","theme":"moon"},{"name":"Lara","type":"Astronaut-named","moon_name":"Moon","lat":20.17,"lon":329.45,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.6 km","theme":"moon"},{"name":"Larmor","type":"Impact crater","moon_name":"Moon","lat":31.85,"lon":179.67,"description":"Sir Joseph; British mathematician, physicist (1857-1942).","dimension":"99.5 km","theme":"moon"},{"name":"Lassell","type":"Impact crater","moon_name":"Moon","lat":-15.49,"lon":7.9,"description":"William; British astronomer (1799-1880).","dimension":"21.8 km","theme":"moon"},{"name":"Last","type":"Astronaut-named","moon_name":"Moon","lat":26.13,"lon":356.36,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"0.1 km","theme":"moon"},{"name":"Laue","type":"Impact crater","moon_name":"Moon","lat":28.29,"lon":97.05,"description":"Max Theodor Felix von; German physicist; Nobel laureate (1879-1960).","dimension":"89.2 km","theme":"moon"},{"name":"Lauritsen","type":"Impact crater","moon_name":"Moon","lat":-27.54,"lon":263.69,"description":"Charles Christian; Danish-American physicist (1892-1968).","dimension":"51.2 km","theme":"moon"},{"name":"Laveran","type":"Impact crater","moon_name":"Moon","lat":-81.8,"lon":159.78,"description":"Charles Louis Alphonse; French physician, Nobel Prize winner 1907 (1845-1922).","dimension":"12.5 km","theme":"moon"},{"name":"Lavoisier","type":"Impact crater","moon_name":"Moon","lat":38.17,"lon":81.25,"description":"Antoine Laurent; French chemist (1743-1794).","dimension":"71.0 km","theme":"moon"},{"name":"Lawrence","type":"Impact crater","moon_name":"Moon","lat":7.35,"lon":316.7,"description":"Ernest Orlando; American physicist; Nobel laureate (1901-1958), and Robert Henry, Jr.; American astronaut (1935-1967).","dimension":"24.0 km","theme":"moon"},{"name":"L. Clark","type":"Impact crater","moon_name":"Moon","lat":-43.34,"lon":147.7,"description":"Laurel Blair Salton; American astronaut, Space Shuttle Columbia Mission Specialist (1961-2003).","dimension":"15.3 km","theme":"moon"},{"name":"Leakey","type":"Impact crater","moon_name":"Moon","lat":-3.19,"lon":322.54,"description":"Louis Seymour Bazett; British archaeologist (1903-1972).","dimension":"12.5 km","theme":"moon"},{"name":"Leavitt","type":"Impact crater","moon_name":"Moon","lat":-44.86,"lon":139.89,"description":"Henrietta Swan; American astronomer (1868-1921).","dimension":"69.3 km","theme":"moon"},{"name":"Lebedev","type":"Impact crater","moon_name":"Moon","lat":-46.8,"lon":252.11,"description":"P\u00ebtr Nikolajevich; Russian physicist (1866-1912).","dimension":"121.8 km","theme":"moon"},{"name":"Lebedinskiy","type":"Impact crater","moon_name":"Moon","lat":7.84,"lon":164.89,"description":"Aleksandr I.; Soviet astrophysicist (1913-1967).","dimension":"63.4 km","theme":"moon"},{"name":"Lebesgue","type":"Impact crater","moon_name":"Moon","lat":-5.14,"lon":271.03,"description":"Henri Leon; French mathematician (1875-1941).","dimension":"11.4 km","theme":"moon"},{"name":"Lee","type":"Impact crater","moon_name":"Moon","lat":-30.66,"lon":40.76,"description":"John; British astronomer, humanitarian (1783-1866).","dimension":"41.2 km","theme":"moon"},{"name":"Leeuwenhoek","type":"Impact crater","moon_name":"Moon","lat":-29.28,"lon":178.87,"description":"Antony van; Dutch microscopist (1632-1723).","dimension":"125.0 km","theme":"moon"},{"name":"Legendre","type":"Impact crater","moon_name":"Moon","lat":-28.92,"lon":289.98,"description":"Adrien Marie; French mathematician (1752-1833).","dimension":"78.1 km","theme":"moon"},{"name":"Le Gentil","type":"Impact crater","moon_name":"Moon","lat":-74.27,"lon":76.02,"description":"Guillaume Hyazinthe; French astronomer (1725-1792).","dimension":"125.4 km","theme":"moon"},{"name":"Lehmann","type":"Impact crater","moon_name":"Moon","lat":-39.96,"lon":56.17,"description":"Jacob Heinrich Wilhelm; German astronomer (1800-1863).","dimension":"53.9 km","theme":"moon"},{"name":"Leibnitz","type":"Impact crater","moon_name":"Moon","lat":-38.24,"lon":180.65,"description":"Gottfried Wilhelm; German mathematician, philosopher (1646-1716).","dimension":"236.7 km","theme":"moon"},{"name":"Lema\u00eetre","type":"Impact crater","moon_name":"Moon","lat":-61.36,"lon":149.98,"description":"Georges Henri Joseph \u00c9douard; Belgian mathematician (1894-1966).","dimension":"93.7 km","theme":"moon"},{"name":"Le Monnier","type":"Impact crater","moon_name":"Moon","lat":26.66,"lon":329.5,"description":"Pierre Charles; French astronomer, physicist (1715-1799).","dimension":"68.4 km","theme":"moon"},{"name":"[Lenard]","type":"Impact crater","moon_name":"Moon","lat":85.19,"lon":109.69,"description":"Philipp Edward Anton; German physicist, 1905 Nobel Prize winner for physics (1862-1947).","dimension":"47.6 km","theme":"moon"},{"name":"Lents (Lenz)","type":"Impact crater","moon_name":"Moon","lat":2.72,"lon":102.3,"description":"Heinrich Friedrich Emil; Russian physicist (1804-1865).","dimension":"22.0 km","theme":"moon"},{"name":"Leonid","type":"Impact crater","moon_name":"Moon","lat":38.31,"lon":35.01,"description":"Russian male name of Greek origin (Lunokhod-1 landing site feature).","dimension":"0.1 km","theme":"moon"},{"name":"Leonov","type":"Impact crater","moon_name":"Moon","lat":19.07,"lon":211.64,"description":"Aleksey Arkhipovich; Soviet cosmonaut (1934-2019).","dimension":"34.0 km","theme":"moon"},{"name":"Lepaute","type":"Impact crater","moon_name":"Moon","lat":-33.3,"lon":33.69,"description":"Nicole Reine De La Briere; French astronomer (1723-1788).","dimension":"16.4 km","theme":"moon"},{"name":"Letronne","type":"Impact crater","moon_name":"Moon","lat":-10.5,"lon":42.49,"description":"Jean Antoine; French archaeologist (1787-1848).","dimension":"117.6 km","theme":"moon"},{"name":"Leucippus","type":"Impact crater","moon_name":"Moon","lat":29.24,"lon":116.41,"description":"Greek philosopher (unkn-fl. c. 440 B.C.).","dimension":"57.0 km","theme":"moon"},{"name":"Leuschner","type":"Impact crater","moon_name":"Moon","lat":1.67,"lon":109.05,"description":"Armin Otto; American astronomer (1868-1953).","dimension":"50.1 km","theme":"moon"},{"name":"Lev","type":"Impact crater","moon_name":"Moon","lat":12.71,"lon":297.79,"description":"Russian male name of Hebrew origin.","dimension":"0.1 km","theme":"moon"},{"name":"Le Verrier","type":"Impact crater","moon_name":"Moon","lat":40.33,"lon":20.61,"description":"Urbain-Jean-Joseph; French astronomer, mathematician (1811-1877).","dimension":"20.5 km","theme":"moon"},{"name":"Levi-Civita","type":"Impact crater","moon_name":"Moon","lat":-23.34,"lon":216.86,"description":"Tullio; Italian mathematician, physicist (1873-1941).","dimension":"108.2 km","theme":"moon"},{"name":"Levi-Montalcini","type":"Impact crater","moon_name":"Moon","lat":-40.79,"lon":154.32,"description":"Rita; Nobel Prize-winning Italian neurologist (1909-2012).","dimension":"5.0 km","theme":"moon"},{"name":"Lewis","type":"Impact crater","moon_name":"Moon","lat":-18.51,"lon":114.23,"description":"Gilbert Newton; American chemist (1875-1946).","dimension":"40.3 km","theme":"moon"},{"name":"Lexell","type":"Impact crater","moon_name":"Moon","lat":-35.78,"lon":4.27,"description":"Anders Johan; Swedish-Russian mathematician, astronomer (1740-1784).","dimension":"63.7 km","theme":"moon"},{"name":"Ley","type":"Impact crater","moon_name":"Moon","lat":42.11,"lon":205.16,"description":"Willy; German-American rocketry scientist (1906-1969).","dimension":"81.0 km","theme":"moon"},{"name":"Lhamu","type":"Impact crater","moon_name":"Moon","lat":-85.92,"lon":1.62,"description":"Pasang Lhamu Sherpa; first Nepalese female sherpa to climb Mount Everest (1961-1993).","dimension":"1.4 km","theme":"moon"},{"name":"Li Bing","type":"Impact crater","moon_name":"Moon","lat":-41.44,"lon":154.19,"description":"Chinese hydraulic engineer of the State of Qin during Warring States period (~302-235 B.C.).","dimension":"0.4 km","theme":"moon"},{"name":"Licetus","type":"Impact crater","moon_name":"Moon","lat":-47.19,"lon":353.46,"description":"Liceti, Fortunio; Italian physicist, philosopher, doctor (1577-1657).","dimension":"75.4 km","theme":"moon"},{"name":"Lichtenberg","type":"Impact crater","moon_name":"Moon","lat":31.85,"lon":67.72,"description":"Georg Christoph; German physicist (1742-1799).","dimension":"19.5 km","theme":"moon"},{"name":"Lick","type":"Impact crater","moon_name":"Moon","lat":12.36,"lon":307.16,"description":"James; American benefactor (1796-1876).","dimension":"31.6 km","theme":"moon"},{"name":"Liebig","type":"Impact crater","moon_name":"Moon","lat":-24.35,"lon":48.3,"description":"Justus, Baron von Liebig; German chemist (1803-1873).","dimension":"39.0 km","theme":"moon"},{"name":"Light Mantle","type":"Astronaut-named","moon_name":"Moon","lat":20.16,"lon":329.47,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"4.6 km","theme":"moon"},{"name":"Lilius","type":"Impact crater","moon_name":"Moon","lat":-54.6,"lon":353.91,"description":"Luigi Giglio; Italian doctor, philosopher, chronologist (unkn-1576).","dimension":"61.2 km","theme":"moon"},{"name":"Linda","type":"Impact crater","moon_name":"Moon","lat":30.69,"lon":33.38,"description":"Spanish female name.","dimension":"1.1 km","theme":"moon"},{"name":"Lindbergh","type":"Impact crater","moon_name":"Moon","lat":-5.41,"lon":307.1,"description":"Charles Augustus; American aviator (1902-1974).","dimension":"13.3 km","theme":"moon"},{"name":"Lindblad","type":"Impact crater","moon_name":"Moon","lat":70.03,"lon":99.22,"description":"Bertil; Swedish astronomer (1895-1965).","dimension":"59.4 km","theme":"moon"},{"name":"Lindenau","type":"Impact crater","moon_name":"Moon","lat":-32.35,"lon":335.23,"description":"Bernhard von; German astronomer (1780-1854).","dimension":"53.1 km","theme":"moon"},{"name":"Lindsay","type":"Impact crater","moon_name":"Moon","lat":-7.0,"lon":346.99,"description":"Eric M.; Irish astronomer (1907-1974).","dimension":"32.2 km","theme":"moon"},{"name":"Linn\u00e9","type":"Impact crater","moon_name":"Moon","lat":27.75,"lon":348.2,"description":"Carl von; Swedish botanist (1707-1778).","dimension":"2.2 km","theme":"moon"},{"name":"Liouville","type":"Impact crater","moon_name":"Moon","lat":2.73,"lon":286.43,"description":"Joseph; French mathematician (1809-1882).","dimension":"16.1 km","theme":"moon"},{"name":"[Li Po]","type":"Impact crater","moon_name":"Moon","lat":-3.5,"lon":269.4,"description":"Chinese writer (701-762).","dimension":"","theme":"moon"},{"name":"Lippershey","type":"Impact crater","moon_name":"Moon","lat":-25.96,"lon":10.38,"description":"Hans (Jan Lapprey); Dutch optician (unkn-1619).","dimension":"6.7 km","theme":"moon"},{"name":"Lippmann","type":"Impact crater","moon_name":"Moon","lat":-55.43,"lon":114.32,"description":"Gabriel; French physicist; Nobel laureate (1845-1921).","dimension":"160.1 km","theme":"moon"},{"name":"Lipskiy","type":"Impact crater","moon_name":"Moon","lat":-2.15,"lon":179.38,"description":"Yurii Naumovich; Soviet selenographer (1909-1978).","dimension":"91.2 km","theme":"moon"},{"name":"Li Shizhen","type":"Impact crater","moon_name":"Moon","lat":-41.69,"lon":154.08,"description":"Chinese pharmacologist, physician, and naturalist during the Ming Dynasty, author of Bencao Gangmu (1518-1593).","dimension":"0.4 km","theme":"moon"},{"name":"Litke (L\u00fctke)","type":"Impact crater","moon_name":"Moon","lat":-16.76,"lon":236.88,"description":"Fyodor Petrovich; Russian geographer (1797-1882).","dimension":"38.2 km","theme":"moon"},{"name":"Little West","type":"Astronaut-named","moon_name":"Moon","lat":0.67,"lon":336.52,"description":"Astronaut named crater, Apollo 11 site.","dimension":"0.0 km","theme":"moon"},{"name":"Littrow","type":"Impact crater","moon_name":"Moon","lat":21.5,"lon":328.61,"description":"Johann Josef von; Bohemian astronomer (1781-1840).","dimension":"28.5 km","theme":"moon"},{"name":"Liu Hui","type":"Impact crater","moon_name":"Moon","lat":42.88,"lon":52.61,"description":"Chinese mathematician during Wei kingdom (about 225-295).","dimension":"1.5 km","theme":"moon"},{"name":"Lobachevskiy","type":"Impact crater","moon_name":"Moon","lat":9.76,"lon":246.93,"description":"Nikolay Ivanovich; Russian mathematician (1793-1856).","dimension":"87.3 km","theme":"moon"},{"name":"Lockyer","type":"Impact crater","moon_name":"Moon","lat":-46.27,"lon":323.41,"description":"Sir Joseph Norman; British astrophysicist (1836-1920).","dimension":"35.1 km","theme":"moon"},{"name":"Lodygin","type":"Impact crater","moon_name":"Moon","lat":-17.42,"lon":146.78,"description":"Aleksandr Nikolaevich; Russian inventor (1847-1923).","dimension":"56.1 km","theme":"moon"},{"name":"Loewy","type":"Impact crater","moon_name":"Moon","lat":-22.69,"lon":32.85,"description":"Maurice (Moritz); French astronomer (1833-1907).","dimension":"22.4 km","theme":"moon"},{"name":"Lohrmann","type":"Impact crater","moon_name":"Moon","lat":-0.44,"lon":67.38,"description":"Wilhelm Gotthelf; German selenographer (1796-1840).","dimension":"31.2 km","theme":"moon"},{"name":"Lohse","type":"Impact crater","moon_name":"Moon","lat":-13.76,"lon":299.69,"description":"Oswald; German astronomer (1845-1915).","dimension":"43.3 km","theme":"moon"},{"name":"Lomonosov","type":"Impact crater","moon_name":"Moon","lat":27.35,"lon":261.72,"description":"Mikhail Vasilievich; Russian poet, scientist, and grammarian (1711-1765).","dimension":"90.7 km","theme":"moon"},{"name":"[Longfellow]","type":"Impact crater","moon_name":"Moon","lat":-7.5,"lon":268.7,"description":"Henry Wadsworth; American poet (1807-1882).","dimension":"","theme":"moon"},{"name":"Longomontanus","type":"Impact crater","moon_name":"Moon","lat":-49.55,"lon":21.88,"description":"Christian Sorensen; Danish astronomer, mathematician (1562-1647).","dimension":"145.5 km","theme":"moon"},{"name":"[Lorca]","type":"Impact crater","moon_name":"Moon","lat":24.4,"lon":349.1,"description":"Federico Garcia; Spanish writer (1899-1936).","dimension":"","theme":"moon"},{"name":"Lorentz","type":"Impact crater","moon_name":"Moon","lat":34.59,"lon":97.19,"description":"Hendrik Antoon; Dutch physicist; Nobel laureate (1853-1928).","dimension":"378.4 km","theme":"moon"},{"name":"Louise","type":"Impact crater","moon_name":"Moon","lat":28.49,"lon":34.2,"description":"French female name.","dimension":"0.6 km","theme":"moon"},{"name":"Louville","type":"Impact crater","moon_name":"Moon","lat":44.12,"lon":46.04,"description":"Jacques D'Allonville, Chevalier de Louville; French astronomer, mathematician (1671-1732).","dimension":"34.8 km","theme":"moon"},{"name":"Love","type":"Impact crater","moon_name":"Moon","lat":-6.33,"lon":230.83,"description":"Augustus Edward Hough; British mathematician, geophysicist (1863-1940).","dimension":"90.1 km","theme":"moon"},{"name":"Lovelace","type":"Impact crater","moon_name":"Moon","lat":82.08,"lon":109.51,"description":"William Randolph, II; American doctor, space scientist (1907-1965).","dimension":"57.1 km","theme":"moon"},{"name":"Lovell","type":"Impact crater","moon_name":"Moon","lat":-36.74,"lon":142.47,"description":"James A., Jr.; American astronaut (1928-Live).","dimension":"35.1 km","theme":"moon"},{"name":"Lowell","type":"Impact crater","moon_name":"Moon","lat":-12.97,"lon":103.42,"description":"Percival; American astronomer (1855-1916).","dimension":"62.6 km","theme":"moon"},{"name":"Lubbock","type":"Impact crater","moon_name":"Moon","lat":-3.99,"lon":318.21,"description":"Sir John William; British astronomer, mathematician (1803-1865).","dimension":"14.1 km","theme":"moon"},{"name":"Lubiniezky","type":"Impact crater","moon_name":"Moon","lat":-17.88,"lon":23.89,"description":"Stanislaus; Polish astronomer (1623-1675).","dimension":"43.0 km","theme":"moon"},{"name":"Lucian","type":"Impact crater","moon_name":"Moon","lat":14.34,"lon":323.22,"description":"Of Samosata; Greek writer (125-190).","dimension":"6.8 km","theme":"moon"},{"name":"Lucretius","type":"Impact crater","moon_name":"Moon","lat":-8.22,"lon":121.24,"description":"Titus Lucretius Carus; Roman scientific philosopher (c. 94-55 B.C.).","dimension":"64.6 km","theme":"moon"},{"name":"Ludwig","type":"Impact crater","moon_name":"Moon","lat":-7.72,"lon":262.55,"description":"Carl Friedrich Wilhelm; German physiologist (1816-1895).","dimension":"23.3 km","theme":"moon"},{"name":"Lundmark","type":"Impact crater","moon_name":"Moon","lat":-38.87,"lon":207.44,"description":"Knut Emil; Swedish astronomer (1889-1958).","dimension":"103.4 km","theme":"moon"},{"name":"Luther","type":"Impact crater","moon_name":"Moon","lat":33.2,"lon":335.85,"description":"Carl Theodor Robert; German astronomer (1822-1900).","dimension":"9.3 km","theme":"moon"},{"name":"Lyapunov","type":"Impact crater","moon_name":"Moon","lat":26.43,"lon":270.64,"description":"Aleksandr Mikhailovich; Russian mathematician, engineer (1857-1918).","dimension":"67.6 km","theme":"moon"},{"name":"Lyell","type":"Impact crater","moon_name":"Moon","lat":13.63,"lon":319.44,"description":"Sir Charles; Scottish geologist (1797-1875).","dimension":"31.2 km","theme":"moon"},{"name":"Lyman","type":"Impact crater","moon_name":"Moon","lat":-64.96,"lon":197.53,"description":"Theodore; American physicist (1874-1954).","dimension":"83.2 km","theme":"moon"},{"name":"Lyot","type":"Impact crater","moon_name":"Moon","lat":-50.47,"lon":275.2,"description":"Bernard Ferdinand; French astronomer (1897-1952).","dimension":"150.6 km","theme":"moon"},{"name":"Mach","type":"Impact crater","moon_name":"Moon","lat":18.13,"lon":149.24,"description":"Ernst; Austrian physicist, philosopher (1838-1916).","dimension":"175.0 km","theme":"moon"},{"name":"Mackin","type":"Astronaut-named","moon_name":"Moon","lat":20.1,"lon":329.27,"description":"Astronaut-named feature, Apollo 17 site. (Spelling changed from Mackin-Apollo.)","dimension":"0.5 km","theme":"moon"},{"name":"Maclaurin","type":"Impact crater","moon_name":"Moon","lat":-1.92,"lon":292.01,"description":"Colin; Scottish mathematician (1698-1746). (Spelling changed from MacLaurin.)","dimension":"54.3 km","theme":"moon"},{"name":"Maclear","type":"Impact crater","moon_name":"Moon","lat":10.52,"lon":339.9,"description":"Sir Thomas; Irish-born South African astronomer (1794-1879).","dimension":"20.3 km","theme":"moon"},{"name":"MacMillan","type":"Impact crater","moon_name":"Moon","lat":24.2,"lon":7.85,"description":"William Duncan; American mathematician, astronomer (1871-1948).","dimension":"6.9 km","theme":"moon"},{"name":"Macrobius","type":"Impact crater","moon_name":"Moon","lat":21.26,"lon":314.03,"description":"Ambrosius Aurelius Theodosius; Roman writer (unkn-fl. c. 410).","dimension":"62.8 km","theme":"moon"},{"name":"M\u00e4dler","type":"Impact crater","moon_name":"Moon","lat":-11.04,"lon":330.24,"description":"Johann Heinrich; German astronomer (1794-1874).","dimension":"27.6 km","theme":"moon"},{"name":"Maestlin","type":"Impact crater","moon_name":"Moon","lat":4.9,"lon":40.72,"description":"Michael; German mathematician (1550-1631).","dimension":"6.8 km","theme":"moon"},{"name":"Magelhaens","type":"Impact crater","moon_name":"Moon","lat":-11.98,"lon":315.93,"description":"Fernao De (Ferdinand Magellan); Portuguese explorer (1480-1521).","dimension":"37.2 km","theme":"moon"},{"name":"Maginus","type":"Impact crater","moon_name":"Moon","lat":-50.03,"lon":5.98,"description":"Magini, Giovanni Antonio; Italian astronomer, mathematician (1555-1617).","dimension":"155.6 km","theme":"moon"},{"name":"Main","type":"Impact crater","moon_name":"Moon","lat":80.87,"lon":349.59,"description":"Robert; British astronomer (1808-1878).","dimension":"47.4 km","theme":"moon"},{"name":"Mairan","type":"Impact crater","moon_name":"Moon","lat":41.6,"lon":43.5,"description":"Jean Jacques D'Ortous De; French geophysicist (1678-1771).","dimension":"39.5 km","theme":"moon"},{"name":"Maksutov","type":"Impact crater","moon_name":"Moon","lat":-40.75,"lon":168.65,"description":"Dmitrij Dmitrievich; Soviet optician (1896-1964).","dimension":"83.8 km","theme":"moon"},{"name":"Malapert","type":"Impact crater","moon_name":"Moon","lat":-85.0,"lon":348.6,"description":"Charles; Belgian astronomer, mathematician, philosopher (1581-1630).","dimension":"72.4 km","theme":"moon"},{"name":"Malinkin","type":"Impact crater","moon_name":"Moon","lat":-87.22,"lon":284.06,"description":"Egor Ivanovich, Russian meteorite researcher (1923-2008).","dimension":"8.3 km","theme":"moon"},{"name":"Mallet","type":"Impact crater","moon_name":"Moon","lat":-45.41,"lon":305.95,"description":"Robert; Irish seismologist, engineer (1810-1881).","dimension":"58.9 km","theme":"moon"},{"name":"Malyy","type":"Impact crater","moon_name":"Moon","lat":22.03,"lon":254.44,"description":"Aleksandr L'vovich; Soviet rocketry scientist (1907-1961).","dimension":"41.3 km","theme":"moon"},{"name":"Mandel'shtam","type":"Impact crater","moon_name":"Moon","lat":5.7,"lon":197.61,"description":"Leonid Isaakovich; Soviet physicist (1879-1944).","dimension":"181.9 km","theme":"moon"},{"name":"M. Anderson","type":"Impact crater","moon_name":"Moon","lat":-41.21,"lon":148.99,"description":"Michael Phillip; American astronaut, Space Shuttle Columbia Payload Commander (1959-2003).","dimension":"16.9 km","theme":"moon"},{"name":"Manilius","type":"Impact crater","moon_name":"Moon","lat":14.45,"lon":350.93,"description":"Marcus; Roman writer (unkn-c. 50 B.C.).","dimension":"38.3 km","theme":"moon"},{"name":"[Mann]","type":"Impact crater","moon_name":"Moon","lat":-23.1,"lon":239.9,"description":"Thomas; German writer (1875-1955).","dimension":"","theme":"moon"},{"name":"Manners","type":"Impact crater","moon_name":"Moon","lat":4.57,"lon":340.01,"description":"Russell Henry; British astronomer (1800-1870).","dimension":"15.1 km","theme":"moon"},{"name":"Manuel","type":"Impact crater","moon_name":"Moon","lat":24.47,"lon":348.64,"description":"Spanish male name.","dimension":"0.6 km","theme":"moon"},{"name":"Manzinus","type":"Impact crater","moon_name":"Moon","lat":-67.51,"lon":333.63,"description":"Manzini, Carlo Antonio; Italian astronomer (1599-1677).","dimension":"96.0 km","theme":"moon"},{"name":"Maraldi","type":"Impact crater","moon_name":"Moon","lat":19.36,"lon":325.2,"description":"Giovanni Domenico; Italian-born French astronomer, geodesist (1709-1788); Giacomo Filippo; Italian-born French astronomer (1665-1729).","dimension":"39.6 km","theme":"moon"},{"name":"Marci","type":"Impact crater","moon_name":"Moon","lat":22.23,"lon":167.57,"description":"Jan Marek Marci von Kronland; Czechoslovakian physicist (1595-1667).","dimension":"24.5 km","theme":"moon"},{"name":"Marconi","type":"Impact crater","moon_name":"Moon","lat":-9.48,"lon":214.8,"description":"Guglielmo; Italian physicist, inventor; Nobel laureate (1874-1937).","dimension":"72.9 km","theme":"moon"},{"name":"Marco Polo","type":"Impact crater","moon_name":"Moon","lat":15.52,"lon":2.05,"description":"Italian explorer (1254-1324).","dimension":"28.2 km","theme":"moon"},{"name":"Mare Anguis","type":"Lunar mare","moon_name":"Moon","lat":22.43,"lon":292.42,"description":"\u201c;Serpent Sea.\u201c","dimension":"146.0 km","theme":"moon"},{"name":"Mare Australe","type":"Lunar mare","moon_name":"Moon","lat":-47.77,"lon":268.01,"description":"\u201c;Southern Sea.\u201c","dimension":"996.8 km","theme":"moon"},{"name":"Mare Cognitum","type":"Lunar mare","moon_name":"Moon","lat":-10.53,"lon":22.31,"description":"\u201c;Sea that has become known.\u201c; Ranger VII impact site.","dimension":"350.0 km","theme":"moon"},{"name":"Mare Crisium","type":"Lunar mare","moon_name":"Moon","lat":16.18,"lon":300.9,"description":"\u201c;Sea of Crises.\u201c","dimension":"555.9 km","theme":"moon"},{"name":"Mare Fecunditatis","type":"Lunar mare","moon_name":"Moon","lat":-7.83,"lon":306.33,"description":"\u201c;Sea of Fecundity.\u201c","dimension":"840.4 km","theme":"moon"},{"name":"Mare Frigoris","type":"Lunar mare","moon_name":"Moon","lat":57.59,"lon":0.01,"description":"\u201c;Sea of Cold.\u201c","dimension":"1446.4 km","theme":"moon"},{"name":"Mare Humboldtianum","type":"Lunar mare","moon_name":"Moon","lat":56.92,"lon":278.46,"description":"Humboldt, Alexander von; German natural historian (1769-1859).","dimension":"230.8 km","theme":"moon"},{"name":"Mare Humorum","type":"Lunar mare","moon_name":"Moon","lat":-24.48,"lon":38.57,"description":"\u201c;Sea of Moisture.\u201c","dimension":"419.7 km","theme":"moon"},{"name":"Mare Imbrium","type":"Lunar mare","moon_name":"Moon","lat":34.72,"lon":14.91,"description":"\u201c;Sea of Showers.\u201c","dimension":"1145.5 km","theme":"moon"},{"name":"Mare Ingenii","type":"Lunar mare","moon_name":"Moon","lat":-33.25,"lon":195.17,"description":"\u201c;Sea of Cleverness.\u201c","dimension":"282.2 km","theme":"moon"},{"name":"Mare Insularum","type":"Lunar mare","moon_name":"Moon","lat":7.79,"lon":30.64,"description":"\u201c;Sea of Islands.\u201c","dimension":"511.9 km","theme":"moon"},{"name":"Mare Marginis","type":"Lunar mare","moon_name":"Moon","lat":12.7,"lon":273.48,"description":"\u201c;Sea of the Edge.\u201c","dimension":"357.6 km","theme":"moon"},{"name":"Mare Moscoviense","type":"Lunar mare","moon_name":"Moon","lat":27.28,"lon":211.88,"description":"\u201c;Sea of Muscovy.\u201c","dimension":"275.6 km","theme":"moon"},{"name":"Mare Nectaris","type":"Lunar mare","moon_name":"Moon","lat":-15.19,"lon":325.4,"description":"\u201c;Sea of Nectar.\u201c","dimension":"339.4 km","theme":"moon"},{"name":"Mare Nubium","type":"Lunar mare","moon_name":"Moon","lat":-20.59,"lon":17.29,"description":"\u201c;Sea of Clouds.\u201c","dimension":"714.5 km","theme":"moon"},{"name":"Mare Orientale","type":"Lunar mare","moon_name":"Moon","lat":-19.87,"lon":94.67,"description":"\u201c;Eastern sea.\u201c","dimension":"294.2 km","theme":"moon"},{"name":"Mare Serenitatis","type":"Lunar mare","moon_name":"Moon","lat":27.29,"lon":341.64,"description":"\u201c;Sea of Serenity.\u201c","dimension":"674.3 km","theme":"moon"},{"name":"Mare Smythii","type":"Lunar mare","moon_name":"Moon","lat":-1.71,"lon":272.95,"description":"Smyth, William Henry; British astronomer (1788-1865).","dimension":"374.0 km","theme":"moon"},{"name":"Mare Spumans","type":"Lunar mare","moon_name":"Moon","lat":1.3,"lon":294.7,"description":"\u201c;Foaming Sea.\u201c","dimension":"143.1 km","theme":"moon"},{"name":"Mareta","type":"Impact crater","moon_name":"Moon","lat":36.45,"lon":40.81,"description":"English female first name.","dimension":"0.1 km","theme":"moon"},{"name":"Mare Tranquillitatis","type":"Lunar mare","moon_name":"Moon","lat":8.35,"lon":329.17,"description":"\u201c;Sea of Tranquility.\u201c","dimension":"875.8 km","theme":"moon"},{"name":"Mare Undarum","type":"Lunar mare","moon_name":"Moon","lat":7.49,"lon":291.34,"description":"\u201c;Sea of Waves.\u201c","dimension":"244.8 km","theme":"moon"},{"name":"Mare Vaporum","type":"Lunar mare","moon_name":"Moon","lat":13.2,"lon":355.91,"description":"\u201c;Sea of Vapors.\u201c","dimension":"242.5 km","theme":"moon"},{"name":"Marinus","type":"Impact crater","moon_name":"Moon","lat":-39.38,"lon":283.43,"description":"Of Tyre; Greek geographer (unkn-c. 100).","dimension":"56.5 km","theme":"moon"},{"name":"Mariotte","type":"Impact crater","moon_name":"Moon","lat":-28.46,"lon":139.06,"description":"Edme; French physicist (1620-1684).","dimension":"70.3 km","theme":"moon"},{"name":"Marius","type":"Impact crater","moon_name":"Moon","lat":11.9,"lon":50.84,"description":"Mayer, Simon; German astronomer (1573-1624).","dimension":"40.1 km","theme":"moon"},{"name":"Markov","type":"Impact crater","moon_name":"Moon","lat":53.43,"lon":62.84,"description":"Aleksandr Vladimirovich; Soviet astrophysicist (1897-1968); Andrei Andreevich; Russian mathematician (1856-1922).","dimension":"39.9 km","theme":"moon"},{"name":"Marth","type":"Impact crater","moon_name":"Moon","lat":-31.16,"lon":29.35,"description":"Albert; German astronomer (1828-1897).","dimension":"6.5 km","theme":"moon"},{"name":"Marvin","type":"Impact crater","moon_name":"Moon","lat":-89.13,"lon":87.78,"description":"Ursula; American planetary geologist (1921-2018).","dimension":"4.6 km","theme":"moon"},{"name":"Mary","type":"Impact crater","moon_name":"Moon","lat":18.93,"lon":332.61,"description":"English form of Hebrew female name.","dimension":"0.5 km","theme":"moon"},{"name":"Masina","type":"Impact crater","moon_name":"Moon","lat":-85.42,"lon":327.85,"description":"Samoan female first name.","dimension":"1.4 km","theme":"moon"},{"name":"Maskelyne","type":"Impact crater","moon_name":"Moon","lat":2.16,"lon":329.96,"description":"Nevil; British astronomer (1732-1811).","dimension":"22.4 km","theme":"moon"},{"name":"Mason","type":"Impact crater","moon_name":"Moon","lat":42.7,"lon":329.49,"description":"Charles; British astronomer (1730-1787).","dimension":"33.3 km","theme":"moon"},{"name":"Maunder","type":"Impact crater","moon_name":"Moon","lat":-14.52,"lon":93.88,"description":"Annie Scott Dill Russell; British astronomer (1868-1947); Edward Walter; British astronomer (1851-1928).","dimension":"53.8 km","theme":"moon"},{"name":"Maupertuis","type":"Impact crater","moon_name":"Moon","lat":49.7,"lon":27.28,"description":"Pierre Louis Moreau de; French mathematician (1698-1759).","dimension":"45.5 km","theme":"moon"},{"name":"Maurolycus","type":"Impact crater","moon_name":"Moon","lat":-41.77,"lon":346.08,"description":"Maurolico, Francesco; Italian mathematician (1494-1575).","dimension":"115.3 km","theme":"moon"},{"name":"Maury","type":"Impact crater","moon_name":"Moon","lat":37.11,"lon":320.31,"description":"Matthew Fontaine; American oceanographer (1806-1873); Antonia Caetana de Paiva Pereira; American astronomer (1866-1952).","dimension":"16.6 km","theme":"moon"},{"name":"Mavis","type":"Impact crater","moon_name":"Moon","lat":29.76,"lon":26.36,"description":"Scottish female name.","dimension":"1.1 km","theme":"moon"},{"name":"Maxwell","type":"Impact crater","moon_name":"Moon","lat":29.9,"lon":261.47,"description":"James Clerk; British physicist (1831-1879).","dimension":"109.2 km","theme":"moon"},{"name":"McAdie","type":"Impact crater","moon_name":"Moon","lat":2.11,"lon":267.78,"description":"Alexander George; American meteorologist (1863-1943).","dimension":"41.0 km","theme":"moon"},{"name":"McAuliffe","type":"Impact crater","moon_name":"Moon","lat":-33.24,"lon":149.77,"description":"Sharon Christa Corrigan; civilian school teacher member of the Challenger crew (1948-1986).","dimension":"19.1 km","theme":"moon"},{"name":"McClure","type":"Impact crater","moon_name":"Moon","lat":-15.32,"lon":309.76,"description":"Robert Le Mesurier; British explorer (1807-1873).","dimension":"24.0 km","theme":"moon"},{"name":"McCool","type":"Impact crater","moon_name":"Moon","lat":-41.28,"lon":146.26,"description":"William Cameron; American astronaut, Space Shuttle Columbia Pilot (1961-2003).","dimension":"20.5 km","theme":"moon"},{"name":"McDonald","type":"Impact crater","moon_name":"Moon","lat":30.39,"lon":20.88,"description":"William Johnson; American benefactor (1844-1926); Thomas Logie; Scottish selenographer (1901-1973).","dimension":"7.0 km","theme":"moon"},{"name":"McGetchin","type":"Impact crater","moon_name":"Moon","lat":1.35,"lon":292.82,"description":"Thomas R.; American geologist and planetary scientist (1936-1979).","dimension":"0.2 km","theme":"moon"},{"name":"McKellar","type":"Impact crater","moon_name":"Moon","lat":-15.72,"lon":170.86,"description":"Andrew; Canadian astronomer (1910-1960).","dimension":"50.2 km","theme":"moon"},{"name":"McLaughlin","type":"Impact crater","moon_name":"Moon","lat":47.01,"lon":92.83,"description":"Dean Benjamin; American astronomer (1901-1965).","dimension":"75.3 km","theme":"moon"},{"name":"McMath","type":"Impact crater","moon_name":"Moon","lat":16.63,"lon":166.09,"description":"Francis Charles; American engineer, astronomer (1867-1938); Robert Raynolds; American astronomer (1891-1962).","dimension":"88.6 km","theme":"moon"},{"name":"McNair","type":"Impact crater","moon_name":"Moon","lat":-35.93,"lon":147.95,"description":"Ronald Ewald; member of the Challenger crew (1950-1986).","dimension":"32.0 km","theme":"moon"},{"name":"McNally","type":"Impact crater","moon_name":"Moon","lat":22.5,"lon":127.65,"description":"Paul Aloysius; American astronomer (1890-1955).","dimension":"47.0 km","theme":"moon"},{"name":"Mechnikov","type":"Impact crater","moon_name":"Moon","lat":-10.47,"lon":148.99,"description":"Ilya Ilich; Russian-French bacteriologist; Nobel laureate (1845-1916).","dimension":"58.8 km","theme":"moon"},{"name":"Mee","type":"Impact crater","moon_name":"Moon","lat":-43.63,"lon":35.19,"description":"Arthur Butler Phillips; Scottish astronomer (1860-1926).","dimension":"134.1 km","theme":"moon"},{"name":"Mees","type":"Impact crater","moon_name":"Moon","lat":13.57,"lon":96.18,"description":"Charles Edward Kenneth; British-born American photographer (1882-1960).","dimension":"51.5 km","theme":"moon"},{"name":"Meggers","type":"Impact crater","moon_name":"Moon","lat":24.3,"lon":237.06,"description":"William Frederick; American physicist (1888-1966).","dimension":"51.2 km","theme":"moon"},{"name":"Meitner","type":"Impact crater","moon_name":"Moon","lat":-10.87,"lon":246.9,"description":"Lise; Austrian physicist (1878-1968).","dimension":"87.3 km","theme":"moon"},{"name":"Melissa","type":"Impact crater","moon_name":"Moon","lat":8.12,"lon":238.22,"description":"Greek female name.","dimension":"17.2 km","theme":"moon"},{"name":"Mendel","type":"Impact crater","moon_name":"Moon","lat":-48.83,"lon":109.86,"description":"Gregor Johann; Austrian biologist (1822-1884).","dimension":"139.7 km","theme":"moon"},{"name":"Mendeleev","type":"Impact crater","moon_name":"Moon","lat":5.38,"lon":218.83,"description":"Dmitri Ivanovich; Russian chemist (1834-1907).","dimension":"325.1 km","theme":"moon"},{"name":"Menelaus","type":"Impact crater","moon_name":"Moon","lat":16.26,"lon":344.07,"description":"Of Alexandria; Greek geometer, astronomer (c. A.D. 98).","dimension":"27.1 km","theme":"moon"},{"name":"Menzel","type":"Impact crater","moon_name":"Moon","lat":3.41,"lon":323.06,"description":"Donald Howard; American astrophysicist, Smithsonian researcher (1901-1976).","dimension":"3.4 km","theme":"moon"},{"name":"Mercator","type":"Impact crater","moon_name":"Moon","lat":-29.25,"lon":26.11,"description":"Gerard De Kremer (Gerhardus Mercator); Belgian cartographer, geographer, mathematician (1512-1594).","dimension":"46.3 km","theme":"moon"},{"name":"Mercurius","type":"Impact crater","moon_name":"Moon","lat":46.66,"lon":293.93,"description":"Mercury; Roman mythical messenger.","dimension":"64.3 km","theme":"moon"},{"name":"Merrill","type":"Impact crater","moon_name":"Moon","lat":74.83,"lon":117.45,"description":"Paul Willard; American astronomer (1887-1961).","dimension":"57.0 km","theme":"moon"},{"name":"Mersenius","type":"Impact crater","moon_name":"Moon","lat":-21.49,"lon":49.34,"description":"Mersenne, Marin; French mathematician, physicist (1588-1648).","dimension":"84.5 km","theme":"moon"},{"name":"Meshcherskiy","type":"Impact crater","moon_name":"Moon","lat":12.11,"lon":234.47,"description":"Ivan Vsevolodovich; Russian mathematician (1859-1935).","dimension":"65.9 km","theme":"moon"},{"name":"Messala","type":"Impact crater","moon_name":"Moon","lat":39.31,"lon":299.94,"description":"(Ma-Sa-Allah); Jewish astronomer (unkn- c. 815).","dimension":"122.4 km","theme":"moon"},{"name":"Messier","type":"Impact crater","moon_name":"Moon","lat":-1.9,"lon":312.35,"description":"Charles; French astronomer (1730-1817).","dimension":"13.8 km","theme":"moon"},{"name":"Metius","type":"Impact crater","moon_name":"Moon","lat":-40.42,"lon":316.63,"description":"Adriaan Adriaanszoon; Dutch astronomer (1571-1635).","dimension":"83.8 km","theme":"moon"},{"name":"Meton","type":"Impact crater","moon_name":"Moon","lat":73.57,"lon":340.37,"description":"Greek astronomer (unkn-fl. 432 B.C.).","dimension":"124.7 km","theme":"moon"},{"name":"Mezentsev","type":"Impact crater","moon_name":"Moon","lat":71.77,"lon":129.64,"description":"Yurij Borisovich; Soviet rocket scientist (1929-1965).","dimension":"84.5 km","theme":"moon"},{"name":"Michael","type":"Impact crater","moon_name":"Moon","lat":25.05,"lon":359.79,"description":"English male name.","dimension":"3.5 km","theme":"moon"},{"name":"Michelson","type":"Impact crater","moon_name":"Moon","lat":6.72,"lon":121.55,"description":"Albert Abraham; German-American physicist; Nobel laureate (1852-1931).","dimension":"123.1 km","theme":"moon"},{"name":"Middle Crescent","type":"Astronaut-named","moon_name":"Moon","lat":-3.0,"lon":23.44,"description":"Astronaut-named feature, Apollo 12 site.","dimension":"0.4 km","theme":"moon"},{"name":"Milankovi\u0107","type":"Impact crater","moon_name":"Moon","lat":76.53,"lon":188.65,"description":"Milutin; Yugoslavian astronomer (1879-1958).","dimension":"94.2 km","theme":"moon"},{"name":"Milichius","type":"Impact crater","moon_name":"Moon","lat":10.01,"lon":30.23,"description":"Milich, Jacob; German doctor, mathematician, astronomer (1501-1559).","dimension":"12.2 km","theme":"moon"},{"name":"Miller","type":"Impact crater","moon_name":"Moon","lat":-39.37,"lon":359.22,"description":"William Allen; British chemist (1817-1870).","dimension":"61.4 km","theme":"moon"},{"name":"Millikan","type":"Impact crater","moon_name":"Moon","lat":46.76,"lon":238.48,"description":"Robert Andrews; American physicist; Nobel laureate (1868-1953).","dimension":"94.0 km","theme":"moon"},{"name":"Mills","type":"Impact crater","moon_name":"Moon","lat":8.54,"lon":204.26,"description":"Mark Muir; American physicist (1917-1958).","dimension":"35.6 km","theme":"moon"},{"name":"Milne","type":"Impact crater","moon_name":"Moon","lat":-31.0,"lon":247.22,"description":"Edward Arthur; British mathematician, astrophysicist (1896-1950).","dimension":"260.0 km","theme":"moon"},{"name":"[Milton]","type":"Impact crater","moon_name":"Moon","lat":-1.6,"lon":269.1,"description":"John; British writer (1608-1674).","dimension":"","theme":"moon"},{"name":"Mineur","type":"Impact crater","moon_name":"Moon","lat":24.67,"lon":161.73,"description":"Henri; French mathematician, astronomer (1899-1954).","dimension":"72.3 km","theme":"moon"},{"name":"Minkowski","type":"Impact crater","moon_name":"Moon","lat":-56.13,"lon":145.8,"description":"Hermann; German mathematician (1864-1909); Rudolph Leo Bernhard; American astronomer (1895-1976).","dimension":"107.5 km","theme":"moon"},{"name":"Minnaert","type":"Impact crater","moon_name":"Moon","lat":-67.54,"lon":181.43,"description":"Marcel Gilles Jozef; Dutch astronomer, astrophysicist (1893-1970).","dimension":"137.3 km","theme":"moon"},{"name":"Mirzakhani","type":"Impact crater","moon_name":"Moon","lat":-17.47,"lon":274.8,"description":"Maryam; Iranian-American mathematician, first female winner of the Fields Medal (1977-2017).","dimension":"5.0 km","theme":"moon"},{"name":"Mitchell","type":"Impact crater","moon_name":"Moon","lat":49.77,"lon":339.83,"description":"Maria; American astronomer (1818-1889).","dimension":"32.1 km","theme":"moon"},{"name":"Mitra","type":"Impact crater","moon_name":"Moon","lat":17.76,"lon":154.65,"description":"Sisir Kumar; Indian physicist (1890-1963).","dimension":"97.1 km","theme":"moon"},{"name":"M\u00f6bius","type":"Impact crater","moon_name":"Moon","lat":15.63,"lon":258.87,"description":"August Ferdinand; German mathematician, astronomer (1790-1868).","dimension":"49.0 km","theme":"moon"},{"name":"Mohorovi\u010di\u0107","type":"Impact crater","moon_name":"Moon","lat":-18.73,"lon":164.83,"description":"Andrija; Croatian geophysicist (1857-1936). (Spelling changed from Mohor\u00f3vi\u010dic.)","dimension":"50.0 km","theme":"moon"},{"name":"Moigno","type":"Impact crater","moon_name":"Moon","lat":66.27,"lon":331.2,"description":"Francois Napoleon Marie; French mathematician, physicist (1804-1884).","dimension":"36.8 km","theme":"moon"},{"name":"Moiseev","type":"Impact crater","moon_name":"Moon","lat":9.44,"lon":256.74,"description":"Nikolay Dmitrievich; Soviet astronomer (1902-1955).","dimension":"61.6 km","theme":"moon"},{"name":"Moissan","type":"Impact crater","moon_name":"Moon","lat":4.77,"lon":222.55,"description":"Ferdinand Frederic Henri; French chemist; Nobel laureate (1852-1907).","dimension":"22.4 km","theme":"moon"},{"name":"Moltke","type":"Impact crater","moon_name":"Moon","lat":-0.59,"lon":335.84,"description":"Helmuth Karl, Graf von; German benefactor (1800-1891).","dimension":"6.2 km","theme":"moon"},{"name":"Monge","type":"Impact crater","moon_name":"Moon","lat":-19.24,"lon":312.46,"description":"Gaspard; French mathematician (1746-1818).","dimension":"36.6 km","theme":"moon"},{"name":"Monira","type":"Impact crater","moon_name":"Moon","lat":-12.54,"lon":1.73,"description":"Arabic female name.","dimension":"1.1 km","theme":"moon"},{"name":"Mons Agnes","type":"Mons","moon_name":"Moon","lat":18.66,"lon":354.67,"description":"Greek female name.","dimension":"","theme":"moon"},{"name":"Mons Amp\u00e8re","type":"Mons","moon_name":"Moon","lat":19.32,"lon":3.71,"description":"Andr\u00e9-Marie; French physicist (1775-1836).","dimension":"30.0 km","theme":"moon"},{"name":"Mons Amundsen","type":"Mons","moon_name":"Moon","lat":-82.57,"lon":284.29,"description":"Roald Engelbregt Gravning; Norwegian explorer (1872-1928).","dimension":"38.0 km","theme":"moon"},{"name":"Mons Andr\u00e9","type":"Mons","moon_name":"Moon","lat":5.18,"lon":239.44,"description":"French male name.","dimension":"10.5 km","theme":"moon"},{"name":"Mons Ardeshir","type":"Mons","moon_name":"Moon","lat":5.03,"lon":238.96,"description":"Persian male name.","dimension":"7.1 km","theme":"moon"},{"name":"Mons Argaeus","type":"Mons","moon_name":"Moon","lat":19.33,"lon":330.99,"description":"Named from peak in Asia Minor (now Erciyas Dagi).","dimension":"61.5 km","theme":"moon"},{"name":"Mons Bradley","type":"Mons","moon_name":"Moon","lat":21.73,"lon":359.62,"description":"James; British astronomer (1693-1762).","dimension":"76.5 km","theme":"moon"},{"name":"Mons Cabeus","type":"Mons","moon_name":"Moon","lat":-83.67,"lon":36.16,"description":"Named from nearby crater Cabeus.","dimension":"43.0 km","theme":"moon"},{"name":"Mons Delisle","type":"Mons","moon_name":"Moon","lat":29.42,"lon":35.79,"description":"Named from nearby crater.","dimension":"32.4 km","theme":"moon"},{"name":"Mons Dieter","type":"Mons","moon_name":"Moon","lat":5.0,"lon":239.7,"description":"German male name.","dimension":"20.4 km","theme":"moon"},{"name":"Mons Dilip","type":"Mons","moon_name":"Moon","lat":5.58,"lon":239.13,"description":"Indian male name.","dimension":"1.4 km","theme":"moon"},{"name":"Mons Esam","type":"Mons","moon_name":"Moon","lat":14.61,"lon":324.29,"description":"Arabic male name.","dimension":"7.9 km","theme":"moon"},{"name":"[Mons Euler]","type":"Mons","moon_name":"Moon","lat":23.3,"lon":29.2,"description":"Leonhard; Swiss mathematician (1707-1783).","dimension":"","theme":"moon"},{"name":"Mons Ganau","type":"Mons","moon_name":"Moon","lat":4.79,"lon":239.41,"description":"African male name.","dimension":"13.5 km","theme":"moon"},{"name":"Mons Gruithuisen Delta","type":"Mons","moon_name":"Moon","lat":36.07,"lon":39.59,"description":"Named from nearby crater.","dimension":"27.2 km","theme":"moon"},{"name":"Mons Gruithuisen Gamma","type":"Mons","moon_name":"Moon","lat":36.56,"lon":40.72,"description":"Named from nearby crater.","dimension":"19.6 km","theme":"moon"},{"name":"Mons Hadley","type":"Mons","moon_name":"Moon","lat":26.69,"lon":355.88,"description":"John, British instrument maker (1682-1744).","dimension":"26.4 km","theme":"moon"},{"name":"Mons Hadley Delta","type":"Mons","moon_name":"Moon","lat":25.72,"lon":356.29,"description":"Named from nearby mountain (Mons Hadley).","dimension":"17.2 km","theme":"moon"},{"name":"Mons Hansteen","type":"Mons","moon_name":"Moon","lat":-12.19,"lon":50.21,"description":"Named from nearby crater.","dimension":"30.6 km","theme":"moon"},{"name":"Mons Heng","type":"Mons","moon_name":"Moon","lat":42.56,"lon":52.12,"description":"Named from terrestrial Mount Heng, in Hunan, China.","dimension":"10.6 km","theme":"moon"},{"name":"Mons Herodotus","type":"Mons","moon_name":"Moon","lat":27.5,"lon":52.94,"description":"Named from nearby crater.","dimension":"6.8 km","theme":"moon"},{"name":"Mons Hua","type":"Mons","moon_name":"Moon","lat":45.71,"lon":52.26,"description":"Named from terrestrial Mount Hua, in Shaanxi, China.","dimension":"65.0 km","theme":"moon"},{"name":"Mons Huygens","type":"Mons","moon_name":"Moon","lat":19.92,"lon":2.86,"description":"Christiaan; Dutch astronomer, mathematician, physicist (1629-1695).","dimension":"42.0 km","theme":"moon"},{"name":"Mons Kocher","type":"Mons","moon_name":"Moon","lat":-85.46,"lon":118.06,"description":"Emil Theodor; Swiss surgeon, Nobel Prize winner 1909 (1841-1917).","dimension":"67.0 km","theme":"moon"},{"name":"Mons La Hire","type":"Mons","moon_name":"Moon","lat":27.66,"lon":25.51,"description":"Philippe De; French mathematician, astronomer (1640-1718).","dimension":"21.7 km","theme":"moon"},{"name":"Mons Latreille","type":"Mons","moon_name":"Moon","lat":18.47,"lon":298.08,"description":"Pierre Andr\u00e9; French entomologist (1762-1833).","dimension":"6.4 km","theme":"moon"},{"name":"Mons Malapert","type":"Mons","moon_name":"Moon","lat":-85.98,"lon":1.67,"description":"Named for nearby crater, Malapert.","dimension":"67.0 km","theme":"moon"},{"name":"Mons Maraldi","type":"Mons","moon_name":"Moon","lat":20.34,"lon":324.5,"description":"Named from nearby crater.","dimension":"15.9 km","theme":"moon"},{"name":"Mons Moro","type":"Mons","moon_name":"Moon","lat":-11.84,"lon":19.84,"description":"Antonio Lazzaro; Italian Earth scientist (1687-1764).","dimension":"13.7 km","theme":"moon"},{"name":"Mons Mouton","type":"Mons","moon_name":"Moon","lat":-84.6,"lon":329.0,"description":"Melba Roy; American mathematician (1929-1990).","dimension":"130.0 km","theme":"moon"},{"name":"Mons Penck","type":"Mons","moon_name":"Moon","lat":-10.0,"lon":338.26,"description":"Albrecht; German geographer (1858-1945).","dimension":"37.6 km","theme":"moon"},{"name":"Mons Pico","type":"Mons","moon_name":"Moon","lat":45.82,"lon":8.87,"description":"Spanish for \u201c;peak.\u201c","dimension":"24.4 km","theme":"moon"},{"name":"Mons Piton","type":"Mons","moon_name":"Moon","lat":40.72,"lon":0.92,"description":"Named from Mt. Piton on Tenerife Islands.","dimension":"22.5 km","theme":"moon"},{"name":"Mons R\u00fcmker","type":"Mons","moon_name":"Moon","lat":40.76,"lon":58.38,"description":"Karl Ludwig Christian; German astronomer (1788-1862).","dimension":"73.2 km","theme":"moon"},{"name":"Mons Song","type":"Mons","moon_name":"Moon","lat":-43.64,"lon":153.37,"description":"Named from terrestrial Mount Song Shan, in Henan, China.","dimension":"114.0 km","theme":"moon"},{"name":"Mons Tai","type":"Mons","moon_name":"Moon","lat":-44.56,"lon":184.17,"description":"Named from terrestrial Mount Tai, in Shandong, China.","dimension":"24.0 km","theme":"moon"},{"name":"Mons Usov","type":"Mons","moon_name":"Moon","lat":11.91,"lon":296.74,"description":"Mikhail Antonovich; Soviet geologist (1883-1939).","dimension":"13.2 km","theme":"moon"},{"name":"Mons Vinogradov","type":"Mons","moon_name":"Moon","lat":22.35,"lon":32.52,"description":"Aleksandr Pavlovich; Soviet geochemist and cosmochemist (1895-1975).","dimension":"28.7 km","theme":"moon"},{"name":"Mons Vitruvius","type":"Mons","moon_name":"Moon","lat":19.33,"lon":329.26,"description":"Named from nearby crater.","dimension":"44.3 km","theme":"moon"},{"name":"Mons Wolff","type":"Mons","moon_name":"Moon","lat":16.88,"lon":6.8,"description":"Christian, Baron von; German philosopher (1679-1754).","dimension":"32.9 km","theme":"moon"},{"name":"[Montaigne]","type":"Impact crater","moon_name":"Moon","lat":-4.4,"lon":260.5,"description":"Michel De; French writer (1533-1592).","dimension":"","theme":"moon"},{"name":"Montanari","type":"Impact crater","moon_name":"Moon","lat":-45.83,"lon":20.76,"description":"Geminiano; Italian astronomer, mathematician (1633-1687).","dimension":"77.0 km","theme":"moon"},{"name":"Mont Blanc","type":"Mons","moon_name":"Moon","lat":45.41,"lon":359.56,"description":"Named for terrestrial mountain in Alps.","dimension":"21.6 km","theme":"moon"},{"name":"Montes Agricola","type":"Mons","moon_name":"Moon","lat":29.06,"lon":54.07,"description":"Georgius; German Earth scientist (1494-1555).","dimension":"159.8 km","theme":"moon"},{"name":"Montes Alpes","type":"Mons","moon_name":"Moon","lat":48.36,"lon":0.58,"description":"Named from terrestrial Alps.","dimension":"334.5 km","theme":"moon"},{"name":"Montes Apenninus","type":"Mons","moon_name":"Moon","lat":19.87,"lon":359.97,"description":"Named from terrestrial Apennines.","dimension":"599.7 km","theme":"moon"},{"name":"Montes Archimedes","type":"Mons","moon_name":"Moon","lat":25.39,"lon":5.25,"description":"Named from nearby crater.","dimension":"146.5 km","theme":"moon"},{"name":"Montes Carpatus","type":"Mons","moon_name":"Moon","lat":14.57,"lon":23.62,"description":"Named from terrestrial Carpathians.","dimension":"333.6 km","theme":"moon"},{"name":"Montes Caucasus","type":"Mons","moon_name":"Moon","lat":37.52,"lon":350.07,"description":"Named from terrestrial Caucasus Mountains.","dimension":"443.5 km","theme":"moon"},{"name":"Montes Cordillera","type":"Mons","moon_name":"Moon","lat":-19.44,"lon":94.93,"description":"Spanish for \u201c;mountain chain.\u201c","dimension":"963.5 km","theme":"moon"},{"name":"Montes Haemus","type":"Mons","moon_name":"Moon","lat":17.11,"lon":347.97,"description":"Named for range in the Balkans.","dimension":"384.7 km","theme":"moon"},{"name":"Montes Harbinger","type":"Mons","moon_name":"Moon","lat":26.89,"lon":41.29,"description":"Harbingers of dawn on crater Aristarchus.","dimension":"92.7 km","theme":"moon"},{"name":"Montes Jura","type":"Mons","moon_name":"Moon","lat":47.49,"lon":36.11,"description":"Named from terrestrial Jura Mountains.","dimension":"420.8 km","theme":"moon"},{"name":"Montes Pyrenaeus","type":"Mons","moon_name":"Moon","lat":-14.05,"lon":318.49,"description":"Named from terrestrial Pyrenees.","dimension":"251.3 km","theme":"moon"},{"name":"[Montesquieu]","type":"Impact crater","moon_name":"Moon","lat":-6.2,"lon":267.7,"description":"Charles De Secondat, Baron De; French writer (1689-1755).","dimension":"","theme":"moon"},{"name":"Montes Recti","type":"Mons","moon_name":"Moon","lat":48.3,"lon":19.72,"description":"Latin for \u201c;straight range.\u201c","dimension":"83.2 km","theme":"moon"},{"name":"Montes Riphaeus","type":"Mons","moon_name":"Moon","lat":-7.48,"lon":27.6,"description":"Named from range in Asia (now Ural Mountains).","dimension":"190.1 km","theme":"moon"},{"name":"Montes Rook","type":"Mons","moon_name":"Moon","lat":-19.49,"lon":94.95,"description":"Lawrence; British astronomer (1622-1666).","dimension":"682.3 km","theme":"moon"},{"name":"Montes Secchi","type":"Mons","moon_name":"Moon","lat":2.72,"lon":316.83,"description":"Named from nearby crater.","dimension":"52.5 km","theme":"moon"},{"name":"Montes Spitzbergen","type":"Mons","moon_name":"Moon","lat":34.47,"lon":5.21,"description":"German for \u201c;sharp peaks\u201c;, and named for resemblance to the terrestrial island group.","dimension":"59.2 km","theme":"moon"},{"name":"Montes Taurus","type":"Mons","moon_name":"Moon","lat":27.32,"lon":319.66,"description":"Named from terrestrial Taurus Mts.","dimension":"166.2 km","theme":"moon"},{"name":"Montes Teneriffe","type":"Mons","moon_name":"Moon","lat":47.89,"lon":13.19,"description":"Named from terrestrial island.","dimension":"112.0 km","theme":"moon"},{"name":"Montgolfier","type":"Impact crater","moon_name":"Moon","lat":47.06,"lon":160.08,"description":"Jacques-\u00c9tienne; French inventor (1745-1799); Joseph-Michael; French inventor (1740-1810).","dimension":"83.7 km","theme":"moon"},{"name":"Moore","type":"Impact crater","moon_name":"Moon","lat":37.25,"lon":177.55,"description":"Joseph Haines; American astronomer (1878-1949).","dimension":"52.7 km","theme":"moon"},{"name":"Moretus","type":"Impact crater","moon_name":"Moon","lat":-70.63,"lon":5.95,"description":"Moret, Theodore; Belgian mathematician (1602-1667).","dimension":"114.5 km","theme":"moon"},{"name":"Morley","type":"Impact crater","moon_name":"Moon","lat":-2.82,"lon":295.38,"description":"Edward Williams; American chemist (1838-1923).","dimension":"13.7 km","theme":"moon"},{"name":"Morozov","type":"Impact crater","moon_name":"Moon","lat":4.62,"lon":232.67,"description":"Nikolaj Aleksandrovich; Soviet natural scientist (1854-1945).","dimension":"41.0 km","theme":"moon"},{"name":"Morse","type":"Impact crater","moon_name":"Moon","lat":21.9,"lon":175.29,"description":"Samuel Finley Breese; American inventor (1791-1872).","dimension":"72.8 km","theme":"moon"},{"name":"Moseley","type":"Impact crater","moon_name":"Moon","lat":20.95,"lon":90.2,"description":"Henry Gwyn Jeffreys; British physicist (1887-1915).","dimension":"88.9 km","theme":"moon"},{"name":"M\u00f6sting","type":"Impact crater","moon_name":"Moon","lat":-0.7,"lon":5.88,"description":"Johan Sigismund von; Danish benefactor (1759-1843).","dimension":"24.4 km","theme":"moon"},{"name":"Mouchez","type":"Impact crater","moon_name":"Moon","lat":78.38,"lon":26.82,"description":"Ernest Amedee Barthelemy; French astronomer (1821-1892).","dimension":"82.8 km","theme":"moon"},{"name":"Moulton","type":"Impact crater","moon_name":"Moon","lat":-60.91,"lon":262.43,"description":"Forest R.; American astronomer (1872-1952).","dimension":"54.7 km","theme":"moon"},{"name":"Mount Marilyn","type":"Astronaut-named","moon_name":"Moon","lat":1.13,"lon":320.0,"description":"Astronaut named feature, Apollo 11 site.","dimension":"30.0 km","theme":"moon"},{"name":"M\u00fcller","type":"Impact crater","moon_name":"Moon","lat":-7.64,"lon":357.96,"description":"Karl; Czechoslovakian astronomer (1866-1942).","dimension":"23.4 km","theme":"moon"},{"name":"Murakami","type":"Impact crater","moon_name":"Moon","lat":-23.38,"lon":140.97,"description":"Harutaro; Japanese physicist, astronomer (1872-1947).","dimension":"44.5 km","theme":"moon"},{"name":"Murchison","type":"Impact crater","moon_name":"Moon","lat":5.07,"lon":0.21,"description":"Sir Roderick Impey; Scottish geologist (1792-1871).","dimension":"57.8 km","theme":"moon"},{"name":"Mutus","type":"Impact crater","moon_name":"Moon","lat":-63.65,"lon":330.07,"description":"Vincente Mut, or Muth; Spanish astronomer (unkn-1673).","dimension":"76.3 km","theme":"moon"},{"name":"Nagaoka","type":"Impact crater","moon_name":"Moon","lat":19.51,"lon":205.95,"description":"Hantaro; Japanese physicist (1865-1940).","dimension":"50.5 km","theme":"moon"},{"name":"Nam Byeong-Cheol","type":"Impact crater","moon_name":"Moon","lat":-14.66,"lon":123.41,"description":"Korean astronomer and mathematician of the late Joseon Dynasty (1817-1863).","dimension":"132.0 km","theme":"moon"},{"name":"Nansen","type":"Impact crater","moon_name":"Moon","lat":81.17,"lon":264.62,"description":"Fridtjof; Norwegian explorer (1861-1930).","dimension":"116.9 km","theme":"moon"},{"name":"Nansen-Apollo","type":"Astronaut-named","moon_name":"Moon","lat":20.12,"lon":329.48,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.9 km","theme":"moon"},{"name":"Naonobu","type":"Impact crater","moon_name":"Moon","lat":-4.7,"lon":302.07,"description":"Ajima; Japanese mathematician (c. 1732-1798).","dimension":"33.0 km","theme":"moon"},{"name":"Nasireddin","type":"Impact crater","moon_name":"Moon","lat":-41.04,"lon":359.86,"description":"Nasir-Al-Din (Mohammed Ibn Hassan); Persian astronomer (1201-1274).","dimension":"52.0 km","theme":"moon"},{"name":"Nasmyth","type":"Impact crater","moon_name":"Moon","lat":-50.49,"lon":56.39,"description":"James; Scottish engineer, astronomer (1808-1890).","dimension":"78.4 km","theme":"moon"},{"name":"Nassau","type":"Impact crater","moon_name":"Moon","lat":-24.91,"lon":182.66,"description":"Jason John; American astronomer (1892-1965).","dimension":"75.8 km","theme":"moon"},{"name":"Natasha","type":"Impact crater","moon_name":"Moon","lat":19.98,"lon":31.16,"description":"Russian female name.","dimension":"11.0 km","theme":"moon"},{"name":"Naumann","type":"Impact crater","moon_name":"Moon","lat":35.38,"lon":62.02,"description":"Karl Friedrich; German geologist (1797-1873).","dimension":"9.9 km","theme":"moon"},{"name":"Neander","type":"Impact crater","moon_name":"Moon","lat":-31.35,"lon":320.12,"description":"Neumann, Michael; German mathematician (1529-1581).","dimension":"49.2 km","theme":"moon"},{"name":"Nearch","type":"Impact crater","moon_name":"Moon","lat":-58.58,"lon":320.99,"description":"Nearchus of Crete; Greek explorer (unkn-fl. 312 B.C.).","dimension":"72.8 km","theme":"moon"},{"name":"Necho","type":"Impact crater","moon_name":"Moon","lat":-5.25,"lon":236.76,"description":"Egyptian ruler (fl. 6th-7th century B.C.).","dimension":"36.9 km","theme":"moon"},{"name":"Nefed'ev","type":"Impact crater","moon_name":"Moon","lat":-81.07,"lon":224.23,"description":"Anatoly Alexeevich; Russian astronomer (1910-1976).","dimension":"52.9 km","theme":"moon"},{"name":"Neison","type":"Impact crater","moon_name":"Moon","lat":68.21,"lon":334.98,"description":"(Neville), Edmund; British astronomer, selenographer (1849-1940).","dimension":"51.0 km","theme":"moon"},{"name":"Neper","type":"Impact crater","moon_name":"Moon","lat":8.76,"lon":275.42,"description":"John; Scottish mathematician (1550-1617).","dimension":"144.3 km","theme":"moon"},{"name":"Nernst","type":"Impact crater","moon_name":"Moon","lat":35.57,"lon":94.64,"description":"Walther Hermann; German physical chemist; Nobel laureate (1864-1941).","dimension":"121.5 km","theme":"moon"},{"name":"Neujmin","type":"Impact crater","moon_name":"Moon","lat":-26.68,"lon":234.83,"description":"Grigorij Nikolaevich; Soviet astronomer (1885-1946).","dimension":"97.0 km","theme":"moon"},{"name":"Neumayer","type":"Impact crater","moon_name":"Moon","lat":-71.16,"lon":289.08,"description":"Georg Balthasar von; German meteorologist, hydrographer (1826-1909).","dimension":"84.4 km","theme":"moon"},{"name":"Newcomb","type":"Impact crater","moon_name":"Moon","lat":29.76,"lon":316.33,"description":"Simon; Canadian-American astronomer (1835-1909).","dimension":"39.8 km","theme":"moon"},{"name":"Newton","type":"Impact crater","moon_name":"Moon","lat":-76.52,"lon":17.44,"description":"Sir Isaac; British mathematician, physicist, astronomer (1643-1727).","dimension":"83.8 km","theme":"moon"},{"name":"Nicholson","type":"Impact crater","moon_name":"Moon","lat":-26.22,"lon":85.21,"description":"Seth Barnes; American astronomer (1891-1963).","dimension":"38.1 km","theme":"moon"},{"name":"Nicolai","type":"Impact crater","moon_name":"Moon","lat":-42.47,"lon":334.13,"description":"Friedrich Bernhard Gottfried; German astronomer (1793-1846).","dimension":"40.5 km","theme":"moon"},{"name":"Nicollet","type":"Impact crater","moon_name":"Moon","lat":-21.95,"lon":12.5,"description":"Joseph Nicholas; French astronomer (1786-1843).","dimension":"14.7 km","theme":"moon"},{"name":"Nielsen","type":"Impact crater","moon_name":"Moon","lat":31.8,"lon":51.76,"description":"Axel Vilfrid; Danish astronomer (1902-1970); Harald Herborg; American physicist (1903-1973).","dimension":"9.6 km","theme":"moon"},{"name":"Niepce","type":"Impact crater","moon_name":"Moon","lat":72.2,"lon":120.15,"description":"Joseph-Nic\u00e9phore; French physicist, photographer (1765-1833). (Spelling changed from Ni\u00e9pce.)","dimension":"59.7 km","theme":"moon"},{"name":"Nijland","type":"Impact crater","moon_name":"Moon","lat":33.19,"lon":225.83,"description":"Albertus Antonie; Dutch astronomer (1868-1936).","dimension":"35.5 km","theme":"moon"},{"name":"Nikolaev","type":"Impact crater","moon_name":"Moon","lat":35.08,"lon":208.72,"description":"Andriyan Grigoryevich; Soviet cosmonaut (1929-2004).","dimension":"42.7 km","theme":"moon"},{"name":"Nikolya","type":"Impact crater","moon_name":"Moon","lat":38.2,"lon":34.98,"description":"Russian diminutive form of the Greek-derived male name Nicholas (Lunokhod-1 landing site feature).","dimension":"0.1 km","theme":"moon"},{"name":"Nishina","type":"Impact crater","moon_name":"Moon","lat":-44.57,"lon":170.8,"description":"Yoshio; Japanese physicist (1890-1951).","dimension":"62.1 km","theme":"moon"},{"name":"Nobel","type":"Impact crater","moon_name":"Moon","lat":14.73,"lon":101.39,"description":"Alfred Bernhard; Swedish inventor (1833-1896).","dimension":"50.9 km","theme":"moon"},{"name":"Nobile","type":"Impact crater","moon_name":"Moon","lat":-85.28,"lon":306.73,"description":"Umberto; Italian artic explorer (1885-1978).","dimension":"79.3 km","theme":"moon"},{"name":"Nobili","type":"Impact crater","moon_name":"Moon","lat":0.17,"lon":284.05,"description":"Leopoldo; Italian physicist (1784-1835).","dimension":"41.8 km","theme":"moon"},{"name":"N\u00f6ggerath","type":"Impact crater","moon_name":"Moon","lat":-48.82,"lon":45.84,"description":"Johann Jakob; German geologist, mineralogist, seismologist (1788-1877).","dimension":"32.1 km","theme":"moon"},{"name":"Nonius","type":"Impact crater","moon_name":"Moon","lat":-34.9,"lon":356.21,"description":"Pedro Nu\u00f1ez Salaciense; Portuguese mathematician (1502-1578).","dimension":"70.6 km","theme":"moon"},{"name":"Norman","type":"Impact crater","moon_name":"Moon","lat":-11.78,"lon":30.35,"description":"Robert; British natural scientist (unkn-fl. c. 1590).","dimension":"9.9 km","theme":"moon"},{"name":"North Complex","type":"Astronaut-named","moon_name":"Moon","lat":26.25,"lon":356.41,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"3.1 km","theme":"moon"},{"name":"North Massif","type":"Astronaut-named","moon_name":"Moon","lat":20.54,"lon":329.28,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"16.3 km","theme":"moon"},{"name":"North Ray","type":"Astronaut-named","moon_name":"Moon","lat":-8.82,"lon":344.52,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.9 km","theme":"moon"},{"name":"N\u00f6ther (Noether)","type":"Impact crater","moon_name":"Moon","lat":66.35,"lon":114.18,"description":"Emmy; German mathematician (1882-1935).","dimension":"64.8 km","theme":"moon"},{"name":"[Novalis]","type":"Impact crater","moon_name":"Moon","lat":-11.7,"lon":275.3,"description":"Noval, Friedrich von Hardenberg; German writer (1772-1801).","dimension":"","theme":"moon"},{"name":"Numerov","type":"Impact crater","moon_name":"Moon","lat":-70.52,"lon":162.2,"description":"Boris Vasilievich; Soviet astronomer (1891-1941).","dimension":"105.4 km","theme":"moon"},{"name":"Nunn","type":"Impact crater","moon_name":"Moon","lat":4.62,"lon":268.85,"description":"Joseph; American engineer (1905-1968).","dimension":"18.5 km","theme":"moon"},{"name":"Nu\u0161l","type":"Impact crater","moon_name":"Moon","lat":32.19,"lon":192.55,"description":"Frantisek; Czechoslovakian astronomer (1867-1925). (Spelling changed from N\u00fcsl.)","dimension":"60.6 km","theme":"moon"},{"name":"Oberth","type":"Impact crater","moon_name":"Moon","lat":62.49,"lon":205.16,"description":"Hermann; Austrian space scientist (1894-1989).","dimension":"49.5 km","theme":"moon"},{"name":"Obruchev","type":"Impact crater","moon_name":"Moon","lat":-38.67,"lon":197.57,"description":"Vladimir Afanasievich; Soviet geologist (1863-1956).","dimension":"72.2 km","theme":"moon"},{"name":"Oceanus Procellarum","type":"Oceanus, oceani","moon_name":"Moon","lat":20.67,"lon":56.68,"description":"\u201c;Ocean of Storms.\u201c","dimension":"2592.2 km","theme":"moon"},{"name":"O'Day","type":"Impact crater","moon_name":"Moon","lat":-30.42,"lon":202.71,"description":"Marcus; American physicist (1897-1961).","dimension":"70.4 km","theme":"moon"},{"name":"Oenopides","type":"Impact crater","moon_name":"Moon","lat":57.13,"lon":64.2,"description":"Of Chios; Greek astronomer, geometrician (500(?)-430 B.C.).","dimension":"73.5 km","theme":"moon"},{"name":"Oersted","type":"Impact crater","moon_name":"Moon","lat":43.09,"lon":312.75,"description":"Hans Christian; Danish physicist, chemist (1777-1851).","dimension":"42.3 km","theme":"moon"},{"name":"Ohm","type":"Impact crater","moon_name":"Moon","lat":18.32,"lon":113.78,"description":"Georg Simon; German physicist (1789-1854).","dimension":"61.8 km","theme":"moon"},{"name":"Oken","type":"Impact crater","moon_name":"Moon","lat":-43.76,"lon":283.91,"description":"(Okenfuss), Lorenz; German biologist, physiologist (1779-1851).","dimension":"78.7 km","theme":"moon"},{"name":"Olbers","type":"Impact crater","moon_name":"Moon","lat":7.3,"lon":76.14,"description":"Heinrich Wilhelm Matth\u00e4us; German astronomer, doctor (1758-1840).","dimension":"73.0 km","theme":"moon"},{"name":"Olcott","type":"Impact crater","moon_name":"Moon","lat":20.57,"lon":242.21,"description":"William Tyler; American astronomer (1873-1936).","dimension":"79.9 km","theme":"moon"},{"name":"Old Nameless","type":"Astronaut-named","moon_name":"Moon","lat":-3.72,"lon":17.42,"description":"Astronaut-named feature, Apollo 14 site.","dimension":"0.8 km","theme":"moon"},{"name":"Olivier","type":"Impact crater","moon_name":"Moon","lat":58.72,"lon":221.56,"description":"Charles Pollard; American astronomer (1884-1975).","dimension":"78.5 km","theme":"moon"},{"name":"Omar Khayyam","type":"Impact crater","moon_name":"Moon","lat":58.21,"lon":102.22,"description":"Al-Khayy\u0101m\u012b; Persian mathematician, astronomer, poet (c. 1048-c. 1131).","dimension":"68.6 km","theme":"moon"},{"name":"Onizuka","type":"Impact crater","moon_name":"Moon","lat":-36.38,"lon":149.79,"description":"Ellison Shoji; member of the Challenger crew (1946-1986).","dimension":"26.9 km","theme":"moon"},{"name":"Opelt","type":"Impact crater","moon_name":"Moon","lat":-16.32,"lon":17.64,"description":"Friedrich Wilhelm; German astronomer (1794-1863), Otto Moritz; German astronomer (1829-1912).","dimension":"48.7 km","theme":"moon"},{"name":"Oppenheimer","type":"Impact crater","moon_name":"Moon","lat":-35.32,"lon":166.03,"description":"J. (Julius) Robert; American physicist (1904-1967).","dimension":"201.2 km","theme":"moon"},{"name":"Oppolzer","type":"Impact crater","moon_name":"Moon","lat":-1.52,"lon":0.45,"description":"Theodor Ritter von; Austrian astronomer (1841-1886).","dimension":"40.9 km","theme":"moon"},{"name":"Oresme","type":"Impact crater","moon_name":"Moon","lat":-42.61,"lon":190.78,"description":"Oresme, Nicole; French mathematician (1323(?)-1382).","dimension":"82.0 km","theme":"moon"},{"name":"Orlov","type":"Impact crater","moon_name":"Moon","lat":-25.77,"lon":175.08,"description":"Aleksandr Iakovlevich; Soviet astronomer (1880-1954); Sergei Vladimirovich; Soviet astronomer (1880-1958).","dimension":"72.9 km","theme":"moon"},{"name":"Orontius","type":"Impact crater","moon_name":"Moon","lat":-40.37,"lon":3.96,"description":"Oronce Fine (Orontius Finaeus Delphinatus); French mathematician, cartographer (1494-1555).","dimension":"121.0 km","theme":"moon"},{"name":"Osama","type":"Impact crater","moon_name":"Moon","lat":18.61,"lon":354.73,"description":"Arabic male name","dimension":"0.4 km","theme":"moon"},{"name":"Osiris","type":"Impact crater","moon_name":"Moon","lat":18.65,"lon":332.35,"description":"Egyptian male first name.","dimension":"1.0 km","theme":"moon"},{"name":"Osman","type":"Impact crater","moon_name":"Moon","lat":-10.98,"lon":6.25,"description":"Turkish male name.","dimension":"1.8 km","theme":"moon"},{"name":"Ostwald","type":"Impact crater","moon_name":"Moon","lat":10.24,"lon":238.05,"description":"Wilhelm; German chemist; Nobel laureate (1853-1932).","dimension":"108.1 km","theme":"moon"},{"name":"Palisa","type":"Impact crater","moon_name":"Moon","lat":-9.47,"lon":7.19,"description":"Johann; Czechoslovakian-Austrian astronomer (1848-1925).","dimension":"33.5 km","theme":"moon"},{"name":"Palitzsch","type":"Impact crater","moon_name":"Moon","lat":-28.02,"lon":295.61,"description":"Johann Georg; German astronomer (1723-1788).","dimension":"41.9 km","theme":"moon"},{"name":"Pallas","type":"Impact crater","moon_name":"Moon","lat":5.48,"lon":1.65,"description":"Peter Simon; German-born Russian geologist, natural historian (1741-1811).","dimension":"49.5 km","theme":"moon"},{"name":"Palmetto","type":"Astronaut-named","moon_name":"Moon","lat":-8.92,"lon":344.5,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.8 km","theme":"moon"},{"name":"Palmieri","type":"Impact crater","moon_name":"Moon","lat":-28.64,"lon":47.8,"description":"Luigi; Italian physicist, mathematician (1807-1896).","dimension":"39.8 km","theme":"moon"},{"name":"Palus Epidemiarum","type":"Palus","moon_name":"Moon","lat":-32.0,"lon":27.54,"description":"\u201c;Earthh of Epidemics.\u201c","dimension":"300.4 km","theme":"moon"},{"name":"Palus Putredinis","type":"Palus","moon_name":"Moon","lat":27.36,"lon":0.0,"description":"\u201c;Earthh of Decay.\u201c","dimension":"180.4 km","theme":"moon"},{"name":"Palus Somni","type":"Palus","moon_name":"Moon","lat":13.69,"lon":315.28,"description":"\u201c;Earthh of Sleep.\u201c","dimension":"163.4 km","theme":"moon"},{"name":"Paneth","type":"Impact crater","moon_name":"Moon","lat":62.6,"lon":94.63,"description":"Friedrich Adolf; German chemist (1887-1958).","dimension":"60.9 km","theme":"moon"},{"name":"Pannekoek","type":"Impact crater","moon_name":"Moon","lat":-4.2,"lon":219.31,"description":"Antonie; Dutch astronomer (1873-1960).","dimension":"67.5 km","theme":"moon"},{"name":"Papaleksi","type":"Impact crater","moon_name":"Moon","lat":10.15,"lon":196.05,"description":"Nikolaj Dmitrievich; Soviet physicist (1880-1947).","dimension":"92.0 km","theme":"moon"},{"name":"Paracelsus","type":"Impact crater","moon_name":"Moon","lat":-22.92,"lon":196.56,"description":"Philippus Aureolus Theophrastus Bombast von Hohenheim; Swiss-German doctor, chemist (1493-1541).","dimension":"85.9 km","theme":"moon"},{"name":"Paraskevopoulos","type":"Impact crater","moon_name":"Moon","lat":50.09,"lon":150.34,"description":"John Stefanos; Greek-American astronomer (1889-1951).","dimension":"98.9 km","theme":"moon"},{"name":"Parenago","type":"Impact crater","moon_name":"Moon","lat":25.88,"lon":108.91,"description":"Pavel Petrovich; Soviet astronomer (1906-1960).","dimension":"94.6 km","theme":"moon"},{"name":"Parkhurst","type":"Impact crater","moon_name":"Moon","lat":-33.29,"lon":256.31,"description":"John A.; American astronomer (1861-1925).","dimension":"93.1 km","theme":"moon"},{"name":"Parrot","type":"Impact crater","moon_name":"Moon","lat":-14.57,"lon":356.71,"description":"Johann Jacob Friedrich Wilhelm; Russian doctor, physicist (1792-1840).","dimension":"70.7 km","theme":"moon"},{"name":"Parry","type":"Impact crater","moon_name":"Moon","lat":-7.88,"lon":15.78,"description":"William Edward; British explorer (1790-1855).","dimension":"47.3 km","theme":"moon"},{"name":"Parsons","type":"Impact crater","moon_name":"Moon","lat":37.25,"lon":171.16,"description":"John \u201c;Jack\u201c; Whiteside; American rocketry scientist (1914-1952).","dimension":"41.1 km","theme":"moon"},{"name":"Pascal","type":"Impact crater","moon_name":"Moon","lat":74.36,"lon":70.63,"description":"Blaise; French mathematician (1623-1662).","dimension":"108.2 km","theme":"moon"},{"name":"Paschen","type":"Impact crater","moon_name":"Moon","lat":-14.06,"lon":140.53,"description":"Friedrich; German physicist (1865-1940).","dimension":"127.4 km","theme":"moon"},{"name":"Pasteur","type":"Impact crater","moon_name":"Moon","lat":-11.58,"lon":255.09,"description":"Louis; French chemist, microbiologist (1822-1895).","dimension":"232.8 km","theme":"moon"},{"name":"Patricia","type":"Impact crater","moon_name":"Moon","lat":24.91,"lon":359.5,"description":"English female name.","dimension":"10.1 km","theme":"moon"},{"name":"Patsaev","type":"Impact crater","moon_name":"Moon","lat":-16.77,"lon":226.4,"description":"Viktor Ivanovich; Soviet engineer, cosmonaut (1933-1971).","dimension":"55.2 km","theme":"moon"},{"name":"Pauli","type":"Impact crater","moon_name":"Moon","lat":-44.76,"lon":222.65,"description":"Wolfgang; Austrian-American physicist; Nobel laureate (1900-1958).","dimension":"95.3 km","theme":"moon"},{"name":"Pavlov","type":"Impact crater","moon_name":"Moon","lat":-28.28,"lon":217.6,"description":"Ivan Petrovich; Soviet physiologist; Nobel laureate (1849-1936).","dimension":"143.1 km","theme":"moon"},{"name":"Pawsey","type":"Impact crater","moon_name":"Moon","lat":44.24,"lon":214.71,"description":"Joseph Lade; Australian radio astronomer (1908-1962).","dimension":"60.0 km","theme":"moon"},{"name":"Peary","type":"Impact crater","moon_name":"Moon","lat":88.63,"lon":335.6,"description":"Robert Edwin; American explorer (1856-1920).","dimension":"78.8 km","theme":"moon"},{"name":"Pease","type":"Impact crater","moon_name":"Moon","lat":12.51,"lon":106.3,"description":"Francis Gladheim; American astronomer (1881-1938).","dimension":"40.8 km","theme":"moon"},{"name":"Peek","type":"Impact crater","moon_name":"Moon","lat":2.76,"lon":273.04,"description":"Bertrand Meigh; British astronomer (1891-1965).","dimension":"12.6 km","theme":"moon"},{"name":"Peirce","type":"Impact crater","moon_name":"Moon","lat":18.26,"lon":306.65,"description":"Benjamin; American mathematician, astronomer (1809-1880).","dimension":"18.9 km","theme":"moon"},{"name":"Peirescius","type":"Impact crater","moon_name":"Moon","lat":-46.4,"lon":292.2,"description":"Peiresc, Nicolas Claude Fabri De; French astronomer, archaeologist (1580-1637).","dimension":"61.5 km","theme":"moon"},{"name":"Pei Xiu","type":"Impact crater","moon_name":"Moon","lat":44.06,"lon":52.75,"description":"Chinese geographer, cartographer during Jin dynasty (224-271).","dimension":"2.2 km","theme":"moon"},{"name":"Pentland","type":"Impact crater","moon_name":"Moon","lat":-64.57,"lon":348.66,"description":"Joseph Barclay; Irish geographer (1797-1873).","dimension":"56.5 km","theme":"moon"},{"name":"Perel'man","type":"Impact crater","moon_name":"Moon","lat":-24.05,"lon":253.99,"description":"Yakov Isidorovich; Soviet rocketry scientist (1882-1942).","dimension":"48.9 km","theme":"moon"},{"name":"Perepelkin","type":"Impact crater","moon_name":"Moon","lat":-9.99,"lon":231.2,"description":"Yevgenii Yakovlevich; Soviet astrophysicist (1906-1938).","dimension":"88.7 km","theme":"moon"},{"name":"Perey","type":"Impact crater","moon_name":"Moon","lat":-42.46,"lon":153.69,"description":"Marguerite Catherine; French nuclear physicist who discovered the element francium and first woman to be elected to the French Acad\u00e9mie des Sciences (1909-1975)).","dimension":"1.6 km","theme":"moon"},{"name":"Perkin","type":"Impact crater","moon_name":"Moon","lat":47.02,"lon":175.73,"description":"Richard Scott; American telescope manufacturer (1906-1969).","dimension":"62.5 km","theme":"moon"},{"name":"Perrine","type":"Impact crater","moon_name":"Moon","lat":42.11,"lon":127.95,"description":"Charles Dillon; American astronomer (1867-1951).","dimension":"87.4 km","theme":"moon"},{"name":"Petavius","type":"Impact crater","moon_name":"Moon","lat":-25.39,"lon":299.22,"description":"Petau, Denis; French chronologist, astronomer (1583-1652).","dimension":"184.1 km","theme":"moon"},{"name":"Petermann","type":"Impact crater","moon_name":"Moon","lat":74.35,"lon":292.11,"description":"August Heinrich; German geographer (1822-1878).","dimension":"77.0 km","theme":"moon"},{"name":"Peters","type":"Impact crater","moon_name":"Moon","lat":68.07,"lon":330.61,"description":"Christian August Friedrich; German astronomer (1806-1880).","dimension":"14.7 km","theme":"moon"},{"name":"Petit","type":"Impact crater","moon_name":"Moon","lat":2.32,"lon":296.54,"description":"Alexis Therese; French physicist (1771-1820).","dimension":"5.0 km","theme":"moon"},{"name":"Petrie","type":"Impact crater","moon_name":"Moon","lat":45.14,"lon":251.53,"description":"Robert Methven; Scottish-born Canadian astrophysicist (1906-1966).","dimension":"32.9 km","theme":"moon"},{"name":"Petropavlovskiy","type":"Impact crater","moon_name":"Moon","lat":36.92,"lon":115.28,"description":"Boris S.; Soviet rocketry engineer (1898-1933).","dimension":"64.1 km","theme":"moon"},{"name":"Petrov","type":"Impact crater","moon_name":"Moon","lat":-61.36,"lon":271.82,"description":"Evgenij Stepanovich; Soviet rocketry scientist (1900-1942).","dimension":"55.4 km","theme":"moon"},{"name":"Pettit","type":"Impact crater","moon_name":"Moon","lat":-27.52,"lon":86.75,"description":"Edison; American astronomer (1889-1962).","dimension":"36.7 km","theme":"moon"},{"name":"Petzval","type":"Impact crater","moon_name":"Moon","lat":-62.73,"lon":110.83,"description":"Joseph von; Austrian optician (1807-1891).","dimension":"93.5 km","theme":"moon"},{"name":"Phillips","type":"Impact crater","moon_name":"Moon","lat":-26.57,"lon":284.33,"description":"John; British geologist, astronomer (1800-1874).","dimension":"104.2 km","theme":"moon"},{"name":"Philolaus","type":"Impact crater","moon_name":"Moon","lat":72.22,"lon":32.88,"description":"Of Croton; Greek mathematician, astronomer, philosopher (unkn-fl. 400 B.C.).","dimension":"71.4 km","theme":"moon"},{"name":"Phocylides","type":"Impact crater","moon_name":"Moon","lat":-52.79,"lon":57.31,"description":"Johannes Phocylides Holwarda (Jan Fokker); Dutch astronomer (1618-1651).","dimension":"115.2 km","theme":"moon"},{"name":"Piazzi","type":"Impact crater","moon_name":"Moon","lat":-36.16,"lon":68.01,"description":"Giuseppe; Italian astronomer (1746-1826).","dimension":"102.6 km","theme":"moon"},{"name":"Piazzi Smyth","type":"Impact crater","moon_name":"Moon","lat":41.91,"lon":3.24,"description":"Charles; Italian-born Scottish astronomer (1819-1900).","dimension":"13.0 km","theme":"moon"},{"name":"Picard","type":"Impact crater","moon_name":"Moon","lat":14.57,"lon":305.28,"description":"Jean; French astronomer (1620-1682).","dimension":"22.4 km","theme":"moon"},{"name":"Piccolomini","type":"Impact crater","moon_name":"Moon","lat":-29.7,"lon":327.8,"description":"Alessandro; Italian astronomer (1508-1578).","dimension":"87.6 km","theme":"moon"},{"name":"Pickering","type":"Impact crater","moon_name":"Moon","lat":-2.88,"lon":353.01,"description":"Edward Charles; American astronomer (1846-1919); William H.; American astronomer (1858-1938).","dimension":"15.4 km","theme":"moon"},{"name":"Pictet","type":"Impact crater","moon_name":"Moon","lat":-43.56,"lon":7.49,"description":"Pictet-Turretin, Marc-Auguste; Swiss physicist (1752-1825).","dimension":"60.0 km","theme":"moon"},{"name":"Pierazzo","type":"Impact crater","moon_name":"Moon","lat":3.3,"lon":100.24,"description":"Elisabetta; Italian planetary scientist (1963-2011).","dimension":"9.3 km","theme":"moon"},{"name":"Pikel'ner","type":"Impact crater","moon_name":"Moon","lat":-48.37,"lon":235.75,"description":"Solomon Borisovich; Soviet astronomer, cosmologist (1921-1975).","dimension":"41.0 km","theme":"moon"},{"name":"Pil\u00e2tre","type":"Impact crater","moon_name":"Moon","lat":-60.17,"lon":86.7,"description":"Jean-Fran\u00e7ois Pil\u00e2tre de Rozier; French aeronaut (1756-1785).","dimension":"64.4 km","theme":"moon"},{"name":"Pingr\u00e9","type":"Impact crater","moon_name":"Moon","lat":-58.64,"lon":73.95,"description":"Alexandre Guy; French astronomer (1711-1796).","dimension":"88.4 km","theme":"moon"},{"name":"[Pirandello]","type":"Impact crater","moon_name":"Moon","lat":2.8,"lon":271.2,"description":"Luigi; Italian playwright, novelist (1867-1936).","dimension":"","theme":"moon"},{"name":"Pirquet","type":"Impact crater","moon_name":"Moon","lat":-20.34,"lon":220.07,"description":"Baron Guido von; Austrian (spacecraft trajectories) astronaut (1880-1966).","dimension":"62.1 km","theme":"moon"},{"name":"Pitatus","type":"Impact crater","moon_name":"Moon","lat":-29.88,"lon":13.53,"description":"Pitati, Pietro; Italian astronomer, mathematician (unkn.-fl. c. 1500).","dimension":"100.6 km","theme":"moon"},{"name":"Pitiscus","type":"Impact crater","moon_name":"Moon","lat":-50.61,"lon":329.43,"description":"Bartholemaeus; German mathematician (1561-1613).","dimension":"79.8 km","theme":"moon"},{"name":"Pizzetti","type":"Impact crater","moon_name":"Moon","lat":-35.06,"lon":240.71,"description":"Paolo; Italian geodesist (1860-1918).","dimension":"53.5 km","theme":"moon"},{"name":"Plain","type":"Astronaut-named","moon_name":"Moon","lat":26.15,"lon":356.36,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"2.8 km","theme":"moon"},{"name":"Plana","type":"Impact crater","moon_name":"Moon","lat":42.25,"lon":331.78,"description":"Baron Giovanni Antonio Amedeo; Italian astronomer, geometrician (1781-1864).","dimension":"43.0 km","theme":"moon"},{"name":"Planck","type":"Impact crater","moon_name":"Moon","lat":-57.27,"lon":224.66,"description":"Max Karl Ernst; German physicist; Nobel laureate (1858-1947).","dimension":"319.5 km","theme":"moon"},{"name":"Planitia Descensus","type":"Planitia, planitiae","moon_name":"Moon","lat":7.18,"lon":64.15,"description":"Luna 9 landing site (\u201c;plain of descent\u201c;).","dimension":"","theme":"moon"},{"name":"Plant\u00e9","type":"Impact crater","moon_name":"Moon","lat":-10.22,"lon":196.74,"description":"Gaston; French physicist (1834-1889).","dimension":"36.8 km","theme":"moon"},{"name":"Plaskett","type":"Impact crater","moon_name":"Moon","lat":81.63,"lon":183.29,"description":"John Stanley; Canadian astronomer (1865-1941).","dimension":"114.3 km","theme":"moon"},{"name":"Plato","type":"Impact crater","moon_name":"Moon","lat":51.62,"lon":9.38,"description":"Greek philosopher c.428-c.347 B.C.","dimension":"100.7 km","theme":"moon"},{"name":"Playfair","type":"Impact crater","moon_name":"Moon","lat":-23.56,"lon":351.55,"description":"John; Scottish mathematician, geologist (1748-1819).","dimension":"49.9 km","theme":"moon"},{"name":"Plinius","type":"Impact crater","moon_name":"Moon","lat":15.36,"lon":336.39,"description":"Gaius Plinius Secundus (The Elder); Roman natural scientist (23-79).","dimension":"41.3 km","theme":"moon"},{"name":"Plum","type":"Astronaut-named","moon_name":"Moon","lat":-8.98,"lon":344.55,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.0 km","theme":"moon"},{"name":"Plummer","type":"Impact crater","moon_name":"Moon","lat":-24.62,"lon":154.86,"description":"Henry Crozier Keating; British astronomer (1875-1946).","dimension":"75.7 km","theme":"moon"},{"name":"Plutarch","type":"Impact crater","moon_name":"Moon","lat":24.18,"lon":280.95,"description":"Greek biographer (c. A.D.46-c. 120).","dimension":"69.6 km","theme":"moon"},{"name":"Poczobutt","type":"Impact crater","moon_name":"Moon","lat":57.27,"lon":99.23,"description":"Martin Odlanicky; Polish astronomer (1728-1810).","dimension":"212.4 km","theme":"moon"},{"name":"Pogson","type":"Impact crater","moon_name":"Moon","lat":-42.38,"lon":248.89,"description":"Norman Robert; British astronomer (1829-1891).","dimension":"40.9 km","theme":"moon"},{"name":"Poincar\u00e9","type":"Impact crater","moon_name":"Moon","lat":-56.86,"lon":196.01,"description":"Jules Henri; French mathematician, physicist (1854-1912).","dimension":"346.0 km","theme":"moon"},{"name":"Poinsot","type":"Impact crater","moon_name":"Moon","lat":78.9,"lon":146.21,"description":"Louis; French mathematician (1777-1859).","dimension":"65.1 km","theme":"moon"},{"name":"Poisson","type":"Impact crater","moon_name":"Moon","lat":-30.34,"lon":349.44,"description":"Simeon Denis; French mathematician (1781-1840).","dimension":"41.4 km","theme":"moon"},{"name":"Polybius","type":"Impact crater","moon_name":"Moon","lat":-22.46,"lon":334.37,"description":"Greek historian (204(?)-122(?) B.C.).","dimension":"40.8 km","theme":"moon"},{"name":"Polzunov","type":"Impact crater","moon_name":"Moon","lat":25.57,"lon":244.99,"description":"Ivan Ivanovich; Russian heat engineer (1728-1766).","dimension":"66.5 km","theme":"moon"},{"name":"Pomortsev","type":"Impact crater","moon_name":"Moon","lat":0.74,"lon":293.09,"description":"Mikhail Mikhailovich; Russian rocketry scientist (1851-1916).","dimension":"25.5 km","theme":"moon"},{"name":"Poncelet","type":"Impact crater","moon_name":"Moon","lat":75.91,"lon":54.57,"description":"Jean-Victor; French mathematician, engineer (1788-1867).","dimension":"67.6 km","theme":"moon"},{"name":"Pons","type":"Impact crater","moon_name":"Moon","lat":-25.43,"lon":338.45,"description":"Jean Louis; French astronomer (1761-1831).","dimension":"39.7 km","theme":"moon"},{"name":"Pontanus","type":"Impact crater","moon_name":"Moon","lat":-28.42,"lon":345.64,"description":"Pontano, Giovanni Gioviani; Italian astronomer (1427-1503).","dimension":"55.7 km","theme":"moon"},{"name":"Pont\u00e9coulant","type":"Impact crater","moon_name":"Moon","lat":-58.78,"lon":293.93,"description":"Philippe Gustave Doulcet, Comte De Pont\u00e9coulant; French mathematician (1795-1874).","dimension":"91.4 km","theme":"moon"},{"name":"[Pope]","type":"Impact crater","moon_name":"Moon","lat":-9.5,"lon":271.0,"description":"Alexander; British writer (1688-1744).","dimension":"","theme":"moon"},{"name":"Popov","type":"Impact crater","moon_name":"Moon","lat":16.93,"lon":260.62,"description":"Aleksandr Stepanovich; Russian physicist, engineer (1859-1905); C.; Bulgarian astronomer (1880-1966).","dimension":"71.4 km","theme":"moon"},{"name":"Porter","type":"Impact crater","moon_name":"Moon","lat":-56.15,"lon":10.18,"description":"Russell Williams; American telescope designer (1871-1949).","dimension":"51.5 km","theme":"moon"},{"name":"Posidonius","type":"Impact crater","moon_name":"Moon","lat":31.88,"lon":330.01,"description":"Of Apamea; Greek geographer (135(?)-51(?) B.C.).","dimension":"95.1 km","theme":"moon"},{"name":"Powell","type":"Astronaut-named","moon_name":"Moon","lat":20.16,"lon":329.24,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.4 km","theme":"moon"},{"name":"Poynting","type":"Impact crater","moon_name":"Moon","lat":17.5,"lon":133.38,"description":"John Henry; British physicist (1852-1914).","dimension":"127.5 km","theme":"moon"},{"name":"Prager","type":"Impact crater","moon_name":"Moon","lat":-3.99,"lon":229.22,"description":"Richard; German-American astronomer (1883-1945).","dimension":"53.9 km","theme":"moon"},{"name":"Prandtl","type":"Impact crater","moon_name":"Moon","lat":-59.62,"lon":218.46,"description":"Ludwig; German physicist (1875-1953).","dimension":"87.5 km","theme":"moon"},{"name":"Priestley","type":"Impact crater","moon_name":"Moon","lat":-56.71,"lon":251.53,"description":"Joseph; British chemist (1733-1804).","dimension":"54.9 km","theme":"moon"},{"name":"Prinz","type":"Impact crater","moon_name":"Moon","lat":25.49,"lon":44.14,"description":"Wilhelm; German-Belgian astronomer (1857-1910).","dimension":"46.1 km","theme":"moon"},{"name":"Priscilla","type":"Impact crater","moon_name":"Moon","lat":-10.96,"lon":6.21,"description":"Latin female name.","dimension":"1.5 km","theme":"moon"},{"name":"Proclus","type":"Impact crater","moon_name":"Moon","lat":16.09,"lon":313.11,"description":"Diadochos (The Successor); Greek mathematician, astronomer, philosopher (410-485).","dimension":"26.9 km","theme":"moon"},{"name":"Proctor","type":"Impact crater","moon_name":"Moon","lat":-46.43,"lon":5.04,"description":"Mary; American astronomer (1862-1957).","dimension":"47.6 km","theme":"moon"},{"name":"Promontorium Agarum","type":"Promontorium","moon_name":"Moon","lat":13.87,"lon":294.27,"description":"Named from cape in Sea of Azov.","dimension":"62.5 km","theme":"moon"},{"name":"Promontorium Agassiz","type":"Promontorium","moon_name":"Moon","lat":42.4,"lon":358.23,"description":"Jean Louis Rodolphe; Swiss zoologist, geologist (1807-1873).","dimension":"18.8 km","theme":"moon"},{"name":"Promontorium Archerusia","type":"Promontorium","moon_name":"Moon","lat":16.8,"lon":338.06,"description":"Named from cape on the Black Sea.","dimension":"11.2 km","theme":"moon"},{"name":"Promontorium Deville","type":"Promontorium","moon_name":"Moon","lat":43.31,"lon":358.86,"description":"Sainte-Claire Charles; French geologist (1814-1876).","dimension":"16.6 km","theme":"moon"},{"name":"Promontorium Fresnel","type":"Promontorium","moon_name":"Moon","lat":28.63,"lon":355.25,"description":"Augustin Jean; French optician (1788-1827).","dimension":"20.0 km","theme":"moon"},{"name":"Promontorium Heraclides","type":"Promontorium","moon_name":"Moon","lat":40.6,"lon":34.1,"description":"Ponticus; Greek astronomer (c. 388-310 B.C.).","dimension":"50.0 km","theme":"moon"},{"name":"Promontorium Kelvin","type":"Promontorium","moon_name":"Moon","lat":-26.95,"lon":33.45,"description":"William Thomson, Lord Kelvin; Scottish natural philosopher (1824-1907).","dimension":"45.0 km","theme":"moon"},{"name":"Promontorium Laplace","type":"Promontorium","moon_name":"Moon","lat":46.84,"lon":25.51,"description":"Pierre Simon; French mathematician, astronomer (1749-1827).","dimension":"50.0 km","theme":"moon"},{"name":"Promontorium Taenarium","type":"Promontorium","moon_name":"Moon","lat":-18.63,"lon":7.34,"description":"Named from cape in Greece; now Matapan or Tainaron.","dimension":"70.0 km","theme":"moon"},{"name":"Protagoras","type":"Impact crater","moon_name":"Moon","lat":56.02,"lon":352.66,"description":"Greek philosopher (c. 485-415 B.C.).","dimension":"21.1 km","theme":"moon"},{"name":"Ptolemaeus","type":"Impact crater","moon_name":"Moon","lat":-9.16,"lon":1.84,"description":"Ptolemy, Claudius; Greek astronomer, mathematician, geographer (c. 87-150).","dimension":"153.7 km","theme":"moon"},{"name":"Puiseux","type":"Impact crater","moon_name":"Moon","lat":-27.82,"lon":39.19,"description":"Pierre; French astronomer (1855-1928).","dimension":"24.9 km","theme":"moon"},{"name":"Pupin","type":"Impact crater","moon_name":"Moon","lat":23.87,"lon":11.0,"description":"Michael Idvorsky; American physicist and inventor of Serbian origin (1858-1935).","dimension":"2.2 km","theme":"moon"},{"name":"Purbach","type":"Impact crater","moon_name":"Moon","lat":-25.51,"lon":2.03,"description":"Georg von; Austrian mathematician, astronomer (1423-1461).","dimension":"115.0 km","theme":"moon"},{"name":"Purkyn\u011b","type":"Impact crater","moon_name":"Moon","lat":-1.54,"lon":265.14,"description":"Jan Evangelista; Czechoslovakian doctor, physiologist (1787-1869).","dimension":"50.3 km","theme":"moon"},{"name":"Pythagoras","type":"Impact crater","moon_name":"Moon","lat":63.68,"lon":62.98,"description":"Of Samos; Greek philosopher, mathematician (unkn-fl. c. 532 B.C.).","dimension":"144.6 km","theme":"moon"},{"name":"Pytheas","type":"Impact crater","moon_name":"Moon","lat":20.57,"lon":20.59,"description":"Of Eartheilles; Greek navigator, geographer (c. 308 B.C.).","dimension":"18.8 km","theme":"moon"},{"name":"Quetelet","type":"Impact crater","moon_name":"Moon","lat":42.66,"lon":135.3,"description":"Lambert Aldophe Jacques; Belgian statistician, astronomer (1796-1874).","dimension":"54.8 km","theme":"moon"},{"name":"Rabbi Levi","type":"Impact crater","moon_name":"Moon","lat":-34.78,"lon":336.54,"description":"Gershon, Levi Ben; French philosopher, mathematician, astronomer (1288-1344).","dimension":"82.4 km","theme":"moon"},{"name":"Racah","type":"Impact crater","moon_name":"Moon","lat":-13.5,"lon":179.87,"description":"Giulio; Italian-Israeli physicist (1909-1965).","dimension":"71.9 km","theme":"moon"},{"name":"[Racine]","type":"Impact crater","moon_name":"Moon","lat":-8.3,"lon":261.0,"description":"Jean Baptiste; French playwright (1639-1699).","dimension":"","theme":"moon"},{"name":"Raimond","type":"Impact crater","moon_name":"Moon","lat":14.78,"lon":159.63,"description":"Jean Jacques, Jr.; Dutch astronomer (1903-1961).","dimension":"68.4 km","theme":"moon"},{"name":"Raman","type":"Impact crater","moon_name":"Moon","lat":26.96,"lon":55.16,"description":"Chandrasekhara Venkata; Indian physicist; Nobel laureate (1888-1970).","dimension":"10.2 km","theme":"moon"},{"name":"Ramon","type":"Impact crater","moon_name":"Moon","lat":-41.23,"lon":148.08,"description":"Ilan; Israeli astronaut, Space Shuttle Columbia Payload Specialist (1954-2003).","dimension":"17.2 km","theme":"moon"},{"name":"Ramsay","type":"Impact crater","moon_name":"Moon","lat":-40.02,"lon":214.96,"description":"Sir William; British chemist; Nobel laureate (1852-1916).","dimension":"61.3 km","theme":"moon"},{"name":"Ramsden","type":"Impact crater","moon_name":"Moon","lat":-32.96,"lon":31.87,"description":"Jesse; British instrument maker (1735-1800).","dimension":"25.1 km","theme":"moon"},{"name":"Rankine","type":"Impact crater","moon_name":"Moon","lat":-3.87,"lon":288.51,"description":"William John Macquorn; Scottish physicist, engineer (1820-1872).","dimension":"10.5 km","theme":"moon"},{"name":"Raspletin","type":"Impact crater","moon_name":"Moon","lat":-22.41,"lon":208.25,"description":"Aleksandr Andreyevich; Soviet radio engineer (1908-1967).","dimension":"45.5 km","theme":"moon"},{"name":"Ravi","type":"Impact crater","moon_name":"Moon","lat":-12.5,"lon":1.97,"description":"Indian male name.","dimension":"1.6 km","theme":"moon"},{"name":"Ravine","type":"Astronaut-named","moon_name":"Moon","lat":-8.84,"lon":344.44,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"1.1 km","theme":"moon"},{"name":"Rayet","type":"Impact crater","moon_name":"Moon","lat":44.65,"lon":245.5,"description":"Georges-Antoine-Pons; French astronomer (1839-1906).","dimension":"27.8 km","theme":"moon"},{"name":"Rayleigh","type":"Impact crater","moon_name":"Moon","lat":29.12,"lon":270.55,"description":"John William Strutt, Lord Rayleigh; British physicist; Nobel laureate (1842-1919).","dimension":"113.8 km","theme":"moon"},{"name":"Razumov","type":"Impact crater","moon_name":"Moon","lat":38.95,"lon":114.63,"description":"Vladimir V.; Soviet rocket builder (1890-1967).","dimension":"75.1 km","theme":"moon"},{"name":"R\u00e9aumur","type":"Impact crater","moon_name":"Moon","lat":-2.45,"lon":359.27,"description":"Ren\u00e9-Antoine Ferchault de; French physicist (1683-1757).","dimension":"51.2 km","theme":"moon"},{"name":"Recht","type":"Impact crater","moon_name":"Moon","lat":9.76,"lon":236.01,"description":"Albert W.; American astronomer, mathematician (1892-1962).","dimension":"20.0 km","theme":"moon"},{"name":"Regiomontanus","type":"Impact crater","moon_name":"Moon","lat":-28.28,"lon":1.09,"description":"Muller, Johann; German astronomer, mathematician (1436-1476).","dimension":"126.6 km","theme":"moon"},{"name":"Regnault","type":"Impact crater","moon_name":"Moon","lat":54.04,"lon":87.88,"description":"Henri Victor; French chemist; physicist (1810-1878).","dimension":"51.3 km","theme":"moon"},{"name":"Reichenbach","type":"Impact crater","moon_name":"Moon","lat":-30.48,"lon":312.05,"description":"Georg von; German optician (1772-1826).","dimension":"64.8 km","theme":"moon"},{"name":"Reimarus","type":"Impact crater","moon_name":"Moon","lat":-47.69,"lon":299.58,"description":"Baer, Nicolai Reymers; German mathematician (c. 1550-c. 1600).","dimension":"47.6 km","theme":"moon"},{"name":"Reiner","type":"Impact crater","moon_name":"Moon","lat":6.92,"lon":54.98,"description":"Reinieri, Vincentio; Italian astronomer, mathematician (unkn-1648).","dimension":"29.9 km","theme":"moon"},{"name":"Reiner Gamma","type":"Albedo Feature","moon_name":"Moon","lat":7.39,"lon":58.96,"description":"Reinieri, Vincentio; Italian astronomer, mathematician (unkn-1648).","dimension":"73.4 km","theme":"moon"},{"name":"Reinhold","type":"Impact crater","moon_name":"Moon","lat":3.28,"lon":22.86,"description":"Erasmus; German astronomer, mathematician (1511-1553).","dimension":"43.3 km","theme":"moon"},{"name":"Repsold","type":"Impact crater","moon_name":"Moon","lat":51.31,"lon":78.41,"description":"Johann Georg; German inventor (1770-1830).","dimension":"108.7 km","theme":"moon"},{"name":"Resnik","type":"Impact crater","moon_name":"Moon","lat":-34.15,"lon":150.84,"description":"Judith Arlene; member of the Challenger crew (1949-1986).","dimension":"22.2 km","theme":"moon"},{"name":"Respighi","type":"Impact crater","moon_name":"Moon","lat":2.86,"lon":288.1,"description":"Lorenzo; Italian astronomer (1824-1890).","dimension":"17.9 km","theme":"moon"},{"name":"Rhaeticus","type":"Impact crater","moon_name":"Moon","lat":0.03,"lon":355.08,"description":"Georg Joachim von Lauchen of Rhaetia; Hungarian astronomer, mathematician (1514-1576).","dimension":"44.4 km","theme":"moon"},{"name":"Rheita","type":"Impact crater","moon_name":"Moon","lat":-37.1,"lon":312.83,"description":"Anton Maria Schyrle of Rhaetia; Czechoslovakian astronomer, optician (c. 1597-1660).","dimension":"70.8 km","theme":"moon"},{"name":"Rhysling","type":"Astronaut-named","moon_name":"Moon","lat":26.07,"lon":356.38,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"0.1 km","theme":"moon"},{"name":"Riccioli","type":"Impact crater","moon_name":"Moon","lat":-2.9,"lon":74.42,"description":"Giovanni Battista; Italian astronomer (1598-1671).","dimension":"155.7 km","theme":"moon"},{"name":"Riccius","type":"Impact crater","moon_name":"Moon","lat":-37.02,"lon":333.57,"description":"Augustine; Italian astronomer (fl. 1513); Ricci, Matteo; Italian mathematician, geographer (1552-1610).","dimension":"71.8 km","theme":"moon"},{"name":"Ricco","type":"Impact crater","moon_name":"Moon","lat":74.92,"lon":182.95,"description":"Annibale; Italian astronomer (1844-1911).","dimension":"65.8 km","theme":"moon"},{"name":"Richards","type":"Impact crater","moon_name":"Moon","lat":7.7,"lon":219.91,"description":"Theodore William; American chemist; Nobel laureate (1868-1928).","dimension":"16.8 km","theme":"moon"},{"name":"Richardson","type":"Impact crater","moon_name":"Moon","lat":30.93,"lon":260.11,"description":"Sir Owen Willans; British quantum physicist; Nobel laureate (1879-1959).","dimension":"162.6 km","theme":"moon"},{"name":"Riedel","type":"Impact crater","moon_name":"Moon","lat":-48.89,"lon":140.05,"description":"Klaus; German rocketry scientist (1907-1944); Walter; German rocket scientist (1902-1968).","dimension":"49.1 km","theme":"moon"},{"name":"Riemann","type":"Impact crater","moon_name":"Moon","lat":39.38,"lon":272.82,"description":"Georg Friedrich Bernhard; German mathematician (1826-1866).","dimension":"117.8 km","theme":"moon"},{"name":"Rima Agatharchides","type":"Rima","moon_name":"Moon","lat":-20.38,"lon":28.56,"description":"Named from nearby crater.","dimension":"54.2 km","theme":"moon"},{"name":"Rima Agricola","type":"Rima","moon_name":"Moon","lat":29.25,"lon":53.42,"description":"Named from nearby Montes.","dimension":"125.1 km","theme":"moon"},{"name":"Rima Archytas","type":"Rima","moon_name":"Moon","lat":53.63,"lon":357.0,"description":"Named from nearby crater.","dimension":"90.2 km","theme":"moon"},{"name":"Rima Ariadaeus","type":"Rima","moon_name":"Moon","lat":6.48,"lon":346.56,"description":"Named from nearby crater.","dimension":"247.4 km","theme":"moon"},{"name":"Rima Artsimovich","type":"Rima","moon_name":"Moon","lat":26.66,"lon":38.65,"description":"Named from nearby crater.","dimension":"68.1 km","theme":"moon"},{"name":"Rima Billy","type":"Rima","moon_name":"Moon","lat":-14.74,"lon":48.04,"description":"Named from nearby crater.","dimension":"69.8 km","theme":"moon"},{"name":"Rima Birt","type":"Rima","moon_name":"Moon","lat":-21.4,"lon":9.28,"description":"Named from nearby crater.","dimension":"54.2 km","theme":"moon"},{"name":"Rima Bradley","type":"Rima","moon_name":"Moon","lat":24.17,"lon":0.6,"description":"Named from nearby Mons.","dimension":"133.8 km","theme":"moon"},{"name":"Rima Brayley","type":"Rima","moon_name":"Moon","lat":22.3,"lon":36.35,"description":"Named from nearby crater.","dimension":"327.3 km","theme":"moon"},{"name":"Rima Calippus","type":"Rima","moon_name":"Moon","lat":37.03,"lon":347.34,"description":"Named from nearby crater.","dimension":"40.0 km","theme":"moon"},{"name":"Rima Cardanus","type":"Rima","moon_name":"Moon","lat":11.32,"lon":71.14,"description":"Named from nearby crater.","dimension":"221.9 km","theme":"moon"},{"name":"Rima Carmen","type":"Rima","moon_name":"Moon","lat":19.95,"lon":330.7,"description":"Spanish female name.","dimension":"15.0 km","theme":"moon"},{"name":"Rima Cauchy","type":"Rima","moon_name":"Moon","lat":10.42,"lon":321.93,"description":"Named from nearby crater.","dimension":"167.0 km","theme":"moon"},{"name":"Rima Cleomedes","type":"Rima","moon_name":"Moon","lat":27.98,"lon":303.49,"description":"Within crater.","dimension":"45.5 km","theme":"moon"},{"name":"Rima Cleopatra","type":"Rima","moon_name":"Moon","lat":30.03,"lon":53.8,"description":"Greek female name.","dimension":"14.7 km","theme":"moon"},{"name":"Rima Conon","type":"Rima","moon_name":"Moon","lat":18.69,"lon":358.15,"description":"Named from nearby crater.","dimension":"37.3 km","theme":"moon"},{"name":"Rima Dawes","type":"Rima","moon_name":"Moon","lat":17.58,"lon":333.37,"description":"Named from nearby crater.","dimension":"15.0 km","theme":"moon"},{"name":"Rima Delisle","type":"Rima","moon_name":"Moon","lat":30.87,"lon":32.35,"description":"Named from nearby crater.","dimension":"57.6 km","theme":"moon"},{"name":"Rima Diophantus","type":"Rima","moon_name":"Moon","lat":28.7,"lon":33.67,"description":"Named from nearby crater.","dimension":"201.5 km","theme":"moon"},{"name":"Rima Draper","type":"Rima","moon_name":"Moon","lat":17.37,"lon":25.37,"description":"Named from nearby crater.","dimension":"244.2 km","theme":"moon"},{"name":"Rimae Alphonsus","type":"Rima","moon_name":"Moon","lat":-13.4,"lon":1.94,"description":"Within crater of same name.","dimension":"87.0 km","theme":"moon"},{"name":"Rimae Apollonius","type":"Rima","moon_name":"Moon","lat":4.39,"lon":305.67,"description":"Named from nearby crater.","dimension":"89.6 km","theme":"moon"},{"name":"Rimae Archimedes","type":"Rima","moon_name":"Moon","lat":26.34,"lon":4.53,"description":"Named from nearby crater.","dimension":"215.0 km","theme":"moon"},{"name":"Rimae Aristarchus","type":"Rima","moon_name":"Moon","lat":27.52,"lon":47.25,"description":"Named from nearby crater.","dimension":"175.0 km","theme":"moon"},{"name":"Rimae Arzachel","type":"Rima","moon_name":"Moon","lat":-18.31,"lon":1.38,"description":"Within crater.","dimension":"57.0 km","theme":"moon"},{"name":"Rimae Atlas","type":"Rima","moon_name":"Moon","lat":46.82,"lon":315.58,"description":"Within crater.","dimension":"46.8 km","theme":"moon"},{"name":"Rimae Bode","type":"Rima","moon_name":"Moon","lat":9.54,"lon":3.22,"description":"Named from nearby crater.","dimension":"233.0 km","theme":"moon"},{"name":"Rimae Boscovich","type":"Rima","moon_name":"Moon","lat":9.87,"lon":348.73,"description":"Within crater.","dimension":"32.0 km","theme":"moon"},{"name":"Rimae B\u00fcrg","type":"Rima","moon_name":"Moon","lat":44.7,"lon":334.73,"description":"Named from nearby crater.","dimension":"98.0 km","theme":"moon"},{"name":"Rimae Chacornac","type":"Rima","moon_name":"Moon","lat":29.01,"lon":328.76,"description":"Named from nearby crater.","dimension":"100.0 km","theme":"moon"},{"name":"Rimae Daniell","type":"Rima","moon_name":"Moon","lat":37.53,"lon":335.67,"description":"Named from nearby crater.","dimension":"140.2 km","theme":"moon"},{"name":"Rimae Darwin","type":"Rima","moon_name":"Moon","lat":-19.84,"lon":66.66,"description":"Named from nearby crater.","dimension":"170.0 km","theme":"moon"},{"name":"Rimae de Gasparis","type":"Rima","moon_name":"Moon","lat":-24.99,"lon":50.3,"description":"Named from nearby crater.","dimension":"46.6 km","theme":"moon"},{"name":"Rimae Doppelmayer","type":"Rima","moon_name":"Moon","lat":-26.23,"lon":44.53,"description":"Named from nearby crater.","dimension":"7.8 km","theme":"moon"},{"name":"Rimae Focas","type":"Rima","moon_name":"Moon","lat":-27.68,"lon":97.54,"description":"Named from nearby crater.","dimension":"61.0 km","theme":"moon"},{"name":"Rimae Fresnel","type":"Rima","moon_name":"Moon","lat":28.11,"lon":356.27,"description":"Named from nearby promontorium.","dimension":"75.0 km","theme":"moon"},{"name":"Rimae Gassendi","type":"Rima","moon_name":"Moon","lat":-17.47,"lon":39.87,"description":"Within crater.","dimension":"70.0 km","theme":"moon"},{"name":"Rimae Gerard","type":"Rima","moon_name":"Moon","lat":45.54,"lon":84.36,"description":"Named from nearby crater.","dimension":"110.0 km","theme":"moon"},{"name":"Rimae Goclenius","type":"Rima","moon_name":"Moon","lat":-7.84,"lon":317.12,"description":"Named from nearby crater.","dimension":"190.0 km","theme":"moon"},{"name":"[Rimae Golitsyn]","type":"Rima","moon_name":"Moon","lat":-25.1,"lon":105.0,"description":"Part of Rimae Pettit.","dimension":"","theme":"moon"},{"name":"Rimae Grimaldi","type":"Rima","moon_name":"Moon","lat":-6.18,"lon":63.9,"description":"Named from nearby crater.","dimension":"162.0 km","theme":"moon"},{"name":"Rimae Gutenberg","type":"Rima","moon_name":"Moon","lat":-4.42,"lon":323.58,"description":"Named from nearby crater.","dimension":"223.0 km","theme":"moon"},{"name":"Rimae Hase","type":"Rima","moon_name":"Moon","lat":-34.71,"lon":292.22,"description":"Named from nearby crater.","dimension":"257.2 km","theme":"moon"},{"name":"Rimae Herigonius","type":"Rima","moon_name":"Moon","lat":-13.92,"lon":36.75,"description":"Named from nearby crater.","dimension":"180.0 km","theme":"moon"},{"name":"Rimae Hevelius","type":"Rima","moon_name":"Moon","lat":0.81,"lon":66.38,"description":"Named from nearby crater.","dimension":"180.0 km","theme":"moon"},{"name":"Rimae Hippalus","type":"Rima","moon_name":"Moon","lat":-25.6,"lon":29.36,"description":"Named from nearby crater.","dimension":"266.0 km","theme":"moon"},{"name":"Rimae Hypatia","type":"Rima","moon_name":"Moon","lat":-0.34,"lon":337.22,"description":"Named from nearby crater.","dimension":"200.0 km","theme":"moon"},{"name":"Rimae Janssen","type":"Rima","moon_name":"Moon","lat":-45.8,"lon":320.74,"description":"Within crater.","dimension":"120.0 km","theme":"moon"},{"name":"Rimae Kopff","type":"Rima","moon_name":"Moon","lat":-14.68,"lon":88.1,"description":"Named from nearby crater.","dimension":"250.0 km","theme":"moon"},{"name":"[Rimae Liebig]","type":"Rima","moon_name":"Moon","lat":-20.0,"lon":45.0,"description":"Named from nearby crater. (Name dropped because it is the same feature as Rimae Mersenius.)","dimension":"","theme":"moon"},{"name":"Rimae Littrow","type":"Rima","moon_name":"Moon","lat":22.47,"lon":329.53,"description":"Named from nearby crater.","dimension":"165.0 km","theme":"moon"},{"name":"Rimae Maclear","type":"Rima","moon_name":"Moon","lat":12.23,"lon":340.1,"description":"Named from nearby crater.","dimension":"94.0 km","theme":"moon"},{"name":"Rimae Maestlin","type":"Rima","moon_name":"Moon","lat":2.88,"lon":40.48,"description":"Named from nearby crater.","dimension":"71.0 km","theme":"moon"},{"name":"Rimae Maupertuis","type":"Rima","moon_name":"Moon","lat":51.24,"lon":22.82,"description":"Named from nearby crater.","dimension":"50.0 km","theme":"moon"},{"name":"Rimae Menelaus","type":"Rima","moon_name":"Moon","lat":17.1,"lon":342.23,"description":"Named from nearby crater.","dimension":"87.0 km","theme":"moon"},{"name":"Rimae Mersenius","type":"Rima","moon_name":"Moon","lat":-20.69,"lon":46.53,"description":"Named for nearby crater.","dimension":"240.0 km","theme":"moon"},{"name":"Rimae Opelt","type":"Rima","moon_name":"Moon","lat":-13.64,"lon":18.14,"description":"Named from nearby crater.","dimension":"55.0 km","theme":"moon"},{"name":"Rimae Palmieri","type":"Rima","moon_name":"Moon","lat":-27.83,"lon":47.17,"description":"Named from nearby crater.","dimension":"27.1 km","theme":"moon"},{"name":"Rimae Parry","type":"Rima","moon_name":"Moon","lat":-8.07,"lon":16.52,"description":"Named from nearby crater.","dimension":"210.0 km","theme":"moon"},{"name":"Rimae Petavius","type":"Rima","moon_name":"Moon","lat":-25.23,"lon":299.52,"description":"Within crater.","dimension":"110.0 km","theme":"moon"},{"name":"Rimae Pettit","type":"Rima","moon_name":"Moon","lat":-25.22,"lon":93.63,"description":"Named from nearby crater.","dimension":"320.0 km","theme":"moon"},{"name":"Rimae Pitatus","type":"Rima","moon_name":"Moon","lat":-29.84,"lon":13.62,"description":"Within crater.","dimension":"90.0 km","theme":"moon"},{"name":"Rimae Plato","type":"Rima","moon_name":"Moon","lat":50.88,"lon":3.02,"description":"Named from nearby crater.","dimension":"180.0 km","theme":"moon"},{"name":"Rimae Plinius","type":"Rima","moon_name":"Moon","lat":17.05,"lon":336.86,"description":"Named from nearby crater.","dimension":"100.0 km","theme":"moon"},{"name":"Rimae Posidonius","type":"Rima","moon_name":"Moon","lat":32.03,"lon":330.39,"description":"Within crater.","dimension":"78.0 km","theme":"moon"},{"name":"Rimae Prinz","type":"Rima","moon_name":"Moon","lat":27.05,"lon":43.51,"description":"Named from nearby crater.","dimension":"10.9 km","theme":"moon"},{"name":"Rimae Ramsden","type":"Rima","moon_name":"Moon","lat":-32.93,"lon":31.32,"description":"Named from nearby crater.","dimension":"100.0 km","theme":"moon"},{"name":"Rimae Repsold","type":"Rima","moon_name":"Moon","lat":50.74,"lon":80.46,"description":"Named from nearby crater.","dimension":"152.1 km","theme":"moon"},{"name":"Rimae Riccioli","type":"Rima","moon_name":"Moon","lat":-1.52,"lon":73.07,"description":"Named from nearby crater.","dimension":"250.0 km","theme":"moon"},{"name":"Rimae Ritter","type":"Rima","moon_name":"Moon","lat":3.5,"lon":342.03,"description":"Named from nearby crater.","dimension":"75.0 km","theme":"moon"},{"name":"Rimae R\u00f6mer","type":"Rima","moon_name":"Moon","lat":26.98,"lon":325.14,"description":"Named from nearby crater.","dimension":"112.0 km","theme":"moon"},{"name":"Rimae Secchi","type":"Rima","moon_name":"Moon","lat":0.99,"lon":315.92,"description":"Named from nearby crater.","dimension":"35.0 km","theme":"moon"},{"name":"Rimae Sirsalis","type":"Rima","moon_name":"Moon","lat":-15.01,"lon":61.36,"description":"Named from nearby crater.","dimension":"405.0 km","theme":"moon"},{"name":"Rimae Sosigenes","type":"Rima","moon_name":"Moon","lat":8.08,"lon":341.28,"description":"Named from nearby crater.","dimension":"130.0 km","theme":"moon"},{"name":"[Rimae Stadius]","type":"Rima","moon_name":"Moon","lat":10.5,"lon":13.7,"description":"A Catena, not a Rima.","dimension":"","theme":"moon"},{"name":"Rimae Sulpicius Gallus","type":"Rima","moon_name":"Moon","lat":20.65,"lon":350.01,"description":"Named from nearby crater.","dimension":"80.0 km","theme":"moon"},{"name":"Rimae Taruntius","type":"Rima","moon_name":"Moon","lat":5.83,"lon":313.17,"description":"Within crater.","dimension":"35.0 km","theme":"moon"},{"name":"Rimae Theaetetus","type":"Rima","moon_name":"Moon","lat":33.04,"lon":354.13,"description":"Named from nearby crater.","dimension":"53.0 km","theme":"moon"},{"name":"Rimae Triesnecker","type":"Rima","moon_name":"Moon","lat":5.1,"lon":355.17,"description":"Named from nearby crater.","dimension":"200.0 km","theme":"moon"},{"name":"Rima Euler","type":"Rima","moon_name":"Moon","lat":21.08,"lon":30.31,"description":"Named from nearby crater.","dimension":"105.0 km","theme":"moon"},{"name":"Rimae Vasco da Gama","type":"Rima","moon_name":"Moon","lat":11.55,"lon":84.03,"description":"Named from nearby crater.","dimension":"10.4 km","theme":"moon"},{"name":"Rimae Zupus","type":"Rima","moon_name":"Moon","lat":-15.46,"lon":53.76,"description":"Named from nearby crater.","dimension":"130.0 km","theme":"moon"},{"name":"Rima Flammarion","type":"Rima","moon_name":"Moon","lat":-2.38,"lon":4.67,"description":"Named from nearby crater.","dimension":"49.8 km","theme":"moon"},{"name":"Rima Furnerius","type":"Rima","moon_name":"Moon","lat":-35.3,"lon":298.83,"description":"Within crater.","dimension":"65.8 km","theme":"moon"},{"name":"Rima Galilaei","type":"Rima","moon_name":"Moon","lat":12.91,"lon":59.2,"description":"Named from nearby crater.","dimension":"185.9 km","theme":"moon"},{"name":"Rima G\u00e4rtner","type":"Rima","moon_name":"Moon","lat":58.84,"lon":324.23,"description":"Within crater.","dimension":"42.7 km","theme":"moon"},{"name":"Rima Gay-Lussac","type":"Rima","moon_name":"Moon","lat":13.18,"lon":22.33,"description":"Named from nearby crater.","dimension":"40.0 km","theme":"moon"},{"name":"Rima G. Bond","type":"Rima","moon_name":"Moon","lat":32.86,"lon":324.75,"description":"Named from nearby crater.","dimension":"166.8 km","theme":"moon"},{"name":"Rima Hadley","type":"Rima","moon_name":"Moon","lat":25.72,"lon":356.85,"description":"Named from nearby Mountain (Mons Hadley).","dimension":"116.1 km","theme":"moon"},{"name":"Rima Hansteen","type":"Rima","moon_name":"Moon","lat":-12.09,"lon":52.99,"description":"Named from nearby crater.","dimension":"30.9 km","theme":"moon"},{"name":"[Rima Hase]","type":"Rima","moon_name":"Moon","lat":-29.4,"lon":297.5,"description":"Named from nearby crater.","dimension":"","theme":"moon"},{"name":"Rima Hesiodus","type":"Rima","moon_name":"Moon","lat":-30.54,"lon":21.85,"description":"Named from nearby crater.","dimension":"251.5 km","theme":"moon"},{"name":"Rima Hyginus","type":"Rima","moon_name":"Moon","lat":7.62,"lon":353.23,"description":"Named from nearby crater.","dimension":"204.0 km","theme":"moon"},{"name":"Rima Jansen","type":"Rima","moon_name":"Moon","lat":14.5,"lon":330.49,"description":"Named from nearby crater.","dimension":"45.1 km","theme":"moon"},{"name":"Rima Krieger","type":"Rima","moon_name":"Moon","lat":29.29,"lon":46.26,"description":"Named from nearby crater.","dimension":"22.6 km","theme":"moon"},{"name":"[Rima Laplace]","type":"Rima","moon_name":"Moon","lat":48.0,"lon":26.0,"description":"Named from nearby Promontorium.","dimension":"","theme":"moon"},{"name":"Rima Louville","type":"Rima","moon_name":"Moon","lat":47.61,"lon":51.54,"description":"Jacques D'Allonville, Chevalier de Louville; French astronomer, mathematician (1671-1732).","dimension":"86.0 km","theme":"moon"},{"name":"Rima Mairan","type":"Rima","moon_name":"Moon","lat":38.28,"lon":46.83,"description":"Named from nearby crater.","dimension":"120.5 km","theme":"moon"},{"name":"Rima Marcello","type":"Rima","moon_name":"Moon","lat":18.59,"lon":332.26,"description":"Italian male name.","dimension":"4.0 km","theme":"moon"},{"name":"[Rima Marco Polo]","type":"Rima","moon_name":"Moon","lat":15.4,"lon":2.0,"description":"Belongs to Rima Bode system.","dimension":"","theme":"moon"},{"name":"Rima Marius","type":"Rima","moon_name":"Moon","lat":16.37,"lon":49.54,"description":"Named from nearby crater.","dimension":"283.5 km","theme":"moon"},{"name":"Rima Messier","type":"Rima","moon_name":"Moon","lat":-0.76,"lon":315.45,"description":"Named from nearby crater.","dimension":"74.2 km","theme":"moon"},{"name":"Rima Milichius","type":"Rima","moon_name":"Moon","lat":8.03,"lon":32.87,"description":"Named from nearby crater.","dimension":"140.7 km","theme":"moon"},{"name":"[Rima Newcomb]","type":"Rima","moon_name":"Moon","lat":29.9,"lon":316.2,"description":"Named from nearby crater.","dimension":"","theme":"moon"},{"name":"Rima Oppolzer","type":"Rima","moon_name":"Moon","lat":-1.53,"lon":358.72,"description":"Named from nearby crater.","dimension":"94.2 km","theme":"moon"},{"name":"[Rima Ptolemaeus]","type":"Rima","moon_name":"Moon","lat":-9.2,"lon":1.8,"description":"A Catena, not a Rima.","dimension":"","theme":"moon"},{"name":"Rima R\u00e9aumur","type":"Rima","moon_name":"Moon","lat":-2.84,"lon":357.53,"description":"Named from nearby crater.","dimension":"30.7 km","theme":"moon"},{"name":"Rima Reiko","type":"Rima","moon_name":"Moon","lat":18.55,"lon":332.29,"description":"Japanese female name.","dimension":"4.3 km","theme":"moon"},{"name":"Rima Rudolf","type":"Rima","moon_name":"Moon","lat":19.71,"lon":330.38,"description":"German male name.","dimension":"8.3 km","theme":"moon"},{"name":"[Rima Schr\u00f6ter]","type":"Rima","moon_name":"Moon","lat":26.0,"lon":51.0,"description":"Erroneous name for Vallis Schr\u00f6teri on LTO 38B3.","dimension":"150.0 km","theme":"moon"},{"name":"Rima Schr\u00f6ter","type":"Rima","moon_name":"Moon","lat":1.28,"lon":6.25,"description":"Named from nearby crater.","dimension":"27.2 km","theme":"moon"},{"name":"Rima Sharp","type":"Rima","moon_name":"Moon","lat":46.02,"lon":50.36,"description":"Named from nearby crater.","dimension":"276.7 km","theme":"moon"},{"name":"Rima Sheepshanks","type":"Rima","moon_name":"Moon","lat":58.28,"lon":336.31,"description":"Named from nearby crater.","dimension":"157.5 km","theme":"moon"},{"name":"Rima Siegfried","type":"Rima","moon_name":"Moon","lat":-25.82,"lon":256.99,"description":"German male name.","dimension":"14.0 km","theme":"moon"},{"name":"Rima Suess","type":"Rima","moon_name":"Moon","lat":6.62,"lon":47.14,"description":"Named from nearby crater.","dimension":"156.4 km","theme":"moon"},{"name":"Rima Sung-Mei","type":"Rima","moon_name":"Moon","lat":24.59,"lon":348.72,"description":"Chinese female name; part of Aratus CA.","dimension":"3.9 km","theme":"moon"},{"name":"Rima T. Mayer","type":"Rima","moon_name":"Moon","lat":13.26,"lon":31.37,"description":"Named from nearby crater.","dimension":"67.8 km","theme":"moon"},{"name":"Rima Vladimir","type":"Rima","moon_name":"Moon","lat":25.2,"lon":0.75,"description":"Slavic male name.","dimension":"10.5 km","theme":"moon"},{"name":"Rima Wan-Yu","type":"Rima","moon_name":"Moon","lat":19.98,"lon":31.43,"description":"Chinese female name.","dimension":"13.7 km","theme":"moon"},{"name":"[Rima Widmannst\u00e4tten]","type":"Rima","moon_name":"Moon","lat":-6.1,"lon":274.5,"description":"Named from nearby crater.","dimension":"","theme":"moon"},{"name":"Rima Yangel'","type":"Rima","moon_name":"Moon","lat":16.62,"lon":355.21,"description":"Named from nearby crater.","dimension":"30.4 km","theme":"moon"},{"name":"Rima Zahia","type":"Rima","moon_name":"Moon","lat":25.02,"lon":30.46,"description":"Arabic female name.","dimension":"15.2 km","theme":"moon"},{"name":"Ritchey","type":"Impact crater","moon_name":"Moon","lat":-11.13,"lon":351.52,"description":"George Willis; American astronomer, optician (1864-1945).","dimension":"24.1 km","theme":"moon"},{"name":"Rittenhouse","type":"Impact crater","moon_name":"Moon","lat":-74.25,"lon":252.93,"description":"David; American inventor, astronomer, mathematician (1732-1796).","dimension":"27.5 km","theme":"moon"},{"name":"Ritter","type":"Impact crater","moon_name":"Moon","lat":1.96,"lon":340.83,"description":"Karl; German geographer (1779-1859); Georg August Dietrich; German astrophysicist (1826-1908).","dimension":"29.5 km","theme":"moon"},{"name":"Ritz","type":"Impact crater","moon_name":"Moon","lat":-15.37,"lon":267.62,"description":"Walter; Swiss physicist (1878-1909).","dimension":"53.8 km","theme":"moon"},{"name":"Robert","type":"Impact crater","moon_name":"Moon","lat":19.03,"lon":332.55,"description":"English male name.","dimension":"0.6 km","theme":"moon"},{"name":"Roberts","type":"Impact crater","moon_name":"Moon","lat":70.66,"lon":174.25,"description":"Alexander William; South African astronomer (1857-1938); Isaac; British astronomer (1829-1904).","dimension":"89.4 km","theme":"moon"},{"name":"Robertson","type":"Impact crater","moon_name":"Moon","lat":21.84,"lon":105.37,"description":"Howard Percy; American physicist, mathematician (1903-1961).","dimension":"89.8 km","theme":"moon"},{"name":"Robinson","type":"Impact crater","moon_name":"Moon","lat":59.06,"lon":46.03,"description":"(John) Thomas Romney; Irish astronomer, physicist, meteorologist (1792-1882).","dimension":"24.1 km","theme":"moon"},{"name":"Rocca","type":"Impact crater","moon_name":"Moon","lat":-12.89,"lon":72.89,"description":"Giovanni Antonio; Italian mathematician (1607-1656).","dimension":"84.1 km","theme":"moon"},{"name":"Rocco","type":"Impact crater","moon_name":"Moon","lat":28.91,"lon":45.0,"description":"Italian male name.","dimension":"4.3 km","theme":"moon"},{"name":"Roche","type":"Impact crater","moon_name":"Moon","lat":-42.37,"lon":223.46,"description":"\u00c9douard Albert; French astronomer (1820-1883).","dimension":"152.7 km","theme":"moon"},{"name":"Romeo","type":"Impact crater","moon_name":"Moon","lat":7.53,"lon":237.32,"description":"Italian male name.","dimension":"7.2 km","theme":"moon"},{"name":"R\u00f6mer","type":"Impact crater","moon_name":"Moon","lat":25.43,"lon":323.59,"description":"Ole; Danish astronomer (1644-1710).","dimension":"43.7 km","theme":"moon"},{"name":"R\u00f6ntgen","type":"Impact crater","moon_name":"Moon","lat":32.88,"lon":91.42,"description":"Wilhelm Conrad; German physicist; Nobel laureate (1845-1923).","dimension":"128.4 km","theme":"moon"},{"name":"Rosa","type":"Impact crater","moon_name":"Moon","lat":20.31,"lon":32.3,"description":"Spanish female name.","dimension":"0.8 km","theme":"moon"},{"name":"Rosenberger","type":"Impact crater","moon_name":"Moon","lat":-55.49,"lon":316.85,"description":"Otto August; German astronomer, mathematician (1800-1890).","dimension":"91.7 km","theme":"moon"},{"name":"Ross","type":"Impact crater","moon_name":"Moon","lat":11.67,"lon":338.26,"description":"James Clark; British explorer (1800-1862); Frank Elmore; American astronomer, optician (1874-1966).","dimension":"24.5 km","theme":"moon"},{"name":"Rosse","type":"Impact crater","moon_name":"Moon","lat":-17.95,"lon":325.02,"description":"William Parsons, Third Earl of Rosse; Irish astronomer (1800-1867).","dimension":"11.4 km","theme":"moon"},{"name":"Rosseland","type":"Impact crater","moon_name":"Moon","lat":-40.82,"lon":229.32,"description":"Svein; Norwegian astrophysicist (1894-1985).","dimension":"67.7 km","theme":"moon"},{"name":"Rost","type":"Impact crater","moon_name":"Moon","lat":-56.42,"lon":33.84,"description":"Johann Leonhard; German astronomer (1688-1727).","dimension":"46.9 km","theme":"moon"},{"name":"Rothmann","type":"Impact crater","moon_name":"Moon","lat":-30.81,"lon":332.3,"description":"Christopher; German astronomer (unkn-1600).","dimension":"41.7 km","theme":"moon"},{"name":"Rowland","type":"Impact crater","moon_name":"Moon","lat":56.98,"lon":162.48,"description":"Henry Augustus; American physicist (1848-1901).","dimension":"166.1 km","theme":"moon"},{"name":"Rozhdestvenskiy","type":"Impact crater","moon_name":"Moon","lat":84.99,"lon":157.89,"description":"Dmitriy Sergeevich; Soviet physicist (1876-1940).","dimension":"181.2 km","theme":"moon"},{"name":"Rubin","type":"Impact crater","moon_name":"Moon","lat":-82.82,"lon":282.35,"description":"Vera; American astronomer (1928-2016).","dimension":"4.0 km","theme":"moon"},{"name":"Rumford","type":"Impact crater","moon_name":"Moon","lat":-28.81,"lon":169.8,"description":"Benjamin Thompson, Count Rumford; British physicist (1753-1814).","dimension":"60.8 km","theme":"moon"},{"name":"Runge","type":"Impact crater","moon_name":"Moon","lat":-2.43,"lon":273.19,"description":"Carl David Tolme; German mathematician (1856-1927).","dimension":"39.0 km","theme":"moon"},{"name":"Rupes Altai","type":"Rupes","moon_name":"Moon","lat":-24.32,"lon":336.88,"description":"Named from terrestrial Altai Mountains.","dimension":"545.2 km","theme":"moon"},{"name":"Rupes Boris","type":"Rupes","moon_name":"Moon","lat":30.67,"lon":33.6,"description":"Named from nearby crater.","dimension":"8.6 km","theme":"moon"},{"name":"Rupes Cauchy","type":"Rupes","moon_name":"Moon","lat":9.31,"lon":322.92,"description":"Named from nearby crater.","dimension":"169.8 km","theme":"moon"},{"name":"Rupes Kelvin","type":"Rupes","moon_name":"Moon","lat":-28.03,"lon":33.17,"description":"Named from nearby promontorium.","dimension":"85.9 km","theme":"moon"},{"name":"Rupes Liebig","type":"Rupes","moon_name":"Moon","lat":-25.14,"lon":45.92,"description":"Named from nearby crater.","dimension":"144.8 km","theme":"moon"},{"name":"Rupes Mercator","type":"Rupes","moon_name":"Moon","lat":-30.21,"lon":22.84,"description":"Named from nearby crater.","dimension":"132.4 km","theme":"moon"},{"name":"Rupes Recta","type":"Rupes","moon_name":"Moon","lat":-21.67,"lon":7.7,"description":"Latin for \u201c;straight cliff\u201c; (the straight wall).","dimension":"116.0 km","theme":"moon"},{"name":"Rupes Toscanelli","type":"Rupes","moon_name":"Moon","lat":26.97,"lon":47.53,"description":"Named from nearby crater.","dimension":"50.1 km","theme":"moon"},{"name":"Russell","type":"Impact crater","moon_name":"Moon","lat":26.51,"lon":75.55,"description":"Henry Norris; American astronomer (1877-1957); John; British artist, selenographer (1745-1806).","dimension":"103.4 km","theme":"moon"},{"name":"Ruth","type":"Impact crater","moon_name":"Moon","lat":28.71,"lon":45.06,"description":"Hebrew female name.","dimension":"3.1 km","theme":"moon"},{"name":"Rutherford","type":"Impact crater","moon_name":"Moon","lat":10.56,"lon":222.91,"description":"Sir Ernest; New Zealand-British physicist; Nobel laureate (1871-1937).","dimension":"16.0 km","theme":"moon"},{"name":"Rutherfurd","type":"Impact crater","moon_name":"Moon","lat":-61.15,"lon":12.25,"description":"Lewis Morris; American astronomer (1816-1892).","dimension":"50.0 km","theme":"moon"},{"name":"Rydberg","type":"Impact crater","moon_name":"Moon","lat":-46.43,"lon":96.43,"description":"Johannes Robert; Swedish physicist (1854-1919).","dimension":"48.0 km","theme":"moon"},{"name":"Ryder","type":"Impact crater","moon_name":"Moon","lat":-43.87,"lon":216.7,"description":"Graham; United Kingdom-born, American geologist (1949-2002).","dimension":"15.6 km","theme":"moon"},{"name":"Rynin","type":"Impact crater","moon_name":"Moon","lat":46.78,"lon":103.73,"description":"Nikolaj Alexsevitch; Soviet rocketry scientist (1877-1942).","dimension":"77.9 km","theme":"moon"},{"name":"Sabatier","type":"Impact crater","moon_name":"Moon","lat":13.19,"lon":280.99,"description":"Paul; French chemist; Nobel laureate (1854-1941).","dimension":"9.6 km","theme":"moon"},{"name":"Sabine","type":"Impact crater","moon_name":"Moon","lat":1.38,"lon":339.93,"description":"Sir Edward; Irish physicist, astronomer (1788-1883).","dimension":"29.8 km","theme":"moon"},{"name":"Sacrobosco","type":"Impact crater","moon_name":"Moon","lat":-23.75,"lon":343.36,"description":"John of Holywood, Johannes Sacrobuschus; British astronomer, mathematician (c. 1200-1256).","dimension":"97.7 km","theme":"moon"},{"name":"Saenger","type":"Impact crater","moon_name":"Moon","lat":4.49,"lon":257.2,"description":"Eugen; German rocketry scientist (1905-1964).","dimension":"74.6 km","theme":"moon"},{"name":"\u0160afa\u0159\u00edk","type":"Impact crater","moon_name":"Moon","lat":10.44,"lon":183.3,"description":"Vojtech; Czechoslovakian astronomer (1829-1902).","dimension":"31.4 km","theme":"moon"},{"name":"Saha","type":"Impact crater","moon_name":"Moon","lat":-1.69,"lon":256.96,"description":"Meghnad; Indian astrophysicist (1893-1956).","dimension":"103.3 km","theme":"moon"},{"name":"Salam","type":"Impact crater","moon_name":"Moon","lat":-42.23,"lon":153.02,"description":"Abdus; Nobel Prize-winning Pakinstani theoretical physicist (1926-1996).","dimension":"6.0 km","theme":"moon"},{"name":"Samir","type":"Impact crater","moon_name":"Moon","lat":28.5,"lon":34.29,"description":"Arabic male name.","dimension":"1.9 km","theme":"moon"},{"name":"Sampson","type":"Impact crater","moon_name":"Moon","lat":29.58,"lon":16.53,"description":"Ralph Allen; Irish-born British astronomer, mathematician (1866-1939).","dimension":"1.8 km","theme":"moon"},{"name":"Sanford","type":"Impact crater","moon_name":"Moon","lat":32.38,"lon":139.21,"description":"Roscoe Frank; American astronomer (1883-1958).","dimension":"55.1 km","theme":"moon"},{"name":"Santbech","type":"Impact crater","moon_name":"Moon","lat":-20.99,"lon":315.94,"description":"Daniel Santbech Noviomagus; Dutch mathematician, astronomer (unkn-fl. 1561).","dimension":"62.2 km","theme":"moon"},{"name":"Santos-Dumont","type":"Impact crater","moon_name":"Moon","lat":27.79,"lon":355.25,"description":"Alberto; Brazilian aeronautical engineer (1873-1932).","dimension":"8.8 km","theme":"moon"},{"name":"[Sappho]","type":"Impact crater","moon_name":"Moon","lat":-25.0,"lon":226.8,"description":"Greek poetess (unkn-c. 600 B.C.).","dimension":"","theme":"moon"},{"name":"Sarabhai","type":"Impact crater","moon_name":"Moon","lat":24.75,"lon":339.0,"description":"Vikram Ambalal; Indian astrophysicist (1919-1971).","dimension":"7.4 km","theme":"moon"},{"name":"Sarton","type":"Impact crater","moon_name":"Moon","lat":49.12,"lon":121.14,"description":"George Alfred Leon; Belgian-American historian of science (1884-1956).","dimension":"71.3 km","theme":"moon"},{"name":"Sasserides","type":"Impact crater","moon_name":"Moon","lat":-39.28,"lon":9.44,"description":"Sasceride, Gellio; Danish astronomer, doctor (1562-1612).","dimension":"81.7 km","theme":"moon"},{"name":"Saunder","type":"Impact crater","moon_name":"Moon","lat":-4.26,"lon":351.28,"description":"Samuel Arthur; British mathematician, selenographer (1852-1912).","dimension":"44.4 km","theme":"moon"},{"name":"Saussure","type":"Impact crater","moon_name":"Moon","lat":-43.38,"lon":3.88,"description":"Horace Benedict De; Swiss geologist (1740-1799).","dimension":"54.6 km","theme":"moon"},{"name":"Scaliger","type":"Impact crater","moon_name":"Moon","lat":-27.26,"lon":250.86,"description":"Joseph Justus; French chronologist (1540-1609).","dimension":"86.4 km","theme":"moon"},{"name":"Scarp","type":"Astronaut-named","moon_name":"Moon","lat":20.29,"lon":329.41,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"14.8 km","theme":"moon"},{"name":"Schaeberle","type":"Impact crater","moon_name":"Moon","lat":-26.33,"lon":242.29,"description":"John Martin; American astronomer (1853-1924).","dimension":"56.7 km","theme":"moon"},{"name":"Scheele","type":"Impact crater","moon_name":"Moon","lat":-9.45,"lon":37.85,"description":"Carl Wilhelm; Swedish chemist (1742-1786).","dimension":"4.7 km","theme":"moon"},{"name":"Scheiner","type":"Impact crater","moon_name":"Moon","lat":-60.35,"lon":27.81,"description":"Christoph; German astronomer (1573-1650).","dimension":"110.1 km","theme":"moon"},{"name":"Schiaparelli","type":"Impact crater","moon_name":"Moon","lat":23.38,"lon":58.82,"description":"Giovanni Virginio; Italian astronomer (1835-1910).","dimension":"24.2 km","theme":"moon"},{"name":"Schickard","type":"Impact crater","moon_name":"Moon","lat":-44.38,"lon":55.11,"description":"Wilhelm; German astronomer, mathematician (1592-1635).","dimension":"212.2 km","theme":"moon"},{"name":"Schiller","type":"Impact crater","moon_name":"Moon","lat":-51.72,"lon":39.78,"description":"Julius; German astronomer (unkn-fl. 1627).","dimension":"179.4 km","theme":"moon"},{"name":"Schjellerup","type":"Impact crater","moon_name":"Moon","lat":69.04,"lon":201.76,"description":"Hans Carl; Danish astronomer (1827-1887).","dimension":"62.8 km","theme":"moon"},{"name":"Schlesinger","type":"Impact crater","moon_name":"Moon","lat":47.12,"lon":138.98,"description":"Frank; American astronomer (1871-1943).","dimension":"97.3 km","theme":"moon"},{"name":"Schliemann","type":"Impact crater","moon_name":"Moon","lat":-1.99,"lon":204.88,"description":"Heinrich; German archaeologist (1822-1890).","dimension":"77.4 km","theme":"moon"},{"name":"Schl\u00fcter","type":"Impact crater","moon_name":"Moon","lat":-5.93,"lon":83.39,"description":"Heinrich; German astronomer (1815-1844).","dimension":"87.5 km","theme":"moon"},{"name":"Schmidt","type":"Impact crater","moon_name":"Moon","lat":0.96,"lon":341.22,"description":"Johann Friedrich Julius; German astronomer (1825-1884); Bernhard Voldemar; German optician (1879-1935); Otto Yulyevich; Soviet astronomer (1891-1956).","dimension":"11.1 km","theme":"moon"},{"name":"Schneller","type":"Impact crater","moon_name":"Moon","lat":41.34,"lon":163.73,"description":"Schneller, Herbert; German astronomer (1901-1967).","dimension":"56.9 km","theme":"moon"},{"name":"Schomberger","type":"Impact crater","moon_name":"Moon","lat":-76.64,"lon":335.31,"description":"Georg; Austrian astronomer, mathematician (1597-1645).","dimension":"85.8 km","theme":"moon"},{"name":"Sch\u00f6nfeld","type":"Impact crater","moon_name":"Moon","lat":44.76,"lon":98.0,"description":"Eduard; German astronomer (1828-1891).","dimension":"24.6 km","theme":"moon"},{"name":"Schorr","type":"Impact crater","moon_name":"Moon","lat":-19.45,"lon":270.2,"description":"Richard; German astronomer (1867-1951).","dimension":"52.1 km","theme":"moon"},{"name":"Schr\u00f6dinger","type":"Impact crater","moon_name":"Moon","lat":-74.73,"lon":227.07,"description":"Schr\u00f6dinger, Erwin; Austrian physicist; Nobel laureate (1887-1961).","dimension":"316.4 km","theme":"moon"},{"name":"Schr\u00f6ter","type":"Impact crater","moon_name":"Moon","lat":2.74,"lon":6.98,"description":"Johann Hieronymus; German astronomer (1745-1816).","dimension":"36.7 km","theme":"moon"},{"name":"Schubert","type":"Impact crater","moon_name":"Moon","lat":2.78,"lon":278.99,"description":"Theodor Friedrich von; Russian cartographer (1789-1865).","dimension":"51.9 km","theme":"moon"},{"name":"Schumacher","type":"Impact crater","moon_name":"Moon","lat":42.42,"lon":299.19,"description":"Heinrich Christian; German astronomer (1780-1850).","dimension":"61.3 km","theme":"moon"},{"name":"Schuster","type":"Impact crater","moon_name":"Moon","lat":4.44,"lon":213.58,"description":"Sir Arthur; British mathematician, physicist (1851-1934).","dimension":"100.1 km","theme":"moon"},{"name":"Schwabe","type":"Impact crater","moon_name":"Moon","lat":65.1,"lon":314.52,"description":"Samuel Heinrich; German astronomer (1789-1875).","dimension":"25.5 km","theme":"moon"},{"name":"Schwarzschild","type":"Impact crater","moon_name":"Moon","lat":70.08,"lon":238.43,"description":"Karl; German astronomer (1873-1916).","dimension":"211.4 km","theme":"moon"},{"name":"Scobee","type":"Impact crater","moon_name":"Moon","lat":-31.36,"lon":149.64,"description":"Francis Richard \u201c;Dick\u201c;; member of the Challenger crew (1939-1986).","dimension":"41.5 km","theme":"moon"},{"name":"Scoresby","type":"Impact crater","moon_name":"Moon","lat":77.73,"lon":345.87,"description":"William; British explorer (1789-1857).","dimension":"54.9 km","theme":"moon"},{"name":"Scott","type":"Impact crater","moon_name":"Moon","lat":-82.35,"lon":311.48,"description":"Robert Falcon; British explorer (1868-1912).","dimension":"107.8 km","theme":"moon"},{"name":"Sculptured Hills","type":"Astronaut-named","moon_name":"Moon","lat":20.24,"lon":328.94,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"12.4 km","theme":"moon"},{"name":"Seares","type":"Impact crater","moon_name":"Moon","lat":73.74,"lon":212.77,"description":"Frederick Hanley; American astronomer (1873-1964).","dimension":"99.5 km","theme":"moon"},{"name":"Secchi","type":"Impact crater","moon_name":"Moon","lat":2.4,"lon":316.44,"description":"Pietro Angelo; Italian astronomer, astrophysicist (1818-1878).","dimension":"22.1 km","theme":"moon"},{"name":"Sechenov","type":"Impact crater","moon_name":"Moon","lat":-6.97,"lon":143.09,"description":"Ivan Mikhaylovich; Russian physiologist (1829-1905).","dimension":"63.8 km","theme":"moon"},{"name":"Seeliger","type":"Impact crater","moon_name":"Moon","lat":-2.22,"lon":357.0,"description":"Hugo von; German astronomer (1849-1924).","dimension":"8.3 km","theme":"moon"},{"name":"Segers","type":"Impact crater","moon_name":"Moon","lat":46.99,"lon":232.48,"description":"Carlos; Argentinean astronomer (1900-1967).","dimension":"17.3 km","theme":"moon"},{"name":"Segner","type":"Impact crater","moon_name":"Moon","lat":-58.96,"lon":48.68,"description":"Johann Andreas von; German physicist, mathematician (1704-1777).","dimension":"67.8 km","theme":"moon"},{"name":"Seidel","type":"Impact crater","moon_name":"Moon","lat":-32.65,"lon":207.53,"description":"Philipp Ludwig von; German astronomer, mathematician (1821-1896).","dimension":"55.4 km","theme":"moon"},{"name":"Seleucus","type":"Impact crater","moon_name":"Moon","lat":21.09,"lon":66.66,"description":"Babylonian astronomer (unkn-fl. c. 150 B.C.).","dimension":"45.0 km","theme":"moon"},{"name":"Seneca","type":"Impact crater","moon_name":"Moon","lat":26.71,"lon":280.19,"description":"Lucius Annaeus; Roman philosopher, natural scientist (4 B.C.- A.D. 65).","dimension":"47.6 km","theme":"moon"},{"name":"Seyfert","type":"Impact crater","moon_name":"Moon","lat":29.26,"lon":245.66,"description":"Carl Keenan; American astronomer (1911-1960).","dimension":"102.6 km","theme":"moon"},{"name":"Shackleton","type":"Impact crater","moon_name":"Moon","lat":-89.67,"lon":230.22,"description":"Sir Ernest Henry; Irish-born British Antarctic explorer (1874-1922).","dimension":"20.9 km","theme":"moon"},{"name":"Shahinaz","type":"Impact crater","moon_name":"Moon","lat":7.58,"lon":237.58,"description":"Turkish female name.","dimension":"16.0 km","theme":"moon"},{"name":"Shakespeare","type":"Astronaut-named","moon_name":"Moon","lat":20.24,"lon":329.18,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.5 km","theme":"moon"},{"name":"Shaler","type":"Impact crater","moon_name":"Moon","lat":-32.89,"lon":85.27,"description":"Nathaniel Southgate; American geologist, paleontologist (1841-1906).","dimension":"48.5 km","theme":"moon"},{"name":"Shapley","type":"Impact crater","moon_name":"Moon","lat":9.35,"lon":303.17,"description":"Harlow; American astronomer (1885-1972).","dimension":"24.8 km","theme":"moon"},{"name":"Sharonov","type":"Impact crater","moon_name":"Moon","lat":12.37,"lon":186.9,"description":"Vsevolod Vasilievich; Soviet astronomer (1901-1964).","dimension":"75.1 km","theme":"moon"},{"name":"Sharp","type":"Impact crater","moon_name":"Moon","lat":45.75,"lon":40.22,"description":"Abraham; British astronomer, mathematician (1651-1742).","dimension":"37.6 km","theme":"moon"},{"name":"Sharp-Apollo","type":"Astronaut-named","moon_name":"Moon","lat":-3.02,"lon":23.43,"description":"Astronaut-named feature, Apollo 12 site.","dimension":"0.0 km","theme":"moon"},{"name":"Shatalov","type":"Impact crater","moon_name":"Moon","lat":24.26,"lon":219.52,"description":"Vladimir Alexandrovich; Soviet cosmonaut (1927-Live).","dimension":"24.1 km","theme":"moon"},{"name":"Shayn","type":"Impact crater","moon_name":"Moon","lat":32.52,"lon":187.58,"description":"Grigorii Abramovich; Soviet astrophysicist (1892-1956).","dimension":"92.9 km","theme":"moon"},{"name":"Sheepshanks","type":"Impact crater","moon_name":"Moon","lat":59.24,"lon":342.96,"description":"Anne; British benefactor (1789-1876).","dimension":"23.7 km","theme":"moon"},{"name":"[Shekhov (Chekhov)]","type":"Impact crater","moon_name":"Moon","lat":-6.6,"lon":278.0,"description":"Anton Pavlovich; Russian writer (1860-1904).","dimension":"","theme":"moon"},{"name":"Shen Kuo","type":"Impact crater","moon_name":"Moon","lat":44.0,"lon":49.41,"description":"Chinese astronomer, mathematician during the Song Dynasty (1031-1095).","dimension":"0.9 km","theme":"moon"},{"name":"Sherlock","type":"Astronaut-named","moon_name":"Moon","lat":20.18,"lon":329.19,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.5 km","theme":"moon"},{"name":"Sherrington","type":"Impact crater","moon_name":"Moon","lat":-11.13,"lon":242.0,"description":"Sir Charles Scott; British neurophysiologist; Nobel laureate (1856-1952).","dimension":"18.8 km","theme":"moon"},{"name":"Shioli","type":"Impact crater","moon_name":"Moon","lat":-13.33,"lon":334.77,"description":"Japanese female first name.","dimension":"0.3 km","theme":"moon"},{"name":"Shirakatsi","type":"Impact crater","moon_name":"Moon","lat":-12.18,"lon":231.44,"description":"Anania; Armenian geographer (620(?)-685(?)).","dimension":"48.1 km","theme":"moon"},{"name":"Shi Shen","type":"Impact crater","moon_name":"Moon","lat":75.78,"lon":255.87,"description":"Shi(H) Shen; Chinese astronomer (unkn-c. 300 B.C.).","dimension":"46.5 km","theme":"moon"},{"name":"Shoemaker","type":"Impact crater","moon_name":"Moon","lat":-88.14,"lon":314.09,"description":"Eugene Merle; American astrogeologist (1928-1997).","dimension":"51.8 km","theme":"moon"},{"name":"Short","type":"Impact crater","moon_name":"Moon","lat":-74.54,"lon":7.68,"description":"James; Scottish mathematician, optician (1710-1768).","dimension":"67.9 km","theme":"moon"},{"name":"Shorty","type":"Astronaut-named","moon_name":"Moon","lat":20.22,"lon":329.37,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.1 km","theme":"moon"},{"name":"Shternberg (Sternberg)","type":"Impact crater","moon_name":"Moon","lat":19.38,"lon":116.82,"description":"Pavel Karlovich; Russian astronomer (1865-1920).","dimension":"74.4 km","theme":"moon"},{"name":"Shuckburgh","type":"Impact crater","moon_name":"Moon","lat":42.65,"lon":307.29,"description":"Sir George; British geographer, benefactor (1751-1804).","dimension":"37.7 km","theme":"moon"},{"name":"Shuleykin","type":"Impact crater","moon_name":"Moon","lat":-27.11,"lon":92.67,"description":"Mikhail Vasil'evich; Soviet radio engineer (1884-1939). (Spelling changed from Shulejkin.)","dimension":"14.7 km","theme":"moon"},{"name":"Siedentopf","type":"Impact crater","moon_name":"Moon","lat":22.05,"lon":224.92,"description":"Heinrich; German astronomer (1906-1963).","dimension":"62.7 km","theme":"moon"},{"name":"Sierpinski","type":"Impact crater","moon_name":"Moon","lat":-26.93,"lon":205.19,"description":"Waclaw; Polish mathematician (1882-1969).","dimension":"66.9 km","theme":"moon"},{"name":"Sikorsky","type":"Impact crater","moon_name":"Moon","lat":-65.89,"lon":256.35,"description":"Igor Ivanovich; Russian-American aeronautical engineer (1889-1972).","dimension":"97.7 km","theme":"moon"},{"name":"Silberschlag","type":"Impact crater","moon_name":"Moon","lat":6.21,"lon":347.47,"description":"Johann Esaias; German astronomer (1721-1791).","dimension":"12.6 km","theme":"moon"},{"name":"Simpelius","type":"Impact crater","moon_name":"Moon","lat":-72.61,"lon":345.26,"description":"Sempill, Hugh; Scottish mathematician (1596-1654).","dimension":"68.9 km","theme":"moon"},{"name":"Sinas","type":"Impact crater","moon_name":"Moon","lat":8.85,"lon":328.4,"description":"Simon; Greek benefactor (1810-1876).","dimension":"11.7 km","theme":"moon"},{"name":"Sinus Aestuum","type":"Sinus","moon_name":"Moon","lat":12.1,"lon":8.34,"description":"\u201c;Seething Bay.\u201c","dimension":"316.5 km","theme":"moon"},{"name":"Sinus Amoris","type":"Sinus","moon_name":"Moon","lat":19.92,"lon":322.71,"description":"\u201c;Bay of Love.\u201c","dimension":"189.1 km","theme":"moon"},{"name":"Sinus Asperitatis","type":"Sinus","moon_name":"Moon","lat":-5.41,"lon":332.51,"description":"\u201c;Bay of Roughness.\u201c","dimension":"219.1 km","theme":"moon"},{"name":"Sinus Concordiae","type":"Sinus","moon_name":"Moon","lat":10.98,"lon":317.53,"description":"\u201c;Bay of Harmony.\u201c","dimension":"159.0 km","theme":"moon"},{"name":"Sinus Fidei","type":"Sinus","moon_name":"Moon","lat":17.99,"lon":357.96,"description":"\u201c;Bay of Trust.\u201c","dimension":"70.7 km","theme":"moon"},{"name":"Sinus Honoris","type":"Sinus","moon_name":"Moon","lat":11.72,"lon":342.13,"description":"\u201c;Bay of Honor.\u201c","dimension":"111.6 km","theme":"moon"},{"name":"Sinus Iridum","type":"Sinus","moon_name":"Moon","lat":45.01,"lon":31.67,"description":"\u201c;Bay of Rainbows.\u201c","dimension":"249.3 km","theme":"moon"},{"name":"Sinus Lunicus","type":"Sinus","moon_name":"Moon","lat":32.36,"lon":1.85,"description":"\u201c;Lunik Bay\u201c;-landing area of Luna (Lunik) 2.","dimension":"119.2 km","theme":"moon"},{"name":"Sinus Medii","type":"Sinus","moon_name":"Moon","lat":1.63,"lon":358.97,"description":"\u201c;Bay of the center.\u201c","dimension":"286.7 km","theme":"moon"},{"name":"Sinus Roris","type":"Sinus","moon_name":"Moon","lat":50.26,"lon":50.86,"description":"\u201c;Bay of Dew.\u201c","dimension":"195.0 km","theme":"moon"},{"name":"Sinus Successus","type":"Sinus","moon_name":"Moon","lat":1.12,"lon":301.48,"description":"\u201c;Bay of Success.\u201c","dimension":"126.7 km","theme":"moon"},{"name":"Sinus Viscositatis","type":"Sinus","moon_name":"Moon","lat":35.25,"lon":40.99,"description":"\u201c;Bay of Stickiness.\u201c","dimension":"68.0 km","theme":"moon"},{"name":"Sirsalis","type":"Impact crater","moon_name":"Moon","lat":-12.49,"lon":60.51,"description":"Sersale, Gerolamo; Italian astronomer (1584-1654).","dimension":"44.2 km","theme":"moon"},{"name":"Sisakyan","type":"Impact crater","moon_name":"Moon","lat":41.07,"lon":250.87,"description":"Nora\u00edr Martir\u00f3sovich; Soviet doctor and biochemist (1907-1966).","dimension":"35.6 km","theme":"moon"},{"name":"Sita","type":"Impact crater","moon_name":"Moon","lat":4.61,"lon":239.3,"description":"Indian female name.","dimension":"1.6 km","theme":"moon"},{"name":"Sklodowska","type":"Impact crater","moon_name":"Moon","lat":-18.04,"lon":263.85,"description":"Marie (Madame Curie); Polish physicist, chemist, Nobel laureate (1867-1934).","dimension":"125.5 km","theme":"moon"},{"name":"Slater","type":"Impact crater","moon_name":"Moon","lat":-88.08,"lon":248.71,"description":"David Charles; American planetary scientist, specialist in optics and detectors (1957-2011).","dimension":"25.1 km","theme":"moon"},{"name":"Slava","type":"Impact crater","moon_name":"Moon","lat":38.23,"lon":35.0,"description":"Slavic male name, diminutive from Vyacheslav (Lunokhod-1 landing site feature).","dimension":"0.1 km","theme":"moon"},{"name":"Slipher","type":"Impact crater","moon_name":"Moon","lat":49.28,"lon":199.73,"description":"Earl Charles; American astronomer (1883-1964); Vesto Melvin; American astronomer (1875-1969).","dimension":"74.7 km","theme":"moon"},{"name":"Slocum","type":"Impact crater","moon_name":"Moon","lat":-3.15,"lon":270.93,"description":"Frederick; American astronomer (1873-1944).","dimension":"12.2 km","theme":"moon"},{"name":"Smith","type":"Impact crater","moon_name":"Moon","lat":-31.79,"lon":151.01,"description":"Michael John; member of the Challenger crew (1945-1986).","dimension":"32.9 km","theme":"moon"},{"name":"Smithson","type":"Impact crater","moon_name":"Moon","lat":2.38,"lon":306.36,"description":"James; British chemist, mineralogist (1765-1829).","dimension":"6.0 km","theme":"moon"},{"name":"Smoky Mountains","type":"Astronaut-named","moon_name":"Moon","lat":-8.67,"lon":344.49,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"13.8 km","theme":"moon"},{"name":"Smoluchowski","type":"Impact crater","moon_name":"Moon","lat":60.22,"lon":96.91,"description":"Marian; Polish physicist (1872-1917).","dimension":"84.3 km","theme":"moon"},{"name":"Snellius","type":"Impact crater","moon_name":"Moon","lat":-29.33,"lon":304.3,"description":"Snell, Willebrod van Roijen; Dutch mathematician, astronomer, optician (1580-1626).","dimension":"86.0 km","theme":"moon"},{"name":"Sniadecki","type":"Impact crater","moon_name":"Moon","lat":-22.29,"lon":168.84,"description":"Jan; Polish astronomer, mathematician (1756-1830).","dimension":"41.1 km","theme":"moon"},{"name":"Snowman","type":"Astronaut-named","moon_name":"Moon","lat":-3.02,"lon":23.42,"description":"Astronaut-named feature, Apollo 12 site.","dimension":"0.7 km","theme":"moon"},{"name":"Soddy","type":"Impact crater","moon_name":"Moon","lat":0.45,"lon":238.23,"description":"Frederick; British physicist; Nobel laureate (1877-1956).","dimension":"40.8 km","theme":"moon"},{"name":"Somerville","type":"Impact crater","moon_name":"Moon","lat":-8.33,"lon":295.04,"description":"Mary Fairfax; Scottish physicist, mathematician (1780-1872).","dimension":"17.1 km","theme":"moon"},{"name":"Sommerfeld","type":"Impact crater","moon_name":"Moon","lat":64.83,"lon":161.54,"description":"Arnold Johannes Wilhelm; German physicist (1868-1951).","dimension":"150.9 km","theme":"moon"},{"name":"S\u00f6mmering","type":"Impact crater","moon_name":"Moon","lat":0.19,"lon":7.53,"description":"Samuel Thomas von; German doctor (1755-1830).","dimension":"28.0 km","theme":"moon"},{"name":"Song Yingxing","type":"Impact crater","moon_name":"Moon","lat":42.34,"lon":49.65,"description":"Chinese scientist and encyclopedist during the late Ming Dynasty (1587\u20131666).","dimension":"1.8 km","theme":"moon"},{"name":"[Sophocles]","type":"Impact crater","moon_name":"Moon","lat":-21.5,"lon":240.2,"description":"Greek philosopher (c. 495-406 B.C.).","dimension":"","theme":"moon"},{"name":"Soraya","type":"Impact crater","moon_name":"Moon","lat":-12.87,"lon":1.63,"description":"Persian female name.","dimension":"1.9 km","theme":"moon"},{"name":"Sosigenes","type":"Impact crater","moon_name":"Moon","lat":8.7,"lon":342.4,"description":"Greek astronomer, chronologist (unkn-fl. 46 B.C.).","dimension":"17.0 km","theme":"moon"},{"name":"South","type":"Impact crater","moon_name":"Moon","lat":57.58,"lon":50.94,"description":"James; British astronomer (1785-1867).","dimension":"119.0 km","theme":"moon"},{"name":"South Cluster","type":"Astronaut-named","moon_name":"Moon","lat":26.02,"lon":356.29,"description":"Astronaut named feature, Apollo 15 site.","dimension":"3.2 km","theme":"moon"},{"name":"South Massif","type":"Astronaut-named","moon_name":"Moon","lat":19.91,"lon":329.65,"description":"Astronaut named feature, Apollo 17 site.","dimension":"18.3 km","theme":"moon"},{"name":"South Ray","type":"Astronaut-named","moon_name":"Moon","lat":-9.15,"lon":344.62,"description":"Astronaut named feature, Apollo 16 site.","dimension":"0.7 km","theme":"moon"},{"name":"Spallanzani","type":"Impact crater","moon_name":"Moon","lat":-46.38,"lon":335.27,"description":"Lazzaro; Italian natural scientist, biologist (1729-1799).","dimension":"30.9 km","theme":"moon"},{"name":"Spencer Jones","type":"Impact crater","moon_name":"Moon","lat":13.06,"lon":194.16,"description":"Sir Harold; British astronomer (1890-1960).","dimension":"88.2 km","theme":"moon"},{"name":"Spook","type":"Astronaut-named","moon_name":"Moon","lat":-8.98,"lon":344.52,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.3 km","theme":"moon"},{"name":"Sp\u00f6rer","type":"Impact crater","moon_name":"Moon","lat":-4.3,"lon":1.77,"description":"Friedrich Wilhelm Gustav; German astronomer (1822-1895).","dimension":"25.6 km","theme":"moon"},{"name":"Spot","type":"Astronaut-named","moon_name":"Moon","lat":-8.98,"lon":344.5,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.0 km","theme":"moon"},{"name":"Spudis","type":"Impact crater","moon_name":"Moon","lat":-89.51,"lon":84.61,"description":"Paul D.; American planetary geologist (1952-2018).","dimension":"13.0 km","theme":"moon"},{"name":"Spur","type":"Astronaut-named","moon_name":"Moon","lat":25.98,"lon":356.33,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"0.1 km","theme":"moon"},{"name":"Spurr","type":"Impact crater","moon_name":"Moon","lat":27.91,"lon":1.27,"description":"Josiah Edward; American geologist (1870-1950).","dimension":"13.2 km","theme":"moon"},{"name":"Stadius","type":"Impact crater","moon_name":"Moon","lat":10.48,"lon":13.77,"description":"Stade, Jan; Belgian astronomer, mathematician (1527-1579).","dimension":"68.5 km","theme":"moon"},{"name":"[Stark]","type":"Impact crater","moon_name":"Moon","lat":-25.43,"lon":225.41,"description":"Johannes; German physicist; Nobel laureate (1874-1957).","dimension":"47.7 km","theme":"moon"},{"name":"Statio Shiv Shakti","type":"Landing site","moon_name":"Moon","lat":-69.37,"lon":327.68,"description":"Compound word from Indian philosophy that depicts the masculine (\u201cShiva\u201d) and feminine (\u201cShakti\u201d) duality of nature; Landing site of Chandrayaan-3\u2019s Vikram lander.","dimension":"","theme":"moon"},{"name":"Statio Tianchuan","type":"Landing site","moon_name":"Moon","lat":43.06,"lon":51.92,"description":"Chinese constellation name, which means ship sailing in the Milky Way; Chang\u2019e-5 landing site.","dimension":"0.0 km","theme":"moon"},{"name":"Statio Tianhe","type":"Landing site","moon_name":"Moon","lat":-45.45,"lon":182.4,"description":"Ancient Chinese name for the Milky Way, a sky river that separates Niulang and Zhinyu in the Chinese folk tale \u201cThe Cowherd and the Weaver Girl\u201c;; Chang\u2019e-4 landing site.","dimension":"0.0 km","theme":"moon"},{"name":"Statio Tianjiang","type":"Landing site","moon_name":"Moon","lat":-41.63,"lon":153.98,"description":"Constellation name in the ancient Chinese star map; means \u201cthe celestial river\u201d, synonymous with tian he, the Milky Way; landing site of Chang\u2019e 6.","dimension":"","theme":"moon"},{"name":"Statio Tranquillitatis","type":"Landing site","moon_name":"Moon","lat":0.67,"lon":336.53,"description":"\u201c;Tranquility Base,\u201c; Apollo 11 landing site.","dimension":"0.0 km","theme":"moon"},{"name":"Stearns","type":"Impact crater","moon_name":"Moon","lat":34.68,"lon":197.4,"description":"Carl Leo; American astronomer (1892-1972).","dimension":"38.9 km","theme":"moon"},{"name":"Stebbins","type":"Impact crater","moon_name":"Moon","lat":64.36,"lon":142.64,"description":"Joel; American astronomer (1878-1966).","dimension":"129.7 km","theme":"moon"},{"name":"Stefan","type":"Impact crater","moon_name":"Moon","lat":46.33,"lon":108.77,"description":"Josef; Austrian physicist (1835-1893).","dimension":"112.2 km","theme":"moon"},{"name":"Stein","type":"Impact crater","moon_name":"Moon","lat":7.0,"lon":180.89,"description":"Johann Willem Jakob Antoon; Dutch astronomer (1871-1951).","dimension":"30.7 km","theme":"moon"},{"name":"Steinheil","type":"Impact crater","moon_name":"Moon","lat":-48.71,"lon":313.34,"description":"Karl August von; German astronomer, physicist (1801-1870).","dimension":"63.3 km","theme":"moon"},{"name":"Steklov","type":"Impact crater","moon_name":"Moon","lat":-36.73,"lon":105.05,"description":"Vladimir Andreevich; Soviet mathematician (1864-1926).","dimension":"36.6 km","theme":"moon"},{"name":"Stella","type":"Impact crater","moon_name":"Moon","lat":19.91,"lon":330.24,"description":"Latin female name.","dimension":"0.4 km","theme":"moon"},{"name":"Steno","type":"Impact crater","moon_name":"Moon","lat":32.61,"lon":198.22,"description":"Nicolaus; Danish doctor (1638-1686).","dimension":"32.3 km","theme":"moon"},{"name":"Steno-Apollo","type":"Astronaut-named","moon_name":"Moon","lat":20.15,"lon":329.21,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.5 km","theme":"moon"},{"name":"Sternfeld","type":"Impact crater","moon_name":"Moon","lat":-19.75,"lon":142.27,"description":"Ari Abramovich; Soviet space scientist (1905-1980).","dimension":"109.8 km","theme":"moon"},{"name":"Stetson","type":"Impact crater","moon_name":"Moon","lat":-39.58,"lon":118.2,"description":"Harlan True; American astronomer, geophysicist (1885-1964).","dimension":"63.1 km","theme":"moon"},{"name":"Stevinus","type":"Impact crater","moon_name":"Moon","lat":-32.49,"lon":305.86,"description":"Stevin, Simon; Belgian mathematician, physicist (1548-1620).","dimension":"71.5 km","theme":"moon"},{"name":"Stewart","type":"Impact crater","moon_name":"Moon","lat":2.15,"lon":293.02,"description":"John Quincy; American astrophysicist (1894-1972).","dimension":"13.8 km","theme":"moon"},{"name":"St. George","type":"Astronaut-named","moon_name":"Moon","lat":25.96,"lon":356.46,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"2.4 km","theme":"moon"},{"name":"Stiborius","type":"Impact crater","moon_name":"Moon","lat":-34.49,"lon":328.01,"description":"Stoberl, Andreas; German astronomer, mathematician (1465-1515).","dimension":"43.8 km","theme":"moon"},{"name":"St. John","type":"Impact crater","moon_name":"Moon","lat":10.07,"lon":210.02,"description":"Charles Edward; American solar physicist, astronomer (1857-1935).","dimension":"66.7 km","theme":"moon"},{"name":"St\u00f6fler","type":"Impact crater","moon_name":"Moon","lat":-41.24,"lon":354.07,"description":"Johann; German astronomer, mathematician (1452-1531).","dimension":"129.9 km","theme":"moon"},{"name":"Stokes","type":"Impact crater","moon_name":"Moon","lat":52.36,"lon":88.11,"description":"Sir George Gabriel; British mathematician, physicist (1819-1903).","dimension":"53.9 km","theme":"moon"},{"name":"Stoletov","type":"Impact crater","moon_name":"Moon","lat":44.82,"lon":155.5,"description":"Aleksandr Grigorievich; Russian physicist (1839-1896).","dimension":"42.4 km","theme":"moon"},{"name":"Stone Mountain","type":"Astronaut-named","moon_name":"Moon","lat":-9.17,"lon":344.43,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"10.5 km","theme":"moon"},{"name":"Stoney","type":"Impact crater","moon_name":"Moon","lat":-55.58,"lon":156.38,"description":"George Johnstone; Irish physicist (1826-1911).","dimension":"47.5 km","theme":"moon"},{"name":"St\u00f6rmer","type":"Impact crater","moon_name":"Moon","lat":57.14,"lon":213.35,"description":"Fredrik Carl M\u00fclertz; Norwegian mathematician and astronomer, aurora research (1874-1957).","dimension":"68.6 km","theme":"moon"},{"name":"Stose","type":"Impact crater","moon_name":"Moon","lat":-86.38,"lon":327.87,"description":"Anna Isabel Jonas; American geologist (1881-1974).","dimension":"16.7 km","theme":"moon"},{"name":"Strabo","type":"Impact crater","moon_name":"Moon","lat":61.94,"lon":305.58,"description":"Greek geographer (54 B.C.- A.D. 24).","dimension":"54.7 km","theme":"moon"},{"name":"Stratton","type":"Impact crater","moon_name":"Moon","lat":-5.6,"lon":195.3,"description":"Frederick John Marrion; British astronomer, astrophysicist (1881-1960).","dimension":"69.8 km","theme":"moon"},{"name":"Street","type":"Impact crater","moon_name":"Moon","lat":-46.58,"lon":10.74,"description":"Thomas; British astronomer (1621-1689).","dimension":"58.5 km","theme":"moon"},{"name":"Str\u00f6mgren","type":"Impact crater","moon_name":"Moon","lat":-21.74,"lon":132.37,"description":"Elis; Danish astronomer (1870-1947).","dimension":"62.2 km","theme":"moon"},{"name":"Struve","type":"Impact crater","moon_name":"Moon","lat":23.41,"lon":76.65,"description":"Otto Wilhelm von; German-born Russian astronomer (1819-1905); Otto; American astronomer (1897-1963); Friedrich Georg Wilhelm von; German-born Russian astronomer (1793-1864).","dimension":"164.3 km","theme":"moon"},{"name":"Stubby","type":"Astronaut-named","moon_name":"Moon","lat":-9.09,"lon":344.52,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.9 km","theme":"moon"},{"name":"Subbotin","type":"Impact crater","moon_name":"Moon","lat":-29.32,"lon":224.29,"description":"Mikhail Fedorovich; Soviet astronomer (1893-1966).","dimension":"71.7 km","theme":"moon"},{"name":"Suess","type":"Impact crater","moon_name":"Moon","lat":4.36,"lon":47.72,"description":"Eduard; Austrian geologist (1831-1914).","dimension":"8.4 km","theme":"moon"},{"name":"Sulpicius Gallus","type":"Impact crater","moon_name":"Moon","lat":19.63,"lon":348.32,"description":"Gaius; Roman astronomer (unkn-fl. c. B.C. 166).","dimension":"11.6 km","theme":"moon"},{"name":"Sumner","type":"Impact crater","moon_name":"Moon","lat":37.62,"lon":251.24,"description":"Thomas Hubbard; American geographer, navigator (1807-1876).","dimension":"52.9 km","theme":"moon"},{"name":"Sundman","type":"Impact crater","moon_name":"Moon","lat":10.76,"lon":91.69,"description":"Karl Frithiof; Finnish astronomer (1873-1949).","dimension":"41.0 km","theme":"moon"},{"name":"[Sung-Mei]","type":"Impact crater","moon_name":"Moon","lat":24.58,"lon":348.72,"description":"Chinese female name.","dimension":"5.0 km","theme":"moon"},{"name":"Surveyor","type":"Astronaut-named","moon_name":"Moon","lat":-3.02,"lon":23.42,"description":"Astronaut-named feature, Apollo 12 site.","dimension":"0.2 km","theme":"moon"},{"name":"Susan","type":"Impact crater","moon_name":"Moon","lat":-11.0,"lon":6.3,"description":"English female name.","dimension":"0.9 km","theme":"moon"},{"name":"Su Song","type":"Impact crater","moon_name":"Moon","lat":-41.8,"lon":154.49,"description":"Chinese scientist during the Northern Song Dynasty (1020-1101).","dimension":"0.7 km","theme":"moon"},{"name":"Svedberg","type":"Impact crater","moon_name":"Moon","lat":-81.68,"lon":294.85,"description":"Theodor; Swedish chemist, Nobel Prize winner 1926 (1884-1971).","dimension":"15.3 km","theme":"moon"},{"name":"Sverdrup","type":"Impact crater","moon_name":"Moon","lat":-88.32,"lon":153.39,"description":"Otto; Norwegian polar explorer (1855-1930).","dimension":"32.8 km","theme":"moon"},{"name":"Swann","type":"Impact crater","moon_name":"Moon","lat":51.96,"lon":247.48,"description":"William Francis Gray; Anglo-American physicist (1884-1962).","dimension":"42.2 km","theme":"moon"},{"name":"Swasey","type":"Impact crater","moon_name":"Moon","lat":-5.46,"lon":270.33,"description":"Ambrose; American inventor (1846-1937).","dimension":"24.9 km","theme":"moon"},{"name":"Swift","type":"Impact crater","moon_name":"Moon","lat":19.35,"lon":306.56,"description":"Lewis; American astronomer (1820-1913).","dimension":"10.1 km","theme":"moon"},{"name":"Sylvester","type":"Impact crater","moon_name":"Moon","lat":82.65,"lon":81.22,"description":"James Joseph; British mathematician (1814-1897).","dimension":"59.3 km","theme":"moon"},{"name":"Szilard","type":"Impact crater","moon_name":"Moon","lat":33.71,"lon":254.22,"description":"Leo; Hungarian-American physicist (1898-1964).","dimension":"127.2 km","theme":"moon"},{"name":"Tacchini","type":"Impact crater","moon_name":"Moon","lat":5.08,"lon":274.18,"description":"Pietro; Italian astronomer (1838-1905).","dimension":"42.6 km","theme":"moon"},{"name":"Tacitus","type":"Impact crater","moon_name":"Moon","lat":-16.2,"lon":341.05,"description":"Cornelius; Roman historian (c. 55-120).","dimension":"39.8 km","theme":"moon"},{"name":"Tacquet","type":"Impact crater","moon_name":"Moon","lat":16.64,"lon":340.8,"description":"Andre; Belgian mathematician (1612-1660).","dimension":"6.4 km","theme":"moon"},{"name":"Tai Wei","type":"Impact crater","moon_name":"Moon","lat":44.15,"lon":19.49,"description":"One of three enclosures in Chinese ancient star map.","dimension":"0.5 km","theme":"moon"},{"name":"Taizo","type":"Impact crater","moon_name":"Moon","lat":24.7,"lon":357.8,"description":"Japanese male name.","dimension":"8.2 km","theme":"moon"},{"name":"Talbot","type":"Impact crater","moon_name":"Moon","lat":-2.47,"lon":274.7,"description":"William Henry Fox; British photographer, physicist, archaeologist (1800-1877).","dimension":"12.4 km","theme":"moon"},{"name":"Tamm","type":"Impact crater","moon_name":"Moon","lat":-4.32,"lon":213.62,"description":"Igor Yevgenyevich; Soviet physicist, Nobel laureate (1895-1971).","dimension":"40.5 km","theme":"moon"},{"name":"Tannerus","type":"Impact crater","moon_name":"Moon","lat":-56.44,"lon":338.08,"description":"Tanner, Adam; Austrian mathematician (1572-1632).","dimension":"28.1 km","theme":"moon"},{"name":"Taruntius","type":"Impact crater","moon_name":"Moon","lat":5.5,"lon":313.46,"description":"Firmanus, Lucius; Roman philosopher (unkn-fl. 86 B.C.).","dimension":"57.3 km","theme":"moon"},{"name":"[Tasso]","type":"Impact crater","moon_name":"Moon","lat":-0.7,"lon":268.0,"description":"Torquato; Italian poet (1544-1595).","dimension":"","theme":"moon"},{"name":"Taurus-Littrow Valley","type":"Astronaut-named","moon_name":"Moon","lat":20.07,"lon":329.21,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"21.0 km","theme":"moon"},{"name":"Taylor","type":"Impact crater","moon_name":"Moon","lat":-5.28,"lon":343.35,"description":"Brook; British mathematician (1685-1731).","dimension":"36.4 km","theme":"moon"},{"name":"Tebbutt","type":"Impact crater","moon_name":"Moon","lat":9.46,"lon":306.48,"description":"John; Australian astronomer (1834-1916).","dimension":"34.0 km","theme":"moon"},{"name":"Teisserenc","type":"Impact crater","moon_name":"Moon","lat":31.96,"lon":136.28,"description":"de Bort, Leon-Philippe; French meteorologist (1855-1913).","dimension":"62.3 km","theme":"moon"},{"name":"Tempel","type":"Impact crater","moon_name":"Moon","lat":3.76,"lon":348.14,"description":"Ernst Wilhelm Leberecht; German astronomer (1821-1889).","dimension":"43.2 km","theme":"moon"},{"name":"Ten Bruggencate","type":"Impact crater","moon_name":"Moon","lat":-9.58,"lon":225.34,"description":"Paul; German astronomer (1901-1961).","dimension":"60.0 km","theme":"moon"},{"name":"Tereshkova","type":"Impact crater","moon_name":"Moon","lat":28.21,"lon":216.16,"description":"Valentina Vladimirovna; Soviet cosmonaut (1937-Live).","dimension":"31.3 km","theme":"moon"},{"name":"Terrace","type":"Astronaut-named","moon_name":"Moon","lat":26.15,"lon":356.44,"description":"Astronaut-named feature, Apollo 15 site.","dimension":"1.5 km","theme":"moon"},{"name":"Tesla","type":"Impact crater","moon_name":"Moon","lat":38.36,"lon":235.27,"description":"Nikola; American scientist of Serbian origin (1856-1943).","dimension":"41.1 km","theme":"moon"},{"name":"Thales","type":"Impact crater","moon_name":"Moon","lat":61.74,"lon":309.73,"description":"Of Miletus; Greek mathematician, astronomer, philosopher (c. 636-546 B.C.).","dimension":"30.8 km","theme":"moon"},{"name":"Tharp","type":"Impact crater","moon_name":"Moon","lat":-30.6,"lon":214.37,"description":"Marie; Geologist and oceanographer, created first comprehensive map of the ocean floor and is credited with discovering the Mid-Atlantic Ridge (1920-2006).","dimension":"13.4 km","theme":"moon"},{"name":"Theaetetus","type":"Impact crater","moon_name":"Moon","lat":37.01,"lon":353.94,"description":"Greek mathematician (c. 417-369 B.C.).","dimension":"24.6 km","theme":"moon"},{"name":"Thebit","type":"Impact crater","moon_name":"Moon","lat":-22.01,"lon":4.02,"description":"Al-S\u0101bi' al-Harrani Th\u0101bit Ibn Qurra; Iraqi astronomer (836-901).","dimension":"54.6 km","theme":"moon"},{"name":"Theiler","type":"Impact crater","moon_name":"Moon","lat":13.36,"lon":277.15,"description":"Max; South African bacteriologist; Nobel laureate (1899-1972).","dimension":"8.3 km","theme":"moon"},{"name":"Theon Junior","type":"Impact crater","moon_name":"Moon","lat":-2.41,"lon":344.21,"description":"Of Alexandria; Greek astronomer (unkn-c. 380).","dimension":"17.6 km","theme":"moon"},{"name":"Theon Senior","type":"Impact crater","moon_name":"Moon","lat":-0.81,"lon":344.58,"description":"Of Smyrna; Greek mathematician and astronomer (c. A.D. 130).","dimension":"18.0 km","theme":"moon"},{"name":"Theophilus","type":"Impact crater","moon_name":"Moon","lat":-11.45,"lon":333.72,"description":"Greek astronomer (unkn-A.D. 412).","dimension":"98.6 km","theme":"moon"},{"name":"Theophrastus","type":"Impact crater","moon_name":"Moon","lat":17.46,"lon":320.94,"description":"Greek philosopher and scientist (c. 372-287 B.C.).","dimension":"8.0 km","theme":"moon"},{"name":"Thiel","type":"Impact crater","moon_name":"Moon","lat":40.17,"lon":134.56,"description":"Walter; German rocket builder (1910-1943).","dimension":"35.7 km","theme":"moon"},{"name":"Thiessen","type":"Impact crater","moon_name":"Moon","lat":74.86,"lon":169.5,"description":"Georg Heinrich; German astronomer (1914-1961).","dimension":"66.4 km","theme":"moon"},{"name":"Thomson","type":"Impact crater","moon_name":"Moon","lat":-32.32,"lon":193.96,"description":"Sir Joseph John; British physicist; Nobel laureate (1856-1940).","dimension":"117.2 km","theme":"moon"},{"name":"Tianjin","type":"Impact crater","moon_name":"Moon","lat":-44.93,"lon":181.19,"description":"Constellation name in the ancient Chinese star map; means \u201ccelestial ford\u201d or \u201cGalaxy\u2019s ferry.\u201d","dimension":"3.9 km","theme":"moon"},{"name":"Tian Shi","type":"Impact crater","moon_name":"Moon","lat":44.1,"lon":19.45,"description":"One of three enclosures in Chinese ancient star map.","dimension":"0.5 km","theme":"moon"},{"name":"Tikhomirov","type":"Impact crater","moon_name":"Moon","lat":24.2,"lon":198.67,"description":"Nikolaj Ivanovich; Soviet chemical engineer (1860-1930).","dimension":"86.4 km","theme":"moon"},{"name":"Tikhov","type":"Impact crater","moon_name":"Moon","lat":61.66,"lon":187.71,"description":"Gavriil Adrianovich; Soviet astronomer (1875-1960).","dimension":"84.0 km","theme":"moon"},{"name":"Tiling","type":"Impact crater","moon_name":"Moon","lat":-52.85,"lon":133.11,"description":"Reinhold; German rocketry scientist (1890-1933).","dimension":"38.2 km","theme":"moon"},{"name":"Timaeus","type":"Impact crater","moon_name":"Moon","lat":62.91,"lon":0.55,"description":"Greek astronomer (unkn-c. 400 B.C.).","dimension":"32.8 km","theme":"moon"},{"name":"Timiryazev","type":"Impact crater","moon_name":"Moon","lat":-5.09,"lon":147.15,"description":"Kliment Arkadievich; Russian botanist, physiologist (1843-1920).","dimension":"52.1 km","theme":"moon"},{"name":"Timocharis","type":"Impact crater","moon_name":"Moon","lat":26.72,"lon":13.1,"description":"Greek astronomer (unkn-fl. c. 280 B.C.).","dimension":"34.1 km","theme":"moon"},{"name":"Tiselius","type":"Impact crater","moon_name":"Moon","lat":6.89,"lon":183.3,"description":"Arne Wilhelm Kaurin; Swedish biochemist; Nobel laureate (1902-1971).","dimension":"53.8 km","theme":"moon"},{"name":"Tisserand","type":"Impact crater","moon_name":"Moon","lat":21.41,"lon":311.83,"description":"Francois Felix; French astronomer (1845-1896).","dimension":"34.6 km","theme":"moon"},{"name":"Titius","type":"Impact crater","moon_name":"Moon","lat":-26.75,"lon":259.34,"description":"Johann Daniel; German astronomer (1729-1796).","dimension":"68.4 km","theme":"moon"},{"name":"Titov","type":"Impact crater","moon_name":"Moon","lat":28.55,"lon":209.71,"description":"Gherman Stepanovich; Soviet cosmonaut (1935-2000).","dimension":"29.6 km","theme":"moon"},{"name":"T. Mayer","type":"Impact crater","moon_name":"Moon","lat":15.54,"lon":29.17,"description":"Johann Tobias; German astronomer (1723-1762).","dimension":"33.1 km","theme":"moon"},{"name":"Tolansky","type":"Impact crater","moon_name":"Moon","lat":-9.52,"lon":15.98,"description":"Samuel; British physicist (1907-1973).","dimension":"13.0 km","theme":"moon"},{"name":"[Tolstoy]","type":"Impact crater","moon_name":"Moon","lat":-4.2,"lon":266.7,"description":"Leo; Russian writer (1828-1910).","dimension":"","theme":"moon"},{"name":"Tooley","type":"Impact crater","moon_name":"Moon","lat":-88.04,"lon":308.69,"description":"Craig; NASA Engineer, LRO Project Manager (1960-2017).","dimension":"7.0 km","theme":"moon"},{"name":"Torricelli","type":"Impact crater","moon_name":"Moon","lat":-4.72,"lon":331.6,"description":"Evangelista; Italian physicist (1608-1647).","dimension":"30.9 km","theme":"moon"},{"name":"Tortilla Flat","type":"Astronaut-named","moon_name":"Moon","lat":20.19,"lon":329.4,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"2.2 km","theme":"moon"},{"name":"Toscanelli","type":"Impact crater","moon_name":"Moon","lat":27.96,"lon":47.61,"description":"Paolo Dal Pozza; Italian doctor, cartographer (1397-1482).","dimension":"7.0 km","theme":"moon"},{"name":"Townley","type":"Impact crater","moon_name":"Moon","lat":3.42,"lon":296.81,"description":"Sidney Dean; American astronomer (1867-1946).","dimension":"17.7 km","theme":"moon"},{"name":"Tralles","type":"Impact crater","moon_name":"Moon","lat":28.32,"lon":307.15,"description":"Johann Georg; German physicist (1763-1822).","dimension":"44.2 km","theme":"moon"},{"name":"Trap","type":"Astronaut-named","moon_name":"Moon","lat":-9.05,"lon":344.57,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.8 km","theme":"moon"},{"name":"Trident","type":"Astronaut-named","moon_name":"Moon","lat":20.18,"lon":329.23,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.6 km","theme":"moon"},{"name":"Triesnecker","type":"Impact crater","moon_name":"Moon","lat":4.18,"lon":356.4,"description":"Francis a Paula; Austrian astronomer (1745-1817).","dimension":"25.0 km","theme":"moon"},{"name":"Triplet","type":"Astronaut-named","moon_name":"Moon","lat":-3.65,"lon":17.47,"description":"Astronaut-named feature, Apollo 14 site.","dimension":"0.3 km","theme":"moon"},{"name":"Trouvelot","type":"Impact crater","moon_name":"Moon","lat":49.37,"lon":354.21,"description":"\u00c9tienne L\u00e9opold; French astronomer (1827-1895).","dimension":"8.5 km","theme":"moon"},{"name":"Trumpler","type":"Impact crater","moon_name":"Moon","lat":29.33,"lon":192.86,"description":"Robert Julius; American astronomer (1866-1956).","dimension":"76.2 km","theme":"moon"},{"name":"Tsander (Zander)","type":"Impact crater","moon_name":"Moon","lat":5.39,"lon":149.69,"description":"Friedrich Arturovich; Soviet rocketry scientist (1887-1933).","dimension":"159.9 km","theme":"moon"},{"name":"Tseraskiy (Ceraski)","type":"Impact crater","moon_name":"Moon","lat":-48.66,"lon":217.36,"description":"Vitol'd Karlovich; Russian astronomer (1849-1925).","dimension":"65.6 km","theme":"moon"},{"name":"Tsinger (Zinger)","type":"Impact crater","moon_name":"Moon","lat":56.54,"lon":184.29,"description":"Nikolai Iakovlevich; Russian astronomer (1842-1918).","dimension":"44.2 km","theme":"moon"},{"name":"Tsiolkovskiy","type":"Impact crater","moon_name":"Moon","lat":-20.38,"lon":231.03,"description":"Konstantin E.; Soviet physicist (1857-1935).","dimension":"184.4 km","theme":"moon"},{"name":"Tsu Chung-Chi","type":"Impact crater","moon_name":"Moon","lat":17.16,"lon":214.84,"description":"Chinese mathematician (430-501).","dimension":"28.5 km","theme":"moon"},{"name":"Tucker","type":"Impact crater","moon_name":"Moon","lat":-5.62,"lon":271.79,"description":"Richard Hawley; American astronomer (1859-1952).","dimension":"6.8 km","theme":"moon"},{"name":"Turner","type":"Impact crater","moon_name":"Moon","lat":-1.4,"lon":13.24,"description":"Herbert Hall; British astronomer (1861-1930).","dimension":"11.2 km","theme":"moon"},{"name":"Tycho","type":"Impact crater","moon_name":"Moon","lat":-43.3,"lon":11.22,"description":"Tycho Brahe; Danish astronomer (1546-1601).","dimension":"85.3 km","theme":"moon"},{"name":"Tyndall","type":"Impact crater","moon_name":"Moon","lat":-35.2,"lon":242.36,"description":"John; British physicist (1820-1893).","dimension":"20.9 km","theme":"moon"},{"name":"Ukert","type":"Impact crater","moon_name":"Moon","lat":7.71,"lon":358.63,"description":"Friedrich August; German historian, humanitarian (1780-1851).","dimension":"21.7 km","theme":"moon"},{"name":"Ulugh Beigh","type":"Impact crater","moon_name":"Moon","lat":32.67,"lon":81.96,"description":"Ulugh-Beg; Mongolian astronomer, mathematician (1394-1449).","dimension":"57.0 km","theme":"moon"},{"name":"[Undest]","type":"Impact crater","moon_name":"Moon","lat":26.13,"lon":18.46,"description":"Sigrid; Norwegian novelist; Nobel laureate (1882-1949).","dimension":"6.8 km","theme":"moon"},{"name":"Urey","type":"Impact crater","moon_name":"Moon","lat":27.93,"lon":272.57,"description":"Harold Clayton; American chemist; Nobel laureate (1893-1981).","dimension":"39.3 km","theme":"moon"},{"name":"V\u00e4is\u00e4l\u00e4","type":"Impact crater","moon_name":"Moon","lat":25.9,"lon":47.9,"description":"Yrjo; Finnish astronomer (1891-1971).","dimension":"8.1 km","theme":"moon"},{"name":"Valera","type":"Impact crater","moon_name":"Moon","lat":38.29,"lon":35.02,"description":"Male name Valery of Latin origin in Russian diminutive form (Lunokhod-1 landing site feature).","dimension":"0.1 km","theme":"moon"},{"name":"Valier","type":"Impact crater","moon_name":"Moon","lat":6.65,"lon":185.74,"description":"Max; German rocketry engineer (1895-1930).","dimension":"65.1 km","theme":"moon"},{"name":"Vallis Alpes","type":"Vallis","moon_name":"Moon","lat":49.21,"lon":356.37,"description":"\u201c;Alpine Valley.\u201c","dimension":"155.4 km","theme":"moon"},{"name":"Vallis Baade","type":"Vallis","moon_name":"Moon","lat":-45.55,"lon":77.23,"description":"Named from nearby crater.","dimension":"206.8 km","theme":"moon"},{"name":"Vallis Bohr","type":"Vallis","moon_name":"Moon","lat":10.25,"lon":88.86,"description":"Named from nearby crater.","dimension":"95.3 km","theme":"moon"},{"name":"Vallis Bouvard","type":"Vallis","moon_name":"Moon","lat":-38.45,"lon":82.32,"description":"Alexis; French astronomer, mathematician (1767-1843).","dimension":"287.9 km","theme":"moon"},{"name":"Vallis Capella","type":"Vallis","moon_name":"Moon","lat":-7.39,"lon":324.96,"description":"Named from nearby crater.","dimension":"106.3 km","theme":"moon"},{"name":"Vallis Christel","type":"Vallis","moon_name":"Moon","lat":24.54,"lon":348.92,"description":"German female name, part of Aratus CA.","dimension":"2.1 km","theme":"moon"},{"name":"Vallis Inghirami","type":"Vallis","moon_name":"Moon","lat":-43.95,"lon":72.59,"description":"Named from nearby crater.","dimension":"145.1 km","theme":"moon"},{"name":"Vallis Krishna","type":"Vallis","moon_name":"Moon","lat":24.5,"lon":348.74,"description":"Indian male name, part of Aratus CA.","dimension":"2.9 km","theme":"moon"},{"name":"Vallis Palitzsch","type":"Vallis","moon_name":"Moon","lat":-26.16,"lon":295.36,"description":"Named from nearby crater.","dimension":"110.5 km","theme":"moon"},{"name":"Vallis Planck","type":"Vallis","moon_name":"Moon","lat":-57.26,"lon":233.84,"description":"Named from nearby crater.","dimension":"502.9 km","theme":"moon"},{"name":"Vallis Rheita","type":"Vallis","moon_name":"Moon","lat":-42.51,"lon":308.35,"description":"Named from nearby crater.","dimension":"509.1 km","theme":"moon"},{"name":"Vallis Schr\u00f6dinger","type":"Vallis","moon_name":"Moon","lat":-66.52,"lon":255.12,"description":"Named from nearby crater.","dimension":"301.7 km","theme":"moon"},{"name":"Vallis Schr\u00f6teri","type":"Vallis","moon_name":"Moon","lat":26.16,"lon":51.58,"description":"Schr\u00f6ter's Valley.","dimension":"185.3 km","theme":"moon"},{"name":"Vallis Snellius","type":"Vallis","moon_name":"Moon","lat":-30.93,"lon":302.16,"description":"Named from nearby crater.","dimension":"640.0 km","theme":"moon"},{"name":"van Albada","type":"Impact crater","moon_name":"Moon","lat":9.36,"lon":295.65,"description":"Gale Bruno; Dutch astronomer (1912-1972).","dimension":"22.9 km","theme":"moon"},{"name":"Van Biesbroeck","type":"Impact crater","moon_name":"Moon","lat":28.77,"lon":45.59,"description":"George A.; Belgian-American astronomer (1880-1974).","dimension":"9.1 km","theme":"moon"},{"name":"Van de Graaff","type":"Impact crater","moon_name":"Moon","lat":-27.04,"lon":187.99,"description":"Robert Jemison; American physicist (1901-1967).","dimension":"240.5 km","theme":"moon"},{"name":"Van den Bergh","type":"Impact crater","moon_name":"Moon","lat":30.91,"lon":159.21,"description":"George; Dutch astronomer (1890-1966).","dimension":"43.4 km","theme":"moon"},{"name":"van den Bos","type":"Impact crater","moon_name":"Moon","lat":-5.26,"lon":214.05,"description":"Willem Hendrik; South African astronomer (1896-1974).","dimension":"25.2 km","theme":"moon"},{"name":"Van der Waals","type":"Impact crater","moon_name":"Moon","lat":-43.56,"lon":240.02,"description":"Johannes Diderik; Dutch physicist; Nobel laureate (1837-1923).","dimension":"113.4 km","theme":"moon"},{"name":"Van Gent","type":"Impact crater","moon_name":"Moon","lat":15.42,"lon":199.73,"description":"Hendrik; Dutch astronomer (1900-1947).","dimension":"44.4 km","theme":"moon"},{"name":"Van Maanen","type":"Impact crater","moon_name":"Moon","lat":36.03,"lon":231.82,"description":"Adriaan; Dutch-American astronomer (1884-1946).","dimension":"46.4 km","theme":"moon"},{"name":"van Rhijn","type":"Impact crater","moon_name":"Moon","lat":52.47,"lon":213.63,"description":"Pieter Johannes; Dutch astronomer (1886-1960).","dimension":"46.2 km","theme":"moon"},{"name":"Van Serg","type":"Astronaut-named","moon_name":"Moon","lat":20.23,"lon":329.17,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.1 km","theme":"moon"},{"name":"van't Hoff","type":"Impact crater","moon_name":"Moon","lat":61.75,"lon":132.68,"description":"Jacobus Hendricus; Dutch chemist; Nobel laureate (1852-1911).","dimension":"107.3 km","theme":"moon"},{"name":"Van Vleck","type":"Impact crater","moon_name":"Moon","lat":-1.77,"lon":281.8,"description":"John Monroe; American astronomer, mathematician (1833-1912).","dimension":"33.5 km","theme":"moon"},{"name":"Van Wijk","type":"Impact crater","moon_name":"Moon","lat":-62.5,"lon":240.94,"description":"Uco; Dutch-American astronomer (1924-1966).","dimension":"31.1 km","theme":"moon"},{"name":"Vasco da Gama","type":"Impact crater","moon_name":"Moon","lat":13.78,"lon":83.94,"description":"Portuguese navigator, explorer (c. 1460-1524).","dimension":"93.5 km","theme":"moon"},{"name":"Vashakidze","type":"Impact crater","moon_name":"Moon","lat":43.65,"lon":266.99,"description":"Mikheil Alekandres; Soviet astronomer (1909-1956).","dimension":"45.0 km","theme":"moon"},{"name":"Vasya","type":"Impact crater","moon_name":"Moon","lat":38.2,"lon":34.98,"description":"Russian diminutive form of male name Vasily of Greek origin (Lunokhod-1 landing site feature).","dimension":"0.1 km","theme":"moon"},{"name":"Vaughan","type":"Impact crater","moon_name":"Moon","lat":-41.41,"lon":171.85,"description":"Dorothy; American mathematician (1910-2008).","dimension":"3.0 km","theme":"moon"},{"name":"Vavilov","type":"Impact crater","moon_name":"Moon","lat":-0.87,"lon":138.77,"description":"Nikolai Ivanovich; Soviet botanist (1887-1943); Sergei Ivanovich; Soviet physicist (optics) (1891-1951).","dimension":"98.2 km","theme":"moon"},{"name":"Vega","type":"Impact crater","moon_name":"Moon","lat":-45.41,"lon":296.73,"description":"Georg Freiherr von; Slovenian-born German mathematician (1754-1802).","dimension":"73.5 km","theme":"moon"},{"name":"Vendelinus","type":"Impact crater","moon_name":"Moon","lat":-16.46,"lon":298.45,"description":"Wendelin, Godefroid; Belgian astronomer (1580-1667).","dimension":"141.2 km","theme":"moon"},{"name":"Vening Meinesz","type":"Impact crater","moon_name":"Moon","lat":-0.1,"lon":197.49,"description":"Felix Andries; Dutch geophysicist, geodesist (1887-1966).","dimension":"88.7 km","theme":"moon"},{"name":"Ventris","type":"Impact crater","moon_name":"Moon","lat":-4.77,"lon":202.03,"description":"Michael George Francis; British decipherer of Linear B Cretan script (1922-1956).","dimension":"100.7 km","theme":"moon"},{"name":"Vera","type":"Impact crater","moon_name":"Moon","lat":26.33,"lon":43.71,"description":"Latin female name.","dimension":"2.3 km","theme":"moon"},{"name":"[Vergil]","type":"Impact crater","moon_name":"Moon","lat":-26.3,"lon":227.0,"description":"Roman epic poet (70-19 B.C.).","dimension":"","theme":"moon"},{"name":"Vernadskiy","type":"Impact crater","moon_name":"Moon","lat":23.11,"lon":229.57,"description":"Vladimir Ivanovich; Soviet mineralogist (1863-1945).","dimension":"92.0 km","theme":"moon"},{"name":"Verne","type":"Impact crater","moon_name":"Moon","lat":24.95,"lon":25.38,"description":"Latin male name.","dimension":"1.5 km","theme":"moon"},{"name":"Vertregt","type":"Impact crater","moon_name":"Moon","lat":-19.3,"lon":188.88,"description":"Marinus; Dutch chemist (1897-1973).","dimension":"172.8 km","theme":"moon"},{"name":"Very","type":"Impact crater","moon_name":"Moon","lat":25.62,"lon":334.65,"description":"Frank Washington; American astronomer (1852-1927).","dimension":"4.7 km","theme":"moon"},{"name":"Vesalius","type":"Impact crater","moon_name":"Moon","lat":-3.23,"lon":245.21,"description":"Andreas; Belgian doctor (1514-1564).","dimension":"64.7 km","theme":"moon"},{"name":"Vestine","type":"Impact crater","moon_name":"Moon","lat":33.87,"lon":266.32,"description":"Ernest Harry; American geophysicist (1906-1968).","dimension":"97.8 km","theme":"moon"},{"name":"Vetchinkin","type":"Impact crater","moon_name":"Moon","lat":9.77,"lon":228.92,"description":"Vladimir Petrovich; Soviet physicist, engineer (1888-1950).","dimension":"94.3 km","theme":"moon"},{"name":"Victory","type":"Astronaut-named","moon_name":"Moon","lat":20.22,"lon":329.33,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"0.5 km","theme":"moon"},{"name":"Vieta","type":"Impact crater","moon_name":"Moon","lat":-29.31,"lon":56.53,"description":"Francois; French mathematician (1540-1603).","dimension":"87.2 km","theme":"moon"},{"name":"Vil'ev","type":"Impact crater","moon_name":"Moon","lat":-5.76,"lon":215.61,"description":"Mikhail; Russian astronomer (1893-1919).","dimension":"45.8 km","theme":"moon"},{"name":"[Vinogradov]","type":"Impact crater","moon_name":"Moon","lat":19.96,"lon":31.18,"description":"I.M.; Soviet mathematician (1891-1983). Same crater as Natasha.","dimension":"11.3 km","theme":"moon"},{"name":"Virchow","type":"Impact crater","moon_name":"Moon","lat":9.88,"lon":276.23,"description":"Rudolph Ludwig Karl; German doctor, pathologist (1821-1902).","dimension":"18.8 km","theme":"moon"},{"name":"Virtanen","type":"Impact crater","moon_name":"Moon","lat":15.64,"lon":183.26,"description":"Artturi Ilmari; Finnish agricultural biochemist; Nobel laureate (1895-1973).","dimension":"39.6 km","theme":"moon"},{"name":"Vitello","type":"Impact crater","moon_name":"Moon","lat":-30.42,"lon":37.55,"description":"Witelo, Erazmus Ciokek; Polish physicist, mathematician (1210-1285).","dimension":"42.5 km","theme":"moon"},{"name":"Vitruvius","type":"Impact crater","moon_name":"Moon","lat":17.66,"lon":328.72,"description":"Vitruvius Pollio, Marcus; Roman engineer, architect (unkn-fl. c. 25 B.C.).","dimension":"30.9 km","theme":"moon"},{"name":"Vitya","type":"Impact crater","moon_name":"Moon","lat":38.27,"lon":35.03,"description":"Latin male name Victor in Russian diminutive form (Lunokhod-1 landing site feature).","dimension":"0.1 km","theme":"moon"},{"name":"Viviani","type":"Impact crater","moon_name":"Moon","lat":5.16,"lon":242.85,"description":"Vincenzo; Italian physicist, mathematician (1622-1703).","dimension":"26.9 km","theme":"moon"},{"name":"Vlacq","type":"Impact crater","moon_name":"Moon","lat":-53.39,"lon":321.31,"description":"Adriaan; Dutch mathematician (c. 1600-1667).","dimension":"89.2 km","theme":"moon"},{"name":"Vogel","type":"Impact crater","moon_name":"Moon","lat":-15.11,"lon":354.17,"description":"Hermann Carl; German astronomer (1841-1907).","dimension":"26.3 km","theme":"moon"},{"name":"Volkov","type":"Impact crater","moon_name":"Moon","lat":-13.62,"lon":228.33,"description":"Vladislav Nikolayevich; Soviet engineer, cosmonaut (1935-1971).","dimension":"40.8 km","theme":"moon"},{"name":"Volta","type":"Impact crater","moon_name":"Moon","lat":53.9,"lon":84.77,"description":"Count Allessandro Guiseppe Antonio Anastasio; Italian physicist (1745-1827).","dimension":"117.2 km","theme":"moon"},{"name":"[Voltaire]","type":"Impact crater","moon_name":"Moon","lat":-11.9,"lon":259.7,"description":"Francois; French philosopher (1694-1778).","dimension":"","theme":"moon"},{"name":"Volterra","type":"Impact crater","moon_name":"Moon","lat":56.55,"lon":228.36,"description":"Vito; Italian mathematician, physicist (1860-1940).","dimension":"55.1 km","theme":"moon"},{"name":"von Baeyer","type":"Impact crater","moon_name":"Moon","lat":-81.8,"lon":298.13,"description":"Adolf Johann Friedrich Wilhelm; German chemist, Nobel Prize winner 1905 (1835-1917).","dimension":"13.5 km","theme":"moon"},{"name":"von Behring","type":"Impact crater","moon_name":"Moon","lat":-7.75,"lon":288.28,"description":"Emil Adolf; German bacteriologist; Nobel laureate (1854-1917).","dimension":"37.6 km","theme":"moon"},{"name":"von B\u00e9k\u00e9sy","type":"Impact crater","moon_name":"Moon","lat":51.92,"lon":233.27,"description":"Georg; Hungarian otological physicist; Nobel laureate (1899-1972).","dimension":"96.2 km","theme":"moon"},{"name":"von Braun","type":"Impact crater","moon_name":"Moon","lat":41.04,"lon":78.08,"description":"Wernher, German-American rocket pioneer (1912-1977).","dimension":"61.8 km","theme":"moon"},{"name":"Von der Pahlen","type":"Impact crater","moon_name":"Moon","lat":-24.84,"lon":133.01,"description":"Emanuel; German astronomer (1882-1952).","dimension":"53.9 km","theme":"moon"},{"name":"Von K\u00e1rm\u00e1n","type":"Impact crater","moon_name":"Moon","lat":-44.45,"lon":183.75,"description":"Theodore; Hungarian-American aeronautical scientist (1881-1963).","dimension":"186.3 km","theme":"moon"},{"name":"Von Neumann","type":"Impact crater","moon_name":"Moon","lat":40.28,"lon":206.75,"description":"John; American mathematician (1903-1957).","dimension":"74.8 km","theme":"moon"},{"name":"Von Zeipel","type":"Impact crater","moon_name":"Moon","lat":42.19,"lon":141.93,"description":"Edvard Hugo; Swedish astronomer (1873-1959).","dimension":"83.4 km","theme":"moon"},{"name":"Voskresenskiy","type":"Impact crater","moon_name":"Moon","lat":27.91,"lon":88.12,"description":"Leonid A.; Soviet rocketry scientist (1913-1965).","dimension":"49.4 km","theme":"moon"},{"name":"Walker","type":"Impact crater","moon_name":"Moon","lat":-25.82,"lon":161.92,"description":"Joseph Albert; American test pilot (1921-1966).","dimension":"32.9 km","theme":"moon"},{"name":"Wallace","type":"Impact crater","moon_name":"Moon","lat":20.26,"lon":8.75,"description":"Alfred Russel; British natural historian (1823-1913).","dimension":"25.7 km","theme":"moon"},{"name":"Wallach","type":"Impact crater","moon_name":"Moon","lat":4.89,"lon":327.73,"description":"Otto; German chemist; Nobel laureate (1847-1931).","dimension":"5.7 km","theme":"moon"},{"name":"Walter","type":"Impact crater","moon_name":"Moon","lat":28.04,"lon":33.81,"description":"German male name.","dimension":"1.3 km","theme":"moon"},{"name":"Walther","type":"Impact crater","moon_name":"Moon","lat":-33.25,"lon":359.38,"description":"Bernard; German astronomer (1430-1504). (Spelling changed from Walter.)","dimension":"134.2 km","theme":"moon"},{"name":"Wan-Hoo (Van-Gu)","type":"Impact crater","moon_name":"Moon","lat":-9.96,"lon":138.91,"description":"Legendary Chinese inventor.","dimension":"53.3 km","theme":"moon"},{"name":"Wapowski","type":"Impact crater","moon_name":"Moon","lat":-83.08,"lon":306.21,"description":"Bernard; Polish cartographer, the \u201c;Father of Polish Cartography\u201c; (1450-1535).","dimension":"11.4 km","theme":"moon"},{"name":"Wargentin","type":"Impact crater","moon_name":"Moon","lat":-49.53,"lon":60.44,"description":"Pehr Wilhelm; Swedish astronomer (1717-1783).","dimension":"84.7 km","theme":"moon"},{"name":"Wargo","type":"Impact crater","moon_name":"Moon","lat":27.68,"lon":148.62,"description":"Michael J.; American planetary scientist (1951 \u2013 2013).","dimension":"13.9 km","theme":"moon"},{"name":"Warner","type":"Impact crater","moon_name":"Moon","lat":-3.98,"lon":272.65,"description":"Worcester Reed; American inventor (1846-1929).","dimension":"34.5 km","theme":"moon"},{"name":"Waterman","type":"Impact crater","moon_name":"Moon","lat":-25.7,"lon":231.82,"description":"Alan Tower; American physicist (1892-1967).","dimension":"74.9 km","theme":"moon"},{"name":"Watson","type":"Impact crater","moon_name":"Moon","lat":-62.59,"lon":124.05,"description":"James Craig; American astronomer (1838-1880).","dimension":"59.4 km","theme":"moon"},{"name":"Watt","type":"Impact crater","moon_name":"Moon","lat":-49.6,"lon":311.52,"description":"James; Scottish inventor (1736-1819).","dimension":"66.5 km","theme":"moon"},{"name":"Watts","type":"Impact crater","moon_name":"Moon","lat":8.84,"lon":313.69,"description":"Chester Burleigh; American astronomer (1889-1971).","dimension":"15.6 km","theme":"moon"},{"name":"W. Bond","type":"Impact crater","moon_name":"Moon","lat":65.41,"lon":356.48,"description":"William Cranch; American astronomer (1789-1859).","dimension":"170.5 km","theme":"moon"},{"name":"Webb","type":"Impact crater","moon_name":"Moon","lat":-0.98,"lon":300.0,"description":"Thomas William; British astronomer (1806-1885).","dimension":"21.4 km","theme":"moon"},{"name":"Weber","type":"Impact crater","moon_name":"Moon","lat":50.06,"lon":123.79,"description":"Wilhelm Eduard; German physicist (1804-1891).","dimension":"44.0 km","theme":"moon"},{"name":"Wegener","type":"Impact crater","moon_name":"Moon","lat":45.21,"lon":113.81,"description":"Alfred Lothar; German geophysicist, meteorologist (1880-1930).","dimension":"95.8 km","theme":"moon"},{"name":"Weierstrass","type":"Impact crater","moon_name":"Moon","lat":-1.26,"lon":282.85,"description":"Karl; German mathematician (1815-1897).","dimension":"31.3 km","theme":"moon"},{"name":"Weigel","type":"Impact crater","moon_name":"Moon","lat":-58.39,"lon":39.34,"description":"Erhard; German mathematician (1625-1699).","dimension":"34.9 km","theme":"moon"},{"name":"Weinek","type":"Impact crater","moon_name":"Moon","lat":-27.57,"lon":322.94,"description":"Ladislaus; Czechoslovakian astronomer (1848-1913).","dimension":"32.0 km","theme":"moon"},{"name":"Weird","type":"Astronaut-named","moon_name":"Moon","lat":-3.64,"lon":17.46,"description":"Astronaut-named feature, Apollo 14 site.","dimension":"0.1 km","theme":"moon"},{"name":"Weiss","type":"Impact crater","moon_name":"Moon","lat":-31.76,"lon":19.59,"description":"Edmund; German astronomer, mathematician, physicist (1837-1917).","dimension":"66.6 km","theme":"moon"},{"name":"Werner","type":"Impact crater","moon_name":"Moon","lat":-28.03,"lon":356.71,"description":"Johann; German mathematician (1468-1528).","dimension":"70.6 km","theme":"moon"},{"name":"Wessex Cleft","type":"Astronaut-named","moon_name":"Moon","lat":20.34,"lon":329.11,"description":"Astronaut-named feature, Apollo 17 site.","dimension":"3.5 km","theme":"moon"},{"name":"West","type":"Astronaut-named","moon_name":"Moon","lat":0.67,"lon":336.51,"description":"Astronaut-named feature, Apollo 11 site.","dimension":"0.2 km","theme":"moon"},{"name":"Wexler","type":"Impact crater","moon_name":"Moon","lat":-68.88,"lon":269.29,"description":"Harry; American meteorologist (1911-1962).","dimension":"52.4 km","theme":"moon"},{"name":"Weyl","type":"Impact crater","moon_name":"Moon","lat":15.97,"lon":120.53,"description":"Hermann; German-American mathematician (1885-1955).","dimension":"122.8 km","theme":"moon"},{"name":"Whewell","type":"Impact crater","moon_name":"Moon","lat":4.16,"lon":346.27,"description":"William; British philosopher (1794-1866).","dimension":"13.1 km","theme":"moon"},{"name":"Whipple","type":"Impact crater","moon_name":"Moon","lat":89.14,"lon":239.98,"description":"Fred Lawrence; American astronomer (1906-2004).","dimension":"14.5 km","theme":"moon"},{"name":"Whitaker","type":"Impact crater","moon_name":"Moon","lat":-84.67,"lon":359.31,"description":"Ewen; British-American astronomer (1922-2016).","dimension":"20.0 km","theme":"moon"},{"name":"White","type":"Impact crater","moon_name":"Moon","lat":-44.8,"lon":159.04,"description":"Edward Higgins II; American astronaut (1930-1967).","dimension":"42.3 km","theme":"moon"},{"name":"Wichmann","type":"Impact crater","moon_name":"Moon","lat":-7.54,"lon":38.13,"description":"Moritz Ludwig Georg; German astronomer (1821-1859).","dimension":"9.8 km","theme":"moon"},{"name":"Widmannst\u00e4tten","type":"Impact crater","moon_name":"Moon","lat":-6.09,"lon":274.57,"description":"Aloys Joseph Beck Edler von; German physicist (1754-1849). (Spelling changed from Widmanst\u00e4tten.)","dimension":"52.9 km","theme":"moon"},{"name":"Wiechert","type":"Impact crater","moon_name":"Moon","lat":-84.03,"lon":195.3,"description":"Emil Johann; German geophysicist (1861-1928).","dimension":"40.8 km","theme":"moon"},{"name":"Wiener","type":"Impact crater","moon_name":"Moon","lat":40.9,"lon":213.49,"description":"Norbert; American mathematician (1894-1964).","dimension":"113.4 km","theme":"moon"},{"name":"Wildt","type":"Impact crater","moon_name":"Moon","lat":9.02,"lon":284.17,"description":"Rupert; German-American astronomer (1905-1976).","dimension":"12.3 km","theme":"moon"},{"name":"Wilhelm","type":"Impact crater","moon_name":"Moon","lat":-43.21,"lon":20.94,"description":"Wilhelm IV, Landgrave of Hesse; German astronomer (1532-1592).","dimension":"100.8 km","theme":"moon"},{"name":"Wilkins","type":"Impact crater","moon_name":"Moon","lat":-29.58,"lon":340.42,"description":"Hugh Percy; British selenographer (1896-1960).","dimension":"59.4 km","theme":"moon"},{"name":"Williams","type":"Impact crater","moon_name":"Moon","lat":42.02,"lon":322.69,"description":"Arthur Stanley; British astronomer (1861-1938).","dimension":"36.4 km","theme":"moon"},{"name":"Wilsing","type":"Impact crater","moon_name":"Moon","lat":-20.97,"lon":155.05,"description":"Johannes; German astronomer (1856-1943).","dimension":"66.8 km","theme":"moon"},{"name":"Wilson","type":"Impact crater","moon_name":"Moon","lat":-69.33,"lon":42.83,"description":"Alexander; Scottish astronomer (1714-1786); Charles Thomson Rees; Scottish physicist (1869-1959); Ralph Elmer; American astronomer (1886-1960).","dimension":"66.6 km","theme":"moon"},{"name":"Winkler","type":"Impact crater","moon_name":"Moon","lat":42.23,"lon":178.81,"description":"Johannes; German rocketry scientist (1897-1947).","dimension":"22.9 km","theme":"moon"},{"name":"Winlock","type":"Impact crater","moon_name":"Moon","lat":35.4,"lon":105.92,"description":"Joseph; American astronomer (1826-1875).","dimension":"63.9 km","theme":"moon"},{"name":"Winthrop","type":"Impact crater","moon_name":"Moon","lat":-10.76,"lon":44.46,"description":"John; American astronomer (1714-1779).","dimension":"17.2 km","theme":"moon"},{"name":"W\u00f6hler","type":"Impact crater","moon_name":"Moon","lat":-38.25,"lon":328.65,"description":"Friedrich; German chemist (1800-1882).","dimension":"28.1 km","theme":"moon"},{"name":"Wolf","type":"Impact crater","moon_name":"Moon","lat":-22.79,"lon":16.63,"description":"Maxmilian Franz Joseph Cornelius; German astronomer (1863-1932).","dimension":"25.7 km","theme":"moon"},{"name":"Wollaston","type":"Impact crater","moon_name":"Moon","lat":30.6,"lon":46.98,"description":"William Hyde; British chemist, physicist (1766-1828).","dimension":"9.6 km","theme":"moon"},{"name":"Woltjer","type":"Impact crater","moon_name":"Moon","lat":44.87,"lon":159.83,"description":"Jan; Dutch astronomer (1891-1946).","dimension":"44.5 km","theme":"moon"},{"name":"Wood","type":"Impact crater","moon_name":"Moon","lat":43.66,"lon":121.83,"description":"Robert Williams; American physicist (1868-1955).","dimension":"84.2 km","theme":"moon"},{"name":"Wreck","type":"Astronaut-named","moon_name":"Moon","lat":-9.07,"lon":344.54,"description":"Astronaut-named feature, Apollo 16 site.","dimension":"0.9 km","theme":"moon"},{"name":"Wright","type":"Impact crater","moon_name":"Moon","lat":-31.55,"lon":86.74,"description":"Frederick Eugene; American petrologist and astronomer (1877-1953); Thomas; British philosopher (1711-1786); William Hammond; American astronomer (1871-1959).","dimension":"40.2 km","theme":"moon"},{"name":"Wr\u00f3blewski","type":"Impact crater","moon_name":"Moon","lat":-24.0,"lon":207.2,"description":"Sigmund von; Polish physicist (1845-1888).","dimension":"21.8 km","theme":"moon"},{"name":"Wrottesley","type":"Impact crater","moon_name":"Moon","lat":-23.9,"lon":303.38,"description":"John, Baron Wrottesley; British astronomer (1798-1867).","dimension":"58.4 km","theme":"moon"},{"name":"Wurzelbauer","type":"Impact crater","moon_name":"Moon","lat":-34.04,"lon":16.06,"description":"Johann Philipp von; German astronomer (1651-1725).","dimension":"86.8 km","theme":"moon"},{"name":"Wyld","type":"Impact crater","moon_name":"Moon","lat":-1.42,"lon":261.9,"description":"James Hart; American rocketry scientist (1913-1953).","dimension":"103.4 km","theme":"moon"},{"name":"Xenophanes","type":"Impact crater","moon_name":"Moon","lat":57.49,"lon":82.01,"description":"Of Colophon; Greek philosopher (570(?)-478(?) B.C.).","dimension":"117.6 km","theme":"moon"},{"name":"Xenophon","type":"Impact crater","moon_name":"Moon","lat":-22.79,"lon":237.95,"description":"Greek natural philosopher, historian (c. 430-354 B.C.).","dimension":"25.5 km","theme":"moon"},{"name":"Xu Guangqi","type":"Impact crater","moon_name":"Moon","lat":43.06,"lon":51.93,"description":"Chinese agronomist, astronomer, mathematician during the Ming dynasty (1562-1633).","dimension":"0.4 km","theme":"moon"},{"name":"Xu Xiake","type":"Impact crater","moon_name":"Moon","lat":-40.9,"lon":153.76,"description":"Chinese geographer, traveler during the Ming Dynasty (1586-1641).","dimension":"10.0 km","theme":"moon"},{"name":"Yablochkov","type":"Impact crater","moon_name":"Moon","lat":60.78,"lon":232.42,"description":"Pavel Nikoaevich; Russian electrical engineer (1847-1894).","dimension":"101.5 km","theme":"moon"},{"name":"Yakovkin","type":"Impact crater","moon_name":"Moon","lat":-54.42,"lon":78.93,"description":"A. A.; Soviet astronomer (1887-1974).","dimension":"35.9 km","theme":"moon"},{"name":"Yamamoto","type":"Impact crater","moon_name":"Moon","lat":58.16,"lon":198.13,"description":"Issei; Japanese astronomer (1889-1959).","dimension":"77.5 km","theme":"moon"},{"name":"Yangel'","type":"Impact crater","moon_name":"Moon","lat":16.96,"lon":355.31,"description":"Mikhail Kuzmich; Soviet rocketry scientist (1911-1971).","dimension":"7.9 km","theme":"moon"},{"name":"Yerkes","type":"Impact crater","moon_name":"Moon","lat":14.6,"lon":308.3,"description":"Charles Tyson; American benefactor (1837-1905).","dimension":"34.9 km","theme":"moon"},{"name":"Yoshi","type":"Impact crater","moon_name":"Moon","lat":24.56,"lon":349.01,"description":"Japanese male name.","dimension":"0.5 km","theme":"moon"},{"name":"Young","type":"Impact crater","moon_name":"Moon","lat":-41.54,"lon":309.02,"description":"Thomas; British doctor, physicist (1773-1829).","dimension":"71.4 km","theme":"moon"},{"name":"Zach","type":"Impact crater","moon_name":"Moon","lat":-60.92,"lon":354.75,"description":"Franz Xaver, Freiherr von; Hungarian astronomer (1754-1832).","dimension":"68.5 km","theme":"moon"},{"name":"Zagut","type":"Impact crater","moon_name":"Moon","lat":-31.94,"lon":338.11,"description":"Abraham Ben Samuel; Spanish astronomer (c. 1450-c. 1522).","dimension":"78.9 km","theme":"moon"},{"name":"Z\u00e4hringer","type":"Impact crater","moon_name":"Moon","lat":5.51,"lon":319.79,"description":"Josef; German physicist (1929-1970).","dimension":"11.2 km","theme":"moon"},{"name":"Zanstra","type":"Impact crater","moon_name":"Moon","lat":2.93,"lon":235.31,"description":"Herman; Dutch astronomer (1894-1972).","dimension":"39.5 km","theme":"moon"},{"name":"Zasyadko","type":"Impact crater","moon_name":"Moon","lat":3.96,"lon":265.81,"description":"Alexander Dmitrievich; Russian rocketry scientist, inventor (1779-1837).","dimension":"10.3 km","theme":"moon"},{"name":"Zeeman","type":"Impact crater","moon_name":"Moon","lat":-75.07,"lon":135.06,"description":"Pieter; Dutch physicist; Nobel laureate (1865-1943).","dimension":"186.6 km","theme":"moon"},{"name":"Zelinskiy","type":"Impact crater","moon_name":"Moon","lat":-28.74,"lon":193.14,"description":"Nikolay Dimitrievich; Soviet chemist (1860-1953).","dimension":"54.0 km","theme":"moon"},{"name":"Zeno","type":"Impact crater","moon_name":"Moon","lat":45.15,"lon":287.02,"description":"Of Citium; Greek philosopher (c. 335-263 B.C.).","dimension":"66.8 km","theme":"moon"},{"name":"Zernike","type":"Impact crater","moon_name":"Moon","lat":18.34,"lon":191.6,"description":"Frits; Dutch physicist; Nobel laureate (1888-1966).","dimension":"50.7 km","theme":"moon"},{"name":"Zhang Yuzhe","type":"Impact crater","moon_name":"Moon","lat":-69.07,"lon":137.82,"description":"Chinese astronomer (1902-1986).","dimension":"38.0 km","theme":"moon"},{"name":"Zhang Zhongjing","type":"Impact crater","moon_name":"Moon","lat":-41.56,"lon":154.87,"description":"Chinese pharmacologist, physician, inventor during the Eastern Han dynasty (150-219).","dimension":"1.5 km","theme":"moon"},{"name":"Zhinyu","type":"Impact crater","moon_name":"Moon","lat":-45.34,"lon":183.85,"description":"Constellation name in the ancient Chinese star map, and the name of the fairy in the Chinese folk tale \u201cThe Cowherd and the Weaver Girl.\u201d","dimension":"3.8 km","theme":"moon"},{"name":"Zhiritskiy","type":"Impact crater","moon_name":"Moon","lat":-24.84,"lon":239.74,"description":"Georgii Sergeevich; Soviet rocketry scientist (1893-1966).","dimension":"33.4 km","theme":"moon"},{"name":"Zhukovskiy","type":"Impact crater","moon_name":"Moon","lat":7.55,"lon":167.28,"description":"Nikolay Egorovich; Russian physicist (1847-1921).","dimension":"82.1 km","theme":"moon"},{"name":"Zinner","type":"Impact crater","moon_name":"Moon","lat":26.64,"lon":58.86,"description":"Ernst; German astronomer (1886-1970).","dimension":"4.6 km","theme":"moon"},{"name":"Zi Wei","type":"Impact crater","moon_name":"Moon","lat":44.12,"lon":19.52,"description":"One of three enclosures in Chinese ancient star map.","dimension":"0.4 km","theme":"moon"},{"name":"[Zola]","type":"Impact crater","moon_name":"Moon","lat":-10.8,"lon":273.0,"description":"Emile; French writer (1840-1902).","dimension":"","theme":"moon"},{"name":"Z\u00f6llner","type":"Impact crater","moon_name":"Moon","lat":-7.97,"lon":341.1,"description":"Johann Karl Friedrich; German astrophysicist, astronomer (1834-1882).","dimension":"47.7 km","theme":"moon"},{"name":"Zsigmondy","type":"Impact crater","moon_name":"Moon","lat":59.52,"lon":105.3,"description":"Richard Adolf; Austrian chemist; Nobel laureate (1865-1929).","dimension":"66.9 km","theme":"moon"},{"name":"Zucchius","type":"Impact crater","moon_name":"Moon","lat":-61.38,"lon":50.65,"description":"Zucchi, Niccolo; Italian mathematician, astronomer (1586-1670).","dimension":"63.2 km","theme":"moon"},{"name":"Zupus","type":"Impact crater","moon_name":"Moon","lat":-17.18,"lon":52.37,"description":"Zupi, Giovanni Battista; Italian astronomer (c. 1590-1650).","dimension":"35.3 km","theme":"moon"},{"name":"Zwicky","type":"Impact crater","moon_name":"Moon","lat":-16.17,"lon":192.36,"description":"Fritz; Swiss astrophysicist (1898-1974).","dimension":"126.1 km","theme":"moon"}];
+    const moonFeatureData = [{"name":"Tycho","type":"Impact crater","moon_name":"Moon","lat":-43.3,"lon":348.8,"description":"One of the Moon's most prominent young craters, about 85 km across. A bright ray system extending hundreds of kilometres makes it visible to the naked eye. Named after the Danish astronomer Tycho Brahe.","dimension":"~85 km diameter","theme":"moon"},{"name":"Copernicus","type":"Impact crater","moon_name":"Moon","lat":9.7,"lon":339.9,"description":"A large complex crater 93 km across with prominent terraced walls and a central peak cluster. Formed about 800 million years ago; one of the most studied craters on the Moon.","dimension":"~93 km diameter","theme":"moon"},{"name":"Aristarchus","type":"Impact crater","moon_name":"Moon","lat":23.7,"lon":312.5,"description":"The brightest large crater on the Moon and one of the most geologically interesting, sitting on the edge of the Aristarchus Plateau — a volcanic highland of unusual composition.","dimension":"~40 km diameter","theme":"moon"},{"name":"Mare Tranquillitatis","type":"Mare","moon_name":"Moon","lat":8.5,"lon":31.4,"description":"The Sea of Tranquility, site of the Apollo 11 landing on July 20, 1969. A large basaltic plain formed by ancient volcanic flooding of an impact basin.","dimension":"~873 km","theme":"moon"},{"name":"Apollo 11","type":"Landing site","moon_name":"Moon","lat":0.674,"lon":23.473,"description":"First crewed lunar landing, July 20, 1969. Neil Armstrong and Buzz Aldrin spent about 2.5 hours on the surface collecting 21.5 kg of samples.","dimension":"","theme":"moon"},{"name":"Apollo 17","type":"Landing site","moon_name":"Moon","lat":20.19,"lon":30.77,"description":"The final Apollo landing mission, December 1972. Geologist-astronaut Harrison Schmitt made the only lunar EVA by a trained scientist. Collected 110.5 kg of samples.","dimension":"","theme":"moon"}];
     const allFeatureData = [...labelData, ...ringLabelData, ...moonData, ...moonFeatureData];
     const TOUR_MODE_FACETS = [
       {
-        id: "craters",
-        label: "Craters and basins",
-        description: "Impact craters, basins, and related impact landforms.",
-        matches: (item) => /crater|basin/i.test(String(item.type || "")),
-      },
-      {
-        id: "missions",
-        label: "Mission locations",
-        description: "Historic Earth landers and rover landing sites.",
-        matches: (item) => item.theme === "landing" || /landing site|rover/i.test(String(item.type || "")),
+        id: "highlights",
+        label: "Highlights",
+        description: "A curated tour of Earth's most iconic geographic features, from the highest peaks and deepest trenches to major ocean basins and ice sheets.",
+        matches: (item) => [
+          "Mount Everest",
+          "Mariana Trench",
+          "Pacific Ocean",
+          "Himalaya",
+          "Andes",
+          "Mid-Atlantic Ridge",
+          "Great Rift Valley",
+          "Antarctic Ice Sheet",
+          "Amazon Basin",
+          "Sahara",
+          "Greenland Ice Sheet",
+        ].includes(item.name),
       },
       {
         id: "volcanoes",
-        label: "Volcanoes and volcanic provinces",
-        description: "Shield volcanoes, paterae, calderas, and volcanic plains.",
+        label: "Volcanic features",
+        description: "Active and dormant volcanoes, hotspot chains, and volcanic rift systems.",
         matches: (item) => item.theme === "volcanic",
+      },
+      {
+        id: "missions",
+        label: "Launch and mission sites",
+        description: "Active spaceports and launch facilities around the world.",
+        matches: (item) => item.theme === "landing",
+      },
+      {
+        id: "surface",
+        label: "Terrain and regions",
+        description: "Major geographic regions, mountain ranges, deserts, and ocean basins.",
+        matches: (item) => item.theme === "surface" || item.theme === "standard",
       },
       {
         id: "polar",
         label: "Polar regions",
-        description: "Polar caps, troughs, and high-latitude ice-rich terrain.",
+        description: "Arctic and Antarctic regions including ice sheets and polar seas.",
         matches: (item) => {
           const lat = Number(item.lat);
           return Number.isFinite(lat) && Math.abs(lat) >= 65;
         },
-      },
-      {
-        id: "habitats",
-        label: "Future habitat candidates",
-        description: "Candidate future settlement and ice-access sites.",
-        matches: (item) => item.theme === "habitation" || /habitat candidate/i.test(String(item.type || "")),
       },
     ];
     const BASE_BUILDER_CATALOG = [
@@ -283,7 +304,7 @@ import * as THREE from "./vendor/three.module.js";
     const legendPanel = document.getElementById("legend-panel");
 
     if (brandLogo) {
-      brandLogo.src = "../../../assets/earth_icon.png?v=20260329d";
+      brandLogo.src = "../../../assets/earth_icon.png";
     }
     const legendSummaryCopy = document.getElementById("legend-summary-copy");
     const scenePopup = document.getElementById("scene-popup");
@@ -434,14 +455,16 @@ import * as THREE from "./vendor/three.module.js";
     const mosaicFocusConnector = document.getElementById("mosaic-focus-connector");
     const mosaicFocusLabel = document.getElementById("mosaic-focus-label");
 
+
+
     function estimateEarthTemperature(latDeg, elevMeters) {
       const latRad = latDeg * Math.PI / 180;
-      const baseTempC = -20 - 80 * Math.sin(latRad) ** 2;
-      return Math.round(baseTempC - 2.5 * (elevMeters / 1000));
+      const baseTempC = 20 - 35 * Math.sin(latRad) ** 2;
+      return Math.round(baseTempC - 6.5 * (elevMeters / 1000));
     }
 
     function estimateEarthPressure(elevMeters) {
-      return Math.round(636 * Math.exp(-elevMeters / 11100));
+      return Math.round(101325 * Math.exp(-elevMeters / 8500));
     }
 
     const locatorCtx = hemisphereLocatorCanvas?.getContext("2d") ?? null;
@@ -597,18 +620,18 @@ import * as THREE from "./vendor/three.module.js";
       }
     }
 
-    // ── Earth interior model (depth-based) ────────────────────────────────────
-    // Layer boundaries as fraction of planetary radius
+    // ── Mars interior model (depth-based) ────────────────────────────────────
+    // Layer boundaries as fraction of planetary radius (from InSight + geophysical models)
     // rFrac = 0 → centre, rFrac = 1 → surface
     const EARTH_INTERIOR_LAYERS = [
-      { name: "Inner Core",   rMin: 0.000, rMax: 0.192 },
-      { name: "Outer Core",   rMin: 0.192, rMax: 0.547 },
-      { name: "Mantle",       rMin: 0.547, rMax: 0.995 },
-      { name: "Crust",        rMin: 0.995, rMax: 1.000 }
+      { name: "Inner Core",        rMin: 0.000, rMax: 0.190 },
+      { name: "Liquid Outer Core", rMin: 0.190, rMax: 0.450 },
+      { name: "Mantle",            rMin: 0.450, rMax: 0.985 },
+      { name: "Crust",             rMin: 0.985, rMax: 1.000 },
     ];
     // Piecewise-linear T (°C) and P (GPa) profiles keyed on rFrac (sorted low→high)
-    const EARTH_INTERIOR_T_PTS = [[0.0, 5000], [0.192, 5000], [0.547, 3700], [0.995, 400], [1.0, 15]];
-    const EARTH_INTERIOR_P_PTS = [[0.0, 360.0], [0.192, 330.0], [0.547, 135.0], [0.995, 0.4], [1.0, 0.0]];
+    const EARTH_INTERIOR_T_PTS = [[0.000, 5700], [0.190, 5000], [0.450, 3500], [0.985, 1000], [1.000, 15]];
+    const EARTH_INTERIOR_P_PTS = [[0.000, 364.0], [0.190, 330.0], [0.450, 135.0], [0.985, 3.5], [1.000, 0.0001]];
 
     function _interiorInterp(pts, rFrac) {
       const r = Math.max(0, Math.min(1, rFrac));
@@ -638,10 +661,10 @@ import * as THREE from "./vendor/three.module.js";
     }
 
     const EARTH_INTERIOR_LAYER_COLORS = {
-      "Crust": "#d8704b",
-      "Mantle": "#b55d34",
-      "Outer Core": "#f0a060",
-      "Inner Core": "#f0d59e"
+      "Crust":             "#d4b896",
+      "Mantle":            "#c07848",
+      "Liquid Outer Core": "#ff6633",
+      "Inner Core":        "#f5e0a8",
     };
 
     function earthInteriorLayerColor(layerName) {
@@ -650,7 +673,7 @@ import * as THREE from "./vendor/three.module.js";
 
     function earthInteriorTempColor(tempC) {
       // Interpolate blue → cyan → yellow → red across -50°C to 2100°C
-      const t = Math.max(0, Math.min(1, (tempC + 50) / 2150));
+      const t = Math.max(0, Math.min(1, (tempC + 0) / 5700));
       let r, g, b;
       if (t < 0.33) {
         const f = t / 0.33;
@@ -667,7 +690,7 @@ import * as THREE from "./vendor/three.module.js";
 
     function earthInteriorPressureColor(gpa) {
       // Interpolate green → yellow → red across 0–40 GPa
-      const t = Math.max(0, Math.min(1, gpa / 40));
+      const t = Math.max(0, Math.min(1, gpa / 364));
       const r = Math.round(t < 0.5 ? t * 2 * 220 : 220);
       const g = Math.round(t < 0.5 ? 200 : (1 - (t - 0.5) * 2) * 200);
       return `rgb(${r},${g},60)`;
@@ -680,18 +703,18 @@ import * as THREE from "./vendor/three.module.js";
       return Math.round((3 + jetStream + elevBoost) * 10) / 10;
     }
 
-    function estimateEarthIrradiance(latDeg, elevMeters) {
+    function estimateMarsIrradiance(latDeg, elevMeters) {
       const latRad = latDeg * Math.PI / 180;
       const latFactor = Math.max(0, Math.cos(latRad));
       const elevFactor = 1 + Math.max(0, elevMeters) / 300000;
       return Math.round(590 * latFactor * elevFactor);
     }
 
-    function estimateEarthRadiation(elevMeters) {
+    function estimateMarsRadiation(elevMeters) {
       return Math.round((0.5 * Math.exp(elevMeters / 14000) + 0.2) * 100) / 100;
     }
 
-    function estimateEarthDiurnalRange(latDeg, elevMeters) {
+    function estimateMarsDiurnalRange(latDeg, elevMeters) {
       const latRad = latDeg * Math.PI / 180;
       const base = 80 * Math.cos(latRad) ** 2 + 20;
       return Math.round(base + elevMeters / 3000);
@@ -714,10 +737,10 @@ import * as THREE from "./vendor/three.module.js";
       return null; // displayed as special string
     }
 
-    function estimateSpaceTemperature(cameraDistanceFromEarth) {
-      // Near Earth: ~−63 °C effective equilibrium. Far from Earth: bias to deep space ~−247 °C.
+    function estimateSpaceTemperature(cameraDistanceFromMars) {
+      // Near Mars: ~−63 °C effective equilibrium. Far from Mars: bias to deep space ~−247 °C.
       // Interpolate across camera distance to avoid sudden jumps.
-      const t = Math.max(0, Math.min(1, (cameraDistanceFromEarth - 3.5) / 30));
+      const t = Math.max(0, Math.min(1, (cameraDistanceFromMars - 3.5) / 30));
       return Math.round(-63 - 184 * t);
     }
 
@@ -746,21 +769,21 @@ import * as THREE from "./vendor/three.module.js";
       irradiance: {
         label: "Solar Irradiance", unit: "W/m²", min: 0, max: 590,
         stops: [[5,5,30],[30,10,100],[100,30,180],[220,120,30],[255,200,50],[255,250,200]],
-        compute: (lat, elev) => estimateEarthIrradiance(lat, elev),
+        compute: (lat, elev) => estimateMarsIrradiance(lat, elev),
         legendA: "#05051e", legendB: "#fffac8",
         description: "Mean annual solar irradiance at the surface. Peaks near the equator (~590 W/m²), minimal at poles.",
       },
       radiation: {
         label: "Surface Radiation Dose", unit: "mSv/day", min: 0.5, max: 2.0,
         stops: [[20,180,80],[120,210,40],[240,200,20],[240,100,20],[200,20,20]],
-        compute: (_lat, elev) => estimateEarthRadiation(elev),
+        compute: (_lat, elev) => estimateMarsRadiation(elev),
         legendA: "#14b450", legendB: "#c81414",
         description: "Estimated daily cosmic radiation dose. Increases with altitude as atmospheric shielding thins.",
       },
       diurnal: {
         label: "Diurnal Temp Range", unit: "°C", min: 20, max: 100,
         stops: [[40,80,200],[20,180,200],[40,200,80],[220,200,30],[240,100,20],[200,20,20]],
-        compute: (lat, elev) => estimateEarthDiurnalRange(lat, elev),
+        compute: (lat, elev) => estimateMarsDiurnalRange(lat, elev),
         legendA: "#2850c8", legendB: "#c81414",
         description: "Estimated daily temperature swing between surface day and night. Largest near the equator and at high elevation.",
       },
@@ -920,7 +943,7 @@ import * as THREE from "./vendor/three.module.js";
     const geoPopupDetail = document.getElementById("geo-popup-detail");
     const geoPopupAnchor = document.getElementById("geo-popup-anchor");
     let activeGeoPopupFeature = null;
-    let activeGeoPopupLocalPos = null;   // THREE.Vector3 in Earth body-local space (unspun)
+    let activeGeoPopupLocalPos = null;   // THREE.Vector3 in Mars body-local space (unspun)
     let selectedGeologyBoundaryGroup = null;
     let lastTimestamp = 0;
     let activeSearchResults = [];
@@ -931,11 +954,59 @@ import * as THREE from "./vendor/three.module.js";
     let activeMoonViewerFeature = null;
     let moonFeatureTypeFilter = "all";
     let activeMoonFeatureTour = null;
+    let activeMoonFeatureSearchResults = [];
+    let activeMoonFeatureSearchIndex = -1;
     let earthSceneGroup = null;
     let earthGlobeRef = null;   // set by init(); bridged so module-level openGeoPopup can access globe rotation
     let moonLayer = null;
+
+    function getMoonOccluders() {
+      if (!earthSceneGroup || !Array.isArray(moonData) || moonData.length === 0) return [];
+      const scale = earthSceneGroup.scale;
+      const radiusScale = Math.max(Math.abs(scale.x || 1), Math.abs(scale.y || 1), Math.abs(scale.z || 1));
+      const OCCLUDER_BUFFER = 1.55;
+      if (moonLayer && Array.isArray(moonLayer.entries) && moonLayer.entries.length > 0) {
+        return moonLayer.entries.map((entry) => {
+          const center = new THREE.Vector3();
+          entry.moonMesh.getWorldPosition(center);
+          return { name: entry.item.name, center, radius: entry.moonRadius * radiusScale * OCCLUDER_BUFFER };
+        });
+      }
+      return moonData.filter((item) => Array.isArray(item.moon_anchor)).map((item) => ({
+        name: item.name,
+        center: earthSceneGroup.localToWorld(new THREE.Vector3(item.moon_anchor[0], item.moon_anchor[1], item.moon_anchor[2])),
+        radius: Number(item.moon_radius || 0.1) * radiusScale * OCCLUDER_BUFFER,
+      }));
+    }
+
+    function _isPointOccludedByMoonOccluder(pointWorld, camera, occluder) {
+      const segment = pointWorld.clone().sub(camera.position);
+      const segmentLength = segment.length();
+      if (segmentLength <= 1e-5) return false;
+      const direction = segment.clone().divideScalar(segmentLength);
+      const offset = camera.position.clone().sub(occluder.center);
+      const b = 2 * offset.dot(direction);
+      const c = offset.lengthSq() - (occluder.radius * occluder.radius);
+      const discriminant = (b * b) - (4 * c);
+      if (discriminant <= 0) return false;
+      const root = Math.sqrt(discriminant);
+      const near = (-b - root) * 0.5;
+      const far = (-b + root) * 0.5;
+      const epsilon = 1e-4;
+      return (near > epsilon && near < segmentLength - epsilon)
+        || (far > epsilon && far < segmentLength - epsilon);
+    }
+
+    function isPointOccludedByAnyMoon(pointWorld, camera, ignoredMoonName = null) {
+      for (const occluder of getMoonOccluders()) {
+        if (ignoredMoonName && occluder.name === ignoredMoonName) continue;
+        if (_isPointOccludedByMoonOccluder(pointWorld, camera, occluder)) return true;
+      }
+      return false;
+    }
+
     let gisBases = [];
-    const saturnViewModeSelect = null; // Earth has no tilted/untilted toggle
+    const saturnViewModeSelect = null; // Mars has no tilted/untilted toggle
     let spinPaused = false;
     let spinPauseStart = 0;
     let spinOffset = 0;
@@ -966,20 +1037,12 @@ import * as THREE from "./vendor/three.module.js";
       const spinLocked = baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color";
       spinToggleBtn.classList.toggle("is-locked", spinLocked);
       if (spinPaused) {
-        if (spinToggleGlyph) {
-          spinToggleGlyph.textContent = "▶";
-        } else {
-          spinToggleBtn.textContent = "▶";
-        }
         spinToggleBtn.title = "Resume rotation";
+        spinToggleBtn.setAttribute("aria-label", "Resume rotation");
         spinToggleBtn.classList.add("is-paused");
       } else {
-        if (spinToggleGlyph) {
-          spinToggleGlyph.textContent = "⏸";
-        } else {
-          spinToggleBtn.textContent = "⏸";
-        }
         spinToggleBtn.title = "Pause rotation";
+        spinToggleBtn.setAttribute("aria-label", "Pause rotation");
         spinToggleBtn.classList.remove("is-paused");
       }
     }
@@ -1096,12 +1159,12 @@ import * as THREE from "./vendor/three.module.js";
         id: "inner-core",
         name: "Inner Core",
         type: "Deep interior (uncertain)",
-        description: "Whether Earth has a solid inner core is unconfirmed. InSight seismic data is ambiguous; low seismic activity limits deep-interior resolution.",
+        description: "Whether Mars has a solid inner core is unconfirmed. InSight seismic data is ambiguous; low seismic activity limits deep-interior resolution.",
         depth: "0 – ~300 km from centre (estimated)",
         composition: "Possibly denser iron-nickel alloy, or fully molten. State and exact composition remain unknown.",
         temperature: "~2,000 – 2,400°C (estimated)",
-        labelX: -0.8, labelY: 0.45,
-        anchorY: 0.45,
+        labelX: -1.0, labelY: 0,
+        anchorY: 0,
       },
     ];
 
@@ -1166,11 +1229,11 @@ import * as THREE from "./vendor/three.module.js";
     const CTX_SERVICE_CANDIDATES = [
       {
         name: "CTX",
-        serviceUrl: "https://astro.arcgis.com/arcgis/rest/services/OnEarth/CTX/MapServer",
+        serviceUrl: "https://astro.arcgis.com/arcgis/rest/services/OnMars/CTX/MapServer",
       },
       {
         name: "CTX1",
-        serviceUrl: "https://astro.arcgis.com/arcgis/rest/services/OnEarth/CTX1/MapServer",
+        serviceUrl: "https://astro.arcgis.com/arcgis/rest/services/OnMars/CTX1/MapServer",
       },
     ];
 
@@ -1240,7 +1303,7 @@ import * as THREE from "./vendor/three.module.js";
       let highestWorkingLevel = Math.max(0, Math.min(12, advertisedMaxLevel));
       for (let level = Math.max(13, highestWorkingLevel + 1); level <= advertisedMaxLevel; level += 1) {
         const probe = await probeCtxTileStatus(tileBase, level, 0, 0);
-        if ((probe.upstreamStatus || probe.httpStatus) >= 400) {
+        if ((probe.upstreamStatus || probe.httpStatus) >= 400 || (!probe.ok && probe.httpStatus === 0)) {
           break;
         }
         if (probe.ok) {
@@ -1301,7 +1364,11 @@ import * as THREE from "./vendor/three.module.js";
               continue;
             }
           }
-          const discoveredMaxLevel = await discoverCtxWorkingMaxLevel(candidate.tileBase, maxAvailableLevel);
+          // Only probe tile levels for proxy candidates — direct ArcGIS URLs are
+          // CORS-blocked for tiles on most origins and would just generate console errors.
+          const discoveredMaxLevel = candidate.viaProxy
+            ? await discoverCtxWorkingMaxLevel(candidate.tileBase, maxAvailableLevel)
+            : maxAvailableLevel;
           const workingMaxLevel = Math.max(minAvailableLevel, Math.min(maxAvailableLevel, discoveredMaxLevel));
           const preferredMinLevel = Math.max(minAvailableLevel, Math.min(3, maxAvailableLevel));
           window.__ctxDebug = {
@@ -1730,25 +1797,35 @@ import * as THREE from "./vendor/three.module.js";
     }
 
     function normalizeSeaLevelMeters(levelMeters) {
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -10930);
       const reliefMeters = Math.max(Number(manifest.elevation?.relief_m ?? 1), 1);
       return clamp((levelMeters - minMeters) / reliefMeters, 0, 1);
     }
 
-    function createSeaOverlayTextureState(elevationTexture) {
-      if (!elevationTexture || !elevationTexture.image) {
-        return null;
+    function createSeaOverlayTextureState(elevationTexture, samplerState = null) {
+      let sourcePixels, overlayW, overlayH;
+      if (samplerState) {
+        sourcePixels = samplerState.pixels;
+        overlayW = samplerState.width;
+        overlayH = samplerState.height;
+      } else {
+        if (!elevationTexture || !elevationTexture.image) return null;
+        const sourceCanvas = document.createElement("canvas");
+        sourceCanvas.width = elevationTexture.image.width;
+        sourceCanvas.height = elevationTexture.image.height;
+        const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
+        sourceContext.drawImage(elevationTexture.image, 0, 0);
+        sourcePixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
+        overlayW = sourceCanvas.width;
+        overlayH = sourceCanvas.height;
       }
-      const sourceCanvas = document.createElement("canvas");
-      sourceCanvas.width = elevationTexture.image.width;
-      sourceCanvas.height = elevationTexture.image.height;
-      const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
-      sourceContext.drawImage(elevationTexture.image, 0, 0);
-      const sourcePixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height).data;
+      if (!sourcePixels) return null;
 
+      // Overlay rendered at 1/4 source resolution — visually identical at globe scale,
+      // saves ~62 MB vs full-res (overlayCanvas + overlayImage each ~2 MB instead of ~33 MB).
       const overlayCanvas = document.createElement("canvas");
-      overlayCanvas.width = sourceCanvas.width;
-      overlayCanvas.height = sourceCanvas.height;
+      overlayCanvas.width = Math.max(1, overlayW >> 2);
+      overlayCanvas.height = Math.max(1, overlayH >> 2);
       const overlayContext = overlayCanvas.getContext("2d");
       const overlayImage = overlayContext.createImageData(overlayCanvas.width, overlayCanvas.height);
       const texture = new THREE.CanvasTexture(overlayCanvas);
@@ -1762,11 +1839,13 @@ import * as THREE from "./vendor/three.module.js";
 
       return {
         sourcePixels,
+        sourceWidth: overlayW,
+        sourceHeight: overlayH,
         overlayCanvas,
         overlayContext,
         overlayImage,
         texture,
-        minMeters: Number(manifest.elevation?.min_m ?? -8200),
+        minMeters: Number(manifest.elevation?.min_m ?? -10930),
         reliefMeters: Math.max(Number(manifest.elevation?.relief_m ?? 1), 1),
       };
     }
@@ -1778,51 +1857,60 @@ import * as THREE from "./vendor/three.module.js";
       const threshold = normalizeSeaLevelMeters(seaLevelMeters);
       const output = state.overlayImage.data;
       const source = state.sourcePixels;
+      const srcW = state.sourceWidth;
+      const outW = state.overlayCanvas.width;
+      const outH = state.overlayCanvas.height;
+      const scaleX = srcW / outW;
+      const scaleY = state.sourceHeight / outH;
       const coastalBand = 0.012;
       const shallowBandMeters = 400;
       const deepBandMeters = 3200;
-      for (let index = 0; index < source.length; index += 4) {
-        const elevationNorm = source[index] / 255;
-        if (elevationNorm > threshold) {
-          output[index] = 0;
-          output[index + 1] = 0;
-          output[index + 2] = 0;
-          output[index + 3] = 0;
-          continue;
+      for (let oy = 0; oy < outH; oy++) {
+        const sy = Math.floor(oy * scaleY);
+        for (let ox = 0; ox < outW; ox++) {
+          const index = (oy * outW + ox) * 4;
+          const elevationNorm = source[((sy * srcW) + Math.floor(ox * scaleX)) * 4] / 255;
+          if (elevationNorm > threshold) {
+            output[index] = 0;
+            output[index + 1] = 0;
+            output[index + 2] = 0;
+            output[index + 3] = 0;
+            continue;
+          }
+          const elevationMeters = state.minMeters + (elevationNorm * state.reliefMeters);
+          const depthMeters = Math.max(0, seaLevelMeters - elevationMeters);
+          const depthRatio = clamp(depthMeters / deepBandMeters, 0, 1);
+          const shallowRatio = clamp(depthMeters / shallowBandMeters, 0, 1);
+          const shorelineMix = clamp((coastalBand - (threshold - elevationNorm)) / coastalBand, 0, 1);
+          const shelfMix = 1 - shallowRatio;
+          const red = Math.round(
+            (18 * depthRatio) +
+            (42 * shelfMix) +
+            (86 * shorelineMix)
+          );
+          const green = Math.round(
+            62 +
+            (72 * shelfMix) +
+            (54 * shorelineMix) -
+            (28 * depthRatio)
+          );
+          const blue = Math.round(
+            128 +
+            (80 * shelfMix) +
+            (82 * depthRatio) +
+            (36 * shorelineMix)
+          );
+          const alpha = Math.round(
+            82 +
+            (62 * depthRatio) +
+            (36 * shallowRatio) +
+            (48 * shorelineMix)
+          );
+          output[index] = red;
+          output[index + 1] = green;
+          output[index + 2] = blue;
+          output[index + 3] = alpha;
         }
-        const elevationMeters = state.minMeters + (elevationNorm * state.reliefMeters);
-        const depthMeters = Math.max(0, seaLevelMeters - elevationMeters);
-        const depthRatio = clamp(depthMeters / deepBandMeters, 0, 1);
-        const shallowRatio = clamp(depthMeters / shallowBandMeters, 0, 1);
-        const shorelineMix = clamp((coastalBand - (threshold - elevationNorm)) / coastalBand, 0, 1);
-        const shelfMix = 1 - shallowRatio;
-        const red = Math.round(
-          (18 * depthRatio) +
-          (42 * shelfMix) +
-          (86 * shorelineMix)
-        );
-        const green = Math.round(
-          62 +
-          (72 * shelfMix) +
-          (54 * shorelineMix) -
-          (28 * depthRatio)
-        );
-        const blue = Math.round(
-          128 +
-          (80 * shelfMix) +
-          (82 * depthRatio) +
-          (36 * shorelineMix)
-        );
-        const alpha = Math.round(
-          82 +
-          (62 * depthRatio) +
-          (36 * shallowRatio) +
-          (48 * shorelineMix)
-        );
-        output[index] = red;
-        output[index + 1] = green;
-        output[index + 2] = blue;
-        output[index + 3] = alpha;
       }
       state.overlayContext.putImageData(state.overlayImage, 0, 0);
       state.texture.needsUpdate = true;
@@ -1832,13 +1920,21 @@ import * as THREE from "./vendor/three.module.js";
       if (!elevationTexture || !elevationTexture.image) {
         return null;
       }
+      // Downsample to ½ linear resolution (¼ total pixels) — saves ~25 MB vs full-res.
+      // Bilinear interpolation in sampleElevationNormalized keeps accuracy acceptable
+      // for label positioning and terrain relief at globe scale.
+      const srcW = elevationTexture.image.width;
+      const srcH = elevationTexture.image.height;
+      const width = Math.max(1, srcW >> 1);
+      const height = Math.max(1, srcH >> 1);
       const canvas = document.createElement("canvas");
-      canvas.width = elevationTexture.image.width;
-      canvas.height = elevationTexture.image.height;
+      canvas.width = width;
+      canvas.height = height;
       const context = canvas.getContext("2d", { willReadFrequently: true });
-      context.drawImage(elevationTexture.image, 0, 0);
-      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-      return { canvas, context, pixels, width: canvas.width, height: canvas.height };
+      context.drawImage(elevationTexture.image, 0, 0, width, height);
+      const pixels = context.getImageData(0, 0, width, height).data;
+      // canvas not returned — allows the backing store to be garbage collected.
+      return { pixels, width, height };
     }
 
     function lonToTextureU(lonDegrees) {
@@ -1881,7 +1977,7 @@ import * as THREE from "./vendor/three.module.js";
         return null;
       }
       const normalized = sampleElevationNormalized(state, latDegrees, lonDegrees);
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -10930);
       const reliefMeters = Number(manifest.elevation?.relief_m ?? 0);
       return minMeters + (normalized * reliefMeters);
     }
@@ -1890,7 +1986,7 @@ import * as THREE from "./vendor/three.module.js";
       if (elevationMeters === null || !Number.isFinite(elevationMeters)) {
         return `<span style="color:${textColor}">n/a</span>`;
       }
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -10930);
       const maxMeters = Number(manifest.elevation?.max_m ?? 21000);
       const t = clamp((elevationMeters - minMeters) / Math.max(1, maxMeters - minMeters), 0, 1);
       const stops = [
@@ -2006,7 +2102,7 @@ import * as THREE from "./vendor/three.module.js";
       const context = canvas.getContext("2d");
       const imageData = context.createImageData(width, height);
       const out = imageData.data;
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -10930);
       const reliefMeters = Number(manifest.elevation?.relief_m ?? 0);
       const zFactor = reliefMeters / 255;
       const zenith = THREE.MathUtils.degToRad(90 - altitudeDegrees);
@@ -2064,7 +2160,7 @@ import * as THREE from "./vendor/three.module.js";
       const context = canvas.getContext("2d");
       const imageData = context.createImageData(width, height);
       const out = imageData.data;
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -10930);
       const reliefMeters = Number(manifest.elevation?.relief_m ?? 0);
       const levels = new Float32Array(width * height);
       for (let y = 0; y < height; y += 1) {
@@ -2133,7 +2229,7 @@ import * as THREE from "./vendor/three.module.js";
       }
       const width = elevationSampler.width;
       const height = elevationSampler.height;
-      const minMeters = Number(manifest.elevation?.min_m ?? -8200);
+      const minMeters = Number(manifest.elevation?.min_m ?? -10930);
       const reliefMeters = Math.max(Number(manifest.elevation?.relief_m ?? 1), 1);
       const sampleStep = intervalMeters <= 500 ? 2 : intervalMeters <= 1000 ? 3 : 4;
       const nodes = new Map();
@@ -2444,7 +2540,7 @@ import * as THREE from "./vendor/three.module.js";
           for (let x = 0; x < width; x += 1) {
             const index = ((y * width) + x) * 4;
             const normalized = source ? source[index] / 255 : 0;
-            const elevationMeters = Number(manifest.elevation?.min_m ?? -8200) + normalized * Number(manifest.elevation?.relief_m ?? 0);
+            const elevationMeters = Number(manifest.elevation?.min_m ?? -10930) + normalized * Number(manifest.elevation?.relief_m ?? 0);
             const matches = maskId === "lowlands" ? elevationMeters <= thresholdMeters : elevationMeters > thresholdMeters;
             if (!matches) {
               continue;
@@ -2690,7 +2786,7 @@ import * as THREE from "./vendor/three.module.js";
       return vectorToLatLon(normal.normalize());
     }
 
-    const EARTH_RADIUS_METERS = 6371000;
+    const EARTH_RADIUS_METERS = 3396190;
     const HUD_BBOX_RAYCASTER = new THREE.Raycaster();
     const HUD_BBOX_SPHERE = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 3.2);
     const HUD_BBOX_HIT = new THREE.Vector3();
@@ -3259,7 +3355,7 @@ import * as THREE from "./vendor/three.module.js";
       return vertices;
     }
 
-    function buildEarthSurfacePolyline(vertices, closed = false, lift = 0.014) {
+    function buildMarsSurfacePolyline(vertices, closed = false, lift = 0.014) {
       if (!Array.isArray(vertices) || vertices.length < 2) {
         return [];
       }
@@ -3283,11 +3379,11 @@ import * as THREE from "./vendor/three.module.js";
       return points;
     }
 
-    function buildEarthPolygonFillMesh(vertices) {
+    function buildMarsPolygonFillMesh(vertices) {
       if (!Array.isArray(vertices) || vertices.length < 3) {
         return null;
       }
-      const boundary = buildEarthSurfacePolyline(vertices, true, 0.012);
+      const boundary = buildMarsSurfacePolyline(vertices, true, 0.012);
       if (boundary.length < 3) {
         return null;
       }
@@ -3553,10 +3649,10 @@ import * as THREE from "./vendor/three.module.js";
       if (!profileModalCanvas || !currentProfilePlotState?.samples?.length) {
         return;
       }
-      const baseName = String(currentProfilePlotState.title || "earth_elevation_profile")
+      const baseName = String(currentProfilePlotState.title || "mars_elevation_profile")
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "") || "earth_elevation_profile";
+        .replace(/^_+|_+$/g, "") || "mars_elevation_profile";
       const link = document.createElement("a");
       link.href = profileModalCanvas.toDataURL("image/png");
       link.download = `${baseName}.png`;
@@ -4032,7 +4128,7 @@ import * as THREE from "./vendor/three.module.js";
 
       if (seaActive) {
         const seaLevelMeters = Number(seaLevelSlider?.value ?? 0);
-        const seaMinMeters = Number(seaLevelSlider?.min ?? -8200);
+        const seaMinMeters = Number(seaLevelSlider?.min ?? -10930);
         const seaColorCapMeters = 3200;
         const seaShallowBandMeters = 400;
         const maxDepthMeters = Math.max(0, seaLevelMeters - seaMinMeters);
@@ -4143,6 +4239,40 @@ import * as THREE from "./vendor/three.module.js";
         }
       }
 
+      if (coreToggle.checked) {
+        entries.push({
+          title: "",
+          copy: "",
+          tags: [],
+          symbols: [
+            {
+              type: "swatch",
+              label: "Crust",
+              detail: "Thin basaltic outer shell, thinnest under the great volcanic plains and thickest under the ancient southern highlands.",
+              color: EARTH_INTERIOR_LAYER_COLORS["Crust"],
+            },
+            {
+              type: "swatch",
+              label: "Mantle",
+              detail: "A thick shell of iron-rich silicate rock. Heat escapes slowly through an immobile lithosphere — Earth lacks active plate tectonics.",
+              color: EARTH_INTERIOR_LAYER_COLORS["Mantle"],
+            },
+            {
+              type: "swatch",
+              label: "Liquid Outer Core",
+              detail: "InSight seismic data confirmed a single large liquid iron core of ~1,830 km radius, kept liquid by its high sulfur content.",
+              color: EARTH_INTERIOR_LAYER_COLORS["Liquid Outer Core"],
+            },
+            {
+              type: "swatch",
+              label: "Inner Core",
+              detail: "Whether Mars has a solid inner core is unconfirmed — InSight seismic data is ambiguous and deep-interior resolution remains limited.",
+              color: EARTH_INTERIOR_LAYER_COLORS["Inner Core"],
+            },
+          ],
+        });
+      }
+
       return entries;
     }
 
@@ -4211,7 +4341,7 @@ import * as THREE from "./vendor/three.module.js";
           "Interior cutaway",
           "core",
           selectedBaseLayer,
-          "Interior layers are a schematic Earth model inferred from InSight seismic data, gravity measurements, and geochemical analysis.",
+          "Interior layers are a schematic Mars model inferred from InSight seismic data, gravity measurements, and geochemical analysis.",
         );
       }
 
@@ -4274,11 +4404,6 @@ import * as THREE from "./vendor/three.module.js";
         title: "Moon nomenclature",
         copy: "Phobos and Deimos feature names, locations, and classifications are derived from the IAU Working Group for Planetary System Nomenclature gazetteer, as maintained by the USGS Astrogeology Science Center.",
         links: [makeMetadataLink("USGS Planetary Nomenclature", "https://planetarynames.wr.usgs.gov/")],
-      });
-      sourceEntries.push({
-        title: "Earth ambient sound",
-        copy: "NASA InSight recording of ambient sound on the Martian surface.",
-        links: [makeMetadataLink("NASA InSight sounds", "https://earth.nasa.gov/news/8564/nasa-insight-lander-captures-stunning-sounds-of-earth/")],
       });
       sourceEntries.push({
         title: "Background music",
@@ -4442,10 +4567,12 @@ import * as THREE from "./vendor/three.module.js";
       for (const entry of entries) {
         const card = document.createElement("section");
         card.className = "legend-entry";
-        const title = document.createElement("p");
-        title.className = "layer-type-badge";
-        title.textContent = entry.title;
-        card.appendChild(title);
+        if (entry.title) {
+          const title = document.createElement("p");
+          title.className = "layer-type-badge";
+          title.textContent = entry.title;
+          card.appendChild(title);
+        }
         if (entry.copy) {
           const copy = document.createElement("p");
           copy.className = "metadata-section-copy";
@@ -4777,6 +4904,68 @@ import * as THREE from "./vendor/three.module.js";
       focusMoonFeatureTour(next);
     }
 
+    function renderMoonFeatureSearchResults(results, preserveIndex = false) {
+      activeMoonFeatureSearchResults = results;
+      if (!results.length) {
+        activeMoonFeatureSearchIndex = -1;
+      } else if (!preserveIndex || activeMoonFeatureSearchIndex < 0) {
+        activeMoonFeatureSearchIndex = 0;
+      } else {
+        activeMoonFeatureSearchIndex = Math.min(activeMoonFeatureSearchIndex, results.length - 1);
+      }
+      if (!moonFeatureSearchResults) return;
+      moonFeatureSearchResults.innerHTML = "";
+      if (!results.length) {
+        moonFeatureSearchResults.hidden = true;
+        return;
+      }
+      for (const [index, item] of results.entries()) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "search-suggestion" + (index === activeMoonFeatureSearchIndex ? " is-active" : "");
+        button.textContent = item.name;
+        const meta = document.createElement("span");
+        meta.className = "search-suggestion-meta";
+        meta.textContent = item.type || "Feature";
+        button.appendChild(meta);
+        button.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          moveCameraToFeature(item, viewerCamera, viewerControls, { animate: true });
+          openFeature(item, false);
+          clearMoonFeatureSearchResults(true);
+        });
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          moveCameraToFeature(item, viewerCamera, viewerControls, { animate: true });
+          openFeature(item, false);
+          clearMoonFeatureSearchResults(true);
+        });
+        moonFeatureSearchResults.appendChild(button);
+      }
+      moonFeatureSearchResults.hidden = false;
+    }
+
+    function clearMoonFeatureSearchResults(resetInput = false) {
+      if (resetInput && moonFeatureSearchInput) moonFeatureSearchInput.value = "";
+      if (moonFeatureSearchResults) {
+        moonFeatureSearchResults.hidden = true;
+        moonFeatureSearchResults.innerHTML = "";
+      }
+      activeMoonFeatureSearchResults = [];
+      activeMoonFeatureSearchIndex = -1;
+    }
+
+    function refreshMoonFeatureSearch() {
+      if (!moonFeatureSearchInput || !moonFeatureSearchResults || !activeMoonViewerFeature) return;
+      const query = String(moonFeatureSearchInput.value || "").trim().toLowerCase();
+      const results = moonFeatureData
+        .filter((f) => f.moon_name === activeMoonViewerFeature.name && (!query || f.name.toLowerCase().includes(query)))
+        .slice(0, 12);
+      renderMoonFeatureSearchResults(results);
+    }
+
     function syncMoonViewerControls(feature = activeMoonViewerFeature) {
       if (moonViewerSelect && feature) {
         moonViewerSelect.value = feature.name;
@@ -4820,6 +5009,7 @@ import * as THREE from "./vendor/three.module.js";
     function deactivateMoonViewer(camera, controls) {
       activeMoonViewerFeature = null;
       moonNavContext = "moon";
+      document.documentElement.removeAttribute("data-mode");
       controls.minDistance = DEFAULT_CONTROL_MIN_DISTANCE;
       controls.maxDistance = DEFAULT_CONTROL_MAX_DISTANCE;
       controls.target.set(0, 0, 0);
@@ -4844,6 +5034,12 @@ import * as THREE from "./vendor/three.module.js";
     function activateMoonViewer(feature, camera, controls) {
       if (!isMoonFeature(feature) || !earthSceneGroup) {
         return;
+      }
+      document.documentElement.setAttribute("data-mode", "moon");
+      if (moonViewerSection) {
+        setTimeout(() => {
+          moonViewerSection.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 50);
       }
       cancelCameraFlight();
       deactivateTourMode();
@@ -4870,7 +5066,7 @@ import * as THREE from "./vendor/three.module.js";
       if (direction.lengthSq() < 0.0001) {
         direction.set(0.55, 0.18, 1).normalize();
       }
-      // Offset the entry angle so Earth isn't dead-centre behind the moon.
+      // Offset the entry angle so Mars isn't dead-centre behind the moon.
       const _up = new THREE.Vector3(0, 1, 0);
       const _side = new THREE.Vector3().crossVectors(direction, _up).normalize();
       if (_side.lengthSq() > 0.0001) {
@@ -5059,7 +5255,7 @@ import * as THREE from "./vendor/three.module.js";
 
     let activeCameraFlight = null;
     let activeTourModeFeature = null;
-    let activeTourModeFacetId = TOUR_MODE_FACETS[0]?.id || "craters";
+    let activeTourModeFacetId = TOUR_MODE_FACETS[0]?.id || "highlights";
     let activeTourFlightTimeout = null;
 
     function clearPendingTourFlight() {
@@ -5169,7 +5365,7 @@ import * as THREE from "./vendor/three.module.js";
       syncTourModeControls(feature);
       activeTourFlightTimeout = window.setTimeout(() => {
         activeTourFlightTimeout = null;
-        moveCameraToFeature(feature, camera, controls, { animate: true });
+        moveCameraToFeature(feature, camera, controls, { animate: true, isTour: true });
       }, 700);
       setStatus(`${statusPrefix} ${feature.name}.`);
     }
@@ -5345,8 +5541,34 @@ import * as THREE from "./vendor/three.module.js";
         deactivateMoonViewer(camera, controls);
       }
       if (isMoonFeature(feature)) {
-        activateMoonViewer(feature, camera, controls);
-        onComplete?.();
+        if (!options.isTour) {
+          activateMoonViewer(feature, camera, controls);
+          onComplete?.();
+        } else {
+          // Tour mode: orbit the moon without switching to moon viewer
+          resumeSpin();
+          if (earthSceneGroup) {
+            const _tourTarget = earthSceneGroup.localToWorld(
+              new THREE.Vector3(feature.moon_anchor[0], feature.moon_anchor[1], feature.moon_anchor[2])
+            );
+            const _dir = _tourTarget.clone().normalize();
+            if (_dir.lengthSq() < 0.0001) _dir.set(0.55, 0.18, 1);
+            _dir.normalize();
+            const _side = new THREE.Vector3().crossVectors(_dir, new THREE.Vector3(0, 1, 0)).normalize();
+            if (_side.lengthSq() > 0.0001) _dir.addScaledVector(_side, 0.4).addScaledVector(new THREE.Vector3(0, 1, 0), 0.15).normalize();
+            const _pos = _tourTarget.clone().addScaledVector(_dir, getMoonViewerDistance(feature));
+            if (animate) {
+              animateCameraFlight(camera, controls, _pos, _tourTarget, 1800, onComplete || null);
+            } else {
+              camera.position.copy(_pos);
+              camera.up.set(0, 1, 0);
+              controls.target.copy(_tourTarget);
+              controls.object.position.copy(camera.position);
+              controls.update();
+              onComplete?.();
+            }
+          }
+        }
         return;
       }
       if (parentMoon) {
@@ -5363,7 +5585,21 @@ import * as THREE from "./vendor/three.module.js";
         controls.minDistance = getMoonViewerMinDistance(parentMoon);
         controls.maxDistance = getMoonViewerMaxDistance(parentMoon);
         const moonAnchor = new THREE.Vector3(parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]);
-        const targetLocal = moonLatLonToVector3(lat, lon, Number(parentMoon.moon_radius || 0.1) + 0.002).add(moonAnchor);
+        const _relToCenter = moonLatLonToVector3(lat, lon, Number(parentMoon.moon_radius || 0.1) + 0.002);
+        // Apply the moon's current self-rotation so the camera flies to where the
+        // feature actually sits on the spinning texture (same transform as the
+        // animation loop applies to feature marker positions).
+        const _moonAngle = parentMoon._currentAngle || 0;
+        if (_moonAngle !== 0) {
+          const _cosA = Math.cos(_moonAngle);
+          const _sinA = Math.sin(_moonAngle);
+          _relToCenter.set(
+            _relToCenter.x * _cosA - _relToCenter.z * _sinA,
+            _relToCenter.y,
+            _relToCenter.x * _sinA + _relToCenter.z * _cosA,
+          );
+        }
+        const targetLocal = _relToCenter.add(moonAnchor);
         const target = earthSceneGroup.localToWorld(targetLocal.clone());
         const moonCenter = earthSceneGroup.localToWorld(moonAnchor.clone());
         const direction = target.clone().sub(moonCenter).normalize();
@@ -5467,12 +5703,19 @@ import * as THREE from "./vendor/three.module.js";
       syncScenePopupSelectionStyle(null);
       syncMoonViewerPopup(null, false);
       activePopupIsCoreLabel = false;
+      if (typeof syncSelectionHalo === "function") syncSelectionHalo();
+      if (featureSearch) featureSearch.value = "";
+      clearFeatureSearchResults(true);
       resetStatus();
     }
 
     let applyPlanetViewMode = () => {};
 
     function reloadToDefaultGlobalView(camera, controls) {
+      if (baseLayerSelect && baseLayerSelect.value !== "earth-visible") {
+        baseLayerSelect.value = "earth-visible";
+        baseLayerSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      }
       resumeSpin();
       resetExploreView(camera, controls);
       applyPlanetViewMode(saturnViewModeSelect ? saturnViewModeSelect.value : "tilted");
@@ -5533,6 +5776,7 @@ import * as THREE from "./vendor/three.module.js";
       return mineralLayers.find((layer) => layer.id === mineralSelect.value) || null;
     }
 
+    let _prevLegendEntryCount = 0;
     function syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState = null, geologyStructureLayers = []) {
       if (coreViewSection) coreViewSection.open = coreToggle.checked;
       // Toggle HUD between surface conditions and interior model readout
@@ -5547,7 +5791,16 @@ import * as THREE from "./vendor/three.module.js";
           icPressure.textContent = "—";
         }
       }
-      renderLegendPanel(buildLegendEntries(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers));
+      const legendEntries = buildLegendEntries(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
+      if (legendSection) {
+        if (legendEntries.length > 0 && _prevLegendEntryCount === 0) {
+          legendSection.open = true;
+        } else if (legendEntries.length === 0 && _prevLegendEntryCount > 0) {
+          legendSection.open = false;
+        }
+      }
+      _prevLegendEntryCount = legendEntries.length;
+      renderLegendPanel(legendEntries);
       currentMetadataState = buildMetadataState(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
       metadataButton.textContent = currentMetadataState?.sections?.some((section) => section.title === "Legend")
         ? "Open Metadata And Legend"
@@ -5557,14 +5810,53 @@ import * as THREE from "./vendor/three.module.js";
       }
     }
 
+    function normalizeFeatureType(type) {
+      if (!type) return null;
+      const t = type.trim();
+      const IAU_PLAIN = {
+        "chasma":         "Canyon",
+        "chasmata":       "Canyon system",
+        "fossa":          "Fracture trench",
+        "fossae":         "Fracture trench system",
+        "mons":           "Mountain",
+        "montes":         "Mountain range",
+        "sulcus":         "Fracture groove system",
+        "sulci":          "Fracture groove systems",
+        "linea":          "Linear ridge",
+        "lineae":         "Linear ridge system",
+        "dorsum":         "Ridge",
+        "dorsa":          "Ridge system",
+        "rupes":          "Cliff / scarp",
+        "vallis":         "Valley",
+        "valles":         "Valley system",
+        "lacus":          "Lake",
+        "mare":           "Sea",
+        "sinus":          "Bay",
+        "fretum":         "Strait",
+        "flumen":         "River channel",
+        "flumina":        "River channel system",
+        "regio":          "Region",
+        "planitia":       "Plain",
+        "planum":         "Plateau",
+        "catena":         "Crater chain",
+        "patera":         "Volcanic depression",
+        "crater":         "Impact crater",
+        "impact crater":  "Impact crater",
+        "albedo feature": "Albedo region",
+      };
+      const key = t.toLowerCase();
+      if (IAU_PLAIN[key]) return IAU_PLAIN[key];
+      return t;
+    }
+
     function openFeature(feature, isCoreLabel) {
       // Dismiss the geology floating popup when a regular feature popup opens
       closeGeoPopup();
       syncScenePopupSelectionStyle(feature, Boolean(isCoreLabel));
       if (isCoreLabel) {
-        scenePopupKicker.textContent = feature.type || "Selected Feature";
+        scenePopupKicker.textContent = normalizeFeatureType(feature.type) || "Selected Feature";
       } else {
-        scenePopupKicker.textContent = feature.type || (
+        scenePopupKicker.textContent = normalizeFeatureType(feature.type) || (
           feature.theme === "volcanic"
             ? "Volcanic Feature"
             : feature.theme === "landing" || feature.theme === "mission"
@@ -5575,7 +5867,7 @@ import * as THREE from "./vendor/three.module.js";
       scenePopupTitle.textContent = (
         feature.type === "Geologic unit polygon" && feature.rock_type
           ? feature.rock_type
-          : feature.name
+          : (feature.name || "").replace(/\s*\([^)]*\)\s*/g, " ").trim()
       );
       if (feature.moon_name && feature.lat !== undefined) {
         const elevStr = (feature.elevation_m !== undefined)
@@ -6149,9 +6441,9 @@ import * as THREE from "./vendor/three.module.js";
 
       const phiStart = -Math.PI / 2;
       const phiLength = Math.PI;
-      const EARTH_INNER_CORE_RADIUS = 0.192;  // solid inner core (ICB at 1,220 km)
-      const EARTH_OUTER_CORE_RADIUS = 0.547;  // liquid outer core (CMB at 2,890 km)
-      const EARTH_MANTLE_RADIUS = 0.995;  // mantle, near-crust boundary
+      const EARTH_INNER_CORE_RADIUS = 0.19;    // solid iron inner core (~1,220 km)
+      const EARTH_OUTER_CORE_RADIUS = 0.45;    // liquid iron-nickel outer core (~2,270 km)
+      const EARTH_MANTLE_RADIUS = 0.985;       // silicate mantle
       
       // ── Inner core: dense crystalline metallic interior ───────────────────
       const innerCoreMesh = new THREE.Mesh(
@@ -6384,8 +6676,8 @@ import * as THREE from "./vendor/three.module.js";
       };
     }
 
-    function buildEarthSolidInterior(radius) {
-      // Unused for rocky planet — Earth interior shown via cutaway only.
+    function buildMarsSolidInterior(radius) {
+      // Unused for rocky planet — Mars interior shown via cutaway only.
       // Kept for API compatibility with applyPlanetDisplayState references.
       const group = new THREE.Group();
       const CAP_X = -0.0006;
@@ -6562,9 +6854,6 @@ import * as THREE from "./vendor/three.module.js";
       return normalizeDegrees360(360 - Number(lonDegrees || 0));
     }
 
-    function moonLatLonToVector3(latDegrees, lonDegrees, radius) {
-      return latLonToVector3(latDegrees, moonDataLonToSceneLon(lonDegrees), radius);
-    }
 
     function vectorToMoonLatLon(point) {
       const latLon = vectorToLatLon(point);
@@ -6574,1622 +6863,6 @@ import * as THREE from "./vendor/three.module.js";
       };
     }
 
-    function makeLabelTexture(labelInput, options = {}) {
-      const isObject = typeof labelInput === "object" && labelInput !== null;
-      const text = isObject ? (labelInput.name || "") : String(labelInput);
-      const theme = options.theme || (isObject ? labelInput.theme : "") || "standard";
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      const backingScale = 4;
-      const paddingX = 14;
-      const accentWidth = 6;
-      const bodyLeft = paddingX + accentWidth + 7;
-      const titleFont = "600 15px Orbitron, 'Exo 2', Aldrich, 'Trebuchet MS', sans-serif";
-      context.font = titleFont;
-      const textWidth = Math.ceil(context.measureText(text).width);
-      const logicalWidth = Math.max(110, textWidth + bodyLeft + paddingX);
-      const logicalHeight = 34;
-      canvas.width = logicalWidth * backingScale;
-      canvas.height = logicalHeight * backingScale;
-      context.scale(backingScale, backingScale);
-
-      const palette = options.customPalette || (theme === "volcanic"
-        ? {
-            bg: "rgba(28, 10, 10, 0.72)",
-            stroke: "rgba(255, 122, 96, 0.56)",
-            accent: "rgba(255, 88, 69, 0.92)",
-            title: "rgba(255, 234, 230, 0.96)",
-          }
-        : theme === "mission"
-          ? {
-              bg: "rgba(10, 22, 14, 0.74)",
-              stroke: "rgba(128, 229, 160, 0.42)",
-              accent: "rgba(98, 222, 132, 0.94)",
-              title: "rgba(237, 255, 242, 0.96)",
-            }
-        : theme === "moon"
-          ? {
-              bg: "rgba(10, 14, 22, 1.0)",
-              stroke: "rgba(255, 255, 255, 0.55)",
-              accent: "rgba(255, 255, 255, 0.96)",
-              title: "rgba(255, 255, 255, 1.0)",
-            }
-        : theme === "moon-poi"
-          ? {
-              bg: "rgba(9, 14, 24, 0.64)",
-              stroke: "rgba(90, 214, 233, 0.52)",
-              accent: "rgba(58, 238, 232, 1)",
-              title: "rgba(255, 255, 255, 0.96)",
-            }
-        : theme === "habitation"
-          ? {
-              bg: "rgba(8, 20, 11, 0.74)",
-              stroke: "rgba(112, 232, 146, 0.46)",
-              accent: "rgba(92, 222, 118, 0.96)",
-              title: "rgba(234, 255, 238, 0.96)",
-            }
-        : theme === "landing"
-          ? {
-              bg: "rgba(23, 18, 8, 0.74)",
-              stroke: "rgba(255, 215, 125, 0.58)",
-              accent: "rgba(255, 205, 92, 0.94)",
-              title: "rgba(255, 246, 223, 0.96)",
-            }
-        : {
-            bg: "rgba(9, 14, 24, 0.62)",
-            stroke: "rgba(90, 214, 233, 0.28)",
-            accent: "rgba(58, 214, 208, 0.92)",
-            title: "rgba(242, 247, 250, 0.94)",
-          });
-
-      context.textBaseline = "middle";
-      context.fillStyle = palette.bg;
-      context.strokeStyle = palette.stroke;
-      context.lineWidth = 1.6;
-      const radius = 14;
-      context.beginPath();
-      context.moveTo(radius, 1);
-      context.lineTo(logicalWidth - radius, 1);
-      context.quadraticCurveTo(logicalWidth - 1, 1, logicalWidth - 1, radius);
-      context.lineTo(logicalWidth - 1, logicalHeight - radius - 1);
-      context.quadraticCurveTo(logicalWidth - 1, logicalHeight - 1, logicalWidth - radius, logicalHeight - 1);
-      context.lineTo(radius, logicalHeight - 1);
-      context.quadraticCurveTo(1, logicalHeight - 1, 1, logicalHeight - radius);
-      context.lineTo(1, radius);
-      context.quadraticCurveTo(1, 1, radius, 1);
-      context.closePath();
-      context.fill();
-      context.stroke();
-
-      context.fillStyle = palette.accent;
-      context.beginPath();
-      context.moveTo(radius + 1, 4);
-      context.lineTo(radius + accentWidth, 4);
-      context.lineTo(radius + accentWidth, logicalHeight - 4);
-      context.lineTo(radius + 1, logicalHeight - 4);
-      context.closePath();
-      context.fill();
-
-      context.font = titleFont;
-      context.fillStyle = palette.title;
-      context.fillText(text, bodyLeft, logicalHeight / 2);
-
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.generateMipmaps = true;
-      texture.minFilter = THREE.LinearMipmapLinearFilter;
-      texture.magFilter = THREE.LinearFilter;
-      texture.needsUpdate = true;
-      return { texture, width: logicalWidth, height: logicalHeight };
-    }
-
-
-    function isPointOccludedByPlanet(pointLocal, earthGroup, camera, bodyRadius = 3.2) {
-      const inverseWorld = earthGroup.matrixWorld.clone().invert();
-      const cameraLocal = camera.position.clone().applyMatrix4(inverseWorld);
-      const anchorLocal = pointLocal.clone();
-      const ray = anchorLocal.clone().sub(cameraLocal);
-      const segmentLength = ray.length();
-      if (segmentLength <= 1e-5) {
-        return false;
-      }
-      ray.divideScalar(segmentLength);
-      const b = 2 * cameraLocal.dot(ray);
-      const c = cameraLocal.lengthSq() - (bodyRadius * bodyRadius);
-      const discriminant = (b * b) - (4 * c);
-      if (discriminant <= 0) {
-        return false;
-      }
-      const root = Math.sqrt(discriminant);
-      const near = (-b - root) * 0.5;
-      const far = (-b + root) * 0.5;
-      const epsilon = 1e-4;
-      return (near > epsilon && near < segmentLength - epsilon)
-        || (far > epsilon && far < segmentLength - epsilon);
-    }
-
-    function getMoonOccluders() {
-      if (!earthSceneGroup || !Array.isArray(moonData) || moonData.length === 0) {
-        return [];
-      }
-      const scale = earthSceneGroup.scale;
-      const radiusScale = Math.max(
-        Math.abs(scale.x || 1),
-        Math.abs(scale.y || 1),
-        Math.abs(scale.z || 1),
-      );
-      // Use live moonMesh world positions so occlusion is accurate during orbits and in moon viewer mode.
-      // Buffer multiplier creates a larger exclusion zone so long label text that visually overlaps
-      // the moon body is also suppressed, not just labels whose anchor point is inside the sphere.
-      const OCCLUDER_BUFFER = 1.55;
-      if (moonLayer && Array.isArray(moonLayer.entries) && moonLayer.entries.length > 0) {
-        return moonLayer.entries.map((entry) => {
-          const center = new THREE.Vector3();
-          entry.moonMesh.getWorldPosition(center);
-          return {
-            name: entry.item.name,
-            center,
-            radius: entry.moonRadius * radiusScale * OCCLUDER_BUFFER,
-          };
-        });
-      }
-      return moonData
-        .filter((item) => Array.isArray(item.moon_anchor))
-        .map((item) => ({
-          name: item.name,
-          center: earthSceneGroup.localToWorld(new THREE.Vector3(
-            item.moon_anchor[0],
-            item.moon_anchor[1],
-            item.moon_anchor[2],
-          )),
-          radius: Number(item.moon_radius || 0.1) * radiusScale * OCCLUDER_BUFFER,
-        }));
-    }
-
-    function isPointOccludedByMoonOccluder(pointWorld, camera, occluder) {
-      const segment = pointWorld.clone().sub(camera.position);
-      const segmentLength = segment.length();
-      if (segmentLength <= 1e-5) {
-        return false;
-      }
-      const direction = segment.clone().divideScalar(segmentLength);
-      const offset = camera.position.clone().sub(occluder.center);
-      const b = 2 * offset.dot(direction);
-      const c = offset.lengthSq() - (occluder.radius * occluder.radius);
-      const discriminant = (b * b) - (4 * c);
-      if (discriminant <= 0) {
-        return false;
-      }
-      const root = Math.sqrt(discriminant);
-      const near = (-b - root) * 0.5;
-      const far = (-b + root) * 0.5;
-      const epsilon = 1e-4;
-      return (near > epsilon && near < segmentLength - epsilon)
-        || (far > epsilon && far < segmentLength - epsilon);
-    }
-
-    function isPointOccludedByAnyMoon(pointWorld, camera, ignoredMoonName = null) {
-      const occluders = getMoonOccluders();
-      for (const occluder of occluders) {
-        if (ignoredMoonName && occluder.name === ignoredMoonName) {
-          continue;
-        }
-        if (isPointOccludedByMoonOccluder(pointWorld, camera, occluder)) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    function buildMoonLayer(textureMap) {
-      const group = new THREE.Group();
-      const orbitGroup = new THREE.Group();
-      const labelGroup = new THREE.Group();
-      group.add(orbitGroup);
-      group.add(labelGroup);
-      const entries = [];
-      const interactiveObjects = [];
-
-      function getMoonOrbitPoint(semiMajorAxis, eccentricity, theta, y = 0) {
-        const semiMinorAxis = semiMajorAxis * Math.sqrt(Math.max(0, 1 - eccentricity * eccentricity));
-        return new THREE.Vector3(
-          Math.cos(theta) * semiMajorAxis,
-          y,
-          Math.sin(theta) * semiMinorAxis,
-        );
-      }
-
-      for (const item of moonData) {
-        const anchor = new THREE.Vector3(item.moon_anchor[0], item.moon_anchor[1], item.moon_anchor[2]);
-        const moonRadius = Number(item.moon_radius || 0.09);
-        const moonMesh = new THREE.Mesh(
-          new THREE.SphereGeometry(moonRadius, 96, 96),
-          new THREE.MeshStandardMaterial({
-            map: textureMap.get(item.name) || null,
-            color: new THREE.Color(textureMap.get(item.name) ? "#ffffff" : (item.moon_color || "#d8d2c8")),
-            roughness: 0.96,
-            metalness: 0.02,
-            transparent: false,
-            opacity: 1,
-            depthTest: true,
-            depthWrite: true,
-          }),
-        );
-        moonMesh.position.copy(anchor);
-        moonMesh.userData.feature = item;
-        group.add(moonMesh);
-
-        const orbitRadius = Math.hypot(anchor.x, anchor.z);
-        const orbitEccentricity = Number(item.orbit_eccentricity ?? MOON_ORBIT_ECCENTRICITY[item.name] ?? 0);
-        const orbitSemiMinorAxis = orbitRadius * Math.sqrt(Math.max(0, 1 - orbitEccentricity * orbitEccentricity));
-        const initialAngle = Math.atan2(orbitSemiMinorAxis > 0 ? (anchor.z / orbitSemiMinorAxis) : anchor.z, anchor.x / orbitRadius);
-        const orbitPoints = [];
-        for (let i = 0; i <= 128; i += 1) {
-          const theta = (i / 128) * Math.PI * 2;
-          orbitPoints.push(getMoonOrbitPoint(orbitRadius, orbitEccentricity, theta, anchor.y));
-        }
-        const orbitLine = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints(orbitPoints),
-          new THREE.LineBasicMaterial({
-            color: 0x8ea5b8,
-            transparent: true,
-            opacity: 0.18,
-          }),
-        );
-        orbitGroup.add(orbitLine);
-
-        const label = makeLabelTexture(item, { theme: "moon" });
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-          map: label.texture,
-          transparent: true,
-          opacity: 1.0,
-          depthTest: false,
-          depthWrite: false,
-        }));
-        sprite.renderOrder = 300;
-        sprite.scale.set((label.width / 200) * 0.42, (label.height / 200) * 0.42, 1);
-        const baseScale = sprite.scale.clone();
-        const lift = Number(item.moon_label_lift || 0.24);
-        const labelPos = anchor.clone().add(new THREE.Vector3(0, lift, 0));
-        sprite.position.copy(labelPos);
-        sprite.userData.feature = item;
-        labelGroup.add(sprite);
-
-        const line = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            anchor.clone().add(new THREE.Vector3(0, moonRadius * 0.4, 0)),
-            labelPos.clone().add(new THREE.Vector3(0, -0.06, 0)),
-          ]),
-          new THREE.LineBasicMaterial({
-            color: 0xd9e4ef,
-            transparent: true,
-            opacity: 0.36,
-            depthTest: true,
-            depthWrite: false,
-          }),
-        );
-        labelGroup.add(line);
-
-        interactiveObjects.push(moonMesh, sprite);
-        entries.push({ moonMesh, sprite, line, orbitLine, item, anchor, orbitRadius, orbitEccentricity, orbitSemiMinorAxis, initialAngle, moonRadius, lift, baseScale, priority: 6 });
-      }
-
-      return { group, orbitGroup, labelGroup, entries, interactiveObjects };
-    }
-
-    function isVolcanicMoonFeature(item) {
-      const content = [
-        item.theme,
-        item.type,
-        item.name,
-        item.description,
-        item.origin,
-        item.interpretation,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return /(?:cryo)?volcan|patera|caldera|plume|vent|eruption|lava|basalt/.test(content);
-    }
-
-    function getMoonFeatureConnectorStart(markerPoint, labelPoint, moonRadius) {
-      return markerPoint.clone();
-    }
-
-    function buildMoonFeatureLabelLayer() {
-      const group = new THREE.Group();
-      const entries = [];
-      const interactiveObjects = [];
-      const hitMaterial = new THREE.MeshBasicMaterial({
-        transparent: true,
-        opacity: 0.01,
-        depthTest: false,
-        depthWrite: false,
-      });
-
-      for (const item of moonFeatureData) {
-        const parentMoon = moonData.find((moon) => moon.name === item.moon_name);
-        if (!parentMoon || !Array.isArray(parentMoon.moon_anchor)) {
-          continue;
-        }
-        const lat = item.lat !== undefined ? item.lat : item.anchor_lat;
-        const lon = item.lon !== undefined ? item.lon : item.anchor_lon;
-        if (lat === undefined || lon === undefined) {
-          continue;
-        }
-        const moonAnchor = new THREE.Vector3(parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]);
-        const moonRadius = Number(parentMoon.moon_radius || 0.1);
-        const markerR = moonRadius * 0.01;
-        const hitR = moonRadius * 0.08;
-        const labelDistance = moonRadius * 0.12;
-        const anchor = moonLatLonToVector3(lat, lon, moonRadius + moonRadius * 0.02).add(moonAnchor);
-        const hitPoint = anchor.clone();
-        const surfacePoint = moonLatLonToVector3(lat, lon, moonRadius).add(moonAnchor);
-        const normal = anchor.clone().sub(moonAnchor).normalize();
-        const east = new THREE.Vector3(-normal.z, 0, normal.x);
-        if (east.lengthSq() < 0.0001) {
-          east.set(1, 0, 0);
-        }
-        east.normalize();
-        const up = normal.clone().cross(east).normalize();
-        const direction = normal.clone().multiplyScalar(0.82).addScaledVector(east, lat >= 0 ? 0.36 : -0.36).addScaledVector(up, lat > 35 ? -0.08 : 0.06).normalize();
-        const labelPos = anchor.clone().addScaledVector(normal, moonRadius * 0.12).addScaledVector(direction, labelDistance);
-        const relMarkerPos = anchor.clone().sub(moonAnchor);
-        const relHitPos = hitPoint.clone().sub(moonAnchor);
-        const relSurfacePoint = surfacePoint.clone().sub(moonAnchor);
-        const relLabelPos = labelPos.clone().sub(moonAnchor);
-
-        const marker = new THREE.Mesh(new THREE.SphereGeometry(markerR, 10, 10), new THREE.MeshBasicMaterial({
-          color: 0x4fe0db,
-          transparent: true,
-          opacity: 0.92,
-          depthTest: false,
-          depthWrite: false,
-        }));
-        marker.renderOrder = 210;
-        marker.position.copy(anchor);
-        marker.userData.feature = item;
-        group.add(marker);
-
-        const hitTarget = new THREE.Mesh(new THREE.SphereGeometry(hitR, 12, 12), hitMaterial);
-        hitTarget.renderOrder = 212;
-        hitTarget.position.copy(hitPoint);
-        hitTarget.userData.feature = item;
-        group.add(hitTarget);
-
-        const label = makeLabelTexture(item, { theme: "moon-poi" });
-        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-          map: label.texture,
-          transparent: true,
-          opacity: 0.92,
-          depthTest: false,
-          depthWrite: false,
-        }));
-        sprite.renderOrder = 211;
-        sprite.scale.set((label.width / 200) * moonRadius * 0.35, (label.height / 200) * moonRadius * 0.35, 1);
-        sprite.position.copy(labelPos);
-        sprite.userData.feature = item;
-        group.add(sprite);
-
-        const line = new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            getMoonFeatureConnectorStart(anchor, labelPos, moonRadius),
-            labelPos.clone(),
-          ]),
-          new THREE.LineBasicMaterial({
-            color: 0x7be7e3,
-            transparent: true,
-            opacity: 0.42,
-            depthTest: false,
-            depthWrite: false,
-          }),
-        );
-        line.renderOrder = 210;
-        group.add(line);
-
-        const category = isVolcanicMoonFeature(item) ? "volcanic" : "moon";
-        interactiveObjects.push(hitTarget, marker, sprite);
-        entries.push({ item, parentMoon, moonAnchor, marker, hitTarget, sprite, line, surfacePoint, relMarkerPos, relHitPos, relSurfacePoint, relLabelPos, rel0MarkerPos: relMarkerPos.clone(), rel0HitPos: relHitPos.clone(), rel0SurfacePoint: relSurfacePoint.clone(), rel0LabelPos: relLabelPos.clone(), category, priority: 5 });
-      }
-
-      return { group, entries, interactiveObjects };
-    }
-
-    function updateMoonFeatureLabelVisibility(entries, earthGroup, camera, renderer, activeMoonFeature, volcanicEnabled = true) {
-      const projected = new THREE.Vector3();
-      const moonCenterWorld = new THREE.Vector3();
-      const surfaceWorldPosition = new THREE.Vector3();
-      const spriteWorldPosition = new THREE.Vector3();
-      const cameraDirection = new THREE.Vector3();
-      const connectorStart = new THREE.Vector3();
-      const viewportWidth = renderer.domElement.clientWidth || window.innerWidth;
-      const viewportHeight = renderer.domElement.clientHeight || window.innerHeight;
-      const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
-      const occupiedRects = [];
-      const candidates = [];
-
-      for (const entry of entries) {
-        const isActiveMoon = Boolean(activeMoonFeature) && entry.parentMoon.name === activeMoonFeature.name;
-        entry.marker.visible = false;
-        entry.hitTarget.visible = false;
-        entry.sprite.visible = false;
-        entry.line.visible = false;
-        const categoryEnabled = entry.category === "volcanic" ? volcanicEnabled : true;
-        if (!isActiveMoon || !categoryEnabled) {
-          continue;
-        }
-        moonCenterWorld.copy(entry.moonAnchor).applyMatrix4(earthGroup.matrixWorld);
-        surfaceWorldPosition.copy(entry.surfacePoint).applyMatrix4(earthGroup.matrixWorld);
-        cameraDirection.copy(camera.position).sub(surfaceWorldPosition).normalize();
-        const normal = surfaceWorldPosition.clone().sub(moonCenterWorld).normalize();
-        // In moon-viewer mode at close range, tighten backface culling to avoid limb labels
-        const _moonCamDist = camera.position.distanceTo(moonCenterWorld);
-        const _moonRelDist = _moonCamDist / Math.max(entry.parentMoon?.moon_radius || 0.001, 0.001);
-        const _minNormalDot = (activeMoonFeature && _moonRelDist < 2.5)
-          ? Math.min(0.25, (2.5 - _moonRelDist) * 0.12)
-          : 0.02;
-        if (normal.dot(cameraDirection) <= _minNormalDot) {
-          continue;
-        }
-        if (isPointOccludedByAnyMoon(surfaceWorldPosition, camera, entry.parentMoon.name)) {
-          continue;
-        }
-        entry.marker.visible = true;
-        entry.hitTarget.visible = true;
-        // Cap marker dot pixel radius in moon-viewer mode to keep it proportional at close zoom
-        if (activeMoonFeature) {
-          if (entry.marker.userData._baseMSX === undefined) {
-            entry.marker.userData._baseMSX = entry.marker.scale.x;
-            entry.marker.userData._baseMSY = entry.marker.scale.y;
-            entry.marker.userData._baseMSZ = entry.marker.scale.z;
-          } else {
-            entry.marker.scale.set(entry.marker.userData._baseMSX, entry.marker.userData._baseMSY, entry.marker.userData._baseMSZ);
-          }
-          const _geomR = entry.marker.geometry?.parameters?.radius ?? 0.001;
-          const _markerDist = Math.max(camera.position.distanceTo(surfaceWorldPosition), 0.001);
-          const _markerRadiusPx = _geomR * entry.marker.scale.x * (fovScale / _markerDist);
-          if (_markerRadiusPx > 8) {
-            entry.marker.scale.setScalar(8 / _markerRadiusPx);
-          }
-        }
-        entry.sprite.getWorldPosition(spriteWorldPosition);
-        if (isPointOccludedByAnyMoon(spriteWorldPosition, camera, entry.parentMoon.name)) {
-          entry.marker.visible = false;
-          entry.hitTarget.visible = false;
-          continue;
-        }
-        // Persist original scale so close-zoom capping is reversible when zooming back out
-        if (entry.sprite.userData._baseSX === undefined) {
-          entry.sprite.userData._baseSX = entry.sprite.scale.x;
-          entry.sprite.userData._baseSY = entry.sprite.scale.y;
-        } else {
-          entry.sprite.scale.set(entry.sprite.userData._baseSX, entry.sprite.userData._baseSY, 1);
-        }
-        // In moon-viewer mode, cap sprite pixel height so labels stay readable at any zoom.
-        // Use surface point distance as a stable reference — the sprite may be just behind
-        // the camera near-clip plane making its own distance unreliably small.
-        if (activeMoonFeature) {
-          const _refDist = Math.max(camera.position.distanceTo(surfaceWorldPosition), 0.001);
-          const _renderedH = entry.sprite.userData._baseSY * (fovScale / _refDist);
-          if (_renderedH > 52) {
-            const _r = 52 / _renderedH;
-            entry.sprite.scale.set(entry.sprite.userData._baseSX * _r, entry.sprite.userData._baseSY * _r, 1);
-          }
-        }
-        projected.copy(spriteWorldPosition).project(camera);
-        if (projected.z < -1 || projected.z > 1) {
-          if (!activeMoonFeature) {
-            entry.marker.visible = false;
-            entry.hitTarget.visible = false;
-            continue;
-          }
-          // Sprite is behind the camera at max zoom — reposition it next to the surface marker
-          const anchorProj = surfaceWorldPosition.clone().project(camera);
-          if (anchorProj.z < -1 || anchorProj.z > 1) continue;
-          const anchorSX = ((anchorProj.x + 1) * 0.5) * viewportWidth;
-          const anchorSY = ((1 - anchorProj.y) * 0.5) * viewportHeight;
-          if (anchorSX < 0 || anchorSX > viewportWidth || anchorSY < 0 || anchorSY > viewportHeight) continue;
-          const _nudgePPU = fovScale / Math.max(camera.position.distanceTo(surfaceWorldPosition), 0.001);
-          const nudgePx = Math.max(12, entry.sprite.scale.x * _nudgePPU * 0.7);
-          const nudgeX = (anchorSX + nudgePx < viewportWidth - 12) ? nudgePx : -nudgePx;
-          const nudgeSX = Math.max(12, Math.min(viewportWidth - 12, anchorSX + nudgeX));
-          const nudgeSY = Math.max(12, Math.min(viewportHeight - 12, anchorSY));
-          const repositioned = new THREE.Vector3(
-            (nudgeSX / viewportWidth) * 2 - 1,
-            1 - (nudgeSY / viewportHeight) * 2,
-            anchorProj.z,
-          ).unproject(camera);
-          const localRepositioned = earthGroup.worldToLocal(repositioned.clone());
-          entry.sprite.position.copy(localRepositioned);
-          if (entry.line?.geometry?.attributes?.position) {
-            const fp = entry.line.geometry.attributes.position.array;
-            fp[3] = localRepositioned.x; fp[4] = localRepositioned.y; fp[5] = localRepositioned.z;
-            entry.line.geometry.attributes.position.needsUpdate = true;
-          }
-          spriteWorldPosition.copy(repositioned);
-          projected.set(
-            (nudgeSX / viewportWidth) * 2 - 1,
-            1 - (nudgeSY / viewportHeight) * 2,
-            anchorProj.z,
-          );
-        }
-        const distance = camera.position.distanceTo(spriteWorldPosition);
-        const pixelsPerWorldUnit = fovScale / Math.max(distance, 0.001);
-        const rectWidth = Math.max(88, entry.sprite.scale.x * pixelsPerWorldUnit * 1.02);
-        const rectHeight = Math.max(26, entry.sprite.scale.y * pixelsPerWorldUnit * 1.06);
-        const screenX = ((projected.x + 1) * 0.5) * viewportWidth;
-        const screenY = ((1 - projected.y) * 0.5) * viewportHeight;
-        candidates.push({
-          entry,
-          distance,
-          rect: {
-            left: screenX - rectWidth * 0.5,
-            right: screenX + rectWidth * 0.5,
-            top: screenY - rectHeight * 0.5,
-            bottom: screenY + rectHeight * 0.5,
-          },
-        });
-      }
-
-      candidates.sort((a, b) => {
-        const aPinned = Boolean(activePopupFeature && a.entry.item.name === activePopupFeature.name);
-        const bPinned = Boolean(activePopupFeature && b.entry.item.name === activePopupFeature.name);
-        if (aPinned !== bPinned) {
-          return aPinned ? -1 : 1;
-        }
-        return a.distance - b.distance;
-      });
-      for (const candidate of candidates) {
-        const isPinned = Boolean(activePopupFeature && candidate.entry.item.name === activePopupFeature.name);
-        const overlaps = occupiedRects.some((rect) => (
-          candidate.rect.left - 2 < rect.right &&
-          candidate.rect.right + 2 > rect.left &&
-          candidate.rect.top - 2 < rect.bottom &&
-          candidate.rect.bottom + 2 > rect.top
-        ));
-        if (overlaps && !isPinned) {
-          continue;
-        }
-        candidate.entry.sprite.visible = true;
-        candidate.entry.line.visible = true;
-        connectorStart.copy(getMoonFeatureConnectorStart(
-          candidate.entry.marker.position,
-          candidate.entry.sprite.position,
-          candidate.entry.parentMoon?.moon_radius,
-        ));
-        candidate.entry.line.geometry.dispose();
-        candidate.entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-          connectorStart,
-          candidate.entry.sprite.position.clone(),
-        ]);
-        occupiedRects.push(candidate.rect);
-      }
-    }
-
-    function updateMoonVisibility(entries, earthGroup, camera, renderer, moonsEnabled, labelsEnabled) {
-      const projected = new THREE.Vector3();
-      const moonWorldPosition = new THREE.Vector3();
-      const spriteWorldPosition = new THREE.Vector3();
-      const viewportWidth = renderer.domElement.clientWidth || window.innerWidth;
-      const viewportHeight = renderer.domElement.clientHeight || window.innerHeight;
-      const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
-      const occupiedRects = [];
-      const candidates = [];
-      const activeMoonName = activeMoonViewerFeature?.name || null;
-
-      for (const entry of entries) {
-        const isMoonViewerFocus = Boolean(activeMoonViewerFeature) && entry.item?.name === activeMoonViewerFeature.name;
-        const labelScaleFactor = isMoonViewerFocus ? 0.58 : 1;
-        entry.orbitLine.visible = moonsEnabled && (!activeMoonName || isMoonViewerFocus);
-        entry.sprite.visible = false;
-        entry.line.visible = false;
-        if (entry.baseScale) {
-          entry.sprite.scale.set(
-            entry.baseScale.x * labelScaleFactor,
-            entry.baseScale.y * labelScaleFactor,
-            1,
-          );
-        }
-        if (!isMoonViewerFocus && isPointOccludedByPlanet(entry.moonMesh.position, earthGroup, camera)) {
-          entry.moonMesh.visible = false;
-          continue;
-        }
-
-        moonWorldPosition.copy(entry.moonMesh.position).applyMatrix4(earthGroup.matrixWorld);
-        projected.copy(moonWorldPosition).project(camera);
-        if (projected.z < -1 || projected.z > 1) {
-          entry.moonMesh.visible = false;
-          entry.orbitLine.visible = false;
-          continue;
-        }
-        entry.moonMesh.visible = true;
-        if (!moonsEnabled || !labelsEnabled) {
-          continue;
-        }
-
-        spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(earthGroup.matrixWorld);
-        if (isPointOccludedByAnyMoon(spriteWorldPosition, camera)) {
-          continue;
-        }
-        projected.copy(spriteWorldPosition).project(camera);
-        if (projected.z < -1 || projected.z > 1) {
-          continue;
-        }
-        const distance = camera.position.distanceTo(spriteWorldPosition);
-        const pixelsPerWorldUnit = fovScale / Math.max(distance, 0.001);
-        const rectWidth = entry.sprite.scale.x * pixelsPerWorldUnit * 1.02;
-        const rectHeight = entry.sprite.scale.y * pixelsPerWorldUnit * 1.06;
-        const screenX = ((projected.x + 1) * 0.5) * viewportWidth;
-        const screenY = ((1 - projected.y) * 0.5) * viewportHeight;
-        candidates.push({
-          entry,
-          distance,
-          rect: {
-            left: screenX - rectWidth * 0.5,
-            right: screenX + rectWidth * 0.5,
-            top: screenY - rectHeight * 0.5,
-            bottom: screenY + rectHeight * 0.5,
-          },
-        });
-      }
-
-      candidates.sort((a, b) => a.distance - b.distance);
-      for (const candidate of candidates) {
-        const overlaps = occupiedRects.some((rect) => (
-          candidate.rect.left - 3 < rect.right &&
-          candidate.rect.right + 3 > rect.left &&
-          candidate.rect.top - 2 < rect.bottom &&
-          candidate.rect.bottom + 2 > rect.top
-        ));
-        if (overlaps && candidate.entry.category !== "volcanic") {
-          continue;
-        }
-        candidate.entry.sprite.visible = true;
-        candidate.entry.line.visible = !(activeMoonViewerFeature && candidate.entry.item?.name === activeMoonViewerFeature.name);
-        occupiedRects.push(candidate.rect);
-      }
-    }
-
-    function buildLabelLayer(radius, elevationSampler, elevationCache, getTerrainRelief) {
-      const group = new THREE.Group();
-      const markerGeometry = new THREE.SphereGeometry(0.011, 10, 10);
-      const hitGeometry = new THREE.SphereGeometry(0.18, 14, 14);
-      const hitMaterial = new THREE.MeshBasicMaterial({
-        transparent: true,
-        opacity: 0,
-        depthTest: false,
-        depthWrite: false,
-      });
-      const entries = [];
-      const interactiveObjects = [];
-
-      function sampleLabelSurfacePoint(latDegrees, lonDegrees, lift = 0) {
-        return getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift);
-      }
-
-      function labelThemeStyle(theme) {
-        if (theme === "volcanic") {
-          return {
-            markerColor: 0xff735d,
-            lineColor: 0xff8c73,
-            spriteOpacity: 0.94,
-            priority: 2,
-            category: "volcanic",
-          };
-        }
-        if (theme === "landing") {
-          return {
-            markerColor: 0xffd163,
-            lineColor: 0xffdc8c,
-            spriteOpacity: 0.92,
-            priority: 3,
-            category: "landing",
-          };
-        }
-        if (theme === "mission") {
-          return {
-            markerColor: 0x63dc86,
-            lineColor: 0x82ef9f,
-            spriteOpacity: 0.92,
-            priority: 3,
-            category: "mission",
-          };
-        }
-        if (theme === "habitation") {
-          return {
-            markerColor: 0x65dc78,
-            lineColor: 0x86f19a,
-            spriteOpacity: 0.94,
-            priority: 4,
-            category: "habitation",
-          };
-        }
-        return {
-          markerColor: 0x34d7d1,
-          lineColor: 0x46d7d1,
-          spriteOpacity: 0.86,
-          priority: 1,
-          category: "surface",
-        };
-      }
-
-      let sortIndex = 0;
-      for (const item of labelData) {
-        const style = labelThemeStyle(item.theme);
-        const anchor = sampleLabelSurfacePoint(item.lat, item.lon, 0.0);
-        const marker = new THREE.Mesh(markerGeometry, new THREE.MeshBasicMaterial({
-          color: style.markerColor,
-          transparent: true,
-          opacity: 0.92,
-          depthTest: false,
-          depthWrite: false,
-        }));
-        marker.position.copy(anchor);
-        marker.renderOrder = 200;
-        marker.userData.feature = item;
-        group.add(marker);
-
-        const hitTarget = new THREE.Mesh(hitGeometry, hitMaterial);
-        hitTarget.position.copy(sampleLabelSurfacePoint(item.lat, item.lon, 0.002));
-        hitTarget.renderOrder = 202;
-        hitTarget.userData.feature = item;
-        group.add(hitTarget);
-
-        const label = makeLabelTexture(item, {
-          theme: item.theme === "landing" ? "landing" : item.theme,
-        });
-        const spriteMaterial = new THREE.SpriteMaterial({
-          map: label.texture,
-          transparent: true,
-          opacity: style.spriteOpacity,
-          depthTest: false,
-          depthWrite: false,
-        });
-        const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set((label.width / 200) * 0.66, (label.height / 200) * 0.66, 1);
-        const baseSpriteScale = sprite.scale.clone();
-        sprite.renderOrder = 201;
-        const normal = anchor.clone().normalize();
-        const east = new THREE.Vector3(-normal.z, 0, normal.x);
-        if (east.lengthSq() < 0.0001) {
-          east.set(1, 0, 0);
-        }
-        east.normalize();
-        const up = normal.clone().cross(east).normalize();
-        const direction = item.lat >= 0 ? east.clone().multiplyScalar(1.0) : east.clone().multiplyScalar(-1.0);
-        direction.addScaledVector(up, item.lat > 35 ? -0.28 : 0.18).normalize();
-        const labelDistance = item.label_distance !== undefined ? item.label_distance : 0.52;
-        const spritePos = anchor.clone().addScaledVector(normal, 0.22).addScaledVector(direction, labelDistance)
-          .addScaledVector(up, item.label_push_up || 0)
-          .addScaledVector(east, item.label_push_east || 0);
-        sprite.position.copy(spritePos);
-        sprite.userData.feature = item;
-        group.add(sprite);
-        const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-          anchor.clone(),
-          spritePos.clone(),
-        ]);
-        const line = new THREE.Line(lineGeometry, new THREE.LineBasicMaterial({
-          color: style.lineColor,
-          transparent: true,
-          opacity: 0.42,
-          depthTest: false,
-          depthWrite: false,
-        }));
-        line.renderOrder = 199;
-        group.add(line);
-        interactiveObjects.push(hitTarget, marker, sprite);
-
-        entries.push({
-          marker,
-          hitTarget,
-          sprite,
-          line,
-          surfacePoint: sampleLabelSurfacePoint(item.lat, item.lon, 0),
-          item,
-          priority: style.priority,
-          category: style.category,
-          baseScale: baseSpriteScale,
-          labelDistance,
-          labelPushUp: item.label_push_up || 0,
-          labelPushEast: item.label_push_east || 0,
-          labelOffsetFactor: 1,
-          labelAnchor: anchor.clone(),
-          labelNormal: normal.clone(),
-          labelDirection: direction.clone(),
-          labelUp: up.clone(),
-          labelEast: east.clone(),
-          markerBaseScale: marker.scale.clone(),
-          markerRadiusWorld: 0.011,
-          hitBaseScale: hitTarget.scale.clone(),
-          hitRadiusWorld: 0.18,
-          sortIndex,
-          _globalVisible: false,
-        });
-        sortIndex += 1;
-      }
-
-      return { group, entries, interactiveObjects };
-    }
-
-    const USER_PIN_WORLD_HEIGHT = 0.028;
-    const USER_PIN_LABEL_DISTANCE = 0.14;
-    const CTX_MOSAIC_MIN_SCALEBAR_METERS = 1000;
-
-    function getUserPinTargetPixelSize(scaleBarMeters = null) {
-      return 14;
-    }
-
-    function getEntryConnectorStart(entry) {
-      const isUserPin = entry?.item?.type === "User pin" || entry?.item?.type === "Imported pin";
-      if (isUserPin && entry?.marker?.position) {
-        return entry.marker.position.clone();
-      }
-      if (entry?.labelAnchor) {
-        return entry.labelAnchor.clone();
-      }
-      if (entry?.marker?.position) {
-        return entry.marker.position.clone();
-      }
-      return new THREE.Vector3();
-    }
-
-    function updateLabelAnchors(labelLayer, elevationSampler, elevationCache, getTerrainRelief, radius = 3.2) {
-      if (!labelLayer || !labelLayer.entries) {
-        return;
-      }
-      for (const entry of labelLayer.entries) {
-        const item = entry.item;
-        const anchor = getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0);
-        const hitPoint = getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0.01);
-        const surfacePoint = getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, item.lat, item.lon, 0);
-        const normal = anchor.clone().normalize();
-        const isUserPin = item?.type === "User pin" || item?.type === "Imported pin";
-        const east = new THREE.Vector3(-normal.z, 0, normal.x);
-        if (east.lengthSq() < 0.0001) {
-          east.set(1, 0, 0);
-        }
-        east.normalize();
-        const up = normal.clone().cross(east).normalize();
-        const direction = isUserPin
-          ? normal.clone()
-          : item.lat >= 0 ? east.clone().multiplyScalar(1.0) : east.clone().multiplyScalar(-1.0);
-        if (!isUserPin) {
-          direction.addScaledVector(up, item.lat > 35 ? -0.28 : 0.18).normalize();
-        }
-        const labelDistance = item.label_distance !== undefined ? item.label_distance : (isUserPin ? USER_PIN_LABEL_DISTANCE : 0.52);
-        const pinHeadPos = anchor.clone().addScaledVector(normal, isUserPin ? USER_PIN_WORLD_HEIGHT * 0.72 : 0);
-        const spritePos = isUserPin
-          ? pinHeadPos.clone().addScaledVector(normal, labelDistance)
-          : anchor.clone().addScaledVector(normal, 0.22).addScaledVector(direction, labelDistance)
-            .addScaledVector(up, item.label_push_up || 0)
-            .addScaledVector(east, item.label_push_east || 0);
-
-        entry.marker.position.copy(anchor);
-        entry.hitTarget.position.copy(hitPoint);
-        entry.sprite.position.copy(spritePos);
-        entry.surfacePoint.copy(surfacePoint);
-        entry.labelDistance = labelDistance;
-        entry.labelPushUp = isUserPin ? 0 : (item.label_push_up || 0);
-        entry.labelPushEast = isUserPin ? 0 : (item.label_push_east || 0);
-        entry.labelAnchor = isUserPin ? pinHeadPos.clone() : anchor.clone();
-        entry.labelNormal = normal.clone();
-        entry.labelDirection = direction.clone();
-        entry.labelUp = isUserPin ? normal.clone() : up.clone();
-        entry.labelEast = east.clone();
-        if (entry.line) {
-          const connectorStart = getEntryConnectorStart(entry);
-          entry.line.geometry.dispose();
-          entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-            connectorStart,
-            isUserPin
-              ? spritePos.clone().addScaledVector(normal, -Math.min(0.03, labelDistance * 0.18))
-              : spritePos.clone(),
-          ]);
-        }
-      }
-    }
-
-    function rebuildLabelTextures(labelLayer) {
-      if (!labelLayer || !labelLayer.entries) {
-        return;
-      }
-      for (const entry of labelLayer.entries) {
-        const nextLabel = makeLabelTexture(entry.item, {
-          theme: entry.item.theme,
-        });
-        const style = entry.item.theme === "volcanic"
-          ? { opacity: 0.92 }
-          : entry.item.theme === "landing" || entry.item.theme === "mission"
-            ? { opacity: 0.9 }
-            : entry.item.theme === "habitation"
-              ? { opacity: 0.94 }
-              : { opacity: 0.84 };
-                entry.sprite.material.map.dispose();
-        entry.sprite.material.map = nextLabel.texture;
-        entry.sprite.material.opacity = style.opacity;
-        entry.sprite.scale.set((nextLabel.width / 200) * 0.66, (nextLabel.height / 200) * 0.66, 1);
-        entry.sprite.material.needsUpdate = true;
-      }
-    }
-
-    function updateLabelVisibility(
-      entries,
-      earthGroup,
-      globe,
-      camera,
-      renderer,
-      surfaceLabelsEnabled,
-      volcanicLabelsEnabled,
-      landingLabelsEnabled,
-      habitationLabelsEnabled,
-      cutawayModeEnabled,
-      mosaicMode = false,
-      mosaicScaleBarMeters = null,
-    ) {
-      const groupWorldPosition = new THREE.Vector3();
-      const surfaceWorldPosition = new THREE.Vector3();
-      const cameraDirection = new THREE.Vector3();
-      const spriteWorldPosition = new THREE.Vector3();
-      const projected = new THREE.Vector3();
-      const tempSpritePos = new THREE.Vector3();
-      const tempLineEnd = new THREE.Vector3();
-      const viewportPadding = 12;
-      const viewportWidth = renderer.domElement.clientWidth || window.innerWidth;
-      const viewportHeight = renderer.domElement.clientHeight || window.innerHeight;
-      const fovScale = viewportHeight / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
-      const occupiedRects = [];
-      const candidates = [];
-      earthGroup.getWorldPosition(groupWorldPosition);
-      const cameraDistance = camera.position.distanceTo(groupWorldPosition);
-      const globalView = cameraDistance >= 7.2;
-      const resolvedScaleBarMeters = Number.isFinite(mosaicScaleBarMeters)
-        ? mosaicScaleBarMeters
-        : (Number.isFinite(window.__lastScaleBarMeters)
-            ? window.__lastScaleBarMeters
-            : (mosaicMode ? 50000 : null));
-      const hasScaleBar = Number.isFinite(resolvedScaleBarMeters);
-      const scaleBarMeters = hasScaleBar ? resolvedScaleBarMeters : null;
-      const useMosaicCloseLayout = mosaicMode && hasScaleBar && scaleBarMeters <= 200000;
-      const baseViewportPadding = 12;
-
-      const overlapsRect = (a, b, gapX = 3, gapY = 2) => (
-        a.left - gapX < b.right &&
-        a.right + gapX > b.left &&
-        a.top - gapY < b.bottom &&
-        a.bottom + gapY > b.top
-      );
-
-      const countRectOverlaps = (rect, rects, gapX = 3, gapY = 2) => {
-        let count = 0;
-        for (const other of rects) {
-          if (overlapsRect(rect, other, gapX, gapY)) {
-            count += 1;
-          }
-        }
-        return count;
-      };
-
-      const clampLabelCenter = (x, y, halfWidth, halfHeight, padding) => ({
-        x: clamp(x, padding + halfWidth, viewportWidth - padding - halfWidth),
-        y: clamp(y, padding + halfHeight, viewportHeight - padding - halfHeight),
-      });
-
-      const rectFromCenter = (x, y, width, height) => ({
-        left: x - width * 0.5,
-        right: x + width * 0.5,
-        top: y - height * 0.5,
-        bottom: y + height * 0.5,
-      });
-
-      const buildMosaicMetrics = (entry, distanceToSurface, pixelsPerWorldUnit) => {
-        const scaleLog = Math.log10(Math.max(scaleBarMeters || 50, 50));
-        const zoomStrength = clamp(1 - ((scaleLog - 1.7) / 4.8), 0, 1);
-        const nearStrength = clamp(1 - (distanceToSurface / 2.4), 0, 1);
-        const microScaleStrength = clamp(1 - ((scaleLog - 3.1) / 1.6), 0, 1);
-        const stableLabelPx = 36;
-        const closeZoomBoost = clamp(1 - ((scaleLog - 4.4) / 1.8), 0, 1);
-        const labelPx = clamp(
-          stableLabelPx + closeZoomBoost * 2 + nearStrength * 2,
-          36,
-          40,
-        );
-        const markerPx = clamp(
-          labelPx * (0.055 - microScaleStrength * 0.02 + nearStrength * 0.004),
-          1.4,
-          5.2,
-        );
-        const tangentPx = clamp(
-          labelPx * (0.88 + zoomStrength * 0.2 + microScaleStrength * 0.32) + nearStrength * 16,
-          58,
-          168,
-        );
-        const altitudeWorld = clamp(
-          (labelPx / Math.max(pixelsPerWorldUnit, 1e-6)) * (0.016 + nearStrength * 0.007 - microScaleStrength * 0.008),
-          0.001,
-          0.03,
-        );
-        const tangentWorld = clamp(
-          tangentPx / Math.max(pixelsPerWorldUnit, 1e-6),
-          0.08,
-          1.35,
-        );
-        const offsetFactor = clamp(
-          tangentWorld / Math.max(entry.labelDistance || 0.52, 0.06),
-          0.45,
-          2.8,
-        );
-        const viewportPadding = clamp(labelPx * 0.28, baseViewportPadding, 42);
-        return {
-          labelPx,
-          markerPx,
-          tangentPx,
-          altitudeWorld,
-          tangentWorld,
-          offsetFactor,
-          viewportPadding,
-          overlapGapX: clamp(labelPx * 0.04, 2, 8),
-          overlapGapY: clamp(labelPx * 0.025, 2, 6),
-        };
-      };
-
-      const applyLabelOffset = (entry, factor, normalLift, tempPos, tempEnd) => {
-        if (!entry.labelAnchor || !entry.labelDirection || !entry.labelNormal) {
-          return false;
-        }
-        entry.labelOffsetFactor = factor;
-        const distance = (entry.labelDistance || 0.52) * factor;
-        tempPos.copy(entry.labelAnchor)
-          .addScaledVector(entry.labelNormal, normalLift)
-          .addScaledVector(entry.labelDirection, distance)
-          .addScaledVector(entry.labelUp || new THREE.Vector3(), entry.labelPushUp || 0)
-          .addScaledVector(entry.labelEast || new THREE.Vector3(), entry.labelPushEast || 0);
-        entry.sprite.position.copy(tempPos);
-        if (entry.line) {
-          const connectorStart = getEntryConnectorStart(entry);
-          tempEnd.copy(tempPos);
-          entry.line.geometry.dispose();
-          entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-            connectorStart,
-            tempEnd.clone(),
-          ]);
-        }
-        return true;
-      };
-
-      const placeMosaicLabel = (entry, metrics, anchorProjected, occupiedRectsLocal) => {
-        const spriteParent = entry.sprite.parent || earthGroup;
-        const anchorScreenX = ((anchorProjected.x + 1) * 0.5) * viewportWidth;
-        const anchorScreenY = ((1 - anchorProjected.y) * 0.5) * viewportHeight;
-        const anchorViewportMargin = clamp(metrics.viewportPadding * 0.35, 8, 18);
-        if (
-          anchorProjected.x < -1 || anchorProjected.x > 1 ||
-          anchorProjected.y < -1 || anchorProjected.y > 1 ||
-          anchorScreenX < anchorViewportMargin ||
-          anchorScreenX > viewportWidth - anchorViewportMargin ||
-          anchorScreenY < anchorViewportMargin ||
-          anchorScreenY > viewportHeight - anchorViewportMargin
-        ) {
-          return null;
-        }
-        const anchorWorld = new THREE.Vector3();
-        entry.marker.getWorldPosition(anchorWorld);
-        const distanceToAnchor = camera.position.distanceTo(anchorWorld);
-        const pixelsPerWorldUnit = fovScale / Math.max(distanceToAnchor, 0.001);
-        const baseDirectionWorld = entry.labelAnchor.clone()
-          .addScaledVector(entry.labelDirection || new THREE.Vector3(1, 0, 0), metrics.tangentWorld);
-        const directionSampleWorld = spriteParent.localToWorld(baseDirectionWorld);
-        const directionProjected = directionSampleWorld.clone().project(camera);
-        let dirX = ((directionProjected.x + 1) * 0.5) * viewportWidth - anchorScreenX;
-        let dirY = ((1 - directionProjected.y) * 0.5) * viewportHeight - anchorScreenY;
-        if (directionProjected.z > 1 || directionProjected.z < -1 || !Number.isFinite(dirX) || !Number.isFinite(dirY)) {
-          dirX = 1;
-          dirY = -0.35;
-        }
-        const dirLength = Math.hypot(dirX, dirY) || 1;
-        dirX /= dirLength;
-        dirY /= dirLength;
-
-        const labelWidth = Math.max(40, entry.sprite.scale.x * pixelsPerWorldUnit * 1.02);
-        const labelHeight = Math.max(20, entry.sprite.scale.y * pixelsPerWorldUnit * 1.06);
-        const halfWidth = labelWidth * 0.5;
-        const halfHeight = labelHeight * 0.5;
-        const connectorPx = clamp(metrics.tangentPx * 0.62, 18, 72);
-
-        const angleOffsets = [0, 30, -30, 60, -60, 100, -100, 145, -145, 180];
-        const radialScales = [1, 1.28, 1.6, 1.95];
-        let best = null;
-
-        for (const angleDeg of angleOffsets) {
-          const angleRad = angleDeg * Math.PI / 180;
-          const cos = Math.cos(angleRad);
-          const sin = Math.sin(angleRad);
-          const rotatedX = dirX * cos - dirY * sin;
-          const rotatedY = dirX * sin + dirY * cos;
-          for (const radialScale of radialScales) {
-            const centerOffsetPx = connectorPx + Math.max(halfWidth * 0.96, halfHeight * 0.75) + (metrics.tangentPx * 0.35 * (radialScale - 1));
-            const rawX = anchorScreenX + rotatedX * centerOffsetPx;
-            const rawY = anchorScreenY + rotatedY * centerOffsetPx;
-            const clamped = clampLabelCenter(rawX, rawY, halfWidth, halfHeight, metrics.viewportPadding);
-            const rect = rectFromCenter(clamped.x, clamped.y, labelWidth, labelHeight);
-            const overlaps = countRectOverlaps(rect, occupiedRectsLocal, metrics.overlapGapX, metrics.overlapGapY);
-            const clampPenalty = Math.abs(clamped.x - rawX) + Math.abs(clamped.y - rawY);
-            const anglePenalty = Math.abs(angleDeg) * 0.2;
-            const radialPenalty = (radialScale - 1) * 12;
-            const score = overlaps * 1000 + clampPenalty + anglePenalty + radialPenalty;
-            if (!best || score < best.score) {
-              best = {
-                x: clamped.x,
-                y: clamped.y,
-                rect,
-                score,
-              };
-            }
-            if (overlaps === 0 && clampPenalty < 1) {
-              break;
-            }
-          }
-        }
-
-        if (!best) {
-          return null;
-        }
-
-        tempSpritePos.set(
-          (best.x / viewportWidth) * 2 - 1,
-          1 - (best.y / viewportHeight) * 2,
-          anchorProjected.z,
-        ).unproject(camera);
-        spriteParent.worldToLocal(tempSpritePos);
-        entry.sprite.position.copy(tempSpritePos);
-        if (entry.line) {
-          const connectorStart = getEntryConnectorStart(entry);
-          tempLineEnd.copy(entry.sprite.position);
-          entry.line.geometry.dispose();
-          entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-            connectorStart,
-            tempLineEnd.clone(),
-          ]);
-          entry.line.visible = true;
-        }
-        entry.sprite.visible = true;
-        entry.sprite.getWorldPosition(spriteWorldPosition);
-        projected.copy(spriteWorldPosition).project(camera);
-        return best.rect;
-      };
-
-      // In moon viewer mode: pre-compute the active moon's projected screen disk so we can
-      // cull surface markers that visually project onto the moon body. The standard geometric
-      // occluder test only catches markers physically behind the moon sphere; markers that are
-      // beside it in 3D can still overlap the moon's screen disk because depthTest is disabled.
-      let activeMoonScreenDisk = null;
-      if (activeMoonViewerFeature && moonLayer && Array.isArray(moonLayer.entries)) {
-        const activeMoonEntry = moonLayer.entries.find((e) => e.item?.name === activeMoonViewerFeature.name);
-        if (activeMoonEntry) {
-          const moonWorld = new THREE.Vector3();
-          activeMoonEntry.moonMesh.getWorldPosition(moonWorld);
-          const moonDistFromCam = camera.position.distanceTo(moonWorld);
-          const moonProj = moonWorld.clone().project(camera);
-          if (moonProj.z > -1 && moonProj.z < 1) {
-            const moonPPU = fovScale / Math.max(moonDistFromCam, 1e-6);
-            activeMoonScreenDisk = {
-              x: ((moonProj.x + 1) * 0.5) * viewportWidth,
-              y: ((1 - moonProj.y) * 0.5) * viewportHeight,
-              r: activeMoonEntry.moonRadius * moonPPU * 1.15,
-              distFromCam: moonDistFromCam,
-            };
-          }
-        }
-      }
-
-      for (const entry of entries) {
-        const isUserPinEntry = entry.item?.type === "User pin" || entry.item?.type === "Imported pin";
-        entry.marker.getWorldPosition(surfaceWorldPosition);
-        const normal = surfaceWorldPosition.clone().sub(groupWorldPosition).normalize();
-        cameraDirection.copy(camera.position).sub(surfaceWorldPosition).normalize();
-        const categoryEnabled = entry.category === "volcanic"
-          ? volcanicLabelsEnabled
-          : entry.category === "landing" || entry.category === "mission"
-            ? landingLabelsEnabled
-          : entry.category === "habitation"
-            ? habitationLabelsEnabled
-          : surfaceLabelsEnabled;
-        const survivesCut = !cutawayModeEnabled || (activeCutClipPlane ? activeCutClipPlane.distanceToPoint(surfaceWorldPosition) : surfaceWorldPosition.x) >= -0.02;
-        const facingThreshold = useMosaicCloseLayout ? -0.14 : 0.02;
-        const isVisible = categoryEnabled && survivesCut && normal.dot(cameraDirection) > facingThreshold;
-        entry.marker.visible = isVisible;
-        entry.hitTarget.visible = isVisible;
-        if (useMosaicCloseLayout) {
-          entry.marker.visible = isVisible;
-          entry.hitTarget.visible = isVisible;
-        }
-        entry.sprite.visible = false;
-        if (entry.line) {
-          entry.line.visible = false;
-        }
-        if (!isVisible) {
-          continue;
-        }
-        if (isPointOccludedByAnyMoon(surfaceWorldPosition, camera)) {
-          if (!useMosaicCloseLayout) {
-            entry.marker.visible = false;
-            entry.hitTarget.visible = false;
-          }
-          continue;
-        }
-
-        // Screen-space disk check: hide markers further from camera than the active moon
-        // that visually project onto the moon's disk (depthTest:false can't block them).
-        if (activeMoonScreenDisk) {
-          const markerDistFromCam = camera.position.distanceTo(surfaceWorldPosition);
-          if (markerDistFromCam > activeMoonScreenDisk.distFromCam) {
-            const p = surfaceWorldPosition.clone().project(camera);
-            if (p.z > -1 && p.z < 1) {
-              const sx = ((p.x + 1) * 0.5) * viewportWidth;
-              const sy = ((1 - p.y) * 0.5) * viewportHeight;
-              const dx = sx - activeMoonScreenDisk.x;
-              const dy = sy - activeMoonScreenDisk.y;
-              if (Math.sqrt(dx * dx + dy * dy) < activeMoonScreenDisk.r) {
-                entry.marker.visible = false;
-                entry.hitTarget.visible = false;
-                continue;
-              }
-            }
-          }
-        }
-
-        const baseScale = entry.baseScale;
-        let mosaicMetrics = null;
-        if (baseScale) {
-          const distanceToSurface = camera.position.distanceTo(surfaceWorldPosition);
-          const t = clamp((distanceToSurface - 0.2) / 6.2, 0, 1);
-          const easedT = Math.pow(t, 0.85);
-          const pixelsPerWorldUnit = fovScale / Math.max(distanceToSurface, 0.001);
-          const worldUnitsPerPixel = 1 / Math.max(pixelsPerWorldUnit, 1e-6);
-          let labelScale = 0.12 + (1.35 - 0.12) * easedT;
-          let scaleFactor = 0.03 + (1.35 - 0.03) * easedT;
-          // In moon viewer mode Earth is small and distant — scale labels down so they
-          // don't visually dominate the globe.
-          const moonViewerLabelMult = activeMoonViewerFeature ? 0.55 : 1.0;
-          const standardLabelPx = baseScale.y * pixelsPerWorldUnit * labelScale * moonViewerLabelMult;
-          const standardMarkerPx = ((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit) * scaleFactor * moonViewerLabelMult;
-          if (useMosaicCloseLayout) {
-            mosaicMetrics = buildMosaicMetrics(entry, distanceToSurface, pixelsPerWorldUnit);
-            labelScale = (mosaicMetrics.labelPx * moonViewerLabelMult) / Math.max(baseScale.y * pixelsPerWorldUnit, 1e-6);
-            scaleFactor = (mosaicMetrics.markerPx * moonViewerLabelMult) / Math.max((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit, 1e-6);
-          } else {
-            labelScale = standardLabelPx / Math.max(baseScale.y * pixelsPerWorldUnit, 1e-6);
-            scaleFactor = standardMarkerPx / Math.max((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit, 1e-6);
-          }
-          entry.sprite.scale.set(baseScale.x * labelScale, baseScale.y * labelScale, 1);
-          if (entry.markerBaseScale) {
-            let markerScale = clamp(scaleFactor, useMosaicCloseLayout ? 0.003 : 0.12, useMosaicCloseLayout ? 0.3 : 1.4);
-            if (useMosaicCloseLayout && isUserPinEntry) {
-              const targetPinPx = getUserPinTargetPixelSize(scaleBarMeters);
-              const targetPinScale = (worldUnitsPerPixel * targetPinPx) / Math.max(entry.markerBaseScale.x || 1e-6, 1e-6);
-              markerScale = clamp(targetPinScale, 0.035, 0.34);
-            }
-            if (useMosaicCloseLayout && scaleBarMeters <= 2000) {
-              const targetMarkerDiameterMeters = clamp(scaleBarMeters * 0.14, 100, 200);
-              const targetMarkerRadiusWorld = (targetMarkerDiameterMeters * 0.5) * (3.2 / EARTH_RADIUS_METERS);
-              const targetMarkerScale = targetMarkerRadiusWorld / Math.max((entry.markerRadiusWorld || 0.011) * (entry.markerBaseScale.x || 1), 1e-6);
-              if (!isUserPinEntry) {
-                markerScale = Math.min(markerScale, targetMarkerScale);
-              }
-            }
-            entry.marker.scale.set(
-              entry.markerBaseScale.x * markerScale,
-              entry.markerBaseScale.y * markerScale,
-              entry.markerBaseScale.z * markerScale,
-            );
-          }
-          if (entry.hitBaseScale) {
-            const hitScaleBase = useMosaicCloseLayout
-              ? (mosaicMetrics.markerPx * 2.4) / Math.max((entry.hitRadiusWorld || 1) * (entry.hitBaseScale.x || 1) * pixelsPerWorldUnit, 1e-6)
-              : scaleFactor * 1.35;
-            const hitScale = clamp(hitScaleBase, useMosaicCloseLayout ? 0.01 : 0.2, useMosaicCloseLayout ? 0.16 : 2.2);
-            entry.hitTarget.scale.set(
-              entry.hitBaseScale.x * hitScale,
-              entry.hitBaseScale.y * hitScale,
-              entry.hitBaseScale.z * hitScale,
-            );
-          }
-        }
-
-        if (useMosaicCloseLayout && isUserPinEntry && scaleBarMeters <= 2500) {
-          entry.sprite.visible = false;
-          if (entry.line) {
-            entry.line.visible = false;
-          }
-          continue;
-        }
-
-        if (useMosaicCloseLayout) {
-          if (mosaicMetrics) {
-            applyLabelOffset(entry, mosaicMetrics.offsetFactor, mosaicMetrics.altitudeWorld, tempSpritePos, tempLineEnd);
-          }
-        } else {
-          // In moon viewer mode pull labels closer to the surface so they don't spread
-          // wide of the (now-distant) Earth globe and visually dominate the scene.
-          const offsetFactor = activeMoonViewerFeature
-            ? Math.min(entry.labelOffsetFactor || 1, 0.5)
-            : (entry.labelOffsetFactor || 1);
-          applyLabelOffset(entry, offsetFactor, 0.22, tempSpritePos, tempLineEnd);
-        }
-        entry.sprite.getWorldPosition(spriteWorldPosition);
-        const forceLabel = useMosaicCloseLayout
-          ? true
-          : entry.marker?.visible && entry.hitTarget?.visible;
-        if (!forceLabel && isPointOccludedByAnyMoon(spriteWorldPosition, camera)) {
-          entry.marker.visible = false;
-          entry.hitTarget.visible = false;
-          continue;
-        }
-        projected.copy(spriteWorldPosition).project(camera);
-        if (projected.z < -1 || projected.z > 1) {
-          if (useMosaicCloseLayout) {
-            spriteWorldPosition.copy(surfaceWorldPosition);
-            projected.copy(spriteWorldPosition).project(camera);
-          } else if (!globalView) {
-            if (forceLabel && entry.labelAnchor && entry.labelNormal) {
-              applyLabelOffset(entry, 0.18, 0.28, tempSpritePos, tempLineEnd);
-              entry.sprite.position.copy(entry.labelAnchor).addScaledVector(entry.labelNormal, 0.28);
-              if (entry.line) {
-                const connectorStart = getEntryConnectorStart(entry);
-                entry.line.geometry.dispose();
-                entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-                  connectorStart,
-                  entry.sprite.position.clone(),
-                ]);
-              }
-              spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(earthGroup.matrixWorld);
-              projected.copy(spriteWorldPosition).project(camera);
-            }
-            if (projected.z < -1 || projected.z > 1) {
-              if (forceLabel) {
-                spriteWorldPosition.copy(surfaceWorldPosition);
-                projected.copy(spriteWorldPosition).project(camera);
-                if (projected.z < -1 || projected.z > 1) {
-                  continue;
-                }
-              } else {
-                continue;
-              }
-            }
-          } else {
-            continue;
-          }
-        }
-
-        if (useMosaicCloseLayout) {
-          const anchorWorld = new THREE.Vector3();
-          entry.marker.getWorldPosition(anchorWorld);
-          const anchorProjected = anchorWorld.clone().project(camera);
-          if (anchorProjected.z < -1 || anchorProjected.z > 1) {
-            continue;
-          }
-          const rect = placeMosaicLabel(entry, mosaicMetrics || buildMosaicMetrics(entry, camera.position.distanceTo(anchorWorld), fovScale / Math.max(camera.position.distanceTo(anchorWorld), 0.001)), anchorProjected, occupiedRects);
-          if (!rect) {
-            continue;
-          }
-          occupiedRects.push(rect);
-          continue;
-        }
-
-        const distance = camera.position.distanceTo(spriteWorldPosition);
-        const pixelsPerWorldUnit = fovScale / Math.max(distance, 0.001);
-        const rectFromProjected = (proj) => {
-          const width = entry.sprite.scale.x * pixelsPerWorldUnit * 1.02;
-          const height = entry.sprite.scale.y * pixelsPerWorldUnit * 1.06;
-          const sx = ((proj.x + 1) * 0.5) * viewportWidth;
-          const sy = ((1 - proj.y) * 0.5) * viewportHeight;
-          return {
-            left: sx - width * 0.5,
-            right: sx + width * 0.5,
-            top: sy - height * 0.5,
-            bottom: sy + height * 0.5,
-          };
-        };
-        let rect = rectFromProjected(projected);
-
-        const needsFit = !globalView && (rect.left < baseViewportPadding
-          || rect.right > viewportWidth - baseViewportPadding
-          || rect.top < baseViewportPadding
-          || rect.bottom > viewportHeight - baseViewportPadding);
-
-        if (needsFit && entry.labelAnchor) {
-          applyLabelOffset(entry, 0.6, 0.22, tempSpritePos, tempLineEnd);
-          spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(earthGroup.matrixWorld);
-          projected.copy(spriteWorldPosition).project(camera);
-          rect = rectFromProjected(projected);
-          if (
-            rect.left < baseViewportPadding
-            || rect.right > viewportWidth - baseViewportPadding
-            || rect.top < baseViewportPadding
-            || rect.bottom > viewportHeight - baseViewportPadding
-          ) {
-            applyLabelOffset(entry, 0.35, 0.22, tempSpritePos, tempLineEnd);
-            spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(earthGroup.matrixWorld);
-            projected.copy(spriteWorldPosition).project(camera);
-            rect = rectFromProjected(projected);
-          }
-          // At very close zoom the sprite may still be off-screen — use a pixel-space-capped offset
-          if (
-            rect.left < baseViewportPadding
-            || rect.right > viewportWidth - baseViewportPadding
-            || rect.top < baseViewportPadding
-            || rect.bottom > viewportHeight - baseViewportPadding
-          ) {
-            const _maxOffPx = Math.min(viewportWidth, viewportHeight) * 0.12;
-            const _adaptF = Math.min(0.30, _maxOffPx / Math.max(pixelsPerWorldUnit * (entry.labelDistance || 0.52), 1e-6));
-            if (_adaptF < 0.30) {
-              applyLabelOffset(entry, _adaptF, 0.22, tempSpritePos, tempLineEnd);
-              spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(earthGroup.matrixWorld);
-              projected.copy(spriteWorldPosition).project(camera);
-              rect = rectFromProjected(projected);
-            }
-          }
-        }
-        candidates.push({
-          entry,
-          distance,
-          rect,
-          pixelsPerWorldUnit,
-        });
-      }
-
-      candidates.sort((a, b) => {
-        const aPinned = Boolean(activePopupFeature && a.entry.item?.name === activePopupFeature.name);
-        const bPinned = Boolean(activePopupFeature && b.entry.item?.name === activePopupFeature.name);
-        if (aPinned !== bPinned) {
-          return aPinned ? -1 : 1;
-        }
-        if (b.entry.priority !== a.entry.priority) {
-          return b.entry.priority - a.entry.priority;
-        }
-        if (globalView) {
-          if (a.entry._globalVisible !== b.entry._globalVisible) {
-            return a.entry._globalVisible ? -1 : 1;
-          }
-          return a.entry.sortIndex - b.entry.sortIndex;
-        }
-        return a.distance - b.distance;
-      });
-
-      const placeForceLabel = (candidate) => {
-        const entry = candidate.entry;
-        if (!entry.labelAnchor || !entry.labelNormal || !entry.labelDirection) {
-          return false;
-        }
-        const placements = [
-          { factor: entry.labelOffsetFactor || 1, dir: 1, up: 0 },
-          { factor: 0.6, dir: 1, up: 0.12 },
-          { factor: 0.6, dir: -1, up: 0.12 },
-          { factor: 0.35, dir: -1, up: -0.08 },
-          { factor: 1.1, dir: -1, up: 0.04 },
-        ];
-        // At very close zoom the default offsets push the label far off-screen.
-        // Add pixel-space-constrained placements so the label stays readable at max zoom.
-        const _maxOffPx = Math.min(viewportWidth, viewportHeight) * 0.12;
-        const _adaptF = _maxOffPx / Math.max(candidate.pixelsPerWorldUnit * (entry.labelDistance || 0.52), 1e-6);
-        if (_adaptF < 0.30) {
-          placements.push(
-            { factor: _adaptF, dir: 1, up: 0 },
-            { factor: _adaptF, dir: -1, up: 0 },
-            { factor: _adaptF * 0.7, dir: 1, up: 0.08 },
-            { factor: _adaptF * 0.7, dir: -1, up: 0.08 },
-          );
-        }
-        for (const option of placements) {
-          const direction = entry.labelDirection.clone().multiplyScalar(option.dir);
-          tempSpritePos.copy(entry.labelAnchor)
-            .addScaledVector(entry.labelNormal, 0.22)
-            .addScaledVector(direction, (entry.labelDistance || 0.52) * option.factor)
-            .addScaledVector(entry.labelUp || new THREE.Vector3(), (entry.labelPushUp || 0) + option.up)
-            .addScaledVector(entry.labelEast || new THREE.Vector3(), entry.labelPushEast || 0);
-          entry.sprite.position.copy(tempSpritePos);
-          if (entry.line) {
-            const connectorStart = getEntryConnectorStart(entry);
-            tempLineEnd.copy(tempSpritePos);
-            entry.line.geometry.dispose();
-            entry.line.geometry = new THREE.BufferGeometry().setFromPoints([
-              connectorStart,
-              tempLineEnd.clone(),
-            ]);
-          }
-          spriteWorldPosition.copy(entry.sprite.position).applyMatrix4(earthGroup.matrixWorld);
-          projected.copy(spriteWorldPosition).project(camera);
-          if (projected.z < -1 || projected.z > 1) {
-            continue;
-          }
-          const rect = {
-            left: ((projected.x + 1) * 0.5) * viewportWidth - (entry.sprite.scale.x * candidate.pixelsPerWorldUnit * 1.02) * 0.5,
-            right: ((projected.x + 1) * 0.5) * viewportWidth + (entry.sprite.scale.x * candidate.pixelsPerWorldUnit * 1.02) * 0.5,
-            top: ((1 - projected.y) * 0.5) * viewportHeight - (entry.sprite.scale.y * candidate.pixelsPerWorldUnit * 1.06) * 0.5,
-            bottom: ((1 - projected.y) * 0.5) * viewportHeight + (entry.sprite.scale.y * candidate.pixelsPerWorldUnit * 1.06) * 0.5,
-          };
-          const within = rect.left >= viewportPadding
-            && rect.right <= viewportWidth - viewportPadding
-            && rect.top >= viewportPadding
-            && rect.bottom <= viewportHeight - viewportPadding;
-          const overlaps = occupiedRects.some((occupied) => (
-            rect.left - 3 < occupied.right &&
-            rect.right + 3 > occupied.left &&
-            rect.top - 2 < occupied.bottom &&
-            rect.bottom + 2 > occupied.top
-          ));
-          if (within && !overlaps) {
-            candidate.rect = rect;
-            return true;
-          }
-        }
-        return false;
-      };
-
-      for (const candidate of candidates) {
-        const isPinned = Boolean(activePopupFeature && candidate.entry.item?.name === activePopupFeature.name);
-        if (useMosaicCloseLayout) {
-          const overlaps = occupiedRects.some((rect) => (
-            candidate.rect.left - 3 < rect.right &&
-            candidate.rect.right + 3 > rect.left &&
-            candidate.rect.top - 2 < rect.bottom &&
-            candidate.rect.bottom + 2 > rect.top
-          ));
-          if (overlaps && !isPinned) {
-            continue;
-          }
-          candidate.entry.sprite.visible = true;
-          if (candidate.entry.line) {
-            candidate.entry.line.visible = true;
-          }
-          occupiedRects.push(candidate.rect);
-          continue;
-        }
-        const forceLabel = candidate.entry.marker?.visible && candidate.entry.hitTarget?.visible;
-        if (!globalView) {
-          const outOfBounds = candidate.rect.left < baseViewportPadding
-            || candidate.rect.right > viewportWidth - baseViewportPadding
-            || candidate.rect.top < baseViewportPadding
-            || candidate.rect.bottom > viewportHeight - baseViewportPadding;
-          if (outOfBounds && forceLabel) {
-            if (!placeForceLabel(candidate)) {
-              // Keep the current placement if we still can't fit, but do not drop the label.
-            }
-          } else if (outOfBounds) {
-            if (!useMosaicCloseLayout) {
-              continue;
-            }
-          }
-        }
-        const overlaps = occupiedRects.some((rect) => (
-          candidate.rect.left - 3 < rect.right &&
-          candidate.rect.right + 3 > rect.left &&
-          candidate.rect.top - 2 < rect.bottom &&
-          candidate.rect.bottom + 2 > rect.top
-        ));
-        if (overlaps && forceLabel) {
-          if (!placeForceLabel(candidate)) {
-            // Fall back to original placement if we still can't fit.
-          }
-        } else if (overlaps) {
-          if (globalView && candidate.entry._globalVisible) {
-            // Keep previously visible labels stable in global view to avoid flicker.
-          } else {
-            continue;
-          }
-        }
-        candidate.entry.sprite.visible = true;
-        if (candidate.entry.line) {
-          candidate.entry.line.visible = true;
-        }
-        occupiedRects.push(candidate.rect);
-      }
-      if (globalView) {
-        for (const entry of entries) {
-          entry._globalVisible = !!entry.sprite.visible;
-        }
-      }
-    }
 
     function processMineralTexture(texture) {
       if (!texture || !texture.image) { return texture; }
@@ -8273,7 +6946,7 @@ import * as THREE from "./vendor/three.module.js";
       // the same material path.
       constructor(baseTexture, serviceConfig = {}, canvasWidth = 8192, canvasHeight = 4096) {
         this.serviceConfig = serviceConfig;
-        this.TILE_BASE = serviceConfig.tileBase || "https://astro.arcgis.com/arcgis/rest/services/OnEarth/CTX/MapServer/tile";
+        this.TILE_BASE = serviceConfig.tileBase || "https://astro.arcgis.com/arcgis/rest/services/OnMars/CTX/MapServer/tile";
         this.SERVICE_URL = serviceConfig.serviceUrl || this.TILE_BASE.replace(/\/tile$/, "");
         this.GLOBE_R = 3.2;
         this.MAX_INFLIGHT = 64; // HTTP/2 multiplexes many streams over one connection
@@ -8283,12 +6956,12 @@ import * as THREE from "./vendor/three.module.js";
         this.MAX_TILE_CACHE = 1024;
         this.MAX_FOCUS_TILES = 512;
         this.MAX_FOCUS_INFLIGHT = 48;
-        this.FOCUS_TEXTURE_MAX_SIZE = 8192;
+        this.FOCUS_TEXTURE_MAX_SIZE = 2048;
         this.FOCUS_UPDATE_INTERVAL_MS = 40;
         this.FOCUS_FULL_VIEW = false;
         this.BACKGROUND_STREAMING = false;
-        this.FORCE_MAX_LEVEL = 15;
-        this.ALLOWED_CTX_LEVELS = [5, 7, 9, 10, 11, 12, 15];
+        this.FORCE_MAX_LEVEL = 14;
+        this.ALLOWED_CTX_LEVELS = [5, 7, 9, 10, 11, 12, 14];
         this._focusLevelSmoothed = null;
         this._lastFocusLevelAt = 0;
         this.SCALE_STEPS = [
@@ -8342,6 +7015,7 @@ import * as THREE from "./vendor/three.module.js";
         this._focusQueue = [];
         this._focusQueuedKeys = new Set();
         this._focusInflight = 0;
+        this._focusRoundSuccesses = 0;
         this._focusEnqueuePausedUntil = 0;
         this._focusResolvedLevels = new Map();
         this._focusResolvedAnchor = null;
@@ -8614,6 +7288,7 @@ import * as THREE from "./vendor/three.module.js";
             if (!this._focusState || this._focusState.version !== item.version) {
               return;
             }
+            this._focusRoundSuccesses += 1;
             this._focusResolvedLevels.set(`${item.level}/${item.row}/${item.col}`, payload.level);
             if (payload.level < item.level) {
               this._noteResolvedFallbackCap(item.level, item.row, item.col, payload.level);
@@ -8644,6 +7319,10 @@ import * as THREE from "./vendor/three.module.js";
             this._focusControllers.delete(item.requestKey);
             this._focusInflight = Math.max(0, this._focusInflight - 1);
             if (this._focusInflight === 0 && this._focusQueue.length === 0 && this._focusState) {
+              if (this._focusRoundSuccesses === 0) {
+                // All tiles failed (e.g. CORS). Back off 30 s to stop the tight retry loop.
+                this._focusEnqueuePausedUntil = performance.now() + 30000;
+              }
               const effectiveLevel = this._estimateLocalFocusLevel(this._focusState.level, this._focusState.bbox);
               if (effectiveLevel < this._focusState.level) {
                 this._refreshFocus(
@@ -9384,6 +8063,7 @@ import * as THREE from "./vendor/three.module.js";
         const hadActiveFocus = this._focusDisplayState.active;
         const prevLevel = this._focusDisplayState.level;
         this._abortFocusFetches();
+        this._focusRoundSuccesses = 0;
         if (performance.now() < this._focusEnqueuePausedUntil) {
           return;
         }
@@ -9663,6 +8343,8 @@ import * as THREE from "./vendor/three.module.js";
         if (row < 0 || row >= nr) return;
         const key = `${level}/${row}/${col}`;
         if (this.loaded.has(key) || this.inflight.has(key) || this.queued.has(key)) return;
+        const _fu = this._failedUntil?.get(key) || 0;
+        if (_fu > performance.now()) return;
         // Globe world-space normal at (lat, lon): (−cosLat·cos(lon), sinLat, cosLat·sin(lon))
         const lonRad = ((col + 0.5) / nc * 360 - 180) * Math.PI / 180;
         const latRad = (90 - (row + 0.5) / nr * 180) * Math.PI / 180;
@@ -9813,23 +8495,11 @@ import * as THREE from "./vendor/three.module.js";
                     targetLevel = 12;
                   } else if (rawScaleBarMeters >= 1200) {
                     targetLevel = 13;
-                  } else if (rawScaleBarMeters >= 600) {
-                    targetLevel = 14;
-                  } else if (rawScaleBarMeters >= 300) {
-                    targetLevel = 15;
-                  } else if (rawScaleBarMeters >= 150) {
-                    targetLevel = 16;
                   } else {
-                    targetLevel = 17;
+                    targetLevel = 14;
                   }
                 } else if (Number.isFinite(esriLodLevel)) {
-                  if (esriLodLevel >= 17) {
-                    targetLevel = 17;
-                  } else if (esriLodLevel >= 16) {
-                    targetLevel = 16;
-                  } else if (esriLodLevel >= 15) {
-                    targetLevel = 15;
-                  } else if (esriLodLevel >= 14) {
+                  if (esriLodLevel >= 14) {
                     targetLevel = 14;
                   } else if (esriLodLevel >= 13) {
                     targetLevel = 13;
@@ -9865,8 +8535,21 @@ import * as THREE from "./vendor/three.module.js";
               if (Number.isFinite(targetLevel)) {
                 const budget = targetLevel >= 15 ? 240 : 1024;
                 const baseBbox = approxViewBbox || visibleBbox;
+                // At the 10 km scale-bar floor (level 9) approxViewBbox is derived
+                // from the central pixel's metersPerPixel and underestimates the
+                // viewport by ~72% due to perspective. Pad only at level 9 so the
+                // focus canvas covers the full screen without bloating the bbox at
+                // coarser levels (5/7/8) where the extra tiles overlap dark/blank
+                // Mars areas and trigger the 30-second all-failed backoff.
+                const _bboxPad = targetLevel === 9 ? 0.75 : 0;
                 const targetBbox = targetLevel >= 15
                   ? this._computeBudgetBbox(targetLevel, baseBbox, focusTarget, budget)
+                  : _bboxPad > 0 ? {
+                      latMin: baseBbox.latMin - (baseBbox.latMax - baseBbox.latMin) * _bboxPad,
+                      latMax: baseBbox.latMax + (baseBbox.latMax - baseBbox.latMin) * _bboxPad,
+                      lonMin: baseBbox.lonMin - (baseBbox.lonMax - baseBbox.lonMin) * _bboxPad,
+                      lonMax: baseBbox.lonMax + (baseBbox.lonMax - baseBbox.lonMin) * _bboxPad,
+                    }
                   : { ...baseBbox };
                 const tileRangeEstimate = this._getFocusTileRange(targetLevel, targetBbox);
                 const levelCap = targetLevel === 5 ? 512
@@ -10215,7 +8898,7 @@ import * as THREE from "./vendor/three.module.js";
         this.contourThickness = 1.15;
         this.contourTexel = new THREE.Vector2(1 / 4096, 1 / 2048);
         this.contourInterval = 0;
-        this.contourMinMeters = Number(manifest.elevation?.min_m ?? -8200);
+        this.contourMinMeters = Number(manifest.elevation?.min_m ?? -10930);
         this.contourReliefMeters = Math.max(Number(manifest.elevation?.relief_m ?? 1), 1);
       }
 
@@ -11687,6 +10370,12 @@ import * as THREE from "./vendor/three.module.js";
       const wheelZoomBodyCenter = new THREE.Vector3();
       const wheelZoomDirection = new THREE.Vector3();
       let lastSafeMosaicCameraPosition = camera.position.clone();
+      // Minimum scale-bar value (metres) allowed while in CTX mosaic mode.
+      // Below this the wheel-zoom guard blocks further zoom-in and the render-loop
+      // guard snaps the camera back to lastSafeMosaicCameraPosition.
+      // 10 km matches the old behaviour: CTX tiles only go up to level ~12 in
+      // most areas so zooming past 10 km just floods the network with 404s.
+      const CTX_MOSAIC_MIN_SCALEBAR_METERS = 10000;
       function getActiveZoomContext() {
         if (coreToggle.checked) return null;
         if (activeMoonViewerFeature) {
@@ -11800,6 +10489,26 @@ import * as THREE from "./vendor/three.module.js";
       }
       renderer.domElement.addEventListener("wheel", handleSurfaceWheelZoom, { passive: false });
 
+      // Touch pinch-to-zoom — feeds into the same zoom logic as the mouse wheel
+      {
+        let _pinchDist = null;
+        renderer.domElement.addEventListener("touchstart", (e) => {
+          _pinchDist = e.touches.length === 2
+            ? Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
+            : null;
+        }, { passive: true });
+        renderer.domElement.addEventListener("touchmove", (e) => {
+          if (e.touches.length !== 2 || _pinchDist === null) return;
+          const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+          const delta = (_pinchDist - dist) * 2.2;
+          if (Math.abs(delta) > 0.5) {
+            handleSurfaceWheelZoom({ deltaY: delta, preventDefault: () => {} });
+            _pinchDist = dist;
+          }
+        }, { passive: true });
+        renderer.domElement.addEventListener("touchend", () => { _pinchDist = null; }, { passive: true });
+      }
+
       scene.add(new THREE.AmbientLight(0xbfd0ff, 0.85));
 
       const keyLight = new THREE.DirectionalLight(0xffdfbf, 1.9);
@@ -11826,10 +10535,10 @@ import * as THREE from "./vendor/three.module.js";
       let geologyInteractiveState = null;
       const layerTextures = new Map();
       const baseLayers = manifest.layers || [{
-        id: "viking-color",
-        label: "Earth Color Map - Viking",
+        id: "earth-visible",
+        label: "Earth basemap",
         path: manifest.texture.path,
-        description: "USGS Viking global color mosaic basemap.",
+        description: "Earth global basemap.",
       }];
       // Phase 1: load only the default base layer — non-default layers load in background.
       const baseTextureResults = await Promise.all(
@@ -11857,26 +10566,7 @@ import * as THREE from "./vendor/three.module.js";
       const geologyTextures = new Map();
       const mineralTextures = new Map();
       const mineralSamplerStates = new Map();
-      const SC_LAYERS = [
-        { id: "sc-temperature",  label: "Temperature",              path: "assets/earth_sc_temperature.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "temperature" },
-        { id: "sc-pressure",     label: "Pressure",                 path: "assets/earth_sc_pressure.png",           scGroup: "Surface Conditions — Atmospheric", scParamKey: "pressure" },
-        { id: "sc-wind",         label: "Wind Speed",               path: "assets/earth_sc_wind.png",               scGroup: "Surface Conditions — Atmospheric", scParamKey: "wind" },
-        { id: "sc-irradiance",   label: "Solar Irradiance",         path: "assets/earth_sc_irradiance.png",         scGroup: "Surface Conditions — Atmospheric", scParamKey: "irradiance" },
-        { id: "sc-radiation",    label: "Radiation Dose",           path: "assets/earth_sc_radiation.png",          scGroup: "Surface Conditions — Atmospheric", scParamKey: "radiation" },
-        { id: "sc-diurnal",      label: "Diurnal Temp Range",       path: "assets/earth_sc_diurnal.png",            scGroup: "Surface Conditions — Atmospheric", scParamKey: "diurnal" },
-        { id: "sc-atm_density",  label: "Atmospheric Density",      path: "assets/earth_sc_atm_density.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "atm_density" },
-        { id: "sc-sound_speed",  label: "Speed of Sound",           path: "assets/earth_sc_sound_speed.png",        scGroup: "Surface Conditions — Atmospheric", scParamKey: "sound_speed" },
-        { id: "sc-co2_frost",    label: "CO₂ Frost Probability",    path: "assets/earth_sc_co2_frost.png",          scGroup: "Surface Conditions — Atmospheric", scParamKey: "co2_frost" },
-        { id: "sc-slope",        label: "Slope Gradient",           path: "assets/earth_sc_slope.png",              scGroup: "Surface Conditions — Terrain",      scParamKey: "slope" },
-        { id: "sc-roughness",    label: "Terrain Roughness",        path: "assets/earth_sc_roughness.png",          scGroup: "Surface Conditions — Terrain",      scParamKey: "roughness" },
-        { id: "sc-ice_depth",    label: "Permafrost Thickness",     path: "assets/earth_sc_ice_depth.png",          scGroup: "Surface Conditions — Habitability", scParamKey: "ice_depth" },
-        { id: "sc-dust_devil",   label: "Dust Devil Susceptibility",path: "assets/earth_sc_dust_devil.png",         scGroup: "Surface Conditions — Habitability", scParamKey: "dust_devil" },
-        { id: "sc-landing",      label: "Landing Zone Score",       path: "assets/earth_sc_landing_score.png",      scGroup: "Surface Conditions — Habitability", scParamKey: "landing_score" },
-        { id: "sc-solar",        label: "Solar Panel Output",       path: "assets/earth_sc_solar_output.png",       scGroup: "Surface Conditions — Habitability", scParamKey: "solar_output" },
-        { id: "sc-brine",        label: "Brine Stability",          path: "assets/earth_sc_brine_stability.png",    scGroup: "Surface Conditions — Habitability", scParamKey: "brine_stability" },
-        { id: "sc-magnetic",     label: "Magnetic Shielding",       path: "assets/earth_sc_magnetic_shielding.png", scGroup: "Surface Conditions — Habitability", scParamKey: "magnetic_shielding" },
-        { id: "sc-habitability", label: "Human Habitability",       path: "assets/earth_sc_habitability.png",       scGroup: "Surface Conditions — Habitability", scParamKey: "habitability" },
-      ];
+      const SC_LAYERS = [];
       baseLayers.push(...SC_LAYERS);
       // SC layers are not shown on first render — initialise as null, load in background.
       for (const layer of SC_LAYERS) {
@@ -11889,7 +10579,7 @@ import * as THREE from "./vendor/three.module.js";
       // ---- CTX Mosaic tile service ----
       // CTX lives on the displaced globe through a shared canvas texture, so terrain
       // deformation, geology overlays, and selection outlines all stay in one render path.
-      const ctxStreamer = new CTXCanvasLayer(layerTextures.get("viking-color") || null, ctxServiceConfig);
+      const ctxStreamer = new CTXCanvasLayer(layerTextures.get("earth-visible") || null, ctxServiceConfig);
       const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
       ctxStreamer.texture.anisotropy = maxAnisotropy;
       ctxStreamer.focusTexture.anisotropy = maxAnisotropy;
@@ -11913,10 +10603,11 @@ import * as THREE from "./vendor/three.module.js";
         description: `${ctxDescription} Colorized with Viking global mosaic.`,
         source_page_url: ctxServiceConfig.sourceServiceUrl || ctxServiceConfig.serviceUrl,
       };
-      baseLayers.unshift(CTX_LAYER);
-      baseLayers.unshift(CTX_COLOR_LAYER);
+      // CTX tile service not available for this planet
+      // baseLayers.unshift(CTX_LAYER);
+      // baseLayers.unshift(CTX_COLOR_LAYER);
       layerTextures.set("ctx-mosaic", ctxStreamer.texture);
-      layerTextures.set("ctx-mosaic-color", layerTextures.get("viking-color") || null);
+      layerTextures.set("ctx-mosaic-color", layerTextures.get("earth-visible") || null);
 
       setStatus("Preparing terrain layers...");
       // Phase 1: elevation + default geology only. Minerals and non-default geology load in background.
@@ -11953,6 +10644,18 @@ import * as THREE from "./vendor/three.module.js";
         layerTextures.set(ELEVATION_DEM_LAYER.id, elevationMap);
       }
       const elevationSampler = createElevationSamplerState(elevationMap);
+      // createSeaOverlayTextureState reads elevationMap.image pixel data — must be called before
+      // we null the image below. Pass elevationSampler so it shares the already-decoded pixel
+      // array rather than allocating a second identical ~33 MB Uint8ClampedArray.
+      const _earlySeaOverlayState = createSeaOverlayTextureState(elevationMap, elevationSampler);
+      // Upload to GPU first, then free the decoded bitmap (~32 MB renderer memory).
+      // version=0 permanently exits the re-upload condition `version > 0 && __version !== version`
+      // so Three.js never attempts to re-upload a null-image texture.
+      if (elevationMap) {
+        renderer.initTexture(elevationMap);
+        if (elevationMap.image) elevationMap.image = null;
+        elevationMap.version = 0;
+      }
       const getRequestedTerrainRelief = () => elevationMap ? Number(terrainScale.value) : 0;
       const getEffectiveTerrainRelief = () => {
         if (!elevationMap) return 0;
@@ -11968,7 +10671,7 @@ import * as THREE from "./vendor/three.module.js";
       const standardLayers = selectableBaseLayers.filter((l) => !l.scGroup);
       // Group standard layers into labelled optgroups
       const BASE_LAYER_GROUPS = [
-        { label: "Imagery",          ids: ["viking-color", "ctx-mosaic-color", "ctx-mosaic"] },
+        { label: "Imagery",          ids: ["earth-visible"] },
         { label: "Thermal & Albedo", ids: ["tes-albedo", "tes-thermal-inertia"] },
         { label: "Terrain",          ids: ["elevation-dem", "derived-hillshade", TERRAIN_PICKER_SLOPE_LAYER_ID] },
       ];
@@ -12076,22 +10779,23 @@ import * as THREE from "./vendor/three.module.js";
         option.textContent = layer.label;
         mineralSelect.appendChild(option);
       }
-      const initialLayer = baseLayers.find((layer) => layer.id === "viking-color")
+      const initialLayer = baseLayers.find((layer) => layer.id === "earth-visible")
         || baseLayers.find((layer) => layer.default)
         || baseLayers[0];
       baseLayerSelect.value = initialLayer.id;
       const initialGeologyLayer = geologyLayers.find((layer) => layer.default) || geologyLayers[0];
       mineralSelect.value = "";
       const seaLevelMaxMeters = 0;
-      const elevationMinMeters = Math.floor(Number(manifest.elevation?.min_m ?? -8200) / 25) * 25;
+      const rawElevMinMeters = Number(manifest.elevation?.min_m ?? -10930);
+      const elevationMinMeters = Math.floor(rawElevMinMeters / 25) * 25;
       seaLevelSlider.min = String(elevationMinMeters);
       seaLevelSlider.max = String(seaLevelMaxMeters);
       seaLevelSlider.value = String(clamp(Number(seaLevelSlider.value), elevationMinMeters, seaLevelMaxMeters));
-      if (seaLevelMin) seaLevelMin.textContent = `${elevationMinMeters.toLocaleString()} m`;
+      if (seaLevelMin) seaLevelMin.textContent = `−${Math.abs(rawElevMinMeters).toLocaleString()} m`;
       syncSeaLevelAxisValue();
 
       const planetConfig = manifest.planet || {};
-      const sphereGeometry = new THREE.SphereGeometry(3.2, 192, 192);
+      const sphereGeometry = new THREE.SphereGeometry(3.2, 128, 128);
       const initialBaseTexture = layerTextures.get(initialLayer.id) || null;
 
       const baseMaterial = new THREE.MeshStandardMaterial({
@@ -12111,7 +10815,7 @@ import * as THREE from "./vendor/three.module.js";
         shader.uniforms.uContourTexel = { value: new THREE.Vector2(1 / 4096, 1 / 2048) };
         shader.uniforms.uContourThickness = { value: 1.15 };
         shader.uniforms.uContourInterval = { value: 0 };
-        shader.uniforms.uContourMinMeters = { value: Number(manifest.elevation?.min_m ?? -8200) };
+        shader.uniforms.uContourMinMeters = { value: Number(manifest.elevation?.min_m ?? -10930) };
         shader.uniforms.uContourReliefMeters = { value: Math.max(Number(manifest.elevation?.relief_m ?? 1), 1) };
         baseMaterial.userData.contourShader = shader;
         shader.fragmentShader = shader.fragmentShader
@@ -12237,7 +10941,7 @@ uniform float uViewportWidth;`,
       };
       compareMaterial.needsUpdate = true;
       const compareGlobe = new THREE.Mesh(
-        new THREE.SphereGeometry(3.207, 192, 192),
+        new THREE.SphereGeometry(3.207, 128, 128),
         compareMaterial,
       );
       compareGlobe.rotation.y = Math.PI;
@@ -12271,7 +10975,7 @@ uniform float uViewportWidth;`,
         shader.uniforms.uContourTexel = { value: new THREE.Vector2(1 / 4096, 1 / 2048) };
         shader.uniforms.uContourThickness = { value: 1.15 };
         shader.uniforms.uContourInterval = { value: 0 };
-        shader.uniforms.uContourMinMeters = { value: Number(manifest.elevation?.min_m ?? -8200) };
+        shader.uniforms.uContourMinMeters = { value: Number(manifest.elevation?.min_m ?? -10930) };
         shader.uniforms.uContourReliefMeters = { value: Math.max(Number(manifest.elevation?.relief_m ?? 1), 1) };
         ctxFocusMaterial.userData.ctxShader = shader;
         shader.vertexShader = shader.vertexShader
@@ -12326,7 +11030,7 @@ uniform float uViewportWidth;`,
         ctxFocusMaterial.needsUpdate = true;
       };
       const ctxFocusGlobe = new THREE.Mesh(
-        new THREE.SphereGeometry(3.201, 192, 192),
+        new THREE.SphereGeometry(3.201, 128, 128),
         ctxFocusMaterial,
       );
       ctxFocusGlobe.rotation.y = Math.PI;
@@ -12344,6 +11048,11 @@ uniform float uViewportWidth;`,
         getTerrainRelief,
         maxAnisotropy,
       );
+      // Hard-cap the detail streamer at level 14. Tiles at level 15+ no longer exist
+      // in the CTX service; requesting them floods the network with 404 fallback chains
+      // (15→14→13→12, 48 inflight) and freezes the UI at close zoom.
+      ctxDetailStreamer.maxLevel = Math.min(ctxStreamer.FOCUS_MAX_LEVEL, 14);
+      ctxDetailStreamer.activationMinLevel = Math.min(ctxDetailStreamer.activationMinLevel, ctxDetailStreamer.maxLevel);
 
       // ── CTX detail diagnostics helpers ───────────────────────────────────────
       // console.table(window.ctxDiag())  — snapshot of the streamer state
@@ -12434,7 +11143,7 @@ uniform float uViewportWidth;`,
         polygonOffsetUnits: -2,
       });
       if (cutawayResult.crustRing) cutawayResult.crustRing.material = EARTH_UPPER_FACE_MAT;
-      const earthSolidInterior = buildEarthSolidInterior(3.2);
+      const earthSolidInterior = buildMarsSolidInterior(3.2);
       const earthSolidInteriorGroup = earthSolidInterior.group;
       earthGroup.add(earthSolidInteriorGroup);
       const earthInteriorSphereMaterials = [
@@ -12463,10 +11172,10 @@ uniform float uViewportWidth;`,
       };
       applyPlanetViewMode(saturnViewModeSelect ? saturnViewModeSelect.value : "tilted");
 
-      const GIS_BOOKMARK_STORAGE_KEY = "earth-gis-bookmarks-v1";
-      const GIS_STUDY_AREA_STORAGE_KEY = "earth-gis-study-areas-v1";
-      const GIS_BUFFER_STORAGE_KEY = "earth-gis-buffers-v1";
-      const GIS_BASE_STORAGE_KEY = "earth-gis-bases-v1";
+      const GIS_BOOKMARK_STORAGE_KEY = "mars-gis-bookmarks-v1";
+      const GIS_STUDY_AREA_STORAGE_KEY = "mars-gis-study-areas-v1";
+      const GIS_BUFFER_STORAGE_KEY = "mars-gis-buffers-v1";
+      const GIS_BASE_STORAGE_KEY = "mars-gis-bases-v1";
       const GIS_STORAGE_KEYS = [
         GIS_BOOKMARK_STORAGE_KEY,
         GIS_STUDY_AREA_STORAGE_KEY,
@@ -12485,7 +11194,7 @@ uniform float uViewportWidth;`,
         document.fonts.ready.catch(() => undefined),
         new Promise((resolve) => window.setTimeout(resolve, 1500)),
       ]);
-      const labelLayer = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief);
+      const labelLayer = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief, getReliefPoint, labelData);
       labelLayer.group.visible = true;
       earthGroup.add(labelLayer.group);
       let baseSiteLayer = buildBaseSiteLayer(initialGisBases, 3.2, elevationSampler, labelElevationCache, getTerrainRelief);
@@ -12498,10 +11207,10 @@ uniform float uViewportWidth;`,
       selectionRing.renderOrder = 203;
       selectionRing.visible = false;
       labelLayer.group.add(selectionRing);
-      moonLayer = buildMoonLayer(moonTextures);
+      moonLayer = buildMoonLayer(moonTextures, moonData, MOON_ORBIT_ECCENTRICITY);
       moonLayer.group.visible = true;
       earthGroup.add(moonLayer.group);
-      const moonFeatureLabelLayer = buildMoonFeatureLabelLayer();
+      const moonFeatureLabelLayer = buildMoonFeatureLabelLayer(moonData, moonFeatureData);
       moonFeatureLabelLayer.group.visible = true;
       earthGroup.add(moonFeatureLabelLayer.group);
       const moonSelectionRing = new THREE.Mesh(
@@ -12511,6 +11220,13 @@ uniform float uViewportWidth;`,
       moonSelectionRing.renderOrder = 203;
       moonSelectionRing.visible = false;
       moonFeatureLabelLayer.group.add(moonSelectionRing);
+      const moonSelectionCenterDot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.00045, 10, 10),
+        new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0, depthTest: false, depthWrite: false }),
+      );
+      moonSelectionCenterDot.renderOrder = 204;
+      moonSelectionCenterDot.visible = false;
+      moonFeatureLabelLayer.group.add(moonSelectionCenterDot);
       // Await the geology JSON before building vector layers so contacts/structures
       // are populated and layer.available is true when toggle disabled-states are set.
       // The fetch started early (line ~11719) and has been loading in parallel with
@@ -12540,7 +11256,7 @@ uniform float uViewportWidth;`,
               const _sc = document.createElement("canvas");
               _sc.width = _w;
               _sc.height = _h;
-              const _sctx = _sc.getContext("2d");
+              const _sctx = _sc.getContext("2d", { willReadFrequently: true });
               _sctx.drawImage(_img, 0, 0, _w, _h);
               geologyInteractiveState.samplerCtx = _sctx;
               geologyInteractiveState.samplerWidth = _w;
@@ -12664,7 +11380,7 @@ uniform float uViewportWidth;`,
       const geologyOutlineState = createGeologyOutlineState(THREE, geologyInteractiveState);
       if (geologyOutlineState) {
         const geologyOutlineMesh = new THREE.Mesh(
-          new THREE.SphereGeometry(3.209, 192, 192),
+          new THREE.SphereGeometry(3.209, 128, 128),
           new THREE.MeshBasicMaterial({
             map: geologyOutlineState.texture,
             transparent: true,
@@ -13246,14 +11962,14 @@ uniform float uViewportWidth;`,
         }
         const vertices = Array.isArray(activeBase.vertices) ? activeBase.vertices : [];
         if (vertices.length >= 3) {
-          const fillMesh = buildEarthPolygonFillMesh(vertices);
+          const fillMesh = buildMarsPolygonFillMesh(vertices);
           if (fillMesh) {
             const { r, g, b } = hexToRgb(activeBase.color || "#ff7846");
             fillMesh.material.color.setRGB(r / 255, g / 255, b / 255);
             fillMesh.material.opacity = 0.16;
             gisBaseGroup.add(fillMesh);
           }
-          const boundaryPoints = buildEarthSurfacePolyline(vertices, true, 0.02);
+          const boundaryPoints = buildMarsSurfacePolyline(vertices, true, 0.02);
           if (boundaryPoints.length >= 2) {
             const boundaryLine = new THREE.Line(
               new THREE.BufferGeometry().setFromPoints(boundaryPoints),
@@ -13290,14 +12006,14 @@ uniform float uViewportWidth;`,
           const def = BASE_BUILDER_CATALOG.find((entry) => entry.id === building.catalogId);
           const footprintVertices = buildBaseFootprintVertices(activeBase, building);
           if (!def || !footprintVertices) continue;
-          const mesh = buildEarthPolygonFillMesh(footprintVertices);
+          const mesh = buildMarsPolygonFillMesh(footprintVertices);
           if (mesh) {
             const { r, g, b } = hexToRgb(def.color);
             mesh.material.color.setRGB(r / 255, g / 255, b / 255);
             mesh.material.opacity = 0.46;
             gisBaseGroup.add(mesh);
           }
-          const linePoints = buildEarthSurfacePolyline(footprintVertices, true, 0.024);
+          const linePoints = buildMarsSurfacePolyline(footprintVertices, true, 0.024);
           if (linePoints.length >= 2) {
             const line = new THREE.Line(
               new THREE.BufferGeometry().setFromPoints(linePoints),
@@ -13625,8 +12341,8 @@ uniform float uViewportWidth;`,
         if (columnSet.has("temperature")) record.temperature_c = estimateEarthTemperature(lat, elevation || 0);
         if (columnSet.has("pressure")) record.pressure_pa = estimateEarthPressure(elevation || 0);
         if (columnSet.has("wind")) record.wind_m_s = estimateEarthWindSpeed(lat, elevation || 0);
-        if (columnSet.has("irradiance")) record.irradiance_w_m2 = estimateEarthIrradiance(lat, elevation || 0);
-        if (columnSet.has("radiation")) record.radiation_msv_day = estimateEarthRadiation(elevation || 0);
+        if (columnSet.has("irradiance")) record.irradiance_w_m2 = estimateMarsIrradiance(lat, elevation || 0);
+        if (columnSet.has("radiation")) record.radiation_msv_day = estimateMarsRadiation(elevation || 0);
         if (columnSet.has("geology")) {
           const geology = getGeologyFeatureAtLatLon(lat, lon, geologyInteractiveState);
           record.geology = geology?.rock_type || geology?.name || "";
@@ -13693,11 +12409,11 @@ uniform float uViewportWidth;`,
         if (!gisBufferState?.vertices?.length) {
           return;
         }
-        const fillMesh = buildEarthPolygonFillMesh(gisBufferState.vertices);
+        const fillMesh = buildMarsPolygonFillMesh(gisBufferState.vertices);
         if (fillMesh) {
           gisBufferGroup.add(fillMesh);
         }
-        const boundaryPoints = buildEarthSurfacePolyline(gisBufferState.vertices, true, 0.018);
+        const boundaryPoints = buildMarsSurfacePolyline(gisBufferState.vertices, true, 0.018);
         if (boundaryPoints.length >= 2) {
           const boundaryLine = new THREE.Line(
             new THREE.BufferGeometry().setFromPoints(boundaryPoints),
@@ -14769,7 +13485,7 @@ uniform float uViewportWidth;`,
           if (!feature || feature.geometry?.type !== "Polygon") {
             return;
           }
-          downloadJson("earth_study_area.geojson", { type: "FeatureCollection", features: [feature] });
+          downloadJson("mars_study_area.geojson", { type: "FeatureCollection", features: [feature] });
         });
       }
       if (gisStudyClearButton) {
@@ -14797,7 +13513,7 @@ uniform float uViewportWidth;`,
           if (!feature) {
             return;
           }
-          downloadJson("earth_buffer_zone.geojson", { type: "FeatureCollection", features: [feature] });
+          downloadJson("mars_buffer_zone.geojson", { type: "FeatureCollection", features: [feature] });
         });
       }
       if (gisBufferClear) {
@@ -14996,7 +13712,7 @@ uniform float uViewportWidth;`,
           if (!feature) {
             return;
           }
-          downloadJson("earth_study_geometry.geojson", {
+          downloadJson("mars_study_geometry.geojson", {
             type: "FeatureCollection",
             features: [feature],
           });
@@ -15078,7 +13794,7 @@ uniform float uViewportWidth;`,
           return context.centerLocal.clone().add(relVec);
         }
         // Store planetary measurements in the unspun body frame, then let the
-        // measurement overlay rotate with Earth so markers stay surface-locked.
+        // measurement overlay rotate with Mars so markers stay surface-locked.
         return localPoint.clone().applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
       }
 
@@ -15126,7 +13842,7 @@ uniform float uViewportWidth;`,
         pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
         raycaster.setFromCamera(pointer, camera);
         const candidates = [];
-        // Earth globe
+        // Mars globe
         const globeHit = raycaster.intersectObject(globe, false).find((e) => e.object.visible);
         if (globeHit) candidates.push(globeHit);
         // All moon meshes (visible or not — visibility check inside)
@@ -15147,7 +13863,7 @@ uniform float uViewportWidth;`,
         return candidates[0];
       }
 
-      function intersectEarthSurface(clientX, clientY) {
+      function intersectMarsSurface(clientX, clientY) {
         const rect = renderer.domElement.getBoundingClientRect();
         pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
         pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
@@ -15162,7 +13878,7 @@ uniform float uViewportWidth;`,
           return null;
         }
         // In moon-viewer mode only accept hits on the active moon — reject clicks that
-        // land on the Earth globe visible in the background.
+        // land on the Mars globe visible in the background.
         if (activeMoonViewerFeature && hit.context?.kind !== "moon") {
           return null;
         }
@@ -15755,7 +14471,7 @@ uniform float uViewportWidth;`,
         });
 
         geologyGlobe = new THREE.Mesh(
-          new THREE.SphereGeometry(3.202, 192, 192),
+          new THREE.SphereGeometry(3.202, 128, 128),
           geologyMaterial,
         );
         geologyGlobe.renderOrder = 45;
@@ -15780,7 +14496,7 @@ uniform float uViewportWidth;`,
         metalness: 0,
       });
       mineralGlobe = new THREE.Mesh(
-        new THREE.SphereGeometry(3.204, 192, 192),
+        new THREE.SphereGeometry(3.204, 128, 128),
         mineralMaterial,
       );
       mineralGlobe.renderOrder = 6;
@@ -15788,7 +14504,7 @@ uniform float uViewportWidth;`,
       mineralGlobe.visible = false;
       earthGroup.add(mineralGlobe);
 
-      const seaOverlayState = createSeaOverlayTextureState(elevationMap);
+      const seaOverlayState = _earlySeaOverlayState;
       if (seaOverlayState) {
         updateSeaOverlayTexture(seaOverlayState, Number(seaLevelSlider.value));
         seaMaterial = new THREE.MeshStandardMaterial({
@@ -15809,7 +14525,7 @@ uniform float uViewportWidth;`,
           emissiveIntensity: 0.2,
         });
         seaGlobe = new THREE.Mesh(
-          new THREE.SphereGeometry(3.206, 192, 192),
+          new THREE.SphereGeometry(3.206, 128, 128),
           seaMaterial,
         );
         seaGlobe.renderOrder = 46;
@@ -15841,7 +14557,7 @@ uniform float uViewportWidth;`,
           metalness: 0,
         });
         regionMaskGlobe = new THREE.Mesh(
-          new THREE.SphereGeometry(3.208, 192, 192),
+          new THREE.SphereGeometry(3.208, 128, 128),
           regionMaskMaterial,
         );
         regionMaskGlobe.renderOrder = 7;
@@ -15877,7 +14593,7 @@ uniform float uViewportWidth;`,
         // Rocky planet — globe is always visible; no "remove atmosphere" concept.
         const removeAtmosphere = false;
         const coreEnabled = Boolean(coreToggle && coreToggle.checked);
-        const earthLabelsEnabled = labelsToggle.checked;
+        const earthLabelsEnabled = labelsToggle.checked && !activeMoonViewerFeature;
         globe.visible = true;
         // Solid interior helper (gas-planet holdover) is never shown for rocky planets.
         // to avoid triggering expensive MeshPhysicalMaterial shader compilations.
@@ -15897,8 +14613,9 @@ uniform float uViewportWidth;`,
           material.needsUpdate = true;
         }
         if (baseMaterial) {
-          baseMaterial.map = !removeAtmosphere ? getLayerTextureById(baseLayerSelect.value) : null;
-          baseMaterial.color.set(!removeAtmosphere ? (baseMaterial.map ? 0xffffff : 0xd0b18a) : 0x6f675f);
+          const _bTex = !removeAtmosphere ? (getLayerTextureById(baseLayerSelect.value) || layerTextures.get("earth-visible") || null) : null;
+          baseMaterial.map = _bTex;
+          baseMaterial.color.set(!removeAtmosphere ? (_bTex ? 0xffffff : 0xd0b18a) : 0x6f675f);
           baseMaterial.needsUpdate = true;
         }
         if (compareGlobe) {
@@ -15959,6 +14676,16 @@ uniform float uViewportWidth;`,
           coreEnabled,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          !removeAtmosphere && (craterLabelsToggle?.checked ?? true),
+          !removeAtmosphere && (fluvialLabelsToggle?.checked ?? true),
+          !removeAtmosphere && (tectonicLabelsToggle?.checked ?? true),
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
         updateLabelVisibility(
           baseSiteLayer.entries,
@@ -15966,15 +14693,25 @@ uniform float uViewportWidth;`,
           globe,
           camera,
           renderer,
-          labelsToggle.checked,
+          labelsToggle.checked && !activeMoonViewerFeature,
           true,
           true,
           true,
           coreEnabled,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
-        baseSiteLayer.group.visible = Boolean(baseLabelsToggle?.checked);
+        baseSiteLayer.group.visible = Boolean(baseLabelsToggle?.checked) && !activeMoonViewerFeature;
         updateCoreLabelVisibility(cutawayResult, camera, Boolean(coreLabelsToggle && coreLabelsToggle.checked));
         moonFeatureLabelLayer.group.visible = labelsToggle.checked;
       }
@@ -16004,8 +14741,8 @@ uniform float uViewportWidth;`,
         }
         updateGeologyVectorLayer(geologyContactLayer);
         updateGeologyVectorLayer(geologyStructureLayer);
-        updateLabelAnchors(labelLayer, elevationSampler, labelElevationCache, getTerrainRelief, 3.2);
-        updateLabelAnchors(baseSiteLayer, elevationSampler, labelElevationCache, getTerrainRelief, 3.2);
+        updateLabelAnchors(labelLayer, elevationSampler, labelElevationCache, getTerrainRelief, 3.2, getReliefPoint);
+        updateLabelAnchors(baseSiteLayer, elevationSampler, labelElevationCache, getTerrainRelief, 3.2, getReliefPoint);
         renderActiveBaseOverlay();
         if (typeof updateSeismicAnchors === "function" && typeof seismicLayer !== "undefined" && typeof seismicElevationCache !== "undefined") {
           updateSeismicAnchors(seismicLayer, elevationSampler, seismicElevationCache, getTerrainRelief, 3.2);
@@ -16034,8 +14771,12 @@ uniform float uViewportWidth;`,
           dynamicHillshadeTexture = null;
         }
         const nextTexture = nextLayer ? getLayerTextureById(nextLayer.id) : null;
-        baseMaterial.map = nextTexture || null;
-        baseMaterial.color.set(nextTexture ? 0xffffff : 0xd0b18a);
+        if (!nextTexture && nextLayer?.path && layerTextures.get(nextLayer.id) === null) {
+          _loadBaseLayerOnDemand(nextLayer.id);
+        }
+        const _fallbackTex = nextTexture || layerTextures.get("earth-visible") || null;
+        baseMaterial.map = _fallbackTex;
+        baseMaterial.color.set(_fallbackTex ? 0xffffff : 0xd0b18a);
         baseMaterial.needsUpdate = true;
         if (hillshadeControls) {
           hillshadeControls.hidden = baseLayerSelect.value !== "derived-hillshade";
@@ -16044,7 +14785,6 @@ uniform float uViewportWidth;`,
           cutawayResult.crustRing.material.uniforms.uMap.value = nextTexture || null;
         }
         if (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color") {
-          applyPlanetViewMode("untilted");
           ctxStreamer.activate();
           ctxFocusGlobe.visible = false;
         } else {
@@ -16056,7 +14796,7 @@ uniform float uViewportWidth;`,
         if (ctxFocusMaterial?.userData?.ctxShader) {
           const shader = ctxFocusMaterial.userData.ctxShader;
           if (baseLayerSelect.value === "ctx-mosaic-color") {
-            shader.uniforms.uCtxColorMap.value = layerTextures.get("viking-color") || null;
+            shader.uniforms.uCtxColorMap.value = layerTextures.get("earth-visible") || null;
             shader.uniforms.uCtxColorMix.value = 1.0;
             shader.uniforms.uCtxColorLift.value = 1.15;
           } else {
@@ -16157,7 +14897,11 @@ uniform float uViewportWidth;`,
         volcanicLabelsToggle.checked = true;
         landingLabelsToggle.checked = true;
         habitationLabelsToggle.checked = true;
+        if (craterLabelsToggle) craterLabelsToggle.checked = true;
+        if (fluvialLabelsToggle) fluvialLabelsToggle.checked = true;
+        if (tectonicLabelsToggle) tectonicLabelsToggle.checked = true;
         if (baseLabelsToggle) baseLabelsToggle.checked = true;
+        if (lodSlider) { lodSlider.value = 5; currentLodLevel = 5; syncLodLabel(); }
         updateLabelVisibility(
           labelLayer.entries,
           earthGroup,
@@ -16171,6 +14915,16 @@ uniform float uViewportWidth;`,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
         baseSiteLayer.group.visible = Boolean(baseLabelsToggle?.checked);
       }
@@ -16181,6 +14935,9 @@ uniform float uViewportWidth;`,
           volcanicLabelsToggle.checked ||
           landingLabelsToggle.checked ||
           habitationLabelsToggle.checked ||
+          (craterLabelsToggle && craterLabelsToggle.checked) ||
+          (fluvialLabelsToggle && fluvialLabelsToggle.checked) ||
+          (tectonicLabelsToggle && tectonicLabelsToggle.checked) ||
           (baseLabelsToggle && baseLabelsToggle.checked) ||
           (moonToggle && moonToggle.checked)
         );
@@ -16238,7 +14995,6 @@ uniform float uViewportWidth;`,
         syncContourOverlay();
         syncSpinToggleBtn();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
-        if (baseLayers.find((l) => l.id === baseLayerSelect.value && l.scParamKey)) openLegendSection();
         syncGisPanel();
       });
       if (gisCompareLayerSelect) {
@@ -16299,7 +15055,7 @@ uniform float uViewportWidth;`,
       geologyMasterToggle.addEventListener("change", () => {
         if (geologySection) geologySection.open = geologyMasterToggle.checked;
         if (geologyMasterToggle.checked) {
-          openLegendSection();
+          setTimeout(() => geologySection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
           applyDefaultGeologyState();
         } else {
           geologyToggle.checked = false;
@@ -16328,6 +15084,9 @@ uniform float uViewportWidth;`,
       mineralSelect.addEventListener("change", () => {
         const nextMineralLayer = mineralLayers.find((layer) => layer.id === mineralSelect.value);
         const nextMineralTexture = nextMineralLayer ? mineralTextures.get(nextMineralLayer.id) : null;
+        if (!nextMineralTexture && nextMineralLayer?.path) {
+          _loadMineralLayerOnDemand(nextMineralLayer.id);
+        }
         if (mineralMaterial) {
           mineralMaterial.map = nextMineralTexture || null;
           mineralMaterial.needsUpdate = true;
@@ -16335,11 +15094,28 @@ uniform float uViewportWidth;`,
         if (mineralGlobe) {
           mineralGlobe.visible = Boolean(nextMineralTexture);
         }
-        if (mineralSelect.value) openLegendSection();
         syncGeologyMasterToggle();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
         syncGisPanel();
       });
+
+      const _syncMoonFeatureLabels = () => {
+        moonFeatureLabelLayer.group.visible = labelsToggle.checked || volcanicLabelsToggle.checked || landingLabelsToggle.checked || habitationLabelsToggle.checked || (craterLabelsToggle?.checked ?? true) || (fluvialLabelsToggle?.checked ?? true) || (tectonicLabelsToggle?.checked ?? true);
+        updateMoonFeatureLabelVisibility(
+          moonFeatureLabelLayer.entries,
+          earthGroup,
+          camera,
+          renderer,
+          activeMoonViewerFeature,
+          volcanicLabelsToggle.checked,
+          landingLabelsToggle.checked,
+          habitationLabelsToggle.checked,
+        
+          craterLabelsToggle?.checked ?? true,
+          activePopupFeature,
+          isPointOccludedByAnyMoon,
+        );
+      };
 
       labelsToggle.addEventListener("change", () => {
         updateLabelVisibility(
@@ -16355,8 +15131,19 @@ uniform float uViewportWidth;`,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
-        moonFeatureLabelLayer.group.visible = labelsToggle.checked;
+        updateMoonVisibility(moonLayer.entries, earthGroup, camera, renderer, moonToggle ? moonToggle.checked : true, labelsToggle.checked && !activeMoonViewerFeature, activeMoonViewerFeature, isPointOccludedByAnyMoon);
+        _syncMoonFeatureLabels();
         syncLocationsMasterToggle();
       });
 
@@ -16374,7 +15161,18 @@ uniform float uViewportWidth;`,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
+        _syncMoonFeatureLabels();
         syncLocationsMasterToggle();
       });
 
@@ -16392,7 +15190,18 @@ uniform float uViewportWidth;`,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
+        _syncMoonFeatureLabels();
         syncLocationsMasterToggle();
       });
 
@@ -16410,9 +15219,150 @@ uniform float uViewportWidth;`,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          craterLabelsToggle?.checked ?? true,
+          fluvialLabelsToggle?.checked ?? true,
+          tectonicLabelsToggle?.checked ?? true,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
+        _syncMoonFeatureLabels();
         syncLocationsMasterToggle();
       });
+
+      if (craterLabelsToggle) {
+        craterLabelsToggle.addEventListener("change", () => {
+          updateLabelVisibility(
+            labelLayer.entries,
+            earthGroup,
+            globe,
+            camera,
+            renderer,
+            labelsToggle.checked,
+            volcanicLabelsToggle.checked,
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+            coreToggle.checked,
+            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+            craterLabelsToggle.checked,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+          
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
+          _syncMoonFeatureLabels();
+          syncLocationsMasterToggle();
+        });
+      }
+
+      if (fluvialLabelsToggle) {
+        fluvialLabelsToggle.addEventListener("change", () => {
+          updateLabelVisibility(
+            labelLayer.entries,
+            earthGroup,
+            globe,
+            camera,
+            renderer,
+            labelsToggle.checked,
+            volcanicLabelsToggle.checked,
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+            coreToggle.checked,
+            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+            craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle.checked,
+            tectonicLabelsToggle?.checked ?? true,
+
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
+          syncLocationsMasterToggle();
+        });
+      }
+
+      if (tectonicLabelsToggle) {
+        tectonicLabelsToggle.addEventListener("change", () => {
+          updateLabelVisibility(
+            labelLayer.entries,
+            earthGroup,
+            globe,
+            camera,
+            renderer,
+            labelsToggle.checked,
+            volcanicLabelsToggle.checked,
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+            coreToggle.checked,
+            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+            craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle.checked,
+
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
+          syncLocationsMasterToggle();
+        });
+      }
+
+      const lodValueLabel = document.getElementById("lod-value-label");
+      const LOD_LABELS = ["", "Landmarks only", "Major features", "Standard", "Detailed", "All features"];
+      function syncLodLabel() {
+        if (lodValueLabel) lodValueLabel.textContent = LOD_LABELS[currentLodLevel] || "All features";
+      }
+      syncLodLabel();
+
+      if (lodSlider) {
+        lodSlider.addEventListener("input", () => {
+          currentLodLevel = parseInt(lodSlider.value, 10);
+          syncLodLabel();
+          updateLabelVisibility(
+            labelLayer.entries,
+            earthGroup,
+            globe,
+            camera,
+            renderer,
+            labelsToggle.checked,
+            volcanicLabelsToggle.checked,
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+            coreToggle.checked,
+            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+            craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+          
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
+          _syncMoonFeatureLabels();
+        });
+      }
 
       if (baseLabelsToggle) {
         baseLabelsToggle.addEventListener("change", () => {
@@ -16430,7 +15380,17 @@ uniform float uViewportWidth;`,
             coreToggle.checked,
             baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
             Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
-          );
+            true,
+            true,
+            true,
+          
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
           syncLocationsMasterToggle();
         });
       }
@@ -16444,6 +15404,8 @@ uniform float uViewportWidth;`,
             renderer,
             moonToggle.checked,
             labelsToggle.checked,
+            activeMoonViewerFeature,
+            isPointOccludedByAnyMoon,
           );
           syncLocationsMasterToggle();
         });
@@ -16458,6 +15420,9 @@ uniform float uViewportWidth;`,
         volcanicLabelsToggle.checked = on;
         landingLabelsToggle.checked = on;
         habitationLabelsToggle.checked = on;
+        if (craterLabelsToggle) craterLabelsToggle.checked = on;
+        if (fluvialLabelsToggle) fluvialLabelsToggle.checked = on;
+        if (tectonicLabelsToggle) tectonicLabelsToggle.checked = on;
         if (baseLabelsToggle) baseLabelsToggle.checked = on;
         if (moonToggle) moonToggle.checked = on;
         updateLabelVisibility(
@@ -16466,26 +15431,39 @@ uniform float uViewportWidth;`,
           globe,
           camera,
           renderer,
-          labelsToggle.checked,
-          volcanicLabelsToggle.checked,
-          landingLabelsToggle.checked,
-          habitationLabelsToggle.checked,
+          on,
+          on,
+          on,
+          on,
           coreToggle.checked,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
+          on,
+          on,
+          on,
+        
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
         );
         baseSiteLayer.group.visible = Boolean(baseLabelsToggle?.checked);
+        updateMoonVisibility(moonLayer.entries, earthGroup, camera, renderer, moonToggle ? moonToggle.checked : true, labelsToggle.checked && !activeMoonViewerFeature, activeMoonViewerFeature, isPointOccludedByAnyMoon);
+        _syncMoonFeatureLabels();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
       });
 
       coreToggle.addEventListener("change", () => {
         const enabled = coreToggle.checked;
         if (enabled) {
+          setTimeout(() => coreViewSection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
           resetActiveMeasurement();
           cursorReadout.hidden = true;
           lastScaleSampleLat = null;
           updateScaleHud(camera, globe, null, false);
-        } else {
+        } else if (!moonViewerToggle || !moonViewerToggle.checked) {
           resetExploreView(camera, controls);
         }
         if (enabled && elevationMap) {
@@ -16591,7 +15569,6 @@ uniform float uViewportWidth;`,
         if (seaGlobe) {
           seaGlobe.visible = seaToggle.checked;
         }
-        if (seaToggle.checked) openLegendSection();
         applyPlanetDisplayState();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
       });
@@ -16614,7 +15591,6 @@ uniform float uViewportWidth;`,
           : null;
         regionMaskMaterial.needsUpdate = true;
         regionMaskGlobe.visible = Boolean(regionMaskSelect.value);
-        if (regionMaskSelect.value) openLegendSection();
         applyPlanetDisplayState();
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
       });
@@ -16746,7 +15722,7 @@ uniform float uViewportWidth;`,
       }
       if (csvPlotterExportPng) {
         csvPlotterExportPng.addEventListener("click", () => {
-          if (csvPlotterCanvas) exportCanvasPng(csvPlotterCanvas, "earth_csv_plot.png");
+          if (csvPlotterCanvas) exportCanvasPng(csvPlotterCanvas, "mars_csv_plot.png");
         });
       }
       if (gisStudyExtractButton) {
@@ -16789,6 +15765,7 @@ uniform float uViewportWidth;`,
             const firstFeature = getTourFeatureByIndex(0, activeTourModeFacetId);
             if (tourModeSection) {
               tourModeSection.open = true;
+              setTimeout(() => tourModeSection.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
             }
             if (firstFeature) {
               ensureNavigateBasemap();
@@ -16804,7 +15781,7 @@ uniform float uViewportWidth;`,
 
       if (tourModeFacet) {
         tourModeFacet.addEventListener("change", () => {
-          activeTourModeFacetId = tourModeFacet.value || TOUR_MODE_FACETS[0]?.id || "craters";
+          activeTourModeFacetId = tourModeFacet.value || TOUR_MODE_FACETS[0]?.id || "highlights";
           const nextFeature = getTourFeatureByIndex(0, activeTourModeFacetId);
           if (activeTourModeFeature) {
             presentTourFeature(nextFeature, camera, controls, "Touring");
@@ -16834,7 +15811,10 @@ uniform float uViewportWidth;`,
       }
 
       featureSearch.addEventListener("input", refreshSearchSuggestionsAfterTextEdit);
-      featureSearch.addEventListener("keyup", refreshSearchSuggestionsAfterTextEdit);
+      featureSearch.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "Enter" || e.key === "Escape") return;
+        refreshSearchSuggestionsAfterTextEdit();
+      });
       featureSearch.addEventListener("change", refreshSearchSuggestionsAfterTextEdit);
       featureSearch.addEventListener("focus", refreshSearchSuggestions);
       featureSearchResults.addEventListener("pointerdown", (event) => {
@@ -16858,7 +15838,15 @@ uniform float uViewportWidth;`,
         }
         if (event.key === "Enter") {
           event.preventDefault();
-          focusSearchedFeature(resolveFeatureSearchSelection(), camera, controls);
+          const activeBtn = featureSearchResults.querySelector(".search-suggestion.is-active");
+          const firstBtn  = featureSearchResults.querySelector(".search-suggestion");
+          if (activeBtn) {
+            activeBtn.click();
+          } else if (firstBtn) {
+            firstBtn.click();
+          } else {
+            focusSearchedFeature(resolveFeatureSearchSelection(), camera, controls);
+          }
         }
       });
       document.addEventListener("pointerdown", (event) => {
@@ -16922,6 +15910,57 @@ uniform float uViewportWidth;`,
           moonNavContext = "moon";
           resetActiveMeasurement(true);
           cycleMoonViewer(1, camera, controls);
+        });
+      }
+
+      if (moonFeatureSearchInput) {
+        moonFeatureSearchInput.addEventListener("input", refreshMoonFeatureSearch);
+        moonFeatureSearchInput.addEventListener("focus", refreshMoonFeatureSearch);
+        if (moonFeatureSearchResults) {
+          moonFeatureSearchResults.addEventListener("pointerdown", (e) => e.stopPropagation());
+          moonFeatureSearchResults.addEventListener("click", (e) => e.stopPropagation());
+        }
+        moonFeatureSearchInput.addEventListener("keydown", (event) => {
+          if (event.key === "ArrowDown" && activeMoonFeatureSearchResults.length) {
+            activeMoonFeatureSearchIndex = (activeMoonFeatureSearchIndex + 1) % activeMoonFeatureSearchResults.length;
+            renderMoonFeatureSearchResults(activeMoonFeatureSearchResults, true);
+            event.preventDefault();
+            return;
+          }
+          if (event.key === "ArrowUp" && activeMoonFeatureSearchResults.length) {
+            activeMoonFeatureSearchIndex = (activeMoonFeatureSearchIndex - 1 + activeMoonFeatureSearchResults.length) % activeMoonFeatureSearchResults.length;
+            renderMoonFeatureSearchResults(activeMoonFeatureSearchResults, true);
+            event.preventDefault();
+            return;
+          }
+          if (event.key === "Enter") {
+            event.preventDefault();
+            const activeBtn = moonFeatureSearchResults && moonFeatureSearchResults.querySelector(".search-suggestion.is-active");
+            const firstBtn  = moonFeatureSearchResults && moonFeatureSearchResults.querySelector(".search-suggestion");
+            if (activeBtn) { activeBtn.click(); }
+            else if (firstBtn) { firstBtn.click(); }
+          }
+        });
+        document.addEventListener("pointerdown", (event) => {
+          if (
+            event.target !== moonFeatureSearchInput &&
+            event.target !== moonFeatureSearchGo &&
+            !(moonFeatureSearchResults && moonFeatureSearchResults.contains(event.target))
+          ) {
+            clearMoonFeatureSearchResults();
+          }
+        });
+      }
+      if (moonFeatureSearchGo) {
+        moonFeatureSearchGo.addEventListener("click", () => {
+          const selected = activeMoonFeatureSearchIndex >= 0
+            ? activeMoonFeatureSearchResults[activeMoonFeatureSearchIndex]
+            : activeMoonFeatureSearchResults[0];
+          if (selected) {
+            moveCameraToFeature(selected, camera, controls, { animate: true });
+            openFeature(selected, false);
+            clearMoonFeatureSearchResults(true);
+          }
         });
       }
 
@@ -17058,7 +16097,7 @@ uniform float uViewportWidth;`,
           ? intersectMeasurementSurface(event.clientX, event.clientY)
           : (() => {
               const hit = intersectAnySurface(event.clientX, event.clientY);
-              // In moon-viewer mode ignore background Earth globe hits for cursor readout
+              // In moon-viewer mode ignore background Mars globe hits for cursor readout
               if (activeMoonViewerFeature && hit?.context?.kind !== "moon") return null;
               return hit;
             })();
@@ -17117,7 +16156,7 @@ uniform float uViewportWidth;`,
               : pressurePa < 500 ? "#c8a8e0"
               : pressurePa < 800 ? "#e8b878"
               : "#ff9966";
-            if (scContext) scContext.textContent = "EARTH SURFACE";
+            if (scContext) scContext.textContent = "MARS SURFACE";
           }
         } else {
           // No surface hit — cursor is in space
@@ -17144,14 +16183,24 @@ uniform float uViewportWidth;`,
             globe,
             camera,
             renderer,
-            labelsToggle.checked,
+            labelsToggle.checked && !activeMoonViewerFeature,
             volcanicLabelsToggle.checked,
             landingLabelsToggle.checked,
             habitationLabelsToggle.checked,
             true,
             baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
             Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
-          );
+            craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+          
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
           updateCoreLabelVisibility(
             cutawayResult,
             camera,
@@ -17251,7 +16300,7 @@ uniform float uViewportWidth;`,
         if (priorityHit) {
           hoveredFeature = priorityHit.object.userData.feature;
         } else {
-          const geologySurfaceHit = geologyToggle.checked ? intersectEarthSurface(event.clientX, event.clientY) : null;
+          const geologySurfaceHit = geologyToggle.checked ? intersectMarsSurface(event.clientX, event.clientY) : null;
           if (geologySurfaceHit) {
             // worldToLocal undoes earthGroup.rotation.z (axial tilt); then un-spin globe.rotation.y
             const hoverLocalHit = earthGroup.worldToLocal(geologySurfaceHit.point.clone());
@@ -17375,7 +16424,7 @@ uniform float uViewportWidth;`,
           return;
         }
         if (gisBasePlacementMode) {
-          const baseSurfaceHit = intersectEarthSurface(event.clientX, event.clientY);
+          const baseSurfaceHit = intersectMarsSurface(event.clientX, event.clientY);
           if (baseSurfaceHit) {
             const localPoint = earthGroup.worldToLocal(baseSurfaceHit.point.clone());
             const bodyPoint = localPoint.clone().applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
@@ -17387,7 +16436,7 @@ uniform float uViewportWidth;`,
         }
         // Priority 2: geology fill surface — use floating geo popup, not main scenePopup
         const clickSpinDelta = globe.rotation.y - Math.PI;
-        const surfaceHit = geologyToggle.checked ? intersectEarthSurface(event.clientX, event.clientY) : null;
+        const surfaceHit = geologyToggle.checked ? intersectMarsSurface(event.clientX, event.clientY) : null;
         if (surfaceHit) {
           // worldToLocal undoes earthGroup.rotation.z (axial tilt); then un-spin globe.rotation.y
           const clickLocalHit = earthGroup.worldToLocal(surfaceHit.point.clone());
@@ -17434,7 +16483,7 @@ uniform float uViewportWidth;`,
 
       function sampleFeatureAtViewport(nx, ny) {
         const { clientX, clientY } = viewportToClient(nx, ny);
-        const surfaceHit = intersectEarthSurface(clientX, clientY);
+        const surfaceHit = intersectMarsSurface(clientX, clientY);
         let geologyFeature = null;
         if (surfaceHit) {
           const sampleLocalHit = earthGroup.worldToLocal(surfaceHit.point.clone());
@@ -17637,6 +16686,7 @@ ${error && error.message ? error.message : error}`;
           fp[0] = connectorStart.x;  fp[1] = connectorStart.y;  fp[2] = connectorStart.z;
           fp[3] = sprite.position.x; fp[4] = sprite.position.y; fp[5] = sprite.position.z;
           line.geometry.attributes.position.needsUpdate = true;
+          line.geometry.computeBoundingSphere();
         }
       }
 
@@ -17647,6 +16697,94 @@ ${error && error.message ? error.message : error}`;
         camQuat: new THREE.Quaternion(),
         moving: false,
       };
+
+      // Force-upload a texture to GPU then release its CPU image backing store.
+      // Only used for textures that are actively rendered (moon textures, the
+      // default base/geology layers). Inactive layers are never pre-uploaded so
+      // they don't consume GPU memory until the user selects them.
+      function _freeTexImage(tex) {
+        if (!tex || !tex.image) return;
+        renderer.initTexture(tex);
+        tex.image = null;
+        tex.version = 0;
+      }
+
+      const _onDemandLoading = new Set();
+
+      async function _loadBaseLayerOnDemand(layerId) {
+        if (_onDemandLoading.has(layerId)) return;
+        const layer = baseLayers.find(l => l.id === layerId);
+        if (!layer?.path || layerTextures.get(layerId) !== null) return;
+        _onDemandLoading.add(layerId);
+        try {
+          const raw = await loadTextureSafe(textureLoader, layer.path);
+          let tex;
+          if (layer.scGroup) {
+            tex = raw;
+            if (tex) {
+              tex.colorSpace = THREE.SRGBColorSpace;
+              tex.wrapS = THREE.RepeatWrapping;
+              tex.wrapT = THREE.ClampToEdgeWrapping;
+              tex.repeat.set(1, 1);
+              tex.offset.set(0, 0);
+              tex.needsUpdate = true;
+            }
+          } else {
+            tex = applyTextureTransforms(raw, layer);
+            if (tex) tex.colorSpace = THREE.SRGBColorSpace;
+          }
+          if (tex) tex.onUpdate = () => { tex.image = null; tex.onUpdate = null; };
+          layerTextures.set(layerId, tex || null);
+          if (baseLayerSelect.value === layerId) syncBasemapVisibility();
+        } finally {
+          _onDemandLoading.delete(layerId);
+        }
+      }
+
+      async function _loadMineralLayerOnDemand(layerId) {
+        if (_onDemandLoading.has('m:' + layerId)) return;
+        const layer = mineralLayers.find(l => l.id === layerId);
+        if (!layer?.path || mineralTextures.get(layerId) != null) return;
+        _onDemandLoading.add('m:' + layerId);
+        try {
+          const raw = await loadTextureSafe(textureLoader, layer.path);
+          if (raw) raw.colorSpace = THREE.SRGBColorSpace;
+          const tex = raw ? processMineralTexture(raw) : null;
+          mineralTextures.set(layerId, tex);
+          mineralSamplerStates.set(layerId, createRasterSamplerState(tex));
+          _freeTexImage(raw);
+          _freeTexImage(tex);
+          if (mineralSelect.value === layerId) {
+            if (mineralMaterial) { mineralMaterial.map = tex || null; mineralMaterial.needsUpdate = true; }
+            if (mineralGlobe) mineralGlobe.visible = Boolean(tex);
+          }
+        } finally {
+          _onDemandLoading.delete('m:' + layerId);
+        }
+      }
+
+      // After the first rendered frame, free CPU images for textures already on GPU.
+      // Only the default base layer and default geology layer are GPU-uploaded at
+      // this point — on-demand layers are loaded later and freed at load time.
+      // IDs whose textures are streaming canvases — must never have their image nulled.
+      const _streamingLayerIds = new Set(["ctx-mosaic", "ctx-mosaic-color"]);
+
+      let _textureCleanupDone = false;
+      function _freeTextureImages() {
+        if (_textureCleanupDone) return;
+        _textureCleanupDone = true;
+        for (const [id, tex] of layerTextures) {
+          if (!_streamingLayerIds.has(id)) _freeTexImage(tex);
+        }
+        for (const tex of geologyTextures.values()) {
+          _freeTexImage(tex);
+        }
+        // Pre-warm the CTX canvas texture now (while the GL context is idle after
+        // the first frame) so the first CTX selection doesn't stall the render thread
+        // uploading 128 MB + mipmaps. The original background loader used to do this
+        // implicitly by iterating all layerTextures; the moon-only loader no longer does.
+        if (ctxStreamer?.texture) renderer.initTexture(ctxStreamer.texture);
+      }
 
       function render() {
         // ── Motion throttle ───────────────────────────────────────────────────
@@ -17759,7 +16897,14 @@ ${error && error.message ? error.message : error}`;
               lastSafeMosaicCameraPosition.copy(camera.position);
             }
           } else {
-            lastSafeMosaicCameraPosition.copy(camera.position);
+            // Only record a non-CTX position as "safe" if it is above the CTX
+            // zoom floor. This ensures that if the user switches to CTX while
+            // already zoomed past 10 km (e.g. on Viking), the snap target is a
+            // genuinely safe altitude rather than the too-close current position.
+            const _nonCtxScaleBar = estimateScaleBarMetersForCameraPosition(camera.position);
+            if (!Number.isFinite(_nonCtxScaleBar) || _nonCtxScaleBar >= CTX_MOSAIC_MIN_SCALEBAR_METERS) {
+              lastSafeMosaicCameraPosition.copy(camera.position);
+            }
           }
         }
         const _t = performance.now();
@@ -17794,7 +16939,10 @@ ${error && error.message ? error.message : error}`;
           compareShader.uniforms.uViewportWidth.value = renderer.domElement.clientWidth || window.innerWidth || 1;
         }
         const removeAtmosphere = false; // Rocky planet — no atmosphere to remove.
-        const earthLabelsEnabled = labelsToggle.checked;
+        const earthLabelsEnabled = labelsToggle.checked && !activeMoonViewerFeature;
+        // Group-level kill switch: hide the entire label layer in moon viewer mode every frame,
+        // overriding any event listener that may have turned individual sprites back on.
+        labelLayer.group.visible = !activeMoonViewerFeature;
         // Label/moon visibility: expensive per-entry world-space work. Runs every
         // frame when still; every 3rd frame during rotation (imperceptible at 60fps).
         if (_heavyFrame) {
@@ -17815,7 +16963,17 @@ ${error && error.message ? error.message : error}`;
               false,
               useMosaicLabelLayout,
               mosaicScaleBarMeters,
-            );
+              craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
             updateMoonVisibility(
               moonLayer.entries,
               earthGroup,
@@ -17823,17 +16981,23 @@ ${error && error.message ? error.message : error}`;
               renderer,
               moonToggle ? moonToggle.checked : true,
               earthLabelsEnabled,
+              activeMoonViewerFeature,
+              isPointOccludedByAnyMoon,
             );
-            if (!activeMoonViewerFeature) {
-              updateMoonFeatureLabelVisibility(
-                moonFeatureLabelLayer.entries,
-                earthGroup,
-                camera,
-                renderer,
-                null,
-                volcanicLabelsToggle.checked,
-              );
-            }
+            updateMoonFeatureLabelVisibility(
+              moonFeatureLabelLayer.entries,
+              earthGroup,
+              camera,
+              renderer,
+              activeMoonViewerFeature || null,
+              volcanicLabelsToggle.checked,
+              landingLabelsToggle.checked,
+              habitationLabelsToggle.checked,
+
+          craterLabelsToggle?.checked ?? true,
+          activePopupFeature,
+          isPointOccludedByAnyMoon,
+        );
           } else {
             updateLabelVisibility(
               labelLayer.entries,
@@ -17848,7 +17012,17 @@ ${error && error.message ? error.message : error}`;
               true,
               useMosaicLabelLayout,
               mosaicScaleBarMeters,
-            );
+              craterLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            
+          currentLodLevel,
+          activeMoonViewerFeature,
+          activeCutClipPlane,
+          isPointOccludedByAnyMoon,
+          moonLayer,
+          activePopupFeature,
+        );
             updateMoonVisibility(
               moonLayer.entries,
               earthGroup,
@@ -17856,6 +17030,8 @@ ${error && error.message ? error.message : error}`;
               renderer,
               moonToggle ? moonToggle.checked : true,
               earthLabelsEnabled,
+              activeMoonViewerFeature,
+              isPointOccludedByAnyMoon,
             );
             updateMoonFeatureLabelVisibility(
               moonFeatureLabelLayer.entries,
@@ -17864,7 +17040,13 @@ ${error && error.message ? error.message : error}`;
               renderer,
               !labelsToggle.checked ? null : activeMoonViewerFeature,
               volcanicLabelsToggle.checked,
-            );
+              landingLabelsToggle.checked,
+              habitationLabelsToggle.checked,
+            
+          craterLabelsToggle?.checked ?? true,
+          activePopupFeature,
+          isPointOccludedByAnyMoon,
+        );
             updateCoreLabelVisibility(
               cutawayResult,
               camera,
@@ -17884,7 +17066,13 @@ ${error && error.message ? error.message : error}`;
             renderer,
             activeMoonViewerFeature,
             volcanicLabelsToggle.checked,
-          );
+            landingLabelsToggle.checked,
+            habitationLabelsToggle.checked,
+          
+          craterLabelsToggle?.checked ?? true,
+          activePopupFeature,
+          isPointOccludedByAnyMoon,
+        );
         }
 
         if (activePopupFeature && !scenePopup.hidden) {
@@ -17943,8 +17131,16 @@ ${error && error.message ? error.message : error}`;
               moonSelectionRing.visible = true;
               moonSelectionRing.position.copy(entryMarker.position);
               moonSelectionRing.material.opacity = 0.35 + pulse * 0.55;
-              const markerScale = entryMarker.scale?.x || 1;
-              moonSelectionRing.scale.setScalar((1.0 + pulse * 0.4) * markerScale);
+              // Scale ring to consistent apparent angular size regardless of camera distance.
+              // controls.target is the moon centre world position set by activateMoonViewer — reliable.
+              const _camDist = Math.max(0.001, camera.position.distanceTo(controls.target));
+              const _moonRingScale = (_camDist * 0.011) / 0.0008;
+              moonSelectionRing.scale.setScalar(_moonRingScale * (1.0 + pulse * 0.3));
+              moonSelectionCenterDot.position.copy(entryMarker.position);
+              moonSelectionCenterDot.scale.setScalar(_moonRingScale * 0.5);
+              moonSelectionCenterDot.visible = true;
+              moonSelectionCenterDot.material.color.setRGB(1.0, 0.83 + pulse * 0.14, 0.42 + pulse * 0.43);
+              moonSelectionCenterDot.material.opacity = 0.88 + pulse * 0.12;
               selectionRing.visible = false;
               coreSelectionRing.visible = false;
             }
@@ -17961,6 +17157,7 @@ ${error && error.message ? error.message : error}`;
           } else {
             selectionRing.visible = false;
             moonSelectionRing.visible = false;
+            moonSelectionCenterDot.visible = false;
             coreSelectionRing.visible = false;
           }
         }
@@ -18065,7 +17262,7 @@ ${error && error.message ? error.message : error}`;
           if (ctxFocusMaterial?.userData?.ctxShader) {
             const shader = ctxFocusMaterial.userData.ctxShader;
             const wantsColor = baseLayerSelect.value === "ctx-mosaic-color";
-            shader.uniforms.uCtxColorMap.value = wantsColor ? (layerTextures.get("viking-color") || null) : null;
+            shader.uniforms.uCtxColorMap.value = wantsColor ? (layerTextures.get("earth-visible") || null) : null;
             shader.uniforms.uCtxColorMix.value = wantsColor ? 1.0 : 0.0;
             shader.uniforms.uCtxColorLift.value = wantsColor ? 1.15 : 1.0;
           }
@@ -18120,6 +17317,7 @@ ${error && error.message ? error.message : error}`;
         }
         updateMeasureVisualScale();
         renderer.render(scene, camera);
+        _freeTextureImages();
         requestAnimationFrame((timestamp) => {
           lastTimestamp = Math.max(16, timestamp - (lastTimestamp || timestamp));
           render();
@@ -18140,73 +17338,26 @@ ${error && error.message ? error.message : error}`;
       }
       spinOffset = performance.now();
 
-      // Background-load all non-default layers in batches of 4.
-      // The globe is already rendering with default layers by the time this runs.
+      // Background-load moon textures so Phobos/Deimos render correctly on first zoom.
+      // All other layers (base, geology, mineral) load on demand when the user selects them.
       (function backgroundLoadLayers() {
-        const BATCH = 4;
-        const queue = [
-          // Non-default base layers (hillshade, slope, TES, etc.)
-          ...baseLayers
-            .filter(l => l.path && !l.scGroup && !layerTextures.get(l.id))
-            .map(layer => async () => {
-              const raw = await loadTextureSafe(textureLoader, layer.path);
-              const tex = applyTextureTransforms(raw, layer);
-              if (tex) tex.colorSpace = THREE.SRGBColorSpace;
-              layerTextures.set(layer.id, tex);
-            }),
-          // Moon textures (Phobos, Deimos)
-          ...moonData
-            .filter(item => MOON_VIEWER_TEXTURES[item.name])
-            .map(item => async () => {
-              const tex = await loadTextureSafe(textureLoader, MOON_VIEWER_TEXTURES[item.name]);
-              if (tex) tex.colorSpace = THREE.SRGBColorSpace;
-              moonTextures.set(item.name, tex || null);
-              if (tex && moonLayer?.entries) {
-                const entry = moonLayer.entries.find(e => e.item?.name === item.name);
-                if (entry?.moonMesh?.material) {
-                  entry.moonMesh.material.map = tex;
-                  entry.moonMesh.material.color.set("#ffffff");
-                  entry.moonMesh.material.needsUpdate = true;
-                }
+        const moonQueue = moonData
+          .filter(item => MOON_VIEWER_TEXTURES[item.name])
+          .map(item => async () => {
+            const tex = await loadTextureSafe(textureLoader, MOON_VIEWER_TEXTURES[item.name]);
+            if (tex) tex.colorSpace = THREE.SRGBColorSpace;
+            moonTextures.set(item.name, tex || null);
+            if (tex && moonLayer?.entries) {
+              const entry = moonLayer.entries.find(e => e.item?.name === item.name);
+              if (entry?.moonMesh?.material) {
+                entry.moonMesh.material.map = tex;
+                entry.moonMesh.material.color.set("#ffffff");
+                entry.moonMesh.material.needsUpdate = true;
               }
-            }),
-          // Surface condition layers (temperature, pressure, wind, etc.)
-          ...SC_LAYERS.map(layer => async () => {
-            const tex = await loadTextureSafe(textureLoader, layer.path);
-            if (tex) {
-              tex.colorSpace = THREE.SRGBColorSpace;
-              tex.wrapS = THREE.RepeatWrapping;
-              tex.wrapT = THREE.ClampToEdgeWrapping;
-              tex.repeat.set(1, 1);
-              tex.offset.set(0, 0);
-              tex.needsUpdate = true;
             }
-            layerTextures.set(layer.id, tex || null);
-          }),
-          // Non-default geology overlays
-          ...geologyLayers
-            .filter(l => !l.default)
-            .map(layer => async () => {
-              const raw = await loadTextureSafe(textureLoader, layer.path);
-              const tex = applyTextureTransforms(raw, layer);
-              if (tex) tex.colorSpace = THREE.SRGBColorSpace;
-              geologyTextures.set(layer.id, tex);
-            }),
-          // Mineral abundance maps
-          ...mineralLayers.map(layer => async () => {
-            const raw = await loadTextureSafe(textureLoader, layer.path);
-            if (raw) raw.colorSpace = THREE.SRGBColorSpace;
-            const tex = raw ? processMineralTexture(raw) : null;
-            mineralTextures.set(layer.id, tex);
-            mineralSamplerStates.set(layer.id, createRasterSamplerState(tex));
-          }),
-        ];
-        async function runQueue() {
-          for (let i = 0; i < queue.length; i += BATCH) {
-            await Promise.all(queue.slice(i, i + BATCH).map(fn => fn()));
-          }
-        }
-        runQueue().catch(() => {});
+            _freeTexImage(tex);
+          });
+        Promise.all(moonQueue.map(fn => fn())).catch(() => {});
       })();
 
       render();
@@ -18231,7 +17382,7 @@ ${error && error.message ? error.message : error}`;
             const _h = _img.naturalHeight || _img.height || 2048;
             const _sc = document.createElement("canvas");
             _sc.width = _w; _sc.height = _h;
-            const _sctx = _sc.getContext("2d");
+            const _sctx = _sc.getContext("2d", { willReadFrequently: true });
             _sctx.drawImage(_img, 0, 0, _w, _h);
             _state.samplerCtx = _sctx;
             _state.samplerWidth = _w;
@@ -18260,7 +17411,7 @@ ${error && error.message ? error.message : error}`;
 
     // NASA sounds audio player (play/pause only — no seek bar)
     (function () {
-      const audioEl = document.getElementById("earth-audio-el");
+      const audioEl = document.getElementById("mars-audio-el");
       const playBtn = document.getElementById("audio-play-btn");
       const iconPlay = document.getElementById("audio-icon-play");
       const iconPause = document.getElementById("audio-icon-pause");
@@ -18320,17 +17471,33 @@ ${error && error.message ? error.message : error}`;
     const toolbarCollapseBtn = document.getElementById("toolbar-collapse-btn");
     const toolbarTab = document.getElementById("toolbar-tab");
     const surfaceHud = document.getElementById("bottom-right-hud");
+    // Mobile: inject backdrop element for closing the panel by tapping outside
+    const backdrop = document.createElement("div");
+    backdrop.id = "mobile-panel-backdrop";
+    document.body.appendChild(backdrop);
+
+    const isMobileLayout = () => window.matchMedia("(max-width: 768px), (pointer: coarse) and (max-width: 1024px)").matches;
+
+    function openPanel() {
+      uiPanel?.classList.remove("is-collapsed");
+      navTab.style.display = "none";
+      surfaceHud?.classList.remove("nav-collapsed");
+      if (isMobileLayout()) backdrop.classList.add("is-visible");
+    }
+    function closePanel() {
+      uiPanel?.classList.add("is-collapsed");
+      navTab.style.display = "flex";
+      surfaceHud?.classList.add("nav-collapsed");
+      backdrop.classList.remove("is-visible");
+    }
+
     if (uiPanel && navCollapseBtn && navTab) {
-      navCollapseBtn.addEventListener("click", () => {
-        uiPanel.classList.add("is-collapsed");
-        navTab.style.display = "flex";
-        surfaceHud?.classList.add("nav-collapsed");
-      });
-      navTab.addEventListener("click", () => {
-        uiPanel.classList.remove("is-collapsed");
-        navTab.style.display = "none";
-        surfaceHud?.classList.remove("nav-collapsed");
-      });
+      // Auto-collapse on mobile at load
+      if (isMobileLayout()) closePanel();
+
+      navCollapseBtn.addEventListener("click", closePanel);
+      navTab.addEventListener("click", openPanel);
+      backdrop.addEventListener("click", closePanel);
     }
 
     if (toolbar && toolbarCollapseBtn && toolbarTab) {
