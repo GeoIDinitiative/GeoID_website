@@ -56,23 +56,22 @@
         inset 0 0 0 1px rgba(255, 255, 255, 0.02),
         0 0 0 1px rgba(92, 235, 238, 0.14),
         0 0 34px rgba(64, 220, 228, 0.12);
-      overflow-y: auto;
-      overflow-x: hidden;
-      scrollbar-width: thin;
-      scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
       outline: 1px solid rgba(90, 230, 236, 0.1);
       outline-offset: -6px;
     }
 
-    #ui::-webkit-scrollbar {
+    #ui-scroll-body::-webkit-scrollbar {
       width: 0.7rem;
     }
 
-    #ui::-webkit-scrollbar-track {
+    #ui-scroll-body::-webkit-scrollbar-track {
       background: transparent;
     }
 
-    #ui::-webkit-scrollbar-thumb {
+    #ui-scroll-body::-webkit-scrollbar-thumb {
       background: rgba(151, 182, 194, 0.2);
       border-radius: 999px;
       border: 2px solid transparent;
@@ -85,8 +84,20 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-shrink: 0;
       margin-top: 0.68rem;
+      padding-bottom: 0.55rem;
       margin-bottom: 0.05rem;
+      border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.18);
+    }
+
+    #ui-scroll-body {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
     }
     .brand-toprow-actions {
       display: flex;
@@ -1608,7 +1619,7 @@
     }
 
     .scene-popup-detail-key {
-      color: #ffaa55;
+      color: var(--nav-accent);
       font-size: 0.72rem;
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -1955,6 +1966,28 @@
       background: rgba(15, 24, 34, 0.98);
       color: #ffffff;
       box-shadow: 0 10px 20px rgba(0, 0, 0, 0.32);
+    }
+
+    #spin-toggle.is-paused .viewer-control-glyph,
+    #spin-toggle.is-paused .viewer-control-icon {
+      opacity: 0.55;
+    }
+
+    #spin-toggle.is-locked::after,
+    #spin-toggle.is-paused::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 150%;
+      height: 3px;
+      background: rgba(220, 60, 50, 0.88);
+      border-radius: 2px;
+      transform: translate(-50%, -50%) rotate(-38deg);
+      box-shadow: 0 0 4px rgba(220, 60, 50, 0.5);
+      pointer-events: none;
+      z-index: 2;
+      display: block;
     }
 
     .viewer-control-glyph,
@@ -2425,7 +2458,7 @@
 
     .locator-readout {
       margin-top: 0.08rem;
-      color: rgba(255, 255, 255, 0.82);
+      color: #ffffff;
       font-size: 0.54rem;
       line-height: 1.3;
       letter-spacing: 0.03em;
@@ -2575,7 +2608,7 @@
       background: transparent;
       backdrop-filter: none;
       box-shadow: none;
-      color: #f6dcc8;
+      color: #ffffff;
       letter-spacing: 0.02em;
       font-size: 0.8rem;
       line-height: 1.45;
@@ -2885,28 +2918,52 @@
       text-orientation: mixed;
       padding: 1.45rem 0.78rem;
       border-radius: 0 0.95rem 0.95rem 0;
-      background: linear-gradient(180deg, rgba(10, 24, 33, 0.98), rgba(6, 12, 18, 0.99));
-      border: 1px solid rgba(var(--nav-accent-rgb), 0.88);
+      background: linear-gradient(180deg, rgba(14, 30, 42, 0.99), rgba(6, 12, 18, 0.99));
+      border: 1px solid rgba(var(--nav-accent-rgb), 1);
       border-left: none;
       color: var(--nav-accent);
       cursor: pointer;
       font-size: 0.8rem;
+      font-weight: 600;
       letter-spacing: 0.14em;
       text-transform: uppercase;
       font-family: "Courier New", monospace;
       box-shadow:
-        4px 0 24px rgba(var(--nav-accent-rgb), 0.14),
-        4px 0 8px rgba(0, 0, 0, 0.4),
-        inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.12),
-        0 0 28px rgba(var(--nav-accent-rgb), 0.16);
-      transition: border-color 0.15s, box-shadow 0.15s, background 0.15s, color 0.15s;
+        5px 0 28px rgba(var(--nav-accent-rgb), 0.32),
+        4px 0 8px rgba(0, 0, 0, 0.5),
+        inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.18),
+        0 0 36px rgba(var(--nav-accent-rgb), 0.22);
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
       user-select: none;
+      animation: nav-tab-pulse 2.8s ease-in-out infinite;
     }
     #nav-tab:hover {
-      border-color: rgba(var(--nav-accent-rgb), 0.9);
-      background: rgba(var(--nav-accent-rgb), 0.08);
+      border-color: rgba(var(--nav-accent-rgb), 1);
+      background: linear-gradient(180deg, rgba(18, 38, 54, 0.99), rgba(8, 16, 26, 0.99));
       color: var(--nav-accent);
-      box-shadow: 4px 0 30px rgba(var(--nav-accent-rgb), 0.24), 4px 0 8px rgba(0, 0, 0, 0.4);
+      box-shadow:
+        6px 0 38px rgba(var(--nav-accent-rgb), 0.48),
+        4px 0 10px rgba(0, 0, 0, 0.5),
+        inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.28);
+      animation: none;
+    }
+    @keyframes nav-tab-pulse {
+      0%, 100% {
+        box-shadow:
+          5px 0 28px rgba(var(--nav-accent-rgb), 0.32),
+          4px 0 8px rgba(0, 0, 0, 0.5),
+          inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.18),
+          0 0 36px rgba(var(--nav-accent-rgb), 0.22);
+        border-color: rgba(var(--nav-accent-rgb), 1);
+      }
+      50% {
+        box-shadow:
+          5px 0 44px rgba(var(--nav-accent-rgb), 0.58),
+          4px 0 8px rgba(0, 0, 0, 0.5),
+          inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.3),
+          0 0 56px rgba(var(--nav-accent-rgb), 0.4);
+        border-color: rgba(var(--nav-accent-rgb), 1);
+      }
     }
 
     #toolbar-tab {
@@ -3026,6 +3083,10 @@
       opacity: 0.7;
     }
 
+    [data-mode="moon"] #ui .control-section:not(#moon-viewer-section):not(#locations-section) {
+      opacity: 0.38;
+    }
+
     [data-mode="moon"] #moon-viewer-section {
       background: linear-gradient(135deg, rgba(20, 70, 120, 0.35) 0%, rgba(8, 40, 80, 0.28) 100%);
       border-color: rgba(100, 200, 255, 0.5) !important;
@@ -3062,3 +3123,11 @@
       text-align: center;
     }
 
+
+/* GeoID-mobile-touch-action: WebGL canvas owns every touch.
+   Without this the browser also does its native pinch-zoom on the page,
+   producing a "two zooms fighting" feel on mobile. */
+canvas {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}

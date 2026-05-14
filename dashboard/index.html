@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GeoID Initiative — a public geoscience initiative connecting the GeoID Hazard App, Research Hub product, Explorer, and shared resources.">
+  <title>GeoID Initiative — Dashboard</title>
+  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@700&family=Orbitron:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles/shared.css">
+  <style>
+    html, body { height: 100%; overflow: hidden; }
+
+    /* ── Dashboard layout ── */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr auto;
+      gap: 8px;
+      padding: calc(var(--nav-h) + 8px) 8px calc(var(--status-h) + 8px);
+      height: 100%;
+      box-sizing: border-box;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Planet view lineup ── */
+    .dash-planet-view {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius);
+      border: 1px solid rgba(130, 175, 240, 0.18);
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .stars-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .planet-view-brand {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: clamp(16rem, 22%, 22rem);
+      padding: 1.5rem 1.6rem 1.2rem;
+      text-align: left;
+      z-index: 6;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7rem;
+      background: linear-gradient(90deg, rgba(0,0,8,0.78) 0%, rgba(0,0,8,0.40) 72%, transparent 100%);
+    }
+
+    .planet-view-brand-logo {
+      display: block;
+      width: 100%;
+      max-width: 18rem;
+      height: auto;
+      opacity: 0.94;
+      filter: drop-shadow(0 2px 14px rgba(0,0,0,0.7));
+      flex-shrink: 0;
+    }
+
+    .planet-view-brand-desc {
+      display: block;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.75rem;
+      color: rgba(185, 210, 230, 0.68);
+      line-height: 1.65;
+    }
+
+    .planet-view-nav-hint {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      margin-top: auto;
+    }
+
+    .pv-hint-label {
+      display: block;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.56rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(120, 155, 175, 0.42);
+      margin-bottom: 0.12rem;
+    }
+
+    .pv-hint-row {
+      display: flex;
+      align-items: center;
+      gap: 0.38rem;
+    }
+
+    .pv-key {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.5rem;
+      height: 1.3rem;
+      padding: 0 0.3rem;
+      border-radius: 0.28rem;
+      border: 1px solid rgba(88, 198, 179, 0.24);
+      background: rgba(88, 198, 179, 0.06);
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.58rem;
+      font-weight: 600;
+      color: rgba(88, 198, 179, 0.62);
+    }
+
+    .pv-hint-text {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.62rem;
+      color: rgba(140, 168, 190, 0.44);
+    }
+
+    /* ── Right feature panel ── */
+    .planet-view-right {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: clamp(18rem, 26%, 26rem);
+      padding: 1.5rem 1.6rem 1.5rem 2rem;
+      z-index: 6;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      background: linear-gradient(270deg, rgba(0,0,8,0.82) 0%, rgba(0,0,8,0.50) 65%, transparent 100%);
+    }
+
+    .pv-ctas {
+      display: flex;
+      flex-direction: row;
+      gap: 0.5rem;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .pv-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 2.1rem;
+      padding: 0 1.1rem;
+      border-radius: 999px;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.73rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+      white-space: nowrap;
+    }
+
+    .pv-btn:hover { transform: translateY(-1px); }
+
+    .pv-btn-ghost {
+      border: 1px solid rgba(180, 210, 230, 0.26);
+      background: rgba(255,255,255,0.05);
+      color: rgba(200, 220, 235, 0.82);
+    }
+
+    .pv-btn-member {
+      border: 1px solid rgba(88, 198, 179, 0.45);
+      background: linear-gradient(135deg, rgba(88, 198, 179, 0.18), rgba(32, 122, 110, 0.26));
+      box-shadow: 0 4px 18px rgba(32, 122, 110, 0.16);
+      color: #c6f0e8;
+    }
+
+    .pv-features-label {
+      display: block;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.58rem;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      color: rgba(88, 198, 179, 0.60);
+      font-weight: 700;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(88, 198, 179, 0.15);
+    }
+
+    .pv-features-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .pv-features-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.78rem;
+      color: rgba(195, 215, 232, 0.78);
+      line-height: 1.45;
+    }
+
+    .pv-features-list li::before {
+      content: "";
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(88, 198, 179, 0.70);
+      flex-shrink: 0;
+      margin-top: 0.42em;
+    }
+
+
+    .stack-track {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      touch-action: pan-y;
+      z-index: 1;
+    }
+
+    /* ── Clickable planet-cycle arrows ──────────────────────────────── */
+    .planet-nav-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 7;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.8rem;
+      height: 2.8rem;
+      padding: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(88, 198, 179, 0.30);
+      background: rgba(8, 14, 22, 0.55);
+      backdrop-filter: blur(6px);
+      color: rgba(88, 198, 179, 0.85);
+      cursor: pointer;
+      transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, transform 0.18s ease, opacity 0.18s ease;
+    }
+    .planet-nav-arrow:hover {
+      background: rgba(88, 198, 179, 0.18);
+      border-color: rgba(88, 198, 179, 0.65);
+      color: #d8fff5;
+      transform: translateY(-50%) scale(1.04);
+    }
+    .planet-nav-arrow:focus-visible {
+      outline: 2px solid rgba(88, 198, 179, 0.75);
+      outline-offset: 2px;
+    }
+    .planet-nav-arrow:active { transform: translateY(-50%) scale(0.97); }
+    .planet-nav-arrow svg { width: 1.35rem; height: 1.35rem; }
+    .planet-nav-arrow-prev { left: clamp(0.75rem, 24%, 22rem); }
+    .planet-nav-arrow-next { right: clamp(0.75rem, 28%, 26rem); }
+    @media (max-width: 980px) {
+      .planet-nav-arrow-prev { left: 0.6rem; }
+      .planet-nav-arrow-next { right: 0.6rem; }
+      .planet-nav-arrow { width: 2.4rem; height: 2.4rem; }
+    }
+
+    .planet-card-stack {
+      position: absolute;
+      left: 50%;
+      top: auto;
+      bottom: 0;
+      width: min(24rem, calc(100% - 4rem));
+      min-height: 26rem;
+      border-radius: 1.25rem;
+      transition: transform 0.22s ease, opacity 0.22s ease, filter 0.22s ease;
+      transform: translateX(-50%) translate3d(0, 0, 0) scale(0.88);
+      opacity: 0;
+      box-shadow: none;
+      pointer-events: none;
+      will-change: transform, opacity;
+      background: transparent;
+      border: none;
+      filter: saturate(0.86) brightness(0.88);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      align-items: stretch;
+    }
+
+    .planet-card-stack.is-selected {
+      transform: translateX(-50%) translate3d(var(--deck-x, 0), 0, 0) scale(1);
+      opacity: 1;
+      z-index: 4;
+      pointer-events: auto;
+      filter: none;
+    }
+
+    .planet-card-stack.is-before,
+    .planet-card-stack.is-after {
+      transform: translateX(-50%) translate3d(var(--deck-x, 0), 0, 0) scale(var(--deck-scale, 0.9));
+      opacity: var(--deck-opacity, 0.92);
+      z-index: var(--deck-z, 2);
+      pointer-events: auto;
+    }
+
+    .planet-card-stack:not(.is-selected) .planet-card-copy,
+    .planet-card-stack:not(.is-selected) .planet-card-actions {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .planet-card-stack.is-hidden {
+      opacity: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .planet-card-media {
+      position: relative;
+      min-height: 15rem;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    .planet-card-media img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 0.6rem 0.3rem 0.2rem;
+      filter:
+        drop-shadow(0 0 26px rgba(255,255,255,0.12))
+        drop-shadow(0 24px 50px rgba(0,0,0,0.34));
+      transform: scale(1.1);
+    }
+
+    .planet-card-stack[data-card="jupiter"] .planet-card-media { min-height: 16.2rem; }
+    .planet-card-stack[data-card="jupiter"] .planet-card-media img { padding: 1.2rem 1rem 0.7rem; transform: scale(0.92); }
+    .planet-card-stack[data-card="saturn"] .planet-card-media { min-height: 16.6rem; }
+    .planet-card-stack[data-card="saturn"] .planet-card-media img { padding: 1.1rem 0.4rem 0.7rem; transform: scale(0.98); }
+    /* Moon: full-bleed scale was cropping the icon's edges — pad + shrink. */
+    .planet-card-stack[data-card="moon"]   .planet-card-media img { padding: 1.2rem 0.8rem 0.6rem; transform: scale(0.88); }
+    /* Pluto is a dwarf planet — reflect its small relative size in the lineup. */
+    .planet-card-stack[data-card="pluto"]  .planet-card-media img { padding: 2.6rem 1.6rem 2rem; transform: scale(0.62); }
+
+    .planet-card-head {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      text-align: center;
+      pointer-events: none;
+      padding: 0.85rem 1.1rem 0.4rem;
+      min-height: 3rem;
+    }
+
+    .planet-card-title {
+      margin: 0;
+      font-size: 1.08rem;
+      font-family: "Orbitron", sans-serif;
+      font-weight: 700;
+      color: #f8fbff;
+      text-shadow: 0 4px 16px rgba(0,0,0,0.42);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .planet-card-body {
+      position: relative;
+      z-index: 1;
+      min-width: 0;
+      display: grid;
+      gap: 0.7rem;
+      align-content: end;
+      padding: 0.6rem 1.1rem 0.9rem;
+      min-height: 5rem;
+      background: transparent;
+    }
+
+    .planet-card-copy {
+      color: #e1eaf6;
+      line-height: 1.62;
+      font-size: 0.72rem;
+      margin: 0;
+      text-align: center;
+      text-shadow: 0 3px 12px rgba(0,0,0,0.32);
+    }
+
+    .planet-card-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: auto;
+    }
+
+    .planet-launch-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.9rem;
+      padding: 0.78rem 1.4rem;
+      border-radius: 999px;
+      border: 1px solid rgba(88, 198, 179, 0.42);
+      background: linear-gradient(180deg, rgba(88, 198, 179, 0.22), rgba(32, 122, 110, 0.28));
+      box-shadow: 0 12px 30px rgba(32, 122, 110, 0.22);
+      color: #d0f5ef;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .planet-launch-btn:hover { transform: translateY(-2px); }
+
+    .status-bar {
+      scrollbar-width: none;
+    }
+
+    .status-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* ── Slide 1: myGeoID ── */
+    .slide-mygeoid {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: stretch;
+      min-height: 0;
+    }
+
+    .slide-mygeoid-screenshot {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 72%;
+      background: url('/assets/mygeoid_pic.png') center/cover no-repeat;
+      opacity: 0.55;
+      -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.6) 20%, black 50%);
+      mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.6) 20%, black 50%);
+    }
+
+    .slide-mygeoid-content {
+      position: relative;
+      z-index: 2;
+      width: clamp(22rem, 46%, 46rem);
+      padding: 1.8rem 2rem 1.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: linear-gradient(90deg, rgba(0,0,8,0.92) 0%, rgba(0,0,8,0.65) 80%, transparent 100%);
+    }
+
+    .slide-mygeoid-badge {
+      display: inline-flex;
+      align-self: flex-start;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.22rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(88, 198, 179, 0.38);
+      background: rgba(88, 198, 179, 0.08);
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(88, 198, 179, 0.90);
+    }
+
+    .slide-mygeoid-badge::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(88, 198, 179, 0.90);
+      animation: pulse-dot 2.5s ease-in-out infinite;
+    }
+
+    .slide-mygeoid-logo {
+      display: block;
+      width: auto;
+      height: clamp(2.8rem, 5vw, 4.2rem);
+      max-width: 100%;
+      object-fit: contain;
+      object-position: left center;
+      filter: drop-shadow(0 2px 12px rgba(0,0,0,0.55));
+    }
+
+    .slide-mygeoid-desc {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.90rem;
+      color: rgba(200, 220, 236, 0.88);
+      line-height: 1.65;
+    }
+
+    .slide-mygeoid-features {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.38rem 1.2rem;
+    }
+
+    .slide-mygeoid-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.84rem;
+      color: rgba(200, 220, 236, 0.84);
+      line-height: 1.45;
+    }
+
+    .slide-mygeoid-features li::before {
+      content: "";
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(88, 198, 179, 0.60);
+      flex-shrink: 0;
+      margin-top: 0.42em;
+    }
+
+    .slide-mygeoid-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 0.5rem;
+    }
+
+    .slide-mygeoid-indev {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      padding: 0.6rem 0.8rem;
+      border-radius: 0.45rem;
+      border: 1px solid rgba(88, 198, 179, 0.16);
+      background: rgba(88, 198, 179, 0.05);
+    }
+
+    .slide-mygeoid-indev-label {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.57rem;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(88, 198, 179, 0.72);
+    }
+
+    .slide-mygeoid-indev-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.32rem;
+    }
+
+    .slide-mygeoid-indev-pills span {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.73rem;
+      color: rgba(200, 220, 236, 0.80);
+      padding: 0.14rem 0.52rem;
+      border-radius: 999px;
+      border: 1px solid rgba(88, 198, 179, 0.20);
+      background: rgba(88, 198, 179, 0.07);
+    }
+
+    /* ── Mission slide ── */
+    .slide-mission {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: stretch;
+      min-height: 0;
+    }
+
+    .slide-mission-bg {
+      position: absolute;
+      inset: 0;
+      background: url('/GeoID_initiative/photos/valencia-flooding.jpg') center/cover no-repeat;
+      opacity: 0.38;
+    }
+
+    .slide-mission-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(0,0,8,0.96) 0%, rgba(0,0,8,0.80) 30%, rgba(0,0,8,0.50) 65%, rgba(0,0,8,0.25) 100%);
+    }
+
+    .slide-mission-content {
+      position: relative;
+      z-index: 2;
+      width: clamp(22rem, 54%, 52rem);
+      padding: 1.6rem 2rem 1.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .slide-mission-tag {
+      display: inline-flex;
+      align-self: flex-start;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.22rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(88, 198, 179, 0.38);
+      background: rgba(88, 198, 179, 0.08);
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(88, 198, 179, 0.90);
+    }
+
+    .slide-mission-tag::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(88, 198, 179, 0.90);
+    }
+
+    .slide-mission-title {
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(1.3rem, 2.6vw, 2rem);
+      font-weight: 800;
+      line-height: 1.15;
+      color: rgba(220, 235, 248, 0.96);
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+
+    .slide-mission-title em {
+      font-style: normal;
+      color: rgba(88, 198, 179, 0.92);
+    }
+
+    .slide-mission-desc {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.90rem;
+      color: rgba(200, 220, 236, 0.88);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    .slide-mission-ways {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .slide-mission-ways li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.84rem;
+      color: rgba(200, 220, 236, 0.84);
+      line-height: 1.45;
+    }
+
+    .slide-mission-ways li::before {
+      content: "";
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(88, 198, 179, 0.60);
+      flex-shrink: 0;
+      margin-top: 0.42em;
+    }
+
+    .slide-mission-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 0.5rem;
+    }
+
+    .slide-mission-stats {
+      display: flex;
+      gap: 1.4rem;
+      align-items: flex-start;
+      padding: 0.65rem 0;
+      border-top: 1px solid rgba(88, 198, 179, 0.12);
+      border-bottom: 1px solid rgba(88, 198, 179, 0.12);
+    }
+
+    .slide-mission-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 0.12rem;
+    }
+
+    .slide-mission-stat-num {
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(1.1rem, 2vw, 1.5rem);
+      font-weight: 800;
+      color: rgba(88, 198, 179, 0.92);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+
+    .slide-mission-stat-label {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.62rem;
+      color: rgba(160, 190, 210, 0.55);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+    }
+
+    /* ── Mission slide: product tree diagram ── */
+    /* ── Mission slide: product tree diagram ── */
+    .slide-mission-tree {
+      position: absolute;
+      right: 1%;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: clamp(22rem, 46%, 44rem);
+      pointer-events: none;
+    }
+
+    .smt-root-img {
+      width: clamp(6rem, 12vw, 10rem);
+      height: auto;
+      opacity: 0.92;
+      filter:
+        drop-shadow(0 0 32px rgba(88, 198, 179, 0.42))
+        drop-shadow(0 4px 14px rgba(0, 0, 0, 0.80));
+    }
+
+    .smt-stem {
+      width: 2px;
+      height: 2rem;
+      background: linear-gradient(to bottom, rgba(88,198,179,0.20), rgba(88,198,179,0.60));
+    }
+
+    .smt-children {
+      display: flex;
+      width: 100%;
+      position: relative;
+    }
+
+    .smt-children::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: calc(100% / 6);
+      right: calc(100% / 6);
+      height: 2px;
+      background: rgba(88, 198, 179, 0.55);
+    }
+
+    .smt-child {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      width: calc(100% / 3);
+      padding-top: 2rem;
+      position: relative;
+    }
+
+    .smt-child::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 2rem;
+      background: rgba(88, 198, 179, 0.42);
+    }
+
+    .smt-child-logo {
+      height: clamp(2.6rem, 4.5vw, 4rem);
+      width: auto;
+      max-width: 90%;
+      object-fit: contain;
+      opacity: 0.86;
+      filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.70));
+    }
+
+    .smt-child-label {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.60rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: rgba(160, 200, 220, 0.58);
+      text-align: center;
+      line-height: 1.3;
+    }
+
+    /* ── Updates & News section ── */
+    .news-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
+    }
+
+    .news-section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      padding: 0 2px;
+    }
+
+    .news-section-title {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(235, 248, 245, 0.92);
+    }
+
+    /* ── Banner slideshow ── */
+    .pv-slides {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .pv-slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+      pointer-events: none;
+    }
+
+    .pv-slide.is-active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .pv-slide-dots {
+      position: absolute;
+      bottom: 0.75rem;
+      right: 1.4rem;
+      z-index: 10;
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+    }
+
+    .pv-dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.22);
+      border: 1px solid rgba(255,255,255,0.12);
+      cursor: pointer;
+      padding: 0;
+      transition: background 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .pv-dot.is-active {
+      background: rgba(88, 198, 179, 0.85);
+      border-color: rgba(88, 198, 179, 0.45);
+      transform: scale(1.35);
+    }
+
+    .pv-dot:hover:not(.is-active) {
+      background: rgba(255,255,255,0.45);
+    }
+
+    /* ── News nav arrows ── */
+    .news-nav {
+      display: flex;
+      gap: 0.3rem;
+      align-items: center;
+    }
+
+    .news-nav-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.6rem;
+      height: 1.6rem;
+      border-radius: 50%;
+      border: 1px solid rgba(130, 160, 180, 0.22);
+      background: rgba(255,255,255,0.04);
+      color: rgba(160, 190, 210, 0.60);
+      font-size: 0.72rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      line-height: 1;
+      padding: 0;
+    }
+
+    .news-nav-btn:hover:not(:disabled) {
+      border-color: rgba(88, 198, 179, 0.45);
+      color: rgba(88, 198, 179, 0.90);
+      background: rgba(88, 198, 179, 0.07);
+    }
+
+    .news-nav-btn:disabled {
+      opacity: 0.28;
+      cursor: default;
+    }
+
+    .news-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+    }
+
+    .news-tile {
+      display: flex;
+      flex-direction: column;
+      border-radius: var(--radius);
+      border: 1.5px solid rgba(88, 198, 179, 0.40);
+      background: rgb(6, 14, 22);
+      overflow: hidden;
+      text-decoration: none;
+      transition: border-color 0.18s ease, transform 0.18s ease;
+      min-width: 0;
+    }
+
+    .news-tile:hover { transform: translateY(-2px); }
+
+    .news-tile-photo {
+      width: 100%;
+      height: 11rem;
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .news-tile-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+    }
+
+    /* About: icon is circular so contain keeps it whole */
+    .news-tile--about .news-tile-photo img {
+      object-fit: contain;
+    }
+
+    /* Explorer: fill tile, anchor to top so globe apex is never clipped */
+    .news-tile--explorer .news-tile-photo img {
+      object-fit: cover;
+      object-position: center top;
+    }
+
+    /* Research & Resources: fill the photo area */
+    .news-tile--research .news-tile-photo img,
+    .news-tile--resources .news-tile-photo img {
+      object-fit: cover;
+      object-position: center center;
+    }
+
+
+    .news-tile-body {
+      padding: 0.8rem 0.95rem 0.9rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      flex: 1;
+      background: rgb(6, 14, 22);
+    }
+
+    .news-kicker {
+      display: inline-flex;
+      align-self: flex-start;
+      padding: 0.16rem 0.45rem;
+      border-radius: 3px;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.55rem;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      border: 1px solid currentColor;
+      margin-bottom: 0.12rem;
+      opacity: 0.85;
+    }
+
+    .news-title {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+    }
+
+    .news-desc {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.71rem;
+      color: var(--muted);
+      line-height: 1.48;
+      margin-top: 0.1rem;
+    }
+
+    /* Per-tile photo placeholders */
+    .news-photo--about {
+      background: linear-gradient(135deg, #1a2a1a 0%, #0d2210 40%, #1e3a1e 70%, #0a1a0a 100%);
+    }
+    .news-photo--about::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 30% 60%, rgba(80, 160, 80, 0.35), transparent 55%),
+        radial-gradient(ellipse at 75% 30%, rgba(120, 180, 90, 0.20), transparent 45%);
+    }
+
+    .news-photo--explorer {
+      background: linear-gradient(160deg, #000008 0%, #030818 50%, #000510 100%);
+    }
+    .news-photo--explorer::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 55% 45%, rgba(88, 198, 179, 0.28), transparent 50%),
+        radial-gradient(circle at 20% 70%, rgba(40, 80, 160, 0.22), transparent 40%);
+    }
+
+    .news-photo--mygeoid {
+      background: linear-gradient(135deg, #040d1a 0%, #081428 50%, #030a18 100%);
+    }
+    .news-photo--mygeoid::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 60% 40%, rgba(60, 120, 220, 0.30), transparent 50%),
+        radial-gradient(ellipse at 25% 65%, rgba(88, 198, 179, 0.18), transparent 45%);
+    }
+
+    .news-photo--research {
+      background: linear-gradient(135deg, #0a0818 0%, #10082a 50%, #080614 100%);
+    }
+    .news-photo--research::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 50%, rgba(130, 80, 220, 0.28), transparent 55%),
+        radial-gradient(ellipse at 80% 20%, rgba(160, 100, 230, 0.18), transparent 40%);
+    }
+
+    .news-photo--resources {
+      background: linear-gradient(135deg, #1a1200 0%, #221600 50%, #150e00 100%);
+    }
+    .news-photo--resources::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 40% 55%, rgba(220, 160, 40, 0.30), transparent 50%),
+        radial-gradient(ellipse at 75% 30%, rgba(240, 190, 80, 0.18), transparent 40%);
+    }
+
+    /* Per-tile accent colours */
+    .news-tile--about     .news-kicker { color: rgba(100, 210, 130, 0.90); }
+    .news-tile--explorer  .news-kicker { color: rgba(88, 198, 179, 0.90); }
+    .news-tile--mygeoid   .news-kicker { color: rgba(100, 160, 240, 0.90); }
+    .news-tile--research  .news-kicker { color: rgba(160, 110, 240, 0.90); }
+    .news-tile--resources .news-kicker { color: rgba(220, 175, 70, 0.90); }
+
+    .news-tile--about:hover     { border-color: rgba(100, 210, 130, 0.32); }
+    .news-tile--explorer:hover  { border-color: rgba(88, 198, 179, 0.32); }
+    .news-tile--mygeoid:hover   { border-color: rgba(100, 160, 240, 0.32); }
+    .news-tile--research:hover  { border-color: rgba(160, 110, 240, 0.32); }
+    .news-tile--resources:hover { border-color: rgba(220, 175, 70, 0.32); }
+
+
+    @media (max-width: 1100px) {
+      .planet-card-stack { width: min(18rem, calc(100% - 3rem)); }
+
+      .news-row { grid-template-columns: repeat(3, 1fr); }
+      .news-tile:nth-child(n+4) { display: none; }
+    }
+
+    @media (max-width: 720px) {
+      html, body { height: auto; overflow: auto; }
+
+      .dashboard {
+        height: auto;
+        grid-template-rows: auto auto;
+        padding: calc(var(--nav-h) + 10px) 8px calc(var(--status-h) + 12px);
+      }
+
+      .planet-card-stack { width: min(16rem, calc(100% - 2rem)); }
+      .stack-track { min-height: 20rem; }
+
+      .planet-card-stack.is-before,
+      .planet-card-stack.is-after { opacity: 0; pointer-events: none; }
+
+      .news-row { grid-template-columns: 1fr 1fr; }
+      .news-tile:nth-child(n+3) { display: none; }
+      .planet-view-brand, .planet-view-right { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════
+       NAVIGATION
+  ═══════════════════════════════════════ -->
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
+      GeoID Initiative
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="/dashboard/" class="active" aria-current="page">Dashboard</a></li>      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="/about/">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="/about/">Overview</a>
+          <a href="/about_myGeoID/">myGeoID App</a>
+          <a href="/team/">Our Team</a>
+          <a href="/research/">Research Hub</a>
+          <a href="/learn/">Resources</a>
+          <a href="/get-involved/">Get Involved</a>
+        </div>
+      </li>
+      <li><a href="/myGeoID/"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
+
+      <li><a href="/explorer/">Explorer</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+      <a class="nav-act nav-act-signin" href="#" data-action="sign-in">Sign In</a>
+      <a class="nav-act nav-act-member" href="/membership/">Membership</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+
+  <!-- ═══════════════════════════════════════
+       DASHBOARD
+  ═══════════════════════════════════════ -->
+  <div class="dashboard" role="main">
+    <section class="dash-planet-view" aria-label="Planet viewer">
+      <canvas class="stars-canvas" id="stars-canvas" aria-hidden="true"></canvas>
+
+      <!-- Slides -->
+      <div class="pv-slides" id="pv-slides">
+
+        <!-- Slide 0: Planet Explorer -->
+        <div class="pv-slide is-active">
+          <div class="planet-view-right">
+            <div class="pv-ctas">
+              <a class="pv-btn pv-btn-member" href="membership.html">Membership</a>
+              <a class="pv-btn pv-btn-ghost" href="/explorer/">Read more</a>
+            </div>
+            <span class="pv-features-label">Explorer features</span>
+            <ul class="pv-features-list">
+              <li>Browse geology &amp; palaeo sea-level overlays</li>
+              <li>Interactive moon viewer with orbital data</li>
+              <li>Measure surface distances &amp; elevation profiles</li>
+              <li>Search and navigate named surface features</li>
+              <li>Guided thematic tours of each world</li>
+            </ul>
+          </div>
+          <div class="planet-view-brand" aria-hidden="true">
+            <img class="planet-view-brand-logo" src="/planet_explorer/mars/viewer/assets/logo.png" alt="GeoID Explorer">
+            <span class="planet-view-brand-desc">Explore every world in our solar system. Select a planet to read its profile and launch the interactive 3D viewer.</span>
+            <div class="planet-view-nav-hint">
+              <span class="pv-hint-label">Navigate</span>
+              <div class="pv-hint-row">
+                <span class="pv-key">←</span>
+                <span class="pv-key">→</span>
+                <span class="pv-hint-text">Arrow keys</span>
+              </div>
+              <div class="pv-hint-row">
+                <span class="pv-key">Click</span>
+                <span class="pv-hint-text">Select planet</span>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="planet-nav-arrow planet-nav-arrow-prev" id="planet-nav-prev" aria-label="Previous planet">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button type="button" class="planet-nav-arrow planet-nav-arrow-next" id="planet-nav-next" aria-label="Next planet">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="9 6 15 12 9 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="stack-track" id="stack-track"></div>
+        </div>
+
+        <!-- Slide 1: myGeoID -->
+        <div class="pv-slide">
+          <div class="slide-mygeoid">
+            <div class="slide-mygeoid-screenshot" aria-hidden="true"></div>
+            <div class="slide-mygeoid-content">
+              <span class="slide-mygeoid-badge">Preview Available</span>
+              <img class="slide-mygeoid-logo" src="/assets/mygeoid_logo.png" alt="myGeoID">
+              <p class="slide-mygeoid-desc">Your personal geoscience dashboard — bringing real-time Earth intelligence directly to you. Whether you're tracking hazards near home, monitoring active events worldwide, or contributing to open science, myGeoID is your gateway into the GeoID ecosystem.</p>
+              <ul class="slide-mygeoid-features">
+                <li>Real-time hazard monitoring &amp; alerts</li>
+                <li>Flood, landslide &amp; slope stability risk</li>
+                <li>Personalised location tracking &amp; watchlists</li>
+                <li>Earthquake &amp; volcanic activity feeds</li>
+                <li>Customisable data layers &amp; overlays</li>
+                <li>Unified early warning framework</li>
+                <li>Historical event archive &amp; timeline</li>
+                <li>Shareable hazard reports</li>
+              </ul>
+              <div class="slide-mygeoid-actions">
+                <a class="pv-btn pv-btn-member" href="/myGeoID/">Launch myGeoID</a>
+                <a class="pv-btn pv-btn-ghost" href="/about/">Learn more</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 2: Mission -->
+        <div class="pv-slide">
+          <div class="slide-mission">
+            <div class="slide-mission-bg" aria-hidden="true"></div>
+            <div class="slide-mission-overlay" aria-hidden="true"></div>
+            <div class="slide-mission-content">
+              <span class="slide-mission-tag">Our Mission</span>
+              <h2 class="slide-mission-title">Welcome to GeoID! Here's a bit about <em>us</em>…</h2>
+              <p class="slide-mission-desc">GeoID is an open geoscience initiative turning satellite data and Earth observations into real-time hazard intelligence — connecting planetary science, disaster risk research, and public awareness in one unified platform.</p>
+              <div class="slide-mission-stats">
+                <div class="slide-mission-stat">
+                  <span class="slide-mission-stat-num">8</span>
+                  <span class="slide-mission-stat-label">Worlds mapped</span>
+                </div>
+                <div class="slide-mission-stat">
+                  <span class="slide-mission-stat-num">5+</span>
+                  <span class="slide-mission-stat-label">Hazard categories</span>
+                </div>
+                <div class="slide-mission-stat">
+                  <span class="slide-mission-stat-num">Live</span>
+                  <span class="slide-mission-stat-label">Real-time alerts</span>
+                </div>
+                <div class="slide-mission-stat">
+                  <span class="slide-mission-stat-num">Open</span>
+                  <span class="slide-mission-stat-label">Free &amp; open access</span>
+                </div>
+              </div>
+              <ul class="slide-mission-ways">
+                <li>Volunteer your geoscience expertise to active hazard monitoring</li>
+                <li>Contribute field data and observations from your region</li>
+                <li>Join research collaborations on flood, landslide &amp; climate risk</li>
+                <li>Help us expand early-warning coverage to underserved areas</li>
+              </ul>
+              <div class="slide-mission-actions">
+                <a class="pv-btn pv-btn-member" href="/get-involved/">Get Involved</a>
+                <a class="pv-btn pv-btn-ghost" href="/about/">About GeoID</a>
+              </div>
+            </div>
+            <div class="slide-mission-tree" aria-hidden="true">
+              <img class="smt-root-img" src="/assets/GeoID_logo_icon.png" alt="">
+              <div class="smt-stem"></div>
+              <div class="smt-children">
+                <div class="smt-child">
+                  <img class="smt-child-logo" src="/assets/mygeoid_logo.png" alt="">
+                </div>
+                <div class="smt-child">
+                  <img class="smt-child-logo" src="/assets/explorer_logo.png" alt="">
+                </div>
+                <div class="smt-child">
+                  <img class="smt-child-logo" src="/assets/GeoID research hub logo.png" alt="">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /pv-slides -->
+
+      <!-- Dot navigation -->
+      <div class="pv-slide-dots" role="tablist" aria-label="Banner slides">
+        <button class="pv-dot is-active" data-slide="0" aria-label="Slide 1" role="tab" aria-selected="true"></button>
+        <button class="pv-dot" data-slide="1" aria-label="Slide 2" role="tab" aria-selected="false"></button>
+        <button class="pv-dot" data-slide="2" aria-label="Slide 3" role="tab" aria-selected="false"></button>
+      </div>
+
+    </section>
+
+    <!-- ── Updates & News ── -->
+    <section class="news-section" aria-label="Updates and news">
+      <div class="news-section-header">
+        <span class="news-section-title">Updates &amp; News</span>
+        <div class="news-nav">
+          <button class="news-nav-btn" id="news-prev" aria-label="Previous">&#8592;</button>
+          <button class="news-nav-btn" id="news-next" aria-label="Next">&#8594;</button>
+        </div>
+      </div>
+      <div class="news-row">
+
+        <a class="news-tile news-tile--about" href="/about/">
+          <div class="news-tile-photo">
+            <img src="/assets/GeoID_black.png" alt="About GeoID">
+          </div>
+          <div class="news-tile-body">
+            <span class="news-kicker">About</span>
+            <span class="news-title">Introducing GeoID</span>
+            <span class="news-desc">Learn about the initiative tying together planetary exploration, hazard tools and research.</span>
+          </div>
+        </a>
+
+        <a class="news-tile news-tile--explorer" href="/explorer/">
+          <div class="news-tile-photo">
+            <img src="/assets/mars_explorer.png" alt="Explorer">
+          </div>
+          <div class="news-tile-body">
+            <span class="news-kicker">Live Now</span>
+            <span class="news-title">LIVE: GeoID Explorer</span>
+            <span class="news-desc">The interactive 3D planetary viewer is now live. Navigate all 8 worlds.</span>
+          </div>
+        </a>
+
+        <a class="news-tile news-tile--mygeoid" href="/myGeoID/">
+          <div class="news-tile-photo">
+            <img src="/assets/mygeoid_pic.png" alt="myGeoID">
+          </div>
+          <div class="news-tile-body">
+            <span class="news-kicker">In Development</span>
+            <span class="news-title">myGeoID: Prototype</span>
+            <span class="news-desc">Personalised dashboards, saved locations and custom alert profiles — coming soon.</span>
+          </div>
+        </a>
+
+        <a class="news-tile news-tile--research" href="/research/">
+          <div class="news-tile-photo">
+            <img src="/assets/mesh.png" alt="Research">
+          </div>
+          <div class="news-tile-body">
+            <span class="news-kicker">Research</span>
+            <span class="news-title">GeoID Research Hub</span>
+            <span class="news-desc">Datasets, analytical tools and collaborative workflows for researchers.</span>
+          </div>
+        </a>
+
+        <a class="news-tile news-tile--resources" href="/learn/">
+          <div class="news-tile-photo">
+            <img src="/assets/page.jpeg" alt="Learn">
+          </div>
+          <div class="news-tile-body">
+            <span class="news-kicker">Resources</span>
+            <span class="news-title">Learning Materials</span>
+            <span class="news-desc">Courses, guides and educational content across planetary and geohazard science.</span>
+          </div>
+        </a>
+
+      </div>
+    </section>
+
+  </div><!-- /dashboard -->
+
+  <!-- ═══════════════════════════════════════
+       STATUS BAR
+  ═══════════════════════════════════════ -->
+  <div class="status-bar" role="status" aria-live="polite">
+    <div class="status-item">
+      <span class="status-dot"></span>
+      8 Planet Viewers
+    </div>
+    <span class="status-sep">·</span>
+    <div class="status-item">
+      <span class="status-dot yellow"></span>
+      Research GUI
+    </div>
+    <div class="status-spacer"></div>
+    <div class="status-item">GeoID Initiative</div>
+    <span class="status-sep">·</span>
+    <div class="status-item">USGS · NASA · GEBCO · NOAA</div>
+    <span class="status-sep">·</span>
+    <div class="status-item">
+      <span class="status-dot dim"></span>
+      Mercury Through Pluto Charted
+    </div>
+  </div>
+
+  <script src="/scripts/site.js"></script>
+  <script>
+    const planetContent = {
+      mercury: { title: "Mercury", icon: "/assets/mercury_icon.png", route: "/transit/?destination=mercury", launchLabel: "Open Mercury Viewer", copy: "Mercury is the smallest and innermost planet, a dark iron-rich world covered in craters, giant impact basins, and long cliffs formed as the planet cooled and contracted over time." },
+      venus:   { title: "Venus",   icon: "/assets/venus_icon.png",   route: "/transit/?destination=venus",   launchLabel: "Open Venus Viewer",   copy: "Venus is a dense, cloud-shrouded planet with extreme surface heat, vast volcanic plains, deformed highlands, and a rocky landscape hidden beneath its thick carbon dioxide atmosphere." },
+      earth:   { title: "Earth",   icon: "/assets/earth_icon.png",   route: "/myGeoID/",                       launchLabel: "Open myGeoID",       copy: "Earth is a dynamic ocean world with active plate tectonics, a breathable atmosphere, liquid water at the surface, and the only known biosphere in the solar system. Launch myGeoID for the Earth hazard-modelling UI." },
+      moon:    { title: "Moon",    icon: "/assets/moon_icon.png",    route: "/transit/?destination=moon",    launchLabel: "Open Moon Viewer",    copy: "The Moon is Earth's only natural satellite — a tidally locked, airless world of impact basins, ancient volcanic plains, and highlands that preserve a four-billion-year record of solar system bombardment." },
+      mars:    { title: "Mars",    icon: "/assets/mars_icon1.png",    route: "/transit/?destination=mars",    launchLabel: "Open Mars Viewer",    copy: "Mars is a cold desert planet shaped by ancient volcanoes, enormous canyons, dust-covered plains, polar ice, and the long geological record of a world that once held flowing water." },
+      jupiter: { title: "Jupiter", icon: "/assets/jupiter_icon.png", route: "/transit/?destination=jupiter", launchLabel: "Open Jupiter Viewer", copy: "Jupiter is the largest planet in the solar system, a giant world of turbulent cloud bands, immense storms like the Great Red Spot, and a powerful gravity field that dominates its moon system." },
+      saturn:  { title: "Saturn",  icon: "/assets/saturn_icon.png",  route: "/transit/?destination=saturn",  launchLabel: "Open Saturn Viewer",  copy: "Saturn is a gas giant known for its bright ring system, pale banded atmosphere, low density, and a complex family of moons orbiting through an immense planetary environment." },
+      uranus:  { title: "Uranus",  icon: "/assets/uranus_icon.png",  route: "/transit/?destination=uranus",  launchLabel: "Open Uranus Viewer",  copy: "Uranus is an ice giant tipped dramatically on its side, with a pale blue-green atmosphere, faint rings, deep cold, and seasons unlike any other major planet." },
+      neptune: { title: "Neptune", icon: "/assets/neptune_icon.png", route: "/transit/?destination=neptune", launchLabel: "Open Neptune Viewer", copy: "Neptune is a distant ice giant with a deep blue atmosphere, powerful winds, dark storms, faint rings, and an energetic weather system despite its great distance from the Sun." },
+      pluto:   { title: "Pluto",   icon: "/assets/pluto_icon.png",   route: "/transit/?destination=pluto",   launchLabel: "Open Pluto Viewer",   copy: "Pluto is a distant dwarf planet at the edge of the solar system, with a nitrogen-ice heart, rugged mountain ranges, and a surface shaped by exotic ices far from the Sun." }
+    };
+
+    const orbitKeys = ["mercury", "venus", "earth", "moon", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
+    const stackTrack = document.getElementById("stack-track");
+    let activePlanet = "moon";
+    let dragStartX = null;
+
+    function cardMarkup(key, c) {
+      return `
+        <article class="planet-card-stack" data-card="${key}" tabindex="0" role="button" aria-label="${c.title} — press Enter to open viewer">
+          <div class="planet-card-head">
+            <h3 class="planet-card-title">${c.title}</h3>
+          </div>
+          <div class="planet-card-media">
+            <img src="${c.icon}" alt="${c.title}">
+          </div>
+          <div class="planet-card-body">
+            <p class="planet-card-copy">${c.copy}</p>
+            <div class="planet-card-actions">
+              <a class="planet-launch-btn" href="${c.route}">${c.launchLabel}</a>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    if (stackTrack) {
+      stackTrack.innerHTML = orbitKeys.map((key) => cardMarkup(key, planetContent[key])).join("");
+    }
+
+    const planetCards = Array.from(document.querySelectorAll(".planet-card-stack[data-card]"));
+
+    function clampIndex(index) {
+      return Math.max(0, Math.min(index, orbitKeys.length - 1));
+    }
+
+    function updateFocus(key) {
+      if (!planetContent[key]) return;
+      activePlanet = key;
+      const activeIndex = orbitKeys.indexOf(key);
+
+      planetCards.forEach((card) => {
+        const cardIndex = orbitKeys.indexOf(card.dataset.card);
+        const rel = cardIndex - activeIndex;
+        const absRel = Math.abs(rel);
+        const hidden = absRel > 4;
+        let offset = 0, scale = 1, opacity = 1, z = 4;
+
+        if (!hidden && rel !== 0) {
+          offset = rel * 6.15;
+          scale   = absRel === 1 ? 0.92 : absRel === 2 ? 0.84 : absRel === 3 ? 0.76 : 0.68;
+          opacity = absRel === 1 ? 0.92 : absRel === 2 ? 0.74 : absRel === 3 ? 0.5  : 0.3;
+          z = Math.max(1, 4 - absRel);
+        }
+
+        card.style.setProperty("--deck-x", `${offset}rem`);
+        card.style.setProperty("--deck-scale", `${scale}`);
+        card.style.setProperty("--deck-opacity", `${opacity}`);
+        card.style.setProperty("--deck-z", `${z}`);
+        card.classList.toggle("is-selected", rel === 0);
+        card.classList.toggle("is-before", rel < 0 && !hidden);
+        card.classList.toggle("is-after", rel > 0 && !hidden);
+        card.classList.toggle("is-hidden", hidden);
+      });
+    }
+
+    planetCards.forEach((card) => {
+      card.addEventListener("focusin", () => updateFocus(card.dataset.card));
+      card.addEventListener("click", () => {
+        const key = card.dataset.card;
+        if (card.classList.contains("is-selected")) {
+          window.location.href = planetContent[key].route;
+        } else {
+          updateFocus(key);
+        }
+      });
+      // Enter / Space: select the planet on first press, launch transit on second
+      // press (when already selected). Matches the click interaction above.
+      card.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        const key = card.dataset.card;
+        if (card.classList.contains("is-selected")) {
+          window.location.href = planetContent[key].route;
+        } else {
+          updateFocus(key);
+        }
+      });
+    });
+
+    // Enter on any focused element while a planet is active also launches the
+    // active planet's transit, so keyboard users don't have to tab to the card.
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      const t = e.target;
+      if (t instanceof HTMLElement) {
+        const tag = t.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "A" || tag === "BUTTON" || t.isContentEditable) return;
+      }
+      const route = planetContent[activePlanet]?.route;
+      if (route) {
+        e.preventDefault();
+        window.location.href = route;
+      }
+    });
+
+    stackTrack?.addEventListener("pointerdown", (e) => { dragStartX = e.clientX; });
+    stackTrack?.addEventListener("pointerup", (e) => {
+      if (dragStartX === null) return;
+      const delta = e.clientX - dragStartX;
+      if (Math.abs(delta) > 36) updateFocus(orbitKeys[clampIndex(orbitKeys.indexOf(activePlanet) + (delta < 0 ? 1 : -1))]);
+      dragStartX = null;
+    });
+    stackTrack?.addEventListener("pointerleave", () => { dragStartX = null; });
+
+    // Clickable arrows that cycle through orbitKeys in the same direction
+    // as the keyboard arrow keys.
+    function shiftFocus(delta) {
+      const next = orbitKeys[clampIndex(orbitKeys.indexOf(activePlanet) + delta)];
+      updateFocus(next);
+    }
+    document.getElementById("planet-nav-prev")?.addEventListener("click", (e) => { e.preventDefault(); shiftFocus(-1); });
+    document.getElementById("planet-nav-next")?.addEventListener("click", (e) => { e.preventDefault(); shiftFocus( 1); });
+
+    document.addEventListener("keydown", (e) => {
+      const t = e.target;
+      if (t instanceof HTMLElement && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.key === "ArrowLeft")  { e.preventDefault(); updateFocus(orbitKeys[clampIndex(orbitKeys.indexOf(activePlanet) - 1)]); }
+      if (e.key === "ArrowRight") { e.preventDefault(); updateFocus(orbitKeys[clampIndex(orbitKeys.indexOf(activePlanet) + 1)]); }
+    });
+
+    updateFocus(activePlanet);
+
+    /* ── Banner slideshow ── */
+    (function () {
+      const slides   = Array.from(document.querySelectorAll('.pv-slide'));
+      const dots     = Array.from(document.querySelectorAll('.pv-dot'));
+      const INTERVAL = 20000;
+      let current    = 0;
+      let timer      = null;
+
+      function goTo(n) {
+        slides[current].classList.remove('is-active');
+        dots[current].classList.remove('is-active');
+        dots[current].setAttribute('aria-selected', 'false');
+        current = (n + slides.length) % slides.length;
+        slides[current].classList.add('is-active');
+        dots[current].classList.add('is-active');
+        dots[current].setAttribute('aria-selected', 'true');
+      }
+
+      function startTimer() {
+        clearInterval(timer);
+        timer = setInterval(() => goTo(current + 1), INTERVAL);
+      }
+
+      dots.forEach((dot, i) => dot.addEventListener('click', () => {
+        goTo(i);
+        startTimer(); /* reset countdown on manual nav */
+      }));
+
+      /* Pause on hover, resume on leave */
+      const panel = document.querySelector('.dash-planet-view');
+      panel?.addEventListener('mouseenter', () => clearInterval(timer));
+      panel?.addEventListener('mouseleave', startTimer);
+
+      startTimer();
+    })();
+
+    /* ── News tile navigation ── */
+    (function () {
+      const tiles      = Array.from(document.querySelectorAll('.news-tile'));
+      const prevBtn    = document.getElementById('news-prev');
+      const nextBtn    = document.getElementById('news-next');
+      const perPage    = 5;
+      let page         = 0;
+
+      function render() {
+        const start = page * perPage;
+        tiles.forEach((t, i) => {
+          t.style.display = (i >= start && i < start + perPage) ? '' : 'none';
+        });
+        if (prevBtn) prevBtn.disabled = page === 0;
+        if (nextBtn) nextBtn.disabled = (page + 1) * perPage >= tiles.length;
+      }
+
+      prevBtn?.addEventListener('click', () => { if (page > 0) { page--; render(); } });
+      nextBtn?.addEventListener('click', () => { if ((page + 1) * perPage < tiles.length) { page++; render(); } });
+      render();
+    })();
+
+    /* ── Starfield canvas ── */
+    (function () {
+      const canvas = document.getElementById("stars-canvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+
+      function resize() {
+        canvas.width  = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        draw();
+      }
+
+      function draw() {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        /* Deep-space gradient */
+        const bg = ctx.createLinearGradient(0, 0, 0, h);
+        bg.addColorStop(0,    "#000005");
+        bg.addColorStop(0.45, "#00030e");
+        bg.addColorStop(1,    "#000002");
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, w, h);
+
+        /* Subtle nebula glow — left blue, right teal */
+        const nL = ctx.createRadialGradient(w * 0.18, h * 0.3, 0, w * 0.18, h * 0.3, w * 0.32);
+        nL.addColorStop(0,   "rgba(40, 70, 160, 0.14)");
+        nL.addColorStop(1,   "transparent");
+        ctx.fillStyle = nL;
+        ctx.fillRect(0, 0, w, h);
+
+        const nR = ctx.createRadialGradient(w * 0.82, h * 0.2, 0, w * 0.82, h * 0.2, w * 0.28);
+        nR.addColorStop(0,   "rgba(32, 122, 110, 0.10)");
+        nR.addColorStop(1,   "transparent");
+        ctx.fillStyle = nR;
+        ctx.fillRect(0, 0, w, h);
+
+        /* Stars — three layers: tiny dim, small medium, occasional bright */
+        const rng = mulberry32(0xdeadbeef);
+        const layers = [
+          { count: 280, minR: 0.35, maxR: 0.65, minA: 0.18, maxA: 0.52 },
+          { count: 120, minR: 0.55, maxR: 0.90, minA: 0.38, maxA: 0.72 },
+          { count:  30, minR: 0.80, maxR: 1.30, minA: 0.65, maxA: 0.95 },
+        ];
+        layers.forEach(({ count, minR, maxR, minA, maxA }) => {
+          for (let i = 0; i < count; i++) {
+            const x = rng() * w;
+            const y = rng() * h;
+            const r = minR + rng() * (maxR - minR);
+            const a = minA + rng() * (maxA - minA);
+            ctx.beginPath();
+            ctx.arc(x, y, r, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+            ctx.fill();
+          }
+        });
+      }
+
+      function mulberry32(seed) {
+        return function () {
+          seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+          let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+          t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+          return ((t ^ t >>> 14) >>> 0) / 4294967296;
+        };
+      }
+
+      resize();
+      new ResizeObserver(resize).observe(canvas.parentElement);
+    })();
+  </script>
+<script src="/styles/nav.js" defer></script>
+</body>
+</html>

@@ -53,6 +53,8 @@ import * as THREE from "./vendor/three.module.js";
     const locationsMasterToggle = document.getElementById("locations-master-toggle");
     const moonViewerToggle = document.getElementById("moon-viewer-toggle");
     const coreToggle = document.getElementById("core-toggle");
+    const lodSlider = document.getElementById("lod-slider");
+    let currentLodLevel = 3;
     const regionMaskSelect = document.getElementById("region-mask-select");
     const regionMaskOpacity = document.getElementById("region-mask-opacity");
     const mineralSelect = document.getElementById("mineral-select");
@@ -305,8 +307,8 @@ import * as THREE from "./vendor/three.module.js";
     const legendPanel = document.getElementById("legend-panel");
 
     if (brandLogo) {
-      brandLogo.src = "../../assets/GeoID_logo_icon.png?v=20260430a";
-      brandLogo.alt = "GeoID logo";
+      brandLogo.src = "../../assets/earth_icon.png";
+      brandLogo.alt = "Earth logo";
     }
     const legendSummaryCopy = document.getElementById("legend-summary-copy");
     const scenePopup = document.getElementById("scene-popup");
@@ -1021,21 +1023,15 @@ import * as THREE from "./vendor/three.module.js";
       if (!spinToggleBtn) return;
       const spinLocked = baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color";
       spinToggleBtn.classList.toggle("is-locked", spinLocked);
+      // The glyph is now an SVG — never overwrite its content with text or it
+      // disappears. Use the .is-paused class for visual state instead.
       if (spinPaused) {
-        if (spinToggleGlyph) {
-          spinToggleGlyph.textContent = "▶";
-        } else {
-          spinToggleBtn.textContent = "▶";
-        }
         spinToggleBtn.title = "Resume rotation";
+        spinToggleBtn.setAttribute("aria-label", "Resume rotation");
         spinToggleBtn.classList.add("is-paused");
       } else {
-        if (spinToggleGlyph) {
-          spinToggleGlyph.textContent = "⏸";
-        } else {
-          spinToggleBtn.textContent = "⏸";
-        }
         spinToggleBtn.title = "Pause rotation";
+        spinToggleBtn.setAttribute("aria-label", "Pause rotation");
         spinToggleBtn.classList.remove("is-paused");
       }
     }
@@ -8064,6 +8060,18 @@ import * as THREE from "./vendor/three.module.js";
         });
       }
 
+      // LOD density filter: drop entries below the priority threshold for the current slider level
+      const lodPriorityMin = [0, 4, 3, 2, 1, 0][Math.min(5, Math.max(1, currentLodLevel))];
+      if (lodPriorityMin > 0) {
+        for (let i = candidates.length - 1; i >= 0; i--) {
+          const c = candidates[i];
+          const isPinned = Boolean(activePopupFeature && c.entry.item?.name === activePopupFeature.name);
+          if (!isPinned && (c.entry.priority || 1) < lodPriorityMin) {
+            candidates.splice(i, 1);
+          }
+        }
+      }
+
       candidates.sort((a, b) => {
         const aPinned = Boolean(activePopupFeature && a.entry.item?.name === activePopupFeature.name);
         const bPinned = Boolean(activePopupFeature && b.entry.item?.name === activePopupFeature.name);
@@ -13753,6 +13761,9 @@ uniform float uViewportWidth;`,
 	        window.parent.postMessage({ type: "geoid:pin:clear", source: "geoselector" }, "*");
 	      }
 
+	      // Mirrors myGeoID/index.html buildDummyHazardModel — same realistic
+	      // hydrology/geotechnical scaling, same water-surface null state. Keep
+	      // these two implementations in sync if either changes.
 	      function computeGeoSelectorHazardModel(point) {
 	        const source = point || {};
 	        const lat = Number(source.lat || 0);
@@ -13761,6 +13772,10 @@ uniform float uViewportWidth;`,
 	          ? source.elevationMeters
 	          : (source.elevation_m != null ? source.elevation_m : source.elevation);
 	        const elevation = Number(elevationValue || 0);
+	        // Water-body heuristic: below sea level → ocean → null hazard state.
+	        if (Number.isFinite(elevation) && elevation < 0) {
+	          return { isWater: true };
+	        }
 	        const slope = Number(source.slopeDegrees || (Math.abs(lat) % 24) + 3);
 	        const seed = Math.round((lat + 90) * 1000) ^ Math.round((lon + 180) * 1000);
 	        let randomSeed = Math.abs(seed) + 17;
@@ -13768,20 +13783,65 @@ uniform float uViewportWidth;`,
 	          randomSeed = (randomSeed * 16807) % 2147483647;
 	          return (randomSeed - 1) / 2147483646;
 	        };
-	        const saturation = Math.min(98, Math.max(12, 38 + Math.abs(Math.sin(lat * 0.12)) * 38 + rand() * 12));
-	        const rainfall = Math.max(0, 8 + Math.abs(Math.cos(lon * 0.08)) * 42 + rand() * 18);
-	        const slopeStress = Math.min(42, slope * 1.35);
-	        const fos = Math.max(0.62, Math.min(2.35, 2.22 - saturation / 115 - rainfall / 165 - slopeStress / 100 + (elevation > 0 ? 0.08 : -0.04)));
-	        const flood = Math.min(96, Math.max(4, rainfall * 1.15 + saturation * 0.32 + rand() * 10));
+
+	        const latAbs = Math.abs(lat);
+	        const tropicalFactor = Math.max(0, Math.cos(latAbs * Math.PI / 180));
+	        const continentality = 0.45 + 0.55 * Math.abs(Math.cos(lon * Math.PI / 90));
+	        const annualRainfall = 80 + tropicalFactor * 2400 * continentality + rand() * 300;
+	        const dailyAverage = annualRainfall / 365;
+	        const rainProb = 0.12 + tropicalFactor * 0.45;
+	        const isRainingToday = rand() < rainProb;
+	        const rainfall = isRainingToday
+	          ? dailyAverage * (1.2 + rand() * 7) + rand() * 1.5
+	          : rand() * 0.4;
+	        const antecedentRain = dailyAverage * 7 * (0.4 + rand() * 1.5);
+
+	        const baseSoilMoisture = 18 + tropicalFactor * 28 + rand() * 8;
+	        const saturation = Math.min(95, baseSoilMoisture + antecedentRain * 0.15 + rainfall * 0.35);
+
+	        // The rand() stream must stay aligned with myGeoID/index.html so the
+	        // top-right tile matches the Analysis Hub. Advance the stream past
+	        // porePressure and slopeStress even though we don't use them here.
+	        const _porePressure = Math.max(0.5, saturation * 0.45 + rainfall * 0.25 + rand() * 4);
+	        const _slopeStress  = Math.max(2, slope * 0.9 + rand() * 3);
+	        void _porePressure; void _slopeStress;
+
+	        const baseFoS = 3.2 - slope * 0.04;
+	        const fosReduction = Math.max(0, (saturation - 30) / 110)
+	                           + Math.max(0, (rainfall - 5) / 160)
+	                           + Math.max(0, (slope - 8) / 55);
+	        const fos = Math.max(0.85, Math.min(6.5, baseFoS - fosReduction + (rand() - 0.5) * 0.3));
+
+	        // Match myGeoID: displacement (1 rand, both branches), then confidence (1 rand).
+	        const _displacement = fos > 1.5
+	          ? rand() * 0.4
+	          : Math.max(0.2, (1.7 - fos) * 12 + rand() * 2);
+	        const _confidence   = Math.min(96, Math.max(58, 88 - rand() * 14));
+	        void _displacement; void _confidence;
+
+	        const isLowland = elevation < 80;
+	        const baseFloodRisk = isLowland ? 2.5 + rand() * 4 : 0.4 + rand() * 1.0;
+	        const rainContribution = rainfall > 25 ? (rainfall - 25) * 0.35 : 0;
+	        const satContribution  = saturation > 65 ? (saturation - 65) * 0.15 : 0;
+	        const flood = Math.min(60, baseFloodRisk + rainContribution + satContribution);
+
 	        return { fos, saturation, rainfall, flood };
 	      }
 
 	      function updateHazardReadoutForGeoSelector(point) {
 	        const model = computeGeoSelectorHazardModel(point);
+	        if (model.isWater) {
+	          if (hazardFos) hazardFos.textContent = "—";
+	          if (hazardSaturation) hazardSaturation.textContent = "—";
+	          if (hazardRainfall) hazardRainfall.textContent = "—";
+	          if (hazardFlood) hazardFlood.textContent = "—";
+	          if (hazardReadout) hazardReadout.classList.add("has-selection");
+	          return;
+	        }
 	        if (hazardFos) hazardFos.textContent = model.fos.toFixed(2);
 	        if (hazardSaturation) hazardSaturation.textContent = `${model.saturation.toFixed(0)}%`;
 	        if (hazardRainfall) hazardRainfall.textContent = `${model.rainfall.toFixed(1)} mm`;
-	        if (hazardFlood) hazardFlood.textContent = `${model.flood.toFixed(0)}%`;
+	        if (hazardFlood) hazardFlood.textContent = `${model.flood.toFixed(1)}%`;
 	        if (hazardReadout) hazardReadout.classList.add("has-selection");
 	      }
 
@@ -17395,6 +17455,7 @@ uniform float uViewportWidth;`,
       geologyMasterToggle.addEventListener("change", () => {
         if (geologySection) geologySection.open = geologyMasterToggle.checked;
         if (geologyMasterToggle.checked) {
+          setTimeout(() => geologySection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
           openLegendSection();
           applyDefaultGeologyState();
         } else {
@@ -17549,6 +17610,7 @@ uniform float uViewportWidth;`,
       locationsMasterToggle.addEventListener("change", () => {
         const on = locationsMasterToggle.checked;
         if (locationsSection) locationsSection.open = on;
+        if (on) setTimeout(() => locationsSection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
         labelsToggle.checked = on;
         volcanicLabelsToggle.checked = on;
         landingLabelsToggle.checked = on;
@@ -17573,9 +17635,23 @@ uniform float uViewportWidth;`,
         syncInfoPanels(baseLayers, geologyLayers, mineralLayers, geologyInteractiveState, geologyStructureLayers);
       });
 
+      const LOD_LABELS = ["", "Landmarks only", "Major features", "Standard", "Detailed", "All features"];
+      const lodValueLabel = document.getElementById("lod-value-label");
+      function syncLodLabel() {
+        if (lodValueLabel) lodValueLabel.textContent = LOD_LABELS[currentLodLevel] || "Standard";
+      }
+      if (lodSlider) {
+        lodSlider.addEventListener("input", () => {
+          currentLodLevel = parseInt(lodSlider.value, 10);
+          syncLodLabel();
+          applyPlanetDisplayState();
+        });
+      }
+
       coreToggle.addEventListener("change", () => {
         const enabled = coreToggle.checked;
         if (enabled) {
+          setTimeout(() => coreViewSection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
           resetActiveMeasurement();
           cursorReadout.hidden = true;
           lastScaleSampleLat = null;
@@ -18024,6 +18100,7 @@ uniform float uViewportWidth;`,
         moonViewerToggle.addEventListener("change", () => {
           if (moonViewerToggle.checked) {
             if (moonViewerSection) moonViewerSection.open = true;
+            setTimeout(() => moonViewerSection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
             const first = moonData[0] || null;
             if (first) {
               moveCameraToFeature(first, camera, controls);

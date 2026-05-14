@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=20260510b">
 </head>
-<body>
+<body class="viewer-page">
   <div id="app"></div>
   <section id="ui">
     <div class="brand-toprow">
@@ -20,6 +20,7 @@
         <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel">‹</button>
       </div>
     </div>
+    <div id="ui-scroll-body">
     <div class="viewer-info" id="viewer-info">
       <p>Drag to orbit, scroll to zoom, and inspect Pluto as a textured 3D globe with topographic relief. Explore named surface features, cryovolcanic mountains, nitrogen-ice plains, and Pluto's five moons.</p>
     </div>
@@ -131,12 +132,24 @@
             <span class="checkbox-wrap"><input id="volcanic-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
-            <label for="fluvial-labels-toggle" style="color: #2d78e0;">Valley networks</label>
+            <label for="landing-labels-toggle" style="color: #ffe500;">Mission locations</label>
+            <span class="checkbox-wrap"><input id="landing-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
+            <label for="habitation-labels-toggle" style="color: #6bcb77;">Mission concepts</label>
+            <span class="checkbox-wrap"><input id="habitation-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
+            <label for="fluvial-labels-toggle" style="color: #2d78e0;">Fluvial</label>
             <span class="checkbox-wrap"><input id="fluvial-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
-            <label for="tectonic-labels-toggle" style="color: #b87333;">Canyons &amp; ridges</label>
+            <label for="tectonic-labels-toggle" style="color: #b87333;">Tectonic, Canyon and Ridge features</label>
             <span class="checkbox-wrap"><input id="tectonic-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
+            <label for="moon-toggle" style="color: #ffffff;">Moons</label>
+            <span class="checkbox-wrap"><input id="moon-toggle" type="checkbox" checked></span>
           </div>
           <div class="lod-slider-row">
             <div class="lod-slider-header">
@@ -212,7 +225,7 @@
           </div>
         </div>
       </details>
-      <details id="geology-section" class="control-section">
+      <details id="geology-section" class="control-section" hidden>
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
@@ -294,7 +307,7 @@
         </div>
         </div>
       </details>
-      <details class="control-section">
+      <details class="control-section" hidden>
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
@@ -336,7 +349,7 @@
           </div>
         </div>
       </details>
-      <details class="control-section">
+      <details class="control-section" hidden>
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
@@ -501,8 +514,9 @@
       </details>
     </div>
     <p class="status" id="status">© 2026 GeoID: Explorer. The GeoID Initiative, led by Owen McCluskey. All rights reserved.</p>
+    </div>
   </section>
-  <a class="hub-link" href="../../../html/explorer.html" target="_top" rel="home">Return Home</a>
+  <a class="hub-link" href="/explorer/" target="_top" rel="home">Return Home</a>
 
   <button id="nav-tab" aria-label="Open Control Centre">Open Control Centre &nbsp;›</button>
   <button id="toolbar-tab" aria-label="Expand measure toolbox">TOOLS &nbsp;‹</button>
@@ -1275,10 +1289,6 @@
 <script src="music.js?v=20260329a" defer></script>
 
 
-  <!-- Ghost checkboxes: keep JS toggle refs valid without showing in UI -->
-  <input type="checkbox" id="habitation-labels-toggle" style="display:none">
-  <input type="checkbox" id="landing-labels-toggle" style="display:none">
-  <input type="checkbox" id="moon-toggle" style="display:none">
   <div id="portrait-advisory" role="status" aria-live="polite">
     <img src="../../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon">
     <p id="portrait-advisory-text">Rotate to landscape for the best experience</p>

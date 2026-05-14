@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=20260510b">
 </head>
-<body>
+<body class="viewer-page">
   <div id="app"></div>
   <section id="ui">
     <div class="brand-toprow">
@@ -20,6 +20,7 @@
         <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel">‹</button>
       </div>
     </div>
+    <div id="ui-scroll-body">
     <div class="viewer-info" id="viewer-info">
       <p>Drag to orbit, scroll to zoom, and inspect Venus as a textured 3D globe with topographic relief and an optional geology context overlay.</p>
     </div>
@@ -131,12 +132,24 @@
             <span class="checkbox-wrap"><input id="volcanic-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
-            <label for="tectonic-labels-toggle" style="color: #b87333;">Canyons &amp; ridges</label>
+            <label for="landing-labels-toggle" style="color: #ffe500;">Mission locations</label>
+            <span class="checkbox-wrap"><input id="landing-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
+            <label for="habitation-labels-toggle" style="color: #6bcb77;">Mission concepts</label>
+            <span class="checkbox-wrap"><input id="habitation-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
+            <label for="fluvial-labels-toggle" style="color: #2d78e0;">Fluvial</label>
+            <span class="checkbox-wrap"><input id="fluvial-labels-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="row">
+            <label for="tectonic-labels-toggle" style="color: #b87333;">Tectonic, Canyon and Ridge features</label>
             <span class="checkbox-wrap"><input id="tectonic-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
-            <label for="fluvial-labels-toggle" style="color: #2d78e0;">Valley networks</label>
-            <span class="checkbox-wrap"><input id="fluvial-labels-toggle" type="checkbox" checked></span>
+            <label for="moon-toggle" style="color: #ffffff;">Moons</label>
+            <span class="checkbox-wrap"><input id="moon-toggle" type="checkbox" checked></span>
           </div>
           <div class="lod-slider-row">
             <div class="lod-slider-header">
@@ -294,7 +307,7 @@
         </div>
         </div>
       </details>
-      <details class="control-section">
+      <details class="control-section" hidden>
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
@@ -336,7 +349,7 @@
           </div>
         </div>
       </details>
-      <details class="control-section">
+      <details class="control-section" hidden>
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
@@ -388,31 +401,24 @@
             </div>
             <div class="core-legend" style="margin-top:0.35rem;">
               <div class="core-legend-row">
-                <span class="core-swatch" style="background:#c8a882"></span>
+                <span class="core-swatch" style="background:#d4b896"></span>
                 <div>
-                  <div class="core-legend-label">Crust</div>
-                  <div class="core-legend-copy">Thin basaltic shell, ~20–70 km thick, formed by ancient volcanic activity.</div>
+                  <div class="core-legend-label">Rocky Crust</div>
+                  <div class="core-legend-copy">Thin basaltic shell, ~20–70 km thick, mapped almost entirely by Magellan radar.</div>
                 </div>
               </div>
               <div class="core-legend-row">
-                <span class="core-swatch" style="background:#6b3a2a"></span>
+                <span class="core-swatch" style="background:#c07848"></span>
                 <div>
-                  <div class="core-legend-label">Mantle</div>
-                  <div class="core-legend-copy">Silicate rock making up the bulk of the planet, largely solidified and tectonically inactive.</div>
+                  <div class="core-legend-label">Rocky Mantle</div>
+                  <div class="core-legend-copy">Thick silicate mantle operating under a stagnant-lid regime; no active plate tectonics.</div>
                 </div>
               </div>
               <div class="core-legend-row">
-                <span class="core-swatch" style="background:#d94f1e"></span>
+                <span class="core-swatch" style="background:#ff6633"></span>
                 <div>
-                  <div class="core-legend-label">Liquid Outer Core</div>
-                  <div class="core-legend-copy">Liquid iron outer core; Venus has no active magnetic field despite its similar size to Earth.</div>
-                </div>
-              </div>
-              <div class="core-legend-row">
-                <span class="core-swatch" style="background:#f0d59e"></span>
-                <div>
-                  <div class="core-legend-label">Inner Core</div>
-                  <div class="core-legend-copy">Possible denser iron-rich centre; its solid or partially molten state remains uncertain.</div>
+                  <div class="core-legend-label">Iron Core</div>
+                  <div class="core-legend-copy">Iron-nickel core ~53% of Venus's radius; generates no magnetic field due to slow rotation.</div>
                 </div>
               </div>
             </div>
@@ -428,7 +434,7 @@
           <span class="checkbox-wrap"><input class="section-master-toggle" type="checkbox" aria-label="Remove Atmosphere"></span>
         </div>
       </section>
-      <details id="moon-viewer-section" class="control-section">
+      <details id="moon-viewer-section" class="control-section" hidden>
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
@@ -501,8 +507,9 @@
       </details>
     </div>
     <p class="status" id="status">© 2026 GeoID: Explorer. The GeoID Initiative, led by Owen McCluskey. All rights reserved.</p>
+    </div>
   </section>
-  <a class="hub-link" href="../../../html/explorer.html" target="_top" rel="home">Return Home</a>
+  <a class="hub-link" href="/explorer/" target="_top" rel="home">Return Home</a>
 
   <button id="nav-tab" aria-label="Open Control Centre">Open Control Centre &nbsp;›</button>
   <button id="toolbar-tab" aria-label="Expand measure toolbox">TOOLS &nbsp;‹</button>
@@ -1283,10 +1290,6 @@
 <script src="music.js?v=20260329a" defer></script>
 
 
-  <!-- Ghost checkboxes: keep JS toggle refs valid without showing in UI -->
-  <input type="checkbox" id="habitation-labels-toggle" style="display:none">
-  <input type="checkbox" id="landing-labels-toggle" style="display:none">
-  <input type="checkbox" id="moon-toggle" style="display:none">
   <div id="portrait-advisory" role="status" aria-live="polite">
     <img src="../../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon">
     <p id="portrait-advisory-text">Rotate to landscape for the best experience</p>

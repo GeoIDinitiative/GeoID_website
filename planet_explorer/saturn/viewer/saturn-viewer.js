@@ -910,18 +910,17 @@
       if (!camera) return;
       const direction = new THREE.Vector3();
       camera.getWorldDirection(direction).negate();
-      // In moon-viewer mode convert the world-space direction to the moon's body-fixed frame
-      // using the moon mesh's world transform. This correctly accounts for the orbital position,
-      // tidal-locking rotation, and marsGroup's axial tilt and scale.
+      // Convert world-space direction into the body-fixed local frame so that vectorToLatLon
+      // sees texture-space coordinates regardless of spin or axial tilt.
       if (activeMoonViewerFeature) {
         const moonMesh = moonMeshMap ? moonMeshMap.get(activeMoonViewerFeature.name) : null;
         if (moonMesh) {
-          // world → marsGroup local
           direction.transformDirection(marsGroup.matrixWorld.clone().invert());
-          // marsGroup local → moon mesh local (removes orbital pos + tidal-locking rotation.y)
           direction.transformDirection(moonMesh.matrix.clone().invert());
-          // vectorToLatLon on the mesh-local direction gives lon in the texture's left-edge CRS.
         }
+      } else {
+        direction.transformDirection(marsGroup.matrixWorld.clone().invert());
+        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), -(globe.rotation.y - Math.PI));
       }
       const latLon = vectorToLatLon(direction);
       if (hemisphereLocatorReadout) {
@@ -1013,8 +1012,8 @@
         depth: "Cloud tops through the upper troposphere",
         composition: "Hydrogen and helium with ammonia ice, ammonium hydrosulfide, water-cloud layers below, and photochemical haze above.",
         temperature: "~80-140 K near the visible cloud deck",
-        labelX: -1.9, labelY: 3.12,
-        anchorY: 3.12,
+        labelX: -2.5, labelY: 3.14,
+        anchorY: 3.14,
       },
       {
         id: "molecular-envelope",
@@ -1024,8 +1023,8 @@
         depth: "Outer atmosphere to the metallic transition",
         composition: "Mostly molecular hydrogen and helium with dissolved heavier elements and cloud-forming volatiles.",
         temperature: "Rises from the upper atmosphere into the thousands of kelvin at depth",
-        labelX: -2.35, labelY: 2.26,
-        anchorY: 2.26,
+        labelX: -2.5, labelY: 2.46,
+        anchorY: 2.46,
       },
       {
         id: "metallic-hydrogen",
@@ -1035,8 +1034,8 @@
         depth: "Broad deep shell around the central heavy-element region",
         composition: "Metallic hydrogen with helium and heavier-element material mixed into the deep interior.",
         temperature: "Several thousand kelvin under immense pressure",
-        labelX: -1.65, labelY: 1.36,
-        anchorY: 1.36,
+        labelX: -2.5, labelY: 1.28,
+        anchorY: 1.28,
       },
       {
         id: "heavy-element-core",
@@ -1046,7 +1045,7 @@
         depth: "Central region",
         composition: "Silicates, metals, and ices mixed with surrounding hydrogen under deep-interior conditions.",
         temperature: "Hot dense interior; model dependent",
-        labelX: -0.55, labelY: 0,
+        labelX: -2.5, labelY: 0,
         anchorY: 0,
       },
     ];
@@ -4120,13 +4119,13 @@
 
           // Text sprite label — right edge placed exactly at (lx, ly)
           const labelTex = makeLabelTexture(layer.name);
-          const hw = (labelTex.width / 200) * 0.85 * 0.5;
+          const hw = (labelTex.width / 200) * 1.4 * 0.5;
           const spriteMat = new THREE.SpriteMaterial({
             map: labelTex.texture, transparent: true, opacity: 0.88,
             depthTest: false, depthWrite: false,
           });
           const sprite = new THREE.Sprite(spriteMat);
-          sprite.scale.set(hw * 2, (labelTex.height / 200) * 0.85, 1);
+          sprite.scale.set(hw * 2, (labelTex.height / 200) * 1.4, 1);
           sprite.position.set(lx - hw, ly, 0);
           sprite.renderOrder = CORE_LABEL_RENDER_ORDER;
           sprite.userData.feature = layer;
@@ -6244,20 +6243,32 @@
       // Touch pinch-to-zoom — feeds into the same zoom logic as the mouse wheel
       {
         let _pinchDist = null;
+        // Pinch zoom must run non-passively so we can preventDefault on the
+        // 2-finger touchmove. Without it the browser also performs a native
+        // pinch-zoom on the page, producing the "two zooms fighting" bug on
+        // mobile. CSS adds `touch-action: none` on the canvas as a backstop.
         renderer.domElement.addEventListener("touchstart", (e) => {
-          _pinchDist = e.touches.length === 2
-            ? Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
-            : null;
-        }, { passive: true });
+          if (e.touches.length === 2) {
+            _pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            e.preventDefault();
+          } else {
+            _pinchDist = null;
+          }
+        }, { passive: false });
         renderer.domElement.addEventListener("touchmove", (e) => {
-          if (e.touches.length !== 2 || _pinchDist === null) return;
+          if (e.touches.length !== 2) return;
+          e.preventDefault();
+          if (_pinchDist === null) {
+            _pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            return;
+          }
           const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
           const delta = (_pinchDist - dist) * 2.2;
           if (Math.abs(delta) > 0.5) {
             handleSurfaceWheelZoom({ deltaY: delta, preventDefault: () => {} });
             _pinchDist = dist;
           }
-        }, { passive: true });
+        }, { passive: false });
         renderer.domElement.addEventListener("touchend", () => { _pinchDist = null; }, { passive: true });
       }
 
@@ -8869,9 +8880,14 @@
             surfaceHit = intersectExposedSaturnInteriorSurface(event.clientX, event.clientY);
           }
           if (surfaceHit) {
-            const latLon = surfaceHit.context
-              ? { lat: surfaceHit.lat, lon: surfaceHit.lon }
-              : vectorToLatLon(surfaceHit.point);
+            let latLon;
+            if (surfaceHit.context?.kind === "moon") {
+              latLon = { lat: surfaceHit.lat, lon: surfaceHit.lon };
+            } else if (surfaceHit.context) {
+              latLon = { lat: surfaceHit.lat, lon: surfaceHit.lon };
+            } else {
+              latLon = vectorToLatLon(labelLayer.group.worldToLocal(surfaceHit.point.clone()));
+            }
             cursorReadout.hidden = false;
             const _isMoonHit = surfaceHit.context?.kind === "moon";
             const _lonStr = _isMoonHit

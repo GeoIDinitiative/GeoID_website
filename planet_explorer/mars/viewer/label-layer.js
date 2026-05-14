@@ -765,6 +765,15 @@ export function buildLabelLayer(radius, elevationSampler, elevationCache, getTer
     entry.hitTarget = hitTarget;
     entry.sprite = sprite;
     entry.line = line;
+    // Tier-aware label sizing: more prominent (lower-lod) features render larger.
+    // tier 1 = 1.55×, tier 2 = 1.30×, tier 3 = 1.10×, tier 4 = 1.00×, tier 5 = 0.88×.
+    const _lodForScale = item?.lod;
+    const _lodScaleMult = _lodForScale === 1 ? 1.55
+                        : _lodForScale === 2 ? 1.30
+                        : _lodForScale === 3 ? 1.10
+                        : _lodForScale === 5 ? 0.88
+                        : 1.00;
+    sprite.scale.set(sprite.scale.x * _lodScaleMult, sprite.scale.y * _lodScaleMult, 1);
     entry.baseScale = sprite.scale.clone();
     entry.markerBaseScale = marker.scale.clone();
     entry.hitBaseScale = hitTarget.scale.clone();

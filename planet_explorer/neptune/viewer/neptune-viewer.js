@@ -503,12 +503,6 @@
     }
     function syncSpinToggleBtn() {
       if (!spinToggleBtn) return;
-      const glyph = spinPaused ? "▶" : "⏸";
-      if (spinToggleGlyph) {
-        spinToggleGlyph.textContent = glyph;
-      } else {
-        spinToggleBtn.textContent = glyph;
-      }
       if (spinPaused) {
         spinToggleBtn.title = "Resume rotation";
         spinToggleBtn.setAttribute("aria-label", "Resume rotation");
@@ -859,18 +853,15 @@
       if (!camera) return;
       const direction = new THREE.Vector3();
       camera.getWorldDirection(direction).negate();
-      // In moon-viewer mode convert the world-space direction to the moon's body-fixed frame
-      // using the moon mesh's world transform. This correctly accounts for the orbital position,
-      // tidal-locking rotation, and marsGroup's axial tilt and scale.
       if (activeMoonViewerFeature) {
         const moonMesh = moonMeshMap ? moonMeshMap.get(activeMoonViewerFeature.name) : null;
         if (moonMesh) {
-          // world → marsGroup local
           direction.transformDirection(marsGroup.matrixWorld.clone().invert());
-          // marsGroup local → moon mesh local (removes orbital pos + tidal-locking rotation.y)
           direction.transformDirection(moonMesh.matrix.clone().invert());
-          // vectorToLatLon on the mesh-local direction gives lon in the texture's left-edge CRS.
         }
+      } else {
+        direction.transformDirection(marsGroup.matrixWorld.clone().invert());
+        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), -(globe.rotation.y - Math.PI));
       }
       const latLon = vectorToLatLon(direction);
       if (hemisphereLocatorReadout) {
@@ -962,7 +953,7 @@
         depth: "Cloud tops through the upper troposphere",
         composition: "Hydrogen and helium with methane clouds, photochemical haze, and traces of ethane and acetylene.",
         temperature: "~55–72 K at the tropopause cold trap; ~80–140 K at the visible cloud deck",
-        labelX: -1.80, labelY: 3.12,
+        labelX: -2.5, labelY: 3.12,
         anchorY: 3.12,
       },
       {
@@ -973,7 +964,7 @@
         depth: "Below the cloud tops, deepening into high-pressure fluid",
         composition: "Mostly molecular hydrogen and helium, with methane (about 1–2%), driving Neptune's vivid blue color.",
         temperature: "Rises from cloud-top temperatures into thousands of kelvin at depth",
-        labelX: -1.80, labelY: 2.72,
+        labelX: -2.5, labelY: 2.72,
         anchorY: 2.72,
       },
       {
@@ -984,7 +975,7 @@
         depth: "Beneath the gas envelope to near the rocky core",
         composition: "Water, ammonia, and methane ices in ionic or superionic states under megabar pressures.",
         temperature: "Several thousand to ~7,000 K",
-        labelX: -1.80, labelY: 1.44,
+        labelX: -2.5, labelY: 1.44,
         anchorY: 1.44,
       },
       {
@@ -995,8 +986,8 @@
         depth: "Central region",
         composition: "Silicates, iron-nickel metals, and residual ices under extreme pressure and temperature.",
         temperature: "Up to ~7,000 K; model dependent",
-        labelX: -1.80, labelY: 0.0,
-        anchorY: 0.0,
+        labelX: -2.5, labelY: 0,
+        anchorY: 0,
       },
     ];
 
@@ -4853,42 +4844,17 @@
 
       const FLYBY_DATA = [
         {
-          name: "Pioneer 11",
-          date: "1 Sep 1979",
-          color: 0xffbb44,
-          // Closest approach 1.35 Rs = 4.32 scene units, passed THROUGH the ring plane
-          waypoints: [
-            new THREE.Vector3(-4,  -20,  14),   // distant approach (south, from Jupiter direction)
-            new THREE.Vector3(-1,   -8,   6),    // mid-approach, descending toward ring plane
-            new THREE.Vector3( 3.5,  0,   2.5),  // periapsis in ring plane (~4.30 scene units from center)
-            new THREE.Vector3( 5.5,  7,  -1.5),  // post-periapsis, rising north
-            new THREE.Vector3( 8,   20,  -9),    // distant departure (north, toward heliopause)
-          ],
-        },
-        {
-          name: "Voyager 1",
-          date: "12 Nov 1980",
-          color: 0x66aaff,
-          // Closest approach 3.09 Rs = 9.89 scene units, outside ring system
-          waypoints: [
-            new THREE.Vector3(-22,   4,  18),   // distant approach (from inner solar system)
-            new THREE.Vector3(-14,   2,  13),   // mid-approach
-            new THREE.Vector3( -2,   0.5, 9.7), // periapsis (~9.92 scene units from center)
-            new THREE.Vector3(  5,  -2,   2),   // post-periapsis
-            new THREE.Vector3( 12,  14, -16),   // distant departure (north, out of ecliptic)
-          ],
-        },
-        {
           name: "Voyager 2",
-          date: "26 Aug 1981",
-          color: 0x44dd88,
-          // Closest approach 2.67 Rs = 8.54 scene units, outside ring system
+          date: "25 Aug 1989",
+          color: 0x66aaff,
+          // Only spacecraft to visit Neptune. Closest approach 29,570 km = 3.84 scene units,
+          // north polar region. Approached from sunward/Uranus direction; departed anti-sunward.
           waypoints: [
-            new THREE.Vector3(-20,  -2,  17),   // distant approach (slightly south)
-            new THREE.Vector3(-13,  -1,  11),   // mid-approach
-            new THREE.Vector3( -2.5, 0,  8.2),  // periapsis (~8.57 scene units from center)
-            new THREE.Vector3(  6,   2,   2),   // post-periapsis
-            new THREE.Vector3( 20,   5, -12),   // distant departure (toward Uranus, roughly ecliptic)
+            new THREE.Vector3( 16,   6, -22),   // distant approach (from Uranus/sunward)
+            new THREE.Vector3(  9,   4, -13),   // mid-approach
+            new THREE.Vector3(  0.5, 3.5, 1.5), // periapsis ~3.84 sc, north polar region
+            new THREE.Vector3( -9,  -2,  14),   // post-periapsis, anti-sunward
+            new THREE.Vector3(-16,  -5,  24),   // distant departure toward heliopause
           ],
         },
       ];
@@ -7973,6 +7939,7 @@
         moonViewerToggle.addEventListener("change", () => {
           if (moonViewerToggle.checked) {
             if (moonViewerSection) moonViewerSection.open = true;
+            setTimeout(() => moonViewerSection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
             const first = moonData[0] || null;
             if (first) {
               moveCameraToFeature(first, camera, controls);
@@ -8191,9 +8158,14 @@
             surfaceHit = intersectExposedNeptuneInteriorSurface(event.clientX, event.clientY);
           }
           if (surfaceHit) {
-            const latLon = surfaceHit.context
-              ? { lat: surfaceHit.lat, lon: surfaceHit.lon }
-              : vectorToLatLon(surfaceHit.point);
+            let latLon;
+            if (surfaceHit.context?.kind === "moon") {
+              latLon = { lat: surfaceHit.lat, lon: surfaceHit.lon };
+            } else if (surfaceHit.context) {
+              latLon = { lat: surfaceHit.lat, lon: surfaceHit.lon };
+            } else {
+              latLon = vectorToLatLon(labelLayer.group.worldToLocal(surfaceHit.point.clone()));
+            }
             cursorReadout.hidden = false;
             const _isMoonHit = surfaceHit.context?.kind === "moon";
             const _lonStr = _isMoonHit
@@ -8810,8 +8782,9 @@ ${error && error.message ? error.message : error}`;
         }
         updateMeasureVisualScale();
         const removeAtmosphere = Boolean(geologyToggle && geologyToggle.checked);
-        const neptuneLabelsEnabled = labelsToggle.checked && !removeAtmosphere;
+        const neptuneLabelsEnabled = labelsToggle.checked && !removeAtmosphere && !activeMoonViewerFeature;
         const neptuneSeismicEnabled = seismicToggle.checked && !removeAtmosphere;
+        labelLayer.group.visible = !activeMoonViewerFeature;
 
   
         if (!coreToggle.checked) {
@@ -9064,8 +9037,29 @@ ${error && error.message ? error.message : error}`;
         setStatus("© 2026 GeoID: Explorer. GeoID Solutions, led by Owen McCluskey. All rights reserved.");
       }
 
+      // Free CPU image data for a texture after the GPU has uploaded it.
+      // Matches the Saturn-viewer pattern: keep GPU copy, drop the ~30 MB CPU mirror.
+      function _freeTexImage(tex) {
+        if (!tex || !tex.image) return;
+        renderer.initTexture(tex);
+        tex.image = null;
+        tex.version = 0;
+      }
+
+      // After the first render, free CPU image data for default-loaded textures.
+      let _textureCleanupDone = false;
+      function _freeTextureImages() {
+        if (_textureCleanupDone) return;
+        _textureCleanupDone = true;
+        for (const tex of [...layerTextures.values(), ...geologyTextures.values()]) {
+          _freeTexImage(tex);
+        }
+      }
+      window.setTimeout(_freeTextureImages, 1500);
+
       // Background-load all non-default layers in batches of 4.
       // The globe is already rendering with default layers by the time this runs.
+      // Each loaded texture is uploaded to the GPU then has its CPU image freed.
       (function backgroundLoadLayers() {
         const BATCH = 4;
         const queue = [
@@ -9077,6 +9071,7 @@ ${error && error.message ? error.message : error}`;
               const tex = applyTextureTransforms(raw, layer);
               if (tex) tex.colorSpace = THREE.SRGBColorSpace;
               layerTextures.set(layer.id, tex);
+              _freeTexImage(tex);
             }),
           // Moon textures
           ...moonData
@@ -9095,6 +9090,7 @@ ${error && error.message ? error.message : error}`;
                   entry.moonMesh.material.needsUpdate = true;
                 }
               }
+              _freeTexImage(tex);
             }),
           // Non-default geology overlays
           ...geologyLayers
@@ -9104,6 +9100,7 @@ ${error && error.message ? error.message : error}`;
               const tex = applyTextureTransforms(raw, layer);
               if (tex) tex.colorSpace = THREE.SRGBColorSpace;
               geologyTextures.set(layer.id, tex);
+              _freeTexImage(tex);
             }),
           // Mineral maps
           ...mineralLayers.map(layer => async () => {
@@ -9111,6 +9108,7 @@ ${error && error.message ? error.message : error}`;
             if (raw) raw.colorSpace = THREE.SRGBColorSpace;
             const tex = raw ? processMineralTexture(raw) : null;
             mineralTextures.set(layer.id, tex);
+            _freeTexImage(tex);
           }),
         ];
         async function runQueue() {

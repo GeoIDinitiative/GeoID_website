@@ -303,6 +303,18 @@ body {
   background: rgba(88, 198, 179, 0.10);
 }
 
+.nav-act-signin {
+  border: 1px solid rgba(200, 175, 240, 0.34);
+  background: transparent;
+  color: rgba(220, 210, 240, 0.86);
+  cursor: pointer;
+}
+
+.nav-act-signin:hover {
+  background: rgba(160, 110, 230, 0.10);
+  border-color: rgba(200, 175, 240, 0.55);
+}
+
 .nav-act-member {
   border: 1px solid rgba(88, 198, 179, 0.48);
   background: linear-gradient(135deg, rgba(88, 198, 179, 0.18), rgba(32, 122, 110, 0.28));
@@ -1073,3 +1085,119 @@ html { scroll-behavior: smooth; }
   box-shadow: var(--shadow);
 }
 
+
+/* ════════════════════════════════════════════════════════════════════════
+   Mobile / small-viewport refinements (≤ 720 px).
+   These rules apply across every page that links shared.css; per-page
+   stylesheets can still override anything specific.
+   ════════════════════════════════════════════════════════════════════════ */
+@supports (padding: env(safe-area-inset-left)) {
+  body {
+    padding-left:  env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Stop horizontal overflow scrollbars on any page — the most common
+   cause is a fixed-width hero or table that's escaped its container. */
+html, body { overflow-x: hidden; }
+
+img, svg, video { max-width: 100%; height: auto; }
+
+@media (max-width: 720px) {
+  /* Page-level chrome */
+  .page-wrap, main, .hero-tile, .section-panel, .cta-tile,
+  .donate-panel, .questionnaire-panel, .involve-card,
+  .about-explorer-tile, .new-worlds-tile {
+    padding-left:  1rem  !important;
+    padding-right: 1rem  !important;
+  }
+
+  /* Common multi-column grids → single column */
+  .involve-grid,
+  .support-grid,
+  .cards-grid-3,
+  .cards-grid-2,
+  .footer-content,
+  .photo-strip,
+  .new-worlds-layout,
+  .cards-row,
+  .stats-grid,
+  .features-grid {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Photo-strip / horizontal galleries — let them scroll horizontally */
+  .photo-strip,
+  .scroll-row,
+  .horizontal-scroll {
+    display: flex !important;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    grid-template-columns: none !important;
+    padding-bottom: 0.5rem;
+  }
+  .photo-strip > *,
+  .scroll-row  > *,
+  .horizontal-scroll > * { flex: 0 0 80%; scroll-snap-align: center; }
+
+  /* Typography compaction */
+  h1 { font-size: clamp(1.7rem, 7vw, 2.4rem) !important; }
+  h2 { font-size: clamp(1.35rem, 5.5vw, 1.9rem) !important; }
+  h3 { font-size: clamp(1.1rem, 4.5vw, 1.4rem) !important; }
+  p, li { font-size: 0.93rem; line-height: 1.55; }
+
+  /* Hero tiles */
+  .hero-tile { min-height: auto !important; }
+  .hero-content { padding: 2rem 1rem !important; }
+  .hero-actions { gap: 0.5rem !important; }
+
+  /* Footer */
+  .site-footer { padding: 2rem 0 1rem !important; }
+  .footer-content { padding-bottom: 1.4rem !important; gap: 1.4rem !important; }
+
+  /* Nav action buttons — let the mobile menu hold them too */
+  .nav-right-logo {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.4rem;
+  }
+
+  /* Buttons */
+  .btn-primary, .btn-ghost, .btn-secondary,
+  .nav-act, .nav-act-member, .nav-act-donate, .nav-act-signin {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  /* Page-jump tabs scroll instead of wrap */
+  .page-jump {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .page-jump a { flex: 0 0 auto; scroll-snap-align: start; }
+
+  /* Photo-tile content padding compaction */
+  .photo-tile-content { padding: 1.25rem 1rem !important; }
+  .tile-title { font-size: clamp(1.2rem, 5vw, 1.6rem) !important; }
+  .tile-desc  { font-size: 0.9rem !important; line-height: 1.55 !important; }
+}
+
+/* Show a banner at <520 px on viewer iframes pages suggesting desktop. */
+@media (max-width: 520px) {
+  body.viewer-page::before {
+    content: "↻ For full features and labels, rotate to landscape or open on a larger screen.";
+    display: block;
+    padding: 0.5rem 0.85rem;
+    background: rgba(88, 198, 179, 0.14);
+    border-bottom: 1px solid rgba(88, 198, 179, 0.32);
+    color: #c5efe4;
+    font-family: "Public Sans", "Source Sans 3", sans-serif;
+    font-size: 0.75rem;
+    text-align: center;
+  }
+}

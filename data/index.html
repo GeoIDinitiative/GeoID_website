@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GeoID Hazard App: geohazard context, environmental pipelines, terrain and shapefile resources, and Earth-system monitoring inputs.">
+  <title>GeoID Initiative — GeoID Hazard App</title>
+  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles/shared.css">
+  <style>
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
+      gap: 1.25rem;
+      margin-bottom: 1.4rem;
+    }
+
+    .hero-panel,
+    .hero-image,
+    .section-panel,
+    .hazard-card,
+    .source-card,
+    .catalog-card {
+      border: 1px solid var(--line);
+      border-radius: 1.35rem;
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-panel {
+      padding: clamp(1.5rem, 3vw, 2.4rem);
+      background:
+        radial-gradient(circle at 14% 18%, rgba(74, 222, 128, 0.12), transparent 18rem),
+        radial-gradient(circle at 84% 16%, rgba(248, 190, 103, 0.10), transparent 16rem),
+        linear-gradient(160deg, rgba(6, 13, 23, 0.96), rgba(8, 16, 28, 0.88));
+    }
+
+    .hero-panel h1 {
+      margin: 0.35rem 0 0.75rem;
+      max-width: 13ch;
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(2rem, 5vw, 3.7rem);
+      line-height: 0.97;
+      text-transform: uppercase;
+    }
+
+    .hero-panel h1 span { color: #9ef0ba; }
+
+    .hero-panel p {
+      color: var(--muted);
+      line-height: 1.72;
+      max-width: 44rem;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1.15rem;
+    }
+
+    .hero-image {
+      position: relative;
+      overflow: hidden;
+      min-height: 24.5rem;
+      background:
+        linear-gradient(180deg, rgba(5,10,20,0.42), rgba(5,10,20,0.82)),
+        url("/GeoID_initiative/photos/flood.jpeg") center/cover;
+    }
+
+    .hero-image::after {
+      content: "";
+      position: absolute;
+      inset: 1rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .image-caption {
+      position: absolute;
+      left: 1rem;
+      right: 1rem;
+      bottom: 1rem;
+      padding: 1rem;
+      border-radius: 1rem;
+      background: rgba(5, 12, 20, 0.82);
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(12px);
+    }
+
+    .image-caption h2 {
+      margin: 0 0 0.35rem;
+      font-size: 1rem;
+      font-family: "Public Sans", sans-serif;
+    }
+
+    .image-caption p {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+
+    .section-panel {
+      padding: 1.35rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .section-panel p {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .hazards-grid,
+    .sources-grid,
+    .catalog-grid {
+      display: grid;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .hazards-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .sources-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .catalog-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .hazard-card,
+    .source-card,
+    .catalog-card {
+      padding: 1.1rem;
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.06), transparent 36%),
+        linear-gradient(180deg, rgba(10, 18, 30, 0.9), rgba(6, 13, 22, 0.82));
+    }
+
+    .hazard-card h3,
+    .source-card h3,
+    .catalog-card h3 {
+      margin: 0.55rem 0 0.4rem;
+      font-size: 1rem;
+    }
+
+    .hazard-card p,
+    .source-card p,
+    .catalog-card p {
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 0.9rem;
+    }
+
+    .hazard-icon,
+    .source-icon {
+      font-size: 1.65rem;
+      line-height: 1;
+    }
+
+    .catalog-list {
+      display: grid;
+      gap: 0.7rem;
+      margin-top: 1rem;
+    }
+
+    .catalog-row {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 0.8rem;
+      align-items: start;
+      padding: 0.9rem 1rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .catalog-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 999px;
+      background: rgba(248, 190, 103, 0.12);
+      border: 1px solid rgba(248, 190, 103, 0.22);
+      color: var(--gold);
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.74rem;
+    }
+
+    .catalog-row strong {
+      display: block;
+      margin-bottom: 0.22rem;
+      color: #fff1dd;
+    }
+
+    @media (max-width: 1080px) {
+      .hero,
+      .hazards-grid,
+      .sources-grid,
+      .catalog-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
+      GeoID Initiative
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="/">Dashboard</a></li>
+      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="/about/">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="/about/">Overview</a>
+          <a href="/about_myGeoID/">myGeoID App</a>
+          <a href="/team/">Our Team</a>
+          <a href="/research/">Research Hub</a>
+          <a href="/learn/">Resources</a>
+          <a href="/get-involved/">Get Involved</a>
+        </div>
+      </li>
+      <li><a href="/explorer/">Explorer</a></li>
+      <li><a href="/data/" class="active" aria-current="page">Hazard App</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+      <a class="nav-act nav-act-signin" href="#" data-action="sign-in">Sign In</a>
+      <a class="nav-act nav-act-member" href="/membership/">Membership</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="page-inner">
+      <section class="page-utility" aria-label="Hazard app page links">
+        <div class="page-crumb">
+          <span>GeoID</span>
+          <span class="page-crumb-sep">/</span>
+          <strong>GeoID Hazard App</strong>
+        </div>
+        <div class="page-jump">
+          <a href="#hazards">Monitoring</a>
+          <a href="#catalog">Data Repo</a>
+          <a href="/learn/">Resources</a>
+          <a href="/researchers/">Researchers</a>
+        </div>
+      </section>
+
+      <section class="hero" id="hazards">
+        <article class="hero-panel">
+          <span class="eyebrow">GeoID Hazard App</span>
+          <h1>The <span>Hazard</span> Interface For Earth-System Monitoring</h1>
+          <p>
+            This is the hazard-facing application layer within GeoID. It organizes the repository's building blocks for geohazard awareness: weather model pipelines, radar and satellite precipitation sources, bathymetry, terrain products, shapefiles, and machine-learning artifacts that support floods, landslides, coastal impacts, and broader environmental change.
+          </p>
+          <div class="hero-actions">
+            <a class="btn-primary" href="/GeoID_initiative/index.html">Open Initiative Website</a>
+            <a class="btn-ghost" href="/researchers/">For Researchers</a>
+          </div>
+        </article>
+
+        <aside class="hero-image" aria-label="Hazard imagery">
+          <div class="image-caption">
+            <h2>From data to warning context</h2>
+            <p>GeoID’s hazard-facing side is about making datasets legible, navigable, and connected to real decisions rather than leaving them buried in raw directories.</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="section-panel">
+        <span class="section-label">Hazard Focus</span>
+        <h2 class="section-title">Primary Awareness Domains</h2>
+        <div class="hazards-grid">
+          <article class="hazard-card">
+            <div class="hazard-icon">⛰️</div>
+            <h3>Landslides &amp; Slope Failure</h3>
+            <p>Hydrogeology and landslide coursework, terrain data, and shapefile resources support slope stability reasoning, rainfall-trigger thresholds, and terrain-risk interpretation.</p>
+          </article>
+          <article class="hazard-card">
+            <div class="hazard-icon">🌧️</div>
+            <h3>Flooding &amp; Rainfall</h3>
+            <p>NOAA GFS, RainViewer, IMERG, radar pulls, and weather ML artifacts provide a foundation for precipitation-driven hazard awareness and event monitoring.</p>
+          </article>
+          <article class="hazard-card">
+            <div class="hazard-icon">🌋</div>
+            <h3>Volcanic Systems</h3>
+            <p>Crash courses and planetary viewers create a route from conceptual volcanology to comparative planetary interpretation and terrestrial hazard framing.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-panel" id="catalog">
+        <span class="section-label">Data Sources</span>
+        <h2 class="section-title">Major Inputs Already In The Repository</h2>
+        <div class="sources-grid">
+          <article class="source-card">
+            <div class="source-icon">🛰️</div>
+            <h3>NOAA GFS</h3>
+            <p>Forecast model inputs and weather-processing utilities inside `input/weather data/NOAA GFS`.</p>
+          </article>
+          <article class="source-card">
+            <div class="source-icon">📡</div>
+            <h3>RainViewer &amp; Radar</h3>
+            <p>Radar pull and RainViewer directories for precipitation event tracking and near-real-time environmental context.</p>
+          </article>
+          <article class="source-card">
+            <div class="source-icon">☔</div>
+            <h3>IMERG</h3>
+            <p>Satellite precipitation inputs paired with processing logs and downstream ML artifacts.</p>
+          </article>
+          <article class="source-card">
+            <div class="source-icon">🌊</div>
+            <h3>GEBCO &amp; Coastal Data</h3>
+            <p>Bathymetry and coastal shapefile datasets for seabed, coastal, and terrain-informed situational analysis.</p>
+          </article>
+        </div>
+
+        <div class="catalog-list">
+          <div class="catalog-row">
+            <span class="catalog-pill">01</span>
+            <div>
+              <strong>`input/weather data/`</strong>
+              NOAA GFS, RainViewer, IMERG, radar pull pipelines, artifacts, and machine-learning stages for precipitation and forecast processing.
+            </div>
+          </div>
+          <div class="catalog-row">
+            <span class="catalog-pill">02</span>
+            <div>
+              <strong>`input/shapefiles/`</strong>
+              Coastal and survey shapefiles that can support mapping, exposure context, and terrain-aware project workflows.
+            </div>
+          </div>
+          <div class="catalog-row">
+            <span class="catalog-pill">03</span>
+            <div>
+              <strong>`input/data/gebco` and `input/data/stl`</strong>
+              Bathymetry and geometry-oriented resources that support geospatial interpretation and research preprocessing.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-panel">
+        <span class="section-label">Why It Matters</span>
+        <h2 class="section-title">Why The Hazard App Sits Apart From The Initiative</h2>
+        <div class="catalog-grid">
+          <article class="catalog-card">
+            <h3>Readable by non-specialists</h3>
+            <p>The platform can translate raw hazard and environmental inputs into navigable, understandable entry points for wider audiences.</p>
+          </article>
+          <article class="catalog-card">
+            <h3>Useful for researchers</h3>
+            <p>The same data can feed directly into preprocessing, model building, interpretation, and comparison workflows through the Research Hub.</p>
+          </article>
+          <article class="catalog-card">
+            <h3>Connected to learning</h3>
+            <p>Crash courses and Explorer viewers make GeoID a teaching environment as well as a monitoring interface, which raises hazard literacy instead of just presenting outputs.</p>
+          </article>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="status-bar" role="status">
+    <div class="status-item"><span class="status-dot"></span>Weather Pipelines Present</div>
+    <span class="status-sep">·</span>
+    <div class="status-item"><span class="status-dot yellow"></span>Hazard Context Layer</div>
+    <div class="status-spacer"></div>
+    <div class="status-item">GeoID Hazard App</div>
+    <span class="status-sep">·</span>
+    <div class="status-item">NOAA · IMERG · Radar · GEBCO · Shapefiles</div>
+  </div>
+
+  <script src="/scripts/site.js"></script>
+<script src="/styles/nav.js" defer></script>
+</body>
+</html>

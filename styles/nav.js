@@ -27,4 +27,15 @@
   nav.querySelectorAll('.nav-links a:not(.nav-dropdown-toggle)').forEach((a) => {
     a.addEventListener('click', () => { if (window.innerWidth <= 980) close(); });
   });
+
+  // ── Membership Sign-In handler ─────────────────────────────────────────────
+  // Any element with [data-action="sign-in"] (e.g. the nav Sign In button)
+  // routes to /sign-in/ with the current page as the return target.
+  document.addEventListener('click', (e) => {
+    const trigger = e.target instanceof Element ? e.target.closest('[data-action="sign-in"]') : null;
+    if (!trigger) return;
+    e.preventDefault();
+    const ret = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `/sign-in/?return=${ret}`;
+  });
 })();

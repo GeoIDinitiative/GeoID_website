@@ -518,12 +518,6 @@
     }
     function syncSpinToggleBtn() {
       if (!spinToggleBtn) return;
-      const glyph = spinPaused ? "▶" : "⏸";
-      if (spinToggleGlyph) {
-        spinToggleGlyph.textContent = glyph;
-      } else {
-        spinToggleBtn.textContent = glyph;
-      }
       if (spinPaused) {
         spinToggleBtn.title = "Resume rotation";
         spinToggleBtn.setAttribute("aria-label", "Resume rotation");
@@ -876,18 +870,15 @@
       if (!camera) return;
       const direction = new THREE.Vector3();
       camera.getWorldDirection(direction).negate();
-      // In moon-viewer mode convert the world-space direction to the moon's body-fixed frame
-      // using the moon mesh's world transform. This correctly accounts for the orbital position,
-      // tidal-locking rotation, and marsGroup's axial tilt and scale.
       if (activeMoonViewerFeature) {
         const moonMesh = moonMeshMap ? moonMeshMap.get(activeMoonViewerFeature.name) : null;
         if (moonMesh) {
-          // world → marsGroup local
           direction.transformDirection(marsGroup.matrixWorld.clone().invert());
-          // marsGroup local → moon mesh local (removes orbital pos + tidal-locking rotation.y)
           direction.transformDirection(moonMesh.matrix.clone().invert());
-          // vectorToLatLon on the mesh-local direction gives lon in the texture's left-edge CRS.
         }
+      } else {
+        direction.transformDirection(marsGroup.matrixWorld.clone().invert());
+        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), -(globe.rotation.y - Math.PI));
       }
       const latLon = vectorToLatLon(direction);
       if (hemisphereLocatorReadout) {
@@ -979,7 +970,7 @@
         depth: "Cloud tops through the upper troposphere",
         composition: "Hydrogen and helium gas with ammonia ice, ammonium hydrosulfide, water-cloud layers, and photochemical haze.",
         temperature: "~80–140 K near the visible cloud deck",
-        labelX: -1.60, labelY: 3.20,
+        labelX: -2.5, labelY: 3.20,
         anchorY: 3.12,
       },
       {
@@ -990,7 +981,7 @@
         depth: "Below the cloud deck to the liquid–metallic transition",
         composition: "Mostly liquid hydrogen and helium.",
         temperature: "Rises from hundreds to thousands of kelvin with depth",
-        labelX: -1.90, labelY: 3.05,
+        labelX: -2.5, labelY: 3.05,
         anchorY: 2.86,
       },
       {
@@ -1001,7 +992,7 @@
         depth: "Between the liquid hydrogen envelope and fully metallic interior",
         composition: "Hydrogen and helium in a mixed molecular-metallic state under extreme pressure.",
         temperature: "Several thousand kelvin",
-        labelX: -2.20, labelY: 2.78,
+        labelX: -2.5, labelY: 2.78,
         anchorY: 2.62,
       },
       {
@@ -1012,7 +1003,7 @@
         depth: "From ~20,000 km depth to the central core",
         composition: "Metallic hydrogen and helium under immense pressure.",
         temperature: "Several thousand to tens of thousands of kelvin",
-        labelX: -2.10, labelY: 1.50,
+        labelX: -2.5, labelY: 1.50,
         anchorY: 1.47,
       },
       {
@@ -1023,7 +1014,7 @@
         depth: "Central region",
         composition: "Silicates, iron, and water ice mixed under deep-interior conditions.",
         temperature: "Estimated 20,000–30,000 K at the center",
-        labelX: -0.85, labelY: 0.25,
+        labelX: -2.5, labelY: 0,
         anchorY: 0,
       },
     ];
@@ -8180,6 +8171,7 @@
         moonViewerToggle.addEventListener("change", () => {
           if (moonViewerToggle.checked) {
             if (moonViewerSection) moonViewerSection.open = true;
+            setTimeout(() => moonViewerSection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
             const first = moonData[0] || null;
             if (first) {
               moveCameraToFeature(first, camera, controls);
@@ -8398,9 +8390,14 @@
             surfaceHit = intersectExposedJupiterInteriorSurface(event.clientX, event.clientY);
           }
           if (surfaceHit) {
-            const latLon = surfaceHit.context
-              ? { lat: surfaceHit.lat, lon: surfaceHit.lon }
-              : vectorToLatLon(surfaceHit.point);
+            let latLon;
+            if (surfaceHit.context?.kind === "moon") {
+              latLon = { lat: surfaceHit.lat, lon: surfaceHit.lon };
+            } else if (surfaceHit.context) {
+              latLon = { lat: surfaceHit.lat, lon: surfaceHit.lon };
+            } else {
+              latLon = vectorToLatLon(labelLayer.group.worldToLocal(surfaceHit.point.clone()));
+            }
             cursorReadout.hidden = false;
             const _isMoonHit = surfaceHit.context?.kind === "moon";
             const _lonStr = _isMoonHit
@@ -9276,8 +9273,29 @@ ${error && error.message ? error.message : error}`;
         setStatus("© 2026 GeoID: Explorer. GeoID Solutions, led by Owen McCluskey. All rights reserved.");
       }
 
+      // Free CPU image data for a texture after the GPU has uploaded it.
+      // Matches the Saturn-viewer pattern: keep GPU copy, drop the ~30 MB CPU mirror.
+      function _freeTexImage(tex) {
+        if (!tex || !tex.image) return;
+        renderer.initTexture(tex);
+        tex.image = null;
+        tex.version = 0;
+      }
+
+      // After the first render, free CPU image data for default-loaded textures.
+      let _textureCleanupDone = false;
+      function _freeTextureImages() {
+        if (_textureCleanupDone) return;
+        _textureCleanupDone = true;
+        for (const tex of [...layerTextures.values(), ...geologyTextures.values()]) {
+          _freeTexImage(tex);
+        }
+      }
+      window.setTimeout(_freeTextureImages, 1500);
+
       // Background-load all non-default layers in batches of 4.
       // The globe is already rendering with default layers by the time this runs.
+      // Each loaded texture is uploaded to the GPU then has its CPU image freed.
       (function backgroundLoadLayers() {
         const BATCH = 4;
         const queue = [
@@ -9289,6 +9307,7 @@ ${error && error.message ? error.message : error}`;
               const tex = applyTextureTransforms(raw, layer);
               if (tex) tex.colorSpace = THREE.SRGBColorSpace;
               layerTextures.set(layer.id, tex);
+              _freeTexImage(tex);
             }),
           // Moon textures
           ...moonData
@@ -9307,6 +9326,7 @@ ${error && error.message ? error.message : error}`;
                   entry.moonMesh.material.needsUpdate = true;
                 }
               }
+              _freeTexImage(tex);
             }),
           // Non-default geology overlays
           ...geologyLayers
@@ -9316,6 +9336,7 @@ ${error && error.message ? error.message : error}`;
               const tex = applyTextureTransforms(raw, layer);
               if (tex) tex.colorSpace = THREE.SRGBColorSpace;
               geologyTextures.set(layer.id, tex);
+              _freeTexImage(tex);
             }),
           // Mineral maps
           ...mineralLayers.map(layer => async () => {
@@ -9323,6 +9344,7 @@ ${error && error.message ? error.message : error}`;
             if (raw) raw.colorSpace = THREE.SRGBColorSpace;
             const tex = raw ? processMineralTexture(raw) : null;
             mineralTextures.set(layer.id, tex);
+            _freeTexImage(tex);
           }),
         ];
         async function runQueue() {

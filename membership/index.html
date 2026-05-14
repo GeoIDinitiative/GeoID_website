@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="GeoID Explorer membership — annual subscription unlocking the full suite of planetary viewers and supporting the GeoID Initiative.">
+  <title>GeoID Membership</title>
+  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles/shared.css">
+  <style>
+    /* Small-viewport adjustments — the auth card hugs the screen edge instead of overflowing. */
+    @media (max-width: 520px) {
+      .auth-shell, .membership-page, .account-page { padding-left: 0.75rem !important; padding-right: 0.75rem !important; padding-top: 5rem !important; }
+      .auth-card, .checkout-card, .account-card { padding: 1.4rem 1rem 1.2rem !important; border-radius: 0.9rem !important; }
+      .checkout-card-grid { grid-template-columns: 1fr !important; gap: 1.2rem !important; }
+      .auth-brand { gap: 0.4rem !important; }
+      .auth-brand-text { display: none !important; }
+    }
+    body {
+      /* Membership artwork as the hero backdrop, with a dimming overlay so
+         the foreground content remains legible against any photographic content. */
+      background:
+        linear-gradient(180deg, rgba(6, 4, 16, 0.78) 0%, rgba(6, 4, 16, 0.86) 60%, rgba(4, 3, 9, 0.92) 100%),
+        url('/assets/membership.png') center / cover no-repeat fixed,
+        #060410;
+      color: #e6ecf2;
+      font-family: "Public Sans", sans-serif;
+      min-height: 100vh;
+    }
+    .membership-page {
+      max-width: 64rem;
+      margin: 0 auto;
+      padding: 7.5rem 2rem 4rem;
+    }
+    .membership-hero {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+    .membership-eyebrow {
+      display: inline-block;
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #ff6cf0;
+      background: rgba(255, 108, 240, 0.10);
+      border: 1px solid rgba(255, 108, 240, 0.35);
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      margin-bottom: 1.2rem;
+    }
+    .membership-hero h1 {
+      font-family: "Archivo", sans-serif;
+      font-size: clamp(2rem, 4vw, 2.9rem);
+      font-weight: 800;
+      letter-spacing: -0.015em;
+      margin: 0 0 0.7rem;
+      color: #ffffff;
+    }
+    .membership-hero p {
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: rgba(200, 210, 222, 0.85);
+      max-width: 38rem;
+      margin: 0 auto;
+    }
+    .checkout-card {
+      background: linear-gradient(160deg, rgba(20, 12, 38, 0.92), rgba(8, 6, 18, 0.92));
+      border: 1px solid rgba(180, 80, 220, 0.32);
+      border-radius: 1.2rem;
+      padding: 2.4rem 2.4rem 2rem;
+      box-shadow:
+        0 22px 60px rgba(0, 0, 0, 0.55),
+        0 0 0 1px rgba(180, 80, 220, 0.08),
+        0 0 40px rgba(140, 40, 255, 0.08);
+    }
+    .checkout-card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2.5rem;
+      align-items: start;
+    }
+    @media (max-width: 760px) {
+      .checkout-card-grid { grid-template-columns: 1fr; gap: 1.4rem; }
+      .checkout-card { padding: 1.6rem 1.4rem 1.5rem; }
+    }
+    .plan-name {
+      font-family: "Archivo", sans-serif;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #ffffff;
+      margin: 0 0 0.4rem;
+    }
+    .plan-price {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      margin: 0 0 1rem;
+    }
+    .plan-price-amount {
+      font-family: "Archivo", sans-serif;
+      font-size: 2.4rem;
+      font-weight: 800;
+      color: #ff6cf0;
+      letter-spacing: -0.02em;
+    }
+    .plan-price-period {
+      font-size: 0.85rem;
+      color: rgba(190, 200, 215, 0.7);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .plan-features {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 1.2rem;
+    }
+    .plan-features li {
+      padding: 0.42rem 0 0.42rem 1.5rem;
+      position: relative;
+      font-size: 0.92rem;
+      line-height: 1.45;
+      color: rgba(212, 222, 234, 0.92);
+    }
+    .plan-features li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      top: 0.42rem;
+      color: #b06bff;
+      font-weight: 700;
+    }
+    .plan-fine {
+      font-size: 0.78rem;
+      color: rgba(160, 170, 188, 0.7);
+      line-height: 1.55;
+      margin: 0;
+    }
+    .checkout-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .checkout-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.55rem;
+      width: 100%;
+      padding: 1rem 1.2rem;
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      border-radius: 0.65rem;
+      border: 1px solid transparent;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+    .checkout-btn-primary {
+      background: linear-gradient(180deg, #a25bff, #6a2ce0);
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.16);
+      box-shadow: 0 10px 28px rgba(140, 40, 255, 0.35);
+    }
+    .checkout-btn-primary:hover { transform: translateY(-1px); }
+    .checkout-btn-ghost {
+      background: rgba(255, 255, 255, 0.04);
+      color: #e6ecf2;
+      border-color: rgba(180, 200, 215, 0.32);
+    }
+    .checkout-btn-ghost:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(180, 200, 215, 0.55); }
+    .checkout-help {
+      margin-top: 1.2rem;
+      font-size: 0.78rem;
+      color: rgba(160, 170, 188, 0.7);
+      line-height: 1.55;
+    }
+    .checkout-help a { color: #c0a0ff; }
+    .stripe-trust {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 1rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(160, 170, 188, 0.6);
+    }
+    .stripe-trust svg { width: 1rem; height: 1rem; flex-shrink: 0; }
+    .alt-actions {
+      margin-top: 2rem;
+      text-align: center;
+      font-size: 0.9rem;
+      color: rgba(200, 210, 222, 0.75);
+    }
+    .alt-actions a {
+      color: #ff6cf0;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .alt-actions a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
+      GeoID Initiative
+    </a>
+    <ul class="nav-links">
+      <li><a href="/dashboard/">Dashboard</a></li>
+      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="/about/">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="/about/">Overview</a>
+          <a href="/about_myGeoID/">myGeoID App</a>
+          <a href="/team/">Our Team</a>
+          <a href="/research/">Research Hub</a>
+          <a href="/learn/">Resources</a>
+          <a href="/get-involved/">Get Involved</a>
+        </div>
+      </li>
+      <li><a href="/myGeoID/"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
+      <li><a href="/explorer/">Explorer</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-signin" href="/sign-in/?return=%2Fmembership%2F" data-action="sign-in">Sign In</a>
+      <a class="nav-act nav-act-member active" href="/membership/" aria-current="page">Membership</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+
+  <main class="membership-page">
+    <header class="membership-hero">
+      <span class="membership-eyebrow">Annual membership</span>
+      <h1>Full GeoID Explorer Access</h1>
+      <p>One annual subscription unlocks every planetary viewer, every scientific layer, and supports the GeoID Initiative's open-science mission.</p>
+    </header>
+
+    <section class="checkout-card">
+      <div class="checkout-card-grid">
+        <div>
+          <p class="plan-name" id="plan-name">GeoID Explorer Annual</p>
+          <div class="plan-price">
+            <span class="plan-price-amount" id="plan-price">£19.99</span>
+            <span class="plan-price-period" id="plan-period">per year</span>
+          </div>
+          <ul class="plan-features">
+            <li>Full access to Mercury, Venus, Mars, Jupiter, Saturn, Uranus, and Neptune viewers</li>
+            <li>Every scientific layer — geology, mineralogy, topography, hillshade, slope</li>
+            <li>Interior core views, guided tour modes, and feature catalogues</li>
+            <li>Moon system context across each gas giant</li>
+            <li>Supports the GeoID Initiative — open-science planetary tools for everyone</li>
+            <li>Cancel anytime from your member portal — no questions asked</li>
+          </ul>
+          <p class="plan-fine">Earth and Moon viewers remain free for everyone, no membership needed.</p>
+        </div>
+
+        <div class="checkout-actions">
+          <button type="button" class="checkout-btn checkout-btn-primary" id="checkout-subscribe">
+            Subscribe — Continue to Stripe
+          </button>
+          <button type="button" class="checkout-btn checkout-btn-ghost" id="checkout-sign-in">
+            Already a member? Sign in
+          </button>
+          <p class="checkout-help">
+            Sign-in sends a one-time link to your subscription email. From there you can update your card, view your renewal date, or cancel anytime.
+          </p>
+          <div class="stripe-trust">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2L4 6v6c0 4.5 3.2 8.6 8 10 4.8-1.4 8-5.5 8-10V6l-8-4zm-1.2 14.2l-3.5-3.5 1.4-1.4 2.1 2.1 5.3-5.3 1.4 1.4-6.7 6.7z"/>
+            </svg>
+            Secure checkout by Stripe
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <p class="alt-actions">
+      Have questions before subscribing? <a href="/contact/">Get in touch</a> · <a href="/get-involved/">Other ways to support GeoID</a>
+    </p>
+  </main>
+
+  <script src="/scripts/membership.js"></script>
+  <script>
+    // Sync the price/period copy with the central config in case it changes.
+    (function () {
+      const cfg = window.GEOID_MEMBERSHIP || {};
+      const priceEl  = document.getElementById("plan-price");
+      const periodEl = document.getElementById("plan-period");
+      const nameEl   = document.getElementById("plan-name");
+      if (priceEl  && cfg.PRICE_DISPLAY)  priceEl.textContent  = cfg.PRICE_DISPLAY;
+      if (periodEl && cfg.PERIOD_DISPLAY) periodEl.textContent = cfg.PERIOD_DISPLAY;
+      if (nameEl   && cfg.PLAN_NAME)      nameEl.textContent   = cfg.PLAN_NAME;
+    })();
+    document.getElementById("checkout-subscribe")?.addEventListener("click", () => window.GeoIDMembership.subscribe());
+    // "Already a member?" routes through the local sign-in page so we can
+    // check Supabase auth and reflect membership status in the UI. From
+    // the account page the user can then jump out to the Stripe portal.
+    document.getElementById("checkout-sign-in")?.addEventListener("click", () => {
+      window.location.href = "/sign-in/?return=%2Faccount%2F";
+    });
+  </script>
+  <script src="/styles/nav.js" defer></script>
+</body>
+</html>

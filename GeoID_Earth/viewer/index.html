@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Earth</title>
-  <link rel="icon" href="../../assets/GeoID_logo_icon.png" type="image/png">
+  <link rel="icon" href="../../assets/earth_icon.png" type="image/png">
   <link rel="preload" href="../assets/earth_color.jpg" as="image">
   <link rel="preload" href="../assets/earth_elevation.png" as="image">
   <link rel="preload" href="../assets/earth_geology_sim3292.png" as="image">
@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="styles.css?v=20260430-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
 </head>
-<body>
+<body class="viewer-page">
   <div id="app"></div>
   <section id="ui">
     <div class="brand-toprow">
@@ -24,13 +24,14 @@
         <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel">‹</button>
       </div>
     </div>
+    <div id="ui-scroll-body">
     <div class="viewer-info" id="viewer-info">
       <p>Drag to orbit, scroll to zoom, and inspect Earth as a textured 3D globe with GEBCO bathymetry, topography, derived relief overlays, and Earth-specific tour stops.</p>
     </div>
     <div class="brand-hero">
       <div class="brand">
         <button class="brand-logo-button" id="brand-reset-button" type="button" aria-label="Reset view" title="Reset view">
-          <img class="brand-logo" id="brand-logo" src="../../assets/GeoID_logo_icon.png?v=20260430a" alt="GeoID logo">
+          <img class="brand-logo" id="brand-logo" src="../../assets/earth_icon.png" alt="Earth logo">
         </button>
         <h1 class="brand-title"><span class="brand-title-prefix">my</span>GeoID</h1>
       </div>
@@ -144,6 +145,17 @@
           <div class="row">
             <label for="moon-toggle" style="color: #ffffff;">Moons</label>
             <span class="checkbox-wrap"><input id="moon-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="lod-slider-row">
+            <div class="lod-slider-header">
+              <label for="lod-slider">Label density</label>
+              <span class="lod-value-label" id="lod-value-label">Standard</span>
+            </div>
+            <input id="lod-slider" type="range" min="1" max="5" value="3" step="1" class="lod-slider">
+            <div class="lod-tick-labels">
+              <span>Min</span>
+              <span>Max</span>
+            </div>
           </div>
           <div class="row" style="display:none;"><label for="seismic-toggle">Seismic events</label><span class="checkbox-wrap"><input id="seismic-toggle" type="checkbox"></span></div>
           <div class="row" style="display:none;"><label for="seismic-filter-select">Seismic filter</label><select id="seismic-filter-select" class="mini-select"><option value="all">No seismic events</option><option value="located">Located only</option><option value="insight-site">Catalog placeholders</option></select></div>
@@ -354,7 +366,7 @@
         </div>
         </div>
       </details>
-      <details id="core-view-section" class="control-section" hidden>
+      <details id="core-view-section" class="control-section">
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
@@ -377,28 +389,28 @@
                 <span class="core-swatch" style="background:#d8704b"></span>
                 <div>
                   <div class="core-legend-label">Crust</div>
-                  <div class="core-legend-copy">Thin rocky outer shell; oceanic crust ~7 km, continental crust ~35 km thick.</div>
+                  <div class="core-legend-copy">Silicate outer shell; oceanic crust ~7 km thick, continental crust 35–70 km thick.</div>
                 </div>
               </div>
               <div class="core-legend-row">
                 <span class="core-swatch" style="background:#b55d34"></span>
                 <div>
-                  <div class="core-legend-label">Upper Mantle</div>
-                  <div class="core-legend-copy">Hot silicate rock below the crust, partially molten in the asthenosphere; drives plate tectonics.</div>
+                  <div class="core-legend-label">Mantle</div>
+                  <div class="core-legend-copy">2,890 km-thick convecting silicate layer; drives plate tectonics and hotspot volcanism.</div>
                 </div>
               </div>
               <div class="core-legend-row">
-                <span class="core-swatch" style="background:#cf914f"></span>
+                <span class="core-swatch" style="background:#f0a060"></span>
                 <div>
-                  <div class="core-legend-label">Lower Mantle</div>
-                  <div class="core-legend-copy">Dense silicate rock under enormous pressure; convects slowly and transfers heat outward.</div>
+                  <div class="core-legend-label">Outer Core</div>
+                  <div class="core-legend-copy">Liquid iron-nickel shell; convective flow sustains the geodynamo generating Earth's magnetic field.</div>
                 </div>
               </div>
               <div class="core-legend-row">
                 <span class="core-swatch" style="background:#f0d59e"></span>
                 <div>
-                  <div class="core-legend-label">Outer And Inner Core</div>
-                  <div class="core-legend-copy">Iron-nickel core; the molten outer core generates Earth's magnetic field; inner core is solid.</div>
+                  <div class="core-legend-label">Inner Core</div>
+                  <div class="core-legend-copy">Solid iron-nickel sphere (~1,220 km radius); kept solid by extreme pressure despite ~5,000°C temperatures.</div>
                 </div>
               </div>
             </div>
@@ -460,18 +472,18 @@
     </div>
     <p class="status" id="status">© 2026 GeoID: Explorer. The GeoID Initiative, led by Owen McCluskey. All rights reserved.</p>
   </section>
-  <a class="hub-link" href="../../html/explorer.html" target="_top" rel="home">Return Home</a>
+  <a class="hub-link" href="/explorer/" target="_top" rel="home">Return Home</a>
 
   <button id="nav-tab" aria-label="Open Control Centre">Open Control Centre &nbsp;›</button>
   <button id="toolbar-tab" aria-label="Expand measure toolbox">TOOLS &nbsp;‹</button>
   <div id="top-right-controls">
     <button id="spin-toggle" type="button" title="Pause rotation" aria-label="Pause rotation">
-      <span class="viewer-control-glyph" id="spin-toggle-glyph" aria-hidden="true">⏸</span>
+      <svg class="viewer-control-icon" id="spin-toggle-glyph" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/>
+      </svg>
     </button>
     <button id="freeze-view-toggle" type="button" title="Freeze view" aria-label="Freeze view">
-      <svg class="viewer-control-icon" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M12 7.2v9.6M7.9 9.6l8.2 4.8M7.9 14.4l8.2-4.8M9.3 7.7l1.6 2.8M14.7 7.7l-1.6 2.8M9.3 16.3l1.6-2.8M14.7 16.3l-1.6-2.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
+      <img class="viewer-control-icon freeze-icon" src="/assets/snowflake_icon.png" alt="" aria-hidden="true">
     </button>
     <a href="https://geoidinitiative.com/" target="_blank" rel="noopener noreferrer" aria-label="Open GeoID Initiative website">
       <img id="top-right-logo" src="../../assets/GeoID_logo_icon.png" alt="GeoID logo">
@@ -1086,6 +1098,7 @@
         </section>
       </div>
     </section>
+    </div>
   </div>
   <div id="view-center-mark">+</div>
   <div id="gmt-clock" aria-live="polite">30/04/26 00:00 (GMT)</div>

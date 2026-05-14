@@ -1,0 +1,2688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GeoID Explorer — Solar System</title>
+  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&family=Orbitron:wght@500;700;800&family=Public+Sans:wght@400;500;600;700;800&family=Archivo:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles/shared.css">
+  <style>
+    body {
+      color: #e8f1ff;
+      font-family: "Exo 2", sans-serif;
+      background:
+        radial-gradient(circle at 20% 18%, rgba(110, 20, 210, 0.28), transparent 24rem),
+        radial-gradient(circle at 84% 10%, rgba(140, 40, 255, 0.16), transparent 18rem),
+        radial-gradient(circle at 58% 70%, rgba(60, 10, 160, 0.22), transparent 34rem),
+        linear-gradient(180deg, #060410 0%, #09060f 42%, #040309 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        radial-gradient(2px 2px at 8% 14%, rgba(255,255,255,0.9), transparent),
+        radial-gradient(1.5px 1.5px at 16% 70%, rgba(255,255,255,0.75), transparent),
+        radial-gradient(2px 2px at 34% 32%, rgba(255,255,255,0.72), transparent),
+        radial-gradient(1px 1px at 52% 16%, rgba(255,255,255,0.74), transparent),
+        radial-gradient(1.5px 1.5px at 64% 58%, rgba(255,255,255,0.7), transparent),
+        radial-gradient(2px 2px at 78% 24%, rgba(255,255,255,0.8), transparent),
+        radial-gradient(1px 1px at 88% 78%, rgba(255,255,255,0.68), transparent),
+        radial-gradient(1.5px 1.5px at 94% 40%, rgba(255,255,255,0.62), transparent);
+      opacity: 0.9;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+
+    .page {
+      position: relative;
+      z-index: 1;
+      width: min(1840px, calc(100vw - 1rem));
+      margin: 0 auto;
+      padding-top: calc(var(--nav-h) + 0.5rem);
+      padding-bottom: 0.5rem;
+    }
+
+    .page-utility {
+      background: rgba(9, 16, 28, 0.74);
+      border-color: rgba(150, 60, 255, 0.22);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+    }
+
+    .page-crumb,
+    .page-jump a {
+      color: #c8a8e8;
+    }
+
+    .page-crumb strong,
+    .page-jump a:hover {
+      color: #f5eaff;
+    }
+
+    .page-jump a {
+      border-color: rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .explorer-hero {
+      display: block;
+      margin-bottom: 0;
+      height: calc(100vh - var(--nav-h) - 1rem);
+    }
+
+    .space-panel,
+    .section-panel,
+    .footer-panel {
+      border: 1px solid rgba(150, 60, 255, 0.22);
+      border-radius: 1.45rem;
+      background: rgba(8, 14, 24, 0.78);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 20px 54px rgba(0, 0, 0, 0.34);
+    }
+
+    .space-panel {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      height: 100%;
+      background: none;
+    }
+
+    .space-panel::before {
+      content: "";
+      position: absolute;
+      inset: 1rem;
+      border-radius: 1.05rem;
+      border: 1px solid rgba(255,255,255,0.05);
+      pointer-events: none;
+    }
+
+    .space-header {
+      position: relative;
+      z-index: 2;
+      display: none;
+      margin-bottom: 1rem;
+    }
+
+    .hero-title {
+      margin: 0 0 0.7rem;
+      font-family: "Orbitron", sans-serif;
+      font-size: clamp(1.9rem, 3.8vw, 3.4rem);
+      font-weight: 800;
+      line-height: 0.9;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #f3f7ff;
+      max-width: 8ch;
+      text-shadow: 0 0 42px rgba(240, 40, 160, 0.20);
+    }
+
+    .hero-subtitle {
+      max-width: 26rem;
+      color: #d4b8f0;
+      font-size: 1rem;
+      line-height: 1.62;
+    }
+
+    .explorer-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin-bottom: 0.95rem;
+    }
+
+    .explorer-logo {
+      width: 3rem;
+      height: 3rem;
+      object-fit: contain;
+      filter:
+        drop-shadow(0 0 14px rgba(180, 60, 255, 0.32))
+        drop-shadow(0 0 24px rgba(180, 60, 255, 0.14));
+      flex-shrink: 0;
+    }
+
+    .explorer-brand-copy {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.05;
+    }
+
+    .explorer-brand-copy span:first-child {
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.56rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #d08fff;
+    }
+
+    .explorer-brand-copy span:last-child {
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.82rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #f0f6ff;
+    }
+
+    .eyebrow-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .space-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.34rem 0.68rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.05);
+      color: #dfc8f4;
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.95rem;
+    }
+
+    .viewer-link,
+    .cta-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.9rem;
+      padding: 0.78rem 1.1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 40, 130, 0.40);
+      background: linear-gradient(180deg, rgba(110, 30, 220, 0.30), rgba(65, 15, 160, 0.26));
+      box-shadow: 0 12px 30px rgba(180, 15, 90, 0.22);
+      color: #ffe8f4;
+      font-weight: 600;
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .ghost-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 2.9rem;
+      padding: 0.78rem 1.1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      color: #c0d1e7;
+      font-weight: 500;
+      transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+
+    .viewer-link:hover,
+    .cta-link:hover,
+    .ghost-link:hover {
+      transform: translateY(-2px);
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.8rem;
+      margin-top: 1rem;
+      position: relative;
+      z-index: 2;
+      max-width: 32rem;
+    }
+
+    .stat-card {
+      padding: 0.95rem 1rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .stat-label {
+      display: block;
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.6rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #c098e0;
+    }
+
+    .stat-value {
+      display: block;
+      margin-top: 0.3rem;
+      color: #fff3e0;
+      font-size: 1.55rem;
+      font-weight: 700;
+    }
+
+    .view-panel {
+      position: relative;
+    }
+
+    #solar-view-panel {
+      display: flex;
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .solar-stage {
+      position: relative;
+      --system-cx: 50%;
+      --system-cy: 48%;
+      flex: 1 1 auto;
+      min-height: 0;
+      height: 100%;
+      margin-top: 0;
+      border-radius: 1.45rem;
+      border: 1px solid rgba(150, 60, 255, 0.22);
+      background:
+        linear-gradient(180deg, rgba(1,2,8,0.52) 0%, rgba(1,2,8,0.60) 45%, rgba(1,2,8,0.82) 100%),
+        url('/assets/milky_way.jpg') center 28% / cover no-repeat;
+      overflow: hidden;
+    }
+
+
+    .orrery-brand {
+      position: absolute;
+      top: 1.2rem;
+      left: 1.4rem;
+      z-index: 8;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      max-width: 18rem;
+    }
+
+    .orrery-brand img {
+      height: 10rem;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 18px rgba(0,0,0,0.85));
+      display: block;
+    }
+
+    .orrery-brand-desc {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.80rem;
+      line-height: 1.65;
+      color: rgba(200, 225, 245, 0.82);
+      text-shadow: 0 1px 8px rgba(0,0,0,0.85);
+    }
+
+    .orrery-features {
+      position: absolute;
+      top: 1.2rem;
+      right: 1.4rem;
+      z-index: 8;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      max-width: 16rem;
+    }
+
+    .orrery-features-label {
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.56rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255, 20, 120, 0.90);
+      text-shadow: 0 0 10px rgba(255, 20, 120, 0.35), 0 1px 6px rgba(0,0,0,0.90);
+      margin-bottom: 0.2rem;
+    }
+
+    .orrery-feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      line-height: 1.45;
+      color: rgba(230, 245, 255, 0.97);
+      text-shadow: 0 1px 10px rgba(0,0,0,1), 0 0 20px rgba(0,0,0,0.95);
+    }
+
+    .orrery-feature-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(255, 20, 120, 0.80);
+      box-shadow: 0 0 6px rgba(255, 20, 120, 0.50);
+      flex-shrink: 0;
+      margin-top: 0.38em;
+    }
+
+    .view-panel[hidden] {
+      display: none !important;
+    }
+
+    .scene-overlay {
+      position: absolute;
+      top: 1.35rem;
+      left: 1.35rem;
+      width: min(28rem, 38%);
+      padding: 1rem 1.1rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: linear-gradient(180deg, rgba(9, 16, 28, 0.88), rgba(8, 14, 24, 0.80));
+      box-shadow: 0 18px 38px rgba(0, 0, 0, 0.20);
+      z-index: 6;
+    }
+
+    .scene-overlay .space-pill {
+      margin-bottom: 0.75rem;
+    }
+
+    .solar-core {
+      position: absolute;
+      left: var(--system-cx);
+      top: var(--system-cy);
+      width: 2.6rem;
+      height: 2.6rem;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 34% 34%, rgba(255,255,255,0.90), transparent 16%),
+        radial-gradient(circle at center, #fff8d0 0%, #ffd060 28%, #f5a030 58%, #c05820 90%);
+      box-shadow:
+        0 0 16px rgba(255, 210, 80, 0.65),
+        0 0 40px rgba(255, 180, 50, 0.32),
+        0 0 80px rgba(255, 160, 30, 0.14);
+      z-index: 18;
+    }
+
+    .solar-core::after {
+      content: "";
+      position: absolute;
+      inset: -0.9rem;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 200, 80, 0.16);
+    }
+
+    .orrery-date-stamp {
+      position: absolute;
+      bottom: 1rem;
+      right: 1.4rem;
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(210, 235, 255, 0.96);
+      text-shadow: 0 0 18px rgba(200, 80, 255, 0.45), 0 2px 10px rgba(0,0,0,0.95);
+      pointer-events: none;
+      z-index: 8;
+    }
+
+    .orrery-nav-tips {
+      position: absolute;
+      bottom: 1rem;
+      left: 1.4rem;
+      z-index: 8;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.32rem;
+    }
+
+    .orrery-nav-tip {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.68rem;
+      color: rgba(200, 140, 255, 0.70);
+      text-shadow: 0 1px 6px rgba(0,0,0,0.85);
+    }
+
+    .orrery-nav-key {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.5rem;
+      height: 1.3rem;
+      padding: 0 0.35rem;
+      border-radius: 0.25rem;
+      border: 1px solid rgba(180, 80, 255, 0.30);
+      background: rgba(40, 10, 80, 0.50);
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.52rem;
+      font-weight: 600;
+      color: rgba(210, 150, 255, 0.90);
+      text-shadow: none;
+      flex-shrink: 0;
+    }
+
+    .orbit-ring {
+      position: absolute;
+      left: var(--system-cx);
+      top: var(--system-cy);
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(160, 70, 255, 0.28);
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+
+    .planet-node {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: var(--icon-size, 44px);
+      height: var(--icon-size, 44px);
+      transform: translate(-50%, -50%);
+      border: 0;
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      z-index: 4;
+      pointer-events: auto;
+      overflow: visible;
+      border-radius: 50%;
+      transition: transform 0.18s ease;
+    }
+
+    .planet-icon {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      pointer-events: none;
+      border-radius: 50%;
+      transition: filter 0.18s ease, transform 0.18s ease;
+      filter: drop-shadow(0 0 6px rgba(200, 60, 255, 0.22));
+    }
+
+    .planet-node:hover .planet-icon,
+    .planet-node:focus-visible .planet-icon,
+    .planet-node.is-selected .planet-icon {
+      transform: scale(1.14);
+      filter: drop-shadow(0 0 14px rgba(255, 60, 160, 0.55)) drop-shadow(0 0 28px rgba(220, 30, 130, 0.30));
+    }
+
+    @keyframes live-teal-pulse {
+      0%, 100% { opacity: 0.55; transform: scale(1); }
+      50%       { opacity: 1;    transform: scale(1.08); }
+    }
+
+    .planet-node.is-live::after {
+      content: "";
+      position: absolute;
+      inset: -2px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(88, 198, 179, 0.55);
+      box-shadow:
+        0 0 0 1px rgba(88, 198, 179, 0.40),
+        0 0 18px rgba(88, 198, 179, 0.32),
+        0 0 32px rgba(88, 198, 179, 0.16);
+      animation: live-teal-pulse 2.4s ease-in-out infinite;
+      will-change: opacity, transform;
+    }
+
+    /* ── Earth/Moon destination popup ── */
+    .earth-dest-popup {
+      position: fixed;
+      z-index: 9000;
+      background: linear-gradient(160deg, rgba(8,22,36,0.98), rgba(4,14,24,0.98));
+      border: 1px solid rgba(88,198,179,0.38);
+      border-radius: 0.75rem;
+      padding: 0.65rem 0.7rem 0.7rem;
+      box-shadow:
+        0 12px 32px rgba(0,0,0,0.55),
+        0 0 0 1px rgba(88,198,179,0.1),
+        0 0 24px rgba(88,198,179,0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 0.42rem;
+      min-width: 14rem;
+      pointer-events: auto;
+      animation: popup-in 0.16s ease;
+    }
+    @keyframes popup-in {
+      from { opacity:0; transform: translateY(6px) scale(0.95); }
+      to   { opacity:1; transform: translateY(0)   scale(1); }
+    }
+    .earth-dest-popup[hidden] { display: none; }
+    .earth-dest-popup-title {
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(88,198,179,0.7);
+      font-family: "Orbitron", sans-serif;
+      margin: 0 0 0.2rem;
+    }
+    .earth-dest-option {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 0.55rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(88,198,179,0.18);
+      background: rgba(88,198,179,0.04);
+      text-decoration: none;
+      color: #e8f7f4;
+      transition: background 0.14s, border-color 0.14s;
+      cursor: pointer;
+    }
+    .earth-dest-option:hover {
+      background: rgba(88,198,179,0.12);
+      border-color: rgba(88,198,179,0.42);
+    }
+    .earth-dest-option img {
+      width: 2rem;
+      height: 2rem;
+      object-fit: contain;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .earth-dest-option-text { display: flex; flex-direction: column; gap: 0.1rem; }
+    .earth-dest-option-name { font-size: 0.82rem; font-weight: 600; line-height: 1.2; }
+    .earth-dest-option-sub  { font-size: 0.68rem; color: rgba(88,198,179,0.65); line-height: 1.2; }
+
+    .planet-label {
+      position: absolute;
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.58rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #ffffff;
+      pointer-events: none;
+      white-space: nowrap;
+      text-align: center;
+      transform: translateX(-50%);
+      z-index: 3;
+      text-shadow: 0 1px 8px rgba(0, 0, 0, 0.42);
+    }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+      gap: 1.2rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .section-panel {
+      padding: 1.25rem;
+      background:
+        radial-gradient(circle at top right, rgba(140, 50, 255, 0.09), transparent 38%),
+        linear-gradient(180deg, rgba(9, 16, 28, 0.90), rgba(6, 11, 18, 0.84));
+    }
+
+    .section-panel .section-title {
+      color: #f0f6ff;
+    }
+
+    .section-panel .section-desc,
+    .section-panel p {
+      color: #c8b0e4;
+    }
+
+    .learn-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    .learn-card,
+    .launch-card {
+      padding: 1rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .launch-grid {
+      display: grid;
+      gap: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    .card-kicker {
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #efb06d;
+    }
+
+    .learn-card h3,
+    .launch-card h3 {
+      margin: 0.35rem 0 0.45rem;
+      color: #eff5ff;
+      font-size: 1.02rem;
+    }
+
+    .learn-card p,
+    .launch-card p {
+      color: #c8b0e4;
+      line-height: 1.58;
+    }
+
+    .capability-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.95rem;
+      margin-top: 1rem;
+    }
+
+    .capability-card {
+      padding: 1rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .capability-title {
+      margin: 0 0 0.45rem;
+      color: #eff5ff;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .capability-card p {
+      margin: 0;
+      color: #c8b0e4;
+      line-height: 1.6;
+    }
+
+    .feature-list {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .feature-item {
+      padding: 0.9rem 1rem;
+      border-radius: 0.95rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .feature-item strong {
+      display: block;
+      margin-bottom: 0.28rem;
+      color: #f2f7ff;
+      font-size: 0.98rem;
+    }
+
+    .feature-item span {
+      color: #c8b0e4;
+      line-height: 1.58;
+      display: block;
+    }
+
+    .callout-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.95rem;
+      margin-top: 1rem;
+    }
+
+    .callout-card {
+      padding: 1rem 1.05rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+    }
+
+    .callout-card h3 {
+      margin: 0 0 0.35rem;
+      color: #eff5ff;
+      font-size: 0.98rem;
+    }
+
+    .callout-card p {
+      margin: 0;
+      color: #c8b0e4;
+      line-height: 1.58;
+    }
+
+    .footer-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 1rem;
+      align-items: center;
+      padding: 1.15rem 1.2rem;
+      background:
+        linear-gradient(180deg, rgba(9, 16, 28, 0.84), rgba(6, 11, 18, 0.92));
+    }
+
+    .footer-panel p {
+      color: #c8b0e4;
+      line-height: 1.55;
+    }
+
+    @media (max-width: 1180px) {
+      .section-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .scene-overlay {
+        position: static;
+        width: auto;
+        margin-bottom: 1rem;
+      }
+
+      .solar-intro {
+        min-height: auto;
+      }
+
+      .solar-intro-copy {
+        position: relative;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        padding: 1.2rem;
+      }
+
+    }
+
+    @media (max-width: 900px) {
+      .learn-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .capability-grid,
+      .callout-row {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-stats,
+      .footer-panel {
+        grid-template-columns: 1fr;
+      }
+
+    }
+
+    @media (max-width: 720px) {
+      .page {
+        width: min(100vw - 0.5rem, 1840px);
+      }
+
+      .space-panel {
+        min-height: auto;
+      }
+
+      .solar-stage {
+        min-height: 26rem;
+      }
+
+      .hero-title {
+        max-width: none;
+        font-size: clamp(2rem, 10vw, 3.2rem);
+      }
+
+      .scene-overlay {
+        padding: 0.9rem 1rem;
+      }
+    }
+
+    .about-explorer-section {
+      margin-top: 1.2rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .about-explorer-tile {
+      position: relative;
+      border-radius: var(--radius, 1rem);
+      border: 1.5px solid rgba(255, 20, 120, 0.40);
+      background: rgb(11, 32, 48);
+      overflow: hidden;
+      box-shadow: 0 20px 54px rgba(0, 0, 0, 0.34);
+    }
+
+    .about-explorer-tile--cyan {
+      background: rgba(130, 40, 255, 0.13);
+      border-color: rgba(255, 20, 120, 0.55);
+    }
+
+    .about-explorer-header {
+      position: relative;
+      padding: 1.1rem 2rem 1.1rem 2.6rem;
+      background:
+        radial-gradient(ellipse at 0% 50%, rgba(130, 40, 255, 0.06) 0%, transparent 55%),
+        linear-gradient(90deg, rgba(130, 40, 255, 0.03) 0%, transparent 40%);
+    }
+
+    .about-explorer-header::before {
+      content: "";
+      position: absolute;
+      left: 0.9rem;
+      top: 0.7rem;
+      width: 0.85rem;
+      height: 0.85rem;
+      border-left: 2px solid rgba(255, 20, 120, 0.95);
+      border-top: 2px solid rgba(255, 20, 120, 0.95);
+    }
+
+    .about-explorer-header::after {
+      content: "";
+      position: absolute;
+      left: 0.9rem;
+      bottom: 0.7rem;
+      width: 0.85rem;
+      height: 0.85rem;
+      border-left: 2px solid rgba(255, 20, 120, 0.50);
+      border-bottom: 2px solid rgba(255, 20, 120, 0.50);
+    }
+
+    .about-explorer-title {
+      font-family: "Archivo", "Public Sans", sans-serif;
+      font-size: clamp(1.5rem, 2.4vw, 2.1rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+      margin: 0;
+      text-shadow:
+        0 0 30px rgba(255, 20, 120, 0.55),
+        0 0 60px rgba(255, 20, 120, 0.22);
+    }
+
+    .about-explorer-body {
+      padding: 1.4rem 2rem 2rem 2.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.4rem;
+    }
+
+    .about-explorer-section-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      padding-bottom: 1.4rem;
+      border-bottom: 1px solid rgba(255, 20, 120, 0.08);
+    }
+
+    .about-explorer-section-block:last-child {
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .about-col-heading {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255, 20, 120, 0.88);
+      margin: 0;
+      padding-left: 0.7rem;
+      border-left: 2px solid rgba(255, 20, 120, 0.45);
+    }
+
+    .about-explorer-body p {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.92rem;
+      line-height: 1.78;
+      color: rgba(225, 240, 252, 0.92);
+      margin: 0;
+    }
+
+    .about-explorer-body p + p {
+      margin-top: 0.8rem;
+    }
+
+    .whatis-logo {
+      position: absolute;
+      top: 1rem;
+      right: 1.4rem;
+      height: 4rem;
+      width: auto;
+      object-fit: contain;
+      opacity: 0.82;
+      filter: drop-shadow(0 0 10px rgba(255, 20, 120, 0.22));
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .whatis-logo--mid {
+      top: 50% !important;
+      transform: translateY(-50%) !important;
+      height: 7rem !important;
+      width: auto !important;
+    }
+
+    /* ── Exploring New Worlds: split layout ── */
+    .new-worlds-tile {
+      overflow: hidden;
+      background-color: #000;
+      background-image:
+        radial-gradient(1px 1px at 2% 12%,    rgba(255,255,255,0.90), transparent),
+        radial-gradient(1.5px 1.5px at 5% 48%, rgba(255,255,255,0.75), transparent),
+        radial-gradient(1px 1px at 8% 78%,    rgba(255,255,255,0.62), transparent),
+        radial-gradient(1px 1px at 11% 25%,   rgba(255,255,255,0.80), transparent),
+        radial-gradient(1.5px 1.5px at 15% 65%,rgba(255,255,255,0.68), transparent),
+        radial-gradient(1px 1px at 18% 5%,    rgba(255,255,255,0.58), transparent),
+        radial-gradient(1px 1px at 21% 90%,   rgba(255,255,255,0.72), transparent),
+        radial-gradient(1.5px 1.5px at 25% 40%,rgba(255,255,255,0.85), transparent),
+        radial-gradient(1px 1px at 28% 18%,   rgba(255,255,255,0.60), transparent),
+        radial-gradient(1px 1px at 31% 72%,   rgba(255,255,255,0.76), transparent),
+        radial-gradient(1.5px 1.5px at 35% 55%,rgba(255,255,255,0.65), transparent),
+        radial-gradient(1px 1px at 38% 32%,   rgba(255,255,255,0.70), transparent),
+        radial-gradient(1px 1px at 41% 88%,   rgba(255,255,255,0.58), transparent),
+        radial-gradient(1.5px 1.5px at 44% 8%, rgba(255,255,255,0.82), transparent),
+        radial-gradient(1px 1px at 47% 38%,   rgba(255,255,255,0.55), transparent),
+        radial-gradient(1px 1px at 52% 18%,   rgba(255,255,255,0.82), transparent),
+        radial-gradient(1.5px 1.5px at 55% 63%,rgba(255,255,255,0.70), transparent),
+        radial-gradient(1px 1px at 58% 9%,    rgba(255,255,255,0.58), transparent),
+        radial-gradient(1px 1px at 61% 44%,   rgba(255,255,255,0.75), transparent),
+        radial-gradient(1.5px 1.5px at 64% 82%,rgba(255,255,255,0.65), transparent),
+        radial-gradient(1px 1px at 67% 27%,   rgba(255,255,255,0.88), transparent),
+        radial-gradient(1px 1px at 70% 71%,   rgba(255,255,255,0.60), transparent),
+        radial-gradient(1.5px 1.5px at 73% 14%,rgba(255,255,255,0.78), transparent),
+        radial-gradient(1px 1px at 76% 55%,   rgba(255,255,255,0.66), transparent),
+        radial-gradient(1px 1px at 79% 91%,   rgba(255,255,255,0.72), transparent),
+        radial-gradient(1.5px 1.5px at 82% 38%,rgba(255,255,255,0.84), transparent),
+        radial-gradient(1px 1px at 85% 7%,    rgba(255,255,255,0.58), transparent),
+        radial-gradient(1px 1px at 88% 68%,   rgba(255,255,255,0.70), transparent),
+        radial-gradient(1.5px 1.5px at 91% 23%,rgba(255,255,255,0.76), transparent),
+        radial-gradient(1px 1px at 94% 84%,   rgba(255,255,255,0.62), transparent),
+        radial-gradient(1px 1px at 97% 46%,   rgba(255,255,255,0.80), transparent),
+        radial-gradient(1.5px 1.5px at 6% 8%,  rgba(255,255,255,0.82), transparent),
+        radial-gradient(1px 1px at 14% 42%,   rgba(255,255,255,0.76), transparent),
+        radial-gradient(1.5px 1.5px at 23% 14%,rgba(255,255,255,0.78), transparent),
+        radial-gradient(1px 1px at 33% 28%,   rgba(255,255,255,0.68), transparent),
+        radial-gradient(1.5px 1.5px at 37% 68%,rgba(255,255,255,0.80), transparent),
+        radial-gradient(1px 1px at 43% 50%,   rgba(255,255,255,0.58), transparent),
+        radial-gradient(1.5px 1.5px at 53% 92%,rgba(255,255,255,0.68), transparent),
+        radial-gradient(1px 1px at 57% 35%,   rgba(255,255,255,0.74), transparent),
+        radial-gradient(1.5px 1.5px at 69% 52%,rgba(255,255,255,0.82), transparent),
+        radial-gradient(1px 1px at 74% 19%,   rgba(255,255,255,0.67), transparent),
+        radial-gradient(1px 1px at 80% 87%,   rgba(255,255,255,0.73), transparent),
+        radial-gradient(1.5px 1.5px at 87% 42%,rgba(255,255,255,0.60), transparent),
+        radial-gradient(1px 1px at 93% 11%,   rgba(255,255,255,0.85), transparent),
+        radial-gradient(1px 1px at 96% 67%,   rgba(255,255,255,0.64), transparent),
+        radial-gradient(2px 2px at 50% 30%,   rgba(255,255,255,0.77), transparent),
+        radial-gradient(2px 2px at 20% 89%,   rgba(255,255,255,0.68), transparent),
+        radial-gradient(2px 2px at 68% 15%,   rgba(255,255,255,0.58), transparent),
+        radial-gradient(2px 2px at 85% 22%,   rgba(255,255,255,0.93), transparent),
+        radial-gradient(1px 1px at 46% 20%,   rgba(255,255,255,0.68), transparent),
+        radial-gradient(1px 1px at 3% 55%,    rgba(255,255,255,0.71), transparent),
+        radial-gradient(1px 1px at 9% 38%,    rgba(255,255,255,0.59), transparent),
+        radial-gradient(1.5px 1.5px at 13% 7%, rgba(255,255,255,0.83), transparent),
+        radial-gradient(1px 1px at 17% 83%,   rgba(255,255,255,0.64), transparent),
+        radial-gradient(1px 1px at 22% 29%,   rgba(255,255,255,0.77), transparent),
+        radial-gradient(1.5px 1.5px at 27% 61%,rgba(255,255,255,0.55), transparent),
+        radial-gradient(1px 1px at 32% 4%,    rgba(255,255,255,0.81), transparent),
+        radial-gradient(1px 1px at 36% 79%,   rgba(255,255,255,0.69), transparent),
+        radial-gradient(1.5px 1.5px at 40% 45%,rgba(255,255,255,0.73), transparent),
+        radial-gradient(1px 1px at 48% 3%,    rgba(255,255,255,0.87), transparent),
+        radial-gradient(1px 1px at 54% 77%,   rgba(255,255,255,0.61), transparent),
+        radial-gradient(1.5px 1.5px at 60% 22%,rgba(255,255,255,0.79), transparent),
+        radial-gradient(1px 1px at 63% 59%,   rgba(255,255,255,0.66), transparent),
+        radial-gradient(1px 1px at 66% 96%,   rgba(255,255,255,0.57), transparent),
+        radial-gradient(1.5px 1.5px at 71% 36%,rgba(255,255,255,0.84), transparent),
+        radial-gradient(1px 1px at 75% 73%,   rgba(255,255,255,0.63), transparent),
+        radial-gradient(1px 1px at 78% 13%,   rgba(255,255,255,0.78), transparent),
+        radial-gradient(1.5px 1.5px at 83% 57%,rgba(255,255,255,0.69), transparent),
+        radial-gradient(1px 1px at 86% 88%,   rgba(255,255,255,0.72), transparent),
+        radial-gradient(1px 1px at 89% 42%,   rgba(255,255,255,0.55), transparent),
+        radial-gradient(1.5px 1.5px at 92% 6%, rgba(255,255,255,0.88), transparent),
+        radial-gradient(1px 1px at 95% 63%,   rgba(255,255,255,0.60), transparent),
+        radial-gradient(1px 1px at 98% 18%,   rgba(255,255,255,0.75), transparent),
+        radial-gradient(2px 2px at 10% 95%,   rgba(255,255,255,0.65), transparent),
+        radial-gradient(1px 1px at 16% 53%,   rgba(255,255,255,0.73), transparent),
+        radial-gradient(1.5px 1.5px at 29% 86%,rgba(255,255,255,0.58), transparent),
+        radial-gradient(1px 1px at 42% 67%,   rgba(255,255,255,0.80), transparent),
+        radial-gradient(2px 2px at 59% 49%,   rgba(255,255,255,0.62), transparent),
+        radial-gradient(1px 1px at 72% 84%,   rgba(255,255,255,0.70), transparent),
+        radial-gradient(1.5px 1.5px at 81% 31%,rgba(255,255,255,0.76), transparent),
+        radial-gradient(1px 1px at 90% 71%,   rgba(255,255,255,0.59), transparent),
+        radial-gradient(2px 2px at 4% 72%,    rgba(255,255,255,0.82), transparent),
+        radial-gradient(1px 1px at 26% 16%,   rgba(255,255,255,0.67), transparent),
+        radial-gradient(1px 1px at 51% 58%,   rgba(255,255,255,0.71), transparent),
+        radial-gradient(1.5px 1.5px at 77% 97%,rgba(255,255,255,0.63), transparent),
+        radial-gradient(1px 1px at 99% 35%,   rgba(255,255,255,0.78), transparent);
+    }
+
+    .new-worlds-tile::before {
+      display: none;
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(1px 1px at 2% 12%,   rgba(255,255,255,0.90), transparent),
+        radial-gradient(1.5px 1.5px at 5% 48%, rgba(255,255,255,0.75), transparent),
+        radial-gradient(1px 1px at 8% 78%,   rgba(255,255,255,0.62), transparent),
+        radial-gradient(1px 1px at 11% 25%,  rgba(255,255,255,0.80), transparent),
+        radial-gradient(1.5px 1.5px at 15% 65%, rgba(255,255,255,0.68), transparent),
+        radial-gradient(1px 1px at 18% 5%,   rgba(255,255,255,0.58), transparent),
+        radial-gradient(1px 1px at 21% 90%,  rgba(255,255,255,0.72), transparent),
+        radial-gradient(1.5px 1.5px at 25% 40%, rgba(255,255,255,0.85), transparent),
+        radial-gradient(1px 1px at 28% 18%,  rgba(255,255,255,0.60), transparent),
+        radial-gradient(1px 1px at 31% 72%,  rgba(255,255,255,0.76), transparent),
+        radial-gradient(1.5px 1.5px at 35% 55%, rgba(255,255,255,0.65), transparent),
+        radial-gradient(1px 1px at 38% 32%,  rgba(255,255,255,0.70), transparent),
+        radial-gradient(1px 1px at 41% 88%,  rgba(255,255,255,0.58), transparent),
+        radial-gradient(1.5px 1.5px at 44% 8%,  rgba(255,255,255,0.82), transparent),
+        radial-gradient(1px 1px at 4% 35%,   rgba(255,255,255,0.66), transparent),
+        radial-gradient(1px 1px at 7% 92%,   rgba(255,255,255,0.74), transparent),
+        radial-gradient(1.5px 1.5px at 12% 58%, rgba(255,255,255,0.62), transparent),
+        radial-gradient(1px 1px at 16% 82%,  rgba(255,255,255,0.70), transparent),
+        radial-gradient(1px 1px at 20% 44%,  rgba(255,255,255,0.55), transparent),
+        radial-gradient(1.5px 1.5px at 23% 14%, rgba(255,255,255,0.78), transparent),
+        radial-gradient(1px 1px at 27% 96%,  rgba(255,255,255,0.63), transparent),
+        radial-gradient(1px 1px at 33% 28%,  rgba(255,255,255,0.68), transparent),
+        radial-gradient(1.5px 1.5px at 37% 68%, rgba(255,255,255,0.80), transparent),
+        radial-gradient(1px 1px at 43% 50%,  rgba(255,255,255,0.58), transparent),
+        radial-gradient(1px 1px at 46% 22%,  rgba(255,255,255,0.72), transparent),
+        radial-gradient(1.5px 1.5px at 3% 62%,  rgba(255,255,255,0.85), transparent),
+        radial-gradient(1px 1px at 9% 16%,   rgba(255,255,255,0.60), transparent),
+        radial-gradient(1px 1px at 14% 42%,  rgba(255,255,255,0.76), transparent),
+        radial-gradient(1.5px 1.5px at 30% 6%,  rgba(255,255,255,0.65), transparent),
+        radial-gradient(1px 1px at 45% 75%,  rgba(255,255,255,0.70), transparent),
+        radial-gradient(1px 1px at 47% 38%,  rgba(255,255,255,0.55), transparent),
+        radial-gradient(1.5px 1.5px at 6% 8%,   rgba(255,255,255,0.82), transparent),
+        radial-gradient(1px 1px at 26% 84%,  rgba(255,255,255,0.67), transparent),
+        radial-gradient(1px 1px at 39% 15%,  rgba(255,255,255,0.73), transparent),
+        radial-gradient(1.5px 1.5px at 48% 95%, rgba(255,255,255,0.60), transparent);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .new-worlds-layout {
+      position: relative;
+      z-index: 1;
+    }
+
+    .new-worlds-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: stretch;
+    }
+
+    .new-worlds-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .new-worlds-content .about-explorer-header {
+      border-radius: 0;
+    }
+
+    .new-worlds-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .new-worlds-rocket {
+      font-size: 2rem;
+      line-height: 1;
+      opacity: 0.80;
+      filter: drop-shadow(0 0 8px rgba(255, 20, 120, 0.30));
+      flex-shrink: 0;
+    }
+
+    .new-worlds-image {
+      position: relative;
+      background-color: #000;
+      background-image:
+        radial-gradient(1px 1px at 4% 15%,   rgba(255,255,255,0.82), transparent),
+        radial-gradient(1.5px 1.5px at 9% 62%, rgba(255,255,255,0.70), transparent),
+        radial-gradient(1px 1px at 14% 88%,  rgba(255,255,255,0.58), transparent),
+        radial-gradient(1px 1px at 19% 33%,  rgba(255,255,255,0.78), transparent),
+        radial-gradient(1.5px 1.5px at 25% 75%, rgba(255,255,255,0.65), transparent),
+        radial-gradient(1px 1px at 31% 8%,   rgba(255,255,255,0.88), transparent),
+        radial-gradient(1px 1px at 37% 52%,  rgba(255,255,255,0.60), transparent),
+        radial-gradient(1.5px 1.5px at 43% 91%, rgba(255,255,255,0.74), transparent),
+        radial-gradient(1px 1px at 49% 24%,  rgba(255,255,255,0.66), transparent),
+        radial-gradient(1px 1px at 55% 68%,  rgba(255,255,255,0.80), transparent),
+        radial-gradient(1.5px 1.5px at 61% 14%, rgba(255,255,255,0.72), transparent),
+        radial-gradient(1px 1px at 67% 47%,  rgba(255,255,255,0.58), transparent),
+        radial-gradient(1px 1px at 73% 83%,  rgba(255,255,255,0.84), transparent),
+        radial-gradient(1.5px 1.5px at 79% 29%, rgba(255,255,255,0.68), transparent),
+        radial-gradient(1px 1px at 85% 71%,  rgba(255,255,255,0.76), transparent),
+        radial-gradient(1px 1px at 91% 5%,   rgba(255,255,255,0.62), transparent),
+        radial-gradient(1.5px 1.5px at 97% 54%, rgba(255,255,255,0.85), transparent),
+        radial-gradient(1px 1px at 7% 40%,   rgba(255,255,255,0.70), transparent),
+        radial-gradient(1px 1px at 22% 96%,  rgba(255,255,255,0.64), transparent),
+        radial-gradient(1.5px 1.5px at 52% 37%, rgba(255,255,255,0.77), transparent),
+        radial-gradient(1px 1px at 76% 93%,  rgba(255,255,255,0.59), transparent),
+        radial-gradient(1px 1px at 88% 43%,  rgba(255,255,255,0.73), transparent),
+        radial-gradient(1px 1px at 51% 48%,  rgba(255,255,255,0.75), transparent),
+        radial-gradient(1px 1px at 29% 31%,  rgba(255,255,255,0.80), transparent),
+        radial-gradient(1.5px 1.5px at 32% 93%, rgba(255,255,255,0.73), transparent),
+        radial-gradient(1px 1px at 89% 68%,  rgba(255,255,255,0.86), transparent),
+        radial-gradient(1.5px 1.5px at 62% 25%, rgba(255,255,255,0.79), transparent),
+        radial-gradient(1.5px 1.5px at 75% 27%, rgba(255,255,255,0.82), transparent),
+        radial-gradient(1px 1px at 87% 27%,  rgba(255,255,255,0.70), transparent),
+        radial-gradient(1.5px 1.5px at 22% 72%, rgba(255,255,255,0.58), transparent),
+        radial-gradient(1px 1px at 91% 67%,  rgba(255,255,255,0.81), transparent),
+        radial-gradient(1.5px 1.5px at 60% 40%, rgba(255,255,255,0.56), transparent),
+        radial-gradient(1.5px 1.5px at 68% 10%, rgba(255,255,255,0.72), transparent),
+        radial-gradient(1.5px 1.5px at 25% 77%, rgba(255,255,255,0.87), transparent),
+        radial-gradient(1px 1px at 45% 16%,  rgba(255,255,255,0.86), transparent),
+        radial-gradient(1px 1px at 91% 20%,  rgba(255,255,255,0.81), transparent),
+        radial-gradient(1px 1px at 76% 22%,  rgba(255,255,255,0.77), transparent),
+        radial-gradient(1px 1px at 4% 14%,   rgba(255,255,255,0.61), transparent),
+        radial-gradient(1px 1px at 87% 53%,  rgba(255,255,255,0.86), transparent),
+        radial-gradient(1.5px 1.5px at 42% 31%, rgba(255,255,255,0.77), transparent);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+
+    .new-worlds-image::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      background:
+        linear-gradient(to right,  #000 0%, transparent 18%, transparent 82%, #000 100%),
+        linear-gradient(to bottom, #000 0%, transparent 14%, transparent 86%, #000 100%);
+    }
+
+    .new-worlds-image-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 0.75rem;
+    }
+
+    .new-worlds-tools {
+      width: 100%;
+      margin-top: 3rem;
+      text-align: center;
+    }
+
+    /* Lunar tile: secondary image (USGS geology overlay) shown under the hero. */
+    .lunar-tile .lunar-tools { margin-top: 2.2rem; }
+    .lunar-tile .lunar-tools-img {
+      margin-top: 0.6rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+    }
+
+    /* ── Mapped-moons roster ────────────────────────────────────────── */
+    .lunar-roster-intro {
+      margin-bottom: 1rem;
+      color: rgba(200, 210, 222, 0.78);
+      font-size: 0.92rem;
+    }
+    .lunar-roster {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.1rem;
+    }
+    .lunar-roster-system {
+      display: grid;
+      grid-template-columns: 6.5rem 1fr;
+      align-items: start;
+      gap: 1rem;
+      padding: 0.7rem 0.85rem;
+      border-radius: 0.65rem;
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .lunar-roster-parent {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-start;
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      padding: 0.3rem 0;
+      color: rgba(220, 226, 236, 0.92);
+    }
+    .lunar-roster-parent[data-parent="earth"]   { color: #6ec3ff; }
+    .lunar-roster-parent[data-parent="mars"]    { color: #ff8a68; }
+    .lunar-roster-parent[data-parent="jupiter"] { color: #ffc26b; }
+    .lunar-roster-parent[data-parent="saturn"]  { color: #f1e0a8; }
+    .lunar-roster-parent[data-parent="uranus"]  { color: #9be9d8; }
+    .lunar-roster-parent[data-parent="neptune"] { color: #6e8cff; }
+
+    .lunar-moon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+      gap: 0.45rem;
+    }
+    .lunar-moon {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.45rem;
+      padding: 0.4rem 0.65rem;
+      border-radius: 0.4rem;
+      background: rgba(8, 12, 20, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      font-size: 0.85rem;
+      transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+    }
+    .lunar-moon:hover {
+      transform: translateY(-1px);
+      border-color: rgba(180, 80, 220, 0.55);
+      background: rgba(20, 12, 38, 0.85);
+    }
+    .lunar-moon-name {
+      color: #e8eef6;
+      font-weight: 600;
+    }
+    .lunar-moon-count {
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: rgba(200, 210, 222, 0.55);
+    }
+    .lunar-moon[data-parent="earth"]   { border-left: 2px solid rgba(110, 195, 255, 0.55); }
+    .lunar-moon[data-parent="mars"]    { border-left: 2px solid rgba(255, 138, 104, 0.55); }
+    .lunar-moon[data-parent="jupiter"] { border-left: 2px solid rgba(255, 194, 107, 0.55); }
+    .lunar-moon[data-parent="saturn"]  { border-left: 2px solid rgba(241, 224, 168, 0.55); }
+    .lunar-moon[data-parent="uranus"]  { border-left: 2px solid rgba(155, 233, 216, 0.55); }
+    .lunar-moon[data-parent="neptune"] { border-left: 2px solid rgba(110, 140, 255, 0.55); }
+    @media (max-width: 760px) {
+      .lunar-roster-system { grid-template-columns: 1fr; gap: 0.45rem; }
+    }
+
+    .new-worlds-tools .about-col-heading {
+      margin-bottom: 0.7rem;
+      color: rgba(255, 255, 255, 0.88);
+      border-left-color: rgba(255, 255, 255, 0.35);
+    }
+
+    .new-worlds-tools-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.9rem;
+    }
+
+    .new-worlds-tool-item {
+      flex: 1;
+      max-width: 82px;
+      aspect-ratio: 1;
+      border-radius: 0.6rem;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.09);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.40);
+    }
+
+    .new-worlds-tool-item img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    @media (max-width: 800px) {
+      .new-worlds-layout {
+        grid-template-columns: 1fr;
+      }
+      .new-worlds-content {
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 20, 120, 0.14);
+      }
+    }
+
+    /* ── Photo strip ── */
+    .photo-strip {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      height: 18rem;
+      margin: 0 0 1.2rem;
+      border-radius: var(--radius, 1rem);
+      overflow: hidden;
+      border: 1.5px solid rgba(255, 20, 120, 0.20);
+    }
+
+    .photo-strip-cell {
+      position: relative;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .photo-strip-cell img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+    }
+
+    @media (max-width: 700px) {
+      .photo-strip {
+        grid-template-columns: repeat(3, 1fr);
+        height: 24rem;
+      }
+    }
+
+    /* ── Features tile ── */
+    .features-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      padding-right: 10rem;
+    }
+
+    .feature-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 0.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: rgba(220, 240, 252, 0.92);
+    }
+
+    .feature-chip::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .feature-chip--geo  { border: 1px solid rgba(255, 20, 120, 0.30); background: rgba(130, 40, 255, 0.07); }
+    .feature-chip--geo::before  { background: rgba(255, 20, 120, 0.85); box-shadow: 0 0 5px rgba(255, 20, 120, 0.5); }
+
+    .feature-chip--atm  { border: 1px solid rgba(140, 60, 255, 0.28); background: rgba(140, 60, 255, 0.07); }
+    .feature-chip--atm::before  { background: rgba(140, 60, 255, 0.85); box-shadow: 0 0 5px rgba(140,60,255,0.5); }
+
+    .feature-chip--moon { border: 1px solid rgba(180, 130, 240, 0.28); background: rgba(180, 130, 240, 0.07); }
+    .feature-chip--moon::before { background: rgba(180, 130, 240, 0.85); box-shadow: 0 0 5px rgba(180,130,240,0.5); }
+
+    .feature-chip--tool { border: 1px solid rgba(240, 185, 80, 0.28); background: rgba(240, 185, 80, 0.07); }
+    .feature-chip--tool::before { background: rgba(240, 185, 80, 0.85); box-shadow: 0 0 5px rgba(240,185,80,0.5); }
+
+    /* ── Membership tile ── */
+    .membership-tile {
+      background: #000 !important;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .membership-tile::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(1px 1px at 3% 7%,    rgba(255,255,255,0.88), transparent),
+        radial-gradient(1.5px 1.5px at 9% 31%,  rgba(255,255,255,0.72), transparent),
+        radial-gradient(1px 1px at 17% 55%,  rgba(255,255,255,0.65), transparent),
+        radial-gradient(1px 1px at 6% 80%,   rgba(255,255,255,0.78), transparent),
+        radial-gradient(1.5px 1.5px at 23% 17%, rgba(255,255,255,0.82), transparent),
+        radial-gradient(1px 1px at 31% 44%,  rgba(255,255,255,0.60), transparent),
+        radial-gradient(1px 1px at 12% 68%,  rgba(255,255,255,0.70), transparent),
+        radial-gradient(1.5px 1.5px at 40% 90%, rgba(255,255,255,0.75), transparent),
+        radial-gradient(1px 1px at 48% 23%,  rgba(255,255,255,0.62), transparent),
+        radial-gradient(1px 1px at 55% 58%,  rgba(255,255,255,0.80), transparent),
+        radial-gradient(1.5px 1.5px at 19% 92%, rgba(255,255,255,0.68), transparent),
+        radial-gradient(1px 1px at 63% 12%,  rgba(255,255,255,0.55), transparent),
+        radial-gradient(1px 1px at 27% 36%,  rgba(255,255,255,0.74), transparent),
+        radial-gradient(1.5px 1.5px at 71% 74%, rgba(255,255,255,0.85), transparent),
+        radial-gradient(1px 1px at 5% 50%,   rgba(255,255,255,0.66), transparent),
+        radial-gradient(1px 1px at 78% 3%,   rgba(255,255,255,0.72), transparent),
+        radial-gradient(1.5px 1.5px at 85% 40%, rgba(255,255,255,0.58), transparent),
+        radial-gradient(1px 1px at 35% 83%,  rgba(255,255,255,0.70), transparent),
+        radial-gradient(1px 1px at 14% 22%,  rgba(255,255,255,0.63), transparent),
+        radial-gradient(1.5px 1.5px at 92% 97%, rgba(255,255,255,0.77), transparent),
+        radial-gradient(1px 1px at 44% 61%,  rgba(255,255,255,0.59), transparent),
+        radial-gradient(1px 1px at 59% 28%,  rgba(255,255,255,0.68), transparent),
+        radial-gradient(1.5px 1.5px at 7% 44%,  rgba(255,255,255,0.80), transparent),
+        radial-gradient(1px 1px at 66% 15%,  rgba(255,255,255,0.65), transparent),
+        radial-gradient(1px 1px at 74% 86%,  rgba(255,255,255,0.73), transparent),
+        radial-gradient(1.5px 1.5px at 20% 70%, rgba(255,255,255,0.84), transparent),
+        radial-gradient(1px 1px at 82% 52%,  rgba(255,255,255,0.57), transparent),
+        radial-gradient(1px 1px at 51% 8%,   rgba(255,255,255,0.76), transparent),
+        radial-gradient(1.5px 1.5px at 37% 35%, rgba(255,255,255,0.62), transparent),
+        radial-gradient(1px 1px at 89% 95%,  rgba(255,255,255,0.70), transparent),
+        radial-gradient(1px 1px at 96% 66%,  rgba(255,255,255,0.55), transparent),
+        radial-gradient(1.5px 1.5px at 43% 48%, rgba(255,255,255,0.82), transparent),
+        radial-gradient(1px 1px at 11% 14%,  rgba(255,255,255,0.67), transparent),
+        radial-gradient(1px 1px at 57% 79%,  rgba(255,255,255,0.73), transparent),
+        radial-gradient(1.5px 1.5px at 98% 5%,  rgba(255,255,255,0.60), transparent);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .membership-tile > * {
+      position: relative;
+      z-index: 1;
+    }
+
+
+    .membership-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding-left: 2.4rem;
+    }
+
+    .membership-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .membership-price-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    .membership-price {
+      font-family: "Orbitron", sans-serif;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: rgba(255, 20, 120, 0.96);
+      line-height: 1;
+      letter-spacing: 0.02em;
+    }
+
+    .membership-period {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(140, 180, 200, 0.65);
+      margin-top: 0.3rem;
+    }
+
+    .membership-viewer-grid {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 0.6rem;
+    }
+
+    .membership-viewer-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.85rem 0.5rem;
+      border-radius: 0.9rem;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .membership-viewer-card--member {
+      border-color: rgba(255, 20, 120, 0.22);
+      background: rgba(130, 40, 255, 0.05);
+    }
+
+    @keyframes free-pulse {
+      0%, 100% { opacity: 0.72; }
+      50%       { opacity: 1; }
+    }
+
+    .membership-viewer-card--free {
+      border-color: rgba(255, 20, 120, 0.90);
+      background: rgba(130, 40, 255, 0.22);
+      box-shadow: 0 0 18px rgba(140, 40, 255, 0.50), 0 0 40px rgba(140, 40, 255, 0.20);
+      animation: free-pulse 3.2s ease-in-out infinite;
+      will-change: opacity;
+    }
+
+    .membership-viewer-icon {
+      width: 2.4rem;
+      height: 2.4rem;
+      object-fit: contain;
+    }
+
+    .membership-viewer-name {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 700;
+      color: rgba(210, 230, 245, 0.80);
+    }
+
+    .membership-viewer-tag {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.52rem;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      padding: 0.18rem 0.42rem;
+      border-radius: 999px;
+    }
+
+    .membership-viewer-tag--free {
+      color: rgba(160, 210, 180, 0.80);
+      border: 1px solid rgba(100, 200, 140, 0.28);
+      background: rgba(80, 180, 110, 0.08);
+    }
+
+    .membership-viewer-tag--member {
+      color: rgba(255, 20, 120, 0.90);
+      border: 1px solid rgba(255, 20, 120, 0.30);
+      background: rgba(130, 40, 255, 0.08);
+    }
+
+    .membership-cta-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 1.2rem;
+      padding-top: 0.4rem;
+      width: 100%;
+    }
+
+    .membership-cta-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.65rem 1.4rem;
+      border-radius: 999px;
+      border: 1.5px solid rgba(255, 20, 120, 0.90);
+      background: rgba(140, 40, 255, 1.0);
+      color: #f5eaff;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-decoration: none;
+      transition: background 0.18s ease, box-shadow 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .membership-cta-btn:hover {
+      background: rgba(170, 70, 255, 1.0);
+      box-shadow: 0 0 18px rgba(140, 40, 255, 0.45);
+    }
+
+    .membership-cta-note {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.70rem;
+      color: rgba(140, 175, 200, 0.60);
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1200px) {
+      .membership-viewer-grid {
+        grid-template-columns: repeat(9, 1fr);
+        gap: 0.4rem;
+      }
+      .membership-viewer-card { padding: 0.65rem 0.35rem; }
+      .membership-viewer-name { font-size: 0.72rem; }
+    }
+
+    @media (max-width: 900px) {
+      .membership-viewer-grid {
+        grid-template-columns: repeat(5, 1fr);
+      }
+    }
+
+    @media (max-width: 560px) {
+      .membership-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .membership-price-badge {
+        align-items: flex-start;
+      }
+      .membership-viewer-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .membership-cta-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    /* ── Site footer (explorer theme) ── */
+    .site-footer {
+      margin-top: 1.25rem;
+      border-top: 1px solid rgba(150, 60, 255, 0.22);
+      background: rgba(5, 4, 16, 0.80);
+      backdrop-filter: blur(12px);
+      padding: 3rem 0 1.5rem;
+    }
+    .footer-inner { max-width: 1840px; margin: 0 auto; padding: 0 1rem; }
+    .footer-content {
+      display: grid;
+      grid-template-columns: 2fr repeat(3, 1fr);
+      gap: 3rem;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid rgba(150, 60, 255, 0.15);
+    }
+    .footer-brand-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .footer-brand-logo img { height: 32px; width: auto; }
+    .footer-brand p { color: #c8b0e4; font-size: 0.88rem; line-height: 1.68; }
+    .footer-brand p + p { margin-top: 0.75rem; }
+    .footer-section h4 {
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(255, 20, 120, 0.80);
+      margin-bottom: 1.1rem;
+    }
+    .footer-section ul { list-style: none; padding: 0; margin: 0; }
+    .footer-section li { margin-bottom: 0.6rem; }
+    .footer-section a { color: #c8b0e4; text-decoration: none; font-family: "Public Sans", sans-serif; font-size: 0.88rem; transition: color 0.18s; }
+    .footer-section a:hover { color: #f5eaff; }
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-top: 1.75rem;
+    }
+    .footer-bottom p { color: #c8b0e4; font-size: 0.82rem; font-family: "Public Sans", sans-serif; }
+    .footer-social-links { display: flex; gap: 0.6rem; }
+    .footer-social-link {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      border: 1px solid rgba(150, 60, 255, 0.28);
+      background: rgba(130, 40, 255, 0.08);
+      display: flex; align-items: center; justify-content: center;
+      color: #c8b0e4; text-decoration: none;
+      transition: color 0.18s, background 0.18s;
+    }
+    .footer-social-link:hover { color: rgba(255, 20, 120, 0.95); background: rgba(255, 20, 120, 0.10); }
+    @media (max-width: 1080px) { .footer-content { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 640px) {
+      .footer-content { grid-template-columns: 1fr; gap: 2rem; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+    }
+
+    /* Disable protrusion on the hero and solar system tiles — they're too large/complex */
+    .space-panel.has-tracer:hover {
+      transform: none !important;
+      box-shadow: var(--shadow) !important;
+    }
+    .new-worlds-tile.has-tracer,
+    .new-worlds-tile.has-tracer:hover,
+    .new-worlds-tile.has-tracer:hover:not(:has(.has-tracer:hover)) {
+      transform: none !important;
+      box-shadow: 0 20px 54px rgba(0, 0, 0, 0.34) !important;
+      transition: none !important;
+    }
+
+    /* Remove backdrop-filter blur from panels — panels have opaque backgrounds so
+       blur is invisible but costs a full compositing pass on every repaint */
+    .space-panel,
+    .section-panel,
+    .footer-panel,
+    .about-explorer-tile {
+      backdrop-filter: none;
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
+      GeoID Initiative
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="/dashboard/">Dashboard</a></li>      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="/about/">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="/about/">Overview</a>
+          <a href="/about_myGeoID/">myGeoID App</a>
+          <a href="/team/">Our Team</a>
+          <a href="/research/">Research Hub</a>
+          <a href="/learn/">Resources</a>
+          <a href="/get-involved/">Get Involved</a>
+        </div>
+      </li>
+      <li><a href="/myGeoID/"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
+
+      <li><a href="/explorer/" class="active" aria-current="page">Explorer</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+      <a class="nav-act nav-act-signin" href="#" data-action="sign-in">Sign In</a>
+      <a class="nav-act nav-act-member" href="/membership/">Membership</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+
+  <main class="page">
+    <section class="explorer-hero" id="solar-system">
+      <article class="space-panel">
+        <div class="space-header">
+          <div class="solar-intro">
+            <div class="solar-intro-copy">
+              <div class="eyebrow-row">
+                <span class="space-pill">Earth viewer</span>
+                <span class="space-pill">Mars viewer</span>
+                <span class="space-pill">Venus viewer</span>
+                <span class="space-pill">Mercury viewer</span>
+                <span class="space-pill">Gas giant viewers</span>
+                <span class="space-pill">Interactive solar model</span>
+                <span class="space-pill">Live launch target</span>
+              </div>
+              <h1 class="hero-title">GeoID Explorer</h1>
+              <p class="hero-subtitle">
+                Navigate the live Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune viewers through the GeoID Explorer shell.
+              </p>
+              <div class="hero-actions">
+                <a class="viewer-link" href="transit.html?destination=mercury">Open Mercury</a>
+                <a class="viewer-link" href="transit.html?destination=venus">Open Venus</a>
+                <a class="viewer-link" href="transit.html?destination=earth">Open Earth</a>
+                <a class="viewer-link" href="transit.html?destination=mars">Open Mars</a>
+                <a class="viewer-link" href="transit.html?destination=jupiter">Open Jupiter</a>
+                <a class="viewer-link" href="transit.html?destination=saturn">Open Saturn</a>
+                <a class="viewer-link" href="transit.html?destination=uranus">Open Uranus</a>
+                <a class="viewer-link" href="transit.html?destination=neptune">Open Neptune</a>
+                <a class="viewer-link" href="transit.html?destination=pluto">Open Pluto</a>
+              </div>
+              <div class="hero-stats" aria-label="Explorer status">
+                <div class="stat-card">
+                  <span class="stat-label">Live viewer</span>
+                  <span class="stat-value">8</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">World mapped</span>
+                  <span class="stat-value">8</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Mode</span>
+                  <span class="stat-value" style="font-size:1.08rem;line-height:1.25">Explore + Learn</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="solar-copy"></div>
+        </div>
+
+        <div class="view-panel" id="solar-view-panel">
+        <div class="solar-stage" aria-label="Interactive solar system selector">
+          <div class="orrery-brand" aria-hidden="true">
+            <img src="/assets/explorer_logo.png" alt="GeoID Explorer">
+            <p class="orrery-brand-desc">Click any planet to explore comprehensive, interactive 3D models of each world's internal and external structures, surface geology, atmospheric systems, and moon environments — rendered at true planetary scale.</p>
+          </div>
+          <div class="orrery-features" aria-label="Viewer features">
+            <span class="orrery-features-label">Viewer Features</span>
+            <div class="orrery-feature-item"><span class="orrery-feature-dot"></span><span>Palaeo sea-level &amp; ocean basin mapping</span></div>
+            <div class="orrery-feature-item"><span class="orrery-feature-dot"></span><span>Interior core &amp; mantle structure view</span></div>
+            <div class="orrery-feature-item"><span class="orrery-feature-dot"></span><span>Surface geology &amp; tectonic unit layers</span></div>
+            <div class="orrery-feature-item"><span class="orrery-feature-dot"></span><span>Topography, slope &amp; elevation profiles</span></div>
+            <div class="orrery-feature-item"><span class="orrery-feature-dot"></span><span>Moon system &amp; orbital context viewer</span></div>
+          </div>
+          <span class="orrery-date-stamp" id="orrery-date" aria-label="Planetary positions date"></span>
+          <div class="orrery-nav-tips" aria-label="Navigation tips">
+            <div class="orrery-nav-tip">
+              <span class="orrery-nav-key">Click</span>
+              <span>Select a planet to open its viewer</span>
+            </div>
+            <div class="orrery-nav-tip">
+              <span class="orrery-nav-key">←</span>
+              <span class="orrery-nav-key">→</span>
+              <span>Cycle between worlds</span>
+            </div>
+            <div class="orrery-nav-tip">
+              <span class="orrery-nav-key">Hover</span>
+              <span>Highlight a planet</span>
+            </div>
+          </div>
+          <div class="solar-core" aria-hidden="true"></div>
+
+          <div class="orbit-ring" data-orbit="mercury"></div>
+          <div class="orbit-ring" data-orbit="venus"></div>
+          <div class="orbit-ring" data-orbit="earth"></div>
+          <div class="orbit-ring" data-orbit="mars"></div>
+          <div class="orbit-ring" data-orbit="jupiter"></div>
+          <div class="orbit-ring" data-orbit="saturn"></div>
+          <div class="orbit-ring" data-orbit="uranus"></div>
+          <div class="orbit-ring" data-orbit="neptune"></div>
+          <div class="orbit-ring" data-orbit="pluto"></div>
+
+          <button type="button" class="planet-node is-live" data-planet="mercury" style="--icon-size: 22px;" aria-label="Open Mercury viewer">
+            <img class="planet-icon" src="/assets/mercury_icon.png" alt="" aria-hidden="true">
+          </button>
+          <button type="button" class="planet-node is-live" data-planet="venus" style="--icon-size: 28px;" aria-label="Open Venus viewer">
+            <img class="planet-icon" src="/assets/venus_icon.png" alt="" aria-hidden="true">
+          </button>
+          <button type="button" class="planet-node is-live" data-planet="earth" style="--icon-size: 30px;" aria-label="Open Earth viewer">
+            <img class="planet-icon" src="/assets/earth_icon.png" alt="" aria-hidden="true">
+          </button>
+          <button type="button" class="planet-node is-live is-selected" data-planet="mars" style="--icon-size: 24px;" aria-label="Open Mars viewer">
+            <img class="planet-icon" src="/assets/mars_icon.png" alt="" aria-hidden="true">
+          </button>
+          <button type="button" class="planet-node is-live" data-planet="jupiter" style="--icon-size: 52px;" aria-label="Open Jupiter viewer">
+            <img class="planet-icon" src="/assets/jupiter_icon.png" alt="" aria-hidden="true">
+          </button>
+          <button type="button" class="planet-node is-live" data-planet="saturn" style="--icon-size: 64px;" aria-label="Open Saturn viewer">
+            <img class="planet-icon" src="/assets/saturn_icon.png" alt="" aria-hidden="true">
+          </button>
+          <button type="button" class="planet-node is-live" data-planet="uranus" style="--icon-size: 38px;" aria-label="Open Uranus viewer">
+            <img class="planet-icon" src="/assets/uranus_icon.png" alt="" aria-hidden="true">
+          </button>
+          <button type="button" class="planet-node is-live" data-planet="neptune" style="--icon-size: 36px;" aria-label="Open Neptune viewer">
+            <img class="planet-icon" src="/assets/neptune_icon.png" alt="" aria-hidden="true">
+          </button>
+          <button type="button" class="planet-node is-live" data-planet="pluto" style="--icon-size: 20px;" aria-label="Open Pluto viewer">
+            <img class="planet-icon" src="/assets/pluto_icon.png" alt="" aria-hidden="true">
+          </button>
+
+          <span class="planet-label" data-label="mercury">Mercury</span>
+          <span class="planet-label" data-label="venus">Venus</span>
+          <span class="planet-label" data-label="earth">Earth</span>
+          <span class="planet-label" data-label="mars">Mars</span>
+          <span class="planet-label" data-label="jupiter">Jupiter</span>
+          <span class="planet-label" data-label="saturn">Saturn</span>
+          <span class="planet-label" data-label="uranus">Uranus</span>
+          <span class="planet-label" data-label="neptune">Neptune</span>
+          <span class="planet-label" data-label="pluto">Pluto</span>
+        </div>
+
+        </div>
+
+      </article>
+    </section>
+
+    <section class="about-explorer-section" aria-labelledby="about-explorer-title">
+      <article class="about-explorer-tile about-explorer-tile--cyan">
+        <img class="whatis-logo" src="/assets/explorer_logo.png" alt="GeoID Explorer">
+        <div class="about-explorer-header">
+          <h2 class="about-explorer-title" id="about-explorer-title">What is the GeoID Explorer?</h2>
+        </div>
+        <div class="about-explorer-body">
+          <div class="about-explorer-section-block">
+            <p>GeoID Explorer is an interactive planetary science platform built to make the solar system tangible, navigable, and scientifically meaningful for anyone — regardless of background or prior knowledge. It gives you eight fully immersive planetary viewers, one for each world from Mercury to Neptune, each built as a dedicated investigation environment layered with real scientific data: topographic models, geological maps, atmospheric imagery, mineral distribution layers, and mission-linked surface features. Rather than reducing planets to static images or memorised facts, GeoID Explorer lets you move through them directly — zooming into canyon systems on Mars, tracing volcanic provinces on Venus, tracking storm bands across Jupiter — building genuine intuition about scale, composition, and the forces that shape worlds. GeoID was founded on the principle that planetary science and space exploration should be as open and engaging as any other field, and the Explorer is the practical expression of that principle: an interface designed to close the distance between curious minds and the worlds orbiting our Sun.</p>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="about-explorer-section" aria-labelledby="new-worlds-title">
+      <article class="about-explorer-tile new-worlds-tile">
+        <div class="new-worlds-layout">
+          <div class="new-worlds-content">
+            <div class="about-explorer-header new-worlds-header">
+              <div>
+                <h2 class="about-explorer-title" id="new-worlds-title">Explore our Solar System</h2>
+              </div>
+              <span class="new-worlds-rocket" aria-hidden="true">🚀</span>
+            </div>
+            <div class="about-explorer-body">
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">A different kind of planetary interface</p>
+                <p>Most platforms show you a planet. GeoID Explorer lets you read one. The distinction matters: professional GIS and planetary science tools demand institutional access, specialist training, and months of familiarisation before they yield insight. Popular space apps reduce worlds to rendered images — beautiful, but passive. GeoID Explorer was built to sit in neither category. Each viewer is a fully layered investigation environment where scientific datasets — MOLA topography, geological unit maps, atmospheric band imagery, mineral distribution layers, mission-linked surface annotations — can be toggled, stacked, and compared in a single coherent session. The interface is not a simplified substitute for scientific software. It is a rethinking of how that software should have worked from the beginning.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">Built for researchers and first-timers equally</p>
+                <p>A researcher cross-referencing Martian valley networks with MOLA relief and surface mineralogy uses exactly the same viewer as a student who wants to understand why Olympus Mons is the largest volcano in the solar system. That is not a coincidence — it is the core design principle. Guided discovery stops provide contextual footholds without removing the freedom to explore independently. Layer opacity controls let users build their own picture of a world incrementally, the way a geoscientist approaches a new field site: with evidence, iteration, and curiosity. The more you put in, the more the viewer gives back. GeoID Explorer is as rewarding on the first session as it is on the fiftieth — and that scalability is what makes it genuinely unlike anything that has existed before.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">CTX mosaic streaming — superresolution without the hardware</p>
+                <p>The Mars viewer streams the full Context Camera mosaic dynamically — sub-metre resolution imagery covering the entire Martian surface, delivered tile by tile as you navigate, with no local processing and no high-performance computing required. What previously demanded institutional server infrastructure and specialist pipelines is now available directly in the browser, at full fidelity, to anyone. Pan across Valles Marineris at a scale that resolves individual landslide scarps. Zoom into Jezero Crater as the rover landing team did. The imagery responds in real time, making exploration feel continuous rather than limited — because the data no longer has to be downloaded before it can be understood.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">Planetary geology datasets and the raster calculator</p>
+                <p>Every rocky-planet viewer ships with curated geological unit datasets — formation boundaries, lithological classifications, volcanic provinces, impact ejecta extents — drawn from peer-reviewed planetary mapping programmes and rendered as toggleable layers directly over the terrain. These are not decorative overlays. They are the same datasets researchers publish from. Alongside them sits the raster calculator: a depth-slider tool that lets users raise or lower a simulated ocean surface across any planetary terrain in real time. Set a sea-level threshold on Mars and watch the northern lowlands flood. Probe Venus's highland islands. Trace the ancient coastlines that planetary scientists argue over in the literature. The raster calculator turns a passive dataset into an active hypothesis — asking not just what a planet looks like, but what it could have been.</p>
+              </div>
+            </div>
+          </div>
+          <div class="new-worlds-image">
+            <img src="/assets/mars_explorer.png" alt="Mars Explorer UI" class="new-worlds-image-img">
+            <div class="new-worlds-tools">
+              <p class="about-col-heading">Basic GIS tools</p>
+              <div class="new-worlds-tools-row">
+                <div class="new-worlds-tool-item">
+                  <img src="/assets/distance.png" alt="Distance measurement tool">
+                </div>
+                <div class="new-worlds-tool-item">
+                  <img src="/assets/area.png" alt="Area measurement tool">
+                </div>
+                <div class="new-worlds-tool-item">
+                  <img src="/assets/profile.png" alt="Elevation profile tool">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <div class="photo-strip" aria-hidden="true">
+      <div class="photo-strip-cell"><img src="/assets/Olympus_mons.png" alt="Olympus Mons"></div>
+      <div class="photo-strip-cell"><img src="/assets/core_view.png" alt="Core View"></div>
+      <div class="photo-strip-cell"><img src="/assets/sea_level.png" alt="Sea Level"></div>
+      <div class="photo-strip-cell"><img src="/assets/moonview.png" alt="Moon View"></div>
+      <div class="photo-strip-cell"><img src="/assets/geology.png" alt="Geology"></div>
+      <div class="photo-strip-cell"><img src="/assets/area_tool.png" alt="Area Tool"></div>
+    </div>
+
+    <section class="about-explorer-section" aria-labelledby="features-title">
+      <article class="about-explorer-tile about-explorer-tile--cyan">
+        <img class="whatis-logo whatis-logo--mid" src="/assets/explorer_logo.png" alt="GeoID Explorer">
+        <div class="about-explorer-header">
+          <h2 class="about-explorer-title" id="features-title">Viewer Features</h2>
+        </div>
+        <div class="about-explorer-body">
+          <div class="features-chips">
+            <span class="feature-chip feature-chip--geo">Topographic elevation mapping</span>
+            <span class="feature-chip feature-chip--geo">Geological unit &amp; formation layers</span>
+            <span class="feature-chip feature-chip--geo">Slope &amp; aspect profiles</span>
+            <span class="feature-chip feature-chip--geo">Mineral distribution mapping</span>
+            <span class="feature-chip feature-chip--geo">Tectonic structure visualisation</span>
+            <span class="feature-chip feature-chip--geo">Volcanic province identification</span>
+            <span class="feature-chip feature-chip--geo">Core &amp; mantle cross-section viewer</span>
+            <span class="feature-chip feature-chip--geo">Internal layer composition models</span>
+            <span class="feature-chip feature-chip--atm">Atmospheric band visualisation</span>
+            <span class="feature-chip feature-chip--atm">Storm system &amp; contrast layers</span>
+            <span class="feature-chip feature-chip--atm">Palaeo sea-level reconstruction</span>
+            <span class="feature-chip feature-chip--atm">Ocean basin &amp; depth mapping</span>
+            <span class="feature-chip feature-chip--atm">GEBCO-derived seafloor relief</span>
+            <span class="feature-chip feature-chip--atm">Ice &amp; permafrost extent layers</span>
+            <span class="feature-chip feature-chip--moon">Moon orbital context viewer</span>
+            <span class="feature-chip feature-chip--moon">Individual moon surface datasets</span>
+            <span class="feature-chip feature-chip--moon">Ring system labels &amp; navigation</span>
+            <span class="feature-chip feature-chip--moon">Galilean moon environment viewer</span>
+            <span class="feature-chip feature-chip--moon">Triton &amp; outer-moon context</span>
+            <span class="feature-chip feature-chip--tool">Mission-linked surface features</span>
+            <span class="feature-chip feature-chip--tool">Guided discovery stops</span>
+            <span class="feature-chip feature-chip--tool">Area &amp; distance measurement tool</span>
+            <span class="feature-chip feature-chip--tool">Layer toggle &amp; opacity controls</span>
+            <span class="feature-chip feature-chip--tool">Point-of-interest annotation viewer</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="about-explorer-section" aria-labelledby="lunar-title">
+      <article class="about-explorer-tile new-worlds-tile lunar-tile">
+        <div class="new-worlds-layout">
+          <div class="new-worlds-content">
+            <div class="about-explorer-header new-worlds-header">
+              <div>
+                <h2 class="about-explorer-title" id="lunar-title">The Lunar &amp; Moon Viewer</h2>
+              </div>
+              <span class="new-worlds-rocket" aria-hidden="true">🌖</span>
+            </div>
+            <div class="about-explorer-body">
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">Earth's Moon — the flagship viewer</p>
+                <p>The Moon Viewer is the most data-rich destination in GeoID Explorer. Earth's only natural satellite is rendered at the LROC Wide-Angle Camera 8 K colour mosaic — the same NASA SVS CGI Moon Kit imagery used by mission planners — combined with the LOLA Digital Elevation Model for true topographic relief. Pan from the smooth basaltic floors of Mare Imbrium to the highland anorthosites of the lunar farside, and read every named feature directly off the surface: more than two thousand IAU-catalogued craters, maria, sinus bays, lacus, montes, rimae, rupes scarps, dorsa wrinkle ridges, and the catalogued landing-site landmarks of Apollo, Luna, Chang'e, and Chandrayaan. Every label opens a scientific description written for both first-time visitors and planetary geologists.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">USGS Unified Geologic Map — every unit mapped, every contact selectable</p>
+                <p>Toggle on the Unified Geologic Map of the Moon (Skinner et al., 2020) and the surface is replaced by the same lithostratigraphic map planetary geologists publish from. Stratigraphic eras — Pre-Nectarian, Nectarian, Imbrian, Eratosthenian, Copernican — are colour-coded across more than twelve thousand polygon units. Geological contacts and structural features (graben, basin rings, ridges, lineaments, volcanic channels, rilles) are individually selectable, with every polygon clickable for its unit code, era, and rock type. The Moon stops being a static globe and becomes an interactive geological map.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">An interior cutaway built from Apollo seismology</p>
+                <p>Open the Core View and the Moon is sliced open from crust to inner core. Layer thicknesses, densities, and depths reflect the seismological reanalysis of Apollo passive-seismic data (Weber et al. 2011; Garcia et al. 2023) — the strongest evidence yet for a solid iron-nickel inner core surrounded by a partially molten outer core. Click any layer label to read its modelled composition, temperature gradient, and the dataset behind it. The cutaway is exact to scale: 1,737 km from surface to centre, rendered in true proportion.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">Earth–Moon system context</p>
+                <p>The Moon Viewer doesn't render the Moon in isolation — it sits inside the Earth-Moon orbital system. A correctly-sized Earth appears in the background at representative distance, with the Moon's orbit indicated by a faint ring. Tidal locking, axial libration, and the geometric reason that the same lunar hemisphere always faces Earth all become legible without leaving the viewer.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">Beyond Earth — the moons of the other planets</p>
+                <p>The lunar pipeline isn't limited to our own Moon. Every rocky-planet and gas-giant viewer in GeoID Explorer ships with a moon-system viewer of its own: Phobos and Deimos circling Mars, the four Galilean moons (Io, Europa, Ganymede, Callisto) framed against Jupiter's storm bands, Titan, Enceladus, Mimas, Tethys, Dione, Rhea and Iapetus around Saturn, the icy Uranian satellites tilted on their side with the planet, Triton's retrograde orbit around Neptune, and Charon orbiting Pluto as a true binary system. Each moon is rendered with its own surface imagery, orbital eccentricity, and selectable feature catalogue — so the Moon Viewer is the most detailed entry in a much larger family.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">Every moon with mapped surface locations</p>
+                <p class="lunar-roster-intro">Twenty-four moons across the solar system are rendered with individually-catalogued, clickable surface features in GeoID Explorer. Counts are the number of IAU-recognised features currently mapped in each viewer.</p>
+                <div class="lunar-roster">
+                  <div class="lunar-roster-system">
+                    <span class="lunar-roster-parent" data-parent="earth">Earth</span>
+                    <div class="lunar-moon-grid">
+                      <div class="lunar-moon" data-parent="earth"><span class="lunar-moon-name">Moon</span><span class="lunar-moon-count">2,087</span></div>
+                    </div>
+                  </div>
+                  <div class="lunar-roster-system">
+                    <span class="lunar-roster-parent" data-parent="mars">Mars</span>
+                    <div class="lunar-moon-grid">
+                      <div class="lunar-moon" data-parent="mars"><span class="lunar-moon-name">Phobos</span><span class="lunar-moon-count">13</span></div>
+                      <div class="lunar-moon" data-parent="mars"><span class="lunar-moon-name">Deimos</span><span class="lunar-moon-count">2</span></div>
+                    </div>
+                  </div>
+                  <div class="lunar-roster-system">
+                    <span class="lunar-roster-parent" data-parent="jupiter">Jupiter</span>
+                    <div class="lunar-moon-grid">
+                      <div class="lunar-moon" data-parent="jupiter"><span class="lunar-moon-name">Io</span><span class="lunar-moon-count">254</span></div>
+                      <div class="lunar-moon" data-parent="jupiter"><span class="lunar-moon-name">Europa</span><span class="lunar-moon-count">130</span></div>
+                      <div class="lunar-moon" data-parent="jupiter"><span class="lunar-moon-name">Ganymede</span><span class="lunar-moon-count">203</span></div>
+                      <div class="lunar-moon" data-parent="jupiter"><span class="lunar-moon-name">Callisto</span><span class="lunar-moon-count">155</span></div>
+                      <div class="lunar-moon" data-parent="jupiter"><span class="lunar-moon-name">Amalthea</span><span class="lunar-moon-count">4</span></div>
+                    </div>
+                  </div>
+                  <div class="lunar-roster-system">
+                    <span class="lunar-roster-parent" data-parent="saturn">Saturn</span>
+                    <div class="lunar-moon-grid">
+                      <div class="lunar-moon" data-parent="saturn"><span class="lunar-moon-name">Mimas</span><span class="lunar-moon-count">45</span></div>
+                      <div class="lunar-moon" data-parent="saturn"><span class="lunar-moon-name">Enceladus</span><span class="lunar-moon-count">87</span></div>
+                      <div class="lunar-moon" data-parent="saturn"><span class="lunar-moon-name">Tethys</span><span class="lunar-moon-count">60</span></div>
+                      <div class="lunar-moon" data-parent="saturn"><span class="lunar-moon-name">Dione</span><span class="lunar-moon-count">171</span></div>
+                      <div class="lunar-moon" data-parent="saturn"><span class="lunar-moon-name">Rhea</span><span class="lunar-moon-count">237</span></div>
+                      <div class="lunar-moon" data-parent="saturn"><span class="lunar-moon-name">Titan</span><span class="lunar-moon-count">310</span></div>
+                      <div class="lunar-moon" data-parent="saturn"><span class="lunar-moon-name">Hyperion</span><span class="lunar-moon-count">5</span></div>
+                      <div class="lunar-moon" data-parent="saturn"><span class="lunar-moon-name">Iapetus</span><span class="lunar-moon-count">71</span></div>
+                      <div class="lunar-moon" data-parent="saturn"><span class="lunar-moon-name">Phoebe</span><span class="lunar-moon-count">25</span></div>
+                    </div>
+                  </div>
+                  <div class="lunar-roster-system">
+                    <span class="lunar-roster-parent" data-parent="uranus">Uranus</span>
+                    <div class="lunar-moon-grid">
+                      <div class="lunar-moon" data-parent="uranus"><span class="lunar-moon-name">Miranda</span><span class="lunar-moon-count">18</span></div>
+                      <div class="lunar-moon" data-parent="uranus"><span class="lunar-moon-name">Ariel</span><span class="lunar-moon-count">26</span></div>
+                      <div class="lunar-moon" data-parent="uranus"><span class="lunar-moon-name">Umbriel</span><span class="lunar-moon-count">13</span></div>
+                      <div class="lunar-moon" data-parent="uranus"><span class="lunar-moon-name">Titania</span><span class="lunar-moon-count">18</span></div>
+                      <div class="lunar-moon" data-parent="uranus"><span class="lunar-moon-name">Oberon</span><span class="lunar-moon-count">10</span></div>
+                      <div class="lunar-moon" data-parent="uranus"><span class="lunar-moon-name">Puck</span><span class="lunar-moon-count">3</span></div>
+                    </div>
+                  </div>
+                  <div class="lunar-roster-system">
+                    <span class="lunar-roster-parent" data-parent="neptune">Neptune</span>
+                    <div class="lunar-moon-grid">
+                      <div class="lunar-moon" data-parent="neptune"><span class="lunar-moon-name">Triton</span><span class="lunar-moon-count">64</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="new-worlds-image lunar-image">
+            <img src="/assets/earth_moon.png" alt="Earth and Moon system in the GeoID viewer" class="new-worlds-image-img">
+            <div class="new-worlds-tools lunar-tools">
+              <p class="about-col-heading">USGS Unified Geologic Map overlay</p>
+              <img src="/assets/moon_geology.png" alt="Lunar geology overlay shown in the Moon Viewer" class="new-worlds-image-img lunar-tools-img">
+            </div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="about-explorer-section" aria-labelledby="membership-title">
+      <article class="about-explorer-tile membership-tile">
+        <div class="about-explorer-header membership-header">
+          <div class="membership-header-left">
+            <h2 class="about-explorer-title" id="membership-title">Full GeoID Explorer Access</h2>
+          </div>
+          <div class="membership-price-badge">
+            <span class="membership-price">£19.99</span>
+            <span class="membership-period">per year</span>
+          </div>
+        </div>
+        <div class="about-explorer-body">
+          <div class="about-explorer-section-block">
+            <p>Earth and Moon viewers are freely available to everyone — no account needed. An annual GeoID membership unlocks the complete suite of planetary viewers, giving you full access to Mercury, Venus, Mars, Jupiter, Saturn, Uranus, and Neptune alongside the free worlds, together with every scientific layer, guided stop, and moon environment across the entire Explorer platform.</p>
+          </div>
+          <div class="membership-viewer-grid">
+            <div class="membership-viewer-card membership-viewer-card--free">
+              <img class="membership-viewer-icon" src="/assets/earth_icon.png" alt="">
+              <span class="membership-viewer-name">Earth</span>
+              <span class="membership-viewer-tag membership-viewer-tag--free">Free</span>
+            </div>
+            <div class="membership-viewer-card membership-viewer-card--free">
+              <img class="membership-viewer-icon" src="/assets/moon_icon.png" alt="">
+              <span class="membership-viewer-name">Moon</span>
+              <span class="membership-viewer-tag membership-viewer-tag--free">Free</span>
+            </div>
+            <div class="membership-viewer-card membership-viewer-card--member">
+              <img class="membership-viewer-icon" src="/assets/mars_icon.png" alt="">
+              <span class="membership-viewer-name">Mars</span>
+              <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
+            </div>
+            <div class="membership-viewer-card membership-viewer-card--member">
+              <img class="membership-viewer-icon" src="/assets/mercury_icon.png" alt="">
+              <span class="membership-viewer-name">Mercury</span>
+              <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
+            </div>
+            <div class="membership-viewer-card membership-viewer-card--member">
+              <img class="membership-viewer-icon" src="/assets/venus_icon.png" alt="">
+              <span class="membership-viewer-name">Venus</span>
+              <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
+            </div>
+            <div class="membership-viewer-card membership-viewer-card--member">
+              <img class="membership-viewer-icon" src="/assets/jupiter_icon.png" alt="">
+              <span class="membership-viewer-name">Jupiter</span>
+              <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
+            </div>
+            <div class="membership-viewer-card membership-viewer-card--member">
+              <img class="membership-viewer-icon" src="/assets/saturn_icon.png" alt="">
+              <span class="membership-viewer-name">Saturn</span>
+              <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
+            </div>
+            <div class="membership-viewer-card membership-viewer-card--member">
+              <img class="membership-viewer-icon" src="/assets/uranus_icon.png" alt="">
+              <span class="membership-viewer-name">Uranus</span>
+              <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
+            </div>
+            <div class="membership-viewer-card membership-viewer-card--member">
+              <img class="membership-viewer-icon" src="/assets/neptune_icon.png" alt="">
+              <span class="membership-viewer-name">Neptune</span>
+              <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
+            </div>
+          </div>
+          <div class="membership-cta-row">
+            <span class="membership-cta-note">Annual membership · Cancel anytime · Supports the GeoID Initiative</span>
+            <a class="membership-cta-btn" href="/get-involved/">Become a Member</a>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-content">
+          <div class="footer-brand">
+            <div class="footer-brand-logo">
+              <img src="/GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" loading="lazy" decoding="async">
+            </div>
+            <p>Democratizing geohazard science through real-time risk tracking and physics-based modeling. Empowering communities with actionable insights.</p>
+            <p>GeoID is a non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>
+          </div>
+          <div class="footer-section">
+            <h4>Navigation</h4>
+            <ul>
+              <li><a href="/about/">Overview</a></li>
+              <li><a href="/myGeoID/">myGeoID App</a></li>
+              <li><a href="/dashboard/">Dashboard</a></li>
+              <li><a href="/explorer/">Explorer</a></li>
+              <li><a href="/get-involved/">Get Involved</a></li>
+              <li><a href="/team/">Our Team</a></li>
+              <li><a href="/contact/">Contact</a></li>
+            </ul>
+          </div>
+          <div class="footer-section">
+            <h4>Resources</h4>
+            <ul>
+              <li><a href="https://gitlab.com/dgmaths9/gales" target="_blank" rel="noopener">GALES Software</a></li>
+              <li><a href="https://www.copernicus.eu/" target="_blank" rel="noopener">Copernicus Programme</a></li>
+              <li><a href="https://earthdata.nasa.gov/" target="_blank" rel="noopener">NASA Earth Data</a></li>
+              <li><a href="https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs.php" target="_blank" rel="noopener">GFS NOAA API</a></li>
+            </ul>
+          </div>
+          <div class="footer-section">
+            <h4>Legal</h4>
+            <ul>
+              <li><a href="#" onclick="alert('Privacy Policy: GeoID respects your privacy. Contact us for our full privacy policy.'); return false;">Privacy Policy</a></li>
+              <li><a href="#" onclick="alert('Terms of Service: GeoID is provided for informational and research purposes. Contact us for full terms.'); return false;">Terms of Service</a></li>
+              <li><a href="#" onclick="alert('Disclaimer: GeoID provides estimated geohazard risk based on best available scientific methods.'); return false;">Disclaimer</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>&copy; 2025 GeoID Solutions. Led by Owen McCluskey. All rights reserved.</p>
+          <div class="footer-social-links">
+            <a href="mailto:geoid.initiative@gmail.com" class="footer-social-link" aria-label="Email">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+            </a>
+            <a href="https://gitlab.com/dgmaths9/gales" target="_blank" rel="noopener" class="footer-social-link" aria-label="GitLab">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <div class="status-bar" role="status">
+    <div class="status-item"><span class="status-dot"></span>8 Planet Viewers</div>
+    <span class="status-sep">·</span>
+    <div class="status-item"><span class="status-dot"></span>Solar Selector Live</div>
+    <div class="status-spacer"></div>
+    <div class="status-item">GeoID Explorer</div>
+    <span class="status-sep">·</span>
+    <div class="status-item"><span class="status-dot"></span>Mercury Through Pluto Charted</div>
+  </div>
+
+  <script src="/scripts/site.js"></script>
+  <script>
+    const planetContent = {
+      mercury: {
+        title: "Mercury",
+        icon: "/assets/mercury_icon.png",
+        eyebrow: "Inner planet",
+        status: "Viewer live",
+        live: true,
+        route: "/transit/?destination=mercury",
+        launchLabel: "Open Mercury Viewer",
+        secondaryLabel: "Mercury Transit",
+        secondaryHref: "transit.html?destination=mercury",
+        colors: ["#c7b8a3", "#6d6259"],
+        ring: false,
+        copy: "Mercury is the smallest and innermost planet, a dark iron-rich world covered in craters, giant impact basins, and long cliffs formed as the planet cooled and contracted over time.",
+        tags: ["Impact basins", "Crustal scarps", "Solar exposure"],
+        facts: [
+          ["Why it matters", "Mercury offers a compact, high-contrast record of bombardment and planetary cooling."],
+          ["Best for", "Comparing crater saturation and tectonic compression against the Moon and Mars."]
+        ]
+      },
+      venus: {
+        title: "Venus",
+        icon: "/assets/venus_icon.png",
+        eyebrow: "Inner planet",
+        status: "Viewer live",
+        live: true,
+        route: "/transit/?destination=venus",
+        launchLabel: "Open Venus Viewer",
+        secondaryLabel: "Venus Transit",
+        secondaryHref: "transit.html?destination=venus",
+        colors: ["#e6c48e", "#9e6f3f"],
+        ring: false,
+        copy: "Venus is a dense, cloud-shrouded planet with extreme surface heat, vast volcanic plains, deformed highlands, and a rocky landscape hidden beneath its thick carbon dioxide atmosphere.",
+        tags: ["Radar maps", "Volcanism", "Resurfacing"],
+        facts: [
+          ["Why it matters", "Venus turns navigation into interpretation because the surface must be understood through mapped radar data."],
+          ["Best for", "Teaching how observation method changes what a planet looks like and how it is read."]
+        ]
+      },
+      earth: {
+        title: "Earth",
+        icon: "/assets/earth_icon.png",
+        eyebrow: "Reference world",
+        status: "Viewer live",
+        live: true,
+        route: "/transit/?destination=earth",
+        launchLabel: "Open Earth Viewer",
+        secondaryLabel: "Data & Hazards",
+        secondaryHref: "data.html",
+        colors: ["#4fb4e7", "#1d5d3d"],
+        ring: false,
+        copy: "Earth is a dynamic ocean world with active plate tectonics, a breathable atmosphere, liquid water at the surface, and the only known biosphere in the solar system.",
+        tags: ["Reference world", "Plate tectonics", "Climate systems"],
+        facts: [
+          ["Why it matters", "Earth contextualises planetary differences by grounding users in known geology and active processes."],
+          ["Best for", "Comparative lessons that move from the familiar to the alien."]
+        ]
+      },
+      mars: {
+        title: "Mars",
+        icon: "/assets/mars_icon.png",
+        eyebrow: "Surface explorer",
+        status: "Viewer live",
+        live: true,
+        route: "/transit/?destination=mars",
+        launchLabel: "Open Mars Viewer",
+        secondaryLabel: "Mars Transit",
+        secondaryHref: "transit.html?destination=mars",
+        colors: ["#d78a53", "#7d3422"],
+        ring: false,
+        copy: "Mars is a cold desert planet shaped by ancient volcanoes, enormous canyons, dust-covered plains, polar ice, and the long geological record of a world that once held flowing water.",
+        tags: ["Surface geology", "Topography", "Moon viewer"],
+        facts: [
+          ["Why start here", "Mars is the most mature learning path in the system, with stacked datasets that reward guided exploration."],
+          ["Best for", "Terrain interpretation, geologic unit discovery, and linking planetary stories to visible surface evidence."]
+        ]
+      },
+      jupiter: {
+        title: "Jupiter",
+        icon: "/assets/jupiter_icon.png",
+        eyebrow: "Gas giant",
+        status: "Viewer live",
+        live: true,
+        route: "/transit/?destination=jupiter",
+        launchLabel: "Open Jupiter Viewer",
+        secondaryLabel: "Jupiter Transit",
+        secondaryHref: "transit.html?destination=jupiter",
+        colors: ["#dbc197", "#8f6038"],
+        ring: false,
+        copy: "Jupiter is the largest planet in the solar system, a giant world of turbulent cloud bands, immense storms like the Great Red Spot, and a powerful gravity field that dominates its moon system.",
+        tags: ["Atmospheric bands", "Storm systems", "Moon system"],
+        facts: [
+          ["Why it matters", "Jupiter reframes exploration around motion, scale, and planetary systems rather than solid ground."],
+          ["Best for", "Understanding giant-planet weather and comparative moon environments."]
+        ]
+      },
+      saturn: {
+        title: "Saturn",
+        icon: "/assets/saturn_icon.png",
+        eyebrow: "Ring system",
+        status: "Viewer live",
+        live: true,
+        route: "/transit/?destination=saturn",
+        launchLabel: "Open Saturn Viewer",
+        secondaryLabel: "Saturn Transit",
+        secondaryHref: "transit.html?destination=saturn",
+        colors: ["#efd2a4", "#9a7147"],
+        ring: true,
+        copy: "Saturn is a gas giant known for its bright ring system, pale banded atmosphere, low density, and a complex family of moons orbiting through an immense planetary environment.",
+        tags: ["Rings", "Atmosphere", "Moon viewer"],
+        facts: [
+          ["Why start here", "Saturn extends the GeoID format beyond rocky terrain and into system-scale exploration."],
+          ["Best for", "Comparing giant-planet atmosphere, ring structure, and moon-by-moon navigation."]
+        ]
+      },
+      uranus: {
+        title: "Uranus",
+        icon: "/assets/uranus_icon.png",
+        eyebrow: "Ice giant",
+        status: "Viewer live",
+        live: true,
+        route: "/transit/?destination=uranus",
+        launchLabel: "Open Uranus Viewer",
+        secondaryLabel: "Uranus Transit",
+        secondaryHref: "transit.html?destination=uranus",
+        colors: ["#b9ecff", "#5a9cb9"],
+        ring: false,
+        copy: "Uranus is an ice giant tipped dramatically on its side, with a pale blue-green atmosphere, faint rings, deep cold, and seasons unlike any other major planet.",
+        tags: ["Extreme tilt", "Seasonal cycles", "Ice giant"],
+        facts: [
+          ["Why it matters", "Uranus introduces a planetary geometry that immediately changes how users think about orientation and sunlight."],
+          ["Best for", "Teaching orbital context and long-duration seasonal behaviour."]
+        ]
+      },
+      neptune: {
+        title: "Neptune",
+        icon: "/assets/neptune_icon.png",
+        eyebrow: "Ice giant",
+        status: "Viewer live",
+        live: true,
+        route: "/transit/?destination=neptune",
+        launchLabel: "Open Neptune Viewer",
+        secondaryLabel: "Neptune Transit",
+        secondaryHref: "transit.html?destination=neptune",
+        colors: ["#5994ff", "#264e9d"],
+        ring: false,
+        copy: "Neptune is a distant ice giant with a deep blue atmosphere, powerful winds, dark storms, faint rings, and an energetic weather system despite its great distance from the Sun.",
+        tags: ["Fast winds", "Outer system", "Ice giant"],
+        facts: [
+          ["Why it matters", "Neptune turns distance into a design strength by making the far outer system part of the same atlas."],
+          ["Best for", "Comparative outer-planet learning and atmospheric extremes."]
+        ]
+      },
+      pluto: {
+        title: "Pluto",
+        icon: "/assets/pluto_icon.png",
+        eyebrow: "Dwarf planet",
+        status: "Viewer live",
+        live: true,
+        route: "/transit/?destination=pluto",
+        launchLabel: "Open Pluto Viewer",
+        secondaryLabel: "Pluto Transit",
+        secondaryHref: "transit.html?destination=pluto",
+        colors: ["#c39b72", "#7a5c3a"],
+        ring: false,
+        copy: "Pluto is a distant dwarf planet at the edge of the solar system, with a nitrogen-ice heart, rugged mountain ranges of water ice, and a surface shaped by exotic ices far from the Sun.",
+        tags: ["Tombaugh Regio", "Nitrogen ice", "Kuiper Belt"],
+        facts: [
+          ["Why it matters", "Pluto extends the atlas to the Kuiper Belt, showing how planetary bodies form and evolve at extreme distances from the Sun."],
+          ["Best for", "Teaching about dwarf planets, icy worlds, and the outer reaches of the solar system."]
+        ]
+      }
+    };
+
+    const solarViewPanel = document.getElementById("solar-view-panel");
+    const planetButtons = Array.from(document.querySelectorAll(".planet-node[data-planet]"));
+    const planetLabels = new Map(Array.from(document.querySelectorAll("[data-label]")).map((node) => [node.dataset.label, node]));
+    const orbitRings = Array.from(document.querySelectorAll(".orbit-ring"));
+    const solarStage = document.querySelector(".solar-stage");
+    const orbitKeys = ["mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
+
+    // ── Orbital model ─────────────────────────────────────────────────────────
+    // Semi-major axes (AU) from NASA JPL mean elements
+    const AU_SMA = {
+      mercury: 0.38710, venus: 0.72333, earth: 1.00000, mars: 1.52366,
+      jupiter: 5.20336, saturn: 9.53707, uranus: 19.1913, neptune: 30.0690,
+      pluto: 39.4817
+    };
+
+    // Orbit radii use a sqrt(AU) compression so inner/outer are both visible.
+    // Normalised to Pluto's orbit so all planets fit within the stage.
+    const _sqrtOuter = Math.sqrt(AU_SMA.pluto);
+    const ORBIT_R = Object.fromEntries(
+      Object.entries(AU_SMA).map(([k, v]) => [k, (Math.sqrt(v) / _sqrtOuter) * 0.88])
+    );
+
+    // J2000.0 mean longitudes (°) and daily motion (°/day) — IAU VSOP87 truncated
+    const J2000 = {
+      mercury: { L0: 252.250, n: 4.092339 },
+      venus:   { L0: 181.980, n: 1.602130 },
+      earth:   { L0: 100.464, n: 0.985609 },
+      mars:    { L0: 355.433, n: 0.524039 },
+      jupiter: { L0:  34.396, n: 0.083092 },
+      saturn:  { L0:  49.944, n: 0.033460 },
+      uranus:  { L0: 313.232, n: 0.011733 },
+      neptune: { L0: 304.880, n: 0.005980 },
+      pluto:   { L0: 238.929, n: 0.003975 }
+    };
+
+    // Days elapsed since J2000.0 epoch (1 Jan 2000, 12:00 TT)
+    const J2000_EPOCH_MS = Date.UTC(2000, 0, 1, 12, 0, 0);
+    function daysSinceJ2000() { return (Date.now() - J2000_EPOCH_MS) / 86400000; }
+
+    // Compute current mean heliocentric longitudes (radians) for today's date
+    function computeAngles() {
+      const t = daysSinceJ2000();
+      const out = {};
+      for (const [key, el] of Object.entries(J2000)) {
+        let deg = (el.L0 + el.n * t) % 360;
+        if (deg < 0) deg += 360;
+        out[key] = deg * Math.PI / 180;
+      }
+      return out;
+    }
+
+    // Stamp the overlay with today's date
+    const dateEl = document.getElementById("orrery-date");
+    if (dateEl) {
+      dateEl.textContent = new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+    }
+
+    // ── Layout ────────────────────────────────────────────────────────────────
+    let activePlanet = "mars";
+
+    function clampIndex(index) {
+      return Math.max(0, Math.min(index, orbitKeys.length - 1));
+    }
+
+    function updateFocus(key) {
+      const c = planetContent[key];
+      if (!c) return;
+      activePlanet = key;
+      planetButtons.forEach((button) => {
+        button.classList.toggle("is-selected", button.dataset.planet === key);
+      });
+    }
+
+    // Oblique projection: y-radii are compressed by this factor relative to x-radii
+    const OBLIQUE_Y = 0.42;
+
+
+    function positionPlanets() {
+      if (!solarStage) return;
+      const rect  = solarStage.getBoundingClientRect();
+      const cx    = rect.width  * 0.5;
+      const cy    = rect.height * 0.48;   // offset centre — system recedes upward
+      const maxRx = cx * 0.88;            // x-radius of outermost orbit
+
+      // Size orbit rings as ellipses (oblique projection)
+      orbitKeys.forEach((key, i) => {
+        const ring = orbitRings[i];
+        if (!ring) return;
+        const rx = maxRx * ORBIT_R[key];
+        ring.style.width  = `${rx * 2}px`;
+        ring.style.height = `${rx * OBLIQUE_Y * 2}px`;
+      });
+
+      const angles = computeAngles();
+
+      planetButtons.forEach((button) => {
+        const key = button.dataset.planet;
+        if (!(key in ORBIT_R)) return;
+
+        const angle = angles[key];
+        const rx    = maxRx * ORBIT_R[key];
+        const ry    = rx * OBLIQUE_Y;
+        // Oblique: x is unchanged, y is compressed and screen-y is inverted
+        const x = cx + rx * Math.cos(angle);
+        const y = cy - ry * Math.sin(angle);
+
+        // sin > 0 = front (below centre in oblique view) = larger + brighter
+        const sinA    = Math.sin(angle);
+        const t       = (sinA + 1) * 0.5;                          // 0 = back, 1 = front
+        const scale   = (0.82 + t * 0.22).toFixed(3);
+        const opacity = (0.60 + t * 0.36).toFixed(2);
+        const zIndex  = String(Math.round(4 + t * 22));
+
+        button.style.left      = `${x}px`;
+        button.style.top       = `${y}px`;
+        button.style.zIndex    = zIndex;
+        button.style.opacity   = opacity;
+        button.style.transform = `translate(-50%, -50%) scale(${scale})`;
+
+        const iconEl   = button.querySelector(".planet-icon");
+        const iconHalf = (iconEl?.offsetWidth || 28) * parseFloat(scale) / 2;
+        const label    = planetLabels.get(key);
+        if (label) {
+          label.style.left    = `${x}px`;
+          label.style.top     = `${y - iconHalf - 10}px`;
+          label.style.opacity = (0.80 + t * 0.18).toFixed(2);
+          label.style.zIndex  = String(parseInt(zIndex) + 1);
+        }
+      });
+    }
+
+    // Lazy lookup: the popup HTML is rendered after this <script> block, so
+    // a one-shot getElementById here returns null. Re-query on demand instead.
+    function getEarthDestPopup() {
+      return document.getElementById("earth-dest-popup");
+    }
+    let earthPopupOpen = false;
+
+    function closeEarthPopup() {
+      const earthDestPopup = getEarthDestPopup();
+      if (earthDestPopup) earthDestPopup.hidden = true;
+      earthPopupOpen = false;
+    }
+
+    function openEarthPopup(earthButton) {
+      const earthDestPopup = getEarthDestPopup();
+      if (!earthDestPopup) return;
+      // Use fixed positioning against viewport so overflow:hidden on solar-stage doesn't clip it
+      const btnRect = earthButton.getBoundingClientRect();
+      const popupW = 224; // approx min-width in px
+      let left = btnRect.left + btnRect.width / 2 - popupW / 2;
+      // Keep within viewport horizontally
+      left = Math.max(8, Math.min(left, window.innerWidth - popupW - 8));
+      // Position above button; if too close to top, flip below
+      const spaceAbove = btnRect.top - 12;
+      const top = spaceAbove > 120
+        ? btnRect.top - 12   // will be shifted up by JS after paint
+        : btnRect.bottom + 8;
+      earthDestPopup.style.left = left + "px";
+      earthDestPopup.style.top  = top + "px";
+      earthDestPopup.hidden = false;
+      // After render, shift upward by popup height when placed above
+      if (spaceAbove > 120) {
+        requestAnimationFrame(() => {
+          const h = earthDestPopup.offsetHeight;
+          earthDestPopup.style.top = (btnRect.top - h - 12) + "px";
+        });
+      }
+      earthPopupOpen = true;
+    }
+
+    planetButtons.forEach((button) => {
+      const key = button.dataset.planet;
+      button.addEventListener("mouseenter", () => updateFocus(key));
+      button.addEventListener("focus", () => updateFocus(key));
+      button.addEventListener("click", (event) => {
+        const c = planetContent[key];
+        updateFocus(key);
+        if (key === "earth") {
+          event.stopPropagation();
+          if (earthPopupOpen) {
+            closeEarthPopup();
+          } else {
+            openEarthPopup(button);
+          }
+          return;
+        }
+        closeEarthPopup();
+        if (c && c.live && c.route) {
+          window.location.href = c.route;
+        } else {
+          event.preventDefault();
+        }
+      });
+    });
+
+    // Close popup when clicking outside
+    document.addEventListener("click", (e) => {
+      const earthDestPopup = getEarthDestPopup();
+      if (earthPopupOpen && earthDestPopup && !earthDestPopup.contains(e.target)) {
+        closeEarthPopup();
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && earthPopupOpen) closeEarthPopup();
+    });
+
+    document.addEventListener("keydown", (event) => {
+      const target = event.target;
+      if (target instanceof HTMLElement) {
+        const tag = target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) {
+          return;
+        }
+      }
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        updateFocus(orbitKeys[clampIndex(orbitKeys.indexOf(activePlanet) - 1)]);
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        updateFocus(orbitKeys[clampIndex(orbitKeys.indexOf(activePlanet) + 1)]);
+      }
+    });
+
+    if (solarViewPanel) solarViewPanel.hidden = false;
+    updateFocus("mars");
+    positionPlanets();
+    window.addEventListener("resize", () => {
+      positionPlanets();
+    });
+  </script>
+<div id="earth-dest-popup" class="earth-dest-popup" hidden role="dialog" aria-label="Choose Earth or Moon">
+  <p class="earth-dest-popup-title">Choose destination</p>
+  <a class="earth-dest-option" href="/myGeoID/">
+    <img src="/assets/earth_icon.png" alt="Earth">
+    <span class="earth-dest-option-text">
+      <span class="earth-dest-option-name">myGeoID</span>
+      <span class="earth-dest-option-sub">Earth hazard &amp; geoscience viewer</span>
+    </span>
+  </a>
+  <a class="earth-dest-option" href="/transit/?destination=moon">
+    <img src="/assets/moon_icon.png" alt="Moon">
+    <span class="earth-dest-option-text">
+      <span class="earth-dest-option-name">Moon Explorer</span>
+      <span class="earth-dest-option-sub">Lunar surface &amp; interior viewer</span>
+    </span>
+  </a>
+</div>
+<script src="/styles/nav.js" defer></script>
+</body>
+</html>

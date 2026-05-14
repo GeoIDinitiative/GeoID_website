@@ -1141,8 +1141,8 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         depth: "50 – ~1,700 km depth",
         composition: "Iron-rich peridotite and pyroxenite. More Fe-rich than Earth's mantle, but many shallow-to-mid mantle source regions are thought to be melt-depleted after long-term volcanic extraction; only localized deeper domains may still retain enough heat and volatiles for partial melting.",
         temperature: "~1,000°C near crust → ~1,500°C near core",
-        labelX: -2.2, labelY: 2.2,
-        anchorY: 2.2,
+        labelX: -2.2, labelY: 2.78,
+        anchorY: 2.78,
       },
       {
         id: "outer-core",
@@ -1152,8 +1152,8 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         depth: "~1,700 km depth to centre (~1,830 km radius)",
         composition: "Liquid iron-sulfur alloy with O, H, and C. High sulfur content depresses the melting point.",
         temperature: "~1,400 – 2,200°C",
-        labelX: -1.6, labelY: 1.25,
-        anchorY: 1.25,
+        labelX: -1.6, labelY: 1.95,
+        anchorY: 1.95,
       },
       {
         id: "inner-core",
@@ -1163,7 +1163,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         depth: "0 – ~300 km from centre (estimated)",
         composition: "Possibly denser iron-nickel alloy, or fully molten. State and exact composition remain unknown.",
         temperature: "~2,000 – 2,400°C (estimated)",
-        labelX: -1.0, labelY: 0,
+        labelX: 0, labelY: 0,
         anchorY: 0,
       },
     ];

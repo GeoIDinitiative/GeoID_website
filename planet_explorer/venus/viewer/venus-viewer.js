@@ -10527,20 +10527,32 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       // Touch pinch-to-zoom — feeds into the same zoom logic as the mouse wheel
       {
         let _pinchDist = null;
+        // Pinch zoom must run non-passively so we can preventDefault on the
+        // 2-finger touchmove. Without it the browser also performs a native
+        // pinch-zoom on the page, producing the "two zooms fighting" bug on
+        // mobile. CSS adds `touch-action: none` on the canvas as a backstop.
         renderer.domElement.addEventListener("touchstart", (e) => {
-          _pinchDist = e.touches.length === 2
-            ? Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
-            : null;
-        }, { passive: true });
+          if (e.touches.length === 2) {
+            _pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            e.preventDefault();
+          } else {
+            _pinchDist = null;
+          }
+        }, { passive: false });
         renderer.domElement.addEventListener("touchmove", (e) => {
-          if (e.touches.length !== 2 || _pinchDist === null) return;
+          if (e.touches.length !== 2) return;
+          e.preventDefault();
+          if (_pinchDist === null) {
+            _pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            return;
+          }
           const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
           const delta = (_pinchDist - dist) * 2.2;
           if (Math.abs(delta) > 0.5) {
             handleSurfaceWheelZoom({ deltaY: delta, preventDefault: () => {} });
             _pinchDist = dist;
           }
-        }, { passive: true });
+        }, { passive: false });
         renderer.domElement.addEventListener("touchend", () => { _pinchDist = null; }, { passive: true });
       }
 

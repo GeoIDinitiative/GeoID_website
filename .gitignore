@@ -17,3 +17,8 @@ planet_explorer/.~lock.*
 moon.jpg
 music/
 *.orig
+
+# USGS raw shapefiles (297 MB, exceeds GitHub's 100MB-per-file limit).
+# Only the generated PNG + JSON in the parent assets/ folder are needed
+# at runtime. Re-download from USGS Astrogeology if you need to rebuild.
+planet_explorer/moon/viewer/assets/geology/Unified_Geologic_Map_of_the_Moon_GIS_v2/

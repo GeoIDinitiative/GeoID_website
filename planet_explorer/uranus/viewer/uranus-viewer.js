@@ -917,12 +917,12 @@
       if (activeMoonViewerFeature) {
         const moonMesh = moonMeshMap ? moonMeshMap.get(activeMoonViewerFeature.name) : null;
         if (moonMesh) {
-          // world → marsGroup local
           direction.transformDirection(marsGroup.matrixWorld.clone().invert());
-          // marsGroup local → moon mesh local (removes orbital pos + tidal-locking rotation.y)
           direction.transformDirection(moonMesh.matrix.clone().invert());
-          // vectorToLatLon on the mesh-local direction gives lon in the texture's left-edge CRS.
         }
+      } else {
+        direction.transformDirection(marsGroup.matrixWorld.clone().invert());
+        direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), -(globe.rotation.y - Math.PI));
       }
       const latLon = vectorToLatLon(direction);
       if (hemisphereLocatorReadout) {
@@ -1014,7 +1014,7 @@
         depth: "Cloud tops through upper troposphere",
         composition: "Hydrogen and helium with methane ice clouds and photochemical haze.",
         temperature: "~55–80 K near the visible cloud deck",
-        labelX: -1.80, labelY: 3.12,
+        labelX: -2.5, labelY: 3.12,
         anchorY: 3.12,
       },
       {
@@ -1025,7 +1025,7 @@
         depth: "Below the visible cloud deck to the mantle boundary",
         composition: "Molecular hydrogen and helium with methane, ammonia, and water vapour at depth.",
         temperature: "Rises from cloud-deck temperatures to thousands of kelvin at depth",
-        labelX: -1.80, labelY: 2.72,
+        labelX: -2.5, labelY: 2.72,
         anchorY: 2.72,
       },
       {
@@ -1036,7 +1036,7 @@
         depth: "Mid-interior from the base of the atmosphere to the rocky core",
         composition: "Water, ammonia, and methane ices in a highly compressed ionic fluid.",
         temperature: "Thousands of kelvin under extreme pressure",
-        labelX: -1.80, labelY: 1.44,
+        labelX: -2.5, labelY: 1.44,
         anchorY: 1.44,
       },
       {
@@ -1047,7 +1047,7 @@
         depth: "Central region",
         composition: "Silicate rocks, iron, and nickel under extreme pressure.",
         temperature: "Hot dense interior; model dependent",
-        labelX: -1.80, labelY: 0,
+        labelX: -2.5, labelY: 0,
         anchorY: 0,
       },
     ];
@@ -6205,20 +6205,32 @@
       // Touch pinch-to-zoom — feeds into the same zoom logic as the mouse wheel
       {
         let _pinchDist = null;
+        // Pinch zoom must run non-passively so we can preventDefault on the
+        // 2-finger touchmove. Without it the browser also performs a native
+        // pinch-zoom on the page, producing the "two zooms fighting" bug on
+        // mobile. CSS adds `touch-action: none` on the canvas as a backstop.
         renderer.domElement.addEventListener("touchstart", (e) => {
-          _pinchDist = e.touches.length === 2
-            ? Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY)
-            : null;
-        }, { passive: true });
+          if (e.touches.length === 2) {
+            _pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            e.preventDefault();
+          } else {
+            _pinchDist = null;
+          }
+        }, { passive: false });
         renderer.domElement.addEventListener("touchmove", (e) => {
-          if (e.touches.length !== 2 || _pinchDist === null) return;
+          if (e.touches.length !== 2) return;
+          e.preventDefault();
+          if (_pinchDist === null) {
+            _pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+            return;
+          }
           const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
           const delta = (_pinchDist - dist) * 2.2;
           if (Math.abs(delta) > 0.5) {
             handleSurfaceWheelZoom({ deltaY: delta, preventDefault: () => {} });
             _pinchDist = dist;
           }
-        }, { passive: true });
+        }, { passive: false });
         renderer.domElement.addEventListener("touchend", () => { _pinchDist = null; }, { passive: true });
       }
 
@@ -8601,6 +8613,7 @@
         moonViewerToggle.addEventListener("change", () => {
           if (moonViewerToggle.checked) {
             if (moonViewerSection) moonViewerSection.open = true;
+            setTimeout(() => moonViewerSection?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
             const first = moonData[0] || null;
             if (first) {
               moveCameraToFeature(first, camera, controls);
@@ -8821,7 +8834,7 @@
           if (surfaceHit) {
             const latLon = surfaceHit.context
               ? { lat: surfaceHit.lat, lon: surfaceHit.lon }
-              : vectorToLatLon(surfaceHit.point);
+              : vectorToLatLon(labelLayer.group.worldToLocal(surfaceHit.point.clone()));
             cursorReadout.hidden = false;
             const _isMoonHit = surfaceHit.context?.kind === "moon";
             const _lonStr = _isMoonHit

@@ -14,7 +14,7 @@
   <link rel="stylesheet" href="styles.css?v=20260512-uranus">
   <style>html,body{background:#000;margin:0}</style>
 </head>
-<body>
+<body class="viewer-page">
   <div id="app"></div>
   <section id="ui">
     <div class="brand-toprow">
@@ -24,6 +24,7 @@
         <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel">‹</button>
       </div>
     </div>
+    <div id="ui-scroll-body">
     <div class="viewer-info" id="viewer-info">
       <p>Drag to orbit, scroll to zoom, and inspect Uranus as a textured 3D globe with its tilted ring system, major moons, and optional atmospheric context layers.</p>
     </div>
@@ -137,11 +138,11 @@
             <span class="checkbox-wrap"><input id="landing-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
-            <label for="tectonic-labels-toggle" style="color: #b87333;">Canyons &amp; ridges</label>
+            <label for="tectonic-labels-toggle" style="color: #b87333;">Tectonic, Canyon and Ridge features</label>
             <span class="checkbox-wrap"><input id="tectonic-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
-            <label for="fluvial-labels-toggle" style="color: #2d78e0;">Albedo features</label>
+            <label for="fluvial-labels-toggle" style="color: #2d78e0;">Fluvial</label>
             <span class="checkbox-wrap"><input id="fluvial-labels-toggle" type="checkbox" checked></span>
           </div>
           <div class="row">
@@ -411,8 +412,9 @@
     </div>
     </div>
     <p class="status" id="status">© 2026 GeoID: Explorer. GeoID Solutions, led by Owen McCluskey. All rights reserved.</p>
+    </div>
   </section>
-  <a class="hub-link" href="../../../html/explorer.html" target="_top" rel="home">Return Home</a>
+  <a class="hub-link" href="/explorer/" target="_top" rel="home">Return Home</a>
 
   <button id="nav-tab" aria-label="Open Control Centre">Open Control Centre &nbsp;›</button>
   <button id="toolbar-tab" aria-label="Expand measure toolbox">TOOLS &nbsp;‹</button>
