@@ -1,11 +1,11 @@
 const manifest = {
   "texture": {
-    "path": "assets/pluto_color.jpg",
+    "path": "assets/pluto_color.jpg?v=1778680838",
     "width": 4096,
     "source_page_url": "https://astrogeology.usgs.gov/search/map/pluto_new_horizons_global_mosaic_300m"
   },
   "elevation": {
-    "path": "assets/pluto_elevation.png",
+    "path": "assets/pluto_elevation.png?v=1778619309",
     "width": 2048,
     "min_m": -4101.0,
     "max_m": 6491.0,
@@ -29,7 +29,7 @@ const manifest = {
     {
       "id": "nh-color",
       "label": "NH Color Mosaic",
-      "path": "assets/pluto_color.jpg",
+      "path": "assets/pluto_color.jpg?v=1778680838",
       "description": "New Horizons LORRI/Ralph enhanced-color global mosaic of Pluto.",
       "source_page_url": "https://astrogeology.usgs.gov/search/map/pluto_new_horizons_global_mosaic_300m",
       "default": true
@@ -37,7 +37,7 @@ const manifest = {
     {
       "id": "derived-hillshade",
       "label": "Hillshade",
-      "path": "assets/pluto_hillshade.jpg",
+      "path": "assets/pluto_hillshade.jpg?v=1778619281",
       "description": "Derived hillshade generated from the New Horizons global Pluto topography model.",
       "source_page_url": "https://astrogeology.usgs.gov/search/map/pluto_new_horizons_digital_elevation_model",
       "texture_offset_x": 0.0,
@@ -46,7 +46,7 @@ const manifest = {
     {
       "id": "derived-slope",
       "label": "Slope",
-      "path": "assets/pluto_slope.jpg",
+      "path": "assets/pluto_slope.jpg?v=1778619281",
       "description": "Derived slope basemap generated from the New Horizons global Pluto topography model.",
       "source_page_url": "https://astrogeology.usgs.gov/search/map/pluto_new_horizons_digital_elevation_model",
       "texture_offset_x": 0.0,
