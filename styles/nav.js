@@ -1,34 +1,15 @@
 (function () {
-  const nav    = document.querySelector('.site-nav');
-  const toggle = document.querySelector('.nav-toggle');
-  if (!nav || !toggle) return;
+  // ─────────────────────────────────────────────────────────────────────
+  // Note: the hamburger toggle, dropdown toggles, document-tap-outside
+  // handler, and mobile link-close handler are owned by /scripts/site.js.
+  // Don't duplicate them here — when both scripts attached click handlers
+  // to the same .nav-toggle, every tap fired both, instantly toggling the
+  // .is-open class on and then off in the same gesture, so the menu
+  // never opened.
+  // This file's only remaining job is the Sign-In data-action router.
+  // ─────────────────────────────────────────────────────────────────────
 
-  function open()  { nav.classList.add('is-open');    toggle.setAttribute('aria-expanded', 'true'); }
-  function close() { nav.classList.remove('is-open'); toggle.setAttribute('aria-expanded', 'false'); }
-
-  toggle.addEventListener('click', () => nav.classList.contains('is-open') ? close() : open());
-
-  // Tap outside to close
-  document.addEventListener('click', (e) => { if (!nav.contains(e.target)) close(); });
-
-  // Dropdown toggles on mobile
-  nav.querySelectorAll('.nav-dropdown-toggle').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      if (window.innerWidth > 980) return;
-      e.preventDefault();
-      const dd = btn.closest('.nav-dropdown');
-      const wasOpen = dd.classList.contains('is-open');
-      nav.querySelectorAll('.nav-dropdown').forEach((d) => d.classList.remove('is-open'));
-      if (!wasOpen) dd.classList.add('is-open');
-    });
-  });
-
-  // Close on link click (mobile only)
-  nav.querySelectorAll('.nav-links a:not(.nav-dropdown-toggle)').forEach((a) => {
-    a.addEventListener('click', () => { if (window.innerWidth <= 980) close(); });
-  });
-
-  // ── Membership Sign-In handler ─────────────────────────────────────────────
+  // ── Membership Sign-In handler ─────────────────────────────────────────
   // Any element with [data-action="sign-in"] (e.g. the nav Sign In button)
   // routes to /sign-in/ with the current page as the return target.
   document.addEventListener('click', (e) => {
