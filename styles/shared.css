@@ -1440,3 +1440,72 @@ img { max-width: 100%; height: auto; }
   .solar-stage .orrery-features { display: none; }
   .solar-stage .orrery-brand-desc { display: none; }
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   GLOBAL FLUID SCALING (added 2026-05-15)
+   ─────────────────────────────────────────
+   Stops the whack-a-mole on per-page sizing. Three changes:
+
+   1. Fluid root font-size — every rem-based dimension on the site
+      shrinks proportionally on narrow viewports. 16 px on desktop,
+      14 px floor on phones.
+   2. Universal text-wrap + overflow safety — long words / inline
+      content never escape their container, no horizontal scroll.
+   3. Forced stacking — multi-column flex/grid widgets with explicit
+      pixel widths on each column are reset to flex-wrap on narrow
+      so children stack instead of crashing into each other.
+   ────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 980px) {
+  :root {
+    font-size: clamp(13.5px, 3.6vw, 16px);
+  }
+}
+
+/* Universal text-wrap safety: text always wraps inside its container,
+   even if it has a long URL / unbroken token. Prevents horizontal scroll
+   caused by a single oversized word pushing the layout. */
+*, *::before, *::after {
+  overflow-wrap: anywhere;
+}
+
+/* But not for elements that need to keep their own layout integrity */
+.nav-toggle, .nav-act, .pv-dot, .planet-nav-arrow, .news-nav-btn,
+.btn-primary, .btn-ghost, .btn-secondary, .viewer-link, .space-pill,
+[class*="-chip"], [class*="-pill"], [class*="-tag"],
+.pv-btn, .nav-links > li > a {
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+/* Containers: never overflow their parent horizontally. */
+@media (max-width: 720px) {
+  /* Any common slide-like / row-like container that uses explicit
+     pixel widths or rem widths on children — force wrap. */
+  [class*="-row"]:not(.news-row):not(.nav-links),
+  [class*="-grid"]:not([class*="-row"]),
+  [class*="-actions"],
+  [class*="-stats"],
+  [class*="-pills"],
+  [class*="-features"],
+  [class*="-cards"]:not(.planet-cards),
+  [class*="-buttons"] {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  /* Flex children commonly forget `min-width: 0`, which prevents them
+     from shrinking below their content's intrinsic width — causing
+     overflow. Set a sensible default at narrow widths. */
+  [class*="-content"], [class*="-copy"], [class*="-text"],
+  [class*="-body"], [class*="-info"], [class*="-meta"],
+  .slide-mygeoid-content, .slide-mission-content, .planet-card-stack {
+    min-width: 0 !important;
+  }
+
+  /* Images inside narrow containers can't exceed their parent. */
+  img:not([class*="logo"]):not([class*="icon"]) {
+    max-width: 100%;
+    height: auto;
+  }
+}
