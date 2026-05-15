@@ -1139,19 +1139,23 @@
         position: relative;
         min-height: 18rem;
       }
-      /* Planet card media: desktop uses transform: scale(1.1) on the
-         img inside an overflow: hidden container. Fine when the card is
-         24 rem wide; clips the top of the planet on a 16 rem mobile
-         card. Cap scale at 1 so the icon always fits. */
-      .planet-card-media img { transform: scale(1) !important; }
-      .planet-card-stack[data-card="jupiter"] .planet-card-media img,
-      .planet-card-stack[data-card="saturn"]  .planet-card-media img,
-      .planet-card-stack[data-card="moon"]    .planet-card-media img,
-      .planet-card-stack[data-card="pluto"]   .planet-card-media img {
-        transform: scale(0.85) !important;   /* per-planet shrinks stay proportional */
+      /* Planet card media on mobile — reset every per-planet desktop
+         padding/scale tweak to ONE consistent rule so the image is
+         centred and never clipped, regardless of which planet.
+         Each planet's icon image already has its own intrinsic
+         aspect ratio; object-fit: contain handles the rest. */
+      .planet-card-media,
+      .planet-card-stack[data-card] .planet-card-media {
+        min-height: 14rem !important;
       }
+      .planet-card-media img,
+      .planet-card-stack[data-card] .planet-card-media img {
+        padding: 1rem !important;          /* even breathing room all sides */
+        transform: none !important;        /* kill desktop scale(1.1) / per-planet scale */
+      }
+      /* Pluto: keep visual proxy of being smaller than its neighbours */
       .planet-card-stack[data-card="pluto"] .planet-card-media img {
-        transform: scale(0.55) !important;   /* dwarf — extra shrink */
+        padding: 2rem !important;
       }
 
       /* Slide dots: enforce 11×11 circle even on touch (shared.css tap-
