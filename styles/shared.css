@@ -1222,8 +1222,13 @@ body {
   padding-left: env(safe-area-inset-left, 0);
   padding-right: env(safe-area-inset-right, 0);
 }
-.site-nav, .nav-shell {
-  padding-top: max(0.6rem, env(safe-area-inset-top, 0));
+/* Grow the nav height by the notch inset instead of squeezing inner padding
+   into a fixed-height box — the latter clipped the hamburger off-screen.
+   --nav-h is read by page layouts elsewhere (e.g. `top: calc(var(--nav-h) + 10px)`),
+   so growing the variable lets every offset rule follow automatically.
+   Keep base value (58 px) consistent with the earlier :root declaration. */
+:root {
+  --nav-h: calc(58px + env(safe-area-inset-top, 0px));
 }
 .site-footer {
   padding-bottom: max(1rem, env(safe-area-inset-bottom, 0));
@@ -1366,11 +1371,16 @@ img { max-width: 100%; height: auto; }
   }
 
   /* Dashboard planet line-up: don't let any of my Tier-3 rules touch the
-     viz container or its absolutely-positioned card stack. */
+     viz container or its absolutely-positioned card stack. Also give the
+     section an explicit mobile height — its desktop layout fills a flex
+     row that doesn't exist on mobile, so without this it collapses to 0. */
   .dash-planet-view, .pv-slides, .pv-slide, .pv-slide-dots,
   .stack-track, .planet-card-stack {
     padding: 0 !important;
     gap: 0 !important;
+  }
+  .dash-planet-view {
+    min-height: min(70dvh, 28rem) !important;
   }
 
   /* Big stacked images that hog vertical space — cap to ~50% viewport. */
