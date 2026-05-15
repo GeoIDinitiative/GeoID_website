@@ -1308,3 +1308,60 @@ img { max-width: 100%; height: auto; }
   /* Tables: stop them blowing past the viewport */
   table { display: block; overflow-x: auto; max-width: 100%; }
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Tier-3 mobile pass (added 2026-05-15) — vertical compaction.
+   Caps oversized padding / gap / min-height on mobile across every page
+   regardless of its bespoke class names.  Uses attribute-substring
+   selectors so we catch class names like .legacy-section, .feature-block,
+   .updates-hero, etc. without needing to know each page's CSS namespace.
+   ────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  /* Compact heroes, sections, panels, cards, blocks, tiles ─ no matter
+     which page-specific prefix they carry. */
+  section, aside, article, header,
+  [class*="-section" i], [class*="section-" i], [class*="-hero" i],
+  [class*="hero-" i], [class*="-panel" i], [class*="-block" i],
+  [class*="-tile" i], [class*="-card" i], [class*="-feature" i],
+  [class*="-cta" i], [class*="cta-" i],
+  .legacy-about section, .legacy-about > *, .legacy-about [class*="block"] {
+    padding-top:    clamp(1.5rem, 6vw, 2.5rem) !important;
+    padding-bottom: clamp(1.5rem, 6vw, 2.5rem) !important;
+    padding-left:   clamp(1rem,   5vw, 1.75rem) !important;
+    padding-right:  clamp(1rem,   5vw, 1.75rem) !important;
+    min-height: 0 !important;
+    gap: clamp(0.75rem, 3vw, 1.5rem) !important;
+  }
+
+  /* Heroes / splash sections that explicitly want viewport height — cap to
+     dvh but never larger than (window height − nav). */
+  [class*="hero" i][class*="fullscreen" i],
+  [class*="splash" i], .hero-fullscreen, .splash-screen {
+    min-height: min(100dvh, calc(100svh - var(--nav-h, 60px))) !important;
+  }
+
+  /* Stop very wide containers from forcing horizontal padding stacks */
+  main, .page-wrap, .container, .content {
+    padding-left:  clamp(0.75rem, 4vw, 1.25rem) !important;
+    padding-right: clamp(0.75rem, 4vw, 1.25rem) !important;
+  }
+
+  /* Grid containers that didn't have an explicit mobile rule — fall to a
+     single readable column with a sane gap. */
+  [class*="grid" i]:not([class*="-row"]) {
+    grid-template-columns: 1fr !important;
+    gap: clamp(0.75rem, 3vw, 1.25rem) !important;
+  }
+
+  /* Big stacked images that hog vertical space — cap to ~50% viewport. */
+  section img:not([class*="logo"]):not([class*="icon"]):not(.no-cap),
+  .hero img, .feature img, .photo-tile img {
+    max-height: 55vh;
+    object-fit: cover;
+  }
+
+  /* Headings: clamp top margin so nothing creates 6rem of dead space above
+     a title on mobile. */
+  h1, h2 { margin-top: clamp(0.5rem, 3vw, 1.5rem) !important; }
+}
