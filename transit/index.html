@@ -125,6 +125,7 @@
 
     .planet-sphere.has-image {
       background: none;
+      box-shadow: none;     /* drop the coloured halo around image-based icons */
       overflow: visible;
     }
 
@@ -133,8 +134,7 @@
       width: 100%;
       height: 100%;
       object-fit: contain;
-      border-radius: 50%;
-      filter: drop-shadow(0 0 24px var(--dest-glow, rgba(215,137,88,0.5)));
+      /* no border-radius — would clip wide icons like Saturn's rings */
     }
 
     /* Hero text */

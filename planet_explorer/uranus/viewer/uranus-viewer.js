@@ -34,6 +34,14 @@
     const tectonicLabelsToggle = document.getElementById("tectonic-labels-toggle");
     const fluvialLabelsToggle = document.getElementById("fluvial-labels-toggle");
     const moonToggle = document.getElementById("moon-toggle");
+    const lodSlider = document.getElementById("lod-slider");
+    const lodValueLabel = document.getElementById("lod-value-label");
+    let currentLodLevel = 5;
+    const LOD_LABELS = ["", "Landmarks only", "Major features", "Standard", "Detailed", "All features"];
+    function syncLodLabel() {
+      if (lodValueLabel) lodValueLabel.textContent = LOD_LABELS[currentLodLevel] || "All features";
+    }
+    syncLodLabel();
     const seismicToggle = document.getElementById("seismic-toggle");
     const locationsMasterToggle = document.getElementById("locations-master-toggle");
     const coreToggle = document.getElementById("core-toggle");
@@ -65,9 +73,9 @@
     const seismicMagnitudeCopy = document.getElementById("seismic-magnitude-copy");
     const seismicTimelineSlider = document.getElementById("seismic-timeline-slider");
     const seismicTimelineReadout = document.getElementById("seismic-timeline-readout");
-    const labelData = [{"name":"North Polar Hood","type":"Polar haze cap","lat":70.0,"lon":20.0,"theme":"polar","description":"A bright polar hood driven by Uranus' extreme 97.77° axial tilt. The pole faces the Sun for 21 consecutive years, creating atmospheric dynamics unique in the solar system."},{"name":"South Polar Region","type":"Polar atmosphere","lat":-70.0,"lon":210.0,"theme":"polar","description":"Uranus' southern polar atmosphere. The planet's 97.77° tilt means each pole endures a 21-year polar night. When Voyager 2 visited in 1986, the south pole faced the Sun."},{"name":"Equatorial Band","type":"Subtle cloud band","lat":0.0,"lon":0.0,"theme":"band","description":"A muted equatorial cloud band visible in enhanced contrast products."},{"name":"Northern Mid-Latitude Band","type":"Cloud band","lat":32.0,"lon":120.0,"theme":"band","description":"A representative northern mid-latitude band where methane haze and cloud contrast vary."},{"name":"Southern Mid-Latitude Band","type":"Cloud band","lat":-32.0,"lon":300.0,"theme":"band","description":"A representative southern band used for tracking subtle atmospheric circulation."},{"name":"North Temperate Belt","type":"Temperate belt","lat":45.0,"lon":60.0,"theme":"band","description":"A northern mid-latitude belt showing subtle banding in methane-sensitive imaging."},{"name":"South Temperate Belt","type":"Temperate belt","lat":-45.0,"lon":240.0,"theme":"band","description":"A southern temperate belt visible in high-contrast atmospheric views."},{"name":"Bright Cloud Complex","type":"Methane cloud complex","lat":28.0,"lon":80.0,"theme":"storm","description":"A representative bright methane cloud in Uranus' upper atmosphere. Uranus hosts occasional bright outbursts at northern mid-latitudes, traceable over weeks with Earth-based telescopes."},{"name":"Dark Spot Latitude","type":"Storm latitude","lat":-27.0,"lon":240.0,"theme":"storm","description":"Representative latitude for dark vortex systems occasionally detected at Uranus. Unlike Jupiter's GRS, Uranian storms are short-lived and detected mainly through methane-band imaging."},{"name":"Epsilon Ring Equatorial Crossing","type":"Equatorial cloud band","lat":0.0,"lon":180.0,"theme":"band","description":"The equatorial atmosphere below the point where Uranus' tilted ring plane intersects the equatorial latitude. This is a cloud band in the upper atmosphere — the icy Epsilon Ring orbits ~51,000 km above this region. The near-perpendicular alignment of the ring system and the orbital path is a direct consequence of Uranus' 97.77° axial tilt."},{"name":"Voyager 2 Closest Approach","type":"Mission corridor","lat":-14.0,"lon":35.0,"theme":"landing","description":"Encounter region for Voyager 2's 24 January 1986 Uranus flyby — the only spacecraft to visit. Closest approach was ~81,500 km, revealing 10 new moons and 2 new rings."}];
-    const ringLabelData = [{"name":"6 Ring","type":"Narrow inner ring","theme":"ring","description":"One of Uranus' innermost narrow rings, orbiting ~41,900 km from the planet's center. The ring system was the first discovered by stellar occultation (1977) before Voyager's arrival.","ring_region":"Inner narrow ring","ring_radius_km":"~41,800 km from Uranus center","ring_anchor":[4.4166,0,1.6075],"ring_label":[4.8394,0.18,1.7614],"ring_line_end":[4.6233,0.12,1.6827]},{"name":"Beta Ring","type":"Narrow ring","theme":"ring","description":"A narrow ring ~45,661 km from Uranus' center. Part of the 1977 occultation discovery set. Uranus' rings are dark (geometric albedo ~0.03), narrower than Saturn's.","ring_region":"Inner ring system","ring_radius_km":"~45,700 km from Uranus center","ring_anchor":[1.7785,0,4.8864],"ring_label":[1.9324,0.18,5.3093],"ring_line_end":[1.8537,0.12,5.0931]},{"name":"Eta Ring","type":"Narrow ring","theme":"ring","description":"A narrow ring ~47,176 km from Uranus' center. The Eta ring shows both a narrow core and a broader fainter component, hinting at an active ring shepherd dynamic.","ring_region":"Middle ring system","ring_radius_km":"~47,200 km from Uranus center","ring_anchor":[-3.5996,0,4.2898],"ring_label":[-3.8889,0.18,4.6346],"ring_line_end":[-3.741,0.12,4.4584]},{"name":"Epsilon Ring","type":"Bright narrow ring","theme":"ring","description":"Uranus' brightest main narrow ring at ~51,100 km. Part of a system discovered in 1977 during a stellar occultation — rings appear nearly vertical when Uranus is at solstice.","ring_region":"Outer main ring","ring_radius_km":"~51,100 km from Uranus center","ring_anchor":[-5.5426,0,-3.2],"ring_label":[-5.9323,0.18,-3.425],"ring_line_end":[-5.7331,0.12,-3.31]},{"name":"Mu Ring","type":"Diffuse dusty ring","theme":"ring","description":"A broad diffuse outer ring ~97,700 km from Uranus, discovered by Hubble in 2003. Unlike the inner narrow rings, it resembles Jupiter's gossamer rings — dusty and widely spread.","ring_region":"Outer diffuse ring","ring_radius_km":"~97,700 km from Uranus center","ring_anchor":[3.6,0,-6.2354],"ring_label":[3.825,0.18,-6.6251],"ring_line_end":[3.71,0.12,-6.4259]}];
-    const moonData = [{"name":"Miranda","type":"Major moon","theme":"moon","description":"A small icy moon with dramatic tectonic coronae and varied terrain, including Verona Rupes — one of the tallest cliffs in the Solar System.","moon_anchor":[6.8,0.08,4.4],"moon_radius":0.07,"moon_label_lift":0.19,"moon_color":"#b9b4aa","mean_radius_km":"236 km","orbit_distance_km":"~129,900 km","texture_source_url":null},{"name":"Ariel","type":"Major moon","theme":"moon","description":"A bright icy moon marked by canyons, scarps, and extensive resurfacing.","moon_anchor":[-7.6,-0.06,5.8],"moon_radius":0.092,"moon_label_lift":0.212,"moon_color":"#c9c6bd","mean_radius_km":"579 km","orbit_distance_km":"~190,900 km","texture_source_url":null},{"name":"Umbriel","type":"Major moon","theme":"moon","description":"A darker icy moon with an ancient cratered surface and a mysterious bright ring near its equator.","moon_anchor":[-9.8,0.04,-6.4],"moon_radius":0.09,"moon_label_lift":0.21,"moon_color":"#77736c","mean_radius_km":"585 km","orbit_distance_km":"~266,000 km","texture_source_url":null},{"name":"Titania","type":"Major moon","theme":"moon","description":"Uranus' largest moon, cut by major rift valleys and impact basins.","moon_anchor":[11.5,0.1,-8.6],"moon_radius":0.12,"moon_label_lift":0.24,"moon_color":"#aaa49b","mean_radius_km":"789 km","orbit_distance_km":"~436,300 km","texture_source_url":null},{"name":"Oberon","type":"Major moon","theme":"moon","description":"A distant major moon with old cratered terrain and bright crater deposits.","moon_anchor":[14.0,-0.12,8.8],"moon_radius":0.115,"moon_label_lift":0.235,"moon_color":"#8f8980","mean_radius_km":"761 km","orbit_distance_km":"~583,500 km","texture_source_url":null}];
+    const labelData = [{"name":"North Polar Hood","type": "Polar haze cap","lat":70.0,"lon":20.0,"theme":"polar","description":"A bright polar hood driven by Uranus' extreme 97.77° axial tilt. The pole faces the Sun for 21 consecutive years, creating atmospheric dynamics unique in the solar system.","lod":1},{"name":"South Polar Region","type": "Polar atmosphere","lat":-70.0,"lon":210.0,"theme":"polar","description":"Uranus' southern polar atmosphere. The planet's 97.77° tilt means each pole endures a 21-year polar night. When Voyager 2 visited in 1986, the south pole faced the Sun.","lod":2},{"name":"Equatorial Band","type": "Subtle cloud band","lat":0.0,"lon":0.0,"theme":"band","description":"A muted equatorial cloud band visible in enhanced contrast products.","lod":2},{"name":"Northern Mid-Latitude Band","type": "Cloud band","lat":32.0,"lon":120.0,"theme":"band","description":"A representative northern mid-latitude band where methane haze and cloud contrast vary.","lod":2},{"name":"Southern Mid-Latitude Band","type": "Cloud band","lat":-32.0,"lon":300.0,"theme":"band","description":"A representative southern band used for tracking subtle atmospheric circulation.","lod":2},{"name":"North Temperate Belt","type": "Temperate belt","lat":45.0,"lon":60.0,"theme":"band","description":"A northern mid-latitude belt showing subtle banding in methane-sensitive imaging.","lod":2},{"name":"South Temperate Belt","type": "Temperate belt","lat":-45.0,"lon":240.0,"theme":"band","description":"A southern temperate belt visible in high-contrast atmospheric views.","lod":2},{"name":"Bright Cloud Complex","type": "Methane cloud complex","lat":28.0,"lon":80.0,"theme":"storm","description":"A representative bright methane cloud in Uranus' upper atmosphere. Uranus hosts occasional bright outbursts at northern mid-latitudes, traceable over weeks with Earth-based telescopes.","lod":2},{"name":"Dark Spot Latitude","type": "Storm latitude","lat":-27.0,"lon":240.0,"theme":"storm","description":"Representative latitude for dark vortex systems occasionally detected at Uranus. Unlike Jupiter's GRS, Uranian storms are short-lived and detected mainly through methane-band imaging.","lod":2},{"name":"Epsilon Ring Equatorial Crossing","type": "Equatorial cloud band","lat":0.0,"lon":180.0,"theme":"band","description":"The equatorial atmosphere below the point where Uranus' tilted ring plane intersects the equatorial latitude. This is a cloud band in the upper atmosphere — the icy Epsilon Ring orbits ~51,000 km above this region. The near-perpendicular alignment of the ring system and the orbital path is a direct consequence of Uranus' 97.77° axial tilt.","lod":2},{"name":"Voyager 2 Closest Approach","type": "Mission corridor","lat":-14.0,"lon":35.0,"theme":"landing","description":"Encounter region for Voyager 2's 24 January 1986 Uranus flyby — the only spacecraft to visit. Closest approach was ~81,500 km, revealing 10 new moons and 2 new rings.","lod":1}];
+    const ringLabelData = [{"name":"6 Ring","type": "Narrow inner ring","theme":"ring","description":"One of Uranus' innermost narrow rings, orbiting ~41,900 km from the planet's center. The ring system was the first discovered by stellar occultation (1977) before Voyager's arrival.","ring_region":"Inner narrow ring","ring_radius_km":"~41,800 km from Uranus center","ring_anchor":[4.4166,0,1.6075],"ring_label":[4.8394,0.18,1.7614],"ring_line_end":[4.6233,0.12,1.6827],"lod":2},{"name":"Beta Ring","type": "Narrow ring","theme":"ring","description":"A narrow ring ~45,661 km from Uranus' center. Part of the 1977 occultation discovery set. Uranus' rings are dark (geometric albedo ~0.03), narrower than Saturn's.","ring_region":"Inner ring system","ring_radius_km":"~45,700 km from Uranus center","ring_anchor":[1.7785,0,4.8864],"ring_label":[1.9324,0.18,5.3093],"ring_line_end":[1.8537,0.12,5.0931],"lod":2},{"name":"Eta Ring","type": "Narrow ring","theme":"ring","description":"A narrow ring ~47,176 km from Uranus' center. The Eta ring shows both a narrow core and a broader fainter component, hinting at an active ring shepherd dynamic.","ring_region":"Middle ring system","ring_radius_km":"~47,200 km from Uranus center","ring_anchor":[-3.5996,0,4.2898],"ring_label":[-3.8889,0.18,4.6346],"ring_line_end":[-3.741,0.12,4.4584],"lod":2},{"name":"Epsilon Ring","type": "Bright narrow ring","theme":"ring","description":"Uranus' brightest main narrow ring at ~51,100 km. Part of a system discovered in 1977 during a stellar occultation — rings appear nearly vertical when Uranus is at solstice.","ring_region":"Outer main ring","ring_radius_km":"~51,100 km from Uranus center","ring_anchor":[-5.5426,0,-3.2],"ring_label":[-5.9323,0.18,-3.425],"ring_line_end":[-5.7331,0.12,-3.31],"lod":1},{"name":"Mu Ring","type": "Diffuse dusty ring","theme":"ring","description":"A broad diffuse outer ring ~97,700 km from Uranus, discovered by Hubble in 2003. Unlike the inner narrow rings, it resembles Jupiter's gossamer rings — dusty and widely spread.","ring_region":"Outer diffuse ring","ring_radius_km":"~97,700 km from Uranus center","ring_anchor":[3.6,0,-6.2354],"ring_label":[3.825,0.18,-6.6251],"ring_line_end":[3.71,0.12,-6.4259],"lod":2}];
+    const moonData = [{"name":"Miranda","type": "Major moon","theme":"moon","description":"A small icy moon with dramatic tectonic coronae and varied terrain, including Verona Rupes — one of the tallest cliffs in the Solar System.","moon_anchor":[6.8,0.08,4.4],"moon_radius":0.07,"moon_label_lift":0.19,"moon_color":"#b9b4aa","mean_radius_km":"236 km","orbit_distance_km":"~129,900 km","texture_source_url":null,"lod":1},{"name":"Ariel","type": "Major moon","theme":"moon","description":"A bright icy moon marked by canyons, scarps, and extensive resurfacing.","moon_anchor":[-7.6,-0.06,5.8],"moon_radius":0.092,"moon_label_lift":0.212,"moon_color":"#c9c6bd","mean_radius_km":"579 km","orbit_distance_km":"~190,900 km","texture_source_url":null,"lod":1},{"name":"Umbriel","type": "Major moon","theme":"moon","description":"A darker icy moon with an ancient cratered surface and a mysterious bright ring near its equator.","moon_anchor":[-9.8,0.04,-6.4],"moon_radius":0.09,"moon_label_lift":0.21,"moon_color":"#77736c","mean_radius_km":"585 km","orbit_distance_km":"~266,000 km","texture_source_url":null,"lod":1},{"name":"Titania","type": "Major moon","theme":"moon","description":"Uranus' largest moon, cut by major rift valleys and impact basins.","moon_anchor":[11.5,0.1,-8.6],"moon_radius":0.12,"moon_label_lift":0.24,"moon_color":"#aaa49b","mean_radius_km":"789 km","orbit_distance_km":"~436,300 km","texture_source_url":null,"lod":1},{"name":"Oberon","type": "Major moon","theme":"moon","description":"A distant major moon with old cratered terrain and bright crater deposits.","moon_anchor":[14.0,-0.12,8.8],"moon_radius":0.115,"moon_label_lift":0.235,"moon_color":"#8f8980","mean_radius_km":"761 km","orbit_distance_km":"~583,500 km","texture_source_url":null,"lod":1}];
     const SATURN_EQUATORIAL_RADIUS_KM = 25559;
     const SATURN_SCENE_RADIUS = 3.2;
     const SATURN_KM_TO_SCENE = SATURN_SCENE_RADIUS / SATURN_EQUATORIAL_RADIUS_KM;
@@ -209,7 +217,7 @@
     }
     georeferenceRingAndInnerMoonAnchors();
 
-    const moonFeatureData = [{"name":"Abans","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-15.5,"lon":108.7,"description":"Spirit of the iron mines.","dimension":"20.0 km"},{"name":"Agape","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-46.9,"lon":23.5,"description":"Spirit in Spenser's \u201c;Fairy Queene.\u201c","dimension":"34.0 km"},{"name":"Ataksak","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-53.1,"lon":135.7,"description":"Eskimo benevolent spirit.","dimension":"22.0 km"},{"name":"Befana","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-17.0,"lon":328.1,"description":"Good spirit who fills Italian children's stockings with toys on twelfth night.","dimension":"21.0 km"},{"name":"Berylune","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-22.5,"lon":32.1,"description":"Good spirit in Maeterlinck's \u201c;The Bluebird.\u201c","dimension":"29.0 km"},{"name":"Brownie Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-16.0,"lon":22.4,"description":"German good spirits who live in woods.","dimension":"343.0 km"},{"name":"Deive","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-22.3,"lon":337.0,"description":"Spirit of beautiful maiden.","dimension":"20.0 km"},{"name":"Djadek","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-12.0,"lon":108.9,"description":"Czech ancestral benevolent spirit and household guardian.","dimension":"22.0 km"},{"name":"Domovoy","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-71.5,"lon":20.3,"description":"Slavic spirit protector of home.","dimension":"71.0 km"},{"name":"Finvara","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-15.8,"lon":341.0,"description":"Irish king of spirits; provided horses and wine to men.","dimension":"31.0 km"},{"name":"Gwyn","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-77.5,"lon":337.5,"description":"Irish god of battle; leads mens' souls to Annwn.","dimension":"34.0 km"},{"name":"Huon","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-37.8,"lon":326.3,"description":"Replaced Oberon as King of Spirits when Oberon died.","dimension":"40.0 km"},{"name":"Kachina Chasmata","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-33.7,"lon":114.0,"description":"Pueblo (USA) good spirits who bring rain or other blessings.","dimension":"622.0 km"},{"name":"Kewpie Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-28.3,"lon":33.1,"description":"British race of quaint spirit babies.","dimension":"467.0 km"},{"name":"Korrigan Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-27.6,"lon":12.5,"description":"French wind spirits who cure diseases.","dimension":"365.0 km"},{"name":"Kra Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-32.1,"lon":5.8,"description":"Vital spirits (Gold Coast).","dimension":"142.0 km"},{"name":"Laica","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-21.3,"lon":315.6,"description":"Inca good spirit.","dimension":"30.0 km"},{"name":"Leprechaun Vallis","type":"Vallis","theme":"moon","moon_name":"Ariel","lat":-10.4,"lon":349.8,"description":"Spirits or dwarfs.","dimension":"328.0 km"},{"name":"Mab","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-38.8,"lon":7.8,"description":"Queen of Spirits, dethroned Titania.","dimension":"34.0 km"},{"name":"Melusine","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-52.9,"lon":351.1,"description":"Spirit heroine of medieval French story.","dimension":"50.0 km"},{"name":"Oonagh","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-21.9,"lon":115.6,"description":"Irish Queen of Fairies.","dimension":"39.0 km"},{"name":"Pixie Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-20.4,"lon":354.9,"description":"British spirits that live in rocks.","dimension":"278.0 km"},{"name":"Rima","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-18.3,"lon":99.2,"description":"Spirit in Hudson's \u201c;Green Mansions.\u201c","dimension":"41.0 km"},{"name":"Sprite Vallis","type":"Vallis","theme":"moon","moon_name":"Ariel","lat":-14.9,"lon":20.0,"description":"Earth spirits.","dimension":"305.0 km"},{"name":"Sylph Chasma","type":"Chasma","theme":"moon","moon_name":"Ariel","lat":-48.6,"lon":7.0,"description":"British air spirits who influence the temperaments man.","dimension":"349.0 km"},{"name":"Yangoor","type":"Impact crater","theme":"moon","moon_name":"Ariel","lat":-68.7,"lon":80.3,"description":"Spirit that brings day.","dimension":"78.0 km"},{"name":"Alonso","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-44.0,"lon":7.4,"description":"King of Naples in \u201c;The Tempest.\u201c","dimension":"25.0 km"},{"name":"Arden Corona","type":"Corona","theme":"moon","moon_name":"Miranda","lat":-29.1,"lon":286.3,"description":"Forest, location of \u201c;As You Like It.\u201c","dimension":"318.0 km"},{"name":"Argier Rupes","type":"Rupes","theme":"moon","moon_name":"Miranda","lat":-43.2,"lon":37.2,"description":"Location of earlier action in \u201c;The Tempest.\u201c","dimension":"141.0 km"},{"name":"Dunsinane Regio","type":"Regio","theme":"moon","moon_name":"Miranda","lat":-31.5,"lon":348.1,"description":"Location of castle where Macbeth was defeated.","dimension":"244.0 km"},{"name":"Elsinore Corona","type":"Corona","theme":"moon","moon_name":"Miranda","lat":-24.8,"lon":102.9,"description":"Location of Hamlet's castle.","dimension":"323.0 km"},{"name":"Ephesus Regio","type":"Regio","theme":"moon","moon_name":"Miranda","lat":-15.0,"lon":110.0,"description":"Home of twins and setting for \u201c;The Comedy of Errors.\u201c","dimension":"225.0 km"},{"name":"Ferdinand","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-34.8,"lon":157.9,"description":"Son of King of Naples; loves Miranda in \u201c;The Tempest.\u201c","dimension":"17.0 km"},{"name":"Francisco","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-73.2,"lon":124.0,"description":"A lord of Naples in \u201c;The Tempest.\u201c","dimension":"14.0 km"},{"name":"Gonzalo","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-11.4,"lon":283.0,"description":"Honest old counselor of Naples in \u201c;The Tempest.\u201c","dimension":"11.0 km"},{"name":"Inverness Corona","type":"Corona","theme":"moon","moon_name":"Miranda","lat":-66.9,"lon":34.3,"description":"Location of Macbeth's castle.","dimension":"234.0 km"},{"name":"Mantua Regio","type":"Regio","theme":"moon","moon_name":"Miranda","lat":-39.6,"lon":179.8,"description":"Location of part of \u201c;Two Gentlemen From Verona.\u201c","dimension":"399.0 km"},{"name":"Naples Sulcus","type":"Sulcus","theme":"moon","moon_name":"Miranda","lat":-32.0,"lon":100.0,"description":"Destination in \u201c;The Tempest.\u201c","dimension":"260.0 km"},{"name":"Prospero","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-32.9,"lon":30.1,"description":"Rightful Duke of Mila in \u201c;The Tempest.\u201c","dimension":"21.0 km"},{"name":"Sicilia Regio","type":"Regio","theme":"moon","moon_name":"Miranda","lat":-30.0,"lon":42.8,"description":"Location of \u201c;Winter's Tale.\u201c","dimension":"174.0 km"},{"name":"Stephano","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-41.1,"lon":125.9,"description":"A drunken butler in \u201c;The Tempest.\u201c","dimension":"16.0 km"},{"name":"Syracusa Sulcus","type":"Sulcus","theme":"moon","moon_name":"Miranda","lat":-15.0,"lon":67.0,"description":"Home of twins in the \u201c;Comedy of Errors.\u201c","dimension":"40.0 km"},{"name":"Trinculo","type":"Impact crater","theme":"moon","moon_name":"Miranda","lat":-63.7,"lon":196.6,"description":"A jester in \u201c;The Tempest.\u201c","dimension":"11.0 km"},{"name":"Verona Rupes","type":"Rupes","theme":"moon","moon_name":"Miranda","lat":-18.3,"lon":12.2,"description":"Where Romeo and Juliet lived.","dimension":"116.0 km"},{"name":"Antony","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-27.5,"lon":114.6,"description":"Shakespearean hero in \u201c;Anthony and Cleopatra.\u201c","dimension":"47.0 km"},{"name":"Caesar","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-26.6,"lon":118.9,"description":"Shakespearean hero in \u201c;Julius Caesar.\u201c","dimension":"76.0 km"},{"name":"Coriolanus","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-11.4,"lon":194.8,"description":"Shakespearean hero.","dimension":"120.0 km"},{"name":"Falstaff","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-22.1,"lon":161.0,"description":"Shakespearean character in \u201c;Merry Wives of Windsor.\u201c","dimension":"124.0 km"},{"name":"Hamlet","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-46.1,"lon":135.6,"description":"Shakespearean hero.","dimension":"206.0 km"},{"name":"Lear","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-5.4,"lon":148.5,"description":"Shakespearean hero in \u201c;King Lear.\u201c","dimension":"126.0 km"},{"name":"Macbeth","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-58.4,"lon":67.5,"description":"Shakespearean hero.","dimension":"203.0 km"},{"name":"Mommur Chasma","type":"Chasma","theme":"moon","moon_name":"Oberon","lat":-16.3,"lon":216.5,"description":"Spirit place, forest home of Oberon in \u201c;Midsummer Night's Dream.\u201c","dimension":"537.0 km"},{"name":"Othello","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-66.0,"lon":137.1,"description":"Shakespearean character.","dimension":"114.0 km"},{"name":"Romeo","type":"Impact crater","theme":"moon","moon_name":"Oberon","lat":-28.7,"lon":90.6,"description":"Shakespearean character in \u201c;Romeo and Juliet.\u201c","dimension":"159.0 km"},{"name":"Bogle","type":"Impact crater","theme":"moon","moon_name":"Puck","lat":0.0,"lon":0.0,"description":"Scottish mischievous spirits.","dimension":""},{"name":"Butz","type":"Impact crater","theme":"moon","moon_name":"Puck","lat":0.0,"lon":0.0,"description":"German roguish or evil spirits.","dimension":""},{"name":"Lob","type":"Impact crater","theme":"moon","moon_name":"Puck","lat":0.0,"lon":0.0,"description":"British mischievous spirits.","dimension":""},{"name":"Adriana","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-20.1,"lon":176.1,"description":"Wife of Antipholus of Ephesus in \u201c;The Comedy of Errors.\u201c","dimension":"50.0 km"},{"name":"Belmont Chasma","type":"Chasma","theme":"moon","moon_name":"Titania","lat":-8.5,"lon":147.4,"description":"Location in \u201c;Merchant of Venice.\u201c","dimension":"258.0 km"},{"name":"Bona","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-55.8,"lon":188.8,"description":"Sister of the French queen in \u201c;Henry VI, part 3.\u201c","dimension":"51.0 km"},{"name":"Calphurnia","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-42.4,"lon":248.6,"description":"Wife of Julius Caesar.","dimension":"100.0 km"},{"name":"Elinor","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-44.8,"lon":206.4,"description":"Mother of King John.","dimension":"74.0 km"},{"name":"Gertrude","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-15.8,"lon":252.9,"description":"Mother of Hamlet.","dimension":"326.0 km"},{"name":"Imogen","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-23.8,"lon":218.8,"description":"Cymbelline's daughter.","dimension":"28.0 km"},{"name":"Iras","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-19.2,"lon":201.2,"description":"Attendant to Cleopatra in \u201c;Anthony and Cleopatra.\u201c","dimension":"33.0 km"},{"name":"Jessica","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-55.3,"lon":254.1,"description":"Shylock's daughter in \u201c;The Merchant of Venice.\u201c","dimension":"64.0 km"},{"name":"Katherine","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-51.2,"lon":208.1,"description":"Henry VIII's first queen.","dimension":"75.0 km"},{"name":"Lucetta","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-14.7,"lon":262.9,"description":"Waiting woman to Julia in \u201c;Two Gentlemen of Verona.\u201c","dimension":"58.0 km"},{"name":"Marina","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-15.5,"lon":224.0,"description":"Daughter to Pericles in \u201c;Pericles, Prince of Tyre.\u201c","dimension":"40.0 km"},{"name":"Messina Chasmata","type":"Chasma","theme":"moon","moon_name":"Titania","lat":-33.3,"lon":205.0,"description":"Location in \u201c;Much Ado About Nothing.\u201c","dimension":"1492.0 km"},{"name":"Mopsa","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-11.9,"lon":237.8,"description":"Shepardess in \u201c;The Winter's Tale.\u201c","dimension":"101.0 km"},{"name":"Phrynia","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-24.3,"lon":230.8,"description":"Alcibiades' mistress in \u201c;Timon of Athens.\u201c","dimension":"35.0 km"},{"name":"Rousillon Rupes","type":"Rupes","theme":"moon","moon_name":"Titania","lat":-14.7,"lon":153.5,"description":"Location in \u201c;All's Well That Ends Well.\u201c","dimension":"402.0 km"},{"name":"Ursula","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-12.4,"lon":134.8,"description":"Attendant to Hero and Beatrice in \u201c;Much Ado About Nothing.\u201c","dimension":"135.0 km"},{"name":"Valeria","type":"Impact crater","theme":"moon","moon_name":"Titania","lat":-34.5,"lon":175.8,"description":"Friend to Vergilia in \u201c;Coriolanus.\u201c","dimension":"59.0 km"},{"name":"Alberich","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-33.6,"lon":317.8,"description":"Dwarf who guarded Niebelung gold, also had a mantle of invisibility.","dimension":"52.0 km"},{"name":"Fin","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-37.4,"lon":315.7,"description":"Troll who helped build a church in Kallundburg, Zealand.","dimension":"43.0 km"},{"name":"Gob","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-12.7,"lon":332.2,"description":"King of gnomes.","dimension":"88.0 km"},{"name":"Kanaloa","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-10.8,"lon":14.3,"description":"Polynesian chief evil spirit.","dimension":"86.0 km"},{"name":"Malingee","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-22.9,"lon":346.1,"description":"Aboriginal spirit who travels at night.","dimension":"164.0 km"},{"name":"Minepa","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-42.7,"lon":351.8,"description":"Macouas and Banayis evil spirit.","dimension":"58.0 km"},{"name":"Peri","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-9.2,"lon":355.7,"description":"Persian evil spirit who disguised malevolence by charm; disturbed natural elements and heavenly bodies.","dimension":"61.0 km"},{"name":"Setibos","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-30.8,"lon":13.7,"description":"Chief devil.","dimension":"50.0 km"},{"name":"Skynd","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-1.8,"lon":28.3,"description":"Troll who stole three wives of a man living in Englerup.","dimension":"72.0 km"},{"name":"Vuver","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-4.7,"lon":48.4,"description":"Volga Finn evil spirit.","dimension":"98.0 km"},{"name":"Wokolo","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-30.0,"lon":358.2,"description":"Baramba (West Africa) devil spirit.","dimension":"208.0 km"},{"name":"Wunda","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-7.9,"lon":86.4,"description":"Australian dark spirit.","dimension":"131.0 km"},{"name":"Zlyden","type":"Impact crater","theme":"moon","moon_name":"Umbriel","lat":-23.3,"lon":33.8,"description":"Slavic evil spirit.","dimension":"44.0 km"}];
+    const moonFeatureData = [{"name":"Abans","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-15.5,"lon":251.3,"description":"Spirit of the iron mines.","dimension":"20.0 km","lod":5},{"name":"Agape","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-46.9,"lon":336.5,"description":"Spirit in Spenser's “;Fairy Queene.“","dimension":"34.0 km","lod":5},{"name":"Ataksak","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-53.1,"lon":224.3,"description":"Eskimo benevolent spirit.","dimension":"22.0 km","lod":5},{"name":"Befana","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-17.0,"lon":31.9,"description":"Good spirit who fills Italian children's stockings with toys on twelfth night.","dimension":"21.0 km","lod":5},{"name":"Berylune","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-22.5,"lon":327.9,"description":"Good spirit in Maeterlinck's “;The Bluebird.“","dimension":"29.0 km","lod":5},{"name":"Brownie Chasma","type": "Chasma","theme":"moon","moon_name":"Ariel","lat":-16.0,"lon":337.6,"description":"German good spirits who live in woods.","dimension":"343.0 km","lod":3},{"name":"Deive","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-22.3,"lon":23.0,"description":"Spirit of beautiful maiden.","dimension":"20.0 km","lod":5},{"name":"Djadek","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-12.0,"lon":251.1,"description":"Czech ancestral benevolent spirit and household guardian.","dimension":"22.0 km","lod":5},{"name":"Domovoy","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-71.5,"lon":339.7,"description":"Slavic spirit protector of home.","dimension":"71.0 km","lod":4},{"name":"Finvara","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-15.8,"lon":19.0,"description":"Irish king of spirits; provided horses and wine to men.","dimension":"31.0 km","lod":5},{"name":"Gwyn","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-77.5,"lon":22.5,"description":"Irish god of battle; leads mens' souls to Annwn.","dimension":"34.0 km","lod":5},{"name":"Huon","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-37.8,"lon":33.7,"description":"Replaced Oberon as King of Spirits when Oberon died.","dimension":"40.0 km","lod":5},{"name":"Kachina Chasmata","type": "Chasma","theme":"moon","moon_name":"Ariel","lat":-33.7,"lon":246.0,"description":"Pueblo (USA) good spirits who bring rain or other blessings.","dimension":"622.0 km","lod":1},{"name":"Kewpie Chasma","type": "Chasma","theme":"moon","moon_name":"Ariel","lat":-28.3,"lon":326.9,"description":"British race of quaint spirit babies.","dimension":"467.0 km","lod":2},{"name":"Korrigan Chasma","type": "Chasma","theme":"moon","moon_name":"Ariel","lat":-27.6,"lon":347.5,"description":"French wind spirits who cure diseases.","dimension":"365.0 km","lod":3},{"name":"Kra Chasma","type": "Chasma","theme":"moon","moon_name":"Ariel","lat":-32.1,"lon":354.2,"description":"Vital spirits (Gold Coast).","dimension":"142.0 km","lod":4},{"name":"Laica","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-21.3,"lon":44.4,"description":"Inca good spirit.","dimension":"30.0 km","lod":5},{"name":"Leprechaun Vallis","type": "Vallis","theme":"moon","moon_name":"Ariel","lat":-10.4,"lon":10.2,"description":"Spirits or dwarfs.","dimension":"328.0 km","lod":2},{"name":"Mab","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-38.8,"lon":352.2,"description":"Queen of Spirits, dethroned Titania.","dimension":"34.0 km","lod":5},{"name":"Melusine","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-52.9,"lon":8.9,"description":"Spirit heroine of medieval French story.","dimension":"50.0 km","lod":5},{"name":"Oonagh","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-21.9,"lon":244.4,"description":"Irish Queen of Fairies.","dimension":"39.0 km","lod":5},{"name":"Pixie Chasma","type": "Chasma","theme":"moon","moon_name":"Ariel","lat":-20.4,"lon":5.1,"description":"British spirits that live in rocks.","dimension":"278.0 km","lod":3},{"name":"Rima","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-18.3,"lon":260.8,"description":"Spirit in Hudson's “;Green Mansions.“","dimension":"41.0 km","lod":5},{"name":"Sprite Vallis","type": "Vallis","theme":"moon","moon_name":"Ariel","lat":-14.9,"lon":340.0,"description":"Earth spirits.","dimension":"305.0 km","lod":2},{"name":"Sylph Chasma","type": "Chasma","theme":"moon","moon_name":"Ariel","lat":-48.6,"lon":353.0,"description":"British air spirits who influence the temperaments man.","dimension":"349.0 km","lod":3},{"name":"Yangoor","type": "Impact crater","theme":"moon","moon_name":"Ariel","lat":-68.7,"lon":279.7,"description":"Spirit that brings day.","dimension":"78.0 km","lod":1},{"name":"Alonso","type": "Impact crater","theme":"moon","moon_name":"Miranda","lat":-44.0,"lon":352.6,"description":"King of Naples in “;The Tempest.“","dimension":"25.0 km","lod":5},{"name":"Arden Corona","type": "Corona","theme":"moon","moon_name":"Miranda","lat":-29.1,"lon":73.7,"description":"Forest, location of “;As You Like It.“","dimension":"318.0 km","lod":1},{"name":"Argier Rupes","type": "Rupes","theme":"moon","moon_name":"Miranda","lat":-43.2,"lon":322.8,"description":"Location of earlier action in “;The Tempest.“","dimension":"141.0 km","lod":4},{"name":"Dunsinane Regio","type": "Regio","theme":"moon","moon_name":"Miranda","lat":-31.5,"lon":11.9,"description":"Location of castle where Macbeth was defeated.","dimension":"244.0 km","lod":3},{"name":"Elsinore Corona","type": "Corona","theme":"moon","moon_name":"Miranda","lat":-24.8,"lon":257.1,"description":"Location of Hamlet's castle.","dimension":"323.0 km","lod":1},{"name":"Ephesus Regio","type": "Regio","theme":"moon","moon_name":"Miranda","lat":-15.0,"lon":250.0,"description":"Home of twins and setting for “;The Comedy of Errors.“","dimension":"225.0 km","lod":3},{"name":"Ferdinand","type": "Impact crater","theme":"moon","moon_name":"Miranda","lat":-34.8,"lon":202.1,"description":"Son of King of Naples; loves Miranda in “;The Tempest.“","dimension":"17.0 km","lod":5},{"name":"Francisco","type": "Impact crater","theme":"moon","moon_name":"Miranda","lat":-73.2,"lon":236.0,"description":"A lord of Naples in “;The Tempest.“","dimension":"14.0 km","lod":5},{"name":"Gonzalo","type": "Impact crater","theme":"moon","moon_name":"Miranda","lat":-11.4,"lon":77.0,"description":"Honest old counselor of Naples in “;The Tempest.“","dimension":"11.0 km","lod":5},{"name":"Inverness Corona","type": "Corona","theme":"moon","moon_name":"Miranda","lat":-66.9,"lon":325.7,"description":"Location of Macbeth's castle.","dimension":"234.0 km","lod":1},{"name":"Mantua Regio","type": "Regio","theme":"moon","moon_name":"Miranda","lat":-39.6,"lon":180.2,"description":"Location of part of “;Two Gentlemen From Verona.“","dimension":"399.0 km","lod":2},{"name":"Naples Sulcus","type": "Sulcus","theme":"moon","moon_name":"Miranda","lat":-32.0,"lon":260.0,"description":"Destination in “;The Tempest.“","dimension":"260.0 km","lod":3},{"name":"Prospero","type": "Impact crater","theme":"moon","moon_name":"Miranda","lat":-32.9,"lon":329.9,"description":"Rightful Duke of Mila in “;The Tempest.“","dimension":"21.0 km","lod":5},{"name":"Sicilia Regio","type": "Regio","theme":"moon","moon_name":"Miranda","lat":-30.0,"lon":317.2,"description":"Location of “;Winter's Tale.“","dimension":"174.0 km","lod":3},{"name":"Stephano","type": "Impact crater","theme":"moon","moon_name":"Miranda","lat":-41.1,"lon":234.1,"description":"A drunken butler in “;The Tempest.“","dimension":"16.0 km","lod":5},{"name":"Syracusa Sulcus","type": "Sulcus","theme":"moon","moon_name":"Miranda","lat":-15.0,"lon":293.0,"description":"Home of twins in the “;Comedy of Errors.“","dimension":"40.0 km","lod":4},{"name":"Trinculo","type": "Impact crater","theme":"moon","moon_name":"Miranda","lat":-63.7,"lon":163.4,"description":"A jester in “;The Tempest.“","dimension":"11.0 km","lod":5},{"name":"Verona Rupes","type": "Rupes","theme":"moon","moon_name":"Miranda","lat":-18.3,"lon":347.8,"description":"Where Romeo and Juliet lived.","dimension":"116.0 km","lod":1},{"name":"Antony","type": "Impact crater","theme":"moon","moon_name":"Oberon","lat":-27.5,"lon":65.4,"description":"Shakespearean hero in “;Anthony and Cleopatra.“","dimension":"47.0 km","lod":5},{"name":"Caesar","type": "Impact crater","theme":"moon","moon_name":"Oberon","lat":-26.6,"lon":61.1,"description":"Shakespearean hero in “;Julius Caesar.“","dimension":"76.0 km","lod":4},{"name":"Coriolanus","type": "Impact crater","theme":"moon","moon_name":"Oberon","lat":-11.4,"lon":345.2,"description":"Shakespearean hero.","dimension":"120.0 km","lod":3},{"name":"Falstaff","type": "Impact crater","theme":"moon","moon_name":"Oberon","lat":-22.1,"lon":19.0,"description":"Shakespearean character in “;Merry Wives of Windsor.“","dimension":"124.0 km","lod":3},{"name":"Hamlet","type": "Impact crater","theme":"moon","moon_name":"Oberon","lat":-46.1,"lon":44.4,"description":"Shakespearean hero.","dimension":"206.0 km","lod":1},{"name":"Lear","type": "Impact crater","theme":"moon","moon_name":"Oberon","lat":-5.4,"lon":31.5,"description":"Shakespearean hero in “;King Lear.“","dimension":"126.0 km","lod":3},{"name":"Macbeth","type": "Impact crater","theme":"moon","moon_name":"Oberon","lat":-58.4,"lon":112.5,"description":"Shakespearean hero.","dimension":"203.0 km","lod":1},{"name":"Mommur Chasma","type": "Chasma","theme":"moon","moon_name":"Oberon","lat":-16.3,"lon":323.5,"description":"Spirit place, forest home of Oberon in “;Midsummer Night's Dream.“","dimension":"537.0 km","lod":2},{"name":"Othello","type": "Impact crater","theme":"moon","moon_name":"Oberon","lat":-66.0,"lon":42.9,"description":"Shakespearean character.","dimension":"114.0 km","lod":3},{"name":"Romeo","type": "Impact crater","theme":"moon","moon_name":"Oberon","lat":-28.7,"lon":89.4,"description":"Shakespearean character in “;Romeo and Juliet.“","dimension":"159.0 km","lod":3},{"name":"Bogle","type": "Impact crater","theme":"moon","moon_name":"Puck","lat":0.0,"lon":0.0,"description":"Scottish mischievous spirits.","dimension":"","lod":5},{"name":"Butz","type": "Impact crater","theme":"moon","moon_name":"Puck","lat":0.0,"lon":0.0,"description":"German roguish or evil spirits.","dimension":"","lod":5},{"name":"Lob","type": "Impact crater","theme":"moon","moon_name":"Puck","lat":0.0,"lon":0.0,"description":"British mischievous spirits.","dimension":"","lod":5},{"name":"Adriana","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-20.1,"lon":3.9,"description":"Wife of Antipholus of Ephesus in “;The Comedy of Errors.“","dimension":"50.0 km","lod":5},{"name":"Belmont Chasma","type": "Chasma","theme":"moon","moon_name":"Titania","lat":-8.5,"lon":32.6,"description":"Location in “;Merchant of Venice.“","dimension":"258.0 km","lod":1},{"name":"Bona","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-55.8,"lon":351.2,"description":"Sister of the French queen in “;Henry VI, part 3.“","dimension":"51.0 km","lod":4},{"name":"Calphurnia","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-42.4,"lon":291.4,"description":"Wife of Julius Caesar.","dimension":"100.0 km","lod":4},{"name":"Elinor","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-44.8,"lon":333.6,"description":"Mother of King John.","dimension":"74.0 km","lod":4},{"name":"Gertrude","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-15.8,"lon":287.1,"description":"Mother of Hamlet.","dimension":"326.0 km","lod":2},{"name":"Imogen","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-23.8,"lon":321.2,"description":"Cymbelline's daughter.","dimension":"28.0 km","lod":5},{"name":"Iras","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-19.2,"lon":338.8,"description":"Attendant to Cleopatra in “;Anthony and Cleopatra.“","dimension":"33.0 km","lod":5},{"name":"Jessica","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-55.3,"lon":285.9,"description":"Shylock's daughter in “;The Merchant of Venice.“","dimension":"64.0 km","lod":4},{"name":"Katherine","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-51.2,"lon":331.9,"description":"Henry VIII's first queen.","dimension":"75.0 km","lod":4},{"name":"Lucetta","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-14.7,"lon":277.1,"description":"Waiting woman to Julia in “;Two Gentlemen of Verona.“","dimension":"58.0 km","lod":4},{"name":"Marina","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-15.5,"lon":316.0,"description":"Daughter to Pericles in “;Pericles, Prince of Tyre.“","dimension":"40.0 km","lod":5},{"name":"Messina Chasmata","type": "Chasma","theme":"moon","moon_name":"Titania","lat":-33.3,"lon":335.0,"description":"Location in “;Much Ado About Nothing.“","dimension":"1492.0 km","lod":1},{"name":"Mopsa","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-11.9,"lon":302.2,"description":"Shepardess in “;The Winter's Tale.“","dimension":"101.0 km","lod":3},{"name":"Phrynia","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-24.3,"lon":309.2,"description":"Alcibiades' mistress in “;Timon of Athens.“","dimension":"35.0 km","lod":5},{"name":"Rousillon Rupes","type": "Rupes","theme":"moon","moon_name":"Titania","lat":-14.7,"lon":26.5,"description":"Location in “;All's Well That Ends Well.“","dimension":"402.0 km","lod":2},{"name":"Ursula","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-12.4,"lon":45.2,"description":"Attendant to Hero and Beatrice in “;Much Ado About Nothing.“","dimension":"135.0 km","lod":3},{"name":"Valeria","type": "Impact crater","theme":"moon","moon_name":"Titania","lat":-34.5,"lon":4.2,"description":"Friend to Vergilia in “;Coriolanus.“","dimension":"59.0 km","lod":4},{"name":"Alberich","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-33.6,"lon":42.2,"description":"Dwarf who guarded Niebelung gold, also had a mantle of invisibility.","dimension":"52.0 km","lod":4},{"name":"Fin","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-37.4,"lon":44.3,"description":"Troll who helped build a church in Kallundburg, Zealand.","dimension":"43.0 km","lod":5},{"name":"Gob","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-12.7,"lon":27.8,"description":"King of gnomes.","dimension":"88.0 km","lod":4},{"name":"Kanaloa","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-10.8,"lon":345.7,"description":"Polynesian chief evil spirit.","dimension":"86.0 km","lod":4},{"name":"Malingee","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-22.9,"lon":13.9,"description":"Aboriginal spirit who travels at night.","dimension":"164.0 km","lod":3},{"name":"Minepa","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-42.7,"lon":8.2,"description":"Macouas and Banayis evil spirit.","dimension":"58.0 km","lod":4},{"name":"Peri","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-9.2,"lon":4.3,"description":"Persian evil spirit who disguised malevolence by charm; disturbed natural elements and heavenly bodies.","dimension":"61.0 km","lod":4},{"name":"Setibos","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-30.8,"lon":346.3,"description":"Chief devil.","dimension":"50.0 km","lod":5},{"name":"Skynd","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-1.8,"lon":331.7,"description":"Troll who stole three wives of a man living in Englerup.","dimension":"72.0 km","lod":4},{"name":"Vuver","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-4.7,"lon":311.6,"description":"Volga Finn evil spirit.","dimension":"98.0 km","lod":1},{"name":"Wokolo","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-30.0,"lon":1.8,"description":"Baramba (West Africa) devil spirit.","dimension":"208.0 km","lod":2},{"name":"Wunda","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-7.9,"lon":273.6,"description":"Australian dark spirit.","dimension":"131.0 km","lod":1},{"name":"Zlyden","type": "Impact crater","theme":"moon","moon_name":"Umbriel","lat":-23.3,"lon":326.2,"description":"Slavic evil spirit.","dimension":"44.0 km","lod":5}];
     const allFeatureData = [...labelData, ...ringLabelData, ...moonData, ...moonFeatureData];
     allFeatureData.forEach((item) => {
       item.name = getFeatureDisplayName(item);
@@ -643,8 +651,20 @@
     const DEFAULT_CAMERA_POSITION = Object.freeze({ x: -6.6, y: 3.4, z: 17 });
     // Moons whose texture has lon=0° (prime meridian / sub-Uranus) at the IMAGE CENTER rather
     // than the left edge.
-    const TEXTURE_CENTERED_MOONS = new Set(["Titania", "Oberon"]);
+    const TEXTURE_CENTERED_MOONS = new Set([]);
     const WEST_POSITIVE_TEXTURE_MOONS = new Set([]);
+    // Mars-style moons: store IAU west-positive directly, basemap is CM=0 west-positive.
+    // Placement applies (180 − W) flip and mesh uses Math.PI − angle rotation.
+    const MARS_STYLE_MOONS = new Set(["Miranda", "Ariel", "Umbriel", "Titania", "Oberon"]);
+    // Mars-style moons whose basemap asset has prime meridian at the IMAGE EDGES
+    // (rather than the center), so the texture needs a +0.5 horizontal shift to align
+    // with the (180 − W) placement. Moons NOT in this set keep their asset's native
+    // orientation (prime meridian already at the image center).
+    const MARS_STYLE_TEXTURE_SHIFT = new Set(["Miranda", "Ariel"]);
+    // Moons whose basemap asset has its latitude axis inverted (top=south, bottom=north),
+    // typical for Voyager-era polar mosaics flattened to equirectangular. Texture V is
+    // flipped at sampling so south-imaged terrain renders on the southern hemisphere.
+    const LAT_FLIPPED_MOONS = new Set(["Miranda", "Umbriel", "Titania", "Oberon"]);
     const MOON_PERIODS_DAYS = {
       "Miranda": 1.4135, "Ariel": 2.5204, "Umbriel": 4.1442,
       "Titania": 8.7059, "Oberon": 13.4632,
@@ -656,8 +676,17 @@
     const _MOON_VIEWER_SELF_ROT_PERIOD_MS = 186000;
     function moonLonToW(lonStored, moonName) {
       if (WEST_POSITIVE_TEXTURE_MOONS.has(moonName)) return lonStored % 360;
+      // Mars-style: stored is IAU west-positive directly.
+      if (MARS_STYLE_MOONS.has(moonName)) return ((lonStored % 360) + 360) % 360;
       if (TEXTURE_CENTERED_MOONS.has(moonName)) return ((540 - lonStored) % 360);
       return ((360 - lonStored) % 360);
+    }
+
+    function moonSceneLonToW(sceneLon, moonName) {
+      if (WEST_POSITIVE_TEXTURE_MOONS.has(moonName)) return ((sceneLon % 360) + 360) % 360;
+      if (MARS_STYLE_MOONS.has(moonName)) return (((180 - sceneLon) % 360) + 360) % 360;
+      if (TEXTURE_CENTERED_MOONS.has(moonName)) return ((540 - sceneLon) % 360);
+      return ((360 - sceneLon) % 360);
     }
     const MOON_VIEWER_TEXTURES = {
       Miranda: "assets/miranda_color_map.jpg",
@@ -926,7 +955,7 @@
       }
       const latLon = vectorToLatLon(direction);
       if (hemisphereLocatorReadout) {
-        hemisphereLocatorReadout.textContent = `Center ${latLon.lat.toFixed(1)}°, ${moonLonToW(latLon.lon, activeMoonViewerFeature?.name || "").toFixed(1)}°W`;
+        hemisphereLocatorReadout.textContent = `Center ${latLon.lat.toFixed(1)}°, ${moonSceneLonToW(latLon.lon, activeMoonViewerFeature?.name || "").toFixed(1)}°W`;
       }
       if (
         !Number.isFinite(_locatorDrawnLatLon.lat) ||
@@ -2560,8 +2589,10 @@
         opt.textContent = `${type} (${count})`;
         moonFeatureTypeSelect.appendChild(opt);
       });
-      moonFeatureTypeSelect.value = "all";
-      moonFeatureTypeFilter = "all";
+      const _prev = moonFeatureTypeFilter;
+      const _filterValid = _prev === "all" || types.has(_prev);
+      moonFeatureTypeSelect.value = _filterValid ? _prev : "all";
+      moonFeatureTypeFilter = _filterValid ? _prev : "all";
       populateMoonFeatureTourTargets();
     }
 
@@ -2676,6 +2707,12 @@
     }
 
     function syncMoonViewerControls(feature = activeMoonViewerFeature) {
+      // Toggle a body-level mode flag so CSS can dull non-relevant tabs.
+      const _root = document.documentElement;
+      if (_root) {
+        if (feature) _root.setAttribute("data-mode", "moon");
+        else _root.removeAttribute("data-mode");
+      }
       if (moonViewerSelect && feature) {
         moonViewerSelect.value = feature.name;
       }
@@ -4895,11 +4932,13 @@
       const _rPool = _scratch.rPool;
 
       for (const entry of entries) {
-        entry.marker.visible = labelsEnabled;
-        entry.hitTarget.visible = labelsEnabled;
+        const entryLod = entry.item?.lod;
+        const lodAllowed = entryLod == null || entryLod <= currentLodLevel;
+        entry.marker.visible = labelsEnabled && lodAllowed;
+        entry.hitTarget.visible = labelsEnabled && lodAllowed;
         entry.sprite.visible = false;
         entry.line.visible = false;
-        if (!labelsEnabled) {
+        if (!labelsEnabled || !lodAllowed) {
           continue;
         }
         if (isPointOccludedByPlanet(entry.marker.position, marsGroup, camera)) {
@@ -5151,24 +5190,23 @@
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-      return /(?:cryo)?volcan|patera|caldera|plume|vent|eruption|lava|basalt|sulcus/.test(content);
+      // Match volcanic / cryovolcanic feature terms — including IAU type words like
+      // "eruptive center", "patera", "fluctus" (lava flow), "tholus" (volcanic dome).
+      return /(?:cryo)?volcan|patera|caldera|plume|vent|erupt|lava|basalt|sulcus|fluctus|tholus/.test(content);
     }
 
     function isMissionMoonFeature(item) {
-      const content = [item.type, item.name, item.description]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return /landing site|probe|lander|rover|spacecraft|mission|flyby|cassini|huygens|voyager/.test(content);
+      const t = String(item.type || "").toLowerCase();
+      if (/landing site|^landing-site|probe|lander|spacecraft|mission corridor|^mission$/.test(t)) return true;
+      // Famous mission-named features (proper nouns).
+      const name = item.name || "";
+      return ["Cassini Regio", "Huygens Landing Site", "Galileo Regio", "Galileo Probe Entry Region"].includes(name);
     }
 
     function isCraterMoonFeature(item) {
-      const content = [item.type, item.theme]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return /impact crater|crater/.test(content);
-    }
+  const t = String(item && item.type || "").toLowerCase().trim();
+  return t === "impact crater" || t === "crater";
+}
 
     function isTectonicMoonFeature(item) {
       return item.theme === "tectonic";
@@ -5189,7 +5227,11 @@
     const MOON_FEATURE_LON_OFFSET_SET = new Set(["Phoebe"]);
     function moonFeatureLocalPos(lat, lon, moonName, radius) {
       const offset = MOON_FEATURE_LON_OFFSET_SET.has(moonName) ? 180 : 0;
-      return latLonToVector3(lat, lon + offset, radius);
+      // Mars-style moons (Miranda, etc.): store IAU west-positive; flip via (180 − W).
+      const effectiveLon = MARS_STYLE_MOONS.has(moonName)
+        ? (180 - Number(lon || 0) + offset)
+        : (Number(lon || 0) + offset);
+      return latLonToVector3(lat, effectiveLon, radius);
     }
 
     function buildMoonFeatureLabelLayer(moonMeshMap) {
@@ -5197,7 +5239,7 @@
       const MOON_LABEL_RENDER_ORDER = 221;
       const entries = [];
       const interactiveObjects = [];
-      const markerGeometry = new THREE.SphereGeometry(0.001, 8, 8);
+      const markerGeometry = new THREE.SphereGeometry(0.0005, 8, 8);
       const hitGeometry = new THREE.SphereGeometry(0.008, 10, 10);
       const hitMaterial = new THREE.MeshBasicMaterial({
         transparent: true,
@@ -5273,7 +5315,18 @@
           depthWrite: false,
         }));
         sprite.renderOrder = MOON_LABEL_RENDER_ORDER;
-        sprite.scale.set((label.width / 200) * 0.07, (label.height / 200) * 0.07, 1);
+        // Tier-aware label sizing: more prominent (lower-lod) features render larger.
+        const _lodForScale = item?.lod;
+        const _lodScaleMult = _lodForScale === 1 ? 1.20
+                            : _lodForScale === 2 ? 1.10
+                            : _lodForScale === 3 ? 1.05
+                            : _lodForScale === 5 ? 0.95
+                            : 1.00;
+        sprite.scale.set(
+          (label.width / 200) * 0.07 * _lodScaleMult,
+          (label.height / 200) * 0.07 * _lodScaleMult,
+          1,
+        );
         sprite.userData.feature = item;
         group.add(sprite);
 
@@ -5350,6 +5403,10 @@
           continue;
         }
         if (typeFilter !== "all" && entry.item.type !== typeFilter) {
+          continue;
+        }
+        const entryLod = entry.item?.lod;
+        if (entryLod != null && entryLod > currentLodLevel) {
           continue;
         }
         moonCenterWorld.copy(entry.moonAnchor).applyMatrix4(marsGroup.matrixWorld);
@@ -5671,6 +5728,10 @@
           continue;
         }
         if (!labelsEnabled) {
+          continue;
+        }
+        const entryLod = entry.item?.lod;
+        if (entryLod != null && entryLod > currentLodLevel) {
           continue;
         }
 
@@ -6003,7 +6064,9 @@
             ? fluvialLabelsEnabled
           : surfaceLabelsEnabled;
         const survivesCut = !cutawayModeEnabled || (activeCutClipPlane ? activeCutClipPlane.distanceToPoint(surfaceWorldPosition) : surfaceWorldPosition.x) >= -0.02;
-        const isVisible = categoryEnabled && survivesCut && normal.dot(cameraDirection) > 0.02;
+        const entryLod = entry.item?.lod;
+        const survivesLod = entryLod == null || entryLod <= currentLodLevel;
+        const isVisible = categoryEnabled && survivesCut && survivesLod && normal.dot(cameraDirection) > 0.02;
         entry.marker.visible = isVisible;
         entry.hitTarget.visible = isVisible;
         entry.sprite.visible = false;
@@ -6538,7 +6601,7 @@
         const _moonName = entry.item?.name;
         entry.moonMesh.rotation.y = MOON_SELF_ROT_DAYS[_moonName] !== undefined
           ? 0
-          : TEXTURE_CENTERED_MOONS.has(_moonName)
+          : (TEXTURE_CENTERED_MOONS.has(_moonName) || MARS_STYLE_MOONS.has(_moonName))
             ? (Math.PI - initAngle)
             : -initAngle;
       }
@@ -7867,11 +7930,11 @@
           camera,
           renderer,
           saturnLabelsEnabled,
-          !removeAtmosphere && volcanicLabelsToggle.checked,
-          !removeAtmosphere && landingLabelsToggle.checked,
-          !removeAtmosphere && habitationLabelsToggle.checked,
+          !removeAtmosphere && !activeMoonViewerFeature && volcanicLabelsToggle.checked,
+          !removeAtmosphere && !activeMoonViewerFeature && landingLabelsToggle.checked,
+          !removeAtmosphere && !activeMoonViewerFeature && habitationLabelsToggle.checked,
           coreEnabled,
-          stormLabelsToggle ? (!removeAtmosphere && stormLabelsToggle.checked) : true,
+          stormLabelsToggle ? (!removeAtmosphere && !activeMoonViewerFeature && stormLabelsToggle.checked) : !activeMoonViewerFeature,
           craterLabelsToggle?.checked ?? true,
           tectonicLabelsToggle?.checked ?? true,
           fluvialLabelsToggle?.checked ?? true,
@@ -8029,6 +8092,13 @@
       syncCoreLayerVisibility();
 
       const _texLoadingIds = new Set();
+      if (lodSlider) {
+        lodSlider.addEventListener("input", () => {
+          currentLodLevel = parseInt(lodSlider.value, 10);
+          syncLodLabel();
+        });
+      }
+
       geologyToggle.addEventListener("change", () => {
         if (geologyToggle.checked) {
           // Lazy-load geology texture on first enable.
@@ -8838,7 +8908,7 @@
             cursorReadout.hidden = false;
             const _isMoonHit = surfaceHit.context?.kind === "moon";
             const _lonStr = _isMoonHit
-              ? `${moonLonToW(latLon.lon, surfaceHit.context.bodyName || "").toFixed(2)}°W`
+              ? `${moonSceneLonToW(latLon.lon, surfaceHit.context.bodyName || "").toFixed(2)}°W`
               : `${latLon.lon.toFixed(2)}°E`;
             cursorReadout.textContent = `${latLon.lat.toFixed(2)}°, ${_lonStr}`;
             if (scTemp && scPressure) {
@@ -9382,7 +9452,7 @@ ${error && error.message ? error.message : error}`;
             const _viewerOmega = (2 * Math.PI) / _MOON_VIEWER_SELF_ROT_PERIOD_MS;
             const _viewerAngle = t * _viewerOmega;
             item._currentAngle = _viewerAngle;
-            moonMesh.rotation.y = TEXTURE_CENTERED_MOONS.has(item.name)
+            moonMesh.rotation.y = (TEXTURE_CENTERED_MOONS.has(item.name) || MARS_STYLE_MOONS.has(item.name))
               ? (Math.PI - _viewerAngle)
               : -_viewerAngle;
             moonMesh.updateMatrix();
@@ -9400,7 +9470,7 @@ ${error && error.message ? error.message : error}`;
             const selfOmega = (2 * Math.PI * _MOON_SPEED_FACTOR) / (MOON_SELF_ROT_DAYS[item.name] * 86400000);
             moonMesh.rotation.y = t * selfOmega;
           } else {
-            moonMesh.rotation.y = TEXTURE_CENTERED_MOONS.has(item.name)
+            moonMesh.rotation.y = (TEXTURE_CENTERED_MOONS.has(item.name) || MARS_STYLE_MOONS.has(item.name))
               ? (Math.PI - angle)
               : -angle;
           }
@@ -9482,11 +9552,11 @@ ${error && error.message ? error.message : error}`;
             camera,
             renderer,
             saturnLabelsEnabled,
-            !removeAtmosphere && volcanicLabelsToggle.checked,
-            !removeAtmosphere && landingLabelsToggle.checked,
-            !removeAtmosphere && habitationLabelsToggle.checked,
+            !removeAtmosphere && !activeMoonViewerFeature && volcanicLabelsToggle.checked,
+            !removeAtmosphere && !activeMoonViewerFeature && landingLabelsToggle.checked,
+            !removeAtmosphere && !activeMoonViewerFeature && habitationLabelsToggle.checked,
             false,
-            stormLabelsToggle ? (!removeAtmosphere && stormLabelsToggle.checked) : true,
+            stormLabelsToggle ? (!removeAtmosphere && !activeMoonViewerFeature && stormLabelsToggle.checked) : !activeMoonViewerFeature,
             craterLabelsToggle?.checked ?? true,
             tectonicLabelsToggle?.checked ?? true,
             fluvialLabelsToggle?.checked ?? true,
@@ -9541,11 +9611,11 @@ ${error && error.message ? error.message : error}`;
             camera,
             renderer,
             saturnLabelsEnabled,
-            !removeAtmosphere && volcanicLabelsToggle.checked,
-            !removeAtmosphere && landingLabelsToggle.checked,
-            !removeAtmosphere && habitationLabelsToggle.checked,
+            !removeAtmosphere && !activeMoonViewerFeature && volcanicLabelsToggle.checked,
+            !removeAtmosphere && !activeMoonViewerFeature && landingLabelsToggle.checked,
+            !removeAtmosphere && !activeMoonViewerFeature && habitationLabelsToggle.checked,
             true,
-            stormLabelsToggle ? (!removeAtmosphere && stormLabelsToggle.checked) : true,
+            stormLabelsToggle ? (!removeAtmosphere && !activeMoonViewerFeature && stormLabelsToggle.checked) : !activeMoonViewerFeature,
             craterLabelsToggle?.checked ?? true,
             tectonicLabelsToggle?.checked ?? true,
             fluvialLabelsToggle?.checked ?? true,
@@ -9824,6 +9894,21 @@ ${error && error.message ? error.message : error}`;
             let tex = await loadTextureSafe(textureLoader, MOON_VIEWER_TEXTURES[item.name]);
             if (tex) tex.colorSpace = THREE.SRGBColorSpace;
             tex = capTextureSize(tex, 4096, 2048);
+            // Mars-style moons whose basemap is shifted 180° from the (180 − W)
+            // placement convention; apply a half-rotation horizontal texture offset.
+            if (tex && MARS_STYLE_TEXTURE_SHIFT.has(item.name)) {
+              tex.wrapS = THREE.RepeatWrapping;
+              tex.offset.x = 0.5;
+              tex.needsUpdate = true;
+            }
+            // Latitude-flipped moons (Miranda, etc.): basemap asset has top=south, so
+            // flip the V coordinate so south-imaged terrain renders on the southern
+            // hemisphere of the sphere where the markers sit.
+            if (tex && LAT_FLIPPED_MOONS.has(item.name)) {
+              tex.repeat.y = -1;
+              tex.offset.y = 1;
+              tex.needsUpdate = true;
+            }
             moonTextures.set(item.name, tex || null);
             if (tex && moonLayer) {
               const entry = moonLayer.entries.find(e => e.item?.name === item.name);

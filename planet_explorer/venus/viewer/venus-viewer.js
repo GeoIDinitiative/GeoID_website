@@ -5648,7 +5648,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         }
         target = latLonToVector3(lat, lon, 3.2);
         const _spinDelta = getSpinTime() * (2 * Math.PI / _VENUS_DISPLAY_PERIOD_MS);
-        target.applyAxisAngle(new THREE.Vector3(0, 1, 0), _spinDelta);
+        target.applyAxisAngle(new THREE.Vector3(0, 1, 0), -_spinDelta);
         if (venusSceneGroup) {
           target = venusSceneGroup.localToWorld(target.clone());
         }

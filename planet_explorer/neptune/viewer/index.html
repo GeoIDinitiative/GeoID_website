@@ -35,7 +35,8 @@
         </button>
         <h1>Neptune</h1>
       </div>
-      <div class="brand-audio">
+      <div hidden style="display:none">
+<div class="brand-audio">
         <button class="audio-play-btn" id="audio-play-btn" aria-label="Play / pause Neptune sounds">
           <svg id="audio-icon-play" width="40" height="40" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><polygon points="3,1 13,7 3,13"/></svg>
           <svg id="audio-icon-pause" width="34" height="34" viewBox="0 0 14 14" fill="currentColor" style="display:none" aria-hidden="true"><rect x="2" y="1" width="4" height="12" rx="1"/><rect x="8" y="1" width="4" height="12" rx="1"/></svg>
@@ -46,6 +47,7 @@
     <audio id="mars-audio-el" preload="metadata">
       <source src="assets/neptune_sounds.mp4" type="audio/mp4">
     </audio>
+</div>
     <details id="tour-mode-section" class="control-section">
       <summary class="section-toggle">
         <div class="section-toggle-main">
@@ -145,11 +147,11 @@
             <label for="fluvial-labels-toggle" style="color: #2d78e0;">Fluvial</label>
             <span class="checkbox-wrap"><input id="fluvial-labels-toggle" type="checkbox" checked></span>
           </div>
-          <div class="row">
+          <div class="row" style="display:none;">
             <label for="flyby-paths-toggle" style="color: #ffffff;">Flyby trajectories</label>
             <span class="checkbox-wrap"><input id="flyby-paths-toggle" type="checkbox"></span>
           </div>
-          <div id="flyby-legend" class="flyby-legend">
+          <div id="flyby-legend" class="flyby-legend" style="display:none;">
             <div class="flyby-legend-item">
               <span class="flyby-legend-line" style="background:#66aaff;"></span>
               <span class="flyby-legend-name">Voyager 2 <span class="flyby-legend-year">1989</span></span>
@@ -158,6 +160,17 @@
           <div class="row">
             <label for="moon-toggle" style="color: #ffffff;">Moons</label>
             <span class="checkbox-wrap"><input id="moon-toggle" type="checkbox" checked></span>
+          </div>
+          <div class="lod-slider-row">
+            <div class="lod-slider-header">
+              <label for="lod-slider">Label density</label>
+              <span class="lod-value-label" id="lod-value-label">Standard</span>
+            </div>
+            <input id="lod-slider" type="range" min="1" max="5" value="5" step="1" class="lod-slider">
+            <div class="lod-tick-labels">
+              <span>Min</span>
+              <span>Max</span>
+            </div>
           </div>
           <input id="habitation-labels-toggle" type="checkbox" checked hidden>
           <div class="row" style="display:none;">

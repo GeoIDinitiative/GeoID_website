@@ -609,7 +609,8 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         locatorDrawnLatLon = { ...locatorLatLon };
       }
       if (hemisphereLocatorReadout) {
-        hemisphereLocatorReadout.textContent = `Center ${locatorLatLon.lat.toFixed(1)}°, ${locatorLatLon.lon.toFixed(1)}°E`;
+        const centerW = sceneLonToMercuryWestLon(locatorLatLon.lon);
+        hemisphereLocatorReadout.textContent = `Center ${locatorLatLon.lat.toFixed(1)}°, ${centerW.toFixed(1)}°W`;
       }
     }
 
@@ -5911,11 +5912,11 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         const elevStr = (feature.elevation_m !== undefined)
           ? ` | ${feature.elevation_m >= 0 ? "+" : ""}${feature.elevation_m.toLocaleString()} m`
           : "";
-        scenePopupMeta.textContent = `${feature.lat.toFixed(2)}°, ${feature.lon.toFixed(2)}°E${elevStr}`;
+        scenePopupMeta.textContent = `${feature.lat.toFixed(2)}°, ${feature.lon.toFixed(2)}°W${elevStr}`;
       } else if (feature.moon_name && feature.anchor_lat !== undefined && feature.anchor_lon !== undefined) {
         scenePopupMeta.textContent = `${feature.moon_name} | ${feature.anchor_lat.toFixed(2)}°, ${feature.anchor_lon.toFixed(2)}°W`;
       } else if (feature.anchor_lat !== undefined && feature.anchor_lon !== undefined) {
-        scenePopupMeta.textContent = `${feature.anchor_lat.toFixed(2)}°, ${feature.anchor_lon.toFixed(2)}°E`;
+        scenePopupMeta.textContent = `${feature.anchor_lat.toFixed(2)}°, ${feature.anchor_lon.toFixed(2)}°W`;
       } else if (feature.ring_region) {
         scenePopupMeta.textContent = feature.ring_region;
       } else if (feature.orbit_distance_km) {
@@ -6860,7 +6861,19 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     }
 
     function mercuryLonToSceneLon(lonDegrees) {
-      return ((((lonDegrees + 180) % 360) + 360) % 360) - 180;
+      // Mercury uses a west-positive CRS centred on lon 180 (anti-meridian at the
+      // camera-facing −X axis). The east-positive MDIS basemap is shifted half a
+      // turn via texture_offset_x = 0.5, so a label at west-positive W must be
+      // projected to scene angle (180 − W) for marker and basemap to coincide.
+      const W = Number(lonDegrees || 0);
+      return ((((180 - W) % 360) + 540) % 360) - 180;
+    }
+
+    function sceneLonToMercuryWestLon(sceneLonDegrees) {
+      // Inverse of mercuryLonToSceneLon: scene east-positive angle → west-positive
+      // longitude in the Mercury CRS (0–360).
+      const scene = Number(sceneLonDegrees || 0);
+      return (((180 - scene) % 360) + 360) % 360;
     }
 
     function latLonToVector3(latDegrees, lonDegrees, radius) {
@@ -12249,7 +12262,7 @@ uniform float uViewportWidth;`,
                 `Dataset ${gisQueryDataset?.selectedOptions?.[0]?.textContent || "Named features"}`,
                 `Mineral layer ${mineralLabel}`,
                 gisQueryUseBuffer?.checked && gisBufferState ? `Buffer ${gisBufferState.sourceType}, ${gisBufferState.radiusKm.toFixed(0)} km` : "",
-                gisInspectPoint && gisQueryNearbyKm?.value !== "" ? `Anchor ${gisInspectPoint.lat.toFixed(2)}°, ${gisInspectPoint.lon.toFixed(2)}°E` : "",
+                gisInspectPoint && gisQueryNearbyKm?.value !== "" ? `Anchor ${gisInspectPoint.lat.toFixed(2)}°, ${sceneLonToMercuryWestLon(gisInspectPoint.lon).toFixed(2)}°W` : "",
               ].filter(Boolean).join("<br>")
             : "No matches for the current filters.";
         }
@@ -12920,7 +12933,7 @@ uniform float uViewportWidth;`,
           const geologyName = gisInspectPoint.geologyFeature?.rock_type || gisInspectPoint.geologyFeature?.name || "No mapped geology";
           gisMetric.innerHTML = [
             `<strong>${gisInspectPoint.bodyName || "Mercury"} Inspect</strong>`,
-            `${gisInspectPoint.lat.toFixed(4)}°, ${gisInspectPoint.lon.toFixed(4)}°E`,
+            `${gisInspectPoint.lat.toFixed(4)}°, ${sceneLonToMercuryWestLon(gisInspectPoint.lon).toFixed(4)}°W`,
             `Elevation ${gisInspectPoint.elevationMeters !== null ? gisInspectPoint.elevationMeters.toFixed(0) : "n/a"} m`,
             `Slope ${gisInspectPoint.slopeDegrees !== null ? gisInspectPoint.slopeDegrees.toFixed(1) : "n/a"}°`,
             `Base layer ${selectedBaseLayer?.label || "n/a"}`,
@@ -13054,7 +13067,7 @@ uniform float uViewportWidth;`,
             const grid = buildBaseGridState(activeBase);
             gisBaseMetric.innerHTML = [
               `<strong>${activeBase.name}</strong>`,
-              `${activeBase.center.lat.toFixed(4)}°, ${activeBase.center.lon.toFixed(4)}°E`,
+              `${activeBase.center.lat.toFixed(4)}°, ${sceneLonToMercuryWestLon(activeBase.center.lon).toFixed(4)}°W`,
               `Area ${Number(activeBase.areaKm2 || 0).toFixed(1)} km²`,
               `Grid ${activeBase.gridSizeM} m`,
               `Cells ${grid?.validCells?.size || 0}`,
@@ -16184,8 +16197,11 @@ uniform float uViewportWidth;`,
             ? null
             : sampleElevationMeters(elevationSampler, latLon.lat, latLon.lon);
           cursorReadout.hidden = false;
-          const lonSuffix = surfaceHit.context?.kind === "moon" ? "W" : "E";
-          cursorReadout.innerHTML = `${latLon.lat.toFixed(2)}°, ${latLon.lon.toFixed(2)}°${lonSuffix} | ${formatElevationWithColor(elevationMeters)}`;
+          const lonSuffix = "W";
+          const displayLon = surfaceHit.context?.kind === "moon"
+            ? latLon.lon
+            : sceneLonToMercuryWestLon(latLon.lon);
+          cursorReadout.innerHTML = `${latLon.lat.toFixed(2)}°, ${displayLon.toFixed(2)}°${lonSuffix} | ${formatElevationWithColor(elevationMeters)}`;
           lastScaleSampleLat = latLon.lat;
           lastScaleSampleAt = performance.now();
           if (surfaceHit.context?.kind === "moon") {

@@ -51,7 +51,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     const fluvialLabelsToggle = document.getElementById("fluvial-labels-toggle");
     const tectonicLabelsToggle = document.getElementById("tectonic-labels-toggle");
     const lodSlider = document.getElementById("lod-slider");
-    let currentLodLevel = 3;
+    let currentLodLevel = 5;
     const moonToggle = document.getElementById("moon-toggle");
     const baseLabelsToggle = document.getElementById("base-labels-toggle");
 
@@ -248,25 +248,25 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       "Hydra": 0.0059,
     });
     const charonFeatureData = [
-      { name: "Argo Chasma", type: "Chasma", lat: 27.80, lon: 80.40, theme: "moon-feature", description: "A deep canyon on Charon, part of the vast equatorial rift system. Named for the mythological ship sailed by Jason and the Argonauts.", parent_moon: "Charon" },
-      { name: "Caleuche Chasma", type: "Chasma", lat: 72.50, lon: 241.80, theme: "moon-feature", description: "A deep canyon on Charon. Named for the Chilote legendary sentient ghost ship.", parent_moon: "Charon" },
-      { name: "Mandjet Chasma", type: "Chasma", lat: 4.80, lon: 294.40, theme: "moon-feature", description: "A deep canyon on Charon. Named for the Egyptian boat that carries the sun god Ra across the sky.", parent_moon: "Charon" },
-      { name: "Butler Mons", type: "Mons", lat: -9.48, lon: 38.74, theme: "moon-feature", description: "A mountain on Charon. Named for Octavia E. Butler, American science fiction author (1947-2006).", parent_moon: "Charon" },
-      { name: "Clarke Montes", type: "Mons", lat: -5.12, lon: 7.05, theme: "moon-feature", description: "A mountain on Charon. Named for Sir Arthur C. Clarke, British author and co-writer of 2001: A Space Odyssey (1917-2008).", parent_moon: "Charon" },
-      { name: "Kubrick Mons", type: "Mons", lat: 3.60, lon: 30.80, theme: "moon-feature", description: "A mountain on Charon. Named for Stanley Kubrick, director of 2001: A Space Odyssey (1928-1999).", parent_moon: "Charon" },
-      { name: "McCaffrey Dorsum", type: "Dorsum", lat: 74.28, lon: 294.89, theme: "moon-feature", description: "A ridge on Charon. Named for Anne McCaffrey, science fiction author of the Dragonriders of Pern series (1926-2011).", parent_moon: "Charon" },
-      { name: "Neverland Regio", type: "Regio", lat: 85.00, lon: 60.00, theme: "moon-feature", description: "A large region on Charon. Named for Neverland, the fictional island of Peter Pan in J.M. Barrie's works.", parent_moon: "Charon" },
-      { name: "Cora", type: "Crater", lat: 17.09, lon: 351.72, theme: "moon-feature", description: "An impact crater on Charon. Named for the protagonist of The Underground Railroad by Colson Whitehead (2016).", parent_moon: "Charon" },
-      { name: "Dorothy", type: "Crater", lat: 58.53, lon: 40.58, theme: "moon-feature", description: "An impact crater on Charon. Named for Dorothy, protagonist of The Wonderful Wizard of Oz.", parent_moon: "Charon" },
-      { name: "Nasreddin", type: "Crater", lat: 25.50, lon: 308.60, theme: "moon-feature", description: "An impact crater on Charon. Named for the hero of humorous folktales across the Middle East and Asia.", parent_moon: "Charon" },
-      { name: "Nemo", type: "Crater", lat: -15.70, lon: 314.10, theme: "moon-feature", description: "An impact crater on Charon. Named for Captain Nemo of Jules Verne's submarine Nautilus.", parent_moon: "Charon" },
-      { name: "Pirx", type: "Crater", lat: 55.20, lon: 256.30, theme: "moon-feature", description: "An impact crater on Charon. Named for the spaceship pilot in Stanislaw Lem's stories (1921-2006).", parent_moon: "Charon" },
-      { name: "Revati", type: "Crater", lat: 20.70, lon: 35.40, theme: "moon-feature", description: "An impact crater on Charon. Named for the Hindu mythological princess who traveled through time and space.", parent_moon: "Charon" },
-      { name: "Sadko", type: "Crater", lat: -16.10, lon: 331.20, theme: "moon-feature", description: "An impact crater on Charon. Named for the Russian merchant in medieval epic who traveled to the bottom of the sea.", parent_moon: "Charon" },
+      { name: "Argo Chasma", type: "Chasma", lat: 27.80, lon: 80.40, theme: "moon-feature", description: "A deep canyon on Charon, part of the vast equatorial rift system. Named for the mythological ship sailed by Jason and the Argonauts.", moon_name: "Charon" },
+      { name: "Caleuche Chasma", type: "Chasma", lat: 72.50, lon: 241.80, theme: "moon-feature", description: "A deep canyon on Charon. Named for the Chilote legendary sentient ghost ship.", moon_name: "Charon" },
+      { name: "Mandjet Chasma", type: "Chasma", lat: 4.80, lon: 294.40, theme: "moon-feature", description: "A deep canyon on Charon. Named for the Egyptian boat that carries the sun god Ra across the sky.", moon_name: "Charon" },
+      { name: "Butler Mons", type: "Mons", lat: -9.48, lon: 38.74, theme: "moon-feature", description: "A mountain on Charon. Named for Octavia E. Butler, American science fiction author (1947-2006).", moon_name: "Charon" },
+      { name: "Clarke Montes", type: "Mons", lat: -5.12, lon: 7.05, theme: "moon-feature", description: "A mountain on Charon. Named for Sir Arthur C. Clarke, British author and co-writer of 2001: A Space Odyssey (1917-2008).", moon_name: "Charon" },
+      { name: "Kubrick Mons", type: "Mons", lat: 3.60, lon: 30.80, theme: "moon-feature", description: "A mountain on Charon. Named for Stanley Kubrick, director of 2001: A Space Odyssey (1928-1999).", moon_name: "Charon" },
+      { name: "McCaffrey Dorsum", type: "Dorsum", lat: 74.28, lon: 294.89, theme: "moon-feature", description: "A ridge on Charon. Named for Anne McCaffrey, science fiction author of the Dragonriders of Pern series (1926-2011).", moon_name: "Charon" },
+      { name: "Neverland Regio", type: "Regio", lat: 85.00, lon: 60.00, theme: "moon-feature", description: "A large region on Charon. Named for Neverland, the fictional island of Peter Pan in J.M. Barrie's works.", moon_name: "Charon" },
+      { name: "Cora", type: "Crater", lat: 17.09, lon: 351.72, theme: "moon-feature", description: "An impact crater on Charon. Named for the protagonist of The Underground Railroad by Colson Whitehead (2016).", moon_name: "Charon" },
+      { name: "Dorothy", type: "Crater", lat: 58.53, lon: 40.58, theme: "moon-feature", description: "An impact crater on Charon. Named for Dorothy, protagonist of The Wonderful Wizard of Oz.", moon_name: "Charon" },
+      { name: "Nasreddin", type: "Crater", lat: 25.50, lon: 308.60, theme: "moon-feature", description: "An impact crater on Charon. Named for the hero of humorous folktales across the Middle East and Asia.", moon_name: "Charon" },
+      { name: "Nemo", type: "Crater", lat: -15.70, lon: 314.10, theme: "moon-feature", description: "An impact crater on Charon. Named for Captain Nemo of Jules Verne's submarine Nautilus.", moon_name: "Charon" },
+      { name: "Pirx", type: "Crater", lat: 55.20, lon: 256.30, theme: "moon-feature", description: "An impact crater on Charon. Named for the spaceship pilot in Stanislaw Lem's stories (1921-2006).", moon_name: "Charon" },
+      { name: "Revati", type: "Crater", lat: 20.70, lon: 35.40, theme: "moon-feature", description: "An impact crater on Charon. Named for the Hindu mythological princess who traveled through time and space.", moon_name: "Charon" },
+      { name: "Sadko", type: "Crater", lat: -16.10, lon: 331.20, theme: "moon-feature", description: "An impact crater on Charon. Named for the Russian merchant in medieval epic who traveled to the bottom of the sea.", moon_name: "Charon" },
     ];
     const nixFeatureData = [
-      { name: "Gleti", type: "Crater", lat: 0, lon: 0, theme: "moon-feature", description: "An impact crater on Nix. Named for Gleti, the moon goddess in Fon mythology from Benin, West Africa.", parent_moon: "Nix" },
-      { name: "Metztli", type: "Crater", lat: 0, lon: 0, theme: "moon-feature", description: "An impact crater on Nix. Named for Metztli, the moon deity in Aztec mythology.", parent_moon: "Nix" },
+      { name: "Gleti", type: "Crater", lat: 0, lon: 0, theme: "moon-feature", description: "An impact crater on Nix. Named for Gleti, the moon goddess in Fon mythology from Benin, West Africa.", moon_name: "Nix" },
+      { name: "Metztli", type: "Crater", lat: 0, lon: 0, theme: "moon-feature", description: "An impact crater on Nix. Named for Metztli, the moon deity in Aztec mythology.", moon_name: "Nix" },
     ];
     const moonFeatureData = [...charonFeatureData, ...nixFeatureData];
     const allFeatureData = [...labelData, ...ringLabelData, ...moonData, ...moonFeatureData];
@@ -700,7 +700,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         return null;
       }
       locatorCameraLocal.normalize().multiplyScalar(3.2);
-      locatorCameraLocal.applyEuler(new THREE.Euler(0, -(locatorViewState.globe.rotation.y - Math.PI), 0));
+      locatorCameraLocal.applyEuler(new THREE.Euler(0, -locatorViewState.globe.rotation.y, 0));
       return vectorToLatLon(locatorCameraLocal);
     }
 
@@ -736,18 +736,19 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       }
     }
 
-    // ── Mars interior model (depth-based) ────────────────────────────────────
-    // Layer boundaries as fraction of planetary radius (from InSight + geophysical models)
+    // ── Pluto interior model (depth-based) ───────────────────────────────────
+    // Layer boundaries as fraction of planetary radius (from gravity + thermal models)
     // rFrac = 0 → centre, rFrac = 1 → surface
     const MERCURY_INTERIOR_LAYERS = [
-      { name: "Inner Core",        rMin: 0.000, rMax: 0.470 },
-      { name: "Liquid Outer Core", rMin: 0.470, rMax: 0.750 },
-      { name: "Mantle",            rMin: 0.750, rMax: 0.985 },
+      { name: "Core",              rMin: 0.000, rMax: 0.720 },
+      { name: "Liquid water ocean",rMin: 0.720, rMax: 0.820 },
+      { name: "Water ice crust",   rMin: 0.820, rMax: 0.985 },
       { name: "Crust",             rMin: 0.985, rMax: 1.000 },
     ];
-    // Piecewise-linear T (°C) and P (GPa) profiles keyed on rFrac (sorted low→high)
-    const MERCURY_INTERIOR_T_PTS = [[0.000, 2200], [0.470, 2000], [0.750, 1400], [0.985, 600], [1.000, -180]];
-    const MERCURY_INTERIOR_P_PTS = [[0.000, 7.0], [0.470, 6.0], [0.750, 3.5], [0.985, 0.3], [1.000, 0]];
+    // Piecewise-linear T (K) and P (GPa) profiles keyed on rFrac (sorted low→high).
+    // Core warm from radiogenic heat → ocean near freezing → ice and crust cold.
+    const MERCURY_INTERIOR_T_PTS = [[0.000, 500], [0.720, 280], [0.820, 250], [0.985, 80], [1.000, 40]];
+    const MERCURY_INTERIOR_P_PTS = [[0.000, 0.45], [0.720, 0.30], [0.820, 0.18], [0.985, 0.005], [1.000, 0]];
 
     function _interiorInterp(pts, rFrac) {
       const r = Math.max(0, Math.min(1, rFrac));
@@ -777,10 +778,10 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     }
 
     const MERCURY_INTERIOR_LAYER_COLORS = {
-      "Crust":             "#c8b99a",
-      "Mantle":            "#b07040",
-      "Liquid Outer Core": "#ff7a50",
-      "Inner Core":        "#e8d090",
+      "Crust":              "#7a4a35",
+      "Water ice crust":    "#bdd9e8",
+      "Liquid water ocean": "#1e6da8",
+      "Core":               "#b89770",
     };
 
     function plutoInteriorLayerColor(layerName) {
@@ -1243,45 +1244,48 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       {
         id: "crust",
         name: "Crust",
-        type: "Lithospheric shell",
-        description: "Thin basaltic outer shell, thinnest under the great volcanic plains and thickest under the ancient southern highlands.",
-        depth: "0 – 50 km (avg); up to ~80 km in highlands",
-        composition: "Iron-rich basaltic silicates: pyroxene, olivine, plagioclase. More volatile-rich than Earth's crust.",
-        temperature: "~200°C at surface → ~1,000°C at base",
-        labelX: -1.6, labelY: 3.17,
-        anchorY: 3.17,
+        type: "Volatile-ice surface shell",
+        description: "Thin outer veneer of exotic ices and tholins overlying the water-ice mantle. Composed largely of nitrogen, methane, and carbon-monoxide ices that sublimate and redeposit seasonally, mixed with reddish-brown tholins produced by solar UV processing of methane.",
+        depth: "~0 – 20 km",
+        composition: "N₂, CH₄, CO ices with tholin organics on a thin H₂O-ice base.",
+        temperature: "~40 K at surface; gradient steepens with depth.",
+        // All layer labels sit at labelX = -1.6 with labelY = anchorY, giving
+        // four horizontal connectors of equal length (≈ 1.6) — matches the
+        // Mars/Mercury cutaway label execution.
+        labelX: -1.6, labelY: 3.176,
+        anchorY: 3.176,
       },
       {
-        id: "mantle",
-        name: "Mantle",
-        type: "Silicate shell",
-        description: "A thick shell of iron-rich silicate rock. Pluto has a water-ice mantle and a possible subsurface ocean layer. The interior comprises a rocky core overlaid by a thick water-ice shell, with exotic ices (nitrogen, methane, CO) on the surface.",
-        depth: "50 – ~1,700 km depth",
-        composition: "Iron-rich peridotite and pyroxenite. More Fe-rich than Earth's mantle, but many shallow-to-mid mantle source regions are thought to be melt-depleted after long-term volcanic extraction; only localized deeper domains may still retain enough heat and volatiles for partial melting.",
-        temperature: "~1,000°C near crust → ~1,500°C near core",
-        labelX: -2.2, labelY: 2.2,
-        anchorY: 2.2,
+        id: "ice-mantle",
+        name: "Water ice crust",
+        type: "Water-ice shell",
+        description: "Thick rigid shell of crystalline water ice (mostly Ice I) forming Pluto's mantle. Convective overturn in this layer is invoked to explain the resurfacing of Sputnik Planitia and ridge-network terrains.",
+        depth: "~20 – 220 km",
+        composition: "Water ice (Ice I, with possible deeper high-pressure phases).",
+        temperature: "~40 K at top → ~250 K near ocean base.",
+        labelX: -1.6, labelY: 2.888,
+        anchorY: 2.888,
       },
       {
-        id: "outer-core",
-        name: "Liquid Outer Core",
-        type: "Iron-sulfur fluid",
-        description: "InSight seismic data (2021) confirmed a single large liquid iron core of ~1,830 km radius — larger than expected and kept liquid by its high sulfur and lighter-element content.",
-        depth: "~1,700 km depth to centre (~1,830 km radius)",
-        composition: "Liquid iron-sulfur alloy with O, H, and C. High sulfur content depresses the melting point.",
-        temperature: "~1,400 – 2,200°C",
-        labelX: -1.6, labelY: 1.25,
-        anchorY: 1.25,
+        id: "ocean",
+        name: "Liquid water ocean",
+        type: "Subsurface ocean",
+        description: "A persistent global liquid-water ocean, kept liquid by long-lived radiogenic heating in the rocky core and by an insulating overlying ice mantle. Stress-pattern evidence from extensional tectonics on Pluto's surface supports an ocean that has been freezing slowly over geologic time.",
+        depth: "~220 – ~330 km",
+        composition: "Liquid H₂O, likely with ammonia or salts as antifreeze.",
+        temperature: "~250 – 270 K (near freezing).",
+        labelX: -1.6, labelY: 2.464,
+        anchorY: 2.464,
       },
       {
-        id: "inner-core",
-        name: "Inner Core",
-        type: "Deep interior (uncertain)",
-        description: "Whether Mars has a solid inner core is unconfirmed. InSight seismic data is ambiguous; low seismic activity limits deep-interior resolution.",
-        depth: "0 – ~300 km from centre (estimated)",
-        composition: "Possibly denser iron-nickel alloy, or fully molten. State and exact composition remain unknown.",
-        temperature: "~2,000 – 2,400°C (estimated)",
-        labelX: -1.0, labelY: 0,
+        id: "core",
+        name: "Core",
+        type: "Silicate rock core",
+        description: "Pluto's central rocky core, occupying most of its volume. Dehydrated radiogenic silicates supply the long-term heat budget that keeps the overlying ocean from freezing solid.",
+        depth: "~330 km to centre (≈ 855 km radius)",
+        composition: "Hydrated → dehydrated silicate rock, possibly with metal sulfides.",
+        temperature: "Warm core: hundreds of K, driven by radiogenic decay.",
+        labelX: -1.6, labelY: 0,
         anchorY: 0,
       },
     ];
@@ -4366,26 +4370,26 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
             {
               type: "swatch",
               label: "Crust",
-              detail: "Thin basaltic outer shell, thinnest under the great volcanic plains and thickest under the ancient southern highlands.",
+              detail: "Thin veneer of N₂, CH₄ and CO ices with reddish-brown tholin organics, ~20 km thick.",
               color: MERCURY_INTERIOR_LAYER_COLORS["Crust"],
             },
             {
               type: "swatch",
-              label: "Mantle",
-              detail: "Water-ice mantle layer surrounding Pluto's rocky core.",
-              color: MERCURY_INTERIOR_LAYER_COLORS["Mantle"],
+              label: "Water ice crust",
+              detail: "Rigid water-ice mantle (Ice I) ~200 km thick that hosts Sputnik Planitia's slow convection.",
+              color: MERCURY_INTERIOR_LAYER_COLORS["Water ice crust"],
             },
             {
               type: "swatch",
-              label: "Liquid Outer Core",
-              detail: "InSight seismic data confirmed a single large liquid iron core of ~1,830 km radius, kept liquid by its high sulfur content.",
-              color: MERCURY_INTERIOR_LAYER_COLORS["Liquid Outer Core"],
+              label: "Liquid water ocean",
+              detail: "Persistent global subsurface ocean of liquid H₂O, likely with ammonia or salts as antifreeze.",
+              color: MERCURY_INTERIOR_LAYER_COLORS["Liquid water ocean"],
             },
             {
               type: "swatch",
-              label: "Inner Core",
-              detail: "Whether Mars has a solid inner core is unconfirmed — InSight seismic data is ambiguous and deep-interior resolution remains limited.",
-              color: MERCURY_INTERIOR_LAYER_COLORS["Inner Core"],
+              label: "Core",
+              detail: "Silicate rock core ≈ 855 km in radius; radiogenic heat keeps the overlying ocean liquid.",
+              color: MERCURY_INTERIOR_LAYER_COLORS["Core"],
             },
           ],
         });
@@ -5177,7 +5181,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         camera.updateProjectionMatrix();
       }
       controls.minDistance = getMoonViewerMinDistance(feature);
-      controls.maxDistance = getMoonViewerMaxDistance(feature);
+      controls.maxDistance = feature.name === "Charon"
+        ? getMoonViewerMaxDistance(feature) * 1.3
+        : getMoonViewerMaxDistance(feature);
       const localTarget = new THREE.Vector3(feature.moon_anchor[0], feature.moon_anchor[1], feature.moon_anchor[2]);
       const target = plutoSceneGroup.localToWorld(localTarget.clone());
       const direction = target.clone().normalize();
@@ -5190,7 +5196,17 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       if (_side.lengthSq() > 0.0001) {
         direction.addScaledVector(_side, 0.4).addScaledVector(_up, 0.15).normalize();
       }
-      camera.position.copy(target.clone().addScaledVector(direction, getMoonViewerDistance(feature)));
+      // Charon: open the moon viewer centred on Cora crater (lat 17.09°, lon 351.72°W).
+      // Markers rotate with rotation_threejs(−_currentAngle), so the world direction to
+      // the feature is the local position rotated by the same amount.
+      let _entryDistance = getMoonViewerMaxDistance(feature);
+      if (feature.name === "Charon") {
+        const _localFeat = moonLatLonToVector3(17.09, 351.72, 1.0).normalize();
+        const _worldDir = _localFeat.clone().applyEuler(new THREE.Euler(0, -(feature._currentAngle || 0), 0)).normalize();
+        direction.copy(_worldDir);
+        _entryDistance = _entryDistance * 1.3; // pull camera back slightly
+      }
+      camera.position.copy(target.clone().addScaledVector(direction, _entryDistance));
       camera.up.set(0, 1, 0);
       controls.target.copy(target);
       controls.object.position.copy(camera.position);
@@ -5650,8 +5666,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       }
       const parentMoon = getMoonFeatureParent(feature);
       const isMoonScopedTarget = isMoonFeature(feature) || Boolean(parentMoon);
-      const isTourHopNav = Boolean(options.isTour);
-      if (!isMoonScopedTarget && !isTourHopNav) {
+      if (!isMoonScopedTarget) {
         pauseSpin();
         if (activeTourModeFeature && activeTourModeFeature.name !== feature.name) {
           activeTourModeFeature = feature;
@@ -6193,10 +6208,12 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     }
 
     function buildStarfield(THREERef) {
-      const starCount = 5000;
+      const starCount = 7000;
       const positions = new Float32Array(starCount * 3);
       for (let i = 0; i < starCount; i += 1) {
-        const radius = 140 + Math.random() * 180;
+        // Pushed out so even the outermost moon (Hydra ≈ x = 175) stays well
+        // inside the starfield sphere — avoids stars feeling close to moons.
+        const radius = 400 + Math.random() * 200;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos((Math.random() * 2) - 1);
         positions[(i * 3)] = radius * Math.sin(phi) * Math.cos(theta);
@@ -6208,7 +6225,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       geometry.setAttribute("position", new THREERef.BufferAttribute(positions, 3));
       const material = new THREERef.PointsMaterial({
         color: 0xf3f7ff,
-        size: 0.55,
+        // Scaled up to compensate for the larger sphere radius (size attenuation
+        // would otherwise make far-away stars almost invisible).
+        size: 1.4,
         sizeAttenuation: true,
       });
       return new THREERef.Points(geometry, material);
@@ -6387,19 +6406,20 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         float coolZ = fbm(nn.xy*6.0 + vec2(1.9,5.6));
         float downwell = smoothstep(0.58, 0.78, coolX*w.x + coolY*w.y + coolZ*w.z);
 
-        vec3 deepRock    = vec3(0.07,0.02,0.02);
-        vec3 warmRock    = vec3(0.18,0.06,0.04);
-        vec3 hotRock     = vec3(0.33,0.10,0.05);
-        vec3 plumeRock   = vec3(0.48,0.17,0.07);
-        vec3 brightPlume = vec3(0.66,0.28,0.10);
-        vec3 coolBand    = vec3(0.11,0.04,0.04);
+        // Water-ice mantle palette: pale blue / off-white ice with cooler shadow bands.
+        vec3 deepRock    = vec3(0.55,0.66,0.74);
+        vec3 warmRock    = vec3(0.72,0.82,0.88);
+        vec3 hotRock     = vec3(0.82,0.90,0.94);
+        vec3 plumeRock   = vec3(0.90,0.95,0.98);
+        vec3 brightPlume = vec3(0.96,0.98,1.00);
+        vec3 coolBand    = vec3(0.38,0.48,0.58);
 
         vec3 col = mix(deepRock, warmRock, bulk);
         col = mix(col, hotRock, plumes*0.38);
         col = mix(col, plumeRock, plumes*0.52);
         col = mix(col, brightPlume, pow(plumes, 2.4)*0.24);
         col = mix(col, coolBand, downwell*0.44);
-        col += shear * vec3(0.04,0.015,0.01);
+        col += shear * vec3(0.02,0.03,0.04);
         col *= 0.82 + 0.10*bulk;
         gl_FragColor=vec4(col,1.0);
       }
@@ -6438,17 +6458,18 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         float sz = abs(sin(nn.x*8.0 + nn.y*7.0 + fbm(nn.xy*9.0)*5.0));
         float shear = pow(sx*w.x + sy*w.y + sz*w.z, 6.2);
 
-        vec3 deepIron  = vec3(0.30,0.03,0.01);
-        vec3 warmIron  = vec3(0.63,0.13,0.02);
-        vec3 hotIron   = vec3(0.92,0.38,0.05);
-        vec3 sulfurHot = vec3(1.00,0.74,0.16);
-        vec3 wallGlow  = vec3(1.00,0.88,0.30);
+        // Liquid water ocean palette: deep navy → cyan → pale foam highlights.
+        vec3 deepIron  = vec3(0.04,0.10,0.28);
+        vec3 warmIron  = vec3(0.08,0.22,0.50);
+        vec3 hotIron   = vec3(0.14,0.40,0.72);
+        vec3 sulfurHot = vec3(0.28,0.66,0.92);
+        vec3 wallGlow  = vec3(0.62,0.86,0.99);
 
         vec3 col = mix(deepIron, warmIron, heat);
         col = mix(col, hotIron, pow(heat, 1.8));
         col = mix(col, sulfurHot, cellCenters*0.75);
         col = mix(col, wallGlow, cellWalls*0.55);
-        col += shear * vec3(0.14,0.04,0.01);
+        col += shear * vec3(0.02,0.06,0.12);
         col *= 0.90 + 0.10*fbm(px*2.5);
         gl_FragColor=vec4(col,1.0);
       }
@@ -6471,16 +6492,17 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         // radial heat glow from centre
         float r=length(vUv-0.5)*1.9;
         float glow=pow(clamp(1.-r,0.,1.),1.8);
-        vec3 vDark  =vec3(0.36,0.17,0.05);
-        vec3 vMid   =vec3(0.70,0.44,0.14);
-        vec3 vBright=vec3(0.95,0.79,0.38);
-        vec3 vHot   =vec3(1.00,0.90,0.55);
+        // Silicate rock core palette: deep brown → tan → warm highlights.
+        vec3 vDark  =vec3(0.22,0.16,0.10);
+        vec3 vMid   =vec3(0.46,0.36,0.24);
+        vec3 vBright=vec3(0.70,0.58,0.42);
+        vec3 vHot   =vec3(0.84,0.72,0.54);
         vec3 col=mix(vDark,vMid,n1*0.65+crystal*0.35);
         col=mix(col,vBright,crystal*0.65);
         col=mix(col,vHot,glow*0.75);
         col*=0.85+0.15*n3;
         float rim=pow(1.-abs(dot(normalize(vNormal),vec3(0.,0.,1.))),3.0);
-        col+=vec3(0.48,0.18,0.0)*rim*0.38;
+        col+=vec3(0.28,0.20,0.12)*rim*0.38;
         gl_FragColor=vec4(col,1.0);
       }
     `;
@@ -6532,12 +6554,13 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         float plumeBands = pow(abs(sin(ang * 4.0 + fbm(flow * 3.2) * 5.0)), 4.0);
         float plumeHeads = pow(max(ridged(flow * 4.2) - 0.42, 0.0) * 2.2, 2.1);
         float coolDown = smoothstep(0.52, 0.78, fbm(p * 3.5 + vec2(7.3, 1.9)));
-        vec3 deep   = vec3(0.09,0.02,0.03);
-        vec3 warm   = vec3(0.20,0.06,0.05);
-        vec3 hot    = vec3(0.34,0.10,0.06);
-        vec3 plume  = vec3(0.50,0.16,0.08);
-        vec3 bright = vec3(0.68,0.27,0.12);
-        vec3 cool   = vec3(0.12,0.04,0.05);
+        // Water-ice section: pale blue ice with cooler shadow bands.
+        vec3 deep   = vec3(0.50,0.62,0.72);
+        vec3 warm   = vec3(0.70,0.82,0.88);
+        vec3 hot    = vec3(0.80,0.90,0.94);
+        vec3 plume  = vec3(0.88,0.94,0.97);
+        vec3 bright = vec3(0.96,0.98,1.00);
+        vec3 cool   = vec3(0.35,0.46,0.56);
         vec3 col = mix(deep, warm, bulk);
         col = mix(col, hot, plumeBands * 0.24 + plumeHeads * 0.12);
         col = mix(col, plume, plumeHeads * 0.44);
@@ -6570,11 +6593,12 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         float walls = 1.0 - smoothstep(0.06, 0.16, cells);
         float centers = smoothstep(0.28, 0.10, cells);
         float gyres = pow(abs(sin(atan(flow.y, flow.x) * 5.0 + fbm(flow * 4.0) * 6.0)), 5.5);
-        vec3 deep  = vec3(0.34,0.04,0.01);
-        vec3 warm  = vec3(0.65,0.14,0.02);
-        vec3 hot   = vec3(0.93,0.33,0.04);
-        vec3 core  = vec3(1.00,0.73,0.14);
-        vec3 wallsC= vec3(1.00,0.88,0.28);
+        // Liquid water ocean section: navy → mid blue → cyan foam highlights.
+        vec3 deep  = vec3(0.04,0.10,0.30);
+        vec3 warm  = vec3(0.09,0.24,0.55);
+        vec3 hot   = vec3(0.16,0.44,0.75);
+        vec3 core  = vec3(0.30,0.70,0.94);
+        vec3 wallsC= vec3(0.60,0.86,0.99);
         vec3 col = mix(deep, warm, heat);
         col = mix(col, hot, pow(heat, 1.8));
         col = mix(col, core, centers * 0.72 + gyres * 0.18);
@@ -6593,13 +6617,18 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
 
       const phiStart = -Math.PI / 2;
       const phiLength = Math.PI;
-      const MERCURY_INNER_CORE_RADIUS = 0.47;    // large solid iron inner core (~1,160 km)
-      const MERCURY_OUTER_CORE_RADIUS = 0.75;    // liquid iron-sulfide outer core (~585 km)
-      const MERCURY_MANTLE_RADIUS = 0.985;       // thin silicate mantle and crust
+      // Pluto interior model (normalised to planet radius 1188 km):
+      //   • Rocky/silicate core  → 0–855 km     (≈ 0.72)
+      //   • Liquid water ocean   → 855–970 km   (≈ 0.72–0.82)
+      //   • Water-ice mantle     → 970–1168 km  (≈ 0.82–0.985)
+      //   • Surface crust        → 1168–1188 km (≈ 0.985–1.0)
+      const PLUTO_CORE_RADIUS = 0.72;    // silicate rock core (~855 km radius)
+      const PLUTO_OCEAN_RADIUS = 0.82;   // top of liquid water ocean (~115 km thick)
+      const PLUTO_ICE_RADIUS = 0.985;    // top of water-ice mantle (~195 km thick)
       
-      // ── Inner core: dense crystalline metallic interior ───────────────────
+      // ── Core: silicate rock core ──────────────────────────────────────────
       const innerCoreMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * MERCURY_INNER_CORE_RADIUS, 96, 96, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * PLUTO_CORE_RADIUS, 96, 96, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -6610,9 +6639,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       innerCoreMesh.rotation.y = Math.PI;
       group.add(innerCoreMesh);
 
-      // ── Outer liquid core: animated Bénard convective cells ───────────────
+      // ── Liquid water ocean shell ──────────────────────────────────────────
       const outerCoreMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * MERCURY_OUTER_CORE_RADIUS, 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * PLUTO_OCEAN_RADIUS, 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -6623,9 +6652,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       outerCoreMesh.rotation.y = Math.PI;
       group.add(outerCoreMesh);
 
-      // ── Mantle outer boundary shell ───────────────────────────────────────
+      // ── Water-ice mantle outer boundary shell ─────────────────────────────
       const mantleMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * MERCURY_MANTLE_RADIUS, 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * PLUTO_ICE_RADIUS, 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -6638,7 +6667,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
 
       // ── Mantle inner boundary shell: explicit inner wall around the core ──
       const mantleInnerBoundaryMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * (MERCURY_OUTER_CORE_RADIUS + 0.002), 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * (PLUTO_OCEAN_RADIUS + 0.002), 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -6671,7 +6700,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
 
       // ── Crust inner boundary shell: explicit wall against the mantle ──────
       const crustInnerBoundaryMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(radius * MERCURY_MANTLE_RADIUS, 128, 128, phiStart, phiLength),
+        new THREE.SphereGeometry(radius * PLUTO_ICE_RADIUS, 128, 128, phiStart, phiLength),
         new THREE.ShaderMaterial({
           uniforms: {},
           vertexShader: LAYER_VERT,
@@ -6687,12 +6716,12 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
 
       // ── Cross-section face (ring caps at x=0 plane) ───────────────────────
       const CAP_X = -0.012;
-      const crustInnerRadius = radius * MERCURY_MANTLE_RADIUS;
+      const crustInnerRadius = radius * PLUTO_ICE_RADIUS;
       const crustOuterRadius = radius + (elevationMap ? terrainRelief : 0);
       const capDefs = [
         { outer: crustOuterRadius, inner: crustInnerRadius, fragmentShader: CRUST_SECTION_FRAG },  // crust ring
-        { outer: crustInnerRadius, inner: radius * MERCURY_OUTER_CORE_RADIUS,  fragmentShader: MANTLE_SECTION_FRAG },  // molecular envelope ring
-        { outer: radius * MERCURY_OUTER_CORE_RADIUS,  inner: radius * MERCURY_INNER_CORE_RADIUS,  fragmentShader: CORE_SECTION_FRAG },  // metallic hydrogen ring
+        { outer: crustInnerRadius, inner: radius * PLUTO_OCEAN_RADIUS,  fragmentShader: MANTLE_SECTION_FRAG },  // molecular envelope ring
+        { outer: radius * PLUTO_OCEAN_RADIUS,  inner: radius * PLUTO_CORE_RADIUS,  fragmentShader: CORE_SECTION_FRAG },  // metallic hydrogen ring
       ];
       let crustRing = null;
       let molecularEnvelopeRing = null;
@@ -6732,7 +6761,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         side: THREE.DoubleSide,
       });
       const fluidCapDisk = new THREE.Mesh(
-        new THREE.CircleGeometry(radius * MERCURY_OUTER_CORE_RADIUS, 128),
+        new THREE.CircleGeometry(radius * PLUTO_OCEAN_RADIUS, 128),
         fluidCapMat,
       );
       fluidCapDisk.rotation.y = Math.PI / 2;
@@ -6747,7 +6776,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         side: THREE.DoubleSide,
       });
       const innerCapDisk = new THREE.Mesh(
-        new THREE.CircleGeometry(radius * MERCURY_INNER_CORE_RADIUS, 96),
+        new THREE.CircleGeometry(radius * PLUTO_CORE_RADIUS, 96),
         innerCapMat,
       );
       innerCapDisk.rotation.y = Math.PI / 2;
@@ -6767,7 +6796,6 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           const lx = layer.labelX;
           const ly = layer.labelY;
           const anchorPoint = new THREE.Vector3(CAP_X, layer.anchorY, 0);
-          const labelPoint = new THREE.Vector3(lx, ly, 0);
 
           // Dot marker on the cut-face layer anchor
           const dot = new THREE.Mesh(markerGeo, markerMat.clone());
@@ -6782,26 +6810,34 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           labelsGroup.add(hit);
           interactiveObjects.push(hit, dot);
 
-          // Connector line: from the layer face marker out to the label.
+          // Text sprite label — built before the line so we can anchor the line
+          // to the sprite's actual right edge (matches the +65% label-size change).
+          const labelTex = makeLabelTexture(layer.name);
+          const spriteScale = 1.40;
+          const spriteW = (labelTex.width / 200) * spriteScale;
+          const spriteH = (labelTex.height / 200) * spriteScale;
+          const spriteCenterX = lx - spriteW * 0.5;
+          const spriteRightEdgeX = spriteCenterX + spriteW * 0.5; // = lx
+          const spriteMat = new THREE.SpriteMaterial({
+            map: labelTex.texture, transparent: true, opacity: 0.88,
+            depthTest: true, depthWrite: false,
+          });
+          const sprite = new THREE.Sprite(spriteMat);
+          sprite.scale.set(spriteW, spriteH, 1);
+          sprite.position.set(spriteCenterX, ly, 0);
+          sprite.userData.feature = layer;
+          labelsGroup.add(sprite);
+          interactiveObjects.push(sprite);
+
+          // Connector line: from the layer face marker out to the sprite's
+          // right edge — guarantees the line always touches the label.
+          const labelPoint = new THREE.Vector3(spriteRightEdgeX, ly, 0);
           const lineGeo = new THREE.BufferGeometry().setFromPoints([anchorPoint, labelPoint]);
           const lineMat = new THREE.LineBasicMaterial({
             color: 0xffcf9d, transparent: true, opacity: 0.45,
           });
           const line = new THREE.Line(lineGeo, lineMat);
           labelsGroup.add(line);
-
-          // Text sprite label
-          const labelTex = makeLabelTexture(layer.name);
-          const spriteMat = new THREE.SpriteMaterial({
-            map: labelTex.texture, transparent: true, opacity: 0.88,
-            depthTest: true, depthWrite: false,
-          });
-          const sprite = new THREE.Sprite(spriteMat);
-          sprite.scale.set((labelTex.width / 200) * 0.85, (labelTex.height / 200) * 0.85, 1);
-          sprite.position.set(lx - (labelTex.width / 200) * 0.85 * 0.5 - 0.05, ly, 0);
-          sprite.userData.feature = layer;
-          labelsGroup.add(sprite);
-          interactiveObjects.push(sprite);
           labelEntries.push({ dot, hit, line, sprite, layerId: layer.id });
         }
       }
@@ -6996,14 +7032,13 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     }
 
     function moonDataLonToSceneLon(lonDegrees) {
-      // Phobos/Deimos feature catalogs use the IAU small-body convention, where
-      // longitudes are authored in the opposite handedness from the positive-east
-      // simple-cylindrical moon textures used by the renderer.
-      return normalizeDegrees360(360 - Number(lonDegrees || 0));
+      // Pluto-moon basemaps use convention D (west-positive, centered, north-top),
+      // so placement and cursor reading both use identity: scene_lon = W.
+      return normalizeDegrees360(Number(lonDegrees || 0));
     }
 
     function sceneLonToMoonDataLon(lonDegrees) {
-      return normalizeDegrees360(360 - Number(lonDegrees || 0));
+      return normalizeDegrees360(Number(lonDegrees || 0));
     }
 
 
@@ -10492,7 +10527,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x02050b);
 
-      const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1500);
       camera.position.set(0, 1.4, 11.5);
       viewerCamera = camera;
 
@@ -13262,7 +13297,7 @@ uniform float uViewportWidth;`,
           bodyName = surfaceHit.context.bodyName || bodyName;
         } else if (surfaceHit.point) {
           const localPoint = plutoGroup.worldToLocal(surfaceHit.point.clone());
-          localPoint.applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
+          localPoint.applyEuler(new THREE.Euler(0, -globe.rotation.y, 0));
           const latLon = vectorToLatLon(localPoint);
           lat = latLon.lat;
           lon = latLon.lon;
@@ -13961,12 +13996,12 @@ uniform float uViewportWidth;`,
           // markers stay surface-locked as the moon spins.
           const moonAngle = getMoonBodyAngle(context.bodyName);
           const relVec = localPoint.clone().sub(context.centerLocal);
-          relVec.applyEuler(new THREE.Euler(0, moonAngle, 0)); // +angle undoes rotation.y = -angle
+          relVec.applyEuler(new THREE.Euler(0, moonAngle, 0));
           return context.centerLocal.clone().add(relVec);
         }
         // Store planetary measurements in the unspun body frame, then let the
         // measurement overlay rotate with Mars so markers stay surface-locked.
-        return localPoint.clone().applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
+        return localPoint.clone().applyEuler(new THREE.Euler(0, -globe.rotation.y, 0));
       }
 
       function isMeasureCtxMosaicBasemap() {
@@ -14023,9 +14058,13 @@ uniform float uViewportWidth;`,
           if (moonHit) {
             const ctx = getMoonMeasureContext(entry.item);
             if (ctx) {
-              const localPoint = plutoGroup.worldToLocal(moonHit.point.clone());
-              const latLon = vectorToLatLonInMeasureContext(localPoint, ctx);
-              candidates.push({ ...moonHit, localPoint, lat: latLon.lat, lon: latLon.lon, context: ctx });
+              // Un-rotate by the moon's current self-rotation so the cursor reads in the
+              // moon's body frame (matches feature.lon). Without this, the moon's accumulated
+              // _currentAngle leaks into the readout (visible as a drifting tens-of-degrees
+              // offset on Charon/Nix/Hydra/Styx/Kerberos in moon viewer mode).
+              const rawLocal = plutoGroup.worldToLocal(moonHit.point.clone());
+              const refined = refineMeasureHitLocalPoint(rawLocal, ctx);
+              candidates.push({ ...moonHit, localPoint: refined.localPoint, lat: refined.latLon.lat, lon: refined.latLon.lon, context: ctx });
             }
           }
         }
@@ -14765,7 +14804,7 @@ uniform float uViewportWidth;`,
         // Rocky planet — globe is always visible; no "remove atmosphere" concept.
         const removeAtmosphere = false;
         const coreEnabled = Boolean(coreToggle && coreToggle.checked);
-        const plutoLabelsEnabled = labelsToggle.checked && !activeMoonViewerFeature;
+        const plutoLabelsEnabled = labelsToggle.checked && !activeMoonViewerFeature && !coreEnabled;
         globe.visible = true;
         // Solid interior helper (gas-planet holdover) is never shown for rocky planets.
         // to avoid triggering expensive MeshPhysicalMaterial shader compilations.
@@ -16298,7 +16337,7 @@ uniform float uViewportWidth;`,
             latLon = { lat: surfaceHit.lat, lon: surfaceHit.lon };
           } else {
             const localPoint = plutoGroup.worldToLocal(surfaceHit.point.clone());
-            localPoint.applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
+            localPoint.applyEuler(new THREE.Euler(0, -globe.rotation.y, 0));
             latLon = vectorToLatLon(localPoint);
           }
           const elevationMeters = surfaceHit.context?.kind === "moon"
@@ -16608,7 +16647,7 @@ uniform float uViewportWidth;`,
           const baseSurfaceHit = intersectMarsSurface(event.clientX, event.clientY);
           if (baseSurfaceHit) {
             const localPoint = plutoGroup.worldToLocal(baseSurfaceHit.point.clone());
-            const bodyPoint = localPoint.clone().applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
+            const bodyPoint = localPoint.clone().applyEuler(new THREE.Euler(0, -globe.rotation.y, 0));
             const latLon = vectorToLatLon(bodyPoint);
             if (placeBuildingAtLatLon(latLon.lat, latLon.lon)) {
               return;
@@ -17120,10 +17159,11 @@ ${error && error.message ? error.message : error}`;
           compareShader.uniforms.uViewportWidth.value = renderer.domElement.clientWidth || window.innerWidth || 1;
         }
         const removeAtmosphere = false; // Rocky planet — no atmosphere to remove.
-        const plutoLabelsEnabled = labelsToggle.checked && !activeMoonViewerFeature;
-        // Group-level kill switch: hide the entire label layer in moon viewer mode every frame,
-        // overriding any event listener that may have turned individual sprites back on.
-        labelLayer.group.visible = !activeMoonViewerFeature;
+        const plutoLabelsEnabled = labelsToggle.checked && !activeMoonViewerFeature && !coreToggle.checked;
+        // Group-level kill switch: hide the entire label layer in moon viewer or core view
+        // mode every frame, overriding any event listener that may have turned individual
+        // sprites back on.
+        labelLayer.group.visible = !activeMoonViewerFeature && !coreToggle.checked;
         // Label/moon visibility: expensive per-entry world-space work. Runs every
         // frame when still; every 3rd frame during rotation (imperceptible at 60fps).
         if (_heavyFrame) {
@@ -17347,7 +17387,7 @@ ${error && error.message ? error.message : error}`;
         if (activeGeoPopupLocalPos && activeGeoPopupFeature) {
           try {
             const worldPos = plutoGroup.localToWorld(
-              activeGeoPopupLocalPos.clone().applyEuler(new THREE.Euler(0, globe.rotation.y - Math.PI, 0)),
+              activeGeoPopupLocalPos.clone().applyEuler(new THREE.Euler(0, globe.rotation.y, 0)),
             );
             const planetCenterWorld = plutoGroup.localToWorld(new THREE.Vector3(0, 0, 0));
             const surfaceNormalWorld = worldPos.clone().sub(planetCenterWorld).normalize();

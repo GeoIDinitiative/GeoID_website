@@ -31,6 +31,17 @@
     const flybyPathsToggle = document.getElementById("flyby-paths-toggle");
     const habitationLabelsToggle = document.getElementById("habitation-labels-toggle");
     const moonToggle = document.getElementById("moon-toggle");
+    const craterLabelsToggle = document.getElementById("crater-labels-toggle");
+    const tectonicLabelsToggle = document.getElementById("tectonic-labels-toggle");
+    const fluvialLabelsToggle = document.getElementById("fluvial-labels-toggle");
+    const lodSlider = document.getElementById("lod-slider");
+    const lodValueLabel = document.getElementById("lod-value-label");
+    let currentLodLevel = 5;
+    const LOD_LABELS = ["", "Landmarks only", "Major features", "Standard", "Detailed", "All features"];
+    function syncLodLabel() {
+      if (lodValueLabel) lodValueLabel.textContent = LOD_LABELS[currentLodLevel] || "All features";
+    }
+    syncLodLabel();
     const seismicToggle = document.getElementById("seismic-toggle");
     const locationsMasterToggle = document.getElementById("locations-master-toggle");
     const coreToggle = document.getElementById("core-toggle");
@@ -62,9 +73,9 @@
     const seismicMagnitudeCopy = document.getElementById("seismic-magnitude-copy");
     const seismicTimelineSlider = document.getElementById("seismic-timeline-slider");
     const seismicTimelineReadout = document.getElementById("seismic-timeline-readout");
-    const labelData = [{"name":"Great Dark Spot","type":"Dark vortex","lat":-22.0,"lon":350.0,"theme":"storm","description":"Representative location for Neptune's large dark vortex systems observed by Voyager 2 and later monitoring."},{"name":"Scooter Cloud","type":"Bright methane cloud","lat":-42.0,"lon":150.0,"theme":"storm","description":"A bright fast-moving methane cloud feature associated with Neptune's dynamic weather."},{"name":"Dark Spot 2","type":"Small dark vortex","lat":-55.0,"lon":45.0,"theme":"storm","description":"A smaller dark spot observed by Voyager 2 south of the Great Dark Spot, tracking alongside it."},{"name":"South Polar Band","type":"Polar atmosphere","lat":-70.0,"lon":260.0,"theme":"polar","description":"Representative high-latitude southern atmosphere and cloud structure."},{"name":"North Polar Haze","type":"Polar haze","lat":68.0,"lon":30.0,"theme":"polar","description":"A northern high-latitude haze region in enhanced atmospheric views."},{"name":"Equatorial Zone","type":"Cloud zone","lat":0.0,"lon":0.0,"theme":"band","description":"A broad equatorial cloud zone shaped by Neptune's high-speed zonal winds."},{"name":"Southern Mid-Latitude Belt","type":"Cloud belt","lat":-35.0,"lon":95.0,"theme":"band","description":"A southern mid-latitude belt where bright methane clouds and darker bands recur."},{"name":"Northern Mid-Latitude Belt","type":"Cloud belt","lat":35.0,"lon":285.0,"theme":"band","description":"A representative northern band used for orientation in the cloud-top texture."},{"name":"South Polar Region","type":"Polar atmosphere","lat":-85.0,"lon":0.0,"theme":"polar","description":"Neptune's south polar region, which appears slightly brighter at thermal wavelengths due to seasonal heating."},{"name":"Triton Ring Plane Crossing Zone","type":"Ring plane zone","lat":0.0,"lon":180.0,"theme":"landing","description":"Equatorial zone used as orientation for Neptune's ring system and Triton's highly inclined retrograde orbit."},{"name":"Voyager 2 Closest Approach","type":"Mission corridor","lat":-30.0,"lon":45.0,"theme":"landing","description":"Representative encounter region for Voyager 2's 1989 Neptune flyby."}];
-    const ringLabelData = [{"name":"Galle Ring","type":"Diffuse inner ring","theme":"ring","description":"Neptune's faint diffuse innermost ring.","ring_region":"Inner ring","ring_radius_km":"~41,900 km from Neptune center","ring_anchor":[4.5315,0,2.1131],"ring_label":[4.9394,0.18,2.3033],"ring_line_end":[4.7309,0.12,2.2061]},{"name":"Le Verrier Ring","type":"Narrow ring","theme":"ring","description":"A narrow ring in Neptune's middle ring system.","ring_region":"Middle ring","ring_radius_km":"~53,200 km from Neptune center","ring_anchor":[-1.6047,0,5.9887],"ring_label":[-1.7211,0.18,6.4234],"ring_line_end":[-1.6616,0.12,6.2012]},{"name":"Adams Ring","type":"Arc-bearing ring","theme":"ring","description":"Neptune's outermost and brightest ring, famous for its distinct bright arcs — Liberté, Égalité, and Fraternité.","ring_region":"Outer main ring","ring_radius_km":"~62,900 km from Neptune center","ring_anchor":[4.5886,0,-6.5532],"ring_label":[4.8467,0.18,-6.9218],"ring_line_end":[4.7148,0.12,-6.7334]}];
-    const moonData = [{"name":"Triton","type":"Major moon","theme":"moon","description":"Neptune's largest moon, a captured Kuiper Belt object with nitrogen geysers and a retrograde orbit that slowly decays toward Neptune.","moon_anchor":[7.8,0.1,5.8],"moon_radius":0.135,"moon_label_lift":0.255,"moon_color":"#d7c7b9","mean_radius_km":"1,353 km","orbit_distance_km":"~354,800 km","texture_source_url":null},{"name":"Proteus","type":"Inner moon","theme":"moon","description":"A dark irregular inner moon and one of Neptune's largest regular satellites, discovered by Voyager 2.","moon_anchor":[-8.8,-0.06,6.6],"moon_radius":0.07,"moon_label_lift":0.19,"moon_color":"#5c5853","mean_radius_km":"210 km","orbit_distance_km":"~117,600 km","texture_source_url":null},{"name":"Nereid","type":"Irregular moon","theme":"moon","description":"A distant moon with a highly eccentric orbit, discovered before the Voyager encounter.","moon_anchor":[-12.4,0.12,-8.0],"moon_radius":0.052,"moon_label_lift":0.172,"moon_color":"#8b8174","mean_radius_km":"170 km","orbit_distance_km":"~5,513,400 km","texture_source_url":null},{"name":"Larissa","type":"Inner moon","theme":"moon","description":"A small dark inner moon orbiting near Neptune's rings.","moon_anchor":[9.8,-0.08,-7.6],"moon_radius":0.044,"moon_label_lift":0.164,"moon_color":"#615d58","mean_radius_km":"97 km","orbit_distance_km":"~73,500 km","texture_source_url":null},{"name":"Galatea","type":"Inner moon","theme":"moon","description":"An inner moon whose gravity helps confine structure in Neptune's Adams ring arcs.","moon_anchor":[6.2,0.05,-8.4],"moon_radius":0.038,"moon_label_lift":0.158,"moon_color":"#6a6660","mean_radius_km":"88 km","orbit_distance_km":"~62,000 km","texture_source_url":null}];
+    const labelData = [{"name":"Great Dark Spot","type": "Dark vortex","lat":-22.0,"lon":350.0,"theme":"storm","description":"Representative location for Neptune's large dark vortex systems observed by Voyager 2 and later monitoring.","lod":1},{"name":"Scooter Cloud","type": "Bright methane cloud","lat":-42.0,"lon":150.0,"theme":"storm","description":"A bright fast-moving methane cloud feature associated with Neptune's dynamic weather.","lod":2},{"name":"Dark Spot 2","type": "Small dark vortex","lat":-55.0,"lon":45.0,"theme":"storm","description":"A smaller dark spot observed by Voyager 2 south of the Great Dark Spot, tracking alongside it.","lod":2},{"name":"South Polar Band","type": "Polar atmosphere","lat":-70.0,"lon":260.0,"theme":"polar","description":"Representative high-latitude southern atmosphere and cloud structure.","lod":2},{"name":"North Polar Haze","type": "Polar haze","lat":68.0,"lon":30.0,"theme":"polar","description":"A northern high-latitude haze region in enhanced atmospheric views.","lod":2},{"name":"Equatorial Zone","type": "Cloud zone","lat":0.0,"lon":0.0,"theme":"band","description":"A broad equatorial cloud zone shaped by Neptune's high-speed zonal winds.","lod":2},{"name":"Southern Mid-Latitude Belt","type": "Cloud belt","lat":-35.0,"lon":95.0,"theme":"band","description":"A southern mid-latitude belt where bright methane clouds and darker bands recur.","lod":2},{"name":"Northern Mid-Latitude Belt","type": "Cloud belt","lat":35.0,"lon":285.0,"theme":"band","description":"A representative northern band used for orientation in the cloud-top texture.","lod":2},{"name":"South Polar Region","type": "Polar atmosphere","lat":-85.0,"lon":0.0,"theme":"polar","description":"Neptune's south polar region, which appears slightly brighter at thermal wavelengths due to seasonal heating.","lod":2},{"name":"Triton Ring Plane Crossing Zone","type": "Ring plane zone","lat":0.0,"lon":180.0,"theme":"landing","description":"Equatorial zone used as orientation for Neptune's ring system and Triton's highly inclined retrograde orbit.","lod":1},{"name":"Voyager 2 Closest Approach","type": "Mission corridor","lat":-30.0,"lon":45.0,"theme":"landing","description":"Representative encounter region for Voyager 2's 1989 Neptune flyby.","lod":1}];
+    const ringLabelData = [{"name":"Galle Ring","type": "Diffuse inner ring","theme":"ring","description":"Neptune's faint diffuse innermost ring.","ring_region":"Inner ring","ring_radius_km":"~41,900 km from Neptune center","ring_anchor":[4.5315,0,2.1131],"ring_label":[4.9394,0.18,2.3033],"ring_line_end":[4.7309,0.12,2.2061],"lod":2},{"name":"Le Verrier Ring","type": "Narrow ring","theme":"ring","description":"A narrow ring in Neptune's middle ring system.","ring_region":"Middle ring","ring_radius_km":"~53,200 km from Neptune center","ring_anchor":[-1.6047,0,5.9887],"ring_label":[-1.7211,0.18,6.4234],"ring_line_end":[-1.6616,0.12,6.2012],"lod":1},{"name":"Adams Ring","type": "Arc-bearing ring","theme":"ring","description":"Neptune's outermost and brightest ring, famous for its distinct bright arcs — Liberté, Égalité, and Fraternité.","ring_region":"Outer main ring","ring_radius_km":"~62,900 km from Neptune center","ring_anchor":[4.5886,0,-6.5532],"ring_label":[4.8467,0.18,-6.9218],"ring_line_end":[4.7148,0.12,-6.7334],"lod":1}];
+    const moonData = [{"name":"Triton","type": "Major moon","theme":"moon","description":"Neptune's largest moon, a captured Kuiper Belt object with nitrogen geysers and a retrograde orbit that slowly decays toward Neptune.","moon_anchor":[7.8,0.1,5.8],"moon_radius":0.135,"moon_label_lift":0.255,"moon_color":"#d7c7b9","mean_radius_km":"1,353 km","orbit_distance_km":"~354,800 km","texture_source_url":null,"lod":1},{"name":"Proteus","type": "Inner moon","theme":"moon","description":"A dark irregular inner moon and one of Neptune's largest regular satellites, discovered by Voyager 2.","moon_anchor":[-8.8,-0.06,6.6],"moon_radius":0.07,"moon_label_lift":0.19,"moon_color":"#5c5853","mean_radius_km":"210 km","orbit_distance_km":"~117,600 km","texture_source_url":null,"lod":1},{"name":"Nereid","type": "Irregular moon","theme":"moon","description":"A distant moon with a highly eccentric orbit, discovered before the Voyager encounter.","moon_anchor":[-12.4,0.12,-8.0],"moon_radius":0.052,"moon_label_lift":0.172,"moon_color":"#8b8174","mean_radius_km":"170 km","orbit_distance_km":"~5,513,400 km","texture_source_url":null,"lod":1},{"name":"Larissa","type": "Inner moon","theme":"moon","description":"A small dark inner moon orbiting near Neptune's rings.","moon_anchor":[9.8,-0.08,-7.6],"moon_radius":0.044,"moon_label_lift":0.164,"moon_color":"#615d58","mean_radius_km":"97 km","orbit_distance_km":"~73,500 km","texture_source_url":null,"lod":3},{"name":"Galatea","type": "Inner moon","theme":"moon","description":"An inner moon whose gravity helps confine structure in Neptune's Adams ring arcs.","moon_anchor":[6.2,0.05,-8.4],"moon_radius":0.038,"moon_label_lift":0.158,"moon_color":"#6a6660","mean_radius_km":"88 km","orbit_distance_km":"~62,000 km","texture_source_url":null,"lod":3}];
     const NEPTUNE_EQUATORIAL_RADIUS_KM = 24622;
     const NEPTUNE_SCENE_RADIUS = 3.2;
     const NEPTUNE_KM_TO_SCENE = NEPTUNE_SCENE_RADIUS / NEPTUNE_EQUATORIAL_RADIUS_KM;
@@ -142,14 +153,14 @@
     }
     georeferenceRingAndInnerMoonAnchors();
 
-    const moonFeatureData = [{"name":"Abatos Planum","type":"Planum","theme":"moon","moon_name":"Triton","lat":-21.5,"lon":122.0,"description":"Egyptian sacred island in Nile, \u201c;paradise.\u201c","dimension":""},{"name":"Akupara Maculae","type":"Macula","theme":"moon","moon_name":"Triton","lat":-27.5,"lon":117.0,"description":"Tortoise upholding the world (India).","dimension":""},{"name":"Amarum","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":26.0,"lon":155.5,"description":"Quecha (Ecuador) water boa.","dimension":""},{"name":"Andvari","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":20.5,"lon":146.0,"description":"Norse fish shaped dwarf.","dimension":""},{"name":"Apep Cavus","type":"Cavus, cavi","theme":"moon","moon_name":"Triton","lat":20.0,"lon":238.5,"description":"Egyptian dragon of darkness.","dimension":""},{"name":"Awib Dorsa","type":"Dorsum","theme":"moon","moon_name":"Triton","lat":-7.0,"lon":100.0,"description":"Nama Bushman word for rain.","dimension":""},{"name":"Bheki Cavus","type":"Cavus, cavi","theme":"moon","moon_name":"Triton","lat":16.0,"lon":232.0,"description":"Frog symbolizing the sun on the horizon (India).","dimension":""},{"name":"[Bia Sulci]","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":-38.0,"lon":177.0,"description":"Yoruba; river named for obedient son of god.","dimension":""},{"name":"Boynne Sulci","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":-13.0,"lon":190.0,"description":"Celtic mythological river.","dimension":""},{"name":"Bubembe Regio","type":"Regio","theme":"moon","moon_name":"Triton","lat":18.0,"lon":205.0,"description":"Island location of temple of Mukasa (Uganda).","dimension":""},{"name":"Cay","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":-6.15,"lon":125.27,"description":"Mayan deity.","dimension":"11.0 km"},{"name":"Cipango Planum","type":"Planum","theme":"moon","moon_name":"Triton","lat":11.5,"lon":146.0,"description":"Legendary island described by Marco Polo.","dimension":""},{"name":"Dagon Cavus","type":"Cavus, cavi","theme":"moon","moon_name":"Triton","lat":29.0,"lon":195.0,"description":"Babylonian fertility god represented as a fish.","dimension":""},{"name":"Dilolo Patera","type":"Volcanic patera","theme":"moon","moon_name":"Triton","lat":26.0,"lon":155.5,"description":"Angolan sacred lake.","dimension":""},{"name":"Doro Macula","type":"Macula","theme":"moon","moon_name":"Triton","lat":-27.5,"lon":148.3,"description":"Nanay mistress of fishing, Sea of Okhotsk.","dimension":""},{"name":"Gandvik Patera","type":"Volcanic patera","theme":"moon","moon_name":"Triton","lat":28.0,"lon":174.5,"description":"Tortuous sea; literally, \u201c;Serpent Bay\u201c; (Norse).","dimension":""},{"name":"Hekt Cavus","type":"Cavus, cavi","theme":"moon","moon_name":"Triton","lat":26.0,"lon":198.0,"description":"Egyptian frog goddess.","dimension":""},{"name":"Hili","type":"Plume, plumes","theme":"moon","moon_name":"Triton","lat":-57.0,"lon":145.0,"description":"Zulu water-sprite.","dimension":""},{"name":"Hirugo Cavus","type":"Cavus, cavi","theme":"moon","moon_name":"Triton","lat":14.5,"lon":195.0,"description":"Japanese deity born in shape of a jellyfish.","dimension":""},{"name":"Ho Sulci","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":2.0,"lon":235.0,"description":"Chinese sacred river.","dimension":""},{"name":"Ilomba","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":-14.5,"lon":123.0,"description":"Lozi (Zambia) water snake linked with destruction.","dimension":""},{"name":"Jumna Fossae","type":"Fossa","theme":"moon","moon_name":"Triton","lat":-13.5,"lon":136.0,"description":"Hindu river goddess.","dimension":""},{"name":"Kasu Patera","type":"Volcanic patera","theme":"moon","moon_name":"Triton","lat":39.0,"lon":166.0,"description":"Sacred lake of Zoroastrianism.","dimension":""},{"name":"Kasyapa Cavus","type":"Cavus, cavi","theme":"moon","moon_name":"Triton","lat":7.5,"lon":182.0,"description":"The god Prajapati as a tortoise (India).","dimension":""},{"name":"Kibu Patera","type":"Volcanic patera","theme":"moon","moon_name":"Triton","lat":10.5,"lon":137.0,"description":"Mabuiag (Melanisia) island of the dead.","dimension":""},{"name":"Kikimora Maculae","type":"Macula","theme":"moon","moon_name":"Triton","lat":-31.0,"lon":102.0,"description":"Slavic spirit of swamps, household spirit.","dimension":""},{"name":"Kormet Sulci","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":23.0,"lon":204.5,"description":"Norse river through which dead must pass.","dimension":""},{"name":"Kraken Catena","type":"Crater chain","theme":"moon","moon_name":"Triton","lat":14.0,"lon":144.5,"description":"Norse giant sea monster.","dimension":""},{"name":"Kulilu Cavus","type":"Cavus, cavi","theme":"moon","moon_name":"Triton","lat":41.0,"lon":176.0,"description":"Babylonian destructive fish-man spirit.","dimension":""},{"name":"Kurma","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":-16.5,"lon":119.0,"description":"Vishnu in the form of a tortoise.","dimension":""},{"name":"Leipter Sulci","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":7.0,"lon":171.0,"description":"Norse sacred river.","dimension":""},{"name":"Leviathan Patera","type":"Volcanic patera","theme":"moon","moon_name":"Triton","lat":17.0,"lon":151.5,"description":"Hebrew sea monster upholding earth.","dimension":""},{"name":"Lo Sulci","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":3.8,"lon":219.0,"description":"Chinese sacred river.","dimension":""},{"name":"Mah Cavus","type":"Cavus, cavi","theme":"moon","moon_name":"Triton","lat":38.0,"lon":174.0,"description":"Fish that holds up the universe (Persian).","dimension":""},{"name":"Mahilani","type":"Plume, plumes","theme":"moon","moon_name":"Triton","lat":-50.5,"lon":180.5,"description":"Tonga sea spirit.","dimension":""},{"name":"Mangwe Cavus","type":"Cavus, cavi","theme":"moon","moon_name":"Triton","lat":-7.0,"lon":197.0,"description":"Ila (Zambia) \u201c;the flooder.\u201c","dimension":""},{"name":"Mazomba","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":-18.5,"lon":116.5,"description":"Chaga (Tanzania) mythical large fish.","dimension":""},{"name":"Medamothi Planum","type":"Planum","theme":"moon","moon_name":"Triton","lat":3.5,"lon":111.0,"description":"French fictional island, meaning \u201c;nowhere.\u201c","dimension":""},{"name":"Monad Regio","type":"Regio","theme":"moon","moon_name":"Triton","lat":20.0,"lon":143.0,"description":"Chinese symbol of duality in nature.","dimension":""},{"name":"Namazu Macula","type":"Macula","theme":"moon","moon_name":"Triton","lat":-25.5,"lon":166.0,"description":"Japanese mythic fish; maker of earthquakes.","dimension":""},{"name":"Ob Sulci","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":-6.0,"lon":212.0,"description":"Mouth of this river is Ostiak entrance to underworld.","dimension":""},{"name":"Ormet Sulci","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":17.0,"lon":203.0,"description":"Norse river through which dead pass.","dimension":""},{"name":"Ravgga","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":-3.0,"lon":108.5,"description":"Finnish fortune-telling fish god.","dimension":""},{"name":"Raz Fossae","type":"Fossa","theme":"moon","moon_name":"Triton","lat":8.0,"lon":158.5,"description":"Breton bay of souls.","dimension":""},{"name":"Rem Maculae","type":"Macula","theme":"moon","moon_name":"Triton","lat":13.0,"lon":190.5,"description":"Egyptian fish who wept fertilizing tears.","dimension":""},{"name":"Ruach Planitia","type":"Planitia, planitiae","theme":"moon","moon_name":"Triton","lat":28.0,"lon":156.0,"description":"French isle of winds.","dimension":""},{"name":"Ryugu Planitia","type":"Planitia, planitiae","theme":"moon","moon_name":"Triton","lat":-5.0,"lon":153.0,"description":"Japanese undersea dragon palace.","dimension":""},{"name":"Set Catena","type":"Crater chain","theme":"moon","moon_name":"Triton","lat":22.0,"lon":146.5,"description":"Egypian water monster; personification of evil.","dimension":""},{"name":"Sipapu Planitia","type":"Planitia, planitiae","theme":"moon","moon_name":"Triton","lat":-4.0,"lon":144.0,"description":"Pueblo (USA) hole or lake of emergence from underworld.","dimension":""},{"name":"Slidr Sulci","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":23.5,"lon":190.0,"description":"Norse river of daggers and spears.","dimension":""},{"name":"Tangaroa","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":-25.0,"lon":114.5,"description":"M\u0101ori fishing and sea god.","dimension":""},{"name":"Tano Sulci","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":33.5,"lon":203.0,"description":"Yoruba; river named for willful son of god.","dimension":""},{"name":"Tuonela Planitia","type":"Planitia, planitiae","theme":"moon","moon_name":"Triton","lat":34.0,"lon":165.5,"description":"Underground realm across Black River (Finnish).","dimension":""},{"name":"Uhlanga Regio","type":"Regio","theme":"moon","moon_name":"Triton","lat":-37.0,"lon":183.0,"description":"Zulu reed from which humanity sprang.","dimension":""},{"name":"Ukupanio Cavus","type":"Cavus, cavi","theme":"moon","moon_name":"Triton","lat":35.0,"lon":157.0,"description":"Hawaiian shark god.","dimension":""},{"name":"Unga","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":-1.08,"lon":139.97,"description":"Subaquatic dwarf in Inuit myths of Quebec (Canada).","dimension":"9.0 km"},{"name":"Vimur Sulci","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":-11.0,"lon":121.0,"description":"Greatest of Elivagar rivers, a stream of ice.","dimension":""},{"name":"Viviane Macula","type":"Macula","theme":"moon","moon_name":"Triton","lat":-31.0,"lon":143.5,"description":"Amour of Merlin (Welsh).","dimension":""},{"name":"Vodyanoy","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":-17.0,"lon":151.5,"description":"Slavic water spirit.","dimension":""},{"name":"Xuuch","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":-6.43,"lon":117.55,"description":"Yukatek (Maya) word for \u201cwell that is formed in swampy soils\u201d, referring to a human-made cistern built underground commonly found in the Yucat\u00e1n Peninsula.","dimension":"14.0 km"},{"name":"Yara","type":"Impact crater","theme":"moon","moon_name":"Triton","lat":-6.14,"lon":125.26,"description":"Tupi/Guarani (Brazil) beautiful mermaid in Amazon River.","dimension":"11.0 km"},{"name":"Yasu Sulci","type":"Sulcus","theme":"moon","moon_name":"Triton","lat":2.0,"lon":193.0,"description":"Japanese heavenly river; literally, \u201c;peace.\u201c","dimension":""},{"name":"Yenisey Fossa","type":"Fossa","theme":"moon","moon_name":"Triton","lat":3.0,"lon":123.8,"description":"Siberian mythical holy river.","dimension":""},{"name":"Zin Maculae","type":"Macula","theme":"moon","moon_name":"Triton","lat":-24.5,"lon":112.0,"description":"Niger water spirits.","dimension":""}];
+    const moonFeatureData = [{"name":"Abatos Planum","type": "Planum","theme":"moon","moon_name":"Triton","lat":-21.5,"lon":122.0,"description":"Egyptian sacred island in Nile, “;paradise.“","dimension":"","lod":5},{"name":"Akupara Maculae","type": "Macula","theme":"moon","moon_name":"Triton","lat":-27.5,"lon":117.0,"description":"Tortoise upholding the world (India).","dimension":"","lod":5},{"name":"Amarum","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":26.0,"lon":155.5,"description":"Quecha (Ecuador) water boa.","dimension":"","lod":5},{"name":"Andvari","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":20.5,"lon":146.0,"description":"Norse fish shaped dwarf.","dimension":"","lod":5},{"name":"Apep Cavus","type": "Cavus","theme":"moon","moon_name":"Triton","lat":20.0,"lon":238.5,"description":"Egyptian dragon of darkness.","dimension":"","lod":5},{"name":"Awib Dorsa","type": "Dorsum","theme":"moon","moon_name":"Triton","lat":-7.0,"lon":100.0,"description":"Nama Bushman word for rain.","dimension":"","lod":5},{"name":"Bheki Cavus","type": "Cavus","theme":"moon","moon_name":"Triton","lat":16.0,"lon":232.0,"description":"Frog symbolizing the sun on the horizon (India).","dimension":"","lod":5},{"name":"[Bia Sulci]","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":-38.0,"lon":177.0,"description":"Yoruba; river named for obedient son of god.","dimension":"","lod":4},{"name":"Boynne Sulci","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":-13.0,"lon":190.0,"description":"Celtic mythological river.","dimension":"","lod":4},{"name":"Bubembe Regio","type": "Regio","theme":"moon","moon_name":"Triton","lat":18.0,"lon":205.0,"description":"Island location of temple of Mukasa (Uganda).","dimension":"","lod":1},{"name":"Cay","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":-6.15,"lon":125.27,"description":"Mayan deity.","dimension":"11.0 km","lod":5},{"name":"Cipango Planum","type": "Planum","theme":"moon","moon_name":"Triton","lat":11.5,"lon":146.0,"description":"Legendary island described by Marco Polo.","dimension":"","lod":5},{"name":"Dagon Cavus","type": "Cavus","theme":"moon","moon_name":"Triton","lat":29.0,"lon":195.0,"description":"Babylonian fertility god represented as a fish.","dimension":"","lod":5},{"name":"Dilolo Patera","type": "Volcanic patera","theme":"moon","moon_name":"Triton","lat":26.0,"lon":155.5,"description":"Angolan sacred lake.","dimension":"","lod":5},{"name":"Doro Macula","type": "Macula","theme":"moon","moon_name":"Triton","lat":-27.5,"lon":148.3,"description":"Nanay mistress of fishing, Sea of Okhotsk.","dimension":"","lod":5},{"name":"Gandvik Patera","type": "Volcanic patera","theme":"moon","moon_name":"Triton","lat":28.0,"lon":174.5,"description":"Tortuous sea; literally, “;Serpent Bay“; (Norse).","dimension":"","lod":5},{"name":"Hekt Cavus","type": "Cavus","theme":"moon","moon_name":"Triton","lat":26.0,"lon":198.0,"description":"Egyptian frog goddess.","dimension":"","lod":5},{"name":"Hili","type": "Plume","theme":"moon","moon_name":"Triton","lat":-57.0,"lon":145.0,"description":"Zulu water-sprite.","dimension":"","lod":5},{"name":"Hirugo Cavus","type": "Cavus","theme":"moon","moon_name":"Triton","lat":14.5,"lon":195.0,"description":"Japanese deity born in shape of a jellyfish.","dimension":"","lod":5},{"name":"Ho Sulci","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":2.0,"lon":235.0,"description":"Chinese sacred river.","dimension":"","lod":4},{"name":"Ilomba","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":-14.5,"lon":123.0,"description":"Lozi (Zambia) water snake linked with destruction.","dimension":"","lod":5},{"name":"Jumna Fossae","type": "Fossa","theme":"moon","moon_name":"Triton","lat":-13.5,"lon":136.0,"description":"Hindu river goddess.","dimension":"","lod":5},{"name":"Kasu Patera","type": "Volcanic patera","theme":"moon","moon_name":"Triton","lat":39.0,"lon":166.0,"description":"Sacred lake of Zoroastrianism.","dimension":"","lod":5},{"name":"Kasyapa Cavus","type": "Cavus","theme":"moon","moon_name":"Triton","lat":7.5,"lon":182.0,"description":"The god Prajapati as a tortoise (India).","dimension":"","lod":5},{"name":"Kibu Patera","type": "Volcanic patera","theme":"moon","moon_name":"Triton","lat":10.5,"lon":137.0,"description":"Mabuiag (Melanisia) island of the dead.","dimension":"","lod":5},{"name":"Kikimora Maculae","type": "Macula","theme":"moon","moon_name":"Triton","lat":-31.0,"lon":102.0,"description":"Slavic spirit of swamps, household spirit.","dimension":"","lod":5},{"name":"Kormet Sulci","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":23.0,"lon":204.5,"description":"Norse river through which dead must pass.","dimension":"","lod":4},{"name":"Kraken Catena","type": "Crater chain","theme":"moon","moon_name":"Triton","lat":14.0,"lon":144.5,"description":"Norse giant sea monster.","dimension":"","lod":5},{"name":"Kulilu Cavus","type": "Cavus","theme":"moon","moon_name":"Triton","lat":41.0,"lon":176.0,"description":"Babylonian destructive fish-man spirit.","dimension":"","lod":5},{"name":"Kurma","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":-16.5,"lon":119.0,"description":"Vishnu in the form of a tortoise.","dimension":"","lod":5},{"name":"Leipter Sulci","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":7.0,"lon":171.0,"description":"Norse sacred river.","dimension":"","lod":4},{"name":"Leviathan Patera","type": "Volcanic patera","theme":"moon","moon_name":"Triton","lat":17.0,"lon":151.5,"description":"Hebrew sea monster upholding earth.","dimension":"","lod":5},{"name":"Lo Sulci","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":3.8,"lon":219.0,"description":"Chinese sacred river.","dimension":"","lod":4},{"name":"Mah Cavus","type": "Cavus","theme":"moon","moon_name":"Triton","lat":38.0,"lon":174.0,"description":"Fish that holds up the universe (Persian).","dimension":"","lod":5},{"name":"Mahilani","type": "Plume","theme":"moon","moon_name":"Triton","lat":-50.5,"lon":180.5,"description":"Tonga sea spirit.","dimension":"","lod":5},{"name":"Mangwe Cavus","type": "Cavus","theme":"moon","moon_name":"Triton","lat":-7.0,"lon":197.0,"description":"Ila (Zambia) “;the flooder.“","dimension":"","lod":5},{"name":"Mazomba","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":-18.5,"lon":116.5,"description":"Chaga (Tanzania) mythical large fish.","dimension":"","lod":5},{"name":"Medamothi Planum","type": "Planum","theme":"moon","moon_name":"Triton","lat":3.5,"lon":111.0,"description":"French fictional island, meaning “;nowhere.“","dimension":"","lod":5},{"name":"Monad Regio","type": "Regio","theme":"moon","moon_name":"Triton","lat":20.0,"lon":143.0,"description":"Chinese symbol of duality in nature.","dimension":"","lod":1},{"name":"Namazu Macula","type": "Macula","theme":"moon","moon_name":"Triton","lat":-25.5,"lon":166.0,"description":"Japanese mythic fish; maker of earthquakes.","dimension":"","lod":5},{"name":"Ob Sulci","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":-6.0,"lon":212.0,"description":"Mouth of this river is Ostiak entrance to underworld.","dimension":"","lod":4},{"name":"Ormet Sulci","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":17.0,"lon":203.0,"description":"Norse river through which dead pass.","dimension":"","lod":4},{"name":"Ravgga","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":-3.0,"lon":108.5,"description":"Finnish fortune-telling fish god.","dimension":"","lod":5},{"name":"Raz Fossae","type": "Fossa","theme":"moon","moon_name":"Triton","lat":8.0,"lon":158.5,"description":"Breton bay of souls.","dimension":"","lod":5},{"name":"Rem Maculae","type": "Macula","theme":"moon","moon_name":"Triton","lat":13.0,"lon":190.5,"description":"Egyptian fish who wept fertilizing tears.","dimension":"","lod":5},{"name":"Ruach Planitia","type": "Planitia","theme":"moon","moon_name":"Triton","lat":28.0,"lon":156.0,"description":"French isle of winds.","dimension":"","lod":2},{"name":"Ryugu Planitia","type": "Planitia","theme":"moon","moon_name":"Triton","lat":-5.0,"lon":153.0,"description":"Japanese undersea dragon palace.","dimension":"","lod":2},{"name":"Set Catena","type": "Crater chain","theme":"moon","moon_name":"Triton","lat":22.0,"lon":146.5,"description":"Egypian water monster; personification of evil.","dimension":"","lod":5},{"name":"Sipapu Planitia","type": "Planitia","theme":"moon","moon_name":"Triton","lat":-4.0,"lon":144.0,"description":"Pueblo (USA) hole or lake of emergence from underworld.","dimension":"","lod":2},{"name":"Slidr Sulci","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":23.5,"lon":190.0,"description":"Norse river of daggers and spears.","dimension":"","lod":4},{"name":"Tangaroa","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":-25.0,"lon":114.5,"description":"Māori fishing and sea god.","dimension":"","lod":5},{"name":"Tano Sulci","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":33.5,"lon":203.0,"description":"Yoruba; river named for willful son of god.","dimension":"","lod":4},{"name":"Tuonela Planitia","type": "Planitia","theme":"moon","moon_name":"Triton","lat":34.0,"lon":165.5,"description":"Underground realm across Black River (Finnish).","dimension":"","lod":1},{"name":"Uhlanga Regio","type": "Regio","theme":"moon","moon_name":"Triton","lat":-37.0,"lon":183.0,"description":"Zulu reed from which humanity sprang.","dimension":"","lod":2},{"name":"Ukupanio Cavus","type": "Cavus","theme":"moon","moon_name":"Triton","lat":35.0,"lon":157.0,"description":"Hawaiian shark god.","dimension":"","lod":5},{"name":"Unga","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":-1.08,"lon":139.97,"description":"Subaquatic dwarf in Inuit myths of Quebec (Canada).","dimension":"9.0 km","lod":5},{"name":"Vimur Sulci","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":-11.0,"lon":121.0,"description":"Greatest of Elivagar rivers, a stream of ice.","dimension":"","lod":4},{"name":"Viviane Macula","type": "Macula","theme":"moon","moon_name":"Triton","lat":-31.0,"lon":143.5,"description":"Amour of Merlin (Welsh).","dimension":"","lod":5},{"name":"Vodyanoy","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":-17.0,"lon":151.5,"description":"Slavic water spirit.","dimension":"","lod":5},{"name":"Xuuch","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":-6.43,"lon":117.55,"description":"Yukatek (Maya) word for “well that is formed in swampy soils”, referring to a human-made cistern built underground commonly found in the Yucatán Peninsula.","dimension":"14.0 km","lod":5},{"name":"Yara","type": "Impact crater","theme":"moon","moon_name":"Triton","lat":-6.14,"lon":125.26,"description":"Tupi/Guarani (Brazil) beautiful mermaid in Amazon River.","dimension":"11.0 km","lod":5},{"name":"Yasu Sulci","type": "Sulcus","theme":"moon","moon_name":"Triton","lat":2.0,"lon":193.0,"description":"Japanese heavenly river; literally, “;peace.“","dimension":"","lod":4},{"name":"Yenisey Fossa","type": "Fossa","theme":"moon","moon_name":"Triton","lat":3.0,"lon":123.8,"description":"Siberian mythical holy river.","dimension":"","lod":5},{"name":"Zin Maculae","type": "Macula","theme":"moon","moon_name":"Triton","lat":-24.5,"lon":112.0,"description":"Niger water spirits.","dimension":"","lod":5}];
     dedupeMoonFeatureData();
     const allFeatureData = [...labelData, ...ringLabelData, ...moonData, ...moonFeatureData];
     allFeatureData.forEach((item) => {
       item.name = getFeatureDisplayName(item);
     });
     const TOUR_FACETS = [
-      { id: "highlights", label: "Highlights", filter: (item) => ["North Polar Hexagon", "Great White Spot", "Cassini Grand Finale Track", "Titan", "Enceladus", "Cassini Division"].includes(item.name) },
+      { id: "highlights", label: "Highlights", filter: (item) => ["Great Dark Spot", "Scooter Cloud", "Dark Spot 2", "Triton Ring Plane Crossing Zone", "Voyager 2 Closest Approach", "Triton", "Nereid", "Proteus"].includes(item.name) },
       { id: "atmosphere", label: "Atmosphere", filter: (item) => ["polar", "band", "storm"].includes(item.theme) },
       { id: "rings", label: "Rings", filter: (item) => item.theme === "ring" || Boolean(item.ring_region) },
       { id: "moons", label: "Moons", filter: (item) => Array.isArray(item.moon_anchor) },
@@ -2582,8 +2593,10 @@
         opt.textContent = `${type} (${count})`;
         moonFeatureTypeSelect.appendChild(opt);
       });
-      moonFeatureTypeSelect.value = "all";
-      moonFeatureTypeFilter = "all";
+      const _prev = moonFeatureTypeFilter;
+      const _filterValid = _prev === "all" || types.has(_prev);
+      moonFeatureTypeSelect.value = _filterValid ? _prev : "all";
+      moonFeatureTypeFilter = _filterValid ? _prev : "all";
       populateMoonFeatureTourTargets();
     }
 
@@ -2698,6 +2711,12 @@
     }
 
     function syncMoonViewerControls(feature = activeMoonViewerFeature) {
+      // Toggle a body-level mode flag so CSS can dull non-relevant tabs.
+      const _root = document.documentElement;
+      if (_root) {
+        if (feature) _root.setAttribute("data-mode", "moon");
+        else _root.removeAttribute("data-mode");
+      }
       if (moonViewerSelect && feature) {
         moonViewerSelect.value = feature.name;
       }
@@ -4336,6 +4355,27 @@
               accent: "rgba(255, 205, 92, 0.94)",
               title: "rgba(255, 246, 223, 0.96)",
             }
+        : theme === "crater"
+          ? {
+              bg: "rgba(28, 8, 18, 0.72)",
+              stroke: "rgba(255, 122, 180, 0.50)",
+              accent: "rgba(255, 95, 170, 0.94)",
+              title: "rgba(255, 232, 244, 0.96)",
+            }
+        : theme === "tectonic"
+          ? {
+              bg: "rgba(24, 16, 8, 0.72)",
+              stroke: "rgba(212, 152, 80, 0.50)",
+              accent: "rgba(184, 115, 51, 0.94)",
+              title: "rgba(248, 232, 210, 0.96)",
+            }
+        : theme === "fluvial"
+          ? {
+              bg: "rgba(8, 16, 30, 0.72)",
+              stroke: "rgba(98, 156, 235, 0.50)",
+              accent: "rgba(45, 120, 224, 0.94)",
+              title: "rgba(224, 236, 255, 0.96)",
+            }
         : {
             bg: "rgba(9, 14, 24, 0.62)",
             stroke: "rgba(90, 214, 233, 0.28)",
@@ -4773,11 +4813,13 @@
       const candidates = [];
 
       for (const entry of entries) {
-        entry.marker.visible = labelsEnabled;
-        entry.hitTarget.visible = labelsEnabled;
+        const entryLod = entry.item?.lod;
+        const lodAllowed = entryLod == null || entryLod <= currentLodLevel;
+        entry.marker.visible = labelsEnabled && lodAllowed;
+        entry.hitTarget.visible = labelsEnabled && lodAllowed;
         entry.sprite.visible = false;
         entry.line.visible = false;
-        if (!labelsEnabled) {
+        if (!labelsEnabled || !lodAllowed) {
           continue;
         }
         if (isPointOccludedByPlanet(entry.marker.position, marsGroup, camera)) {
@@ -5030,15 +5072,32 @@
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-      return /(?:cryo)?volcan|patera|caldera|plume|vent|eruption|lava|basalt|sulcus/.test(content);
+      // Match volcanic / cryovolcanic feature terms — including IAU type words like
+      // "eruptive center", "patera", "fluctus" (lava flow), "tholus" (volcanic dome).
+      return /(?:cryo)?volcan|patera|caldera|plume|vent|erupt|lava|basalt|sulcus|fluctus|tholus/.test(content);
     }
 
     function isMissionMoonFeature(item) {
-      const content = [item.type, item.name, item.description]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return /landing site|probe|lander|rover|spacecraft|mission|flyby|cassini|huygens|voyager/.test(content);
+      const t = String(item.type || "").toLowerCase();
+      if (/landing site|^landing-site|probe|lander|spacecraft|mission corridor|^mission$/.test(t)) return true;
+      // Famous mission-named features (proper nouns).
+      const name = item.name || "";
+      return ["Cassini Regio", "Huygens Landing Site", "Galileo Regio", "Galileo Probe Entry Region"].includes(name);
+    }
+
+    function isCraterMoonFeature(item) {
+  const t = String(item && item.type || "").toLowerCase().trim();
+  return t === "impact crater" || t === "crater";
+}
+
+    function isTectonicMoonFeature(item) {
+      const t = String(item.type || "").toLowerCase();
+      return /chasma|rupes|sulcus|catena|fossa|dorsa|lineae|linea|ridge|graben|scarp/.test(t);
+    }
+
+    function isFluvialMoonFeature(item) {
+      const t = String(item.type || "").toLowerCase();
+      return /\bmare\b|\blacus\b|\bflumen\b|\bsinus\b|\bpalus\b|\bfretum\b|sea|lake|river|channel/.test(t);
     }
 
     /**
@@ -5060,7 +5119,7 @@
       const MOON_LABEL_RENDER_ORDER = 221;
       const entries = [];
       const interactiveObjects = [];
-      const markerGeometry = new THREE.SphereGeometry(0.001, 8, 8);
+      const markerGeometry = new THREE.SphereGeometry(0.0005, 8, 8);
       const hitGeometry = new THREE.SphereGeometry(0.008, 10, 10);
       const hitMaterial = new THREE.MeshBasicMaterial({
         transparent: true,
@@ -5106,9 +5165,24 @@
           parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]
         );
 
-        const category = isVolcanicMoonFeature(item) ? "volcanic" : isMissionMoonFeature(item) ? "landing" : "moon";
-        const featureColor = category === "volcanic" ? 0xff5845 : category === "landing" ? 0xffd163 : 0x3ad6d0;
-        const featureTheme = category === "volcanic" ? "volcanic" : category === "landing" ? "landing" : "standard";
+        const category = isVolcanicMoonFeature(item) ? "volcanic"
+          : isMissionMoonFeature(item) ? "landing"
+          : isFluvialMoonFeature(item) ? "fluvial"
+          : isTectonicMoonFeature(item) ? "tectonic"
+          : isCraterMoonFeature(item) ? "crater"
+          : "moon";
+        const featureColor = category === "volcanic" ? 0xff5845
+          : category === "landing" ? 0xffd163
+          : category === "crater" ? 0xff5faa
+          : category === "tectonic" ? 0xb87333
+          : category === "fluvial" ? 0x2d78e0
+          : 0x3ad6d0;
+        const featureTheme = category === "volcanic" ? "volcanic"
+          : category === "landing" ? "landing"
+          : category === "crater" ? "crater"
+          : category === "tectonic" ? "tectonic"
+          : category === "fluvial" ? "fluvial"
+          : "standard";
 
         const marker = new THREE.Mesh(markerGeometry, new THREE.MeshBasicMaterial({
           color: featureColor,
@@ -5135,7 +5209,18 @@
           depthWrite: false,
         }));
         sprite.renderOrder = MOON_LABEL_RENDER_ORDER;
-        sprite.scale.set((label.width / 200) * 0.07, (label.height / 200) * 0.07, 1);
+        // Tier-aware label sizing: more prominent (lower-lod) features render larger.
+        const _lodForScale = item?.lod;
+        const _lodScaleMult = _lodForScale === 1 ? 1.20
+                            : _lodForScale === 2 ? 1.10
+                            : _lodForScale === 3 ? 1.05
+                            : _lodForScale === 5 ? 0.95
+                            : 1.00;
+        sprite.scale.set(
+          (label.width / 200) * 0.07 * _lodScaleMult,
+          (label.height / 200) * 0.07 * _lodScaleMult,
+          1,
+        );
         sprite.userData.feature = item;
         group.add(sprite);
 
@@ -5166,7 +5251,7 @@
       return { group, entries, interactiveObjects };
     }
 
-    function updateMoonFeatureLabelVisibility(entries, marsGroup, camera, renderer, activeMoonFeature, volcanicEnabled = true, labelsEnabled = true, typeFilter = "all") {
+    function updateMoonFeatureLabelVisibility(entries, marsGroup, camera, renderer, activeMoonFeature, volcanicEnabled = true, labelsEnabled = true, typeFilter = "all", craterEnabled = true, tectonicEnabled = true, fluvialEnabled = true, landingEnabled = true) {
       const projected = new THREE.Vector3();
       const moonCenterWorld = new THREE.Vector3();
       const surfaceWorldPosition = new THREE.Vector3();
@@ -5184,11 +5269,20 @@
         entry.hitTarget.visible = false;
         entry.sprite.visible = false;
         entry.line.visible = false;
-        const categoryEnabled = entry.category === "volcanic" ? volcanicEnabled : labelsEnabled;
+        const categoryEnabled = entry.category === "volcanic" ? volcanicEnabled
+          : entry.category === "crater" ? craterEnabled
+          : entry.category === "tectonic" ? tectonicEnabled
+          : entry.category === "fluvial" ? fluvialEnabled
+          : entry.category === "landing" || entry.category === "mission" ? landingEnabled
+          : labelsEnabled;
         if (!isActiveMoon || !categoryEnabled) {
           continue;
         }
         if (typeFilter !== "all" && entry.item.type !== typeFilter) {
+          continue;
+        }
+        const entryLod = entry.item?.lod;
+        if (entryLod != null && entryLod > currentLodLevel) {
           continue;
         }
         moonCenterWorld.copy(entry.moonAnchor).applyMatrix4(marsGroup.matrixWorld);
@@ -5245,8 +5339,10 @@
         if (activeMoonFeature) {
           const _refDist = Math.max(camera.position.distanceTo(surfaceWorldPosition), 0.001);
           const _renderedH = entry.sprite.userData._baseSY * (fovScale / _refDist);
-          if (_renderedH > 52) {
-            const _r = 52 / _renderedH;
+          // Cap pixel height in moon-viewer mode so labels stay readable but
+          // don't dominate the view. Matches Saturn/Uranus 24 px cap.
+          if (_renderedH > 24) {
+            const _r = 24 / _renderedH;
             entry.sprite.scale.set(entry.sprite.userData._baseSX * _r, entry.sprite.userData._baseSY * _r, 1);
           }
         }
@@ -5361,6 +5457,10 @@
           continue;
         }
         if (!labelsEnabled) {
+          continue;
+        }
+        const entryLod = entry.item?.lod;
+        if (entryLod != null && entryLod > currentLodLevel) {
           continue;
         }
 
@@ -5656,7 +5756,9 @@
             ? habitationLabelsEnabled
           : surfaceLabelsEnabled;
         const survivesCut = !cutawayModeEnabled || (activeCutClipPlane ? activeCutClipPlane.distanceToPoint(surfaceWorldPosition) : surfaceWorldPosition.x) >= -0.02;
-        const isVisible = categoryEnabled && survivesCut && normal.dot(cameraDirection) > 0.02;
+        const entryLod = entry.item?.lod;
+        const survivesLod = entryLod == null || entryLod <= currentLodLevel;
+        const isVisible = categoryEnabled && survivesCut && survivesLod && normal.dot(cameraDirection) > 0.02;
         entry.marker.visible = isVisible;
         entry.hitTarget.visible = isVisible;
         entry.sprite.visible = false;
@@ -7261,7 +7363,7 @@
       function applyNeptuneAtmosphereRemoval() {
         const removeAtmosphere = Boolean(geologyToggle && geologyToggle.checked);
         const coreEnabled = Boolean(coreToggle && coreToggle.checked);
-        const neptuneLabelsEnabled = !removeAtmosphere && labelsToggle.checked;
+        const neptuneLabelsEnabled = !removeAtmosphere && labelsToggle.checked && !activeMoonViewerFeature;
         globe.visible = !removeAtmosphere;
         // Solid interior only shown when removeAtmosphere AND core view is OFF.
         // When core view is on, cutaway handles the interior — solid spheres must be hidden
@@ -7331,11 +7433,11 @@
           camera,
           renderer,
           neptuneLabelsEnabled,
-          !removeAtmosphere && volcanicLabelsToggle.checked,
-          !removeAtmosphere && landingLabelsToggle.checked,
-          !removeAtmosphere && habitationLabelsToggle.checked,
+          !removeAtmosphere && !activeMoonViewerFeature && volcanicLabelsToggle.checked,
+          !removeAtmosphere && !activeMoonViewerFeature && landingLabelsToggle.checked,
+          !removeAtmosphere && !activeMoonViewerFeature && habitationLabelsToggle.checked,
           coreEnabled,
-          stormLabelsToggle ? (!removeAtmosphere && stormLabelsToggle.checked) : true,
+          stormLabelsToggle ? (!removeAtmosphere && !activeMoonViewerFeature && stormLabelsToggle.checked) : !activeMoonViewerFeature,
         );
         updateRingLabelVisibility(
           ringLabelLayer.entries,
@@ -7470,6 +7572,13 @@
           });
         });
       });
+
+      if (lodSlider) {
+        lodSlider.addEventListener("input", () => {
+          currentLodLevel = parseInt(lodSlider.value, 10);
+          syncLodLabel();
+        });
+      }
 
       geologyToggle.addEventListener("change", () => {
         updateGeologyVisibility();
@@ -8795,11 +8904,11 @@ ${error && error.message ? error.message : error}`;
             camera,
             renderer,
             neptuneLabelsEnabled,
-            !removeAtmosphere && volcanicLabelsToggle.checked,
-            !removeAtmosphere && landingLabelsToggle.checked,
-            !removeAtmosphere && habitationLabelsToggle.checked,
+            !removeAtmosphere && !activeMoonViewerFeature && volcanicLabelsToggle.checked,
+            !removeAtmosphere && !activeMoonViewerFeature && landingLabelsToggle.checked,
+            !removeAtmosphere && !activeMoonViewerFeature && habitationLabelsToggle.checked,
             false,
-            stormLabelsToggle ? (!removeAtmosphere && stormLabelsToggle.checked) : true,
+            stormLabelsToggle ? (!removeAtmosphere && !activeMoonViewerFeature && stormLabelsToggle.checked) : !activeMoonViewerFeature,
           );
           updateRingLabelVisibility(
             ringLabelLayer.entries,
@@ -8826,6 +8935,10 @@ ${error && error.message ? error.message : error}`;
             volcanicLabelsToggle.checked,
             labelsToggle.checked,
             moonFeatureTypeFilter,
+            craterLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            landingLabelsToggle?.checked ?? true,
           );
           updateSeismicVisibility(
             seismicLayer.entries,
@@ -8879,6 +8992,10 @@ ${error && error.message ? error.message : error}`;
             volcanicLabelsToggle.checked,
             labelsToggle.checked,
             moonFeatureTypeFilter,
+            craterLabelsToggle?.checked ?? true,
+            tectonicLabelsToggle?.checked ?? true,
+            fluvialLabelsToggle?.checked ?? true,
+            landingLabelsToggle?.checked ?? true,
           );
           updateSeismicVisibility(
             seismicLayer.entries,

@@ -3353,3 +3353,50 @@ canvas {
   touch-action: none;
   -webkit-touch-callout: none;
 }
+
+    .lod-slider-row {
+      margin-top: 0.55rem;
+      padding-top: 0.45rem;
+      border-top: 1px solid rgba(111, 217, 232, 0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .lod-slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .lod-slider-header label {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .lod-value-label {
+      font-size: 0.75rem;
+      color: var(--nav-accent);
+      font-weight: 600;
+    }
+    .lod-slider {
+      width: 100%;
+      accent-color: var(--nav-accent);
+      cursor: pointer;
+    }
+    .lod-tick-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: var(--muted);
+      opacity: 0.7;
+    }
+
+
+    /* Dim all sidebar tabs when moon viewer is active, except Locations and Moon viewer. */
+    :root[data-mode="moon"] .control-section:not(#locations-section):not(#moon-viewer-section) {
+      opacity: 0.32;
+      filter: saturate(0.5);
+      transition: opacity 0.2s ease, filter 0.2s ease;
+    }
+    :root[data-mode="moon"] .control-section:not(#locations-section):not(#moon-viewer-section) summary {
+      cursor: default;
+    }
+

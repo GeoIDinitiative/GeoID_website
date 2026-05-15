@@ -3343,3 +3343,14 @@ canvas {
   touch-action: none;
   -webkit-touch-callout: none;
 }
+
+    /* Dim all sidebar tabs when moon viewer is active, except Locations and Moon viewer. */
+    :root[data-mode="moon"] .control-section:not(#locations-section):not(#moon-viewer-section) {
+      opacity: 0.32;
+      filter: saturate(0.5);
+      transition: opacity 0.2s ease, filter 0.2s ease;
+    }
+    :root[data-mode="moon"] .control-section:not(#locations-section):not(#moon-viewer-section) summary {
+      cursor: default;
+    }
+

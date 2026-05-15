@@ -178,27 +178,27 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       spiritEntry.lon = 175.4;
     }
     const ringLabelData = [];
-    const moonData = [{"name":"Phobos","type":"Major moon","theme":"moon","description":"Mars's larger and inner moon, heavily cratered and tidally locked, orbiting closer to its parent planet than any other moon in the Solar System. Its surface is dominated by Stickney Crater and a network of linear grooves whose origin is still debated.","moon_anchor":[9.376,0.0,0.0],"moon_radius":0.032,"moon_label_lift":0.18,"moon_color":"#b0a090","mean_radius_km":"11.267 km","orbit_distance_km":"~9,376 km","orbit_period_days":0.3189,"texture_source_url":null,"image":"assets/description_pics/Phobos_pic.jpg"},{"name":"Deimos","type":"Major moon","theme":"moon","description":"Mars's smaller and outer moon, with a smoother appearance than Phobos due to a deep regolith layer covering most impact craters. Its surface is blanketed by ~50 m of fine regolith that softens topography and gives it an unusually smooth appearance compared to Phobos.","moon_anchor":[23.46,0.0,0.0],"moon_radius":0.018,"moon_label_lift":0.14,"moon_color":"#c8bfb2","mean_radius_km":"6.2 km","orbit_distance_km":"~23,460 km","orbit_period_days":1.2624,"texture_source_url":null,"image":"assets/description_pics/deimos_pic.jpg"}];
+    const moonData = [{"name":"Phobos","type": "Major moon","theme":"moon","description":"Mars's larger and inner moon, heavily cratered and tidally locked, orbiting closer to its parent planet than any other moon in the Solar System. Its surface is dominated by Stickney Crater and a network of linear grooves whose origin is still debated.","moon_anchor":[9.376,0.0,0.0],"moon_radius":0.032,"moon_label_lift":0.18,"moon_color":"#b0a090","mean_radius_km":"11.267 km","orbit_distance_km":"~9,376 km","orbit_period_days":0.3189,"texture_source_url":null,"image":"assets/description_pics/Phobos_pic.jpg"},{"name":"Deimos","type": "Major moon","theme":"moon","description":"Mars's smaller and outer moon, with a smoother appearance than Phobos due to a deep regolith layer covering most impact craters. Its surface is blanketed by ~50 m of fine regolith that softens topography and gives it an unusually smooth appearance compared to Phobos.","moon_anchor":[23.46,0.0,0.0],"moon_radius":0.018,"moon_label_lift":0.14,"moon_color":"#c8bfb2","mean_radius_km":"6.2 km","orbit_distance_km":"~23,460 km","orbit_period_days":1.2624,"texture_source_url":null,"image":"assets/description_pics/deimos_pic.jpg"}];
     const MOON_ORBIT_ECCENTRICITY = Object.freeze({
       Phobos: 0.0151,
       Deimos: 0.0002,
     });
     const moonFeatureData = [
-      {"name":"Swift Crater","type":"Impact crater","moon_name":"Deimos","lat":9.71,"lon":184.36,"description":"One of only two named craters on Deimos. Named after Jonathan Swift, author of Gulliver's Travels (1726), who famously predicted that Mars had two small moons over 150 years before their discovery.","dimension":"~1–3 km diameter","theme":"moon"},
-      {"name":"Voltaire Crater","type":"Impact crater","moon_name":"Deimos","lat":21.6,"lon":179.04,"description":"One of only two named craters on Deimos. Named after the French writer Voltaire, who also speculated about two Martian moons in his 1752 story Micromégas, predating their actual discovery by Asaph Hall in 1877.","dimension":"~1.9–3 km diameter","theme":"moon"},
-      {"name":"Stickney Crater","type":"Impact crater","moon_name":"Phobos","lat":1.0,"lon":49.0,"description":"The largest crater on Phobos at ~9.5 km across, so large the impact nearly shattered the moon. Named after Chloe Angeline Stickney Hall, wife of Phobos discoverer Asaph Hall. Prominent grooves radiate outward from its rim across the surface.","dimension":"~9.5 km diameter","theme":"moon"},
-      {"name":"Hall Crater","type":"Impact crater","moon_name":"Phobos","lat":-80.0,"lon":210.0,"description":"Named after Asaph Hall, the American astronomer who discovered both Phobos and Deimos in August 1877 using the 26-inch refractor at the US Naval Observatory.","dimension":"~5.2 km diameter","theme":"moon"},
-      {"name":"Roche Crater","type":"Impact crater","moon_name":"Phobos","lat":53.0,"lon":183.0,"description":"Named after Édouard Roche, the French mathematician who formulated the Roche limit — the critical orbital distance within which tidal forces will break apart a body. Phobos orbits well inside Mars's Roche limit.","dimension":"~5.1 km diameter","theme":"moon"},
-      {"name":"Gulliver Crater","type":"Impact crater","moon_name":"Phobos","lat":62.0,"lon":163.0,"description":"Named after Lemuel Gulliver, the fictional traveller in Jonathan Swift's Gulliver's Travels — the same work that inspired the naming of Deimos's Swift Crater. The book's prediction of two Martian moons gave many Phobos features their literary names.","dimension":"~5.1 km diameter","theme":"moon"},
-      {"name":"Sharpless Crater","type":"Impact crater","moon_name":"Phobos","lat":-27.5,"lon":154.0,"description":"Named after Bevan Sharpless, a 19th-century American astronomer and Mars observer associated with the US Naval Observatory during the era of Phobos's discovery.","dimension":"~4.4 km diameter","theme":"moon"},
-      {"name":"D'Arrest Crater","type":"Impact crater","moon_name":"Phobos","lat":-39.0,"lon":179.0,"description":"Named after Heinrich d'Arrest, a German astronomer who actively searched for Martian moons before Asaph Hall succeeded. D'Arrest is also known for co-discovering Neptune and multiple comets.","dimension":"~2.9 km diameter","theme":"moon"},
-      {"name":"Todd Crater","type":"Impact crater","moon_name":"Phobos","lat":-9.0,"lon":153.0,"description":"Named after David Peck Todd, an American astronomer and Mars observer at Amherst College who made extensive observations of Mars in the late 19th century.","dimension":"~2.5 km diameter","theme":"moon"},
-      {"name":"Wendell Crater","type":"Impact crater","moon_name":"Phobos","lat":-1.0,"lon":132.0,"description":"Named after Oliver Clinton Wendell, an American astronomer at Harvard College Observatory. Most craters on Phobos are named after astronomers involved in early Mars observation or the discovery of the Martian moons.","dimension":"~2.2 km diameter","theme":"moon"},
-      {"name":"Clustril Crater","type":"Impact crater","moon_name":"Phobos","lat":60.0,"lon":91.0,"description":"Named after Clustril, a scheming courtier in Jonathan Swift's Gulliver's Travels. Phobos craters below a certain size threshold are named after characters from Gulliver's Travels, consistent with the moon's literary naming convention.","dimension":"~2.7 km diameter","theme":"moon"},
-      {"name":"Limtoc Crater","type":"Impact crater","moon_name":"Phobos","lat":-11.0,"lon":54.0,"description":"Named after Limtoc, a Lilliputian general in Gulliver's Travels. Sits in Phobos's southern hemisphere.","dimension":"~2.4 km diameter","theme":"moon"},
-      {"name":"Skyresh Crater","type":"Impact crater","moon_name":"Phobos","lat":52.5,"lon":320.0,"description":"Named after Skyresh Bolgolam, the High Admiral of Lilliput in Gulliver's Travels, who schemes against Gulliver throughout the first voyage.","dimension":"~3.0 km diameter","theme":"moon"},
-      {"name":"Grildrig Crater","type":"Impact crater","moon_name":"Phobos","lat":81.0,"lon":195.0,"description":"Named after the name given to Gulliver by the Brobdingnagian farmer's daughter in Book II of Gulliver's Travels, meaning 'little person' in the giant's language.","dimension":"~1.6 km diameter","theme":"moon"},
-      {"name":"Flimnap Crater","type":"Impact crater","moon_name":"Phobos","lat":60.0,"lon":350.0,"description":"Named after Flimnap, the High Treasurer of Lilliput in Jonathan Swift's Gulliver's Travels, known for his acrobatic skill in court ceremonies. Part of the Gulliver's Travels naming theme for smaller Phobos craters.","dimension":"~2.0 km diameter","theme":"moon"}
+      {"name":"Swift Crater","type": "Impact crater","moon_name":"Deimos","lat":12.5,"lon":358.2,"description":"One of only two named craters on Deimos. Named after Jonathan Swift, author of Gulliver's Travels (1726), who famously predicted that Mars had two small moons over 150 years before their discovery.","dimension":"~1–3 km diameter","theme":"moon"},
+      {"name":"Voltaire Crater","type": "Impact crater","moon_name":"Deimos","lat":22.0,"lon":3.5,"description":"One of only two named craters on Deimos. Named after the French writer Voltaire, who also speculated about two Martian moons in his 1752 story Micromégas, predating their actual discovery by Asaph Hall in 1877.","dimension":"~1.9–3 km diameter","theme":"moon"},
+      {"name":"Stickney Crater","type": "Impact crater","moon_name":"Phobos","lat":1.0,"lon":49.0,"description":"The largest crater on Phobos at ~9.5 km across, so large the impact nearly shattered the moon. Named after Chloe Angeline Stickney Hall, wife of Phobos discoverer Asaph Hall. Prominent grooves radiate outward from its rim across the surface.","dimension":"~9.5 km diameter","theme":"moon"},
+      {"name":"Hall Crater","type": "Impact crater","moon_name":"Phobos","lat":-80.0,"lon":210.0,"description":"Named after Asaph Hall, the American astronomer who discovered both Phobos and Deimos in August 1877 using the 26-inch refractor at the US Naval Observatory.","dimension":"~5.2 km diameter","theme":"moon"},
+      {"name":"Roche Crater","type": "Impact crater","moon_name":"Phobos","lat":53.0,"lon":183.0,"description":"Named after Édouard Roche, the French mathematician who formulated the Roche limit — the critical orbital distance within which tidal forces will break apart a body. Phobos orbits well inside Mars's Roche limit.","dimension":"~5.1 km diameter","theme":"moon"},
+      {"name":"Gulliver Crater","type": "Impact crater","moon_name":"Phobos","lat":62.0,"lon":163.0,"description":"Named after Lemuel Gulliver, the fictional traveller in Jonathan Swift's Gulliver's Travels — the same work that inspired the naming of Deimos's Swift Crater. The book's prediction of two Martian moons gave many Phobos features their literary names.","dimension":"~5.1 km diameter","theme":"moon"},
+      {"name":"Sharpless Crater","type": "Impact crater","moon_name":"Phobos","lat":-27.5,"lon":154.0,"description":"Named after Bevan Sharpless, a 19th-century American astronomer and Mars observer associated with the US Naval Observatory during the era of Phobos's discovery.","dimension":"~4.4 km diameter","theme":"moon"},
+      {"name":"D'Arrest Crater","type": "Impact crater","moon_name":"Phobos","lat":-39.0,"lon":179.0,"description":"Named after Heinrich d'Arrest, a German astronomer who actively searched for Martian moons before Asaph Hall succeeded. D'Arrest is also known for co-discovering Neptune and multiple comets.","dimension":"~2.9 km diameter","theme":"moon"},
+      {"name":"Todd Crater","type": "Impact crater","moon_name":"Phobos","lat":-9.0,"lon":153.0,"description":"Named after David Peck Todd, an American astronomer and Mars observer at Amherst College who made extensive observations of Mars in the late 19th century.","dimension":"~2.5 km diameter","theme":"moon"},
+      {"name":"Wendell Crater","type": "Impact crater","moon_name":"Phobos","lat":-1.0,"lon":132.0,"description":"Named after Oliver Clinton Wendell, an American astronomer at Harvard College Observatory. Most craters on Phobos are named after astronomers involved in early Mars observation or the discovery of the Martian moons.","dimension":"~2.2 km diameter","theme":"moon"},
+      {"name":"Clustril Crater","type": "Impact crater","moon_name":"Phobos","lat":60.0,"lon":91.0,"description":"Named after Clustril, a scheming courtier in Jonathan Swift's Gulliver's Travels. Phobos craters below a certain size threshold are named after characters from Gulliver's Travels, consistent with the moon's literary naming convention.","dimension":"~2.7 km diameter","theme":"moon"},
+      {"name":"Limtoc Crater","type": "Impact crater","moon_name":"Phobos","lat":-11.0,"lon":54.0,"description":"Named after Limtoc, a Lilliputian general in Gulliver's Travels. Sits in Phobos's southern hemisphere.","dimension":"~2.4 km diameter","theme":"moon"},
+      {"name":"Skyresh Crater","type": "Impact crater","moon_name":"Phobos","lat":52.5,"lon":320.0,"description":"Named after Skyresh Bolgolam, the High Admiral of Lilliput in Gulliver's Travels, who schemes against Gulliver throughout the first voyage.","dimension":"~3.0 km diameter","theme":"moon"},
+      {"name":"Grildrig Crater","type": "Impact crater","moon_name":"Phobos","lat":81.0,"lon":195.0,"description":"Named after the name given to Gulliver by the Brobdingnagian farmer's daughter in Book II of Gulliver's Travels, meaning 'little person' in the giant's language.","dimension":"~1.6 km diameter","theme":"moon"},
+      {"name":"Flimnap Crater","type": "Impact crater","moon_name":"Phobos","lat":60.0,"lon":350.0,"description":"Named after Flimnap, the High Treasurer of Lilliput in Jonathan Swift's Gulliver's Travels, known for his acrobatic skill in court ceremonies. Part of the Gulliver's Travels naming theme for smaller Phobos craters.","dimension":"~2.0 km diameter","theme":"moon"}
     ];
     const allFeatureData = [...labelData, ...ringLabelData, ...moonData, ...moonFeatureData];
     const TOUR_MODE_FACETS = [
@@ -4788,7 +4788,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         return null;
       }
       const moonAnchor = new THREE.Vector3(parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]);
-      return moonLatLonToVector3(lat, lon, Number(parentMoon.moon_radius || 0.1) + lift).add(moonAnchor);
+      return moonLatLonToVector3(lat, lon, Number(parentMoon.moon_radius || 0.1) + lift, parentMoon.name).add(moonAnchor);
     }
 
     function getMoonViewerDistance(feature) {
@@ -5018,6 +5018,12 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     }
 
     function syncMoonViewerControls(feature = activeMoonViewerFeature) {
+      // Toggle a body-level mode flag so CSS can dull non-relevant tabs.
+      const _root = document.documentElement;
+      if (_root) {
+        if (feature) _root.setAttribute("data-mode", "moon");
+        else _root.removeAttribute("data-mode");
+      }
       if (moonViewerSelect && feature) {
         moonViewerSelect.value = feature.name;
       }
@@ -5636,7 +5642,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         controls.minDistance = getMoonViewerMinDistance(parentMoon);
         controls.maxDistance = getMoonViewerMaxDistance(parentMoon);
         const moonAnchor = new THREE.Vector3(parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]);
-        const _relToCenter = moonLatLonToVector3(lat, lon, Number(parentMoon.moon_radius || 0.1) + 0.002);
+        const _relToCenter = moonLatLonToVector3(lat, lon, Number(parentMoon.moon_radius || 0.1) + 0.002, parentMoon.name);
         // Apply the moon's current self-rotation so the camera flies to where the
         // feature actually sits on the spinning texture (same transform as the
         // animation loop applies to feature marker positions).
@@ -6925,23 +6931,28 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       return ((value % 360) + 360) % 360;
     }
 
-    function moonDataLonToSceneLon(lonDegrees) {
-      // Phobos/Deimos feature catalogs use the IAU small-body convention, where
-      // longitudes are authored in the opposite handedness from the positive-east
-      // simple-cylindrical moon textures used by the renderer.
-      return normalizeDegrees360(360 - Number(lonDegrees || 0));
+    // Per-moon longitude offset slot (mirrors MOON_LON_OFFSET in label-layer.js).
+    // Currently empty — both Phobos and Deimos use plain IAU west-positive coords.
+    const MOON_DATA_LON_OFFSET = {};
+
+    function moonDataLonToSceneLon(lonDegrees, moonName = "") {
+      // Phobos/Deimos feature catalogs use the IAU small-body convention (west-positive
+      // 0-360), opposite handedness from the positive-east scene.
+      const offset = MOON_DATA_LON_OFFSET[moonName] || 0;
+      return normalizeDegrees360(360 - (Number(lonDegrees || 0) + offset));
     }
 
-    function sceneLonToMoonDataLon(lonDegrees) {
-      return normalizeDegrees360(360 - Number(lonDegrees || 0));
+    function sceneLonToMoonDataLon(lonDegrees, moonName = "") {
+      const offset = MOON_DATA_LON_OFFSET[moonName] || 0;
+      return normalizeDegrees360(360 - Number(lonDegrees || 0) - offset);
     }
 
 
-    function vectorToMoonLatLon(point) {
+    function vectorToMoonLatLon(point, moonName = "") {
       const latLon = vectorToLatLon(point);
       return {
         lat: latLon.lat,
-        lon: sceneLonToMoonDataLon(latLon.lon),
+        lon: sceneLonToMoonDataLon(latLon.lon, moonName),
       };
     }
 
@@ -13892,16 +13903,17 @@ uniform float uViewportWidth;`,
 
       function vectorToLatLonInMeasureContext(localPoint, context) {
         const relPoint = localPoint.clone().sub(context.centerLocal);
-        return context.kind === "moon" ? vectorToMoonLatLon(relPoint) : vectorToLatLon(relPoint);
+        return context.kind === "moon" ? vectorToMoonLatLon(relPoint, context.bodyName) : vectorToLatLon(relPoint);
       }
 
       function normalizeMeasureHitLocalPoint(localPoint, context) {
         if (context.kind === "moon") {
           // Store in moon body frame (un-rotate by current moon self-rotation) so that
-          // markers stay surface-locked as the moon spins.
+          // markers stay surface-locked as the moon spins. Marker placement applies
+          // R_y(-angle) to body-frame positions, so the inverse is R_y(+angle).
           const moonAngle = getMoonBodyAngle(context.bodyName);
           const relVec = localPoint.clone().sub(context.centerLocal);
-          relVec.applyEuler(new THREE.Euler(0, moonAngle, 0)); // +angle undoes rotation.y = -angle
+          relVec.applyEuler(new THREE.Euler(0, moonAngle, 0));
           return context.centerLocal.clone().add(relVec);
         }
         // Store planetary measurements in the unspun body frame, then let the
@@ -14174,7 +14186,7 @@ uniform float uViewportWidth;`,
 
       function sampleMeasureSurfacePoint(latDegrees, lonDegrees, lift = 0.012, context = getActiveMeasureContext()) {
         const point = context.kind === "moon"
-          ? moonLatLonToVector3(latDegrees, lonDegrees, measureSurfaceRadius(latDegrees, lonDegrees, lift, context))
+          ? moonLatLonToVector3(latDegrees, lonDegrees, measureSurfaceRadius(latDegrees, lonDegrees, lift, context), context.bodyName)
           : latLonToVector3(latDegrees, lonDegrees, measureSurfaceRadius(latDegrees, lonDegrees, lift, context));
         return context.kind === "moon" ? point.add(context.centerLocal) : point;
       }
@@ -14781,15 +14793,15 @@ uniform float uViewportWidth;`,
           camera,
           renderer,
           marsLabelsEnabled,
-          !removeAtmosphere && volcanicLabelsToggle.checked,
-          !removeAtmosphere && landingLabelsToggle.checked,
-          !removeAtmosphere && habitationLabelsToggle.checked,
+          !removeAtmosphere && !activeMoonViewerFeature && volcanicLabelsToggle.checked,
+          !removeAtmosphere && !activeMoonViewerFeature && landingLabelsToggle.checked,
+          !removeAtmosphere && !activeMoonViewerFeature && habitationLabelsToggle.checked,
           coreEnabled,
           baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
-          !removeAtmosphere && (craterLabelsToggle?.checked ?? true),
-          !removeAtmosphere && (fluvialLabelsToggle?.checked ?? true),
-          !removeAtmosphere && (tectonicLabelsToggle?.checked ?? true),
+          !removeAtmosphere && !activeMoonViewerFeature && (craterLabelsToggle?.checked ?? true),
+          !removeAtmosphere && !activeMoonViewerFeature && (fluvialLabelsToggle?.checked ?? true),
+          !removeAtmosphere && !activeMoonViewerFeature && (tectonicLabelsToggle?.checked ?? true),
         
           currentLodLevel,
           activeMoonViewerFeature,
@@ -16221,9 +16233,15 @@ uniform float uViewportWidth;`,
         if (surfaceHit) {
           let latLon;
           if (surfaceHit.context?.kind === "moon") {
-            // localPoint is already in moon body frame (normalized by refineMeasureHitLocalPoint)
+            // In measure mode localPoint is already in moon body frame; in plain hover mode
+            // it's still in marsGroup-local, so un-rotate by the moon's current self-rotation
+            // (markers are placed with R_y(-angle), inverse is R_y(+angle)).
+            const moonAngle = getMoonBodyAngle(surfaceHit.context.bodyName);
             const relPoint = surfaceHit.localPoint.clone().sub(surfaceHit.context.centerLocal);
-            latLon = vectorToMoonLatLon(relPoint);
+            if (!measureMode) {
+              relPoint.applyEuler(new THREE.Euler(0, moonAngle, 0));
+            }
+            latLon = vectorToMoonLatLon(relPoint, surfaceHit.context.bodyName);
           } else if (surfaceHit.context) {
             latLon = { lat: surfaceHit.lat, lon: surfaceHit.lon };
           } else {

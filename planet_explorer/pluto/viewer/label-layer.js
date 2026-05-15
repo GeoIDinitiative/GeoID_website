@@ -2,10 +2,13 @@ import * as THREE from "./vendor/three.module.js";
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
-// Moon feature catalogs use IAU small-body convention (opposite handedness).
-// moonDataLonToSceneLon flips the longitude so textures render correctly.
+// Moon feature catalogs use IAU west-positive longitudes. The basemaps are laid out
+// convention D (west-positive, centered: lon=0 at u=0.5, left edge = 180°W, north-top),
+// for which placement is identity: scene_lon = W. With three.js SphereGeometry UVs and
+// the moon mesh rotated by (π − angle), latLonToVector3(lat, W) lands exactly on the
+// texture pixel rendered at IAU west-positive W.
 function _normDeg360(v) { return ((v % 360) + 360) % 360; }
-function _moonDataLonToScene(lon) { return _normDeg360(360 - Number(lon || 0)); }
+function _moonDataLonToScene(lon) { return _normDeg360(Number(lon || 0)); }
 export function moonLatLonToVector3(latDegrees, lonDegrees, radius) {
   const lat = THREE.MathUtils.degToRad(latDegrees);
   const lon = THREE.MathUtils.degToRad(_moonDataLonToScene(lonDegrees));
@@ -283,13 +286,32 @@ export function isVolcanicMoonFeature(item) {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-  return /(?:cryo)?volcan|patera|caldera|plume|vent|eruption|lava|basalt/.test(content);
+  return /(?:cryo)?volcan|patera|caldera|plume|vent|eruption|lava|basalt|fluctus|tholus|corona|farrum/.test(content);
 }
 
 export function isCraterMoonFeature(item) {
-  const content = [item.type, item.theme].filter(Boolean).join(" ").toLowerCase();
-  return /impact crater|crater/.test(content);
+  const t = String(item && item.type || "").toLowerCase().trim();
+  return t === "impact crater" || t === "crater";
 }
+
+export function isTectonicMoonFeature(item) {
+  const t = String(item && item.type || "").toLowerCase().trim();
+  return /^(chasma|fossa|sulcus|rupes|dorsum|cavus|labyrinthus|linea|scopulus|tessera|graben)$/.test(t);
+}
+
+export function isFluvialMoonFeature(item) {
+  const t = String(item && item.type || "").toLowerCase().trim();
+  return /^(vallis|catena|flumen|rima)$/.test(t);
+}
+
+export function classifyMoonFeature(item) {
+  if (isVolcanicMoonFeature(item)) return "volcanic";
+  if (isCraterMoonFeature(item))   return "crater";
+  if (isFluvialMoonFeature(item))  return "fluvial";
+  if (isTectonicMoonFeature(item)) return "tectonic";
+  return "moon-feature";
+}
+
 
 export function getMoonFeatureConnectorStart(markerPoint, labelPoint, moonRadius) {
   return markerPoint.clone();
@@ -318,7 +340,7 @@ export function buildMoonFeatureLabelLayer(moonData, moonFeatureData) {
     }
     const moonAnchor = new THREE.Vector3(parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]);
     const moonRadius = Number(parentMoon.moon_radius || 0.1);
-    const markerR = moonRadius * 0.01;
+    const markerR = moonRadius * 0.005;
     const hitR = moonRadius * 0.08;
     const labelDistance = moonRadius * 0.12;
     const anchor = moonLatLonToVector3(lat, lon, moonRadius + moonRadius * 0.02).add(moonAnchor);
@@ -338,10 +360,19 @@ export function buildMoonFeatureLabelLayer(moonData, moonFeatureData) {
     const relSurfacePoint = surfacePoint.clone().sub(moonAnchor);
     const relLabelPos = labelPos.clone().sub(moonAnchor);
 
-    const isCrater = isCraterMoonFeature(item);
-    const markerColor = isCrater ? 0xff5faa : 0x4fe0db;
-    const lineColor   = isCrater ? 0xff82c0 : 0x7be7e3;
-    const labelTheme  = isCrater ? "crater"  : "moon-poi";
+    const _CAT_PALETTE = {
+      "volcanic":     { marker: 0xff5849, line: 0xff7e6a, theme: "volcanic" },
+      "crater":       { marker: 0xff5faa, line: 0xff82c0, theme: "crater" },
+      "tectonic":     { marker: 0xd4965a, line: 0xe6b07a, theme: "tectonic" },
+      "fluvial":      { marker: 0x2d78e0, line: 0x6aa6f2, theme: "fluvial" },
+      "moon-feature": { marker: 0x4fe0db, line: 0x7be7e3, theme: "moon-poi" },
+    };
+    const _featCategory = classifyMoonFeature(item);
+    const _pal = _CAT_PALETTE[_featCategory] || _CAT_PALETTE["moon-feature"];
+    const isCrater = _featCategory === "crater";
+    const markerColor = _pal.marker;
+    const lineColor   = _pal.line;
+    const labelTheme  = _pal.theme;
 
     const marker = new THREE.Mesh(new THREE.SphereGeometry(markerR, 10, 10), new THREE.MeshBasicMaterial({
       color: markerColor,
@@ -392,7 +423,7 @@ export function buildMoonFeatureLabelLayer(moonData, moonFeatureData) {
     line.frustumCulled = false;
     group.add(line);
 
-    const category = isVolcanicMoonFeature(item) ? "volcanic" : isCrater ? "crater" : "moon";
+    const category = _featCategory;
     interactiveObjects.push(hitTarget, marker, sprite);
     entries.push({ item, parentMoon, moonAnchor, marker, hitTarget, sprite, line, surfacePoint, relMarkerPos, relHitPos, relSurfacePoint, relLabelPos, rel0MarkerPos: relMarkerPos.clone(), rel0HitPos: relHitPos.clone(), rel0SurfacePoint: relSurfacePoint.clone(), rel0LabelPos: relLabelPos.clone(), category, priority: 5 });
   }

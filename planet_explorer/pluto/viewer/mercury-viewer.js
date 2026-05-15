@@ -51,7 +51,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     const fluvialLabelsToggle = document.getElementById("fluvial-labels-toggle");
     const tectonicLabelsToggle = document.getElementById("tectonic-labels-toggle");
     const lodSlider = document.getElementById("lod-slider");
-    let currentLodLevel = 3;
+    let currentLodLevel = 5;
     const moonToggle = document.getElementById("moon-toggle");
     const baseLabelsToggle = document.getElementById("base-labels-toggle");
 
