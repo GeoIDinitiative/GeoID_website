@@ -616,10 +616,20 @@
     .eco-child-logo {
       height: clamp(2.4rem, 4vw, 3.8rem);
       width: auto;
-      max-width: 90%;
+      max-width: 100%;
       object-fit: contain;
       opacity: 0.88;
       filter: drop-shadow(0 2px 10px rgba(0,0,0,0.70));
+    }
+    /* Narrow viewports: each .eco-child is only ~1/3 of the column width.
+       Cap by width (not height) so wide wordmark logos like myGeoID
+       don't overflow their cell and get clipped by neighbours. */
+    @media (max-width: 720px) {
+      .eco-child-logo {
+        height: auto;
+        max-height: 2.6rem;
+        max-width: 92%;
+      }
     }
 
     /* ── CTA tile ── */
@@ -787,6 +797,17 @@
       .split-grid .split-photo { order: -1; }
       .cards-grid-3 { grid-template-columns: 1fr 1fr; }
       .footer-content { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* Phone landscape: enough horizontal room for 3 columns of solution
+       cards — override the 1080px 2-column collapse. */
+    @media (max-height: 560px) and (orientation: landscape) {
+      .cards-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 0.7rem !important; }
+      .solution-card { padding: 0.7rem 0.8rem !important; }
+      .solution-card h3 { font-size: 0.82rem !important; line-height: 1.2 !important; }
+      .solution-card p { font-size: 0.68rem !important; line-height: 1.4 !important; }
+      .solution-icon { width: 1.8rem !important; height: 1.8rem !important; }
+      .solution-icon svg { width: 16px !important; height: 16px !important; }
     }
 
     @media (max-width: 640px) {

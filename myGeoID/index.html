@@ -912,10 +912,60 @@
       .risk-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .market-grid { grid-template-columns: 1fr; }
       .market-card { height: 172px; }
+
+      /* Analysis hub head: stack vertically on portrait so neither the
+         title nor the chip row gets squeezed into one-word-per-line. */
+      .hub-analysis-head {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.45rem;
+        padding: 0.5rem 0.6rem;
+      }
+      .hub-kicker { font-size: 0.52rem; letter-spacing: 0.12em; margin: 0 0 0.15rem; }
+      .hub-analysis-title { font-size: 0.95rem; letter-spacing: 0.02em; }
+      .hub-analysis-subtitle { font-size: 0.65rem; margin-top: 0.2rem; line-height: 1.35; }
+      .hub-chip-row {
+        max-width: 100%;
+        justify-content: flex-start;
+        gap: 0.3rem;
+      }
+      .hub-chip { font-size: 0.58rem; min-height: 1.25rem; padding: 0.18rem 0.4rem; }
     }
 
     @media (max-width: 480px) {
       .hub-tab-btn { padding: 0.18rem 0.45rem; font-size: 0.64rem; }
+    }
+
+    /* Phone landscape: fit the 3-up market / hub-copy grids in one row
+       (their auto-fit minmax(300px / 230px) collapses them on narrow
+       widths). Force 3 columns and tighten card sizing so content fits. */
+    @media (max-height: 560px) and (orientation: landscape) {
+      .market-grid,
+      .hub-copy-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 0.4rem !important;
+      }
+      .market-card { height: auto !important; min-height: 0 !important; padding: 0.5rem 0.6rem !important; }
+      .hub-copy-card { min-height: 0 !important; padding: 0.5rem 0.6rem !important; }
+      .risk-summary { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+
+      /* Landscape: make the page behave like the planet viewers — globe
+         iframe fills the viewport, only the Analysis Hub strip is
+         visible along the bottom. Override the 520px min-height that
+         otherwise pushes the drawer offscreen. */
+      .interface-main { min-height: 100dvh !important; padding-top: var(--nav-h) !important; }
+      .globe-wrap {
+        height: calc(100dvh - var(--nav-h) - 2.6rem) !important;
+        min-height: 0 !important;
+      }
+      .interface-main.is-hub-expanded .globe-wrap {
+        height: calc(100dvh - var(--nav-h) - 2.6rem - 60dvh) !important;
+        min-height: 0 !important;
+      }
+      .hub-strip { min-height: 2.6rem !important; padding: 0.25rem 0.6rem !important; }
+      .hub-toggle-btn { font-size: 0.6rem !important; padding: 0.25rem 0.6rem !important; }
+      .hub-tab-btn { font-size: 0.58rem !important; padding: 0.18rem 0.45rem !important; }
+      .hub-drawer-inner { padding: 0.5rem 0.6rem !important; }
     }
     /* ── Demo disclaimer modal ── */
     .demo-disclaimer-backdrop {
@@ -935,6 +985,8 @@
     .demo-disclaimer-modal {
       max-width: 38rem;
       width: 100%;
+      max-height: calc(100dvh - 2rem);
+      overflow-y: auto;
       background: linear-gradient(160deg, rgba(10, 24, 38, 0.98), rgba(4, 12, 20, 0.98));
       border: 1px solid rgba(255, 184, 78, 0.42);
       border-radius: 1rem;
@@ -945,6 +997,63 @@
         0 0 32px rgba(255, 184, 78, 0.08);
       color: rgba(232, 240, 248, 0.94);
       font-family: "Public Sans", "Work Sans", sans-serif;
+    }
+    /* Compact the disclaimer on narrow / short viewports so it fits in
+       a single scroll-free panel (was overflowing the iframe height on
+       phone landscape and tall portrait). */
+    @media (max-width: 720px), (max-height: 560px) {
+      .demo-disclaimer-backdrop { padding: 0.5rem; align-items: flex-start; }
+      .demo-disclaimer-modal {
+        padding: 0.7rem 0.85rem 0.7rem !important;
+        border-radius: 0.7rem !important;
+        max-height: calc(100dvh - 1rem) !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      .demo-disclaimer-eyebrow {
+        font-size: 0.46rem !important; padding: 0.14rem 0.4rem !important;
+        margin-bottom: 0.35rem !important; letter-spacing: 0.12em !important;
+      }
+      .demo-disclaimer-title {
+        font-size: 0.88rem !important; margin: 0 0 0.3rem !important;
+        line-height: 1.2 !important;
+      }
+      .demo-disclaimer-body {
+        font-size: 0.66rem !important; line-height: 1.35 !important;
+        margin: 0 0 0.3rem !important;
+      }
+      .demo-disclaimer-list {
+        font-size: 0.62rem !important; line-height: 1.3 !important;
+        margin: 0.2rem 0 0.4rem !important; padding-left: 0.85rem !important;
+      }
+      .demo-disclaimer-list li { margin-bottom: 0.12rem !important; }
+      .demo-disclaimer-confirm {
+        padding: 0.38rem 0.5rem !important; gap: 0.4rem !important;
+        border-radius: 0.4rem !important;
+      }
+      .demo-disclaimer-confirm input[type="checkbox"] { width: 0.85rem !important; height: 0.85rem !important; }
+      .demo-disclaimer-confirm-label { font-size: 0.62rem !important; line-height: 1.25 !important; }
+      .demo-disclaimer-actions { margin-top: 0.45rem !important; }
+      .demo-disclaimer-button { font-size: 0.6rem !important; padding: 0.4rem 0.85rem !important; }
+    }
+    /* Very short viewports (phone landscape ~360-480px): pin the
+       Continue action row, and make the upper content scroll inside the
+       modal so the button is always reachable without scrolling the
+       page. */
+    @media (max-height: 520px) {
+      .demo-disclaimer-modal { padding: 0.5rem 0.7rem 0.5rem !important; }
+      .demo-disclaimer-title { font-size: 0.8rem !important; }
+      .demo-disclaimer-body, .demo-disclaimer-list { font-size: 0.58rem !important; }
+      .demo-disclaimer-confirm-label { font-size: 0.58rem !important; }
+      /* The modal becomes a flex column (set above); make the content
+         scroll while the actions row stays pinned. */
+      .demo-disclaimer-modal > .demo-disclaimer-actions {
+        flex-shrink: 0;
+        margin-top: 0.35rem !important;
+      }
+      .demo-disclaimer-modal > *:not(.demo-disclaimer-actions) {
+        flex-shrink: 0;
+      }
     }
     .demo-disclaimer-eyebrow {
       display: inline-block;

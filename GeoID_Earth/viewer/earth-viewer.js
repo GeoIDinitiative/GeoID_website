@@ -11762,7 +11762,11 @@ import * as THREE from "./vendor/three.module.js";
       scene.background = new THREE.Color(0x02050b);
 
       const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.set(0, 1.4, 11.5);
+      // Mobile/portrait viewports get a smaller globe due to FOV — pull
+      // back further so Earth still reads as a whole sphere on first
+      // render rather than nearly filling the screen.
+      const isMobile = window.matchMedia('(max-width: 720px)').matches;
+      camera.position.set(0, 1.4, isMobile ? 16 : 11.5);
       viewerCamera = camera;
 
       const renderer = createRenderer(THREE);
@@ -19590,6 +19594,30 @@ ${error && error.message ? error.message : error}`;
         uiPanel.classList.remove("is-collapsed");
         navTab.style.display = "none";
         surfaceHud?.classList.remove("nav-collapsed");
+      });
+
+      // On narrow viewports (phones in portrait), the nav panel covers
+      // most of the globe — start collapsed so the user can interact
+      // with the map first, then expand if they want the toolbox.
+      // Re-check on load and resize because the iframe may not have
+      // settled its dimensions at the time this script first runs.
+      const collapseIfMobile = () => {
+        const portrait = window.matchMedia('(max-width: 720px)').matches;
+        const landscapePhone = window.matchMedia('(max-height: 560px) and (orientation: landscape)').matches;
+        if (portrait || landscapePhone) {
+          if (!uiPanel.classList.contains("is-collapsed")) {
+            uiPanel.classList.add("is-collapsed");
+            navTab.style.display = "flex";
+            surfaceHud?.classList.add("nav-collapsed");
+          }
+        }
+      };
+      collapseIfMobile();
+      window.addEventListener('load', collapseIfMobile);
+      window.addEventListener('resize', () => {
+        // Only auto-collapse if it shrinks below the breakpoint; don't
+        // auto-expand on widen so we respect the user's choice.
+        collapseIfMobile();
       });
     }
 

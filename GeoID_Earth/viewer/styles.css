@@ -2867,9 +2867,27 @@
 
     @media (max-width: 720px) {
       #ui {
-        top: auto;
+        top: 1rem;
         bottom: 1rem;
-        max-height: min(72vh, calc(100vh - 2rem));
+        left: 1rem;
+        right: 1rem;
+        /* Take the full available width AND height on portrait so the
+           open toolbox fully overlays the viewer (tool-rail, music
+           button, hazard readout etc) instead of leaving them poking
+           out around the edges. */
+        width: auto !important;
+        max-width: none !important;
+        max-height: none !important;
+        z-index: 50 !important;
+      }
+      /* When the nav is collapsed (or no panel state class is present
+         and JS hasn't run yet), don't take the whole screen. */
+      #ui.is-collapsed {
+        top: auto;
+        right: auto;
+        bottom: 1rem;
+        left: 1rem;
+        width: auto !important;
       }
 
       #top-right-controls {
@@ -2899,24 +2917,54 @@
 
       #tool-rail {
         top: calc(1rem + 10.4rem + 0.8rem);
-        gap: 0.42rem;
+        gap: 0.3rem;
       }
 
       .tool-rail-item {
-        gap: 0.32rem;
+        gap: 0.22rem;
       }
 
       .tool-rail-btn {
-        width: 3.5rem;
-        min-height: 3.5rem;
-        padding: 0.48rem 0.34rem 0.38rem;
+        width: 2.3rem;
+        min-height: 2.3rem;
+        padding: 0.3rem 0.18rem;
+      }
+      .tool-rail-btn svg {
+        width: 1.1rem;
+        height: 1.1rem;
+      }
+      /* Hide the text label on portrait — "DISTANCE" doesn't fit at
+         2rem-wide buttons. The icon + aria-label is enough. */
+      .tool-rail-btn span {
+        display: none;
       }
 
       .tool-rail-action-btn {
-        width: 3.5rem;
-        min-height: 1.9rem;
-        padding: 0.36rem 0.24rem;
+        width: 2.3rem;
+        min-height: 1.2rem;
+        padding: 0.18rem 0.14rem;
+        font-size: 0.46rem;
       }
+
+      /* Scale bar / hemisphere locator sit at bottom:1rem, same row as
+         #gmt-clock — push them well clear so the scale doesn't tuck
+         behind the time readout. */
+      #bottom-right-hud {
+        bottom: 4.6rem;
+      }
+      #scale-readout {
+        --scale-bar-width: 7rem;
+      }
+      #scale-readout .scale-labels { font-size: 0.58rem; }
+      #hemisphere-locator { width: 3.6rem; }
+      .locator-readout { font-size: 0.46rem !important; margin-top: 0.04rem !important; }
+      #surface-conditions { padding: 0 !important; }
+      .sc-row { gap: 0.35rem !important; line-height: 1.3 !important; }
+      .sc-label { font-size: 0.46rem !important; letter-spacing: 0.08em !important; }
+      .sc-value { font-size: 0.62rem !important; }
+      .sc-note { font-size: 0.44rem !important; margin-top: 0.05rem !important; }
+      #interior-conditions .sc-value { font-size: 0.6rem !important; }
+      .ic-layer-value { font-size: 0.58rem !important; }
 
       #top-right-logo {
         top: 0.5rem;
@@ -3092,6 +3140,149 @@ body.is-embedded #ui.is-collapsed ~ #music-btn {
     top: 3.45rem;
     bottom: auto;
     left: 1rem;
+  }
+
+  /* Compact hazard readout for portrait — desktop sizing eats half the
+     screen and crowds the globe view. */
+  #hazard-readout {
+    top: 0.6rem !important;
+    right: 0.6rem !important;
+    min-width: 8.2rem !important;
+    padding: 0.4rem 0.55rem !important;
+    border-radius: 0.5rem !important;
+  }
+  .hazard-row {
+    gap: 0.5rem !important;
+    line-height: 1.35 !important;
+  }
+  .hazard-label { font-size: 0.54rem !important; letter-spacing: 0.08em !important; }
+  .hazard-value { font-size: 0.72rem !important; }
+  .hazard-note  { font-size: 0.5rem !important; margin-top: 0.18rem !important; }
+}
+
+/* Phone landscape inside the embedded iframe — neat four-corner layout:
+   ┌──────────────────────────────────────────────┐
+   │ hazard-readout (TL)        rotate/freeze/music (TR) │
+   │                                                     │
+   │              [globe]                                │
+   │                                                     │
+   │ HUD: locator+scale+temp (BL)   tool rail (BR)       │
+   │              GMT clock (BC)                          │
+   └─────────────────────────────────────────────────────┘ */
+@media (max-height: 560px) and (orientation: landscape) {
+  /* TR: hazard readout — compact, anchored top-right.
+     Use a generous top offset because the readout has 4 rows + note and
+     was clipping its top FOS row at top:0.4rem on short viewports. */
+  body.is-embedded #hazard-readout {
+    top: 0.6rem !important;
+    right: 0.4rem !important;
+    left: auto !important;
+    min-width: 6.8rem !important;
+    padding: 0.45rem 0.5rem 0.35rem !important;
+    border-radius: 0.4rem !important;
+    max-height: calc(100dvh - 1.2rem) !important;
+    overflow: visible !important;
+  }
+  body.is-embedded #hazard-readout .hazard-row { gap: 0.4rem !important; line-height: 1.2 !important; }
+  body.is-embedded #hazard-readout .hazard-label { font-size: 0.46rem !important; }
+  body.is-embedded #hazard-readout .hazard-value { font-size: 0.58rem !important; }
+  body.is-embedded #hazard-readout .hazard-note { font-size: 0.42rem !important; margin-top: 0.12rem !important; }
+
+  /* Below the readout: music + rotate + freeze as a horizontal row */
+  body.is-embedded #top-right-controls {
+    /* Position below the readout (height ≈ 4 rows * 1.2em + note + padding
+       ≈ 5.8rem). Use a generous offset so it sits just below. */
+    top: 5.6rem !important;
+    right: 0.4rem !important;
+    left: auto !important;
+    bottom: auto !important;
+    gap: 0.3rem !important;
+    flex-direction: row !important;
+    align-items: center !important;
+  }
+  body.is-embedded #spin-toggle,
+  body.is-embedded #freeze-view-toggle {
+    width: 1.85rem !important;
+    height: 1.85rem !important;
+  }
+  body.is-embedded #music-btn {
+    position: fixed !important;
+    top: 5.6rem !important;
+    right: calc(0.4rem + 1.85rem + 0.3rem + 1.85rem + 0.3rem) !important;
+    bottom: auto !important;
+    left: auto !important;
+    height: 1.85rem !important;
+    padding: 0 0.55rem !important;
+    font-size: 0.5rem !important;
+  }
+
+  /* BL: hemisphere locator + scale bar + temp/pressure stacked compactly */
+  body.is-embedded #bottom-right-hud {
+    bottom: 0.4rem !important;
+    left: 0.4rem !important;
+    right: auto !important;
+    flex-direction: row !important;
+    align-items: flex-end !important;
+    gap: 0.5rem !important;
+  }
+  body.is-embedded #hemisphere-locator { width: 2.8rem !important; }
+  body.is-embedded .locator-readout { font-size: 0.4rem !important; margin-top: 0.04rem !important; }
+  body.is-embedded #surface-conditions { padding: 0 !important; }
+  body.is-embedded #surface-conditions .sc-row { gap: 0.3rem !important; line-height: 1.2 !important; }
+  body.is-embedded #surface-conditions .sc-label { font-size: 0.4rem !important; }
+  body.is-embedded #surface-conditions .sc-value { font-size: 0.52rem !important; }
+  body.is-embedded #scale-readout { --scale-bar-width: 5rem !important; }
+  body.is-embedded #scale-readout .scale-labels { font-size: 0.44rem !important; height: 0.7rem !important; }
+
+  /* Right edge: measurement tools as a vertical column hugging the
+     right side, centred vertically between the top-right controls and
+     the bottom-right HUD. */
+  body.is-embedded #tool-rail {
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    bottom: auto !important;
+    right: 0.4rem !important;
+    left: auto !important;
+    flex-direction: column !important;
+    gap: 0.3rem !important;
+    align-items: center !important;
+  }
+  body.is-embedded .tool-rail-item { gap: 0 !important; }
+  body.is-embedded .tool-rail-btn {
+    width: 1.85rem !important;
+    min-height: 1.85rem !important;
+    padding: 0.22rem !important;
+  }
+  body.is-embedded .tool-rail-btn svg { width: 0.95rem !important; height: 0.95rem !important; }
+  body.is-embedded .tool-rail-btn span { display: none !important; }
+  body.is-embedded .tool-rail-action-btn { display: none !important; }
+
+  /* BC: GMT clock — centred, small, sits between HUD-BL and tool-rail-BR */
+  body.is-embedded #gmt-clock {
+    bottom: 0.45rem !important;
+    font-size: 0.52rem !important;
+    padding: 0.18rem 0.45rem !important;
+    letter-spacing: 0.08em !important;
+  }
+  /* Landscape: open the nav at its normal width on the left side
+     (like desktop), not as a full-viewport overlay — there's plenty of
+     horizontal room and the user wants to keep seeing the globe. */
+  body.is-embedded #ui {
+    top: 0.5rem !important;
+    left: 0.5rem !important;
+    right: auto !important;
+    bottom: 0.5rem !important;
+    width: min(20rem, 46vw) !important;
+    max-width: 46vw !important;
+    max-height: calc(100dvh - 1rem) !important;
+    z-index: 20 !important;
+  }
+  body.is-embedded #ui.is-collapsed {
+    top: auto !important;
+    right: auto !important;
+    bottom: 0.5rem !important;
+    left: 0.5rem !important;
+    width: auto !important;
   }
 }
 

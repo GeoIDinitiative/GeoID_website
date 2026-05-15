@@ -591,6 +591,16 @@
       .footer-content { grid-template-columns: 1fr 1fr; }
     }
 
+    /* Phone landscape: fit all 3 solution cards in one row */
+    @media (max-height: 560px) and (orientation: landscape) {
+      .cards-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 0.7rem !important; }
+      .solution-card { padding: 0.7rem 0.8rem !important; }
+      .solution-card h3 { font-size: 0.82rem !important; line-height: 1.2 !important; }
+      .solution-card p { font-size: 0.68rem !important; line-height: 1.4 !important; }
+      .solution-icon { width: 1.8rem !important; height: 1.8rem !important; }
+      .solution-icon svg { width: 16px !important; height: 16px !important; }
+    }
+
     @media (max-width: 640px) {
       .cards-grid-3,
       .vision-stats { grid-template-columns: 1fr; }
