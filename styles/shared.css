@@ -1383,6 +1383,23 @@ img { max-width: 100%; height: auto; }
     min-height: min(70dvh, 28rem) !important;
   }
 
+  /* Defensive: ensure the nav and hamburger toggle ALWAYS receive pointer
+     events on mobile, no matter what overlays an outer page might add. */
+  .site-nav {
+    z-index: 9000 !important;
+    pointer-events: auto !important;
+  }
+  .nav-toggle {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 9001 !important;
+    touch-action: manipulation;   /* kills the 300ms tap delay on iOS */
+  }
+  .site-nav.is-open .nav-links {
+    pointer-events: auto !important;
+    z-index: 9001 !important;
+  }
+
   /* Big stacked images that hog vertical space — cap to ~50% viewport. */
   section img:not([class*="logo"]):not([class*="icon"]):not(.no-cap),
   .hero img, .feature img, .photo-tile img {
