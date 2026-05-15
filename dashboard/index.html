@@ -1139,6 +1139,14 @@
         position: relative;
         min-height: 18rem;
       }
+      /* Slide dots: enforce 11×11 circle even on touch (shared.css tap-
+         target rule would otherwise stretch them into ovals). */
+      .pv-dot {
+        width: 11px !important;
+        height: 11px !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+      }
     }
   </style>
 </head>

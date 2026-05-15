@@ -1276,9 +1276,12 @@ body {
    block above. Setting it here would override and force the hamburger
    visible at every width, breaking the desktop nav. */
 @media (pointer: coarse) {
+  /* Explicit exclusion list — small UI dots/arrows/icons that already
+     have intentional sub-44 px dimensions, so forcing min-height on
+     them produces tall thin oval distortions instead of circles. */
   a.btn-primary, a.btn-ghost, a.btn-secondary,
   a.nav-act, a.nav-act-member, a.nav-act-donate, a.nav-act-signin,
-  button:not(.icon-only-small):not(.nav-toggle),
+  button:not(.icon-only-small):not(.nav-toggle):not(.pv-dot):not(.news-nav-btn):not(.planet-nav-arrow):not([class*="-dot"]):not([class*="-arrow"]):not([class*="-chip"]),
   .page-jump a, .footer-content a {
     min-height: 44px;
     padding-top: 0.6rem;
