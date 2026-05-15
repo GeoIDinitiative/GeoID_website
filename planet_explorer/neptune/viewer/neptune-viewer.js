@@ -6262,7 +6262,9 @@
         moonLayer.entries.map(e => [e.item?.name, e.moonMesh]).filter(([k]) => k)
       );
       const moonFeatureLabelLayer = buildMoonFeatureLabelLayer(moonMeshMap);
-      moonFeatureLabelLayer.group.visible = true;
+      // Hidden initially; only shown in moon-viewer mode (skips a per-frame
+      // iteration over hundreds of moon-feature labels in the planet view).
+      moonFeatureLabelLayer.group.visible = false;
       marsGroup.add(moonFeatureLabelLayer.group);
       // Verify Dione feature coordinates at startup — remove once confirmed correct.
       // Force dioneMesh.matrix current (position + rotation.y were set in the init loop above).
@@ -8257,6 +8259,13 @@
       });
 
       renderer.domElement.addEventListener("pointermove", (event) => {
+        // MOBILE-PERF: throttle pointermove on touch input to ~20 Hz so we
+        // don't raycast/readout on every micro-finger-movement event.
+        if (event.pointerType === 'touch') {
+          const _now = performance.now();
+          if (_now - (window.__lastPMove || 0) < 50) return;
+          window.__lastPMove = _now;
+        }
         let surfaceHit = null;
         if (!coreToggle.checked) {
           const removeAtmosphereActive = Boolean(geologyToggle && geologyToggle.checked);
@@ -8926,6 +8935,8 @@ ${error && error.message ? error.message : error}`;
             moonToggle ? moonToggle.checked : true,
             Boolean(activeMoonViewerFeature),
           );
+          moonFeatureLabelLayer.group.visible = Boolean(activeMoonViewerFeature);
+          if (activeMoonViewerFeature) {
           updateMoonFeatureLabelVisibility(
             moonFeatureLabelLayer.entries,
             marsGroup,
@@ -8940,6 +8951,7 @@ ${error && error.message ? error.message : error}`;
             fluvialLabelsToggle?.checked ?? true,
             landingLabelsToggle?.checked ?? true,
           );
+          }
           updateSeismicVisibility(
             seismicLayer.entries,
             marsGroup,
@@ -8983,6 +8995,8 @@ ${error && error.message ? error.message : error}`;
             moonToggle ? moonToggle.checked : true,
             Boolean(activeMoonViewerFeature),
           );
+          moonFeatureLabelLayer.group.visible = Boolean(activeMoonViewerFeature);
+          if (activeMoonViewerFeature) {
           updateMoonFeatureLabelVisibility(
             moonFeatureLabelLayer.entries,
             marsGroup,
@@ -8997,6 +9011,7 @@ ${error && error.message ? error.message : error}`;
             fluvialLabelsToggle?.checked ?? true,
             landingLabelsToggle?.checked ?? true,
           );
+          }
           updateSeismicVisibility(
             seismicLayer.entries,
             marsGroup,
