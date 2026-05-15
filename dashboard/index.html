@@ -1139,6 +1139,21 @@
         position: relative;
         min-height: 18rem;
       }
+      /* Planet card media: desktop uses transform: scale(1.1) on the
+         img inside an overflow: hidden container. Fine when the card is
+         24 rem wide; clips the top of the planet on a 16 rem mobile
+         card. Cap scale at 1 so the icon always fits. */
+      .planet-card-media img { transform: scale(1) !important; }
+      .planet-card-stack[data-card="jupiter"] .planet-card-media img,
+      .planet-card-stack[data-card="saturn"]  .planet-card-media img,
+      .planet-card-stack[data-card="moon"]    .planet-card-media img,
+      .planet-card-stack[data-card="pluto"]   .planet-card-media img {
+        transform: scale(0.85) !important;   /* per-planet shrinks stay proportional */
+      }
+      .planet-card-stack[data-card="pluto"] .planet-card-media img {
+        transform: scale(0.55) !important;   /* dwarf — extra shrink */
+      }
+
       /* Slide dots: enforce 11×11 circle even on touch (shared.css tap-
          target rule would otherwise stretch them into ovals). */
       .pv-dot {
