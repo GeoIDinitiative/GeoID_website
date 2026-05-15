@@ -1411,3 +1411,29 @@ img { max-width: 100%; height: auto; }
      a title on mobile. */
   h1, h2 { margin-top: clamp(0.5rem, 3vw, 1.5rem) !important; }
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Explorer solar-system viz — phone-portrait icon scaling.
+   The positionPlanets() JS sets --icon-size inline per planet (desktop
+   values: Saturn 64 px, Jupiter 52 px). At 400 px viewport the orbit
+   rings shrink but inline icon sizes don't, so icons overlap heavily.
+   Force a 55 % shrink at mobile widths via !important to defeat inline.
+   ────────────────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .solar-stage .planet-node {
+    width:  calc(var(--icon-size, 44px) * 0.55) !important;
+    height: calc(var(--icon-size, 44px) * 0.55) !important;
+  }
+  /* Stage labels (URANUS / SATURN / NEPTUNE …) — shrink so they don't
+     overlap. JS positions them relative to icon size; the inline top:
+     value uses iconHalf which the rule above already adjusted. */
+  .solar-stage [data-label] {
+    font-size: 0.55rem !important;
+    letter-spacing: 0.04em !important;
+  }
+  /* Hero copy + intro: keep them out of the planet area on mobile */
+  .solar-stage .orrery-brand { max-width: 11rem; top: 0.7rem; left: 0.7rem; }
+  .solar-stage .orrery-brand img { height: 6rem; }
+  .solar-stage .orrery-features { display: none; }
+  .solar-stage .orrery-brand-desc { display: none; }
+}
