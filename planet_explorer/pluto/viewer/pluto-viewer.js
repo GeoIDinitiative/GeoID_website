@@ -4972,8 +4972,10 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         opt.textContent = `${type} (${count})`;
         moonFeatureTypeSelect.appendChild(opt);
       });
-      moonFeatureTypeSelect.value = "all";
-      moonFeatureTypeFilter = "all";
+      const _prev = moonFeatureTypeFilter;
+      const _filterValid = _prev === "all" || types.has(_prev);
+      moonFeatureTypeSelect.value = _filterValid ? _prev : "all";
+      moonFeatureTypeFilter = _filterValid ? _prev : "all";
       populateMoonFeatureTourTargets();
     }
 
@@ -15326,6 +15328,7 @@ uniform float uViewportWidth;`,
           craterLabelsToggle?.checked ?? true,
           activePopupFeature,
           isPointOccludedByAnyMoon,
+          moonFeatureTypeFilter,
         );
       };
 
@@ -17218,6 +17221,7 @@ ${error && error.message ? error.message : error}`;
           craterLabelsToggle?.checked ?? true,
           activePopupFeature,
           isPointOccludedByAnyMoon,
+          moonFeatureTypeFilter,
         );
           } else {
             updateLabelVisibility(
@@ -17267,6 +17271,7 @@ ${error && error.message ? error.message : error}`;
           craterLabelsToggle?.checked ?? true,
           activePopupFeature,
           isPointOccludedByAnyMoon,
+          moonFeatureTypeFilter,
         );
             updateCoreLabelVisibility(
               cutawayResult,
@@ -17293,6 +17298,7 @@ ${error && error.message ? error.message : error}`;
           craterLabelsToggle?.checked ?? true,
           activePopupFeature,
           isPointOccludedByAnyMoon,
+          moonFeatureTypeFilter,
         );
         }
 

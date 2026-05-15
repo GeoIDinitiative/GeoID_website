@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>GeoID Explorer — Solar System</title>
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -72,7 +72,7 @@
     .explorer-hero {
       display: block;
       margin-bottom: 0;
-      height: calc(100vh - var(--nav-h) - 1rem);
+      height: calc(100dvh - var(--nav-h) - 1rem);
     }
 
     .space-panel,
@@ -1819,7 +1819,7 @@
         <div class="view-panel" id="solar-view-panel">
         <div class="solar-stage" aria-label="Interactive solar system selector">
           <div class="orrery-brand" aria-hidden="true">
-            <img src="/assets/explorer_logo.png" alt="GeoID Explorer">
+            <img src="/assets/explorer_logo.png" alt="GeoID Explorer" loading="lazy" decoding="async">
             <p class="orrery-brand-desc">Click any planet to explore comprehensive, interactive 3D models of each world's internal and external structures, surface geology, atmospheric systems, and moon environments — rendered at true planetary scale.</p>
           </div>
           <div class="orrery-features" aria-label="Viewer features">
@@ -1859,31 +1859,31 @@
           <div class="orbit-ring" data-orbit="pluto"></div>
 
           <button type="button" class="planet-node is-live" data-planet="mercury" style="--icon-size: 22px;" aria-label="Open Mercury viewer">
-            <img class="planet-icon" src="/assets/mercury_icon.png" alt="" aria-hidden="true">
+            <img class="planet-icon" src="/assets/mercury_icon.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
           </button>
           <button type="button" class="planet-node is-live" data-planet="venus" style="--icon-size: 28px;" aria-label="Open Venus viewer">
-            <img class="planet-icon" src="/assets/venus_icon.png" alt="" aria-hidden="true">
+            <img class="planet-icon" src="/assets/venus_icon.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
           </button>
           <button type="button" class="planet-node is-live" data-planet="earth" style="--icon-size: 30px;" aria-label="Open Earth viewer">
-            <img class="planet-icon" src="/assets/earth_icon.png" alt="" aria-hidden="true">
+            <img class="planet-icon" src="/assets/earth_icon.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
           </button>
           <button type="button" class="planet-node is-live is-selected" data-planet="mars" style="--icon-size: 24px;" aria-label="Open Mars viewer">
-            <img class="planet-icon" src="/assets/mars_icon.png" alt="" aria-hidden="true">
+            <img class="planet-icon" src="/assets/mars_icon.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
           </button>
           <button type="button" class="planet-node is-live" data-planet="jupiter" style="--icon-size: 52px;" aria-label="Open Jupiter viewer">
-            <img class="planet-icon" src="/assets/jupiter_icon.png" alt="" aria-hidden="true">
+            <img class="planet-icon" src="/assets/jupiter_icon.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
           </button>
           <button type="button" class="planet-node is-live" data-planet="saturn" style="--icon-size: 64px;" aria-label="Open Saturn viewer">
-            <img class="planet-icon" src="/assets/saturn_icon.png" alt="" aria-hidden="true">
+            <img class="planet-icon" src="/assets/saturn_icon.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
           </button>
           <button type="button" class="planet-node is-live" data-planet="uranus" style="--icon-size: 38px;" aria-label="Open Uranus viewer">
-            <img class="planet-icon" src="/assets/uranus_icon.png" alt="" aria-hidden="true">
+            <img class="planet-icon" src="/assets/uranus_icon.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
           </button>
           <button type="button" class="planet-node is-live" data-planet="neptune" style="--icon-size: 36px;" aria-label="Open Neptune viewer">
-            <img class="planet-icon" src="/assets/neptune_icon.png" alt="" aria-hidden="true">
+            <img class="planet-icon" src="/assets/neptune_icon.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
           </button>
           <button type="button" class="planet-node is-live" data-planet="pluto" style="--icon-size: 20px;" aria-label="Open Pluto viewer">
-            <img class="planet-icon" src="/assets/pluto_icon.png" alt="" aria-hidden="true">
+            <img class="planet-icon" src="/assets/pluto_icon.png" alt="" aria-hidden="true" loading="lazy" decoding="async">
           </button>
 
           <span class="planet-label" data-label="mercury">Mercury</span>
@@ -1904,7 +1904,7 @@
 
     <section class="about-explorer-section" aria-labelledby="about-explorer-title">
       <article class="about-explorer-tile about-explorer-tile--cyan">
-        <img class="whatis-logo" src="/assets/explorer_logo.png" alt="GeoID Explorer">
+        <img class="whatis-logo" src="/assets/explorer_logo.png" alt="GeoID Explorer" loading="lazy" decoding="async">
         <div class="about-explorer-header">
           <h2 class="about-explorer-title" id="about-explorer-title">What is the GeoID Explorer?</h2>
         </div>
@@ -1946,18 +1946,18 @@
             </div>
           </div>
           <div class="new-worlds-image">
-            <img src="/assets/mars_explorer.png" alt="Mars Explorer UI" class="new-worlds-image-img">
+            <img src="/assets/mars_explorer.png" alt="Mars Explorer UI" class="new-worlds-image-img" loading="lazy" decoding="async">
             <div class="new-worlds-tools">
               <p class="about-col-heading">Basic GIS tools</p>
               <div class="new-worlds-tools-row">
                 <div class="new-worlds-tool-item">
-                  <img src="/assets/distance.png" alt="Distance measurement tool">
+                  <img src="/assets/distance.png" alt="Distance measurement tool" loading="lazy" decoding="async">
                 </div>
                 <div class="new-worlds-tool-item">
-                  <img src="/assets/area.png" alt="Area measurement tool">
+                  <img src="/assets/area.png" alt="Area measurement tool" loading="lazy" decoding="async">
                 </div>
                 <div class="new-worlds-tool-item">
-                  <img src="/assets/profile.png" alt="Elevation profile tool">
+                  <img src="/assets/profile.png" alt="Elevation profile tool" loading="lazy" decoding="async">
                 </div>
               </div>
             </div>
@@ -1967,17 +1967,17 @@
     </section>
 
     <div class="photo-strip" aria-hidden="true">
-      <div class="photo-strip-cell"><img src="/assets/Olympus_mons.png" alt="Olympus Mons"></div>
-      <div class="photo-strip-cell"><img src="/assets/core_view.png" alt="Core View"></div>
-      <div class="photo-strip-cell"><img src="/assets/sea_level.png" alt="Sea Level"></div>
-      <div class="photo-strip-cell"><img src="/assets/moonview.png" alt="Moon View"></div>
-      <div class="photo-strip-cell"><img src="/assets/geology.png" alt="Geology"></div>
-      <div class="photo-strip-cell"><img src="/assets/area_tool.png" alt="Area Tool"></div>
+      <div class="photo-strip-cell"><img src="/assets/Olympus_mons.png" alt="Olympus Mons" loading="lazy" decoding="async"></div>
+      <div class="photo-strip-cell"><img src="/assets/core_view.png" alt="Core View" loading="lazy" decoding="async"></div>
+      <div class="photo-strip-cell"><img src="/assets/sea_level.png" alt="Sea Level" loading="lazy" decoding="async"></div>
+      <div class="photo-strip-cell"><img src="/assets/moonview.png" alt="Moon View" loading="lazy" decoding="async"></div>
+      <div class="photo-strip-cell"><img src="/assets/geology.png" alt="Geology" loading="lazy" decoding="async"></div>
+      <div class="photo-strip-cell"><img src="/assets/area_tool.png" alt="Area Tool" loading="lazy" decoding="async"></div>
     </div>
 
     <section class="about-explorer-section" aria-labelledby="features-title">
       <article class="about-explorer-tile about-explorer-tile--cyan">
-        <img class="whatis-logo whatis-logo--mid" src="/assets/explorer_logo.png" alt="GeoID Explorer">
+        <img class="whatis-logo whatis-logo--mid" src="/assets/explorer_logo.png" alt="GeoID Explorer" loading="lazy" decoding="async">
         <div class="about-explorer-header">
           <h2 class="about-explorer-title" id="features-title">Viewer Features</h2>
         </div>
@@ -2106,10 +2106,10 @@
             </div>
           </div>
           <div class="new-worlds-image lunar-image">
-            <img src="/assets/earth_moon.png" alt="Earth and Moon system in the GeoID viewer" class="new-worlds-image-img">
+            <img src="/assets/earth_moon.png" alt="Earth and Moon system in the GeoID viewer" class="new-worlds-image-img" loading="lazy" decoding="async">
             <div class="new-worlds-tools lunar-tools">
               <p class="about-col-heading">USGS Unified Geologic Map overlay</p>
-              <img src="/assets/moon_geology.png" alt="Lunar geology overlay shown in the Moon Viewer" class="new-worlds-image-img lunar-tools-img">
+              <img src="/assets/moon_geology.png" alt="Lunar geology overlay shown in the Moon Viewer" class="new-worlds-image-img lunar-tools-img" loading="lazy" decoding="async">
             </div>
           </div>
         </div>
@@ -2133,47 +2133,47 @@
           </div>
           <div class="membership-viewer-grid">
             <div class="membership-viewer-card membership-viewer-card--free">
-              <img class="membership-viewer-icon" src="/assets/earth_icon.png" alt="">
+              <img class="membership-viewer-icon" src="/assets/earth_icon.png" alt="" loading="lazy" decoding="async">
               <span class="membership-viewer-name">Earth</span>
               <span class="membership-viewer-tag membership-viewer-tag--free">Free</span>
             </div>
             <div class="membership-viewer-card membership-viewer-card--free">
-              <img class="membership-viewer-icon" src="/assets/moon_icon.png" alt="">
+              <img class="membership-viewer-icon" src="/assets/moon_icon.png" alt="" loading="lazy" decoding="async">
               <span class="membership-viewer-name">Moon</span>
               <span class="membership-viewer-tag membership-viewer-tag--free">Free</span>
             </div>
             <div class="membership-viewer-card membership-viewer-card--member">
-              <img class="membership-viewer-icon" src="/assets/mars_icon.png" alt="">
+              <img class="membership-viewer-icon" src="/assets/mars_icon.png" alt="" loading="lazy" decoding="async">
               <span class="membership-viewer-name">Mars</span>
               <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
             </div>
             <div class="membership-viewer-card membership-viewer-card--member">
-              <img class="membership-viewer-icon" src="/assets/mercury_icon.png" alt="">
+              <img class="membership-viewer-icon" src="/assets/mercury_icon.png" alt="" loading="lazy" decoding="async">
               <span class="membership-viewer-name">Mercury</span>
               <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
             </div>
             <div class="membership-viewer-card membership-viewer-card--member">
-              <img class="membership-viewer-icon" src="/assets/venus_icon.png" alt="">
+              <img class="membership-viewer-icon" src="/assets/venus_icon.png" alt="" loading="lazy" decoding="async">
               <span class="membership-viewer-name">Venus</span>
               <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
             </div>
             <div class="membership-viewer-card membership-viewer-card--member">
-              <img class="membership-viewer-icon" src="/assets/jupiter_icon.png" alt="">
+              <img class="membership-viewer-icon" src="/assets/jupiter_icon.png" alt="" loading="lazy" decoding="async">
               <span class="membership-viewer-name">Jupiter</span>
               <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
             </div>
             <div class="membership-viewer-card membership-viewer-card--member">
-              <img class="membership-viewer-icon" src="/assets/saturn_icon.png" alt="">
+              <img class="membership-viewer-icon" src="/assets/saturn_icon.png" alt="" loading="lazy" decoding="async">
               <span class="membership-viewer-name">Saturn</span>
               <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
             </div>
             <div class="membership-viewer-card membership-viewer-card--member">
-              <img class="membership-viewer-icon" src="/assets/uranus_icon.png" alt="">
+              <img class="membership-viewer-icon" src="/assets/uranus_icon.png" alt="" loading="lazy" decoding="async">
               <span class="membership-viewer-name">Uranus</span>
               <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
             </div>
             <div class="membership-viewer-card membership-viewer-card--member">
-              <img class="membership-viewer-icon" src="/assets/neptune_icon.png" alt="">
+              <img class="membership-viewer-icon" src="/assets/neptune_icon.png" alt="" loading="lazy" decoding="async">
               <span class="membership-viewer-name">Neptune</span>
               <span class="membership-viewer-tag membership-viewer-tag--member">Member</span>
             </div>
@@ -2669,14 +2669,14 @@
 <div id="earth-dest-popup" class="earth-dest-popup" hidden role="dialog" aria-label="Choose Earth or Moon">
   <p class="earth-dest-popup-title">Choose destination</p>
   <a class="earth-dest-option" href="/myGeoID/">
-    <img src="/assets/earth_icon.png" alt="Earth">
+    <img src="/assets/earth_icon.png" alt="Earth" loading="lazy" decoding="async">
     <span class="earth-dest-option-text">
       <span class="earth-dest-option-name">myGeoID</span>
       <span class="earth-dest-option-sub">Earth hazard &amp; geoscience viewer</span>
     </span>
   </a>
   <a class="earth-dest-option" href="/transit/?destination=moon">
-    <img src="/assets/moon_icon.png" alt="Moon">
+    <img src="/assets/moon_icon.png" alt="Moon" loading="lazy" decoding="async">
     <span class="earth-dest-option-text">
       <span class="earth-dest-option-name">Moon Explorer</span>
       <span class="earth-dest-option-sub">Lunar surface &amp; interior viewer</span>

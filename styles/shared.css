@@ -1201,3 +1201,110 @@ img, svg, video { max-width: 100%; height: auto; }
     text-align: center;
   }
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Tier-1 mobile pass (added 2026-05-15)
+   - Safe-area insets for notched devices
+   - Landscape-phone-specific compaction
+   - 100dvh fallback for browsers that don't support dvh
+   ────────────────────────────────────────────────────────────────────── */
+
+/* Browsers without dvh fall back to vh */
+@supports not (height: 100dvh) {
+  :root { --vh100: 100vh; }
+}
+@supports (height: 100dvh) {
+  :root { --vh100: 100dvh; }
+}
+
+/* Honour iOS / Android safe-area insets at the page edges */
+body {
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+}
+.site-nav, .nav-shell {
+  padding-top: max(0.6rem, env(safe-area-inset-top, 0));
+}
+.site-footer {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0));
+}
+
+/* Phone-landscape (low height, wider than tall) — heroes overflow vertically
+   otherwise, and the nav eats half the visible area. */
+@media (max-height: 480px) and (orientation: landscape) {
+  :root { --nav-h: 44px; }
+  .hero-tile, .hero-content {
+    min-height: 0 !important;
+    padding-top: 1.2rem !important;
+    padding-bottom: 1.2rem !important;
+  }
+  .hero-content h1, .hero-content h2 {
+    font-size: clamp(1.4rem, 4.5vh, 2.2rem) !important;
+    margin: 0 0 0.5rem !important;
+  }
+  .hero-content p { font-size: 0.92rem !important; line-height: 1.45 !important; }
+  .hero-actions { flex-wrap: wrap; gap: 0.4rem !important; }
+  /* Photo-strip cards take less vertical space */
+  .photo-strip > *, .scroll-row > *, .horizontal-scroll > * {
+    flex: 0 0 60% !important;
+  }
+  /* Two-column comfortable on landscape phones, single column would feel empty */
+  .involve-grid, .support-grid, .cards-grid-3, .cards-grid-2,
+  .features-grid, .stats-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* Replace any leftover full-height vh with dvh-aware token */
+.hero-tile, .hero-fullscreen, .splash-screen {
+  min-height: var(--vh100, 100vh);
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Tier-2 mobile pass (added 2026-05-15)
+   Touch targets, font legibility, image rules.
+   ────────────────────────────────────────────────────────────────────── */
+
+/* Tap targets ≥ 44×44 px on coarse pointers (touch devices), Apple HIG. */
+@media (pointer: coarse) {
+  a.btn-primary, a.btn-ghost, a.btn-secondary,
+  a.nav-act, a.nav-act-member, a.nav-act-donate, a.nav-act-signin,
+  button:not(.icon-only-small), .nav-toggle, .nav-links a, .page-jump a,
+  .nav-dropdown-toggle, .footer-content a {
+    min-height: 44px;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+    display: inline-flex;
+    align-items: center;
+  }
+  /* Prevent text shrinking below readable */
+  body, p, li, td { font-size: max(0.95rem, 0.95rem) !important; }
+  /* Allow tiny meta lines to remain small */
+  .eyebrow, .meta, .footer-meta, time {
+    font-size: 0.78rem !important;
+  }
+  /* Stop iOS auto-zooming into focused inputs (only triggers below 16 px) */
+  input, textarea, select { font-size: 16px !important; }
+}
+
+/* Images: avoid overflow on narrow widths + lazy-decode by default */
+img { max-width: 100%; height: auto; }
+
+/* All hero/grid card images get content-visibility for off-screen savings */
+.photo-tile img, .card-img, .grid-img, .hero-bg img {
+  content-visibility: auto;
+  contain-intrinsic-size: 320px 220px;
+}
+
+/* Common fixed-px widths shouldn't overflow narrow viewports */
+@media (max-width: 720px) {
+  .narrow-card, .form-card, .auth-card, .contact-form, .membership-card,
+  .signin-panel, .auth-panel, .modal-panel, .questionnaire-panel {
+    max-width: min(440px, 92vw) !important;
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  /* Tables: stop them blowing past the viewport */
+  table { display: block; overflow-x: auto; max-width: 100%; }
+}

@@ -431,7 +431,7 @@ export function buildMoonFeatureLabelLayer(moonData, moonFeatureData) {
   return { group, entries, interactiveObjects };
 }
 
-export function updateMoonFeatureLabelVisibility(entries, marsGroup, camera, renderer, activeMoonFeature, volcanicEnabled = true, landingEnabled = true, habitationEnabled = true, craterEnabled = true, activePopupFeature = null, isPointOccludedByAnyMoon = () => false) {
+export function updateMoonFeatureLabelVisibility(entries, marsGroup, camera, renderer, activeMoonFeature, volcanicEnabled = true, landingEnabled = true, habitationEnabled = true, craterEnabled = true, activePopupFeature = null, isPointOccludedByAnyMoon = () => false, typeFilter = "all") {
   const projected = new THREE.Vector3();
   const moonCenterWorld = new THREE.Vector3();
   const surfaceWorldPosition = new THREE.Vector3();
@@ -456,6 +456,11 @@ export function updateMoonFeatureLabelVisibility(entries, marsGroup, camera, ren
       : entry.category === "crater" ? (craterEnabled)
       : true;
     if (!isActiveMoon || !categoryEnabled) {
+      continue;
+    }
+    // Feature-type filter (moon-viewer "Feature type" dropdown). Skip
+    // labels whose type doesn't match the current filter.
+    if (typeFilter && typeFilter !== "all" && entry.item?.type !== typeFilter) {
       continue;
     }
     moonCenterWorld.copy(entry.moonAnchor).applyMatrix4(marsGroup.matrixWorld);
