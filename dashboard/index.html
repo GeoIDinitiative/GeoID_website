@@ -1147,6 +1147,63 @@
         min-height: 0 !important;
         padding: 0 !important;
       }
+
+      /* ── Bespoke slides: collapse to a single readable column ────────
+         All slides were authored for desktop layouts with absolute-
+         positioned columns / overlays / decorative imagery. On a 375 px
+         viewport that produces text wrapping around a giant centred
+         logo, stat columns overlapping, etc. These rules reset each
+         slide to a vertical stack inside its parent. */
+
+      /* myGeoID slide: hide the screenshot column, stack content full-width */
+      .slide-mygeoid {
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      .slide-mygeoid-screenshot { display: none !important; }
+      .slide-mygeoid-content {
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 1rem !important;
+        gap: 0.55rem !important;
+      }
+      .slide-mygeoid-logo { max-width: 9rem !important; }
+      .slide-mygeoid-desc { font-size: 0.85rem !important; line-height: 1.45 !important; }
+      .slide-mygeoid-features li { font-size: 0.78rem !important; }
+      .slide-mygeoid-actions { flex-wrap: wrap; gap: 0.4rem !important; }
+      .slide-mygeoid-indev { padding: 0.5rem !important; }
+      .slide-mygeoid-indev-pills { flex-wrap: wrap; gap: 0.3rem !important; }
+
+      /* Mission slide: hide the decorative tree diagram + bg overlay
+         so the text column has the full width.  Stack stats horizontally
+         but compactly, allowing wrap. */
+      .slide-mission {
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      .slide-mission-tree { display: none !important; }
+      .slide-mission-content {
+        position: relative !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 1rem !important;
+        gap: 0.6rem !important;
+      }
+      .slide-mission-overlay {
+        background: linear-gradient(180deg, rgba(0,0,8,0.96) 0%, rgba(0,0,8,0.92) 100%) !important;
+      }
+      .slide-mission-title { font-size: clamp(1.1rem, 5vw, 1.5rem) !important; line-height: 1.2 !important; }
+      .slide-mission-desc { font-size: 0.82rem !important; line-height: 1.5 !important; }
+      .slide-mission-ways li { font-size: 0.78rem !important; line-height: 1.4 !important; }
+      .slide-mission-stats {
+        flex-wrap: wrap;
+        gap: 0.8rem !important;
+        padding: 0.4rem 0 !important;
+      }
+      .slide-mission-stat-num { font-size: 1.1rem !important; }
+      .slide-mission-stat-label { font-size: 0.55rem !important; }
+      .slide-mission-actions { flex-wrap: wrap; gap: 0.4rem !important; }
     }
   </style>
 </head>
