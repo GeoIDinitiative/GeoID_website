@@ -823,18 +823,62 @@
         min-height: auto;
       }
 
+      /* ── Solar stage on phones ─────────────────────────────────────────
+         Desktop pins .orrery-brand + .orrery-features as absolute corners
+         above the planet system. At <720 px those overlays crash into the
+         hero wordmark and onto the planet icons. Hide the side overlays,
+         shrink the planet icons (defeat inline --icon-size with
+         !important), tighten labels so neighbouring planets don't collide. */
       .solar-stage {
-        min-height: 26rem;
+        min-height: 22rem;
+        height: 60dvh;
+        max-height: calc(100dvh - var(--nav-h, 60px) - 1rem);
       }
 
+      .orrery-brand,
+      .orrery-features,
+      .orrery-brand-desc,
+      .orrery-feature-item,
+      .scene-overlay,
+      .interaction-hints,
+      .hint-row {
+        display: none !important;
+      }
+
+      .solar-stage .planet-node {
+        width:  calc(var(--icon-size, 44px) * 0.5) !important;
+        height: calc(var(--icon-size, 44px) * 0.5) !important;
+      }
+
+      .solar-stage [data-label] {
+        font-size: 0.50rem !important;
+        letter-spacing: 0.03em !important;
+        font-weight: 600;
+      }
+
+      /* Hero card content: stack intro copy ABOVE the orrery viz instead
+         of side-by-side; absolute-positioned corner overlays inside the
+         stage are already hidden above. */
+      .space-header { padding: 0.6rem !important; }
+      .solar-intro-copy { padding-right: 0 !important; }
       .hero-title {
         max-width: none;
-        font-size: clamp(2rem, 10vw, 3.2rem);
+        font-size: clamp(1.75rem, 8vw, 2.6rem);
+        line-height: 1;
       }
-
-      .scene-overlay {
-        padding: 0.9rem 1rem;
+      .hero-subtitle { font-size: 0.85rem; line-height: 1.45; }
+      .hero-actions {
+        flex-wrap: wrap; gap: 0.35rem !important;
       }
+      .hero-actions .viewer-link {
+        font-size: 0.7rem !important;
+        padding: 0.4rem 0.7rem !important;
+      }
+      .hero-stats { grid-template-columns: repeat(3, 1fr); gap: 0.4rem !important; }
+      .hero-stats .stat-card { padding: 0.45rem !important; }
+      .hero-stats .stat-value { font-size: 1rem !important; }
+      .eyebrow-row { flex-wrap: wrap; gap: 0.25rem !important; }
+      .eyebrow-row .space-pill { font-size: 0.6rem !important; padding: 0.18rem 0.55rem !important; }
     }
 
     .about-explorer-section {
