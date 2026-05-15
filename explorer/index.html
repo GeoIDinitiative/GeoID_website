@@ -824,36 +824,134 @@
       }
 
       /* ── Solar stage on phones ─────────────────────────────────────────
-         Desktop pins .orrery-brand + .orrery-features as absolute corners
-         above the planet system. At <720 px those overlays crash into the
-         hero wordmark and onto the planet icons. Hide the side overlays,
-         shrink the planet icons (defeat inline --icon-size with
-         !important), tighten labels so neighbouring planets don't collide. */
+         Keep the orrery visible (the page collapses to empty without it)
+         but spread inner orbits via cbrt compression in JS, keep icons
+         tappable, and hide inner-planet labels which otherwise pile up. */
       .solar-stage {
-        min-height: 22rem;
-        height: 60dvh;
+        min-height: 28rem;
+        height: 70dvh;
         max-height: calc(100dvh - var(--nav-h, 60px) - 1rem);
       }
 
-      .orrery-brand,
-      .orrery-features,
+      /* Hide overlays that crash into the planet system, but KEEP the
+         Explorer logo (top-left) and the Viewer Features list (top-right). */
       .orrery-brand-desc,
-      .orrery-feature-item,
       .scene-overlay,
       .interaction-hints,
       .hint-row {
         display: none !important;
       }
+      .orrery-brand {
+        top: 0.5rem !important;
+        left: 0.5rem !important;
+        padding: 0 !important;
+        background: none !important;
+      }
+      .orrery-brand img {
+        width: 5rem !important;
+        max-width: 100% !important;
+        height: auto !important;
+      }
+      /* Viewer Features: compact 5-bullet stack in the top-right corner. */
+      .orrery-features {
+        display: flex !important;
+        flex-direction: column !important;
+        position: absolute !important;
+        top: 0.5rem !important;
+        right: 0.5rem !important;
+        max-width: 8.5rem !important;
+        gap: 0.18rem !important;
+        z-index: 9 !important;
+        pointer-events: none;
+      }
+      .orrery-feature-item { display: flex !important; }
+      .orrery-features-label {
+        font-size: 0.42rem !important;
+        letter-spacing: 0.12em !important;
+        margin-bottom: 0.12rem !important;
+      }
+      .orrery-feature-item {
+        font-size: 0.5rem !important;
+        line-height: 1.2 !important;
+        gap: 0.3rem !important;
+        font-weight: 500 !important;
+      }
+      .orrery-feature-dot {
+        width: 3px !important;
+        height: 3px !important;
+        margin-top: 0.42em !important;
+      }
+      /* Planetary positions date — bottom-right of the stage on mobile. */
+      .orrery-date-stamp {
+        display: block !important;
+        bottom: 0.5rem !important;
+        right: 0.5rem !important;
+        font-size: 0.52rem !important;
+        letter-spacing: 0.08em !important;
+      }
+      /* Hide the Explorer wordmark from the "What is the GeoID Explorer?"
+         tile on portrait — title above already brands the section. */
+      .whatis-logo { display: none !important; }
+      /* Hide the Viewer Features chip section on portrait — it's a long
+         vertical wall of single-word-wrapped chips that adds bulk
+         without value on a phone. */
+      section[aria-labelledby="features-title"] { display: none !important; }
 
+      /* Phone widths: cap every planet at the same small size so the
+         outer cluster (which has wildly different inline --icon-size
+         values from 22 → 64 px) stops overlapping itself. Astronomical
+         conjunctions on a given date still mean some planets share an
+         angle — small uniform discs at least let them sit beside each
+         other instead of swallowing each other. */
       .solar-stage .planet-node {
-        width:  calc(var(--icon-size, 44px) * 0.5) !important;
-        height: calc(var(--icon-size, 44px) * 0.5) !important;
+        width: 18px !important;
+        height: 18px !important;
+      }
+      /* Saturn keeps a couple of extra px so its ring band is visible. */
+      .solar-stage .planet-node[data-planet="saturn"] {
+        width: 22px !important;
+        height: 22px !important;
+      }
+      /* Pull the labels a little further from their planet so they don't
+         sit on top of the next world along the ring. */
+      .solar-stage .planet-label {
+        transform: translate(-50%, calc(-100% - 10px));
+      }
+
+      /* Force the live-pulse halo around each planet to be a clean
+         circle on mobile — desktop relies on the parent node being
+         square, but Saturn's wider 22px box + ring image edges can read
+         as oval otherwise. Use a fixed circular halo independent of the
+         box. */
+      .solar-stage .planet-node.is-live::after {
+        inset: auto !important;
+        top: 50% !important;
+        left: 50% !important;
+        width: 26px !important;
+        height: 26px !important;
+        transform: translate(-50%, -50%) !important;
+        border-radius: 50% !important;
+        aspect-ratio: 1 / 1 !important;
+      }
+      .solar-stage .planet-node[data-planet="saturn"].is-live::after {
+        width: 30px !important;
+        height: 30px !important;
+      }
+      /* The live-pulse keyframe applies its own scale transform; chain
+         with our centering translate. */
+      @keyframes live-teal-pulse-mobile {
+        0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1); }
+        50%       { opacity: 1;    transform: translate(-50%, -50%) scale(1.08); }
+      }
+      .solar-stage .planet-node.is-live::after {
+        animation: live-teal-pulse-mobile 2.4s ease-in-out infinite !important;
       }
 
       .solar-stage [data-label] {
-        font-size: 0.50rem !important;
+        font-size: 0.5rem !important;
         letter-spacing: 0.03em !important;
         font-weight: 600;
+        pointer-events: none !important;
       }
 
       /* Hero card content: stack intro copy ABOVE the orrery viz instead
@@ -2493,9 +2591,14 @@
 
     // Orbit radii use a sqrt(AU) compression so inner/outer are both visible.
     // Normalised to Pluto's orbit so all planets fit within the stage.
-    const _sqrtOuter = Math.sqrt(AU_SMA.pluto);
+    // On phone-width stages the inner orbits collapse onto the Sun, so
+    // switch to a cube-root compression there which spreads Mercury-Mars
+    // out enough to be selectable.
+    const _isMobileOrrery = window.matchMedia('(max-width: 720px)').matches;
+    const _comp = _isMobileOrrery ? Math.cbrt : Math.sqrt;
+    const _compOuter = _comp(AU_SMA.pluto);
     const ORBIT_R = Object.fromEntries(
-      Object.entries(AU_SMA).map(([k, v]) => [k, (Math.sqrt(v) / _sqrtOuter) * 0.88])
+      Object.entries(AU_SMA).map(([k, v]) => [k, (_comp(v) / _compOuter) * 0.88])
     );
 
     // J2000.0 mean longitudes (°) and daily motion (°/day) — IAU VSOP87 truncated
@@ -2549,8 +2652,11 @@
       });
     }
 
-    // Oblique projection: y-radii are compressed by this factor relative to x-radii
-    const OBLIQUE_Y = 0.42;
+    // Oblique projection: y-radii are compressed by this factor relative to x-radii.
+    // On phones flatten the projection to a top-down view (circular orbits) so
+    // the planets spread out vertically too — the squished ellipse on a narrow
+    // viewport just stacks everything along one horizontal band.
+    const OBLIQUE_Y = window.matchMedia('(max-width: 720px)').matches ? 1 : 0.42;
 
 
     function positionPlanets() {
