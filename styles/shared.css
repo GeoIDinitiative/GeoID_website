@@ -1265,17 +1265,19 @@ body {
    Touch targets, font legibility, image rules.
    ────────────────────────────────────────────────────────────────────── */
 
-/* Tap targets ≥ 44×44 px on coarse pointers (touch devices), Apple HIG. */
+/* Tap targets ≥ 44×44 px on coarse pointers (touch devices), Apple HIG.
+   NOTE: don't touch `display` here — .nav-toggle is `display: none` on
+   desktop and only flips to inline-flex inside the (max-width: 980px)
+   block above. Setting it here would override and force the hamburger
+   visible at every width, breaking the desktop nav. */
 @media (pointer: coarse) {
   a.btn-primary, a.btn-ghost, a.btn-secondary,
   a.nav-act, a.nav-act-member, a.nav-act-donate, a.nav-act-signin,
-  button:not(.icon-only-small), .nav-toggle, .nav-links a, .page-jump a,
-  .nav-dropdown-toggle, .footer-content a {
+  button:not(.icon-only-small):not(.nav-toggle),
+  .page-jump a, .footer-content a {
     min-height: 44px;
     padding-top: 0.6rem;
     padding-bottom: 0.6rem;
-    display: inline-flex;
-    align-items: center;
   }
   /* Prevent text shrinking below readable */
   body, p, li, td { font-size: max(0.95rem, 0.95rem) !important; }
@@ -1318,19 +1320,19 @@ img { max-width: 100%; height: auto; }
    ────────────────────────────────────────────────────────────────────── */
 
 @media (max-width: 720px) {
-  /* Compact heroes, sections, panels, cards, blocks, tiles ─ no matter
-     which page-specific prefix they carry. */
-  section, aside, article, header,
-  [class*="-section" i], [class*="section-" i], [class*="-hero" i],
-  [class*="hero-" i], [class*="-panel" i], [class*="-block" i],
-  [class*="-tile" i], [class*="-card" i], [class*="-feature" i],
-  [class*="-cta" i], [class*="cta-" i],
-  .legacy-about section, .legacy-about > *, .legacy-about [class*="block"] {
+  /* Compact ONLY top-level page sections, not interior layout widgets.
+     Earlier broader [-card, -tile, -block] wildcards caught absolutely-
+     positioned widgets (e.g. .planet-card-stack on the dashboard) and
+     collapsed them — keep substrings narrow to section-level containers. */
+  body > section, main > section,
+  [class*="-section" i]:not([class*="-section-row"]):not([class*="-section-item"]),
+  [class*="hero-" i]:not([class*="hero-content"]):not([class*="hero-actions"]),
+  [class$="-hero"], [class*=" -hero "],
+  .legacy-about > section {
     padding-top:    clamp(1.5rem, 6vw, 2.5rem) !important;
     padding-bottom: clamp(1.5rem, 6vw, 2.5rem) !important;
     padding-left:   clamp(1rem,   5vw, 1.75rem) !important;
     padding-right:  clamp(1rem,   5vw, 1.75rem) !important;
-    min-height: 0 !important;
     gap: clamp(0.75rem, 3vw, 1.5rem) !important;
   }
 
@@ -1348,10 +1350,27 @@ img { max-width: 100%; height: auto; }
   }
 
   /* Grid containers that didn't have an explicit mobile rule — fall to a
-     single readable column with a sane gap. */
-  [class*="grid" i]:not([class*="-row"]) {
+     single readable column with a sane gap.  Skip dashboard / explorer
+     planet-view widgets which manage their own layout. */
+  [class*="grid" i]:not([class*="-row"]):not(.stack-track):not([class*="planet-"]):not([class*="dash-"]):not([class*="explorer-"]) {
     grid-template-columns: 1fr !important;
     gap: clamp(0.75rem, 3vw, 1.25rem) !important;
+  }
+
+  /* Explorer page: shrink its full-viewport solar-system hero so on a phone
+     it occupies a comfortable ~60dvh rather than the desktop calc(100dvh-…). */
+  .explorer-hero {
+    height: 60dvh !important;
+    min-height: 360px !important;
+    max-height: calc(100dvh - var(--nav-h, 60px) - 1rem) !important;
+  }
+
+  /* Dashboard planet line-up: don't let any of my Tier-3 rules touch the
+     viz container or its absolutely-positioned card stack. */
+  .dash-planet-view, .pv-slides, .pv-slide, .pv-slide-dots,
+  .stack-track, .planet-card-stack {
+    padding: 0 !important;
+    gap: 0 !important;
   }
 
   /* Big stacked images that hog vertical space — cap to ~50% viewport. */
