@@ -11,8 +11,7 @@
     const trigger = e.target instanceof Element ? e.target.closest('[data-action="sign-in"]') : null;
     if (!trigger) return;
     e.preventDefault();
-    const signedIn = trigger.dataset.signedIn === "true";
-    window.location.href = signedIn ? "/account/?manage=1" : "/account/";
+    window.location.href = "/account/?manage=1";
   });
 
   // ── Live auth-state reflection on the nav button ──────────────────────
