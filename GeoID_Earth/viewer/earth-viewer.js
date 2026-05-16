@@ -78,7 +78,7 @@ import * as THREE from "./vendor/three.module.js";
     const moonViewerSection = document.getElementById("moon-viewer-section");
     const legendSection = document.getElementById("legend-section");
     function openLegendSection() { if (legendSection) legendSection.open = true; }
-    const DEFAULT_NAVIGATE_BASE_LAYER_ID = "earth-visible";
+    const DEFAULT_NAVIGATE_BASE_LAYER_ID = "earth-weather";
     const moonViewerControls = document.getElementById("moon-viewer-controls");
     const moonViewerSelect = document.getElementById("moon-viewer-select");
     const moonViewerPrev = document.getElementById("moon-viewer-prev");
@@ -12185,12 +12185,12 @@ import * as THREE from "./vendor/three.module.js";
       const labelElevationCache = new Map();
       const popupElevationCache = new Map();
       const HIDDEN_BASE_LAYER_IDS = new Set(["sc-magnetic", "derived-slope"]);
-      const ALLOWED_BASEMAP_IDS = new Set(["earth-visible", "derived-hillshade", "elevation-dem"]);
+      const ALLOWED_BASEMAP_IDS = new Set(["earth-weather", "earth-visible", "derived-hillshade", "elevation-dem"]);
       const selectableBaseLayers = baseLayers.filter((l) => ALLOWED_BASEMAP_IDS.has(l.id) && !HIDDEN_BASE_LAYER_IDS.has(l.id));
       const standardLayers = selectableBaseLayers.filter((l) => !l.scGroup);
       // Group standard layers into labelled optgroups
       const BASE_LAYER_GROUPS = [
-        { label: "Imagery",  ids: ["earth-visible"] },
+        { label: "Imagery",  ids: ["earth-weather", "earth-visible"] },
         { label: "Terrain",  ids: ["derived-hillshade", "elevation-dem"] },
       ];
       const assignedIds = new Set(BASE_LAYER_GROUPS.flatMap((g) => g.ids));
@@ -12283,7 +12283,7 @@ import * as THREE from "./vendor/three.module.js";
         option.textContent = layer.label;
         mineralSelect.appendChild(option);
       }
-      const initialLayer = baseLayers.find((layer) => layer.id === "earth-visible")
+      const initialLayer = baseLayers.find((layer) => layer.id === DEFAULT_NAVIGATE_BASE_LAYER_ID)
         || baseLayers.find((layer) => layer.default)
         || baseLayers[0];
       baseLayerSelect.value = initialLayer.id;

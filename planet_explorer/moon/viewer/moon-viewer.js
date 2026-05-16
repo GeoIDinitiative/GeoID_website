@@ -1193,7 +1193,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     const CTX_ZOOM_ANIM_MS = 450;
     const DEFAULT_CAMERA_POSITION = Object.freeze({ x: 0, y: 1.4, z: 11.5 });
     const MOON_VIEWER_TEXTURES = {
-      "Earth": "/assets/earth_weather_color_map.jpg",
+      "Earth": "/assets/earth.png",
     };
     let currentMetadataState = null;
     const MOON_MEAN_RADIUS_KM = 1737.4;
@@ -10868,7 +10868,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       };
       // Load Earth texture asynchronously; sphere is visible immediately with fallback color.
       const _earthTextureLoader = new THREE.TextureLoader();
-      _earthTextureLoader.load("/assets/earth_weather_color_map.jpg", (tex) => {
+      _earthTextureLoader.load("/assets/earth.png", (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         earthMesh.material.map = tex;
         earthMesh.material.color.set("#ffffff");
