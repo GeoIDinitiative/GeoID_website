@@ -9415,7 +9415,7 @@ ${error && error.message ? error.message : error}`;
     const backdrop = document.createElement("div");
     backdrop.id = "mobile-panel-backdrop";
     document.body.appendChild(backdrop);
-    const isMobileLayout = () => window.matchMedia("(max-width: 768px)").matches;
+    const isMobileLayout = () => window.matchMedia("(hover: none) and (pointer: coarse)").matches;
     function openPanel() {
       uiPanel?.classList.remove("is-collapsed");
       navTab.style.display = "none";
@@ -9429,6 +9429,7 @@ ${error && error.message ? error.message : error}`;
       backdrop.classList.remove("is-visible");
     }
     if (uiPanel && navCollapseBtn && navTab) {
+      openPanel();
       if (isMobileLayout()) closePanel();
       navCollapseBtn.addEventListener("click", closePanel);
       navTab.addEventListener("click", openPanel);

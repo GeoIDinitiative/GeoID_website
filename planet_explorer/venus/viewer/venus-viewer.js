@@ -17523,7 +17523,7 @@ ${error && error.message ? error.message : error}`;
     backdrop.id = "mobile-panel-backdrop";
     document.body.appendChild(backdrop);
 
-    const isMobileLayout = () => window.matchMedia("(max-width: 768px)").matches;
+    const isMobileLayout = () => window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 
     function openPanel() {
       uiPanel?.classList.remove("is-collapsed");
@@ -17539,7 +17539,7 @@ ${error && error.message ? error.message : error}`;
     }
 
     if (uiPanel && navCollapseBtn && navTab) {
-      // Auto-collapse on mobile at load
+      openPanel();
       if (isMobileLayout()) closePanel();
 
       navCollapseBtn.addEventListener("click", closePanel);
