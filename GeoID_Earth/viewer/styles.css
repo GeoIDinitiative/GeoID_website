@@ -2952,6 +2952,11 @@
       #bottom-right-hud {
         bottom: 4.6rem;
       }
+      /* Lift the cursor-readout-bar (scale bar lives inside it) up so
+         the scale aligns horizontally with TEMP/PRESSURE on the left. */
+      #cursor-readout-bar {
+        bottom: 4.6rem;
+      }
       #scale-readout {
         --scale-bar-width: 7rem;
       }

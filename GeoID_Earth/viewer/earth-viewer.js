@@ -11762,11 +11762,17 @@ import * as THREE from "./vendor/three.module.js";
       scene.background = new THREE.Color(0x02050b);
 
       const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-      // Mobile/portrait viewports get a smaller globe due to FOV — pull
-      // back further so Earth still reads as a whole sphere on first
-      // render rather than nearly filling the screen.
+      // Initial zoom: pull back further on portrait viewports (narrow
+      // viewport crops the globe at desktop Z), mobile in general, and
+      // when embedded inside myGeoID's iframe.
       const isMobile = window.matchMedia('(max-width: 720px)').matches;
-      camera.position.set(0, 1.4, isMobile ? 16 : 11.5);
+      const isPortrait = window.matchMedia('(orientation: portrait)').matches;
+      const isEmbedded = document.body.classList.contains('is-embedded');
+      let initialZ = 11.5;
+      if (isPortrait) initialZ = 22;
+      else if (isMobile) initialZ = 18;
+      else if (isEmbedded) initialZ = 16;
+      camera.position.set(0, 1.4, initialZ);
       viewerCamera = camera;
 
       const renderer = createRenderer(THREE);

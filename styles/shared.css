@@ -1172,14 +1172,33 @@ img, svg, video { max-width: 100%; height: auto; }
     justify-content: center;
   }
 
-  /* Page-jump tabs scroll instead of wrap */
+  /* Page-jump tabs fit on a single static row (no horizontal scroll) on
+     phone portrait — equal-width columns via CSS grid so the active
+     pill doesn't push the others around, and "Research Hub" stays
+     readable. */
   .page-jump {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
+    display: grid !important;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.1rem !important;
+    overflow-x: visible !important;
+    width: 100%;
   }
-  .page-jump a { flex: 0 0 auto; scroll-snap-align: start; }
+  .page-jump a {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 0;
+    width: 100%;
+    font-size: 0.54rem !important;
+    padding: 0.36rem 0.12rem !important;
+    text-align: center !important;
+    line-height: 1.1 !important;
+    white-space: normal !important;
+    overflow: hidden;
+    word-break: break-word;
+    hyphens: auto;
+  }
+  .page-jump a.active { background: rgba(88, 198, 179, 0.14); }
 
   /* Photo-tile content padding compaction */
   .photo-tile-content { padding: 1.25rem 1rem !important; }

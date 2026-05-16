@@ -12,7 +12,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=20260512-neptune">
-  <style>html,body{background:#000;margin:0}</style>
+  <style>html,body{background:#000;margin:0}/* GeoID-force-landscape: in portrait, hide the dismiss button and
+         the is-dismissed escape so the user must rotate the device. */
+      @media (orientation: portrait) and (pointer: coarse) {
+        #portrait-advisory-dismiss { display: none !important; }
+        #portrait-advisory.is-dismissed { display: flex !important; }
+      }
+    </style>
 </head>
 <body class="viewer-page">
   <div id="app"></div>

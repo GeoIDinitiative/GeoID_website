@@ -222,11 +222,7 @@
       left: 1rem;
     }
     @media (max-width: 1080px) {
-      .hub-link {
-        top: auto;
-        bottom: 1rem;
-        left: 1rem;
-      }
+      .hub-link { top: 0.7rem !important; bottom: auto !important; left: calc(min(24rem, calc(100vw - 2rem)) + 1rem) !important; right: auto !important; padding: 0.3rem 0.7rem; min-height: 1.7rem; font-size: 0.58rem; }
     }
     .viewer-info {
       overflow: hidden;
@@ -2020,7 +2016,7 @@
     @media (max-width: 1080px) {
       #top-right-controls {
         top: 0.9rem;
-        right: 13.5rem;
+        right: 11rem;
       }
 
       #top-right-logo {
@@ -2898,12 +2894,7 @@
         max-height: min(72vh, calc(100vh - 2rem));
       }
 
-      #top-right-controls {
-        top: 0.85rem;
-        right: 10.8rem;
-        left: auto;
-        gap: 0.45rem;
-      }
+      #top-right-controls { top: 0.85rem; right: 4rem; left: auto; gap: 0.45rem; }
 
       #spin-toggle,
       #freeze-view-toggle {
@@ -2932,17 +2923,9 @@
         gap: 0.32rem;
       }
 
-      .tool-rail-btn {
-        width: 3.5rem;
-        min-height: 3.5rem;
-        padding: 0.48rem 0.34rem 0.38rem;
-      }
+      .tool-rail-btn { width: 1.2rem; min-height: 1.2rem; padding: 0.14rem 0.1rem; font-size: 0.36rem; }
 
-      .tool-rail-action-btn {
-        width: 3.5rem;
-        min-height: 1.9rem;
-        padding: 0.36rem 0.24rem;
-      }
+      .tool-rail-action-btn { width: 1.2rem; min-height: 0.75rem; padding: 0.1rem 0.08rem; font-size: 0.34rem; }
 
       #top-right-logo {
         top: 0.5rem;
@@ -2950,9 +2933,7 @@
         height: 3.75rem;
       }
 
-      #hemisphere-locator {
-        width: 6rem;
-      }
+      #hemisphere-locator { width: 6rem; }
 
       .row {
         grid-template-columns: 1fr;
@@ -3104,7 +3085,7 @@
     #music-btn.is-paused { opacity: 0.5; }
     #ui.is-collapsed ~ #music-btn { left: 1rem; }
     @media (max-width: 1080px) {
-      #music-btn { top: auto; bottom: 3.6rem; left: 1rem; }
+      #music-btn { top: 3rem !important; bottom: auto !important; left: calc(min(24rem, calc(100vw - 2rem)) + 1rem) !important; right: auto !important; padding: 0.3rem 0.55rem; font-size: 0.58rem; height: 1.7rem; }
     }
 /* Background Music styles */
 #music-btn {
@@ -3141,7 +3122,7 @@
     #music-btn.is-paused { opacity: 0.5; }
     #ui.is-collapsed ~ #music-btn { left: 1rem; }
     @media (max-width: 1080px) {
-      #music-btn { top: auto; bottom: 3.6rem; left: 1rem; }
+      #music-btn { top: 3rem !important; bottom: auto !important; left: calc(min(24rem, calc(100vw - 2rem)) + 1rem) !important; right: auto !important; padding: 0.3rem 0.55rem; font-size: 0.58rem; height: 1.7rem; }
     }
 
     /* Moon viewer active: dim non-moon, non-locations sections */
@@ -3182,14 +3163,6 @@
   }
 
   /* Nav tab: always visible on mobile (shown via JS auto-collapse) */
-  #nav-tab {
-    display: flex !important;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 29;
-    padding: 1.2rem 0.65rem;
-  }
-
   /* Backdrop overlay */
   #mobile-panel-backdrop {
     display: block;
@@ -3208,20 +3181,7 @@
     pointer-events: auto;
   }
 
-  /* Hub / Return Home link */
-  .hub-link {
-    top: auto;
-    bottom: max(1rem, env(safe-area-inset-bottom));
-    left: 3rem;
-    font-size: 0.66rem;
-  }
-
-  /* Top-right controls */
-  #top-right-controls {
-    top: 0.6rem;
-    right: 0.6rem;
-  }
-  #top-right-logo {
+  /* Top-right controls */  #top-right-logo {
     height: 4.5rem;
     top: 0.3rem;
     right: 0.4rem;
@@ -3239,12 +3199,6 @@
   }
 
   /* Music button */
-  #music-btn {
-    top: auto;
-    bottom: max(3.5rem, calc(env(safe-area-inset-bottom) + 3rem));
-    left: 3rem;
-  }
-
   /* Measurement/profile modals: full-width */
   .profile-modal .profile-dialog,
   .metadata-dialog {
@@ -3342,4 +3296,74 @@
 canvas {
   touch-action: none;
   -webkit-touch-callout: none;
+}
+
+
+/* GeoID-mobile-nav-collapsed-stack: when the control centre is
+   collapsed (only the open-tab visible), park Music + Return Home at
+   the left edge of the viewport. When it expands, the base rules move
+   them right of the nav. */
+@media (max-width: 1080px) {
+  #ui.is-collapsed ~ #music-btn { left: 1rem !important; top: 3rem !important; }
+  #ui.is-collapsed ~ .hub-link { left: 1rem !important; top: 0.7rem !important; }
+}
+
+/* GeoID-mobile-nav-tab-shrink: compact the vertical "OPEN CONTROL
+   CENTRE" tab on phones — desktop sizing dominates the left edge. */
+@media (max-width: 1080px) {
+  #nav-tab {
+    padding: 0.85rem 0.45rem !important;
+    font-size: 0.55rem !important;
+    letter-spacing: 0.1em !important;
+    border-radius: 0 0.6rem 0.6rem 0 !important;
+  }
+}
+
+/* GeoID-landscape-locator-shrink: hemisphere locator at half-size on
+   phone landscape only. */
+@media (max-height: 560px) and (orientation: landscape) {
+  #hemisphere-locator { width: 3.3rem !important; }
+}
+
+/* GeoID-landscape-tool-rail-shrink: tiny tool-rail + top controls on phone landscape. */
+@media (max-height: 560px) and (orientation: landscape) {
+  .tool-rail-btn {
+    width: 2.24rem !important;
+    min-height: 2.24rem !important;
+    padding: 0.24rem 0.16rem !important;
+    font-size: 0.5rem !important;
+  }
+  .tool-rail-btn svg { width: 1.1rem !important; height: 1.1rem !important; }
+  .tool-rail-btn span { display: none !important; }
+  .tool-rail-action-btn {
+    width: 2.24rem !important;
+    min-height: 1.4rem !important;
+    padding: 0.16rem !important;
+    font-size: 0.46rem !important;
+  }
+  .tool-rail-item { gap: 0.28rem !important; }
+  #tool-rail { gap: 0.44rem !important; }
+  #spin-toggle,
+  #freeze-view-toggle {
+    width: 2.24rem !important;
+    height: 2.24rem !important;
+  }
+  .viewer-control-glyph,
+  .viewer-control-icon {
+    width: 1rem !important;
+    height: 1rem !important;
+    font-size: 1rem !important;
+  }
+  #freeze-view-toggle .viewer-control-icon {
+    width: 1.24rem !important;
+    height: 1.24rem !important;
+  }
+}
+
+/* GeoID-force-landscape: in portrait on touch devices, hide the
+   "Got it" dismiss button and the is-dismissed escape so the rotate
+   advisory cannot be bypassed. The viewers are designed for landscape. */
+@media (orientation: portrait) and (pointer: coarse) {
+  #portrait-advisory-dismiss { display: none !important; }
+  #portrait-advisory.is-dismissed { display: flex !important; }
 }

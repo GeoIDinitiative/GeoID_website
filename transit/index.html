@@ -380,6 +380,45 @@
       .stat:first-child { border-top: none; }
     }
 
+    /* Phone landscape: shrink everything so the card fits a ~420px tall
+       viewport without the Begin Journey button overflowing. */
+    @media (max-height: 560px) and (orientation: landscape) {
+      .shell { padding: 0.4rem; align-items: center; padding-top: max(0.4rem, env(safe-area-inset-top)); }
+      .card {
+        border-radius: 0.85rem;
+        width: min(560px, 100%) !important;
+        max-width: min(560px, calc(100vw - 0.8rem)) !important;
+        margin: 0 auto;
+      }
+      .logo-img { width: 5.5rem !important; height: 5.5rem !important; top: 0.4rem; right: 0.5rem; }
+      .hero {
+        grid-template-columns: 5.5rem 1fr;
+        gap: 0.7rem;
+        padding: 0.6rem 0.8rem 0.6rem !important;
+      }
+      .planet-sphere { width: 4.5rem !important; height: 4.5rem !important; }
+      .dest-title { font-size: clamp(1.6rem, 7vw, 2.4rem) !important; line-height: 1 !important; }
+      .hero-eyebrow, .arrival-eyebrow { font-size: 0.55rem !important; }
+      .arrival-value { font-size: 0.75rem !important; }
+      .hero-subtitle { font-size: 0.7rem !important; line-height: 1.3 !important; }
+      .stats { grid-template-columns: repeat(3, 1fr) !important; }
+      .stat { padding: 0.45rem 0.7rem !important; }
+      .stat-label { font-size: 0.5rem !important; margin: 0 0 0.18rem !important; }
+      .stat-value { font-size: 0.85rem !important; }
+      .journey { padding: 0.4rem 0.7rem 0.5rem !important; }
+      .journey-row { grid-template-columns: 1.8rem 1fr 1.8rem !important; gap: 0.4rem !important; }
+      .journey-node-icon { width: 1.8rem !important; height: 1.8rem !important; }
+      .journey-node-label { font-size: 0.42rem !important; }
+      .footer {
+        padding: 0.5rem 0.8rem !important;
+        padding-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
+        flex-direction: row !important;
+        align-items: center !important;
+      }
+      .countdown { font-size: 0.6rem !important; }
+      .begin-btn, .footer .begin-btn { padding: 0.45rem 1rem !important; font-size: 0.7rem !important; }
+    }
+
     /* ── Portrait orientation advisory ───────────────────────────────── */
     #portrait-advisory { display: none; }
 
@@ -439,7 +478,13 @@
         outline: none;
       }
     }
-  </style>
+  /* GeoID-force-landscape: in portrait, hide the dismiss button and
+         the is-dismissed escape so the user must rotate the device. */
+      @media (orientation: portrait) and (pointer: coarse) {
+        #portrait-advisory-dismiss { display: none !important; }
+        #portrait-advisory.is-dismissed { display: flex !important; }
+      }
+    </style>
 </head>
 <body>
   <iframe id="viewer-frame" src=""
