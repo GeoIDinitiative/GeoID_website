@@ -19593,7 +19593,7 @@ ${error && error.message ? error.message : error}`;
     const _backdrop = document.createElement("div");
     _backdrop.id = "mobile-panel-backdrop";
     document.body.appendChild(_backdrop);
-    const isMobileLayout = () => window.matchMedia("(max-width: 768px), (pointer: coarse) and (max-width: 1024px)").matches;
+    const isMobileLayout = () => window.matchMedia("(max-width: 768px)").matches;
     function openPanel() {
       uiPanel?.classList.remove("is-collapsed");
       navTab.style.display = "none";
