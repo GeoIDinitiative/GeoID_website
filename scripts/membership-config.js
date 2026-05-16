@@ -16,14 +16,14 @@ window.GEOID_MEMBERSHIP_CONFIG = Object.freeze({
   // 2) Stripe — Customer Portal login link (Dashboard → Settings → Billing
   //    → Customer portal → "Login link"). Members enter their email and
   //    Stripe emails them a one-time portal link.
-  PORTAL_URL: "https://billing.stripe.com/p/login/REPLACE_ME_WITH_PORTAL_ID",
+  PORTAL_URL: "https://billing.stripe.com/p/login/dRm3cv1Op4903zb858bV600",
 
   // 3) Supabase project URL (Dashboard → Project Settings → API).
-  SUPABASE_URL: "https://REPLACE_ME.supabase.co",
+  SUPABASE_URL: "https://yvnbgitjmsuxygrfqkcq.supabase.co",
 
-  // 4) Supabase anon (publishable) key — safe to expose. NEVER paste the
-  //    service-role key here.
-  SUPABASE_ANON_KEY: "REPLACE_ME_WITH_ANON_KEY",
+  // 4) Supabase publishable (anon) key — safe to expose. NEVER paste the
+  //    secret / service-role key here.
+  SUPABASE_ANON_KEY: "sb_publishable_z5iueFi_bhRMkaKsb74DYw_hOYDaARA",
 
   // Display copy.
   PRICE_DISPLAY: "£19.99",
