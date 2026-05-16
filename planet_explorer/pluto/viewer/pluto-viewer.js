@@ -571,11 +571,23 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
 
 
 
-    function estimatePlutoTemperature(latDeg, elevMeters) {
-      // Pluto surface temperature ~-230°C (43 K), slight variation with latitude/elevation
+    function estimatePlutoTemperature(latDeg, elevMeters, surfaceNormalWorld = null) {
+      // Pluto sits at ~40 AU — solar flux is ~0.06 % of Earth's, so the
+      // absolute diurnal swing is small (~15 °C). New Horizons measured
+      // ~-218 °C in lit Sputnik Planitia nitrogen ice and ~-238 °C in
+      // shadowed terrain. Atmosphere (~1 Pa N₂) buffers slightly.
       const latRad = latDeg * Math.PI / 180;
-      const baseTempC = -230 - 3 * Math.sin(latRad) ** 2;
-      return Math.round(baseTempC - 0.8 * (elevMeters / 1000));
+      const latColdAdj = -3 * Math.sin(latRad) ** 2;
+      const elevAdj = -0.8 * ((elevMeters || 0) / 1000);
+      if (surfaceNormalWorld) {
+        const cosTheta = Math.max(-1, Math.min(1, surfaceNormalWorld.dot(_SUN_DIR)));
+        const T_day = -218, T_night = -238, T_mid = -230;
+        const sunTerm = cosTheta > 0
+          ? T_mid + (T_day - T_mid) * Math.pow(cosTheta, 0.25)
+          : T_mid + (T_night - T_mid) * (-cosTheta);
+        return Math.round(sunTerm + latColdAdj + elevAdj);
+      }
+      return Math.round(-230 + latColdAdj + elevAdj);
     }
 
     function estimatePlutoPressure(elevMeters) {
@@ -840,13 +852,23 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     // Sun direction in scene space (approximated from key light at 8,4,6 and ambient star field)
     const _SUN_DIR = new THREE.Vector3(8, 4, 6).normalize();
 
-    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld) {
-      // Airless body: temperature depends on angle from sub-solar point.
-      // Phobos/Deimos dayside peak ~+27°C, nightside ~-170°C (Phobos measured values)
-      const cosTheta = Math.max(0, surfaceNormalWorld.dot(_SUN_DIR));
-      const T_night = -170;
-      const T_day = moonName === "Deimos" ? 24 : 27; // Deimos slightly cooler due to albedo
-      return Math.round(T_night + (T_day - T_night) * cosTheta);
+    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld, latDeg = 0) {
+      // Airless-body surface temperature, sun-incidence driven. cos^(1/4) day,
+      // linear nightside. Pluto's moons (Charon ~-220°C, etc.) are near-zero
+      // diurnal — radiation balance dominates over thermal inertia at 40 AU.
+      const cosTheta = Math.max(-1, Math.min(1, surfaceNormalWorld.dot(_SUN_DIR)));
+      const profile = (moonName === "Charon") ? { day: -213, night: -233, mid: -225 }
+                    : (moonName === "Deimos") ? { day:   24, night: -170, mid: -60 }
+                    : (moonName === "Phobos") ? { day:   27, night: -170, mid: -60 }
+                    /* Earth's Moon + fallback */ : { day:  127, night: -173, mid: -20 };
+      const isEarthMoon = moonName !== "Deimos" && moonName !== "Phobos" && moonName !== "Charon";
+      if (isEarthMoon && Math.abs(latDeg) >= 85 && cosTheta < 0.05) {
+        return Math.round(-240 + (90 - Math.abs(latDeg)) * 2);
+      }
+      if (cosTheta > 0) {
+        return Math.round(profile.mid + (profile.day - profile.mid) * Math.pow(cosTheta, 0.25));
+      }
+      return Math.round(profile.mid + (profile.night - profile.mid) * (-cosTheta));
     }
 
     function estimateMoonSurfacePressure() {
@@ -16357,7 +16379,7 @@ uniform float uViewportWidth;`,
             const moonCenter = new THREE.Vector3();
             surfaceHit.context.mesh.getWorldPosition(moonCenter);
             const surfaceNormal = surfaceHit.point.clone().sub(moonCenter).normalize();
-            const tempC = estimateMoonSurfaceTemperature(moonName, surfaceNormal);
+            const tempC = estimateMoonSurfaceTemperature(moonName, surfaceNormal, latLon.lat);
             scTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC} °C`;
             scTemp.style.color = tempC < -100 ? "#6ec6ff"
               : tempC < -50 ? "#90d8e8"
@@ -16367,7 +16389,10 @@ uniform float uViewportWidth;`,
             scPressure.style.color = "#aaaacc";
             if (scContext) scContext.textContent = moonName.toUpperCase() + " SURFACE";
           } else if (elevationMeters !== null) {
-            const tempC = estimatePlutoTemperature(latLon.lat, elevationMeters);
+            const bodyCenter = new THREE.Vector3();
+            plutoGroup.getWorldPosition(bodyCenter);
+            const surfaceNormal = surfaceHit.point.clone().sub(bodyCenter).normalize();
+            const tempC = estimatePlutoTemperature(latLon.lat, elevationMeters, surfaceNormal);
             const pressurePa = estimatePlutoPressure(elevationMeters);
             scTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC} °C`;
             scTemp.style.color = tempC < -80 ? "#6ec6ff"

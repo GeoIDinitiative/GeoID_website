@@ -3086,14 +3086,23 @@
     function estimateSaturnCloudTopPressure() {
       return 101325; // 1 bar displayed as Pa
     }
-    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld) {
-      const cosTheta = Math.max(0, surfaceNormalWorld.dot(_SUN_DIR));
-      const moonTDayMap = { titan: -179, enceladus: -198, mimas: -209, tethys: -187, dione: -186, rhea: -220, iapetus: -173 };
-      const moonTNightMap = { titan: -183, enceladus: -240, mimas: -240, tethys: -188, dione: -186, rhea: -220, iapetus: -220 };
-      const key = moonName.toLowerCase();
-      const T_day = moonTDayMap[key] ?? -180;
+    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld, latDeg = 0) {
+      // Sun-angle-driven airless-body temperature: cos^(1/4) day, linear night.
+      // Uranus moons are very cold; the small diurnal swing reflects ~20 AU
+      // solar flux. Saturn entries retained for cross-viewer compat.
+      const cosTheta = Math.max(-1, Math.min(1, surfaceNormalWorld.dot(_SUN_DIR)));
+      const moonTDayMap = { miranda: -187, ariel: -187, umbriel: -198, titania: -203, oberon: -203,
+        titan: -179, enceladus: -198, mimas: -209, tethys: -187, dione: -186, rhea: -220, iapetus: -143 };
+      const moonTNightMap = { miranda: -213, ariel: -213, umbriel: -218, titania: -223, oberon: -223,
+        titan: -183, enceladus: -240, mimas: -240, tethys: -188, dione: -190, rhea: -240, iapetus: -90 };
+      const key = (moonName || "").toLowerCase();
+      const T_day = moonTDayMap[key] ?? -200;
       const T_night = moonTNightMap[key] ?? -220;
-      return Math.round(T_night + (T_day - T_night) * cosTheta);
+      const T_mid = T_night + (T_day - T_night) * 0.5;
+      if (cosTheta > 0) {
+        return Math.round(T_mid + (T_day - T_mid) * Math.pow(cosTheta, 0.25));
+      }
+      return Math.round(T_mid + (T_night - T_mid) * (-cosTheta));
     }
     function estimateSpaceTemperature(camDist) {
       const t = Math.max(0, Math.min(1, (camDist - 6) / 60));

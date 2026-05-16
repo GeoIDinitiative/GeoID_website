@@ -202,8 +202,53 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       {
         id: "apollo",
         label: "Apollo landing sites",
-        description: "The six successful Apollo mission landing sites, 1969–1972.",
-        matches: (item) => item.theme === "landing",
+        description: "Tour of the six successful Apollo mission landing sites (1969–1972) at the umbrella-label level. Use a per-mission site explorer to zoom in on the EVA landmarks.",
+        // Only the tier-1 umbrella labels (Apollo N — <site>), not every
+        // astronaut-named landmark — the per-mission site explorers do
+        // that with nuanced label control.
+        matches: (item) => /^Apollo \d/.test(item.name || "") && item.lod === 1,
+      },
+      // Per-mission Apollo site tours — each facet groups the umbrella
+      // landing-site label together with the astronaut-named landmarks
+      // along that mission's EVA traverses. Matching is done by
+      // searching the description for "Apollo N site" (the IAU citation
+      // string used on every astronaut-named feature) plus an explicit
+      // name check for the umbrella label.
+      {
+        id: "apollo-11",
+        label: "Apollo 11 site explorer",
+        description: "Tranquility Base and surrounding astronaut-named landmarks visited during the first lunar landing, 20 July 1969.",
+        matches: (item) => /^Apollo 11/.test(item.name || "") || /Apollo 11 site/i.test(item.description || ""),
+      },
+      {
+        id: "apollo-12",
+        label: "Apollo 12 site explorer",
+        description: "Oceanus Procellarum touchdown beside Surveyor 3 and the surrounding two-EVA traverse landmarks.",
+        matches: (item) => /^Apollo 12/.test(item.name || "") || /Apollo 12 site/i.test(item.description || ""),
+      },
+      {
+        id: "apollo-14",
+        label: "Apollo 14 site explorer",
+        description: "Fra Mauro highlands and the Cone Crater traverse landmarks of the third Apollo landing.",
+        matches: (item) => /^Apollo 14/.test(item.name || "") || /Apollo 14 site/i.test(item.description || ""),
+      },
+      {
+        id: "apollo-15",
+        label: "Apollo 15 site explorer",
+        description: "Hadley-Apennine landing and the first Lunar Roving Vehicle EVA stations.",
+        matches: (item) => /^Apollo 15/.test(item.name || "") || /Apollo 15 site/i.test(item.description || ""),
+      },
+      {
+        id: "apollo-16",
+        label: "Apollo 16 site explorer",
+        description: "Descartes highlands landing and the Cayley Plains EVA stations.",
+        matches: (item) => /^Apollo 16/.test(item.name || "") || /Apollo 16 site/i.test(item.description || ""),
+      },
+      {
+        id: "apollo-17",
+        label: "Apollo 17 site explorer",
+        description: "Taurus-Littrow valley landing and the final crewed lunar EVA stations, December 1972.",
+        matches: (item) => /^Apollo 17/.test(item.name || "") || /Apollo 17 site/i.test(item.description || ""),
       },
       {
         id: "maria",
@@ -742,13 +787,26 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     // Sun direction in scene space (approximated from key light at 8,4,6 and ambient star field)
     const _SUN_DIR = new THREE.Vector3(8, 4, 6).normalize();
 
-    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld) {
-      // Airless body: temperature depends on angle from sub-solar point.
-      // Phobos/Deimos dayside peak ~+27°C, nightside ~-170°C (Phobos measured values)
-      const cosTheta = Math.max(0, surfaceNormalWorld.dot(_SUN_DIR));
-      const T_night = -170;
-      const T_day = moonName === "Deimos" ? 24 : 27; // Deimos slightly cooler due to albedo
-      return Math.round(T_night + (T_day - T_night) * cosTheta);
+    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld, latDeg = 0) {
+      // Airless-body surface temperature, driven by local sun-incidence angle.
+      // Dayside follows the radiative-equilibrium law T ∝ (cos θ)^(1/4); nightside
+      // cools toward the body's deep-night floor (no diurnal thermal-inertia model,
+      // just a smooth blend). Permanently-shadowed polar regions on Earth's Moon
+      // are floored separately from latitude.
+      const cosTheta = Math.max(-1, Math.min(1, surfaceNormalWorld.dot(_SUN_DIR)));
+      const profile = (moonName === "Deimos") ? { day:  24, night: -170, mid: -60 }
+                    : (moonName === "Phobos") ? { day:  27, night: -170, mid: -60 }
+                    /* Earth's Moon + fallback */ : { day: 127, night: -173, mid: -20 };
+      const isEarthMoon = moonName !== "Deimos" && moonName !== "Phobos";
+      if (isEarthMoon && Math.abs(latDeg) >= 85 && cosTheta < 0.05) {
+        // Permanently-shadowed polar regions (PSRs) — Shackleton, Cabeus, etc.
+        // Floor ~ -240 °C, slightly warmer toward 85° as direct illumination grows.
+        return Math.round(-240 + (90 - Math.abs(latDeg)) * 2);
+      }
+      if (cosTheta > 0) {
+        return Math.round(profile.mid + (profile.day - profile.mid) * Math.pow(cosTheta, 0.25));
+      }
+      return Math.round(profile.mid + (profile.night - profile.mid) * (-cosTheta));
     }
 
     function estimateMoonSurfacePressure() {
@@ -1119,7 +1177,11 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       }
       if (spinPaused) { resumeSpin(); } else { pauseSpin(); }
     });
-    const DEFAULT_CONTROL_MIN_DISTANCE = 3.7;
+    // Allow much closer zoom-in than the previous 3.7 — the Apollo
+    // landing sites cluster dozens of astronaut-named features inside
+    // ~1 km, which were unreachable before. Sphere radius is 3.2, so
+    // 3.205 sits a few metres above surface scale.
+    const DEFAULT_CONTROL_MIN_DISTANCE = 3.205;
     const DEFAULT_CONTROL_MAX_DISTANCE = 250;
     // Predefined camera distances for CTX mosaic stepped zoom (far → near).
     // Each step cleanly maps to one ESRI tile level so tiles load once and stay stable.
@@ -1131,7 +1193,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     const CTX_ZOOM_ANIM_MS = 450;
     const DEFAULT_CAMERA_POSITION = Object.freeze({ x: 0, y: 1.4, z: 11.5 });
     const MOON_VIEWER_TEXTURES = {
-      "Earth": "assets/earth_color.jpg",
+      "Earth": "/assets/earth_weather_color_map.jpg",
     };
     let currentMetadataState = null;
     const MOON_MEAN_RADIUS_KM = 1737.4;
@@ -5316,7 +5378,15 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       if (!facet) {
         return [];
       }
-      return labelData.filter((item) => facet.matches(item));
+      const all = labelData.filter((item) => facet.matches(item));
+      // Per-mission site explorers (apollo-N / artemis-N) hide the tier-1
+      // umbrella label from the tour list — prev/next cycles through
+      // landmarks only. The generic `apollo` facet keeps the umbrellas
+      // (they are the tour stops).
+      if (facetId && (facetId.startsWith("apollo-") || facetId.startsWith("artemis-"))) {
+        return all.filter((item) => !(/^(Apollo|Artemis) \d/.test(item.name || "") && item.lod === 1));
+      }
+      return all;
     }
 
     function populateTourTargetOptions(facetId = activeTourModeFacetId, selectedName = activeTourModeFeature?.name || "") {
@@ -5352,6 +5422,103 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       }
       const wrapped = ((index % features.length) + features.length) % features.length;
       return features[wrapped];
+    }
+
+    // When the active facet is one of the per-mission Apollo explorers,
+    // build a force-show set of every mission feature (so the LOD slider
+    // can't hide them at close zoom) and a force-hide set containing the
+    // tier-1 umbrella site label (so the giant "Apollo N — Site Name"
+    // text doesn't dominate the view). For any other facet, return null.
+    function isMissionTourFacet(facetId) {
+      if (!facetId) return false;
+      return facetId === "apollo"
+        || facetId.startsWith("apollo-")
+        || facetId.startsWith("artemis-");
+    }
+
+    function getActiveTourOverride() {
+      // Active when tour mode is engaged AND the facet is mission-themed.
+      if (!activeTourModeFeature) return null;
+      const facetId = activeTourModeFacetId;
+      if (!isMissionTourFacet(facetId)) return null;
+      const forceShow = new Set();
+      const forceHide = new Set();
+
+      const isUmbrella = (item) => /^(Apollo|Artemis) \d/.test(item.name || "") && item.lod === 1;
+
+      if (facetId === "apollo") {
+        // Generic Apollo landing-sites tour: surface only the umbrellas.
+        // Force-show every umbrella regardless of LOD slider; force-hide
+        // every small astronaut-named landmark so the overview is clean.
+        for (const item of labelData) {
+          if (isUmbrella(item)) {
+            forceShow.add(item.name);
+          } else if (item.theme === "landing") {
+            forceHide.add(item.name);
+          }
+        }
+      } else {
+        // Per-mission site explorers (apollo-N / artemis-N): force-show
+        // every landmark belonging to that mission, force-hide ALL
+        // apollo/artemis umbrellas (so neighbouring banners don't crash
+        // the close view).
+        const facet = getTourFacetById(facetId);
+        if (!facet) return null;
+        for (const item of labelData) {
+          if (!facet.matches(item)) continue;
+          if (isUmbrella(item)) {
+            forceHide.add(item.name);
+          } else {
+            forceShow.add(item.name);
+          }
+        }
+        for (const item of labelData) {
+          if (isUmbrella(item)) forceHide.add(item.name);
+        }
+      }
+      return { forceShow, forceHide };
+    }
+
+    // Returns { lat, lon, name } for the umbrella label tied to a
+    // per-mission facet, or null if the facet isn't site-specific.
+    function getTourSiteAnchor(facetId = activeTourModeFacetId) {
+      if (!facetId) return null;
+      const m = /^(apollo|artemis)-(\d+)$/.exec(facetId);
+      if (!m) return null;
+      const mission = m[1] === "apollo" ? "Apollo" : "Artemis";
+      const num = m[2];
+      const re = new RegExp(`^${mission} ${num}\\b`);
+      const umbrella = labelData.find((it) => re.test(it.name || "") && it.lod === 1);
+      return umbrella ? { lat: Number(umbrella.lat), lon: Number(umbrella.lon), name: umbrella.name } : null;
+    }
+
+    function flyToMissionSite(facetId, camera, controls) {
+      const anchor = getTourSiteAnchor(facetId);
+      if (!anchor || !Number.isFinite(anchor.lat) || !Number.isFinite(anchor.lon)) return false;
+      // Build a synthetic feature-like object for moveCameraToFeature.
+      // Target a camera altitude where the scale-bar HUD reads "50 km" so the
+      // initial framing shows the umbrella site and its surrounding landmarks
+      // together rather than diving onto a single dot.
+      const target = {
+        name: anchor.name,
+        lat: anchor.lat,
+        lon: anchor.lon,
+      };
+      // chooseNiceScaleDistance rounds metersPerPixel * scaleBarWidthPx to the
+      // smallest of {1,2,5,10}·10ⁿ that meets it — so a target raw bar length
+      // of ~35 km lands in the (20 km, 50 km] bucket that displays as "50 km".
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const viewportHeightPxDevice = Math.max(window.innerHeight * dpr, 1);
+      const scaleBarWidthPxCss = resolveScaleBarWidthPx();
+      const targetRawBarMeters = 35000;
+      const metersPerPixelTarget = targetRawBarMeters / Math.max(scaleBarWidthPxCss, 1);
+      const metersPerSceneUnit = MOON_RADIUS_METERS / 3.2;
+      const viewHeightScene = (metersPerPixelTarget * viewportHeightPxDevice) / metersPerSceneUnit;
+      const fovRad = THREE.MathUtils.degToRad(camera.fov || 45);
+      const cameraToSurface = viewHeightScene / (2 * Math.tan(fovRad * 0.5));
+      const distance = 3.2 + cameraToSurface;
+      moveCameraToFeature(target, camera, controls, { animate: true, isTour: true, distance });
+      return true;
     }
 
     function syncTourModeControls(feature = activeTourModeFeature) {
@@ -5405,19 +5572,46 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       clearPendingTourFlight();
       openFeature(feature, false);
       syncTourModeControls(feature);
+      // Per-mission site explorers (apollo-N / artemis-N) zoom to max so each
+      // small astronaut-named feature is framed close-up. The generic "apollo"
+      // umbrella tour keeps the default mid-zoom for orientation.
+      const _facetId = activeTourModeFacetId;
+      const _isSiteExplorer = typeof _facetId === "string"
+        && (/^apollo-\d+$/.test(_facetId) || /^artemis-\d+$/.test(_facetId));
+      // moveCameraToFeature pins controls.minDistance = 3.25 for surface flights,
+      // so we sit just above that floor to land at the closest allowed zoom.
+      const _maxZoomDistance = _isSiteExplorer ? 3.255 : undefined;
       activeTourFlightTimeout = window.setTimeout(() => {
         activeTourFlightTimeout = null;
-        moveCameraToFeature(feature, camera, controls, { animate: true, isTour: true });
+        moveCameraToFeature(feature, camera, controls, {
+          animate: true,
+          isTour: true,
+          ...(_maxZoomDistance !== undefined ? { distance: _maxZoomDistance } : {}),
+        });
       }, 700);
       setStatus(`${statusPrefix} ${feature.name}.`);
     }
 
     function cycleTourMode(direction, camera, controls) {
-      const currentIndex = activeTourModeFeature
-        ? getTourFeatureIndex(activeTourModeFeature, activeTourModeFacetId)
-        : (direction >= 0 ? -1 : 0);
-      const nextFeature = getTourFeatureByIndex(currentIndex + direction, activeTourModeFacetId);
-      if (!nextFeature) {
+      // Pre-fetch the filtered feature list so the index lookup and the
+      // step both work against the same set (avoids a stale snapshot if
+      // labelData is mutated between calls).
+      const features = getTourFeaturesByFacet(activeTourModeFacetId);
+      if (!features.length) return;
+      let currentIndex = -1;
+      if (activeTourModeFeature) {
+        currentIndex = features.findIndex((item) => item.name === activeTourModeFeature.name);
+      }
+      // If the active feature isn't in the current facet's list (e.g. user
+      // toggled facets), seed from the boundary so prev/next still steps.
+      if (currentIndex === -1) currentIndex = direction >= 0 ? -1 : features.length;
+      const nextIndex = ((currentIndex + direction) % features.length + features.length) % features.length;
+      const nextFeature = features[nextIndex];
+      if (!nextFeature || nextFeature.name === activeTourModeFeature?.name) {
+        // If we somehow landed on the same feature, force one more step
+        // in the requested direction so the user sees something move.
+        const fallback = features[(nextIndex + direction + features.length) % features.length];
+        if (fallback) presentTourFeature(fallback, camera, controls, "Tour stop");
         return;
       }
       presentTourFeature(nextFeature, camera, controls, "Tour stop");
@@ -5696,7 +5890,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       const direction = target.clone().sub(moonCenterWorld).normalize();
       const cameraDistance = Array.isArray(feature.ring_anchor)
         ? 4.8
-        : 1.0;
+        : (Number.isFinite(options.distance) ? Math.max(options.distance - 3.2, 0.005) : 1.0);
       activeMoonViewerFeature = null;
       _resetMeasurementOnContextSwitch?.(false);
       // Allow close surface zoom; render loop clamps camera outside the planet body.
@@ -5713,10 +5907,17 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       // the Moon-body boundary cleanly in all directions (no arc-through-planet).
       if (animate) {
         const isTourHop = Boolean(activeTourModeFeature) && !Array.isArray(feature.ring_anchor);
-        if (isTourHop) {
+        // animateTourFlight does its spherical interpolation around the WORLD
+        // origin, but the Moon is offset — that wide swing is what jolts at
+        // end of flight. For short hops (close-spaced site-explorer stops, or
+        // any move under ~0.6 scene units / ~325 km), the simple lerp is both
+        // smoother and avoids the offset arc artefact entirely.
+        const hopDist = camera.position.distanceTo(cameraPosition);
+        const useArc = isTourHop && hopDist > 0.6;
+        if (useArc) {
           animateTourFlight(camera, controls, cameraPosition, moonCenterWorld.clone(), 2800, onComplete);
         } else {
-          animateCameraFlight(camera, controls, cameraPosition, moonCenterWorld.clone(), 1400, onComplete);
+          animateCameraFlight(camera, controls, cameraPosition, moonCenterWorld.clone(), isTourHop ? 1600 : 1400, onComplete);
         }
       } else {
         cancelCameraFlight();
@@ -10667,7 +10868,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       };
       // Load Earth texture asynchronously; sphere is visible immediately with fallback color.
       const _earthTextureLoader = new THREE.TextureLoader();
-      _earthTextureLoader.load("assets/earth_color.jpg", (tex) => {
+      _earthTextureLoader.load("/assets/earth_weather_color_map.jpg", (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         earthMesh.material.map = tex;
         earthMesh.material.color.set("#ffffff");
@@ -10818,13 +11019,16 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       const getTerrainRelief = () => getEffectiveTerrainRelief();
       const labelElevationCache = new Map();
       const popupElevationCache = new Map();
-      const HIDDEN_BASE_LAYER_IDS = new Set(["sc-magnetic", "derived-slope"]);
-      const TERRAIN_PICKER_SLOPE_LAYER_ID = "sc-slope";
+      // derived-slope was hidden because the Moon previously had no slope
+      // layer — now it has one (see moon-manifest.js), so include it under
+      // the Terrain group below.
+      const HIDDEN_BASE_LAYER_IDS = new Set(["sc-magnetic"]);
+      const TERRAIN_PICKER_SLOPE_LAYER_ID = "derived-slope";
       const selectableBaseLayers = baseLayers.filter((l) => !HIDDEN_BASE_LAYER_IDS.has(l.id));
       const standardLayers = selectableBaseLayers.filter((l) => !l.scGroup);
       // Group standard layers into labelled optgroups
       const BASE_LAYER_GROUPS = [
-        { label: "Imagery",          ids: ["viking-color", "ctx-mosaic-color", "ctx-mosaic"] },
+        { label: "Imagery",          ids: ["viking-color", "ctx-mosaic-color", "ctx-mosaic", "lro-wac"] },
         { label: "Thermal & Albedo", ids: ["tes-albedo", "tes-thermal-inertia"] },
         { label: "Terrain",          ids: ["elevation-dem", "derived-hillshade", TERRAIN_PICKER_SLOPE_LAYER_ID] },
       ];
@@ -14851,6 +15055,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
         updateLabelVisibility(
           baseSiteLayer.entries,
@@ -14875,6 +15080,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
         baseSiteLayer.group.visible = Boolean(baseLabelsToggle?.checked) && !activeMoonViewerFeature && !coreEnabled;
         updateCoreLabelVisibility(cutawayResult, camera, Boolean(coreLabelsToggle && coreLabelsToggle.checked));
@@ -15090,6 +15296,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
         baseSiteLayer.group.visible = Boolean(baseLabelsToggle?.checked);
       }
@@ -15306,6 +15513,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
         updateMoonVisibility(moonLayer.entries, marsGroup, camera, renderer, moonToggle ? moonToggle.checked : true, labelsToggle.checked && !activeMoonViewerFeature, activeMoonViewerFeature, isPointOccludedByAnyMoon);
         _syncMoonFeatureLabels();
@@ -15336,6 +15544,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
         _syncMoonFeatureLabels();
         syncLocationsMasterToggle();
@@ -15365,6 +15574,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
         _syncMoonFeatureLabels();
         syncLocationsMasterToggle();
@@ -15394,6 +15604,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
         _syncMoonFeatureLabels();
         syncLocationsMasterToggle();
@@ -15424,6 +15635,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
           _syncMoonFeatureLabels();
           syncLocationsMasterToggle();
@@ -15455,6 +15667,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
           syncLocationsMasterToggle();
         });
@@ -15485,6 +15698,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
           syncLocationsMasterToggle();
         });
@@ -15524,6 +15738,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
           _syncMoonFeatureLabels();
         });
@@ -15555,6 +15770,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
           syncLocationsMasterToggle();
         });
@@ -15613,6 +15829,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
         baseSiteLayer.group.visible = Boolean(baseLabelsToggle?.checked);
         updateMoonVisibility(moonLayer.entries, marsGroup, camera, renderer, moonToggle ? moonToggle.checked : true, labelsToggle.checked && !activeMoonViewerFeature, activeMoonViewerFeature, isPointOccludedByAnyMoon);
@@ -15968,8 +16185,13 @@ uniform float uViewportWidth;`,
         tourModeFacet.addEventListener("change", () => {
           activeTourModeFacetId = tourModeFacet.value || TOUR_MODE_FACETS[0]?.id || "highlights";
           const nextFeature = getTourFeatureByIndex(0, activeTourModeFacetId);
-          if (activeTourModeFeature) {
+          if (nextFeature) {
+            // Always advance to the first stop on facet change so the
+            // user sees an immediate camera response. Was previously
+            // gated on `activeTourModeFeature` which left the camera
+            // stuck if tour mode was disengaged.
             presentTourFeature(nextFeature, camera, controls, "Touring");
+            if (tourModeToggle) tourModeToggle.checked = true;
           } else {
             syncTourModeControls(null);
           }
@@ -16317,12 +16539,12 @@ uniform float uViewportWidth;`,
           lastScaleSampleLat = latLon.lat;
           lastScaleSampleAt = performance.now();
           if (surfaceHit.context?.kind === "moon") {
-            // Moon surface: airless body, temperature driven by solar exposure angle
+            // Sub-moon (Phobos/Deimos) surface: airless body, sun-angle driven.
             const moonName = surfaceHit.context.bodyName || "Moon";
             const moonCenter = new THREE.Vector3();
             surfaceHit.context.mesh.getWorldPosition(moonCenter);
             const surfaceNormal = surfaceHit.point.clone().sub(moonCenter).normalize();
-            const tempC = estimateMoonSurfaceTemperature(moonName, surfaceNormal);
+            const tempC = estimateMoonSurfaceTemperature(moonName, surfaceNormal, latLon.lat);
             scTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC} °C`;
             scTemp.style.color = tempC < -100 ? "#6ec6ff"
               : tempC < -50 ? "#90d8e8"
@@ -16332,18 +16554,22 @@ uniform float uViewportWidth;`,
             scPressure.style.color = "#aaaacc";
             if (scContext) scContext.textContent = moonName.toUpperCase() + " SURFACE";
           } else if (elevationMeters !== null) {
-            const tempC = estimateMoonTemperature(latLon.lat, elevationMeters);
-            const pressurePa = estimateMarsPressure(elevationMeters);
+            // Earth's Moon main globe: sun-angle-driven temperature across the
+            // full lunar range (~+127 °C sub-solar → ~-173 °C deep night → ~-240 °C
+            // in permanently-shadowed polar craters). Uses the marsGroup world
+            // position as the Moon centre to derive a per-cursor surface normal.
+            const moonCenter = new THREE.Vector3();
+            marsGroup.getWorldPosition(moonCenter);
+            const surfaceNormal = surfaceHit.point.clone().sub(moonCenter).normalize();
+            const tempC = estimateMoonSurfaceTemperature("Moon", surfaceNormal, latLon.lat);
             scTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC} °C`;
-            scTemp.style.color = tempC < -80 ? "#6ec6ff"
+            scTemp.style.color = tempC < -150 ? "#6ec6ff"
               : tempC < -50 ? "#90d8e8"
-              : tempC < -25 ? "#e8c97a"
+              : tempC < 0 ? "#e8c97a"
+              : tempC < 80 ? "#ffb070"
               : "#ff7a5a";
-            scPressure.textContent = `${pressurePa} Pa`;
-            scPressure.style.color = pressurePa < 200 ? "#aaaacc"
-              : pressurePa < 500 ? "#c8a8e0"
-              : pressurePa < 800 ? "#e8b878"
-              : "#ff9966";
+            scPressure.textContent = "< 10⁻¹⁰ Pa";
+            scPressure.style.color = "#aaaacc";
             if (scContext) scContext.textContent = "MOON SURFACE";
           }
         } else {
@@ -16388,6 +16614,7 @@ uniform float uViewportWidth;`,
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
           updateCoreLabelVisibility(
             cutawayResult,
@@ -17211,6 +17438,7 @@ ${error && error.message ? error.message : error}`;
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
             updateMoonVisibility(
               moonLayer.entries,
@@ -17260,6 +17488,7 @@ ${error && error.message ? error.message : error}`;
           isPointOccludedByAnyMoon,
           moonLayer,
           activePopupFeature,
+          getActiveTourOverride(),
         );
             updateMoonVisibility(
               moonLayer.entries,

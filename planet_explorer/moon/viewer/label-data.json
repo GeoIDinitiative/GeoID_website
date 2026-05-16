@@ -20808,5 +20808,82 @@
 "lod": 4,
 "description": "Zwicky is a large complex crater 126 km in diameter in the southern equatorial belt of the lunar farside. Large complex craters exhibit terraced rim walls, broad flat floors, and well-developed central peak structures — the gravitational collapse of the transient cavity at this scale is the primary control on final morphology. Named for Fritz; Swiss astrophysicist (1898-1974). Approved by the IAU in 1979.",
 "dimension": "~126 km diameter"
+},
+{
+"name": "Apollo 11 — Tranquility Base",
+"type": "Landing Site",
+"lat": 0.6741,
+"lon": 23.473,
+"theme": "landing",
+"lod": 1,
+"description": "Apollo 11 landing site, Mare Tranquillitatis. First crewed landing on another world — touchdown 20 July 1969, 20:17 UTC. Commander Neil Armstrong and Lunar Module Pilot Buzz Aldrin spent 21h 36m on the surface, deployed the Early Apollo Scientific Experiments Package (EASEP), and returned 21.55 kg of lunar samples. The landing zone — formally named Statio Tranquillitatis (Tranquility Base) by the IAU in 1969 — anchors a cluster of astronaut-named landmarks including West Crater, Little West, and the LRO-imaged descent stage.",
+"dimension": "Statio Tranquillitatis",
+"label_distance": 2.5
+},
+{
+"name": "Apollo 12 — Surveyor 3",
+"type": "Landing Site",
+"lat": -3.0125,
+"lon": -23.4218,
+"theme": "landing",
+"lod": 1,
+"description": "Apollo 12 landing site, Oceanus Procellarum. Touchdown 19 November 1969 within ~180 m of the dormant Surveyor 3 probe — the first demonstration of pinpoint planetary landing. Commander Pete Conrad and LMP Alan Bean spent 31h 31m on the surface across two EVAs, recovered hardware from Surveyor 3, deployed the first ALSEP (Apollo Lunar Surface Experiments Package), and returned 34.35 kg of mare basalts that established the deeper stratigraphy of Procellarum.",
+"dimension": "Oceanus Procellarum",
+"label_distance": 2.5
+},
+{
+"name": "Apollo 14 — Fra Mauro",
+"type": "Landing Site",
+"lat": -3.6453,
+"lon": -17.4714,
+"theme": "landing",
+"lod": 1,
+"description": "Apollo 14 landing site, Fra Mauro highlands. Touchdown 5 February 1971 on the ejecta blanket of the Imbrium impact basin. Commander Alan Shepard and LMP Edgar Mitchell spent 33h 31m on the surface, traversed to Cone Crater with the Modular Equipment Transporter ('MET' rickshaw), and returned 42.28 kg of Imbrium-derived breccias including the famous 'Big Bertha' — the third-largest sample ever returned from the Moon.",
+"dimension": "Fra Mauro Formation",
+"label_distance": 2.5
+},
+{
+"name": "Apollo 15 — Hadley-Apennine",
+"type": "Landing Site",
+"lat": 26.1322,
+"lon": 3.6339,
+"theme": "landing",
+"lod": 1,
+"description": "Apollo 15 landing site, Hadley-Apennine region. Touchdown 30 July 1971 at the base of the Apennine Mountains beside Hadley Rille, a 1.5-km-wide sinuous mare channel. Commander David Scott and LMP James Irwin made the first use of the Lunar Roving Vehicle, spent 66h 55m on the surface across three EVAs covering 27.9 km, and returned 77.31 kg of samples including the 4.5-billion-year-old Genesis Rock anorthosite — fragments of the original lunar crust.",
+"dimension": "Hadley Rille / Apennine Front",
+"label_distance": 2.5
+},
+{
+"name": "Apollo 16 — Descartes",
+"type": "Landing Site",
+"lat": -8.9734,
+"lon": 15.5011,
+"theme": "landing",
+"lod": 1,
+"description": "Apollo 16 landing site, Descartes Highlands. Touchdown 21 April 1972 on the Cayley Plains, the only Apollo mission to land in the lunar highlands. Commander John Young and LMP Charles Duke spent 71h 02m on the surface across three EVAs, drove the Lunar Roving Vehicle 26.7 km to Stone Mountain and North Ray Crater, and returned 95.71 kg of samples that overturned the prevailing model of highland volcanism — the Cayley and Descartes formations proved to be impact breccias, not lavas.",
+"dimension": "Cayley Plains / Descartes",
+"label_distance": 2.5
+},
+{
+"name": "Apollo 17 — Taurus-Littrow",
+"type": "Landing Site",
+"lat": 20.1908,
+"lon": 30.7717,
+"theme": "landing",
+"lod": 1,
+"description": "Apollo 17 landing site, Taurus-Littrow valley. Final crewed lunar landing — touchdown 11 December 1972 in a narrow basaltic valley flanked by the North and South Massifs. Commander Eugene Cernan and LMP Harrison Schmitt — the only trained geologist to walk on the Moon — spent 74h 59m on the surface across three EVAs covering 35.74 km, and returned 110.52 kg of samples, the largest haul of any Apollo mission. Discoveries here included the orange volcanic glasses at Shorty Crater and the deep impact-melt sheet sampled at the Sculptured Hills.",
+"dimension": "Taurus-Littrow valley",
+"label_distance": 2.5
+},
+{
+"name": "Carrol",
+"type": "Astronaut-named features",
+"lat": 18.8419,
+"lon": -86.53,
+"theme": "landing",
+"lod": 1,
+"description": "Carrol is a small impact crater on the lunar farside at 18°50′31″N, 86°31′48″W, in the northern equatorial highlands beyond the eastern limb. It was selected and named by the Artemis II crew — commander Reid Wiseman, pilot Victor Glover, mission specialist Christina Koch, and CSA mission specialist Jeremy Hansen — and approved by the IAU in 2024 ahead of their roughly ten-day lunar flyby mission, the first crewed flight beyond low Earth orbit since Apollo 17 in 1972. Artemis II flies the Orion spacecraft on a free-return trajectory that loops around the Moon without entering orbit, validating life support, communications, and deep-space crew operations ahead of the Artemis III south-polar landing. Wiseman chose the name as a tribute to his late wife Carroll Wiseman, an educator and Naval Academy graduate who died in 2023; the IAU's lunar nomenclature convention required a single-name form, so the crater is officially registered as Carrol. The site sits among other astronaut-named farside features chosen by the crew and lies along the ground track the spacecraft will pass over during its closest lunar approach, giving the name an enduring presence on every future lunar map.",
+"dimension": "Carrol Crater",
+"label_distance": 2.5
 }
 ]

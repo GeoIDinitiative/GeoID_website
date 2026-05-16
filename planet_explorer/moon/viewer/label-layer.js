@@ -1027,6 +1027,11 @@ export function updateLabelVisibility(
   isPointOccludedByAnyMoon = () => false,
   moonLayer = null,
   activePopupFeature = null,
+  tourOverride = null,
+  /* tourOverride: optional { forceShow: Set<name>, forceHide: Set<name> }
+     When a per-mission Apollo tour facet is active, force-show every
+     mission feature regardless of the LOD slider, and force-hide the
+     umbrella tier-1 site label so it doesn't dominate the close zoom. */
 ) {
   const now = performance.now();
   const groupWorldPosition = new THREE.Vector3();
@@ -1360,8 +1365,11 @@ export function updateLabelVisibility(
         : entry.category === "tectonic" ? tectonicLabelsEnabled
         : surfaceLabelsEnabled;
       const _lod = entry.item?.lod;
+      const _name = entry.item?.name;
+      const _tourShow = !!(tourOverride && _name && tourOverride.forceShow && tourOverride.forceShow.has(_name));
+      const _tourHide = !!(tourOverride && _name && tourOverride.forceHide && tourOverride.forceHide.has(_name));
       const _survivesCut = !cutawayModeEnabled || (activeCutClipPlane ? activeCutClipPlane.distanceToPoint(surfaceWorldPosition) : surfaceWorldPosition.x) >= -0.02;
-      const _wouldBeVisible = _catEnabled && _survivesCut && (_lod == null || _lod <= currentLodLevel)
+      const _wouldBeVisible = !_tourHide && (_tourShow || _catEnabled) && _survivesCut && (_tourShow || _lod == null || _lod <= currentLodLevel)
         && _n.dot(cameraDirection) > (useMosaicCloseLayout ? -0.14 : -0.06);
       if (!_wouldBeVisible) continue;
       if (_buildBudget <= 0) continue;
@@ -1388,8 +1396,16 @@ export function updateLabelVisibility(
     const survivesCut = !cutawayModeEnabled || (activeCutClipPlane ? activeCutClipPlane.distanceToPoint(surfaceWorldPosition) : surfaceWorldPosition.x) >= -0.02;
     const facingThreshold = useMosaicCloseLayout ? -0.14 : -0.06; // was 0.02
     const entryLod = entry.item?.lod;
-    const survivesLod = entryLod == null || entryLod <= currentLodLevel;
-    const isVisible = categoryEnabled && survivesCut && survivesLod && normal.dot(cameraDirection) > facingThreshold;
+    const entryName = entry.item?.name;
+    const tourForceShow = !!(tourOverride && entryName && tourOverride.forceShow && tourOverride.forceShow.has(entryName));
+    const tourForceHide = !!(tourOverride && entryName && tourOverride.forceHide && tourOverride.forceHide.has(entryName));
+    // Tour override: force-show wins over LOD/category gates so an active
+    // Apollo site explorer surfaces every astronaut-named landmark even
+    // when the slider would normally hide them. Force-hide trumps everything.
+    const survivesLod = tourForceShow || entryLod == null || entryLod <= currentLodLevel;
+    const passesCategory = tourForceShow || categoryEnabled;
+    const facingOk = normal.dot(cameraDirection) > facingThreshold;
+    const isVisible = !tourForceHide && passesCategory && survivesCut && survivesLod && facingOk;
     entry.marker.visible = isVisible;
     entry.hitTarget.visible = isVisible;
     if (useMosaicCloseLayout) {
@@ -1538,11 +1554,32 @@ export function updateLabelVisibility(
       // hierarchy is preserved. At global zoom this cuts lines to ~40 % of their
       // former length; placeForceLabel Phase 2 (compass) extends when needed.
       const _ppu = fovScale / Math.max(camera.position.distanceTo(surfaceWorldPosition), 0.001);
-      const _targetPx = clamp(60 * _lodLineFactor, 18, 80);
+
+      // Titan-style pixel cap (Titan path: saturn-viewer.js ~5499-5505). At close
+      // zoom the multiplicative scale math above renders sprites at thousands of
+      // pixels — the first label's rect then fills the viewport and the overlap
+      // solver culls every neighbour. Apply the cap *before* offset math so the
+      // tangential offset can clear the now-known label half-width.
+      if (baseScale) {
+        const _renderedH = entry.sprite.scale.y * _ppu;
+        const _maxPx = useMosaicCloseLayout ? 44 : 36;
+        if (_renderedH > _maxPx) {
+          const _r = _maxPx / _renderedH;
+          entry.sprite.scale.set(entry.sprite.scale.x * _r, entry.sprite.scale.y * _r, 1);
+        }
+      }
+
+      // Offset includes half the label width + a small gap so the label's near
+      // edge clears the dot rather than overlapping it.
+      const _spriteHalfWPx = (entry.sprite.scale.x * _ppu) * 0.5;
+      const _targetPx = clamp(40 * _lodLineFactor + _spriteHalfWPx + 10, 28, 220);
       const _pixelFactor = _targetPx / Math.max(_ppu * (entry.labelDistance || 0.52), 1e-6);
       const _lineFactor = Math.min(_lodLineFactor, _pixelFactor);
       entry.labelOffsetFactor = activeMoonViewerFeature ? 0.5 : _lineFactor;
-      applyLabelOffset(entry, entry.labelOffsetFactor, 0.22, tempSpritePos, tempLineEnd);
+      // Cap normalLift to ~24 px so labels stay near the surface at close zoom
+      // instead of being pushed kilometres above the camera (Titan-style).
+      const _normalLift = Math.min(0.22, 24 / Math.max(_ppu, 1e-6));
+      applyLabelOffset(entry, entry.labelOffsetFactor, _normalLift, tempSpritePos, tempLineEnd);
     }
     entry.sprite.getWorldPosition(spriteWorldPosition);
     const forceLabel = useMosaicCloseLayout

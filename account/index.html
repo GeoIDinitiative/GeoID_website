@@ -526,11 +526,17 @@
           if (error) throw error;
           const now = Date.now();
           const active = !!data?.active && (!data.current_period_end || new Date(data.current_period_end).getTime() > now);
-          setStatus({ active, periodEnd: data?.current_period_end, email: session.user.email });
 
-          // If they came here from a locked viewer and they're now a
-          // member, send them back to the viewer.
-          if (active && returnTo) { window.location.replace(returnTo); return; }
+          // Active members don't need the account page — send them straight
+          // to the viewer they came from, or to the dashboard. The `manage=1`
+          // query param is an escape hatch to actually view this page (e.g.
+          // to reach Stripe portal or sign out).
+          if (active) {
+            if (returnTo) { window.location.replace(returnTo); return; }
+            if (params.get("manage") !== "1") { window.location.replace("/dashboard/"); return; }
+          }
+
+          setStatus({ active, periodEnd: data?.current_period_end, email: session.user.email });
         } catch (err) {
           console.warn(err);
           setStatus({ active: false, email: session.user.email });

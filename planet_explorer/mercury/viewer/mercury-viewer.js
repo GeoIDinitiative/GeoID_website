@@ -456,10 +456,26 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
 
 
 
-    function estimateMercuryTemperature(latDeg, elevMeters) {
+    function estimateMercuryTemperature(latDeg, elevMeters, surfaceNormalWorld = null) {
+      // Airless body — surface temperature driven by sun-incidence angle.
+      // Real Mercury range: ~+427 °C sub-solar to ~-180 °C deep night; polar
+      // permanently-shadowed craters (Kandinsky, Prokofiev) floor near -200 °C.
+      // Fallback (no normal supplied) uses a latitude-only profile so call sites
+      // that haven't been wired for surface normals still get sensible values.
+      const elevAdj = -0.5 * ((elevMeters || 0) / 1000);
+      if (surfaceNormalWorld) {
+        const cosTheta = Math.max(-1, Math.min(1, surfaceNormalWorld.dot(_SUN_DIR)));
+        const T_day = 427, T_night = -180, T_mid = -20;
+        if (Math.abs(latDeg) >= 85 && cosTheta < 0.05) {
+          return Math.round(-200 + (90 - Math.abs(latDeg)) * 1.5 + elevAdj);
+        }
+        if (cosTheta > 0) {
+          return Math.round(T_mid + (T_day - T_mid) * Math.pow(cosTheta, 0.25) + elevAdj);
+        }
+        return Math.round(T_mid + (T_night - T_mid) * (-cosTheta) + elevAdj);
+      }
       const latRad = latDeg * Math.PI / 180;
-      const baseTempC = 100 - 280 * Math.sin(latRad) ** 2;
-      return Math.round(baseTempC - 0.5 * (elevMeters / 1000));
+      return Math.round(100 - 280 * Math.sin(latRad) ** 2 + elevAdj);
     }
 
     function estimateMercuryPressure(elevMeters) {
@@ -723,13 +739,23 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     // Sun direction in scene space (approximated from key light at 8,4,6 and ambient star field)
     const _SUN_DIR = new THREE.Vector3(8, 4, 6).normalize();
 
-    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld) {
-      // Airless body: temperature depends on angle from sub-solar point.
-      // Phobos/Deimos dayside peak ~+27°C, nightside ~-170°C (Phobos measured values)
-      const cosTheta = Math.max(0, surfaceNormalWorld.dot(_SUN_DIR));
-      const T_night = -170;
-      const T_day = moonName === "Deimos" ? 24 : 27; // Deimos slightly cooler due to albedo
-      return Math.round(T_night + (T_day - T_night) * cosTheta);
+    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld, latDeg = 0) {
+      // Airless-body surface temperature, driven by sun-incidence angle.
+      // Dayside follows T ∝ (cos θ)^(1/4) radiative equilibrium; nightside
+      // cools linearly toward the deep-night floor. Earth's-Moon polar PSRs
+      // are floored separately. See moon-viewer.js for the canonical model.
+      const cosTheta = Math.max(-1, Math.min(1, surfaceNormalWorld.dot(_SUN_DIR)));
+      const profile = (moonName === "Deimos") ? { day:  24, night: -170, mid: -60 }
+                    : (moonName === "Phobos") ? { day:  27, night: -170, mid: -60 }
+                    /* Earth's Moon + fallback */ : { day: 127, night: -173, mid: -20 };
+      const isEarthMoon = moonName !== "Deimos" && moonName !== "Phobos";
+      if (isEarthMoon && Math.abs(latDeg) >= 85 && cosTheta < 0.05) {
+        return Math.round(-240 + (90 - Math.abs(latDeg)) * 2);
+      }
+      if (cosTheta > 0) {
+        return Math.round(profile.mid + (profile.day - profile.mid) * Math.pow(cosTheta, 0.25));
+      }
+      return Math.round(profile.mid + (profile.night - profile.mid) * (-cosTheta));
     }
 
     function estimateMoonSurfacePressure() {
@@ -16210,7 +16236,7 @@ uniform float uViewportWidth;`,
             const moonCenter = new THREE.Vector3();
             surfaceHit.context.mesh.getWorldPosition(moonCenter);
             const surfaceNormal = surfaceHit.point.clone().sub(moonCenter).normalize();
-            const tempC = estimateMoonSurfaceTemperature(moonName, surfaceNormal);
+            const tempC = estimateMoonSurfaceTemperature(moonName, surfaceNormal, latLon.lat);
             scTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC} °C`;
             scTemp.style.color = tempC < -100 ? "#6ec6ff"
               : tempC < -50 ? "#90d8e8"
@@ -16220,7 +16246,12 @@ uniform float uViewportWidth;`,
             scPressure.style.color = "#aaaacc";
             if (scContext) scContext.textContent = moonName.toUpperCase() + " SURFACE";
           } else if (elevationMeters !== null) {
-            const tempC = estimateMercuryTemperature(latLon.lat, elevationMeters);
+            // Sun-angle-driven Mercury surface temperature: huge ±300 °C swing
+            // between sub-solar dayside and deep night, PSR floor at high lat.
+            const bodyCenter = new THREE.Vector3();
+            mercuryGroup.getWorldPosition(bodyCenter);
+            const surfaceNormal = surfaceHit.point.clone().sub(bodyCenter).normalize();
+            const tempC = estimateMercuryTemperature(latLon.lat, elevationMeters, surfaceNormal);
             const pressurePa = estimateMercuryPressure(elevationMeters);
             scTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC} °C`;
             scTemp.style.color = tempC < -80 ? "#6ec6ff"

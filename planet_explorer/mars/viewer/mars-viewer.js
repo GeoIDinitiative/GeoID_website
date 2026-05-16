@@ -502,10 +502,25 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     const mosaicFocusConnector = document.getElementById("mosaic-focus-connector");
     const mosaicFocusLabel = document.getElementById("mosaic-focus-label");
 
-    function estimateMarsTemperature(latDeg, elevMeters) {
+    function estimateMarsTemperature(latDeg, elevMeters, surfaceNormalWorld = null) {
+      // Mars has a thin atmosphere (~6 mbar) — diurnal swing is real but smaller
+      // than the airless Moon. Real Curiosity/InSight observations: ~+20 °C
+      // summer-equator afternoon, ~-90 °C pre-dawn at the same site, ~-125 °C
+      // winter polar night. Atmosphere damps the swing; cos^(1/4) day, half-
+      // amplitude linear nightside.
       const latRad = latDeg * Math.PI / 180;
-      const baseTempC = -20 - 80 * Math.sin(latRad) ** 2;
-      return Math.round(baseTempC - 2.5 * (elevMeters / 1000));
+      const elevAdj = -2.5 * ((elevMeters || 0) / 1000);
+      const latColdAdj = -80 * Math.sin(latRad) ** 2;   // polar latitude penalty
+      if (surfaceNormalWorld) {
+        const cosTheta = Math.max(-1, Math.min(1, surfaceNormalWorld.dot(_SUN_DIR)));
+        const T_day = 20, T_night = -90, T_mid = -55;
+        const sunTerm = cosTheta > 0
+          ? T_mid + (T_day - T_mid) * Math.pow(cosTheta, 0.25)
+          : T_mid + (T_night - T_mid) * (-cosTheta);
+        // Latitude penalty is half-weight: atmosphere mixes heat zonally.
+        return Math.round(sunTerm + latColdAdj * 0.5 + elevAdj);
+      }
+      return Math.round(-20 + latColdAdj + elevAdj);
     }
 
     function estimateMarsPressure(elevMeters) {
@@ -768,13 +783,22 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     // Sun direction in scene space (approximated from key light at 8,4,6 and ambient star field)
     const _SUN_DIR = new THREE.Vector3(8, 4, 6).normalize();
 
-    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld) {
-      // Airless body: temperature depends on angle from sub-solar point.
-      // Phobos/Deimos dayside peak ~+27°C, nightside ~-170°C (Phobos measured values)
-      const cosTheta = Math.max(0, surfaceNormalWorld.dot(_SUN_DIR));
-      const T_night = -170;
-      const T_day = moonName === "Deimos" ? 24 : 27; // Deimos slightly cooler due to albedo
-      return Math.round(T_night + (T_day - T_night) * cosTheta);
+    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld, latDeg = 0) {
+      // Airless-body surface temperature, sun-incidence driven. cos^(1/4) day,
+      // linear nightside, Earth's-Moon polar PSR floor. See moon-viewer.js for
+      // the canonical model.
+      const cosTheta = Math.max(-1, Math.min(1, surfaceNormalWorld.dot(_SUN_DIR)));
+      const profile = (moonName === "Deimos") ? { day:  24, night: -170, mid: -60 }
+                    : (moonName === "Phobos") ? { day:  27, night: -170, mid: -60 }
+                    /* Earth's Moon + fallback */ : { day: 127, night: -173, mid: -20 };
+      const isEarthMoon = moonName !== "Deimos" && moonName !== "Phobos";
+      if (isEarthMoon && Math.abs(latDeg) >= 85 && cosTheta < 0.05) {
+        return Math.round(-240 + (90 - Math.abs(latDeg)) * 2);
+      }
+      if (cosTheta > 0) {
+        return Math.round(profile.mid + (profile.day - profile.mid) * Math.pow(cosTheta, 0.25));
+      }
+      return Math.round(profile.mid + (profile.night - profile.mid) * (-cosTheta));
     }
 
     function estimateMoonSurfacePressure() {
@@ -16263,7 +16287,7 @@ uniform float uViewportWidth;`,
             const moonCenter = new THREE.Vector3();
             surfaceHit.context.mesh.getWorldPosition(moonCenter);
             const surfaceNormal = surfaceHit.point.clone().sub(moonCenter).normalize();
-            const tempC = estimateMoonSurfaceTemperature(moonName, surfaceNormal);
+            const tempC = estimateMoonSurfaceTemperature(moonName, surfaceNormal, latLon.lat);
             scTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC} °C`;
             scTemp.style.color = tempC < -100 ? "#6ec6ff"
               : tempC < -50 ? "#90d8e8"
@@ -16273,7 +16297,10 @@ uniform float uViewportWidth;`,
             scPressure.style.color = "#aaaacc";
             if (scContext) scContext.textContent = moonName.toUpperCase() + " SURFACE";
           } else if (elevationMeters !== null) {
-            const tempC = estimateMarsTemperature(latLon.lat, elevationMeters);
+            const bodyCenter = new THREE.Vector3();
+            marsGroup.getWorldPosition(bodyCenter);
+            const surfaceNormal = surfaceHit.point.clone().sub(bodyCenter).normalize();
+            const tempC = estimateMarsTemperature(latLon.lat, elevationMeters, surfaceNormal);
             const pressurePa = estimateMarsPressure(elevationMeters);
             scTemp.textContent = `${tempC > 0 ? "+" : ""}${tempC} °C`;
             scTemp.style.color = tempC < -80 ? "#6ec6ff"

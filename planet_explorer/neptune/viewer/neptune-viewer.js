@@ -3078,14 +3078,23 @@
     function estimateNeptuneCloudTopPressure() {
       return 101325; // 1 bar displayed as Pa
     }
-    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld) {
-      const cosTheta = Math.max(0, surfaceNormalWorld.dot(_SUN_DIR));
-      const moonTDayMap = { titan: -179, enceladus: -198, mimas: -209, tethys: -187, dione: -186, rhea: -220, iapetus: -173 };
-      const moonTNightMap = { titan: -183, enceladus: -240, mimas: -240, tethys: -188, dione: -186, rhea: -220, iapetus: -220 };
-      const key = moonName.toLowerCase();
-      const T_day = moonTDayMap[key] ?? -180;
-      const T_night = moonTNightMap[key] ?? -220;
-      return Math.round(T_night + (T_day - T_night) * cosTheta);
+    function estimateMoonSurfaceTemperature(moonName, surfaceNormalWorld, latDeg = 0) {
+      // Sun-angle-driven airless-body temperature: cos^(1/4) day, linear night.
+      // Neptune moons at ~30 AU are the coldest in the planet system; Triton's
+      // measured ~38 K surface is one of the coldest planetary bodies known.
+      const cosTheta = Math.max(-1, Math.min(1, surfaceNormalWorld.dot(_SUN_DIR)));
+      const moonTDayMap = { triton: -235, proteus: -218, nereid: -213,
+        titan: -179, enceladus: -198, mimas: -209, tethys: -187, dione: -186, rhea: -220, iapetus: -143 };
+      const moonTNightMap = { triton: -240, proteus: -240, nereid: -243,
+        titan: -183, enceladus: -240, mimas: -240, tethys: -188, dione: -190, rhea: -240, iapetus: -90 };
+      const key = (moonName || "").toLowerCase();
+      const T_day = moonTDayMap[key] ?? -220;
+      const T_night = moonTNightMap[key] ?? -240;
+      const T_mid = T_night + (T_day - T_night) * 0.5;
+      if (cosTheta > 0) {
+        return Math.round(T_mid + (T_day - T_mid) * Math.pow(cosTheta, 0.25));
+      }
+      return Math.round(T_mid + (T_night - T_mid) * (-cosTheta));
     }
     function estimateSpaceTemperature(camDist) {
       const t = Math.max(0, Math.min(1, (camDist - 6) / 60));
