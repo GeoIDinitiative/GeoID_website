@@ -452,13 +452,15 @@
           } else {
             const { error } = await window.GeoIDAuth.signInWithPassword({ email, password });
             if (error) throw error;
-            if (returnTo) {
-              // If they came in from a locked page, verify they're a
-              // member before bouncing them back — otherwise stay here.
-              const ok = await window.GeoIDAuth.isMember();
-              if (ok) { window.location.replace(returnTo); return; }
+            // Post-sign-in: always redirect — never stay on account page.
+            // Members go to returnTo or dashboard; non-members go to membership page.
+            const ok = await window.GeoIDAuth.isMember();
+            if (ok) {
+              window.location.replace(returnTo || "/dashboard/");
+            } else {
+              window.location.replace("/membership/");
             }
-            await refresh();
+            return;
           }
         } catch (err) {
           showMsg(err?.message || "Authentication failed.", "error");
