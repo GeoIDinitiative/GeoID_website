@@ -11,7 +11,7 @@
 window.GEOID_MEMBERSHIP_CONFIG = Object.freeze({
   // 1) Stripe — subscription Payment Link (recurring £29.99/year, price_1TXoGHGS1oP7PUk3yBmMRmlJ).
   //    Configure the post-payment redirect to /membership/welcome/ in Stripe.
-  CHECKOUT_URL: "https://buy.stripe.com/28EeVd2St0WOedPadgbV601",
+  CHECKOUT_URL: "https://buy.stripe.com/4gM28rboZ9tk8TvetwbV602",
 
   // 2) Stripe — Customer Portal login link (Dashboard → Settings → Billing
   //    → Customer portal → "Login link"). Members enter their email and
