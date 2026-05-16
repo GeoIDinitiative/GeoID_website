@@ -7,13 +7,6 @@
   // ── Account button: always routes to /account/, which renders the
   //    sign-in form when signed out and the member panel when signed
   //    in. Label flips to "Account" when signed in. ──────────────────
-  document.addEventListener('click', (e) => {
-    const trigger = e.target instanceof Element ? e.target.closest('[data-action="sign-in"]') : null;
-    if (!trigger) return;
-    e.preventDefault();
-    window.location.href = "/account/?manage=1";
-  });
-
   // ── Live auth-state reflection on the nav button ──────────────────────
   // Once the Supabase runtime loads, swap the button label + dataset
   // flag so the click router above routes correctly.
