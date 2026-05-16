@@ -9681,20 +9681,25 @@ ${error && error.message ? error.message : error}`;
     const navCollapseBtn = document.getElementById("nav-collapse-btn");
     const navTab = document.getElementById("nav-tab");
     const bottomRightHud = document.getElementById("bottom-right-hud");
+    const backdrop = document.createElement("div");
+    backdrop.id = "mobile-panel-backdrop";
+    document.body.appendChild(backdrop);
+    const isMobileLayout = () => window.matchMedia("(max-width: 768px), (pointer: coarse) and (max-width: 1024px)").matches;
+    function openPanel() {
+      uiPanel?.classList.remove("is-collapsed");
+      navTab.style.display = "none";
+      if (bottomRightHud) bottomRightHud.classList.remove("nav-collapsed");
+      if (isMobileLayout()) backdrop.classList.add("is-visible");
+    }
+    function closePanel() {
+      uiPanel?.classList.add("is-collapsed");
+      navTab.style.display = "flex";
+      if (bottomRightHud) bottomRightHud.classList.add("nav-collapsed");
+      backdrop.classList.remove("is-visible");
+    }
     if (uiPanel && navCollapseBtn && navTab) {
-      const syncNavCollapseHudState = () => {
-        if (!bottomRightHud) return;
-        bottomRightHud.classList.toggle("nav-collapsed", uiPanel.classList.contains("is-collapsed"));
-      };
-      navCollapseBtn.addEventListener("click", () => {
-        uiPanel.classList.add("is-collapsed");
-        navTab.style.display = "flex";
-        syncNavCollapseHudState();
-      });
-      navTab.addEventListener("click", () => {
-        uiPanel.classList.remove("is-collapsed");
-        navTab.style.display = "none";
-        syncNavCollapseHudState();
-      });
-      syncNavCollapseHudState();
+      if (isMobileLayout()) closePanel();
+      navCollapseBtn.addEventListener("click", closePanel);
+      navTab.addEventListener("click", openPanel);
+      backdrop.addEventListener("click", closePanel);
     }

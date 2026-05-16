@@ -19590,41 +19590,27 @@ ${error && error.message ? error.message : error}`;
     const toolbarCollapseBtn = document.getElementById("toolbar-collapse-btn");
     const toolbarTab = document.getElementById("toolbar-tab");
     const surfaceHud = document.getElementById("bottom-right-hud");
+    const _backdrop = document.createElement("div");
+    _backdrop.id = "mobile-panel-backdrop";
+    document.body.appendChild(_backdrop);
+    const isMobileLayout = () => window.matchMedia("(max-width: 768px), (pointer: coarse) and (max-width: 1024px)").matches;
+    function openPanel() {
+      uiPanel?.classList.remove("is-collapsed");
+      navTab.style.display = "none";
+      surfaceHud?.classList.remove("nav-collapsed");
+      if (isMobileLayout()) _backdrop.classList.add("is-visible");
+    }
+    function closePanel() {
+      uiPanel?.classList.add("is-collapsed");
+      navTab.style.display = "flex";
+      surfaceHud?.classList.add("nav-collapsed");
+      _backdrop.classList.remove("is-visible");
+    }
     if (uiPanel && navCollapseBtn && navTab) {
-      navCollapseBtn.addEventListener("click", () => {
-        uiPanel.classList.add("is-collapsed");
-        navTab.style.display = "flex";
-        surfaceHud?.classList.add("nav-collapsed");
-      });
-      navTab.addEventListener("click", () => {
-        uiPanel.classList.remove("is-collapsed");
-        navTab.style.display = "none";
-        surfaceHud?.classList.remove("nav-collapsed");
-      });
-
-      // On narrow viewports (phones in portrait), the nav panel covers
-      // most of the globe — start collapsed so the user can interact
-      // with the map first, then expand if they want the toolbox.
-      // Re-check on load and resize because the iframe may not have
-      // settled its dimensions at the time this script first runs.
-      const collapseIfMobile = () => {
-        const portrait = window.matchMedia('(max-width: 720px)').matches;
-        const landscapePhone = window.matchMedia('(max-height: 560px) and (orientation: landscape)').matches;
-        if (portrait || landscapePhone) {
-          if (!uiPanel.classList.contains("is-collapsed")) {
-            uiPanel.classList.add("is-collapsed");
-            navTab.style.display = "flex";
-            surfaceHud?.classList.add("nav-collapsed");
-          }
-        }
-      };
-      collapseIfMobile();
-      window.addEventListener('load', collapseIfMobile);
-      window.addEventListener('resize', () => {
-        // Only auto-collapse if it shrinks below the breakpoint; don't
-        // auto-expand on widen so we respect the user's choice.
-        collapseIfMobile();
-      });
+      if (isMobileLayout()) closePanel();
+      navCollapseBtn.addEventListener("click", closePanel);
+      navTab.addEventListener("click", openPanel);
+      _backdrop.addEventListener("click", closePanel);
     }
 
     if (toolbar && toolbarCollapseBtn && toolbarTab) {
