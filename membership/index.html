@@ -41,15 +41,15 @@
     }
     .membership-eyebrow {
       display: inline-block;
-      font-family: "Orbitron", sans-serif;
-      font-size: 0.7rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.68rem;
       font-weight: 700;
-      letter-spacing: 0.18em;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
-      color: #ff6cf0;
-      background: rgba(255, 108, 240, 0.10);
-      border: 1px solid rgba(255, 108, 240, 0.35);
-      padding: 0.4rem 0.85rem;
+      color: rgba(88, 198, 179, 0.92);
+      background: rgba(88, 198, 179, 0.10);
+      border: 1px solid rgba(88, 198, 179, 0.32);
+      padding: 0.38rem 0.85rem;
       border-radius: 999px;
       margin-bottom: 1.2rem;
     }
@@ -69,14 +69,14 @@
       margin: 0 auto;
     }
     .checkout-card {
-      background: linear-gradient(160deg, rgba(20, 12, 38, 0.92), rgba(8, 6, 18, 0.92));
-      border: 1px solid rgba(180, 80, 220, 0.32);
+      background: linear-gradient(160deg, rgba(9, 26, 38, 0.94), rgba(5, 13, 20, 0.94));
+      border: 1px solid rgba(88, 198, 179, 0.28);
       border-radius: 1.2rem;
       padding: 2.4rem 2.4rem 2rem;
       box-shadow:
         0 22px 60px rgba(0, 0, 0, 0.55),
-        0 0 0 1px rgba(180, 80, 220, 0.08),
-        0 0 40px rgba(140, 40, 255, 0.08);
+        0 0 0 1px rgba(88, 198, 179, 0.06),
+        0 0 32px rgba(88, 198, 179, 0.08);
     }
     .checkout-card-grid {
       display: grid;
@@ -105,7 +105,7 @@
       font-family: "Archivo", sans-serif;
       font-size: 2.4rem;
       font-weight: 800;
-      color: #ff6cf0;
+      color: #e8f7f4;
       letter-spacing: -0.02em;
     }
     .plan-price-period {
@@ -131,7 +131,7 @@
       position: absolute;
       left: 0;
       top: 0.42rem;
-      color: #b06bff;
+      color: rgba(88, 198, 179, 0.85);
       font-weight: 700;
     }
     .plan-fine {
@@ -151,38 +151,41 @@
       justify-content: center;
       gap: 0.55rem;
       width: 100%;
-      padding: 1rem 1.2rem;
-      font-family: "Orbitron", sans-serif;
+      padding: 0.85rem 1.1rem;
+      font-family: "Public Sans", sans-serif;
       font-size: 0.82rem;
       font-weight: 700;
       letter-spacing: 0.12em;
       text-transform: uppercase;
-      border-radius: 0.65rem;
+      border-radius: 0.55rem;
       border: 1px solid transparent;
       cursor: pointer;
       text-decoration: none;
       transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease;
     }
     .checkout-btn-primary {
-      background: linear-gradient(180deg, #a25bff, #6a2ce0);
-      color: #ffffff;
-      border-color: rgba(255, 255, 255, 0.16);
-      box-shadow: 0 10px 28px rgba(140, 40, 255, 0.35);
+      background: linear-gradient(180deg, rgba(88, 198, 179, 0.28), rgba(32, 122, 110, 0.32));
+      color: #e8f7f4;
+      border-color: rgba(88, 198, 179, 0.55);
+      box-shadow: 0 4px 18px rgba(32, 122, 110, 0.22);
     }
-    .checkout-btn-primary:hover { transform: translateY(-1px); }
+    .checkout-btn-primary:hover {
+      transform: translateY(-1px);
+      background: linear-gradient(180deg, rgba(88, 198, 179, 0.40), rgba(32, 122, 110, 0.40));
+    }
     .checkout-btn-ghost {
-      background: rgba(255, 255, 255, 0.04);
-      color: #e6ecf2;
-      border-color: rgba(180, 200, 215, 0.32);
+      background: rgba(8, 22, 32, 0.6);
+      color: #e8f7f4;
+      border-color: rgba(88, 198, 179, 0.28);
     }
-    .checkout-btn-ghost:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(180, 200, 215, 0.55); }
+    .checkout-btn-ghost:hover { background: rgba(88, 198, 179, 0.10); border-color: rgba(88, 198, 179, 0.55); }
     .checkout-help {
       margin-top: 1.2rem;
       font-size: 0.78rem;
       color: rgba(160, 170, 188, 0.7);
       line-height: 1.55;
     }
-    .checkout-help a { color: #c0a0ff; }
+    .checkout-help a { color: #58c6b3; }
     .stripe-trust {
       display: flex;
       align-items: center;
@@ -201,7 +204,7 @@
       color: rgba(200, 210, 222, 0.75);
     }
     .alt-actions a {
-      color: #ff6cf0;
+      color: #58c6b3;
       text-decoration: none;
       font-weight: 600;
     }

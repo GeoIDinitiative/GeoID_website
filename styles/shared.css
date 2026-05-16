@@ -1369,7 +1369,7 @@ img { max-width: 100%; height: auto; }
      positioned widgets (e.g. .planet-card-stack on the dashboard) and
      collapsed them — keep substrings narrow to section-level containers. */
   body > section, main > section,
-  [class*="-section" i]:not([class*="-section-row"]):not([class*="-section-item"]),
+  [class*="-section" i]:not([class*="-section-row"]):not([class*="-section-item"]):not(.news-section):not(.dash-planet-view),
   [class*="hero-" i]:not([class*="hero-content"]):not([class*="hero-actions"]),
   [class$="-hero"], [class*=" -hero "],
   .legacy-about > section {
@@ -1418,8 +1418,12 @@ img { max-width: 100%; height: auto; }
     padding: 0 !important;
     gap: 0 !important;
   }
+  /* Let .dash-planet-view size to its content. The previous floor
+     (min(70dvh, 28rem)) left ~5rem of dead space below the planet card
+     before the Updates & News section. The dashboard page's own mobile
+     rules give .pv-slides a sensible min-height. */
   .dash-planet-view {
-    min-height: min(70dvh, 28rem) !important;
+    min-height: 0 !important;
   }
 
   /* Defensive: ensure the nav and hamburger toggle ALWAYS receive pointer

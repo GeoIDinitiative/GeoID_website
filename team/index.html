@@ -320,6 +320,12 @@
       .footer-content { grid-template-columns: 1fr; gap: 2rem; }
       .footer-bottom { flex-direction: column; text-align: center; }
     }
+
+    /* Hide the decorative GeoID logo from the Meet the Researchers hero
+       tile on phones — it overlaps the heading text on narrow widths. */
+    @media (max-width: 720px) {
+      .hero-tile .hero-logo-bg { display: none; }
+    }
   </style>
 </head>
 <body>
