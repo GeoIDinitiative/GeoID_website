@@ -1,6 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- GeoID-paywall-guard: redirect non-members to /sign-in/. Free
+       destinations (earth, moon) skip this entirely. The guard runs
+       synchronously at the top of <head> so non-members never see the
+       viewer render. -->
+  <script>
+    (function () {
+      var key = "mars";
+      var cfgScript = document.createElement("script");
+      cfgScript.src = "/scripts/membership-config.js";
+      cfgScript.onload = function () {
+        var cfg = window.GEOID_MEMBERSHIP_CONFIG || {};
+        var free = cfg.FREE_DESTINATIONS || ["earth", "moon"];
+        if (free.indexOf(key) !== -1) return;
+        if (!window.GEOID_MEMBERSHIP_CONFIG_READY) return;
+        var memScript = document.createElement("script");
+        memScript.src = "/scripts/membership.js";
+        memScript.onload = function () {
+          window.GeoIDAuth.requireMember(window.location.pathname + window.location.search);
+        };
+        document.head.appendChild(memScript);
+      };
+      document.head.appendChild(cfgScript);
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mars</title>

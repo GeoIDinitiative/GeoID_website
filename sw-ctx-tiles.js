@@ -10,7 +10,7 @@
 //
 // Bump CACHE_VERSION to force all clients to discard old caches on deploy.
 
-const CACHE_VERSION = 'v96';
+const CACHE_VERSION = 'v97';
 const TILE_CACHE  = `geoid-ctx-tiles-${CACHE_VERSION}`;
 const ASSET_CACHE = `geoid-assets-${CACHE_VERSION}`;
 
