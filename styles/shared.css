@@ -888,6 +888,23 @@ label {
     padding: 0.6rem 1.1rem;
   }
 
+  /* Mobile menu: surface Donate / Sign In / Membership inside the
+     hamburger drawer (they're hidden by default at this breakpoint). */
+  .site-nav.is-open .nav-right-logo {
+    display: flex;
+    flex-basis: 100%;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-top: 0.6rem;
+    margin-top: 0.6rem;
+    border-top: 1px solid var(--line);
+  }
+  .site-nav.is-open .nav-right-logo .nav-act {
+    width: 100%;
+    text-align: center;
+    padding: 0.7rem 0.85rem;
+    border-radius: 0.8rem;
+  }
 
   .status-bar {
     overflow-x: auto;
