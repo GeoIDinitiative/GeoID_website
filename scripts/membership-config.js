@@ -9,7 +9,7 @@
 //
 // Setup steps in tools/supabase/README.md.
 window.GEOID_MEMBERSHIP_CONFIG = Object.freeze({
-  // 1) Stripe — subscription Payment Link (recurring £19.99/year).
+  // 1) Stripe — subscription Payment Link (recurring £29.99/year, price_1TXoGHGS1oP7PUk3yBmMRmlJ).
   //    Configure the post-payment redirect to /membership/welcome/ in Stripe.
   CHECKOUT_URL: "https://buy.stripe.com/28EeVd2St0WOedPadgbV601",
 
@@ -26,7 +26,7 @@ window.GEOID_MEMBERSHIP_CONFIG = Object.freeze({
   SUPABASE_ANON_KEY: "sb_publishable_z5iueFi_bhRMkaKsb74DYw_hOYDaARA",
 
   // Display copy.
-  PRICE_DISPLAY: "£19.99",
+  PRICE_DISPLAY: "£29.99",
   PERIOD_DISPLAY: "per year",
   PLAN_NAME: "GeoID Explorer Annual",
 
