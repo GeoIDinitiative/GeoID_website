@@ -6,7 +6,7 @@
 //   window.GeoIDAuth.getSession()        → current Supabase session or null
 //   window.GeoIDAuth.getUser()           → current user or null
 //   window.GeoIDAuth.isMember()          → bool (cached after first check)
-//   window.GeoIDAuth.requireMember(ret)  → if not member, redirect to /sign-in/?return=<ret>
+//   window.GeoIDAuth.requireMember(ret)  → if not member, redirect to /account/?need=…&return=<ret>
 //   window.GeoIDAuth.signInWithPassword({email, password})
 //   window.GeoIDAuth.signUp({email, password})
 //   window.GeoIDAuth.signInWithMagicLink({email, redirectTo})
@@ -127,10 +127,19 @@
       console.warn("[GeoIDAuth] membership-config.js placeholders detected; paywall disabled.");
       return true;
     }
-    const ok = await isMember();
-    if (ok) return true;
+    const user = await getUser();
     const ret = encodeURIComponent(returnTo || (window.location.pathname + window.location.search));
-    window.location.href = `/sign-in/?return=${ret}`;
+    if (!user) {
+      // Not signed in at all → bounce to /account/ in signed-out mode.
+      window.location.href = `/account/?need=signin&return=${ret}`;
+      return false;
+    }
+    const active = await fetchMembership(user);
+    if (active) return true;
+    // Signed in but no active subscription → /account/ shows the
+    // subscribe state. Returning to the locked page happens automatically
+    // once the webhook flips active=true.
+    window.location.href = `/account/?need=subscription&return=${ret}`;
     return false;
   }
 

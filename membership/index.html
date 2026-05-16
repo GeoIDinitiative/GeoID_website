@@ -232,7 +232,7 @@
       <li><a href="/contact/">Contact</a></li>
     </ul>
     <div class="nav-right-logo">
-      <a class="nav-act nav-act-signin" href="/sign-in/?return=%2Fmembership%2F" data-action="sign-in">Sign In</a>
+      <a class="nav-act nav-act-signin" href="/account/" data-action="sign-in">Account</a>
       <a class="nav-act nav-act-member active" href="https://buy.stripe.com/28EeVd2St0WOedPadgbV601" target="_blank" rel="noopener noreferrer">Membership</a>
     </div>
     <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
@@ -243,7 +243,18 @@
       <span class="membership-eyebrow">Annual membership</span>
       <h1>Full GeoID Explorer Access</h1>
       <p>One annual subscription unlocks every planetary viewer, every scientific layer, and supports the GeoID Initiative's open-science mission.</p>
+      <div id="need-subscription-banner" hidden style="margin-top:1rem;padding:0.7rem 1rem;border:1px solid rgba(255,184,78,0.4);background:rgba(255,184,78,0.08);border-radius:0.6rem;color:#ffd591;font-size:0.85rem;">
+        You're signed in but don't have an active membership yet. Subscribe below to unlock that viewer.
+      </div>
     </header>
+    <script>
+      (function () {
+        if (new URLSearchParams(location.search).get("need") === "subscription") {
+          const b = document.getElementById("need-subscription-banner");
+          if (b) b.hidden = false;
+        }
+      })();
+    </script>
 
     <section class="checkout-card">
       <div class="checkout-card-grid">
@@ -309,7 +320,7 @@
     // check Supabase auth and reflect membership status in the UI. From
     // the account page the user can then jump out to the Stripe portal.
     document.getElementById("checkout-sign-in")?.addEventListener("click", () => {
-      window.location.href = "/sign-in/?return=%2Faccount%2F";
+      window.location.href = "/account/";
     });
   </script>
   <script src="/styles/nav.js" defer></script>
