@@ -16263,7 +16263,7 @@ uniform float uViewportWidth;`,
               : pressurePa < 500 ? "#c8a8e0"
               : pressurePa < 800 ? "#e8b878"
               : "#ff9966";
-            if (scContext) scContext.textContent = "MARS SURFACE";
+            if (scContext) scContext.textContent = "MERCURY SURFACE";
           }
         } else {
           // No surface hit — cursor is in space
