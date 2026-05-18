@@ -267,6 +267,7 @@ async function loadSatelliteTiles() {
   }
   await Promise.all(jobs);
   const tex = new THREE.CanvasTexture(canvas);
+  tex.flipY = false; // Canvas is already north-up; Three.js default flip would invert it
   tex.needsUpdate = true;
   return tex;
 }
