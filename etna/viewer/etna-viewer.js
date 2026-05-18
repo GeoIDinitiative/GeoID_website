@@ -100,6 +100,8 @@ let crossSectionAngle = 0; // degrees about Y axis
 let showStations = true;
 let showSurfaceLabels = true;
 let showSubsurfaceLabels = true;
+let geoGroup = null;
+let terrainHeightMap = null;
 let showSurface = true;
 let surfaceWireframe = false;
 let spinEnabled = false;
@@ -172,6 +174,102 @@ function setupLighting() {
   scene.add(magmaGlow);
 }
 
+// ─── Terrain height map (used to drape geology polygons) ─────────────────────
+// Built from STL vertex positions once surface loads; cheap bilinear lookup.
+
+const HMAP_N = 150;           // grid resolution (150×150 cells, ~0.67 km each)
+const HMAP_MIN = -50, HMAP_MAX = 50;
+const HMAP_STEP = (HMAP_MAX - HMAP_MIN) / HMAP_N;
+
+function buildTerrainHeightMap() {
+  terrainHeightMap = new Float32Array(HMAP_N * HMAP_N).fill(-999);
+  const pos = surfaceMesh.geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const ix = Math.floor((pos.getX(i) - HMAP_MIN) / HMAP_STEP);
+    const iz = Math.floor((pos.getZ(i) - HMAP_MIN) / HMAP_STEP);
+    if (ix < 0 || ix >= HMAP_N || iz < 0 || iz >= HMAP_N) continue;
+    const idx = iz * HMAP_N + ix;
+    const y = pos.getY(i);
+    if (terrainHeightMap[idx] < y) terrainHeightMap[idx] = y;
+  }
+  // Fill empty cells with 0 (sea level)
+  for (let i = 0; i < terrainHeightMap.length; i++)
+    if (terrainHeightMap[i] === -999) terrainHeightMap[i] = 0;
+}
+
+function getTerrainY(x, z) {
+  if (!terrainHeightMap) return 0.02;
+  const fx = (x - HMAP_MIN) / HMAP_STEP;
+  const fz = (z - HMAP_MIN) / HMAP_STEP;
+  const ix = Math.max(0, Math.min(HMAP_N - 2, Math.floor(fx)));
+  const iz = Math.max(0, Math.min(HMAP_N - 2, Math.floor(fz)));
+  const tx = fx - ix, tz = fz - iz;
+  const h = (1 - tz) * ((1 - tx) * terrainHeightMap[ iz      * HMAP_N + ix    ] +
+                              tx  * terrainHeightMap[ iz      * HMAP_N + ix + 1]) +
+                  tz  * ((1 - tx) * terrainHeightMap[(iz + 1) * HMAP_N + ix    ] +
+                              tx  * terrainHeightMap[(iz + 1) * HMAP_N + ix + 1]);
+  return h + 0.025; // small lift to avoid z-fighting with terrain
+}
+
+// ─── Geology overlay ──────────────────────────────────────────────────────────
+// Data from INGV EtnaGeoMap (Branca et al. 2011), CC BY 4.0.
+// Format: [colorHex, label, type, syntem, age, rings] where rings = [[x,z],…]
+
+function buildGeologyOverlay(data) {
+  if (geoGroup) { scene.remove(geoGroup); geoGroup = null; }
+  geoGroup = new THREE.Group();
+  scene.add(geoGroup);
+
+  for (const [colorHex, , , , , rings] of data) {
+    for (const ring of rings) {
+      if (ring.length < 3) continue;
+
+      // ── Filled polygon (terrain-draped ShapeGeometry) ────────────────────
+      const shape = new THREE.Shape();
+      shape.moveTo(ring[0][0], ring[0][1]);
+      for (let i = 1; i < ring.length; i++) shape.lineTo(ring[i][0], ring[i][1]);
+      const fillGeo = new THREE.ShapeGeometry(shape);
+      fillGeo.rotateX(Math.PI / 2); // shape XY → scene XZ
+      const fp = fillGeo.attributes.position;
+      for (let i = 0; i < fp.count; i++)
+        fp.setY(i, getTerrainY(fp.getX(i), fp.getZ(i)));
+      fp.needsUpdate = true;
+
+      geoGroup.add(new THREE.Mesh(fillGeo, new THREE.MeshBasicMaterial({
+        color: colorHex,
+        transparent: true,
+        opacity: 0.45,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        clippingPlanes: [],
+      })));
+
+      // ── Outline (LineLoop) ───────────────────────────────────────────────
+      const linePts = ring.map(([x, z]) =>
+        new THREE.Vector3(x, getTerrainY(x, z) + 0.005, z));
+      linePts.push(linePts[0]); // close
+      const lineGeo = new THREE.BufferGeometry().setFromPoints(linePts);
+      geoGroup.add(new THREE.Line(lineGeo, new THREE.LineBasicMaterial({
+        color: colorHex,
+        transparent: true,
+        opacity: 0.85,
+        clippingPlanes: [],
+      })));
+    }
+  }
+}
+
+async function loadGeology() {
+  try {
+    const r = await fetch('./etna-geology.json');
+    if (!r.ok) return;
+    const data = await r.json();
+    buildGeologyOverlay(data);
+  } catch (e) {
+    console.warn('Geology data unavailable:', e);
+  }
+}
+
 // ─── STL surface ──────────────────────────────────────────────────────────────
 
 function loadSurface() {
@@ -198,6 +296,8 @@ function loadSurface() {
       scene.add(surfaceMesh);
 
       updateClipPlanes();
+      buildTerrainHeightMap();
+      loadGeology();            // drapes geology onto terrain after height map is ready
       setStatus('Loading satellite imagery…');
       loadSatelliteTiles().then((tex) => {
         if (surfaceMesh && tex) {
@@ -546,6 +646,7 @@ function updateClipPlanes() {
   if (surfaceMesh) applyPlanes(surfaceMesh);
   if (seaPlane) applyPlanes(seaPlane);
   if (domainBox) applyPlanes(domainBox);
+  if (geoGroup) applyPlanes(geoGroup);
   Object.values(chamberMeshes).forEach(applyPlanes);
   Object.values(dykeMeshes).forEach(applyPlanes);
 }
@@ -735,6 +836,13 @@ function setupUI() {
     domainToggle.addEventListener('change', () => {
       if (domainBox) domainBox.visible = domainToggle.checked;
       if (domainEdges) domainEdges.visible = domainToggle.checked;
+    });
+  }
+
+  const geoToggle = document.getElementById('geo-toggle');
+  if (geoToggle) {
+    geoToggle.addEventListener('change', () => {
+      if (geoGroup) geoGroup.visible = geoToggle.checked;
     });
   }
 
