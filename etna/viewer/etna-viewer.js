@@ -125,6 +125,7 @@ function init() {
   buildLabels();
   loadSurface();
 
+  renderer.domElement.addEventListener('mousemove', onMouseMove, { passive: true });
   window.addEventListener('resize', onResize);
   animate();
 }
@@ -668,7 +669,6 @@ function setupUI() {
     }
   });
 
-  renderer.domElement.addEventListener('mousemove', onMouseMove, { passive: true });
 }
 
 // ─── Resize ───────────────────────────────────────────────────────────────────
