@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Mount Etna — GeoID: Earth</title>
+  <link rel="icon" href="../../assets/earth_icon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="viewer-page">
+  <div id="app"></div>
+
+  <!-- ─── Label overlay ─────────────────────────────────────────────────────── -->
+  <div id="label-overlay" aria-hidden="true"></div>
+
+  <!-- ─── Left control panel ───────────────────────────────────────────────── -->
+  <section id="ui">
+    <div class="brand-toprow">
+      <p class="eyebrow">GeoID: Earth</p>
+      <div class="brand-toprow-actions">
+        <button class="info-btn" id="info-btn" aria-label="About this viewer" title="About this viewer">i</button>
+        <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel">‹</button>
+      </div>
+    </div>
+
+    <div id="ui-scroll-body">
+      <div class="brand-hero">
+        <button class="brand-logo-button" id="brand-reset-button" type="button" aria-label="Reset view" title="Reset view">
+          <img class="brand-logo" src="../../assets/earth_icon.png" alt="Earth icon">
+        </button>
+        <div>
+          <h1>Etna</h1>
+          <p class="brand-subtitle">Sicily, Italy · 3,329 m</p>
+        </div>
+      </div>
+
+      <div class="controls">
+
+        <!-- About -->
+        <details class="control-section" open>
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row">
+                <span class="section-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 5v3.5l2 1.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                </span>
+                <span>About This Model</span>
+              </span></div>
+            </div>
+          </summary>
+          <div class="section-body">
+            <p class="section-summary-copy" style="margin-bottom:0.5rem;">GMSH finite-element numerical model of Etna's plumbing system.</p>
+            <p class="compact-copy">Surface topography from a 100 × 100 km STL terrain mesh (112,640 triangles). Magma reservoirs and conduits parametrised from the .geo source files. Seismic stations from the INGV monitoring network.</p>
+          </div>
+        </details>
+
+        <!-- Internal structure -->
+        <details id="structure-section" class="control-section" open>
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row">
+                <span class="section-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.9" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 3.1A4.9 4.9 0 0 1 12.9 8H8Z" fill="currentColor" opacity=".22"/><circle cx="8" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+                </span>
+                <span>Internal Structure</span>
+              </span></div>
+            </div>
+            <span class="section-toggle-controls">
+              <input id="structure-master-toggle" class="section-master-toggle" type="checkbox" checked aria-label="Toggle internal structure">
+            </span>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <p class="section-summary-copy" style="margin-bottom:0.2rem;">Magma chambers and conduit system.</p>
+              <div class="row">
+                <label for="model-select">Chamber model</label>
+                <select id="model-select" class="select">
+                  <option value="2">2-Chamber</option>
+                  <option value="3">3-Chamber</option>
+                </select>
+              </div>
+              <div class="row">
+                <label for="chamber-upper-toggle" style="color:#ff8060;">Upper chamber (~2 km)</label>
+                <span class="checkbox-wrap"><input id="chamber-upper-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row" id="middle-chamber-row" style="display:none;">
+                <label for="chamber-middle-toggle" style="color:#dd5040;">Intermediate (~2.85 km)</label>
+                <span class="checkbox-wrap"><input id="chamber-middle-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row">
+                <label for="chamber-lower-toggle" style="color:#aa2020;">Lower reservoir (~6.8 km)</label>
+                <span class="checkbox-wrap"><input id="chamber-lower-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row">
+                <label for="dyke-toggle">Conduit system</label>
+                <span class="checkbox-wrap"><input id="dyke-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="chamber-legend" style="margin-top:0.25rem; padding-top:0.5rem; border-top:1px solid rgba(255,128,64,0.12);">
+                <div class="chamber-legend-row">
+                  <span class="chamber-swatch" style="background:#ff4500;"></span>
+                  <div>
+                    <div class="chamber-legend-label">Upper Magma Chamber</div>
+                    <div class="chamber-legend-copy">Spherical reservoir, r = 250 m, at 2 km depth.</div>
+                  </div>
+                </div>
+                <div class="chamber-legend-row" id="middle-legend-row" style="display:none;">
+                  <span class="chamber-swatch" style="background:#dd3300;"></span>
+                  <div>
+                    <div class="chamber-legend-label">Intermediate Chamber</div>
+                    <div class="chamber-legend-copy">Spherical reservoir, r = 250 m, at 2.85 km depth.</div>
+                  </div>
+                </div>
+                <div class="chamber-legend-row">
+                  <span class="chamber-swatch" style="background:#990000;"></span>
+                  <div>
+                    <div class="chamber-legend-label">Lower Magma Reservoir</div>
+                    <div class="chamber-legend-copy">Oblate spheroid, a = 6 km, c = 0.8 km, at 6.8 km depth.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Cross-section -->
+        <details id="cross-section-section" class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row">
+                <span class="section-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16"><path d="M2 8h12M8 2v12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="M4 4h8v8H4Z" fill="none" stroke="currentColor" stroke-width="1.1" opacity=".4"/></svg>
+                </span>
+                <span>Cross-Section</span>
+              </span></div>
+            </div>
+            <span class="section-toggle-controls">
+              <input id="cross-section-toggle" class="section-master-toggle" type="checkbox" aria-label="Enable cross-section">
+            </span>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <p class="section-summary-copy" style="margin-bottom:0.4rem;">Slice the model to expose the interior.</p>
+              <div id="cross-section-controls" style="display:none;">
+                <div class="row">
+                  <label for="cross-section-angle">Slice angle</label>
+                  <span id="cross-section-angle-label" style="font-size:0.8rem;color:var(--nav-accent);text-align:right;">0°</span>
+                </div>
+                <input id="cross-section-angle" class="slider" type="range" min="0" max="360" step="1" value="0" style="margin-top:0.35rem;">
+                <p class="compact-copy" style="margin-top:0.4rem;">Rotate the clipping plane about the vertical axis to reveal different cross-sections through the volcanic system.</p>
+              </div>
+              <p class="compact-copy" id="cross-section-hint">Enable to apply a vertical cutting plane through the model.</p>
+            </div>
+          </div>
+        </details>
+
+        <!-- Surface -->
+        <details class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row">
+                <span class="section-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16"><path d="m2 11 3.5-6 3 3.5 2.5-4 3 6.5Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+                </span>
+                <span>Surface</span>
+              </span></div>
+            </div>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <div class="row">
+                <label for="surface-toggle">Show surface</label>
+                <span class="checkbox-wrap"><input id="surface-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row">
+                <label for="wireframe-toggle">Wireframe</label>
+                <span class="checkbox-wrap"><input id="wireframe-toggle" type="checkbox"></span>
+              </div>
+              <div class="row">
+                <label for="surface-opacity">Opacity</label>
+                <input id="surface-opacity" class="slider" type="range" min="0" max="1" step="0.02" value="1">
+              </div>
+              <div class="row">
+                <label for="sea-toggle">Sea level plane</label>
+                <span class="checkbox-wrap"><input id="sea-toggle" type="checkbox" checked></span>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Labels -->
+        <details class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row">
+                <span class="section-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16"><path d="M8 13.2s3.2-3.6 3.2-6A3.2 3.2 0 1 0 4.8 7.2c0 2.4 3.2 6 3.2 6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="8" cy="7.1" r="1.2" fill="currentColor"/></svg>
+                </span>
+                <span>Labels</span>
+              </span></div>
+            </div>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <div class="row">
+                <label for="surface-label-toggle" style="color:#ffe8d0;">Volcanic features</label>
+                <span class="checkbox-wrap"><input id="surface-label-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row">
+                <label for="subsurface-label-toggle" style="color:#ff9060;">Subsurface structures</label>
+                <span class="checkbox-wrap"><input id="subsurface-label-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row">
+                <label for="station-toggle" style="color:#00e5ff;">Seismic stations</label>
+                <span class="checkbox-wrap"><input id="station-toggle" type="checkbox" checked></span>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Sources -->
+        <details class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row">
+                <span class="section-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16"><path d="M4 3.4h6.3L12 5.1v7.5H4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10.3 3.4v1.8H12M5.5 7h5M5.5 9.3h5M5.5 11.6h3.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+                <span>Sources</span>
+              </span></div>
+            </div>
+          </summary>
+          <div class="section-body">
+            <p class="compact-copy">Surface topography: GMSH finite-element mesh generated from DEM data for the Etna volcanic domain (100 × 100 km). Subsurface geometry: parametric GMSH .geo files defining magma reservoirs and conduit architecture. Seismic network: INGV — Istituto Nazionale di Geofisica e Vulcanologia, Osservatorio Etneo.</p>
+          </div>
+        </details>
+
+      </div><!-- .controls -->
+
+      <p class="status" id="status">© 2026 GeoID: Explorer. The GeoID Initiative, led by Owen McCluskey. All rights reserved.</p>
+    </div><!-- #ui-scroll-body -->
+  </section>
+
+  <button id="nav-tab" aria-label="Open Control Centre">Open Control Centre &nbsp;›</button>
+
+  <a class="hub-link" href="/explorer/" target="_top" rel="home">Return Home</a>
+
+  <!-- ─── Top-right controls ────────────────────────────────────────────────── -->
+  <div id="top-right-controls">
+    <button id="spin-toggle" type="button" title="Rotate view" aria-label="Rotate view">
+      <svg class="viewer-control-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/>
+      </svg>
+    </button>
+    <a href="https://geoidinitiative.com/" target="_blank" rel="noopener noreferrer" aria-label="GeoID Initiative">
+      <img id="top-right-logo" src="../../assets/GeoID_logo_icon.png" alt="GeoID logo">
+    </a>
+  </div>
+
+  <!-- ─── Bottom-right HUD ──────────────────────────────────────────────────── -->
+  <div id="bottom-right-hud">
+    <div id="surface-conditions">
+      <div class="sc-row">
+        <span class="sc-label">Model</span>
+        <span id="sc-model" class="sc-value">Etna 2-Chamber</span>
+      </div>
+      <p class="sc-note" id="sc-context">MOUNT ETNA</p>
+    </div>
+  </div>
+
+  <!-- ─── Help / info overlay ──────────────────────────────────────────────── -->
+  <div class="viewer-help-overlay" id="viewer-help-overlay" hidden>
+    <div class="viewer-help-backdrop" data-help-close="true"></div>
+    <section class="viewer-help-modal" role="dialog" aria-modal="true" aria-labelledby="viewer-help-title" tabindex="-1">
+      <div class="viewer-help-head">
+        <div>
+          <p class="viewer-help-kicker">GeoID: Earth — Etna Guide</p>
+          <h2 id="viewer-help-title">Using The Etna 3D Viewer</h2>
+        </div>
+        <button class="viewer-help-close" id="viewer-help-close" type="button" aria-label="Close guide">×</button>
+      </div>
+      <div class="viewer-help-body">
+        <section class="viewer-help-section">
+          <h3>Navigating The Model</h3>
+          <div class="viewer-help-grid">
+            <article class="viewer-help-card">
+              <h4>Orbit</h4>
+              <p>Left-click and drag to rotate the model freely around the centre of Etna.</p>
+            </article>
+            <article class="viewer-help-card">
+              <h4>Zoom</h4>
+              <p>Scroll wheel or pinch to zoom in from the whole 100 km domain down to chamber scale.</p>
+            </article>
+            <article class="viewer-help-card">
+              <h4>Pan</h4>
+              <p>Right-click and drag (or two-finger trackpad drag) to pan the camera target.</p>
+            </article>
+            <article class="viewer-help-card">
+              <h4>Reset</h4>
+              <p>Click the Earth icon in the panel header to return to the default south-east view of the volcano.</p>
+            </article>
+          </div>
+        </section>
+        <section class="viewer-help-section">
+          <h3>The Plumbing System</h3>
+          <p>The numerical model represents Etna's magmatic plumbing system as a hierarchy of reservoirs connected by a central conduit. The <strong>Upper Magma Chamber</strong> is a spherical body at ~2 km depth beneath the summit craters, consistent with geodetic and seismic inversion studies. The <strong>Lower Magma Reservoir</strong> is a flat, oblate spheroid at ~6.8 km depth (semi-axes: 6 km × 0.8 km), representing the deeper source of primitive magma. In the 3-chamber model, an <strong>Intermediate Chamber</strong> at ~2.85 km links the two.</p>
+          <p>The conduit system is modelled as a narrow cylindrical pathway (radius ~50 m) connecting chambers vertically. Geometry is taken directly from the GMSH parametric source files.</p>
+        </section>
+        <section class="viewer-help-section">
+          <h3>Cross-Section</h3>
+          <p>Enable <strong>Cross-Section</strong> from the control panel to slice through all model components simultaneously with a vertical cutting plane. Rotate the slice angle to reveal E–W, N–S, or oblique cross-sections through the volcano and its subsurface plumbing. This is equivalent to the Core View function in the planet explorers — the same Three.js clipping plane technique is used.</p>
+        </section>
+        <section class="viewer-help-section">
+          <h3>Seismic Stations</h3>
+          <p>Cyan spheres mark INGV monitoring stations from the Osservatorio Etneo network. Station positions are given in the GMSH domain coordinate system and converted to Three.js coordinates. Toggle station visibility and labels from the Labels section.</p>
+        </section>
+        <section class="viewer-help-section">
+          <h3>Coordinate System</h3>
+          <p>All distances in the viewer are in kilometres. The origin (0, 0, 0) is at the centre of the 100 × 100 km GMSH domain at sea level — approximately above the summit crater area. Positive Y is above sea level; negative Y is depth below sea level. The surface mesh extends from the domain boundary to the summit at approximately Y = +3.3 km.</p>
+        </section>
+      </div>
+    </section>
+  </div>
+
+  <!-- ─── Portrait advisory ────────────────────────────────────────────────── -->
+  <div id="portrait-advisory" role="status" aria-live="polite">
+    <img src="../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon">
+    <p id="portrait-advisory-text">Rotate to landscape for the best experience</p>
+    <button id="portrait-advisory-dismiss" type="button" aria-label="Dismiss">Got it</button>
+  </div>
+
+  <script type="module">
+    const statusNode = document.getElementById('status');
+
+    function setBootStatus(msg, isErr = false) {
+      if (statusNode) {
+        statusNode.textContent = msg;
+        statusNode.classList.toggle('is-error', isErr);
+      }
+    }
+
+    window.addEventListener('error', (e) => {
+      if (e.message) setBootStatus('Viewer error: ' + e.message, true);
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+      const msg = e.reason?.message || String(e.reason || 'Unknown rejection');
+      setBootStatus('Viewer error: ' + msg, true);
+    });
+
+    // Model selector — show/hide middle chamber UI
+    const modelSelect = document.getElementById('model-select');
+    const middleRow = document.getElementById('middle-chamber-row');
+    const middleLegend = document.getElementById('middle-legend-row');
+    const scModel = document.getElementById('sc-model');
+
+    if (modelSelect) {
+      modelSelect.addEventListener('change', () => {
+        const is3 = modelSelect.value === '3';
+        if (middleRow) middleRow.style.display = is3 ? '' : 'none';
+        if (middleLegend) middleLegend.style.display = is3 ? '' : 'none';
+        if (scModel) scModel.textContent = 'Etna ' + modelSelect.value + '-Chamber';
+      });
+    }
+
+    // Cross-section hint toggle
+    const crossToggle = document.getElementById('cross-section-toggle');
+    const crossHint = document.getElementById('cross-section-hint');
+    if (crossToggle && crossHint) {
+      crossToggle.addEventListener('change', () => {
+        crossHint.style.display = crossToggle.checked ? 'none' : '';
+      });
+    }
+
+    // Portrait advisory
+    const advisory = document.getElementById('portrait-advisory');
+    const dismissBtn = document.getElementById('portrait-advisory-dismiss');
+    if (advisory && dismissBtn) {
+      dismissBtn.addEventListener('click', () => advisory.classList.add('is-dismissed'));
+      window.addEventListener('orientationchange', () => advisory.classList.remove('is-dismissed'));
+    }
+
+    import('./etna-viewer.js').catch((err) => {
+      setBootStatus('Failed to load viewer: ' + err.message, true);
+    });
+  </script>
+</body>
+</html>
