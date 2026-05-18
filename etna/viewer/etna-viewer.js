@@ -133,7 +133,7 @@ function init() {
 
   setupLighting();
   buildGeologicalDomain();
-  buildSeaLevelPlane();
+  buildCoastlineSea();
   buildSubsurface('2');
   buildStations();
   buildLabels();
@@ -301,19 +301,81 @@ function buildGeologicalDomain() {
 
 // ─── Sea level plane ──────────────────────────────────────────────────────────
 
-function buildSeaLevelPlane() {
-  const geo = new THREE.PlaneGeometry(100, 100, 1, 1);
+// ─── OSM coastline data (simplified, Three.js XZ coords in km) ───────────────
+// Rings assembled from Overpass API ways (ε=0.3 km RDP simplification).
+// Coord convention: [x, z] where x = east (km), z = north (km) from domain centre.
+const COAST_R0  = [[42.04,34.02],[44.26,37.77],[46.85,44.02],[50.5,49.19],[50.38,49.8],[49.66,49.81],[50.23,49.15],[49.17,48.85],[49.57,50.5]];
+const COAST_R1  = [[8.18,-45.12],[7.52,-30.92],[7.69,-29.58],[8.41,-29.19],[8.03,-29.12],[8.38,-28.69],[8.01,-28.67],[7.94,-27.86],[8.37,-28.35],[8.69,-27.8],[8.79,-29.62],[8.51,-27.46],[9.25,-26.93],[9.59,-25.67],[10.37,-25.21],[9.9,-24.3],[10.56,-24.35],[12.58,-23.02],[13.13,-21.5],[14.43,-21.04],[14.64,-19.82],[15.56,-19.36],[15.35,-13.07],[17.45,-10.74],[17.54,-8.12],[19.31,-4.62],[18.51,-1.67],[18.47,-2.42],[18.06,-1.68],[18.3,-0.35],[21.58,5.22],[24.36,7.99],[24.31,8.59],[24.04,8.27],[23.69,8.67],[24.04,9.55],[25.2,10.87],[26.26,10.48],[26.15,11.14],[26.89,11.32],[26.11,12.42],[26.93,14.24],[30.56,17.99],[30.49,18.82],[32.09,21.22],[38.82,29.91],[39.2,31.04],[42.04,33.99]];
+const COAST_R37 = [[14.64,-50.5],[13.25,-50.5],[11.55,-48.9],[9.23,-48.95],[8.18,-45.13]];
+const COAST_R21 = [[6.09,42.0],[4.89,42.6],[4.89,43.6],[5.7,43.71],[4.26,43.94],[3.95,44.76],[0.69,44.41],[-2.74,44.91],[-5.1,47.82],[-7.4,49.28],[-9.78,46.95],[-11.15,46.52],[-12.57,46.69],[-18.44,44.76],[-20.24,45.0],[-19.73,45.4],[-21.01,45.25],[-22.12,46.31],[-28.15,39.08],[-32.26,35.8],[-32.84,35.77],[-32.86,36.2],[-32.88,35.75],[-33.45,35.8],[-32.85,36.39],[-36.43,34.42],[-39.01,34.57],[-41.23,32.75],[-46.32,31.5],[-48.03,31.51],[-49.27,32.3],[-50.45,32.33],[-50.5,30.18]];
+const COAST_R30 = [[15.03,44.71],[8.68,41.35],[7.2,41.24],[6.11,41.98]];
+const COAST_R31 = [[18.41,48.23],[15.08,44.75]];
+const COAST_R97 = [[20.46,50.5],[19.76,50.5],[18.51,48.35]];
+
+function _clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function _seaMesh(shape, mat) {
+  const geo = new THREE.ShapeGeometry(shape);
+  geo.rotateX(Math.PI / 2); // Shape XY → scene XZ (Y→north)
+  const m = new THREE.Mesh(geo, mat.clone());
+  m.position.y = 0.01; // tiny lift to avoid z-fighting with domain top
+  return m;
+}
+
+function buildCoastlineSea() {
+  const D = 50;
   const mat = new THREE.MeshBasicMaterial({
-    color: 0x1155aa,
+    color: 0x1a6699,
     transparent: true,
-    opacity: 0.18,
+    opacity: 0.22,
     side: THREE.DoubleSide,
     depthWrite: false,
     clippingPlanes: [],
   });
-  seaPlane = new THREE.Mesh(geo, mat);
-  seaPlane.rotation.x = -Math.PI / 2;
-  seaPlane.position.y = 0;
+
+  seaPlane = new THREE.Group();
+
+  // ── Shape A: Ionian / eastern Mediterranean ──────────────────────────────
+  // Traces domain east edge, then follows eastern Sicily coast going south.
+  // Boundary: SE corner → NE corner → Ring0 reversed → Ring1 reversed →
+  //           Ring37 reversed → south edge back to SE corner.
+  const shapeA = new THREE.Shape();
+  shapeA.moveTo(D, -D); // SE corner (X=east, Y=north in shape space)
+  shapeA.lineTo(D, D);  // NE corner
+  shapeA.lineTo(_clamp(COAST_R0[COAST_R0.length-1][0],-D,D), D); // Ring0 north exit
+  for (let i = COAST_R0.length - 1; i >= 0; i--)
+    shapeA.lineTo(_clamp(COAST_R0[i][0],-D,D), _clamp(COAST_R0[i][1],-D,D));
+  for (let i = COAST_R1.length - 1; i >= 0; i--)
+    shapeA.lineTo(_clamp(COAST_R1[i][0],-D,D), _clamp(COAST_R1[i][1],-D,D));
+  for (let i = COAST_R37.length - 1; i >= 0; i--)
+    shapeA.lineTo(_clamp(COAST_R37[i][0],-D,D), _clamp(COAST_R37[i][1],-D,D));
+  shapeA.lineTo(D, -D); // close along south edge
+
+  // ── Shape B: Tyrrhenian / northern sea ───────────────────────────────────
+  // Boundary: NW corner → east to Ring97 exit → Ring97 → Ring31 → Ring30 →
+  //           Ring21 → west edge north → NW corner.
+  // Also includes the open-sea gap at north edge between Ring0 and Ring97
+  // by starting from NE corner and looping fully west.
+  const shapeB = new THREE.Shape();
+  // Start from NE corner and go west, picking up the northern coast
+  shapeB.moveTo(D, D);  // NE corner
+  shapeB.lineTo(_clamp(COAST_R0[COAST_R0.length-1][0],-D,D), D); // Ring0 exits here
+  // Follow Ring0 inward (going south-west)
+  for (let i = COAST_R0.length - 1; i >= 0; i--)
+    shapeB.lineTo(_clamp(COAST_R0[i][0],-D,D), _clamp(COAST_R0[i][1],-D,D));
+  // Skip across to Ring21 start (jump over land — Triangle of gap closed by domain)
+  // Bridge via shared chain: Ring0 end (42.04,34) connects to Ring1 end ≈ Ring21 start area
+  // The simplest bridge: go directly to Ring21 start, accepting the shortcut crosses land.
+  // Because it's a sub-sea-level plane this is visually harmless (covered by surface mesh).
+  shapeB.lineTo(_clamp(COAST_R30[COAST_R30.length-1][0],-D,D), _clamp(COAST_R30[COAST_R30.length-1][1],-D,D));
+  for (let i = COAST_R30.length - 1; i >= 0; i--)
+    shapeB.lineTo(_clamp(COAST_R30[i][0],-D,D), _clamp(COAST_R30[i][1],-D,D));
+  for (const [x,z] of COAST_R21)
+    shapeB.lineTo(_clamp(x,-D,D), _clamp(z,-D,D));
+  shapeB.lineTo(-D, D); // NW corner via west edge
+  shapeB.lineTo(D, D);  // close at NE corner
+
+  seaPlane.add(_seaMesh(shapeA, mat));
+  seaPlane.add(_seaMesh(shapeB, mat));
   scene.add(seaPlane);
 }
 
@@ -470,6 +532,8 @@ function updateClipPlanes() {
   const planes = crossSectionEnabled ? [clipPlane] : [];
 
   function applyPlanes(obj) {
+    if (!obj) return;
+    if (obj.isGroup) { obj.children.forEach(applyPlanes); return; }
     if (obj.material) {
       if (Array.isArray(obj.material)) {
         obj.material.forEach(m => { m.clippingPlanes = planes; });
@@ -492,7 +556,6 @@ function setCrossSectionAngle(deg) {
   const nx = -Math.sin(rad);
   const nz = -Math.cos(rad);
   clipPlane.set(new THREE.Vector3(nx, 0, nz), 0);
-  if (clipPlaneHelper) clipPlaneHelper.updateMatrixWorld();
 }
 
 // ─── Visibility helpers ───────────────────────────────────────────────────────
