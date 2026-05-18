@@ -70,17 +70,30 @@ const STATIONS = [
   { name: 'MCN',  pos: gmshToThree(52921, 57650, 1868.8) },
 ];
 
+// ─── Satellite tile constants (ESRI World Imagery, zoom 10) ──────────────────
+// Tiles cover the 100×100 km GMSH domain centred on Etna (37.75°N, 15.00°E).
+// UV_x = SAT_U0 + (gmsh_x / 100000) * (SAT_U1 - SAT_U0)
+// UV_y = SAT_V0 + (1 - gmsh_y / 100000) * (SAT_V1 - SAT_V0)
+const SAT_Z = 10, SAT_X0 = 553, SAT_NX = 4, SAT_Y0 = 394, SAT_NY = 4;
+const SAT_U0 = 0.027, SAT_U1 = 0.823; // u at gmsh_x = 0 and 100000 m
+const SAT_V0 = 0.070, SAT_V1 = 0.860; // v at gmsh_y = 100000 (N) and 0 (S)
+
+// Geological domain — extends 50 km below sea level
+const DOMAIN_W = 100, DOMAIN_H = 52; // width km, height km (+2 to -50)
+const DOMAIN_CY = (2 - 50) / 2; // Y centre = -24 km
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 let renderer, scene, camera, controls;
 let surfaceMesh = null;
 let seaPlane = null;
+let domainBox = null;
+let domainEdges = null;
 let chamberMeshes = {};
 let dykeMeshes = {};
 let stationMarkers = [];
 let labels = [];
 let clipPlane = null;
-let clipPlaneHelper = null;
 let activeModel = '2'; // '2' or '3'
 let crossSectionEnabled = false;
 let crossSectionAngle = 0; // degrees about Y axis
@@ -105,11 +118,11 @@ function init() {
   scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x03070d, 0.004);
 
-  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 500);
-  camera.position.set(18, 12, 28);
+  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 600);
+  camera.position.set(40, 28, 65);
 
   controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 1.5, 0);
+  controls.target.set(0, -10, 0); // Look at mid-depth so domain block is centred
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.minDistance = 1;
@@ -119,6 +132,7 @@ function init() {
   controls.update();
 
   setupLighting();
+  buildGeologicalDomain();
   buildSeaLevelPlane();
   buildSubsurface('2');
   buildStations();
@@ -184,7 +198,15 @@ function loadSurface() {
       scene.add(surfaceMesh);
 
       updateClipPlanes();
-      setStatus('');
+      setStatus('Loading satellite imagery…');
+      loadSatelliteTiles().then((tex) => {
+        if (surfaceMesh && tex) {
+          surfaceMesh.material.map = tex;
+          surfaceMesh.material.color.setHex(0xffffff);
+          surfaceMesh.material.needsUpdate = true;
+        }
+        setStatus('');
+      }).catch(() => setStatus(''));
     },
     (xhr) => {
       const pct = Math.round(xhr.loaded / xhr.total * 100);
@@ -199,14 +221,81 @@ function loadSurface() {
 
 function transformSTLGeometry(geo) {
   // GMSH (x_m, y_m, z_m) → Three.js ((x-50k)/1k, z/1k, (y-50k)/1k)
+  // Also builds UV coords for satellite texture projection.
   const pos = geo.attributes.position;
+  const uvArr = new Float32Array(pos.count * 2);
+  const du = SAT_U1 - SAT_U0;
+  const dv = SAT_V1 - SAT_V0;
   for (let i = 0; i < pos.count; i++) {
-    const gx = pos.getX(i);
-    const gy = pos.getY(i);
-    const gz = pos.getZ(i);
+    const gx = pos.getX(i); // GMSH x (0–100000 m, west→east)
+    const gy = pos.getY(i); // GMSH y (0–100000 m, south→north)
+    const gz = pos.getZ(i); // GMSH z (elevation m)
     pos.setXYZ(i, (gx - 50000) / 1000, gz / 1000, (gy - 50000) / 1000);
+    uvArr[i * 2]     = SAT_U0 + (gx / 100000) * du;
+    uvArr[i * 2 + 1] = SAT_V0 + (1 - gy / 100000) * dv;
   }
   pos.needsUpdate = true;
+  geo.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
+}
+
+// ─── Satellite tile loader ─────────────────────────────────────────────────────
+
+async function loadSatelliteTiles() {
+  const tw = 256, th = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width  = SAT_NX * tw;
+  canvas.height = SAT_NY * th;
+  const ctx = canvas.getContext('2d');
+  // Fallback fill in case CORS blocks some tiles
+  ctx.fillStyle = '#7a6a52';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const jobs = [];
+  for (let row = 0; row < SAT_NY; row++) {
+    for (let col = 0; col < SAT_NX; col++) {
+      const tx = SAT_X0 + col, ty = SAT_Y0 + row;
+      // ESRI World Imagery — public, no key required, CORS allowed
+      const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${SAT_Z}/${ty}/${tx}`;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      jobs.push(new Promise((resolve) => {
+        img.onload  = () => { ctx.drawImage(img, col * tw, row * th); resolve(); };
+        img.onerror = () => resolve(); // Silently skip failed tiles
+        img.src = url;
+      }));
+    }
+  }
+  await Promise.all(jobs);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// ─── Geological domain block (surface to −50 km) ──────────────────────────────
+
+function buildGeologicalDomain() {
+  const geo = new THREE.BoxGeometry(DOMAIN_W, DOMAIN_H, DOMAIN_W);
+
+  // Inner faces = geological medium seen through the cross-section cut
+  const mat = new THREE.MeshPhongMaterial({
+    color: 0x1a0c06,
+    specular: 0x000000,
+    shininess: 0,
+    transparent: true,
+    opacity: 0.72,
+    side: THREE.BackSide,
+    clippingPlanes: [],
+  });
+  domainBox = new THREE.Mesh(geo, mat);
+  domainBox.position.y = DOMAIN_CY;
+  scene.add(domainBox);
+
+  // Outer edges for domain framing
+  const edgeGeo = new THREE.EdgesGeometry(geo);
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0x7a3a18, transparent: true, opacity: 0.55 });
+  domainEdges = new THREE.LineSegments(edgeGeo, edgeMat);
+  domainEdges.position.y = DOMAIN_CY;
+  scene.add(domainEdges);
 }
 
 // ─── Sea level plane ──────────────────────────────────────────────────────────
@@ -391,6 +480,7 @@ function updateClipPlanes() {
 
   if (surfaceMesh) applyPlanes(surfaceMesh);
   if (seaPlane) applyPlanes(seaPlane);
+  if (domainBox) applyPlanes(domainBox);
   Object.values(chamberMeshes).forEach(applyPlanes);
   Object.values(dykeMeshes).forEach(applyPlanes);
 }
@@ -575,6 +665,15 @@ function setupUI() {
     });
   }
 
+  // Geological domain block
+  const domainToggle = document.getElementById('domain-toggle');
+  if (domainToggle) {
+    domainToggle.addEventListener('change', () => {
+      if (domainBox) domainBox.visible = domainToggle.checked;
+      if (domainEdges) domainEdges.visible = domainToggle.checked;
+    });
+  }
+
   // Chamber individual toggles
   ['upper', 'middle', 'lower'].forEach((key) => {
     const el = document.getElementById(`chamber-${key}-toggle`);
@@ -641,8 +740,8 @@ function setupUI() {
   const resetBtn = document.getElementById('brand-reset-button');
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
-      camera.position.set(18, 12, 28);
-      controls.target.set(0, 1.5, 0);
+      camera.position.set(40, 28, 65);
+      controls.target.set(0, -10, 0);
       controls.update();
     });
   }
