@@ -102,6 +102,7 @@ let showSurfaceLabels = true;
 let showSubsurfaceLabels = true;
 let geoGroup = null;
 let terrainHeightMap = null;
+let compassScene, compassCamera;
 let showSurface = true;
 let surfaceWireframe = false;
 let spinEnabled = false;
@@ -116,6 +117,7 @@ function init() {
   renderer.shadowMap.enabled = true;
   renderer.localClippingEnabled = true;
   renderer.setClearColor(0x03070d, 1);
+  renderer.autoClear = false; // managed manually so compass inset can overlay main scene
 
   scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x03070d, 0.004);
@@ -134,6 +136,7 @@ function init() {
   controls.update();
 
   setupLighting();
+  buildCompass();
   buildGeologicalDomain();
   buildCoastlineSea();
   buildSubsurface('2');
@@ -952,12 +955,127 @@ function onResize() {
 
 // ─── Animation loop ───────────────────────────────────────────────────────────
 
+// ─── 3D Compass ───────────────────────────────────────────────────────────────
+// Renders in a scissored inset viewport. The compass camera mirrors the main
+// camera's orientation so the N arrow always reflects the current view azimuth.
+// North in world space = +Z (Three.js Z = GMSH northing).
+
+function buildCompass() {
+  compassScene = new THREE.Scene();
+
+  // Orthographic camera — position is set each frame from main camera direction
+  const s = 2.1;
+  compassCamera = new THREE.OrthographicCamera(-s, s, s, -s, 0.1, 30);
+
+  // Lighting
+  compassScene.add(new THREE.AmbientLight(0xffffff, 0.65));
+  const dLight = new THREE.DirectionalLight(0xffffff, 0.9);
+  dLight.position.set(2, 4, 3);
+  compassScene.add(dLight);
+
+  const matN    = new THREE.MeshPhongMaterial({ color: 0xdd2200, shininess: 80 });
+  const matS    = new THREE.MeshPhongMaterial({ color: 0xf0f0f0, shininess: 80 });
+  const matHub  = new THREE.MeshPhongMaterial({ color: 0x777777, shininess: 60 });
+  const matRing = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.28, side: THREE.DoubleSide });
+
+  // Horizon ring (XZ plane)
+  const ringGeo = new THREE.RingGeometry(0.78, 0.92, 64);
+  ringGeo.rotateX(-Math.PI / 2);
+  compassScene.add(new THREE.Mesh(ringGeo, matRing));
+
+  // Cardinal ticks on the ring (N red, E/S/W grey)
+  const tickColors = [0xdd2200, 0x666666, 0x666666, 0x666666];
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2; // 0=N(+Z), π/2=E(+X), π=S, 3π/2=W
+    const tick = new THREE.Mesh(
+      new THREE.BoxGeometry(0.04, 0.016, 0.2),
+      new THREE.MeshBasicMaterial({ color: tickColors[i] })
+    );
+    // N is +Z, E is +X, S is -Z, W is -X
+    tick.position.set(Math.sin(a) * 0.85, 0, Math.cos(a) * 0.85);
+    tick.rotation.y = -a;
+    compassScene.add(tick);
+  }
+
+  // N-S needle — north half (red) points toward +Z
+  const nBody = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.58, 16), matN);
+  nBody.rotation.x = Math.PI / 2;
+  nBody.position.z = 0.29;
+  compassScene.add(nBody);
+
+  const nHead = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.42, 16), matN);
+  nHead.rotation.x = Math.PI / 2;
+  nHead.position.z = 0.58 + 0.21;
+  compassScene.add(nHead);
+
+  // S half (white/light)
+  const sBody = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.58, 16), matS);
+  sBody.rotation.x = Math.PI / 2;
+  sBody.position.z = -0.29;
+  compassScene.add(sBody);
+
+  const sHead = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.42, 16), matS);
+  sHead.rotation.x = -Math.PI / 2;
+  sHead.position.z = -(0.58 + 0.21);
+  compassScene.add(sHead);
+
+  // Hub sphere
+  compassScene.add(new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 16), matHub));
+
+  // "N" sprite label
+  const lc = document.createElement('canvas');
+  lc.width = lc.height = 64;
+  const lx = lc.getContext('2d');
+  lx.font = 'bold 46px Arial, sans-serif';
+  lx.fillStyle = '#dd2200';
+  lx.textAlign = 'center';
+  lx.textBaseline = 'middle';
+  lx.fillText('N', 32, 34);
+  const nSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(lc), transparent: true, depthTest: false,
+  }));
+  nSprite.position.set(0, 0, 1.35);
+  nSprite.scale.set(0.5, 0.5, 1);
+  compassScene.add(nSprite);
+}
+
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
   updateContextHUD();
   updateLabelPositions();
+
+  const cEl = renderer.domElement;
+  const cW = cEl.clientWidth;
+  const cH = cEl.clientHeight;
+
+  // ── Main scene ────────────────────────────────────────────────────────────
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, cW, cH);
+  renderer.clear();
   renderer.render(scene, camera);
+
+  // ── Compass inset (top-right corner; Y=0 is canvas bottom in Three.js) ──────
+  const cSize = 112; // CSS px
+  const margin = 14;
+  renderer.setScissorTest(true);
+  renderer.setViewport(cW - cSize - margin, cH - cSize - margin, cSize, cSize);
+  renderer.setScissor(cW - cSize - margin, cH - cSize - margin, cSize, cSize);
+  renderer.clearDepth();
+
+  // Position compass camera opposite to main camera's look direction
+  // so it always faces the compass arrow from the viewer's perspective
+  const vDir = new THREE.Vector3();
+  camera.getWorldDirection(vDir);
+  compassCamera.position.copy(vDir.negate().multiplyScalar(9));
+  compassCamera.up.copy(camera.up);
+  compassCamera.lookAt(0, 0, 0);
+
+  renderer.render(compassScene, compassCamera);
+
+  // Reset to full viewport
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, cW, cH);
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
