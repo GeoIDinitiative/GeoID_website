@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v67');
+console.log('[etna-viewer] build v68');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -1147,6 +1147,7 @@ function buildFaultOverlays() {
         const color = cfg.color ?? parseInt(fs.color.replace('#', ''), 16);
         const mat = new THREE.LineBasicMaterial({
           color, transparent: true, opacity: 0.85, clippingPlanes: [],
+          depthTest: false,
         });
 
         const group = new THREE.Group();
@@ -1164,7 +1165,7 @@ function buildFaultOverlays() {
           const geo = new THREE.BufferGeometry();
           geo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
           const line = new THREE.Line(geo, mat);
-          line.renderOrder = 2;
+          line.renderOrder = 60; // above seismic mesh (50)
           group.add(line);
         }
 
