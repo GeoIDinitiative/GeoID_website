@@ -1,0 +1,15 @@
+solid
+{
+      
+  dirichlet_u
+  {
+      nd_flag    5   0.0    0.0   0.0
+  }
+  
+      
+  neumann_pressure
+  {
+      side_flag    4   10000000.0
+  }
+  
+}

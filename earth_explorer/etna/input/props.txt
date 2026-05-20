@@ -1,0 +1,10 @@
+
+solid
+{
+   material        Hookes
+
+   heterogeneous_pointwise
+   {
+      input_file   3d   pointwise_elasticity_data.txt
+   }      
+}
