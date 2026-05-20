@@ -669,33 +669,47 @@
     /* ─── Top-right controls ────────────────────────────────────────────────── */
     #top-right-controls {
       position: fixed;
-      top: 0.45rem;
-      right: 0.8rem;
+      top: 1rem;
+      right: 9rem;
       z-index: 12;
       display: flex;
-      align-items: center;
-      gap: 0.6rem;
+      align-items: flex-start;
+      gap: 0.4rem;
+      pointer-events: auto;
     }
 
-    #top-right-controls button {
-      width: 2.2rem;
-      height: 2.2rem;
-      border-radius: 0.5rem;
-      border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
-      background: var(--panel-fill);
-      color: var(--text);
+    #spin-toggle {
+      flex-shrink: 0;
+      width: 2.55rem;
+      height: 2.55rem;
+      position: relative;
+      overflow: hidden;
+      border-radius: 0.62rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.22);
+      background: rgba(10, 16, 23, 0.96);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+      color: #d5e8ee;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 0;
-      transition: background 0.15s, border-color 0.15s;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s, transform 0.15s;
     }
 
-    #top-right-controls button:hover,
-    #top-right-controls button.is-active {
-      background: rgba(var(--nav-accent-rgb), 0.18);
-      border-color: rgba(var(--nav-accent-rgb), 0.6);
+    #spin-toggle:hover {
+      transform: translateY(-1px);
+      background: rgba(14, 21, 30, 0.98);
+      border-color: rgba(var(--nav-accent-rgb), 0.38);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.32);
+      color: #effcff;
+    }
+
+    #spin-toggle.is-active {
+      border-color: rgba(var(--nav-accent-rgb), 0.72);
+      background: rgba(12, 24, 34, 0.98);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28), 0 0 22px rgba(var(--nav-accent-rgb), 0.22);
+      color: var(--nav-accent);
     }
 
     .viewer-control-icon {
@@ -703,18 +717,26 @@
       height: 1.1rem;
     }
 
+    #top-right-logo-link {
+      position: fixed;
+      top: 0.45rem;
+      right: 0.8rem;
+      z-index: 12;
+      display: block;
+      line-height: 0;
+    }
+
     #top-right-logo {
       height: 6.75rem;
       width: auto;
       display: block;
-      flex-shrink: 0;
       filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
     }
 
     @media (max-width: 1080px) {
       #top-right-controls {
-        top: 0.5rem;
-        right: 0.8rem;
+        top: 0.9rem;
+        right: 5rem;
       }
       #top-right-logo {
         height: 4.2rem;
@@ -1555,8 +1577,8 @@
     /* ─── Tool rail (right-side floating buttons) ───────────────────────────── */
     #tool-rail {
       position: fixed;
-      right: 0.65rem;
-      top: 8.5rem;
+      right: 1rem;
+      top: calc(0.45rem + 6.75rem + 0.8rem);
       z-index: 14;
       display: flex;
       flex-direction: column;
@@ -1847,7 +1869,7 @@
     }
 
     @media (max-width: 1080px) {
-      #tool-rail { top: 6rem; right: 0.5rem; }
+      #tool-rail { top: 6rem; right: 1rem; }
       .tool-rail-btn { width: 3.2rem; min-height: 3.1rem; }
       .tool-rail-action-btn { width: 3.2rem; }
       .measurement-result-card { right: 4.5rem; }
