@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v69');
+console.log('[etna-viewer] build v70');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -2446,8 +2446,25 @@ function setupUI() {
   }
 
   document.addEventListener('keydown', (e) => {
+    const tag = document.activeElement?.tagName;
+    const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
     if (e.key === 'Escape') {
-      if (helpOverlay) helpOverlay.hidden = true;
+      // Priority: help overlay → scene popup → measure mode
+      if (helpOverlay && !helpOverlay.hidden) { helpOverlay.hidden = true; return; }
+      if (activePopupFeature || document.getElementById('scene-popup')?.hasAttribute('hidden') === false) {
+        hideFeaturePopup(); return;
+      }
+      if (measureMode || measurePoints.length) { _setMeasureMode(''); return; }
+    }
+
+    if (e.code === 'Space' && !inInput) {
+      e.preventDefault();
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+      spinEnabled = !spinEnabled;
+      if (controls) controls.autoRotate = spinEnabled;
+      const spinBtn = document.getElementById('spin-toggle');
+      if (spinBtn) spinBtn.classList.toggle('is-active', spinEnabled);
     }
   });
 
