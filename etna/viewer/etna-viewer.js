@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v60');
+console.log('[etna-viewer] build v61');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -2915,6 +2915,61 @@ function showFeaturePopup(feature) {
   activePopupFeature = feature;
 }
 
+function showSeismicPopup(idx) {
+  if (!_seismicEvents || idx < 0 || idx >= _seismicEvents.length) return;
+  const [x, z, y3d, ml, year] = _seismicEvents[idx];
+  const depthKm = Math.max(0, -y3d);
+  const lon = SAT_LON_W + (x + 50) / 100 * (SAT_LON_E - SAT_LON_W);
+  const lat = SAT_LAT_N - (z + 50) / 100 * (SAT_LAT_N - SAT_LAT_S);
+  const col = _seismicDepthColor(depthKm);
+  const hex = '#' + col.getHexString();
+
+  const depthBand = depthKm < 5 ? 'Shallow crustal' : depthKm < 15 ? 'Mid crustal' : depthKm < 30 ? 'Deep crustal' : 'Sub-crustal';
+  const mlDesc   = ml < 2 ? 'Micro' : ml < 3 ? 'Minor' : ml < 4 ? 'Light' : ml < 5 ? 'Moderate' : 'Strong';
+
+  const popup  = document.getElementById('scene-popup');
+  if (!popup) return;
+
+  const state  = document.getElementById('scene-popup-state');
+  if (state)   { state.textContent = 'Seismic Event'; state.hidden = false; }
+
+  const kicker = document.getElementById('scene-popup-kicker');
+  if (kicker)  { kicker.textContent = `${mlDesc} · M${ml.toFixed(1)} · ${year}`; kicker.style.color = hex; }
+
+  const title  = document.getElementById('scene-popup-title');
+  if (title)   title.textContent = `M${ml.toFixed(1)} Earthquake`;
+
+  const meta   = document.getElementById('scene-popup-meta');
+  if (meta)    meta.textContent = `${lat.toFixed(4)}°N  ${lon.toFixed(4)}°E`;
+
+  const copy   = document.getElementById('scene-popup-copy');
+  if (copy)    copy.textContent = `${depthBand} · ${depthKm.toFixed(1)} km depth · ${year}`;
+
+  const detail = document.getElementById('scene-popup-detail');
+  if (detail) {
+    detail.hidden = false;
+    detail.innerHTML =
+      `<table style="width:100%;border-collapse:collapse;font-size:0.72rem;margin-top:0.4rem;">` +
+      [['Magnitude ML', ml.toFixed(1)],
+       ['Depth', `${depthKm.toFixed(1)} km`],
+       ['Depth class', depthBand],
+       ['Year', year],
+       ['Latitude', `${lat.toFixed(4)}°N`],
+       ['Longitude', `${lon.toFixed(4)}°E`]]
+      .map(([k, v]) =>
+        `<tr><td style="color:var(--muted);padding:0.15rem 0.5rem 0.15rem 0;">${k}</td>` +
+        `<td style="text-align:right;font-weight:600;">${v}</td></tr>`)
+      .join('') +
+      `</table>`;
+  }
+
+  const img = document.getElementById('scene-popup-img');
+  if (img) img.hidden = true;
+
+  popup.removeAttribute('hidden');
+  activePopupFeature = { name: `M${ml.toFixed(1)} Earthquake`, theme: 'vent' };
+}
+
 function showHazardPopup(zone) {
   const popup = document.getElementById('scene-popup');
   if (!popup) return;
@@ -3576,6 +3631,15 @@ function _onPointerUp(e) {
     const hazardHits = clickRay.intersectObjects(_hazardObjects, false);
     if (hazardHits.length > 0 && hazardHits[0].object.userData.hazardZone) {
       showHazardPopup(hazardHits[0].object.userData.hazardZone);
+      return;
+    }
+  }
+
+  // Seismic event click (only when visible)
+  if (seismicMesh && seismicMesh.visible) {
+    const seismicHits = clickRay.intersectObject(seismicMesh);
+    if (seismicHits.length > 0) {
+      showSeismicPopup(seismicHits[0].instanceId);
       return;
     }
   }

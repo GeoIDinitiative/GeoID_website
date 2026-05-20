@@ -1,7 +1,7 @@
 // Service worker — cache-first strategy for static assets + ESRI satellite tiles.
 // Update STATIC_CACHE version string whenever viewer JS/CSS/STL changes significantly.
 
-const STATIC_CACHE = 'etna-static-v60';
+const STATIC_CACHE = 'etna-static-v61';
 const TILES_CACHE  = 'etna-tiles-v1';
 
 const PRECACHE_URLS = [
