@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v65');
+console.log('[etna-viewer] build v66');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -185,7 +185,6 @@ let _seismicMlMin  = 1.5;   // current magnitude-cutoff filter
 let _seismicDEnabled = { shallow:true, mid:true, deep:true, vdeep:true }; // depth-band toggles
 let _seismicSelectionIdx       = -1;   // instanceId of the currently selected seismic event
 let _seismicSelectionRing      = null; // THREE.Mesh — cyan pulsing ring around the selected event
-let _seismicSelectionOrigColor = null; // THREE.Color — original depth color of the selected instance
 let ionianCrust = null;      // oceanic crust cap (~7 km) atop the slab surface
 let maltaEscarpment = null;  // Hyblean-Malta Escarpment — continental/oceanic boundary
 let stepFault = null;        // STEP fault — lateral slab tear edge allowing upwelling
@@ -1211,7 +1210,7 @@ function buildSeismicOverlay() {
       _seismicEvents = data.events; // [[x, z, y, ml, year], …]
 
       // Low-poly sphere: radius=1, scale set per instance
-      const sphereGeo = new THREE.SphereGeometry(1, 8, 5);
+      const sphereGeo = new THREE.SphereGeometry(1, 16, 12);
 
       // depthTest:false + high renderOrder = spheres always visible through the
       // geological domain volume and terrain, so the XY distribution is readable
@@ -2846,32 +2845,18 @@ function animate() {
     }
   }
 
-  // ── Seismic selection: gold sphere + tight cyan ring pulse ───────────────
-  if (_seismicSelectionIdx >= 0 && _seismicEvents && seismicMesh) {
+  // ── Seismic selection: cyan ring pulse ───────────────────────────────────
+  if (_seismicSelectionIdx >= 0 && _seismicEvents && _seismicSelectionRing) {
     const ev = _seismicEvents[_seismicSelectionIdx];
     if (ev) {
       const [x, z, y3d, ml] = ev;
       const r = _seismicRadius(ml);
-      const pulse = (Math.sin(performance.now() * 0.003) + 1) * 0.5; // 0–1, ~2.1 s period
-
-      // Cache original depth color on first frame of selection
-      if (!_seismicSelectionOrigColor) {
-        _seismicSelectionOrigColor = new THREE.Color();
-        seismicMesh.getColorAt(_seismicSelectionIdx, _seismicSelectionOrigColor);
-      }
-      // Pulse sphere gold (matches selected POI label colour sweep)
-      const gc = new THREE.Color(1.0, 0.83 + pulse * 0.14, 0.42 + pulse * 0.43);
-      seismicMesh.setColorAt(_seismicSelectionIdx, gc);
-      seismicMesh.instanceColor.needsUpdate = true;
-
-      // Ring: sits flush against the sphere surface, breathes slightly
-      if (_seismicSelectionRing) {
-        _seismicSelectionRing.position.set(x, y3d, z);
-        _seismicSelectionRing.quaternion.copy(camera.quaternion);
-        _seismicSelectionRing.scale.setScalar(r * (1.0 + pulse * 0.18));
-        _seismicSelectionRing.material.opacity = 0.55 + pulse * 0.4;
-        _seismicSelectionRing.visible = true;
-      }
+      const pulse = (Math.sin(performance.now() * 0.003) + 1) * 0.5;
+      _seismicSelectionRing.position.set(x, y3d, z);
+      _seismicSelectionRing.quaternion.copy(camera.quaternion);
+      _seismicSelectionRing.scale.setScalar(r * (1.0 + pulse * 0.18));
+      _seismicSelectionRing.material.opacity = 0.55 + pulse * 0.4;
+      _seismicSelectionRing.visible = true;
     }
   }
 
@@ -3036,13 +3021,7 @@ function hideFeaturePopup() {
   const state = document.getElementById('scene-popup-state');
   if (state) state.hidden = true;
   activePopupFeature = null;
-  // Restore original depth colour on the previously selected seismic sphere
-  if (_seismicSelectionIdx >= 0 && _seismicSelectionOrigColor && seismicMesh) {
-    seismicMesh.setColorAt(_seismicSelectionIdx, _seismicSelectionOrigColor);
-    seismicMesh.instanceColor.needsUpdate = true;
-  }
   _seismicSelectionIdx = -1;
-  _seismicSelectionOrigColor = null;
   if (_seismicSelectionRing) _seismicSelectionRing.visible = false;
 }
 
