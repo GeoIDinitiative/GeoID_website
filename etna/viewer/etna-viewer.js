@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v58');
+console.log('[etna-viewer] build v59');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -2062,27 +2062,27 @@ function closePanel() {
 // ─── Satellite basemap ────────────────────────────────────────────────────────
 
 async function fetchSatelliteTiles() {
-  const TILE_SIZE = 256;
-  const cols = SAT_X1 - SAT_X0 + 1;
-  const rows = SAT_Y1 - SAT_Y0 + 1;
+  // Use the MapServer Export endpoint — a single CORS-friendly image request
+  // covering the exact tile-grid bbox. ESRI's tile CDN doesn't reliably send
+  // Access-Control-Allow-Origin headers from live domains, causing the 840-tile
+  // canvas approach to silently fail. The Export REST endpoint does support CORS.
+  const bbox = `${SAT_GRID_LON_W.toFixed(6)},${SAT_GRID_LAT_S.toFixed(6)},${SAT_GRID_LON_E.toFixed(6)},${SAT_GRID_LAT_N.toFixed(6)}`;
+  const cols = SAT_X1 - SAT_X0 + 1; // 28
+  const rows = SAT_Y1 - SAT_Y0 + 1; // 30
+  // Scale to fit within WebGL max (4096), preserving tile-grid aspect ratio
+  const scale = Math.min(4096 / (cols * 256), 4096 / (rows * 256));
+  const w = Math.round(cols * 256 * scale);
+  const h = Math.round(rows * 256 * scale);
+  const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&size=${w},${h}&imageSR=4326&format=jpg&f=image`;
+
+  const resp = await fetch(url, { mode: 'cors' });
+  if (!resp.ok) throw new Error(`Satellite export fetch failed: ${resp.status}`);
+  const blob = await resp.blob();
+  const bmp  = await createImageBitmap(blob);
+
   const canvas = document.createElement('canvas');
-  canvas.width = cols * TILE_SIZE;
-  canvas.height = rows * TILE_SIZE;
-  const ctx = canvas.getContext('2d');
-  await Promise.all(
-    Array.from({ length: rows }, (_, row) =>
-      Array.from({ length: cols }, (__, col) => {
-        const tx = SAT_X0 + col, ty = SAT_Y0 + row;
-        return new Promise((resolve) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => { ctx.drawImage(img, col * TILE_SIZE, row * TILE_SIZE); resolve(); };
-          img.onerror = resolve;
-          img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${SAT_Z}/${ty}/${tx}`;
-        });
-      })
-    ).flat()
-  );
+  canvas.width = bmp.width; canvas.height = bmp.height;
+  canvas.getContext('2d').drawImage(bmp, 0, 0);
   return canvas;
 }
 
