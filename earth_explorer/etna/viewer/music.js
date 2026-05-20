@@ -1,11 +1,9 @@
 (function () {
   const TRACKS = [
-    "../../assets/music/Andromeda.mp3",
-    "../../assets/music/infinity.mp3",
-    "../../assets/music/Nebula (1).mp3",
-    "../../assets/music/nikitakondrashev-space-440026.mp3",
-    "../../assets/music/sigmamusicart-space-ambient-background-music-462074.mp3",
-    "../../assets/music/universfield-ambient-space-background-350710.mp3",
+    "../../assets/music/atlasaudio-ambient-cinematic-510518.mp3",
+    "../../assets/music/grand_project-deep-epic-cinematic-when-time-collapses_medium-501530.mp3",
+    "../../assets/music/leberch-atmospheric-documentary-509386.mp3",
+    "../../assets/music/tunetank-cinematic-ambient-348342.mp3",
   ];
   let playlist = [];
   let trackIndex = 0, manuallyPaused = false, videoActive = false;
