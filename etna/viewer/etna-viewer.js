@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v63');
+console.log('[etna-viewer] build v64');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -2054,29 +2054,38 @@ function closePanel() {
 
 // ─── Satellite basemap ────────────────────────────────────────────────────────
 
+// Decode a Blob into a Canvas using <img> + createObjectURL — works on all
+// browsers including iOS Safari where createImageBitmap is absent or buggy.
+function _blobToCanvas(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      resolve(c);
+    };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
 async function fetchSatelliteTiles() {
-  // Use the MapServer Export endpoint — a single CORS-friendly image request
-  // covering the exact tile-grid bbox. ESRI's tile CDN doesn't reliably send
-  // Access-Control-Allow-Origin headers from live domains, causing the 840-tile
-  // canvas approach to silently fail. The Export REST endpoint does support CORS.
   const bbox = `${SAT_GRID_LON_W.toFixed(6)},${SAT_GRID_LAT_S.toFixed(6)},${SAT_GRID_LON_E.toFixed(6)},${SAT_GRID_LAT_N.toFixed(6)}`;
   const cols = SAT_X1 - SAT_X0 + 1; // 28
   const rows = SAT_Y1 - SAT_Y0 + 1; // 30
-  // Scale to fit within WebGL max (4096), preserving tile-grid aspect ratio
-  const scale = Math.min(4096 / (cols * 256), 4096 / (rows * 256));
+  // Cap to the device's actual WebGL texture limit — mobile GPUs are often 2048.
+  const maxTex = renderer.capabilities.maxTextureSize;
+  const scale  = Math.min(maxTex / (cols * 256), maxTex / (rows * 256));
   const w = Math.round(cols * 256 * scale);
   const h = Math.round(rows * 256 * scale);
   const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&size=${w},${h}&imageSR=4326&format=jpg&f=image`;
 
   const resp = await fetch(url, { mode: 'cors' });
   if (!resp.ok) throw new Error(`Satellite export fetch failed: ${resp.status}`);
-  const blob = await resp.blob();
-  const bmp  = await createImageBitmap(blob);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = bmp.width; canvas.height = bmp.height;
-  canvas.getContext('2d').drawImage(bmp, 0, 0);
-  return canvas;
+  return _blobToCanvas(await resp.blob());
 }
 
 async function applyBasemap(mode) {
@@ -2091,10 +2100,7 @@ async function applyBasemap(mode) {
         // Try IDB-cached composite blob first (skips 840 tile fetches + canvas assembly)
         const cachedBlob = await _idbGet(SAT_CACHE_KEY);
         if (cachedBlob) {
-          const bmp = await createImageBitmap(cachedBlob);
-          canvas = document.createElement('canvas');
-          canvas.width = bmp.width; canvas.height = bmp.height;
-          canvas.getContext('2d').drawImage(bmp, 0, 0);
+          canvas = await _blobToCanvas(cachedBlob);
         } else {
           canvas = await fetchSatelliteTiles();
           // Persist the composite as JPEG for fast reconstruction on next load
