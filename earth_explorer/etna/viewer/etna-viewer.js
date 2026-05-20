@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v68');
+console.log('[etna-viewer] build v69');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -2849,8 +2849,9 @@ function animate() {
           const dist = camera.position.distanceTo(new THREE.Vector3(x, y3d, z));
           const unitsPerPx = (2 * Math.tan(camera.fov * Math.PI / 360) * dist) / ch;
           const spherePx = r / unitsPerPx;
-          // Ring sits 10 px outside the sphere — constant regardless of zoom
-          const diam = Math.max(20, (spherePx + 10) * 2);
+          // Ring scales proportionally — always ~35% larger radius than the sphere.
+          // No fixed px offset so the ring stays tight at all zoom levels.
+          const diam = Math.max(8, spherePx * 2.7);
           ringEl.style.left   = `${sx}px`;
           ringEl.style.top    = `${sy}px`;
           ringEl.style.width  = `${diam}px`;
