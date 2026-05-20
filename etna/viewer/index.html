@@ -16,6 +16,16 @@
   <!-- ─── Label overlay ─────────────────────────────────────────────────────── -->
   <div id="label-overlay" aria-hidden="true"></div>
 
+  <!-- ─── Video popup modal ───────────────────────────────────────────────── -->
+  <div id="etna-video-overlay" class="video-overlay" hidden data-video-close>
+    <div class="video-modal" role="dialog" aria-label="Magma mixing video">
+      <button class="video-modal-close" id="etna-video-close" aria-label="Close video">✕</button>
+      <video id="etna-video-el" controls preload="metadata" width="100%" poster="../../assets/etna_video_poster.jpg">
+        <source src="../../assets/etna_video.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
+
   <!-- ─── Left control panel ───────────────────────────────────────────────── -->
   <section id="ui">
     <div class="brand-toprow">
@@ -31,9 +41,15 @@
         <button class="brand-logo-button" id="brand-reset-button" type="button" aria-label="Reset view" title="Reset view">
           <img class="brand-logo" src="../../assets/etna_icon.png" alt="Etna icon">
         </button>
-        <div>
-          <h1>Etna</h1>
+        <div class="brand">
+          <h1>Etna <svg class="italy-flag" viewBox="0 0 30 20" aria-label="Italy" role="img"><rect width="10" height="20" fill="#009246"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ce2b37"/></svg></h1>
           <p class="brand-subtitle">Sicily, Italy · 3,329 m</p>
+        </div>
+        <div class="brand-audio">
+          <button class="brand-video-btn" id="etna-video-btn" aria-label="Play Etna magma mixing video" title="Magma mixing induced deformation (A Longo, INGV Pisa)">
+            <svg width="36" height="36" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><polygon points="3,1 13,7 3,13"/></svg>
+          </button>
+          <p class="brand-video-label">Magma mixing · INGV Pisa</p>
         </div>
       </div>
 
