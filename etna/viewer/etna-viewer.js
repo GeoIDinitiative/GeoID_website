@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v59');
+console.log('[etna-viewer] build v60');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -1181,29 +1181,20 @@ function buildFaultOverlays() {
 // Modes: 3D (spheres at actual depth) vs 2D (projected onto terrain surface).
 
 const SEISMIC_DEPTH_BANDS = [
-  { id: 'shallow', label: '0–5 km',   color: 0x00ddcc, yMin: -5,  yMax:  0 },
-  { id: 'mid',     label: '5–15 km',  color: 0x44cc44, yMin: -15, yMax: -5 },
-  { id: 'deep',    label: '15–30 km', color: 0xffaa00, yMin: -30, yMax:-15 },
-  { id: 'vdeep',   label: '>30 km',   color: 0xff2200, yMin: -55, yMax:-30 },
+  { id: 'shallow', label: '0–5 km',   color: 0x44ff00, yMin: -5,  yMax:  0 },
+  { id: 'mid',     label: '5–15 km',  color: 0xccff00, yMin: -15, yMax: -5 },
+  { id: 'deep',    label: '15–30 km', color: 0xff5500, yMin: -30, yMax:-15 },
+  { id: 'vdeep',   label: '>30 km',   color: 0xff0000, yMin: -55, yMax:-30 },
 ];
 
 // Continuous depth→THREE.Color: shallow=cyan → green → orange → deep=red
 function _seismicDepthColor(depthKm) {
-  const t = Math.min(1, Math.max(0, depthKm / 40));
+  // HSL sweep green→yellow→orange→red across 0–25 km.
+  // Normalising to 25 km (not 40) means the full colour range maps onto
+  // the actual Etna seismicity distribution rather than bunching at the shallow end.
+  const t = Math.min(1, Math.max(0, depthKm / 25));
   const c = new THREE.Color();
-  if (t < 0.333) {
-    // cyan (#00ddcc) → green (#44cc44)
-    const s = t / 0.333;
-    c.setRGB(0.00 + s * 0.27, 0.87 - s * 0.07, 0.80 - s * 0.53);
-  } else if (t < 0.667) {
-    // green (#44cc44) → orange (#ffaa00)
-    const s = (t - 0.333) / 0.334;
-    c.setRGB(0.27 + s * 0.73, 0.80 - s * 0.13, 0.27 - s * 0.27);
-  } else {
-    // orange (#ffaa00) → red (#ff2200)
-    const s = (t - 0.667) / 0.333;
-    c.setRGB(1.00, 0.67 - s * 0.53, 0.00);
-  }
+  c.setHSL(0.33 * (1 - t), 1.0, 0.50);
   return c;
 }
 
