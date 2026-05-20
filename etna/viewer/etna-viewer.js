@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v61');
+console.log('[etna-viewer] build v62');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -182,7 +182,6 @@ let faultRootGroup = null;   // parent group for all surface fault overlays (sca
 let seismicMesh = null;      // THREE.InstancedMesh — one instance per seismic event
 let _seismicEvents = null;   // raw array [[x,z,y,ml,year], …] loaded from etna-seismicity.json
 let _seismicMlMin  = 1.5;   // current magnitude-cutoff filter
-let _seismic3D     = true;   // true = spheres at depth, false = draped on surface
 let _seismicDEnabled = { shallow:true, mid:true, deep:true, vdeep:true }; // depth-band toggles
 let ionianCrust = null;      // oceanic crust cap (~7 km) atop the slab surface
 let maltaEscarpment = null;  // Hyblean-Malta Escarpment — continental/oceanic boundary
@@ -1178,8 +1177,6 @@ function buildFaultOverlays() {
 // ─── Seismicity overlay ───────────────────────────────────────────────────────
 // 12 k+ earthquake events rendered as InstancedMesh spheres sized by magnitude.
 // Depth colour ramp:  0–5 km = orange-red  │  5–15 = orange  │  15–30 = yellow  │  >30 = blue
-// Modes: 3D (spheres at actual depth) vs 2D (projected onto terrain surface).
-
 const SEISMIC_DEPTH_BANDS = [
   { id: 'shallow', label: '0–5 km',   color: 0x44ff00, yMin: -5,  yMax:  0 },
   { id: 'mid',     label: '5–15 km',  color: 0xccff00, yMin: -15, yMax: -5 },
@@ -1239,19 +1236,16 @@ function updateSeismicDisplay() {
   if (!seismicMesh || !_seismicEvents) return;
 
   const dummy    = new THREE.Object3D();
-  const color    = new THREE.Color();
   const events   = _seismicEvents;
   const n        = events.length;
-  const is3D     = _seismic3D;
   const mlMin    = _seismicMlMin;
   const dEnabled = _seismicDEnabled;
   let visible    = 0;
 
   for (let i = 0; i < n; i++) {
-    const [x, z, y3d, ml, year] = events[i]; // y3d = -depth_km
-    const depthKm = -y3d; // positive depth
+    const [x, z, y3d, ml] = events[i]; // y3d = -depth_km
+    const depthKm = -y3d;
 
-    // Depth-band filter
     let band;
     if      (depthKm <  5) band = 'shallow';
     else if (depthKm < 15) band = 'mid';
@@ -1266,14 +1260,7 @@ function updateSeismicDisplay() {
     }
 
     const r = _seismicRadius(ml);
-    let yPos;
-    if (is3D) {
-      yPos = y3d; // actual depth
-    } else {
-      yPos = (_sampleHeight(x, z) * _vertExag) + r; // draped on terrain
-    }
-
-    dummy.position.set(x, yPos, z);
+    dummy.position.set(x, y3d, z);
     dummy.scale.setScalar(r);
     dummy.updateMatrix();
     seismicMesh.setMatrixAt(i, dummy.matrix);
@@ -1886,9 +1873,6 @@ function applyVertExag(factor) {
   if (skirtOverdraw)    skirtOverdraw.scale.y  = factor;
   if (hazardGroup)      hazardGroup.scale.y     = factor;
   if (faultRootGroup)   faultRootGroup.scale.y  = factor;
-  // Seismic: 2D mode positions depend on vertExag terrain height — rebuild display
-  if (seismicMesh && !_seismic3D) updateSeismicDisplay();
-
   labels.forEach(lbl => { if (lbl.origY !== undefined) lbl.pos.y = lbl.origY * factor; });
   if (etnaLabelLayer) applyEtnaLabelVertExag(etnaLabelLayer.entries, factor);
 }
@@ -2315,13 +2299,6 @@ function setupUI() {
       updateSeismicDisplay();
     });
   }
-
-  document.querySelectorAll('input[name="seismic-mode"]').forEach(radio => {
-    radio.addEventListener('change', () => {
-      _seismic3D = (radio.value === '3d');
-      updateSeismicDisplay();
-    });
-  });
 
   ['shallow', 'mid', 'deep', 'vdeep'].forEach(band => {
     const el = document.getElementById(`seismic-${band}-toggle`);
