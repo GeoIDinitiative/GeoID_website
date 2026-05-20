@@ -1862,3 +1862,20 @@
       .viewer-help-grid { grid-template-columns: 1fr; }
       #music-btn { top: 3rem; left: calc(min(24rem, calc(100vw - 2rem)) + 1rem); padding: 0.3rem 0.55rem; font-size: 0.58rem; height: 1.7rem; }
     }
+
+/* ─── Seismic event selection ring (screen-space, CSS-driven) ──────────── */
+#seismic-selection-ring {
+  position: fixed;
+  border: 2px solid #00ffee;
+  border-radius: 50%;
+  box-shadow: 0 0 6px #00ffee, 0 0 18px rgba(0, 255, 238, 0.35);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: seismic-ring-pulse 2.1s ease-in-out infinite;
+  will-change: opacity, transform;
+  z-index: 10;
+}
+@keyframes seismic-ring-pulse {
+  0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.0); }
+  50%       { opacity: 1.0;  transform: translate(-50%, -50%) scale(1.12); }
+}

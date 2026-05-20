@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v66');
+console.log('[etna-viewer] build v67');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -183,8 +183,8 @@ let seismicMesh = null;      // THREE.InstancedMesh — one instance per seismic
 let _seismicEvents = null;   // raw array [[x,z,y,ml,year], …] loaded from etna-seismicity.json
 let _seismicMlMin  = 1.5;   // current magnitude-cutoff filter
 let _seismicDEnabled = { shallow:true, mid:true, deep:true, vdeep:true }; // depth-band toggles
-let _seismicSelectionIdx       = -1;   // instanceId of the currently selected seismic event
-let _seismicSelectionRing      = null; // THREE.Mesh — cyan pulsing ring around the selected event
+let _seismicSelectionIdx  = -1;   // instanceId of the currently selected seismic event
+const _seismicRingEl = () => document.getElementById('seismic-selection-ring');
 let ionianCrust = null;      // oceanic crust cap (~7 km) atop the slab surface
 let maltaEscarpment = null;  // Hyblean-Malta Escarpment — continental/oceanic boundary
 let stepFault = null;        // STEP fault — lateral slab tear edge allowing upwelling
@@ -1227,22 +1227,6 @@ function buildSeismicOverlay() {
       seismicMesh.renderOrder = 50; // draw after all scene geometry
       seismicMesh.visible = false; // hidden until the Seismicity section is opened
       scene.add(seismicMesh);
-
-      // Thin cyan ring tight around the sphere — 1.05–1.45 × sphere radius in model space
-      _seismicSelectionRing = new THREE.Mesh(
-        new THREE.RingGeometry(1.05, 1.45, 48),
-        new THREE.MeshBasicMaterial({
-          color: 0x00ffee,
-          transparent: true,
-          opacity: 0.9,
-          side: THREE.DoubleSide,
-          depthTest: false,
-          depthWrite: false,
-        })
-      );
-      _seismicSelectionRing.renderOrder = 55;
-      _seismicSelectionRing.visible = false;
-      scene.add(_seismicSelectionRing);
 
       updateSeismicDisplay();
       updateClipPlanes(); // register with cross-section plane
@@ -2845,18 +2829,36 @@ function animate() {
     }
   }
 
-  // ── Seismic selection: cyan ring pulse ───────────────────────────────────
-  if (_seismicSelectionIdx >= 0 && _seismicEvents && _seismicSelectionRing) {
-    const ev = _seismicEvents[_seismicSelectionIdx];
-    if (ev) {
-      const [x, z, y3d, ml] = ev;
-      const r = _seismicRadius(ml);
-      const pulse = (Math.sin(performance.now() * 0.003) + 1) * 0.5;
-      _seismicSelectionRing.position.set(x, y3d, z);
-      _seismicSelectionRing.quaternion.copy(camera.quaternion);
-      _seismicSelectionRing.scale.setScalar(r * (1.0 + pulse * 0.18));
-      _seismicSelectionRing.material.opacity = 0.55 + pulse * 0.4;
-      _seismicSelectionRing.visible = true;
+  // ── Seismic selection ring (screen-space DOM, constant apparent size) ────
+  {
+    const ringEl = _seismicRingEl();
+    if (ringEl) {
+      if (_seismicSelectionIdx >= 0 && _seismicEvents) {
+        const ev = _seismicEvents[_seismicSelectionIdx];
+        if (ev) {
+          const [x, z, y3d, ml] = ev;
+          const r = _seismicRadius(ml);
+          // Project 3D → screen
+          const wp = new THREE.Vector3(x, y3d, z).project(camera);
+          const cw = renderer.domElement.clientWidth;
+          const ch = renderer.domElement.clientHeight;
+          const sx = (wp.x *  0.5 + 0.5) * cw;
+          const sy = (wp.y * -0.5 + 0.5) * ch;
+          // Compute sphere screen radius in pixels
+          const dist = camera.position.distanceTo(new THREE.Vector3(x, y3d, z));
+          const unitsPerPx = (2 * Math.tan(camera.fov * Math.PI / 360) * dist) / ch;
+          const spherePx = r / unitsPerPx;
+          // Ring sits 10 px outside the sphere — constant regardless of zoom
+          const diam = Math.max(20, (spherePx + 10) * 2);
+          ringEl.style.left   = `${sx}px`;
+          ringEl.style.top    = `${sy}px`;
+          ringEl.style.width  = `${diam}px`;
+          ringEl.style.height = `${diam}px`;
+          ringEl.hidden = false;
+        }
+      } else {
+        ringEl.hidden = true;
+      }
     }
   }
 
@@ -3022,7 +3024,7 @@ function hideFeaturePopup() {
   if (state) state.hidden = true;
   activePopupFeature = null;
   _seismicSelectionIdx = -1;
-  if (_seismicSelectionRing) _seismicSelectionRing.visible = false;
+  const _re = _seismicRingEl(); if (_re) _re.hidden = true;
 }
 
 // ─── Fly-to: animate camera to look at a 3D position ────────────────────────
