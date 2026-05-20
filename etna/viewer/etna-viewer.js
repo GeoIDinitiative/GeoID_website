@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v62');
+console.log('[etna-viewer] build v63');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -183,6 +183,8 @@ let seismicMesh = null;      // THREE.InstancedMesh — one instance per seismic
 let _seismicEvents = null;   // raw array [[x,z,y,ml,year], …] loaded from etna-seismicity.json
 let _seismicMlMin  = 1.5;   // current magnitude-cutoff filter
 let _seismicDEnabled = { shallow:true, mid:true, deep:true, vdeep:true }; // depth-band toggles
+let _seismicSelectionIdx  = -1;   // instanceId of the currently selected seismic event
+let _seismicSelectionRing = null; // THREE.Mesh — cyan pulsing ring around the selected event
 let ionianCrust = null;      // oceanic crust cap (~7 km) atop the slab surface
 let maltaEscarpment = null;  // Hyblean-Malta Escarpment — continental/oceanic boundary
 let stepFault = null;        // STEP fault — lateral slab tear edge allowing upwelling
@@ -1225,6 +1227,22 @@ function buildSeismicOverlay() {
       seismicMesh.renderOrder = 50; // draw after all scene geometry
       seismicMesh.visible = false; // hidden until the Seismicity section is opened
       scene.add(seismicMesh);
+
+      // Cyan pulsing ring — shown around the clicked event
+      _seismicSelectionRing = new THREE.Mesh(
+        new THREE.RingGeometry(1.3, 1.9, 48),
+        new THREE.MeshBasicMaterial({
+          color: 0x00ffee,
+          transparent: true,
+          opacity: 0.8,
+          side: THREE.DoubleSide,
+          depthTest: false,
+          depthWrite: false,
+        })
+      );
+      _seismicSelectionRing.renderOrder = 55;
+      _seismicSelectionRing.visible = false;
+      scene.add(_seismicSelectionRing);
 
       updateSeismicDisplay();
       updateClipPlanes(); // register with cross-section plane
@@ -2821,6 +2839,21 @@ function animate() {
     }
   }
 
+  // ── Seismic selection ring pulse ─────────────────────────────────────────
+  if (_seismicSelectionRing && _seismicSelectionIdx >= 0 && _seismicEvents) {
+    const ev = _seismicEvents[_seismicSelectionIdx];
+    if (ev) {
+      const [x, z, y3d, ml] = ev;
+      const r = _seismicRadius(ml);
+      const pulse = (Math.sin(performance.now() * 0.003) + 1) * 0.5; // 0–1, ~2.1 s period
+      _seismicSelectionRing.position.set(x, y3d, z);
+      _seismicSelectionRing.quaternion.copy(camera.quaternion); // billboard to camera
+      _seismicSelectionRing.scale.setScalar(r * (1.8 + pulse * 0.7));
+      _seismicSelectionRing.material.opacity = 0.45 + pulse * 0.5;
+      _seismicSelectionRing.visible = true;
+    }
+  }
+
   const cEl = renderer.domElement;
   const cW = cEl.clientWidth;
   const cH = cEl.clientHeight;
@@ -2945,6 +2978,7 @@ function showSeismicPopup(idx) {
 
   popup.removeAttribute('hidden');
   activePopupFeature = { name: `M${ml.toFixed(1)} Earthquake`, theme: 'vent' };
+  _seismicSelectionIdx = idx; // arm the ring
 }
 
 function showHazardPopup(zone) {
@@ -2981,6 +3015,8 @@ function hideFeaturePopup() {
   const state = document.getElementById('scene-popup-state');
   if (state) state.hidden = true;
   activePopupFeature = null;
+  _seismicSelectionIdx = -1;
+  if (_seismicSelectionRing) _seismicSelectionRing.visible = false;
 }
 
 // ─── Fly-to: animate camera to look at a 3D position ────────────────────────
