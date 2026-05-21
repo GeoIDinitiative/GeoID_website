@@ -1,8 +1,10 @@
 (function () {
   const TRACKS = [
     "../../assets/music/atlasaudio-ambient-cinematic-510518.mp3",
-    "../../assets/music/grand_project-deep-epic-cinematic-when-time-collapses_medium-501530.mp3",
+    "../../assets/music/grand_project-soul-of-the-earth_10min-391197.mp3",
     "../../assets/music/leberch-atmospheric-documentary-509386.mp3",
+    "../../assets/music/leberch-soft-music-519312.mp3",
+    "../../assets/music/the_mountain-cinematic-wave-136949.mp3",
     "../../assets/music/tunetank-cinematic-ambient-348342.mp3",
   ];
   let playlist = [];

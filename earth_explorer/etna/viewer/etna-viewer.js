@@ -3,7 +3,7 @@
  * Coordinate convention: Three.js X=(E-500000)/1000 (east km), Z=(N-4175000)/1000 (north km), Y=elev/1000
  *   — origin is domain centre, Y-up: positive Y = above sea level.
  */
-console.log('[etna-viewer] build v71');
+console.log('[etna-viewer] build v77');
 
 import * as THREE from './vendor/three.module.js';
 import { OrbitControls } from './vendor/OrbitControls.js';
@@ -186,9 +186,7 @@ let _seismicDEnabled = { shallow:true, mid:true, deep:true, vdeep:true }; // dep
 let _seismicSelectionIdx  = -1;   // instanceId of the currently selected seismic event
 const _seismicRingEl = () => document.getElementById('seismic-selection-ring');
 let ionianCrust = null;      // oceanic crust cap (~7 km) atop the slab surface
-let maltaEscarpment = null;  // Hyblean-Malta Escarpment — continental/oceanic boundary
 let stepFault = null;        // STEP fault — lateral slab tear edge allowing upwelling
-let mantleConduit = null;    // deep magmatic feeder conduit through slab window
 let skirtOverdraw = null;   // same for terrain skirt
 let stencilMask = null;     // FrontSide terrain clone that writes stencil=1; rings test stencil=1 to stay above-surface-only
 let hazardGroup       = null;
@@ -209,8 +207,8 @@ let crossSectionEnabled = false;
 let crossSectionAngle = 0; // degrees about Y axis
 let showCapFace = true;
 const showStationType  = { GNSS: false, GPS: false, GRAVITY: false, SEISMIC: false, STRAIN: false, TILT: false };
-const categoryEnabled  = { settlement: true, fault: true, vent: true, fissure: true, general: true };
-let currentLodLevel    = 3; // label density slider: 1=landmarks only, 3=all
+const categoryEnabled  = { settlement: true, fault: true, vent: true, fissure: true, general: true, hydro: true };
+let currentLodLevel    = 5; // label density slider: 1=landmarks only, 5=all
 let etnaLabelLayer      = null;
 let activePopupFeature  = null;
 let _selectedLabelEntry = null; // currently pulsing label entry
@@ -227,6 +225,11 @@ let showSurfaceLabels  = true;
 let compassScene, compassCamera;
 let surfaceWireframe = false;
 let spinEnabled = false;
+let regionalGeologyMesh = null; // canvas-texture overlay: EGDI 1:1M regional geology (full domain)
+let _egdiGeoFeats       = null; // EGDI features for PIP — [id,name,lithology,age,source,color_hex,rings]
+let etnaGeologyMesh     = null; // canvas-texture overlay: INGV EtnaGeoMap per-feature polygons
+let _ingvGeoFeats       = null; // INGV features for PIP — [id,sigle,name,type,age,fm,lith,info,color,rings]
+let tectonicFaultRoot   = null; // regional tectonic faults (GEM / DISS) as draped lines
 let satelliteTexture = null;
 let basemapMode = 'satellite';
 
@@ -307,6 +310,190 @@ let _heightGrid = null;
 const _HG_RES = 200;
 const _HG_STEP = 100 / _HG_RES; // 0.5 km per cell
 
+// ── Volumetric property texture ───────────────────────────────────────────────
+// 64×64×32 Data3DTexture (RGBA float) sampled in the domain-face shader.
+// NY=32 (1.5625 km/voxel) captures the oblate lower reservoir (ry=0.8 km).
+// Indexed in LOCAL domain coordinates: X -50→+50, Z -50→+50, depth 0→50 km.
+// Built CPU-side: background geotherm + topographic overburden + chamber halos.
+const _PT_NX = 64, _PT_NY = 32, _PT_NZ = 64;
+
+// Chamber definitions in world space (X, Y km; world Z = 0 for all).
+// Tmag: magma temperature °C at chamber wall (Dirichlet boundary condition).
+const _CHAMBERS_PT = [
+  { cx: 0, cy: -2,    rx: 0.25, ry: 0.25, rz: 0.25, Tmag: 1150 },
+  { cx: 0, cy: -2.85, rx: 0.25, ry: 0.25, rz: 0.25, Tmag: 1150 },
+  { cx: 0, cy: -6.8,  rx: 6.0,  ry: 0.8,  rz: 6.0,  Tmag: 1100 },
+];
+let _propTex = null;
+
+// CPU mirrors of the GLSL physics (same equations, same constants).
+function _ptTemp(d) {
+  if (d <= 0) return 15;
+  const Tl = 15 + 40*d - 0.25*d*d;
+  const Ta = 1215 + 0.5*Math.max(0, d - 40);
+  const w  = 1 / (1 + Math.exp(-(d - 40)*1.5));
+  return Tl*(1 - w) + Ta*w;
+}
+function _ptPressure(d) {
+  return 9.81e-6 * 2900 * (d - 0.42*(1 - Math.exp(-d/3)));
+}
+function _ptMeltFrac(T, P) {
+  return Math.min(Math.max((T - (1100 + 15*P)) / 200, 0), 1) * 0.08;
+}
+function _ptYoungs(P, T, phi) {
+  let E = 40 + 45*(1 - Math.exp(-P/0.3));
+  E -= 0.015*Math.max(0, T - 15);
+  const t = Math.min(Math.max(phi/0.04, 0), 1);
+  E *= 1 - (3*t*t - 2*t*t*t);    // smoothstep polynomial
+  return Math.max(2, E);
+}
+function _ptPoisson(P, phi) {
+  const v = 0.18 + 0.10*(1 - Math.exp(-P/0.3));
+  const t = Math.min(Math.max(phi/0.04, 0), 1);
+  return v*(1 - t) + 0.48*t;
+}
+
+// Returns true if world point (wx, wy, wz) is inside a magma chamber, and which one.
+function _ptInChamber(wx, wy, wz) {
+  for (const ch of _CHAMBERS_PT) {
+    const nx = (wx - ch.cx) / ch.rx;
+    const ny = (wy - ch.cy) / ch.ry;
+    const nz =  wz           / ch.rz;  // chambers at world Z=0
+    if (nx*nx + ny*ny + nz*nz < 1.0) return ch;
+  }
+  return null;
+}
+
+// Temperature (°C) at world point (wx, wy, wz).
+// Applies topographic height correction for effective depth, then superimposes
+// steady-state 1/r thermal contributions from each chamber (∇²T = 0 solution).
+function _ptTempAtPoint(wx, wy, wz) {
+  const h    = _sampleHeight(wx, wz);
+  const dEff = Math.max(0, -wy + h);
+  let T = _ptTemp(dEff);
+  const ch_in = _ptInChamber(wx, wy, wz);
+  if (ch_in) return ch_in.Tmag;
+  for (let ci = 0; ci < _CHAMBERS_PT.length; ci++) {
+    const ch = _CHAMBERS_PT[ci];
+    const nx = (wx - ch.cx) / ch.rx;
+    const ny = (wy - ch.cy) / ch.ry;
+    const nz =  wz           / ch.rz;
+    const dN = Math.sqrt(nx*nx + ny*ny + nz*nz);
+    T += Math.max(0, ch.Tmag - _ptTemp(Math.max(0, -ch.cy))) / dN;
+  }
+  return Math.min(T, _CHAMBERS_PT[0].Tmag);
+}
+
+// All rock properties at world point — used by subsurface HUD.
+function _ptPropsAtPoint(wx, wy, wz) {
+  const h      = _sampleHeight(wx, wz);
+  const dEff   = Math.max(0, -wy + h);
+  const P      = _ptPressure(dEff);
+  const ch_in  = _ptInChamber(wx, wy, wz);
+  const T      = ch_in ? ch_in.Tmag : _ptTempAtPoint(wx, wy, wz);
+  const phi    = _ptMeltFrac(T, P);
+  const E      = ch_in ? 1.5   : _ptYoungs(P, T, phi);
+  const nu     = ch_in ? 0.499 : _ptPoisson(P, phi);
+  const rho    = ch_in ? 2650  :
+    Math.round(2900*(1 - 0.14*Math.exp(-dEff/3))*(1 + P/70 - 3e-5*Math.max(0, T-15)) - 250*phi);
+  return { T, P, phi, E, nu, rho, dEff, inChamber: !!ch_in };
+}
+
+// Build a 64×64 topographic height map (km) from processed STL vertices.
+// Uses LOCAL coordinates (GEO_Z_OFFSET stripped) so it matches the texture UVW.
+function _buildPropTopoMap(terrainGeo) {
+  const H   = new Float32Array(_PT_NX * _PT_NZ);
+  const cnt = new Uint8Array(_PT_NX * _PT_NZ);
+  const pos = terrainGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const wx = pos.getX(i);
+    const wy = pos.getY(i);
+    const lz = pos.getZ(i) - GEO_Z_OFFSET; // strip offset → local Z
+    const ix = Math.floor((wx + 50) / 100 * _PT_NX);
+    const iz = Math.floor((lz + 50) / 100 * _PT_NZ);
+    if (ix < 0 || ix >= _PT_NX || iz < 0 || iz >= _PT_NZ) continue;
+    const k = iz * _PT_NX + ix;
+    if (wy > H[k]) { H[k] = wy; cnt[k] = 1; }
+  }
+  // Fill empty cells with neighbour average (1-pass 3×3 diffusion)
+  for (let iz = 0; iz < _PT_NZ; iz++)
+    for (let ix = 0; ix < _PT_NX; ix++)
+      if (!cnt[iz*_PT_NX + ix]) {
+        let s = 0, n = 0;
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+          const jz = iz+dz, jx = ix+dx;
+          if (jz>=0 && jz<_PT_NZ && jx>=0 && jx<_PT_NX && cnt[jz*_PT_NX+jx])
+            { s += H[jz*_PT_NX+jx]; n++; }
+        }
+        H[iz*_PT_NX + ix] = n ? s/n : 0;
+      }
+  return H;
+}
+
+// Build and upload the Data3DTexture.
+// H: Float32Array[NX×NZ] of terrain heights (km), or null for flat h=0.
+// RGBA channels: T_norm (15–1230°C), P_norm (0–1.5 GPa), E_norm (2–64 GPa), ν_norm (0.18–0.48).
+// Temperature baked via steady-state Fourier superposition (1/r law, ∇²T = 0).
+function _buildPropertyTexture(H) {
+  const data = new Float32Array(_PT_NX * _PT_NY * _PT_NZ * 4);
+  // Precompute geotherm at each chamber centroid (constant across all voxels)
+  const _chTbg = _CHAMBERS_PT.map(ch => _ptTemp(Math.max(0, -ch.cy)));
+
+  for (let iz = 0; iz < _PT_NZ; iz++) {
+    // local Z → world Z = local Z + GEO_Z_OFFSET; chambers are at world Z=0
+    const wz = (-50 + (iz + 0.5) * 100 / _PT_NZ) + GEO_Z_OFFSET;
+    for (let iy = 0; iy < _PT_NY; iy++) {
+      const wy   = -(iy + 0.5) * 50 / _PT_NY;   // km (negative = below sea level)
+      for (let ix = 0; ix < _PT_NX; ix++) {
+        const wx   = -50 + (ix + 0.5) * 100 / _PT_NX;
+        const h    = H ? H[iz * _PT_NX + ix] : 0;
+        const dEff = Math.max(0, -wy + h);   // true depth from true surface
+
+        // ── Temperature: background geotherm + steady-state 1/r chamber halos ──
+        // Superposition principle (∇²T = 0): ΔT_i = (T_wall_i − T_bg_at_ci) / d_norm_i
+        let T = _ptTemp(dEff);
+        let inChamber = false;
+        for (let ci = 0; ci < _CHAMBERS_PT.length; ci++) {
+          const ch = _CHAMBERS_PT[ci];
+          const nx = (wx - ch.cx) / ch.rx;
+          const ny = (wy - ch.cy) / ch.ry;
+          const nz =  wz          / ch.rz;  // chambers at world Z=0
+          const dN = Math.sqrt(nx*nx + ny*ny + nz*nz);
+          if (dN < 1.0) { T = ch.Tmag; inChamber = true; break; }
+          // Steady-state Fourier conduction: no exponential, pure algebraic decay
+          T += Math.max(0, ch.Tmag - _chTbg[ci]) / dN;
+        }
+        if (!inChamber) T = Math.min(T, _CHAMBERS_PT[0].Tmag); // cap at peak chamber temp
+        const P = _ptPressure(dEff);
+
+        const phi = _ptMeltFrac(T, P);
+        const E   = inChamber ? 1.5                : _ptYoungs(P, T, phi);
+        const nu  = inChamber ? 0.499              : _ptPoisson(P, phi);
+
+        // Data3DTexture layout: data[z*NX*NY + y*NX + x]
+        const idx  = (iz * _PT_NX * _PT_NY + iy * _PT_NX + ix) * 4;
+        data[idx+0] = (T  - 15)   / 1215;
+        data[idx+1] = P            / 1.5;
+        data[idx+2] = Math.max(0, (E  - 2)    / 62);
+        data[idx+3] = Math.min(1, (nu - 0.18) / 0.30);
+      }
+    }
+  }
+  const tex = new THREE.Data3DTexture(data, _PT_NX, _PT_NY, _PT_NZ);
+  tex.format     = THREE.RGBAFormat;
+  tex.type       = THREE.FloatType;
+  tex.minFilter  = THREE.LinearFilter;
+  tex.magFilter  = THREE.LinearFilter;
+  tex.wrapS = tex.wrapT = tex.wrapR = THREE.ClampToEdgeWrapping;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function _applyPropertyTexture(tex) {
+  _propTex = tex;
+  _domainFaceMats.forEach(m => { m.uniforms.uPropTex.value = tex; });
+}
+
 function _buildHeightGrid(geo) {
   const pos = geo.attributes.position;
   const grid = new Float32Array(_HG_RES * _HG_RES).fill(-Infinity);
@@ -372,12 +559,11 @@ function init() {
 
   setupLighting();
   buildCompass();
+  _propTex = _buildPropertyTexture(null); // flat terrain (h=0) until STL loads
   buildGeologicalDomain();
   buildIonianSlab();
   buildIonianCrust();
-  buildMaltaEscarpment();
   buildSTEPFault();
-  buildMantleConduit();
   buildChambers();
   buildChamberCaps();
   buildCrossSectionCap();
@@ -558,11 +744,14 @@ function _finalizeSurface(geo) {
 
   _crossCapTerrainGeo = geo;
   _buildHeightGrid(geo);
+  _applyPropertyTexture(_buildPropertyTexture(_buildPropTopoMap(geo)));
   etnaLabelLayer = buildEtnaLabelLayer(scene, _sampleHeight);
   _buildOceanVolumeFromTerrain(geo);
   _buildTerrainSkirt(geo);
   buildHazardZones();
   buildFaultOverlays();
+  buildGeologyOverlays(geo);
+  buildTectonicFaults();
   buildSeismicOverlay();
   updateClipPlanes();
   if (basemapMode === 'satellite') applyBasemap('satellite');
@@ -570,39 +759,24 @@ function _finalizeSurface(geo) {
 }
 
 // ─── Geological domain — layered structure from surface to −50 km ─────────────
-// Five geological units visible as coloured bands on domain side / bottom faces.
-// BoxGeometry face order: 0=+X, 1=-X, 2=+Y(top), 3=-Y(bottom), 4=+Z, 5=-Z.
+// Two units visible as coloured bands on domain side / bottom faces.
 
-// Eight-layer stratigraphy derived from Etna crustal tomography studies
-// (Nicolich et al. 2000; Laigle et al. 2000; Chiarabba et al. 2004; Patanè et al. 2006)
+// Lithosphere and mantle — simplified from full stratigraphy
+// (Nicolich et al. 2000; Patanè et al. 2006)
 const GEO_LAYERS = [
-  { color: 0x28233c, emissive: 0x09080e, label: 'Volcanic edifice',                depth: '0–3 km'       },
-  { color: 0xc8a868, emissive: 0x2a2010, label: 'Plio-Quat. sediments',            depth: '3–12 km'      },
-  { color: 0xa08858, emissive: 0x221a08, label: 'Hyblean carbonate platform',      depth: '5–20 km'      },
-  { color: 0x68583c, emissive: 0x180e08, label: 'Apenninic-Maghrebian allochthon', depth: '12–28 km'     },
-  { color: 0x746070, emissive: 0x1a1218, label: 'Pre-Alpine crystalline basement', depth: '17–34 km'     },
-  { color: 0x3c3045, emissive: 0x0e0c12, label: 'Lower crust / Moho zone',         depth: '21–40 km'     },
-  { color: 0x384838, emissive: 0x0c1008, label: 'Lithospheric mantle (SCLM)',      depth: '26–48 km'     },
-  { color: 0x8c3c14, emissive: 0x280c04, label: 'Asthenosphere',                   depth: '40–50 km'     },
+  { color: 0x7a5c38, emissive: 0x1e1208, label: 'Lithosphere', depth: '0–40 km'  },
+  { color: 0x8c3c14, emissive: 0x280c04, label: 'Mantle',      depth: '40–50 km' },
 ];
 
-// Boundary surfaces between geological layers.
-// 9 entries (for 8 layers): each is [SW_y, SE_y, NW_y, NE_y] in km.
+// Boundary surfaces between layers.
+// 3 entries (for 2 layers): each is [SW_y, SE_y, NW_y, NE_y] in km.
 // SW = (X=−50, Z=+50)  SE = (X=+50, Z=+50)  ← south edge of domain
 // NW = (X=−50, Z=−50)  NE = (X=+50, Z=−50)  ← north edge of domain
-// Key constraints (Nicolich et al. 2000; Patanè et al. 2006):
-//   Moho: ~26–28 km under Hyblean foreland (south) → ~36–42 km under Apenninic orogen (north)
-//   LAB : ~40 km south → ~48 km north
+// LAB: ~40 km south → ~48 km north (Nicolich et al. 2000)
 const GEO_LAYER_BOUNDS = [
-  [   0,    0,    0,    0],  // surface 0: terrain top (flat, Y=0)
-  [  -3,   -3,   -3,   -3],  // surface 1: base volcanic edifice (flat)
-  [  -5,   -7,   -9,  -12],  // surface 2: base Plio-Quat. sediments (deepens N/E)
-  [ -12,  -15,  -15,  -20],  // surface 3: base Hyblean carbonate platform
-  [ -17,  -20,  -22,  -28],  // surface 4: base Apenninic-Maghrebian allochthon
-  [ -21,  -24,  -27,  -33],  // surface 5: base crystalline basement
-  [ -26,  -28,  -36,  -42],  // surface 6: Moho (26 km S → 42 km NE)
-  [ -40,  -42,  -44,  -48],  // surface 7: LAB
-  [ -50,  -50,  -50,  -50],  // surface 8: domain floor (flat)
+  [   0,    0,    0,    0],  // surface 0: terrain top
+  [ -40,  -40,  -40,  -40],  // surface 1: LAB (flat at 40 km)
+  [ -50,  -50,  -50,  -50],  // surface 2: domain floor
 ];
 
 function buildGeologicalDomain() {
@@ -653,31 +827,29 @@ function buildGeologicalDomain() {
         -hw, bSW, hw,   hw, bSE, hw,   hw, bNE,-hw,
         -hw, bSW, hw,   hw, bNE,-hw,  -hw, bNW,-hw
       );
+      // LAB top face: closes the mantle box at Y=−40
+      pos.push(
+        -hw, tSW, hw,   hw, tNE,-hw,   hw, tSE, hw,
+        -hw, tSW, hw,  -hw, tNW,-hw,   hw, tNE,-hw
+      );
     }
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
     geo.computeVertexNormals();
 
-    const mat = new THREE.MeshPhongMaterial({
-      color: layer.color, emissive: layer.emissive,
-      specular: 0x1a0e08, shininess: 8,
-      side: THREE.DoubleSide, clippingPlanes: [],
-    });
+    const mat = _makeCapShaderMat({ clippingPlanes: [] });
     const mesh = new THREE.Mesh(geo, mat);
     layerGroup.add(mesh);
+    _domainFaceMeshes.push(mesh);
+    _domainFaceMats.push(mat);
 
-    // Overdraw counterpart — covers hazard-ring bleed
-    const odMat = new THREE.MeshPhongMaterial({
-      color: layer.color, emissive: layer.emissive,
-      specular: 0x1a0e08, shininess: 8,
-      side: THREE.DoubleSide, clippingPlanes: [],
-      transparent: true, opacity: 1.0,
-      depthTest: true, depthWrite: false,
-    });
+    // Overdraw counterpart — covers hazard-ring bleed; must sync colorMode with base
+    const odMat = _makeCapShaderMat({ clippingPlanes: [], depthTest: true, depthWrite: false });
     const odMesh = new THREE.Mesh(geo, odMat);
     odMesh.renderOrder = 10;
     overdrawGroup.add(odMesh);
+    _domainFaceMats.push(odMat);
   });
 
   scene.add(layerGroup);
@@ -689,14 +861,9 @@ function buildGeologicalDomain() {
   const edgeGroup = new THREE.Group();
   edgeGroup.position.set(0, 0, GEO_Z_OFFSET);
 
-  // Surfaces 1–7 (internal boundaries; skip terrain top and domain floor)
-  const MOHO_IDX = 6, LAB_IDX = 7;
-  GEO_LAYER_BOUNDS.slice(1, 8).forEach((bounds, bi) => {
-    const surfIdx = bi + 1;
-    const bright  = surfIdx === MOHO_IDX || surfIdx === LAB_IDX;
-    const col = bright ? 0xc8a880 : 0x7a6a58;
-    const op  = bright ? 0.85 : 0.50;
-    const mat = new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: op });
+  // Internal boundary surfaces (skip terrain top and domain floor)
+  GEO_LAYER_BOUNDS.slice(1, -1).forEach((bounds) => {
+    const mat = new THREE.LineBasicMaterial({ color: 0xc8a880, transparent: true, opacity: 0.85 });
 
     const [ySW, ySE, yNW, yNE] = bounds;
     const pts = new Float32Array([
@@ -719,6 +886,8 @@ function buildGeologicalDomain() {
   domainEdges.position.set(0, DOMAIN_CY, GEO_Z_OFFSET);
   scene.add(domainEdges);
 }
+
+
 
 // ─── Ionian oceanic slab (mantle lithosphere) ────────────────────────────────
 // The Ionian oceanic plate is the subducting body beneath the Calabrian arc.
@@ -744,12 +913,13 @@ function buildIonianSlab() {
     color: 0x18283e, emissive: 0x040810,
     specular: 0x0c1c30, shininess: 18,
     transparent: true, opacity: 0.88,
-    side: THREE.DoubleSide, depthWrite: false, clippingPlanes: [],
+    side: THREE.DoubleSide, depthWrite: true, clippingPlanes: [],
   });
 
   ionianSlab = new THREE.Mesh(slabGeo, slabMat);
   ionianSlab.position.z = GEO_Z_OFFSET;
-  ionianSlab.renderOrder = 7;
+  ionianSlab.renderOrder = 2;
+  ionianSlab.visible = document.getElementById('ionian-slab-toggle')?.checked ?? false;
   scene.add(ionianSlab);
 }
 
@@ -779,45 +949,17 @@ function buildIonianCrust() {
     color: 0x1e3858, emissive: 0x060c14,
     specular: 0x102040, shininess: 22,
     transparent: true, opacity: 0.84,
-    side: THREE.DoubleSide, depthWrite: false, clippingPlanes: [],
+    side: THREE.DoubleSide, depthWrite: true, clippingPlanes: [],
   });
 
   ionianCrust = new THREE.Mesh(crustGeo, crustMat);
   ionianCrust.position.z = GEO_Z_OFFSET;
-  ionianCrust.renderOrder = 8;
+  ionianCrust.renderOrder = 3;
+  ionianCrust.visible = document.getElementById('ionian-slab-toggle')?.checked ?? false;
   scene.add(ionianCrust);
 }
 
 // ─── Hyblean-Malta Escarpment ────────────────────────────────────────────────
-// The Hyblean-Maltese Escarpment is the major NNW–SSE-striking fault system
-// (~15.3°E in this domain) that separates the Hyblean continental platform to
-// the west from the Ionian oceanic crust to the east.  It extends from the
-// surface through the entire crust to the Moho (~29 km).
-// In scene coords the escarpment strikes N–S (parallel to the Z-axis) at X≈+28 km.
-
-function buildMaltaEscarpment() {
-  // Near-vertical plane: full N–S extent, sea level to Moho (Y=0 → Y=−29).
-  // Slight eastward tilt (2°) for realism. Position.z = GEO_Z_OFFSET applied below.
-  const pts = new Float32Array([
-    28,   0, -50,   28,   0,  50,   29.5, -29,  50,
-    28,   0, -50,   29.5, -29,  50,   29.5, -29, -50,
-  ]);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pts, 3));
-  geo.computeVertexNormals();
-
-  const mat = new THREE.MeshPhongMaterial({
-    color: 0xd0c090, emissive: 0x2a2008,
-    specular: 0x604820, shininess: 30,
-    transparent: true, opacity: 0.62,
-    side: THREE.DoubleSide, depthWrite: false, clippingPlanes: [],
-  });
-
-  maltaEscarpment = new THREE.Mesh(geo, mat);
-  maltaEscarpment.position.z = GEO_Z_OFFSET;
-  maltaEscarpment.renderOrder = 9;
-  scene.add(maltaEscarpment);
-}
 
 // ─── STEP fault (Slab Tear Edge Propagator) ──────────────────────────────────
 // The STEP fault is the lateral tear at the southern/western edge of the
@@ -842,45 +984,16 @@ function buildSTEPFault() {
     color: 0xd04010, emissive: 0x500c02,
     specular: 0x601808, shininess: 40,
     transparent: true, opacity: 0.70,
-    side: THREE.DoubleSide, depthWrite: false, clippingPlanes: [],
+    side: THREE.DoubleSide, depthWrite: true, clippingPlanes: [],
   });
 
   stepFault = new THREE.Mesh(geo, mat);
   stepFault.position.z = GEO_Z_OFFSET;
-  stepFault.renderOrder = 9;
+  stepFault.renderOrder = 4;
+  stepFault.visible = document.getElementById('step-fault-toggle')?.checked ?? false;
   scene.add(stepFault);
 }
 
-// ─── Deep magmatic feeder conduit ─────────────────────────────────────────────
-// Tapered cylinder representing the inferred deep asthenospheric supply zone.
-// Positioned in the slab window west of the STEP fault.  Wider at depth
-// (broad mantle source) → narrows toward the lower chamber at Y=−7.6 km.
-// The X offset (+6 km) places it slightly east of centre, reflecting the
-// upwelling path through the gap between the STEP fault and the Hyblean crust.
-
-function buildMantleConduit() {
-  const topY = -7.6, botY = -44.0;
-  const h    = topY - botY;         // 36.4 km
-  const cy   = (topY + botY) / 2;   // −25.8 km
-
-  const geo = new THREE.CylinderGeometry(
-    1.2,   // top radius km — narrow feeder neck into chamber system
-    5.5,   // bottom radius km — broad asthenospheric source zone
-    h, 32, 1, true
-  );
-
-  const mat = new THREE.MeshPhongMaterial({
-    color: 0xc04010, emissive: 0x501004,
-    specular: 0x441100, shininess: 35,
-    transparent: true, opacity: 0.42,
-    side: THREE.DoubleSide, depthWrite: false, clippingPlanes: [],
-  });
-
-  mantleConduit = new THREE.Mesh(geo, mat);
-  mantleConduit.position.set(6, cy, 0); // slightly east to align with slab window
-  mantleConduit.renderOrder = 6;
-  scene.add(mantleConduit);
-}
 
 // ─── Sea level plane ──────────────────────────────────────────────────────────
 
@@ -1137,6 +1250,9 @@ const FAULT_SYSTEM_CFG = {
 function buildFaultOverlays() {
   faultRootGroup = new THREE.Group();
   faultRootGroup.scale.y = _vertExag;
+  // Sync initial visibility from master toggle (set before this build runs)
+  const _fMaster = document.getElementById('faults-master-toggle');
+  faultRootGroup.visible = _fMaster ? _fMaster.checked : true;
   scene.add(faultRootGroup);
 
   fetch('./etna-faults.json')
@@ -1174,6 +1290,305 @@ function buildFaultOverlays() {
     })
     .catch(e => console.warn('[faults] Failed to load etna-faults.json', e));
 }
+
+
+// ─── Geology canvas overlays ─────────────────────────────────────────────────
+// Canvas-texture overlay meshes draped on the terrain (same BufferGeometry).
+// UVs are aligned to SAT_GRID tile extent; coordinates map lon/lat → canvas px
+// using the same formula as the basemap texture: u = (lon−GRID_W)/(GRID_E−GRID_W),
+// v = (GRID_N−lat)/(GRID_N−GRID_S), with flipY=false.
+
+function _lonLatToCanvas(lon, lat, w, h) {
+  return [
+    (lon - SAT_GRID_LON_W) / (SAT_GRID_LON_E - SAT_GRID_LON_W) * w,
+    (SAT_GRID_LAT_N - lat) / (SAT_GRID_LAT_N - SAT_GRID_LAT_S) * h,
+  ];
+}
+
+// Parse a lava flow age string to an approximate calendar year.
+// Returns -999 for clearly prehistoric (radiometric ka/Ma), null for unparseable.
+function _parseLavaYear(ageStr) {
+  if (!ageStr || !ageStr.trim()) return null;
+  const s = ageStr.trim();
+  if (/\bka\b|\bMa\b|Radiometric|40Ar|39Ar/i.test(s)) return -999;
+  const m = s.match(/\b(\d{3,4})\b/);
+  if (m) {
+    const y = parseInt(m[1], 10);
+    if (y >= 500 && y <= 2100) return y;
+  }
+  return null;
+}
+
+// Return canvas fillStyle colour for a lava flow's age string.
+// Palette graduates from bright crimson (recent) to dark earthy brown (prehistoric).
+function _lavaAgeColor(ageStr) {
+  const y = _parseLavaYear(ageStr);
+  if (y === -999) return 'rgba(98,46,26,0.80)';   // prehistoric (radiometric)
+  if (y === null) return 'rgba(148,66,36,0.82)';  // unknown / no age data
+  if (y >= 1900)  return 'rgba(218,42,10,0.91)';  // 20th–21st c — bright crimson
+  if (y >= 1800)  return 'rgba(202,76,20,0.89)';  // 19th c — deep orange-red
+  if (y >= 1600)  return 'rgba(180,96,28,0.87)';  // 17th–18th c — orange-brown
+  if (y >= 1000)  return 'rgba(152,72,34,0.85)';  // medieval — medium brown-red
+  return                  'rgba(118,55,30,0.83)';  // ancient (pre-1000 AD)
+}
+
+function _lonLatToModel(lon, lat) {
+  return {
+    x: (lon - SAT_LON_W) / (SAT_LON_E - SAT_LON_W) * 100 - 50,
+    z: (SAT_LAT_N - lat) / (SAT_LAT_N - SAT_LAT_S) * 100 - 50,
+  };
+}
+
+function _modelToLonLat(x, z) {
+  return {
+    lon: (x + 50) / 100 * (SAT_LON_E - SAT_LON_W) + SAT_LON_W,
+    lat: SAT_LAT_N - (z + 50) / 100 * (SAT_LAT_N - SAT_LAT_S),
+  };
+}
+
+// Even-odd ray-casting PIP across all rings (handles exterior + holes + MultiPolygon).
+function _pointInPolygonRings(lon, lat, rings) {
+  let inside = false;
+  for (const ring of rings) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1];
+      const xj = ring[j][0], yj = ring[j][1];
+      if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) {
+        inside = !inside;
+      }
+    }
+  }
+  return inside;
+}
+
+
+
+
+function _makeCanvasOverlayMesh(terrainGeo, canvas) {
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.flipY = false;
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, opacity: 1.0,
+    depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -3,
+    side: THREE.FrontSide,
+    clippingPlanes: [],
+  });
+  const mesh = new THREE.Mesh(terrainGeo, mat);
+  mesh.renderOrder = 2;
+  return mesh;
+}
+
+function buildGeologyOverlays(geo) {
+  const maxTex = renderer.capabilities.maxTextureSize;
+  // Geology polygons are simplified at 22–111 m; 2048 px over 100 km = 48 m/px,
+  // finer than source precision. Cap here saves ~192 MB vs 4096 (two 64 MB canvases).
+  const HI = Math.min(2048, maxTex);
+
+  const opSlider      = document.getElementById('geology-opacity');
+  const baseOp        = opSlider ? parseFloat(opSlider.value) : 0.72;
+  const masterTog     = document.getElementById('geology-master-toggle');
+  const regionalGeoTog = document.getElementById('regional-geology-master-toggle');
+
+  // ── Regional geology — EGDI 1:1M pan-European surface geology ────────────────
+  const regCanvas = document.createElement('canvas');
+  regCanvas.width = HI; regCanvas.height = HI;
+  const regCtx = regCanvas.getContext('2d');
+
+  fetch('./etna-regional-geology.json').then(r => r.json()).then(geoData => {
+    _egdiGeoFeats = geoData.features;
+
+    // Pass 1 — stroke each polygon outward with its own color to bleed into adjacent gaps.
+    // lineWidth 6 at HI resolution ≈ the same order as the 0.001° simplification tolerance,
+    // so gaps from mismatched simplified edges are fully covered by the nearest feature's color.
+    regCtx.lineJoin = 'round';
+    regCtx.lineCap  = 'round';
+    for (const feat of _egdiGeoFeats) {
+      regCtx.strokeStyle = feat[5];
+      regCtx.lineWidth   = 6;
+      regCtx.beginPath();
+      for (const ring of feat[6]) {
+        const [x0, y0] = _lonLatToCanvas(ring[0][0], ring[0][1], HI, HI);
+        regCtx.moveTo(x0, y0);
+        for (let j = 1; j < ring.length; j++) {
+          const [xj, yj] = _lonLatToCanvas(ring[j][0], ring[j][1], HI, HI);
+          regCtx.lineTo(xj, yj);
+        }
+        regCtx.closePath();
+      }
+      regCtx.stroke();
+    }
+
+    // Pass 2 — fill each polygon cleanly on top of the bleed layer.
+    for (const feat of _egdiGeoFeats) {
+      regCtx.fillStyle = feat[5];
+      regCtx.beginPath();
+      for (const ring of feat[6]) {
+        const [x0, y0] = _lonLatToCanvas(ring[0][0], ring[0][1], HI, HI);
+        regCtx.moveTo(x0, y0);
+        for (let j = 1; j < ring.length; j++) {
+          const [xj, yj] = _lonLatToCanvas(ring[j][0], ring[j][1], HI, HI);
+          regCtx.lineTo(xj, yj);
+        }
+        regCtx.closePath();
+      }
+      regCtx.fill('evenodd');
+    }
+
+    regionalGeologyMesh = _makeCanvasOverlayMesh(geo, regCanvas);
+    regionalGeologyMesh.renderOrder = 1;
+    regionalGeologyMesh.material.opacity = baseOp;
+    regionalGeologyMesh.visible = (masterTog?.checked !== false) && (regionalGeoTog?.checked !== false);
+    scene.add(regionalGeologyMesh);
+    updateClipPlanes();
+    // Force GPU upload before releasing the CPU canvas — without this, an initially
+    // hidden mesh never triggers a render in the 200 ms window and the texture is
+    // lost when the canvas is blanked.
+    renderer.initTexture(regionalGeologyMesh.material.map);
+    setTimeout(() => { regCanvas.width = 1; regCanvas.height = 1; }, 200);
+  }).catch(e => console.warn('[geology] EGDI load failed:', e));
+
+  // ── Etna geology — INGV EtnaGeoMap verbatim from WMS KML ─────────────────────
+  // 3,907 polygon features with per-feature WMS colours, names, ages and lithology
+  // descriptions sourced directly from the INGV GeoServer (Branca et al. 2011/2015).
+  // Features: [id, sigle_cart, name, type, age, formation, lithology, info_en1, color_hex, rings]
+  const etnaCanvas = document.createElement('canvas');
+  etnaCanvas.width = HI; etnaCanvas.height = HI;
+  const etnaCtx = etnaCanvas.getContext('2d');
+  const etnaGeoTog = document.getElementById('etna-geology-master-toggle');
+
+  fetch('./etna-geology-ingv.json').then(r => r.json()).then(geoData => {
+    _ingvGeoFeats = geoData.features;
+
+    for (const feat of _ingvGeoFeats) {
+      etnaCtx.fillStyle = feat[8]; // WMS SLD colour verbatim
+      etnaCtx.beginPath();
+      for (const ring of feat[9]) {
+        const [x0, y0] = _lonLatToCanvas(ring[0][0], ring[0][1], HI, HI);
+        etnaCtx.moveTo(x0, y0);
+        for (let j = 1; j < ring.length; j++) {
+          const [xj, yj] = _lonLatToCanvas(ring[j][0], ring[j][1], HI, HI);
+          etnaCtx.lineTo(xj, yj);
+        }
+        etnaCtx.closePath();
+      }
+      etnaCtx.fill('evenodd');
+    }
+
+    etnaGeologyMesh = _makeCanvasOverlayMesh(geo, etnaCanvas);
+    etnaGeologyMesh.renderOrder = 2;
+    etnaGeologyMesh.material.opacity = baseOp;
+    etnaGeologyMesh.visible = (masterTog?.checked !== false) && (etnaGeoTog?.checked !== false);
+    scene.add(etnaGeologyMesh);
+    updateClipPlanes();
+    renderer.initTexture(etnaGeologyMesh.material.map);
+    setTimeout(() => { etnaCanvas.width = 1; etnaCanvas.height = 1; }, 200);
+  }).catch(e => console.warn('[geology] Failed to load etna-geology-ingv.json:', e));
+}
+
+// ─── Regional tectonic faults ─────────────────────────────────────────────────
+// GEM Global Active Faults clipped to domain, draped on terrain surface.
+// Separate from volcanic surface fault systems (buildFaultOverlays / etna-faults.json).
+
+function buildTectonicFaults() {
+  tectonicFaultRoot = new THREE.Group();
+  tectonicFaultRoot.scale.y = _vertExag;
+  // Read toggle state at build time — setupUI() runs before this, so the checkbox
+  // reflects the user's current setting (including any master cascade).
+  const _tecTog      = document.getElementById('tectonic-faults-toggle');
+  const _tecFltMaster = document.getElementById('faults-master-toggle');
+  tectonicFaultRoot.visible = (_tecFltMaster ? _tecFltMaster.checked : true) && (_tecTog ? _tecTog.checked : true);
+  scene.add(tectonicFaultRoot);
+
+  // ITHACA kinematics colour scheme (ISPRA classification)
+  const SLIP_COLORS = {
+    'Normal':              0x4499ff,
+    'Normal Oblique DX':   0x66aaff,
+    'Normal Oblique SX':   0x66aaff,
+    'Oblique Normal DX':   0x88bbff,
+    'Oblique Normal SX':   0x88bbff,
+    'Strike Slip DX':      0x2ec46a,
+    'Strike Slip SX':      0x2ec46a,
+    'Oblique Reverse SX':  0xe05050,
+    'Oblique Reverse DX':  0xe05050,
+    'Reverse':             0xe05050,
+    'ND':                  0x999999,
+  };
+
+  // Map each feature to one of the 5 named sub-groups (or 'local' for all other ITHACA faults).
+  function _tectonicSubGroup(id, name) {
+    const n = (name || '').toLowerCase();
+    if (id === 'EUR_ITCS016' || n.includes('scarpata di malta') || n.includes('scarpata di malta'))
+      return 'malta';
+    if (id === 'EUR_ITCS029') return 'thrust-front';
+    if (typeof id === 'string' && id.startsWith('PB_')) return 'subduction';
+    if (id === 'EUR_ITCS042') return 'tindari';
+    if (id === 'EUR_ITCS035') return 'scicli';
+    return 'local';
+  }
+
+  // Create one THREE.Group per sub-group, named for toggle lookup.
+  const _tecSubGroupNames = ['thrust-front', 'subduction', 'malta', 'tindari', 'scicli', 'local'];
+  const _tecSubGroups = {};
+  for (const key of _tecSubGroupNames) {
+    const g = new THREE.Group();
+    g.name = `tectonic-${key}`;
+    g.visible = (document.getElementById(`tectonic-${key}-toggle`)?.checked ?? true);
+    tectonicFaultRoot.add(g);
+    _tecSubGroups[key] = g;
+  }
+
+  fetch('./etna-tectonic-faults.json')
+    .then(r => r.json())
+    .then(data => {
+      for (const feat of data.features) {
+        // [id, name, kinematics, rank, url, source, coords]
+        const [id, name, kinematics, rank, , , coords] = feat;
+        const isRegional = rank === 'Regional';
+        const color   = SLIP_COLORS[kinematics] ?? 0xaaaaaa;
+        const opacity = isRegional ? 1.0 : rank === 'Primary' ? 0.88 : 0.48;
+        const mat = new THREE.LineBasicMaterial({
+          color, transparent: true, opacity, clippingPlanes: [],
+        });
+        const subGroup = _tecSubGroups[_tectonicSubGroup(id, name)];
+        for (const seg of coords) {
+          let run = [];
+          const flush = () => {
+            if (run.length < 2) { run = []; return; }
+            const posArr = new Float32Array(run.length * 3);
+            run.forEach(([px, py, pz], i) => {
+              posArr[i * 3] = px; posArr[i * 3 + 1] = py; posArr[i * 3 + 2] = pz;
+            });
+            const lgeo = new THREE.BufferGeometry();
+            lgeo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+            const line = new THREE.Line(lgeo, mat);
+            line.renderOrder = isRegional ? 70 : 65;
+            subGroup.add(line);
+            run = [];
+          };
+          for (let i = 0; i < seg.length; i++) {
+            const { x, z } = _lonLatToModel(seg[i][0], seg[i][1]);
+            const h = _sampleHeight(x, z);
+            if (isNaN(h) || h < -3.0) { flush(); continue; }
+            run.push([x, Math.max(h, 0.02) + 0.01, z]);
+          }
+          flush();
+        }
+      }
+      updateClipPlanes();
+    })
+    .catch(e => console.warn('[tectonic] Failed to load etna-tectonic-faults.json:', e));
+}
+
+// ─── Geology contacts (3D lines) ─────────────────────────────────────────────
+// Polylines from etna-contacts.json draped on terrain — same pattern as tectonic
+// faults. Two tiers rendered: regional (ISPRA dissolved litho, full domain) and
+// major (INGV EtnaGeoMap type boundaries, edifice). Minor tier skipped — INGV
+// Three tiers: regional (ISPRA dissolved litho, full domain), major (INGV type
+// boundaries) and minor (INGV formation boundaries within same type — essential
+// for the volcanic edifice where everything is Volcanic type).
+// One THREE.Line per feature (continuous strip) — same as buildTectonicFaults.
+
 
 
 // ─── Seismicity overlay ───────────────────────────────────────────────────────
@@ -1476,61 +1891,221 @@ function _buildOceanVolumeFromTerrain(terrainGeo) {
   scene.add(oceanVolume);
 }
 
+// ─── Magma convection swirl shaders ──────────────────────────────────────────
+// Shared GLSL functions injected into chamber mesh, chamber cap, and domain face
+// cap shaders. _CAP_GLSL_NOISE must be defined first (fbm, swirl dependency).
+
+const _CAP_GLSL_NOISE = `
+  float h21(vec2 p){p=fract(p*vec2(127.1,311.7));p+=dot(p,p+45.32);return fract(p.x*p.y);}
+  float vnoise(vec2 p){
+    vec2 i=floor(p);vec2 f=fract(p);f=f*f*(3.-2.*f);
+    return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),
+               mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y);
+  }
+  float fbm(vec2 p){float v=0.;float a=0.5;
+    for(int i=0;i<6;i++){v+=a*vnoise(p);p*=2.15;a*=0.5;}return v;}
+  float ridged(vec2 p){
+    float v=0.;float a=0.5;
+    for(int i=0;i<5;i++){float n=1.0-abs(vnoise(p)*2.0-1.0);v+=n*a;p*=2.05;a*=0.5;}
+    return v;
+  }
+  vec2 swirl(vec2 p,float amount){
+    float a=amount*(fbm(p*0.6)-0.5)*6.28318;
+    float s=sin(a),c=cos(a);
+    return mat2(c,-s,s,c)*p;
+  }
+`;
+
+const _SWIRL_GLSL = `
+  // 3D magma convection — viscous Rayleigh–Bénard-style rolls.
+  // norm:     normalised position in chamber frame, [-1,1]³
+  // rotSpeed: angular speed (rad/s) for large-scale differential rotation;
+  //           pass 0.0 for the lower reservoir (no rigid-body spin on a large body).
+  // t:        time in seconds
+  vec3 magmaSwirl(vec3 norm, float rotSpeed, float t) {
+    float ca = cos(t * rotSpeed), sa = sin(t * rotSpeed);
+    vec2 rxz = vec2(ca*norm.x - sa*norm.z, sa*norm.x + ca*norm.z);
+    float ta = t * 0.032;
+    float n1 = fbm(swirl(rxz * 2.4 + vec2(ta*0.70, -ta*0.40), 0.55));
+    float n2 = fbm(       rxz * 1.3 - vec2(ta*0.50, -ta*0.30) + vec2(4.1, 2.7));
+    float buoy = clamp(-norm.y*0.35 + (1.0 - length(norm.xz))*0.25, -0.25, 0.45);
+    float heat = clamp(n1*0.45 + n2*0.30 + buoy + 0.28, 0.0, 1.0);
+    heat = mix(heat, 0.05, smoothstep(0.58, 0.95, length(norm)) * 0.55);
+    vec3 crust  = vec3(0.36, 0.04, 0.01);
+    vec3 dark   = vec3(0.52, 0.07, 0.01);
+    vec3 orange = vec3(0.90, 0.26, 0.03);
+    vec3 bright = vec3(1.00, 0.78, 0.18);
+    if(heat < 0.33) return mix(crust,  dark,   heat * 3.0);
+    if(heat < 0.66) return mix(dark,   orange, (heat - 0.33) * 3.0);
+    return             mix(orange, bright, (heat - 0.66) * 3.0);
+  }
+
+  // 2D variant for cross-section cap fills (horizontal×vertical slice).
+  vec3 magmaSwirl2D(vec2 norm2D, float t) {
+    float ta = t * 0.032;
+    float n1 = fbm(swirl(norm2D * 2.4 + vec2(ta*0.70, -ta*0.40), 0.55));
+    float n2 = fbm(      norm2D * 1.3 - vec2(ta*0.50, -ta*0.30) + vec2(4.1, 2.7));
+    float buoy = clamp(-norm2D.y*0.35 + (1.0 - length(norm2D))*0.25, -0.25, 0.45);
+    float heat = clamp(n1*0.45 + n2*0.30 + buoy + 0.28, 0.0, 1.0);
+    heat = mix(heat, 0.05, smoothstep(0.58, 0.95, length(norm2D)) * 0.55);
+    vec3 crust  = vec3(0.36, 0.04, 0.01);
+    vec3 dark   = vec3(0.52, 0.07, 0.01);
+    vec3 orange = vec3(0.90, 0.26, 0.03);
+    vec3 bright = vec3(1.00, 0.78, 0.18);
+    if(heat < 0.33) return mix(crust,  dark,   heat * 3.0);
+    if(heat < 0.66) return mix(dark,   orange, (heat - 0.33) * 3.0);
+    return             mix(orange, bright, (heat - 0.66) * 3.0);
+  }
+`;
+
+// Vertex shader shared by chamber mesh ShaderMaterials.
+// uNormScale divides local position so vNorm is always in [-1,1]³,
+// regardless of geometry radius.
+const _CHAMBER_VERT = `
+  uniform vec3 uNormScale;
+  #include <clipping_planes_pars_vertex>
+  out vec3 vNorm;
+  void main(){
+    vNorm = position / uNormScale;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    #include <clipping_planes_vertex>
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+const _CHAMBER_FRAG = `
+  #include <clipping_planes_pars_fragment>
+  in vec3 vNorm;
+  uniform float uTime;
+  uniform float uRotSpeed;
+  uniform bool  uIsConduit;
+  out vec4 fragColor;
+  ${_CAP_GLSL_NOISE}
+  ${_SWIRL_GLSL}
+  void main(){
+    #include <clipping_planes_fragment>
+    vec3 c;
+    if(uIsConduit){
+      // Conduits: static warm glow with very slow fbm drift — no motion artifacts.
+      float h = fbm(vNorm.xy * 1.4 + vec2(0.0, uTime * 0.010));
+      c = mix(vec3(0.58, 0.08, 0.01), vec3(0.90, 0.26, 0.03), clamp(h * 0.5 + 0.30, 0.0, 1.0));
+    } else {
+      c = magmaSwirl(vNorm, uRotSpeed, uTime);
+    }
+    fragColor = vec4(c, 0.93);
+  }
+`;
+
+// Vertex + fragment shaders for the 2-D cross-section cap fills.
+// Position is in local geometry plane (XY); uNormScale maps it to [-1,1]².
+const _CHAMCAP_VERT = `
+  uniform vec2 uNormScale;
+  #include <clipping_planes_pars_vertex>
+  out vec2 vNorm2;
+  void main(){
+    vNorm2 = position.xy / uNormScale;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    #include <clipping_planes_vertex>
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+const _CHAMCAP_FRAG = `
+  #include <clipping_planes_pars_fragment>
+  in vec2 vNorm2;
+  uniform float uTime;
+  uniform bool  uIsConduit;
+  out vec4 fragColor;
+  ${_CAP_GLSL_NOISE}
+  ${_SWIRL_GLSL}
+  void main(){
+    #include <clipping_planes_fragment>
+    vec3 c;
+    if(uIsConduit){
+      float h = fbm(vNorm2 * 1.4 + vec2(0.0, uTime * 0.010));
+      c = mix(vec3(0.58, 0.08, 0.01), vec3(0.90, 0.26, 0.03), clamp(h * 0.5 + 0.30, 0.0, 1.0));
+    } else {
+      c = magmaSwirl2D(vNorm2, uTime);
+    }
+    fragColor = vec4(c, 1.0);
+  }
+`;
+
+// All animated chamber + conduit ShaderMaterials — uTime updated each frame.
+const _chamberMats    = [];
+const _chamberCapMats = [];
+
 // ─── Magmatic plumbing system ─────────────────────────────────────────────────
 // Parameters from 3_chambers.geo (GMSH units → Three.js km)
 // Coord transform: X=(gx-50000)/1000, Y=gz/1000, Z=(50000-gy)/1000
 
 function buildChambers() {
-  function chamberMat(color, emissive) {
-    return new THREE.MeshPhongMaterial({
-      color, emissive, specular: 0x441100, shininess: 40,
-      side: THREE.DoubleSide, transparent: true, opacity: 0.92, clippingPlanes: [],
+  function mkChamberMat(normScale, isConduit = false, rotSpeed = 0.05) {
+    const m = new THREE.ShaderMaterial({
+      vertexShader:   _CHAMBER_VERT,
+      fragmentShader: _CHAMBER_FRAG,
+      uniforms: {
+        uNormScale:  { value: normScale },
+        uTime:       { value: 0 },
+        uRotSpeed:   { value: rotSpeed },
+        uIsConduit:  { value: isConduit },
+      },
+      glslVersion: THREE.GLSL3,
+      side: THREE.FrontSide,   // outer dome only — cap fill seals the cut face
+      transparent: true,
+      opacity: 0.93,
+      clipping: true,
     });
+    _chamberMats.push(m);
+    return m;
   }
 
-  // ── Upper chamber: sphere r=0.25 km at Y=-2 km
+  // All sphere chambers use unit-sphere geometry + scale so local position is
+  // already in [-1,1]³ and uNormScale = (1,1,1) gives a trivial divide.
+  // Upper chamber: sphere r=0.25 km at Y=-2 km
   const upperMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.25, 32, 24),
-    chamberMat(0xee6622, 0x3a0c00)
+    new THREE.SphereGeometry(1, 32, 24),
+    mkChamberMat(new THREE.Vector3(1, 1, 1))
   );
+  upperMesh.scale.set(0.25, 0.25, 0.25);
   upperMesh.position.set(0, -2, 0);
   scene.add(upperMesh);
   chamberMeshes.push(upperMesh);
 
-  // ── Intermediate chamber: sphere r=0.25 km at Y=-2.85 km
+  // Intermediate chamber: sphere r=0.25 km at Y=-2.85 km
   const midMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.25, 32, 24),
-    chamberMat(0xe05518, 0x300a00)
+    new THREE.SphereGeometry(1, 32, 24),
+    mkChamberMat(new THREE.Vector3(1, 1, 1))
   );
+  midMesh.scale.set(0.25, 0.25, 0.25);
   midMesh.position.set(0, -2.85, 0);
   scene.add(midMesh);
   chamberMeshes.push(midMesh);
 
-  // ── Lower reservoir: oblate spheroid, rx=rz=6 km, ry=0.8 km at Y=-6.8 km
+  // Lower reservoir: oblate spheroid rx=rz=6 km, ry=0.8 km at Y=-6.8 km
+  // rotSpeed=0: large slow body, no rigid-body spin — only in-place fbm convection
   const lowerMesh = new THREE.Mesh(
     new THREE.SphereGeometry(1, 64, 40),
-    chamberMat(0xc03808, 0x280600)
+    mkChamberMat(new THREE.Vector3(1, 1, 1), false, 0.0)
   );
   lowerMesh.scale.set(6, 0.8, 6);
   lowerMesh.position.set(0, -6.8, 0);
   scene.add(lowerMesh);
   chamberMeshes.push(lowerMesh);
 
-  // ── Conduit 1: upper chamber bottom (Y=-2.25) → intermediate top (Y=-2.6)
+  // Conduit 1: upper → intermediate (Y=-2.25 to -2.6)
   const c1h = 2.6 - 2.25;
   const cond1Mesh = new THREE.Mesh(
     new THREE.CylinderGeometry(0.045, 0.045, c1h, 16),
-    chamberMat(0xe06020, 0x300800)
+    mkChamberMat(new THREE.Vector3(0.045, c1h / 2, 0.045), true)
   );
   cond1Mesh.position.set(0, (-2.25 + -2.6) / 2, 0);
   scene.add(cond1Mesh);
   chamberMeshes.push(cond1Mesh);
 
-  // ── Conduit 2: intermediate bottom (Y=-3.1) → lower reservoir top (Y=-6.0)
+  // Conduit 2: intermediate → lower reservoir (Y=-3.1 to -6.0)
   const c2h = 6.0 - 3.1;
   const cond2Mesh = new THREE.Mesh(
     new THREE.CylinderGeometry(0.045, 0.045, c2h, 16),
-    chamberMat(0xe06020, 0x300800)
+    mkChamberMat(new THREE.Vector3(0.045, c2h / 2, 0.045), true)
   );
   cond2Mesh.position.set(0, (-3.1 + -6.0) / 2, 0);
   scene.add(cond2Mesh);
@@ -1545,18 +2120,28 @@ function buildChambers() {
 // any (nx, nz), so they always lie on the cut plane.
 
 function buildChamberCaps() {
-  function capMat(color) {
-    return new THREE.MeshBasicMaterial({
-      color,
+  function mkCapMat(normScale, isConduit = false) {
+    const m = new THREE.ShaderMaterial({
+      vertexShader:   _CHAMCAP_VERT,
+      fragmentShader: _CHAMCAP_FRAG,
+      uniforms: {
+        uNormScale:  { value: normScale },
+        uTime:       { value: 0 },
+        uIsConduit:  { value: isConduit },
+      },
+      glslVersion: THREE.GLSL3,
       side: THREE.DoubleSide,
       polygonOffset: true,
       polygonOffsetFactor: -2,
       polygonOffsetUnits: -2,
+      clipping: true,
     });
+    _chamberCapMats.push(m);
+    return m;
   }
 
-  function addCap(geo, color, x, y, z) {
-    const m = new THREE.Mesh(geo, capMat(color));
+  function addCap(geo, normScale, x, y, z, isConduit = false) {
+    const m = new THREE.Mesh(geo, mkCapMat(normScale, isConduit));
     m.position.set(x, y, z);
     m.visible = false;
     scene.add(m);
@@ -1564,24 +2149,25 @@ function buildChamberCaps() {
   }
 
   // Upper chamber — circle r=0.25 km at Y=-2
-  addCap(new THREE.CircleGeometry(0.25, 64), 0xee6622, 0, -2, 0);
+  addCap(new THREE.CircleGeometry(0.25, 64), new THREE.Vector2(0.25, 0.25), 0, -2, 0);
 
   // Intermediate chamber — circle r=0.25 km at Y=-2.85
-  addCap(new THREE.CircleGeometry(0.25, 64), 0xe05518, 0, -2.85, 0);
+  addCap(new THREE.CircleGeometry(0.25, 64), new THREE.Vector2(0.25, 0.25), 0, -2.85, 0);
 
   // Lower reservoir — ellipse rx=6, ry=0.8 km at Y=-6.8
   // Cross-section of an oblate spheroid (rx=rz=6, ry=0.8) on any vertical
-  // plane through its centre is always the same ellipse (6 × 0.8 km), because
-  // the horizontal radii are equal.
+  // plane through its centre is always the same ellipse (6 × 0.8 km).
   const ellipseShape = new THREE.Shape();
   ellipseShape.absellipse(0, 0, 6, 0.8, 0, Math.PI * 2, false, 0);
-  addCap(new THREE.ShapeGeometry(ellipseShape, 128), 0xc03808, 0, -6.8, 0);
+  addCap(new THREE.ShapeGeometry(ellipseShape, 128), new THREE.Vector2(6, 0.8), 0, -6.8, 0);
 
-  // Conduit 1 — thin rect, width=2*r=0.09 km, Y=-2.25 → -2.6
-  addCap(new THREE.PlaneGeometry(0.09, 0.35), 0xe06020, 0, -2.425, 0);
+  // Conduit 1 — thin rect, width=0.09 km, Y=-2.25 → -2.6
+  const c1h = 2.6 - 2.25;
+  addCap(new THREE.PlaneGeometry(0.09, c1h), new THREE.Vector2(0.045, c1h / 2), 0, -2.425, 0, true);
 
   // Conduit 2 — thin rect, width=0.09 km, Y=-3.1 → -6.0
-  addCap(new THREE.PlaneGeometry(0.09, 2.9), 0xe06020, 0, -4.55, 0);
+  const c2h = 6.0 - 3.1;
+  addCap(new THREE.PlaneGeometry(0.09, c2h), new THREE.Vector2(0.045, c2h / 2), 0, -4.55, 0, true);
 }
 
 function updateChamberCaps() {
@@ -1601,38 +2187,287 @@ function updateChamberCaps() {
 // connected to the terrain above, the domain sides, and the bottom face.
 // Geometry is rebuilt in world-space on demand (debounced, not every frame).
 
+// Colormaps + sampler3D uniform + chamber analytical checks injected into _CAP_FRAG.
+// Physics are baked CPU-side into a 64×64×32 Data3DTexture (uPropTex) with
+// topographic overburden + chamber thermal halos. Chamber INTERIORS are handled
+// analytically in the shader so their precise boundaries are resolution-independent.
+const _CAP_GLSL_GEO = `
+  uniform float uColorMode;
+  uniform float uTime;
+  uniform sampler3D uPropTex;
+
+  ${_SWIRL_GLSL}
+
+  // ── Analytical geotherm (mirrors CPU _ptTemp) ─────────────────────────────
+  // Fourier conduction through lithosphere blended to mantle adiabat at the LAB.
+  float ptGeotherm(float d){
+    if(d <= 0.0) return 15.0;
+    float Tl = 15.0 + 40.0*d - 0.25*d*d;           // surface heat flow q_s/k
+    float Ta = 1215.0 + 0.5*max(0.0, d - 40.0);    // mantle adiabat
+    float w  = 1.0 / (1.0 + exp(-(d - 40.0)*1.5)); // logistic LAB blend
+    return Tl*(1.0 - w) + Ta*w;
+  }
+
+  // ── Chamber analytical geometry + 1/r thermal superposition ─────────────
+  // Chambers sit at world (x,z)=(0,0); all in world-space km.
+  // Returns the steady-state temperature at wp (∇²T = 0, Dirichlet BCs on walls).
+  // Uses sea-level depth reference for d_eff — adequate for domain faces which
+  // lie below grade; topographic overburden is baked into the pressure texture.
+  float ptThermal(vec3 wp){
+    float d = max(0.0, -wp.y);
+    float T = ptGeotherm(d);
+
+    // Upper chamber: sphere r=0.25 km, centre (0,−2,0)
+    vec3 e0 = (wp - vec3(0.0,-2.0,0.0)) / 0.25;
+    float dN0 = length(e0);
+    if(dN0 < 1.0) return 1150.0;
+    T += max(0.0, 1150.0 - ptGeotherm(2.0)) / dN0;
+
+    // Intermediate chamber: sphere r=0.25 km, centre (0,−2.85,0)
+    vec3 e1 = (wp - vec3(0.0,-2.85,0.0)) / 0.25;
+    float dN1 = length(e1);
+    if(dN1 < 1.0) return 1150.0;
+    T += max(0.0, 1150.0 - ptGeotherm(2.85)) / dN1;
+
+    // Lower reservoir: oblate spheroid rx=rz=6, ry=0.8 km, centre (0,−6.8,0)
+    vec3 e2 = (wp - vec3(0.0,-6.8,0.0)) / vec3(6.0, 0.8, 6.0);
+    float dN2 = length(e2);
+    if(dN2 < 1.0) return 1100.0;
+    T += max(0.0, 1100.0 - ptGeotherm(6.8)) / dN2;
+
+    return min(T, 1150.0);  // cap at peak chamber temperature
+  }
+
+  // Returns true if wp is inside any chamber; fills tMag with magma temperature.
+  bool inAnyChamber(vec3 wp, out float tMag){
+    vec3 d0 = wp - vec3(0.0,-2.0,0.0);
+    if(dot(d0,d0) < 0.0625){ tMag=1150.0; return true; }
+    vec3 d1 = wp - vec3(0.0,-2.85,0.0);
+    if(dot(d1,d1) < 0.0625){ tMag=1150.0; return true; }
+    vec3 d2 = wp - vec3(0.0,-6.8,0.0);
+    float eD = (d2.x/6.0)*(d2.x/6.0) + (d2.y/0.8)*(d2.y/0.8) + (d2.z/6.0)*(d2.z/6.0);
+    if(eD < 1.0){ tMag=1100.0; return true; }
+    tMag=0.0; return false;
+  }
+
+  // ── Colormaps ─────────────────────────────────────────────────────────────
+  vec3 cmapTemp(float t){
+    t=clamp(t,0.0,1.0);
+    vec3 c0=vec3(0.03,0.06,0.18), c1=vec3(0.77,0.17,0.03), c2=vec3(1.00,0.87,0.00);
+    return t<0.5?mix(c0,c1,t*2.0):mix(c1,c2,(t-0.5)*2.0);
+  }
+  vec3 cmapPressure(float t){
+    t=clamp(t,0.0,1.0);
+    vec3 c0=vec3(0.91,0.94,0.98), c1=vec3(0.23,0.44,0.75), c2=vec3(0.02,0.08,0.23);
+    return t<0.5?mix(c0,c1,t*2.0):mix(c1,c2,(t-0.5)*2.0);
+  }
+  vec3 cmapDensity(float t){
+    t=clamp(t,0.0,1.0);
+    vec3 c0=vec3(0.83,0.72,0.59), c1=vec3(0.48,0.37,0.24), c2=vec3(0.11,0.17,0.12);
+    return t<0.5?mix(c0,c1,t*2.0):mix(c1,c2,(t-0.5)*2.0);
+  }
+  vec3 cmapYoungs(float t){
+    t=clamp(t,0.0,1.0);
+    vec3 c0=vec3(0.86,0.96,0.90), c1=vec3(0.10,0.60,0.55), c2=vec3(0.04,0.13,0.28);
+    return t<0.5?mix(c0,c1,t*2.0):mix(c1,c2,(t-0.5)*2.0);
+  }
+  vec3 cmapPoisson(float t){
+    t=clamp(t,0.0,1.0);
+    return mix(vec3(0.23,0.43,0.66),vec3(0.83,0.31,0.42),t);
+  }
+  vec3 cmapRegime(float T){
+    vec3 brittle=vec3(1.00,0.42,0.42);
+    vec3 bdz    =vec3(1.00,0.70,0.28);
+    vec3 visco  =vec3(0.46,0.78,0.91);
+    vec3 pmelt  =vec3(1.00,0.55,0.00);
+    vec3 asthen =vec3(1.00,0.27,0.00);
+    vec3 c=mix(brittle,bdz,  smoothstep(270.0,330.0,T));
+         c=mix(c,      visco,smoothstep(520.0,580.0,T));
+         c=mix(c,      pmelt,smoothstep(870.0,930.0,T));
+         c=mix(c,      asthen,smoothstep(1070.0,1130.0,T));
+    return c;
+  }
+`;
+
+const _CAP_VERT = `
+  #include <clipping_planes_pars_vertex>
+  out vec3 vWorldPos;
+  void main(){
+    vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    #include <clipping_planes_vertex>
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const _CAP_FRAG = `
+  #include <clipping_planes_pars_fragment>
+  in vec3 vWorldPos;
+  out vec4 fragColor;
+  ${_CAP_GLSL_NOISE}
+  ${_CAP_GLSL_GEO}
+  void main(){
+    #include <clipping_planes_fragment>
+    float y = vWorldPos.y;
+
+    // ── Property-mode coloring (overrides geology shading when uColorMode > 0) ──
+    int mode = int(uColorMode + 0.5);
+    if(mode > 0){
+      // T: full analytical field — geotherm + 1/r chamber superposition, exact at every fragment.
+      float T = ptThermal(vWorldPos);
+
+      // P: read from texture (topographic overburden baked in on CPU; lithostatic, chamber-independent).
+      float u = clamp((vWorldPos.x + 50.0) / 100.0,       0.001, 0.999);
+      float v = clamp(-y / 50.0,                           0.001, 0.999);
+      float w = clamp((vWorldPos.z - 3.638 + 50.0)/100.0, 0.001, 0.999);
+      float P = texture(uPropTex, vec3(u, v, w)).g * 1.5;
+
+      // E, ν, φ, ρ: derived analytically from T and P.
+      // Inside chambers: melt-state values override.
+      float chTmag;
+      bool isChamber = inAnyChamber(vWorldPos, chTmag);
+
+      // Chamber interior: show convective swirl regardless of property mode.
+      // The swirl colour communicates the spatial temperature heterogeneity
+      // (bright = rising hot magma, dark = sinking denser melt).
+      if(isChamber){
+        vec3 norm; float rotSpd;
+        vec3 d0 = (vWorldPos - vec3(0.0,-2.0,  0.0)) / 0.25;
+        if(dot(d0,d0) < 1.0)    { norm = d0; rotSpd = 0.05; }
+        else {
+          vec3 d1 = (vWorldPos - vec3(0.0,-2.85, 0.0)) / 0.25;
+          if(dot(d1,d1) < 1.0) { norm = d1; rotSpd = 0.05; }
+          else                  { norm = (vWorldPos - vec3(0.0,-6.8, 0.0)) / vec3(6.0, 0.8, 6.0); rotSpd = 0.0; }
+        }
+        fragColor = vec4(magmaSwirl(norm, rotSpd, uTime), 1.0);
+        return;
+      }
+
+      float d   = max(0.0, -y);
+      float phi = clamp((T - (1100.0 + 15.0*P)) / 200.0, 0.0, 1.0) * 0.08;
+      float Ec  = 40.0 + 45.0*(1.0 - exp(-P/0.3)) - 0.015*max(0.0, T - 15.0);
+      float tp  = clamp(phi/0.04, 0.0, 1.0);
+      float E   = max(2.0, Ec * (1.0 - (3.0*tp*tp - 2.0*tp*tp*tp)));
+      float nu  = (0.18 + 0.10*(1.0 - exp(-P/0.3))) * (1.0 - tp) + 0.48*tp;
+      float rho = 2900.0*(1.0 - 0.14*exp(-d/3.0))*(1.0 + P/70.0 - 3.0e-5*max(0.0,T-15.0)) - 250.0*phi;
+
+      vec3 c;
+      if(mode==1){ c=cmapTemp(    clamp((T-15.0)/1215.0,    0.0,1.0)); }
+      else if(mode==2){ c=cmapPressure(clamp(P/1.5,          0.0,1.0)); }
+      else if(mode==3){ c=cmapDensity( clamp((rho-2400.0)/500.0,0.0,1.0)); }
+      else if(mode==4){ c=cmapYoungs(  clamp((E-2.0)/62.0,  0.0,1.0)); }
+      else if(mode==5){ c=cmapPoisson( clamp((nu-0.18)/0.30, 0.0,1.0)); }
+      else             { c=cmapRegime(T); }
+      fragColor=vec4(c,1.0);
+      return;
+    }
+
+    // ── Geology mode: chamber check — swirl overrides litho pattern inside chambers ──
+    {
+      float chTmag;
+      if(inAnyChamber(vWorldPos, chTmag)){
+        vec3 norm; float rotSpd;
+        vec3 d0 = (vWorldPos - vec3(0.0,-2.0,  0.0)) / 0.25;
+        if(dot(d0,d0) < 1.0)    { norm = d0; rotSpd = 0.05; }
+        else {
+          vec3 d1 = (vWorldPos - vec3(0.0,-2.85, 0.0)) / 0.25;
+          if(dot(d1,d1) < 1.0) { norm = d1; rotSpd = 0.05; }
+          else                  { norm = (vWorldPos - vec3(0.0,-6.8, 0.0)) / vec3(6.0, 0.8, 6.0); rotSpd = 0.0; }
+        }
+        fragColor = vec4(magmaSwirl(norm, rotSpd, uTime), 1.0);
+        return;
+      }
+    }
+
+    // ── Lithosphere (y > -40) — warm brown with subtle fbm texture ──
+    vec2 lp = vec2((vWorldPos.x + vWorldPos.z) * 0.035, y * 0.05 + 2.5);
+    float lNoise = fbm(lp * 1.6);
+    vec3 lithoBrown = vec3(0.478, 0.361, 0.220);
+    vec3 lithoDark  = vec3(0.340, 0.250, 0.145);
+    vec3 lithoColor = mix(lithoDark, lithoBrown, 0.45 + lNoise * 0.55);
+
+    // ── Mantle convection (y < -40) — static organic pattern ──
+    // Use full (x,z) as 2D coord so all face orientations (walls + bottom) get
+    // proper 2D turbulence rather than 1D stripes.
+    float depth = -(y + 40.0) / 10.0;  // 0 at LAB, 1 at domain floor
+    vec2 p = vec2(vWorldPos.x, vWorldPos.z) * 0.030 + vec2(depth * 0.45, depth * 0.28);
+    vec2 flow      = swirl(p * 1.5, 0.70);
+    float bulk     = fbm(flow * 2.6 + vec2(2.2, 6.1));
+    float ang      = atan(flow.y, flow.x);
+    float plumeBands = pow(abs(sin(ang * 3.5 + fbm(flow * 3.1) * 5.5)), 3.5);
+    float plumeHeads = pow(max(ridged(flow * 4.0) - 0.40, 0.0) * 2.5, 2.0);
+    float coolDown   = smoothstep(0.50, 0.78, fbm(p * 3.2 + vec2(7.3, 1.9)));
+
+    vec3 deep   = vec3(0.12, 0.03, 0.01);
+    vec3 warm   = vec3(0.30, 0.09, 0.03);
+    vec3 hot    = vec3(0.56, 0.20, 0.05);
+    vec3 plume  = vec3(0.76, 0.38, 0.08);
+    vec3 bright = vec3(0.96, 0.62, 0.18);
+    vec3 cool   = vec3(0.14, 0.05, 0.02);
+
+    vec3 mantleColor = mix(deep, warm, bulk);
+    mantleColor = mix(mantleColor, hot,    plumeBands * 0.30 + plumeHeads * 0.15);
+    mantleColor = mix(mantleColor, plume,  plumeHeads * 0.52);
+    mantleColor = mix(mantleColor, bright, pow(plumeHeads, 2.0) * 0.22);
+    mantleColor = mix(mantleColor, cool,   coolDown * 0.30);
+
+    // ── LAB transition zone: litho → partial melt → mantle over ~12 km ──
+    float t = smoothstep(-34.0, -46.0, y);   // 0 = full litho, 1 = full mantle
+
+    // Triangle envelope peaking at the LAB centre (t=0.5, y=−40 km)
+    float tZone = 1.0 - abs(t - 0.5) * 2.0;
+
+    // Partially-molten transition colour — warm dark orange-brown
+    vec3 labColor = vec3(0.52, 0.24, 0.09);
+    vec3 col = mix(lithoColor, mantleColor, t);
+    col = mix(col, labColor, tZone * 0.55);
+
+    // Diffuse glow across the transition zone (wider, softer than a sharp line)
+    float labGlow = exp(-abs(y + 40.0) * 0.55) * 0.45;
+    col += vec3(0.95, 0.42, 0.06) * labGlow;
+
+    // Baked halo warmth
+    col += vec3(0.44, 0.16, 0.03) * t;
+
+    fragColor = vec4(col, 1.0);
+  }
+`;
+
+function _makeCapShaderMat(extra) {
+  return new THREE.ShaderMaterial(Object.assign({
+    vertexShader:   _CAP_VERT,
+    fragmentShader: _CAP_FRAG,
+    uniforms: {
+      uColorMode: { value: 0.0 },
+      uPropTex:   { value: _propTex },
+      uTime:      { value: 0.0 },
+    },
+    glslVersion: THREE.GLSL3,
+    side: THREE.DoubleSide,
+    clipping: true,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
+  }, extra));
+}
+
 function buildCrossSectionCap() {
   const capGeo = new THREE.BufferGeometry();
-  crossSectionCap = new THREE.Mesh(
-    capGeo,
-    new THREE.MeshPhongMaterial({
-      color: 0x7a5c44,
-      specular: 0x1a0c06,
-      shininess: 6,
-      side: THREE.DoubleSide,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-      polygonOffsetUnits: -1,
-    })
-  );
+  crossSectionCap = new THREE.Mesh(capGeo, _makeCapShaderMat());
   crossSectionCap.visible = false;
   scene.add(crossSectionCap);
+  _domainFaceMeshes.push(crossSectionCap);
+  _domainFaceMats.push(crossSectionCap.material);
 
   // Overdraw clone — shares geometry so it auto-updates with _rebuildCapGeometry.
   // Renders at rO=10 (transparent pass, after rings) to repaint cap face over
   // any hazard-ring bleed on the cross-section plane.
-  crossSectionCapOverdraw = new THREE.Mesh(
-    capGeo,
-    new THREE.MeshPhongMaterial({
-      color: 0x7a5c44, specular: 0x1a0c06, shininess: 6,
-      side: THREE.DoubleSide,
-      transparent: true, opacity: 1.0,
-      depthTest: true, depthWrite: false,
-    })
-  );
+  const capOdMat = _makeCapShaderMat({ depthTest: true, depthWrite: false });
+  crossSectionCapOverdraw = new THREE.Mesh(capGeo, capOdMat);
   crossSectionCapOverdraw.visible = false;
   crossSectionCapOverdraw.renderOrder = 10;
   scene.add(crossSectionCapOverdraw);
+  _domainFaceMats.push(capOdMat);
 }
 
 function _rebuildCapGeometry() {
@@ -1805,14 +2640,15 @@ function updateLabelPositions() {
 function updateClipPlanes() {
   const planes = crossSectionEnabled ? [clipPlane] : [];
 
-  function applyPlanes(obj) {
+  function applyPlanes(obj, overridePlanes) {
+    const p = overridePlanes ?? planes;
     if (!obj) return;
-    if (obj.isGroup) { obj.children.forEach(applyPlanes); return; }
+    if (obj.isGroup) { obj.children.forEach(c => applyPlanes(c, p)); return; }
     if (obj.material) {
       if (Array.isArray(obj.material)) {
-        obj.material.forEach(m => { m.clippingPlanes = planes; });
+        obj.material.forEach(m => { m.clippingPlanes = p; });
       } else {
-        obj.material.clippingPlanes = planes;
+        obj.material.clippingPlanes = p;
       }
     }
   }
@@ -1828,14 +2664,23 @@ function updateClipPlanes() {
   }
   if (domainBox) applyPlanes(domainBox);
   if (domainOverdraw) applyPlanes(domainOverdraw);
+  if (domainLayerEdges) applyPlanes(domainLayerEdges);
   if (ionianSlab) applyPlanes(ionianSlab);
   if (ionianCrust) applyPlanes(ionianCrust);
-  if (maltaEscarpment) applyPlanes(maltaEscarpment);
   if (stepFault) applyPlanes(stepFault);
-  if (mantleConduit) applyPlanes(mantleConduit);
-  chamberMeshes.forEach(applyPlanes);
-  if (faultRootGroup) applyPlanes(faultRootGroup);
-  if (seismicMesh)    applyPlanes(seismicMesh);
+  // Apply the cross-section clip plane so chambers are halved in core view.
+  // The camera-side 3D half remains visible; cap fills cover the cut face.
+  chamberMeshes.forEach(m => applyPlanes(m));
+  {
+    const faultPlanes = _hazardDomainPlanes
+      ? (crossSectionEnabled ? [..._hazardDomainPlanes, clipPlane] : [..._hazardDomainPlanes])
+      : planes;
+    if (faultRootGroup)    applyPlanes(faultRootGroup,    faultPlanes);
+    if (tectonicFaultRoot) applyPlanes(tectonicFaultRoot, faultPlanes);
+  }
+  if (regionalGeologyMesh) applyPlanes(regionalGeologyMesh);
+  if (etnaGeologyMesh)     applyPlanes(etnaGeologyMesh);
+  if (seismicMesh)        applyPlanes(seismicMesh);
 
   // Hazard rings: combine domain boundary planes with cross-section plane
   if (hazardGroup && _hazardDomainPlanes) {
@@ -1869,12 +2714,15 @@ function updateClipPlanes() {
 
 function applyVertExag(factor) {
   _vertExag = factor;
-  if (surfaceMesh)       surfaceMesh.scale.y       = factor;
-  if (hazardOverlayMesh) hazardOverlayMesh.scale.y = factor;
+  if (surfaceMesh)        surfaceMesh.scale.y        = factor;
+  if (hazardOverlayMesh)  hazardOverlayMesh.scale.y  = factor;
+  if (regionalGeologyMesh) regionalGeologyMesh.scale.y = factor;
+  if (etnaGeologyMesh)     etnaGeologyMesh.scale.y     = factor;
   if (terrainSkirt) terrainSkirt.scale.y = factor;
   if (skirtOverdraw)    skirtOverdraw.scale.y  = factor;
   if (hazardGroup)      hazardGroup.scale.y     = factor;
-  if (faultRootGroup)   faultRootGroup.scale.y  = factor;
+  if (faultRootGroup)    faultRootGroup.scale.y    = factor;
+  if (tectonicFaultRoot) tectonicFaultRoot.scale.y = factor;
   labels.forEach(lbl => { if (lbl.origY !== undefined) lbl.pos.y = lbl.origY * factor; });
   if (etnaLabelLayer) applyEtnaLabelVertExag(etnaLabelLayer.entries, factor);
 }
@@ -1901,6 +2749,11 @@ let _cursorReadout = null, _scaleReadout = null;
 let _scaleLabel0 = null, _scaleLabel1 = null, _scaleLabel2 = null;
 let _scaleLabel3 = null, _scaleLabel4 = null, _scaleLabel5 = null;
 let _scTemp = null, _scPressure = null, _scContext = null;
+let _scDepthRow = null, _scDepth = null;
+let _scDensityRow = null, _scDensity = null;
+let _scYoungsRow = null, _scYoungs = null;
+let _scPoissonRow = null, _scPoisson = null;
+let _scRegimeRow = null, _scRegime = null, _scRegimeDesc = null;
 let _compassAnchor = null;
 
 // Nice scale-bar distances in metres
@@ -1918,6 +2771,95 @@ function _isaPressMb(h)  {
   return p.toFixed(0) + ' hPa';
 }
 
+// ─── Subsurface geophysical model (Etna) ─────────────────────────────────────
+// d = depth in km below sea level (positive downward). Y scene coords → d = -y.
+
+// Piecewise density column (kg/m³) matching Etna's basaltic/lithospheric stack.
+const _SUB_DENSITY_SEGS = [
+  [0,  5,  2500],   // young porous volcanic rock
+  [5,  15, 2750],   // dense basaltic upper crust
+  [15, 30, 2900],   // lower-crustal granulite/gabbro
+  [30, 40, 3050],   // mafic lower crust / Moho transition
+  [40, 50, 3280],   // upper-mantle peridotite
+];
+
+function _subTemp(d) {
+  // Enhanced geothermal gradient (~120 mW/m² heat flux) for Etna's active system.
+  if (d <= 0)  return 15;                        // surface ISA baseline
+  if (d <= 15) return 15  + 40 * d;              // upper volcanic crust: ~40 °C/km
+  if (d <= 40) return 615 + 24 * (d - 15);       // lower crust: ~24 °C/km
+  return 1215 + 6  * (d - 40);                   // mantle adiabat: ~6 °C/km
+}
+
+function _subLithoP(d) {
+  // Lithostatic pressure in GPa = integral of ρ(z)·g·dz, 0→d.
+  let P = 0;
+  for (const [top, bot, rho] of _SUB_DENSITY_SEGS) {
+    if (d <= top) break;
+    P += rho * 9.81 * (Math.min(d, bot) - top) * 1000; // Pa (h in m)
+  }
+  return P / 1e9; // → GPa
+}
+
+function _subDensity(d) {
+  for (const [top, bot, rho] of _SUB_DENSITY_SEGS) {
+    if (d <= bot) return rho;
+  }
+  return 3280;
+}
+
+function _subYoungsModulus(d, T) {
+  // Undrained elastic modulus (GPa); temperature-softened.
+  let E0;
+  if      (d <=  5) E0 = 55;
+  else if (d <= 15) E0 = 78;
+  else if (d <= 30) E0 = 95;
+  else if (d <= 40) E0 = 120;
+  else              E0 = 165;
+  return Math.max(E0 * 0.5, E0 - 0.012 * Math.max(0, T - 20));
+}
+
+function _subPoisson(d) {
+  // Vp/Vs-derived Poisson's ratio.
+  if (d <= 15) return +(0.250 + 0.002  * d           ).toFixed(3);
+  if (d <= 40) return +(0.270 + 0.0008 * (d - 15)    ).toFixed(3);
+  return 0.290;
+}
+
+const _REGIME_DEFS = [
+  [ 350, 'Brittle',          '#ff6b6b', 'Elastic–brittle; seismogenic zone'        ],
+  [ 600, 'Brittle–Ductile',  '#ffb347', 'Mixed mode; fault creep begins'           ],
+  [1000, 'Viscoelastic',     '#76c8e8', 'Ductile flow; creep-dominated deformation'],
+  [1200, 'Partial Melt',     '#ff8c00', 'Viscoelastic + partial melt; LAB zone'    ],
+  [Infinity, 'Asthenosphere','#ff4500', 'Convective mantle; plastic flow'          ],
+];
+
+function _subRegime(T) {
+  for (const [thresh, label, color, desc] of _REGIME_DEFS) {
+    if (T < thresh) return { label, color, desc };
+  }
+}
+
+// Meshes that trigger the subsurface reader on hover (domain walls + cap).
+const _domainFaceMeshes = [];
+// Materials for all domain face meshes — updated together when property mode changes.
+const _domainFaceMats = [];
+function _setSubColorMode(mode) {
+  _domainFaceMats.forEach(mat => { mat.uniforms.uColorMode.value = mode; });
+}
+// Consecutive frames without a domain-face hit before we clear the subsurface rows.
+// Prevents flicker when the raycaster briefly misses on mesh edges.
+let _subMissFrames = 0;
+const _SUB_MISS_HOLD = 12;
+
+// Returns true when cross-section is active and pt is on the clipped (hidden) side.
+// Three.js clipping planes don't affect raycasting, so every hit consumer must call this.
+// Epsilon of 0.08 (≈80 m) prevents false rejections of cap-face hits whose points land
+// exactly on the plane — floating-point precision otherwise flips the sign frame-to-frame.
+function _isClipped(pt) {
+  return crossSectionEnabled && clipPlane != null && clipPlane.distanceToPoint(pt) < -0.08;
+}
+
 function onMouseMove(event) {
   const rect = renderer.domElement.getBoundingClientRect();
   mouse.x =  ((event.clientX - rect.left) / rect.width)  * 2 - 1;
@@ -1931,30 +2873,56 @@ function updateContextHUD() {
   raycaster.setFromCamera(mouse, camera);
 
   let hitPoint = null;
+  let hitIsTerrain = false;
   if (_mouseActive && surfaceMesh && surfaceMesh.visible) {
     const hits = raycaster.intersectObject(surfaceMesh);
-    if (hits.length > 0) hitPoint = hits[0].point;
+    if (hits.length > 0 && !_isClipped(hits[0].point)) {
+      hitPoint = hits[0].point;
+      hitIsTerrain = true;
+    }
   }
 
-  // ── Cursor readout: lat / lon / elevation ───────────────────────────────────
+  // Fall back to domain face hit for cursor readout when terrain not hit.
+  // Also covers core-view (cross-section) where the terrain is clipped away.
+  if (!hitPoint && _mouseActive && _domainFaceMeshes.length) {
+    const visF = _domainFaceMeshes.filter(m => m.visible);
+    if (visF.length) {
+      const dh = raycaster.intersectObjects(visF, false);
+      // Iterate (not just [0]) — hidden-side walls are geometrically hit first
+      // but rejected by _isClipped; the cap or visible-side wall follows.
+      const vh = dh.find(h => !_isClipped(h.point));
+      if (vh) hitPoint = vh.point;
+    }
+  }
+
+  // ── Cursor readout: lat / lon / elevation or depth ──────────────────────────
   if (_cursorReadout) {
     if (hitPoint) {
-      const elevM = hitPoint.y * 1000; // scene Y in km → metres
       const lon = SAT_LON_W + (hitPoint.x + 50) / 100 * (SAT_LON_E - SAT_LON_W);
-      const lat = SAT_LAT_N - (hitPoint.z + 50) / 100 * (SAT_LAT_N - SAT_LAT_S);
-      const elevSign = elevM >= 0 ? '+' : '';
-      const elevCol = elevM >= 0 ? '#a8d4a0' : '#7ab2e8';
-      _cursorReadout.hidden = false;
-      _cursorReadout.innerHTML =
-        `${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E &nbsp;|&nbsp; ` +
-        `<span style="color:${elevCol}">${elevSign}${Math.round(elevM)} m</span>`;
+      const lat = SAT_LAT_N - (hitPoint.z - GEO_Z_OFFSET + 50) / 100 * (SAT_LAT_N - SAT_LAT_S);
+      if (hitIsTerrain) {
+        const elevM = hitPoint.y * 1000;
+        const elevSign = elevM >= 0 ? '+' : '';
+        const elevCol  = elevM >= 0 ? '#a8d4a0' : '#7ab2e8';
+        _cursorReadout.hidden = false;
+        _cursorReadout.innerHTML =
+          `${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E &nbsp;|&nbsp; ` +
+          `<span style="color:${elevCol}">${elevSign}${Math.round(elevM)} m</span>`;
+      } else {
+        const depthKm = Math.max(0, -hitPoint.y);
+        _cursorReadout.hidden = false;
+        _cursorReadout.innerHTML =
+          `${lat.toFixed(3)}°N, ${lon.toFixed(3)}°E &nbsp;|&nbsp; ` +
+          `<span style="color:#7ab2e8">−${depthKm.toFixed(1)} km</span>`;
+      }
     } else {
       _cursorReadout.hidden = true;
     }
   }
 
   // ── Surface conditions: ISA temp + pressure at cursor elevation ─────────────
-  if (_scTemp && _scPressure) {
+  // Only fires on terrain hits; domain-face hits are handled by the subsurface block.
+  if (_scTemp && _scPressure && hitIsTerrain) {
     if (hitPoint) {
       const elevM = hitPoint.y * 1000;
       _scTemp.textContent = _isaTemp(elevM);
@@ -1964,6 +2932,51 @@ function updateContextHUD() {
       _scTemp.textContent = '—';
       _scPressure.textContent = '—';
       if (_scContext) _scContext.textContent = 'ATMOS. EST.';
+    }
+  } else if (!hitPoint && _scTemp && _scPressure) {
+    _scTemp.textContent = '—';
+    _scPressure.textContent = '—';
+    if (_scContext) _scContext.textContent = 'ATMOS. EST.';
+  }
+
+  // ── Subsurface conditions: geophysical model when hovering domain faces ──────
+  // Active when a domain face (not terrain surface) is under the cursor.
+  // hitPoint is already set by the domain-face pre-check above; reuse it directly
+  // to avoid a redundant raycast and so the clipped-hit iteration is consistent.
+  // _subMissFrames debounces so brief raycaster misses on mesh edges don't flicker.
+  {
+    let freshHit = false;
+    if (!hitIsTerrain && hitPoint && _mouseActive) {
+      freshHit = true;
+      _subMissFrames = 0;
+      const pt = hitPoint;
+      // Full 3D physics: topographic overburden + chamber thermal superposition
+      const props  = _ptPropsAtPoint(pt.x, pt.y, pt.z);
+      const regime = _subRegime(props.T);
+      if (_scTemp)     _scTemp.textContent     = props.inChamber ? `${Math.round(props.T)} °C  ·  MAGMA` : `${Math.round(props.T)} °C`;
+      if (_scPressure) _scPressure.textContent = `${props.P.toFixed(2)} GPa`;
+      if (_scContext)  _scContext.textContent  = props.inChamber ? 'CHAMBER INTERIOR' : 'SUBSURFACE MODEL';
+      if (_scDepthRow)   { _scDepthRow.style.display   = 'flex'; if (_scDepth)   _scDepth.textContent   = `${props.dEff.toFixed(1)} km`; }
+      if (_scDensityRow) { _scDensityRow.style.display = 'flex'; if (_scDensity) _scDensity.textContent = `${props.rho} kg/m³`; }
+      if (_scYoungsRow)  { _scYoungsRow.style.display  = 'flex'; if (_scYoungs)  _scYoungs.textContent  = `${props.E.toFixed(1)} GPa`; }
+      if (_scPoissonRow) { _scPoissonRow.style.display = 'flex'; if (_scPoisson) _scPoisson.textContent = props.nu.toFixed(3); }
+      if (_scRegimeRow) {
+        _scRegimeRow.style.display = 'flex';
+        if (_scRegime)     { _scRegime.textContent = regime.label; _scRegime.style.color = regime.color; }
+        if (_scRegimeDesc)   _scRegimeDesc.textContent = regime.desc;
+      }
+    }
+    if (!freshHit) {
+      _subMissFrames++;
+    }
+    // Only clear the display after _SUB_MISS_HOLD consecutive frames without a hit.
+    // This holds the last valid reading through brief raycaster misses at mesh edges.
+    if (!freshHit && _subMissFrames >= _SUB_MISS_HOLD) {
+      if (_scDepthRow)   _scDepthRow.style.display   = 'none';
+      if (_scDensityRow) _scDensityRow.style.display = 'none';
+      if (_scYoungsRow)  _scYoungsRow.style.display  = 'none';
+      if (_scPoissonRow) _scPoissonRow.style.display = 'none';
+      if (_scRegimeRow)  _scRegimeRow.style.display  = 'none';
     }
   }
 
@@ -2003,7 +3016,16 @@ function updateContextHUD() {
   // Hazard zone hover cursor
   if (!measureMode && hazardGroup && hazardGroup.visible && _hazardObjects.length > 0 && _mouseActive) {
     const hazardHits = raycaster.intersectObjects(_hazardObjects, false);
-    if (hazardHits.length > 0) renderer.domElement.style.cursor = 'pointer';
+    if (hazardHits.length > 0 && !_isClipped(hazardHits[0].point)) renderer.domElement.style.cursor = 'pointer';
+  }
+
+  // Geology overlay hover cursor — show pointer when mousing over terrain with geology visible.
+  // Full per-polygon PIP is deferred to click; here we just signal "clickable terrain".
+  if (!measureMode && _mouseActive && (_ingvGeoFeats || _egdiGeoFeats) &&
+      (etnaGeologyMesh?.visible || regionalGeologyMesh?.visible) &&
+      surfaceMesh && surfaceMesh.visible) {
+    const hits = raycaster.intersectObject(surfaceMesh);
+    if (hits.length > 0 && !_isClipped(hits[0].point)) renderer.domElement.style.cursor = 'pointer';
   }
 }
 
@@ -2149,6 +3171,22 @@ function setupUI() {
   // Escape key closes profile modal
   document.addEventListener('keydown', e => { if (e.key === 'Escape') _hideProfileModal(); });
 
+  // ── Section expand / scroll helper ─────────────────────────────────────────
+  // Syncs a <details> section's open state to a master toggle and, when opening,
+  // scrolls the section to the centre of the nav panel.
+  const _navScroll = document.getElementById('ui-scroll-body');
+  function _syncSection(sectionId, checked) {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    section.open = checked;
+    if (checked && _navScroll) {
+      const sTop    = section.offsetTop - _navScroll.offsetTop;
+      const sHeight = section.offsetHeight;
+      const target  = sTop - (_navScroll.clientHeight - sHeight) / 2;
+      _navScroll.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+    }
+  }
+
   // Grab HUD DOM refs used across the render loop
   _cursorReadout = document.getElementById('cursor-readout');
   _scaleReadout  = document.getElementById('scale-readout');
@@ -2161,6 +3199,17 @@ function setupUI() {
   _scTemp        = document.getElementById('sc-temp');
   _scPressure    = document.getElementById('sc-pressure');
   _scContext     = document.getElementById('sc-context');
+  _scDepthRow    = document.getElementById('sc-depth-row');
+  _scDepth       = document.getElementById('sc-depth');
+  _scDensityRow  = document.getElementById('sc-density-row');
+  _scDensity     = document.getElementById('sc-density');
+  _scYoungsRow   = document.getElementById('sc-youngs-row');
+  _scYoungs      = document.getElementById('sc-youngs');
+  _scPoissonRow  = document.getElementById('sc-poisson-row');
+  _scPoisson     = document.getElementById('sc-poisson');
+  _scRegimeRow   = document.getElementById('sc-regime-row');
+  _scRegime      = document.getElementById('sc-regime');
+  _scRegimeDesc  = document.getElementById('sc-regime-desc');
   _compassAnchor = document.getElementById('compass-anchor');
 
   // mouseleave clears cursor readout when pointer leaves the canvas
@@ -2184,6 +3233,7 @@ function setupUI() {
   const crossControls = document.getElementById('cross-section-controls');
   if (crossToggle) {
     crossToggle.addEventListener('change', () => {
+      _syncSection('cross-section-section', crossToggle.checked);
       crossSectionEnabled = crossToggle.checked;
       if (!clipPlane) {
         clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
@@ -2203,6 +3253,7 @@ function setupUI() {
       const deg = parseInt(angleSlider.value, 10);
       if (angleLabel) angleLabel.textContent = deg + '°';
       setCrossSectionAngle(deg);
+      updateCrossSectionCap();
     });
   }
 
@@ -2256,44 +3307,24 @@ function setupUI() {
     });
   }
 
-  // Ionian slab + crust (treated as one feature)
-  const slabToggle = document.getElementById('ionian-slab-toggle');
-  if (slabToggle) {
-    slabToggle.addEventListener('change', () => {
-      const on = slabToggle.checked;
-      if (ionianSlab)  ionianSlab.visible  = on;
-      if (ionianCrust) ionianCrust.visible  = on;
+  // ── Subsurface property visualisation (Deep Structure section) ──────────────
+  document.querySelectorAll('input[name="sub-prop-mode"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const mode = parseInt(radio.value, 10);
+      _setSubColorMode(mode);
+      const rl = document.getElementById('regime-legend');
+      if (rl) rl.style.display = mode === 6 ? 'grid' : 'none';
     });
-  }
-
-  // Malta Escarpment toggle
-  const escarpToggle = document.getElementById('malta-escarpment-toggle');
-  if (escarpToggle) {
-    escarpToggle.addEventListener('change', () => {
-      if (maltaEscarpment) maltaEscarpment.visible = escarpToggle.checked;
-    });
-  }
-
-  // STEP fault toggle
-  const stepToggle = document.getElementById('step-fault-toggle');
-  if (stepToggle) {
-    stepToggle.addEventListener('change', () => {
-      if (stepFault) stepFault.visible = stepToggle.checked;
-    });
-  }
-
-  // Mantle conduit toggle
-  const conduitToggle = document.getElementById('mantle-conduit-toggle');
-  if (conduitToggle) {
-    conduitToggle.addEventListener('change', () => {
-      if (mantleConduit) mantleConduit.visible = conduitToggle.checked;
-    });
-  }
+  });
+  // Sync initial state with checked radio (value="0" → geology texture)
+  const _initPropRadio = document.querySelector('input[name="sub-prop-mode"]:checked');
+  if (_initPropRadio) _setSubColorMode(parseInt(_initPropRadio.value, 10));
 
   // ── Seismicity controls ──────────────────────────────────────────────────────
   const seismicMaster = document.getElementById('seismicity-master-toggle');
   if (seismicMaster) {
     seismicMaster.addEventListener('change', () => {
+      _syncSection('seismicity-section', seismicMaster.checked);
       if (seismicMesh) seismicMesh.visible = seismicMaster.checked;
     });
   }
@@ -2319,13 +3350,25 @@ function setupUI() {
 
   // ── Surface fault system toggles ────────────────────────────────────────────
   const FAULT_IDS = ['PFS', 'RFS', 'RNF', 'SFS', 'TFS'];
-  const faultMaster = document.getElementById('faults-master-toggle');
+  const faultMaster    = document.getElementById('faults-master-toggle');
+  const etnaFaultsMaster = document.getElementById('etna-faults-master-toggle');
 
   function getFaultGroup(id) {
     if (!faultRootGroup) return null;
     return faultRootGroup.children.find(g => g.name === `fault-${id}`) ?? null;
   }
 
+  function _setEtnaFaults(on) {
+    if (etnaFaultsMaster) etnaFaultsMaster.checked = on;
+    FAULT_IDS.forEach(id => {
+      const sub = document.getElementById(`fault-${id.toLowerCase()}-toggle`);
+      if (sub) sub.checked = on;
+      const g = getFaultGroup(id);
+      if (g) g.visible = on;
+    });
+  }
+
+  // Individual INGV fault toggles
   FAULT_IDS.forEach(id => {
     const el = document.getElementById(`fault-${id.toLowerCase()}-toggle`);
     if (!el) return;
@@ -2335,13 +3378,85 @@ function setupUI() {
     });
   });
 
+  // Etna Faults sub-group master
+  if (etnaFaultsMaster) {
+    etnaFaultsMaster.addEventListener('change', () => {
+      _setEtnaFaults(etnaFaultsMaster.checked);
+    });
+  }
+
+  const tectonicTog = document.getElementById('tectonic-faults-toggle');
+  const TECTONIC_SUB_IDS = ['thrust-front', 'subduction', 'malta', 'tindari', 'scicli'];
+
+  function getTectonicSubGroup(key) {
+    return tectonicFaultRoot?.children.find(g => g.name === `tectonic-${key}`) ?? null;
+  }
+
   if (faultMaster) {
     faultMaster.addEventListener('change', () => {
+      _syncSection('surface-faults-section', faultMaster.checked);
       const on = faultMaster.checked;
-      FAULT_IDS.forEach(id => {
-        const sub = document.getElementById(`fault-${id.toLowerCase()}-toggle`);
-        if (sub) { sub.checked = on; const g = getFaultGroup(id); if (g) g.visible = on; }
+      // Show/hide the root group itself first
+      if (faultRootGroup) faultRootGroup.visible = on;
+      // Cascade to Etna Faults sub-group
+      _setEtnaFaults(on);
+      // Cascade to regional tectonic faults and each sub-group
+      if (tectonicTog) tectonicTog.checked = on;
+      if (tectonicFaultRoot) tectonicFaultRoot.visible = on;
+      TECTONIC_SUB_IDS.forEach(key => {
+        const sub = document.getElementById(`tectonic-${key}-toggle`);
+        if (sub) sub.checked = on;
+        const g = getTectonicSubGroup(key);
+        if (g) g.visible = on;
       });
+    });
+  }
+
+  // Regional tectonic master toggle — cascades to all sub-groups
+  if (tectonicTog) {
+    tectonicTog.addEventListener('change', () => {
+      const on = tectonicTog.checked;
+      if (tectonicFaultRoot) tectonicFaultRoot.visible = on;
+      TECTONIC_SUB_IDS.forEach(key => {
+        const sub = document.getElementById(`tectonic-${key}-toggle`);
+        if (sub) sub.checked = on;
+        const g = getTectonicSubGroup(key);
+        if (g) g.visible = on;
+      });
+    });
+  }
+
+  // Individual regional lineament toggles
+  TECTONIC_SUB_IDS.forEach(key => {
+    const el = document.getElementById(`tectonic-${key}-toggle`);
+    if (!el) return;
+    el.addEventListener('change', () => {
+      const g = getTectonicSubGroup(key);
+      if (g) g.visible = el.checked;
+    });
+  });
+
+  // ── Geology overlay controls ─────────────────────────────────────────────────
+  const geologyMaster    = document.getElementById('geology-master-toggle');
+  const etnaGeoMaster    = document.getElementById('etna-geology-master-toggle');
+  const regionalGeoMaster = document.getElementById('regional-geology-master-toggle');
+  const geologyOpacity   = document.getElementById('geology-opacity');
+  function _syncGeoVisibility() {
+    const masterOn    = geologyMaster?.checked !== false;
+    const etnaOn      = etnaGeoMaster?.checked !== false;
+    const regionalOn  = regionalGeoMaster?.checked !== false;
+    if (etnaGeologyMesh)     etnaGeologyMesh.visible     = masterOn && etnaOn;
+    if (regionalGeologyMesh) regionalGeologyMesh.visible = masterOn && regionalOn;
+  }
+
+  if (geologyMaster)      geologyMaster.addEventListener('change', () => { _syncSection('geology-section', geologyMaster.checked); _syncGeoVisibility(); });
+  if (etnaGeoMaster)      etnaGeoMaster.addEventListener('change', _syncGeoVisibility);
+  if (regionalGeoMaster)  regionalGeoMaster.addEventListener('change', _syncGeoVisibility);
+  if (geologyOpacity) {
+    geologyOpacity.addEventListener('input', () => {
+      const v = parseFloat(geologyOpacity.value);
+      if (etnaGeologyMesh)     etnaGeologyMesh.material.opacity     = v;
+      if (regionalGeologyMesh) regionalGeologyMesh.material.opacity = v;
     });
   }
 
@@ -2359,6 +3474,7 @@ function setupUI() {
   const stationsMaster = document.getElementById('stations-master-toggle');
   if (stationsMaster) {
     stationsMaster.addEventListener('change', () => {
+      _syncSection('stations-section', stationsMaster.checked);
       const on = stationsMaster.checked;
       Object.keys(ALL_STATIONS).forEach(type => {
         const id = `stn-${type.toLowerCase()}-toggle`;
@@ -2371,7 +3487,7 @@ function setupUI() {
   }
 
   // POI category toggles (Locations section)
-  ['settlement', 'fault', 'vent', 'fissure', 'general'].forEach(theme => {
+  ['settlement', 'fault', 'vent', 'fissure', 'general', 'hydro'].forEach(theme => {
     const el = document.getElementById(`label-${theme}-toggle`);
     if (el) el.addEventListener('change', () => { categoryEnabled[theme] = el.checked; });
   });
@@ -2379,7 +3495,7 @@ function setupUI() {
   if (locationsMasterToggle) {
     locationsMasterToggle.addEventListener('change', () => {
       const on = locationsMasterToggle.checked;
-      ['settlement', 'fault', 'vent', 'fissure', 'general'].forEach(theme => {
+      ['settlement', 'fault', 'vent', 'fissure', 'general', 'hydro'].forEach(theme => {
         categoryEnabled[theme] = on;
         const sub = document.getElementById(`label-${theme}-toggle`);
         if (sub) sub.checked = on;
@@ -2489,7 +3605,7 @@ function setupUI() {
   // LOD / label density slider
   const lodSlider     = document.getElementById('lod-slider');
   const lodValueLabel = document.getElementById('lod-value-label');
-  const LOD_LABELS    = ['', 'Landmarks only', 'Major features', 'All features'];
+  const LOD_LABELS    = ['', 'Landmarks only', 'Key features', 'Major features', 'Detailed', 'All features'];
   function syncLodLabel() {
     if (lodValueLabel) lodValueLabel.textContent = LOD_LABELS[currentLodLevel] || 'All features';
   }
@@ -2527,7 +3643,7 @@ function setupUI() {
     });
   }
 
-  function _renderSearchResults(results, idx = 0) {
+  function _renderSearchResults(results, idx = -1) {
     if (!featureSearchRes) return;
     featureSearchRes.innerHTML = '';
     if (!results.length) { featureSearchRes.hidden = true; return; }
@@ -2549,12 +3665,17 @@ function setupUI() {
     featureSearchRes.hidden = false;
   }
 
-  function _refreshSearch(preserveIndex = false) {
+  function _refreshSearch(preserveIndex = false, showAll = false) {
     const q = (featureSearch?.value || '').trim().toLowerCase();
-    if (!q) { featureSearchRes.hidden = true; featureSearchRes.innerHTML = ''; _activeSearchResults = []; _activeSearchIndex = -1; return; }
-    const results = _searchPool.filter(c => c.name.toLowerCase().includes(q)).slice(0, 8);
-    const idx = preserveIndex ? Math.min(_activeSearchIndex, results.length - 1) : 0;
-    _renderSearchResults(results, Math.max(0, idx));
+    if (!q && !showAll) {
+      if (featureSearchRes) { featureSearchRes.hidden = true; featureSearchRes.innerHTML = ''; }
+      _activeSearchResults = []; _activeSearchIndex = -1; return;
+    }
+    const results = q
+      ? _searchPool.filter(c => c.name.toLowerCase().includes(q))
+      : _searchPool.slice().sort((a, b) => a.name.localeCompare(b.name));
+    const idx = preserveIndex ? Math.min(_activeSearchIndex, results.length - 1) : -1;
+    _renderSearchResults(results, idx);
   }
 
   function _clearSearch(resetInput = false) {
@@ -2580,20 +3701,20 @@ function setupUI() {
   if (featureSearch) {
     featureSearch.addEventListener('input',  () => _refreshSearch(false));
     featureSearch.addEventListener('change', () => _refreshSearch(false));
-    featureSearch.addEventListener('focus',  () => _refreshSearch(false));
+    featureSearch.addEventListener('focus',  () => _refreshSearch(false, true));
     featureSearch.addEventListener('keydown', (e) => {
       const n = _activeSearchResults.length;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        _activeSearchIndex = n ? (_activeSearchIndex + 1) % n : 0;
+        _activeSearchIndex = n ? (_activeSearchIndex < 0 ? 0 : (_activeSearchIndex + 1) % n) : 0;
         _syncSearchHighlight();
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        _activeSearchIndex = n ? ((_activeSearchIndex - 1) + n) % n : 0;
+        _activeSearchIndex = n ? (_activeSearchIndex <= 0 ? n - 1 : _activeSearchIndex - 1) : 0;
         _syncSearchHighlight();
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        const item = _activeSearchResults[_activeSearchIndex] ?? _activeSearchResults[0];
+        const item = _activeSearchIndex >= 0 ? _activeSearchResults[_activeSearchIndex] : _activeSearchResults[0];
         if (item) _selectResult(item);
       } else if (e.key === 'Escape') {
         _clearSearch(false);
@@ -2633,7 +3754,10 @@ function setupUI() {
     if (hazardOverlayMesh) hazardOverlayMesh.visible = on;
   }
   if (hazardsToggle) {
-    hazardsToggle.addEventListener('change', () => _applyHazardToggle(hazardsToggle.checked));
+    hazardsToggle.addEventListener('change', () => {
+      _syncSection('hazards-section', hazardsToggle.checked);
+      _applyHazardToggle(hazardsToggle.checked);
+    });
     // Sync initial checkbox state (checkbox may already be checked on load)
     _applyHazardToggle(hazardsToggle.checked);
   }
@@ -2777,6 +3901,13 @@ function buildCompass() {
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+
+  // Advance animation time for all convection swirl shaders
+  const _t = performance.now() / 1000;
+  for (const m of _chamberMats)    m.uniforms.uTime.value = _t;
+  for (const m of _chamberCapMats) m.uniforms.uTime.value = _t;
+  for (const m of _domainFaceMats) m.uniforms.uTime.value = _t;
+
   if (hazardOverlayMesh && hazardOverlayMesh.visible && hazardOverlayMesh.material.uniforms) {
     hazardOverlayMesh.material.uniforms.uCameraY.value = camera.position.y;
   }
@@ -3035,6 +4166,305 @@ function showHazardPopup(zone) {
   activePopupFeature = { name: zone.label, kicker: zone.kicker, theme: 'vent', isHazardZone: true };
 }
 
+// Description lookup for common INGV EtnaGeoMap non-lava unit names
+const _INGV_UNIT_DESC = {
+  // ── INGV EtnaGeoMap WMS formations (Branca et al. 2011) ──────────────────
+  // Listed youngest → oldest; descriptions lead with lithology then age/context.
+  'Torre del Filosofo Formation':
+    'Olivine-phyric trachybasalt to basaltic trachyandesite; both aa and block lava facies. The most recently erupted lavas on the summit cone and upper flanks, including the major historical eruptions of 1991–93, 2001, and 2002–03.',
+  'Pietracannone Formation':
+    'Olivine–clinopyroxene trachybasalt lava flows from lower-flank fissure vents. Erupted during the historical period ca. 1600–1900 AD; the 1669 eruption — among the most destructive in Etna\'s recorded history — belongs to this formation.',
+  'Portella Giumenta formation':
+    'Dense, massive trachybasalt lava flows from Etna\'s peripheral vent system. Prehistoric age; outcrops concentrated on the middle and upper southern flank.',
+  'Piano Provenzana Formation':
+    'Trachybasalt lavas associated with the Ellittico caldera-forming phase (~15–18 ka). Dense, well-jointed flows dominating the northern flank between 1,800 and 2,200 m a.s.l.',
+  'Pizzi Deneri Formation':
+    'Scoriaceous spatter and lapilli-fall deposits from Etna\'s explosive summit-cone building phase. Associated with the Ellittico caldera (~15 ka) and post-caldera pyroclastic activity.',
+  'Monte Calvario formation':
+    'Loose scoria, lapilli, and ash from prehistoric effusive–explosive eruptions. Forms scoria cones and pyroclastic aprons on Etna\'s mid-flanks; poorly consolidated.',
+  'Simeto formation':
+    'Fluvial gravels, sands, and silts of the Simeto River valley. Quaternary age; reworked volcanic detritus and minor limestone pebbles from surrounding uplands.',
+  'Serra delle Concazze Formation':
+    'Prehistoric trachybasalt lavas forming the northern rim of the Ellittico caldera. Well-consolidated, heavily jointed flows exposed at high altitude on the northern flank.',
+  'Canalone della Montagnola Formation':
+    'Scoriaceous spatter and lapilli from a major prehistoric fissure eruption on the southern upper flank. Monte Montagnola (2,632 m) is the dominant cone of this unit; associated lava flows are dense olivine–clinopyroxene trachybasalts.',
+  'Serra Cuvigghiuni Formation':
+    'Dense trachybasalt lava flows with well-developed columnar jointing on the southern upper flank. Associated with flank effusive activity during the Ellittico volcanic phase.',
+  'Acqua della Rocca Formation':
+    'Olivine–clinopyroxene trachybasalt lava flows on the southeastern flank. Erupted from flank vents during the pre-Mongibello volcanic phase; typically massive with minor scoriaceous tops.',
+  'Serra del Salifizio Formation':
+    'Massive trachybasalt lava flows with well-developed levees, forming extensive outcrops across Etna\'s mid-flanks. Part of the proto-Etna/Ellittico eruptive phase.',
+  'Valle degli Zappini Formation':
+    'Clinopyroxene–olivine trachybasalt lavas forming basal outcrops of the Valle del Bove headwall escarpment on the northeastern flank.',
+  'Serra Giannicola Grande Formation':
+    'Dense, massive trachybasalt lava flows on the southeastern flank and Valle del Bove walls. Part of the long-lived Ellittico volcanic phase.',
+  'Monte Fior di Cosimo formation':
+    'Trachybasalt lava flows on the eastern flank exposed in the Valle del Bove. Interbedded with pyroclastic horizons marking phases of increased explosive activity.',
+  'Monte Scorsone Formation':
+    'Dense massive trachybasalt and minor aa lava flows exposed in the upper Valle del Bove walls. Part of the early Mongibello volcanic phase.',
+  'Piano del Trifoglietto formation':
+    'Remnant lavas of the ancient Trifoglietto I/II volcanic centres (~100–60 ka), precursors to Etna\'s current edifice. Trachybasalt to phonotephrite composition; erupted from vents now largely buried beneath the Valle del Bove depression.',
+  'Rocche formation':
+    'Trachybasalt to phonotephrite lavas exposed in the Valle del Bove headwall. Among the oldest accessible lavas of Etna\'s main shield-building phase; partially altered by hydrothermal fluids.',
+  'Contrada Passo Cannelli formation':
+    'Clinopyroxene-rich trachybasalt lava flows on the southeastern flank; stratigraphically among the oldest units of Etna\'s post-Trifoglietto phase.',
+  'Valverde formation':
+    'Trachybasalt lavas at the lower southeastern flank, near sea level. Among the earliest lavas of Etna\'s shield-building phase (~100 ka); form the basement of coastal headlands.',
+  'Moscarello formation':
+    'Pillow lavas and hyaloclastites erupted in a submarine to shallow-water environment during early growth of the ancestral Etna edifice (~200–100 ka). Exposed at the southeastern base of the edifice.',
+  'Calanna formation':
+    'Subalkalic to mildly alkalic basalt lavas of the pre-Trifoglietto Calanna volcanic centre (~200–230 ka). The oldest exposed volcanic products at Etna; form the structural basement of the edifice.',
+  'S. Maria degli Ammalati formation':
+    'Quaternary alluvial and colluvial deposits at the eastern and southeastern piedmont. Sand, gravel, and volcanic detritus partially reworked from Etna\'s erosional apron; intercalated with lava flow toes.',
+  'Timpa formation':
+    'Pleistocene marine sands, clays, and bioclastic calcarenites exposed along the Ionian coastline. Deposited in a shallow-to-intermediate shelf environment and uplifted by the active Timpa fault system.',
+  'Timpa di Don Masi formation':
+    'Fossiliferous calcarenites and marls of the coastal escarpment south of Acireale. Record rapid Quaternary sea-level and tectonic uplift changes along the Ionian coast.',
+  'San Placido Formation':
+    'Coarse volcanic gravel, pebbles, and sandy matrix; Quaternary fluvial and alluvial-fan deposits on the western and southern flanks banked against pre-Etna basement.',
+  'S. Maria di Licodia Formation':
+    'Coarse volcanic gravel in a sandy matrix; Pleistocene alluvial deposits at the southwestern piedmont. Records early phases of Etna\'s erosional history on the Simeto valley margins.',
+  'S. Giorgio sands Formation':
+    'Pliocene to early Pleistocene bioclastic, quartz-rich marine sands deposited in a regressive coastal-shelf environment beneath the eastern Catania plain.',
+  'Acicastello Formation':
+    'Pillow lavas and hyaloclastites erupted in a shallow-marine environment during the early growth of Etna\'s ancestral edifice (~500–300 ka). Exposed in the sea cliffs at Acicastello on the Ionian coast.',
+  'Argille grigio-azzurre Formation':
+    'Pliocene grey-blue marine clays forming the pre-Etna substrate beneath the Catania plain and eastern piedmont. Deposited in a deep-water shelf environment; locally exposed where erosion has stripped the overlying volcanic cover.',
+  // ── Generic deposit types (INGV EtnaGeoMap + ISPRA fallback) ─────────────
+  'Scoria cone':                     'Monogenetic cone built of loose scoria and agglutinate from single-vent explosive eruptions. Etna\'s flanks host hundreds of cones formed over the past 15,000 years.',
+  'Distal pyroclastic fall deposit':  'Airfall tephra deposited downwind from Etna\'s summit craters. Persistent trade winds carry material preferentially SE. Dated tephra layers form the stratigraphic backbone of Etna\'s eruptive history.',
+  'Pyroclastic fallout deposit':      'Tephra settled gravitationally from eruption columns. Grain size decreases with distance from source; individual layers record the intensity and duration of each eruption.',
+  'Flow and fallout pyroclastic deposits': 'Mixed pyroclastic materials — both airfall tephra and pyroclastic density-current deposits from Etna\'s paroxysmal explosive episodes.',
+  'Slope deposit':                    'Unconsolidated colluvium and gravitationally reworked volcanic debris mantling hillslopes. Includes remobilised tephra, scoria, and lava fragments.',
+  'Landslide deposit':                'Mass-movement deposit. The eastern flank of Etna is subject to large-scale gravitational instability driven by repeated dyke intrusion, hydrothermal alteration, and flank unbuttressing.',
+  'Alluvial deposit':                 'Fluvial gravel, sand, and silt deposited by streams draining the edifice. Quaternary age; locally covers older volcanic units in valley floors.',
+  'Present alluvial deposit':         'Active sediment on modern riverbeds and floodplains. Entirely Holocene; reworked from volcanic source material.',
+  'Recent alluvial deposit':          'Late Quaternary fluvial deposit in valley floors and piedmont areas around the edifice.',
+  'Alluvial fan':                     'Fan-shaped body of stream-transported sediment where channels debouch onto the Simeto valley floor. Volumetrically significant along the western and southern flanks.',
+  'Numidian flysch':                  'Oligocene–Miocene quartz arenite turbidites, one of the most areally extensive flysch units in the central Mediterranean. Deposited in a deep-water basin ahead of advancing Apenninic thrust fronts.',
+};
+
+// ── EGDI INSPIRE lithology descriptions (keyed by camelCase code) ────────────
+
+const _EGDI_LITH_DESC = {
+  'impureLimestone':
+    'Argillaceous or marly limestone — a carbonate rock with a significant clay or silt fraction. In Sicily these units dominate the Apenninic thrust sheets and the Sicilide nappe complex, recording deposition in Mesozoic–Palaeogene pelagic and slope environments. The impure fraction reflects terrigenous input during periods of tectonic instability along the palaeo-African margin.',
+  'limestone':
+    'Pure to near-pure carbonate rock deposited in shallow-marine platform or reef environments. The Hyblean carbonate platform south of Etna — one of the thickest carbonate successions in the central Mediterranean — comprises Triassic to Miocene limestones largely unaffected by Alpine deformation. These rocks form the rigid basement that stops Apenninic thrust fronts ~40 km south of the volcano.',
+  'clasticSediment':
+    'Unconsolidated or weakly consolidated sand, silt, and gravel of Quaternary age. Around Etna these sediments fill the Catania plain and coastal lowlands, deposited by rivers draining the volcanic edifice and reworked by marine processes along the Ionian coast. Their low permeability restricts groundwater flow and amplifies seismic shaking relative to adjacent bedrock.',
+  'mudstone':
+    'Fine-grained lithified mud deposited in low-energy, deep-water or lagoonal settings. In the Etna region mudstones occur within the Pliocene marine sequences of the Catania basin and in the Cretaceous–Eocene pelagic successions of the Sicilide units. They form aquitards that confine groundwater aquifers and reduce slope stability where exposed on hillsides.',
+  'carbonateSedimentaryRock':
+    'A broad category covering limestones, dolostones, and calcarenites — carbonate rocks formed by biological or chemical precipitation in marine environments. These units underlie much of southeastern Sicily as part of the foreland Hyblean platform and are also present within the Apenninic nappe stack. They host the main regional aquifer system that supplies drinking water to the Catania plain.',
+  'shale':
+    'Fissile fine-grained clastic rock rich in clay minerals, formed by compaction of deep-water or shelf muds. Shales in the Etna region belong principally to the Eocene–Oligocene flysch sequences of the Maghrebian nappe, thrust northward over the Hyblean foreland. Easily eroded and prone to swelling when wet, they control slope failure risk across the Nebrodi and Peloritani foothills.',
+  'clasticSedimentaryRock':
+    'Consolidated clastic rock — sandstone, siltstone, or conglomerate — formed by lithification of sediment transported by currents or gravity flows. In the Etna region these rocks include the Oligo-Miocene Numidian Flysch (quartz-rich turbiditic sandstones) and coarser-grained Messinian and Pliocene foredeep sequences. They record successive phases of basin infilling as the Apenninic–Maghrebian chain migrated southeastward.',
+  'basalt':
+    'Mafic volcanic rock crystallised from low-viscosity, iron- and magnesium-rich magma. At the 1:1M regional scale, basalt outcrop reflects Etna\'s extensive lava field as well as older rift-related volcanism along the Iblean–Malta Escarpment zone. Etna\'s basalts are trachybasaltic in composition, erupted from both summit craters and the dense network of flank fissures that cross the edifice.',
+  'gneiss':
+    'High-grade metamorphic rock formed by intense pressure and heat that recrystallises sedimentary or igneous protoliths into banded, foliated aggregates of quartz, feldspar, and mica. In the Etna region gneiss forms the Variscan–Alpine crystalline basement of the Calabrian Arc, exposed in the Peloritani Mountains to the north. These ancient rocks (>300 Ma) represent the deepest structural level of the southern Apennines and formed the rigid backstop during Neogene nappe emplacement.',
+  'andesite':
+    'Intermediate volcanic rock with silica content between basalt and dacite, typically erupted from subduction-related or transitional tectonic settings. In the EGDI 1:1M dataset, andesite classification in the Etna domain may encompass trachyandesitic lava from Etna\'s earlier, more evolved eruptive phases, or volcanic products of the Aeolian arc system to the north. Trachyandesites are common in the pre-shield and elliptical-cone stages of Etna\'s construction (~100–15 ka).',
+  'phyllite':
+    'Low- to medium-grade metamorphic rock derived from shale or mudstone, characterised by a silky sheen from fine-grained mica on cleavage surfaces. In the Etna region phyllites belong to the Palaeozoic basement of the Calabrian Arc, part of a Variscan orogenic belt later fragmented and transported to its present position during Neogene opening of the Tyrrhenian basin. They are exposed in the Peloritani and Aspromonte massifs.',
+  'micaSchist':
+    'Medium- to high-grade metamorphic rock composed mainly of quartz and micas (muscovite, biotite), with well-developed schistosity from directed pressure. Mica schists in the Etna region are part of the Calabrian Arc crystalline nappe, exhumed from mid-crustal depths during Miocene back-arc extension. They represent some of the oldest rocks exposed at the surface in the region, providing a record of multiple metamorphic and deformational cycles.',
+  'sandstone':
+    'Clastic sedimentary rock formed by cementation of sand grains, most commonly quartz. In the Etna region sandstones occur within the Numidian Flysch (Oligo-Miocene turbiditic quartzarenites) and in shallower-water Pliocene–Pleistocene deltaic and coastal sequences. The Numidian Flysch sandstones are notably mature and quartz-rich, derived from distant cratonic sources and transported by deep-water turbidity currents across the proto-Mediterranean basin.',
+  'impureCarbonateSediment':
+    'Mixed carbonate–siliciclastic sediment containing both calcium carbonate and terrigenous clay or silt, representing transitional depositional environments between pure carbonate platforms and clastic input zones. In the Etna region such sediments occur at the margins of the Hyblean platform and in Pliocene–Quaternary shelf sequences of the Catania basin, recording fluctuating sea levels and changing sediment supply from the emerging Apenninic mountains.',
+};
+
+function _egdiLithDesc(lithCode) {
+  if (!lithCode || lithCode === 'unknown') return '';
+  if (_EGDI_LITH_DESC[lithCode]) return _EGDI_LITH_DESC[lithCode];
+  // Try prefix match for unlisted codes
+  for (const key of Object.keys(_EGDI_LITH_DESC)) {
+    if (lithCode.toLowerCase().startsWith(key.toLowerCase())) return _EGDI_LITH_DESC[key];
+  }
+  return '';
+}
+
+function _ingvUnitDesc(name) {
+  if (!name) return '';
+  if (_INGV_UNIT_DESC[name]) return _INGV_UNIT_DESC[name];
+  const lower = name.toLowerCase();
+  if (lower.includes('scoria cone'))      return _INGV_UNIT_DESC['Scoria cone'];
+  if (lower.includes('pyroclastic fall')) return _INGV_UNIT_DESC['Distal pyroclastic fall deposit'];
+  if (lower.includes('pyroclastic'))      return _INGV_UNIT_DESC['Flow and fallout pyroclastic deposits'];
+  if (lower.includes('alluvial fan'))     return _INGV_UNIT_DESC['Alluvial fan'];
+  if (lower.includes('alluvial'))         return _INGV_UNIT_DESC['Alluvial deposit'];
+  if (lower.includes('slope deposit'))    return _INGV_UNIT_DESC['Slope deposit'];
+  if (lower.includes('landslide'))        return _INGV_UNIT_DESC['Landslide deposit'];
+  return '';
+}
+
+// Returns a human-readable feature-type label from the INGV name + broad type.
+function _ingvFeatureLabel(name, type) {
+  const n = (name || '').toLowerCase();
+  if (n.includes('lava flow'))            return 'Basaltic Lava Flow';
+  if (n.includes('lava'))                 return 'Lava';
+  if (n.includes('scoria cone'))          return 'Scoria Cone';
+  if (n.includes('scoria'))              return 'Scoria Deposit';
+  if (n.includes('pyroclastic fall'))     return 'Pyroclastic Fall';
+  if (n.includes('pyroclastic'))          return 'Pyroclastic Deposit';
+  if (n.includes('tuff'))                 return 'Tuff';
+  if (n.includes('lahar'))                return 'Lahar Deposit';
+  if (n.includes('alluvial fan'))         return 'Alluvial Fan';
+  if (n.includes('alluvial'))             return 'Alluvial Deposit';
+  if (n.includes('slope deposit'))        return 'Slope Deposit';
+  if (n.includes('landslide'))            return 'Landslide Deposit';
+  if (n.includes('sand'))                 return 'Sand / Gravel';
+  if (n.includes('flysch'))               return 'Flysch';
+  if (n.includes('limestone'))            return 'Limestone';
+  if (n.includes('clay') || n.includes('marl')) return 'Clay / Marl';
+  // Fall back to title-casing the broad type field
+  if (type) return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+  return 'Geological Unit';
+}
+
+// Approximate polygon area in km² from geographic rings (Shoelace + lat correction).
+function _polyAreaKm2(rings) {
+  if (!rings || !rings.length) return 0;
+  const ring = rings[0];
+  const n = ring.length;
+  if (n < 3) return 0;
+  let sum = 0;
+  for (let i = 0; i < n - 1; i++) {
+    sum += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+  }
+  const areaDeg2 = Math.abs(sum) / 2;
+  let latSum = 0;
+  for (let i = 0; i < n; i++) latSum += ring[i][1];
+  const latRad = (latSum / n) * (Math.PI / 180);
+  return areaDeg2 * 111.32 * 111.32 * Math.cos(latRad);
+}
+
+function showGeologyPopup(feat, isLava) {
+  const popup = document.getElementById('scene-popup');
+  if (!popup) return;
+
+  const src = isLava === 'egdi'   ? 'egdi'
+            : isLava === 'ingv_wms' ? 'ingv_wms'
+            : isLava                ? 'lava'
+                                    : 'ingv';
+
+  let titleText, metaText, kickerText, copyText, tableRows, stateText;
+
+  if (src === 'egdi') {
+    // EGDI 1:1M feature: [id, name, lithology, age, source, color_hex, rings]
+    const lithCode  = feat[2] || 'unknown';
+    const age       = feat[3] || '';
+    const egdiSrc   = feat[4] || '';
+    const area      = _polyAreaKm2(feat[6]);
+    // Expand camelCase INSPIRE lithology code → title-case label ("clasticSediment" → "Clastic Sediment")
+    const lithTitle = lithCode.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
+    stateText  = lithTitle;
+    titleText  = lithTitle;
+    metaText   = '';
+    kickerText = '';   // EGDI has no formation name; leave blank rather than show dataset
+    copyText   = _egdiLithDesc(lithCode);
+    tableRows  = [
+      age     ? ['Age / Era',   age]                                                                   : null,
+      egdiSrc ? ['Data source', egdiSrc]                                                               : null,
+      area > 0.01 ? ['Area', area < 1 ? (area * 100).toFixed(1) + ' ha' : area.toFixed(2) + ' km²']  : null,
+      ['Dataset', 'EGDI 1:1M pan-European Geology (CC-BY 4.0)'],
+    ].filter(Boolean);
+
+  } else if (src === 'ingv_wms') {
+    // INGV EtnaGeoMap verbatim feature: [id,sigle,name,type,age,formation,lithology,info_en1,color,rings]
+    const sigle     = feat[1] || '';
+    const name      = feat[2] || '';
+    const age       = feat[4] || '';
+    const formation = feat[5] || '';
+    const lithology = feat[6] || '';
+    const info_en1  = feat[7] || '';
+    const rings     = feat[9];
+    const area      = _polyAreaKm2(rings);
+    stateText  = _ingvFeatureLabel(name, feat[3]);
+    titleText  = name || formation || 'Geological unit';
+    metaText   = '';
+    kickerText = formation || '';
+    copyText   = info_en1 || lithology || _ingvUnitDesc(name);
+    tableRows  = [
+      age    ? ['Age / Eruption', age]   : null,
+      sigle  ? ['Map code',  sigle]      : null,
+      area > 0.01 ? ['Area', area < 1 ? (area * 100).toFixed(1) + ' ha' : area.toFixed(2) + ' km²'] : null,
+      ['Dataset', 'INGV EtnaGeoMap — Branca et al. 2011'],
+    ].filter(Boolean);
+
+  } else if (isLava) {
+    // Legacy lava format kept for safety — [id, name, formation, age, code, rings]
+    const name      = feat[1] || 'Lava flow';
+    const formation = feat[2] || '';
+    const year      = feat[3] || '';
+
+    stateText = 'Lava Flow';
+    titleText = name;
+    metaText  = 'Basaltic lava flow';
+    copyText  = 'Effusive eruption of basaltic to trachybasaltic lava from Etna\'s flank or summit vents. '
+              + 'Lava flows are Etna\'s primary hazard mechanism, advancing at 50–300 m/h and reaching up to 15 km from source. '
+              + 'Individual flows are typically 1–10 m thick; repeated eruptions build the broad shield of the edifice.';
+    tableRows = [
+      year      ? ['Year erupted', year]     : null,
+      formation ? ['Formation',   formation] : null,
+    ].filter(Boolean);
+
+  } else {
+    // INGV non-lava legacy path — [id, name, type, formation, code, source, coords]
+    const name    = feat[1] || '';
+    const etaGeol = feat[3] || '';
+
+    stateText  = 'Geology';
+    titleText  = name || 'Volcanic deposit';
+    metaText   = etaGeol || '';
+    kickerText = name || etaGeol || '';
+    copyText   = _ingvUnitDesc(name);
+    tableRows  = etaGeol ? [['Formation', etaGeol]] : [];
+  }
+
+  const state = document.getElementById('scene-popup-state');
+  if (state) {
+    state.textContent = stateText || '';
+    state.hidden = false;
+  }
+
+  const kicker = document.getElementById('scene-popup-kicker');
+  if (kicker) {
+    kicker.textContent = kickerText || metaText || '';
+    kicker.style.color = src === 'egdi' ? '#3a88c8' : '#d45a30';
+  }
+
+  const title = document.getElementById('scene-popup-title');
+  if (title) title.textContent = titleText;
+
+  const meta = document.getElementById('scene-popup-meta');
+  if (meta) meta.textContent = metaText || '';
+
+  const copy = document.getElementById('scene-popup-copy');
+  if (copy) { copy.textContent = copyText || ''; copy.hidden = !copyText; }
+
+  const detail = document.getElementById('scene-popup-detail');
+  if (detail) {
+    detail.hidden = tableRows.length === 0;
+    detail.innerHTML = tableRows.length
+      ? `<table style="width:100%;border-collapse:collapse;font-size:0.72rem;margin-top:0.4rem;">` +
+        tableRows.map(([k, v]) =>
+          `<tr><td style="color:var(--muted);padding:0.15rem 0.5rem 0.15rem 0;">${k}</td>` +
+          `<td style="text-align:right;font-weight:600;">${v}</td></tr>`
+        ).join('') + `</table>`
+      : '';
+  }
+
+  const img = document.getElementById('scene-popup-img');
+  if (img) img.hidden = true;
+
+  popup.removeAttribute('hidden');
+  activePopupFeature = { name: titleText, theme: 'general', isGeology: true };
+}
+
 function hideFeaturePopup() {
   const popup = document.getElementById('scene-popup');
   if (popup) popup.setAttribute('hidden', '');
@@ -3049,23 +4479,51 @@ function hideFeaturePopup() {
 
 const _flyVec = new THREE.Vector3();
 
-function flyTo(targetPos, duration = 900) {
+function flyTo(targetPos, duration = 1800) {
+  if (!camera || !controls) return;
   const startPos    = camera.position.clone();
   const startTarget = controls.target.clone();
-  // Orbit the target point from a fixed offset (30 km away, 12 km above, 40 km south)
-  const offset   = new THREE.Vector3(8, 18, 35);
-  const endPos   = new THREE.Vector3(targetPos.x + offset.x, targetPos.y + offset.y, targetPos.z + offset.z);
-  const endTarget= new THREE.Vector3(targetPos.x, targetPos.y, targetPos.z);
-  const t0 = performance.now();
 
+  // Landing position: 15 km back along the current camera azimuth, 9 km above the target.
+  // Preserves the user's viewing direction so there's no disorienting spin.
+  const VIEW_BACK = 15;  // km behind target (scene units ≡ km)
+  const VIEW_UP   = 9;   // km above target terrain height
+  const azDir = new THREE.Vector3(
+    camera.position.x - controls.target.x,
+    0,
+    camera.position.z - controls.target.z
+  );
+  if (azDir.lengthSq() < 0.0001) azDir.set(0, 0, 1);
+  azDir.normalize();
+
+  const endPos    = new THREE.Vector3(
+    targetPos.x + azDir.x * VIEW_BACK,
+    targetPos.y + VIEW_UP,
+    targetPos.z + azDir.z * VIEW_BACK
+  );
+  const endTarget = targetPos.clone();
+
+  // Arc: raise camera 15 km above the straight interpolated path at mid-flight.
+  const ARC_LIFT = 15;  // km peak-lift at t=0.5
+
+  const t0 = performance.now();
   function step(now) {
-    const t = Math.min((now - t0) / duration, 1);
-    const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2; // ease in-out
-    camera.position.lerpVectors(startPos, endPos, e);
+    const rawT = Math.min((now - t0) / duration, 1);
+    // Cubic ease-in-out for lateral motion and target lerp
+    const e = rawT < 0.5 ? 4 * rawT * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
+
+    const baseX = startPos.x + (endPos.x - startPos.x) * e;
+    const baseY = startPos.y + (endPos.y - startPos.y) * e;
+    const baseZ = startPos.z + (endPos.z - startPos.z) * e;
+
+    // Sine arc on Y — peaks at rawT=0.5, zero at start and end
+    const arcY = ARC_LIFT * Math.sin(rawT * Math.PI);
+
+    camera.position.set(baseX, baseY + arcY, baseZ);
     _flyVec.lerpVectors(startTarget, endTarget, e);
     controls.target.copy(_flyVec);
     controls.update();
-    if (t < 1) requestAnimationFrame(step);
+    if (rawT < 1) requestAnimationFrame(step);
   }
   requestAnimationFrame(step);
 }
@@ -3621,7 +5079,7 @@ function _intersectTerrainForMeasure(clientX, clientY) {
   const tmpRay = new THREE.Raycaster();
   tmpRay.setFromCamera({ x: nx, y: ny }, camera);
   const hits = tmpRay.intersectObject(surfaceMesh);
-  if (!hits.length) return null;
+  if (!hits.length || _isClipped(hits[0].point)) return null;
   const pt = hits[0].point;
   const lon = SAT_LON_W + (pt.x + 50) / 100 * (SAT_LON_E - SAT_LON_W);
   const lat = SAT_LAT_N - (pt.z + 50) / 100 * (SAT_LAT_N - SAT_LAT_S);
@@ -3668,7 +5126,7 @@ function _onPointerUp(e) {
   // Hazard zone click detection (only when visible)
   if (hazardGroup && hazardGroup.visible && _hazardObjects.length > 0) {
     const hazardHits = clickRay.intersectObjects(_hazardObjects, false);
-    if (hazardHits.length > 0 && hazardHits[0].object.userData.hazardZone) {
+    if (hazardHits.length > 0 && hazardHits[0].object.userData.hazardZone && !_isClipped(hazardHits[0].point)) {
       showHazardPopup(hazardHits[0].object.userData.hazardZone);
       return;
     }
@@ -3677,19 +5135,51 @@ function _onPointerUp(e) {
   // Seismic event click (only when visible)
   if (seismicMesh && seismicMesh.visible) {
     const seismicHits = clickRay.intersectObject(seismicMesh);
-    if (seismicHits.length > 0) {
+    if (seismicHits.length > 0 && !_isClipped(seismicHits[0].point)) {
       showSeismicPopup(seismicHits[0].instanceId);
       return;
     }
   }
 
-  if (!etnaLabelLayer) return;
-  const hits = clickRay.intersectObjects(etnaLabelLayer.interactiveObjects, false);
-  if (hits.length > 0 && hits[0].object.userData.feature) {
-    showFeaturePopup(hits[0].object.userData.feature);
-  } else {
-    hideFeaturePopup();
+  // POI label click — takes priority over geology (smaller, more specific targets)
+  if (etnaLabelLayer) {
+    const labelHits = clickRay.intersectObjects(etnaLabelLayer.interactiveObjects, false);
+    if (labelHits.length > 0 && labelHits[0].object.userData.feature && !_isClipped(labelHits[0].object.position)) {
+      showFeaturePopup(labelHits[0].object.userData.feature);
+      return;
+    }
   }
+
+  // Geology click — raycast terrain → lon/lat → PIP
+  if (surfaceMesh && surfaceMesh.visible && (_ingvGeoFeats || _egdiGeoFeats)) {
+    const terrainHits = clickRay.intersectObject(surfaceMesh);
+    if (terrainHits.length > 0 && !_isClipped(terrainHits[0].point)) {
+      const pt = terrainHits[0].point;
+      const { lon, lat } = _modelToLonLat(pt.x, pt.z);
+
+      // INGV EtnaGeoMap — highest detail, iterates youngest-first
+      if (etnaGeologyMesh?.visible && _ingvGeoFeats) {
+        for (let i = _ingvGeoFeats.length - 1; i >= 0; i--) {
+          if (_pointInPolygonRings(lon, lat, _ingvGeoFeats[i][9])) {
+            showGeologyPopup(_ingvGeoFeats[i], 'ingv_wms');
+            return;
+          }
+        }
+      }
+
+      // EGDI 1:1M regional geology — fallback for areas outside INGV footprint
+      if (regionalGeologyMesh?.visible && _egdiGeoFeats) {
+        for (let i = 0; i < _egdiGeoFeats.length; i++) {
+          if (_pointInPolygonRings(lon, lat, _egdiGeoFeats[i][6])) {
+            showGeologyPopup(_egdiGeoFeats[i], 'egdi');
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  hideFeaturePopup();
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────

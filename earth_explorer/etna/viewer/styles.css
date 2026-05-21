@@ -622,12 +622,9 @@
 
     /* ─── Status / footer ───────────────────────────────────────────────────── */
     .status {
-      flex-shrink: 0;
-      padding: 0.45rem 0.2rem 0.1rem;
-      font-size: 0.6rem;
-      color: rgba(200, 150, 120, 0.48);
-      letter-spacing: 0.04em;
-      line-height: 1.4;
+      margin-top: 0.9rem;
+      color: var(--nav-accent);
+      font-size: 0.82rem;
     }
 
     .status.is-error { color: #ff6b6b; }
@@ -755,9 +752,9 @@
       bottom: 1rem;
       z-index: 12;
       display: flex;
-      flex-direction: row;
-      align-items: flex-end;
-      gap: 0.8rem;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
       transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
@@ -766,14 +763,14 @@
     }
 
     #compass-anchor {
-      width: 112px;
-      height: 112px;
+      width: 96px;
+      height: 96px;
       flex-shrink: 0;
       pointer-events: none;
     }
 
     #surface-conditions {
-      padding: 0.1rem 0;
+      padding: 0.1rem 0 0.1rem 0.25rem;
     }
 
     .sc-row {
@@ -801,6 +798,27 @@
       font-size: 0.58rem;
       letter-spacing: 0.06em;
       color: rgba(255, 255, 255, 0.22);
+    }
+
+    #sc-regime-row {
+      margin-top: 0.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+    }
+
+    .sc-regime-badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .sc-regime-desc {
+      font-size: 0.58rem;
+      color: rgba(255, 255, 255, 0.38);
+      line-height: 1.35;
+      max-width: 12rem;
     }
 
     /* ─── Cursor readout bar: scale + lat/lon/elevation ─────────────────────── */
@@ -1467,7 +1485,95 @@
     #music-btn.is-paused { opacity: 0.5; }
     #ui.is-collapsed ~ #music-btn { left: 1rem; }
 
+    /* ─── Form controls (input, button) ──────────────────────────────────── */
+    .input {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 0.38rem 0.6rem;
+      border-radius: 0.45rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
+      background: rgba(8, 3, 1, 0.96);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.84rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .input::placeholder { color: rgba(255, 200, 160, 0.35); }
+    .input:focus { border-color: rgba(var(--nav-accent-rgb), 0.72); }
+
+    .button {
+      padding: 0.38rem 0.72rem;
+      border-radius: 0.45rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
+      background: rgba(var(--nav-accent-rgb), 0.1);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.82rem;
+      font-family: "Exo 2", "Segoe UI", sans-serif;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .button:hover {
+      background: rgba(var(--nav-accent-rgb), 0.22);
+      border-color: rgba(var(--nav-accent-rgb), 0.75);
+    }
+    .button.secondary {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+    .button.secondary:hover {
+      background: rgba(255, 255, 255, 0.10);
+      border-color: rgba(255, 255, 255, 0.30);
+    }
+
+    .search-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-top: 0.42rem;
+    }
+
+    .meta-grid {
+      display: grid;
+      gap: 0.45rem;
+    }
+
     /* ─── Search suggestions ──────────────────────────────────────────────── */
+    .search-suggestions {
+      margin-top: 0.3rem;
+      border-radius: 0.52rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+      background: rgba(8, 3, 1, 0.98);
+      overflow-y: auto;
+      max-height: 18rem;
+      display: flex;
+      flex-direction: column;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(var(--nav-accent-rgb), 0.32) transparent;
+    }
+    .search-suggestions[hidden] { display: none; }
+
+    .search-suggestion {
+      width: 100%;
+      padding: 0.48rem 0.65rem;
+      text-align: left;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      font-family: "Exo 2", "Segoe UI", sans-serif;
+      font-size: 0.84rem;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .search-suggestion:last-child { border-bottom: none; }
+    .search-suggestion:hover,
+    .search-suggestion.is-active {
+      background: rgba(var(--nav-accent-rgb), 0.14);
+      color: #fff5ee;
+    }
     .search-suggestion-sub {
       display: block;
       font-size: 0.68rem;
@@ -1477,9 +1583,115 @@
     }
     .search-suggestion-meta {
       display: block;
-      margin-top: 0.18rem;
+      margin-top: 0.12rem;
+      color: rgba(255, 200, 160, 0.5);
+      font-size: 0.68rem;
+      font-family: "Courier New", monospace;
+      letter-spacing: 0.04em;
+    }
+
+    /* ─── Tour mode nav ────────────────────────────────────────────────────── */
+    .inline-nav-label {
+      margin: 0.55rem 0 0.28rem;
+      font-size: 0.72rem;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
       color: var(--muted);
-      font-size: 0.73rem;
+    }
+    .inline-nav-row {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .inline-nav-select {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 0.35rem 0.5rem;
+      border-radius: 0.45rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
+      background: rgba(8, 3, 1, 0.98);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.82rem;
+    }
+    .btn-nav-arrow {
+      flex-shrink: 0;
+      width: 1.9rem;
+      height: 1.9rem;
+      padding: 0;
+      border-radius: 0.42rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+      background: rgba(var(--nav-accent-rgb), 0.07);
+      color: var(--nav-accent);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.14s, border-color 0.14s;
+    }
+    .btn-nav-arrow svg { width: 1rem; height: 1rem; stroke: currentColor; fill: none; stroke-width: 2; }
+    .btn-nav-arrow:hover {
+      background: rgba(var(--nav-accent-rgb), 0.18);
+      border-color: rgba(var(--nav-accent-rgb), 0.65);
+    }
+    .btn-nav-arrow:disabled { opacity: 0.32; cursor: not-allowed; }
+
+    /* ─── Subsurface property mode selector ─────────────────────────────────── */
+    .prop-mode-group { display: grid; gap: 0.08rem; margin-top: 0.3rem; }
+
+    .prop-mode-row {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.28rem 0.45rem;
+      border-radius: 0.38rem;
+      cursor: pointer;
+      font-size: 0.82rem;
+      transition: background 0.12s;
+      user-select: none;
+    }
+    .prop-mode-row:hover { background: rgba(var(--nav-accent-rgb), 0.10); }
+    .prop-mode-row input[type="radio"] {
+      accent-color: var(--nav-accent);
+      flex-shrink: 0;
+      margin: 0;
+      cursor: pointer;
+    }
+    .prop-mode-label { flex: 1; }
+    .prop-mode-range {
+      font-size: 0.60rem;
+      color: var(--muted);
+      font-family: "Courier New", monospace;
+      white-space: nowrap;
+      opacity: 0.75;
+    }
+    .prop-mode-swatch {
+      flex-shrink: 0;
+      width: 2.4rem;
+      height: 0.5rem;
+      border-radius: 0.22rem;
+      border: 1px solid rgba(255, 255, 255, 0.10);
+    }
+
+    .regime-legend {
+      margin-top: 0.45rem;
+      padding: 0.38rem 0.5rem;
+      border-radius: 0.42rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      gap: 0.22rem;
+    }
+    .regime-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.48rem;
+      font-size: 0.72rem;
+    }
+    .regime-swatch {
+      flex-shrink: 0;
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 50%;
     }
 
     /* ─── Measure tool buttons (inside left panel) ─────────────────────────── */
