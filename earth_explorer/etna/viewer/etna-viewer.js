@@ -230,6 +230,9 @@ let _egdiGeoFeats       = null; // EGDI features for PIP — [id,name,lithology,
 let etnaGeologyMesh     = null; // canvas-texture overlay: INGV EtnaGeoMap per-feature polygons
 let _ingvGeoFeats       = null; // INGV features for PIP — [id,sigle,name,type,age,fm,lith,info,color,rings]
 let tectonicFaultRoot   = null; // regional tectonic faults (GEM / DISS) as draped lines
+let _faultRibbonMeshes  = [];   // all ribbon THREE.Mesh objects (toggled by cross-section)
+let _faultRibbonData    = [];   // [{columns:[{top,bot},...], color}] for intersection compute
+let _faultIntersectGroup = null; // cross-section intersection LineSegments group
 let satelliteTexture = null;
 let basemapMode = 'satellite';
 
@@ -1539,6 +1542,7 @@ function _buildFaultRibbon(seg, dipDeg, dipRight, maxDepthKm, color, opacity) {
   const hRun   = depth / Math.tan(dipRad); // horizontal distance to BDT
 
   const verts   = [];
+  const columns = []; // stored for cross-section intersection computation
   for (let i = 0; i < seg.length; i++) {
     const [x, y, z] = seg[i];
 
@@ -1553,13 +1557,13 @@ function _buildFaultRibbon(seg, dipDeg, dipRight, maxDepthKm, color, opacity) {
     if (len > 1e-8) { dx /= len; dz /= len; }
 
     // Unit vector perpendicular to strike in horizontal plane
-    // Right of travel: (dz, 0, -dx); left: (-dz, 0, dx)
     const hx = dipRight ?  dz : -dz;
     const hz = dipRight ? -dx :  dx;
 
-    // Top vertex at terrain surface; bottom at BDT depth
-    verts.push(x,          y,         z);
-    verts.push(x + hx * hRun,  y - depth,  z + hz * hRun);
+    const bx = x + hx * hRun, by = y - depth, bz = z + hz * hRun;
+
+    verts.push(x, y, z, bx, by, bz);
+    columns.push({ top: [x, y, z], bot: [bx, by, bz] });
   }
 
   const nPairs = seg.length;
@@ -1585,7 +1589,7 @@ function _buildFaultRibbon(seg, dipDeg, dipRight, maxDepthKm, color, opacity) {
 
   const mesh = new THREE.Mesh(geo, mat);
   mesh.renderOrder = 58;
-  return mesh;
+  return { mesh, columns };
 }
 
 function buildTectonicFaults() {
@@ -1655,7 +1659,10 @@ function buildTectonicFaults() {
         const fpDip    = _fpNamed.dip      ?? _fpKin.dip;
         const fpDipR   = _fpNamed.dipRight ?? true;
         const fpDepth  = _fpNamed.maxDepth ?? _fpKin.maxDepth;
-        const fpOp     = isRegional ? 0.35 : rank === 'Primary' ? 0.22 : 0.12;
+        // Secondary rank: no ribbon planes (surface trace only) — too small for
+        // meaningful depth geometry and add excessive visual clutter
+        const buildPlane = rank !== 'Secondary';
+        const fpOp = isRegional ? 0.20 : 0.12;
 
         for (const seg of coords) {
           // ── Surface trace line ──────────────────────────────────────────────
@@ -1681,12 +1688,18 @@ function buildTectonicFaults() {
           }
           flush();
 
-          // ── Down-dip fault plane ribbon (clipped to brittle domain) ────────
+          if (!buildPlane) continue;
+
+          // ── Down-dip fault plane ribbon (Primary + Regional only) ───────────
           let ribbon = [];
           const flushRibbon = () => {
             if (ribbon.length >= 2) {
-              const mesh = _buildFaultRibbon(ribbon, fpDip, fpDipR, fpDepth, color, fpOp);
-              if (mesh) subGroup.add(mesh);
+              const result = _buildFaultRibbon(ribbon, fpDip, fpDipR, fpDepth, color, fpOp);
+              if (result) {
+                subGroup.add(result.mesh);
+                _faultRibbonMeshes.push(result.mesh);
+                _faultRibbonData.push({ columns: result.columns, color });
+              }
             }
             ribbon = [];
           };
@@ -1700,8 +1713,89 @@ function buildTectonicFaults() {
         }
       }
       updateClipPlanes();
+      _syncFaultCrossSectionLines();
     })
     .catch(e => console.warn('[tectonic] Failed to load etna-tectonic-faults.json:', e));
+}
+
+// ─── Fault cross-section intersection lines ───────────────────────────────────
+// In core/cross-section view: replace ribbon planes with the precise line where
+// each fault plane intersects the clip plane. Computed per-quad by testing edge
+// sign changes against plane.normal·p + plane.constant = 0.
+// Called on cross-section toggle, angle change, and after fault data loads.
+
+function _syncFaultCrossSectionLines() {
+  // Show/hide ribbon meshes
+  const showRibbons = !crossSectionEnabled;
+  _faultRibbonMeshes.forEach(m => { m.visible = showRibbons; });
+
+  // Dispose old intersection group
+  if (_faultIntersectGroup) {
+    scene.remove(_faultIntersectGroup);
+    _faultIntersectGroup.traverse(o => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material)  o.material.dispose();
+    });
+    _faultIntersectGroup = null;
+  }
+
+  if (!crossSectionEnabled || !clipPlane || !_faultRibbonData.length) return;
+
+  _faultIntersectGroup = new THREE.Group();
+  _faultIntersectGroup.scale.y = _vertExag;
+
+  const n = clipPlane.normal;
+  const c = clipPlane.constant;
+
+  for (const { columns, color } of _faultRibbonData) {
+    const pts = [];
+
+    for (let i = 0; i < columns.length - 1; i++) {
+      const { top: t0, bot: b0 } = columns[i];
+      const { top: t1, bot: b1 } = columns[i + 1];
+
+      const dT0 = n.x * t0[0] + n.y * t0[1] + n.z * t0[2] + c;
+      const dB0 = n.x * b0[0] + n.y * b0[1] + n.z * b0[2] + c;
+      const dT1 = n.x * t1[0] + n.y * t1[1] + n.z * t1[2] + c;
+      const dB1 = n.x * b1[0] + n.y * b1[1] + n.z * b1[2] + c;
+
+      // Test all 4 edges of the quad for plane crossing
+      const edges = [
+        [t0, b0, dT0, dB0], // left vertical edge
+        [t1, b1, dT1, dB1], // right vertical edge
+        [t0, t1, dT0, dT1], // top edge
+        [b0, b1, dB0, dB1], // bottom edge
+      ];
+      const isects = [];
+      for (const [a, b, da, db] of edges) {
+        if (da * db < 0) { // sign change → crossing
+          const tt = da / (da - db);
+          isects.push([a[0] + (b[0] - a[0]) * tt,
+                       a[1] + (b[1] - a[1]) * tt,
+                       a[2] + (b[2] - a[2]) * tt]);
+        }
+        if (isects.length === 2) break;
+      }
+      if (isects.length === 2) pts.push(...isects[0], ...isects[1]);
+    }
+
+    if (pts.length < 6) continue;
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
+    const mat = new THREE.LineBasicMaterial({ color, clippingPlanes: [] });
+    const ls  = new THREE.LineSegments(geo, mat);
+    ls.renderOrder = 80;
+    _faultIntersectGroup.add(ls);
+  }
+
+  scene.add(_faultIntersectGroup);
+  // Apply current clip planes so intersection lines respect domain bounds
+  if (_hazardDomainPlanes) {
+    _faultIntersectGroup.traverse(o => {
+      if (o.material) o.material.clippingPlanes = [..._hazardDomainPlanes];
+    });
+  }
 }
 
 // ─── Geology contacts (3D lines) ─────────────────────────────────────────────
@@ -2845,8 +2939,9 @@ function applyVertExag(factor) {
   if (terrainSkirt) terrainSkirt.scale.y = factor;
   if (skirtOverdraw)    skirtOverdraw.scale.y  = factor;
   if (hazardGroup)      hazardGroup.scale.y     = factor;
-  if (faultRootGroup)    faultRootGroup.scale.y    = factor;
-  if (tectonicFaultRoot) tectonicFaultRoot.scale.y = factor;
+  if (faultRootGroup)      faultRootGroup.scale.y      = factor;
+  if (tectonicFaultRoot)   tectonicFaultRoot.scale.y   = factor;
+  if (_faultIntersectGroup) _faultIntersectGroup.scale.y = factor;
   labels.forEach(lbl => { if (lbl.origY !== undefined) lbl.pos.y = lbl.origY * factor; });
   if (etnaLabelLayer) applyEtnaLabelVertExag(etnaLabelLayer.entries, factor);
 }
@@ -3366,6 +3461,7 @@ function setupUI() {
       if (crossControls) crossControls.style.display = crossSectionEnabled ? '' : 'none';
       updateClipPlanes();
       updateCrossSectionCap();
+      _syncFaultCrossSectionLines();
     });
   }
 
@@ -3378,6 +3474,7 @@ function setupUI() {
       if (angleLabel) angleLabel.textContent = deg + '°';
       setCrossSectionAngle(deg);
       updateCrossSectionCap();
+      _syncFaultCrossSectionLines();
     });
   }
 
