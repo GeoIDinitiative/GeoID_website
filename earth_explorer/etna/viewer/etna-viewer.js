@@ -1487,8 +1487,106 @@ function buildGeologyOverlays(geo) {
 }
 
 // ─── Regional tectonic faults ─────────────────────────────────────────────────
-// GEM Global Active Faults clipped to domain, draped on terrain surface.
-// Separate from volcanic surface fault systems (buildFaultOverlays / etna-faults.json).
+// GEM Global Active Faults + ISPRA ITHACA clipped to domain, draped on terrain.
+// Each fault also gets a 3D plane (ribbon mesh) extruded down-dip to the
+// brittle–ductile transition. Geometry is clipped by domain planes so planes
+// never protrude through the sides; top vertices sit at terrain surface so
+// planes never protrude above ground.
+//
+// BDT depth 20 km — regional seismicity cutoff (Chiarabba et al. 2012; Neri et al. 2003).
+// Named-fault dip/depth from: Lentini et al. 2006 & Catalano et al. 2008 (Malta
+// Escarpment), Catalano et al. 2013 (Sicilian Chain Thrust), Palano et al. 2012
+// (Tindari-Letojanni), Scicli from Monaco & Tortorici 2000, Ionian Subduction
+// dip from Faccenna et al. 2011 & GEM slip model.
+
+const _FP_BDT_KM = 20; // brittle–ductile transition — maximum fault plane depth
+
+// Named-fault geometry overrides (literature-derived dip, dip direction, seismogenic depth)
+const _FP_NAMED = {
+  'EUR_ITCS016': { dip: 55, dipRight: false, maxDepth: 20 }, // Malta Escarpment: WSW-dipping normal
+  'EUR_ITCS029': { dip: 32, dipRight: false, maxDepth: 18 }, // Sicilian Chain Thrust: N-vergent reverse
+  'EUR_ITCS042': { dip: 80, dipRight: true,  maxDepth: 15 }, // Tindari-Letojanni: steep left-lateral
+  'EUR_ITCS035': { dip: 85, dipRight: true,  maxDepth: 15 }, // Scicli: near-vertical left-lateral
+  'PB_419.0':    { dip: 12, dipRight: false, maxDepth: 20 }, // Ionian Subduction: shallow thrust
+};
+
+// Kinematic-class defaults for ITHACA faults (dip from ITHACA statistical medians,
+// depth from regional seismogenic thickness studies)
+const _FP_KINEMATICS_DEF = {
+  'Normal':             { dip: 65, maxDepth: 15 },
+  'Normal Oblique DX':  { dip: 65, maxDepth: 12 },
+  'Normal Oblique SX':  { dip: 65, maxDepth: 12 },
+  'Oblique Normal DX':  { dip: 60, maxDepth: 12 },
+  'Oblique Normal SX':  { dip: 60, maxDepth: 12 },
+  'Strike Slip DX':     { dip: 80, maxDepth: 15 },
+  'Strike Slip SX':     { dip: 80, maxDepth: 15 },
+  'Oblique Reverse SX': { dip: 45, maxDepth: 15 },
+  'Oblique Reverse DX': { dip: 45, maxDepth: 15 },
+  'Reverse':            { dip: 35, maxDepth: 18 },
+  'ND':                 { dip: 70, maxDepth: 10 },
+  '':                   { dip: 70, maxDepth: 10 },
+};
+
+// Build a down-dip ribbon mesh from a surface-trace run.
+// seg: [[x, y_surface, z], ...] in scene-km (Y already at terrain height).
+// dipDeg: dip angle from horizontal; dipRight: dip to right of travel direction.
+// maxDepthKm: seismogenic depth; capped at _FP_BDT_KM.
+// Returns THREE.Mesh or null.
+function _buildFaultRibbon(seg, dipDeg, dipRight, maxDepthKm, color, opacity) {
+  if (seg.length < 2) return null;
+  const dipRad = Math.max(1, dipDeg) * Math.PI / 180;
+  const depth  = Math.min(maxDepthKm, _FP_BDT_KM);
+  const hRun   = depth / Math.tan(dipRad); // horizontal distance to BDT
+
+  const verts   = [];
+  for (let i = 0; i < seg.length; i++) {
+    const [x, y, z] = seg[i];
+
+    // Local strike direction (forward along polyline at this vertex)
+    let dx, dz;
+    if (i < seg.length - 1) {
+      dx = seg[i + 1][0] - x;  dz = seg[i + 1][2] - z;
+    } else {
+      dx = x - seg[i - 1][0];  dz = z - seg[i - 1][2];
+    }
+    const len = Math.sqrt(dx * dx + dz * dz);
+    if (len > 1e-8) { dx /= len; dz /= len; }
+
+    // Unit vector perpendicular to strike in horizontal plane
+    // Right of travel: (dz, 0, -dx); left: (-dz, 0, dx)
+    const hx = dipRight ?  dz : -dz;
+    const hz = dipRight ? -dx :  dx;
+
+    // Top vertex at terrain surface; bottom at BDT depth
+    verts.push(x,          y,         z);
+    verts.push(x + hx * hRun,  y - depth,  z + hz * hRun);
+  }
+
+  const nPairs = seg.length;
+  const indices = [];
+  for (let i = 0; i < nPairs - 1; i++) {
+    const t0 = i * 2, b0 = t0 + 1, t1 = t0 + 2, b1 = t0 + 3;
+    indices.push(t0, b0, t1,  b0, b1, t1);
+  }
+  if (indices.length === 0) return null;
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+  geo.setIndex(indices);
+
+  const mat = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    clippingPlanes: [],
+  });
+
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.renderOrder = 58;
+  return mesh;
+}
 
 function buildTectonicFaults() {
   tectonicFaultRoot = new THREE.Group();
@@ -1551,7 +1649,16 @@ function buildTectonicFaults() {
           color, transparent: true, opacity, clippingPlanes: [],
         });
         const subGroup = _tecSubGroups[_tectonicSubGroup(id, name)];
+        // Fault plane parameters: named override → kinematic default
+        const _fpNamed = _FP_NAMED[id] ?? {};
+        const _fpKin   = _FP_KINEMATICS_DEF[kinematics] ?? _FP_KINEMATICS_DEF[''];
+        const fpDip    = _fpNamed.dip      ?? _fpKin.dip;
+        const fpDipR   = _fpNamed.dipRight ?? true;
+        const fpDepth  = _fpNamed.maxDepth ?? _fpKin.maxDepth;
+        const fpOp     = isRegional ? 0.35 : rank === 'Primary' ? 0.22 : 0.12;
+
         for (const seg of coords) {
+          // ── Surface trace line ──────────────────────────────────────────────
           let run = [];
           const flush = () => {
             if (run.length < 2) { run = []; return; }
@@ -1573,6 +1680,23 @@ function buildTectonicFaults() {
             run.push([x, Math.max(h, 0.02) + 0.01, z]);
           }
           flush();
+
+          // ── Down-dip fault plane ribbon (clipped to brittle domain) ────────
+          let ribbon = [];
+          const flushRibbon = () => {
+            if (ribbon.length >= 2) {
+              const mesh = _buildFaultRibbon(ribbon, fpDip, fpDipR, fpDepth, color, fpOp);
+              if (mesh) subGroup.add(mesh);
+            }
+            ribbon = [];
+          };
+          for (let i = 0; i < seg.length; i++) {
+            const { x, z } = _lonLatToModel(seg[i][0], seg[i][1]);
+            const h = _sampleHeight(x, z);
+            if (isNaN(h) || h < -3.0) { flushRibbon(); continue; }
+            ribbon.push([x, Math.max(h, 0.02), z]);
+          }
+          flushRibbon();
         }
       }
       updateClipPlanes();
