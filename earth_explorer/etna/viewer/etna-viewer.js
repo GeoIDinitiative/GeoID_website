@@ -1767,14 +1767,15 @@ function _buildFaultSideFaceLines() {
 
   for (const domainPlane of _hazardDomainPlanes) {
     for (const { columns, color } of _faultRibbonData) {
-      // Epsilon pushes intersection points 50 m inward from the face
-      const pts = _intersectRibbonWithPlane(columns, domainPlane, 0.05);
+      // epsilon=0 → exactly on face; depthTest:false ensures lines always render
+      // over the face geometry regardless of depth buffer state
+      const pts = _intersectRibbonWithPlane(columns, domainPlane, 0);
       if (!pts) continue;
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(pts, 3));
       const ls = new THREE.LineSegments(geo,
-        new THREE.LineBasicMaterial({ color, clippingPlanes: [] }));
-      ls.renderOrder = 80;
+        new THREE.LineBasicMaterial({ color, depthTest: false, clippingPlanes: [] }));
+      ls.renderOrder = 90;
       _faultSideLineGroup.add(ls);
     }
   }
@@ -1796,13 +1797,13 @@ function _updateFaultCapLines() {
   _faultCapLineGroup = new THREE.Group();
 
   for (const { columns, color } of _faultRibbonData) {
-    const pts = _intersectRibbonWithPlane(columns, clipPlane, 0.05);
+    const pts = _intersectRibbonWithPlane(columns, clipPlane, 0);
     if (!pts) continue;
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pts, 3));
     const ls = new THREE.LineSegments(geo,
-      new THREE.LineBasicMaterial({ color, clippingPlanes: [] }));
-    ls.renderOrder = 81;
+      new THREE.LineBasicMaterial({ color, depthTest: false, clippingPlanes: [] }));
+    ls.renderOrder = 91;
     _faultCapLineGroup.add(ls);
   }
 
