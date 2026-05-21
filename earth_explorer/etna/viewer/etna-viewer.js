@@ -230,6 +230,9 @@ let _egdiGeoFeats       = null; // EGDI features for PIP — [id,name,lithology,
 let etnaGeologyMesh     = null; // canvas-texture overlay: INGV EtnaGeoMap per-feature polygons
 let _ingvGeoFeats       = null; // INGV features for PIP — [id,sigle,name,type,age,fm,lith,info,color,rings]
 let tectonicFaultRoot   = null; // regional tectonic faults (GEM / DISS) as draped lines
+let _faultRibbonData    = [];   // [{columns:[{top,bot},...], color}] for face intersection
+let _faultSideLineGroup = null; // intersection lines on the 4 domain side faces (built once)
+let _faultCapLineGroup  = null; // intersection lines on the cross-section cap (rebuilt on angle)
 let satelliteTexture = null;
 let basemapMode = 'satellite';
 
@@ -1539,6 +1542,7 @@ function _buildFaultRibbon(seg, dipDeg, dipRight, maxDepthKm, color, opacity) {
   const hRun   = depth / Math.tan(dipRad); // horizontal distance to BDT
 
   const verts   = [];
+  const columns = []; // {top:[x,y,z], bot:[x,y,z]} per column — stored for face intersection
   for (let i = 0; i < seg.length; i++) {
     const [x, y, z] = seg[i];
 
@@ -1553,13 +1557,12 @@ function _buildFaultRibbon(seg, dipDeg, dipRight, maxDepthKm, color, opacity) {
     if (len > 1e-8) { dx /= len; dz /= len; }
 
     // Unit vector perpendicular to strike in horizontal plane
-    // Right of travel: (dz, 0, -dx); left: (-dz, 0, dx)
     const hx = dipRight ?  dz : -dz;
     const hz = dipRight ? -dx :  dx;
 
-    // Top vertex at terrain surface; bottom at BDT depth
-    verts.push(x,          y,         z);
-    verts.push(x + hx * hRun,  y - depth,  z + hz * hRun);
+    const bx = x + hx * hRun, by = y - depth, bz = z + hz * hRun;
+    verts.push(x, y, z, bx, by, bz);
+    columns.push({ top: [x, y, z], bot: [bx, by, bz] });
   }
 
   const nPairs = seg.length;
@@ -1585,7 +1588,7 @@ function _buildFaultRibbon(seg, dipDeg, dipRight, maxDepthKm, color, opacity) {
 
   const mesh = new THREE.Mesh(geo, mat);
   mesh.renderOrder = 58;
-  return mesh;
+  return { mesh, columns };
 }
 
 function buildTectonicFaults() {
@@ -1685,8 +1688,11 @@ function buildTectonicFaults() {
           let ribbon = [];
           const flushRibbon = () => {
             if (ribbon.length >= 2) {
-              const mesh = _buildFaultRibbon(ribbon, fpDip, fpDipR, fpDepth, color, fpOp);
-              if (mesh) subGroup.add(mesh);
+              const result = _buildFaultRibbon(ribbon, fpDip, fpDipR, fpDepth, color, fpOp);
+              if (result) {
+                subGroup.add(result.mesh);
+                _faultRibbonData.push({ columns: result.columns, color });
+              }
             }
             ribbon = [];
           };
@@ -1700,8 +1706,108 @@ function buildTectonicFaults() {
         }
       }
       updateClipPlanes();
+      _buildFaultSideFaceLines();
+      _updateFaultCapLines();
     })
     .catch(e => console.warn('[tectonic] Failed to load etna-tectonic-faults.json:', e));
+}
+
+// ─── Fault face intersection lines ───────────────────────────────────────────
+// Where a fault plane ribbon intersects a domain face (4 side walls or the
+// cross-section cap), draw the intersection as a coloured line ON that face.
+// This avoids any hide/show of the 3D planes — the planes remain, and the
+// face lines are additive overlays for geological cross-section readout.
+//
+// Groups are children of tectonicFaultRoot so they inherit scale.y (vert-exag),
+// visibility, and clip-plane cascade automatically from updateClipPlanes().
+
+// Compute the LineSegments vertex data for the intersection of one ribbon with
+// one plane. Returns a Float32Array of [p0x,p0y,p0z, p1x,p1y,p1z, ...] pairs,
+// or null. epsilon: inward offset (along plane.normal) to prevent z-fighting.
+function _intersectRibbonWithPlane(columns, plane, epsilon) {
+  const n = plane.normal, c = plane.constant;
+  const nx = n.x, ny = n.y, nz = n.z;
+  const pts = [];
+  for (let i = 0; i < columns.length - 1; i++) {
+    const { top: t0, bot: b0 } = columns[i];
+    const { top: t1, bot: b1 } = columns[i + 1];
+    const dT0 = nx*t0[0] + ny*t0[1] + nz*t0[2] + c;
+    const dB0 = nx*b0[0] + ny*b0[1] + nz*b0[2] + c;
+    const dT1 = nx*t1[0] + ny*t1[1] + nz*t1[2] + c;
+    const dB1 = nx*b1[0] + ny*b1[1] + nz*b1[2] + c;
+    const edges = [[t0,b0,dT0,dB0],[t1,b1,dT1,dB1],[t0,t1,dT0,dT1],[b0,b1,dB0,dB1]];
+    const isects = [];
+    for (const [a, b, da, db] of edges) {
+      if (da * db < 0) {
+        const tt = da / (da - db);
+        isects.push([
+          a[0] + (b[0]-a[0])*tt + nx*epsilon,
+          a[1] + (b[1]-a[1])*tt + ny*epsilon,
+          a[2] + (b[2]-a[2])*tt + nz*epsilon,
+        ]);
+      }
+      if (isects.length === 2) break;
+    }
+    if (isects.length === 2) pts.push(...isects[0], ...isects[1]);
+  }
+  return pts.length >= 6 ? new Float32Array(pts) : null;
+}
+
+// Build intersection lines on the 4 domain side faces. Called once after fault
+// data loads. Groups parented to tectonicFaultRoot for auto clip-plane cascade.
+function _buildFaultSideFaceLines() {
+  if (_faultSideLineGroup) {
+    tectonicFaultRoot?.remove(_faultSideLineGroup);
+    _faultSideLineGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+    _faultSideLineGroup = null;
+  }
+  if (!_faultRibbonData.length || !_hazardDomainPlanes || !tectonicFaultRoot) return;
+
+  _faultSideLineGroup = new THREE.Group();
+
+  for (const domainPlane of _hazardDomainPlanes) {
+    for (const { columns, color } of _faultRibbonData) {
+      // Epsilon pushes intersection points 50 m inward from the face
+      const pts = _intersectRibbonWithPlane(columns, domainPlane, 0.05);
+      if (!pts) continue;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(pts, 3));
+      const ls = new THREE.LineSegments(geo,
+        new THREE.LineBasicMaterial({ color, clippingPlanes: [] }));
+      ls.renderOrder = 80;
+      _faultSideLineGroup.add(ls);
+    }
+  }
+
+  tectonicFaultRoot.add(_faultSideLineGroup);
+  updateClipPlanes(); // register new children for clip-plane cascade
+}
+
+// Build intersection lines on the cross-section cap face. Called whenever the
+// cross-section is toggled or its angle changes.
+function _updateFaultCapLines() {
+  if (_faultCapLineGroup) {
+    tectonicFaultRoot?.remove(_faultCapLineGroup);
+    _faultCapLineGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
+    _faultCapLineGroup = null;
+  }
+  if (!crossSectionEnabled || !clipPlane || !_faultRibbonData.length || !tectonicFaultRoot) return;
+
+  _faultCapLineGroup = new THREE.Group();
+
+  for (const { columns, color } of _faultRibbonData) {
+    const pts = _intersectRibbonWithPlane(columns, clipPlane, 0.05);
+    if (!pts) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pts, 3));
+    const ls = new THREE.LineSegments(geo,
+      new THREE.LineBasicMaterial({ color, clippingPlanes: [] }));
+    ls.renderOrder = 81;
+    _faultCapLineGroup.add(ls);
+  }
+
+  tectonicFaultRoot.add(_faultCapLineGroup);
+  updateClipPlanes();
 }
 
 // ─── Geology contacts (3D lines) ─────────────────────────────────────────────
@@ -3366,6 +3472,7 @@ function setupUI() {
       if (crossControls) crossControls.style.display = crossSectionEnabled ? '' : 'none';
       updateClipPlanes();
       updateCrossSectionCap();
+      _updateFaultCapLines();
     });
   }
 
@@ -3378,6 +3485,7 @@ function setupUI() {
       if (angleLabel) angleLabel.textContent = deg + '°';
       setCrossSectionAngle(deg);
       updateCrossSectionCap();
+      _updateFaultCapLines();
     });
   }
 
