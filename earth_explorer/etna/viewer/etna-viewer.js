@@ -13,6 +13,7 @@ import {
   updateEtnaLabelVisibility,
   applyEtnaLabelVertExag,
   getThemePalette,
+  makeLabelTexture,
   ETNA_POIS,
 } from './etna-label-layer.js';
 
@@ -96,9 +97,9 @@ const ALL_STATIONS = {
 
 
 
-// Geological domain — from sea level (Y=0) down to −50 km
-const DOMAIN_W = 100, DOMAIN_H = 50; // width km, height km (0 to -50)
-const DOMAIN_CY = -25; // Y centre = -25 km (top at 0, bottom at -50)
+// Geological domain — from sea level (Y=0) down to −80 km
+const DOMAIN_W = 100, DOMAIN_H = 80; // width km, height km (0 to -80)
+const DOMAIN_CY = -40; // Y centre = -40 km (top at 0, bottom at -80)
 
 // Northing correction: the STL UTM origin (4175000 N) sits 3.638 km south of the
 // declared geographic centre (37.755°N). The STL loader subtracts this from gy so
@@ -178,6 +179,12 @@ let domainEdges = null;
 let domainOverdraw = null;  // transparent clone rendered after rings to repaint walls over any ring bleed
 let domainLayerEdges = null; // horizontal boundary lines between geological layers
 let ionianSlab = null;       // subducting Ionian oceanic slab (mantle lithosphere)
+let sicilianThrustSlab = null; // African carbonate platform — Sicilian Chain Thrust Front
+const _slabTears = [];          // planar dyke sheets representing slab tears
+const _slabHeatZoneMeshes = []; // heat-zone circles — hidden during cross-section
+let _plumbingLabelGroup = null;
+const _plumbingLabelData = [];         // { hit, sprite, anchor, poi }[]
+const _plumbingLabelInteractives = []; // hit spheres + sprites for click raycasting
 let faultRootGroup = null;   // parent group for all surface fault overlays (scale.y tracks vertExag)
 let seismicMesh = null;      // THREE.InstancedMesh — one instance per seismic event
 let _seismicEvents = null;   // raw array [[x,z,y,ml,year], …] loaded from etna-seismicity.json
@@ -196,7 +203,11 @@ let stationMarkers = []; // kept as empty array — no longer contains meshes
 let stationMarkersByType = {}; // type → [] (unused, kept for safety)
 let stationDOMByType = {}; // type → DOM pin elements for immediate toggle control
 let chamberMeshes = [];
-let chamberCapMeshes = []; // 2D cross-section shapes lying in the cut plane
+let hvbMesh = null;        // High-Velocity Body obstacle (not a magma chamber)
+let _layerLabelGroup = null;
+const _layerLabelInteractives = [];
+let _selectedCoreEntry = null;  // currently pulsing core label entry
+let _coreSelectionRing = null;  // ring mesh that orbits the selected dot
 let labels = [];
 let clipPlane = null;
 let crossSectionCap = null;
@@ -230,7 +241,12 @@ let _egdiGeoFeats       = null; // EGDI features for PIP — [id,name,lithology,
 let etnaGeologyMesh     = null; // canvas-texture overlay: INGV EtnaGeoMap per-feature polygons
 let _ingvGeoFeats       = null; // INGV features for PIP — [id,sigle,name,type,age,fm,lith,info,color,rings]
 let tectonicFaultRoot   = null; // regional tectonic faults (GEM / DISS) as draped lines
-let _faultRibbonData    = [];   // [{columns:[{top,bot},...], color}] for face intersection
+let _faultRibbonData    = [];   // [{columns:[{top,bot},...], color, geo}] for face intersection + vert-exag update
+let _faultRibbonGroup   = null; // child of tectonicFaultRoot with scale.y=1/_vertExag — ribbons + face lines sit here
+const _faultRibbonMeshes = [];  // all ribbon THREE.Mesh objects — used for click raycasting
+let _selectedFaultMesh   = null; // currently selected ribbon mesh
+let _faultPerimeterLine  = null; // animated perimeter outline of selected ribbon
+const _ghostSurfaceTraceMats = []; // ghost copies of surface-trace line materials (inactive half)
 let _faultSideLineGroup = null; // intersection lines on the 4 domain side faces (built once)
 let _faultCapLineGroup  = null; // intersection lines on the cross-section cap (rebuilt on angle)
 let satelliteTexture = null;
@@ -320,22 +336,52 @@ const _HG_STEP = 100 / _HG_RES; // 0.5 km per cell
 // Built CPU-side: background geotherm + topographic overburden + chamber halos.
 const _PT_NX = 64, _PT_NY = 32, _PT_NZ = 64;
 
-// Chamber definitions in world space (X, Y km; world Z = 0 for all).
-// Tmag: magma temperature °C at chamber wall (Dirichlet boundary condition).
+// Chamber definitions in world space (X, Y, Z km).
+// Exact match to buildChambers() 3D meshes and _CAP_GLSL_GEO inAnyChamber().
+// Deep storage (index 4) is tilted — _ptInChamber applies R^T before testing.
 const _CHAMBERS_PT = [
-  { cx: 0, cy: -2,    rx: 0.25, ry: 0.25, rz: 0.25, Tmag: 1150 },
-  { cx: 0, cy: -2.85, rx: 0.25, ry: 0.25, rz: 0.25, Tmag: 1150 },
-  { cx: 0, cy: -6.8,  rx: 6.0,  ry: 0.8,  rz: 6.0,  Tmag: 1100 },
+  { cx: -0.26,  cy:  1.5,  cz:  0.42, rx: 0.5,  ry: 0.5,  rz: 0.5,  Tmag: 1150 }, // summit
+  { cx: -0.79,  cy: -2.0,  cz:  4.08, rx: 0.25, ry: 1.0,  rz: 0.25, Tmag: 1130 }, // prolate conduit
+  { cx: -1.14,  cy: -5.0,  cz:  5.31, rx: 1.4,  ry: 0.7,  rz: 1.2,  Tmag: 1100 }, // melt shell
+  { cx: -8.67,  cy:-10.0,  cz:  2.34, rx: 3.0,  ry: 1.0,  rz: 3.0,  Tmag: 1080 }, // mid-crustal lens
+  { cx:-20.73,  cy:-18.0,  cz: -2.40, rx: 6.0,  ry: 2.0,  rz: 6.0,  Tmag: 1050 }, // deep storage (tilted)
 ];
 let _propTex = null;
 
-// CPU mirrors of the GLSL physics (same equations, same constants).
+// CPU mirrors of the GLSL physics — equations and constants match ptGeotherm/ptThermal exactly.
 function _ptTemp(d) {
   if (d <= 0) return 15;
-  const Tl = 15 + 40*d - 0.25*d*d;
-  const Ta = 1215 + 0.5*Math.max(0, d - 40);
-  const w  = 1 / (1 + Math.exp(-(d - 40)*1.5));
+  const Tl = 15 + 25*d - 0.10*d*d;           // Fourier conduction, q_s/k (LAB at ~55 km)
+  const Ta = 1215 + 0.5*Math.max(0, d - 60);  // mantle adiabat (below LAB base)
+  const w  = 1 / (1 + Math.exp(-(d - 55)));   // logistic LAB blend at 55 km
   return Tl*(1 - w) + Ta*w;
+}
+// Ionian slab fraction: 0 = outside, 1 = fully inside slab core.
+// Slab plane defined by (50,−28)→(35,−50) in world XY; normal (−22,15)/26.63 toward mantle wedge.
+function _ptSlabFraction(wx, wy) {
+  if (wx < 22 || wy > -22) return 0;
+  const sd = (-22*(wx - 50) + 15*(wy + 28)) / 26.63;
+  const t  = Math.max(0, Math.min(1, -sd / 8));
+  return t*t*(3 - 2*t);  // smoothstep
+}
+// Plume fraction: 0 = outside, 1 = inside plume core.
+// Matches buildChambers() plume geometry: stem r=2 (y -80→-40), flare widens to r=16 at y=-25.
+function _ptPlumeFraction(wx, wy, wz) {
+  const ss = (x, lo, hi) => { const t = Math.max(0, Math.min(1, (hi-x)/(hi-lo))); return t*t*(3-2*t); };
+  let w = 0;
+  if (wy <= -38 && wy >= -82) {
+    const dr = Math.hypot(wx + 21.02, wz - 3.03);
+    w = Math.max(w, ss(dr, 1.0, 3.5));
+  }
+  if (wy > -42 && wy < -25) {
+    const t   = Math.max(0, Math.min(1, (wy + 42) / 17));
+    const axX = -21.02 + t * (-23.95 - (-21.02));
+    const axZ =   3.03 + t * (-2.62  -   3.03);
+    const maxR = 2 + t * 14;
+    const dr   = Math.hypot(wx - axX, wz - axZ);
+    w = Math.max(w, ss(dr, maxR * 0.5, maxR * 1.4));
+  }
+  return w;
 }
 function _ptPressure(d) {
   return 9.81e-6 * 2900 * (d - 0.42*(1 - Math.exp(-d/3)));
@@ -356,38 +402,72 @@ function _ptPoisson(P, phi) {
   return v*(1 - t) + 0.48*t;
 }
 
-// Returns true if world point (wx, wy, wz) is inside a magma chamber, and which one.
+// Returns the chamber object if world point (wx, wy, wz) is inside any chamber.
+// Deep storage (index 4) requires R^T rotation before the ellipsoid test.
 function _ptInChamber(wx, wy, wz) {
-  for (const ch of _CHAMBERS_PT) {
+  for (let i = 0; i < 4; i++) {
+    const ch = _CHAMBERS_PT[i];
     const nx = (wx - ch.cx) / ch.rx;
     const ny = (wy - ch.cy) / ch.ry;
-    const nz =  wz           / ch.rz;  // chambers at world Z=0
+    const nz = (wz - ch.cz) / ch.rz;
     if (nx*nx + ny*ny + nz*nz < 1.0) return ch;
+  }
+  {
+    const ch = _CHAMBERS_PT[4];
+    const dx = wx - ch.cx, dy = wy - ch.cy, dz = wz - ch.cz;
+    const lx = ( 0.9679*dx + 0.2435*dy - 0.062 *dz) / ch.rx;
+    const ly = (-0.2435*dx + 0.848 *dy - 0.4706*dz) / ch.ry;
+    const lz = (-0.062 *dx + 0.4706*dy + 0.8801*dz) / ch.rz;
+    if (lx*lx + ly*ly + lz*lz < 1.0) return ch;
   }
   return null;
 }
 
-// Temperature (°C) at world point (wx, wy, wz).
-// Applies topographic height correction for effective depth, then superimposes
-// steady-state 1/r thermal contributions from each chamber (∇²T = 0 solution).
+// Temperature (°C) at world point — mirrors ptThermal() GLSL exactly.
+// Geotherm + slab cold anomaly + plume hot anomaly + 1/r chamber halos.
 function _ptTempAtPoint(wx, wy, wz) {
+  const ch_in = _ptInChamber(wx, wy, wz);
+  if (ch_in) return ch_in.Tmag;
+
   const h    = _sampleHeight(wx, wz);
   const dEff = Math.max(0, -wy + h);
   let T = _ptTemp(dEff);
-  const ch_in = _ptInChamber(wx, wy, wz);
-  if (ch_in) return ch_in.Tmag;
+
+  // Ionian slab cold anomaly
+  const sf = _ptSlabFraction(wx, wy);
+  if (sf > 0) {
+    const Tslab = 350 + 300 * Math.exp(-Math.max(0, dEff - 25) / 25);
+    T = T + sf * (Math.min(T, Tslab) - T); // slab only cools
+  }
+
+  // Mantle plume hot anomaly
+  const pf = _ptPlumeFraction(wx, wy, wz);
+  if (pf > 0) {
+    const Tplume = 1340 + 0.4 * Math.max(0, -wy - 45);
+    T = T + pf * 0.85 * (Math.max(T, Tplume) - T); // plume only heats
+  }
+
+  // 1/r chamber halos (∇²T = 0 superposition)
   for (let ci = 0; ci < _CHAMBERS_PT.length; ci++) {
     const ch = _CHAMBERS_PT[ci];
-    const nx = (wx - ch.cx) / ch.rx;
-    const ny = (wy - ch.cy) / ch.ry;
-    const nz =  wz           / ch.rz;
-    const dN = Math.sqrt(nx*nx + ny*ny + nz*nz);
-    T += Math.max(0, ch.Tmag - _ptTemp(Math.max(0, -ch.cy))) / dN;
+    let dN;
+    if (ci === 4) {
+      const dx = wx-ch.cx, dy = wy-ch.cy, dz = wz-ch.cz;
+      const lx = ( 0.9679*dx + 0.2435*dy - 0.062 *dz) / ch.rx;
+      const ly = (-0.2435*dx + 0.848 *dy - 0.4706*dz) / ch.ry;
+      const lz = (-0.062 *dx + 0.4706*dy + 0.8801*dz) / ch.rz;
+      dN = Math.sqrt(lx*lx + ly*ly + lz*lz);
+    } else {
+      const nx = (wx-ch.cx)/ch.rx, ny = (wy-ch.cy)/ch.ry, nz = (wz-ch.cz)/ch.rz;
+      dN = Math.sqrt(nx*nx + ny*ny + nz*nz);
+    }
+    if (dN >= 1.0) T += Math.max(0, ch.Tmag - _ptTemp(Math.max(0, -ch.cy))) / dN;
   }
-  return Math.min(T, _CHAMBERS_PT[0].Tmag);
+  return Math.min(T, 1350);
 }
 
 // All rock properties at world point — used by subsurface HUD.
+// Differentiates magma chambers, Ionian slab, plume, and host rock.
 function _ptPropsAtPoint(wx, wy, wz) {
   const h      = _sampleHeight(wx, wz);
   const dEff   = Math.max(0, -wy + h);
@@ -395,10 +475,26 @@ function _ptPropsAtPoint(wx, wy, wz) {
   const ch_in  = _ptInChamber(wx, wy, wz);
   const T      = ch_in ? ch_in.Tmag : _ptTempAtPoint(wx, wy, wz);
   const phi    = _ptMeltFrac(T, P);
-  const E      = ch_in ? 1.5   : _ptYoungs(P, T, phi);
-  const nu     = ch_in ? 0.499 : _ptPoisson(P, phi);
-  const rho    = ch_in ? 2650  :
-    Math.round(2900*(1 - 0.14*Math.exp(-dEff/3))*(1 + P/70 - 3e-5*Math.max(0, T-15)) - 250*phi);
+
+  let E, nu, rho;
+  if (ch_in) {
+    E = 1.5; nu = 0.499; rho = 2650;
+  } else {
+    const sf = _ptSlabFraction(wx, wy);
+    // Host-rock baseline
+    E   = _ptYoungs(P, T, phi);
+    nu  = _ptPoisson(P, phi);
+    rho = Math.round(2900*(1 - 0.14*Math.exp(-dEff/3))*(1 + P/70 - 3e-5*Math.max(0, T-15)) - 250*phi);
+    if (sf > 0.01) {
+      // Ionian oceanic lithosphere: old, cold, rigid, dense
+      const Eslab   = 150 + 30*(1 - Math.exp(-P/0.5));
+      const nuSlab  = 0.27;
+      const rhoSlab = Math.round(3280*(1 + P/120) - 1.5*Math.max(0, T - 15));
+      E   = E   + sf*(Eslab   - E);
+      nu  = nu  + sf*(nuSlab  - nu);
+      rho = Math.round(rho + sf*(rhoSlab - rho));
+    }
+  }
   return { T, P, phi, E, nu, rho, dEff, inChamber: !!ch_in };
 }
 
@@ -443,7 +539,7 @@ function _buildPropertyTexture(H) {
   const _chTbg = _CHAMBERS_PT.map(ch => _ptTemp(Math.max(0, -ch.cy)));
 
   for (let iz = 0; iz < _PT_NZ; iz++) {
-    // local Z → world Z = local Z + GEO_Z_OFFSET; chambers are at world Z=0
+    // local Z → world Z = local Z + GEO_Z_OFFSET
     const wz = (-50 + (iz + 0.5) * 100 / _PT_NZ) + GEO_Z_OFFSET;
     for (let iy = 0; iy < _PT_NY; iy++) {
       const wy   = -(iy + 0.5) * 50 / _PT_NY;   // km (negative = below sea level)
@@ -460,7 +556,7 @@ function _buildPropertyTexture(H) {
           const ch = _CHAMBERS_PT[ci];
           const nx = (wx - ch.cx) / ch.rx;
           const ny = (wy - ch.cy) / ch.ry;
-          const nz =  wz          / ch.rz;  // chambers at world Z=0
+          const nz = (wz - ch.cz) / ch.rz;
           const dN = Math.sqrt(nx*nx + ny*ny + nz*nz);
           if (dN < 1.0) { T = ch.Tmag; inChamber = true; break; }
           // Steady-state Fourier conduction: no exponential, pure algebraic decay
@@ -549,6 +645,8 @@ function init() {
 
   controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(0, -10, 0); // Look at mid-depth so domain block is centred
+  // Cancel any in-progress fly-to when the user grabs the camera
+  controls.domElement.addEventListener('pointerdown', () => { _flyToken++; _clearTourFlightTimer(); });
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.minDistance = 1;
@@ -564,11 +662,16 @@ function init() {
   buildCompass();
   _propTex = _buildPropertyTexture(null); // flat terrain (h=0) until STL loads
   buildGeologicalDomain();
+  buildDomainLayerLabels();
   buildIonianSlab();
+  buildSicilianThrustFront();
+  buildSlabTears();
+  buildSlabHeatZone();
+  buildSlabFaultLines();
   buildIonianCrust();
   buildSTEPFault();
   buildChambers();
-  buildChamberCaps();
+  buildPlumbingLabels();
   buildCrossSectionCap();
   buildCoastlineSea();
   buildStations();
@@ -602,9 +705,9 @@ function setupLighting() {
   fill.position.set(-20, 10, -15);
   scene.add(fill);
 
-  // Warm glow from below simulating magma
-  const magmaGlow = new THREE.PointLight(0xff3300, 0.6, 20);
-  magmaGlow.position.set(0, -6.8, 0);
+  // Warm glow simulating magma heat — positioned at melt shell centroid
+  const magmaGlow = new THREE.PointLight(0xff3300, 0.6, 25);
+  magmaGlow.position.set(-1.14, -5.0, 5.31);
   scene.add(magmaGlow);
 }
 
@@ -767,20 +870,239 @@ function _finalizeSurface(geo) {
 // Lithosphere and mantle — simplified from full stratigraphy
 // (Nicolich et al. 2000; Patanè et al. 2006)
 const GEO_LAYERS = [
-  { color: 0x7a5c38, emissive: 0x1e1208, label: 'Lithosphere', depth: '0–40 km'  },
-  { color: 0x8c3c14, emissive: 0x280c04, label: 'Mantle',      depth: '40–50 km' },
+  {
+    color: 0x7a5c38, emissive: 0x1e1208, label: 'Crust / Accretionary wedge', depth: '0–10 km',
+    name: 'Crust / Accretionary wedge',
+    kicker: 'Upper crust · 0–10 km depth',
+    theme: 'general',
+    meta: 'Vp ≈ 5.5–6.5 km/s · Thickness ~10 km · Nicolich et al. 2000',
+    description: 'Continental and oceanic crustal material, including the accreted sedimentary wedge of the African plate subducting beneath Eurasia. Seismic velocities of 5.5–6.5 km/s indicate granitic to gabbroic compositions.',
+  },
+  {
+    color: 0x6a3c20, emissive: 0x1a0c04, label: 'Lower crust + cusp', depth: '10–30 km',
+    name: 'Lower crust + cusp',
+    kicker: 'Lower crust · 10–30 km depth',
+    theme: 'general',
+    meta: 'Vp ≈ 6.5–7.4 km/s · mafic lower crust · Moho at ~30 km',
+    description: 'Mafic lower crust and transitional cusp zone approaching the Moho discontinuity at ~30 km. Seismic velocities of 6.5–7.4 km/s indicate gabbroic to ultramafic compositions. The Moho discontinuity at ~30 km marks the base of the crust beneath central Sicily.',
+  },
+  {
+    color: 0x8c3818, emissive: 0x280a04, label: 'Thinned lithospheric mantle — heated, melt-permeated', depth: '30–60 km',
+    name: 'Thinned lithospheric mantle',
+    kicker: 'Thinned lithospheric mantle · 30–60 km depth',
+    theme: 'general',
+    meta: 'Low-Vs anomaly · T ≈ 1100–1300 °C · partial melt fraction ~1–3%',
+    description: 'Anomalously thin and thermally modified lithospheric mantle beneath the Etna edifice. The STEP fault and slab rollback have thinned and heated this zone, introducing melt fractions and metasomatic fluids from the asthenosphere below. Seismic tomography shows pronounced low-velocity anomalies consistent with partial melt percolation.',
+  },
+  {
+    color: 0x4a1606, emissive: 0x140402, label: 'Asthenosphere / Mantle plume', depth: '60–80 km',
+    name: 'Asthenosphere / Mantle plume',
+    kicker: 'Convecting asthenosphere · 60–80 km depth',
+    theme: 'general',
+    meta: 'T > 1250 °C · Vp anomaly −3% · Schellart et al. 2008',
+    description: 'Hot, partially molten asthenospheric mantle actively convecting beneath the subducting Ionian slab. The STEP (Slab Tear Edge Propagator) fault allows sub-slab asthenosphere to well up through the slab window, providing the anomalously hot, OIB-like magma source for Etna — distinct from typical subduction-related arc volcanism.',
+  },
 ];
 
-// Boundary surfaces between layers.
-// 3 entries (for 2 layers): each is [SW_y, SE_y, NW_y, NE_y] in km.
-// SW = (X=−50, Z=+50)  SE = (X=+50, Z=+50)  ← south edge of domain
-// NW = (X=−50, Z=−50)  NE = (X=+50, Z=−50)  ← north edge of domain
-// LAB: ~40 km south → ~48 km north (Nicolich et al. 2000)
+// Boundary surfaces — 5 entries for 4 layers. Each is [SW_y, SE_y, NW_y, NE_y] in km bsl.
 const GEO_LAYER_BOUNDS = [
   [   0,    0,    0,    0],  // surface 0: terrain top
-  [ -40,  -40,  -40,  -40],  // surface 1: LAB (flat at 40 km)
-  [ -50,  -50,  -50,  -50],  // surface 2: domain floor
+  [ -10,  -10,  -10,  -10],  // surface 1: lower crust top (~10 km bsl)
+  [ -30,  -30,  -30,  -30],  // surface 2: Moho / thinned litho top (~30 km bsl)
+  [ -60,  -60,  -60,  -60],  // surface 3: LAB / asthenosphere top (~60 km bsl)
+  [ -80,  -80,  -80,  -80],  // surface 4: domain floor
 ];
+
+// ─── Domain layer labels (cross-section mode) ────────────────────────────────
+// Verbatim port of the Mars core-view label pattern (mars-viewer.js:6717-6766).
+// Dot marker on the cut face · invisible hit sphere · connector line · sprite.
+// Mirrors the Mars core-view label pattern exactly:
+// • Dot at the CENTRE of the cut face at each layer's mid-depth (not the edge).
+// • Line from centre outward along the cut-face tangent to just beyond the domain wall.
+// • Sprite at the far end of the line.
+// All positions recompute on every angle change.
+
+const _layerLabelData = []; // { dot, hit, lineGeo, sprite, anchorY, sw }
+let _coreLabelsEnabled = true;
+
+// Distance along (tx,tz) from (sx,sz) to first domain-wall hit.
+function _domainExitT(sx, sz, tx, tz) {
+  const hw = DOMAIN_W / 2;
+  const ts = [];
+  if (Math.abs(tx) > 1e-6) { ts.push((-hw - sx) / tx); ts.push((hw - sx) / tx); }
+  if (Math.abs(tz) > 1e-6) { ts.push((-hw + GEO_Z_OFFSET - sz) / tz); ts.push((hw + GEO_Z_OFFSET - sz) / tz); }
+  const pos = ts.filter(t => t > 0.5);
+  return pos.length ? Math.min(...pos) : 55;
+}
+
+// Compute the centre of the cut face in XZ — project the domain centre (0, GEO_Z_OFFSET)
+// onto the cut-plane line through (SX,SZ) with direction (tx,tz).
+function _cutFaceCentre(SX, SZ, tx, tz) {
+  // t = dot( domainCentre - planeOrigin, tangent )
+  const t = (0 - SX) * tx + (GEO_Z_OFFSET - SZ) * tz;
+  return { cx: SX + tx * t, cz: SZ + tz * t };
+}
+
+function buildDomainLayerLabels() {
+  if (_layerLabelGroup) { scene.remove(_layerLabelGroup); _layerLabelGroup = null; }
+  _layerLabelData.length = 0;
+  _layerLabelInteractives.length = 0;
+  _selectedCoreEntry = null;
+  const group = new THREE.Group();
+
+  const markerGeo = new THREE.SphereGeometry(0.8,  10, 10); // visible dot at domain depth scale
+  const markerMat = new THREE.MeshBasicMaterial({ color: 0xffcf9d, depthTest: true, depthWrite: false });
+  const hitGeo    = new THREE.SphereGeometry(2.8,  10, 10);
+  const hitMat    = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthTest: true, depthWrite: false });
+
+  for (const [i, layer] of GEO_LAYERS.entries()) {
+    const anchorY = (GEO_LAYER_BOUNDS[i][0] + GEO_LAYER_BOUNDS[i + 1][0]) / 2;
+    const ph = new THREE.Vector3(0, anchorY, 0);
+
+    const dot = new THREE.Mesh(markerGeo, markerMat.clone());
+    dot.position.copy(ph);
+    dot.userData.feature = layer;
+    group.add(dot);
+
+    const hit = new THREE.Mesh(hitGeo, hitMat.clone());
+    hit.position.copy(ph);
+    hit.userData.feature = layer;
+    group.add(hit);
+    _layerLabelInteractives.push(hit, dot);
+
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([ph.clone(), ph.clone()]);
+    // depthTest: true — line lives in the hidden (clipped) half where domain body is absent,
+    // so it remains visible there but is correctly occluded by any domain wall that screens it.
+    const lineMat = new THREE.LineBasicMaterial({ color: 0xffcf9d, transparent: true, opacity: 0.45, depthTest: true });
+    const line = new THREE.Line(lineGeo, lineMat);
+    group.add(line);
+
+    const labelTex = makeLabelTexture(layer.label);
+    const spriteMat = new THREE.SpriteMaterial({
+      map: labelTex.texture, transparent: true, opacity: 0.88,
+      // depthTest: true — sprite is in the hidden half (domain body clipped there), so it
+      // remains visible but is correctly occluded by any domain wall that screens it.
+      depthTest: true, depthWrite: false,
+    });
+    const sprite = new THREE.Sprite(spriteMat);
+    const sw = (labelTex.width  / 200) * 0.85 * 10 * 1.65; // +65% size
+    const sh = (labelTex.height / 200) * 0.85 * 10 * 1.65;
+    sprite.scale.set(sw, sh, 1);
+    sprite.position.copy(ph);
+    sprite.renderOrder = 10;
+    sprite.userData.feature = layer;
+    group.add(sprite);
+    _layerLabelInteractives.push(sprite);
+
+    _layerLabelData.push({ dot, hit, line, lineGeo, sprite, layerId: layer.name, anchorY, sw });
+  }
+
+  // ── Core selection ring — mirrors Mars coreSelectionRing (line 11245) ────
+  _coreSelectionRing = new THREE.Mesh(
+    new THREE.SphereGeometry(0.09, 14, 14),
+    new THREE.MeshBasicMaterial({ color: 0xffd36b, transparent: true, opacity: 0, depthTest: false, depthWrite: false }),
+  );
+  _coreSelectionRing.renderOrder = 203;
+  _coreSelectionRing.visible = false;
+  group.add(_coreSelectionRing);
+  // ──────────────────────────────────────────────────────────────────────────
+
+  group.visible = false;
+  scene.add(group);
+  _layerLabelGroup = group;
+  _updateDomainLayerLabels();
+}
+
+// Reset a core label entry's material to its pre-pulse state (mirrors resetLabelEntryPulse)
+function _resetCoreEntryPulse(entry) {
+  if (!entry?._pulseBase) return;
+  const pb = entry._pulseBase;
+  if (entry.sprite?.material) { entry.sprite.material.color.copy(pb.spriteColor); entry.sprite.material.opacity = pb.spriteOpacity; }
+  if (entry.dot?.material)    { entry.dot.material.color.copy(pb.dotColor); }
+  if (entry.line?.material)   { entry.line.material.opacity = pb.lineOpacity; }
+  delete entry._pulseBase;
+}
+
+// Set (or clear) the active core label entry — resets the previous one first
+function _setCoreSelection(feature) {
+  _resetCoreEntryPulse(_selectedCoreEntry);
+  _selectedCoreEntry = feature
+    ? (_layerLabelData.find(e => e.dot?.userData?.feature === feature) ?? null)
+    : null;
+  if (_coreSelectionRing && !_selectedCoreEntry) _coreSelectionRing.visible = false;
+}
+
+function _clearFaultSelection() {
+  if (_faultPerimeterLine) {
+    _faultRibbonGroup?.remove(_faultPerimeterLine);
+    _faultPerimeterLine.geometry.dispose();
+    _faultPerimeterLine.material.dispose();
+    _faultPerimeterLine = null;
+  }
+  _selectedFaultMesh = null;
+}
+
+function _selectFaultMesh(mesh) {
+  _clearFaultSelection();
+  _selectedFaultMesh = mesh;
+  const pos = mesh.geometry.attributes.position;
+  const n = pos.count / 2; // vertex layout: top, bottom, top, bottom ...
+  const pts = [];
+  for (let i = 0; i < n; i++) pts.push(new THREE.Vector3(pos.getX(i*2), pos.getY(i*2), pos.getZ(i*2)));
+  for (let i = n - 1; i >= 0; i--) pts.push(new THREE.Vector3(pos.getX(i*2+1), pos.getY(i*2+1), pos.getZ(i*2+1)));
+  pts.push(pts[0].clone()); // close the loop
+  _faultPerimeterLine = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: 0x00ffee, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false }),
+  );
+  _faultPerimeterLine.renderOrder = 200;
+  _faultRibbonGroup.add(_faultPerimeterLine);
+}
+
+function _updateDomainLayerLabels() {
+  if (!_layerLabelGroup) return;
+  const show = crossSectionEnabled && _coreLabelsEnabled;
+  _layerLabelGroup.visible = show;
+  if (!show || !_layerLabelData.length) return;
+
+  // Summit world coords matching setCrossSectionAngle: d = -(nx*(-0.79) + nz*4.08)
+  const SX = -0.79, SZ = 4.08;
+  const PAD = 6; // km beyond the domain wall before the line ends
+
+  const rad = (crossSectionAngle * Math.PI) / 180;
+  const nx  = -Math.sin(rad);
+  const nz  = -Math.cos(rad);
+  // Tangent — used only to find the cut-face centre (projects domain centre onto cut plane)
+  const tx  = nz, tz = -nx;
+
+  // Centre of the cut face at each layer depth — mirrors Mars anchorPoint
+  const { cx, cz } = _cutFaceCentre(SX, SZ, tx, tz);
+
+  // Label direction: anti-normal = into the hidden/clipped half.
+  // Mars: cut at x=0, normal=+X, labels go in -X (anti-normal, into hidden half).
+  // Etna: labels go in (-nx, -nz) direction, perpendicular to the face.
+  const lx = -nx, lz = -nz;
+  const exitT = _domainExitT(cx, cz, lx, lz);
+  const lineDist = (exitT + PAD) * 0.5; // 50% of full exit distance
+
+  _layerLabelData.forEach(({ dot, hit, lineGeo, sprite, anchorY, sw }) => {
+    dot.position.set(cx, anchorY, cz);
+    hit.position.set(cx, anchorY, cz);
+
+    // Line endpoint: fixed distance from face centre
+    const lineX = cx + lx * lineDist;
+    const lineZ = cz + lz * lineDist;
+
+    const p = lineGeo.attributes.position;
+    p.setXYZ(0, cx,    anchorY, cz);
+    p.setXYZ(1, lineX, anchorY, lineZ);
+    p.needsUpdate = true;
+    lineGeo.computeBoundingSphere();
+
+    // Sprite centre: sw/2 beyond line endpoint so near edge lands exactly on line end
+    sprite.position.set(lineX + lx * sw * 0.5, anchorY, lineZ + lz * sw * 0.5);
+  });
+}
 
 function buildGeologicalDomain() {
   const hw = DOMAIN_W / 2; // 50 km
@@ -997,6 +1319,394 @@ function buildSTEPFault() {
   scene.add(stepFault);
 }
 
+// ─── Sicilian Chain Thrust Front — 3D slab volume ─────────────────────────────
+// Face A = EUR_ITCS029 fault ribbon polygon (same math as _buildFaultRibbon,
+// dip=32°, depth=18 km, dipRight=false). Face B = Face A displaced 10 km down.
+// All 4 connecting faces and 2 end caps close the prism.
+//
+// Coordinate system: world XZ = _lonLatToModel XZ directly (same as _faultRibbonGroup,
+// NO position.z offset — adding GEO_Z_OFFSET would shift 3.638 km off the ribbon).
+// Non-indexed geometry so computeVertexNormals gives per-face normals at sharp edges.
+
+function buildSicilianThrustFront() {
+  // EUR_ITCS029 trace: _lonLatToModel [x, z] — world XZ (no position offset)
+  const trace = [
+    [ 13.37, 25.21],
+    [  6.40, 28.35],
+    [ -0.58, 31.50],
+    [ -7.55, 34.64],
+    [-13.83, 37.85],
+    [-20.11, 41.06],
+    [-26.38, 44.27],
+    [-33.09, 48.96],
+    [-34.58, 50.00],
+  ];
+  const DIP_DEG   = 32;
+  const DIP_DEPTH = 38;  // km — extended 20 km beyond EUR_ITCS029 seismogenic base (18 km)
+  const H_RUN     = DIP_DEPTH / Math.tan(DIP_DEG * Math.PI / 180);  // ≈ 28.80 km
+  const DUP_DY    = -10; // Face B is 10 km below Face A
+  const n         = trace.length;
+
+  // Compute Face A ribbon vertices (mirror of _buildFaultRibbon, dipRight=false)
+  // h ≈ 0 for southern lowlands; bottom Y = h - depth = -DIP_DEPTH
+  const Atop = [], Abot = [];
+  for (let i = 0; i < n; i++) {
+    const [x, z] = trace[i];
+    let dx = 0, dz = 0;
+    if (i < n - 1) { dx = trace[i+1][0] - x;  dz = trace[i+1][1] - z; }
+    else            { dx = x - trace[i-1][0];  dz = z - trace[i-1][1]; }
+    const len = Math.sqrt(dx*dx + dz*dz);
+    if (len > 1e-8) { dx /= len; dz /= len; }
+    const hx = -dz, hz = dx;          // left of travel direction = northward
+    Atop.push([x,              0,          z            ]);
+    Abot.push([x + hx*H_RUN,  -DIP_DEPTH, z + hz*H_RUN ]);
+  }
+  const Btop = Atop.map(([x, y, z]) => [x, y + DUP_DY, z]);
+  const Bbot = Abot.map(([x, y, z]) => [x, y + DUP_DY, z]);
+
+  // Non-indexed: each quad emits 6 unique vertices so computeVertexNormals
+  // produces per-face normals with no averaging across the sharp prism edges.
+  const pos  = [];
+  const push3 = ([x,y,z]) => pos.push(x,y,z);
+  const tri   = (a,b,c)   => { push3(a); push3(b); push3(c); };
+  const quad  = (a,b,c,d) => { tri(a,b,c); tri(a,c,d); };
+
+  for (let i = 0; i < n - 1; i++) {
+    const [at0,ab0,bt0,bb0] = [Atop[i],  Abot[i],  Btop[i],  Bbot[i] ];
+    const [at1,ab1,bt1,bb1] = [Atop[i+1],Abot[i+1],Btop[i+1],Bbot[i+1]];
+    quad(at0, at1, ab1, ab0);  // Face A — fault ribbon
+    quad(bt0, bb0, bb1, bt1);  // Face B — displaced copy
+    quad(at0, bt0, bt1, at1);  // Top curtain  (surface trace, A↔B)
+    quad(ab0, ab1, bb1, bb0);  // Bottom curtain (dip-bottom, A↔B)
+  }
+  quad(Atop[0],   Btop[0],   Bbot[0],   Abot[0]  );  // East end cap
+  quad(Atop[n-1], Abot[n-1], Bbot[n-1], Btop[n-1]);  // West end cap
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshPhongMaterial({
+    color: 0xc2b48a, emissive: 0x2a2010,
+    specular: 0x4a3c22, shininess: 22,
+    flatShading: true,
+    transparent: true, opacity: 0.92,
+    side: THREE.DoubleSide, depthWrite: true, clippingPlanes: [],
+  });
+
+  sicilianThrustSlab = new THREE.Mesh(geo, mat);
+  // No position offset — world XZ = vertex XZ (matches _faultRibbonGroup convention)
+  sicilianThrustSlab.renderOrder = 2;
+  scene.add(sicilianThrustSlab);
+}
+
+// ─── Slab tears: cylinders at the plume–slab interface ───────────────────────
+function buildSlabTears() {
+  const tearMat = new THREE.MeshPhongMaterial({
+    color: 0xff4400, emissive: 0xff2000, emissiveIntensity: 1.4,
+    transparent: true, opacity: 0.88,
+    side: THREE.DoubleSide, depthWrite: false, clippingPlanes: [],
+  });
+
+  // Build a cylinder from p1 to p2 with radius derived from w.
+  // azRot unused for cylinders but kept so call-sites are unchanged.
+  function sheet(p1, p2, w, azRot = 0) {
+    const v1  = new THREE.Vector3(...p1), v2 = new THREE.Vector3(...p2);
+    const len = v1.distanceTo(v2);
+    const u   = new THREE.Vector3().subVectors(v2, v1).normalize();
+    const r   = Math.max(0.03, w / 28);
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(r * 0.65, r, len, 8, 1, false),
+      tearMat.clone()
+    );
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), u);
+    mesh.position.copy(v1.clone().lerp(v2, 0.5));
+    mesh.renderOrder = 3;
+    scene.add(mesh);
+    _slabTears.push(mesh);
+  }
+
+  // Face B depth at any XZ — plane through plume disk centre (-23.95, -35.39, -2.62),
+  // upward normal (-0.244, 0.848, -0.471):  y = [(0.244*(x+23.95) + 0.471*(z+2.62)) / 0.848] − 35.39
+  function faceB(x, z) {
+    return (0.244*(x + 23.95) + 0.471*(z + 2.62)) / 0.848 - 35.39;
+  }
+
+  const cx = -23.95, cz = -2.62;
+  const EMERGE = 2.5;
+
+  // [Δx, Δz, width_km, below_faceB_km, slab_frac, topAbsolute?]
+  const defs = [
+    // ── Central cluster (r < 3 km) ──────────────────────────────────────────────
+    [  0.0,  0.0,  8.0, 4.0, 1.0],
+    [ -1.8,  1.5,  6.5, 3.0, 1.0],
+    [  2.0, -1.0,  6.0, 2.5, 1.0],
+    [ -0.5, -2.2,  7.0, 3.5, 1.0],
+    [  1.5,  2.5,  5.5, 2.5, 1.0],
+
+    // ── Inner ring (r ≈ 4–6 km) ─────────────────────────────────────────────────
+    [  4.5,  0.5,  4.5, 2.0, 1.0],
+    [ -4.0,  2.0,  4.0, 1.5, 1.0],
+    [  2.5,  4.5,  3.5, 1.5, 0.9],
+    [ -2.5, -4.5,  4.5, 2.0, 1.0],
+    [  4.0, -3.5,  3.0, 1.0, 0.9],
+    [ -4.5, -2.0,  3.5, 1.5, 0.9],
+    [  0.5,  5.5,  3.0, 1.0, 0.8],
+
+    // ── Middle ring (r ≈ 7–10 km) ───────────────────────────────────────────────
+    [  7.5,  2.0,  2.5, 0.5, 0.7],
+    [ -7.0, -1.5,  2.5, 0.5, 0.7],
+    [  5.0,  6.5,  2.0, 0.0, 0.6],
+    [ -5.5, -6.0,  2.5, 0.0, 0.6],
+    [  1.0,  9.0,  1.5, 0.0, 0.5],
+    [ -1.5, -8.5,  2.0, 0.0, 0.5],
+    [  8.5, -4.0,  1.5, 0.0, 0.5],
+    [ -8.0,  4.5,  1.5, 0.0, 0.5],
+
+    // ── Outer fringe (r ≈ 11–16 km) ─────────────────────────────────────────────
+    [ 11.0,  2.0,  1.2, 0.0, 0.35],
+    [-11.0, -1.5,  1.0, 0.0, 0.30],
+    [  7.0, -9.0,  1.2, 0.0, 0.35],
+    [ -7.0,  9.5,  1.0, 0.0, 0.30],
+    [ 13.0, -1.0,  0.8, 0.0, 0.25],
+    [ -4.0, 12.0,  1.0, 0.0, 0.30],
+    [  3.0,-12.5,  0.9, 0.0, 0.25],
+
+    // ── Chamber connector ────────────────────────────────────────────────────────
+    [  3.22,  0.22,  5.0, 1.0, 0.0, -16.0],
+  ];
+
+  defs.forEach(([dx, dz, w, below, hFrac, topAbs]) => {
+    const x = cx + dx, z = cz + dz;
+    const yB   = faceB(x, z);
+    const yBot = yB - below;
+    const yTop = (topAbs !== undefined) ? topAbs : yB + hFrac * 10.0 + EMERGE;
+
+    const isChamberConnector = (topAbs !== undefined);
+    const leanScale = isChamberConnector ? 0.04 : 0.18;
+    const azScale   = isChamberConnector ? 0.15 : 1.05;
+
+    const height = yTop - yBot;
+    const lx = (Math.random() - 0.5) * 2 * height * leanScale;
+    const lz = (Math.random() - 0.5) * 2 * height * leanScale;
+    const azRot = (Math.random() - 0.5) * 2 * azScale;
+
+    sheet([x, yBot, z], [x + lx, yTop, z + lz], w, azRot);
+  });
+
+  // Small disc-like magma pockets sitting along some conduits
+  function disc(x, y, z, r, thickness, tiltX = 0, tiltZ = 0) {
+    const mat = tearMat.clone();
+    mat.emissiveIntensity = 1.8;
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(r, r, thickness, 20, 1, false),
+      mat
+    );
+    mesh.position.set(x, y, z);
+    mesh.rotation.x = tiltX;
+    mesh.rotation.z = tiltZ;
+    mesh.renderOrder = 3;
+    scene.add(mesh);
+    _slabTears.push(mesh);
+  }
+
+  disc(cx,        -31.5, cz,        1.10, 0.22,  0.08, -0.05);
+  disc(cx - 1.8,  -29.2, cz + 1.5,  0.80, 0.18, -0.06,  0.10);
+  disc(cx - 0.5,  -33.8, cz - 2.2,  0.95, 0.20,  0.10,  0.04);
+  disc(cx + 2.0,  -27.8, cz - 1.0,  0.65, 0.16, -0.07,  0.09);
+  disc(cx + 4.5,  -28.5, cz + 0.5,  0.55, 0.14,  0.12, -0.06);
+  disc(cx - 4.0,  -30.8, cz + 2.0,  0.50, 0.14, -0.09,  0.11);
+  disc(cx + 1.5,  -32.2, cz + 2.5,  0.60, 0.16, -0.05, -0.08);
+}
+
+// ─── Horizontal fault/stress lines on Face A showing slab degradation with depth ─
+function buildSlabFaultLines() {
+  // Face A orthonormal basis (same as buildSlabHeatZone)
+  const STRIKE   = new THREE.Vector3(-0.889,  0.000,  0.460);
+  const DIP_UP   = new THREE.Vector3( 0.390,  0.530,  0.753);
+  const NORM_OUT = new THREE.Vector3(-0.244,  0.848, -0.471);
+  const DIP_DOWN = DIP_UP.clone().negate();
+  const BASIS    = new THREE.Matrix4().makeBasis(STRIKE, DIP_UP, NORM_OUT);
+
+  // Face A top-centre: average of trace points (x,0,z) — where dip fraction d=0
+  const TOP_CENTER = new THREE.Vector3(-12.93, 0.0, 37.98);
+  const DIP_LENGTH = 71.7; // km — sqrt(H_RUN²+DIP_DEPTH²), 60.8²+38²
+
+  // Physical offset above Face A to defeat z-fighting at any zoom level
+  const SURFACE_LIFT = 0.30; // km in NORM_OUT direction
+
+  // Lines at [dip_fraction, width_km, thickness_km, opacity]
+  // Evenly-intentioned spacing (no random jitter) so no invisible gaps appear.
+  // d=0 → surface trace; d=1 → max depth.  Density and darkness increase with depth.
+  const lines = [
+    // ── Shallow — one every ~7 km dip, very faint ────────────────────────────
+    [0.10, 58, 0.09, 0.28],
+    [0.18, 58, 0.09, 0.32],
+    [0.26, 58, 0.10, 0.36],
+    [0.34, 58, 0.10, 0.40],
+    // ── Mid — every ~5 km dip ────────────────────────────────────────────────
+    [0.41, 60, 0.11, 0.45],
+    [0.47, 60, 0.11, 0.49],
+    [0.53, 60, 0.12, 0.53],
+    [0.59, 60, 0.12, 0.57],
+    // ── Deep-mid — every ~3 km dip ───────────────────────────────────────────
+    [0.63, 60, 0.13, 0.61],
+    [0.67, 60, 0.13, 0.64],
+    [0.71, 60, 0.14, 0.67],
+    [0.75, 60, 0.14, 0.70],
+    [0.79, 60, 0.15, 0.73],
+    // ── Deep — every ~1.5 km dip, dense and dark ─────────────────────────────
+    [0.82, 60, 0.15, 0.76],
+    [0.84, 60, 0.16, 0.78],
+    [0.86, 60, 0.16, 0.80],
+    [0.88, 60, 0.17, 0.82],
+    [0.90, 60, 0.17, 0.83],
+    [0.92, 60, 0.18, 0.85],
+    [0.94, 60, 0.18, 0.86],
+    [0.96, 60, 0.19, 0.88],
+    [0.98, 60, 0.19, 0.90],
+  ];
+
+  const baseMat = new THREE.MeshBasicMaterial({
+    color: 0x0a0300,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+    clippingPlanes: [],
+  });
+
+  lines.forEach(([d, w, thickness, opacity]) => {
+    const pos = TOP_CENTER.clone()
+      .addScaledVector(DIP_DOWN, DIP_LENGTH * d)
+      .addScaledVector(NORM_OUT, SURFACE_LIFT);
+
+    const mat = baseMat.clone();
+    mat.opacity = opacity;
+
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, thickness), mat);
+    mesh.quaternion.setFromRotationMatrix(BASIS);
+    mesh.position.copy(pos);
+    mesh.renderOrder = 4;
+    scene.add(mesh);
+    _slabTears.push(mesh);
+  });
+}
+
+// ─── Lava heat-crack texture on Face A of the Sicilian Thrust slab ────────────
+// Generates a procedural canvas crack network and applies it additively to the
+// slab surface around the plume contact zone.
+
+function _generateCrackCanvas(S) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, S, S);
+
+  const allPaths = [];
+  const cx = S * 0.5, cy = S * 0.5;
+
+  function addCrack(x, y, angle, depth) {
+    if (depth < 0) return;
+    const pts = [[x, y]];
+    let a = angle;
+    const steps = Math.max(6, 14 + Math.floor(Math.random() * 14) - depth * 3);
+    const segL  = S * (0.022 - depth * 0.004) * (0.7 + Math.random() * 0.6);
+    for (let i = 0; i < steps; i++) {
+      a += (Math.random() - 0.5) * 0.45;
+      x += Math.cos(a) * segL;
+      y += Math.sin(a) * segL;
+      if (x < -S*0.1 || x > S*1.1 || y < -S*0.1 || y > S*1.1) break;
+      pts.push([x, y]);
+      if (depth > 0 && Math.random() < 0.14) {
+        const dir = Math.random() > 0.5 ? 1 : -1;
+        addCrack(x, y, a + dir * (0.5 + Math.random() * 1.0), depth - 1);
+      }
+    }
+    if (pts.length >= 2) allPaths.push({ pts, depth });
+  }
+
+  // Radial cracks from the centre — heat rising from below
+  for (let i = 0; i < 12; i++) {
+    addCrack(cx, cy, (i / 12) * Math.PI * 2, 3);
+  }
+  // Edge-crossing cracks for a denser web
+  const PI = Math.PI;
+  addCrack(S*0.20, 0,      PI*0.48, 2);
+  addCrack(S*0.68, 0,      PI*0.52, 2);
+  addCrack(0,      S*0.32, 0.08,    2);
+  addCrack(S,      S*0.60, PI,      2);
+  addCrack(S*0.44, S,     -PI*0.5,  2);
+  addCrack(S*0.82, S,     -PI*0.5+0.30, 2);
+  addCrack(S*0.10, S,     -PI*0.5-0.28, 2);
+
+  // Draw: far-glow → outer → orange → bright core → hot white
+  allPaths.forEach(({ pts, depth }) => {
+    const s = depth === 3 ? 1.0 : depth === 2 ? 0.60 : 0.36;
+    const draw = (w, r, g, b, a) => {
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.strokeStyle = `rgba(${r},${g},${b},${a})`;
+      ctx.lineWidth   = w * s;
+      ctx.lineCap     = 'round';
+      ctx.lineJoin    = 'round';
+      ctx.stroke();
+    };
+    draw(S*0.028, 120, 12,  0,  0.30);
+    draw(S*0.018, 210, 45,  0,  0.55);
+    draw(S*0.010, 255, 120, 0,  0.85);
+    draw(S*0.004, 255, 210, 35, 1.00);
+    draw(S*0.0016,255, 255, 200,1.00);
+  });
+
+  return canvas;
+}
+
+function buildSlabHeatZone() {
+  const NORM_OUT = new THREE.Vector3(-0.244, 0.848, -0.471);
+  const q = new THREE.Quaternion().setFromUnitVectors(
+    new THREE.Vector3(0, 0, 1), NORM_OUT
+  );
+
+  const makeMat = (canvas) => new THREE.MeshBasicMaterial({
+    map: new THREE.CanvasTexture(canvas),
+    transparent: true, opacity: 1.0,
+    side: THREE.DoubleSide, depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3,
+    clippingPlanes: [],
+  });
+
+  // Face B — full-intensity cracks on the plume contact surface
+  const meshB = new THREE.Mesh(new THREE.CircleGeometry(16, 64), makeMat(_generateCrackCanvas(1024)));
+  meshB.quaternion.copy(q);
+  meshB.position.set(-23.95, -35.39, -2.62);
+  meshB.renderOrder = 5;
+  scene.add(meshB);
+  _slabTears.push(meshB);
+  _slabHeatZoneMeshes.push(meshB);
+
+  // Face A — same cracks but fading to transparent at the circumference
+  const canvasA = _generateCrackCanvas(1024);
+  const ctxA    = canvasA.getContext('2d');
+  const S       = canvasA.width;
+  ctxA.globalCompositeOperation = 'destination-in';
+  const fade = ctxA.createRadialGradient(S/2, S/2, S*0.25, S/2, S/2, S*0.52);
+  fade.addColorStop(0.0, 'rgba(255,255,255,1)');
+  fade.addColorStop(1.0, 'rgba(255,255,255,0)');
+  ctxA.fillStyle = fade;
+  ctxA.fillRect(0, 0, S, S);
+  ctxA.globalCompositeOperation = 'source-over';
+
+  const meshA = new THREE.Mesh(new THREE.CircleGeometry(16, 64), makeMat(canvasA));
+  meshA.quaternion.copy(q);
+  meshA.position.set(-23.95, -25.39, -2.62);
+  meshA.renderOrder = 5;
+  scene.add(meshA);
+  _slabTears.push(meshA);
+  _slabHeatZoneMeshes.push(meshA);
+}
 
 // ─── Sea level plane ──────────────────────────────────────────────────────────
 
@@ -1531,22 +2241,22 @@ const _FP_KINEMATICS_DEF = {
 };
 
 // Build a down-dip ribbon mesh from a surface-trace run.
-// seg: [[x, y_surface, z], ...] in scene-km (Y already at terrain height).
-// dipDeg: dip angle from horizontal; dipRight: dip to right of travel direction.
-// maxDepthKm: seismogenic depth; capped at _FP_BDT_KM.
-// Returns THREE.Mesh or null.
-function _buildFaultRibbon(seg, dipDeg, dipRight, maxDepthKm, color, opacity) {
+// seg: [[x, h_unscaled, z], ...] in scene-km (h = terrain elevation, unscaled).
+// vertExag: current vertical exaggeration — baked into top vertex Y so the ribbon
+// surface trace matches the scaled terrain. The group containing this mesh has
+// scale.y = 1/_vertExag (cancels tectonicFaultRoot.scale.y) so absolute Y is preserved.
+// Bottom vertex Y = h - depth (absolute elevation below sea level) — never changes.
+function _buildFaultRibbon(seg, dipDeg, dipRight, maxDepthKm, color, opacity, vertExag) {
   if (seg.length < 2) return null;
   const dipRad = Math.max(1, dipDeg) * Math.PI / 180;
   const depth  = Math.min(maxDepthKm, _FP_BDT_KM);
   const hRun   = depth / Math.tan(dipRad); // horizontal distance to BDT
 
   const verts   = [];
-  const columns = []; // {top:[x,y,z], bot:[x,y,z]} per column — stored for face intersection
+  const columns = []; // top stores UNSCALED h; bot stores fixed absolute elevation
   for (let i = 0; i < seg.length; i++) {
-    const [x, y, z] = seg[i];
+    const [x, h, z] = seg[i]; // h = unscaled terrain height
 
-    // Local strike direction (forward along polyline at this vertex)
     let dx, dz;
     if (i < seg.length - 1) {
       dx = seg[i + 1][0] - x;  dz = seg[i + 1][2] - z;
@@ -1556,13 +2266,14 @@ function _buildFaultRibbon(seg, dipDeg, dipRight, maxDepthKm, color, opacity) {
     const len = Math.sqrt(dx * dx + dz * dz);
     if (len > 1e-8) { dx /= len; dz /= len; }
 
-    // Unit vector perpendicular to strike in horizontal plane
     const hx = dipRight ?  dz : -dz;
     const hz = dipRight ? -dx :  dx;
 
-    const bx = x + hx * hRun, by = y - depth, bz = z + hz * hRun;
-    verts.push(x, y, z, bx, by, bz);
-    columns.push({ top: [x, y, z], bot: [bx, by, bz] });
+    const bx = x + hx * hRun, bd = h - depth, bz = z + hz * hRun;
+    // Top Y baked as h*vertExag (net scale.y=1 group renders it at that position).
+    // Bottom Y = h-depth: absolute elevation, anchored regardless of vertExag.
+    verts.push(x, h * vertExag, z, bx, bd, bz);
+    columns.push({ top: [x, h, z], bot: [bx, bd, bz] }); // top[1] = unscaled h
   }
 
   const nPairs = seg.length;
@@ -1588,18 +2299,23 @@ function _buildFaultRibbon(seg, dipDeg, dipRight, maxDepthKm, color, opacity) {
 
   const mesh = new THREE.Mesh(geo, mat);
   mesh.renderOrder = 58;
-  return { mesh, columns };
+  return { mesh, columns, geo };
 }
 
 function buildTectonicFaults() {
   tectonicFaultRoot = new THREE.Group();
   tectonicFaultRoot.scale.y = _vertExag;
-  // Read toggle state at build time — setupUI() runs before this, so the checkbox
-  // reflects the user's current setting (including any master cascade).
   const _tecTog      = document.getElementById('tectonic-faults-toggle');
   const _tecFltMaster = document.getElementById('faults-master-toggle');
   tectonicFaultRoot.visible = (_tecFltMaster ? _tecFltMaster.checked : true) && (_tecTog ? _tecTog.checked : true);
   scene.add(tectonicFaultRoot);
+
+  // _faultRibbonGroup sits inside tectonicFaultRoot but counteracts its scale.y so
+  // ribbon/face-line Y coordinates are in absolute km (not scaled by vert-exag).
+  // Top vertex Y is baked as h*_vertExag; bottom vertex Y is absolute elevation.
+  _faultRibbonGroup = new THREE.Group();
+  _faultRibbonGroup.scale.y = 1 / _vertExag;
+  tectonicFaultRoot.add(_faultRibbonGroup);
 
   // ITHACA kinematics colour scheme (ISPRA classification)
   const SLIP_COLORS = {
@@ -1651,6 +2367,10 @@ function buildTectonicFaults() {
         const mat = new THREE.LineBasicMaterial({
           color, transparent: true, opacity, clippingPlanes: [],
         });
+        const ghostMat = new THREE.LineBasicMaterial({
+          color, transparent: true, opacity: 0, clippingPlanes: [], // opacity set live in updateClipPlanes
+        });
+        _ghostSurfaceTraceMats.push(ghostMat);
         const subGroup = _tecSubGroups[_tectonicSubGroup(id, name)];
         // Fault plane parameters: named override → kinematic default
         const _fpNamed = _FP_NAMED[id] ?? {};
@@ -1674,6 +2394,10 @@ function buildTectonicFaults() {
             const line = new THREE.Line(lgeo, mat);
             line.renderOrder = isRegional ? 70 : 65;
             subGroup.add(line);
+            // Ghost: same geometry, no cross-section clip — shows inactive half at low opacity
+            const ghostLine = new THREE.Line(lgeo, ghostMat);
+            ghostLine.renderOrder = isRegional ? 70 : 65;
+            subGroup.add(ghostLine);
             run = [];
           };
           for (let i = 0; i < seg.length; i++) {
@@ -1684,14 +2408,22 @@ function buildTectonicFaults() {
           }
           flush();
 
-          // ── Down-dip fault plane ribbon (clipped to brittle domain) ────────
+          // ── Down-dip fault plane ribbon ─────────────────────────────────────
           let ribbon = [];
           const flushRibbon = () => {
             if (ribbon.length >= 2) {
-              const result = _buildFaultRibbon(ribbon, fpDip, fpDipR, fpDepth, color, fpOp);
+              const result = _buildFaultRibbon(ribbon, fpDip, fpDipR, fpDepth, color, fpOp, _vertExag);
               if (result) {
-                subGroup.add(result.mesh);
-                _faultRibbonData.push({ columns: result.columns, color });
+                result.mesh.userData.feature = {
+                  theme: 'fault',
+                  name: name,
+                  kicker: `${kinematics || 'Unknown kinematics'} · ${rank} fault`,
+                  meta: `Dip: ${fpDip}° ${fpDipR ? 'right' : 'left'} · Max depth: ${fpDepth} km`,
+                  description: `Fault ID: ${id}. ${kinematics ? kinematics + ' fault' : 'Fault'} with a dip of ${fpDip}° to the ${fpDipR ? 'right' : 'left'} of the trace direction. The seismogenic layer extends to approximately ${fpDepth} km depth.`,
+                };
+                _faultRibbonGroup.add(result.mesh);
+                _faultRibbonMeshes.push(result.mesh);
+                _faultRibbonData.push({ columns: result.columns, color, geo: result.geo });
               }
             }
             ribbon = [];
@@ -1724,18 +2456,26 @@ function buildTectonicFaults() {
 // Compute the LineSegments vertex data for the intersection of one ribbon with
 // one plane. Returns a Float32Array of [p0x,p0y,p0z, p1x,p1y,p1z, ...] pairs,
 // or null. epsilon: inward offset (along plane.normal) to prevent z-fighting.
-function _intersectRibbonWithPlane(columns, plane, epsilon) {
+// vertExag: applied to top vertex Y so intersection Y matches the scaled geometry.
+// Bottom vertex Y is already the absolute elevation (no scaling needed).
+function _intersectRibbonWithPlane(columns, plane, epsilon, vertExag) {
   const n = plane.normal, c = plane.constant;
   const nx = n.x, ny = n.y, nz = n.z;
+  const ve = vertExag ?? 1;
   const pts = [];
   for (let i = 0; i < columns.length - 1; i++) {
     const { top: t0, bot: b0 } = columns[i];
     const { top: t1, bot: b1 } = columns[i + 1];
-    const dT0 = nx*t0[0] + ny*t0[1] + nz*t0[2] + c;
-    const dB0 = nx*b0[0] + ny*b0[1] + nz*b0[2] + c;
-    const dT1 = nx*t1[0] + ny*t1[1] + nz*t1[2] + c;
-    const dB1 = nx*b1[0] + ny*b1[1] + nz*b1[2] + c;
-    const edges = [[t0,b0,dT0,dB0],[t1,b1,dT1,dB1],[t0,t1,dT0,dT1],[b0,b1,dB0,dB1]];
+    // Scale top Y to match the rendered position; bottom Y is absolute (no scaling)
+    const T0 = [t0[0], t0[1] * ve, t0[2]];
+    const B0 = b0; // absolute elevation
+    const T1 = [t1[0], t1[1] * ve, t1[2]];
+    const B1 = b1;
+    const dT0 = nx*T0[0] + ny*T0[1] + nz*T0[2] + c;
+    const dB0 = nx*B0[0] + ny*B0[1] + nz*B0[2] + c;
+    const dT1 = nx*T1[0] + ny*T1[1] + nz*T1[2] + c;
+    const dB1 = nx*B1[0] + ny*B1[1] + nz*B1[2] + c;
+    const edges = [[T0,B0,dT0,dB0],[T1,B1,dT1,dB1],[T0,T1,dT0,dT1],[B0,B1,dB0,dB1]];
     const isects = [];
     for (const [a, b, da, db] of edges) {
       if (da * db < 0) {
@@ -1757,57 +2497,76 @@ function _intersectRibbonWithPlane(columns, plane, epsilon) {
 // data loads. Groups parented to tectonicFaultRoot for auto clip-plane cascade.
 function _buildFaultSideFaceLines() {
   if (_faultSideLineGroup) {
-    tectonicFaultRoot?.remove(_faultSideLineGroup);
+    _faultRibbonGroup?.remove(_faultSideLineGroup);
     _faultSideLineGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
     _faultSideLineGroup = null;
   }
-  if (!_faultRibbonData.length || !_hazardDomainPlanes || !tectonicFaultRoot) return;
+  if (!_faultRibbonData.length || !_hazardDomainPlanes || !_faultRibbonGroup) return;
 
   _faultSideLineGroup = new THREE.Group();
 
+  // One Object3D per face holding a single merged LineSegments (vertex colours).
+  // One draw call per face eliminates the per-object sort that caused shimmer when
+  // multiple depthTest:false segments at the same renderOrder swapped draw order.
   for (const domainPlane of _hazardDomainPlanes) {
+    const allPos = [], allCol = [];
     for (const { columns, color } of _faultRibbonData) {
-      // epsilon=0 → exactly on face; depthTest:false ensures lines always render
-      // over the face geometry regardless of depth buffer state
-      const pts = _intersectRibbonWithPlane(columns, domainPlane, 0);
+      const pts = _intersectRibbonWithPlane(columns, domainPlane, 0, _vertExag);
       if (!pts) continue;
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(pts, 3));
-      const ls = new THREE.LineSegments(geo,
-        new THREE.LineBasicMaterial({ color, depthTest: false, clippingPlanes: [] }));
-      ls.renderOrder = 90;
-      _faultSideLineGroup.add(ls);
+      const c = new THREE.Color(color);
+      for (let i = 0; i < pts.length; i += 3) {
+        allPos.push(pts[i], pts[i+1], pts[i+2]);
+        allCol.push(c.r, c.g, c.b);
+      }
     }
+    if (!allPos.length) continue;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(allPos), 3));
+    geo.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(allCol), 3));
+    const ls = new THREE.LineSegments(geo,
+      new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, clippingPlanes: [] }));
+    ls.renderOrder = 90;
+    ls.userData.domainPlane = domainPlane;
+    _faultSideLineGroup.add(ls);
   }
 
-  tectonicFaultRoot.add(_faultSideLineGroup);
-  updateClipPlanes(); // register new children for clip-plane cascade
+  _faultRibbonGroup.add(_faultSideLineGroup);
+  updateClipPlanes();
 }
 
 // Build intersection lines on the cross-section cap face. Called whenever the
 // cross-section is toggled or its angle changes.
 function _updateFaultCapLines() {
   if (_faultCapLineGroup) {
-    tectonicFaultRoot?.remove(_faultCapLineGroup);
+    _faultRibbonGroup?.remove(_faultCapLineGroup);
     _faultCapLineGroup.traverse(o => { o.geometry?.dispose(); o.material?.dispose(); });
     _faultCapLineGroup = null;
   }
-  if (!crossSectionEnabled || !clipPlane || !_faultRibbonData.length || !tectonicFaultRoot) return;
+  if (!crossSectionEnabled || !clipPlane || !_faultRibbonData.length || !_faultRibbonGroup) return;
 
   _faultCapLineGroup = new THREE.Group();
 
+  const capPos = [], capCol = [];
   for (const { columns, color } of _faultRibbonData) {
-    const pts = _intersectRibbonWithPlane(columns, clipPlane, 0);
+    const pts = _intersectRibbonWithPlane(columns, clipPlane, 0, _vertExag);
     if (!pts) continue;
+    const c = new THREE.Color(color);
+    for (let i = 0; i < pts.length; i += 3) {
+      capPos.push(pts[i], pts[i+1], pts[i+2]);
+      capCol.push(c.r, c.g, c.b);
+    }
+  }
+  if (capPos.length) {
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(pts, 3));
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(capPos), 3));
+    geo.setAttribute('color',    new THREE.BufferAttribute(new Float32Array(capCol), 3));
     const ls = new THREE.LineSegments(geo,
-      new THREE.LineBasicMaterial({ color, depthTest: false, clippingPlanes: [] }));
+      new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, clippingPlanes: [] }));
     ls.renderOrder = 91;
     _faultCapLineGroup.add(ls);
   }
 
-  tectonicFaultRoot.add(_faultCapLineGroup);
+  _faultRibbonGroup.add(_faultCapLineGroup);
   updateClipPlanes();
 }
 
@@ -2226,61 +2985,27 @@ const _CHAMBER_FRAG = `
   }
 `;
 
-// Vertex + fragment shaders for the 2-D cross-section cap fills.
-// Position is in local geometry plane (XY); uNormScale maps it to [-1,1]².
-const _CHAMCAP_VERT = `
-  uniform vec2 uNormScale;
-  #include <clipping_planes_pars_vertex>
-  out vec2 vNorm2;
-  void main(){
-    vNorm2 = position.xy / uNormScale;
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    #include <clipping_planes_vertex>
-    gl_Position = projectionMatrix * mvPosition;
-  }
-`;
-const _CHAMCAP_FRAG = `
-  #include <clipping_planes_pars_fragment>
-  in vec2 vNorm2;
-  uniform float uTime;
-  uniform bool  uIsConduit;
-  out vec4 fragColor;
-  ${_CAP_GLSL_NOISE}
-  ${_SWIRL_GLSL}
-  void main(){
-    #include <clipping_planes_fragment>
-    vec3 c;
-    if(uIsConduit){
-      float h = fbm(vNorm2 * 1.4 + vec2(0.0, uTime * 0.010));
-      c = mix(vec3(0.58, 0.08, 0.01), vec3(0.90, 0.26, 0.03), clamp(h * 0.5 + 0.30, 0.0, 1.0));
-    } else {
-      c = magmaSwirl2D(vNorm2, uTime);
-    }
-    fragColor = vec4(c, 1.0);
-  }
-`;
-
 // All animated chamber + conduit ShaderMaterials — uTime updated each frame.
-const _chamberMats    = [];
-const _chamberCapMats = [];
+const _chamberMats = [];
 
 // ─── Magmatic plumbing system ─────────────────────────────────────────────────
-// Parameters from 3_chambers.geo (GMSH units → Three.js km)
-// Coord transform: X=(gx-50000)/1000, Y=gz/1000, Z=(50000-gy)/1000
+// Firetto Carlino et al. magma plumbing system:
+//   Conduit → Melt shell (wrapping HVB obstacle) → Deep storage
+// Coordinates: world-space km (X=east, Y=up, Z=south with GEO_Z_OFFSET baked in).
 
 function buildChambers() {
-  function mkChamberMat(normScale, isConduit = false, rotSpeed = 0.05) {
+  function mkChamberMat(normScale, isConduit = false, rotSpeed = 0.0) {
     const m = new THREE.ShaderMaterial({
       vertexShader:   _CHAMBER_VERT,
       fragmentShader: _CHAMBER_FRAG,
       uniforms: {
-        uNormScale:  { value: normScale },
+        uNormScale:  { value: normScale instanceof THREE.Vector3 ? normScale : new THREE.Vector3(...normScale) },
         uTime:       { value: 0 },
         uRotSpeed:   { value: rotSpeed },
         uIsConduit:  { value: isConduit },
       },
       glslVersion: THREE.GLSL3,
-      side: THREE.FrontSide,   // outer dome only — cap fill seals the cut face
+      side: THREE.FrontSide,
       transparent: true,
       opacity: 0.93,
       clipping: true,
@@ -2289,131 +3014,433 @@ function buildChambers() {
     return m;
   }
 
-  // All sphere chambers use unit-sphere geometry + scale so local position is
-  // already in [-1,1]³ and uNormScale = (1,1,1) gives a trivial divide.
-  // Upper chamber: sphere r=0.25 km at Y=-2 km
-  const upperMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 32, 24),
-    mkChamberMat(new THREE.Vector3(1, 1, 1))
+  // Summit spherical chamber: r=0.5 km, 1.5 km asl, directly under craters
+  const summitChamber = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 40, 32),
+    mkChamberMat(new THREE.Vector3(1, 1, 1), false, 0.0)
   );
-  upperMesh.scale.set(0.25, 0.25, 0.25);
-  upperMesh.position.set(0, -2, 0);
-  scene.add(upperMesh);
-  chamberMeshes.push(upperMesh);
+  summitChamber.scale.set(0.5, 0.5, 0.5);
+  summitChamber.position.set(-0.26, 1.5, 0.42);  // 37.784°N 15.00°E
+  scene.add(summitChamber);
+  chamberMeshes.push(summitChamber);
 
-  // Intermediate chamber: sphere r=0.25 km at Y=-2.85 km
-  const midMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 32, 24),
-    mkChamberMat(new THREE.Vector3(1, 1, 1))
+  // Prolate spheroid: semi-major 1 km (vertical), semi-minor 0.5 km (horizontal)
+  // Centre at sea level (y=0); top y=+1 touches summit chamber bottom y=+1 seamlessly
+  const prolateChamber = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 40, 32),
+    mkChamberMat(new THREE.Vector3(1, 1, 1), false, 0.0)
   );
-  midMesh.scale.set(0.25, 0.25, 0.25);
-  midMesh.position.set(0, -2.85, 0);
-  scene.add(midMesh);
-  chamberMeshes.push(midMesh);
+  prolateChamber.scale.set(0.25, 1.0, 0.25);
+  prolateChamber.position.set(-0.79, -2, 4.08);
+  scene.add(prolateChamber);
+  chamberMeshes.push(prolateChamber);
 
-  // Lower reservoir: oblate spheroid rx=rz=6 km, ry=0.8 km at Y=-6.8 km
-  // rotSpeed=0: large slow body, no rigid-body spin — only in-place fbm convection
-  const lowerMesh = new THREE.Mesh(
+  // Melt shell: oblate ellipsoid wrapping HVB obstacle
+  // Strike 045° (NE-SW), dip 15° SE; rx=3, ry=1.5, rz=2.5 km
+  const meltShell = new THREE.Mesh(
     new THREE.SphereGeometry(1, 64, 40),
     mkChamberMat(new THREE.Vector3(1, 1, 1), false, 0.0)
   );
-  lowerMesh.scale.set(6, 0.8, 6);
-  lowerMesh.position.set(0, -6.8, 0);
-  scene.add(lowerMesh);
-  chamberMeshes.push(lowerMesh);
+  meltShell.scale.set(1.4, 0.7, 1.2);
+  meltShell.position.set(-1.14, -5.0, 5.31);
+  scene.add(meltShell);
+  chamberMeshes.push(meltShell);
 
-  // Conduit 1: upper → intermediate (Y=-2.25 to -2.6)
-  const c1h = 2.6 - 2.25;
-  const cond1Mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.045, 0.045, c1h, 16),
-    mkChamberMat(new THREE.Vector3(0.045, c1h / 2, 0.045), true)
+  // Intermediate oblate lens at 10 km depth — 6 km across × 2 km height
+  // Sits on the conduit from deep storage (-20.73,-18,-2.40) → melt shell (-1.14,-5,5.31).
+  // Polar axis aligned to that conduit direction (0.792, 0.525, 0.312).
+  const midLens = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 64, 40),
+    mkChamberMat(new THREE.Vector3(1, 0.33, 1), false, 0.0)
   );
-  cond1Mesh.position.set(0, (-2.25 + -2.6) / 2, 0);
-  scene.add(cond1Mesh);
-  chamberMeshes.push(cond1Mesh);
+  midLens.scale.set(3, 1, 3);
+  midLens.position.set(-8.67, -10.0, 2.34);
+  scene.add(midLens);
+  chamberMeshes.push(midLens);
 
-  // Conduit 2: intermediate → lower reservoir (Y=-3.1 to -6.0)
-  const c2h = 6.0 - 3.1;
-  const cond2Mesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.045, 0.045, c2h, 16),
-    mkChamberMat(new THREE.Vector3(0.045, c2h / 2, 0.045), true)
-  );
-  cond2Mesh.position.set(0, (-3.1 + -6.0) / 2, 0);
-  scene.add(cond2Mesh);
-  chamberMeshes.push(cond2Mesh);
-}
-
-// ─── Chamber cross-section fills (2D shapes lying in cut plane) ───────────────
-// Each shape starts in the XY plane. rotation.y = π + cutAngle rotates the
-// shape's +Z normal onto the cut plane normal (-sin(a), 0, -cos(a)), so the
-// mesh lies flat in the cut face regardless of slice direction.
-// Chamber centres are all at X=0, Z=0 which satisfies nx*0 + nz*0 = 0 for
-// any (nx, nz), so they always lie on the cut plane.
-
-function buildChamberCaps() {
-  function mkCapMat(normScale, isConduit = false) {
-    const m = new THREE.ShaderMaterial({
-      vertexShader:   _CHAMCAP_VERT,
-      fragmentShader: _CHAMCAP_FRAG,
-      uniforms: {
-        uNormScale:  { value: normScale },
-        uTime:       { value: 0 },
-        uIsConduit:  { value: isConduit },
-      },
-      glslVersion: THREE.GLSL3,
-      side: THREE.DoubleSide,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2,
-      clipping: true,
-    });
-    _chamberCapMats.push(m);
-    return m;
-  }
-
-  function addCap(geo, normScale, x, y, z, isConduit = false) {
-    const m = new THREE.Mesh(geo, mkCapMat(normScale, isConduit));
+  // ── Shallow sill complex: oblate spheroids arcing toward mid lens at (-8.67,-10,2.34).
+  // Arc trend: deeper = further west/southwest. Large scatter breaks up regularity.
+  // [x, y, z, r_eq, r_polar]
+  [
+    [ 0.30, -0.8,  5.10,  0.50, 0.08],
+    [-1.60, -1.1,  2.60,  0.45, 0.07],
+    [ 0.10, -1.4,  4.70,  0.55, 0.09],
+    [-0.40, -1.7,  3.00,  0.50, 0.08],
+    [-2.40, -1.3,  5.40,  0.48, 0.08],
+    [-1.00, -2.1,  2.20,  0.60, 0.10],
+    [-3.50, -2.4,  4.90,  0.70, 0.11],
+    [-0.80, -2.8,  3.60,  0.55, 0.09],
+    [-4.20, -2.2,  2.00,  0.65, 0.10],
+    [-2.10, -3.3,  5.20,  0.60, 0.10],
+    [-5.10, -3.1,  3.80,  0.65, 0.10],
+    [-2.80, -3.7,  1.60,  0.55, 0.09],
+    [-3.60, -4.2,  4.80,  0.80, 0.12],
+    [-5.80, -3.9,  2.60,  0.60, 0.10],
+    [-3.00, -4.9,  1.40,  0.65, 0.10],
+    [-6.30, -4.6,  4.20,  0.55, 0.09],
+    [-4.50, -5.4,  3.10,  0.60, 0.09],
+    [-5.20, -5.1,  1.20,  0.55, 0.09],
+    [-7.10, -5.7,  3.60,  0.50, 0.08],
+    [-4.80, -6.2,  4.50,  0.50, 0.08],
+    [-6.50, -6.6,  1.80,  0.45, 0.08],
+    [-5.40, -7.1,  3.40,  0.45, 0.07],
+    [-7.80, -6.9,  2.80,  0.40, 0.07],
+    [-6.90, -7.5,  1.50,  0.42, 0.07],
+    [-7.40, -7.3,  3.10,  0.40, 0.07],
+    [-6.20, -7.8,  2.20,  0.45, 0.08],
+    [-7.90, -7.6,  1.90,  0.38, 0.07],
+    // E and SE extensions
+    [ 1.20, -1.0,  3.80,  0.55, 0.09],
+    [ 2.50, -1.4,  4.60,  0.50, 0.08],
+    [ 1.80, -0.7,  5.80,  0.48, 0.08],
+    [ 3.40, -2.1,  3.20,  0.60, 0.10],
+    [ 1.60, -2.5,  6.50,  0.55, 0.09],
+    [ 2.80, -1.8,  5.40,  0.52, 0.08],
+    [ 4.10, -1.2,  4.80,  0.45, 0.07],
+    [ 0.90, -3.2,  7.20,  0.60, 0.10],
+    [ 3.20, -3.5,  5.90,  0.55, 0.09],
+    [ 2.10, -4.0,  6.80,  0.50, 0.08],
+    [ 4.50, -2.8,  3.60,  0.48, 0.08],
+    [ 1.40, -4.6,  5.20,  0.55, 0.09],
+    [ 3.60, -4.2,  6.40,  0.45, 0.07],
+    [ 0.60, -5.0,  7.50,  0.50, 0.08],
+    [ 2.40, -5.5,  4.90,  0.45, 0.07],
+  ].forEach(([x, y, z, rEq, rPol]) => {
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 32, 20),
+      mkChamberMat(new THREE.Vector3(1, rPol / rEq, 1), false, 0.0)
+    );
+    m.scale.set(rEq, rPol, rEq);
     m.position.set(x, y, z);
-    m.visible = false;
     scene.add(m);
-    chamberCapMeshes.push(m);
+    chamberMeshes.push(m);
+  });
+
+  // Deep magma storage: vertical ellipsoid rx=2, ry=2.5, rz=1.5 km
+  const deepStorage = new THREE.Mesh(
+    new THREE.SphereGeometry(1, 64, 40),
+    mkChamberMat(new THREE.Vector3(1, 1, 1), false, 0.0)
+  );
+  deepStorage.scale.set(6, 2, 6);
+  // Thin axis (local Y) aligned to slab normal (-0.244, 0.848, -0.471)
+  deepStorage.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(-0.244, 0.848, -0.471)
+  );
+  deepStorage.position.set(-20.73, -18.0, -2.40);
+  scene.add(deepStorage);
+  chamberMeshes.push(deepStorage);
+
+  // Connecting dykes — thin cylinders oriented along the feed path
+  function addDyke(p1, p2, r) {
+    const dir = new THREE.Vector3().subVectors(p2, p1);
+    const len = dir.length();
+    const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(r, r, len, 12),
+      mkChamberMat(new THREE.Vector3(r, len / 2, r), true)
+    );
+    mesh.position.copy(mid);
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+    scene.add(mesh);
+    chamberMeshes.push(mesh);
+  }
+  // Returns point on mesh's ellipsoid surface facing otherPt, pulled inward to frac of radius.
+  // Handles quaternion rotation (e.g. tilted deep storage).
+  function shellPt(mesh, otherPt, frac) {
+    frac = frac !== undefined ? frac : 0.92;
+    const dWorld = new THREE.Vector3().subVectors(otherPt, mesh.position);
+    const dLocal = dWorld.clone().applyQuaternion(mesh.quaternion.clone().invert());
+    const rx = mesh.scale.x, ry = mesh.scale.y, rz = mesh.scale.z;
+    const t = frac / Math.sqrt((dLocal.x / rx) ** 2 + (dLocal.y / ry) ** 2 + (dLocal.z / rz) ** 2);
+    return dLocal.multiplyScalar(t).applyQuaternion(mesh.quaternion).add(mesh.position);
   }
 
-  // Upper chamber — circle r=0.25 km at Y=-2
-  addCap(new THREE.CircleGeometry(0.25, 64), new THREE.Vector2(0.25, 0.25), 0, -2, 0);
+  // Main conduit chain — endpoints anchored to chamber ellipsoid surfaces
+  addDyke(shellPt(summitChamber,  prolateChamber.position), shellPt(prolateChamber, summitChamber.position),  0.05); // A
+  addDyke(shellPt(prolateChamber, meltShell.position),      shellPt(meltShell,      prolateChamber.position), 0.05); // B
+  addDyke(shellPt(meltShell,      midLens.position),        shellPt(midLens,        meltShell.position),      0.05); // C1
+  addDyke(shellPt(midLens,        deepStorage.position),    shellPt(deepStorage,    midLens.position),        0.05); // C2
 
-  // Intermediate chamber — circle r=0.25 km at Y=-2.85
-  addCap(new THREE.CircleGeometry(0.25, 64), new THREE.Vector2(0.25, 0.25), 0, -2.85, 0);
+  // ── Sill pathway network — all conduits flow strictly upward (deep → shallow) ─
+  const V = (x,y,z) => new THREE.Vector3(x,y,z);
 
-  // Lower reservoir — ellipse rx=6, ry=0.8 km at Y=-6.8
-  // Cross-section of an oblate spheroid (rx=rz=6, ry=0.8) on any vertical
-  // plane through its centre is always the same ellipse (6 × 0.8 km).
-  const ellipseShape = new THREE.Shape();
-  ellipseShape.absellipse(0, 0, 6, 0.8, 0, Math.PI * 2, false, 0);
-  addCap(new THREE.ShapeGeometry(ellipseShape, 128), new THREE.Vector2(6, 0.8), 0, -6.8, 0);
+  // Roots: mid lens surface → deepest sills
+  addDyke(shellPt(midLens, V(-7.20,-7.9, 2.60)), V(-7.20,-7.9, 2.60), 0.05);
+  addDyke(shellPt(midLens, V(-6.20,-7.8, 2.20)), V(-6.20,-7.8, 2.20), 0.05);
+  addDyke(shellPt(midLens, V(-7.80,-6.9, 2.80)), V(-7.80,-6.9, 2.80), 0.05);
 
-  // Conduit 1 — thin rect, width=0.09 km, Y=-2.25 → -2.6
-  const c1h = 2.6 - 2.25;
-  addCap(new THREE.PlaneGeometry(0.09, c1h), new THREE.Vector2(0.045, c1h / 2), 0, -2.425, 0, true);
+  // Deepest layer (y ≈ -7.9 to -7.2) — branching upward
+  addDyke(V(-7.20,-7.9, 2.60), V(-7.90,-7.6, 1.90), 0.04);
+  addDyke(V(-7.20,-7.9, 2.60), V(-7.00,-7.6, 2.90), 0.04);
+  addDyke(V(-7.00,-7.6, 2.90), V(-7.40,-7.3, 3.10), 0.04);
+  addDyke(V(-7.40,-7.3, 3.10), V(-6.60,-7.2, 3.00), 0.04);
+  addDyke(V(-6.20,-7.8, 2.20), V(-6.90,-7.5, 1.50), 0.04);
+  addDyke(V(-6.20,-7.8, 2.20), V(-5.40,-7.1, 3.40), 0.04);
 
-  // Conduit 2 — thin rect, width=0.09 km, Y=-3.1 → -6.0
-  const c2h = 6.0 - 3.1;
-  addCap(new THREE.PlaneGeometry(0.09, c2h), new THREE.Vector2(0.045, c2h / 2), 0, -4.55, 0, true);
+  // Mid-deep layer (y ≈ -7.5 to -5.7)
+  addDyke(V(-6.90,-7.5, 1.50), V(-6.50,-6.6, 1.80), 0.04);
+  addDyke(V(-7.80,-6.9, 2.80), V(-6.50,-6.6, 1.80), 0.04);
+  addDyke(V(-7.40,-7.3, 3.10), V(-7.10,-5.7, 3.60), 0.05);
+  addDyke(V(-6.60,-7.2, 3.00), V(-7.10,-5.7, 3.60), 0.04);
+  addDyke(V(-5.40,-7.1, 3.40), V(-4.80,-6.2, 4.50), 0.04);
+
+  // Mid layer (y ≈ -6.6 to -4.6)
+  addDyke(V(-6.50,-6.6, 1.80), V(-5.20,-5.1, 1.20), 0.04);
+  addDyke(V(-6.50,-6.6, 1.80), V(-5.80,-3.9, 2.60), 0.05);
+  addDyke(V(-4.80,-6.2, 4.50), V(-4.50,-5.4, 3.10), 0.04);
+  addDyke(V(-4.80,-6.2, 4.50), V(-4.60,-5.4, 4.70), 0.04);
+  addDyke(V(-7.10,-5.7, 3.60), V(-6.30,-4.6, 4.20), 0.05);
+  addDyke(V(-5.20,-5.1, 1.20), V(-4.20,-2.2, 2.00), 0.04);
+
+  // Upper-mid (y ≈ -5.4 to -3.1)
+  addDyke(V(-4.50,-5.4, 3.10), V(-3.60,-4.2, 4.80), 0.04);
+  addDyke(V(-4.50,-5.4, 3.10), V(-3.00,-4.9, 1.40), 0.04);
+  addDyke(V(-6.30,-4.6, 4.20), V(-5.10,-3.1, 3.80), 0.05);
+  addDyke(V(-5.80,-3.9, 2.60), V(-2.80,-3.7, 1.60), 0.05);
+  addDyke(V(-3.60,-4.2, 4.80), V(-2.10,-3.3, 5.20), 0.04);
+  addDyke(V(-5.10,-3.1, 3.80), V(-3.50,-2.4, 4.90), 0.05);
+  addDyke(V(-3.50,-2.4, 4.90), V(-4.20,-2.2, 2.00), 0.04);
+
+  // Shallow (y ≈ -3.7 to -1.1)
+  addDyke(V(-2.80,-3.7, 1.60), V(-1.00,-2.1, 2.20), 0.04);
+  addDyke(V(-2.10,-3.3, 5.20), V(-3.50,-2.4, 4.90), 0.04);
+  addDyke(V(-3.50,-2.4, 4.90), V(-2.40,-1.3, 5.40), 0.04);
+  addDyke(V(-3.50,-2.4, 4.90), V(-0.80,-2.8, 3.60), 0.05);
+  addDyke(V(-1.00,-2.1, 2.20), V(-1.60,-1.1, 2.60), 0.04);
+  addDyke(V(-0.80,-2.8, 3.60), V(-0.40,-1.7, 3.00), 0.04);
+  addDyke(V(-0.80,-2.8, 3.60), V( 0.10,-1.4, 4.70), 0.04);
+  addDyke(V(-0.40,-1.7, 3.00), V(-1.60,-1.1, 2.60), 0.04);
+
+  // E/SE chain — all upward from deepest E/SE sills
+  addDyke(V(-4.80,-6.2, 4.50), shellPt(meltShell, V(-4.80,-6.2, 4.50)), 0.05);  // T → melt shell
+  addDyke(V(-4.80,-6.2, 4.50), V( 2.40,-5.5, 4.90), 0.04);  // lateral feed to E/SE
+  addDyke(V( 2.40,-5.5, 4.90), V( 0.60,-5.0, 7.50), 0.04);
+  addDyke(V( 2.40,-5.5, 4.90), V( 1.40,-4.6, 5.20), 0.04);
+  addDyke(V( 1.40,-4.6, 5.20), V( 2.10,-4.0, 6.80), 0.04);
+  addDyke(V( 2.10,-4.0, 6.80), V( 0.90,-3.2, 7.20), 0.04);
+  addDyke(V( 1.40,-4.6, 5.20), V( 4.50,-2.8, 3.60), 0.04);
+  addDyke(V( 4.50,-2.8, 3.60), V( 3.40,-2.1, 3.20), 0.04);
+  addDyke(V( 3.60,-4.2, 6.40), V( 3.20,-3.5, 5.90), 0.04);
+  addDyke(V( 3.20,-3.5, 5.90), V( 1.60,-2.5, 6.50), 0.04);
+  addDyke(V( 3.20,-3.5, 5.90), V( 2.80,-1.8, 5.40), 0.04);
+  addDyke(V( 0.90,-3.2, 7.20), V(-0.80,-2.8, 3.60), 0.04);
+  addDyke(V( 3.40,-2.1, 3.20), V( 1.20,-1.0, 3.80), 0.04);
+  addDyke(V( 2.80,-1.8, 5.40), V( 2.50,-1.4, 4.60), 0.04);
+  addDyke(V( 2.50,-1.4, 4.60), V( 4.10,-1.2, 4.80), 0.04);
+  addDyke(V( 2.50,-1.4, 4.60), V( 0.30,-0.8, 5.10), 0.04);
+  addDyke(V( 1.20,-1.0, 3.80), V( 1.80,-0.7, 5.80), 0.04);
+
+  // ── Mantle plume 3D geometry ──────────────────────────────────────────────
+  // One continuous LatheGeometry traces the full mushroom profile:
+  //   stem (r=2 km) rising from domain base (−80) and flaring into an oblate
+  //   head that reaches r=8 km at the Moho (−30 km, flat top).
+  // A CircleGeometry disk closes the flat top face.
+  // Both pushed to chamberMeshes so updateClipPlanes() applies the cut plane.
+  const _plumeMat = new THREE.MeshPhongMaterial({
+    color:             0xff5500,
+    emissive:          0xff3300,
+    emissiveIntensity: 1.0,
+    transparent:       true,
+    opacity:           0.88,
+    side:              THREE.DoubleSide,
+    clipping:          true,
+  });
+
+  // Vertical stem: CylinderGeometry from domain floor to base of flare.
+  // Flare base (local 0,−42,0 after tilt) lands at world (−21.02, −45.57, 3.03).
+  const plumeStem = new THREE.Mesh(
+    new THREE.CylinderGeometry(2, 2, 40, 32),  // y=−80 → y=−40, penetrates flare base
+    _plumeMat
+  );
+  plumeStem.position.set(-21.02, -60, 3.03);   // centre at (−80 + −40)/2 = −60
+  scene.add(plumeStem);
+  chamberMeshes.push(plumeStem);
+
+  // Tilted flare only (y=−42 → y=−30 in local space), axis aligned to slab normal.
+  const _plumeProfile = [
+    new THREE.Vector2( 2.0, -42),  // base — connects to stem top
+    new THREE.Vector2( 6.0, -40),  // flare begins
+    new THREE.Vector2(11.0, -36),  // mid flare
+    new THREE.Vector2(15.0, -32),  // upper flare
+    new THREE.Vector2(16.0, -30),  // oblate head rim
+  ];
+  const plumeBody = new THREE.Mesh(
+    new THREE.LatheGeometry(_plumeProfile, 64),
+    _plumeMat
+  );
+  // Tilt axis to match disk normal; back-solve position so top rim (local 0,−30,0) lands at disk centre
+  plumeBody.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(-0.244, 0.848, -0.471)
+  );
+  plumeBody.position.set(-31.27, -9.95, -16.75);
+  scene.add(plumeBody);
+  chamberMeshes.push(plumeBody);
+
+  // Flat disk closing the top face at y=−30 (Moho)
+  const plumeTop = new THREE.Mesh(
+    new THREE.CircleGeometry(16, 64),
+    _plumeMat
+  );
+  // Tilt to match slab dip: normal = upward face of 32°-NW-dipping plane
+  // n = sin(32°)*dip_dir + cos(32°)*up = sin(32°)*(-0.460,0,-0.889) + cos(32°)*(0,1,0)
+  //   = (-0.244, 0.848, -0.471)
+  plumeTop.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 0, 1),                // CircleGeometry default normal
+    new THREE.Vector3(-0.244, 0.848, -0.471)   // slab upward normal (dip 32° to NW)
+  );
+  plumeTop.position.set(-23.95, -35.39, -2.62);
+  scene.add(plumeTop);
+  chamberMeshes.push(plumeTop);
 }
 
-function updateChamberCaps() {
-  // Visible whenever cross-section is active — independent of cap face toggle
-  const visible = crossSectionEnabled;
-  const rotY = Math.PI + (crossSectionAngle * Math.PI) / 180;
-  chamberCapMeshes.forEach((m) => {
-    m.visible = visible;
-    m.rotation.y = rotY;
-  });
+// ─── Subsurface plumbing labels ───────────────────────────────────────────────
+// Floating pill sprites anchored to each major plumbing element.
+// Visible whenever the plumbing toggle is on; clipped to the camera-facing half
+// during cross-section.
+
+const PLUMBING_POIS = [
+  // ── Magma chambers ──────────────────────────────────────────────────────────
+  { name: 'Summit Chamber',        kicker: 'Shallow Magma Chamber',           theme: 'plumbing',
+    meta: '~1–2 km depth  ·  T ≈ 1,150 °C',
+    description: 'Shallow ellipsoidal reservoir directly beneath the summit crater complex at 1–2 km depth. Inferred from seismic tomography and SO₂ flux measurements. Acts as the immediate source for summit Strombolian and effusive activity — pressure cycles within this chamber drive Etna\'s short-period eruption patterns.',
+    wx: -0.26, wy:  1.5, wz:  0.42,
+  },
+  { name: 'Prolate Conduit Zone',  kicker: 'Sub-summit Conduit',              theme: 'plumbing',
+    meta: '~2–5 km depth  ·  T ≈ 1,130 °C',
+    description: 'Narrow prolate magmatic body connecting the shallow summit chamber to the melt shell below. Inferred from velocity anomalies in local earthquake tomography (Patanè et al. 2006). The roughly cylindrical geometry constrains magma ascent rates to ~0.5–1 m/s during active recharge phases.',
+    wx: -0.79, wy: -2.0, wz:  4.08, lx: -5,
+  },
+  { name: 'Melt Accumulation Zone', kicker: 'Shallow Melt Shell',             theme: 'plumbing',
+    meta: '~4–6 km depth  ·  T ≈ 1,100 °C',
+    description: 'Oblate accumulation zone at ~4–6 km depth where melt partially segregates before ascending to the summit. Interpreted as the source reservoir for some flank eruptions that tap it laterally via dyking. The oblate geometry reflects ponding at a density or rheological discontinuity in the crust.',
+    wx: -1.14, wy: -5.0, wz:  5.31, lx:  5,
+  },
+  { name: 'Shallow Sill Complex',  kicker: 'Sill Network (5–8 km)',           theme: 'plumbing',
+    meta: '~5–8 km depth  ·  42 sill bodies',
+    description: 'Network of ~42 oblate magma bodies (sills) at 5–8 km depth feeding the melt shell and summit conduit from the NW and E flanks. Inferred from high-resolution seismic tomography and relocated microseismicity. The sills preferentially intrude along subhorizontal planes controlled by the layered crustal stratigraphy and the stress shadow of the edifice load.',
+    wx: -4.0,  wy: -6.5, wz:  3.0,  lx:  6,
+  },
+  { name: 'Mid-Crustal Lens',      kicker: 'Intermediate Reservoir',          theme: 'plumbing',
+    meta: '~8–13 km depth  ·  T ≈ 1,080 °C',
+    description: 'Major intermediate-depth magma body at ~8–13 km. Inferred from P-wave velocity perturbations and GPS surface deformation modelling. Likely the primary source reservoir for most historical eruptions — volume change here drives the kilometre-scale geodetic signal seen by InSAR during eruption cycles.',
+    wx: -8.67, wy:-10.0, wz:  2.34,
+  },
+  { name: 'Deep Storage Reservoir', kicker: 'Lower Crustal Reservoir',        theme: 'plumbing',
+    meta: '~16–22 km depth  ·  T ≈ 1,050 °C',
+    description: 'Large tilted ellipsoidal body at ~16–22 km in the lower crust, near the crust–mantle boundary. Geochemical evidence (Sr, Nd, Pb isotopes; CO₂/SO₂ ratios) points to magma storage near the Moho where primitive basaltic magma from the mantle plume accumulates and differentiates. The tilted axis reflects structural control by the STEP fault geometry.',
+    wx:-20.73, wy:-18.0, wz: -2.40,
+  },
+  // ── Mantle plume ─────────────────────────────────────────────────────────────
+  { name: 'Mantle Plume Head',     kicker: 'Moho Contact Disk',               theme: 'plumbing',
+    meta: '~30 km depth  ·  Moho boundary  ·  Ø ~32 km',
+    description: 'The ~32 km-diameter plume head at the Moho (~30 km depth), where ascending mantle-derived melt ponds beneath the lithosphere. The circular geometry reflects radial spreading of buoyant plume material against the base of the crust. Partial melt fraction here reaches 4–6%, directly feeding the deep storage reservoir above.',
+    wx:-23.95, wy:-35.39, wz: -2.62,
+  },
+  { name: 'Mantle Plume Body',     kicker: 'Asthenospheric Upwelling',        theme: 'plumbing',
+    meta: '~30–80 km depth  ·  32° NW tilt',
+    description: 'The widening flare of the asthenospheric upwelling where the cylindrical stem transitions to the spreading head at the Moho. The ~32° NW tilt mirrors the dip of the subducting Ionian slab and the slab window geometry. Temperatures in the rising plume exceed 1,300 °C, driving partial melting at the Moho.',
+    wx:-22.49, wy:-40.5, wz:  0.21, lx: -8,
+  },
+  { name: 'Mantle Plume Stem',     kicker: 'Deep Mantle Conduit',             theme: 'plumbing',
+    meta: '>40 km depth  ·  Ø ~4 km  ·  Vertical',
+    description: 'Deep vertical conduit in the upper mantle (>40 km depth) feeding the asthenospheric upwelling. The ~4 km radius is consistent with geophysical and geodynamic models of Etna\'s mantle source. The absence of a subducting slab to the west (the slab window) allows this material to rise directly from depth without lateral deflection.',
+    wx:-21.02, wy:-60.0, wz:  3.03,
+  },
+  // ── Slabs ────────────────────────────────────────────────────────────────────
+  { name: 'Ionian Slab',           kicker: 'Subducting Oceanic Lithosphere',  theme: 'slab',
+    meta: '~28–50 km depth  ·  NW dip ~56°  ·  Age ~270 Ma',
+    description: 'The subducting Ionian oceanic lithosphere — the oldest and densest oceanic plate in the Mediterranean (~270 Ma). Dipping ~56° NW beneath the Calabrian arc, it drives the broader Calabro-Ionian subduction zone. Its western edge (the STEP fault) defines the boundary of the slab window through which Etna\'s mantle source rises.',
+    wx: 42.5, wy:-39.0, wz:  3.64,
+  },
+  { name: 'Oceanic Crust',         kicker: 'Ionian Oceanic Crust (~7 km)',    theme: 'slab',
+    meta: 'Atop Ionian slab  ·  Vp ≈ 6.5–7.0 km/s',
+    description: 'The ~7 km-thick oceanic crust forming the top layer of the Ionian slab, composed of basaltic pillow lavas and gabbro. Dehydration of the basaltic crust during subduction releases fluids that flux the overlying mantle wedge — the primary driver of arc magmatism in the Calabrian arc further north.',
+    wx: 36.7, wy:-35.1, wz:  3.64, lx: -6,
+  },
+  { name: 'STEP Fault',            kicker: 'Slab Tear Edge Propagator',       theme: 'fault',
+    meta: 'Western slab boundary  ·  Asthenospheric upwelling pathway',
+    description: 'The Subduction-Transform Edge Propagator — the lateral slab tear at the western boundary of the Ionian slab. As the Calabrian slab rolls back eastward, this tear propagates southward, creating a slab window. Sub-slab asthenospheric mantle flows around the slab edge and upwells through this window, driving Etna\'s strongly alkalic, OIB-like volcanism.',
+    wx: 40.0, wy:-42.5, wz:  3.64, lx: -6,
+  },
+  { name: 'Sicilian Thrust Slab',  kicker: 'Hyblean Carbonate Platform',      theme: 'slab',
+    meta: 'African foreland  ·  NW underthrusting  ·  Dip 32°',
+    description: 'The African continental platform underthrusting the Apennine-Maghrebian thrust belt from the south. Composed of Hyblean carbonate platform limestones and early Miocene calcarenites, explaining its lighter colour. The thrust front influences the regional stress field and seismicity below Etna\'s southern flank.',
+    wx:-10.0, wy:-19.0, wz: 38.0,
+  },
+];
+
+function buildPlumbingLabels() {
+  if (_plumbingLabelGroup) scene.remove(_plumbingLabelGroup);
+  _plumbingLabelData.length        = 0;
+  _plumbingLabelInteractives.length = 0;
+
+  const group  = new THREE.Group();
+  const hitGeo = new THREE.SphereGeometry(3.5, 10, 10);
+
+  for (const poi of PLUMBING_POIS) {
+    const anchor    = new THREE.Vector3(poi.wx, poi.wy, poi.wz);
+    const spritePos = new THREE.Vector3(
+      poi.wx + (poi.lx || 0),
+      poi.wy + 4,
+      poi.wz + (poi.lz || 0),
+    );
+
+    // Invisible hit sphere for click raycasting — sits at the 3D feature centre
+    const hit = new THREE.Mesh(
+      hitGeo,
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthTest: true, depthWrite: false }),
+    );
+    hit.position.copy(anchor);
+    hit.userData.feature = poi;
+    group.add(hit);
+    _plumbingLabelInteractives.push(hit);
+
+    // Pill sprite — depthTest: false so it shows through terrain
+    const { texture, width, height } = makeLabelTexture(poi.name, poi.theme ?? 'plumbing');
+    const spriteMat = new THREE.SpriteMaterial({
+      map: texture, transparent: true, opacity: 0.88,
+      depthTest: false, depthWrite: false,
+    });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.scale.set(
+      (width  / 200) * 0.85 * 10 * 1.5,
+      (height / 200) * 0.85 * 10 * 1.5,
+      1,
+    );
+    sprite.position.copy(spritePos);
+    sprite.renderOrder = 15;
+    sprite.userData.feature = poi;
+    group.add(sprite);
+    _plumbingLabelInteractives.push(sprite);
+
+    _plumbingLabelData.push({ hit, sprite, anchor, poi });
+  }
+
+  group.visible = false;
+  scene.add(group);
+  _plumbingLabelGroup = group;
+}
+
+// Show/hide individual entries based on cross-section clip plane and plumbing-on state.
+// Call from _setPlumbing() and updateClipPlanes() to keep visibility in sync.
+function updatePlumbingLabelVisibility(plumbingOn) {
+  if (!_plumbingLabelGroup) return;
+  const on = plumbingOn ?? !!(sicilianThrustSlab?.visible);
+  _plumbingLabelGroup.visible = on;
+  if (!on) return;
+  for (const entry of _plumbingLabelData) {
+    const onVisibleSide = !crossSectionEnabled || !clipPlane ||
+      clipPlane.distanceToPoint(entry.anchor) >= 0;
+    entry.sprite.visible = onVisibleSide;
+    entry.hit.visible    = onVisibleSide;
+  }
 }
 
 // ─── Cross-section cap ────────────────────────────────────────────────────────
 // Intersects the cross-section plane with every terrain triangle, then drops
-// each intersection segment vertically to the domain bottom (Y=-50 km).
+// each intersection segment vertically to the domain bottom (Y=-80 km).
 // Result: a cap face that exactly follows the terrain surface profile —
 // connected to the terrain above, the domain sides, and the bottom face.
 // Geometry is rebuilt in world-space on demand (debounced, not every frame).
@@ -2429,55 +3456,115 @@ const _CAP_GLSL_GEO = `
 
   ${_SWIRL_GLSL}
 
-  // ── Analytical geotherm (mirrors CPU _ptTemp) ─────────────────────────────
-  // Fourier conduction through lithosphere blended to mantle adiabat at the LAB.
+  // ── Analytical geotherm (mirrors CPU _ptTemp exactly) ────────────────────
   float ptGeotherm(float d){
     if(d <= 0.0) return 15.0;
-    float Tl = 15.0 + 40.0*d - 0.25*d*d;           // surface heat flow q_s/k
-    float Ta = 1215.0 + 0.5*max(0.0, d - 40.0);    // mantle adiabat
-    float w  = 1.0 / (1.0 + exp(-(d - 40.0)*1.5)); // logistic LAB blend
+    float Tl = 15.0 + 25.0*d - 0.10*d*d;
+    float Ta = 1215.0 + 0.5*max(0.0, d - 60.0);
+    float w  = 1.0 / (1.0 + exp(-(d - 55.0)));
     return Tl*(1.0 - w) + Ta*w;
   }
 
-  // ── Chamber analytical geometry + 1/r thermal superposition ─────────────
-  // Chambers sit at world (x,z)=(0,0); all in world-space km.
-  // Returns the steady-state temperature at wp (∇²T = 0, Dirichlet BCs on walls).
-  // Uses sea-level depth reference for d_eff — adequate for domain faces which
-  // lie below grade; topographic overburden is baked into the pressure texture.
+  // ── Ionian slab geometry ──────────────────────────────────────────────────
+  // Slab plane defined by vertices (50,−28)→(35,−50) in world XY.
+  // Normal pointing toward mantle wedge: (−22, 15) / 26.63.
+  // slabFraction: 0 = outside/surface, 1 = fully inside cold lithospheric core.
+  float slabFraction(vec3 wp){
+    if(wp.x < 22.0 || wp.y > -22.0) return 0.0;
+    float sd = (-22.0*(wp.x - 50.0) + 15.0*(wp.y + 28.0)) / 26.63;
+    return smoothstep(0.0, -8.0, sd);
+  }
+
+  // ── Mantle plume geometry ─────────────────────────────────────────────────
+  // Stem: vertical cylinder r=2 km at (−21.02, 3.03) in XZ, y −80→−40.
+  // Body: tilted flare, axis interpolates stem→head, radius 2→16 km at y −40→−25.
+  float plumeFraction(vec3 wp){
+    float w = 0.0;
+    if(wp.y <= -38.0 && wp.y >= -82.0){
+      float dr = length(vec2(wp.x + 21.02, wp.z - 3.03));
+      w = max(w, smoothstep(3.5, 1.0, dr));
+    }
+    if(wp.y > -42.0 && wp.y < -25.0){
+      float t    = clamp((wp.y + 42.0) / 17.0, 0.0, 1.0);
+      vec2  axXZ = mix(vec2(-21.02, 3.03), vec2(-23.95, -2.62), t);
+      float maxR = mix(2.0, 16.0, t);
+      float dr   = length(vec2(wp.x, wp.z) - axXZ);
+      w = max(w, smoothstep(maxR * 1.4, maxR * 0.5, dr));
+    }
+    return w;
+  }
+
+  // ── Full thermal field ────────────────────────────────────────────────────
+  // Geotherm + slab cold anomaly + plume hot anomaly + 1/r chamber halos.
   float ptThermal(vec3 wp){
     float d = max(0.0, -wp.y);
     float T = ptGeotherm(d);
 
-    // Upper chamber: sphere r=0.25 km, centre (0,−2,0)
-    vec3 e0 = (wp - vec3(0.0,-2.0,0.0)) / 0.25;
-    float dN0 = length(e0);
-    if(dN0 < 1.0) return 1150.0;
-    T += max(0.0, 1150.0 - ptGeotherm(2.0)) / dN0;
+    // Ionian slab cold anomaly — old oceanic lithosphere suppresses isotherms ~300–400°C
+    float sf = slabFraction(wp);
+    if(sf > 0.0){
+      float Tslab = 350.0 + 300.0*exp(-max(0.0, d - 25.0)/25.0); // 650°C shallow, 350°C deep
+      T = mix(T, min(T, Tslab), sf);
+    }
 
-    // Intermediate chamber: sphere r=0.25 km, centre (0,−2.85,0)
-    vec3 e1 = (wp - vec3(0.0,-2.85,0.0)) / 0.25;
-    float dN1 = length(e1);
-    if(dN1 < 1.0) return 1150.0;
-    T += max(0.0, 1150.0 - ptGeotherm(2.85)) / dN1;
+    // Mantle plume hot anomaly — rising asthenosphere 1280–1360°C in core
+    float pf = plumeFraction(wp);
+    if(pf > 0.0){
+      float Tplume = 1340.0 + 0.4*max(0.0, d - 45.0);
+      T = mix(T, max(T, Tplume), pf * 0.85);
+    }
 
-    // Lower reservoir: oblate spheroid rx=rz=6, ry=0.8 km, centre (0,−6.8,0)
-    vec3 e2 = (wp - vec3(0.0,-6.8,0.0)) / vec3(6.0, 0.8, 6.0);
-    float dN2 = length(e2);
-    if(dN2 < 1.0) return 1100.0;
-    T += max(0.0, 1100.0 - ptGeotherm(6.8)) / dN2;
+    // Summit chamber
+    vec3 eSum = (wp - vec3(-0.26, 1.5, 0.42)) / vec3(0.5, 0.5, 0.5);
+    float dSum = length(eSum);
+    if(dSum < 1.0) return 1150.0;
+    T += max(0.0, 1150.0 - ptGeotherm(0.0)) / dSum;
 
-    return min(T, 1150.0);  // cap at peak chamber temperature
+    // Prolate conduit
+    vec3 ePro = (wp - vec3(-0.79, -2.0, 4.08)) / vec3(0.25, 1.0, 0.25);
+    float dPro = length(ePro);
+    if(dPro < 1.0) return 1130.0;
+    T += max(0.0, 1130.0 - ptGeotherm(2.0)) / dPro;
+
+    // Melt shell
+    vec3 eMlt = (wp - vec3(-1.14, -5.0, 5.31)) / vec3(1.4, 0.7, 1.2);
+    float dMlt = length(eMlt);
+    if(dMlt < 1.0) return 1100.0;
+    T += max(0.0, 1100.0 - ptGeotherm(5.0)) / dMlt;
+
+    // Mid-crustal lens
+    vec3 eMid = (wp - vec3(-8.67, -10.0, 2.34)) / vec3(3.0, 1.0, 3.0);
+    float dMid = length(eMid);
+    if(dMid < 1.0) return 1080.0;
+    T += max(0.0, 1080.0 - ptGeotherm(10.0)) / dMid;
+
+    // Deep storage: tilted 6×2×6 km ellipsoid — R^T applied before test
+    vec3 e2w = wp - vec3(-20.73, -18.0, -2.40);
+    vec3 e2l = vec3( 0.9679*e2w.x+0.2435*e2w.y-0.062 *e2w.z,
+                    -0.2435*e2w.x+0.848 *e2w.y-0.4706*e2w.z,
+                    -0.062 *e2w.x+0.4706*e2w.y+0.8801*e2w.z) / vec3(6.0,2.0,6.0);
+    float dN2 = length(e2l);
+    if(dN2 < 1.0) return 1050.0;
+    T += max(0.0, 1050.0 - ptGeotherm(18.0)) / dN2;
+
+    return min(T, 1350.0);
   }
 
-  // Returns true if wp is inside any chamber; fills tMag with magma temperature.
+  // Returns true if wp is inside any magma chamber; fills tMag with chamber temperature.
   bool inAnyChamber(vec3 wp, out float tMag){
-    vec3 d0 = wp - vec3(0.0,-2.0,0.0);
-    if(dot(d0,d0) < 0.0625){ tMag=1150.0; return true; }
-    vec3 d1 = wp - vec3(0.0,-2.85,0.0);
-    if(dot(d1,d1) < 0.0625){ tMag=1150.0; return true; }
-    vec3 d2 = wp - vec3(0.0,-6.8,0.0);
-    float eD = (d2.x/6.0)*(d2.x/6.0) + (d2.y/0.8)*(d2.y/0.8) + (d2.z/6.0)*(d2.z/6.0);
-    if(eD < 1.0){ tMag=1100.0; return true; }
+    vec3 dSum = (wp - vec3(-0.26,  1.5,  0.42)) / vec3(0.5,  0.5,  0.5 );
+    if(dot(dSum,dSum) < 1.0){ tMag=1150.0; return true; }
+    vec3 dPro = (wp - vec3(-0.79, -2.0,  4.08)) / vec3(0.25, 1.0,  0.25);
+    if(dot(dPro,dPro) < 1.0){ tMag=1130.0; return true; }
+    vec3 dMlt = (wp - vec3(-1.14, -5.0,  5.31)) / vec3(1.4,  0.7,  1.2 );
+    if(dot(dMlt,dMlt) < 1.0){ tMag=1100.0; return true; }
+    vec3 dMid = (wp - vec3(-8.67,-10.0,  2.34)) / vec3(3.0,  1.0,  3.0 );
+    if(dot(dMid,dMid) < 1.0){ tMag=1080.0; return true; }
+    vec3 d2w = wp - vec3(-20.73,-18.0, -2.40);
+    vec3 d2  = vec3( 0.9679*d2w.x+0.2435*d2w.y-0.062*d2w.z,
+                    -0.2435*d2w.x+0.848 *d2w.y-0.4706*d2w.z,
+                    -0.062 *d2w.x+0.4706*d2w.y+0.8801*d2w.z) / vec3(6.0,2.0,6.0);
+    if(dot(d2,d2) < 1.0){ tMag=1050.0; return true; }
     tMag=0.0; return false;
   }
 
@@ -2562,15 +3649,28 @@ const _CAP_FRAG = `
       // The swirl colour communicates the spatial temperature heterogeneity
       // (bright = rising hot magma, dark = sinking denser melt).
       if(isChamber){
-        vec3 norm; float rotSpd;
-        vec3 d0 = (vWorldPos - vec3(0.0,-2.0,  0.0)) / 0.25;
-        if(dot(d0,d0) < 1.0)    { norm = d0; rotSpd = 0.05; }
+        vec3 norm;
+        vec3 dSum = (vWorldPos - vec3(-0.26,  1.5,  0.42)) / vec3(0.5,  0.5,  0.5 );
+        if(dot(dSum,dSum) < 1.0)    { norm = dSum; }
         else {
-          vec3 d1 = (vWorldPos - vec3(0.0,-2.85, 0.0)) / 0.25;
-          if(dot(d1,d1) < 1.0) { norm = d1; rotSpd = 0.05; }
-          else                  { norm = (vWorldPos - vec3(0.0,-6.8, 0.0)) / vec3(6.0, 0.8, 6.0); rotSpd = 0.0; }
+          vec3 dPro = (vWorldPos - vec3(-0.79, -2.0,  4.08)) / vec3(0.25, 1.0,  0.25);
+          if(dot(dPro,dPro) < 1.0)  { norm = dPro; }
+          else {
+            vec3 dMlt = (vWorldPos - vec3(-1.14, -5.0,  5.31)) / vec3(1.4,  0.7,  1.2 );
+            if(dot(dMlt,dMlt) < 1.0){ norm = dMlt; }
+            else {
+              vec3 dMid = (vWorldPos - vec3(-8.67,-10.0,  2.34)) / vec3(3.0,  1.0,  3.0 );
+              if(dot(dMid,dMid) < 1.0){ norm = dMid; }
+              else {
+                vec3 dw = vWorldPos - vec3(-20.73,-18.0,-2.40);
+                norm = vec3(0.9679*dw.x+0.2435*dw.y-0.062*dw.z,
+                           -0.2435*dw.x+0.848*dw.y-0.4706*dw.z,
+                           -0.062*dw.x+0.4706*dw.y+0.8801*dw.z) / vec3(6.0,2.0,6.0);
+              }
+            }
+          }
         }
-        fragColor = vec4(magmaSwirl(norm, rotSpd, uTime), 1.0);
+        fragColor = vec4(magmaSwirl(norm, 0.0, uTime), 1.0);
         return;
       }
 
@@ -2581,6 +3681,16 @@ const _CAP_FRAG = `
       float E   = max(2.0, Ec * (1.0 - (3.0*tp*tp - 2.0*tp*tp*tp)));
       float nu  = (0.18 + 0.10*(1.0 - exp(-P/0.3))) * (1.0 - tp) + 0.48*tp;
       float rho = 2900.0*(1.0 - 0.14*exp(-d/3.0))*(1.0 + P/70.0 - 3.0e-5*max(0.0,T-15.0)) - 250.0*phi;
+
+      // Ionian oceanic lithosphere: rigid (E 150–180 GPa), dense (ρ ~3280 kg/m³), ν ~0.27
+      float _psf = slabFraction(vWorldPos);
+      if(_psf > 0.01){
+        float Eslab   = 150.0 + 30.0*(1.0 - exp(-P/0.5));
+        float rhoSlab = 3280.0*(1.0 + P/120.0) - 1.5*max(0.0, T - 15.0);
+        E   = mix(E,   Eslab,   _psf);
+        nu  = mix(nu,  0.27,    _psf);
+        rho = mix(rho, rhoSlab, _psf);
+      }
 
       vec3 c;
       if(mode==1){ c=cmapTemp(    clamp((T-15.0)/1215.0,    0.0,1.0)); }
@@ -2597,30 +3707,53 @@ const _CAP_FRAG = `
     {
       float chTmag;
       if(inAnyChamber(vWorldPos, chTmag)){
-        vec3 norm; float rotSpd;
-        vec3 d0 = (vWorldPos - vec3(0.0,-2.0,  0.0)) / 0.25;
-        if(dot(d0,d0) < 1.0)    { norm = d0; rotSpd = 0.05; }
+        vec3 norm;
+        vec3 dSum = (vWorldPos - vec3(-0.26,  1.5,  0.42)) / vec3(0.5,  0.5,  0.5 );
+        if(dot(dSum,dSum) < 1.0)    { norm = dSum; }
         else {
-          vec3 d1 = (vWorldPos - vec3(0.0,-2.85, 0.0)) / 0.25;
-          if(dot(d1,d1) < 1.0) { norm = d1; rotSpd = 0.05; }
-          else                  { norm = (vWorldPos - vec3(0.0,-6.8, 0.0)) / vec3(6.0, 0.8, 6.0); rotSpd = 0.0; }
+          vec3 dPro = (vWorldPos - vec3(-0.79, -2.0,  4.08)) / vec3(0.25, 1.0,  0.25);
+          if(dot(dPro,dPro) < 1.0)  { norm = dPro; }
+          else {
+            vec3 dMlt = (vWorldPos - vec3(-1.14, -5.0,  5.31)) / vec3(1.4,  0.7,  1.2 );
+            if(dot(dMlt,dMlt) < 1.0){ norm = dMlt; }
+            else {
+              vec3 dMid = (vWorldPos - vec3(-8.67,-10.0,  2.34)) / vec3(3.0,  1.0,  3.0 );
+              if(dot(dMid,dMid) < 1.0){ norm = dMid; }
+              else {
+                vec3 dw = vWorldPos - vec3(-20.73,-18.0,-2.40);
+                norm = vec3(0.9679*dw.x+0.2435*dw.y-0.062*dw.z,
+                           -0.2435*dw.x+0.848*dw.y-0.4706*dw.z,
+                           -0.062*dw.x+0.4706*dw.y+0.8801*dw.z) / vec3(6.0,2.0,6.0);
+              }
+            }
+          }
         }
-        fragColor = vec4(magmaSwirl(norm, rotSpd, uTime), 1.0);
+        fragColor = vec4(magmaSwirl(norm, 0.0, uTime), 1.0);
         return;
       }
     }
 
-    // ── Lithosphere (y > -40) — warm brown with subtle fbm texture ──
+    // ── Zone 1: Upper crust (y > −10) — warm brown with fbm texture ──
     vec2 lp = vec2((vWorldPos.x + vWorldPos.z) * 0.035, y * 0.05 + 2.5);
     float lNoise = fbm(lp * 1.6);
     vec3 lithoBrown = vec3(0.478, 0.361, 0.220);
     vec3 lithoDark  = vec3(0.340, 0.250, 0.145);
     vec3 lithoColor = mix(lithoDark, lithoBrown, 0.45 + lNoise * 0.55);
 
-    // ── Mantle convection (y < -40) — static organic pattern ──
-    // Use full (x,z) as 2D coord so all face orientations (walls + bottom) get
-    // proper 2D turbulence rather than 1D stripes.
-    float depth = -(y + 40.0) / 10.0;  // 0 at LAB, 1 at domain floor
+    // ── Zone 2: Lower crust + cusp (−10 to −30) — mafic, denser ──
+    vec2 lc_p = vec2(vWorldPos.x * 0.030, vWorldPos.z * 0.030 + y * 0.020);
+    float lcNoise = fbm(lc_p * 1.8 + vec2(5.3, 2.1));
+    vec3 lowerCrustColor = mix(vec3(0.36, 0.16, 0.07), vec3(0.48, 0.23, 0.09), lcNoise * 0.6 + 0.4);
+
+    // ── Zone 3: Thinned lithospheric mantle (−30 to −60) — heated, melt-permeated ──
+    vec2 um_p = vec2(vWorldPos.x * 0.028, vWorldPos.z * 0.028 + y * 0.018);
+    float umNoise = fbm(um_p * 2.0 + vec2(3.1, 7.4));
+    vec3 thinnedLithoColor = mix(vec3(0.52, 0.20, 0.06), vec3(0.72, 0.34, 0.10), umNoise * 0.7 + 0.3);
+    float meltStreak = pow(max(ridged(um_p * 3.5 + vec2(1.7, 4.2)) - 0.30, 0.0) * 1.8, 2.0);
+    thinnedLithoColor = mix(thinnedLithoColor, vec3(0.85, 0.40, 0.08), meltStreak * 0.35);
+
+    // ── Zone 4: Asthenosphere (y < −60) — convective mantle pattern, darkened ──
+    float depth = -(y + 60.0) / 10.0;  // 0 at LAB base, positive deeper
     vec2 p = vec2(vWorldPos.x, vWorldPos.z) * 0.030 + vec2(depth * 0.45, depth * 0.28);
     vec2 flow      = swirl(p * 1.5, 0.70);
     float bulk     = fbm(flow * 2.6 + vec2(2.2, 6.1));
@@ -2629,36 +3762,65 @@ const _CAP_FRAG = `
     float plumeHeads = pow(max(ridged(flow * 4.0) - 0.40, 0.0) * 2.5, 2.0);
     float coolDown   = smoothstep(0.50, 0.78, fbm(p * 3.2 + vec2(7.3, 1.9)));
 
-    vec3 deep   = vec3(0.12, 0.03, 0.01);
-    vec3 warm   = vec3(0.30, 0.09, 0.03);
-    vec3 hot    = vec3(0.56, 0.20, 0.05);
-    vec3 plume  = vec3(0.76, 0.38, 0.08);
-    vec3 bright = vec3(0.96, 0.62, 0.18);
-    vec3 cool   = vec3(0.14, 0.05, 0.02);
+    vec3 deep   = vec3(0.07, 0.02, 0.01);
+    vec3 warm   = vec3(0.18, 0.05, 0.01);
+    vec3 hot    = vec3(0.36, 0.11, 0.02);
+    vec3 aHot   = vec3(0.52, 0.20, 0.04);
+    vec3 bright = vec3(0.66, 0.32, 0.08);
+    vec3 cool   = vec3(0.05, 0.01, 0.00);
 
     vec3 mantleColor = mix(deep, warm, bulk);
-    mantleColor = mix(mantleColor, hot,    plumeBands * 0.30 + plumeHeads * 0.15);
-    mantleColor = mix(mantleColor, plume,  plumeHeads * 0.52);
+    mantleColor = mix(mantleColor, hot,   plumeBands * 0.30 + plumeHeads * 0.15);
+    mantleColor = mix(mantleColor, aHot,  plumeHeads * 0.52);
     mantleColor = mix(mantleColor, bright, pow(plumeHeads, 2.0) * 0.22);
     mantleColor = mix(mantleColor, cool,   coolDown * 0.30);
 
-    // ── LAB transition zone: litho → partial melt → mantle over ~12 km ──
-    float t = smoothstep(-34.0, -46.0, y);   // 0 = full litho, 1 = full mantle
+    // ── Blend zones ──
+    // Lower crust+cusp fades radially around the plume stem axis (−21.02, 3.03).
+    float _plR2D    = length(vec2(vWorldPos.x + 21.02, vWorldPos.z - 3.03));
+    float _lcFade   = exp(-(_plR2D * _plR2D) / (37.5 * 37.5));
+    float tLowerCrust = smoothstep(-7.0, -13.0, y) * _lcFade;
 
-    // Triangle envelope peaking at the LAB centre (t=0.5, y=−40 km)
-    float tZone = 1.0 - abs(t - 0.5) * 2.0;
+    float tMoho = smoothstep(-27.0, -33.0, y);
+    float tAST  = smoothstep(-58.0, -62.0, y);
 
-    // Partially-molten transition colour — warm dark orange-brown
-    vec3 labColor = vec3(0.52, 0.24, 0.09);
-    vec3 col = mix(lithoColor, mantleColor, t);
-    col = mix(col, labColor, tZone * 0.55);
+    vec3 col = mix(lithoColor, lowerCrustColor, tLowerCrust);
+    col = mix(col, thinnedLithoColor, tMoho);
+    col = mix(col, mantleColor, tAST);
 
-    // Diffuse glow across the transition zone (wider, softer than a sharp line)
-    float labGlow = exp(-abs(y + 40.0) * 0.55) * 0.45;
-    col += vec3(0.95, 0.42, 0.06) * labGlow;
+    // Moho glow at −30 km
+    float mohoGlow = exp(-abs(y + 30.0) * 0.9) * 0.22;
+    col += vec3(0.78, 0.42, 0.12) * mohoGlow;
 
-    // Baked halo warmth
-    col += vec3(0.44, 0.16, 0.03) * t;
+    // LAB glow at −60 km
+    float labGlow = exp(-abs(y + 60.0) * 0.50) * 0.50;
+    col += vec3(0.92, 0.55, 0.12) * labGlow;
+
+    // ── Mantle plume — follows actual 3D geometry (stem + tilted flare) ─────
+    {
+      float plFrac = plumeFraction(vWorldPos);
+      if(plFrac > 0.0){
+        vec3 plumeColor = clamp(mantleColor * 5.5, 0.0, 1.0);
+        plumeColor = mix(plumeColor, vec3(1.00, 0.58, 0.06), 0.42);
+        col = mix(col, plumeColor, plFrac * 0.88);
+        col += vec3(0.82, 0.34, 0.02) * plFrac * 0.55;
+      }
+    }
+
+    // ── Ionian slab — cold oceanic lithosphere (dark blue-grey) ─────────────
+    {
+      float _sfGeo = slabFraction(vWorldPos);
+      if(_sfGeo > 0.01){
+        vec2 slP = vec2(vWorldPos.x*0.045, vWorldPos.y*0.040);
+        float slN = fbm(slP + vec2(8.4, 3.7));
+        vec3 slabColor = mix(vec3(0.07,0.11,0.20), vec3(0.13,0.19,0.32), slN*0.6 + 0.2);
+        // Thin oceanic-crust band brightens the slab face (< 9 km from surface)
+        float sdRaw = (-22.0*(vWorldPos.x-50.0)+15.0*(vWorldPos.y+28.0))/26.63;
+        float crustBand = smoothstep(-9.0, -2.0, sdRaw);
+        slabColor = mix(slabColor, vec3(0.11,0.17,0.29), crustBand * 0.5);
+        col = mix(col, slabColor, _sfGeo);
+      }
+    }
 
     fragColor = vec4(col, 1.0);
   }
@@ -2686,6 +3848,7 @@ function buildCrossSectionCap() {
   const capGeo = new THREE.BufferGeometry();
   crossSectionCap = new THREE.Mesh(capGeo, _makeCapShaderMat());
   crossSectionCap.visible = false;
+  crossSectionCap.renderOrder = 6;  // above all slab tear overlays (max rO=5)
   scene.add(crossSectionCap);
   _domainFaceMeshes.push(crossSectionCap);
   _domainFaceMats.push(crossSectionCap.material);
@@ -2706,6 +3869,8 @@ function _rebuildCapGeometry() {
 
   const rad = (crossSectionAngle * Math.PI) / 180;
   const nx = -Math.sin(rad), nz = -Math.cos(rad);
+  // Use the same summit-anchored offset as setCrossSectionAngle
+  const planeD = -(nx * (-0.79) + nz * 4.08);
   const src = _crossCapTerrainGeo.attributes.position;
   const numTris = src.count / 3;
   const BOTTOM = -DOMAIN_H; // -50 km
@@ -2714,10 +3879,10 @@ function _rebuildCapGeometry() {
 
   for (let t = 0; t < numTris; t++) {
     const b = t * 3;
-    // Signed distance from cross-section plane (nx·x + nz·z = 0)
-    const d0 = nx * src.getX(b)   + nz * src.getZ(b);
-    const d1 = nx * src.getX(b+1) + nz * src.getZ(b+1);
-    const d2 = nx * src.getX(b+2) + nz * src.getZ(b+2);
+    // Signed distance from cross-section plane (nx·x + nz·z + planeD = 0)
+    const d0 = nx * src.getX(b)   + nz * src.getZ(b)   + planeD;
+    const d1 = nx * src.getX(b+1) + nz * src.getZ(b+1) + planeD;
+    const d2 = nx * src.getX(b+2) + nz * src.getZ(b+2) + planeD;
 
     // Find the two edge crossings for this triangle
     const crosses = [];
@@ -2755,7 +3920,6 @@ function updateCrossSectionCap() {
   const capVis = crossSectionEnabled && showCapFace;
   crossSectionCap.visible = capVis;
   if (crossSectionCapOverdraw) crossSectionCapOverdraw.visible = capVis;
-  updateChamberCaps();
   if (!crossSectionEnabled) return;
   clearTimeout(_crossCapRebuildTimer);
   _crossCapRebuildTimer = setTimeout(_rebuildCapGeometry, 60);
@@ -2899,15 +4063,33 @@ function updateClipPlanes() {
   if (ionianSlab) applyPlanes(ionianSlab);
   if (ionianCrust) applyPlanes(ionianCrust);
   if (stepFault) applyPlanes(stepFault);
+  if (sicilianThrustSlab) {
+    const slabP = _hazardDomainPlanes
+      ? (crossSectionEnabled ? [..._hazardDomainPlanes, clipPlane] : [..._hazardDomainPlanes])
+      : planes;
+    applyPlanes(sicilianThrustSlab, slabP);
+    _slabTears.forEach(m => applyPlanes(m, slabP));
+    // Heat-zone circles use additive blending — hide them in cross-section so they
+    // can't bleed glow onto the cap face where no cap geometry covers them.
+    const _plumbingOn = sicilianThrustSlab.visible;
+    _slabHeatZoneMeshes.forEach(m => { m.visible = _plumbingOn && !crossSectionEnabled; });
+  }
   // Apply the cross-section clip plane so chambers are halved in core view.
   // The camera-side 3D half remains visible; cap fills cover the cut face.
   chamberMeshes.forEach(m => applyPlanes(m));
+  if (hvbMesh) applyPlanes(hvbMesh);
   {
     const faultPlanes = _hazardDomainPlanes
       ? (crossSectionEnabled ? [..._hazardDomainPlanes, clipPlane] : [..._hazardDomainPlanes])
       : planes;
     if (faultRootGroup)    applyPlanes(faultRootGroup,    faultPlanes);
     if (tectonicFaultRoot) applyPlanes(tectonicFaultRoot, faultPlanes);
+    // Ghost surface traces: keep fully hidden (ghost effect removed — inactive half is dark).
+    for (const m of _ghostSurfaceTraceMats) {
+      m.clippingPlanes = faultPlanes;
+      m.opacity = 0;
+      m.needsUpdate = true;
+    }
   }
   if (regionalGeologyMesh) applyPlanes(regionalGeologyMesh);
   if (etnaGeologyMesh)     applyPlanes(etnaGeologyMesh);
@@ -2937,6 +4119,7 @@ function updateClipPlanes() {
       u.uClipConst.value = clipPlane.constant;
     }
   }
+  updatePlumbingLabelVisibility();
 }
 
 // ─── Vertical exaggeration ────────────────────────────────────────────────────
@@ -2954,6 +4137,19 @@ function applyVertExag(factor) {
   if (hazardGroup)      hazardGroup.scale.y     = factor;
   if (faultRootGroup)    faultRootGroup.scale.y    = factor;
   if (tectonicFaultRoot) tectonicFaultRoot.scale.y = factor;
+  // Counter-scale ribbon group so bottom vertices stay at absolute depth
+  if (_faultRibbonGroup) _faultRibbonGroup.scale.y = 1 / factor;
+  // Bake new vert-exag into ribbon top vertex Y positions (bottom Y never changes)
+  for (const { columns, geo } of _faultRibbonData) {
+    const pos = geo.attributes.position;
+    for (let i = 0; i < columns.length; i++) {
+      pos.setY(i * 2, columns[i].top[1] * factor);
+    }
+    pos.needsUpdate = true;
+  }
+  // Rebuild face intersection lines to match updated ribbon geometry
+  _buildFaultSideFaceLines();
+  _updateFaultCapLines();
   labels.forEach(lbl => { if (lbl.origY !== undefined) lbl.pos.y = lbl.origY * factor; });
   if (etnaLabelLayer) applyEtnaLabelVertExag(etnaLabelLayer.entries, factor);
 }
@@ -2961,10 +4157,11 @@ function applyVertExag(factor) {
 function setCrossSectionAngle(deg) {
   crossSectionAngle = deg;
   const rad = (deg * Math.PI) / 180;
-  const nx = -Math.sin(rad);
-  const nz = -Math.cos(rad);
-  clipPlane.set(new THREE.Vector3(nx, 0, nz), 0);
-
+  const nx  = -Math.sin(rad);
+  const nz  = -Math.cos(rad);
+  // Plane passes through Etna summit at world (x=-0.79, z=4.08)
+  const d   = -(nx * (-0.79) + nz * 4.08);
+  clipPlane.set(new THREE.Vector3(nx, 0, nz), d);
 }
 
 // ─── Context HUD + cursor readout + scale bar ─────────────────────────────────
@@ -3466,6 +4663,7 @@ function setupUI() {
     crossToggle.addEventListener('change', () => {
       _syncSection('cross-section-section', crossToggle.checked);
       crossSectionEnabled = crossToggle.checked;
+      if (!crossSectionEnabled) _setCoreSelection(null);
       if (!clipPlane) {
         clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
         setCrossSectionAngle(crossSectionAngle);
@@ -3474,6 +4672,7 @@ function setupUI() {
       updateClipPlanes();
       updateCrossSectionCap();
       _updateFaultCapLines();
+      _updateDomainLayerLabels();
     });
   }
 
@@ -3487,6 +4686,16 @@ function setupUI() {
       setCrossSectionAngle(deg);
       updateCrossSectionCap();
       _updateFaultCapLines();
+      _updateDomainLayerLabels();
+    });
+  }
+
+  // Core view layer-labels toggle
+  const coreLabelsToggle = document.getElementById('core-labels-toggle');
+  if (coreLabelsToggle) {
+    coreLabelsToggle.addEventListener('change', () => {
+      _coreLabelsEnabled = coreLabelsToggle.checked;
+      _updateDomainLayerLabels();
     });
   }
 
@@ -3537,6 +4746,62 @@ function setupUI() {
       if (domainBox) domainBox.visible = domainToggle.checked;
       if (domainEdges) domainEdges.visible = domainToggle.checked;
       if (domainLayerEdges) domainLayerEdges.visible = domainToggle.checked;
+    });
+  }
+
+  // ── Deep Structure — domain walls & stratigraphy sub-toggle ─────────────────
+  function _setDomainWalls(on) {
+    if (domainBox)        domainBox.visible        = on;
+    if (domainOverdraw)   domainOverdraw.visible   = on;
+    if (domainEdges)      domainEdges.visible      = on;
+    if (domainLayerEdges) domainLayerEdges.visible  = on;
+    if (domainToggle)     domainToggle.checked      = on;
+    const dwt = document.getElementById('domain-walls-toggle');
+    if (dwt) dwt.checked = on;
+  }
+
+  const domainWallsToggle = document.getElementById('domain-walls-toggle');
+  if (domainWallsToggle) {
+    domainWallsToggle.addEventListener('change', () => _setDomainWalls(domainWallsToggle.checked));
+  }
+
+  // ── Deep Structure — slabs / plume / chambers sub-toggle ─────────────────────
+  function _setPlumbing(on) {
+    if (ionianSlab)         ionianSlab.visible        = on;
+    if (ionianCrust)        ionianCrust.visible       = on;
+    if (sicilianThrustSlab) sicilianThrustSlab.visible = on;
+    _slabTears.forEach(m => { m.visible = on; });
+    _slabHeatZoneMeshes.forEach(m => { m.visible = on && !crossSectionEnabled; });
+    chamberMeshes.forEach(m => { m.visible = on; });
+    updatePlumbingLabelVisibility(on);
+    const pt = document.getElementById('plumbing-toggle');
+    if (pt) pt.checked = on;
+  }
+
+  const plumbingToggle = document.getElementById('plumbing-toggle');
+  if (plumbingToggle) {
+    plumbingToggle.addEventListener('change', () => _setPlumbing(plumbingToggle.checked));
+  }
+
+  const plumbingLabelsToggle = document.getElementById('plumbing-labels-toggle');
+  if (plumbingLabelsToggle) {
+    plumbingLabelsToggle.addEventListener('change', () => {
+      if (_plumbingLabelGroup) _plumbingLabelGroup.visible = plumbingLabelsToggle.checked;
+      if (plumbingLabelsToggle.checked) updatePlumbingLabelVisibility();
+    });
+  }
+
+  // ── Deep Structure master toggle — cascades to both sub-toggles ──────────────
+  const deepStructureMaster = document.getElementById('deep-structure-master-toggle');
+  if (deepStructureMaster) {
+    deepStructureMaster.addEventListener('change', () => {
+      const on = deepStructureMaster.checked;
+      _setDomainWalls(on);
+      _setPlumbing(on);
+      if (plumbingLabelsToggle) plumbingLabelsToggle.checked = on;
+      if (_plumbingLabelGroup) _plumbingLabelGroup.visible = on;
+      if (on) updatePlumbingLabelVisibility();
+      _syncSection('deep-structure-section', on);
     });
   }
 
@@ -4035,6 +5300,54 @@ function setupUI() {
     _updateSeaLevelSlider();
   }
 
+  // ── Tour mode ──────────────────────────────────────────────────────────────
+  const tourFacetSel = document.getElementById('tour-mode-facet');
+  const tourToggle   = document.getElementById('tour-mode-toggle');
+  const tourPrev     = document.getElementById('tour-mode-prev');
+  const tourNext     = document.getElementById('tour-mode-next');
+  const tourTarget   = document.getElementById('tour-mode-target');
+
+  // Populate facet dropdown
+  if (tourFacetSel && tourFacetSel.options.length === 0) {
+    for (const facet of TOUR_MODE_FACETS) {
+      const opt = document.createElement('option');
+      opt.value = facet.id;
+      opt.textContent = facet.label;
+      tourFacetSel.appendChild(opt);
+    }
+  }
+
+  if (tourToggle) {
+    tourToggle.addEventListener('change', () => {
+      if (tourToggle.checked) {
+        const first = _getTourFeatures()[0];
+        if (first) _presentTourStop(first);
+        else _syncTourControls(null);
+      } else {
+        _deactivateTour();
+      }
+    });
+  }
+
+  if (tourFacetSel) {
+    tourFacetSel.addEventListener('change', () => {
+      activeTourModeFacetId = tourFacetSel.value;
+      const first = _getTourFeatures()[0];
+      if (activeTourModeFeature && first) _presentTourStop(first);
+      else _syncTourControls(null);
+    });
+  }
+
+  if (tourTarget) {
+    tourTarget.addEventListener('change', () => {
+      const feature = _getTourFeatures().find(f => f.name === tourTarget.value);
+      if (feature) _presentTourStop(feature);
+    });
+  }
+
+  if (tourPrev) tourPrev.addEventListener('click', () => _cycleTour(-1));
+  if (tourNext) tourNext.addEventListener('click', () => _cycleTour(1));
+
 }
 
 // ─── Resize ───────────────────────────────────────────────────────────────────
@@ -4137,13 +5450,27 @@ function animate() {
 
   // Advance animation time for all convection swirl shaders
   const _t = performance.now() / 1000;
-  for (const m of _chamberMats)    m.uniforms.uTime.value = _t;
-  for (const m of _chamberCapMats) m.uniforms.uTime.value = _t;
+  for (const m of _chamberMats) m.uniforms.uTime.value = _t;
   for (const m of _domainFaceMats) m.uniforms.uTime.value = _t;
 
   if (hazardOverlayMesh && hazardOverlayMesh.visible && hazardOverlayMesh.material.uniforms) {
     hazardOverlayMesh.material.uniforms.uCameraY.value = camera.position.y;
   }
+
+  // Cull side-face fault lines to the face(s) visible from the camera.
+  // Hysteresis band of ±1 km prevents flickering when OrbitControls damping
+  // oscillates the camera near a face boundary (typical jitter << 0.01 km).
+  if (_faultSideLineGroup) {
+    for (const ls of _faultSideLineGroup.children) {
+      const p = ls.userData.domainPlane;
+      if (!p) continue;
+      const d = p.distanceToPoint(camera.position);
+      if (d < -1.0) ls.visible = true;       // clearly outside → show
+      else if (d > 1.0) ls.visible = false;  // clearly inside → hide
+      // |d| <= 1 km: keep current state (hysteresis dead band)
+    }
+  }
+
   updateContextHUD();
   updateLabelPositions();
   if (etnaLabelLayer) {
@@ -4208,6 +5535,42 @@ function animate() {
     } else {
       if (selectionRing) selectionRing.visible = false;
     }
+  }
+
+  // ── Core label pulse — verbatim Mars selectedLabelEntryIsCore block ───────
+  if (_selectedCoreEntry && _coreSelectionRing && crossSectionEnabled && _coreLabelsEnabled) {
+    const entryDot = _selectedCoreEntry.dot;
+    if (!_selectedCoreEntry._pulseBase) {
+      _selectedCoreEntry._pulseBase = {
+        spriteColor:   _selectedCoreEntry.sprite?.material?.color?.clone() ?? new THREE.Color(1, 1, 1),
+        spriteOpacity: _selectedCoreEntry.sprite?.material?.opacity ?? 0.88,
+        dotColor:      _selectedCoreEntry.dot?.material?.color?.clone() ?? new THREE.Color(1, 1, 1),
+        lineOpacity:   _selectedCoreEntry.line?.material?.opacity ?? 0.45,
+      };
+    }
+    const pulse = (Math.sin(performance.now() * 0.004) + 1) * 0.5;
+    _coreSelectionRing.visible = true;
+    _coreSelectionRing.position.copy(entryDot.position);
+    _coreSelectionRing.material.opacity = 0.35 + pulse * 0.55;
+    _coreSelectionRing.scale.setScalar((1.2 + pulse * 0.6) * 10); // ×10: Mars units → Etna km
+    if (_selectedCoreEntry.sprite?.material) {
+      _selectedCoreEntry.sprite.material.color.setRGB(1.0, 0.83 + pulse * 0.14, 0.42 + pulse * 0.43);
+      _selectedCoreEntry.sprite.material.opacity = 0.78 + pulse * 0.22;
+    }
+    if (_selectedCoreEntry.dot?.material) {
+      _selectedCoreEntry.dot.material.color.setRGB(1.0, 0.83 + pulse * 0.14, 0.42 + pulse * 0.43);
+    }
+    if (_selectedCoreEntry.line?.material) {
+      _selectedCoreEntry.line.material.opacity = 0.42 + pulse * 0.4;
+    }
+  } else {
+    if (_coreSelectionRing) _coreSelectionRing.visible = false;
+  }
+
+  // ── Fault plane perimeter pulse ────────────────────────────────────────────
+  if (_faultPerimeterLine) {
+    const pulse = (Math.sin(performance.now() * 0.003) + 1) * 0.5;
+    _faultPerimeterLine.material.opacity = 0.35 + pulse * 0.65;
   }
 
   // ── Seismic selection ring (screen-space DOM, constant apparent size) ────
@@ -4706,14 +6069,144 @@ function hideFeaturePopup() {
   activePopupFeature = null;
   _seismicSelectionIdx = -1;
   const _re = _seismicRingEl(); if (_re) _re.hidden = true;
+  _clearFaultSelection();
+}
+
+// ─── Tour mode ────────────────────────────────────────────────────────────────
+
+const TOUR_MODE_FACETS = [
+  {
+    id: 'highlights',
+    label: 'Highlights',
+    description: 'A curated tour of Etna\'s most iconic volcanic, geological, and cultural landmarks.',
+    matches: item => [
+      'Valle del Bove', 'SE Crater', 'New SE Crater', 'Voragine',
+      'Monti Rossi', '2002–03 Eruption', '1991–93 Lava Flow',
+      'Pernicana Fault', 'Timpe Fault System',
+      'Catania', 'Taormina', 'Zafferana Etnea',
+    ].includes(item.name),
+  },
+  {
+    id: 'vents',
+    label: 'Craters & vents',
+    description: 'Summit craters, parasitic cones, and historic eruptive vents.',
+    matches: item => item.theme === 'vent',
+  },
+  {
+    id: 'fissures',
+    label: 'Eruptions & fissures',
+    description: 'Historic and recent flank eruption fissure zones.',
+    matches: item => item.theme === 'fissure',
+  },
+  {
+    id: 'faults',
+    label: 'Faults & rift zones',
+    description: 'Active faults, seismogenic structures, and magmatic rift zones.',
+    matches: item => item.theme === 'fault',
+  },
+  {
+    id: 'settlements',
+    label: 'Towns & cities',
+    description: 'Settlements on and around the Etna domain — from high-altitude villages to coastal cities.',
+    matches: item => item.theme === 'settlement',
+  },
+  {
+    id: 'general',
+    label: 'Landmarks & features',
+    description: 'Visitor hubs, observatories, and major geographical features.',
+    matches: item => item.theme === 'general',
+  },
+];
+
+let activeTourModeFeature = null;
+let activeTourModeFacetId = TOUR_MODE_FACETS[0].id;
+let _activeTourFlightTimer = null;
+
+function _clearTourFlightTimer() {
+  if (_activeTourFlightTimer) { clearTimeout(_activeTourFlightTimer); _activeTourFlightTimer = null; }
+}
+
+function _getTourFacet(id = activeTourModeFacetId) {
+  return TOUR_MODE_FACETS.find(f => f.id === id) || TOUR_MODE_FACETS[0];
+}
+
+function _getTourFeatures(facetId = activeTourModeFacetId) {
+  const facet = _getTourFacet(facetId);
+  return ETNA_POIS.filter(item => facet.matches(item));
+}
+
+function _populateTourTargetOptions(facetId = activeTourModeFacetId, selectedName = activeTourModeFeature?.name || '') {
+  const sel = document.getElementById('tour-mode-target');
+  if (!sel) return;
+  const features = _getTourFeatures(facetId);
+  sel.innerHTML = '';
+  for (const f of features) {
+    const opt = document.createElement('option');
+    opt.value = opt.textContent = f.name;
+    sel.appendChild(opt);
+  }
+  if (features.some(f => f.name === selectedName)) sel.value = selectedName;
+  else if (features.length) sel.value = features[0].name;
+}
+
+function _syncTourControls(feature = activeTourModeFeature) {
+  const features = _getTourFeatures(activeTourModeFacetId);
+  const toggle   = document.getElementById('tour-mode-toggle');
+  const section  = document.getElementById('tour-mode-section');
+  const controls = document.getElementById('tour-mode-controls');
+  const facetSel = document.getElementById('tour-mode-facet');
+  const prev     = document.getElementById('tour-mode-prev');
+  const next     = document.getElementById('tour-mode-next');
+  const on = Boolean(feature);
+  if (toggle)   toggle.checked = on;
+  if (section)  section.open  = on;
+  if (controls) controls.style.display = on ? '' : 'none';
+  if (facetSel) facetSel.value = activeTourModeFacetId;
+  _populateTourTargetOptions(activeTourModeFacetId, feature?.name || '');
+  if (prev) prev.disabled = !on || features.length <= 1;
+  if (next) next.disabled = !on || features.length <= 1;
+}
+
+function _deactivateTour() {
+  _clearTourFlightTimer();
+  activeTourModeFeature = null;
+  _syncTourControls(null);
+  hideFeaturePopup();
+}
+
+function _presentTourStop(feature) {
+  if (!feature) return;
+  activeTourModeFeature = feature;
+  _clearTourFlightTimer();
+  showFeaturePopup(feature);
+  _syncTourControls(feature);
+  setStatus(`Touring ${feature.name}.`);
+  const h = _sampleHeight(feature.x, feature.z);
+  const targetPos = new THREE.Vector3(feature.x, h, feature.z);
+  _activeTourFlightTimer = setTimeout(() => {
+    _activeTourFlightTimer = null;
+    flyTo(targetPos, 2000);
+  }, 500);
+}
+
+function _cycleTour(dir) {
+  const features = _getTourFeatures();
+  if (!features.length) return;
+  const cur = activeTourModeFeature
+    ? features.findIndex(f => f.name === activeTourModeFeature.name)
+    : (dir >= 0 ? -1 : 0);
+  const next = features[((cur + dir) % features.length + features.length) % features.length];
+  _presentTourStop(next);
 }
 
 // ─── Fly-to: animate camera to look at a 3D position ────────────────────────
 
 const _flyVec = new THREE.Vector3();
+let _flyToken = 0; // incremented to cancel an in-progress flight
 
 function flyTo(targetPos, duration = 1800) {
   if (!camera || !controls) return;
+  const myToken = ++_flyToken;
   const startPos    = camera.position.clone();
   const startTarget = controls.target.clone();
 
@@ -4741,6 +6234,7 @@ function flyTo(targetPos, duration = 1800) {
 
   const t0 = performance.now();
   function step(now) {
+    if (_flyToken !== myToken) return; // superseded by a newer flight
     const rawT = Math.min((now - t0) / duration, 1);
     // Cubic ease-in-out for lateral motion and target lerp
     const e = rawT < 0.5 ? 4 * rawT * rawT * rawT : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
@@ -5370,6 +6864,35 @@ function _onPointerUp(e) {
     const seismicHits = clickRay.intersectObject(seismicMesh);
     if (seismicHits.length > 0 && !_isClipped(seismicHits[0].point)) {
       showSeismicPopup(seismicHits[0].instanceId);
+      return;
+    }
+  }
+
+  // Fault ribbon click (only when the ribbon group AND its root are visible)
+  if (tectonicFaultRoot?.visible && _faultRibbonGroup?.visible && _faultRibbonMeshes.length > 0) {
+    const faultHits = clickRay.intersectObjects(_faultRibbonMeshes, false);
+    if (faultHits.length > 0 && !_isClipped(faultHits[0].point)) {
+      const hitMesh = faultHits[0].object;
+      const feature = hitMesh.userData.feature;
+      if (feature) { _selectFaultMesh(hitMesh); showFeaturePopup(feature); return; }
+    }
+  }
+
+  // Plumbing subsurface label click
+  if (_plumbingLabelInteractives.length > 0) {
+    const plumbHits = clickRay.intersectObjects(_plumbingLabelInteractives, false);
+    const phit = plumbHits.find(h => h.object.visible && h.object.userData.feature);
+    if (phit) { showFeaturePopup(phit.object.userData.feature); return; }
+  }
+
+  // Core layer label click — mirrors Mars: raycaster.intersectObjects(cutawayResult.interactiveObjects)
+  if (crossSectionEnabled && _coreLabelsEnabled && _layerLabelInteractives.length > 0) {
+    const layerHits = clickRay.intersectObjects(_layerLabelInteractives, false);
+    const hit = layerHits.find(h => h.object.visible && h.object.userData.feature);
+    if (hit) {
+      const feature = hit.object.userData.feature;
+      _setCoreSelection(feature);
+      showFeaturePopup(feature);
       return;
     }
   }

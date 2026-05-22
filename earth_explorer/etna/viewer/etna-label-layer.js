@@ -69,6 +69,26 @@ const THEME_PALETTE = {
     spriteOpacity: 0.88,
     accentHex:     '#40c4ff',
   },
+  plumbing: {
+    bg:     'rgba(25, 7, 2, 0.84)',
+    stroke: 'rgba(255, 100, 35, 0.52)',
+    accent: 'rgba(255, 75, 18, 0.96)',
+    title:  'rgba(255, 220, 195, 0.98)',
+    markerColor:   0xff4c12,
+    lineColor:     0xff7030,
+    spriteOpacity: 0.92,
+    accentHex:     '#ff4c12',
+  },
+  slab: {
+    bg:     'rgba(4, 10, 26, 0.84)',
+    stroke: 'rgba(55, 120, 200, 0.50)',
+    accent: 'rgba(44, 148, 220, 0.96)',
+    title:  'rgba(195, 222, 255, 0.98)',
+    markerColor:   0x2c94dc,
+    lineColor:     0x4ab4f0,
+    spriteOpacity: 0.90,
+    accentHex:     '#2c94dc',
+  },
 };
 
 export function getThemePalette(theme) {

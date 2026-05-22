@@ -595,7 +595,34 @@
                   <label for="cap-face-toggle">Section face</label>
                   <span class="checkbox-wrap"><input id="cap-face-toggle" type="checkbox" checked></span>
                 </div>
-                <p class="compact-copy" style="margin-top:0.4rem;">Rotate the clipping plane about the vertical axis to reveal E–W, N–S, or oblique cross-sections through the volcanic system.</p>
+                <div class="row" style="margin-top:0.35rem;">
+                  <label for="core-labels-toggle">Layer labels</label>
+                  <span class="checkbox-wrap"><input id="core-labels-toggle" type="checkbox" checked></span>
+                </div>
+                <!-- Layer legend — mirrors Mars core-view legend -->
+                <div class="geo-legend" style="margin-top:0.65rem;">
+                  <div class="geo-legend-item">
+                    <span class="geo-swatch" style="background:#7a5c38;"></span>
+                    <span class="geo-legend-label">Crust / Accretionary wedge</span>
+                    <span class="geo-legend-depth">0–30 km</span>
+                  </div>
+                  <div class="geo-legend-item">
+                    <span class="geo-swatch" style="background:#7a3c18;"></span>
+                    <span class="geo-legend-label">Uppermost mantle</span>
+                    <span class="geo-legend-depth">30–50 km</span>
+                  </div>
+                  <div class="geo-legend-item geo-legend-boundary">
+                    <span class="geo-swatch geo-swatch-line" style="background:#d07840;"></span>
+                    <span class="geo-legend-label">— LAB / Thermal boundary</span>
+                    <span class="geo-legend-depth">50–60 km</span>
+                  </div>
+                  <div class="geo-legend-item">
+                    <span class="geo-swatch" style="background:#8c3c14;"></span>
+                    <span class="geo-legend-label">Asthenosphere / Mantle plume</span>
+                    <span class="geo-legend-depth">60–80 km</span>
+                  </div>
+                </div>
+                <p class="compact-copy" style="margin-top:0.5rem;">Rotate the clipping plane to reveal E–W, N–S, or oblique cross-sections. Click any layer label to read its description.</p>
               </div>
               <p class="compact-copy" id="cross-section-hint">Enable to apply a vertical cutting plane through the model.</p>
             </div>
@@ -613,27 +640,51 @@
                 <span>Deep Structure</span>
               </span></div>
             </div>
+            <span class="section-toggle-controls">
+              <input id="deep-structure-master-toggle" class="section-master-toggle" type="checkbox" checked aria-label="Show all deep structure">
+            </span>
           </summary>
           <div class="section-body">
             <div class="control-stack">
 
-              <!-- 2-layer legend -->
+              <!-- Domain walls & stratigraphy toggle -->
+              <div class="row" style="margin-bottom:0.35rem;">
+                <label for="domain-walls-toggle" style="color:var(--nav-accent);">Domain walls &amp; stratigraphy</label>
+                <span class="checkbox-wrap"><input id="domain-walls-toggle" type="checkbox" checked></span>
+              </div>
+
+              <!-- 4-layer legend — matches GEO_LAYERS in etna-viewer.js -->
               <div class="geo-legend">
                 <div class="geo-legend-item">
                   <span class="geo-swatch" style="background:#7a5c38;"></span>
-                  <span class="geo-legend-label">Lithosphere</span>
-                  <span class="geo-legend-depth">0–40 km</span>
+                  <span class="geo-legend-label">Crust / Accretionary wedge</span>
+                  <span class="geo-legend-depth">0–30 km</span>
+                </div>
+                <div class="geo-legend-item">
+                  <span class="geo-swatch" style="background:#7a3c18;"></span>
+                  <span class="geo-legend-label">Uppermost mantle</span>
+                  <span class="geo-legend-depth">30–50 km</span>
                 </div>
                 <div class="geo-legend-item geo-legend-boundary">
-                  <span class="geo-swatch geo-swatch-line" style="background:#c8a868;"></span>
-                  <span class="geo-legend-label">— LAB (40 km)</span>
-                  <span class="geo-legend-depth"></span>
+                  <span class="geo-swatch geo-swatch-line" style="background:#d07840;"></span>
+                  <span class="geo-legend-label">— LAB / Thermal boundary</span>
+                  <span class="geo-legend-depth">50–60 km</span>
                 </div>
                 <div class="geo-legend-item">
                   <span class="geo-swatch" style="background:#8c3c14;"></span>
-                  <span class="geo-legend-label">Mantle</span>
-                  <span class="geo-legend-depth">40–50 km</span>
+                  <span class="geo-legend-label">Asthenosphere / Mantle plume</span>
+                  <span class="geo-legend-depth">60–80 km</span>
                 </div>
+              </div>
+
+              <!-- Magmatic plumbing toggle -->
+              <div class="row" style="margin-top:0.55rem; margin-bottom:0.1rem;">
+                <label for="plumbing-toggle" style="color:var(--nav-accent);">Slabs, plume &amp; chambers</label>
+                <span class="checkbox-wrap"><input id="plumbing-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row" style="margin-top:0.3rem; margin-bottom:0.1rem;">
+                <label for="plumbing-labels-toggle">Subsurface labels</label>
+                <span class="checkbox-wrap"><input id="plumbing-labels-toggle" type="checkbox" checked></span>
               </div>
 
               <!-- Subsurface property visualisation -->
@@ -764,7 +815,11 @@
           </summary>
           <div class="section-body">
             <div class="section-summary-copy" style="margin-bottom:0.7rem;">Citations and layer provenance.</div>
-            <p class="compact-copy">Surface topography: GMSH finite-element mesh from 100 × 100 km DEM. Subsurface geometry: parametric GMSH .geo files (3-chamber magmatic system). Seismic network: INGV — Osservatorio Etneo. Geology: INGV EtnaGeoMap (Branca et al. 2011). Satellite imagery: ESRI World Imagery.</p>
+            <p class="compact-copy"><strong>Note:</strong> The subsurface plumbing geometry is <strong>speculative</strong> — a visualisation of chamber geometry estimates, not a formally validated model.</p>
+            <p class="compact-copy" style="margin-top:0.5rem;">Surface topography: 100 × 100 km DEM. Seismic network: INGV — Osservatorio Etneo. Geology: INGV EtnaGeoMap (Branca et al. 2011). Satellite imagery: ESRI World Imagery.</p>
+            <p class="compact-copy" style="margin-top:0.5rem;"><strong>Plumbing geometry sources:</strong><br>
+            Firetto Carlino et al. (2025). <em>Science Advances</em>, 11(41), eadx9873. <a href="https://doi.org/10.1126/sciadv.adx9873" target="_blank" rel="noopener">doi:10.1126/sciadv.adx9873</a><br>
+            Cannata et al. (2018). <em>Geochemistry, Geophysics, Geosystems</em>, 19(2), 471–495. <a href="https://doi.org/10.1002/2017GC007296" target="_blank" rel="noopener">doi:10.1002/2017GC007296</a></p>
             <div class="metadata-launch" style="margin-top:0.6rem; padding:0; border:0; background:none;">
               <button id="metadata-button" class="button secondary" type="button">Open Metadata</button>
             </div>
@@ -927,7 +982,8 @@
       <div class="viewer-help-body">
         <section class="viewer-help-section">
           <h3>About This Model</h3>
-          <p>GMSH finite-element numerical model of Etna's magmatic plumbing system. Surface topography from a 100 × 100 km DEM. Seismic stations from the INGV monitoring network (Osservatorio Etneo). Satellite imagery from ESRI World Imagery.</p>
+          <p>Surface topography from a 100 × 100 km DEM. Seismic stations from the INGV monitoring network (Osservatorio Etneo). Satellite imagery from ESRI World Imagery.</p>
+          <p><strong>The subsurface magmatic plumbing geometry is speculative.</strong> It is a visualisation of chamber geometry estimates derived from published seismic and geodetic studies and does not represent a formally validated model. Chamber positions, dimensions, and conduit networks are approximations consistent with the literature cited below, not outputs of a numerical inversion.</p>
         </section>
         <section class="viewer-help-section">
           <h3>Navigating The Model</h3>
@@ -952,8 +1008,11 @@
         </section>
         <section class="viewer-help-section">
           <h3>The Plumbing System</h3>
-          <p>The 3-chamber model represents Etna's magmatic plumbing system as a hierarchy of three reservoirs connected by narrow conduits. The <strong>Upper Magma Chamber</strong> is a spherical body at 2 km depth beneath the summit craters. The <strong>Intermediate Chamber</strong> at 2.85 km links the upper to the deep source. The <strong>Lower Magma Reservoir</strong> is a flat oblate spheroid at 6.8 km depth (horizontal radius 6 km, vertical 0.8 km), consistent with geodetic and seismic inversion studies.</p>
-          <p>The conduit system is modelled as narrow cylindrical pathways (~50 m diameter) connecting chambers vertically. Geometry is taken directly from the GMSH parametric source files.</p>
+          <p>The model depicts a multi-reservoir magmatic system feeding the summit craters: a shallow spherical body (~1.5 km asl), a prolate intermediate reservoir (~2 km depth), a melt-bearing lens at ~5 km, an oblate mid-crustal storage zone at ~10 km, and a deep magma reservoir at ~18 km depth coupled to the subducting Sicilian Chain slab. A sill complex between 0–8 km represents lateral storage inferred from seismicity patterns. Interconnecting conduits (~50 m diameter) trace inferred ascent pathways.</p>
+          <p>This geometry is a schematic visualisation based on chamber depth and dimension estimates from the literature. It is not the output of a formal geophysical inversion.</p>
+          <p><strong>Key sources:</strong><br>
+          Firetto Carlino et al. (2025). Earthquake frequency-magnitude distribution at Mount Etna sheds light on magma ascent in the volcano's plumbing system. <em>Science Advances</em>, 11(41), eadx9873. <a href="https://doi.org/10.1126/sciadv.adx9873" target="_blank" rel="noopener">doi:10.1126/sciadv.adx9873</a><br>
+          Cannata et al. (2018). Space–time evolution of magma storage and transfer at Mt. Etna Volcano (Italy): The 2015–2016 reawakening of Voragine Crater. <em>Geochemistry, Geophysics, Geosystems</em>, 19(2), 471–495. <a href="https://doi.org/10.1002/2017GC007296" target="_blank" rel="noopener">doi:10.1002/2017GC007296</a></p>
         </section>
         <section class="viewer-help-section">
           <h3>Cross-Section</h3>
