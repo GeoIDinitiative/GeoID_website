@@ -3807,17 +3807,17 @@ const _CAP_FRAG = `
       }
     }
 
-    // ── Ionian slab — cold oceanic lithosphere (dark blue-grey) ─────────────
+    // ── Ionian slab — cold oceanic lithosphere (dark crustal brown) ──────────
     {
       float _sfGeo = slabFraction(vWorldPos);
       if(_sfGeo > 0.01){
         vec2 slP = vec2(vWorldPos.x*0.045, vWorldPos.y*0.040);
         float slN = fbm(slP + vec2(8.4, 3.7));
-        vec3 slabColor = mix(vec3(0.07,0.11,0.20), vec3(0.13,0.19,0.32), slN*0.6 + 0.2);
-        // Thin oceanic-crust band brightens the slab face (< 9 km from surface)
+        vec3 slabColor = mix(vec3(0.28,0.13,0.05), vec3(0.40,0.19,0.07), slN*0.6 + 0.2);
+        // Thin oceanic-crust cap — slightly lighter brown near slab top surface
         float sdRaw = (-22.0*(vWorldPos.x-50.0)+15.0*(vWorldPos.y+28.0))/26.63;
         float crustBand = smoothstep(-9.0, -2.0, sdRaw);
-        slabColor = mix(slabColor, vec3(0.11,0.17,0.29), crustBand * 0.5);
+        slabColor = mix(slabColor, vec3(0.44,0.22,0.09), crustBand * 0.5);
         col = mix(col, slabColor, _sfGeo);
       }
     }
