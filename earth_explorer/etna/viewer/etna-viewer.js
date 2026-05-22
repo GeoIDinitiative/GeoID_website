@@ -879,17 +879,17 @@ const GEO_LAYERS = [
     description: 'Continental and oceanic crustal material, including the accreted sedimentary wedge of the African plate subducting beneath Eurasia. Seismic velocities of 5.5–6.5 km/s indicate granitic to gabbroic compositions.',
   },
   {
-    color: 0x6a3c20, emissive: 0x1a0c04, label: 'Lower crust + cusp', depth: '10–30 km',
+    color: 0x6a3c20, emissive: 0x1a0c04, label: 'Lower crust + cusp', depth: '10–25.5 km',
     name: 'Lower crust + cusp',
-    kicker: 'Lower crust · 10–30 km depth',
+    kicker: 'Lower crust · 10–25.5 km depth',
     theme: 'general',
-    meta: 'Vp ≈ 6.5–7.4 km/s · mafic lower crust · Moho at ~30 km',
-    description: 'Mafic lower crust and transitional cusp zone approaching the Moho discontinuity at ~30 km. Seismic velocities of 6.5–7.4 km/s indicate gabbroic to ultramafic compositions. The Moho discontinuity at ~30 km marks the base of the crust beneath central Sicily.',
+    meta: 'Vp ≈ 6.5–7.4 km/s · mafic lower crust · Moho at ~25.5 km',
+    description: 'Mafic lower crust and transitional cusp zone approaching the Moho discontinuity at ~25.5 km. Seismic velocities of 6.5–7.4 km/s indicate gabbroic to ultramafic compositions. The Moho discontinuity at ~25.5 km marks the base of the crust beneath central Sicily.',
   },
   {
-    color: 0x8c3818, emissive: 0x280a04, label: 'Thinned lithospheric mantle — heated, melt-permeated', depth: '30–60 km',
+    color: 0x8c3818, emissive: 0x280a04, label: 'Thinned lithospheric mantle — heated, melt-permeated', depth: '25.5–60 km',
     name: 'Thinned lithospheric mantle',
-    kicker: 'Thinned lithospheric mantle · 30–60 km depth',
+    kicker: 'Thinned lithospheric mantle · 25.5–60 km depth',
     theme: 'general',
     meta: 'Low-Vs anomaly · T ≈ 1100–1300 °C · partial melt fraction ~1–3%',
     description: 'Anomalously thin and thermally modified lithospheric mantle beneath the Etna edifice. The STEP fault and slab rollback have thinned and heated this zone, introducing melt fractions and metasomatic fluids from the asthenosphere below. Seismic tomography shows pronounced low-velocity anomalies consistent with partial melt percolation.',
@@ -908,7 +908,7 @@ const GEO_LAYERS = [
 const GEO_LAYER_BOUNDS = [
   [   0,    0,    0,    0],  // surface 0: terrain top
   [ -10,  -10,  -10,  -10],  // surface 1: lower crust top (~10 km bsl)
-  [ -30,  -30,  -30,  -30],  // surface 2: Moho / thinned litho top (~30 km bsl)
+  [ -25.5, -25.5, -25.5, -25.5],  // surface 2: Moho / thinned litho top (~25.5 km bsl)
   [ -60,  -60,  -60,  -60],  // surface 3: LAB / asthenosphere top (~60 km bsl)
   [ -80,  -80,  -80,  -80],  // surface 4: domain floor
 ];
@@ -3234,7 +3234,7 @@ function buildChambers() {
   // ── Mantle plume 3D geometry ──────────────────────────────────────────────
   // One continuous LatheGeometry traces the full mushroom profile:
   //   stem (r=2 km) rising from domain base (−80) and flaring into an oblate
-  //   head that reaches r=8 km at the Moho (−30 km, flat top).
+  //   head that reaches r=8 km at the Moho (−25.5 km, flat top).
   // A CircleGeometry disk closes the flat top face.
   // Both pushed to chamberMeshes so updateClipPlanes() applies the cut plane.
   const _plumeMat = new THREE.MeshPhongMaterial({
@@ -3278,7 +3278,7 @@ function buildChambers() {
   scene.add(plumeBody);
   chamberMeshes.push(plumeBody);
 
-  // Flat disk closing the top face at y=−30 (Moho)
+  // Flat disk closing the top face ~at the Moho (y≈−25.5 km)
   const plumeTop = new THREE.Mesh(
     new THREE.CircleGeometry(16, 64),
     _plumeMat
@@ -3334,13 +3334,13 @@ const PLUMBING_POIS = [
   },
   // ── Mantle plume ─────────────────────────────────────────────────────────────
   { name: 'Mantle Plume Head',     kicker: 'Moho Contact Disk',               theme: 'plumbing',
-    meta: '~30 km depth  ·  Moho boundary  ·  Ø ~32 km',
-    description: 'The ~32 km-diameter plume head at the Moho (~30 km depth), where ascending mantle-derived melt ponds beneath the lithosphere. The circular geometry reflects radial spreading of buoyant plume material against the base of the crust. Partial melt fraction here reaches 4–6%, directly feeding the deep storage reservoir above.',
+    meta: '~25.5 km depth  ·  Moho boundary  ·  Ø ~32 km',
+    description: 'The ~32 km-diameter plume head at the Moho (~25.5 km depth), where ascending mantle-derived melt ponds beneath the lithosphere. The circular geometry reflects radial spreading of buoyant plume material against the base of the crust. Partial melt fraction here reaches 4–6%, directly feeding the deep storage reservoir above.',
     wx:-23.95, wy:-35.39, wz: -2.62,
   },
   { name: 'Mantle Plume Body',     kicker: 'Asthenospheric Upwelling',        theme: 'plumbing',
-    meta: '~30–80 km depth  ·  32° NW tilt',
-    description: 'The widening flare of the asthenospheric upwelling where the cylindrical stem transitions to the spreading head at the Moho. The ~32° NW tilt mirrors the dip of the subducting Ionian slab and the slab window geometry. Temperatures in the rising plume exceed 1,300 °C, driving partial melting at the Moho.',
+    meta: '~25.5–80 km depth  ·  32° NW tilt',
+    description: 'The widening flare of the asthenospheric upwelling where the cylindrical stem transitions to the spreading head at the Moho. The ~32° NW tilt mirrors the dip of the subducting Ionian slab and the slab window geometry. Temperatures in the rising plume exceed 1,300 °C, driving partial melting at the Moho (~25.5 km).',
     wx:-22.49, wy:-40.5, wz:  0.21, lx: -8,
   },
   { name: 'Mantle Plume Stem',     kicker: 'Deep Mantle Conduit',             theme: 'plumbing',
@@ -3781,15 +3781,15 @@ const _CAP_FRAG = `
     float _lcFade   = exp(-(_plR2D * _plR2D) / (37.5 * 37.5));
     float tLowerCrust = smoothstep(-7.0, -13.0, y) * _lcFade;
 
-    float tMoho = smoothstep(-27.0, -33.0, y);
+    float tMoho = smoothstep(-22.5, -28.5, y);
     float tAST  = smoothstep(-58.0, -62.0, y);
 
     vec3 col = mix(lithoColor, lowerCrustColor, tLowerCrust);
     col = mix(col, thinnedLithoColor, tMoho);
     col = mix(col, mantleColor, tAST);
 
-    // Moho glow at −30 km
-    float mohoGlow = exp(-abs(y + 30.0) * 0.9) * 0.22;
+    // Moho glow at −25.5 km
+    float mohoGlow = exp(-abs(y + 25.5) * 0.9) * 0.22;
     col += vec3(0.78, 0.42, 0.12) * mohoGlow;
 
     // LAB glow at −60 km
@@ -4206,8 +4206,8 @@ function _isaPressMb(h)  {
 const _SUB_DENSITY_SEGS = [
   [0,  5,  2500],   // young porous volcanic rock
   [5,  15, 2750],   // dense basaltic upper crust
-  [15, 30, 2900],   // lower-crustal granulite/gabbro
-  [30, 40, 3050],   // mafic lower crust / Moho transition
+  [15, 25.5, 2900],   // lower-crustal granulite/gabbro
+  [25.5, 40, 3050],   // mafic lower crust / Moho transition
   [40, 50, 3280],   // upper-mantle peridotite
 ];
 
@@ -5687,7 +5687,7 @@ function showSeismicPopup(idx) {
   const col = _seismicDepthColor(depthKm);
   const hex = '#' + col.getHexString();
 
-  const depthBand = depthKm < 5 ? 'Shallow crustal' : depthKm < 15 ? 'Mid crustal' : depthKm < 30 ? 'Deep crustal' : 'Sub-crustal';
+  const depthBand = depthKm < 5 ? 'Shallow crustal' : depthKm < 15 ? 'Mid crustal' : depthKm < 25.5 ? 'Deep crustal' : 'Sub-crustal';
   const mlDesc   = ml < 2 ? 'Micro' : ml < 3 ? 'Minor' : ml < 4 ? 'Light' : ml < 5 ? 'Moderate' : 'Strong';
 
   const popup  = document.getElementById('scene-popup');
