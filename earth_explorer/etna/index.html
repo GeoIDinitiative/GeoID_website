@@ -242,7 +242,25 @@
       text-transform: uppercase;
     }
 
-    /* ── Responsive ──────────────────────────────────── */
+    /* ── Landscape / constrained-height ─────────────────── */
+    @media (max-height: 560px) and (pointer: coarse) {
+      .shell { padding: 0.4rem; }
+      .logo-img { width: 7rem; height: 7rem; top: 0.5rem; right: 0.7rem; }
+      /* Push arrival-block left so it clears the logo */
+      .arrival-block { top: 0.5rem; right: 8rem; text-align: left; }
+      .arrival-value { font-size: 0.88rem; }
+      .card { border-radius: 1rem; }
+      .hero { padding: 0.8rem 1rem 0.6rem; gap: 0.8rem; }
+      .etna-icon { width: clamp(3.5rem, 9vw, 5rem); height: clamp(3.5rem, 9vw, 5rem); }
+      .dest-title { font-size: clamp(2rem, 7vw, 3.2rem); }
+      .dest-sub { font-size: 0.8rem; margin-top: 0.3rem; }
+      .fact-box { margin: 0 1rem; padding: 0.7rem 1rem; }
+      .fact-text { font-size: 0.88rem; line-height: 1.45; }
+      .footer { margin-top: 0.6rem; padding: 0.6rem 1rem;
+                padding-bottom: max(0.6rem, env(safe-area-inset-bottom)); }
+    }
+
+    /* ── Portrait narrow ──────────────────────────────── */
     @media (max-width: 560px) {
       .shell { padding: 0.5rem; align-items: flex-start; padding-top: max(1rem, env(safe-area-inset-top)); }
       .card { border-radius: 1rem; }
