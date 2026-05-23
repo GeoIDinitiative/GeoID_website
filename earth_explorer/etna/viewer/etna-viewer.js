@@ -672,6 +672,21 @@ function init() {
   buildSTEPFault();
   buildChambers();
   buildPlumbingLabels();
+
+  // Sync plumbing / label visibility with initial checkbox state (may be unchecked on load)
+  {
+    const _ptEl  = document.getElementById('plumbing-toggle');
+    const _plEl  = document.getElementById('plumbing-labels-toggle');
+    const _ptOn  = _ptEl ? _ptEl.checked : true;
+    const _plOn  = _plEl ? _plEl.checked : true;
+    if (ionianCrust)        ionianCrust.visible       = _ptOn;
+    if (sicilianThrustSlab) sicilianThrustSlab.visible = _ptOn;
+    _slabTears.forEach(m => { m.visible = _ptOn; });
+    _slabHeatZoneMeshes.forEach(m => { m.visible = _ptOn; });
+    chamberMeshes.forEach(m => { m.visible = _ptOn; });
+    if (_plumbingLabelGroup) _plumbingLabelGroup.visible = _plOn && _ptOn;
+  }
+
   buildCrossSectionCap();
   buildCoastlineSea();
   buildStations();

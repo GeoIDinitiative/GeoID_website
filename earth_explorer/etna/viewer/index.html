@@ -675,11 +675,11 @@
               <!-- Magmatic plumbing toggle -->
               <div class="row" style="margin-top:0.55rem; margin-bottom:0.1rem;">
                 <label for="plumbing-toggle" style="color:var(--nav-accent);">Slabs, plume &amp; chambers</label>
-                <span class="checkbox-wrap"><input id="plumbing-toggle" type="checkbox" checked></span>
+                <span class="checkbox-wrap"><input id="plumbing-toggle" type="checkbox"></span>
               </div>
               <div class="row" style="margin-top:0.3rem; margin-bottom:0.1rem;">
                 <label for="plumbing-labels-toggle">Subsurface labels</label>
-                <span class="checkbox-wrap"><input id="plumbing-labels-toggle" type="checkbox" checked></span>
+                <span class="checkbox-wrap"><input id="plumbing-labels-toggle" type="checkbox"></span>
               </div>
 
               <!-- Subsurface property visualisation -->
@@ -1104,7 +1104,7 @@
       window.addEventListener('orientationchange', () => advisory.classList.remove('is-dismissed'));
     }
 
-    import('./etna-viewer.js?v=52').catch((err) => {
+    import('./etna-viewer.js?v=53').catch((err) => {
       setBootStatus('Failed to load viewer: ' + err.message, true);
     });
   </script>
