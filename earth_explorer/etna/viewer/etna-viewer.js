@@ -122,16 +122,13 @@ const SAT_GRID_LAT_N = _tileToLat(SAT_Y0);
 const SAT_GRID_LAT_S = _tileToLat(SAT_Y1 + 1);
 
 // ─── IndexedDB cache helpers ──────────────────────────────────────────────────
-// Two IDB entries: processed STL geometry (positions + UVs) and composited
-// satellite canvas (as a JPEG Blob). Both are keyed so that changing the source
-// data constants automatically invalidates the old entry.
+// IDB caches processed STL geometry (positions + UVs).
+// Satellite imagery is served as a static asset (SW-cached) — no IDB needed.
 
 const _IDB_NAME  = 'etna-viewer-cache';
 const _IDB_STORE = 'data';
 // Bump suffix when STL file or vertex transform logic changes
 const GEOM_CACHE_KEY = 'etna-geom-v3';
-// Encodes tile params — auto-invalidates if grid constants change
-const SAT_CACHE_KEY  = `etna-sat-tiles-z${SAT_Z}-${SAT_X0}-${SAT_X1}-${SAT_Y0}-${SAT_Y1}`;
 
 function _openIDB() {
   return new Promise((res, rej) => {
@@ -4628,49 +4625,6 @@ function closePanel() {
 
 // Decode a Blob into a Canvas using <img> + createObjectURL — works on all
 // browsers including iOS Safari where createImageBitmap is absent or buggy.
-function _blobToCanvas(blob) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const c = document.createElement('canvas');
-      c.width = img.naturalWidth; c.height = img.naturalHeight;
-      c.getContext('2d').drawImage(img, 0, 0);
-      resolve(c);
-    };
-    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
-    img.src = url;
-  });
-}
-
-function fetchSatelliteTiles() {
-  // Load the pre-generated composite served as a static asset.
-  // The SW caches it after the first fetch — all subsequent loads are instant.
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      // Downsample to GPU texture limit if needed (rare on desktop).
-      const maxTex = renderer.capabilities.maxTextureSize;
-      if (img.naturalWidth <= maxTex && img.naturalHeight <= maxTex) {
-        const c = document.createElement('canvas');
-        c.width = img.naturalWidth; c.height = img.naturalHeight;
-        c.getContext('2d').drawImage(img, 0, 0);
-        resolve(c);
-      } else {
-        const scale = Math.min(maxTex / img.naturalWidth, maxTex / img.naturalHeight);
-        const c = document.createElement('canvas');
-        c.width  = Math.round(img.naturalWidth  * scale);
-        c.height = Math.round(img.naturalHeight * scale);
-        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-        resolve(c);
-      }
-    };
-    img.onerror = reject;
-    img.src = './assets/satellite.jpg';
-  });
-}
-
 async function applyBasemap(mode) {
   basemapMode = mode;
   if (!surfaceMesh) return;
@@ -4678,20 +4632,17 @@ async function applyBasemap(mode) {
     if (!satelliteTexture) {
       setStatus('Loading satellite imagery…');
       try {
-        let canvas;
-
-        // Try IDB-cached composite blob first (skips 840 tile fetches + canvas assembly)
-        const cachedBlob = await _idbGet(SAT_CACHE_KEY);
-        if (cachedBlob) {
-          canvas = await _blobToCanvas(cachedBlob);
-        } else {
-          canvas = await fetchSatelliteTiles();
-          // Persist the composite as JPEG for fast reconstruction on next load
-          canvas.toBlob(blob => { if (blob) _idbSet(SAT_CACHE_KEY, blob); }, 'image/jpeg', 0.93);
-        }
-
-        satelliteTexture = new THREE.CanvasTexture(canvas);
-        satelliteTexture.flipY = false;
+        // TextureLoader is more memory-efficient than canvas: the browser/GPU driver
+        // handles JPEG decoding and texture upload without a full-res RAM copy.
+        // SW precaches satellite.jpg so this resolves instantly after first visit.
+        satelliteTexture = await new Promise((resolve, reject) => {
+          new THREE.TextureLoader().load(
+            './assets/satellite.jpg',
+            tex => { tex.flipY = false; resolve(tex); },
+            undefined,
+            reject
+          );
+        });
       } catch (e) {
         console.error('Satellite tile fetch failed', e);
         setStatus('Satellite imagery unavailable.', true);
