@@ -2,7 +2,7 @@
 // HTML navigation requests are network-first so index.html changes are always picked up.
 // Update STATIC_CACHE version string whenever viewer JS/CSS/STL changes significantly.
 
-const STATIC_CACHE = 'etna-static-v390';
+const STATIC_CACHE = 'etna-static-v391';
 const TILES_CACHE  = 'etna-tiles-v1';
 
 const PRECACHE_URLS = [

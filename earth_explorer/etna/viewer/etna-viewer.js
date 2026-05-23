@@ -129,7 +129,7 @@ const SAT_GRID_LAT_S = _tileToLat(SAT_Y1 + 1);
 const _IDB_NAME  = 'etna-viewer-cache';
 const _IDB_STORE = 'data';
 // Bump suffix when STL file or vertex transform logic changes
-const GEOM_CACHE_KEY = 'etna-geom-v2';
+const GEOM_CACHE_KEY = 'etna-geom-v3';
 // Encodes tile params — auto-invalidates if grid constants change
 const SAT_CACHE_KEY  = `etna-sat-tiles-z${SAT_Z}-${SAT_X0}-${SAT_X1}-${SAT_Y0}-${SAT_Y1}`;
 
@@ -751,10 +751,10 @@ async function loadSurface() {
     const tileRows = SAT_Y1 + 1 - SAT_Y0;
     const pow2Z    = Math.pow(2, SAT_Z);
     for (let i = 0; i < pos.count; i++) {
-      const X      = pos.getX(i);
-      const zLocal = pos.getZ(i) - GEO_Z_OFFSET; // strip terrain offset → true [-50,+50] northing
-      const lon    = SAT_LON_W + (X + 50) / 100 * (SAT_LON_E - SAT_LON_W);
-      const lat    = SAT_LAT_N + (zLocal + 50) / 100 * (SAT_LAT_S - SAT_LAT_N);
+      const X   = pos.getX(i);
+      const Z   = pos.getZ(i);
+      const lon = SAT_LON_W + (X + 50) / 100 * (SAT_LON_E - SAT_LON_W);
+      const lat = SAT_LAT_N + (Z + 50) / 100 * (SAT_LAT_S - SAT_LAT_N);
       // U: linear in longitude (Mercator X = longitude, so equirectangular formula is exact)
       uvArr[i * 2]     = (lon - SAT_GRID_LON_W) / lonSpan;
       // V: Mercator Y normalised to tile grid — matches the composited tile canvas
