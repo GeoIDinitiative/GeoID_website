@@ -333,7 +333,7 @@
 <body>
 
   <iframe id="viewer-frame" src=""
-    style="position:fixed;inset:0;width:100%;height:100%;border:none;opacity:0;pointer-events:none;z-index:0;background:#0a0502;display:none;"
+    style="position:fixed;inset:0;width:100%;height:100%;border:none;opacity:0;pointer-events:none;z-index:0;background:#0a0502;"
     allow="fullscreen"></iframe>
 
   <div class="bg" aria-hidden="true"></div>
@@ -412,7 +412,6 @@
     viewerFrame.src = targetUrl;
 
     setTimeout(() => {
-        viewerFrame.style.display = 'block';
         try { viewerFrame.contentWindow.postMessage('geoid-reveal', '*'); } catch (_) {}
 
         let crossed = false;
