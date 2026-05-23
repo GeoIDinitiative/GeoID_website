@@ -1,11 +1,12 @@
 // Service worker — cache-first strategy for static assets + ESRI satellite tiles.
+// HTML navigation requests are network-first so index.html changes are always picked up.
 // Update STATIC_CACHE version string whenever viewer JS/CSS/STL changes significantly.
 
-const STATIC_CACHE = 'etna-static-v341';
+const STATIC_CACHE = 'etna-static-v387';
 const TILES_CACHE  = 'etna-tiles-v1';
 
 const PRECACHE_URLS = [
-  './index.html',
+  // index.html intentionally omitted — served network-first so updates propagate immediately
   './etna-viewer.js',
   './etna-label-layer.js',
   './styles.css',
@@ -57,6 +58,19 @@ self.addEventListener('fetch', evt => {
       if (resp.ok) cache.put(evt.request, resp.clone());
       return resp;
     })());
+    return;
+  }
+
+  // HTML navigation requests — network-first so index.html is always fresh
+  if (evt.request.mode === 'navigate') {
+    evt.respondWith(
+      fetch(evt.request).then(resp => {
+        if (resp.ok) {
+          caches.open(STATIC_CACHE).then(c => c.put(evt.request, resp.clone()));
+        }
+        return resp;
+      }).catch(() => caches.match(evt.request))
+    );
     return;
   }
 

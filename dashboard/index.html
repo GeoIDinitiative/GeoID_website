@@ -882,6 +882,169 @@
       pointer-events: auto;
     }
 
+    /* ── Etna Earth Explorer slide ── */
+    .slide-etna {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: stretch;
+      min-height: 0;
+      background: #060200;
+    }
+
+    .slide-etna-bg {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 75%;
+      background: url('/earth_explorer/etna/viewer/assets/zoom_out.png') center/cover no-repeat;
+      opacity: 0.6;
+      -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.5) 18%, black 45%);
+      mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.5) 18%, black 45%);
+    }
+
+    .slide-etna-content {
+      position: relative;
+      z-index: 2;
+      width: clamp(22rem, 46%, 46rem);
+      padding: 1.8rem 2rem 1.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      background: linear-gradient(90deg, rgba(6,2,0,0.96) 0%, rgba(6,2,0,0.72) 80%, transparent 100%);
+    }
+
+    .slide-etna-badge {
+      display: inline-flex;
+      align-self: flex-start;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.22rem 0.6rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,106,0,0.42);
+      background: rgba(255,106,0,0.09);
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(255,140,60,0.95);
+    }
+
+    .slide-etna-badge::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(255,106,0,0.95);
+      animation: pulse-dot 2.5s ease-in-out infinite;
+    }
+
+    .slide-etna-header {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .slide-etna-icon {
+      width: clamp(3rem, 6vw, 4.2rem);
+      height: clamp(3rem, 6vw, 4.2rem);
+      object-fit: contain;
+      filter: drop-shadow(0 3px 14px rgba(255,80,0,0.5));
+      flex-shrink: 0;
+    }
+
+    .slide-etna-title {
+      font-family: "Orbitron", sans-serif;
+      font-size: clamp(1.6rem, 3.5vw, 2.6rem);
+      font-weight: 800;
+      line-height: 0.92;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+      background: linear-gradient(130deg, #ffffff 20%, rgba(255,200,140,0.75) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .slide-etna-meta {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255,140,60,0.75);
+      margin-top: 0.1rem;
+    }
+
+    .slide-etna-desc {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.90rem;
+      color: rgba(245,230,215,0.86);
+      line-height: 1.65;
+    }
+
+    .slide-etna-features {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.38rem 1.2rem;
+    }
+
+    .slide-etna-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.84rem;
+      color: rgba(245,230,215,0.82);
+      line-height: 1.45;
+    }
+
+    .slide-etna-features li::before {
+      content: "";
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: rgba(255,106,0,0.65);
+      flex-shrink: 0;
+      margin-top: 0.42em;
+    }
+
+    .slide-etna-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      margin-top: auto;
+      padding-top: 0.5rem;
+    }
+
+    .slide-etna-launch {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 1.3rem;
+      border-radius: 999px;
+      border: 1.5px solid #ff6a00;
+      background: rgba(255,106,0,0.12);
+      color: #fff;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
+      box-shadow: 0 0 14px rgba(255,106,0,0.25);
+    }
+    .slide-etna-launch:hover {
+      background: rgba(255,106,0,0.24);
+      box-shadow: 0 0 22px rgba(255,106,0,0.42);
+      transform: translateY(-2px);
+    }
+
     .pv-slide-dots {
       position: absolute;
       bottom: 0.75rem;
@@ -1108,12 +1271,14 @@
     /* Per-tile accent colours */
     .news-tile--about     .news-kicker { color: rgba(100, 210, 130, 0.90); }
     .news-tile--explorer  .news-kicker { color: rgba(88, 198, 179, 0.90); }
+    .news-tile--etna      .news-kicker { color: rgba(255, 106, 0, 0.92); }
     .news-tile--mygeoid   .news-kicker { color: rgba(100, 160, 240, 0.90); }
     .news-tile--research  .news-kicker { color: rgba(160, 110, 240, 0.90); }
     .news-tile--resources .news-kicker { color: rgba(220, 175, 70, 0.90); }
 
     .news-tile--about:hover     { border-color: rgba(100, 210, 130, 0.32); }
     .news-tile--explorer:hover  { border-color: rgba(88, 198, 179, 0.32); }
+    .news-tile--etna:hover      { border-color: rgba(255, 106, 0, 0.38); }
     .news-tile--mygeoid:hover   { border-color: rgba(100, 160, 240, 0.32); }
     .news-tile--research:hover  { border-color: rgba(160, 110, 240, 0.32); }
     .news-tile--resources:hover { border-color: rgba(220, 175, 70, 0.32); }
@@ -1595,7 +1760,36 @@
           <div class="stack-track" id="stack-track"></div>
         </div>
 
-        <!-- Slide 1: myGeoID -->
+        <!-- Slide 1: Etna Earth Explorer -->
+        <div class="pv-slide">
+          <div class="slide-etna">
+            <div class="slide-etna-bg" aria-hidden="true"></div>
+            <div class="slide-etna-content">
+              <span class="slide-etna-badge">Live · Earth Explorer</span>
+              <div class="slide-etna-header">
+                <img class="slide-etna-icon" src="/assets/etna_icon.png" alt="Mount Etna" loading="lazy" decoding="async">
+                <div>
+                  <h2 class="slide-etna-title">Mount<br>Etna</h2>
+                  <p class="slide-etna-meta">Sicily, Italy · 3,329 m</p>
+                </div>
+              </div>
+              <p class="slide-etna-desc">Explore Europe's most active volcano in an interactive 3D geological viewer — inspect the magma plumbing system, seismicity, surface faults, and regional tectonic structure beneath Etna's flanks.</p>
+              <ul class="slide-etna-features">
+                <li>12,000+ INGV earthquake catalogue 2011–2023</li>
+                <li>3D magma chambers &amp; conduit system</li>
+                <li>Regional tectonic &amp; volcanic fault planes</li>
+                <li>Geological map overlays &amp; lava flows</li>
+                <li>Cross-section with live layer labels</li>
+                <li>Satellite basemap &amp; vertical exaggeration</li>
+              </ul>
+              <div class="slide-etna-actions">
+                <a class="slide-etna-launch" href="/earth_explorer/etna/">Launch Viewer →</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Slide 2: myGeoID -->
         <div class="pv-slide">
           <div class="slide-mygeoid">
             <div class="slide-mygeoid-screenshot" aria-hidden="true"></div>
@@ -1621,7 +1815,7 @@
           </div>
         </div>
 
-        <!-- Slide 2: Mission -->
+        <!-- Slide 3: Mission -->
         <div class="pv-slide">
           <div class="slide-mission">
             <div class="slide-mission-bg" aria-hidden="true"></div>
@@ -1684,6 +1878,7 @@
         <button class="pv-dot is-active" data-slide="0" aria-label="Slide 1" role="tab" aria-selected="true"></button>
         <button class="pv-dot" data-slide="1" aria-label="Slide 2" role="tab" aria-selected="false"></button>
         <button class="pv-dot" data-slide="2" aria-label="Slide 3" role="tab" aria-selected="false"></button>
+        <button class="pv-dot" data-slide="3" aria-label="Slide 4" role="tab" aria-selected="false"></button>
       </div>
 
     </section>
@@ -1718,6 +1913,17 @@
             <span class="news-kicker">Live Now</span>
             <span class="news-title">LIVE: GeoID Explorer</span>
             <span class="news-desc">The interactive 3D planetary viewer is now live. Navigate all 8 worlds.</span>
+          </div>
+        </a>
+
+        <a class="news-tile news-tile--etna" href="/earth_explorer/etna/">
+          <div class="news-tile-photo">
+            <img src="/earth_explorer/etna/viewer/assets/subsurface.png" alt="Etna subsurface" loading="lazy" decoding="async">
+          </div>
+          <div class="news-tile-body">
+            <span class="news-kicker">Update</span>
+            <span class="news-title">LIVE: Mt. Etna Volcano Explorer</span>
+            <span class="news-desc">New geological map overlays, regional tectonic faults, and subsurface cross-section now live in the Earth Explorer.</span>
           </div>
         </a>
 

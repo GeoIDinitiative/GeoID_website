@@ -393,8 +393,8 @@ export const ETNA_POIS = [
     description: "NW rift zone cone formed during the brief but geochemically unusual 1974 eruption. The 1974 event produced unusually CO₂-rich, strongly degassed lava with a primitive composition — interpreted as direct rapid ascent from depth that bypassed the summit storage system. This implied the existence of a separate shallow NW rift magma pathway independent of the main plumbing system beneath the summit.",
   },
   {
-    name: 'Monte Spagnolo', kicker: 'Ancient Cone', theme: 'vent', x: -4.4, z: -3.2, lod: 4,
-    meta: '37.784°N  14.953°E  ·  NW flank  ·  Ellittico-age  ·  ~2,100 m asl',
+    name: 'Monte Spagnolo', kicker: 'Ancient Cone', theme: 'vent', x: -4.4, z: -7.7, lod: 4,
+    meta: '37.857°N  14.953°E  ·  NW flank  ·  Ellittico-age  ·  ~2,100 m asl',
     description: "Well-preserved ancient cone on the NW flank, erupted during the Ellittico phase of Etna's activity (~15,000–35,000 yr BP). Predates the current Mongibello volcanic episode and represents NW rift zone activity from an earlier eruptive cycle. The cone's relatively intact morphology indicates it has not been overridden by younger flows — making it a useful stratigraphic reference for correlating the NW flank succession.",
   },
   {
@@ -413,11 +413,6 @@ export const ETNA_POIS = [
     name: '1928 Eruption', kicker: 'NE Flank Eruption', theme: 'fissure', x: 13.8, z: -2.0, lod: 2,
     meta: '37.773°N  15.160°E  ·  2–20 Nov 1928  ·  NE flank  ·  ~8 km flow',
     description: "NE flank fissure eruption producing one of the 20th century's most destructive Etna events. Lava advanced at speed, burying the town of Mascali within 48 hours. The eruption was exploited by Mussolini's government as a propaganda opportunity — newsreels showed state officials 'commanding' the failed diversion effort. Total volume ~20 million m³. The 1928 flow field is still largely exposed on the NE flank between Rifugio Citelli and Mascali.",
-  },
-  {
-    name: '1981 NW Eruption', kicker: 'Fissure Zone', theme: 'fissure', x: -2.5, z: -22.8, lod: 3,
-    meta: '17–23 March 1981  ·  NW flank  ·  8 km in 6 hours',
-    description: "NW flank fissure eruption producing the fastest lava advance in Etna's modern record. Lava descended the Valle del Leone at up to 30 m/min, covering 8 km in approximately 6 hours on the first day, threatening Randazzo. The unusually rapid advance resulted from the steep NW flank gradient and high simultaneous effusion rates from multiple fissure vents. The eruption lasted seven days, depositing a ~12 km² lava field on the NW flank.",
   },
   {
     name: '1971 Eruption', kicker: 'Fissure Zone', theme: 'fissure', x: 7.4, z: 0.3, lod: 3,
@@ -583,8 +578,8 @@ const _HNORM_EPS = 0.5;    // km finite-difference step for terrain normal
 
 // Zoom-responsive pixel targets — grow as camera gets closer.
 // At global view (~30 km) labels are smaller; at close zoom (<1 km) they are larger.
-const LABEL_PX_GLOBAL = 15;   // px height at global view
-const LABEL_PX_CLOSE  = 34;   // px height at maximum zoom-in
+const LABEL_PX_GLOBAL = 26;   // px height at global view
+const LABEL_PX_CLOSE  = 42;   // px height at maximum zoom-in
 const DOT_PX_GLOBAL   = 2.5;  // px radius at global view
 const DOT_PX_CLOSE    = 6.0;  // px radius at maximum zoom-in
 const ZOOM_DIST_REF   = 30;   // km: distance below which zoom-in scaling kicks in

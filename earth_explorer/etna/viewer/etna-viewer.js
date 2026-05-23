@@ -183,8 +183,8 @@ let sicilianThrustSlab = null; // African carbonate platform — Sicilian Chain 
 const _slabTears = [];          // planar dyke sheets representing slab tears
 const _slabHeatZoneMeshes = []; // heat-zone circles — hidden during cross-section
 let _plumbingLabelGroup = null;
-const _plumbingLabelData = [];         // { hit, sprite, anchor, poi }[]
-const _plumbingLabelInteractives = []; // hit spheres + sprites for click raycasting
+const _plumbingLabelData = [];         // { hit, el, anchor, poi }[]
+const _plumbingLabelInteractives = []; // invisible hit spheres for click raycasting
 let faultRootGroup = null;   // parent group for all surface fault overlays (scale.y tracks vertExag)
 let seismicMesh = null;      // THREE.InstancedMesh — one instance per seismic event
 let _seismicEvents = null;   // raw array [[x,z,y,ml,year], …] loaded from etna-seismicity.json
@@ -862,6 +862,7 @@ function _finalizeSurface(geo) {
   updateClipPlanes();
   if (basemapMode === 'satellite') applyBasemap('satellite');
   setStatus('');
+  _dismissLoadingScreen();
 }
 
 // ─── Geological domain — layered structure from surface to −50 km ─────────────
@@ -887,7 +888,7 @@ const GEO_LAYERS = [
     description: 'Mafic lower crust and transitional cusp zone approaching the Moho discontinuity at ~25.5 km. Seismic velocities of 6.5–7.4 km/s indicate gabbroic to ultramafic compositions. The Moho discontinuity at ~25.5 km marks the base of the crust beneath central Sicily.',
   },
   {
-    color: 0x8c3818, emissive: 0x280a04, label: 'Thinned lithospheric mantle — heated, melt-permeated', depth: '25.5–60 km',
+    color: 0x4a1606, emissive: 0x140402, label: 'Thinned lithospheric mantle', depth: '25.5–60 km',
     name: 'Thinned lithospheric mantle',
     kicker: 'Thinned lithospheric mantle · 25.5–60 km depth',
     theme: 'general',
@@ -895,8 +896,8 @@ const GEO_LAYERS = [
     description: 'Anomalously thin and thermally modified lithospheric mantle beneath the Etna edifice. The STEP fault and slab rollback have thinned and heated this zone, introducing melt fractions and metasomatic fluids from the asthenosphere below. Seismic tomography shows pronounced low-velocity anomalies consistent with partial melt percolation.',
   },
   {
-    color: 0x4a1606, emissive: 0x140402, label: 'Asthenosphere / Mantle plume', depth: '60–80 km',
-    name: 'Asthenosphere / Mantle plume',
+    color: 0x8c3818, emissive: 0x280a04, label: 'Asthenosphere', depth: '60–80 km',
+    name: 'Asthenosphere',
     kicker: 'Convecting asthenosphere · 60–80 km depth',
     theme: 'general',
     meta: 'T > 1250 °C · Vp anomaly −3% · Schellart et al. 2008',
@@ -971,8 +972,6 @@ function buildDomainLayerLabels() {
     _layerLabelInteractives.push(hit, dot);
 
     const lineGeo = new THREE.BufferGeometry().setFromPoints([ph.clone(), ph.clone()]);
-    // depthTest: true — line lives in the hidden (clipped) half where domain body is absent,
-    // so it remains visible there but is correctly occluded by any domain wall that screens it.
     const lineMat = new THREE.LineBasicMaterial({ color: 0xffcf9d, transparent: true, opacity: 0.45, depthTest: true });
     const line = new THREE.Line(lineGeo, lineMat);
     group.add(line);
@@ -980,8 +979,6 @@ function buildDomainLayerLabels() {
     const labelTex = makeLabelTexture(layer.label);
     const spriteMat = new THREE.SpriteMaterial({
       map: labelTex.texture, transparent: true, opacity: 0.88,
-      // depthTest: true — sprite is in the hidden half (domain body clipped there), so it
-      // remains visible but is correctly occluded by any domain wall that screens it.
       depthTest: true, depthWrite: false,
     });
     const sprite = new THREE.Sprite(spriteMat);
@@ -1165,6 +1162,7 @@ function buildGeologicalDomain() {
 
     const mat = _makeCapShaderMat({ clippingPlanes: [] });
     const mesh = new THREE.Mesh(geo, mat);
+    mesh.userData = { ptContext: 'MODELLED GEOTHERM' };
     layerGroup.add(mesh);
     _domainFaceMeshes.push(mesh);
     _domainFaceMats.push(mat);
@@ -1472,8 +1470,8 @@ function buildSlabTears() {
     [ -4.0, 12.0,  1.0, 0.0, 0.30],
     [  3.0,-12.5,  0.9, 0.0, 0.25],
 
-    // ── Chamber connector ────────────────────────────────────────────────────────
-    [  3.22,  0.22,  5.0, 1.0, 0.0, -16.0],
+    // ── Chamber connector — topAbs = bottom surface of deepStorage (~y=-20.3) ──
+    [  3.22,  0.22,  5.0, 1.0, 0.0, -20.2],
   ];
 
   defs.forEach(([dx, dz, w, below, hFrac, topAbs]) => {
@@ -3021,6 +3019,7 @@ function buildChambers() {
   );
   summitChamber.scale.set(0.5, 0.5, 0.5);
   summitChamber.position.set(-0.26, 1.5, 0.42);  // 37.784°N 15.00°E
+  summitChamber.userData = { ptContext: 'SHALLOW MAGMA STORAGE', ptMagmatic: true };
   scene.add(summitChamber);
   chamberMeshes.push(summitChamber);
 
@@ -3032,6 +3031,7 @@ function buildChambers() {
   );
   prolateChamber.scale.set(0.25, 1.0, 0.25);
   prolateChamber.position.set(-0.79, -2, 4.08);
+  prolateChamber.userData = { ptContext: 'CENTRAL CONDUIT', ptMagmatic: true };
   scene.add(prolateChamber);
   chamberMeshes.push(prolateChamber);
 
@@ -3043,6 +3043,7 @@ function buildChambers() {
   );
   meltShell.scale.set(1.4, 0.7, 1.2);
   meltShell.position.set(-1.14, -5.0, 5.31);
+  meltShell.userData = { ptContext: 'INTERMEDIATE MAGMA STORAGE', ptMagmatic: true };
   scene.add(meltShell);
   chamberMeshes.push(meltShell);
 
@@ -3055,6 +3056,7 @@ function buildChambers() {
   );
   midLens.scale.set(3, 1, 3);
   midLens.position.set(-8.67, -10.0, 2.34);
+  midLens.userData = { ptContext: 'DEEP MAGMA STORAGE', ptMagmatic: true };
   scene.add(midLens);
   chamberMeshes.push(midLens);
 
@@ -3112,6 +3114,7 @@ function buildChambers() {
     );
     m.scale.set(rEq, rPol, rEq);
     m.position.set(x, y, z);
+    m.userData = { ptContext: 'SILL COMPLEX', ptMagmatic: true };
     scene.add(m);
     chamberMeshes.push(m);
   });
@@ -3128,6 +3131,7 @@ function buildChambers() {
     new THREE.Vector3(-0.244, 0.848, -0.471)
   );
   deepStorage.position.set(-20.73, -18.0, -2.40);
+  deepStorage.userData = { ptContext: 'DEEPER PLUMBING SYSTEM', ptMagmatic: true };
   scene.add(deepStorage);
   chamberMeshes.push(deepStorage);
 
@@ -3142,6 +3146,7 @@ function buildChambers() {
     );
     mesh.position.copy(mid);
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+    mesh.userData = { ptContext: 'DYKE / CONDUIT', ptMagmatic: true };
     scene.add(mesh);
     chamberMeshes.push(mesh);
   }
@@ -3254,6 +3259,7 @@ function buildChambers() {
     _plumeMat
   );
   plumeStem.position.set(-21.02, -60, 3.03);   // centre at (−80 + −40)/2 = −60
+  plumeStem.userData = { ptContext: 'MANTLE PLUME', ptMagmatic: true };
   scene.add(plumeStem);
   chamberMeshes.push(plumeStem);
 
@@ -3275,6 +3281,7 @@ function buildChambers() {
     new THREE.Vector3(-0.244, 0.848, -0.471)
   );
   plumeBody.position.set(-31.27, -9.95, -16.75);
+  plumeBody.userData = { ptContext: 'MANTLE PLUME', ptMagmatic: true };
   scene.add(plumeBody);
   chamberMeshes.push(plumeBody);
 
@@ -3291,6 +3298,7 @@ function buildChambers() {
     new THREE.Vector3(-0.244, 0.848, -0.471)   // slab upward normal (dip 32° to NW)
   );
   plumeTop.position.set(-23.95, -35.39, -2.62);
+  plumeTop.userData = { ptContext: 'MANTLE PLUME', ptMagmatic: true };
   scene.add(plumeTop);
   chamberMeshes.push(plumeTop);
 }
@@ -3301,51 +3309,51 @@ function buildChambers() {
 // during cross-section.
 
 const PLUMBING_POIS = [
-  // ── Magma chambers ──────────────────────────────────────────────────────────
-  { name: 'Summit Chamber',        kicker: 'Shallow Magma Chamber',           theme: 'plumbing',
-    meta: '~1–2 km depth  ·  T ≈ 1,150 °C',
-    description: 'Shallow ellipsoidal reservoir directly beneath the summit crater complex at 1–2 km depth. Inferred from seismic tomography and SO₂ flux measurements. Acts as the immediate source for summit Strombolian and effusive activity — pressure cycles within this chamber drive Etna\'s short-period eruption patterns.',
+  // ── Magma storage system (Firetto Carlino et al. 2022, 2025) ─────────────────
+  { name: 'Shallow Magma Storage', kicker: 'Open-conduit · summit to 2 km b.s.l.',  theme: 'plumbing',
+    meta: 'Summit to 2 km b.s.l.  ·  b = 1.31  ·  T ≈ 1,150 °C',
+    description: 'The uppermost portion of Etna\'s plumbing system, spanning from directly beneath the summit craters to ~2 km below sea level (Firetto Carlino et al. 2025). The b-value of 1.31 (σ=0.06) reflects a near-steady open-conduit condition, likely established following the December 2018 major unrest. Because seismicity here is only triggered during magma intrusion episodes, the frequency-magnitude distribution of earthquakes remains nearly constant over time — consistent with a persistently open pathway to the surface feeding summit Strombolian and effusive activity.',
     wx: -0.26, wy:  1.5, wz:  0.42,
   },
-  { name: 'Prolate Conduit Zone',  kicker: 'Sub-summit Conduit',              theme: 'plumbing',
+  { name: 'Central Conduit',       kicker: 'Open conduit system',                   theme: 'plumbing',
     meta: '~2–5 km depth  ·  T ≈ 1,130 °C',
-    description: 'Narrow prolate magmatic body connecting the shallow summit chamber to the melt shell below. Inferred from velocity anomalies in local earthquake tomography (Patanè et al. 2006). The roughly cylindrical geometry constrains magma ascent rates to ~0.5–1 m/s during active recharge phases.',
+    description: 'The open conduit linking the shallow and intermediate storage zones. Consistent with the near-steady b-value trend in the shallow seismogenic volume during active recharge (Firetto Carlino et al. 2025). In an open-conduit condition like Etna\'s, magmatic volatiles escape efficiently along the central axis of the plumbing system, limiting fluid-pressure build-up and maintaining a persistent pathway. Inferred from velocity anomalies in local earthquake tomography (Patanè et al. 2006).',
     wx: -0.79, wy: -2.0, wz:  4.08, lx: -5,
   },
-  { name: 'Melt Accumulation Zone', kicker: 'Shallow Melt Shell',             theme: 'plumbing',
-    meta: '~4–6 km depth  ·  T ≈ 1,100 °C',
-    description: 'Oblate accumulation zone at ~4–6 km depth where melt partially segregates before ascending to the summit. Interpreted as the source reservoir for some flank eruptions that tap it laterally via dyking. The oblate geometry reflects ponding at a density or rheological discontinuity in the crust.',
+  { name: 'Intermediate Magma Storage', kicker: 'Enhanced degassing zone · b = 1.70', theme: 'plumbing',
+    meta: '~1–8 km depth  ·  b = 1.70  ·  T ≈ 1,100 °C',
+    description: 'The dominant crustal storage zone, identified as the seismogenic volume spanning sea level to ~8 km below sea level with its core at 5–7 km (Firetto Carlino et al. 2025). The highest b-value of the three plumbing volumes (b=1.70, σ=0.04) reflects a heterogeneous, intensely fractured, fluid-intruded sector where magma degassing is enhanced. Temporal b-value changes in this zone have been shown to precede geochemical signals (CO₂ flux, ³He/⁴He ratios) by ~2 months, offering a medium-term eruption precursor. This zone corresponds to the "intermediate Etna magma storage" and "very high b-value zone" (1–6 km) of Firetto Carlino et al. (2022).',
     wx: -1.14, wy: -5.0, wz:  5.31, lx:  5,
   },
-  { name: 'Shallow Sill Complex',  kicker: 'Sill Network (5–8 km)',           theme: 'plumbing',
-    meta: '~5–8 km depth  ·  42 sill bodies',
-    description: 'Network of ~42 oblate magma bodies (sills) at 5–8 km depth feeding the melt shell and summit conduit from the NW and E flanks. Inferred from high-resolution seismic tomography and relocated microseismicity. The sills preferentially intrude along subhorizontal planes controlled by the layered crustal stratigraphy and the stress shadow of the edifice load.',
+  { name: 'Sill Complex',          kicker: 'Intermediate storage · 5–8 km',          theme: 'plumbing',
+    meta: '~5–8 km depth  ·  sill network',
+    description: 'Network of sub-horizontal magma bodies (sills) within the intermediate plumbing system at 5–8 km depth, forming part of the "multiple interconnected storage zones, occasionally activated before eruptive events" (Corsaro et al. 2024; Sparks et al. 2019; as cited in Firetto Carlino et al. 2025). This depth range also coincides with a high P-wave velocity body (HVB) in the central-southern sector of the volcano, interpreted as high-density cumulates fractionated by magma during its ascent and solidified at depth (Firetto Carlino et al. 2022).',
     wx: -4.0,  wy: -6.5, wz:  3.0,  lx:  6,
   },
-  { name: 'Mid-Crustal Lens',      kicker: 'Intermediate Reservoir',          theme: 'plumbing',
-    meta: '~8–13 km depth  ·  T ≈ 1,080 °C',
-    description: 'Major intermediate-depth magma body at ~8–13 km. Inferred from P-wave velocity perturbations and GPS surface deformation modelling. Likely the primary source reservoir for most historical eruptions — volume change here drives the kilometre-scale geodetic signal seen by InSAR during eruption cycles.',
+  { name: 'Deep Magma Storage',    kicker: 'Poorly degassed basalt · 7–12 km b.s.l.', theme: 'plumbing',
+    meta: '~7–12 km b.s.l.  ·  T ≈ 1,080 °C  ·  low seismicity',
+    description: 'The deep magma storage zone, constrained by volatile concentrations in melt inclusions (Corsaro et al. 2024) and gas geochemistry (Paonita et al. 2021) to 7–12 km below sea level. Seismic tomography reveals a low dVp region at these depths interpreted as a storage zone for volatile-rich, subaphyric, poorly differentiated basaltic magma (Lo Bue et al. 2024). The zone is characterised by low seismic productivity — magma is still poorly degassed here — making temporal b-value estimation unreliable. Magma batches rising from the mantle may temporarily accumulate here before transferring to the intermediate storage (Firetto Carlino et al. 2025).',
     wx: -8.67, wy:-10.0, wz:  2.34,
   },
-  { name: 'Deep Storage Reservoir', kicker: 'Lower Crustal Reservoir',        theme: 'plumbing',
-    meta: '~16–22 km depth  ·  T ≈ 1,050 °C',
-    description: 'Large tilted ellipsoidal body at ~16–22 km in the lower crust, near the crust–mantle boundary. Geochemical evidence (Sr, Nd, Pb isotopes; CO₂/SO₂ ratios) points to magma storage near the Moho where primitive basaltic magma from the mantle plume accumulates and differentiates. The tilted axis reflects structural control by the STEP fault geometry.',
+  { name: 'Deeper Plumbing System', kicker: 'Aseismic cusp · 10–25 km',              theme: 'plumbing',
+    meta: '~10–25 km depth  ·  partially molten  ·  aseismic',
+    description: 'From ~30 km up to ~10 km depth, an "aseismic cusp" occupies the central part of the volcano, narrowing upward toward the summit. Seismic tomographic studies report a low-velocity, triaxial-ellipsoid region from ~25–15 km, passing upward to ~10 km as a narrow high P-wave velocity body (Patanè et al. 2011; Lo Bue et al. 2024). Firetto Carlino et al. (2022) interpret this aseismic cusp as the expression of the partially molten "deeper Etna plumbing system", where deformation occurs aseismically, constrained to the NW by the underthrusting Hyblean foreland slab. It forms the critical conduit between the mantle plume below and the deep magma storage above.',
     wx:-20.73, wy:-18.0, wz: -2.40,
   },
   // ── Mantle plume ─────────────────────────────────────────────────────────────
-  { name: 'Mantle Plume Head',     kicker: 'Moho Contact Disk',               theme: 'plumbing',
+  { name: 'Mantle Plume',          kicker: 'Moho spreading zone · ~25 km',           theme: 'plumbing',
     meta: '~25.5 km depth  ·  Moho boundary  ·  Ø ~32 km',
-    description: 'The ~32 km-diameter plume head at the Moho (~25.5 km depth), where ascending mantle-derived melt ponds beneath the lithosphere. The circular geometry reflects radial spreading of buoyant plume material against the base of the crust. Partial melt fraction here reaches 4–6%, directly feeding the deep storage reservoir above.',
+    description: 'The aseismic volume below the underthrusting Hyblean foreland units, interpreted as Etna\'s mantle plume source (Firetto Carlino et al. 2025). A discontinuity — likely a tectonic tear — in the foreland units facilitates the ascent of basaltic magma from the mantle. The spreading head at the Moho (~25.5 km) represents where rising plume material ponds beneath the lithosphere, with partial melt fractions of ~4–6%. Ascending magma directly pushes on the bounding slab, sometimes triggering deep earthquakes (Parmentelli-Ragalna cluster; Firetto Carlino et al. 2022).',
     wx:-23.95, wy:-35.39, wz: -2.62,
   },
-  { name: 'Mantle Plume Body',     kicker: 'Asthenospheric Upwelling',        theme: 'plumbing',
-    meta: '~25.5–80 km depth  ·  32° NW tilt',
-    description: 'The widening flare of the asthenospheric upwelling where the cylindrical stem transitions to the spreading head at the Moho. The ~32° NW tilt mirrors the dip of the subducting Ionian slab and the slab window geometry. Temperatures in the rising plume exceed 1,300 °C, driving partial melting at the Moho (~25.5 km).',
+  { name: 'Mantle Plume',          kicker: 'Asthenospheric upwelling',               theme: 'plumbing', noLabel: true,
+    meta: '~25–60 km depth  ·  32° NW tilt  ·  T > 1,300 °C',
+    description: 'The asthenospheric upwelling component of Etna\'s mantle plume. The ~32° NW tilt mirrors the dip of the underthrusting Hyblean foreland slab and the geometry of the associated slab window. Temperatures exceed 1,300 °C, driving partial melting at the Moho. The aseismic character reflects dominantly plastic deformation in hot, partially molten rock — deformation occurs aseismically throughout the plume volume (Firetto Carlino et al. 2022, 2025).',
     wx:-22.49, wy:-40.5, wz:  0.21, lx: -8,
   },
-  { name: 'Mantle Plume Stem',     kicker: 'Deep Mantle Conduit',             theme: 'plumbing',
-    meta: '>40 km depth  ·  Ø ~4 km  ·  Vertical',
-    description: 'Deep vertical conduit in the upper mantle (>40 km depth) feeding the asthenospheric upwelling. The ~4 km radius is consistent with geophysical and geodynamic models of Etna\'s mantle source. The absence of a subducting slab to the west (the slab window) allows this material to rise directly from depth without lateral deflection.',
+  { name: 'Mantle Plume',          kicker: 'Upper mantle conduit',                   theme: 'plumbing', noLabel: true,
+    meta: '>40 km depth  ·  Ø ~4 km',
+    description: 'Deep conduit in the upper mantle (>40 km depth) feeding the asthenospheric upwelling. Etna\'s basaltic volcanism in the collisional geodynamic context of the African-European convergence is atypical — its origin remains debated. The STEP fault (Subduction-Transform Edge Propagator) at the western boundary of the Ionian slab creates a slab window through which sub-slab asthenospheric mantle flows upward, driving Etna\'s OIB-like, strongly alkalic volcanism (Firetto Carlino et al. 2022, 2025).',
     wx:-21.02, wy:-60.0, wz:  3.03,
   },
   // ── Slabs ────────────────────────────────────────────────────────────────────
@@ -3364,58 +3372,58 @@ const PLUMBING_POIS = [
     description: 'The Subduction-Transform Edge Propagator — the lateral slab tear at the western boundary of the Ionian slab. As the Calabrian slab rolls back eastward, this tear propagates southward, creating a slab window. Sub-slab asthenospheric mantle flows around the slab edge and upwells through this window, driving Etna\'s strongly alkalic, OIB-like volcanism.',
     wx: 40.0, wy:-42.5, wz:  3.64, lx: -6,
   },
-  { name: 'Sicilian Thrust Slab',  kicker: 'Hyblean Carbonate Platform',      theme: 'slab',
-    meta: 'African foreland  ·  NW underthrusting  ·  Dip 32°',
-    description: 'The African continental platform underthrusting the Apennine-Maghrebian thrust belt from the south. Composed of Hyblean carbonate platform limestones and early Miocene calcarenites, explaining its lighter colour. The thrust front influences the regional stress field and seismicity below Etna\'s southern flank.',
+  { name: 'Hyblean Foreland Slab', kicker: 'NW-underthrusting carbonate platform', theme: 'slab',
+    meta: 'African foreland  ·  NW underthrusting  ·  b ≈ 1.00  ·  Dip 32°',
+    description: 'The African continental platform underthrusting the Apennine-Maghrebian thrust belt from the SE — the "NW sinking seismogenic volume" with b ≈ 1.00 (σ=0.03), typical of a purely tectonic environment (Firetto Carlino et al. 2025). Composed of Hyblean carbonate succession (limestones, calcarenites), this rigid slab forms a mechanical boundary that constrains the deeper Etna plumbing system to the NW, favouring conveyance of magma toward the present-day central volcano (Firetto Carlino et al. 2022). A tectonic tear in the foreland units facilitates basaltic magma ascent from the mantle plume below (Firetto Carlino et al. 2025).',
     wx:-10.0, wy:-19.0, wz: 38.0,
   },
 ];
 
+let _selectedPlumbingLabel = null; // entry in _plumbingLabelData that is currently selected
+
 function buildPlumbingLabels() {
+  // Remove old Three.js group and old DOM labels
   if (_plumbingLabelGroup) scene.remove(_plumbingLabelGroup);
+  _plumbingLabelData.forEach(e => e.el?.remove());
   _plumbingLabelData.length        = 0;
   _plumbingLabelInteractives.length = 0;
 
   const group  = new THREE.Group();
-  const hitGeo = new THREE.SphereGeometry(3.5, 10, 10);
+  const hitGeo = new THREE.SphereGeometry(2.0, 10, 10);
+  const overlay = document.getElementById('label-overlay');
 
   for (const poi of PLUMBING_POIS) {
-    const anchor    = new THREE.Vector3(poi.wx, poi.wy, poi.wz);
-    const spritePos = new THREE.Vector3(
-      poi.wx + (poi.lx || 0),
-      poi.wy + 4,
-      poi.wz + (poi.lz || 0),
-    );
+    const anchor = new THREE.Vector3(poi.wx, poi.wy, poi.wz);
 
-    // Invisible hit sphere for click raycasting — sits at the 3D feature centre
+    // Invisible hit sphere — raycaster-hittable for click detection
     const hit = new THREE.Mesh(
       hitGeo,
-      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthTest: true, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthTest: false, depthWrite: false }),
     );
     hit.position.copy(anchor);
     hit.userData.feature = poi;
     group.add(hit);
     _plumbingLabelInteractives.push(hit);
 
-    // Pill sprite — depthTest: false so it shows through terrain
-    const { texture, width, height } = makeLabelTexture(poi.name, poi.theme ?? 'plumbing');
-    const spriteMat = new THREE.SpriteMaterial({
-      map: texture, transparent: true, opacity: 0.88,
-      depthTest: false, depthWrite: false,
-    });
-    const sprite = new THREE.Sprite(spriteMat);
-    sprite.scale.set(
-      (width  / 200) * 0.85 * 10 * 1.5,
-      (height / 200) * 0.85 * 10 * 1.5,
-      1,
-    );
-    sprite.position.copy(spritePos);
-    sprite.renderOrder = 15;
-    sprite.userData.feature = poi;
-    group.add(sprite);
-    _plumbingLabelInteractives.push(sprite);
+    // DOM label — only for POIs without noLabel; hit sphere still created for all
+    let el = null;
+    if (!poi.noLabel && overlay) {
+      el = document.createElement('div');
+      el.className = 'plb-pin' + (poi.theme !== 'plumbing' ? ' ' + poi.theme : '');
+      el.textContent = poi.name;
+      el.style.display = 'none';
+      el.addEventListener('click', () => {
+        const isSel = _selectedPlumbingLabel === entry;
+        _plumbingLabelData.forEach(e => e.el?.classList.remove('is-selected'));
+        _selectedPlumbingLabel = isSel ? null : entry;
+        if (!isSel) el.classList.add('is-selected');
+        showFeaturePopup(poi);
+      });
+      overlay.appendChild(el);
+    }
 
-    _plumbingLabelData.push({ hit, sprite, anchor, poi });
+    const entry = { hit, el, anchor, poi };
+    _plumbingLabelData.push(entry);
   }
 
   group.visible = false;
@@ -3423,18 +3431,73 @@ function buildPlumbingLabels() {
   _plumbingLabelGroup = group;
 }
 
-// Show/hide individual entries based on cross-section clip plane and plumbing-on state.
-// Call from _setPlumbing() and updateClipPlanes() to keep visibility in sync.
 function updatePlumbingLabelVisibility(plumbingOn) {
   if (!_plumbingLabelGroup) return;
   const on = plumbingOn ?? !!(sicilianThrustSlab?.visible);
   _plumbingLabelGroup.visible = on;
-  if (!on) return;
+  if (!on) _plumbingLabelData.forEach(e => { if (e.el) e.el.style.display = 'none'; });
+}
+
+const _plbNdcV = new THREE.Vector3();
+const _plbDir  = new THREE.Vector3();
+const _plbRay  = new THREE.Raycaster();
+
+// Returns true if a solid surface (terrain, domain wall, or cross-section cap)
+// lies between the camera and the label anchor.
+function _plbOccluded(anchor, cam) {
+  _plbDir.subVectors(anchor, cam.position);
+  const dist = _plbDir.length();
+  if (dist < 0.001) return false;
+  _plbRay.set(cam.position, _plbDir.divideScalar(dist));
+  _plbRay.near = 0;
+  _plbRay.far  = dist * 0.95; // margin avoids self-hit at the anchor
+
+  // Terrain surface — ignore hits that lie in the cross-section cut-away region
+  // (the clip plane removes that terrain visually, so it no longer occludes).
+  if (surfaceMesh) {
+    for (const h of _plbRay.intersectObject(surfaceMesh, false)) {
+      if (!crossSectionEnabled || !clipPlane || clipPlane.distanceToPoint(h.point) >= 0)
+        return true; // intact terrain blocks
+    }
+  }
+
+  // Domain walls + floor + cross-section cap face.
+  const wallObjs = [];
+  if (domainBox?.visible)        wallObjs.push(domainBox);
+  if (crossSectionCap?.visible)  wallObjs.push(crossSectionCap);
+  if (wallObjs.length) {
+    for (const h of _plbRay.intersectObjects(wallObjs, true)) {
+      // Cap face: skip if the label is on the CUT-AWAY side — the cross-section
+      // opening exposes it, so the cap doesn't physically occlude it.
+      if (h.object === crossSectionCap && crossSectionEnabled && clipPlane &&
+          clipPlane.distanceToPoint(anchor) < 0) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
+function updatePlumbingLabelPositions(cam) {
+  if (!_plumbingLabelGroup?.visible) {
+    _plumbingLabelData.forEach(e => { if (e.el) e.el.style.display = 'none'; });
+    return;
+  }
+  const w = renderer.domElement.clientWidth;
+  const h = renderer.domElement.clientHeight;
+
   for (const entry of _plumbingLabelData) {
-    const onVisibleSide = !crossSectionEnabled || !clipPlane ||
-      clipPlane.distanceToPoint(entry.anchor) >= 0;
-    entry.sprite.visible = onVisibleSide;
-    entry.hit.visible    = onVisibleSide;
+    if (!entry.el) continue;
+    // Fast-path: anchor within 5 km of terrain surface → always on/in terrain visually.
+    const surfY = _sampleHeight(entry.anchor.x, entry.anchor.z) * _vertExag;
+    if (entry.anchor.y > surfY - 5.0) { entry.el.style.display = 'none'; continue; }
+    // Frustum
+    _plbNdcV.copy(entry.anchor).project(cam);
+    if (_plbNdcV.z > 1) { entry.el.style.display = 'none'; continue; }
+    // Raycast occlusion: terrain + walls + cap
+    if (_plbOccluded(entry.anchor, cam)) { entry.el.style.display = 'none'; continue; }
+    entry.el.style.display = '';
+    entry.el.style.left = ((_plbNdcV.x *  0.5 + 0.5) * w) + 'px';
+    entry.el.style.top  = ((_plbNdcV.y * -0.5 + 0.5) * h) + 'px';
   }
 }
 
@@ -3698,7 +3761,14 @@ const _CAP_FRAG = `
       else if(mode==3){ c=cmapDensity( clamp((rho-2400.0)/500.0,0.0,1.0)); }
       else if(mode==4){ c=cmapYoungs(  clamp((E-2.0)/62.0,  0.0,1.0)); }
       else if(mode==5){ c=cmapPoisson( clamp((nu-0.18)/0.30, 0.0,1.0)); }
-      else             { c=cmapRegime(T); }
+      else {
+        // Near-surface rocks are brittle: atmospheric boundary + low confining pressure
+        // keep shallow rock brittle regardless of thermal halos from deep chambers.
+        // Fade halo contribution to zero at the surface; pure geotherm below 12 km.
+        float hFade = smoothstep(0.0, 12.0, d);
+        float Treg  = mix(ptGeotherm(d), T, hFade);
+        c = cmapRegime(Treg);
+      }
       fragColor=vec4(c,1.0);
       return;
     }
@@ -3745,12 +3815,12 @@ const _CAP_FRAG = `
     float lcNoise = fbm(lc_p * 1.8 + vec2(5.3, 2.1));
     vec3 lowerCrustColor = mix(vec3(0.36, 0.16, 0.07), vec3(0.48, 0.23, 0.09), lcNoise * 0.6 + 0.4);
 
-    // ── Zone 3: Thinned lithospheric mantle (−30 to −60) — heated, melt-permeated ──
+    // ── Zone 3: Thinned lithospheric mantle (−25.5 to −60) — cold base, dark ──
     vec2 um_p = vec2(vWorldPos.x * 0.028, vWorldPos.z * 0.028 + y * 0.018);
     float umNoise = fbm(um_p * 2.0 + vec2(3.1, 7.4));
-    vec3 thinnedLithoColor = mix(vec3(0.52, 0.20, 0.06), vec3(0.72, 0.34, 0.10), umNoise * 0.7 + 0.3);
+    vec3 thinnedLithoColor = mix(vec3(0.08, 0.03, 0.01), vec3(0.18, 0.06, 0.02), umNoise * 0.7 + 0.3);
     float meltStreak = pow(max(ridged(um_p * 3.5 + vec2(1.7, 4.2)) - 0.30, 0.0) * 1.8, 2.0);
-    thinnedLithoColor = mix(thinnedLithoColor, vec3(0.85, 0.40, 0.08), meltStreak * 0.35);
+    thinnedLithoColor = mix(thinnedLithoColor, vec3(0.28, 0.10, 0.02), meltStreak * 0.35);
 
     // ── Zone 4: Asthenosphere (y < −60) — convective mantle pattern, darkened ──
     float depth = -(y + 60.0) / 10.0;  // 0 at LAB base, positive deeper
@@ -3762,12 +3832,12 @@ const _CAP_FRAG = `
     float plumeHeads = pow(max(ridged(flow * 4.0) - 0.40, 0.0) * 2.5, 2.0);
     float coolDown   = smoothstep(0.50, 0.78, fbm(p * 3.2 + vec2(7.3, 1.9)));
 
-    vec3 deep   = vec3(0.07, 0.02, 0.01);
-    vec3 warm   = vec3(0.18, 0.05, 0.01);
-    vec3 hot    = vec3(0.36, 0.11, 0.02);
-    vec3 aHot   = vec3(0.52, 0.20, 0.04);
-    vec3 bright = vec3(0.66, 0.32, 0.08);
-    vec3 cool   = vec3(0.05, 0.01, 0.00);
+    vec3 deep   = vec3(0.50, 0.19, 0.05);
+    vec3 warm   = vec3(0.60, 0.25, 0.07);
+    vec3 hot    = vec3(0.68, 0.31, 0.09);
+    vec3 aHot   = vec3(0.74, 0.37, 0.11);
+    vec3 bright = vec3(0.84, 0.43, 0.13);
+    vec3 cool   = vec3(0.35, 0.13, 0.03);
 
     vec3 mantleColor = mix(deep, warm, bulk);
     mantleColor = mix(mantleColor, hot,   plumeBands * 0.30 + plumeHeads * 0.15);
@@ -3813,11 +3883,11 @@ const _CAP_FRAG = `
       if(_sfGeo > 0.01){
         vec2 slP = vec2(vWorldPos.x*0.045, vWorldPos.y*0.040);
         float slN = fbm(slP + vec2(8.4, 3.7));
-        vec3 slabColor = mix(vec3(0.28,0.13,0.05), vec3(0.40,0.19,0.07), slN*0.6 + 0.2);
-        // Thin oceanic-crust cap — slightly lighter brown near slab top surface
+        vec3 slabColor = mix(vec3(0.38,0.28,0.16), vec3(0.50,0.37,0.21), slN*0.6 + 0.2);
+        // Thin oceanic-crust cap — slightly lighter near slab top surface
         float sdRaw = (-22.0*(vWorldPos.x-50.0)+15.0*(vWorldPos.y+28.0))/26.63;
         float crustBand = smoothstep(-9.0, -2.0, sdRaw);
-        slabColor = mix(slabColor, vec3(0.44,0.22,0.09), crustBand * 0.5);
+        slabColor = mix(slabColor, vec3(0.54,0.41,0.23), crustBand * 0.5);
         col = mix(col, slabColor, _sfGeo);
       }
     }
@@ -3849,6 +3919,7 @@ function buildCrossSectionCap() {
   crossSectionCap = new THREE.Mesh(capGeo, _makeCapShaderMat());
   crossSectionCap.visible = false;
   crossSectionCap.renderOrder = 6;  // above all slab tear overlays (max rO=5)
+  crossSectionCap.userData = { ptContext: 'CROSS-SECTION FACE' };
   scene.add(crossSectionCap);
   _domainFaceMeshes.push(crossSectionCap);
   _domainFaceMats.push(crossSectionCap.material);
@@ -3903,9 +3974,11 @@ function _rebuildCapGeometry() {
     // Drop each point to BOTTOM — vertical fill quad.
     const [Ax, Ay, Az] = crosses[0];
     const [Bx, By, Bz] = crosses[1];
+    const AyS = Ay * _vertExag;
+    const ByS = By * _vertExag;
     verts.push(
-      Ax, Ay,     Az,   Bx, By,     Bz,   Bx, BOTTOM, Bz,
-      Ax, Ay,     Az,   Bx, BOTTOM, Bz,   Ax, BOTTOM, Az,
+      Ax, AyS,    Az,   Bx, ByS,    Bz,   Bx, BOTTOM, Bz,
+      Ax, AyS,    Az,   Bx, BOTTOM, Bz,   Ax, BOTTOM, Az,
     );
   }
 
@@ -4254,11 +4327,12 @@ function _subPoisson(d) {
   return 0.290;
 }
 
+// Thresholds match cmapRegime() smoothstep midpoints: (270+330)/2, (520+580)/2 …
 const _REGIME_DEFS = [
-  [ 350, 'Brittle',          '#ff6b6b', 'Elastic–brittle; seismogenic zone'        ],
-  [ 600, 'Brittle–Ductile',  '#ffb347', 'Mixed mode; fault creep begins'           ],
-  [1000, 'Viscoelastic',     '#76c8e8', 'Ductile flow; creep-dominated deformation'],
-  [1200, 'Partial Melt',     '#ff8c00', 'Viscoelastic + partial melt; LAB zone'    ],
+  [ 300, 'Brittle',          '#ff6b6b', 'Elastic–brittle; seismogenic zone'        ],
+  [ 550, 'Brittle–Ductile',  '#ffb347', 'Mixed mode; fault creep begins'           ],
+  [ 900, 'Viscoelastic',     '#76c8e8', 'Ductile flow; creep-dominated deformation'],
+  [1100, 'Partial Melt',     '#ff8c00', 'Viscoelastic + partial melt; LAB zone'    ],
   [Infinity, 'Asthenosphere','#ff4500', 'Convective mantle; plastic flow'          ],
 ];
 
@@ -4302,11 +4376,29 @@ function updateContextHUD() {
 
   let hitPoint = null;
   let hitIsTerrain = false;
+  let hitIsPlumbing = false;
+  let _hitContextLabel = null;
+
   if (_mouseActive && surfaceMesh && surfaceMesh.visible) {
     const hits = raycaster.intersectObject(surfaceMesh);
     if (hits.length > 0 && !_isClipped(hits[0].point)) {
       hitPoint = hits[0].point;
       hitIsTerrain = true;
+    }
+  }
+
+  // Plumbing / chamber meshes — check before domain faces so hovering over a
+  // visible chamber or conduit takes priority over the cap face behind it.
+  if (!hitPoint && _mouseActive && chamberMeshes.length > 0) {
+    const visC = chamberMeshes.filter(m => m.visible);
+    if (visC.length) {
+      const ph = raycaster.intersectObjects(visC, false);
+      const vh = ph.find(h => !_isClipped(h.point));
+      if (vh) {
+        hitPoint = vh.point;
+        hitIsPlumbing = true;
+        _hitContextLabel = vh.object.userData.ptContext ?? 'PLUMBING SYSTEM';
+      }
     }
   }
 
@@ -4319,7 +4411,10 @@ function updateContextHUD() {
       // Iterate (not just [0]) — hidden-side walls are geometrically hit first
       // but rejected by _isClipped; the cap or visible-side wall follows.
       const vh = dh.find(h => !_isClipped(h.point));
-      if (vh) hitPoint = vh.point;
+      if (vh) {
+        hitPoint = vh.point;
+        _hitContextLabel = vh.object.userData.ptContext ?? 'SUBSURFACE MODEL';
+      }
     }
   }
 
@@ -4367,23 +4462,29 @@ function updateContextHUD() {
     if (_scContext) _scContext.textContent = 'ATMOS. EST.';
   }
 
-  // ── Subsurface conditions: geophysical model when hovering domain faces ──────
-  // Active when a domain face (not terrain surface) is under the cursor.
-  // hitPoint is already set by the domain-face pre-check above; reuse it directly
-  // to avoid a redundant raycast and so the clipped-hit iteration is consistent.
-  // _subMissFrames debounces so brief raycaster misses on mesh edges don't flicker.
+  // ── Subsurface conditions: geophysical model when hovering plumbing or domain faces ──────
+  // hitPoint set by terrain/plumbing/domain-face checks above; reuse directly.
+  // _subMissFrames debounces brief raycaster misses on mesh edges.
   {
     let freshHit = false;
     if (!hitIsTerrain && hitPoint && _mouseActive) {
       freshHit = true;
       _subMissFrames = 0;
       const pt = hitPoint;
-      // Full 3D physics: topographic overburden + chamber thermal superposition
+      // Full 3D physics: geotherm + slab + plume + 1/r chamber halos.
+      // For plumbing mesh surface hits the 1/r contribution ≈ ΔT at dN=1 → correct magmatic T.
       const props  = _ptPropsAtPoint(pt.x, pt.y, pt.z);
-      const regime = _subRegime(props.T);
-      if (_scTemp)     _scTemp.textContent     = props.inChamber ? `${Math.round(props.T)} °C  ·  MAGMA` : `${Math.round(props.T)} °C`;
+      // Mirror shader: near-surface regime uses pure geotherm; halo contribution fades in below 12 km.
+      // smoothstep(0, 12, dEff) — same formula as hFade in the cap fragment shader.
+      const _hfT  = Math.min(1, props.dEff / 12);
+      const _hf   = _hfT * _hfT * (3 - 2 * _hfT);
+      const _Treg = (1 - _hf) * _ptTemp(props.dEff) + _hf * props.T;
+      const regime = _subRegime(_Treg);
+      // isMagmatic: inside a chamber ellipsoid, OR on a plumbing mesh surface with T > 900°C
+      const isMagmatic = props.inChamber || (hitIsPlumbing && props.T > 900);
+      if (_scTemp)     _scTemp.textContent     = isMagmatic ? `${Math.round(props.T)} °C  ·  MAGMA` : `${Math.round(props.T)} °C`;
       if (_scPressure) _scPressure.textContent = `${props.P.toFixed(2)} GPa`;
-      if (_scContext)  _scContext.textContent  = props.inChamber ? 'CHAMBER INTERIOR' : 'SUBSURFACE MODEL';
+      if (_scContext)  _scContext.textContent  = _hitContextLabel ?? 'SUBSURFACE MODEL';
       if (_scDepthRow)   { _scDepthRow.style.display   = 'flex'; if (_scDepth)   _scDepth.textContent   = `${props.dEff.toFixed(1)} km`; }
       if (_scDensityRow) { _scDensityRow.style.display = 'flex'; if (_scDensity) _scDensity.textContent = `${props.rho} kg/m³`; }
       if (_scYoungsRow)  { _scYoungsRow.style.display  = 'flex'; if (_scYoungs)  _scYoungs.textContent  = `${props.E.toFixed(1)} GPa`; }
@@ -4466,9 +4567,23 @@ function setStatus(msg, isError = false) {
   el.classList.toggle('is-error', isError);
 }
 
+// Signal the transit page to crossfade once terrain is ready.
+// Mirrors the Mars viewer pattern — no in-viewer overlay, transit page is the loading screen.
+const _VL_START  = performance.now();
+const _VL_MIN_MS = 4500;
+
+function _dismissLoadingScreen() {
+  const elapsed = performance.now() - _VL_START;
+  const delay   = Math.max(0, _VL_MIN_MS - elapsed);
+  setTimeout(() => {
+    try { window.parent.postMessage('geoid-ready', '*'); } catch (_) {}
+  }, delay);
+}
+
 // ─── Panel collapse ───────────────────────────────────────────────────────────
 
-const isMobileLayout = () => window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+const isMobileLayout = () =>
+  window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 
 function openPanel() {
   const ui = document.getElementById('ui');
@@ -5079,6 +5194,14 @@ function setupUI() {
       const spinBtn = document.getElementById('spin-toggle');
       if (spinBtn) spinBtn.classList.toggle('is-active', spinEnabled);
     }
+
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !inInput) {
+      const tourToggle = document.getElementById('tour-mode-toggle');
+      if (tourToggle?.checked) {
+        e.preventDefault();
+        _cycleTour(e.key === 'ArrowLeft' ? -1 : 1);
+      }
+    }
   });
 
   // Basemap selector
@@ -5138,6 +5261,7 @@ function setupUI() {
     if (!featureSearchRes) return;
     featureSearchRes.querySelectorAll('.search-suggestion').forEach((btn, i) => {
       btn.classList.toggle('is-active', i === _activeSearchIndex);
+      if (i === _activeSearchIndex) btn.scrollIntoView({ block: 'nearest' });
     });
   }
 
@@ -5473,6 +5597,7 @@ function animate() {
 
   updateContextHUD();
   updateLabelPositions();
+  updatePlumbingLabelPositions(camera);
   if (etnaLabelLayer) {
     updateEtnaLabelVisibility(
       etnaLabelLayer.entries, camera, renderer,
@@ -6872,17 +6997,37 @@ function _onPointerUp(e) {
   if (tectonicFaultRoot?.visible && _faultRibbonGroup?.visible && _faultRibbonMeshes.length > 0) {
     const faultHits = clickRay.intersectObjects(_faultRibbonMeshes, false);
     if (faultHits.length > 0 && !_isClipped(faultHits[0].point)) {
-      const hitMesh = faultHits[0].object;
-      const feature = hitMesh.userData.feature;
-      if (feature) { _selectFaultMesh(hitMesh); showFeaturePopup(feature); return; }
+      // Block if terrain surface is closer than the fault ribbon hit
+      const terrainBlock = surfaceMesh ? clickRay.intersectObject(surfaceMesh, false) : [];
+      const terrainDist  = terrainBlock.length > 0 ? terrainBlock[0].distance : Infinity;
+      if (faultHits[0].distance < terrainDist) {
+        const hitMesh = faultHits[0].object;
+        const feature = hitMesh.userData.feature;
+        if (feature) { _selectFaultMesh(hitMesh); showFeaturePopup(feature); return; }
+      }
     }
   }
 
-  // Plumbing subsurface label click
+  // Plumbing subsurface label click (hit sphere) — opens popup; DOM label handles selection
   if (_plumbingLabelInteractives.length > 0) {
     const plumbHits = clickRay.intersectObjects(_plumbingLabelInteractives, false);
-    const phit = plumbHits.find(h => h.object.visible && h.object.userData.feature);
-    if (phit) { showFeaturePopup(phit.object.userData.feature); return; }
+    const phit = plumbHits.find(h => h.object.userData.feature);
+    if (phit) {
+      const entry = _plumbingLabelData.find(e => e.poi === phit.object.userData.feature);
+      if (entry) {
+        const isSel = _selectedPlumbingLabel === entry;
+        _plumbingLabelData.forEach(e => e.el?.classList.remove('is-selected'));
+        _selectedPlumbingLabel = isSel ? null : entry;
+        if (!isSel) entry.el?.classList.add('is-selected');
+      }
+      showFeaturePopup(phit.object.userData.feature);
+      return;
+    }
+  }
+  // Click landed elsewhere: clear selection
+  if (_selectedPlumbingLabel) {
+    _plumbingLabelData.forEach(e => e.el?.classList.remove('is-selected'));
+    _selectedPlumbingLabel = null;
   }
 
   // Core layer label click — mirrors Mars: raycaster.intersectObjects(cutawayResult.interactiveObjects)
