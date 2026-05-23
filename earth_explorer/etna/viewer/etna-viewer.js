@@ -4629,50 +4629,31 @@ function _blobToCanvas(blob) {
   });
 }
 
-async function fetchSatelliteTiles() {
-  const cols = SAT_X1 - SAT_X0 + 1; // 28
-  const rows = SAT_Y1 - SAT_Y0 + 1; // 30
-
-  // Composite all 840 individual Mercator tiles onto one canvas.
-  // Tiles are fetched in parallel batches so the browser connection limit
-  // doesn't serialise them. The SW caches each tile on first fetch, making
-  // all subsequent loads instant without touching the IDB blob.
-  const canvas = document.createElement('canvas');
-  canvas.width  = cols * 256;
-  canvas.height = rows * 256;
-  const ctx = canvas.getContext('2d');
-
-  const tiles = [];
-  for (let ty = SAT_Y0; ty <= SAT_Y1; ty++)
-    for (let tx = SAT_X0; tx <= SAT_X1; tx++)
-      tiles.push({ tx, ty });
-
-  const BATCH = 32;
-  const total  = tiles.length;
-  for (let i = 0; i < total; i += BATCH) {
-    setStatus(`Loading satellite imagery… (${Math.min(i + BATCH, total)}/${total} tiles)`);
-    await Promise.all(tiles.slice(i, i + BATCH).map(({ tx, ty }) =>
-      new Promise(resolve => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload  = () => { ctx.drawImage(img, (tx - SAT_X0) * 256, (ty - SAT_Y0) * 256, 256, 256); resolve(); };
-        img.onerror = resolve; // skip missing tiles rather than aborting
-        img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${SAT_Z}/${ty}/${tx}`;
-      })
-    ));
-  }
-
-  // Downsample the composite if it exceeds the GPU's texture limit.
-  const maxTex = renderer.capabilities.maxTextureSize;
-  if (canvas.width > maxTex || canvas.height > maxTex) {
-    const scale = Math.min(maxTex / canvas.width, maxTex / canvas.height);
-    const dc = document.createElement('canvas');
-    dc.width  = Math.round(canvas.width  * scale);
-    dc.height = Math.round(canvas.height * scale);
-    dc.getContext('2d').drawImage(canvas, 0, 0, dc.width, dc.height);
-    return dc;
-  }
-  return canvas;
+function fetchSatelliteTiles() {
+  // Load the pre-generated composite served as a static asset.
+  // The SW caches it after the first fetch — all subsequent loads are instant.
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      // Downsample to GPU texture limit if needed (rare on desktop).
+      const maxTex = renderer.capabilities.maxTextureSize;
+      if (img.naturalWidth <= maxTex && img.naturalHeight <= maxTex) {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img, 0, 0);
+        resolve(c);
+      } else {
+        const scale = Math.min(maxTex / img.naturalWidth, maxTex / img.naturalHeight);
+        const c = document.createElement('canvas');
+        c.width  = Math.round(img.naturalWidth  * scale);
+        c.height = Math.round(img.naturalHeight * scale);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve(c);
+      }
+    };
+    img.onerror = reject;
+    img.src = './assets/satellite.jpg';
+  });
 }
 
 async function applyBasemap(mode) {
