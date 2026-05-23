@@ -129,9 +129,9 @@ const SAT_GRID_LAT_S = _tileToLat(SAT_Y1 + 1);
 const _IDB_NAME  = 'etna-viewer-cache';
 const _IDB_STORE = 'data';
 // Bump suffix when STL file or vertex transform logic changes
-const GEOM_CACHE_KEY = 'etna-geom-v1';
+const GEOM_CACHE_KEY = 'etna-geom-v2';
 // Encodes tile params — auto-invalidates if grid constants change
-const SAT_CACHE_KEY  = `etna-sat-z${SAT_Z}-${SAT_X0}-${SAT_X1}-${SAT_Y0}-${SAT_Y1}`;
+const SAT_CACHE_KEY  = `etna-sat-tiles-z${SAT_Z}-${SAT_X0}-${SAT_X1}-${SAT_Y0}-${SAT_Y1}`;
 
 function _openIDB() {
   return new Promise((res, rej) => {
@@ -747,13 +747,21 @@ async function loadSurface() {
 
     const uvArr = new Float32Array(pos.count * 2);
     const lonSpan = SAT_GRID_LON_E - SAT_GRID_LON_W;
-    const latSpan = SAT_GRID_LAT_N - SAT_GRID_LAT_S;
+    const tileCols = SAT_X1 + 1 - SAT_X0;
+    const tileRows = SAT_Y1 + 1 - SAT_Y0;
+    const pow2Z    = Math.pow(2, SAT_Z);
     for (let i = 0; i < pos.count; i++) {
-      const X = pos.getX(i), Z = pos.getZ(i);
-      const lon = SAT_LON_W + (X + 50) / 100 * (SAT_LON_E - SAT_LON_W);
-      const lat = SAT_LAT_N + (Z + 50) / 100 * (SAT_LAT_S - SAT_LAT_N);
+      const X      = pos.getX(i);
+      const zLocal = pos.getZ(i) - GEO_Z_OFFSET; // strip terrain offset → true [-50,+50] northing
+      const lon    = SAT_LON_W + (X + 50) / 100 * (SAT_LON_E - SAT_LON_W);
+      const lat    = SAT_LAT_N + (zLocal + 50) / 100 * (SAT_LAT_S - SAT_LAT_N);
+      // U: linear in longitude (Mercator X = longitude, so equirectangular formula is exact)
       uvArr[i * 2]     = (lon - SAT_GRID_LON_W) / lonSpan;
-      uvArr[i * 2 + 1] = (SAT_GRID_LAT_N - lat) / latSpan; // V=0 at north
+      // V: Mercator Y normalised to tile grid — matches the composited tile canvas
+      const latRad     = lat * Math.PI / 180;
+      const mercN      = Math.log(Math.tan(Math.PI / 4 + latRad / 2));
+      const tileY      = (1 - mercN / Math.PI) / 2 * pow2Z;
+      uvArr[i * 2 + 1] = (tileY - SAT_Y0) / tileRows;
     }
     geo.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
     geo.computeVertexNormals();
@@ -4622,19 +4630,49 @@ function _blobToCanvas(blob) {
 }
 
 async function fetchSatelliteTiles() {
-  const bbox = `${SAT_GRID_LON_W.toFixed(6)},${SAT_GRID_LAT_S.toFixed(6)},${SAT_GRID_LON_E.toFixed(6)},${SAT_GRID_LAT_N.toFixed(6)}`;
   const cols = SAT_X1 - SAT_X0 + 1; // 28
   const rows = SAT_Y1 - SAT_Y0 + 1; // 30
-  // Cap to the device's actual WebGL texture limit — mobile GPUs are often 2048.
-  const maxTex = renderer.capabilities.maxTextureSize;
-  const scale  = Math.min(maxTex / (cols * 256), maxTex / (rows * 256));
-  const w = Math.round(cols * 256 * scale);
-  const h = Math.round(rows * 256 * scale);
-  const url = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bbox}&bboxSR=4326&size=${w},${h}&imageSR=4326&format=jpg&f=image`;
 
-  const resp = await fetch(url, { mode: 'cors' });
-  if (!resp.ok) throw new Error(`Satellite export fetch failed: ${resp.status}`);
-  return _blobToCanvas(await resp.blob());
+  // Composite all 840 individual Mercator tiles onto one canvas.
+  // Tiles are fetched in parallel batches so the browser connection limit
+  // doesn't serialise them. The SW caches each tile on first fetch, making
+  // all subsequent loads instant without touching the IDB blob.
+  const canvas = document.createElement('canvas');
+  canvas.width  = cols * 256;
+  canvas.height = rows * 256;
+  const ctx = canvas.getContext('2d');
+
+  const tiles = [];
+  for (let ty = SAT_Y0; ty <= SAT_Y1; ty++)
+    for (let tx = SAT_X0; tx <= SAT_X1; tx++)
+      tiles.push({ tx, ty });
+
+  const BATCH = 32;
+  const total  = tiles.length;
+  for (let i = 0; i < total; i += BATCH) {
+    setStatus(`Loading satellite imagery… (${Math.min(i + BATCH, total)}/${total} tiles)`);
+    await Promise.all(tiles.slice(i, i + BATCH).map(({ tx, ty }) =>
+      new Promise(resolve => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload  = () => { ctx.drawImage(img, (tx - SAT_X0) * 256, (ty - SAT_Y0) * 256, 256, 256); resolve(); };
+        img.onerror = resolve; // skip missing tiles rather than aborting
+        img.src = `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${SAT_Z}/${ty}/${tx}`;
+      })
+    ));
+  }
+
+  // Downsample the composite if it exceeds the GPU's texture limit.
+  const maxTex = renderer.capabilities.maxTextureSize;
+  if (canvas.width > maxTex || canvas.height > maxTex) {
+    const scale = Math.min(maxTex / canvas.width, maxTex / canvas.height);
+    const dc = document.createElement('canvas');
+    dc.width  = Math.round(canvas.width  * scale);
+    dc.height = Math.round(canvas.height * scale);
+    dc.getContext('2d').drawImage(canvas, 0, 0, dc.width, dc.height);
+    return dc;
+  }
+  return canvas;
 }
 
 async function applyBasemap(mode) {
