@@ -6180,6 +6180,7 @@ function hideFeaturePopup() {
   _seismicSelectionIdx = -1;
   const _re = _seismicRingEl(); if (_re) _re.hidden = true;
   _clearFaultSelection();
+  _setCoreSelection(null);  // clear core-layer highlight whenever popup is dismissed
 }
 
 // ─── Tour mode ────────────────────────────────────────────────────────────────
@@ -6964,6 +6965,7 @@ function _onPointerUp(e) {
   if (hazardGroup && hazardGroup.visible && _hazardObjects.length > 0) {
     const hazardHits = clickRay.intersectObjects(_hazardObjects, false);
     if (hazardHits.length > 0 && hazardHits[0].object.userData.hazardZone && !_isClipped(hazardHits[0].point)) {
+      _setCoreSelection(null);
       showHazardPopup(hazardHits[0].object.userData.hazardZone);
       return;
     }
@@ -6973,6 +6975,7 @@ function _onPointerUp(e) {
   if (seismicMesh && seismicMesh.visible) {
     const seismicHits = clickRay.intersectObject(seismicMesh);
     if (seismicHits.length > 0 && !_isClipped(seismicHits[0].point)) {
+      _setCoreSelection(null);
       showSeismicPopup(seismicHits[0].instanceId);
       return;
     }
@@ -6988,7 +6991,7 @@ function _onPointerUp(e) {
       if (faultHits[0].distance < terrainDist) {
         const hitMesh = faultHits[0].object;
         const feature = hitMesh.userData.feature;
-        if (feature) { _selectFaultMesh(hitMesh); showFeaturePopup(feature); return; }
+        if (feature) { _setCoreSelection(null); _selectFaultMesh(hitMesh); showFeaturePopup(feature); return; }
       }
     }
   }
@@ -7007,6 +7010,7 @@ function _onPointerUp(e) {
         _selectedPlumbingLabel = isSel ? null : entry;
         if (!isSel) entry.el?.classList.add('is-selected');
       }
+      _setCoreSelection(null);
       showFeaturePopup(phit.object.userData.feature);
       return;
     }
@@ -7033,6 +7037,7 @@ function _onPointerUp(e) {
   if (etnaLabelLayer) {
     const labelHits = clickRay.intersectObjects(etnaLabelLayer.interactiveObjects, false);
     if (labelHits.length > 0 && labelHits[0].object.userData.feature && !_isClipped(labelHits[0].object.position)) {
+      _setCoreSelection(null);
       showFeaturePopup(labelHits[0].object.userData.feature);
       return;
     }
@@ -7049,6 +7054,7 @@ function _onPointerUp(e) {
       if (etnaGeologyMesh?.visible && _ingvGeoFeats) {
         for (let i = _ingvGeoFeats.length - 1; i >= 0; i--) {
           if (_pointInPolygonRings(lon, lat, _ingvGeoFeats[i][9])) {
+            _setCoreSelection(null);
             showGeologyPopup(_ingvGeoFeats[i], 'ingv_wms');
             return;
           }
@@ -7059,6 +7065,7 @@ function _onPointerUp(e) {
       if (regionalGeologyMesh?.visible && _egdiGeoFeats) {
         for (let i = 0; i < _egdiGeoFeats.length; i++) {
           if (_pointInPolygonRings(lon, lat, _egdiGeoFeats[i][6])) {
+            _setCoreSelection(null);
             showGeologyPopup(_egdiGeoFeats[i], 'egdi');
             return;
           }
