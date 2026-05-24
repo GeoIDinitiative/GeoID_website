@@ -131,7 +131,7 @@ export const ETNA_POIS = [
   {
     name: 'Linguaglossa', kicker: 'Town', theme: 'settlement', x: 12.2, z: -9.8, lod: 3,
     meta: '37.84°N  15.14°E  ·  550 m asl',
-    description: "NE flank town built on ancient lavas. Northern gateway to the Piano Provenzana ski area. The 2002 lava flows reached within 6 km to the west before stalling.",
+    description: "Town on Etna's northern slopes, built on ancient lava flows. The principal gateway to the Piano Provenzana ski station and upper summit trails. The 2002 lava flows came within 6 km before stalling.",
   },
   {
     name: 'Adrano', kicker: 'Town', theme: 'settlement', x: -14.8, z: 10.4, lod: 3,
@@ -170,12 +170,12 @@ export const ETNA_POIS = [
   {
     name: 'Bocca Nuova', kicker: 'Summit Crater', theme: 'vent', x: -0.93, z: 0.66, lod: 1,
     meta: '37.751°N  14.992°E  ·  3,380 m asl',
-    description: "Summit crater formed 1968 as a collapse pit at the W rim of Voragine. Twin to Voragine in eruption chronology — they share a common magma connection. Shows periodic Strombolian activity, ash emissions, and intracrater lava ponding.",
+    description: "Summit crater that opened in June 1968 within the Central Crater, immediately west of Voragine. A narrow dividing ridge — periodically breached — separates the two vents, which share a common magma supply and closely coupled eruption cycles. Shows periodic Strombolian activity, ash emissions, and intracrater lava ponding.",
   },
   {
     name: 'NE Crater', kicker: 'Summit Crater', theme: 'vent', x: -0.55, z: 0.24, lod: 1,
     meta: '37.755°N  14.997°E  ·  3,329 m asl',
-    description: "Highest of the four summit craters — at 3,329 m, marking the official summit elevation. Most active in the 1970s–90s, producing frequent lava fountaining and building the current cone. Activity has significantly declined since 2001 as the SE Crater became the dominant vent.",
+    description: "Etna's most active summit crater through the 1970s–90s, producing frequent lava fountaining that built the current cone to ~3,329 m — long cited as the official summit elevation. Since 2001 activity transferred progressively to the SE Crater complex. The New SE Crater surpassed it in height during the 2011–13 rapid growth phase.",
   },
   {
     name: 'SE Crater', kicker: 'Summit Crater', theme: 'vent', x: -0.33, z: 1.05, lod: 1,
@@ -246,7 +246,7 @@ export const ETNA_POIS = [
   {
     name: 'Taormina', kicker: 'Historic City', theme: 'settlement', x: 25.0, z: -10.7, lod: 1,
     meta: '37.852°N  15.288°E  ·  204 m asl',
-    description: "One of Sicily's most celebrated hilltop cities, perched on the cliffs of Monte Tauro overlooking the Ionian Sea. The 3rd-century BC Greek Theatre commands a panoramic view of Etna — one of the most photographed scenes in the Mediterranean. The town survived successive Greek, Roman, Arab, Norman, and Spanish occupations and retains a remarkably intact historic centre. The Ionian coastline below marks the surface expression of the Malta Escarpment — the tectonic boundary between Africa and Europe.",
+    description: "One of Sicily's most celebrated hilltop cities, perched on the cliffs of Monte Tauro overlooking the Ionian Sea. The 3rd-century BC Greek Theatre commands a panoramic view of Etna — one of the most photographed scenes in the Mediterranean. The town survived successive Greek, Roman, Arab, Norman, and Spanish occupations and retains a remarkably intact historic centre.",
   },
   {
     name: 'Acireale', kicker: 'City', theme: 'settlement', x: 14.2, z: 15.9, lod: 2,
@@ -351,16 +351,16 @@ export const ETNA_POIS = [
     description: "SE flank seismogenic fault associated with a ML 3.5–4.5 swarm in December 1984 and recurrent deformation events coinciding with eruption phases. Runs parallel to the Acicatena and Moscarello faults — all part of the kinematic family of structures accommodating the gravitational eastward sliding of Etna's edifice. Ground deformation interferometry (InSAR) shows a distinct displacement gradient across this structure during intrusive events.",
   },
   {
-    name: "Sant'Leonardello Fault", kicker: 'Creep Fault', theme: 'fault', x: 15.8, z: 7.8, lod: 5,
-    meta: 'SE flank  ·  NNW-trending',
-    description: "SW flank fault characterised by predominantly aseismic creep, linking the Ragalna Fault north of the summit to the Simeto valley structural boundary in the south. The absence of large earthquakes here reflects the fault's ability to release strain continuously through slow aseismic sliding rather than brittle failure. Ground deformation data show measurable surface displacement rates of ~5 mm/yr, monitored by the INGV GNSS network.",
+    name: "Sant'Leonardello Fault", kicker: 'Active Fault', theme: 'fault', x: 15.8, z: 7.8, lod: 5,
+    meta: 'E flank  ·  NNW-trending  ·  Timpe system',
+    description: "Part of the eastern Timpe fault system, the Sant'Leonardello Fault bounds a structural graben on Etna's lower eastern flank. Associated with the seaward gravitational spreading of the volcanic edifice above weak Pleistocene marine clay substrata. Exhibits a combination of aseismic creep and episodic seismic swarms, monitored continuously by INGV for indicators of edifice instability.",
   },
 
   // ── Additional vent structures ────────────────────────────────────────────────
   {
     name: 'Valle del Leone', kicker: 'Structural Depression', theme: 'general', x: 1.1, z: -0.4, lod: 2,
-    meta: 'NW flank  ·  ~1,600–2,200 m asl  ·  NW rift zone',
-    description: "Structural depression on Etna's NW flank, formed by down-dropping along the NW rift zone over the past few thousand years. Channelled lava flows during the 1981 and 2002 eruptions. The 1981 eruption produced exceptionally fast-moving lava that descended through here at up to 30 m/min, covering 8 km in approximately 6 hours. Now a popular trekking corridor on the NW summit approach.",
+    meta: 'N flank  ·  ~1,600–2,200 m asl  ·  NW rift zone',
+    description: "Elongated depression on Etna's upper northern flank, formed by down-dropping along rift zone structures over the past few thousand years. Channelled lava flows during the 1981 and 2002 eruptions — the 1981 event produced exceptionally fast-moving lava at up to 30 m/min, covering 8 km in approximately 6 hours. Now a popular trekking corridor on the northern summit approach.",
   },
   {
     name: 'Monti Sartorius', kicker: 'Parasitic Cones', theme: 'vent', x: 4.8, z: -2.1, lod: 2,
@@ -464,7 +464,7 @@ export const ETNA_POIS = [
   {
     name: 'Monte Zoccolaro', kicker: 'Valle del Bove Rim', theme: 'general', x: 4.7, z: 4.9, lod: 4,
     meta: '37.711°N  15.056°E  ·  NE rim  ·  ~1,720 m asl',
-    description: "Prominent peak on the NE rim of the Valle del Bove at 1,720 m. A recognised viewpoint on the E flank trekking circuit offering panoramic views into the 8 km-wide depression and across the Ionian coastline. During SE crater eruptions, lava flows descending into the Valle del Bove can be observed from here. The rim exposes a partial cross-section of stacked Mongibello-age lavas and scoria beds representing ~10,000 years of E flank accumulation.",
+    description: "Prominent peak on the southern rim of the Valle del Bove at 1,720 m. A recognised viewpoint on the eastern flank trekking circuit offering panoramic views into the 8 km-wide depression and across the Ionian coastline. During SE crater eruptions, lava flows descending into the Valle del Bove can be observed from here. The rim exposes a partial cross-section of stacked Mongibello-age lavas and scoria beds representing ~10,000 years of flank accumulation.",
   },
   {
     name: "Schiena dell'Asino", kicker: 'Valle del Bove Ridge', theme: 'general', x: 3.5, z: 5.2, lod: 4,
@@ -479,12 +479,12 @@ export const ETNA_POIS = [
   {
     name: 'Monte Simone', kicker: 'Valle del Bove Ridge', theme: 'general', x: 3.0, z: 0.3, lod: 5,
     meta: '37.752°N  15.037°E  ·  E flank  ·  ~1,580 m asl',
-    description: "Secondary S rim feature of the Valle del Bove between Punta Lucia and Schiena dell'Asino. The 1985 SE flank lava flows were partly deflected by this ridge. Forms part of the continuous S rim crest separating the Valle del Bove floor from the Zafferana Etnea agricultural plain on the lower SE flank. The ridge and surroundings fall within the Parco dell'Etna protected natural area.",
+    description: "Ridge on the inner rim of the Valle del Bove, where the summit cone's eastern flank meets the upper walls of the depression. Separates lava flow pathways descending from the SE Crater complex toward the depression floor. The ridge and surroundings fall within the Parco dell'Etna protected natural area.",
   },
   {
     name: 'Serra delle Concazze', kicker: 'Geological Section', theme: 'general', x: 3.5, z: -0.1, lod: 5,
     meta: '37.756°N  15.043°E  ·  E flank  ·  ~1,500 m asl',
-    description: "N flank cliff exposure where layered basaltic lava flows and intercalated scoria beds provide a continuous stratigraphic section of N flank accumulation over several thousand years. Used by volcanologists to correlate N flank eruption sequences with the Etna summit eruption record. The section also shows distinct palaeosol horizons between flow units — representing centuries-long volcanic quiescence between eruptions — and is a reference locality for Etna Holocene chronostratigraphy.",
+    description: "Cliff exposure on the upper eastern flank where layered basaltic lava flows and intercalated scoria beds provide a continuous stratigraphic section spanning several thousand years. Used by volcanologists to correlate flank eruption sequences with the Etna summit record. The section shows distinct palaeosol horizons between flow units — representing centuries-long volcanic quiescence — and is a reference locality for Etna Holocene chronostratigraphy.",
   },
 
   // ── Fluvial features ──────────────────────────────────────────────────────────

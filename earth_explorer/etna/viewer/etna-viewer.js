@@ -2437,7 +2437,7 @@ function buildTectonicFaults() {
                   name: name,
                   kicker: `${kinematics || 'Unknown kinematics'} · ${rank} fault`,
                   meta: `Dip: ${fpDip}° ${fpDipR ? 'right' : 'left'} · Max depth: ${fpDepth} km`,
-                  description: `Fault ID: ${id}. ${kinematics ? kinematics + ' fault' : 'Fault'} with a dip of ${fpDip}° to the ${fpDipR ? 'right' : 'left'} of the trace direction. The seismogenic layer extends to approximately ${fpDepth} km depth.`,
+                  description: `${kinematics ? kinematics.charAt(0).toUpperCase() + kinematics.slice(1) + ' fault' : 'Fault'} with a dip of ${fpDip}° to the ${fpDipR ? 'right' : 'left'} of the trace direction. The seismogenic layer extends to approximately ${fpDepth} km depth.`,
                 };
                 _faultRibbonGroup.add(result.mesh);
                 _faultRibbonMeshes.push(result.mesh);
