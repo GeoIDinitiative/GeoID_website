@@ -6993,8 +6993,10 @@ function _onPointerUp(e) {
     }
   }
 
-  // Plumbing subsurface label click (hit sphere) — opens popup; DOM label handles selection
-  if (_plumbingLabelInteractives.length > 0) {
+  // Plumbing subsurface label click (hit sphere) — only when both plumbing + labels toggles are on
+  const _plumbLabelsOn = (document.getElementById('plumbing-labels-toggle')?.checked ?? false)
+                      && (document.getElementById('plumbing-toggle')?.checked ?? false);
+  if (_plumbLabelsOn && _plumbingLabelInteractives.length > 0) {
     const plumbHits = clickRay.intersectObjects(_plumbingLabelInteractives, false);
     const phit = plumbHits.find(h => h.object.userData.feature);
     if (phit) {
