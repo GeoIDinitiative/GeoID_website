@@ -3,266 +3,180 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="GeoID Research & Funding Prospectus — the case for investment in an operational, physics-based geohazard early-warning platform. Capability proven; infrastructure sought.">
-  <title>GeoID Initiative — Research & Funding Prospectus</title>
+  <meta name="description" content="GeoID Research & Funding Prospectus — the case for investment in an operational, physics-based geohazard early-warning platform.">
+  <title>GeoID Initiative — Research &amp; Funding Prospectus</title>
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@700;800&family=Orbitron:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
-    /* ──────────────────────────────────────────────────────────────
-       Funding Prospectus — page-specific styles.
-       Uses the site's shared.css design tokens where present, with
-       inline fallbacks (var(--token, fallback)) so the page also
-       renders correctly if viewed standalone.
-       ────────────────────────────────────────────────────────────── */
-
-    :root {
-      --fp-cyan:   var(--cyan, #58c6b3);
-      --fp-gold:   var(--gold, #f7bd68);
-      --fp-text:   var(--text, #e6ecf2);
-      --fp-muted:  var(--muted, rgba(200, 210, 222, 0.72));
-      --fp-line:   var(--line, rgba(255, 255, 255, 0.09));
-      --fp-panel:  var(--panel, rgba(10, 18, 30, 0.72));
-      --fp-shadow: var(--shadow, 0 22px 60px rgba(0, 0, 0, 0.45));
-      --fp-violet: #b9a4ff;
-    }
-
-    body {
-      background:
-        radial-gradient(ellipse at 16% 8%,  rgba(88, 198, 179, 0.10), transparent 42%),
-        radial-gradient(ellipse at 88% 4%,  rgba(247, 189, 104, 0.08), transparent 38%),
-        linear-gradient(180deg, #060d17 0%, #070c16 45%, #04070d 100%);
-      color: var(--fp-text);
-      font-family: "Public Sans", sans-serif;
-      min-height: 100dvh;
-    }
-
     .page-wrap { padding-top: var(--nav-h, 64px); }
-    .page-inner { max-width: 1180px; margin: 0 auto; padding: 0 1.25rem; }
+    .page-inner { max-width: 1060px; margin: 0 auto; padding: 2rem 1.25rem 4rem; }
 
-    /* Utility / breadcrumb bar */
-    .page-utility {
-      display: flex; align-items: center; justify-content: space-between;
-      flex-wrap: wrap; gap: 0.75rem;
-      border: 1px solid var(--fp-line);
-      background: rgba(8, 15, 26, 0.55);
-      border-radius: 0.9rem;
-      padding: 0.55rem 1rem;
-      margin: 1.1rem 0 1.5rem;
-      backdrop-filter: blur(12px);
-    }
-    .page-crumb { font-size: 0.82rem; color: var(--fp-muted); letter-spacing: 0.01em; }
-    .page-crumb strong { color: var(--fp-text); }
-    .page-crumb-sep { opacity: 0.45; margin: 0 0.4rem; }
-    .page-jump { display: flex; gap: 0.35rem; flex-wrap: wrap; }
-    .page-jump a {
-      font-size: 0.8rem; font-weight: 500; color: var(--fp-muted);
-      text-decoration: none; padding: 0.3rem 0.6rem; border-radius: 0.5rem;
-      transition: color 0.16s, background 0.16s;
-    }
-    .page-jump a:hover { color: var(--fp-text); background: rgba(88, 198, 179, 0.10); }
+    /* ── Section spacing ── */
+    section { margin-bottom: 1.4rem; }
+    p { line-height: 1.72; color: var(--muted); }
 
-    /* Shared text atoms */
-    .eyebrow {
-      display: inline-block; font-family: "Public Sans", sans-serif;
-      font-size: 0.66rem; font-weight: 700; letter-spacing: 0.16em;
-      text-transform: uppercase; color: var(--fp-cyan);
-      background: rgba(88, 198, 179, 0.10); border: 1px solid rgba(88, 198, 179, 0.30);
-      padding: 0.34rem 0.8rem; border-radius: 999px;
+    /* ── Page header ── */
+    .page-header {
+      padding: 2.8rem 0 2rem;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 2rem;
     }
+    .page-header-label {
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--muted);
+      display: block; margin-bottom: 0.75rem;
+    }
+    .page-header h1 {
+      font-family: "Archivo", sans-serif; font-weight: 800;
+      font-size: clamp(1.9rem, 4.5vw, 3rem); line-height: 1.1;
+      letter-spacing: -0.02em; color: var(--text); margin: 0 0 1rem; max-width: 24ch;
+    }
+    .page-header p.lede {
+      font-size: 1rem; max-width: 60ch; color: rgba(200,220,236,0.85); margin: 0 0 1.5rem;
+    }
+    .header-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+
+    /* ── Honest-status note ── */
+    .status-note {
+      margin-top: 1.5rem; padding: 1rem 1.2rem;
+      border-left: 3px solid rgba(247,189,104,0.5);
+      background: rgba(247,189,104,0.05);
+      border-radius: 0 0.6rem 0.6rem 0;
+    }
+    .status-note p { color: rgba(255,230,189,0.8); font-size: 0.88rem; line-height: 1.65; margin: 0; }
+    .status-note strong { color: #fff4e2; }
+
+    /* ── Section label ── */
     .section-label {
-      display: inline-block; font-family: "Public Sans", sans-serif;
-      font-size: 0.66rem; font-weight: 700; letter-spacing: 0.15em;
-      text-transform: uppercase; color: var(--fp-muted); margin-bottom: 0.5rem;
+      display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 0.6rem;
     }
     .section-title {
-      font-family: "Archivo", sans-serif; font-weight: 800;
-      font-size: clamp(1.5rem, 3vw, 2.1rem); line-height: 1.12;
-      letter-spacing: -0.015em; color: #fff; margin: 0 0 0.85rem;
+      font-family: "Archivo", sans-serif; font-weight: 700;
+      font-size: clamp(1.25rem, 2.5vw, 1.65rem); line-height: 1.15;
+      letter-spacing: -0.01em; color: var(--text); margin: 0 0 1rem;
     }
 
+    /* ── Content panels ── */
     .panel {
-      border: 1px solid var(--fp-line); border-radius: 1.35rem;
-      background:
-        radial-gradient(circle at top right, rgba(255,255,255,0.05), transparent 38%),
-        var(--fp-panel);
-      backdrop-filter: blur(16px); box-shadow: var(--fp-shadow);
-      padding: clamp(1.4rem, 2.6vw, 2.2rem);
+      border: 1px solid var(--line); border-radius: 1.2rem;
+      background: var(--panel); backdrop-filter: blur(16px);
+      box-shadow: var(--shadow); padding: clamp(1.4rem, 2.4vw, 2rem);
     }
 
-    section { margin-bottom: 1.4rem; }
-    p { line-height: 1.72; color: var(--fp-muted); }
-
-    /* Page-load stagger */
-    .reveal { opacity: 0; transform: translateY(14px); animation: fp-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) forwards; }
-    .reveal:nth-child(1) { animation-delay: 0.02s; }
-    .reveal:nth-child(2) { animation-delay: 0.10s; }
-    .reveal:nth-child(3) { animation-delay: 0.18s; }
-    @keyframes fp-rise { to { opacity: 1; transform: none; } }
-    @media (prefers-reduced-motion: reduce) { .reveal { animation: none; opacity: 1; transform: none; } }
-
-    /* ── Hero ── */
-    .fp-hero {
-      position: relative; overflow: hidden;
-      border: 1px solid var(--fp-line); border-radius: 1.6rem;
-      padding: clamp(2.2rem, 4vw, 3.4rem);
-      background:
-        radial-gradient(circle at 12% 14%, rgba(88,198,179,0.14), transparent 40%),
-        radial-gradient(circle at 86% 90%, rgba(247,189,104,0.10), transparent 42%),
-        linear-gradient(150deg, rgba(8,16,28,0.96), rgba(6,12,22,0.9));
-      box-shadow: var(--fp-shadow);
-    }
-    .fp-hero h1 {
-      font-family: "Archivo", sans-serif; font-weight: 800;
-      font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.05;
-      letter-spacing: -0.02em; color: #fff; margin: 0.9rem 0 0.9rem; max-width: 20ch;
-    }
-    .fp-hero h1 span { color: var(--fp-cyan); }
-    .fp-hero p.lede { font-size: 1.06rem; max-width: 54ch; color: rgba(214,222,234,0.86); }
-    .hero-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 1.4rem; }
-
-    .btn-primary, .btn-ghost {
-      display: inline-flex; align-items: center; gap: 0.5rem;
-      font-family: "Public Sans", sans-serif; font-size: 0.8rem; font-weight: 700;
-      letter-spacing: 0.06em; text-decoration: none; cursor: pointer;
-      padding: 0.8rem 1.3rem; border-radius: 0.6rem; border: 1px solid transparent;
-      transition: transform 0.12s ease, background 0.18s ease, border-color 0.18s ease;
-    }
-    .btn-primary {
-      background: linear-gradient(180deg, rgba(88,198,179,0.32), rgba(32,122,110,0.34));
-      color: #eafaf6; border-color: rgba(88,198,179,0.55);
-    }
-    .btn-primary:hover { transform: translateY(-1px); background: linear-gradient(180deg, rgba(88,198,179,0.44), rgba(32,122,110,0.44)); }
-    .btn-ghost { background: rgba(255,255,255,0.03); color: var(--fp-text); border-color: var(--fp-line); }
-    .btn-ghost:hover { background: rgba(88,198,179,0.10); border-color: rgba(88,198,179,0.4); }
-
-    /* ── Honest-status banner (the integrity anchor) ── */
-    .status-callout {
-      display: flex; gap: 0.95rem; align-items: flex-start;
-      margin-top: 1.8rem; padding: 1.05rem 1.2rem;
-      border: 1px solid rgba(247,189,104,0.38);
-      background: rgba(247,189,104,0.07);
-      border-radius: 0.9rem;
-    }
-    .status-callout .dot {
-      flex-shrink: 0; width: 9px; height: 9px; margin-top: 0.45rem;
-      border-radius: 50%; background: var(--fp-gold);
-      box-shadow: 0 0 10px rgba(247,189,104,0.8);
-    }
-    .status-callout p { color: #ffe6bd; font-size: 0.9rem; line-height: 1.65; margin: 0; }
-    .status-callout strong { color: #fff4e2; }
-
-    /* ── Stat strip ── */
-    .stat-strip {
-      display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 1rem; margin-bottom: 1.4rem;
-    }
-    .stat {
-      border: 1px solid var(--fp-line); border-radius: 1rem;
-      background: rgba(255,255,255,0.025); padding: 1.1rem 1.2rem;
-    }
-    .stat .n { font-family: "Archivo", sans-serif; font-weight: 800; font-size: 1.7rem; color: #eafaf6; letter-spacing: -0.02em; }
-    .stat .l { font-size: 0.8rem; color: var(--fp-muted); margin-top: 0.25rem; line-height: 1.45; }
-
-    /* ── Two-column generic ── */
+    /* ── Grids ── */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; }
 
-    .mini { border: 1px solid var(--fp-line); border-radius: 1.1rem; padding: 1.2rem; background: rgba(255,255,255,0.022); }
-    .mini h3 { margin: 0.4rem 0 0.45rem; font-size: 1rem; color: #fff; font-family: "Public Sans", sans-serif; font-weight: 700; }
-    .mini p { font-size: 0.9rem; margin: 0; }
-    .mini .ic { font-size: 1.5rem; line-height: 1; }
+    .mini {
+      border: 1px solid var(--line); border-radius: 1rem;
+      padding: 1.2rem; background: rgba(255,255,255,0.022);
+    }
+    .mini h3 {
+      margin: 0.4rem 0 0.45rem; font-size: 0.95rem;
+      color: var(--text); font-family: "Public Sans", sans-serif; font-weight: 700;
+    }
+    .mini p { font-size: 0.88rem; margin: 0; }
+    .mini .ic { font-size: 1.4rem; line-height: 1; }
 
     .proof-tag {
-      display: inline-block; font-size: 0.64rem; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; padding: 0.2rem 0.55rem; border-radius: 999px; margin-bottom: 0.2rem;
+      display: inline-block; font-size: 0.64rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.18rem 0.5rem; border-radius: 999px; margin-bottom: 0.3rem;
     }
-    .proof-live { color: var(--fp-cyan); background: rgba(88,198,179,0.12); border: 1px solid rgba(88,198,179,0.3); }
+    .proof-live {
+      color: var(--cyan); background: rgba(88,198,179,0.10);
+      border: 1px solid rgba(88,198,179,0.28);
+    }
 
-    /* ── Roadmap rail (the memorable element) ── */
-    .roadmap { position: relative; display: grid; gap: 1.1rem; }
+    /* ── Roadmap ── */
+    .roadmap { display: grid; gap: 1rem; }
     .phase {
-      position: relative; border: 1px solid var(--fp-line); border-radius: 1.2rem;
+      position: relative; border: 1px solid var(--line); border-radius: 1.1rem;
       padding: 1.3rem 1.4rem 1.3rem 1.6rem; background: rgba(255,255,255,0.022);
       overflow: hidden;
     }
     .phase::before {
-      content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+      content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
     }
-    .phase-0::before { background: linear-gradient(180deg, var(--fp-cyan), rgba(88,198,179,0.2)); }
-    .phase-1::before { background: linear-gradient(180deg, var(--fp-gold), rgba(247,189,104,0.2)); }
-    .phase-2::before { background: linear-gradient(180deg, #7ed0ff, rgba(126,208,255,0.2)); }
-    .phase-3::before { background: linear-gradient(180deg, var(--fp-violet), rgba(185,164,255,0.2)); }
-    .phase-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
-    .phase-head h3 { margin: 0; font-family: "Archivo", sans-serif; font-weight: 800; font-size: 1.15rem; color: #fff; letter-spacing: -0.01em; }
-    .phase-badge { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.25rem 0.6rem; border-radius: 999px; white-space: nowrap; }
-    .badge-done { color: var(--fp-cyan); background: rgba(88,198,179,0.12); border: 1px solid rgba(88,198,179,0.32); }
-    .badge-seek { color: var(--fp-gold); background: rgba(247,189,104,0.10); border: 1px solid rgba(247,189,104,0.32); }
-    .phase p.role { font-size: 0.85rem; margin: 0.5rem 0 0.7rem; color: var(--fp-muted); }
-    .phase ul { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 0.4rem; }
-    .phase li { position: relative; padding-left: 1.3rem; font-size: 0.88rem; color: rgba(214,222,234,0.85); line-height: 1.5; }
-    .phase li::before { content: "→"; position: absolute; left: 0; color: var(--fp-cyan); opacity: 0.7; }
-    .phase .infra { margin-top: 0.85rem; font-size: 0.78rem; color: var(--fp-muted); border-top: 1px dashed var(--fp-line); padding-top: 0.7rem; }
-    .phase .infra b { color: #ffe6bd; font-weight: 600; }
+    .phase-0::before { background: var(--cyan); }
+    .phase-1::before { background: var(--gold, #f7bd68); }
+    .phase-2::before { background: #7ed0ff; }
+    .phase-3::before { background: #b9a4ff; }
+    .phase-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+      margin-bottom: 0.4rem;
+    }
+    .phase-head h3 {
+      margin: 0; font-family: "Archivo", sans-serif; font-weight: 700;
+      font-size: 1.05rem; color: var(--text); letter-spacing: -0.01em;
+    }
+    .phase-badge {
+      font-size: 0.64rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 0.22rem 0.55rem;
+      border-radius: 999px; white-space: nowrap;
+    }
+    .badge-done {
+      color: var(--cyan); background: rgba(88,198,179,0.10);
+      border: 1px solid rgba(88,198,179,0.28);
+    }
+    .badge-seek {
+      color: rgba(247,189,104,0.9); background: rgba(247,189,104,0.08);
+      border: 1px solid rgba(247,189,104,0.28);
+    }
+    .phase p.role { font-size: 0.85rem; margin: 0 0 0.7rem; }
+    .phase ul { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 0.35rem; }
+    .phase li {
+      position: relative; padding-left: 1.2rem;
+      font-size: 0.88rem; color: rgba(214,222,234,0.85); line-height: 1.5;
+    }
+    .phase li::before { content: "→"; position: absolute; left: 0; color: var(--cyan); opacity: 0.6; }
+    .phase .infra {
+      margin-top: 0.8rem; font-size: 0.78rem; color: var(--muted);
+      border-top: 1px dashed var(--line); padding-top: 0.65rem;
+    }
+    .phase .infra b { color: rgba(255,230,189,0.75); font-weight: 600; }
 
-    /* ── Engagement / ask ── */
+    /* ── Engagement grid ── */
     .ask-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.1rem; }
-    .ask { border: 1px solid var(--fp-line); border-radius: 1.1rem; padding: 1.3rem; background: rgba(255,255,255,0.022); }
-    .ask h3 { margin: 0 0 0.4rem; font-size: 1rem; color: #fff; }
+    .ask { border: 1px solid var(--line); border-radius: 1.1rem; padding: 1.3rem; background: rgba(255,255,255,0.022); }
+    .ask h3 { margin: 0 0 0.4rem; font-size: 0.95rem; color: var(--text); font-family: "Public Sans", sans-serif; font-weight: 700; }
     .ask p { font-size: 0.88rem; margin: 0; }
-    .ask .placeholder { color: var(--fp-gold); font-size: 0.78rem; font-style: italic; margin-top: 0.55rem; }
 
-    /* ── PI / credibility ── */
+    /* ── PI ── */
     .pi { display: grid; grid-template-columns: auto 1fr; gap: 1.3rem; align-items: start; }
     .pi-photo {
-      width: 84px; height: 84px; border-radius: 1rem; flex-shrink: 0;
-      background: linear-gradient(160deg, rgba(88,198,179,0.25), rgba(32,122,110,0.18));
-      border: 1px solid rgba(88,198,179,0.35);
-      display: flex; align-items: center; justify-content: center;
-      font-family: "Archivo", sans-serif; font-weight: 800; font-size: 1.6rem; color: #eafaf6;
+      width: 76px; height: 76px; border-radius: 0.9rem; flex-shrink: 0;
+      border: 1px solid var(--line); overflow: hidden;
     }
-    .pi h3 { margin: 0 0 0.2rem; font-size: 1.15rem; color: #fff; font-family: "Archivo", sans-serif; }
-    .pi .pi-role { font-size: 0.82rem; color: var(--fp-cyan); font-weight: 600; margin-bottom: 0.6rem; }
-    .pi p { font-size: 0.9rem; margin: 0; }
+    .pi-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .pi h3 { margin: 0 0 0.2rem; font-size: 1.05rem; color: var(--text); font-family: "Archivo", sans-serif; font-weight: 700; }
+    .pi .pi-role { font-size: 0.82rem; color: var(--cyan); font-weight: 600; margin-bottom: 0.6rem; display: block; }
+    .pi p { font-size: 0.88rem; margin: 0; }
 
-    /* ── Closing CTA band ── */
-    .cta-band {
-      text-align: center; border: 1px solid rgba(88,198,179,0.3); border-radius: 1.4rem;
-      padding: clamp(2rem, 4vw, 3rem);
-      background:
-        radial-gradient(circle at 50% 0%, rgba(88,198,179,0.14), transparent 60%),
-        linear-gradient(160deg, rgba(9,26,38,0.9), rgba(5,13,20,0.9));
+    /* ── Closing CTA ── */
+    .cta-section {
+      border: 1px solid var(--line); border-radius: 1.2rem;
+      background: var(--panel); padding: clamp(1.75rem, 3vw, 2.5rem);
     }
-    .cta-band h2 { font-family: "Archivo", sans-serif; font-weight: 800; font-size: clamp(1.6rem, 3.4vw, 2.3rem); color: #fff; margin: 0 0 0.7rem; letter-spacing: -0.015em; }
-    .cta-band p { max-width: 52ch; margin: 0 auto 1.5rem; }
-    .cta-band .hero-actions { justify-content: center; }
+    .cta-section h2 {
+      font-family: "Archivo", sans-serif; font-weight: 700;
+      font-size: clamp(1.25rem, 2.5vw, 1.65rem); color: var(--text);
+      margin: 0 0 0.6rem; letter-spacing: -0.01em;
+    }
+    .cta-section p { max-width: 60ch; margin: 0 0 1.4rem; }
+    .cta-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; }
 
-    /* ── Footer (mirrors site footer) ── */
-    .site-footer { margin-top: 2.5rem; border-top: 1px solid var(--fp-line); background: rgba(5,10,16,0.7); backdrop-filter: blur(12px); padding: 3rem 0 1.5rem; }
-    .footer-inner { max-width: 1180px; margin: 0 auto; padding: 0 1.25rem; }
-    .footer-content { display: grid; grid-template-columns: 2fr repeat(3, 1fr); gap: 3rem; padding-bottom: 2.5rem; border-bottom: 1px solid var(--fp-line); }
-    .footer-brand p { color: var(--fp-muted); font-size: 0.88rem; line-height: 1.68; }
-    .footer-brand p + p { margin-top: 0.75rem; }
-    .footer-section h4 { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fp-muted); margin-bottom: 1.1rem; }
-    .footer-section ul { list-style: none; padding: 0; margin: 0; }
-    .footer-section li { margin-bottom: 0.6rem; }
-    .footer-section a { color: var(--fp-muted); text-decoration: none; font-size: 0.88rem; transition: color 0.18s; }
-    .footer-section a:hover { color: var(--fp-text); }
-    .footer-bottom { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding-top: 1.75rem; }
-    .footer-bottom p { color: var(--fp-muted); font-size: 0.82rem; }
-
-    @media (max-width: 980px) {
-      .stat-strip { grid-template-columns: repeat(2, 1fr); }
+    /* ── Responsive ── */
+    @media (max-width: 960px) {
       .grid-2, .grid-3, .ask-grid { grid-template-columns: 1fr; }
-      .footer-content { grid-template-columns: 1fr 1fr; }
-      .pi { grid-template-columns: 1fr; }
     }
-    @media (max-width: 560px) {
-      .stat-strip { grid-template-columns: 1fr; }
-      .footer-content { grid-template-columns: 1fr; gap: 2rem; }
-      .footer-bottom { flex-direction: column; text-align: center; }
+    @media (max-width: 640px) {
+      .pi { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -300,105 +214,48 @@
   <div class="page-wrap">
     <div class="page-inner">
 
-      <section class="page-utility" aria-label="Prospectus links">
-        <div class="page-crumb">
-          <span>GeoID</span><span class="page-crumb-sep">/</span>
-          <span>Research</span><span class="page-crumb-sep">/</span>
-          <strong>Funding Prospectus</strong>
-        </div>
-        <div class="page-jump">
-          <a href="#problem">The Gap</a>
-          <a href="#proof">Proven Capability</a>
-          <a href="#roadmap">What Funding Builds</a>
-          <a href="#infra">Why Infrastructure</a>
-          <a href="#ask">Partner With Us</a>
-        </div>
-      </section>
-
-      <!-- HERO -->
-      <section class="fp-hero reveal">
-        <span class="eyebrow">Research &amp; Funding Prospectus</span>
-        <h1>Operational geohazard intelligence is <span>buildable</span> — and underfunded.</h1>
-        <p class="lede">
-          GeoID proposes a free, public, physics-based early-warning platform for floods,
-          landslides, and volcanic hazards. The science and the engineering capability are
-          proven. What remains is the compute and infrastructure to run it at scale — and that
-          is what this prospectus sets out to fund.
-        </p>
-        <div class="hero-actions">
+      <!-- PAGE HEADER -->
+      <header class="page-header">
+        <span class="page-header-label">Research &amp; Funding Prospectus</span>
+        <h1>Operational geohazard intelligence is buildable — and underfunded.</h1>
+        <p class="lede">GeoID proposes a free, public, physics-based early-warning platform for floods, landslides, and volcanic hazards. The science and engineering capability are proven. What remains is the compute and infrastructure to run it at scale.</p>
+        <div class="header-actions">
           <a class="btn-primary" href="/contact/">Discuss a partnership →</a>
           <a class="btn-ghost" href="/earth_explorer/etna/viewer/">See the capability proof (Etna)</a>
         </div>
-
-        <div class="status-callout" role="note">
-          <span class="dot" aria-hidden="true"></span>
-          <p>
-            <strong>Honest status.</strong> The public Hazard Intelligence platform described
-            below is at concept and prototype stage — it is the subject of this funding case, not
-            a live service. Everything cited as <em>proof of capability</em> (Planet Explorer and the
-            Earth Explorer: Etna viewer) is live and usable today. We draw that line deliberately:
-            funders should be able to verify exactly what exists versus what investment will create.
-          </p>
+        <div class="status-note" role="note">
+          <p><strong>Honest status.</strong> The Hazard Intelligence platform described below is at concept and prototype stage — it is the subject of this funding case, not a live service. Everything cited as proof of capability (Planet Explorer and the Earth Explorer: Etna viewer) is live and usable today. Funders should be able to verify exactly what exists versus what investment will create.</p>
         </div>
-      </section>
+      </header>
 
-      <!-- STAT STRIP -->
-      <section class="stat-strip">
-        <div class="stat reveal"><div class="n">10</div><div class="l">Interactive planetary &amp; lunar viewers shipped and live</div></div>
-        <div class="stat reveal"><div class="n">12,000+</div><div class="l">INGV earthquakes rendered in the live Etna 3D model (2011–2023)</div></div>
-        <div class="stat reveal"><div class="n">5+</div><div class="l">Hazard data pipelines already ingested: NOAA GFS, IMERG, radar, GEBCO, shapefiles</div></div>
-        <div class="stat reveal"><div class="n">FEM</div><div class="l">Multi-physics solver lineage (GALES) underpinning the proposed modelling core</div></div>
-      </section>
-
-      <!-- PROBLEM -->
+      <!-- THE GAP -->
       <section class="panel" id="problem">
         <span class="section-label">The Gap</span>
         <h2 class="section-title">Early warning is reactive, fragmented, and unevenly distributed</h2>
-        <p>
-          Geohazard monitoring today is split across agencies, formats, and access tiers. Forecast-grade
-          tooling exists, but it is concentrated in well-resourced regions and rarely reaches the
-          communities most exposed to floods, slope failure, and volcanic unrest. The scientific
-          methods to compute risk ahead of an event — coupling live environmental inputs to
-          physics-based models — are mature in research settings but seldom operationalised as a
-          continuous, public-facing service.
-        </p>
-        <p>
-          GeoID's thesis is that the missing piece is not the science. It is the <em>infrastructure
-          and integration</em> to run that science continuously, openly, and at scale. That is a
-          fundable problem with a definable cost.
-        </p>
+        <p>Geohazard monitoring today is split across agencies, formats, and access tiers. Forecast-grade tooling exists, but it is concentrated in well-resourced regions and rarely reaches the communities most exposed to floods, slope failure, and volcanic unrest. The scientific methods to compute risk ahead of an event — coupling live environmental inputs to physics-based models — are mature in research settings but seldom operationalised as a continuous, public-facing service.</p>
+        <p>GeoID's thesis is that the missing piece is not the science. It is the <em>infrastructure and integration</em> to run that science continuously, openly, and at scale. That is a fundable problem with a definable cost.</p>
       </section>
 
       <!-- PROOF OF CAPABILITY -->
       <section class="panel" id="proof">
         <span class="section-label">Proven Capability</span>
         <h2 class="section-title">What already exists — evidence the team can deliver</h2>
-        <p style="margin-bottom:1.2rem;">
-          The assets below are not the funded product. They are deliberately scoped, live deliverables
-          that demonstrate GeoID can build rigorous, performant, scientifically credible geoscience
-          software — and has already ingested real hazard data. They de-risk the proposal.
-        </p>
+        <p style="margin-bottom:1.2rem;">The assets below are not the funded product. They are deliberately scoped, live deliverables that demonstrate GeoID can build rigorous, performant, scientifically credible geoscience software — and has already ingested real hazard data. They de-risk the proposal.</p>
         <div class="grid-3">
           <div class="mini">
             <span class="proof-tag proof-live">Live today</span>
             <h3>Earth Explorer — Etna</h3>
-            <p>A 3D geological viewer with the INGV earthquake catalogue, magma plumbing, fault planes,
-               geology and hillshade overlays, historical lava flows, and an interactive cross-section.
-               The clearest single demonstration of domain capability.</p>
+            <p>A 3D geological viewer with the INGV earthquake catalogue, magma plumbing, fault planes, geology and hillshade overlays, historical lava flows, and an interactive cross-section. The clearest single demonstration of domain capability.</p>
           </div>
           <div class="mini">
             <span class="proof-tag proof-live">Live today</span>
             <h3>Planet Explorer</h3>
-            <p>Ten interactive planetary and lunar viewers with layered scientific overlays, guided
-               tours, and feature catalogues — proof of sustained, polished delivery and a working
-               membership/auth/billing stack around it.</p>
+            <p>Ten interactive planetary and lunar viewers with layered scientific overlays, guided tours, and feature catalogues — proof of sustained, polished delivery and a working membership, authentication, and billing stack.</p>
           </div>
           <div class="mini">
             <span class="proof-tag proof-live">Ingested</span>
             <h3>Hazard data pipelines</h3>
-            <p>Working ingestion of NOAA GFS, IMERG, RainViewer/radar, GEBCO bathymetry, and shapefile
-               resources. The raw material for an operational system is already flowing — it is not yet
-               served continuously.</p>
+            <p>Working ingestion of NOAA GFS, IMERG, RainViewer/radar, GEBCO bathymetry, and shapefile resources. The raw material for an operational system is already flowing — it is not yet served continuously.</p>
           </div>
         </div>
       </section>
@@ -407,19 +264,14 @@
       <section class="panel" id="roadmap">
         <span class="section-label">What Funding Builds</span>
         <h2 class="section-title">A phased roadmap from proven capability to public service</h2>
-        <p style="margin-bottom:1.3rem;">
-          Each phase has discrete, verifiable deliverables and a stated infrastructure dependency.
-          Funding is sought from Phase 1 onward; Phase 0 is complete and self-funded.
-        </p>
-
+        <p style="margin-bottom:1.3rem;">Each phase has discrete, verifiable deliverables and a stated infrastructure dependency. Funding is sought from Phase 1 onward; Phase 0 is complete and self-funded.</p>
         <div class="roadmap">
           <article class="phase phase-0">
             <div class="phase-head">
               <h3>Phase 0 — Capability proof</h3>
               <span class="phase-badge badge-done">Complete · Live</span>
             </div>
-            <p class="role">Demonstrate scientific and engineering competence; validate that a single,
-               coherent platform can render real hazard and planetary data well.</p>
+            <p class="role">Demonstrate scientific and engineering competence; validate that a single, coherent platform can render real hazard and planetary data well.</p>
             <ul>
               <li>Etna 3D geological viewer with live INGV seismicity</li>
               <li>Ten-body Planet Explorer suite with layered overlays and tours</li>
@@ -428,14 +280,12 @@
             </ul>
             <p class="infra"><b>Infrastructure:</b> static hosting and client-side rendering — minimal cost, already covered.</p>
           </article>
-
           <article class="phase phase-1">
             <div class="phase-head">
               <h3>Phase 1 — Operational data backbone</h3>
               <span class="phase-badge badge-seek">Seeking funding</span>
             </div>
-            <p class="role">Move from "data ingested once" to "data served continuously" for a first
-               monitored pilot region.</p>
+            <p class="role">Move from "data ingested once" to "data served continuously" for a first monitored pilot region.</p>
             <ul>
               <li>Automated, scheduled ingestion and storage of live environmental feeds</li>
               <li>A first continuously monitored pilot domain with a public hazard dashboard</li>
@@ -444,14 +294,12 @@
             </ul>
             <p class="infra"><b>Infrastructure:</b> always-on managed servers, scheduled compute, and durable storage for time-series and raster archives.</p>
           </article>
-
           <article class="phase phase-2">
             <div class="phase-head">
               <h3>Phase 2 — Physics-based modelling at scale</h3>
               <span class="phase-badge badge-seek">Seeking funding</span>
             </div>
-            <p class="role">Couple the GALES multi-physics finite-element lineage to live inputs so risk
-               is computed ahead of events, not just reported after.</p>
+            <p class="role">Couple the GALES multi-physics finite-element lineage to live inputs so risk is computed ahead of events, not just reported after.</p>
             <ul>
               <li>Operationalised flood and slope-stability models driven by live forecasts</li>
               <li>Volcanic deformation and unrest modelling extending the Etna proof</li>
@@ -460,14 +308,12 @@
             </ul>
             <p class="infra"><b>Infrastructure:</b> this is the compute-intensive step — HPC allocation or a GPU cluster for FEM workloads. The principal cost driver behind this prospectus.</p>
           </article>
-
           <article class="phase phase-3">
             <div class="phase-head">
               <h3>Phase 3 — Public early-warning service &amp; Research Hub</h3>
               <span class="phase-badge badge-seek">Seeking funding</span>
             </div>
-            <p class="role">Deliver the public-facing myGeoID experience and open the platform to the
-               research community.</p>
+            <p class="role">Deliver the public-facing myGeoID experience and open the platform to the research community.</p>
             <ul>
               <li>Personalised dashboards, saved locations, and custom alert profiles (myGeoID)</li>
               <li>Regional expansion beyond the pilot domain</li>
@@ -481,76 +327,55 @@
 
       <!-- WHY INFRASTRUCTURE -->
       <section class="panel" id="infra">
-        <span class="section-label">Why Infrastructure Is The Ask</span>
+        <span class="section-label">Why Infrastructure Is the Ask</span>
         <h2 class="section-title">The cost is not the code — it is running the science continuously</h2>
         <div class="grid-3" style="margin-top:0.4rem;">
           <div class="mini">
             <div class="ic">🧮</div>
             <h3>Compute for physics</h3>
-            <p>Multi-physics FEM simulation is inherently heavy. Computing risk ahead of events needs
-               HPC or GPU resources that exceed what static hosting or a single workstation can provide.</p>
+            <p>Multi-physics FEM simulation is inherently heavy. Computing risk ahead of events needs HPC or GPU resources that exceed what static hosting or a single workstation can provide.</p>
           </div>
           <div class="mini">
             <div class="ic">🛰️</div>
             <h3>Always-on ingestion</h3>
-            <p>Live forecast, radar, and satellite feeds must be pulled, processed, and stored on a
-               schedule, indefinitely. That requires managed servers running continuously, not on demand.</p>
+            <p>Live forecast, radar, and satellite feeds must be pulled, processed, and stored on a schedule, indefinitely. That requires managed servers running continuously, not on demand.</p>
           </div>
           <div class="mini">
             <div class="ic">📈</div>
             <h3>Room to grow</h3>
-            <p>Every new monitored region multiplies storage and compute. Sustainable public coverage
-               means provisioning for growth, not just a one-off demo.</p>
+            <p>Every new monitored region multiplies storage and compute. Sustainable public coverage means provisioning for growth, not just a one-off demonstration.</p>
           </div>
         </div>
       </section>
 
-      <!-- VALIDATED DEMAND (honest framing of membership) -->
+      <!-- ON THE MEMBERSHIP -->
       <section class="panel">
-        <span class="section-label">On The Membership</span>
+        <span class="section-label">On the Membership</span>
         <h2 class="section-title">The Explorer membership validates demand — it does not fund the platform</h2>
-        <p>
-          GeoID offers a low-cost annual membership for the educational Planet Explorer viewers. We are
-          explicit with funders about its role: at realistic early-stage scale, subscription revenue is
-          not, and is not presented as, the financing mechanism for the hazard platform. Its purpose is
-          to demonstrate genuine public appetite for accessible geoscience tools — engagement and
-          retention that strengthen the case for institutional investment. The membership is the
-          evidence of demand; the funding this prospectus seeks is the means of supply.
-        </p>
+        <p>GeoID offers a low-cost annual membership for the educational Planet and Earth Explorer viewers. At realistic early-stage scale, subscription revenue is not, and is not presented as, the financing mechanism for the hazard platform. Its purpose is to demonstrate genuine public appetite for accessible geoscience tools — engagement and retention that strengthen the case for institutional investment. The membership is the evidence of demand; the funding this prospectus seeks is the means of supply.</p>
       </section>
 
       <!-- THE ASK -->
       <section class="panel" id="ask">
-        <span class="section-label">Partner With Us</span>
-        <h2 class="section-title">Engagement models</h2>
-        <p style="margin-bottom:1.2rem;">
-          GeoID is a non-exclusive, open-science initiative. We are seeking partners across several
-          complementary routes — these are not mutually exclusive.
-        </p>
+        <span class="section-label">Engagement Models</span>
+        <h2 class="section-title">How to partner with us</h2>
+        <p style="margin-bottom:1.2rem;">GeoID is a non-exclusive, open-science initiative. We are seeking partners across several complementary routes — these are not mutually exclusive.</p>
         <div class="ask-grid">
           <div class="ask">
             <h3>Research grant co-application</h3>
-            <p>Join as a named partner or host institution on hazard, climate-resilience, or
-               open-science funding calls. GeoID supplies the platform, modelling lineage, and proof of capability.</p>
-            <p class="placeholder">[ PI to insert target schemes / funder names ]</p>
+            <p>Join as a named partner or host institution on hazard, climate-resilience, or open-science funding calls. GeoID supplies the platform, modelling lineage, and proof of capability.</p>
           </div>
           <div class="ask">
             <h3>University &amp; data partnership</h3>
-            <p>Provide HPC time, data access, or supervisory capacity in exchange for an open platform,
-               teaching resources, and a live testbed for student and postdoctoral work.</p>
-            <p class="placeholder">[ PI to insert institutional contacts ]</p>
+            <p>Provide HPC time, data access, or supervisory capacity in exchange for an open platform, teaching resources, and a live testbed for student and postdoctoral work.</p>
           </div>
           <div class="ask">
             <h3>Compute &amp; cloud in-kind</h3>
-            <p>National HPC allocations or cloud-credit programmes that directly underwrite the Phase 2
-               modelling core — the single largest infrastructure dependency.</p>
-            <p class="placeholder">[ PI to insert specific allocation targets ]</p>
+            <p>National HPC allocations or cloud-credit programmes that directly underwrite the Phase 2 modelling core — the single largest infrastructure dependency.</p>
           </div>
           <div class="ask">
             <h3>Institutional sponsorship</h3>
-            <p>Civil-protection agencies, NGOs, and foundations seeking public-benefit early-warning
-               capability in underserved regions.</p>
-            <p class="placeholder">[ PI to insert funding range / phase costs ]</p>
+            <p>Civil-protection agencies, NGOs, and foundations seeking public-benefit early-warning capability in underserved regions.</p>
           </div>
         </div>
       </section>
@@ -560,93 +385,74 @@
         <span class="section-label">Leadership</span>
         <h2 class="section-title">Who is building this</h2>
         <div class="pi">
-          <div class="pi-photo" aria-hidden="true">OM</div>
+          <div class="pi-photo">
+            <img src="/GeoID_initiative/photos/me.jpg" alt="Owen McCluskey" loading="lazy" decoding="async">
+          </div>
           <div>
             <h3>Owen McCluskey</h3>
-            <div class="pi-role">Founder &amp; Principal Investigator</div>
-            <p>
-              Computational volcanologist (PhD, University of Pisa / INGV) working on finite-element
-              modelling of magma and rock dynamics at Mount Etna using the GALES solver, with prior
-              research in glaciology and volcanogenic flood modelling. The Etna viewer reflects this
-              direct domain expertise; the broader platform extends the same multi-physics modelling
-              approach toward operational, public-facing hazard intelligence.
-              <span style="color:var(--fp-gold);font-style:italic;"> [ PI: add collaborators / advisory board as partnerships form ]</span>
-            </p>
+            <span class="pi-role">Founder &amp; Principal Investigator</span>
+            <p>Computational volcanologist (PhD, University of Pisa / INGV) working on finite-element modelling of magma and rock dynamics at Mount Etna using the GALES solver, with prior research in glaciology and volcanogenic flood modelling. The Etna viewer reflects this direct domain expertise; the broader platform extends the same multi-physics modelling approach toward operational, public-facing hazard intelligence.</p>
           </div>
         </div>
       </section>
 
       <!-- CLOSING CTA -->
-      <section class="cta-band reveal">
+      <section class="cta-section">
         <h2>Fund the supply, not a promise.</h2>
-        <p>
-          The capability is on the table and verifiable. The opportunity is to turn proven geoscience
-          tooling into a continuous public good. We would welcome a conversation with any institution,
-          funder, or research partner who shares that aim.
-        </p>
-        <div class="hero-actions">
+        <p>The capability is on the table and verifiable. The opportunity is to turn proven geoscience tooling into a continuous public good. We would welcome a conversation with any institution, funder, or research partner who shares that aim.</p>
+        <div class="cta-actions">
           <a class="btn-primary" href="/contact/">Start a conversation →</a>
           <a class="btn-ghost" href="/earth_explorer/etna/viewer/">Explore the Etna proof</a>
         </div>
       </section>
 
       <!-- FOOTER -->
-      <footer class="site-footer">
-        <div class="footer-inner">
-          <div class="footer-content">
-            <div class="footer-brand">
-              <div class="footer-brand-logo" style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem;">
+      <footer class="site-footer" style="margin-top:2.5rem;border-top:1px solid var(--line);background:rgba(5,10,16,0.7);backdrop-filter:blur(12px);padding:3rem 0 1.5rem;">
+        <div style="max-width:1060px;margin:0 auto;padding:0 1.25rem;">
+          <div style="display:grid;grid-template-columns:2fr repeat(3,1fr);gap:3rem;padding-bottom:2.5rem;border-bottom:1px solid var(--line);">
+            <div>
+              <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem;">
                 <img src="/GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" style="height:32px;width:auto;" loading="lazy" decoding="async">
               </div>
-              <p>Democratizing geohazard science through real-time risk tracking and physics-based modeling. Empowering communities with actionable insights.</p>
-              <p>GeoID is a non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>
+              <p style="font-size:0.88rem;line-height:1.68;">Working toward democratizing geohazard science through physics-based modelling and open data. Explorer viewers live now; hazard forecasting platform in development.</p>
+              <p style="font-size:0.88rem;line-height:1.68;margin-top:0.75rem;">GeoID is a non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>
             </div>
-            <div class="footer-section">
-              <h4>Navigation</h4>
-              <ul>
-                <li><a href="/about/">Overview</a></li>
-                <li><a href="/earth_explorer/">Earth Explorer</a></li>
-                <li><a href="/explorer/">Planet Explorer</a></li>
-                <li><a href="/research/">Research Hub</a></li>
-                <li><a href="/get-involved/">Get Involved</a></li>
-                <li><a href="/contact/">Contact</a></li>
+            <div>
+              <h4 style="font-size:0.7rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:1.1rem;">Navigation</h4>
+              <ul style="list-style:none;padding:0;margin:0;">
+                <li style="margin-bottom:0.6rem;"><a href="/about/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Overview</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="/earth_explorer/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Earth Explorer</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="/explorer/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Planet Explorer</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="/research/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Research Hub</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="/get-involved/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Get Involved</a></li>
+                <li><a href="/contact/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Contact</a></li>
               </ul>
             </div>
-            <div class="footer-section">
-              <h4>For Partners</h4>
-              <ul>
-                <li><a href="#problem">The Gap</a></li>
-                <li><a href="#proof">Proven Capability</a></li>
-                <li><a href="#roadmap">Roadmap</a></li>
-                <li><a href="#ask">Engagement Models</a></li>
+            <div>
+              <h4 style="font-size:0.7rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:1.1rem;">This document</h4>
+              <ul style="list-style:none;padding:0;margin:0;">
+                <li style="margin-bottom:0.6rem;"><a href="#problem" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">The Gap</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="#proof" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Proven Capability</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="#roadmap" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Roadmap</a></li>
+                <li><a href="#ask" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Engagement Models</a></li>
               </ul>
             </div>
-            <div class="footer-section">
-              <h4>Contact</h4>
-              <ul>
-                <li><a href="mailto:geoid.initiative@gmail.com">geoid.initiative@gmail.com</a></li>
-                <li><a href="/contact/">Contact form</a></li>
+            <div>
+              <h4 style="font-size:0.7rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:1.1rem;">Contact</h4>
+              <ul style="list-style:none;padding:0;margin:0;">
+                <li style="margin-bottom:0.6rem;"><a href="mailto:geoid.initiative@gmail.com" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">geoid.initiative@gmail.com</a></li>
+                <li><a href="/contact/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Contact form</a></li>
               </ul>
             </div>
           </div>
-          <div class="footer-bottom">
-            <p>&copy; 2025 GeoID Initiative. Led by Owen McCluskey. All rights reserved.</p>
-            <p style="opacity:0.7;">Research &amp; Funding Prospectus</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;padding-top:1.75rem;">
+            <p style="color:var(--muted);font-size:0.82rem;">&copy; 2026 GeoID Initiative. Led by Owen McCluskey. All rights reserved.</p>
+            <p style="color:var(--muted);font-size:0.82rem;opacity:0.7;">Research &amp; Funding Prospectus</p>
           </div>
         </div>
       </footer>
 
     </div>
-  </div>
-
-  <div class="status-bar" role="status">
-    <div class="status-item"><span class="status-dot"></span>Capability Proven</div>
-    <span class="status-sep">·</span>
-    <div class="status-item"><span class="status-dot yellow"></span>Platform Seeking Funding</div>
-    <div class="status-spacer"></div>
-    <div class="status-item">Research &amp; Funding Prospectus</div>
-    <span class="status-sep">·</span>
-    <div class="status-item">GeoID Initiative</div>
   </div>
 
   <script src="/scripts/site.js"></script>
