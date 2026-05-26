@@ -653,6 +653,25 @@
     </section>
     <div class="page-inner">
 
+      <!-- ── Development status banner ── -->
+      <div style="
+        border: 1.5px solid rgba(247,189,104,0.55);
+        background: rgba(247,189,104,0.08);
+        border-radius: 1rem;
+        padding: 0.9rem 1.4rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        flex-wrap: wrap;
+      " role="note" aria-label="Development status">
+        <span style="display:inline-flex;align-items:center;gap:0.35rem;font-family:'Public Sans',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#f7bd68;border:1px solid rgba(247,189,104,0.45);padding:0.2rem 0.65rem;border-radius:999px;flex-shrink:0;">⚠ In Development — Not a Live Product</span>
+        <p style="margin:0;font-family:'Public Sans',sans-serif;font-size:0.88rem;color:rgba(247,189,104,0.88);line-height:1.55;">
+          myGeoID is a <strong style="color:#f7c87a;">proposed application</strong>. The interface shown is a design concept; no hazard data is currently computed or delivered.
+          Interested in funding or collaborating? Read the <a href="/fund.html" style="color:#f7c87a;text-decoration:underline;">prospectus →</a>
+        </p>
+      </div>
+
       <!-- ── Hero — slideshow background ── -->
       <div class="hero-tile" id="hero">
         <div class="hero-slides" id="heroSlides">
@@ -664,11 +683,11 @@
         <div class="hero-overlay"></div>
         <div class="hero-content">
           <img class="hero-logo-img" src="/assets/mygeoid_logo.png" alt="myGeoID Logo" loading="lazy" decoding="async">
-          <p class="hero-tagline">World‑leading geohazard forecast application that puts your safety in your own hands</p>
-          <p class="hero-desc">Using global weather forecasts, the myGeoID app estimates how the Earth's surface responds — combining satellite data, best‑practice geomechanics, and AI to condense complex maths into a simple <strong>Factor of Safety</strong> score. The result is a global, open risk index people can act on directly, with historical tracking to challenge unfair quotes and politicised narratives.</p>
+          <p class="hero-tagline">A proposed geohazard forecast application — in development, seeking funding and collaboration</p>
+          <p class="hero-desc">myGeoID is designed to use global weather forecasts to estimate how the Earth's surface will respond — combining satellite data, best‑practice geomechanics, and AI to condense complex modelling into a simple <strong>Factor of Safety</strong> score. The methodology and architecture are defined; building and validating it requires investment and collaboration.</p>
           <div class="hero-actions">
-            <a class="btn-primary" href="#how">Learn How myGeoID Works</a>
-            <a class="btn-ghost" href="#questionnaire">Play Your Part</a>
+            <a class="btn-primary" href="#how">See the Proposed Methodology</a>
+            <a class="btn-ghost" href="/fund.html">Funding Prospectus</a>
           </div>
         </div>
       </div>
@@ -691,9 +710,9 @@
         <div class="photo-tile-bg" style="background-image: url('/GeoID_initiative/photos/flood.jpeg');"></div>
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content" style="text-align:center;">
-          <span class="tile-label">How myGeoID Works</span>
-          <h2 class="tile-title">Turning Earth Science into Early Warnings</h2>
-          <p class="tile-desc" style="margin:0 auto 0;">The myGeoID app integrates Earth observation data, geomechanical modelling, and machine learning into a unified digital twin framework. The result is a continuously updated <strong style="color:var(--text);">Factor of Safety (FoS)</strong> index that reflects real‑world instability across multiple hazards and remains available to anyone, anywhere. Methods and assumptions will be published as the project matures.</p>
+          <span class="tile-label">Proposed Methodology</span>
+          <h2 class="tile-title">Designed to Turn Earth Science into Early Warnings</h2>
+          <p class="tile-desc" style="margin:0 auto 0;">The myGeoID architecture is designed to integrate Earth observation data, geomechanical modelling, and machine learning into a unified digital twin framework. When built, the result would be a continuously updated <strong style="color:var(--text);">Factor of Safety (FoS)</strong> index reflecting instability across multiple hazards — available to anyone, anywhere. Methods and assumptions will be published openly as development progresses.</p>
           <div class="cards-grid-3">
             <article class="solution-card">
               <div class="solution-card-header">
@@ -704,9 +723,9 @@
                     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                   </svg>
                 </div>
-                <h3>Forecast-Driven Risk Computation</h3>
+                <h3>Forecast-Driven Risk Computation <small style="font-size:0.7em;font-weight:400;color:rgba(247,189,104,0.75);">(Proposed)</small></h3>
               </div>
-              <p>Capitalising on input weather forecast data from the GFS NOAA API, myGeoID will calculate the modelled <strong>Factor of Safety</strong> to anticipate rising instability before it is visible — providing earlier alerts and longer lead times for communities and responders.</p>
+              <p>The design capitalises on GFS NOAA global weather forecast data. Once built, myGeoID will calculate a modelled <strong>Factor of Safety</strong> to anticipate rising instability before it is visible — providing earlier alerts and longer lead times for communities and responders.</p>
             </article>
             <article class="solution-card">
               <div class="solution-card-header">
@@ -776,19 +795,19 @@
         <div class="photo-tile-bg" style="background-image: url('/GeoID_initiative/photos/Binevenagh-Mountain-8ee019d.jpg');"></div>
         <div class="photo-tile-overlay"></div>
         <div class="photo-tile-content">
-          <span class="tile-label">Programs</span>
-          <h2 class="tile-title">From Research to Deployment</h2>
-          <p class="tile-desc">myGeoID's development program focuses on validating and deploying real-world early warning capability — from fundamental research to operational pilots.</p>
+          <span class="tile-label">Roadmap</span>
+          <h2 class="tile-title">Proposed Development Path</h2>
+          <p class="tile-desc">myGeoID's development program is designed to move from fundamental research to validated operational pilots — pending funding and collaboration. These are the three proposed programme strands.</p>
           <div class="cards-grid-3" style="margin-top:1.25rem;">
             <article class="program-card">
               <div class="program-media">
                 <img src="/GeoID_initiative/photos/Binevenagh-Mountain-8ee019d.jpg" alt="Northern Ireland pilot landscape" loading="lazy" decoding="async">
               </div>
               <div class="program-content">
-                <span class="program-tag">Pilot Deployment</span>
-                <h3>Ireland &amp; Northern Ireland Pilot</h3>
-                <p>myGeoID will be piloted across Northern Ireland and coastal Ireland, integrating landslide, flood, and slope stability risk into a unified early warning framework.</p>
-                <p>This pilot phase will validate real-world performance, stakeholder usability, and response effectiveness prior to global scaling.</p>
+                <span class="program-tag">Proposed Pilot</span>
+                <h3>Ireland &amp; Northern Ireland — Proposed Pilot</h3>
+                <p>The proposed first deployment would cover Northern Ireland and coastal Ireland, integrating landslide, flood, and slope stability risk into a unified early warning framework.</p>
+                <p>Subject to funding, this pilot phase would validate real-world performance, stakeholder usability, and response effectiveness prior to any global scaling.</p>
               </div>
             </article>
             <article class="program-card">
@@ -796,9 +815,9 @@
                 <img src="/GeoID_initiative/photos/flood.jpeg" alt="Flood risk tracking" loading="lazy" decoding="async">
               </div>
               <div class="program-content">
-                <span class="program-tag">Flood</span>
-                <h3>Flood Risk Tracker</h3>
-                <p>Hydro-meteorological inputs feed the digital twin to surface FoS trends that signal emerging flood risk.</p>
+                <span class="program-tag">Planned Module</span>
+                <h3>Flood Risk — Planned Module</h3>
+                <p>The flood risk module will feed hydro-meteorological inputs into the digital twin to surface FoS trends signalling emerging flood risk — pending development funding.</p>
               </div>
             </article>
             <article class="program-card">
@@ -823,7 +842,7 @@
               <div class="footer-brand-logo">
                 <img src="/GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" loading="lazy" decoding="async">
               </div>
-              <p>Democratizing geohazard science through real-time risk tracking and physics-based modeling. Empowering communities with actionable insights.</p>
+              <p>Working toward democratizing geohazard science through physics-based modelling and open data. Explorer viewers live now; hazard forecasting platform in development.</p>
               <p>GeoID is a non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>
             </div>
             <div class="footer-section">              <h4>Navigation</h4>
@@ -849,14 +868,15 @@
             <div class="footer-section">
               <h4>Legal</h4>
               <ul>
-                <li><a href="#" onclick="alert('Privacy Policy: GeoID respects your privacy. Contact us for our full privacy policy.'); return false;">Privacy Policy</a></li>
-                <li><a href="#" onclick="alert('Terms of Service: GeoID is provided for informational and research purposes. Contact us for full terms.'); return false;">Terms of Service</a></li>
-                <li><a href="#" onclick="alert('Disclaimer: GeoID provides estimated geohazard risk based on best available scientific methods.'); return false;">Disclaimer</a></li>
+                <li><a href="/privacy/">Privacy Policy</a></li>
+                <li><a href="/terms/">Terms of Service</a></li>
+                <li><a href="/disclaimer/">Disclaimer</a></li>
+                <li><a href="/refund/">Billing &amp; Refunds</a></li>
               </ul>
             </div>
           </div>
           <div class="footer-bottom">
-            <p>&copy; 2025 GeoID Initiative. Led by Owen McCluskey. All rights reserved.</p>
+            <p>&copy; 2026 GeoID Initiative. Led by Owen McCluskey. All rights reserved.</p>
             <div class="footer-social-links">
               <a href="mailto:geoid.initiative@gmail.com" class="footer-social-link" aria-label="Email">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -875,7 +895,7 @@
   <div class="status-bar" role="status">
     <div class="status-item"><span class="status-dot"></span>Initiative Active</div>
     <span class="status-sep">·</span>
-    <div class="status-item"><span class="status-dot yellow"></span>Pilot Phase</div>
+    <div class="status-item"><span class="status-dot yellow"></span>In Development — Seeking Funding</div>
     <div class="status-spacer"></div>
     <div class="status-item">GeoID Initiative</div>
     <span class="status-sep">·</span>
