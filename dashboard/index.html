@@ -899,10 +899,17 @@
       top: 0;
       bottom: 0;
       width: 75%;
-      background: url('/earth_explorer/etna/viewer/assets/zoom_out.png') center/cover no-repeat;
       opacity: 0.6;
       -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.5) 18%, black 45%);
       mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.5) 18%, black 45%);
+      overflow: hidden;
+    }
+    .slide-etna-bg video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .slide-etna-content {
@@ -1835,7 +1842,11 @@
         <!-- Slide 1: Etna Earth Explorer -->
         <div class="pv-slide">
           <div class="slide-etna">
-            <div class="slide-etna-bg" aria-hidden="true"></div>
+            <div class="slide-etna-bg" aria-hidden="true">
+              <video autoplay muted loop playsinline preload="none">
+                <source src="/assets/etna_viewer_demo.webm" type="video/webm">
+              </video>
+            </div>
             <img class="slide-etna-ee-logo" src="/earth_explorer/assets/logo.png" alt="Earth Explorer" loading="lazy" decoding="async">
             <div class="slide-etna-content">
               <span class="slide-etna-badge">Live · Earth Explorer</span>
@@ -2202,10 +2213,14 @@
         slides[current].classList.remove('is-active');
         dots[current].classList.remove('is-active');
         dots[current].setAttribute('aria-selected', 'false');
+        /* Pause any video in the slide being hidden */
+        slides[current].querySelectorAll('video').forEach(v => v.pause());
         current = (n + slides.length) % slides.length;
         slides[current].classList.add('is-active');
         dots[current].classList.add('is-active');
         dots[current].setAttribute('aria-selected', 'true');
+        /* Play video in the newly active slide */
+        slides[current].querySelectorAll('video').forEach(v => v.play().catch(() => {}));
       }
 
       function startTimer() {
