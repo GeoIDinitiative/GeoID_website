@@ -129,9 +129,12 @@
     }
     const user = await getUser();
     const ret = encodeURIComponent(returnTo || (window.location.pathname + window.location.search));
+    // Always redirect the outermost frame so that this works correctly whether
+    // called from a top-level page or from inside a same-origin iframe.
+    const nav = (window.top || window).location;
     if (!user) {
       // Not signed in at all → bounce to /account/ in signed-out mode.
-      window.location.href = `/account/?need=signin&return=${ret}`;
+      nav.href = `/account/?need=signin&return=${ret}`;
       return false;
     }
     const active = await fetchMembership(user);
@@ -139,7 +142,7 @@
     // Signed in but no active subscription → /account/ shows the
     // subscribe state. Returning to the locked page happens automatically
     // once the webhook flips active=true.
-    window.location.href = `/account/?need=subscription&return=${ret}`;
+    nav.href = `/account/?need=subscription&return=${ret}`;
     return false;
   }
 

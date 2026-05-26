@@ -1045,6 +1045,21 @@
       transform: translateY(-2px);
     }
 
+    /* Earth Explorer logo: top-right of the Etna slide; hidden in portrait */
+    .slide-etna-ee-logo {
+      display: block;
+      position: absolute;
+      top: 0.9rem;
+      right: 1.1rem;
+      height: 4rem;
+      width: auto;
+      object-fit: contain;
+      opacity: 0.82;
+      filter: drop-shadow(0 2px 14px rgba(0,0,0,0.55));
+      pointer-events: none;
+      z-index: 4;
+    }
+
     .pv-slide-dots {
       position: absolute;
       bottom: 0.75rem;
@@ -1500,6 +1515,31 @@
       .slide-mygeoid-indev { padding: 0.5rem !important; }
       .slide-mygeoid-indev-pills { flex-wrap: wrap; gap: 0.3rem !important; }
 
+      /* Etna slide: hide the bg image column, stack content full-width */
+      .slide-etna {
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      .slide-etna-bg { display: none !important; }
+      .slide-etna-ee-logo { height: 3.2rem !important; }
+      .slide-etna-content {
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 1rem !important;
+        gap: 0.55rem !important;
+        background: linear-gradient(180deg, rgba(6,2,0,0.95) 0%, rgba(6,2,0,0.88) 100%) !important;
+      }
+      .slide-etna-badge { font-size: 0.5rem !important; padding: 0.15rem 0.45rem !important; }
+      .slide-etna-icon { width: 2.6rem !important; height: 2.6rem !important; }
+      .slide-etna-title { font-size: 1.6rem !important; line-height: 1.15 !important; }
+      .slide-etna-meta { font-size: 0.65rem !important; }
+      .slide-etna-desc { font-size: 0.82rem !important; line-height: 1.45 !important; }
+      .slide-etna-features { grid-template-columns: 1fr !important; gap: 0.3rem !important; }
+      .slide-etna-features li { font-size: 0.78rem !important; }
+      .slide-etna-actions { flex-wrap: wrap; gap: 0.4rem !important; }
+      .slide-etna-launch { height: 2.2rem !important; padding: 0.45rem 1rem !important; font-size: 0.82rem !important; }
+
       /* Mission slide: hide the decorative tree diagram + bg overlay
          so the text column has the full width.  Stack stats horizontally
          but compactly, allowing wrap. */
@@ -1658,6 +1698,37 @@
       .slide-mygeoid-indev-pills { gap: 0.25rem !important; flex-wrap: wrap; }
       .slide-mygeoid-indev-pills span { font-size: 0.55rem !important; padding: 0.1rem 0.4rem !important; }
 
+      /* ── Slide 1 (Etna) — landscape: restore row layout, bg fills right */
+      /* Undo the portrait column-stack so content sits beside the image */
+      .slide-etna { flex-direction: row !important; align-items: stretch !important; }
+      .slide-etna-ee-logo { height: 3.8rem !important; top: 0.6rem !important; right: 0.8rem !important; }
+      .slide-etna-bg {
+        display: block !important;
+        opacity: 0.55 !important;
+        -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.5) 22%, black 50%) !important;
+        mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.5) 22%, black 50%) !important;
+      }
+      .slide-etna-content {
+        position: relative !important;
+        width: clamp(14rem, 44%, 20rem) !important;
+        max-width: none !important;
+        padding: 0.6rem 0.9rem 0.6rem 1rem !important;
+        gap: 0.4rem !important;
+        background: linear-gradient(90deg, rgba(6,2,0,0.97) 0%, rgba(6,2,0,0.80) 75%, transparent 100%) !important;
+        justify-content: flex-start !important;
+      }
+      .slide-etna-badge { font-size: 0.5rem !important; padding: 0.15rem 0.45rem !important; }
+      .slide-etna-icon { width: 2.2rem !important; height: 2.2rem !important; }
+      .slide-etna-title { font-size: 1.5rem !important; line-height: 1 !important; }
+      .slide-etna-meta { font-size: 0.6rem !important; }
+      .slide-etna-desc { display: block !important; font-size: 0.58rem !important; line-height: 1.4 !important; }
+      .slide-etna-features { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 0.1rem 0.4rem !important; }
+      .slide-etna-features li { font-size: 0.54rem !important; line-height: 1.2 !important; }
+      .slide-etna-features li::before { margin-top: 0.38em !important; }
+      /* Push button to the bottom of the column */
+      .slide-etna-actions { margin-top: auto !important; padding-bottom: 0.5rem !important; }
+      .slide-etna-launch { height: 1.8rem !important; padding: 0 0.85rem !important; font-size: 0.65rem !important; }
+
       /* ── Slide 2: Mission — keep readable in short height */
       .slide-mission-content { padding: 0.7rem 1rem !important; gap: 0.45rem !important; }
       .slide-mission-tag { font-size: 0.5rem !important; padding: 0.15rem 0.45rem !important; }
@@ -1695,7 +1766,8 @@
       </li>
       <li><a href="/myGeoID/"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
 
-      <li><a href="/explorer/">Explorer</a></li>
+      <li><a href="/earth_explorer/">Earth Explorer</a></li>
+      <li><a href="/explorer/">Planet Explorer</a></li>
       <li><a href="/contact/">Contact</a></li>
     </ul>
     <div class="nav-right-logo">
@@ -1736,7 +1808,7 @@
             </ul>
           </div>
           <div class="planet-view-brand" aria-hidden="true">
-            <img class="planet-view-brand-logo" src="/planet_explorer/mars/viewer/assets/logo.png" alt="GeoID Explorer" loading="lazy" decoding="async">
+            <img class="planet-view-brand-logo" src="/planet_explorer/mars/viewer/assets/logo.png" alt="Planet Explorer" loading="lazy" decoding="async">
             <span class="planet-view-brand-desc">Explore every world in our solar system. Select a planet to read its profile and launch the interactive 3D viewer.</span>
             <div class="planet-view-nav-hint">
               <span class="pv-hint-label">Navigate</span>
@@ -1764,6 +1836,7 @@
         <div class="pv-slide">
           <div class="slide-etna">
             <div class="slide-etna-bg" aria-hidden="true"></div>
+            <img class="slide-etna-ee-logo" src="/earth_explorer/assets/logo.png" alt="Earth Explorer" loading="lazy" decoding="async">
             <div class="slide-etna-content">
               <span class="slide-etna-badge">Live · Earth Explorer</span>
               <div class="slide-etna-header">
@@ -1783,7 +1856,7 @@
                 <li>Satellite basemap &amp; vertical exaggeration</li>
               </ul>
               <div class="slide-etna-actions">
-                <a class="slide-etna-launch" href="/earth_explorer/etna/">Launch Viewer →</a>
+                <a class="slide-etna-launch" href="/earth_explorer/etna/">Open Viewer →</a>
               </div>
             </div>
           </div>
@@ -1824,24 +1897,6 @@
               <span class="slide-mission-tag">Our Mission</span>
               <h2 class="slide-mission-title">Welcome to GeoID! Here's a bit about <em>us</em>…</h2>
               <p class="slide-mission-desc">GeoID is an open geoscience initiative turning satellite data and Earth observations into real-time hazard intelligence — connecting planetary science, disaster risk research, and public awareness in one unified platform.</p>
-              <div class="slide-mission-stats">
-                <div class="slide-mission-stat">
-                  <span class="slide-mission-stat-num">8</span>
-                  <span class="slide-mission-stat-label">Worlds mapped</span>
-                </div>
-                <div class="slide-mission-stat">
-                  <span class="slide-mission-stat-num">5+</span>
-                  <span class="slide-mission-stat-label">Hazard categories</span>
-                </div>
-                <div class="slide-mission-stat">
-                  <span class="slide-mission-stat-num">Live</span>
-                  <span class="slide-mission-stat-label">Real-time alerts</span>
-                </div>
-                <div class="slide-mission-stat">
-                  <span class="slide-mission-stat-num">Open</span>
-                  <span class="slide-mission-stat-label">Free &amp; open access</span>
-                </div>
-              </div>
               <ul class="slide-mission-ways">
                 <li>Volunteer your geoscience expertise to active hazard monitoring</li>
                 <li>Contribute field data and observations from your region</li>
@@ -1864,7 +1919,7 @@
                   <img class="smt-child-logo" src="/assets/explorer_logo.png" alt="" loading="lazy" decoding="async">
                 </div>
                 <div class="smt-child">
-                  <img class="smt-child-logo" src="/assets/GeoID research hub logo.png" alt="" loading="lazy" decoding="async">
+                  <img class="smt-child-logo" src="/earth_explorer/assets/logo.png" alt="" loading="lazy" decoding="async">
                 </div>
               </div>
             </div>
@@ -1911,12 +1966,12 @@
           </div>
           <div class="news-tile-body">
             <span class="news-kicker">Live Now</span>
-            <span class="news-title">LIVE: GeoID Explorer</span>
+            <span class="news-title">LIVE: Planet Explorer</span>
             <span class="news-desc">The interactive 3D planetary viewer is now live. Navigate all 8 worlds.</span>
           </div>
         </a>
 
-        <a class="news-tile news-tile--etna" href="/earth_explorer/etna/">
+        <a class="news-tile news-tile--etna" href="/membership/">
           <div class="news-tile-photo">
             <img src="/earth_explorer/etna/viewer/assets/subsurface.png" alt="Etna subsurface" loading="lazy" decoding="async">
           </div>

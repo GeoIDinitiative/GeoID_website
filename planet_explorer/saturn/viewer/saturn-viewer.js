@@ -9879,7 +9879,7 @@ ${error && error.message ? error.message : error}`;
       } else if (!elevationMap) {
         setStatus("Loaded without terrain relief. Elevation map unavailable.", true);
       } else {
-        setStatus("© 2026 GeoID: Explorer. GeoID Solutions, led by Owen McCluskey. All rights reserved.");
+        setStatus("© 2026 GeoID: Explorer. GeoID Initiative, led by Owen McCluskey. All rights reserved.");
       }
 
       function _freeTexImage(tex) {

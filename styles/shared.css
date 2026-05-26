@@ -810,6 +810,11 @@ label {
     min-height: var(--nav-h);
     padding-top: 0.7rem;
     padding-bottom: 0.7rem;
+    /* Prevent open drawer from exceeding the viewport — keeps the
+       hamburger toggle and all menu items reachable. */
+    max-height: 100dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .nav-sep {
@@ -1335,6 +1340,18 @@ body {
 
 /* Images: avoid overflow on narrow widths + lazy-decode by default */
 img { max-width: 100%; height: auto; }
+
+/* Footer brand logo: pin to a compact wordmark height across all pages.
+   The global img{height:auto} rule would otherwise let the large sphere
+   artwork fill the full column width on narrow screens.
+   Covers both .footer-brand-logo (modern pages) and .footer-logo (updates/legacy).
+   On mobile we show a slightly larger size so the icon remains legible. */
+.footer-brand-logo img,
+.footer-logo img {
+  height: 40px !important;
+  width: auto !important;
+  max-width: none !important;
+}
 
 /* All hero/grid card images get content-visibility for off-screen savings */
 .photo-tile img, .card-img, .grid-img, .hero-bg img {

@@ -256,7 +256,8 @@
     <ul class="nav-links">
       <li><a href="/dashboard/">Dashboard</a></li>
       <li><a href="/myGeoID/"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
-      <li><a href="/explorer/">Explorer</a></li>
+      <li><a href="/earth_explorer/">Earth Explorer</a></li>
+      <li><a href="/explorer/">Planet Explorer</a></li>
       <li><a href="/contact/">Contact</a></li>
     </ul>
     <div class="nav-right-logo">
@@ -439,7 +440,8 @@
           if (mode === "signup") {
             const { data, error } = await window.GeoIDAuth.signUp({
               email, password,
-              redirectTo: window.location.origin + "/account/",
+              redirectTo: window.location.origin + "/account/" +
+                (returnTo ? "?return=" + encodeURIComponent(returnTo) : ""),
             });
             if (error) throw error;
             if (data?.user && !data.session) {
@@ -452,12 +454,14 @@
             const { error } = await window.GeoIDAuth.signInWithPassword({ email, password });
             if (error) throw error;
             // Post-sign-in: always redirect — never stay on account page.
-            // Members go to returnTo or dashboard; non-members go to membership page.
+            // Members go to returnTo or dashboard; non-members go to membership page
+            // (returnTo is passed through so the sign-in link there can carry it).
             const ok = await window.GeoIDAuth.isMember();
             if (ok) {
               window.location.replace(returnTo || "/dashboard/");
             } else {
-              window.location.replace("/membership/");
+              const dest = "/membership/" + (returnTo ? "?return=" + encodeURIComponent(returnTo) : "");
+              window.location.replace(dest);
             }
             return;
           }
@@ -477,7 +481,8 @@
         try {
           const { error } = await window.GeoIDAuth.signInWithMagicLink({
             email,
-            redirectTo: window.location.origin + "/account/",
+            redirectTo: window.location.origin + "/account/" +
+              (returnTo ? "?return=" + encodeURIComponent(returnTo) : ""),
           });
           if (error) throw error;
           showMsg("Check your inbox for a sign-in link.", "success");
@@ -488,7 +493,11 @@
         }
       });
 
-      btnSubscribe.addEventListener("click", () => window.GeoIDMembership.subscribe());
+      btnSubscribe.addEventListener("click", () => {
+        // Save returnTo so the welcome page can redirect back after Stripe.
+        if (returnTo) sessionStorage.setItem("geoid_returnAfterSubscribe", returnTo);
+        window.GeoIDMembership.subscribe();
+      });
       btnPortal.addEventListener("click",    () => window.GeoIDMembership.portal());
       btnSignOut.addEventListener("click", async () => {
         if (ready) await window.GeoIDAuth.signOut();
@@ -555,6 +564,7 @@
       }
     })();
   </script>
+  <script src="/scripts/site.js"></script>
   <script src="/styles/nav.js?v=20260516" defer></script>
 </body>
 </html>

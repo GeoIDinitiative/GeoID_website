@@ -246,7 +246,7 @@ let _faultPerimeterLine  = null; // animated perimeter outline of selected ribbo
 const _ghostSurfaceTraceMats = []; // ghost copies of surface-trace line materials (inactive half)
 let _faultSideLineGroup = null; // intersection lines on the 4 domain side faces (built once)
 let _faultCapLineGroup  = null; // intersection lines on the cross-section cap (rebuilt on angle)
-let satelliteTexture = null;
+let satelliteTexture = null;   // kept for legacy reference; texture is now also in _basemapAssets
 let basemapMode = 'satellite';
 
 // ─── Hazard zones ─────────────────────────────────────────────────────────────
@@ -3536,6 +3536,9 @@ const _CAP_GLSL_GEO = `
   uniform float uColorMode;
   uniform float uTime;
   uniform sampler3D uPropTex;
+  uniform float uNx;        // cap plane normal x: -sin(capAngle)
+  uniform float uNz;        // cap plane normal z: -cos(capAngle)
+  uniform float uIsCapFace; // 1.0 on cross-section cap face only; 0 on domain side faces
 
   ${_SWIRL_GLSL}
 
@@ -3633,6 +3636,59 @@ const _CAP_GLSL_GEO = `
     return min(T, 1350.0);
   }
 
+  // 42 sills projected onto cap face's 2D (h,y) space — ALL sills visible regardless
+  // of their z position relative to the cap plane.
+  // h = uNz*x - uNx*z  (tangential coord on cap face horizontal axis).
+  // rPolVis = rPol×2: thin but clearly oblate (~3:1 aspect ratio).
+  // normOut in 3D world space = vec3(uNz*hd, yd, -uNx*hd).
+  bool inAnySill(vec3 wp, out vec3 normOut, out float tMag){
+    if(wp.y < -8.5 || wp.y > 0.2){ normOut=vec3(0.0); tMag=0.0; return false; }
+    float h=uNz*wp.x-uNx*wp.z, hd, yd;
+    hd=(h-(uNz* 0.30-uNx*5.10))/0.50; yd=(wp.y+0.8)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-1.60)-uNx*2.60))/0.45; yd=(wp.y+1.1)/0.14; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 0.10-uNx*4.70))/0.55; yd=(wp.y+1.4)/0.18; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-0.40)-uNx*3.00))/0.50; yd=(wp.y+1.7)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-2.40)-uNx*5.40))/0.48; yd=(wp.y+1.3)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-1.00)-uNx*2.20))/0.60; yd=(wp.y+2.1)/0.20; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-3.50)-uNx*4.90))/0.70; yd=(wp.y+2.4)/0.22; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-0.80)-uNx*3.60))/0.55; yd=(wp.y+2.8)/0.18; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-4.20)-uNx*2.00))/0.65; yd=(wp.y+2.2)/0.20; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-2.10)-uNx*5.20))/0.60; yd=(wp.y+3.3)/0.20; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-5.10)-uNx*3.80))/0.65; yd=(wp.y+3.1)/0.20; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-2.80)-uNx*1.60))/0.55; yd=(wp.y+3.7)/0.18; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-3.60)-uNx*4.80))/0.80; yd=(wp.y+4.2)/0.24; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-5.80)-uNx*2.60))/0.60; yd=(wp.y+3.9)/0.20; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-3.00)-uNx*1.40))/0.65; yd=(wp.y+4.9)/0.20; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-6.30)-uNx*4.20))/0.55; yd=(wp.y+4.6)/0.18; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-4.50)-uNx*3.10))/0.60; yd=(wp.y+5.4)/0.18; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-5.20)-uNx*1.20))/0.55; yd=(wp.y+5.1)/0.18; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-7.10)-uNx*3.60))/0.50; yd=(wp.y+5.7)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-4.80)-uNx*4.50))/0.50; yd=(wp.y+6.2)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-6.50)-uNx*1.80))/0.45; yd=(wp.y+6.6)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-5.40)-uNx*3.40))/0.45; yd=(wp.y+7.1)/0.14; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-7.80)-uNx*2.80))/0.40; yd=(wp.y+6.9)/0.14; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-6.90)-uNx*1.50))/0.42; yd=(wp.y+7.5)/0.14; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-7.40)-uNx*3.10))/0.40; yd=(wp.y+7.3)/0.14; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-6.20)-uNx*2.20))/0.45; yd=(wp.y+7.8)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz*(-7.90)-uNx*1.90))/0.38; yd=(wp.y+7.6)/0.14; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 1.20-uNx*3.80))/0.55; yd=(wp.y+1.0)/0.18; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 2.50-uNx*4.60))/0.50; yd=(wp.y+1.4)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 1.80-uNx*5.80))/0.48; yd=(wp.y+0.7)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 3.40-uNx*3.20))/0.60; yd=(wp.y+2.1)/0.20; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 1.60-uNx*6.50))/0.55; yd=(wp.y+2.5)/0.18; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 2.80-uNx*5.40))/0.52; yd=(wp.y+1.8)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 4.10-uNx*4.80))/0.45; yd=(wp.y+1.2)/0.14; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 0.90-uNx*7.20))/0.60; yd=(wp.y+3.2)/0.20; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 3.20-uNx*5.90))/0.55; yd=(wp.y+3.5)/0.18; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 2.10-uNx*6.80))/0.50; yd=(wp.y+4.0)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 4.50-uNx*3.60))/0.48; yd=(wp.y+2.8)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 1.40-uNx*5.20))/0.55; yd=(wp.y+4.6)/0.18; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 3.60-uNx*6.40))/0.45; yd=(wp.y+4.2)/0.14; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 0.60-uNx*7.50))/0.50; yd=(wp.y+5.0)/0.16; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    hd=(h-(uNz* 2.40-uNx*4.90))/0.45; yd=(wp.y+5.5)/0.14; if(hd*hd+yd*yd<1.0){normOut=vec3(uNz*hd,yd,-uNx*hd);tMag=1090.0;return true;}
+    normOut=vec3(0.0); tMag=0.0; return false;
+  }
+
   // Returns true if wp is inside any magma chamber; fills tMag with chamber temperature.
   bool inAnyChamber(vec3 wp, out float tMag){
     vec3 dSum = (wp - vec3(-0.26,  1.5,  0.42)) / vec3(0.5,  0.5,  0.5 );
@@ -3648,6 +3704,8 @@ const _CAP_GLSL_GEO = `
                     -0.2435*d2w.x+0.848 *d2w.y-0.4706*d2w.z,
                     -0.062 *d2w.x+0.4706*d2w.y+0.8801*d2w.z) / vec3(6.0,2.0,6.0);
     if(dot(d2,d2) < 1.0){ tMag=1050.0; return true; }
+    // Shallow sill complex — only on cap face (2D projection creates false hits on domain walls)
+    if(uIsCapFace > 0.5){ vec3 _sNorm; if(inAnySill(wp, _sNorm, tMag)) return true; }
     tMag=0.0; return false;
   }
 
@@ -3676,7 +3734,8 @@ const _CAP_GLSL_GEO = `
     t=clamp(t,0.0,1.0);
     return mix(vec3(0.23,0.43,0.66),vec3(0.83,0.31,0.42),t);
   }
-  vec3 cmapRegime(float T){
+  // d = depth below surface (km). Asthenosphere colour only blends in below the LAB (~60 km).
+  vec3 cmapRegime(float T, float d){
     vec3 brittle=vec3(1.00,0.42,0.42);
     vec3 bdz    =vec3(1.00,0.70,0.28);
     vec3 visco  =vec3(0.46,0.78,0.91);
@@ -3685,7 +3744,8 @@ const _CAP_GLSL_GEO = `
     vec3 c=mix(brittle,bdz,  smoothstep(270.0,330.0,T));
          c=mix(c,      visco,smoothstep(520.0,580.0,T));
          c=mix(c,      pmelt,smoothstep(870.0,930.0,T));
-         c=mix(c,      asthen,smoothstep(1070.0,1130.0,T));
+         // Asthenosphere: only below the LAB (≥50 km); supresses false hit from plume halos above
+         c=mix(c,      asthen,smoothstep(1070.0,1130.0,T)*smoothstep(50.0,60.0,d));
     return c;
   }
 `;
@@ -3749,6 +3809,8 @@ const _CAP_FRAG = `
                 norm = vec3(0.9679*dw.x+0.2435*dw.y-0.062*dw.z,
                            -0.2435*dw.x+0.848*dw.y-0.4706*dw.z,
                            -0.062*dw.x+0.4706*dw.y+0.8801*dw.z) / vec3(6.0,2.0,6.0);
+                // Sill complex: override norm when inside a sill
+                float _sT; vec3 _sN; if(inAnySill(vWorldPos, _sN, _sT)) norm = _sN;
               }
             }
           }
@@ -3787,7 +3849,7 @@ const _CAP_FRAG = `
         // Fade halo contribution to zero at the surface; pure geotherm below 12 km.
         float hFade = smoothstep(0.0, 12.0, d);
         float Treg  = mix(ptGeotherm(d), T, hFade);
-        c = cmapRegime(Treg);
+        c = cmapRegime(Treg, d);
       }
       fragColor=vec4(c,1.0);
       return;
@@ -3814,6 +3876,8 @@ const _CAP_FRAG = `
                 norm = vec3(0.9679*dw.x+0.2435*dw.y-0.062*dw.z,
                            -0.2435*dw.x+0.848*dw.y-0.4706*dw.z,
                            -0.062*dw.x+0.4706*dw.y+0.8801*dw.z) / vec3(6.0,2.0,6.0);
+                // Sill complex: override norm when inside a sill
+                float _sT; vec3 _sN; if(inAnySill(vWorldPos, _sN, _sT)) norm = _sN;
               }
             }
           }
@@ -3921,9 +3985,12 @@ function _makeCapShaderMat(extra) {
     vertexShader:   _CAP_VERT,
     fragmentShader: _CAP_FRAG,
     uniforms: {
-      uColorMode: { value: 0.0 },
-      uPropTex:   { value: _propTex },
-      uTime:      { value: 0.0 },
+      uColorMode:  { value: 0.0 },
+      uPropTex:    { value: _propTex },
+      uTime:       { value: 0.0 },
+      uNx:         { value: 0.0  },  // cap plane normal x (default angle=0)
+      uNz:         { value: -1.0 },  // cap plane normal z (default angle=0)
+      uIsCapFace:  { value: 0.0 },   // 1.0 only on cross-section cap face; 0 on domain walls
     },
     glslVersion: THREE.GLSL3,
     side: THREE.DoubleSide,
@@ -3937,6 +4004,7 @@ function _makeCapShaderMat(extra) {
 function buildCrossSectionCap() {
   const capGeo = new THREE.BufferGeometry();
   crossSectionCap = new THREE.Mesh(capGeo, _makeCapShaderMat());
+  crossSectionCap.material.uniforms.uIsCapFace.value = 1.0; // sills only rendered here
   crossSectionCap.visible = false;
   crossSectionCap.renderOrder = 6;  // above all slab tear overlays (max rO=5)
   crossSectionCap.userData = { ptContext: 'CROSS-SECTION FACE' };
@@ -3948,6 +4016,7 @@ function buildCrossSectionCap() {
   // Renders at rO=10 (transparent pass, after rings) to repaint cap face over
   // any hazard-ring bleed on the cross-section plane.
   const capOdMat = _makeCapShaderMat({ depthTest: true, depthWrite: false });
+  capOdMat.uniforms.uIsCapFace.value = 1.0;               // sills only rendered here
   crossSectionCapOverdraw = new THREE.Mesh(capGeo, capOdMat);
   crossSectionCapOverdraw.visible = false;
   crossSectionCapOverdraw.renderOrder = 10;
@@ -4255,6 +4324,13 @@ function setCrossSectionAngle(deg) {
   // Plane passes through Etna summit at world (x=-0.79, z=4.08)
   const d   = -(nx * (-0.79) + nz * 4.08);
   clipPlane.set(new THREE.Vector3(nx, 0, nz), d);
+  // Push plane normal to cap shaders so sill/conduit 2D projections track the angle
+  for (const mat of _domainFaceMats) {
+    if (mat.uniforms?.uNx !== undefined) {
+      mat.uniforms.uNx.value = nx;
+      mat.uniforms.uNz.value = nz;
+    }
+  }
 }
 
 // ─── Context HUD + cursor readout + scale bar ─────────────────────────────────
@@ -4356,10 +4432,15 @@ const _REGIME_DEFS = [
   [Infinity, 'Asthenosphere','#ff4500', 'Convective mantle; plastic flow'          ],
 ];
 
-function _subRegime(T) {
-  for (const [thresh, label, color, desc] of _REGIME_DEFS) {
-    if (T < thresh) return { label, color, desc };
-  }
+// d = depth below surface (km). Asthenosphere only fires below the LAB (~60 km depth);
+// plume / chamber halos above 55 km read as Partial Melt, not Asthenosphere.
+function _subRegime(T, d) {
+  if (T < 300)  return { label: 'Brittle',         color: '#ff6b6b', desc: 'Elastic–brittle; seismogenic zone' };
+  if (T < 550)  return { label: 'Brittle–Ductile', color: '#ffb347', desc: 'Mixed mode; fault creep begins' };
+  if (T < 900)  return { label: 'Viscoelastic',    color: '#76c8e8', desc: 'Ductile flow; creep-dominated deformation' };
+  if (T < 1100 || d < 55)
+                return { label: 'Partial Melt',    color: '#ff8c00', desc: 'Viscoelastic + partial melt; LAB zone' };
+  return        { label: 'Asthenosphere',          color: '#ff4500', desc: 'Convective mantle; plastic flow' };
 }
 
 // Meshes that trigger the subsurface reader on hover (domain walls + cap).
@@ -4499,7 +4580,7 @@ function updateContextHUD() {
       const _hfT  = Math.min(1, props.dEff / 12);
       const _hf   = _hfT * _hfT * (3 - 2 * _hfT);
       const _Treg = (1 - _hf) * _ptTemp(props.dEff) + _hf * props.T;
-      const regime = _subRegime(_Treg);
+      const regime = _subRegime(_Treg, props.dEff);
       // isMagmatic: inside a chamber ellipsoid, OR on a plumbing mesh surface with T > 900°C
       const isMagmatic = props.inChamber || (hitIsPlumbing && props.T > 900);
       if (_scTemp)     _scTemp.textContent     = isMagmatic ? `${Math.round(props.T)} °C  ·  MAGMA` : `${Math.round(props.T)} °C`;
@@ -4625,38 +4706,174 @@ function closePanel() {
 
 // Decode a Blob into a Canvas using <img> + createObjectURL — works on all
 // browsers including iOS Safari where createImageBitmap is absent or buggy.
+// ── Basemap texture cache (satellite + hillshade_blend pre-rendered textures) ─
+const _basemapAssets = {
+  satellite: { path: './assets/satellite.jpg?v=409', label: 'satellite imagery', ref: null },
+};
+
+async function _loadBasemapTexture(key) {
+  const asset = _basemapAssets[key];
+  if (!asset) return null;
+  if (asset.ref) return asset.ref;
+  setStatus(`Loading ${asset.label}…`);
+  try {
+    asset.ref = await new Promise((resolve, reject) => {
+      new THREE.TextureLoader().load(
+        asset.path,
+        tex => { tex.flipY = false; resolve(tex); },
+        undefined,
+        reject
+      );
+    });
+    setStatus('');
+    return asset.ref;
+  } catch (e) {
+    console.error(`Basemap fetch failed (${key})`, e);
+    setStatus(`${asset.label} unavailable.`, true);
+    return null;
+  }
+}
+
+// ── Live hillshade / slope ShaderMaterials ────────────────────────────────────
+// Both are driven by vertex normals (via Three.js normalMatrix), so they
+// automatically reflect vertical exaggeration without any extra work.
+// uSunDirView and uUpDirView are view-space vectors updated each frame in animate().
+
+let _origTerrainMat    = null;  // saved reference to MeshPhongMaterial
+let _hillshadeShaderMat = null;
+let _slopeShaderMat     = null;
+
+// Sun direction in WORLD space — matches gdaldem params (315° az, 45° alt → NW above).
+const _SUN_WORLD = new THREE.Vector3(-1, 1, -1).normalize();
+const _UP_WORLD  = new THREE.Vector3(0, 1, 0);
+
+const _HILLSHADE_VERT = /* glsl */`
+  varying vec3 vViewNormal;
+  void main() {
+    // normalMatrix = inverse-transpose of modelViewMatrix — handles non-uniform vert-exag scale
+    vViewNormal = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const _HILLSHADE_FRAG = /* glsl */`
+  #include <clipping_planes_pars_fragment>
+  varying vec3 vViewNormal;
+  uniform vec3 uSunDirView;
+  uniform float uAmbient;
+  void main() {
+    #include <clipping_planes_fragment>
+    vec3 n = normalize(vViewNormal);
+    float diff = max(dot(n, normalize(uSunDirView)), 0.0);
+    float shade = uAmbient + (1.0 - uAmbient) * diff;
+    gl_FragColor = vec4(vec3(shade), 1.0);
+  }
+`;
+
+const _SLOPE_FRAG = /* glsl */`
+  #include <clipping_planes_pars_fragment>
+  varying vec3 vViewNormal;
+  uniform vec3 uSunDirView;
+  uniform vec3 uUpDirView;
+
+  vec3 slopeRamp(float t) {
+    if (t < 0.10) return mix(vec3(0.04,0.06,0.14), vec3(0.08,0.31,0.43), t/0.10);
+    if (t < 0.25) return mix(vec3(0.08,0.31,0.43), vec3(0.12,0.63,0.55), (t-0.10)/0.15);
+    if (t < 0.45) return mix(vec3(0.12,0.63,0.55), vec3(0.86,0.78,0.20), (t-0.25)/0.20);
+    if (t < 0.70) return mix(vec3(0.86,0.78,0.20), vec3(0.82,0.24,0.08), (t-0.45)/0.25);
+    return mix(vec3(0.82,0.24,0.08), vec3(0.71,0.08,0.08), min((t-0.70)/0.30, 1.0));
+  }
+
+  void main() {
+    #include <clipping_planes_fragment>
+    vec3 n   = normalize(vViewNormal);
+    vec3 up  = normalize(uUpDirView);
+    float slope = 1.0 - abs(dot(n, up));           // 0=flat, 1=vertical
+    vec3 col    = slopeRamp(clamp(slope / 0.80, 0.0, 1.0));
+    float shade = 0.55 + 0.45 * max(dot(n, normalize(uSunDirView)), 0.0);
+    gl_FragColor = vec4(col * shade, 1.0);
+  }
+`;
+
+function _getHillshadeShader() {
+  if (!_hillshadeShaderMat) {
+    _hillshadeShaderMat = new THREE.ShaderMaterial({
+      vertexShader:   _HILLSHADE_VERT,
+      fragmentShader: _HILLSHADE_FRAG,
+      uniforms: {
+        uSunDirView: { value: new THREE.Vector3(0, 1, 0) },
+        uAmbient:    { value: 0.28 },
+      },
+      side: THREE.DoubleSide,
+      clipping: true,
+      clippingPlanes: [],
+    });
+  }
+  return _hillshadeShaderMat;
+}
+
+function _getSlopeShader() {
+  if (!_slopeShaderMat) {
+    _slopeShaderMat = new THREE.ShaderMaterial({
+      vertexShader:   _HILLSHADE_VERT,
+      fragmentShader: _SLOPE_FRAG,
+      uniforms: {
+        uSunDirView: { value: new THREE.Vector3(0, 1, 0) },
+        uUpDirView:  { value: new THREE.Vector3(0, 1, 0) },
+      },
+      side: THREE.DoubleSide,
+      clipping: true,
+      clippingPlanes: [],
+    });
+  }
+  return _slopeShaderMat;
+}
+
+// Called each frame from animate() — updates view-space sun/up directions.
+const _v3tmp = new THREE.Vector3();
+const _m3tmp = new THREE.Matrix3();
+function _updateBasemapShaderUniforms() {
+  if (basemapMode !== 'hillshade' && basemapMode !== 'slope') return;
+  _m3tmp.setFromMatrix4(camera.matrixWorldInverse);
+  _v3tmp.copy(_SUN_WORLD).applyMatrix3(_m3tmp).normalize();
+  if (_hillshadeShaderMat) _hillshadeShaderMat.uniforms.uSunDirView.value.copy(_v3tmp);
+  if (_slopeShaderMat)     _slopeShaderMat.uniforms.uSunDirView.value.copy(_v3tmp);
+  if (_slopeShaderMat) {
+    _v3tmp.copy(_UP_WORLD).applyMatrix3(_m3tmp).normalize();
+    _slopeShaderMat.uniforms.uUpDirView.value.copy(_v3tmp);
+  }
+}
+
 async function applyBasemap(mode) {
   basemapMode = mode;
   if (!surfaceMesh) return;
-  if (mode === 'satellite') {
-    if (!satelliteTexture) {
-      setStatus('Loading satellite imagery…');
-      try {
-        // TextureLoader is more memory-efficient than canvas: the browser/GPU driver
-        // handles JPEG decoding and texture upload without a full-res RAM copy.
-        // SW precaches satellite.jpg so this resolves instantly after first visit.
-        satelliteTexture = await new Promise((resolve, reject) => {
-          new THREE.TextureLoader().load(
-            './assets/satellite.jpg',
-            tex => { tex.flipY = false; resolve(tex); },
-            undefined,
-            reject
-          );
-        });
-      } catch (e) {
-        console.error('Satellite tile fetch failed', e);
-        setStatus('Satellite imagery unavailable.', true);
-        return;
-      }
-      setStatus('');
-    }
-    surfaceMesh.material.map = satelliteTexture;
-    surfaceMesh.material.color.set(0xffffff);
-  } else {
-    surfaceMesh.material.map = null;
-    surfaceMesh.material.color.set(0x8a7260);
+
+  // Save the original Phong material on first call
+  if (!_origTerrainMat && surfaceMesh.material.type === 'MeshPhongMaterial') {
+    _origTerrainMat = surfaceMesh.material;
   }
-  surfaceMesh.material.needsUpdate = true;
+
+  if (mode === 'hillshade') {
+    surfaceMesh.material = _getHillshadeShader();
+    updateClipPlanes();
+  } else if (mode === 'slope') {
+    surfaceMesh.material = _getSlopeShader();
+    updateClipPlanes();
+  } else {
+    // Restore original Phong material for texture/plain modes
+    if (_origTerrainMat) surfaceMesh.material = _origTerrainMat;
+    if (_basemapAssets[mode]) {
+      const tex = await _loadBasemapTexture(mode);
+      if (!tex) return;
+      surfaceMesh.material.map = tex;
+      surfaceMesh.material.color.set(0xffffff);
+    } else {
+      // 'plain' → solid terrain colour, no texture
+      surfaceMesh.material.map = null;
+      surfaceMesh.material.color.set(0x8a7260);
+    }
+    surfaceMesh.material.needsUpdate = true;
+  }
 }
 
 // ─── UI setup ────────────────────────────────────────────────────────────────
@@ -5556,6 +5773,9 @@ function buildCompass() {
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
+
+  // Update view-space sun/up direction for live hillshade + slope shaders
+  _updateBasemapShaderUniforms();
 
   // Advance animation time for all convection swirl shaders
   const _t = performance.now() / 1000;

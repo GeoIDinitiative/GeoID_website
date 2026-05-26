@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="GeoID Explorer membership — annual subscription unlocking the full suite of planetary viewers and supporting the GeoID Initiative.">
+  <meta name="description" content="Planet Explorer membership — annual subscription unlocking the full suite of planetary viewers and supporting the GeoID Initiative.">
   <title>GeoID Membership</title>
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -231,7 +231,8 @@
         </div>
       </li>
       <li><a href="/myGeoID/"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
-      <li><a href="/explorer/">Explorer</a></li>
+      <li><a href="/earth_explorer/">Earth Explorer</a></li>
+      <li><a href="/explorer/">Planet Explorer</a></li>
       <li><a href="/contact/">Contact</a></li>
     </ul>
     <div class="nav-right-logo">
@@ -244,7 +245,7 @@
     <header class="membership-hero">
       <span class="membership-eyebrow">Annual membership</span>
       <h1>Full GeoID Explorer Access</h1>
-      <p>One annual subscription unlocks every planetary viewer, every scientific layer, and supports the GeoID Initiative's open-science mission.</p>
+      <p>One annual subscription unlocks every Planet Explorer viewer, every Earth Explorer regional environment, and every scientific layer — supporting the GeoID Initiative's open-science mission.</p>
       <div id="need-subscription-banner" hidden style="margin-top:1rem;padding:0.7rem 1rem;border:1px solid rgba(255,184,78,0.4);background:rgba(255,184,78,0.08);border-radius:0.6rem;color:#ffd591;font-size:0.85rem;">
         You're signed in but don't have an active membership yet. Subscribe below to unlock that viewer.
       </div>
@@ -261,20 +262,21 @@
     <section class="checkout-card">
       <div class="checkout-card-grid">
         <div>
-          <p class="plan-name" id="plan-name">GeoID Explorer Annual</p>
+          <p class="plan-name" id="plan-name">Planet Explorer Annual</p>
           <div class="plan-price">
             <span class="plan-price-amount" id="plan-price">£29.99</span>
             <span class="plan-price-period" id="plan-period">per year</span>
           </div>
           <ul class="plan-features">
-            <li>Full access to Mercury, Venus, Mars, Jupiter, Saturn, Uranus, and Neptune viewers</li>
-            <li>Every scientific layer — geology, mineralogy, topography, hillshade, slope</li>
+            <li>Full access to all Planet Explorer viewers — Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune, and Pluto</li>
+            <li>Full access to all Earth Explorer viewers — including Mount Etna and every regional environment as it launches</li>
+            <li>Every scientific layer — geology, mineralogy, topography, hillshade, slope, seismicity, subsurface</li>
             <li>Interior core views, guided tour modes, and feature catalogues</li>
             <li>Moon system context across each gas giant</li>
-            <li>Supports the GeoID Initiative — open-science planetary tools for everyone</li>
+            <li>Supports the GeoID Initiative — open-science tools for everyone</li>
             <li>Cancel anytime from your member portal — no questions asked</li>
           </ul>
-          <p class="plan-fine">Earth and Moon viewers remain free for everyone, no membership needed.</p>
+          <p class="plan-fine">The Moon viewer in Planet Explorer is the only freely available GeoID environment — all other viewers require an active membership.</p>
         </div>
 
         <div class="checkout-actions">
@@ -305,11 +307,12 @@
     </p>
   </main>
 
+  <script src="/scripts/membership-config.js"></script>
   <script src="/scripts/membership.js"></script>
   <script>
     // Sync the price/period copy with the central config in case it changes.
     (function () {
-      const cfg = window.GEOID_MEMBERSHIP || {};
+      const cfg = window.GEOID_MEMBERSHIP_CONFIG || {};
       const priceEl  = document.getElementById("plan-price");
       const periodEl = document.getElementById("plan-period");
       const nameEl   = document.getElementById("plan-name");
@@ -317,14 +320,20 @@
       if (periodEl && cfg.PERIOD_DISPLAY) periodEl.textContent = cfg.PERIOD_DISPLAY;
       if (nameEl   && cfg.PLAN_NAME)      nameEl.textContent   = cfg.PLAN_NAME;
     })();
-    document.getElementById("checkout-subscribe")?.addEventListener("click", () => window.GeoIDMembership.subscribe());
+    document.getElementById("checkout-subscribe")?.addEventListener("click", () => {
+      const ret = new URLSearchParams(location.search).get("return");
+      if (ret) sessionStorage.setItem("geoid_returnAfterSubscribe", ret);
+      window.GeoIDMembership.subscribe();
+    });
     // "Already a member?" routes through the local sign-in page so we can
     // check Supabase auth and reflect membership status in the UI. From
     // the account page the user can then jump out to the Stripe portal.
     document.getElementById("checkout-sign-in")?.addEventListener("click", () => {
-      window.location.href = "/account/";
+      const ret = new URLSearchParams(location.search).get("return");
+      window.location.href = "/account/" + (ret ? "?return=" + encodeURIComponent(ret) : "");
     });
   </script>
+  <script src="/scripts/site.js"></script>
   <script src="/styles/nav.js?v=20260516" defer></script>
 </body>
 </html>

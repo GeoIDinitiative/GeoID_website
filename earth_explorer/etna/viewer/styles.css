@@ -52,7 +52,7 @@
       width: min(24rem, calc(100vw - 2rem));
       max-height: calc(100vh - 2rem);
       padding: 0.35rem 0.75rem 0.85rem 0.85rem;
-      border: 1px solid rgba(255, 100, 50, 0.38);
+      border: 1px solid #ff6a00;
       border-radius: 0.75rem;
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
@@ -60,14 +60,12 @@
         var(--panel);
       box-shadow:
         0 18px 42px rgba(0, 0, 0, 0.52),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.02),
-        0 0 0 1px rgba(255, 100, 50, 0.14),
-        0 0 34px rgba(220, 80, 20, 0.10);
+        0 0 0 1px rgba(255, 106, 0, 0.45),
+        0 0 28px rgba(255, 80, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      outline: 1px solid rgba(220, 80, 20, 0.08);
-      outline-offset: -6px;
       transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
@@ -95,6 +93,66 @@
     }
 
     h1, p { margin: 0; }
+
+    /* ─── Banner: Etna photo behind title, scrolls with content ───────────── */
+    .brand-banner {
+      position: relative;
+      overflow: hidden;
+      /* Bleed L/R to panel edges (cancel #ui horizontal padding) */
+      margin: 0 -0.75rem 0.65rem -0.85rem;
+      padding: 0 0.75rem 0 0.85rem;
+      border-radius: 0 0 0.7rem 0.7rem;
+    }
+
+    /* Etna volcano photo — faded background layer */
+    .brand-banner::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url('./assets/etna_banner.jpg') center 40% / cover no-repeat;
+      opacity: 0.72;
+      z-index: 0;
+    }
+
+    /* Vignette: fade edges to panel dark, lighter centre pass-through */
+    .brand-banner::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(to right,  #0c0502 0%, transparent 22%, transparent 78%, #0c0502 100%),
+        linear-gradient(to bottom, #0c0502 0%, transparent 28%, transparent 65%, #0c0502 100%);
+      z-index: 1;
+    }
+
+    /* Full-banner invisible reset button: behind hero text, above photo */
+    .brand-banner .brand-logo-button {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      z-index: 2;
+      padding: 0;
+      border-radius: 0;
+      transform: none;
+    }
+    .brand-banner .brand-logo-button:hover { transform: none; background: rgba(255,255,255,0.04); }
+
+    /* Hero text: above reset button, non-interactive so clicks reach the button */
+    .brand-banner .brand-hero {
+      position: relative;
+      z-index: 3;
+      pointer-events: none;
+      margin-top: 1.55rem;
+      margin-bottom: 1.95rem;
+    }
+
+    /* Text shadows for readability over photo */
+    .brand-banner h1              { text-shadow: 0 2px 16px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,0.9); }
+    .brand-banner .brand-subtitle { text-shadow: 0 1px 6px rgba(0,0,0,0.85); }
 
     .brand-toprow {
       display: flex;
@@ -124,7 +182,7 @@
 
     .info-btn {
       background: none;
-      border: 1px solid rgba(var(--nav-accent-rgb), 0.48);
+      border: 1px solid rgba(255, 106, 0, 0.72);
       border-radius: 50%;
       width: 1.45rem;
       height: 1.45rem;
@@ -150,7 +208,7 @@
 
     #nav-collapse-btn {
       background: none;
-      border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+      border: 1px solid rgba(255, 106, 0, 0.72);
       border-radius: 0.42rem;
       width: 1.55rem;
       height: 1.55rem;
@@ -177,7 +235,7 @@
       transform: translateY(-50%);
       z-index: 11;
       background: var(--panel-fill);
-      border: 1px solid rgba(var(--nav-accent-rgb), 0.32);
+      border: 1px solid #ff6a00;
       border-left: 0;
       border-radius: 0 0.55rem 0.55rem 0;
       padding: 0.8rem 0.55rem;
@@ -188,7 +246,7 @@
       text-transform: uppercase;
       color: var(--nav-accent);
       cursor: pointer;
-      box-shadow: 2px 0 12px rgba(0, 0, 0, 0.3);
+      box-shadow: 2px 0 16px rgba(255, 80, 0, 0.28), 2px 0 6px rgba(0, 0, 0, 0.4);
       transition: background 0.15s;
     }
 
@@ -363,17 +421,21 @@
     .control-section {
       padding: 0;
       border-radius: 0.7rem;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 106, 0, 0.28);
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.012));
       overflow: hidden;
+      box-shadow: 0 0 12px rgba(255, 80, 0, 0.08);
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
 
     .control-section:hover {
-      border-color: rgba(var(--nav-accent-rgb), 0.34);
+      border-color: rgba(255, 106, 0, 0.62);
+      box-shadow: 0 0 0 1px rgba(255, 106, 0, 0.22), 0 0 18px rgba(255, 80, 0, 0.20);
     }
 
     .control-section[open] {
-      border-color: rgba(var(--nav-accent-rgb), 0.34);
+      border-color: rgba(255, 106, 0, 0.62);
+      box-shadow: 0 0 0 1px rgba(255, 106, 0, 0.22), 0 0 18px rgba(255, 80, 0, 0.20);
     }
 
     .section-toggle {
@@ -667,7 +729,7 @@
     #top-right-controls {
       position: fixed;
       top: 1rem;
-      right: 15.5rem;
+      right: 18.5rem;
       z-index: 12;
       display: flex;
       align-items: flex-start;
@@ -724,16 +786,16 @@
     }
 
     #top-right-logo {
-      height: 6.75rem;
+      height: 5.1rem;
       width: auto;
       display: block;
       filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
     }
 
     @media (max-width: 1080px) {
-      #top-right-controls { top: 0.9rem; right: 10rem; }
-      #top-right-logo { height: 4.2rem; }
-      #tool-rail { top: calc(0.5rem + 4.2rem + 0.8rem); }
+      #top-right-controls { top: 0.9rem; right: 11rem; }
+      #top-right-logo { height: 3.2rem; }
+      #tool-rail { top: calc(0.5rem + 3.2rem + 2.0rem); }
     }
 
     @media (max-width: 720px) {
@@ -741,8 +803,8 @@
       #spin-toggle { width: 2.5rem; height: 2.5rem; }
       #spin-toggle .viewer-control-icon { width: 1.25rem; height: 1.25rem; }
       #top-right-logo-link { top: 0.5rem; right: 0.7rem; }
-      #top-right-logo { height: 3.75rem; }
-      #tool-rail { top: calc(0.5rem + 3.75rem + 0.8rem); }
+      #top-right-logo { height: 2.7rem; }
+      #tool-rail { top: calc(0.5rem + 2.7rem + 2.0rem); }
     }
 
     /* ─── Bottom-left HUD: compass + surface readers ────────────────────────── */
@@ -926,7 +988,7 @@
       overflow-y: auto;
       padding: 1rem 1rem 0.9rem;
       border-radius: 0.9rem;
-      border: 1px solid rgba(var(--nav-accent-rgb), 0.34);
+      border: 1px solid #ff6a00;
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
         linear-gradient(180deg, rgba(22, 10, 4, 0.97), rgba(8, 3, 1, 0.99)),
@@ -934,13 +996,14 @@
       backdrop-filter: blur(16px);
       box-shadow:
         0 18px 42px rgba(0, 0, 0, 0.52),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.02),
-        0 0 0 1px rgba(var(--nav-accent-rgb), 0.1),
-        0 0 20px rgba(var(--nav-accent-rgb), 0.08);
+        0 0 0 1px rgba(255, 106, 0, 0.45),
+        0 0 28px rgba(255, 80, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
       color: var(--text);
       pointer-events: auto;
       scrollbar-width: thin;
       scrollbar-color: rgba(var(--nav-accent-rgb), 0.32) transparent;
+      animation: popup-glow-pulse 2s ease-in-out infinite;
     }
 
     .scene-popup[hidden] { display: none; }
@@ -1821,7 +1884,7 @@
     #tool-rail {
       position: fixed;
       right: 1rem;
-      top: calc(1rem + 7.6rem + 0.8rem);
+      top: calc(0.45rem + 5.1rem + 2.2rem);
       z-index: 14;
       display: flex;
       flex-direction: column;
@@ -1840,18 +1903,19 @@
       min-height: 3.65rem;
       padding: 0.48rem 0.36rem 0.38rem;
       border-radius: 0.62rem;
-      border: 1px solid rgba(var(--nav-accent-rgb), 0.52);
+      border: 1px solid #ff6a00;
       background: rgba(10, 16, 23, 0.96);
       color: rgba(222, 234, 240, 0.88);
       display: grid;
       justify-items: center;
       align-content: center;
       gap: 0.2rem;
+      overflow: hidden;
       cursor: pointer;
       box-shadow:
         0 10px 22px rgba(0, 0, 0, 0.26),
-        inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.12),
-        0 0 24px rgba(var(--nav-accent-rgb), 0.14);
+        0 0 0 1px rgba(255, 106, 0, 0.38),
+        0 0 20px rgba(255, 80, 0, 0.22);
       transition: transform 0.15s, border-color 0.15s, background 0.15s, color 0.15s;
     }
 
@@ -1883,6 +1947,7 @@
     }
 
     .tool-rail-btn span {
+      width: 100%;
       font-size: 0.54rem;
       letter-spacing: 0.15em;
       text-transform: uppercase;
@@ -2113,7 +2178,8 @@
 
     @media (max-width: 1080px) {
       #tool-rail { top: 6rem; right: 1rem; }
-      .tool-rail-btn { width: 3.2rem; min-height: 3.1rem; }
+      .tool-rail-btn { width: 3.2rem; min-height: 3.1rem; padding: 0.44rem 0.28rem 0.34rem; }
+      .tool-rail-btn span { font-size: 0.46rem; letter-spacing: 0.06em; }
       .tool-rail-action-btn { width: 3.2rem; }
       .measurement-result-card { right: 4.5rem; }
     }
@@ -2126,6 +2192,12 @@
       .viewer-help-modal { padding: 0.75rem; }
       .viewer-help-grid { grid-template-columns: 1fr; }
       #music-btn { top: 3rem; left: calc(min(24rem, calc(100vw - 2rem)) + 1rem); padding: 0.3rem 0.55rem; font-size: 0.58rem; height: 1.7rem; }
+      /* Measurement tool rail — ensure icons + labels fit and are centred */
+      #tool-rail { right: 0.5rem; }
+      .tool-rail-btn { width: 2.9rem; min-height: 2.9rem; padding: 0.38rem 0.14rem 0.3rem; }
+      .tool-rail-btn svg { width: 1.0rem; height: 1.0rem; }
+      .tool-rail-btn span { font-size: 0.42rem; letter-spacing: 0.04em; }
+      .tool-rail-action-btn { width: 2.9rem; font-size: 0.42rem; }
     }
 
 /* ─── Seismic event selection ring (screen-space, CSS-driven) ──────────── */
@@ -2143,6 +2215,25 @@
 @keyframes seismic-ring-pulse {
   0%, 100% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.0); }
   50%       { opacity: 1.0;  transform: translate(-50%, -50%) scale(1.12); }
+}
+
+@keyframes popup-glow-pulse {
+  0%, 100% {
+    border-color: rgba(255, 106, 0, 0.72);
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.52),
+      0 0 0 1px rgba(255, 106, 0, 0.35),
+      0 0 18px rgba(255, 80, 0, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  50% {
+    border-color: #ff6a00;
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.52),
+      0 0 0 1px rgba(255, 106, 0, 0.60),
+      0 0 32px rgba(255, 80, 0, 0.48),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
 }
 
 /* ─── Viewer loading screen ─────────────────────────────────────────────── */

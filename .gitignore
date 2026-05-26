@@ -15,7 +15,7 @@ planet_explorer/old/
 planet_explorer/good/
 planet_explorer/.~lock.*
 moon.jpg
-music/
+/music/
 *.orig
 
 # USGS raw shapefiles (297 MB, exceeds GitHub's 100MB-per-file limit).

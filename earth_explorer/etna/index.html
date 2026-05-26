@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Mount Etna — GeoID Explorer</title>
+  <title>Mount Etna — Planet Explorer</title>
   <link rel="icon" href="../../assets/etna_icon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -338,7 +338,7 @@
 
   <div class="bg" aria-hidden="true"></div>
 
-  <img class="logo-img" src="../../assets/logo.png" alt="GeoID logo" onerror="this.src='/planet_explorer/mars/viewer/assets/logo.png'">
+  <img class="logo-img" src="../assets/logo.png" alt="GeoID logo" onerror="this.src='/planet_explorer/mars/viewer/assets/logo.png'">
 
   <main class="shell" id="transit-shell">
     <article class="card">
@@ -407,36 +407,38 @@
     const viewerFrame  = document.getElementById('viewer-frame');
     const transitShell = document.getElementById('transit-shell');
     const CROSSFADE_MS = 450;
-    const targetUrl    = 'viewer/?transit=1';
 
-    viewerFrame.src = targetUrl;
+    // Start loading the viewer immediately — auth is enforced by the viewer's
+    // own guard (same pattern as all planet viewers; requireMember redirects
+    // window.top so it works correctly from inside the iframe).
+    viewerFrame.src = 'viewer/?transit=1';
 
     setTimeout(() => {
-        try { viewerFrame.contentWindow.postMessage('geoid-reveal', '*'); } catch (_) {}
+      try { viewerFrame.contentWindow.postMessage('geoid-reveal', '*'); } catch (_) {}
 
-        let crossed = false;
-        function doCrossfade() {
-          if (crossed) return; crossed = true;
-          const logoImg = document.querySelector('.logo-img');
-          transitShell.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
-          transitShell.style.opacity = '0';
-          if (logoImg) {
-            logoImg.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
-            logoImg.style.opacity = '0';
-          }
-          viewerFrame.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
-          viewerFrame.style.opacity = '1';
-          viewerFrame.style.zIndex = '2';
-          setTimeout(() => { viewerFrame.style.pointerEvents = 'auto'; }, CROSSFADE_MS);
+      let crossed = false;
+      function doCrossfade() {
+        if (crossed) return; crossed = true;
+        const logoImg = document.querySelector('.logo-img');
+        transitShell.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
+        transitShell.style.opacity = '0';
+        if (logoImg) {
+          logoImg.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
+          logoImg.style.opacity = '0';
         }
+        viewerFrame.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
+        viewerFrame.style.opacity = '1';
+        viewerFrame.style.zIndex = '2';
+        setTimeout(() => { viewerFrame.style.pointerEvents = 'auto'; }, CROSSFADE_MS);
+      }
 
-        window.addEventListener('message', function onReady(e) {
-          if (e.data !== 'geoid-ready') return;
-          window.removeEventListener('message', onReady);
-          doCrossfade();
-        });
-        setTimeout(doCrossfade, 700);
-      }, TRANSIT_MS);
+      window.addEventListener('message', function onReady(e) {
+        if (e.data !== 'geoid-ready') return;
+        window.removeEventListener('message', onReady);
+        doCrossfade();
+      });
+      setTimeout(doCrossfade, 700);
+    }, TRANSIT_MS);
 
     // ── Portrait advisory ─────────────────────────────────────────────────────
     (function () {

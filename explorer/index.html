@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>GeoID Explorer — Solar System</title>
+  <title>Planet Explorer — Solar System</title>
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -889,7 +889,7 @@
         font-size: 0.52rem !important;
         letter-spacing: 0.08em !important;
       }
-      /* Hide the Explorer wordmark from the "What is the GeoID Explorer?"
+      /* Hide the Explorer wordmark from the "What is the Planet Explorer?"
          tile on portrait — title above already brands the section. */
       .whatis-logo { display: none !important; }
       /* Hide the Viewer Features chip section on portrait — it's a long
@@ -1732,7 +1732,7 @@
 
     .membership-viewer-grid {
       display: grid;
-      grid-template-columns: repeat(9, 1fr);
+      grid-template-columns: repeat(8, 1fr);
       gap: 0.6rem;
     }
 
@@ -1840,7 +1840,7 @@
 
     @media (max-width: 1200px) {
       .membership-viewer-grid {
-        grid-template-columns: repeat(9, 1fr);
+        grid-template-columns: repeat(8, 1fr);
         gap: 0.4rem;
       }
       .membership-viewer-card { padding: 0.65rem 0.35rem; }
@@ -1974,7 +1974,8 @@
       </li>
       <li><a href="/myGeoID/"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
 
-      <li><a href="/explorer/" class="active" aria-current="page">Explorer</a></li>
+      <li><a href="/earth_explorer/">Earth Explorer</a></li>
+      <li><a href="/explorer/" class="active" aria-current="page">Planet Explorer</a></li>
       <li><a href="/contact/">Contact</a></li>
     </ul>
     <div class="nav-right-logo">
@@ -1999,9 +2000,9 @@
                 <span class="space-pill">Interactive solar model</span>
                 <span class="space-pill">Live launch target</span>
               </div>
-              <h1 class="hero-title">GeoID Explorer</h1>
+              <h1 class="hero-title">Planet Explorer</h1>
               <p class="hero-subtitle">
-                Navigate the live Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, and Neptune viewers through the GeoID Explorer shell.
+                Navigate the live Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune, and Pluto viewers through the Planet Explorer shell.
               </p>
               <div class="hero-actions">
                 <a class="viewer-link" href="/transit/??destination=mercury">Open Mercury</a>
@@ -2036,7 +2037,7 @@
         <div class="view-panel" id="solar-view-panel">
         <div class="solar-stage" aria-label="Interactive solar system selector">
           <div class="orrery-brand" aria-hidden="true">
-            <img src="/assets/explorer_logo.png" alt="GeoID Explorer" loading="lazy" decoding="async">
+            <img src="/assets/explorer_logo.png" alt="Planet Explorer" loading="lazy" decoding="async">
             <p class="orrery-brand-desc">Click any planet to explore comprehensive, interactive 3D models of each world's internal and external structures, surface geology, atmospheric systems, and moon environments — rendered at true planetary scale.</p>
           </div>
           <div class="orrery-features" aria-label="Viewer features">
@@ -2121,13 +2122,13 @@
 
     <section class="about-explorer-section" aria-labelledby="about-explorer-title">
       <article class="about-explorer-tile about-explorer-tile--cyan">
-        <img class="whatis-logo" src="/assets/explorer_logo.png" alt="GeoID Explorer" loading="lazy" decoding="async">
+        <img class="whatis-logo" src="/assets/explorer_logo.png" alt="Planet Explorer" loading="lazy" decoding="async">
         <div class="about-explorer-header">
-          <h2 class="about-explorer-title" id="about-explorer-title">What is the GeoID Explorer?</h2>
+          <h2 class="about-explorer-title" id="about-explorer-title">What is the Planet Explorer?</h2>
         </div>
         <div class="about-explorer-body">
           <div class="about-explorer-section-block">
-            <p>GeoID Explorer is an interactive planetary science platform built to make the solar system tangible, navigable, and scientifically meaningful for anyone — regardless of background or prior knowledge. It gives you eight fully immersive planetary viewers, one for each world from Mercury to Neptune, each built as a dedicated investigation environment layered with real scientific data: topographic models, geological maps, atmospheric imagery, mineral distribution layers, and mission-linked surface features. Rather than reducing planets to static images or memorised facts, GeoID Explorer lets you move through them directly — zooming into canyon systems on Mars, tracing volcanic provinces on Venus, tracking storm bands across Jupiter — building genuine intuition about scale, composition, and the forces that shape worlds. GeoID was founded on the principle that planetary science and space exploration should be as open and engaging as any other field, and the Explorer is the practical expression of that principle: an interface designed to close the distance between curious minds and the worlds orbiting our Sun.</p>
+            <p>Planet Explorer gives you nine fully immersive planetary viewers, one for each world from Mercury to Pluto. Each viewer is built as a dedicated scientific environment for its planet: MOLA topographic relief and CTX mosaic imagery for Mars, Magellan radar and VIRTIS mineralogy for Venus, MESSENGER surface maps for Mercury, LROC wide-angle mosaics and Apollo seismic models for the Moon — every dataset specific to the geology, history, and character of the world it represents. You navigate them directly in your browser, in real time, without installation or prior knowledge. Pan across Valles Marineris at a resolution that resolves individual landslide scarps. Trace the volcanic highlands of Venus. Read the ringed system of Saturn at scale. Planet Explorer is the practical expression of GeoID's founding principle: that the distance between a curious mind and a planet should be measured in seconds, not years of training.</p>
           </div>
         </div>
       </article>
@@ -2146,11 +2147,11 @@
             <div class="about-explorer-body">
               <div class="about-explorer-section-block">
                 <p class="about-col-heading">A different kind of planetary interface</p>
-                <p>Most platforms show you a planet. GeoID Explorer lets you read one. The distinction matters: professional GIS and planetary science tools demand institutional access, specialist training, and months of familiarisation before they yield insight. Popular space apps reduce worlds to rendered images — beautiful, but passive. GeoID Explorer was built to sit in neither category. Each viewer is a fully layered investigation environment where scientific datasets — MOLA topography, geological unit maps, atmospheric band imagery, mineral distribution layers, mission-linked surface annotations — can be toggled, stacked, and compared in a single coherent session. The interface is not a simplified substitute for scientific software. It is a rethinking of how that software should have worked from the beginning.</p>
+                <p>Most platforms show you a planet. Planet Explorer lets you read one. The distinction matters: professional GIS and planetary science tools demand institutional access, specialist training, and months of familiarisation before they yield insight. Popular space apps reduce worlds to rendered images — beautiful, but passive. Planet Explorer was built to sit in neither category. Each viewer is a fully layered investigation environment where scientific datasets — MOLA topography, geological unit maps, atmospheric band imagery, mineral distribution layers, mission-linked surface annotations — can be toggled, stacked, and compared in a single coherent session. The interface is not a simplified substitute for scientific software. It is a rethinking of how that software should have worked from the beginning.</p>
               </div>
               <div class="about-explorer-section-block">
                 <p class="about-col-heading">Built for researchers and first-timers equally</p>
-                <p>A researcher cross-referencing Martian valley networks with MOLA relief and surface mineralogy uses exactly the same viewer as a student who wants to understand why Olympus Mons is the largest volcano in the solar system. That is not a coincidence — it is the core design principle. Guided discovery stops provide contextual footholds without removing the freedom to explore independently. Layer opacity controls let users build their own picture of a world incrementally, the way a geoscientist approaches a new field site: with evidence, iteration, and curiosity. The more you put in, the more the viewer gives back. GeoID Explorer is as rewarding on the first session as it is on the fiftieth — and that scalability is what makes it genuinely unlike anything that has existed before.</p>
+                <p>A researcher cross-referencing Martian valley networks with MOLA relief and surface mineralogy uses exactly the same viewer as a student who wants to understand why Olympus Mons is the largest volcano in the solar system. That is not a coincidence — it is the core design principle. Guided discovery stops provide contextual footholds without removing the freedom to explore independently. Layer opacity controls let users build their own picture of a world incrementally, the way a geoscientist approaches a new field site: with evidence, iteration, and curiosity. The more you put in, the more the viewer gives back. Planet Explorer is as rewarding on the first session as it is on the fiftieth — and that scalability is what makes it genuinely unlike anything that has existed before.</p>
               </div>
               <div class="about-explorer-section-block">
                 <p class="about-col-heading">CTX mosaic streaming — superresolution without the hardware</p>
@@ -2194,7 +2195,7 @@
 
     <section class="about-explorer-section" aria-labelledby="features-title">
       <article class="about-explorer-tile about-explorer-tile--cyan">
-        <img class="whatis-logo whatis-logo--mid" src="/assets/explorer_logo.png" alt="GeoID Explorer" loading="lazy" decoding="async">
+        <img class="whatis-logo whatis-logo--mid" src="/assets/explorer_logo.png" alt="Planet Explorer" loading="lazy" decoding="async">
         <div class="about-explorer-header">
           <h2 class="about-explorer-title" id="features-title">Viewer Features</h2>
         </div>
@@ -2242,7 +2243,7 @@
             <div class="about-explorer-body">
               <div class="about-explorer-section-block">
                 <p class="about-col-heading">Earth's Moon — the flagship viewer</p>
-                <p>The Moon Viewer is the most data-rich destination in GeoID Explorer. Earth's only natural satellite is rendered at the LROC Wide-Angle Camera 8 K colour mosaic — the same NASA SVS CGI Moon Kit imagery used by mission planners — combined with the LOLA Digital Elevation Model for true topographic relief. Pan from the smooth basaltic floors of Mare Imbrium to the highland anorthosites of the lunar farside, and read every named feature directly off the surface: more than two thousand IAU-catalogued craters, maria, sinus bays, lacus, montes, rimae, rupes scarps, dorsa wrinkle ridges, and the catalogued landing-site landmarks of Apollo, Luna, Chang'e, and Chandrayaan. Every label opens a scientific description written for both first-time visitors and planetary geologists.</p>
+                <p>The Moon Viewer is the most data-rich destination in Planet Explorer. Earth's only natural satellite is rendered at the LROC Wide-Angle Camera 8 K colour mosaic — the same NASA SVS CGI Moon Kit imagery used by mission planners — combined with the LOLA Digital Elevation Model for true topographic relief. Pan from the smooth basaltic floors of Mare Imbrium to the highland anorthosites of the lunar farside, and read every named feature directly off the surface: more than two thousand IAU-catalogued craters, maria, sinus bays, lacus, montes, rimae, rupes scarps, dorsa wrinkle ridges, and the catalogued landing-site landmarks of Apollo, Luna, Chang'e, and Chandrayaan. Every label opens a scientific description written for both first-time visitors and planetary geologists.</p>
               </div>
               <div class="about-explorer-section-block">
                 <p class="about-col-heading">USGS Unified Geologic Map — every unit mapped, every contact selectable</p>
@@ -2258,11 +2259,11 @@
               </div>
               <div class="about-explorer-section-block">
                 <p class="about-col-heading">Beyond Earth — the moons of the other planets</p>
-                <p>The lunar pipeline isn't limited to our own Moon. Every rocky-planet and gas-giant viewer in GeoID Explorer ships with a moon-system viewer of its own: Phobos and Deimos circling Mars, the four Galilean moons (Io, Europa, Ganymede, Callisto) framed against Jupiter's storm bands, Titan, Enceladus, Mimas, Tethys, Dione, Rhea and Iapetus around Saturn, the icy Uranian satellites tilted on their side with the planet, Triton's retrograde orbit around Neptune, and Charon orbiting Pluto as a true binary system. Each moon is rendered with its own surface imagery, orbital eccentricity, and selectable feature catalogue — so the Moon Viewer is the most detailed entry in a much larger family.</p>
+                <p>The lunar pipeline isn't limited to our own Moon. Every rocky-planet and gas-giant viewer in Planet Explorer ships with a moon-system viewer of its own: Phobos and Deimos circling Mars, the four Galilean moons (Io, Europa, Ganymede, Callisto) framed against Jupiter's storm bands, Titan, Enceladus, Mimas, Tethys, Dione, Rhea and Iapetus around Saturn, the icy Uranian satellites tilted on their side with the planet, Triton's retrograde orbit around Neptune, and Charon orbiting Pluto as a true binary system. Each moon is rendered with its own surface imagery, orbital eccentricity, and selectable feature catalogue — so the Moon Viewer is the most detailed entry in a much larger family.</p>
               </div>
               <div class="about-explorer-section-block">
                 <p class="about-col-heading">Every moon with mapped surface locations</p>
-                <p class="lunar-roster-intro">Twenty-four moons across the solar system are rendered with individually-catalogued, clickable surface features in GeoID Explorer. Counts are the number of IAU-recognised features currently mapped in each viewer.</p>
+                <p class="lunar-roster-intro">Twenty-four moons across the solar system are rendered with individually-catalogued, clickable surface features in Planet Explorer. Counts are the number of IAU-recognised features currently mapped in each viewer.</p>
                 <div class="lunar-roster">
                   <div class="lunar-roster-system">
                     <span class="lunar-roster-parent" data-parent="earth">Earth</span>
@@ -2337,7 +2338,7 @@
       <article class="about-explorer-tile membership-tile">
         <div class="about-explorer-header membership-header">
           <div class="membership-header-left">
-            <h2 class="about-explorer-title" id="membership-title">Full GeoID Explorer Access</h2>
+            <h2 class="about-explorer-title" id="membership-title">Full Planet Explorer Access</h2>
           </div>
           <div class="membership-price-badge">
             <span class="membership-price">£29.99</span>
@@ -2346,14 +2347,9 @@
         </div>
         <div class="about-explorer-body">
           <div class="about-explorer-section-block">
-            <p>Earth and Moon viewers are freely available to everyone — no account needed. An annual GeoID membership unlocks the complete suite of planetary viewers, giving you full access to Mercury, Venus, Mars, Jupiter, Saturn, Uranus, and Neptune alongside the free worlds, together with every scientific layer, guided stop, and moon environment across the entire Explorer platform.</p>
+            <p>The Moon viewer is the only freely available GeoID environment — no account needed. An annual GeoID membership unlocks the complete suite of planetary viewers, giving you full access to Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune, and Pluto, together with every scientific layer, guided stop, and moon environment across Planet Explorer, plus full access to every Earth Explorer regional viewer — including the Mount Etna viewer and all future environments as they launch.</p>
           </div>
           <div class="membership-viewer-grid">
-            <div class="membership-viewer-card membership-viewer-card--free">
-              <img class="membership-viewer-icon" src="/assets/earth_icon.png" alt="" loading="lazy" decoding="async">
-              <span class="membership-viewer-name">Earth</span>
-              <span class="membership-viewer-tag membership-viewer-tag--free">Free</span>
-            </div>
             <div class="membership-viewer-card membership-viewer-card--free">
               <img class="membership-viewer-icon" src="/assets/moon_icon.png" alt="" loading="lazy" decoding="async">
               <span class="membership-viewer-name">Moon</span>
@@ -2419,7 +2415,8 @@
               <li><a href="/about/">Overview</a></li>
               <li><a href="/myGeoID/">myGeoID App</a></li>
               <li><a href="/dashboard/">Dashboard</a></li>
-              <li><a href="/explorer/">Explorer</a></li>
+              <li><a href="/earth_explorer/">Earth Explorer</a></li>
+      <li><a href="/explorer/">Planet Explorer</a></li>
               <li><a href="/get-involved/">Get Involved</a></li>
               <li><a href="/team/">Our Team</a></li>
               <li><a href="/contact/">Contact</a></li>
@@ -2428,7 +2425,6 @@
           <div class="footer-section">
             <h4>Resources</h4>
             <ul>
-              <li><a href="https://gitlab.com/dgmaths9/gales" target="_blank" rel="noopener">GALES Software</a></li>
               <li><a href="https://www.copernicus.eu/" target="_blank" rel="noopener">Copernicus Programme</a></li>
               <li><a href="https://earthdata.nasa.gov/" target="_blank" rel="noopener">NASA Earth Data</a></li>
               <li><a href="https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs.php" target="_blank" rel="noopener">GFS NOAA API</a></li>
@@ -2444,17 +2440,12 @@
           </div>
         </div>
         <div class="footer-bottom">
-          <p>&copy; 2025 GeoID Solutions. Led by Owen McCluskey. All rights reserved.</p>
+          <p>&copy; 2025 GeoID Initiative. Led by Owen McCluskey. All rights reserved.</p>
           <div class="footer-social-links">
             <a href="mailto:geoid.initiative@gmail.com" class="footer-social-link" aria-label="Email">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
                 <polyline points="22,6 12,13 2,6"></polyline>
-              </svg>
-            </a>
-            <a href="https://gitlab.com/dgmaths9/gales" target="_blank" rel="noopener" class="footer-social-link" aria-label="GitLab">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
               </svg>
             </a>
           </div>
@@ -2464,11 +2455,11 @@
   </main>
 
   <div class="status-bar" role="status">
-    <div class="status-item"><span class="status-dot"></span>8 Planet Viewers</div>
+    <div class="status-item"><span class="status-dot"></span>9 Planet Viewers</div>
     <span class="status-sep">·</span>
     <div class="status-item"><span class="status-dot"></span>Solar Selector Live</div>
     <div class="status-spacer"></div>
-    <div class="status-item">GeoID Explorer</div>
+    <div class="status-item">Planet Explorer</div>
     <span class="status-sep">·</span>
     <div class="status-item"><span class="status-dot"></span>Mercury Through Pluto Charted</div>
   </div>

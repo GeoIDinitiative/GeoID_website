@@ -1221,7 +1221,8 @@
         </div>
       </li>
       <li><a href="/myGeoID/" class="active" aria-current="page"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
-      <li><a href="/explorer/">Explorer</a></li>
+      <li><a href="/earth_explorer/">Earth Explorer</a></li>
+      <li><a href="/explorer/">Planet Explorer</a></li>
       <li><a href="/contact/">Contact</a></li>
     </ul>
     <div class="nav-right-logo">
@@ -1348,24 +1349,6 @@
   </div>
 
   <script>
-    // ── Nav toggle (mobile) ──────────────────────────────────────────────────
-    (function () {
-      const nav = document.querySelector(".site-nav");
-      const toggle = nav.querySelector(".nav-toggle");
-      toggle.addEventListener("click", () => {
-        const open = nav.classList.toggle("is-open");
-        toggle.setAttribute("aria-expanded", String(open));
-      });
-      nav.querySelectorAll(".nav-dropdown-toggle").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          if (window.innerWidth <= 980) {
-            e.preventDefault();
-            btn.closest(".nav-dropdown").classList.toggle("is-open");
-          }
-        });
-      });
-    })();
-
     // ── Analysis Hub ─────────────────────────────────────────────────────────
     (function () {
       const drawer    = document.getElementById("hub-drawer");
@@ -1970,6 +1953,7 @@
     })();
   </script>
 
+<script src="/scripts/site.js"></script>
 <script src="/styles/nav.js?v=20260516" defer></script>
 </body>
 </html>

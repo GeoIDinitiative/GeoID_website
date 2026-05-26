@@ -1,6 +1,30 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- GeoID paywall guard — same pattern as all planet viewers.
+       requireMember uses (window.top||window).location internally, so the
+       redirect navigates the outermost frame whether this page is loaded
+       top-level (direct URL) or inside an iframe (transit page). -->
+  <script>
+    (function () {
+      var key = "etna";
+      var cfgScript = document.createElement("script");
+      cfgScript.src = "/scripts/membership-config.js";
+      cfgScript.onload = function () {
+        var cfg = window.GEOID_MEMBERSHIP_CONFIG || {};
+        var free = cfg.FREE_DESTINATIONS || ["earth", "moon"];
+        if (free.indexOf(key) !== -1) return;
+        if (!window.GEOID_MEMBERSHIP_CONFIG_READY) return;
+        var memScript = document.createElement("script");
+        memScript.src = "/scripts/membership.js";
+        memScript.onload = function () {
+          window.GeoIDAuth.requireMember("/earth_explorer/etna/");
+        };
+        document.head.appendChild(memScript);
+      };
+      document.head.appendChild(cfgScript);
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Mount Etna — GeoID: Explorer</title>
@@ -8,7 +32,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=383">
+  <link rel="stylesheet" href="styles.css?v=394">
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -28,8 +52,9 @@
 
   <!-- ─── Left control panel ───────────────────────────────────────────────── -->
   <section id="ui">
+    <!-- Fixed header strip: always visible when panel scrolls -->
     <div class="brand-toprow">
-      <p class="eyebrow">GeoID: Explorer</p>
+      <p class="eyebrow">GeoID: Earth Explorer</p>
       <div class="brand-toprow-actions">
         <button class="info-btn" id="info-btn" aria-label="About this viewer" title="About this viewer">i</button>
         <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel">‹</button>
@@ -37,16 +62,18 @@
     </div>
 
     <div id="ui-scroll-body">
-      <div class="brand-hero">
-        <button class="brand-logo-button" id="brand-reset-button" type="button" aria-label="Reset view" title="Reset view">
-          <img class="brand-logo" src="../../../assets/etna_icon.png" alt="Etna icon">
-        </button>
-        <div class="brand">
-          <h1>Etna <svg class="italy-flag" viewBox="0 0 30 20" aria-label="Italy" role="img"><rect width="10" height="20" fill="#009246"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ce2b37"/></svg></h1>
-          <p class="brand-subtitle">Sicily, Italy · 3,329 m</p>
-        </div>
-        <div class="brand-audio" hidden></div>
-      </div><!-- /.brand-hero -->
+      <!-- Banner hero: Etna photo background, scrolls away with content -->
+      <div class="brand-banner">
+        <!-- Invisible full-banner reset button (behind text, above photo) -->
+        <button class="brand-logo-button" id="brand-reset-button" type="button" aria-label="Reset view" title="Reset to default view"></button>
+        <div class="brand-hero">
+          <div class="brand">
+            <h1>Etna <svg class="italy-flag" viewBox="0 0 30 20" aria-label="Italy" role="img"><rect width="10" height="20" fill="#009246"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ce2b37"/></svg></h1>
+            <p class="brand-subtitle">Sicily, Italy · 3,329 m</p>
+          </div>
+          <div class="brand-audio" hidden></div>
+        </div><!-- /.brand-hero -->
+      </div><!-- /.brand-banner -->
 
       <div class="controls">
 
@@ -180,6 +207,8 @@
                 <select id="basemap-select" class="select">
                   <option value="plain">Plain terrain</option>
                   <option value="satellite" selected>Satellite</option>
+                  <option value="hillshade">Hillshade</option>
+                  <option value="slope">Slope angle</option>
                 </select>
               </div>
               <div class="row">
@@ -845,7 +874,7 @@
 
   <button id="nav-tab" aria-label="Open Control Centre">Open Control Centre &nbsp;›</button>
 
-  <a class="hub-link" href="/explorer/" target="_top" rel="home">Return Home</a>
+  <a class="hub-link" href="/earth_explorer/" target="_top" rel="home">Return Home</a>
 
   <!-- ─── Tool rail (right side measurement buttons) ────────────────────── -->
   <div id="tool-rail" aria-label="Measurement tools">
@@ -898,8 +927,8 @@
       </svg>
     </button>
   </div>
-  <a id="top-right-logo-link" href="https://geoidinitiative.com/" target="_blank" rel="noopener noreferrer" aria-label="Open GeoID Initiative website">
-    <img id="top-right-logo" src="../../../assets/logo.png" alt="GeoID logo">
+  <a id="top-right-logo-link" href="/earth_explorer/" target="_top" aria-label="Back to Earth Explorer">
+    <img id="top-right-logo" src="../../assets/logo.png" alt="GeoID logo">
   </a>
 
   <!-- ─── Bottom-left HUD: compass inset + surface readers ───────────────────── -->
@@ -1104,7 +1133,7 @@
       window.addEventListener('orientationchange', () => advisory.classList.remove('is-dismissed'));
     }
 
-    import('./etna-viewer.js?v=57').catch((err) => {
+    import('./etna-viewer.js?v=65').catch((err) => {
       setBootStatus('Failed to load viewer: ' + err.message, true);
     });
   </script>

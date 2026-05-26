@@ -9208,7 +9208,7 @@ ${error && error.message ? error.message : error}`;
       } else if (!initialGeologyTexture) {
         setStatus("Loaded without geology overlay. Overlay asset unavailable.", true);
       } else {
-        setStatus("© 2026 GeoID: Explorer. GeoID Solutions, led by Owen McCluskey. All rights reserved.");
+        setStatus("© 2026 GeoID: Explorer. GeoID Initiative, led by Owen McCluskey. All rights reserved.");
       }
 
       // Free CPU image data for a texture after the GPU has uploaded it.

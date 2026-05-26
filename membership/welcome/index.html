@@ -122,22 +122,32 @@
     </p>
 
     <div class="welcome-cta">
-      <a class="welcome-btn welcome-btn-primary" href="/explorer/">Open the Explorer →</a>
-      <a class="welcome-btn welcome-btn-ghost" href="/" id="welcome-portal">Manage subscription</a>
+      <a class="welcome-btn welcome-btn-primary" href="/explorer/" id="welcome-explore">Open the Explorer →</a>
+      <a class="welcome-btn welcome-btn-ghost" href="#" id="welcome-portal">Manage subscription</a>
     </div>
 
     <p class="welcome-help">
-      Need to view or cancel your membership at any time? Use the <strong>Sign In</strong> link
+      Need to view or cancel your membership at any time? Use the <strong>Account</strong> link
       in the nav — Stripe will email a one-time link to your subscription address.
       Questions? <a href="/contact/">Get in touch</a>.
     </p>
   </main>
 
+  <script src="/scripts/membership-config.js"></script>
   <script src="/scripts/membership.js"></script>
   <script>
+    // If the user came here via a viewer paywall, send them straight back.
+    (function () {
+      const ret = sessionStorage.getItem("geoid_returnAfterSubscribe");
+      if (ret) {
+        sessionStorage.removeItem("geoid_returnAfterSubscribe");
+        const btn = document.getElementById("welcome-explore");
+        if (btn) { btn.href = ret; btn.textContent = "Return to viewer →"; }
+      }
+    })();
     document.getElementById("welcome-portal")?.addEventListener("click", (e) => {
       e.preventDefault();
-      window.GeoIDMembership.signIn();
+      window.GeoIDMembership.portal();
     });
   </script>
 </body>
