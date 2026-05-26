@@ -11,6 +11,17 @@
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Work+Sans:wght@300;400;600;700;800&family=Archivo:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
+    /* ── Fixed background image ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: url('/GeoID_initiative/photos/valencia-flooding.jpg') center / cover no-repeat;
+      opacity: 0.13;
+      z-index: -1;
+      pointer-events: none;
+    }
+
     .page-wrap { padding-top: var(--nav-h, 64px); }
     .page-inner { max-width: 820px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
 
@@ -232,7 +243,7 @@
       <!-- PAGE HEADER -->
       <header class="page-header">
         <span class="page-header-label">Research &amp; Funding Prospectus</span>
-        <h1>Interactive geoscience platforms are live. Real-time flood and landslide forecasting is one compute step away.</h1>
+        <h1>Interactive geoscience platforms are live. Real-time flood and landslide forecasting applications are now just one computational step away.</h1>
         <p class="lede">GeoID has built and deployed two accessible geoscience tools used by members today. The demos establish what the platform can do. The immediate next goal — driving physics-based hydrological models from live rainfall forecasts to produce a public flood and landslide risk index — is technically defined. What it needs is servers and compute.</p>
         <div class="header-actions">
           <a class="btn-primary" href="/contact/">Discuss a partnership →</a>
