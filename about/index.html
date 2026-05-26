@@ -836,6 +836,67 @@
       .footer-content { grid-template-columns: 1fr; gap: 2rem; }
       .footer-bottom { flex-direction: column; text-align: center; }
     }
+
+    /* ── Two-track comparison grid ── */
+    .two-tracks-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-top: 2rem;
+      text-align: left;
+    }
+    .track-card {
+      border-radius: 1rem;
+      padding: 1.75rem;
+    }
+    .track-card--explorer {
+      border: 1.5px solid rgba(68, 119, 255, 0.4);
+      background: rgba(68, 119, 255, 0.06);
+    }
+    .track-card--mygeoid {
+      border: 1.5px solid rgba(247, 189, 104, 0.4);
+      background: rgba(247, 189, 104, 0.05);
+    }
+    .track-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.1rem;
+      flex-wrap: wrap;
+    }
+    .track-card-logo { height: 26px; width: auto; }
+    .track-card h3 {
+      font-family: "Public Sans", sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 0.55rem;
+    }
+    .track-card p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.72;
+      margin-bottom: 0.55rem;
+    }
+    .track-card p:last-of-type { margin-bottom: 0; }
+    .track-card-note {
+      font-size: 0.78rem;
+      color: rgba(154, 184, 189, 0.6);
+      margin-top: 0.75rem !important;
+    }
+    .track-card-links {
+      margin-top: 1.1rem;
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .track-card-links a {
+      font-size: 0.78rem;
+      padding: 0.28rem 0.72rem;
+    }
+    @media (max-width: 640px) {
+      .two-tracks-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -895,7 +956,7 @@
           <p class="hero-subtitle">Geodynamic Earth Observation Index for Disaster Mitigation</p>
           <h1>The GeoID Initiative</h1>
           <p class="hero-tagline">Geoscience without gatekeepers — making world-class hazard intelligence accessible to everyone</p>
-          <p class="hero-desc">GeoID is a multi-disciplinary open science initiative built around two interconnected platforms: GeoID Explorer — a dual-faceted environment spanning Solar System–scale planetary viewers and focused regional Earth environments — and myGeoID, a real-time geohazard risk tracker. One scientific backbone — Earth observation data, physics-based modelling, and machine learning — delivered to curious students, exposed communities, and research scientists alike.</p>
+          <p class="hero-desc">GeoID runs on two distinct tracks. The <strong style="color:var(--text);">Explorer platforms</strong> — Planet Explorer and Earth Explorer — are <em>live today</em>: interactive, browser-based environments for learning, exploration, and scientific investigation. <strong style="color:var(--text);">myGeoID</strong>, a real-time geohazard risk application delivering a continuously updated Factor of Safety for landslide and flood risk, is <em>in active development</em> and seeking funding and collaboration.</p>
           <div class="hero-actions">
             <a class="btn-primary" href="#products">Explore the Ecosystem</a>
             <a class="btn-ghost" href="/get-involved/#questionnaire">Take our Survey</a>
@@ -907,13 +968,46 @@
       <div class="cyan-tile" id="what">
         <div class="cyan-tile-content">
           <span class="tile-label">The GeoID Initiative</span>
-          <h2 class="tile-title">A Multi-Disciplinary Geoscience Ecosystem</h2>
+          <h2 class="tile-title">Two Platforms, One Scientific Backbone</h2>
           <div class="tile-desc">
-            <p>GeoID is a multi-faceted, interdisciplinary initiative that colates, models, distributes, educates and informs — making the most complex geoscience workflows readily accessible to anyone motivated to study the natural world. From curious citizen to research scientist, GeoID lowers the barrier to entry at every level.</p>
-            <p>Born from the conviction that geoscience methods are world-class but their delivery is not, GeoID bypasses institutional gatekeeping, competitive funding bottlenecks, and academic silos. A modularised, preloaded workflow gives researchers the tools to conduct more studies, faster — while the same platform delivers clear, actionable risk intelligence directly to the public. We do not teach people to interpret complex science; we deliver the actionable insight directly. <strong style="color:var(--text);">We give the fish, not just the fishing rod.</strong></p>
-            <p>People engage with geoscience for three reasons: passionate curiosity, fear for their own safety, or because it is easy to access. GeoID is designed around all three — destigmatising the field, modularising its workflows, and making its outputs as intuitive as checking the weather app.</p>
+            <p>GeoID is built around two distinct but complementary tracks. The <strong style="color:var(--text);">Explorer platforms</strong> are live now — educational and exploratory tools that make world-class geoscience accessible to anyone without institutional access or specialist training. <strong style="color:var(--text);">myGeoID</strong> is the operational horizon: a proposed real-time geohazard risk application that turns the same scientific foundation into actionable public safety intelligence.</p>
+            <p>Understanding which track you are engaging with matters. Explorer is for learning; myGeoID is for acting. The first is open today; the second is in development and requires funding and collaboration to realise. <strong style="color:var(--text);">We give the fish, not just the fishing rod</strong> — but first we need the resources to build the trawler.</p>
           </div>
-          <div class="theme-pills">
+
+          <div class="two-tracks-grid">
+            <!-- Explorer track -->
+            <div class="track-card track-card--explorer">
+              <div class="track-card-header">
+                <img class="track-card-logo" src="/assets/explorer_logo.png" alt="Explorer">
+                <span class="status-live">Live Now</span>
+              </div>
+              <h3>GeoID Explorer</h3>
+              <p><strong style="color:var(--text);">Educational &amp; exploratory.</strong> Interactive, browser-based environments for learning, scientific investigation, and engaging with the natural world — no prior expertise required.</p>
+              <p><strong style="color:rgba(200,220,236,0.8);">Planet Explorer</strong> spans the Solar System from rocky worlds to gas giants. <strong style="color:rgba(200,220,236,0.8);">Earth Explorer</strong> brings you into focused regional geological environments — active volcanoes, fault zones, tectonic structures — at research-grade detail.</p>
+              <p class="track-card-note">Designed for curious learners, students, educators, and scientists. <strong style="color:rgba(200,220,236,0.7);">Not a hazard warning system.</strong></p>
+              <div class="track-card-links">
+                <a href="/explorer/" class="btn-ghost">Planet Explorer →</a>
+                <a href="/earth_explorer/" class="btn-ghost">Earth Explorer →</a>
+              </div>
+            </div>
+            <!-- myGeoID track -->
+            <div class="track-card track-card--mygeoid">
+              <div class="track-card-header">
+                <img class="track-card-logo" src="/assets/mygeoid_logo.png" alt="myGeoID">
+                <span class="status-dev">In Development</span>
+              </div>
+              <h3>myGeoID</h3>
+              <p><strong style="color:var(--text);">Operational hazard intelligence.</strong> A proposed real-time geohazard risk application — a continuously updated Factor of Safety index for landslide and flood risk at any location on Earth, delivered as a clean, mobile-first risk tracker.</p>
+              <p>Designed for exposed communities, insurers, civil protection authorities, and first responders. Ingests NOAA GFS global forecast data to anticipate rising instability before it becomes visible, giving decision-makers the lead time to act.</p>
+              <p class="track-card-note">The interface shown is a design concept; no live hazard data is currently computed. Seeking funding, academic partners, and pilot collaborators.</p>
+              <div class="track-card-links">
+                <a href="/about_myGeoID/" class="btn-ghost">Learn More →</a>
+                <a href="/fund.html" class="btn-ghost">Funding Prospectus →</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="theme-pills" style="margin-top:2rem;">
             <span class="theme-pill">Social Psychology</span>
             <span class="theme-pill">Civil Protection</span>
             <span class="theme-pill">Academic Research</span>
@@ -931,7 +1025,7 @@
         <div class="photo-tile-content" style="text-align:center;">
           <span class="tile-label">What We're Building Toward</span>
           <h2 class="tile-title">Making Hazard Intelligence Accessible</h2>
-          <p class="tile-desc" style="margin:0 auto 1.75rem;">World-class geoscience already exists — the problem is that it is an insular community, undermined by politics and rarely fed directly to the general public. GeoID is working to close that gap: taking the same physics-based models and satellite datasets used by research institutions and making them accessible to anyone, anywhere. The Explorer viewers are live today; the hazard forecasting platform is in development and seeking collaborators.</p>
+          <p class="tile-desc" style="margin:0 auto 1.75rem;">World-class geoscience already exists — the problem is that it is an insular community, undermined by politics and rarely fed directly to the general public. GeoID is working to close that gap: taking the same physics-based models and datasets used by research institutions and making them accessible to anyone, anywhere. The Explorer viewers are live today; the hazard forecasting platform is in development and seeking collaborators.</p>
           <div class="cards-grid-3">
             <article class="solution-card">
               <div class="solution-card-header">
@@ -971,7 +1065,7 @@
         <div class="photo-tile-content">
           <span class="tile-label">Our Approach</span>
           <h2 class="tile-title">The GeoID Ecosystem</h2>
-          <p class="tile-desc">GeoID Explorer is dual-faceted: <strong>Planet Explorer</strong> navigates the Solar System at planetary scale — from rocky worlds to gas giants — while <strong>Earth Explorer</strong> brings you into focused regional environments at medium scale, from active volcanic edifices to tectonic fault zones. Both share the same scientific backbone as myGeoID: world-leading Earth observation data, physics-based modelling, and machine learning.</p>
+          <p class="tile-desc">Two live educational platforms and one in-development operational platform — all built on the same scientific foundation of Earth observation data, physics-based modelling, and machine learning. <strong>Planet Explorer</strong> and <strong>Earth Explorer</strong> are open for membership today. <strong>myGeoID</strong> represents where that foundation is heading: actionable, real-time geohazard intelligence for the public.</p>
 
           <div class="ecosystem-tree" aria-hidden="true">
             <img class="eco-root-img" src="/assets/GeoID_logo_icon.png" alt="" loading="lazy" decoding="async">
