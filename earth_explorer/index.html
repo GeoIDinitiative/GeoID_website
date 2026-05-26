@@ -1900,28 +1900,6 @@
       </article>
     </section>
 
-    <!-- ── Demo video ───────────────────────────────────────────────────────── -->
-    <section class="earth-section" aria-label="Viewer demo">
-      <div class="earth-info-tile" style="padding:0;overflow:hidden;background:#000;">
-        <div style="padding:1.4rem 1.8rem 0.9rem;display:flex;align-items:baseline;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
-          <span style="font-family:'Public Sans',sans-serif;font-size:0.67rem;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:var(--cyan);display:inline-flex;align-items:center;gap:0.42rem;">
-            <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--cyan);"></span>
-            Viewer Demo
-          </span>
-          <span style="font-family:'Public Sans',sans-serif;font-size:0.75rem;color:var(--text-muted,#7a9fa8);">Mount Etna — Earth Explorer walkthrough</span>
-        </div>
-        <video
-          controls
-          preload="metadata"
-          playsinline
-          style="width:100%;display:block;max-height:72vh;background:#000;"
-          aria-label="Earth Explorer — Mount Etna viewer demonstration">
-          <source src="/assets/etna_viewer_demo.webm" type="video/webm">
-          Your browser does not support the video element.
-        </video>
-      </div>
-    </section>
-
     <!-- ── Explore Earth tile ───────────────────────────────────────────────── -->
     <section class="about-explorer-section" aria-labelledby="explore-earth-title">
       <article class="about-explorer-tile new-worlds-tile">
@@ -2034,32 +2012,32 @@
           </span>
         </div>
 
-        <!-- Body: section blocks + image -->
-        <div class="earth-info-layout">
-          <div class="earth-info-body">
-            <div class="earth-info-block">
-              <p class="earth-info-heading">About</p>
-              <p>Europe's largest and most active stratovolcano — rendered as a fully interactive 3D geological model built from real published datasets. Navigate from summit crater to the Mediterranean coastline across a 100 km domain, in real time, entirely in your browser.</p>
-            </div>
-            <div class="earth-info-block">
-              <p class="earth-info-heading">Subsurface Structure</p>
-              <p>Three resolved magma chambers — shallow, intermediate, and deep — connected by conduits and sill complexes derived from published seismic tomography and geodetic models. Toggle each body independently and section through the edifice with the cross-section tool.</p>
-            </div>
-            <div class="earth-info-block">
-              <p class="earth-info-heading">Fault Architecture &amp; Seismicity</p>
-              <p>All active fault systems mapped at surface and subsurface extent. Real INGV earthquake catalogue overlaid as depth-coloured spheres, filterable by magnitude and time period.</p>
-            </div>
-            <div class="earth-info-block">
-              <p class="earth-info-heading">High-Resolution Basemap</p>
-              <p>7 m-resolution ESRI World Imagery satellite tiles, pre-rendered into a local tile cache across the full domain, with switchable hillshade and slope-angle basemaps — all scaling dynamically with vertical exaggeration.</p>
-            </div>
+        <!-- Body: section blocks full width -->
+        <div class="earth-info-body" style="padding:1.6rem 2.4rem 0.4rem;">
+          <div class="earth-info-block">
+            <p class="earth-info-heading">About</p>
+            <p>Europe's largest and most active stratovolcano — rendered as a fully interactive 3D geological model built from real published datasets. Navigate from summit crater to the Mediterranean coastline across a 100 km domain, in real time, entirely in your browser.</p>
           </div>
-          <div class="earth-info-image">
-            <img src="/earth_explorer/assets/UI.png"
-                 alt="Mount Etna 3D viewer — user interface"
-                 loading="lazy" decoding="async">
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Subsurface Structure</p>
+            <p>Three resolved magma chambers — shallow, intermediate, and deep — connected by conduits and sill complexes derived from published seismic tomography and geodetic models. Toggle each body independently and section through the edifice with the cross-section tool.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Fault Architecture &amp; Seismicity</p>
+            <p>All active fault systems mapped at surface and subsurface extent. Real INGV earthquake catalogue overlaid as depth-coloured spheres, filterable by magnitude and time period.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">High-Resolution Basemap</p>
+            <p>7 m-resolution ESRI World Imagery satellite tiles, pre-rendered into a local tile cache across the full domain, with switchable hillshade and slope-angle basemaps — all scaling dynamically with vertical exaggeration.</p>
           </div>
         </div>
+
+        <!-- Demo video -->
+        <video controls preload="metadata" playsinline
+          style="width:100%;display:block;max-height:70vh;background:#000;border-top:1px solid rgba(0,225,210,0.15);"
+          aria-label="Earth Explorer — Mount Etna viewer demonstration">
+          <source src="/assets/etna_viewer_demo.webm" type="video/webm">
+        </video>
 
         <!-- CTA -->
         <div class="earth-info-actions">
