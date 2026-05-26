@@ -5567,6 +5567,21 @@ import * as THREE from "./vendor/three.module.js";
           scenePopupDetail.appendChild(row);
         }
       }
+      // Mount Etna → link to the dedicated 3D viewer
+      if (feature.name === "Mount Etna") {
+        const etnaRow = document.createElement("div");
+        etnaRow.className = "scene-popup-actions";
+        const etnaLink = document.createElement("a");
+        etnaLink.href = "/earth_explorer/etna/";
+        etnaLink.target = "_top";
+        etnaLink.rel = "noopener";
+        etnaLink.className = "button scene-popup-action-btn";
+        etnaLink.style.cssText = "display:inline-block;text-decoration:none;text-align:center;";
+        etnaLink.textContent = "Open Etna Viewer →";
+        etnaRow.appendChild(etnaLink);
+        scenePopupDetail.appendChild(etnaRow);
+      }
+
       if (isUserPinFeature && feature.id) {
         const actionRow = document.createElement("div");
         actionRow.className = "scene-popup-actions";
