@@ -2007,28 +2007,44 @@
           <div>
             <h3 class="earth-info-title" id="flagship-heading">Explore Europe's Most Active Volcano, Mount Etna, in 3D</h3>
           </div>
-          <span class="flagship-live-badge" aria-label="Live viewer">
-            <span class="flagship-live-dot"></span>LIVE
-          </span>
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+            <span class="flagship-live-badge" aria-label="Live viewer">
+              <span class="flagship-live-dot"></span>LIVE
+            </span>
+            <a class="btn-primary" href="/earth_explorer/etna/" style="white-space:nowrap;font-size:0.8rem;padding:0.45rem 1rem;">▶ &nbsp;Open Viewer</a>
+          </div>
         </div>
 
         <!-- Body: section blocks full width -->
-        <div class="earth-info-body" style="padding:1.6rem 2.4rem 0.4rem;">
-          <div class="earth-info-block">
-            <p class="earth-info-heading">About</p>
-            <p>Europe's largest and most active stratovolcano — rendered as a fully interactive 3D geological model built from real published datasets. Navigate from summit crater to the Mediterranean coastline across a 100 km domain, in real time, entirely in your browser.</p>
-          </div>
+        <div class="earth-info-body" style="padding:0.6rem 2.4rem 1rem;">
+
+          <p style="font-family:'Public Sans',sans-serif;font-size:0.92rem;line-height:1.72;color:rgba(210,230,240,0.88);margin:0 0 1.6rem;border-left:2px solid rgba(0,225,210,0.3);padding-left:1rem;">
+            Sicily's Mount Etna is Europe's most active and tallest volcano — erupting almost continuously since 2011 and closely monitored by Italy's National Institute of Geophysics and Volcanology (INGV). It sits at the convergence of the African and Eurasian plates, fed by an unusually deep asthenospheric source more closely related to Hawaiian hot-spot volcanism than to a typical subduction system. The Earth Explorer viewer brings that complexity into a single interactive environment, letting you navigate the volcano from summit to coastline, from surface to deep conduit, using the same datasets that researchers publish from.
+          </p>
+
           <div class="earth-info-block">
             <p class="earth-info-heading">Subsurface Structure</p>
-            <p>Three resolved magma chambers — shallow, intermediate, and deep — connected by conduits and sill complexes derived from published seismic tomography and geodetic models. Toggle each body independently and section through the edifice with the cross-section tool.</p>
+            <p>Three resolved magma chambers — shallow (~3 km), intermediate (~8 km), and deep (12–16 km) — connected by conduits and sill complexes derived from published seismic tomography and geodetic inversion models. Toggle each body independently and section through the edifice with the interactive cross-section tool to expose the full plumbing architecture below the surface.</p>
           </div>
           <div class="earth-info-block">
             <p class="earth-info-heading">Fault Architecture &amp; Seismicity</p>
-            <p>All active fault systems mapped at surface and subsurface extent. Real INGV earthquake catalogue overlaid as depth-coloured spheres, filterable by magnitude and time period.</p>
+            <p>All major active fault systems mapped at surface and subsurface extent — including the Timpe fault system on Etna's eastern flank, the source of the region's highest seismic hazard, and the structures governing the volcano's documented 10–14 mm/year seaward flank motion. The full INGV earthquake catalogue (2011–2023, 12,000+ events) is overlaid as depth-coloured spheres, filterable by magnitude and time period.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Geological Map &amp; Lava Flows</p>
+            <p>Published geological unit mapping draped over the 3D terrain, including surface formations, volcanic stratigraphy, and historical lava flow extents classified by eruption period. Toggle individual units to compare the spatial extent of different eruptive phases across the volcano's flanks — from ancient shield-building flows to the products of recent summit activity.</p>
           </div>
           <div class="earth-info-block">
             <p class="earth-info-heading">High-Resolution Basemap</p>
-            <p>7 m-resolution ESRI World Imagery satellite tiles, pre-rendered into a local tile cache across the full domain, with switchable hillshade and slope-angle basemaps — all scaling dynamically with vertical exaggeration.</p>
+            <p>7 m-resolution ESRI World Imagery satellite tiles pre-rendered into a local tile cache across the full 100 km domain, with switchable hillshade and slope-angle basemaps. Vertical exaggeration is adjustable in real time — increase it to read subtle topographic gradients invisible at natural scale, or reduce it for a geologically faithful view of the edifice.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Tour Mode &amp; Guided Navigation</p>
+            <p>A structured tour mode walks users through Etna's key geological features in sequence — summit craters, flank vents, the Timpe escarpment, the Valle del Bove collapse structure, and the deep conduit system — with scientific context at each stop. Each location is described at a level that rewards both first-time visitors and working volcanologists.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Data Sources</p>
+            <p>All datasets are drawn from published, peer-reviewed sources: INGV seismicity catalogues, national geological survey databases, geodetic inversion models from the primary literature, and ESRI satellite imagery. Nothing in the viewer is an illustration or approximation — every layer is the actual data that researchers use, rendered in your browser with no installation required.</p>
           </div>
         </div>
 
@@ -2036,13 +2052,8 @@
         <video controls preload="metadata" playsinline
           style="width:100%;display:block;max-height:70vh;background:#000;border-top:1px solid rgba(0,225,210,0.15);"
           aria-label="Earth Explorer — Mount Etna viewer demonstration">
-          <source src="/assets/etna_viewer_demo.webm" type="video/webm">
+          <source src="/assets/etna_viewer_demo_audio.webm" type="video/webm">
         </video>
-
-        <!-- CTA -->
-        <div class="earth-info-actions">
-          <a class="btn-primary" href="/earth_explorer/etna/">▶ &nbsp;Open Viewer</a>
-        </div>
 
       </article>
     </section>
