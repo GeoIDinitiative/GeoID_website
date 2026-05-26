@@ -1948,13 +1948,15 @@
 
     .tool-rail-btn span {
       width: 100%;
-      font-size: 0.54rem;
-      letter-spacing: 0.15em;
+      font-size: 0.52rem;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       font-family: "Courier New", monospace;
       font-weight: 700;
       line-height: 1.1;
       text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
       color: #eefcff;
       text-shadow: 0 0 10px rgba(var(--nav-accent-rgb), 0.2), 0 0 2px rgba(255,255,255,0.3);
     }
