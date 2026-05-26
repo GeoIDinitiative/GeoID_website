@@ -11,15 +11,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Work+Sans:wght@300;400;600;700;800&family=Archivo:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
-    /* ── Fixed background image ── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: url('/GeoID_initiative/photos/valencia-flooding.jpg') center / cover no-repeat;
-      opacity: 0.13;
-      z-index: -1;
-      pointer-events: none;
+    /* ── Fixed background image — layered into body to beat shared.css background paint ── */
+    body {
+      background:
+        linear-gradient(rgba(5,13,20,0.87), rgba(5,13,20,0.87)),
+        url('/GeoID_initiative/photos/valencia-flooding.jpg') center / cover no-repeat fixed,
+        radial-gradient(circle at 12% 18%, rgba(88,198,179,0.13), transparent 26rem),
+        radial-gradient(circle at 86% 10%, rgba(79,195,247,0.08), transparent 24rem),
+        radial-gradient(circle at 66% 86%, rgba(70,40,145,0.12), transparent 32rem),
+        linear-gradient(180deg, #050b12 0%, #050d14 38%, #07131c 100%);
     }
 
     .page-wrap { padding-top: var(--nav-h, 64px); }
@@ -244,11 +244,7 @@
       <header class="page-header">
         <span class="page-header-label">Research &amp; Funding Prospectus</span>
         <h1>Interactive geoscience platforms are live. Real-time flood and landslide forecasting applications are now just one computational step away.</h1>
-        <p class="lede">GeoID has built and deployed two accessible geoscience tools used by members today. The demos establish what the platform can do. The immediate next goal — driving physics-based hydrological models from live rainfall forecasts to produce a public flood and landslide risk index — is technically defined. What it needs is servers and compute.</p>
-        <div class="header-actions">
-          <a class="btn-primary" href="/contact/">Discuss a partnership →</a>
-          <a class="btn-ghost" href="/earth_explorer/etna/viewer/">See the Etna viewer</a>
-        </div>
+        <p class="lede">GeoID has built and deployed two accessible geoscience tools used by members today. The demos establish what the platform can do. The immediate next goal — driving physics-based hydrological models from live rainfall forecasts to produce a public flood and landslide risk index — is technically defined. What it needs is servers and HPC access.</p>
         <div class="status-note" role="note">
           <p><strong>Honest status.</strong> The Explorer platforms (Planet Explorer and Earth Explorer: Etna) are live and usable today. The flood and landslide forecasting system described here is in development — it is the subject of this funding case, not a live service.</p>
         </div>
@@ -295,7 +291,7 @@
           </div>
           <div class="mini">
             <div class="ic">🧮</div>
-            <h3>Constraint 2 — Compute</h3>
+            <h3>Constraint 2 — Computational Capacity</h3>
             <p>FEM slope-stability and flood-routing runs are computationally demanding. Running them continuously, at useful spatial resolution, across a pilot domain requires HPC allocation or dedicated cluster time. This is the principal cost this prospectus addresses.</p>
           </div>
         </div>
@@ -356,10 +352,10 @@
       <section class="panel" id="ask">
         <span class="section-label">How to get involved</span>
         <h2 class="section-title">Engagement models</h2>
-        <p style="margin-bottom:1.2rem;">GeoID is a non-exclusive, open-science initiative. The most direct forms of support are compute access and research partnerships, but we are open to all routes below.</p>
+        <p style="margin-bottom:1.2rem;">GeoID is a non-exclusive, open-science initiative. The most direct forms of support are HPC access and funded research partnerships, but we are open to all routes below.</p>
         <div class="ask-grid">
           <div class="ask">
-            <h3>Compute &amp; cloud in-kind</h3>
+            <h3>High Performance Computing (HPC) &amp; cloud in-kind</h3>
             <p>HPC allocations or cloud-credit programmes that directly cover the Phase 1 FEM workloads — the single most direct path to making the first forecast pipeline operational.</p>
           </div>
           <div class="ask">
@@ -396,7 +392,7 @@
 
       <!-- CLOSING CTA -->
       <section class="cta-section">
-        <h2>The demos are live and verifiable. The next step needs compute.</h2>
+        <h2>The demos are live and verifiable. The next step needs greater computational power.</h2>
         <p>We would welcome a conversation with any institution, funder, or research partner who wants to see physics-based flood and landslide forecasting become a free public resource.</p>
         <div class="cta-actions">
           <a class="btn-primary" href="/contact/">Get in touch →</a>
