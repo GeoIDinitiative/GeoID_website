@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Work+Sans:wght@300;400;600;700;800&family=Archivo:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
     .page-wrap { padding-top: var(--nav-h, 64px); }
@@ -16,26 +16,35 @@
 
     /* ── Section spacing ── */
     section { margin-bottom: 1.4rem; }
-    p { line-height: 1.72; color: var(--muted); }
+    p {
+      font-family: "Source Sans 3", "Public Sans", sans-serif;
+      font-size: 0.96rem; line-height: 1.75; color: var(--muted);
+      margin: 0 0 0.9rem;
+    }
+    p:last-child { margin-bottom: 0; }
 
     /* ── Page header ── */
     .page-header {
-      padding: 2.8rem 0 2rem;
+      padding: 2.8rem 0 2.2rem;
       border-bottom: 1px solid var(--line);
       margin-bottom: 2rem;
     }
     .page-header-label {
-      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.16em;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.67rem; font-weight: 700; letter-spacing: 0.18em;
       text-transform: uppercase; color: var(--muted);
-      display: block; margin-bottom: 0.75rem;
+      display: block; margin-bottom: 0.85rem;
     }
     .page-header h1 {
-      font-family: "Archivo", sans-serif; font-weight: 800;
-      font-size: clamp(1.9rem, 4.5vw, 3rem); line-height: 1.1;
-      letter-spacing: -0.02em; color: var(--text); margin: 0 0 1rem; max-width: 24ch;
+      font-family: "Archivo", "Work Sans", sans-serif; font-weight: 800;
+      font-size: clamp(1.9rem, 4.5vw, 3rem); line-height: 1.08;
+      letter-spacing: -0.02em; color: var(--text); margin: 0 0 1.1rem; max-width: 22ch;
     }
     .page-header p.lede {
-      font-size: 1rem; max-width: 60ch; color: rgba(200,220,236,0.85); margin: 0 0 1.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 1.05rem; line-height: 1.65;
+      color: rgba(200,220,236,0.88); margin: 0 0 1.6rem;
+      max-width: 68ch;
     }
     .header-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; }
 
@@ -49,15 +58,22 @@
     .status-note p { color: rgba(255,230,189,0.8); font-size: 0.88rem; line-height: 1.65; margin: 0; }
     .status-note strong { color: #fff4e2; }
 
-    /* ── Section label ── */
+    /* ── Section label + title — mirrors shared.css tile-label / tile-title ── */
     .section-label {
-      display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.16em;
-      text-transform: uppercase; color: var(--muted); margin-bottom: 0.6rem;
+      display: inline-flex; align-items: center; gap: 0.42rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.67rem; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--cyan);
+      margin-bottom: 0.75rem;
+    }
+    .section-label::before {
+      content: ''; display: inline-block;
+      width: 5px; height: 5px; border-radius: 50%; background: var(--cyan);
     }
     .section-title {
-      font-family: "Archivo", sans-serif; font-weight: 700;
-      font-size: clamp(1.25rem, 2.5vw, 1.65rem); line-height: 1.15;
-      letter-spacing: -0.01em; color: var(--text); margin: 0 0 1rem;
+      font-family: "Archivo", "Work Sans", sans-serif; font-weight: 700;
+      font-size: clamp(1.4rem, 2.6vw, 1.95rem); line-height: 1.12;
+      letter-spacing: -0.015em; color: var(--text); margin: 0 0 1rem;
     }
 
     /* ── Content panels ── */
@@ -76,10 +92,10 @@
       padding: 1.2rem; background: rgba(255,255,255,0.022);
     }
     .mini h3 {
-      margin: 0.4rem 0 0.45rem; font-size: 0.95rem;
+      margin: 0.4rem 0 0.5rem; font-size: 0.95rem;
       color: var(--text); font-family: "Public Sans", sans-serif; font-weight: 700;
     }
-    .mini p { font-size: 0.88rem; margin: 0; }
+    .mini p { font-size: 0.875rem; margin: 0; line-height: 1.68; }
     .mini .ic { font-size: 1.4rem; line-height: 1; }
 
     .proof-tag {
@@ -112,7 +128,7 @@
       margin-bottom: 0.4rem;
     }
     .phase-head h3 {
-      margin: 0; font-family: "Archivo", sans-serif; font-weight: 700;
+      margin: 0; font-family: "Archivo", "Work Sans", sans-serif; font-weight: 700;
       font-size: 1.05rem; color: var(--text); letter-spacing: -0.01em;
     }
     .phase-badge {
@@ -145,7 +161,7 @@
     .ask-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.1rem; }
     .ask { border: 1px solid var(--line); border-radius: 1.1rem; padding: 1.3rem; background: rgba(255,255,255,0.022); }
     .ask h3 { margin: 0 0 0.4rem; font-size: 0.95rem; color: var(--text); font-family: "Public Sans", sans-serif; font-weight: 700; }
-    .ask p { font-size: 0.88rem; margin: 0; }
+    .ask p { font-size: 0.875rem; margin: 0; line-height: 1.68; }
 
     /* ── PI ── */
     .pi { display: grid; grid-template-columns: auto 1fr; gap: 1.3rem; align-items: start; }
@@ -154,7 +170,7 @@
       border: 1px solid var(--line); overflow: hidden;
     }
     .pi-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .pi h3 { margin: 0 0 0.2rem; font-size: 1.05rem; color: var(--text); font-family: "Archivo", sans-serif; font-weight: 700; }
+    .pi h3 { margin: 0 0 0.2rem; font-size: 1.05rem; color: var(--text); font-family: "Archivo", "Work Sans", sans-serif; font-weight: 700; }
     .pi .pi-role { font-size: 0.82rem; color: var(--cyan); font-weight: 600; margin-bottom: 0.6rem; display: block; }
     .pi p { font-size: 0.88rem; margin: 0; }
 
@@ -164,11 +180,11 @@
       background: var(--panel); padding: clamp(1.75rem, 3vw, 2.5rem);
     }
     .cta-section h2 {
-      font-family: "Archivo", sans-serif; font-weight: 700;
-      font-size: clamp(1.25rem, 2.5vw, 1.65rem); color: var(--text);
-      margin: 0 0 0.6rem; letter-spacing: -0.01em;
+      font-family: "Archivo", "Work Sans", sans-serif; font-weight: 700;
+      font-size: clamp(1.4rem, 2.6vw, 1.95rem); color: var(--text);
+      margin: 0 0 0.7rem; letter-spacing: -0.015em;
     }
-    .cta-section p { max-width: 60ch; margin: 0 0 1.4rem; }
+    .cta-section p { max-width: 68ch; margin: 0 0 1.4rem; }
     .cta-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; }
 
     /* ── Responsive ── */
