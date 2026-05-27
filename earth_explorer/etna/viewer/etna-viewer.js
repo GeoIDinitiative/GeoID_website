@@ -681,7 +681,7 @@ function init() {
     _slabTears.forEach(m => { m.visible = _ptOn; });
     _slabHeatZoneMeshes.forEach(m => { m.visible = _ptOn; });
     chamberMeshes.forEach(m => { m.visible = _ptOn; });
-    if (_plumbingLabelGroup) _plumbingLabelGroup.visible = _plOn && _ptOn;
+    if (_plumbingLabelGroup) _plumbingLabelGroup.visible = _plOn;
   }
 
   buildCrossSectionCap();
@@ -3451,9 +3451,9 @@ function buildPlumbingLabels() {
   _plumbingLabelGroup = group;
 }
 
-function updatePlumbingLabelVisibility(plumbingOn) {
+function updatePlumbingLabelVisibility(labelsOn) {
   if (!_plumbingLabelGroup) return;
-  const on = plumbingOn ?? !!(sicilianThrustSlab?.visible);
+  const on = labelsOn ?? !!(document.getElementById('plumbing-labels-toggle')?.checked);
   _plumbingLabelGroup.visible = on;
   if (!on) _plumbingLabelData.forEach(e => { if (e.el) e.el.style.display = 'none'; });
 }
@@ -5090,7 +5090,7 @@ function setupUI() {
     _slabTears.forEach(m => { m.visible = on; });
     _slabHeatZoneMeshes.forEach(m => { m.visible = on && !crossSectionEnabled; });
     chamberMeshes.forEach(m => { m.visible = on; });
-    updatePlumbingLabelVisibility(on);
+    // Labels are controlled solely by plumbing-labels-toggle — do not sync here.
     const pt = document.getElementById('plumbing-toggle');
     if (pt) pt.checked = on;
   }
@@ -7216,9 +7216,8 @@ function _onPointerUp(e) {
     }
   }
 
-  // Plumbing subsurface label click (hit sphere) — only when both plumbing + labels toggles are on
-  const _plumbLabelsOn = (document.getElementById('plumbing-labels-toggle')?.checked ?? false)
-                      && (document.getElementById('plumbing-toggle')?.checked ?? false);
+  // Plumbing subsurface label click (hit sphere) — only when the labels toggle is on
+  const _plumbLabelsOn = (document.getElementById('plumbing-labels-toggle')?.checked ?? false);
   if (_plumbLabelsOn && _plumbingLabelInteractives.length > 0) {
     const plumbHits = clickRay.intersectObjects(_plumbingLabelInteractives, false);
     const phit = plumbHits.find(h => h.object.userData.feature);
