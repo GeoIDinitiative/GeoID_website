@@ -1243,10 +1243,12 @@ function buildIonianSlab() {
   // Slab top-surface (world XYZ; position.z = GEO_Z_OFFSET added below).
   // Entry follows the tilted Moho: SE corner (south, east) at −28 km;
   // NE corner (north, east) at −42 km — consistent with GEO_LAYER_BOUNDS surface 6.
-  // Dip ≈ 56° westward; domain-floor exits: south at X≈+35, north at X≈+45.
+  // Dip ≈ 56° westward; domain-floor exits: south at X≈+35, north at X≈+44.55.
+  // NW floor vertex X solved for coplanarity: −1936x + 1320(−50) − 210(−44) + 143000 = 0 → x = 44.545
+  // (original 45 was 0.45 km off-plane, causing a visible shading crease along the shared B→C diagonal)
   const slabPts = new Float32Array([
-    50, -28,  44,   50, -42, -44,   35, -50,  44,   // tri 1
-    50, -42, -44,   45, -50, -44,   35, -50,  44,   // tri 2
+    50, -28,  44,   50,    -42, -44,   35, -50,  44,   // tri 1
+    50, -42, -44,   44.55, -50, -44,   35, -50,  44,   // tri 2  (NW corner coplanar)
   ]);
   const slabGeo = new THREE.BufferGeometry();
   slabGeo.setAttribute('position', new THREE.BufferAttribute(slabPts, 3));
@@ -1278,11 +1280,12 @@ function buildIonianCrust() {
   // Crust rides ~7 km above (perpendicular to) the slab surface.
   // Average dip vector from updated slab geometry: (50,-28)→(35,-50) south side.
   // dx=−15, dy=−22; normal CW: (−22,15) → normalised (−0.826,+0.563); ×7 → (−5.78,+3.94).
+  // NW floor vertex uses same 44.55 base as slab (coplanar fix) → 44.55+ox = 38.77.
   const ox = -5.78, oy = 3.94;
 
   const crustPts = new Float32Array([
-    50+ox, -28+oy,  44,   50+ox, -42+oy, -44,   35+ox, -50+oy,  44,
-    50+ox, -42+oy, -44,   45+ox, -50+oy, -44,   35+ox, -50+oy,  44,
+    50+ox,    -28+oy,  44,   50+ox,    -42+oy, -44,   35+ox, -50+oy,  44,
+    50+ox,    -42+oy, -44,   44.55+ox, -50+oy, -44,   35+ox, -50+oy,  44,
   ]);
   const crustGeo = new THREE.BufferGeometry();
   crustGeo.setAttribute('position', new THREE.BufferAttribute(crustPts, 3));
