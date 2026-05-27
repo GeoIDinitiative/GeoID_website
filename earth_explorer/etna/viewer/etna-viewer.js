@@ -5828,6 +5828,7 @@ function animate() {
     }
   }
 
+  _scaleMeasureMarkers();
   updateContextHUD();
   updateLabelPositions();
   updatePlumbingLabelPositions(camera);
@@ -6951,6 +6952,8 @@ function _addMeasureMarker(pt, index) {
   );
   marker.position.copy(markerPos);
   marker.renderOrder = 90; marker.frustumCulled = false;
+  // Tag for screen-space scale update in animate loop
+  marker.userData.measureKind = 'dot';
   measureGroup.add(marker);
 
   const letter = String.fromCharCode(65 + index);
@@ -6969,7 +6972,48 @@ function _addMeasureMarker(pt, index) {
   spr.scale.set(0.8, 0.8, 1);
   spr.position.set(pt.x, pt.y + LIFT + 0.32, pt.z);
   spr.renderOrder = 91; spr.frustumCulled = false;
+  // Tag for screen-space scale update; also link dot so the label offset stays relative
+  spr.userData.measureKind  = 'label';
+  spr.userData.measureDotPt = markerPos;   // used to reposition label above the scaled dot
   measureGroup.add(spr);
+}
+
+// ── Keep measure markers at a constant apparent screen-space size ─────────────
+// Fixed world-space sizes look enormous when zoomed in close.  Each frame we
+// compute the world-units-per-pixel at the marker's depth and set the scale so:
+//   dot   → TARGET_DOT_PX  radius on screen
+//   label → TARGET_LBL_PX  height on screen
+function _scaleMeasureMarkers() {
+  if (!measureGroup?.children.length) return;
+  const ch = renderer.domElement.clientHeight;
+  if (!ch) return;
+  const fovTan = Math.tan(camera.fov * Math.PI / 360);
+  const TARGET_DOT_PX = 7;  // dot radius in pixels
+  const TARGET_LBL_PX = 16; // label height in pixels
+
+  for (const child of measureGroup.children) {
+    const kind = child.userData.measureKind;
+    if (!kind) continue;
+    const dist = camera.position.distanceTo(child.position);
+    if (dist < 0.001) continue;
+    const unitsPerPx = (2 * fovTan * dist) / ch;
+
+    if (kind === 'dot') {
+      // SphereGeometry(0.18) → radius 0.18 km at scale 1; target TARGET_DOT_PX px radius
+      const s = Math.max(0.05, Math.min(4, TARGET_DOT_PX * unitsPerPx / 0.18));
+      child.scale.setScalar(s);
+    } else if (kind === 'label') {
+      // Sprite at base scale 0.8 km; target TARGET_LBL_PX px height
+      const s = Math.max(0.05, Math.min(4, TARGET_LBL_PX * unitsPerPx / 0.8));
+      child.scale.set(s, s, 1);
+      // Keep label centred just above its dot as the dot scales
+      if (child.userData.measureDotPt) {
+        const dotPt = child.userData.measureDotPt;
+        const dotRadiusWorld = TARGET_DOT_PX * unitsPerPx;
+        child.position.set(dotPt.x, dotPt.y + dotRadiusWorld * 2.2, dotPt.z);
+      }
+    }
+  }
 }
 
 function _buildTerrainLine(pts, color) {
