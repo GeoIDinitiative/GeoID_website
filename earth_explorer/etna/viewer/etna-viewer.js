@@ -531,7 +531,9 @@ function _buildPropTopoMap(terrainGeo) {
 // H: Float32Array[NX×NZ] of terrain heights (km), or null for flat h=0.
 // RGBA channels: T_norm (15–1230°C), P_norm (0–1.5 GPa), E_norm (2–64 GPa), ν_norm (0.18–0.48).
 // Temperature baked via steady-state Fourier superposition (1/r law, ∇²T = 0).
+// Returns null on WebGL1 — Data3DTexture + sampler3D require a WebGL2 context.
 function _buildPropertyTexture(H) {
+  if (!renderer?.capabilities?.isWebGL2) return null;
   const data = new Float32Array(_PT_NX * _PT_NY * _PT_NZ * 4);
   // Precompute geotherm at each chamber centroid (constant across all voxels)
   const _chTbg = _CHAMBERS_PT.map(ch => _ptTemp(Math.max(0, -ch.cy)));
@@ -577,10 +579,14 @@ function _buildPropertyTexture(H) {
     }
   }
   const tex = new THREE.Data3DTexture(data, _PT_NX, _PT_NY, _PT_NZ);
-  tex.format     = THREE.RGBAFormat;
-  tex.type       = THREE.FloatType;
-  tex.minFilter  = THREE.LinearFilter;
-  tex.magFilter  = THREE.LinearFilter;
+  tex.format    = THREE.RGBAFormat;
+  tex.type      = THREE.FloatType;
+  // NearestFilter: RGBA32F (FloatType) with LINEAR filtering requires the
+  // OES_texture_float_linear extension, which is NOT guaranteed on mobile WebGL2
+  // (notably absent on iOS Safari) — causing the texture to sample as black.
+  // NEAREST filtering is guaranteed on all WebGL2 implementations without extensions.
+  tex.minFilter = THREE.NearestFilter;
+  tex.magFilter = THREE.NearestFilter;
   tex.wrapS = tex.wrapT = tex.wrapR = THREE.ClampToEdgeWrapping;
   tex.needsUpdate = true;
   return tex;
@@ -588,7 +594,14 @@ function _buildPropertyTexture(H) {
 
 function _applyPropertyTexture(tex) {
   _propTex = tex;
-  _domainFaceMats.forEach(m => { m.uniforms.uPropTex.value = tex; });
+  _domainFaceMats.forEach(m => { if (m.uniforms?.uPropTex) m.uniforms.uPropTex.value = tex; });
+  if (!tex) {
+    // No 3D texture (WebGL1 device) — force geology mode and disable physics property modes.
+    _setSubColorMode(0);
+    document.querySelectorAll('input[name="sub-prop-mode"]').forEach(r => {
+      if (+r.value > 0) { r.disabled = true; r.parentElement?.classList?.add('disabled'); }
+    });
+  }
 }
 
 function _buildHeightGrid(geo) {
@@ -3987,6 +4000,15 @@ const _CAP_FRAG = `
 `;
 
 function _makeCapShaderMat(extra) {
+  // sampler3D + GLSL3 require WebGL2. On WebGL1 fall back to a plain
+  // unlit material so the domain faces at least show a neutral colour.
+  if (!renderer?.capabilities?.isWebGL2) {
+    return new THREE.MeshBasicMaterial(Object.assign({
+      color: 0x0a1520, side: THREE.DoubleSide,
+      clipping: true, polygonOffset: true,
+      polygonOffsetFactor: -1, polygonOffsetUnits: -1,
+    }, extra));
+  }
   return new THREE.ShaderMaterial(Object.assign({
     vertexShader:   _CAP_VERT,
     fragmentShader: _CAP_FRAG,
