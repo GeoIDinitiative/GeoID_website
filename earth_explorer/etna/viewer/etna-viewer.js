@@ -354,9 +354,10 @@ function _ptTemp(d) {
   return Tl*(1 - w) + Ta*w;
 }
 // Ionian slab fraction: 0 = outside, 1 = fully inside slab core.
-// Slab plane defined by (50,−28)→(35,−50) in world XY; normal (−22,15)/26.63 toward mantle wedge.
+// Slab plane defined by (50,−28)→(14.55,−80) in world XY; normal (−22,15)/26.63 toward mantle wedge.
+// x guard removed — plane equation is self-bounding (sd<0 only east of the dip surface).
 function _ptSlabFraction(wx, wy) {
-  if (wx < 22 || wy > -22) return 0;
+  if (wy > -22) return 0;
   const sd = (-22*(wx - 50) + 15*(wy + 28)) / 26.63;
   const t  = Math.max(0, Math.min(1, -sd / 8));
   return t*t*(3 - 2*t);  // smoothstep
@@ -1243,12 +1244,13 @@ function buildIonianSlab() {
   // Slab top-surface (world XYZ; position.z = GEO_Z_OFFSET added below).
   // Entry follows the tilted Moho: SE corner (south, east) at −28 km;
   // NE corner (north, east) at −42 km — consistent with GEO_LAYER_BOUNDS surface 6.
-  // Dip ≈ 56° westward; domain-floor exits: south at X≈+35, north at X≈+44.55.
-  // NW floor vertex X solved for coplanarity: −1936x + 1320(−50) − 210(−44) + 143000 = 0 → x = 44.545
-  // (original 45 was 0.45 km off-plane, causing a visible shading crease along the shared B→C diagonal)
+  // Dip ≈ 56° westward; exits through domain floor (Y=−80):
+  //   south X = 28160/1936 = 14.55 km   (plane eq: −1936x + 1320(−80) − 210(44) + 143000 = 0)
+  //   north X = 46640/1936 = 24.09 km   (plane eq: −1936x + 1320(−80) − 210(−44) + 143000 = 0)
+  // All four corners are coplanar by construction.
   const slabPts = new Float32Array([
-    50, -28,  44,   50,    -42, -44,   35, -50,  44,   // tri 1
-    50, -42, -44,   44.55, -50, -44,   35, -50,  44,   // tri 2  (NW corner coplanar)
+    50,    -28,  44,   50,    -42,  -44,   14.55, -80,  44,   // tri 1
+    50,    -42, -44,   24.09, -80,  -44,   14.55, -80,  44,   // tri 2
   ]);
   const slabGeo = new THREE.BufferGeometry();
   slabGeo.setAttribute('position', new THREE.BufferAttribute(slabPts, 3));
@@ -1278,14 +1280,14 @@ function buildIonianSlab() {
 
 function buildIonianCrust() {
   // Crust rides ~7 km above (perpendicular to) the slab surface.
-  // Average dip vector from updated slab geometry: (50,-28)→(35,-50) south side.
-  // dx=−15, dy=−22; normal CW: (−22,15) → normalised (−0.826,+0.563); ×7 → (−5.78,+3.94).
-  // NW floor vertex uses same 44.55 base as slab (coplanar fix) → 44.55+ox = 38.77.
+  // Average dip vector from updated slab geometry: (50,-28)→(14.55,-80) south side.
+  // dx=−35.45, dy=−52; normal CW: (−52,35.45)/63.0 → normalised (−0.825,+0.563); ×7 → (−5.78,+3.94).
+  // Floor vertices match extended slab: 14.55+ox = 8.77 south, 24.09+ox = 18.31 north.
   const ox = -5.78, oy = 3.94;
 
   const crustPts = new Float32Array([
-    50+ox,    -28+oy,  44,   50+ox,    -42+oy, -44,   35+ox, -50+oy,  44,
-    50+ox,    -42+oy, -44,   44.55+ox, -50+oy, -44,   35+ox, -50+oy,  44,
+    50+ox,    -28+oy,  44,   50+ox,    -42+oy,  -44,   14.55+ox, -80+oy,  44,
+    50+ox,    -42+oy, -44,   24.09+ox, -80+oy,  -44,   14.55+ox, -80+oy,  44,
   ]);
   const crustGeo = new THREE.BufferGeometry();
   crustGeo.setAttribute('position', new THREE.BufferAttribute(crustPts, 3));
@@ -3555,11 +3557,12 @@ const _CAP_GLSL_GEO = `
   }
 
   // ── Ionian slab geometry ──────────────────────────────────────────────────
-  // Slab plane defined by vertices (50,−28)→(35,−50) in world XY.
+  // Slab plane defined by vertices (50,−28)→(14.55,−80) in world XY.
   // Normal pointing toward mantle wedge: (−22, 15) / 26.63.
   // slabFraction: 0 = outside/surface, 1 = fully inside cold lithospheric core.
+  // x guard removed — plane equation self-bounds (sd<0 only east of the dip surface).
   float slabFraction(vec3 wp){
-    if(wp.x < 22.0 || wp.y > -22.0) return 0.0;
+    if(wp.y > -22.0) return 0.0;
     float sd = (-22.0*(wp.x - 50.0) + 15.0*(wp.y + 28.0)) / 26.63;
     return smoothstep(0.0, -8.0, sd);
   }
