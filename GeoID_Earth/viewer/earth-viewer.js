@@ -5298,7 +5298,21 @@ import * as THREE from "./vendor/three.module.js";
         controls.minDistance = getMoonViewerMinDistance(parentMoon);
         controls.maxDistance = getMoonViewerMaxDistance(parentMoon);
         const moonAnchor = new THREE.Vector3(parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]);
-        const targetLocal = moonLatLonToVector3(lat, lon, Number(parentMoon.moon_radius || 0.1) + 0.002).add(moonAnchor);
+        const _relToCenter = moonLatLonToVector3(lat, lon, Number(parentMoon.moon_radius || 0.1) + 0.002);
+        // Apply the moon's current self-rotation so the camera flies to where the
+        // feature actually sits on the rotating body (same transform the animation
+        // loop applies to feature marker positions).
+        const _moonAngle = parentMoon._currentAngle || 0;
+        if (_moonAngle !== 0) {
+          const _cosA = Math.cos(_moonAngle);
+          const _sinA = Math.sin(_moonAngle);
+          _relToCenter.set(
+            _relToCenter.x * _cosA - _relToCenter.z * _sinA,
+            _relToCenter.y,
+            _relToCenter.x * _sinA + _relToCenter.z * _cosA,
+          );
+        }
+        const targetLocal = _relToCenter.clone().add(moonAnchor);
         const target = earthSceneGroup.localToWorld(targetLocal.clone());
         const moonCenter = earthSceneGroup.localToWorld(moonAnchor.clone());
         const direction = target.clone().sub(moonCenter).normalize();
