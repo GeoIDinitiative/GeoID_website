@@ -233,6 +233,15 @@ let showSurfaceLabels  = true;
 let compassScene, compassCamera;
 let surfaceWireframe = false;
 let spinEnabled = false;
+
+// Single point of truth for auto-rotation: OrbitControls orbits controls.target,
+// so this doubles as "revolve around the feature we last flew to".
+function _setSpin(enabled) {
+  spinEnabled = enabled;
+  if (controls) controls.autoRotate = enabled;
+  document.getElementById('spin-toggle')?.classList.toggle('is-active', enabled);
+}
+
 let regionalGeologyMesh = null; // canvas-texture overlay: EGDI 1:1M regional geology (full domain)
 let _egdiGeoFeats       = null; // EGDI features for PIP — [id,name,lithology,age,source,color_hex,rings]
 let etnaGeologyMesh     = null; // canvas-texture overlay: INGV EtnaGeoMap per-feature polygons
@@ -5353,11 +5362,7 @@ function setupUI() {
   // Spin toggle — uses OrbitControls autoRotate
   const spinBtn = document.getElementById('spin-toggle');
   if (spinBtn) {
-    spinBtn.addEventListener('click', () => {
-      spinEnabled = !spinEnabled;
-      if (controls) controls.autoRotate = spinEnabled;
-      spinBtn.classList.toggle('is-active', spinEnabled);
-    });
+    spinBtn.addEventListener('click', () => _setSpin(!spinEnabled));
   }
 
   // Reset view
@@ -5419,10 +5424,7 @@ function setupUI() {
     if (e.code === 'Space' && !inInput) {
       e.preventDefault();
       if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
-      spinEnabled = !spinEnabled;
-      if (controls) controls.autoRotate = spinEnabled;
-      const spinBtn = document.getElementById('spin-toggle');
-      if (spinBtn) spinBtn.classList.toggle('is-active', spinEnabled);
+      _setSpin(!spinEnabled);
     }
 
     if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !inInput) {
@@ -6567,6 +6569,9 @@ let _flyToken = 0; // incremented to cancel an in-progress flight
 function flyTo(targetPos, duration = 1800) {
   if (!camera || !controls) return;
   const myToken = ++_flyToken;
+  // Auto-rotation would add azimuth on every controls.update() and bend the
+  // flight path, so it stays off until the camera has landed.
+  _setSpin(false);
   const startPos    = camera.position.clone();
   const startTarget = controls.target.clone();
 
@@ -6610,7 +6615,9 @@ function flyTo(targetPos, duration = 1800) {
     _flyVec.lerpVectors(startTarget, endTarget, e);
     controls.target.copy(_flyVec);
     controls.update();
-    if (rawT < 1) requestAnimationFrame(step);
+    if (rawT < 1) { requestAnimationFrame(step); return; }
+    // Landed: controls.target is now the feature, so autoRotate revolves around it.
+    _setSpin(true);
   }
   requestAnimationFrame(step);
 }
