@@ -661,10 +661,10 @@ function init() {
   scene.fog = null;
 
   camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 600);
-  camera.position.set(40, 28, 65);
+  camera.position.copy(DEFAULT_CAMERA_POS);
 
   controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, -10, 0); // Look at mid-depth so domain block is centred
+  controls.target.copy(DEFAULT_TARGET); // Look at mid-depth so domain block is centred
   // Cancel any in-progress fly-to when the user grabs the camera
   controls.domElement.addEventListener('pointerdown', () => { _flyToken++; _clearTourFlightTimer(); });
   controls.enableDamping = true;
@@ -5368,11 +5368,7 @@ function setupUI() {
   // Reset view
   const resetBtn = document.getElementById('brand-reset-button');
   if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      camera.position.set(40, 28, 65);
-      controls.target.set(0, -10, 0);
-      controls.update();
-    });
+    resetBtn.addEventListener('click', _resetView);
   }
 
   // Video popup
@@ -5593,9 +5589,7 @@ function setupUI() {
   const exploreReset = document.getElementById('explore-reset');
   if (exploreReset) {
     exploreReset.addEventListener('click', () => {
-      camera.position.set(40, 28, 65);
-      controls.target.set(0, -10, 0);
-      controls.update();
+      _resetView();
       hideFeaturePopup();
       _clearSearch(true);
     });
@@ -6530,10 +6524,10 @@ function _syncTourControls(feature = activeTourModeFeature) {
 }
 
 function _deactivateTour() {
-  _clearTourFlightTimer();
   activeTourModeFeature = null;
   _syncTourControls(null);
   hideFeaturePopup();
+  _restoreDefaultAnchor();
 }
 
 function _presentTourStop(feature) {
@@ -6565,6 +6559,45 @@ function _cycleTour(dir) {
 
 const _flyVec = new THREE.Vector3();
 let _flyToken = 0; // incremented to cancel an in-progress flight
+
+// Default framing, shared by init(), the reset buttons and the anchor restore.
+const DEFAULT_CAMERA_POS = new THREE.Vector3(40, 28, 65);
+const DEFAULT_TARGET     = new THREE.Vector3(0, -10, 0);
+
+// Leaving search/tour drops the orbit anchor back on the domain centre while
+// keeping the camera where the user left it, so their zoom and vantage survive.
+function _restoreDefaultAnchor(duration = 600) {
+  if (!controls) return;
+  _clearTourFlightTimer();
+  const myToken = ++_flyToken;   // cancels any flight still lerping controls.target
+  _setSpin(false);
+  const startTarget = controls.target.clone();
+  if (startTarget.distanceToSquared(DEFAULT_TARGET) < 1e-8) return;
+
+  const t0 = performance.now();
+  function step(now) {
+    if (_flyToken !== myToken) return;
+    const t = Math.min((now - t0) / duration, 1);
+    const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    _flyVec.lerpVectors(startTarget, DEFAULT_TARGET, e);
+    controls.target.copy(_flyVec);
+    controls.update();
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// Full reset: default camera *and* anchor, with any in-flight fly-to cancelled
+// first — otherwise its per-frame lerp would drag controls.target straight back.
+function _resetView() {
+  if (!camera || !controls) return;
+  _clearTourFlightTimer();
+  _flyToken++;
+  _setSpin(false);
+  camera.position.copy(DEFAULT_CAMERA_POS);
+  controls.target.copy(DEFAULT_TARGET);
+  controls.update();
+}
 
 function flyTo(targetPos, duration = 1800) {
   if (!camera || !controls) return;
