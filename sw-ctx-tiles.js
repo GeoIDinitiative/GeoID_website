@@ -10,7 +10,7 @@
 //
 // Bump CACHE_VERSION to force all clients to discard old caches on deploy.
 
-const CACHE_VERSION = 'v130';
+const CACHE_VERSION = 'v133';
 const TILE_CACHE  = `geoid-ctx-tiles-${CACHE_VERSION}`;
 const ASSET_CACHE = `geoid-assets-${CACHE_VERSION}`;
 
@@ -95,6 +95,17 @@ self.addEventListener('activate', event => {
   );
 });
 
+// CTX services reachable through the same-origin /ctx-proxy/ route below.
+const CTX_PROXY_SERVICES = {
+  CTX:  'https://astro.arcgis.com/arcgis/rest/services/OnMars/CTX/MapServer',
+  CTX1: 'https://astro.arcgis.com/arcgis/rest/services/OnMars/CTX1/MapServer',
+};
+
+// A 1×1 transparent PNG, returned in place of a missing/broken tile.
+const BLANK_PNG = Uint8Array.from(atob(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+), c => c.charCodeAt(0));
+
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = request.url;
@@ -102,15 +113,111 @@ self.addEventListener('fetch', event => {
   // Only handle GET requests.
   if (request.method !== 'GET') return;
 
+  // ── /ctx-proxy/ — SAME-ORIGIN tile + metadata proxy ──────────────────────
+  // The viewers build their preferred tile base as `${origin}/ctx-proxy/tile/
+  // {service}` precisely so tiles are fetched same-origin: no CORS check applies
+  // to the page at all. That matters because ArcGIS omits Access-Control-Allow-
+  // Origin on ERROR responses, so going direct turns every 404/500 into an opaque
+  // CORS failure the streamer cannot classify. Proxying here lets us translate a
+  // failure into a real, readable response: a blank tile tagged with
+  // X-CTX-Blank-Tile, which is exactly what the streamers already look for
+  // (`?blankTile=true` → `X-CTX-Blank-Tile: 1`), so they blacklist that tile and
+  // fall back to a coarser parent instead of stalling.
+  if (url.includes('/ctx-proxy/')) {
+    const u = new URL(url);
+    const tileMatch = u.pathname.match(/\/ctx-proxy\/tile\/([^/]+)\/(\d+)\/(\d+)\/(\d+)$/);
+    if (tileMatch) {
+      const [, name, z, y, x] = tileMatch;
+      const base = CTX_PROXY_SERVICES[name] || CTX_PROXY_SERVICES.CTX;
+      const upstream = `${base}/tile/${z}/${y}/${x}`;
+      const wantBlank = u.searchParams.get('blankTile') === 'true';
+      event.respondWith((async () => {
+        const cache = await caches.open(TILE_CACHE);
+        const hit = await cache.match(upstream);
+        if (hit) return hit;
+        let status = 0;
+        try {
+          const res = await fetch(upstream);
+          status = res.status;
+          if (res.ok) {
+            const body = await res.blob();
+            const out = new Response(body, {
+              status: 200,
+              headers: { 'Content-Type': res.headers.get('Content-Type') || 'image/png' },
+            });
+            cache.put(upstream, out.clone());
+            return out;
+          }
+        } catch (_e) { /* cross-origin/network failure — fall through to blank */ }
+        if (!wantBlank) {
+          return new Response('', { status: status || 504, statusText: 'CTX tile unavailable' });
+        }
+        return new Response(BLANK_PNG, {
+          status: 200,
+          headers: {
+            'Content-Type': 'image/png',
+            'X-CTX-Blank-Tile': '1',
+            'X-CTX-Upstream-Status': String(status || 0),
+          },
+        });
+      })());
+      return;
+    }
+    if (u.pathname.startsWith('/ctx-proxy/service')) {
+      const base = CTX_PROXY_SERVICES[u.searchParams.get('name')] || CTX_PROXY_SERVICES.CTX;
+      event.respondWith((async () => {
+        try {
+          const res = await fetch(`${base}?f=json`);
+          return new Response(await res.text(), {
+            status: res.status,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        } catch (_e) {
+          return new Response('{}', { status: 502, headers: { 'Content-Type': 'application/json' } });
+        }
+      })());
+      return;
+    }
+  }
+
   // CTX tile service (ArcGIS) — cache-first: tiles are immutable once fetched.
   if (url.includes('MapServer/tile/') || url.includes('arcgis.com')) {
     event.respondWith(
       caches.open(TILE_CACHE).then(async cache => {
         const cached = await cache.match(request);
         if (cached) return cached;
-        const response = await fetch(request);
-        if (response.ok) cache.put(request, response.clone());
-        return response;
+        // ArcGIS omits Access-Control-Allow-Origin on ERROR responses (404 for a
+        // missing tile, 500 for a region-dead level), so the CORS check fails and
+        // fetch() REJECTS. Letting that rejection escape makes respondWith produce
+        // "a network error response", which reaches the page as an opaque
+        // TypeError — the tile streamer then can't see a status code and its
+        // coarser-parent fallback chain never runs, so nothing renders at all.
+        // Convert the failure into a real Response the page can inspect.
+        // Direct (non-proxy) ESRI path. Whether the tile 404/500s or the CORS
+        // check rejects it outright, hand the page a BLANK TILE tagged with
+        // X-CTX-Blank-Tile instead of an error. The streamers check that header
+        // unconditionally (not just on the proxy path), so a failure becomes a
+        // clean "no imagery here" → blacklist + fall back to a coarser parent,
+        // rather than an opaque TypeError that stalls the queue. A Response
+        // synthesised here is delivered to the page directly, so no CORS check
+        // applies to it.
+        let upstreamStatus = 0;
+        try {
+          const response = await fetch(request);
+          upstreamStatus = response.status;
+          if (response.ok) {
+            cache.put(request, response.clone());
+            return response;
+          }
+        } catch (_e) { /* CORS/network rejection — fall through to blank tile */ }
+        return new Response(BLANK_PNG, {
+          status: 200,
+          headers: {
+            'Content-Type': 'image/png',
+            'X-CTX-Blank-Tile': '1',
+            'X-CTX-Upstream-Status': String(upstreamStatus),
+          },
+        });
       })
     );
     return;

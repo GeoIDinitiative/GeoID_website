@@ -899,10 +899,17 @@
       top: 0;
       bottom: 0;
       width: 75%;
-      background: url('/earth_explorer/etna/viewer/assets/zoom_out.png') center/cover no-repeat;
       opacity: 0.6;
       -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.5) 18%, black 45%);
       mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.5) 18%, black 45%);
+      overflow: hidden;
+    }
+    .slide-etna-bg video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
 
     .slide-etna-content {
@@ -1174,6 +1181,13 @@
       object-position: center top;
     }
 
+    /* Flight sim: the source is 1920x882, far wider than the tile box, so an
+       unanchored cover crop cuts the shuttle. Hold the centre. */
+    .news-tile--flightsim .news-tile-photo img {
+      object-fit: cover;
+      object-position: center center;
+    }
+
     /* Research & Resources: fill the photo area */
     .news-tile--research .news-tile-photo img,
     .news-tile--resources .news-tile-photo img {
@@ -1287,6 +1301,7 @@
     .news-tile--about     .news-kicker { color: rgba(100, 210, 130, 0.90); }
     .news-tile--explorer  .news-kicker { color: rgba(88, 198, 179, 0.90); }
     .news-tile--etna      .news-kicker { color: rgba(255, 106, 0, 0.92); }
+    .news-tile--flightsim .news-kicker { color: rgba(255, 201, 60, 0.92); }
     .news-tile--mygeoid   .news-kicker { color: rgba(100, 160, 240, 0.90); }
     .news-tile--research  .news-kicker { color: rgba(160, 110, 240, 0.90); }
     .news-tile--resources .news-kicker { color: rgba(220, 175, 70, 0.90); }
@@ -1835,7 +1850,11 @@
         <!-- Slide 1: Etna Earth Explorer -->
         <div class="pv-slide">
           <div class="slide-etna">
-            <div class="slide-etna-bg" aria-hidden="true"></div>
+            <div class="slide-etna-bg" aria-hidden="true">
+              <video autoplay muted loop playsinline preload="none">
+                <source src="/assets/etna_viewer_demo.webm" type="video/webm">
+              </video>
+            </div>
             <img class="slide-etna-ee-logo" src="/earth_explorer/assets/logo.png" alt="Earth Explorer" loading="lazy" decoding="async">
             <div class="slide-etna-content">
               <span class="slide-etna-badge">Live · Earth Explorer</span>
@@ -1948,6 +1967,17 @@
         </div>
       </div>
       <div class="news-row">
+
+        <a class="news-tile news-tile--flightsim" href="/planet_explorer/mars/viewer/">
+          <div class="news-tile-photo">
+            <img src="/assets/Flight_sim_OM.png" alt="Mars flight simulator" loading="lazy" decoding="async">
+          </div>
+          <div class="news-tile-body">
+            <span class="news-kicker">Live Now</span>
+            <span class="news-title">LIVE: Mars Flight Simulator</span>
+            <span class="news-desc">Fly over real Martian terrain with CTX imagery streaming beneath you. Choose a launch site anywhere on the planet and take off.</span>
+          </div>
+        </a>
 
         <a class="news-tile news-tile--about" href="/about/">
           <div class="news-tile-photo">
@@ -2202,10 +2232,14 @@
         slides[current].classList.remove('is-active');
         dots[current].classList.remove('is-active');
         dots[current].setAttribute('aria-selected', 'false');
+        /* Pause any video in the slide being hidden */
+        slides[current].querySelectorAll('video').forEach(v => v.pause());
         current = (n + slides.length) % slides.length;
         slides[current].classList.add('is-active');
         dots[current].classList.add('is-active');
         dots[current].setAttribute('aria-selected', 'true');
+        /* Play video in the newly active slide */
+        slides[current].querySelectorAll('video').forEach(v => v.play().catch(() => {}));
       }
 
       function startTimer() {

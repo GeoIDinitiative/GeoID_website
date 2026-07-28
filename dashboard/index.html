@@ -1181,6 +1181,13 @@
       object-position: center top;
     }
 
+    /* Flight sim: the source is 1920x882, far wider than the tile box, so an
+       unanchored cover crop cuts the shuttle. Hold the centre. */
+    .news-tile--flightsim .news-tile-photo img {
+      object-fit: cover;
+      object-position: center center;
+    }
+
     /* Research & Resources: fill the photo area */
     .news-tile--research .news-tile-photo img,
     .news-tile--resources .news-tile-photo img {
@@ -1294,6 +1301,7 @@
     .news-tile--about     .news-kicker { color: rgba(100, 210, 130, 0.90); }
     .news-tile--explorer  .news-kicker { color: rgba(88, 198, 179, 0.90); }
     .news-tile--etna      .news-kicker { color: rgba(255, 106, 0, 0.92); }
+    .news-tile--flightsim .news-kicker { color: rgba(255, 201, 60, 0.92); }
     .news-tile--mygeoid   .news-kicker { color: rgba(100, 160, 240, 0.90); }
     .news-tile--research  .news-kicker { color: rgba(160, 110, 240, 0.90); }
     .news-tile--resources .news-kicker { color: rgba(220, 175, 70, 0.90); }
@@ -1959,6 +1967,17 @@
         </div>
       </div>
       <div class="news-row">
+
+        <a class="news-tile news-tile--flightsim" href="/planet_explorer/mars/viewer/">
+          <div class="news-tile-photo">
+            <img src="/assets/Flight_sim_OM.png" alt="Mars flight simulator" loading="lazy" decoding="async">
+          </div>
+          <div class="news-tile-body">
+            <span class="news-kicker">Live Now</span>
+            <span class="news-title">LIVE: Mars Flight Simulator</span>
+            <span class="news-desc">Fly over real Martian terrain with CTX imagery streaming beneath you. Choose a launch site anywhere on the planet and take off.</span>
+          </div>
+        </a>
 
         <a class="news-tile news-tile--about" href="/about/">
           <div class="news-tile-photo">

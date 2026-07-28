@@ -1950,6 +1950,237 @@
     .about-explorer-tile {
       backdrop-filter: none;
     }
+
+    /* ── Flight simulator hero ────────────────────────────────────────────
+       Sits directly above the solar-system hero and matches its footprint
+       (.explorer-hero sets the height); a looping capture of the Mars
+       flight sim runs behind the copy, masked away from the left margin so
+       the logo and text stay legible over it. */
+    /* Height is a floor, not a fixed size: the tile matches the solar hero
+       whenever the copy fits (the normal case), but on short viewports —
+       1024×768, 1366×768 — it grows instead of clipping the logo and CTAs
+       against .space-panel's overflow:hidden. */
+    .fs-hero {
+      height: auto;
+      margin-bottom: 1rem;
+    }
+
+    .fs-panel {
+      background: #04020a;
+      min-height: calc(100dvh - var(--nav-h) - 1rem);
+    }
+
+    .fs-tile-bg {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: inherit;
+      opacity: 0.62;
+      -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.35) 20%, black 52%);
+      mask-image: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.35) 20%, black 52%);
+    }
+
+    .fs-tile-bg video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      /* flight_sim_demo_hero.webm is the demo capture with its right-hand
+         column cropped off (the recording carries its own Explorer wordmark
+         and Help/Controls buttons there, which the tile crop would slice in
+         half beside the real logo). Bias left so the ship sits clear of the
+         copy column. */
+      object-position: 34% 50%;
+    }
+
+    .fs-tile-content {
+      position: relative;
+      z-index: 2;
+      flex: 1;
+      width: clamp(24rem, 46%, 48rem);
+      padding: 2.2rem 2.4rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0.85rem;
+      background: linear-gradient(90deg, rgba(4,2,10,0.96) 0%, rgba(4,2,10,0.80) 72%, transparent 100%);
+    }
+
+    .fs-tile-logo {
+      width: clamp(9rem, 15vw, 14rem);
+      max-width: 100%;
+      height: auto;
+      object-fit: contain;
+      filter:
+        drop-shadow(0 0 16px rgba(180, 60, 255, 0.34))
+        drop-shadow(0 0 28px rgba(180, 60, 255, 0.16));
+    }
+
+    .fs-tile-badge {
+      display: inline-flex;
+      align-self: flex-start;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.24rem 0.62rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 40, 130, 0.42);
+      background: rgba(255, 40, 130, 0.09);
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255, 150, 200, 0.95);
+    }
+
+    .fs-tile-badge::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(255, 40, 130, 0.95);
+      animation: fs-pulse-dot 2.5s ease-in-out infinite;
+    }
+
+    @keyframes fs-pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.35; transform: scale(0.7); }
+    }
+
+    .fs-tile-title {
+      margin: 0;
+      font-family: "Orbitron", sans-serif;
+      /* Sized so "3D FLIGHT SIMULATOR" — the longest line — clears the copy
+         column at every width, keeping the title to the two lines the <br>
+         asks for rather than orphaning a word. */
+      font-size: clamp(1.5rem, 2.7vw, 2.6rem);
+      font-weight: 800;
+      line-height: 0.98;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #f3f7ff;
+      text-shadow: 0 0 42px rgba(240, 40, 160, 0.22);
+    }
+
+    .fs-tile-desc {
+      margin: 0;
+      max-width: 34rem;
+      color: #d4b8f0;
+      font-size: 0.96rem;
+      line-height: 1.6;
+    }
+
+    .fs-tile-desc + .fs-tile-desc {
+      color: #bfa4dd;
+    }
+
+    .fs-tile-features {
+      margin: 0.15rem 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.3rem 1rem;
+    }
+
+    .fs-tile-features li {
+      position: relative;
+      padding-left: 0.95rem;
+      color: #cbb6e6;
+      font-size: 0.83rem;
+      line-height: 1.4;
+    }
+
+    .fs-tile-features li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.52em;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: rgba(255, 40, 130, 0.85);
+    }
+
+    .fs-tile-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Tablet portrait: a 46% column is too narrow for the prose, so widen
+       it and drop the feature list to one column. */
+    @media (min-width: 721px) and (max-width: 980px) {
+      .fs-tile-content {
+        width: 64%;
+        padding: 1.6rem 1.6rem;
+      }
+      .fs-tile-features { grid-template-columns: 1fr; }
+      .fs-tile-desc { font-size: 0.9rem; }
+    }
+
+    /* ── Flight sim hero on phones: the video is decorative and expensive,
+       so drop it and let the copy run full width. */
+    @media (max-width: 720px) {
+      /* shared.css pins every .explorer-hero to 60dvh on phones — right for
+         the orrery, wrong here: this tile is prose, so let it size to it. */
+      .fs-hero {
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        margin-bottom: 0.8rem;
+      }
+      .fs-tile-bg { display: none !important; }
+      .fs-tile-content {
+        width: 100% !important;
+        height: auto;
+        padding: 1.1rem 1rem !important;
+        gap: 0.6rem;
+        background: none !important;
+      }
+      .fs-panel { min-height: 0; }
+      .fs-tile-logo { width: 8rem !important; }
+      .fs-tile-title { font-size: clamp(1rem, 5.1vw, 1.75rem) !important; }
+      .fs-tile-desc { font-size: 0.85rem !important; line-height: 1.45 !important; }
+      .fs-tile-features {
+        grid-template-columns: 1fr !important;
+        gap: 0.28rem !important;
+      }
+      .fs-tile-features li { font-size: 0.78rem !important; }
+      .fs-tile-actions .viewer-link,
+      .fs-tile-actions .ghost-link {
+        min-height: 2.4rem;
+        font-size: 0.75rem !important;
+        padding: 0.45rem 0.8rem !important;
+      }
+    }
+
+    /* Phone landscape: same treatment as the solar hero — keep the video,
+       shrink everything so the tile still fits one screen. */
+    @media (max-height: 560px) and (orientation: landscape) {
+      .fs-hero { min-height: 0; }
+      .fs-tile-content { padding: 0.8rem 1rem !important; gap: 0.4rem; }
+      .fs-tile-logo { width: 6.5rem !important; }
+      .fs-tile-badge { font-size: 0.48rem !important; padding: 0.14rem 0.45rem !important; }
+      .fs-tile-title { font-size: clamp(1.15rem, 2.8vw, 1.7rem) !important; }
+      .fs-tile-desc { font-size: 0.6rem !important; line-height: 1.35 !important; }
+      .fs-tile-desc.fs-tile-desc--secondary { display: none !important; }
+      .fs-tile-features { gap: 0.15rem 0.7rem !important; }
+      .fs-tile-features li { font-size: 0.58rem !important; }
+      .fs-tile-actions { gap: 0.35rem !important; margin-top: 0.2rem; }
+      .fs-tile-actions .viewer-link,
+      .fs-tile-actions .ghost-link {
+        min-height: 2rem;
+        font-size: 0.6rem !important;
+        padding: 0.3rem 0.6rem !important;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .fs-tile-badge::before { animation: none; }
+    }
   </style>
 </head>
 <body>
@@ -1986,6 +2217,36 @@
   </nav>
 
   <main class="page">
+    <!-- ── Flight simulator hero ───────────────────────────────────────── -->
+    <section class="explorer-hero fs-hero" id="flight-sim" aria-labelledby="fs-tile-title">
+      <article class="space-panel fs-panel">
+        <div class="fs-tile-bg" aria-hidden="true">
+          <video id="fs-tile-video" autoplay muted loop playsinline preload="none" disablepictureinpicture>
+            <source src="/assets/flight_sim_demo_hero.webm" type="video/webm; codecs=vp9">
+          </video>
+        </div>
+        <div class="fs-tile-content">
+          <img class="fs-tile-logo" src="/assets/explorer_logo.png" alt="Planet Explorer" decoding="async">
+          <span class="fs-tile-badge">Live · Mars viewer</span>
+          <h2 class="fs-tile-title" id="fs-tile-title">Explore Mars in a<br>3D flight simulator</h2>
+          <p class="fs-tile-desc">Planet Explorer is a planetary workstation that runs in your browser — nine worlds built from mission data, each with stackable scientific layers, searchable named features, distance and elevation measurement, and guided tours, all in one interface with nothing to install.</p>
+          <p class="fs-tile-desc fs-tile-desc--secondary">The Mars viewer goes one step further. Click anywhere on the globe to set a launch site, dial in a heading, and fly the real MOLA terrain beneath a live flight HUD — the same mosaic imagery and feature labels you were just reading, now streaming past the cockpit.</p>
+          <ul class="fs-tile-features">
+            <li>Pick a launch site and heading anywhere on Mars</li>
+            <li>Space Shuttle or flying saucer, chase or cockpit view</li>
+            <li>True MOLA relief with CTX mosaic streamed in flight</li>
+            <li>Atmosphere-aware HUD with ground-track odometer</li>
+            <li>Launch from an 8 km low pass to 300 km planetary orbit</li>
+            <li>Adjustable vertical exaggeration and label density</li>
+          </ul>
+          <div class="fs-tile-actions">
+            <a class="viewer-link" href="/transit/??destination=mars">Launch the Flight Simulator</a>
+            <a class="ghost-link" href="#solar-system">Explore the solar system</a>
+          </div>
+        </div>
+      </article>
+    </section>
+
     <section class="explorer-hero" id="solar-system">
       <article class="space-panel">
         <div class="space-header">
@@ -2895,6 +3156,23 @@
     window.addEventListener("resize", () => {
       positionPlanets();
     });
+
+    /* Flight-sim hero video: it's a decorative background, so stop decoding
+       it once the tile scrolls off screen and resume when it comes back. */
+    (function () {
+      const fsVideo = document.getElementById("fs-tile-video");
+      if (!fsVideo || typeof IntersectionObserver === "undefined") return;
+      new IntersectionObserver((entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const play = fsVideo.play();
+            if (play && play.catch) play.catch(() => {});
+          } else {
+            fsVideo.pause();
+          }
+        }
+      }, { threshold: 0.01 }).observe(fsVideo);
+    })();
   </script>
 <div id="earth-dest-popup" class="earth-dest-popup" hidden role="dialog" aria-label="Choose Earth or Moon">
   <p class="earth-dest-popup-title">Choose destination</p>
