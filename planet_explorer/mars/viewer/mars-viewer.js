@@ -1483,7 +1483,19 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         const stored = localStorage.getItem(CACHE_KEY);
         if (stored) {
           const { ts, config } = JSON.parse(stored);
-          if (Date.now() - ts < TTL) {
+          // CTX-UPGRADE: don't let one SW-less load poison a day. A hard
+          // reload (Ctrl+Shift+R) bypasses service workers, so the /ctx-proxy/
+          // probe 404s and the DIRECT ArcGIS config wins — and used to be
+          // cached for 24 h, sending every subsequent load straight to ArcGIS,
+          // where error responses carry no CORS header and flood the console
+          // as opaque failures (with no tile caching either). Two guards:
+          // a direct config is stale IMMEDIATELY once a service worker is
+          // controlling (the proxy is available again), and even uncontrolled
+          // it only lives 10 minutes.
+          const effectiveTtl = config && config.viaProxy === false ? 10 * 60 * 1000 : TTL;
+          const staleDirect = config && config.viaProxy === false
+            && Boolean(navigator.serviceWorker?.controller);
+          if (!staleDirect && Date.now() - ts < effectiveTtl) {
             // Serve cached config instantly; silently refresh in the background.
             setTimeout(async () => {
               try {
@@ -1753,6 +1765,90 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       return true;
     }
 
+    // Vertex density of every displaced terrain shell. Shared with the geology
+    // vector layers: a line only sits flush on the terrain if it is sampled the
+    // way the MESH interpolates, not the way the DEM does.
+    const TERRAIN_SEGMENTS_W = 512;
+    const TERRAIN_SEGMENTS_H = 256;
+
+    // Height of the RENDERED surface at an arbitrary lat/lon.
+    //
+    // sampleElevationNormalized reads the DEM directly, which is a finer signal
+    // than the mesh can represent: the shell only has vertices every 1/512 of a
+    // turn (~42 km), and the rasteriser interpolates linearly between them. A
+    // point placed at the DEM height therefore sinks below the rendered surface
+    // inside valleys and pokes through it over ridges — the classic "drape
+    // wanders through the hillside" artefact.
+    //
+    // So quantise to the vertex grid and reproduce the interpolation: sample the
+    // DEM at the four surrounding grid vertices (exactly the heights the vertex
+    // shader gives those vertices) and bilinearly blend. The result lies on the
+    // rendered triangle, not on the DEM.
+    function sampleTerrainSurfaceNormalized(elevationSampler, elevationCache, latDegrees, lonDegrees) {
+      const u = lonToTextureU(lonDegrees) * TERRAIN_SEGMENTS_W;
+      const v = latToTextureV(latDegrees) * TERRAIN_SEGMENTS_H;
+      const i0 = Math.floor(u);
+      const j0 = Math.floor(v);
+      const tu = u - i0;
+      const tv = v - j0;
+      const lonAt = (i) => (((i / TERRAIN_SEGMENTS_W) * 360) + 180) % 360;
+      const latAt = (j) => 90 - (clamp(j / TERRAIN_SEGMENTS_H, 0, 1) * 180);
+      const at = (i, j) => getCachedElevationNormalized(
+        elevationCache, elevationSampler, latAt(j), lonAt(((i % TERRAIN_SEGMENTS_W) + TERRAIN_SEGMENTS_W) % TERRAIN_SEGMENTS_W),
+      );
+      const h00 = at(i0, j0);
+      const h10 = at(i0 + 1, j0);
+      const h01 = at(i0, j0 + 1);
+      const h11 = at(i0 + 1, j0 + 1);
+      return (
+        h00 * (1 - tu) * (1 - tv) +
+        h10 * tu * (1 - tv) +
+        h01 * (1 - tu) * tv +
+        h11 * tu * tv
+      );
+    }
+
+    // Depth bias for surface-hugging lines.
+    //
+    // The obvious tool, material.polygonOffset, is INERT for THREE.Line: WebGL
+    // only exposes POLYGON_OFFSET_FILL, and there is no POLYGON_OFFSET_LINE. It
+    // is set on these materials and has never done anything, which is why the
+    // layers were pushed kilometres off the surface radially instead — visible
+    // as floating lines the moment you fly close to the ground.
+    //
+    // Bias in VIEW space instead, by pulling the vertex a fixed FRACTION of its
+    // view distance toward the camera.
+    //
+    // The tempting version — a constant NDC-z nudge — is unusable here, and the
+    // reason is worth keeping: NDC depth is nonlinear, so a fixed NDC offset is
+    // a fixed offset only at the near plane. With this camera (near 283 m, far
+    // 1061 Mm) an NDC bias of 3.5e-4 measures 1 m of world depth at 1 km range
+    // but **1,312 km at 1,500 km range** — far enough to shove a line clean
+    // through the planet, so contacts on the far side of the horizon drew over
+    // open sky. That is what "floating lines with no terrain underneath" was.
+    //
+    // Scaling mvPosition uniformly is the right tool: perspective divide makes
+    // the projected x/y identical, so the line does not move on screen by even a
+    // pixel — it is a PURE depth nudge — and the bias stays proportional to
+    // range, which is how depth-buffer precision behaves. 0.3% of view distance
+    // is ~2 m at 1 km and ~1.5 km at 500 km: always above quantisation, never
+    // remotely enough to punch through a limb.
+    function applySurfaceDepthBias(material, bias = 0.003) {
+      material.onBeforeCompile = (shader) => {
+        shader.vertexShader = shader.vertexShader.replace(
+          "#include <project_vertex>",
+          `#include <project_vertex>
+          {
+            vec4 biasedMv = modelViewMatrix * vec4( transformed, 1.0 );
+            biasedMv.xyz *= ${(1 - bias).toFixed(6)};
+            gl_Position = projectionMatrix * biasedMv;
+          }`,
+        );
+      };
+      material.customProgramCacheKey = () => `surfaceDepthBias:${bias}`;
+      return material;
+    }
+
     function buildGeologyVectorLayer(THREERef, entries, radius, elevationSampler, elevationCache, getTerrainRelief, lift, defaultOpacity, renderOrder = 108) {
       const group = new THREE.Group();
       const interactiveObjects = [];
@@ -1797,25 +1893,25 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         return densified;
       };
 
-      const segmentToReliefPoints = (segment) => densifySegment(segment).map(([lon, lat]) => (
-        getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, Number(lat), Number(lon), lift)
-      ));
+      const segmentToReliefPoints = (segment) => densifySegment(segment).map(([lon, lat]) => {
+        const displacement = sampleTerrainSurfaceNormalized(
+          elevationSampler, elevationCache, Number(lat), Number(lon),
+        ) * getTerrainRelief();
+        return latLonToVector3(Number(lat), Number(lon), radius + displacement + lift);
+      });
 
       const getMaterial = (color, opacity) => {
         const key = `${color}|${opacity}`;
         if (!materialCache.has(key)) {
           materialCache.set(
             key,
-            new THREERef.LineBasicMaterial({
+            applySurfaceDepthBias(new THREERef.LineBasicMaterial({
               color,
               transparent: true,
               opacity,
               depthWrite: false,
               depthTest: true,
-              polygonOffset: true,
-              polygonOffsetFactor: -1,
-              polygonOffsetUnits: -1,
-            }),
+            })),
           );
         }
         return materialCache.get(key);
@@ -1986,6 +2082,84 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       state.texture.needsUpdate = true;
     }
 
+    // HIGH-PRECISION DEM. The shipped 8-bit greyscale DEM quantises 29 km of
+    // relief into 255 levels — 115 m per step, with 74% of adjacent pixels
+    // sharing a level. Under the flight sim's vertical exaggeration every riser
+    // becomes a cliff and the terrain reads as flat terraces. tools/build_dem_hd.py
+    // reconstructs a continuous surface from the same data and stores it locally
+    // with the 16-bit value split across the R (high byte) and G (low byte)
+    // channels: PNG's own 16-bit mode is unusable because browsers decode those
+    // down to 8 bits, which would discard exactly the precision we recovered.
+    async function loadHdElevation(spec, renderer) {
+      if (!spec || !spec.path) return null;
+      // Linear filtering of float textures is an extension, not core WebGL2. Without
+      // it the sampler falls back to nearest-neighbour and we would trade 115 m
+      // terraces for 5 km ones, which is worse than the 8-bit map we started from.
+      if (!renderer || !renderer.extensions.get("OES_texture_float_linear")) {
+        console.warn("[dem] OES_texture_float_linear unavailable, keeping 8-bit DEM");
+        return null;
+      }
+      try {
+        const image = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error(`failed to load ${spec.path}`));
+          img.src = spec.path;
+        });
+        const width = image.naturalWidth || image.width;
+        const height = image.naturalHeight || image.height;
+        if (!width || !height) return null;
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.drawImage(image, 0, 0);
+        const rgba = context.getImageData(0, 0, width, height).data;
+        // ROW ORDER MATTERS, and it is the one thing that differs from the PNG path.
+        // A Texture loaded from an image defaults to flipY = true, so uv.y = 1 lands
+        // on image row 0 (the north pole) — which is what SphereGeometry expects,
+        // since its uv.y = 1 - v and v = 0 at +Y. DataTexture defaults flipY to
+        // FALSE and it is not reliably honoured for array uploads, so store the
+        // rows bottom-up instead and the shader reads the same orientation the
+        // 8-bit map always did. Getting this wrong renders the DEM mirrored
+        // north/south: terrain that looks plausible but puts Olympus Mons in the
+        // southern hemisphere, and drops every draped vector layer tens of km off
+        // the surface. The CPU sampler compensates via `bottomUp` below.
+        const values = new Float32Array(width * height);
+        for (let y = 0; y < height; y += 1) {
+          const src = y * width * 4;
+          const dst = (height - 1 - y) * width;
+          for (let x = 0; x < width; x += 1) {
+            const p = src + (x * 4);
+            values[dst + x] = ((rgba[p] << 8) | rgba[p + 1]) / 65535;
+          }
+        }
+        const texture = new THREE.DataTexture(values, width, height, THREE.RedFormat, THREE.FloatType);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = false;
+        texture.colorSpace = THREE.NoColorSpace;
+        texture.needsUpdate = true;
+        return { texture, values, width, height };
+      } catch (error) {
+        console.warn("[dem] high-precision DEM unavailable, falling back to 8-bit:", error);
+        return null;
+      }
+    }
+
+    // Sampler over the high-precision DEM. Same bilinear contract as
+    // createElevationSamplerState, but reads Float32 heights instead of the red
+    // channel of an RGBA byte array, so ground clearance in the flight sim
+    // matches the surface actually being rendered.
+    function createHdElevationSamplerState(hd) {
+      if (!hd || !hd.values) return null;
+      // `bottomUp` because loadHdElevation stores the rows south-first for the GPU.
+      return { values: hd.values, width: hd.width, height: hd.height, bottomUp: true };
+    }
+
     function createElevationSamplerState(elevationTexture) {
       if (!elevationTexture || !elevationTexture.image) {
         return null;
@@ -2029,7 +2203,11 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       const y1 = Math.min(state.height - 1, y0 + 1);
       const tx = x - x0;
       const ty = y - y0;
-      const sampleAt = (sx, sy) => state.pixels[((sy * state.width) + sx) * 4] / 255;
+      const sampleAt = state.values
+        ? (state.bottomUp
+          ? (sx, sy) => state.values[(((state.height - 1 - sy) * state.width) + sx)]
+          : (sx, sy) => state.values[(sy * state.width) + sx])
+        : (sx, sy) => state.pixels[((sy * state.width) + sx) * 4] / 255;
       const n00 = sampleAt(x0, y0);
       const n10 = sampleAt(x1, y0);
       const n01 = sampleAt(x0, y1);
@@ -2857,6 +3035,12 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     }
 
     const MARS_RADIUS_METERS = 3396190;
+    // FLIGHT-SIM: the shared label-layer.js reads MARS_RADIUS_METERS as a bare
+    // global in its mosaic close-zoom branch (scale bar <= 2 km — exactly low
+    // flight altitude). Without this, updateLabelVisibility throws inside
+    // render(), aborting before the rAF reschedule: the loop dies, permanent
+    // freeze. Orbit never hits it; flight does.
+    window.MARS_RADIUS_METERS = MARS_RADIUS_METERS;
     const HUD_BBOX_RAYCASTER = new THREE.Raycaster();
     const HUD_BBOX_SPHERE = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 3.2);
     const HUD_BBOX_HIT = new THREE.Vector3();
@@ -5961,6 +6145,19 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       return t;
     }
 
+    // Click-to-toggle. openFeature() is also called by search, tours and the
+    // moon viewer, where re-selecting must always OPEN — so the toggle lives
+    // here and is used only by the pointer paths, where a second click on an
+    // already-open label means "close it". Applies to every label, horizon
+    // proxies included.
+    function toggleFeatureFromClick(feature, isCoreLabel) {
+      if (feature && activePopupFeature === feature && scenePopup && !scenePopup.hidden) {
+        closeScenePopup();
+        return;
+      }
+      openFeature(feature, isCoreLabel);
+    }
+
     function openFeature(feature, isCoreLabel) {
       // Dismiss the geology floating popup when a regular feature popup opens
       closeGeoPopup();
@@ -7070,10 +7267,33 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         this.MIN_LEVEL = Number.isFinite(serviceConfig.minLevel) ? serviceConfig.minLevel : 3;
         this.BACKGROUND_MAX_LEVEL = Number.isFinite(serviceConfig.backgroundMaxLevel) ? serviceConfig.backgroundMaxLevel : 8;
         this.FOCUS_MAX_LEVEL = Number.isFinite(serviceConfig.focusMaxLevel) ? serviceConfig.focusMaxLevel : 15;
-        this.MAX_TILE_CACHE = 1024;
+        // CTX-UPGRADE: decoded-tile cache bound. 1024 decoded 256² RGBA images
+        // ≈ 270 MB of heap — an accidental liability, not a design choice. 384
+        // (~100 MB worst case) still holds several screens' worth of tiles for
+        // the instant-repaint pass below; the service worker's disk cache makes
+        // re-fetching an evicted tile a ~5 ms hit, so a big RAM cache buys
+        // almost nothing here.
+        // CTX-UPGRADE: 384 held one screen of focus tiles; the flight
+        // surround adds up to ~300 more, and focus+surround over 384 caused
+        // eviction thrash (surround rebuilds refetching tiles evicted
+        // seconds earlier). 768 (~200 MB worst-case, off-heap ImageBitmaps)
+        // on >= 8 GB devices; low-memory devices keep 384 and accept slower
+        // surround rebuilds.
+        this.MAX_TILE_CACHE = (navigator.deviceMemory || 4) >= 8 ? 1536 : 384;
         this.MAX_FOCUS_TILES = 512;
-        this.MAX_FOCUS_INFLIGHT = 48;
-        this.FOCUS_TEXTURE_MAX_SIZE = 2048;
+        // CTX-UPGRADE: the tile host is HTTP/1.1 — browsers open at most ~6
+        // connections per host, so 48 "in flight" fetches meant 6 moving and 42
+        // parked in the browser's own queue where they cannot be reprioritised
+        // and get aborted wholesale on refresh. Matching the transport keeps
+        // the queue in OUR hands (sorted center-out, retired precisely).
+        this.MAX_FOCUS_INFLIGHT = 6;
+        // CTX-UPGRADE: overlay resolution. 2048² (16.8 MB + its GPU copy) was
+        // the sharpness ceiling — at a 10-tile-wide view it stores only ~200 px
+        // per tile of 256 px imagery. 4096² costs 67 MB + 67 MB GPU, so it is
+        // gated on device class; 3072² (37 MB + 37 MB) elsewhere. NEVER 8192:
+        // that is 268 MB + 268 MB, more than the whole imagery budget on an
+        // integrated GPU (measured context-loss territory).
+        this.FOCUS_TEXTURE_MAX_SIZE = (navigator.deviceMemory || 4) >= 8 ? 4096 : 3072;
         this.FOCUS_UPDATE_INTERVAL_MS = 40;
         this.FOCUS_FULL_VIEW = false;
         this.BACKGROUND_STREAMING = false;
@@ -7133,6 +7353,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         this._focusQueuedKeys = new Set();
         this._focusInflight = 0;
         this._focusRoundSuccesses = 0;
+        this._focusRoundFailures = 0;
+        this._focusRoundCompletions = 0;
+        this._focusRoundSuppressed = 0;
         this._focusEnqueuePausedUntil = 0;
         this._focusResolvedLevels = new Map();
         this._focusResolvedAnchor = null;
@@ -7203,7 +7426,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         canvas.width = width;
         canvas.height = height;
         const context = canvas.getContext("2d");
-        context.imageSmoothingEnabled = false;
+        // CTX-UPGRADE: smoothing ON (see _resizeFocusCanvasForTileRange).
+        context.imageSmoothingEnabled = true;
+        context.imageSmoothingQuality = "high";
         context.clearRect(0, 0, width, height);
         const texture = new THREE.CanvasTexture(canvas);
         texture.colorSpace = THREE.SRGBColorSpace;
@@ -7241,7 +7466,18 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       }
 
       _resizeFocusCanvasForTileRange(tileRange, preserve = false) {
-        if (preserve) {
+        // FLIGHT-SIM: `preserve` (keepPreviousOnUpgrade) is ALWAYS set in
+        // flight, so this used to return before ever sizing the canvas — it
+        // stayed at whatever size it happened to be. MEASURED at 130 km: a
+        // 2048 canvas spread over a 1459 km window = 0.71 km/px, when the
+        // 4096 cap allows 0.36. That is a straight 2x resolution loss at
+        // altitude with nothing to do with the tile level, and it is why
+        // regional views looked soft no matter which level was requested.
+        // Resize when the REQUIRED size actually changes — which, because the
+        // window is a fixed size per level, means only on a level change, so
+        // the scroll-don't-rebuild stability across slides is untouched.
+        const flyingResize = Boolean(window.__flightSim?.active);
+        if (preserve && !flyingResize) {
           return;
         }
         const cols = Math.max(1, (tileRange.cMax - tileRange.cMin + 1));
@@ -7253,15 +7489,51 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           this.FOCUS_TEXTURE_MAX_SIZE / Math.max(idealWidth, 1),
           this.FOCUS_TEXTURE_MAX_SIZE / Math.max(idealHeight, 1),
         );
-        const width = Math.max(512, Math.round(idealWidth * scale));
-        const height = Math.max(512, Math.round(idealHeight * scale));
+        let width = Math.max(512, Math.round(idealWidth * scale));
+        let height = Math.max(512, Math.round(idealHeight * scale));
+        // FLIGHT-SIM: QUANTISE the canvas size, and resize only on a material
+        // change. The half-disc's bounding box depends on HEADING, so its
+        // column count drifts by a tile or two as the ship yaws; that moved the
+        // computed canvas width and every move RESIZED the canvas, which clears
+        // it and forces a full repaint. MEASURED at 155 km: 4 resizes in 24 s
+        // cycling 3186 / 3308 / 3337 px wide, while every level stayed rock
+        // steady — that churn WAS the reported instability. Snapping to 256 px
+        // and requiring a >10% change absorbs the yaw-driven drift.
+        if (flyingResize) {
+          // Full resolution restored. The 3072 cap was derived from the
+          // FAR-FIELD average too, and cost visible detail for the same reason
+          // the L6 drop did. Upload cost is bounded by the batching in
+          // _drawFocusTile instead, which trades no sharpness at all.
+          const flightCap = this.FOCUS_TEXTURE_MAX_SIZE;
+          width = Math.min(flightCap, Math.ceil(width / 256) * 256);
+          height = Math.min(flightCap, Math.ceil(height / 256) * 256);
+          const cw = this.focusCanvas.width, ch = this.focusCanvas.height;
+          if (cw > 0 && ch > 0) {
+            const wRatio = width / cw, hRatio = height / ch;
+            if (wRatio > 0.9 && wRatio < 1.1 && hRatio > 0.9 && hRatio < 1.1) {
+              this.focusContext.imageSmoothingEnabled = true;
+              this.focusContext.imageSmoothingQuality = "high";
+              return;
+            }
+          }
+        }
+        // CTX-UPGRADE: smoothing ON. With smoothing off, any tile drawn at a
+        // non-native scale (every ancestor-substituted tile, and every tile
+        // once the canvas hits FOCUS_TEXTURE_MAX_SIZE and downsamples) is
+        // resampled nearest-neighbour — visible blockiness for zero benefit.
         if (this.focusCanvas.width === width && this.focusCanvas.height === height) {
-          this.focusContext.imageSmoothingEnabled = false;
+          this.focusContext.imageSmoothingEnabled = true;
+          this.focusContext.imageSmoothingQuality = "high";
           return;
         }
+        // In flight the caller asked to preserve; honour that for everything
+        // except a genuine size change, which cannot preserve content anyway
+        // (resizing a canvas clears it). The repaint-from-cache immediately
+        // after refills it.
         this.focusCanvas.width = width;
         this.focusCanvas.height = height;
-        this.focusContext.imageSmoothingEnabled = false;
+        this.focusContext.imageSmoothingEnabled = true;
+        this.focusContext.imageSmoothingQuality = "high";
         this._recreateFocusTexture();
       }
 
@@ -7318,6 +7590,76 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           this.focusBounds.y > this.focusBounds.x &&
           this.focusBounds.w > this.focusBounds.z
         );
+      }
+
+      // CTX-UPGRADE: retire, don't blanket-abort. On every refresh the old
+      // code aborted ALL in-flight fetches — bandwidth already spent, thrown
+      // away, then often re-requested seconds later. Industry practice
+      // (Cesium/MapLibre) is to reprioritise: queued-but-unstarted items are
+      // simply dropped (nothing on the wire yet), while STARTED fetches whose
+      // tile still intersects the new view are left to finish — their payload
+      // draws into the current state via the stale-draw path and always lands
+      // in the decoded-tile cache for the instant-repaint pass. Only started
+      // fetches that scrolled fully out of view are actually aborted.
+      _retireFocusFetches(nextBbox) {
+        if (!nextBbox) {
+          this._abortFocusFetches();
+          return;
+        }
+        if (!this._lameDuckKeys) this._lameDuckKeys = new Set();
+        for (const [key, controller] of this._focusControllers) {
+          if (this._focusQueuedKeys.has(key)) {
+            // Unstarted — no network cost yet; drop silently.
+            this._focusControllers.delete(key);
+            continue;
+          }
+          if (this._lameDuckKeys.has(key)) {
+            // Already retired in a previous refresh — leave it be.
+            continue;
+          }
+          const tilePart = key.split(":")[1];
+          const parts = tilePart ? tilePart.split("/") : null;
+          const bounds = parts && parts.length === 3
+            ? this._getTileBounds(Number(parts[0]), Number(parts[1]), Number(parts[2]))
+            : null;
+          const intersects = bounds && !(
+            bounds.lonMax <= nextBbox.lonMin
+            || bounds.lonMin >= nextBbox.lonMax
+            || bounds.latMax <= nextBbox.latMin
+            || bounds.latMin >= nextBbox.latMax
+          );
+          if (!intersects) {
+            controller.abort();
+            this._focusControllers.delete(key);
+            continue;
+          }
+          // CTX-UPGRADE: LAME-DUCK the kept fetch — release its connection
+          // slot NOW. Kept in-flight fetches previously still counted toward
+          // MAX_FOCUS_INFLIGHT, so on a slow network a few long fallback
+          // chains (tile fetches have no timeout of their own) could pin all
+          // 6 slots and starve every new round — reintroducing "nothing
+          // streams" through the back door. Releasing the slot lets the new
+          // round start immediately (the browser transparently queues any
+          // brief per-host overflow), the finally-block skips the second
+          // decrement via _lameDuckKeys, and an 8 s watchdog aborts any duck
+          // that a dead connection would otherwise hold open forever.
+          this._lameDuckKeys.add(key);
+          this._focusInflight = Math.max(0, this._focusInflight - 1);
+          setTimeout(() => {
+            if (this._focusControllers.has(key)) {
+              try { controller.abort(); } catch (_) {}
+              this._focusControllers.delete(key);
+            }
+            // NOTE: the watchdog must NOT delete the lame-duck marker. The
+            // finally-block is its sole owner: aborting here makes that block
+            // run, and if the marker were already gone it would decrement the
+            // in-flight count a SECOND time (the slot was released at retire).
+            // The count would drift below the truth and the drain loop would
+            // open more than MAX_FOCUS_INFLIGHT connections.
+          }, 8000);
+        }
+        this._focusQueue = [];
+        this._focusQueuedKeys.clear();
       }
 
       _abortFocusFetches() {
@@ -7398,11 +7740,41 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           const floorLevel = this._focusState?.meta?.fetchMinLevel
             ?? this._focusState?.meta?.minLevel
             ?? this.MIN_LEVEL;
-          this._fetchTilePayloadWithFallback(item.level, item.row, item.col, floorLevel, item.controller.signal).then((payload) => {
+          const probe = { attempted: false };
+          this._fetchTilePayloadWithFallback(item.level, item.row, item.col, floorLevel, item.controller.signal, probe).then((payload) => {
             if (!payload || !payload.image) {
+              // CTX-UPGRADE: only a round that actually ASKED the server and
+              // came back empty counts as a failure. Two things used to be
+              // miscounted here, and together they silenced the streamer on a
+              // U-turn: an aborted fetch (the view moved on), and a tile whose
+              // every rung was still inside its 15 s failure cooldown — which
+              // spends no request at all. Turning back over ground just flown
+              // meets a whole window of cooldown-suppressed tiles, so the round
+              // returned all-null having touched the network zero times, the
+              // viewer read that as "the service is dead" and muted its own
+              // enqueue for 30 s. Nothing refetched, over old ground or new.
+              if (!item.controller.signal.aborted) {
+                if (probe.attempted) this._focusRoundFailures += 1;
+                else this._focusRoundSuppressed += 1;
+              }
               return;
             }
-            if (!this._focusState || this._focusState.version !== item.version) {
+            // A payload arrived: the server is alive, whatever round it belongs
+            // to. Tracked separately from _focusRoundSuccesses (which is
+            // current-version only and drives the level auto-downgrade).
+            this._focusRoundCompletions += 1;
+            if (!this._focusState) {
+              return;
+            }
+            // CTX-UPGRADE: never waste a completed fetch. A tile that finishes
+            // after a refresh superseded its round is already decoded and
+            // cached — draw it into the CURRENT focus state (the draw rect is
+            // computed from the current bbox, so it lands in the right place
+            // or is clipped off-canvas; the paint-level guard stops it
+            // overwriting anything finer). Previously these were discarded,
+            // which is why interrupted zooms left holes until the next refresh.
+            if (this._focusState.version !== item.version) {
+              this._drawFocusTile(payload.level, payload.row, payload.col, payload.image, this._focusState);
               return;
             }
             this._focusRoundSuccesses += 1;
@@ -7410,9 +7782,13 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
             if (payload.level < item.level) {
               this._noteResolvedFallbackCap(item.level, item.row, item.col, payload.level);
             }
-            if (payload.level >= item.level) {
-              this._drawFocusTile(payload.level, payload.row, payload.col, payload.image, this._focusState);
-            }
+            // CTX-UPGRADE: ancestor substitution, draw side. Fallback payloads
+            // (coarser than requested) used to be recorded then thrown away —
+            // the region showed a hole even though a perfectly good ancestor
+            // was in hand. Draw whatever resolved; the paint-level guard keeps
+            // coarse from overwriting fine, so the canvas stays monotonically
+            // coarse→fine as real tiles land.
+            this._drawFocusTile(payload.level, payload.row, payload.col, payload.image, this._focusState);
             window.__ctxPatchDebug = {
               ...(window.__ctxPatchDebug || {}),
               baseLayer: "ctx-mosaic",
@@ -7434,16 +7810,81 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
             /* focus requests are opportunistic and are aborted aggressively */
           }).finally(() => {
             this._focusControllers.delete(item.requestKey);
-            this._focusInflight = Math.max(0, this._focusInflight - 1);
+            // CTX-UPGRADE: a lame-ducked fetch already released its slot in
+            // _retireFocusFetches — decrementing again would let inflight go
+            // negative-then-clamped and overshoot the 6-connection budget.
+            if (this._lameDuckKeys?.has(item.requestKey)) {
+              this._lameDuckKeys.delete(item.requestKey);
+            } else {
+              this._focusInflight = Math.max(0, this._focusInflight - 1);
+            }
             if (this._focusInflight === 0 && this._focusQueue.length === 0 && this._focusState) {
-              if (this._focusRoundSuccesses === 0) {
-                // All tiles failed (e.g. CORS). Back off 30 s to stop the tight retry loop.
-                this._focusEnqueuePausedUntil = performance.now() + 30000;
+              // CTX-UPGRADE: back off ONLY on a round that genuinely failed.
+              // The old test was `_focusRoundSuccesses === 0`, but that counter
+              // ignores tiles completing after their round is superseded (drawn
+              // via the stale path) and tiles cancelled by a retire. A hard
+              // manoeuvre — a U-turn above all — supersedes round after round,
+              // so every round scored zero "successes" while the server was
+              // answering perfectly, and the viewer muted its own enqueue for
+              // 30 s at a time. Symptom: tiles stream along the outbound leg,
+              // then nothing refetches when you turn back over your own route.
+              if (this._focusRoundSuccesses === 0
+                && this._focusRoundCompletions === 0
+                && this._focusRoundFailures > 0) {
+                // All tiles genuinely failed (e.g. CORS). Back off to stop the
+                // tight retry loop — but a 30 s global mute is an orbit-shaped
+                // remedy: the camera is still there when it lapses. In flight
+                // the ship crosses the failed window in a second or two, so the
+                // same mute just blinds it over ground that was never the
+                // problem. Flight gets a short breather instead.
+                this._focusEnqueuePausedUntil = performance.now()
+                  + (window.__flightSim?.active ? 2000 : 30000);
+              }
+              // CTX-UPGRADE v2: fetch round complete — run the global tone
+              // solve over everything now resident, and if any gain moved
+              // materially, repaint once so every tile is drawn with its
+              // final solved gain + symmetric ramps. A pure repaint issues no
+              // fetches, so this cannot re-trigger itself.
+              if (this._toneMatchSupported && this._focusRoundSuccesses > 0) {
+                const moved = this._solveToneGains(this._focusState.level);
+                if (moved > 0.008) {
+                  this._lastFocusKey = "";
+                }
               }
               const effectiveLevel = this._estimateLocalFocusLevel(this._focusState.level, this._focusState.bbox);
-              if (effectiveLevel < this._focusState.level) {
+              // FLIGHT-SIM: HIGH-RES PRIORITY. A single round resolving coarse
+              // used to drop the WHOLE focus a level; the ladder then re-asked
+              // for the fine level on the next pass, which resolved coarse
+              // again — a level oscillation that reads as the map fighting
+              // between high and low resolution. Per-tile ancestor substitution
+              // already covers genuinely missing fine tiles, so a wholesale
+              // downgrade is only worth doing when it is repeatedly confirmed.
+              // Four consecutive rounds, and any round that resolves at full
+              // level resets the count.
+              if (window.__flightSim?.active) {
+                if (effectiveLevel < this._focusState.level) {
+                  this._flightDowngradeStreak = (this._flightDowngradeStreak || 0) + 1;
+                } else {
+                  this._flightDowngradeStreak = 0;
+                }
+              }
+              const downgradeAllowed = !window.__flightSim?.active
+                || (this._flightDowngradeStreak || 0) >= 4;
+              if (effectiveLevel < this._focusState.level && downgradeAllowed) {
+                // FLIGHT-SIM: a coarser level means bigger tiles, so the same
+                // budget reaches much further — re-size the forward disc rather
+                // than re-running the coarse level inside the fine level's box.
+                let nextBbox = this._focusState.bbox;
+                if (window.__flightSim?.active && this._flightForwardDisc) {
+                  const grown = this._flightDiscForLevel(effectiveLevel);
+                  if (grown) {
+                    nextBbox = grown.bbox;
+                    this._flightForwardDisc.radiusKm = grown.radiusKm;
+                    this._flightForwardDisc.backKm = grown.backKm;
+                  }
+                }
                 this._refreshFocus(
-                  this._focusState.bbox,
+                  nextBbox,
                   effectiveLevel,
                   this._focusState.meta || {},
                 );
@@ -7465,9 +7906,91 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         }
       }
 
+      // CTX-UPGRADE v4: shared affine-filter lookup for both draw paths.
+      _toneFilterFor(key) {
+        const tone = this._toneGain ? this._toneGain.get(key) : null;
+        if (!tone) return null;
+        if (Math.abs(tone.g - 1) < 0.004 && Math.abs(tone.b) < 0.75) return null;
+        const c = Math.min(1.5, Math.max(0.5, 1 - tone.b / 128));
+        const beta = tone.g / c;
+        return `brightness(${beta.toFixed(4)}) contrast(${c.toFixed(4)})`;
+      }
+
       _drawTile(level, row, col, image) {
-        this._drawTileToCanvas(this.context, this.canvas.width, this.canvas.height, level, row, col, image);
+        // CTX-UPGRADE v4: tone-correct the BACKGROUND path too. The global
+        // equirect canvas is what fills everything OUTSIDE the focus overlay's
+        // bbox — at wide views that is MOST of the screen, and it was painted
+        // raw (measured: boundary steps up to 13.2 on this canvas while the
+        // focus overlay measured 0.7). Same stats, same solved gains, same
+        // whole-tile affine — plus a debounced per-level solve because the
+        // background streamer has no fetch-round concept.
+        if (this._toneMatchSupported === undefined) {
+          this._toneMatchSupported = typeof this.context.filter === "string";
+        }
+        let filter = null;
+        if (this._toneMatchSupported) {
+          const key = `${level}/${row}/${col}`;
+          if (this._tileEdgeStats(key, image)) {
+            filter = this._toneFilterFor(key);
+          }
+          this._scheduleBgToneSolve(level);
+        }
+        if (filter) {
+          this.context.filter = filter;
+          this._drawTileToCanvas(this.context, this.canvas.width, this.canvas.height, level, row, col, image);
+          this.context.filter = "none";
+        } else {
+          this._drawTileToCanvas(this.context, this.canvas.width, this.canvas.height, level, row, col, image);
+        }
         this.texture.needsUpdate = true;
+      }
+
+      // Debounced per-level solve for the background streamer: it trickles
+      // tiles continuously (no rounds), so solve ~0.7 s after the last draw at
+      // a level, then repaint that level with the solved corrections.
+      _scheduleBgToneSolve(level) {
+        if (!this._bgToneTimers) this._bgToneTimers = new Map();
+        const prev = this._bgToneTimers.get(level);
+        if (prev) clearTimeout(prev);
+        this._bgToneTimers.set(level, setTimeout(() => {
+          this._bgToneTimers.delete(level);
+          const moved = this._solveToneGains(level);
+          if (moved > 0.008) this._repaintBackgroundLevel(level);
+        }, 700));
+      }
+
+      // True when a finer background tile overlapping this one has been drawn
+      // — repainting the coarse parent would overwrite it with coarser pixels
+      // (background tiles draw once; nothing would restore the fine data).
+      _bgHasFinerCoverage(level, row, col) {
+        for (let delta = 1; delta <= 2; delta += 1) {
+          const span = 1 << delta;
+          for (let r = row * span; r < (row + 1) * span; r += 1) {
+            for (let c = col * span; c < (col + 1) * span; c += 1) {
+              if (this.loaded.has(`${level + delta}/${r}/${c}`)) return true;
+            }
+          }
+        }
+        return false;
+      }
+
+      _repaintBackgroundLevel(level) {
+        if (!this._toneStats) return;
+        let repainted = 0;
+        for (const key of this._toneStats.keys()) {
+          const parts = key.split("/").map(Number);
+          if (parts[0] !== level) continue;
+          if (!this.loaded.has(key)) continue; // never drawn on the background
+          const image = this._tileImageCache.get(key);
+          if (!image || !image.width) continue; // evicted — keep as-drawn
+          if (this._bgHasFinerCoverage(parts[0], parts[1], parts[2])) continue;
+          const filter = this._toneFilterFor(key);
+          if (filter) this.context.filter = filter;
+          this._drawTileToCanvas(this.context, this.canvas.width, this.canvas.height, parts[0], parts[1], parts[2], image);
+          if (filter) this.context.filter = "none";
+          repainted += 1;
+        }
+        if (repainted > 0) this.texture.needsUpdate = true;
       }
 
       _drawTileToCanvas(context, width, height, level, row, col, image) {
@@ -7478,6 +8001,136 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         const x = col * tileWidth;
         const y = row * tileHeight;
         context.drawImage(image, x, y, tileWidth, tileHeight);
+      }
+
+      // CTX-UPGRADE: LEVEL-EXACT dead-region memory. The CTX pyramid is
+      // non-monotonic (measured at 90E: L7 500, L8 500, L6 200, L9 200), so
+      // any "branch cap" that infers finer levels from a coarser failure is
+      // wrong by construction (that mistake collapsed the whole overlay once).
+      // This memory is keyed by (level, 10-degree cell): it only ever skips
+      // the EXACT level that has repeatedly failed in that cell, expires in
+      // 5 minutes, and needs 6 failures to arm — so L9/L12 over a dead L7
+      // are untouched, discovery still probes once, and a transient blip
+      // cannot blind a region.
+      // Dead = UNANIMOUS failure, never a count. Healthy CTX fine levels are
+      // PATCHY — a normal L11/L12 view contains scattered per-tile 500s among
+      // hundreds of 200s — so a bare failure threshold marks living cells
+      // dead and cascades the ladder coarse everywhere (that bug shipped for
+      // an hour: "broken at all levels"). A cell is dead at a level only when
+      // MANY tiles failed AND not a single one succeeded; one success clears
+      // the cell instantly (same principle as the proven fail-streak designs:
+      // any successful payload resets the evidence).
+      _noteLevelRegionFailure(level, row, col) {
+        if (!this._deadLevelRegions) this._deadLevelRegions = new Map();
+        const b = this._getTileBounds(level, row, col);
+        const key = `${level}:${Math.floor((b.latMin + b.latMax) / 2 / 10)}:${Math.floor((b.lonMin + b.lonMax) / 2 / 10)}`;
+        const now = performance.now();
+        let entry = this._deadLevelRegions.get(key);
+        if (!entry || now > entry.expiry) entry = { fails: 0, expiry: now + 5 * 60 * 1000 };
+        entry.fails += 1;
+        this._deadLevelRegions.set(key, entry);
+      }
+
+      _noteLevelRegionSuccess(level, row, col) {
+        if (!this._deadLevelRegions || this._deadLevelRegions.size === 0) return;
+        const b = this._getTileBounds(level, row, col);
+        const key = `${level}:${Math.floor((b.latMin + b.latMax) / 2 / 10)}:${Math.floor((b.lonMin + b.lonMax) / 2 / 10)}`;
+        this._deadLevelRegions.delete(key);
+      }
+
+      _isLevelRegionDead(level, lat, lon) {
+        if (!this._deadLevelRegions) return false;
+        const key = `${level}:${Math.floor(lat / 10)}:${Math.floor(lon / 10)}`;
+        const entry = this._deadLevelRegions.get(key);
+        if (!entry) return false;
+        if (performance.now() > entry.expiry) {
+          this._deadLevelRegions.delete(key);
+          return false;
+        }
+        return entry.fails >= 12;
+      }
+
+      // FLIGHT-SIM: the tile-frame ground point directly beneath a scene-space
+      // position (the ship). Exact mirror of _computeViewBbox's hitToLatLon —
+      // same globe rotation (theta) and axial-tilt handling — so the result is
+      // in the SAME frame as focus targets and tile bounds. No cross-frame
+      // conversions of flightsim's published IAU coordinates are involved.
+      _flightShipGround() {
+        const sp = window.__flightSim?.shipWorldPos;
+        if (!sp || !this._globe) return null;
+        const R = this.GLOBE_R;
+        const theta = this._globe.rotation.y;
+        const tiltRad = this._globe?.parent?.rotation?.z ?? 0;
+        const cosT = Math.cos(theta), sinT = Math.sin(theta);
+        const cosZ = Math.cos(tiltRad), sinZ = Math.sin(tiltRad);
+        const d = Math.sqrt(sp.x * sp.x + sp.y * sp.y + sp.z * sp.z) || 1;
+        const hx = (sp.x / d) * R, hy = (sp.y / d) * R, hz = (sp.z / d) * R;
+        const lx = hx * cosZ + hy * sinZ;
+        const ly = -hx * sinZ + hy * cosZ;
+        const lz = hz;
+        const xl = lx * cosT - lz * sinT;
+        const zl = lx * sinT + lz * cosT;
+        let lon = Math.atan2(-zl, xl) * 180 / Math.PI;
+        if (lon < -180) lon += 360;
+        if (lon > 180) lon -= 360;
+        const lat = Math.asin(Math.max(-1, Math.min(1, ly / R))) * 180 / Math.PI;
+        return { lat, lon };
+      }
+
+      // FLIGHT-SIM: build the forward half-disc for a GIVEN level, from the
+      // ship position and heading already stored in _flightForwardDisc.
+      // Needed because the level a round ends up at is not always the level it
+      // was requested at: where regional CTX tops out early, the round
+      // re-refreshes coarser, and a coarser level's tiles are 2^n times larger
+      // — so the same budget buys a far bigger disc. Without re-sizing, a round
+      // that dropped L9 -> L7 kept the L9 disc and spent 130 of 512 tiles.
+      _flightDiscForLevel(level) {
+        const d = this._flightForwardDisc;
+        if (!d) return null;
+        const KMDEG = 59.3;
+        const capFor = (L) => Math.min(512, (L === 7 ? 1024
+          : L === 9 ? 900
+          : (L === 5 || L === 11 || L === 12) ? 512
+          : 400));
+        const tileDeg = 360 / (1 << (level + 1));
+        let R = tileDeg * KMDEG * Math.sqrt((2 * capFor(level) * 0.9) / Math.PI);
+        const hasHeading = Math.abs(d.ux) > 1e-9 || Math.abs(d.uy) > 1e-9;
+        const build = (Rkm) => {
+          if (!hasHeading) {
+            return this._buildFocusBboxAroundTarget(
+              { lat: d.lat, lon: d.lon },
+              2 * (Rkm / (KMDEG * d.cosLat)),
+              2 * (Rkm / KMDEG),
+            );
+          }
+          let loMin = Infinity, loMax = -Infinity, laMin = Infinity, laMax = -Infinity;
+          const acc = (lon, lat) => {
+            if (lon < loMin) loMin = lon;
+            if (lon > loMax) loMax = lon;
+            if (lat < laMin) laMin = lat;
+            if (lat > laMax) laMax = lat;
+          };
+          acc(d.lon, d.lat);
+          for (let i = 0; i <= 24; i += 1) {
+            const th = -Math.PI / 2 + (Math.PI * i) / 24;
+            const c = Math.cos(th), sn = Math.sin(th);
+            const dx = d.ux * c - d.uy * sn;
+            const dy = d.ux * sn + d.uy * c;
+            acc(d.lon + (Rkm * dx) / (KMDEG * d.cosLat), d.lat + (Rkm * dy) / KMDEG);
+          }
+          return {
+            lonMin: loMin, lonMax: loMax,
+            latMin: Math.max(-90, laMin), latMax: Math.min(90, laMax),
+          };
+        };
+        let bbox = build(R);
+        for (let g = 0; g < 40; g += 1) {
+          const t = this._getFocusTileRange(level, bbox).tileCount;
+          if (t <= 4200 && (bbox.lonMax - bbox.lonMin) < 240) break;
+          R *= 0.92;
+          bbox = build(R);
+        }
+        return { bbox, radiusKm: R, backKm: tileDeg * KMDEG };
       }
 
       _getTileBounds(level, row, col) {
@@ -7771,6 +8424,191 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         };
       }
 
+      // ── CTX-UPGRADE: SURROUND LAYER ─────────────────────────────────────
+      // Multi-level "duality": when the focus overlay is a small fine window
+      // (level >= 9), a SECOND overlay blankets the whole view with parent
+      // tiles (L5-L8) on its own canvas/texture/mesh. Engineered against the
+      // failure modes that broke the previous attempt:
+      //  * ADDITIVE ONLY — the focus pipeline (ladder, bbox, budgets, queue)
+      //    is untouched; this layer has its own tiny fetch loop.
+      //  * STABLE BY CONSTRUCTION — the surround bbox is quantised to WHOLE
+      //    tiles at the surround level (1.4-2.8 deg quanta), so per-frame
+      //    camera jitter cannot change its key; rebuilds only happen when the
+      //    view genuinely crosses a tile boundary.
+      //  * BOUNDED — <= 140 tiles, concurrency 2, gated so it never starves
+      //    the focus fetches; fallback-chain fetches so dead levels resolve
+      //    to parents instead of holes.
+      //  * KILL SWITCH — window.__ctxSurround = false disables it live.
+      _updateSurround(viewBbox) {
+        if (!this.surroundCanvas) return;
+        if (window.__ctxSurround === false) { this._surroundDisplayActive = false; return; }
+        const fs = this._focusDisplayState;
+        if (!this.active || !fs.active || fs.level < 7) { this._surroundDisplayActive = false; return; }
+        // FLIGHT-SIM panoramic coverage, v2 — the two faults of v1, fixed:
+        //  (1) v1 quantised through _getFocusTileRange, whose ±1-tile PAD
+        //      inflates a 40° request to ~62° at L5 (the "half 30.9°"
+        //      mystery) and blows the budget, forcing the coarsest level —
+        //      the "blurry at altitude" report. The surround needs NO pad:
+        //      quantising to whole tiles already covers the bbox exactly.
+        //  (2) v1 chained the surround level to the focus level (fs.level−2),
+        //      inheriting its readback quirks. The right rule is independent:
+        //      the FINEST level whose un-padded grid fits the budget. Ladder
+        //      this yields in flight: ~8 km → L8, ~30 km → L7, ~120 km → L6.
+        // Orbit keeps its PROVEN path byte-for-byte (padded range, fs-chained
+        // level, 140 budget, polite drain).
+        let sLevel;
+        let rMin;
+        let rMax;
+        let cMin;
+        let cMax;
+        let found = false;
+        const flying = Boolean(window.__flightSim?.active);
+        let fsGround = null;
+        if (flying) {
+          fsGround = this._flightShipGround();
+          if (!fsGround) { this._surroundDisplayActive = false; return; }
+          const altU = Number(window.__flightSim.shipAltUnits) || 0;
+          const horizonDeg = Math.acos(Math.min(1, 3.2 / (3.2 + Math.max(altU, 1e-6)))) * 180 / Math.PI;
+          // Snap the half-span to L6-tile steps: a continuously altitude-
+          // tracking span flips the quantised window whenever it hovers near
+          // a tile edge (measured 5 rebuilds/16 s at gentle cruise); stepped,
+          // it changes only on genuine altitude-band transitions.
+          const rawHalf = Math.min(20, Math.max(3, horizonDeg * 1.3 + 1));
+          const half = Math.min(7, Math.ceil(rawHalf / 2.8125)) * 2.8125;
+          const bb = {
+            lonMin: Math.max(-180, fsGround.lon - half),
+            lonMax: Math.min(180, fsGround.lon + half),
+            latMin: Math.max(-85, fsGround.lat - half),
+            latMax: Math.min(85, fsGround.lat + half),
+          };
+          for (sLevel = 8; sLevel >= 4; sLevel -= 1) {
+            const nc = 1 << (sLevel + 1);
+            const nr = 1 << sLevel;
+            const c0 = Math.max(0, Math.floor((bb.lonMin + 180) / 360 * nc));
+            const c1 = Math.min(nc - 1, Math.ceil((bb.lonMax + 180) / 360 * nc) - 1);
+            const r0 = Math.max(0, Math.floor((90 - bb.latMax) / 180 * nr));
+            const r1 = Math.min(nr - 1, Math.ceil((90 - bb.latMin) / 180 * nr) - 1);
+            if ((r1 - r0 + 1) * (c1 - c0 + 1) <= 900) {
+              rMin = r0; rMax = r1; cMin = c0; cMax = c1; found = true;
+              break;
+            }
+          }
+        } else {
+          const exLon = (viewBbox.lonMax - viewBbox.lonMin) * 0.15;
+          const exLat = (viewBbox.latMax - viewBbox.latMin) * 0.15;
+          const bb = {
+            lonMin: Math.max(-180, viewBbox.lonMin - exLon),
+            lonMax: Math.min(180, viewBbox.lonMax + exLon),
+            latMin: Math.max(-85, viewBbox.latMin - exLat),
+            latMax: Math.min(85, viewBbox.latMax + exLat),
+          };
+          for (sLevel = Math.max(4, Math.min(8, fs.level - 2)); sLevel >= 4; sLevel -= 1) {
+            const r = this._getFocusTileRange(sLevel, bb);
+            r.cMin = Math.max(0, r.cMin);
+            r.cMax = Math.min(r.nc - 1, r.cMax);
+            if ((r.rMax - r.rMin + 1) * (r.cMax - r.cMin + 1) <= 140) {
+              rMin = r.rMin; rMax = r.rMax; cMin = r.cMin; cMax = r.cMax; found = true;
+              break;
+            }
+          }
+        }
+        if (!found) { this._surroundDisplayActive = false; return; }
+        const key = `${sLevel}:${rMin}:${rMax}:${cMin}:${cMax}`;
+        this._surroundDisplayActive = true;
+        if (key === this._surroundKey) { this._drainSurround(); return; }
+        this._surroundKey = key;
+        this._surroundVersion = (this._surroundVersion || 0) + 1;
+        this._surroundLevel = sLevel;
+        const nc = 1 << (sLevel + 1);
+        const nr = 1 << sLevel;
+        this._surroundBbox = {
+          lonMin: (cMin / nc) * 360 - 180,
+          lonMax: ((cMax + 1) / nc) * 360 - 180,
+          latMax: 90 - (rMin / nr) * 180,
+          latMin: 90 - ((rMax + 1) / nr) * 180,
+        };
+        this._updateSurroundBounds(this._surroundBbox);
+        this._surroundQueue = [];
+        this.surroundContext.clearRect(0, 0, this.surroundCanvas.width, this.surroundCanvas.height);
+        for (let row = rMin; row <= rMax; row += 1) {
+          for (let col = cMin; col <= cMax; col += 1) {
+            const sKey = `${sLevel}/${row}/${col}`;
+            const img = this._tileImageCache.get(sKey);
+            if (img && img.width) {
+              this._tileImageCache.delete(sKey);
+              this._tileImageCache.set(sKey, img); // LRU touch
+              this._drawSurroundTile(sLevel, row, col, img);
+            } else this._surroundQueue.push([sLevel, row, col]);
+          }
+        }
+        // Fill CENTER-OUT so any momentarily unfilled edge is the farthest one.
+        if (this._surroundQueue.length > 1) {
+          const cR = (rMin + rMax) / 2;
+          const cC = (cMin + cMax) / 2;
+          this._surroundQueue.sort((a, b) =>
+            ((a[1] - cR) ** 2 + (a[2] - cC) ** 2) - ((b[1] - cR) ** 2 + (b[2] - cC) ** 2));
+        }
+        this._drainSurround();
+      }
+
+      _updateSurroundBounds(bbox) {
+        const uMin = clamp((bbox.lonMin + 180) / 360, 0, 1);
+        const uMax = clamp((bbox.lonMax + 180) / 360, 0, 1);
+        const vSouth = clamp((bbox.latMin + 90) / 180, 0, 1);
+        const vNorth = clamp((bbox.latMax + 90) / 180, 0, 1);
+        this.surroundBounds.set(uMin, uMax, vSouth, vNorth);
+        const spanU = Math.max(uMax - uMin, 1e-4);
+        const spanV = Math.max(vNorth - vSouth, 1e-4);
+        this.surroundTexture.repeat.set(1 / spanU, 1 / spanV);
+        this.surroundTexture.offset.set(-uMin / spanU, -vSouth / spanV);
+        this.surroundTexture.needsUpdate = true;
+      }
+
+      _drawSurroundTile(level, row, col, image) {
+        const bbox = this._surroundBbox;
+        if (!bbox || !image || !image.width) return;
+        const tile = this._getTileBounds(level, row, col);
+        const W = this.surroundCanvas.width;
+        const H = this.surroundCanvas.height;
+        const lonSpan = Math.max(bbox.lonMax - bbox.lonMin, 1e-4);
+        const latSpan = Math.max(bbox.latMax - bbox.latMin, 1e-4);
+        const x0 = Math.round(((tile.lonMin - bbox.lonMin) / lonSpan) * W);
+        const x1 = Math.round(((tile.lonMax - bbox.lonMin) / lonSpan) * W);
+        const y0 = Math.round(((bbox.latMax - tile.latMax) / latSpan) * H);
+        const y1 = Math.round(((bbox.latMax - tile.latMin) / latSpan) * H);
+        if (x1 <= x0 || y1 <= y0) return;
+        const filter = this._toneMatchSupported ? this._toneFilterFor(`${level}/${row}/${col}`) : null;
+        if (filter) this.surroundContext.filter = filter;
+        this.surroundContext.drawImage(image, x0, y0, x1 - x0, y1 - y0);
+        if (filter) this.surroundContext.filter = "none";
+        this.surroundTexture.needsUpdate = true;
+      }
+
+      _drainSurround() {
+        if (!this._surroundQueue || this._surroundQueue.length === 0) return;
+        this._surroundInflight = this._surroundInflight || 0;
+        // Orbit: polite (focus idles after settling). Flight: the focus round
+        // never idles, so run 3 alongside; the browser queue arbitrates.
+        const flying = Boolean(window.__flightSim?.active);
+        while (this._surroundInflight < (flying ? 4 : 2) && this._surroundQueue.length > 0
+               && (flying || this._focusInflight <= 4)) {
+          const [L, r, c] = this._surroundQueue.shift();
+          const v = this._surroundVersion;
+          this._surroundInflight += 1;
+          this._fetchTilePayloadWithFallback(L, r, c, Math.max(3, L - 3))
+            .then((payload) => {
+              if (payload && payload.image && v === this._surroundVersion) {
+                this._drawSurroundTile(payload.level, payload.row, payload.col, payload.image);
+              }
+            })
+            .catch(() => {})
+            .finally(() => {
+              this._surroundInflight = Math.max(0, this._surroundInflight - 1);
+              this._drainSurround();
+            });
+        }
+      }
+
       _updateFocusBounds(bbox) {
         const centerLon = this._wrapLonNear(0, (bbox.lonMin + bbox.lonMax) * 0.5);
         const lonMinWrapped = this._wrapLonNear(centerLon, bbox.lonMin);
@@ -7796,8 +8634,181 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         this.focusTexture.needsUpdate = true;
       }
 
+      // CTX-UPGRADE v2: GLOBAL tone solve (Brown & Lowe gain compensation, as
+      // in OpenCV's detail::GainCompensator). The v1 greedy matcher sampled
+      // the EVOLVING canvas and matched each tile to already-corrected
+      // neighbours - instrumentation showed the classic failure: gains
+      // cascading 1.04 -> 1.17 across the view (positive feedback), and the
+      // corrected/raw wavefront regenerating seams as fast as it closed them
+      // (boundary step stuck ~3). v2 measures pairwise edge brightness from
+      // the SOURCE images once per tile, then solves every resident tile's
+      // gain simultaneously:
+      //   minimise  Sum_pairs (g_i*s_ij - g_j*s_ji)^2 + lambda*Sum_i (g_i-1)^2
+      // via Gauss-Seidel sweeps. The lambda anchor makes drift impossible;
+      // adjacent tiles meet near their mutual mean instead of one chasing the
+      // other. Residual per-edge offsets are feathered SYMMETRICALLY at draw
+      // time (each side ramps halfway to the shared midline).
+      _tileEdgeStats(key, image) {
+        if (!this._toneStats) this._toneStats = new Map();
+        let stats = this._toneStats.get(key);
+        if (stats) return stats;
+        const iw = image.width;
+        const ih = image.height;
+        if (!iw || !ih) return null;
+        if (!this._toneProbeCanvas) {
+          this._toneProbeCanvas = document.createElement("canvas");
+          this._toneProbeCanvas.width = 32;
+          this._toneProbeCanvas.height = 32;
+          this._toneProbeCtx = this._toneProbeCanvas.getContext("2d", { willReadFrequently: true });
+        }
+        const probe = this._toneProbeCtx;
+        // CTX-UPGRADE v4: two statistics per edge — the means of the darker
+        // and brighter halves of 32 samples. A single mean cannot separate a
+        // multiplicative mismatch from an additive one (one equation, two
+        // unknowns); lo/hi pins the affine map v' = g*v + b at two operating
+        // points, which is what makes the bias term solvable.
+        const edgeStats = (sx, sy, sw, sh) => {
+          probe.clearRect(0, 0, 32, 1);
+          probe.drawImage(image, sx, sy, sw, sh, 0, 0, 32, 1);
+          const d = probe.getImageData(0, 0, 32, 1).data;
+          const vals = [];
+          for (let i = 0; i < d.length; i += 4) vals.push((d[i] + d[i + 1] + d[i + 2]) / 3);
+          vals.sort((a, b) => a - b);
+          let lo = 0;
+          let hi = 0;
+          for (let i = 0; i < 16; i += 1) { lo += vals[i]; hi += vals[16 + i]; }
+          return { lo: lo / 16, hi: hi / 16 };
+        };
+        stats = {
+          left: edgeStats(0, 0, 2, ih),
+          right: edgeStats(iw - 2, 0, 2, ih),
+          top: edgeStats(0, 0, iw, 2),
+          bottom: edgeStats(0, ih - 2, iw, 2),
+        };
+        if (this._toneStats.size > 3000) this._toneStats.clear();
+        this._toneStats.set(key, stats);
+        return stats;
+      }
+
+      // Same-level neighbours whose SOURCE stats are known, with the facing
+      // edge pair for each (our edge, their edge).
+      _toneNeighbours(level, row, col) {
+        const nc = 1 << (level + 1);
+        const wrap = (c) => ((c % nc) + nc) % nc;
+        const out = [];
+        const push = (key, selfEdge, otherEdge) => {
+          const st = this._toneStats ? this._toneStats.get(key) : null;
+          if (st) out.push({ key, selfEdge, otherEdge, stats: st });
+        };
+        push(`${level}/${row}/${wrap(col - 1)}`, "left", "right");
+        push(`${level}/${row}/${wrap(col + 1)}`, "right", "left");
+        if (row > 0) push(`${level}/${row - 1}/${col}`, "top", "bottom");
+        if (row < (1 << level) - 1) push(`${level}/${row + 1}/${col}`, "bottom", "top");
+        return out;
+      }
+
+      // A few Gauss-Seidel sweeps over every tile with known stats at the
+      // given level. LAMBDA is in s^2 units (s = 0..255 brightness): 2500 means
+      // a tile needs consistent neighbour evidence to move its gain far from 1.
+      // Returns the largest gain change so the caller can decide whether the
+      // canvas is worth repainting.
+      _solveToneGains(level) {
+        // CTX-UPGRADE v4: AFFINE solve — per tile minimise, over both edge
+        // statistics q in {lo, hi} of every same-level neighbouring pair,
+        //   Sum ((g_i*s_ijq + b_i) - (g_j*s_jiq + b_j))^2
+        //     + Lg*(g_i-1)^2 + Lb*b_i^2
+        // Gauss-Seidel: each tile's (g_i, b_i) is the closed-form 2x2 solve
+        // holding neighbours fixed; anchors make drift impossible and demand
+        // consistent evidence before a tile moves. Whole-tile affine remains
+        // the safe operation class — uniform over the tile, cannot invent
+        // local features (the v2 "scars" lesson).
+        if (!this._toneStats || this._toneStats.size === 0) return 0;
+        if (!this._toneGain) this._toneGain = new Map();
+        const LG = 2500;   // gain anchor (s^2 units)
+        const LB = 900;    // bias anchor — ~2 well-matched edges to move 1 unit
+        const keys = [];
+        for (const key of this._toneStats.keys()) {
+          if (Number(key.split("/")[0]) === level) keys.push(key);
+        }
+        if (keys.length < 2) return 0;
+        let maxDelta = 0;
+        for (let sweep = 0; sweep < 8; sweep += 1) {
+          maxDelta = 0;
+          for (const key of keys) {
+            const parts = key.split("/").map(Number);
+            const self = this._toneStats.get(key);
+            // Accumulate normal equations for (g, b):
+            //   [Sgg Sg] [g]   [Sgt]
+            //   [Sg  Sn] [b] = [St ]
+            let Sgg = LG;
+            let Sg = 0;
+            let Sn = LB;
+            let Sgt = LG; // anchor pulls g toward 1
+            let St = 0;   // anchor pulls b toward 0
+            for (const nb of this._toneNeighbours(parts[0], parts[1], parts[2])) {
+              const eSelf = self[nb.selfEdge];
+              const eOther = nb.stats[nb.otherEdge];
+              if (!eSelf || !eOther) continue;
+              const other = this._toneGain.get(nb.key) || { g: 1, b: 0 };
+              for (const q of ["lo", "hi"]) {
+                const s = eSelf[q];
+                const t = other.g * eOther[q] + other.b; // neighbour's corrected value
+                if (s < 5 || eOther[q] < 5) continue;
+                Sgg += s * s;
+                Sg += s;
+                Sn += 1;
+                Sgt += s * t;
+                St += t;
+              }
+            }
+            const det = Sgg * Sn - Sg * Sg;
+            if (Math.abs(det) < 1e-6) continue;
+            let g = (Sgt * Sn - Sg * St) / det;
+            let b = (Sgg * St - Sg * Sgt) / det;
+            g = Math.min(1.25, Math.max(0.8, g));
+            b = Math.min(18, Math.max(-18, b));
+            const prev = this._toneGain.get(key) || { g: 1, b: 0 };
+            const change = Math.abs(g - prev.g) + Math.abs(b - prev.b) / 128;
+            if (change > maxDelta) maxDelta = change;
+            this._toneGain.set(key, { g, b });
+          }
+        }
+        if (this._toneGain.size > 3000) {
+          for (const key of this._toneGain.keys()) {
+            if (!this._toneStats.has(key)) this._toneGain.delete(key);
+          }
+        }
+        return maxDelta;
+      }
+
       _drawFocusTile(level, row, col, image, focusState) {
         if (!focusState || focusState.version !== this._focusVersion) {
+          return;
+        }
+        // CTX-UPGRADE: a closed ImageBitmap (evicted + freed while a fetch
+        // closure still held it) reports width 0 and would throw in drawImage.
+        if (!image || !image.width) {
+          return;
+        }
+        // FLIGHT-SIM: never paint a focus tile COARSER than the surround
+        // already provides. Ancestor substitution walks down to fetchMinLevel
+        // (target-4) to avoid holes, which is right in orbit where nothing lies
+        // underneath — but in flight the surround is a continuous L7/L8 blanket,
+        // so an L5 fill (333 km tiles, ~1.3 km/px against a 0.93 km/px screen)
+        // is strictly worse than the surround it covers. MEASURED at 80 km: 47
+        // of 162 resolved focus tiles came back at L5, smeared over perfectly
+        // good L7 surround. That is the "higher resolution tiles strangled by
+        // the lower resolution L6-7 tiles" report. Dropping them lets the
+        // surround show through instead of blurring it.
+        // Allow ONE level below the surround: that is the ancestor rung the
+        // fallback chain legitimately lands on when the requested level is dead
+        // locally, and rejecting it left the view blank above 75 km where the
+        // requested level equals the surround. Anything coarser than that is
+        // still dropped — an L5 fill over an L7 surround is strictly worse than
+        // the surround it covers, which was the original point of this guard.
+        if (window.__flightSim?.active
+          && Number.isFinite(this._surroundLevel)
+          && level < this._surroundLevel - 1) {
           return;
         }
         // Sequential multi-resolution guard: prevent a coarser tile that arrives late
@@ -7827,11 +8838,73 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         const bbox = focusState.bbox;
         const lonSpan = Math.max(bbox.lonMax - bbox.lonMin, 1e-4);
         const latSpan = Math.max(bbox.latMax - bbox.latMin, 1e-4);
-        const drawX = ((tile.lonMin - bbox.lonMin) / lonSpan) * this.focusCanvas.width;
-        const drawY = ((bbox.latMax - tile.latMax) / latSpan) * this.focusCanvas.height;
-        const drawW = ((tile.lonMax - tile.lonMin) / lonSpan) * this.focusCanvas.width;
-        const drawH = ((tile.latMax - tile.latMin) / latSpan) * this.focusCanvas.height;
-        this.focusContext.drawImage(image, drawX, drawY, drawW, drawH);
+        // CTX-UPGRADE: SEAM-FREE compositing. Adjacent tiles share identical
+        // boundary longitudes/latitudes, but drawing at the resulting
+        // FRACTIONAL pixel coordinates lets the smoothing filter antialias
+        // each tile's edge independently — two half-covered pixel columns on
+        // either side of the shared boundary that don't sum to full opacity,
+        // visible as a grid of hairlines. Snapping each EDGE to an integer
+        // (rather than snapping x and width separately) guarantees neighbours
+        // compute the exact same boundary pixel: this tile's x1 IS the next
+        // tile's x0, so the grid closes with zero gap and zero overlap.
+        const W = this.focusCanvas.width;
+        const H = this.focusCanvas.height;
+        const x0 = Math.round(((tile.lonMin - bbox.lonMin) / lonSpan) * W);
+        const x1 = Math.round(((tile.lonMax - bbox.lonMin) / lonSpan) * W);
+        const y0 = Math.round(((bbox.latMax - tile.latMax) / latSpan) * H);
+        const y1 = Math.round(((bbox.latMax - tile.latMin) / latSpan) * H);
+        if (x1 <= x0 || y1 <= y0) {
+          return; // sub-pixel tile — nothing drawable at this canvas scale
+        }
+        // CTX-UPGRADE: GAIN COMPENSATION — tone-match each tile to its already
+        // painted neighbours (the panorama-stitching approach; Brown & Lowe).
+        // Measured at Olympus Mons: adjacent SAME-level source tiles differ in
+        // mean brightness by ~7 % (boundary step 17.8/255 vs 0.94 within
+        // tiles) because Esri's mosaic stitches different CTX orbital swaths
+        // with different exposures — a geometric fix cannot hide that. Before
+        // drawing, compare this tile's edge brightness (sampled from the
+        // image) against the canvas pixels just outside each edge, and apply
+        // the ratio as a uniform brightness() filter. Tiles draw center-out,
+        // so tone propagates from the view centre; the clamp bounds cascade
+        // drift, and re-draws converge (each pass matches the blended state).
+        if (this._toneMatchSupported === undefined) {
+          this._toneMatchSupported = typeof this.focusContext.filter === "string";
+        }
+        // CTX-UPGRADE v3: GAIN-ONLY tone correction. v2 added per-edge feather
+        // ramps ('lighter'/'multiply' gradients) on top of the global gain
+        // solve — REMOVED after field testing: a ramp applies its edge's MEAN
+        // offset uniformly along the whole edge, and at wide views a tile
+        // edge spans hundreds of km of heterogeneous terrain, so the "fix"
+        // painted synthetic bright/dark bars ("scars") into the imagery.
+        // A whole-tile multiplicative gain is the safe subset: it rescales
+        // real content uniformly and structurally CANNOT invent local
+        // features. Trade-off accepted: boundary steps reduce ~5x (17.8 -> ~3
+        // measured) rather than fully vanishing — correctness over polish.
+        let g = 1;
+        let b = 0;
+        if (this._toneMatchSupported) {
+          const statsKey = `${level}/${row}/${col}`;
+          if (this._tileEdgeStats(statsKey, image)) {
+            const tone = this._toneGain?.get(statsKey);
+            if (tone) { g = tone.g; b = tone.b; }
+          }
+          if (Math.abs(g - 1) < 0.004) g = 1;
+          if (Math.abs(b) < 0.75) b = 0;
+        }
+        if (g !== 1 || b !== 0) {
+          // CTX-UPGRADE v4: exact whole-tile affine v' = g*v + b via CSS
+          // filter composition. contrast(c) pivots at 128: v -> (v-128)*c+128,
+          // so brightness(beta) then contrast(c) yields beta*c*v + 128*(1-c).
+          // Solving for target (g, b): c = 1 - b/128, beta = g/c. Both filters
+          // run on the GPU; uniform over the tile, so no local artefacts.
+          const c = Math.min(1.5, Math.max(0.5, 1 - b / 128));
+          const beta = g / c;
+          this.focusContext.filter = `brightness(${beta.toFixed(4)}) contrast(${c.toFixed(4)})`;
+          this.focusContext.drawImage(image, x0, y0, x1 - x0, y1 - y0);
+          this.focusContext.filter = "none";
+        } else {
+          this.focusContext.drawImage(image, x0, y0, x1 - x0, y1 - y0);
+        }
         // Register fine tiles so subsequent coarser-tile arrivals can detect the overlap.
         if (Number.isFinite(trackLevel) && level >= trackLevel) {
           if (!this._tilePaintLevel) this._tilePaintLevel = new Map();
@@ -7841,8 +8914,55 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           if ((this._tilePaintLevel.get(key) || 0) < level) {
             this._tilePaintLevel.set(key, level);
           }
+        } else if (Number.isFinite(trackLevel) && trackLevel - level <= 4) {
+          // CTX-UPGRADE: register ancestor draws too (bounded at ≤4 levels =
+          // ≤256 tracked cells per draw). With ancestor substitution, two
+          // neighbouring tiles can resolve to DIFFERENT ancestor levels; if
+          // only fine tiles were registered, a later, coarser ancestor would
+          // overwrite an earlier, finer one where they overlap. Recording every
+          // draw keeps the whole canvas monotonically coarse→fine regardless
+          // of network arrival order. Deeper ancestors (delta > 4) skip
+          // registration — they are the global L0-2 base drawn first anyway,
+          // and tracking them would cost tens of thousands of map entries.
+          if (!this._tilePaintLevel) this._tilePaintLevel = new Map();
+          const delta = trackLevel - level;
+          const refNc = 1 << (trackLevel + 1);
+          const refNr = 1 << trackLevel;
+          const rEnd2 = Math.min(((row + 1) << delta) - 1, refNr - 1);
+          for (let r = row << delta; r <= rEnd2; r++) {
+            for (let c = col << delta; c <= ((col + 1) << delta) - 1; c++) {
+              const wc2 = ((c % refNc) + refNc) % refNc;
+              const cellKey = `${r}/${wc2}`;
+              if ((this._tilePaintLevel.get(cellKey) || 0) < level) {
+                this._tilePaintLevel.set(cellKey, level);
+              }
+            }
+          }
         }
+        // FLIGHT-SIM: mark dirty, do not upload here. Every tile draw used to
+        // set `needsUpdate`, and three.js then re-uploads the WHOLE canvas on
+        // the next render — 3584x4096 = 14.7 Mpx = **59 MB per upload**. With
+        // tiles landing continuously that is up to 60 uploads/s = 3.5 GB/s of
+        // PCIe traffic, which is the lag at altitude. It is a GPU bandwidth
+        // problem, not a download problem: at 200 km the fetch queue drains to
+        // zero and it is still laggy. Batching the uploads to ~8/s is
+        // imperceptible (tiles appear in small groups instead of one at a time)
+        // and cuts that traffic by roughly 7x.
+        if (window.__flightSim?.active) {
+          this._focusTexDirty = true;
+        } else {
+          this.focusTexture.needsUpdate = true;
+        }
+      }
+
+      // Flushed from the render loop; see _drawFocusTile for why.
+      flushFocusTexture(nowMs) {
+        if (!this._focusTexDirty) return;
+        const last = this._focusTexUploadedAt || 0;
+        if (nowMs - last < 120) return;
         this.focusTexture.needsUpdate = true;
+        this._focusTexDirty = false;
+        this._focusTexUploadedAt = nowMs;
       }
 
       _pruneImageCache() {
@@ -7855,6 +8975,13 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           const next = keys.next();
           if (next.done) {
             break;
+          }
+          // CTX-UPGRADE: explicit free. ImageBitmap pixels are off-heap and
+          // GC reclaims them lazily — close() returns the memory immediately,
+          // which is what keeps the cache cap a real bound instead of a hint.
+          const evicted = this._tileImageCache.get(next.value);
+          if (evicted && typeof evicted.close === "function") {
+            try { evicted.close(); } catch (_) {}
           }
           this._tileImageCache.delete(next.value);
         }
@@ -7952,6 +9079,17 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       }
 
       async _decodeTileBlob(blob) {
+        // CTX-UPGRADE: prefer createImageBitmap — pixels live off the JS heap
+        // (the cached tile store stops counting against GC pressure), decode
+        // happens off the main thread, and drawImage of a bitmap is the fast
+        // path. Falls back to the <img> route on browsers without it.
+        if (typeof createImageBitmap === "function") {
+          try {
+            return await createImageBitmap(blob);
+          } catch (_) {
+            // Fall through to the <img> decoder (e.g. malformed-but-renderable JPEGs).
+          }
+        }
         return await new Promise((resolve, reject) => {
           const objectUrl = URL.createObjectURL(blob);
           const img = new Image();
@@ -8009,19 +9147,55 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       // Fetch a tile image. The Service Worker (sw-ctx-tiles.js) intercepts these
       // requests and serves cached responses from the Cache API on revisit —
       // making previously-seen tiles effectively instant without any JS overhead.
-      async _fetchImage(level, row, col, signal = undefined) {
+      // `probe` (optional) reports back whether this call actually reached the
+      // network. A tile suppressed by its failure cooldown returns null having
+      // spent no request at all — the caller must not read that as evidence the
+      // server is unhealthy.
+      async _fetchImage(level, row, col, signal = undefined, probe = undefined) {
         const key = `${level}/${row}/${col}`;
-        if (this._tileImageCache.has(key)) return this._tileImageCache.get(key);
+        // CTX-UPGRADE: REQUEST COALESCING. Neighbouring tiles falling back to
+        // the same parent, plus focus (6) and surround (3) fetching in
+        // parallel, used to fetch the SAME tile several times concurrently
+        // (measured: 171 duplicate fetches in ~30 s of cruise) — waste that
+        // crowds the 6 connections and slows every real tile. One in-flight
+        // promise per key; concurrent callers share it.
+        if (this._imageFetchInflight && this._imageFetchInflight.has(key)) {
+          if (probe) probe.attempted = true; // joining a live request IS an attempt
+          return this._imageFetchInflight.get(key);
+        }
+        if (this._tileImageCache.has(key)) {
+          // CTX-UPGRADE: LRU touch. _pruneImageCache evicts in Map insertion
+          // order; without re-insertion on hit that is FIFO — under flight
+          // churn (~15 tiles/s across focus+surround) the cache turned over
+          // every ~50 s and evicted fine tiles STILL ON SCREEN, so the next
+          // window remap couldn't repaint them and the patch fell back to
+          // surround blur until refetch: the "fine tiles flicker out" report.
+          const hit = this._tileImageCache.get(key);
+          this._tileImageCache.delete(key);
+          this._tileImageCache.set(key, hit);
+          return hit;
+        }
         const failedUntil = this._failedUntil.get(key) || 0;
         if (failedUntil > performance.now()) return null;
         const url = this._isProxyTileBase()
           ? `${this.TILE_BASE}/${level}/${row}/${col}?blankTile=true`
           : `${this.TILE_BASE}/${level}/${row}/${col}`;
+        if (probe) probe.attempted = true; // a request is about to go on the wire
+        if (!this._imageFetchInflight) this._imageFetchInflight = new Map();
+        // CTX-UPGRADE: the SHARED fetch must not carry any single caller's
+        // abort signal — near the surface the refresh cadence (and therefore
+        // retire/watchdog abort churn) is highest, and a first caller's abort
+        // was nulling the shared promise for every coalesced caller: tiles
+        // came back null, chains fell back coarse, and close-to-surface
+        // streaming appeared dead. The shared fetch runs to completion and
+        // caches; callers that lost interest simply discard the result (the
+        // drain paths re-check version/state anyway), and the fallback chain
+        // remains abortable between rungs via its own signal checks.
+        const fetchPromise = (async () => {
         try {
           const response = await fetch(url, {
             cache: "default",
             mode: "cors",
-            signal,
           });
           const contentType = String(response.headers.get("Content-Type") || "").toLowerCase();
           const upstreamStatus = Number(response.headers.get("X-CTX-Upstream-Status") || response.status || 0);
@@ -8033,6 +9207,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
               performance.now() + this._getTileFailureCooldownMs(upstreamStatus || response.status || 0),
             );
             this._noteServerFailureCap(level, row, col, upstreamStatus || response.status || 0);
+            if ((upstreamStatus || 0) >= 500) this._noteLevelRegionFailure(level, row, col);
             return null;
           }
           if (this._isProxyTileBase() && !contentType.startsWith("image/")) {
@@ -8048,6 +9223,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
             this._failedStatus.set(key, response.status);
             this._failedUntil.set(key, performance.now() + this._getTileFailureCooldownMs(response.status));
             this._noteServerFailureCap(level, row, col, response.status);
+            if (response.status >= 500) this._noteLevelRegionFailure(level, row, col);
             return null;
           }
           const blob = await response.blob();
@@ -8059,6 +9235,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           }
           this._failedUntil.delete(key);
           this._failedStatus.delete(key);
+          this._noteLevelRegionSuccess(level, row, col);
           this._tileImageCache.set(key, image);
           this._pruneImageCache();
           return image;
@@ -8072,11 +9249,33 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           const status = this._failedStatus.get(key) || 0;
           const cooldownMs = this._getTileFailureCooldownMs(status || 0);
           this._failedUntil.set(key, performance.now() + cooldownMs);
+          // CTX-UPGRADE: an opaque failure on the direct path is almost always
+          // a CORS-masked server 5xx — count it toward the LEVEL-EXACT
+          // dead-region memory (safe: exact level only, 6-strikes, 5-min TTL).
+          if (navigator.onLine !== false) this._noteLevelRegionFailure(level, row, col);
+          // CTX-UPGRADE note (reverted experiment): do NOT feed
+          // _noteServerFailureCap from opaque failures, and do NOT start the
+          // fallback chain from _getTileLevelCap. Those caps encode a
+          // MONOTONIC assumption ("nothing finer than X exists in this
+          // branch") but the CTX pyramid is NON-monotonic — a dead L7 with
+          // alive L10-L12 above it is common — so consulting them collapsed
+          // fine views to the base level for hours ("no tiles mapped").
+          // The per-tile _failedUntil cooldown above already prevents
+          // re-hammering dead tiles (zero network requests for 60-120 s),
+          // which is all the "stop refetching dead levels" behaviour that is
+          // actually CORRECT to have.
           return null;
+        }
+        })();
+        this._imageFetchInflight.set(key, fetchPromise);
+        try {
+          return await fetchPromise;
+        } finally {
+          this._imageFetchInflight.delete(key);
         }
       }
 
-      async _fetchTilePayloadWithFallback(level, row, col, minLevel = this.MIN_LEVEL, signal = undefined) {
+      async _fetchTilePayloadWithFallback(level, row, col, minLevel = this.MIN_LEVEL, signal = undefined, probe = undefined) {
         let currentLevel = level;
         let currentRow = row;
         let currentCol = col;
@@ -8085,7 +9284,26 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           if (signal?.aborted) {
             return null;
           }
-          const image = await this._fetchImage(currentLevel, currentRow, currentCol, signal);
+          // CTX-UPGRADE: skip a level PROVEN dead in this region (level-exact,
+          // 6-strikes, 5-min TTL) without spending a network round trip. In a
+          // dead-level region every tile used to walk 2-3 failing rungs
+          // (~300 ms each, CORS-masked on the direct path) before reaching the
+          // level that works — across a padded grid that multiplied into
+          // minutes of nothing rendering.
+          if (currentLevel > minLevel) {
+            const bounds = this._getTileBounds(currentLevel, currentRow, currentCol);
+            if (this._isLevelRegionDead(currentLevel, (bounds.latMin + bounds.latMax) / 2, (bounds.lonMin + bounds.lonMax) / 2)) {
+              const nextLevel = this._getNextLowerCtxLevel(currentLevel, minLevel);
+              if (nextLevel !== currentLevel) {
+                const delta = currentLevel - nextLevel;
+                currentLevel = nextLevel;
+                currentRow = Math.floor(currentRow / (1 << delta));
+                currentCol = Math.floor(currentCol / (1 << delta));
+                continue;
+              }
+            }
+          }
+          const image = await this._fetchImage(currentLevel, currentRow, currentCol, signal, probe);
           if (image) {
             return {
               image,
@@ -8116,6 +9334,10 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         const altitude = Number.isFinite(meta.altitude) ? meta.altitude : Infinity;
         const caps = {
           7: 1024,
+          // CTX-UPGRADE v4: L8 previously fell to the 512 default, which the
+          // padded full-view bbox (~520 tiles) just exceeds — the budget loop
+          // would coarsen the whole overlay one level for the sake of 8 tiles.
+          8: 1024,
           9: 900,
           11: 512,
           12: 512,
@@ -8126,6 +9348,11 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           17: 196,
         };
         let maxTiles = this.MAX_FOCUS_TILES;
+        // FLIGHT-SIM: MAX_FOCUS_TILES is a hard 512 ceiling that would otherwise
+        // silently cap the expansive high-altitude disc back to a small one.
+        if (window.__flightSim?.active && this._flightBudgetOverride) {
+          maxTiles = this._flightBudgetOverride;
+        }
         if (level === 15) {
           maxTiles = Math.max(maxTiles, 900);
         }
@@ -8172,18 +9399,40 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           this.focusTexture.needsUpdate = true;
           return;
         }
+        // CTX-UPGRADE: the pause guard must run FIRST, and must not strand the
+        // view. It used to sit AFTER the version bump + queue retire, so a
+        // refresh arriving during a pause (set for 500 ms whenever a round
+        // fills the tile budget — routine now that wide-view bboxes are
+        // padded, and 30 s after an all-failed round) would WIPE the round
+        // that was still loading, enqueue nothing, and return — and because
+        // the ladder had already recorded this view's focus key, no retry ever
+        // fired until the camera moved enough to change the quantised key.
+        // Symptoms: zooming in "fails to fetch the new level", panning to a
+        // new area "fails/slow after the first location". Checking first
+        // leaves the in-flight round untouched, and clearing _lastFocusKey
+        // makes the ladder re-attempt every settled frame until the pause
+        // lapses — a cheap no-op retry instead of a stranded view.
+        if (performance.now() < this._focusEnqueuePausedUntil) {
+          this._lastFocusKey = "";
+          return;
+        }
         this._focusVersion += 1;
+        // Kept across a pure translate below — the keys are tile indices, i.e.
+        // geographic, so they stay valid when the window merely slides.
+        const prevPaintLevelMap = this._tilePaintLevel;
         this._tilePaintLevel = null;
         this._tilePaintTrackLevel = Number.isFinite(meta.microLevel) ? meta.microLevel : null;
         const version = this._focusVersion;
         const focusShiftDeg = this._focusAnchorShiftDeg(bbox);
         const hadActiveFocus = this._focusDisplayState.active;
         const prevLevel = this._focusDisplayState.level;
-        this._abortFocusFetches();
+        // CTX-UPGRADE: retire (drop queued, keep still-relevant in-flight)
+        // instead of aborting everything — see _retireFocusFetches.
+        this._retireFocusFetches(bbox);
         this._focusRoundSuccesses = 0;
-        if (performance.now() < this._focusEnqueuePausedUntil) {
-          return;
-        }
+        this._focusRoundFailures = 0;
+        this._focusRoundCompletions = 0;
+        this._focusRoundSuppressed = 0;
         if (focusShiftDeg > Math.max(0.35, Math.min(
           this._focusResolvedAnchor?.lonSpan || Infinity,
           this._focusResolvedAnchor?.latSpan || Infinity,
@@ -8194,7 +9443,36 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         let boundedLevel = this._estimateLocalFocusLevel(focusLevel, bbox);
         let tileRange = this._getFocusTileRange(boundedLevel, bbox);
         const maxFocusTiles = this._getMaxFocusTiles(boundedLevel, meta);
-        while (tileRange.tileCount > maxFocusTiles && boundedLevel > minLevel) {
+        // FLIGHT-SIM: the forward semicircle. Declared here because the budget
+        // must count the tiles we will actually REQUEST, not the whole bounding
+        // box — the box is deliberately larger than the disc it encloses, and
+        // budgeting it would coarsen the level for corners we never fetch.
+        const fwdDisc = window.__flightSim?.active ? this._flightForwardDisc : null;
+        const insideForwardDisc = (level, row, col) => {
+          if (!fwdDisc) return true;
+          const tb = this._getTileBounds(level, row, col);
+          let dLon = (tb.lonMin + tb.lonMax) / 2 - fwdDisc.lon;
+          if (dLon > 180) dLon -= 360; else if (dLon < -180) dLon += 360;
+          const rx = dLon * 59.3 * fwdDisc.cosLat;
+          const ry = ((tb.latMin + tb.latMax) / 2 - fwdDisc.lat) * 59.3;
+          // Stationary (ux=uy=0) degrades to a full disc, which is right when
+          // there is no heading to face.
+          if (rx * fwdDisc.ux + ry * fwdDisc.uy < -fwdDisc.backKm) return false;
+          return Math.hypot(rx, ry) <= fwdDisc.radiusKm + fwdDisc.backKm;
+        };
+        const effectiveTileCount = (level, range) => {
+          if (!fwdDisc) return range.tileCount;
+          if (range.tileCount > 6000) return range.tileCount;
+          let n = 0;
+          for (let row = range.rMin; row <= range.rMax; row += 1) {
+            for (let col = range.cMin; col <= range.cMax; col += 1) {
+              const wc = ((col % range.nc) + range.nc) % range.nc;
+              if (insideForwardDisc(level, row, wc)) n += 1;
+            }
+          }
+          return n;
+        };
+        while (effectiveTileCount(boundedLevel, tileRange) > maxFocusTiles && boundedLevel > minLevel) {
           const nextLevel = this._getNextLowerCtxLevel(boundedLevel, minLevel);
           if (nextLevel === boundedLevel) {
             break;
@@ -8202,19 +9480,25 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           boundedLevel = nextLevel;
           tileRange = this._getFocusTileRange(boundedLevel, bbox);
         }
-        if (tileRange.tileCount > maxFocusTiles) {
+        if (!fwdDisc && tileRange.tileCount > maxFocusTiles) {
           const cappedBbox = this._computeBudgetBbox(boundedLevel, bbox, meta.focusTarget, maxFocusTiles);
           if (cappedBbox) {
             bbox = cappedBbox;
             tileRange = this._getFocusTileRange(boundedLevel, bbox);
           }
         }
-        if (tileRange.tileCount > maxFocusTiles * 1.25) {
+        if (effectiveTileCount(boundedLevel, tileRange) > maxFocusTiles * 1.25) {
           this._focusDisplayState = { active: false, level: 0, tileCount: 0 };
           return;
         }
         this._focusResolvedAnchor = this._focusAnchorForBbox(bbox);
         this._focusState = { bbox: { ...bbox }, level: boundedLevel, version, meta: { ...meta } };
+        // CTX-UPGRADE: the coarse→fine paint guard must be armed for the MAIN
+        // pass, not just the micro pass — with ancestor substitution, draws at
+        // several levels interleave and arrival order is network-determined.
+        if (!Number.isFinite(this._tilePaintTrackLevel)) {
+          this._tilePaintTrackLevel = boundedLevel;
+        }
         const cappedTileCount = Math.min(tileRange.tileCount, maxFocusTiles);
         this._focusDisplayState = { active: true, level: boundedLevel, tileCount: cappedTileCount };
         window.__ctxDebug = {
@@ -8243,16 +9527,96 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           focusLayerInflight: this._focusInflight,
           focusLayerQueue: this._focusQueue.length,
         };
+        // FLIGHT-SIM: did the window actually translate? When it does, every
+        // pixel already on the canvas now represents DIFFERENT ground, because
+        // the canvas is mapped to the bbox. Left alone those stale pixels read
+        // as the whole map sliding — "tiles keep shifting". The instant-repaint
+        // pass below redraws every cached tile into the new bbox, so clearing
+        // first is safe and is what keeps the imagery geographically anchored.
+        const prevBboxF = this._focusState && this._focusState.bbox;
+        const bboxMoved = Boolean(prevBboxF) && (
+          prevBboxF.lonMin !== bbox.lonMin || prevBboxF.lonMax !== bbox.lonMax
+          || prevBboxF.latMin !== bbox.latMin || prevBboxF.latMax !== bbox.latMax);
         const keepPrevious = Boolean(meta.keepPreviousOnUpgrade);
         this._resizeFocusCanvasForTileRange(tileRange, keepPrevious);
+        // FLIGHT-SIM: SCROLL, DON'T REBUILD. The focus canvas is MAPPED to the
+        // bbox, so when the window slides every painted pixel would refer to
+        // different ground. Clearing and repainting each slide (~2x/sec at
+        // cruise) is what made tiles "flicker and reshuffle": anything not
+        // still in the decoded cache fell back to the coarse layer and then
+        // popped back to fine. Because the bbox is tile-quantised and the disc
+        // radius is fixed per level, a slide is an exact whole-tile offset —
+        // so the existing pixels can simply be SHIFTED, losslessly, and stay
+        // welded to the ground they came from. Only the newly exposed strip is
+        // ever unpainted, and the repaint below fills that.
+        const spanLonNew = bbox.lonMax - bbox.lonMin;
+        const spanLatNew = bbox.latMax - bbox.latMin;
+        const sameSpanF = Boolean(prevBboxF)
+          && Math.abs((prevBboxF.lonMax - prevBboxF.lonMin) - spanLonNew) < 1e-9
+          && Math.abs((prevBboxF.latMax - prevBboxF.latMin) - spanLatNew) < 1e-9;
+        const flightSlide = Boolean(window.__flightSim?.active)
+          && bboxMoved && sameSpanF && hadActiveFocus && prevLevel === boundedLevel;
         const shouldClear = !hadActiveFocus
           || (!keepPrevious && boundedLevel !== prevLevel)
           || (keepPrevious && focusShiftDeg > 0.8)
-          || (!keepPrevious && focusShiftDeg > 0.6);
+          || (!keepPrevious && focusShiftDeg > 0.6)
+          || (window.__flightSim?.active && bboxMoved && !flightSlide);
         if (shouldClear) {
           this.focusContext.clearRect(0, 0, this.focusCanvas.width, this.focusCanvas.height);
+        } else if (flightSlide) {
+          const Wc = this.focusCanvas.width;
+          const Hc = this.focusCanvas.height;
+          const dxPix = Math.round(((prevBboxF.lonMin - bbox.lonMin) / spanLonNew) * Wc);
+          const dyPix = Math.round(((bbox.latMax - prevBboxF.latMax) / spanLatNew) * Hc);
+          if (dxPix !== 0 || dyPix !== 0) {
+            if (Math.abs(dxPix) >= Wc || Math.abs(dyPix) >= Hc) {
+              this.focusContext.clearRect(0, 0, Wc, Hc);
+            } else {
+              let scratch = this._focusScrollScratch;
+              if (!scratch) scratch = this._focusScrollScratch = document.createElement("canvas");
+              if (scratch.width !== Wc || scratch.height !== Hc) { scratch.width = Wc; scratch.height = Hc; }
+              const sctx = scratch.getContext("2d");
+              sctx.clearRect(0, 0, Wc, Hc);
+              sctx.drawImage(this.focusCanvas, 0, 0);
+              this.focusContext.clearRect(0, 0, Wc, Hc);
+              this.focusContext.drawImage(scratch, dxPix, dyPix);
+            }
+          }
+          // The painted record is geographic (tile indices), so it survives the
+          // slide and keeps protecting fine pixels from coarse arrivals.
+          if (prevPaintLevelMap) this._tilePaintLevel = prevPaintLevelMap;
         }
         this._updateFocusBounds(bbox);
+
+        // CTX-UPGRADE: INSTANT REPAINT FROM CACHE — the heart of "seamless as
+        // you zoom in and out". Before any network work, synchronously paint
+        // every decoded tile we already hold that intersects the new bbox,
+        // walking coarse→fine so finer data always wins. Zooming out repaints
+        // the wider view from ancestors immediately (no flash to the base
+        // texture); zooming back in restores the fine tiles from the last
+        // visit at zero network cost. Levels below boundedLevel−5 contribute
+        // nothing visible at this scale and are skipped; the per-level range
+        // guard keeps the walk O(visible tiles), not O(cache).
+        {
+          const repaintStart = Math.max(this.MIN_LEVEL, boundedLevel - 5);
+          for (let lvl = repaintStart; lvl <= boundedLevel; lvl += 1) {
+            const range = this._getFocusTileRange(lvl, bbox);
+            if (range.tileCount > 1400) continue;
+            for (let row = range.rMin; row <= range.rMax; row += 1) {
+              for (let col = range.cMin; col <= range.cMax; col += 1) {
+                const wc = ((col % range.nc) + range.nc) % range.nc;
+                const cKey = `${lvl}/${row}/${wc}`;
+                const cached = this._tileImageCache.get(cKey);
+                if (cached) {
+                  // LRU touch — a repainted tile is a USED tile.
+                  this._tileImageCache.delete(cKey);
+                  this._tileImageCache.set(cKey, cached);
+                  this._drawFocusTile(lvl, row, wc, cached, this._focusState);
+                }
+              }
+            }
+          }
+        }
 
         let enqueued = 0;
         for (let row = tileRange.rMin; row <= tileRange.rMax; row += 1) {
@@ -8261,8 +9625,20 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
               break;
             }
             const wrappedCol = ((col % tileRange.nc) + tileRange.nc) % tileRange.nc;
+            if (!insideForwardDisc(boundedLevel, row, wrappedCol)) {
+              continue;
+            }
             const key = `${boundedLevel}/${row}/${wrappedCol}`;
             if (this._focusImageCache.get(key) === version) {
+              continue;
+            }
+            // CTX-UPGRADE: tiles the repaint pass just painted from cache need
+            // no fetch at all — record them as natively resolved (feeds the
+            // auto up/downgrade) and keep the 6 connection slots for tiles we
+            // genuinely don't have.
+            if (this._tileImageCache.has(key)) {
+              this._focusResolvedLevels.set(key, boundedLevel);
+              this._focusImageCache.set(key, version);
               continue;
             }
             this._focusImageCache.set(key, version);
@@ -8286,6 +9662,59 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           if (enqueued >= maxFocusTiles) {
             break;
           }
+        }
+        // CTX-UPGRADE: center-out priority. Row-major order loaded the top
+        // edge of the view first — the user watches the middle. With only 6
+        // real connections, ordering is what the eye perceives as speed:
+        // sorting by distance from the bbox center makes the area under the
+        // crosshair sharpen first and the corners last.
+        if (this._focusQueue.length > 1) {
+          let centerLon = (bbox.lonMin + bbox.lonMax) / 2;
+          let centerLat = (bbox.latMin + bbox.latMax) / 2;
+          // FLIGHT-SIM: fill outward from a point AHEAD of the ship.
+          // MEASURED constraint: a 45 km L12 half-disc is 471 tiles, ~31 s at
+          // the 15 tiles/s transport ceiling, during which a 9.6 km/s ship
+          // travels ~300 km. The disc therefore NEVER completes at cruise —
+          // only the first-fetched tiles ever land, so the sort origin alone
+          // decides where the detail appears. Sorting from the ship put every
+          // fetched tile directly beneath it (reported as "only mapping tiles
+          // immediately beneath the ship"); sorting from the window centre put
+          // them all in the mid-distance. Sorting from a lead point puts them
+          // where the pilot is actually flying, and because the lead scales
+          // with speed, the geometry never has to change: slow down and the
+          // whole disc fills anyway.
+          if (window.__flightSim?.active && this._flightForwardDisc) {
+            const fd = this._flightForwardDisc;
+            const spdKmS = (Number(window.__flightSim.shipSpeedDegPerSec) || 0) * 59.3;
+            // The lead must scale with the VIEW, not only with speed. A
+            // speed-only lead is ~19 km at cruise, which is right at 6 km
+            // altitude but negligible at 30-80 km where the visible ground runs
+            // hundreds of km ahead — so every fetched tile still landed under
+            // the ship and the ground in front stayed coarse. Taking a third of
+            // the disc puts the first-filled ring out in the view; because the
+            // sort is by DISTANCE FROM that ring, it then grows both forward and
+            // back toward the ship, so the near field is not stranded either.
+            const leadKm = Math.min(
+              0.6 * fd.radiusKm,
+              Math.max(10, spdKmS * 2, 0.35 * fd.radiusKm),
+            );
+            centerLon = fd.lon + (fd.ux * leadKm) / (59.3 * fd.cosLat);
+            centerLat = fd.lat + (fd.uy * leadKm) / 59.3;
+            this._flightSortLeadKm = leadKm;
+          } else if (window.__flightSim?.active) {
+            const shipG = this._flightShipGround();
+            if (shipG) {
+              centerLon = shipG.lon;
+              centerLat = shipG.lat;
+            }
+          }
+          const dist2 = (it) => {
+            const b = this._getTileBounds(it.level, it.row, it.col);
+            const dLon = (b.lonMin + b.lonMax) / 2 - centerLon;
+            const dLat = (b.latMin + b.latMax) / 2 - centerLat;
+            return dLon * dLon + dLat * dLat;
+          };
+          this._focusQueue.sort((a, b) => dist2(a) - dist2(b));
         }
         if (this._focusQueue.length >= maxFocusTiles) {
           this._focusEnqueuePausedUntil = performance.now() + 500;
@@ -8312,6 +9741,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           for (let row = rMin; row <= rMax; row += 1) {
             for (let col = cMin; col <= cMax; col += 1) {
               const wrappedCol = ((col % microRange.nc) + microRange.nc) % microRange.nc;
+              if (!insideForwardDisc(microLevel, row, wrappedCol)) {
+                continue;
+              }
               const key = `${microLevel}/${row}/${wrappedCol}`;
               if (this._focusImageCache.get(key) === version) {
                 continue;
@@ -8336,6 +9768,29 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           }
         }
         this._drainFocusQueue();
+        // CTX-UPGRADE v4: solve on CACHE-SERVED views too. The fetch-round
+        // hook only fires when network requests complete — a view painted
+        // entirely from the decoded-tile cache never triggered it, so wide
+        // views revisited from cache showed RAW unsolved plates (measured:
+        // empty gain map at L5/L7 despite full coverage). If this refresh
+        // needed no network, solve now; the per-level stats census guarantees
+        // a solved level never re-triggers, so the one-shot repaint via
+        // _lastFocusKey cannot loop.
+        if (this._toneMatchSupported && this._focusQueue.length === 0 && this._focusInflight === 0) {
+          if (!this._toneSolvedCensus) this._toneSolvedCensus = new Map();
+          let census = 0;
+          if (this._toneStats) {
+            for (const key of this._toneStats.keys()) {
+              if (Number(key.split("/")[0]) === boundedLevel) census += 1;
+            }
+          }
+          if (census >= 2 && this._toneSolvedCensus.get(boundedLevel) !== census) {
+            this._toneSolvedCensus.set(boundedLevel, census);
+            if (this._solveToneGains(boundedLevel) > 0.008) {
+              this._lastFocusKey = "";
+            }
+          }
+        }
       }
 
       _computeViewBbox(camera) {
@@ -8506,6 +9961,8 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         const { bbox, hits } = this._computeViewBbox(camera);
         if (!bbox) return;
 
+        // CTX-UPGRADE: surround layer upkeep (cheap no-op when stable/inactive).
+        this._updateSurround(bbox);
         const { latMin, latMax, lonMin, lonMax } = bbox;
         this._prevCx = cx;  this._prevCy = cy;  this._prevCz = cz;
         const nowTick = performance.now();
@@ -8534,7 +9991,10 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
 
         if (this.focusOverlayEnabled) {
           const visibleBbox = { latMin, latMax, lonMin, lonMax };
-          const focusTarget = this._computeFocusTarget(camera);
+          // FLIGHT-SIM: `let` so the flight branch below can re-anchor the
+          // focus target on the SHIP's ground point instead of the screen-
+          // centre raycast (which, in a chase view, is the horizon far ahead).
+          let focusTarget = this._computeFocusTarget(camera);
           let focusStage = focusTarget ? this._getFocusStage(camera, visibleBbox, focusTarget) : null;
           const focusBbox = (focusStage && focusTarget)
             ? (focusStage.focusBbox || this._buildRefinementBbox(visibleBbox, focusTarget, focusStage.altitude))
@@ -8553,7 +10013,12 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
             scaleDenominator: scaleEstimate?.scaleDenominator ?? null,
           };
           if (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color") {
-            const settleMs = 350;
+            // CTX-UPGRADE: 350 ms of stillness before anything streams read as
+            // "the map ignores me until I stop". 120 ms still debounces frame
+            // jitter, but streaming now starts while the camera is easing —
+            // aborts are cheap at 6 in flight, and completed fetches are never
+            // wasted (they land in the tile cache and repaint from there).
+            const settleMs = 120;
             const scaleGate = estimateBodyMapScale(camera, this._globe, MARS_RADIUS_METERS, this.GLOBE_R);
             const scaleDen = scaleGate?.scaleDenominator ?? null;
             const rawScaleBarMeters = scaleGate
@@ -8576,24 +10041,22 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
               const latSpanDeg = Math.max(0.02, (scaleGate.metersPerPixel * screenHeight) / metersPerDeg);
               approxViewBbox = this._buildFocusBboxAroundTarget(focusTarget, lonSpanDeg, latSpanDeg);
             }
-            const prevScaleBar = this._lastScaleBarMeters || null;
+            // CTX-UPGRADE: the zoom-out wipe is GONE. Clearing the whole
+            // overlay whenever the scale bar grew >35 % meant every zoom-out
+            // flashed to the base texture and re-streamed from nothing — the
+            // single biggest "not smooth" artefact. The normal refresh path
+            // below now repaints the new (wider) bbox instantly from the
+            // decoded-tile cache, coarse→fine, so pulling back keeps imagery
+            // on screen continuously; the cache cap is the memory bound the
+            // wipe used to provide by accident.
             if (Number.isFinite(rawScaleBarMeters)) {
               this._lastScaleBarMeters = rawScaleBarMeters;
-              if (Number.isFinite(prevScaleBar) && rawScaleBarMeters > prevScaleBar * 1.35) {
-                this._clearFocusOverlay();
-                window.__ctxPatchDebug = {
-                  ...(window.__ctxPatchDebug || {}),
-                  baseLayer: "ctx-mosaic",
-                  mode: "adaptive-scale",
-                  active: false,
-                  scaleBarMeters,
-                  rawScaleBarMeters,
-                  zoomOutReset: true,
-                };
-                return;
-              }
             }
-            if ((nowTick - this._lastCamMoveAt) >= settleMs) {
+            // FLIGHT-SIM: the ship never settles — stream continuously while
+            // flying. This is the single flight-specific concession in the
+            // streaming path; everything downstream (ladder, retire, repaint,
+            // tone, surround) is the stock pipeline.
+            if (window.__flightSim?.active || (nowTick - this._lastCamMoveAt) >= settleMs) {
               let targetLevel = null;
                 if (Number.isFinite(rawScaleBarMeters)) {
                   if (rawScaleBarMeters >= 100000) {
@@ -8608,12 +10071,17 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                     targetLevel = 10;
                   } else if (rawScaleBarMeters >= 5000) {
                     targetLevel = 11;
-                  } else if (rawScaleBarMeters >= 2500) {
-                    targetLevel = 12;
-                  } else if (rawScaleBarMeters >= 1200) {
-                    targetLevel = 13;
                   } else {
-                    targetLevel = 14;
+                    // CTX-UPGRADE: rungs 13/14 removed — L13+ returns HTTP 400
+                    // at every point ever probed (the LODs were never built;
+                    // L12 = 5.09 m/px IS CTX's native imaging resolution).
+                    // The zoom floor alone does not protect these rungs: under
+                    // wheel momentum the ladder can read a scale bar below
+                    // 2500 in the same frame the snap-back is still catching
+                    // up (measured: L13 requested during a continuous zoom).
+                    // Requesting a dead level burns the 6 real connections on
+                    // guaranteed failures, so the ladder bottoms out at 12.
+                    targetLevel = 12;
                   }
                 } else if (Number.isFinite(esriLodLevel)) {
                   if (esriLodLevel >= 14) {
@@ -8649,16 +10117,362 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                 };
                 return;
               }
+              // FLIGHT-SIM: SHIP-ANCHORED streaming. In a chase view the
+              // screen-centre raycast lands on the horizon far AHEAD of the
+              // ship and the centre-pixel scale bar reads grazing-coarse and
+              // jittery — so tiles streamed to the wrong place at a flapping
+              // level (the "resolution battle"). While flying: (a) the focus
+              // target is the ground point directly under the ship, in the
+              // streamer's own frame; (b) the bbox is sized from ALTITUDE
+              // (stable) instead of the scale bar, centred on the ship so
+              // tiles land below and around it — the surround layer covers
+              // ahead/behind to the horizon; (c) the level comes from an
+              // altitude curve with hold-hysteresis (a change must persist
+              // ~12 ladder passes before it is believed), which kills the
+              // rung flapping. Runs BEFORE the dead-region step-down, so
+              // regional protection still applies.
+              if (window.__flightSim?.active) {
+                const shipGround = this._flightShipGround();
+                if (shipGround) {
+                  const altKm = (Number(window.__flightSim.shipAltUnits) || 0) * (MARS_RADIUS_METERS / 3.2) / 1000;
+                  // Ground-velocity sample (shared by both modes' forward reach).
+                  const nowT = performance.now();
+                  if (!this._fgLast) { this._fgLast = { ...shipGround }; this._fgLastAt = nowT; this._fgVel = { lon: 0, lat: 0 }; }
+                  else if (nowT - this._fgLastAt > 250) {
+                    const dt = (nowT - this._fgLastAt) / 1000;
+                    // Wrap-safe: a pass over the antimeridian would otherwise
+                    // read as ~360 deg of travel in one sample and throw the
+                    // forward lead to the far side of the planet.
+                    let dLon = shipGround.lon - this._fgLast.lon;
+                    if (dLon > 180) dLon -= 360; else if (dLon < -180) dLon += 360;
+                    this._fgVel = { lon: dLon / dt, lat: (shipGround.lat - this._fgLast.lat) / dt };
+                    this._fgLast = { ...shipGround }; this._fgLastAt = nowT;
+                  }
+                  const fv = this._fgVel || { lon: 0, lat: 0 };
+                  const fvm = Math.hypot(fv.lon, fv.lat);
+                  const fdir = fvm > 1e-4 ? { lon: fv.lon / fvm, lat: fv.lat / fvm } : null;
+                  // Mode hysteresis (proven): near <45 km, far >55 km.
+                  if (!this._flightInputMode) this._flightInputMode = altKm > 50 ? "far" : "near";
+                  if (this._flightInputMode === "near" && altKm > 55) this._flightInputMode = "far";
+                  else if (this._flightInputMode === "far" && altKm < 45) this._flightInputMode = "near";
+                  // ── FORWARD SEMICIRCLE ──────────────────────────────────
+                  // Fetch only what is AHEAD. A box centred on the ship spends
+                  // half its tile budget on ground already flown over, which is
+                  // why the forward reach kept coming up short at every level.
+                  // A 180-degree half-disc spends the same drainable budget
+                  // entirely on the ground being flown into, so the reach very
+                  // nearly doubles for the same number of fetches.
+                  // The radius is not a magic number per level — it falls out of
+                  // the level's own tile size and cap as R = tile * sqrt(cap/2),
+                  // the largest half-disc whose bounding box still fits that
+                  // level's budget. Fine levels therefore sit close in and
+                  // coarse levels reach for the horizon, automatically.
+                  // Altitude ladder. REVERTED from a horizon-driven level
+                  // choice: picking the level that could cover the horizon
+                  // drove the FOCUS layer coarse (L8 at 8 km altitude), and a
+                  // coarse focus is exactly the "higher resolution tiles
+                  // strangled by L6-7" report. Reaching the horizon is the
+                  // SURROUND layer's job — it already blankets ~2.7x the
+                  // horizon. The focus window's job is detail near the ship, so
+                  // its level follows altitude and nothing else.
+                  // Resolution raised for high-altitude views (user request):
+                  // L11 now holds all the way to 50 km (was L10 above 25 km),
+                  // and L10 covers 50-75 km (was L9). Rest unchanged.
+                  // 50-75 km REVERTED to L9. MEASURED: coverage radius scales
+                  // with tile size, so each finer level HALVES it. At 60 km
+                  // (horizon 641 km) L10 reaches only 250 km — 39% of the
+                  // horizon, which is the "mapping fails between 50-75 km"
+                  // report — while L9 reaches 499 km (78%). Covering the
+                  // horizon at L10 would take 5944 tiles against a 1000 budget
+                  // and a 15 tiles/s ceiling, so it is not available at any
+                  // setting. <=50 km stays at L11 as requested.
+                  // HIGH ALTITUDE: coarser is both FASTER and sufficient.
+                  // MEASURED at 155 km (horizon 1038 km, screen ~1.30 km/px):
+                  //   L8 = 973 tiles = 65 s to cover, oversampling the screen 8x
+                  //   L7 = 243 tiles = 16 s, 4x oversample
+                  //   L6 =  61 tiles =  4 s, 2x oversample
+                  // Requesting L8 up here bought no visible detail whatsoever
+                  // and spent a minute dribbling small tiles in — that trickle
+                  // IS the reported high-altitude instability. A level that
+                  // still out-resolves the screen but arrives in seconds gives
+                  // immediate full coverage instead.
+                  // 75-300 km is one L6 band. MEASURED, full disc at 1.25x
+                  // horizon: L7 needs 388-1502 tiles (26-100 s) across that
+                  // range while L6 needs 97-375 (6-25 s), and L6 still
+                  // out-resolves the screen 1.4-2.8x there. L7 was also landing
+                  // in the pyramid's dead-L7 band — 38 failures measured at
+                  // 101 km — so it was both slower AND less reliable for no
+                  // visible gain.
+                  // L7 RESTORED for 75-250 km. Dropping to L6 lost real detail
+                  // and the reasoning behind it was WRONG: I compared L6 against
+                  // a screen resolution averaged over the WHOLE view (~1.2 km/px
+                  // at 200 km), but the near ground fills most of the screen and
+                  // is magnified far more — about 0.46 km/px at 200 km, 0.31 at
+                  // 90 km. Against THAT, L6 (0.65 km/px) is softer than the
+                  // display at every altitude in the band, while L7 (0.33)
+                  // matches it. Always size a level against the NEAR field.
+                  //   <=10 L12  <=50 L11  <=75 L9  <=250 L7  else L6
+                  const byAlt = altKm <= 10 ? 12
+                    : altKm <= 50 ? 11
+                    : altKm <= 75 ? 9
+                    : altKm <= 250 ? 7
+                    : 6;
+                  if (!Number.isFinite(this._flightLevelHold)) this._flightLevelHold = byAlt;
+                  if (byAlt !== this._flightLevelHold) {
+                    this._flightLevelStreak = (this._flightLevelStreak || 0) + 1;
+                    if (this._flightLevelStreak >= 12) {
+                      this._flightLevelHold = byAlt;
+                      this._flightLevelStreak = 0;
+                    }
+                  } else {
+                    this._flightLevelStreak = 0;
+                  }
+                  this._flightBudgetOverride = altKm >= 50 ? 1000 : null;
+                  let discLevel = this._flightLevelHold;
+                  targetLevel = discLevel;
+                  const KMDEG = 59.3;
+                  const cosLatD = Math.max(0.2, Math.cos(shipGround.lat * Math.PI / 180));
+                  // The ladder authorises maxFocusTiles as min(ourCount, cap),
+                  // so staying inside cap is what stops the budget loop from
+                  // stepping the level down. These are the ladder's own caps.
+                  // MEASURED, not assumed: `MAX_FOCUS_TILES = 512` is a hard
+                  // ceiling applied ON TOP of the per-level caps inside
+                  // _getMaxFocusTiles, so the ladder's 900/1024 entries never
+                  // actually apply. Sizing the disc against them asked for 809
+                  // tiles at L9 against a real limit of 512, and the budget loop
+                  // silently coarsened the round two levels to L7.
+                  const capFor = (L) => (this._flightBudgetOverride
+                    ? this._flightBudgetOverride
+                    : Math.min(512, (L === 7 ? 1024
+                      : L === 9 ? 900
+                      : (L === 5 || L === 11 || L === 12) ? 512
+                      : 400)));
+                  const tileDegFor = (L) => 360 / (1 << (L + 1));
+                  const radiusFor = (L) => tileDegFor(L) * KMDEG * Math.sqrt((2 * capFor(L) * 0.9) / Math.PI);
+                  // Heading in KM space — a degree of longitude is shorter than
+                  // a degree of latitude away from the equator, so a
+                  // degree-space heading would skew the disc.
+                  const vLonKm = fv.lon * KMDEG * cosLatD;
+                  const vLatKm = fv.lat * KMDEG;
+                  const vmKm = Math.hypot(vLonKm, vLatKm);
+                  // FULL DISC above 75 km. The forward semicircle exists to
+                  // spend a scarce budget on the ground being flown into; at
+                  // these levels the budget is not scarce (a 360 deg L6 disc is
+                  // 97-375 tiles), and "regional coverage" means the sides and
+                  // the ground already passed as well — which is also what
+                  // makes a turn up here instant instead of exposing unmapped
+                  // ground. ux = uy = 0 makes the sector test pass everything
+                  // inside the radius, which is the existing stationary path.
+                  const wantFullDisc = altKm >= 75;
+                  const hasHeading = !wantFullDisc && vmKm > 1e-6;
+                  // SMOOTHED heading. `_fgVel` is a 250 ms finite difference of
+                  // ground position, so it carries real noise; the disc's
+                  // bounding box is built FROM this direction, so a couple of
+                  // degrees of wobble swings the box by tens of km once the disc
+                  // is large. That is invisible near the surface (45 km disc)
+                  // and very visible at 10-40 km (89-357 km disc) — which is
+                  // exactly where the shifting was reported.
+                  if (hasHeading) {
+                    const nx = vLonKm / vmKm, ny = vLatKm / vmKm;
+                    if (!this._fgDirSmooth) this._fgDirSmooth = { x: nx, y: ny };
+                    else {
+                      const px = this._fgDirSmooth.x, py = this._fgDirSmooth.y;
+                      const sx = px * 0.88 + nx * 0.12;
+                      const sy = py * 0.88 + ny * 0.12;
+                      const sm = Math.hypot(sx, sy) || 1;
+                      this._fgDirSmooth = { x: sx / sm, y: sy / sm };
+                      // How hard are we turning? cross product of old vs new
+                      // heading is sin(delta). Smoothed so a single noisy
+                      // sample cannot trip the widening below.
+                      const turn = Math.abs(px * this._fgDirSmooth.y - py * this._fgDirSmooth.x);
+                      this._fgTurn = (this._fgTurn || 0) * 0.85 + turn * 0.15;
+                    }
+                  }
+                  const ux = hasHeading && this._fgDirSmooth ? this._fgDirSmooth.x : 0;
+                  const uy = hasHeading && this._fgDirSmooth ? this._fgDirSmooth.y : 0;
+                  // R = tile * sqrt(2*cap*0.9/pi): the largest half-disc this
+                  // level's budget can afford — but CAPPED just past the
+                  // horizon, because ground beyond it cannot be seen. Without
+                  // the cap a coarse level asks for an absurd disc (MEASURED at
+                  // 155 km: L6 gave 3992 km = 385% of the horizon), which
+                  // inflates the bounding box until the budget loop coarsens the
+                  // round — L6 was being requested and L5 delivered. Capping
+                  // keeps the front just past the horizon AND keeps the level.
+                  const horizonCapKm = Math.sqrt(
+                    2 * (MARS_RADIUS_METERS / 1000) * altKm + altKm * altKm,
+                  ) * (altKm >= 75 ? 0.7 : 1.25);
+                  // 0.7x horizon above 75 km, and this is the key correction:
+                  // ONE canvas cannot be both horizon-wide and finely sampled.
+                  // Ground resolution is window_km / canvas_px, so stretching
+                  // the focus disc to the horizon at 120 km gave 0.49 km/px
+                  // against a 0.35 km/px near-field need — soft, no matter which
+                  // LEVEL was requested. Reaching the horizon is the SURROUND's
+                  // job (it blankets ~2.7x horizon at comparable effective
+                  // resolution); the focus layer's job is a sharp near field.
+                  // At 0.7x: 120 km gives 0.32 km/px (meets the need) from ~199
+                  // L7 tiles = 13 s, instead of 492 tiles = 33 s for a blurrier
+                  // picture. Sharper, faster, and less upload traffic at once.
+                  let radiusKm = Math.min(radiusFor(discLevel), horizonCapKm);
+                  const buildDisc = (Rkm) => {
+                    // Stationary: no heading to face, so fall back to a full
+                    // disc around the ship rather than a degenerate box.
+                    if (!hasHeading) {
+                      const qb = 360 / (1 << (discLevel + 1));
+                      const b = this._buildFocusBboxAroundTarget(
+                        shipGround,
+                        2 * (Rkm / (KMDEG * cosLatD)),
+                        2 * (Rkm / KMDEG),
+                      );
+                      return {
+                        lonMin: Math.floor(b.lonMin / qb) * qb,
+                        lonMax: Math.ceil(b.lonMax / qb) * qb,
+                        latMin: Math.max(-90, Math.floor(b.latMin / qb) * qb),
+                        latMax: Math.min(90, Math.ceil(b.latMax / qb) * qb),
+                      };
+                    }
+                    let loMin = Infinity, loMax = -Infinity, laMin = Infinity, laMax = -Infinity;
+                    const acc = (lon, lat) => {
+                      if (lon < loMin) loMin = lon;
+                      if (lon > loMax) loMax = lon;
+                      if (lat < laMin) laMin = lat;
+                      if (lat > laMax) laMax = lat;
+                    };
+                    acc(shipGround.lon, shipGround.lat);
+                    for (let i = 0; i <= 24; i += 1) {
+                      const th = -Math.PI / 2 + (Math.PI * i) / 24;
+                      const c = Math.cos(th), sn = Math.sin(th);
+                      const dx = ux * c - uy * sn;
+                      const dy = ux * sn + uy * c;
+                      acc(
+                        shipGround.lon + (Rkm * dx) / (KMDEG * cosLatD),
+                        shipGround.lat + (Rkm * dy) / KMDEG,
+                      );
+                    }
+                    // QUANTISE to whole tiles at this level. The surround has
+                    // always done this so that "camera jitter cannot change its
+                    // key"; the focus disc never did, so every sub-tile drift of
+                    // ship position or heading produced a NEW bbox, the canvas
+                    // was re-mapped to it, and the imagery visibly slid. Snapped
+                    // outward, the box only moves when it genuinely crosses a
+                    // tile boundary.
+                    const q = 360 / (1 << (discLevel + 1));
+                    return {
+                      lonMin: Math.floor(loMin / q) * q,
+                      lonMax: Math.ceil(loMax / q) * q,
+                      latMin: Math.max(-90, Math.floor(laMin / q) * q),
+                      latMax: Math.min(90, Math.ceil(laMax / q) * q),
+                    };
+                  };
+                  // Size against the REAL range function — its pad has defeated
+                  // every estimate in this file.
+                  // The bounding box may now exceed the cap — that is fine and
+                  // expected, because only the disc inside it is ever enqueued
+                  // (_refreshFocus budgets the filtered count). This loop only
+                  // stops the box growing so large that scanning it costs more
+                  // than the fetches do.
+                  let discBbox = buildDisc(radiusKm);
+                  for (let guard = 0; guard < 40; guard += 1) {
+                    // Checked at the level the round will actually REQUEST, so
+                    // the box can never blow past what the budget can express.
+                    const lvl = Number.isFinite(targetLevel) ? Math.max(targetLevel, discLevel) : discLevel;
+                    const bboxTiles = this._getFocusTileRange(lvl, discBbox).tileCount;
+                    if (bboxTiles <= 4200 && (discBbox.lonMax - discBbox.lonMin) < 240) break;
+                    radiusKm *= 0.92;
+                    discBbox = buildDisc(radiusKm);
+                  }
+                  // NOTE: do NOT re-size the disc here for a predicted coarser
+                  // level. `targetLevel` is already fixed above, so lowering
+                  // discLevel built the box for a COARSE level (radius up to
+                  // 1428 km, ~48 deg wide) while the round still requested the
+                  // FINE one — over a million tiles in range, which tripped the
+                  // over-budget bail and left the focus layer inactive. That is
+                  // exactly the "no tiles get mapped" break. The downgrade path
+                  // in the round-complete hook re-sizes safely instead, because
+                  // there the bbox and the level are lowered together.
+                  approxViewBbox = discBbox;
+                  focusTarget = {
+                    lon: (discBbox.lonMin + discBbox.lonMax) / 2,
+                    lat: (discBbox.latMin + discBbox.latMax) / 2,
+                  };
+                  // Consulted by _refreshFocus, which skips every tile outside
+                  // the half-disc. One tile of slack behind keeps the ground
+                  // directly under the ship mapped — the disc is about spending
+                  // the budget forward, not about going blind underneath.
+                  this._flightForwardDisc = {
+                    lat: shipGround.lat,
+                    lon: shipGround.lon,
+                    ux, uy, radiusKm,
+                    cosLat: cosLatD,
+                    // TURN-AWARE SECTOR. A hard 180 deg cut means that the
+                    // moment you bank, ground swinging into the sector was
+                    // never fetched — so it drops to the coarse surround and
+                    // then pops back to fine as tiles land. That is the
+                    // high/low-res "fight" on turns. Widening the accepted
+                    // sector while turning keeps the ground you are turning
+                    // ONTO already mapped; it relaxes back to 180 deg as soon
+                    // as the wings level.
+                    backKm: tileDegFor(discLevel) * KMDEG
+                      + radiusKm * Math.min(0.55, (this._fgTurn || 0) * 14),
+                  };
+                  this._flightFocusSpan = discBbox.lonMax - discBbox.lonMin;
+                  this._flightFwdKm = radiusKm;
+                  this._flightDiscLevel = discLevel;
+                  this._flightMicro = null;
+                }
+                            } else {
+                this._flightLevelHold = undefined;
+                this._flightLevelStreak = 0;
+                this._flightForwardDisc = null;
+                this._flightBudgetOverride = null;
+                this._flightMicro = null;
+              }
+              // CTX-UPGRADE: if the chosen rung is PROVEN dead in this
+              // region, step the whole round down to the nearest live level —
+              // level-exact memory, so e.g. dead L7/L8 at 90E step 50/20 km
+              // views to L6 while the 10 km view still gets its healthy L9.
+              if (Number.isFinite(targetLevel) && focusTarget) {
+                let guard = 0;
+                while (targetLevel > 5 && guard < 6
+                  && this._isLevelRegionDead(targetLevel, focusTarget.lat, focusTarget.lon)) {
+                  targetLevel -= 1;
+                  guard += 1;
+                }
+              }
               if (Number.isFinite(targetLevel)) {
                 const budget = targetLevel >= 15 ? 240 : 1024;
                 const baseBbox = approxViewBbox || visibleBbox;
-                // At the 10 km scale-bar floor (level 9) approxViewBbox is derived
-                // from the central pixel's metersPerPixel and underestimates the
-                // viewport by ~72% due to perspective. Pad only at level 9 so the
-                // focus canvas covers the full screen without bloating the bbox at
-                // coarser levels (5/7/8) where the extra tiles overlap dark/blank
-                // Mars areas and trigger the 30-second all-failed backoff.
-                const _bboxPad = targetLevel === 9 ? 0.75 : 0;
+                // approxViewBbox is derived from the central pixel's
+                // metersPerPixel and underestimates the viewport by ~72 % due
+                // to perspective. Stock padded only level 9; at 7/8 the
+                // unpadded focus covered ~8° of a ~30° view, so MOST of a wide
+                // view rendered from the pre-built base mosaic — whose swath
+                // seams are baked into the JPEG and untouchable by any
+                // per-tile correction. That was the "plates don't change"
+                // report: the tone system was correcting the small focus
+                // window while the screen showed the baked base around it.
+                // CTX-UPGRADE v4: pad 7/8 too, so the tone-corrected focus
+                // canvas blankets the whole view at these zooms. The stock
+                // warning (padded dark areas → all-failed 30 s backoff) is
+                // obsolete: the ancestor-fallback floor means every tile now
+                // resolves to SOME real parent, so a padded bbox can no longer
+                // produce an all-failed round.
+                // CTX-UPGRADE: the full-view pad at 7/8 multiplies the grid
+                // ~6x. On the proxy path (service worker caching, ~5 ms hits)
+                // that is cheap and buys the plate-free wide view; on a bare
+                // SW-less session every tile is a real network round trip and
+                // the padded grid took minutes — perceived as "no tiles map".
+                // Degrade honestly: SW-less sessions keep the small stock bbox
+                // (fast, plates outside the focus window), controlled sessions
+                // get the full corrected view. L9 keeps its stock pad always.
+                const _padOk = targetLevel === 9 || this._isProxyTileBase();
+                // FLIGHT-SIM: pads are an ORBIT device (compensate the
+                // underestimated view bbox). In flight the window is already
+                // ship-sized-by-budget and the surround owns wide coverage —
+                // the L9 pad was silently inflating every flight round from
+                // ~50 tiles to ~289 (the residual queue backlog).
+                const _bboxPad = window.__flightSim?.active
+                  ? 0
+                  : ((targetLevel === 9 || ((targetLevel === 8 || targetLevel === 7) && _padOk)) ? 0.75 : 0);
                 const targetBbox = targetLevel >= 15
                   ? this._computeBudgetBbox(targetLevel, baseBbox, focusTarget, budget)
                   : _bboxPad > 0 ? {
@@ -8669,19 +10483,61 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                     }
                   : { ...baseBbox };
                 const tileRangeEstimate = this._getFocusTileRange(targetLevel, targetBbox);
-                const levelCap = targetLevel === 5 ? 512
+                let levelCap = targetLevel === 5 ? 512
                   : targetLevel === 7 ? 1024
                   : targetLevel === 9 ? 900
                   : targetLevel === 11 ? 512
                   : targetLevel === 12 ? 512
                   : 400;
+                // FLIGHT-SIM: desiredMaxTiles = min(ourCount, levelCap), so this
+                // table would clamp the expansive disc no matter what the
+                // streamer allows. Raise it to match at altitude.
+                if (window.__flightSim?.active && this._flightBudgetOverride) {
+                  levelCap = Math.max(levelCap, this._flightBudgetOverride);
+                }
                 const desiredMaxTiles = Math.min(tileRangeEstimate.tileCount, levelCap);
                 const focusKey = `${targetLevel},${Math.round(targetBbox.latMin * 5)},${Math.round(targetBbox.latMax * 5)},${Math.round(targetBbox.lonMin * 5)},${Math.round(targetBbox.lonMax * 5)}`;
                 if (focusKey !== this._lastFocusKey && (nowTick - this._lastFocusUpdateAt) >= this.FOCUS_UPDATE_INTERVAL_MS) {
                   this._lastFocusKey = focusKey;
                   this._lastFocusUpdateAt = nowTick;
-                  const minLevel = targetLevel >= 15 ? 12 : Math.max(this.MIN_LEVEL, targetLevel);
-                  const fetchMinLevel = targetLevel >= 15 ? 12 : targetLevel;
+                  // CTX-UPGRADE: ancestor substitution. Pinning the fallback
+                  // floor AT the target level was the deadlock at the heart of
+                  // "no tiles stream close in": most of Mars has no CTX above
+                  // L10, so a fine request had nowhere to descend, every tile
+                  // failed, the all-failed handler parked streaming 30 s, and
+                  // the auto-downgrade (which reads _focusResolvedLevels) never
+                  // armed because nothing ever resolved. A floor 4 levels down
+                  // lets each tile resolve to its best real ancestor — blur
+                  // where imagery is missing, never a hole — and the resolved
+                  // records then drive the level back down/up correctly.
+                  const minLevel = Math.max(this.MIN_LEVEL, targetLevel - 4);
+                  // FLIGHT-SIM: do not descend BELOW the surround. The ancestor
+                  // chain exists so a fine request never leaves a hole, but in
+                  // flight the surround is already a continuous blanket at its
+                  // own level — anything coarser than that is a wasted fetch AND
+                  // a blur if drawn. MEASURED at 80 km before this: 80 of 208
+                  // resolved tiles came back at L5 against an L7 surround.
+                  // Note this still leaves the chain room to descend (target 8
+                  // -> floor 7), so it is NOT the fetchMinLevel-pinned-at-target
+                  // deadlock that once stopped streaming entirely.
+                  let fetchMinLevel = Math.max(this.MIN_LEVEL, targetLevel - 4);
+                  if (window.__flightSim?.active && Number.isFinite(this._surroundLevel)) {
+                    // Floor at the surround so we do not spend fetches on tiles
+                    // coarser than the blanket already underneath — but NEVER
+                    // at or above the target itself. Above 75 km the ladder now
+                    // requests L7/L6, which EQUALS the surround level, so
+                    // `min(surround, target)` pinned the floor AT the target and
+                    // removed ancestor substitution entirely. In any region
+                    // where that level is dead (dead L7/L8/L9 over live L10-12
+                    // is common in this pyramid) nothing could resolve at all —
+                    // the view went flat. Cap at target-1 so there is always at
+                    // least one rung to fall back to.
+                    fetchMinLevel = Math.max(
+                      fetchMinLevel,
+                      Math.min(this._surroundLevel, targetLevel - 1),
+                    );
+                    fetchMinLevel = Math.max(this.MIN_LEVEL, fetchMinLevel);
+                  }
                   this._refreshFocus(targetBbox, targetLevel, {
                     altitude,
                     focusTarget,
@@ -10492,7 +12348,16 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       // guard snaps the camera back to lastSafeMosaicCameraPosition.
       // 10 km matches the old behaviour: CTX tiles only go up to level ~12 in
       // most areas so zooming past 10 km just floods the network with 404s.
-      const CTX_MOSAIC_MIN_SCALEBAR_METERS = 10000;
+      // CTX-UPGRADE: zoom floor 10000 → 2500. At 10 000 the camera snap-back
+      // pinned the scale bar near 7 200 m, capping the ladder at level 10
+      // (20 m/px) — levels 11 and 12 existed in the ladder but were physically
+      // unreachable, which is exactly why "closer altitudes" never sharpened.
+      // 2500 is chosen to land ON the deepest rung that really exists: the
+      // ladder maps scale bar ≥ 2500 → level 12 (5 m/px, CTX native), and the
+      // 13/14 rungs (which return 400 planet-wide) stay unreachable without
+      // touching the ladder itself. Ancestor substitution makes the deeper
+      // zoom safe in regions whose coverage tops out at L10/L11.
+      const CTX_MOSAIC_MIN_SCALEBAR_METERS = 2500;
       function getActiveZoomContext() {
         if (coreToggle.checked) return null;
         if (activeMoonViewerFeature) {
@@ -10638,7 +12503,8 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         renderer.domElement.addEventListener("touchend", () => { _pinchDist = null; }, { passive: true });
       }
 
-      scene.add(new THREE.AmbientLight(0xbfd0ff, 0.85));
+      const ambientLight = new THREE.AmbientLight(0xbfd0ff, 0.85);
+      scene.add(ambientLight);
 
       const keyLight = new THREE.DirectionalLight(0xffdfbf, 1.9);
       keyLight.position.set(8, 4, 6);
@@ -10647,6 +12513,113 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       const rimLight = new THREE.DirectionalLight(0x7aa6ff, 0.55);
       rimLight.position.set(-8, -2, -6);
       scene.add(rimLight);
+
+      // FLIGHT-SIM: sunlit-surface luminance. Deliberately LIGHTING ONLY — no
+      // shader injection, nothing in the tile path. Light intensity scales the
+      // surface multiplicatively, so texture contrast survives; the previous
+      // attempt mixed the CTX layers toward a flat airlight colour and erased
+      // the very detail the streamer exists to deliver.
+      // Shifting weight from the flat blue ambient onto the sun makes lit
+      // slopes read as sunlit rock instead of evenly exposed texture, and the
+      // warm fill is physically right for Mars: its ambient light is
+      // dust-scattered sunlight, not blue skylight.
+      const FLIGHT_LIGHTING = {
+        ambientColor: 0xffe0c4,
+        ambientIntensity: 0.60,
+        keyIntensity: 2.9,
+        rimIntensity: 0.32,
+      };
+      // FLIGHT-SIM: brightness + contrast grade for the basemaps.
+      // Why a tone curve rather than more light: tone mapping is off in this
+      // renderer, so extra light intensity clips hard to white and BURNS AWAY
+      // the highlight detail; and the CTX layers carry no bump/normal map, so
+      // their shading normals are the smooth sphere — lighting contrast cannot
+      // create relief on the tile imagery at all. A curve can.
+      // The curve is detail-ADDING by construction, which is the opposite of
+      // the reverted haze: contrast expands texture around a pivot instead of
+      // mixing it toward a flat colour, and a soft shoulder rolls the
+      // highlights off asymptotically so bright terrain keeps its texture
+      // rather than blowing out to white.
+      // Tuned against the rendered histogram, not by eye. The pivot MUST sit at
+      // the terrain's actual mid-tone: Mars imagery here means ~0.20 of full
+      // scale, and an earlier pivot of 0.42 sat so far above it that the
+      // contrast expansion pushed nearly every pixel DOWN and made the scene
+      // 11.6% darker. Measured at these values: +57% mean brightness, +56%
+      // contrast, with highlight clipping held at 0.02% by the shoulder.
+      const FLIGHT_GRADE = {
+        brightness: 1.38,   // overall lift
+        contrast: 1.60,     // expansion around the pivot
+        pivot: 0.20,        // the terrain's real mid-tone, NOT 0.5
+        shoulder: 0.80,     // highlights roll off above this instead of clipping
+      };
+      const _gradeShaders = [];
+      function installFlightGrade(material) {
+        if (!material || material.userData.__gradeInstalled) return material;
+        material.userData.__gradeInstalled = true;
+        const prev = material.onBeforeCompile;
+        material.onBeforeCompile = (shader, rendererRef) => {
+          if (typeof prev === "function") prev(shader, rendererRef);
+          shader.uniforms.uGradeAmount = { value: 0 };
+          shader.uniforms.uGradeBrightness = { value: FLIGHT_GRADE.brightness };
+          shader.uniforms.uGradeContrast = { value: FLIGHT_GRADE.contrast };
+          shader.uniforms.uGradePivot = { value: FLIGHT_GRADE.pivot };
+          shader.uniforms.uGradeShoulder = { value: FLIGHT_GRADE.shoulder };
+          shader.fragmentShader = shader.fragmentShader
+            .replace(
+              "#include <common>",
+              "#include <common>\nuniform float uGradeAmount;\nuniform float uGradeBrightness;\nuniform float uGradeContrast;\nuniform float uGradePivot;\nuniform float uGradeShoulder;",
+            )
+            .replace("#include <fog_fragment>", [
+              "#include <fog_fragment>",
+              "if (uGradeAmount > 0.001) {",
+              "  vec3 gc = gl_FragColor.rgb;",
+              "  gc = (gc - uGradePivot) * uGradeContrast + uGradePivot;",
+              "  gc *= uGradeBrightness;",
+              "  vec3 gOver = max(gc - uGradeShoulder, 0.0);",
+              "  float gHead = max(1.0 - uGradeShoulder, 1e-3);",
+              "  gc = min(gc, vec3(uGradeShoulder)) + gHead * (1.0 - exp(-gOver / gHead));",
+              "  gc = max(gc, vec3(0.0));",
+              "  gl_FragColor.rgb = mix(gl_FragColor.rgb, gc, uGradeAmount);",
+              "}",
+            ].join("\n"));
+          _gradeShaders.push(shader);
+        };
+        return material;
+      }
+      function updateFlightGrade(flightActive) {
+        const want = flightActive ? 1 : 0;
+        for (const sh of _gradeShaders) {
+          if (!sh.uniforms.uGradeAmount) continue;
+          sh.uniforms.uGradeAmount.value = want;
+          sh.uniforms.uGradeBrightness.value = FLIGHT_GRADE.brightness;
+          sh.uniforms.uGradeContrast.value = FLIGHT_GRADE.contrast;
+          sh.uniforms.uGradePivot.value = FLIGHT_GRADE.pivot;
+          sh.uniforms.uGradeShoulder.value = FLIGHT_GRADE.shoulder;
+        }
+      }
+      window.__flightGrade = FLIGHT_GRADE;
+
+      let _flightLightsSaved = null;
+      function updateFlightLighting(flightActive) {
+        if (flightActive && !_flightLightsSaved) {
+          _flightLightsSaved = {
+            ambColor: ambientLight.color.clone(),
+            ambI: ambientLight.intensity,
+            keyI: keyLight.intensity,
+            rimI: rimLight.intensity,
+          };
+          ambientLight.color.setHex(FLIGHT_LIGHTING.ambientColor);
+          ambientLight.intensity = FLIGHT_LIGHTING.ambientIntensity;
+          keyLight.intensity = FLIGHT_LIGHTING.keyIntensity;
+          rimLight.intensity = FLIGHT_LIGHTING.rimIntensity;
+        } else if (!flightActive && _flightLightsSaved) {
+          ambientLight.color.copy(_flightLightsSaved.ambColor);
+          ambientLight.intensity = _flightLightsSaved.ambI;
+          keyLight.intensity = _flightLightsSaved.keyI;
+          rimLight.intensity = _flightLightsSaved.rimI;
+          _flightLightsSaved = null;
+        }
+      }
 
       const marsGroup = new THREE.Group();
       marsSceneGroup = marsGroup;
@@ -10657,6 +12630,122 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       };
       scene.add(buildStarfield(THREE));
       scene.add(buildSunObject());
+
+      // ── MARS ATMOSPHERE SHELL (flight mode only) ──────────────────────────
+      // ATMOSPHERE ALTITUDE = 80 km. Mars' scale height is 11.1 km, so 80 km is
+      // 7.2 scale heights and density there is 7.4e-4 of surface. It is also the
+      // Karman-line analogue for Mars — the altitude at which aerodynamic flight
+      // ceases. Dust rarely reaches above ~60 km and the highest CO2-ice clouds
+      // sit near 100 km, so 80 km is where the sky stops reading as sky and
+      // starts reading as space.
+      //
+      //   BELOW 80 km: a diffuse mist over the STARFIELD BACKGROUND.
+      //   ABOVE 80 km: a light haze on the HORIZON ONLY.
+      //
+      // The surface is never touched in either regime, and that is STRUCTURAL,
+      // not a matter of tuning: this is one mesh, and no tile material is
+      // modified. It is depth-tested against the already-drawn opaque planet, so
+      // every fragment that would land on terrain fails the test and contributes
+      // nothing. Full visibility of the surface is guaranteed by construction —
+      // the earlier attempt tinted the CTX layers themselves and erased the very
+      // detail the streamer exists to deliver.
+      const MARS_SKY = {
+        TOP_KM: 80,
+        MIST_SCALE_KM: 22,
+        LIMB_SCALE_KM: 11.1,
+        KM_PER_UNIT: (MARS_RADIUS_METERS / 1000) / 3.2,
+        center: new THREE.Vector3(),
+        mesh: null,
+      };
+
+      function buildMarsSky() {
+        // Radius exceeds the flight ceiling (MAX_ALT_M = 600 km) so the camera
+        // always stays inside the shell.
+        const geo = new THREE.SphereGeometry(3.2 * (1 + 900 / (MARS_RADIUS_METERS / 1000)), 64, 40);
+        const mat = new THREE.ShaderMaterial({
+          side: THREE.BackSide,
+          transparent: true,
+          depthWrite: false,
+          depthTest: true,
+          uniforms: {
+            uPlanetCenter: { value: MARS_SKY.center },
+            uSunDir: { value: _SUN_DIR.clone() },
+            uMist: { value: 0 },
+            uLimb: { value: 0 },
+            uPlanetRadius: { value: 3.2 },
+            uKmPerUnit: { value: MARS_SKY.KM_PER_UNIT },
+            uLimbScaleKm: { value: MARS_SKY.LIMB_SCALE_KM },
+          },
+          vertexShader: [
+            "varying vec3 vWorld;",
+            "void main() {",
+            "  vec4 wp = modelMatrix * vec4(position, 1.0);",
+            "  vWorld = wp.xyz;",
+            "  gl_Position = projectionMatrix * viewMatrix * wp;",
+            "}",
+          ].join("\n"),
+          fragmentShader: [
+            "uniform vec3 uPlanetCenter;",
+            "uniform vec3 uSunDir;",
+            "uniform float uMist;",
+            "uniform float uLimb;",
+            "uniform float uPlanetRadius;",
+            "uniform float uKmPerUnit;",
+            "uniform float uLimbScaleKm;",
+            "varying vec3 vWorld;",
+            "void main() {",
+            "  vec3 dir = normalize(vWorld - cameraPosition);",
+            "  vec3 ro = cameraPosition - uPlanetCenter;",
+            "  vec3 up = normalize(ro);",
+            "  float zen = clamp(dot(dir, up), 0.0, 1.0);",
+            "  float cosT = dot(dir, uSunDir);",
+            "  float sunUp = clamp(dot(up, uSunDir) * 1.6 + 0.28, 0.03, 1.0);",
+            "  vec3 mistCol = mix(vec3(0.847, 0.706, 0.549), vec3(0.659, 0.510, 0.369), pow(zen, 0.7));",
+            "  float g = 0.70;",
+            "  float hg = (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * cosT, 1e-4), 1.5);",
+            "  float aur = clamp(hg * 0.10, 0.0, 3.0);",
+            "  mistCol = mix(mistCol, vec3(0.62, 0.70, 0.82), clamp(aur * 0.35, 0.0, 0.60));",
+            "  mistCol *= (0.90 + 0.35 * clamp(aur, 0.0, 1.5));",
+            "  float mistA = uMist * sunUp * (0.45 + 0.55 * (1.0 - zen));",
+            "  float bq = dot(ro, dir);",
+            "  float perp = sqrt(max(dot(ro, ro) - bq * bq, 0.0));",
+            "  float grazing = step(0.0, -bq) * step(uPlanetRadius, perp);",
+            "  float hMinKm = max((perp - uPlanetRadius) * uKmPerUnit, 0.0);",
+            "  float dens = exp(-hMinKm / uLimbScaleKm) * grazing;",
+            "  vec3 limbCol = mix(vec3(0.663, 0.761, 0.847), vec3(0.851, 0.635, 0.451), clamp(exp(-hMinKm / 13.0), 0.0, 1.0));",
+            "  vec3 peri = normalize(ro + dir * max(-bq, 0.0));",
+            "  float limbSun = clamp(dot(peri, uSunDir) * 1.5 + 0.20, 0.0, 1.0);",
+            "  float limbA = uLimb * dens * limbSun * 0.75;",
+            "  float a = clamp(mistA + limbA, 0.0, 1.0);",
+            "  vec3 col = (mistCol * mistA + limbCol * limbA) / max(a, 1e-4);",
+            "  gl_FragColor = vec4(col, a);",
+            "}",
+          ].join("\n"),
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.frustumCulled = false;
+        mesh.visible = false;
+        mesh.userData.nonInteractive = true;
+        mesh.raycast = () => {};
+        return mesh;
+      }
+
+      function updateMarsSky(flightActive, cam) {
+        const sky = MARS_SKY.mesh;
+        if (!sky) return;
+        if (!flightActive) { sky.visible = false; return; }
+        marsGroup.getWorldPosition(MARS_SKY.center);
+        const altKm = Math.max(0, (cam.position.distanceTo(MARS_SKY.center) - 3.2) * MARS_SKY.KM_PER_UNIT);
+        // Hand over from mist to horizon haze across the top of the atmosphere.
+        const t = Math.max(0, Math.min(1, (altKm - MARS_SKY.TOP_KM * 0.7) / (MARS_SKY.TOP_KM * 0.3)));
+        sky.material.uniforms.uMist.value = Math.exp(-altKm / MARS_SKY.MIST_SCALE_KM) * (1 - t);
+        sky.material.uniforms.uLimb.value = t;
+        sky.visible = true;
+      }
+      window.__marsSky = MARS_SKY;
+      MARS_SKY.mesh = buildMarsSky();
+      marsGroup.add(MARS_SKY.mesh);
+
 
       setStatus("Loading Mars textures...");
       const textureLoader = new THREE.TextureLoader();
@@ -10790,11 +12879,19 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         baseLayers.push(ELEVATION_DEM_LAYER);
         layerTextures.set(ELEVATION_DEM_LAYER.id, elevationMap);
       }
-      const elevationSampler = createElevationSamplerState(elevationMap);
+      const elevationSampler8Bit = createElevationSamplerState(elevationMap);
       // createSeaOverlayTextureState reads elevationMap.image pixel data — must be called before
-      // we null the image below. Pass elevationSampler so it shares the already-decoded pixel
+      // we null the image below. Pass the sampler so it shares the already-decoded pixel
       // array rather than allocating a second identical ~33 MB Uint8ClampedArray.
-      const _earlySeaOverlayState = createSeaOverlayTextureState(elevationMap, elevationSampler);
+      const _earlySeaOverlayState = createSeaOverlayTextureState(elevationMap, elevationSampler8Bit);
+      // The 8-bit map stays the basemap/bump texture (it is displayed directly as the
+      // "Elevation DEM" layer, and RedFormat float data would render as a red channel).
+      // Displacement and height queries switch to the de-terraced 16-bit reconstruction
+      // when it is present. Its Float32 array backs both the GPU texture and the CPU
+      // sampler, so the higher precision costs no extra memory over the 8-bit path.
+      const hdElevation = await loadHdElevation(manifest.elevation_hd, renderer);
+      const elevationDisplacementMap = hdElevation ? hdElevation.texture : elevationMap;
+      const elevationSampler = createHdElevationSamplerState(hdElevation) || elevationSampler8Bit;
       // Upload to GPU first, then free the decoded bitmap (~32 MB renderer memory).
       // version=0 permanently exits the re-upload condition `version > 0 && __version !== version`
       // so Three.js never attempts to re-upload a null-image texture.
@@ -10803,10 +12900,23 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         if (elevationMap.image) elevationMap.image = null;
         elevationMap.version = 0;
       }
+      // FLIGHT-SIM: true-scale relief (1:1 DEM). Sphere radius 3.2 maps to
+      // MARS_RADIUS_METERS, so 1:1 displacement is a fixed ratio (~0.02774).
+      // flightsim.js sets the stock slider to it on engage, restores on exit.
+      const TRUE_SCALE_TERRAIN_RELIEF = 3.2 * (Number(manifest.elevation?.relief_m ?? 29442) / MARS_RADIUS_METERS);
+      // FLIGHT-SIM: the "Terrain relief" slider drives relief in every mode,
+      // including the CTX mosaics (stock force-flattens those to zero). Flight
+      // needs real terrain under the ship on a CTX basemap. Displacement only —
+      // does not affect which tiles are requested or how.
       const getRequestedTerrainRelief = () => elevationMap ? Number(terrainScale.value) : 0;
+      // Orbit keeps EXACT stock behaviour (CTX modes force relief 0 — the
+      // surface barrier then lets the camera reach the close-zoom scale rungs);
+      // relief applies in CTX modes only while the flight simulator is engaged
+      // (fs.forceRelief covers the engage transition before active flips).
       const getEffectiveTerrainRelief = () => {
         if (!elevationMap) return 0;
-        if (baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color") return 0;
+        if ((baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color")
+            && !(window.__flightSim?.active || window.__flightSim?.forceRelief)) return 0;
         return getRequestedTerrainRelief();
       };
       const getTerrainRelief = () => getEffectiveTerrainRelief();
@@ -10941,13 +13051,25 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       syncSeaLevelAxisValue();
 
       const planetConfig = manifest.planet || {};
-      const sphereGeometry = new THREE.SphereGeometry(3.2, 128, 128);
+      // TERRAIN MESH DENSITY. `displacementMap` moves VERTICES, so the mesh —
+      // not the DEM — decides how many elevation points actually reach the
+      // screen. At the old 128x128 that was 16,384 samples, i.e. 167 km between
+      // height points at the equator, using **0.20%** of the 4096x2048 DEM we
+      // already ship. That under-sampling is what reads as coarse, faceted
+      // terrain the moment vertical exaggeration is raised.
+      // 512x256 lifts it to 131,072 samples, ~42 km spacing — 4x finer in each
+      // axis, 16x the points — with no new assets and no shader work.
+      // Every displaced shell must use the SAME density or the layers separate
+      // vertically once exaggerated.
+      // (TERRAIN_SEGMENTS_W/H are declared at module scope — the geology vector
+      // layers need them to land their points on the same interpolated surface.)
+      const sphereGeometry = new THREE.SphereGeometry(3.2, TERRAIN_SEGMENTS_W, TERRAIN_SEGMENTS_H);
       const initialBaseTexture = layerTextures.get(initialLayer.id) || null;
 
       const baseMaterial = new THREE.MeshStandardMaterial({
         color: initialBaseTexture ? 0xffffff : 0xd0b18a,
         map: initialBaseTexture,
-        displacementMap: elevationMap || null,
+        displacementMap: elevationDisplacementMap || null,
         displacementScale: elevationMap ? Number(terrainScale.value) : 0,
         bumpMap: elevationMap || null,
         bumpScale: elevationMap ? 0.08 : 0,
@@ -10996,6 +13118,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       };
       baseMaterial.needsUpdate = true;
 
+      installFlightGrade(baseMaterial);
       const globe = new THREE.Mesh(sphereGeometry, baseMaterial);
       globe.rotation.y = Math.PI;
       marsGroup.add(globe);
@@ -11008,7 +13131,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       const contourMaterial = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         map: null,
-        displacementMap: elevationMap || null,
+        displacementMap: elevationDisplacementMap || null,
         displacementScale: elevationMap ? Number(terrainScale.value) : 0,
         alphaMap: null,
         alphaTest: 0.18,
@@ -11042,7 +13165,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       const compareMaterial = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         map: null,
-        displacementMap: elevationMap || null,
+        displacementMap: elevationDisplacementMap || null,
         displacementScale: elevationMap ? Number(terrainScale.value) : 0,
         transparent: true,
         opacity: 1,
@@ -11087,7 +13210,7 @@ uniform float uViewportWidth;`,
       };
       compareMaterial.needsUpdate = true;
       const compareGlobe = new THREE.Mesh(
-        new THREE.SphereGeometry(3.207, 128, 128),
+        new THREE.SphereGeometry(3.207, TERRAIN_SEGMENTS_W, TERRAIN_SEGMENTS_H),
         compareMaterial,
       );
       compareGlobe.rotation.y = Math.PI;
@@ -11099,7 +13222,7 @@ uniform float uViewportWidth;`,
       const ctxFocusMaterial = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         map: ctxStreamer.focusTexture,
-        displacementMap: elevationMap || null,
+        displacementMap: elevationDisplacementMap || null,
         displacementScale: elevationMap ? Number(terrainScale.value) : 0,
         transparent: true,
         opacity: 1,
@@ -11175,14 +13298,98 @@ uniform float uViewportWidth;`,
         ctxFocusMaterial.map = texture;
         ctxFocusMaterial.needsUpdate = true;
       };
+      installFlightGrade(ctxFocusMaterial);
       const ctxFocusGlobe = new THREE.Mesh(
-        new THREE.SphereGeometry(3.201, 128, 128),
+        new THREE.SphereGeometry(3.201, TERRAIN_SEGMENTS_W, TERRAIN_SEGMENTS_H),
         ctxFocusMaterial,
       );
       ctxFocusGlobe.rotation.y = Math.PI;
       ctxFocusGlobe.visible = false;
       ctxFocusGlobe.renderOrder = 2;
       marsGroup.add(ctxFocusGlobe);
+      // CTX-UPGRADE: SURROUND globe — the coarse parent-tile blanket that sits
+      // between the base globe and the fine focus overlay (renderOrder 1 vs
+      // the focus globe's 2, radius between the two). Its canvas maps to a
+      // tile-quantised bbox maintained by ctxStreamer._updateSurround; the
+      // material duplicates the focus overlay's bounds-mask + Viking-colorise
+      // shader so both overlays render identically (contour overlay is not
+      // wired here — it defaults off on this layer).
+      {
+        const sw = (navigator.deviceMemory || 4) >= 8 ? 4096 : 2048;
+        const sc = document.createElement("canvas");
+        sc.width = sw;
+        sc.height = sw / 2;
+        const sg = sc.getContext("2d");
+        sg.imageSmoothingEnabled = true;
+        sg.imageSmoothingQuality = "high";
+        ctxStreamer.surroundCanvas = sc;
+        ctxStreamer.surroundContext = sg;
+        const stx = new THREE.CanvasTexture(sc);
+        stx.colorSpace = THREE.SRGBColorSpace;
+        stx.generateMipmaps = false;
+        stx.minFilter = THREE.LinearFilter;
+        stx.magFilter = THREE.LinearFilter;
+        stx.wrapS = THREE.ClampToEdgeWrapping;
+        stx.wrapT = THREE.ClampToEdgeWrapping;
+        stx.anisotropy = maxAnisotropy;
+        ctxStreamer.surroundTexture = stx;
+        ctxStreamer.surroundBounds = new THREE.Vector4(0, 0, 0, 0);
+      }
+      const ctxSurroundMaterial = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        map: ctxStreamer.surroundTexture,
+        displacementMap: elevationDisplacementMap || null,
+        displacementScale: elevationMap ? Number(terrainScale.value) : 0,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
+        roughness: 1,
+        metalness: 0,
+      });
+      ctxSurroundMaterial.onBeforeCompile = (shader) => {
+        shader.uniforms.uCtxBounds = { value: ctxStreamer.surroundBounds };
+        shader.uniforms.uCtxColorMap = { value: null };
+        shader.uniforms.uCtxColorMix = { value: 0 };
+        shader.uniforms.uCtxColorLift = { value: 1.0 };
+        ctxSurroundMaterial.userData.ctxShader = shader;
+        shader.vertexShader = shader.vertexShader
+          .replace("#include <common>", "#include <common>\nvarying vec2 vCtxUvRaw;")
+          .replace("#include <uv_vertex>", "#include <uv_vertex>\nvCtxUvRaw = uv;");
+        shader.fragmentShader = shader.fragmentShader
+          .replace("#include <common>", "#include <common>\nuniform vec4 uCtxBounds;\nuniform sampler2D uCtxColorMap;\nuniform float uCtxColorMix;\nuniform float uCtxColorLift;\nvarying vec2 vCtxUvRaw;")
+          .replace("#include <map_fragment>", `#include <map_fragment>
+            float maskX = step(uCtxBounds.x, vCtxUvRaw.x) * (1.0 - step(uCtxBounds.y, vCtxUvRaw.x));
+            float maskY = step(uCtxBounds.z, vCtxUvRaw.y) * (1.0 - step(uCtxBounds.w, vCtxUvRaw.y));
+            diffuseColor.a *= (maskX * maskY);
+            if (uCtxColorMix > 0.0) {
+              vec3 baseColor = texture2D(uCtxColorMap, vCtxUvRaw).rgb;
+              float luma = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+              float detail = pow(clamp(luma, 0.0, 1.0), 0.6);
+              float d = clamp(detail * 1.2 - 0.1, 0.0, 1.0);
+              vec3 overlay = mix(
+                2.0 * baseColor * d,
+                1.0 - 2.0 * (1.0 - baseColor) * (1.0 - d),
+                step(0.5, baseColor)
+              );
+              vec3 combined = mix(baseColor, overlay, 0.75);
+              diffuseColor.rgb = mix(diffuseColor.rgb, combined, uCtxColorMix);
+            }
+            diffuseColor.rgb *= uCtxColorLift;
+          `);
+      };
+      ctxSurroundMaterial.needsUpdate = true;
+      installFlightGrade(ctxSurroundMaterial);
+      const ctxSurroundGlobe = new THREE.Mesh(
+        new THREE.SphereGeometry(3.2006, TERRAIN_SEGMENTS_W, TERRAIN_SEGMENTS_H),
+        ctxSurroundMaterial,
+      );
+      ctxSurroundGlobe.rotation.y = Math.PI;
+      ctxSurroundGlobe.visible = false;
+      ctxSurroundGlobe.renderOrder = 1;
+      marsGroup.add(ctxSurroundGlobe);
       const ctxDetailStreamer = new CTXDetailPatchStreamer(
         marsGroup,
         ctxStreamer.TILE_BASE,
@@ -11414,11 +13621,15 @@ uniform float uViewportWidth;`,
       const geologyContactLayer = buildGeologyVectorLayer(
         THREE,
         geologyInteractiveState?.contacts || [],
-        3.202,
+        // Base terrain radius, zero lift: contacts are a decal on the surface.
+        // They used to sit on the geology overlay shell (3.202) plus a 0.00025
+        // lift — 2,388 m off the ground, which reads as floating from anywhere
+        // near the surface. Depth bias, not radius, keeps them on top now.
+        3.2,
         elevationSampler,
         popupElevationCache,
         getTerrainRelief,
-        0.00025,
+        0,
         0.28,
         108,
       );
@@ -11434,11 +13645,15 @@ uniform float uViewportWidth;`,
         const layer = buildGeologyVectorLayer(
           THREE,
           entries,
-          3.204,
+          // Was 3.204 + 0.00045 lift = 4,723 m above the terrain. Both vector
+          // layers now share the base radius; they cannot z-fight each other
+          // because neither writes depth, so renderOrder alone (108 < 109)
+          // keeps structures drawing over contacts.
+          3.2,
           elevationSampler,
           popupElevationCache,
           getTerrainRelief,
-          0.00045,
+          0,
           0.48,
           109,
         );
@@ -11526,7 +13741,7 @@ uniform float uViewportWidth;`,
       const geologyOutlineState = createGeologyOutlineState(THREE, geologyInteractiveState);
       if (geologyOutlineState) {
         const geologyOutlineMesh = new THREE.Mesh(
-          new THREE.SphereGeometry(3.209, 128, 128),
+          new THREE.SphereGeometry(3.209, TERRAIN_SEGMENTS_W, TERRAIN_SEGMENTS_H),
           new THREE.MeshBasicMaterial({
             map: geologyOutlineState.texture,
             transparent: true,
@@ -14182,19 +16397,23 @@ uniform float uViewportWidth;`,
           const maxSpriteScale = visual.maxMarkerWorldRadius
             * (visual.targetLabelPx / Math.max(visual.targetMarkerPx, 1));
           const spriteScale = Math.min(rawSpriteScale, maxSpriteScale);
-          visual.marker.scale.setScalar(markerScale);
+          // FLIGHT-SIM: attenuate constant-pixel labels with distance in
+          // flight so far-horizon labels recede naturally (~48 km full size,
+          // floor 16%).
+          let mScale = markerScale, sScale = spriteScale;
+          if (window.__flightSim?.active) {
+            const f = Math.min(1, Math.max(0.16, 0.045 / distance));
+            mScale *= f; sScale *= f;
+          }
+          visual.marker.scale.setScalar(mScale);
           visual.marker.position.copy(visual.markerAnchor).addScaledVector(
             visual.surfaceNormal,
-            -(baseMarkerRadius * markerScale * (visual.markerEmbedFactor || 0)),
+            -(baseMarkerRadius * mScale * (visual.markerEmbedFactor || 0)),
           );
-          visual.labelSprite.scale.set(
-            spriteScale,
-            spriteScale,
-            1,
-          );
+          visual.labelSprite.scale.set(sScale, sScale, 1);
           visual.labelSprite.position.copy(visual.markerAnchor).addScaledVector(
             visual.labelDirection,
-            visual.baseLabelOffset * ((markerScale + spriteScale) * 0.5),
+            visual.baseLabelOffset * ((mScale + sScale) * 0.5),
           );
         }
       }
@@ -14604,7 +16823,7 @@ uniform float uViewportWidth;`,
       if (initialGeologyTexture) {
         geologyMaterial = new THREE.MeshStandardMaterial({
           map: initialGeologyTexture,
-          displacementMap: elevationMap || null,
+          displacementMap: elevationDisplacementMap || null,
           displacementScale: elevationMap ? Number(terrainScale.value) : 0,
           transparent: true,
           opacity: Number(geologyOpacity.value),
@@ -14618,7 +16837,7 @@ uniform float uViewportWidth;`,
         });
 
         geologyGlobe = new THREE.Mesh(
-          new THREE.SphereGeometry(3.202, 128, 128),
+          new THREE.SphereGeometry(3.202, TERRAIN_SEGMENTS_W, TERRAIN_SEGMENTS_H),
           geologyMaterial,
         );
         geologyGlobe.renderOrder = 45;
@@ -14630,7 +16849,7 @@ uniform float uViewportWidth;`,
 
       mineralMaterial = new THREE.MeshStandardMaterial({
         map: null,
-        displacementMap: elevationMap || null,
+        displacementMap: elevationDisplacementMap || null,
         displacementScale: elevationMap ? Number(terrainScale.value) : 0,
         transparent: true,
         opacity: Number(mineralOpacity.value),
@@ -14643,7 +16862,7 @@ uniform float uViewportWidth;`,
         metalness: 0,
       });
       mineralGlobe = new THREE.Mesh(
-        new THREE.SphereGeometry(3.204, 128, 128),
+        new THREE.SphereGeometry(3.204, TERRAIN_SEGMENTS_W, TERRAIN_SEGMENTS_H),
         mineralMaterial,
       );
       mineralGlobe.renderOrder = 6;
@@ -14657,7 +16876,7 @@ uniform float uViewportWidth;`,
         seaMaterial = new THREE.MeshStandardMaterial({
           color: 0xffffff,
           map: seaOverlayState.texture,
-          displacementMap: elevationMap || null,
+          displacementMap: elevationDisplacementMap || null,
           displacementScale: elevationMap ? Number(terrainScale.value) : 0,
           transparent: true,
           opacity: 0.76,
@@ -14672,7 +16891,7 @@ uniform float uViewportWidth;`,
           emissiveIntensity: 0.2,
         });
         seaGlobe = new THREE.Mesh(
-          new THREE.SphereGeometry(3.206, 128, 128),
+          new THREE.SphereGeometry(3.206, TERRAIN_SEGMENTS_W, TERRAIN_SEGMENTS_H),
           seaMaterial,
         );
         seaGlobe.renderOrder = 46;
@@ -14691,7 +16910,7 @@ uniform float uViewportWidth;`,
         const initialRegionTexture = createRegionMaskTexture(regionMaskSelect.value, elevationSampler);
         regionMaskMaterial = new THREE.MeshStandardMaterial({
           map: initialRegionTexture,
-          displacementMap: elevationMap || null,
+          displacementMap: elevationDisplacementMap || null,
           displacementScale: elevationMap ? Number(terrainScale.value) : 0,
           transparent: true,
           opacity: Number(regionMaskOpacity.value),
@@ -14704,7 +16923,7 @@ uniform float uViewportWidth;`,
           metalness: 0,
         });
         regionMaskGlobe = new THREE.Mesh(
-          new THREE.SphereGeometry(3.208, 128, 128),
+          new THREE.SphereGeometry(3.208, TERRAIN_SEGMENTS_W, TERRAIN_SEGMENTS_H),
           regionMaskMaterial,
         );
         regionMaskGlobe.renderOrder = 7;
@@ -14834,6 +17053,11 @@ uniform float uViewportWidth;`,
           moonLayer,
           activePopupFeature,
         );
+        // FLIGHT-SIM: snapshot each label's declutter verdict so the horizon
+        // pass in render() has a stable source of truth to restore from.
+        if (window.__flightSim?.active) {
+          for (const e of labelLayer.entries) e._fsBaseVisible = e.sprite ? e.sprite.visible : false;
+        }
         updateLabelVisibility(
           baseSiteLayer.entries,
           marsGroup,
@@ -14895,7 +17119,11 @@ uniform float uViewportWidth;`,
           updateSeismicAnchors(seismicLayer, elevationSampler, seismicElevationCache, getTerrainRelief, 3.2);
         }
         if (terrainScale) {
-          terrainScale.disabled = Boolean(coreToggle?.checked) || !elevationMap || baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
+          // FLIGHT-SIM: slider live in CTX modes only during flight; orbit
+          // keeps the stock disabled state.
+          terrainScale.disabled = Boolean(coreToggle?.checked) || !elevationMap
+            || ((baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color")
+                && !(window.__flightSim?.active || window.__flightSim?.forceRelief));
         }
       }
 
@@ -16495,6 +18723,10 @@ uniform float uViewportWidth;`,
       });
 
       renderer.domElement.addEventListener("pointerup", (event) => {
+        // FLIGHT-SIM pre-flight owns the globe click: it is choosing a launch
+        // site, so a click must NOT also open a feature popup or run a measure
+        // step. Orbit controls are untouched — only this selection pass bails.
+        if (document.body.classList.contains("fs-preflight")) return;
         if (!pointerDown) { return; }
         const dx = event.clientX - pointerDown.x;
         const dy = event.clientY - pointerDown.y;
@@ -16555,7 +18787,7 @@ uniform float uViewportWidth;`,
             ...raycaster.intersectObjects(baseSiteLayer.interactiveObjects, false),
           ];
           const hit = hits.find((e) => e.object.visible && e.object.userData.feature);
-          if (hit) { openFeature(hit.object.userData.feature, hit.object.parent === cutawayResult.labelsGroup || hit.object.parent === cutawayResult.group); }
+          if (hit) { toggleFeatureFromClick(hit.object.userData.feature, hit.object.parent === cutawayResult.labelsGroup || hit.object.parent === cutawayResult.group); }
           return;
         }
 
@@ -16564,7 +18796,7 @@ uniform float uViewportWidth;`,
           const moonFeatureHit = raycaster.intersectObjects(moonFeatureLabelLayer.interactiveObjects, false)
             .find((e) => isObjectActuallyVisible(e.object) && e.object.userData.feature);
           if (moonFeatureHit) {
-            openFeature(moonFeatureHit.object.userData.feature, false);
+            toggleFeatureFromClick(moonFeatureHit.object.userData.feature, false);
             return;
           }
         }
@@ -16576,7 +18808,7 @@ uniform float uViewportWidth;`,
         ].sort((a, b) => a.distance - b.distance);
         const priorityHit = priorityIntersections.find((entry) => isObjectActuallyVisible(entry.object) && entry.object.userData.feature);
         if (priorityHit) {
-          openFeature(priorityHit.object.userData.feature, false);
+          toggleFeatureFromClick(priorityHit.object.userData.feature, false);
           return;
         }
         if (gisBasePlacementMode) {
@@ -16666,6 +18898,73 @@ uniform float uViewportWidth;`,
         const hit = intersections.find((entry) => isObjectActuallyVisible(entry.object) && entry.object.userData.feature);
         return hit ? hit.object.userData.feature : null;
       }
+
+      // CTX-UPGRADE: debug-only handles for headless verification (driving
+      // frames when rAF is throttled, positioning the camera, reading the
+      // overlay canvas). No viewer behaviour depends on this object.
+      window.__ctxUpgradeDebug = {
+        ctxStreamer,
+        camera,
+        controls,
+        baseLayerSelect,
+        latLonToVector3,
+        marsLonToSceneLon,
+        renderFrame: () => render(),
+      };
+
+      // FLIGHT-SIM: expose the viewer internals the flight simulator needs.
+      // flightsim.js waits for "flightsim:hooks-ready" (or polls). Read-only.
+      window.__flightSimHooks = {
+        THREE,
+        scene,
+        camera,
+        renderer,
+        controls,
+        marsGroup,
+        globe,
+        // FLIGHT-SIM pre-flight: screen point -> Mars lat/lon on the visible
+        // surface. Reuses intersectAnySurface (the same pick that drives the
+        // cursor readout and the measure tools) and the identical un-rotation
+        // the readout applies, so a picked launch site lands exactly where the
+        // coordinate box says it is. Returns null for sky, moons or any
+        // non-Mars body so the picker cannot set a site off-planet.
+        pickSurfaceLatLon: (clientX, clientY) => {
+          const hit = intersectAnySurface(clientX, clientY);
+          if (!hit || hit.context) return null;
+          const localPoint = marsGroup.worldToLocal(hit.point.clone());
+          localPoint.applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
+          const ll = vectorToLatLon(localPoint);
+          if (!ll || !Number.isFinite(ll.lat) || !Number.isFinite(ll.lon)) return null;
+          return { lat: ll.lat, lon: ((ll.lon % 360) + 360) % 360 };
+        },
+        elevationSampler,
+        sampleElevationNormalized,
+        latLonToVector3,
+        marsLonToSceneLon,
+        getRequestedTerrainRelief,
+        getEffectiveTerrainRelief,
+        syncTerrainReliefState,
+        baseLayerSelect,
+        terrainScale,
+        pauseSpin,
+        // Pre-flight needs to hold the globe still while the site is aimed, then
+        // hand back whatever spin state the user had before it took over.
+        resumeSpin,
+        isSpinPaused: () => spinPaused,
+        getSpinTime,
+        setStatus,
+        manifest,
+        MARS_RADIUS_METERS,
+        TRUE_SCALE_TERRAIN_RELIEF,
+        layerTextures,
+        ctxDetailStreamer,
+        getSpinDelta: () => globe.rotation.y - Math.PI,
+        isMoonViewerActive: () => Boolean(activeMoonViewerFeature),
+        renderFrame: () => render(),
+        get labelLayer() { return labelLayer; },
+        get baseSiteLayer() { return baseSiteLayer; },
+      };
+      window.dispatchEvent(new CustomEvent("flightsim:hooks-ready"));
 
       window.__marsViewerDebug = {
         isReady: () => true,
@@ -16961,7 +19260,23 @@ ${error && error.message ? error.message : error}`;
         if (viewerControls) {
           viewerControls.enableRotate = true;
         }
-        const spinLocked = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
+        // FLIGHT-SIM: while engaged, flight owns the camera. OrbitControls,
+        // the surface-barrier clamp and the CTX zoom snap-back are skipped;
+        // the CTX streamers still run every frame exactly as in orbit.
+        const _fs = window.__flightSim;
+        const _flightActive = Boolean(_fs && _fs.active);
+        // FLIGHT-SIM: sunlit luminance in flight, stock lighting in orbit.
+        updateFlightLighting(_flightActive);
+        updateFlightGrade(_flightActive);
+        updateMarsSky(_flightActive, camera);
+        // Batched focus-texture upload (see _drawFocusTile): bounds GPU traffic
+        // at altitude, where the canvas is ~59 MB per upload.
+        if (_flightActive) ctxStreamer.flushFocusTexture(performance.now());
+        else if (ctxStreamer._focusTexDirty) {
+          ctxStreamer.focusTexture.needsUpdate = true;
+          ctxStreamer._focusTexDirty = false;
+        }
+        const spinLocked = _flightActive || baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
         if (spinLocked) {
           pauseSpin();
           if (spinToggleBtn) {
@@ -16978,7 +19293,7 @@ ${error && error.message ? error.message : error}`;
         let _safeMin = 0;
         let _distToMaxSurface = Infinity;
         let _controlSurfaceDistance = Infinity;
-        if (!activeMoonViewerFeature) {
+        if (!_flightActive && !activeMoonViewerFeature) {
           const _maxTerrainDisp = Math.max(0, getTerrainRelief());
           const _ctxMode = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
           const _surfaceMargin = _ctxMode ? 0.0005 : 0.092;
@@ -17036,13 +19351,17 @@ ${error && error.message ? error.message : error}`;
             }
           }
         }
-        controls.update();
+        if (!_flightActive) controls.update();
         // Backstop: clamp again after OrbitControls in case damping still overshot
         if (_safeMin > 0 && camera.position.length() < _safeMin) {
           camera.position.setLength(_safeMin);
           controls.object.position.copy(camera.position);
         }
-        if (!activeMoonViewerFeature) {
+        // FLIGHT-SIM: run flight physics + camera for this frame.
+        if (_flightActive) {
+          _fs.update(camera);
+        }
+        if (!_flightActive && !activeMoonViewerFeature) {
           const _ctxMode = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
           if (_ctxMode) {
             const _currentScaleBar = estimateScaleBarMetersForCameraPosition(camera.position);
@@ -17086,6 +19405,7 @@ ${error && error.message ? error.message : error}`;
           if (compareGlobe) compareGlobe.rotation.y = globe.rotation.y;
           if (contourGlobe) contourGlobe.rotation.y = globe.rotation.y;
           if (ctxFocusGlobe) ctxFocusGlobe.rotation.y = globe.rotation.y;
+        if (ctxSurroundGlobe) ctxSurroundGlobe.rotation.y = globe.rotation.y;
           if (geologyGlobe) geologyGlobe.rotation.y = globe.rotation.y;
           if (mineralGlobe) mineralGlobe.rotation.y = globe.rotation.y;
           if (regionMaskGlobe) regionMaskGlobe.rotation.y = globe.rotation.y;
@@ -17265,10 +19585,18 @@ ${error && error.message ? error.message : error}`;
               };
             }
             const pulse = (Math.sin(_t * 0.004) + 1) * 0.5;
+            // An over-horizon feature is represented by its horizon PROXY (the
+            // triangle + name + range up on the skyline); its real marker lies
+            // beyond the curve of the planet. Pulsing the selection ring at that
+            // marker puts a throbbing dot down on the terrain that has nothing to
+            // do with the label the pilot actually clicked, so suppress the whole
+            // pulse treatment while the proxy is what is on screen.
+            const usingHorizonProxy = Boolean(selectedLabelEntry?._fsTri?.visible);
             if (selectedLabelEntryIsSurface) {
               const compactMosaicSelection = baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color";
               const microScaleBar = Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null;
-              selectionRing.visible = !(compactMosaicSelection && Number.isFinite(microScaleBar) && microScaleBar <= 2000);
+              selectionRing.visible = !usingHorizonProxy
+                && !(compactMosaicSelection && Number.isFinite(microScaleBar) && microScaleBar <= 2000);
               selectionRing.position.copy(entryMarker.position);
               selectionRing.material.opacity = 0.35 + pulse * 0.55;
               const markerScale = entryMarker.scale?.x || 1;
@@ -17300,14 +19628,14 @@ ${error && error.message ? error.message : error}`;
               selectionRing.visible = false;
               coreSelectionRing.visible = false;
             }
-            if (selectedLabelEntry.sprite?.material) {
+            if (selectedLabelEntry.sprite?.material && !usingHorizonProxy) {
               selectedLabelEntry.sprite.material.color.setRGB(1.0, 0.83 + pulse * 0.14, 0.42 + pulse * 0.43);
               selectedLabelEntry.sprite.material.opacity = 0.78 + pulse * 0.22;
             }
-            if (selectedLabelEntry.dot?.material) {
+            if (selectedLabelEntry.dot?.material && !usingHorizonProxy) {
               selectedLabelEntry.dot.material.color.setRGB(1.0, 0.83 + pulse * 0.14, 0.42 + pulse * 0.43);
             }
-            if (selectedLabelEntry.line?.material) {
+            if (selectedLabelEntry.line?.material && !usingHorizonProxy) {
               selectedLabelEntry.line.material.opacity = 0.42 + pulse * 0.4;
             }
           } else {
@@ -17426,7 +19754,23 @@ ${error && error.message ? error.message : error}`;
             const resolved = ctxStreamer._focusResolvedLevels?.size || 0;
             const total = Math.max(1, ctxStreamer._focusDisplayState?.tileCount || 1);
             const coverage = Math.min(1, resolved / total);
-            const targetOpacity = clamp((coverage - 0.15) / 0.85, 0, 1);
+            // FLIGHT-SIM: do NOT fade the layer on coverage while flying.
+            // `_focusResolvedLevels` is deliberately CLEARED whenever the
+            // anchor shifts past the window span — about every 9 s at cruise —
+            // so this ratio collapses to 0 on a schedule and the whole fine
+            // layer fades out and back in. That is the "tiles come in and out
+            // of focus" report, and being a WHOLE-LAYER fade it is invisible to
+            // any per-tile or per-pixel canvas check. The ratio is also
+            // structurally wrong here: the denominator counts the bbox, while
+            // the half-disc only ever fetches about half of it, so coverage
+            // could not reach 1 even with every requested tile in hand.
+            // The canvas is stable by construction now (scroll-don't-rebuild),
+            // so there is nothing left for a fade to hide: hold it opaque and
+            // let the ease only cover the layer's first appearance.
+            const flyingFocus = Boolean(window.__flightSim?.active);
+            const targetOpacity = flyingFocus
+              ? (resolved > 0 ? 1 : 0)
+              : clamp((coverage - 0.15) / 0.85, 0, 1);
             ctxStreamer._focusOpacity = Number.isFinite(ctxStreamer._focusOpacity)
               ? ctxStreamer._focusOpacity
               : 0;
@@ -17434,6 +19778,24 @@ ${error && error.message ? error.message : error}`;
             ctxFocusMaterial.opacity = clamp(ctxStreamer._focusOpacity, 0, 1);
             ctxFocusMaterial.transparent = true;
             ctxFocusMaterial.needsUpdate = true;
+          }
+        }
+        // CTX-UPGRADE: surround globe rides the focus globe's visibility and
+        // colorisation; its displacement tracks the focus material so terrain
+        // relief changes stay in lockstep.
+        if (ctxSurroundGlobe) {
+          ctxSurroundGlobe.visible = Boolean(
+            ctxFocusGlobe && ctxFocusGlobe.visible && ctxStreamer._surroundDisplayActive,
+          );
+          if (ctxSurroundGlobe.visible) {
+            if (ctxSurroundMaterial?.userData?.ctxShader) {
+              const sShader = ctxSurroundMaterial.userData.ctxShader;
+              const wantsColor = baseLayerSelect.value === "ctx-mosaic-color";
+              sShader.uniforms.uCtxColorMap.value = wantsColor ? (layerTextures.get("viking-color") || null) : null;
+              sShader.uniforms.uCtxColorMix.value = wantsColor ? 1.0 : 0.0;
+              sShader.uniforms.uCtxColorLift.value = wantsColor ? 1.15 : 1.0;
+            }
+            ctxSurroundMaterial.displacementScale = ctxFocusMaterial.displacementScale;
           }
         }
         if (renderingIndicator) {
@@ -17472,11 +19834,504 @@ ${error && error.message ? error.message : error}`;
           );
         }
         updateMeasureVisualScale();
+        // ── FLIGHT-SIM: horizon POI system ───────────────────────────────────
+        // In flight, a feature beyond the visible horizon is flagged by a small
+        // category-coloured ▼ + name hovering just above the skyline in its
+        // direction, fading/shrinking as it lies farther beyond the horizon.
+        // Once the feature genuinely crests into view it promotes back to the
+        // standard viewer label (dot + connector + box). Design notes:
+        //  • Visibility is the GROUND-POINT horizon test γ ≤ acos(Rg/d): a
+        //    feature IS its ground location, so a label anchor floating high on
+        //    exaggerated terrain must not promote it early. Hysteresis (±EPS)
+        //    stops flicker right at the boundary.
+        //  • Hover height comes from SAMPLING the terrain skyline along each
+        //    proxy's azimuth (elevation map × current relief, incl. vertical
+        //    exaggeration), so proxies sit a few px above the real skyline.
+        //  • The horizon band is decluttered by azimuth bins (nearest first).
+        //  • Proxies are depth-tested: the ship or a nearer ridge occludes them,
+        //    and nothing ever draws through the planet.
+        //  • View-cone culled: a feature whose location is out of frame gets no
+        //    label at all, rather than an anchor-lifted sprite hanging on screen.
+        if (window.__flightSim?.active) {
+          if (!window.__fsTriTex) { // white glyph so per-category tinting works
+            const _c = document.createElement("canvas"); _c.width = 64; _c.height = 64;
+            const _g = _c.getContext("2d");
+            _g.beginPath(); _g.moveTo(6, 12); _g.lineTo(58, 12); _g.lineTo(32, 56); _g.closePath();
+            _g.fillStyle = "#ffffff"; _g.fill();
+            _g.lineWidth = 5; _g.strokeStyle = "rgba(8,10,14,0.9)"; _g.stroke();
+            window.__fsTriTex = new THREE.CanvasTexture(_c);
+          }
+          const grp = labelLayer.group;
+          const camLocal = grp.worldToLocal(camera.position.clone()); // camera in label/map frame
+          const d = camLocal.length() || 1;
+          const Chat = camLocal.clone().multiplyScalar(1 / d);        // radial "up" at the camera
+          const Rg = globe.geometry?.parameters?.radius || 3.2;
+          const relief = Math.max(0, (typeof getEffectiveTerrainRelief === "function" ? getEffectiveTerrainRelief() : 0) || 0);
+          let tileLift = 0; // CTX tiles float above the datum; the skyline includes that
+          if (ctxDetailStreamer && (baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color")) {
+            tileLift = (ctxDetailStreamer.surfaceLiftBase || 0) + relief * (ctxDetailStreamer.surfaceLiftReliefFactor || 0);
+          }
+          // Robust viewport height: clientHeight is 0 while the tab isn't
+          // compositing (hidden/mid-resize) — fall back to the drawing buffer
+          // then the window so pixel→angle math never degenerates.
+          const vpH = renderer.domElement.clientHeight || renderer.domElement.height || window.innerHeight || 800;
+          const fovScale = vpH / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5));
+          const anglePerPx = 1 / Math.max(fovScale, 1e-4);            // radians per screen pixel
+          const alpha = Math.acos(Math.max(-1, Math.min(1, Rg / d))); // camera's horizon angle
+          const Dh = Math.sqrt(Math.max(d * d - Rg * Rg, 1e-8));      // slant distance to the horizon
+          const uppH = Dh * anglePerPx;                               // world units per px at the horizon
+          const EPS = 0.008;                                          // hysteresis band (rad)
+          const canSample = typeof sampleElevationNormalized === "function" && elevationSampler;
+          // View-cone culling: labels/proxies for features to the SIDE or BEHIND
+          // the camera are dropped outright. Without this, a behind-camera anchor
+          // can still project onto the screen ("forced into view" far from the
+          // real location). Proxies cull at the frustum edge + margin.
+          const fwdLocal = grp.worldToLocal(new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).add(camera.position)).sub(camLocal).normalize();
+          const vpW = renderer.domElement.clientWidth || renderer.domElement.width || window.innerWidth || vpH * 1.7;
+          const hHalf = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5) * (vpW / vpH));
+          const COS_PROXY_CULL = Math.cos(Math.min(hHalf + 0.21, 1.45)); // horizontal frustum edge + ~12°
+          const fwdH = fwdLocal.clone().addScaledVector(Chat, -fwdLocal.dot(Chat)); // forward azimuth on the horizon
+          const fwdHValid = fwdH.lengthSq() > 1e-6;
+          if (fwdHValid) fwdH.normalize();
+          const lookV = new THREE.Vector3();
+          const upV = new THREE.Vector3();
+          // "Location out of view → label dropped": the authoritative test is the
+          // FEATURE's own position against the view frustum (+20% margin), not the
+          // sprite's — anchors lift sprites far above markers, so a just-passed
+          // feature's label could otherwise hang on-screen with its location
+          // already out of frame behind the ship.
+          camera.updateMatrixWorld();
+          if (!window.__fsCamInv) window.__fsCamInv = new THREE.Matrix4();
+          const camInv = window.__fsCamInv.copy(camera.matrixWorld).invert();
+          const grpM = grp.matrixWorld;
+          const tanHalfV = Math.tan(THREE.MathUtils.degToRad(camera.fov) * 0.5);
+          const aspect = vpW / vpH;
+          const markerInView = (Plocal) => {
+            lookV.copy(Plocal).applyMatrix4(grpM).applyMatrix4(camInv); // → camera space
+            if (lookV.z > -1e-4) return false;                          // behind the camera
+            const lim = -lookV.z * tanHalfV * 1.2;
+            return Math.abs(lookV.y) <= lim && Math.abs(lookV.x) <= lim * aspect;
+          };
+          const cullStats = { promotedShown: 0, promotedCulled: 0, proxiesShown: 0, baseCulled: 0 };
+          const hideProxies = (e) => {
+            if (e._fsTri) e._fsTri.visible = false;
+            if (e._fsHLabel) e._fsHLabel.visible = false;
+            if (e._fsDist) e._fsDist.visible = false;
+            e._fsRamp = 0;
+          };
+          // Cached distance-readout textures. Cached by STRING, and the value is
+          // rounded to coarse steps, so a feature 300 km out does not mint a new
+          // texture every frame as the range ticks down.
+          if (!window.__fsDistTex) window.__fsDistTex = new Map();
+          const fsDistTexture = (txt) => {
+            const cache = window.__fsDistTex;
+            const hit = cache.get(txt);
+            if (hit) return hit;
+            const fsz = 34, pad = 9;
+            const meas = document.createElement("canvas").getContext("2d");
+            meas.font = `600 ${fsz}px "Exo 2", sans-serif`;
+            const cv = document.createElement("canvas");
+            cv.width = Math.max(8, Math.ceil(meas.measureText(txt).width) + pad * 2);
+            cv.height = fsz + pad * 2;
+            const g2 = cv.getContext("2d");
+            g2.font = `600 ${fsz}px "Exo 2", sans-serif`;
+            g2.textAlign = "center";
+            g2.textBaseline = "middle";
+            g2.lineWidth = 6;
+            g2.strokeStyle = "rgba(8,10,14,0.92)";
+            g2.strokeText(txt, cv.width / 2, cv.height / 2);
+            g2.fillStyle = "#bfe0ff";
+            g2.fillText(txt, cv.width / 2, cv.height / 2);
+            const tex = new THREE.CanvasTexture(cv);
+            if (cache.size > 160) {
+              for (const k of cache.keys()) {
+                cache.get(k)?.dispose?.();
+                cache.delete(k);
+                if (cache.size <= 120) break;
+              }
+            }
+            cache.set(txt, tex);
+            return tex;
+          };
+          // Screen box of a sprite, in CSS pixels. Sprites are sized in WORLD
+          // units, so the pixel size follows from the perspective relation
+          // pxPerUnit = viewportH / (2 * dist * tan(fov/2)). Returns null behind
+          // the camera, where the projection is meaningless.
+          // PERF, and this one froze the main thread: `clientWidth`/`clientHeight`
+          // force a style+layout flush on every read. Reading them INSIDE this
+          // helper meant one forced layout per label per frame — hundreds per
+          // frame at max label density — which locks the browser. They are hoisted
+          // to once per frame here, along with the constant fov term. The scratch
+          // vectors likewise avoid allocating two Vector3 per label per frame.
+          const _srVw = renderer.domElement.clientWidth || 1;
+          const _srVh = renderer.domElement.clientHeight || 1;
+          const _srTanHalfFov = Math.tan((camera.fov * Math.PI / 180) / 2);
+          const _srV = new THREE.Vector3();
+          const _srN = new THREE.Vector3();
+          const spriteScreenRect = (sprite) => {
+            if (!sprite) return null;
+            _srV.copy(sprite.position);
+            grp.localToWorld(_srV);
+            const dist = camera.position.distanceTo(_srV);
+            if (!(dist > 1e-9)) return null;
+            const ndc = _srN.copy(_srV).project(camera);
+            if (ndc.z > 1) return null;                      // behind the camera
+            const vh = _srVh, vw = _srVw;
+            const pxPerUnit = vh / (2 * dist * _srTanHalfFov);
+            const hPx = sprite.scale.y * pxPerUnit;
+            const wPx = sprite.scale.x * pxPerUnit;
+            const cx = (ndc.x * 0.5 + 0.5) * vw;
+            const cy = (-ndc.y * 0.5 + 0.5) * vh;
+            // 2 px of padding so boxes that merely touch still count as clashing.
+            return { l: cx - wPx / 2 - 2, r: cx + wPx / 2 + 2,
+                     t: cy - hPx / 2 - 2, b: cy + hPx / 2 + 2 };
+          };
+          const rectsOverlap = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
+
+          // Every box already claimed this frame: real in-view labels first (they
+          // always win), then proxy names in significance order.
+          const occupiedRects = [];
+
+          // Pass 1 — classify every label: in view (promote) or beyond horizon.
+          const candidates = [];
+          for (const entry of labelLayer.entries) {
+            if (!entry || !entry.sprite || !entry.marker) continue;
+            // Base visibility = the viewer's own declutter verdict, refreshed on
+            // "heavy" frames (updateLabelVisibility just recomputed sprite.visible
+            // earlier in this same render pass); light frames keep the last known.
+            if ((_heavyFrame && !coreToggle.checked) || entry._fsBaseVisible === undefined) entry._fsBaseVisible = !!entry.sprite.visible;
+            if (!entry._fsBaseVisible) { hideProxies(entry); continue; }
+            const P = entry.marker.position;
+            const R = P.length() || 1;
+            const cosG = (P.x * Chat.x + P.y * Chat.y + P.z * Chat.z) / R;
+            const gamma = Math.acos(Math.max(-1, Math.min(1, cosG)));
+            // GROUND-POINT horizon test (no anchor "reach"): label anchors float
+            // well above the surface (relief + exaggeration lifts), and a high
+            // anchor is genuinely line-of-sight visible far beyond the horizon —
+            // which promoted full labels whose dot hung in the sky. A feature IS
+            // its ground location: it counts as in view only once that location
+            // clears the datum horizon.
+            const over = gamma - alpha;            // >0 → ground point behind the planet's curve
+            const wasOut = entry._fsMode === "out";
+            const out = wasOut ? over > -EPS : over > EPS; // hysteresis
+            entry._fsMode = out ? "out" : "in";
+            if (!out) { // promote: the standard viewer label — shown only while the
+              // feature's LOCATION is inside the view frustum; out of frame
+              // (side/behind) the whole label is dropped, never forced on-screen.
+              const onScreen = markerInView(P); // (leaves camera-space P in lookV)
+              entry.sprite.visible = onScreen;
+              if (entry.sprite.material) {
+                entry.sprite.material.depthTest = false;
+                // ...and no depth WRITE either. The ship is drawn after labels
+                // (renderOrder 400 vs 201) but still depth-tests against the
+                // terrain; a label writing depth nearer than the hull would
+                // reject those fragments and the label would win anyway. This
+                // is what let labels paint across the ship.
+                entry.sprite.material.depthWrite = false;
+              }
+              if (entry.line) { entry.line.visible = onScreen; if (entry.line.material) entry.line.material.depthTest = false; }
+              entry.marker.visible = onScreen;
+              if (entry.marker.material) entry.marker.material.depthTest = false;
+              if (onScreen) {
+                // FLIGHT RE-ANCHOR: the orbit anchor lift is negligible at flight
+                // proximity, leaving labels hugging the ground with a horizontal
+                // connector. Re-anchor each frame: dot stays on the surface, the
+                // label floats comfortably above it (≥1.4 label-heights, or a
+                // 62 px screen-constant lift when that is larger), and the
+                // connector is rewritten surface → label, i.e. sub-vertical.
+                // Orbit anchors self-restore on exit via syncTerrainReliefState.
+                const distCam = lookV.length();
+                const lift = Math.max(distCam * anglePerPx * 62, entry.sprite.scale.y * 1.4);
+                upV.copy(P).multiplyScalar(1 / (P.length() || 1)); // radial up at the feature
+                entry.sprite.position.copy(P).addScaledVector(upV, lift);
+                const lp = entry.line?.geometry?.attributes?.position;
+                if (lp && lp.count === 2) {
+                  const endLift = Math.max(lift - entry.sprite.scale.y * 0.55, lift * 0.4);
+                  lp.array[0] = P.x; lp.array[1] = P.y; lp.array[2] = P.z;
+                  lp.array[3] = P.x + upV.x * endLift;
+                  lp.array[4] = P.y + upV.y * endLift;
+                  lp.array[5] = P.z + upV.z * endLift;
+                  lp.needsUpdate = true;
+                  entry.line.geometry.computeBoundingSphere?.();
+                }
+              }
+              hideProxies(entry);
+              // A REAL, in-view label always outranks a horizon proxy. Bank its
+              // screen box so the declutter pass below can yield to it rather
+              // than stacking a skyline flag on top of it.
+              if (onScreen) occupiedRects.push(spriteScreenRect(entry.sprite));
+              if (onScreen) cullStats.promotedShown++; else cullStats.promotedCulled++;
+              continue;
+            }
+            entry.sprite.visible = false;
+            if (entry.line) entry.line.visible = false;
+            entry.marker.visible = false;
+            if (cosG <= 0.03) { hideProxies(entry); continue; } // far side — not "upcoming"
+            candidates.push({ entry, over, cosG, P, R });
+          }
+          // Pass 2 — declutter the horizon band: nearest feature wins each
+          // azimuth bin, capped so the skyline never crowds.
+          // MAX_NAMED caps how many carry a NAME; MAX_TRI is the larger cap on
+          // bare triangles, which are cheap and are the "queued" state — a
+          // feature keeps its marker so you can see it coming, and earns its
+          // name when it wins a slot or comes into view.
+          const MAX_NAMED = 14, MAX_TRI = 40, BIN_RAD = 6 * Math.PI / 180;
+          let Ub = new THREE.Vector3(0, 1, 0).cross(Chat);
+          if (Ub.lengthSq() < 1e-6) Ub = new THREE.Vector3(1, 0, 0).cross(Chat);
+          Ub.normalize();
+          const Vb = new THREE.Vector3().crossVectors(Chat, Ub);
+          // SIGNIFICANCE FIRST, distance second. `lod` is the label-density rank
+          // carried by every feature (1 = continent-scale, 5 = individual craters
+          // that only appear at max density), so at high density the map floods
+          // with lod-5 names that would otherwise win purely by being nearer.
+          const sig = (c) => Number(c.entry.item?.lod) || 3;
+          candidates.sort((a, b) => (sig(a) - sig(b)) || (a.over - b.over));
+          const usedBins = new Set();
+          const shown = [];
+          for (const c of candidates) {
+            const tang = c.P.clone().multiplyScalar(1 / c.R).addScaledVector(Chat, -c.cosG);
+            if (tang.lengthSq() < 1e-9) { hideProxies(c.entry); continue; }
+            tang.normalize();
+            // Off-view azimuth (side/behind the heading) → drop; the horizon band
+            // only flags what lies AHEAD, and bins aren't wasted on hidden ones.
+            if (fwdHValid && tang.dot(fwdH) < COS_PROXY_CULL) { hideProxies(c.entry); continue; }
+            if (shown.length >= MAX_TRI) { hideProxies(c.entry); continue; }
+            // Losing the azimuth bin, or running past the name budget, DEMOTES to
+            // a bare triangle instead of vanishing — that is the queue.
+            const bin = Math.round(Math.atan2(tang.dot(Vb), tang.dot(Ub)) / BIN_RAD);
+            const namedSlotFree = !usedBins.has(bin) && shown.filter((x) => x.named).length < MAX_NAMED;
+            if (namedSlotFree) usedBins.add(bin);
+            c.named = namedSlotFree;
+            c.sig = sig(c);
+            c.tang = tang;
+            shown.push(c);
+          }
+          // Pass 3 — place the survivors just above the sampled skyline.
+          const sDir = new THREE.Vector3(), sPos = new THREE.Vector3(), look = new THREE.Vector3();
+          for (const c of shown) {
+            const { entry, tang } = c;
+            // Skyline elevation along this azimuth: the highest sightline angle
+            // to terrain sampled at 60/85/100% of the way to the horizon.
+            let maxSin = Math.sin(-alpha); // floor: the geometric (datum) horizon
+            if (canSample) {
+              for (const f of [0.6, 0.85, 1.0]) {
+                const a = alpha * f;
+                sDir.copy(Chat).multiplyScalar(Math.cos(a)).addScaledVector(tang, Math.sin(a));
+                const lat = Math.asin(Math.max(-1, Math.min(1, sDir.y))) * 180 / Math.PI;
+                const lonE = ((Math.atan2(sDir.z, -sDir.x) * 180 / Math.PI) % 360 + 360) % 360;
+                let en = 0.5;
+                try { en = sampleElevationNormalized(elevationSampler, lat, lonE) ?? 0.5; } catch (_e) {}
+                sPos.copy(sDir).multiplyScalar(Rg + en * relief + tileLift);
+                look.copy(sPos).sub(camLocal);
+                const sinE = look.dot(Chat) / (look.length() || 1);
+                if (sinE > maxSin) maxSin = sinE;
+              }
+            }
+            const eSky = Math.asin(Math.max(-1, Math.min(1, maxSin)));
+            // Size + fade as a function of how far beyond the horizon it lies —
+            // floors keep even the farthest flags readable.
+            const t = Math.min(1, c.over / 0.9);
+            const fade = 0.95 - t * 0.55;                 // 0.95 → 0.40
+            // SIZE BY SIGNIFICANCE. lod 1 (continent-scale) draws ~15% larger than
+            // the baseline, lod 5 (individual craters) ~15% smaller, so the
+            // skyline reads as a hierarchy instead of a wall of equal flags.
+            const sigScale = 1.18 - 0.075 * (c.sig || 3);   // lod1 1.10 → lod5 0.81
+            const triPx = (16 - t * 5) * sigScale;
+            const labPx = (18 - t * 4) * sigScale;
+            const triH = uppH * triPx, labH = uppH * labPx;
+            const liveMap = entry.sprite.material?.map || null;
+            if (!entry._fsTri) {
+              entry._fsTri = new THREE.Sprite(new THREE.SpriteMaterial({ map: window.__fsTriTex, transparent: true, depthTest: true, depthWrite: false }));
+              entry._fsTri.renderOrder = 93; entry._fsTri.frustumCulled = false; grp.add(entry._fsTri);
+              // Clickable, exactly like an in-view label: carry the feature and
+              // join the raycast set. Hidden proxies are filtered out by the
+              // existing isObjectActuallyVisible() test, so an off-horizon
+              // triangle cannot be picked.
+              entry._fsTri.userData.feature = entry.item;
+              labelLayer.interactiveObjects.push(entry._fsTri);
+            }
+            if (!entry._fsHLabel && liveMap) {
+              entry._fsHLabel = new THREE.Sprite(new THREE.SpriteMaterial({ map: liveMap, transparent: true, depthTest: true, depthWrite: false }));
+              entry._fsHLabel.renderOrder = 93; entry._fsHLabel.frustumCulled = false; grp.add(entry._fsHLabel);
+              entry._fsHLabel.userData.feature = entry.item;
+              labelLayer.interactiveObjects.push(entry._fsHLabel);
+            }
+            if (entry.marker.material?.color) entry._fsTri.material.color.copy(entry.marker.material.color);
+            entry._fsRamp = Math.min(1, (entry._fsRamp || 0) + 0.08); // fade-in, no popping
+            const op = fade * entry._fsRamp;
+            // Sightline elevation for the triangle: skyline + 8 px pad + half its height.
+            const eTri = eSky + (8 + triPx * 0.5) * anglePerPx;
+            sDir.copy(tang).multiplyScalar(Math.cos(eTri)).addScaledVector(Chat, Math.sin(eTri));
+            entry._fsTri.visible = true;
+            entry._fsTri.material.opacity = op;
+            entry._fsTri.position.copy(camLocal).addScaledVector(sDir, Dh);
+            entry._fsTri.scale.set(triH, triH, 1);
+            // RANGE READOUT, directly under the triangle. Surface distance from
+            // the ship's ground point to the feature's: cosG is the cosine of
+            // the central angle between them, so gamma * Rg converts straight to
+            // ground range. Rounded to coarse steps (5 / 10 / 50 km by
+            // magnitude) so the text is stable to read and the texture cache
+            // does not churn while closing on a target.
+            {
+              const gamma = Math.acos(Math.max(-1, Math.min(1, c.cosG)));
+              const distKm = gamma * Rg * ((MARS_RADIUS_METERS / 1000) / 3.2);
+              const stepKm = distKm < 100 ? 5 : distKm < 1000 ? 10 : 50;
+              const shown = Math.max(stepKm, Math.round(distKm / stepKm) * stepKm);
+              const txt = `${shown} km`;
+              if (!entry._fsDist) {
+                // depthTest OFF, unlike the glyph and name above it. The range sits
+                // BELOW the triangle (eDist subtracts where the name adds), which
+                // puts it right on the skyline, so a depth-tested sprite gets its
+                // lower half eaten by the terrain it is annotating. The whole proxy
+                // is an over-horizon readout — there is nothing in front of it that
+                // should legitimately occlude it — and renderOrder 94 keeps it above
+                // the glyph and name it belongs to.
+                entry._fsDist = new THREE.Sprite(new THREE.SpriteMaterial({
+                  transparent: true, depthTest: false, depthWrite: false,
+                }));
+                entry._fsDist.renderOrder = 94;
+                entry._fsDist.frustumCulled = false;
+                grp.add(entry._fsDist);
+                entry._fsDist.userData.feature = entry.item;
+                labelLayer.interactiveObjects.push(entry._fsDist);
+              }
+              if (entry._fsDistTxt !== txt) {
+                entry._fsDist.material.map = fsDistTexture(txt);
+                entry._fsDist.material.needsUpdate = true;
+                entry._fsDistTxt = txt;
+              }
+              const dmap = entry._fsDist.material.map;
+              const dImg = dmap && dmap.image;
+              const dAspect = dImg && dImg.height ? dImg.width / dImg.height : 3;
+              const distPx = 13 - t * 3;
+              const distH = uppH * distPx;
+              // BELOW the glyph: subtract, where the name label adds.
+              const eDist = eTri - (triPx * 0.5 + distPx * 0.62) * anglePerPx;
+              sDir.copy(tang).multiplyScalar(Math.cos(eDist)).addScaledVector(Chat, Math.sin(eDist));
+              entry._fsDist.visible = c.named;
+              entry._fsDist.material.opacity = Math.min(1, op * 1.35);
+              entry._fsDist.position.copy(camLocal).addScaledVector(sDir, Dh);
+              entry._fsDist.scale.set(distH * dAspect, distH, 1);
+            }
+            if (entry._fsHLabel && liveMap && c.named) {
+              // Keep the proxy's texture in lockstep with the live label texture:
+              // rebuildLabelTextures() swaps/disposes label maps, and a proxy left
+              // holding a disposed map draws NOTHING — the "triangle with no name".
+              if (entry._fsHLabel.material.map !== liveMap) {
+                entry._fsHLabel.material.map = liveMap;
+                entry._fsHLabel.material.needsUpdate = true;
+              }
+              const img = liveMap.image;
+              const labAspect = img && img.height ? img.width / img.height : 4;
+              const eLab = eTri + (triPx * 0.5 + labPx * 0.62) * anglePerPx;
+              sDir.copy(tang).multiplyScalar(Math.cos(eLab)).addScaledVector(Chat, Math.sin(eLab));
+              entry._fsHLabel.visible = true;
+              // Thin outlined text vanishes at the triangle's far-fade alpha —
+              // boost it so the name stays legible as far as the glyph itself.
+              entry._fsHLabel.material.opacity = Math.min(1, op * 1.45);
+              entry._fsHLabel.position.copy(camLocal).addScaledVector(sDir, Dh);
+              entry._fsHLabel.scale.set(labH * labAspect, labH, 1);
+            } else if (entry._fsHLabel) {
+              entry._fsHLabel.visible = false;
+            }
+            // SCREEN-SPACE OVERLAP. Azimuth bins alone cannot prevent the pile-up
+            // in a crowded band: bins measure DIRECTION, but a label has WIDTH, so
+            // two flags 7° apart still overlap when their names are long. Test the
+            // actual projected box against everything already placed — real
+            // in-view labels first, then higher-significance proxies — and demote
+            // to a bare triangle on collision. Candidates arrive in significance
+            // order, so the loser is always the less important one.
+            if (entry._fsHLabel?.visible) {
+              const rect = spriteScreenRect(entry._fsHLabel);
+              if (rect && occupiedRects.some((r) => rectsOverlap(r, rect))) {
+                entry._fsHLabel.visible = false;
+                if (entry._fsDist) entry._fsDist.visible = false;
+                cullStats.declutteredNames = (cullStats.declutteredNames || 0) + 1;
+              } else if (rect) {
+                occupiedRects.push(rect);
+              }
+            }
+          }
+          // Landing-site labels (Beagle 2, Viking, …) get the same off-view drop —
+          // their anchors can equally be flung on-screen from behind. Snapshot
+          // pattern so turning back toward one restores it immediately.
+          if (baseSiteLayer?.entries) {
+            for (const e of baseSiteLayer.entries) {
+              if (!e || !e.sprite) continue;
+              if (e._fsBaseVisible === undefined) e._fsBaseVisible = !!e.sprite.visible;
+              if (!e._fsBaseVisible) continue;
+              const p = e.marker?.position || e.sprite.position;
+              const onScreen = markerInView(p);
+              e.sprite.visible = onScreen;
+              if (e.line) e.line.visible = onScreen;
+              if (e.marker) e.marker.visible = onScreen;
+              if (!onScreen) cullStats.baseCulled++;
+            }
+          }
+          cullStats.proxiesShown = shown.length;
+          window.__fsCullStats = cullStats;
+          window.__fsTriActive = true;
+        } else if (window.__fsTriActive) {
+          // Disengaged: hide every proxy and hand the labels back to the viewer
+          // exactly as they were (visibility from the snapshot, orbit-style
+          // see-through materials), then let the display-state pass resync.
+          for (const entry of labelLayer.entries) {
+            if (entry._fsTri) entry._fsTri.visible = false;
+            if (entry._fsHLabel) entry._fsHLabel.visible = false;
+            // _fsDist too. A horizon proxy owns THREE sprites, and this loop was
+            // written listing only two — so on exit the range readouts ("400 km")
+            // stayed painted over the globe with nothing to annotate.
+            if (entry._fsDist) entry._fsDist.visible = false;
+            if (entry._fsBaseVisible !== undefined && entry.sprite) {
+              entry.sprite.visible = entry._fsBaseVisible;
+              if (entry.line) entry.line.visible = entry._fsBaseVisible;
+              if (entry.marker) entry.marker.visible = entry._fsBaseVisible;
+            }
+            if (entry.sprite?.material) {
+              entry.sprite.material.depthTest = false;
+              entry.sprite.material.depthWrite = false;   // see note above
+            }
+            if (entry.line?.material) entry.line.material.depthTest = false;
+            if (entry.marker?.material) entry.marker.material.depthTest = false;
+            entry._fsMode = undefined;
+            entry._fsRamp = 0;
+            entry._fsBaseVisible = undefined;
+          }
+          if (baseSiteLayer?.entries) {
+            for (const e of baseSiteLayer.entries) {
+              if (e && e._fsBaseVisible !== undefined && e.sprite) {
+                e.sprite.visible = e._fsBaseVisible;
+                if (e.line) e.line.visible = e._fsBaseVisible;
+                if (e.marker) e.marker.visible = e._fsBaseVisible;
+                e._fsBaseVisible = undefined;
+              }
+            }
+          }
+          window.__fsTriActive = false;
+          try { applyPlanetDisplayState(); } catch (_e) {}
+        }
         renderer.render(scene, camera);
         _freeTextureImages();
+        // FLIGHT-SIM: an uncaught per-frame throw used to kill the loop
+        // permanently (it reschedules at the END of render()). __fsSafeRender
+        // catches, logs <=1/s, and always reschedules itself.
+        if (!window.__fsSafeRender) {
+          window.__fsSafeRender = () => {
+            try {
+              render();
+            } catch (err) {
+              const now = Date.now();
+              if (!window.__fsLastRenderErr || now - window.__fsLastRenderErr > 1000) {
+                window.__fsLastRenderErr = now;
+                console.error("[render] frame error — loop kept alive:", err);
+              }
+              setTimeout(() => requestAnimationFrame(window.__fsSafeRender), 120);
+            }
+          };
+        }
         requestAnimationFrame((timestamp) => {
           lastTimestamp = Math.max(16, timestamp - (lastTimestamp || timestamp));
-          render();
+          window.__fsSafeRender();
         });
       }
 
@@ -17557,6 +20412,40 @@ ${error && error.message ? error.message : error}`;
     if ('serviceWorker' in navigator) {
       const ctxServiceWorkerUrl = new URL("../../sw-ctx-tiles.js", window.location.href);
       navigator.serviceWorker.register(ctxServiceWorkerUrl.href).catch(() => {});
+      // CTX-UPGRADE: rescue an SW-less session live. A hard reload bypasses
+      // service workers, so this load resolved the DIRECT ArcGIS config —
+      // every failed tile then surfaces as an opaque console-flooding CORS
+      // error and nothing is cached. sw-ctx-tiles.js calls clients.claim(),
+      // so a controller appears mid-session; when it does (or is already
+      // there once ready), re-probe and hot-swap the streamer onto the
+      // /ctx-proxy/ route, clearing per-tile failure cooldowns so tiles that
+      // "failed" as CORS noise retry cleanly through the proxy.
+      const adoptProxyConfig = async () => {
+        try {
+          if (window.__ctxSwapDone) return;
+          if (!navigator.serviceWorker.controller) return;
+          if (window.__ctxDebug?.viaProxy !== false) return; // already on proxy (or unknown)
+          if (!window.__ctxUpgradeDebug?.ctxStreamer) {
+            // Viewer still booting — the streamer to swap doesn't exist yet.
+            setTimeout(adoptProxyConfig, 2000);
+            return;
+          }
+          const fresh = await doProbeCtxServiceConfig();
+          if (!fresh?.viaProxy || !fresh.tileBase) return;
+          window.__ctxSwapDone = true;
+          try {
+            const CACHE_KEY = `geoid-ctx-cfg:${window.location.pathname}`;
+            localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), config: fresh }));
+          } catch (_) {}
+          for (const streamer of [window.__ctxUpgradeDebug?.ctxStreamer].filter(Boolean)) {
+            streamer.TILE_BASE = fresh.tileBase;
+            streamer._failedUntil?.clear?.();
+            streamer._failedStatus?.clear?.();
+          }
+        } catch (_) { /* best-effort rescue — direct mode keeps working */ }
+      };
+      navigator.serviceWorker.addEventListener("controllerchange", adoptProxyConfig);
+      navigator.serviceWorker.ready.then(() => setTimeout(adoptProxyConfig, 1500));
     }
 
     init().catch((error) => {

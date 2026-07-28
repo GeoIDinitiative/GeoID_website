@@ -18,6 +18,41 @@
       --instrument-rust-rgb: 199, 131, 82;
     }
 
+    /* ── Flight mode theme — instrument amber ──────────────────────────────
+       Set from the moment ENTER is pressed (site selection) and held through
+       the flight itself, so the whole GUI reads as a different mode rather
+       than the same panel with a ship in it. Same variable set as the moon
+       theme below, so every control that already themes correctly follows
+       automatically — no per-selector overrides. */
+    :root[data-mode="flight"] {
+      --bg: #0a0600;
+      --panel: rgba(20, 14, 3, 0.98);
+      --line: rgba(255, 205, 90, 0.7);
+      --nav-accent: #ffc93c;
+      --nav-accent-rgb: 255, 201, 60;
+      --text: #fff6e2;
+      --muted: #bda269;
+      --soft-light: #f2e0b8;
+      --accent: #ff9d2e;
+      --mars-panel-top: rgba(38, 27, 8, 0.94);
+      --mars-panel-bottom: rgba(16, 11, 2, 0.98);
+      --mars-glow: rgba(255, 201, 60, 0.14);
+      --mars-surface-shadow: rgba(0, 0, 0, 0.6);
+      --panel-edge: rgba(255, 201, 60, 0.28);
+      --panel-fill: rgba(24, 17, 4, 0.98);
+      --instrument-rust: #ffc93c;
+      --instrument-rust-rgb: 255, 201, 60;
+    }
+    /* Back-fill: in flight the section headers carry a warm wash rather than
+       sitting as bare outlines, so the panel reads as a lit instrument bay. */
+    :root[data-mode="flight"] .control-section {
+      background: linear-gradient(180deg, rgba(255, 201, 60, 0.10), rgba(255, 201, 60, 0.03));
+      border-color: rgba(255, 201, 60, 0.32);
+    }
+    :root[data-mode="flight"] .control-section[open] {
+      background: linear-gradient(180deg, rgba(255, 201, 60, 0.13), rgba(255, 201, 60, 0.04));
+    }
+
     /* ── Moon viewer theme — arctic ice blue ───────────────────────────── */
     :root[data-mode="moon"] {
       --bg: #020c14;
@@ -95,7 +130,7 @@
       width: min(24rem, calc(100vw - 2rem));
       max-height: calc(100vh - 2rem);
       padding: 0.35rem 0.75rem 0.85rem 0.85rem;
-      border: 1px solid rgba(82, 228, 232, 0.38);
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.38);
       border-radius: 0.75rem;
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
@@ -104,12 +139,12 @@
       box-shadow:
         0 18px 42px rgba(0, 0, 0, 0.42),
         inset 0 0 0 1px rgba(255, 255, 255, 0.02),
-        0 0 0 1px rgba(92, 235, 238, 0.14),
-        0 0 34px rgba(64, 220, 228, 0.12);
+        0 0 0 1px rgba(var(--nav-accent-rgb), 0.14),
+        0 0 34px rgba(var(--nav-accent-rgb), 0.12);
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      outline: 1px solid rgba(90, 230, 236, 0.1);
+      outline: 1px solid rgba(var(--nav-accent-rgb), 0.1);
       outline-offset: -6px;
     }
 
@@ -164,7 +199,7 @@
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      color: #a7f3fb;
+      color: var(--soft-light);
       font-size: 0.82rem;
       font-style: normal;
       font-family: "Exo 2", "Segoe UI", sans-serif;
@@ -179,7 +214,7 @@
       flex-shrink: 0;
     }
     .info-btn:hover, .info-btn.is-active {
-      color: #effcff;
+      color: var(--text);
       border-color: rgba(var(--nav-accent-rgb), 0.82);
       background: rgba(var(--nav-accent-rgb), 0.16);
       box-shadow:
@@ -690,6 +725,42 @@
       display: none;
     }
 
+    /* The two nav-header buttons were still painting the default cyan in flight
+       mode even though --nav-accent-rgb resolves to amber on them (measured).
+       Rather than chase which declaration wins, state it explicitly for the
+       themed modes — these read straight off the accent, so they follow the
+       moon theme too. */
+    :root[data-mode="flight"] #info-btn,
+    :root[data-mode="flight"] #nav-collapse-btn,
+    :root[data-mode="moon"] #info-btn,
+    :root[data-mode="moon"] #nav-collapse-btn {
+      color: var(--soft-light);
+      border-color: rgba(var(--nav-accent-rgb), 0.55);
+      box-shadow:
+        inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.10),
+        0 0 12px rgba(var(--nav-accent-rgb), 0.16);
+      text-shadow: 0 0 6px rgba(var(--nav-accent-rgb), 0.30);
+    }
+    :root[data-mode="flight"] #info-btn:hover,
+    :root[data-mode="flight"] #nav-collapse-btn:hover,
+    :root[data-mode="moon"] #info-btn:hover,
+    :root[data-mode="moon"] #nav-collapse-btn:hover {
+      color: var(--text);
+      border-color: rgba(var(--nav-accent-rgb), 0.9);
+      background: rgba(var(--nav-accent-rgb), 0.16);
+    }
+
+    /* FLIGHT SIMULATOR: the Enter/Exit button owns this section entirely.
+       Clicking anywhere on the header engages or leaves the sim (see the
+       summary handler in flightsim.js), so a separate expand/collapse
+       affordance would advertise behaviour the header no longer has. */
+    #flightsim-section > .section-toggle::after {
+      content: none;
+    }
+    #flightsim-section > .section-toggle {
+      cursor: pointer;
+    }
+
     .section-heading {
       min-width: 0;
     }
@@ -866,7 +937,7 @@
     .lod-slider-row {
       margin-top: 0.55rem;
       padding-top: 0.45rem;
-      border-top: 1px solid rgba(111, 217, 232, 0.1);
+      border-top: 1px solid rgba(var(--nav-accent-rgb), 0.1);
       display: flex;
       flex-direction: column;
       gap: 0.25rem;
@@ -2971,7 +3042,7 @@
       background: none;
       border: 1px solid rgba(var(--nav-accent-rgb), 0.48);
       border-radius: 0.5rem;
-      color: #a7f3fb;
+      color: var(--soft-light);
       cursor: pointer;
       padding: 0.28rem 0.55rem;
       font-size: 0.9rem;
@@ -2982,7 +3053,7 @@
       transition: color 0.15s, border-color 0.15s, background 0.15s, box-shadow 0.15s;
     }
     #nav-collapse-btn:hover {
-      color: #effcff;
+      color: var(--text);
       border-color: rgba(var(--nav-accent-rgb), 0.82);
       background: rgba(var(--nav-accent-rgb), 0.16);
       box-shadow:
