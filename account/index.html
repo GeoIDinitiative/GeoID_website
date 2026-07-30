@@ -332,7 +332,7 @@
         Membership backend not yet configured. Sign-in is a UI preview until <code>/scripts/membership-config.js</code> is wired up.
       </div>
       <div class="notice notice-info" id="need-signin-notice" hidden>
-        Sign in or create an account to continue.
+        Every viewer is open without an account. Sign in only to manage or delete an existing one.
       </div>
       <div class="notice notice-info" id="deleted-notice" hidden>
         Your account has been deleted. Nothing of yours remains on our side. You're welcome back any time — the viewers are still free.
@@ -344,7 +344,7 @@
       </div>
 
       <h2 id="auth-title">Welcome back</h2>
-      <p class="sub" id="auth-sub">Sign in to manage your voluntary membership. Every viewer is free to use without an account.</p>
+      <p class="sub" id="auth-sub">Every viewer is free and open — you don't need an account for anything. This page is here for people who made one earlier.</p>
 
       <form id="auth-form" novalidate>
         <div class="auth-field">
@@ -482,12 +482,12 @@
         });
         if (mode === "signup") {
           authTitle.textContent = "Create your GeoID account";
-          authSub.textContent = "Every Explorer viewer is free and open — an account is only for managing membership.";
+          authSub.textContent = "Every Explorer viewer is free and open. No account is needed for any of it.";
           authSubmit.textContent = "Create Account";
           authPwd.setAttribute("autocomplete", "new-password");
         } else {
           authTitle.textContent = "Welcome back";
-          authSub.textContent = "Sign in to manage your voluntary membership.";
+          authSub.textContent = "Sign in only if you already have an account — to manage or delete it.";
           authSubmit.textContent = "Sign In";
           authPwd.setAttribute("autocomplete", "current-password");
         }
@@ -512,8 +512,8 @@
           needSub.hidden = true;
         } else {
           dot.className = "status-dot is-active";
-          label.textContent = "Active — full access to every viewer";
-          meta.textContent = "Every Planet Explorer and Earth Explorer environment is free to use with this account.";
+          label.textContent = "Signed in — though nothing requires it";
+          meta.textContent = "Every Planet Explorer and Earth Explorer environment is open to everyone, signed in or not.";
           // Paid membership is withdrawn for now: never offer checkout. Existing
           // subscribers still get the Stripe portal via the `active` branch above.
           btnSubscribe.hidden = true; btnSubscribe.style.display = "none";

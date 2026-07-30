@@ -642,27 +642,9 @@
     const destKey = (params.get("destination") || "mars").toLowerCase();
     const dest  = destinations[destKey] || destinations.mars;
 
-    // Sign-in gate. Every destination is free — nothing is charged and no
-    // membership is checked — but a GeoID account is required. The viewers
-    // carry the same guard; this one just fails fast before the transit
-    // animation runs.
-    (function gateTransit() {
-      const cfgScript = document.createElement("script");
-      cfgScript.src = "/scripts/membership-config.js";
-      cfgScript.onload = () => {
-        if (!window.GEOID_MEMBERSHIP_CONFIG_READY) {
-          console.info("[GeoID transit] auth config missing; allowing through.");
-          return;
-        }
-        const memScript = document.createElement("script");
-        memScript.src = "/scripts/membership.js";
-        memScript.onload = () => {
-          window.GeoIDAuth.requireUser(window.location.pathname + window.location.search);
-        };
-        document.head.appendChild(memScript);
-      };
-      document.head.appendChild(cfgScript);
-    })();
+    // No gate of any kind: every destination is open to anyone, with no
+    // account and no payment. /account/ still exists so people who signed up
+    // while an account was required can manage or delete theirs.
 
     // Populate text
     const arrivalDate = new Date(Date.now() + dest.etaDays * 86400000);
