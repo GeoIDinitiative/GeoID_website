@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v1';
+const STATIC_CACHE = 'geoid-site-v2';
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

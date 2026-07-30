@@ -30,9 +30,12 @@ window.GEOID_MEMBERSHIP_CONFIG = Object.freeze({
   PERIOD_DISPLAY: "per year",
   PLAN_NAME: "GeoID Explorer Annual",
 
-  // Destinations that bypass the paywall entirely. Anything not listed here
-  // requires an active subscription to load via the transit page.
-  FREE_DESTINATIONS: Object.freeze(["earth", "moon"]),
+  // Every destination is free and open — nothing is gated, in the viewers or
+  // on the transit page. Kept because membership.js still reads it, and so
+  // that re-introducing a gate would be a one-line change rather than a
+  // rewrite. Listing a key here has no effect while no gate calls it.
+  FREE_DESTINATIONS: Object.freeze(["earth", "moon", "mercury", "venus", "mars",
+    "jupiter", "saturn", "uranus", "neptune", "pluto", "etna"]),
 });
 
 // Helper used by feature gates to detect whether the backend has been wired up.

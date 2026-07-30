@@ -5,6 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="GeoID Initiative — a public geoscience initiative connecting the GeoID Hazard App, Research Hub product, Explorer, and shared resources.">
   <title>GeoID Initiative — Dashboard</title>
+  <!-- Social / search preview. Without an og:image, search engines pick an
+       arbitrary image off the page — which is why results showed a stray
+       Earth icon instead of the GeoID logo. -->
+  <link rel="canonical" href="https://geoidinitiative.com/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoID Initiative">
+  <meta property="og:url" content="https://geoidinitiative.com/">
+  <meta property="og:title" content="GeoID Initiative — Dashboard">
+  <meta property="og:description" content="GeoID Initiative — a public geoscience initiative connecting the GeoID Hazard App, Research Hub product, Explorer, and shared resources.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="1200">
+  <meta property="og:image:alt" content="GeoID Initiative logo">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="GeoID Initiative — Dashboard">
+  <meta name="twitter:description" content="GeoID Initiative — a public geoscience initiative connecting the GeoID Hazard App, Research Hub product, Explorer, and shared resources.">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <!-- Organization structured data. Gives search engines an explicit logo to
+       associate with the site rather than inferring one from page content. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "GeoID Initiative",
+    "url": "https://geoidinitiative.com/",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://geoidinitiative.com/assets/og_geoid.jpg",
+      "width": 1200,
+      "height": 1200
+    },
+    "image": "https://geoidinitiative.com/assets/og_geoid.jpg",
+    "description": "An open geoscience initiative turning satellite data and Earth observations into geohazard intelligence, with free interactive planetary and Earth viewers.",
+    "email": "geoid.initiative@gmail.com",
+    "sameAs": ["https://www.linkedin.com/company/geoid-initiative"]
+  }
+  </script>
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1806,12 +1843,12 @@
         <div class="pv-slide is-active">
           <div class="planet-view-right">
             <div class="pv-ctas">
-              <a class="pv-btn pv-btn-member" href="https://buy.stripe.com/28EeVd2St0WOedPadgbV601" target="_blank" rel="noopener noreferrer">Membership</a>
+              <a class="pv-btn pv-btn-member" href="/account/">Create free account</a>
               <a class="pv-btn pv-btn-ghost" href="/explorer/">Read more</a>
             </div>
             <p class="pv-price">
-              <span class="pv-price-amount">£19.99</span>
-              <span class="pv-price-period">per year · cancel anytime</span>
+              <span class="pv-price-amount">Free</span>
+              <span class="pv-price-period">free access · free account</span>
             </p>
             <span class="pv-features-label">Explorer features</span>
             <ul class="pv-features-list">

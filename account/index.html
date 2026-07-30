@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="Your GeoID member area — sign in, manage your subscription, and unlock the Explorer.">
+  <meta name="description" content="Your GeoID member area — sign in and manage your voluntary membership. Every Explorer viewer is free and open to all.">
   <title>Account — GeoID</title>
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -245,6 +245,63 @@
     }
     .auth-foot a { color: #58c6b3; text-decoration: none; }
     .auth-foot a:hover { color: #80e4cf; text-decoration: underline; }
+
+    /* ── Delete account ─────────────────────────────────────────────────
+       Deliberately set apart from the teal of the rest of the page: red,
+       below a rule, at the very bottom of the panel. */
+    .danger-zone {
+      margin-top: 1.6rem;
+      padding-top: 1.2rem;
+      border-top: 1px solid rgba(255, 92, 92, 0.22);
+    }
+    .danger-title {
+      margin: 0 0 0.4rem;
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: rgba(255, 138, 138, 0.95);
+    }
+    .danger-copy {
+      margin: 0 0 0.9rem;
+      font-size: 0.8rem;
+      line-height: 1.55;
+      color: rgba(198, 176, 176, 0.8);
+    }
+    .danger-copy--confirm { margin-top: 0.9rem; }
+    .danger-copy strong { color: rgba(255, 160, 160, 0.95); letter-spacing: 0.06em; }
+    .danger-input {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      margin-bottom: 0.7rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(255, 92, 92, 0.35);
+      background: rgba(30, 10, 12, 0.6);
+      color: #ffd9d9;
+      font-family: inherit;
+      font-size: 0.9rem;
+      letter-spacing: 0.12em;
+    }
+    .danger-input:focus {
+      outline: none;
+      border-color: rgba(255, 92, 92, 0.7);
+      box-shadow: 0 0 0 3px rgba(255, 92, 92, 0.12);
+    }
+    .btn-danger-ghost {
+      width: 100%;
+      background: transparent;
+      color: rgba(255, 138, 138, 0.92);
+      border: 1px solid rgba(255, 92, 92, 0.35);
+    }
+    .btn-danger-ghost:hover:not(:disabled) {
+      background: rgba(255, 92, 92, 0.10);
+      border-color: rgba(255, 92, 92, 0.6);
+    }
+    .btn-danger {
+      background: linear-gradient(180deg, rgba(200, 48, 48, 0.85), rgba(150, 28, 28, 0.9));
+      color: #fff1f1;
+      border: 1px solid rgba(255, 92, 92, 0.55);
+    }
+    .btn-danger:hover:not(:disabled) { background: linear-gradient(180deg, rgba(224, 60, 60, 0.95), rgba(170, 32, 32, 0.95)); }
+    .btn-danger:disabled { opacity: 0.45; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -277,6 +334,9 @@
       <div class="notice notice-info" id="need-signin-notice" hidden>
         Sign in or create an account to continue.
       </div>
+      <div class="notice notice-info" id="deleted-notice" hidden>
+        Your account has been deleted. Nothing of yours remains on our side. You're welcome back any time — the viewers are still free.
+      </div>
 
       <div class="auth-tabs" role="tablist">
         <button type="button" class="auth-tab is-active" data-mode="signin" role="tab" aria-selected="true">Sign In</button>
@@ -284,7 +344,7 @@
       </div>
 
       <h2 id="auth-title">Welcome back</h2>
-      <p class="sub" id="auth-sub">Sign in to manage your membership and unlock the Explorer.</p>
+      <p class="sub" id="auth-sub">Sign in to manage your voluntary membership. Every viewer is free to use without an account.</p>
 
       <form id="auth-form" novalidate>
         <div class="auth-field">
@@ -304,14 +364,13 @@
       <div class="auth-msg" id="auth-msg" hidden></div>
 
       <p class="auth-foot">
-        <a href="/membership/">What's included with membership?</a>
       </p>
     </section>
 
     <!-- ─── STATE 2 & 3: signed in (subscription panel + session panel) ─── -->
     <section class="account-card" id="state-signed-in" hidden>
       <div class="notice notice-info" id="need-subscription-notice" hidden>
-        You're signed in but don't have an active membership. Subscribe below to unlock the locked Explorer viewers.
+        You're signed in but don't have an active membership. Every Explorer viewer is open to you regardless — membership is voluntary support.
       </div>
 
       <h2>Your Account</h2>
@@ -324,12 +383,41 @@
       <p class="status-meta" id="status-meta"></p>
 
       <div class="btn-row">
-        <button type="button" class="btn btn-primary" id="btn-subscribe" hidden style="display:none;">Subscribe — £19.99/year</button>
+        <button type="button" class="btn btn-primary" id="btn-subscribe" hidden style="display:none;">Support GeoID — £19.99/year</button>
         <button type="button" class="btn btn-secondary" id="btn-portal" hidden style="display:none;">Manage in Stripe</button>
       </div>
 
       <div style="margin-top:1.4rem; padding-top:1.2rem; border-top:1px solid rgba(88,198,179,0.14);">
         <button type="button" class="btn btn-sign-out" id="btn-sign-out" style="width:100%;">Sign Out</button>
+      </div>
+
+      <!-- ─── Delete account ───────────────────────────────────────────────
+           Two-step on purpose: the first click only reveals the confirmation,
+           so the destructive action is never one stray tap away. -->
+      <div class="danger-zone">
+        <h3 class="danger-title">Delete your account</h3>
+        <p class="danger-copy">
+          This permanently deletes your GeoID account and every record we hold
+          against it. It cannot be undone. The viewers stay free — you can make
+          a new account whenever you like.
+        </p>
+
+        <button type="button" class="btn btn-danger-ghost" id="btn-delete-start">Delete my account</button>
+
+        <div id="delete-confirm" hidden>
+          <p class="danger-copy danger-copy--confirm">
+            Type <strong>DELETE</strong> below to confirm.
+          </p>
+          <input type="text" id="delete-confirm-input" class="danger-input"
+                 autocomplete="off" autocapitalize="characters" spellcheck="false"
+                 aria-label="Type DELETE to confirm account deletion" placeholder="DELETE">
+          <div class="btn-row">
+            <button type="button" class="btn btn-danger" id="btn-delete-confirm" disabled>Permanently delete</button>
+            <button type="button" class="btn btn-secondary" id="btn-delete-cancel">Cancel</button>
+          </div>
+        </div>
+
+        <div class="auth-msg" id="delete-msg" hidden></div>
       </div>
     </section>
   </main>
@@ -344,6 +432,7 @@
       const stateIn      = document.getElementById("state-signed-in");
       const cfgWarning   = document.getElementById("config-warning");
       const needSignIn   = document.getElementById("need-signin-notice");
+      const deletedNote  = document.getElementById("deleted-notice");
       const needSub      = document.getElementById("need-subscription-notice");
 
       // Auth form
@@ -369,6 +458,7 @@
       const ready  = !!window.GEOID_MEMBERSHIP_CONFIG_READY;
       const params = new URLSearchParams(window.location.search);
       const need   = params.get("need");         // 'signin' or 'subscription'
+      const justDeleted = params.get("deleted") === "1";
       const returnTo = params.get("return") || null;
 
       let mode = params.get("mode") === "signup" ? "signup" : "signin";
@@ -376,7 +466,12 @@
       // ── State switching ────────────────────────────────────────────────
       function showLoading()  { loading.hidden = false; stateOut.hidden = true;  stateIn.hidden = true; }
       function showSignedOut(){ loading.hidden = true;  stateOut.hidden = false; stateIn.hidden = true; }
-      function showSignedIn() { loading.hidden = true;  stateOut.hidden = true;  stateIn.hidden = false; }
+      function showSignedIn() {
+        loading.hidden = true;  stateOut.hidden = true;  stateIn.hidden = false;
+        // Collapse the delete confirmation whenever the panel is (re)shown,
+        // so a half-finished deletion never persists across a re-render.
+        resetDeleteUI();
+      }
 
       function setMode(next) {
         mode = next;
@@ -387,12 +482,12 @@
         });
         if (mode === "signup") {
           authTitle.textContent = "Create your GeoID account";
-          authSub.textContent = "Free to start. Subscribe to unlock the full Explorer.";
+          authSub.textContent = "Every Explorer viewer is free and open — an account is only for managing membership.";
           authSubmit.textContent = "Create Account";
           authPwd.setAttribute("autocomplete", "new-password");
         } else {
           authTitle.textContent = "Welcome back";
-          authSub.textContent = "Sign in to manage your membership and unlock the Explorer.";
+          authSub.textContent = "Sign in to manage your voluntary membership.";
           authSubmit.textContent = "Sign In";
           authPwd.setAttribute("autocomplete", "current-password");
         }
@@ -410,18 +505,20 @@
         emailEl.textContent = email || "(no email on file)";
         if (active) {
           dot.className = "status-dot is-active";
-          label.textContent = "Active — full Explorer access unlocked";
+          label.textContent = "Active — full access, plus thank you for supporting GeoID";
           meta.textContent = periodEnd ? `Renews ${new Date(periodEnd).toLocaleDateString()}.` : "Renews automatically.";
           btnSubscribe.hidden = true;  btnSubscribe.style.display = "none";
           btnPortal.hidden    = false; btnPortal.style.display    = "inline-flex";
           needSub.hidden = true;
         } else {
-          dot.className = "status-dot is-inactive";
-          label.textContent = "No active membership";
-          meta.textContent = "Earth and Moon viewers remain free. Subscribe to unlock the full Explorer.";
-          btnSubscribe.hidden = false; btnSubscribe.style.display = "inline-flex";
-          btnPortal.hidden    = true;  btnPortal.style.display    = "none";
-          if (need === "subscription") needSub.hidden = false;
+          dot.className = "status-dot is-active";
+          label.textContent = "Active — full access to every viewer";
+          meta.textContent = "Every Planet Explorer and Earth Explorer environment is free to use with this account.";
+          // Paid membership is withdrawn for now: never offer checkout. Existing
+          // subscribers still get the Stripe portal via the `active` branch above.
+          btnSubscribe.hidden = true; btnSubscribe.style.display = "none";
+          btnPortal.hidden    = true; btnPortal.style.display    = "none";
+          needSub.hidden = true;
         }
       }
 
@@ -504,6 +601,57 @@
         await refresh();
       });
 
+      // ── Delete account ─────────────────────────────────────────────────
+      // Reveal → type DELETE → confirm. The typed word is the guard; the
+      // confirm button stays disabled until it matches exactly.
+      const btnDeleteStart   = document.getElementById("btn-delete-start");
+      const btnDeleteConfirm = document.getElementById("btn-delete-confirm");
+      const btnDeleteCancel  = document.getElementById("btn-delete-cancel");
+      const deleteConfirm    = document.getElementById("delete-confirm");
+      const deleteInput      = document.getElementById("delete-confirm-input");
+      const deleteMsg        = document.getElementById("delete-msg");
+
+      function showDeleteMsg(text, kind) {
+        deleteMsg.textContent = text;
+        deleteMsg.className = "auth-msg is-" + (kind || "info");
+        deleteMsg.hidden = false;
+      }
+      function resetDeleteUI() {
+        deleteConfirm.hidden = true;
+        deleteInput.value = "";
+        btnDeleteConfirm.disabled = true;
+        btnDeleteStart.hidden = false;
+        deleteMsg.hidden = true;
+      }
+
+      btnDeleteStart.addEventListener("click", () => {
+        btnDeleteStart.hidden = true;
+        deleteConfirm.hidden = false;
+        deleteMsg.hidden = true;
+        deleteInput.focus();
+      });
+      btnDeleteCancel.addEventListener("click", resetDeleteUI);
+      deleteInput.addEventListener("input", () => {
+        btnDeleteConfirm.disabled = deleteInput.value.trim().toUpperCase() !== "DELETE";
+      });
+
+      btnDeleteConfirm.addEventListener("click", async () => {
+        if (deleteInput.value.trim().toUpperCase() !== "DELETE") return;
+        btnDeleteConfirm.disabled = true;
+        btnDeleteCancel.disabled = true;
+        showDeleteMsg("Deleting your account…", "info");
+        try {
+          await window.GeoIDAuth.deleteAccount();
+          // The session is already cleared. Land on a signed-out page that
+          // says what happened rather than silently returning to the form.
+          window.location.href = "/account/?deleted=1";
+        } catch (err) {
+          btnDeleteConfirm.disabled = false;
+          btnDeleteCancel.disabled = false;
+          showDeleteMsg(err && err.message ? err.message : "Account deletion failed.", "error");
+        }
+      });
+
       // ── Render ─────────────────────────────────────────────────────────
       async function refresh() {
         showLoading();
@@ -519,7 +667,8 @@
 
         const session = await window.GeoIDAuth.getSession();
         if (!session?.user) {
-          if (need === "signin" || need === "subscription") needSignIn.hidden = false;
+          if (justDeleted) deletedNote.hidden = false;
+          else if (need === "signin" || need === "subscription") needSignIn.hidden = false;
           setMode(mode);
           showSignedOut();
           return;

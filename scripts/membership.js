@@ -121,6 +121,24 @@
     return fetchMembership(user);
   }
 
+  // Sign-in only. This is what the viewers use: an account is required, but
+  // nothing is charged and no membership row is consulted. requireMember below
+  // is kept for the day a paid tier returns, and is currently unused.
+  async function requireUser(returnTo) {
+    if (!READY) {
+      // Config not wired up — fail open so dev environments still work.
+      console.warn("[GeoIDAuth] membership-config.js placeholders detected; sign-in gate disabled.");
+      return true;
+    }
+    const user = await getUser();
+    if (user) return true;
+    const ret = encodeURIComponent(returnTo || (window.location.pathname + window.location.search));
+    // Always redirect the outermost frame so this works whether called from a
+    // top-level page or from inside a same-origin iframe.
+    (window.top || window).location.href = `/account/?need=signin&return=${ret}`;
+    return false;
+  }
+
   async function requireMember(returnTo) {
     if (!READY) {
       // Config not wired up — fail open so dev environments still work.
@@ -151,6 +169,7 @@
     getSession,
     getUser,
     isMember,
+    requireUser,
     requireMember,
     onChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
 
@@ -182,6 +201,56 @@
       await sb.auth.signOut();
       memberCache = null;
       memberCacheUser = null;
+    },
+
+    // Permanently delete the signed-in user's own account.
+    //
+    // Deleting an auth user needs the service-role key, which must never reach
+    // the browser, so the work happens in the `delete-account` Edge Function
+    // (tools/supabase/functions/delete-account). We only hand it the session
+    // token; it derives the user id from that, so this cannot be pointed at
+    // anyone else's account. The memberships row goes with it via the
+    // `on delete cascade` in schema.sql.
+    //
+    // Throws on failure so callers can show the reason. On success the local
+    // session is cleared, leaving the browser signed out.
+    async deleteAccount() {
+      const session = await getSession();
+      if (!session) throw new Error("You need to be signed in to delete your account.");
+
+      const base = (cfg.SUPABASE_URL || "").replace(/\/+$/, "");
+      if (!base) throw new Error("Account deletion isn't configured.");
+
+      let res;
+      try {
+        res = await fetch(`${base}/functions/v1/delete-account`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            apikey: cfg.SUPABASE_ANON_KEY || "",
+            "Content-Type": "application/json",
+          },
+        });
+      } catch (_) {
+        throw new Error("Couldn't reach the server. Check your connection and try again.");
+      }
+
+      if (!res.ok) {
+        // A 404 means the Edge Function hasn't been deployed yet — worth saying
+        // plainly rather than surfacing a bare status code.
+        if (res.status === 404) {
+          throw new Error("Account deletion isn't available yet. Please email geoid.initiative@gmail.com and we'll remove your account.");
+        }
+        let detail = "";
+        try { detail = (await res.json())?.error || ""; } catch (_) {}
+        throw new Error(detail || `Account deletion failed (${res.status}).`);
+      }
+
+      const sb = await init();
+      if (sb) await sb.auth.signOut();
+      memberCache = null;
+      memberCacheUser = null;
+      return true;
     },
 
     // Public read-only access to the Supabase client for advanced use.

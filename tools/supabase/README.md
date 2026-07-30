@@ -72,7 +72,17 @@ supabase secrets set SUPABASE_SERVICE_ROLE_KEY=eyJ...    # API → service_role 
 
 # Deploy. --no-verify-jwt is required because Stripe signs the request, not Supabase auth.
 supabase functions deploy stripe-webhook --no-verify-jwt
+
+# Account deletion. Reuses SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY from above,
+# so there are no new secrets to set. Deploy WITHOUT --no-verify-jwt: every call
+# must carry the signed-in user's JWT, and the function deletes only that user.
+supabase functions deploy delete-account
 ```
+
+**Until `delete-account` is deployed**, the "Delete my account" button on
+`/account/` fails with a clear message asking the user to email us instead —
+it does not fail silently, but no account is removed. Deploy it before
+advertising self-service deletion.
 
 Then in **Stripe Dashboard → Developers → Webhooks → Add endpoint**:
 

@@ -1,24 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- GeoID paywall guard — same pattern as all planet viewers.
-       requireMember uses (window.top||window).location internally, so the
-       redirect navigates the outermost frame whether this page is loaded
-       top-level (direct URL) or inside an iframe (transit page). -->
+  <!-- GeoID sign-in guard: viewers are free, but require a GeoID account.
+       No payment and no membership check — requireUser only asks whether
+       someone is signed in. It runs at the top of <head> so a signed-out
+       visitor never sees the viewer render. -->
   <script>
     (function () {
-      var key = "etna";
       var cfgScript = document.createElement("script");
       cfgScript.src = "/scripts/membership-config.js";
       cfgScript.onload = function () {
-        var cfg = window.GEOID_MEMBERSHIP_CONFIG || {};
-        var free = cfg.FREE_DESTINATIONS || ["earth", "moon"];
-        if (free.indexOf(key) !== -1) return;
         if (!window.GEOID_MEMBERSHIP_CONFIG_READY) return;
         var memScript = document.createElement("script");
         memScript.src = "/scripts/membership.js";
         memScript.onload = function () {
-          window.GeoIDAuth.requireMember("/earth_explorer/etna/");
+          window.GeoIDAuth.requireUser("/earth_explorer/etna/");
         };
         document.head.appendChild(memScript);
       };

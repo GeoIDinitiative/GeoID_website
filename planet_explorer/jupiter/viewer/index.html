@@ -1,24 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <!-- GeoID-paywall-guard: redirect non-members to /sign-in/. Free
-       destinations (earth, moon) skip this entirely. The guard runs
-       synchronously at the top of <head> so non-members never see the
-       viewer render. -->
+  <!-- GeoID sign-in guard: viewers are free, but require a GeoID account.
+       No payment and no membership check — requireUser only asks whether
+       someone is signed in. It runs at the top of <head> so a signed-out
+       visitor never sees the viewer render. -->
   <script>
     (function () {
-      var key = "jupiter";
       var cfgScript = document.createElement("script");
       cfgScript.src = "/scripts/membership-config.js";
       cfgScript.onload = function () {
-        var cfg = window.GEOID_MEMBERSHIP_CONFIG || {};
-        var free = cfg.FREE_DESTINATIONS || ["earth", "moon"];
-        if (free.indexOf(key) !== -1) return;
         if (!window.GEOID_MEMBERSHIP_CONFIG_READY) return;
         var memScript = document.createElement("script");
         memScript.src = "/scripts/membership.js";
         memScript.onload = function () {
-          window.GeoIDAuth.requireMember(window.location.pathname + window.location.search);
+          window.GeoIDAuth.requireUser(window.location.pathname + window.location.search);
         };
         document.head.appendChild(memScript);
       };

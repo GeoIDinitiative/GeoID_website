@@ -408,9 +408,8 @@
     const transitShell = document.getElementById('transit-shell');
     const CROSSFADE_MS = 450;
 
-    // Start loading the viewer immediately — auth is enforced by the viewer's
-    // own guard (same pattern as all planet viewers; requireMember redirects
-    // window.top so it works correctly from inside the iframe).
+    // Start loading the viewer immediately — the viewer is open to everyone,
+    // so there is no auth step to wait on.
     viewerFrame.src = 'viewer/?transit=1';
 
     setTimeout(() => {
