@@ -2,42 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <!-- Paid membership is withdrawn. Every viewer is free with a free account,
-       so this route now forwards to /account/ rather than showing a checkout.
-       The full membership page is in git history (commit 8ceb32a) if a paid
-       tier is ever reinstated. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Former membership page. There is no account system: every viewer is open to
+       everyone with no sign-in and no payment. This stub exists so older
+       links (Stripe receipts, saved bookmarks, search results) land on the
+       site rather than a 404. Previous version: git history, commit 4ed02cb. -->
   <meta name="robots" content="noindex, nofollow">
-  <meta http-equiv="refresh" content="0; url=/account/">
-  <link rel="canonical" href="/account/">
+  <meta http-equiv="refresh" content="0; url=/">
+  <link rel="canonical" href="https://geoidinitiative.com/">
+  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <title>Redirecting — GeoID</title>
-  <script>
-    // Preserve any query string (e.g. ?need=signin&return=…) so a redirect
-    // through here doesn't lose where the visitor was heading. replace() keeps
-    // this hop out of the back-button history.
-    window.location.replace("/account/" + window.location.search + window.location.hash);
-  </script>
+  <script>window.location.replace("/");</script>
   <style>
     body {
-      margin: 0;
-      min-height: 100dvh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #060410;
-      color: #c3d8f5;
-      font-family: system-ui, sans-serif;
-      font-size: 0.95rem;
-      text-align: center;
-      padding: 2rem;
+      margin: 0; min-height: 100dvh;
+      display: flex; align-items: center; justify-content: center;
+      background: #060410; color: #c3d8f5;
+      font-family: system-ui, sans-serif; font-size: 0.95rem;
+      text-align: center; padding: 2rem;
     }
     a { color: #58c6b3; }
   </style>
 </head>
 <body>
   <p>
-    GeoID Explorer is free to use.
-    Taking you to <a href="/account/">your account</a>…
+    GeoID Explorer is free and open — no account needed.
+    Taking you to the <a href="/">GeoID Initiative</a>…
   </p>
 </body>
 </html>
