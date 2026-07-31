@@ -11056,22 +11056,36 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // -> floor 7), so it is NOT the fetchMinLevel-pinned-at-target
                   // deadlock that once stopped streaming entirely.
                   let fetchMinLevel = Math.max(this.MIN_LEVEL, targetLevel - 4);
-                  if (window.__flightSim?.active && Number.isFinite(this._surroundLevel)) {
-                    // Floor at the surround so we do not spend fetches on tiles
-                    // coarser than the blanket already underneath — but NEVER
-                    // at or above the target itself. Above 75 km the ladder now
-                    // requests L7/L6, which EQUALS the surround level, so
-                    // `min(surround, target)` pinned the floor AT the target and
-                    // removed ancestor substitution entirely. In any region
-                    // where that level is dead (dead L7/L8/L9 over live L10-12
-                    // is common in this pyramid) nothing could resolve at all —
-                    // the view went flat. Cap at target-1 so there is always at
-                    // least one rung to fall back to.
-                    fetchMinLevel = Math.max(
-                      fetchMinLevel,
-                      Math.min(this._surroundLevel, targetLevel - 1),
-                    );
-                    fetchMinLevel = Math.max(this.MIN_LEVEL, fetchMinLevel);
+                  if (window.__flightSim?.active) {
+                    // ONE RUNG OF FALLBACK, THEN DEFER TO THE SURROUND.
+                    //
+                    // The floor used to land on the surround level — 7 under an
+                    // L11 target — letting the chain walk L11 -> L10 -> L9 -> L7.
+                    // That sounds safe and is mostly waste. MEASURED across 24
+                    // spread points, the L11 chain resolves at L11 for 75% of
+                    // ground and L10 for the other 25%; it never needs L9 or L7.
+                    // And where it DID reach L7 — Olympus, where L10 and L9 are
+                    // both entirely absent — it was fetching, decoding and
+                    // drawing L7 tiles directly onto an L7 surround: two thirds
+                    // of the disc spent on pixels identical to the blanket
+                    // already underneath. That is the "streams new tiles but
+                    // nothing changes" report.
+                    //
+                    // Floor at exactly one ALLOWED level below the target. Where
+                    // that step exists nothing changes; where it does not, the
+                    // focus leaves a hole and the surround shows through, which
+                    // is the picture that was being painted anyway — minus the
+                    // fetch, the decode and the upload.
+                    //
+                    // One ALLOWED level, not target-1: L6 and L8 do not exist,
+                    // so a literal target-1 would pin L7 to itself and bring
+                    // back the flat view the old comment here warned about.
+                    // L11 -> floor 10, L10 -> floor 9, L7 -> floor 5.
+                    const below = this._getAllowedCtxLevels(this.MIN_LEVEL, this.FOCUS_MAX_LEVEL)
+                      .filter((L) => L < targetLevel);
+                    if (below.length) {
+                      fetchMinLevel = Math.max(this.MIN_LEVEL, below[below.length - 1]);
+                    }
                   }
                   // DO NOT PASS microLevel HERE. Tried, and it breaks streaming
                   // outright between 10-75 km. Recording why, because the
