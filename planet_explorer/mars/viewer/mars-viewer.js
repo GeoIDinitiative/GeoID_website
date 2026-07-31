@@ -9019,7 +9019,10 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         // scratch copy costs more than it saves. Also covers the full-dirty
         // case (clear/slide/resize) and any state where the fast path is not
         // safely available.
-        const partialOk = !this._focusTexFullDirty
+        // Kill switch: `window.__ctxPartialUpload = false` forces the old
+        // whole-canvas path live, so the two can be A/B'd without a reload.
+        const partialOk = window.__ctxPartialUpload !== false
+          && !this._focusTexFullDirty
           && !this._focusBlitPermanentlyOff
           && r
           && renderer
@@ -9029,6 +9032,17 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           && (r.x1 - r.x0) * (r.y1 - r.y0) <= W * H * 0.25;
 
         if (!partialOk) {
+          // Reason captured BEFORE the flags below are reset — without this,
+          // "no improvement" is indistinguishable from "the fast path never
+          // ran", which is exactly the ambiguity that wasted the last round.
+          this._texFullReason = window.__ctxPartialUpload === false ? "killSwitch"
+            : this._focusTexFullDirty ? "fullDirty"
+            : this._focusBlitPermanentlyOff ? "blitFailed"
+            : !this._focusTexUploadedOnce ? "firstUpload"
+            : !r ? "noRect"
+            : !renderer ? "noRenderer"
+            : "areaGuard";
+          this._texFullUploads = (this._texFullUploads || 0) + 1;
           this.focusTexture.needsUpdate = true;
           this._focusTexUploadedOnce = true;
           this._focusTexFullDirty = false;
@@ -9089,6 +9103,8 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           this._focusTexRect = null;
           this._focusTexDirty = false;
           this._focusTexUploadedAt = nowMs;
+          this._texPartialUploads = (this._texPartialUploads || 0) + 1;
+          this._texPartialPx = (this._texPartialPx || 0) + w * h;
         } catch (err) {
           // Never let an upload path failure freeze the imagery: fall back to
           // the whole-canvas upload that worked before.
@@ -10616,22 +10632,18 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                       && headingOk
                       && Number.isFinite(radiusKm) && radiusKm > 0;
                     if (reusable) {
-                      // Distance from the ship to the nearest edge of the HELD
-                      // box, in km, against the drift allowance.
-                      const dLonKm = Math.min(
-                        Math.abs(shipGround.lon - hold.bbox.lonMin),
-                        Math.abs(hold.bbox.lonMax - shipGround.lon),
-                      ) * KMDEG * cosLatD;
-                      const dLatKm = Math.min(
-                        Math.abs(shipGround.lat - hold.bbox.latMin),
-                        Math.abs(hold.bbox.latMax - shipGround.lat),
-                      ) * KMDEG;
-                      const inside = shipGround.lon > hold.bbox.lonMin
-                        && shipGround.lon < hold.bbox.lonMax
-                        && shipGround.lat > hold.bbox.latMin
-                        && shipGround.lat < hold.bbox.latMax;
-                      if (inside && Math.min(dLonKm, dLatKm) > radiusKm * 0.35) {
+                      // DRIFT FROM WHERE THE BOX WAS BUILT — not distance to
+                      // its nearest edge. Below 75 km the disc is a forward
+                      // SEMICIRCLE, so the ship sits ON the flat rear edge of
+                      // the box by construction and the distance to the nearest
+                      // edge is ~0 on every frame. Testing that meant the hold
+                      // could never engage in the 40-75 km band it exists for.
+                      const dLonKm = (shipGround.lon - hold.lon) * KMDEG * cosLatD;
+                      const dLatKm = (shipGround.lat - hold.lat) * KMDEG;
+                      const driftKm = Math.hypot(dLonKm, dLatKm);
+                      if (driftKm < radiusKm * 0.35) {
                         discBbox = hold.bbox;
+                        this._flightDiscReused = (this._flightDiscReused || 0) + 1;
                       } else {
                         this._flightDiscHold = null;
                       }
@@ -10642,8 +10654,13 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                         level: discLevel,
                         spanLon: discBbox.lonMax - discBbox.lonMin,
                         spanLat: discBbox.latMax - discBbox.latMin,
+                        // The position the box was built around; the drift test
+                        // above measures against THIS, not the box edges.
+                        lon: shipGround.lon,
+                        lat: shipGround.lat,
                         ux, uy,
                       };
+                      this._flightDiscRebuilt = (this._flightDiscRebuilt || 0) + 1;
                     }
                   }
                   approxViewBbox = discBbox;
@@ -19529,7 +19546,26 @@ ${error && error.message ? error.message : error}`;
         updateMarsSky(_flightActive, camera);
         // Batched focus-texture upload (see _drawFocusTile): bounds GPU traffic
         // at altitude, where the canvas is ~59 MB per upload.
-        if (_flightActive) ctxStreamer.flushFocusTexture(performance.now(), renderer);
+        if (_flightActive) {
+          ctxStreamer.flushFocusTexture(performance.now(), renderer);
+          // Live counters for the streaming path. Read with __fsStreamStats.
+          // These exist because the last two rounds of "no improvement" could
+          // not be told apart from "the change never took effect".
+          const _fc = ctxStreamer.focusCanvas;
+          window.__fsStreamStats = {
+            canvas: _fc ? `${_fc.width}x${_fc.height}` : null,
+            fullUploads: ctxStreamer._texFullUploads || 0,
+            partialUploads: ctxStreamer._texPartialUploads || 0,
+            lastFullReason: ctxStreamer._texFullReason || null,
+            // MB actually sent, so the two paths are directly comparable.
+            fullMB: +(((ctxStreamer._texFullUploads || 0)
+              * (_fc ? _fc.width * _fc.height * 4 : 0)) / 1e6).toFixed(1),
+            partialMB: +(((ctxStreamer._texPartialPx || 0) * 4) / 1e6).toFixed(1),
+            discRebuilt: ctxStreamer._flightDiscRebuilt || 0,
+            discReused: ctxStreamer._flightDiscReused || 0,
+            discLevel: ctxStreamer._flightDiscLevel ?? null,
+          };
+        }
         else if (ctxStreamer._focusTexDirty) {
           ctxStreamer.focusTexture.needsUpdate = true;
           ctxStreamer._focusTexDirty = false;
