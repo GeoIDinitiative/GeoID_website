@@ -2461,6 +2461,12 @@
 
   function enterPreflight() {
     if (fs.active || preflight.active) return;
+    // Opening the sim is what earns the tile warmer. Deferred a little so it
+    // does not contend with building the ship and the pre-flight scene; it
+    // already suspends itself for the duration of a flight.
+    if (!warmerStarted) {
+      setTimeout(() => { warmGlobalCtxCache().catch(() => setCacheStatus("paused")); }, 3000);
+    }
     preflight.active = true;
     document.body.classList.add("fs-preflight");
     setFlightTheme(true);
@@ -2758,9 +2764,14 @@
     if (!hooks) return false;
     THREE = hooks.THREE;
     METERS_PER_UNIT = hooks.MARS_RADIUS_METERS / GLOBE_R;
-    // Start warming the global tile cache once the viewer has finished booting.
-    // (Tile colorization is done on the GPU inside the detail streamer.)
-    setTimeout(() => { warmGlobalCtxCache().catch(() => setCacheStatus("paused")); }, 4000);
+    // NO WARMING ON BOOT. This used to fire 4 s after the viewer loaded, on
+    // every visit. It exists purely to make FLIGHTS smooth, but it ran for every
+    // Mars viewer visitor: 10,922 tiles (~0.4 GB) across levels 0-6 at two
+    // concurrent connections out of the ~6 the browser allows per host, each one
+    // also decoded and written to the service-worker cache. That contended
+    // directly with the tiles the viewer was trying to draw, which is what made
+    // the globe jumpy for the first minutes of a session. It is started from
+    // enterPreflight() now, so nobody pays for it until they open the sim.
     // Repair the base globe texture if the async load raced (so the globe isn't
     // dark before the user even engages flight). Retried a couple of times in
     // case the legitimate load is still in flight at these check points.
