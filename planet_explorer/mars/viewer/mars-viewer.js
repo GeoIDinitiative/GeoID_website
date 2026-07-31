@@ -10390,9 +10390,26 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // 1000 budget. L5 would fit trivially but at 5.625 deg/tile
                   // it is ~4x softer than the near field needs, which is the
                   // same mistake the L6 experiment above already made once.
+                  // L9 REMOVED FROM THE LADDER. MEASURED against the live
+                  // service, 30 points spread over +-45 lat and all longitudes:
+                  //
+                  //   L9 67%   L10 100%   L11 60%   L12 30%
+                  //
+                  // L10 is both MORE available and FINER than L9, so requesting
+                  // L9 was never right. Worse, L9 is a dead end: fetchMinLevel
+                  // is floored at min(surround, target-1) = 8, and L8 is not in
+                  // ALLOWED_CTX_LEVELS, so a target of L9 has NOTHING to fall
+                  // back to. Measured, the descending chain from L9 found no
+                  // tile at 10 of those 30 points — and at all 10 a finer level
+                  // was alive the whole time. That is the 50-75 km band with no
+                  // imagery, and the fallback could not rescue it because the
+                  // chain only ever descends.
+                  //
+                  // L10 costs about the same: at 60 km its disc is ~897 tiles
+                  // against L9's ~900, because the radius shrinks with the tile.
                   const byAltRaw = altKm <= 10 ? 12
                     : altKm <= 50 ? 11
-                    : altKm <= 75 ? 9
+                    : altKm <= 75 ? 10
                     : 7;
                   // SPEED CAP. The ladder above is altitude-only, and that is
                   // why L12 never lands at speed: it is not a bug, it is a
@@ -10467,6 +10484,11 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                     let best = null;
                     for (const L of this.ALLOWED_CTX_LEVELS) {
                       if (L > byAltRaw) continue;
+                      // Never coarsen ONTO L9 — see the ladder above. It is
+                      // less available than L10 and has no fallback chain, so
+                      // selecting it here would reintroduce the blank band the
+                      // moment the throttle opened.
+                      if (L === 9) continue;
                       const tKm = (360 / (1 << (L + 1))) * KMDEG_S;
                       const rKm = Math.min(tKm * kDisc, viewCapKm);
                       // Ground newly exposed per second is ~2*R*v; each tile
