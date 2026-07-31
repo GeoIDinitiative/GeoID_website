@@ -19414,6 +19414,11 @@ uniform float uViewportWidth;`,
       // overlay canvas). No viewer behaviour depends on this object.
       window.__ctxUpgradeDebug = {
         ctxStreamer,
+        // Exposed so the SW-less rescue below can re-point it too. It holds its
+        // OWN copy of the tile base, snapshotted at construction, and fetches
+        // through that — so swapping only ctxStreamer left it pinned to the
+        // direct ArcGIS URL and permanently CORS-blocked.
+        ctxDetailStreamer,
         camera,
         controls,
         baseLayerSelect,
@@ -20981,6 +20986,17 @@ ${error && error.message ? error.message : error}`;
             streamer.TILE_BASE = fresh.tileBase;
             streamer._failedUntil?.clear?.();
             streamer._failedStatus?.clear?.();
+          }
+          // The detail patch streamer keeps its OWN `tileBase`, copied from
+          // ctxStreamer.TILE_BASE at construction, and fetches through that
+          // (see its tileUrl). Swapping only ctxStreamer left it addressing
+          // ArcGIS for the rest of the session, so every one of its tiles kept
+          // failing CORS after the main layer had already been rescued.
+          const detail = window.__ctxUpgradeDebug?.ctxDetailStreamer;
+          if (detail) {
+            detail.tileBase = fresh.tileBase;
+            detail._failedUntil?.clear?.();
+            detail._failedStatus?.clear?.();
           }
         } catch (_) { /* best-effort rescue — direct mode keeps working */ }
       };
