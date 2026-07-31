@@ -43,9 +43,10 @@
   // pipeline is tuned around (lead distance, per-level budgets, the ~15 tiles/s
   // transport ceiling) — so the sim still opens in the regime the streamer can
   // feed, with headroom in both directions.
+  // Cruise ceiling with no boost. Boost raises the ceiling toward
+  // speedCeilingKmS(altitude) rather than multiplying this.
   const MAX_SPEED_MS = 1200;
   const LAUNCH_THROTTLE = 0.7;
-  const BOOST_MULT = 2.6;
   const MIN_CLEARANCE_M = 60;         // floor above the visible tile surface
   const MAX_ALT_M = 600000;           // 600 km ceiling
   const PITCH_RATE = 1.1, YAW_RATE = 0.7, ROLL_RATE = 1.6; // rad/s
@@ -89,23 +90,45 @@
   const fadeEl = $("fs-fade");
   const cameraModeSelect = $("fs-camera-mode");
   const startAltSelect = $("fs-start-alt");
-  const speedMultSelect = $("fs-speed-mult");
   const detailLevelSelect = $("fs-detail-level");
   let preFlightReliefValue = null; // slider value to restore on disengage
 
-  // True scale is realistic but reads as almost static from cruise altitude —
-  // a 2.4 km/s ship takes ~90 min to cross the hemisphere. The multiplier
-  // scales airspeed only (not sizes/altitudes); ×10 is the playable default.
-  // Default ×1. Until the dt integration was fixed the sim advanced only ~0.087 s
-  // of simulated time per real second, so the shipped "×10" default actually flew
-  // the ground track at ~0.9 km/s — and that is the speed the CTX streamer was
-  // tuned against. With time integrating honestly, ×10 is really 9.6 km/s at
-  // cruise throttle, which crosses the fetched disc at low altitude in ~10 s
-  // versus the ~120 s it used to take: the ship outruns the tiles and the mapping
-  // never catches up. ×1 restores the ground speed the pipeline expects.
-  function speedMultiplier() {
-    const v = Number(speedMultSelect?.value || 1);
-    return Number.isFinite(v) && v > 0 ? v : 1;
+  // CONTINUOUS SPEED RANGE, CEILINGED BY ALTITUDE.
+  //
+  // This replaces the old x1 / x10 selector. Two discrete modes could not work:
+  // x1 was smooth but almost static from altitude, x10 was unflyable near the
+  // ground, and nothing in between was reachable. Worse, the failure was not
+  // gradual — x10 broke two separate budgets at once.
+  //
+  //   STREAMING. The focus disc exposes ~2*R*v of new ground per second and so
+  //   needs 2*k*v/tile tiles/s to stay filled. At 12 km/s that is 158 tiles/s
+  //   at L12 against the ~15/s this pipeline sustains, which is why fine levels
+  //   simply never landed at x10.
+  //
+  //   PERCEPTION. Position integrates the true frame time, so a hitch moves the
+  //   ship v*dt. What the eye judges is that step against the VISIBLE GROUND,
+  //   and the visible ground is proportional to altitude: at a 45 deg fov and
+  //   16:9 it is ~1.47*alt across. At 2.5 km altitude the view is 3.7 km, so a
+  //   clamped 0.25 s hitch at 12 km/s moves the scene 3 km — 81% of the screen
+  //   in one frame. Consecutive frames then share almost no content and the eye
+  //   reads teleporting rather than motion. The same hitch at 60 km is 3% of
+  //   the view and invisible. THAT is why it was smooth high and jumped low.
+  //
+  // Both budgets scale with altitude, so the ceiling does too. Cap speed so a
+  // clamped hitch cannot move the scene more than ~25% of the view:
+  //
+  //   step = v * 0.25 s  <=  0.25 * view   =>   v <= view = 1.47 * altKm
+  //
+  // which is high enough to be worth flying and low enough that the streamer
+  // can serve it — the level cap in the viewer reads the same ground speed and
+  // picks the finest level that speed allows, so detail degrades smoothly as
+  // you accelerate instead of collapsing at a mode switch.
+  const VIEW_KM_PER_ALT_KM = 1.47;   // 45 deg vertical fov, 16:9
+  const SPEED_FLOOR_KMS = 0.8;       // always flyable, even on the deck
+  const SPEED_ROOF_KMS = 12;         // the old x10 top, reachable once high
+  function speedCeilingKmS(altKm) {
+    const byView = VIEW_KM_PER_ALT_KM * Math.max(0, altKm);
+    return Math.min(SPEED_ROOF_KMS, Math.max(SPEED_FLOOR_KMS, byView));
   }
 
   // ---- flight state ----
@@ -1797,15 +1820,33 @@
     if (keys.KeyW) s.throttle = Math.min(1, s.throttle + 0.5 * dts);
     if (keys.KeyS) s.throttle = Math.max(0, s.throttle - 0.6 * dts);
 
-    // boost energy
-    s.boosting = Boolean(keys.ShiftLeft || keys.ShiftRight) && s.boost > 0.02;
-    if (s.boosting) s.boost = Math.max(0, s.boost - 0.28 * dts);
-    else s.boost = Math.min(1, s.boost + 0.12 * dts);
+    // BOOST IS A RAMP, NOT A SWITCH. It used to be a fixed x2.6 gated by an
+    // energy bar that drained in ~3.5 s, so top speed arrived instantly and
+    // could not be held. Holding it now ACCELERATES: `s.boost` climbs while the
+    // key is down and decays when released, and it interpolates the speed
+    // ceiling from cruise up to the altitude-allowed maximum. The existing HUD
+    // bar reads as "how far up the speed range you are" instead of "how much
+    // boost is left", which is the same bar showing something more useful.
+    s.boosting = Boolean(keys.ShiftLeft || keys.ShiftRight);
+    if (s.boosting) s.boost = Math.min(1, s.boost + 0.22 * dts);   // ~4.5 s to full
+    else s.boost = Math.max(0, s.boost - 0.5 * dts);               // ~2 s to shed
 
     s.braking = Boolean(keys.Space);
 
     // speed dynamics (scene units)
-    const maxSpeed = (MAX_SPEED_MS * speedMultiplier() / METERS_PER_UNIT) * (s.boosting ? BOOST_MULT : 1);
+    //
+    // Altitude here is above the DATUM, not the terrain: the ceiling is about
+    // how much ground is in view, which the datum gives directly, and using
+    // terrain height would make the ceiling twitch as hills pass underneath.
+    const altKmForSpeed = Math.max(0, s.pos.length() - GLOBE_R) * METERS_PER_UNIT / 1000;
+    const ceilKmS = speedCeilingKmS(altKmForSpeed);
+    const cruiseKmS = Math.min(MAX_SPEED_MS / 1000, ceilKmS);
+    // Boost interpolates cruise -> ceiling, so the top of the range is only
+    // available where the view is wide enough to absorb a hitch at that speed.
+    const maxKmS = cruiseKmS + (ceilKmS - cruiseKmS) * s.boost;
+    s.speedCeilKmS = ceilKmS;
+    s.speedMaxKmS = maxKmS;
+    const maxSpeed = (maxKmS * 1000) / METERS_PER_UNIT;
     const target = s.throttle * maxSpeed;
     const rate = s.boosting ? 2.4 : 1.4;
     s.speed += (target - s.speed) * Math.min(1, rate * dts * (target > s.speed ? 1.4 : 1));
@@ -1917,10 +1958,13 @@
     if (r < floorR) {
       const n = s.pos.clone().normalize();
       const vn = s.vel.dot(n);
-      // Hard vertical impact → crash sequence. Threshold scales with the
-      // speed multiplier so ×10/×50 flight stays survivable at shallow angles.
+      // Hard vertical impact → crash sequence. The threshold used to scale with
+      // the speed multiplier so fast flight stayed survivable at shallow
+      // angles; with the multiplier gone it scales with the speed range
+      // actually in use, which is the same intent expressed continuously.
       const downMs = -vn * METERS_PER_UNIT;
-      if (downMs > 450 * speedMultiplier()) {
+      const impactScale = Math.max(1, (s.speedMaxKmS || 1.2) / 1.2);
+      if (downMs > 450 * impactScale) {
         s.pos.setLength(floorR);
         triggerCrash(ll);
         return;
@@ -2001,7 +2045,15 @@
     const altM = (r - surfR) * METERS_PER_UNIT;
     const spdMs = s.speed * METERS_PER_UNIT;
     if (hudAlt) hudAlt.textContent = altM >= 10000 ? (altM / 1000).toFixed(1) + " km" : Math.round(altM) + " m";
-    if (hudSpd) hudSpd.textContent = spdMs >= 1000 ? (spdMs / 1000).toFixed(2) + " km/s" : Math.round(spdMs) + " m/s";
+    // Speed reads "current / ceiling" so the altitude-dependent limit is
+    // visible. Without it, holding boost on the deck and not accelerating past
+    // ~3.7 km/s reads as a broken control rather than as the limit it is; the
+    // ceiling visibly rising as you climb also teaches what it depends on.
+    if (hudSpd) {
+      const cur = spdMs >= 1000 ? (spdMs / 1000).toFixed(2) + " km/s" : Math.round(spdMs) + " m/s";
+      const ceil = Number.isFinite(s.speedCeilKmS) ? " / " + s.speedCeilKmS.toFixed(1) : "";
+      hudSpd.textContent = cur + ceil;
+    }
     // VERTICAL SPEED. Taken as the radial component of the actual velocity
     // vector rather than by differencing altitude frame to frame: `s.vel` is
     // already the true velocity (`fwd * speed + gravity`), so this is exact and
