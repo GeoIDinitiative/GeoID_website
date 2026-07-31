@@ -1460,6 +1460,26 @@
     s._camOff = null;
     s.crashed = false;
     s.crashLatLon = null;
+    // CLEAR THE TILE FAILURE COOLDOWNS. A tile the proxy cannot supply comes
+    // back 504, and _getTileFailureCooldownMs treats anything >= 500 as a
+    // transient server fault worth a TWO MINUTE backoff. Over ground where a
+    // whole level is absent — Olympus has L10 0/16, L9 0/16 and 10 of 16 L11
+    // tiles missing — that stamps the entire area as un-fetchable, and nothing
+    // cleared it on respawn. Redeploying at 8 km over the same spot therefore
+    // came up blank and stayed blank until the backoff expired, which is the
+    // "wipe still prevalent after crash" report.
+    //
+    // A redeploy is a deliberate fresh start, so retry from clean. Genuinely
+    // dead tiles simply 504 again and re-arm their own cooldown; the cost is
+    // one wasted round, against a scene that otherwise cannot recover.
+    try {
+      const cs = window.__ctxUpgradeDebug?.ctxStreamer;
+      cs?._failedUntil?.clear?.();
+      cs?._failedStatus?.clear?.();
+      const ds = window.__ctxUpgradeDebug?.ctxDetailStreamer;
+      ds?._failedUntil?.clear?.();
+      ds?._failedStatus?.clear?.();
+    } catch (_) { /* diagnostics only — never block a respawn */ }
     if (explosion) explosion.visible = false;
     if (ship) {
       ship.visible = s.cam !== "cockpit";
