@@ -26,6 +26,79 @@
   };
   window.__flightSim = fs;
 
+  // Dump the frame trace. Fly into the jerk, then call __fsTrace() — the
+  // summary alone usually decides position vs scene, and `rows` carries the
+  // raw frames for the worst stretch.
+  window.__fsTrace = (worstN = 40) => {
+    const n = Math.min(_traceIdx, TRACE_N);
+    if (!n) return "no frames recorded — is the flight sim running?";
+    const rows = [];
+    const start = _traceIdx > TRACE_N ? _traceIdx % TRACE_N : 0;
+    for (let j = 0; j < n; j += 1) {
+      const i = ((start + j) % TRACE_N) * TRACE_W;
+      rows.push({
+        t: +_traceBuf[i].toFixed(0), dt: +_traceBuf[i + 1].toFixed(4),
+        spdKmS: +_traceBuf[i + 2].toFixed(2), altKm: +_traceBuf[i + 3].toFixed(2),
+        ceilKmS: +_traceBuf[i + 4].toFixed(2), boost: +_traceBuf[i + 5].toFixed(2),
+        stepKm: +_traceBuf[i + 6].toFixed(3), camGapKm: +_traceBuf[i + 7].toFixed(4),
+      });
+    }
+    const col = (k) => rows.map((r) => r[k]);
+    const stats = (k) => {
+      const v = col(k).slice().sort((a, b) => a - b);
+      const mean = v.reduce((a, b) => a + b, 0) / v.length;
+      // Coefficient of variation: the scale-free measure of "how jumpy".
+      const sd = Math.sqrt(v.reduce((a, b) => a + (b - mean) ** 2, 0) / v.length);
+      return {
+        min: +v[0].toFixed(4), p50: +v[v.length >> 1].toFixed(4),
+        p95: +v[Math.floor(v.length * 0.95)].toFixed(4),
+        max: +v[v.length - 1].toFixed(4),
+        mean: +mean.toFixed(4), cv: +(mean ? sd / mean : 0).toFixed(3),
+      };
+    };
+    // The worst stretch: highest frame-to-frame CHANGE in step size, which is
+    // what a jerk actually is — not a big step, but a step unlike its
+    // neighbours.
+    let worstAt = 0, worstJump = 0;
+    for (let j = 1; j < rows.length; j += 1) {
+      const d = Math.abs(rows[j].stepKm - rows[j - 1].stepKm);
+      if (d > worstJump) { worstJump = d; worstAt = j; }
+    }
+    const from = Math.max(0, worstAt - (worstN >> 1));
+    return {
+      frames: n,
+      fps: +(1000 / (stats("dt").mean * 1000)).toFixed(1),
+      dt: stats("dt"),
+      stepKm: stats("stepKm"),
+      camGapKm: stats("camGapKm"),
+      ceilKmS: stats("ceilKmS"),
+      worstStepChangeKm: +worstJump.toFixed(3),
+      // cv (coefficient of variation) is scale-free, so it compares directly
+      // across speeds. Steady motion at any speed has a low cv; a jerk is
+      // variance, not magnitude.
+      verdict: (() => {
+        const sCv = stats("stepKm").cv, cCv = stats("camGapKm").cv;
+        const cCeil = stats("ceilKmS").cv;
+        if (cCeil > 0.05) {
+          return "CEILING: the speed ceiling itself is moving (altitude-derived, "
+            + "undamped) — the speed target is being modulated. cv=" + cCeil;
+        }
+        if (sCv > 0.35) {
+          return "POSITION: the ship's per-frame step is genuinely irregular "
+            + "(cv=" + sCv + "). Frame times or the speed target, not the camera.";
+        }
+        if (cCv > 0.35) {
+          return "SCENE: steps are even (cv=" + sCv + ") but the camera gap "
+            + "oscillates (cv=" + cCv + ") — the camera is the artefact.";
+        }
+        return "NEITHER: ship and camera are both steady (step cv=" + sCv
+          + ", cam cv=" + cCv + "). The apparent jump is the ground texture, "
+          + "i.e. the streamer re-keying under a steady ship. Read __fsStreamStats.";
+      })(),
+      rows: rows.slice(from, from + worstN),
+    };
+  };
+
   let hooks = null;
   let THREE = null;
 
@@ -123,6 +196,13 @@
   // can serve it — the level cap in the viewer reads the same ground speed and
   // picks the finest level that speed allows, so detail degrades smoothly as
   // you accelerate instead of collapsing at a mode switch.
+  // Frame trace ring buffer — see the write site in update() for why.
+  // 1800 frames is ~60 s at 30 fps, enough to fly into the jerk and dump after.
+  const TRACE_N = 1800, TRACE_W = 8;
+  const _traceBuf = new Float64Array(TRACE_N * TRACE_W);
+  let _traceIdx = 0;
+  let _tracePrev = null;
+
   const VIEW_KM_PER_ALT_KM = 1.47;   // 45 deg vertical fov, 16:9
   const SPEED_FLOOR_KMS = 0.8;       // always flyable, even on the deck
   const SPEED_ROOF_KMS = 12;         // the old x10 top, reachable once high
@@ -2025,15 +2105,26 @@
       // "jerks back at max speed" report, and it scales with the gap, which is
       // why it only becomes obvious at the ceiling.
       //
-      // Kept switchable because this is the change that broke tile streaming
-      // once before: a camera that tracks continuously moves the view every
-      // frame, and the surround layer keys off the view. The focus disc no
-      // longer re-plans on that (it holds until the ship drifts 35% of the
-      // radius), which is what should make this safe now — but set
-      // window.__fsCamTrueDt = false to put it back live if streaming suffers.
-      const camDt = window.__fsCamTrueDt === false ? dts : dt;
+      // DEFAULT IS `dts`, AND THAT IS DELIBERATE. Feeding the true `dt` is
+      // correct in isolation — the measurement above is real — but it has now
+      // broken tile streaming TWICE: 947af11 (reverted in 6c1c1fd), and again
+      // after the focus-disc hold was added, which was the specific reason to
+      // expect it to be safe the second time. It was not: a camera that tracks
+      // continuously moves the view every frame, and the SURROUND layer keys
+      // off the view, so holding the focus disc does not cover it.
+      //
+      // It also did not fix the jerk it was aimed at. So the camera clock is
+      // not the cause of that, and both of those are now observed rather than
+      // reasoned. Do not flip this default again before the surround layer gets
+      // the same drift-hold the focus disc has. window.__fsCamTrueDt = true
+      // still enables it for experiments; expect streaming to suffer while on.
+      const camDt = window.__fsCamTrueDt === true ? dt : dts;
       camera.position.lerp(chasePos, 1 - Math.exp(-7 * camDt));
       camera.up.lerp(shipUp, 1 - Math.exp(-5 * camDt)).normalize();
+      // Residual distance to the ideal chase point. If the ship's own motion is
+      // smooth and THIS oscillates, the jerk is the camera; if this is steady
+      // and the ship still appears to jump, it is not the camera at all.
+      s._camGapKm = camera.position.distanceTo(chasePos) * METERS_PER_UNIT / 1000;
       const look = s.pos.clone().addScaledVector(fwd, 4 * L).addScaledVector(shipUp, -0.4 * L);
       camera.lookAt(look);
     } else {
@@ -2063,6 +2154,39 @@
     // ---- HUD ----
     const altM = (r - surfR) * METERS_PER_UNIT;
     const spdMs = s.speed * METERS_PER_UNIT;
+
+    // FRAME TRACE. Five rounds of reasoning about this jerk have not converged,
+    // so record what actually happens instead. Ring buffer, no allocation per
+    // frame, always on — the cost is eight float writes.
+    //
+    // It is built to answer ONE question, the one that was asked and that I
+    // have twice answered wrongly from theory: position or scene?
+    //   * stepKm irregular      -> POSITION. The ship really is lurching.
+    //   * stepKm smooth but
+    //     camGapKm oscillating  -> SCENE. The ship is fine, the camera is not.
+    //   * both smooth           -> neither; it is the ground texture moving,
+    //                              i.e. the streamer re-keying under a steady
+    //                              ship, and the flight model is not at fault.
+    // ceilKmS is included because the altitude-derived ceiling is itself a
+    // suspect: it is recomputed from instantaneous altitude every frame with no
+    // damping, so if altitude wobbles the speed target wobbles with it.
+    if (_traceBuf) {
+      const i = (_traceIdx % TRACE_N) * TRACE_W;
+      _traceBuf[i] = now;
+      _traceBuf[i + 1] = dt;
+      _traceBuf[i + 2] = spdMs / 1000;
+      _traceBuf[i + 3] = altM / 1000;
+      _traceBuf[i + 4] = s.speedCeilKmS || 0;
+      _traceBuf[i + 5] = s.boost || 0;
+      // Actual distance the ship moved this frame, in km — the ground truth
+      // for "is the position smooth", independent of speed and dt separately.
+      _traceBuf[i + 6] = _tracePrev
+        ? s.pos.distanceTo(_tracePrev) * METERS_PER_UNIT / 1000
+        : 0;
+      _traceBuf[i + 7] = s._camGapKm || 0;
+      if (!_tracePrev) _tracePrev = s.pos.clone(); else _tracePrev.copy(s.pos);
+      _traceIdx += 1;
+    }
     if (hudAlt) hudAlt.textContent = altM >= 10000 ? (altM / 1000).toFixed(1) + " km" : Math.round(altM) + " m";
     // Speed reads "current / ceiling" so the altitude-dependent limit is
     // visible. Without it, holding boost on the deck and not accelerating past
