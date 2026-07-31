@@ -8542,9 +8542,31 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           // It also keeps L10 in continuous use — it is the surround below
           // 50 km and the focus above 55 km — instead of being fetched, dropped
           // across the middle band, and re-fetched into a different layer.
-          const startL = Math.max(4, fs.level - 1);
+          // THE CAP AT 8 IS LOAD-BEARING — DO NOT RAISE IT AGAIN.
+          //
+          // I removed it to shrink the resolution step, and then moved the
+          // start to fs.level-1, on a survey of 30 scattered points that put
+          // L10 at 100% availability. That survey was not representative.
+          // MEASURED at Olympus Mons (17.8N 227.2E), five tiles per level:
+          //
+          //   L5 5/5   L7 5/5   L9 2/5   L10 0/5   L11 3/5   L12 0/5
+          //
+          // L10 is entirely absent there while L11 is partly alive — the
+          // pyramid is non-monotonic in BOTH directions. With the focus on L11
+          // and the surround on L10, the blanket was dead, and because
+          // fetchMinLevel is floored at min(surroundLevel, target-1) the focus
+          // chain was pinned to L11 -> L10 and had nowhere alive to land
+          // either. Focus dead and surround dead is a totally blank scene, which
+          // is what it produced.
+          //
+          // Capping at 8 forces the surround down onto L7/L5, which are 5/5
+          // even at Olympus, so the blanket is always there — and it drags
+          // fetchMinLevel down with it so the focus chain can reach those
+          // levels too. A visible resolution step is the price of that
+          // guarantee, and it is worth paying.
+          const startL = Math.max(4, Math.min(8, fs.level - 2));
           const cands = this.ALLOWED_CTX_LEVELS
-            .filter((L) => L <= startL && L >= 4 && L !== 9)
+            .filter((L) => L <= startL && L >= 4)
             .sort((a, b) => b - a);
           for (const L of cands) {
             sLevel = L;
