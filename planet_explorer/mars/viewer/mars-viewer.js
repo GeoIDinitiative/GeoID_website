@@ -10484,8 +10484,47 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // gets its extra sharpness. Uniformly good beats sharp-in-
                   // patches, and L12 is the service ceiling anyway (13/14/15 all
                   // 504), so nothing below this is reachable regardless.
-                  const byAltRaw = altKm <= 50 ? 11
-                    : altKm <= 75 ? 10
+                  // LADDER SIZED AGAINST WHAT THE SCREEN NEEDS.
+                  //
+                  // Because radiusFor is tile*17.13, the window is proportional
+                  // to the tile, so each level delivers a FIXED ground
+                  // resolution whatever the altitude — L12 22 m/px, L11 44,
+                  // L10 87, L9 174, L7 697. The ladder is not tuning resolution
+                  // continuously; it is choosing one of five fixed values.
+                  // Altitude only changes what is NEEDED.
+                  //
+                  // The need comes from this file's own two measurements of the
+                  // near field — 0.31 km/px at 90 km and 0.46 km/px at 200 km —
+                  // which fit 32.6*sqrt(altKm) m/px to within 1% (309 vs 310,
+                  // 461 vs 460). Near-field viewing distance scales with the
+                  // horizon, which goes as sqrt(altitude), so the form is right
+                  // and not just a curve fit.
+                  //
+                  // Picking the coarsest level that still meets that need fixes
+                  // two faults in the old ladder at once:
+                  //
+                  //   TOO FINE mid-band. At 25 km the screen needs 163 m/px and
+                  //   L11 delivered 87 — twice the perceptible detail for FOUR
+                  //   TIMES the tiles. That over-fetch is its own cause of lag
+                  //   and churn through 10-50 km.
+                  //
+                  //   TOO COARSE up high. Above 75 km it used L7 at 697 m/px
+                  //   against a need of 282 — visibly soft. L7 is not
+                  //   appropriate below ~450 km altitude.
+                  //
+                  // L9 is back. It was dropped for being a dead end, but that
+                  // was only true while fetchMinLevel was pinned at 8 with no
+                  // L8 to fall to. With the surround cap restored the chain
+                  // reaches L7, so L9 has a real fallback — and it is the right
+                  // level across the widest span of the ladder.
+                  //
+                  // Least certain rows are the two lowest: the near-field model
+                  // is extrapolated well below the 90 km and 200 km points it
+                  // was fitted from.
+                  const byAltRaw = altKm <= 1.5 ? 12
+                    : altKm <= 8 ? 11
+                    : altKm <= 35 ? 10
+                    : altKm <= 450 ? 9
                     : 7;
                   // SPEED CAP. The ladder above is altitude-only, and that is
                   // why L12 never lands at speed: it is not a bug, it is a
@@ -10586,11 +10625,10 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                     let capped = null, bestMpp = Infinity, bestTiles = Infinity;
                     for (const L of this.ALLOWED_CTX_LEVELS) {
                       if (L > byAltRaw) continue;
-                      // Never coarsen ONTO L9 — see the ladder above. It is
-                      // less available than L10 and has no fallback chain, so
-                      // selecting it here would reintroduce the blank band the
-                      // moment the throttle opened.
-                      if (L === 9) continue;
+                      // L9 is admissible again. It was excluded here while its
+                      // fallback chain was pinned at 8 with no L8 to descend
+                      // to; with the surround cap restored the chain reaches
+                      // L7, so a dead L9 now degrades instead of blanking.
                       const tKm = (360 / (1 << (L + 1))) * KMDEG_S;
                       const rKm = tKm * kDisc;
                       // Ground newly exposed per second is ~2*R*v; each tile
