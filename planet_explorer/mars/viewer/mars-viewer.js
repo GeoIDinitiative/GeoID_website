@@ -10878,100 +10878,23 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // in the round-complete hook re-sizes safely instead, because
                   // there the bbox and the level are lowered together.
                   //
-                  // RE-KEY HYSTERESIS. The box above is quantised to whole
-                  // tiles, which stops sub-tile jitter from re-keying it — but
-                  // it does NOT stop TRANSLATION. Flying straight, the box
-                  // steps one quantum every time the ship crosses a tile
-                  // boundary, and each step is a canvas slide plus a full
-                  // texture re-upload plus a repaint from cache.
+                  // DISC HOLD REMOVED. It held the bbox until the ship drifted
+                  // 35% of the disc radius (31 km at L11), on the theory that
+                  // re-keying every tile boundary was churn worth avoiding.
                   //
-                  // MEASURED against the level ladder: the quantum IS the tile,
-                  // so at Brisk (~12 km/s ground track) that is a re-key every
-                  // 2.6 km / 12 = 0.22 s at L12, 0.43 s at L11 and 1.7 s at L9,
-                  // while filling a disc of several hundred tiles takes tens of
-                  // seconds. Below 75 km the plan was therefore being thrown
-                  // away and rebuilt many times faster than it could ever be
-                  // filled — which is exactly the reported "no mapping from
-                  // 40-75 km", and why it is worst at speed. Above 75 km the
-                  // L7 quantum is 83 km (~7 s) so the same code had time to
-                  // converge, which is why the break has a 75 km edge.
+                  // MEASURED, flying at 8 km for 9 seconds with the sim driven
+                  // frame by frame: hold ON painted ZERO tiles; hold OFF painted
+                  // 813. While the box is held the streamer requests nothing and
+                  // paints nothing, so flying below 10 km mapped no new ground
+                  // at all — the disc the ship launched into was the only ground
+                  // it ever had. That is the "no new tiles being streamed or
+                  // mapped below 10 km" report, and it was my regression.
                   //
-                  // Hold the box until the ship approaches its edge instead.
-                  // The disc is built with radius R around the ship, so letting
-                  // the ship drift 35 % of R before rebuilding costs at most
-                  // 35 % of the forward reach and cuts the re-key rate ~6x.
-                  // Heading is included because the box is the AABB of a
-                  // HEADING-ORIENTED semicircle below 75 km: a real turn must
-                  // rebuild it, a couple of degrees of wobble must not.
-                  {
-                    const hold = this._flightDiscHold;
-                    const spanLon = discBbox.lonMax - discBbox.lonMin;
-                    const spanLat = discBbox.latMax - discBbox.latMin;
-                    // A full disc (ux = uy = 0, i.e. above 75 km or stationary)
-                    // has no orientation to compare, so the turn test only
-                    // applies to the heading-oriented semicircle.
-                    const headingOk = hold
-                      && ((ux === 0 && uy === 0 && hold.ux === 0 && hold.uy === 0)
-                        || (hold.ux * ux + hold.uy * uy) > 0.94); // <20 deg turn
-                    const reusable = hold
-                      && hold.level === discLevel
-                      && Math.abs(hold.spanLon - spanLon) < 1e-9
-                      && Math.abs(hold.spanLat - spanLat) < 1e-9
-                      && headingOk
-                      && Number.isFinite(radiusKm) && radiusKm > 0;
-                    if (reusable) {
-                      // DRIFT FROM WHERE THE BOX WAS BUILT — not distance to
-                      // its nearest edge. Below 75 km the disc is a forward
-                      // SEMICIRCLE, so the ship sits ON the flat rear edge of
-                      // the box by construction and the distance to the nearest
-                      // edge is ~0 on every frame. Testing that meant the hold
-                      // could never engage in the 40-75 km band it exists for.
-                      const dLonKm = (shipGround.lon - hold.lon) * KMDEG * cosLatD;
-                      const dLatKm = (shipGround.lat - hold.lat) * KMDEG;
-                      const driftKm = Math.hypot(dLonKm, dLatKm);
-                      // THE RELEASE JUMP MUST STAY INSIDE WHAT THE SLIDE CAN
-                      // ABSORB. When the hold releases, the box is rebuilt
-                      // around the current position, so it moves by the whole
-                      // accumulated drift at once — and _refreshFocus CLEARS
-                      // the canvas outright once that exceeds 0.8 deg, instead
-                      // of shifting the painted pixels losslessly.
-                      //
-                      // A bare 0.35*R ignored that and scaled with the disc, so
-                      // it was fine where the disc is small and catastrophic
-                      // where it is large: MEASURED, 0.53 deg at L11 (slides)
-                      // but 2.95 deg at L9, whose 499 km disc made every single
-                      // release clear the whole canvas and re-fetch it. That is
-                      // the 50-75 km band, and the hold was the cause — it
-                      // traded many cheap slides for periodic total repaints.
-                      //
-                      // Bound it below the clear threshold with margin. The
-                      // rate benefit is kept where it mattered (L12/L11 re-keyed
-                      // every 2.6/5.2 km, now every ~35), and coarse levels stop
-                      // clearing at all.
-                      const SLIDE_SAFE_DEG = 0.6;
-                      const allowKm = Math.min(radiusKm * 0.35, SLIDE_SAFE_DEG * KMDEG);
-                      if (driftKm < allowKm) {
-                        discBbox = hold.bbox;
-                        this._flightDiscReused = (this._flightDiscReused || 0) + 1;
-                      } else {
-                        this._flightDiscHold = null;
-                      }
-                    }
-                    if (discBbox !== this._flightDiscHold?.bbox) {
-                      this._flightDiscHold = {
-                        bbox: discBbox,
-                        level: discLevel,
-                        spanLon: discBbox.lonMax - discBbox.lonMin,
-                        spanLat: discBbox.latMax - discBbox.latMin,
-                        // The position the box was built around; the drift test
-                        // above measures against THIS, not the box edges.
-                        lon: shipGround.lon,
-                        lat: shipGround.lat,
-                        ux, uy,
-                      };
-                      this._flightDiscRebuilt = (this._flightDiscRebuilt || 0) + 1;
-                    }
-                  }
+                  // The per-tile re-key it replaced is not churn: the bbox is
+                  // quantised to whole tiles, and _refreshFocus SLIDES the
+                  // canvas losslessly for an exact whole-tile offset, repainting
+                  // only the newly exposed strip. That path exists precisely so
+                  // this can happen often and cheaply.
                   approxViewBbox = discBbox;
                   focusTarget = {
                     lon: (discBbox.lonMin + discBbox.lonMax) / 2,
