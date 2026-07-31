@@ -10542,10 +10542,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                       // moment the throttle opened.
                       if (L === 9) continue;
                       const tKm = (360 / (1 << (L + 1))) * KMDEG_S;
-                      // Same cap the disc itself uses below: the canvas holds
-                      // texMax/512 tiles across, so a wider radius than that
-                      // only discards fetched detail.
-                      const rKm = Math.min(tKm * kDisc, (texMax / 512) * tKm);
+                      const rKm = tKm * kDisc;
                       // Ground newly exposed per second is ~2*R*v; each tile
                       // covers tile^2.
                       const need = (2 * rKm * groundKmS) / (tKm * tKm);
@@ -10704,29 +10701,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // it belongs — by scoring the LEVEL on ground metres per
                   // canvas pixel — so the disc can stay as wide as the budget
                   // and horizon allow.
-                  // ...and capped where the CANVAS stops being able to express
-                  // the tiles. This is why descending below 10 km sharpened
-                  // nothing: radiusFor is tile*17.13 and is budget-bound at
-                  // 44.6 km for L12 at EVERY low altitude, so the window stayed
-                  // 89 km wide and the 4096 canvas froze at 21.8 m/px whether
-                  // the ship was at 10 km or 500 m. L12's own source is 10.2
-                  // m/px, so half the detail that was fetched was thrown away
-                  // on the way in.
-                  //
-                  // The canvas holds MAX/512 tiles across, so a radius of
-                  // (MAX/512)*tile is exactly where canvas resolution equals
-                  // source resolution — the widest disc that still shows the
-                  // level in full. Wider wastes fetched detail; narrower gains
-                  // nothing real, because the source is exhausted.
-                  //
-                  // MEASURED, same at every level: half the radius, twice the
-                  // detail, a quarter of the tiles — 21.8 -> 10.2 m/px at L12
-                  // for 101 tiles instead of 461. L12 is the service ceiling
-                  // (13/14/15 all 504 where 12 is live), so 10.2 m/px is the
-                  // best this data can do.
-                  const canvasOptKm = ((this.FOCUS_TEXTURE_MAX_SIZE || 4096) / 512)
-                    * tileDegFor(discLevel) * KMDEG;
-                  let radiusKm = Math.min(radiusFor(discLevel), horizonCapKm, canvasOptKm);
+                  let radiusKm = Math.min(radiusFor(discLevel), horizonCapKm);
                   const buildDisc = (Rkm) => {
                     // Stationary: no heading to face, so fall back to a full
                     // disc around the ship rather than a degenerate box.
