@@ -1388,9 +1388,19 @@
   }
 
   // Ground clearance scales with the displayed ship so the hull never visually
-  // buries itself in the terrain (a 6 km arcade ship needs far more than 60 m).
+  // buries itself in the terrain. 0.55 of LENGTH was sized when an "arcade"
+  // 6 km ship existed; that option is gone and only the 600 m cinematic size
+  // remains, where 0.55 meant the ship was flown 330 m above the ground and
+  // shoved upward long before anything visually touched — the reported
+  // premature skimming. What the clamp actually needs to clear is the hull's
+  // half-DEPTH, not half its length: a shuttle's belly sits ~0.1 of its length
+  // below centre, so 0.15 leaves margin without flying it up a mountain.
+  const HULL_DEPTH_FRACTION = 0.15;
   function minClearanceUnits() {
-    return Math.max(MIN_CLEARANCE_M / METERS_PER_UNIT, shipDisplayLengthUnits() * 0.55);
+    return Math.max(
+      MIN_CLEARANCE_M / METERS_PER_UNIT,
+      shipDisplayLengthUnits() * HULL_DEPTH_FRACTION,
+    );
   }
 
   // ---- crash sequence ----
