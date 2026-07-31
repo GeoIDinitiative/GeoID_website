@@ -10472,14 +10472,6 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                     (fv.lat || 0) * KMDEG_S,
                   );
                   this._flightGroundKmS = groundKmS;
-                  // HOW MUCH GROUND IS ACTUALLY WORTH STREAMING. The visible
-                  // ground is ~1.47*alt across (45 deg fov, 16:9); 3x that
-                  // leaves margin to turn into without fetching a horizon's
-                  // worth of terrain that is either off-screen or compressed
-                  // into a few pixels near the limb. The floor keeps a usable
-                  // disc when sitting on the deck.
-                  const viewCapKm = Math.max(6, 3 * 1.47 * altKm);
-                  this._flightViewCapKm = viewCapKm;
                   let byAlt = byAltRaw;
                   if (groundKmS > 0.05) {
                     const cap = this._flightBudgetOverride || 512;
@@ -10550,7 +10542,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                       // moment the throttle opened.
                       if (L === 9) continue;
                       const tKm = (360 / (1 << (L + 1))) * KMDEG_S;
-                      const rKm = Math.min(tKm * kDisc, viewCapKm);
+                      const rKm = tKm * kDisc;
                       // Ground newly exposed per second is ~2*R*v; each tile
                       // covers tile^2.
                       const need = (2 * rKm * groundKmS) / (tKm * tKm);
@@ -10696,15 +10688,20 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // At 0.7x: 120 km gives 0.32 km/px (meets the need) from ~199
                   // L7 tiles = 13 s, instead of 492 tiles = 33 s for a blurrier
                   // picture. Sharper, faster, and less upload traffic at once.
-                  // ...and capped by what is VISIBLE, which at low altitude is
-                  // far tighter than either. The budget radius is 45 km at L12
-                  // regardless of altitude, against 3.7 km of visible ground at
-                  // 2.5 km up — a 12x oversize, streamed at full resolution and
-                  // never seen. Sizing to the view is what makes fine levels
-                  // affordable down low (and is why boost no longer has to
-                  // coarsen); the speed cap above solves against this same
-                  // radius so the two cannot disagree.
-                  let radiusKm = Math.min(radiusFor(discLevel), horizonCapKm, viewCapKm);
+                  // NOT capped by viewCapKm. I added that and it was wrong:
+                  // viewCapKm is the ground width at NADIR (1.47*alt), but this
+                  // is a chase camera looking FORWARD to the horizon — at 1 km
+                  // altitude the nadir width is 1.5 km while the visible ground
+                  // runs to an 82 km horizon. Capping the disc at 3x nadir
+                  // therefore pulled it from ~45 km in to 6 km, which did not
+                  // remove the coarse surround, it just moved the step from the
+                  // far distance to right in front of the ship.
+                  //
+                  // The cost problem that cap was aimed at is now handled where
+                  // it belongs — by scoring the LEVEL on ground metres per
+                  // canvas pixel — so the disc can stay as wide as the budget
+                  // and horizon allow.
+                  let radiusKm = Math.min(radiusFor(discLevel), horizonCapKm);
                   const buildDisc = (Rkm) => {
                     // Stationary: no heading to face, so fall back to a full
                     // disc around the ship rather than a degenerate box.
