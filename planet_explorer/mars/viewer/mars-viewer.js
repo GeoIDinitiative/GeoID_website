@@ -10707,7 +10707,28 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                       const dLonKm = (shipGround.lon - hold.lon) * KMDEG * cosLatD;
                       const dLatKm = (shipGround.lat - hold.lat) * KMDEG;
                       const driftKm = Math.hypot(dLonKm, dLatKm);
-                      if (driftKm < radiusKm * 0.35) {
+                      // THE RELEASE JUMP MUST STAY INSIDE WHAT THE SLIDE CAN
+                      // ABSORB. When the hold releases, the box is rebuilt
+                      // around the current position, so it moves by the whole
+                      // accumulated drift at once — and _refreshFocus CLEARS
+                      // the canvas outright once that exceeds 0.8 deg, instead
+                      // of shifting the painted pixels losslessly.
+                      //
+                      // A bare 0.35*R ignored that and scaled with the disc, so
+                      // it was fine where the disc is small and catastrophic
+                      // where it is large: MEASURED, 0.53 deg at L11 (slides)
+                      // but 2.95 deg at L9, whose 499 km disc made every single
+                      // release clear the whole canvas and re-fetch it. That is
+                      // the 50-75 km band, and the hold was the cause — it
+                      // traded many cheap slides for periodic total repaints.
+                      //
+                      // Bound it below the clear threshold with margin. The
+                      // rate benefit is kept where it mattered (L12/L11 re-keyed
+                      // every 2.6/5.2 km, now every ~35), and coarse levels stop
+                      // clearing at all.
+                      const SLIDE_SAFE_DEG = 0.6;
+                      const allowKm = Math.min(radiusKm * 0.35, SLIDE_SAFE_DEG * KMDEG);
+                      if (driftKm < allowKm) {
                         discBbox = hold.bbox;
                         this._flightDiscReused = (this._flightDiscReused || 0) + 1;
                       } else {
