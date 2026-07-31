@@ -10390,10 +10390,76 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // 1000 budget. L5 would fit trivially but at 5.625 deg/tile
                   // it is ~4x softer than the near field needs, which is the
                   // same mistake the L6 experiment above already made once.
-                  const byAlt = altKm <= 10 ? 12
+                  const byAltRaw = altKm <= 10 ? 12
                     : altKm <= 50 ? 11
                     : altKm <= 75 ? 9
                     : 7;
+                  // SPEED CAP. The ladder above is altitude-only, and that is
+                  // why L12 never lands at speed: it is not a bug, it is a
+                  // throughput wall.
+                  //
+                  // The disc is a semicircle of radius R = tile * k moving at
+                  // ground speed v, so it exposes ~2*R*v of new ground per
+                  // second and needs 2*R*v/tile^2 = 2*k*v/tile tiles/s to stay
+                  // filled — note the budget cancels, leaving only tile size
+                  // and speed. With k = sqrt(2*512*0.9/pi) = 17.1 and the
+                  // MEASURED ~15 tiles/s this pipeline sustains (the file's own
+                  // notes: "199 L7 tiles = 13 s", "388-1502 tiles = 26-100 s"):
+                  //
+                  //   Brisk is x10 of 1.2 km/s = 12 km/s ground track, and
+                  //   needs 158 tiles/s at L12, 79 at L11, 20 at L9, 5 at L7.
+                  //
+                  // So at Brisk everything finer than ~L7 is 1.3-10x beyond
+                  // what can ever be delivered. The streamer asked anyway, the
+                  // disc could never fill, it re-keyed, and the result is
+                  // fragments of L11 alternating with the base texture — the
+                  // reported "no L12 below 2500 m". At Realistic (1.2 km/s)
+                  // L12 needs 15.8 tiles/s, right at the limit, which is why it
+                  // used to work at low speed and fell apart when held open.
+                  //
+                  // Requesting a level that cannot be delivered is strictly
+                  // worse than requesting a coarser one that can: coarser is
+                  // blurrier, but it is STABLE and it is on screen. Solve
+                  // 2*k*v/tile <= rate for tile, and take the finest level
+                  // whose tile is at least that big.
+                  const KMDEG_S = 59.3;
+                  const cosLatS = Math.max(0.2, Math.cos(shipGround.lat * Math.PI / 180));
+                  const groundKmS = Math.hypot(
+                    (fv.lon || 0) * KMDEG_S * cosLatS,
+                    (fv.lat || 0) * KMDEG_S,
+                  );
+                  this._flightGroundKmS = groundKmS;
+                  let byAlt = byAltRaw;
+                  if (groundKmS > 0.05) {
+                    const cap = this._flightBudgetOverride || 512;
+                    const kDisc = Math.sqrt((2 * cap * 0.9) / Math.PI);
+                    // FIXED, not self-measured. Measuring the delivered rate
+                    // would form a feedback loop: coarsening cuts demand, the
+                    // measured rate falls with it, and the level ratchets
+                    // coarser until it bottoms out. Tunable live via
+                    // window.__ctxTileRate for calibration against a real run.
+                    // 16 rather than the measured ~15: calibrated so the cap is
+                    // inert in the regime that already worked. At Realistic
+                    // full throttle (1.2 km/s) L12 needs 15.8 tiles/s, so 16
+                    // still permits L12 near the ground, and hovering permits
+                    // it at any level. The cap only bites where delivery was
+                    // never possible — Brisk needs 158 tiles/s at L12.
+                    const rate = Math.max(2, window.__ctxTileRate || 16);
+                    const minTileKm = (2 * kDisc * groundKmS) / rate;
+                    if (minTileKm > 0) {
+                      const maxLevel = Math.floor(Math.log2((360 * KMDEG_S) / minTileKm) - 1);
+                      if (Number.isFinite(maxLevel)) {
+                        byAlt = Math.min(byAlt, Math.max(5, maxLevel));
+                      }
+                    }
+                  }
+                  byAlt = this._snapCtxLevel(byAlt, {
+                    minLevel: this.MIN_LEVEL,
+                    maxLevel: this.FOCUS_MAX_LEVEL,
+                    preferLower: true,
+                  });
+                  this._flightLevelByAlt = byAltRaw;
+                  this._flightLevelCapped = byAlt;
                   if (!Number.isFinite(this._flightLevelHold)) this._flightLevelHold = byAlt;
                   if (byAlt !== this._flightLevelHold) {
                     this._flightLevelStreak = (this._flightLevelStreak || 0) + 1;
@@ -19564,6 +19630,13 @@ ${error && error.message ? error.message : error}`;
             discRebuilt: ctxStreamer._flightDiscRebuilt || 0,
             discReused: ctxStreamer._flightDiscReused || 0,
             discLevel: ctxStreamer._flightDiscLevel ?? null,
+            // Speed cap: levelByAlt is what altitude alone asked for,
+            // levelCapped is what the ground speed actually allows. When they
+            // differ, the difference IS the answer to "why no L12".
+            groundKmS: +(ctxStreamer._flightGroundKmS || 0).toFixed(2),
+            levelByAlt: ctxStreamer._flightLevelByAlt ?? null,
+            levelCapped: ctxStreamer._flightLevelCapped ?? null,
+            tileRateAssumed: window.__ctxTileRate || 16,
           };
         }
         else if (ctxStreamer._focusTexDirty) {
