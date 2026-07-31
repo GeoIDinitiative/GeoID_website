@@ -1969,17 +1969,8 @@
       // and lags on short ones, which reads as the ship jittering against the
       // view even when its own motion is smooth. 1 - e^(-k*dt) is the exact
       // solution and is frame-rate independent.
-      // THE DAMPING CLOCK MUST MATCH THE ONE THE SHIP MOVED ON. Translation
-      // integrates the true `dt`, so damping the camera on the smoothed `dts`
-      // desynchronises them exactly when it matters. On a hitch (dt = 0.25 s
-      // while dts is still ~0.05 s, because the average lags) the ship advances
-      // a full quarter-second of travel but the camera closes only
-      // 1-e^(-7*0.05) = 30% of the gap instead of 1-e^(-7*0.25) = 83%: the ship
-      // lurches out of frame and is reeled back over the following frames. The
-      // error scales with distance covered per hitch, which is why it is mild
-      // at x1 (~300 m) and violent at x10 (~3 km).
-      camera.position.lerp(chasePos, 1 - Math.exp(-7 * dt));
-      camera.up.lerp(shipUp, 1 - Math.exp(-5 * dt)).normalize();
+      camera.position.lerp(chasePos, 1 - Math.exp(-7 * dts));
+      camera.up.lerp(shipUp, 1 - Math.exp(-5 * dts)).normalize();
       const look = s.pos.clone().addScaledVector(fwd, 4 * L).addScaledVector(shipUp, -0.4 * L);
       camera.lookAt(look);
     } else {
