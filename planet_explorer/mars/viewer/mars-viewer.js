@@ -8825,18 +8825,8 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         // resolution (_tilePaintTrackLevel). Coarser tiles skip cells already covered
         // by finer tiles, keeping the canvas in a strictly coarse→fine painted state.
         const trackLevel = this._tilePaintTrackLevel;
-        // Bounded at delta <= 4 to MATCH THE REGISTRATION SIDE below, which
-        // skips recording ancestors deeper than that. Checking deeper than we
-        // record is both useless (nothing at those cells was ever registered by
-        // them) and expensive: the scan is 4^delta cells with a template-string
-        // key built per cell, so delta 7 is 16k allocations for one tile draw
-        // and delta 10 is a million. Deeper ancestors are the global L0-2 base,
-        // which is drawn first rather than arriving late, so the ordering this
-        // guard protects does not apply to them.
-        const trackDelta = Number.isFinite(trackLevel) ? trackLevel - level : 0;
-        if (Number.isFinite(trackLevel) && level < trackLevel && trackDelta <= 4
-            && this._tilePaintLevel?.size > 0) {
-          const delta = trackDelta;
+        if (Number.isFinite(trackLevel) && level < trackLevel && this._tilePaintLevel?.size > 0) {
+          const delta = trackLevel - level;
           const refNc = 1 << (trackLevel + 1);
           const refNr = 1 << trackLevel;
           const rStart = row << delta;
@@ -10439,6 +10429,14 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                     (fv.lat || 0) * KMDEG_S,
                   );
                   this._flightGroundKmS = groundKmS;
+                  // HOW MUCH GROUND IS ACTUALLY WORTH STREAMING. The visible
+                  // ground is ~1.47*alt across (45 deg fov, 16:9); 3x that
+                  // leaves margin to turn into without fetching a horizon's
+                  // worth of terrain that is either off-screen or compressed
+                  // into a few pixels near the limb. The floor keeps a usable
+                  // disc when sitting on the deck.
+                  const viewCapKm = Math.max(6, 3 * 1.47 * altKm);
+                  this._flightViewCapKm = viewCapKm;
                   let byAlt = byAltRaw;
                   if (groundKmS > 0.05) {
                     const cap = this._flightBudgetOverride || 512;
@@ -10455,13 +10453,28 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                     // it at any level. The cap only bites where delivery was
                     // never possible — Brisk needs 158 tiles/s at L12.
                     const rate = Math.max(2, window.__ctxTileRate || 16);
-                    const minTileKm = (2 * kDisc * groundKmS) / rate;
-                    if (minTileKm > 0) {
-                      const maxLevel = Math.floor(Math.log2((360 * KMDEG_S) / minTileKm) - 1);
-                      if (Number.isFinite(maxLevel)) {
-                        byAlt = Math.min(byAlt, Math.max(5, maxLevel));
-                      }
+                    // SIZE THE DEMAND AGAINST THE DISC WE ACTUALLY BUILD, which
+                    // is view-capped below. The first version of this cap used
+                    // the budget radius (tile*k) unconditionally, and that is
+                    // 45 km at L12 — twelve times the 3.7 km of ground visible
+                    // at 2.5 km altitude. It therefore computed the cost of
+                    // streaming a disc nobody can see, concluded L12 was
+                    // unaffordable the moment boost was pressed, and dropped to
+                    // L10: "at low altitudes, once boost is pressed the high
+                    // res tiles vanish". Against the view-capped disc the same
+                    // boost needs 12 tiles/s at L12, inside the budget, so the
+                    // level holds and the detail stays.
+                    let best = null;
+                    for (const L of this.ALLOWED_CTX_LEVELS) {
+                      if (L > byAltRaw) continue;
+                      const tKm = (360 / (1 << (L + 1))) * KMDEG_S;
+                      const rKm = Math.min(tKm * kDisc, viewCapKm);
+                      // Ground newly exposed per second is ~2*R*v; each tile
+                      // covers tile^2.
+                      const need = (2 * rKm * groundKmS) / (tKm * tKm);
+                      if (need <= rate && (best === null || L > best)) best = L;
                     }
+                    if (best !== null) byAlt = Math.min(byAlt, best);
                   }
                   byAlt = this._snapCtxLevel(byAlt, {
                     minLevel: this.MIN_LEVEL,
@@ -10588,7 +10601,15 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // At 0.7x: 120 km gives 0.32 km/px (meets the need) from ~199
                   // L7 tiles = 13 s, instead of 492 tiles = 33 s for a blurrier
                   // picture. Sharper, faster, and less upload traffic at once.
-                  let radiusKm = Math.min(radiusFor(discLevel), horizonCapKm);
+                  // ...and capped by what is VISIBLE, which at low altitude is
+                  // far tighter than either. The budget radius is 45 km at L12
+                  // regardless of altitude, against 3.7 km of visible ground at
+                  // 2.5 km up — a 12x oversize, streamed at full resolution and
+                  // never seen. Sizing to the view is what makes fine levels
+                  // affordable down low (and is why boost no longer has to
+                  // coarsen); the speed cap above solves against this same
+                  // radius so the two cannot disagree.
+                  let radiusKm = Math.min(radiusFor(discLevel), horizonCapKm, viewCapKm);
                   const buildDisc = (Rkm) => {
                     // Stationary: no heading to face, so fall back to a full
                     // disc around the ship rather than a degenerate box.
@@ -10910,6 +10931,31 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                     );
                     fetchMinLevel = Math.max(this.MIN_LEVEL, fetchMinLevel);
                   }
+                  // DO NOT PASS microLevel HERE. Tried, and it breaks streaming
+                  // outright between 10-75 km. Recording why, because the
+                  // reasoning that leads to trying it is sound and will recur.
+                  //
+                  // microLevel sets _tilePaintTrackLevel, which arms the
+                  // coarse->fine guard in _drawFocusTile. Only the orbit call
+                  // passes it, so that guard genuinely never runs in flight, and
+                  // a late coarse ancestor genuinely can overwrite finer data.
+                  // All of that is true. What makes arming it wrong is that the
+                  // guard is ALL-OR-NOTHING: it scans every cell the coarse tile
+                  // covers and returns on the FIRST cell already holding finer
+                  // data, discarding the entire tile.
+                  //
+                  // In orbit the fine level resolves nearly everywhere and
+                  // ancestors are an edge case, so that is harmless. In flight
+                  // ancestors are the PRIMARY content — dead level regions are
+                  // common in this pyramid, which is the whole reason ancestor
+                  // substitution exists — so nearly every ancestor overlaps some
+                  // already-painted finer cell and gets thrown away, emptying
+                  // the view.
+                  //
+                  // The real fix is to CLIP the coarse draw to the still-
+                  // unpainted cells instead of dropping the tile. That is a
+                  // change to the draw path and needs its own testing. Until
+                  // then an occasional coarse overwrite beats no imagery.
                   this._refreshFocus(targetBbox, targetLevel, {
                     altitude,
                     focusTarget,
@@ -10918,28 +10964,6 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                     fetchMinLevel,
                     keepPreviousOnUpgrade: true,
                     maxFocusTiles: desiredMaxTiles,
-                    // ACTIVATES THE COARSE->FINE PAINT GUARD, WHICH WAS OFF IN
-                    // FLIGHT. _tilePaintTrackLevel is set from meta.microLevel
-                    // and only the ORBIT path passed it, so in flight it stayed
-                    // null, Number.isFinite(null) is false, and the guard in
-                    // _drawFocusTile never ran — the guard whose stated purpose
-                    // is "prevent a coarser tile that arrives late from
-                    // overwriting finer data already painted onto the canvas".
-                    //
-                    // It was missing exactly where it is needed most. At low
-                    // altitude the target is L12 and ancestor substitution
-                    // descends to the surround floor, so L11/L10/L9 fallbacks
-                    // for every unresolved tile are in flight at once and land
-                    // in network order. Unguarded, an L9 ancestor arriving
-                    // after its L12 tile repaints that ground 8x coarser:
-                    // detail appears and then visibly degrades. That is the
-                    // low-altitude glitching, and it is a correctness bug in
-                    // the hierarchy, not a consequence of tile volume.
-                    //
-                    // microLevel alone enables only the paint tracking; the
-                    // separate micro-refinement pass needs microBbox too and
-                    // stays off.
-                    microLevel: targetLevel,
                   });
                 }
                 window.__ctxPatchDebug = {
