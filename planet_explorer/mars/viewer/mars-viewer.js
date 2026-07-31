@@ -10507,7 +10507,41 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                     // res tiles vanish". Against the view-capped disc the same
                     // boost needs 12 tiles/s at L12, inside the budget, so the
                     // level holds and the detail stays.
-                    let best = null;
+                    // CANVAS CAP. The focus canvas is sized at 512 px per tile
+                    // and clamped to FOCUS_TEXTURE_MAX_SIZE, so it can only
+                    // express MAX/512 tiles across — 8 at 4096 — before tiles
+                    // are downsampled on the way in. Asking for a level finer
+                    // than that throws the extra detail away at draw time while
+                    // still paying 4x the tiles per level for it.
+                    //
+                    // MEASURED at 10 km altitude with an L12 request: 34 tiles
+                    // across, downsampled 4.3x, canvas 21.5 m/px against L12's
+                    // native 10.2. Identical on screen to L11 at a quarter the
+                    // tiles — and because it fills four times slower, the coarse
+                    // fallback stays visible far longer. That is why pulling L12
+                    // made the resolution appear to DROP: the request was never
+                    // expressible, it just made the round slower.
+                    // Canvas width is min(MAX, cols * 512), so once a level puts
+                    // maxCols tiles across the window the canvas is SATURATED
+                    // and every finer level yields the exact same pixels for 4x
+                    // the tiles per level. Displayed resolution is therefore
+                    // identical from that point on; only the fill time grows.
+                    //
+                    // So take the COARSEST level that still saturates the
+                    // canvas, and the finest available if none does. That is
+                    // full displayed resolution at minimum tile cost, which is
+                    // the opposite end of the trade from where this was.
+                    // Score every candidate on what actually reaches the screen
+                    // — ground metres per canvas pixel — and take the cheapest
+                    // level that achieves the best score. "Coarsest that
+                    // saturates" is NOT equivalent, because the disc radius is
+                    // min(tile*k, viewCap) and so the WINDOW differs per level:
+                    // at 40 km that rule picked L10 over a 352 km window (86
+                    // m/px) instead of L11 over 179 km (44 m/px), which is
+                    // twice the coverage at half the detail. Scoring the pixels
+                    // directly cannot make that mistake.
+                    const texMax = this.FOCUS_TEXTURE_MAX_SIZE || 4096;
+                    let capped = null, bestMpp = Infinity, bestTiles = Infinity;
                     for (const L of this.ALLOWED_CTX_LEVELS) {
                       if (L > byAltRaw) continue;
                       // Never coarsen ONTO L9 — see the ladder above. It is
@@ -10520,9 +10554,22 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                       // Ground newly exposed per second is ~2*R*v; each tile
                       // covers tile^2.
                       const need = (2 * rKm * groundKmS) / (tKm * tKm);
-                      if (need <= rate && (best === null || L > best)) best = L;
+                      if (need > rate) continue;
+                      const winKm = 2 * rKm;
+                      // Canvas is 512 px per tile, clamped to the texture cap.
+                      const px = Math.min(texMax, Math.max(512, (winKm / tKm) * 512));
+                      const mpp = (winKm * 1000) / px;
+                      const tiles = (Math.PI * rKm * rKm) / 2 / (tKm * tKm);
+                      // Better resolution wins; equal resolution goes to
+                      // whichever costs fewer tiles. Beyond canvas saturation
+                      // the finer level is literally the same pixels, so this
+                      // is where the 4x-per-level saving comes from.
+                      if (mpp < bestMpp - 0.05
+                          || (Math.abs(mpp - bestMpp) <= 0.05 && tiles < bestTiles)) {
+                        bestMpp = mpp; bestTiles = tiles; capped = L;
+                      }
                     }
-                    if (best !== null) byAlt = Math.min(byAlt, best);
+                    if (capped !== null) byAlt = Math.min(byAlt, capped);
                   }
                   byAlt = this._snapCtxLevel(byAlt, {
                     minLevel: this.MIN_LEVEL,
