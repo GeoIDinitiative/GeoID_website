@@ -10752,6 +10752,33 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // canvas pixel — so the disc can stay as wide as the budget
                   // and horizon allow.
                   let radiusKm = Math.min(radiusFor(discLevel), horizonCapKm);
+                  // HOLD THE RADIUS. Below ~0.8 km the horizon cap becomes the
+                  // binding term, and it is sqrt(altitude) — so the radius, and
+                  // therefore the bbox SPAN, changes with every metre of climb
+                  // or descent. A changed span makes sameSpanF false, which
+                  // makes flightSlide false, which makes shouldClear TRUE: the
+                  // entire canvas is cleared and repainted. Descending at 60 m/s
+                  // that happens faster than the disc can fill, so nothing ever
+                  // accumulates and the scene reads as wiped.
+                  //
+                  // MEASURED span in whole tiles while descending: 36 tiles at
+                  // 0.8 km, then 35, 32, 29, 26, 23, 19 — a clear at every step.
+                  // Above 0.8 km the budget term binds instead, the radius is a
+                  // constant 89.3 km, and slides work; that boundary is exactly
+                  // where the report says the trouble starts.
+                  //
+                  // Keeping the previous radius until it is materially wrong
+                  // turns that continuous churn into two or three legitimate
+                  // re-plans across the same descent. The shrinking disc is also
+                  // what makes low altitude look sharp, so this preserves the
+                  // resolution and only removes the thrash.
+                  const rHold = this._flightRadiusHold;
+                  if (rHold && rHold.level === discLevel
+                      && radiusKm > rHold.km * 0.75 && radiusKm < rHold.km * 1.33) {
+                    radiusKm = rHold.km;
+                  } else {
+                    this._flightRadiusHold = { km: radiusKm, level: discLevel };
+                  }
                   const buildDisc = (Rkm) => {
                     // Stationary: no heading to face, so fall back to a full
                     // disc around the ship rather than a degenerate box.
@@ -10959,6 +10986,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                 this._flightForwardDisc = null;
                 this._flightBudgetOverride = null;
                 this._flightDiscHold = null;
+                this._flightRadiusHold = null;
                 this._flightMicro = null;
               }
               // CTX-UPGRADE: if the chosen rung is PROVEN dead in this
