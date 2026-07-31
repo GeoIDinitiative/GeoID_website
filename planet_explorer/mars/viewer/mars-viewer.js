@@ -8451,7 +8451,29 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         if (!this.surroundCanvas) return;
         if (window.__ctxSurround === false) { this._surroundDisplayActive = false; return; }
         const fs = this._focusDisplayState;
-        if (!this.active || !fs.active || fs.level < 7) { this._surroundDisplayActive = false; return; }
+        if (!this.active) { this._surroundDisplayActive = false; return; }
+        // IN FLIGHT THE SURROUND DOES NOT DEPEND ON THE FOCUS. This gate used
+        // to also require `fs.active && fs.level >= 7`, which made the blanket
+        // conditional on the very layer it exists to back up.
+        //
+        // _focusDisplayState is set inactive in FIVE places — teardown, the
+        // over-budget bail, a level change, and every clear-and-repaint — so
+        // any focus re-plan switched the surround off with it. Both layers went
+        // blank in the same frame, dropping the view to the bare base texture,
+        // and the surround could not come back until the focus had succeeded
+        // again. That is the scene "completely wiping and not returning
+        // instantly" near the surface, where re-plans are most frequent: the
+        // safety net was wired to fail whenever the thing it protects failed.
+        //
+        // The flying branch below needs none of it — it derives its window from
+        // the ship's own ground position and altitude and picks its level with
+        // an independent 8..4 loop, never reading fs.level or fs.active. Orbit
+        // does chain to fs.level - 2, so its gate is unchanged.
+        const surroundFlying = Boolean(window.__flightSim?.active);
+        if (!surroundFlying && (!fs.active || fs.level < 7)) {
+          this._surroundDisplayActive = false;
+          return;
+        }
         // FLIGHT-SIM panoramic coverage, v2 — the two faults of v1, fixed:
         //  (1) v1 quantised through _getFocusTileRange, whose ±1-tile PAD
         //      inflates a 40° request to ~62° at L5 (the "half 30.9°"
