@@ -10227,7 +10227,19 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   } else {
                     this._flightLevelStreak = 0;
                   }
-                  this._flightBudgetOverride = altKm >= 50 ? 1000 : null;
+                  // ONE-WAY, AND STABLE. The streamer is informed by the
+                  // flight, never the reverse — but the signal it receives has to
+                  // be steady or its plan chatters. altKm is height above
+                  // TERRAIN, so it moves with the ground below; a bare
+                  // `altKm >= 50` flipped the tile budget 1000 <-> 512 whenever
+                  // the ship crossed 50 km, or the ground beneath it rose past
+                  // that line. Every flip re-plans the disc, abandoning fetches
+                  // in flight and re-issuing them, so tiles churn and never map.
+                  // _flightInputMode is the same altitude signal already
+                  // debounced with 45/55 km hysteresis for exactly this reason,
+                  // so key the budget off it instead of standing a second,
+                  // unhysteresised threshold right next to it.
+                  this._flightBudgetOverride = this._flightInputMode === "far" ? 1000 : null;
                   let discLevel = this._flightLevelHold;
                   targetLevel = discLevel;
                   const KMDEG = 59.3;
