@@ -2013,8 +2013,27 @@
       // and lags on short ones, which reads as the ship jittering against the
       // view even when its own motion is smooth. 1 - e^(-k*dt) is the exact
       // solution and is frame-rate independent.
-      camera.position.lerp(chasePos, 1 - Math.exp(-7 * dts));
-      camera.up.lerp(shipUp, 1 - Math.exp(-5 * dts)).normalize();
+      //
+      // ...but ONLY if it is fed the real elapsed time. This was passing `dts`,
+      // the 0.25 s smoothed average, while the ship moves on the true `dt`, so
+      // the two ran on different clocks and the frame-rate independence the
+      // formula provides was given away again. MEASURED at k=7: on a 200 ms
+      // hitch the camera should close 75% of the gap and closed 30%, so the
+      // ship surged forward in frame; on the short frames after it, `dts` is
+      // still elevated and the camera closed 47% where it should close 11%,
+      // rushing forward and pulling the ship BACK. That oscillation is the
+      // "jerks back at max speed" report, and it scales with the gap, which is
+      // why it only becomes obvious at the ceiling.
+      //
+      // Kept switchable because this is the change that broke tile streaming
+      // once before: a camera that tracks continuously moves the view every
+      // frame, and the surround layer keys off the view. The focus disc no
+      // longer re-plans on that (it holds until the ship drifts 35% of the
+      // radius), which is what should make this safe now — but set
+      // window.__fsCamTrueDt = false to put it back live if streaming suffers.
+      const camDt = window.__fsCamTrueDt === false ? dts : dt;
+      camera.position.lerp(chasePos, 1 - Math.exp(-7 * camDt));
+      camera.up.lerp(shipUp, 1 - Math.exp(-5 * camDt)).normalize();
       const look = s.pos.clone().addScaledVector(fwd, 4 * L).addScaledVector(shipUp, -0.4 * L);
       camera.lookAt(look);
     } else {
