@@ -7456,6 +7456,13 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         texture.offset.copy(previous?.offset || new THREE.Vector2(0, 0));
         texture.anisotropy = previous?.anisotropy || 1;
         texture.needsUpdate = true;
+        // A brand-new texture has no GPU storage until three uploads it once,
+        // and copyTextureToTexture writes into EXISTING storage. Partial
+        // uploads must therefore wait for one full upload after every
+        // recreate (which a canvas resize triggers).
+        this._focusTexUploadedOnce = false;
+        this._focusTexRect = null;
+        this._focusTexFullDirty = true;
         this.focusTexture = texture;
         if (typeof this._onFocusTextureChanged === "function") {
           this._onFocusTextureChanged(texture);
@@ -7580,6 +7587,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         this._focusDisplayState = { active: false, level: 0, tileCount: 0 };
         this.focusContext.clearRect(0, 0, this.focusCanvas.width, this.focusCanvas.height);
         this.focusTexture.needsUpdate = true;
+        this.invalidateFocusTexRegion();
         this.focusBounds.set(0, 0, 0, 0);
       }
 
@@ -8950,19 +8958,150 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         // and cuts that traffic by roughly 7x.
         if (window.__flightSim?.active) {
           this._focusTexDirty = true;
+          this._markFocusTexRegion(x0, y0, x1, y1);
         } else {
           this.focusTexture.needsUpdate = true;
         }
       }
 
+      // Accumulate the canvas region touched since the last upload, so the
+      // flush can send ONLY that rectangle instead of the whole canvas. Union
+      // rather than a list: with the 120 ms batch window roughly one tile lands
+      // per flush, so the union is normally a single tile. If tiles do land
+      // scattered, the area guard in flushFocusTexture falls back to a full
+      // upload rather than sending a near-full-canvas "sub" rectangle.
+      _markFocusTexRegion(x0, y0, x1, y1) {
+        const r = this._focusTexRect;
+        if (!r) {
+          this._focusTexRect = { x0, y0, x1, y1 };
+          return;
+        }
+        if (x0 < r.x0) r.x0 = x0;
+        if (y0 < r.y0) r.y0 = y0;
+        if (x1 > r.x1) r.x1 = x1;
+        if (y1 > r.y1) r.y1 = y1;
+      }
+
+      // Anything that rewrites the canvas wholesale (clear, slide, repaint from
+      // cache, resize) must call this: a partial upload would leave the GPU
+      // holding the pre-change pixels everywhere outside the tile rects.
+      invalidateFocusTexRegion() {
+        this._focusTexRect = null;
+        this._focusTexFullDirty = true;
+      }
+
       // Flushed from the render loop; see _drawFocusTile for why.
-      flushFocusTexture(nowMs) {
-        if (!this._focusTexDirty) return;
+      //
+      // PARTIAL UPLOAD. three.js re-uploads the ENTIRE canvas whenever
+      // `needsUpdate` is set — there is no partial path for a canvas-backed
+      // texture — so one 256x256 tile landing (0.26 MB of new pixels) cost a
+      // 3584x4096 = 58.7 MB upload. That is ~224x amplification, and batching
+      // it to ~8/s bounded the bandwidth without removing the stall: it just
+      // traded 60 small main-thread stalls per second for 8 large ones, which
+      // is the periodic hitching that shows up as the ship jumping (position
+      // integrates the TRUE frame time, so a long frame is a long step).
+      //
+      // copyTextureToTexture with a small source uploads just that rectangle.
+      // The source must be a scratch canvas sized to the region, NOT a
+      // srcRegion over the big canvas: for a non-DataTexture source three calls
+      // the DOM form `texSubImage2D(target, level, dstX, dstY, format, type,
+      // image)`, which ignores srcRegion's width/height and would upload from
+      // the region's origin to the bottom-right corner of the canvas.
+      flushFocusTexture(nowMs, renderer) {
+        if (!this._focusTexDirty && !this._focusTexFullDirty) return;
         const last = this._focusTexUploadedAt || 0;
         if (nowMs - last < 120) return;
-        this.focusTexture.needsUpdate = true;
-        this._focusTexDirty = false;
-        this._focusTexUploadedAt = nowMs;
+
+        const canvas = this.focusCanvas;
+        const W = canvas.width, H = canvas.height;
+        const r = this._focusTexRect;
+        // Area guard: below this a partial upload is a clear win; above it the
+        // scratch copy costs more than it saves. Also covers the full-dirty
+        // case (clear/slide/resize) and any state where the fast path is not
+        // safely available.
+        const partialOk = !this._focusTexFullDirty
+          && !this._focusBlitPermanentlyOff
+          && r
+          && renderer
+          && typeof renderer.copyTextureToTexture === "function"
+          && this.focusTexture
+          && this._focusTexUploadedOnce
+          && (r.x1 - r.x0) * (r.y1 - r.y0) <= W * H * 0.25;
+
+        if (!partialOk) {
+          this.focusTexture.needsUpdate = true;
+          this._focusTexUploadedOnce = true;
+          this._focusTexFullDirty = false;
+          this._focusTexRect = null;
+          this._focusTexDirty = false;
+          this._focusTexUploadedAt = nowMs;
+          return;
+        }
+
+        const x0 = Math.max(0, Math.min(W, r.x0 | 0));
+        const y0 = Math.max(0, Math.min(H, r.y0 | 0));
+        const x1 = Math.max(x0, Math.min(W, Math.ceil(r.x1)));
+        const y1 = Math.max(y0, Math.min(H, Math.ceil(r.y1)));
+        const w = x1 - x0, h = y1 - y0;
+        if (w <= 0 || h <= 0) {
+          this._focusTexRect = null;
+          this._focusTexDirty = false;
+          return;
+        }
+        try {
+          let scratch = this._focusBlitCanvas;
+          if (!scratch) scratch = this._focusBlitCanvas = document.createElement("canvas");
+          if (scratch.width !== w || scratch.height !== h) {
+            scratch.width = w;
+            scratch.height = h;
+            // A resized canvas is a new image object; the texture must be
+            // rebuilt or three keeps uploading the old dimensions.
+            if (this._focusBlitTexture) this._focusBlitTexture.dispose();
+            this._focusBlitTexture = null;
+          }
+          const sctx = scratch.getContext("2d");
+          sctx.clearRect(0, 0, w, h);
+          sctx.drawImage(canvas, x0, y0, w, h, 0, 0, w, h);
+
+          if (!this._focusBlitTexture) {
+            const t = new THREE.CanvasTexture(scratch);
+            t.colorSpace = this.focusTexture.colorSpace;
+            t.generateMipmaps = false;
+            t.minFilter = THREE.LinearFilter;
+            t.magFilter = THREE.LinearFilter;
+            t.flipY = this.focusTexture.flipY;
+            this._focusBlitTexture = t;
+          }
+          this._focusBlitTexture.needsUpdate = true;
+
+          // flipY is TRUE on the focus texture (three's default), so the GPU
+          // row order is bottom-up while canvas rows are top-down. Canvas row
+          // y0 must land on GL row H-1-y0, which puts the h-tall block at
+          // dstY = H - y0 - h. With UNPACK_FLIP_Y_WEBGL also reversing the
+          // source rows, scratch row 0 ends up at H-1-y0 as required.
+          const dstY = this.focusTexture.flipY ? (H - y0 - h) : y0;
+          renderer.copyTextureToTexture(
+            this._focusBlitTexture,
+            this.focusTexture,
+            null,
+            new THREE.Vector2(x0, dstY),
+          );
+          this._focusTexRect = null;
+          this._focusTexDirty = false;
+          this._focusTexUploadedAt = nowMs;
+        } catch (err) {
+          // Never let an upload path failure freeze the imagery: fall back to
+          // the whole-canvas upload that worked before.
+          if (!this._focusBlitWarned) {
+            this._focusBlitWarned = true;
+            console.warn("focus partial upload failed, using full uploads", err);
+          }
+          this._focusBlitPermanentlyOff = true;
+          this.focusTexture.needsUpdate = true;
+          this._focusTexRect = null;
+          this._focusTexDirty = false;
+          this._focusTexUploadedAt = nowMs;
+        }
       }
 
       _pruneImageCache() {
@@ -9397,6 +9536,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           this.focusContext.clearRect(0, 0, this.focusCanvas.width, this.focusCanvas.height);
           this.focusBounds.set(0, 0, 0, 0);
           this.focusTexture.needsUpdate = true;
+          this.invalidateFocusTexRegion();
           return;
         }
         // CTX-UPGRADE: the pause guard must run FIRST, and must not strand the
@@ -9563,12 +9703,17 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           || (window.__flightSim?.active && bboxMoved && !flightSlide);
         if (shouldClear) {
           this.focusContext.clearRect(0, 0, this.focusCanvas.width, this.focusCanvas.height);
+          // Whole canvas rewritten — a partial upload would leave the GPU
+          // holding stale pixels everywhere outside the pending tile rects.
+          this.invalidateFocusTexRegion();
         } else if (flightSlide) {
           const Wc = this.focusCanvas.width;
           const Hc = this.focusCanvas.height;
           const dxPix = Math.round(((prevBboxF.lonMin - bbox.lonMin) / spanLonNew) * Wc);
           const dyPix = Math.round(((bbox.latMax - prevBboxF.latMax) / spanLatNew) * Hc);
           if (dxPix !== 0 || dyPix !== 0) {
+            // Every pixel moves in a slide, so the whole texture is stale.
+            this.invalidateFocusTexRegion();
             if (Math.abs(dxPix) >= Wc || Math.abs(dyPix) >= Hc) {
               this.focusContext.clearRect(0, 0, Wc, Hc);
             } else {
@@ -10211,12 +10356,28 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // 90 km. Against THAT, L6 (0.65 km/px) is softer than the
                   // display at every altitude in the band, while L7 (0.33)
                   // matches it. Always size a level against the NEAR field.
-                  //   <=10 L12  <=50 L11  <=75 L9  <=250 L7  else L6
+                  //   <=10 L12  <=50 L11  <=75 L9  else L7
+                  // L6 DOES NOT EXIST. ALLOWED_CTX_LEVELS is
+                  // [5,7,9,10,11,12,14] — the pyramid has no level 6, and
+                  // this ladder is the ONLY place a level reaches the fetcher
+                  // without going through _snapCtxLevel. The old top rung
+                  // asked for L6 above 250 km, so every tile request above
+                  // that altitude addressed a level with no data and the
+                  // stream simply stopped. That is the reported "breaks at
+                  // 245 km": altKm is height above TERRAIN and the hold below
+                  // lags 12 passes, so the observed edge sits a few km under
+                  // the nominal 250.
+                  // L7 carries on upward instead of L5 (the next real level
+                  // down) because the disc is horizon-capped at 0.7x a few
+                  // lines below, which keeps the count affordable: at 300 km
+                  // the cap gives a 1020 km disc = ~470 L7 tiles against a
+                  // 1000 budget. L5 would fit trivially but at 5.625 deg/tile
+                  // it is ~4x softer than the near field needs, which is the
+                  // same mistake the L6 experiment above already made once.
                   const byAlt = altKm <= 10 ? 12
                     : altKm <= 50 ? 11
                     : altKm <= 75 ? 9
-                    : altKm <= 250 ? 7
-                    : 6;
+                    : 7;
                   if (!Number.isFinite(this._flightLevelHold)) this._flightLevelHold = byAlt;
                   if (byAlt !== this._flightLevelHold) {
                     this._flightLevelStreak = (this._flightLevelStreak || 0) + 1;
@@ -10240,7 +10401,18 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // so key the budget off it instead of standing a second,
                   // unhysteresised threshold right next to it.
                   this._flightBudgetOverride = this._flightInputMode === "far" ? 1000 : null;
-                  let discLevel = this._flightLevelHold;
+                  // Snap to a level the pyramid actually has. Every rung above
+                  // is already in ALLOWED_CTX_LEVELS, so this is a no-op today
+                  // — it is here because discLevel is the one level in the
+                  // whole streamer that reaches the tile keys (the 360/(1<<L+1)
+                  // quanta below) without passing through _snapCtxLevel, and a
+                  // dead level there fails silently as "no tiles" rather than
+                  // as an error. That is exactly how the L6 rung survived.
+                  let discLevel = this._snapCtxLevel(this._flightLevelHold, {
+                    minLevel: this.MIN_LEVEL,
+                    maxLevel: this.FOCUS_MAX_LEVEL,
+                    preferLower: true,
+                  });
                   targetLevel = discLevel;
                   const KMDEG = 59.3;
                   const cosLatD = Math.max(0.2, Math.cos(shipGround.lat * Math.PI / 180));
@@ -10401,6 +10573,79 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   // exactly the "no tiles get mapped" break. The downgrade path
                   // in the round-complete hook re-sizes safely instead, because
                   // there the bbox and the level are lowered together.
+                  //
+                  // RE-KEY HYSTERESIS. The box above is quantised to whole
+                  // tiles, which stops sub-tile jitter from re-keying it — but
+                  // it does NOT stop TRANSLATION. Flying straight, the box
+                  // steps one quantum every time the ship crosses a tile
+                  // boundary, and each step is a canvas slide plus a full
+                  // texture re-upload plus a repaint from cache.
+                  //
+                  // MEASURED against the level ladder: the quantum IS the tile,
+                  // so at Brisk (~12 km/s ground track) that is a re-key every
+                  // 2.6 km / 12 = 0.22 s at L12, 0.43 s at L11 and 1.7 s at L9,
+                  // while filling a disc of several hundred tiles takes tens of
+                  // seconds. Below 75 km the plan was therefore being thrown
+                  // away and rebuilt many times faster than it could ever be
+                  // filled — which is exactly the reported "no mapping from
+                  // 40-75 km", and why it is worst at speed. Above 75 km the
+                  // L7 quantum is 83 km (~7 s) so the same code had time to
+                  // converge, which is why the break has a 75 km edge.
+                  //
+                  // Hold the box until the ship approaches its edge instead.
+                  // The disc is built with radius R around the ship, so letting
+                  // the ship drift 35 % of R before rebuilding costs at most
+                  // 35 % of the forward reach and cuts the re-key rate ~6x.
+                  // Heading is included because the box is the AABB of a
+                  // HEADING-ORIENTED semicircle below 75 km: a real turn must
+                  // rebuild it, a couple of degrees of wobble must not.
+                  {
+                    const hold = this._flightDiscHold;
+                    const spanLon = discBbox.lonMax - discBbox.lonMin;
+                    const spanLat = discBbox.latMax - discBbox.latMin;
+                    // A full disc (ux = uy = 0, i.e. above 75 km or stationary)
+                    // has no orientation to compare, so the turn test only
+                    // applies to the heading-oriented semicircle.
+                    const headingOk = hold
+                      && ((ux === 0 && uy === 0 && hold.ux === 0 && hold.uy === 0)
+                        || (hold.ux * ux + hold.uy * uy) > 0.94); // <20 deg turn
+                    const reusable = hold
+                      && hold.level === discLevel
+                      && Math.abs(hold.spanLon - spanLon) < 1e-9
+                      && Math.abs(hold.spanLat - spanLat) < 1e-9
+                      && headingOk
+                      && Number.isFinite(radiusKm) && radiusKm > 0;
+                    if (reusable) {
+                      // Distance from the ship to the nearest edge of the HELD
+                      // box, in km, against the drift allowance.
+                      const dLonKm = Math.min(
+                        Math.abs(shipGround.lon - hold.bbox.lonMin),
+                        Math.abs(hold.bbox.lonMax - shipGround.lon),
+                      ) * KMDEG * cosLatD;
+                      const dLatKm = Math.min(
+                        Math.abs(shipGround.lat - hold.bbox.latMin),
+                        Math.abs(hold.bbox.latMax - shipGround.lat),
+                      ) * KMDEG;
+                      const inside = shipGround.lon > hold.bbox.lonMin
+                        && shipGround.lon < hold.bbox.lonMax
+                        && shipGround.lat > hold.bbox.latMin
+                        && shipGround.lat < hold.bbox.latMax;
+                      if (inside && Math.min(dLonKm, dLatKm) > radiusKm * 0.35) {
+                        discBbox = hold.bbox;
+                      } else {
+                        this._flightDiscHold = null;
+                      }
+                    }
+                    if (discBbox !== this._flightDiscHold?.bbox) {
+                      this._flightDiscHold = {
+                        bbox: discBbox,
+                        level: discLevel,
+                        spanLon: discBbox.lonMax - discBbox.lonMin,
+                        spanLat: discBbox.latMax - discBbox.latMin,
+                        ux, uy,
+                      };
+                    }
+                  }
                   approxViewBbox = discBbox;
                   focusTarget = {
                     lon: (discBbox.lonMin + discBbox.lonMax) / 2,
@@ -10436,6 +10681,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                 this._flightLevelStreak = 0;
                 this._flightForwardDisc = null;
                 this._flightBudgetOverride = null;
+                this._flightDiscHold = null;
                 this._flightMicro = null;
               }
               // CTX-UPGRADE: if the chosen rung is PROVEN dead in this
@@ -19283,10 +19529,14 @@ ${error && error.message ? error.message : error}`;
         updateMarsSky(_flightActive, camera);
         // Batched focus-texture upload (see _drawFocusTile): bounds GPU traffic
         // at altitude, where the canvas is ~59 MB per upload.
-        if (_flightActive) ctxStreamer.flushFocusTexture(performance.now());
+        if (_flightActive) ctxStreamer.flushFocusTexture(performance.now(), renderer);
         else if (ctxStreamer._focusTexDirty) {
           ctxStreamer.focusTexture.needsUpdate = true;
           ctxStreamer._focusTexDirty = false;
+          // Leaving flight: this full upload covers everything, so drop any
+          // pending partial rect rather than letting it apply on a later frame.
+          ctxStreamer._focusTexRect = null;
+          ctxStreamer._focusTexFullDirty = false;
         }
         const spinLocked = _flightActive || baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
         if (spinLocked) {
