@@ -1445,7 +1445,9 @@
     s.vel = new THREE.Vector3();
     s.speed = 0;
     s.throttle = LAUNCH_THROTTLE;
-    s.boost = 1;
+    // Ramp position, not an energy reserve — launch at cruise, not at the top.
+    s.boost = 0;
+    s._camOff = null;
     s.crashed = false;
     s.crashLatLon = null;
     if (explosion) explosion.visible = false;
@@ -1632,7 +1634,12 @@
     state.vel = new THREE.Vector3();
     state.speed = 0;
     state.throttle = LAUNCH_THROTTLE;
-    state.boost = 1;
+    // Boost is now a RAMP position, not an energy reserve: start at 0 (cruise)
+    // so the ship does not launch already at the top of the range.
+    state.boost = 0;
+    // Chase offset is damped, so a stale one from a previous flight would be
+    // eased out of visibly on the first frames. Snap it on the next update.
+    state._camOff = null;
     state.cam = cameraModeSelect?.value || "chase";
     state.lastT = 0;
     state.dtSmooth = 0;      // don't inherit the previous flight's frame pacing
@@ -1712,6 +1719,8 @@
 
   function toggleCam() {
     state.cam = state.cam === "chase" ? "cockpit" : "chase";
+    // Returning to chase must snap, not ease in from wherever cockpit left it.
+    state._camOff = null;
     if (cameraModeSelect) cameraModeSelect.value = state.cam;
     if (ship) ship.visible = state.cam !== "cockpit";
     updateCamTag();
@@ -2118,13 +2127,34 @@
       // reasoned. Do not flip this default again before the surround layer gets
       // the same drift-hold the focus disc has. window.__fsCamTrueDt = true
       // still enables it for experiments; expect streaming to suffer while on.
+      // DAMP THE OFFSET, NOT THE WORLD POSITION. This is the actual defect
+      // behind "the ship retracts backwards once max speed is reached", and it
+      // is a property of the damping itself, not of the clock fed to it.
+      //
+      // Exponential damping toward a MOVING target settles at a steady-state
+      // lag of v/k. Chasing the world-space point at k=7 therefore parks the
+      // camera v/7 behind where it belongs — MEASURED: 0.17 km at 1.2 km/s but
+      // 1.71 km at 12 km/s, against an intended offset of 0.078 km. The ship's
+      // distance from the camera was thus a FUNCTION OF SPEED, growing 23x
+      // between cruise and the ceiling. Accelerating pushed it away, reaching
+      // the ceiling stopped that, and any speed change slid it along the view
+      // axis. No choice of dt fixes this; the target is moving, so a damped
+      // follow must lag it.
+      //
+      // Damping the OFFSET removes the lag entirely: the offset is constant in
+      // steady flight regardless of speed, so the camera tracks position
+      // exactly and the ship holds the same pixel. Damping still applies to
+      // CHANGES in the offset — i.e. to attitude — which is the smoothing that
+      // was actually wanted. Turns stay soft; the ship stops sliding.
       const camDt = window.__fsCamTrueDt === true ? dt : dts;
-      camera.position.lerp(chasePos, 1 - Math.exp(-7 * camDt));
+      const desiredOff = chasePos.clone().sub(s.pos);
+      if (!s._camOff) s._camOff = desiredOff.clone();
+      else s._camOff.lerp(desiredOff, 1 - Math.exp(-7 * camDt));
+      camera.position.copy(s.pos).add(s._camOff);
       camera.up.lerp(shipUp, 1 - Math.exp(-5 * camDt)).normalize();
-      // Residual distance to the ideal chase point. If the ship's own motion is
-      // smooth and THIS oscillates, the jerk is the camera; if this is steady
-      // and the ship still appears to jump, it is not the camera at all.
-      s._camGapKm = camera.position.distanceTo(chasePos) * METERS_PER_UNIT / 1000;
+      // Residual offset error. Now that translation cannot lag, this only moves
+      // during attitude changes, and should sit at ~0 in straight flight.
+      s._camGapKm = s._camOff.distanceTo(desiredOff) * METERS_PER_UNIT / 1000;
       const look = s.pos.clone().addScaledVector(fwd, 4 * L).addScaledVector(shipUp, -0.4 * L);
       camera.lookAt(look);
     } else {
@@ -2802,6 +2832,7 @@
   cameraModeSelect?.addEventListener("change", () => {
     if (!fs.active) return;
     state.cam = cameraModeSelect.value === "cockpit" ? "cockpit" : "chase";
+    state._camOff = null;   // snap on the next frame, do not ease in
     if (ship) ship.visible = state.cam !== "cockpit";
     updateCamTag();
   });
