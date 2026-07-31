@@ -8825,8 +8825,18 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         // resolution (_tilePaintTrackLevel). Coarser tiles skip cells already covered
         // by finer tiles, keeping the canvas in a strictly coarse→fine painted state.
         const trackLevel = this._tilePaintTrackLevel;
-        if (Number.isFinite(trackLevel) && level < trackLevel && this._tilePaintLevel?.size > 0) {
-          const delta = trackLevel - level;
+        // Bounded at delta <= 4 to MATCH THE REGISTRATION SIDE below, which
+        // skips recording ancestors deeper than that. Checking deeper than we
+        // record is both useless (nothing at those cells was ever registered by
+        // them) and expensive: the scan is 4^delta cells with a template-string
+        // key built per cell, so delta 7 is 16k allocations for one tile draw
+        // and delta 10 is a million. Deeper ancestors are the global L0-2 base,
+        // which is drawn first rather than arriving late, so the ordering this
+        // guard protects does not apply to them.
+        const trackDelta = Number.isFinite(trackLevel) ? trackLevel - level : 0;
+        if (Number.isFinite(trackLevel) && level < trackLevel && trackDelta <= 4
+            && this._tilePaintLevel?.size > 0) {
+          const delta = trackDelta;
           const refNc = 1 << (trackLevel + 1);
           const refNr = 1 << trackLevel;
           const rStart = row << delta;
@@ -10908,6 +10918,28 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                     fetchMinLevel,
                     keepPreviousOnUpgrade: true,
                     maxFocusTiles: desiredMaxTiles,
+                    // ACTIVATES THE COARSE->FINE PAINT GUARD, WHICH WAS OFF IN
+                    // FLIGHT. _tilePaintTrackLevel is set from meta.microLevel
+                    // and only the ORBIT path passed it, so in flight it stayed
+                    // null, Number.isFinite(null) is false, and the guard in
+                    // _drawFocusTile never ran — the guard whose stated purpose
+                    // is "prevent a coarser tile that arrives late from
+                    // overwriting finer data already painted onto the canvas".
+                    //
+                    // It was missing exactly where it is needed most. At low
+                    // altitude the target is L12 and ancestor substitution
+                    // descends to the surround floor, so L11/L10/L9 fallbacks
+                    // for every unresolved tile are in flight at once and land
+                    // in network order. Unguarded, an L9 ancestor arriving
+                    // after its L12 tile repaints that ground 8x coarser:
+                    // detail appears and then visibly degrades. That is the
+                    // low-altitude glitching, and it is a correctness bug in
+                    // the hierarchy, not a consequence of tile volume.
+                    //
+                    // microLevel alone enables only the paint tracking; the
+                    // separate micro-refinement pass needs microBbox too and
+                    // stays off.
+                    microLevel: targetLevel,
                   });
                 }
                 window.__ctxPatchDebug = {
