@@ -8531,9 +8531,20 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
           // chain descending past L10 — which is the one level measured at 100%
           // availability, so the chain now terminates somewhere that actually
           // has data instead of walking into dead L9/L7.
-          const startL = Math.max(4, fs.level - 2);
+          // START ONE LEVEL BELOW THE FOCUS, NOT TWO, AND NEVER ON L9. With the
+          // focus now at L11 below 50 km, `fs.level - 2` lands on L9 — the rung
+          // measured at 67% availability that was removed from the focus ladder
+          // for being a dead end. L10 is measured at 100% and fits the 140-tile
+          // budget across the whole band (4 tiles at 2 km, 121 at 50 km), so
+          // starting at fs.level - 1 keeps the blanket on the one level that is
+          // always there, and halves the step from 4x to 2x.
+          //
+          // It also keeps L10 in continuous use — it is the surround below
+          // 50 km and the focus above 55 km — instead of being fetched, dropped
+          // across the middle band, and re-fetched into a different layer.
+          const startL = Math.max(4, fs.level - 1);
           const cands = this.ALLOWED_CTX_LEVELS
-            .filter((L) => L <= startL && L >= 4)
+            .filter((L) => L <= startL && L >= 4 && L !== 9)
             .sort((a, b) => b - a);
           for (const L of cands) {
             sLevel = L;
@@ -10433,8 +10444,25 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
                   //
                   // L10 costs about the same: at 60 km its disc is ~897 tiles
                   // against L9's ~900, because the radius shrinks with the tile.
-                  const byAltRaw = altKm <= 10 ? 12
-                    : altKm <= 50 ? 11
+                  // L12 REMOVED. Requesting it made the view WORSE below 10 km,
+                  // which is counter-intuitive until you follow what the disc
+                  // radius does: radiusFor is proportional to the tile, so a
+                  // finer request HALVES the window, and the canvas then demands
+                  // twice the source resolution over that smaller area.
+                  //
+                  // MEASURED availability: L12 30%, L11 60%, L10 100%. At an L11
+                  // target the canvas asks 43.6 m/px and both L11 (20.4 native)
+                  // and L10 (40.7) satisfy it, so the picture is uniform. At an
+                  // L12 target it asks 21.8 m/px, which L12 and L11 meet but
+                  // L10 — the only level present everywhere — misses by 1.9x.
+                  // So ~40% of the disc became upsampled L10 while the same
+                  // ground one metre higher had been crisp. That is the report.
+                  //
+                  // Trade accepted: the 30% of Mars that does have L12 no longer
+                  // gets its extra sharpness. Uniformly good beats sharp-in-
+                  // patches, and L12 is the service ceiling anyway (13/14/15 all
+                  // 504), so nothing below this is reachable regardless.
+                  const byAltRaw = altKm <= 50 ? 11
                     : altKm <= 75 ? 10
                     : 7;
                   // SPEED CAP. The ladder above is altitude-only, and that is
