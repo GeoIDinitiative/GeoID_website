@@ -2218,15 +2218,7 @@
       _traceIdx += 1;
     }
     if (hudAlt) hudAlt.textContent = altM >= 10000 ? (altM / 1000).toFixed(1) + " km" : Math.round(altM) + " m";
-    // Speed reads "current / ceiling" so the altitude-dependent limit is
-    // visible. Without it, holding boost on the deck and not accelerating past
-    // ~3.7 km/s reads as a broken control rather than as the limit it is; the
-    // ceiling visibly rising as you climb also teaches what it depends on.
-    if (hudSpd) {
-      const cur = spdMs >= 1000 ? (spdMs / 1000).toFixed(2) + " km/s" : Math.round(spdMs) + " m/s";
-      const ceil = Number.isFinite(s.speedCeilKmS) ? " / " + s.speedCeilKmS.toFixed(1) : "";
-      hudSpd.textContent = cur + ceil;
-    }
+    if (hudSpd) hudSpd.textContent = spdMs >= 1000 ? (spdMs / 1000).toFixed(2) + " km/s" : Math.round(spdMs) + " m/s";
     // VERTICAL SPEED. Taken as the radial component of the actual velocity
     // vector rather than by differencing altitude frame to frame: `s.vel` is
     // already the true velocity (`fwd * speed + gravity`), so this is exact and
