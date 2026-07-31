@@ -8510,7 +8510,33 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
             latMin: Math.max(-85, viewBbox.latMin - exLat),
             latMax: Math.min(85, viewBbox.latMax + exLat),
           };
-          for (sLevel = Math.max(4, Math.min(8, fs.level - 2)); sLevel >= 4; sLevel -= 1) {
+          // THE CEILING OF 8 IS WHAT PRODUCES THE VISIBLE RESOLUTION STEP.
+          // `fs.level - 2` already asks for the right thing — L10 under an L12
+          // focus — but min(8, ...) clamped it to 8, which is not even in
+          // ALLOWED_CTX_LEVELS, so the loop fell through to L7 or L5. Against a
+          // 2.6 km L12 tile that is a 32x or 128x jump, and it lands as a hard
+          // edge where the focus disc ends rather than a gradual softening.
+          //
+          // Let it start at fs.level - 2 and walk REAL levels down from there;
+          // the 140-tile budget still decides where it settles, which is what
+          // should govern it. At 2.5 km altitude an L10 surround over the view
+          // is ~1 tile, at 60 km ~122 — both inside the budget — and above
+          // ~150 km it naturally falls back to L7 as before.
+          //
+          // Walking only allowed levels also stops the loop wasting rounds on
+          // the dead rungs (8 and 6) that it used to step through.
+          //
+          // Second effect, deliberate: fetchMinLevel is floored at
+          // min(surroundLevel, target-1), so a surround of L10 stops the focus
+          // chain descending past L10 — which is the one level measured at 100%
+          // availability, so the chain now terminates somewhere that actually
+          // has data instead of walking into dead L9/L7.
+          const startL = Math.max(4, fs.level - 2);
+          const cands = this.ALLOWED_CTX_LEVELS
+            .filter((L) => L <= startL && L >= 4)
+            .sort((a, b) => b - a);
+          for (const L of cands) {
+            sLevel = L;
             const r = this._getFocusTileRange(sLevel, bb);
             r.cMin = Math.max(0, r.cMin);
             r.cMax = Math.min(r.nc - 1, r.cMax);
