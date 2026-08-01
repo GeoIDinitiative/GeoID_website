@@ -17734,7 +17734,8 @@ ${error && error.message ? error.message : error}`;
             entry.sprite.visible = false;
             if (entry.line) entry.line.visible = false;
             entry.marker.visible = false;
-            if (cosG <= 0.03) { hideProxies(entry); continue; } // far side — not "upcoming"
+            if (cosG <= 0.03) { cullStats.farSide = (cullStats.farSide || 0) + 1; hideProxies(entry); continue; } // far side — not "upcoming"
+            cullStats.candidates = (cullStats.candidates || 0) + 1;
             candidates.push({ entry, over, cosG, P, R });
           }
           // Pass 2 — declutter the horizon band: nearest feature wins each
@@ -17758,11 +17759,11 @@ ${error && error.message ? error.message : error}`;
           const shown = [];
           for (const c of candidates) {
             const tang = c.P.clone().multiplyScalar(1 / c.R).addScaledVector(Chat, -c.cosG);
-            if (tang.lengthSq() < 1e-9) { hideProxies(c.entry); continue; }
+            if (tang.lengthSq() < 1e-9) { cullStats.degenerate = (cullStats.degenerate || 0) + 1; hideProxies(c.entry); continue; }
             tang.normalize();
             // Off-view azimuth (side/behind the heading) → drop; the horizon band
             // only flags what lies AHEAD, and bins aren't wasted on hidden ones.
-            if (fwdHValid && tang.dot(fwdH) < COS_PROXY_CULL) { hideProxies(c.entry); continue; }
+            if (fwdHValid && tang.dot(fwdH) < COS_PROXY_CULL) { cullStats.azimuth = (cullStats.azimuth || 0) + 1; hideProxies(c.entry); continue; }
             if (shown.length >= MAX_TRI) { hideProxies(c.entry); continue; }
             // Losing the azimuth bin, or running past the name budget, DEMOTES to
             // a bare triangle instead of vanishing — that is the queue.
