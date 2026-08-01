@@ -307,8 +307,8 @@ import * as THREE from "./vendor/three.module.js";
     const legendPanel = document.getElementById("legend-panel");
 
     if (brandLogo) {
-      brandLogo.src = "../../assets/earth_icon.png";
-      brandLogo.alt = "Earth logo";
+      brandLogo.src = "../../assets/GeoID_logo_icon.png";
+      brandLogo.alt = "GeoID";
     }
     const legendSummaryCopy = document.getElementById("legend-summary-copy");
     const scenePopup = document.getElementById("scene-popup");
