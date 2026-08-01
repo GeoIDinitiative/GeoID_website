@@ -1,7 +1,9 @@
 import * as THREE from "./vendor/three.module.js";
 
+function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
 // SIGNIFICANCE RAMPS, indexed by item.lod (1 = most significant … 5 = least).
-// Index 0 is unused; items with no lod stay at 1.0.
+// Index 0 is unused; items with no lod (moon features) stay at 1.0.
 //
 // Two ramps because the two sizing paths compose differently. The world-scale
 // path multiplies this by entry.baseScale, which ALREADY carries a per-tier
@@ -16,16 +18,17 @@ function lodTierFactor(lod, table = LOD_TIER_SCALE) {
   return Number.isFinite(n) && n >= 1 && n <= 5 ? table[n] : 1.0;
 }
 
-
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-
-// Moon feature catalogs use IAU small-body convention (opposite handedness).
-// moonDataLonToSceneLon flips the longitude so textures render correctly.
+// Moon feature catalogs use IAU small-body convention (west-positive 0-360, opposite
+// handedness from the positive-east scene). moonDataLonToSceneLon flips the longitude.
 function _normDeg360(v) { return ((v % 360) + 360) % 360; }
 function _moonDataLonToScene(lon) { return _normDeg360(360 - Number(lon || 0)); }
-export function moonLatLonToVector3(latDegrees, lonDegrees, radius) {
+// Per-moon longitude offset slot — kept for future tuning, currently empty since both
+// Phobos and Deimos use plain IAU west-positive coordinates.
+const MOON_LON_OFFSET = {};
+export function moonLatLonToVector3(latDegrees, lonDegrees, radius, moonName = "") {
+  const offset = MOON_LON_OFFSET[moonName] || 0;
   const lat = THREE.MathUtils.degToRad(latDegrees);
-  const lon = THREE.MathUtils.degToRad(_moonDataLonToScene(lonDegrees));
+  const lon = THREE.MathUtils.degToRad(_moonDataLonToScene(Number(lonDegrees || 0) + offset));
   return new THREE.Vector3(
     -radius * Math.cos(lat) * Math.cos(lon),
     radius * Math.sin(lat),
@@ -354,12 +357,12 @@ export function buildMoonFeatureLabelLayer(moonData, moonFeatureData) {
     }
     const moonAnchor = new THREE.Vector3(parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]);
     const moonRadius = Number(parentMoon.moon_radius || 0.1);
-    const markerR = moonRadius * 0.01;
+    const markerR = moonRadius * 0.005;
     const hitR = moonRadius * 0.08;
     const labelDistance = moonRadius * 0.12;
-    const anchor = moonLatLonToVector3(lat, lon, moonRadius + moonRadius * 0.02).add(moonAnchor);
+    const anchor = moonLatLonToVector3(lat, lon, moonRadius + moonRadius * 0.02, parentMoon.name).add(moonAnchor);
     const hitPoint = anchor.clone();
-    const surfacePoint = moonLatLonToVector3(lat, lon, moonRadius).add(moonAnchor);
+    const surfacePoint = moonLatLonToVector3(lat, lon, moonRadius, parentMoon.name).add(moonAnchor);
     const normal = anchor.clone().sub(moonAnchor).normalize();
     const east = new THREE.Vector3(-normal.z, 0, normal.x);
     if (east.lengthSq() < 0.0001) {
@@ -1245,6 +1248,8 @@ export function updateLabelVisibility(
   };
 
   const placeMosaicLabel = (entry, metrics, anchorProjected, occupiedRectsLocal) => {
+    const _pml = (window.__pmlStats = window.__pmlStats || { called: 0, offscreen: 0, noSlot: 0, ok: 0 });
+    _pml.called++;
     const spriteParent = entry.sprite.parent || marsGroup;
     const anchorScreenX = ((anchorProjected.x + 1) * 0.5) * viewportWidth;
     const anchorScreenY = ((1 - anchorProjected.y) * 0.5) * viewportHeight;
@@ -1257,6 +1262,7 @@ export function updateLabelVisibility(
       anchorScreenY < anchorViewportMargin ||
       anchorScreenY > viewportHeight - anchorViewportMargin
     ) {
+      _pml.offscreen++;
       return null;
     }
     const anchorWorld = new THREE.Vector3();
@@ -1319,6 +1325,7 @@ export function updateLabelVisibility(
     }
 
     if (!best) {
+      _pml.noSlot++;
       return null;
     }
 
@@ -1338,6 +1345,7 @@ export function updateLabelVisibility(
     entry.sprite.visible = true;
     entry.sprite.getWorldPosition(spriteWorldPosition);
     projected.copy(spriteWorldPosition).project(camera);
+    _pml.ok++;
     return best.rect;
   };
 
@@ -1494,8 +1502,7 @@ export function updateLabelVisibility(
       // LOD tier → proportional label size so prominent features read larger than
       // minor ones at every zoom level, creating a natural cartographic hierarchy.
       // Moon features (no lod field) stay at full size.
-      const _lod = entry.item?.lod;
-      const lodTierScale = _lod ? [1.0, 1.0, 0.84, 0.70, 0.57, 0.44][_lod] : 1.0;
+      const lodTierScale = lodTierFactor(entry.item?.lod);
       const standardLabelPx = baseScale.y * pixelsPerWorldUnit * labelScale * moonViewerLabelMult * closeZoomLabelScale * lodTierScale;
       const standardMarkerPx = ((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit) * scaleFactor * moonViewerLabelMult * closeZoomLabelScale * lodTierScale;
       if (useMosaicCloseLayout) {
@@ -1554,8 +1561,7 @@ export function updateLabelVisibility(
         applyLabelOffset(entry, mosaicMetrics.offsetFactor, mosaicMetrics.altitudeWorld, tempSpritePos, tempLineEnd);
       }
     } else {
-      const _entryLod = entry.item?.lod;
-      const _lodLineFactor = _entryLod ? [1.0, 1.0, 0.84, 0.70, 0.57, 0.44][_entryLod] : 1.0;
+      const _lodLineFactor = lodTierFactor(entry.item?.lod);
       // Pin line length to screen pixels so labels sit close at all zoom levels.
       // Target 40 screen-pixels for tier-1, scaled by LOD tier so the visual
       // hierarchy is preserved. At global zoom this cuts lines to ~40 % of their
@@ -2003,6 +2009,20 @@ export function updateLabelVisibility(
     }
     occupiedRects.push(candidate.rect);
   } // end _needsSolve commit loop
+  if (_needsSolve) {
+    // Diagnostic surface for the flight-label work: which layout ran, how many
+    // entries reached the solve, how many became candidates, and how many were
+    // actually committed visible.
+    let _llWin = 0;
+    for (const e of entries) if (e.sprite && e.sprite.visible) _llWin++;
+    window.__llStats = {
+      mosaic: !!useMosaicCloseLayout,
+      entries: entries.length,
+      candidates: candidates.length,
+      winners: _llWin,
+      solves: ((window.__llStats && window.__llStats.solves) || 0) + 1,
+    };
+  }
 
   if (_needsSolve) {
     entries._sv.q = camera.quaternion.clone();

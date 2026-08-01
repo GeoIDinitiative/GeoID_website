@@ -1,7 +1,9 @@
 import * as THREE from "./vendor/three.module.js";
 
+function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+
 // SIGNIFICANCE RAMPS, indexed by item.lod (1 = most significant … 5 = least).
-// Index 0 is unused; items with no lod stay at 1.0.
+// Index 0 is unused; items with no lod (moon features) stay at 1.0.
 //
 // Two ramps because the two sizing paths compose differently. The world-scale
 // path multiplies this by entry.baseScale, which ALREADY carries a per-tier
@@ -16,16 +18,17 @@ function lodTierFactor(lod, table = LOD_TIER_SCALE) {
   return Number.isFinite(n) && n >= 1 && n <= 5 ? table[n] : 1.0;
 }
 
-
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-
-// Moon feature catalogs use IAU small-body convention (opposite handedness).
-// moonDataLonToSceneLon flips the longitude so textures render correctly.
+// Moon feature catalogs use IAU small-body convention (west-positive 0-360, opposite
+// handedness from the positive-east scene). moonDataLonToSceneLon flips the longitude.
 function _normDeg360(v) { return ((v % 360) + 360) % 360; }
 function _moonDataLonToScene(lon) { return _normDeg360(360 - Number(lon || 0)); }
-export function moonLatLonToVector3(latDegrees, lonDegrees, radius) {
+// Per-moon longitude offset slot — kept for future tuning, currently empty since both
+// Phobos and Deimos use plain IAU west-positive coordinates.
+const MOON_LON_OFFSET = {};
+export function moonLatLonToVector3(latDegrees, lonDegrees, radius, moonName = "") {
+  const offset = MOON_LON_OFFSET[moonName] || 0;
   const lat = THREE.MathUtils.degToRad(latDegrees);
-  const lon = THREE.MathUtils.degToRad(_moonDataLonToScene(lonDegrees));
+  const lon = THREE.MathUtils.degToRad(_moonDataLonToScene(Number(lonDegrees || 0) + offset));
   return new THREE.Vector3(
     -radius * Math.cos(lat) * Math.cos(lon),
     radius * Math.sin(lat),
@@ -248,45 +251,40 @@ export function buildMoonLayer(textureMap, moonData, moonOrbitEccentricity = {})
     );
     orbitGroup.add(orbitLine);
 
-    let sprite = null, line = null, baseScale = null;
+    const label = makeLabelTexture(item, { theme: "moon" });
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: label.texture,
+      transparent: true,
+      opacity: 1.0,
+      depthTest: false,
+      depthWrite: false,
+    }));
+    sprite.renderOrder = 300;
+    sprite.scale.set((label.width / 200) * 0.42, (label.height / 200) * 0.42, 1);
+    const baseScale = sprite.scale.clone();
     const lift = Number(item.moon_label_lift || 0.24);
+    const labelPos = anchor.clone().add(new THREE.Vector3(0, lift, 0));
+    sprite.position.copy(labelPos);
+    sprite.userData.feature = item;
+    labelGroup.add(sprite);
 
-    if (!item.display_only) {
-      const label = makeLabelTexture(item, { theme: "moon" });
-      sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: label.texture,
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        anchor.clone().add(new THREE.Vector3(0, moonRadius * 0.4, 0)),
+        labelPos.clone().add(new THREE.Vector3(0, -0.06, 0)),
+      ]),
+      new THREE.LineBasicMaterial({
+        color: 0xd9e4ef,
         transparent: true,
-        opacity: 1.0,
+        opacity: 0.36,
         depthTest: false,
         depthWrite: false,
-      }));
-      sprite.renderOrder = 300;
-      sprite.scale.set((label.width / 200) * 0.42, (label.height / 200) * 0.42, 1);
-      baseScale = sprite.scale.clone();
-      const labelPos = anchor.clone().add(new THREE.Vector3(0, lift, 0));
-      sprite.position.copy(labelPos);
-      sprite.userData.feature = item;
-      labelGroup.add(sprite);
+      }),
+    );
+    line.renderOrder = 210;
+    labelGroup.add(line);
 
-      line = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          anchor.clone().add(new THREE.Vector3(0, moonRadius * 0.4, 0)),
-          labelPos.clone().add(new THREE.Vector3(0, -0.06, 0)),
-        ]),
-        new THREE.LineBasicMaterial({
-          color: 0xd9e4ef,
-          transparent: true,
-          opacity: 0.36,
-          depthTest: false,
-          depthWrite: false,
-        }),
-      );
-      line.renderOrder = 210;
-      labelGroup.add(line);
-
-      interactiveObjects.push(moonMesh, sprite);
-    }
-
+    interactiveObjects.push(moonMesh, sprite);
     entries.push({ moonMesh, sprite, line, orbitLine, item, anchor, orbitRadius, orbitEccentricity, orbitSemiMinorAxis, initialAngle, moonRadius, lift, baseScale, priority: 6 });
   }
 
@@ -359,12 +357,12 @@ export function buildMoonFeatureLabelLayer(moonData, moonFeatureData) {
     }
     const moonAnchor = new THREE.Vector3(parentMoon.moon_anchor[0], parentMoon.moon_anchor[1], parentMoon.moon_anchor[2]);
     const moonRadius = Number(parentMoon.moon_radius || 0.1);
-    const markerR = moonRadius * 0.01;
+    const markerR = moonRadius * 0.005;
     const hitR = moonRadius * 0.08;
     const labelDistance = moonRadius * 0.12;
-    const anchor = moonLatLonToVector3(lat, lon, moonRadius + moonRadius * 0.02).add(moonAnchor);
+    const anchor = moonLatLonToVector3(lat, lon, moonRadius + moonRadius * 0.02, parentMoon.name).add(moonAnchor);
     const hitPoint = anchor.clone();
-    const surfacePoint = moonLatLonToVector3(lat, lon, moonRadius).add(moonAnchor);
+    const surfacePoint = moonLatLonToVector3(lat, lon, moonRadius, parentMoon.name).add(moonAnchor);
     const normal = anchor.clone().sub(moonAnchor).normalize();
     const east = new THREE.Vector3(-normal.z, 0, normal.x);
     if (east.lengthSq() < 0.0001) {
@@ -639,11 +637,10 @@ export function updateMoonVisibility(entries, marsGroup, camera, renderer, moons
   for (const entry of entries) {
     const isMoonViewerFocus = Boolean(activeMoonViewerFeature) && entry.item?.name === activeMoonViewerFeature.name;
     const labelScaleFactor = isMoonViewerFocus ? 0.58 : 1;
-    const displayOnly = Boolean(entry.item?.display_only);
     entry.orbitLine.visible = moonsEnabled && (!activeMoonName || isMoonViewerFocus);
-    if (entry.sprite) entry.sprite.visible = false;
-    if (entry.line) entry.line.visible = false;
-    if (entry.baseScale && entry.sprite) {
+    entry.sprite.visible = false;
+    entry.line.visible = false;
+    if (entry.baseScale) {
       entry.sprite.scale.set(
         entry.baseScale.x * labelScaleFactor,
         entry.baseScale.y * labelScaleFactor,
@@ -662,8 +659,8 @@ export function updateMoonVisibility(entries, marsGroup, camera, renderer, moons
       entry.orbitLine.visible = false;
       continue;
     }
-    entry.moonMesh.visible = moonsEnabled;
-    if (!moonsEnabled || !labelsEnabled || displayOnly || !entry.sprite) {
+    entry.moonMesh.visible = true;
+    if (!moonsEnabled || !labelsEnabled) {
       continue;
     }
 
@@ -704,8 +701,8 @@ export function updateMoonVisibility(entries, marsGroup, camera, renderer, moons
     if (overlaps && candidate.entry.category !== "volcanic") {
       continue;
     }
-    if (candidate.entry.sprite) candidate.entry.sprite.visible = true;
-    if (candidate.entry.line) candidate.entry.line.visible = !(activeMoonViewerFeature && candidate.entry.item?.name === activeMoonViewerFeature.name);
+    candidate.entry.sprite.visible = true;
+    candidate.entry.line.visible = !(activeMoonViewerFeature && candidate.entry.item?.name === activeMoonViewerFeature.name);
     occupiedRects.push(candidate.rect);
   }
 }
@@ -1044,11 +1041,6 @@ export function updateLabelVisibility(
   isPointOccludedByAnyMoon = () => false,
   moonLayer = null,
   activePopupFeature = null,
-  tourOverride = null,
-  /* tourOverride: optional { forceShow: Set<name>, forceHide: Set<name> }
-     When a per-mission Apollo tour facet is active, force-show every
-     mission feature regardless of the LOD slider, and force-hide the
-     umbrella tier-1 site label so it doesn't dominate the close zoom. */
 ) {
   const now = performance.now();
   const groupWorldPosition = new THREE.Vector3();
@@ -1256,6 +1248,8 @@ export function updateLabelVisibility(
   };
 
   const placeMosaicLabel = (entry, metrics, anchorProjected, occupiedRectsLocal) => {
+    const _pml = (window.__pmlStats = window.__pmlStats || { called: 0, offscreen: 0, noSlot: 0, ok: 0 });
+    _pml.called++;
     const spriteParent = entry.sprite.parent || marsGroup;
     const anchorScreenX = ((anchorProjected.x + 1) * 0.5) * viewportWidth;
     const anchorScreenY = ((1 - anchorProjected.y) * 0.5) * viewportHeight;
@@ -1268,6 +1262,7 @@ export function updateLabelVisibility(
       anchorScreenY < anchorViewportMargin ||
       anchorScreenY > viewportHeight - anchorViewportMargin
     ) {
+      _pml.offscreen++;
       return null;
     }
     const anchorWorld = new THREE.Vector3();
@@ -1330,6 +1325,7 @@ export function updateLabelVisibility(
     }
 
     if (!best) {
+      _pml.noSlot++;
       return null;
     }
 
@@ -1349,6 +1345,7 @@ export function updateLabelVisibility(
     entry.sprite.visible = true;
     entry.sprite.getWorldPosition(spriteWorldPosition);
     projected.copy(spriteWorldPosition).project(camera);
+    _pml.ok++;
     return best.rect;
   };
 
@@ -1394,11 +1391,8 @@ export function updateLabelVisibility(
         : entry.category === "tectonic" ? tectonicLabelsEnabled
         : surfaceLabelsEnabled;
       const _lod = entry.item?.lod;
-      const _name = entry.item?.name;
-      const _tourShow = !!(tourOverride && _name && tourOverride.forceShow && tourOverride.forceShow.has(_name));
-      const _tourHide = !!(tourOverride && _name && tourOverride.forceHide && tourOverride.forceHide.has(_name));
       const _survivesCut = !cutawayModeEnabled || (activeCutClipPlane ? activeCutClipPlane.distanceToPoint(surfaceWorldPosition) : surfaceWorldPosition.x) >= -0.02;
-      const _wouldBeVisible = !_tourHide && (_tourShow || _catEnabled) && _survivesCut && (_tourShow || _lod == null || _lod <= currentLodLevel)
+      const _wouldBeVisible = _catEnabled && _survivesCut && (_lod == null || _lod <= currentLodLevel)
         && _n.dot(cameraDirection) > (useMosaicCloseLayout ? -0.14 : -0.06);
       if (!_wouldBeVisible) continue;
       if (_buildBudget <= 0) continue;
@@ -1425,16 +1419,8 @@ export function updateLabelVisibility(
     const survivesCut = !cutawayModeEnabled || (activeCutClipPlane ? activeCutClipPlane.distanceToPoint(surfaceWorldPosition) : surfaceWorldPosition.x) >= -0.02;
     const facingThreshold = useMosaicCloseLayout ? -0.14 : -0.06; // was 0.02
     const entryLod = entry.item?.lod;
-    const entryName = entry.item?.name;
-    const tourForceShow = !!(tourOverride && entryName && tourOverride.forceShow && tourOverride.forceShow.has(entryName));
-    const tourForceHide = !!(tourOverride && entryName && tourOverride.forceHide && tourOverride.forceHide.has(entryName));
-    // Tour override: force-show wins over LOD/category gates so an active
-    // Apollo site explorer surfaces every astronaut-named landmark even
-    // when the slider would normally hide them. Force-hide trumps everything.
-    const survivesLod = tourForceShow || entryLod == null || entryLod <= currentLodLevel;
-    const passesCategory = tourForceShow || categoryEnabled;
-    const facingOk = normal.dot(cameraDirection) > facingThreshold;
-    const isVisible = !tourForceHide && passesCategory && survivesCut && survivesLod && facingOk;
+    const survivesLod = entryLod == null || entryLod <= currentLodLevel;
+    const isVisible = categoryEnabled && survivesCut && survivesLod && normal.dot(cameraDirection) > facingThreshold;
     entry.marker.visible = isVisible;
     entry.hitTarget.visible = isVisible;
     if (useMosaicCloseLayout) {
@@ -1516,8 +1502,7 @@ export function updateLabelVisibility(
       // LOD tier → proportional label size so prominent features read larger than
       // minor ones at every zoom level, creating a natural cartographic hierarchy.
       // Moon features (no lod field) stay at full size.
-      const _lod = entry.item?.lod;
-      const lodTierScale = _lod ? [1.0, 1.0, 0.84, 0.70, 0.57, 0.44][_lod] : 1.0;
+      const lodTierScale = lodTierFactor(entry.item?.lod);
       const standardLabelPx = baseScale.y * pixelsPerWorldUnit * labelScale * moonViewerLabelMult * closeZoomLabelScale * lodTierScale;
       const standardMarkerPx = ((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit) * scaleFactor * moonViewerLabelMult * closeZoomLabelScale * lodTierScale;
       if (useMosaicCloseLayout) {
@@ -1576,39 +1561,17 @@ export function updateLabelVisibility(
         applyLabelOffset(entry, mosaicMetrics.offsetFactor, mosaicMetrics.altitudeWorld, tempSpritePos, tempLineEnd);
       }
     } else {
-      const _entryLod = entry.item?.lod;
-      const _lodLineFactor = _entryLod ? [1.0, 1.0, 0.84, 0.70, 0.57, 0.44][_entryLod] : 1.0;
+      const _lodLineFactor = lodTierFactor(entry.item?.lod);
       // Pin line length to screen pixels so labels sit close at all zoom levels.
       // Target 40 screen-pixels for tier-1, scaled by LOD tier so the visual
       // hierarchy is preserved. At global zoom this cuts lines to ~40 % of their
       // former length; placeForceLabel Phase 2 (compass) extends when needed.
       const _ppu = fovScale / Math.max(camera.position.distanceTo(surfaceWorldPosition), 0.001);
-
-      // Titan-style pixel cap (Titan path: saturn-viewer.js ~5499-5505). At close
-      // zoom the multiplicative scale math above renders sprites at thousands of
-      // pixels — the first label's rect then fills the viewport and the overlap
-      // solver culls every neighbour. Apply the cap *before* offset math so the
-      // tangential offset can clear the now-known label half-width.
-      if (baseScale) {
-        const _renderedH = entry.sprite.scale.y * _ppu;
-        const _maxPx = useMosaicCloseLayout ? 44 : 36;
-        if (_renderedH > _maxPx) {
-          const _r = _maxPx / _renderedH;
-          entry.sprite.scale.set(entry.sprite.scale.x * _r, entry.sprite.scale.y * _r, 1);
-        }
-      }
-
-      // Offset includes half the label width + a small gap so the label's near
-      // edge clears the dot rather than overlapping it.
-      const _spriteHalfWPx = (entry.sprite.scale.x * _ppu) * 0.5;
-      const _targetPx = clamp(40 * _lodLineFactor + _spriteHalfWPx + 10, 28, 220);
+      const _targetPx = clamp(60 * _lodLineFactor, 18, 80);
       const _pixelFactor = _targetPx / Math.max(_ppu * (entry.labelDistance || 0.52), 1e-6);
       const _lineFactor = Math.min(_lodLineFactor, _pixelFactor);
       entry.labelOffsetFactor = activeMoonViewerFeature ? 0.5 : _lineFactor;
-      // Cap normalLift to ~24 px so labels stay near the surface at close zoom
-      // instead of being pushed kilometres above the camera (Titan-style).
-      const _normalLift = Math.min(0.22, 24 / Math.max(_ppu, 1e-6));
-      applyLabelOffset(entry, entry.labelOffsetFactor, _normalLift, tempSpritePos, tempLineEnd);
+      applyLabelOffset(entry, entry.labelOffsetFactor, 0.22, tempSpritePos, tempLineEnd);
     }
     entry.sprite.getWorldPosition(spriteWorldPosition);
     const forceLabel = useMosaicCloseLayout
@@ -2046,6 +2009,20 @@ export function updateLabelVisibility(
     }
     occupiedRects.push(candidate.rect);
   } // end _needsSolve commit loop
+  if (_needsSolve) {
+    // Diagnostic surface for the flight-label work: which layout ran, how many
+    // entries reached the solve, how many became candidates, and how many were
+    // actually committed visible.
+    let _llWin = 0;
+    for (const e of entries) if (e.sprite && e.sprite.visible) _llWin++;
+    window.__llStats = {
+      mosaic: !!useMosaicCloseLayout,
+      entries: entries.length,
+      candidates: candidates.length,
+      winners: _llWin,
+      solves: ((window.__llStats && window.__llStats.solves) || 0) + 1,
+    };
+  }
 
   if (_needsSolve) {
     entries._sv.q = camera.quaternion.clone();
