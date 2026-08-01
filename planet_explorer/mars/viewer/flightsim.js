@@ -2123,18 +2123,23 @@
       // linearly off cruise the rate pins at the cap almost as soon as you
       // boost and the whole upper range feels identical; scaled linearly off
       // the ceiling it barely moves at the cruise speeds you actually fly at.
-      // Rooting it keeps the response strong through the low and middle range
-      // and still climbing at the top.
+      // Speed is normalised against cruise, so f is 1 at MAX_SPEED_MS and
+      // reaches about 10 flat out. The exponent sits between linear and a
+      // square root on purpose: a square root is steepest at the very bottom,
+      // which made the box pick up a brisk turn the instant it crept forward,
+      // while pure linear leaves the whole upper range feeling identical.
       //
-      // Constants are calibrated against what the box actually does on screen,
-      // not against this expression: update() runs more than once per rendered
-      // frame, and more often at speed, so the observed rate comes out about
-      // 1.5x this at cruise and 2.1x under boost. Measured result is a
-      // standstill idle of 0.2 rev/s, about 1 rev/s at cruise and about
-      // 2 rev/s flat out — fast enough to read as hurtling, slow enough that
-      // the windows and the POLICE BOX signage never strobe.
+      // Constants are calibrated against what the box actually does on screen
+      // rather than against this expression. update() runs more than once per
+      // rendered frame and the count varies with frame pacing, so the observed
+      // rate lands somewhere around 1.5-2.5x nominal — enough slack that
+      // picking these numbers analytically gets it wrong. Measured on a live
+      // flight: one turn per 21 s at a standstill, 2.5 s at a creep, 0.8 s at
+      // cruise and 0.46 s flat out. The cap keeps the top end at roughly 13
+      // deg/frame so the windows and the POLICE BOX signage never strobe.
       const spinMs = s.speed * METERS_PER_UNIT;
-      const spinRate = Math.min(6, 0.8 + 0.1 * Math.sqrt(spinMs));
+      const f = spinMs / MAX_SPEED_MS;
+      const spinRate = Math.min(7, 0.15 + 2.85 * Math.pow(f, 0.75));
       // Keep the accumulator bounded (mod 2π) so it never drifts to a huge float.
       state.spinAngle = ((state.spinAngle || 0) + dts * spinRate) % (Math.PI * 2);
       ship.rotateY(state.spinAngle);
