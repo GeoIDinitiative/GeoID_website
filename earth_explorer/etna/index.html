@@ -7,13 +7,34 @@
   <link rel="icon" href="../../assets/etna_icon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@300;400;500;600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Faces come from the @font-face remaps below. -->
   <style>
+    @font-face {
+      font-family: "Orbitron";
+      font-style: normal; font-weight: 100 900; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: "Exo 2";
+      font-style: normal; font-weight: 400; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: "Exo 2";
+      font-style: normal; font-weight: 500 900; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: "Public Sans";
+      font-style: normal; font-weight: 100 900; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+    }
+
     :root {
-      --text: #f5ede0;
-      --muted: #a08878;
+      --text: #fff4e8;
+      --muted: rgba(232, 197, 160, 0.78);
       --accent: #ff6a00;
-      --border: rgba(255,106,0,0.22);
+      --border: rgba(255, 106, 0, 0.30);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -21,9 +42,22 @@
     body {
       min-height: 100dvh;
       overflow: hidden;
-      background: #0a0502;
+      background: #080502;
       color: var(--text);
       font-family: "Exo 2", "Trebuchet MS", sans-serif;
+    }
+
+    /* ── CRT: scanlines and vignette ─────────────────────────────────────
+       Same treatment as the Etna viewer this page hands off to, so the
+       crossfade between them doesn't change texture. Static only — the
+       moving roll was removed site-wide. */
+    body::after {
+      content: "";
+      position: fixed; inset: 0;
+      z-index: 9999; pointer-events: none;
+      background:
+        repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
+        radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(12, 5, 1, 0.48) 100%);
     }
 
     /* ── Background image ─────────────────────────────── */
