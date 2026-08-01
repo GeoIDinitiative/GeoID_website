@@ -2133,13 +2133,16 @@
       // rather than against this expression. update() runs more than once per
       // rendered frame and the count varies with frame pacing, so the observed
       // rate lands somewhere around 1.5-2.5x nominal — enough slack that
-      // picking these numbers analytically gets it wrong. Measured on a live
-      // flight: one turn per 21 s at a standstill, 2.5 s at a creep, 0.8 s at
-      // cruise and 0.46 s flat out. The cap keeps the top end at roughly 13
-      // deg/frame so the windows and the POLICE BOX signage never strobe.
+      // picking these numbers analytically gets it wrong.
+      //
+      // Tuned deliberately slow. The box is scenery, not a gyroscope: it
+      // should look like it is drifting round as it travels, and the change
+      // with speed should be something you notice rather than something that
+      // dominates the shot. Measured on a live flight: about one turn per
+      // minute at a standstill, 4 s at cruise, 1.5 s flat out.
       const spinMs = s.speed * METERS_PER_UNIT;
       const f = spinMs / MAX_SPEED_MS;
-      const spinRate = Math.min(7, 0.15 + 2.85 * Math.pow(f, 0.75));
+      const spinRate = Math.min(1.7, 0.04 + 0.58 * Math.pow(f, 0.75));
       // Keep the accumulator bounded (mod 2π) so it never drifts to a huge float.
       state.spinAngle = ((state.spinAngle || 0) + dts * spinRate) % (Math.PI * 2);
       ship.rotateY(state.spinAngle);
