@@ -1828,17 +1828,21 @@
         if (!head || !chips) return;
         head.hidden = false;
         const meta = model.metadata || {};
+        // Each value gets its own label. Nine bare numbers in a row read as
+        // soup — "96835 Pa" only means something once it says PRESSURE.
         chips.innerHTML = [
-          { text: `${meta.Latitude || "?"}, ${meta.Longitude || "?"}`, status: true },
-          { text: meta.Elevation || "elev n/a", status: true },
-          { text: meta.Temperature || "temp n/a" },
-          { text: meta.Pressure || "pressure n/a" },
-          { text: meta.Precipitation || "precip n/a" },
-          { text: meta.Geology || "geology pending" },
-          { text: "Synthetic", status: true },
-          { text: "18-step", status: true },
-          { text: "Live feed pending", status: true },
-        ].map((chip) => `<span class="hub-chip${chip.status ? " is-status" : ""}">${chip.text}</span>`).join("");
+          { key: "Position",   text: `${meta.Latitude || "?"}, ${meta.Longitude || "?"}`, status: true },
+          { key: "Elevation",  text: meta.Elevation || "n/a", status: true },
+          { key: "Temp",       text: meta.Temperature || "n/a" },
+          { key: "Pressure",   text: meta.Pressure || "n/a" },
+          { key: "Precip",     text: meta.Precipitation || "n/a" },
+          { key: "Lithology",  text: meta.Geology || "pending" },
+          { key: "Source",     text: "Synthetic", status: true },
+          { key: "Model run",  text: "18-step", status: true },
+          { key: "Feed",       text: "Live feed pending", status: true },
+        ].map((chip) => `<span class="hub-chip${chip.status ? " is-status" : ""}">`
+          + `<i class="hub-chip-k">${chip.key}</i>`
+          + `<b class="hub-chip-v">${chip.text}</b></span>`).join("");
       }
 
       function renderGroupedCharts(charts) {
