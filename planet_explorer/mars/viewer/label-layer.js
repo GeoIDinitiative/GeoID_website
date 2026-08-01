@@ -1248,6 +1248,8 @@ export function updateLabelVisibility(
   };
 
   const placeMosaicLabel = (entry, metrics, anchorProjected, occupiedRectsLocal) => {
+    const _pml = (window.__pmlStats = window.__pmlStats || { called: 0, offscreen: 0, noSlot: 0, ok: 0 });
+    _pml.called++;
     const spriteParent = entry.sprite.parent || marsGroup;
     const anchorScreenX = ((anchorProjected.x + 1) * 0.5) * viewportWidth;
     const anchorScreenY = ((1 - anchorProjected.y) * 0.5) * viewportHeight;
@@ -1260,6 +1262,7 @@ export function updateLabelVisibility(
       anchorScreenY < anchorViewportMargin ||
       anchorScreenY > viewportHeight - anchorViewportMargin
     ) {
+      _pml.offscreen++;
       return null;
     }
     const anchorWorld = new THREE.Vector3();
@@ -1322,6 +1325,7 @@ export function updateLabelVisibility(
     }
 
     if (!best) {
+      _pml.noSlot++;
       return null;
     }
 
@@ -1341,6 +1345,7 @@ export function updateLabelVisibility(
     entry.sprite.visible = true;
     entry.sprite.getWorldPosition(spriteWorldPosition);
     projected.copy(spriteWorldPosition).project(camera);
+    _pml.ok++;
     return best.rect;
   };
 
