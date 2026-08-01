@@ -197,3 +197,155 @@ body::after {
     repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
     radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(10, 1, 25, 0.48) 100%);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ANALYSIS HUB — retro instrument panel
+
+   Rebuilt from "rounded chips + floating tiles" into something closer to
+   a readout you'd find on hardware: squared, hairline-ruled, monospaced
+   figures on a strict grid.
+
+   Pills are gone. The context row is now a delimited metadata strip
+   (key · value, divider, key · value) which reads faster than nine
+   floating capsules and doesn't wrap into a ragged cloud.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Header block ───────────────────────────────────────────────────── */
+.hub-analysis-head {
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.1rem;
+  padding: 0.9rem 1.1rem;
+  border: 1px solid rgba(255, 43, 214, 0.28);
+  border-left: 2px solid #ff2bd6;
+  border-radius: 0;
+  background: linear-gradient(90deg, rgba(255, 43, 214, 0.10), rgba(13, 2, 33, 0.9) 46%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.hub-kicker {
+  color: #ff2bd6 !important;
+  letter-spacing: 0.22em;
+  text-shadow: 0 0 10px rgba(255, 43, 214, 0.5);
+}
+.hub-analysis-title {
+  font-size: 1.15rem !important;
+  letter-spacing: 0.02em;
+  color: #fdf7ff;
+  text-shadow: 0 0 14px rgba(255, 43, 214, 0.35);
+}
+.hub-analysis-subtitle { color: rgba(214, 194, 255, 0.62) !important; }
+
+/* ── Context strip — replaces the pill cloud ─────────────────────────── */
+.hub-chip-row {
+  justify-content: flex-end;
+  gap: 0 !important;
+  max-width: min(52rem, 60vw);
+  row-gap: 0.3rem !important;
+}
+.hub-chip {
+  border-radius: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  padding: 0 0.7rem !important;
+  min-height: 0 !important;
+  font-family: "Courier New", monospace;
+  font-size: 0.68rem !important;
+  letter-spacing: 0.04em;
+  color: rgba(214, 194, 255, 0.72) !important;
+  border-right: 1px solid rgba(255, 43, 214, 0.22) !important;
+}
+.hub-chip:last-child { border-right: 0 !important; padding-right: 0 !important; }
+.hub-chip.is-status {
+  color: #00e5ff !important;
+  background: none !important;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
+}
+
+/* ── Section rules ──────────────────────────────────────────────────── */
+.risk-section { margin-bottom: 1.25rem; }
+.risk-section-title {
+  font-size: 0.6rem !important;
+  letter-spacing: 0.26em !important;
+  color: rgba(214, 194, 255, 0.55) !important;
+  padding-bottom: 0.45rem;
+  margin-bottom: 0.8rem !important;
+  border-bottom: 1px solid rgba(255, 43, 214, 0.20);
+}
+
+/* ── Metric tiles — squared, seamed, monospaced figures ─────────────── */
+.risk-summary-groups .risk-grid,
+.risk-summary-groups [class*="grid"] { gap: 1px !important; }
+
+.risk-tile {
+  border-radius: 0 !important;
+  border: 1px solid rgba(255, 43, 214, 0.22) !important;
+  background: rgba(22, 9, 51, 0.85) !important;
+  padding: 0.85rem 0.95rem !important;
+  transition: background .25s, border-color .25s, box-shadow .25s;
+}
+.risk-tile:hover {
+  background: rgba(31, 14, 69, 0.92) !important;
+  border-color: rgba(255, 43, 214, 0.45) !important;
+  box-shadow: 0 0 20px -6px rgba(255, 43, 214, 0.5) !important;
+}
+.risk-label {
+  font-size: 0.58rem !important;
+  letter-spacing: 0.2em !important;
+  color: rgba(214, 194, 255, 0.60) !important;
+}
+.risk-value {
+  font-family: "Courier New", monospace !important;
+  font-size: 1.5rem !important;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #00e5ff !important;
+  text-shadow: 0 0 16px rgba(0, 229, 255, 0.4);
+}
+.risk-note {
+  font-size: 0.62rem !important;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(214, 194, 255, 0.5) !important;
+}
+
+/* Severity keeps its meaning — colour is load-bearing here, so these
+   override the default cyan rather than being decorative. */
+.risk-tile[data-severity="critical"] .risk-value,
+.risk-tile[data-severity="high"] .risk-value {
+  color: #ff4d6d !important; text-shadow: 0 0 16px rgba(255, 77, 109, 0.45);
+}
+.risk-tile[data-severity="critical"], .risk-tile[data-severity="high"] {
+  border-color: rgba(255, 77, 109, 0.5) !important;
+}
+.risk-tile[data-severity="watch"] .risk-value {
+  color: #ffd319 !important; text-shadow: 0 0 16px rgba(255, 211, 25, 0.4);
+}
+.risk-tile[data-severity="watch"] { border-color: rgba(255, 211, 25, 0.45) !important; }
+.risk-tile[data-severity="stable"] .risk-value,
+.risk-tile[data-severity="good"] .risk-value { color: #4dffa6 !important; }
+.risk-tile[data-severity="na"] .risk-value { color: rgba(214, 194, 255, 0.35) !important; text-shadow: none; }
+
+/* ── Chart cards ────────────────────────────────────────────────────── */
+.market-card {
+  border-radius: 0 !important;
+  border: 1px solid rgba(255, 43, 214, 0.22) !important;
+  background: rgba(22, 9, 51, 0.85) !important;
+}
+.market-card:hover {
+  border-color: rgba(255, 43, 214, 0.45) !important;
+  box-shadow: 0 0 22px -6px rgba(255, 43, 214, 0.45) !important;
+}
+.parameter-section-title {
+  letter-spacing: 0.26em !important;
+  color: rgba(214, 194, 255, 0.55) !important;
+  border-bottom: 1px solid rgba(255, 43, 214, 0.20);
+  padding-bottom: 0.45rem;
+}
+
+/* ── Empty states ───────────────────────────────────────────────────── */
+.hub-empty { color: rgba(214, 194, 255, 0.55); }
+.hub-empty-icon {
+  color: #ff2bd6;
+  text-shadow: 0 0 16px rgba(255, 43, 214, 0.6);
+}
+.hub-empty-sub { color: rgba(214, 194, 255, 0.38); }
