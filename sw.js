@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v9';   // v9: ember variant (Etna + transit)
+const STATIC_CACHE = 'geoid-site-v10';  // v10: CRT roll confined to the bars
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [
