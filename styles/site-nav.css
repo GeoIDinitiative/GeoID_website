@@ -1,0 +1,138 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   GeoID — site header: THE single source of truth for nav typography.
+
+   Loaded last in <head> on every page that carries the site header — the
+   dashboard, all content pages, and the myGeoID app shell. Before this file
+   existed the header was defined in three places and rendered three ways:
+
+     dashboard   Chakra Petch links @500, Audiowide wordmark 17px, 72px bar
+     sub-pages   links inherited "Public Sans", which the synthwave skin
+                 remaps to AUDIOWIDE — so nav links rendered in the display
+                 face, not the body face. Wordmark 16px, 58px bar.
+     myGeoID     Chakra links @600 (heavier), wordmark 16px, 58px bar.
+
+   The dashboard's definition is the canonical one; everything below is that
+   definition, made portable.
+
+   SCOPE: typography + metrics only. Backgrounds and scroll behaviour stay
+   per-context on purpose — the dashboard nav is transparent over its hero
+   and goes solid on scroll, while sub-pages and the app shell are solid
+   from the first pixel. Selectors are `.site-nav`-prefixed so they outrank
+   the older bare `.nav-links > li > a` rules without needing !important.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Private family names: the page-level names ("Public Sans", "Archivo",
+   var(--display)…) resolve differently per page, which is what caused the
+   drift. Same woff2 URLs as the rest of the site, so no extra download. */
+@font-face {
+  font-family: "GeoID Nav Display";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+}
+@font-face {
+  font-family: "GeoID Nav Body";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
+}
+@font-face {
+  font-family: "GeoID Nav Body";
+  font-style: normal; font-weight: 500; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkebIl1R5_F.woff2) format('woff2');
+}
+@font-face {
+  font-family: "GeoID Nav Body";
+  font-style: normal; font-weight: 600; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+}
+
+/* One bar height everywhere. Page layouts already offset content by
+   var(--nav-h) (shared.css `.page-wrap`, the myGeoID app shell), so this
+   keeps the header and the content beneath it in step. */
+:root { --nav-h: 72px; }
+@media (max-width: 720px) { :root { --nav-h: 62px; } }
+
+.site-nav {
+  /* Nav-scoped inks, so a future light skin can retint the header with a
+     three-line override instead of fighting these rules. */
+  --nav-ink:    #f8f4ff;
+  --nav-ink-2:  rgba(226, 210, 255, 0.75);
+  --nav-accent: #ff3ec8;
+  height: var(--nav-h);
+  gap: 32px;
+}
+
+.site-nav .nav-wordmark {
+  font-family: "GeoID Nav Display", sans-serif;
+  font-size: 17px;
+  font-weight: 400;          /* Audiowide ships one weight; faux-bold smears */
+  letter-spacing: -0.01em;
+  color: var(--nav-ink);
+  gap: 11px;
+}
+.site-nav .nav-brand-icon {
+  width: 30px; height: 30px;
+  min-width: 30px; min-height: 30px;
+  max-width: 30px; max-height: 30px;
+}
+
+.site-nav .nav-links { gap: 4px; }
+.site-nav .nav-links > li > a,
+.site-nav .nav-dropdown-toggle {
+  padding: 9px 13px;
+  border-radius: 2px;
+  font-family: "GeoID Nav Body", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nav-ink-2);
+  background: none;
+  border: none;
+  text-shadow: none;
+  box-shadow: none;
+  transition: color .25s cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+.site-nav .nav-links > li > a:hover,
+.site-nav .nav-dropdown-toggle:hover { color: var(--nav-ink); background: none; }
+
+/* Active state: a hairline under the label, drawn as ::after so it hugs the
+   text rather than the padded box. */
+.site-nav .nav-links > li > a.active {
+  color: var(--nav-ink);
+  background: none;
+  box-shadow: none;
+  text-shadow: none;
+  border-bottom: none;
+}
+.site-nav .nav-links > li > a.active::after {
+  display: block; content: "";
+  height: 1px; margin-top: 5px;
+  background: var(--nav-accent);
+}
+.site-nav .mygeoid-prefix { color: var(--nav-accent); }
+
+.site-nav .nav-dropdown-menu { margin-top: 8px; padding: 8px; border-radius: 2px; min-width: 13rem; }
+.site-nav .nav-dropdown-menu a {
+  padding: 9px 11px;
+  border-radius: 2px;
+  font-family: "GeoID Nav Body", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--nav-ink-2);
+  border: none;
+}
+.site-nav .nav-dropdown-menu a:hover,
+.site-nav .nav-dropdown-menu a.active { color: var(--nav-ink); }
+
+.site-nav .nav-act, .site-nav .nav-act-donate {
+  height: 38px; padding: 0 18px;
+  border-radius: 2px;
+  font-family: "GeoID Nav Body", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.site-nav .nav-toggle { width: 40px; height: 40px; border-radius: 2px; }
