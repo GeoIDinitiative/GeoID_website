@@ -597,9 +597,25 @@
       .applyMatrix4(mapToWorldMatrix());
   }
 
+  // The streamed high-detail basemap, whatever this world calls it. Mars ships
+  // two CTX mosaics; the others ship one surface layer under their own name, so
+  // matching on "ctx-mosaic" alone reported false everywhere but Mars.
+  function streamedLayerValue() {
+    const sel = hooks.baseLayerSelect;
+    if (!sel || !sel.options) return null;
+    const values = Array.from(sel.options, (o) => o.value);
+    for (const want of ["ctx-mosaic-color", "ctx-mosaic"]) {
+      if (values.includes(want)) return want;
+    }
+    // Each fork's streamed surface layer is its first option — the same slot
+    // the CTX mosaics occupy on Mars.
+    return values[0] || null;
+  }
+
   function ctxModeActive() {
     const v = hooks.baseLayerSelect?.value;
-    return v === "ctx-mosaic" || v === "ctx-mosaic-color";
+    if (!v) return false;
+    return v === streamedLayerValue();
   }
 
   // Radius (scene units) of the *visible* surface at lat/lon — datum sphere
@@ -1935,10 +1951,17 @@
     // deliberately leaves it open, since that is where the site is chosen.
     document.getElementById("nav-collapse-btn")?.click();
 
-    // 1. Default to the CTX (color) streamed basemap, per the sim's design.
+    // 1. Default to the streamed basemap, per the sim's design. The value has
+    // to come from THIS viewer's option list: assigning Mars's "ctx-mosaic-color"
+    // to a <select> that has no such option silently blanks it, which is what
+    // left every other world with an empty base layer, no tile stream, and
+    // therefore feature dots with no horizon labels attached to them.
     if (!ctxModeActive() && hooks.baseLayerSelect) {
-      hooks.baseLayerSelect.value = "ctx-mosaic-color";
-      hooks.baseLayerSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      const want = streamedLayerValue();
+      if (want) {
+        hooks.baseLayerSelect.value = want;
+        hooks.baseLayerSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      }
     }
     // 2. Enable relief in CTX mode and set the stock terrain-relief slider
     // (Basemap and Relief section) to true 1:1 scale. The slider stays live
