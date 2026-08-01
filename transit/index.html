@@ -56,30 +56,6 @@
         repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
         radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(12, 5, 1, 0.48) 100%);
     }
-    /* Roll confined to the card. As a full-screen band it swept a moving
-       line across the warp field, which is the scene here. Animating
-       background-position keeps it inside the card's own box. */
-    .card { position: relative; }
-    .card::after {
-      content: "";
-      position: absolute; inset: 0;
-      z-index: 3; pointer-events: none; border-radius: inherit;
-      background: linear-gradient(180deg,
-        transparent 0%,
-        rgba(255, 106, 0, 0.10) 50%,
-        transparent 100%);
-      background-size: 100% 300%;
-      animation: crt-sweep 8s linear infinite;
-    }
-    @keyframes crt-sweep {
-      from { background-position: 0 -150%; }
-      to   { background-position: 0 150%; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .card::after { animation: none; opacity: 0; }
-    }
-
     /* ── Starfield canvas ─────────────────────────────── */
     .warp-canvas {
       position: fixed;

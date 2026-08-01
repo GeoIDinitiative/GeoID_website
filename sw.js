@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v10';  // v10: CRT roll confined to the bars
+const STATIC_CACHE = 'geoid-site-v11';  // v11: CRT roll removed
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

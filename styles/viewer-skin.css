@@ -147,32 +147,3 @@ body::after {
     repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
     radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(var(--skin-vignette), 0.48) 100%);
 }
-/* The roll is confined to the panel header bar. It used to be a full-screen
-   fixed band sweeping top to bottom, which dragged a moving line across the
-   terrain and the globe — distracting on the one part of the page you are
-   actually trying to read.
-
-   It animates background-position rather than moving a child element, so it
-   stays inside the bar's own box. That avoids putting overflow:hidden on a
-   row that holds the info and collapse buttons, which would risk clipping
-   anything they pop up. */
-.brand-toprow { position: relative; }
-.brand-toprow::after {
-  content: "";
-  position: absolute; inset: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg,
-    transparent 0%,
-    rgba(var(--skin-chrome-rgb), 0.22) 50%,
-    transparent 100%);
-  background-size: 100% 300%;
-  animation: crt-sweep 8s linear infinite;
-}
-@keyframes crt-sweep {
-  from { background-position: 0 -150%; }
-  to   { background-position: 0 150%; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .brand-toprow::after { animation: none; opacity: 0; }
-}

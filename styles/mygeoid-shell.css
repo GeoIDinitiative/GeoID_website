@@ -484,31 +484,7 @@ body {
    { display: none }` to stop shared.css textures bleeding around the
    iframe, so this has to switch ::after back on explicitly. Defining it in
    full means the old texture doesn't come back with it. */
-/* The roll lives on the tab bar, not the page. A full-screen sweeping band
-   dragged a line across the globe; confined here it reads as a lit strip of
-   hardware. background-position is animated rather than a child element, so
-   nothing escapes the strip's box. */
 .hub-strip { position: sticky; }
-.hub-strip::after {
-  content: "";
-  position: absolute; inset: 0;
-  z-index: 0; pointer-events: none;
-  background: linear-gradient(180deg,
-    transparent 0%,
-    rgba(255, 43, 214, 0.14) 50%,
-    transparent 100%);
-  background-size: 100% 300%;
-  animation: crt-sweep 8s linear infinite;
-}
-/* Keep the controls above the sweep. */
-.hub-strip > * { position: relative; z-index: 1; }
-@keyframes crt-sweep {
-  from { background-position: 0 -150%; }
-  to   { background-position: 0 150%; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hub-strip::after { animation: none; opacity: 0; }
-}
 
 body::after {
   display: block !important;
