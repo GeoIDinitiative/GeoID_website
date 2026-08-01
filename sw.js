@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v15';  // v15: 404 test card, myGeoID hero title
+const STATIC_CACHE = 'geoid-site-v16';  // v16: shared flight sim across four worlds
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

@@ -18,6 +18,42 @@
       --instrument-rust-rgb: 199, 131, 82;
     }
 
+
+    /* ── Flight mode theme — instrument amber ──────────────────────────────
+       Set from the moment ENTER is pressed (site selection) and held through
+       the flight itself, so the whole GUI reads as a different mode rather
+       than the same panel with a ship in it. Same variable set as the moon
+       theme below, so every control that already themes correctly follows
+       automatically — no per-selector overrides. */
+    :root[data-mode="flight"] {
+      --bg: #0a0600;
+      --panel: rgba(20, 14, 3, 0.98);
+      --line: rgba(255, 205, 90, 0.7);
+      --nav-accent: #ffc93c;
+      --nav-accent-rgb: 255, 201, 60;
+      --text: #fff6e2;
+      --muted: #bda269;
+      --soft-light: #f2e0b8;
+      --accent: #ff9d2e;
+      --mars-panel-top: rgba(38, 27, 8, 0.94);
+      --mars-panel-bottom: rgba(16, 11, 2, 0.98);
+      --mars-glow: rgba(255, 201, 60, 0.14);
+      --mars-surface-shadow: rgba(0, 0, 0, 0.6);
+      --panel-edge: rgba(255, 201, 60, 0.28);
+      --panel-fill: rgba(24, 17, 4, 0.98);
+      --instrument-rust: #ffc93c;
+      --instrument-rust-rgb: 255, 201, 60;
+    }
+    /* Back-fill: in flight the section headers carry a warm wash rather than
+       sitting as bare outlines, so the panel reads as a lit instrument bay. */
+    :root[data-mode="flight"] .control-section {
+      background: linear-gradient(180deg, rgba(255, 201, 60, 0.10), rgba(255, 201, 60, 0.03));
+      border-color: rgba(255, 201, 60, 0.32);
+    }
+    :root[data-mode="flight"] .control-section[open] {
+      background: linear-gradient(180deg, rgba(255, 201, 60, 0.13), rgba(255, 201, 60, 0.04));
+    }
+
     /* ── Moon viewer theme — arctic ice blue ───────────────────────────── */
     :root[data-mode="moon"] {
       --bg: #020c14;

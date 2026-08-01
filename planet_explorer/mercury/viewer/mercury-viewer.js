@@ -16622,6 +16622,57 @@ uniform float uViewportWidth;`,
         return hit ? hit.object.userData.feature : null;
       }
 
+      // FLIGHT-SIM: expose the viewer internals the shared flight simulator
+      // needs (/scripts/flightsim.js). Read-only. Mirrors the Mars viewer's
+      // block; only bodyId, bodyGroup and bodyRadiusMeters differ per world.
+      window.__flightSimHooks = {
+        THREE,
+        scene,
+        camera,
+        renderer,
+        controls,
+        bodyId: "mercury",
+        bodyGroup: mercuryGroup,
+        bodyRadiusMeters: MERCURY_RADIUS_METERS,
+        globe,
+        // Screen point -> surface lat/lon. Reuses intersectAnySurface (the same
+        // pick that drives the cursor readout and the measure tools) and the
+        // identical un-rotation the readout applies, so a picked launch site
+        // lands exactly where the coordinate box says it is. Returns null for
+        // sky or any other body so the picker cannot set a site off-world.
+        pickSurfaceLatLon: (clientX, clientY) => {
+          const hit = intersectAnySurface(clientX, clientY);
+          if (!hit || hit.context) return null;
+          const localPoint = mercuryGroup.worldToLocal(hit.point.clone());
+          localPoint.applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
+          const ll = vectorToLatLon(localPoint);
+          if (!ll || !Number.isFinite(ll.lat) || !Number.isFinite(ll.lon)) return null;
+          return { lat: ll.lat, lon: ((ll.lon % 360) + 360) % 360 };
+        },
+        elevationSampler,
+        sampleElevationNormalized,
+        latLonToVector3,
+        getRequestedTerrainRelief,
+        getEffectiveTerrainRelief,
+        syncTerrainReliefState,
+        baseLayerSelect,
+        terrainScale,
+        pauseSpin,
+        resumeSpin,
+        isSpinPaused: () => spinPaused,
+        getSpinTime,
+        setStatus,
+        manifest,
+        layerTextures,
+        ctxDetailStreamer,
+        getSpinDelta: () => globe.rotation.y - Math.PI,
+        isMoonViewerActive: () => Boolean(activeMoonViewerFeature),
+        renderFrame: () => render(),
+        get labelLayer() { return labelLayer; },
+        get baseSiteLayer() { return baseSiteLayer; },
+      };
+      window.dispatchEvent(new CustomEvent("flightsim:hooks-ready"));
+
       window.__mercuryViewerDebug = {
         isReady: () => true,
         getState: () => ({
@@ -16997,7 +17048,14 @@ ${error && error.message ? error.message : error}`;
           camera.position.setLength(_safeMin);
           controls.object.position.copy(camera.position);
         }
-        if (!activeMoonViewerFeature) {
+        // FLIGHT-SIM: run flight physics + camera for this frame. Mirrors the
+        // Mars viewer: while flying, the ship owns the camera, so the normal
+        // camera-driven streaming below is skipped rather than left to fight it.
+        const _flightActive = Boolean(window.__flightSim?.active);
+        if (_flightActive) {
+          window.__flightSim.update(camera);
+        }
+        if (!_flightActive && !activeMoonViewerFeature) {
           const _ctxMode = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
           if (_ctxMode) {
             const _currentScaleBar = estimateScaleBarMetersForCameraPosition(camera.position);

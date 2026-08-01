@@ -1,0 +1,643 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Flight simulator — shared chrome for every viewer that flies.
+
+   Extracted verbatim from planet_explorer/mars/viewer/index.html, where it
+   sat inline. Mercury, Venus and the Moon load the same file rather than
+   carrying their own copy; the markup it styles is injected by
+   /scripts/flightsim.js, so the two always travel together.
+
+   Body-neutral throughout: every accent resolves through --nav-accent, which
+   each viewer redefines under :root[data-mode="flight"].
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#fs-fade {
+  position: fixed; inset: 0; background: #000; opacity: 0;
+  pointer-events: none; z-index: 99990;
+  transition: opacity 0.42s ease;
+}
+#fs-fade.show { opacity: 1; }
+/* Flight-only UI: hide orbit-mode chrome for an uncluttered cockpit view —
+   brand wordmark, GIS measure toolbar (Distance/Area/Profile + its TOOLS tab),
+   and the spin/freeze view controls (meaningless while piloting). */
+body.fs-flying #toolbar,
+body.fs-flying #toolbar-tab,
+body.fs-flying #tool-rail { display: none !important; }
+/* FLIGHT MODE NAV — full takeover, but the panel STAYS so layers remain
+   controllable in the air. Orbit-only sections are dropped: they either
+   hijack the camera (Tour Mode, Search), swap the whole scene (Core View,
+   Moon Viewer) or are reference material with no in-flight use (Sources).
+   What remains is exactly the layer stack: Locations, Basemap and Relief,
+   Geology, Sea Level, Legend, Regions — plus the flight panel itself. */
+body.fs-flying #tour-mode-section,
+body.fs-flying #search-section,
+body.fs-flying #core-view-section,
+body.fs-flying #moon-viewer-section,
+body.fs-flying #sources-section { display: none !important; }
+/* The Planet Explorer mark stays visible in the cockpit view (user request).
+   It lives INSIDE #top-right-controls, so hiding that container hid the logo
+   too — keep the container and drop only the orbit-only buttons within it. */
+body.fs-flying #spin-toggle,
+body.fs-flying #freeze-view-toggle { display: none !important; }
+/* ENTER — the flight mode entry. A glowing action button, not a tickbox:
+   entering flight is a mode change, not a layer you switch on. */
+/* The flight section sits OUTSIDE the wrapper that gives the other sections
+   their ~10 px rhythm, so it had a 0 px gap and butted straight into Tour
+   Mode. Restore the same spacing. */
+#flightsim-section { margin-bottom: 0.65rem; }
+.fs-enter-btn {
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  /* 0.22rem keeps this row the same height as the checkbox rows (44.5 px);
+     0.3rem made the flight row 2 px taller than every other section. */
+  padding: 0.22rem 0.72rem;
+  border-radius: 0.45rem;
+  color: #dff6ff;
+  background: linear-gradient(180deg,
+    rgba(var(--nav-accent-rgb), 0.28), rgba(var(--nav-accent-rgb), 0.10));
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.65);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(var(--nav-accent-rgb), 0.35), inset 0 0 8px rgba(var(--nav-accent-rgb), 0.12);
+  animation: fsEnterPulse 2.6s ease-in-out infinite;
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+.fs-enter-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 18px rgba(var(--nav-accent-rgb), 0.6), inset 0 0 10px rgba(var(--nav-accent-rgb), 0.2);
+}
+.fs-enter-btn.is-armed {
+  animation: none;
+  color: #ffd9c4;
+  border-color: rgba(255, 156, 110, 0.7);
+  background: linear-gradient(180deg, rgba(112, 52, 28, 0.95), rgba(60, 24, 12, 0.95));
+  box-shadow: 0 0 10px rgba(255, 156, 110, 0.35);
+}
+@keyframes fsEnterPulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(var(--nav-accent-rgb), 0.28), inset 0 0 8px rgba(var(--nav-accent-rgb), 0.10); }
+  50%      { box-shadow: 0 0 20px rgba(var(--nav-accent-rgb), 0.65), inset 0 0 12px rgba(var(--nav-accent-rgb), 0.22); }
+}
+/* Site-selection banner across the top of the globe. */
+#fs-pick-banner {
+  position: fixed;
+  top: 1.1rem; left: 50%; transform: translateX(-50%);
+  z-index: 60; pointer-events: none;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase;
+  color: #dff2ff;
+  background: rgba(7, 12, 22, 0.82);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
+  border-radius: 0.6rem;
+  padding: 0.5rem 1rem;
+  box-shadow: 0 0 18px rgba(var(--nav-accent-rgb), 0.25);
+}
+body:not(.fs-preflight) #fs-pick-banner { display: none; }
+
+/* TARGET RETICLE — fixed at screen centre during site selection. The globe
+   is aimed under it, so the launch site is always whatever the crosshair is
+   over. Purely an overlay: pointer-events off so it never blocks a drag. */
+#fs-target-reticle {
+  position: fixed;
+  top: 50%; left: 50%;
+  width: 132px; height: 132px;
+  transform: translate(-50%, -50%);
+  z-index: 55;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.75));
+}
+body:not(.fs-preflight) #fs-target-reticle { display: none; }
+.fs-ret-ring {
+  fill: none;
+  stroke: rgba(var(--nav-accent-rgb), 0.85);
+  stroke-width: 1.6;
+  animation: fsRetPulse 2.2s ease-in-out infinite;
+}
+.fs-ret-ring-inner { stroke: rgba(var(--nav-accent-rgb), 0.45); stroke-dasharray: 4 6; }
+.fs-ret-tick { stroke: rgba(var(--nav-accent-rgb), 0.9); stroke-width: 2; stroke-linecap: round; }
+.fs-ret-dot { fill: var(--nav-accent); }
+/* Heading needle. It lives inside #fs-ret-frame, which JS rotates to the
+   screen-space bearing of local north, so the needle angle stays a plain
+   heading in degrees. */
+/* Both of these are rotated from JS with the SVG attribute
+   `rotate(deg 60 60)`, which already carries its own centre. That attribute
+   maps onto the CSS transform property, so any transform-origin applies ON TOP
+   of it and the two compose: an origin of (60,60) around a rotation that is
+   itself about (60,60) pivots the needle about (120,120) — the corner of the
+   viewBox — which tore the arrow off the crosshair and parked it up and to
+   the right. Measured 122px of drift.
+   It must be 0 0 EXPLICITLY rather than simply absent: the default is
+   50% 50%, which for this viewBox resolves to (60,60), the very value that
+   causes the doubling. */
+#fs-ret-frame, #fs-ret-needle { transform-origin: 0 0; }
+.fs-ret-needleline { stroke: #ffffff; stroke-width: 2.2; stroke-linecap: round; opacity: 0.92; }
+.fs-ret-needlehead { fill: #ffffff; opacity: 0.95; }
+body.fs-target-invalid #fs-ret-frame { opacity: 0.25; }
+/* Off-planet: the crosshair goes amber and Launch stays disabled. */
+body.fs-target-invalid .fs-ret-ring,
+body.fs-target-invalid .fs-ret-tick { stroke: rgba(255, 168, 92, 0.85); }
+body.fs-target-invalid .fs-ret-dot { fill: rgba(255, 168, 92, 0.9); }
+@keyframes fsRetPulse {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 0.45; }
+}
+
+/* ── Pre-flight (Phase 2): launch site + heading, shown before engaging ── */
+#fs-preflight { margin-top: 0.55rem; }
+/* Label density mirrored from the Locations panel, so the map can be
+   de-cluttered (or opened up) while choosing where to launch. */
+.fs-lod-row { margin-top: 0.7rem; }
+.fs-site-readout {
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-size: 0.72rem;
+  color: var(--soft-light);
+  text-align: right;
+  line-height: 1.35;
+}
+.fs-site-readout.is-unset { color: var(--muted); font-style: italic; }
+.fs-heading-row { align-items: flex-start; }
+.fs-dial-wrap { display: flex; align-items: center; gap: 0.6rem; }
+#fs-heading-dial { width: 76px; height: 76px; cursor: grab; touch-action: none; }
+#fs-heading-dial:active { cursor: grabbing; }
+.fs-dial-face { fill: rgba(10, 16, 26, 0.72); stroke: rgba(var(--nav-accent-rgb), 0.35); stroke-width: 1.6; }
+.fs-dial-tick { stroke: rgba(var(--nav-accent-rgb), 0.5); stroke-width: 1.6; stroke-linecap: round; }
+.fs-dial-card { fill: rgba(var(--nav-accent-rgb), 0.85); font-family: "Exo 2", "Segoe UI", sans-serif; font-weight: 600; font-size: 11px; text-anchor: middle; }
+.fs-dial-needle { fill: var(--nav-accent); }
+.fs-dial-tail { fill: rgba(120, 160, 190, 0.45); }
+.fs-dial-hub { fill: #0b1220; stroke: rgba(var(--nav-accent-rgb), 0.6); stroke-width: 1.4; }
+.fs-heading-value { font-family: "Exo 2", "Segoe UI", sans-serif; font-weight: 600; font-size: 0.9rem; color: var(--soft-light); letter-spacing: 0.08em; }
+.fs-dial-snaps { display: flex; gap: 0.25rem; margin-top: 0.35rem; }
+.fs-snap {
+  font-family: "Exo 2", "Segoe UI", sans-serif; font-weight: 600; font-size: 0.6rem;
+  padding: 0.15rem 0.35rem; border-radius: 0.3rem;
+  background: rgba(12, 20, 32, 0.8); color: var(--muted);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.25); cursor: pointer;
+}
+.fs-snap:hover { border-color: rgba(var(--nav-accent-rgb), 0.6); color: var(--text); }
+.fs-launch {
+  display: block; width: 100%; margin-top: 0.7rem;
+  font-family: "Exo 2", "Segoe UI", sans-serif; font-weight: 600; font-size: 0.74rem; letter-spacing: 0.16em;
+  padding: 0.55rem 0.6rem; border-radius: 0.5rem;
+  /* Accent-derived fill so Launch reads as the primary action in whichever
+     theme is active, rather than a fixed navy that clashed under amber. */
+  background: linear-gradient(180deg,
+    rgba(var(--nav-accent-rgb), 0.30), rgba(var(--nav-accent-rgb), 0.12));
+  color: var(--text); border: 1px solid rgba(var(--nav-accent-rgb), 0.5); cursor: pointer;
+  /* Launch is the one action the pre-flight panel exists to offer, so it
+     breathes rather than sitting inert. Driven off the accent so it reads
+     correctly in whichever theme is active. */
+  animation: fs-launch-pulse 1.9s ease-in-out infinite;
+}
+@keyframes fs-launch-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(var(--nav-accent-rgb), 0.34),
+                0 0 10px rgba(var(--nav-accent-rgb), 0.18);
+    border-color: rgba(var(--nav-accent-rgb), 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(var(--nav-accent-rgb), 0),
+                0 0 22px rgba(var(--nav-accent-rgb), 0.5);
+    border-color: rgba(var(--nav-accent-rgb), 0.95);
+  }
+}
+/* Disabled (no site chosen yet) must not pulse — it would advertise an
+   action that does nothing. Same for reduced-motion users. */
+.fs-launch:disabled { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .fs-launch { animation: none; }
+}
+.fs-launch:hover:not(:disabled) { border-color: var(--nav-accent); box-shadow: 0 0 12px rgba(var(--nav-accent-rgb), 0.25); }
+.fs-launch:disabled { opacity: 0.45; cursor: default; border-color: rgba(var(--nav-accent-rgb), 0.2); }
+/* While picking a site the globe is the target — keep the cockpit chrome out
+   of the way but leave the panel fully usable. */
+body.fs-preflight #toolbar,
+body.fs-preflight #toolbar-tab,
+body.fs-preflight #tool-rail { display: none !important; }
+body.fs-preflight #fs-preflight { display: block; }
+/* Once airborne the pre-flight block is meaningless — the site is chosen. */
+body.fs-flying #fs-preflight { display: none; }
+
+#fs-hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  /* Flight palette is accent-yellow + white only. Every blue-tinted value in
+     this block was a leftover from the cyan orbit theme and read as a third,
+     unintended colour once the theme swapped to amber. */
+  color: #ffffff;
+  opacity: 1;
+  transition: opacity 0.35s ease;
+}
+#fs-hud[hidden] { display: none; }
+#fs-hud.fs-hud-hidden { opacity: 0; }
+.fs-crosshair {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 26px; height: 26px;
+  transform: translate(-50%, -50%);
+  opacity: 0.7;
+}
+.fs-crosshair::before, .fs-crosshair::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.8);
+}
+.fs-crosshair::before { left: 50%; top: 0; width: 1px; height: 100%; transform: translateX(-50%); }
+.fs-crosshair::after { top: 50%; left: 0; height: 1px; width: 100%; transform: translateY(-50%); }
+/* Dock = domain caption stacked on top of the instrument row, centred as one
+   block. Sits in its own row ABOVE the bottom band, which belongs to the
+   rendering indicator and the scale bar (right) and the throttle/boost meters
+   (left) — the row is too wide to share it below ~1300 px. */
+#fs-hud-dock {
+  position: absolute;
+  left: 50%;
+  bottom: max(0.45rem, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+}
+#fs-domain {
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.52rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--nav-accent);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  white-space: nowrap;
+}
+#fs-hud-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.15rem;
+  padding: 0.3rem 1.1rem 0.45rem;
+  /* No pill. The instrument row reads as part of the view rather than a
+     floating widget sitting on top of it; legibility over bright terrain
+     comes from the text shadow below instead of a filled panel. */
+  background: none;
+  border: 0;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.55);
+}
+
+/* ---- header: region + 360° bearing tape ---- */
+#fs-topbar {
+  position: absolute;
+  left: 50%;
+  top: max(0.6rem, env(safe-area-inset-top));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  pointer-events: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.55);
+}
+#fs-region-top {
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.62rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--nav-accent);
+}
+/* Sized in CSS pixels; the canvas backing store is 2x for crispness and the
+   drawing code scales to match. */
+#fs-bearing-tape { width: 660px; height: 23px; display: block; }
+@media (max-width: 900px) {
+  #fs-bearing-tape { width: 380px; }
+  #fs-region-top { font-size: 0.56rem; letter-spacing: 0.16em; }
+}
+
+/* ---- attitude compass (bottom-left) ---- */
+/* Throttle/boost take over the bottom-left corner the conditions block held. */
+#fs-meters {
+  position: absolute;
+  left: 1.1rem;
+  /* Flush into the corner, on the same baseline as the info bar. */
+  bottom: max(0.45rem, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+#fs-meters .fs-meter { width: 13rem; text-align: left; }
+.fs-throttle-row { display: flex; align-items: center; gap: 0.3rem; }
+.fs-throttle-row .fs-meter-track { flex: 1; }
+/* Steppers: the meters live inside #fs-hud, which is pointer-events:none. */
+.fs-step {
+  pointer-events: auto;
+  width: 1.05rem; height: 1.05rem;
+  flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; line-height: 1;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-size: 0.72rem; font-weight: 600;
+  color: var(--nav-accent);
+  background: rgba(var(--nav-accent-rgb), 0.12);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.5);
+  border-radius: 0.2rem;
+  cursor: pointer;
+}
+.fs-step:hover { background: rgba(var(--nav-accent-rgb), 0.28); }
+.fs-step:active { background: rgba(var(--nav-accent-rgb), 0.45); }
+
+#fs-controls-btn {
+  pointer-events: auto;
+  display: inline-flex; align-items: center; gap: 0.32rem;
+  padding: 0.22rem 0.5rem;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-size: 0.5rem; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--nav-accent);
+  background: rgba(10, 14, 22, 0.62);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
+  border-radius: 0.28rem;
+  cursor: pointer;
+  backdrop-filter: blur(3px);
+}
+#fs-controls-btn:hover { background: rgba(var(--nav-accent-rgb), 0.24); }
+#fs-controls-btn svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+
+/* ---- on-screen control pad ---- */
+/* Top-right, clear of the logo. The pad used to sit bottom-right, where it
+   collided with the feature-description popup — that panel anchors low and
+   centre-right, so the two fought for the same space. */
+#fs-topright {
+  position: absolute;
+  right: 1.1rem;
+  /* Clear of the Planet Explorer mark, which is 108 px tall at desktop size. */
+  top: 8.4rem;
+  z-index: 38;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 0.45rem;
+}
+.fs-tr-buttons { display: flex; gap: 0.3rem; }
+#fs-touch {
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+}
+#fs-touch[hidden] { display: none; }
+.fs-dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 2.5rem);
+  grid-template-rows: repeat(3, 2.5rem);
+  gap: 0.18rem;
+}
+.fs-t-up    { grid-area: 1 / 2; }
+.fs-t-left  { grid-area: 2 / 1; }
+.fs-t-right { grid-area: 2 / 3; }
+.fs-t-down  { grid-area: 3 / 2; }
+.fs-touch-row { display: flex; gap: 0.3rem; }
+.fs-tbtn {
+  pointer-events: auto;
+  touch-action: none;              /* or a drag becomes a page scroll */
+  -webkit-user-select: none; user-select: none;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--nav-accent);
+  background: rgba(10, 14, 22, 0.62);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.5);
+  border-radius: 0.35rem;
+  cursor: pointer;
+  backdrop-filter: blur(3px);
+}
+.fs-tbtn.fs-t-wide { width: 3.9rem; height: 2rem; font-size: 0.52rem; }
+.fs-tbtn:hover { border-color: rgba(var(--nav-accent-rgb), 0.9); }
+/* `.is-down` is set from JS on pointerdown — :active alone does not survive a
+   pointer that slides off the button while still held. */
+.fs-tbtn.is-down {
+  background: rgba(var(--nav-accent-rgb), 0.42);
+  color: #0a0e16;
+  border-color: var(--nav-accent);
+}
+.fs-t-brake.is-down { background: rgba(255, 106, 77, 0.5); border-color: #ff6a4d; }
+@media (max-width: 900px) {
+  .fs-dpad { grid-template-columns: repeat(3, 3.1rem); grid-template-rows: repeat(3, 3.1rem); }
+  .fs-tbtn.fs-t-wide { width: 4.7rem; height: 2.4rem; }
+}
+#fs-touch-toggle {
+  pointer-events: auto;
+  display: inline-flex; align-items: center; gap: 0.32rem;
+  padding: 0.22rem 0.5rem;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-size: 0.5rem; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--nav-accent);
+  background: rgba(10, 14, 22, 0.62);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
+  border-radius: 0.28rem;
+  cursor: pointer;
+  backdrop-filter: blur(3px);
+}
+#fs-touch-toggle:hover { background: rgba(var(--nav-accent-rgb), 0.24); }
+#fs-touch-toggle[aria-pressed="true"] {
+  background: rgba(var(--nav-accent-rgb), 0.34);
+  border-color: var(--nav-accent);
+}
+#fs-touch-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+
+#fs-controls-panel {
+  pointer-events: auto;
+  position: absolute;
+  right: 1.1rem;
+  top: 11.4rem;
+  z-index: 40;
+  width: 17rem; max-width: calc(100vw - 2.2rem);
+  max-height: calc(100vh - 11rem);
+  overflow-y: auto;
+  padding: 0.6rem 0.75rem 0.7rem;
+  background: rgba(8, 12, 20, 0.94);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
+  border-radius: 0.5rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+}
+#fs-controls-panel[hidden] { display: none; }
+.fs-cp-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 0.58rem; font-weight: 600; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--nav-accent);
+  margin-bottom: 0.45rem;
+}
+#fs-controls-close {
+  pointer-events: auto;
+  background: none; border: 0; cursor: pointer;
+  color: var(--nav-accent); font-size: 0.9rem; line-height: 1; padding: 0 0.1rem;
+}
+.fs-cp-list {
+  display: grid; grid-template-columns: auto 1fr;
+  gap: 0.22rem 0.6rem; margin: 0;
+  font-size: 0.6rem; color: #ffffff;
+}
+.fs-cp-list dt { white-space: nowrap; }
+.fs-cp-list dd { margin: 0; color: rgba(255, 255, 255, 0.78); }
+.fs-cp-list kbd {
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-size: 0.55rem; font-weight: 600;
+  padding: 0.05rem 0.25rem;
+  color: var(--nav-accent);
+  background: rgba(var(--nav-accent-rgb), 0.12);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.4);
+  border-radius: 0.18rem;
+}
+/* The .fs-k typography lives under `.fs-cell .fs-k`, and these labels are no
+   longer inside a cell — without repeating it they render at the inherited
+   body size and tower over the instrument row. Orbitron here (already loaded
+   for the 3D map labels) is the deliberate exception to the Exo 2 house face:
+   these two are the only *controls* on the HUD and read as instrument
+   hardware rather than as another row of numbers. */
+#fs-meters .fs-k {
+  display: block;
+  font-family: "Orbitron", "Exo 2", sans-serif;
+  font-weight: 600;
+  font-size: 0.62rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--nav-accent);
+  margin-bottom: 0.3rem;
+  /* Orbitron plus 0.24em tracking is wide; without this "THROTTLE 40%" wraps
+     onto two lines the moment the meter narrows at a breakpoint. */
+  white-space: nowrap;
+}
+/* Segmented readout: the track is a row of hard-edged cells (repeating-linear
+   gradient) rather than a smooth capsule, and the fill is clipped to the same
+   grid — so the bar steps up in blocks like an instrument, not a progress bar. */
+#fs-meters .fs-meter-track {
+  height: 14px;
+  border-radius: 0;
+  margin-top: 0;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(var(--nav-accent-rgb), 0.16) 0 10px,
+      transparent 10px 13px);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
+  box-shadow: inset 0 0 8px rgba(var(--nav-accent-rgb), 0.14);
+  position: relative;
+}
+/* Opt back into pointer events — #fs-hud is pointer-events:none — and signal
+   that this bar is draggable, not just a readout. */
+#fs-throttle-track { pointer-events: auto; cursor: ew-resize; touch-action: none; }
+#fs-throttle-track:hover { border-color: rgba(var(--nav-accent-rgb), 0.85); }
+#fs-meters .fs-meter-fill {
+  border-radius: 0;
+  background:
+    repeating-linear-gradient(90deg,
+      var(--nav-accent) 0 10px,
+      transparent 10px 13px);
+  box-shadow: 0 0 10px rgba(var(--nav-accent-rgb), 0.65);
+}
+/* Leading edge marker, so the current setting is readable at a glance even
+   when the segments blur past. */
+#fs-meters .fs-meter-track::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-left: 2px solid rgba(var(--nav-accent-rgb), 0.55);
+  pointer-events: none;
+}
+#fs-boost-fill {
+  background:
+    repeating-linear-gradient(90deg,
+      #ff9d3c 0 10px,
+      transparent 10px 13px) !important;
+  box-shadow: 0 0 10px rgba(255, 157, 60, 0.6);
+}
+
+/* The instrument row still has to give ground on narrower viewports or it
+   runs into the scale bar. */
+@media (max-width: 1600px) {
+  #fs-hud-bar { gap: 0.8rem; padding: 0.3rem 0.6rem 0.45rem; }
+  .fs-cell { min-width: 4.0rem; }
+  .fs-cell .fs-v { font-size: 1.02rem; }
+  .fs-cell .fs-k { font-size: 0.62rem; }
+}
+@media (max-width: 1400px) {
+  #fs-hud-bar { gap: 0.55rem; }
+  .fs-cell { min-width: 3.4rem; }
+  .fs-cell .fs-v { font-size: 0.92rem; }
+  .fs-cell .fs-k { font-size: 0.58rem; letter-spacing: 0.08em; }
+  #fs-meters .fs-meter { width: 10rem; }
+}
+
+/* The control centre and the throttle/boost meters share the left edge. The
+   panel's stock cap is calc(100vh - 2rem), which at full expansion reaches
+   58 px INTO the meters (measured at 1280x720). Cap it short of them in
+   flight — the panel is a flex column with an inner scroller, so it simply
+   gets a shorter scroll area rather than losing any content. */
+body.fs-flying #ui { max-height: calc(100vh - 7.5rem); }
+
+/* Orbit-only chrome the flight HUD now supersedes: the hemisphere locator
+   answers a question the Position cell already answers, the cursor
+   lat/lon/elevation readout duplicates it outright, and temp/pressure have
+   moved into the instrument row under their own domain caption. */
+/* Scale bar + rendering indicator sit flush in the opposite corner, on the
+   same baseline as the info bar and the meters. */
+body.fs-flying #cursor-readout-bar { bottom: max(0.45rem, env(safe-area-inset-bottom)); }
+/* Below ~1150 px the three simply cannot share the baseline: the centred bar
+   is ~586 px and the two corners take ~520 px between them. Rather than let
+   them overlap, the scale bar — the least-consulted of the three in flight —
+   steps up a row. Everything stays flush at 1280 and above. */
+@media (max-width: 1150px) {
+  body.fs-flying #cursor-readout-bar { bottom: 4.6rem; }
+}
+body.fs-flying #surface-conditions,
+body.fs-flying #hemisphere-locator,
+body.fs-flying #cursor-readout { display: none !important; }
+.fs-cell { text-align: center; min-width: 5.1rem; }
+.fs-cell .fs-k {
+  display: block;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  color: var(--nav-accent);
+  text-transform: uppercase;
+}
+.fs-cell .fs-v {
+  display: block;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 500;
+  font-size: 1.2rem;
+  color: #ffffff;
+}
+.fs-meter { width: 6rem; }
+.fs-meter-track {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(130, 170, 200, 0.22);
+  overflow: hidden;
+  margin-top: 0.3rem;
+}
+.fs-meter-fill { height: 100%; width: 0%; border-radius: 3px; background: linear-gradient(90deg, #4fb6d8, #8ff0ff); }
+#fs-boost-fill { background: linear-gradient(90deg, #d88a2f, #ffd98f); }
+/* #fs-camtag (the "CAM: CHASE" pill) removed — it sat in the same top-right
+   corner as the Planet Explorer mark and clashed with it. The camera mode is
+   still selectable from the flight panel, and flightsim.js already guards the
+   element being absent. */
+#fs-msg {
+  position: absolute;
+  left: 50%;
+  top: 24%;
+  transform: translateX(-50%);
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  color: #ffe9d6;
+  text-shadow: 0 0 18px rgba(255, 150, 80, 0.55);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+@media (max-width: 900px) {
+  #fs-hud-bar { gap: 0.55rem; padding: 0.45rem 0.7rem; }
+  .fs-cell { min-width: 3.7rem; }
+  .fs-cell .fs-v { font-size: 0.98rem; }
+  .fs-meter { width: 4rem; }
+}

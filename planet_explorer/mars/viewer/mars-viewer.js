@@ -19458,6 +19458,11 @@ uniform float uViewportWidth;`,
         camera,
         renderer,
         controls,
+        // Generic names the shared sim reads; marsGroup/MARS_RADIUS_METERS are
+        // kept below so nothing else that referenced them has to change.
+        bodyId: "mars",
+        bodyGroup: marsGroup,
+        bodyRadiusMeters: MARS_RADIUS_METERS,
         marsGroup,
         globe,
         // FLIGHT-SIM pre-flight: screen point -> Mars lat/lon on the visible
