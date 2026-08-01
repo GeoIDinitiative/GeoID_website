@@ -1275,14 +1275,6 @@
               <span>Select a location on the globe to generate risk tracking plots.</span>
               <span class="hub-empty-sub">Priority landslide, flood, saturation, and model stability indicators will appear here.</span>
             </div>
-            <div class="hub-analysis-head" id="risk-analysis-head" hidden>
-              <div>
-                <p class="hub-kicker">Geoselector nowcast</p>
-                <h2 class="hub-analysis-title">Risk Analysis</h2>
-                <p class="hub-analysis-subtitle">Priority geohazard indicators for the selected surface location.</p>
-              </div>
-              <div class="hub-chip-row" id="risk-context-chips"></div>
-            </div>
             <div id="risk-summary" class="risk-summary-groups" hidden></div>
             <div id="risk-grid" class="market-grid" hidden></div>
           </div>
@@ -1333,6 +1325,9 @@
 
     <!-- Hub strip — always visible, sits at the very bottom -->
     <div class="hub-strip" role="toolbar" aria-label="Analysis Hub controls">
+      <!-- Location context. Lives in the strip rather than the Risk panel so
+           it stays on screen for every tab, and is empty until a pin exists. -->
+      <div class="hub-chip-row" id="risk-context-chips"></div>
       <span class="hub-strip-title">Analysis Hub</span>
       <div class="hub-tab-list" role="tablist">
         <button class="hub-tab-btn is-active" role="tab" aria-selected="true"  data-panel="risk"         aria-controls="hub-panel-risk">Risk</button>
@@ -1400,6 +1395,36 @@
           btn.setAttribute("aria-selected", String(active));
         });
         Object.entries(panels).forEach(([key, el]) => { el.hidden = key !== target; });
+
+        // The strip is sticky, so a tab whose content is shorter than the
+        // previous one leaves the page scrolled such that the new panel's
+        // first row sits underneath it — the plots came up with their titles
+        // sliced off. Re-anchor below the strip.
+        //
+        // The offset is measured rather than hard-coded: the strip is one row
+        // before a pin is placed and two once the context banner fills, so a
+        // fixed scroll-margin is wrong half the time.
+        const shown = panels[target];
+        if (shown && !shown.hidden) {
+          requestAnimationFrame(() => {
+            const strip = document.querySelector(".hub-strip");
+            if (!strip) return;
+            const navH = parseFloat(
+              getComputedStyle(document.documentElement).getPropertyValue("--nav-h")
+            ) || 72;
+            // Anchor on the strip's NATURAL offset, not the panel's position.
+            // Scrolling the panel to the top fails on short tabs: the document
+            // runs out of room, the scroll clamps, and the first row stays
+            // under the strip. Parking the strip exactly at the nav's lower
+            // edge means the drawer flows below it and nothing is ever
+            // covered, whatever the panel's height.
+            // offsetTop is used because getBoundingClientRect() on a stuck
+            // element reports the stuck position, not the real one.
+            let el = strip, top = 0;
+            while (el) { top += el.offsetTop; el = el.offsetParent; }
+            window.scrollTo({ top: Math.max(0, top - navH), behavior: "smooth" });
+          });
+        }
       }
 
       // Toggle raised mode. The hub remains in normal page flow either way.
@@ -1830,10 +1855,8 @@
       }
 
       function renderRiskContext(data, model) {
-        const head = document.getElementById("risk-analysis-head");
         const chips = document.getElementById("risk-context-chips");
-        if (!head || !chips) return;
-        head.hidden = false;
+        if (!chips) return;
         const meta = model.metadata || {};
         // Each value gets its own label. Nine bare numbers in a row read as
         // soup — "96835 Pa" only means something once it says PRESSURE.
@@ -1923,9 +1946,7 @@
       function clearHubData() {
         currentHazardModel = null;
         closePlotModal();
-        const riskHead = document.getElementById("risk-analysis-head");
         const riskChips = document.getElementById("risk-context-chips");
-        if (riskHead) riskHead.hidden = true;
         if (riskChips) riskChips.innerHTML = "";
         ["risk", "all", "hydrology", "geotechnical", "sources", "metadata"].forEach((key) => {
           const empty = document.getElementById(`${key}-empty`);
