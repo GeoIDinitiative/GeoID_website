@@ -2880,6 +2880,14 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     }
 
     const MOON_RADIUS_METERS = 1737400;
+    // FLIGHT-SIM: the shared label-layer.js reads MARS_RADIUS_METERS as a
+    // bare global in its mosaic close-zoom branch (scale bar <= 2 km — exactly
+    // low flight altitude). The name is a leftover from the Mars fork; what it
+    // wants is THIS body's radius. Without it updateLabelVisibility throws a
+    // ReferenceError inside render(), which aborts before labels resolve — so
+    // features arrived as bare markers with no names. Orbit never reaches that
+    // branch; flight does.
+    window.MARS_RADIUS_METERS = MOON_RADIUS_METERS;
     const HUD_BBOX_RAYCASTER = new THREE.Raycaster();
     const HUD_BBOX_SPHERE = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 3.2);
     const HUD_BBOX_HIT = new THREE.Vector3();

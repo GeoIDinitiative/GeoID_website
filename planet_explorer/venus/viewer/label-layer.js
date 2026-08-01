@@ -1,5 +1,22 @@
 import * as THREE from "./vendor/three.module.js";
 
+// SIGNIFICANCE RAMPS, indexed by item.lod (1 = most significant … 5 = least).
+// Index 0 is unused; items with no lod stay at 1.0.
+//
+// Two ramps because the two sizing paths compose differently. The world-scale
+// path multiplies this by entry.baseScale, which ALREADY carries a per-tier
+// multiplier baked in at build time, so the two compound and the ramp can be
+// gentle-looking while landing hard. The mosaic path targets an absolute pixel
+// height and cancels baseScale entirely, so its ramp is the only thing acting
+// and it needs a floor that keeps lod-5 text legible.
+const LOD_TIER_SCALE = [1.0, 1.0, 0.84, 0.70, 0.57, 0.44];
+const LOD_MOSAIC_TIER = [1.0, 1.0, 0.88, 0.77, 0.67, 0.58];
+function lodTierFactor(lod, table = LOD_TIER_SCALE) {
+  const n = Number(lod);
+  return Number.isFinite(n) && n >= 1 && n <= 5 ? table[n] : 1.0;
+}
+
+
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
 // Moon feature catalogs use IAU small-body convention (opposite handedness).
@@ -1133,23 +1150,35 @@ export function updateLabelVisibility(
     const microScaleStrength = clamp(1 - ((scaleLog - 3.1) / 1.6), 0, 1);
     const stableLabelPx = 36;
     const closeZoomBoost = clamp(1 - ((scaleLog - 4.4) / 1.8), 0, 1);
-    const labelPx = clamp(
+    // Layout geometry (marker, connector, altitude) stays on the UNSCALED size so
+    // the tier ramp changes how big a label is, not where it sits.
+    const labelPxBase = clamp(
       stableLabelPx + closeZoomBoost * 2 + nearStrength * 2,
       36,
       40,
     );
+    // SIGNIFICANCE. This path sets an absolute pixel height, and the conversion
+    // back to a sprite scale in updateLabelVisibility divides by baseScale.y —
+    // so baseScale, and with it every per-tier multiplier applied when the label
+    // was built, cancels out exactly. Without this factor a lod-5 crater renders
+    // the same 36-40 px as a lod-1 landmark, which is what it was doing.
+    const labelPx = clamp(
+      labelPxBase * lodTierFactor(entry.item?.lod, LOD_MOSAIC_TIER),
+      20,
+      44,
+    );
     const markerPx = clamp(
-      labelPx * (0.055 - microScaleStrength * 0.02 + nearStrength * 0.004),
+      labelPxBase * (0.055 - microScaleStrength * 0.02 + nearStrength * 0.004),
       1.4,
       5.2,
     );
     const tangentPx = clamp(
-      labelPx * (0.88 + zoomStrength * 0.2 + microScaleStrength * 0.32) + nearStrength * 16,
+      labelPxBase * (0.88 + zoomStrength * 0.2 + microScaleStrength * 0.32) + nearStrength * 16,
       58,
       168,
     );
     const altitudeWorld = clamp(
-      (labelPx / Math.max(pixelsPerWorldUnit, 1e-6)) * (0.016 + nearStrength * 0.007 - microScaleStrength * 0.008),
+      (labelPxBase / Math.max(pixelsPerWorldUnit, 1e-6)) * (0.016 + nearStrength * 0.007 - microScaleStrength * 0.008),
       0.001,
       0.03,
     );
