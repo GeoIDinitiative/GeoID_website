@@ -82,6 +82,34 @@
   --instrument-rgb: var(--skin-data-rgb);
 }
 
+/* ── Flight mode: instrument amber ──────────────────────────────────────
+   The Mars flight sim swaps the whole GUI to amber by redefining --nav-accent
+   and friends on :root[data-mode="flight"]. Everything driven off those
+   tokens followed; everything this file paints did not, because the rules
+   below read --skin-chrome and --skin-data directly. The result was a gold
+   flight panel sitting inside a magenta-bordered shell, with pink sliders and
+   cyan readouts inside it.
+
+   Restating the palette fixes the lot at once — same trick as the ember
+   variant. The values match the viewer's own flight theme so the two halves
+   of the GUI agree. Only the --skin-* names are set here: --bg, --nav-accent
+   and the rest still come from the viewer's own flight block, which is more
+   specific than this file's base :root. */
+:root[data-mode="flight"] {
+  --skin-chrome: #ffc93c;
+  --skin-chrome-rgb: 255, 201, 60;
+  --skin-chrome-ink: #2a1a00;
+
+  --skin-data: #ff9d2e;
+  --skin-data-rgb: 255, 157, 46;
+
+  --skin-bg: #0a0600;
+  --skin-panel: 20, 14, 3;
+  --skin-ink: #fff6e2;
+  --skin-muted: 189, 162, 105;
+  --skin-vignette: 8, 5, 0;
+}
+
 body { background: var(--bg); }
 ::selection { background: var(--skin-chrome); color: var(--skin-chrome-ink); }
 
