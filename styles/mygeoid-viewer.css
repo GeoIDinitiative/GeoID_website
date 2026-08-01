@@ -1,0 +1,74 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   GeoID_Earth viewer — synthwave skin
+
+   Loaded LAST in GeoID_Earth/viewer/index.html, after styles.css.
+
+   The viewer is embedded by exactly one page (myGeoID) and by nothing
+   else, so re-skinning it here changes that app and nothing more.
+
+   Almost all of it re-themes through tokens: styles.css has 239 var()
+   uses against ~6 stray literals, so redefining :root does the work and
+   the handful of hard-coded values are mopped up at the bottom.
+
+   TWO ACCENTS, used consistently:
+     pink  #ff3ec8  chrome — borders, active states, controls
+     cyan  #29c5ff  data — readouts, measurements, values
+   That split is what keeps a dense instrument UI legible once
+   everything is saturated.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Fonts: the viewer asks for Orbitron and Exo 2, both retired site-wide.
+   Re-point the family names — same trick as the main site skin, so no
+   selector in styles.css has to change. */
+@font-face {
+  font-family: "Orbitron";
+  font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Exo 2";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Exo 2";
+  font-style: normal; font-weight: 500 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+}
+
+:root {
+  --bg: #0d0221;
+  --panel: rgba(22, 9, 51, 0.97);
+  --line: rgba(255, 62, 200, 0.34);
+  --nav-accent: #ff3ec8;
+  --nav-accent-rgb: 255, 62, 200;
+  --text: #f8f4ff;
+  --muted: rgba(206, 184, 250, 0.70);
+  --soft-light: #e2d2ff;
+
+  /* Data accent — readouts and measured values */
+  --accent: #29c5ff;
+
+  --mars-panel-top: rgba(31, 14, 69, 0.95);
+  --mars-panel-bottom: rgba(13, 2, 33, 0.98);
+  --mars-glow: rgba(255, 62, 200, 0.14);
+  --mars-surface-shadow: rgba(0, 0, 0, 0.6);
+  --panel-edge: rgba(255, 62, 200, 0.26);
+  --panel-fill: rgba(22, 9, 51, 0.97);
+
+  /* styles.css calls this "rust" but uses it as the instrument colour;
+     cyan keeps numeric readouts distinct from the pink chrome. */
+  --instrument-rust: #29c5ff;
+  --instrument-rust-rgb: 41, 197, 255;
+}
+
+body { background: var(--bg); }
+
+/* ── The stray literals styles.css didn't route through a token ─────── */
+[style*="#58c6b3"], .legacy-teal { color: var(--nav-accent); }
+
+/* Mop-up: the six hard-coded values, matched by their own selectors so
+   nothing else is caught. */
+::selection { background: #ff3ec8; color: #2b0030; }
+::-webkit-scrollbar-thumb { background: rgba(255, 62, 200, 0.35); }
+::-webkit-scrollbar-track { background: rgba(13, 2, 33, 0.6); }

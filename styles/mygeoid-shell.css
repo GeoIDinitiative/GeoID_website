@@ -1,0 +1,135 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   myGeoID shell — synthwave skin
+
+   Loaded LAST in myGeoID/index.html, after its inline <style>.
+
+   The page is a shell around an iframe: this file styles the consent gate
+   and the Analysis Hub strip. The globe, the Hazard Modelling panel and
+   the FOS readout live inside /GeoID_Earth/viewer/ and are skinned by
+   styles/mygeoid-viewer.css.
+
+   Same two-accent split as the viewer — pink #ff3ec8 for chrome, cyan
+   #29c5ff for data — so the two documents read as one product.
+
+   Scoped deliberately to --hub-* tokens and .demo-disclaimer-*/.hub-*
+   selectors. The generic --panel/--line/--text tokens are left alone,
+   because shared.css and site-nav.css also consume them on this page.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* The shell asks for Exo 2 and Orbitron, both retired site-wide. */
+@font-face {
+  font-family: "Exo 2";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Exo 2";
+  font-style: normal; font-weight: 500 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Orbitron";
+  font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+}
+
+body {
+  --hub-accent: #ff3ec8;
+  --hub-accent-rgb: 255, 62, 200;
+  --hub-blue: #29c5ff;
+  --hub-panel-top: rgba(31, 14, 69, 0.95);
+  --hub-panel-bottom: rgba(13, 2, 33, 0.98);
+  --hub-panel-fill: rgba(22, 9, 51, 0.97);
+  --hub-text: #f8f4ff;
+  --hub-muted: rgba(206, 184, 250, 0.70);
+  background: #0d0221;
+}
+
+/* ── Consent gate ───────────────────────────────────────────────────────
+   Squared and repainted to the site. The eyebrow stays amber on purpose:
+   it is the one element here that must not blend in. */
+.demo-disclaimer-backdrop { background: rgba(6, 1, 16, 0.86); }
+
+.demo-disclaimer-modal {
+  border-radius: 2px;
+  background: rgba(22, 9, 51, 0.98);
+  border: 1px solid rgba(255, 62, 200, 0.30);
+  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.85);
+}
+.demo-disclaimer-eyebrow {
+  border-radius: 2px;
+  font-family: "Exo 2", sans-serif;
+  letter-spacing: 0.16em;
+}
+.demo-disclaimer-title {
+  font-family: "Orbitron", "Exo 2", sans-serif;
+  font-weight: 400;               /* Audiowide ships one weight */
+  letter-spacing: -0.01em;
+  color: #f8f4ff;
+}
+.demo-disclaimer-body,
+.demo-disclaimer-list { color: rgba(206, 184, 250, 0.78); }
+.demo-disclaimer-body strong { color: #ffd319; }
+
+.demo-disclaimer-confirm {
+  border-radius: 2px;
+  background: rgba(255, 62, 200, 0.06);
+  border: 1px solid rgba(255, 62, 200, 0.22);
+}
+.demo-disclaimer-confirm-label { color: rgba(226, 210, 255, 0.86); }
+#demo-disclaimer-checkbox { accent-color: #ff3ec8; }
+
+.demo-disclaimer-button {
+  border-radius: 2px;
+  font-family: "Exo 2", sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  background: #ff3ec8;
+  border: 1px solid #ff3ec8;
+  color: #2b0030;
+  box-shadow: 0 0 18px rgba(255, 62, 200, 0.35);
+}
+.demo-disclaimer-button:hover:not(:disabled) {
+  background: #ffd319; border-color: #ffd319; color: #2b1e00;
+}
+.demo-disclaimer-button:disabled {
+  background: transparent;
+  border-color: rgba(255, 62, 200, 0.28);
+  color: rgba(206, 184, 250, 0.45);
+  box-shadow: none;
+}
+
+/* ── Analysis Hub strip ─────────────────────────────────────────────── */
+.hub-strip {
+  background: rgba(13, 2, 33, 0.96);
+  border-top: 1px solid rgba(255, 62, 200, 0.28);
+}
+.hub-strip-title {
+  font-family: "Exo 2", sans-serif;
+  letter-spacing: 0.16em;
+  color: rgba(206, 184, 250, 0.70);
+}
+.hub-tab-btn {
+  border-radius: 2px;
+  font-family: "Exo 2", sans-serif;
+  letter-spacing: 0.08em;
+  color: rgba(206, 184, 250, 0.72);
+  border-color: rgba(255, 62, 200, 0.22);
+}
+.hub-tab-btn:hover { color: #f8f4ff; border-color: rgba(255, 62, 200, 0.45); }
+.hub-tab-btn.is-active {
+  background: #ff3ec8;
+  border-color: #ff3ec8;
+  color: #2b0030;
+}
+.hub-toggle-btn, .hub-action-btn {
+  border-radius: 2px;
+  font-family: "Exo 2", sans-serif;
+  letter-spacing: 0.08em;
+}
+.hub-action-btn.is-danger { border-color: rgba(255, 122, 104, 0.45); color: #ff9a86; }
+.hub-pin-display { color: rgba(206, 184, 250, 0.60); font-family: "Exo 2", sans-serif; }
+.hub-drawer, .hub-drawer-inner { background: rgba(13, 2, 33, 0.97); }
+
+::selection { background: #ff3ec8; color: #2b0030; }

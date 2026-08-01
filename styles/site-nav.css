@@ -126,6 +126,10 @@
 .site-nav .nav-dropdown-menu a:hover,
 .site-nav .nav-dropdown-menu a.active { color: var(--nav-ink); }
 
+/* Colour lives here too, not just type. The myGeoID app shell doesn't load
+   the site skin, so a typography-only rule left its Donate button on the
+   old teal — the header has to be self-sufficient to actually be one
+   definition. */
 .site-nav .nav-act, .site-nav .nav-act-donate {
   height: 38px; padding: 0 18px;
   border-radius: 2px;
@@ -134,5 +138,15 @@
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
+  background: var(--nav-accent);
+  border: 1px solid var(--nav-accent);
+  color: #2b0030;
+  box-shadow: none;
+}
+.site-nav .nav-act:hover, .site-nav .nav-act-donate:hover {
+  background: #ffd319;
+  border-color: #ffd319;
+  color: #2b1e00;
+  transform: none;
 }
 .site-nav .nav-toggle { width: 40px; height: 40px; border-radius: 2px; }
