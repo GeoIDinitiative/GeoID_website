@@ -23,17 +23,36 @@
     ".mission-card", ".panel-card", ".launch-card", ".launch-entry",
     ".legal-header", ".legal-body",
     ".section-head", ".team-card", ".blog-card", ".update-card",
-    ".contact-form", ".involvement-card", ".program-card", ".solution-card"
+    ".contact-form", ".involvement-card", ".program-card", ".solution-card",
+
+    /* Explorer landings. These pages name nothing like the rest of the site,
+       which is why they had no reveals at all — not one selector above
+       matched them.
+
+       Only the inner content blocks are listed. The wrappers around them
+       (.about-explorer-tile, .new-worlds-layout, .lunar-tile, .space-panel)
+       are deliberately absent: with the outermost-only filter below, naming
+       a wrapper swallows everything inside it and the whole page reduces to
+       a handful of large fades. Revealing the blocks gives the tiles their
+       own entrance as you scroll. */
+    ".about-explorer-section-block", ".earth-info-block",
+    ".new-worlds-tool-item", ".photo-strip"
   ];
 
   function init() {
-    var seen = [];
-    var els = [];
+    /* Collect every match, then keep only the outermost. The previous version
+       skipped an element if an ALREADY-SEEN one contained it, which made the
+       result depend on selector order: list a child selector before its
+       parent and both got tagged, so a tile animated and then animated its
+       own contents again. Filtering afterwards is order-independent. */
+    var all = [];
     SELECTORS.forEach(function (sel) {
       Array.prototype.forEach.call(document.querySelectorAll(sel), function (el) {
-        var covered = seen.some(function (p) { return p.contains(el); });
-        if (!covered) { seen.push(el); els.push(el); }
+        if (all.indexOf(el) === -1) all.push(el);
       });
+    });
+    var els = all.filter(function (el) {
+      return !all.some(function (other) { return other !== el && other.contains(el); });
     });
     if (!els.length) return;
 
@@ -75,6 +94,33 @@
       io.disconnect();
       document.documentElement.classList.remove("anim");
     }, 1400);
+
+    /* Safety sweep. The observer is the primary mechanism, but on a long
+       page a fast scroll can carry an element past the viewport without a
+       callback ever landing for it — measured on /explorer/, where four
+       visible blocks stayed at opacity 0 after scrolling to the bottom.
+       Anything at or above the fold is revealed regardless, so content can
+       never be left invisible. */
+    var ticking = false;
+    function sweep() {
+      ticking = false;
+      var fold = window.innerHeight * 0.95;
+      for (var i = below.length - 1; i >= 0; i--) {
+        var el = below[i];
+        if (el.getBoundingClientRect().top < fold) {
+          el.classList.add("in");
+          io.unobserve(el);
+          below.splice(i, 1);
+        }
+      }
+      if (!below.length) window.removeEventListener("scroll", onScroll);
+    }
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(sweep);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
   }
 
   if (document.readyState === "loading") {
