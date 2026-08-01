@@ -72,3 +72,105 @@ body { background: var(--bg); }
 ::selection { background: #ff3ec8; color: #2b0030; }
 ::-webkit-scrollbar-thumb { background: rgba(255, 62, 200, 0.35); }
 ::-webkit-scrollbar-track { background: rgba(13, 2, 33, 0.6); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VIBRANCY PASS — 80s retro-cyberpunk
+   The palette above is the base; this is the neon on top of it.
+
+   Rule followed throughout: GLOW THE CHROME, NOT THE DATA. Panel edges,
+   headings, active states and controls bloom; measured values stay crisp
+   and unblurred, because this is still an instrument you have to read.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Pushed to the classic triad — hotter magenta, electric cyan, acid yellow */
+  --nav-accent: #ff2bd6;
+  --nav-accent-rgb: 255, 43, 214;
+  --accent: #00e5ff;
+  --instrument-rust: #00e5ff;
+  --instrument-rust-rgb: 0, 229, 255;
+  --line: rgba(255, 43, 214, 0.42);
+  --panel-edge: rgba(255, 43, 214, 0.38);
+  --mars-glow: rgba(255, 43, 214, 0.22);
+  --text: #fdf7ff;
+  --muted: rgba(214, 194, 255, 0.78);
+}
+
+/* Panels: deep violet with a magenta edge-bloom. */
+.control-section, .toolbar-card, .viewer-help-card, .scene-popup {
+  border-color: rgba(255, 43, 214, 0.34) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 43, 214, 0.10),
+    0 0 22px -6px rgba(255, 43, 214, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Section headings glow; the summary copy under them does not. */
+.section-title, .section-heading {
+  color: #fdf7ff !important;
+  text-shadow: 0 0 12px rgba(255, 43, 214, 0.55);
+  letter-spacing: 0.06em;
+}
+.section-icon { filter: drop-shadow(0 0 6px rgba(255, 43, 214, 0.7)); }
+
+/* Controls */
+.tool-button, .tool-rail-btn, .tool-rail-action-btn, .button, .mini-select {
+  border-color: rgba(0, 229, 255, 0.40) !important;
+  color: #bff4ff !important;
+}
+.tool-button:hover, .tool-rail-btn:hover, .tool-rail-action-btn:hover, .button:hover {
+  border-color: #00e5ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 18px -2px rgba(0, 229, 255, 0.65) !important;
+}
+.tool-button.is-active, .tool-rail-btn.is-active, .button.is-active,
+.tool-button[aria-pressed="true"], .tool-rail-btn[aria-pressed="true"] {
+  background: rgba(255, 43, 214, 0.18) !important;
+  border-color: #ff2bd6 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 22px -2px rgba(255, 43, 214, 0.75) !important;
+}
+
+/* Readouts: cyan and BRIGHT, but deliberately un-blurred so the numbers
+   stay sharp. The glow sits on the label, not the value. */
+.hazard-label, .gis-metric, .measure-metric { color: rgba(214, 194, 255, 0.72) !important; }
+.hazard-value, .locator-readout, .timeline-readout {
+  color: #00e5ff !important;
+  text-shadow: 0 0 14px rgba(0, 229, 255, 0.5);
+}
+.hazard-note { color: rgba(214, 194, 255, 0.55) !important; }
+
+/* Sliders + checkboxes pick up the accent */
+.slider { accent-color: #ff2bd6; }
+input[type="checkbox"], input[type="radio"] { accent-color: #ff2bd6; }
+
+/* The globe itself: a modest lift so it sits in the same world as the
+   chrome. Kept low — the imagery is real data and shouldn't be cooked. */
+canvas { filter: saturate(1.18) contrast(1.04); }
+
+/* ── CRT: scanlines + vignette, matching the dashboard hero ──────────────
+   The iframe is its own document, so it needs its own overlay — the
+   site-wide one on body::after cannot reach in here. Slightly stronger
+   than the site's, since this is the effect you liked. */
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  z-index: 99999; pointer-events: none;
+  background:
+    repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
+    radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(10, 1, 25, 0.48) 100%);
+}
+/* A slow horizontal roll, the tell of a live tube. 8s so it reads as
+   atmosphere rather than a fault. */
+body::before {
+  content: "";
+  position: fixed; left: 0; right: 0; height: 90px;
+  z-index: 99998; pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(255, 43, 214, 0.045), transparent);
+  animation: crt-roll 8s linear infinite;
+}
+@keyframes crt-roll { from { top: -90px; } to { top: 100%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  body::before { animation: none; opacity: 0; }
+}

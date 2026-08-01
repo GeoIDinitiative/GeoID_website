@@ -133,3 +133,67 @@ body {
 .hub-drawer, .hub-drawer-inner { background: rgba(13, 2, 33, 0.97); }
 
 ::selection { background: #ff3ec8; color: #2b0030; }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   VIBRANCY PASS — 80s retro-cyberpunk (shell half)
+   Mirrors styles/mygeoid-viewer.css so the strip, the gate and the
+   iframe read as one screen. Same rule: glow the chrome, not the data.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+body {
+  --hub-accent: #ff2bd6;
+  --hub-accent-rgb: 255, 43, 214;
+  --hub-blue: #00e5ff;
+  --hub-text: #fdf7ff;
+  --hub-muted: rgba(214, 194, 255, 0.78);
+}
+
+/* Analysis Hub strip: a lit edge rather than a hairline. */
+.hub-strip {
+  border-top: 1px solid rgba(255, 43, 214, 0.45);
+  box-shadow: 0 -8px 26px -10px rgba(255, 43, 214, 0.55);
+}
+.hub-strip-title {
+  color: rgba(214, 194, 255, 0.78);
+  text-shadow: 0 0 10px rgba(255, 43, 214, 0.4);
+}
+.hub-tab-btn { border-color: rgba(0, 229, 255, 0.34); color: #bff4ff; }
+.hub-tab-btn:hover {
+  border-color: #00e5ff; color: #fff;
+  box-shadow: 0 0 16px -2px rgba(0, 229, 255, 0.6);
+}
+.hub-tab-btn.is-active {
+  background: #ff2bd6; border-color: #ff2bd6; color: #2b0030;
+  box-shadow: 0 0 20px -2px rgba(255, 43, 214, 0.8);
+}
+.hub-toggle-btn { border-color: rgba(255, 43, 214, 0.4); }
+.hub-toggle-btn:hover { box-shadow: 0 0 16px -2px rgba(255, 43, 214, 0.6); }
+
+/* Consent gate, turned up to match. */
+.demo-disclaimer-modal {
+  border-color: rgba(255, 43, 214, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(255, 43, 214, 0.12),
+    0 0 60px -10px rgba(255, 43, 214, 0.45),
+    0 40px 90px -30px rgba(0, 0, 0, 0.9);
+}
+.demo-disclaimer-title { text-shadow: 0 0 18px rgba(255, 43, 214, 0.55); }
+.demo-disclaimer-button {
+  background: #ff2bd6; border-color: #ff2bd6;
+  box-shadow: 0 0 24px -2px rgba(255, 43, 214, 0.7);
+}
+
+/* ── CRT: scanlines + vignette ───────────────────────────────────────────
+   The shell's own stylesheet sets `body::before, body::after
+   { display: none }` to stop shared.css textures bleeding around the
+   iframe, so this has to switch ::after back on explicitly. Defining it
+   in full means the old texture doesn't come back with it. */
+body::after {
+  display: block !important;
+  content: "";
+  position: fixed; inset: 0;
+  z-index: 99999; pointer-events: none;
+  background:
+    repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
+    radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(10, 1, 25, 0.48) 100%);
+}
