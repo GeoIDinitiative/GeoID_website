@@ -1913,6 +1913,14 @@ export function updateLabelVisibility(
       if (candidate.entry.line) {
         candidate.entry.line.visible = true;
       }
+      // Record the placement. Every entry was pre-initialised to
+      // { hidden: true } above, and this branch used to `continue` without
+      // overwriting it — so the label survived the solve frame and then
+      // vanished on the next APPLY frame, where the per-entry loop forces
+      // sprite.visible = false and the apply pass skips anything still marked
+      // hidden. In orbit the camera sits still and almost every frame solves,
+      // which hid it; in flight the camera never stops and most frames apply.
+      candidate.entry._pc = { phase: 'abs', localPos: candidate.entry.sprite.position.clone() };
       occupiedRects.push(candidate.rect);
       continue;
     }

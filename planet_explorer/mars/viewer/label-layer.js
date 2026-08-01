@@ -1871,6 +1871,14 @@ export function updateLabelVisibility(
       if (candidate.entry.line) {
         candidate.entry.line.visible = true;
       }
+      // Record the placement. Every entry was pre-initialised to
+      // { hidden: true } above, and this branch used to `continue` without
+      // overwriting it — so the label survived the solve frame and then
+      // vanished on the next APPLY frame, where the per-entry loop forces
+      // sprite.visible = false and the apply pass skips anything still marked
+      // hidden. In orbit the camera sits still and almost every frame solves,
+      // which hid it; in flight the camera never stops and most frames apply.
+      candidate.entry._pc = { phase: 'abs', localPos: candidate.entry.sprite.position.clone() };
       occupiedRects.push(candidate.rect);
       continue;
     }
@@ -1996,6 +2004,20 @@ export function updateLabelVisibility(
     }
     occupiedRects.push(candidate.rect);
   } // end _needsSolve commit loop
+  if (_needsSolve) {
+    // Diagnostic surface for the flight-label work: which layout ran, how many
+    // entries reached the solve, how many became candidates, and how many were
+    // actually committed visible.
+    let _llWin = 0;
+    for (const e of entries) if (e.sprite && e.sprite.visible) _llWin++;
+    window.__llStats = {
+      mosaic: !!useMosaicCloseLayout,
+      entries: entries.length,
+      candidates: candidates.length,
+      winners: _llWin,
+      solves: ((window.__llStats && window.__llStats.solves) || 0) + 1,
+    };
+  }
 
   if (_needsSolve) {
     entries._sv.q = camera.quaternion.clone();
