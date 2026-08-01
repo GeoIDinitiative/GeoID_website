@@ -24,7 +24,7 @@
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@700&family=Orbitron:wght@500;700;800&display=swap" rel="stylesheet">
+  <!-- font link consolidated by v2 skin -->
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
     /* ── Theme variables ──────────────────────────────────────────────────────── */
@@ -1627,6 +1627,31 @@
       }
     }
 
+  </style>
+  <link rel="stylesheet" href="/styles/v2-site.css">
+  <script src="/scripts/v2-site.js" defer></script>
+
+  <style id="v2-page-fixes">
+    /* v2 alignment for the Earth Explorer landing. This page drives its
+       palette through local custom properties, so redefining them here is
+       the entire re-skin. Neon green retires; map marker semantics
+       (live/in-dev/planned) stay legible. */
+    :root {
+      --green-border: rgba(255, 255, 255, 0.14);
+      --green-glow:   rgba(53, 214, 184, 0.45);
+      --teal:         #35d6b8;
+      --teal-dim:     rgba(53, 214, 184, 0.55);
+      --amber:        #f0b542;
+      --panel-bg:     rgba(11, 13, 17, 0.88);
+      --panel-border: rgba(255, 255, 255, 0.12);
+      --text-main:    #f2f5f8;
+      --text-muted:   rgba(235, 242, 248, 0.55);
+    }
+    /* Neon product logo → monochrome white mark */
+    .earth-brand-logo, .earth-whatis-logo, img[src*="earth_explorer/assets/logo"] {
+      filter: grayscale(1) brightness(2.2) !important;
+      opacity: 0.92;
+    }
   </style>
 </head>
 

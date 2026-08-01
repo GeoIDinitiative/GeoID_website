@@ -24,7 +24,7 @@
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;500;600;700&family=Orbitron:wght@500;700;800&family=Public+Sans:wght@400;500;600;700;800&family=Archivo:wght@700&display=swap" rel="stylesheet">
+  <!-- font link consolidated by v2 skin -->
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
     body {
@@ -2197,6 +2197,98 @@
 
     @media (prefers-reduced-motion: reduce) {
       .fs-tile-badge::before { animation: none; }
+    }
+  </style>
+  <link rel="stylesheet" href="/styles/v2-site.css">
+  <script src="/scripts/v2-site.js" defer></script>
+
+  <style id="v2-page-fixes">
+    /* v2 alignment for the Planet Explorer landing. The page's magenta/lilac
+       palette is hard-coded (no local tokens), so these grouped overrides
+       retire it: one teal accent, hairline borders, v2 inks. Functional UI
+       (orrery, planet nodes, popups) keeps its behaviour. */
+
+    /* Lilac body copy → v2 muted ink */
+    .hero-subtitle, .fs-tile-desc,
+    .section-panel .section-desc, .section-panel p,
+    .learn-card p, .launch-card p, .capability-card p,
+    .feature-item span, .callout-card p, .footer-panel p {
+      color: var(--muted) !important;
+    }
+
+    /* Neon glows off the type */
+    .hero-title, .about-explorer-title, .orrery-features-label,
+    .fs-tile-title { text-shadow: none !important; }
+    .orrery-features-label { color: var(--muted) !important; }
+
+    /* Magenta borders → hairlines */
+    .about-explorer-tile, .about-explorer-tile--cyan,
+    .photo-strip, .feature-chip--geo,
+    .about-explorer-section-block, .new-worlds-content {
+      border-color: var(--line) !important;
+    }
+    .about-explorer-header::before, .about-explorer-header::after {
+      border-color: var(--line-strong) !important;
+    }
+    .about-col-heading {
+      color: var(--text) !important;
+      border-left-color: #35d6b8 !important;
+    }
+
+    /* Accent dots → teal */
+    .orrery-feature-dot, .feature-chip--geo::before {
+      background: #35d6b8 !important;
+      box-shadow: 0 0 0 3px rgba(53, 214, 184, 0.18) !important;
+    }
+
+    /* Badge pill → v2 chip */
+    .fs-tile-badge {
+      border-radius: 2px !important;
+      border-color: rgba(53, 214, 184, 0.4) !important;
+      background: rgba(53, 214, 184, 0.08) !important;
+      color: #35d6b8 !important;
+    }
+
+    /* CTAs → v2 buttons (solid white→teal / hairline ghost) */
+    .viewer-link, .membership-cta-btn {
+      border-radius: 2px !important;
+      background: #fff !important;
+      border: 1px solid #fff !important;
+      color: #08090b !important;
+      text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600;
+      box-shadow: none !important; text-shadow: none !important;
+    }
+    .viewer-link:hover, .membership-cta-btn:hover {
+      background: #35d6b8 !important; border-color: #35d6b8 !important;
+      color: #04211c !important; transform: none !important;
+    }
+    .ghost-link {
+      border-radius: 2px !important;
+      border: 1px solid var(--line-strong) !important;
+      background: transparent !important;
+      color: var(--text) !important;
+      text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600;
+    }
+    .ghost-link:hover { border-color: #fff !important; background: rgba(255,255,255,0.06) !important; }
+
+    /* Neon product logo → monochrome white mark */
+    .fs-tile-logo, .whatis-logo, img[src*="explorer_logo"] {
+      filter: grayscale(1) brightness(2.4) !important;
+      opacity: 0.92;
+    }
+    .new-worlds-rocket { filter: grayscale(1) brightness(2) !important; }
+
+    /* Feature bullets + badge pulse dot were still magenta */
+    .fs-tile-features li::before {
+      background: #35d6b8 !important;
+      box-shadow: 0 0 0 3px rgba(53, 214, 184, 0.16) !important;
+    }
+    .fs-tile-badge::before { background: #35d6b8 !important; }
+
+    /* Selected planet node: keep the affordance, recolour the glow */
+    .planet-node:focus-visible .planet-icon,
+    .planet-node.is-selected .planet-icon {
+      filter: drop-shadow(0 0 14px rgba(53, 214, 184, 0.65)) !important;
     }
   </style>
 </head>

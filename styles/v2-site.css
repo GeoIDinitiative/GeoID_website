@@ -1,0 +1,319 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   GeoID — v2 site skin
+   Loaded LAST on every content page (after shared.css and after each
+   page's inline <style>), so equal-specificity rules here win.
+
+   Two mechanisms do most of the work with almost no per-page risk:
+
+   1. Font remapping. Pages request "Public Sans", "Source Sans 3" and
+      "Orbitron" by name; the @font-face rules below re-point those family
+      names at Archivo/Inter variable fonts. Every heading and body run on
+      the site changes typeface with zero selector fights.
+
+   2. Token redefinition. shared.css and the page-local styles both consume
+      var(--panel), var(--line), var(--radius), var(--gold)… — redefining
+      the tokens re-skins everything that was built on them.
+
+   Viewers (planet_explorer/, earth_explorer/etna+viewer, myGeoID app,
+   transit, flight_sim) do NOT load this file.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Font remaps (variable fonts, latin subset) ──────────────────── */
+@font-face {
+  font-family: "Public Sans";           /* headings & labels site-wide */
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Source Sans 3";         /* body copy site-wide */
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Orbitron";              /* the sci-fi face — retired */
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Archivo";               /* pin to the same version/file */
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: "Exo 2";                 /* explorer landing face - retired */
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) format('woff2');
+}
+
+/* ── 2. Tokens ──────────────────────────────────────────────────────── */
+:root {
+  --bg-0: #060709;
+  --bg-1: #0b0d11;
+  --bg-2: #10141a;
+
+  --panel:        rgba(11, 13, 17, 0.88);
+  --panel-strong: rgba(13, 16, 21, 0.96);
+
+  --line:        rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.22);
+
+  --text:  #f2f5f8;
+  --muted: rgba(235, 242, 248, 0.55);
+
+  /* One accent. The old palette's gold/cyan/green all collapse into it;
+     amber is reserved for "in development" badges. */
+  --gold:      #35d6b8;
+  --gold-soft: rgba(53, 214, 184, 0.10);
+  --cyan:      #35d6b8;
+  --cyan-soft: rgba(53, 214, 184, 0.10);
+  --green:     #35d6b8;
+  --purple:    #9aa8ff;
+
+  --shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
+  --radius: 2px;
+
+  --v2-ease: cubic-bezier(0.16, 0.84, 0.44, 1);
+}
+
+/* ── 3. Base ────────────────────────────────────────────────────────── */
+html, body { background: var(--bg-0); }
+body {
+  /* Replace the three-way radial wash with near-flat depth. */
+  background:
+    radial-gradient(100rem 60rem at 85% -20%, rgba(53, 214, 184, 0.05), transparent 60%),
+    linear-gradient(180deg, #05060a 0%, var(--bg-0) 40%, var(--bg-0) 100%);
+  letter-spacing: -0.006em;
+}
+::selection { background: #35d6b8; color: #04211c; }
+
+h1, h2, h3, h4 { letter-spacing: -0.03em; }
+
+/* ── 4. Navigation ──────────────────────────────────────────────────── */
+.site-nav {
+  background: rgba(6, 7, 9, 0.82);
+  backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: none;
+  border-bottom: 1px solid var(--line);
+}
+.nav-wordmark {
+  font-family: "Archivo", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+.nav-links > li > a,
+.nav-dropdown-toggle {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(235, 242, 248, 0.72);
+  background: none;
+  border: none;
+  text-shadow: none;
+  border-radius: 2px;
+}
+.nav-links > li > a:hover,
+.nav-dropdown-toggle:hover { color: #fff; background: none; }
+.nav-links > li > a.active {
+  color: #fff;
+  background: none;
+  box-shadow: none;
+  text-shadow: none;
+  border-bottom: 1px solid #35d6b8;
+  border-radius: 0;
+}
+.nav-dropdown-menu {
+  border-radius: 2px;
+  border: 1px solid var(--line);
+  background: rgba(11, 13, 17, 0.97);
+  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8);
+}
+.nav-dropdown-menu a {
+  border-radius: 2px;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: rgba(235, 242, 248, 0.72);
+}
+.nav-dropdown-menu a:hover,
+.nav-dropdown-menu a.active { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.nav-act, .nav-act-donate {
+  border-radius: 2px;
+  background: #fff;
+  border: 1px solid #fff;
+  color: #08090b;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  box-shadow: none;
+}
+.nav-act:hover, .nav-act-donate:hover {
+  background: #35d6b8;
+  border-color: #35d6b8;
+  color: #04211c;
+  transform: none;
+}
+.nav-toggle { border-radius: 2px; border: 1px solid var(--line-strong); background: transparent; }
+
+/* ── 5. Buttons ─────────────────────────────────────────────────────── */
+.btn-primary, .btn-ghost, .btn-secondary {
+  border-radius: 2px;
+  font-family: "Public Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: background .3s var(--v2-ease), color .3s var(--v2-ease),
+              border-color .3s var(--v2-ease);
+}
+.btn-primary {
+  background: #fff;
+  border: 1px solid #fff;
+  color: #08090b;
+  box-shadow: none;
+}
+.btn-primary:hover {
+  background: #35d6b8;
+  border-color: #35d6b8;
+  color: #04211c;
+  transform: none;
+  box-shadow: none !important;
+}
+.btn-ghost, .btn-secondary {
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+}
+.btn-ghost:hover, .btn-secondary:hover {
+  border-color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+  transform: none;
+}
+
+/* ── 6. Shared components ───────────────────────────────────────────── */
+.eyebrow, .section-label, .tile-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: rgba(235, 242, 248, 0.5);
+}
+.badge { border-radius: 2px; letter-spacing: 0.14em; }
+.glass-panel, .section-panel {
+  border-radius: 2px;
+  background: var(--bg-1);
+  backdrop-filter: none;
+}
+.section-panel::before { display: none; }   /* the top shimmer strip */
+.divider { border-color: var(--line); }
+
+/* Cards get flat surfaces, hairlines and a single hover behaviour. */
+.feature-card, .doc-card, .solver-card, .hazard-card, .source-card,
+.catalog-card, .course-card, .resource-card, .result-card, .stat-card,
+.module-card, .metric-card, .mission-card, .panel-card, .launch-card {
+  border-radius: 2px;
+  background: var(--bg-1);
+  transition: background .3s var(--v2-ease), border-color .3s var(--v2-ease),
+              transform .3s var(--v2-ease);
+}
+
+/* Tracer hover effect (shared.css) fights the flat language — off. */
+.has-tracer:hover,
+.has-tracer:hover:not(:has(.has-tracer:hover)) { box-shadow: none; }
+
+/* ── 7. Footer ──────────────────────────────────────────────────────── */
+.site-footer {
+  border-top: 1px solid var(--line);
+  background: var(--bg-0);
+}
+
+/* ── 8. Rise-into-view (applied by v2-site.js) ──────────────────────── */
+.anim .v2-rise {
+  opacity: 0;
+  transform: translateY(46px) scale(0.97);
+  filter: blur(6px);
+  will-change: opacity, transform, filter;
+}
+.anim .v2-rise.in {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  transition: opacity .9s var(--v2-ease), transform 1s var(--v2-ease),
+              filter .9s var(--v2-ease);
+  transition-delay: var(--v2-d, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim .v2-rise { opacity: 1; transform: none; filter: none; transition: none; }
+}
+
+/* ── 9. Normalization of page-local literals ────────────────────────────
+   Sub-pages hard-code radii (1.35rem panels, 999px pills) and gradient
+   submit buttons that the token layer can't reach. These win with
+   !important on purpose — the flat 2px surface is the design language.
+   Guards: only structural containers and form controls; images, avatars,
+   icons and dots keep their shapes. */
+div[class*="panel"], section[class*="panel"],
+div[class*="card"]:not([class*="icon"]), a[class*="card"],
+div[class*="tile"], a[class*="tile"],
+div[class*="header"], div[class*="body"],
+.legal-header, .legal-body,
+div[class*="form"], form[class*="form"] {
+  border-radius: 2px !important;
+}
+.page-jump a, .page-utility, .page-crumb {
+  border-radius: 2px !important;
+}
+.page-jump a.active {
+  background: rgba(53, 214, 184, 0.10) !important;
+  color: #35d6b8 !important;
+  box-shadow: none !important;
+}
+
+/* Form controls: squared, hairline, single focus colour. */
+input[type="text"], input[type="email"], input[type="search"],
+input[type="tel"], input[type="url"], textarea, select {
+  border-radius: 2px !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  color: var(--text) !important;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: #35d6b8 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(53, 214, 184, 0.18) !important;
+}
+
+/* Submit buttons: page-local gradients → the v2 solid. */
+button[type="submit"], input[type="submit"],
+.submit-btn, .form-submit, .contact-submit {
+  border-radius: 2px !important;
+  background: #fff !important;
+  border: 1px solid #fff !important;
+  color: #08090b !important;
+  font-family: "Public Sans", sans-serif !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  box-shadow: none !important;
+  transition: background .3s var(--v2-ease), border-color .3s var(--v2-ease),
+              color .3s var(--v2-ease) !important;
+}
+button[type="submit"]:hover, input[type="submit"]:hover,
+.submit-btn:hover, .form-submit:hover, .contact-submit:hover {
+  background: #35d6b8 !important;
+  border-color: #35d6b8 !important;
+  color: #04211c !important;
+  transform: none !important;
+}

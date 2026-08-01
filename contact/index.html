@@ -25,7 +25,7 @@
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- font link consolidated by v2 skin -->
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
     /* ── Single contact tile — viewport-filling ── */
@@ -376,6 +376,8 @@
       .footer-bottom { flex-direction: column; text-align: center; }
     }
   </style>
+  <link rel="stylesheet" href="/styles/v2-site.css">
+  <script src="/scripts/v2-site.js" defer></script>
 </head>
 <body>
 
@@ -630,7 +632,7 @@
             });
             if (res.ok) {
               contactForm.reset();
-              if (formStatus) { formStatus.style.color = '#4ade80'; formStatus.textContent = '✓ Message sent — we\'ll be in touch soon.'; }
+              if (formStatus) { formStatus.style.color = '#35d6b8'; formStatus.textContent = '✓ Message sent — we\'ll be in touch soon.'; }
             } else {
               throw new Error('Server error');
             }

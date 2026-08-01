@@ -25,7 +25,7 @@
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Work+Sans:wght@300;400;600;700;800&family=Archivo:wght@700;800&display=swap" rel="stylesheet">
+  <!-- font link consolidated by v2 skin -->
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
     /* ── Fixed background image — layered into body to beat shared.css background paint ── */
@@ -35,7 +35,7 @@
         url('/GeoID_initiative/photos/valencia-flooding.jpg') center / cover no-repeat fixed,
         radial-gradient(circle at 12% 18%, rgba(88,198,179,0.13), transparent 26rem),
         radial-gradient(circle at 86% 10%, rgba(79,195,247,0.08), transparent 24rem),
-        radial-gradient(circle at 66% 86%, rgba(70,40,145,0.12), transparent 32rem),
+        radial-gradient(circle at 66% 86%, rgba(16, 20, 26,0.12), transparent 32rem),
         linear-gradient(180deg, #050b12 0%, #050d14 38%, #07131c 100%);
     }
 
@@ -147,8 +147,8 @@
     }
     .phase-0::before { background: var(--cyan); }
     .phase-1::before { background: var(--gold, #f7bd68); }
-    .phase-2::before { background: #7ed0ff; }
-    .phase-3::before { background: #b9a4ff; }
+    .phase-2::before { background: #35d6b8; }
+    .phase-3::before { background: #35d6b8; }
     .phase-head {
       display: flex; align-items: baseline;
       justify-content: space-between; gap: 1rem; flex-wrap: wrap;
@@ -222,6 +222,8 @@
       .pi { grid-template-columns: 1fr; }
     }
   </style>
+  <link rel="stylesheet" href="/styles/v2-site.css">
+  <script src="/scripts/v2-site.js" defer></script>
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">
