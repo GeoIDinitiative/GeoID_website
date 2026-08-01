@@ -272,35 +272,40 @@ body {
    positioned ancestor, so the centred tabs still resolve against it. */
 .hub-strip { position: sticky; }
 @media (min-width: 1100px) {
-  .hub-tab-list {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    margin: 0;
-  }
-  /* Taking the tabs out of flow frees the readout to slide left underneath
-     them. The tab block is ~594px, so the clear space either side of centre
-     is (50% - 297px) minus the action buttons — hence the 500px allowance.
-     The readout truncates rather than colliding. */
+  /* Centred IN FLOW, not absolutely.
+     Absolute positioning kept producing collisions: a positioned child of
+     a flex container takes the container's start corner as its static
+     position, so once the context banner made the strip two rows the tabs
+     anchored to row 1 and sat on the location fields. Anchoring to the
+     bottom instead just moved the problem — out-of-flow tabs contribute no
+     height, so the strip never grew to fit them and they overlapped the
+     banner by 12px.
+     Auto margins centre the tabs in the space the title and actions leave.
+     A few px off true centre when those two differ in width, and it can
+     never overlap anything. */
+  .hub-tab-list { margin-left: auto !important; margin-right: auto !important; }
+  /* The readout still truncates rather than pushing the tabs off centre. */
   .hub-pin-display {
-    margin-left: auto;
-    max-width: calc(50% - 500px);
     min-width: 0;
+    max-width: 24%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .hub-strip-title { max-width: calc(50% - 320px); overflow: hidden; white-space: nowrap; }
+  .hub-strip-title { white-space: nowrap; }
 
-  /* When the drawer is open the same coordinates, elevation, temp, pressure
-     and precipitation are spelled out in full in its context strip — so the
-     abbreviated copy in the bar is redundant. Dropping it gives the tabs the
-     whole width to sit in. */
-  .hub-strip:has(.hub-toggle-btn.is-open) .hub-pin-display { display: none; }
-  /* The auto margin that right-aligns the trailing group lives on the
-     readout — so when the readout is hidden it has to move to the first
-     button, or Exit/Analysis Hub collapse back against the title. */
-  .hub-strip:has(.hub-toggle-btn.is-open) .hub-action-btn.is-danger { margin-left: auto; }
+  /* The context banner is part of the strip now, so it is on screen in
+     every state — which makes the abbreviated readout beside the tabs a
+     duplicate of the row directly above it whenever a pin exists. Hiding
+     it removes the duplication and evens up the two sides, which is what
+     lets the tabs sit near centre. It still appears before a pin is
+     placed, where it carries the "no pin" state. */
+  .hub-strip:has(.hub-chip-k) .hub-pin-display { display: none; }
+  /* No auto margin on the actions. Flexbox splits free space equally
+     between ALL auto margins, so a third one here stole a share from the
+     tabs and pushed them left of centre. With only the tab list claiming
+     auto margins, the space divides evenly either side of it and the
+     trailing group lands flush right on its own. */
 }
 
 /* ═══ METRIC LAYOUT ══════════════════════════════════════════════════════
