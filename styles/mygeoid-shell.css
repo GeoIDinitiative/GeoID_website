@@ -350,12 +350,19 @@ body {
 .risk-summary-groups { display: block; }
 .risk-section { margin-bottom: 1.1rem !important; }
 
-.risk-summary {
+/* The indicator row and the chart row have to share one column system or
+   they cannot line up. They were on different ones: minmax(190px) with a
+   0.8rem gap against minmax(300px) with 0.55rem — different track counts
+   AND different gutters, so every column drifted further out of step
+   across the row. Both now use the identical template below. */
+.risk-summary,
+.market-grid {
   display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)) !important;
-  gap: 0.8rem !important;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
+  gap: 0.7rem !important;
   margin-bottom: 0 !important;
 }
+.risk-summary { margin-bottom: 0 !important; }
 
 /* The tag that marks a non-primary tile. */
 .risk-group {
@@ -375,137 +382,6 @@ body {
    and the label reserves the tag's width so long names cannot run under it. */
 .risk-tile:has(.risk-group)::after { display: none; }
 .risk-tile:has(.risk-group) .risk-label { padding-right: 2.5rem; white-space: nowrap; }
-
-/* ═══ SECTION BANNERS ════════════════════════════════════════════════════
-   Was a small grey caption. Now a system banner: a lit chevron, the label
-   in the display face, and a rule running out to the right edge. This is
-   the single biggest reason the hub now has a hierarchy you can see from
-   across the room. */
-.risk-section { margin-bottom: 1.6rem; }
-.risk-section-title,
-.parameter-section-title {
-  display: flex !important;
-  align-items: center;
-  gap: 12px;
-  font-family: "Orbitron", "Exo 2", sans-serif !important;
-  font-weight: 400 !important;
-  font-size: 0.82rem !important;
-  letter-spacing: 0.2em !important;
-  text-transform: uppercase;
-  color: #ffffff !important;
-  text-shadow: 0 0 16px rgba(255, 43, 214, 0.6);
-  border-bottom: 0 !important;
-  padding-bottom: 0 !important;
-  margin: 0 0 0.95rem !important;
-}
-.risk-section-title::before,
-.parameter-section-title::before {
-  content: "";
-  flex: 0 0 auto;
-  width: 11px; height: 13px;
-  background: #ff2bd6;
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-  box-shadow: 0 0 14px rgba(255, 43, 214, 0.9);
-}
-.risk-section-title::after,
-.parameter-section-title::after {
-  content: "";
-  flex: 1 1 auto;
-  height: 1px;
-  background: linear-gradient(90deg, rgba(255, 43, 214, 0.65), rgba(255, 43, 214, 0.05));
-}
-
-/* ═══ STRIP LAYOUT — tabs centred ════════════════════════════════════════
-   Three zones: label left, tabs dead-centre, readout + actions right.
-   The tab list is taken out of flow so it centres on the strip itself
-   rather than on whatever space the other two happen to leave. */
-.hub-strip { position: relative; }
-@media (min-width: 1100px) {
-  .hub-tab-list {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    margin: 0;
-  }
-  /* Taking the tabs out of flow frees the readout to slide left underneath
-     them. The tab block is ~594px, so the clear space either side of centre
-     is (50% - 297px) minus the action buttons — hence the 500px allowance.
-     The readout truncates rather than colliding. */
-  .hub-pin-display {
-    margin-left: auto;
-    max-width: calc(50% - 500px);
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .hub-strip-title { max-width: calc(50% - 320px); overflow: hidden; white-space: nowrap; }
-
-  /* When the drawer is open the same coordinates, elevation, temp, pressure
-     and precipitation are spelled out in full in its context strip — so the
-     abbreviated copy in the bar is redundant. Dropping it gives the tabs the
-     whole width to sit in. */
-  .hub-strip:has(.hub-toggle-btn.is-open) .hub-pin-display { display: none; }
-  /* The auto margin that right-aligns the trailing group lives on the
-     readout — so when the readout is hidden it has to move to the first
-     button, or Exit/Analysis Hub collapse back against the title. */
-  .hub-strip:has(.hub-toggle-btn.is-open) .hub-action-btn.is-danger { margin-left: auto; }
-}
-
-/* ═══ METRIC LAYOUT ══════════════════════════════════════════════════════
-   4 primary tiles and 2 model-signal tiles cannot share one grid without
-   either stretching to fill (two 690px tiles holding one number each) or
-   leaving dead columns. Both were tried and both looked wrong.
-
-   So the groups get different weights on purpose, which is also the
-   honest hierarchy: the primary indicators are the readout, the model
-   signals are diagnostics about it.
-
-     first group   full-width grid of large hero tiles
-     later groups  a compact strip of content-width modules
-   ═══════════════════════════════════════════════════════════════════════ */
-.risk-summary-groups { display: block; }
-.risk-section { margin-bottom: 1.6rem !important; }
-.risk-section:last-child { margin-bottom: 0.4rem !important; }
-
-/* Primary — hero tiles, one full row */
-.risk-section:first-child .risk-summary {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)) !important;
-  gap: 0.85rem !important;
-  margin-bottom: 0 !important;
-}
-
-/* Secondary groups — compact modules, sized to content, never stretched */
-.risk-section:not(:first-child) .risk-summary {
-  display: flex !important;
-  flex-wrap: wrap;
-  gap: 0.7rem !important;
-  margin-bottom: 0 !important;
-}
-.risk-section:not(:first-child) .risk-tile {
-  flex: 0 0 auto;
-  min-width: 210px;
-  padding: 0.7rem 1.1rem 0.65rem 1rem !important;
-}
-.risk-section:not(:first-child) .risk-value {
-  font-size: 1.25rem !important;
-  margin: 0.15rem 0 0.1rem !important;
-}
-.risk-section:not(:first-child) .risk-tile::after { display: none; }
-.risk-section:not(:first-child) .risk-section-title { opacity: 0.92; }
-
-/* The secondary banner is a lighter weight than the primary one, so the
-   eye still lands on Primary Indicators first. */
-.risk-section:not(:first-child) .risk-section-title {
-  font-size: 0.72rem !important;
-  color: rgba(240, 233, 255, 0.88) !important;
-  text-shadow: 0 0 12px rgba(255, 43, 214, 0.4);
-}
-.risk-section:not(:first-child) .risk-section-title::before {
-  width: 8px; height: 10px;
-  background: rgba(255, 43, 214, 0.75);
-}
 
 .risk-tile {
   position: relative;
