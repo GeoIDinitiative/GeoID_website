@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v12';  // v12: ember scoped to Etna only
+const STATIC_CACHE = 'geoid-site-v13';  // v13: orb caption dropped, hub strip centred
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

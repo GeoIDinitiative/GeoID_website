@@ -130,6 +130,13 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--skin-chrome); 
   color: var(--skin-data) !important;
 }
 
+/* The caption under the hemisphere orb reported the same lat/lon as the
+   cursor readout in the bottom-right corner. Dropped: the orb is a compass,
+   not a second instrument, and it reads cleaner as just the graphic. Hidden
+   rather than deleted so each viewer's script can keep writing to it
+   without a null check. */
+.locator-readout { display: none !important; }
+
 /* ── The globe/planet canvas ────────────────────────────────────────────
    A modest lift so the render sits in the same world as the chrome. Kept
    low: this is real mission imagery and shouldn't be cooked. */

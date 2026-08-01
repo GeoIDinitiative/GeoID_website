@@ -1337,11 +1337,16 @@
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="sources"      aria-controls="hub-panel-sources">Data Sources</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="metadata"     aria-controls="hub-panel-metadata">Metadata</button>
       </div>
-      <span class="hub-pin-display" id="hub-pin-display" aria-live="polite">No pin placed</span>
-      <button class="hub-action-btn is-danger" id="hub-exit-selection" type="button" disabled>Exit</button>
-      <button class="hub-toggle-btn" id="hub-toggle" aria-expanded="false" aria-controls="hub-drawer">
-        Analysis Hub <span class="hub-chevron" aria-hidden="true">▲</span>
-      </button>
+      <!-- Grouped so the strip has three zones the layout can balance: title,
+           tabs, actions. Loose siblings could not be weighed against the
+           title, which is why the tabs never sat on centre. -->
+      <div class="hub-strip-actions">
+        <span class="hub-pin-display" id="hub-pin-display" aria-live="polite">No pin placed</span>
+        <button class="hub-action-btn is-danger" id="hub-exit-selection" type="button" disabled>Exit</button>
+        <button class="hub-toggle-btn" id="hub-toggle" aria-expanded="false" aria-controls="hub-drawer">
+          Analysis Hub <span class="hub-chevron" aria-hidden="true">▲</span>
+        </button>
+      </div>
     </div>
 
   </main>
