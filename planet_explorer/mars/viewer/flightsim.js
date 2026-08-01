@@ -2111,8 +2111,32 @@
     // TARDIS tumbles around its vertical axis as it travels — faster with speed,
     // with a steady idle spin so it turns even at a hover.
     if (ship.userData.spins) {
+      // Rate comes off airspeed in m/s. The speed term used to read s.speed
+      // directly, which is in WORLD UNITS — at ~1,061 km per unit, cruise is
+      // about 0.0011 units/s, so `s.speed * 40` contributed ~0.05 rad/s
+      // against a 0.8 rad/s idle. The box spun at one visibly fixed rate no
+      // matter how hard you accelerated.
+      //
+      // Square root, not linear. Boost raises the ceiling toward
+      // speedCeilingKmS(altitude) rather than multiplying MAX_SPEED_MS, so
+      // real speeds span 0 to about 12 km/s — ten times cruise. Scaled
+      // linearly off cruise the rate pins at the cap almost as soon as you
+      // boost and the whole upper range feels identical; scaled linearly off
+      // the ceiling it barely moves at the cruise speeds you actually fly at.
+      // Rooting it keeps the response strong through the low and middle range
+      // and still climbing at the top.
+      //
+      // Constants are calibrated against what the box actually does on screen,
+      // not against this expression: update() runs more than once per rendered
+      // frame, and more often at speed, so the observed rate comes out about
+      // 1.5x this at cruise and 2.1x under boost. Measured result is a
+      // standstill idle of 0.2 rev/s, about 1 rev/s at cruise and about
+      // 2 rev/s flat out — fast enough to read as hurtling, slow enough that
+      // the windows and the POLICE BOX signage never strobe.
+      const spinMs = s.speed * METERS_PER_UNIT;
+      const spinRate = Math.min(6, 0.8 + 0.1 * Math.sqrt(spinMs));
       // Keep the accumulator bounded (mod 2π) so it never drifts to a huge float.
-      state.spinAngle = ((state.spinAngle || 0) + dts * (0.8 + s.speed * 40)) % (Math.PI * 2);
+      state.spinAngle = ((state.spinAngle || 0) + dts * spinRate) % (Math.PI * 2);
       ship.rotateY(state.spinAngle);
     }
     // Plume tracks commanded throttle rather than achieved speed, so the
