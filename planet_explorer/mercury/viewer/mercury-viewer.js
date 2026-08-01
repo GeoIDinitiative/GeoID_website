@@ -2813,7 +2813,11 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       return vectorToLatLon(normal.normalize());
     }
 
-    const MERCURY_RADIUS_METERS = 3396190;
+    // Mercury's mean radius. Was 3396190 — Mars's — left behind when this
+    // viewer was forked, while MERCURY_MEAN_RADIUS_KM above stayed correct.
+    // It feeds the scale bar and the tile-scale gates, so the bar was reading
+    // 39% long.
+    const MERCURY_RADIUS_METERS = 2439700;
     const HUD_BBOX_RAYCASTER = new THREE.Raycaster();
     const HUD_BBOX_SPHERE = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 3.2);
     const HUD_BBOX_HIT = new THREE.Vector3();

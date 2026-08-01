@@ -2790,7 +2790,11 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       return vectorToLatLon(normal.normalize());
     }
 
-    const VENUS_RADIUS_METERS = 3396190;
+    // Venus's mean radius. Was 3396190 — Mars's — left behind when this
+    // viewer was forked, while VENUS_MEAN_RADIUS_KM above stayed correct.
+    // It feeds the scale bar and the tile-scale gates, so the bar was reading
+    // 44% short.
+    const VENUS_RADIUS_METERS = 6051800;
     const HUD_BBOX_RAYCASTER = new THREE.Raycaster();
     const HUD_BBOX_SPHERE = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 3.2);
     const HUD_BBOX_HIT = new THREE.Vector3();
