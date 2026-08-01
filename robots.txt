@@ -1,0 +1,9 @@
+# geoidinitiative.com
+User-agent: *
+Allow: /
+Disallow: /account/
+Disallow: /membership/
+Disallow: /sign-in/
+Disallow: /dashboard/
+
+Sitemap: https://geoidinitiative.com/sitemap.xml

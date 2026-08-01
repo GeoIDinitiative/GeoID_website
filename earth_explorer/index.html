@@ -24,6 +24,8 @@
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2">
   <!-- font link consolidated by v2 skin -->
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
@@ -2110,7 +2112,8 @@
         <video controls preload="metadata" playsinline
           style="width:100%;display:block;max-height:70vh;background:#000;border-top:1px solid rgba(0,225,210,0.15);"
           aria-label="Earth Explorer — Mount Etna viewer demonstration">
-          <source src="/assets/etna_viewer_demo_audio.webm" type="video/webm">
+          <!-- 720p re-encode (~9 MB); the 82 MB original is out of the tree. -->
+          <source src="/assets/opt/etna_demo.webm" type="video/webm">
         </video>
 
       </article>
