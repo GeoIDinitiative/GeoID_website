@@ -24,8 +24,8 @@
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2">
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <!-- font link consolidated by v2 skin -->
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
@@ -2234,21 +2234,21 @@
     }
     .about-col-heading {
       color: var(--text) !important;
-      border-left-color: #35d6b8 !important;
+      border-left-color: var(--accent) !important;
     }
 
     /* Accent dots → teal */
     .orrery-feature-dot, .feature-chip--geo::before {
-      background: #35d6b8 !important;
-      box-shadow: 0 0 0 3px rgba(53, 214, 184, 0.18) !important;
+      background: var(--accent) !important;
+      box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.18) !important;
     }
 
     /* Badge pill → v2 chip */
     .fs-tile-badge {
       border-radius: 2px !important;
-      border-color: rgba(53, 214, 184, 0.4) !important;
-      background: rgba(53, 214, 184, 0.08) !important;
-      color: #35d6b8 !important;
+      border-color: rgba(var(--accent-rgb), 0.4) !important;
+      background: rgba(var(--accent-rgb), 0.08) !important;
+      color: var(--accent) !important;
     }
 
     /* CTAs → v2 buttons (solid white→teal / hairline ghost) */
@@ -2261,7 +2261,7 @@
       box-shadow: none !important; text-shadow: none !important;
     }
     .viewer-link:hover, .membership-cta-btn:hover {
-      background: #35d6b8 !important; border-color: #35d6b8 !important;
+      background: var(--accent) !important; border-color: var(--accent) !important;
       color: #04211c !important; transform: none !important;
     }
     .ghost-link {
@@ -2282,17 +2282,18 @@
 
     /* Feature bullets + badge pulse dot were still magenta */
     .fs-tile-features li::before {
-      background: #35d6b8 !important;
-      box-shadow: 0 0 0 3px rgba(53, 214, 184, 0.16) !important;
+      background: var(--accent) !important;
+      box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.16) !important;
     }
-    .fs-tile-badge::before { background: #35d6b8 !important; }
+    .fs-tile-badge::before { background: var(--accent) !important; }
 
     /* Selected planet node: keep the affordance, recolour the glow */
     .planet-node:focus-visible .planet-icon,
     .planet-node.is-selected .planet-icon {
-      filter: drop-shadow(0 0 14px rgba(53, 214, 184, 0.65)) !important;
+      filter: drop-shadow(0 0 14px rgba(var(--accent-rgb), 0.65)) !important;
     }
   </style>
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
 </head>
 <body>
 

@@ -25,8 +25,8 @@
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2">
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <!-- font link consolidated by v2 skin -->
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
@@ -53,7 +53,7 @@
     .hero-panel {
       padding: clamp(1.5rem, 3vw, 2.4rem);
       background:
-        radial-gradient(circle at 14% 18%, rgba(53, 214, 184, 0.12), transparent 18rem),
+        radial-gradient(circle at 14% 18%, rgba(var(--accent-rgb), 0.12), transparent 18rem),
         radial-gradient(circle at 84% 16%, rgba(248, 190, 103, 0.10), transparent 16rem),
         linear-gradient(160deg, rgba(6, 13, 23, 0.96), rgba(8, 16, 28, 0.88));
     }
@@ -67,7 +67,7 @@
       text-transform: uppercase;
     }
 
-    .hero-panel h1 span { color: #35d6b8; }
+    .hero-panel h1 span { color: var(--accent); }
 
     .hero-panel p {
       color: var(--muted);
@@ -223,6 +223,7 @@
   </style>
   <link rel="stylesheet" href="/styles/v2-site.css">
   <script src="/scripts/v2-site.js" defer></script>
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">

@@ -25,20 +25,20 @@
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2">
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <!-- font link consolidated by v2 skin -->
   <link rel="stylesheet" href="/styles/shared.css">
   <style>
     /* ── Page-level overrides ── */
     /* Overview page: re-tint the cyan accent to royal blue. Every rule
-       below that references --cyan or rgba(53, 214, 184, …) inherits
+       below that references --cyan or rgba(var(--accent-rgb), …) inherits
        this. The few literal rgb(53, 214, 184,…) sites further down get
        targeted overrides via .page-wrap descendants. */
     .page-wrap {
       padding-top: var(--nav-h);
-      --cyan: #35d6b8;
-      --cyan-soft: rgba(53, 214, 184, 0.12);
+      --cyan: var(--accent);
+      --cyan-soft: rgba(var(--accent-rgb), 0.12);
     }
     /* Literal cyan rgba() sites — repaint to the same royal blue. */
     .page-wrap [class*="-tile"],
@@ -83,7 +83,7 @@
 
     .page-jump a:hover {
       color: var(--text);
-      background: rgba(53, 214, 184, 0.08);
+      background: rgba(var(--accent-rgb), 0.08);
       border-color: transparent;
     }
 
@@ -220,7 +220,7 @@
     .cyan-tile {
       position: relative;
       overflow: hidden;
-      border: 1.5px solid rgba(53, 214, 184, 0.55);
+      border: 1.5px solid rgba(var(--accent-rgb), 0.55);
       border-radius: 1.35rem;
       box-shadow: var(--shadow);
       margin-bottom: 1.25rem;
@@ -288,7 +288,7 @@
       width: 5px; height: 5px;
       border-radius: 50%;
       background: var(--cyan);
-      box-shadow: 0 0 7px rgba(53, 214, 184,0.62);
+      box-shadow: 0 0 7px rgba(var(--accent-rgb),0.62);
       flex-shrink: 0;
     }
 
@@ -331,9 +331,9 @@
     }
 
     .solution-card:hover {
-      border-color: rgba(53, 214, 184,0.70);
+      border-color: rgba(var(--accent-rgb),0.70);
       transform: translateY(-4px);
-      box-shadow: 0 16px 36px rgba(0,0,0,0.36), 0 0 0 1px rgba(53, 214, 184,0.12), 0 0 32px rgba(53, 214, 184,0.07);
+      box-shadow: 0 16px 36px rgba(0,0,0,0.36), 0 0 0 1px rgba(var(--accent-rgb),0.12), 0 0 32px rgba(var(--accent-rgb),0.07);
     }
 
     .solution-card-header {
@@ -348,8 +348,8 @@
       height: 44px;
       flex-shrink: 0;
       border-radius: 12px;
-      background: rgba(53, 214, 184,0.12);
-      border: 1px solid rgba(53, 214, 184,0.18);
+      background: rgba(var(--accent-rgb),0.12);
+      border: 1px solid rgba(var(--accent-rgb),0.18);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -499,7 +499,7 @@
       letter-spacing: 0.10em;
       text-transform: uppercase;
       color: var(--cyan);
-      border: 1px solid rgba(53, 214, 184,0.28);
+      border: 1px solid rgba(var(--accent-rgb),0.28);
       padding: 0.16rem 0.55rem;
       border-radius: 999px;
       margin-bottom: 0.65rem;
@@ -537,7 +537,7 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--cyan);
-      border: 1px solid rgba(53, 214, 184,0.28);
+      border: 1px solid rgba(var(--accent-rgb),0.28);
       padding: 0.28rem 0.75rem;
       border-radius: 999px;
     }
@@ -552,8 +552,8 @@
       font-weight: 700;
       letter-spacing: 0.10em;
       text-transform: uppercase;
-      color: #35d6b8;
-      border: 1px solid rgba(53, 214, 184,0.35);
+      color: var(--accent);
+      border: 1px solid rgba(var(--accent-rgb),0.35);
       padding: 0.18rem 0.6rem;
       border-radius: 999px;
       margin-bottom: 0.5rem;
@@ -561,9 +561,9 @@
     .status-live::before {
       content: '';
       width: 6px; height: 6px;
-      background: #35d6b8;
+      background: var(--accent);
       border-radius: 50%;
-      box-shadow: 0 0 6px rgba(53, 214, 184,0.8);
+      box-shadow: 0 0 6px rgba(var(--accent-rgb),0.8);
       flex-shrink: 0;
     }
     .status-dev {
@@ -587,7 +587,7 @@
       letter-spacing: 0.10em;
       text-transform: uppercase;
       color: var(--cyan);
-      border: 1px solid rgba(53, 214, 184,0.35);
+      border: 1px solid rgba(var(--accent-rgb),0.35);
       padding: 0.18rem 0.6rem;
       border-radius: 999px;
       margin-bottom: 0.5rem;
@@ -608,13 +608,13 @@
       height: auto;
       opacity: 0.92;
       filter:
-        drop-shadow(0 0 28px rgba(53, 214, 184,0.44))
+        drop-shadow(0 0 28px rgba(var(--accent-rgb),0.44))
         drop-shadow(0 4px 12px rgba(0,0,0,0.75));
     }
     .eco-stem {
       width: 2px;
       height: 2rem;
-      background: linear-gradient(to bottom, rgba(53, 214, 184,0.20), rgba(53, 214, 184,0.62));
+      background: linear-gradient(to bottom, rgba(var(--accent-rgb),0.20), rgba(var(--accent-rgb),0.62));
     }
     .eco-children {
       display: flex;
@@ -628,7 +628,7 @@
       left: calc(100% / 6);
       right: calc(100% / 6);
       height: 2px;
-      background: rgba(53, 214, 184,0.52);
+      background: rgba(var(--accent-rgb),0.52);
     }
     .eco-child {
       display: flex;
@@ -645,7 +645,7 @@
       transform: translateX(-50%);
       width: 2px;
       height: 2rem;
-      background: rgba(53, 214, 184,0.42);
+      background: rgba(var(--accent-rgb),0.42);
     }
     .eco-child-logo {
       height: clamp(2.4rem, 4vw, 3.8rem);
@@ -869,8 +869,8 @@
       padding: 1.75rem;
     }
     .track-card--explorer {
-      border: 1.5px solid rgba(53, 214, 184, 0.4);
-      background: rgba(53, 214, 184, 0.06);
+      border: 1.5px solid rgba(var(--accent-rgb), 0.4);
+      background: rgba(var(--accent-rgb), 0.06);
     }
     .track-card--mygeoid {
       border: 1.5px solid rgba(247, 189, 104, 0.4);
@@ -924,6 +924,7 @@
        explorer landings. The nav's small logo keeps its colour. */
     .hero-logo-img { filter: grayscale(1) brightness(2.1); opacity: 0.95; }
   </style>
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
 </head>
 <body>
   <nav class="site-nav" role="navigation" aria-label="Primary navigation">

@@ -73,11 +73,15 @@
 
   /* One accent. The old palette's gold/cyan/green all collapse into it;
      amber is reserved for "in development" badges. */
+  --accent:     #35d6b8;
+  --accent-hover: #55ddc0;
+  --accent-ink: #04211c;
+  --accent-rgb: 53, 214, 184;
   --gold:      #35d6b8;
-  --gold-soft: rgba(53, 214, 184, 0.10);
-  --cyan:      #35d6b8;
-  --cyan-soft: rgba(53, 214, 184, 0.10);
-  --green:     #35d6b8;
+  --gold-soft: rgba(var(--accent-rgb), 0.10);
+  --cyan:      var(--accent);
+  --cyan-soft: rgba(var(--accent-rgb), 0.10);
+  --green:     var(--accent);
   --purple:    #9aa8ff;
 
   --shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.7);
@@ -91,11 +95,11 @@ html, body { background: var(--bg-0); }
 body {
   /* Replace the three-way radial wash with near-flat depth. */
   background:
-    radial-gradient(100rem 60rem at 85% -20%, rgba(53, 214, 184, 0.05), transparent 60%),
+    radial-gradient(100rem 60rem at 85% -20%, rgba(var(--accent-rgb), 0.05), transparent 60%),
     linear-gradient(180deg, #05060a 0%, var(--bg-0) 40%, var(--bg-0) 100%);
   letter-spacing: -0.006em;
 }
-::selection { background: #35d6b8; color: #04211c; }
+::selection { background: var(--accent); color: var(--accent-ink); }
 
 h1, h2, h3, h4 { letter-spacing: -0.03em; }
 
@@ -130,7 +134,7 @@ h1, h2, h3, h4 { letter-spacing: -0.03em; }
   background: none;
   box-shadow: none;
   text-shadow: none;
-  border-bottom: 1px solid #35d6b8;
+  border-bottom: 1px solid var(--accent);
   border-radius: 0;
 }
 .nav-dropdown-menu {
@@ -160,9 +164,9 @@ h1, h2, h3, h4 { letter-spacing: -0.03em; }
   box-shadow: none;
 }
 .nav-act:hover, .nav-act-donate:hover {
-  background: #35d6b8;
-  border-color: #35d6b8;
-  color: #04211c;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
   transform: none;
 }
 .nav-toggle { border-radius: 2px; border: 1px solid var(--line-strong); background: transparent; }
@@ -185,9 +189,9 @@ h1, h2, h3, h4 { letter-spacing: -0.03em; }
   box-shadow: none;
 }
 .btn-primary:hover {
-  background: #35d6b8;
-  border-color: #35d6b8;
-  color: #04211c;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
   transform: none;
   box-shadow: none !important;
 }
@@ -276,8 +280,8 @@ div[class*="form"], form[class*="form"] {
   border-radius: 2px !important;
 }
 .page-jump a.active {
-  background: rgba(53, 214, 184, 0.10) !important;
-  color: #35d6b8 !important;
+  background: rgba(var(--accent-rgb), 0.10) !important;
+  color: var(--accent) !important;
   box-shadow: none !important;
 }
 
@@ -290,9 +294,9 @@ input[type="tel"], input[type="url"], textarea, select {
   color: var(--text) !important;
 }
 input:focus, textarea:focus, select:focus {
-  border-color: #35d6b8 !important;
+  border-color: var(--accent) !important;
   outline: none !important;
-  box-shadow: 0 0 0 3px rgba(53, 214, 184, 0.18) !important;
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.18) !important;
 }
 
 /* Submit buttons: page-local gradients → the v2 solid. */
@@ -312,9 +316,9 @@ button[type="submit"], input[type="submit"],
 }
 button[type="submit"]:hover, input[type="submit"]:hover,
 .submit-btn:hover, .form-submit:hover, .contact-submit:hover {
-  background: #35d6b8 !important;
-  border-color: #35d6b8 !important;
-  color: #04211c !important;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+  color: var(--accent-ink) !important;
   transform: none !important;
 }
 
@@ -338,8 +342,8 @@ button[type="submit"]:hover, input[type="submit"]:hover,
   .site-nav.is-open .nav-links > li > a:hover { background: rgba(255,255,255,0.05); }
   .site-nav.is-open .nav-links > li > a.active {
     border-bottom: none;
-    border-left: 2px solid #35d6b8;
-    background: rgba(53, 214, 184, 0.07);
+    border-left: 2px solid var(--accent);
+    background: rgba(var(--accent-rgb), 0.07);
     color: #fff;
   }
   .site-nav.is-open .nav-dropdown-menu {

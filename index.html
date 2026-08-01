@@ -46,8 +46,8 @@
   <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2">
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- LCP is the first hero frame; everything else can wait. -->
   <link rel="preload" as="image" href="/assets/opt/hero_etna.webp" fetchpriority="high">
@@ -97,6 +97,7 @@
     --hair:   rgba(255,255,255,0.10);
     --hair-2: rgba(255,255,255,0.20);
 
+    --accent-rgb: 53, 214, 184;
     --a:      #35d6b8;
     --a-ink:  #04211c;
 
@@ -313,7 +314,7 @@
   }
   .hs-tag::before {
     content: ""; width: 7px; height: 7px; border-radius: 50%;
-    background: var(--a); box-shadow: 0 0 0 4px rgba(53,214,184,0.22);
+    background: var(--a); box-shadow: 0 0 0 4px rgba(var(--accent-rgb),0.22);
   }
   .hs-tag.is-dev::before { background: #f0b542; box-shadow: 0 0 0 4px rgba(240,181,66,0.20); }
 
@@ -623,6 +624,7 @@
     * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   }
   </style>
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
 </head>
 <body>
 

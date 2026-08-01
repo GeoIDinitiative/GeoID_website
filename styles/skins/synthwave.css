@@ -1,0 +1,146 @@
+/* ═══ SKIN · SYNTHWAVE '86 ═══════════════════════════════════════════════
+   The far end of the range. Deep-violet night, hot-pink laser accent,
+   sunset-yellow and cyan support, Audiowide chrome lettering, scanlines.
+   Planetary science by way of a 1986 arcade cabinet.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: "Audiowide W";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Chakra W";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Chakra W";
+  font-style: normal; font-weight: 600; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Chakra W";
+  font-style: normal; font-weight: 700; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeJI91R5_F.woff2) format('woff2');
+}
+/* Legacy names on sub-pages */
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2'); }
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2'); }
+@font-face { font-family: "Source Sans 3"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2'); }
+
+:root {
+  --display: "Audiowide W", "Chakra W", sans-serif;
+  --body:    "Chakra W", system-ui, sans-serif;
+
+  --bg-0: #0d0221;
+  --bg-1: #160933;
+  --bg-2: #1f0e45;
+
+  --ink:   #f8f4ff;
+  --ink-2: rgba(226, 210, 255, 0.80);
+  --ink-3: rgba(206, 184, 250, 0.60);
+  --ink-4: rgba(206, 184, 250, 0.40);
+
+  --hair:   rgba(255, 62, 200, 0.18);
+  --hair-2: rgba(255, 62, 200, 0.34);
+
+  --accent-rgb: 255, 62, 200;
+  --a:       #ff3ec8;
+  --a-hover: #ff6ad5;
+  --a-ink:   #2b0030;
+  --warn:    #ffd319;
+
+  --accent:       #ff3ec8;
+  --accent-hover: #ff6ad5;
+  --accent-ink:   #2b0030;
+  --panel:        rgba(22, 9, 51, 0.92);
+  --panel-strong: rgba(26, 12, 58, 0.97);
+  --line:         rgba(255, 62, 200, 0.20);
+  --line-strong:  rgba(255, 62, 200, 0.38);
+  --text:         #f8f4ff;
+  --muted:        rgba(206, 184, 250, 0.66);
+  --gold: #ffd319; --cyan: #29c5ff; --green: #29c5ff;
+  --gold-soft: rgba(255,211,25,0.10); --cyan-soft: rgba(41,197,255,0.10);
+  --purple: #b28dff;
+}
+
+html, body { background: var(--bg-0) !important; }
+body {
+  background:
+    radial-gradient(80rem 45rem at 20% -10%, rgba(255, 62, 200, 0.10), transparent 55%),
+    radial-gradient(70rem 40rem at 85% 8%,  rgba(41, 197, 255, 0.08), transparent 55%),
+    linear-gradient(180deg, #0a0119 0%, var(--bg-0) 45%) !important;
+}
+::selection { background: #ff3ec8; color: #2b0030; }
+
+/* Audiowide only ships 400 — faux-bold smears it. */
+h1, h2, h3, .hs-title, .sec-title, .mission-title, .worlds-name,
+.cap-title, .story-title, .nav-wordmark, .planet-card-title,
+.tile-title, .section-title { font-weight: 400 !important; }
+
+/* Display type: white-to-cyan gradient (the rainbow ramp was tried and
+   retired at Owen's call — one cool sweep keeps the chrome-letter feel
+   without the confetti). */
+.hs-title, .sec-title, .mission-title {
+  background: linear-gradient(97deg, #ffffff 12%, #b8f4ff 55%, #29c5ff 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent !important;
+  filter: drop-shadow(0 0 22px rgba(41, 197, 255, 0.25));
+}
+.hs-title em, .mission-title em { color: transparent; }
+@media (prefers-reduced-motion: reduce) {
+  .hs-title, .sec-title, .mission-title { filter: none; }
+}
+
+/* Neon buttons */
+.btn-solid, .btn-primary, .nav-act-donate, .planet-launch-btn,
+button[type="submit"], .viewer-link, .membership-cta-btn {
+  background: #ff3ec8 !important; border-color: #ff3ec8 !important; color: #2b0030 !important;
+  box-shadow: 0 0 20px rgba(255, 62, 200, 0.45) !important;
+}
+.btn-solid:hover, .btn-primary:hover, .nav-act-donate:hover {
+  background: #ffd319 !important; border-color: #ffd319 !important; color: #2b1e00 !important;
+  box-shadow: 0 0 26px rgba(255, 211, 25, 0.5) !important;
+}
+.btn-line, .btn-ghost { border-color: rgba(41, 197, 255, 0.5) !important; color: #9fe2ff !important; }
+.btn-line:hover, .btn-ghost:hover { border-color: #29c5ff !important; background: rgba(41,197,255,0.10) !important; }
+
+/* Purple-shift the photography and the night sky */
+.hs-media img, .hs-media video { filter: saturate(1.25) hue-rotate(-12deg) contrast(1.04); }
+.hs-scrim {
+  background:
+    linear-gradient(to top, rgba(13, 2, 33, 0.95) 0%, rgba(13, 2, 33, 0.55) 34%, rgba(255, 62, 200, 0.08) 100%),
+    linear-gradient(to right, rgba(13, 2, 33, 0.82) 0%, rgba(13, 2, 33, 0.30) 46%, transparent 78%) !important;
+}
+.worlds-sky { filter: hue-rotate(65deg) saturate(1.6); }
+.mission-plate img { filter: saturate(1.2) hue-rotate(-16deg); }
+.mission-plate::after {
+  background: linear-gradient(to right, rgba(13,2,33,0.95) 0%, rgba(13,2,33,0.78) 42%, rgba(255,62,200,0.16) 100%) !important;
+}
+
+/* Scanlines + vignette: the CRT. Fixed overlay, under the skin switcher. */
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  z-index: 99990; pointer-events: none;
+  background:
+    repeating-linear-gradient(180deg, rgba(0,0,0,0.10) 0 1px, transparent 1px 3px),
+    radial-gradient(120% 120% at 50% 50%, transparent 60%, rgba(10, 1, 25, 0.35) 100%);
+}
+
+/* Neon hairline under the nav when stuck */
+.site-nav.is-stuck {
+  background: rgba(13, 2, 33, 0.88) !important;
+  border-bottom: 1px solid rgba(255, 62, 200, 0.35) !important;
+  box-shadow: 0 1px 18px rgba(255, 62, 200, 0.18) !important;
+}
+
+/* Status dots / kickers pick up the support colours */
+.hs-tag::before { background: #29c5ff; box-shadow: 0 0 0 4px rgba(41,197,255,0.22); }
+.product-status::before, .story--live .story-kicker::before { box-shadow: 0 0 8px rgba(255,62,200,0.8); }
+
+

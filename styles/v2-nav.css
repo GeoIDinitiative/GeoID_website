@@ -1,0 +1,102 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   GeoID — nav-only skin for app pages (myGeoID mock, and any future page
+   whose BODY must keep its own styling but whose site header should match
+   the rest of the site).
+
+   Deliberately self-contained: literal values, no :root token overrides,
+   fonts declared under private names and applied only to nav selectors —
+   nothing here can leak into the app UI below the header.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: "GeoID Nav Display";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+}
+@font-face {
+  font-family: "GeoID Nav Body";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
+}
+@font-face {
+  font-family: "GeoID Nav Body";
+  font-style: normal; font-weight: 600; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+}
+
+.site-nav {
+  background: rgba(13, 2, 33, 0.90) !important;
+  backdrop-filter: blur(24px) saturate(160%);
+  border-bottom: 1px solid rgba(255, 62, 200, 0.30) !important;
+  box-shadow: 0 1px 18px rgba(255, 62, 200, 0.15) !important;
+}
+.site-nav .nav-wordmark {
+  font-family: "GeoID Nav Display", sans-serif !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  color: #f8f4ff !important;
+}
+.site-nav .nav-links > li > a,
+.site-nav .nav-dropdown-toggle {
+  font-family: "GeoID Nav Body", sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: rgba(226, 210, 255, 0.75) !important;
+  background: none !important;
+  border: none !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  border-radius: 2px !important;
+}
+.site-nav .nav-links > li > a:hover,
+.site-nav .nav-dropdown-toggle:hover { color: #fff !important; }
+.site-nav .nav-links > li > a.active {
+  color: #fff !important;
+  border-bottom: 1px solid #ff3ec8 !important;
+  border-radius: 0 !important;
+}
+.site-nav .mygeoid-prefix { color: #ff3ec8 !important; }
+.site-nav .nav-dropdown-menu {
+  border-radius: 2px !important;
+  border: 1px solid rgba(255, 62, 200, 0.25) !important;
+  background: rgba(18, 5, 43, 0.97) !important;
+  box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.8) !important;
+}
+.site-nav .nav-dropdown-menu a {
+  font-family: "GeoID Nav Body", sans-serif !important;
+  font-size: 13px !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  color: rgba(226, 210, 255, 0.75) !important;
+  border: none !important;
+  border-radius: 2px !important;
+}
+.site-nav .nav-dropdown-menu a:hover,
+.site-nav .nav-dropdown-menu a.active { background: rgba(255, 255, 255, 0.06) !important; color: #fff !important; }
+.site-nav .nav-act, .site-nav .nav-act-donate {
+  font-family: "GeoID Nav Body", sans-serif !important;
+  border-radius: 2px !important;
+  background: #ff3ec8 !important;
+  border: 1px solid #ff3ec8 !important;
+  color: #2b0030 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.09em !important;
+  text-transform: uppercase !important;
+  box-shadow: 0 0 16px rgba(255, 62, 200, 0.4) !important;
+}
+.site-nav .nav-act:hover, .site-nav .nav-act-donate:hover {
+  background: #ffd319 !important; border-color: #ffd319 !important; color: #2b1e00 !important;
+  transform: none !important;
+}
+.site-nav .nav-toggle {
+  border-radius: 2px !important;
+  border: 1px solid rgba(255, 62, 200, 0.35) !important;
+  background: transparent !important;
+  color: #f8f4ff !important;
+}
+@media (max-width: 980px) {
+  .site-nav.is-open { background: rgba(13, 2, 33, 0.97) !important; }
+}

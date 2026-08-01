@@ -3,12 +3,14 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v4';   // v4: v2 redesign — new theme files, retired font links
+const STATIC_CACHE = 'geoid-site-v5';   // v5: synthwave identity ships
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [
   '/styles/shared.css',
   '/styles/v2-site.css',
+  '/styles/skins/synthwave.css',
+  '/styles/v2-nav.css',
   '/styles/nav.js',
   '/scripts/v2-site.js',
   '/assets/GeoID_logo_icon.png',
