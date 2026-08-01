@@ -18,6 +18,16 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     const brandResetButton = document.getElementById("brand-reset-button");
     const statusNode = document.getElementById("status");
     const baseLayerSelect = document.getElementById("base-layer-select");
+    // The streamed high-detail basemap for THIS body. Forked from the Mars
+    // viewer, this file inherited Mars's "ctx-mosaic"/"ctx-mosaic-color"
+    // literals in ~74 comparisons — none of which can ever match mercury's own
+    // layer id, so the entire mosaic code path was dead: the close-zoom label
+    // sizing, the declutter that lets low-significance names through, the spin
+    // lock and the tile staging. In flight that showed up as features arriving
+    // as bare dots with no names, because updateLabelVisibility was never told
+    // it was on the streamed basemap.
+    const STREAMED_BASE_LAYER = "mercury-monochrome";
+    const isStreamedBaseLayer = (v) => v === STREAMED_BASE_LAYER;
     const contourIntervalSelect = document.getElementById("contour-interval-select");
     const contourOpacity = document.getElementById("contour-opacity");
     const contourColorSelect = document.getElementById("contour-color-select");
@@ -1054,13 +1064,13 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       if (freezeViewActive) {
         freezeViewWasPaused = spinPaused;
         pauseSpin();
-      } else if (!freezeViewWasPaused && !(baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color")) {
+      } else if (!freezeViewWasPaused && !(isStreamedBaseLayer(baseLayerSelect?.value))) {
         resumeSpin();
       }
     }
     function syncSpinToggleBtn() {
       if (!spinToggleBtn) return;
-      const spinLocked = baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color";
+      const spinLocked = isStreamedBaseLayer(baseLayerSelect?.value);
       spinToggleBtn.classList.toggle("is-locked", spinLocked);
       if (spinPaused) {
         spinToggleBtn.title = "Resume rotation";
@@ -1091,7 +1101,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     }
     if (spinToggleBtn) {
       spinToggleBtn.addEventListener("click", () => {
-        if (baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color") {
+        if (isStreamedBaseLayer(baseLayerSelect?.value)) {
           return;
         }
         if (spinPaused) { resumeSpin(); } else { pauseSpin(); }
@@ -1111,7 +1121,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       if (document.activeElement && document.activeElement !== document.body) {
         document.activeElement.blur();
       }
-      if (baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color") {
+      if (isStreamedBaseLayer(baseLayerSelect?.value)) {
         return;
       }
       if (spinPaused) { resumeSpin(); } else { pauseSpin(); }
@@ -8508,7 +8518,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
             : null;
           const scaleEstimate = estimateBodyMapScale(camera, this._globe, MERCURY_RADIUS_METERS, this.GLOBE_R);
           let esriLodLevel = this._chooseEsriLodLevel(scaleEstimate?.scaleDenominator);
-          if ((baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color") && focusStage && Number.isFinite(focusStage.altitude)) {
+          if ((isStreamedBaseLayer(baseLayerSelect.value)) && focusStage && Number.isFinite(focusStage.altitude)) {
             if (focusStage.altitude <= 0.6) {
               esriLodLevel = Math.max(esriLodLevel || 0, 11);
             }
@@ -8519,7 +8529,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
             esriLodCount: this._esriLods?.length || 0,
             scaleDenominator: scaleEstimate?.scaleDenominator ?? null,
           };
-          if (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color") {
+          if (isStreamedBaseLayer(baseLayerSelect.value)) {
             const settleMs = 350;
             const scaleGate = estimateBodyMapScale(camera, this._globe, MERCURY_RADIUS_METERS, this.GLOBE_R);
             const scaleDen = scaleGate?.scaleDenominator ?? null;
@@ -10477,9 +10487,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         }
         mercuryGroup.getWorldPosition(wheelZoomBodyCenter);
         const maxTerrainDisp = Math.max(0, getTerrainRelief());
-        const ctxSurfaceMargin = (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color") ? 0.0005 : 0.092;
+        const ctxSurfaceMargin = (isStreamedBaseLayer(baseLayerSelect.value)) ? 0.0005 : 0.092;
         const terrainFloor = 3.2 + maxTerrainDisp + ctxSurfaceMargin;
-        const baseMin = (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color") ? 3.20002 : DEFAULT_CONTROL_MIN_DISTANCE;
+        const baseMin = (isStreamedBaseLayer(baseLayerSelect.value)) ? 3.20002 : DEFAULT_CONTROL_MIN_DISTANCE;
         const safeMin = Math.max(baseMin, terrainFloor);
         return {
           centerWorld: wheelZoomBodyCenter.clone(),
@@ -10526,7 +10536,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         }
         const zoomContext = getActiveZoomContext();
         if (!zoomContext) return;
-        const ctxMode = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
+        const ctxMode = isStreamedBaseLayer(baseLayerSelect.value);
         const moonViewerMode = Boolean(activeMoonViewerFeature);
         const delta = Number(event.deltaY || 0);
         if (!Number.isFinite(delta) || Math.abs(delta) < 0.01) return;
@@ -10758,7 +10768,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       const getRequestedTerrainRelief = () => elevationMap ? Number(terrainScale.value) : 0;
       const getEffectiveTerrainRelief = () => {
         if (!elevationMap) return 0;
-        if (baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color") return 0;
+        if (isStreamedBaseLayer(baseLayerSelect?.value)) return 0;
         return getRequestedTerrainRelief();
       };
       const getTerrainRelief = () => getEffectiveTerrainRelief();
@@ -13900,7 +13910,7 @@ uniform float uViewportWidth;`,
       }
 
       function isMeasureCtxMosaicBasemap() {
-        return baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
+        return isStreamedBaseLayer(baseLayerSelect.value);
       }
 
       function refineMeasureHitLocalPoint(localPoint, context) {
@@ -14029,7 +14039,7 @@ uniform float uViewportWidth;`,
         const context = getMeasurePointContext(pointLike);
         const isMoon = context.kind === "moon";
         const inMoonViewer = Boolean(activeMoonViewerFeature);
-        const isCtxMosaicBasemap = !isMoon && (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color");
+        const isCtxMosaicBasemap = !isMoon && (isStreamedBaseLayer(baseLayerSelect.value));
         const isAreaMosaic = isCtxMosaicBasemap && measureMode === "area";
         const baseMarkerRadius = (isMoon
           ? context.radiusWorld * 0.022
@@ -14780,7 +14790,7 @@ uniform float uViewportWidth;`,
           !removeAtmosphere && landingLabelsToggle.checked,
           !removeAtmosphere && habitationLabelsToggle.checked,
           coreEnabled,
-          baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+          isStreamedBaseLayer(baseLayerSelect.value),
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
           !removeAtmosphere && (craterLabelsToggle?.checked ?? true),
           !removeAtmosphere && (fluvialLabelsToggle?.checked ?? true),
@@ -14793,6 +14803,11 @@ uniform float uViewportWidth;`,
           moonLayer,
           activePopupFeature,
         );
+          // FLIGHT-SIM: snapshot each label's declutter verdict so the horizon
+          // pass in render() has a stable source of truth to restore from.
+          if (window.__flightSim?.active) {
+            for (const e of labelLayer.entries) e._fsBaseVisible = e.sprite ? e.sprite.visible : false;
+          }
         updateLabelVisibility(
           baseSiteLayer.entries,
           mercuryGroup,
@@ -14804,7 +14819,7 @@ uniform float uViewportWidth;`,
           true,
           true,
           coreEnabled,
-          baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+          isStreamedBaseLayer(baseLayerSelect.value),
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
           craterLabelsToggle?.checked ?? true,
           fluvialLabelsToggle?.checked ?? true,
@@ -14854,7 +14869,7 @@ uniform float uViewportWidth;`,
           updateSeismicAnchors(seismicLayer, elevationSampler, seismicElevationCache, getTerrainRelief, 3.2);
         }
         if (terrainScale) {
-          terrainScale.disabled = Boolean(coreToggle?.checked) || !elevationMap || baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
+          terrainScale.disabled = Boolean(coreToggle?.checked) || !elevationMap || isStreamedBaseLayer(baseLayerSelect.value);
         }
       }
 
@@ -14890,7 +14905,7 @@ uniform float uViewportWidth;`,
         if (cutawayResult.crustRing && cutawayResult.crustRing.material && cutawayResult.crustRing.material.uniforms && cutawayResult.crustRing.material.uniforms.uMap) {
           cutawayResult.crustRing.material.uniforms.uMap.value = nextTexture || null;
         }
-        if (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color") {
+        if (isStreamedBaseLayer(baseLayerSelect.value)) {
           ctxStreamer.activate();
           ctxFocusGlobe.visible = false;
         } else {
@@ -14901,7 +14916,7 @@ uniform float uViewportWidth;`,
         }
         if (ctxFocusMaterial?.userData?.ctxShader) {
           const shader = ctxFocusMaterial.userData.ctxShader;
-          if (baseLayerSelect.value === "ctx-mosaic-color") {
+          if (isStreamedBaseLayer(baseLayerSelect.value)) {
             shader.uniforms.uCtxColorMap.value = layerTextures.get("mercury-md3-color") || null;
             shader.uniforms.uCtxColorMix.value = 1.0;
             shader.uniforms.uCtxColorLift.value = 1.15;
@@ -15019,7 +15034,7 @@ uniform float uViewportWidth;`,
           landingLabelsToggle.checked,
           habitationLabelsToggle.checked,
           coreToggle.checked,
-          baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+          isStreamedBaseLayer(baseLayerSelect.value),
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
           craterLabelsToggle?.checked ?? true,
           fluvialLabelsToggle?.checked ?? true,
@@ -15237,7 +15252,7 @@ uniform float uViewportWidth;`,
           landingLabelsToggle.checked,
           habitationLabelsToggle.checked,
           coreToggle.checked,
-          baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+          isStreamedBaseLayer(baseLayerSelect.value),
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
           craterLabelsToggle?.checked ?? true,
           fluvialLabelsToggle?.checked ?? true,
@@ -15267,7 +15282,7 @@ uniform float uViewportWidth;`,
           landingLabelsToggle.checked,
           habitationLabelsToggle.checked,
           coreToggle.checked,
-          baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+          isStreamedBaseLayer(baseLayerSelect.value),
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
           craterLabelsToggle?.checked ?? true,
           fluvialLabelsToggle?.checked ?? true,
@@ -15296,7 +15311,7 @@ uniform float uViewportWidth;`,
           landingLabelsToggle.checked,
           habitationLabelsToggle.checked,
           coreToggle.checked,
-          baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+          isStreamedBaseLayer(baseLayerSelect.value),
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
           craterLabelsToggle?.checked ?? true,
           fluvialLabelsToggle?.checked ?? true,
@@ -15325,7 +15340,7 @@ uniform float uViewportWidth;`,
           landingLabelsToggle.checked,
           habitationLabelsToggle.checked,
           coreToggle.checked,
-          baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+          isStreamedBaseLayer(baseLayerSelect.value),
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
           craterLabelsToggle?.checked ?? true,
           fluvialLabelsToggle?.checked ?? true,
@@ -15355,7 +15370,7 @@ uniform float uViewportWidth;`,
             landingLabelsToggle.checked,
             habitationLabelsToggle.checked,
             coreToggle.checked,
-            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            isStreamedBaseLayer(baseLayerSelect.value),
             Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
             craterLabelsToggle.checked,
             fluvialLabelsToggle?.checked ?? true,
@@ -15386,7 +15401,7 @@ uniform float uViewportWidth;`,
             landingLabelsToggle.checked,
             habitationLabelsToggle.checked,
             coreToggle.checked,
-            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            isStreamedBaseLayer(baseLayerSelect.value),
             Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
             craterLabelsToggle?.checked ?? true,
             fluvialLabelsToggle.checked,
@@ -15416,7 +15431,7 @@ uniform float uViewportWidth;`,
             landingLabelsToggle.checked,
             habitationLabelsToggle.checked,
             coreToggle.checked,
-            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            isStreamedBaseLayer(baseLayerSelect.value),
             Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
             craterLabelsToggle?.checked ?? true,
             fluvialLabelsToggle?.checked ?? true,
@@ -15455,7 +15470,7 @@ uniform float uViewportWidth;`,
             landingLabelsToggle.checked,
             habitationLabelsToggle.checked,
             coreToggle.checked,
-            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            isStreamedBaseLayer(baseLayerSelect.value),
             Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
             craterLabelsToggle?.checked ?? true,
             fluvialLabelsToggle?.checked ?? true,
@@ -15475,11 +15490,6 @@ uniform float uViewportWidth;`,
       if (baseLabelsToggle) {
         baseLabelsToggle.addEventListener("change", () => {
           baseSiteLayer.group.visible = Boolean(baseLabelsToggle.checked);
-        // FLIGHT-SIM: snapshot each label's declutter verdict so the horizon
-        // pass in render() has a stable source of truth to restore from.
-        if (window.__flightSim?.active) {
-          for (const e of labelLayer.entries) e._fsBaseVisible = e.sprite ? e.sprite.visible : false;
-        }
           updateLabelVisibility(
             baseSiteLayer.entries,
             mercuryGroup,
@@ -15491,7 +15501,7 @@ uniform float uViewportWidth;`,
             true,
             true,
             coreToggle.checked,
-            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            isStreamedBaseLayer(baseLayerSelect.value),
             Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
             true,
             true,
@@ -15549,7 +15559,7 @@ uniform float uViewportWidth;`,
           on,
           on,
           coreToggle.checked,
-          baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+          isStreamedBaseLayer(baseLayerSelect.value),
           Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
           on,
           on,
@@ -16316,7 +16326,7 @@ uniform float uViewportWidth;`,
             landingLabelsToggle.checked,
             habitationLabelsToggle.checked,
             true,
-            baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color",
+            isStreamedBaseLayer(baseLayerSelect.value),
             Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null,
             craterLabelsToggle?.checked ?? true,
             fluvialLabelsToggle?.checked ?? true,
@@ -16984,7 +16994,7 @@ ${error && error.message ? error.message : error}`;
         if (viewerControls) {
           viewerControls.enableRotate = true;
         }
-        const spinLocked = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
+        const spinLocked = isStreamedBaseLayer(baseLayerSelect.value);
         if (spinLocked) {
           pauseSpin();
           if (spinToggleBtn) {
@@ -17003,7 +17013,7 @@ ${error && error.message ? error.message : error}`;
         let _controlSurfaceDistance = Infinity;
         if (!activeMoonViewerFeature) {
           const _maxTerrainDisp = Math.max(0, getTerrainRelief());
-          const _ctxMode = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
+          const _ctxMode = isStreamedBaseLayer(baseLayerSelect.value);
           const _surfaceMargin = _ctxMode ? 0.0005 : 0.092;
           const _terrainFloor = 3.2 + _maxTerrainDisp + _surfaceMargin;
           const _baseMin = _ctxMode ? 3.20002 : DEFAULT_CONTROL_MIN_DISTANCE;
@@ -17043,7 +17053,7 @@ ${error && error.message ? error.message : error}`;
             // rotateSpeed so a small drag doesn't jump across many tiles.
             // _controlSurfaceDistance in scene units: 1 unit ≈ 1,060 km.
             // 50 km ≈ 0.047, 5 km ≈ 0.0047, 1 km ≈ 0.00094.
-            const _ctxCloseZoom = (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color")
+            const _ctxCloseZoom = (isStreamedBaseLayer(baseLayerSelect.value))
               && _controlSurfaceDistance < 0.05;
             if (_ctxCloseZoom) {
               // Extra friction tier: t=0 at surface, t=1 at ~50 km.
@@ -17073,7 +17083,7 @@ ${error && error.message ? error.message : error}`;
           window.__flightSim.update(camera);
         }
         if (!_flightActive && !activeMoonViewerFeature) {
-          const _ctxMode = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
+          const _ctxMode = isStreamedBaseLayer(baseLayerSelect.value);
           if (_ctxMode) {
             const _currentScaleBar = estimateScaleBarMetersForCameraPosition(camera.position);
             if (Number.isFinite(_currentScaleBar) && _currentScaleBar < CTX_MOSAIC_MIN_SCALEBAR_METERS) {
@@ -17133,7 +17143,7 @@ ${error && error.message ? error.message : error}`;
         // frame when still; every 3rd frame during rotation (imperceptible at 60fps).
         if (_heavyFrame) {
           updateHemisphereLocator();
-          const useMosaicLabelLayout = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
+          const useMosaicLabelLayout = isStreamedBaseLayer(baseLayerSelect.value);
           const mosaicScaleBarMeters = Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null;
           if (!coreToggle.checked) {
             updateLabelVisibility(
@@ -17296,7 +17306,7 @@ ${error && error.message ? error.message : error}`;
             }
             const pulse = (Math.sin(_t * 0.004) + 1) * 0.5;
             if (selectedLabelEntryIsSurface) {
-              const compactMosaicSelection = baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color";
+              const compactMosaicSelection = isStreamedBaseLayer(baseLayerSelect?.value);
               const microScaleBar = Number.isFinite(window.__lastScaleBarMeters) ? window.__lastScaleBarMeters : null;
               selectionRing.visible = !(compactMosaicSelection && Number.isFinite(microScaleBar) && microScaleBar <= 2000);
               selectionRing.position.copy(entryMarker.position);
@@ -17385,7 +17395,7 @@ ${error && error.message ? error.message : error}`;
         // must not be skipped or medium/high-res loading breaks.
         ctxStreamer.update(camera);
         const ctxMaxZoomStreaming = (
-          (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color") &&
+          (isStreamedBaseLayer(baseLayerSelect.value)) &&
           !coreToggle.checked &&
           !activeMoonViewerFeature
         );
@@ -17439,7 +17449,7 @@ ${error && error.message ? error.message : error}`;
         }
         if (ctxFocusGlobe) {
           ctxFocusGlobe.visible = (
-            (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color")
+            (isStreamedBaseLayer(baseLayerSelect.value))
             && !coreToggle.checked
             && !activeMoonViewerFeature
             && ctxStreamer.active
@@ -17447,7 +17457,7 @@ ${error && error.message ? error.message : error}`;
           );
           if (ctxFocusMaterial?.userData?.ctxShader) {
             const shader = ctxFocusMaterial.userData.ctxShader;
-            const wantsColor = baseLayerSelect.value === "ctx-mosaic-color";
+            const wantsColor = isStreamedBaseLayer(baseLayerSelect.value);
             shader.uniforms.uCtxColorMap.value = wantsColor ? (layerTextures.get("mercury-md3-color") || null) : null;
             shader.uniforms.uCtxColorMix.value = wantsColor ? 1.0 : 0.0;
             shader.uniforms.uCtxColorLift.value = wantsColor ? 1.15 : 1.0;
@@ -17536,7 +17546,7 @@ ${error && error.message ? error.message : error}`;
           const Rg = globe.geometry?.parameters?.radius || 3.2;
           const relief = Math.max(0, (typeof getEffectiveTerrainRelief === "function" ? getEffectiveTerrainRelief() : 0) || 0);
           let tileLift = 0; // CTX tiles float above the datum; the skyline includes that
-          if (ctxDetailStreamer && (baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color")) {
+          if (ctxDetailStreamer && (isStreamedBaseLayer(baseLayerSelect?.value))) {
             tileLift = (ctxDetailStreamer.surfaceLiftBase || 0) + relief * (ctxDetailStreamer.surfaceLiftReliefFactor || 0);
           }
           // Robust viewport height: clientHeight is 0 while the tab isn't
