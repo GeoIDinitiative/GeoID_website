@@ -349,3 +349,64 @@ body::after {
   text-shadow: 0 0 16px rgba(255, 43, 214, 0.6);
 }
 .hub-empty-sub { color: rgba(214, 194, 255, 0.38); }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   HUB — row shape + legibility pass
+
+   Two fixes:
+   1. .risk-summary was a hard `repeat(4, …)` grid, so the 2-tile "Model
+      Signals" group left two dead columns and the rows looked ragged.
+      auto-fit lets any group fill its row whatever its count.
+   2. Labels, notes and section titles were sitting at 0.5–0.6 alpha,
+      which read as greyed-out. Everything below is lifted into a proper
+      light ramp — vibrant, but still ranked so the figures lead.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.risk-summary {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)) !important;
+  gap: 0.75rem !important;
+  margin-bottom: 0 !important;
+}
+
+/* Section rules: bright lavender, clearly a heading rather than a whisper. */
+.risk-section-title,
+.parameter-section-title {
+  color: #c9b3ff !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 12px rgba(201, 179, 255, 0.30);
+  border-bottom-color: rgba(255, 43, 214, 0.28) !important;
+}
+
+/* Tile labels: near-white, so the metric name is legible at a glance. */
+.risk-label {
+  color: rgba(238, 230, 255, 0.88) !important;
+  font-weight: 600 !important;
+}
+
+/* The note states the condition, so it takes the severity colour —
+   vibrant and informative at once, rather than decorative grey. */
+.risk-note { color: rgba(238, 230, 255, 0.72) !important; font-weight: 600 !important; }
+.risk-tile[data-severity="stable"] .risk-note,
+.risk-tile[data-severity="good"]   .risk-note { color: rgba(77, 255, 166, 0.85) !important; }
+.risk-tile[data-severity="watch"]  .risk-note { color: rgba(255, 211, 25, 0.9) !important; }
+.risk-tile[data-severity="critical"] .risk-note,
+.risk-tile[data-severity="high"]     .risk-note { color: rgba(255, 77, 109, 0.92) !important; }
+.risk-tile[data-severity="na"]       .risk-note { color: rgba(214, 194, 255, 0.45) !important; }
+
+/* Context strip + header copy lifted out of the grey. */
+.hub-chip { color: rgba(232, 222, 255, 0.90) !important; }
+.hub-chip.is-status { color: #4ff0ff !important; }
+.hub-analysis-subtitle { color: rgba(226, 214, 255, 0.80) !important; }
+.hub-strip-title { color: rgba(232, 222, 255, 0.88) !important; }
+.hub-pin-display { color: rgba(226, 214, 255, 0.80) !important; }
+
+/* Chart card furniture was the dimmest text on the page. */
+.market-card-head, .market-card-head * { color: rgba(238, 230, 255, 0.90) !important; }
+.market-card .market-meta,
+.market-card [class*="foot"], .market-card [class*="sub"] {
+  color: rgba(214, 197, 255, 0.72) !important;
+}
+
+/* Empty states */
+.hub-empty { color: rgba(232, 222, 255, 0.82) !important; }
+.hub-empty-sub { color: rgba(214, 197, 255, 0.62) !important; }
