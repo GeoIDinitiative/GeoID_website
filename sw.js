@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v8';   // v8: viewer + transit skins
+const STATIC_CACHE = 'geoid-site-v9';   // v9: ember variant (Etna + transit)
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [
@@ -12,6 +12,7 @@ const PRECACHE = [
   '/styles/site-nav.css',
   '/styles/skins/synthwave.css',
   '/styles/viewer-skin.css',
+  '/styles/viewer-skin-ember.css',
 
   '/styles/nav.js',
   '/scripts/v2-site.js',

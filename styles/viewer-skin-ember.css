@@ -1,0 +1,45 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   EMBER — orange-and-black variant of the viewer skin
+
+   Loaded AFTER styles/viewer-skin.css in earth_explorer/etna/viewer/.
+
+   Restates the palette and nothing else: every rule in the base skin
+   resolves through these tokens, so a variant is a colour swap rather
+   than a second copy of the stylesheet.
+
+   Orange over black is the right register for Etna specifically — the
+   viewer's own identity was lava before the site-wide re-skin — and it
+   doubles as amber-phosphor CRT, which is what the scanlines and the 8s
+   roll inherited from the base file are imitating.
+
+     orange #ff6a00  chrome — frames, headings, active states
+     amber  #ffc247  data — readouts, measurements, values
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --skin-chrome: #ff6a00;
+  --skin-chrome-rgb: 255, 106, 0;
+  --skin-chrome-ink: #1a0800;
+
+  --skin-data: #ffc247;
+  --skin-data-rgb: 255, 194, 71;
+
+  --skin-bg: #080502;
+  --skin-panel: 22, 11, 4;
+  --skin-ink: #fff4e8;
+  --skin-muted: 232, 197, 160;
+  --skin-vignette: 12, 5, 1;
+}
+
+/* Hover ink on an orange fill wants to stay warm rather than flip to pure
+   white, which reads cold against this palette. */
+.tool-button:hover, .tool-rail-btn:hover, .tool-rail-action-btn:hover,
+.button:hover, .hub-link:hover, .info-btn:hover,
+.tool-button.is-active, .tool-rail-btn.is-active, .button.is-active,
+.tool-button[aria-pressed="true"], .tool-rail-btn[aria-pressed="true"] {
+  color: var(--skin-ink) !important;
+}
+
+/* The Etna terrain and lava imagery is already warm; the base skin's
+   saturation lift pushes it garish, so ease it off here. */
+canvas { filter: saturate(1.08) contrast(1.03); }

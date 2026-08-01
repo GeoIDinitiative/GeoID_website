@@ -14,8 +14,8 @@
    declared below; the ones a given viewer doesn't read are simply inert.
 
    PALETTE, matching the myGeoID shell:
-     magenta #ff2bd6  chrome — frames, headings, active states
-     cyan    #00e5ff  data — readouts, measurements, values
+     magenta var(--skin-chrome)  chrome — frames, headings, active states
+     cyan    var(--skin-data)  data — readouts, measurements, values
    Rule held throughout: GLOW THE CHROME, NOT THE DATA.
    ═══════════════════════════════════════════════════════════════════════ */
 
@@ -38,82 +38,96 @@
 }
 
 :root {
+  /* ── Skin palette ────────────────────────────────────────────────────
+     Every rule below resolves through these four, so a variant (see
+     viewer-skin-ember.css) restates the palette and nothing else. */
+  --skin-chrome: #ff2bd6;
+  --skin-chrome-rgb: 255, 43, 214;
+  --skin-data: #00e5ff;
+  --skin-data-rgb: 0, 229, 255;
+  --skin-bg: #0d0221;
+  --skin-panel: 22, 9, 51;
+  --skin-ink: #fdf7ff;
+  --skin-muted: 214, 194, 255;
+  --skin-vignette: 10, 1, 25;
+  --skin-chrome-ink: #2b0030;   /* readable ink on a chrome fill */
+
   /* Shared across all three families */
-  --bg: #0d0221;
-  --panel: rgba(22, 9, 51, 0.97);
-  --line: rgba(255, 43, 214, 0.42);
-  --nav-accent: #ff2bd6;
-  --nav-accent-rgb: 255, 43, 214;
-  --text: #fdf7ff;
-  --muted: rgba(214, 194, 255, 0.78);
-  --soft-light: #e2d2ff;
-  --accent: #00e5ff;
-  --panel-edge: rgba(255, 43, 214, 0.38);
-  --panel-fill: rgba(22, 9, 51, 0.97);
+  --bg: var(--skin-bg);
+  --panel: rgba(var(--skin-panel), 0.97);
+  --line: rgba(var(--skin-chrome-rgb), 0.42);
+  --nav-accent: var(--skin-chrome);
+  --nav-accent-rgb: var(--skin-chrome-rgb);
+  --text: var(--skin-ink);
+  --muted: rgba(var(--skin-muted), 0.78);
+  --soft-light: var(--skin-ink);
+  --accent: var(--skin-data);
+  --panel-edge: rgba(var(--skin-chrome-rgb), 0.38);
+  --panel-fill: rgba(var(--skin-panel), 0.97);
 
   /* planet_explorer / GeoID_Earth naming */
-  --mars-panel-top: rgba(31, 14, 69, 0.95);
-  --mars-panel-bottom: rgba(13, 2, 33, 0.98);
-  --mars-glow: rgba(255, 43, 214, 0.22);
+  --mars-panel-top: rgba(var(--skin-panel), 0.95);
+  --mars-panel-bottom: rgba(var(--skin-vignette), 0.98);
+  --mars-glow: rgba(var(--skin-chrome-rgb), 0.22);
   --mars-surface-shadow: rgba(0, 0, 0, 0.6);
-  --instrument-rust: #00e5ff;
-  --instrument-rust-rgb: 0, 229, 255;
+  --instrument-rust: var(--skin-data);
+  --instrument-rust-rgb: var(--skin-data-rgb);
 
   /* earth_explorer/etna naming */
-  --panel-top: rgba(31, 14, 69, 0.95);
-  --panel-bottom: rgba(13, 2, 33, 0.98);
-  --glow: rgba(255, 43, 214, 0.22);
+  --panel-top: rgba(var(--skin-panel), 0.95);
+  --panel-bottom: rgba(var(--skin-vignette), 0.98);
+  --glow: rgba(var(--skin-chrome-rgb), 0.22);
   --surface-shadow: rgba(0, 0, 0, 0.6);
-  --instrument: #00e5ff;
-  --instrument-rgb: 0, 229, 255;
+  --instrument: var(--skin-data);
+  --instrument-rgb: var(--skin-data-rgb);
 }
 
 body { background: var(--bg); }
-::selection { background: #ff2bd6; color: #2b0030; }
+::selection { background: var(--skin-chrome); color: var(--skin-chrome-ink); }
 
 /* ── Panels: magenta edge-bloom ─────────────────────────────────────── */
 .control-section, .toolbar-card, .viewer-help-card, .scene-popup,
 .controls, .legend-panel {
-  border-color: rgba(255, 43, 214, 0.34) !important;
+  border-color: rgba(var(--skin-chrome-rgb), 0.34) !important;
   box-shadow:
-    0 0 0 1px rgba(255, 43, 214, 0.10),
-    0 0 22px -6px rgba(255, 43, 214, 0.35),
+    0 0 0 1px rgba(var(--skin-chrome-rgb), 0.10),
+    0 0 22px -6px rgba(var(--skin-chrome-rgb), 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
 }
 
 /* ── Headings glow; body copy does not ──────────────────────────────── */
 .section-title, .section-heading, .feature-title, .brand-title, .eyebrow {
-  color: #fdf7ff !important;
-  text-shadow: 0 0 12px rgba(255, 43, 214, 0.55);
+  color: var(--skin-ink) !important;
+  text-shadow: 0 0 12px rgba(var(--skin-chrome-rgb), 0.55);
 }
-.feature-kicker, .section-icon { filter: drop-shadow(0 0 6px rgba(255, 43, 214, 0.7)); }
+.feature-kicker, .section-icon { filter: drop-shadow(0 0 6px rgba(var(--skin-chrome-rgb), 0.7)); }
 
 /* ── Controls ───────────────────────────────────────────────────────── */
 .tool-button, .tool-rail-btn, .tool-rail-action-btn, .button,
 .mini-select, .input, .hub-link, .info-btn {
-  border-color: rgba(0, 229, 255, 0.40) !important;
-  color: #bff4ff !important;
+  border-color: rgba(var(--skin-data-rgb), 0.40) !important;
+  color: color-mix(in srgb, var(--skin-data) 72%, white) !important;
 }
 .tool-button:hover, .tool-rail-btn:hover, .tool-rail-action-btn:hover,
 .button:hover, .hub-link:hover, .info-btn:hover {
-  border-color: #00e5ff !important;
+  border-color: var(--skin-data) !important;
   color: #ffffff !important;
-  box-shadow: 0 0 18px -2px rgba(0, 229, 255, 0.65) !important;
+  box-shadow: 0 0 18px -2px rgba(var(--skin-data-rgb), 0.65) !important;
 }
 .tool-button.is-active, .tool-rail-btn.is-active, .button.is-active,
 .tool-button[aria-pressed="true"], .tool-rail-btn[aria-pressed="true"] {
-  background: rgba(255, 43, 214, 0.18) !important;
-  border-color: #ff2bd6 !important;
+  background: rgba(var(--skin-chrome-rgb), 0.18) !important;
+  border-color: var(--skin-chrome) !important;
   color: #ffffff !important;
-  box-shadow: 0 0 22px -2px rgba(255, 43, 214, 0.75) !important;
+  box-shadow: 0 0 22px -2px rgba(var(--skin-chrome-rgb), 0.75) !important;
 }
-.slider, .lod-slider, input[type="range"] { accent-color: #ff2bd6; }
-input[type="checkbox"], input[type="radio"] { accent-color: #ff2bd6; }
+.slider, .lod-slider, input[type="range"] { accent-color: var(--skin-chrome); }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--skin-chrome); }
 
 /* ── Readouts: bright cyan, deliberately un-blurred ──────────────────── */
 .hazard-value, .locator-readout, .timeline-readout, .lod-value-label,
 .measure-metric, .gis-metric, .feature-meta {
-  color: #00e5ff !important;
+  color: var(--skin-data) !important;
 }
 
 /* ── The globe/planet canvas ────────────────────────────────────────────
@@ -131,13 +145,13 @@ body::after {
   z-index: 99999; pointer-events: none;
   background:
     repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
-    radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(10, 1, 25, 0.48) 100%);
+    radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(var(--skin-vignette), 0.48) 100%);
 }
 body::before {
   content: "";
   position: fixed; left: 0; right: 0; height: 90px;
   z-index: 99998; pointer-events: none;
-  background: linear-gradient(180deg, transparent, rgba(255, 43, 214, 0.045), transparent);
+  background: linear-gradient(180deg, transparent, rgba(var(--skin-chrome-rgb), 0.045), transparent);
   animation: crt-roll 8s linear infinite;
 }
 @keyframes crt-roll { from { top: -90px; } to { top: 100%; } }
