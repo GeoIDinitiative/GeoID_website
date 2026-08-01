@@ -8,12 +8,30 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Exo+2:wght@300;400;500;600&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    /* Retired site-wide; re-pointed so the transit screen matches the
+       viewers it launches into. */
+    @font-face {
+      font-family: "Orbitron";
+      font-style: normal; font-weight: 100 900; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: "Exo 2";
+      font-style: normal; font-weight: 400; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: "Exo 2";
+      font-style: normal; font-weight: 500 900; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+    }
+
     :root {
-      --text: #edf4ff;
-      --muted: #7a8faa;
-      --accent: #f7bd68;
-      --blue: #84d8ff;
-      --border: rgba(132, 216, 255, 0.13);
+      --text: #fdf7ff;
+      --muted: rgba(214, 194, 255, 0.78);
+      --accent: #ff2bd6;
+      --blue: #00e5ff;
+      --border: rgba(255, 43, 214, 0.22);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -21,9 +39,34 @@
     body {
       min-height: 100dvh;
       overflow: hidden;
-      background: #000;
+      background: #0d0221;
       color: var(--text);
       font-family: "Exo 2", "Trebuchet MS", sans-serif;
+    }
+
+    /* ── CRT: scanlines, vignette and a slow roll ────────────────────────
+       Same treatment as the dashboard hero and the viewers, so the transit
+       screen reads as part of the same machine rather than a gap between
+       two of them. Overlays never intercept clicks. */
+    body::after {
+      content: "";
+      position: fixed; inset: 0;
+      z-index: 9999; pointer-events: none;
+      background:
+        repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
+        radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(10, 1, 25, 0.48) 100%);
+    }
+    body::before {
+      content: "";
+      position: fixed; left: 0; right: 0; height: 90px;
+      z-index: 9998; pointer-events: none;
+      background: linear-gradient(180deg, transparent, rgba(255, 43, 214, 0.05), transparent);
+      animation: crt-roll 8s linear infinite;
+    }
+    @keyframes crt-roll { from { top: -90px; } to { top: 100%; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      body::before { animation: none; opacity: 0; }
     }
 
     /* ── Starfield canvas ─────────────────────────────── */
@@ -51,15 +94,15 @@
       position: relative;
       width: min(840px, 100%);
       border-radius: 1.5rem;
-      border: 2px solid rgba(88,198,179,0.55);
+      border: 2px solid rgba(255, 43, 214,0.55);
       background:
-        radial-gradient(ellipse 70% 40% at 50% 0%, rgba(132,216,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 70% 40% at 50% 0%, rgba(0, 229, 255,0.06) 0%, transparent 60%),
         linear-gradient(170deg, rgba(9,17,34,0.94) 0%, rgba(4,9,18,0.92) 100%);
       backdrop-filter: blur(28px);
       box-shadow:
         0 50px 140px rgba(0,0,0,0.65),
-        0 0 0 1px rgba(88,198,179,0.35),
-        0 0 36px rgba(88,198,179,0.22),
+        0 0 0 1px rgba(255, 43, 214,0.35),
+        0 0 36px rgba(255, 43, 214,0.22),
         inset 0 1px 0 rgba(255,255,255,0.07);
       overflow: hidden;
     }
@@ -191,7 +234,7 @@
       font-size: 0.62rem;
       letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: rgba(200,220,240,0.85);
+      color: rgba(214, 194, 255,0.85);
     }
 
     .stat-value {
@@ -243,7 +286,7 @@
       font-size: 0.58rem;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: rgba(200,220,240,0.85);
+      color: rgba(214, 194, 255,0.85);
       white-space: nowrap;
     }
 
@@ -257,7 +300,7 @@
       position: relative;
       height: 2px;
       border-radius: 1px;
-      background: linear-gradient(90deg, rgba(132,216,255,0.18), rgba(247,189,104,0.18));
+      background: linear-gradient(90deg, rgba(0, 229, 255,0.18), rgba(255, 43, 214,0.18));
       overflow: visible;
     }
 
@@ -269,8 +312,8 @@
       transform-origin: left;
       transform: scaleX(0);
       border-radius: 1px;
-      background: linear-gradient(90deg, #84d8ff, #f7bd68);
-      box-shadow: 0 0 14px rgba(247,189,104,0.45);
+      background: linear-gradient(90deg, #00e5ff, #ff2bd6);
+      box-shadow: 0 0 14px rgba(255, 43, 214,0.45);
     }
 
     /* Ship dot — initial state; WAAPI drives the animation from JS */
@@ -281,10 +324,10 @@
       width: 11px;
       height: 11px;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 30%, #fff, #ffe0a8 68%, #ffb040);
+      background: radial-gradient(circle at 35% 30%, #fff, #ffd319 68%, #ff6ad5);
       box-shadow:
-        0 0 14px rgba(255,215,140,0.8),
-        0 0 28px rgba(132,216,255,0.3);
+        0 0 14px rgba(255, 211, 25,0.8),
+        0 0 28px rgba(0, 229, 255,0.3);
       transform: translate(-5.5px, -50%);
       z-index: 2;
     }
@@ -299,7 +342,7 @@
       height: 0.2rem;
       transform: translateY(-50%);
       border-radius: 999px;
-      background: linear-gradient(90deg, transparent, rgba(170,228,255,0.28), rgba(255,215,140,0.75));
+      background: linear-gradient(90deg, transparent, rgba(170,228,255,0.28), rgba(255, 211, 25,0.75));
       filter: blur(0.8px);
     }
 
@@ -448,7 +491,7 @@
         -webkit-backdrop-filter: blur(12px);
         padding: 2rem;
         text-align: center;
-        color: #edf4ff;
+        color: #fdf7ff;
       }
       #portrait-advisory.is-dismissed { display: none; }
       #portrait-advisory-icon {
@@ -473,9 +516,9 @@
         margin-top: 0.5rem;
         padding: 0.55rem 1.6rem;
         border-radius: 2rem;
-        border: 1px solid rgba(132, 216, 255, 0.35);
-        background: rgba(132, 216, 255, 0.1);
-        color: #84d8ff;
+        border: 1px solid rgba(0, 229, 255, 0.35);
+        background: rgba(0, 229, 255, 0.1);
+        color: #00e5ff;
         font-size: 0.85rem;
         font-family: inherit;
         cursor: pointer;
@@ -484,8 +527,8 @@
       }
       #portrait-advisory-dismiss:hover,
       #portrait-advisory-dismiss:focus-visible {
-        background: rgba(132, 216, 255, 0.2);
-        border-color: rgba(132, 216, 255, 0.6);
+        background: rgba(0, 229, 255, 0.2);
+        border-color: rgba(0, 229, 255, 0.6);
         outline: none;
       }
     }

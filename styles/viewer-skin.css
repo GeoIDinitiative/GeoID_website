@@ -1,0 +1,147 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   GeoID viewers — shared 80s retro-cyberpunk skin
+
+   Loaded LAST in every viewer document:
+     planet_explorer/{mercury,venus,moon,mars,jupiter,saturn,uranus,
+                      neptune,pluto}/viewer/
+     earth_explorer/etna/viewer/
+     GeoID_Earth/viewer/            (the globe inside myGeoID)
+
+   The eleven viewers are forks of one codebase — 88 structural classes are
+   common to all three families — so one file skins the lot. What differs is
+   the token NAMES: the planet viewers use --mars-*/--instrument-rust, Etna
+   uses --panel-top/--instrument, GeoID_Earth uses a mix. All three sets are
+   declared below; the ones a given viewer doesn't read are simply inert.
+
+   PALETTE, matching the myGeoID shell:
+     magenta #ff2bd6  chrome — frames, headings, active states
+     cyan    #00e5ff  data — readouts, measurements, values
+   Rule held throughout: GLOW THE CHROME, NOT THE DATA.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* The viewers ask for Orbitron and Exo 2, both retired site-wide. Re-point
+   the family names so no selector in any styles.css has to change. */
+@font-face {
+  font-family: "Orbitron";
+  font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Exo 2";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Exo 2";
+  font-style: normal; font-weight: 500 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+}
+
+:root {
+  /* Shared across all three families */
+  --bg: #0d0221;
+  --panel: rgba(22, 9, 51, 0.97);
+  --line: rgba(255, 43, 214, 0.42);
+  --nav-accent: #ff2bd6;
+  --nav-accent-rgb: 255, 43, 214;
+  --text: #fdf7ff;
+  --muted: rgba(214, 194, 255, 0.78);
+  --soft-light: #e2d2ff;
+  --accent: #00e5ff;
+  --panel-edge: rgba(255, 43, 214, 0.38);
+  --panel-fill: rgba(22, 9, 51, 0.97);
+
+  /* planet_explorer / GeoID_Earth naming */
+  --mars-panel-top: rgba(31, 14, 69, 0.95);
+  --mars-panel-bottom: rgba(13, 2, 33, 0.98);
+  --mars-glow: rgba(255, 43, 214, 0.22);
+  --mars-surface-shadow: rgba(0, 0, 0, 0.6);
+  --instrument-rust: #00e5ff;
+  --instrument-rust-rgb: 0, 229, 255;
+
+  /* earth_explorer/etna naming */
+  --panel-top: rgba(31, 14, 69, 0.95);
+  --panel-bottom: rgba(13, 2, 33, 0.98);
+  --glow: rgba(255, 43, 214, 0.22);
+  --surface-shadow: rgba(0, 0, 0, 0.6);
+  --instrument: #00e5ff;
+  --instrument-rgb: 0, 229, 255;
+}
+
+body { background: var(--bg); }
+::selection { background: #ff2bd6; color: #2b0030; }
+
+/* ── Panels: magenta edge-bloom ─────────────────────────────────────── */
+.control-section, .toolbar-card, .viewer-help-card, .scene-popup,
+.controls, .legend-panel {
+  border-color: rgba(255, 43, 214, 0.34) !important;
+  box-shadow:
+    0 0 0 1px rgba(255, 43, 214, 0.10),
+    0 0 22px -6px rgba(255, 43, 214, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+/* ── Headings glow; body copy does not ──────────────────────────────── */
+.section-title, .section-heading, .feature-title, .brand-title, .eyebrow {
+  color: #fdf7ff !important;
+  text-shadow: 0 0 12px rgba(255, 43, 214, 0.55);
+}
+.feature-kicker, .section-icon { filter: drop-shadow(0 0 6px rgba(255, 43, 214, 0.7)); }
+
+/* ── Controls ───────────────────────────────────────────────────────── */
+.tool-button, .tool-rail-btn, .tool-rail-action-btn, .button,
+.mini-select, .input, .hub-link, .info-btn {
+  border-color: rgba(0, 229, 255, 0.40) !important;
+  color: #bff4ff !important;
+}
+.tool-button:hover, .tool-rail-btn:hover, .tool-rail-action-btn:hover,
+.button:hover, .hub-link:hover, .info-btn:hover {
+  border-color: #00e5ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 18px -2px rgba(0, 229, 255, 0.65) !important;
+}
+.tool-button.is-active, .tool-rail-btn.is-active, .button.is-active,
+.tool-button[aria-pressed="true"], .tool-rail-btn[aria-pressed="true"] {
+  background: rgba(255, 43, 214, 0.18) !important;
+  border-color: #ff2bd6 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 22px -2px rgba(255, 43, 214, 0.75) !important;
+}
+.slider, .lod-slider, input[type="range"] { accent-color: #ff2bd6; }
+input[type="checkbox"], input[type="radio"] { accent-color: #ff2bd6; }
+
+/* ── Readouts: bright cyan, deliberately un-blurred ──────────────────── */
+.hazard-value, .locator-readout, .timeline-readout, .lod-value-label,
+.measure-metric, .gis-metric, .feature-meta {
+  color: #00e5ff !important;
+}
+
+/* ── The globe/planet canvas ────────────────────────────────────────────
+   A modest lift so the render sits in the same world as the chrome. Kept
+   low: this is real mission imagery and shouldn't be cooked. */
+canvas { filter: saturate(1.18) contrast(1.04); }
+
+/* ── CRT: scanlines, vignette and a slow roll ──────────────────────────
+   Each viewer is its own document (several are iframed), so each needs its
+   own overlay — a parent's cannot reach in. pointer-events:none throughout
+   so nothing is ever blocked from clicking. */
+body::after {
+  content: "";
+  position: fixed; inset: 0;
+  z-index: 99999; pointer-events: none;
+  background:
+    repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
+    radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(10, 1, 25, 0.48) 100%);
+}
+body::before {
+  content: "";
+  position: fixed; left: 0; right: 0; height: 90px;
+  z-index: 99998; pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(255, 43, 214, 0.045), transparent);
+  animation: crt-roll 8s linear infinite;
+}
+@keyframes crt-roll { from { top: -90px; } to { top: 100%; } }
+
+@media (prefers-reduced-motion: reduce) {
+  body::before { animation: none; opacity: 0; }
+}

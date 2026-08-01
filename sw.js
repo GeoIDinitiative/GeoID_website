@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v7';   // v6: unified site header (site-nav.css)
+const STATIC_CACHE = 'geoid-site-v8';   // v8: viewer + transit skins
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [
@@ -11,6 +11,7 @@ const PRECACHE = [
   '/styles/v2-site.css',
   '/styles/site-nav.css',
   '/styles/skins/synthwave.css',
+  '/styles/viewer-skin.css',
 
   '/styles/nav.js',
   '/scripts/v2-site.js',
