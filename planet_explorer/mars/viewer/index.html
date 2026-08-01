@@ -62,16 +62,20 @@
             <select id="fs-ship-model" class="select">
               <option value="shuttle" selected>Space Shuttle</option>
               <option value="saucer">Flying Saucer</option>
-              <!-- Withheld from the public build. Their builders, bakes and
-                   assets are all still present and working — only the menu
-                   entries are removed, so restoring one is a matter of
-                   uncommenting its line. Not shipped because each is a
-                   recognisable third-party design.
+              <!-- Reinstated 2026-08-01 at Owen's request. Labels stay
+                   generic on purpose — these are fan-made models of
+                   recognisable third-party designs, so the menu describes
+                   the silhouette rather than naming the franchise.
+                   Each needs its bake in assets/: buildTardis reads
+                   tardis_{body,windows}.stl, buildStarship enterprise_*.stl,
+                   buildXFighter xfighter_*.stl, buildFalcon falcon_*.stl.
+                   attachBaked() no-ops on a missing STL, so a dropped asset
+                   yields an invisible ship rather than an error — if one goes
+                   blank, check the file shipped before debugging the code. -->
               <option value="tardis">Police Box</option>
               <option value="starship">Starship</option>
               <option value="xfighter">X-Fighter</option>
               <option value="falcon">Light Freighter</option>
-              -->
               <!-- Any value not listed here falls back to the shuttle in
                    buildShip(), so a stale selection cannot break the sim. -->
             </select>
