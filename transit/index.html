@@ -110,11 +110,14 @@
     }
 
     /* ── Arrival info (embedded in hero) ─────────────── */
+    /* In flow, not absolute. Absolute took it out of the layout entirely, so
+       nothing stopped the destination title running underneath it — at the
+       top of its clamp a long name like MERCURY is wide enough to reach the
+       date and collide. On its own line the two can never meet, whatever the
+       destination is called. */
     .arrival-block {
-      position: absolute;
-      top: 1.1rem;
-      right: 1.4rem;
       text-align: right;
+      padding: 1.1rem clamp(1.25rem, 3vw, 2rem) 0;
       z-index: 2;
     }
     .arrival-label {
@@ -138,7 +141,9 @@
       grid-template-columns: auto 1fr;
       align-items: center;
       gap: clamp(1.25rem, 4vw, 2rem);
-      padding: 1.4rem clamp(1.25rem, 3vw, 2rem) clamp(1.2rem, 3vw, 1.8rem);
+      /* Reduced top padding: the arrival line above now contributes its own
+         height, so the old 1.4rem would push the card taller than before. */
+      padding: 0.5rem clamp(1.25rem, 3vw, 2rem) clamp(1.2rem, 3vw, 1.8rem);
     }
 
     /* Planet display */

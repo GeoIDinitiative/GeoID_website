@@ -5376,15 +5376,23 @@ function setupUI() {
   const videoOverlay = document.getElementById('etna-video-overlay');
   const videoClose   = document.getElementById('etna-video-close');
   const videoEl      = document.getElementById('etna-video-el');
+  // One close path for the three ways out — button, backdrop, Escape — so the
+  // video can never be left playing behind a hidden overlay.
+  function _closeVideoOverlay() {
+    if (!videoOverlay || videoOverlay.hidden) return false;
+    videoOverlay.hidden = true;
+    if (videoEl) videoEl.pause();
+    return true;
+  }
   if (videoBtn && videoOverlay) {
     videoBtn.addEventListener('click', () => { videoOverlay.hidden = false; });
   }
   if (videoClose && videoOverlay) {
-    videoClose.addEventListener('click', () => { videoOverlay.hidden = true; if (videoEl) videoEl.pause(); });
+    videoClose.addEventListener('click', _closeVideoOverlay);
   }
   if (videoOverlay) {
     videoOverlay.addEventListener('click', (e) => {
-      if (e.target === videoOverlay) { videoOverlay.hidden = true; if (videoEl) videoEl.pause(); }
+      if (e.target === videoOverlay) _closeVideoOverlay();
     });
   }
 
@@ -5409,7 +5417,9 @@ function setupUI() {
     const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 
     if (e.key === 'Escape') {
-      // Priority: help overlay → scene popup → measure mode
+      // Priority: video → help overlay → scene popup → measure mode.
+      // The video sits on top of everything, so it has to go first.
+      if (_closeVideoOverlay()) return;
       if (helpOverlay && !helpOverlay.hidden) { helpOverlay.hidden = true; return; }
       if (activePopupFeature || document.getElementById('scene-popup')?.hasAttribute('hidden') === false) {
         hideFeaturePopup(); return;
