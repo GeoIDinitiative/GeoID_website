@@ -1805,21 +1805,28 @@
       }
 
       function renderRiskSummaryGroups(summary) {
-        const groups = [...new Set(summary.map((tile) => tile.group || "Indicators"))];
-        return groups.map((group) => `
+        // One section, one row. Splitting the tiles into a 4-up group and a
+        // 2-up group meant the second row could only ever stretch or leave
+        // dead columns. Membership is not lost: it stays on data-group, and
+        // any tile outside the leading group carries a visible tag.
+        const lead = summary.length ? (summary[0].group || "Indicators") : "Indicators";
+        return `
           <section class="risk-section">
-            <h3 class="risk-section-title">${group}</h3>
+            <h3 class="risk-section-title">Indicators</h3>
             <div class="risk-summary">
-              ${summary.filter((tile) => (tile.group || "Indicators") === group).map((tile) => `
-                <div class="risk-tile" data-severity="${tile.severity || "stable"}">
+              ${summary.map((tile) => {
+                const group = tile.group || "Indicators";
+                return `
+                <div class="risk-tile" data-severity="${tile.severity || "stable"}" data-group="${group}">
+                  ${group === lead ? "" : `<span class="risk-group" title="${group}">${group.split(" ")[0]}</span>`}
                   <div class="risk-label">${tile.label}</div>
                   <div class="risk-value">${tile.value}</div>
                   <div class="risk-note">${tile.note}</div>
-                </div>
-              `).join("")}
+                </div>`;
+              }).join("")}
             </div>
           </section>
-        `).join("");
+        `;
       }
 
       function renderRiskContext(data, model) {

@@ -338,6 +338,121 @@ body {
 }
 
 /* ═══ METRIC LAYOUT ══════════════════════════════════════════════════════
+   All indicators sit in ONE row. Previously they were split into a 4-up
+   "Primary Indicators" group and a 2-up "Model Signals" group, which meant
+   the second group could only stretch to fill (two 690px tiles holding a
+   single number each) or leave dead columns. Merging removes the choice.
+
+   Group membership survives on data-group, and any tile outside the
+   leading group carries a visible tag — so pore pressure and model
+   confidence still read as diagnostics, not as primary readings.
+   ═══════════════════════════════════════════════════════════════════════ */
+.risk-summary-groups { display: block; }
+.risk-section { margin-bottom: 1.1rem !important; }
+
+.risk-summary {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)) !important;
+  gap: 0.8rem !important;
+  margin-bottom: 0 !important;
+}
+
+/* The tag that marks a non-primary tile. */
+.risk-group {
+  position: absolute;
+  top: 0.6rem; right: 0.75rem;
+  font-family: "Exo 2", sans-serif;
+  font-size: 0.48rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(0, 229, 255, 0.75);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  padding: 0.12rem 0.35rem;
+  line-height: 1;
+}
+/* The corner bracket would collide with the tag, so tagged tiles drop it,
+   and the label reserves the tag's width so long names cannot run under it. */
+.risk-tile:has(.risk-group)::after { display: none; }
+.risk-tile:has(.risk-group) .risk-label { padding-right: 2.5rem; white-space: nowrap; }
+
+/* ═══ SECTION BANNERS ════════════════════════════════════════════════════
+   Was a small grey caption. Now a system banner: a lit chevron, the label
+   in the display face, and a rule running out to the right edge. This is
+   the single biggest reason the hub now has a hierarchy you can see from
+   across the room. */
+.risk-section { margin-bottom: 1.6rem; }
+.risk-section-title,
+.parameter-section-title {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  font-family: "Orbitron", "Exo 2", sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 0.82rem !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase;
+  color: #ffffff !important;
+  text-shadow: 0 0 16px rgba(255, 43, 214, 0.6);
+  border-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  margin: 0 0 0.95rem !important;
+}
+.risk-section-title::before,
+.parameter-section-title::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 11px; height: 13px;
+  background: #ff2bd6;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  box-shadow: 0 0 14px rgba(255, 43, 214, 0.9);
+}
+.risk-section-title::after,
+.parameter-section-title::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 43, 214, 0.65), rgba(255, 43, 214, 0.05));
+}
+
+/* ═══ STRIP LAYOUT — tabs centred ════════════════════════════════════════
+   Three zones: label left, tabs dead-centre, readout + actions right.
+   The tab list is taken out of flow so it centres on the strip itself
+   rather than on whatever space the other two happen to leave. */
+.hub-strip { position: relative; }
+@media (min-width: 1100px) {
+  .hub-tab-list {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+  }
+  /* Taking the tabs out of flow frees the readout to slide left underneath
+     them. The tab block is ~594px, so the clear space either side of centre
+     is (50% - 297px) minus the action buttons — hence the 500px allowance.
+     The readout truncates rather than colliding. */
+  .hub-pin-display {
+    margin-left: auto;
+    max-width: calc(50% - 500px);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .hub-strip-title { max-width: calc(50% - 320px); overflow: hidden; white-space: nowrap; }
+
+  /* When the drawer is open the same coordinates, elevation, temp, pressure
+     and precipitation are spelled out in full in its context strip — so the
+     abbreviated copy in the bar is redundant. Dropping it gives the tabs the
+     whole width to sit in. */
+  .hub-strip:has(.hub-toggle-btn.is-open) .hub-pin-display { display: none; }
+  /* The auto margin that right-aligns the trailing group lives on the
+     readout — so when the readout is hidden it has to move to the first
+     button, or Exit/Analysis Hub collapse back against the title. */
+  .hub-strip:has(.hub-toggle-btn.is-open) .hub-action-btn.is-danger { margin-left: auto; }
+}
+
+/* ═══ METRIC LAYOUT ══════════════════════════════════════════════════════
    4 primary tiles and 2 model-signal tiles cannot share one grid without
    either stretching to fill (two 690px tiles holding one number each) or
    leaving dead columns. Both were tried and both looked wrong.
