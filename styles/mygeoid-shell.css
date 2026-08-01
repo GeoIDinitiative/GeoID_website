@@ -1,19 +1,21 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   myGeoID shell — synthwave skin
+   myGeoID shell — 80s retro-cyberpunk skin
 
    Loaded LAST in myGeoID/index.html, after its inline <style>.
 
-   The page is a shell around an iframe: this file styles the consent gate
-   and the Analysis Hub strip. The globe, the Hazard Modelling panel and
-   the FOS readout live inside /GeoID_Earth/viewer/ and are skinned by
-   styles/mygeoid-viewer.css.
+   The page is a shell around an iframe: this file styles the consent gate,
+   the Analysis Hub strip and the hub drawer. The globe, the Hazard
+   Modelling panel and the FOS readout live inside /GeoID_Earth/viewer/ and
+   are skinned by styles/mygeoid-viewer.css.
 
-   Same two-accent split as the viewer — pink #ff3ec8 for chrome, cyan
-   #29c5ff for data — so the two documents read as one product.
+   PALETTE — two accents, used consistently across both documents:
+     magenta #ff2bd6   chrome: frames, headers, active states
+     cyan    #00e5ff   data: figures, measurements, status values
+   Severity overrides the data colour where it applies, because on a
+   hazard readout colour is information, not decoration.
 
-   Scoped deliberately to --hub-* tokens and .demo-disclaimer-*/.hub-*
-   selectors. The generic --panel/--line/--text tokens are left alone,
-   because shared.css and site-nav.css also consume them on this page.
+   Rule held throughout: GLOW THE CHROME, NOT THE DATA. Frames, headings
+   and controls bloom; measured figures stay crisp.
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* The shell asks for Exo 2 and Orbitron, both retired site-wide. */
@@ -34,160 +36,377 @@
 }
 
 body {
-  --hub-accent: #ff3ec8;
-  --hub-accent-rgb: 255, 62, 200;
-  --hub-blue: #29c5ff;
+  --hub-accent: #ff2bd6;
+  --hub-accent-rgb: 255, 43, 214;
+  --hub-blue: #00e5ff;
   --hub-panel-top: rgba(31, 14, 69, 0.95);
   --hub-panel-bottom: rgba(13, 2, 33, 0.98);
   --hub-panel-fill: rgba(22, 9, 51, 0.97);
-  --hub-text: #f8f4ff;
-  --hub-muted: rgba(206, 184, 250, 0.70);
+  --hub-text: #fdf7ff;
+  --hub-muted: rgba(226, 214, 255, 0.80);
   background: #0d0221;
+
+  /* Local shorthands for the hub */
+  --sev-stable: #4dffa6;
+  --sev-watch:  #ffd319;
+  --sev-high:   #ff4d6d;
 }
 
-/* ── Consent gate ───────────────────────────────────────────────────────
-   Squared and repainted to the site. The eyebrow stays amber on purpose:
-   it is the one element here that must not blend in. */
-.demo-disclaimer-backdrop { background: rgba(6, 1, 16, 0.86); }
+/* ═══ CONSENT GATE ═══════════════════════════════════════════════════════
+   Squared and repainted. The eyebrow stays amber on purpose: it is the one
+   element here that must not blend in. */
+.demo-disclaimer-backdrop { background: rgba(6, 1, 16, 0.88); }
 
 .demo-disclaimer-modal {
-  border-radius: 2px;
+  border-radius: 0;
   background: rgba(22, 9, 51, 0.98);
-  border: 1px solid rgba(255, 62, 200, 0.30);
-  box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 43, 214, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(255, 43, 214, 0.12),
+    0 0 60px -10px rgba(255, 43, 214, 0.45),
+    0 40px 90px -30px rgba(0, 0, 0, 0.9);
 }
 .demo-disclaimer-eyebrow {
-  border-radius: 2px;
+  border-radius: 0;
   font-family: "Exo 2", sans-serif;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.2em;
 }
 .demo-disclaimer-title {
   font-family: "Orbitron", "Exo 2", sans-serif;
   font-weight: 400;               /* Audiowide ships one weight */
   letter-spacing: -0.01em;
-  color: #f8f4ff;
+  color: #fdf7ff;
+  text-shadow: 0 0 18px rgba(255, 43, 214, 0.55);
 }
 .demo-disclaimer-body,
-.demo-disclaimer-list { color: rgba(206, 184, 250, 0.78); }
-.demo-disclaimer-body strong { color: #ffd319; }
+.demo-disclaimer-list { color: rgba(226, 214, 255, 0.82); }
+.demo-disclaimer-body strong { color: var(--sev-watch); }
 
 .demo-disclaimer-confirm {
-  border-radius: 2px;
-  background: rgba(255, 62, 200, 0.06);
-  border: 1px solid rgba(255, 62, 200, 0.22);
+  border-radius: 0;
+  background: rgba(255, 43, 214, 0.06);
+  border: 1px solid rgba(255, 43, 214, 0.24);
 }
-.demo-disclaimer-confirm-label { color: rgba(226, 210, 255, 0.86); }
-#demo-disclaimer-checkbox { accent-color: #ff3ec8; }
+.demo-disclaimer-confirm-label { color: rgba(232, 222, 255, 0.9); }
+#demo-disclaimer-checkbox { accent-color: #ff2bd6; }
 
 .demo-disclaimer-button {
-  border-radius: 2px;
+  border-radius: 0;
   font-family: "Exo 2", sans-serif;
-  font-weight: 600;
-  letter-spacing: 0.09em;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  background: #ff3ec8;
-  border: 1px solid #ff3ec8;
+  background: #ff2bd6;
+  border: 1px solid #ff2bd6;
   color: #2b0030;
-  box-shadow: 0 0 18px rgba(255, 62, 200, 0.35);
+  box-shadow: 0 0 24px -2px rgba(255, 43, 214, 0.7);
 }
 .demo-disclaimer-button:hover:not(:disabled) {
-  background: #ffd319; border-color: #ffd319; color: #2b1e00;
+  background: var(--sev-watch); border-color: var(--sev-watch); color: #2b1e00;
 }
 .demo-disclaimer-button:disabled {
   background: transparent;
-  border-color: rgba(255, 62, 200, 0.28);
-  color: rgba(206, 184, 250, 0.45);
+  border-color: rgba(255, 43, 214, 0.28);
+  color: rgba(226, 214, 255, 0.45);
   box-shadow: none;
 }
 
-/* ── Analysis Hub strip ─────────────────────────────────────────────── */
+/* ═══ ANALYSIS HUB STRIP ═════════════════════════════════════════════════ */
 .hub-strip {
-  background: rgba(13, 2, 33, 0.96);
-  border-top: 1px solid rgba(255, 62, 200, 0.28);
-}
-.hub-strip-title {
-  font-family: "Exo 2", sans-serif;
-  letter-spacing: 0.16em;
-  color: rgba(206, 184, 250, 0.70);
-}
-.hub-tab-btn {
-  border-radius: 2px;
-  font-family: "Exo 2", sans-serif;
-  letter-spacing: 0.08em;
-  color: rgba(206, 184, 250, 0.72);
-  border-color: rgba(255, 62, 200, 0.22);
-}
-.hub-tab-btn:hover { color: #f8f4ff; border-color: rgba(255, 62, 200, 0.45); }
-.hub-tab-btn.is-active {
-  background: #ff3ec8;
-  border-color: #ff3ec8;
-  color: #2b0030;
-}
-.hub-toggle-btn, .hub-action-btn {
-  border-radius: 2px;
-  font-family: "Exo 2", sans-serif;
-  letter-spacing: 0.08em;
-}
-.hub-action-btn.is-danger { border-color: rgba(255, 122, 104, 0.45); color: #ff9a86; }
-.hub-pin-display { color: rgba(206, 184, 250, 0.60); font-family: "Exo 2", sans-serif; }
-.hub-drawer, .hub-drawer-inner { background: rgba(13, 2, 33, 0.97); }
-
-::selection { background: #ff3ec8; color: #2b0030; }
-
-/* ═══════════════════════════════════════════════════════════════════════
-   VIBRANCY PASS — 80s retro-cyberpunk (shell half)
-   Mirrors styles/mygeoid-viewer.css so the strip, the gate and the
-   iframe read as one screen. Same rule: glow the chrome, not the data.
-   ═══════════════════════════════════════════════════════════════════════ */
-
-body {
-  --hub-accent: #ff2bd6;
-  --hub-accent-rgb: 255, 43, 214;
-  --hub-blue: #00e5ff;
-  --hub-text: #fdf7ff;
-  --hub-muted: rgba(214, 194, 255, 0.78);
-}
-
-/* Analysis Hub strip: a lit edge rather than a hairline. */
-.hub-strip {
+  background: rgba(13, 2, 33, 0.97);
   border-top: 1px solid rgba(255, 43, 214, 0.45);
   box-shadow: 0 -8px 26px -10px rgba(255, 43, 214, 0.55);
 }
 .hub-strip-title {
-  color: rgba(214, 194, 255, 0.78);
-  text-shadow: 0 0 10px rgba(255, 43, 214, 0.4);
+  font-family: "Orbitron", "Exo 2", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.2em;
+  color: rgba(232, 222, 255, 0.9);
+  text-shadow: 0 0 12px rgba(255, 43, 214, 0.45);
 }
-.hub-tab-btn { border-color: rgba(0, 229, 255, 0.34); color: #bff4ff; }
+.hub-tab-btn {
+  border-radius: 0;
+  font-family: "Exo 2", sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #bff4ff;
+  border-color: rgba(0, 229, 255, 0.34);
+}
 .hub-tab-btn:hover {
-  border-color: #00e5ff; color: #fff;
+  color: #fff; border-color: #00e5ff;
   box-shadow: 0 0 16px -2px rgba(0, 229, 255, 0.6);
 }
 .hub-tab-btn.is-active {
   background: #ff2bd6; border-color: #ff2bd6; color: #2b0030;
   box-shadow: 0 0 20px -2px rgba(255, 43, 214, 0.8);
 }
-.hub-toggle-btn { border-color: rgba(255, 43, 214, 0.4); }
+.hub-toggle-btn, .hub-action-btn {
+  border-radius: 0;
+  font-family: "Exo 2", sans-serif;
+  letter-spacing: 0.1em;
+  border-color: rgba(255, 43, 214, 0.4);
+}
 .hub-toggle-btn:hover { box-shadow: 0 0 16px -2px rgba(255, 43, 214, 0.6); }
+.hub-action-btn.is-danger { border-color: rgba(255, 77, 109, 0.5); color: #ff8fa0; }
+.hub-pin-display { color: rgba(226, 214, 255, 0.85); font-family: "Exo 2", sans-serif; }
 
-/* Consent gate, turned up to match. */
-.demo-disclaimer-modal {
-  border-color: rgba(255, 43, 214, 0.45);
-  box-shadow:
-    0 0 0 1px rgba(255, 43, 214, 0.12),
-    0 0 60px -10px rgba(255, 43, 214, 0.45),
-    0 40px 90px -30px rgba(0, 0, 0, 0.9);
-}
-.demo-disclaimer-title { text-shadow: 0 0 18px rgba(255, 43, 214, 0.55); }
-.demo-disclaimer-button {
-  background: #ff2bd6; border-color: #ff2bd6;
-  box-shadow: 0 0 24px -2px rgba(255, 43, 214, 0.7);
+/* ═══ HUB DRAWER — graph-paper ground ════════════════════════════════════
+   A faint 40px grid under the whole drawer. It is what stops the panel
+   reading as a flat sheet of boxes, and it is the cheapest possible nod to
+   an instrument surface. */
+.hub-drawer, .hub-drawer-inner {
+  background:
+    linear-gradient(rgba(255, 43, 214, 0.045) 1px, transparent 1px) 0 0 / 100% 40px,
+    linear-gradient(90deg, rgba(255, 43, 214, 0.045) 1px, transparent 1px) 0 0 / 40px 100%,
+    rgba(13, 2, 33, 0.97);
 }
 
-/* ── CRT: scanlines + vignette ───────────────────────────────────────────
+/* ═══ HUB HEADER BLOCK ═══════════════════════════════════════════════════ */
+.hub-analysis-head {
+  position: relative;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.4rem;
+  padding: 1.05rem 1.3rem;
+  border: 1px solid rgba(255, 43, 214, 0.35);
+  border-left: 3px solid #ff2bd6;
+  border-radius: 0;
+  background:
+    repeating-linear-gradient(180deg, rgba(255,255,255,0.022) 0 1px, transparent 1px 3px),
+    linear-gradient(90deg, rgba(255, 43, 214, 0.14), rgba(13, 2, 33, 0.92) 48%);
+  box-shadow: inset 0 0 40px -12px rgba(255, 43, 214, 0.35);
+}
+/* Corner bracket, top-right — the HUD tell. */
+.hub-analysis-head::after {
+  content: "";
+  position: absolute; top: 8px; right: 8px;
+  width: 16px; height: 16px;
+  border-top: 2px solid #ff2bd6;
+  border-right: 2px solid #ff2bd6;
+  opacity: 0.8;
+}
+.hub-kicker {
+  color: #ff2bd6 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.28em !important;
+  text-shadow: 0 0 12px rgba(255, 43, 214, 0.7);
+}
+.hub-analysis-title {
+  font-family: "Orbitron", "Exo 2", sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 1.6rem !important;
+  letter-spacing: 0.01em !important;
+  color: #ffffff !important;
+  /* Slight RGB split — the character sits here, where legibility of a
+     two-word heading is not at risk. */
+  text-shadow:
+    1px 0 rgba(255, 43, 214, 0.55),
+   -1px 0 rgba(0, 229, 255, 0.45),
+    0 0 26px rgba(255, 43, 214, 0.45);
+}
+.hub-analysis-subtitle { color: rgba(226, 214, 255, 0.78) !important; }
+
+/* Context strip — delimited metadata, no pills. */
+.hub-chip-row {
+  justify-content: flex-end;
+  gap: 0 !important;
+  row-gap: 0.35rem !important;
+  max-width: min(52rem, 60vw);
+}
+.hub-chip {
+  border-radius: 0 !important;
+  border: 0 !important;
+  border-right: 1px solid rgba(255, 43, 214, 0.3) !important;
+  background: none !important;
+  padding: 0 0.75rem !important;
+  min-height: 0 !important;
+  font-family: "Courier New", monospace;
+  font-size: 0.7rem !important;
+  letter-spacing: 0.04em;
+  color: rgba(232, 222, 255, 0.9) !important;
+}
+.hub-chip:last-child { border-right: 0 !important; padding-right: 0 !important; }
+.hub-chip.is-status {
+  color: #4ff0ff !important;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+}
+
+/* ═══ SECTION BANNERS ════════════════════════════════════════════════════
+   Was a small grey caption. Now a system banner: a lit chevron, the label
+   in the display face, and a rule running out to the right edge. This is
+   the single biggest reason the hub now has a hierarchy you can see from
+   across the room. */
+.risk-section { margin-bottom: 1.6rem; }
+.risk-section-title,
+.parameter-section-title {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  font-family: "Orbitron", "Exo 2", sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 0.82rem !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase;
+  color: #ffffff !important;
+  text-shadow: 0 0 16px rgba(255, 43, 214, 0.6);
+  border-bottom: 0 !important;
+  padding-bottom: 0 !important;
+  margin: 0 0 0.95rem !important;
+}
+.risk-section-title::before,
+.parameter-section-title::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 11px; height: 13px;
+  background: #ff2bd6;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  box-shadow: 0 0 14px rgba(255, 43, 214, 0.9);
+}
+.risk-section-title::after,
+.parameter-section-title::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 43, 214, 0.65), rgba(255, 43, 214, 0.05));
+}
+
+/* ═══ METRIC TILES — instrument modules ══════════════════════════════════ */
+.risk-summary {
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)) !important;
+  gap: 0.85rem !important;
+  margin-bottom: 0 !important;
+}
+
+.risk-tile {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 !important;
+  border: 1px solid rgba(255, 43, 214, 0.28) !important;
+  padding: 1rem 1.1rem 0.95rem 1.25rem !important;
+  background:
+    repeating-linear-gradient(180deg, rgba(255,255,255,0.016) 0 1px, transparent 1px 3px),
+    linear-gradient(160deg, rgba(38, 16, 82, 0.92), rgba(17, 5, 40, 0.95)) !important;
+  transition: border-color .25s, box-shadow .25s, transform .25s;
+}
+.risk-tile:hover {
+  border-color: rgba(255, 43, 214, 0.6) !important;
+  box-shadow: 0 0 26px -6px rgba(255, 43, 214, 0.55) !important;
+  transform: translateY(-2px);
+}
+
+/* Severity rail down the left edge — the tile's status at a glance. */
+.risk-tile::before {
+  content: "";
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--sev-stable);
+  box-shadow: 0 0 14px var(--sev-stable);
+}
+/* Corner bracket, bottom-right. */
+.risk-tile::after {
+  content: "";
+  position: absolute; right: 7px; bottom: 7px;
+  width: 12px; height: 12px;
+  border-right: 2px solid rgba(255, 43, 214, 0.55);
+  border-bottom: 2px solid rgba(255, 43, 214, 0.55);
+}
+
+.risk-label {
+  font-family: "Exo 2", sans-serif !important;
+  font-size: 0.6rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.24em !important;
+  color: rgba(240, 233, 255, 0.92) !important;
+}
+.risk-value {
+  font-family: "Courier New", monospace !important;
+  font-size: 1.85rem !important;
+  font-weight: 700 !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.02em !important;
+  margin: 0.3rem 0 0.15rem !important;
+  color: #00e5ff !important;
+  text-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
+}
+.risk-note {
+  font-family: "Exo 2", sans-serif !important;
+  font-size: 0.63rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.16em !important;
+  text-transform: uppercase;
+  color: rgba(240, 233, 255, 0.75) !important;
+}
+
+/* Severity drives the rail, the figure and the note together. Colour is
+   information here, so all three move as one. */
+.risk-tile[data-severity="stable"]::before,
+.risk-tile[data-severity="good"]::before { background: var(--sev-stable); box-shadow: 0 0 14px var(--sev-stable); }
+.risk-tile[data-severity="stable"] .risk-value,
+.risk-tile[data-severity="good"]   .risk-value { color: var(--sev-stable) !important; text-shadow: 0 0 20px rgba(77,255,166,0.45); }
+.risk-tile[data-severity="stable"] .risk-note,
+.risk-tile[data-severity="good"]   .risk-note { color: rgba(77, 255, 166, 0.9) !important; }
+
+.risk-tile[data-severity="watch"]::before { background: var(--sev-watch); box-shadow: 0 0 14px var(--sev-watch); }
+.risk-tile[data-severity="watch"] .risk-value { color: var(--sev-watch) !important; text-shadow: 0 0 20px rgba(255,211,25,0.45); }
+.risk-tile[data-severity="watch"] .risk-note  { color: rgba(255, 211, 25, 0.92) !important; }
+.risk-tile[data-severity="watch"] { border-color: rgba(255, 211, 25, 0.42) !important; }
+
+.risk-tile[data-severity="high"]::before,
+.risk-tile[data-severity="critical"]::before { background: var(--sev-high); box-shadow: 0 0 16px var(--sev-high); }
+.risk-tile[data-severity="high"] .risk-value,
+.risk-tile[data-severity="critical"] .risk-value { color: var(--sev-high) !important; text-shadow: 0 0 22px rgba(255,77,109,0.5); }
+.risk-tile[data-severity="high"] .risk-note,
+.risk-tile[data-severity="critical"] .risk-note { color: rgba(255, 77, 109, 0.95) !important; }
+.risk-tile[data-severity="high"],
+.risk-tile[data-severity="critical"] { border-color: rgba(255, 77, 109, 0.55) !important; }
+
+.risk-tile[data-severity="na"]::before { background: rgba(226, 214, 255, 0.3); box-shadow: none; }
+.risk-tile[data-severity="na"] .risk-value { color: rgba(226, 214, 255, 0.4) !important; text-shadow: none; }
+.risk-tile[data-severity="na"] .risk-note  { color: rgba(226, 214, 255, 0.45) !important; }
+
+/* ═══ CHART CARDS ════════════════════════════════════════════════════════ */
+.market-card {
+  position: relative;
+  border-radius: 0 !important;
+  border: 1px solid rgba(255, 43, 214, 0.26) !important;
+  background:
+    repeating-linear-gradient(180deg, rgba(255,255,255,0.014) 0 1px, transparent 1px 3px),
+    linear-gradient(160deg, rgba(34, 14, 74, 0.9), rgba(15, 4, 36, 0.94)) !important;
+  transition: border-color .25s, box-shadow .25s, transform .25s;
+}
+.market-card:hover {
+  border-color: rgba(255, 43, 214, 0.55) !important;
+  box-shadow: 0 0 24px -6px rgba(255, 43, 214, 0.5) !important;
+  transform: translateY(-2px);
+}
+.market-card-head, .market-card-head * { color: rgba(240, 233, 255, 0.94) !important; }
+.market-card-head { letter-spacing: 0.1em; }
+.market-card .market-meta,
+.market-card [class*="foot"], .market-card [class*="sub"] {
+  color: rgba(214, 197, 255, 0.75) !important;
+}
+.market-expand-btn {
+  border-radius: 0 !important;
+  border-color: rgba(0, 229, 255, 0.45) !important;
+  color: #8fefff !important;
+}
+.market-expand-btn:hover { box-shadow: 0 0 14px -2px rgba(0, 229, 255, 0.7) !important; }
+
+/* ═══ EMPTY STATES ═══════════════════════════════════════════════════════ */
+.hub-empty { color: rgba(232, 222, 255, 0.85) !important; }
+.hub-empty-icon {
+  color: #ff2bd6;
+  text-shadow: 0 0 20px rgba(255, 43, 214, 0.8);
+}
+.hub-empty-sub { color: rgba(214, 197, 255, 0.62) !important; }
+
+::selection { background: #ff2bd6; color: #2b0030; }
+
+/* ═══ CRT ════════════════════════════════════════════════════════════════
    The shell's own stylesheet sets `body::before, body::after
    { display: none }` to stop shared.css textures bleeding around the
-   iframe, so this has to switch ::after back on explicitly. Defining it
-   in full means the old texture doesn't come back with it. */
+   iframe, so this has to switch ::after back on explicitly. Defining it in
+   full means the old texture doesn't come back with it. */
 body::after {
   display: block !important;
   content: "";
@@ -198,215 +417,6 @@ body::after {
     radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(10, 1, 25, 0.48) 100%);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════
-   ANALYSIS HUB — retro instrument panel
-
-   Rebuilt from "rounded chips + floating tiles" into something closer to
-   a readout you'd find on hardware: squared, hairline-ruled, monospaced
-   figures on a strict grid.
-
-   Pills are gone. The context row is now a delimited metadata strip
-   (key · value, divider, key · value) which reads faster than nine
-   floating capsules and doesn't wrap into a ragged cloud.
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/* ── Header block ───────────────────────────────────────────────────── */
-.hub-analysis-head {
-  align-items: center;
-  gap: 1.5rem;
-  margin-bottom: 1.1rem;
-  padding: 0.9rem 1.1rem;
-  border: 1px solid rgba(255, 43, 214, 0.28);
-  border-left: 2px solid #ff2bd6;
-  border-radius: 0;
-  background: linear-gradient(90deg, rgba(255, 43, 214, 0.10), rgba(13, 2, 33, 0.9) 46%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+@media (prefers-reduced-motion: reduce) {
+  .risk-tile:hover, .market-card:hover { transform: none; }
 }
-.hub-kicker {
-  color: #ff2bd6 !important;
-  letter-spacing: 0.22em;
-  text-shadow: 0 0 10px rgba(255, 43, 214, 0.5);
-}
-.hub-analysis-title {
-  font-size: 1.15rem !important;
-  letter-spacing: 0.02em;
-  color: #fdf7ff;
-  text-shadow: 0 0 14px rgba(255, 43, 214, 0.35);
-}
-.hub-analysis-subtitle { color: rgba(214, 194, 255, 0.62) !important; }
-
-/* ── Context strip — replaces the pill cloud ─────────────────────────── */
-.hub-chip-row {
-  justify-content: flex-end;
-  gap: 0 !important;
-  max-width: min(52rem, 60vw);
-  row-gap: 0.3rem !important;
-}
-.hub-chip {
-  border-radius: 0 !important;
-  border: 0 !important;
-  background: none !important;
-  padding: 0 0.7rem !important;
-  min-height: 0 !important;
-  font-family: "Courier New", monospace;
-  font-size: 0.68rem !important;
-  letter-spacing: 0.04em;
-  color: rgba(214, 194, 255, 0.72) !important;
-  border-right: 1px solid rgba(255, 43, 214, 0.22) !important;
-}
-.hub-chip:last-child { border-right: 0 !important; padding-right: 0 !important; }
-.hub-chip.is-status {
-  color: #00e5ff !important;
-  background: none !important;
-  text-shadow: 0 0 10px rgba(0, 229, 255, 0.35);
-}
-
-/* ── Section rules ──────────────────────────────────────────────────── */
-.risk-section { margin-bottom: 1.25rem; }
-.risk-section-title {
-  font-size: 0.6rem !important;
-  letter-spacing: 0.26em !important;
-  color: rgba(214, 194, 255, 0.55) !important;
-  padding-bottom: 0.45rem;
-  margin-bottom: 0.8rem !important;
-  border-bottom: 1px solid rgba(255, 43, 214, 0.20);
-}
-
-/* ── Metric tiles — squared, seamed, monospaced figures ─────────────── */
-.risk-summary-groups .risk-grid,
-.risk-summary-groups [class*="grid"] { gap: 1px !important; }
-
-.risk-tile {
-  border-radius: 0 !important;
-  border: 1px solid rgba(255, 43, 214, 0.22) !important;
-  background: rgba(22, 9, 51, 0.85) !important;
-  padding: 0.85rem 0.95rem !important;
-  transition: background .25s, border-color .25s, box-shadow .25s;
-}
-.risk-tile:hover {
-  background: rgba(31, 14, 69, 0.92) !important;
-  border-color: rgba(255, 43, 214, 0.45) !important;
-  box-shadow: 0 0 20px -6px rgba(255, 43, 214, 0.5) !important;
-}
-.risk-label {
-  font-size: 0.58rem !important;
-  letter-spacing: 0.2em !important;
-  color: rgba(214, 194, 255, 0.60) !important;
-}
-.risk-value {
-  font-family: "Courier New", monospace !important;
-  font-size: 1.5rem !important;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: #00e5ff !important;
-  text-shadow: 0 0 16px rgba(0, 229, 255, 0.4);
-}
-.risk-note {
-  font-size: 0.62rem !important;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(214, 194, 255, 0.5) !important;
-}
-
-/* Severity keeps its meaning — colour is load-bearing here, so these
-   override the default cyan rather than being decorative. */
-.risk-tile[data-severity="critical"] .risk-value,
-.risk-tile[data-severity="high"] .risk-value {
-  color: #ff4d6d !important; text-shadow: 0 0 16px rgba(255, 77, 109, 0.45);
-}
-.risk-tile[data-severity="critical"], .risk-tile[data-severity="high"] {
-  border-color: rgba(255, 77, 109, 0.5) !important;
-}
-.risk-tile[data-severity="watch"] .risk-value {
-  color: #ffd319 !important; text-shadow: 0 0 16px rgba(255, 211, 25, 0.4);
-}
-.risk-tile[data-severity="watch"] { border-color: rgba(255, 211, 25, 0.45) !important; }
-.risk-tile[data-severity="stable"] .risk-value,
-.risk-tile[data-severity="good"] .risk-value { color: #4dffa6 !important; }
-.risk-tile[data-severity="na"] .risk-value { color: rgba(214, 194, 255, 0.35) !important; text-shadow: none; }
-
-/* ── Chart cards ────────────────────────────────────────────────────── */
-.market-card {
-  border-radius: 0 !important;
-  border: 1px solid rgba(255, 43, 214, 0.22) !important;
-  background: rgba(22, 9, 51, 0.85) !important;
-}
-.market-card:hover {
-  border-color: rgba(255, 43, 214, 0.45) !important;
-  box-shadow: 0 0 22px -6px rgba(255, 43, 214, 0.45) !important;
-}
-.parameter-section-title {
-  letter-spacing: 0.26em !important;
-  color: rgba(214, 194, 255, 0.55) !important;
-  border-bottom: 1px solid rgba(255, 43, 214, 0.20);
-  padding-bottom: 0.45rem;
-}
-
-/* ── Empty states ───────────────────────────────────────────────────── */
-.hub-empty { color: rgba(214, 194, 255, 0.55); }
-.hub-empty-icon {
-  color: #ff2bd6;
-  text-shadow: 0 0 16px rgba(255, 43, 214, 0.6);
-}
-.hub-empty-sub { color: rgba(214, 194, 255, 0.38); }
-
-/* ═══════════════════════════════════════════════════════════════════════
-   HUB — row shape + legibility pass
-
-   Two fixes:
-   1. .risk-summary was a hard `repeat(4, …)` grid, so the 2-tile "Model
-      Signals" group left two dead columns and the rows looked ragged.
-      auto-fit lets any group fill its row whatever its count.
-   2. Labels, notes and section titles were sitting at 0.5–0.6 alpha,
-      which read as greyed-out. Everything below is lifted into a proper
-      light ramp — vibrant, but still ranked so the figures lead.
-   ═══════════════════════════════════════════════════════════════════════ */
-
-.risk-summary {
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)) !important;
-  gap: 0.75rem !important;
-  margin-bottom: 0 !important;
-}
-
-/* Section rules: bright lavender, clearly a heading rather than a whisper. */
-.risk-section-title,
-.parameter-section-title {
-  color: #c9b3ff !important;
-  font-weight: 700 !important;
-  text-shadow: 0 0 12px rgba(201, 179, 255, 0.30);
-  border-bottom-color: rgba(255, 43, 214, 0.28) !important;
-}
-
-/* Tile labels: near-white, so the metric name is legible at a glance. */
-.risk-label {
-  color: rgba(238, 230, 255, 0.88) !important;
-  font-weight: 600 !important;
-}
-
-/* The note states the condition, so it takes the severity colour —
-   vibrant and informative at once, rather than decorative grey. */
-.risk-note { color: rgba(238, 230, 255, 0.72) !important; font-weight: 600 !important; }
-.risk-tile[data-severity="stable"] .risk-note,
-.risk-tile[data-severity="good"]   .risk-note { color: rgba(77, 255, 166, 0.85) !important; }
-.risk-tile[data-severity="watch"]  .risk-note { color: rgba(255, 211, 25, 0.9) !important; }
-.risk-tile[data-severity="critical"] .risk-note,
-.risk-tile[data-severity="high"]     .risk-note { color: rgba(255, 77, 109, 0.92) !important; }
-.risk-tile[data-severity="na"]       .risk-note { color: rgba(214, 194, 255, 0.45) !important; }
-
-/* Context strip + header copy lifted out of the grey. */
-.hub-chip { color: rgba(232, 222, 255, 0.90) !important; }
-.hub-chip.is-status { color: #4ff0ff !important; }
-.hub-analysis-subtitle { color: rgba(226, 214, 255, 0.80) !important; }
-.hub-strip-title { color: rgba(232, 222, 255, 0.88) !important; }
-.hub-pin-display { color: rgba(226, 214, 255, 0.80) !important; }
-
-/* Chart card furniture was the dimmest text on the page. */
-.market-card-head, .market-card-head * { color: rgba(238, 230, 255, 0.90) !important; }
-.market-card .market-meta,
-.market-card [class*="foot"], .market-card [class*="sub"] {
-  color: rgba(214, 197, 255, 0.72) !important;
-}
-
-/* Empty states */
-.hub-empty { color: rgba(232, 222, 255, 0.82) !important; }
-.hub-empty-sub { color: rgba(214, 197, 255, 0.62) !important; }
