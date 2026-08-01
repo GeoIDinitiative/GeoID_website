@@ -1,0 +1,50 @@
+{
+  "_readme": "Site news feed. Edit this file, run scripts/make-updates.py, commit. The script regenerates the homepage 'What's new' grid between its UPDATES markers. First entry = lead story (large tile). 'status' is one of: live, update, dev, research, resources.",
+  "updates": [
+    {
+      "status": "live",
+      "kicker": "Live now",
+      "title": "The Mars Flight Simulator is live",
+      "desc": "Fly over real Martian terrain with CTX imagery streaming beneath you. Choose a launch site anywhere on the planet and take off.",
+      "href": "/planet_explorer/mars/viewer/",
+      "image": "/assets/opt/hero_marsflight.webp",
+      "alt": "Mars flight simulator"
+    },
+    {
+      "status": "live",
+      "kicker": "Update",
+      "title": "Mt. Etna Volcano Explorer",
+      "desc": "Geological map overlays, regional tectonic faults and the subsurface cross-section are now live.",
+      "href": "/earth_explorer/etna/",
+      "image": "/assets/opt/etna_subsurface.webp",
+      "alt": "Etna subsurface model"
+    },
+    {
+      "status": "live",
+      "kicker": "Live now",
+      "title": "Planet Explorer",
+      "desc": "The interactive 3D planetary viewer is live. Navigate all ten worlds.",
+      "href": "/explorer/",
+      "image": "/assets/opt/planet_explorer.webp",
+      "alt": "Planet Explorer"
+    },
+    {
+      "status": "dev",
+      "kicker": "In development",
+      "title": "myGeoID prototype",
+      "desc": "Personalised dashboards, saved locations and custom alert profiles.",
+      "href": "/myGeoID/",
+      "image": "/assets/opt/mygeoid.webp",
+      "alt": "myGeoID"
+    },
+    {
+      "status": "research",
+      "kicker": "Research",
+      "title": "GeoID Research Hub",
+      "desc": "Datasets, analytical tools and collaborative workflows for researchers.",
+      "href": "/research/",
+      "image": "/assets/opt/mesh.webp",
+      "alt": "Research Hub"
+    }
+  ]
+}
