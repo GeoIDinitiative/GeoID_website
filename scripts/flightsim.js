@@ -2147,6 +2147,14 @@
     };
   }
 
+  function plutoAtmosphere(hMeters) {
+    const h = Math.max(0, hMeters);
+    return {
+      tempC: Math.min(-173, -229 + 0.0009 * h),
+      pressurePa: 1.0 * Math.exp(-h / 50000),
+    };
+  }
+
   function marsAtmosphere(hMeters) {
     const h = Math.max(0, hMeters);
     // The Glenn fit is only quoted to ~30 km, and its LINEAR upper-layer term
@@ -2172,6 +2180,11 @@
     mercury: { gravity: 3.70, atmosphere: airless(167, 1e-10), domain: "Mercury exosphere" },
     venus:   { gravity: 8.87, atmosphere: venusAtmosphere, domain: "Venus atmosphere" },
     moon:    { gravity: 1.62, atmosphere: airless(-20, 3e-10), domain: "Lunar vacuum" },
+    // Pluto has an atmosphere, but a thin one: ~1 Pa of nitrogen at the
+    // surface, and it is warmer aloft than at the ground — a genuine inversion
+    // off methane heating — so the lapse runs the other way here, climbing to
+    // about -173 C before levelling.
+    pluto:   { gravity: 0.62, atmosphere: plutoAtmosphere, domain: "Pluto atmosphere" },
   };
   // Falls back to Mars so an unrecognised host still flies rather than throwing.
   const bodyProfile = () => BODY_PROFILES[hooks?.bodyId] || BODY_PROFILES.mars;

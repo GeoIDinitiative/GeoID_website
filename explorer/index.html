@@ -132,9 +132,9 @@
 
     .hero-title {
       margin: 0 0 0.7rem;
-      font-family: "Orbitron", sans-serif;
+      font-family: var(--display), sans-serif;
       font-size: clamp(1.9rem, 3.8vw, 3.4rem);
-      font-weight: 800;
+      font-weight: 400;
       line-height: 0.9;
       letter-spacing: 0.02em;
       text-transform: uppercase;
@@ -2069,12 +2069,16 @@
 
     .fs-tile-title {
       margin: 0;
-      font-family: "Orbitron", sans-serif;
+      /* The site display face, not the "Orbitron" alias. That alias is remapped
+         to Archivo in v2-site.css, so this tile — the first thing on the page —
+         was the one heading set in a plain grotesque while the nav and every
+         other page used Audiowide. */
+      font-family: var(--display), sans-serif;
       /* Sized so "3D FLIGHT SIMULATOR" — the longest line — clears the copy
          column at every width, keeping the title to the two lines the <br>
          asks for rather than orphaning a word. */
       font-size: clamp(1.5rem, 2.7vw, 2.6rem);
-      font-weight: 800;
+      font-weight: 400;   /* Audiowide has one weight; 800 just faux-bolds it */
       line-height: 0.98;
       letter-spacing: 0.02em;
       text-transform: uppercase;
