@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   RING GOLD — saturn viewer palette
+   MIRANDA — saturn viewer palette
 
    Loaded AFTER styles/viewer-skin.css in planet_explorer/saturn/viewer/.
 
@@ -7,24 +7,24 @@
    resolves through these tokens, so a variant is a colour swap rather than
    a second copy of the stylesheet. Same shape as viewer-skin-ember.css.
 
-   Pale ring gold against ice teal. Shares Jupiter's family without sharing
-   its saturation - these two are siblings, not twins.
+   Palest chrome of the nine - ice, which is what the rings are made of.
+   Sits above the Moon in luminance so the two pale worlds stay apart.
 
-     chrome  #e6c88a  frames, headings, active states
-     data    #7fe3d4  readouts, measurements, values
+     chrome  #cfe8f0  frames, headings, active states
+     data    #5fc8d8  readouts, measurements, values
    ═══════════════════════════════════════════════════════════════════════ */
 
 :root {
-  --skin-chrome: #e6c88a;
-  --skin-chrome-rgb: 230, 200, 138;
+  --skin-chrome: #cfe8f0;
+  --skin-chrome-rgb: 207, 232, 240;
   --skin-chrome-ink: #12100a;
 
-  --skin-data: #7fe3d4;
-  --skin-data-rgb: 127, 227, 212;
+  --skin-data: #5fc8d8;
+  --skin-data-rgb: 95, 200, 216;
 
-  --skin-bg: #0a0906;
-  --skin-panel: 32, 29, 23;
-  --skin-ink: #fff8e8;
-  --skin-muted: 196, 182, 152;
-  --skin-vignette: 6, 5, 4;
+  --skin-bg: #050b0e;
+  --skin-panel: 25, 33, 36;
+  --skin-ink: #f2fbff;
+  --skin-muted: 152, 176, 186;
+  --skin-vignette: 3, 7, 8;
 }
