@@ -10906,9 +10906,17 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         elevationMap.version = 0;
       }
       const getRequestedTerrainRelief = () => elevationMap ? Number(terrainScale.value) : 0;
+      // On the streamed basemap the globe's own displacement is normally
+      // zeroed (relief comes from the tile pipeline) — but NOT in flight,
+      // where the sim drives the relief slider and vertical exaggeration.
+      // Mars's version has carried this exemption since the flight sim
+      // shipped; the forks predate it, so un-gating the streamed layer
+      // silently killed fs-vex (fs.forceRelief covers the engage transition
+      // before active flips).
       const getEffectiveTerrainRelief = () => {
         if (!elevationMap) return 0;
-        if (isStreamedBaseLayer(baseLayerSelect?.value)) return 0;
+        if (isStreamedBaseLayer(baseLayerSelect?.value)
+            && !(window.__flightSim?.active || window.__flightSim?.forceRelief)) return 0;
         return getRequestedTerrainRelief();
       };
       const getTerrainRelief = () => getEffectiveTerrainRelief();
