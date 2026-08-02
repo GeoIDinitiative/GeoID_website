@@ -32,6 +32,12 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     // through a frozen orbit matrix. With the recompose in the render loop it
     // behaves exactly as on Mars.
     const isStreamedBaseLayer = (v) => v === STREAMED_BASE_LAYER;
+    // Rotation is only locked to protect the TILE STREAMER — a spinning globe
+    // re-keys every tile request. This world serves one global texture and
+    // never streams (BODY_STREAMS_TILES below), so there is nothing to
+    // protect and the globe stays free to turn. On Mars, where the pyramid is
+    // real, the lock still applies.
+    const spinIsLocked = () => BODY_STREAMS_TILES && isStreamedBaseLayer(baseLayerSelect?.value);
     // This world's basemap is ONE global texture, not a tile pyramid. The
     // streaming machinery inherited from the Mars fork is hardwired to
     // Mars's CTX tile service (astro.arcgis.com/OnMars/...), so letting it
@@ -1052,13 +1058,13 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       if (freezeViewActive) {
         freezeViewWasPaused = spinPaused;
         pauseSpin();
-      } else if (!freezeViewWasPaused && !(isStreamedBaseLayer(baseLayerSelect?.value))) {
+      } else if (!freezeViewWasPaused && !spinIsLocked()) {
         resumeSpin();
       }
     }
     function syncSpinToggleBtn() {
       if (!spinToggleBtn) return;
-      const spinLocked = isStreamedBaseLayer(baseLayerSelect?.value);
+      const spinLocked = spinIsLocked();
       spinToggleBtn.classList.toggle("is-locked", spinLocked);
       if (spinPaused) {
         spinToggleBtn.title = "Resume rotation";
@@ -1089,7 +1095,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     }
     if (spinToggleBtn) {
       spinToggleBtn.addEventListener("click", () => {
-        if (isStreamedBaseLayer(baseLayerSelect?.value)) {
+        if (spinIsLocked()) {
           return;
         }
         if (spinPaused) { resumeSpin(); } else { pauseSpin(); }
@@ -1109,7 +1115,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       if (document.activeElement && document.activeElement !== document.body) {
         document.activeElement.blur();
       }
-      if (isStreamedBaseLayer(baseLayerSelect?.value)) {
+      if (spinIsLocked()) {
         return;
       }
       if (spinPaused) { resumeSpin(); } else { pauseSpin(); }
@@ -16957,7 +16963,7 @@ ${error && error.message ? error.message : error}`;
         if (viewerControls) {
           viewerControls.enableRotate = true;
         }
-        const spinLocked = isStreamedBaseLayer(baseLayerSelect.value);
+        const spinLocked = spinIsLocked();
         if (spinLocked) {
           pauseSpin();
           if (spinToggleBtn) {
