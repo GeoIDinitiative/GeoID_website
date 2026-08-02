@@ -1955,6 +1955,11 @@
   }
 
   function engage(spec) {
+    // Announced BEFORE any spawn math: a viewer whose flown body does not sit
+    // at the world origin (the Moon orbits an Earth prop) uses this to move
+    // it there for the duration of the flight, so every origin-centred
+    // radial computation below lands on the right body.
+    window.dispatchEvent(new CustomEvent("flightsim:engaged"));
     if (!hooks || fs.active) return;
     if (hooks.isMoonViewerActive()) { flash("EXIT MOON VIEWER FIRST"); syncToggle(false); return; }
     installContextLossRecovery();
@@ -2097,6 +2102,7 @@
     hooks.controls.enabled = true;
     hooks.controls.update();
     hooks.setStatus?.("Flight mode disengaged.");
+    window.dispatchEvent(new CustomEvent("flightsim:disengaged"));
   }
 
   function syncToggle(checked) {

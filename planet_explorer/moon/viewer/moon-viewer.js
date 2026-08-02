@@ -10922,6 +10922,43 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         }),
       );
       scene.add(moonOrbitRing);
+
+      // FLIGHT-SIM: the sim's radial math (clamps, gravity, HUD altitude)
+      // assumes the flown body sits at the WORLD ORIGIN — and in this scene
+      // that seat is Earth's, which is why the sim used to fly Earth's
+      // sphere instead of the Moon. For the duration of a flight the Moon
+      // takes the origin and the Earth vista stands aside; everything is
+      // restored on disengage. The Earth label-occluder is zeroed too — at
+      // the origin it would otherwise swallow every Moon surface label.
+      const _fsVista = {
+        active: false,
+        grpPos: new THREE.Vector3(),
+        pivotY: 0,
+        occluderR: earthOccluderRef.radius,
+      };
+      window.addEventListener("flightsim:engaged", () => {
+        if (_fsVista.active) return;
+        _fsVista.active = true;
+        _fsVista.grpPos.copy(marsGroup.position);
+        _fsVista.pivotY = moonOrbitPivot.rotation.y;
+        _fsVista.occluderR = earthOccluderRef.radius;
+        marsGroup.position.set(0, 0, 0);
+        moonOrbitPivot.rotation.y = 0;
+        moonOrbitPivot.updateWorldMatrix(true, true);
+        earthMesh.visible = false;
+        moonOrbitRing.visible = false;
+        earthOccluderRef.radius = 0;
+      });
+      window.addEventListener("flightsim:disengaged", () => {
+        if (!_fsVista.active) return;
+        _fsVista.active = false;
+        marsGroup.position.copy(_fsVista.grpPos);
+        moonOrbitPivot.rotation.y = _fsVista.pivotY;
+        moonOrbitPivot.updateWorldMatrix(true, true);
+        earthMesh.visible = true;
+        moonOrbitRing.visible = true;
+        earthOccluderRef.radius = _fsVista.occluderR;
+      });
       // Bridge measurement reset to module scope so deactivate/activateMoonViewer can call it.
       _resetMeasurementOnContextSwitch = (preserveMode) => {
         if (typeof resetActiveMeasurement === "function") resetActiveMeasurement(preserveMode);
@@ -17462,7 +17499,7 @@ ${error && error.message ? error.message : error}`;
           // Real period 27.3217 d, scaled to ≈10 min display via _MOON_EARTH_SPEED_FACTOR.
           // Camera tracks the Moon by applying the same world-space delta to camera
           // position and controls.target — Moon stays fixed in view as it orbits.
-          {
+          if (!window.__flightSim?.active) {
             const _moonOrbitOmega = (2 * Math.PI * _MOON_EARTH_SPEED_FACTOR) / (27.3217 * 86400000);
             const _prevMoonCtr = new THREE.Vector3();
             getMoonWorldCenter(_prevMoonCtr);
