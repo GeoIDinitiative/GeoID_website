@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v32';  // v32: shortlist palettes, spin unlocked
+const STATIC_CACHE = 'geoid-site-v33';  // v33: revert per-viewer palettes
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [
