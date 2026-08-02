@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v20';  // v20: label significance ramp on all worlds
+const STATIC_CACHE = 'geoid-site-v21';  // v21: flight labels fixed on all worlds
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

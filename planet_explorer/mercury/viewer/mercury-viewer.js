@@ -17086,6 +17086,16 @@ ${error && error.message ? error.message : error}`;
         const _flightActive = Boolean(window.__flightSim?.active);
         if (_flightActive) {
           window.__flightSim.update(camera);
+          // The flight sim writes camera.position/quaternion; nothing between
+          // here and the label pass recomposes the camera's matrices in THIS
+          // fork's render loop (Mars's does — its loop received the flight-era
+          // hardening this one never got). Left stale, every anchor the label
+          // pass projects uses the pre-engage ORBIT view matrix, so 100% of
+          // them read "off-screen" and features fly by as bare dots. Measured:
+          // quaternion current, matrixWorldInverse frozen at the orbit pose,
+          // placeMosaicLabel 6953 calls / 6953 rejected. Recompose both now.
+          camera.updateMatrixWorld(true);
+          camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
         }
         if (!_flightActive && !activeMoonViewerFeature) {
           const _ctxMode = isStreamedBaseLayer(baseLayerSelect.value);

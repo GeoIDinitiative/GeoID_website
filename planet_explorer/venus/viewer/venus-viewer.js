@@ -32,7 +32,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     // commits 35 — every name disappears. Until the declutter is fixed this
     // stays false, which is the behaviour that shipped before, and the rest of
     // the flight-label work is unaffected.
-    const isStreamedBaseLayer = (v) => false && v === STREAMED_BASE_LAYER;
+    const isStreamedBaseLayer = (v) => v === STREAMED_BASE_LAYER;
     const contourIntervalSelect = document.getElementById("contour-interval-select");
     const contourOpacity = document.getElementById("contour-opacity");
     const contourColorSelect = document.getElementById("contour-color-select");
@@ -17026,6 +17026,16 @@ ${error && error.message ? error.message : error}`;
         const _flightActive = Boolean(window.__flightSim?.active);
         if (_flightActive) {
           window.__flightSim.update(camera);
+          // The flight sim writes camera.position/quaternion; nothing between
+          // here and the label pass recomposes the camera's matrices in THIS
+          // fork's render loop (Mars's does — its loop received the flight-era
+          // hardening this one never got). Left stale, every anchor the label
+          // pass projects uses the pre-engage ORBIT view matrix, so 100% of
+          // them read "off-screen" and features fly by as bare dots. Measured:
+          // quaternion current, matrixWorldInverse frozen at the orbit pose,
+          // placeMosaicLabel 6953 calls / 6953 rejected. Recompose both now.
+          camera.updateMatrixWorld(true);
+          camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
         }
         if (!_flightActive && !activeMoonViewerFeature) {
           const _ctxMode = isStreamedBaseLayer(baseLayerSelect.value);
