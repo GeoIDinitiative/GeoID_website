@@ -821,8 +821,38 @@
     const CROSSFADE_MS = 400;
     const targetUrl = dest.target + (dest.target.includes("?") ? "&" : "?") + "transit=1";
 
-    // Start preloading the viewer immediately (before animations begin)
-    viewerFrame.src = targetUrl;
+    // Start preloading the viewer — but NOT while the rotate advisory is up.
+    //
+    // In portrait on a phone this page shows a full-screen, undismissable
+    // "rotate your device" overlay, and the viewer it is about to load shows
+    // its own. Preloading anyway meant a whole WebGL viewer booted and
+    // allocated its textures behind that overlay, then had to resize its
+    // canvas and framebuffers the moment the user actually rotated — the
+    // worst possible moment on a memory-constrained device, and the point
+    // where the two screens appeared to fight each other. Defer until the
+    // device is in the orientation the viewer is designed for.
+    const isBlockedPortrait = () => {
+      try {
+        return window.matchMedia("(orientation: portrait) and (pointer: coarse)").matches;
+      } catch (_e) { return false; }
+    };
+    let viewerPreloadStarted = false;
+    function startViewerPreload() {
+      if (viewerPreloadStarted || isBlockedPortrait()) return;
+      viewerPreloadStarted = true;
+      viewerFrame.src = targetUrl;
+    }
+    startViewerPreload();
+    if (!viewerPreloadStarted) {
+      // matchMedia change fires on rotation; the orientationchange fallback
+      // covers browsers that report the new orientation late.
+      try {
+        window.matchMedia("(orientation: portrait)")
+          .addEventListener("change", () => setTimeout(startViewerPreload, 60));
+      } catch (_e) {}
+      window.addEventListener("orientationchange",
+        () => setTimeout(startViewerPreload, 60));
+    }
 
     // Double-rAF: wait until browser has painted at least one frame before
     // starting the clock, so the first animation frame is never skipped.
