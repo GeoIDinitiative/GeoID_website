@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v25';  // v25: js/css network-first
+const STATIC_CACHE = 'geoid-site-v26';  // v26: bypass the 600s HTTP cache
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [
@@ -76,7 +76,12 @@ self.addEventListener('fetch', evt => {
   // Falls back to cache only when offline.
   if (request.mode === 'navigate') {
     evt.respondWith(
-      fetch(request)
+      // cache:'reload' bypasses the browser's HTTP cache. The host sends
+      // cache-control: max-age=600, so a plain fetch() here was still served
+      // from that cache for ten minutes after a deploy — the service worker
+      // was network-first but the network never got asked. This is why fixes
+      // kept appearing "not deployed" until the page was hard-reloaded.
+      fetch(request, { cache: 'reload' })
         .then(resp => {
           if (resp.ok) caches.open(STATIC_CACHE).then(c => c.put(request, resp.clone()));
           return resp;
@@ -109,7 +114,9 @@ self.addEventListener('fetch', evt => {
     evt.respondWith((async () => {
       const cache = await caches.open(STATIC_CACHE);
       try {
-        const resp = await fetch(request);
+        // Same reasoning as navigations: skip the 600 s HTTP cache so a
+        // freshly deployed script is actually fetched.
+        const resp = await fetch(request, { cache: 'reload' });
         if (resp.ok) cache.put(request, resp.clone());
         return resp;
       } catch (_e) {
