@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="styles.css?v=20260731a">
   <link rel="stylesheet" href="/styles/flightsim.css">
   <link rel="stylesheet" href="/styles/viewer-skin.css">
+  <script src="/scripts/tour-enter.js?v=20260802" defer></script>
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -55,7 +56,8 @@
           </div>
         </div>
         <span class="section-toggle-controls">
-          <input id="tour-mode-toggle" class="section-master-toggle" type="checkbox" aria-label="Activate guided tour mode">
+          <button type="button" id="tour-mode-enter" class="tour-enter-btn">Enter</button>
+          <input id="tour-mode-toggle" class="section-master-toggle" type="checkbox" aria-label="Activate guided tour mode" hidden>
         </span>
       </summary>
       <div class="section-body">
@@ -1310,6 +1312,6 @@
       });
     })();
   </script>
-<script src="/scripts/flightsim.js?v=20260801d" defer></script>
+<script src="/scripts/flightsim.js?v=20260802a" defer></script>
 </body>
 </html>

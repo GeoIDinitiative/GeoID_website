@@ -77,7 +77,10 @@
               <option value="30000">30 km — cruise</option>
               <option value="120000">120 km — high orbit</option>
               <option value="200000">200 km — regional</option>
-              <option value="300000" selected>300 km — planetary</option>
+              <option value="300000">300 km — planetary</option>
+              <option value="500000">500 km — orbital</option>
+              <option value="1000000" selected>1000 km — global</option>
+              <option value="5000000">5000 km — deep space</option>
             </select>
           </div>
           <div class="row">
@@ -420,7 +423,9 @@
   const MAX_SPEED_MS = 1200;
   const LAUNCH_THROTTLE = 0.7;
   const MIN_CLEARANCE_M = 60;         // floor above the visible tile surface
-  const MAX_ALT_M = 600000;           // 600 km ceiling
+  // Ceiling sized above the tallest launch option (5000 km) with headroom,
+  // so a deep-space spawn is not dragged back down by the per-frame clamp.
+  const MAX_ALT_M = 5500000;
   const PITCH_RATE = 1.1, YAW_RATE = 0.7, ROLL_RATE = 1.6; // rad/s
 
   // ---- DOM ----

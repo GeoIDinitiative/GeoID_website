@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=394">
   <link rel="stylesheet" href="/styles/viewer-skin.css">
+  <script src="/scripts/tour-enter.js?v=20260802" defer></script>
   <link rel="stylesheet" href="/styles/viewer-skin-ember.css">
 </head>
 <body class="viewer-page">
@@ -62,7 +63,8 @@
               <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 8h8.3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="m8.6 3.5 4.4 4.5-4.4 4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Tour Mode</span></span></div>
             </div>
             <span class="section-toggle-controls">
-              <input id="tour-mode-toggle" class="section-master-toggle" type="checkbox" aria-label="Activate guided tour mode">
+              <button type="button" id="tour-mode-enter" class="tour-enter-btn">Enter</button>
+              <input id="tour-mode-toggle" class="section-master-toggle" type="checkbox" aria-label="Activate guided tour mode" hidden>
             </span>
           </summary>
           <div class="section-body">

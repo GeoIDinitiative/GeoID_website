@@ -152,6 +152,44 @@ body { background: var(--bg); }
 .slider, .lod-slider, input[type="range"] { accent-color: var(--skin-chrome); }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--skin-chrome); }
 
+/* ── Tour Mode: Enter button in the section header ──────────────────────
+   Same interaction as the Flight Simulator header, in the DATA colour
+   rather than the chrome one: bright cyan on the default skin, and it
+   follows --skin-data under the ember/flight retints so it never clashes.
+   Markup lives in each viewer's index.html; behaviour in
+   /scripts/tour-enter.js. */
+.tour-enter-btn {
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  /* 0.22rem matches .fs-enter-btn — keeps this header row the same height
+     as the checkbox rows. */
+  padding: 0.22rem 0.72rem;
+  border-radius: 0.45rem;
+  color: color-mix(in srgb, var(--skin-data) 60%, white);
+  background: linear-gradient(180deg,
+    rgba(var(--skin-data-rgb), 0.28), rgba(var(--skin-data-rgb), 0.10));
+  border: 1px solid rgba(var(--skin-data-rgb), 0.65);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(var(--skin-data-rgb), 0.35),
+    inset 0 0 8px rgba(var(--skin-data-rgb), 0.12);
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+.tour-enter-btn:hover {
+  transform: translateY(-1px);
+  color: #ffffff;
+  box-shadow: 0 0 18px rgba(var(--skin-data-rgb), 0.6),
+    inset 0 0 10px rgba(var(--skin-data-rgb), 0.2);
+}
+.tour-enter-btn.is-armed {
+  color: #001418;
+  background: var(--skin-data);
+  border-color: var(--skin-data);
+  box-shadow: 0 0 14px rgba(var(--skin-data-rgb), 0.55);
+}
+
 /* ── Readouts: bright cyan, deliberately un-blurred ──────────────────── */
 .hazard-value, .locator-readout, .timeline-readout, .lod-value-label,
 .measure-metric, .gis-metric, .feature-meta {
