@@ -191,6 +191,16 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--skin-chrome); 
   box-shadow: 0 0 14px rgba(var(--skin-data-rgb), 0.55);
 }
 
+/* No "+"/"−" expand glyph on the two headers that carry an Enter button —
+   the button is the affordance, and on the flight header a summary click
+   engages rather than expands, so the glyph advertised behaviour the header
+   doesn't have. Mars's own styles.css already suppressed the flight one;
+   this covers both sections on all eleven viewers. */
+#flightsim-section > .section-toggle::after,
+#tour-mode-section > .section-toggle::after {
+  content: none !important;
+}
+
 /* The active tab. Doubled selector to outrank the base .control-section
    chrome bloom above without leaning on load order. */
 .control-section#tour-mode-section.is-touring {
