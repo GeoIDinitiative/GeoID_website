@@ -651,12 +651,25 @@ body.fs-flying #cursor-readout { display: none !important; }
    blue once the drive crosses over, and a dim blue edge while high enough
    to warp but still charging — the altitude gate made visible before the
    bar fills. */
+/* Specificity note: the retro skin paints this bar through
+   `#fs-meters .fs-meter-fill` (id + class) and the base sets
+   `#fs-boost-fill` — both outrank a bare `#fs-boost-fill.is-warp`, which
+   is why the cyan never appeared. Matched here on the id INSIDE #fs-meters
+   and marked important so neither can win back. */
+#fs-meters #fs-boost-fill.is-warp,
 #fs-boost-fill.is-warp {
-  background: linear-gradient(90deg, #2ad4ff, #4ff0ff);
-  box-shadow: 0 0 14px rgba(79, 240, 255, 0.75);
+  background: linear-gradient(90deg, #2ad4ff 0 10px, #4ff0ff 10px 13px) !important;
+  background: linear-gradient(90deg, #2ad4ff, #4ff0ff) !important;
+  box-shadow: 0 0 16px rgba(79, 240, 255, 0.85) !important;
 }
+#fs-meters #fs-boost-fill.is-warp-ready,
 #fs-boost-fill.is-warp-ready {
-  box-shadow: 0 0 8px rgba(79, 240, 255, 0.35);
+  box-shadow: 0 0 9px rgba(79, 240, 255, 0.4) !important;
+}
+/* The meter label goes cyan with the bar. */
+body.fs-warping #fs-boost-label {
+  color: #4ff0ff;
+  text-shadow: 0 0 10px rgba(79, 240, 255, 0.6);
 }
 /* Speed readout goes cyan while warping, so the number that changed is the
    one that draws the eye. */

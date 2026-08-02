@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v28';  // v28: warp on the boost ramp
+const STATIC_CACHE = 'geoid-site-v29';  // v29: warp gate 500km, cyan meter fix
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

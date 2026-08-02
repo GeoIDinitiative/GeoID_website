@@ -533,11 +533,11 @@
   const SPEED_ROOF_KMS = 12;         // the old x10 top, reachable once high
   // WARP. A separate regime above the normal ceiling, for crossing a whole
   // world rather than surveying it. Gated on altitude because the tile
-  // streamer needs a wide view to keep up: at 750 km the horizon is far
+  // streamer needs a wide view to keep up: at 500 km the horizon is far
   // enough that the coarse levels alone read as a complete surface, and the
   // streamer's own speed back-off (shipSpeedDegPerSec) has already dropped
   // to the low levels by the time this is reachable.
-  const WARP_MIN_ALT_KM = 750;
+  const WARP_MIN_ALT_KM = 500;
   const WARP_ROOF_KMS = 400;         // ~50 s to circle Mars
   function speedCeilingKmS(altKm) {
     const byView = VIEW_KM_PER_ALT_KM * Math.max(0, altKm);
