@@ -1997,6 +1997,13 @@
     state.quat = Number.isFinite(spec?.heading)
       ? headingQuat(state.pos, spec.heading)
       : tangentBasisQuat(state.pos);
+    // Launch nose-down 45°. Both base orientations above are level, and from
+    // the 1000 km default a level horizon is mostly black sky — facing the
+    // planet puts terrain in frame from the first frame. Same local-X
+    // convention as the ArrowDown pitch input, so the HUD reads -45°.
+    state.quat.multiply(
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 4, 0, 0, "XYZ")),
+    ).normalize();
     state.vel = new THREE.Vector3();
     state.speed = 0;
     state.throttle = LAUNCH_THROTTLE;
