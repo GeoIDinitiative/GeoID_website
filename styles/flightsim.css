@@ -658,9 +658,42 @@ body.fs-flying #cursor-readout { display: none !important; }
    and marked important so neither can win back. */
 #fs-meters #fs-boost-fill.is-warp,
 #fs-boost-fill.is-warp {
-  background: linear-gradient(90deg, #2ad4ff 0 10px, #4ff0ff 10px 13px) !important;
   background: linear-gradient(90deg, #2ad4ff, #4ff0ff) !important;
-  box-shadow: 0 0 16px rgba(79, 240, 255, 0.85) !important;
+  /* Pulse rather than sit static: warp is a sustained state with no other
+     motion in the HUD, and a breathing bar reads as "running" at a glance.
+     Animating box-shadow and brightness only — no layout, no repaint of the
+     bar's geometry, so it costs nothing next to the scene. */
+  animation: fs-warp-pulse 1.5s ease-in-out infinite;
+}
+@keyframes fs-warp-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(79, 240, 255, 0.55);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 26px rgba(79, 240, 255, 1), 0 0 44px rgba(42, 212, 255, 0.55);
+    filter: brightness(1.35);
+  }
+}
+/* The label breathes with the bar, half a beat behind so the two read as one
+   system rather than a flicker. */
+body.fs-warping #fs-boost-label {
+  animation: fs-warp-label-pulse 1.5s ease-in-out infinite;
+}
+@keyframes fs-warp-label-pulse {
+  0%, 100% { text-shadow: 0 0 8px rgba(79, 240, 255, 0.45); }
+  50%      { text-shadow: 0 0 16px rgba(79, 240, 255, 0.95); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #fs-meters #fs-boost-fill.is-warp,
+  #fs-boost-fill.is-warp,
+  body.fs-warping #fs-boost-label {
+    animation: none !important;
+  }
+  #fs-meters #fs-boost-fill.is-warp,
+  #fs-boost-fill.is-warp {
+    box-shadow: 0 0 18px rgba(79, 240, 255, 0.85) !important;
+  }
 }
 #fs-meters #fs-boost-fill.is-warp-ready,
 #fs-boost-fill.is-warp-ready {
