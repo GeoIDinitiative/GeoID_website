@@ -647,14 +647,16 @@ body.fs-flying #cursor-readout { display: none !important; }
 }
 
 /* ── Warp ───────────────────────────────────────────────────────────────
-   A distinct regime, so it gets its own colour rather than reusing the
-   boost tint: cyan when armed, matching the data accent the rest of the
-   instrumentation uses. */
-.fs-tbtn.fs-t-warp.is-active {
-  color: #001418;
-  background: #4ff0ff;
-  border-color: #4ff0ff;
-  box-shadow: 0 0 16px rgba(79, 240, 255, 0.6);
+   Warp is the top of the boost ramp, so it is the BOOST METER that changes:
+   blue once the drive crosses over, and a dim blue edge while high enough
+   to warp but still charging — the altitude gate made visible before the
+   bar fills. */
+#fs-boost-fill.is-warp {
+  background: linear-gradient(90deg, #2ad4ff, #4ff0ff);
+  box-shadow: 0 0 14px rgba(79, 240, 255, 0.75);
+}
+#fs-boost-fill.is-warp-ready {
+  box-shadow: 0 0 8px rgba(79, 240, 255, 0.35);
 }
 /* Speed readout goes cyan while warping, so the number that changed is the
    one that draws the eye. */

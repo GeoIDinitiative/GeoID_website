@@ -209,11 +209,9 @@
         <button type="button" class="fs-tbtn fs-t-wide" data-key="KeyD" aria-label="Roll right">Roll &#8631;</button>
       </div>
       <div class="fs-touch-row">
-        <button type="button" class="fs-tbtn fs-t-wide fs-t-boost" data-key="ShiftLeft">Boost</button>
+        <button type="button" class="fs-tbtn fs-t-wide fs-t-boost" id="fs-boost-btn" data-key="ShiftLeft">Boost</button>
         <button type="button" class="fs-tbtn fs-t-wide fs-t-brake" data-key="Space">Brake</button>
-      </div>
-      <div class="fs-touch-row">
-        <button type="button" class="fs-tbtn fs-t-wide fs-t-warp" id="fs-warp-btn">Warp</button>
+
       </div>
     </div>
   </div>
@@ -268,7 +266,7 @@
         <button type="button" class="fs-step" id="fs-thr-up" aria-label="Increase throttle">+</button>
       </div>
     </div>
-    <div class="fs-meter"><span class="fs-k">Boost</span>
+    <div class="fs-meter"><span class="fs-k" id="fs-boost-label">Boost</span>
       <div class="fs-meter-track"><div class="fs-meter-fill" id="fs-boost-fill"></div></div>
     </div>
   </div>
@@ -424,7 +422,10 @@
   // Cruise ceiling with no boost. Boost raises the ceiling toward
   // speedCeilingKmS(altitude) rather than multiplying this.
   const MAX_SPEED_MS = 1200;
-  const LAUNCH_THROTTLE = 0.7;
+  // Full throttle from the start: the sim opens at 1000 km where there is
+  // nothing to survey slowly, and holding boost from a standing throttle
+  // made warp feel like two separate chores.
+  const LAUNCH_THROTTLE = 1;
   const MIN_CLEARANCE_M = 60;         // floor above the visible tile surface
   // Ceiling sized above the tallest launch option (5000 km) with headroom,
   // so a deep-space spawn is not dragged back down by the per-frame clamp.
@@ -437,6 +438,7 @@
   const hudAlt = $("fs-alt"), hudSpd = $("fs-spd"), hudHdg = $("fs-hdg"),
     hudCoord = $("fs-coord"), hudRegion = $("fs-region-top"), hudThr = $("fs-thr"),
     hudThrottleFill = $("fs-throttle-fill"), hudBoostFill = $("fs-boost-fill"),
+    hudBoostLabel = $("fs-boost-label"),
     hudMsg = $("fs-msg"), hudCamTag = $("fs-camtag");
   const bearingCanvas = $("fs-bearing-tape");
   const hudPitch = $("fs-pitch"), hudVs = $("fs-vs"), hudGround = $("fs-ground"),
@@ -2051,7 +2053,6 @@
     // so the ship does not launch already at the top of the range.
     state.boost = 0;
     state.warping = false;   // never inherit warp from a previous flight
-    syncWarpUI();
     // Chase offset is damped, so a stale one from a previous flight would be
     // eased out of visibly on the first frames. Snap it on the next update.
     state._camOff = null;
@@ -2392,14 +2393,23 @@
     // how much ground is in view, which the datum gives directly, and using
     // terrain height would make the ceiling twitch as hills pass underneath.
     const altKmForSpeed = Math.max(0, s.pos.length() - GLOBE_R) * METERS_PER_UNIT / 1000;
-    // Warp disengages itself on descent, so dropping out of the altitude band
-    // cannot leave the ship travelling faster than the streamer can feed.
-    if (s.warping && altKmForSpeed < WARP_MIN_ALT_KM) {
-      s.warping = false;
-      flash("WARP DISENGAGED — BELOW " + WARP_MIN_ALT_KM + " KM");
-      syncWarpUI();
+    // WARP IS THE TOP OF THE BOOST RAMP. Hold boost: the bar fills over
+    // ~4.5 s, and once it is full — and only above the altitude gate — the
+    // drive crosses into warp. No separate control to discover, and the
+    // boost bar doubles as the charge indicator. Releasing boost, or
+    // descending through the gate, drops back out on its own, so the ship
+    // can never be in warp somewhere the streamer cannot feed it.
+    const warpEligible = altKmForSpeed >= WARP_MIN_ALT_KM;
+    const warpActive = s.boosting && s.boost >= 0.999 && warpEligible;
+    if (warpActive !== s.warping) {
+      s.warping = warpActive;
+      flash(warpActive ? "WARP DRIVE ENGAGED" : "WARP DRIVE DISENGAGED");
+      // Coarser tiles while crossing, on top of the streamer's own
+      // angular-speed back-off; restored to the user's choice on exit.
+      fs.maxDetailLevel = warpActive ? 5 : (Number(detailLevelSelect?.value) || 9);
+      document.body.classList.toggle("fs-warping", warpActive);
     }
-    const warpActive = s.warping && altKmForSpeed >= WARP_MIN_ALT_KM;
+    s.warpEligible = warpEligible;
     const ceilKmS = warpActive ? WARP_ROOF_KMS : speedCeilingKmS(altKmForSpeed);
     // In warp the throttle commands the WHOLE range. Interpolating from a
     // cruise floor the way the normal regime does would have left warp
@@ -2782,7 +2792,17 @@
     if (hudRegion) hudRegion.textContent = regionName(ll.lat, ll.lon);
     if (hudThr) hudThr.textContent = Math.round(s.throttle * 100) + "%";
     if (hudThrottleFill) hudThrottleFill.style.width = (s.throttle * 100) + "%";
-    if (hudBoostFill) hudBoostFill.style.width = (s.boost * 100) + "%";
+    if (hudBoostFill) {
+      hudBoostFill.style.width = (s.boost * 100) + "%";
+      // Blue bar and a renamed meter once the drive is actually in warp; a
+      // dimmer "ready" tint while high enough but still charging, so the
+      // altitude gate is legible before the bar fills.
+      hudBoostFill.classList.toggle("is-warp", s.warping);
+      hudBoostFill.classList.toggle("is-warp-ready", !s.warping && !!s.warpEligible);
+      if (hudBoostLabel) {
+        hudBoostLabel.textContent = s.warping ? "Warp Drive" : "Boost";
+      }
+    }
     if (msgTimer > 0) {
       msgTimer -= dt;
       if (msgTimer <= 0 && hudMsg) hudMsg.style.opacity = "0";
@@ -3299,40 +3319,6 @@
     const spec = { lat: preflight.lat, lon: preflight.lon, heading: preflight.heading };
     exitPreflight(true);                       // keep the flight theme
     screenTransition(() => { engage(spec); syncEnterBtn(); });
-  });
-
-  // ---- warp toggle ----
-  // A toggle rather than a hold: warp is for crossing a world, which takes
-  // long enough that holding a key would be a nuisance.
-  const warpBtn = $("fs-warp-btn");
-  function warpAltKm() {
-    if (!state.pos) return 0;
-    return Math.max(0, state.pos.length() - GLOBE_R) * METERS_PER_UNIT / 1000;
-  }
-  function syncWarpUI() {
-    const on = state.warping;
-    if (warpBtn) {
-      warpBtn.classList.toggle("is-active", on);
-      warpBtn.textContent = on ? "Warp ON" : "Warp";
-    }
-    document.body.classList.toggle("fs-warping", on);
-    // Coarser tiles while crossing: the streamer already backs off with
-    // angular speed, this makes it explicit and immediate.
-    fs.maxDetailLevel = on ? 5 : (Number(detailLevelSelect?.value) || 9);
-  }
-  function toggleWarp() {
-    if (!fs.active) return;
-    if (!state.warping && warpAltKm() < WARP_MIN_ALT_KM) {
-      flash("WARP NEEDS " + WARP_MIN_ALT_KM + " KM — CLIMB FIRST");
-      return;
-    }
-    state.warping = !state.warping;
-    flash(state.warping ? "WARP ENGAGED" : "WARP DISENGAGED");
-    syncWarpUI();
-  }
-  warpBtn?.addEventListener("click", (e) => { e.preventDefault(); toggleWarp(); });
-  window.addEventListener("keydown", (e) => {
-    if (e.code === "KeyR" && fs.active && !e.repeat) { e.preventDefault(); toggleWarp(); }
   });
 
   const enterBtn = $("flightsim-enter");
