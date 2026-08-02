@@ -3152,7 +3152,26 @@
     }
   }
 
+  let preflightMaxDist = null;
   function enterPreflight() {
+    // The vista swap fires here, not just at engage: on the Moon the Earth
+    // prop otherwise sits between the camera and the site you are aiming at.
+    window.dispatchEvent(new CustomEvent("flightsim:engaged"));
+    // And cap zoom-out while aiming — site selection needs the globe close,
+    // and an unbounded orbit let the camera back out until another body
+    // (Earth, on the Moon) intercepted the view entirely.
+    if (hooks.controls && preflightMaxDist === null) {
+      preflightMaxDist = hooks.controls.maxDistance;
+      hooks.controls.maxDistance = GLOBE_R * 4.5;
+      if (hooks.controls.object && hooks.controls.target) {
+        const d = hooks.controls.object.position.distanceTo(hooks.controls.target);
+        if (d > GLOBE_R * 4.5) {
+          hooks.controls.object.position.sub(hooks.controls.target)
+            .setLength(GLOBE_R * 4.2).add(hooks.controls.target);
+        }
+      }
+      hooks.controls.update?.();
+    }
     if (fs.active || preflight.active) return;
     // Opening the sim is what earns the tile warmer. Deferred a little so it
     // does not contend with building the ship and the pre-flight scene; it
@@ -3200,6 +3219,13 @@
     // the user back the spin state pre-flight took away, and only that — if they
     // had already stopped the globe themselves, it stays stopped.
     if (!keepTheme && !preflight.spinWasPaused) hooks.resumeSpin?.();
+    if (hooks.controls && preflightMaxDist !== null) {
+      hooks.controls.maxDistance = preflightMaxDist;
+      preflightMaxDist = null;
+    }
+    // Cancelling returns to the normal viewer, so the vista comes back too;
+    // launching keeps the flight arrangement (disengage restores it later).
+    if (!keepTheme) window.dispatchEvent(new CustomEvent("flightsim:disengaged"));
     if (preflight.timer) { clearInterval(preflight.timer); preflight.timer = null; }
     document.body.classList.remove("fs-target-invalid");
   }

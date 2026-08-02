@@ -10942,9 +10942,20 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         _fsVista.grpPos.copy(marsGroup.position);
         _fsVista.pivotY = moonOrbitPivot.rotation.y;
         _fsVista.occluderR = earthOccluderRef.radius;
+        const _prevCtr = new THREE.Vector3();
+        getMoonWorldCenter(_prevCtr);
         marsGroup.position.set(0, 0, 0);
         moonOrbitPivot.rotation.y = 0;
         moonOrbitPivot.updateWorldMatrix(true, true);
+        // Carry the orbit camera along with the Moon, exactly as the orbital
+        // follow does each frame — otherwise the camera keeps looking at the
+        // Moon's OLD position and the pre-flight reticle only sees sky.
+        const _newCtr = new THREE.Vector3();
+        getMoonWorldCenter(_newCtr);
+        _fsVista.camDelta = _newCtr.sub(_prevCtr);
+        camera.position.add(_fsVista.camDelta);
+        controls.target.add(_fsVista.camDelta);
+        controls.update();
         earthMesh.visible = false;
         moonOrbitRing.visible = false;
         earthOccluderRef.radius = 0;
@@ -10955,6 +10966,12 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         marsGroup.position.copy(_fsVista.grpPos);
         moonOrbitPivot.rotation.y = _fsVista.pivotY;
         moonOrbitPivot.updateWorldMatrix(true, true);
+        if (_fsVista.camDelta) {
+          camera.position.sub(_fsVista.camDelta);
+          controls.target.sub(_fsVista.camDelta);
+          controls.update();
+          _fsVista.camDelta = null;
+        }
         earthMesh.visible = true;
         moonOrbitRing.visible = true;
         earthOccluderRef.radius = _fsVista.occluderR;
