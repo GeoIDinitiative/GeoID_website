@@ -27,11 +27,10 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     // as bare dots with no names, because updateLabelVisibility was never told
     // it was on the streamed basemap.
     const STREAMED_BASE_LAYER = "venus-surface";
-    // DISABLED PENDING FIX. Pointing this at the real layer switches on the
-    // mosaic close-zoom path, which on the forks commits ZERO labels where Mars
-    // commits 35 — every name disappears. Until the declutter is fixed this
-    // stays false, which is the behaviour that shipped before, and the rest of
-    // the flight-label work is unaffected.
+    // Live since the stale-camera-matrix fix: the mosaic close-zoom path was
+    // only ever "broken" on the forks because the flight label pass projected
+    // through a frozen orbit matrix. With the recompose in the render loop it
+    // behaves exactly as on Mars.
     const isStreamedBaseLayer = (v) => v === STREAMED_BASE_LAYER;
     const contourIntervalSelect = document.getElementById("contour-interval-select");
     const contourOpacity = document.getElementById("contour-opacity");
