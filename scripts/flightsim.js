@@ -71,6 +71,11 @@
             </select>
           </div>
           <div class="row">
+            <label for="fs-vex">Vertical exaggeration</label>
+            <input id="fs-vex" class="slider" type="range" min="1" max="10" step="0.5" value="1">
+          </div>
+          <div id="fs-preflight">
+          <div class="row">
             <label for="fs-start-alt">Launch altitude</label>
             <select id="fs-start-alt" class="select">
               <option value="8000">8 km — low pass</option>
@@ -83,11 +88,6 @@
               <option value="5000000">5000 km — deep space</option>
             </select>
           </div>
-          <div class="row">
-            <label for="fs-vex">Vertical exaggeration</label>
-            <input id="fs-vex" class="slider" type="range" min="1" max="10" step="0.5" value="1">
-          </div>
-          <div id="fs-preflight">
             <div class="row fs-site-row">
               <label>Launch site</label>
               <div id="fs-site-readout" class="fs-site-readout">Click the globe to set</div>

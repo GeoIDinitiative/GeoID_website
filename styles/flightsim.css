@@ -144,7 +144,11 @@ body.fs-target-invalid .fs-ret-dot { fill: rgba(255, 168, 92, 0.9); }
 }
 
 /* ── Pre-flight (Phase 2): launch site + heading, shown before engaging ── */
-#fs-preflight { margin-top: 0.55rem; }
+/* Hidden until pre-flight: everything in here — launch altitude, site,
+   heading, density, Launch — configures a LAUNCH, and a new launch always
+   goes through Enter. Lingering after lift-off just misled (changing the
+   altitude mid-flight does nothing). */
+#fs-preflight { display: none; margin-top: 0.55rem; }
 /* Label density mirrored from the Locations panel, so the map can be
    de-cluttered (or opened up) while choosing where to launch. */
 .fs-lod-row { margin-top: 0.7rem; }
