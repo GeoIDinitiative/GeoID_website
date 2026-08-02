@@ -7982,6 +7982,9 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       // Draw the pre-built 8192×4096 level-3 mosaic to the canvas immediately,
       // giving instant global coverage before any per-tile streaming begins.
       _loadGlobalBase() {
+        // This is the STREAMER's global fallback mosaic (ctx_base.jpg), which
+        // only Mars ships — on this world the request just 404s at boot.
+        if (!BODY_STREAMS_TILES) return;
         const img = new Image();
         img.onload = () => {
           this.context.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
