@@ -224,6 +224,12 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--skin-chrome); 
   filter: drop-shadow(0 0 6px rgba(var(--skin-data-rgb), 0.7));
 }
 
+/* The "Current focus" pill above a popup's title repeated what the open
+   popup already implied, and read as a cheap badge on an otherwise clean
+   card. Hidden rather than deleted so each viewer's script can keep
+   toggling it without a null check. */
+.scene-popup-state { display: none !important; }
+
 /* ── Readouts: bright cyan, deliberately un-blurred ──────────────────── */
 .hazard-value, .locator-readout, .timeline-readout, .lod-value-label,
 .measure-metric, .gis-metric, .feature-meta {

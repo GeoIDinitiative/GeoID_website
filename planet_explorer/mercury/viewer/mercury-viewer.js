@@ -26,7 +26,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     // lock and the tile staging. In flight that showed up as features arriving
     // as bare dots with no names, because updateLabelVisibility was never told
     // it was on the streamed basemap.
-    const STREAMED_BASE_LAYER = "mercury-monochrome";
+    const STREAMED_BASE_LAYER = "mercury-md3-color";
     const isStreamedBaseLayer = (v) => v === STREAMED_BASE_LAYER;
     // This world's basemap is ONE global texture, not a tile pyramid. The
     // streaming machinery inherited from the Mars fork is hardwired to
@@ -16676,6 +16676,7 @@ uniform float uViewportWidth;`,
         camera,
         renderer,
         controls,
+        streamedLayer: STREAMED_BASE_LAYER,
         bodyId: "mercury",
         bodyGroup: mercuryGroup,
         bodyRadiusMeters: MERCURY_RADIUS_METERS,

@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v26';  // v26: bypass the 600s HTTP cache
+const STATIC_CACHE = 'geoid-site-v27';  // v27: warp mode, focus pill, mercury MD3
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

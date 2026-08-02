@@ -212,6 +212,9 @@
         <button type="button" class="fs-tbtn fs-t-wide fs-t-boost" data-key="ShiftLeft">Boost</button>
         <button type="button" class="fs-tbtn fs-t-wide fs-t-brake" data-key="Space">Brake</button>
       </div>
+      <div class="fs-touch-row">
+        <button type="button" class="fs-tbtn fs-t-wide fs-t-warp" id="fs-warp-btn">Warp</button>
+      </div>
     </div>
   </div>
 
@@ -526,6 +529,14 @@
   const VIEW_KM_PER_ALT_KM = 1.47;   // 45 deg vertical fov, 16:9
   const SPEED_FLOOR_KMS = 0.8;       // always flyable, even on the deck
   const SPEED_ROOF_KMS = 12;         // the old x10 top, reachable once high
+  // WARP. A separate regime above the normal ceiling, for crossing a whole
+  // world rather than surveying it. Gated on altitude because the tile
+  // streamer needs a wide view to keep up: at 750 km the horizon is far
+  // enough that the coarse levels alone read as a complete surface, and the
+  // streamer's own speed back-off (shipSpeedDegPerSec) has already dropped
+  // to the low levels by the time this is reachable.
+  const WARP_MIN_ALT_KM = 750;
+  const WARP_ROOF_KMS = 400;         // ~50 s to circle Mars
   function speedCeilingKmS(altKm) {
     const byView = VIEW_KM_PER_ALT_KM * Math.max(0, altKm);
     return Math.min(SPEED_ROOF_KMS, Math.max(SPEED_FLOOR_KMS, byView));
@@ -538,6 +549,7 @@
     speed: 0,            // scene units / s
     boost: 1,
     boosting: false,
+    warping: false,
     braking: false,
     cam: "chase",
     hudVisible: true,
@@ -625,6 +637,12 @@
     const sel = hooks.baseLayerSelect;
     if (!sel || !sel.options) return null;
     const values = Array.from(sel.options, (o) => o.value);
+    // The viewer's own declaration wins when it offers one — Mercury ships
+    // both a monochrome map and the MD3 colour mosaic, and only the viewer
+    // knows which is the intended flight basemap.
+    if (hooks.streamedLayer && values.includes(hooks.streamedLayer)) {
+      return hooks.streamedLayer;
+    }
     for (const want of ["ctx-mosaic-color", "ctx-mosaic"]) {
       if (values.includes(want)) return want;
     }
@@ -2032,6 +2050,8 @@
     // Boost is now a RAMP position, not an energy reserve: start at 0 (cruise)
     // so the ship does not launch already at the top of the range.
     state.boost = 0;
+    state.warping = false;   // never inherit warp from a previous flight
+    syncWarpUI();
     // Chase offset is damped, so a stale one from a previous flight would be
     // eased out of visibly on the first frames. Snap it on the next update.
     state._camOff = null;
@@ -2372,8 +2392,22 @@
     // how much ground is in view, which the datum gives directly, and using
     // terrain height would make the ceiling twitch as hills pass underneath.
     const altKmForSpeed = Math.max(0, s.pos.length() - GLOBE_R) * METERS_PER_UNIT / 1000;
-    const ceilKmS = speedCeilingKmS(altKmForSpeed);
-    const cruiseKmS = Math.min(MAX_SPEED_MS / 1000, ceilKmS);
+    // Warp disengages itself on descent, so dropping out of the altitude band
+    // cannot leave the ship travelling faster than the streamer can feed.
+    if (s.warping && altKmForSpeed < WARP_MIN_ALT_KM) {
+      s.warping = false;
+      flash("WARP DISENGAGED — BELOW " + WARP_MIN_ALT_KM + " KM");
+      syncWarpUI();
+    }
+    const warpActive = s.warping && altKmForSpeed >= WARP_MIN_ALT_KM;
+    const ceilKmS = warpActive ? WARP_ROOF_KMS : speedCeilingKmS(altKmForSpeed);
+    // In warp the throttle commands the WHOLE range. Interpolating from a
+    // cruise floor the way the normal regime does would have left warp
+    // capped at 12 km/s unless boost was also held — measured, and not what
+    // "warp" should mean. Boost still shortens the ramp via `rate` below.
+    const cruiseKmS = warpActive
+      ? ceilKmS
+      : Math.min(MAX_SPEED_MS / 1000, ceilKmS);
     // Boost interpolates cruise -> ceiling, so the top of the range is only
     // available where the view is wide enough to absorb a hitch at that speed.
     const maxKmS = cruiseKmS + (ceilKmS - cruiseKmS) * s.boost;
@@ -3265,6 +3299,40 @@
     const spec = { lat: preflight.lat, lon: preflight.lon, heading: preflight.heading };
     exitPreflight(true);                       // keep the flight theme
     screenTransition(() => { engage(spec); syncEnterBtn(); });
+  });
+
+  // ---- warp toggle ----
+  // A toggle rather than a hold: warp is for crossing a world, which takes
+  // long enough that holding a key would be a nuisance.
+  const warpBtn = $("fs-warp-btn");
+  function warpAltKm() {
+    if (!state.pos) return 0;
+    return Math.max(0, state.pos.length() - GLOBE_R) * METERS_PER_UNIT / 1000;
+  }
+  function syncWarpUI() {
+    const on = state.warping;
+    if (warpBtn) {
+      warpBtn.classList.toggle("is-active", on);
+      warpBtn.textContent = on ? "Warp ON" : "Warp";
+    }
+    document.body.classList.toggle("fs-warping", on);
+    // Coarser tiles while crossing: the streamer already backs off with
+    // angular speed, this makes it explicit and immediate.
+    fs.maxDetailLevel = on ? 5 : (Number(detailLevelSelect?.value) || 9);
+  }
+  function toggleWarp() {
+    if (!fs.active) return;
+    if (!state.warping && warpAltKm() < WARP_MIN_ALT_KM) {
+      flash("WARP NEEDS " + WARP_MIN_ALT_KM + " KM — CLIMB FIRST");
+      return;
+    }
+    state.warping = !state.warping;
+    flash(state.warping ? "WARP ENGAGED" : "WARP DISENGAGED");
+    syncWarpUI();
+  }
+  warpBtn?.addEventListener("click", (e) => { e.preventDefault(); toggleWarp(); });
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "KeyR" && fs.active && !e.repeat) { e.preventDefault(); toggleWarp(); }
   });
 
   const enterBtn = $("flightsim-enter");
