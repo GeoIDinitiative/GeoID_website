@@ -463,6 +463,22 @@
 
   const flightToggle = $("flightsim-toggle");
   const shipModelSelect = $("fs-ship-model");
+  // WARM THE HANGAR. Bakes and the UFO mesh load lazily, so the first flight
+  // in a ship used to launch with an invisible hull until its files streamed
+  // in. Prefetch the selected ship the moment it is chosen (and the default
+  // once hooks land), so by Launch the geometry is already resident. The
+  // loaders cache by ship name; calling them twice is free.
+  const SHIP_PREFETCH = {
+    tardis:   () => loadBakedGeometry("tardis", ["body", "windows"]),
+    starship: () => loadBakedGeometry("enterprise", ["hull", "caps", "trim", "bussard", "deflector"]),
+    xfighter: () => loadBakedGeometry("xfighter", ["hull", "wings", "canopy", "trim", "accent", "glow"]),
+    falcon:   () => loadBakedGeometry("falcon", ["hull", "trim", "engine"]),
+    saucer:   () => loadTexturedMesh("ufo"),
+  };
+  function prefetchShip(name) {
+    try { SHIP_PREFETCH[name]?.(); } catch (_e) {}
+  }
+  shipModelSelect?.addEventListener("change", () => prefetchShip(shipModelSelect.value));
   const vexSlider = $("fs-vex");
   const fadeEl = $("fs-fade");
   const cameraModeSelect = $("fs-camera-mode");
@@ -618,6 +634,7 @@
   }
 
   function ctxModeActive() {
+    if (!bodyProfile().streamedTiles) return false;
     const v = hooks.baseLayerSelect?.value;
     if (!v) return false;
     return v === streamedLayerValue();
@@ -1301,7 +1318,7 @@
   function loadTexturedMesh(name) {
     if (_gmshGeo[name]) return _gmshGeo[name];
     const rec = _gmshGeo[name] = { geometry: null };
-    fetch(`assets/${name}.gmsh`).then((r) => r.arrayBuffer()).then((buf) => {
+    fetch(`/assets/ships/${name}.gmsh`).then((r) => r.arrayBuffer()).then((buf) => {
       const dv = new DataView(buf);
       if (String.fromCharCode(dv.getUint8(0), dv.getUint8(1), dv.getUint8(2), dv.getUint8(3)) !== "GMSH") return;
       const vCount = dv.getUint32(8, true);
@@ -1333,7 +1350,7 @@
   const _shipTex = {};
   function shipTexture(file, srgb = true) {
     if (_shipTex[file]) return _shipTex[file];
-    const t = new THREE.TextureLoader().load(`assets/${file}`);
+    const t = new THREE.TextureLoader().load(`/assets/ships/${file}`);
     if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 4;
     t.flipY = true;                       // OBJ v is bottom-up, like three's default
@@ -1907,7 +1924,7 @@
       flash("⚠ GRAPHICS RESET — RECOVERING");
     }, false);
     canvas.addEventListener("webglcontextrestored", () => {
-      try { hooks.ctxDetailStreamer?.rebuild?.(); } catch (_e) {}
+      if (bodyProfile().streamedTiles) { try { hooks.ctxDetailStreamer?.rebuild?.(); } catch (_e) {} }
       try { hooks.syncTerrainReliefState?.(); } catch (_e) {}
       flash("GRAPHICS RESTORED");
     }, false);
@@ -1961,9 +1978,9 @@
     // to a <select> that has no such option silently blanks it, which is what
     // left every other world with an empty base layer, no tile stream, and
     // therefore feature dots with no horizon labels attached to them.
-    if (!ctxModeActive() && hooks.baseLayerSelect) {
+    if (hooks.baseLayerSelect) {
       const want = streamedLayerValue();
-      if (want) {
+      if (want && hooks.baseLayerSelect.value !== want) {
         hooks.baseLayerSelect.value = want;
         hooks.baseLayerSelect.dispatchEvent(new Event("change", { bubbles: true }));
       }
@@ -2211,7 +2228,11 @@
   // is NOT here: it comes from the viewer's own constant via hooks, so the sim
   // and the scale bar can never disagree about how big the body is.
   const BODY_PROFILES = {
-    mars:    { gravity: 3.71, atmosphere: marsAtmosphere,  domain: "Mars atmosphere" },
+    // streamedTiles: only Mars's basemap is a real CTX tile pyramid worth
+    // streaming in flight. The other worlds ship ONE global texture — for
+    // them the streamer has nothing finer to fetch, so the sim leaves it
+    // alone and the globe simply keeps its mapped basemap.
+    mars:    { gravity: 3.71, atmosphere: marsAtmosphere,  domain: "Mars atmosphere", streamedTiles: true },
     mercury: { gravity: 3.70, atmosphere: airless(167, 1e-10), domain: "Mercury exosphere" },
     venus:   { gravity: 8.87, atmosphere: venusAtmosphere, domain: "Venus atmosphere" },
     moon:    { gravity: 1.62, atmosphere: airless(-20, 3e-10), domain: "Lunar vacuum" },
@@ -3431,6 +3452,7 @@
     if (!hooks) return false;
     THREE = hooks.THREE;
     METERS_PER_UNIT = (hooks.bodyRadiusMeters ?? hooks.MARS_RADIUS_METERS) / GLOBE_R;
+    prefetchShip(shipModelSelect?.value);   // warm the default ship early
     // The instrument row's caption is markup, so it read "Mars atmosphere"
     // whichever world was underneath. Set it from the profile.
     const domainNode = document.getElementById("fs-domain");

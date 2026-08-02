@@ -32,6 +32,13 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     // through a frozen orbit matrix. With the recompose in the render loop it
     // behaves exactly as on Mars.
     const isStreamedBaseLayer = (v) => v === STREAMED_BASE_LAYER;
+    // This world's basemap is ONE global texture, not a tile pyramid. The
+    // streaming machinery inherited from the Mars fork is hardwired to
+    // Mars's CTX tile service (astro.arcgis.com/OnMars/...), so letting it
+    // run here fetched MARS imagery over this planet. The predicate above
+    // stays true — labels and relief key off it — but the tile pipeline
+    // itself stands down.
+    const BODY_STREAMS_TILES = false;
     const contourIntervalSelect = document.getElementById("contour-interval-select");
     const contourOpacity = document.getElementById("contour-opacity");
     const contourColorSelect = document.getElementById("contour-color-select");
@@ -17355,8 +17362,9 @@ ${error && error.message ? error.message : error}`;
 
         // CTX streaming always runs every frame — tile drains and settle timing
         // must not be skipped or medium/high-res loading breaks.
-        ctxStreamer.update(camera);
+        if (BODY_STREAMS_TILES) ctxStreamer.update(camera);
         const ctxMaxZoomStreaming = (
+          BODY_STREAMS_TILES &&
           (isStreamedBaseLayer(baseLayerSelect.value)) &&
           !coreToggle.checked &&
           !activeMoonViewerFeature
@@ -17406,11 +17414,12 @@ ${error && error.message ? error.message : error}`;
           };
         }
         // Detail streamer disabled in focus-overlay mode.
-        if (ctxDetailStreamer.active) {
+        if (BODY_STREAMS_TILES && ctxDetailStreamer.active) {
           ctxDetailStreamer.update(camera);
         }
         if (ctxFocusGlobe) {
           ctxFocusGlobe.visible = (
+            BODY_STREAMS_TILES &&
             (isStreamedBaseLayer(baseLayerSelect.value))
             && !coreToggle.checked
             && !activeMoonViewerFeature

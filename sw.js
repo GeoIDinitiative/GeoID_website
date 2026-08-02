@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v24';  // v24: tour tab cyan on activation
+const STATIC_CACHE = 'geoid-site-v25';  // v25: js/css network-first
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [
@@ -96,6 +96,30 @@ self.addEventListener('fetch', evt => {
     p.startsWith('/earth_explorer/assets/') ||
     /\.(css|js|png|jpg|jpeg|webp|svg|woff2|woff|ico)$/.test(p)
   );
+
+  // Code is NETWORK-FIRST, media stays cache-first. Cache-first JS/CSS kept
+  // pairing a fresh entry script with a stale cached module or stylesheet —
+  // a combination that never existed in the repo — and that broke three
+  // viewers in the wild (Venus black screen; Uranus/Saturn/Neptune failing
+  // to boot). Freshness beats offline for code; images and fonts are
+  // immutable-in-practice and keep the fast path.
+  const isCode = /\.(js|css)$/.test(p);
+
+  if (isStatic && isCode) {
+    evt.respondWith((async () => {
+      const cache = await caches.open(STATIC_CACHE);
+      try {
+        const resp = await fetch(request);
+        if (resp.ok) cache.put(request, resp.clone());
+        return resp;
+      } catch (_e) {
+        const cached = await cache.match(request);
+        if (cached) return cached;
+        throw _e;
+      }
+    })());
+    return;
+  }
 
   if (isStatic) {
     evt.respondWith((async () => {
