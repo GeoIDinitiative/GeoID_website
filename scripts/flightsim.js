@@ -675,21 +675,108 @@
     return GLOBE_R + norm * relief + lift;
   }
 
-  // ---- named regions for the HUD (east-positive longitude, 0–360) ----
+  // ---- named regions for the HUD (east-positive longitude, 0-360) ----
+  // One gazetteer per world. This used to be Mars's list alone, so the
+  // compass header announced NORTHERN LOWLANDS and THARSIS MONTES while
+  // flying over Venus. Bounds are deliberately coarse: this is a "roughly
+  // where am I" readout above the bearing tape, not a mapping product, and
+  // a wrong-but-confident name is worse than a broad one.
+  //
+  // lon ranges may wrap through 0 (e.g. [300, 30] means 300->360->30).
+  const REGION_SETS = {
+    mars: {
+      north: "NORTHERN LOWLANDS", south: "SOUTHERN HIGHLANDS",
+      list: [
+        { n: "PLANUM BOREUM",     lat: [72, 90] },
+        { n: "PLANUM AUSTRALE",   lat: [-90, -72] },
+        { n: "VALLES MARINERIS",  lat: [-18, 2],   lon: [250, 320] },
+        { n: "THARSIS MONTES",    lat: [-5, 25],   lon: [220, 250] },
+        { n: "OLYMPUS MONS",      lat: [8, 28],    lon: [222, 232] },
+        { n: "ELYSIUM MONS",      lat: [12, 25],   lon: [130, 150] },
+        { n: "HELLAS PLANITIA",   lat: [-55, -25], lon: [45, 100] },
+        { n: "ARGYRE PLANITIA",   lat: [-55, -35], lon: [250, 300] },
+        { n: "ARCADIA PLANITIA",  lat: [30, 90],   lon: [150, 210] },
+        { n: "UTOPIA PLANITIA",   lat: [25, 90],   lon: [20, 90] },
+        { n: "AMAZONIS PLANITIA", lat: [-15, 15],  lon: [150, 210] },
+        { n: "NOACHIS TERRA",     lat: [-90, -20], lon: [315, 360] },
+      ],
+    },
+    mercury: {
+      north: "INTERCRATER PLAINS", south: "HEAVILY CRATERED TERRAIN",
+      list: [
+        { n: "BOREALIS PLANITIA",  lat: [60, 90] },
+        { n: "CALORIS PLANITIA",   lat: [20, 45],  lon: [140, 190] },
+        { n: "ODIN PLANITIA",      lat: [18, 32],  lon: [165, 182] },
+        { n: "SUISEI PLANITIA",    lat: [50, 68],  lon: [140, 170] },
+        { n: "SOBKOU PLANITIA",    lat: [25, 45],  lon: [225, 260] },
+        { n: "BUDH PLANITIA",      lat: [12, 25],  lon: [145, 160] },
+        { n: "TIR PLANITIA",       lat: [-6, 6],   lon: [165, 180] },
+        { n: "RACHMANINOFF BASIN", lat: [21, 36],  lon: [50, 68] },
+        { n: "BEETHOVEN BASIN",    lat: [-30, -14], lon: [235, 255] },
+      ],
+    },
+    venus: {
+      north: "NORTHERN PLAINS", south: "SOUTHERN PLAINS",
+      list: [
+        { n: "ISHTAR TERRA",       lat: [55, 90] },
+        { n: "LAKSHMI PLANUM",     lat: [60, 75],  lon: [320, 20] },
+        { n: "MAXWELL MONTES",     lat: [62, 70],  lon: [0, 15] },
+        { n: "APHRODITE TERRA",    lat: [-20, 10], lon: [60, 210] },
+        { n: "ATLA REGIO",         lat: [-5, 15],  lon: [190, 210] },
+        { n: "BETA REGIO",         lat: [20, 38],  lon: [275, 290] },
+        { n: "PHOEBE REGIO",       lat: [-15, 5],  lon: [275, 290] },
+        { n: "ALPHA REGIO",        lat: [-30, -18], lon: [0, 15] },
+        { n: "GUINEVERE PLANITIA", lat: [10, 45],  lon: [300, 30] },
+        { n: "SEDNA PLANITIA",     lat: [30, 55],  lon: [330, 20] },
+        { n: "LAVINIA PLANITIA",   lat: [-50, -25], lon: [340, 20] },
+        { n: "ATALANTA PLANITIA",  lat: [40, 70],  lon: [140, 200] },
+      ],
+    },
+    moon: {
+      north: "LUNAR HIGHLANDS", south: "LUNAR HIGHLANDS",
+      list: [
+        { n: "MARE IMBRIUM",        lat: [20, 45],  lon: [330, 355] },
+        { n: "OCEANUS PROCELLARUM", lat: [-5, 35],  lon: [290, 330] },
+        { n: "MARE SERENITATIS",    lat: [20, 35],  lon: [10, 25] },
+        { n: "MARE TRANQUILLITATIS",lat: [0, 16],   lon: [22, 40] },
+        { n: "MARE CRISIUM",        lat: [10, 24],  lon: [50, 68] },
+        { n: "MARE FECUNDITATIS",   lat: [-12, 2],  lon: [45, 60] },
+        { n: "MARE NECTARIS",       lat: [-20, -8], lon: [30, 42] },
+        { n: "MARE NUBIUM",         lat: [-25, -12], lon: [340, 352] },
+        { n: "SOUTH POLE-AITKEN",   lat: [-90, -50] },
+        { n: "MARE ORIENTALE",      lat: [-28, -10], lon: [255, 275] },
+        // Catch-alls: the near/far split is a LONGITUDE question. Nearside
+        // faces Earth across roughly 270->0->90 E.
+        { n: "FARSIDE HIGHLANDS",   lat: [-90, 90], lon: [90, 270] },
+        { n: "NEARSIDE HIGHLANDS",  lat: [-90, 90], lon: [270, 90] },
+      ],
+    },
+    pluto: {
+      north: "ICY UPLANDS", south: "SOUTHERN TERRAIN",
+      list: [
+        { n: "SPUTNIK PLANITIA",  lat: [0, 40],   lon: [155, 195] },
+        { n: "TOMBAUGH REGIO",    lat: [-12, 50], lon: [145, 205] },
+        { n: "CTHULHU MACULA",    lat: [-25, 15], lon: [20, 145] },
+        { n: "VOYAGER TERRA",     lat: [30, 65],  lon: [95, 155] },
+        { n: "TARTARUS DORSA",    lat: [0, 35],   lon: [205, 250] },
+        { n: "PIONEER TERRA",     lat: [30, 60],  lon: [55, 95] },
+        { n: "BURNEY BASIN",      lat: [40, 60],  lon: [225, 250] },
+        { n: "LOWELL REGIO",      lat: [55, 90] },
+      ],
+    },
+  };
+
+  const inLonRange = (lon, [a, b]) => (a <= b ? (lon >= a && lon <= b)
+                                              : (lon >= a || lon <= b));
   function regionName(lat, lon) {
-    if (lat > 72) return "PLANUM BOREUM";
-    if (lat < -72) return "PLANUM AUSTRALE";
-    if (lat > -18 && lat < 2 && lon > 250 && lon < 320) return "VALLES MARINERIS";
-    if (lat > -5 && lat < 25 && lon > 220 && lon < 250) return "THARSIS MONTES";
-    if (lat > 12 && lat < 25 && lon > 130 && lon < 150) return "ELYSIUM MONS";
-    if (lat < -25 && lat > -55 && lon > 45 && lon < 100) return "HELLAS PLANITIA";
-    if (lat < -35 && lat > -55 && lon > 250 && lon < 300) return "ARGYRE PLANITIA";
-    if (lat > 8 && lat < 28 && lon > 222 && lon < 232) return "OLYMPUS MONS";
-    if (lat > 30 && lon > 150 && lon < 210) return "ARCADIA PLANITIA";
-    if (lat > 25 && lon > 20 && lon < 90) return "UTOPIA PLANITIA";
-    if (lat < -20 && lon > 315) return "NOACHIS TERRA";
-    if (lat > -15 && lat < 15 && lon > 150 && lon < 210) return "AMAZONIS PLANITIA";
-    return lat >= 0 ? "NORTHERN LOWLANDS" : "SOUTHERN HIGHLANDS";
+    const set = REGION_SETS[hooks?.bodyId] || REGION_SETS.mars;
+    const L = ((lon % 360) + 360) % 360;
+    for (const r of set.list) {
+      if (lat < r.lat[0] || lat > r.lat[1]) continue;
+      if (r.lon && !inLonRange(L, r.lon)) continue;
+      return r.n;
+    }
+    return lat >= 0 ? set.north : set.south;
   }
 
   // ---- ship ----
