@@ -1,0 +1,30 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   MARE — moon viewer palette
+
+   Loaded AFTER styles/viewer-skin.css in planet_explorer/moon/viewer/.
+
+   Restates the palette and nothing else: every rule in the base skin
+   resolves through these tokens, so a variant is a colour swap rather than
+   a second copy of the stylesheet. Same shape as viewer-skin-ember.css.
+
+   Mare blue on regolith cream - lit, not coloured, which is how the Moon
+   actually presents.
+
+     chrome  #8fb4e8  frames, headings, active states
+     data    #e8e2d0  readouts, measurements, values
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --skin-chrome: #8fb4e8;
+  --skin-chrome-rgb: 143, 180, 232;
+  --skin-chrome-ink: #12100a;
+
+  --skin-data: #e8e2d0;
+  --skin-data-rgb: 232, 226, 208;
+
+  --skin-bg: #05070d;
+  --skin-panel: 22, 26, 35;
+  --skin-ink: #eef3fb;
+  --skin-muted: 140, 156, 184;
+  --skin-vignette: 3, 4, 8;
+}

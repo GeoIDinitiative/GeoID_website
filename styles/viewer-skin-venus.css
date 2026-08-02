@@ -1,0 +1,30 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   SULPHUR — venus viewer palette
+
+   Loaded AFTER styles/viewer-skin.css in planet_explorer/venus/viewer/.
+
+   Restates the palette and nothing else: every rule in the base skin
+   resolves through these tokens, so a variant is a colour swap rather than
+   a second copy of the stylesheet. Same shape as viewer-skin-ember.css.
+
+   Entirely warm, no cool anywhere - the only viewer with no cold colour in
+   it, which is exactly right for 464 C under a sulphuric deck.
+
+     chrome  #ffd23f  frames, headings, active states
+     data    #ff7a45  readouts, measurements, values
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --skin-chrome: #ffd23f;
+  --skin-chrome-rgb: 255, 210, 63;
+  --skin-chrome-ink: #12100a;
+
+  --skin-data: #ff7a45;
+  --skin-data-rgb: 255, 122, 69;
+
+  --skin-bg: #110903;
+  --skin-panel: 40, 30, 16;
+  --skin-ink: #fff6dc;
+  --skin-muted: 212, 178, 120;
+  --skin-vignette: 10, 5, 2;
+}

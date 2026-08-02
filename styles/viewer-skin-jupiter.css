@@ -1,0 +1,30 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   GREAT RED — jupiter viewer palette
+
+   Loaded AFTER styles/viewer-skin.css in planet_explorer/jupiter/viewer/.
+
+   Restates the palette and nothing else: every rule in the base skin
+   resolves through these tokens, so a variant is a colour swap rather than
+   a second copy of the stylesheet. Same shape as viewer-skin-ember.css.
+
+   Banded ochre with the Great Red Spot as the data colour. Coral is
+   unclaimed anywhere else in the set.
+
+     chrome  #e8a13c  frames, headings, active states
+     data    #ff6b5a  readouts, measurements, values
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --skin-chrome: #e8a13c;
+  --skin-chrome-rgb: 232, 161, 60;
+  --skin-chrome-ink: #12100a;
+
+  --skin-data: #ff6b5a;
+  --skin-data-rgb: 255, 107, 90;
+
+  --skin-bg: #0f0a05;
+  --skin-panel: 37, 28, 18;
+  --skin-ink: #fff4e2;
+  --skin-muted: 206, 176, 136;
+  --skin-vignette: 9, 6, 3;
+}
