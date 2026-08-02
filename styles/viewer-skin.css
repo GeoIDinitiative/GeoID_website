@@ -152,12 +152,13 @@ body { background: var(--bg); }
 .slider, .lod-slider, input[type="range"] { accent-color: var(--skin-chrome); }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--skin-chrome); }
 
-/* ── Tour Mode: Enter button in the section header ──────────────────────
-   Same interaction as the Flight Simulator header, in the DATA colour
-   rather than the chrome one: bright cyan on the default skin, and it
-   follows --skin-data under the ember/flight retints so it never clashes.
-   Markup lives in each viewer's index.html; behaviour in
-   /scripts/tour-enter.js. */
+/* ── Tour Mode: Enter button + active-tab theme ─────────────────────────
+   At rest the button matches the Flight Simulator's Enter (the chrome
+   accent). ACTIVATION is what goes cyan: the button fills with
+   --skin-data and the whole Tour Mode section retints with it, so an
+   armed tour reads as a mode the way an engaged flight does. Markup in
+   each viewer's index.html; behaviour in /scripts/tour-enter.js, which
+   stamps .is-touring on the section. */
 .tour-enter-btn {
   font-family: "Exo 2", "Segoe UI", sans-serif;
   font-weight: 600;
@@ -168,26 +169,45 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--skin-chrome); 
      as the checkbox rows. */
   padding: 0.22rem 0.72rem;
   border-radius: 0.45rem;
-  color: color-mix(in srgb, var(--skin-data) 60%, white);
+  color: #dff6ff;
   background: linear-gradient(180deg,
-    rgba(var(--skin-data-rgb), 0.28), rgba(var(--skin-data-rgb), 0.10));
-  border: 1px solid rgba(var(--skin-data-rgb), 0.65);
+    rgba(var(--nav-accent-rgb), 0.28), rgba(var(--nav-accent-rgb), 0.10));
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.65);
   cursor: pointer;
-  box-shadow: 0 0 10px rgba(var(--skin-data-rgb), 0.35),
-    inset 0 0 8px rgba(var(--skin-data-rgb), 0.12);
+  box-shadow: 0 0 10px rgba(var(--nav-accent-rgb), 0.35),
+    inset 0 0 8px rgba(var(--nav-accent-rgb), 0.12);
   transition: transform 0.12s ease, box-shadow 0.2s ease;
 }
 .tour-enter-btn:hover {
   transform: translateY(-1px);
   color: #ffffff;
-  box-shadow: 0 0 18px rgba(var(--skin-data-rgb), 0.6),
-    inset 0 0 10px rgba(var(--skin-data-rgb), 0.2);
+  box-shadow: 0 0 18px rgba(var(--nav-accent-rgb), 0.6),
+    inset 0 0 10px rgba(var(--nav-accent-rgb), 0.2);
 }
 .tour-enter-btn.is-armed {
   color: #001418;
   background: var(--skin-data);
   border-color: var(--skin-data);
   box-shadow: 0 0 14px rgba(var(--skin-data-rgb), 0.55);
+}
+
+/* The active tab. Doubled selector to outrank the base .control-section
+   chrome bloom above without leaning on load order. */
+.control-section#tour-mode-section.is-touring {
+  border-color: rgba(var(--skin-data-rgb), 0.6) !important;
+  background: linear-gradient(180deg,
+    rgba(var(--skin-data-rgb), 0.13), rgba(var(--skin-data-rgb), 0.04));
+  box-shadow:
+    0 0 0 1px rgba(var(--skin-data-rgb), 0.14),
+    0 0 22px -6px rgba(var(--skin-data-rgb), 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+#tour-mode-section.is-touring .section-title {
+  text-shadow: 0 0 12px rgba(var(--skin-data-rgb), 0.65);
+}
+#tour-mode-section.is-touring .section-icon {
+  color: var(--skin-data);
+  filter: drop-shadow(0 0 6px rgba(var(--skin-data-rgb), 0.7));
 }
 
 /* ── Readouts: bright cyan, deliberately un-blurred ──────────────────── */

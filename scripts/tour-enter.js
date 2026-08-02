@@ -29,6 +29,9 @@
       var on = toggle.checked;
       btn.textContent = on ? "Exit" : "Enter";
       btn.classList.toggle("is-armed", on);
+      // The active-tour retint: viewer-skin.css turns the whole section cyan
+      // off this class, so activation reads as a mode, not just a button.
+      if (section) section.classList.toggle("is-touring", on);
     }
 
     btn.addEventListener("click", function (e) {
