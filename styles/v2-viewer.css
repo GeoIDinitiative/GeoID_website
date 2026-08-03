@@ -1,0 +1,80 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   GeoID — v2 viewer skin
+   Completes the v2 rollout onto the surfaces v2-site.css deliberately
+   skipped: explorer/, earth_explorer/ (+ etna), myGeoID/. Loaded LAST on
+   those pages. Same two mechanisms as v2-site.css — font remapping and
+   token redefinition — so page layouts and viewer logic stay untouched.
+
+   (Atlas-side copies of these viewers get styles/atlas-skin.css instead:
+   two brands, cleanly split — the public site is teal GeoID, surfaces
+   inside Atlas are indigo Atlas. Owen, 2026-08-03.)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Font remaps (same targets as v2-site.css) ───────────────────── */
+@font-face {
+  font-family: "Exo 2";                 /* viewer body face — retired */
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Orbitron";              /* viewer display face — retired */
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxI.woff2) format('woff2');
+}
+
+/* ── 2. Tokens — every viewer vocabulary, v2 values ─────────────────── */
+:root {
+  /* shared.css vocabulary */
+  --bg-0: #060709;
+  --bg-1: #0b0d11;
+  --bg-2: #10141a;
+  --panel:        rgba(11, 13, 17, 0.88);
+  --panel-strong: rgba(13, 16, 21, 0.96);
+  --line:        rgba(255, 255, 255, 0.10);
+  --line-strong: rgba(255, 255, 255, 0.22);
+  --text:  #f2f5f8;
+  --muted: rgba(235, 242, 248, 0.55);
+  --gold:      #35d6b8;
+  --gold-soft: rgba(53, 214, 184, 0.10);
+  --cyan:      #35d6b8;
+  --cyan-soft: rgba(53, 214, 184, 0.10);
+  --accent:      #35d6b8;
+  --accent-rgb:  53, 214, 184;
+
+  /* etna page vocabulary (its inline :root) — ember chrome collapses into
+     the one accent; lava/eruption DATA colours live in JS, not here. */
+  --border: rgba(53, 214, 184, 0.28);
+
+  /* myGeoID hub-* vocabulary */
+  --hub-accent:       #35d6b8;
+  --hub-accent-rgb:   53, 214, 184;
+  --hub-blue:         #35d6b8;
+  --hub-muted:        rgba(235, 242, 248, 0.55);
+  --hub-panel-fill:   rgba(11, 13, 17, 0.88);
+  --hub-panel-top:    rgba(13, 16, 21, 0.96);
+  --hub-panel-bottom: rgba(6, 7, 9, 0.96);
+}
+
+/* ── 3. Base (mirrors v2-site.css) ──────────────────────────────────── */
+html, body { background: var(--bg-0); }
+body {
+  background:
+    radial-gradient(100rem 60rem at 85% -20%, rgba(var(--accent-rgb), 0.05), transparent 60%),
+    linear-gradient(180deg, #05060a 0%, var(--bg-0) 40%, var(--bg-0) 100%);
+  letter-spacing: -0.006em;
+  color: var(--text);
+}
+::selection { background: var(--accent); color: #04211c; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--accent-rgb), 0.25);
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track { background: transparent; }
+
+h1, h2, h3, h4 { letter-spacing: -0.03em; }
