@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v36';  // v36: flight-sim atmosphere readouts
+const STATIC_CACHE = 'geoid-site-v37';  // v37: airless radiative temperature
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [
