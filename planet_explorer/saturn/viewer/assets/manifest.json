@@ -8,7 +8,7 @@
     "body_scale_y": 0.902,
     "axial_tilt_deg": 26.7,
     "rings": {
-      "path": "saturn_rings.png",
+      "path": "saturn_rings.webp",
       "inner_radius": 3.968,
       "outer_radius": 7.264,
       "source_page_url": "https://science.nasa.gov/solar-system/planets/saturn/"

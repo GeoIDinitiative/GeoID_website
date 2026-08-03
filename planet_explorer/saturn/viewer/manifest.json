@@ -8,7 +8,7 @@
     "body_scale_y": 0.902,
     "axial_tilt_deg": 26.7,
     "rings": {
-      "path": "assets/saturn_rings.png",
+      "path": "assets/saturn_rings.webp",
       "inner_km": 74500,
       "outer_km": 136800,
       "inner_radius": 3.955,
