@@ -2362,20 +2362,39 @@
     [100000, -168, 2.0e-2], [200000, -178, 2.0e-3], [500000, -190, 2.0e-5],
   ]);
 
-  // Airless worlds still have a surface-bounded exosphere, and it is NOT the
-  // ground: it is collisionless gas whose density falls off exponentially while
-  // its kinetic temperature climbs, because there is nothing up there to carry
-  // heat away and solar EUV keeps the light species hot. Holding the surface
-  // value constant all the way up — which is what this used to do — reported a
-  // regolith reading in the atmosphere row at every altitude.
+  // Airless worlds. Pressure is a surface-bounded exosphere: collisionless gas
+  // thinning exponentially on the scale height that matters at the altitudes
+  // actually flown — helium, H = kT/mg, ~550 km at Mercury and ~510 km at the
+  // Moon, both comparable to the flight envelope, so the cell stays live all the
+  // way up. Holding the surface value constant, which is what this used to do,
+  // reported a regolith reading in the atmosphere row at every altitude.
   //
-  // The scale height is the one that matters at the altitudes actually flown:
-  // helium, H = kT/mg, which is ~550 km at Mercury and ~510 km at the Moon. Both
-  // are comparable to the flight envelope, so the readout stays live throughout.
-  function exosphere(surfaceC, exoC, surfacePa, scaleH) {
-    const at = (h) => [h, surfaceC + (exoC - surfaceC) * (1 - Math.exp(-h / scaleH)),
-      surfacePa * Math.exp(-h / scaleH)];
-    return profileFromTable([at(0), at(1e5), at(5e5), at(1e6), at(3e6)]);
+  // Temperature is RADIATIVE EQUILIBRIUM, not the gas. In near-vacuum the gas
+  // kinetic temperature is not something an instrument can usefully show: this
+  // first shipped asymptoting to Mercury's ~1000 K sodium exosphere, which read
+  // +725 °C in deep space beside a pressure cell already showing interplanetary
+  // vacuum — two cells describing different places. And it does not even bound
+  // the problem, since the solar wind you are actually sitting in runs to 10^5 K.
+  // What a real spacecraft gauge reads is its own thermal balance, so that is
+  // what this models: on the ground the ship sees a hemisphere of hot dayside
+  // regolith, and as it climbs the body subtends less sky until only sunlight is
+  // left. Endpoints are the familiar published pair for each world — Mercury's
+  // +430 °C dayside falling to the +164 °C equilibrium at 0.39 AU, the Moon's
+  // +120 °C falling to -3 °C at 1 AU. Fourth-power blend, because it is fluxes
+  // that add, not temperatures.
+  function exosphere(surfaceC, farC, surfacePa, scaleH) {
+    const surf4 = Math.pow(surfaceC + 273.15, 4), far4 = Math.pow(farC + 273.15, 4);
+    return (hMeters) => {
+      const h = Math.max(0, hMeters || 0);
+      const R = hooks.bodyRadiusMeters || 1;
+      // Fraction of the sky the body still fills, normalised to 1 on the ground.
+      const sinTheta = R / (R + h);
+      const view = 1 - Math.sqrt(Math.max(0, 1 - sinTheta * sinTheta));
+      return {
+        tempC: Math.pow(far4 + view * (surf4 - far4), 0.25) - 273.15,
+        pressurePa: Math.max(SPACE_FLOOR_PA, surfacePa * Math.exp(-h / scaleH)),
+      };
+    };
   }
 
   function marsAtmosphere(hMeters) {
@@ -2404,9 +2423,9 @@
     // them the streamer has nothing finer to fetch, so the sim leaves it
     // alone and the globe simply keeps its mapped basemap.
     mars:    { gravity: 3.71, atmosphere: marsAtmosphere,  domain: "Mars atmosphere", streamedTiles: true },
-    mercury: { gravity: 3.70, atmosphere: exosphere(167, 727, 1.0e-10, 550000), domain: "Mercury exosphere" },
+    mercury: { gravity: 3.70, atmosphere: exosphere(430, 164, 1.0e-10, 550000), domain: "Mercury exosphere" },
     venus:   { gravity: 8.87, atmosphere: venusAtmosphere, domain: "Venus atmosphere" },
-    moon:    { gravity: 1.62, atmosphere: exosphere(-20, 127, 3.0e-10, 510000), domain: "Lunar exosphere" },
+    moon:    { gravity: 1.62, atmosphere: exosphere(120, -3, 3.0e-10, 510000), domain: "Lunar exosphere" },
     // Pluto has an atmosphere, but a thin one: ~1 Pa of nitrogen at the
     // surface, and it is warmer aloft than at the ground — a genuine inversion
     // off methane heating — so the lapse runs the other way here, climbing to
