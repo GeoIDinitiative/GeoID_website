@@ -2295,30 +2295,87 @@
   // under the cursor", which is the wrong question from a cockpit at 100 km. This
   // is the NASA Glenn simple Mars atmosphere model (two-layer fit to Mars GRAM /
   // Viking data), evaluated at the ship's own height above the datum.
-  // A world with no air. Pressure is a floor value rather than a hard zero so
-  // the HUD's log-scaled readout stays finite, and the temperature is the mean
-  // surface value held constant: with no atmosphere there is nothing to carry a
-  // lapse rate, so it genuinely does not vary with height the way Mars does.
-  const airless = (meanC, floorPa) => () => ({ tempC: meanC, pressurePa: floorPa });
+  // Every world other than Mars is described by a table of sounding anchors
+  // rather than a closed-form fit. A single exponential only holds over the one
+  // layer it was fitted to: run it up the whole 0-5500 km flight envelope and it
+  // either goes unphysical or has to be clamped, and a clamped readout is a dead
+  // instrument — it sits on its limit for the entire cruise and tells the pilot
+  // nothing. Anchors interpolate linearly in temperature and logarithmically in
+  // pressure (pressure spans decades, so log is the only honest axis), and the
+  // top pair sets the scale height used to extrapolate above the last anchor.
+  //
+  // Row is [altitude above datum in m, temperature °C, pressure Pa].
+  //
+  // Extrapolation is floored at the interplanetary medium. One scale height run
+  // over thousands of kilometres decays without limit — Venus's thermosphere fit
+  // reaches 1e-49 Pa at 5000 km and Mars' reaches 1e-193 — which is not thin air,
+  // it is a number no instrument could mean. Real atmospheres do not fall to
+  // nothing; they fade into the solar wind at roughly 1e-14 Pa, so that is where
+  // the readout stops. Below it you are measuring interplanetary space, not the
+  // body. Mercury and the Moon sit just above the floor at their ceiling, so
+  // their readouts stay live across the whole envelope.
+  const SPACE_FLOOR_PA = 1e-14;
 
-  // Venus. Surface is 92 bar at 464 °C — the one world here where the
-  // atmosphere is the dominant fact about flying. Exponential pressure on a
-  // 15.9 km scale height, and the troposphere's ~8.1 K/km lapse held at the
-  // mesopause rather than run past its range, the same guard the Mars fit gets.
-  function venusAtmosphere(hMeters) {
-    const h = Math.max(0, hMeters);
-    return {
-      tempC: Math.max(-45, 464 - 0.00814 * h),
-      pressurePa: 9.2e6 * Math.exp(-h / 15900),
+  function profileFromTable(rows) {
+    const last = rows.length - 1;
+    // Scale height implied by the top two anchors, reused above the table.
+    const topH = (rows[last][0] - rows[last - 1][0]) /
+      Math.log(rows[last - 1][2] / rows[last][2]);
+    return (hMeters) => {
+      const h = Math.max(0, hMeters || 0);
+      if (h >= rows[last][0]) {
+        return {
+          tempC: rows[last][1],
+          pressurePa: Math.max(SPACE_FLOOR_PA,
+            rows[last][2] * Math.exp(-(h - rows[last][0]) / topH)),
+        };
+      }
+      let i = 0;
+      while (i < last && rows[i + 1][0] <= h) i++;
+      const [h0, t0, p0] = rows[i], [h1, t1, p1] = rows[i + 1];
+      const f = (h - h0) / (h1 - h0);
+      return {
+        tempC: t0 + (t1 - t0) * f,
+        pressurePa: p0 * Math.pow(p1 / p0, f),
+      };
     };
   }
 
-  function plutoAtmosphere(hMeters) {
-    const h = Math.max(0, hMeters);
-    return {
-      tempC: Math.min(-173, -229 + 0.0009 * h),
-      pressurePa: 1.0 * Math.exp(-h / 50000),
-    };
+  // Venus, from the Venus International Reference Atmosphere: 92 bar at 464 °C
+  // on the ground, an Earth-like 1 bar at 50 km, and a thermosphere that warms
+  // again above ~120 km. The one world here where the air is the dominant fact
+  // about flying.
+  const venusAtmosphere = profileFromTable([
+    [0, 464, 9.20e6], [10000, 385, 4.74e6], [20000, 306, 2.28e6],
+    [30000, 222, 9.85e5], [40000, 143, 3.50e5], [50000, 75, 1.07e5],
+    [60000, -10, 2.36e4], [70000, -43, 3.69e3], [80000, -76, 4.76e2],
+    [90000, -108, 3.74e1], [100000, -112, 2.66e0], [120000, -100, 2.2e-2],
+    [150000, -50, 1.0e-3], [200000, -10, 5.0e-5], [300000, 20, 6.0e-7],
+    [500000, 27, 1.0e-8],
+  ]);
+
+  // Pluto, from the New Horizons occultation profile: ~1 Pa of nitrogen at the
+  // surface and a genuine inversion — methane heating makes it some 70 K WARMER
+  // at 30 km than on the ground — before cooling slowly away again.
+  const plutoAtmosphere = profileFromTable([
+    [0, -235, 1.00], [10000, -200, 0.66], [30000, -163, 0.25],
+    [100000, -168, 2.0e-2], [200000, -178, 2.0e-3], [500000, -190, 2.0e-5],
+  ]);
+
+  // Airless worlds still have a surface-bounded exosphere, and it is NOT the
+  // ground: it is collisionless gas whose density falls off exponentially while
+  // its kinetic temperature climbs, because there is nothing up there to carry
+  // heat away and solar EUV keeps the light species hot. Holding the surface
+  // value constant all the way up — which is what this used to do — reported a
+  // regolith reading in the atmosphere row at every altitude.
+  //
+  // The scale height is the one that matters at the altitudes actually flown:
+  // helium, H = kT/mg, which is ~550 km at Mercury and ~510 km at the Moon. Both
+  // are comparable to the flight envelope, so the readout stays live throughout.
+  function exosphere(surfaceC, exoC, surfacePa, scaleH) {
+    const at = (h) => [h, surfaceC + (exoC - surfaceC) * (1 - Math.exp(-h / scaleH)),
+      surfacePa * Math.exp(-h / scaleH)];
+    return profileFromTable([at(0), at(1e5), at(5e5), at(1e6), at(3e6)]);
   }
 
   function marsAtmosphere(hMeters) {
@@ -2333,7 +2390,7 @@
     const tempC = Math.max(raw, MESOSPHERE_C);
     // Exponential with an ~11 km scale height. Rough above the fit's range too,
     // but it stays the right order of magnitude and never goes unphysical.
-    const pressurePa = 699 * Math.exp(-0.00009 * h);
+    const pressurePa = Math.max(SPACE_FLOOR_PA, 699 * Math.exp(-0.00009 * h));
     return { tempC, pressurePa };
   }
 
@@ -2347,9 +2404,9 @@
     // them the streamer has nothing finer to fetch, so the sim leaves it
     // alone and the globe simply keeps its mapped basemap.
     mars:    { gravity: 3.71, atmosphere: marsAtmosphere,  domain: "Mars atmosphere", streamedTiles: true },
-    mercury: { gravity: 3.70, atmosphere: airless(167, 1e-10), domain: "Mercury exosphere" },
+    mercury: { gravity: 3.70, atmosphere: exosphere(167, 727, 1.0e-10, 550000), domain: "Mercury exosphere" },
     venus:   { gravity: 8.87, atmosphere: venusAtmosphere, domain: "Venus atmosphere" },
-    moon:    { gravity: 1.62, atmosphere: airless(-20, 3e-10), domain: "Lunar vacuum" },
+    moon:    { gravity: 1.62, atmosphere: exosphere(-20, 127, 3.0e-10, 510000), domain: "Lunar exosphere" },
     // Pluto has an atmosphere, but a thin one: ~1 Pa of nitrogen at the
     // surface, and it is warmer aloft than at the ground — a genuine inversion
     // off methane heating — so the lapse runs the other way here, climbing to
@@ -2370,11 +2427,17 @@
     for (const [limit, colour] of stops) if (v < limit) return colour;
     return stops[stops.length - 1][1];
   };
-  // Bands are scaled to the range this atmosphere model ACTUALLY produces, not to
-  // a generic thermometer: it spans -130 °C (isothermal mesosphere floor) to
-  // -31 °C (datum), and 0 to 699 Pa. Bands centred on 0 °C would have left the
-  // whole flight envelope sitting in one blue bucket with red unreachable.
-  const TEMP_STOPS = [
+  const RAMP_HUES = ["#5aa9ff", "#6ec6ff", "#90d8e8", "#e8c97a", "#ff9d3c", "#ff6a4d"];
+  // Bands are scaled to the range each world's model ACTUALLY produces, not to a
+  // generic thermometer. These were hand-tuned to MARS — -130 °C to -31 °C, 0 to
+  // 699 Pa — and every other world inherited them, so Venus's 464 °C / 92 bar and
+  // Mercury's +167 °C pinned to the top red band for the whole flight while
+  // Pluto's -235 °C pinned to the bottom blue. Same Mars-literal inheritance the
+  // forks keep producing. Mars keeps its tuned bands verbatim; everyone else has
+  // theirs derived from their own envelope, so the ramp always spans what the
+  // pilot can actually reach. Pressure is banded on a log axis: it covers
+  // sixteen decades on Venus, where linear bands would be one bucket.
+  const MARS_TEMP_STOPS = [
     [-118, "#5aa9ff"],                    // mesosphere floor — coldest it gets
     [-100, "#6ec6ff"],
     [-80, "#90d8e8"],
@@ -2382,7 +2445,7 @@
     [-45, "#ff9d3c"],
     [Infinity, "#ff6a4d"],                // near datum — warmest it gets
   ];
-  const PRESS_STOPS = [
+  const MARS_PRESS_STOPS = [
     [0.01, "#5aa9ff"],                    // effectively vacuum
     [1, "#6ec6ff"],
     [30, "#90d8e8"],
@@ -2391,15 +2454,93 @@
     [Infinity, "#ff6a4d"],                // dense — deep basin floor
   ];
 
+  function bandsBetween(min, max, log) {
+    return RAMP_HUES.map((hue, i) => {
+      if (i === RAMP_HUES.length - 1) return [Infinity, hue];
+      const f = (i + 1) / RAMP_HUES.length;
+      return [log ? min * Math.pow(max / min, f) : min + (max - min) * f, hue];
+    });
+  }
+
+  // Derived lazily and cached: sample the body's own profile across the flight
+  // envelope and band the range it returns. Lazy because the ceiling constant is
+  // declared further down the file, and caching because this runs every frame.
+  const rampCache = new Map();
+  function rampsForBody() {
+    const id = hooks?.bodyId || "mars";
+    if (rampCache.has(id)) return rampCache.get(id);
+    const profile = bodyProfile();
+    let ramps;
+    if (profile.atmosphere === marsAtmosphere) {
+      ramps = { temp: MARS_TEMP_STOPS, press: MARS_PRESS_STOPS };
+    } else {
+      let tMin = Infinity, tMax = -Infinity, pMin = Infinity, pMax = -Infinity;
+      for (let h = 0; h <= 5.5e6; h += 5e4) {
+        const { tempC, pressurePa } = profile.atmosphere(h);
+        tMin = Math.min(tMin, tempC); tMax = Math.max(tMax, tempC);
+        pMin = Math.min(pMin, pressurePa); pMax = Math.max(pMax, pressurePa);
+      }
+      ramps = {
+        temp: bandsBetween(tMin, tMax, false),
+        press: bandsBetween(pMin, pMax, true),
+      };
+    }
+    rampCache.set(id, ramps);
+    return ramps;
+  }
+
+  // Pressure spans sixteen decades across these worlds — 9.2 MPa on the Venusian
+  // surface down to ~1e-13 Pa high in Mercury's exosphere — so no single format
+  // serves them all. Anything under a millipascal used to collapse to a literal
+  // "< 10⁻³ Pa", which on the airless worlds froze the cell no matter how the
+  // ship flew: the readout was dead even where the model was live. Scientific
+  // notation keeps it reading all the way down, and MPa/kPa stop Venus's surface
+  // from rendering as an eight-digit run of pascals.
+  const SUPERSCRIPTS = ["⁰", "¹", "²", "³", "⁴",
+    "⁵", "⁶", "⁷", "⁸", "⁹"];
+  const superscript = (n) => (n < 0 ? "⁻" : "") +
+    String(Math.abs(n)).split("").map((d) => SUPERSCRIPTS[+d]).join("");
+  function formatPressure(pa) {
+    if (!(pa > 0)) return "0 Pa";
+    if (pa >= 1e6) return `${(pa / 1e6).toFixed(2)} MPa`;
+    if (pa >= 1e3) return `${(pa / 1e3).toFixed(1)} kPa`;
+    if (pa >= 1) return `${pa.toFixed(pa < 10 ? 1 : 0)} Pa`;
+    if (pa >= 1e-3) return `${pa.toFixed(3)} Pa`;
+    const exp = Math.floor(Math.log10(pa));
+    return `${(pa / Math.pow(10, exp)).toFixed(1)}×10${superscript(exp)} Pa`;
+  }
+
+  // Height above the DATUM in real metres, which is what an atmosphere model
+  // wants. This used to be `(r - GLOBE_R) * METERS_PER_UNIT`, and that is not an
+  // altitude at all: the rendered surface sits at `GLOBE_R + norm * relief`,
+  // where `relief` is the vertical-EXAGGERATION control in scene units — a
+  // display quantity, not a distance. At Venus' default 0.03 it added ~16 km of
+  // phantom height, so the cockpit read 274 °C where the altimeter beside it said
+  // 7.5 km and the air is really 395 °C. Worse, dragging the exaggeration slider
+  // MOVED the weather. Take the altimeter's own height above the terrain instead
+  // and add the true ground elevation from the DEM's metre range, so the answer
+  // depends only on where the ship actually is.
+  function datumAltitudeM(altAboveTerrainM, lat, lonE) {
+    const dem = hooks.manifest && hooks.manifest.elevation;
+    if (!dem || !hooks.elevationSampler || !hooks.sampleElevationNormalized) {
+      return altAboveTerrainM;
+    }
+    const norm = hooks.sampleElevationNormalized(hooks.elevationSampler, lat, lonE);
+    if (!Number.isFinite(norm)) return altAboveTerrainM;
+    const minM = Number.isFinite(dem.min_m) ? dem.min_m : 0;
+    const reliefM = Number.isFinite(dem.relief_m) ? dem.relief_m
+      : (Number.isFinite(dem.max_m) ? dem.max_m - minM : 0);
+    return altAboveTerrainM + minM + norm * reliefM;
+  }
+
   function updateFlightAtmosphere(altAboveDatumM) {
     if (!hudTemp || !hudPress) return;
     const { tempC, pressurePa } = bodyProfile().atmosphere(altAboveDatumM);
+    const ramps = rampsForBody();
     hudTemp.textContent = `${tempC > 0 ? "+" : ""}${Math.round(tempC)} °C`;
-    hudTemp.style.color = rampFor(tempC, TEMP_STOPS);
-    hudPress.textContent = pressurePa >= 1 ? `${pressurePa.toFixed(pressurePa < 10 ? 1 : 0)} Pa`
-      : pressurePa >= 0.001 ? `${pressurePa.toFixed(3)} Pa`
-      : "< 10\u207B\u00B3 Pa";
-    hudPress.style.color = rampFor(pressurePa, PRESS_STOPS);
+    hudTemp.style.color = rampFor(tempC, ramps.temp);
+    hudPress.textContent = formatPressure(pressurePa);
+    hudPress.style.color = rampFor(pressurePa, ramps.press);
   }
 
   // ---- per-frame update (called from the viewer render loop) ----
@@ -2873,7 +3014,7 @@
     drawBearingTape(hdg);
     if (hudPitch) hudPitch.textContent =
       `${pitchWhole > 0 ? "+" : ""}${pitchWhole}°`;
-    updateFlightAtmosphere((r - GLOBE_R) * METERS_PER_UNIT);
+    updateFlightAtmosphere(datumAltitudeM(altM, ll.lat, ll.lon));
     if (hudCoord) hudCoord.textContent =
       Math.abs(ll.lat).toFixed(1) + "°" + (ll.lat >= 0 ? "N" : "S") + " " + ll.lon.toFixed(1) + "°E";
     if (hudRegion) hudRegion.textContent = regionName(ll.lat, ll.lon);
