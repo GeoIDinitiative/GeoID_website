@@ -244,6 +244,11 @@ function displayMesh(positions, name, color) {
 const EARTH_RADIUS_M = 6371000;
 let groundMesh = null;
 
+// Mesh space is a local tangent frame on WGS84: model X/Y/Z are east/north/up
+// metres about this origin, which is what the lat/lon/elevation readout
+// reports against.
+const studioOrigin = { lat: 0, lon: 0, elevation: 0 };
+
 function starfield() {
   // The viewer adds its starfield straight to the scene as the only Points
   // object at that level.
@@ -256,75 +261,65 @@ function setStarsVisible(on) {
 }
 
 /**
- * Ground reference: a sphere of the Earth's radius tangent to z = 0, drawn at
- * the model's own scale. Small models see an effectively flat floor; models
- * kilometres across see the curvature and horizon.
+ * The ground is a WGS84 globe: a sphere carrying a lat/lon graticule. Close in
+ * it reads as the synthwave grid on a gently curved plane; pulled back far
+ * enough it resolves into the whole planet, because it is the same surface
+ * either way.
+ *
+ * The sphere is representational in size rather than literally 6371 km in
+ * scene units -- a metre-scale model against a true-scale Earth would need a
+ * depth range no float32 buffer can hold. Curvature is therefore exaggerated
+ * for small models and becomes truthful as the model approaches planetary
+ * scale.
  */
-function updateGround() {
-  if (!groundMesh) return;
-  const earth = EARTH_RADIUS_M * studioScale;
-  // A full Earth-radius sphere would be millions of scene units across, and a
-  // far plane that large destroys depth precision for the model itself. A
-  // bounded cap of the same sphere gives identical curvature over the region
-  // actually in view, while keeping the scene small.
-  const capRadius = Math.min(MODEL_MODE_RADIUS * 60, earth * 0.6);
-  const rings = 72;
-  const segments = 96;
-  const positions = [];
-  const vertexAt = (ringIndex, segIndex) => {
-    const r = (ringIndex / rings) * capRadius;
-    const theta = (segIndex / segments) * Math.PI * 2;
-    // Sagitta of the Earth sphere: how far the surface drops at distance r.
-    const drop = earth - Math.sqrt(Math.max(earth * earth - r * r, 0));
-    return [r * Math.cos(theta), -drop, r * Math.sin(theta)];
-  };
-  for (let i = 0; i < rings; i += 1) {
-    for (let j = 0; j < segments; j += 1) {
-      const a = vertexAt(i, j);
-      const b = vertexAt(i + 1, j);
-      const c = vertexAt(i + 1, j + 1);
-      const d = vertexAt(i, j + 1);
-      positions.push(...a, ...b, ...c, ...a, ...c, ...d);
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.computeVertexNormals();
-  groundMesh.geometry?.dispose();
-  groundMesh.geometry = geometry;
-  groundMesh.position.set(0, 0, 0);
+const GROUND_RADIUS = 900;
 
-  const uniforms = groundMesh.material?.uniforms;
-  if (uniforms) {
-    // Spacing follows the model, not the cap: cells need to read next to the
-    // geometry being built. Sizing them off the cap radius made each cell wider
-    // than the whole model.
-    uniforms.uSpacing.value = MODEL_MODE_RADIUS / 6;
-    // The grid dissolves well inside the cap; beyond that only the horizon haze
-    // remains, which is what keeps distant cells from aliasing into noise.
-    uniforms.uFade.value = MODEL_MODE_RADIUS * 14;
-  }
+function geodeticDirection(latDeg, lonDeg) {
+  const lat = latDeg * Math.PI / 180;
+  const lon = lonDeg * Math.PI / 180;
+  return new THREE.Vector3(
+    Math.cos(lat) * Math.cos(lon),
+    Math.cos(lat) * Math.sin(lon),
+    Math.sin(lat),
+  );
 }
 
 /**
- * Neon grid drawn procedurally across the ground cap: minor lines in cyan,
- * every fourth line in magenta, glowing and dissolving toward the horizon.
- * Because it is painted on the curved cap, the horizon bows the way the Earth
- * actually does rather than being a straight line.
+ * Basis mapping scene axes onto the Earth frame at the model origin, so scene
+ * +Y is up at (lat0, lon0), +X is east and +Z is south.
  */
+function originBasis(latDeg, lonDeg) {
+  const lat = latDeg * Math.PI / 180;
+  const lon = lonDeg * Math.PI / 180;
+  const up = geodeticDirection(latDeg, lonDeg);
+  const north = new THREE.Vector3(
+    -Math.sin(lat) * Math.cos(lon),
+    -Math.sin(lat) * Math.sin(lon),
+    Math.cos(lat),
+  );
+  const east = new THREE.Vector3(-Math.sin(lon), Math.cos(lon), 0);
+  return new THREE.Matrix3().set(
+    east.x, up.x, -north.x,
+    east.y, up.y, -north.y,
+    east.z, up.z, -north.z,
+  );
+}
+
 function groundGridMaterial() {
   return new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    blending: THREE.AdditiveBlending,
+    // Opaque with depth writing, so the far side of the globe is occluded by
+    // the near side and no lines show through the planet or past the horizon.
+    transparent: false,
+    depthWrite: true,
+    depthTest: true,
+    side: THREE.FrontSide,
     uniforms: {
-      uSpacing: { value: 1 },
+      uStepDeg: { value: 10 },
       uMajorEvery: { value: 4 },
-      uFade: { value: 1 },
+      uBasis: { value: new THREE.Matrix3() },
       uMinor: { value: new THREE.Color(0x2f6bff) },
       uMajor: { value: new THREE.Color(0xff2bd6) },
-      uGlow: { value: new THREE.Color(0xb028ff) },
+      uBase: { value: new THREE.Color(0x02050b) },
     },
     vertexShader: `
       varying vec3 vLocal;
@@ -334,82 +329,155 @@ function groundGridMaterial() {
       }
     `,
     fragmentShader: `
-      uniform float uSpacing;
+      uniform float uStepDeg;
       uniform float uMajorEvery;
-      uniform float uFade;
+      uniform mat3 uBasis;
       uniform vec3 uMinor;
       uniform vec3 uMajor;
-      uniform vec3 uGlow;
+      uniform vec3 uBase;
       varying vec3 vLocal;
 
-      // Distance to the nearest gridline on one axis, in world units.
-      float lineDistance(float coord) {
-        return abs(fract(coord / uSpacing - 0.5) - 0.5) * uSpacing;
-      }
-
-      bool isMajor(float coord) {
-        float index = floor(coord / uSpacing + 0.5);
-        return abs(mod(index, uMajorEvery)) < 0.5;
-      }
+      const float DEG = 57.29577951308232;
 
       void main() {
-        float dx = lineDistance(vLocal.x);
-        float dz = lineDistance(vLocal.z);
+        // Surface normal in the Earth frame gives geodetic lat/lon directly.
+        vec3 dir = normalize(uBasis * normalize(vLocal));
+        float lat = asin(clamp(dir.z, -1.0, 1.0)) * DEG;
+        float lon = atan(dir.y, dir.x) * DEG;
 
-        // Screen-space width keeps lines even under perspective instead of
-        // aliasing into noise toward the horizon.
-        float wx = fwidth(vLocal.x) * 1.4 + 0.0001;
-        float wz = fwidth(vLocal.z) * 1.4 + 0.0001;
+        float dLat = abs(fract(lat / uStepDeg - 0.5) - 0.5) * uStepDeg;
+        float dLon = abs(fract(lon / uStepDeg - 0.5) - 0.5) * uStepDeg;
 
-        float lx = 1.0 - smoothstep(0.0, wx, dx);
-        float lz = 1.0 - smoothstep(0.0, wz, dz);
-        float line = max(lx, lz);
+        // Meridians converge toward the poles, so the longitude line width is
+        // widened by 1/cos(lat) to keep them an even thickness on screen.
+        float wLat = fwidth(lat) * 1.2 + 1e-6;
+        float wLon = fwidth(lon) * 1.2 + 1e-6;
 
-        // Bloom radius is a fixed fraction of the cell. Letting it grow with
-        // fwidth made distant cells return exp(-d/large) ~ 1 everywhere, which
-        // painted the whole surface a flat glow instead of glowing lines.
-        float bloomRadius = uSpacing * 0.06;
-        float bloom = max(exp(-dx / bloomRadius), exp(-dz / bloomRadius)) * 0.35;
+        float parallels = 1.0 - smoothstep(0.0, wLat, dLat);
+        float meridians = 1.0 - smoothstep(0.0, wLon, dLon);
+        float line = max(parallels, meridians);
 
-        // Once cells shrink toward pixel size the grid would alias into noise,
-        // so it is faded out by cell density rather than drawn and smeared.
-        float density = clamp(uSpacing / (max(wx, wz) * 12.0), 0.0, 1.0);
+        // Retire the graticule as cells approach pixel size rather than let it
+        // alias into noise near the limb.
+        float density = clamp(uStepDeg / (max(wLat, wLon) * 10.0), 0.0, 1.0);
         line *= density;
-        bloom *= density;
 
-        vec3 colour = uMinor;
-        if ((lx >= lz && isMajor(vLocal.x)) || (lz > lx && isMajor(vLocal.z))) {
-          colour = uMajor;
-        }
+        float bloomLat = exp(-dLat / (uStepDeg * 0.05));
+        float bloomLon = exp(-dLon / (uStepDeg * 0.05));
+        float bloom = max(bloomLat, bloomLon) * 0.35 * density;
 
-        float radius = length(vLocal.xz);
-        float t = clamp(radius / uFade, 0.0, 1.0);
-        // Fade the grid out before the cap edge so it dissolves rather than
-        // ending on a hard rim.
-        float fade = 1.0 - smoothstep(0.55, 1.0, t);
-        // Magenta haze gathering along the horizon.
-        float horizon = smoothstep(0.45, 0.95, t) * (1.0 - smoothstep(0.95, 1.0, t));
+        bool major = (parallels >= meridians)
+          ? abs(mod(floor(lat / uStepDeg + 0.5), uMajorEvery)) < 0.5
+          : abs(mod(floor(lon / uStepDeg + 0.5), uMajorEvery)) < 0.5;
+        vec3 colour = major ? uMajor : uMinor;
 
-        vec3 rgb = colour * (line + bloom) * fade + uGlow * horizon * 0.55;
-        float alpha = clamp((line + bloom) * fade + horizon * 0.5, 0.0, 1.0);
-        if (alpha < 0.004) discard;
-        gl_FragColor = vec4(rgb, alpha);
+        vec3 rgb = uBase + colour * (line + bloom);
+        gl_FragColor = vec4(rgb, 1.0);
       }
     `,
   });
+}
+
+function updateGround() {
+  if (!groundMesh) return;
+  groundMesh.position.set(0, -GROUND_RADIUS, 0);
+  const uniforms = groundMesh.material?.uniforms;
+  if (!uniforms) return;
+  uniforms.uBasis.value.copy(originBasis(studioOrigin.lat, studioOrigin.lon));
+  refreshGraticuleStep();
+}
+
+/**
+ * Graticule spacing follows the viewpoint the way a map's does: coarse when
+ * the whole globe is in frame, finer as you descend toward the model.
+ */
+const GRATICULE_STEPS = [30, 10, 5, 1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001];
+
+function refreshGraticuleStep() {
+  const viewer = window.GeoIDViewer;
+  if (!groundMesh?.material?.uniforms || !viewer?.camera) return;
+  // Height above the surface, as an angle subtended at the sphere centre.
+  const height = Math.max(viewer.camera.position.distanceTo(groundMesh.position) - GROUND_RADIUS, 1e-4);
+  const visibleDegrees = Math.min(160, (height / GROUND_RADIUS) * 120 + 0.0004);
+  // Aim for roughly ten divisions across the view, then take the largest
+  // standard step that is no coarser than that. Testing "count < 14" instead
+  // always matched the coarsest step first, so the graticule never refined.
+  const ideal = visibleDegrees / 10;
+  const step = GRATICULE_STEPS.find((s) => s <= ideal)
+    ?? GRATICULE_STEPS[GRATICULE_STEPS.length - 1];
+  groundMesh.material.uniforms.uStepDeg.value = step;
 }
 
 function setGroundVisible(on) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.scene) return;
   if (on && !groundMesh) {
-    groundMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 8), groundGridMaterial());
+    groundMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(GROUND_RADIUS, 256, 192),
+      groundGridMaterial(),
+    );
     groundMesh.name = "studio-ground";
-    groundMesh.renderOrder = -1;
     viewer.scene.add(groundMesh);
     updateGround();
   }
   if (groundMesh) groundMesh.visible = on;
+}
+
+/**
+ * Scene point to WGS84. Model space is a local tangent plane, so east/north
+ * metres convert to degrees directly; that is exact for the local extents a
+ * mesh covers and avoids pretending the representational globe is to scale.
+ */
+function sceneToWgs84(point) {
+  // Inverse of MODEL_TO_SCENE: scene (X, Y, Z) -> model (X, -Z, Y).
+  const east = point.x / studioScale;
+  const north = -point.z / studioScale;
+  const up = point.y / studioScale;
+  const lat = studioOrigin.lat + (north / 111320);
+  const cos = Math.max(Math.cos(lat * Math.PI / 180), 1e-6);
+  const lon = studioOrigin.lon + (east / (111320 * cos));
+  return { lat, lon, elevation: studioOrigin.elevation + up, east, north };
+}
+
+function formatCoord(value, suffixes) {
+  const hemi = value >= 0 ? suffixes[0] : suffixes[1];
+  return `${Math.abs(value).toFixed(5)}\u00b0${hemi}`;
+}
+
+function updateCoordinateReadout(point) {
+  const host = byId("studio-coords");
+  if (!host) return;
+  if (!point) {
+    host.innerHTML = '<span class="studio-coord-empty">Move over the ground for coordinates</span>';
+    return;
+  }
+  const geo = sceneToWgs84(point);
+  host.innerHTML =
+    `<span><b>LAT</b> ${formatCoord(geo.lat, ["N", "S"])}</span>`
+    + `<span><b>LON</b> ${formatCoord(geo.lon, ["E", "W"])}</span>`
+    + `<span><b>ELEV</b> ${geo.elevation.toFixed(2)} m</span>`;
+}
+
+// The viewer's orbit limits are tuned for a 3.2-unit globe, which caps the
+// camera well inside the studio's ground sphere -- you could never pull back
+// far enough to see it. Model mode widens them and restores them on exit.
+let orbitLimits = null;
+
+function setStudioOrbitLimits(on) {
+  const controls = window.GeoIDViewer?.controls;
+  if (!controls) return;
+  if (on) {
+    if (!orbitLimits) {
+      orbitLimits = { min: controls.minDistance, max: controls.maxDistance };
+    }
+    controls.minDistance = 0.05;
+    controls.maxDistance = GROUND_RADIUS * 4;
+  } else if (orbitLimits) {
+    controls.minDistance = orbitLimits.min;
+    controls.maxDistance = orbitLimits.max;
+    orbitLimits = null;
+  }
+  controls.update();
 }
 
 /** Puts the orbit target on the model origin so 0,0,0 is the centre of view. */
@@ -678,6 +746,22 @@ function installPicking() {
     setSelection([id], { additive: event.ctrlKey || event.metaKey || event.shiftKey });
     const entry = findById(id);
     log(`Picked Volume ${id} (${PRIMITIVES[entry.kind].label})`);
+  });
+
+  // Live WGS84 readout follows the cursor across the ground and the model.
+  canvas.addEventListener("pointermove", (event) => {
+    if (window.GeoIDModeManager?.getMode?.() !== "model") return;
+    const viewer = window.GeoIDViewer;
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, viewer.camera);
+    const targets = state.solids
+      .filter((e) => e.object3D && e.visible !== false)
+      .map((e) => e.object3D);
+    if (groundMesh?.visible) targets.push(groundMesh);
+    const hit = targets.length ? raycaster.intersectObjects(targets, false)[0] : null;
+    updateCoordinateReadout(hit ? hit.point : null);
   });
 
   canvas.addEventListener("contextmenu", (event) => {
@@ -1210,7 +1294,13 @@ function init() {
   const waitForViewer = () => {
     if (window.GeoIDViewer?.renderer) {
       installPicking();
+      if (window.GeoIDModeManager?.getMode?.() === "model") {
+        setStudioOrbitLimits(true);
+      }
       applyStudioScene();
+      // Graticule spacing depends on the viewpoint, so it is refreshed as the
+      // camera settles rather than only when the model changes.
+      window.GeoIDViewer.controls?.addEventListener?.("change", refreshGraticuleStep);
       return;
     }
     requestAnimationFrame(waitForViewer);
@@ -1221,11 +1311,14 @@ function init() {
   // since the other modes want the starfield back and the ground gone.
   window.addEventListener("geoid-gis:mode-change", (event) => {
     if (event.detail?.mode === "model") {
+      setStudioOrbitLimits(true);
       applyStudioScene();
       centreOnOrigin();
     } else {
+      setStudioOrbitLimits(false);
       setStarsVisible(true);
       setGroundVisible(false);
+      updateCoordinateReadout(null);
     }
   });
 
