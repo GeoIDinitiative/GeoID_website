@@ -817,13 +817,17 @@
        (Add / Model / Label / History) and right (Mesh / Structured / Refine /
        Log) tab decks around the viewport. -->
   <section id="model-studio" hidden>
+    <!-- The mode switcher is moved in here while the studio is open, so GeoID
+         and GIS stay one click away instead of being hidden with the sidebar.
+         Top-left, where it sits on the myGeoID page. -->
+    <div class="studio-modebar">
+      <span class="studio-modebar-label">HAZARD MODELLING</span>
+      <span id="studio-mode-slot"></span>
+    </div>
+
     <div class="studio-header">
       <span class="studio-title">MESHING STUDIO</span>
       <span class="studio-status" id="studio-status"></span>
-      <!-- The mode switcher is moved in here while the studio is open, so
-           GeoID and GIS stay one click away instead of being hidden with the
-           rest of the sidebar. -->
-      <span id="studio-mode-slot"></span>
     </div>
 
     <div class="studio-toolbar" id="studio-toolbar-main">
