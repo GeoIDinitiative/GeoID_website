@@ -1,0 +1,53 @@
+/* ═══ TYPE ONLY · SYNTHWAVE ══════════════════════════════════════════════
+   The lettering half of skins/synthwave.css, with none of the palette.
+
+   Exists so a page can borrow the arcade type without inheriting the
+   deep-violet skin. Loaded by explorer/ (Planet Explorer), which keeps its
+   own colours and takes only the faces.
+
+   Same trick as the parent skin: re-point family NAMES so no selector in
+   any page or component stylesheet has to change. Load this AFTER the
+   sheets whose faces it is overriding -- for identical family/weight/style,
+   the last @font-face wins.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@font-face {
+  font-family: "Audiowide W";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Chakra W";
+  font-style: normal; font-weight: 400; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Chakra W";
+  font-style: normal; font-weight: 600; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+}
+@font-face {
+  font-family: "Chakra W";
+  font-style: normal; font-weight: 700; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeJI91R5_F.woff2) format('woff2');
+}
+
+/* Chrome lettering: the display families this page already asks for. */
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2'); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2'); }
+@font-face { font-family: "Orbitron"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2'); }
+
+/* Body copy. "Exo 2" is this page's body face (v2-site.css points it at
+   Inter); re-point it at Chakra so running text matches the arcade set. */
+@font-face { font-family: "Exo 2"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2'); }
+@font-face { font-family: "Source Sans 3"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2'); }
+
+:root {
+  --display: "Audiowide W", "Chakra W", sans-serif;
+  --body:    "Chakra W", system-ui, sans-serif;
+}

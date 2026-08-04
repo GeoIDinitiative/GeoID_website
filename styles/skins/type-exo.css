@@ -1,0 +1,31 @@
+/* ═══ TYPE ONLY · EXO / INTER ════════════════════════════════════════════
+   The Planet Explorer landing face, packaged so another page can borrow it.
+
+   Loaded by earth_explorer/ (Earth Explorer) AFTER skins/synthwave.css, to
+   undo that skin's lettering while leaving its palette completely intact.
+   For identical family/weight/style the last @font-face wins, so every
+   family the skin hijacked to Audiowide/Chakra is re-pointed back here.
+
+   NB: "Exo 2" is a legacy name -- v2-site.css already resolves it to Inter,
+   which is what Planet Explorer actually renders. Matching that means
+   pointing everything at the same Inter file, not at a literal Exo 2.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Display families the synthwave skin had pointed at Audiowide. */
+@font-face { font-family: "Archivo"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) format('woff2'); }
+@font-face { font-family: "Public Sans"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) format('woff2'); }
+@font-face { font-family: "Audiowide W"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) format('woff2'); }
+
+/* Body families the skin had pointed at Chakra Petch. */
+@font-face { font-family: "Source Sans 3"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) format('woff2'); }
+@font-face { font-family: "Chakra W"; font-style: normal; font-weight: 100 900; font-display: swap;
+  src: url(https://fonts.gstatic.com/s/inter/v20/UcC73FwrK3iLTeHuS_nVMrMxCp50SjIa1ZL7.woff2) format('woff2'); }
+
+:root {
+  --display: "Exo 2", "Archivo", sans-serif;
+  --body:    "Exo 2", system-ui, sans-serif;
+}
