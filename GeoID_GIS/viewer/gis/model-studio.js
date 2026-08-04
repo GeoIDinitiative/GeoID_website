@@ -180,27 +180,151 @@ function readParams() {
 
 // ── Scene ───────────────────────────────────────────────────────────────────
 
+// Model space is Z-up (Z is elevation, as in the studio and in survey data);
+// three.js is Y-up. Converting on display keeps "up" actually up and makes a
+// z = 0 ground plane meaningful.
+const MODEL_TO_SCENE = new THREE.Matrix4().makeRotationX(-Math.PI / 2);
+
+// One scale for the whole model, not per-object. Normalising each solid
+// separately made a 1 m sphere and a 100 m box render the same size, which
+// destroys the relative proportions the model is meant to show.
+let studioScale = 1;
+const studioMeshes = new Set();
+
+function modelRadius() {
+  const b = combinedBounds();
+  if (!b) return 1;
+  const r = Math.max(
+    Math.hypot(b.maxX - b.minX, b.maxY - b.minY, b.maxZ - b.minZ) / 2,
+    Math.max(Math.abs(b.maxX), Math.abs(b.minX), Math.abs(b.maxY),
+      Math.abs(b.minY), Math.abs(b.maxZ), Math.abs(b.minZ)),
+  );
+  return r > 0 ? r : 1;
+}
+
+/** Recomputes the shared scale and re-applies it to every studio mesh. */
+function refreshStudioScale() {
+  studioScale = MODEL_MODE_RADIUS / modelRadius();
+  studioMeshes.forEach((mesh) => {
+    if (!mesh.parent) {
+      studioMeshes.delete(mesh);
+      return;
+    }
+    mesh.scale.setScalar(studioScale);
+    mesh.userData.baseScale = studioScale;
+  });
+  updateGround();
+}
+
 function displayMesh(positions, name, color) {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.applyMatrix4(MODEL_TO_SCENE);
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
-  const radius = geometry.boundingSphere?.radius || 1;
-  const scale = radius > 0 ? MODEL_MODE_RADIUS / radius : 1;
   const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
     color, roughness: 0.72, metalness: 0.05, side: THREE.DoubleSide, flatShading: true,
   }));
   mesh.name = name;
-  mesh.scale.setScalar(scale);
   mesh.userData.localModel = true;
-  mesh.userData.baseScale = scale;
+  studioMeshes.add(mesh);
   const boundingSphere = geometry.boundingSphere?.clone();
-  if (boundingSphere) boundingSphere.radius *= scale;
   window.GeoIDImportManager?.addDerivedLayer(name, {
     object3D: mesh, boundingSphere, georeferenced: false,
     info: { triangleCount: positions.length / 9 },
   }, "mesh");
+  // Scale after the layer is registered so the shared factor covers it too.
+  refreshStudioScale();
+  if (boundingSphere) boundingSphere.radius *= studioScale;
   return mesh;
+}
+
+// ── Scene helpers: starfield, ground, view alignment ────────────────────────
+
+const EARTH_RADIUS_M = 6371000;
+let groundMesh = null;
+
+function starfield() {
+  // The viewer adds its starfield straight to the scene as the only Points
+  // object at that level.
+  return window.GeoIDViewer?.scene?.children?.find((c) => c.isPoints) || null;
+}
+
+function setStarsVisible(on) {
+  const stars = starfield();
+  if (stars) stars.visible = on;
+}
+
+/**
+ * Ground reference: a sphere of the Earth's radius tangent to z = 0, drawn at
+ * the model's own scale. Small models see an effectively flat floor; models
+ * kilometres across see the curvature and horizon.
+ */
+function updateGround() {
+  if (!groundMesh) return;
+  const earth = EARTH_RADIUS_M * studioScale;
+  // A full Earth-radius sphere would be millions of scene units across, and a
+  // far plane that large destroys depth precision for the model itself. A
+  // bounded cap of the same sphere gives identical curvature over the region
+  // actually in view, while keeping the scene small.
+  const capRadius = Math.min(MODEL_MODE_RADIUS * 60, earth * 0.6);
+  const rings = 72;
+  const segments = 96;
+  const positions = [];
+  const vertexAt = (ringIndex, segIndex) => {
+    const r = (ringIndex / rings) * capRadius;
+    const theta = (segIndex / segments) * Math.PI * 2;
+    // Sagitta of the Earth sphere: how far the surface drops at distance r.
+    const drop = earth - Math.sqrt(Math.max(earth * earth - r * r, 0));
+    return [r * Math.cos(theta), -drop, r * Math.sin(theta)];
+  };
+  for (let i = 0; i < rings; i += 1) {
+    for (let j = 0; j < segments; j += 1) {
+      const a = vertexAt(i, j);
+      const b = vertexAt(i + 1, j);
+      const c = vertexAt(i + 1, j + 1);
+      const d = vertexAt(i, j + 1);
+      positions.push(...a, ...b, ...c, ...a, ...c, ...d);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  groundMesh.geometry?.dispose();
+  groundMesh.geometry = geometry;
+  groundMesh.position.set(0, 0, 0);
+}
+
+function setGroundVisible(on) {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.scene) return;
+  if (on && !groundMesh) {
+    groundMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 96, 64),
+      new THREE.MeshStandardMaterial({
+        color: 0x2b3a4d, roughness: 1, metalness: 0,
+        transparent: true, opacity: 0.5, side: THREE.DoubleSide,
+      }),
+    );
+    groundMesh.name = "studio-ground";
+    groundMesh.renderOrder = -1;
+    viewer.scene.add(groundMesh);
+    updateGround();
+  }
+  if (groundMesh) groundMesh.visible = on;
+}
+
+/** Puts the orbit target on the model origin so 0,0,0 is the centre of view. */
+function centreOnOrigin() {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.camera || !viewer.controls) return;
+  const d = MODEL_MODE_RADIUS * 2.6;
+  viewer.controls.target.set(0, 0, 0);
+  viewer.camera.position.set(d * 0.62, d * 0.48, d * 0.62);
+  viewer.camera.near = d / 800;
+  viewer.camera.far = d * 400;
+  viewer.camera.updateProjectionMatrix();
+  viewer.controls.update();
 }
 
 // ── Model operations ────────────────────────────────────────────────────────
@@ -741,6 +865,8 @@ const ACTIONS = {
     state.history.length = 0;
     state.selection.clear();
     state.mesh = null;
+    studioMeshes.clear();
+    refreshStudioScale();
     renderModelTree(); renderFields(); renderHistory(); renderSelection();
     status("new model"); log("New model");
   },
@@ -860,6 +986,10 @@ function init() {
         eachModelMaterial((m) => { m.wireframe = on; m.needsUpdate = true; });
       } else if (which === "edges") {
         eachModelMaterial((m) => { m.flatShading = on; m.needsUpdate = true; });
+      } else if (which === "stars") {
+        setStarsVisible(on);
+      } else if (which === "ground") {
+        setGroundVisible(on);
       } else if (which === "clip") {
         applyClip();
       } else if (which === "gizmo") {
@@ -982,11 +1112,24 @@ function init() {
   const waitForViewer = () => {
     if (window.GeoIDViewer?.renderer) {
       installPicking();
+      applyStudioScene();
       return;
     }
     requestAnimationFrame(waitForViewer);
   };
   waitForViewer();
+
+  // Re-apply the studio's scene preferences whenever Model mode is entered,
+  // since the other modes want the starfield back and the ground gone.
+  window.addEventListener("geoid-gis:mode-change", (event) => {
+    if (event.detail?.mode === "model") {
+      applyStudioScene();
+      centreOnOrigin();
+    } else {
+      setStarsVisible(true);
+      setGroundVisible(false);
+    }
+  });
 
   log("Meshing Studio ready — click a volume to select, Ctrl-click to add, right-click for Hide/Delete");
 }
@@ -998,3 +1141,15 @@ if (document.readyState === "loading") {
 }
 
 window.GeoIDMeshStudio = { state, addSolid, meshModel, ACTIONS, fitView, viewAxis };
+
+/**
+ * Scene defaults for Model mode: the starfield is a globe backdrop and only
+ * distracts from a model, so it is off unless asked for; the ground gives the
+ * spatial reference that makes the origin readable.
+ */
+function applyStudioScene() {
+  const starsOn = document.querySelector('[data-toggle="stars"]')?.classList.contains("is-on");
+  const groundOn = document.querySelector('[data-toggle="ground"]')?.classList.contains("is-on");
+  setStarsVisible(Boolean(starsOn));
+  setGroundVisible(Boolean(groundOn));
+}

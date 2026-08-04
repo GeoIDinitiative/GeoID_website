@@ -821,15 +821,12 @@
          and GIS stay one click away instead of being hidden with the sidebar.
          Top-left, where it sits on the myGeoID page. -->
     <div class="studio-modebar">
-      <span class="studio-modebar-label">HAZARD MODELLING</span>
+      <span class="studio-modebar-label">MESHING STUDIO</span>
       <span id="studio-mode-slot"></span>
-    </div>
-
-    <div class="studio-header">
-      <span class="studio-title">MESHING STUDIO</span>
       <span class="studio-status" id="studio-status"></span>
     </div>
 
+    <div class="studio-toolbars">
     <div class="studio-toolbar" id="studio-toolbar-main">
       <button class="studio-btn" data-act="new" title="Clear the model and start over">New</button>
       <button class="studio-btn" data-act="open" title="Open a studio project (.msproj.json)">Open</button>
@@ -866,6 +863,8 @@
       <button class="studio-btn is-toggle is-on" data-toggle="edges">Edges</button>
       <button class="studio-btn is-toggle" data-toggle="wireframe">Wireframe</button>
       <button class="studio-btn is-toggle" data-toggle="gizmo" title="Drag-to-move/scale the selection">Gizmo</button>
+      <button class="studio-btn is-toggle" data-toggle="stars" title="Starfield backdrop">Stars</button>
+      <button class="studio-btn is-toggle is-on" data-toggle="ground" title="Earth-radius ground surface tangent to z = 0">Ground</button>
       <span class="studio-sep"></span>
       <button class="studio-btn" data-view="fit">Fit</button>
       <button class="studio-btn" data-view="x">X</button>
@@ -878,6 +877,7 @@
         <option>x</option><option>y</option><option>z</option>
       </select>
       <input id="studio-clip" class="studio-clip" type="range" min="0" max="100" value="50">
+    </div>
     </div>
 
     <div class="studio-dock studio-dock-left">

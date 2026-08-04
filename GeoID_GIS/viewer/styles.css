@@ -3672,10 +3672,20 @@ canvas {
       backdrop-filter: blur(10px);
     }
 
-    .studio-toolbar {
+    /* Both toolbars stack in one flow column: the main row wraps on narrow
+       viewports, and a fixed offset for the second row would then collide. */
+    .studio-toolbars {
       position: absolute;
+      top: 0.9rem;
       left: 50%;
       transform: translateX(-50%);
+      display: grid;
+      gap: 0.4rem;
+      justify-items: center;
+      max-width: min(72vw, 60rem);
+    }
+
+    .studio-toolbar {
       display: flex;
       align-items: center;
       gap: 0.22rem;
@@ -3702,8 +3712,6 @@ canvas {
       color: var(--soft-light);
     }
 
-    #studio-toolbar-main { top: 2.6rem; }
-    #studio-toolbar-view { top: 6.2rem; }
 
     .studio-btn {
       padding: 0.24rem 0.5rem;
@@ -3766,7 +3774,7 @@ canvas {
 
     .studio-dock {
       position: absolute;
-      top: 9.4rem;
+      top: 10.6rem;
       bottom: 3.2rem;
       width: 16rem;
       display: flex;
@@ -3775,7 +3783,7 @@ canvas {
     }
 
     .studio-dock-left { left: 0.9rem; }
-    .studio-dock-right { right: 0.9rem; top: 9.4rem; }
+    .studio-dock-right { right: 0.9rem; }
 
     .studio-tabs {
       display: flex;
