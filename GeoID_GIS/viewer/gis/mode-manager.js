@@ -199,6 +199,10 @@
       setAnalysisToolsEnabled(false);
       setGlobeVisible(true);
     }
+    // Expose the active mode on <body> so stylesheets can react to it without
+    // every rule needing its own toggle.
+    document.body.dataset.viewMode = mode;
+
     // Let the myGeoID-style shell (when this viewer is embedded) follow the
     // active mode - the Analysis Hub only applies to the GeoID globe.
     if (window.self !== window.top) {

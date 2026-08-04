@@ -3957,9 +3957,7 @@ canvas {
     body.studio-open #tool-rail,
     body.studio-open #top-right-controls,
     body.studio-open #music-btn,
-    body.studio-open .hub-link,
-    body.studio-open #scale-bar,
-    body.studio-open #clock-readout { display: none !important; }
+    body.studio-open .hub-link { display: none !important; }
 
     @media (max-width: 1100px) {
       .studio-dock { width: 12.5rem; }
@@ -4021,4 +4019,18 @@ canvas {
     .view-mode-switch.is-in-studio .view-mode-btn {
       padding: 0.4rem 0.3rem;
       font-size: 0.68rem;
+    }
+
+    /* The globe HUD -- locator, surface conditions and the GMT clock -- reports
+       on a planet being explored. Model mode has no planet, and GIS mode is a
+       working surface rather than a view, so both drop it. */
+    body[data-view-mode="model"] #bottom-right-hud,
+    body[data-view-mode="model"] #hemisphere-locator,
+    body[data-view-mode="model"] #surface-conditions,
+    body[data-view-mode="model"] #gmt-clock,
+    body[data-view-mode="gis"] #bottom-right-hud,
+    body[data-view-mode="gis"] #hemisphere-locator,
+    body[data-view-mode="gis"] #surface-conditions,
+    body[data-view-mode="gis"] #gmt-clock {
+      display: none !important;
     }
