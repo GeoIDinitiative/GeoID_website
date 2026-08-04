@@ -57,6 +57,97 @@
       <div class="section-body toolbox-group-body" id="geoid-controls-host"></div>
     </details>
 
+    <!-- Model mode: the meshing environment, rebuilt natively here rather than
+         embedding the Qt studio. Populated by gis/model-toolbox.js. -->
+    <div id="model-toolbox-panels" hidden>
+      <details id="model-group-geometry" class="control-section toolbox-group" open>
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 2.3 13.4 5.4v6.2L8 14.7 2.6 11.6V5.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 8.5 13.4 5.4M8 8.5v6.2M8 8.5 2.6 5.4" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span><span>Geometry</span></span></div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body toolbox-group-body">
+          <details class="gis-tool-section" open>
+            <summary>Add Solid</summary>
+            <div class="gis-tool-body">
+              <div class="row"><label for="prim-kind">Primitive</label><select id="prim-kind" class="mini-select"></select></div>
+              <div class="row"><label for="prim-op">Combine</label>
+                <select id="prim-op" class="mini-select">
+                  <option value="union">Union</option>
+                  <option value="difference">Difference</option>
+                  <option value="intersect">Intersect</option>
+                </select>
+              </div>
+              <div id="prim-params"></div>
+              <div class="gis-tool-grid">
+                <button id="prim-add" class="tool-button" type="button">Add Solid</button>
+                <button id="prim-reset" class="button secondary" type="button">Clear Model</button>
+              </div>
+              <div id="prim-status" class="gis-metric">Build a model from solids, then mesh it.</div>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Model Tree</summary>
+            <div class="gis-tool-body">
+              <div id="solid-list" class="import-layer-list"></div>
+            </div>
+          </details>
+        </div>
+      </details>
+
+      <details id="model-group-mesh" class="control-section toolbox-group">
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 2.6h10.8v10.8H2.6Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.6 8h10.8M8 2.6v10.8M2.6 2.6l10.8 10.8M13.4 2.6 2.6 13.4" fill="none" stroke="currentColor" stroke-width="0.85"/></svg></span><span>Mesh</span></span></div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body toolbox-group-body">
+          <details class="gis-tool-section" open>
+            <summary>Generate Volume Mesh</summary>
+            <div class="gis-tool-body">
+              <div class="row"><label for="mesh-cell">Cell size</label><input id="mesh-cell" class="input" type="number" step="any" value="0.5"></div>
+              <p class="tool-copy">Optional ball refinement — one extra subdivision inside the sphere.</p>
+              <div class="gis-tool-grid">
+                <input id="mesh-refine-x" class="input" type="number" step="any" placeholder="X" value="0">
+                <input id="mesh-refine-y" class="input" type="number" step="any" placeholder="Y" value="0">
+              </div>
+              <div class="gis-tool-grid">
+                <input id="mesh-refine-z" class="input" type="number" step="any" placeholder="Z" value="0">
+                <input id="mesh-refine-r" class="input" type="number" step="any" placeholder="Radius" value="0">
+              </div>
+              <button id="mesh-generate" class="tool-button" type="button">Generate Mesh</button>
+              <div id="mesh-status" class="gis-metric">No mesh generated yet.</div>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Quality</summary>
+            <div class="gis-tool-body">
+              <button id="mesh-quality" class="button secondary" type="button" disabled>Compute Quality</button>
+              <div id="mesh-quality-out" class="gis-metric">Mesh something to see element quality.</div>
+              <canvas id="mesh-quality-hist" class="profile-canvas" width="280" height="90" hidden></canvas>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Export Mesh</summary>
+            <div class="gis-tool-body">
+              <div class="measure-actions">
+                <button id="mesh-export-msh" class="button secondary" type="button" disabled>Gmsh .msh</button>
+                <button id="mesh-export-stl" class="button secondary" type="button" disabled>STL</button>
+                <button id="mesh-export-obj" class="button secondary" type="button" disabled>OBJ</button>
+              </div>
+              <div class="measure-actions">
+                <button id="mesh-export-ply" class="button secondary" type="button" disabled>PLY</button>
+              </div>
+            </div>
+          </details>
+        </div>
+      </details>
+    </div>
+
     <div id="gis-toolbox-panels" hidden>
       <details id="gis-group-project" class="control-section toolbox-group">
         <summary class="section-toggle">
@@ -1557,6 +1648,7 @@
 <script type="module" src="gis/analysis-panel.js?v=20260804a"></script>
 <script type="module" src="gis/toolbox.js?v=20260804a"></script>
 <script type="module" src="gis/toolbox-ops.js?v=20260804a"></script>
+<script type="module" src="gis/model-toolbox.js?v=20260804a"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
 <script src="music.js?v=20260329a" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>

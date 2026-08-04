@@ -52,6 +52,14 @@
     window.GeoIDToolbox?.applyToolboxLayout?.(enabled);
   }
 
+  // Model mode gets its own toolbox: the meshing environment.
+  function setModelToolboxVisible(visible) {
+    const node = document.getElementById("model-toolbox-panels");
+    if (node) {
+      node.hidden = !visible;
+    }
+  }
+
   function setGisToolboxVisible(visible) {
     const toolbar = document.getElementById("toolbar");
     if (toolbar) {
@@ -122,6 +130,7 @@
       setImportPanelVisible(true);
       setAnalysisPanelVisible(false);
       setToolboxLayout(false);
+      setModelToolboxVisible(true);
       setHazardReadoutVisible(false);
       // Inspect, pins and buffers all act on the globe surface, so they have
       // nothing to operate on while the globe is hidden.
@@ -133,6 +142,7 @@
       setImportPanelVisible(true);
       setAnalysisPanelVisible(true);
       setToolboxLayout(true);
+      setModelToolboxVisible(false);
       setHazardReadoutVisible(false);
       setAnalysisToolsEnabled(true);
       setGlobeVisible(true);
@@ -142,6 +152,7 @@
       setImportPanelVisible(false);
       setAnalysisPanelVisible(false);
       setToolboxLayout(false);
+      setModelToolboxVisible(false);
       setHazardReadoutVisible(true);
       // GeoID mode mirrors the live public viewer, which keeps these hidden.
       setAnalysisToolsEnabled(false);
