@@ -52,12 +52,14 @@
     window.GeoIDToolbox?.applyToolboxLayout?.(enabled);
   }
 
-  // Model mode gets its own toolbox: the meshing environment.
+  // Model mode hands the screen to the Meshing Studio, which brings its own
+  // docks and toolbars, so the globe sidebar and GIS rail stand down.
   function setModelToolboxVisible(visible) {
-    const node = document.getElementById("model-toolbox-panels");
+    const node = document.getElementById("model-studio");
     if (node) {
       node.hidden = !visible;
     }
+    document.body.classList.toggle("studio-open", visible);
   }
 
   function setGisToolboxVisible(visible) {

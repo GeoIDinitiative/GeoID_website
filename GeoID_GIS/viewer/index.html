@@ -57,97 +57,6 @@
       <div class="section-body toolbox-group-body" id="geoid-controls-host"></div>
     </details>
 
-    <!-- Model mode: the meshing environment, rebuilt natively here rather than
-         embedding the Qt studio. Populated by gis/model-toolbox.js. -->
-    <div id="model-toolbox-panels" hidden>
-      <details id="model-group-geometry" class="control-section toolbox-group" open>
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 2.3 13.4 5.4v6.2L8 14.7 2.6 11.6V5.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 8.5 13.4 5.4M8 8.5v6.2M8 8.5 2.6 5.4" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span><span>Geometry</span></span></div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body toolbox-group-body">
-          <details class="gis-tool-section" open>
-            <summary>Add Solid</summary>
-            <div class="gis-tool-body">
-              <div class="row"><label for="prim-kind">Primitive</label><select id="prim-kind" class="mini-select"></select></div>
-              <div class="row"><label for="prim-op">Combine</label>
-                <select id="prim-op" class="mini-select">
-                  <option value="union">Union</option>
-                  <option value="difference">Difference</option>
-                  <option value="intersect">Intersect</option>
-                </select>
-              </div>
-              <div id="prim-params"></div>
-              <div class="gis-tool-grid">
-                <button id="prim-add" class="tool-button" type="button">Add Solid</button>
-                <button id="prim-reset" class="button secondary" type="button">Clear Model</button>
-              </div>
-              <div id="prim-status" class="gis-metric">Build a model from solids, then mesh it.</div>
-            </div>
-          </details>
-          <details class="gis-tool-section">
-            <summary>Model Tree</summary>
-            <div class="gis-tool-body">
-              <div id="solid-list" class="import-layer-list"></div>
-            </div>
-          </details>
-        </div>
-      </details>
-
-      <details id="model-group-mesh" class="control-section toolbox-group">
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 2.6h10.8v10.8H2.6Z" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.6 8h10.8M8 2.6v10.8M2.6 2.6l10.8 10.8M13.4 2.6 2.6 13.4" fill="none" stroke="currentColor" stroke-width="0.85"/></svg></span><span>Mesh</span></span></div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body toolbox-group-body">
-          <details class="gis-tool-section" open>
-            <summary>Generate Volume Mesh</summary>
-            <div class="gis-tool-body">
-              <div class="row"><label for="mesh-cell">Cell size</label><input id="mesh-cell" class="input" type="number" step="any" value="0.5"></div>
-              <p class="tool-copy">Optional ball refinement — one extra subdivision inside the sphere.</p>
-              <div class="gis-tool-grid">
-                <input id="mesh-refine-x" class="input" type="number" step="any" placeholder="X" value="0">
-                <input id="mesh-refine-y" class="input" type="number" step="any" placeholder="Y" value="0">
-              </div>
-              <div class="gis-tool-grid">
-                <input id="mesh-refine-z" class="input" type="number" step="any" placeholder="Z" value="0">
-                <input id="mesh-refine-r" class="input" type="number" step="any" placeholder="Radius" value="0">
-              </div>
-              <button id="mesh-generate" class="tool-button" type="button">Generate Mesh</button>
-              <div id="mesh-status" class="gis-metric">No mesh generated yet.</div>
-            </div>
-          </details>
-          <details class="gis-tool-section">
-            <summary>Quality</summary>
-            <div class="gis-tool-body">
-              <button id="mesh-quality" class="button secondary" type="button" disabled>Compute Quality</button>
-              <div id="mesh-quality-out" class="gis-metric">Mesh something to see element quality.</div>
-              <canvas id="mesh-quality-hist" class="profile-canvas" width="280" height="90" hidden></canvas>
-            </div>
-          </details>
-          <details class="gis-tool-section">
-            <summary>Export Mesh</summary>
-            <div class="gis-tool-body">
-              <div class="measure-actions">
-                <button id="mesh-export-msh" class="button secondary" type="button" disabled>Gmsh .msh</button>
-                <button id="mesh-export-stl" class="button secondary" type="button" disabled>STL</button>
-                <button id="mesh-export-obj" class="button secondary" type="button" disabled>OBJ</button>
-              </div>
-              <div class="measure-actions">
-                <button id="mesh-export-ply" class="button secondary" type="button" disabled>PLY</button>
-              </div>
-            </div>
-          </details>
-        </div>
-      </details>
-    </div>
-
     <div id="gis-toolbox-panels" hidden>
       <details id="gis-group-project" class="control-section toolbox-group">
         <summary class="section-toggle">
@@ -902,6 +811,182 @@
       </div>
     </div>
   </div>
+
+  <!-- Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio and
+       reskinned to this GUI: same header/status, same two toolbars, same left
+       (Add / Model / Label / History) and right (Mesh / Structured / Refine /
+       Log) tab decks around the viewport. -->
+  <section id="model-studio" hidden>
+    <div class="studio-header">
+      <span class="studio-title">MESHING STUDIO</span>
+      <span class="studio-status" id="studio-status"></span>
+    </div>
+
+    <div class="studio-toolbar" id="studio-toolbar-main">
+      <button class="studio-btn" data-act="new" title="Clear the model and start over">New</button>
+      <button class="studio-btn" data-act="open" title="Open a studio project (.msproj.json)">Open</button>
+      <button class="studio-btn" data-act="save" title="Save the project (full edit history)">Save</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn" data-act="undo">Undo</button>
+      <button class="studio-btn" data-act="redo">Redo</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn" data-act="import-cad" title="STL / MSH / OBJ / PLY via merge">Import CAD&hellip;</button>
+      <button class="studio-btn" data-act="import-xyz" title="Point data to terrain surface or solid volume">Import XYZ&hellip;</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn" data-act="fuse" title="Fuse: first entity is the object, the rest are tools">Fuse</button>
+      <button class="studio-btn" data-act="cut" title="Cut: subtract the tools from the object">Cut</button>
+      <button class="studio-btn" data-act="intersect" title="Intersect the selection">Intersect</button>
+      <button class="studio-btn" data-act="fragment" title="Fragment: split at shared interfaces">Fragment</button>
+      <button class="studio-btn" data-act="transform" title="Translate / rotate / scale the selection">Transform&hellip;</button>
+      <button class="studio-btn" data-act="delete">Delete</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn" data-act="export-script" title="Write the model as a standalone gmsh Python script">Export script</button>
+      <button class="studio-btn" data-act="to-gales" title="Export MSH 2.2 for the GALES tree">To GALES</button>
+      <button class="studio-btn" data-act="to-explorer" title="Export the meshed surface into the Earth viewer with a lat/lon manifest">To Explorer</button>
+      <button class="studio-btn" data-act="save-template" title="Save this model's op history as a reusable template">Save as template</button>
+      <button class="studio-btn" data-act="snapshot" title="Save a PNG of the viewport">Snapshot</button>
+      <span class="studio-sep"></span>
+      <input id="studio-ai" class="studio-ai" type="text"
+             placeholder="Tell Atlas what to build&hellip;  (e.g. 'volcano with a chamber at 4 km, mesh at 500 m')">
+    </div>
+
+    <div class="studio-toolbar" id="studio-toolbar-view">
+      <span class="studio-label">Pick:</span>
+      <select id="studio-pick" class="studio-select">
+        <option>Surfaces</option><option>Volumes</option><option>Curves</option>
+      </select>
+      <button class="studio-btn is-toggle is-on" data-toggle="edges">Edges</button>
+      <button class="studio-btn is-toggle" data-toggle="wireframe">Wireframe</button>
+      <button class="studio-btn is-toggle" data-toggle="gizmo" title="Drag-to-move/scale the selection">Gizmo</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn" data-view="fit">Fit</button>
+      <button class="studio-btn" data-view="x">X</button>
+      <button class="studio-btn" data-view="y">Y</button>
+      <button class="studio-btn" data-view="z">Z</button>
+      <button class="studio-btn" data-view="iso">Iso</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn is-toggle" data-toggle="clip" title="Cutaway view of the volume mesh">Clip</button>
+      <select id="studio-clip-axis" class="studio-select">
+        <option>x</option><option>y</option><option>z</option>
+      </select>
+      <input id="studio-clip" class="studio-clip" type="range" min="0" max="100" value="50">
+    </div>
+
+    <div class="studio-dock studio-dock-left">
+      <div class="studio-tabs" data-deck="left">
+        <button class="studio-tab is-active" data-tab="add">Add</button>
+        <button class="studio-tab" data-tab="model">Model</button>
+        <button class="studio-tab" data-tab="label">Label</button>
+        <button class="studio-tab" data-tab="history">History</button>
+      </div>
+      <div class="studio-pane is-active" data-pane="add">
+        <p class="studio-group-title">Templates (whole scenarios)</p>
+        <div id="studio-templates" class="studio-palette"></div>
+        <p class="studio-group-title">Primitives</p>
+        <div id="studio-palette" class="studio-palette"></div>
+        <p class="studio-group-title">Parameters</p>
+        <div id="studio-params" class="studio-params"></div>
+        <button id="studio-add" class="studio-primary" type="button">Add to model</button>
+      </div>
+      <div class="studio-pane" data-pane="model">
+        <p class="studio-group-title">Info</p>
+        <div id="studio-info" class="studio-readout">Empty model.</div>
+        <p class="studio-group-title">Entities</p>
+        <div id="studio-entities" class="studio-list"></div>
+        <p class="studio-group-title">Physical groups</p>
+        <div id="studio-groups" class="studio-list"></div>
+      </div>
+      <div class="studio-pane" data-pane="label">
+        <div id="studio-selection" class="studio-readout">Nothing selected</div>
+        <div class="studio-row"><label for="studio-label-name">Name</label>
+          <input id="studio-label-name" class="studio-input" type="text" placeholder="group name"></div>
+        <button id="studio-label-apply" class="studio-primary" type="button">Label selection</button>
+        <p class="studio-group-title">Refine near selection</p>
+        <div class="studio-row"><label for="studio-size-min">SizeMin</label>
+          <input id="studio-size-min" class="studio-input" type="number" step="any" value="0.25"></div>
+        <div class="studio-row"><label for="studio-size-max">SizeMax</label>
+          <input id="studio-size-max" class="studio-input" type="number" step="any" value="1"></div>
+        <button id="studio-refine-sel" class="studio-secondary" type="button">Refine near selection&hellip;</button>
+      </div>
+      <div class="studio-pane" data-pane="history">
+        <div id="studio-history" class="studio-list"></div>
+      </div>
+    </div>
+
+    <div class="studio-dock studio-dock-right">
+      <div class="studio-tabs" data-deck="right">
+        <button class="studio-tab is-active" data-tab="mesh">Mesh</button>
+        <button class="studio-tab" data-tab="structured">Structured</button>
+        <button class="studio-tab" data-tab="refine">Refine</button>
+        <button class="studio-tab" data-tab="log">Log</button>
+      </div>
+      <div class="studio-pane is-active" data-pane="mesh">
+        <p class="studio-group-title">Mesh settings</p>
+        <div class="studio-row"><label for="studio-alg2">2D algorithm</label>
+          <select id="studio-alg2" class="studio-select wide"><option>auto</option><option>MeshAdapt</option><option>Delaunay</option><option>Frontal-Delaunay</option></select></div>
+        <div class="studio-row"><label for="studio-alg3">3D algorithm</label>
+          <select id="studio-alg3" class="studio-select wide"><option>auto</option><option>Delaunay</option><option>HXT</option><option>Lattice</option></select></div>
+        <div class="studio-row"><label for="studio-order">Element order</label>
+          <select id="studio-order" class="studio-select wide"><option>1</option><option>2</option></select></div>
+        <div class="studio-row"><label for="studio-size-lo">Size min</label>
+          <input id="studio-size-lo" class="studio-input" type="number" step="any" value="0.5"></div>
+        <div class="studio-row"><label for="studio-size-hi">Size max</label>
+          <input id="studio-size-hi" class="studio-input" type="number" step="any" value="1"></div>
+        <button id="studio-suggest" class="studio-secondary" type="button">Suggest</button>
+        <label class="studio-check"><input id="studio-optimize" type="checkbox"> Optimize (tet quality pass)</label>
+        <div class="studio-actions">
+          <button id="studio-mesh1d" class="studio-secondary" type="button">Mesh 1D</button>
+          <button id="studio-mesh2d" class="studio-secondary" type="button">Mesh 2D</button>
+          <button id="studio-mesh3d" class="studio-primary" type="button">Mesh 3D</button>
+        </div>
+        <button id="studio-clear-mesh" class="studio-secondary" type="button">Clear mesh</button>
+        <div id="studio-mesh-info" class="studio-readout">No mesh.</div>
+        <canvas id="studio-quality" class="studio-canvas" width="240" height="80" hidden></canvas>
+        <p class="studio-group-title">Export mesh</p>
+        <div class="studio-actions">
+          <button id="studio-exp-msh" class="studio-secondary" type="button" disabled>.msh</button>
+          <button id="studio-exp-stl" class="studio-secondary" type="button" disabled>STL</button>
+          <button id="studio-exp-obj" class="studio-secondary" type="button" disabled>OBJ</button>
+          <button id="studio-exp-ply" class="studio-secondary" type="button" disabled>PLY</button>
+        </div>
+      </div>
+      <div class="studio-pane" data-pane="structured">
+        <p class="studio-group-title">Transfinite curves</p>
+        <div class="studio-row"><label for="studio-tf-nodes">Nodes</label>
+          <input id="studio-tf-nodes" class="studio-input" type="number" value="10"></div>
+        <label class="studio-check"><input id="studio-recombine" type="checkbox"> Recombine to quads</label>
+        <button id="studio-tf-surfaces" class="studio-secondary" type="button">Transfinite surfaces</button>
+        <button id="studio-tf-volumes" class="studio-secondary" type="button">Transfinite volumes</button>
+        <button id="studio-tf-auto" class="studio-primary" type="button">Auto transfinite (whole model)</button>
+        <button id="studio-recombine-sel" class="studio-secondary" type="button">Recombine selected surfaces</button>
+        <div id="studio-structured-info" class="studio-readout">Structured meshing controls the lattice directly.</div>
+      </div>
+      <div class="studio-pane" data-pane="refine">
+        <div class="studio-actions">
+          <button id="studio-field-add" class="studio-primary" type="button">Add field</button>
+          <button id="studio-field-remove" class="studio-secondary" type="button">Remove selected field</button>
+        </div>
+        <div class="studio-row"><label for="studio-field-type">Type</label>
+          <select id="studio-field-type" class="studio-select wide">
+            <option value="ball">Ball</option>
+            <option value="box">Box</option>
+            <option value="distance">Distance</option>
+            <option value="threshold">Threshold</option>
+          </select></div>
+        <div class="studio-row"><label for="studio-field-x">X</label><input id="studio-field-x" class="studio-input" type="number" step="any" value="0"></div>
+        <div class="studio-row"><label for="studio-field-y">Y</label><input id="studio-field-y" class="studio-input" type="number" step="any" value="0"></div>
+        <div class="studio-row"><label for="studio-field-z">Z</label><input id="studio-field-z" class="studio-input" type="number" step="any" value="0"></div>
+        <div class="studio-row"><label for="studio-field-r">Radius</label><input id="studio-field-r" class="studio-input" type="number" step="any" value="2"></div>
+        <div class="studio-row"><label for="studio-field-dmin">DistMin</label><input id="studio-field-dmin" class="studio-input" type="number" step="any" value="0.25"></div>
+        <div class="studio-row"><label for="studio-field-dmax">DistMax</label><input id="studio-field-dmax" class="studio-input" type="number" step="any" value="1"></div>
+        <div id="studio-fields" class="studio-list"></div>
+      </div>
+      <div class="studio-pane" data-pane="log">
+        <div id="studio-log" class="studio-log"></div>
+      </div>
+    </div>
+  </section>
+
   <section id="toolbar">
     <div class="toolbar-row">
     <div class="toolbar-card">
@@ -1648,7 +1733,7 @@
 <script type="module" src="gis/analysis-panel.js?v=20260804a"></script>
 <script type="module" src="gis/toolbox.js?v=20260804a"></script>
 <script type="module" src="gis/toolbox-ops.js?v=20260804a"></script>
-<script type="module" src="gis/model-toolbox.js?v=20260804a"></script>
+<script type="module" src="gis/model-studio.js?v=20260804a"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
 <script src="music.js?v=20260329a" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
