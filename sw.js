@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v37';  // v37: airless radiative temperature
+const STATIC_CACHE = 'geoid-site-v38';  // v38: viewer UI hover/click sounds
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [
@@ -16,6 +16,7 @@ const PRECACHE = [
 
   '/styles/nav.js',
   '/scripts/v2-site.js',
+  '/scripts/ui-sound.js',
   '/assets/GeoID_logo_icon.png',
   '/assets/explorer_logo.png',
   '/assets/mygeoid_logo.png',
