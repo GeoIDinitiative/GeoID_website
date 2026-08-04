@@ -293,19 +293,117 @@ function updateGround() {
   groundMesh.geometry?.dispose();
   groundMesh.geometry = geometry;
   groundMesh.position.set(0, 0, 0);
+
+  const uniforms = groundMesh.material?.uniforms;
+  if (uniforms) {
+    // Spacing follows the model, not the cap: cells need to read next to the
+    // geometry being built. Sizing them off the cap radius made each cell wider
+    // than the whole model.
+    uniforms.uSpacing.value = MODEL_MODE_RADIUS / 6;
+    // The grid dissolves well inside the cap; beyond that only the horizon haze
+    // remains, which is what keeps distant cells from aliasing into noise.
+    uniforms.uFade.value = MODEL_MODE_RADIUS * 14;
+  }
+}
+
+/**
+ * Neon grid drawn procedurally across the ground cap: minor lines in cyan,
+ * every fourth line in magenta, glowing and dissolving toward the horizon.
+ * Because it is painted on the curved cap, the horizon bows the way the Earth
+ * actually does rather than being a straight line.
+ */
+function groundGridMaterial() {
+  return new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      uSpacing: { value: 1 },
+      uMajorEvery: { value: 4 },
+      uFade: { value: 1 },
+      uMinor: { value: new THREE.Color(0x2f6bff) },
+      uMajor: { value: new THREE.Color(0xff2bd6) },
+      uGlow: { value: new THREE.Color(0xb028ff) },
+    },
+    vertexShader: `
+      varying vec3 vLocal;
+      void main() {
+        vLocal = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform float uSpacing;
+      uniform float uMajorEvery;
+      uniform float uFade;
+      uniform vec3 uMinor;
+      uniform vec3 uMajor;
+      uniform vec3 uGlow;
+      varying vec3 vLocal;
+
+      // Distance to the nearest gridline on one axis, in world units.
+      float lineDistance(float coord) {
+        return abs(fract(coord / uSpacing - 0.5) - 0.5) * uSpacing;
+      }
+
+      bool isMajor(float coord) {
+        float index = floor(coord / uSpacing + 0.5);
+        return abs(mod(index, uMajorEvery)) < 0.5;
+      }
+
+      void main() {
+        float dx = lineDistance(vLocal.x);
+        float dz = lineDistance(vLocal.z);
+
+        // Screen-space width keeps lines even under perspective instead of
+        // aliasing into noise toward the horizon.
+        float wx = fwidth(vLocal.x) * 1.4 + 0.0001;
+        float wz = fwidth(vLocal.z) * 1.4 + 0.0001;
+
+        float lx = 1.0 - smoothstep(0.0, wx, dx);
+        float lz = 1.0 - smoothstep(0.0, wz, dz);
+        float line = max(lx, lz);
+
+        // Bloom radius is a fixed fraction of the cell. Letting it grow with
+        // fwidth made distant cells return exp(-d/large) ~ 1 everywhere, which
+        // painted the whole surface a flat glow instead of glowing lines.
+        float bloomRadius = uSpacing * 0.06;
+        float bloom = max(exp(-dx / bloomRadius), exp(-dz / bloomRadius)) * 0.35;
+
+        // Once cells shrink toward pixel size the grid would alias into noise,
+        // so it is faded out by cell density rather than drawn and smeared.
+        float density = clamp(uSpacing / (max(wx, wz) * 12.0), 0.0, 1.0);
+        line *= density;
+        bloom *= density;
+
+        vec3 colour = uMinor;
+        if ((lx >= lz && isMajor(vLocal.x)) || (lz > lx && isMajor(vLocal.z))) {
+          colour = uMajor;
+        }
+
+        float radius = length(vLocal.xz);
+        float t = clamp(radius / uFade, 0.0, 1.0);
+        // Fade the grid out before the cap edge so it dissolves rather than
+        // ending on a hard rim.
+        float fade = 1.0 - smoothstep(0.55, 1.0, t);
+        // Magenta haze gathering along the horizon.
+        float horizon = smoothstep(0.45, 0.95, t) * (1.0 - smoothstep(0.95, 1.0, t));
+
+        vec3 rgb = colour * (line + bloom) * fade + uGlow * horizon * 0.55;
+        float alpha = clamp((line + bloom) * fade + horizon * 0.5, 0.0, 1.0);
+        if (alpha < 0.004) discard;
+        gl_FragColor = vec4(rgb, alpha);
+      }
+    `,
+  });
 }
 
 function setGroundVisible(on) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.scene) return;
   if (on && !groundMesh) {
-    groundMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 96, 64),
-      new THREE.MeshStandardMaterial({
-        color: 0x2b3a4d, roughness: 1, metalness: 0,
-        transparent: true, opacity: 0.5, side: THREE.DoubleSide,
-      }),
-    );
+    groundMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 8), groundGridMaterial());
     groundMesh.name = "studio-ground";
     groundMesh.renderOrder = -1;
     viewer.scene.add(groundMesh);
