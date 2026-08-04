@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v38';  // v38: viewer UI hover/click sounds
+const STATIC_CACHE = 'geoid-site-v39';  // v39: myGeoID now embeds the GIS viewer
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

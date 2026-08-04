@@ -2004,7 +2004,6 @@
             setDrawerOpen(false);
           }
         };
-
         if (msg.type === "geoid:pin") {
           currentPinData = msg;
           updatePinDisplay(msg);
@@ -2020,9 +2019,8 @@
           setHubVisible(false);
         }
 
-        // The viewer now offers Model and GIS view modes alongside GeoID. The
-        // Analysis Hub describes a GeoID location, so it withdraws in the other
-        // modes and returns when a location is clicked again in GeoID mode.
+        // Model and GIS mode have no GeoID location, so the hub is withdrawn
+        // and only returns when a new location is clicked in GeoID mode.
         if (msg.type === "geoid:mode") {
           setHubVisible(msg.mode === "geoid" && Boolean(currentPinData));
         }
