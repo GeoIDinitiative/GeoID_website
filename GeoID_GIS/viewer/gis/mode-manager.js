@@ -59,6 +59,28 @@
     }
   }
 
+  // Imported layers are parented to the globe group so they rotate with the
+  // planet, which means hiding that group would hide them too. Model mode
+  // therefore hides the globe's own children and leaves the imported groups
+  // alone, rather than switching off the whole group.
+  const IMPORT_GROUP_NAMES = new Set([
+    "GeoID-ImportedGeoLayers",
+    "GeoID-ImportedLocalModels",
+  ]);
+
+  function setGlobeVisible(visible) {
+    const group = window.GeoIDViewer?.earthSceneGroup;
+    if (!group) {
+      return;
+    }
+    group.visible = true;
+    group.children.forEach((child) => {
+      if (!IMPORT_GROUP_NAMES.has(child.name)) {
+        child.visible = visible;
+      }
+    });
+  }
+
   // The hazard readout reports on a GeoSelector pin, and pinning only happens
   // in GeoID mode, so the readout is confined to that mode too.
   function setHazardReadoutVisible(visible) {
@@ -94,7 +116,6 @@
   }
 
   function applyMode(mode) {
-    const viewer = window.GeoIDViewer || null;
     if (mode === "model") {
       setPanelsHidden(EARTH_PANEL_IDS, true);
       setGisToolboxVisible(false);
@@ -105,9 +126,7 @@
       // Inspect, pins and buffers all act on the globe surface, so they have
       // nothing to operate on while the globe is hidden.
       setAnalysisToolsEnabled(false);
-      if (viewer?.earthSceneGroup) {
-        viewer.earthSceneGroup.visible = false;
-      }
+      setGlobeVisible(false);
     } else if (mode === "gis") {
       setPanelsHidden(EARTH_PANEL_IDS, false);
       setGisToolboxVisible(true);
@@ -116,9 +135,7 @@
       setToolboxLayout(true);
       setHazardReadoutVisible(false);
       setAnalysisToolsEnabled(true);
-      if (viewer?.earthSceneGroup) {
-        viewer.earthSceneGroup.visible = true;
-      }
+      setGlobeVisible(true);
     } else {
       setPanelsHidden(EARTH_PANEL_IDS, false);
       setGisToolboxVisible(true);
@@ -128,9 +145,7 @@
       setHazardReadoutVisible(true);
       // GeoID mode mirrors the live public viewer, which keeps these hidden.
       setAnalysisToolsEnabled(false);
-      if (viewer?.earthSceneGroup) {
-        viewer.earthSceneGroup.visible = true;
-      }
+      setGlobeVisible(true);
     }
     // Let the myGeoID-style shell (when this viewer is embedded) follow the
     // active mode - the Analysis Hub only applies to the GeoID globe.
