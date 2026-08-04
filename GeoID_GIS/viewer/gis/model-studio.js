@@ -20,12 +20,61 @@ const state = {
   solids: [],
   fields: [],
   history: [],
-  selection: null,
+  // A set, because the studio supports multi-select (Ctrl-click to add).
+  selection: new Set(),
   mesh: null,
   kind: "box",
   params: {},
   groups: [],
 };
+
+// The studio highlights the current selection in orange; the same cue is used
+// here so a picked volume reads the same way.
+const SELECT_COLOR = 0xff8b3d;
+
+function entitiesOf() {
+  return state.solids;
+}
+
+function findById(id) {
+  return state.solids.find((s) => s.id === id) || null;
+}
+
+/** Repaints every entity so selected ones stand out and hidden ones vanish. */
+function syncEntityAppearance() {
+  state.solids.forEach((entry) => {
+    const object = entry.object3D;
+    if (!object) return;
+    object.visible = entry.visible !== false;
+    const material = object.material;
+    if (!material) return;
+    const selected = state.selection.has(entry.id);
+    if (selected) {
+      material.emissive?.setHex(SELECT_COLOR);
+      material.emissiveIntensity = 0.55;
+    } else {
+      material.emissive?.setHex(0x000000);
+      material.emissiveIntensity = 0;
+    }
+    material.needsUpdate = true;
+  });
+}
+
+function setSelection(ids, { additive = false } = {}) {
+  if (!additive) {
+    state.selection.clear();
+  }
+  ids.forEach((id) => {
+    if (additive && state.selection.has(id)) {
+      state.selection.delete(id);
+    } else {
+      state.selection.add(id);
+    }
+  });
+  syncEntityAppearance();
+  renderModelTree();
+  renderSelection();
+}
 
 function log(line) {
   const host = byId("studio-log");
@@ -213,13 +262,48 @@ function renderModelTree() {
     state.solids.forEach((entry) => {
       const row = document.createElement("div");
       row.className = "studio-item";
-      row.classList.toggle("is-selected", state.selection === entry.id);
-      row.innerHTML = `<span>Volume ${entry.id} · ${PRIMITIVES[entry.kind].label}</span>`
-        + `<span>${entry.enabled ? entry.op : "muted"}</span>`;
-      row.addEventListener("click", () => {
-        state.selection = state.selection === entry.id ? null : entry.id;
+      row.classList.toggle("is-selected", state.selection.has(entry.id));
+      const label = document.createElement("span");
+      label.textContent = `Volume ${entry.id} · ${PRIMITIVES[entry.kind].label}`
+        + (entry.visible === false ? " (hidden)" : "");
+      const controls = document.createElement("span");
+      controls.className = "studio-item-actions";
+
+      const eye = document.createElement("button");
+      eye.type = "button";
+      eye.className = "studio-mini";
+      eye.textContent = entry.visible === false ? "Show" : "Hide";
+      eye.title = "Hide or show this entity";
+      eye.addEventListener("click", (event) => {
+        event.stopPropagation();
+        entry.visible = entry.visible === false;
+        syncEntityAppearance();
         renderModelTree();
-        renderSelection();
+        log(`Volume ${entry.id} ${entry.visible === false ? "hidden" : "shown"}`);
+      });
+
+      const kill = document.createElement("button");
+      kill.type = "button";
+      kill.className = "studio-mini";
+      kill.textContent = "Del";
+      kill.title = "Delete this entity";
+      kill.addEventListener("click", (event) => {
+        event.stopPropagation();
+        deleteEntities([entry.id]);
+      });
+
+      controls.appendChild(eye);
+      controls.appendChild(kill);
+      row.appendChild(label);
+      row.appendChild(controls);
+      // Ctrl/Shift-click adds to the selection, as in the studio's 3D view.
+      row.addEventListener("click", (event) => {
+        setSelection([entry.id], { additive: event.ctrlKey || event.metaKey || event.shiftKey });
+      });
+      row.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        if (!state.selection.has(entry.id)) setSelection([entry.id]);
+        showContextMenu(event.clientX, event.clientY);
       });
       entities.appendChild(row);
     });
@@ -249,10 +333,152 @@ function renderModelTree() {
 function renderSelection() {
   const node = byId("studio-selection");
   if (!node) return;
-  const entry = state.solids.find((s) => s.id === state.selection);
-  node.textContent = entry
-    ? `Selected: Volume ${entry.id} (${PRIMITIVES[entry.kind].label})`
+  const picked = [...state.selection].map(findById).filter(Boolean);
+  node.textContent = picked.length
+    ? `Selected: ${picked.map((e) => `Volume ${e.id} (${PRIMITIVES[e.kind].label})`).join(", ")}`
     : "Nothing selected";
+}
+
+/** Removes entities and their scene objects, then refreshes the panels. */
+function deleteEntities(ids) {
+  if (!ids.length) {
+    log("Delete: nothing selected");
+    return;
+  }
+  ids.forEach((id) => {
+    const idx = state.solids.findIndex((s) => s.id === id);
+    if (idx === -1) return;
+    const [entry] = state.solids.splice(idx, 1);
+    entry.object3D?.parent?.remove(entry.object3D);
+    entry.object3D?.geometry?.dispose?.();
+    entry.object3D?.material?.dispose?.();
+    state.selection.delete(id);
+  });
+  record(`delete ${ids.length}`);
+  renderModelTree();
+  renderSelection();
+  status(`${state.solids.length} entities`);
+  log(`Deleted ${ids.length} ${ids.length === 1 ? "entity" : "entities"}`);
+}
+
+function setHidden(ids, hidden) {
+  ids.forEach((id) => {
+    const entry = findById(id);
+    if (entry) entry.visible = !hidden;
+  });
+  syncEntityAppearance();
+  renderModelTree();
+  log(`${hidden ? "Hid" : "Showed"} ${ids.length} ${ids.length === 1 ? "entity" : "entities"}`);
+}
+
+/** Right-click menu over the tree and the viewport, mirroring the studio's. */
+function showContextMenu(x, y) {
+  hideContextMenu();
+  const ids = [...state.selection];
+  const menu = document.createElement("div");
+  menu.className = "studio-context";
+  menu.id = "studio-context";
+  const items = [
+    ["Hide", () => setHidden(ids, true)],
+    ["Show", () => setHidden(ids, false)],
+    ["Isolate", () => {
+      state.solids.forEach((e) => { e.visible = state.selection.has(e.id); });
+      syncEntityAppearance();
+      renderModelTree();
+      log(`Isolated ${ids.length}`);
+    }],
+    ["Show all", () => setHidden(state.solids.map((e) => e.id), false)],
+    ["Delete", () => deleteEntities(ids)],
+  ];
+  items.forEach(([label, fn]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.addEventListener("click", () => { fn(); hideContextMenu(); });
+    menu.appendChild(button);
+  });
+  menu.style.left = `${Math.min(x, window.innerWidth - 140)}px`;
+  menu.style.top = `${Math.min(y, window.innerHeight - 160)}px`;
+  document.body.appendChild(menu);
+  setTimeout(() => document.addEventListener("pointerdown", hideContextMenu, { once: true }), 0);
+}
+
+function hideContextMenu() {
+  document.getElementById("studio-context")?.remove();
+}
+
+// ── Viewport picking ────────────────────────────────────────────────────────
+
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let pressedAt = null;
+
+function pickAt(clientX, clientY) {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.camera) return null;
+  const canvas = viewer.renderer.domElement;
+  const rect = canvas.getBoundingClientRect();
+  pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, viewer.camera);
+  const targets = state.solids
+    .filter((entry) => entry.object3D && entry.visible !== false)
+    .map((entry) => entry.object3D);
+  if (!targets.length) return null;
+  const hits = raycaster.intersectObjects(targets, false);
+  if (!hits.length) return null;
+  const owner = state.solids.find((entry) => entry.object3D === hits[0].object);
+  return owner ? owner.id : null;
+}
+
+function installPicking() {
+  const viewer = window.GeoIDViewer;
+  const canvas = viewer?.renderer?.domElement;
+  if (!canvas || canvas.dataset.studioPicking) return;
+  canvas.dataset.studioPicking = "1";
+
+  canvas.addEventListener("pointerdown", (event) => {
+    pressedAt = { x: event.clientX, y: event.clientY };
+  });
+
+  canvas.addEventListener("pointerup", (event) => {
+    if (window.GeoIDModeManager?.getMode?.() !== "model") return;
+    if (!pressedAt) return;
+    const moved = Math.hypot(event.clientX - pressedAt.x, event.clientY - pressedAt.y);
+    pressedAt = null;
+    // Orbiting must not select, so only a near-stationary press counts.
+    if (moved > 6 || event.button !== 0) return;
+    const id = pickAt(event.clientX, event.clientY);
+    if (id === null) {
+      setSelection([]);
+      return;
+    }
+    setSelection([id], { additive: event.ctrlKey || event.metaKey || event.shiftKey });
+    const entry = findById(id);
+    log(`Picked Volume ${id} (${PRIMITIVES[entry.kind].label})`);
+  });
+
+  canvas.addEventListener("contextmenu", (event) => {
+    if (window.GeoIDModeManager?.getMode?.() !== "model") return;
+    const id = pickAt(event.clientX, event.clientY);
+    if (id === null) return;
+    event.preventDefault();
+    if (!state.selection.has(id)) setSelection([id]);
+    showContextMenu(event.clientX, event.clientY);
+  });
+
+  // Delete key removes the picked entities, as in the desktop studio.
+  window.addEventListener("keydown", (event) => {
+    if (window.GeoIDModeManager?.getMode?.() !== "model") return;
+    const tag = document.activeElement?.tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      deleteEntities([...state.selection]);
+    } else if (event.key === "Escape") {
+      setSelection([]);
+    }
+  });
 }
 
 function renderHistory() {
@@ -513,6 +739,7 @@ const ACTIONS = {
     state.solids.length = 0;
     state.fields.length = 0;
     state.history.length = 0;
+    state.selection.clear();
     state.mesh = null;
     renderModelTree(); renderFields(); renderHistory(); renderSelection();
     status("new model"); log("New model");
@@ -562,14 +789,7 @@ const ACTIONS = {
     status("fragment is implicit");
   },
   transform: () => log("Transform: use the layer Style panel for scale and rotation"),
-  delete: () => {
-    const idx = state.solids.findIndex((s) => s.id === state.selection);
-    if (idx === -1) { log("Delete: nothing selected"); return; }
-    const [entry] = state.solids.splice(idx, 1);
-    entry.object3D?.parent?.remove(entry.object3D);
-    state.selection = null;
-    record("delete"); renderModelTree(); renderSelection();
-  },
+  delete: () => deleteEntities([...state.selection]),
   "export-script": exportScript,
   "to-gales": () => exportMesh("msh"),
   "to-explorer": () => {
@@ -596,12 +816,12 @@ const ACTIONS = {
 };
 
 function setOpOnSelection(op) {
-  const entry = state.solids.find((s) => s.id === state.selection);
-  if (!entry) { log(`${op}: select an entity first`); return; }
-  entry.op = op;
-  record(`${op} on ${entry.id}`);
+  const picked = [...state.selection].map(findById).filter(Boolean);
+  if (!picked.length) { log(`${op}: select an entity first`); return; }
+  picked.forEach((entry) => { entry.op = op; });
+  record(`${op} on ${picked.length}`);
   renderModelTree();
-  log(`${op} applied to Volume ${entry.id}`);
+  log(`${op} applied to ${picked.map((e) => `Volume ${e.id}`).join(", ")}`);
 }
 
 function init() {
@@ -699,13 +919,13 @@ function init() {
 
   byId("studio-label-apply")?.addEventListener("click", () => {
     const name = byId("studio-label-name").value.trim();
-    if (!name || state.selection === null) { log("Label: name and selection needed"); return; }
-    state.groups.push({ name, entities: [state.selection] });
+    if (!name || !state.selection.size) { log("Label: name and selection needed"); return; }
+    state.groups.push({ name, entities: [...state.selection] });
     renderModelTree();
-    log(`Labelled Volume ${state.selection} as "${name}"`);
+    log(`Labelled ${state.selection.size} entities as "${name}"`);
   });
   byId("studio-refine-sel")?.addEventListener("click", () => {
-    const entry = state.solids.find((s) => s.id === state.selection);
+    const entry = [...state.selection].map(findById).filter(Boolean)[0];
     if (!entry) { log("Refine: select an entity"); return; }
     const b = entry.bounds;
     state.fields.push({
@@ -759,7 +979,16 @@ function init() {
     event.target.value = "";
   });
 
-  log("Meshing Studio ready");
+  const waitForViewer = () => {
+    if (window.GeoIDViewer?.renderer) {
+      installPicking();
+      return;
+    }
+    requestAnimationFrame(waitForViewer);
+  };
+  waitForViewer();
+
+  log("Meshing Studio ready — click a volume to select, Ctrl-click to add, right-click for Hide/Delete");
 }
 
 if (document.readyState === "loading") {

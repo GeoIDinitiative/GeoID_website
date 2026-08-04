@@ -3914,3 +3914,61 @@ canvas {
       .studio-dock { width: 12.5rem; }
       .studio-ai { flex-basis: 10rem; }
     }
+
+    /* Entity rows carry their own hide/delete controls, and a right-click menu
+       mirrors the studio's tree context menu. */
+    .studio-item-actions { display: flex; gap: 0.2rem; flex: 0 0 auto; }
+
+    .studio-mini {
+      padding: 0.1rem 0.3rem;
+      border-radius: 0.3rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--soft-light);
+      font: inherit;
+      font-size: 0.6rem;
+      cursor: pointer;
+    }
+
+    .studio-mini:hover { color: var(--nav-accent); border-color: rgba(var(--nav-accent-rgb), 0.6); }
+
+    .studio-context {
+      position: fixed;
+      z-index: 40;
+      display: grid;
+      min-width: 8.5rem;
+      padding: 0.25rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.34);
+      background: rgba(10, 14, 22, 0.97);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    }
+
+    .studio-context button {
+      padding: 0.3rem 0.5rem;
+      border: none;
+      border-radius: 0.35rem;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.72rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .studio-context button:hover { background: rgba(var(--nav-accent-rgb), 0.16); color: var(--nav-accent); }
+
+    /* Compact form of the mode switcher while it sits in the studio header. */
+    .view-mode-switch.is-in-studio {
+      display: inline-grid;
+      grid-template-columns: repeat(3, auto);
+      gap: 0.25rem;
+      margin: 0;
+      vertical-align: middle;
+    }
+
+    .view-mode-switch.is-in-studio .view-mode-btn {
+      padding: 0.16rem 0.5rem;
+      font-size: 0.62rem;
+      border-radius: 0.35rem;
+    }

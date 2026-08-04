@@ -53,11 +53,30 @@
   }
 
   // Model mode hands the screen to the Meshing Studio, which brings its own
-  // docks and toolbars, so the globe sidebar and GIS rail stand down.
+  // docks and toolbars, so the globe sidebar and GIS rail stand down. The mode
+  // switcher lives in that sidebar, so it is moved into the studio header
+  // rather than hidden with it -- otherwise Model mode is a dead end with no
+  // way back to GeoID or GIS.
+  let modeSwitchHome = null;
+
   function setModelToolboxVisible(visible) {
     const node = document.getElementById("model-studio");
     if (node) {
       node.hidden = !visible;
+    }
+    const switcher = document.getElementById("view-mode-switch");
+    const slot = document.getElementById("studio-mode-slot");
+    if (switcher && slot) {
+      if (visible) {
+        if (!modeSwitchHome) {
+          modeSwitchHome = { parent: switcher.parentNode, next: switcher.nextSibling };
+        }
+        switcher.classList.add("is-in-studio");
+        slot.appendChild(switcher);
+      } else if (modeSwitchHome) {
+        switcher.classList.remove("is-in-studio");
+        modeSwitchHome.parent.insertBefore(switcher, modeSwitchHome.next);
+      }
     }
     document.body.classList.toggle("studio-open", visible);
   }
@@ -78,17 +97,37 @@
     "GeoID-ImportedLocalModels",
   ]);
 
+  // Visibility is remembered on the way out and restored on the way back in.
+  // Blanket-setting every child visible would override the viewer's own
+  // decisions -- the compare globe, for one, is deliberately hidden until it
+  // has a texture, and forcing it on compiles a shader that references a map
+  // that is not there.
+  let hiddenGlobeState = null;
+
   function setGlobeVisible(visible) {
     const group = window.GeoIDViewer?.earthSceneGroup;
     if (!group) {
       return;
     }
     group.visible = true;
-    group.children.forEach((child) => {
-      if (!IMPORT_GROUP_NAMES.has(child.name)) {
-        child.visible = visible;
+    if (!visible) {
+      if (!hiddenGlobeState) {
+        hiddenGlobeState = new Map();
+        group.children.forEach((child) => {
+          if (!IMPORT_GROUP_NAMES.has(child.name)) {
+            hiddenGlobeState.set(child, child.visible);
+            child.visible = false;
+          }
+        });
       }
-    });
+      return;
+    }
+    if (hiddenGlobeState) {
+      hiddenGlobeState.forEach((wasVisible, child) => {
+        child.visible = wasVisible;
+      });
+      hiddenGlobeState = null;
+    }
   }
 
   // The hazard readout reports on a GeoSelector pin, and pinning only happens
