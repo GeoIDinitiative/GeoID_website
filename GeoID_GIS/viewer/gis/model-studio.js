@@ -281,12 +281,6 @@ function setStarsVisible(on) {
  * models get real curvature, small ones a representational globe, and
  * getGroundInfo() reports which applies.
  */
-// Opening pitch above the local horizontal -- low enough that the horizon
-// stays in shot, high enough to read the model in three dimensions.
-const HORIZON_PITCH_RAD = 16 * Math.PI / 180;
-// Closest the camera may come to straight-down. Keeps the plan view readable
-// without ever reaching the vertical, where lookAt degenerates.
-const MIN_POLAR_RAD = 8 * Math.PI / 180;
 const GROUND_MIN = 500;
 const GROUND_MAX = 4000;
 
@@ -345,22 +339,6 @@ function updateModelAnchor() {
   modelAnchor.position.copy(up)
     .multiplyScalar(groundRadius + (elevation || 0) * (studioScale || 1));
   modelAnchor.updateMatrixWorld(true);
-  syncGraticuleFrame(up, east, north);
-}
-
-/** Hands the local tangent frame and the sphere's scale factor to the shader. */
-function syncGraticuleFrame(up, east, north) {
-  const u = groundMesh?.material?.uniforms;
-  if (!u) return;
-  const trueRadius = EARTH_RADIUS_M * (studioScale || 1);
-  u.uLat0.value = studioOrigin.lat * Math.PI / 180;
-  u.uLon0.value = studioOrigin.lon * Math.PI / 180;
-  // One radian of this sphere covers groundRadius scene units, which is
-  // groundRadius/trueRadius of a radian of the real Earth. Equal when to scale.
-  u.uGeoRatio.value = trueRadius > 0 ? groundRadius / trueRadius : 1;
-  u.uUp.value.copy(up);
-  u.uEast.value.copy(east);
-  u.uNorth.value.copy(north);
 }
 
 function ensureModelAnchor() {
@@ -386,14 +364,6 @@ function groundGridMaterial() {
     uniforms: {
       uStepDeg: { value: 10 },
       uMajorEvery: { value: 4 },
-      // The local tangent frame at the studio origin, and how much real Earth
-      // one radian of this sphere stands for.
-      uLat0: { value: 0 },
-      uLon0: { value: 0 },
-      uGeoRatio: { value: 1 },
-      uUp: { value: new THREE.Vector3(0, 0, 1) },
-      uEast: { value: new THREE.Vector3(0, 1, 0) },
-      uNorth: { value: new THREE.Vector3(-1, 0, 0) },
       uMinor: { value: new THREE.Color(0x2f6bff) },
       uMajor: { value: new THREE.Color(0xff2bd6) },
       uBase: { value: new THREE.Color(0x02050b) },
@@ -408,12 +378,6 @@ function groundGridMaterial() {
     fragmentShader: `
       uniform float uStepDeg;
       uniform float uMajorEvery;
-      uniform float uLat0;
-      uniform float uLon0;
-      uniform float uGeoRatio;
-      uniform vec3 uUp;
-      uniform vec3 uEast;
-      uniform vec3 uNorth;
       uniform vec3 uMinor;
       uniform vec3 uMajor;
       uniform vec3 uBase;
@@ -422,26 +386,11 @@ function groundGridMaterial() {
       const float DEG = 57.29577951308232;
 
       void main() {
-        // The sphere is scenery, drawn at whatever radius frames the model, so
-        // its own geometry is not the Earth's. Surface position is read as a
-        // bearing and distance from the studio origin, rescaled onto the real
-        // Earth, then carried out along it -- the same direct geodesic the
-        // coordinate readout uses, so the grid and the numbers agree.
+        // The sphere is centred on the origin and is the Earth frame, so the
+        // surface direction gives geodetic lat/lon with no extra basis.
         vec3 dir = normalize(vLocal);
-        float cosd = clamp(dot(dir, uUp), -1.0, 1.0);
-        float delta = acos(cosd) * uGeoRatio;
-        vec3 tangent = dir - uUp * cosd;
-        float bearing = (length(tangent) < 1e-9)
-          ? 0.0
-          : atan(dot(tangent, uEast), dot(tangent, uNorth));
-
-        float sinLat = sin(uLat0) * cos(delta)
-          + cos(uLat0) * sin(delta) * cos(bearing);
-        float lat = asin(clamp(sinLat, -1.0, 1.0)) * DEG;
-        float lon = (uLon0 + atan(
-          sin(bearing) * sin(delta) * cos(uLat0),
-          cos(delta) - sin(uLat0) * sinLat
-        )) * DEG;
+        float lat = asin(clamp(dir.z, -1.0, 1.0)) * DEG;
+        float lon = atan(dir.y, dir.x) * DEG;
 
         float dLat = abs(fract(lat / uStepDeg - 0.5) - 0.5) * uStepDeg;
         float dLon = abs(fract(lon / uStepDeg - 0.5) - 0.5) * uStepDeg;
@@ -486,25 +435,16 @@ function updateGround() {
   }
   // Earth centre is the scene origin.
   groundMesh.position.set(0, 0, 0);
-  // The anchor is often built before the ground exists, so the shader's copy of
-  // the tangent frame is refreshed here rather than only when the origin moves.
-  updateModelAnchor();
-  applyOrbitDistanceLimits();
   refreshGraticuleStep();
 }
 
-const GRATICULE_STEPS = [30, 10, 5, 1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0005,
-  0.0001, 0.00005, 0.00001, 0.000005, 0.000001];
+const GRATICULE_STEPS = [30, 10, 5, 1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001];
 
 function refreshGraticuleStep() {
   const viewer = window.GeoIDViewer;
   if (!groundMesh?.material?.uniforms || !viewer?.camera) return;
   const height = Math.max(viewer.camera.position.length() - groundRadius, 1e-4);
-  const trueRadius = EARTH_RADIUS_M * (studioScale || 1);
-  // The grid is now labelled in real degrees, and the sphere stands for only a
-  // small patch of the Earth, so the visible span shrinks by the same ratio.
-  const ratio = trueRadius > 0 ? groundRadius / trueRadius : 1;
-  const visibleDegrees = Math.min(160, ((height / groundRadius) * 120 + 0.0004) * ratio);
+  const visibleDegrees = Math.min(160, (height / groundRadius) * 120 + 0.0004);
   // Aim for roughly ten divisions across the view, then take the largest
   // standard step no coarser than that.
   const ideal = visibleDegrees / 10;
@@ -535,87 +475,15 @@ function setGroundVisible(on) {
  * reported in model metres, using the model's own scale rather than the
  * sphere's, because that is the quantity the mesh is authored in.
  */
-/**
- * Scene position to WGS84.
- *
- * The working space is the local tangent plane at the studio origin -- the model
- * keeps its own flat metres, unprojected -- and the reference sphere is scenery,
- * drawn at whatever radius frames the model. Reading lat/lon off that sphere
- * would therefore be meaningless: it is not the Earth's size. Instead the point
- * is taken into the anchor's local frame, converted from scene units back to
- * model metres, and carried out from the origin along the real Earth's surface.
- * That is what ties a local model to global coordinates.
- */
 function sceneToWgs84(point) {
-  if (!modelAnchor) {
-    return { lat: studioOrigin.lat, lon: studioOrigin.lon, elevation: studioOrigin.elevation };
+  const r = point.length();
+  if (r < 1e-9) {
+    return { lat: 0, lon: 0, elevation: 0 };
   }
-  modelAnchor.updateMatrixWorld(true);
-  const local = modelAnchor.worldToLocal(point.clone());
-  const s = studioScale || 1;
-  // Anchor frame is +X east, +Y up, +Z south.
-  return enuToWgs84(local.x / s, -local.z / s, local.y / s);
-}
-
-/** Local east/north/up metres at the studio origin to WGS84. */
-function enuToWgs84(eastM, northM, upM) {
-  const toRad = Math.PI / 180;
-  const R = EARTH_RADIUS_M + studioOrigin.elevation;
-  const distance = Math.hypot(eastM, northM);
-  const elevation = studioOrigin.elevation + upM;
-  if (distance < 1e-9) {
-    return { lat: studioOrigin.lat, lon: studioOrigin.lon, elevation };
-  }
-  // Direct geodesic on a sphere: exact rather than a flat approximation, so it
-  // stays correct for large models and across the poles and antimeridian.
-  const bearing = Math.atan2(eastM, northM);
-  const delta = distance / R;
-  const lat1 = studioOrigin.lat * toRad;
-  const lon1 = studioOrigin.lon * toRad;
-  const sinLat = Math.sin(lat1) * Math.cos(delta)
-    + Math.cos(lat1) * Math.sin(delta) * Math.cos(bearing);
-  const lat2 = Math.asin(Math.max(-1, Math.min(1, sinLat)));
-  const lon2 = lon1 + Math.atan2(
-    Math.sin(bearing) * Math.sin(delta) * Math.cos(lat1),
-    Math.cos(delta) - Math.sin(lat1) * sinLat,
-  );
-  return {
-    lat: lat2 / toRad,
-    lon: (((lon2 / toRad) + 540) % 360) - 180,
-    elevation,
-  };
-}
-
-/** WGS84 to local east/north/up metres at the studio origin. */
-function wgs84ToEnu(lat, lon, elevation = 0) {
-  const toRad = Math.PI / 180;
-  const R = EARTH_RADIUS_M + studioOrigin.elevation;
-  const lat1 = studioOrigin.lat * toRad;
-  const lat2 = lat * toRad;
-  const dLon = (lon - studioOrigin.lon) * toRad;
-  const cosDelta = Math.sin(lat1) * Math.sin(lat2)
-    + Math.cos(lat1) * Math.cos(lat2) * Math.cos(dLon);
-  const delta = Math.acos(Math.max(-1, Math.min(1, cosDelta)));
-  const distance = delta * R;
-  const bearing = Math.atan2(
-    Math.sin(dLon) * Math.cos(lat2),
-    Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon),
-  );
-  return {
-    east: distance * Math.sin(bearing),
-    north: distance * Math.cos(bearing),
-    up: elevation - studioOrigin.elevation,
-  };
-}
-
-/** WGS84 to a scene position, the inverse of sceneToWgs84. */
-function wgs84ToScene(lat, lon, elevation = 0) {
-  const { east, north, up } = wgs84ToEnu(lat, lon, elevation);
-  const s = studioScale || 1;
-  const local = new THREE.Vector3(east * s, up * s, -north * s);
-  if (!modelAnchor) return local;
-  modelAnchor.updateMatrixWorld(true);
-  return modelAnchor.localToWorld(local);
+  const lat = Math.asin(Math.max(-1, Math.min(1, point.z / r))) * (180 / Math.PI);
+  const lon = Math.atan2(point.y, point.x) * (180 / Math.PI);
+  const elevation = (r - groundRadius) / (studioScale || 1);
+  return { lat, lon, elevation };
 }
 
 function formatCoord(value, suffixes) {
@@ -647,92 +515,16 @@ function setStudioOrbitLimits(on) {
   if (!controls) return;
   if (on) {
     if (!orbitLimits) {
-      orbitLimits = {
-        min: controls.minDistance,
-        max: controls.maxDistance,
-        minPolar: controls.minPolarAngle,
-        maxPolar: controls.maxPolarAngle,
-      };
+      orbitLimits = { min: controls.minDistance, max: controls.maxDistance };
     }
-    applyOrbitDistanceLimits();
-    // The orbit target sits on (or just above) the ground and "up" is radial,
-    // so a polar angle of 90 degrees puts the camera level with it. Stopping
-    // just short keeps the camera in the sky rather than under the surface.
-    // Polar angle is measured from the camera's up, which is radial here: 0 is
-    // directly overhead, 90 degrees is level with the target. The floor keeps a
-    // true bird's-eye (and its singular lookAt) out of reach; the ceiling keeps
-    // the camera above the surface.
-    controls.minPolarAngle = MIN_POLAR_RAD;
-    controls.maxPolarAngle = Math.PI / 2 - 0.02;
-    patchControlsUpdate(true);
-    keepCameraAboveGround();
+    controls.minDistance = 0.05;
+    controls.maxDistance = groundRadius * 4;
   } else if (orbitLimits) {
     controls.minDistance = orbitLimits.min;
     controls.maxDistance = orbitLimits.max;
-    controls.minPolarAngle = orbitLimits.minPolar;
-    controls.maxPolarAngle = orbitLimits.maxPolar;
-    patchControlsUpdate(false);
     orbitLimits = null;
   }
   controls.update();
-}
-
-/**
- * Pull-back range, sized from the ground sphere so it is always possible to
- * retreat far enough for the grid to close into a globe. The ground radius is
- * not known when Model mode is first entered, so this is re-applied whenever
- * the sphere is resized rather than set once.
- */
-function applyOrbitDistanceLimits() {
-  const controls = window.GeoIDViewer?.controls;
-  if (!controls || !orbitLimits) return;
-  controls.minDistance = 0.05;
-  controls.maxDistance = groundRadius * 4;
-}
-
-/**
- * Hard floor on the camera. The polar limit handles orbiting, but panning and
- * dollying can still drive the camera into the planet, so its distance from the
- * Earth's centre is clamped to sit just above the reference sphere.
- *
- * This runs after OrbitControls has finished solving rather than on its change
- * event: the solve rewrites the camera position from its own spherical state,
- * so a correction applied beforehand is simply undone. Clamping last means the
- * position that gets rendered is always above ground, and the next solve reads
- * back the corrected position.
- */
-function keepCameraAboveGround() {
-  const camera = window.GeoIDViewer?.camera;
-  if (!camera) return;
-  const floor = groundRadius * 1.0002;
-  if (camera.position.length() >= floor) return;
-  camera.position.setLength(floor);
-  camera.updateMatrixWorld(true);
-}
-
-// The viewer drives its own animation loop, so there is no update hook to
-// register with. Wrapping the controls' update is the one place every camera
-// move -- ours, the user's, and the loop's -- has to pass through.
-let unpatchedUpdate = null;
-
-function patchControlsUpdate(on) {
-  const controls = window.GeoIDViewer?.controls;
-  if (!controls) return;
-  if (on) {
-    if (unpatchedUpdate) return;
-    unpatchedUpdate = controls.update.bind(controls);
-    controls.update = (...args) => {
-      const result = unpatchedUpdate(...args);
-      keepCameraAboveGround();
-      // Graticule spacing depends on the viewpoint. Refreshing it here rather
-      // than on the controls' change event means it cannot be missed.
-      refreshGraticuleStep();
-      return result;
-    };
-  } else if (unpatchedUpdate) {
-    controls.update = unpatchedUpdate;
-    unpatchedUpdate = null;
-  }
 }
 
 /**
@@ -745,29 +537,19 @@ function centreOnOrigin() {
   if (!viewer?.camera || !viewer.controls) return;
   const anchor = ensureModelAnchor();
   if (!anchor) return;
-  const focus = modelFocus();
-  const centre = focus ? focus.center : anchor.getWorldPosition(new THREE.Vector3());
-  const radius = focus ? focus.radius : MODEL_MODE_RADIUS;
+  const centre = anchor.getWorldPosition(new THREE.Vector3());
   const up = centre.clone().normalize();
-  const east = new THREE.Vector3(1, 0, 0).applyQuaternion(anchor.quaternion);
-  const south = new THREE.Vector3(0, 0, 1).applyQuaternion(anchor.quaternion);
-  // A low oblique: the camera stands off the model and looks across it, so the
-  // horizon and the curve of the ground are both in frame. A steeper angle
-  // flattens into a plan view and loses the sense of standing on a surface.
-  const d = Math.max(radius * 3.4, MODEL_MODE_RADIUS);
-  const pitch = HORIZON_PITCH_RAD;
+  const east = new THREE.Vector3(0, 1, 0).applyQuaternion(anchor.quaternion);
+  const d = MODEL_MODE_RADIUS * 2.6;
   viewer.controls.target.copy(centre);
-  viewer.camera.up.copy(up);
   viewer.camera.position.copy(centre)
-    .addScaledVector(up, d * Math.sin(pitch))
-    .addScaledVector(east, d * Math.cos(pitch) * 0.6)
-    .addScaledVector(south, d * Math.cos(pitch) * 0.8);
-  viewer.camera.near = Math.max(d / 1000, 0.0001);
+    .addScaledVector(up, d * 0.55)
+    .addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(anchor.quaternion), d * 0.6)
+    .addScaledVector(new THREE.Vector3(0, 0, 1).applyQuaternion(anchor.quaternion), d * 0.6);
+  viewer.camera.near = d / 800;
   viewer.camera.far = groundRadius * 8;
   viewer.camera.updateProjectionMatrix();
   viewer.controls.update();
-  keepCameraAboveGround();
-  refreshGraticuleStep();
 }
 
 // ── Model operations ────────────────────────────────────────────────────────
@@ -1291,22 +1073,21 @@ function viewAxis(axis) {
     x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1],
     iso: [0.577, 0.577, 0.577],
   }[axis] || [0.577, 0.577, 0.577];
-  const radialUp = centre.clone().normalize();
-  const dir = new THREE.Vector3(local[0], local[1], local[2])
+  const offset = new THREE.Vector3(local[0], local[1], local[2])
     .applyQuaternion(anchor.quaternion)
-    .normalize();
-  // "Up" stays radial in every view so the horizon reads level and orbiting
-  // behaves the same from any starting view. Looking straight down that same
-  // radial axis would make lookAt singular, so the plan view is tilted just off
-  // vertical -- which is also why a true bird's-eye is never reachable.
-  if (Math.abs(radialUp.dot(dir)) > Math.cos(MIN_POLAR_RAD)) {
-    const south = new THREE.Vector3(0, 0, 1).applyQuaternion(anchor.quaternion);
-    dir.copy(radialUp).multiplyScalar(Math.cos(MIN_POLAR_RAD))
-      .addScaledVector(south, Math.sin(MIN_POLAR_RAD)).normalize();
-  }
-  const offset = dir.multiplyScalar(d);
+    .multiplyScalar(d);
   viewer.camera.position.copy(centre).add(offset);
-  viewer.camera.up.copy(radialUp);
+  // "Up" on the surface is radial, so the horizon stays level in every view.
+  // Looking straight down that same radial axis would make lookAt singular, so
+  // the plan view takes local north as its up -- the usual map convention.
+  const radialUp = centre.clone().normalize();
+  const viewDir = offset.clone().normalize().negate();
+  if (Math.abs(radialUp.dot(viewDir)) > 0.999) {
+    const north = new THREE.Vector3(0, 0, -1).applyQuaternion(anchor.quaternion);
+    viewer.camera.up.copy(north).normalize();
+  } else {
+    viewer.camera.up.copy(radialUp);
+  }
   viewer.camera.near = Math.max(d / 1000, 0.0001);
   viewer.camera.far = Math.max(d * 40, groundRadius * 8);
   viewer.camera.updateProjectionMatrix();
@@ -1644,6 +1425,9 @@ function init() {
         setStudioOrbitLimits(true);
       }
       applyStudioScene();
+      // Graticule spacing depends on the viewpoint, so it is refreshed as the
+      // camera settles rather than only when the model changes.
+      window.GeoIDViewer.controls?.addEventListener?.("change", refreshGraticuleStep);
       return;
     }
     requestAnimationFrame(waitForViewer);
@@ -1686,8 +1470,7 @@ function setStudioOrigin(lat, lon, elevation = studioOrigin.elevation) {
 
 window.GeoIDMeshStudio = {
   state, addSolid, meshModel, ACTIONS, fitView, viewAxis,
-  origin: studioOrigin, setStudioOrigin, sceneToWgs84, wgs84ToScene,
-  enuToWgs84, wgs84ToEnu, getGroundInfo,
+  origin: studioOrigin, setStudioOrigin, sceneToWgs84, getGroundInfo,
   getAnchor: () => modelAnchor,
 };
 
