@@ -281,6 +281,12 @@ function setStarsVisible(on) {
  * models get real curvature, small ones a representational globe, and
  * getGroundInfo() reports which applies.
  */
+// Opening pitch above the local horizontal -- low enough that the horizon
+// stays in shot, high enough to read the model in three dimensions.
+const HORIZON_PITCH_RAD = 16 * Math.PI / 180;
+// Closest the camera may come to straight-down. Keeps the plan view readable
+// without ever reaching the vertical, where lookAt degenerates.
+const MIN_POLAR_RAD = 8 * Math.PI / 180;
 const GROUND_MIN = 500;
 const GROUND_MAX = 4000;
 
@@ -515,16 +521,77 @@ function setStudioOrbitLimits(on) {
   if (!controls) return;
   if (on) {
     if (!orbitLimits) {
-      orbitLimits = { min: controls.minDistance, max: controls.maxDistance };
+      orbitLimits = {
+        min: controls.minDistance,
+        max: controls.maxDistance,
+        minPolar: controls.minPolarAngle,
+        maxPolar: controls.maxPolarAngle,
+      };
     }
     controls.minDistance = 0.05;
     controls.maxDistance = groundRadius * 4;
+    // The orbit target sits on (or just above) the ground and "up" is radial,
+    // so a polar angle of 90 degrees puts the camera level with it. Stopping
+    // just short keeps the camera in the sky rather than under the surface.
+    // Polar angle is measured from the camera's up, which is radial here: 0 is
+    // directly overhead, 90 degrees is level with the target. The floor keeps a
+    // true bird's-eye (and its singular lookAt) out of reach; the ceiling keeps
+    // the camera above the surface.
+    controls.minPolarAngle = MIN_POLAR_RAD;
+    controls.maxPolarAngle = Math.PI / 2 - 0.02;
+    patchControlsUpdate(true);
+    keepCameraAboveGround();
   } else if (orbitLimits) {
     controls.minDistance = orbitLimits.min;
     controls.maxDistance = orbitLimits.max;
+    controls.minPolarAngle = orbitLimits.minPolar;
+    controls.maxPolarAngle = orbitLimits.maxPolar;
+    patchControlsUpdate(false);
     orbitLimits = null;
   }
   controls.update();
+}
+
+/**
+ * Hard floor on the camera. The polar limit handles orbiting, but panning and
+ * dollying can still drive the camera into the planet, so its distance from the
+ * Earth's centre is clamped to sit just above the reference sphere.
+ *
+ * This runs after OrbitControls has finished solving rather than on its change
+ * event: the solve rewrites the camera position from its own spherical state,
+ * so a correction applied beforehand is simply undone. Clamping last means the
+ * position that gets rendered is always above ground, and the next solve reads
+ * back the corrected position.
+ */
+function keepCameraAboveGround() {
+  const camera = window.GeoIDViewer?.camera;
+  if (!camera) return;
+  const floor = groundRadius * 1.0002;
+  if (camera.position.length() >= floor) return;
+  camera.position.setLength(floor);
+  camera.updateMatrixWorld(true);
+}
+
+// The viewer drives its own animation loop, so there is no update hook to
+// register with. Wrapping the controls' update is the one place every camera
+// move -- ours, the user's, and the loop's -- has to pass through.
+let unpatchedUpdate = null;
+
+function patchControlsUpdate(on) {
+  const controls = window.GeoIDViewer?.controls;
+  if (!controls) return;
+  if (on) {
+    if (unpatchedUpdate) return;
+    unpatchedUpdate = controls.update.bind(controls);
+    controls.update = (...args) => {
+      const result = unpatchedUpdate(...args);
+      keepCameraAboveGround();
+      return result;
+    };
+  } else if (unpatchedUpdate) {
+    controls.update = unpatchedUpdate;
+    unpatchedUpdate = null;
+  }
 }
 
 /**
@@ -537,19 +604,29 @@ function centreOnOrigin() {
   if (!viewer?.camera || !viewer.controls) return;
   const anchor = ensureModelAnchor();
   if (!anchor) return;
-  const centre = anchor.getWorldPosition(new THREE.Vector3());
+  const focus = modelFocus();
+  const centre = focus ? focus.center : anchor.getWorldPosition(new THREE.Vector3());
+  const radius = focus ? focus.radius : MODEL_MODE_RADIUS;
   const up = centre.clone().normalize();
-  const east = new THREE.Vector3(0, 1, 0).applyQuaternion(anchor.quaternion);
-  const d = MODEL_MODE_RADIUS * 2.6;
+  const east = new THREE.Vector3(1, 0, 0).applyQuaternion(anchor.quaternion);
+  const south = new THREE.Vector3(0, 0, 1).applyQuaternion(anchor.quaternion);
+  // A low oblique: the camera stands off the model and looks across it, so the
+  // horizon and the curve of the ground are both in frame. A steeper angle
+  // flattens into a plan view and loses the sense of standing on a surface.
+  const d = Math.max(radius * 3.4, MODEL_MODE_RADIUS);
+  const pitch = HORIZON_PITCH_RAD;
   viewer.controls.target.copy(centre);
+  viewer.camera.up.copy(up);
   viewer.camera.position.copy(centre)
-    .addScaledVector(up, d * 0.55)
-    .addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(anchor.quaternion), d * 0.6)
-    .addScaledVector(new THREE.Vector3(0, 0, 1).applyQuaternion(anchor.quaternion), d * 0.6);
-  viewer.camera.near = d / 800;
+    .addScaledVector(up, d * Math.sin(pitch))
+    .addScaledVector(east, d * Math.cos(pitch) * 0.6)
+    .addScaledVector(south, d * Math.cos(pitch) * 0.8);
+  viewer.camera.near = Math.max(d / 1000, 0.0001);
   viewer.camera.far = groundRadius * 8;
   viewer.camera.updateProjectionMatrix();
   viewer.controls.update();
+  keepCameraAboveGround();
+  refreshGraticuleStep();
 }
 
 // ── Model operations ────────────────────────────────────────────────────────
@@ -1073,21 +1150,22 @@ function viewAxis(axis) {
     x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1],
     iso: [0.577, 0.577, 0.577],
   }[axis] || [0.577, 0.577, 0.577];
-  const offset = new THREE.Vector3(local[0], local[1], local[2])
-    .applyQuaternion(anchor.quaternion)
-    .multiplyScalar(d);
-  viewer.camera.position.copy(centre).add(offset);
-  // "Up" on the surface is radial, so the horizon stays level in every view.
-  // Looking straight down that same radial axis would make lookAt singular, so
-  // the plan view takes local north as its up -- the usual map convention.
   const radialUp = centre.clone().normalize();
-  const viewDir = offset.clone().normalize().negate();
-  if (Math.abs(radialUp.dot(viewDir)) > 0.999) {
-    const north = new THREE.Vector3(0, 0, -1).applyQuaternion(anchor.quaternion);
-    viewer.camera.up.copy(north).normalize();
-  } else {
-    viewer.camera.up.copy(radialUp);
+  const dir = new THREE.Vector3(local[0], local[1], local[2])
+    .applyQuaternion(anchor.quaternion)
+    .normalize();
+  // "Up" stays radial in every view so the horizon reads level and orbiting
+  // behaves the same from any starting view. Looking straight down that same
+  // radial axis would make lookAt singular, so the plan view is tilted just off
+  // vertical -- which is also why a true bird's-eye is never reachable.
+  if (Math.abs(radialUp.dot(dir)) > Math.cos(MIN_POLAR_RAD)) {
+    const south = new THREE.Vector3(0, 0, 1).applyQuaternion(anchor.quaternion);
+    dir.copy(radialUp).multiplyScalar(Math.cos(MIN_POLAR_RAD))
+      .addScaledVector(south, Math.sin(MIN_POLAR_RAD)).normalize();
   }
+  const offset = dir.multiplyScalar(d);
+  viewer.camera.position.copy(centre).add(offset);
+  viewer.camera.up.copy(radialUp);
   viewer.camera.near = Math.max(d / 1000, 0.0001);
   viewer.camera.far = Math.max(d * 40, groundRadius * 8);
   viewer.camera.updateProjectionMatrix();
