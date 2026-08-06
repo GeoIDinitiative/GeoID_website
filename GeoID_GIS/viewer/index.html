@@ -902,6 +902,15 @@
         <button id="studio-add" class="studio-primary" type="button">Add to model</button>
       </div>
       <div class="studio-pane" data-pane="model">
+        <p class="studio-group-title">Origin (WGS84)</p>
+        <div class="studio-row"><label for="studio-origin-lat">Latitude</label>
+          <input id="studio-origin-lat" class="studio-input" type="number" step="any" value="0"></div>
+        <div class="studio-row"><label for="studio-origin-lon">Longitude</label>
+          <input id="studio-origin-lon" class="studio-input" type="number" step="any" value="0"></div>
+        <div class="studio-row"><label for="studio-origin-elev">Elevation</label>
+          <input id="studio-origin-elev" class="studio-input" type="number" step="any" value="0"></div>
+        <button id="studio-origin-apply" class="studio-secondary" type="button">Anchor model here</button>
+        <div id="studio-origin-note" class="studio-readout">Model x/y/z stay local metres about this point.</div>
         <p class="studio-group-title">Info</p>
         <div id="studio-info" class="studio-readout">Empty model.</div>
         <p class="studio-group-title">Entities</p>

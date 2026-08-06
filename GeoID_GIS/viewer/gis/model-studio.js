@@ -233,6 +233,10 @@ function displayMesh(positions, name, color) {
     object3D: mesh, boundingSphere, georeferenced: false,
     info: { triangleCount: positions.length / 9 },
   }, "mesh");
+  // Re-parent onto the surface anchor: the mesh keeps local model coordinates
+  // and the anchor carries the spherical placement.
+  const anchor = ensureModelAnchor();
+  if (anchor) anchor.add(mesh);
   // Scale after the layer is registered so the shared factor covers it too.
   refreshStudioScale();
   if (boundingSphere) boundingSphere.radius *= studioScale;
@@ -261,19 +265,44 @@ function setStarsVisible(on) {
 }
 
 /**
- * The ground is a WGS84 globe: a sphere carrying a lat/lon graticule. Close in
- * it reads as the synthwave grid on a gently curved plane; pulled back far
- * enough it resolves into the whole planet, because it is the same surface
- * either way.
+ * Coordinate model
+ * ----------------
+ * Scene origin is the centre of the Earth. The ground sphere sits there and is
+ * reference framing only. The model does not live at the origin: it is anchored
+ * to a point on the *surface* at (lat0, lon0), inside a group oriented to the
+ * local east/north/up frame. Model x/y/z therefore stay local metres relative
+ * to the ground -- which is what import and export continue to read and write
+ * -- while their place in the world is a spherical transform held by the
+ * anchor.
  *
- * The sphere is representational in size rather than literally 6371 km in
- * scene units -- a metre-scale model against a true-scale Earth would need a
- * depth range no float32 buffer can hold. Curvature is therefore exaggerated
- * for small models and becomes truthful as the model approaches planetary
- * scale.
+ * Sphere size is truthful where it can be. At true scale the radius is 6371 km
+ * expressed in scene units, which for a metre-scale model is millions of units
+ * and past what a float32 depth buffer resolves. It is therefore clamped: large
+ * models get real curvature, small ones a representational globe, and
+ * getGroundInfo() reports which applies.
  */
-const GROUND_RADIUS = 900;
+const GROUND_MIN = 500;
+const GROUND_MAX = 4000;
 
+let groundRadius = 900;
+let modelAnchor = null;
+
+function computeGroundRadius() {
+  const trueRadius = EARTH_RADIUS_M * studioScale;
+  return Math.min(GROUND_MAX, Math.max(GROUND_MIN, trueRadius));
+}
+
+export function getGroundInfo() {
+  const trueRadius = EARTH_RADIUS_M * studioScale;
+  return {
+    radius: groundRadius,
+    trueRadius,
+    toScale: trueRadius >= GROUND_MIN && trueRadius <= GROUND_MAX,
+    metresPerUnit: EARTH_RADIUS_M / groundRadius,
+  };
+}
+
+/** Earth-frame direction: X to (0,0), Y to (0,90E), Z to the north pole. */
 function geodeticDirection(latDeg, lonDeg) {
   const lat = latDeg * Math.PI / 180;
   const lon = lonDeg * Math.PI / 180;
@@ -285,30 +314,49 @@ function geodeticDirection(latDeg, lonDeg) {
 }
 
 /**
- * Basis mapping scene axes onto the Earth frame at the model origin, so scene
- * +Y is up at (lat0, lon0), +X is east and +Z is south.
+ * Positions and orients the anchor so its local axes are the surface frame at
+ * the origin: +X east, +Y up (radial), +Z south -- matching the Z-up to Y-up
+ * convention the display meshes already use.
  */
-function originBasis(latDeg, lonDeg) {
-  const lat = latDeg * Math.PI / 180;
-  const lon = lonDeg * Math.PI / 180;
-  const up = geodeticDirection(latDeg, lonDeg);
+function updateModelAnchor() {
+  if (!modelAnchor) return;
+  const { lat, lon, elevation } = studioOrigin;
+  const latRad = lat * Math.PI / 180;
+  const lonRad = lon * Math.PI / 180;
+  const up = geodeticDirection(lat, lon);
   const north = new THREE.Vector3(
-    -Math.sin(lat) * Math.cos(lon),
-    -Math.sin(lat) * Math.sin(lon),
-    Math.cos(lat),
+    -Math.sin(latRad) * Math.cos(lonRad),
+    -Math.sin(latRad) * Math.sin(lonRad),
+    Math.cos(latRad),
   );
-  const east = new THREE.Vector3(-Math.sin(lon), Math.cos(lon), 0);
-  return new THREE.Matrix3().set(
-    east.x, up.x, -north.x,
-    east.y, up.y, -north.y,
-    east.z, up.z, -north.z,
+  const east = new THREE.Vector3(-Math.sin(lonRad), Math.cos(lonRad), 0);
+  const south = north.clone().negate();
+  modelAnchor.quaternion.setFromRotationMatrix(
+    new THREE.Matrix4().makeBasis(east, up, south),
   );
+  // The origin's elevation lifts the anchor off the reference sphere, in the
+  // same scene units the model itself is drawn in.
+  modelAnchor.position.copy(up)
+    .multiplyScalar(groundRadius + (elevation || 0) * (studioScale || 1));
+  modelAnchor.updateMatrixWorld(true);
+}
+
+function ensureModelAnchor() {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.scene) return null;
+  if (!modelAnchor) {
+    modelAnchor = new THREE.Group();
+    modelAnchor.name = "studio-model-anchor";
+    viewer.scene.add(modelAnchor);
+  }
+  updateModelAnchor();
+  return modelAnchor;
 }
 
 function groundGridMaterial() {
   return new THREE.ShaderMaterial({
-    // Opaque with depth writing, so the far side of the globe is occluded by
-    // the near side and no lines show through the planet or past the horizon.
+    // Opaque and depth-writing, front faces only, so the far side of the globe
+    // is occluded and no lines show through the planet or past the horizon.
     transparent: false,
     depthWrite: true,
     depthTest: true,
@@ -316,7 +364,6 @@ function groundGridMaterial() {
     uniforms: {
       uStepDeg: { value: 10 },
       uMajorEvery: { value: 4 },
-      uBasis: { value: new THREE.Matrix3() },
       uMinor: { value: new THREE.Color(0x2f6bff) },
       uMajor: { value: new THREE.Color(0xff2bd6) },
       uBase: { value: new THREE.Color(0x02050b) },
@@ -331,7 +378,6 @@ function groundGridMaterial() {
     fragmentShader: `
       uniform float uStepDeg;
       uniform float uMajorEvery;
-      uniform mat3 uBasis;
       uniform vec3 uMinor;
       uniform vec3 uMajor;
       uniform vec3 uBase;
@@ -340,16 +386,15 @@ function groundGridMaterial() {
       const float DEG = 57.29577951308232;
 
       void main() {
-        // Surface normal in the Earth frame gives geodetic lat/lon directly.
-        vec3 dir = normalize(uBasis * normalize(vLocal));
+        // The sphere is centred on the origin and is the Earth frame, so the
+        // surface direction gives geodetic lat/lon with no extra basis.
+        vec3 dir = normalize(vLocal);
         float lat = asin(clamp(dir.z, -1.0, 1.0)) * DEG;
         float lon = atan(dir.y, dir.x) * DEG;
 
         float dLat = abs(fract(lat / uStepDeg - 0.5) - 0.5) * uStepDeg;
         float dLon = abs(fract(lon / uStepDeg - 0.5) - 0.5) * uStepDeg;
 
-        // Meridians converge toward the poles, so the longitude line width is
-        // widened by 1/cos(lat) to keep them an even thickness on screen.
         float wLat = fwidth(lat) * 1.2 + 1e-6;
         float wLon = fwidth(lon) * 1.2 + 1e-6;
 
@@ -362,46 +407,46 @@ function groundGridMaterial() {
         float density = clamp(uStepDeg / (max(wLat, wLon) * 10.0), 0.0, 1.0);
         line *= density;
 
-        float bloomLat = exp(-dLat / (uStepDeg * 0.05));
-        float bloomLon = exp(-dLon / (uStepDeg * 0.05));
-        float bloom = max(bloomLat, bloomLon) * 0.35 * density;
+        float bloom = max(
+          exp(-dLat / (uStepDeg * 0.05)),
+          exp(-dLon / (uStepDeg * 0.05))
+        ) * 0.35 * density;
 
         bool major = (parallels >= meridians)
           ? abs(mod(floor(lat / uStepDeg + 0.5), uMajorEvery)) < 0.5
           : abs(mod(floor(lon / uStepDeg + 0.5), uMajorEvery)) < 0.5;
         vec3 colour = major ? uMajor : uMinor;
 
-        vec3 rgb = uBase + colour * (line + bloom);
-        gl_FragColor = vec4(rgb, 1.0);
+        gl_FragColor = vec4(uBase + colour * (line + bloom), 1.0);
       }
     `,
   });
 }
 
 function updateGround() {
+  ensureModelAnchor();
   if (!groundMesh) return;
-  groundMesh.position.set(0, -GROUND_RADIUS, 0);
-  const uniforms = groundMesh.material?.uniforms;
-  if (!uniforms) return;
-  uniforms.uBasis.value.copy(originBasis(studioOrigin.lat, studioOrigin.lon));
+  const radius = computeGroundRadius();
+  if (Math.abs(radius - groundRadius) > 1e-6) {
+    groundRadius = radius;
+    groundMesh.geometry?.dispose();
+    groundMesh.geometry = new THREE.SphereGeometry(groundRadius, 256, 192);
+    updateModelAnchor();
+  }
+  // Earth centre is the scene origin.
+  groundMesh.position.set(0, 0, 0);
   refreshGraticuleStep();
 }
 
-/**
- * Graticule spacing follows the viewpoint the way a map's does: coarse when
- * the whole globe is in frame, finer as you descend toward the model.
- */
 const GRATICULE_STEPS = [30, 10, 5, 1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001];
 
 function refreshGraticuleStep() {
   const viewer = window.GeoIDViewer;
   if (!groundMesh?.material?.uniforms || !viewer?.camera) return;
-  // Height above the surface, as an angle subtended at the sphere centre.
-  const height = Math.max(viewer.camera.position.distanceTo(groundMesh.position) - GROUND_RADIUS, 1e-4);
-  const visibleDegrees = Math.min(160, (height / GROUND_RADIUS) * 120 + 0.0004);
+  const height = Math.max(viewer.camera.position.length() - groundRadius, 1e-4);
+  const visibleDegrees = Math.min(160, (height / groundRadius) * 120 + 0.0004);
   // Aim for roughly ten divisions across the view, then take the largest
-  // standard step that is no coarser than that. Testing "count < 14" instead
-  // always matched the coarsest step first, so the graticule never refined.
+  // standard step no coarser than that.
   const ideal = visibleDegrees / 10;
   const step = GRATICULE_STEPS.find((s) => s <= ideal)
     ?? GRATICULE_STEPS[GRATICULE_STEPS.length - 1];
@@ -412,8 +457,9 @@ function setGroundVisible(on) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.scene) return;
   if (on && !groundMesh) {
+    groundRadius = computeGroundRadius();
     groundMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(GROUND_RADIUS, 256, 192),
+      new THREE.SphereGeometry(groundRadius, 256, 192),
       groundGridMaterial(),
     );
     groundMesh.name = "studio-ground";
@@ -424,19 +470,20 @@ function setGroundVisible(on) {
 }
 
 /**
- * Scene point to WGS84. Model space is a local tangent plane, so east/north
- * metres convert to degrees directly; that is exact for the local extents a
- * mesh covers and avoids pretending the representational globe is to scale.
+ * Scene point to WGS84. The sphere is centred on the origin and is the Earth
+ * frame, so this is a straight cartesian-to-spherical conversion. Elevation is
+ * reported in model metres, using the model's own scale rather than the
+ * sphere's, because that is the quantity the mesh is authored in.
  */
 function sceneToWgs84(point) {
-  // Inverse of MODEL_TO_SCENE: scene (X, Y, Z) -> model (X, -Z, Y).
-  const east = point.x / studioScale;
-  const north = -point.z / studioScale;
-  const up = point.y / studioScale;
-  const lat = studioOrigin.lat + (north / 111320);
-  const cos = Math.max(Math.cos(lat * Math.PI / 180), 1e-6);
-  const lon = studioOrigin.lon + (east / (111320 * cos));
-  return { lat, lon, elevation: studioOrigin.elevation + up, east, north };
+  const r = point.length();
+  if (r < 1e-9) {
+    return { lat: 0, lon: 0, elevation: 0 };
+  }
+  const lat = Math.asin(Math.max(-1, Math.min(1, point.z / r))) * (180 / Math.PI);
+  const lon = Math.atan2(point.y, point.x) * (180 / Math.PI);
+  const elevation = (r - groundRadius) / (studioScale || 1);
+  return { lat, lon, elevation };
 }
 
 function formatCoord(value, suffixes) {
@@ -471,7 +518,7 @@ function setStudioOrbitLimits(on) {
       orbitLimits = { min: controls.minDistance, max: controls.maxDistance };
     }
     controls.minDistance = 0.05;
-    controls.maxDistance = GROUND_RADIUS * 4;
+    controls.maxDistance = groundRadius * 4;
   } else if (orbitLimits) {
     controls.minDistance = orbitLimits.min;
     controls.maxDistance = orbitLimits.max;
@@ -480,15 +527,27 @@ function setStudioOrbitLimits(on) {
   controls.update();
 }
 
-/** Puts the orbit target on the model origin so 0,0,0 is the centre of view. */
+/**
+ * Frames the model. The orbit target is the model's own origin on the surface,
+ * never the centre of the Earth -- otherwise every orbit would swing the camera
+ * around the planet instead of around the thing being built.
+ */
 function centreOnOrigin() {
   const viewer = window.GeoIDViewer;
   if (!viewer?.camera || !viewer.controls) return;
+  const anchor = ensureModelAnchor();
+  if (!anchor) return;
+  const centre = anchor.getWorldPosition(new THREE.Vector3());
+  const up = centre.clone().normalize();
+  const east = new THREE.Vector3(0, 1, 0).applyQuaternion(anchor.quaternion);
   const d = MODEL_MODE_RADIUS * 2.6;
-  viewer.controls.target.set(0, 0, 0);
-  viewer.camera.position.set(d * 0.62, d * 0.48, d * 0.62);
+  viewer.controls.target.copy(centre);
+  viewer.camera.position.copy(centre)
+    .addScaledVector(up, d * 0.55)
+    .addScaledVector(new THREE.Vector3(1, 0, 0).applyQuaternion(anchor.quaternion), d * 0.6)
+    .addScaledVector(new THREE.Vector3(0, 0, 1).applyQuaternion(anchor.quaternion), d * 0.6);
   viewer.camera.near = d / 800;
-  viewer.camera.far = d * 400;
+  viewer.camera.far = groundRadius * 8;
   viewer.camera.updateProjectionMatrix();
   viewer.controls.update();
 }
@@ -978,35 +1037,87 @@ function eachModelMaterial(fn) {
   });
 }
 
+/**
+ * Bounding sphere of every visible imported layer, in world space. This is what
+ * the camera frames -- the model, never the reference sphere's centre.
+ */
+function modelFocus() {
+  const layers = (window.GeoIDImportManager?.getLayers?.() || [])
+    .filter((l) => l.object3D?.visible);
+  if (!layers.length) return null;
+  const box = new THREE.Box3();
+  layers.forEach((l) => {
+    l.object3D.updateMatrixWorld(true);
+    box.expandByObject(l.object3D);
+  });
+  if (box.isEmpty()) return null;
+  const sphere = box.getBoundingSphere(new THREE.Sphere());
+  if (!Number.isFinite(sphere.radius) || sphere.radius <= 0) sphere.radius = MODEL_MODE_RADIUS;
+  return sphere;
+}
+
 function viewAxis(axis) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.camera) return;
-  const d = viewer.camera.position.length() || 10;
-  const map = {
-    x: [d, 0, 0], y: [0, d, 0], z: [0, 0, d],
-    iso: [d * 0.577, d * 0.577, d * 0.577],
-  };
-  const p = map[axis] || map.iso;
-  viewer.camera.position.set(p[0], p[1], p[2]);
-  viewer.controls.target.set(0, 0, 0);
+  const anchor = ensureModelAnchor();
+  if (!anchor) return;
+  // Frame the user's model, not the surface origin and not the sphere centre.
+  // Falling back to the anchor keeps the axis buttons useful on an empty scene.
+  const focus = modelFocus();
+  const centre = focus ? focus.center : anchor.getWorldPosition(new THREE.Vector3());
+  const d = focus
+    ? Math.max(focus.radius * 2.6, MODEL_MODE_RADIUS * 0.5)
+    : MODEL_MODE_RADIUS * 2;
+  // Axis views are in the model's surface frame: X east, Y up, Z south.
+  const local = {
+    x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1],
+    iso: [0.577, 0.577, 0.577],
+  }[axis] || [0.577, 0.577, 0.577];
+  const offset = new THREE.Vector3(local[0], local[1], local[2])
+    .applyQuaternion(anchor.quaternion)
+    .multiplyScalar(d);
+  viewer.camera.position.copy(centre).add(offset);
+  // "Up" on the surface is radial, so the horizon stays level in every view.
+  // Looking straight down that same radial axis would make lookAt singular, so
+  // the plan view takes local north as its up -- the usual map convention.
+  const radialUp = centre.clone().normalize();
+  const viewDir = offset.clone().normalize().negate();
+  if (Math.abs(radialUp.dot(viewDir)) > 0.999) {
+    const north = new THREE.Vector3(0, 0, -1).applyQuaternion(anchor.quaternion);
+    viewer.camera.up.copy(north).normalize();
+  } else {
+    viewer.camera.up.copy(radialUp);
+  }
+  viewer.camera.near = Math.max(d / 1000, 0.0001);
+  viewer.camera.far = Math.max(d * 40, groundRadius * 8);
+  viewer.camera.updateProjectionMatrix();
+  viewer.controls.target.copy(centre);
   viewer.controls.update();
+  refreshGraticuleStep();
 }
 
 function fitView() {
   const viewer = window.GeoIDViewer;
-  const layers = (window.GeoIDImportManager?.getLayers?.() || [])
-    .filter((l) => l.object3D?.visible);
-  if (!viewer?.camera || !layers.length) return;
-  const box = new THREE.Box3();
-  layers.forEach((l) => box.expandByObject(l.object3D));
-  const sphere = box.getBoundingSphere(new THREE.Sphere());
+  const sphere = modelFocus();
+  if (!viewer?.camera || !sphere) return;
   const d = Math.max(sphere.radius * 2.6, 0.01);
-  viewer.camera.position.set(d * 0.6, d * 0.5, d * 0.6);
+  // The model sits out on the surface, so the camera is offset from the
+  // model's own centre in its local frame. Positioning at absolute world
+  // coordinates would drop the camera near the centre of the Earth.
+  const anchor = ensureModelAnchor();
+  const q = anchor ? anchor.quaternion : new THREE.Quaternion();
+  const up = sphere.center.lengthSq() > 0
+    ? sphere.center.clone().normalize()
+    : new THREE.Vector3(0, 1, 0);
+  const offset = new THREE.Vector3(0.6, 0.5, 0.6).applyQuaternion(q).multiplyScalar(d);
+  viewer.camera.up.copy(up);
+  viewer.camera.position.copy(sphere.center).add(offset);
   viewer.camera.near = Math.max(d / 1000, 0.0001);
-  viewer.camera.far = d * 40;
+  viewer.camera.far = Math.max(d * 40, groundRadius * 8);
   viewer.camera.updateProjectionMatrix();
   viewer.controls.target.copy(sphere.center);
   viewer.controls.update();
+  refreshGraticuleStep();
 }
 
 let clipPlane = null;
@@ -1190,6 +1301,22 @@ function init() {
   byId("studio-clip")?.addEventListener("input", applyClip);
   byId("studio-clip-axis")?.addEventListener("change", applyClip);
 
+  byId("studio-origin-apply")?.addEventListener("click", () => {
+    setStudioOrigin(
+      byId("studio-origin-lat")?.value,
+      byId("studio-origin-lon")?.value,
+      byId("studio-origin-elev")?.value,
+    );
+    const info = getGroundInfo();
+    const note = byId("studio-origin-note");
+    if (note) {
+      note.textContent = info.toScale
+        ? `Anchored at ${studioOrigin.lat.toFixed(5)}, ${studioOrigin.lon.toFixed(5)} — globe is to scale.`
+        : `Anchored at ${studioOrigin.lat.toFixed(5)}, ${studioOrigin.lon.toFixed(5)} — globe is representational `
+          + `(${Math.round(info.metresPerUnit)} m per unit); model metres are unaffected.`;
+    }
+  });
+
   byId("studio-add")?.addEventListener("click", () => addSolid(state.kind, "union"));
   byId("studio-mesh1d")?.addEventListener("click", () => meshModel(1));
   byId("studio-mesh2d")?.addEventListener("click", () => meshModel(2));
@@ -1331,7 +1458,21 @@ if (document.readyState === "loading") {
   init();
 }
 
-window.GeoIDMeshStudio = { state, addSolid, meshModel, ACTIONS, fitView, viewAxis };
+/** Moves the model's surface anchor to a new WGS84 origin. */
+function setStudioOrigin(lat, lon, elevation = studioOrigin.elevation) {
+  studioOrigin.lat = Number(lat) || 0;
+  studioOrigin.lon = Number(lon) || 0;
+  studioOrigin.elevation = Number(elevation) || 0;
+  updateGround();
+  centreOnOrigin();
+  log(`Origin set to ${studioOrigin.lat.toFixed(5)}, ${studioOrigin.lon.toFixed(5)}`);
+}
+
+window.GeoIDMeshStudio = {
+  state, addSolid, meshModel, ACTIONS, fitView, viewAxis,
+  origin: studioOrigin, setStudioOrigin, sceneToWgs84, getGroundInfo,
+  getAnchor: () => modelAnchor,
+};
 
 /**
  * Scene defaults for Model mode: the starfield is a globe backdrop and only
