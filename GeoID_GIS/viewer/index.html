@@ -41,11 +41,12 @@
     </div>
     <div class="view-mode-switch" id="view-mode-switch" role="group" aria-label="View mode">
       <button type="button" class="view-mode-btn is-active" data-mode="gis" id="view-mode-gis">GIS</button>
+      <button type="button" class="view-mode-btn" data-mode="geoid" id="view-mode-geoid">GeoID</button>
       <button type="button" class="view-mode-btn" data-mode="model" id="view-mode-model">Model</button>
     </div>
     <!-- GIS mode collapses the whole GeoID control set into this one group and
          stacks the toolboxes underneath it. Populated by gis/toolbox.js. -->
-    <details id="geoid-controls-group" class="control-section toolbox-group" hidden>
+    <details id="geoid-controls-group" class="control-section toolbox-group" open hidden>
       <summary class="section-toggle">
         <div class="section-toggle-main">
           <div class="section-heading">

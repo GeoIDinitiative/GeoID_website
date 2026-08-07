@@ -238,6 +238,10 @@
     }
     const row = document.getElementById("geoid-mode-row");
     if (row) row.classList.toggle("is-armed", armed);
+    const activeTab = armed ? "geoid" : currentMode;
+    document.querySelectorAll(".view-mode-btn").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.mode === activeTab);
+    });
     document.body.dataset.hubArmed = armed ? "true" : "false";
   }
 
@@ -267,11 +271,28 @@
     if (!VALID_MODES.includes(mode)) {
       return;
     }
-    currentMode = mode;
+    // The GeoID tab does not swap the layout any more -- it is the GIS page
+    // with the location selector armed. Selecting GIS disarms it again. Keeping
+    // one layout is what makes the two feel like a single page rather than two
+    // that happen to share a globe.
+    if (mode === "geoid") {
+      hubArmed = true;
+      currentMode = "gis";
+    } else {
+      if (mode === "gis") hubArmed = false;
+      currentMode = mode;
+    }
+    const activeTab = currentMode === "gis" && hubArmed ? "geoid" : currentMode;
     document.querySelectorAll(".view-mode-btn").forEach((btn) => {
-      btn.classList.toggle("is-active", btn.dataset.mode === mode);
+      btn.classList.toggle("is-active", btn.dataset.mode === activeTab);
     });
-    applyMode(mode);
+    // currentMode, not the tab that was clicked: "geoid" resolves to the GIS
+    // layout, and passing the raw tab here fell through to the old GeoID-page
+    // branch, which hid the toolbox and switched the pin tool back off.
+    applyMode(currentMode);
+    // Arming is applied after, because the pin button and hazard readout live
+    // inside the panels applyMode has just rearranged.
+    applyHubState();
     try {
       window.localStorage.setItem(MODE_STORAGE_KEY, mode);
     } catch (error) {
@@ -299,8 +320,7 @@
     try {
       const stored = window.localStorage.getItem(MODE_STORAGE_KEY);
       if (stored === "geoid") {
-        // Saved before GeoID became a mode of the GIS page.
-        initialMode = "gis";
+        initialMode = "geoid";
       } else if (VALID_MODES.includes(stored)) {
         initialMode = stored;
       }
