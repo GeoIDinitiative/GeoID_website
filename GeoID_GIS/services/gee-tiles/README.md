@@ -29,6 +29,27 @@ distinguishable from an empty result.
    as well -- registering the project alone is not enough.
 3. Grant it no more than it needs. Earth Engine access is the only requirement.
 
+## Running it locally first
+
+Deploying needs billing enabled on the project -- Cloud Functions, Run, Build and
+Artifact Registry all require it, even within their free tiers. Running it here
+does not, and it talks to the same Earth Engine, so the whole thing can be
+proved before deciding about that.
+
+Sign in so the service picks up your own credentials. Your account is already
+registered with Earth Engine, so no service account and no key file are needed:
+
+    gcloud auth application-default login \
+      --scopes=https://www.googleapis.com/auth/earthengine,https://www.googleapis.com/auth/cloud-platform
+
+Then:
+
+    npm install
+    npm start
+
+It listens on http://localhost:8130. Point the viewer's Modelled Data endpoint
+at that and it behaves exactly as the deployed version would.
+
 ## Deploying
 
 As a Cloud Function (2nd gen):

@@ -9,5 +9,11 @@
   "dependencies": {
     "@google/earthengine": "^1.4.0",
     "google-auth-library": "^9.14.0"
+  },
+  "scripts": {
+    "start": "functions-framework --target=geeImage --port=8130"
+  },
+  "devDependencies": {
+    "@google-cloud/functions-framework": "^3.4.0"
   }
 }
