@@ -72,6 +72,10 @@
       scrollbar-width: thin;
       scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
       padding-bottom: 0.85rem;
+      /* Always reserve the scrollbar gutter, so a tab's width does not depend
+         on whether the list happens to overflow -- and so the layer dock, which
+         sits outside this scroller, can match that width with a fixed inset. */
+      scrollbar-gutter: stable;
     }
 
     #ui-scroll-body::-webkit-scrollbar {
@@ -4385,43 +4389,53 @@ canvas {
     .gee-dates-sep { flex: none; color: var(--soft-light); }
     .gee-dates input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.7; }
 
-    /* ── Layer dock: the panel's own footer ─────────────────────────────── */
+    /* ── Layer dock: the panel's last card, pinned ──────────────────────── */
     /* Inside #ui, below the scrolling tab list. Being a sibling rather than a
-       fixed box is what makes it flush and exactly the panel's width, and what
-       lets the tab list shrink to make room instead of being covered. */
+       fixed box is what makes it the tabs' width and what lets the list shrink
+       to make room instead of being covered. It carries .control-section and
+       .section-toggle so it inherits the tab skin -- the same card, border and
+       accent -- instead of being a strip with a look of its own. */
     #layer-dock {
       flex: none;
-      margin: 0 -0.75rem 0 -0.85rem;   /* out to the panel's edges */
-      border-top: 1px solid rgba(255, 43, 214, 0.28);
-      background: rgba(8, 12, 20, 0.55);
+      /* Right inset matches the tab list's reserved scrollbar gutter, so the
+         dock is exactly a tab's width rather than the panel's. */
+      margin: 0 0.7rem 0.5rem 0;
     }
     #layer-dock[hidden], #layer-dock.is-away { display: none; }
-    .layer-dock-head {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.4rem 0.85rem;
+
+    .layer-dock-head { cursor: pointer; }
+    /* Open reads like an open tab. The +/- marker is the one .section-toggle
+       already draws -- it keys off [open], which a <section> cannot have, so
+       the open state is spelled here instead. */
+    #layer-dock:not(.is-collapsed) > .layer-dock-head {
+      border-left-color: rgba(var(--nav-accent-rgb), 0.82);
+      background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.12), rgba(255, 255, 255, 0.01));
+      box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
     }
-    .layer-dock-title {
-      font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase;
-      color: var(--nav-accent);
-    }
-    .layer-dock-toggle {
-      background: none; border: 0; color: var(--soft-light);
-      font-size: 0.9rem; line-height: 1; cursor: pointer; padding: 0 0.2rem;
-    }
-    .layer-dock-toggle:hover { color: var(--nav-accent); }
+    #layer-dock:not(.is-collapsed) > .layer-dock-head::after { content: "\2212"; }
     .layer-dock-body {
-      padding: 0 0.85rem 0.5rem;
+      padding: 0.5rem 0.82rem 0.6rem;
       /* Grows with what is loaded, then scrolls rather than pushing the tabs
          off the panel. */
-      max-height: 32vh;
+      max-height: 30vh;
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
     }
     #layer-dock.is-collapsed .layer-dock-body { display: none; }
-    /* In its own box the panel is the content, so its header is redundant. */
+    /* In its own card the panel is the content, so its header is redundant --
+       and so is the body's own border and padding, which would otherwise draw
+       a second box inset inside the first. */
     #layer-dock-body > .toolbox-group > summary { display: none; }
     #layer-dock-body > .toolbox-group { border: 0; background: none; margin: 0; }
+    #layer-dock-body > .toolbox-group > .toolbox-group-body {
+      border: 0;
+      background: none;
+      padding: 0;
+    }
+    /* The stack is the last thing in the card; its own trailing gap is the
+       card's bottom padding twice over. */
+    #layer-dock-body .layer-stack { margin-bottom: 0; }
 
     /* One rhythm for every tab, whatever kind of section it is. */
     #gis-toolbox-panels > * { margin: 0 0 0.5rem !important; }

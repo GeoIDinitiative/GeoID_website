@@ -10,7 +10,7 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808r";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808w";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -156,11 +156,9 @@ export function render() {
   }
   panel.textContent = "";
   const stack = ordered();
-  if (!stack.length) {
-    panel.innerHTML = '<p class="gis-hint">No layers loaded.</p>';
-  } else {
-    stack.forEach((layer) => panel.appendChild(row(layer)));
-  }
+  // No empty-state text: the basemap row below already shows the dock is alive,
+  // and two lines saying nothing is loaded said it twice.
+  stack.forEach((layer) => panel.appendChild(row(layer)));
   // The default basemap accounted for alongside everything drawn over it. It
   // is the floor of the stack rather than a movable member, so it carries a
   // visibility eye but no drag and no opacity -- the globe is shader-drawn,
@@ -307,11 +305,19 @@ function initDock() {
   if (box && panel && list && box.parentElement !== panel) {
     list.after(box);
   }
-  const toggle = document.getElementById("layer-dock-toggle");
-  toggle?.addEventListener("click", () => {
+  // The whole header toggles, the way a tab's summary does. The +/- marker is
+  // drawn by the shared .section-toggle style, so there is no button to keep
+  // in sync -- only the class and the state it announces.
+  const head = box?.querySelector(".layer-dock-head");
+  const flip = () => {
     const collapsed = box.classList.toggle("is-collapsed");
-    toggle.textContent = collapsed ? "+" : "\u2212";
-    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    head?.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  };
+  head?.addEventListener("click", flip);
+  head?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    flip();
   });
   // The dock follows the main panel: collapsing the sidebar to see the globe
   // should not leave a second box sitting over it. Carried on a class rather

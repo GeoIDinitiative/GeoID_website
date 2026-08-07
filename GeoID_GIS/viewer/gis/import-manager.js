@@ -1,14 +1,14 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260808r";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260808r";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260808r";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260808r";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260808r";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260808r";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260808r";
-import { loadMshFile } from "./msh-adapter.js?v=20260808r";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260808r";
-import { buildLayerProperties } from "./layer-properties.js?v=20260808r";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260808w";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260808w";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260808w";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260808w";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260808w";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260808w";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260808w";
+import { loadMshFile } from "./msh-adapter.js?v=20260808w";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260808w";
+import { buildLayerProperties } from "./layer-properties.js?v=20260808w";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -182,13 +182,9 @@ function renderLayerList() {
     return;
   }
   listNode.innerHTML = "";
-  if (!layers.length) {
-    const empty = document.createElement("p");
-    empty.className = "tool-copy import-empty-note";
-    empty.textContent = "No imported layers yet.";
-    listNode.appendChild(empty);
-    return;
-  }
+  // Nothing loaded needs no sentence about it: in the dock the basemap row is
+  // already there, and in the import panel the buttons above say what to do.
+  if (!layers.length) return;
   layers.forEach((layer) => {
     const item = document.createElement("div");
     item.className = "import-layer-item";
