@@ -451,7 +451,7 @@ function applyHaloScale() {
   const px = globeRadiusPx();
   // The same pixel size the dots use, with just enough over it to read as a
   // ring around one rather than a circle near one.
-  halo.material.size = (px > 0 ? dotSizePx(px) : 8) * 1.8;
+  halo.material.size = Math.max(18, (px > 0 ? dotSizePx(px) : 8) * 2.0);
 }
 
 let ringSprite = null;
@@ -464,12 +464,19 @@ function ringTexture() {
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d");
-  ctx.strokeStyle = "rgba(255,255,255,1)";
-  // Drawn at a little under half the sprite, so the ring lands close around a
-  // dot occupying the middle of it.
-  ctx.lineWidth = size * 0.05;
+  const radius = size * 0.33;
+  // A soft wide glow under a hard bright ring: the glow carries at a distance,
+  // the ring keeps a definite edge close up. Drawn at a third of the sprite, so
+  // it still lands close around the dot in the middle of it.
+  ctx.lineWidth = size * 0.20;
+  ctx.strokeStyle = "rgba(255,255,255,0.28)";
   ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size * 0.34, 0, Math.PI * 2);
+  ctx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = size * 0.085;
+  ctx.strokeStyle = "rgba(255,255,255,1)";
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, radius, 0, Math.PI * 2);
   ctx.stroke();
   ringSprite = new THREE.CanvasTexture(canvas);
   return ringSprite;
@@ -501,8 +508,13 @@ function setSelection(event) {
     depthWrite: false,
     depthTest: true,
     transparent: true,
+    // Added rather than blended, so it lifts off whatever it is over instead of
+    // washing into it -- the ring was legible against the sea and lost over
+    // bright ground.
+    blending: THREE.AdditiveBlending,
   }));
   halo.name = "eonet-selection";
+  halo.renderOrder = 22;
   halo.renderOrder = 21;
   // Sized before it is added, not on the first animation frame: left at unit
   // scale the ring is the radius of the globe, which showed as a huge flash.
@@ -518,7 +530,7 @@ function setSelection(event) {
     // off the dot it is meant to sit on: it can only stay on the circumference
     // if it stays that size.
     const t = ((now - started) % 1400) / 1400;
-    halo.material.opacity = 0.35 + 0.55 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2));
+    halo.material.opacity = 0.6 + 0.4 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2));
     haloFrame = window.requestAnimationFrame(pulse);
   };
   haloFrame = window.requestAnimationFrame(pulse);
