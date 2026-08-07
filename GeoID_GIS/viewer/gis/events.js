@@ -422,6 +422,20 @@ let haloFrame = null;
  * which one is being read. Parented to the globe like the markers, so it stays
  * on its event however the planet is turned.
  */
+/**
+ * Holds the ring on the dot's circumference. dotSizePx is a width and the ring's
+ * scale is a radius, so it takes half the dot's width plus a little clearance.
+ */
+function applyHaloScale() {
+  const viewer = window.GeoIDViewer;
+  if (!halo || !viewer) return;
+  const px = globeRadiusPx();
+  const ringPx = px > 0 ? dotSizePx(px) * 0.62 : 3;
+  halo.scale.setScalar(px > 0
+    ? viewer.GLOBE_RADIUS * (ringPx / px)
+    : viewer.GLOBE_RADIUS * 0.01);
+}
+
 function setSelection(event) {
   const viewer = window.GeoIDViewer;
   if (halo) {
@@ -446,24 +460,21 @@ function setSelection(event) {
   halo.name = "eonet-selection";
   halo.position.copy(position);
   halo.renderOrder = 21;
+  // Sized before it is added, not on the first animation frame: left at unit
+  // scale the ring is the radius of the globe, which showed as a huge flash.
+  applyHaloScale();
   viewer.globe.add(halo);
 
   const started = performance.now();
   const pulse = (now) => {
     if (!halo) return;
-    // One breath a second: scale and fade together so it reads as a pulse
-    // rather than a flicker.
+    // Size is held on the dot every frame, so it tracks a zoom as it happens.
+    applyHaloScale();
+    // The pulse is in brightness alone. Pulsing the size was what took the ring
+    // off the dot it is meant to sit on: it can only stay on the circumference
+    // if it stays that size.
     const t = ((now - started) % 1400) / 1400;
-    // Sized from the dot it marks rather than from its own rule, so it stays
-    // tight around it at any zoom instead of drifting to its own scale.
-    const px = globeRadiusPx();
-    // dotSizePx is the dot's width; the ring's scale is its radius. Half the
-    // dot's width plus a little clearance puts the ring on its circumference.
-    const ringPx = px > 0 ? dotSizePx(px) * 0.62 : 3;
-    const base = px > 0 ? viewer.GLOBE_RADIUS * (ringPx / px) : viewer.GLOBE_RADIUS * 0.01;
-    // A slight breath, so the ring stays on the dot rather than sweeping off it.
-    halo.scale.setScalar(base * (1 + t * 0.3));
-    halo.material.opacity = 0.85 * (1 - t);
+    halo.material.opacity = 0.35 + 0.55 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2));
     // Kept facing the camera, so it is a ring rather than an ellipse edge-on.
     if (viewer.camera) halo.lookAt(viewer.camera.position);
     haloFrame = window.requestAnimationFrame(pulse);
