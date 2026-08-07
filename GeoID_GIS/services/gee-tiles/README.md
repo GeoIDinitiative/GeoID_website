@@ -56,3 +56,13 @@ Earth Engine bills the project this runs in. `DATASETS` is a fixed list rather
 than anything the caller supplies, so a request cannot be pointed at an
 arbitrary asset, and thumbnails are capped at 1024 px. Responses carry a 15
 minute cache header.
+
+## A note on authentication
+
+The Earth Engine client offers OAuth, a popup, and a private key. It has **no**
+entry point that reads application default credentials, despite that being the
+recommended way to run on Cloud Functions. This service therefore fetches a
+token itself through `google-auth-library` and hands it to the client with
+`ee.data.setAuthToken`, refreshing it as it expires.
+
+That is why `google-auth-library` is a dependency. It is not incidental.

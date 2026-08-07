@@ -3,8 +3,11 @@
   "version": "1.0.0",
   "description": "Earth Engine image service for the myGeoID viewer",
   "main": "index.js",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "@google/earthengine": "^1.4.0"
+    "@google/earthengine": "^1.4.0",
+    "google-auth-library": "^9.14.0"
   }
 }

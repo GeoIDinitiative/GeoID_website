@@ -163,17 +163,49 @@ function ready() {
   const key = process.env.EE_SERVICE_ACCOUNT_KEY
     ? JSON.parse(process.env.EE_SERVICE_ACCOUNT_KEY)
     : null;
-  readyPromise = new Promise((resolve, reject) => {
-    const done = () => ee.initialize(null, null, resolve, reject);
-    if (key) {
-      ee.data.authenticateViaPrivateKey(key, done, reject);
-    } else {
-      // Application default credentials, when the deployment's own service
-      // account is registered with Earth Engine.
-      ee.data.authenticateViaApplicationDefaultCredentials(done, reject);
-    }
-  });
+  readyPromise = key ? authViaKey(key) : authViaAdc();
   return readyPromise;
+}
+
+function authViaKey(key) {
+  return new Promise((resolve, reject) => {
+    ee.data.authenticateViaPrivateKey(
+      key,
+      () => ee.initialize(null, null, resolve, reject),
+      reject,
+    );
+  });
+}
+
+/**
+ * Application default credentials -- the service account attached to the
+ * deployment, with no key file anywhere.
+ *
+ * The Earth Engine client has no entry point for this: it offers OAuth, a popup
+ * and a private key, and nothing that reads ADC. A token is fetched separately
+ * and handed to the client instead.
+ */
+async function authViaAdc() {
+  const { GoogleAuth } = require("google-auth-library");
+  const auth = new GoogleAuth({
+    scopes: [
+      "https://www.googleapis.com/auth/earthengine",
+      "https://www.googleapis.com/auth/cloud-platform",
+    ],
+  });
+  const client = await auth.getClient();
+  const token = await client.getAccessToken();
+  if (!token || !token.token) {
+    throw new Error("no application default credentials are available");
+  }
+  // Expiry is deliberately short: the client refreshes through the callback
+  // below rather than holding a token past its life.
+  ee.data.setAuthToken("", "Bearer", token.token, 3500, [], null, false);
+  ee.data.setAuthTokenRefresher(async (authArgs, callback) => {
+    const fresh = await client.getAccessToken();
+    callback({ access_token: fresh.token, token_type: "Bearer", expires_in: 3500 });
+  });
+  await new Promise((resolve, reject) => ee.initialize(null, null, resolve, reject));
 }
 
 function bad(res, code, message) {
