@@ -10,7 +10,7 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260809c";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260809e";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -193,14 +193,21 @@ function basemapRow() {
     // The imported imagery hangs off the globe so it turns with it, which means
     // hiding the globe object would hide the imagery too -- the opposite of
     // what switching a basemap off is for. Only the globe's own surfaces are
-    // silenced, through their materials, and anything tagged as an imported
-    // layer keeps drawing.
+    // silenced, and anything tagged as an imported layer keeps drawing.
+    //
+    // Silenced by dropping their colour, not by skipping them: a mesh that is
+    // not drawn writes no depth, and the planet stops being solid. With the
+    // basemap off that is exactly what happened -- the moon's orbit line and
+    // the event markers on the far side passed the depth test and showed
+    // through the globe. Painting nothing while still occupying its depth
+    // keeps the planet opaque to everything behind it, which is what "switch
+    // the basemap off" should mean.
     const globe = viewer?.globe;
     if (!globe) return;
     globe.traverse((o) => {
       if (!o.isMesh || o.userData.geoidLayer) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
-      mats.forEach((m) => { if (m) m.visible = e.target.checked; });
+      mats.forEach((m) => { if (m) m.colorWrite = e.target.checked; });
     });
   });
   return node;

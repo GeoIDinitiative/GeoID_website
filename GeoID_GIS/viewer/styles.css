@@ -4204,12 +4204,16 @@ canvas {
     .legend-kind { color: var(--soft-light); font-size: 0.6rem; text-transform: uppercase; }
     .legend-entry.is-hidden { opacity: 0.4; }
 
-    /* The hazard readout shares this corner in GeoID mode; it sits below. */
-    body[data-hub-armed="true"] #tool-rail,
-    /* With the hub armed the readout occupies the top-right corner, so the
-       rail steps left to sit beside it rather than dropping underneath it. */
+    /* The hazard readout shares this corner in GeoID mode; the tools sit below
+       it, where they have always sat. */
+    body[data-hub-armed="true"] #tool-rail { top: calc(1rem + 9.5rem + 0.8rem); }
+
+    /* The drop-downs step left of the readout instead of dropping below it.
+       Only the readout is in their way -- the tools are below it, not beside
+       them -- so this is measured from the readout alone rather than carrying
+       the tool rail's clearance as well. */
     body[data-hub-armed="true"] .map-legend {
-      right: calc(5.5rem + var(--hazard-rail-w, 0px));
+      right: var(--hazard-rail-w, 5.5rem);
     }
 
     /* The legend keys map layers; the studio has none. */
@@ -4324,7 +4328,10 @@ canvas {
        it steps left so the two sit side by side rather than overlapping. */
     /* Placed from the legend's measured width by gis/events.js; this is the
        starting position before that runs. */
-    .events-overlay { right: calc(5.5rem + var(--hazard-rail-w, 0px)); }
+    .events-overlay { right: 5.5rem; }
+    body[data-hub-armed="true"] .events-overlay {
+      right: var(--hazard-rail-w, 5.5rem);
+    }
 
     .event-group + .event-group { margin-top: 0.5rem; }
     .event-group-head {

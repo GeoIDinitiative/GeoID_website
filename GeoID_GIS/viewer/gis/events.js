@@ -440,7 +440,9 @@ function placeOverlay() {
   const root = getComputedStyle(document.documentElement);
   const rem = parseFloat(root.fontSize || "16");
   const rail = parseFloat(root.getPropertyValue("--hazard-rail-w")) || 0;
-  const base = 5.5 * rem + rail;
+  // Left of the readout when the hub is armed; in the tool rail's own slot
+  // otherwise, which is what the 5.5rem clears.
+  const base = rail > 0 ? rail : 5.5 * rem;
   if (!legend || legend.hidden) {
     host.style.right = `${base}px`;
     return;

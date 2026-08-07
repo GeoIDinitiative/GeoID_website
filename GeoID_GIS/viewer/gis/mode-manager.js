@@ -291,10 +291,13 @@
     const publish = () => {
       const armed = document.body.dataset.hubArmed === "true";
       const box = readout.getBoundingClientRect();
-      // Its own right inset is already in the rail's base offset, so only the
-      // width and a gap are added here.
-      const width = armed && box.width ? box.width + 12 : 0;
-      document.documentElement.style.setProperty("--hazard-rail-w", `${width}px`);
+      // Measured from the viewport edge to the readout's left edge, so the
+      // gap is exactly the gap asked for whatever inset the readout itself is
+      // sitting at -- it takes a different one on short viewports.
+      const offset = armed && box.width
+        ? (window.innerWidth - box.left) + 8
+        : 0;
+      document.documentElement.style.setProperty("--hazard-rail-w", `${offset}px`);
       window.GeoIDEvents?.reflow?.();
     };
     new ResizeObserver(publish).observe(readout);
