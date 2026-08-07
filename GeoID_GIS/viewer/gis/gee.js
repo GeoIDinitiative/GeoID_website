@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808a";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808c";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -144,15 +144,22 @@ async function drape(imageUrl, bounds) {
   const segments = 48;
   const geometry = new THREE.PlaneGeometry(1, 1, segments, segments);
   const position = geometry.attributes.position;
-  // Just above the basemap, and below imported rasters, so it reads as a
-  // backdrop rather than covering work laid on top of it.
-  const radius = drapedRadius(0.02);
+  // Above the displaced terrain, not just above sea level. The basemap is
+  // relief-displaced, so a drape 0.6% up was buried under every landmass --
+  // which is precisely where a land product draws. The event markers needed the
+  // same clearance for the same reason. Kept just under their 1.05, so a pin
+  // still reads over the imagery.
+  const radius = (window.GeoIDViewer?.GLOBE_RADIUS || 3.2) * 1.045;
   const vertex = new THREE.Vector3();
   for (let y = 0; y <= segments; y += 1) {
     const lat = bounds.maxY - (bounds.maxY - bounds.minY) * (y / segments);
     for (let x = 0; x <= segments; x += 1) {
       const lon = bounds.minX + (bounds.maxX - bounds.minX) * (x / segments);
       vertex.copy(latLonToVector3(lat, lon, radius));
+      // Half a turn into the globe's own frame: the viewer reads lat/lon from
+      // the globe by undoing its rotation less pi, so content that is to ride
+      // the globe must bake that pi back in.
+      vertex.set(-vertex.x, vertex.y, -vertex.z);
       position.setXYZ(y * (segments + 1) + x, vertex.x, vertex.y, vertex.z);
     }
   }
@@ -226,6 +233,10 @@ async function request() {
       "gee",
     );
     if (layer) {
+      // Onto the globe itself, so the imagery turns with the texture it
+      // annotates. In the group beside it, the patch held still while the
+      // planet rotated underneath, drifting a degree every four minutes.
+      window.GeoIDViewer?.globe?.add?.(object3D);
       // Recorded so the metadata panel can account for it like any import.
       layer.metadata = {
         source: `Google Earth Engine · ${data.dataset}`,

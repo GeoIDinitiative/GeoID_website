@@ -10,7 +10,7 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808a";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808c";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -152,9 +152,32 @@ export function render() {
   } else {
     stack.forEach((layer) => panel.appendChild(row(layer)));
   }
+  // The default basemap accounted for alongside everything drawn over it. It
+  // is the floor of the stack rather than a movable member, so it carries a
+  // visibility eye but no drag and no opacity -- the globe is shader-drawn,
+  // and a material opacity would claim an effect it does not have.
+  panel.appendChild(basemapRow());
   applyStack();
   renderMetadata(stack);
   renderLegend(stack);
+}
+
+function basemapRow() {
+  const viewer = window.GeoIDViewer;
+  const node = document.createElement("div");
+  node.className = "layer-row layer-row-basemap";
+  const visible = viewer?.globe?.visible !== false;
+  node.innerHTML = `
+    <span class="layer-grip" aria-hidden="true"></span>
+    <label class="layer-eye" title="Visible">
+      <input type="checkbox" ${visible ? "checked" : ""} data-role="visible">
+    </label>
+    <span class="layer-name">Earth basemap</span>
+    <span class="layer-kind">default</span>`;
+  node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
+    if (viewer?.globe) viewer.globe.visible = e.target.checked;
+  });
+  return node;
 }
 
 /**
