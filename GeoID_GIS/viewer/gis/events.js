@@ -447,13 +447,32 @@ let flyFrame = null;
  * scale is a radius, so it takes half the dot's width plus a little clearance.
  */
 function applyHaloScale() {
-  const viewer = window.GeoIDViewer;
-  if (!halo || !viewer) return;
+  if (!halo) return;
   const px = globeRadiusPx();
-  const ringPx = px > 0 ? dotSizePx(px) * 0.62 : 3;
-  halo.scale.setScalar(px > 0
-    ? viewer.GLOBE_RADIUS * (ringPx / px)
-    : viewer.GLOBE_RADIUS * 0.01);
+  // The same pixel size the dots use, with just enough over it to read as a
+  // ring around one rather than a circle near one.
+  halo.material.size = (px > 0 ? dotSizePx(px) : 8) * 1.8;
+}
+
+let ringSprite = null;
+
+/** A thin cyan annulus, sized to sit just outside the dot it encircles. */
+function ringTexture() {
+  if (ringSprite || !THREE) return ringSprite;
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.strokeStyle = "rgba(255,255,255,1)";
+  // Drawn at a little under half the sprite, so the ring lands close around a
+  // dot occupying the middle of it.
+  ctx.lineWidth = size * 0.05;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size * 0.34, 0, Math.PI * 2);
+  ctx.stroke();
+  ringSprite = new THREE.CanvasTexture(canvas);
+  return ringSprite;
 }
 
 function setSelection(event) {
@@ -468,17 +487,22 @@ function setSelection(event) {
   if (!event || !viewer?.globe || !THREE) return;
 
   const position = viewer.latLonToVector3(event.lat, event.lon, viewer.GLOBE_RADIUS * MARKER_LIFT);
-  halo = new THREE.Mesh(
-    new THREE.RingGeometry(0.86, 1.0, 48),
-    new THREE.MeshBasicMaterial({
-      color: 0x52e4e8,
-      side: THREE.DoubleSide,
-      transparent: true,
-      depthWrite: false,
-    }),
-  );
+  // Drawn as a point sprite, exactly as the dots are. A world-space ring had to
+  // be converted into pixels to match them and never quite did; sharing their
+  // sizing path means it cannot be out by construction.
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(
+    new Float32Array([position.x, position.y, position.z]), 3,
+  ));
+  halo = new THREE.Points(geometry, new THREE.PointsMaterial({
+    color: 0x52e4e8,
+    map: ringTexture(),
+    sizeAttenuation: false,
+    depthWrite: false,
+    depthTest: true,
+    transparent: true,
+  }));
   halo.name = "eonet-selection";
-  halo.position.copy(position);
   halo.renderOrder = 21;
   // Sized before it is added, not on the first animation frame: left at unit
   // scale the ring is the radius of the globe, which showed as a huge flash.
@@ -495,8 +519,6 @@ function setSelection(event) {
     // if it stays that size.
     const t = ((now - started) % 1400) / 1400;
     halo.material.opacity = 0.35 + 0.55 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2));
-    // Kept facing the camera, so it is a ring rather than an ellipse edge-on.
-    if (viewer.camera) halo.lookAt(viewer.camera.position);
     haloFrame = window.requestAnimationFrame(pulse);
   };
   haloFrame = window.requestAnimationFrame(pulse);
