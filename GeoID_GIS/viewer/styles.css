@@ -4360,3 +4360,6 @@ canvas {
     .event-popup a { color: var(--nav-accent); }
     .event-popup-actions { margin-top: 0.45rem; }
     .event-popup-actions .button { width: 100%; }
+
+    .event-row.is-selected { background: rgba(82, 228, 232, 0.16); border-radius: 0.25rem; }
+    .event-row.is-selected .event-name { color: var(--nav-accent); }

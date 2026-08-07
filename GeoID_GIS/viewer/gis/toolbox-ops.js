@@ -1,10 +1,10 @@
-import * as GP from "./geoprocessing.js?v=20260807c";
-import * as RA from "./raster-analysis.js?v=20260807c";
-import * as VF from "./vector-formats.js?v=20260807c";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260807c";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260807c";
-import { downloadText } from "./extraction.js?v=20260807c";
-import { CRS_OPTIONS } from "./projection.js?v=20260807c";
+import * as GP from "./geoprocessing.js?v=20260807d";
+import * as RA from "./raster-analysis.js?v=20260807d";
+import * as VF from "./vector-formats.js?v=20260807d";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260807d";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260807d";
+import { downloadText } from "./extraction.js?v=20260807d";
+import { CRS_OPTIONS } from "./projection.js?v=20260807d";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how

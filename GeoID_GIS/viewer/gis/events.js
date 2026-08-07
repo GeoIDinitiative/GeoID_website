@@ -116,7 +116,7 @@ function renderPanel() {
     .map(([key, list]) => {
       const symbol = symbolFor(key);
       const rows = list.slice(0, 12).map((event) => `
-        <div class="event-row" data-lat="${event.lat}" data-lon="${event.lon}" title="${event.title}">
+        <div class="event-row" data-id="${event.id}" title="${event.title}">
           <span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>
           <span class="event-name">${event.title}</span>
         </div>`).join("");
@@ -129,12 +129,38 @@ function renderPanel() {
         </div>${rows}${more}</div>`;
     }).join("");
 
-  // Clicking an event flies the globe to it, the same as picking a location.
+  // A row and its marker are the same event, so clicking either does the same
+  // thing: bring it into view, ring it, and open its description.
   panel.querySelectorAll(".event-row").forEach((row) => {
     row.addEventListener("click", () => {
-      focusOn(Number(row.dataset.lat), Number(row.dataset.lon));
+      const event = events.find((e) => e.id === row.dataset.id);
+      if (!event) return;
+      selectEvent(event);
+      panel.querySelectorAll(".event-row").forEach((r) => r.classList.remove("is-selected"));
+      row.classList.add("is-selected");
     });
   });
+}
+
+/**
+ * Everything that happens when an event is chosen, from either the list or the
+ * globe. Kept in one place so the two cannot drift into doing different things.
+ */
+function selectEvent(event, at) {
+  if (!event) return;
+  focusOn(event.lat, event.lon);
+  // The popup is placed at the pointer when a marker is picked, and beside the
+  // feed when a row is, so it never lands on top of what was clicked.
+  const point = at || feedAnchor();
+  showPopup(event, point.x, point.y);
+}
+
+/** A spot just left of the feed, for popups opened from the list. */
+function feedAnchor() {
+  const overlay = byId("events-overlay");
+  if (!overlay) return { x: 80, y: 120 };
+  const rect = overlay.getBoundingClientRect();
+  return { x: Math.max(20, rect.left - 300), y: rect.top + 40 };
 }
 
 function focusOn(lat, lon) {
@@ -334,7 +360,12 @@ function installPicking() {
       .dot(viewer.camera.position.clone().normalize()) > 0);
     if (hit) {
       const event = hit.object.userData.events?.[hit.index];
-      if (event) { showPopup(event, e.clientX, e.clientY); return; }
+      if (event) {
+        showPopup(event, e.clientX, e.clientY);
+        setSelection(event);
+        markRow(event.id);
+        return;
+      }
     }
     hidePopup();
   });
@@ -390,9 +421,17 @@ function setSelection(event) {
   haloFrame = window.requestAnimationFrame(pulse);
 }
 
+/** Keeps the feed's highlight in step with whatever is selected. */
+function markRow(id) {
+  byId("events-panel-body")?.querySelectorAll(".event-row").forEach((row) => {
+    row.classList.toggle("is-selected", row.dataset.id === id);
+  });
+}
+
 function hidePopup() {
   byId("event-popup")?.setAttribute("hidden", "");
   setSelection(null);
+  markRow(null);
 }
 
 function showPopup(event, x, y) {
