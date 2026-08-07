@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808i";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808j";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -355,6 +355,11 @@ function init() {
       const r = await fetch(`${endpoint()}?dates&dataset=${encodeURIComponent(id)}`);
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      if (d.static) {
+        // No time dimension, so the dates are not part of this request.
+        status("Static dataset — the date range is ignored.");
+        return;
+      }
       status(`Published ${d.first} to ${d.last}.`);
       const to = d.last;
       const from = new Date(Math.max(Date.parse(d.first),

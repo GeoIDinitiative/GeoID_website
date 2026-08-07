@@ -18,6 +18,7 @@ const ee = require("@google/earthengine");
 // and so each one can carry the band choice and stretch that make it legible.
 const DATASETS = {
   "COPERNICUS/S2_SR_HARMONIZED": {
+    startDate: "2017-03-28",
     name: "Sentinel-2 surface reflectance",
     bands: ["B4", "B3", "B2"],
     min: 0,
@@ -27,6 +28,7 @@ const DATASETS = {
     attribution: "Copernicus Sentinel-2, processed by ESA",
   },
   "LANDSAT/LC09/C02/T1_L2": {
+    startDate: "2021-10-31",
     name: "Landsat 9 surface reflectance",
     bands: ["SR_B4", "SR_B3", "SR_B2"],
     min: 7000,
@@ -36,6 +38,7 @@ const DATASETS = {
     attribution: "USGS/NASA Landsat 9",
   },
   "COPERNICUS/S1_GRD": {
+    startDate: "2014-10-03",
     name: "Sentinel-1 SAR (GRD)",
     bands: ["VV"],
     min: -25,
@@ -264,6 +267,13 @@ function reduce(collection, config) {
 
 function buildImage(id, config, from, to, region) {
   const sourceId = config.source || id;
+  // Static datasets have no time dimension. NASADEM is a single Image, and
+  // filtering it as a collection by date returned nothing ever; GLO-30 is a
+  // static mosaic the date filter wrongly emptied.
+  if (config.single) return ee.Image(sourceId).select(config.bands).clip(region);
+  if (config.mosaic) {
+    return ee.ImageCollection(sourceId).select(config.bands).mosaic().clip(region);
+  }
   let collection = ee.ImageCollection(sourceId)
     .filterBounds(region)
     .filterDate(from, to);
@@ -333,6 +343,10 @@ exports.geeImage = async (req, res) => {
   const config = DATASETS[q.dataset];
   if (!config) return bad(res, 400, "Unknown or unsupported dataset.");
 
+  if (q.dates !== undefined && (config.single || config.mosaic)) {
+    // No time dimension: say so, rather than inventing a range.
+    return res.json({ dataset: q.dataset, static: true });
+  }
   if (q.dates !== undefined) {
     // What the collection actually holds, so the page can offer real dates
     // rather than leaving the user to guess and be told no afterwards.
@@ -345,12 +359,32 @@ exports.geeImage = async (req, res) => {
         return res.json(cached.body);
       }
       const col = ee.ImageCollection(id);
-      const first = await evaluate(
-        col.limit(1, "system:time_start", true).first().get("system:time_start"),
-      );
-      const last = await evaluate(
-        col.limit(1, "system:time_start", false).first().get("system:time_start"),
-      );
+      // Sorting a scene-level archive globally is tens of millions of images and
+      // outruns the request. Where a start date is known, the newest is found by
+      // stepping back through recent windows and the oldest is simply stated.
+      const known = config.startDate;
+      let first;
+      let last;
+      if (known) {
+        first = Date.parse(known);
+        const now = Date.now();
+        for (const days of [14, 60, 180, 730]) {
+          const since = new Date(now - days * 86400000).toISOString().slice(0, 10);
+          const found = await evaluate(
+            col.filterDate(since, new Date(now + 86400000).toISOString().slice(0, 10))
+              .limit(1, "system:time_start", false).first().get("system:time_start"),
+          );
+          if (found) { last = found; break; }
+        }
+      } else {
+        first = await evaluate(
+          col.limit(1, "system:time_start", true).first().get("system:time_start"),
+        );
+        last = await evaluate(
+          col.limit(1, "system:time_start", false).first().get("system:time_start"),
+        );
+      }
+      if (!first || !last) throw new Error("the collection reported no dates");
       const body = {
         dataset: q.dataset,
         first: new Date(first).toISOString().slice(0, 10),
@@ -392,7 +426,7 @@ exports.geeImage = async (req, res) => {
     // which describes the symptom and not the cause, and sends you looking at
     // the band name rather than at the dates.
     const sourceId = config.source || q.dataset;
-    const available = await evaluate(
+    const available = (config.single || config.mosaic) ? 1 : await evaluate(
       ee.ImageCollection(sourceId).filterBounds(region).filterDate(from, to).size(),
     );
     if (!available) {

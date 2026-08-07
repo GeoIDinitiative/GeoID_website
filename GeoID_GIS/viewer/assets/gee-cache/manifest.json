@@ -1,5 +1,27 @@
 [
   {
+    "dataset": "NASA/NASADEM_HGT/001",
+    "name": "NASADEM elevation",
+    "bounds": {
+      "minX": -180,
+      "minY": -85,
+      "maxX": 180,
+      "maxY": 85
+    },
+    "bands": [
+      "elevation"
+    ],
+    "scale": 30,
+    "from": "2026-06-08",
+    "to": "2026-08-07",
+    "crs": "EPSG:4326",
+    "attribution": "NASA JPL NASADEM",
+    "palette": null,
+    "legend": null,
+    "file": "NASA_NASADEM_HGT_001.png",
+    "savedAt": "2026-08-07T21:53:12.330Z"
+  },
+  {
     "dataset": "MODIS/061/MOD11A1",
     "name": "MODIS land surface temperature",
     "bounds": {
@@ -12,8 +34,8 @@
       "LST_Day_1km"
     ],
     "scale": 1000,
-    "from": "2026-06-08",
-    "to": "2026-08-07",
+    "from": "2026-06-03",
+    "to": "2026-08-02",
     "crs": "EPSG:4326",
     "attribution": "NASA LP DAAC MODIS MOD11A1",
     "palette": [
@@ -30,7 +52,7 @@
       "unit": "°C"
     },
     "file": "MODIS_061_MOD11A1.png",
-    "savedAt": "2026-08-07T21:26:59.176Z"
+    "savedAt": "2026-08-07T21:58:21.966Z"
   },
   {
     "dataset": "UCSB-CHG/CHIRPS/DAILY",
@@ -45,8 +67,8 @@
       "precipitation"
     ],
     "scale": 5000,
-    "from": "2026-06-08",
-    "to": "2026-08-07",
+    "from": "2026-05-01",
+    "to": "2026-06-30",
     "crs": "EPSG:4326",
     "attribution": "UCSB/CHG CHIRPS",
     "palette": [
@@ -62,7 +84,7 @@
       "unit": "mm"
     },
     "file": "UCSB-CHG_CHIRPS_DAILY.png",
-    "savedAt": "2026-08-07T21:27:03.118Z"
+    "savedAt": "2026-08-07T21:58:30.559Z"
   },
   {
     "dataset": "MODIS/061/MOD13A2",
@@ -77,8 +99,8 @@
       "NDVI"
     ],
     "scale": 1000,
-    "from": "2026-06-08",
-    "to": "2026-08-07",
+    "from": "2026-05-13",
+    "to": "2026-07-12",
     "crs": "EPSG:4326",
     "attribution": "NASA LP DAAC MODIS MOD13A2",
     "palette": [
@@ -95,7 +117,41 @@
       "unit": ""
     },
     "file": "MODIS_061_MOD13A2.png",
-    "savedAt": "2026-08-07T21:27:05.400Z"
+    "savedAt": "2026-08-07T21:58:34.676Z"
+  },
+  {
+    "dataset": "NASA/SMAP/SPL4SMGP/007",
+    "name": "Soil moisture (SMAP)",
+    "bounds": {
+      "minX": -180,
+      "minY": -85,
+      "maxX": 180,
+      "maxY": 85
+    },
+    "bands": [
+      "sm_surface"
+    ],
+    "scale": 10000,
+    "from": "2025-04-28",
+    "to": "2025-06-27",
+    "crs": "EPSG:4326",
+    "attribution": "NASA SMAP L4",
+    "palette": [
+      "8c510a",
+      "d8b365",
+      "f6e8c3",
+      "c7eae5",
+      "5ab4ac",
+      "01665e"
+    ],
+    "legend": {
+      "label": "Soil moisture",
+      "min": 0.05,
+      "max": 0.5,
+      "unit": "m³/m³"
+    },
+    "file": "NASA_SMAP_SPL4SMGP_007.png",
+    "savedAt": "2026-08-07T21:58:51.141Z"
   },
   {
     "dataset": "MODIS/061/MOD11A2",
@@ -110,8 +166,8 @@
       "LST_Day_1km"
     ],
     "scale": 1000,
-    "from": "2026-06-08",
-    "to": "2026-08-07",
+    "from": "2026-05-29",
+    "to": "2026-07-28",
     "crs": "EPSG:4326",
     "attribution": "NASA LP DAAC MODIS MOD11A2",
     "palette": [
@@ -128,7 +184,40 @@
       "unit": "°C"
     },
     "file": "MODIS_061_MOD11A2.png",
-    "savedAt": "2026-08-07T21:27:09.318Z"
+    "savedAt": "2026-08-07T21:58:54.670Z"
+  },
+  {
+    "dataset": "MODIS/061/MCD64A1",
+    "name": "Burned area",
+    "bounds": {
+      "minX": -180,
+      "minY": -85,
+      "maxX": 180,
+      "maxY": 85
+    },
+    "bands": [
+      "BurnDate"
+    ],
+    "scale": 500,
+    "from": "2026-03-02",
+    "to": "2026-05-01",
+    "crs": "EPSG:4326",
+    "attribution": "NASA LP DAAC MODIS MCD64A1",
+    "palette": [
+      "ffffb2",
+      "fecc5c",
+      "fd8d3c",
+      "f03b20",
+      "bd0026"
+    ],
+    "legend": {
+      "label": "Burn day of year",
+      "min": 1,
+      "max": 366,
+      "unit": ""
+    },
+    "file": "MODIS_061_MCD64A1.png",
+    "savedAt": "2026-08-07T21:58:56.147Z"
   },
   {
     "dataset": "anomaly/CHIRPS",
@@ -143,8 +232,8 @@
       "precipitation"
     ],
     "scale": 5000,
-    "from": "2026-06-08",
-    "to": "2026-08-07",
+    "from": "2026-05-01",
+    "to": "2026-06-30",
     "crs": "EPSG:4326",
     "attribution": "UCSB/CHG CHIRPS, anomaly against 1991-2020",
     "palette": [
@@ -163,7 +252,7 @@
       "unit": "mm"
     },
     "file": "anomaly_CHIRPS.png",
-    "savedAt": "2026-08-07T21:27:37.738Z"
+    "savedAt": "2026-08-07T21:59:19.385Z"
   },
   {
     "dataset": "anomaly/LST",
@@ -178,8 +267,8 @@
       "LST_Day_1km"
     ],
     "scale": 1000,
-    "from": "2026-06-08",
-    "to": "2026-08-07",
+    "from": "2026-05-29",
+    "to": "2026-07-28",
     "crs": "EPSG:4326",
     "attribution": "NASA MODIS MOD11A2, anomaly against 2003-2022",
     "palette": [
@@ -196,6 +285,6 @@
       "unit": "°C"
     },
     "file": "anomaly_LST.png",
-    "savedAt": "2026-08-07T21:27:44.905Z"
+    "savedAt": "2026-08-07T21:59:24.946Z"
   }
 ]

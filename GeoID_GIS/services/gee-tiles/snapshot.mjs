@@ -19,9 +19,17 @@ for (const d of datasets) {
   // timeout answers in plain text, and one heavy collection must not sink the
   // rest of the set.
   try {
-    const to = new Date().toISOString().slice(0, 10);
-    const from = new Date(Date.now() - 60 * 86400000).toISOString().slice(0, 10);
-    const url = `${service}?dataset=${encodeURIComponent(d.id)}&bbox=-180,-85,180,85&from=${from}&to=${to}`;
+    // Each dataset's own last publication, not today: SMAP and burned area run
+    // months behind, and a window ending today missed them entirely.
+    const dj = await (await fetch(`${service}?dates&dataset=${encodeURIComponent(d.id)}`)).json();
+    let range = "";
+    if (!dj.static && dj.last) {
+      const to = dj.last;
+      const from = new Date(Math.max(Date.parse(dj.first), Date.parse(to) - 60 * 86400000))
+        .toISOString().slice(0, 10);
+      range = `&from=${from}&to=${to}`;
+    }
+    const url = `${service}?dataset=${encodeURIComponent(d.id)}&bbox=-180,-85,180,85${range}`;
     const resp = await fetch(url);
     const text = await resp.text();
     let meta;
