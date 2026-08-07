@@ -181,7 +181,43 @@ function focusOn(lat, lon) {
   viewer.controls?.update();
 }
 
+/**
+ * The globe's apparent radius in pixels. Both the dots and the selection ring
+ * are sized from this, so they keep the same relationship to the planet at any
+ * zoom: a fixed pixel size made the dots swallow the globe when pulled right
+ * out, and a fixed world size made the ring balloon on the way in.
+ */
+function globeRadiusPx() {
+  const viewer = window.GeoIDViewer;
+  const camera = viewer?.camera;
+  const height = viewer?.renderer?.domElement?.clientHeight || 0;
+  if (!camera || !height) return 0;
+  const distance = Math.max(camera.position.length(), 1e-6);
+  const fov = (camera.fov || 45) * Math.PI / 180;
+  return (viewer.GLOBE_RADIUS / distance) * (height / (2 * Math.tan(fov / 2)));
+}
+
 let markerSprite = null;
+let sizeFrame = null;
+
+/** Keeps marker size in step with the view. */
+function trackScale() {
+  if (sizeFrame) return;
+  const step = () => {
+    if (!active) { sizeFrame = null; return; }
+    const px = globeRadiusPx();
+    if (px > 0 && markers) {
+      // A fixed fraction of the globe, floored so a distant event is still
+      // clickable and capped so a close one does not cover what it marks.
+      const size = Math.max(4, Math.min(16, px * 0.022));
+      markers.children.forEach((points) => {
+        if (points.material.size !== size) points.material.size = size;
+      });
+    }
+    sizeFrame = window.requestAnimationFrame(step);
+  };
+  sizeFrame = window.requestAnimationFrame(step);
+}
 
 /** A soft round dot, so markers read as points rather than square pixels. */
 function markerTexture() {
@@ -237,7 +273,7 @@ function renderMarkers() {
       map: markerTexture(),
       // Sized in screen pixels rather than world units: at globe scale a
       // world-sized point is a speck, and it should stay legible at any zoom.
-      size: 14,
+      size: 8,
       sizeAttenuation: false,
       depthWrite: false,
       // Depth tested, so events on the far side are hidden by the planet rather
@@ -260,6 +296,7 @@ function renderMarkers() {
   // them fixed while the planet turned underneath, so every event drifted off
   // its true position by however far the globe had spun.
   (viewer.globe || viewer.earthSceneGroup || viewer.scene).add(markers);
+  trackScale();
 }
 
 async function setActive(on) {
@@ -392,7 +429,7 @@ function setSelection(event) {
 
   const position = viewer.latLonToVector3(event.lat, event.lon, viewer.GLOBE_RADIUS * MARKER_LIFT);
   halo = new THREE.Mesh(
-    new THREE.RingGeometry(0.05, 0.075, 48),
+    new THREE.RingGeometry(0.8, 1.0, 48),
     new THREE.MeshBasicMaterial({
       color: 0x52e4e8,
       side: THREE.DoubleSide,
@@ -411,8 +448,13 @@ function setSelection(event) {
     // One breath a second: scale and fade together so it reads as a pulse
     // rather than a flicker.
     const t = ((now - started) % 1400) / 1400;
-    const scale = 1 + t * 1.6;
-    halo.scale.setScalar(scale);
+    // Sized from the globe's apparent radius, so the ring stays the same size
+    // on screen however far in or out the view is.
+    const px = globeRadiusPx();
+    const base = px > 0
+      ? viewer.GLOBE_RADIUS * (Math.max(9, Math.min(26, px * 0.05)) / px)
+      : viewer.GLOBE_RADIUS * 0.02;
+    halo.scale.setScalar(base * (1 + t * 1.6));
     halo.material.opacity = 0.85 * (1 - t);
     // Kept facing the camera, so it is a ring rather than an ellipse edge-on.
     if (viewer.camera) halo.lookAt(viewer.camera.position);
