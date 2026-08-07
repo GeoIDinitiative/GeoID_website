@@ -192,23 +192,10 @@
     window.GeoIDViewer?.setSpinPaused?.(!wanted);
   }
 
-  function watchForInteraction() {
-    // Space toggles the spin, as it does in Earth Explorer. Guarded against
-    // typing, and the focused control is blurred first so the key does not also
-    // press whatever was last clicked.
-    document.addEventListener("keydown", (event) => {
-      if (event.code !== "Space") return;
-      const node = event.target;
-      const inInput = node && (node.tagName === "INPUT" || node.tagName === "TEXTAREA"
-        || node.tagName === "SELECT" || node.isContentEditable);
-      if (inInput) return;
-      event.preventDefault();
-      if (document.activeElement && document.activeElement !== document.body) {
-        document.activeElement.blur();
-      }
-      setSpin(window.GeoIDViewer?.isSpinPaused?.() !== false);
-    });
-  }
+  // Space is handled by the viewer itself, which pauses and resumes its own
+  // rotation. A second handler here toggled the same state in the same
+  // keypress, and the two cancelled -- which is why the shortcut appeared dead.
+  function watchForInteraction() {}
 
   function applyMode(mode) {
     if (mode === "model") {

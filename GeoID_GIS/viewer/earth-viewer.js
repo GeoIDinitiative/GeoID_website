@@ -18811,6 +18811,16 @@ uniform float uViewportWidth;`,
         // metres-per-pixel and reuses the rest -- the nice-number rounding, the
         // label fitting and the bar itself -- so the readouts on the Model page
         // are the same ones the GIS page draws, not a lookalike.
+        // The globe's own displaced surface at a lat/lon, so overlays can sit
+        // on the terrain rather than floating above it or sinking into it.
+        // Tracks the terrain-relief slider through getTerrainRelief.
+        surfacePoint: (() => {
+          // Its own cache: the viewer's elevationCache lives in a narrower
+          // closure than this seam, and the cache is only a memo anyway.
+          const cache = new Map();
+          return (lat, lon, lift = 0) =>
+            getReliefPoint(3.2, elevationSampler, cache, getTerrainRelief, lat, lon, lift);
+        })(),
         renderScaleBar(metersPerPixel) {
           if (!Number.isFinite(metersPerPixel) || metersPerPixel <= 0) {
             scaleReadout.hidden = true;

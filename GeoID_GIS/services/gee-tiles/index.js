@@ -62,6 +62,7 @@ const DATASETS = {
     attribution: "Copernicus DEM GLO-30, ESA",
   },
   "MODIS/061/MOD11A1": {
+    legend: { label: "Day LST", min: -13, max: 57, unit: "°C" },
     name: "MODIS land surface temperature",
     bands: ["LST_Day_1km"],
     min: 13000,
@@ -71,6 +72,7 @@ const DATASETS = {
     attribution: "NASA LP DAAC MODIS MOD11A1",
   },
   "UCSB-CHG/CHIRPS/DAILY": {
+    legend: { label: "Rainfall", min: 0, max: 300, unit: "mm" },
     name: "Rainfall (CHIRPS)",
     bands: ["precipitation"],
     min: 0,
@@ -85,6 +87,7 @@ const DATASETS = {
   // Processed here rather than stored: the point of this service is that the
   // site keeps no archive and asks for a finished picture instead.
   "MODIS/061/MOD13A2": {
+    legend: { label: "NDVI", min: 0, max: 0.8, unit: "" },
     name: "Vegetation health (NDVI)",
     bands: ["NDVI"],
     min: 0,
@@ -95,6 +98,7 @@ const DATASETS = {
     attribution: "NASA LP DAAC MODIS MOD13A2",
   },
   "NASA/SMAP/SPL4SMGP/007": {
+    legend: { label: "Soil moisture", min: 0.05, max: 0.5, unit: "m³/m³" },
     name: "Soil moisture (SMAP)",
     bands: ["sm_surface"],
     min: 0.05,
@@ -104,6 +108,7 @@ const DATASETS = {
     attribution: "NASA SMAP L4",
   },
   "MODIS/061/MOD11A2": {
+    legend: { label: "Day LST", min: -13, max: 57, unit: "°C" },
     name: "Land surface temperature",
     bands: ["LST_Day_1km"],
     min: 13000,
@@ -113,6 +118,7 @@ const DATASETS = {
     attribution: "NASA LP DAAC MODIS MOD11A2",
   },
   "MODIS/061/MCD64A1": {
+    legend: { label: "Burn day of year", min: 1, max: 366, unit: "" },
     name: "Burned area",
     bands: ["BurnDate"],
     min: 1,
@@ -127,6 +133,7 @@ const DATASETS = {
   // "wetter or drier than normal" is read at a glance where a rainfall total is
   // not.
   "anomaly/CHIRPS": {
+    legend: { label: "Rainfall anomaly", min: -150, max: 150, unit: "mm" },
     name: "Rainfall anomaly",
     source: "UCSB-CHG/CHIRPS/DAILY",
     bands: ["precipitation"],
@@ -139,6 +146,7 @@ const DATASETS = {
     attribution: "UCSB/CHG CHIRPS, anomaly against 1991-2020",
   },
   "anomaly/LST": {
+    legend: { label: "LST anomaly", min: -16, max: 16, unit: "°C" },
     name: "Land surface temperature anomaly",
     source: "MODIS/061/MOD11A2",
     bands: ["LST_Day_1km"],
@@ -387,6 +395,10 @@ exports.geeImage = async (req, res) => {
       to,
       crs: "EPSG:4326",
       attribution: config.attribution,
+      // The symbology, so the page's legend can show the ramp and what its
+      // ends mean rather than just naming the dataset.
+      palette: config.palette || null,
+      legend: config.legend || null,
     });
   } catch (error) {
     // Reported rather than swallowed: an empty picture because the request

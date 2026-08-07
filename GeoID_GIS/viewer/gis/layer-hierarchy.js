@@ -10,7 +10,7 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808e";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808g";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -213,10 +213,24 @@ function renderLegend(stack) {
   panel.innerHTML = stack.map((layer) => {
     const colour = layerColour(layer);
     const hidden = layer.visible === false ? " is-hidden" : "";
-    return `<div class="legend-entry${hidden}">`
+    const head = `<div class="legend-entry${hidden}">`
       + `<span class="legend-swatch" style="background:${colour}"></span>`
       + `<span class="legend-name" title="${layer.name || "layer"}">${layer.name || "layer"}</span>`
       + `<span class="legend-kind">${layer.type || ""}</span>`
+      + `</div>`;
+    // Continuous data carries its ramp and what the ends mean, not just a
+    // name: a legend that cannot be read against the map is furniture.
+    const info = layer.legendInfo;
+    if (!info) return head;
+    const ramp = Array.isArray(info.palette) && info.palette.length
+      ? `linear-gradient(to right, ${info.palette.map((c) => `#${c}`).join(", ")})`
+      : "linear-gradient(to right, #000, #fff)";
+    const unit = info.unit ? ` ${info.unit}` : "";
+    return head
+      + `<div class="legend-ramp${hidden}">`
+      + `<span class="legend-ramp-bar" style="background:${ramp}"></span>`
+      + `<span class="legend-ramp-labels"><span>${info.min}${unit}</span>`
+      + `<span>${info.label || ""}</span><span>${info.max}${unit}</span></span>`
       + `</div>`;
   }).join("");
 }

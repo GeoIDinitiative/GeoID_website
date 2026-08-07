@@ -4363,3 +4363,15 @@ canvas {
 
     .event-row.is-selected { background: rgba(82, 228, 232, 0.16); border-radius: 0.25rem; }
     .event-row.is-selected .event-name { color: var(--nav-accent); }
+
+    /* Gradient ramps in the legend, for continuous datasets. */
+    .legend-ramp { padding: 0.1rem 0 0.3rem 1.25rem; }
+    .legend-ramp-bar {
+      display: block; height: 0.5rem; border-radius: 0.2rem;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+    .legend-ramp-labels {
+      display: flex; justify-content: space-between;
+      font-size: 0.58rem; color: var(--soft-light); margin-top: 0.1rem;
+    }
+    .legend-ramp.is-hidden { opacity: 0.4; }

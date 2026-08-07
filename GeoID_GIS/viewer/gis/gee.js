@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808e";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808g";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -173,21 +173,25 @@ async function drape(imageUrl, bounds) {
 
   // Enough segments to follow the curve without being costly; the patch can
   // span a hemisphere, where a flat quad would cut through the planet.
-  const segments = 48;
+  const segments = 96;
   const geometry = new THREE.PlaneGeometry(1, 1, segments, segments);
   const position = geometry.attributes.position;
-  // Above the displaced terrain, not just above sea level. The basemap is
-  // relief-displaced, so a drape 0.6% up was buried under every landmass --
-  // which is precisely where a land product draws. The event markers needed the
-  // same clearance for the same reason. Kept just under their 1.05, so a pin
-  // still reads over the imagery.
-  const radius = (window.GeoIDViewer?.GLOBE_RADIUS || 3.2) * 1.045;
+  // On the terrain, not floating over it. Each vertex sits on the globe's own
+  // displaced surface plus a hair of clearance, so the imagery hugs the relief
+  // and follows the terrain-relief slider the way the basemap does. The flat
+  // 4.5 percent lift this replaces cleared the mountains by standing 290 km
+  // off the ground, which read as a shell around the planet rather than an
+  // overlay on it.
+  const viewer = window.GeoIDViewer;
+  const LIFT = 0.005;
   const vertex = new THREE.Vector3();
   for (let y = 0; y <= segments; y += 1) {
     const lat = bounds.maxY - (bounds.maxY - bounds.minY) * (y / segments);
     for (let x = 0; x <= segments; x += 1) {
       const lon = bounds.minX + (bounds.maxX - bounds.minX) * (x / segments);
-      vertex.copy(latLonToVector3(lat, lon, radius));
+      vertex.copy(viewer?.surfacePoint
+        ? viewer.surfacePoint(lat, lon, LIFT)
+        : latLonToVector3(lat, lon, 3.2 + LIFT));
       // Half a turn into the globe's own frame: the viewer reads lat/lon from
       // the globe by undoing its rotation less pi, so content that is to ride
       // the globe must bake that pi back in.
@@ -279,6 +283,17 @@ async function request() {
         importedAt: new Date().toISOString(),
       };
       layer.colour = "#4fd1a5";
+      // The symbology, for the legend: the ramp the image was rendered with
+      // and what its ends mean.
+      if (data.legend || data.palette) {
+        layer.legendInfo = {
+          label: data.legend?.label || data.name,
+          min: data.legend?.min,
+          max: data.legend?.max,
+          unit: data.legend?.unit || "",
+          palette: data.palette,
+        };
+      }
     }
     window.dispatchEvent(new CustomEvent("geoid-gis:layers-changed"));
     status(`Added "${data.name}" at ${data.scale} m.`);
