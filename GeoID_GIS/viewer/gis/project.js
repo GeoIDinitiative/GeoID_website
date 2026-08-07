@@ -197,12 +197,18 @@ function setDialogOpen(open) {
   if (open) byId("project-name")?.focus();
 }
 
-/** The header button carries the current project's name once there is one. */
+/**
+ * The header button is an icon, so the current project's name goes to its
+ * tooltip and accessible name rather than onto its face -- the name still
+ * reaches anyone who needs it without the button growing to fit it.
+ */
 function refreshHeaderLabel() {
-  const label = byId("project-open-modal-name");
-  if (!label) return;
+  const button = byId("project-open-modal");
+  if (!button) return;
   const name = byId("project-name")?.value.trim();
-  label.textContent = name || "Project";
+  const label = name ? `Project: ${name}` : "Projects";
+  button.title = label;
+  button.setAttribute("aria-label", label);
 }
 
 function init() {

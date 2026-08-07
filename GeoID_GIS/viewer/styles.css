@@ -4283,3 +4283,14 @@ canvas {
        logo instead of leaving a gap where it used to sit. */
     .brand-hero { margin-bottom: 0.5rem; }
     #ui-scroll-body > .geoid-mode-bar:first-of-type { margin-top: 0; }
+
+    /* Project button is icon-only, so it takes just enough room for the icon
+       and hands the rest of the header row to the mode switch. */
+    .brand-toprow .eyebrow-project {
+      flex: none;
+      padding: 0.32rem;
+      gap: 0;
+    }
+    .brand-toprow .eyebrow-project svg { width: 1.05rem; height: 1.05rem; }
+
+    .brand-toprow #view-mode-switch .view-mode-btn { flex: 1 1 0; }
