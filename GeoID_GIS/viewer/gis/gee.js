@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260807t";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260807u";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -107,6 +107,27 @@ function viewBounds() {
   };
 }
 
+/**
+ * The window to ask for. Defaults to the last sixty days, which is wide enough
+ * for the eight- and sixteen-day composites to contain something, and puts the
+ * fields in step with what was actually requested.
+ */
+function dateRange() {
+  const fromField = byId("gee-date-from");
+  const toField = byId("gee-date-to");
+  const iso = (d) => d.toISOString().slice(0, 10);
+  let to = toField?.value || iso(new Date());
+  let from = fromField?.value || iso(new Date(Date.parse(to) - 60 * 86400000));
+  if (Date.parse(from) >= Date.parse(to)) {
+    // Rather than refuse, widen backwards from the end: a single date is a
+    // reasonable thing to type and an unreasonable thing to be told off for.
+    from = iso(new Date(Date.parse(to) - 60 * 86400000));
+  }
+  if (fromField) fromField.value = from;
+  if (toField) toField.value = to;
+  return { from, to };
+}
+
 /** Loads the returned PNG and drapes it across its bounds on the globe. */
 async function drape(imageUrl, bounds) {
   const texture = await new Promise((resolve, reject) => {
@@ -187,8 +208,12 @@ async function request() {
       bbox: [bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]
         .map((n) => n.toFixed(4)).join(","),
     });
-    if (byId("gee-date-from")?.value) params.set("from", byId("gee-date-from").value);
-    if (byId("gee-date-to")?.value) params.set("to", byId("gee-date-to").value);
+    // Both dates are always sent, filled from a sensible window when blank.
+    // Sending only one left the service to default the other, which could land
+    // on or before the date given and ask for a range of no length.
+    const { from, to } = dateRange();
+    params.set("from", from);
+    params.set("to", to);
 
     const response = await fetch(`${url}?${params}`, { cache: "no-store" });
     const data = await response.json().catch(() => ({}));

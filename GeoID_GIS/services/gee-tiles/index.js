@@ -309,10 +309,20 @@ exports.geeImage = async (req, res) => {
   const bbox = parseBbox(q.bbox);
   if (!bbox) return bad(res, 400, "bbox must be west,south,east,north.");
 
-  const from = q.from || "2024-01-01";
+  // A default window rather than a fixed start date: paired with a caller that
+  // sends only one of the two, a fixed start could produce a range ending
+  // before it begins, or one of zero length.
   const to = q.to || new Date().toISOString().slice(0, 10);
+  const from = q.from
+    || new Date(Date.parse(to) - 60 * 86400000).toISOString().slice(0, 10);
   if (Number.isNaN(Date.parse(from)) || Number.isNaN(Date.parse(to))) {
     return bad(res, 400, "from and to must be ISO dates.");
+  }
+  if (Date.parse(from) >= Date.parse(to)) {
+    // Earth Engine answers this with a reduceColumns complaint about empty date
+    // ranges, which does not mention dates the caller recognises.
+    return bad(res, 400,
+      `The end date must be after the start date. Got ${from} to ${to}.`);
   }
 
   try {
