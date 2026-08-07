@@ -10,7 +10,7 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808z";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260809b";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -34,13 +34,21 @@ function ordered() {
   return [...list].sort((a, b) => b.stackIndex - a.stackIndex);
 }
 
+// Imported layers draw above everything the viewer ships -- its basemap shells
+// end at 7 and its streamed tiles at 40 -- and below the pins, labels and
+// selection rings it puts on top at 199 and up. Without the offset the stack
+// numbered from 1, which put a fetched overlay underneath the very basemaps it
+// was meant to annotate.
+const IMPORTED_BASE = 50;
+
 function applyStack() {
   const stack = ordered();
   stack.forEach((layer, i) => {
     const object = layer.object3D;
     if (!object) return;
-    // Top of the list draws last, so it wins where layers overlap.
-    object.renderOrder = stack.length - i;
+    // Top of the list draws last, so it wins where layers overlap. Held inside
+    // the band so a long stack cannot climb into the marker orders.
+    object.renderOrder = IMPORTED_BASE + Math.min(stack.length - i, 140);
     object.traverse?.((node) => {
       if (node.material) node.renderOrder = object.renderOrder;
     });

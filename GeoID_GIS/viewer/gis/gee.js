@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808z";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260809b";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -209,17 +209,43 @@ async function drape(imageUrl, bounds) {
   geometry.computeBoundingSphere();
   geometry.computeBoundingBox();
 
+  // Which way the patch faces, measured rather than assumed: the vertices were
+  // walked lat-descending and lon-ascending onto a sphere, and whether that
+  // leaves the outside facing out depends on details it is not worth reasoning
+  // about. Taken from a vertex in the middle of the grid, where the normal is
+  // well defined -- at a pole or an edge it need not be.
+  const probe = Math.floor(segments / 2) * (segments + 1) + Math.floor(segments / 2);
+  const normals = geometry.attributes.normal;
+  const outward = new THREE.Vector3(
+    position.getX(probe), position.getY(probe), position.getZ(probe),
+  ).normalize();
+  const facing = new THREE.Vector3(
+    normals.getX(probe), normals.getY(probe), normals.getZ(probe),
+  ).dot(outward);
+
   const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
     map: texture,
     transparent: true,
-    side: THREE.DoubleSide,
+    // Single-sided, so the half of the patch on the far side of the planet is
+    // culled. That is what makes turning the depth test off safe below.
+    side: facing >= 0 ? THREE.FrontSide : THREE.BackSide,
     depthWrite: false,
+    // The overlay wins over the basemap outright instead of competing with it.
+    // Competing was the bug: the patch is a grid of flat facets while the
+    // basemap is displaced terrain, so between vertices the ground rose
+    // through the imagery and punched holes in it. Measured, the terrain
+    // stands 0.0267 above a facet centre where the clearance was 0.005 -- five
+    // times too little, and raising it enough to cover the worst case would
+    // have lifted the imagery off the ground everywhere else. Tessellating
+    // finer does not help either: 96 to 384 segments only takes the gap from
+    // 0.0267 to 0.0234, because the relief has detail below any grid.
+    depthTest: false,
   }));
   // A patch can span a hemisphere, where its bounding sphere reaches well past
   // the camera even when most of it is in view.
   mesh.frustumCulled = false;
-  // Above the basemap and the shells over it, the same clearance the event
-  // markers need to survive the depth test.
+  // Drawn after the globe, which is what puts it over the basemap now that it
+  // no longer depth-tests against it. Still below the event markers at 20.
   mesh.renderOrder = 6;
   return mesh;
 }

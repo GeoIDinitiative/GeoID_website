@@ -15,7 +15,26 @@ const REFRESH_MS = 5 * 60 * 1000;
 // How far above the surface the markers float, as a fraction of the globe's
 // radius. The globe is not a bare sphere -- there are shells above it -- so a
 // marker needs to clear those as well as the ground to survive the depth test.
-const MARKER_LIFT = 1.05;
+// Clearance above the globe's own displaced surface, in scene units. The
+// markers used to sit at 1.05x the base radius -- a flat shell 0.16 above the
+// ground, about 320 km, which is why they read as floating. Measured, the
+// relief spans 0.089 and reaches 0.099 above the base radius, so a flat lift
+// that cleared the mountains had to stand off the plains by that much too.
+// Following the terrain instead, the clearance only has to cover the
+// difference between the sampler and the rendered mesh, and can be small
+// enough to look like it is on the ground.
+const MARKER_LIFT = 0.006;
+
+/**
+ * Where a marker sits: on the globe's own displaced surface, so it rides the
+ * terrain and the relief slider the way the basemap does, rather than on a
+ * sphere floating over it.
+ */
+function markerPoint(viewer, lat, lon) {
+  return viewer.surfacePoint
+    ? viewer.surfacePoint(lat, lon, MARKER_LIFT)
+    : viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS + MARKER_LIFT);
+}
 
 /**
  * Symbology by EONET category. Colours follow the hazard sense the rest of the
@@ -324,7 +343,7 @@ function renderMarkers() {
     // The index of a hit point is all a raycast returns, so the events behind
     // each cloud are kept in the same order to look the hit back up.
     list.forEach((event, i) => {
-      const v = viewer.latLonToVector3(event.lat, event.lon, viewer.GLOBE_RADIUS * MARKER_LIFT);
+      const v = markerPoint(viewer, event.lat, event.lon);
       positions[i * 3] = v.x; positions[i * 3 + 1] = v.y; positions[i * 3 + 2] = v.z;
     });
     const geometry = new THREE.BufferGeometry();
@@ -346,7 +365,9 @@ function renderMarkers() {
       transparent: true,
       opacity: 0.95,
     }));
-    points.renderOrder = 20;
+    // In front of imported layers, which sit at 50 and up: an event is the
+    // thing being read, not something to be painted over by an overlay.
+    points.renderOrder = 230;
     points.name = `eonet-${key}`;
     points.userData.events = list;
     markers.add(points);
@@ -524,7 +545,7 @@ function setSelection(event) {
   if (haloFrame) { window.cancelAnimationFrame(haloFrame); haloFrame = null; }
   if (!event || !(viewer?.earthSceneGroup || viewer?.scene) || !THREE) return;
 
-  const position = viewer.latLonToVector3(event.lat, event.lon, viewer.GLOBE_RADIUS * MARKER_LIFT);
+  const position = markerPoint(viewer, event.lat, event.lon);
   // Drawn as a point sprite, exactly as the dots are. A world-space ring had to
   // be converted into pixels to match them and never quite did; sharing their
   // sizing path means it cannot be out by construction.
@@ -545,8 +566,7 @@ function setSelection(event) {
     blending: THREE.AdditiveBlending,
   }));
   halo.name = "eonet-selection";
-  halo.renderOrder = 22;
-  halo.renderOrder = 21;
+  halo.renderOrder = 231;
   // Sized before it is added, not on the first animation frame: left at unit
   // scale the ring is the radius of the globe, which showed as a huge flash.
   applyHaloScale();
