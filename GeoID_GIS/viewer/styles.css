@@ -4253,3 +4253,33 @@ canvas {
     .project-dialog-close:hover { color: var(--nav-accent); }
     .project-dialog-body { padding: 0.8rem 0.9rem; overflow-y: auto; }
     .project-dialog-body .gis-tool-section { margin-bottom: 0.6rem; }
+
+    /* ── Header row: project, mode switch, panel actions ────────────────── */
+    .brand-toprow {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .brand-toprow #view-mode-switch {
+      /* In the header the switch sizes to its content rather than splitting the
+         sidebar in half, so the two buttons sit between the project button and
+         the panel actions without crowding either. */
+      display: flex;
+      grid-template-columns: none;
+      flex: 1;
+      justify-content: center;
+      gap: 0.35rem;
+      margin: 0;
+    }
+    .brand-toprow #view-mode-switch .view-mode-btn {
+      width: auto;
+      flex: 0 1 5.5rem;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.66rem;
+    }
+    .brand-toprow-actions { flex: none; }
+
+    /* With the switch gone from the body, the sections close up under the
+       logo instead of leaving a gap where it used to sit. */
+    .brand-hero { margin-bottom: 0.5rem; }
+    #ui-scroll-body > .geoid-mode-bar:first-of-type { margin-top: 0; }
