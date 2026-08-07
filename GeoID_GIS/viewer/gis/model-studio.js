@@ -301,11 +301,11 @@ const HORIZON_PITCH_RAD = 16 * Math.PI / 180;
 // Closest the camera may come to straight-down. Keeps the plan view readable
 // without ever reaching the vertical, where lookAt degenerates.
 const MIN_POLAR_RAD = 8 * Math.PI / 180;
-// Shallowest look-down angle the dolly floor will reason about. Below this
-// the required stand-off would run away towards infinity.
-const SIN_MIN_ELEVATION = Math.sin(2 * Math.PI / 180);
 // Ground shown when the studio is empty, in metres.
 const DEFAULT_WORK_RADIUS_M = 250;
+// Closest the camera may come to what it is looking at. Small enough to inspect
+// millimetre detail on a model.
+const MIN_DOLLY_DISTANCE_M = 0.002;
 
 
 let groundRadius = 6371000;
@@ -398,6 +398,12 @@ function groundGridMaterial() {
     depthWrite: true,
     depthTest: true,
     side: THREE.FrontSide,
+    // A model resting on the ground shares a plane with it, and coplanar faces
+    // tear into each other as the camera closes in. Pushing the ground back a
+    // fraction of a depth unit lets whatever sits on it win cleanly.
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
     uniforms: {
       uStepM: { value: 100 },
       uStepCoarse: { value: 500 },
@@ -773,6 +779,7 @@ function setStudioOrbitLimits(on) {
         max: controls.maxDistance,
         minPolar: controls.minPolarAngle,
         maxPolar: controls.maxPolarAngle,
+        zoom: controls.enableZoom,
       };
     }
     applyOrbitDistanceLimits();
@@ -785,6 +792,9 @@ function setStudioOrbitLimits(on) {
     // the camera above the surface.
     controls.minPolarAngle = MIN_POLAR_RAD;
     controls.maxPolarAngle = Math.PI / 2 - 0.02;
+    // The viewer turns OrbitControls' zoom off and drives the wheel itself in
+    // globe units. Model mode wants the standard dolly towards the target.
+    controls.enableZoom = true;
     patchControlsUpdate(true);
     keepCameraAboveGround();
   } else if (orbitLimits) {
@@ -792,6 +802,7 @@ function setStudioOrbitLimits(on) {
     controls.maxDistance = orbitLimits.max;
     controls.minPolarAngle = orbitLimits.minPolar;
     controls.maxPolarAngle = orbitLimits.maxPolar;
+    controls.enableZoom = orbitLimits.zoom;
     patchControlsUpdate(false);
     orbitLimits = null;
   }
@@ -852,23 +863,42 @@ function applyDollyFloor() {
   const controls = viewer?.controls;
   if (!controls || !orbitLimits) return;
   const target = controls.target;
+  if (target.lengthSq() < 1e-12) return;
+  const floor = groundRadius + minCameraAltitude();
+
+  // Zooming in walks the camera towards the target, so the lowest it can ever
+  // get is the target's own altitude. If the target is already clear of the
+  // ground -- which it is whenever it is on a model rather than on the surface
+  // -- no dolly limit is needed at all, and the view can close to millimetres.
+  // The previous rule derived a stand-off from the viewing angle, which held
+  // the camera tens of metres out even when it was heading somewhere safe.
+  if (target.length() >= floor) {
+    controls.minDistance = MIN_DOLLY_DISTANCE_M;
+    return;
+  }
+
+  // The target is at or below the floor, so solve for the distance along the
+  // view ray at which the camera would reach it.
   const dir = viewer.camera.position.clone().sub(target);
-  if (dir.lengthSq() < 1e-12 || target.lengthSq() < 1e-12) return;
+  if (dir.lengthSq() < 1e-12) return;
   dir.normalize();
-  // How steeply the camera looks down on its target: 1 straight down, 0 level.
-  const sinElevation = Math.max(dir.dot(target.clone().normalize()), SIN_MIN_ELEVATION);
-  const needed = minCameraAltitude() / sinElevation;
-  controls.minDistance = Math.max(0.05, needed);
+  const td = target.dot(dir);
+  const disc = td * td - (target.lengthSq() - floor * floor);
+  if (disc < 0) {
+    controls.minDistance = MIN_DOLLY_DISTANCE_M;
+    return;
+  }
+  controls.minDistance = Math.max(MIN_DOLLY_DISTANCE_M, -td + Math.sqrt(disc));
 }
 
 /**
- * Closest the camera may get to the ground, in metres. Tied to the model rather
- * than the sphere: the sphere is now the whole Earth, and a fraction of its
- * radius would stop the camera kilometres above a small model.
+ * Closest the camera may get to the ground, in metres. A small absolute figure
+ * rather than a fraction of anything: it only has to stop the camera dipping
+ * through the surface, and scaling it to the model prevented close inspection
+ * of large ones.
  */
 function minCameraAltitude() {
-  const focus = modelFocus();
-  return Math.max((focus ? focus.radius : DEFAULT_WORK_RADIUS_M) * 0.01, 0.01);
+  return 0.05;
 }
 
 // The viewer drives its own animation loop, so there is no update hook to
