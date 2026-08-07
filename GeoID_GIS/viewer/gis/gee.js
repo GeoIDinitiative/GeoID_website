@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808c";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808d";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -83,27 +83,52 @@ function requestBounds() {
 function viewBounds() {
   const viewer = window.GeoIDViewer;
   const camera = viewer?.camera;
-  if (!camera) return null;
-  const group = viewer.earthSceneGroup;
-  const dir = camera.position.clone().normalize();
-  if (group) {
-    group.updateMatrixWorld(true);
-    dir.applyMatrix4(new THREE.Matrix4().copy(group.matrixWorld).invert()).normalize();
-  }
-  // Inverse of the viewer's own lat/lon placement.
-  const lat = Math.asin(Math.max(-1, Math.min(1, dir.y))) * (180 / Math.PI);
-  const lon = Math.atan2(dir.z, -dir.x) * (180 / Math.PI);
-
+  if (!camera || !THREE) return null;
   const radius = viewer.GLOBE_RADIUS || 3.2;
-  const altitude = Math.max(camera.position.length() - radius, radius * 0.01);
-  // Half-angle of the visible cap, widened a little so the edges are covered.
-  const halfDeg = Math.min(60, (Math.acos(radius / (radius + altitude)) * (180 / Math.PI)) * 1.3);
-  const latPad = halfDeg;
-  // Longitude spans more degrees per kilometre towards the poles.
-  const lonPad = Math.min(80, halfDeg / Math.max(Math.cos(lat * Math.PI / 180), 0.2));
+  const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), radius);
+  const ray = new THREE.Raycaster();
+  const hit = new THREE.Vector3();
+  // Read back through the globe's own frame with the same half turn the drape
+  // bakes in. The old box was computed in the unrotated frame, so it sat east
+  // of the view by however far the planet had spun -- which is why the imagery
+  // covered half the picture and the wrong half.
+  viewer.globe?.updateMatrixWorld(true);
+  const toGlobe = viewer.globe
+    ? new THREE.Matrix4().copy(viewer.globe.matrixWorld).invert()
+    : null;
+  const lats = [];
+  const lons = [];
+  const steps = 8;
+  for (let i = 0; i <= steps; i += 1) {
+    for (let j = 0; j <= steps; j += 1) {
+      ray.setFromCamera(new THREE.Vector2((i / steps) * 2 - 1, (j / steps) * 2 - 1), camera);
+      if (!ray.ray.intersectSphere(sphere, hit)) continue;
+      const local = toGlobe ? hit.clone().applyMatrix4(toGlobe) : hit.clone();
+      local.set(-local.x, local.y, -local.z);
+      const r = local.length() || 1;
+      lats.push(Math.asin(Math.max(-1, Math.min(1, local.y / r))) * (180 / Math.PI));
+      lons.push(Math.atan2(local.z, -local.x) * (180 / Math.PI));
+    }
+  }
+  if (lats.length < 3) return null;
+  let minX = Math.min(...lons);
+  let maxX = Math.max(...lons);
+  if (maxX - minX > 180) {
+    // Spanning the antimeridian: treat the widest gap between samples as the
+    // part not being looked at, rather than asking for the whole world.
+    const sorted = [...lons].sort((a, b) => a - b);
+    let gap = 0;
+    let at = 0;
+    for (let i = 1; i < sorted.length; i += 1) {
+      if (sorted[i] - sorted[i - 1] > gap) { gap = sorted[i] - sorted[i - 1]; at = i; }
+    }
+    if (gap > 60) { minX = sorted[at]; maxX = sorted[at - 1] + 360; }
+  }
+  const pad = Math.min(2, (maxX - minX) * 0.05);
   return {
-    minX: Math.max(-180, lon - lonPad), maxX: Math.min(180, lon + lonPad),
-    minY: Math.max(-85, lat - latPad), maxY: Math.min(85, lat + latPad),
+    minX: Math.max(-180, minX - pad), maxX: Math.min(180, maxX + pad),
+    minY: Math.max(-85, Math.min(...lats) - pad),
+    maxY: Math.min(85, Math.max(...lats) + pad),
   };
 }
 
@@ -236,6 +261,7 @@ async function request() {
       // Onto the globe itself, so the imagery turns with the texture it
       // annotates. In the group beside it, the patch held still while the
       // planet rotated underneath, drifting a degree every four minutes.
+      object3D.userData.geoidLayer = true;
       window.GeoIDViewer?.globe?.add?.(object3D);
       // Recorded so the metadata panel can account for it like any import.
       layer.metadata = {

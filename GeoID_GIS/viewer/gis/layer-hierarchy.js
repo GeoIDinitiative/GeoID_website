@@ -10,7 +10,7 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808c";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808d";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -175,7 +175,18 @@ function basemapRow() {
     <span class="layer-name">Earth basemap</span>
     <span class="layer-kind">default</span>`;
   node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
-    if (viewer?.globe) viewer.globe.visible = e.target.checked;
+    // The imported imagery hangs off the globe so it turns with it, which means
+    // hiding the globe object would hide the imagery too -- the opposite of
+    // what switching a basemap off is for. Only the globe's own surfaces are
+    // silenced, through their materials, and anything tagged as an imported
+    // layer keeps drawing.
+    const globe = viewer?.globe;
+    if (!globe) return;
+    globe.traverse((o) => {
+      if (!o.isMesh || o.userData.geoidLayer) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach((m) => { if (m) m.visible = e.target.checked; });
+    });
   });
   return node;
 }
