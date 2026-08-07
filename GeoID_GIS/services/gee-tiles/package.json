@@ -1,0 +1,10 @@
+{
+  "name": "geoid-gee-image",
+  "version": "1.0.0",
+  "description": "Earth Engine image service for the myGeoID viewer",
+  "main": "index.js",
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@google/earthengine": "^1.4.0"
+  }
+}
