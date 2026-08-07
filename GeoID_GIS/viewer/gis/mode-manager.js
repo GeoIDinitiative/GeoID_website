@@ -175,26 +175,52 @@
   }
 
   /**
-   * Idle rotation, matching the other viewers: OrbitControls orbits the target,
-   * and Space toggles it. It is not cancelled by interaction -- OrbitControls
-   * already suspends it mid-drag and picks it up again -- so the shortcut stays
-   * the single way to stop and start it, as it is in Earth Explorer.
+   * Idle rotation. The globe turns on its own axis; the camera and the stars
+   * stay where they are.
+   *
+   * OrbitControls' autoRotate was the wrong tool: it swings the camera around
+   * the target, so the starfield sweeps past and the whole view drifts rather
+   * than the planet turning. The viewer already treats globe.rotation.y as the
+   * spin -- every lat/lon conversion un-rotates by it -- so driving that keeps
+   * picking, readouts and markers correct for free.
    */
   let spinEnabled = false;
+  let spinFrame = null;
+  let spinLast = 0;
+  const SPIN_RAD_PER_SEC = 0.02;
+
+  function spinStep(now) {
+    const globe = window.GeoIDViewer?.globe;
+    if (!spinEnabled || !globe) {
+      spinFrame = null;
+      return;
+    }
+    const dt = spinLast ? Math.min((now - spinLast) / 1000, 0.1) : 0;
+    spinLast = now;
+    globe.rotation.y += SPIN_RAD_PER_SEC * dt;
+    spinFrame = window.requestAnimationFrame(spinStep);
+  }
 
   function setSpin(enabled) {
-    const controls = window.GeoIDViewer?.controls;
     spinEnabled = Boolean(enabled);
-    if (controls) {
-      controls.autoRotate = spinEnabled;
-      controls.autoRotateSpeed = 0.35;
-    }
+    const controls = window.GeoIDViewer?.controls;
+    // Make sure the camera-orbiting version is off: the two together read as
+    // the globe and the camera both turning.
+    if (controls) controls.autoRotate = false;
     document.body.dataset.spin = spinEnabled ? "true" : "false";
+    if (spinEnabled && !spinFrame) {
+      spinLast = 0;
+      spinFrame = window.requestAnimationFrame(spinStep);
+    } else if (!spinEnabled && spinFrame) {
+      window.cancelAnimationFrame(spinFrame);
+      spinFrame = null;
+    }
   }
 
   function watchForInteraction() {
-    // Space toggles the spin. Guarded against typing, and the focused control is
-    // blurred first so the key does not also press whatever was last clicked.
+    // Space toggles the spin, as it does in Earth Explorer. Guarded against
+    // typing, and the focused control is blurred first so the key does not also
+    // press whatever was last clicked.
     document.addEventListener("keydown", (event) => {
       if (event.code !== "Space") return;
       const node = event.target;
