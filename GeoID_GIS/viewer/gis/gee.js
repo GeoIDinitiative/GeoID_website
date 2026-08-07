@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260807r";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260807s";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -123,7 +123,7 @@ async function drape(imageUrl, bounds) {
   const position = geometry.attributes.position;
   // Just above the basemap, and below imported rasters, so it reads as a
   // backdrop rather than covering work laid on top of it.
-  const radius = drapedRadius(0.0015);
+  const radius = drapedRadius(0.02);
   const vertex = new THREE.Vector3();
   for (let y = 0; y <= segments; y += 1) {
     const lat = bounds.maxY - (bounds.maxY - bounds.minY) * (y / segments);
@@ -135,13 +135,27 @@ async function drape(imageUrl, bounds) {
   }
   position.needsUpdate = true;
   geometry.computeVertexNormals();
+  // The vertices have been moved from a flat 1x1 plane onto the globe, so the
+  // bounds computed at construction describe something that is no longer there.
+  // Left stale, three.js culls the patch against a half-metre sphere at the
+  // origin and it is simply never drawn -- which looks exactly like a failed
+  // request, but with the layer sitting in the list.
+  geometry.computeBoundingSphere();
+  geometry.computeBoundingBox();
 
-  return new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
     map: texture,
     transparent: true,
     side: THREE.DoubleSide,
     depthWrite: false,
   }));
+  // A patch can span a hemisphere, where its bounding sphere reaches well past
+  // the camera even when most of it is in view.
+  mesh.frustumCulled = false;
+  // Above the basemap and the shells over it, the same clearance the event
+  // markers need to survive the depth test.
+  mesh.renderOrder = 6;
+  return mesh;
 }
 
 async function request() {
