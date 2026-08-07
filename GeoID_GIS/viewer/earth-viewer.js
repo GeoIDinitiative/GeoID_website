@@ -11871,6 +11871,12 @@ import * as THREE from "./vendor/three.module.js";
 		      function applyEmbeddedFrameState() {
 		        if (window.self === window.top || activeMoonViewerFeature) return;
 		        if (performance.now() < suppressEmbeddedFrameCameraUntil) return;
+		        // This refits the globe inside the embedded frame by pulling the
+		        // camera along a radius and staring at the origin. Model mode has
+		        // no globe -- it frames a model sitting out on a surface -- so
+		        // running this there drags the camera to the planet's centre and
+		        // flattens the studio's oblique view.
+		        if (document.body.dataset.viewMode === "model") return;
 		        const fitDistance = embeddedHubExpanded
 	          ? defaultCameraDistance * 1.42
 	          : defaultCameraDistance;
