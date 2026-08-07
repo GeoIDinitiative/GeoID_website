@@ -3553,9 +3553,22 @@ body.is-embedded #ui.is-collapsed ~ #music-btn {
     bottom: 0.5rem !important;
     width: min(20rem, 46vw) !important;
     max-width: 46vw !important;
-    max-height: calc(100dvh - 1rem) !important;
+    /* Room for the layer dock at the foot of the same column, as in the full
+       layout. Without this the panel claimed the whole height and the dock had
+       to sit on top of it. */
+    max-height: calc(100dvh - 1rem - var(--layer-dock-space, 0px)) !important;
     z-index: 20 !important;
   }
+  /* The dock keeps the panel's inset and width here too, and stays in front of
+     it rather than behind. */
+  body.is-embedded #layer-dock {
+    left: 0.5rem !important;
+    bottom: 0.5rem !important;
+    width: min(20rem, 46vw) !important;
+    max-width: 46vw !important;
+    z-index: 21 !important;
+  }
+  body.is-embedded #layer-dock .layer-dock-body { max-height: 30vh !important; }
   body.is-embedded #ui.is-collapsed {
     top: auto !important;
     right: auto !important;
@@ -4193,7 +4206,11 @@ canvas {
 
     /* The hazard readout shares this corner in GeoID mode; it sits below. */
     body[data-hub-armed="true"] #tool-rail,
-    body[data-hub-armed="true"] .map-legend { top: calc(1rem + 9.5rem + 0.8rem); }
+    /* With the hub armed the readout occupies the top-right corner, so the
+       rail steps left to sit beside it rather than dropping underneath it. */
+    body[data-hub-armed="true"] .map-legend {
+      right: calc(5.5rem + var(--hazard-rail-w, 0px));
+    }
 
     /* The legend keys map layers; the studio has none. */
     body[data-view-mode="model"] .map-legend { display: none !important; }
@@ -4307,8 +4324,7 @@ canvas {
        it steps left so the two sit side by side rather than overlapping. */
     /* Placed from the legend's measured width by gis/events.js; this is the
        starting position before that runs. */
-    .events-overlay { right: 5.5rem; }
-    body[data-hub-armed="true"] .events-overlay { top: calc(1rem + 9.5rem + 0.8rem); }
+    .events-overlay { right: calc(5.5rem + var(--hazard-rail-w, 0px)); }
 
     .event-group + .event-group { margin-top: 0.5rem; }
     .event-group-head {
@@ -4401,7 +4417,10 @@ canvas {
       position: fixed;
       left: 1rem;
       bottom: 1rem;
-      z-index: 10;
+      /* Just above the panel. The two are laid out not to overlap, but where a
+         short viewport forces it the dock must be the thing you can see, not
+         the thing hidden behind. */
+      z-index: 11;
       /* Same width as the panel above it -- the two read as one column. */
       width: min(24rem, calc(100vw - 2rem));
       border: 1px solid rgba(82, 228, 232, 0.38);
@@ -4439,7 +4458,7 @@ canvas {
       padding: 0.45rem 0.65rem 0.55rem;
       /* Grows with what is loaded, then scrolls rather than climbing into the
          panel's space. */
-      max-height: 28vh;
+      max-height: min(28vh, 13rem);
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: rgba(151, 182, 194, 0.32) transparent;

@@ -434,7 +434,13 @@ function placeOverlay() {
   const host = byId("events-overlay");
   const legend = byId("map-legend");
   if (!host) return;
-  const base = 5.5 * parseFloat(getComputedStyle(document.documentElement).fontSize || "16");
+  // The rail's own right offset, which steps left of the hazard readout when
+  // the hub is armed. Read rather than recomputed, so the feed and the legend
+  // cannot disagree about where the rail starts.
+  const root = getComputedStyle(document.documentElement);
+  const rem = parseFloat(root.fontSize || "16");
+  const rail = parseFloat(root.getPropertyValue("--hazard-rail-w")) || 0;
+  const base = 5.5 * rem + rail;
   if (!legend || legend.hidden) {
     host.style.right = `${base}px`;
     return;
@@ -675,4 +681,9 @@ if (document.readyState === "loading") {
   init();
 }
 
-window.GeoIDEvents = { setActive, isActive: () => active, getEvents: () => events, SYMBOLS };
+window.GeoIDEvents = {
+  setActive, isActive: () => active, getEvents: () => events, SYMBOLS,
+  // Re-seat the feed when the rail moves under it -- arming the hub
+  // shifts the whole rail left of the hazard readout.
+  reflow: placeOverlay,
+};

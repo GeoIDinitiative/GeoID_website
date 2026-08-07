@@ -276,6 +276,36 @@
     document.body.dataset.hubArmed = armed ? "true" : "false";
   }
 
+  /**
+   * How far the legend and events rail must step left to clear the hazard
+   * readout, published as a length for the stylesheet.
+   *
+   * The readout is fixed to the top-right corner and its width follows its
+   * content, so this is measured rather than written down. Before this the rail
+   * dropped below the readout instead, which pushed two drop-downs into the
+   * middle of the globe.
+   */
+  function trackHazardRail() {
+    const readout = document.getElementById("hazard-readout");
+    if (!readout) return;
+    const publish = () => {
+      const armed = document.body.dataset.hubArmed === "true";
+      const box = readout.getBoundingClientRect();
+      // Its own right inset is already in the rail's base offset, so only the
+      // width and a gap are added here.
+      const width = armed && box.width ? box.width + 12 : 0;
+      document.documentElement.style.setProperty("--hazard-rail-w", `${width}px`);
+      window.GeoIDEvents?.reflow?.();
+    };
+    new ResizeObserver(publish).observe(readout);
+    new MutationObserver(publish).observe(document.body, {
+      attributes: true,
+      attributeFilter: ["data-hub-armed"],
+    });
+    window.addEventListener("resize", publish);
+    publish();
+  }
+
   function setHubArmed(on) {
     const was = hubArmed;
     hubArmed = Boolean(on);
@@ -349,6 +379,7 @@
   }
 
   function init() {
+    trackHazardRail();
     document.querySelectorAll(".view-mode-btn").forEach((btn) => {
       btn.addEventListener("click", () => setMode(btn.dataset.mode));
     });
