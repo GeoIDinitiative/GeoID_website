@@ -1478,6 +1478,41 @@ function applyCameraClip(camera, d) {
   camera.updateProjectionMatrix();
 }
 
+/**
+ * The globe view, put aside while the studio has the camera.
+ *
+ * The studio parks the orbit target on the model's origin, which sits far out
+ * along +Y at the Earth's radius. Left there, returning to the globe aims the
+ * camera at that point instead of the planet -- which reads as the view jumping
+ * to the north pole.
+ */
+let savedGlobeView = null;
+
+function rememberGlobeView() {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.camera || savedGlobeView) return;
+  savedGlobeView = {
+    position: viewer.camera.position.clone(),
+    target: viewer.controls?.target.clone() || new THREE.Vector3(),
+    up: viewer.camera.up.clone(),
+    near: viewer.camera.near,
+    far: viewer.camera.far,
+  };
+}
+
+function restoreGlobeView() {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.camera || !savedGlobeView) return;
+  viewer.camera.position.copy(savedGlobeView.position);
+  viewer.camera.up.copy(savedGlobeView.up);
+  viewer.camera.near = savedGlobeView.near;
+  viewer.camera.far = savedGlobeView.far;
+  viewer.camera.updateProjectionMatrix();
+  viewer.controls?.target.copy(savedGlobeView.target);
+  viewer.controls?.update();
+  savedGlobeView = null;
+}
+
 function modelFocus() {
   const layers = (window.GeoIDImportManager?.getLayers?.() || [])
     .filter((l) => l.object3D?.visible);
@@ -1885,6 +1920,7 @@ function init() {
   // since the other modes want the starfield back and the ground gone.
   window.addEventListener("geoid-gis:mode-change", (event) => {
     if (event.detail?.mode === "model") {
+      rememberGlobeView();
       setStudioOrbitLimits(true);
       applyStudioScene();
       centreOnOrigin();
@@ -1892,6 +1928,7 @@ function init() {
       setStudioOrbitLimits(false);
       setStarsVisible(true);
       setGroundVisible(false);
+      restoreGlobeView();
       updateCoordinateReadout(null);
       // The globe drives both readouts in its own modes; clear the studio's
       // last values so nothing stale is left on screen through the handover.

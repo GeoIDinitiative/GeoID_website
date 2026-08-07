@@ -4187,3 +4187,6 @@ canvas {
     /* The hazard readout shares this corner in GeoID mode; it sits below. */
     body[data-hub-armed="true"] #tool-rail,
     body[data-hub-armed="true"] .map-legend { top: calc(1rem + 9.5rem + 0.8rem); }
+
+    /* The legend keys map layers; the studio has none. */
+    body[data-view-mode="model"] .map-legend { display: none !important; }
