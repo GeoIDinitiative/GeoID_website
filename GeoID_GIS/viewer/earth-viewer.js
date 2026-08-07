@@ -18855,6 +18855,11 @@ uniform float uViewportWidth;`,
           cursorReadout.innerHTML = `${lat.toFixed(2)}°, ${lon.toFixed(2)}°E `
             + `| ${formatElevationWithColor(elevationMeters)}`;
         },
+        // Leaving GeoID mode has to take the pin with it, otherwise a location
+        // stays marked on a map that no longer has a selection behind it.
+        clearGeoSelection() {
+          clearGeoSelectorSelection({ notifyParent: true, resetView: false });
+        },
         hideCursorReadout() {
           cursorReadout.hidden = true;
           cursorReadout.textContent = "";

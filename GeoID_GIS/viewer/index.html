@@ -43,30 +43,40 @@
       <button type="button" class="view-mode-btn is-active" data-mode="gis" id="view-mode-gis">GIS</button>
       <button type="button" class="view-mode-btn" data-mode="model" id="view-mode-model">Model</button>
     </div>
+    <!-- GeoID is a mode of the GIS page rather than a separate page. Armed, a
+         click on the globe drops a location pin and opens the Analysis Hub;
+         disarmed, clicks pan and orbit as they do anywhere else in GIS, so the
+         hub never intercepts ordinary navigation. -->
+    <details id="gis-group-geoid" class="control-section toolbox-group" open hidden>
+      <summary class="section-toggle">
+        <div class="section-toggle-main">
+          <div class="section-heading">
+            <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 14s4.2-4.3 4.2-7.2A4.2 4.2 0 0 0 8 2.6a4.2 4.2 0 0 0-4.2 4.2C3.8 9.7 8 14 8 14Z" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="6.7" r="1.5" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span><span>GeoID Mode</span></span></div>
+          </div>
+        </div>
+      </summary>
+      <div class="section-body toolbox-group-body">
+        <div class="geoid-mode-row" id="geoid-mode-row">
+          <div class="geoid-mode-label">
+            <span class="geoid-mode-title">Location Analysis</span>
+            <span class="geoid-mode-hint" id="geoid-mode-hint">Click a location for hazard analysis</span>
+          </div>
+          <button type="button" id="geoid-mode-enter" class="tour-enter-btn">Enter</button>
+        </div>
+      </div>
+    </details>
+
     <!-- GIS mode collapses the whole GeoID control set into this one group and
          stacks the toolboxes underneath it. Populated by gis/toolbox.js. -->
     <details id="geoid-controls-group" class="control-section toolbox-group" open hidden>
       <summary class="section-toggle">
         <div class="section-toggle-main">
           <div class="section-heading">
-            <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.9 8h10.2M8 2.8c1.5 1.6 1.5 8.8 0 10.4-1.5-1.6-1.5-8.8 0-10.4Z" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span><span>1 · Explorer</span></span></div>
+            <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.9 8h10.2M8 2.8c1.5 1.6 1.5 8.8 0 10.4-1.5-1.6-1.5-8.8 0-10.4Z" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span><span>Explorer</span></span></div>
           </div>
         </div>
       </summary>
-      <div class="section-body toolbox-group-body">
-        <!-- GeoID is a mode of the GIS page rather than a separate page. Armed,
-             a click on the globe drops a location pin and opens the Analysis
-             Hub; disarmed, clicks pan and orbit as they do anywhere else in
-             GIS, so the hub never intercepts ordinary navigation. -->
-        <div class="geoid-mode-row" id="geoid-mode-row">
-          <div class="geoid-mode-label">
-            <span class="geoid-mode-title">GeoID Mode</span>
-            <span class="geoid-mode-hint" id="geoid-mode-hint">Click a location for hazard analysis</span>
-          </div>
-          <button type="button" id="geoid-mode-enter" class="tour-enter-btn">Enter</button>
-        </div>
-        <div id="geoid-controls-host"></div>
-      </div>
+      <div class="section-body toolbox-group-body" id="geoid-controls-host"></div>
     </details>
 
     <div id="gis-toolbox-panels" hidden>
@@ -74,7 +84,7 @@
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 11.4 6 7.6l2.6 2.3L13.4 4.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.6 13.4h10.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span>2 · Modelled Data</span></span></div>
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 11.4 6 7.6l2.6 2.3L13.4 4.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.6 13.4h10.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span>Modelled Data</span></span></div>
             </div>
           </div>
         </summary>
@@ -114,7 +124,7 @@
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 4.4h4l1.1 1.4h5.7v6.4H2.6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></span><span>3 · Project</span></span></div>
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 4.4h4l1.1 1.4h5.7v6.4H2.6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></span><span>Project</span></span></div>
             </div>
           </div>
         </summary>
@@ -132,7 +142,7 @@
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 2.9v7.2M5.2 7.4 8 10.2l2.8-2.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 12.4h9.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span><span>4 · Add / Import Data</span></span></div>
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 2.9v7.2M5.2 7.4 8 10.2l2.8-2.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 12.4h9.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span><span>Add / Import Data</span></span></div>
             </div>
           </div>
         </summary>
@@ -159,7 +169,7 @@
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 4.4h10M3 8h10M3 11.6h6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="11.6" cy="11.6" r="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></span><span>5 · Pre-processing Toolbox</span></span></div>
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 4.4h10M3 8h10M3 11.6h6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="11.6" cy="11.6" r="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></span><span>Pre-processing Toolbox</span></span></div>
             </div>
           </div>
         </summary>
@@ -248,7 +258,7 @@
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 12.6 5.4 8l2.3 2.6L10.2 5l3.2 5.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>6 · Extraction &amp; Analysis</span></span></div>
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 12.6 5.4 8l2.3 2.6L10.2 5l3.2 5.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Extraction &amp; Analysis</span></span></div>
             </div>
           </div>
         </summary>
@@ -319,7 +329,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 11.6V4.4M5.2 7.2 8 4.4l2.8 2.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 12.6h9.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span><span>7 · Export Data</span></span></div>
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 11.6V4.4M5.2 7.2 8 4.4l2.8 2.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 12.6h9.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span><span>Export Data</span></span></div>
             </div>
           </div>
         </summary>
@@ -373,7 +383,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><rect x="3.2" y="2.8" width="9.6" height="10.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.4 5.8h5.2M5.4 8h5.2M5.4 10.2h3.2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span><span>8 · Metadata</span></span></div>
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><rect x="3.2" y="2.8" width="9.6" height="10.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.4 5.8h5.2M5.4 8h5.2M5.4 10.2h3.2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span><span>Metadata</span></span></div>
             </div>
           </div>
         </summary>

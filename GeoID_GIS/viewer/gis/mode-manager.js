@@ -86,6 +86,11 @@
     document.body.classList.toggle("studio-open", visible);
   }
 
+    function setGeoidGroupVisible(visible) {
+    const node = document.getElementById("gis-group-geoid");
+    if (node) node.hidden = !visible;
+  }
+
   function setGisToolboxVisible(visible) {
     const toolbar = document.getElementById("toolbar");
     if (toolbar) {
@@ -177,6 +182,7 @@
       setAnalysisPanelVisible(false);
       setToolboxLayout(false);
       setModelToolboxVisible(true);
+      setGeoidGroupVisible(false);
       setHazardReadoutVisible(false);
       // Inspect, pins and buffers all act on the globe surface, so they have
       // nothing to operate on while the globe is hidden.
@@ -189,6 +195,7 @@
       setAnalysisPanelVisible(true);
       setToolboxLayout(true);
       setModelToolboxVisible(false);
+      setGeoidGroupVisible(true);
       setGlobeVisible(true);
       applyHubState();
     } else {
@@ -247,7 +254,14 @@
   }
 
   function setHubArmed(on) {
+    const was = hubArmed;
     hubArmed = Boolean(on);
+    // Leaving the mode takes the pin with it. A marker left behind implies a
+    // selection that no longer exists, and the Analysis Hub it belongs to has
+    // already been dismissed.
+    if (was && !hubArmed) {
+      window.GeoIDViewer?.clearGeoSelection?.();
+    }
     if (hubArmed && currentMode !== "gis") {
       setMode("gis");
       return;
