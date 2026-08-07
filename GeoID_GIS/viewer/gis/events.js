@@ -175,10 +175,29 @@ function focusOn(lat, lon) {
     globe.updateMatrixWorld(true);
     local.applyMatrix4(globe.matrixWorld);
   }
-  const distance = viewer.camera.position.length();
-  viewer.camera.position.copy(local).setLength(distance);
-  viewer.controls?.target.set(0, 0, 0);
-  viewer.controls?.update();
+  // Selecting an event is a request to look at it, so the view closes in as
+  // well as coming round -- staying at whatever distance it happened to be at
+  // left the event a speck in the middle of the screen.
+  const close = viewer.GLOBE_RADIUS * 1.55;
+  const from = viewer.camera.position.clone();
+  const to = local.clone().setLength(Math.min(from.length(), close));
+  const started = performance.now();
+  const duration = 650;
+  if (flyFrame) window.cancelAnimationFrame(flyFrame);
+  const step = (now) => {
+    const t = Math.min((now - started) / duration, 1);
+    // Ease out, so it arrives gently rather than stopping dead.
+    const e = 1 - ((1 - t) ** 3);
+    // Interpolated as a direction and a distance rather than straight across,
+    // which would cut a chord through the planet on a long move.
+    const dir = from.clone().normalize().lerp(to.clone().normalize(), e).normalize();
+    const dist = from.length() + (to.length() - from.length()) * e;
+    viewer.camera.position.copy(dir).setLength(dist);
+    viewer.controls?.target.set(0, 0, 0);
+    viewer.controls?.update();
+    flyFrame = t < 1 ? window.requestAnimationFrame(step) : null;
+  };
+  flyFrame = window.requestAnimationFrame(step);
 }
 
 /**
@@ -416,6 +435,7 @@ function installPicking() {
 
 let halo = null;
 let haloFrame = null;
+let flyFrame = null;
 
 /**
  * A pulsing ring on the selected event, so the popup and the globe agree on
