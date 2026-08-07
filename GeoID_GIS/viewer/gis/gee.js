@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260807s";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260807t";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -55,11 +55,13 @@ function status(message) {
 function requestBounds() {
   const choice = byId("gee-extent")?.value || "view";
   if (choice === "polygon") {
+    // The viewer returns "vertices"; reading "points" found nothing, so the
+    // polygon option always reported that no shape had been drawn.
     const geometry = window.GeoIDViewer?.getExtractionGeometry?.("polygon");
-    const points = geometry?.points || geometry;
-    if (Array.isArray(points) && points.length >= 3) {
-      const lons = points.map((p) => p.lon ?? p[0]);
-      const lats = points.map((p) => p.lat ?? p[1]);
+    const vertices = geometry?.vertices;
+    if (Array.isArray(vertices) && vertices.length >= 3) {
+      const lons = vertices.map((v) => v.lon);
+      const lats = vertices.map((v) => v.lat);
       return {
         minX: Math.min(...lons), maxX: Math.max(...lons),
         minY: Math.min(...lats), maxY: Math.max(...lats),
@@ -175,7 +177,9 @@ async function request() {
 
     const bounds = requestBounds();
     if (!bounds) {
-      status("No extent: draw a polygon, or switch to the current view.");
+        // Named so it is clear which tool draws it: the shape comes from the
+      // viewer's Area measurement, not from a drawing mode of this panel.
+      status("No polygon drawn. Use the Area tool, or switch to Current view.");
       return;
     }
     const params = new URLSearchParams({
@@ -210,9 +214,16 @@ async function request() {
     window.dispatchEvent(new CustomEvent("geoid-gis:layers-changed"));
     status(`Added "${data.name}" at ${data.scale} m.`);
   } catch (error) {
-    // An error is said plainly: nothing appearing because the request failed is
-    // not the same as nothing being there.
-    status(`Request failed: ${error.message}`);
+    // "Failed to fetch" is what a browser reports for a blocked cross-origin
+    // request, and it says nothing about the cause. The page's own origin is
+    // named here because that is the thing that has to be on the service's
+    // allowlist, and reading it back is usually enough to spot the mismatch.
+    const blocked = /failed to fetch|networkerror|load failed/i.test(error.message || "");
+    status(blocked
+      ? `Could not reach the service from ${window.location.origin}. `
+        + "That origin is probably not on the service's allowed list, "
+        + "or the service is down."
+      : `Request failed: ${error.message}`);
   } finally {
     byId("gee-request")?.removeAttribute("disabled");
   }
