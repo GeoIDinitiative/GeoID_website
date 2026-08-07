@@ -151,6 +151,27 @@ function focusOn(lat, lon) {
   viewer.controls?.update();
 }
 
+let markerSprite = null;
+
+/** A soft round dot, so markers read as points rather than square pixels. */
+function markerTexture() {
+  if (markerSprite || !THREE) return markerSprite;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.45, "rgba(255,255,255,0.95)");
+  gradient.addColorStop(0.75, "rgba(255,255,255,0.35)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+  markerSprite = new THREE.CanvasTexture(canvas);
+  return markerSprite;
+}
+
 function renderMarkers() {
   const viewer = window.GeoIDViewer;
   if (!viewer?.scene || !THREE) return;
@@ -181,12 +202,19 @@ function renderMarkers() {
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     const points = new THREE.Points(geometry, new THREE.PointsMaterial({
       color: new THREE.Color(symbolFor(key).colour),
-      size: 0.055,
-      sizeAttenuation: true,
+      map: markerTexture(),
+      // Sized in screen pixels rather than world units: at globe scale a
+      // world-sized point is a speck, and it should stay legible at any zoom.
+      size: 14,
+      sizeAttenuation: false,
       depthWrite: false,
+      depthTest: false,
       transparent: true,
       opacity: 0.95,
     }));
+    // Drawn after the globe so a marker on the near face is never swallowed by
+    // the surface it sits on.
+    points.renderOrder = 20;
     points.name = `eonet-${key}`;
     markers.add(points);
   });
@@ -225,6 +253,12 @@ async function setActive(on) {
       toggle?.setAttribute("aria-expanded", "false");
     }
   }
+
+  // Reading a feed against the globe means finding places on it, which a
+  // turning planet makes needlessly hard. The spin stops while the mode is on
+  // and is left off afterwards rather than forced back -- Space is the control
+  // for it, and it should not be overridden behind the user.
+  if (active) window.GeoIDModeManager?.setSpin?.(false);
 
   window.clearInterval(timer);
   timer = null;

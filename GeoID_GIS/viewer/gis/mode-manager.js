@@ -422,5 +422,7 @@
     getMode: () => currentMode,
     setHubArmed,
     isHubArmed: () => hubArmed,
+    setSpin,
+    isSpinning: () => spinEnabled,
   };
 })();
