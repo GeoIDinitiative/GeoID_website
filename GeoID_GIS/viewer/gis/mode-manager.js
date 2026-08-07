@@ -89,8 +89,7 @@
     function setGeoidGroupVisible(visible) {
     // The globe-data sections stand down with the rest of the GIS toolbox,
     // since the studio has no globe for them to describe.
-    ["gis-group-geoid", "gis-group-events", "gis-group-basemap", "gis-group-geology",
-      "gis-group-sealevel", "gis-group-weather", "gis-group-geoid-modelled"].forEach((id) => {
+    ["gis-group-geoid", "gis-group-events"].forEach((id) => {
       const node = document.getElementById(id);
       if (node) node.hidden = !visible;
     });

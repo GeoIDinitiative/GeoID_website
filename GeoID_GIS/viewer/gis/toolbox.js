@@ -1,5 +1,5 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260808l";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260808l";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260808m";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260808m";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -50,11 +50,14 @@ const MOVES = [
   { id: "import-data-section", host: "import-tools-host" },
   { id: "gis-analysis-section", host: "analysis-tools-host" },
   { id: "import-layer-list", host: "layers-tools-host" },
-  { id: "basemap-relief-section", host: "basemap-tools-host" },
-  { id: "geology-section", host: "geology-tools-host" },
-  { id: "sea-level-section", host: "sealevel-tools-host" },
-  { id: "weather-section", host: "weather-tools-host" },
-  { id: "modelled-data-section", host: "geoid-modelled-tools-host" },
+  // Straight into the tab bar, not into shells of their own: each already has
+  // its own header, so wrapping it in another section showed the title twice
+  // and buried the controls a level deeper than they belong.
+  { id: "basemap-relief-section", host: "geoid-promoted-host", promote: true },
+  { id: "geology-section", host: "geoid-promoted-host", promote: true },
+  { id: "sea-level-section", host: "geoid-promoted-host", promote: true },
+  { id: "weather-section", host: "geoid-promoted-host", promote: true },
+  { id: "modelled-data-section", host: "geoid-promoted-host", promote: true },
   // Sources and metadata belong with the layer provenance they sit beside.
   { id: "metadata-section", host: "geoid-metadata-host" },
 ];
@@ -72,12 +75,15 @@ export function applyToolboxLayout(enabled) {
       rememberHome(panel);
       panelsHost.appendChild(panel);
     });
-    MOVES.forEach(({ id, host }) => {
+    MOVES.forEach((move) => {
+      const { id, host } = move;
       const element = document.getElementById(id);
       const target = document.getElementById(host);
       if (element && target) {
         rememberHome(element);
-        element.classList.add("toolbox-nested");
+        // Promoted panels sit in the tab bar as peers, so they keep the group
+        // styling rather than the nested styling.
+        element.classList.add(move.promote ? "toolbox-group" : "toolbox-nested");
         target.appendChild(element);
       }
     });
@@ -88,7 +94,7 @@ export function applyToolboxLayout(enabled) {
     MOVES.forEach(({ id }) => {
       const element = document.getElementById(id);
       if (element) {
-        element.classList.remove("toolbox-nested");
+        element.classList.remove("toolbox-nested", "toolbox-group");
         restoreHome(element);
       }
     });

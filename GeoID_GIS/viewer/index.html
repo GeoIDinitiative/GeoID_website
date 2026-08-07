@@ -14,8 +14,8 @@
   <link rel="stylesheet" href="styles.css?v=20260430-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260808l" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260808l" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260808m" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260808m" defer></script>
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -88,56 +88,7 @@
     </details>
 
     <div id="gis-toolbox-panels" hidden>
-      <details id="gis-group-basemap" class="control-section toolbox-group">
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 4.4 6.2 3l3.6 1.4L13.4 3v8.6l-3.6 1.4-3.6-1.4-3.6 1.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6.2 3v9.9M9.8 4.4v9.9" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span><span>Basemap &amp; Relief</span></span></div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body toolbox-group-body" id="basemap-tools-host"></div>
-      </details>
-      <details id="gis-group-geology" class="control-section toolbox-group">
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.4 12.4 6.1 5.6l2.6 4.1 1.7-2.5 3.2 5.2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></span><span>Geology</span></span></div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body toolbox-group-body" id="geology-tools-host"></div>
-      </details>
-      <details id="gis-group-sealevel" class="control-section toolbox-group">
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.4 6.2c1.6-1.3 3.1-1.3 4.7 0s3.1 1.3 4.7 0 1.5-.3 2.2.2M2.4 9.6c1.6-1.3 3.1-1.3 4.7 0s3.1 1.3 4.7 0 1.5-.3 2.2.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span>Sea Level</span></span></div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body toolbox-group-body" id="sealevel-tools-host"></div>
-      </details>
-      <details id="gis-group-weather" class="control-section toolbox-group">
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4.8 10.2a2.4 2.4 0 0 1 .3-4.8 3.4 3.4 0 0 1 6.4 1 2.3 2.3 0 0 1-.4 4.6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></span><span>Weather</span></span></div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body toolbox-group-body" id="weather-tools-host"></div>
-      </details>
-      <details id="gis-group-geoid-modelled" class="control-section toolbox-group">
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><rect x="2.8" y="2.8" width="10.4" height="10.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.2 10.4V7.2M8 10.4V5.2M10.8 10.4V8.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span><span>Modelled Data</span></span></div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body toolbox-group-body" id="geoid-modelled-tools-host"></div>
-      </details>
+      <div id="geoid-promoted-host"></div>
       <details id="gis-group-modelled" class="control-section toolbox-group">
         <summary class="section-toggle">
           <div class="section-toggle-main">
@@ -2092,18 +2043,18 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260808l" defer></script>
-<script type="module" src="gis/import-manager.js?v=20260808l"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260808l"></script>
-<script type="module" src="gis/toolbox.js?v=20260808l"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260808l"></script>
-<script type="module" src="gis/model-studio.js?v=20260808l"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260808l"></script>
-<script type="module" src="gis/project.js?v=20260808l"></script>
-<script type="module" src="gis/events.js?v=20260808l"></script>
-<script type="module" src="gis/gee.js?v=20260808l"></script>
+<script src="gis/mode-manager.js?v=20260808m" defer></script>
+<script type="module" src="gis/import-manager.js?v=20260808m"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260808m"></script>
+<script type="module" src="gis/toolbox.js?v=20260808m"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260808m"></script>
+<script type="module" src="gis/model-studio.js?v=20260808m"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260808m"></script>
+<script type="module" src="gis/project.js?v=20260808m"></script>
+<script type="module" src="gis/events.js?v=20260808m"></script>
+<script type="module" src="gis/gee.js?v=20260808m"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260808l" defer></script>
+<script src="music.js?v=20260808m" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>
