@@ -886,9 +886,15 @@ function patchControlsUpdate(on) {
       applyDollyFloor();
       const result = unpatchedUpdate(...args);
       keepCameraAboveGround();
-      // Grid spacing, the scale bar, and how far the ground needs to reach all
-      // depend on the viewpoint, so they are refreshed wherever the camera can
-      // move rather than on an event that might not be wired.
+      // Clip planes, grid spacing, the scale bar, and how far the ground needs
+      // to reach all depend on the viewpoint, so they are refreshed wherever
+      // the camera can move rather than only when a view button is pressed.
+      // Leaving the planes fixed was what made the ground vanish on zoom: the
+      // far plane stayed where the last framing left it and stopped reaching
+      // the horizon within a few tens of kilometres.
+      const focusPoint = controls.target;
+      applyCameraClip(window.GeoIDViewer.camera,
+        window.GeoIDViewer.camera.position.distanceTo(focusPoint));
       refreshGraticuleStep();
       updateScaleReadout();
       updateGroundReach();
