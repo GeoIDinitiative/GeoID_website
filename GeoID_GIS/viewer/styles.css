@@ -4295,8 +4295,12 @@ canvas {
 
     .brand-toprow #view-mode-switch .view-mode-btn { flex: 1 1 0; }
 
-    /* ── Events feed, beside the legend ─────────────────────────────────── */
-    .events-overlay { right: 13rem; }
+    /* ── Events feed ────────────────────────────────────────────────────── */
+    /* With no legend the feed takes the slot beside the tool buttons; with one,
+       it steps left so the two sit side by side rather than overlapping. */
+    /* Placed from the legend's measured width by gis/events.js; this is the
+       starting position before that runs. */
+    .events-overlay { right: 5.5rem; }
     body[data-hub-armed="true"] .events-overlay { top: calc(1rem + 9.5rem + 0.8rem); }
 
     .event-group + .event-group { margin-top: 0.5rem; }

@@ -209,14 +209,20 @@ async function setActive(on) {
     button.classList.toggle("is-active", active);
   }
   const host = byId("events-overlay");
+  const panel = byId("events-panel");
+  const toggle = byId("events-panel-toggle");
   if (host) {
     host.hidden = !active;
-    // Collapse the panel on the way out, so re-entering opens closed rather
-    // than showing a stale list from the last session.
-    const panel = byId("events-panel");
+    // Entering the mode is a request to see the feed, so it opens on the list
+    // rather than on a closed tab that has to be found and clicked.
+    if (active && panel) {
+      panel.hidden = false;
+      toggle?.setAttribute("aria-expanded", "true");
+    }
+    placeOverlay();
     if (!active && panel) {
       panel.hidden = true;
-      byId("events-panel-toggle")?.setAttribute("aria-expanded", "false");
+      toggle?.setAttribute("aria-expanded", "false");
     }
   }
 
@@ -232,6 +238,25 @@ async function setActive(on) {
   timer = window.setInterval(fetchEvents, REFRESH_MS);
 }
 
+/**
+ * Sits the feed immediately left of the legend, or in the legend's own slot when
+ * there is no legend. Measured rather than assumed: the legend's width changes
+ * as its panel opens and closes, and a fixed offset left an obvious gap
+ * whenever it was shut.
+ */
+function placeOverlay() {
+  const host = byId("events-overlay");
+  const legend = byId("map-legend");
+  if (!host) return;
+  const base = 5.5 * parseFloat(getComputedStyle(document.documentElement).fontSize || "16");
+  if (!legend || legend.hidden) {
+    host.style.right = `${base}px`;
+    return;
+  }
+  const gap = 8;
+  host.style.right = `${window.innerWidth - legend.getBoundingClientRect().left + gap}px`;
+}
+
 function init() {
   byId("events-mode-enter")?.addEventListener("click", () => setActive(!active));
   const toggle = byId("events-panel-toggle");
@@ -241,6 +266,16 @@ function init() {
     panel.hidden = !panel.hidden;
     toggle.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
   });
+  // The legend's width drives where this sits, so follow anything that changes
+  // it: layers appearing or going, its panel opening, and the window resizing.
+  document.getElementById("map-legend-toggle")?.addEventListener("click", () => {
+    window.requestAnimationFrame(placeOverlay);
+  });
+  window.addEventListener("geoid-gis:layers-changed", () => {
+    window.requestAnimationFrame(placeOverlay);
+  });
+  window.addEventListener("resize", placeOverlay);
+  window.setInterval(placeOverlay, 1000);
   // The overlay sits over the scene, so it hangs off <body> like the legend.
   const overlay = byId("events-overlay");
   if (overlay && overlay.parentElement !== document.body) {

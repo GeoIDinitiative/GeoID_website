@@ -167,6 +167,10 @@ function renderLegend(stack) {
   const panel = document.getElementById("map-legend-panel");
   if (!host || !panel) return;
   host.hidden = stack.length === 0;
+  // Announced on <body> so the events feed can sit beside the legend when it is
+  // there and take its place when it is not, without either knowing about the
+  // other's markup.
+  document.body.dataset.legend = stack.length ? "true" : "false";
   if (!stack.length) {
     panel.hidden = true;
     document.getElementById("map-legend-toggle")?.setAttribute("aria-expanded", "false");
