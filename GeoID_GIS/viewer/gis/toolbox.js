@@ -1,5 +1,5 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260808j";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260808j";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260808l";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260808l";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -43,10 +43,20 @@ function geoidPanels() {
   });
 }
 
+// Panels lifted out of Explorer into sections of their own. Explorer collects
+// every globe control first, and these are pulled back out afterwards, so the
+// promotion is expressed here rather than by teaching the collector exceptions.
 const MOVES = [
   { id: "import-data-section", host: "import-tools-host" },
   { id: "gis-analysis-section", host: "analysis-tools-host" },
   { id: "import-layer-list", host: "layers-tools-host" },
+  { id: "basemap-relief-section", host: "basemap-tools-host" },
+  { id: "geology-section", host: "geology-tools-host" },
+  { id: "sea-level-section", host: "sealevel-tools-host" },
+  { id: "weather-section", host: "weather-tools-host" },
+  { id: "modelled-data-section", host: "geoid-modelled-tools-host" },
+  // Sources and metadata belong with the layer provenance they sit beside.
+  { id: "metadata-section", host: "geoid-metadata-host" },
 ];
 
 export function applyToolboxLayout(enabled) {
