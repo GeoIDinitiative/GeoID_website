@@ -4024,10 +4024,9 @@ canvas {
     /* The globe HUD -- locator, surface conditions and the GMT clock -- reports
        on a planet being explored. Model mode has no planet, and GIS mode is a
        working surface rather than a view, so both drop it. */
-    /* The scale bar reports kilometres on the globe. Model space is metres in
-       a local frame, and at studio zoom levels it reads absurd figures, so it
-       goes with the rest of the globe HUD. */
-    body[data-view-mode="model"] #cursor-readout-bar,
+    /* The scale bar and cursor readout stay in Model mode. They are the same
+       elements the GIS page uses, driven by the studio's own local scale, so
+       both pages report position and distance identically. */
     body[data-view-mode="model"] #bottom-right-hud,
     body[data-view-mode="model"] #hemisphere-locator,
     body[data-view-mode="model"] #surface-conditions,
@@ -4039,29 +4038,3 @@ canvas {
       display: none !important;
     }
 
-    /* WGS84 readout, sitting beside the scale bar. */
-    .studio-coords {
-      position: absolute;
-      right: 17.5rem;
-      bottom: 0.9rem;
-      display: flex;
-      gap: 0.9rem;
-      padding: 0.4rem 0.7rem;
-      border-radius: 0.6rem;
-      border: 1px solid rgba(82, 228, 232, 0.38);
-      background: rgba(8, 12, 20, 0.9);
-      backdrop-filter: blur(10px);
-      font-family: "Courier New", monospace;
-      font-size: 0.68rem;
-      color: var(--text);
-      white-space: nowrap;
-    }
-
-    .studio-coords b {
-      color: var(--nav-accent);
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      margin-right: 0.3rem;
-    }
-
-    .studio-coord-empty { color: var(--soft-light); }

@@ -3046,6 +3046,10 @@ import * as THREE from "./vendor/three.module.js";
     }
 
     function updateScaleHud(camera, bodyMesh, bodyRadiusMeters, bodyRadiusScene = 3.2, latitudeDeg = null, visible = true) {
+      // In Model mode the studio owns the bar and fills it from its own local
+      // scale. This measures against a planet, so leaving it running would
+      // overwrite the studio's figures with globe distances every frame.
+      if (document.body.dataset.viewMode === "model") return;
       if (!visible || !camera || !bodyMesh || !Number.isFinite(bodyRadiusMeters) || bodyRadiusMeters <= 0) {
         scaleReadout.hidden = true;
         scaleLabel1.textContent = "—";
@@ -18299,6 +18303,11 @@ uniform float uViewportWidth;`,
       });
 
       renderer.domElement.addEventListener("pointermove", (event) => {
+        // Model mode hides the globe and the studio owns the cursor readout,
+        // filling it from its own local frame. Letting this run there would
+        // find no surface under the pointer and blank the readout on every
+        // mouse move, fighting the studio for the same element.
+        if (document.body.dataset.viewMode === "model") return;
         const _rawSurfaceHit = measureMode
           ? intersectMeasurementSurface(event.clientX, event.clientY)
           : intersectAnySurface(event.clientX, event.clientY);
@@ -18785,6 +18794,62 @@ uniform float uViewportWidth;`,
         pointInProjectedPolygon,
         sphericalPolygonAreaKm2,
         getGeologyFeatureAtLatLon: (lat, lon) => getGeologyFeatureAtLatLon(lat, lon, geologyInteractiveState),
+        // The Meshing Studio works in a local frame with its own scale, so it
+        // cannot use the globe-based scale estimator. It supplies its own
+        // metres-per-pixel and reuses the rest -- the nice-number rounding, the
+        // label fitting and the bar itself -- so the readouts on the Model page
+        // are the same ones the GIS page draws, not a lookalike.
+        renderScaleBar(metersPerPixel) {
+          if (!Number.isFinite(metersPerPixel) || metersPerPixel <= 0) {
+            scaleReadout.hidden = true;
+            return;
+          }
+          const widthPx = resolveScaleBarWidthPx();
+          const nice = chooseNiceScaleDistance(metersPerPixel, widthPx);
+          scaleReadout.hidden = false;
+          if (!Number.isFinite(nice)) {
+            scaleLabel0.textContent = "0";
+            [scaleLabel1, scaleLabel2, scaleLabel3, scaleLabel4, scaleLabel5]
+              .forEach((node) => { node.textContent = ""; });
+            return;
+          }
+          window.__lastScaleBarMeters = nice;
+          const scheme = chooseFittedScaleLabelScheme(nice, widthPx);
+          [scaleLabel0, scaleLabel1, scaleLabel2, scaleLabel3, scaleLabel4, scaleLabel5]
+            .forEach((node, i) => {
+              const spec = scheme[i];
+              if (!spec) {
+                node.textContent = "";
+                node.style.left = "0%";
+                node.style.transform = "translateX(-50%)";
+                return;
+              }
+              node.textContent = spec.label;
+              node.style.left = `${spec.position * 100}%`;
+              node.style.transform = spec.position <= 0
+                ? "none"
+                : spec.position >= 1
+                  ? "translateX(-100%)"
+                  : "translateX(-50%)";
+            });
+        },
+        renderCursorReadout(lat, lon, elevationMeters) {
+          if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+            cursorReadout.hidden = true;
+            cursorReadout.textContent = "";
+            return;
+          }
+          cursorReadout.hidden = false;
+          cursorReadout.innerHTML = `${lat.toFixed(2)}°, ${lon.toFixed(2)}°E `
+            + `| ${formatElevationWithColor(elevationMeters)}`;
+        },
+        hideCursorReadout() {
+          cursorReadout.hidden = true;
+          cursorReadout.textContent = "";
+        },
+        hideScaleBar() {
+          scaleReadout.hidden = true;
+        },
       };
 
       async function runEmbeddedSmokeTest() {

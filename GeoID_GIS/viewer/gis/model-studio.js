@@ -617,23 +617,44 @@ function wgs84ToScene(lat, lon, elevation = 0) {
   return modelAnchor.localToWorld(local);
 }
 
-function formatCoord(value, suffixes) {
-  const hemi = value >= 0 ? suffixes[0] : suffixes[1];
-  return `${Math.abs(value).toFixed(5)}\u00b0${hemi}`;
-}
-
+/**
+ * Cursor position, drawn by the viewer's own readout rather than a studio one,
+ * so the Model page reports position exactly as the GIS page does. Only the
+ * numbers come from here -- the studio's local frame instead of the globe.
+ */
 function updateCoordinateReadout(point) {
-  const host = byId("studio-coords");
-  if (!host) return;
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.renderCursorReadout) return;
   if (!point) {
-    host.innerHTML = '<span class="studio-coord-empty">Move over the ground for coordinates</span>';
+    viewer.hideCursorReadout();
     return;
   }
   const geo = sceneToWgs84(point);
-  host.innerHTML =
-    `<span><b>LAT</b> ${formatCoord(geo.lat, ["N", "S"])}</span>`
-    + `<span><b>LON</b> ${formatCoord(geo.lon, ["E", "W"])}</span>`
-    + `<span><b>ELEV</b> ${geo.elevation.toFixed(2)} m</span>`;
+  viewer.renderCursorReadout(geo.lat, geo.lon, geo.elevation);
+}
+
+/**
+ * Scale bar, again drawn by the viewer's own code. Its globe estimator cannot
+ * be used here: it measures against a planet, and the studio's sphere is
+ * scenery at an arbitrary radius. Metres per pixel is taken from the model's
+ * own scale at the orbit target, which is where the user is working.
+ */
+function updateScaleReadout() {
+  const viewer = window.GeoIDViewer;
+  const camera = viewer?.camera;
+  if (!viewer?.renderScaleBar || !camera) return;
+  const target = viewer.controls?.target;
+  const distance = target ? camera.position.distanceTo(target) : camera.position.length();
+  const height = viewer.renderer?.domElement?.clientHeight || 0;
+  if (!height || !Number.isFinite(distance) || distance <= 0) {
+    viewer.hideScaleBar();
+    return;
+  }
+  // Scene units spanned by one pixel at the target's distance, converted into
+  // model metres through the studio's shared scale.
+  const fovRad = (camera.fov || 45) * Math.PI / 180;
+  const unitsPerPixel = (2 * Math.tan(fovRad / 2) * distance) / height;
+  viewer.renderScaleBar(unitsPerPixel / (studioScale || 1));
 }
 
 // The viewer's orbit limits are tuned for a 3.2-unit globe, which caps the
@@ -759,6 +780,9 @@ function patchControlsUpdate(on) {
       applyDollyFloor();
       const result = unpatchedUpdate(...args);
       keepCameraAboveGround();
+      // The scale bar depends on the viewpoint, so it is refreshed wherever the
+      // camera can move rather than on an event that might not be wired.
+      updateScaleReadout();
       return result;
     };
   } else if (unpatchedUpdate) {
@@ -1709,6 +1733,9 @@ function init() {
       setStarsVisible(true);
       setGroundVisible(false);
       updateCoordinateReadout(null);
+      // The globe drives both readouts in its own modes; clear the studio's
+      // last values so nothing stale is left on screen through the handover.
+      window.GeoIDViewer?.hideScaleBar?.();
     }
   });
 
