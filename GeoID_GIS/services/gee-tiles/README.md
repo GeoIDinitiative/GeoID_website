@@ -98,6 +98,40 @@ get something working, but it means any page anywhere can call the endpoint and
 spend the project's Earth Engine quota, so it is worth setting before the URL is
 in anything public.
 
+## Keeping the bill at nothing
+
+Billing has to be enabled for this to deploy, which is not the same as being
+charged. What matters:
+
+- **Earth Engine is the only real risk.** If the project is registered
+  commercial, every request is billable. Noncommercial registration -- research,
+  education, nonprofit -- is free. Confirm which at
+  https://code.earthengine.google.com/register before the URL is public.
+- **Cloud Functions is comfortably inside the free tier** at any plausible
+  traffic: two million invocations a month, against one per basemap request.
+- **Artifact Registry is the likeliest source of a small charge.** Each deploy
+  leaves a container image, and the free half gigabyte fills after a handful.
+  Delete old ones:
+
+      gcloud artifacts docker images list \
+        europe-west2-docker.pkg.dev/geoid-504623/gcf-artifacts
+
+- **Images are not served through this function.** The page fetches the
+  thumbnail from Earth Engine directly, so the bandwidth is not counted against
+  the deployment.
+
+Set a budget alert regardless, so a surprise arrives as an email rather than as
+an invoice:
+
+    gcloud billing budgets create \
+      --billing-account=<BILLING_ACCOUNT_ID> \
+      --display-name="GeoID zero-spend alert" \
+      --budget-amount=1GBP \
+      --threshold-rule=percent=0.5 --threshold-rule=percent=1.0
+
+`--max-instances=3` caps how many copies can run at once, so a burst of traffic
+cannot quietly scale into a bill.
+
 ## Cost and quota
 
 Earth Engine bills the project this runs in. `DATASETS` is a fixed list rather
