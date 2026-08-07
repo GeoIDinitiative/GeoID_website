@@ -122,6 +122,52 @@
         </summary>
         <div class="section-body toolbox-group-body">
           <details class="gis-tool-section" open>
+            <summary>Current Project</summary>
+            <div class="gis-tool-body">
+              <label class="row"><span>Name</span>
+                <input id="project-name" class="input" type="text" placeholder="Untitled project"></label>
+              <label class="row"><span>Author</span>
+                <input id="project-author" class="input" type="text" placeholder="Who is responsible"></label>
+              <label class="row"><span>Description</span>
+                <textarea id="project-description" class="input" rows="3"
+                  placeholder="What this project is for"></textarea></label>
+              <label class="row"><span>Keywords</span>
+                <input id="project-keywords" class="input" type="text"
+                  placeholder="comma, separated"></label>
+              <label class="row"><span>Licence</span>
+                <select id="project-licence" class="input">
+                  <option value="">Unstated</option>
+                  <option value="CC-BY-4.0">CC BY 4.0</option>
+                  <option value="CC-BY-SA-4.0">CC BY-SA 4.0</option>
+                  <option value="CC0-1.0">CC0 1.0</option>
+                  <option value="ODbL-1.0">ODbL 1.0</option>
+                  <option value="internal">Internal / unpublished</option>
+                </select></label>
+              <p id="project-saved-at" class="gis-hint">Not saved yet.</p>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Manage Projects</summary>
+            <div class="gis-tool-body">
+              <div class="gis-btn-row">
+                <button id="project-new" class="button secondary" type="button">New</button>
+                <button id="project-save" class="button" type="button">Save</button>
+              </div>
+              <label class="row"><span>Saved</span>
+                <select id="project-saved-list" class="input"></select></label>
+              <div class="gis-btn-row">
+                <button id="project-open" class="button secondary" type="button">Open</button>
+                <button id="project-delete" class="button secondary" type="button">Delete</button>
+              </div>
+              <div class="gis-btn-row">
+                <button id="project-export" class="button secondary" type="button">Export .geoidproj</button>
+                <button id="project-import" class="button secondary" type="button">Import…</button>
+              </div>
+              <input id="project-import-file" type="file" accept=".geoidproj,.json" hidden>
+              <p id="project-status" class="gis-hint" aria-live="polite"></p>
+            </div>
+          </details>
+          <details class="gis-tool-section">
             <summary>Project Summary</summary>
             <div class="gis-tool-body">
               <div id="project-summary" class="gis-metric">No layers loaded.</div>
@@ -1936,6 +1982,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
 <script type="module" src="gis/toolbox-ops.js?v=20260804a"></script>
 <script type="module" src="gis/model-studio.js?v=20260804a"></script>
 <script type="module" src="gis/layer-hierarchy.js?v=20260807a"></script>
+<script type="module" src="gis/project.js?v=20260807a"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
 <script src="music.js?v=20260329a" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>

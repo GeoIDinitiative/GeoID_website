@@ -4116,3 +4116,6 @@ canvas {
       margin: 0 0 0.5rem;
     }
     #gis-toolbox-panels { display: block; }
+
+    .gis-btn-row { display: flex; gap: 0.4rem; margin: 0.35rem 0; }
+    .gis-btn-row .button { flex: 1; }
