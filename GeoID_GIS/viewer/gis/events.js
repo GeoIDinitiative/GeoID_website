@@ -435,7 +435,7 @@ function setSelection(event) {
 
   const position = viewer.latLonToVector3(event.lat, event.lon, viewer.GLOBE_RADIUS * MARKER_LIFT);
   halo = new THREE.Mesh(
-    new THREE.RingGeometry(0.8, 1.0, 48),
+    new THREE.RingGeometry(0.86, 1.0, 48),
     new THREE.MeshBasicMaterial({
       color: 0x52e4e8,
       side: THREE.DoubleSide,
@@ -457,10 +457,12 @@ function setSelection(event) {
     // Sized from the dot it marks rather than from its own rule, so it stays
     // tight around it at any zoom instead of drifting to its own scale.
     const px = globeRadiusPx();
-    const ringPx = px > 0 ? dotSizePx(px) * 1.1 : 6;
+    // dotSizePx is the dot's width; the ring's scale is its radius. Half the
+    // dot's width plus a little clearance puts the ring on its circumference.
+    const ringPx = px > 0 ? dotSizePx(px) * 0.62 : 3;
     const base = px > 0 ? viewer.GLOBE_RADIUS * (ringPx / px) : viewer.GLOBE_RADIUS * 0.01;
-    // A modest pulse: enough to catch the eye, not enough to lose the dot.
-    halo.scale.setScalar(base * (1 + t * 0.75));
+    // A slight breath, so the ring stays on the dot rather than sweeping off it.
+    halo.scale.setScalar(base * (1 + t * 0.3));
     halo.material.opacity = 0.85 * (1 - t);
     // Kept facing the camera, so it is a ring rather than an ellipse edge-on.
     if (viewer.camera) halo.lookAt(viewer.camera.position);
