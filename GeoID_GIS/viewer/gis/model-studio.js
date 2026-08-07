@@ -203,15 +203,29 @@ function modelRadius() {
 }
 
 /** Recomputes the shared scale and re-applies it to every studio mesh. */
+/**
+ * The studio works at true size: one scene unit is one metre.
+ *
+ * Models used to be normalised to a fixed on-screen radius while the reference
+ * sphere was clamped to its own unrelated radius, so the scene held two
+ * different metres-per-unit at once -- a 1000 m box came out larger than the
+ * Earth. Nothing is rescaled now, so model metres, ground distances, the scale
+ * bar and the coordinate readout are all the same units.
+ *
+ * baseScale still records what the normalising factor would have been, because
+ * GIS mode uses it to shrink a model onto the globe; it is recorded rather than
+ * applied.
+ */
 function refreshStudioScale() {
-  studioScale = MODEL_MODE_RADIUS / modelRadius();
+  studioScale = 1;
+  const normalising = MODEL_MODE_RADIUS / modelRadius();
   studioMeshes.forEach((mesh) => {
     if (!mesh.parent) {
       studioMeshes.delete(mesh);
       return;
     }
-    mesh.scale.setScalar(studioScale);
-    mesh.userData.baseScale = studioScale;
+    mesh.scale.setScalar(1);
+    mesh.userData.baseScale = normalising;
   });
   updateGround();
 }
@@ -290,15 +304,18 @@ const MIN_POLAR_RAD = 8 * Math.PI / 180;
 // Shallowest look-down angle the dolly floor will reason about. Below this
 // the required stand-off would run away towards infinity.
 const SIN_MIN_ELEVATION = Math.sin(2 * Math.PI / 180);
-const GROUND_MIN = 500;
-const GROUND_MAX = 4000;
+// Ground shown when the studio is empty, in metres.
+const DEFAULT_WORK_RADIUS_M = 250;
 
-let groundRadius = 900;
+
+let groundRadius = 6371000;
+let patchRadius = 0;
 let modelAnchor = null;
 
 function computeGroundRadius() {
-  const trueRadius = EARTH_RADIUS_M * studioScale;
-  return Math.min(GROUND_MAX, Math.max(GROUND_MIN, trueRadius));
+  // To scale with the model, always: the sphere is the Earth at the size the
+  // model actually is, not a representative ball at a convenient radius.
+  return EARTH_RADIUS_M * studioScale;
 }
 
 export function getGroundInfo() {
@@ -306,8 +323,8 @@ export function getGroundInfo() {
   return {
     radius: groundRadius,
     trueRadius,
-    toScale: trueRadius >= GROUND_MIN && trueRadius <= GROUND_MAX,
-    metresPerUnit: EARTH_RADIUS_M / groundRadius,
+    toScale: true,
+    metresPerUnit: 1 / (studioScale || 1),
   };
 }
 
@@ -382,10 +399,10 @@ function groundGridMaterial() {
     depthTest: true,
     side: THREE.FrontSide,
     uniforms: {
-      uStepDeg: { value: 10 },
-      uStepCoarse: { value: 30 },
+      uStepM: { value: 100 },
+      uStepCoarse: { value: 500 },
       uBlend: { value: 1 },
-      uMajorEvery: { value: 4 },
+      uMajorEvery: { value: 5 },
       uMinor: { value: new THREE.Color(0x2f6bff) },
       uMajor: { value: new THREE.Color(0xff2bd6) },
       uBase: { value: new THREE.Color(0x02050b) },
@@ -398,7 +415,7 @@ function groundGridMaterial() {
       }
     `,
     fragmentShader: `
-      uniform float uStepDeg;
+      uniform float uStepM;
       uniform float uStepCoarse;
       uniform float uBlend;
       uniform float uMajorEvery;
@@ -407,30 +424,29 @@ function groundGridMaterial() {
       uniform vec3 uBase;
       varying vec3 vLocal;
 
-      const float DEG = 57.29577951308232;
-
-      // One graticule level: line coverage, glow, and which family is nearer.
-      void gridLevel(float lat, float lon, float step, float wLat, float wLon,
+      // One grid level: line coverage, glow, and which family is nearer.
+      void gridLevel(float e, float n, float step, float wE, float wN,
                      out float line, out float bloom,
                      out float parallels, out float meridians) {
-        float dLat = abs(fract(lat / step - 0.5) - 0.5) * step;
-        float dLon = abs(fract(lon / step - 0.5) - 0.5) * step;
-        parallels = 1.0 - smoothstep(0.0, wLat, dLat);
-        meridians = 1.0 - smoothstep(0.0, wLon, dLon);
+        float dLat = abs(fract(e / step - 0.5) - 0.5) * step;
+        float dLon = abs(fract(n / step - 0.5) - 0.5) * step;
+        parallels = 1.0 - smoothstep(0.0, wE, dLat);
+        meridians = 1.0 - smoothstep(0.0, wN, dLon);
         // Retire lines as cells approach pixel size rather than let them alias
         // into noise near the limb.
-        float density = clamp(step / (max(wLat, wLon) * 10.0), 0.0, 1.0);
+        float density = clamp(step / (max(wE, wN) * 10.0), 0.0, 1.0);
         line = max(parallels, meridians) * density;
         bloom = max(exp(-dLat / (step * 0.05)), exp(-dLon / (step * 0.05)))
           * 0.35 * density;
       }
 
       void main() {
-        // The sphere is centred on the origin and is the Earth frame, so the
-        // surface direction gives geodetic lat/lon with no extra basis.
-        vec3 dir = normalize(vLocal);
-        float lat = asin(clamp(dir.z, -1.0, 1.0)) * DEG;
-        float lon = atan(dir.y, dir.x) * DEG;
+        // The patch is already in metres east/up/north of the model's origin,
+        // so the grid reads straight off the position. The model is authored in
+        // metres, so the ground it stands on is ruled in metres too -- a degree
+        // grid would bear no relation to it.
+        float lat = vLocal.x;
+        float lon = -vLocal.z;
 
         float wLat = fwidth(lat) * 1.2 + 1e-6;
         float wLon = fwidth(lon) * 1.2 + 1e-6;
@@ -439,7 +455,7 @@ function groundGridMaterial() {
         // the finer one up gradually instead of swapping the whole graticule
         // between frames.
         float lineFine = 0.0, bloomFine = 0.0, parFine = 0.0, merFine = 0.0;
-        gridLevel(lat, lon, uStepDeg, wLat, wLon, lineFine, bloomFine, parFine, merFine);
+        gridLevel(lat, lon, uStepM, wLat, wLon, lineFine, bloomFine, parFine, merFine);
         float lineCoarse = 0.0, bloomCoarse = 0.0, parCoarse = 0.0, merCoarse = 0.0;
         gridLevel(lat, lon, uStepCoarse, wLat, wLon, lineCoarse, bloomCoarse, parCoarse, merCoarse);
 
@@ -448,7 +464,7 @@ function groundGridMaterial() {
         float line = max(lineCoarse, lineFine * uBlend);
         float bloom = max(bloomCoarse, bloomFine * uBlend);
 
-        float step_ = uBlend > 0.5 ? uStepDeg : uStepCoarse;
+        float step_ = uBlend > 0.5 ? uStepM : uStepCoarse;
         float par = uBlend > 0.5 ? parFine : parCoarse;
         float mer = uBlend > 0.5 ? merFine : merCoarse;
         bool major = (par >= mer)
@@ -462,53 +478,139 @@ function groundGridMaterial() {
   });
 }
 
+/**
+ * The ground, built as a patch of the Earth's surface in metres relative to the
+ * model's origin rather than as a whole sphere about the scene origin.
+ *
+ * A 6371 km sphere cannot be drawn usefully at model scale. Its vertices sit at
+ * six-million-metre magnitudes, where a 32-bit float resolves about half a
+ * metre, and even 256 segments leaves triangles 150 km across -- far coarser
+ * than a horizon a few hundred metres up. Both problems disappear when the
+ * surface is expressed as an offset from the origin: coordinates are small, so
+ * precision is full, and the tessellation can be concentrated where the camera
+ * actually is.
+ *
+ * Vertices lie exactly on the sphere, so the curvature and the horizon are
+ * real, not approximated. Rings are spaced quadratically to keep detail near
+ * the model, where the user works.
+ */
+function buildGroundPatch(patchRadius, rings = 128, segments = 192) {
+  const R = groundRadius;
+  const limit = Math.min(patchRadius, R * 0.999);
+  const positions = new Float32Array((rings + 1) * (segments + 1) * 3);
+  let p = 0;
+  for (let i = 0; i <= rings; i += 1) {
+    const t = i / rings;
+    const r = limit * t * t;
+    // Height of the sphere's surface at horizontal distance r, measured down
+    // from the tangent point. Written as a chord so it stays accurate when r
+    // is small compared with R.
+    const drop = (r * r) / (Math.sqrt(Math.max(R * R - r * r, 0)) + R);
+    for (let j = 0; j <= segments; j += 1) {
+      const a = (j / segments) * Math.PI * 2;
+      positions[p] = r * Math.cos(a);
+      positions[p + 1] = -drop;
+      positions[p + 2] = r * Math.sin(a);
+      p += 3;
+    }
+  }
+  const indices = [];
+  const rowLen = segments + 1;
+  for (let i = 0; i < rings; i += 1) {
+    for (let j = 0; j < segments; j += 1) {
+      const a = i * rowLen + j;
+      const b = a + rowLen;
+      // Wound so the surface faces up: the reverse order points the normals
+      // into the planet and the patch vanishes to back-face culling.
+      indices.push(a, a + 1, b, a + 1, b + 1, b);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+/** Regrows the ground when the viewpoint has moved far enough to need it. */
+function updateGroundReach() {
+  if (!groundMesh?.visible) return;
+  const wanted = desiredPatchRadius();
+  if (patchRadius > 0 && wanted < patchRadius * 1.6 && wanted > patchRadius / 1.6) return;
+  updateGround();
+}
+
+/** How far the ground should reach: past the horizon, and past the model. */
+function desiredPatchRadius() {
+  const camera = window.GeoIDViewer?.camera;
+  const focus = modelFocus();
+  const modelReach = (focus ? focus.radius : DEFAULT_WORK_RADIUS_M) * 8;
+  if (!camera) return modelReach;
+  const altitude = Math.max(camera.position.length() - groundRadius, 0.01);
+  const horizon = Math.sqrt(2 * groundRadius * altitude + altitude * altitude);
+  return Math.max(horizon * 1.4, modelReach);
+}
+
 function updateGround() {
   ensureModelAnchor();
   if (!groundMesh) return;
-  const radius = computeGroundRadius();
-  if (Math.abs(radius - groundRadius) > 1e-6) {
-    groundRadius = radius;
+  groundRadius = computeGroundRadius();
+  // Rebuilt only when the view has changed enough to matter, so panning and
+  // small zooms do not regenerate the geometry.
+  const wanted = desiredPatchRadius();
+  if (!(patchRadius > 0) || wanted > patchRadius * 1.6 || wanted < patchRadius / 1.6) {
+    patchRadius = wanted;
     groundMesh.geometry?.dispose();
-    groundMesh.geometry = new THREE.SphereGeometry(groundRadius, 256, 192);
-    updateModelAnchor();
+    groundMesh.geometry = buildGroundPatch(patchRadius);
   }
-  // Earth centre is the scene origin.
-  groundMesh.position.set(0, 0, 0);
-  // The anchor sits on world +Y. Turning the sphere a quarter turn puts that
-  // point on the grid's equator rather than its pole, so the model stands on
-  // an orthogonal patch of grid instead of on the spot where every meridian
-  // converges.
-  groundMesh.rotation.set(0, 0, Math.PI / 2);
+  // The patch is expressed relative to the model's origin, so it is positioned
+  // there rather than at the centre of the Earth.
+  groundMesh.position.set(0, groundRadius, 0);
+  groundMesh.rotation.set(0, 0, 0);
+  groundMesh.updateMatrixWorld(true);
   applyOrbitDistanceLimits();
   refreshGraticuleStep();
 }
 
-const GRATICULE_STEPS = [30, 10, 5, 1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001];
+// Grid spacing in metres, coarse to fine: 1-2-5 per decade, from a kilometre
+// down to a millimetre and up to continental distances.
+const GRID_STEPS_M = (() => {
+  const steps = [];
+  for (let e = 7; e >= -3; e -= 1) {
+    [5, 2, 1].forEach((m) => steps.push(m * (10 ** e)));
+  }
+  return steps;
+})();
 
 function refreshGraticuleStep() {
   const viewer = window.GeoIDViewer;
   const uniforms = groundMesh?.material?.uniforms;
-  if (!uniforms || !viewer?.camera) return;
-  const height = Math.max(viewer.camera.position.length() - groundRadius, 1e-4);
-  const visibleDegrees = Math.min(160, (height / groundRadius) * 120 + 0.0004);
+  const camera = viewer?.camera;
+  if (!uniforms || !camera) return;
+  // The grid is metric, so its spacing follows how many metres are actually in
+  // shot rather than an angle on the sphere.
+  const target = viewer.controls?.target;
+  const distance = target ? camera.position.distanceTo(target) : camera.position.length();
+  const fovRad = (camera.fov || 45) * Math.PI / 180;
+  const visibleMetres = Math.max(2 * Math.tan(fovRad / 2) * distance, 1e-4);
   // Aim for roughly ten divisions across the view.
-  const ideal = visibleDegrees / 10;
+  const ideal = visibleMetres / 10;
 
   // Snapping from one standard step to the next doubles or quintuples the grid
   // density in a single frame, which is what made the horizon jump on zoom.
   // Instead the two steps either side of the ideal are drawn together and
   // crossfaded, so the finer grid fades in as the view closes rather than
   // appearing all at once.
-  let i = GRATICULE_STEPS.findIndex((step) => step <= ideal);
-  if (i < 0) i = GRATICULE_STEPS.length - 1;
-  const coarse = GRATICULE_STEPS[Math.max(0, i - 1)];
-  const fine = GRATICULE_STEPS[i];
+  let i = GRID_STEPS_M.findIndex((step) => step <= ideal);
+  if (i < 0) i = GRID_STEPS_M.length - 1;
+  const coarse = GRID_STEPS_M[Math.max(0, i - 1)];
+  const fine = GRID_STEPS_M[i];
   // Position between the pair on a log scale, so the fade tracks how the grid
   // actually grows rather than the raw difference between the two steps.
   const blend = coarse > fine
     ? Math.min(1, Math.max(0, Math.log(coarse / ideal) / Math.log(coarse / fine)))
     : 1;
-  uniforms.uStepDeg.value = fine;
+  uniforms.uStepM.value = fine;
   uniforms.uStepCoarse.value = coarse;
   uniforms.uBlend.value = blend;
 }
@@ -518,10 +620,9 @@ function setGroundVisible(on) {
   if (!viewer?.scene) return;
   if (on && !groundMesh) {
     groundRadius = computeGroundRadius();
-    groundMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(groundRadius, 256, 192),
-      groundGridMaterial(),
-    );
+    patchRadius = desiredPatchRadius();
+    groundMesh = new THREE.Mesh(buildGroundPatch(patchRadius), groundGridMaterial());
+    groundMesh.frustumCulled = false;
     groundMesh.name = "studio-ground";
     viewer.scene.add(groundMesh);
     updateGround();
@@ -760,9 +861,14 @@ function applyDollyFloor() {
   controls.minDistance = Math.max(0.05, needed);
 }
 
-/** Closest the camera may get to the ground, in scene units. */
+/**
+ * Closest the camera may get to the ground, in metres. Tied to the model rather
+ * than the sphere: the sphere is now the whole Earth, and a fraction of its
+ * radius would stop the camera kilometres above a small model.
+ */
 function minCameraAltitude() {
-  return Math.max(groundRadius * 0.0015, 1e-3);
+  const focus = modelFocus();
+  return Math.max((focus ? focus.radius : DEFAULT_WORK_RADIUS_M) * 0.01, 0.01);
 }
 
 // The viewer drives its own animation loop, so there is no update hook to
@@ -780,9 +886,12 @@ function patchControlsUpdate(on) {
       applyDollyFloor();
       const result = unpatchedUpdate(...args);
       keepCameraAboveGround();
-      // The scale bar depends on the viewpoint, so it is refreshed wherever the
-      // camera can move rather than on an event that might not be wired.
+      // Grid spacing, the scale bar, and how far the ground needs to reach all
+      // depend on the viewpoint, so they are refreshed wherever the camera can
+      // move rather than on an event that might not be wired.
+      refreshGraticuleStep();
       updateScaleReadout();
+      updateGroundReach();
       return result;
     };
   } else if (unpatchedUpdate) {
@@ -803,11 +912,10 @@ function centreOnOrigin() {
   if (!anchor) return;
   const focus = modelFocus();
   const centre = focus ? focus.center : anchor.getWorldPosition(new THREE.Vector3());
-  // With nothing loaded there is no model to frame, and a model-sized stand-off
-  // leaves the camera lying on the ground, where the grid degenerates into
-  // banding. Fall back to a fraction of the sphere so the empty studio opens
-  // looking out across the ground at the horizon.
-  const radius = focus ? focus.radius : groundRadius * 0.02;
+  // With nothing loaded there is no model to frame, so the studio opens on a
+  // default working area -- a few hundred metres of ground, looking out at the
+  // horizon.
+  const radius = focus ? focus.radius : DEFAULT_WORK_RADIUS_M;
   const up = centre.clone().normalize();
   const east = new THREE.Vector3(1, 0, 0).applyQuaternion(anchor.quaternion);
   const south = new THREE.Vector3(0, 0, 1).applyQuaternion(anchor.quaternion);
@@ -822,9 +930,7 @@ function centreOnOrigin() {
     .addScaledVector(up, d * Math.sin(pitch))
     .addScaledVector(east, d * Math.cos(pitch) * 0.6)
     .addScaledVector(south, d * Math.cos(pitch) * 0.8);
-  viewer.camera.near = Math.max(d / 1000, 0.0001);
-  viewer.camera.far = groundRadius * 8;
-  viewer.camera.updateProjectionMatrix();
+  applyCameraClip(viewer.camera, d);
   viewer.controls.update();
   keepCameraAboveGround();
   refreshGraticuleStep();
@@ -1319,6 +1425,23 @@ function eachModelMaterial(fn) {
  * Bounding sphere of every visible imported layer, in world space. This is what
  * the camera frames -- the model, never the reference sphere's centre.
  */
+/**
+ * Near and far planes for a view framed at distance `d`.
+ *
+ * The sphere is the whole Earth now, so a far plane covering its diameter would
+ * span eight orders of magnitude and leave the depth buffer with nothing left
+ * for the model. Only as far as the horizon is ever needed from close in, which
+ * keeps the ratio small enough for the model to render cleanly; pulled back, it
+ * opens up to take in the whole globe.
+ */
+function applyCameraClip(camera, d) {
+  const altitude = Math.max(camera.position.length() - groundRadius, 0.01);
+  const horizon = Math.sqrt(2 * groundRadius * altitude + altitude * altitude);
+  camera.near = Math.max(d / 1000, 0.01);
+  camera.far = Math.max(d * 40, horizon * 2, altitude * 2);
+  camera.updateProjectionMatrix();
+}
+
 function modelFocus() {
   const layers = (window.GeoIDImportManager?.getLayers?.() || [])
     .filter((l) => l.object3D?.visible);
@@ -1367,9 +1490,7 @@ function viewAxis(axis) {
   const offset = dir.multiplyScalar(d);
   viewer.camera.position.copy(centre).add(offset);
   viewer.camera.up.copy(radialUp);
-  viewer.camera.near = Math.max(d / 1000, 0.0001);
-  viewer.camera.far = Math.max(d * 40, groundRadius * 8);
-  viewer.camera.updateProjectionMatrix();
+  applyCameraClip(viewer.camera, d);
   viewer.controls.target.copy(centre);
   viewer.controls.update();
   refreshGraticuleStep();
@@ -1391,9 +1512,7 @@ function fitView() {
   const offset = new THREE.Vector3(0.6, 0.5, 0.6).applyQuaternion(q).multiplyScalar(d);
   viewer.camera.up.copy(up);
   viewer.camera.position.copy(sphere.center).add(offset);
-  viewer.camera.near = Math.max(d / 1000, 0.0001);
-  viewer.camera.far = Math.max(d * 40, groundRadius * 8);
-  viewer.camera.updateProjectionMatrix();
+  applyCameraClip(viewer.camera, d);
   viewer.controls.target.copy(sphere.center);
   viewer.controls.update();
   refreshGraticuleStep();
