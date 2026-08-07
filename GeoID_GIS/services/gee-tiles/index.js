@@ -163,8 +163,13 @@ function ready() {
   const key = process.env.EE_SERVICE_ACCOUNT_KEY
     ? JSON.parse(process.env.EE_SERVICE_ACCOUNT_KEY)
     : null;
-  readyPromise = key ? authViaKey(key) : authViaAdc();
-  return readyPromise;
+  if (key) {
+    readyPromise = authViaKey(key);
+    return readyPromise;
+  }
+  // Deliberately not cached: each call re-checks the token, which is what
+  // keeps a warm instance working past the first token's hour.
+  return authViaAdc();
 }
 
 function authViaKey(key) {
@@ -185,27 +190,40 @@ function authViaKey(key) {
  * and a private key, and nothing that reads ADC. A token is fetched separately
  * and handed to the client instead.
  */
+let adcClient = null;
+let eeInitialized = false;
+
+/**
+ * Application default credentials, refreshed per request.
+ *
+ * The first version set a token once at boot and registered a refresher with
+ * the Earth Engine client. Its callback contract was evidently not what the
+ * client expects: instances worked for the hour the first token lived and then
+ * failed every request with an invalid-credentials error until they were
+ * recycled. google-auth-library already caches a token and renews it as it
+ * nears expiry, so the reliable arrangement is to ask it every time and hand
+ * whatever it returns to the client -- a cheap call when the cached token is
+ * still good, a renewal exactly when needed otherwise.
+ */
 async function authViaAdc() {
-  const { GoogleAuth } = require("google-auth-library");
-  const auth = new GoogleAuth({
-    scopes: [
-      "https://www.googleapis.com/auth/earthengine",
-      "https://www.googleapis.com/auth/cloud-platform",
-    ],
-  });
-  const client = await auth.getClient();
-  const token = await client.getAccessToken();
+  if (!adcClient) {
+    const { GoogleAuth } = require("google-auth-library");
+    adcClient = await new GoogleAuth({
+      scopes: [
+        "https://www.googleapis.com/auth/earthengine",
+        "https://www.googleapis.com/auth/cloud-platform",
+      ],
+    }).getClient();
+  }
+  const token = await adcClient.getAccessToken();
   if (!token || !token.token) {
     throw new Error("no application default credentials are available");
   }
-  // Expiry is deliberately short: the client refreshes through the callback
-  // below rather than holding a token past its life.
   ee.data.setAuthToken("", "Bearer", token.token, 3500, [], null, false);
-  ee.data.setAuthTokenRefresher(async (authArgs, callback) => {
-    const fresh = await client.getAccessToken();
-    callback({ access_token: fresh.token, token_type: "Bearer", expires_in: 3500 });
-  });
-  await new Promise((resolve, reject) => ee.initialize(null, null, resolve, reject));
+  if (!eeInitialized) {
+    await new Promise((resolve, reject) => ee.initialize(null, null, resolve, reject));
+    eeInitialized = true;
+  }
 }
 
 function bad(res, code, message) {
