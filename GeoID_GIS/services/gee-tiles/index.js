@@ -224,6 +224,13 @@ function parseBbox(value) {
   ];
 }
 
+/** Pulls a value back from Earth Engine as a promise. */
+function evaluate(object) {
+  return new Promise((resolve, reject) => {
+    object.evaluate((value, error) => (error ? reject(new Error(error)) : resolve(value)));
+  });
+}
+
 function reduce(collection, config) {
   return config.reducer === "sum" ? collection.sum() : collection.median();
 }
@@ -311,6 +318,22 @@ exports.geeImage = async (req, res) => {
   try {
     await ready();
     const region = ee.Geometry.Rectangle(bbox, null, false);
+
+    // Asked before compositing. An empty collection reduces to an image with no
+    // bands, and the error Earth Engine then raises is about a band pattern --
+    // which describes the symptom and not the cause, and sends you looking at
+    // the band name rather than at the dates.
+    const sourceId = config.source || q.dataset;
+    const available = await evaluate(
+      ee.ImageCollection(sourceId).filterBounds(region).filterDate(from, to).size(),
+    );
+    if (!available) {
+      return bad(res, 404,
+        `No ${config.name} imagery between ${from} and ${to} over that area. `
+        + "The collection may not reach that recent, or the window may be too "
+        + "short -- try widening it.");
+    }
+
     const image = buildImage(q.dataset, config, from, to, region);
 
     const vis = { min: config.min, max: config.max };
