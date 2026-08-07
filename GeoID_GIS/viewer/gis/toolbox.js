@@ -45,7 +45,7 @@ function geoidPanels() {
 
 const MOVES = [
   { id: "import-data-section", host: "import-tools-host" },
-  { id: "gis-analysis-section", host: "raster-tools-host" },
+  { id: "gis-analysis-section", host: "analysis-tools-host" },
   { id: "import-layer-list", host: "layers-tools-host" },
 ];
 

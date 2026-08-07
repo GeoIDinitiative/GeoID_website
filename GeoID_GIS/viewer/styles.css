@@ -4038,3 +4038,43 @@ canvas {
       display: none !important;
     }
 
+
+    /* ── GIS layer hierarchy ────────────────────────────────────────────── */
+    .layer-stack { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.5rem; }
+
+    .layer-row {
+      display: grid;
+      grid-template-columns: auto auto 1fr auto 4.5rem auto;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.35rem;
+      border: 1px solid rgba(82, 228, 232, 0.22);
+      border-radius: 0.4rem;
+      background: rgba(10, 14, 24, 0.75);
+      font-size: 0.7rem;
+      cursor: grab;
+    }
+    .layer-row.is-dragging { opacity: 0.45; }
+    .layer-row.is-drop { border-color: var(--nav-accent); box-shadow: 0 0 0 1px var(--nav-accent) inset; }
+
+    .layer-grip { background: none; border: 0; color: var(--soft-light); cursor: grab; padding: 0 0.1rem; }
+    .layer-eye { display: flex; align-items: center; }
+    .layer-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .layer-kind { color: var(--soft-light); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .layer-opacity { width: 4.5rem; }
+    .layer-moves { display: flex; flex-direction: column; line-height: 0.8; }
+    .layer-moves button {
+      background: none; border: 0; color: var(--soft-light);
+      font-size: 0.55rem; cursor: pointer; padding: 0;
+    }
+    .layer-moves button:hover { color: var(--nav-accent); }
+
+    /* ── Metadata, model builder, map furniture ─────────────────────────── */
+    .meta-entry { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.3rem 0; border-bottom: 1px solid rgba(82, 228, 232, 0.15); }
+    .meta-entry b { color: var(--nav-accent); }
+    .meta-entry i { color: var(--soft-light); font-style: normal; margin-right: 0.3rem; }
+
+    .gis-code { font-family: "Courier New", monospace; font-size: 0.66rem; line-height: 1.35; resize: vertical; width: 100%; }
+    .gis-plot { min-height: 6rem; margin: 0.4rem 0; border: 1px solid rgba(82, 228, 232, 0.22); border-radius: 0.4rem; background: rgba(4, 8, 16, 0.85); }
+    .gis-checks { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.66rem; }
+    .gis-checks label { display: inline-flex; align-items: center; gap: 0.25rem; }
