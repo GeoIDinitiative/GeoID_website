@@ -197,6 +197,14 @@ function globeRadiusPx() {
   return (viewer.GLOBE_RADIUS / distance) * (height / (2 * Math.tan(fov / 2)));
 }
 
+/**
+ * Dot size in pixels: a fixed fraction of the globe, floored so a distant event
+ * stays clickable and capped so a close one does not cover what it marks.
+ */
+function dotSizePx(globePx) {
+  return Math.max(4, Math.min(16, globePx * 0.022));
+}
+
 let markerSprite = null;
 let sizeFrame = null;
 
@@ -207,9 +215,7 @@ function trackScale() {
     if (!active) { sizeFrame = null; return; }
     const px = globeRadiusPx();
     if (px > 0 && markers) {
-      // A fixed fraction of the globe, floored so a distant event is still
-      // clickable and capped so a close one does not cover what it marks.
-      const size = Math.max(4, Math.min(16, px * 0.022));
+      const size = dotSizePx(px);
       markers.children.forEach((points) => {
         if (points.material.size !== size) points.material.size = size;
       });
@@ -448,13 +454,13 @@ function setSelection(event) {
     // One breath a second: scale and fade together so it reads as a pulse
     // rather than a flicker.
     const t = ((now - started) % 1400) / 1400;
-    // Sized from the globe's apparent radius, so the ring stays the same size
-    // on screen however far in or out the view is.
+    // Sized from the dot it marks rather than from its own rule, so it stays
+    // tight around it at any zoom instead of drifting to its own scale.
     const px = globeRadiusPx();
-    const base = px > 0
-      ? viewer.GLOBE_RADIUS * (Math.max(9, Math.min(26, px * 0.05)) / px)
-      : viewer.GLOBE_RADIUS * 0.02;
-    halo.scale.setScalar(base * (1 + t * 1.6));
+    const ringPx = px > 0 ? dotSizePx(px) * 1.1 : 6;
+    const base = px > 0 ? viewer.GLOBE_RADIUS * (ringPx / px) : viewer.GLOBE_RADIUS * 0.01;
+    // A modest pulse: enough to catch the eye, not enough to lose the dot.
+    halo.scale.setScalar(base * (1 + t * 0.75));
     halo.material.opacity = 0.85 * (1 - t);
     // Kept facing the camera, so it is a ring rather than an ellipse edge-on.
     if (viewer.camera) halo.lookAt(viewer.camera.position);
