@@ -166,14 +166,12 @@ function feedAnchor() {
 function focusOn(lat, lon) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.latLonToVector3 || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
+  // Same frame the markers are placed in, so the view lands on the marker.
+  const group = viewer.earthSceneGroup;
   const local = viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS);
-  // The point comes back in the globe's own frame, so it has to be carried
-  // through the globe's world matrix before the camera is aimed at it --
-  // otherwise the view lands wherever that spot was before the planet turned.
-  const globe = viewer.globe;
-  if (globe) {
-    globe.updateMatrixWorld(true);
-    local.applyMatrix4(globe.matrixWorld);
+  if (group) {
+    group.updateMatrixWorld(true);
+    local.applyMatrix4(group.matrixWorld);
   }
   // Selecting an event is a request to look at it, so the view closes in as
   // well as coming round -- staying at whatever distance it happened to be at
@@ -315,12 +313,12 @@ function renderMarkers() {
     points.userData.events = list;
     markers.add(points);
   });
-  // Parented to the globe itself, not the scene group around it. latLonToVector3
-  // returns positions in the globe's own unrotated frame, and the globe carries
-  // a rotation that the viewer animates; hanging the markers a level higher left
-  // them fixed while the planet turned underneath, so every event drifted off
-  // its true position by however far the globe had spun.
-  (viewer.globe || viewer.earthSceneGroup || viewer.scene).add(markers);
+  // latLonToVector3 gives a position in the scene group's frame, not the globe
+  // mesh's. The globe carries a rotation of its own, so parenting the markers to
+  // it applied that rotation a second time and every event sat however far the
+  // globe had spun from its baseline -- a drift that grows through the day
+  // rather than a fixed offset, which is why it read as simply wrong.
+  (viewer.earthSceneGroup || viewer.scene).add(markers);
   trackScale();
 }
 
@@ -491,7 +489,7 @@ function setSelection(event) {
     halo = null;
   }
   if (haloFrame) { window.cancelAnimationFrame(haloFrame); haloFrame = null; }
-  if (!event || !viewer?.globe || !THREE) return;
+  if (!event || !(viewer?.earthSceneGroup || viewer?.scene) || !THREE) return;
 
   const position = viewer.latLonToVector3(event.lat, event.lon, viewer.GLOBE_RADIUS * MARKER_LIFT);
   // Drawn as a point sprite, exactly as the dots are. A world-space ring had to
@@ -519,7 +517,7 @@ function setSelection(event) {
   // Sized before it is added, not on the first animation frame: left at unit
   // scale the ring is the radius of the globe, which showed as a huge flash.
   applyHaloScale();
-  viewer.globe.add(halo);
+  (viewer.earthSceneGroup || viewer.scene).add(halo);
 
   const started = performance.now();
   const pulse = (now) => {
