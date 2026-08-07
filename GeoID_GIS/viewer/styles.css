@@ -4402,7 +4402,8 @@ canvas {
       left: 1rem;
       bottom: 1rem;
       z-index: 10;
-      width: min(19rem, calc(100vw - 2rem));
+      /* Same width as the panel above it -- the two read as one column. */
+      width: min(24rem, calc(100vw - 2rem));
       border: 1px solid rgba(82, 228, 232, 0.38);
       border-radius: 0.6rem;
       background:
