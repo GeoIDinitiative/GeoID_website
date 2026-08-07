@@ -177,53 +177,19 @@
   }
 
   /**
-   * Idle rotation. The globe turns on its own axis; the camera and the stars
-   * stay where they are.
-   *
-   * OrbitControls' autoRotate was the wrong tool: it swings the camera around
-   * the target, so the starfield sweeps past and the whole view drifts rather
-   * than the planet turning. The viewer already treats globe.rotation.y as the
-   * spin -- every lat/lon conversion un-rotates by it -- so driving that keeps
-   * picking, readouts and markers correct for free.
+   * The globe's rotation belongs to the viewer, which drives it off simulated
+   * UTC and pauses it from the toggle in the corner. This only decides when it
+   * should be held: turning it here as well produced a second rotation on top
+   * of the viewer's, and stopping that one left the viewer's still running.
    */
-  let spinEnabled = false;
-  let spinFrame = null;
-  let spinLast = 0;
-  const SPIN_RAD_PER_SEC = 0.02;
-
-  function spinStep(now) {
-    const globe = window.GeoIDViewer?.globe;
-    if (!spinEnabled || !globe) {
-      spinFrame = null;
-      return;
-    }
-    const dt = spinLast ? Math.min((now - spinLast) / 1000, 0.1) : 0;
-    spinLast = now;
-    globe.rotation.y += SPIN_RAD_PER_SEC * dt;
-    spinFrame = window.requestAnimationFrame(spinStep);
-  }
-
   function setSpin(enabled) {
-    // Events mode holds the globe still: reading a feed against it means finding
-    // places on it. Enforced here rather than by a single call at the point of
-    // entry, because mode changes and the Space shortcut both ask for the spin
-    // back and would otherwise start it again underneath the feed.
-    if (enabled && document.body.dataset.events === "true") {
-      enabled = false;
-    }
-    spinEnabled = Boolean(enabled);
+    // Events mode holds the globe still whoever asks, since reading a feed
+    // against it means finding places on it.
+    const wanted = Boolean(enabled) && document.body.dataset.events !== "true";
+    document.body.dataset.spin = wanted ? "true" : "false";
     const controls = window.GeoIDViewer?.controls;
-    // Make sure the camera-orbiting version is off: the two together read as
-    // the globe and the camera both turning.
     if (controls) controls.autoRotate = false;
-    document.body.dataset.spin = spinEnabled ? "true" : "false";
-    if (spinEnabled && !spinFrame) {
-      spinLast = 0;
-      spinFrame = window.requestAnimationFrame(spinStep);
-    } else if (!spinEnabled && spinFrame) {
-      window.cancelAnimationFrame(spinFrame);
-      spinFrame = null;
-    }
+    window.GeoIDViewer?.setSpinPaused?.(!wanted);
   }
 
   function watchForInteraction() {
@@ -240,7 +206,7 @@
       if (document.activeElement && document.activeElement !== document.body) {
         document.activeElement.blur();
       }
-      setSpin(!spinEnabled);
+      setSpin(window.GeoIDViewer?.isSpinPaused?.() !== false);
     });
   }
 
@@ -430,6 +396,6 @@
     setHubArmed,
     isHubArmed: () => hubArmed,
     setSpin,
-    isSpinning: () => spinEnabled,
+    isSpinning: () => window.GeoIDViewer?.isSpinPaused?.() === false,
   };
 })();

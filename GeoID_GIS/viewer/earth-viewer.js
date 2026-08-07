@@ -18860,6 +18860,14 @@ uniform float uViewportWidth;`,
         clearGeoSelection() {
           clearGeoSelectorSelection({ notifyParent: true, resetView: false });
         },
+        // The globe's rotation is the viewer's own, driven off simulated UTC and
+        // paused by the toggle in the corner. Modes that need the planet held
+        // still use this rather than turning it themselves, so there is one
+        // rotation and one thing that stops it.
+        setSpinPaused(paused) {
+          if (paused) { pauseSpin(); } else { resumeSpin(); }
+        },
+        isSpinPaused: () => spinPaused,
         hideCursorReadout() {
           cursorReadout.hidden = true;
           cursorReadout.textContent = "";
