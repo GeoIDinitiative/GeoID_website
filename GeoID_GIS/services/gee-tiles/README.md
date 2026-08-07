@@ -61,8 +61,11 @@ at that and it behaves exactly as the deployed version would.
 
 As a Cloud Function (2nd gen):
 
+Run from the repository root, or give `--source` an absolute path: it is
+resolved against the working directory, not the repository.
+
     gcloud functions deploy geeImage \
-      --gen2 --runtime=nodejs20 --region=europe-west2 \
+      --gen2 --runtime=nodejs22 --region=europe-west2 \
       --source=. --entry-point=geeImage \
       --trigger-http --allow-unauthenticated \
       --service-account=geoid-ee@geoid-504623.iam.gserviceaccount.com \

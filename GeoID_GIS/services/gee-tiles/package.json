@@ -4,7 +4,7 @@
   "description": "Earth Engine image service for the myGeoID viewer",
   "main": "index.js",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@google/earthengine": "^1.4.0",
