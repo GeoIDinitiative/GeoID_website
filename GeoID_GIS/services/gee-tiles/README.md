@@ -59,7 +59,7 @@ As a Cloud Function (2nd gen):
       --source=. --entry-point=geeImage \
       --trigger-http --allow-unauthenticated \
       --service-account=<SERVICE_ACCOUNT_EMAIL> \
-      --set-env-vars=^@^ALLOWED_ORIGINS=https://geoid.example,http://localhost:8125
+      --set-env-vars=^@^ALLOWED_ORIGINS=https://geoidinitiative.com,https://www.geoidinitiative.com,http://localhost:8125
 
 The `^@^` prefix changes the separator gcloud uses between variables to `@`.
 Without it gcloud splits the value on its commas and rejects the second origin
@@ -75,6 +75,18 @@ never in this repository.
 `--allow-unauthenticated` makes the endpoint public, which it must be for a
 static site to call it. `ALLOWED_ORIGINS` is what stops other sites spending
 your quota, so set it to your real origins rather than leaving it open.
+
+An origin is a scheme, a host and a port -- `https://geoidinitiative.com` -- and
+nothing else. No trailing slash and no path: the browser sends it in that exact
+form, and a value that does not match character for character is simply not
+recognised, which shows up as a CORS failure rather than as a wrong setting.
+`www.` counts as a different host, so list it separately if the site answers on
+both.
+
+Omitting the variable altogether allows any origin. That is a reasonable way to
+get something working, but it means any page anywhere can call the endpoint and
+spend the project's Earth Engine quota, so it is worth setting before the URL is
+in anything public.
 
 ## Cost and quota
 
