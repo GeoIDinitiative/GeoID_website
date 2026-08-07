@@ -4294,3 +4294,24 @@ canvas {
     .brand-toprow .eyebrow-project svg { width: 1.05rem; height: 1.05rem; }
 
     .brand-toprow #view-mode-switch .view-mode-btn { flex: 1 1 0; }
+
+    /* ── Events feed, beside the legend ─────────────────────────────────── */
+    .events-overlay { right: 13rem; }
+    body[data-hub-armed="true"] .events-overlay { top: calc(1rem + 9.5rem + 0.8rem); }
+
+    .event-group + .event-group { margin-top: 0.5rem; }
+    .event-group-head {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.2rem 0; margin-bottom: 0.15rem;
+      border-bottom: 1px solid rgba(82, 228, 232, 0.2);
+      font-size: 0.64rem; letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .event-group-head span:nth-child(2) { flex: 1; }
+    .event-count { color: var(--soft-light); }
+    .event-glyph { flex: none; width: 0.9rem; text-align: center; }
+    .event-row {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.18rem 0; cursor: pointer;
+    }
+    .event-row:hover .event-name { color: var(--nav-accent); }
+    .event-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

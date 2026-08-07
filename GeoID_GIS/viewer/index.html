@@ -61,6 +61,19 @@
       </div>
     </div>
 
+    <!-- Events: a live view of what is happening now, so it is a mode rather
+         than a layer. Off, nothing is fetched and nothing drawn. -->
+    <div id="gis-group-events" class="geoid-mode-bar" hidden>
+      <div class="section-toggle">
+        <div class="section-toggle-main">
+          <div class="section-heading">
+            <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 2.4 9.7 6l4 .5-2.9 2.7.7 3.9L8 11.3 4.5 13.1l.7-3.9L2.3 6.5l4-.5Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></span><span>Events</span></span></div>
+          </div>
+        </div>
+        <button type="button" id="events-mode-enter" class="tour-enter-btn">Enter</button>
+      </div>
+    </div>
+
     <!-- GIS mode collapses the whole GeoID control set into this one group and
          stacks the toolboxes underneath it. Populated by gis/toolbox.js. -->
     <details id="geoid-controls-group" class="control-section toolbox-group" hidden>
@@ -1654,6 +1667,17 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
       <div class="project-dialog-body" id="project-dialog-body"></div>
     </section>
   </div>
+  <div id="events-overlay" class="map-legend events-overlay" hidden>
+    <button type="button" id="events-panel-toggle" class="map-legend-toggle" aria-expanded="false">
+      <span class="map-legend-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 2.4 9.7 6l4 .5-2.9 2.7.7 3.9L8 11.3 4.5 13.1l.7-3.9L2.3 6.5l4-.5Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></span>
+      <span>Events</span>
+      <span class="map-legend-caret" aria-hidden="true">▾</span>
+    </button>
+    <div class="map-legend-panel" id="events-panel" hidden>
+      <p id="events-status" class="gis-hint" aria-live="polite"></p>
+      <div id="events-panel-body"></div>
+    </div>
+  </div>
   <div id="cursor-readout-bar">
     <div id="rendering-indicator" hidden>Rendering…</div>
     <div id="scale-readout" hidden>
@@ -2008,6 +2032,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
 <script type="module" src="gis/model-studio.js?v=20260804a"></script>
 <script type="module" src="gis/layer-hierarchy.js?v=20260807a"></script>
 <script type="module" src="gis/project.js?v=20260807a"></script>
+<script type="module" src="gis/events.js?v=20260807a"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
 <script src="music.js?v=20260329a" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>

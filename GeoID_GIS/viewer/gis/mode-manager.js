@@ -87,8 +87,10 @@
   }
 
     function setGeoidGroupVisible(visible) {
-    const node = document.getElementById("gis-group-geoid");
-    if (node) node.hidden = !visible;
+    ["gis-group-geoid", "gis-group-events"].forEach((id) => {
+      const node = document.getElementById(id);
+      if (node) node.hidden = !visible;
+    });
   }
 
   function setGisToolboxVisible(visible) {
