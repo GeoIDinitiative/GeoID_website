@@ -175,29 +175,37 @@
   }
 
   /**
-   * The globe turns on its own until the first deliberate interaction, so an
-   * untouched page reads as a live view rather than a still. It stops for good
-   * once the user takes hold: resuming behind them would fight the navigation.
+   * Idle rotation, matching the other viewers: OrbitControls orbits the target,
+   * and Space toggles it. It is not cancelled by interaction -- OrbitControls
+   * already suspends it mid-drag and picks it up again -- so the shortcut stays
+   * the single way to stop and start it, as it is in Earth Explorer.
    */
-  let spinStopped = false;
+  let spinEnabled = false;
 
-  function setIdleSpin(on) {
+  function setSpin(enabled) {
     const controls = window.GeoIDViewer?.controls;
-    if (!controls) return;
-    controls.autoRotate = Boolean(on) && !spinStopped;
-    controls.autoRotateSpeed = 0.35;
-  }
-
-  function stopIdleSpin() {
-    spinStopped = true;
-    setIdleSpin(false);
+    spinEnabled = Boolean(enabled);
+    if (controls) {
+      controls.autoRotate = spinEnabled;
+      controls.autoRotateSpeed = 0.35;
+    }
+    document.body.dataset.spin = spinEnabled ? "true" : "false";
   }
 
   function watchForInteraction() {
-    const canvas = window.GeoIDViewer?.renderer?.domElement;
-    if (!canvas) return;
-    ["pointerdown", "wheel"].forEach((type) => {
-      canvas.addEventListener(type, stopIdleSpin, { once: true, passive: true });
+    // Space toggles the spin. Guarded against typing, and the focused control is
+    // blurred first so the key does not also press whatever was last clicked.
+    document.addEventListener("keydown", (event) => {
+      if (event.code !== "Space") return;
+      const node = event.target;
+      const inInput = node && (node.tagName === "INPUT" || node.tagName === "TEXTAREA"
+        || node.tagName === "SELECT" || node.isContentEditable);
+      if (inInput) return;
+      event.preventDefault();
+      if (document.activeElement && document.activeElement !== document.body) {
+        document.activeElement.blur();
+      }
+      setSpin(!spinEnabled);
     });
   }
 
@@ -210,7 +218,7 @@
       setToolboxLayout(false);
       setModelToolboxVisible(true);
       setGeoidGroupVisible(false);
-      setIdleSpin(false);
+      setSpin(false);
       setHazardReadoutVisible(false);
       // Inspect, pins and buffers all act on the globe surface, so they have
       // nothing to operate on while the globe is hidden.
@@ -228,7 +236,7 @@
       applyHubState();
       // Arming means the user is aiming at a location; a moving target is the
       // last thing they want.
-      setIdleSpin(!hubArmed);
+      setSpin(!hubArmed);
     } else {
       setPanelsHidden(EARTH_PANEL_IDS, false);
       setGisToolboxVisible(true);
@@ -292,7 +300,7 @@
       return;
     }
     applyHubState();
-    setIdleSpin(currentMode === "gis" && !hubArmed);
+    setSpin(currentMode === "gis" && !hubArmed);
     if (window.self !== window.top) {
       try {
         window.parent.postMessage(
