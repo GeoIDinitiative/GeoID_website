@@ -174,6 +174,33 @@
     }
   }
 
+  /**
+   * The globe turns on its own until the first deliberate interaction, so an
+   * untouched page reads as a live view rather than a still. It stops for good
+   * once the user takes hold: resuming behind them would fight the navigation.
+   */
+  let spinStopped = false;
+
+  function setIdleSpin(on) {
+    const controls = window.GeoIDViewer?.controls;
+    if (!controls) return;
+    controls.autoRotate = Boolean(on) && !spinStopped;
+    controls.autoRotateSpeed = 0.35;
+  }
+
+  function stopIdleSpin() {
+    spinStopped = true;
+    setIdleSpin(false);
+  }
+
+  function watchForInteraction() {
+    const canvas = window.GeoIDViewer?.renderer?.domElement;
+    if (!canvas) return;
+    ["pointerdown", "wheel"].forEach((type) => {
+      canvas.addEventListener(type, stopIdleSpin, { once: true, passive: true });
+    });
+  }
+
   function applyMode(mode) {
     if (mode === "model") {
       setPanelsHidden(EARTH_PANEL_IDS, true);
@@ -183,6 +210,7 @@
       setToolboxLayout(false);
       setModelToolboxVisible(true);
       setGeoidGroupVisible(false);
+      setIdleSpin(false);
       setHazardReadoutVisible(false);
       // Inspect, pins and buffers all act on the globe surface, so they have
       // nothing to operate on while the globe is hidden.
@@ -198,6 +226,9 @@
       setGeoidGroupVisible(true);
       setGlobeVisible(true);
       applyHubState();
+      // Arming means the user is aiming at a location; a moving target is the
+      // last thing they want.
+      setIdleSpin(!hubArmed);
     } else {
       setPanelsHidden(EARTH_PANEL_IDS, false);
       setGisToolboxVisible(true);
@@ -261,6 +292,7 @@
       return;
     }
     applyHubState();
+    setIdleSpin(currentMode === "gis" && !hubArmed);
     if (window.self !== window.top) {
       try {
         window.parent.postMessage(
@@ -302,7 +334,7 @@
     // inside the panels applyMode has just rearranged.
     applyHubState();
     try {
-      window.localStorage.setItem(MODE_STORAGE_KEY, mode);
+      window.localStorage.setItem(MODE_STORAGE_KEY, currentMode);
     } catch (error) {
       /* localStorage unavailable, ignore */
     }
@@ -312,6 +344,7 @@
   function pollForViewer() {
     if (window.GeoIDViewer) {
       applyMode(currentMode);
+      watchForInteraction();
       return;
     }
     requestAnimationFrame(pollForViewer);
@@ -328,7 +361,10 @@
     try {
       const stored = window.localStorage.getItem(MODE_STORAGE_KEY);
       if (stored === "geoid") {
-        initialMode = "geoid";
+        // Written before GeoID became a mode of the GIS page. Arming is never
+        // restored either way -- GeoID mode starts off on every load, so a
+        // stray click cannot open the Analysis Hub before it is asked for.
+        initialMode = "gis";
       } else if (VALID_MODES.includes(stored)) {
         initialMode = stored;
       }
