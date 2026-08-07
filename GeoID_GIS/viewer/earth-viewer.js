@@ -14100,10 +14100,14 @@ uniform float uViewportWidth;`,
 	        // there is no parent shell to notify.
 	        //
 	        // Click-to-pin drives the hazard readout and Analysis Hub, both of
-	        // which are GeoID concepts, so it is confined to GeoID mode: in Model
-	        // and GIS mode a click belongs to the modelling and analysis tools.
-	        const viewMode = window.GeoIDModeManager?.getMode?.();
-	        if (viewMode && viewMode !== "geoid") return false;
+	        // which are GeoID concepts, so it is confined to GeoID mode: with the
+	        // selector disarmed a click belongs to navigation and the GIS tools.
+	        // GeoID is a mode of the GIS page now, not a page of its own, so this
+	        // asks whether the location selector is armed rather than which page
+	        // is showing. Checking the page meant pin picking was dead: the mode
+	        // is always "gis" and never matched.
+	        const manager = window.GeoIDModeManager;
+	        if (manager && !manager.isHubArmed?.()) return false;
 	        if (coreToggle.checked || activeMoonViewerFeature) return false;
 	        if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return false;
 	        if (measureMode || measureDrawActive || gisMode || quickPinModeActive || gisBasePlacementMode) return false;

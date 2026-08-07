@@ -238,9 +238,10 @@
     }
     const row = document.getElementById("geoid-mode-row");
     if (row) row.classList.toggle("is-armed", armed);
-    const activeTab = armed ? "geoid" : currentMode;
+    // Arming does not change which page is showing, so the page's own tab keeps
+    // the highlight; the Explorer control is what reports the armed state.
     document.querySelectorAll(".view-mode-btn").forEach((btn) => {
-      btn.classList.toggle("is-active", btn.dataset.mode === activeTab);
+      btn.classList.toggle("is-active", btn.dataset.mode === currentMode);
     });
     document.body.dataset.hubArmed = armed ? "true" : "false";
   }
@@ -282,9 +283,8 @@
       if (mode === "gis") hubArmed = false;
       currentMode = mode;
     }
-    const activeTab = currentMode === "gis" && hubArmed ? "geoid" : currentMode;
     document.querySelectorAll(".view-mode-btn").forEach((btn) => {
-      btn.classList.toggle("is-active", btn.dataset.mode === activeTab);
+      btn.classList.toggle("is-active", btn.dataset.mode === currentMode);
     });
     // currentMode, not the tab that was clicked: "geoid" resolves to the GIS
     // layout, and passing the raw tab here fell through to the old GeoID-page
