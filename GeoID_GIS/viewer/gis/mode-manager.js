@@ -237,12 +237,6 @@
       button.textContent = armed ? "Exit" : "Enter";
       button.classList.toggle("is-active", armed);
     }
-    const hint = document.getElementById("geoid-mode-hint");
-    if (hint) {
-      hint.textContent = armed
-        ? "Click a location for hazard analysis"
-        : "Off — clicks pan and orbit the globe";
-    }
     const row = document.getElementById("gis-group-geoid");
     if (row) row.classList.toggle("is-armed", armed);
     // Arming does not change which page is showing, so the page's own tab keeps

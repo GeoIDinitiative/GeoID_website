@@ -4079,24 +4079,23 @@ canvas {
     .gis-checks { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.66rem; }
     .gis-checks label { display: inline-flex; align-items: center; gap: 0.25rem; }
 
-    /* ── GeoID mode: one bar, not a collapsible section ─────────────────── */
-    .geoid-mode-bar {
+    /* ── GeoID mode: a section header that acts as a switch ─────────────── */
+    /* It carries the same header markup as the collapsible sections so it sits
+       in the same visual family; it simply has nothing to expand. */
+    /* Nothing to expand, so no expander glyph. */
+    .geoid-mode-bar > .section-toggle::after { content: none; }
+
+    .geoid-mode-bar > .section-toggle {
       display: flex;
       align-items: center;
-      gap: 0.55rem;
-      padding: 0.55rem 0.7rem;
-      border: 1px solid rgba(82, 228, 232, 0.3);
-      border-radius: 0.6rem;
-      background: rgba(10, 14, 24, 0.8);
+      gap: 0.6rem;
+      cursor: default;
+      list-style: none;
     }
-    .geoid-mode-bar.is-armed {
-      border-color: var(--nav-accent);
-      box-shadow: 0 0 0 1px var(--nav-accent) inset;
-    }
-    .geoid-mode-bar .section-icon { display: inline-flex; width: 1rem; color: var(--nav-accent); }
-    .geoid-mode-label { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; flex: 1; }
-    .geoid-mode-title { font-size: 0.74rem; letter-spacing: 0.08em; text-transform: uppercase; }
-    .geoid-mode-hint { font-size: 0.62rem; color: var(--soft-light); }
+    .geoid-mode-bar .section-toggle-main { flex: 1; min-width: 0; }
+    .geoid-mode-bar .tour-enter-btn { flex: none; }
+    .geoid-mode-bar.is-armed { border-color: var(--nav-accent); }
+    .geoid-mode-bar.is-armed .section-title-row { color: var(--nav-accent); }
     .geoid-mode-bar .tour-enter-btn.is-active { background: var(--nav-accent); color: #06070d; }
 
     /* Armed, the pointer says the globe is clickable for analysis. */
