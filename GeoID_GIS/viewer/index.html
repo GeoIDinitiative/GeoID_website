@@ -14,8 +14,8 @@
   <link rel="stylesheet" href="styles.css?v=20260430-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260808g" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260808g" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260808h" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260808h" defer></script>
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -113,8 +113,11 @@
                 </select>
               </label>
               <div class="row"><span>Date range</span>
-                <input id="gee-date-from" class="input" type="date">
-                <input id="gee-date-to" class="input" type="date">
+                <span class="gee-dates">
+                  <input id="gee-date-from" class="input" type="date" title="From">
+                  <span class="gee-dates-sep">–</span>
+                  <input id="gee-date-to" class="input" type="date" title="To">
+                </span>
               </div>
               <label class="row"><span>Extent</span>
                 <select id="gee-extent" class="input">
@@ -2038,18 +2041,18 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260808g" defer></script>
-<script type="module" src="gis/import-manager.js?v=20260808g"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260808g"></script>
-<script type="module" src="gis/toolbox.js?v=20260808g"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260808g"></script>
-<script type="module" src="gis/model-studio.js?v=20260808g"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260808g"></script>
-<script type="module" src="gis/project.js?v=20260808g"></script>
-<script type="module" src="gis/events.js?v=20260808g"></script>
-<script type="module" src="gis/gee.js?v=20260808g"></script>
+<script src="gis/mode-manager.js?v=20260808h" defer></script>
+<script type="module" src="gis/import-manager.js?v=20260808h"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260808h"></script>
+<script type="module" src="gis/toolbox.js?v=20260808h"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260808h"></script>
+<script type="module" src="gis/model-studio.js?v=20260808h"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260808h"></script>
+<script type="module" src="gis/project.js?v=20260808h"></script>
+<script type="module" src="gis/events.js?v=20260808h"></script>
+<script type="module" src="gis/gee.js?v=20260808h"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260808g" defer></script>
+<script src="music.js?v=20260808h" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>

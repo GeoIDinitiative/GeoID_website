@@ -4375,3 +4375,12 @@ canvas {
       font-size: 0.58rem; color: var(--soft-light); margin-top: 0.1rem;
     }
     .legend-ramp.is-hidden { opacity: 0.4; }
+
+    /* GEE date pair on one line, sized so neither clips. */
+    .gee-dates { display: flex; align-items: center; gap: 0.25rem; flex: 1; min-width: 0; }
+    .gee-dates input {
+      flex: 1 1 0; min-width: 0; width: auto;
+      font-size: 0.66rem; padding: 0.3rem 0.3rem; cursor: pointer;
+    }
+    .gee-dates-sep { flex: none; color: var(--soft-light); }
+    .gee-dates input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.7; }

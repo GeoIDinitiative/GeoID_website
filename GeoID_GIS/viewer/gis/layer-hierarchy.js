@@ -10,7 +10,7 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808g";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808h";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -97,7 +97,9 @@ function reorderTo(sourceId, targetId) {
 function row(layer) {
   const node = document.createElement("div");
   node.className = "layer-row";
-  node.draggable = true;
+  // Draggable only while held by the grip. With the whole row draggable, using
+  // the opacity slider started a row drag instead of moving the slider.
+  node.draggable = false;
   node.dataset.layerId = layer.id;
   const opacity = Number.isFinite(layer.opacity) ? layer.opacity : 1;
   const visible = layer.visible !== false;
@@ -124,8 +126,15 @@ function row(layer) {
   node.querySelector('[data-role="up"]').addEventListener("click", () => move(layer.id, -1));
   node.querySelector('[data-role="down"]').addEventListener("click", () => move(layer.id, 1));
 
+  const grip = node.querySelector(".layer-grip");
+  grip.addEventListener("pointerdown", () => { node.draggable = true; });
+  window.addEventListener("pointerup", () => { node.draggable = false; });
   node.addEventListener("dragstart", () => { dragId = layer.id; node.classList.add("is-dragging"); });
-  node.addEventListener("dragend", () => { dragId = null; node.classList.remove("is-dragging"); });
+  node.addEventListener("dragend", () => {
+    dragId = null;
+    node.classList.remove("is-dragging");
+    node.draggable = false;
+  });
   node.addEventListener("dragover", (e) => { e.preventDefault(); node.classList.add("is-drop"); });
   node.addEventListener("dragleave", () => node.classList.remove("is-drop"));
   node.addEventListener("drop", (e) => {
