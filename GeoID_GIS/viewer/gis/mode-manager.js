@@ -18,7 +18,12 @@
     "metadata-section",
   ];
 
-  let currentMode = "geoid";
+  let currentMode = "gis";
+  // GeoID is no longer a page of its own. It is a mode of the GIS page: armed,
+  // a click drops a location pin and raises the Analysis Hub; disarmed, the GIS
+  // page navigates normally. Kept out of the mode itself so entering and
+  // leaving it does not rebuild the whole sidebar.
+  let hubArmed = false;
 
   function setPanelsHidden(ids, hidden) {
     ids.forEach((id) => {
@@ -184,9 +189,8 @@
       setAnalysisPanelVisible(true);
       setToolboxLayout(true);
       setModelToolboxVisible(false);
-      setHazardReadoutVisible(false);
-      setAnalysisToolsEnabled(true);
       setGlobeVisible(true);
+      applyHubState();
     } else {
       setPanelsHidden(EARTH_PANEL_IDS, false);
       setGisToolboxVisible(true);
@@ -202,16 +206,61 @@
     // Expose the active mode on <body> so stylesheets can react to it without
     // every rule needing its own toggle.
     document.body.dataset.viewMode = mode;
+    document.body.dataset.hubArmed = mode === "gis" && hubArmed ? "true" : "false";
 
     // Let the myGeoID-style shell (when this viewer is embedded) follow the
     // active mode - the Analysis Hub only applies to the GeoID globe.
     if (window.self !== window.top) {
       try {
-        window.parent.postMessage({ type: "geoid:mode", mode }, "*");
+        const reported = mode === "gis" && hubArmed ? "geoid" : mode;
+        window.parent.postMessage({ type: "geoid:mode", mode: reported }, "*");
       } catch (error) {
         /* cross-origin parent, ignore */
       }
     }
+  }
+
+  /** Applies whatever the hub's armed state implies for pins and the readout. */
+  function applyHubState() {
+    const armed = currentMode === "gis" && hubArmed;
+    setAnalysisToolsEnabled(armed);
+    setHazardReadoutVisible(armed);
+    const button = document.getElementById("geoid-mode-enter");
+    if (button) {
+      button.textContent = armed ? "Exit" : "Enter";
+      button.classList.toggle("is-active", armed);
+    }
+    const hint = document.getElementById("geoid-mode-hint");
+    if (hint) {
+      hint.textContent = armed
+        ? "Click a location for hazard analysis"
+        : "Off — clicks pan and orbit the globe";
+    }
+    const row = document.getElementById("geoid-mode-row");
+    if (row) row.classList.toggle("is-armed", armed);
+    document.body.dataset.hubArmed = armed ? "true" : "false";
+  }
+
+  function setHubArmed(on) {
+    hubArmed = Boolean(on);
+    if (hubArmed && currentMode !== "gis") {
+      setMode("gis");
+      return;
+    }
+    applyHubState();
+    if (window.self !== window.top) {
+      try {
+        window.parent.postMessage(
+          { type: "geoid:mode", mode: hubArmed ? "geoid" : currentMode },
+          "*",
+        );
+      } catch (error) {
+        /* cross-origin parent, ignore */
+      }
+    }
+    window.dispatchEvent(new CustomEvent("geoid-gis:hub-change", {
+      detail: { armed: hubArmed },
+    }));
   }
 
   function setMode(mode) {
@@ -243,10 +292,16 @@
     document.querySelectorAll(".view-mode-btn").forEach((btn) => {
       btn.addEventListener("click", () => setMode(btn.dataset.mode));
     });
-    let initialMode = "geoid";
+    document.getElementById("geoid-mode-enter")?.addEventListener("click", () => {
+      setHubArmed(!hubArmed);
+    });
+    let initialMode = "gis";
     try {
       const stored = window.localStorage.getItem(MODE_STORAGE_KEY);
-      if (VALID_MODES.includes(stored)) {
+      if (stored === "geoid") {
+        // Saved before GeoID became a mode of the GIS page.
+        initialMode = "gis";
+      } else if (VALID_MODES.includes(stored)) {
         initialMode = stored;
       }
     } catch (error) {
@@ -265,5 +320,7 @@
   window.GeoIDModeManager = {
     setMode,
     getMode: () => currentMode,
+    setHubArmed,
+    isHubArmed: () => hubArmed,
   };
 })();

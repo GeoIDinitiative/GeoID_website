@@ -4078,3 +4078,28 @@ canvas {
     .gis-plot { min-height: 6rem; margin: 0.4rem 0; border: 1px solid rgba(82, 228, 232, 0.22); border-radius: 0.4rem; background: rgba(4, 8, 16, 0.85); }
     .gis-checks { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.66rem; }
     .gis-checks label { display: inline-flex; align-items: center; gap: 0.25rem; }
+
+    /* ── GeoID mode, armed from inside the GIS page ─────────────────────── */
+    .geoid-mode-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      padding: 0.45rem 0.55rem;
+      margin-bottom: 0.5rem;
+      border: 1px solid rgba(82, 228, 232, 0.3);
+      border-radius: 0.5rem;
+      background: rgba(10, 14, 24, 0.8);
+    }
+    .geoid-mode-row.is-armed {
+      border-color: var(--nav-accent);
+      box-shadow: 0 0 0 1px var(--nav-accent) inset;
+    }
+    .geoid-mode-label { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+    .geoid-mode-title { font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+    .geoid-mode-hint { font-size: 0.62rem; color: var(--soft-light); }
+    .geoid-mode-row .tour-enter-btn.is-active { background: var(--nav-accent); color: #06070d; }
+
+    /* Armed, the pointer says the globe is clickable for analysis. */
+    body[data-hub-armed="true"] #globe-canvas,
+    body[data-hub-armed="true"] canvas { cursor: crosshair; }

@@ -40,9 +40,8 @@
       </div>
     </div>
     <div class="view-mode-switch" id="view-mode-switch" role="group" aria-label="View mode">
-      <button type="button" class="view-mode-btn is-active" data-mode="geoid" id="view-mode-geoid">GeoID</button>
+      <button type="button" class="view-mode-btn is-active" data-mode="gis" id="view-mode-gis">GIS</button>
       <button type="button" class="view-mode-btn" data-mode="model" id="view-mode-model">Model</button>
-      <button type="button" class="view-mode-btn" data-mode="gis" id="view-mode-gis">GIS</button>
     </div>
     <!-- GIS mode collapses the whole GeoID control set into this one group and
          stacks the toolboxes underneath it. Populated by gis/toolbox.js. -->
@@ -54,7 +53,20 @@
           </div>
         </div>
       </summary>
-      <div class="section-body toolbox-group-body" id="geoid-controls-host"></div>
+      <div class="section-body toolbox-group-body">
+        <!-- GeoID is a mode of the GIS page rather than a separate page. Armed,
+             a click on the globe drops a location pin and opens the Analysis
+             Hub; disarmed, clicks pan and orbit as they do anywhere else in
+             GIS, so the hub never intercepts ordinary navigation. -->
+        <div class="geoid-mode-row" id="geoid-mode-row">
+          <div class="geoid-mode-label">
+            <span class="geoid-mode-title">GeoID Mode</span>
+            <span class="geoid-mode-hint" id="geoid-mode-hint">Click a location for hazard analysis</span>
+          </div>
+          <button type="button" id="geoid-mode-enter" class="tour-enter-btn">Enter</button>
+        </div>
+        <div id="geoid-controls-host"></div>
+      </div>
     </details>
 
     <div id="gis-toolbox-panels" hidden>
