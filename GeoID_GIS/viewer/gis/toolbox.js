@@ -1,5 +1,5 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260808m";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260808m";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260808o";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260808o";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -53,14 +53,61 @@ const MOVES = [
   // Straight into the tab bar, not into shells of their own: each already has
   // its own header, so wrapping it in another section showed the title twice
   // and buried the controls a level deeper than they belong.
-  { id: "basemap-relief-section", host: "geoid-promoted-host", promote: true },
-  { id: "geology-section", host: "geoid-promoted-host", promote: true },
-  { id: "sea-level-section", host: "geoid-promoted-host", promote: true },
-  { id: "weather-section", host: "geoid-promoted-host", promote: true },
-  { id: "modelled-data-section", host: "geoid-promoted-host", promote: true },
+  { id: "basemap-relief-section", host: "gis-toolbox-panels", promote: true },
+  { id: "geology-section", host: "gis-toolbox-panels", promote: true },
+  { id: "sea-level-section", host: "gis-toolbox-panels", promote: true },
+  { id: "modelled-data-section", host: "gis-toolbox-panels", promote: true },
   // Sources and metadata belong with the layer provenance they sit beside.
   { id: "metadata-section", host: "geoid-metadata-host" },
 ];
+
+// The tab bar, in the order it reads. Every tab is gathered into one parent so
+// the sequence is this list and the spacing is one rule, rather than an
+// accident of which container each panel happened to be moved into.
+const TAB_ORDER = [
+  "gis-group-geoid",
+  "gis-group-import",
+  "gis-group-preprocess",
+  "gis-group-events",
+  "geoid-controls-group",
+  "basemap-relief-section",
+  "geology-section",
+  "gis-group-modelled",
+  "sea-level-section",
+  "modelled-data-section",
+  "gis-group-analysis",
+  "gis-group-export",
+  "gis-group-metadata",
+];
+
+function orderTabs(toolbox) {
+  TAB_ORDER.forEach((id) => {
+    const node = document.getElementById(id);
+    if (!node) return;
+    rememberHome(node);
+    toolbox.appendChild(node);
+  });
+}
+
+/**
+ * The layer hierarchy is not a step in the workflow, it is a view of what is
+ * loaded -- so it sits in its own box in the corner rather than at the bottom
+ * of a list that has to be scrolled past.
+ */
+function dockLayers(enabled) {
+  const dock = document.getElementById("layer-dock-body");
+  const panel = document.getElementById("gis-group-layers");
+  const box = document.getElementById("layer-dock");
+  if (!dock || !panel || !box) return;
+  if (enabled) {
+    rememberHome(panel);
+    panel.open = true;
+    dock.appendChild(panel);
+  } else {
+    restoreHome(panel);
+  }
+  box.hidden = !enabled;
+}
 
 export function applyToolboxLayout(enabled) {
   const group = document.getElementById("geoid-controls-group");
@@ -87,9 +134,19 @@ export function applyToolboxLayout(enabled) {
         target.appendChild(element);
       }
     });
+    // Weather is no longer offered as a tab. Hidden rather than deleted, so the
+    // viewer's own code can still reach its controls.
+    const weather = document.getElementById("weather-section");
+    if (weather) weather.hidden = true;
+
+    orderTabs(toolbox);
     group.hidden = false;
     toolbox.hidden = false;
+    dockLayers(true);
   } else {
+    dockLayers(false);
+    const weather = document.getElementById("weather-section");
+    if (weather) weather.hidden = false;
     [...panelsHost.children].forEach(restoreHome);
     MOVES.forEach(({ id }) => {
       const element = document.getElementById(id);

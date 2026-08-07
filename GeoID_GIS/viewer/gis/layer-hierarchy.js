@@ -10,7 +10,7 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808m";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808o";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -295,7 +295,28 @@ function copyCitations() {
   navigator.clipboard?.writeText(text);
 }
 
+function initDock() {
+  const box = document.getElementById("layer-dock");
+  const toggle = document.getElementById("layer-dock-toggle");
+  toggle?.addEventListener("click", () => {
+    const collapsed = box.classList.toggle("is-collapsed");
+    toggle.textContent = collapsed ? "+" : "\u2212";
+    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  });
+  // The dock follows the main panel: collapsing the sidebar to see the globe
+  // should not leave a second box sitting over it. Carried on a class rather
+  // than an inline style, so showing it again is the class going away and
+  // cannot fight whatever else sets display.
+  const ui = document.getElementById("ui");
+  if (ui && box) {
+    const sync = () => box.classList.toggle("is-away", ui.classList.contains("is-collapsed"));
+    new MutationObserver(sync).observe(ui, { attributes: true, attributeFilter: ["class"] });
+    sync();
+  }
+}
+
 function init() {
+  initDock();
   document.getElementById("metadata-copy")?.addEventListener("click", copyCitations);
   // The legend is an overlay on the scene, so it must hang off <body>: parsed
   // where it sits in the markup it can end up nested inside another control,

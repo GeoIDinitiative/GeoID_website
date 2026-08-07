@@ -4384,3 +4384,40 @@ canvas {
     }
     .gee-dates-sep { flex: none; color: var(--soft-light); }
     .gee-dates input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.7; }
+
+    /* ── Layer dock: its own box, bottom left ───────────────────────────── */
+    #layer-dock {
+      position: fixed;
+      left: 1rem;
+      bottom: 1rem;
+      z-index: 14;
+      width: 21rem;
+      max-width: calc(100vw - 2rem);
+      border: 1px solid rgba(255, 43, 214, 0.34);
+      border-radius: 0.6rem;
+      background: rgba(10, 14, 24, 0.92);
+      backdrop-filter: blur(10px);
+    }
+    #layer-dock[hidden], #layer-dock.is-away { display: none; }
+    .layer-dock-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.4rem 0.6rem;
+      border-bottom: 1px solid rgba(255, 43, 214, 0.22);
+    }
+    .layer-dock-title {
+      font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--nav-accent);
+    }
+    .layer-dock-toggle {
+      background: none; border: 0; color: var(--soft-light);
+      font-size: 0.9rem; line-height: 1; cursor: pointer; padding: 0 0.2rem;
+    }
+    .layer-dock-toggle:hover { color: var(--nav-accent); }
+    .layer-dock-body { padding: 0.5rem 0.6rem; max-height: 40vh; overflow-y: auto; }
+    #layer-dock.is-collapsed .layer-dock-body { display: none; }
+    /* In its own box the panel is the content, so its header is redundant. */
+    #layer-dock-body > .toolbox-group > summary { display: none; }
+    #layer-dock-body > .toolbox-group { border: 0; background: none; margin: 0; }
+
+    /* One rhythm for every tab, whatever kind of section it is. */
+    #gis-toolbox-panels > * { margin: 0 0 0.5rem !important; }
