@@ -136,9 +136,17 @@ function renderPanel() {
 function focusOn(lat, lon) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.latLonToVector3 || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
-  const surface = viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS);
+  const local = viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS);
+  // The point comes back in the globe's own frame, so it has to be carried
+  // through the globe's world matrix before the camera is aimed at it --
+  // otherwise the view lands wherever that spot was before the planet turned.
+  const globe = viewer.globe;
+  if (globe) {
+    globe.updateMatrixWorld(true);
+    local.applyMatrix4(globe.matrixWorld);
+  }
   const distance = viewer.camera.position.length();
-  viewer.camera.position.copy(surface).setLength(distance);
+  viewer.camera.position.copy(local).setLength(distance);
   viewer.controls?.target.set(0, 0, 0);
   viewer.controls?.update();
 }
@@ -182,8 +190,12 @@ function renderMarkers() {
     points.name = `eonet-${key}`;
     markers.add(points);
   });
-  // Parented to the globe group so the markers turn with the planet.
-  (viewer.earthSceneGroup || viewer.scene).add(markers);
+  // Parented to the globe itself, not the scene group around it. latLonToVector3
+  // returns positions in the globe's own unrotated frame, and the globe carries
+  // a rotation that the viewer animates; hanging the markers a level higher left
+  // them fixed while the planet turned underneath, so every event drifted off
+  // its true position by however far the globe had spun.
+  (viewer.globe || viewer.earthSceneGroup || viewer.scene).add(markers);
 }
 
 async function setActive(on) {
@@ -197,7 +209,16 @@ async function setActive(on) {
     button.classList.toggle("is-active", active);
   }
   const host = byId("events-overlay");
-  if (host) host.hidden = !active;
+  if (host) {
+    host.hidden = !active;
+    // Collapse the panel on the way out, so re-entering opens closed rather
+    // than showing a stale list from the last session.
+    const panel = byId("events-panel");
+    if (!active && panel) {
+      panel.hidden = true;
+      byId("events-panel-toggle")?.setAttribute("aria-expanded", "false");
+    }
+  }
 
   window.clearInterval(timer);
   timer = null;

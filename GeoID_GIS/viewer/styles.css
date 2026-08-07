@@ -4315,3 +4315,8 @@ canvas {
     }
     .event-row:hover .event-name { color: var(--nav-accent); }
     .event-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* display:flex on the overlays outranks the hidden attribute, so it has to
+       be restated -- otherwise "hidden" only stops them being announced, not
+       being drawn, and the Events drop-down showed with the mode switched off. */
+    .map-legend[hidden], .events-overlay[hidden] { display: none; }

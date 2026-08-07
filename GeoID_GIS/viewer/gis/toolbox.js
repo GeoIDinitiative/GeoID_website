@@ -33,7 +33,7 @@ function geoidPanels() {
   }
   const ours = new Set([
     "geoid-controls-group", "import-data-section", "gis-analysis-section",
-    "gis-toolbox-panels", "gis-group-geoid",
+    "gis-toolbox-panels", "gis-group-geoid", "gis-group-events",
   ]);
   return [...host.children].filter((child) => {
     if (ours.has(child.id) || child.classList?.contains("toolbox-group")) {
