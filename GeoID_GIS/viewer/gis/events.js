@@ -198,6 +198,8 @@ function renderMarkers() {
   });
   groups.forEach((list, key) => {
     const positions = new Float32Array(list.length * 3);
+    // The index of a hit point is all a raycast returns, so the events behind
+    // each cloud are kept in the same order to look the hit back up.
     list.forEach((event, i) => {
       const v = viewer.latLonToVector3(event.lat, event.lon, viewer.GLOBE_RADIUS * MARKER_LIFT);
       positions[i * 3] = v.x; positions[i * 3 + 1] = v.y; positions[i * 3 + 2] = v.z;
@@ -223,6 +225,7 @@ function renderMarkers() {
     }));
     points.renderOrder = 20;
     points.name = `eonet-${key}`;
+    points.userData.events = list;
     markers.add(points);
   });
   // Parented to the globe itself, not the scene group around it. latLonToVector3
@@ -271,10 +274,12 @@ async function setActive(on) {
   timer = null;
   if (!active) {
     events = [];
+    hidePopup();
     renderMarkers();
     return;
   }
   if (!THREE) THREE = await import("../vendor/three.module.js");
+  installPicking();
   await fetchEvents();
   timer = window.setInterval(fetchEvents, REFRESH_MS);
 }
@@ -296,6 +301,81 @@ function placeOverlay() {
   }
   const gap = 8;
   host.style.right = `${window.innerWidth - legend.getBoundingClientRect().left + gap}px`;
+}
+
+/**
+ * Picking. Points are drawn at a fixed pixel size, so the raycaster's threshold
+ * is set from that rather than left at its world-unit default -- otherwise the
+ * hit area has nothing to do with what is on screen.
+ */
+function installPicking() {
+  const viewer = window.GeoIDViewer;
+  const canvas = viewer?.renderer?.domElement;
+  if (!canvas || !THREE || canvas.dataset.eonetPicking) return;
+  canvas.dataset.eonetPicking = "true";
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+  let downAt = null;
+
+  canvas.addEventListener("pointerdown", (e) => { downAt = { x: e.clientX, y: e.clientY }; });
+  canvas.addEventListener("pointerup", (e) => {
+    // A drag is navigation, not a pick.
+    if (!downAt || Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) return;
+    if (!active || !markers) return;
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+    raycaster.setFromCamera(pointer, viewer.camera);
+    const scale = viewer.camera.position.length() / Math.max(rect.height, 1);
+    raycaster.params.Points.threshold = scale * 12;
+    const hits = raycaster.intersectObjects(markers.children, false);
+    // Nearest first, and only on the side of the globe facing the camera.
+    const hit = hits.find((h) => h.point.clone().normalize()
+      .dot(viewer.camera.position.clone().normalize()) > 0);
+    if (hit) {
+      const event = hit.object.userData.events?.[hit.index];
+      if (event) { showPopup(event, e.clientX, e.clientY); return; }
+    }
+    hidePopup();
+  });
+}
+
+function hidePopup() {
+  byId("event-popup")?.setAttribute("hidden", "");
+}
+
+function showPopup(event, x, y) {
+  const node = byId("event-popup");
+  if (!node) return;
+  const symbol = symbolFor(event.categoryId);
+  const when = event.date ? new Date(event.date).toLocaleString() : "date not given";
+  node.innerHTML = `
+    <button type="button" class="event-popup-close" aria-label="Close">×</button>
+    <div class="event-popup-head">
+      <span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>
+      <span>${event.categoryTitle || symbol.label}</span>
+    </div>
+    <h3>${event.title}</h3>
+    <dl>
+      <dt>Position</dt><dd>${event.lat.toFixed(3)}°, ${event.lon.toFixed(3)}°</dd>
+      <dt>Last report</dt><dd>${when}</dd>
+      <dt>Source</dt><dd>NASA EONET · ${event.id}</dd>
+    </dl>
+    ${event.link ? `<a href="${event.link}" target="_blank" rel="noopener">Open in EONET</a>` : ""}
+    <div class="event-popup-actions">
+      <button type="button" class="button secondary" data-role="fly">Bring into view</button>
+    </div>`;
+  node.removeAttribute("hidden");
+  // Placed at the click, then nudged back inside the window if it would spill.
+  const rect = node.getBoundingClientRect();
+  const left = Math.min(x + 12, window.innerWidth - rect.width - 12);
+  const top = Math.min(y + 12, window.innerHeight - rect.height - 12);
+  node.style.left = `${Math.max(12, left)}px`;
+  node.style.top = `${Math.max(12, top)}px`;
+  node.querySelector(".event-popup-close")?.addEventListener("click", hidePopup);
+  node.querySelector('[data-role="fly"]')?.addEventListener("click", () => {
+    focusOn(event.lat, event.lon);
+  });
 }
 
 function init() {

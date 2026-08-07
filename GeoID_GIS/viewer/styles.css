@@ -4324,3 +4324,39 @@ canvas {
        be restated -- otherwise "hidden" only stops them being announced, not
        being drawn, and the Events drop-down showed with the mode switched off. */
     .map-legend[hidden], .events-overlay[hidden] { display: none; }
+
+    /* ── Event details, on picking a marker ─────────────────────────────── */
+    .event-popup {
+      position: fixed;
+      z-index: 40;
+      width: 17rem;
+      padding: 0.7rem 0.8rem;
+      border: 1px solid rgba(82, 228, 232, 0.4);
+      border-radius: 0.55rem;
+      background: rgba(8, 12, 20, 0.94);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.5);
+      font-size: 0.68rem;
+    }
+    .event-popup[hidden] { display: none; }
+    .event-popup-close {
+      position: absolute; top: 0.3rem; right: 0.45rem;
+      background: none; border: 0; color: var(--soft-light);
+      font-size: 1rem; line-height: 1; cursor: pointer;
+    }
+    .event-popup-close:hover { color: var(--nav-accent); }
+    .event-popup-head {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--soft-light);
+    }
+    .event-popup h3 { margin: 0.25rem 0 0.4rem; font-size: 0.78rem; }
+    .event-popup dl {
+      display: grid; grid-template-columns: auto 1fr;
+      gap: 0.1rem 0.5rem; margin: 0 0 0.5rem;
+    }
+    .event-popup dt { color: var(--soft-light); }
+    .event-popup dd { margin: 0; }
+    .event-popup a { color: var(--nav-accent); }
+    .event-popup-actions { margin-top: 0.45rem; }
+    .event-popup-actions .button { width: 100%; }
