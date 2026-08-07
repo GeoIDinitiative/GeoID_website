@@ -154,6 +154,45 @@ export function render() {
   }
   applyStack();
   renderMetadata(stack);
+  renderLegend(stack);
+}
+
+/**
+ * Legend over the scene. Offered only when there is something to describe --
+ * an empty legend is just furniture -- and it keeps hidden layers listed but
+ * dimmed, so turning one off does not make it vanish from the key as well.
+ */
+function renderLegend(stack) {
+  const host = document.getElementById("map-legend");
+  const panel = document.getElementById("map-legend-panel");
+  if (!host || !panel) return;
+  host.hidden = stack.length === 0;
+  if (!stack.length) {
+    panel.hidden = true;
+    document.getElementById("map-legend-toggle")?.setAttribute("aria-expanded", "false");
+    return;
+  }
+  panel.innerHTML = stack.map((layer) => {
+    const colour = layerColour(layer);
+    const hidden = layer.visible === false ? " is-hidden" : "";
+    return `<div class="legend-entry${hidden}">`
+      + `<span class="legend-swatch" style="background:${colour}"></span>`
+      + `<span class="legend-name" title="${layer.name || "layer"}">${layer.name || "layer"}</span>`
+      + `<span class="legend-kind">${layer.type || ""}</span>`
+      + `</div>`;
+  }).join("");
+}
+
+/** Whatever the layer is actually drawn in, so the key matches the map. */
+function layerColour(layer) {
+  if (layer.colour || layer.color) return layer.colour || layer.color;
+  let found = null;
+  layer.object3D?.traverse?.((node) => {
+    if (found) return;
+    const material = Array.isArray(node.material) ? node.material[0] : node.material;
+    if (material?.color) found = `#${material.color.getHexString()}`;
+  });
+  return found || "#52e4e8";
 }
 
 /**
@@ -197,6 +236,20 @@ function copyCitations() {
 
 function init() {
   document.getElementById("metadata-copy")?.addEventListener("click", copyCitations);
+  // The legend is an overlay on the scene, so it must hang off <body>: parsed
+  // where it sits in the markup it can end up nested inside another control,
+  // where fixed positioning and its own styling do not apply.
+  const legend = document.getElementById("map-legend");
+  if (legend && legend.parentElement !== document.body) {
+    document.body.appendChild(legend);
+  }
+  const toggle = document.getElementById("map-legend-toggle");
+  toggle?.addEventListener("click", () => {
+    const panel = document.getElementById("map-legend-panel");
+    if (!panel) return;
+    panel.hidden = !panel.hidden;
+    toggle.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
+  });
   // The import manager announces changes; fall back to a light poll so layers
   // added by other paths (the studio, extraction results) still show up.
   window.addEventListener("geoid-gis:layers-changed", render);

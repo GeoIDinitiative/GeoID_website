@@ -1759,7 +1759,8 @@
 
     #tool-rail {
       position: fixed;
-      top: calc(1rem + 9.5rem + 0.8rem);
+      /* Tucked into the top right, clear of the header. */
+      top: 1rem;
       right: 1rem;
       z-index: 13;
       display: flex;
@@ -3182,7 +3183,7 @@
       }
 
       #tool-rail {
-        top: calc(1rem + 10.4rem + 0.8rem);
+        top: 1rem;
         gap: 0.3rem;
       }
 
@@ -4119,3 +4120,70 @@ canvas {
 
     .gis-btn-row { display: flex; gap: 0.4rem; margin: 0.35rem 0; }
     .gis-btn-row .button { flex: 1; }
+
+    /* ── Legend, left of the tool rail ──────────────────────────────────── */
+    .map-legend {
+      position: fixed;
+      top: 1rem;
+      right: 5.5rem;
+      z-index: 13;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.35rem;
+      pointer-events: auto;
+    }
+
+    .map-legend-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.6rem;
+      border: 1px solid rgba(82, 228, 232, 0.35);
+      border-radius: 0.5rem;
+      background: rgba(8, 12, 20, 0.72);
+      backdrop-filter: blur(8px);
+      color: var(--text);
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .map-legend-toggle:hover { border-color: var(--nav-accent); color: var(--nav-accent); }
+    .map-legend-icon { display: inline-flex; width: 0.9rem; }
+    .map-legend-caret { font-size: 0.6rem; transition: transform 0.15s ease; }
+    .map-legend-toggle[aria-expanded="true"] .map-legend-caret { transform: rotate(180deg); }
+
+    .map-legend-panel {
+      width: 15rem;
+      max-height: 60vh;
+      overflow-y: auto;
+      padding: 0.55rem 0.7rem;
+      border: 1px solid rgba(82, 228, 232, 0.3);
+      border-radius: 0.55rem;
+      /* Semi-transparent: the legend describes the scene, so the scene should
+         stay readable behind it. */
+      background: rgba(8, 12, 20, 0.62);
+      backdrop-filter: blur(10px);
+      font-size: 0.68rem;
+    }
+
+    .legend-entry {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.22rem 0;
+    }
+    .legend-entry + .legend-entry { border-top: 1px solid rgba(82, 228, 232, 0.14); }
+    .legend-swatch {
+      width: 0.8rem; height: 0.8rem; flex: none;
+      border-radius: 0.15rem;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .legend-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .legend-kind { color: var(--soft-light); font-size: 0.6rem; text-transform: uppercase; }
+    .legend-entry.is-hidden { opacity: 0.4; }
+
+    /* The hazard readout shares this corner in GeoID mode; it sits below. */
+    body[data-hub-armed="true"] #tool-rail,
+    body[data-hub-armed="true"] .map-legend { top: calc(1rem + 9.5rem + 0.8rem); }
