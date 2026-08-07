@@ -10,7 +10,7 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808w";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808x";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -295,15 +295,27 @@ function copyCitations() {
 
 function initDock() {
   const box = document.getElementById("layer-dock");
-  // Placed into the panel as a sibling of the scrolling tab list. Done here
-  // rather than in the markup because the panel's nesting is not reliably
-  // matched by text edits -- and this is the same reparenting the legend
-  // overlay uses. As a sibling it is exactly the panel's width, sits flush at
-  // its foot, and the tab list shrinks to make room instead of being covered.
+  // Its own box at the foot of the panel's column, not a section inside the
+  // panel. Nothing to reparent -- but the panel has to be told how much room
+  // it takes, or it would run underneath it. Published as a length on :root so
+  // the panel's max-height is plain CSS; remeasured whenever the box changes
+  // size, which is every load, removal and collapse.
   const panel = document.getElementById("ui");
-  const list = document.getElementById("ui-scroll-body");
-  if (box && panel && list && box.parentElement !== panel) {
-    list.after(box);
+  if (box && panel) {
+    const measure = () => {
+      const space = box.hidden || box.classList.contains("is-away")
+        ? 0
+        : box.getBoundingClientRect().height + 16; // the 1rem gap between them
+      document.documentElement.style.setProperty("--layer-dock-space", `${space}px`);
+    };
+    new ResizeObserver(measure).observe(box);
+    // ResizeObserver does not fire for a box going display:none and back, so
+    // the attribute and class that hide it are watched too.
+    new MutationObserver(measure).observe(box, {
+      attributes: true,
+      attributeFilter: ["hidden", "class"],
+    });
+    measure();
   }
   // The whole header toggles, the way a tab's summary does. The +/- marker is
   // drawn by the shared .section-toggle style, so there is no button to keep
@@ -319,16 +331,13 @@ function initDock() {
     event.preventDefault();
     flip();
   });
-  // The dock follows the main panel: collapsing the sidebar to see the globe
+  // The dock follows the main panel: collapsing the tab bar to see the globe
   // should not leave a second box sitting over it. Carried on a class rather
   // than an inline style, so showing it again is the class going away and
   // cannot fight whatever else sets display.
-  // Inside the panel it collapses with it for free; the class is kept so the
-  // dock is not left occupying a hidden panel's height.
-  const ui = document.getElementById("ui");
-  if (ui && box) {
-    const sync = () => box.classList.toggle("is-away", ui.classList.contains("is-collapsed"));
-    new MutationObserver(sync).observe(ui, { attributes: true, attributeFilter: ["class"] });
+  if (panel && box) {
+    const sync = () => box.classList.toggle("is-away", panel.classList.contains("is-collapsed"));
+    new MutationObserver(sync).observe(panel, { attributes: true, attributeFilter: ["class"] });
     sync();
   }
 }

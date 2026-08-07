@@ -3,7 +3,7 @@ import {
   rowsToCsv,
   rowsToGeoJson,
   downloadText,
-} from "./extraction.js?v=20260808w";
+} from "./extraction.js?v=20260808x";
 
 let lastResult = null;
 

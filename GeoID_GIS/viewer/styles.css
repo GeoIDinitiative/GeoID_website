@@ -44,7 +44,10 @@
       z-index: 10;
       --muted: var(--soft-light);
       width: min(24rem, calc(100vw - 2rem));
-      max-height: calc(100vh - 2rem);
+      /* Leaves room for the layer dock, which is its own box at the foot of
+         the same column. The height is measured in JS, because it changes with
+         how many layers are loaded and whether the box is collapsed. */
+      max-height: calc(100vh - 2rem - var(--layer-dock-space, 0px));
       padding: 0.35rem 0.75rem 0 0.85rem;
       border: 1px solid rgba(82, 228, 232, 0.38);
       border-radius: 0.75rem;
@@ -4389,41 +4392,59 @@ canvas {
     .gee-dates-sep { flex: none; color: var(--soft-light); }
     .gee-dates input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.7; }
 
-    /* ── Layer dock: the panel's last card, pinned ──────────────────────── */
-    /* Inside #ui, below the scrolling tab list. Being a sibling rather than a
-       fixed box is what makes it the tabs' width and what lets the list shrink
-       to make room instead of being covered. It carries .control-section and
-       .section-toggle so it inherits the tab skin -- the same card, border and
-       accent -- instead of being a strip with a look of its own. */
+    /* ── Layer dock: its own box, below the panel ───────────────────────── */
+    /* Separate from the tab bar rather than docked inside it, and skinned like
+       the panel itself -- cyan edge, same rounding and glow -- at a smaller
+       scale. The panel's own max-height is reduced by this box's height (see
+       --layer-dock-space, set from JS) so the two never overlap. */
     #layer-dock {
-      flex: none;
-      /* Right inset matches the tab list's reserved scrollbar gutter, so the
-         dock is exactly a tab's width rather than the panel's. */
-      margin: 0 0.7rem 0.5rem 0;
+      position: fixed;
+      left: 1rem;
+      bottom: 1rem;
+      z-index: 10;
+      width: min(19rem, calc(100vw - 2rem));
+      border: 1px solid rgba(82, 228, 232, 0.38);
+      border-radius: 0.6rem;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+        linear-gradient(180deg, var(--mars-panel-top), var(--mars-panel-bottom)),
+        var(--panel);
+      box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.42),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+        0 0 0 1px rgba(92, 235, 238, 0.14),
+        0 0 22px rgba(64, 220, 228, 0.12);
+      overflow: hidden;
     }
     #layer-dock[hidden], #layer-dock.is-away { display: none; }
 
-    .layer-dock-head { cursor: pointer; }
-    /* Open reads like an open tab. The +/- marker is the one .section-toggle
-       already draws -- it keys off [open], which a <section> cannot have, so
-       the open state is spelled here instead. */
+    /* Smaller than a tab header, but the same idiom: icon, caps, +/- marker. */
+    .layer-dock-head {
+      cursor: pointer;
+      min-height: 2.1rem;
+      padding: 0.5rem 0.65rem;
+    }
+    .layer-dock-head .section-title { font-size: 0.66rem; }
+    .layer-dock-head .section-icon svg { width: 0.85rem; height: 0.85rem; }
+    /* The +/- marker is the one .section-toggle already draws. It keys off
+       [open], which a <section> cannot have, so open is spelled here. */
+    #layer-dock:not(.is-collapsed) > .layer-dock-head::after { content: "\2212"; }
     #layer-dock:not(.is-collapsed) > .layer-dock-head {
       border-left-color: rgba(var(--nav-accent-rgb), 0.82);
       background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.12), rgba(255, 255, 255, 0.01));
       box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
     }
-    #layer-dock:not(.is-collapsed) > .layer-dock-head::after { content: "\2212"; }
     .layer-dock-body {
-      padding: 0.5rem 0.82rem 0.6rem;
-      /* Grows with what is loaded, then scrolls rather than pushing the tabs
-         off the panel. */
-      max-height: 30vh;
+      padding: 0.45rem 0.65rem 0.55rem;
+      /* Grows with what is loaded, then scrolls rather than climbing into the
+         panel's space. */
+      max-height: 28vh;
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
     }
     #layer-dock.is-collapsed .layer-dock-body { display: none; }
-    /* In its own card the panel is the content, so its header is redundant --
+    /* In its own box the panel is the content, so its header is redundant --
        and so is the body's own border and padding, which would otherwise draw
        a second box inset inside the first. */
     #layer-dock-body > .toolbox-group > summary { display: none; }
@@ -4433,9 +4454,9 @@ canvas {
       background: none;
       padding: 0;
     }
-    /* The stack is the last thing in the card; its own trailing gap is the
-       card's bottom padding twice over. */
     #layer-dock-body .layer-stack { margin-bottom: 0; }
+    /* Rows scale with the box. */
+    #layer-dock .layer-row { font-size: 0.66rem; padding: 0.2rem 0.3rem; }
 
     /* One rhythm for every tab, whatever kind of section it is. */
     #gis-toolbox-panels > * { margin: 0 0 0.5rem !important; }
