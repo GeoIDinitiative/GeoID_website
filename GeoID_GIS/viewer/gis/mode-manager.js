@@ -243,7 +243,7 @@
         ? "Click a location for hazard analysis"
         : "Off — clicks pan and orbit the globe";
     }
-    const row = document.getElementById("geoid-mode-row");
+    const row = document.getElementById("gis-group-geoid");
     if (row) row.classList.toggle("is-armed", armed);
     // Arming does not change which page is showing, so the page's own tab keeps
     // the highlight; the Explorer control is what reports the armed state.

@@ -47,28 +47,18 @@
          click on the globe drops a location pin and opens the Analysis Hub;
          disarmed, clicks pan and orbit as they do anywhere else in GIS, so the
          hub never intercepts ordinary navigation. -->
-    <details id="gis-group-geoid" class="control-section toolbox-group" open hidden>
-      <summary class="section-toggle">
-        <div class="section-toggle-main">
-          <div class="section-heading">
-            <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 14s4.2-4.3 4.2-7.2A4.2 4.2 0 0 0 8 2.6a4.2 4.2 0 0 0-4.2 4.2C3.8 9.7 8 14 8 14Z" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="6.7" r="1.5" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span><span>GeoID Mode</span></span></div>
-          </div>
-        </div>
-      </summary>
-      <div class="section-body toolbox-group-body">
-        <div class="geoid-mode-row" id="geoid-mode-row">
-          <div class="geoid-mode-label">
-            <span class="geoid-mode-title">Location Analysis</span>
-            <span class="geoid-mode-hint" id="geoid-mode-hint">Click a location for hazard analysis</span>
-          </div>
-          <button type="button" id="geoid-mode-enter" class="tour-enter-btn">Enter</button>
-        </div>
-      </div>
-    </details>
+    <div id="gis-group-geoid" class="geoid-mode-bar" hidden>
+      <span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 14s4.2-4.3 4.2-7.2A4.2 4.2 0 0 0 8 2.6a4.2 4.2 0 0 0-4.2 4.2C3.8 9.7 8 14 8 14Z" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="6.7" r="1.5" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span>
+      <span class="geoid-mode-label">
+        <span class="geoid-mode-title">GeoID Mode</span>
+        <span class="geoid-mode-hint" id="geoid-mode-hint">Click a location for hazard analysis</span>
+      </span>
+      <button type="button" id="geoid-mode-enter" class="tour-enter-btn">Enter</button>
+    </div>
 
     <!-- GIS mode collapses the whole GeoID control set into this one group and
          stacks the toolboxes underneath it. Populated by gis/toolbox.js. -->
-    <details id="geoid-controls-group" class="control-section toolbox-group" open hidden>
+    <details id="geoid-controls-group" class="control-section toolbox-group" hidden>
       <summary class="section-toggle">
         <div class="section-toggle-main">
           <div class="section-heading">

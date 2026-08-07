@@ -1859,7 +1859,12 @@ function init() {
       if (startsInModel) {
         setStudioOrbitLimits(true);
       }
-      applyStudioScene();
+      // Only Model mode wants the studio's scene: it hides the starfield and
+      // raises the ground. Running it unconditionally at startup stripped the
+      // stars out of the GIS page, which never asked for either.
+      if (startsInModel) {
+        applyStudioScene();
+      }
       if (startsInModel) {
         // Restoring Model mode from a previous session skips the mode-change
         // handler, so the camera keeps the globe viewer's position -- which is
