@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808d";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808e";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -53,7 +53,14 @@ function status(message) {
 
 /** The extent to ask for: what is on screen, or a drawn polygon. */
 function requestBounds() {
-  const choice = byId("gee-extent")?.value || "view";
+  const choice = byId("gee-extent")?.value || "global";
+  // The default. A climate product is global by nature, and a whole-earth
+  // drape cannot be misplaced by a view calculation -- there is no wrong
+  // subset of everywhere. 85 rather than 90 keeps the poles off the request,
+  // where most of these products have no data and the projection degenerates.
+  if (choice === "global") {
+    return { minX: -180, minY: -85, maxX: 180, maxY: 85 };
+  }
   if (choice === "polygon") {
     // The viewer returns "vertices"; reading "points" found nothing, so the
     // polygon option always reported that no shape had been drawn.
