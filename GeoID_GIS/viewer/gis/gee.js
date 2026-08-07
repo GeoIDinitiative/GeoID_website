@@ -10,8 +10,16 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260807q";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260807r";
 
+/**
+ * The deployed service. Shipped with the app rather than configured per browser:
+ * it is a public URL guarding nothing, and requiring every visitor to paste it
+ * in meant the panel opened unconfigured for everyone but whoever set it.
+ *
+ * What protects it is ALLOWED_ORIGINS on the deployment, not obscurity here.
+ */
+const DEFAULT_ENDPOINT = "https://europe-west2-geoid-504623.cloudfunctions.net/geeImage";
 const ENDPOINT_KEY = "geoid-gis:gee-endpoint";
 const byId = (id) => document.getElementById(id);
 
@@ -22,11 +30,12 @@ let THREE = null;
  * endpoint can be pointed at a local deployment while testing without editing
  * and redeploying the site.
  */
+/** The override if one is set, otherwise the deployed service. */
 function endpoint() {
   try {
-    return window.localStorage.getItem(ENDPOINT_KEY) || "";
+    return window.localStorage.getItem(ENDPOINT_KEY) || DEFAULT_ENDPOINT;
   } catch (error) {
-    return "";
+    return DEFAULT_ENDPOINT;
   }
 }
 
@@ -137,10 +146,6 @@ async function drape(imageUrl, bounds) {
 
 async function request() {
   const url = endpoint();
-  if (!url) {
-    status("No service configured. Set the endpoint below.");
-    return;
-  }
   const dataset = byId("gee-dataset")?.value;
   if (!dataset) {
     status("Choose a dataset first.");
@@ -219,15 +224,19 @@ async function loadCatalogue() {
 
 function init() {
   const field = byId("gee-endpoint");
-  if (field) field.value = endpoint();
+  if (field) {
+    field.value = endpoint();
+    // Named so it is clear whether the field is showing the shipped service or
+    // an override someone has set.
+    field.placeholder = DEFAULT_ENDPOINT;
+  }
   byId("gee-endpoint-save")?.addEventListener("click", () => {
     setEndpoint(byId("gee-endpoint")?.value.trim() || "");
     loadCatalogue();
   });
   byId("gee-request")?.addEventListener("click", request);
 
-  if (endpoint()) loadCatalogue();
-  else status("No service configured. Set the endpoint below.");
+  loadCatalogue();
 }
 
 if (document.readyState === "loading") {
