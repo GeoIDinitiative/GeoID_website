@@ -59,7 +59,12 @@ As a Cloud Function (2nd gen):
       --source=. --entry-point=geeImage \
       --trigger-http --allow-unauthenticated \
       --service-account=<SERVICE_ACCOUNT_EMAIL> \
-      --set-env-vars=ALLOWED_ORIGINS=https://geoid.example,http://localhost:8125
+      --set-env-vars=^@^ALLOWED_ORIGINS=https://geoid.example,http://localhost:8125
+
+The `^@^` prefix changes the separator gcloud uses between variables to `@`.
+Without it gcloud splits the value on its commas and rejects the second origin
+as a malformed variable, since a comma is how it separates one variable from the
+next. Any character not in the value will do in its place.
 
 With `--service-account`, application default credentials are used and no key
 file is needed anywhere. That is the safest arrangement: there is no key to
