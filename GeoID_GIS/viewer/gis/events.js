@@ -44,6 +44,8 @@ const symbolFor = (id) => SYMBOLS[id] || FALLBACK;
 let active = false;
 let events = [];
 let markers = null;
+// The spin-carrying group everything pinned to a coordinate lives in.
+let spun = null;
 let timer = null;
 let THREE = null;
 
@@ -166,8 +168,9 @@ function feedAnchor() {
 function focusOn(lat, lon) {
   const viewer = window.GeoIDViewer;
   if (!viewer?.latLonToVector3 || !Number.isFinite(lat) || !Number.isFinite(lon)) return;
-  // Same frame the markers are placed in, so the view lands on the marker.
-  const group = viewer.earthSceneGroup;
+  // Same frame the markers are placed in, so the view lands on the marker
+  // rather than on where its coordinates would sit at midnight.
+  const group = spinFrame() || viewer.earthSceneGroup;
   const local = viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS);
   if (group) {
     group.updateMatrixWorld(true);
@@ -226,10 +229,45 @@ let markerSprite = null;
 let sizeFrame = null;
 
 /** Keeps marker size in step with the view. */
+/**
+ * The frame a coordinate actually lives in.
+ *
+ * latLonToVector3 answers in the globe's baseline frame -- the one the texture
+ * is laid out in -- while the globe itself spins with simulated UTC. Placing a
+ * marker at that raw answer leaves it however far the globe has turned since
+ * midnight, which is why the offset grew through the day rather than being a
+ * fixed amount that could be dialled out. Parenting to the globe mesh is not
+ * the fix either: it carries a half-turn of its own on top of the spin.
+ *
+ * So: one group inside the scene frame, carrying the spin and nothing else.
+ * Everything pinned to a coordinate goes in here and stays over its ground.
+ */
+function spinFrame() {
+  const viewer = window.GeoIDViewer;
+  const parent = viewer?.earthSceneGroup || viewer?.scene;
+  if (!parent || !THREE) return null;
+  if (!spun || spun.parent !== parent) {
+    spun = new THREE.Group();
+    spun.name = "eonet-spin-frame";
+    parent.add(spun);
+  }
+  syncSpin();
+  return spun;
+}
+
+function syncSpin() {
+  const delta = window.GeoIDViewer?.getSpinDeltaRadians?.();
+  if (spun && Number.isFinite(delta)) spun.rotation.y = delta;
+}
+
 function trackScale() {
   if (sizeFrame) return;
   const step = () => {
     if (!active) { sizeFrame = null; return; }
+    // Held every frame, not set once: the globe keeps turning while the feed
+    // is open, and a marker placed correctly at fetch time would walk off its
+    // ground within the minute.
+    syncSpin();
     const px = globeRadiusPx();
     if (px > 0 && markers) {
       const size = dotSizePx(px);
@@ -313,12 +351,7 @@ function renderMarkers() {
     points.userData.events = list;
     markers.add(points);
   });
-  // latLonToVector3 gives a position in the scene group's frame, not the globe
-  // mesh's. The globe carries a rotation of its own, so parenting the markers to
-  // it applied that rotation a second time and every event sat however far the
-  // globe had spun from its baseline -- a drift that grows through the day
-  // rather than a fixed offset, which is why it read as simply wrong.
-  (viewer.earthSceneGroup || viewer.scene).add(markers);
+  (spinFrame() || viewer.earthSceneGroup || viewer.scene).add(markers);
   trackScale();
 }
 
@@ -517,7 +550,7 @@ function setSelection(event) {
   // Sized before it is added, not on the first animation frame: left at unit
   // scale the ring is the radius of the globe, which showed as a huge flash.
   applyHaloScale();
-  (viewer.earthSceneGroup || viewer.scene).add(halo);
+  (spinFrame() || viewer.earthSceneGroup || viewer.scene).add(halo);
 
   const started = performance.now();
   const pulse = (now) => {

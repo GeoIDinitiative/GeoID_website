@@ -18797,6 +18797,11 @@ uniform float uViewportWidth;`,
         // and globe radius, so they are shared here rather than re-derived.
         GLOBE_RADIUS: 3.2,
         latLonToVector3,
+        // latLonToVector3 answers in the globe's baseline frame -- where the
+        // texture is laid out -- not where that place currently is. The globe
+        // spins with simulated UTC, so anything pinned to a coordinate has to
+        // carry this rotation about Y to stay on the ground beneath it.
+        getSpinDeltaRadians,
         sampleElevationMeters: (lat, lon) => sampleElevationMeters(elevationSampler, lat, lon),
         // Analysis helpers, so imported GIS layers can be sampled against the
         // same polygon the user draws with the existing Area tool rather than
