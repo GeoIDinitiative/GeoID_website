@@ -162,6 +162,7 @@ const DATASETS = {
 const MAX_PIXELS = 1024;
 
 let readyPromise = null;
+const dateCache = new Map();
 
 /** Authenticates once per instance and reuses it across requests. */
 function ready() {
@@ -331,6 +332,37 @@ exports.geeImage = async (req, res) => {
 
   const config = DATASETS[q.dataset];
   if (!config) return bad(res, 400, "Unknown or unsupported dataset.");
+
+  if (q.dates !== undefined) {
+    // What the collection actually holds, so the page can offer real dates
+    // rather than leaving the user to guess and be told no afterwards.
+    try {
+      await ready();
+      const id = config.source || q.dataset;
+      const cached = dateCache.get(id);
+      if (cached && Date.now() - cached.at < 6 * 3600 * 1000) {
+        res.set("Cache-Control", "public, max-age=3600");
+        return res.json(cached.body);
+      }
+      const col = ee.ImageCollection(id);
+      const first = await evaluate(
+        col.limit(1, "system:time_start", true).first().get("system:time_start"),
+      );
+      const last = await evaluate(
+        col.limit(1, "system:time_start", false).first().get("system:time_start"),
+      );
+      const body = {
+        dataset: q.dataset,
+        first: new Date(first).toISOString().slice(0, 10),
+        last: new Date(last).toISOString().slice(0, 10),
+      };
+      dateCache.set(id, { at: Date.now(), body });
+      res.set("Cache-Control", "public, max-age=3600");
+      return res.json(body);
+    } catch (error) {
+      return bad(res, 502, `Could not read the collection's dates: ${error.message}`);
+    }
+  }
 
   const bbox = parseBbox(q.bbox);
   if (!bbox) return bad(res, 400, "bbox must be west,south,east,north.");

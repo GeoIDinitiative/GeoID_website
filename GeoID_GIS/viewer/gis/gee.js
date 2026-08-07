@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808h";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260808i";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -344,6 +344,30 @@ function init() {
     loadCatalogue();
   });
   byId("gee-request")?.addEventListener("click", request);
+  // Choosing a dataset fetches what it actually holds, states it, and fills the
+  // boxes with the last sixty days of availability -- so the offered dates are
+  // real ones rather than guesses to be refused later.
+  byId("gee-dataset")?.addEventListener("change", async (e) => {
+    const id = e.target.value;
+    if (!id) return;
+    status("Checking availability…");
+    try {
+      const r = await fetch(`${endpoint()}?dates&dataset=${encodeURIComponent(id)}`);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      status(`Published ${d.first} to ${d.last}.`);
+      const to = d.last;
+      const from = new Date(Math.max(Date.parse(d.first),
+        Date.parse(to) - 60 * 86400000)).toISOString().slice(0, 10);
+      const ff = byId("gee-date-from"); const tf = byId("gee-date-to");
+      if (ff) ff.value = from;
+      if (tf) tf.value = to;
+      if (ff) { ff.min = d.first; ff.max = d.last; }
+      if (tf) { tf.min = d.first; tf.max = d.last; }
+    } catch (error) {
+      status(`Availability unknown: ${error.message}`);
+    }
+  });
   // A click on a date opens its picker, rather than dropping a text caret into
   // the field and highlighting part of the date.
   ["gee-date-from", "gee-date-to"].forEach((id) => {
