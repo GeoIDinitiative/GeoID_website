@@ -4385,27 +4385,23 @@ canvas {
     .gee-dates-sep { flex: none; color: var(--soft-light); }
     .gee-dates input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.7; }
 
-    /* ── Layer dock: its own box, bottom left ───────────────────────────── */
+    /* ── Layer dock: the panel's own footer ─────────────────────────────── */
+    /* Inside #ui, below the scrolling tab list. Being a sibling rather than a
+       fixed box is what makes it flush and exactly the panel's width, and what
+       lets the tab list shrink to make room instead of being covered. */
     #layer-dock {
-      position: fixed;
-      left: 1rem;
-      bottom: 1rem;
-      z-index: 14;
-      width: 21rem;
-      max-width: calc(100vw - 2rem);
-      border: 1px solid rgba(255, 43, 214, 0.34);
-      border-radius: 0.6rem;
-      background: rgba(10, 14, 24, 0.92);
-      backdrop-filter: blur(10px);
+      flex: none;
+      margin: 0 -0.75rem 0 -0.85rem;   /* out to the panel's edges */
+      border-top: 1px solid rgba(255, 43, 214, 0.28);
+      background: rgba(8, 12, 20, 0.55);
     }
     #layer-dock[hidden], #layer-dock.is-away { display: none; }
     .layer-dock-head {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0.4rem 0.6rem;
-      border-bottom: 1px solid rgba(255, 43, 214, 0.22);
+      padding: 0.4rem 0.85rem;
     }
     .layer-dock-title {
-      font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+      font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase;
       color: var(--nav-accent);
     }
     .layer-dock-toggle {
@@ -4413,7 +4409,15 @@ canvas {
       font-size: 0.9rem; line-height: 1; cursor: pointer; padding: 0 0.2rem;
     }
     .layer-dock-toggle:hover { color: var(--nav-accent); }
-    .layer-dock-body { padding: 0.5rem 0.6rem; max-height: 40vh; overflow-y: auto; }
+    .layer-dock-body {
+      padding: 0 0.85rem 0.5rem;
+      /* Grows with what is loaded, then scrolls rather than pushing the tabs
+         off the panel. */
+      max-height: 32vh;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
+    }
     #layer-dock.is-collapsed .layer-dock-body { display: none; }
     /* In its own box the panel is the content, so its header is redundant. */
     #layer-dock-body > .toolbox-group > summary { display: none; }

@@ -14,8 +14,8 @@
   <link rel="stylesheet" href="styles.css?v=20260430-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260808o" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260808o" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260808r" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260808r" defer></script>
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -1696,17 +1696,6 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
       <div id="events-panel-body"></div>
     </div>
   </div>
-  <!-- The layer hierarchy in its own box: a view of what is loaded rather than
-       a step in the workflow, so it does not sit at the bottom of a scrolling
-       list. Collapses on its own, and with the main panel. -->
-  <section id="layer-dock" hidden>
-    <header class="layer-dock-head">
-      <span class="layer-dock-title">Layers</span>
-      <button type="button" id="layer-dock-toggle" class="layer-dock-toggle"
-        aria-label="Collapse layers" aria-expanded="true">−</button>
-    </header>
-    <div class="layer-dock-body" id="layer-dock-body"></div>
-  </section>
   <div id="cursor-readout-bar">
     <div id="rendering-indicator" hidden>Rendering…</div>
     <div id="scale-readout" hidden>
@@ -1842,6 +1831,17 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
     </section>
     </div>
   </div>
+    <!-- The layer hierarchy in its own box: a view of what is loaded rather than
+         a step in the workflow, so it does not sit at the bottom of a scrolling
+         list. Collapses on its own, and with the main panel. -->
+    <section id="layer-dock" hidden>
+      <header class="layer-dock-head">
+        <span class="layer-dock-title">Layers</span>
+        <button type="button" id="layer-dock-toggle" class="layer-dock-toggle"
+          aria-label="Collapse layers" aria-expanded="true">−</button>
+      </header>
+      <div class="layer-dock-body" id="layer-dock-body"></div>
+    </section>
   <div id="view-center-mark">+</div>
   <div id="gmt-clock" aria-live="polite">30/04/26 00:00 (GMT)</div>
   <div id="hover-tooltip" hidden></div>
@@ -2053,18 +2053,18 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260808o" defer></script>
-<script type="module" src="gis/import-manager.js?v=20260808o"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260808o"></script>
-<script type="module" src="gis/toolbox.js?v=20260808o"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260808o"></script>
-<script type="module" src="gis/model-studio.js?v=20260808o"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260808o"></script>
-<script type="module" src="gis/project.js?v=20260808o"></script>
-<script type="module" src="gis/events.js?v=20260808o"></script>
-<script type="module" src="gis/gee.js?v=20260808o"></script>
+<script src="gis/mode-manager.js?v=20260808r" defer></script>
+<script type="module" src="gis/import-manager.js?v=20260808r"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260808r"></script>
+<script type="module" src="gis/toolbox.js?v=20260808r"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260808r"></script>
+<script type="module" src="gis/model-studio.js?v=20260808r"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260808r"></script>
+<script type="module" src="gis/project.js?v=20260808r"></script>
+<script type="module" src="gis/events.js?v=20260808r"></script>
+<script type="module" src="gis/gee.js?v=20260808r"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260808o" defer></script>
+<script src="music.js?v=20260808r" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>

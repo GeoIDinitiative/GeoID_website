@@ -10,7 +10,7 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808o";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260808r";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -297,6 +297,16 @@ function copyCitations() {
 
 function initDock() {
   const box = document.getElementById("layer-dock");
+  // Placed into the panel as a sibling of the scrolling tab list. Done here
+  // rather than in the markup because the panel's nesting is not reliably
+  // matched by text edits -- and this is the same reparenting the legend
+  // overlay uses. As a sibling it is exactly the panel's width, sits flush at
+  // its foot, and the tab list shrinks to make room instead of being covered.
+  const panel = document.getElementById("ui");
+  const list = document.getElementById("ui-scroll-body");
+  if (box && panel && list && box.parentElement !== panel) {
+    list.after(box);
+  }
   const toggle = document.getElementById("layer-dock-toggle");
   toggle?.addEventListener("click", () => {
     const collapsed = box.classList.toggle("is-collapsed");
@@ -307,6 +317,8 @@ function initDock() {
   // should not leave a second box sitting over it. Carried on a class rather
   // than an inline style, so showing it again is the class going away and
   // cannot fight whatever else sets display.
+  // Inside the panel it collapses with it for free; the class is kept so the
+  // dock is not left occupying a hidden panel's height.
   const ui = document.getElementById("ui");
   if (ui && box) {
     const sync = () => box.classList.toggle("is-away", ui.classList.contains("is-collapsed"));
