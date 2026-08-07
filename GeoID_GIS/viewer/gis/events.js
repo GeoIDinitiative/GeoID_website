@@ -12,6 +12,10 @@
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=200";
 const REFRESH_MS = 5 * 60 * 1000;
+// How far above the surface the markers float, as a fraction of the globe's
+// radius. The globe is not a bare sphere -- there are shells above it -- so a
+// marker needs to clear those as well as the ground to survive the depth test.
+const MARKER_LIFT = 1.05;
 
 /**
  * Symbology by EONET category. Colours follow the hazard sense the rest of the
@@ -195,7 +199,7 @@ function renderMarkers() {
   groups.forEach((list, key) => {
     const positions = new Float32Array(list.length * 3);
     list.forEach((event, i) => {
-      const v = viewer.latLonToVector3(event.lat, event.lon, viewer.GLOBE_RADIUS * 1.004);
+      const v = viewer.latLonToVector3(event.lat, event.lon, viewer.GLOBE_RADIUS * MARKER_LIFT);
       positions[i * 3] = v.x; positions[i * 3 + 1] = v.y; positions[i * 3 + 2] = v.z;
     });
     const geometry = new THREE.BufferGeometry();
@@ -208,12 +212,15 @@ function renderMarkers() {
       size: 14,
       sizeAttenuation: false,
       depthWrite: false,
-      depthTest: false,
+      // Depth tested, so events on the far side are hidden by the planet rather
+      // than showing through it. They sit slightly proud of the surface, which
+      // is what keeps the near-side ones from being swallowed by it -- turning
+      // the test off did that too, but at the cost of seeing straight through
+      // the globe.
+      depthTest: true,
       transparent: true,
       opacity: 0.95,
     }));
-    // Drawn after the globe so a marker on the near face is never swallowed by
-    // the surface it sits on.
     points.renderOrder = 20;
     points.name = `eonet-${key}`;
     markers.add(points);
