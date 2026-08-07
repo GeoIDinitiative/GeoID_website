@@ -268,7 +268,7 @@ async function setActive(on) {
   // turning planet makes needlessly hard. The spin stops while the mode is on
   // and is left off afterwards rather than forced back -- Space is the control
   // for it, and it should not be overridden behind the user.
-  if (active) window.GeoIDModeManager?.setSpin?.(false);
+  window.GeoIDModeManager?.setSpin?.(!active && window.GeoIDModeManager?.isSpinning?.());
 
   window.clearInterval(timer);
   timer = null;
@@ -340,8 +340,59 @@ function installPicking() {
   });
 }
 
+let halo = null;
+let haloFrame = null;
+
+/**
+ * A pulsing ring on the selected event, so the popup and the globe agree on
+ * which one is being read. Parented to the globe like the markers, so it stays
+ * on its event however the planet is turned.
+ */
+function setSelection(event) {
+  const viewer = window.GeoIDViewer;
+  if (halo) {
+    halo.parent?.remove(halo);
+    halo.geometry?.dispose?.();
+    halo.material?.dispose?.();
+    halo = null;
+  }
+  if (haloFrame) { window.cancelAnimationFrame(haloFrame); haloFrame = null; }
+  if (!event || !viewer?.globe || !THREE) return;
+
+  const position = viewer.latLonToVector3(event.lat, event.lon, viewer.GLOBE_RADIUS * MARKER_LIFT);
+  halo = new THREE.Mesh(
+    new THREE.RingGeometry(0.05, 0.075, 48),
+    new THREE.MeshBasicMaterial({
+      color: 0x52e4e8,
+      side: THREE.DoubleSide,
+      transparent: true,
+      depthWrite: false,
+    }),
+  );
+  halo.name = "eonet-selection";
+  halo.position.copy(position);
+  halo.renderOrder = 21;
+  viewer.globe.add(halo);
+
+  const started = performance.now();
+  const pulse = (now) => {
+    if (!halo) return;
+    // One breath a second: scale and fade together so it reads as a pulse
+    // rather than a flicker.
+    const t = ((now - started) % 1400) / 1400;
+    const scale = 1 + t * 1.6;
+    halo.scale.setScalar(scale);
+    halo.material.opacity = 0.85 * (1 - t);
+    // Kept facing the camera, so it is a ring rather than an ellipse edge-on.
+    if (viewer.camera) halo.lookAt(viewer.camera.position);
+    haloFrame = window.requestAnimationFrame(pulse);
+  };
+  haloFrame = window.requestAnimationFrame(pulse);
+}
+
 function hidePopup() {
   byId("event-popup")?.setAttribute("hidden", "");
+  setSelection(null);
 }
 
 function showPopup(event, x, y) {
@@ -366,6 +417,7 @@ function showPopup(event, x, y) {
       <button type="button" class="button secondary" data-role="fly">Bring into view</button>
     </div>`;
   node.removeAttribute("hidden");
+  setSelection(event);
   // Placed at the click, then nudged back inside the window if it would spill.
   const rect = node.getBoundingClientRect();
   const left = Math.min(x + 12, window.innerWidth - rect.width - 12);
@@ -396,6 +448,10 @@ function init() {
     window.requestAnimationFrame(placeOverlay);
   });
   window.addEventListener("resize", placeOverlay);
+  // Escape drops the selection, the way it dismisses the other overlays.
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !byId("event-popup")?.hidden) hidePopup();
+  });
   window.setInterval(placeOverlay, 1000);
   // The overlay sits over the scene, so it hangs off <body> like the legend.
   const overlay = byId("events-overlay");

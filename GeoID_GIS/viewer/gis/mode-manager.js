@@ -204,6 +204,13 @@
   }
 
   function setSpin(enabled) {
+    // Events mode holds the globe still: reading a feed against it means finding
+    // places on it. Enforced here rather than by a single call at the point of
+    // entry, because mode changes and the Space shortcut both ask for the spin
+    // back and would otherwise start it again underneath the feed.
+    if (enabled && document.body.dataset.events === "true") {
+      enabled = false;
+    }
     spinEnabled = Boolean(enabled);
     const controls = window.GeoIDViewer?.controls;
     // Make sure the camera-orbiting version is off: the two together read as
