@@ -23,11 +23,18 @@ distinguishable from an empty result.
 
 ## Before deploying
 
+This is set up against project `geoid-504623` and the service account
+`geoid-ee@geoid-504623.iam.gserviceaccount.com`.
+
 1. Register the Cloud project for Earth Engine at
    https://code.earthengine.google.com/register
-2. Create a service account in that project, and register it for Earth Engine
-   as well -- registering the project alone is not enough.
+2. Register the service account for Earth Engine as well -- registering the
+   project alone is not enough, and the omission surfaces as a permission error
+   on the first request rather than at deploy.
 3. Grant it no more than it needs. Earth Engine access is the only requirement.
+4. Enable billing on the project. Cloud Functions, Run, Build and Artifact
+   Registry all require it, even for work that stays inside their free tiers.
+   Nothing deploys until this is done; running locally does not need it.
 
 ## Running it locally first
 
@@ -58,7 +65,7 @@ As a Cloud Function (2nd gen):
       --gen2 --runtime=nodejs20 --region=europe-west2 \
       --source=. --entry-point=geeImage \
       --trigger-http --allow-unauthenticated \
-      --service-account=<SERVICE_ACCOUNT_EMAIL> \
+      --service-account=geoid-ee@geoid-504623.iam.gserviceaccount.com \
       --set-env-vars=^@^ALLOWED_ORIGINS=https://geoidinitiative.com,https://www.geoidinitiative.com,http://localhost:8125
 
 The `^@^` prefix changes the separator gcloud uses between variables to `@`.
