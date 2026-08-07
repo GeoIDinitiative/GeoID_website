@@ -105,6 +105,7 @@ function save() {
   } catch (error) { /* ignore */ }
   writeForm(project);
   refreshSavedList(project.name);
+  refreshHeaderLabel();
   status(`Saved "${project.name}".`);
 }
 
@@ -172,7 +173,51 @@ async function importFile(file) {
   }
 }
 
+/**
+ * The project controls live in a dialog, but their markup is authored in the
+ * sidebar section so it stays with the rest of the toolbox. It is moved across
+ * once, rather than duplicated, so there is only ever one set of fields and no
+ * chance of the two drifting apart.
+ */
+function mountDialog() {
+  const body = byId("project-dialog-body");
+  const source = byId("gis-group-project");
+  if (!body || !source || body.childElementCount) return;
+  source.querySelectorAll(".gis-tool-section").forEach((section) => {
+    section.open = true;
+    body.appendChild(section);
+  });
+}
+
+function setDialogOpen(open) {
+  const dialog = byId("project-dialog");
+  if (!dialog) return;
+  dialog.hidden = !open;
+  byId("project-open-modal")?.setAttribute("aria-expanded", open ? "true" : "false");
+  if (open) byId("project-name")?.focus();
+}
+
+/** The header button carries the current project's name once there is one. */
+function refreshHeaderLabel() {
+  const label = byId("project-open-modal-name");
+  if (!label) return;
+  const name = byId("project-name")?.value.trim();
+  label.textContent = name || "Project";
+}
+
 function init() {
+  mountDialog();
+  byId("project-open-modal")?.addEventListener("click", () => setDialogOpen(true));
+  byId("project-dialog-close")?.addEventListener("click", () => setDialogOpen(false));
+  byId("project-dialog")?.addEventListener("click", (event) => {
+    // Clicking the backdrop dismisses; clicking the panel must not.
+    if (event.target === byId("project-dialog")) setDialogOpen(false);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !byId("project-dialog")?.hidden) setDialogOpen(false);
+  });
+  byId("project-name")?.addEventListener("input", refreshHeaderLabel);
+
   byId("project-new")?.addEventListener("click", reset);
   byId("project-save")?.addEventListener("click", save);
   byId("project-open")?.addEventListener("click", open);
@@ -189,6 +234,7 @@ function init() {
     if (current) writeForm(readStore()[current]);
     refreshSavedList(current);
   } catch (error) { /* ignore */ }
+  refreshHeaderLabel();
 }
 
 if (document.readyState === "loading") {
