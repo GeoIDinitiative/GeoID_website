@@ -287,6 +287,9 @@ const HORIZON_PITCH_RAD = 16 * Math.PI / 180;
 // Closest the camera may come to straight-down. Keeps the plan view readable
 // without ever reaching the vertical, where lookAt degenerates.
 const MIN_POLAR_RAD = 8 * Math.PI / 180;
+// Shallowest look-down angle the dolly floor will reason about. Below this
+// the required stand-off would run away towards infinity.
+const SIN_MIN_ELEVATION = Math.sin(2 * Math.PI / 180);
 const GROUND_MIN = 500;
 const GROUND_MAX = 4000;
 
@@ -324,26 +327,37 @@ function geodeticDirection(latDeg, lonDeg) {
  * the origin: +X east, +Y up (radial), +Z south -- matching the Z-up to Y-up
  * convention the display meshes already use.
  */
+/**
+ * Places the model's local frame on top of the reference sphere, on the world
+ * +Y axis, with +X east / +Y up / +Z south.
+ *
+ * The anchor is deliberately NOT put at the sphere's true geodetic direction
+ * for the origin's lat/lon. OrbitControls bakes its orbit axis from the
+ * camera's up vector once, when it is constructed, and the viewer built it with
+ * the world +Y default -- assigning camera.up afterwards does nothing. So if the
+ * anchor sat anywhere else, a horizontal drag would rotate about world +Y while
+ * the local up pointed elsewhere, and the horizon would swing wildly on what
+ * should be a pure azimuth turn.
+ *
+ * Nothing is lost by pinning it here: the sphere is scenery, its orientation is
+ * arbitrary, and lat/lon comes from the local frame and the studio origin
+ * rather than from where the anchor sits on the sphere.
+ */
 function updateModelAnchor() {
   if (!modelAnchor) return;
-  const { lat, lon, elevation } = studioOrigin;
-  const latRad = lat * Math.PI / 180;
-  const lonRad = lon * Math.PI / 180;
-  const up = geodeticDirection(lat, lon);
-  const north = new THREE.Vector3(
-    -Math.sin(latRad) * Math.cos(lonRad),
-    -Math.sin(latRad) * Math.sin(lonRad),
-    Math.cos(latRad),
-  );
-  const east = new THREE.Vector3(-Math.sin(lonRad), Math.cos(lonRad), 0);
-  const south = north.clone().negate();
-  modelAnchor.quaternion.setFromRotationMatrix(
-    new THREE.Matrix4().makeBasis(east, up, south),
-  );
+  const { elevation } = studioOrigin;
+  modelAnchor.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+    new THREE.Vector3(1, 0, 0),   // east
+    new THREE.Vector3(0, 1, 0),   // up
+    new THREE.Vector3(0, 0, 1),   // south
+  ));
   // The origin's elevation lifts the anchor off the reference sphere, in the
   // same scene units the model itself is drawn in.
-  modelAnchor.position.copy(up)
-    .multiplyScalar(groundRadius + (elevation || 0) * (studioScale || 1));
+  modelAnchor.position.set(
+    0,
+    groundRadius + (elevation || 0) * (studioScale || 1),
+    0,
+  );
   modelAnchor.updateMatrixWorld(true);
 }
 
@@ -369,6 +383,8 @@ function groundGridMaterial() {
     side: THREE.FrontSide,
     uniforms: {
       uStepDeg: { value: 10 },
+      uStepCoarse: { value: 30 },
+      uBlend: { value: 1 },
       uMajorEvery: { value: 4 },
       uMinor: { value: new THREE.Color(0x2f6bff) },
       uMajor: { value: new THREE.Color(0xff2bd6) },
@@ -383,6 +399,8 @@ function groundGridMaterial() {
     `,
     fragmentShader: `
       uniform float uStepDeg;
+      uniform float uStepCoarse;
+      uniform float uBlend;
       uniform float uMajorEvery;
       uniform vec3 uMinor;
       uniform vec3 uMajor;
@@ -391,6 +409,22 @@ function groundGridMaterial() {
 
       const float DEG = 57.29577951308232;
 
+      // One graticule level: line coverage, glow, and which family is nearer.
+      void gridLevel(float lat, float lon, float step, float wLat, float wLon,
+                     out float line, out float bloom,
+                     out float parallels, out float meridians) {
+        float dLat = abs(fract(lat / step - 0.5) - 0.5) * step;
+        float dLon = abs(fract(lon / step - 0.5) - 0.5) * step;
+        parallels = 1.0 - smoothstep(0.0, wLat, dLat);
+        meridians = 1.0 - smoothstep(0.0, wLon, dLon);
+        // Retire lines as cells approach pixel size rather than let them alias
+        // into noise near the limb.
+        float density = clamp(step / (max(wLat, wLon) * 10.0), 0.0, 1.0);
+        line = max(parallels, meridians) * density;
+        bloom = max(exp(-dLat / (step * 0.05)), exp(-dLon / (step * 0.05)))
+          * 0.35 * density;
+      }
+
       void main() {
         // The sphere is centred on the origin and is the Earth frame, so the
         // surface direction gives geodetic lat/lon with no extra basis.
@@ -398,29 +432,28 @@ function groundGridMaterial() {
         float lat = asin(clamp(dir.z, -1.0, 1.0)) * DEG;
         float lon = atan(dir.y, dir.x) * DEG;
 
-        float dLat = abs(fract(lat / uStepDeg - 0.5) - 0.5) * uStepDeg;
-        float dLon = abs(fract(lon / uStepDeg - 0.5) - 0.5) * uStepDeg;
-
         float wLat = fwidth(lat) * 1.2 + 1e-6;
         float wLon = fwidth(lon) * 1.2 + 1e-6;
 
-        float parallels = 1.0 - smoothstep(0.0, wLat, dLat);
-        float meridians = 1.0 - smoothstep(0.0, wLon, dLon);
-        float line = max(parallels, meridians);
+        // Two grid levels are drawn at once and crossfaded, so zooming brings
+        // the finer one up gradually instead of swapping the whole graticule
+        // between frames.
+        float lineFine = 0.0, bloomFine = 0.0, parFine = 0.0, merFine = 0.0;
+        gridLevel(lat, lon, uStepDeg, wLat, wLon, lineFine, bloomFine, parFine, merFine);
+        float lineCoarse = 0.0, bloomCoarse = 0.0, parCoarse = 0.0, merCoarse = 0.0;
+        gridLevel(lat, lon, uStepCoarse, wLat, wLon, lineCoarse, bloomCoarse, parCoarse, merCoarse);
 
-        // Retire the graticule as cells approach pixel size rather than let it
-        // alias into noise near the limb.
-        float density = clamp(uStepDeg / (max(wLat, wLon) * 10.0), 0.0, 1.0);
-        line *= density;
+        // The coarse level stays fully lit: its lines are a subset of the fine
+        // one, so fading it too would dim the shared lines as the blend moves.
+        float line = max(lineCoarse, lineFine * uBlend);
+        float bloom = max(bloomCoarse, bloomFine * uBlend);
 
-        float bloom = max(
-          exp(-dLat / (uStepDeg * 0.05)),
-          exp(-dLon / (uStepDeg * 0.05))
-        ) * 0.35 * density;
-
-        bool major = (parallels >= meridians)
-          ? abs(mod(floor(lat / uStepDeg + 0.5), uMajorEvery)) < 0.5
-          : abs(mod(floor(lon / uStepDeg + 0.5), uMajorEvery)) < 0.5;
+        float step_ = uBlend > 0.5 ? uStepDeg : uStepCoarse;
+        float par = uBlend > 0.5 ? parFine : parCoarse;
+        float mer = uBlend > 0.5 ? merFine : merCoarse;
+        bool major = (par >= mer)
+          ? abs(mod(floor(lat / step_ + 0.5), uMajorEvery)) < 0.5
+          : abs(mod(floor(lon / step_ + 0.5), uMajorEvery)) < 0.5;
         vec3 colour = major ? uMajor : uMinor;
 
         gl_FragColor = vec4(uBase + colour * (line + bloom), 1.0);
@@ -441,6 +474,11 @@ function updateGround() {
   }
   // Earth centre is the scene origin.
   groundMesh.position.set(0, 0, 0);
+  // The anchor sits on world +Y. Turning the sphere a quarter turn puts that
+  // point on the grid's equator rather than its pole, so the model stands on
+  // an orthogonal patch of grid instead of on the spot where every meridian
+  // converges.
+  groundMesh.rotation.set(0, 0, Math.PI / 2);
   applyOrbitDistanceLimits();
   refreshGraticuleStep();
 }
@@ -449,15 +487,30 @@ const GRATICULE_STEPS = [30, 10, 5, 1, 0.5, 0.1, 0.05, 0.01, 0.005, 0.001, 0.000
 
 function refreshGraticuleStep() {
   const viewer = window.GeoIDViewer;
-  if (!groundMesh?.material?.uniforms || !viewer?.camera) return;
+  const uniforms = groundMesh?.material?.uniforms;
+  if (!uniforms || !viewer?.camera) return;
   const height = Math.max(viewer.camera.position.length() - groundRadius, 1e-4);
   const visibleDegrees = Math.min(160, (height / groundRadius) * 120 + 0.0004);
-  // Aim for roughly ten divisions across the view, then take the largest
-  // standard step no coarser than that.
+  // Aim for roughly ten divisions across the view.
   const ideal = visibleDegrees / 10;
-  const step = GRATICULE_STEPS.find((s) => s <= ideal)
-    ?? GRATICULE_STEPS[GRATICULE_STEPS.length - 1];
-  groundMesh.material.uniforms.uStepDeg.value = step;
+
+  // Snapping from one standard step to the next doubles or quintuples the grid
+  // density in a single frame, which is what made the horizon jump on zoom.
+  // Instead the two steps either side of the ideal are drawn together and
+  // crossfaded, so the finer grid fades in as the view closes rather than
+  // appearing all at once.
+  let i = GRATICULE_STEPS.findIndex((step) => step <= ideal);
+  if (i < 0) i = GRATICULE_STEPS.length - 1;
+  const coarse = GRATICULE_STEPS[Math.max(0, i - 1)];
+  const fine = GRATICULE_STEPS[i];
+  // Position between the pair on a log scale, so the fade tracks how the grid
+  // actually grows rather than the raw difference between the two steps.
+  const blend = coarse > fine
+    ? Math.min(1, Math.max(0, Math.log(coarse / ideal) / Math.log(coarse / fine)))
+    : 1;
+  uniforms.uStepDeg.value = fine;
+  uniforms.uStepCoarse.value = coarse;
+  uniforms.uBlend.value = blend;
 }
 
 function setGroundVisible(on) {
@@ -633,8 +686,8 @@ function setStudioOrbitLimits(on) {
 function applyOrbitDistanceLimits() {
   const controls = window.GeoIDViewer?.controls;
   if (!controls || !orbitLimits) return;
-  controls.minDistance = 0.05;
   controls.maxDistance = groundRadius * 4;
+  applyDollyFloor();
 }
 
 /**
@@ -649,12 +702,46 @@ function applyOrbitDistanceLimits() {
  * back the corrected position.
  */
 function keepCameraAboveGround() {
-  const camera = window.GeoIDViewer?.camera;
+  const viewer = window.GeoIDViewer;
+  const camera = viewer?.camera;
   if (!camera) return;
-  const floor = groundRadius * 1.0002;
+  const floor = groundRadius + minCameraAltitude();
   if (camera.position.length() >= floor) return;
+
+  // Last resort only. Descent is normally stopped before it happens by the
+  // dolly limit below, which is why this can afford to be a blunt radial nudge:
+  // it now only catches panning, where the target itself moves underground.
   camera.position.setLength(floor);
   camera.updateMatrixWorld(true);
+}
+
+/**
+ * Keeps the camera from dollying into the ground by raising the controls' own
+ * minimum distance, instead of correcting the position afterwards.
+ *
+ * Correcting afterwards is what made the horizon lurch: at a shallow viewing
+ * angle the camera has to travel a long way along its view ray to regain any
+ * altitude, so a small scroll near the ground threw it far backwards. Limiting
+ * the distance up front means the zoom simply stops, with the camera where the
+ * user left it.
+ */
+function applyDollyFloor() {
+  const viewer = window.GeoIDViewer;
+  const controls = viewer?.controls;
+  if (!controls || !orbitLimits) return;
+  const target = controls.target;
+  const dir = viewer.camera.position.clone().sub(target);
+  if (dir.lengthSq() < 1e-12 || target.lengthSq() < 1e-12) return;
+  dir.normalize();
+  // How steeply the camera looks down on its target: 1 straight down, 0 level.
+  const sinElevation = Math.max(dir.dot(target.clone().normalize()), SIN_MIN_ELEVATION);
+  const needed = minCameraAltitude() / sinElevation;
+  controls.minDistance = Math.max(0.05, needed);
+}
+
+/** Closest the camera may get to the ground, in scene units. */
+function minCameraAltitude() {
+  return Math.max(groundRadius * 0.0015, 1e-3);
 }
 
 // The viewer drives its own animation loop, so there is no update hook to
@@ -669,6 +756,7 @@ function patchControlsUpdate(on) {
     if (unpatchedUpdate) return;
     unpatchedUpdate = controls.update.bind(controls);
     controls.update = (...args) => {
+      applyDollyFloor();
       const result = unpatchedUpdate(...args);
       keepCameraAboveGround();
       return result;
