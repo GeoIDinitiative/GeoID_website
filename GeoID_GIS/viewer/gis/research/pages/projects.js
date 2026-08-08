@@ -1,5 +1,5 @@
-import { registerPage } from "../stages.js?v=20260809o";
-import * as store from "../project-store.js?v=20260809o";
+import { registerPage } from "../stages.js?v=20260809r";
+import * as store from "../project-store.js?v=20260809r";
 
 /**
  * Projects: choose the folder, make a project, open one, edit its profile.
@@ -235,13 +235,7 @@ async function mount(host, ctx) {
     newBtn.disabled = !root;
     newName.disabled = !root;
     renderProfile();
-    // The top bar carries the open project across every stage.
-    const badge = document.getElementById("research-project");
-    const active = store.getActive();
-    if (badge) {
-      badge.textContent = active ? active.name : "No project open";
-      badge.classList.toggle("is-open", Boolean(active));
-    }
+    // The top bar follows the store itself (hub.js), so nothing to do here.
     ctx.refresh?.();
   }
 

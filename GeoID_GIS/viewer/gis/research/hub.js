@@ -1,4 +1,4 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260809o";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260809r";
 
 /**
  * The Research Hub shell: a stage rail down the left, a page tab strip across
@@ -161,8 +161,24 @@ export function setContext(next) {
   if (activePage) void mountPage(activePage);
 }
 
+/**
+ * The top bar reports the open project on every stage, so it follows the store
+ * rather than whichever page last happened to redraw it.
+ */
+function watchProject(store) {
+  const paint = (active) => {
+    const badge = byId("research-project");
+    if (!badge) return;
+    badge.textContent = active ? active.name : "No project open";
+    badge.classList.toggle("is-open", Boolean(active));
+  };
+  store.onChange(paint);
+  paint(store.getActive());
+}
+
 export function init(context = {}) {
   ctx = { ...context, setPage, refresh };
+  if (context.store) watchProject(context.store);
   let start = STAGES[0][2][0][0];
   try {
     const stored = window.localStorage.getItem(STATE_KEY);

@@ -1,12 +1,15 @@
-import * as hub from "./hub.js?v=20260809o";
-import { registeredCount } from "./stages.js?v=20260809o";
-import * as store from "./project-store.js?v=20260809o";
-import * as bridge from "./bridge.js?v=20260809o";
+import * as hub from "./hub.js?v=20260809r";
+import { registeredCount } from "./stages.js?v=20260809r";
+import * as store from "./project-store.js?v=20260809r";
+import * as bridge from "./bridge.js?v=20260809r";
 
 // Pages register themselves on import. This list is the only place that has to
 // change when one is added.
-import "./pages/dashboard.js?v=20260809o";
-import "./pages/projects.js?v=20260809o";
+import "./pages/dashboard.js?v=20260809r";
+import "./pages/projects.js?v=20260809r";
+import "./pages/repository.js?v=20260809r";
+import "./pages/notes.js?v=20260809r";
+import "./pages/plotter.js?v=20260809r";
 
 /**
  * Entry point for the Research Hub.
@@ -21,7 +24,7 @@ let opened = false;
 function open() {
   if (opened) return;
   opened = true;
-  hub.init({});
+  hub.init({ store, bridge });
 }
 
 window.GeoIDResearch = {
