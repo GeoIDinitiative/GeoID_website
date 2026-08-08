@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260808-e64db71";
-import * as store from "./project-store.js?v=20260808-e64db71";
-import { el, statusLine } from "./pages/common.js?v=20260808-e64db71";
-import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-e64db71";
+import { handlerFor } from "./spec-page.js?v=20260808-9c90c89";
+import * as store from "./project-store.js?v=20260808-9c90c89";
+import { el, statusLine } from "./pages/common.js?v=20260808-9c90c89";
+import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-9c90c89";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -515,9 +515,13 @@ const NEVER_PAIR = ".qt-h, .qt-tabwidget, .qt-splitter, .qt-stack, .qt-datatable
 function packRoot(root) {
   const pairable = (node) => node.nodeType === 1
     && !node.matches(NEVER_PAIR)
-    // A card holding an expanding widget is the page's main surface, so it
-    // keeps the full width and the height that comes with it.
-    && !node.querySelector(".qt-expand, .qt-tabwidget, .qt-splitter");
+    // A card holding a *large* surface -- a tab strip, a splitter, a table or
+    // a scroll area -- is the page's main content and keeps the full width. A
+    // card whose only expanding widget is a text pane is just a card: excluding
+    // those as well left the Ingest pages in one column with their metadata
+    // grid and their summary stacked, which is the wasted width again.
+    && !node.querySelector(".qt-tabwidget, .qt-splitter, .qt-stack,"
+      + " .qt-datatable, .qt-listwidget, .qt-scroll");
   let run = [];
   const flush = () => {
     if (run.length >= 2) {
