@@ -1,9 +1,9 @@
-import * as store from "./project-store.js?v=20260808-e9319ca";
-import * as stats from "./stats.js?v=20260808-e9319ca";
-import * as dsp from "./dsp.js?v=20260808-e9319ca";
-import { parseTable, column } from "./table.js?v=20260808-e9319ca";
-import { linePlot, heatmap } from "./plot.js?v=20260808-e9319ca";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-e9319ca";
+import * as store from "./project-store.js?v=20260808-a4734aa";
+import * as stats from "./stats.js?v=20260808-a4734aa";
+import * as dsp from "./dsp.js?v=20260808-a4734aa";
+import { parseTable, column } from "./table.js?v=20260808-a4734aa";
+import { linePlot, heatmap } from "./plot.js?v=20260808-a4734aa";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-a4734aa";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -244,6 +244,10 @@ function csvPlotter(host, api) {
                       y: Array.from(spec.psd) });
       } else if (mode === "spectrogram") {
         spectro = { spec: dsp.spectrogram(ys, samplingOf(table, xName)), name };
+      } else if (mode === "bar") {
+        // `plt.bar(xs[:120], ys[:120])` -- Qt caps it, because a bar per sample
+        // over a long series is a solid block.
+        series.push({ name, x: xs.slice(0, 120), y: ys.slice(0, 120), mode: "bar" });
       } else {
         series.push({ name, x: xs, y: ys, mode: mode === "scatter" ? "scatter" : "line" });
       }
