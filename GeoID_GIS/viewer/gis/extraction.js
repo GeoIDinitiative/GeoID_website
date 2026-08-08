@@ -1,4 +1,4 @@
-import { computeBounds2D } from "./geo-utils.js?v=20260809l";
+import { computeBounds2D } from "./geo-utils.js?v=20260809n";
 
 // Sampling a polygon on a lat/lon grid: the spacing is expressed in km and
 // converted per-row, because a degree of longitude shrinks toward the poles.
@@ -186,6 +186,13 @@ export function rowsToGeoJson(rows) {
 }
 
 export function downloadText(filename, text, mime = "text/plain") {
+  // With a project open the result belongs to it, not to the downloads folder.
+  // Still downloaded as well, so the button does what it says either way.
+  try {
+    void window.GeoIDResearch?.bridge?.saveExport?.(filename, text);
+  } catch (error) {
+    /* no project open, or it declined -- the download below still happens */
+  }
   const blob = new Blob([text], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");

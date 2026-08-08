@@ -1,14 +1,14 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260809l";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260809l";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260809l";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260809l";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260809l";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260809l";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260809l";
-import { loadMshFile } from "./msh-adapter.js?v=20260809l";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260809l";
-import { buildLayerProperties } from "./layer-properties.js?v=20260809l";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260809n";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260809n";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260809n";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260809n";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260809n";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260809n";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260809n";
+import { loadMshFile } from "./msh-adapter.js?v=20260809n";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260809n";
+import { buildLayerProperties } from "./layer-properties.js?v=20260809n";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -388,6 +388,14 @@ async function importDataset(primaryFile, sidecars) {
     placeLocalModel(result.object3D, window.GeoIDModeManager?.getMode?.());
     frameResult(layer);
     setStatus(`Loaded ${primaryFile.name}.`);
+    // An import belongs to whatever project is open, so the Research page's
+    // repository and the Qt app both see it. Silent when none is open, and
+    // never allowed to fail the import it is only annotating.
+    try {
+      await window.GeoIDResearch?.bridge?.registerImportedLayer?.(layer, primaryFile);
+    } catch (error) {
+      console.warn("[GeoID GIS] could not record the import on the project:", error.message);
+    }
   } catch (error) {
     console.error("[GeoID GIS] import failed", error);
     layer.status = "error";

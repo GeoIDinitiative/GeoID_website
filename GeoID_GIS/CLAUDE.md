@@ -106,3 +106,44 @@ iframe, and saves a PNG. Points worth knowing:
   (`#cursor-readout`, format `"42.47°, 238.27°E | 1534 m"` — signed latitude,
   east-positive 0–360 longitude) over re-deriving geometry, and always run a
   control that reproduces the bug so a clean result means something.
+
+## Research Hub and the project spine
+
+A project is a **real folder on disk**, in the layout the Qt Research app uses
+(`/home/owen/atlas-ai/apps/GeoID_Research/app_qt.py`, `geoid_project_structure`
+at :692 and the metadata schema at :723). Both are ported verbatim into
+`gis/research/project-store.js` — twenty directories and `metadata/project.json`
+field for field — so a project made in either app opens in the other. Changing
+either shape breaks that interchange; change both together or not at all.
+
+The store writes through `gis/research/fs-adapter.js` rather than to
+`FileSystemDirectoryHandle` directly, because `showDirectoryPicker` needs a
+native dialog no headless browser can drive. `memoryAdapter()` stands in for
+tests: `store.useMemoryAdapter()` then everything downstream of the picker is
+the real code path.
+
+**Bridge contract** (`gis/research/bridge.js`) — what makes the three pages one
+workspace:
+
+| from | to | what |
+| --- | --- | --- |
+| GIS Area tool | `study_area` + `metadata/study_area.geojson` | `captureStudyArea()` |
+| import-manager | `data/raw/` + `metadata/data_registry.json` | `registerImportedLayer()`, called on every completed import |
+| extraction | `exports/` | `saveExport()`, called from `downloadText()` |
+| Meshing Studio | `meshes/` | `saveMesh()` |
+| project | globe camera | `frameStudyArea()` |
+
+Two things to keep right when touching it:
+
+- **Longitude.** The viewer carries east-positive 0–360; EPSG:4326, GeoJSON and
+  the Qt app all mean signed −180..180. Anything leaving the viewer for a file
+  must be converted (`signedLon` in bridge.js) — unconverted, a study area over
+  Sicily records as longitude 315 and reads as mid-Atlantic downstream.
+- **Never fail the host action.** The import and export hooks are annotations;
+  a project that is closed, full or unwritable must not break the import or the
+  download it is recording.
+
+Pages register into `gis/research/stages.js`; the twelve stages mirror the Qt
+`base_stage_structure` and must not drift from it. An unregistered page renders
+a labelled "not built yet" panel — do not replace that with a plausible-looking
+empty form.

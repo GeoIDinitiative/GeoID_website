@@ -3835,6 +3835,29 @@ canvas {
       gap: 0.4rem;
     }
 
+    .research-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+      gap: 0.4rem;
+      margin-bottom: 0.5rem;
+    }
+    .research-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      padding: 0.4rem 0.5rem;
+      border: 1px solid rgba(82, 228, 232, 0.22);
+      border-radius: 0.4rem;
+      background: rgba(10, 14, 24, 0.55);
+    }
+    .research-stat-label {
+      font-size: 0.56rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--soft-light);
+    }
+    .research-stat-value { font-size: 0.74rem; color: var(--text); overflow-wrap: anywhere; }
+
     .research-card .gis-btn-row { gap: 0.4rem; }
     .research-card .gis-btn-row .button { flex: 0 0 auto; }
     .research-card .gis-btn-row .input { flex: 1 1 auto; }

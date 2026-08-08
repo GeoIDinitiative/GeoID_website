@@ -116,7 +116,9 @@ export function memoryAdapter(name = "memory") {
       const segments = parts(path);
       segments.pop();
       addDirs(segments.join("/"));
-      files.set(parts(path).join("/"), String(contents));
+      // Stored as given rather than stringified: a Blob would become the text
+      // "[object Blob]", which looks written and reads back as nonsense.
+      files.set(parts(path).join("/"), contents);
     },
 
     async readFile(path) {
