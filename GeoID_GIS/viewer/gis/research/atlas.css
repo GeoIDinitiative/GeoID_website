@@ -1953,3 +1953,5 @@
    to fit, and the page scrolls instead of cutting. A shut section is one line
    tall and none of this applies to it. */
 .qt-page .qt-section[open]:not(.qt-grow) { overflow: visible; min-height: auto; }
+/* The table picker, floated over the page rather than inside a card. */
+.qt-inline-menu.is-floating { position: absolute; top: 4rem; left: 50%; transform: translateX(-50%); }

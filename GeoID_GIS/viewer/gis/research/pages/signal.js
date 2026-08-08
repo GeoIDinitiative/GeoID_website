@@ -1,9 +1,9 @@
-import { registerPage } from "../stages.js?v=20260808-abdc9bf";
-import * as store from "../project-store.js?v=20260808-abdc9bf";
-import { parseTable, column, indexSeries } from "../table.js?v=20260808-abdc9bf";
-import { linePlot, heatmap, toPngBlob } from "../plot.js?v=20260808-abdc9bf";
-import * as dsp from "../dsp.js?v=20260808-abdc9bf";
-import { needProject } from "./common.js?v=20260808-abdc9bf";
+import { registerPage } from "../stages.js?v=20260808-3bba925";
+import * as store from "../project-store.js?v=20260808-3bba925";
+import { parseTable, column, indexSeries } from "../table.js?v=20260808-3bba925";
+import { linePlot, heatmap, toPngBlob } from "../plot.js?v=20260808-3bba925";
+import * as dsp from "../dsp.js?v=20260808-3bba925";
+import { needProject } from "./common.js?v=20260808-3bba925";
 
 /**
  * Signal Processing, Spectral Analysis and Statistics.

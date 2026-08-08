@@ -1,10 +1,10 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260808-abdc9bf";
-import * as store from "./project-store.js?v=20260808-abdc9bf";
-import * as stats from "./stats.js?v=20260808-abdc9bf";
-import * as dsp from "./dsp.js?v=20260808-abdc9bf";
-import { linePlot, heatmap } from "./plot.js?v=20260808-abdc9bf";
-import { column } from "./table.js?v=20260808-abdc9bf";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-abdc9bf";
+import { wire, wirePattern } from "./spec-page.js?v=20260808-3bba925";
+import * as store from "./project-store.js?v=20260808-3bba925";
+import * as stats from "./stats.js?v=20260808-3bba925";
+import * as dsp from "./dsp.js?v=20260808-3bba925";
+import { linePlot, heatmap } from "./plot.js?v=20260808-3bba925";
+import { column } from "./table.js?v=20260808-3bba925";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-3bba925";
 
 /**
  * The last of the spec's controls.
@@ -107,7 +107,7 @@ wire("Raster Tools", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No coordinate columns to reproject.");
-    const projection = await import("../projection.js?v=20260808-abdc9bf");
+    const projection = await import("../projection.js?v=20260808-3bba925");
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -164,7 +164,7 @@ wire("Vector Tools", {
     if (collections.length < 2) {
       throw new Error("A spatial join needs two GeoJSON layers in the project.");
     }
-    const g = await import("../geoprocessing.js?v=20260808-abdc9bf");
+    const g = await import("../geoprocessing.js?v=20260808-3bba925");
     const joined = g.spatialJoin(collections[0].fc, collections[1].fc);
     const out = `data/processed/joined-${stamp()}.geojson`;
     await store.writeProjectFile(out, JSON.stringify(joined));
@@ -846,4 +846,99 @@ wire("Model Fitting", {
     say(`${model}: R² ${r2.toFixed(4)}, RMSE ${rmse.toPrecision(4)} over `
       + `${xs.length} points. Saved ${figure}.`);
   },
+});
+
+/**
+ * Browse, on the pages that analyse one table.
+ *
+ * The Qt pages open a file dialog and then fill their column combos from the
+ * file's header, which is the step that makes Compute, Detect Events and Fit
+ * controllable — the tree renders those combos empty, and without this they
+ * silently fall back to the project's first table and its first numeric column.
+ * That fallback still works, but choosing is the point.
+ *
+ * The generic Browse pattern imports a file into the project; here the table is
+ * already in the project and the job is to select one.
+ */
+const ANALYSIS_PAGES = ["Spectral Analysis", "Event Detection", "Model Fitting"];
+
+/** Column names, split by which role they can play. */
+function classifyColumns(table) {
+  const numeric = numericOf(table);
+  const names = Object.keys(numeric);
+  const timeLike = table.columns.find((c) =>
+    /^(t|time|secs?|seconds|timestamp|date|x)$/i.test(String(c)));
+  const value = names.find((n) => n !== timeLike) || names[0];
+  return { all: table.columns, numeric: names, time: timeLike || names[0], value };
+}
+
+/** Offer the project's tables, inline — there is no file dialog to open. */
+function chooseTable(paths) {
+  return new Promise((resolve) => {
+    const host = document.getElementById("research-page");
+    const menu = document.createElement("div");
+    menu.className = "qt-inline-menu is-floating";
+    paths.forEach((path) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "qt-inline-item";
+      item.textContent = path;
+      item.addEventListener("click", () => { menu.remove(); resolve(path); });
+      menu.appendChild(item);
+    });
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "qt-inline-item is-cancel";
+    cancel.textContent = "Cancel";
+    cancel.addEventListener("click", () => { menu.remove(); resolve(null); });
+    menu.appendChild(cancel);
+    host.appendChild(menu);
+  });
+}
+
+/** Fill a combo with the given options, keeping a sensible one selected. */
+function fillCombo(node, options, preferred) {
+  if (!node || node.tagName !== "SELECT") return;
+  node.textContent = "";
+  options.forEach((name) => node.appendChild(new Option(name, name)));
+  if (preferred && options.includes(preferred)) node.value = preferred;
+}
+
+ANALYSIS_PAGES.forEach((pageId) => {
+  wire(pageId, {
+    Browse: async ({ say, controls }) => {
+      const paths = await findTables();
+      if (!paths.length) throw new Error("No tables in this project yet.");
+      const path = paths.length === 1 ? paths[0] : await chooseTable(paths);
+      if (!path) return;
+      const table = await loadTable(path);
+      const roles = classifyColumns(table);
+      if (!roles.numeric.length) throw new Error(`${path} has no numeric column.`);
+
+      const field = controls.get("_file_edit");
+      if (field) field.value = path;
+
+      fillCombo(controls.get("_time_col"), roles.all, roles.time);
+      fillCombo(controls.get("_x_col"), roles.all, roles.time);
+      fillCombo(controls.get("_signal_col"), roles.numeric, roles.value);
+      fillCombo(controls.get("_sig_col"), roles.numeric, roles.value);
+      fillCombo(controls.get("_y_col"), roles.numeric, roles.value);
+
+      // The sample rate the time column implies, which is what the Qt page
+      // pre-fills its spin box with.
+      const times = column(table, roles.time).filter(Number.isFinite);
+      if (times.length > 2) {
+        const step = (times[times.length - 1] - times[0]) / (times.length - 1);
+        if (step > 0) {
+          const fs = 1 / step;
+          ["_fs_spin", "_fs"].forEach((name) => {
+            const node = controls.get(name);
+            if (node) node.value = String(Number(fs.toPrecision(6)));
+          });
+        }
+      }
+      say(`${path}: ${table.rows.length} rows, ${roles.numeric.length} numeric `
+        + `column(s). Using ${roles.time} / ${roles.value}.`);
+    },
+  });
 });
