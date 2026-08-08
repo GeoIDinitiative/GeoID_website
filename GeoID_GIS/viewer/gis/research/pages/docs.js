@@ -1,33 +1,34 @@
-import { registerPage } from "../stages.js?v=20260808-fb4f85c";
-import * as store from "../project-store.js?v=20260808-fb4f85c";
+import { registerPage } from "../stages.js?v=20260808-4a66374";
+import * as store from "../project-store.js?v=20260808-4a66374";
+import { frameUrl, isConfigured } from "../google-credentials.js?v=20260808-4a66374";
 import {
   el, input, button, row, statusLine, guard, field, selectOf,
   pageHeader, splitPanes, tabbedPanel, editorCard, findTables, loadTable,
-} from "./common.js?v=20260808-fb4f85c";
+  toolbar,
+} from "./common.js?v=20260808-4a66374";
 
 /**
  * Docs & Sheets — the Google workspace, ported from `DocsSheetsPage`
  * (app_qt.py:24655).
  *
  * The Qt page embeds a browser on a persistent Google profile and keeps its
- * link registry in the Atlas hub. Neither ports:
+ * link registry in the Atlas hub. Both port, one of them better than an earlier
+ * version of this file claimed:
  *
- *  - **Google refuses to be framed.** `docs.google.com` sends
- *    `X-Frame-Options: DENY`, so there is no embedded browser to be had in a
- *    web page. Documents open in a tab. That is a smaller loss than it sounds:
- *    what matters is the registry and the data, not the pixels.
+ *  - **The nested window works.** Checked against a real public Sheet:
+ *    `docs.google.com` sends no `X-Frame-Options` and no `frame-ancestors`, and
+ *    both `/edit` and `/preview` render in a cross-origin iframe — the whole
+ *    editor, editable when the browser is signed in to Google. This file used
+ *    to say Google refused to be framed. It does not.
  *  - **There is no Atlas hub to hold the registry.** So it lives in the project
  *    instead, at `metadata/links.json` in the hub's own shape
  *    (`{docs: [...], sheets: [...]}`). Because it is a project file, a link
- *    filed here is visible to the desktop app and the other way round — which
- *    is most of the interchange value for none of the cost.
+ *    filed here is visible to the desktop app and the other way round.
  *
- * What is deliberately NOT here: creating a Doc through the Drive API. That
- * needs an OAuth token, and while the browser flow needs only the public
- * Client ID (never the client secret, which must never reach this page), it
- * needs a configured consent screen first. Until then "New Sheet" opens
- * `sheets.new` and files the link you paste back — the same end state, two
- * clicks longer, and honest about which it is.
+ * Creating a file through the Drive API still needs an OAuth token. The Client
+ * ID for that lives in Settings (never a client secret — see
+ * `google-credentials.js`); until it is set, "New Sheet" opens `sheets.new` and
+ * files the URL pasted back.
  */
 
 const LINKS_PATH = "metadata/links.json";
@@ -269,24 +270,75 @@ const mountDocs = guard("Docs & Sheets", async (host, ctx) => {
     return wrap;
   }
 
-  function aboutSignIn() {
+  function aboutSignIn(ctxRef = ctx) {
     const wrap = el("div");
     wrap.appendChild(el("p", "research-note",
-      "The desktop app embeds a signed-in Google browser and creates files "
-      + "through the Atlas hub. Neither is available to a page served as static "
-      + "files: Google refuses to be framed, and there is no hub here to hold "
-      + "an account."));
+      "The document window works signed out — read-only — because the frame "
+      + "uses whatever Google session this browser already has. Signing in to "
+      + "Google in this browser makes the framed editor editable, with nothing "
+      + "to configure here."));
     wrap.appendChild(el("p", "research-note",
-      "A signed-in version is possible without any server. Google's browser "
-      + "token flow needs only the public OAuth Client ID — never the client "
-      + "secret, which must not appear in a static site — and the drive.file "
-      + "scope covers files this app itself creates. That would buy: New Doc "
-      + "and New Sheet created and filed in one action, a table pushed straight "
-      + "into a Sheet, and a Sheet pulled back without the clipboard."));
+      isConfigured()
+        ? "An OAuth Client ID is set in Settings, so creating and filing Docs "
+          + "and Sheets from the hub can be wired to the Drive API."
+        : "No OAuth Client ID set. Without one, New Doc and New Sheet open a "
+          + "blank Google file and you paste the URL back. With one — set it "
+          + "under Settings — they can be created and filed in a single "
+          + "action, and a table can be pushed into a Sheet directly."));
+    wrap.appendChild(el("p", "research-note is-error",
+      "Only the Client ID, which ends in .apps.googleusercontent.com. The "
+      + "OAuth client *secret* must never be stored in a page served to a "
+      + "browser: anyone who loads the site can read it. The browser token flow "
+      + "does not use one."));
+    wrap.appendChild(row(button("Open Settings",
+      () => ctxRef.setPage?.("Settings"), { secondary: true })));
+    return wrap;
+  }
+
+  /**
+   * The nested window. One frame, whichever document is picked, with the mode
+   * switch that decides whether it is the editor or the read-only preview.
+   */
+  function nestedWindow() {
+    const wrap = el("div", "gdoc-window");
+    const all = [...links.docs.map((e) => ({ ...e, kind: "docs" })),
+      ...links.sheets.map((e) => ({ ...e, kind: "sheets" }))];
+
+    if (!all.length) {
+      wrap.appendChild(el("p", "research-note",
+        "Nothing linked yet. Attach a Doc or a Sheet on the left and it opens "
+        + "here, in the page."));
+      return wrap;
+    }
+
+    const picker = selectOf(all.map((e) => e.title || e.url));
+    const modePick = selectOf(["Edit", "Preview"], "Edit");
+    const frame = document.createElement("iframe");
+    frame.className = "gdoc-frame";
+    // Google is a different origin: no same-origin privileges, no window
+    // reference back, and only the sandbox flags the editor actually needs.
+    frame.referrerPolicy = "no-referrer-when-downgrade";
+    frame.allow = "clipboard-write";
+    frame.title = "Google document";
+
+    const show = () => {
+      const entry = all[picker.selectedIndex] || all[0];
+      frame.src = frameUrl(entry.url, { mode: modePick.value.toLowerCase() });
+    };
+    picker.addEventListener("change", show);
+    modePick.addEventListener("change", show);
+
+    wrap.appendChild(toolbar(picker, modePick,
+      button("Reload", () => { frame.src = frame.src; }, { secondary: true }),
+      button("Open in a tab", () => {
+        const entry = all[picker.selectedIndex] || all[0];
+        window.open(entry.url, "_blank", "noopener,noreferrer");
+      }, { secondary: true })));
+    wrap.appendChild(frame);
     wrap.appendChild(el("p", "research-note",
-      "It needs an OAuth consent screen configured against the Client ID "
-      + "first, which is a console job rather than a code one. Until that is "
-      + "done, everything on this page works without a sign-in at all."));
+      "Editing needs this browser signed in to Google; signed out, the frame "
+      + "is read-only. Sign in from “Open in a tab” once and the frame follows."));
+    show();
     return wrap;
   }
 
@@ -295,7 +347,8 @@ const mountDocs = guard("Docs & Sheets", async (host, ctx) => {
     Sheets: () => linkList("sheets"),
     "In the project": writtenHere,
   });
-  const right = tabbedPanel("Sheets ↔ project", {
+  const right = tabbedPanel("Document window", {
+    Document: nestedWindow,
     "To a Sheet": toSheet,
     "From a Sheet": fromSheet,
     "Signing in": aboutSignIn,

@@ -1239,3 +1239,15 @@
 }
 .repo-file-size { margin-left: auto; font-size: 10px; color: var(--atlas-muted); }
 .repo-count { font-size: 10px; color: var(--atlas-muted); }
+
+/* The nested Google document window. Sized to the panel and given real height:
+   an editor in a short frame is worse than a link. */
+.gdoc-window { display: flex; flex-direction: column; min-width: 0; }
+.gdoc-frame {
+  width: 100%;
+  height: min(62vh, 640px);
+  min-height: 22rem;
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  background: #ffffff;
+}

@@ -243,17 +243,31 @@ knows one app should know the other, and that breaks the moment a field moves.
 `tabbedPanel` remembers the active tab per heading, because pages re-mount often
 and every remount used to throw you back to the first tab.
 
-**Docs & Sheets** (`pages/docs.js`) is the Google workspace. Two things do not
-port from `DocsSheetsPage` (app_qt.py:24655): `docs.google.com` refuses to be
-framed, so documents open in a tab rather than an embedded browser; and there is
-no Atlas hub, so the link registry lives in the project at
-`metadata/links.json` in the hub's own `{docs, sheets}` shape — which keeps the
-interchange with the desktop app. Creating files through the Drive API is
-deliberately absent: the browser token flow needs only the **public Client ID**
-(the client secret must never appear in this static site) but also a configured
-consent screen, so until then "New Sheet" opens `sheets.new` and files the URL
-pasted back. Sheets round-trips through the clipboard as TSV, which is what
-Sheets pastes and copies natively.
+**Docs & Sheets** (`pages/docs.js`) is the Google workspace, and it has a real
+nested window.
+
+**Google does NOT refuse to be framed** — an earlier note here said it did, and
+that was wrong. Measured against a public Sheet: `docs.google.com` sends no
+`X-Frame-Options` and no `frame-ancestors` in its CSP, and both `/edit` and
+`/preview` render in a cross-origin iframe. `/edit` brings the entire editor and
+is editable when the browser has a Google session; signed out it degrades to
+read-only by itself. `frameUrl()` in `google-credentials.js` maps a pasted URL
+to the right embed endpoint (Drive files get `drive.google.com/…/preview`,
+published-to-web keeps `embedded=true`).
+
+The link registry lives in the project at `metadata/links.json` in the hub's own
+`{docs, sheets}` shape, since there is no Atlas hub to hold it — which keeps the
+interchange with the desktop app. Sheets round-trip through the clipboard as
+TSV, which is what Sheets natively copies and pastes.
+
+**Credentials: Client ID only, and never in the project.** `google-credentials.js`
+stores the OAuth Client ID in `localStorage` — per browser, because a project is
+meant to be moved, shared and opened by the desktop app, and a credential is the
+person not the study. `save()` **throws** on anything shaped like a client
+secret (`GOCSPX-…`, or a bare 24-char token) rather than warning: a secret in a
+page served to a browser is a published secret. The browser token flow does not
+use one; the redirect-origin allowlist in the Google console is what protects a
+public client.
 
 Pages register into `gis/research/stages.js`; the twelve stages mirror the Qt
 `base_stage_structure` and must not drift from it. An unregistered page renders
@@ -301,9 +315,14 @@ the newer answer and is what was asked for, so it wins; don't "fix" it back.
 
 The cap values reuse the hub's own wherever a stage matches one of its
 capabilities (mesh, metrics, earth, settings, briefing, files, agents), so both
-products colour the same idea the same way. `RAIL` in `hub.js` holds cap, band
+products colour the same idea the same way. `RAIL` in `hub.js` holds cap, band, an optional `hidden`
 and a 24px stroked icon per stage — presentation, deliberately kept out of
 `stages.js`, which stays a straight mirror of the Qt `base_stage_structure`.
+The **GIS stage is `hidden`** in RAIL: the header's GIS button already goes to
+the globe and the stage held nothing but hand-offs to it. It stays in
+`stages.js`, which mirrors the Qt structure — Qt has no header switch, so it
+needs the rail entry and this does not.
+
 Band headers are emitted the first time a band appears **walking the stages in
 their existing order**; the order is the Qt pipeline's and is never re-sorted to
 suit the grouping. Twelve banded stages are taller than most windows, so the

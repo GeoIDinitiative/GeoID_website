@@ -1,6 +1,6 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-fb4f85c";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-fb4f85c";
-import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-fb4f85c";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-4a66374";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-4a66374";
+import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-4a66374";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.
@@ -51,7 +51,11 @@ const RAIL = {
   Prepare:    { band: "Data", cap: "#7d5cff", icon: "M4 7h16M4 12h16M4 17h16M9 5v4m6 1v4M7 15v4" },
   FEM:        { band: "Model", cap: "#c86bff", icon: "M12 3 21 19H3Zm0 0v16M3 19l9-8 9 8" },
   Analysis:   { band: "Model", cap: "#5cf2ff", icon: "M3 12c2-6 4 6 6 0s4-6 6 0 4 6 6 0" },
-  GIS:        { band: "Platform", cap: "#35d49b", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0c3 3.5 3 14.5 0 18m0-18c-3 3.5-3 14.5 0 18M3.5 9h17M3.5 15h17" },
+  // Hidden: the header's GIS button already goes to the globe, and the stage
+  // held nothing but hand-offs to it. The stage stays in stages.js, which
+  // mirrors the Qt structure -- Qt has no header switch, so it needs the rail
+  // entry and we do not.
+  GIS:        { band: "Platform", cap: "#35d49b", hidden: true, icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0c3 3.5 3 14.5 0 18m0-18c-3 3.5-3 14.5 0 18M3.5 9h17M3.5 15h17" },
   Pipeline:   { band: "Platform", cap: "#ffb300", icon: "M3 7h11l-3-3m3 3-3 3M21 17H10l3-3m-3 3 3 3" },
   "Data Hub": { band: "Platform", cap: "#00e0d0", icon: "M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 10a4 4 0 0 1 0 8Z" },
   Publish:    { band: "Publish", cap: "#ffd166", icon: "M4 20h16M5 16.5 16 5.5l3 3L8 19.5l-4 1Z" },
@@ -106,6 +110,7 @@ function renderRail() {
 
   STAGES.forEach(([key, label, pages]) => {
     const spec = RAIL[label] || {};
+    if (spec.hidden) return;
     if (spec.band && !headed.has(spec.band)) {
       headed.add(spec.band);
       const head = document.createElement("div");

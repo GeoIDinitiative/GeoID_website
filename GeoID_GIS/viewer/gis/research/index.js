@@ -1,25 +1,25 @@
-import * as hub from "./hub.js?v=20260808-fb4f85c";
-import { registeredCount } from "./stages.js?v=20260808-fb4f85c";
-import * as store from "./project-store.js?v=20260808-fb4f85c";
-import * as bridge from "./bridge.js?v=20260808-fb4f85c";
+import * as hub from "./hub.js?v=20260808-4a66374";
+import { registeredCount } from "./stages.js?v=20260808-4a66374";
+import * as store from "./project-store.js?v=20260808-4a66374";
+import * as bridge from "./bridge.js?v=20260808-4a66374";
 
 // Pages register themselves on import. This list is the only place that has to
 // change when one is added.
-import "./pages/dashboard.js?v=20260808-fb4f85c";
-import "./pages/projects.js?v=20260808-fb4f85c";
-import "./pages/repository.js?v=20260808-fb4f85c";
-import "./pages/notes.js?v=20260808-fb4f85c";
-import "./pages/plotter.js?v=20260808-fb4f85c";
-import "./pages/signal.js?v=20260808-fb4f85c";
-import "./pages/fem.js?v=20260808-fb4f85c";
-import "./pages/storyboard.js?v=20260808-fb4f85c";
-import "./pages/docs.js?v=20260808-fb4f85c";
-import "./pages/ingest.js?v=20260808-fb4f85c";
-import "./pages/postprocess.js?v=20260808-fb4f85c";
-import "./pages/prepare.js?v=20260808-fb4f85c";
-import "./pages/analysis.js?v=20260808-fb4f85c";
-import "./pages/manage.js?v=20260808-fb4f85c";
-import "./pages/workbench.js?v=20260808-fb4f85c";
+import "./pages/dashboard.js?v=20260808-4a66374";
+import "./pages/projects.js?v=20260808-4a66374";
+import "./pages/repository.js?v=20260808-4a66374";
+import "./pages/notes.js?v=20260808-4a66374";
+import "./pages/plotter.js?v=20260808-4a66374";
+import "./pages/signal.js?v=20260808-4a66374";
+import "./pages/fem.js?v=20260808-4a66374";
+import "./pages/storyboard.js?v=20260808-4a66374";
+import "./pages/docs.js?v=20260808-4a66374";
+import "./pages/ingest.js?v=20260808-4a66374";
+import "./pages/postprocess.js?v=20260808-4a66374";
+import "./pages/prepare.js?v=20260808-4a66374";
+import "./pages/analysis.js?v=20260808-4a66374";
+import "./pages/manage.js?v=20260808-4a66374";
+import "./pages/workbench.js?v=20260808-4a66374";
 
 /**
  * Entry point for the Research Hub.

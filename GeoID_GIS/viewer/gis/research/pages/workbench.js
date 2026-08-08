@@ -1,12 +1,13 @@
-import { registerPage } from "../stages.js?v=20260808-fb4f85c";
-import * as store from "../project-store.js?v=20260808-fb4f85c";
-import { column } from "../table.js?v=20260808-fb4f85c";
-import { linePlot } from "../plot.js?v=20260808-fb4f85c";
-import * as dsp from "../dsp.js?v=20260808-fb4f85c";
+import { registerPage } from "../stages.js?v=20260808-4a66374";
+import * as store from "../project-store.js?v=20260808-4a66374";
+import * as google from "../google-credentials.js?v=20260808-4a66374";
+import { column } from "../table.js?v=20260808-4a66374";
+import { linePlot } from "../plot.js?v=20260808-4a66374";
+import * as dsp from "../dsp.js?v=20260808-4a66374";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, findTables, loadTable, inferSampling, saveTable,
-} from "./common.js?v=20260808-fb4f85c";
+} from "./common.js?v=20260808-4a66374";
 
 /**
  * AI trainer, the remaining FEM pages, Publish and Settings.
@@ -459,6 +460,57 @@ const mountSettings = guard("Settings", async (host, ctx) => {
       { secondary: true }),
   ));
 
+  // ── Google ────────────────────────────────────────────────────────────────
+  // Kept per browser rather than in the project: a project is meant to be
+  // moved, shared and opened by the desktop app, and a credential is the
+  // person, not the study.
+  const creds = google.load();
+  const gbox = card("Google credentials");
+  gbox.appendChild(el("p", "research-note",
+    "Lets the hub create and file Docs and Sheets through the Drive API. The "
+    + "document window on Docs & Sheets works without this — it uses whatever "
+    + "Google session this browser already has."));
+
+  const clientId = input(creds.clientId, "…….apps.googleusercontent.com");
+  const apiKey = input(creds.apiKey, "Optional — for public read-only calls");
+  gbox.append(field("OAuth Client ID", clientId), field("API key", apiKey));
+
+  gbox.appendChild(el("p", "research-note is-error",
+    "Client ID only. An OAuth client secret must never be stored in a page "
+    + "served to a browser — anyone who loads the site can read it, and the "
+    + "browser token flow does not use one. A secret pasted here is refused, "
+    + "not saved."));
+
+  const gstate = el("p", "research-status");
+  const paintGoogle = () => {
+    const now = google.load();
+    gstate.classList.remove("is-error");
+    gstate.textContent = now.clientId
+      ? `Client ID set${now.updatedAt ? ` (${now.updatedAt.slice(0, 10)})` : ""}.`
+      : "No Client ID set.";
+  };
+  paintGoogle();
+
+  gbox.appendChild(row(
+    button("Save", () => {
+      try {
+        google.save({ clientId: clientId.value, apiKey: apiKey.value });
+        paintGoogle();
+        say("Google credentials saved for this browser.");
+      } catch (error) {
+        gstate.textContent = error.message;
+        gstate.classList.add("is-error");
+      }
+    }),
+    button("Forget", () => {
+      google.clear();
+      clientId.value = ""; apiKey.value = "";
+      paintGoogle();
+      say("Google credentials cleared.");
+    }, { secondary: true }),
+  ));
+  gbox.appendChild(gstate);
+
   const layout = card("Project layout");
   layout.appendChild(el("p", "research-note",
     "The directories this project was created with. They match the desktop "
@@ -467,7 +519,7 @@ const mountSettings = guard("Settings", async (host, ctx) => {
   store.PROJECT_DIRS.forEach((dir) => grid.appendChild(el("span", "research-note", dir)));
   layout.appendChild(grid);
 
-  host.append(box, layout, status);
+  host.append(box, gbox, layout, status);
 });
 
 const mountPlugins = guard("Plugin Manager", async (host) => {
@@ -477,7 +529,7 @@ const mountPlugins = guard("Plugin Manager", async (host) => {
     "Which pages have been built and which are still to come. A page registers "
     + "itself with the stage list; nothing here is configuration, it is what is "
     + "actually loaded."));
-  const { STAGES: stages, getPage: get } = await import("../stages.js?v=20260808-fb4f85c");
+  const { STAGES: stages, getPage: get } = await import("../stages.js?v=20260808-4a66374");
   const table = el("div", "research-table");
   const head = el("div", "research-table-row is-head");
   ["Stage", "Pages", "Built", "Remaining"].forEach((h) => head.appendChild(el("span", null, h)));
