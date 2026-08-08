@@ -1,5 +1,6 @@
-import * as store from "./project-store.js?v=20260808-4e25c60";
-import { el, button, row, statusLine } from "./pages/common.js?v=20260808-4e25c60";
+import * as store from "./project-store.js?v=20260808-402e82b";
+import { el, button, row, statusLine } from "./pages/common.js?v=20260808-402e82b";
+import * as sidecar from "./sidecar.js?v=20260808-402e82b";
 
 /**
  * The five shell actions from the Qt Research Hub's WorkspaceShell row
@@ -60,9 +61,40 @@ function noProject(node, what) {
  */
 async function mountJobs(node) {
   node.appendChild(head("Jobs",
-    "FEM runs in this project. The spec is written here; the solver runs "
-    + "elsewhere and writes its results back into the same folder."));
-  if (!store.getActive()) return noProject(node, "run");
+    "Live processes on the sidecar, and FEM runs in this project. A spec is "
+    + "written here; the solver runs on the sidecar and writes results back."));
+
+  // Live jobs first, when the sidecar is connected -- these are real running
+  // processes, newest at the top, each following its own log if opened.
+  if (sidecar.isConnected()) {
+    const live = el("div", "research-list");
+    let jobs = [];
+    try { jobs = await sidecar.listJobs(); } catch (error) { /* sidecar dropped */ }
+    jobs.sort((a, b) => (b.started_at || 0) - (a.started_at || 0));
+    if (!jobs.length) {
+      live.appendChild(el("p", "research-note", "No sidecar jobs yet."));
+    }
+    jobs.slice(0, 12).forEach((job) => {
+      const line = el("div", "research-list-row");
+      line.appendChild(el("span", "research-list-name", job.label || job.kind));
+      const tag = el("span", `research-list-tag is-${job.status}`, job.status);
+      line.appendChild(tag);
+      if (job.status === "running" || job.status === "starting") {
+        const stop = button("Stop", async () => {
+          await sidecar.stopJob(job.id).catch(() => {});
+          tag.textContent = "stopping";
+        }, { secondary: true });
+        stop.classList.add("small");
+        line.appendChild(stop);
+      }
+      live.appendChild(line);
+    });
+    node.appendChild(el("h4", "shelf-col-title", "Sidecar jobs"));
+    node.appendChild(live);
+  }
+
+  if (!store.getActive()) return;
+  node.appendChild(el("h4", "shelf-col-title", "FEM runs"));
 
   const list = el("div", "research-list");
   let runs = [];
@@ -84,6 +116,7 @@ async function mountJobs(node) {
     list.appendChild(line);
   }
   node.appendChild(list);
+  return;
 }
 
 // ── Alerts ───────────────────────────────────────────────────────────────────

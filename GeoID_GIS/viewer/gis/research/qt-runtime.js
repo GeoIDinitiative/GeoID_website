@@ -1,10 +1,11 @@
-import * as store from "./project-store.js?v=20260808-4e25c60";
-import * as stats from "./stats.js?v=20260808-4e25c60";
-import * as dsp from "./dsp.js?v=20260808-4e25c60";
-import { parseTable, column } from "./table.js?v=20260808-4e25c60";
-import { linePlot, heatmap } from "./plot.js?v=20260808-4e25c60";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-4e25c60";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260808-4e25c60";
+import * as store from "./project-store.js?v=20260808-402e82b";
+import * as stats from "./stats.js?v=20260808-402e82b";
+import * as dsp from "./dsp.js?v=20260808-402e82b";
+import { parseTable, column } from "./table.js?v=20260808-402e82b";
+import { linePlot, heatmap } from "./plot.js?v=20260808-402e82b";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-402e82b";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260808-402e82b";
+import * as sidecar from "./sidecar.js?v=20260808-402e82b";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -833,10 +834,198 @@ function liveMonitor(host, api) {
   void draw();
 }
 
+/* ── Sidecar-backed execution ─────────────────────────────────────────────
+ *
+ * These are the verbs that need a real interpreter — run a training script, run
+ * an external script or one of its functions. When the sidecar is connected
+ * (Settings ▸ Sidecar) the button starts a real subprocess and streams its
+ * output into the page's own log pane; when it is not, the button says what to
+ * do instead of failing silently. The page renders the controls either way, so
+ * the wiring only ever attaches behaviour to a button the tree already drew.
+ */
+
+/** Stream a job into the page's log pane, and remember it for a Stop button. */
+function runJob(api, host, start, { on = "log" } = {}) {
+  const say = logger(api);
+  const logNode = api.controls.get(on) || host.querySelector(".qt-textarea[readonly], .qt-textarea");
+  const write = (line) => {
+    if (logNode) {
+      logNode.value = logNode.value ? `${logNode.value}
+${line}` : line;
+      logNode.scrollTop = logNode.scrollHeight;
+    }
+  };
+  (async () => {
+    let jobId;
+    try { jobId = await start(); }
+    catch (error) { say(`Could not start: ${error.message}`, true); return; }
+    write(`▶ job ${jobId} started.`);
+    host._sidecarJob = jobId;
+    sidecar.streamJob(jobId, {
+      onLine: (text) => write(text),
+      onStatus: (status, code) => {
+        write(`■ ${status}${code == null ? "" : ` (exit ${code})`}.`);
+        say(`Job ${status}${code == null ? "" : ` — exit ${code}`}.`);
+        host._sidecarJob = null;
+      },
+    });
+  })();
+}
+
+/** A page whose real work is a subprocess: bind its run/stop to the sidecar. */
+function makeRunner(pageId, plan) {
+  return function runnerPage(host, api) {
+    const say = logger(api);
+    // The path field the plan needs, read fresh at click time.
+    const val = (name) => (api.controls.get(name)?.value || "").trim();
+
+    plan.runs.forEach(({ label, start, needs }) => {
+      bind(host, label, async () => {
+        if (!sidecar.isConnected()) {
+          say("This runs a Python process — connect the sidecar in Settings ▸ "
+            + "Sidecar first (python3 GeoID_GIS/sidecar/geoid_sidecar.py).", true);
+          return;
+        }
+        const missing = (needs || []).filter((f) => !val(f.var));
+        if (missing.length) {
+          say(`Fill in: ${missing.map((f) => f.label).join(", ")}.`, true);
+          return;
+        }
+        runJob(api, host, () => start(val));
+      });
+    });
+
+    if (plan.stop) {
+      bind(host, plan.stop, async () => {
+        if (!host._sidecarJob) { say("Nothing running."); return; }
+        await sidecar.stopJob(host._sidecarJob).catch(() => {});
+        say("Stop requested.");
+      });
+    }
+  };
+}
+
+const aiTrainer = makeRunner("AI Trainer", {
+  runs: [{
+    label: "Run Training Script",
+    needs: [{ var: "trainer_script", label: "Trainer Script" },
+            { var: "dataset_path", label: "Training Dataset" },
+            { var: "export_dir", label: "Output Directory" }],
+    start: (val) => sidecar.runTraining({
+      script: val("trainer_script"), dataset: val("dataset_path"),
+      output: val("export_dir"), args: val("command_args"),
+    }),
+  }],
+});
+
+const externalRunner = makeRunner("Signal Processing", {
+  runs: [
+    {
+      label: "Run Script Main",
+      needs: [{ var: "external_path", label: "Source path" }],
+      start: (val) => sidecar.runScript({
+        script: val("external_path"), cwd: val("external_workdir") || undefined,
+        label: "external script",
+      }),
+    },
+    {
+      label: "Run Function",
+      needs: [{ var: "external_path", label: "Source path" },
+              { var: "external_function", label: "Function" }],
+      start: (val) => sidecar.runFunction({
+        script: val("external_path"), func: val("external_function"),
+        cwd: val("external_workdir") || undefined,
+        kwargs: (() => {
+          const raw = (val("external_args") || "").trim();
+          if (!raw) return {};
+          try { return JSON.parse(raw); } catch (e) { throw new Error("JSON kwargs are not valid JSON."); }
+        })(),
+      }),
+    },
+  ],
+  stop: "Stop External Run",
+});
+
+/* ── Settings: connect the sidecar ────────────────────────────────────────
+ *
+ * A card above the credential groups: paste the line the sidecar prints, press
+ * Connect, and the hub probes it and — on success — switches the project store
+ * to the sidecar's filesystem, so from then on the hub reads and writes the
+ * same folder the desktop app uses.
+ */
+function settingsSidecar(host, api) {
+  const say = logger(api);
+  const page = host.querySelector(".qt-page") || host;
+  const card = el("section", "qt-groupbox sidecar-card");
+  card.appendChild(el("h3", "qt-groupbox-title", "Local Sidecar — run Python here"));
+  card.appendChild(el("p", "qt-card-desc",
+    "The training scripts, the external runner and live jobs need a Python "
+    + "process on this machine. Start it with "
+    + "\u201cpython3 GeoID_GIS/sidecar/geoid_sidecar.py --root <your projects "
+    + "folder>\u201d and paste the line it prints below."));
+
+  const row = el("div", "qt-h");
+  const input = document.createElement("input");
+  input.className = "input qt-input";
+  input.placeholder = "http://127.0.0.1:8137?token=\u2026";
+  input.style.flex = "1 1 auto";
+  const cfg = sidecar.getConfig();
+  if (cfg.url) input.value = cfg.token ? `${cfg.url}?token=${cfg.token}` : cfg.url;
+  const connect = el("button", "button qt-button", "Connect");
+  connect.type = "button";
+  const forget = el("button", "button secondary qt-button", "Disconnect");
+  forget.type = "button";
+  row.append(input, connect, forget);
+  card.appendChild(row);
+
+  const status = el("p", "sidecar-status");
+  card.appendChild(status);
+  const paint = (c) => {
+    status.textContent = c.connected
+      ? `Connected — ${c.root || "sidecar"} (v${c.version || "?"}). The hub is using it as the project store.`
+      : c.url ? "Configured, not connected. Press Connect, or check the sidecar is running."
+      : "Not configured.";
+    status.classList.toggle("is-on", !!c.connected);
+  };
+  paint(cfg);
+  sidecar.onChange(paint);
+
+  connect.addEventListener("click", async () => {
+    sidecar.configure(input.value);
+    status.textContent = "Probing\u2026";
+    const result = await sidecar.probe();
+    if (result.ok) {
+      // Switch the store to the sidecar's filesystem and reopen from it.
+      try {
+        store.useAdapter(sidecar.sidecarAdapter());
+        say("Sidecar connected — the hub is now reading the projects folder "
+          + "through it.");
+      } catch (error) { say(`Connected, but could not switch the store: ${error.message}`, true); }
+    } else {
+      say(result.reason === "bad-token" ? "The token was not accepted."
+        : result.reason === "unreachable" ? "Could not reach the sidecar at that address."
+        : "Sidecar not configured.", true);
+    }
+  });
+  forget.addEventListener("click", async () => {
+    sidecar.configure("");
+    say("Sidecar forgotten. Reopen a project to fall back to the browser store.");
+  });
+
+  // Sit the card at the very top of the page body.
+  const body = page.querySelector(":scope > .qt-layout") || page;
+  body.insertBefore(card, body.firstChild);
+}
+
 export const RUNTIME = {
   "CSV Plotter": csvPlotter,
   "Map": mapComposer,
   "Live Monitor": liveMonitor,
+  // These *augment* pages the tree already renders; both call their base
+  // runtime nothing, they only re-bind the run/stop buttons.
+  "AI Trainer": aiTrainer,
+  "Signal Processing": externalRunner,
+  "Settings": settingsSidecar,
 };
 
 export function install(pageId, host, api) {

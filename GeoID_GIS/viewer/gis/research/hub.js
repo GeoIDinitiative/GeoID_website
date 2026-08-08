@@ -1,6 +1,8 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-4e25c60";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-4e25c60";
-import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-4e25c60";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-402e82b";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-402e82b";
+import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-402e82b";
+import * as sidecar from "./sidecar.js?v=20260808-402e82b";
+import * as store from "./project-store.js?v=20260808-402e82b";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.
@@ -392,6 +394,15 @@ export function init(context = {}) {
     });
   }
   wireActions();
+  // Reconnect to a sidecar configured last session, and make it the store when
+  // it answers -- so the hub opens on the same folder the desktop app uses.
+  if (sidecar.getConfig().url) {
+    sidecar.probe().then((result) => {
+      if (result.ok) {
+        try { store.useAdapter(sidecar.sidecarAdapter()); } catch (error) { /* */ }
+      }
+    });
+  }
   const rail = document.querySelector(".atlas-rail");
   if (rail) {
     rail.addEventListener("scroll", markRailOverflow, { passive: true });

@@ -1,11 +1,11 @@
-import { wirePattern, wire } from "./spec-page.js?v=20260808-4e25c60";
-import * as store from "./project-store.js?v=20260808-4e25c60";
-import * as bridge from "./bridge.js?v=20260808-4e25c60";
-import * as stats from "./stats.js?v=20260808-4e25c60";
-import * as dsp from "./dsp.js?v=20260808-4e25c60";
-import { linePlot } from "./plot.js?v=20260808-4e25c60";
-import { column } from "./table.js?v=20260808-4e25c60";
-import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260808-4e25c60";
+import { wirePattern, wire } from "./spec-page.js?v=20260808-402e82b";
+import * as store from "./project-store.js?v=20260808-402e82b";
+import * as bridge from "./bridge.js?v=20260808-402e82b";
+import * as stats from "./stats.js?v=20260808-402e82b";
+import * as dsp from "./dsp.js?v=20260808-402e82b";
+import { linePlot } from "./plot.js?v=20260808-402e82b";
+import { column } from "./table.js?v=20260808-402e82b";
+import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260808-402e82b";
 
 /**
  * Behaviour for the controls the spec brings across.
@@ -173,10 +173,11 @@ wire("Pipeline Runner", {
  */
 export const CANNOT_WIRE = {
   // The Event Correlation Toolkit's analyses are native now (see
-  // event-correlation.js); what stays here is the *external script runner*
-  // beside them, which exists to execute arbitrary Python a user points it at.
-  // That is not a missing feature — it is the one thing a browser tab genuinely
-  // cannot do.
+  // event-correlation.js). The external script runner (Run Script Main, Run
+  // Function, Stop External Run) and AI Trainer's Run Training Script are now
+  // real too, *when the sidecar is connected* — they start a subprocess on it
+  // and stream the log (qt-runtime.js). Without the sidecar they say so rather
+  // than pretend. What genuinely cannot be done in a browser at all stays here.
   "Run Selected Module": "Executes a Python module in the desktop app's interpreter.",
   "Run Script Main": "Executes Python; a browser tab has no interpreter.",
   "Run Function": "Executes Python; a browser tab has no interpreter.",
@@ -344,7 +345,7 @@ async function writeCollection(name, collection, say) {
   say(`${(collection.features || []).length} feature(s) written to ${path}.`);
 }
 
-const geo = () => import(`../geoprocessing.js?v=20260808-4e25c60`);
+const geo = () => import(`../geoprocessing.js?v=20260808-402e82b`);
 
 wire("Vector Tools", {
   Buffer: async ({ say }) => {

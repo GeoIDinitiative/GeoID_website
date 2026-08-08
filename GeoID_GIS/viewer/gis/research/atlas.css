@@ -2241,3 +2241,11 @@
    and line up across all four cards. */
 .qt-source-card .qt-card-desc { flex: 1 1 auto; }
 .qt-source-card .qt-button { width: 100%; }
+
+/* ── The sidecar ──────────────────────────────────────────────────────────
+   The card in Settings that connects the local Python process, and the
+   connection pill in the shell. */
+.sidecar-card { gap: 8px; }
+.sidecar-status { margin: 2px 0 0; font-size: 0.72rem; color: var(--atlas-muted); }
+.sidecar-status.is-on { color: rgb(var(--skin-data)); }
+.sidecar-card .qt-card-desc { white-space: normal; }
