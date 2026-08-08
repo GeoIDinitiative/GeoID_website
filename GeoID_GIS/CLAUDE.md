@@ -253,8 +253,21 @@ its Qt tab**. Never make those look live. A page that scores 100% may still do
 almost nothing; the audit measures inventory, never behaviour, and the honest
 signal is the disabled control rather than the percentage.
 
-To give one of them behaviour, call `wire(pageId, { "Button label": handler })`
-— the layout does not change, the control simply stops being disabled.
+Behaviour goes in `wiring.js`. Three hundred-odd controls are not three hundred
+behaviours: the app reuses the same verbs everywhere, so `wirePattern(/^Refresh$/, fn)`
+wires them once by label across every page, and `wire(pageId, handlers)` covers
+the ones that genuinely differ — a page-specific handler always wins.
+
+**Wire it or leave it disabled.** A handler that pops a message and does nothing
+turns an honest disabled button into a dishonest live one. Where the desktop app
+shells out to a native binary — Gmsh, laspy, a system file manager — the control
+stays disabled, and `CANNOT_WIRE` in wiring.js records why.
+
+The page-class mapping is **derived, not written**: `derive_page_classes()`
+joins MainWindow's `self.<attr> = SomePage()` assignments to its
+`("Page Name", self.<attr>)` registry. A hand-written table had missed
+twenty-five pages — the entire Analysis stage among them, which is why those
+pages looked untouched after the first pass.
 
 `pages/projects.js` is the worked example — it mirrors `GeoIDProjectsPage` (app_qt.py:4570) tab for
 tab and field for field. Match the Qt page when building a new one; someone who

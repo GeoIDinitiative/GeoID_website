@@ -904,6 +904,340 @@
       "_symbol_table": "QTreeWidget"
     }
   },
+  "Event Annotation": {
+    "buttons": [
+      "Browse",
+      "Load & Plot",
+      "Clear Annotations",
+      "Export Annotations",
+      "Add Annotation"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "x:",
+      "y:",
+      "Mark at x:",
+      "Label:"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Load & Plot",
+        "Clear Annotations",
+        "Export Annotations",
+        "Add Annotation"
+      ],
+      "fields": []
+    },
+    "options": {
+      "_ann_type": [
+        "P-wave",
+        "S-wave",
+        "Tremor",
+        "Noise",
+        "Event",
+        "Custom"
+      ]
+    },
+    "placeholders": {
+      "_ann_label": "Event label\u2026",
+      "_ann_x": "x value (click or type)\u2026",
+      "_file_edit": "CSV file\u2026",
+      "_y_col": "y column"
+    },
+    "qt_class": "EventAnnotationWidget",
+    "qt_line": 20741,
+    "sections": [],
+    "subtitle": null,
+    "tables": [
+      [
+        "x",
+        "Label",
+        "Type",
+        "Confidence"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "_ann_label": "QLineEdit",
+      "_ann_table": "QTableWidget",
+      "_ann_type": "QComboBox",
+      "_ann_x": "QLineEdit",
+      "_file_edit": "QLineEdit",
+      "_x_col": "QLineEdit",
+      "_y_col": "QLineEdit"
+    }
+  },
+  "Event Detection": {
+    "buttons": [
+      "Browse",
+      "Detect Events",
+      "Export CSV"
+    ],
+    "by_tab": {
+      "Pattern Match": {
+        "buttons": [
+          "Browse"
+        ],
+        "fields": [
+          [
+            "Correlation threshold (0\u20131):",
+            "_pattern_threshold"
+          ]
+        ]
+      },
+      "Peak Detection": {
+        "buttons": [],
+        "fields": [
+          [
+            "Min height:",
+            "_peak_height"
+          ],
+          [
+            "Min prominence:",
+            "_peak_prominence"
+          ],
+          [
+            "Min width (samples):",
+            "_peak_width"
+          ],
+          [
+            "Min distance (samples):",
+            "_peak_distance"
+          ]
+        ]
+      },
+      "STA / LTA": {
+        "buttons": [],
+        "fields": [
+          [
+            "STA window (s):",
+            "_sta_win"
+          ],
+          [
+            "LTA window (s):",
+            "_lta_win"
+          ],
+          [
+            "Trigger ON ratio:",
+            "_stalta_on"
+          ],
+          [
+            "Trigger OFF ratio:",
+            "_stalta_off"
+          ]
+        ]
+      },
+      "Threshold": {
+        "buttons": [
+          "Browse",
+          "Detect Events",
+          "Export CSV"
+        ],
+        "fields": [
+          [
+            "Mode:",
+            "_thresh_mode"
+          ],
+          [
+            "Threshold / N:",
+            "_thresh_val"
+          ],
+          [
+            "Min duration (s):",
+            "_thresh_min_dur"
+          ],
+          [
+            "Min gap between events (s):",
+            "_thresh_gap"
+          ]
+        ]
+      }
+    },
+    "checkboxes": [
+      "Use height threshold",
+      "Detect troughs too (|signal|)"
+    ],
+    "fields": [
+      [
+        "Mode:",
+        "_thresh_mode"
+      ],
+      [
+        "Threshold / N:",
+        "_thresh_val"
+      ],
+      [
+        "Min duration (s):",
+        "_thresh_min_dur"
+      ],
+      [
+        "Min gap between events (s):",
+        "_thresh_gap"
+      ],
+      [
+        "STA window (s):",
+        "_sta_win"
+      ],
+      [
+        "LTA window (s):",
+        "_lta_win"
+      ],
+      [
+        "Trigger ON ratio:",
+        "_stalta_on"
+      ],
+      [
+        "Trigger OFF ratio:",
+        "_stalta_off"
+      ],
+      [
+        "Min height:",
+        "_peak_height"
+      ],
+      [
+        "Min prominence:",
+        "_peak_prominence"
+      ],
+      [
+        "Min width (samples):",
+        "_peak_width"
+      ],
+      [
+        "Min distance (samples):",
+        "_peak_distance"
+      ],
+      [
+        "Correlation threshold (0\u20131):",
+        "_pattern_threshold"
+      ]
+    ],
+    "groups": [],
+    "labels": [
+      "Signal column:",
+      "Sample rate (Hz):",
+      "Mode:",
+      "Threshold / N:",
+      "Min duration (s):",
+      "Min gap between events (s):",
+      "STA window (s):",
+      "LTA window (s):",
+      "Trigger ON ratio:",
+      "Trigger OFF ratio:",
+      "Min height:",
+      "Min prominence:",
+      "Min width (samples):",
+      "Min distance (samples):",
+      "Correlation threshold (0\u20131):",
+      "Events detected: 0"
+    ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
+    "options": {
+      "_thresh_mode": [
+        "Absolute value",
+        "N \u00d7 RMS",
+        "N \u00d7 Std Dev",
+        "N \u00d7 MAD"
+      ]
+    },
+    "placeholders": {
+      "_file_edit": "Drop or browse a CSV / TXT / JSON file\u2026",
+      "_template_file": "Template waveform CSV (single column)\u2026"
+    },
+    "qt_class": "EventDetectionPage",
+    "qt_line": 24141,
+    "sections": [],
+    "subtitle": "Threshold, STA/LTA, peak detection and pattern matching on any time-series. Export detected events as CSV.",
+    "tables": [
+      [
+        "Index",
+        "Time (s)",
+        "Amplitude",
+        "Duration (s)",
+        "SNR"
+      ]
+    ],
+    "tabs": [
+      "Threshold",
+      "STA / LTA",
+      "Peak Detection",
+      "Pattern Match"
+    ],
+    "title": "Event Detection",
+    "widgets": {
+      "_ev_table": "QTableWidget",
+      "_file_edit": "QLineEdit",
+      "_fs": "QDoubleSpinBox",
+      "_lta_win": "QDoubleSpinBox",
+      "_pattern_threshold": "QDoubleSpinBox",
+      "_peak_both_sides": "QCheckBox",
+      "_peak_distance": "QDoubleSpinBox",
+      "_peak_height": "QDoubleSpinBox",
+      "_peak_height_check": "QCheckBox",
+      "_peak_prominence": "QDoubleSpinBox",
+      "_peak_width": "QDoubleSpinBox",
+      "_sig_col": "QComboBox",
+      "_sta_win": "QDoubleSpinBox",
+      "_stalta_off": "QDoubleSpinBox",
+      "_stalta_on": "QDoubleSpinBox",
+      "_template_file": "QLineEdit",
+      "_thresh_gap": "QDoubleSpinBox",
+      "_thresh_min_dur": "QDoubleSpinBox",
+      "_thresh_mode": "QComboBox",
+      "_thresh_val": "QDoubleSpinBox"
+    }
+  },
+  "FEM 3D Viewer": {
+    "buttons": [
+      "Browse Mesh",
+      "Browse Scalar",
+      "Render 3D"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Scalar col:",
+      "x/y/z:",
+      "Load a mesh/point file to begin."
+    ],
+    "loose": {
+      "buttons": [
+        "Browse Mesh",
+        "Browse Scalar",
+        "Render 3D"
+      ],
+      "fields": []
+    },
+    "options": {},
+    "placeholders": {
+      "_mesh_path": "Mesh/point file (.csv .txt .json .geo .msh)\u2026",
+      "_scalar_path": "Scalar field CSV (optional, same row order)\u2026"
+    },
+    "qt_class": "FEMViewer3DPage",
+    "qt_line": 20416,
+    "sections": [],
+    "subtitle": "Visualise mesh nodes, connectivity, and scalar DOF fields in 3D.",
+    "tables": [],
+    "tabs": [],
+    "title": "3D FEM Viewer",
+    "widgets": {
+      "_mesh_path": "QLineEdit",
+      "_scalar_col": "QLineEdit",
+      "_scalar_path": "QLineEdit",
+      "_x_col": "QLineEdit",
+      "_y_col": "QLineEdit",
+      "_z_col": "QLineEdit"
+    }
+  },
   "Feature Engineering": {
     "buttons": [
       "Browse",
@@ -1109,6 +1443,86 @@
       "_sel_method": "QComboBox",
       "_sel_result": "QPlainTextEdit",
       "_sel_target": "QComboBox"
+    }
+  },
+  "Figure Composer": {
+    "buttons": [
+      "Add Figure",
+      "Remove Selected",
+      "Clear All",
+      "Compose & Preview",
+      "Export PNG"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Cols:",
+      "DPI:",
+      "Panel list (drag to reorder):",
+      "Caption:"
+    ],
+    "loose": {
+      "buttons": [
+        "Add Figure",
+        "Remove Selected",
+        "Clear All",
+        "Compose & Preview",
+        "Export PNG"
+      ],
+      "fields": []
+    },
+    "options": {},
+    "placeholders": {
+      "_caption_edit": "Figure caption for publication\u2026",
+      "_title_edit": "Figure title (optional)"
+    },
+    "qt_class": "FigureComposerPage",
+    "qt_line": 19921,
+    "sections": [],
+    "subtitle": "Arrange multiple plots into a publication-ready multi-panel figure.",
+    "tables": [],
+    "tabs": [],
+    "title": "Figure Composer",
+    "widgets": {
+      "_caption_edit": "QPlainTextEdit",
+      "_cols_spin": "QSpinBox",
+      "_dpi_spin": "QSpinBox",
+      "_list": "QListWidget",
+      "_title_edit": "QLineEdit"
+    }
+  },
+  "GIS Explorer": {
+    "buttons": [
+      "Stage dataset for globe\u2026",
+      "Send file to Meshing Studio\u2026",
+      "Reload"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [],
+    "loose": {
+      "buttons": [
+        "Stage dataset for globe\u2026",
+        "Send file to Meshing Studio\u2026",
+        "Reload"
+      ],
+      "fields": []
+    },
+    "options": {},
+    "placeholders": {},
+    "qt_class": "GISExplorerPage",
+    "qt_line": 24585,
+    "sections": [],
+    "subtitle": "The Atlas 3D viewers, embedded. Staged datasets and Studio meshes appear in the globe's '\u2295 Atlas data' panel.",
+    "tables": [],
+    "tabs": [],
+    "title": "GIS Explorer",
+    "widgets": {
+      "viewer_combo": "QComboBox"
     }
   },
   "IC/BC": {
@@ -1377,114 +1791,53 @@
       "template_dir": "QLineEdit"
     }
   },
-  "Ingest Generic Import": {
+  "Ingest Admin Infrastructure": {
     "buttons": [
-      "\u2026",
+      "Browse",
       "Refresh",
-      "Schedule Source",
-      "Google Scholar",
-      "Elicit",
-      "Browse"
+      "Open in Earth viewer",
+      "Open in Meshing Studio"
     ],
-    "by_tab": {
-      "DEM": {
-        "buttons": [],
-        "fields": []
-      },
-      "Literature": {
-        "buttons": [
-          "Google Scholar",
-          "Elicit"
-        ],
-        "fields": []
-      },
-      "Weather": {
-        "buttons": [
-          "\u2026",
-          "Refresh",
-          "Schedule Source"
-        ],
-        "fields": [
-          [
-            "Extra args",
-            "pull_cmd_args"
-          ],
-          [
-            "Retries",
-            "pull_retry"
-          ],
-          [
-            "Schedule",
-            "pull_schedule"
-          ]
-        ]
-      }
-    },
+    "by_tab": {},
     "checkboxes": [],
-    "fields": [
-      [
-        "Extra args",
-        "pull_cmd_args"
-      ],
-      [
-        "Retries",
-        "pull_retry"
-      ],
-      [
-        "Schedule",
-        "pull_schedule"
-      ]
-    ],
+    "fields": [],
     "groups": [],
     "labels": [
-      "Data Puller",
-      "No project",
-      "Tag:",
-      "Output:",
-      "Source",
-      "Extra args",
-      "Retries",
-      "Schedule",
-      "Keywords:"
+      "Tag",
+      "Output"
     ],
     "loose": {
       "buttons": [
-        "Browse"
+        "Browse",
+        "Refresh",
+        "Open in Earth viewer",
+        "Open in Meshing Studio"
       ],
       "fields": []
     },
     "options": {
-      "pull_schedule": [
-        "Manual",
-        "Hourly",
-        "Daily"
-      ],
       "pull_tag": [
         "test",
         "queued",
         "main"
-      ],
-      "schedule_source": [
-        "NOAA GFS",
-        "NASA IMERG",
-        "RainViewer"
       ]
     },
     "placeholders": {
-      "lit_keywords": "e.g., volcanic tremor FEM coupling",
-      "pull_cmd_args": "Optional script args",
-      "summary": "Select a dataset above to see its summary."
+      "source_citation": "Citation or dataset title",
+      "source_license": "License / usage terms",
+      "source_notes": "Acquisition notes, provider details, filters used, version, query params\u2026",
+      "source_url": "https://source.example/dataset"
     },
-    "qt_class": "DataPullerPage",
-    "qt_line": 7845,
+    "qt_class": "IngestDomainPage",
+    "qt_line": 2911,
     "sections": [
       {
-        "collapsed": true,
-        "title": "Advanced configuration"
+        "collapsed": false,
+        "title": "Source metadata"
       },
       {
         "collapsed": false,
-        "title": "Pulled data registry"
+        "title": "Ingest registry"
       },
       {
         "collapsed": false,
@@ -1492,7 +1845,7 @@
       },
       {
         "collapsed": true,
-        "title": "Activity log"
+        "title": "Ingest log"
       }
     ],
     "subtitle": null,
@@ -1504,21 +1857,827 @@
         "Format"
       ]
     ],
-    "tabs": [
-      "Weather",
-      "DEM",
-      "Literature"
-    ],
+    "tabs": [],
     "title": null,
     "widgets": {
-      "lit_keywords": "QLineEdit",
       "log": "QPlainTextEdit",
       "output_dir": "QLineEdit",
-      "pull_cmd_args": "QLineEdit",
-      "pull_retry": "QSpinBox",
-      "pull_schedule": "QComboBox",
       "pull_tag": "QComboBox",
-      "schedule_source": "QComboBox",
+      "source_acquired": "QDateEdit",
+      "source_citation": "QLineEdit",
+      "source_license": "QLineEdit",
+      "source_notes": "QPlainTextEdit",
+      "source_url": "QLineEdit",
+      "summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Ingest Coast Marine": {
+    "buttons": [
+      "Browse",
+      "Refresh",
+      "Open in Earth viewer",
+      "Open in Meshing Studio"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Tag",
+      "Output"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Refresh",
+        "Open in Earth viewer",
+        "Open in Meshing Studio"
+      ],
+      "fields": []
+    },
+    "options": {
+      "pull_tag": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "source_citation": "Citation or dataset title",
+      "source_license": "License / usage terms",
+      "source_notes": "Acquisition notes, provider details, filters used, version, query params\u2026",
+      "source_url": "https://source.example/dataset"
+    },
+    "qt_class": "IngestDomainPage",
+    "qt_line": 2911,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Source metadata"
+      },
+      {
+        "collapsed": false,
+        "title": "Ingest registry"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Ingest log"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "log": "QPlainTextEdit",
+      "output_dir": "QLineEdit",
+      "pull_tag": "QComboBox",
+      "source_acquired": "QDateEdit",
+      "source_citation": "QLineEdit",
+      "source_license": "QLineEdit",
+      "source_notes": "QPlainTextEdit",
+      "source_url": "QLineEdit",
+      "summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Ingest Generic Import": {
+    "buttons": [
+      "Browse",
+      "Refresh",
+      "Open in Earth viewer",
+      "Open in Meshing Studio"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Tag",
+      "Output"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Refresh",
+        "Open in Earth viewer",
+        "Open in Meshing Studio"
+      ],
+      "fields": []
+    },
+    "options": {
+      "pull_tag": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "source_citation": "Citation or dataset title",
+      "source_license": "License / usage terms",
+      "source_notes": "Acquisition notes, provider details, filters used, version, query params\u2026",
+      "source_url": "https://source.example/dataset"
+    },
+    "qt_class": "IngestDomainPage",
+    "qt_line": 2911,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Source metadata"
+      },
+      {
+        "collapsed": false,
+        "title": "Ingest registry"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Ingest log"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "log": "QPlainTextEdit",
+      "output_dir": "QLineEdit",
+      "pull_tag": "QComboBox",
+      "source_acquired": "QDateEdit",
+      "source_citation": "QLineEdit",
+      "source_license": "QLineEdit",
+      "source_notes": "QPlainTextEdit",
+      "source_url": "QLineEdit",
+      "summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Ingest Geology": {
+    "buttons": [
+      "Browse",
+      "Refresh",
+      "Open in Earth viewer",
+      "Open in Meshing Studio"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Tag",
+      "Output"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Refresh",
+        "Open in Earth viewer",
+        "Open in Meshing Studio"
+      ],
+      "fields": []
+    },
+    "options": {
+      "pull_tag": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "source_citation": "Citation or dataset title",
+      "source_license": "License / usage terms",
+      "source_notes": "Acquisition notes, provider details, filters used, version, query params\u2026",
+      "source_url": "https://source.example/dataset"
+    },
+    "qt_class": "IngestDomainPage",
+    "qt_line": 2911,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Source metadata"
+      },
+      {
+        "collapsed": false,
+        "title": "Ingest registry"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Ingest log"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "log": "QPlainTextEdit",
+      "output_dir": "QLineEdit",
+      "pull_tag": "QComboBox",
+      "source_acquired": "QDateEdit",
+      "source_citation": "QLineEdit",
+      "source_license": "QLineEdit",
+      "source_notes": "QPlainTextEdit",
+      "source_url": "QLineEdit",
+      "summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Ingest Hydrology": {
+    "buttons": [
+      "Browse",
+      "Refresh",
+      "Open in Earth viewer",
+      "Open in Meshing Studio"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Tag",
+      "Output"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Refresh",
+        "Open in Earth viewer",
+        "Open in Meshing Studio"
+      ],
+      "fields": []
+    },
+    "options": {
+      "pull_tag": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "source_citation": "Citation or dataset title",
+      "source_license": "License / usage terms",
+      "source_notes": "Acquisition notes, provider details, filters used, version, query params\u2026",
+      "source_url": "https://source.example/dataset"
+    },
+    "qt_class": "IngestDomainPage",
+    "qt_line": 2911,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Source metadata"
+      },
+      {
+        "collapsed": false,
+        "title": "Ingest registry"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Ingest log"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "log": "QPlainTextEdit",
+      "output_dir": "QLineEdit",
+      "pull_tag": "QComboBox",
+      "source_acquired": "QDateEdit",
+      "source_citation": "QLineEdit",
+      "source_license": "QLineEdit",
+      "source_notes": "QPlainTextEdit",
+      "source_url": "QLineEdit",
+      "summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Ingest Land Use": {
+    "buttons": [
+      "Browse",
+      "Refresh",
+      "Open in Earth viewer",
+      "Open in Meshing Studio"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Tag",
+      "Output"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Refresh",
+        "Open in Earth viewer",
+        "Open in Meshing Studio"
+      ],
+      "fields": []
+    },
+    "options": {
+      "pull_tag": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "source_citation": "Citation or dataset title",
+      "source_license": "License / usage terms",
+      "source_notes": "Acquisition notes, provider details, filters used, version, query params\u2026",
+      "source_url": "https://source.example/dataset"
+    },
+    "qt_class": "IngestDomainPage",
+    "qt_line": 2911,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Source metadata"
+      },
+      {
+        "collapsed": false,
+        "title": "Ingest registry"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Ingest log"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "log": "QPlainTextEdit",
+      "output_dir": "QLineEdit",
+      "pull_tag": "QComboBox",
+      "source_acquired": "QDateEdit",
+      "source_citation": "QLineEdit",
+      "source_license": "QLineEdit",
+      "source_notes": "QPlainTextEdit",
+      "source_url": "QLineEdit",
+      "summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Ingest Remote Sensing": {
+    "buttons": [
+      "Browse",
+      "Refresh",
+      "Open in Earth viewer",
+      "Open in Meshing Studio"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Tag",
+      "Output"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Refresh",
+        "Open in Earth viewer",
+        "Open in Meshing Studio"
+      ],
+      "fields": []
+    },
+    "options": {
+      "pull_tag": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "source_citation": "Citation or dataset title",
+      "source_license": "License / usage terms",
+      "source_notes": "Acquisition notes, provider details, filters used, version, query params\u2026",
+      "source_url": "https://source.example/dataset"
+    },
+    "qt_class": "IngestDomainPage",
+    "qt_line": 2911,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Source metadata"
+      },
+      {
+        "collapsed": false,
+        "title": "Ingest registry"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Ingest log"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "log": "QPlainTextEdit",
+      "output_dir": "QLineEdit",
+      "pull_tag": "QComboBox",
+      "source_acquired": "QDateEdit",
+      "source_citation": "QLineEdit",
+      "source_license": "QLineEdit",
+      "source_notes": "QPlainTextEdit",
+      "source_url": "QLineEdit",
+      "summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Ingest Seismic Geophysics": {
+    "buttons": [
+      "Browse",
+      "Refresh",
+      "Open in Earth viewer",
+      "Open in Meshing Studio"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Tag",
+      "Output"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Refresh",
+        "Open in Earth viewer",
+        "Open in Meshing Studio"
+      ],
+      "fields": []
+    },
+    "options": {
+      "pull_tag": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "source_citation": "Citation or dataset title",
+      "source_license": "License / usage terms",
+      "source_notes": "Acquisition notes, provider details, filters used, version, query params\u2026",
+      "source_url": "https://source.example/dataset"
+    },
+    "qt_class": "IngestDomainPage",
+    "qt_line": 2911,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Source metadata"
+      },
+      {
+        "collapsed": false,
+        "title": "Ingest registry"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Ingest log"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "log": "QPlainTextEdit",
+      "output_dir": "QLineEdit",
+      "pull_tag": "QComboBox",
+      "source_acquired": "QDateEdit",
+      "source_citation": "QLineEdit",
+      "source_license": "QLineEdit",
+      "source_notes": "QPlainTextEdit",
+      "source_url": "QLineEdit",
+      "summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Ingest Terrain Elevation": {
+    "buttons": [
+      "Browse",
+      "Refresh",
+      "Open in Earth viewer",
+      "Open in Meshing Studio"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Tag",
+      "Output"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Refresh",
+        "Open in Earth viewer",
+        "Open in Meshing Studio"
+      ],
+      "fields": []
+    },
+    "options": {
+      "pull_tag": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "source_citation": "Citation or dataset title",
+      "source_license": "License / usage terms",
+      "source_notes": "Acquisition notes, provider details, filters used, version, query params\u2026",
+      "source_url": "https://source.example/dataset"
+    },
+    "qt_class": "IngestDomainPage",
+    "qt_line": 2911,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Source metadata"
+      },
+      {
+        "collapsed": false,
+        "title": "Ingest registry"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Ingest log"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "log": "QPlainTextEdit",
+      "output_dir": "QLineEdit",
+      "pull_tag": "QComboBox",
+      "source_acquired": "QDateEdit",
+      "source_citation": "QLineEdit",
+      "source_license": "QLineEdit",
+      "source_notes": "QPlainTextEdit",
+      "source_url": "QLineEdit",
+      "summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Ingest Volcano Monitoring": {
+    "buttons": [
+      "Browse",
+      "Refresh",
+      "Open in Earth viewer",
+      "Open in Meshing Studio"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Tag",
+      "Output"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Refresh",
+        "Open in Earth viewer",
+        "Open in Meshing Studio"
+      ],
+      "fields": []
+    },
+    "options": {
+      "pull_tag": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "source_citation": "Citation or dataset title",
+      "source_license": "License / usage terms",
+      "source_notes": "Acquisition notes, provider details, filters used, version, query params\u2026",
+      "source_url": "https://source.example/dataset"
+    },
+    "qt_class": "IngestDomainPage",
+    "qt_line": 2911,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Source metadata"
+      },
+      {
+        "collapsed": false,
+        "title": "Ingest registry"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Ingest log"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "log": "QPlainTextEdit",
+      "output_dir": "QLineEdit",
+      "pull_tag": "QComboBox",
+      "source_acquired": "QDateEdit",
+      "source_citation": "QLineEdit",
+      "source_license": "QLineEdit",
+      "source_notes": "QPlainTextEdit",
+      "source_url": "QLineEdit",
+      "summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Ingest Weather Climate": {
+    "buttons": [
+      "Browse",
+      "Refresh",
+      "Open in Earth viewer",
+      "Open in Meshing Studio"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Tag",
+      "Output"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Refresh",
+        "Open in Earth viewer",
+        "Open in Meshing Studio"
+      ],
+      "fields": []
+    },
+    "options": {
+      "pull_tag": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "source_citation": "Citation or dataset title",
+      "source_license": "License / usage terms",
+      "source_notes": "Acquisition notes, provider details, filters used, version, query params\u2026",
+      "source_url": "https://source.example/dataset"
+    },
+    "qt_class": "IngestDomainPage",
+    "qt_line": 2911,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Source metadata"
+      },
+      {
+        "collapsed": false,
+        "title": "Ingest registry"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Ingest log"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "log": "QPlainTextEdit",
+      "output_dir": "QLineEdit",
+      "pull_tag": "QComboBox",
+      "source_acquired": "QDateEdit",
+      "source_citation": "QLineEdit",
+      "source_license": "QLineEdit",
+      "source_notes": "QPlainTextEdit",
+      "source_url": "QLineEdit",
       "summary": "QPlainTextEdit",
       "tree": "QTreeWidget"
     }
@@ -1561,6 +2720,198 @@
     "widgets": {
       "list": "QListWidget",
       "text": "QPlainTextEdit"
+    }
+  },
+  "Live Monitor": {
+    "buttons": [
+      "Browse",
+      "Start"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "x:",
+      "y:",
+      "Idle"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Start"
+      ],
+      "fields": []
+    },
+    "options": {},
+    "placeholders": {
+      "_alert_thresh": "Alert threshold (optional)",
+      "_watch_path": "File or folder to watch\u2026",
+      "_y_col": "y column(s), comma-sep"
+    },
+    "qt_class": "LiveMonitorPage",
+    "qt_line": 19755,
+    "sections": [],
+    "subtitle": "Real-time data streaming \u2014 watch a CSV or folder and plot updates as they arrive.",
+    "tables": [],
+    "tabs": [],
+    "title": "Live Monitor",
+    "widgets": {
+      "_alert_thresh": "QLineEdit",
+      "_interval_spin": "QSpinBox",
+      "_max_spin": "QSpinBox",
+      "_watch_path": "QLineEdit",
+      "_x_col": "QLineEdit",
+      "_y_col": "QLineEdit"
+    }
+  },
+  "Map": {
+    "buttons": [
+      "Open in Browser",
+      "Export PNG",
+      "\u2191",
+      "\u2193",
+      "\u2715",
+      "\u229e"
+    ],
+    "by_tab": {},
+    "checkboxes": [
+      "Embedded"
+    ],
+    "fields": [
+      [
+        "West (lon min)",
+        "w_spin"
+      ],
+      [
+        "South (lat min)",
+        "s_spin"
+      ],
+      [
+        "East (lon max)",
+        "e_spin"
+      ],
+      [
+        "North (lat max)",
+        "n_spin"
+      ],
+      [
+        "WMS URL",
+        "url_edit"
+      ],
+      [
+        "Layer name(s)",
+        "layers_edit"
+      ],
+      [
+        "Display name",
+        "name_edit"
+      ],
+      [
+        "Label",
+        "label_edit"
+      ]
+    ],
+    "groups": [],
+    "labels": [
+      "Basemap",
+      "Layers",
+      "Input CRS",
+      "Embedded map requires PySide6-WebEngine.\nUse 'Open in Browser' instead.",
+      "West (lon min)",
+      "South (lat min)",
+      "East (lon max)",
+      "North (lat max)",
+      "WMS URL",
+      "Layer name(s)",
+      "Display name",
+      "Label"
+    ],
+    "loose": {
+      "buttons": [
+        "Open in Browser",
+        "Export PNG",
+        "\u2191",
+        "\u2193",
+        "\u2715",
+        "\u229e"
+      ],
+      "fields": [
+        [
+          "West (lon min)",
+          "w_spin"
+        ],
+        [
+          "South (lat min)",
+          "s_spin"
+        ],
+        [
+          "East (lon max)",
+          "e_spin"
+        ],
+        [
+          "North (lat max)",
+          "n_spin"
+        ],
+        [
+          "WMS URL",
+          "url_edit"
+        ],
+        [
+          "Layer name(s)",
+          "layers_edit"
+        ],
+        [
+          "Display name",
+          "name_edit"
+        ],
+        [
+          "Label",
+          "label_edit"
+        ]
+      ]
+    },
+    "options": {
+      "_basemap_combo": [
+        "OpenStreetMap",
+        "CartoDB Dark",
+        "CartoDB Positron",
+        "ESRI Satellite",
+        "ESRI Topo"
+      ],
+      "_crs_selector": [
+        "EPSG:4326",
+        "EPSG:3857",
+        "EPSG:32632",
+        "EPSG:32633",
+        "EPSG:3035"
+      ]
+    },
+    "placeholders": {
+      "layers_edit": "OSM-WMS",
+      "url_edit": "https://ows.terrestris.de/osm/service"
+    },
+    "qt_class": "MapPage",
+    "qt_line": 21296,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [],
+    "title": "Map Composer",
+    "widgets": {
+      "_basemap_combo": "QComboBox",
+      "_crs_selector": "QComboBox",
+      "_embed_toggle": "QCheckBox",
+      "label_edit": "QLineEdit",
+      "layers_edit": "QLineEdit",
+      "name_edit": "QLineEdit",
+      "opacity_slider": "QSlider",
+      "s": "QDoubleSpinBox",
+      "tbl": "QTableWidget",
+      "url_edit": "QLineEdit",
+      "vis": "QCheckBox",
+      "x_spin": "QDoubleSpinBox",
+      "y_spin": "QDoubleSpinBox"
     }
   },
   "Mesh": {
@@ -1794,6 +3145,116 @@
       "_reg_table": "QTableWidget"
     }
   },
+  "Model Fitting": {
+    "buttons": [
+      "Browse",
+      "Fit",
+      "Save Plot PNG",
+      "Save Fit Parameters JSON",
+      "Save Residuals CSV"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [
+      [
+        "R\u00b2:",
+        "_lbl_r2"
+      ],
+      [
+        "RMSE:",
+        "_lbl_rmse"
+      ],
+      [
+        "MAE:",
+        "_lbl_mae"
+      ],
+      [
+        "\u03c7\u00b2 (approx):",
+        "_lbl_chi2"
+      ],
+      [
+        "DOF:",
+        "_lbl_dof"
+      ]
+    ],
+    "groups": [
+      "Coefficients",
+      "Goodness of Fit",
+      "Export"
+    ],
+    "labels": [
+      "X column:",
+      "Y column:",
+      "Model:",
+      "Poly degree:",
+      "Equation (use x, params p0,p1,...):",
+      "Initial params:",
+      "matplotlib not available",
+      "R\u00b2:",
+      "RMSE:",
+      "MAE:",
+      "\u03c7\u00b2 (approx):",
+      "DOF:"
+    ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Fit",
+        "Save Plot PNG",
+        "Save Fit Parameters JSON",
+        "Save Residuals CSV"
+      ],
+      "fields": [
+        [
+          "R\u00b2:",
+          "_lbl_r2"
+        ],
+        [
+          "RMSE:",
+          "_lbl_rmse"
+        ],
+        [
+          "MAE:",
+          "_lbl_mae"
+        ],
+        [
+          "\u03c7\u00b2 (approx):",
+          "_lbl_chi2"
+        ],
+        [
+          "DOF:",
+          "_lbl_dof"
+        ]
+      ]
+    },
+    "options": {},
+    "placeholders": {
+      "_file_edit": "Drop or browse a CSV / TXT / JSON file\u2026"
+    },
+    "qt_class": "ModelFittingPage",
+    "qt_line": 23784,
+    "sections": [],
+    "subtitle": "Fit polynomial, exponential, sinusoidal, power-law, or custom models to any dataset. Reports coefficients, R\u00b2, DOF, residuals.",
+    "tables": [
+      [
+        "Parameter",
+        "Value",
+        "Std Error"
+      ]
+    ],
+    "tabs": [],
+    "title": "Model Fitting",
+    "widgets": {
+      "_coeff_table": "QTableWidget",
+      "_custom_eq": "QLineEdit",
+      "_custom_p0": "QLineEdit",
+      "_file_edit": "QLineEdit",
+      "_model_combo": "QComboBox",
+      "_poly_deg": "QSpinBox",
+      "_x_col": "QComboBox",
+      "_y_col": "QComboBox"
+    }
+  },
   "Module Builder": {
     "buttons": [
       "New",
@@ -1966,6 +3427,257 @@
       "_template_list": "QListWidget",
       "_test_args": "QLineEdit",
       "_test_output": "QPlainTextEdit"
+    }
+  },
+  "Multi-Station Viewer": {
+    "buttons": [
+      "+ Add Channel",
+      "Remove",
+      "Clear All",
+      "Redraw",
+      "Compute Cross-Correlation",
+      "Compute Coherence"
+    ],
+    "by_tab": {
+      "Channel Stats": {
+        "buttons": [],
+        "fields": []
+      },
+      "Coherence": {
+        "buttons": [
+          "Compute Coherence"
+        ],
+        "fields": []
+      },
+      "Cross-Correlation": {
+        "buttons": [
+          "Compute Cross-Correlation"
+        ],
+        "fields": []
+      },
+      "Time Series": {
+        "buttons": [
+          "+ Add Channel",
+          "Remove",
+          "Clear All",
+          "Redraw"
+        ],
+        "fields": [
+          [
+            "Label:",
+            "_ch_label_edit"
+          ],
+          [
+            "Scale:",
+            "_ch_scale"
+          ],
+          [
+            "Offset:",
+            "_ch_offset"
+          ]
+        ]
+      }
+    },
+    "checkboxes": [
+      "Stack (separate axes)",
+      "Normalize each channel",
+      "Grid"
+    ],
+    "fields": [
+      [
+        "Label:",
+        "_ch_label_edit"
+      ],
+      [
+        "Scale:",
+        "_ch_scale"
+      ],
+      [
+        "Offset:",
+        "_ch_offset"
+      ]
+    ],
+    "groups": [
+      "Selected Channel",
+      "Plot Options"
+    ],
+    "labels": [
+      "Channels",
+      "Label:",
+      "Scale:",
+      "Offset:",
+      "matplotlib not available",
+      "Channel A:",
+      "Channel B:",
+      "Peak lag: \u2014",
+      "Fs (Hz):"
+    ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
+    "options": {},
+    "placeholders": {},
+    "qt_class": "MultiStationViewerPage",
+    "qt_line": 23394,
+    "sections": [],
+    "subtitle": "Overlay and synchronize multiple time-series channels from one or many files. Cross-correlation and coherence analysis.",
+    "tables": [
+      [
+        "Channel",
+        "N",
+        "Mean",
+        "Std",
+        "Min",
+        "Max"
+      ]
+    ],
+    "tabs": [
+      "Time Series",
+      "Cross-Correlation",
+      "Coherence",
+      "Channel Stats"
+    ],
+    "title": "Multi-Station Viewer",
+    "widgets": {
+      "_ch_label_edit": "QLineEdit",
+      "_ch_list": "QListWidget",
+      "_ch_offset": "QDoubleSpinBox",
+      "_ch_scale": "QDoubleSpinBox",
+      "_coh_a": "QComboBox",
+      "_coh_b": "QComboBox",
+      "_coh_fs": "QDoubleSpinBox",
+      "_grid_check": "QCheckBox",
+      "_normalize_check": "QCheckBox",
+      "_stack_check": "QCheckBox",
+      "_stats_table": "QTableWidget",
+      "_xcorr_a": "QComboBox",
+      "_xcorr_b": "QComboBox"
+    }
+  },
+  "Notebook": {
+    "buttons": [
+      "+ Cell",
+      "Run All",
+      "Clear Outputs",
+      "Save .py",
+      "Load .py",
+      "\u25b6 Run",
+      "\u00d7"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Kernel: inline (subprocess)"
+    ],
+    "loose": {
+      "buttons": [
+        "+ Cell",
+        "Run All",
+        "Clear Outputs",
+        "Save .py",
+        "Load .py",
+        "\u25b6 Run",
+        "\u00d7"
+      ],
+      "fields": []
+    },
+    "options": {},
+    "placeholders": {
+      "editor": "# Python code here\u2026\nimport pandas as pd\nprint(pd.__version__)"
+    },
+    "qt_class": "NotebookPage",
+    "qt_line": 20234,
+    "sections": [],
+    "subtitle": "Interactive Python cells with live output \u2014 no Jupyter required.",
+    "tables": [],
+    "tabs": [],
+    "title": "Notebook",
+    "widgets": {
+      "editor": "QPlainTextEdit",
+      "output": "QPlainTextEdit"
+    }
+  },
+  "Pipeline Editor": {
+    "buttons": [
+      "Add to Pipeline \u2192",
+      "Remove Selected",
+      "\u25b2",
+      "\u25bc",
+      "Run Pipeline",
+      "Save",
+      "Load"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Node Library",
+      "Pipeline:"
+    ],
+    "loose": {
+      "buttons": [
+        "Add to Pipeline \u2192",
+        "Remove Selected",
+        "\u25b2",
+        "\u25bc",
+        "Run Pipeline",
+        "Save",
+        "Load"
+      ],
+      "fields": []
+    },
+    "options": {},
+    "placeholders": {},
+    "qt_class": "PipelineEditorPage",
+    "qt_line": 20574,
+    "sections": [],
+    "subtitle": "Build, save and run a visual processing pipeline for your project.",
+    "tables": [],
+    "tabs": [],
+    "title": "Pipeline Editor",
+    "widgets": {
+      "_node_list": "QListWidget",
+      "_pipeline_list": "QListWidget",
+      "_run_log": "QPlainTextEdit"
+    }
+  },
+  "Pipeline Runner": {
+    "buttons": [
+      "\u25b6  Run Pipeline",
+      "Reset Status"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "queued"
+    ],
+    "loose": {
+      "buttons": [
+        "\u25b6  Run Pipeline",
+        "Reset Status"
+      ],
+      "fields": []
+    },
+    "options": {},
+    "placeholders": {
+      "_log": "Pipeline log output\u2026"
+    },
+    "qt_class": "AutoPipelineRunnerPage",
+    "qt_line": 21136,
+    "sections": [],
+    "subtitle": "Chain pipeline stages end-to-end with per-stage status tracking.",
+    "tables": [],
+    "tabs": [],
+    "title": "Pipeline Runner",
+    "widgets": {
+      "_log": "QPlainTextEdit",
+      "chk": "QCheckBox"
     }
   },
   "Plugin Manager": {
@@ -2781,6 +4493,43 @@
       "widget": "QListWidget"
     }
   },
+  "Project Comparison": {
+    "buttons": [
+      "Add Project",
+      "Remove Selected",
+      "Refresh",
+      "Add Current Project",
+      "Export CSV"
+    ],
+    "by_tab": {},
+    "checkboxes": [],
+    "fields": [],
+    "groups": [],
+    "labels": [],
+    "loose": {
+      "buttons": [
+        "Add Project",
+        "Remove Selected",
+        "Refresh",
+        "Add Current Project",
+        "Export CSV"
+      ],
+      "fields": []
+    },
+    "options": {},
+    "placeholders": {},
+    "qt_class": "ProjectComparisonPage",
+    "qt_line": 20094,
+    "sections": [],
+    "subtitle": "Compare metadata, run counts, and key metrics across multiple projects.",
+    "tables": [],
+    "tabs": [],
+    "title": "Project Comparison",
+    "widgets": {
+      "_project_list": "QListWidget",
+      "_table": "QTableWidget"
+    }
+  },
   "Projects": {
     "buttons": [
       "+ New Project",
@@ -3451,6 +5200,72 @@
     "widgets": {
       "_search_field": "QLineEdit",
       "editor": "QPlainTextEdit"
+    }
+  },
+  "Run Existing": {
+    "buttons": [
+      "Browse",
+      "Run"
+    ],
+    "by_tab": {
+      "Command": {
+        "buttons": [
+          "Browse",
+          "Run"
+        ],
+        "fields": [
+          [
+            "Working directory",
+            "row"
+          ],
+          [
+            "Command",
+            "cmd"
+          ]
+        ]
+      },
+      "Log": {
+        "buttons": [],
+        "fields": []
+      }
+    },
+    "checkboxes": [],
+    "fields": [
+      [
+        "Working directory",
+        "row"
+      ],
+      [
+        "Command",
+        "cmd"
+      ]
+    ],
+    "groups": [],
+    "labels": [
+      "Run",
+      "Working directory",
+      "Command"
+    ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
+    "options": {},
+    "placeholders": {},
+    "qt_class": "RunPage",
+    "qt_line": 22895,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [
+      "Command",
+      "Log"
+    ],
+    "title": null,
+    "widgets": {
+      "cmd": "QLineEdit",
+      "log": "QPlainTextEdit",
+      "workdir": "QLineEdit"
     }
   },
   "Settings": {
@@ -4126,6 +5941,127 @@
       "oversub": "QCheckBox",
       "run_log": "QPlainTextEdit",
       "sim_dir": "QLineEdit"
+    }
+  },
+  "Spectral Analysis": {
+    "buttons": [
+      "Browse",
+      "Compute",
+      "Save PNG",
+      "Export CSV"
+    ],
+    "by_tab": {
+      "FFT Spectrum": {
+        "buttons": [
+          "Browse",
+          "Compute",
+          "Save PNG"
+        ],
+        "fields": []
+      },
+      "PSD (Welch)": {
+        "buttons": [
+          "Save PNG",
+          "Export CSV"
+        ],
+        "fields": []
+      },
+      "Signal Stats": {
+        "buttons": [],
+        "fields": []
+      },
+      "Spectrogram": {
+        "buttons": [
+          "Save PNG"
+        ],
+        "fields": []
+      }
+    },
+    "checkboxes": [
+      "Log freq axis",
+      "Log amplitude",
+      "Show phase",
+      "Find peaks",
+      "dB scale"
+    ],
+    "fields": [],
+    "groups": [],
+    "labels": [
+      "Time col:",
+      "Signal col:",
+      "Sample rate (Hz):",
+      "Window:",
+      "Top N peaks:",
+      "matplotlib not available",
+      "nperseg:",
+      "Overlap %:",
+      "Window size:",
+      "Colormap:"
+    ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
+    "options": {
+      "_spec_cmap": [
+        "viridis",
+        "plasma",
+        "inferno",
+        "magma",
+        "jet",
+        "hot",
+        "coolwarm",
+        "seismic"
+      ],
+      "_window_combo": [
+        "hann",
+        "hamming",
+        "blackman",
+        "kaiser",
+        "boxcar",
+        "flattop"
+      ]
+    },
+    "placeholders": {
+      "_file_edit": "Drop or browse a CSV / TXT / JSON file\u2026"
+    },
+    "qt_class": "SpectralAnalysisPage",
+    "qt_line": 22968,
+    "sections": [],
+    "subtitle": "FFT amplitude/phase spectrum, Welch PSD, and STFT spectrogram for any time-series signal.",
+    "tables": [
+      [
+        "Property",
+        "Value"
+      ]
+    ],
+    "tabs": [
+      "FFT Spectrum",
+      "PSD (Welch)",
+      "Spectrogram",
+      "Signal Stats"
+    ],
+    "title": "Spectral Analysis",
+    "widgets": {
+      "_fft_find_peaks": "QCheckBox",
+      "_fft_log_x": "QCheckBox",
+      "_fft_log_y": "QCheckBox",
+      "_fft_peak_n": "QSpinBox",
+      "_fft_show_phase": "QCheckBox",
+      "_file_edit": "QLineEdit",
+      "_fs_spin": "QDoubleSpinBox",
+      "_nperseg": "QSpinBox",
+      "_overlap_pct": "QSpinBox",
+      "_psd_db": "QCheckBox",
+      "_psd_log_x": "QCheckBox",
+      "_signal_col": "QComboBox",
+      "_spec_cmap": "QComboBox",
+      "_spec_db": "QCheckBox",
+      "_spec_overlap": "QSpinBox",
+      "_spec_stats_table": "QTableWidget",
+      "_spec_win": "QSpinBox",
+      "_time_col": "QComboBox",
+      "_window_combo": "QComboBox"
     }
   },
   "Statistics": {

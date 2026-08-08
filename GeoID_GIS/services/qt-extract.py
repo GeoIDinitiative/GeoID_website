@@ -36,8 +36,44 @@ from pathlib import Path
 QT_APP = Path("/home/owen/atlas-ai/apps/GeoID_Research/app_qt.py")
 OUT = Path(__file__).resolve().parents[1] / "viewer/gis/research/qt-spec.json"
 
-# Class name -> the page id used in stages.js. Only pages the hub declares.
-# A class serving several pages (the ingest domains) maps to a list.
+def derive_page_classes(tree):
+    """page id -> class name, read out of MainWindow's own registry.
+
+    The app builds every page as `self.<attr> = SomePage()` and then registers
+    it as `("Page Name", self.<attr>)` in one list. Reading both and joining
+    them is exact, and it found twenty-five pages a hand-written table had
+    missed -- the whole Analysis stage among them, which is why those pages
+    looked untouched.
+    """
+    attr_class = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call):
+            cls = call_name(node.value)
+            if not cls.endswith(("Page", "Widget", "Panel")):
+                continue
+            for target in node.targets:
+                if isinstance(target, ast.Attribute):
+                    attr_class[target.attr] = cls
+
+    found = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.List, ast.Tuple)):
+            continue
+        for item in node.elts:
+            if (not isinstance(item, ast.Tuple) or len(item.elts) != 2):
+                continue
+            label = literal(item.elts[0])
+            ref = item.elts[1]
+            if not label or not isinstance(ref, ast.Attribute):
+                continue
+            cls = attr_class.get(ref.attr)
+            if cls:
+                found[label] = cls
+    return found
+
+
+# Fallbacks for pages the registry cannot resolve: one class serving several
+# page ids (the eleven ingest domains all come from IngestDomainPage).
 PAGE_CLASSES = {
     "DashboardPage": "Dashboard",
     "GeoIDProjectsPage": "Projects",
@@ -254,14 +290,21 @@ def dedupe(seq):
 
 def extract():
     tree = ast.parse(QT_APP.read_text(encoding="utf-8"), filename=str(QT_APP))
+    derived = derive_page_classes(tree)
+    # Derived first, hand-written as the fallback for the shared classes.
+    mapping = dict(PAGE_CLASSES)
+    mapping.update(derived)
+    by_class = {}
+    for page_id, cls in mapping.items():
+        by_class.setdefault(cls, []).append(page_id)
+
     pages = {}
     for node in ast.walk(tree):
-        if not isinstance(node, ast.ClassDef) or node.name not in PAGE_CLASSES:
+        if not isinstance(node, ast.ClassDef) or node.name not in by_class:
             continue
         visitor = PageVisitor()
         for item in node.body:
             visitor.visit(item)
-        page_id = PAGE_CLASSES[node.name]
         tab_order = sorted(visitor.tab_lines)
         def bucket(kind):
             out = {label: [] for _, label in tab_order}
@@ -272,7 +315,7 @@ def extract():
             return out, loose
         button_tabs, button_loose = bucket("buttons")
         field_tabs, field_loose = bucket("fields")
-        pages[page_id] = {
+        entry = {
             "qt_class": node.name,
             "qt_line": node.lineno,
             "title": visitor.title,
@@ -296,6 +339,8 @@ def extract():
             "tables": visitor.headers,
             "widgets": visitor.widgets,
         }
+        for page_id in by_class[node.name]:
+            pages[page_id] = entry
     return pages
 
 

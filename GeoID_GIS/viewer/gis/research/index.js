@@ -1,28 +1,31 @@
-import * as hub from "./hub.js?v=20260808-61e2197";
-import { registeredCount } from "./stages.js?v=20260808-61e2197";
-import * as store from "./project-store.js?v=20260808-61e2197";
-import * as bridge from "./bridge.js?v=20260808-61e2197";
+import * as hub from "./hub.js?v=20260808-824ab45";
+import { registeredCount } from "./stages.js?v=20260808-824ab45";
+import * as store from "./project-store.js?v=20260808-824ab45";
+import * as bridge from "./bridge.js?v=20260808-824ab45";
 
 // Pages register themselves on import. This list is the only place that has to
 // change when one is added.
-import "./pages/dashboard.js?v=20260808-61e2197";
-import "./pages/projects.js?v=20260808-61e2197";
-import "./pages/repository.js?v=20260808-61e2197";
-import "./pages/notes.js?v=20260808-61e2197";
-import "./pages/plotter.js?v=20260808-61e2197";
-import "./pages/signal.js?v=20260808-61e2197";
-import "./pages/fem.js?v=20260808-61e2197";
-import "./pages/storyboard.js?v=20260808-61e2197";
-import "./pages/docs.js?v=20260808-61e2197";
+import "./pages/dashboard.js?v=20260808-824ab45";
+import "./pages/projects.js?v=20260808-824ab45";
+import "./pages/repository.js?v=20260808-824ab45";
+import "./pages/notes.js?v=20260808-824ab45";
+import "./pages/plotter.js?v=20260808-824ab45";
+import "./pages/signal.js?v=20260808-824ab45";
+import "./pages/fem.js?v=20260808-824ab45";
+import "./pages/storyboard.js?v=20260808-824ab45";
+import "./pages/docs.js?v=20260808-824ab45";
 
 // Imported last on purpose: it wraps whatever each page already does.
-import { completeAllPages } from "./spec-page.js?v=20260808-61e2197";
-import "./pages/ingest.js?v=20260808-61e2197";
-import "./pages/postprocess.js?v=20260808-61e2197";
-import "./pages/prepare.js?v=20260808-61e2197";
-import "./pages/analysis.js?v=20260808-61e2197";
-import "./pages/manage.js?v=20260808-61e2197";
-import "./pages/workbench.js?v=20260808-61e2197";
+import { completeAllPages } from "./spec-page.js?v=20260808-824ab45";
+// Behaviour for the controls the spec brings across; must load before
+// completion runs so a wired control is never drawn disabled.
+import "./wiring.js?v=20260808-824ab45";
+import "./pages/ingest.js?v=20260808-824ab45";
+import "./pages/postprocess.js?v=20260808-824ab45";
+import "./pages/prepare.js?v=20260808-824ab45";
+import "./pages/analysis.js?v=20260808-824ab45";
+import "./pages/manage.js?v=20260808-824ab45";
+import "./pages/workbench.js?v=20260808-824ab45";
 
 /**
  * Entry point for the Research Hub.

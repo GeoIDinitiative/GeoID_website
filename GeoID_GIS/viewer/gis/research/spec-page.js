@@ -1,9 +1,9 @@
-import { getPage, registerPage } from "./stages.js?v=20260808-61e2197";
-import * as store from "./project-store.js?v=20260808-61e2197";
+import { getPage, registerPage } from "./stages.js?v=20260808-824ab45";
+import * as store from "./project-store.js?v=20260808-824ab45";
 import {
   el, button, row, field, input, selectOf, statusLine, needProject,
   pageHeader, toolbar, collapsible, tabbedPanel, editorCard, dataTable,
-} from "./pages/common.js?v=20260808-61e2197";
+} from "./pages/common.js?v=20260808-824ab45";
 
 /**
  * Build a page from `qt-spec.json` — the structure the Qt app actually has,
@@ -46,6 +46,31 @@ const wiring = new Map();
  */
 export function wire(pageId, handlers) {
   wiring.set(pageId, { ...(wiring.get(pageId) || {}), ...handlers });
+}
+
+/**
+ * Handlers matched by label across every page.
+ *
+ * Three hundred-odd controls are not three hundred behaviours: "Refresh",
+ * "Browse", "Export CSV" and "Open in Meshing Studio" mean the same thing
+ * wherever the app puts them. Patterns wire them once. A page-specific handler
+ * always wins over a pattern.
+ */
+const patterns = [];
+export function wirePattern(match, handler, { pages = null } = {}) {
+  patterns.push({ match, handler, pages });
+}
+
+export function handlerFor(pageId, label) {
+  const exact = (wiring.get(pageId) || {})[label];
+  if (exact) return exact;
+  for (const rule of patterns) {
+    if (rule.pages && !rule.pages.includes(pageId)) continue;
+    if (rule.match instanceof RegExp ? rule.match.test(label) : rule.match === label) {
+      return rule.handler;
+    }
+  }
+  return null;
 }
 
 /** A Qt variable name as a readable label: `_lag_cols` -> "Lag cols". */
@@ -125,11 +150,11 @@ export function specMount(pageId, { requireProject = true, handoff = null } = {}
 
     function makeButton(label) {
       total += 1;
-      const handler = handlers[label];
+      const handler = handlerFor(pageId, label);
       if (handler) {
         wired += 1;
         return button(label, async () => {
-          try { await handler(api); } catch (error) { say(error.message, true); }
+          try { await handler(api, label); } catch (error) { say(error.message, true); }
         }, { secondary: true });
       }
       const node = button(label, null, { secondary: true });
@@ -294,7 +319,7 @@ export function completedMount(pageId, inner) {
     if (host.querySelector(".research-card") && !store.getActive()) return;
 
     const txt = (n) => (n.textContent || "").trim();
-    const rendered = {
+    const scrape = () => ({
       tabs: Array.from(host.querySelectorAll(".qt-tab, .shell-tab, .dash-tabs > *")).map(txt),
       shells: [...Array.from(host.querySelectorAll(".qt-section-head")).map(txt),
         ...Array.from(host.querySelectorAll(
@@ -306,7 +331,27 @@ export function completedMount(pageId, inner) {
           .map((n) => n.placeholder || "")],
       options: Array.from(host.querySelectorAll("option")).map(txt),
       headers: Array.from(host.querySelectorAll(".qt-table-head")).map(txt),
-    };
+    });
+
+    // A tabbed panel renders only its active tab, so a single scrape reports
+    // every control on the other tabs as missing -- and this file would then
+    // add a disabled DUPLICATE of a button that is already there and working.
+    // Visit every tab, union what they show, and put the original back.
+    const rendered = scrape();
+    const strips = Array.from(host.querySelectorAll(".qt-tabs, .dash-tabs"));
+    for (const strip of strips) {
+      const kids = Array.from(strip.children);
+      const wasActive = kids.find((k) => k.classList.contains("is-active"));
+      for (const tab of kids) {
+        if (tab === wasActive) continue;
+        tab.click();
+        const next = scrape();
+        for (const key of Object.keys(rendered)) {
+          rendered[key] = [...rendered[key], ...next[key]];
+        }
+      }
+      if (wasActive) wasActive.click();
+    }
 
     const handlers = wiring.get(pageId) || {};
     const controls = new Map();
@@ -324,10 +369,10 @@ export function completedMount(pageId, inner) {
     let added = 0;
     const makeButton = (label) => {
       added += 1;
-      const handler = handlers[label];
+      const handler = handlerFor(pageId, label);
       if (handler) {
         return button(label, async () => {
-          try { await handler(api); } catch (error) { say(error.message, true); }
+          try { await handler(api, label); } catch (error) { say(error.message, true); }
         }, { secondary: true });
       }
       const node = button(label, null, { secondary: true });
@@ -345,7 +390,7 @@ export function completedMount(pageId, inner) {
       usable.forEach(([label, varName]) => {
         added += 1;
         const control = makeControl(varName, spec);
-        control.disabled = !Object.keys(handlers).length;
+        control.disabled = false;
         controls.set(varName, control);
         grid.appendChild(field(String(label).replace(/:$/, ""), control));
       });

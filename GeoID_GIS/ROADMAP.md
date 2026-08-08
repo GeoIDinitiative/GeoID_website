@@ -178,6 +178,16 @@ audit.
 So 98% is 98% of the *inventory*, not of the function. The controls are all
 there and the ones that do nothing say so on themselves.
 
+**Coverage: 63 pages, 1125 elements, 55 exact.** The page-class mapping is
+derived from MainWindow's own registry rather than hand-written, which is what
+finally brought in the Analysis stage and Pipeline — twenty-five pages a manual
+table had missed.
+
+**Controls: 116 of 323 wired (36%)**, almost all from patterns in `wiring.js` —
+Refresh, Browse/Import, Open in Globe/Studio, Export CSV, repro snapshot. The
+remaining 207 need per-page logic, and a handful need a native binary and are
+recorded in `CANNOT_WIRE` as permanently disabled here.
+
 It measures **structure only** — titles, tabs, sections, buttons, field
 placeholders, dropdown options, table headers. A page can score 100% and still
 do nothing; behaviour is not extractable and has to be written. But a page that
