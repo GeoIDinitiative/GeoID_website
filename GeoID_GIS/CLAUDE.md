@@ -237,6 +237,15 @@ sixty-four have one. A page that draws its own sets `ownHeader = true` on its
 mount function — `projects`, `repository`, `docs`, `qaqc` and every `crossPage`
 do, and forgetting the flag gives that page two titles.
 
+**Do not rebuild a page from memory.** `services/qt-extract.py` parses
+`app_qt.py`'s AST into `qt-spec.json` — every page's title, subtitle, tabs,
+collapsible sections, group boxes, button labels, field placeholders, dropdown
+options and table headers. Read that page's entry before writing it, and run
+`geoidQtAudit()` (`services/qt-audit.js`, in the browser) after. The baseline
+when the audit was built was **19% — 642 missing elements of 788**; it is the
+only honest measure of "identical to the Qt app" there is, and it measures
+structure only, never behaviour.
+
 `pages/projects.js` is the worked example — it mirrors `GeoIDProjectsPage` (app_qt.py:4570) tab for
 tab and field for field. Match the Qt page when building a new one; someone who
 knows one app should know the other, and that breaks the moment a field moves.

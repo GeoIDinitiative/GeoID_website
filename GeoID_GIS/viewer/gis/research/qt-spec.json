@@ -1,0 +1,2537 @@
+{
+  "AI Trainer": {
+    "buttons": [
+      "Use Selected",
+      "Refresh",
+      "Inspect Dataset",
+      "Run Training Script",
+      "Browse"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Select inputs",
+      "From data bus:",
+      "Extra args:"
+    ],
+    "options": {},
+    "placeholders": {
+      "_bus_combo": "Registered datasets\u2026"
+    },
+    "qt_class": "AITrainerPage",
+    "qt_line": 8357,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Training log"
+      },
+      {
+        "collapsed": true,
+        "title": "Run history"
+      }
+    ],
+    "subtitle": "Select a dataset, attach a reference corpus, and launch your training script.",
+    "tables": [
+      [
+        "Run",
+        "Status",
+        "Dataset"
+      ]
+    ],
+    "tabs": [],
+    "title": "AI Trainer",
+    "widgets": {
+      "_bus_combo": "QComboBox",
+      "command_args": "QLineEdit",
+      "dataset_path": "QLineEdit",
+      "export_dir": "QLineEdit",
+      "log": "QPlainTextEdit",
+      "reference_root": "QLineEdit",
+      "runs_table": "QTreeWidget",
+      "summary": "QPlainTextEdit",
+      "trainer_script": "QLineEdit"
+    }
+  },
+  "Build New": {
+    "buttons": [
+      "Apply Roadmap Template",
+      "Browse",
+      "Apply Example Defaults",
+      "Apply Recommended Presets",
+      "Open Mesh Tools",
+      "Auto-detect Physical Groups",
+      "Open Setup Editor",
+      "Open IC/BC Editor",
+      "Create Simulation Now",
+      "Export Run Script",
+      "Back",
+      "Next",
+      "Save Draft",
+      "Exit Builder",
+      "Generate Suggestions",
+      "AI Populate Draft",
+      "Show Equations",
+      "Auto-fill BC Placeholders"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Build Simulation",
+      "Welcome to the guided simulation builder",
+      "This wizard builds a new simulation from scratch using GALES solver architecture.",
+      "Roadmap Templates",
+      "Choose Simulation Type",
+      "Name:",
+      "Target:",
+      "Recommended Setup",
+      "Example sim (optional):",
+      "Step 2: Configure Physics Modules",
+      "Physics Guidance",
+      "Step 3: Select Material Model(s)",
+      "Material Model Guide",
+      "Step 4a: Select DOFs",
+      "Step 2b: Material Properties",
+      "Material Guidance",
+      "Recommended Solvers (filtered by DOFs & type)",
+      "Mesh & Physical Groups",
+      "Define geometry (use Mesh Tools for .geo / .py generation).",
+      "Configure setup.txt parameters (auto-filled from solver)",
+      "Define IC/BC with mesh flags and physical groups.",
+      "AI Copilot"
+    ],
+    "options": {
+      "roadmap_combo": [
+        "Custom",
+        "FSI 3D Non-Isothermal (Two-way)"
+      ]
+    },
+    "placeholders": {
+      "ai_context": "Describe the simulation goals, physics, and constraints..."
+    },
+    "qt_class": "GuidedBuildPage",
+    "qt_line": 14331,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [
+      "Guided Workflow",
+      "AI Copilot"
+    ],
+    "title": null,
+    "widgets": {
+      "ai_context": "QPlainTextEdit",
+      "ai_output": "QPlainTextEdit",
+      "build_name": "QLineEdit",
+      "build_target": "QLineEdit",
+      "combo": "QComboBox",
+      "dof_tiles": "QListWidget",
+      "example_sim": "QComboBox",
+      "inp": "QLineEdit",
+      "mat_model_guidance": "QPlainTextEdit",
+      "material_guidance": "QPlainTextEdit",
+      "mesh_flags": "QListWidget",
+      "physics_guidance": "QPlainTextEdit",
+      "review_text": "QPlainTextEdit",
+      "roadmap_combo": "QComboBox",
+      "roadmap_text": "QPlainTextEdit",
+      "sim_type_guidance": "QPlainTextEdit",
+      "sim_type_tiles": "QListWidget",
+      "solver_details": "QPlainTextEdit",
+      "solver_tiles": "QListWidget"
+    }
+  },
+  "CSV Plotter": {
+    "buttons": [
+      "+ Add Dataset",
+      "Plot Selected",
+      "Preview",
+      "Send to StoryBoard",
+      "Browse",
+      "Load Columns",
+      "Remove"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Preprocessing Plotter",
+      "Project: -",
+      "Plot",
+      "X",
+      "Y",
+      "Z",
+      "Tag"
+    ],
+    "options": {
+      "plot_type": [
+        "line",
+        "scatter",
+        "bar",
+        "hist",
+        "spectrogram",
+        "power-density"
+      ],
+      "tag": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "path": "Dataset path (csv/txt/json/tif...)"
+    },
+    "qt_class": "GeoIDPlotPage",
+    "qt_line": 7535,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "log": "QPlainTextEdit",
+      "path": "QLineEdit",
+      "plot_type": "QComboBox",
+      "select": "QCheckBox",
+      "tag": "QComboBox",
+      "x_col": "QComboBox",
+      "y_col": "QComboBox",
+      "z_col": "QComboBox"
+    }
+  },
+  "DOF Wizard": {
+    "buttons": [
+      "Create solver variant",
+      "Rebuild solver index"
+    ],
+    "checkboxes": [
+      "Guided patching (insert TODO blocks)"
+    ],
+    "groups": [],
+    "labels": [
+      "DOF Wizard",
+      "Template solver",
+      "New solver name",
+      "DOF name",
+      "DOF type",
+      "Domain",
+      "Equation (math)"
+    ],
+    "options": {
+      "dof_type": [
+        "scalar",
+        "vector"
+      ],
+      "domain": [
+        "fluid",
+        "solid",
+        "heat",
+        "adv_diff",
+        "fsi"
+      ]
+    },
+    "placeholders": {},
+    "qt_class": "DOFWizardPage",
+    "qt_line": 14239,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "dof_name": "QLineEdit",
+      "dof_type": "QComboBox",
+      "domain": "QComboBox",
+      "equation": "QLineEdit",
+      "guided": "QCheckBox",
+      "log": "QPlainTextEdit",
+      "new_name": "QLineEdit",
+      "template": "QComboBox"
+    }
+  },
+  "Dashboard": {
+    "buttons": [
+      "Start Tour",
+      "Run Pipeline",
+      "Refresh",
+      "Open Pipeline Runner"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Dashboard",
+      "Connecting to Atlas\u2026",
+      "DATA  \u25b8  GEOMETRY  \u25b8  MESH  \u25b8  SIMULATION  \u25b8  RESULTS  \u25b8  DOCS",
+      "Name:",
+      "Phase:",
+      "Progress:",
+      "Next action:"
+    ],
+    "options": {},
+    "placeholders": {
+      "project_search": "Search projects\u2026"
+    },
+    "qt_class": "DashboardPage",
+    "qt_line": 4121,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [
+      "Atlas Ecosystem",
+      "GeoID Overview",
+      "Navigation Guide",
+      "Keyboard Shortcuts",
+      "Projects",
+      "Pipeline Status",
+      "Tips & Workflows"
+    ],
+    "title": null,
+    "widgets": {
+      "project_list": "QListWidget",
+      "project_search": "QLineEdit"
+    }
+  },
+  "Data Hub": {
+    "buttons": [
+      "Refresh",
+      "Open",
+      "Add to StoryBoard",
+      "Send to Preprocessing",
+      "Send to AI Trainer",
+      "Create Repro Bundle",
+      "Generate PDF Report",
+      "Use Selected",
+      "Compare Runs",
+      "Plot Metric Comparison",
+      "Refresh Experiments",
+      "Create Release Bundle",
+      "Generate Publish Bundle"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Run A",
+      "Run B"
+    ],
+    "options": {},
+    "placeholders": {
+      "run_compare_a": "Run A path or JSON\u2026",
+      "run_compare_b": "Run B path or JSON\u2026"
+    },
+    "qt_class": "DataHubPage",
+    "qt_line": 8651,
+    "sections": [
+      {
+        "collapsed": true,
+        "title": "Run comparison"
+      },
+      {
+        "collapsed": true,
+        "title": "Experiment tracker"
+      },
+      {
+        "collapsed": true,
+        "title": "Publish & release"
+      }
+    ],
+    "subtitle": "Browse all project artefacts \u2014 figures, signals, exports and analysis outputs.",
+    "tables": [
+      [
+        "Artifact",
+        "Type",
+        "Size"
+      ],
+      [
+        "Run ID",
+        "Timestamp",
+        "Status",
+        "Dataset",
+        "Metrics",
+        "Outputs"
+      ]
+    ],
+    "tabs": [],
+    "title": "Data Hub",
+    "widgets": {
+      "exp_table": "QTableWidget",
+      "run_compare_a": "QLineEdit",
+      "run_compare_b": "QLineEdit",
+      "run_compare_summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Data Repository": {
+    "buttons": [
+      "+ Add Dataset",
+      "Promote \u2192 main",
+      "Clone \u2192 test",
+      "Refresh",
+      "\u2190 Use selected",
+      "Compare",
+      "Run Quality Check",
+      "\u2026",
+      "Start Watch",
+      "Accept Suggestion"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Preprocessing Workspace",
+      "No project",
+      "Tag:",
+      "Destination folder",
+      "Custom path",
+      "Watch folder",
+      "Interval (s)"
+    ],
+    "options": {
+      "dest_combo": [
+        "data/raw",
+        "data/processed",
+        "data/external",
+        "data/pulled",
+        "custom"
+      ],
+      "tag_combo": [
+        "test",
+        "queued",
+        "main"
+      ]
+    },
+    "placeholders": {
+      "compare_a": "Dataset A",
+      "compare_b": "Dataset B",
+      "custom_dest": "Absolute or relative path when 'custom' is selected",
+      "preview": "Select a file in the tree to preview its schema and sample rows.",
+      "quality_text": "Run quality check on a selected dataset."
+    },
+    "qt_class": "GeoIDDataRepoPage",
+    "qt_line": 5487,
+    "sections": [
+      {
+        "collapsed": true,
+        "title": "File destination"
+      },
+      {
+        "collapsed": true,
+        "title": "Compare two datasets"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset preview"
+      },
+      {
+        "collapsed": true,
+        "title": "Health Report"
+      },
+      {
+        "collapsed": true,
+        "title": "Smart file watcher"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ],
+      [
+        "New file",
+        "Suggested stage",
+        "Suggested tag"
+      ]
+    ],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "compare_a": "QLineEdit",
+      "compare_b": "QLineEdit",
+      "custom_dest": "QLineEdit",
+      "dest_combo": "QComboBox",
+      "preview": "QPlainTextEdit",
+      "quality_text": "QPlainTextEdit",
+      "tag_combo": "QComboBox",
+      "tree": "QTreeWidget",
+      "watch_dir": "QLineEdit",
+      "watch_interval": "QSpinBox",
+      "watch_suggestions": "QTreeWidget"
+    }
+  },
+  "Docs & Sheets": {
+    "buttons": [
+      "\u2190",
+      "\u2192",
+      "\uff0b New doc",
+      "\uff0b New sheet",
+      "Attach page to project",
+      "\u21bb"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [],
+    "options": {},
+    "placeholders": {},
+    "qt_class": "DocsSheetsPage",
+    "qt_line": 24655,
+    "sections": [],
+    "subtitle": "Project-linked Google documents \u2014 write up results without leaving the research environment. Sign in once; it persists.",
+    "tables": [],
+    "tabs": [],
+    "title": "Docs & Sheets",
+    "widgets": {
+      "link_combo": "QComboBox"
+    }
+  },
+  "EDA Report": {
+    "buttons": [
+      "Browse",
+      "Generate EDA Report",
+      "Export HTML",
+      "Use"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [],
+    "options": {},
+    "placeholders": {
+      "_path": "CSV / TSV\u2026"
+    },
+    "qt_class": "EDAReportPage",
+    "qt_line": 16577,
+    "sections": [],
+    "subtitle": "Automated dataset profiling \u2014 shape, types, missing values, distributions, correlations.",
+    "tables": [],
+    "tabs": [],
+    "title": "EDA Report",
+    "widgets": {
+      "_bus_combo": "QComboBox",
+      "_path": "QLineEdit",
+      "_summary": "QPlainTextEdit"
+    }
+  },
+  "Equation Workbench": {
+    "buttons": [
+      "Browse",
+      "Load Dataset",
+      "Use Bus",
+      "Create Symbol",
+      "Remove Symbol",
+      "Run Equation",
+      "Export Result CSV"
+    ],
+    "checkboxes": [],
+    "groups": [
+      "Define Symbol"
+    ],
+    "labels": [
+      "Datasets",
+      "Columns",
+      "Name",
+      "Type",
+      "Symbols",
+      "Equation"
+    ],
+    "options": {
+      "_define_mode": [
+        "Whole Matrix",
+        "Selected Columns Matrix",
+        "Single Column Vector"
+      ]
+    },
+    "placeholders": {
+      "_dataset_alias": "dataset alias",
+      "_expr": "Examples:\nA @ b\nnp.linalg.inv(K) @ f\nnp.mean(temp)\nnp.column_stack((x, y, z))",
+      "_file_edit": "CSV / TSV file\u2026",
+      "_result_summary": "Equation results appear here."
+    },
+    "qt_class": "EquationWorkbenchPage",
+    "qt_line": 15910,
+    "sections": [],
+    "subtitle": "Load CSVs, define whole matrices or column vectors, and run equations without writing scripts.",
+    "tables": [
+      [
+        "Alias",
+        "Rows",
+        "Cols",
+        "Path"
+      ],
+      [
+        "Name",
+        "Kind",
+        "Shape",
+        "Source"
+      ]
+    ],
+    "tabs": [],
+    "title": "Equation Workbench",
+    "widgets": {
+      "_bus_combo": "QComboBox",
+      "_column_list": "QListWidget",
+      "_dataset_alias": "QLineEdit",
+      "_dataset_table": "QTreeWidget",
+      "_define_mode": "QComboBox",
+      "_expr": "QPlainTextEdit",
+      "_file_edit": "QLineEdit",
+      "_result_summary": "QPlainTextEdit",
+      "_symbol_name": "QLineEdit",
+      "_symbol_table": "QTreeWidget"
+    }
+  },
+  "Feature Engineering": {
+    "buttons": [
+      "Browse",
+      "Load",
+      "Add Lag Features",
+      "Add Rolling Features",
+      "Generate Polynomial Features",
+      "Rank Features",
+      "Save Feature Matrix"
+    ],
+    "checkboxes": [
+      "Interaction terms only (no powers)"
+    ],
+    "groups": [],
+    "labels": [
+      "No dataset loaded.",
+      "Columns:",
+      "Lag steps:",
+      "Windows:",
+      "Statistics:",
+      "Degree:",
+      "Target column:",
+      "Method:",
+      "Top-K features:",
+      "Results:"
+    ],
+    "options": {
+      "_sel_method": [
+        "Correlation (Pearson)",
+        "Mutual Information",
+        "Variance Threshold"
+      ]
+    },
+    "placeholders": {
+      "_file_edit": "CSV / TSV dataset\u2026",
+      "_lag_cols": "col1, col2 (blank = all numeric)",
+      "_lag_steps": "comma-separated step values",
+      "_out_path": "Output path (auto if blank)\u2026",
+      "_poly_cols": "col1, col2 (blank = all numeric)",
+      "_roll_cols": "col1, col2 (blank = all numeric)",
+      "_roll_stats": "comma-separated: mean,std,min,max,sum",
+      "_roll_windows": "comma-separated window sizes"
+    },
+    "qt_class": "FeatureEngineeringPage",
+    "qt_line": 17002,
+    "sections": [],
+    "subtitle": "Build model-ready feature matrices from temporal, spatial and domain datasets.",
+    "tables": [],
+    "tabs": [
+      "Lag Features",
+      "Rolling Window",
+      "Polynomial / Interaction",
+      "Feature Selection",
+      "Preview / Export"
+    ],
+    "title": "Feature Engineering",
+    "widgets": {
+      "_file_edit": "QLineEdit",
+      "_lag_cols": "QLineEdit",
+      "_lag_steps": "QLineEdit",
+      "_log": "QPlainTextEdit",
+      "_out_path": "QLineEdit",
+      "_poly_cols": "QLineEdit",
+      "_poly_degree": "QSpinBox",
+      "_poly_interaction_only": "QCheckBox",
+      "_preview_table": "QTableWidget",
+      "_roll_cols": "QLineEdit",
+      "_roll_stats": "QLineEdit",
+      "_roll_windows": "QLineEdit",
+      "_sel_k": "QSpinBox",
+      "_sel_method": "QComboBox",
+      "_sel_result": "QPlainTextEdit",
+      "_sel_target": "QComboBox"
+    }
+  },
+  "IC/BC": {
+    "buttons": [
+      "Browse table",
+      "Insert BC",
+      "Refresh vars",
+      "Load mesh groups",
+      "Save"
+    ],
+    "checkboxes": [],
+    "groups": [
+      "BC Composer"
+    ],
+    "labels": [
+      "IC/BC",
+      "Domain",
+      "Type",
+      "Variables",
+      "Mesh flag",
+      "Physical group",
+      "Value",
+      "Units",
+      "Table file"
+    ],
+    "options": {
+      "bc_domain": [
+        "Auto",
+        "Fluid",
+        "Solid",
+        "Heat",
+        "AdvDiff"
+      ],
+      "bc_type": [
+        "Dirichlet",
+        "Neumann",
+        "Initial",
+        "Tabulated"
+      ],
+      "bc_units": [
+        "raw",
+        "MPa"
+      ]
+    },
+    "placeholders": {},
+    "qt_class": "ICBCPage",
+    "qt_line": 13309,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [
+      "Files",
+      "Composer"
+    ],
+    "title": null,
+    "widgets": {
+      "bc_domain": "QComboBox",
+      "bc_flag": "QSpinBox",
+      "bc_flag_name": "QComboBox",
+      "bc_table": "QLineEdit",
+      "bc_type": "QComboBox",
+      "bc_units": "QComboBox",
+      "bc_value": "QLineEdit",
+      "bc_vars": "QListWidget",
+      "list": "QListWidget",
+      "text": "QPlainTextEdit"
+    }
+  },
+  "Import / Clone": {
+    "buttons": [
+      "Browse",
+      "Clone simulation",
+      "Open folder"
+    ],
+    "checkboxes": [
+      "Clone from template"
+    ],
+    "groups": [],
+    "labels": [
+      "Clone Simulation",
+      "Simulation type",
+      "Solver",
+      "New simulation name",
+      "Target directory",
+      "Clone source (template)",
+      "required: -",
+      "groups: -"
+    ],
+    "options": {
+      "sim_type": [
+        "Fluid (SC)",
+        "Fluid (MC)",
+        "Solid (ES)",
+        "Solid (ED)",
+        "FSI"
+      ]
+    },
+    "placeholders": {},
+    "qt_class": "ClonePage",
+    "qt_line": 13841,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [
+      "Configuration",
+      "Log"
+    ],
+    "title": null,
+    "widgets": {
+      "clone_template": "QCheckBox",
+      "log": "QPlainTextEdit",
+      "sim_name": "QLineEdit",
+      "sim_type": "QComboBox",
+      "solver": "QComboBox",
+      "target_dir": "QLineEdit",
+      "template_dir": "QLineEdit"
+    }
+  },
+  "Ingest Generic Import": {
+    "buttons": [
+      "\u2026",
+      "Refresh",
+      "Schedule Source",
+      "Google Scholar",
+      "Elicit",
+      "Browse"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Data Puller",
+      "No project",
+      "Tag:",
+      "Output:",
+      "Source",
+      "Extra args",
+      "Retries",
+      "Schedule",
+      "Keywords:"
+    ],
+    "options": {
+      "pull_schedule": [
+        "Manual",
+        "Hourly",
+        "Daily"
+      ],
+      "pull_tag": [
+        "test",
+        "queued",
+        "main"
+      ],
+      "schedule_source": [
+        "NOAA GFS",
+        "NASA IMERG",
+        "RainViewer"
+      ]
+    },
+    "placeholders": {
+      "lit_keywords": "e.g., volcanic tremor FEM coupling",
+      "pull_cmd_args": "Optional script args",
+      "summary": "Select a dataset above to see its summary."
+    },
+    "qt_class": "DataPullerPage",
+    "qt_line": 7845,
+    "sections": [
+      {
+        "collapsed": true,
+        "title": "Advanced configuration"
+      },
+      {
+        "collapsed": false,
+        "title": "Pulled data registry"
+      },
+      {
+        "collapsed": false,
+        "title": "Dataset summary"
+      },
+      {
+        "collapsed": true,
+        "title": "Activity log"
+      }
+    ],
+    "subtitle": null,
+    "tables": [
+      [
+        "Path",
+        "Type",
+        "Tag",
+        "Format"
+      ]
+    ],
+    "tabs": [
+      "Weather",
+      "DEM",
+      "Literature"
+    ],
+    "title": null,
+    "widgets": {
+      "lit_keywords": "QLineEdit",
+      "log": "QPlainTextEdit",
+      "output_dir": "QLineEdit",
+      "pull_cmd_args": "QLineEdit",
+      "pull_retry": "QSpinBox",
+      "pull_schedule": "QComboBox",
+      "pull_tag": "QComboBox",
+      "schedule_source": "QComboBox",
+      "summary": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "Inputs": {
+    "buttons": [
+      "New input file",
+      "Save"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Inputs"
+    ],
+    "options": {},
+    "placeholders": {},
+    "qt_class": "InputsPage",
+    "qt_line": 13230,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [
+      "Files"
+    ],
+    "title": null,
+    "widgets": {
+      "list": "QListWidget",
+      "text": "QPlainTextEdit"
+    }
+  },
+  "Mesh": {
+    "buttons": [
+      "New .geo",
+      "New .py",
+      "Save",
+      "Open Gmsh",
+      "Browse .msh",
+      "Convert",
+      "Insert Embedded Point In Mesh Script"
+    ],
+    "checkboxes": [],
+    "groups": [
+      "Embedded Points"
+    ],
+    "labels": [
+      "Mesh",
+      "Mesh file",
+      "Cores",
+      "X",
+      "Y",
+      "Z",
+      "Mesh size (lc)",
+      "Relative entity",
+      "Entity tag",
+      "Point tag (0=auto)"
+    ],
+    "options": {
+      "embed_kind": [
+        "Surface",
+        "Volume"
+      ],
+      "tool": [
+        "gales_mesh",
+        "gales_mesh.py"
+      ]
+    },
+    "placeholders": {},
+    "qt_class": "MeshPage",
+    "qt_line": 13566,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [
+      "Files",
+      "Tools"
+    ],
+    "title": null,
+    "widgets": {
+      "cores": "QSpinBox",
+      "embed_entity": "QSpinBox",
+      "embed_kind": "QComboBox",
+      "embed_lc": "QLineEdit",
+      "embed_point_tag": "QSpinBox",
+      "embed_x": "QLineEdit",
+      "embed_y": "QLineEdit",
+      "embed_z": "QLineEdit",
+      "list": "QListWidget",
+      "log": "QPlainTextEdit",
+      "mesh_file": "QLineEdit",
+      "text": "QPlainTextEdit",
+      "tool": "QComboBox"
+    }
+  },
+  "Metadata & Lineage": {
+    "buttons": [
+      "Refresh",
+      "Register File",
+      "Clear History",
+      "Scan Project for CRS Info",
+      "Save Notes"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [],
+    "options": {},
+    "placeholders": {
+      "_crs_text": "Click 'Scan' to inspect CRS metadata of all spatial files in the project.",
+      "_notes_edit": "Project metadata notes, data source URLs, licence info\u2026",
+      "_reg_search": "Filter datasets\u2026"
+    },
+    "qt_class": "MetadataLineagePage",
+    "qt_line": 16739,
+    "sections": [],
+    "subtitle": "Dataset registry, CRS inventory, and transformation provenance for the active project.",
+    "tables": [
+      [
+        "Name",
+        "Tag",
+        "Format",
+        "CRS",
+        "Path"
+      ],
+      [
+        "Timestamp",
+        "Stage",
+        "Operation",
+        "Inputs",
+        "Outputs"
+      ]
+    ],
+    "tabs": [
+      "Dataset Registry",
+      "Lineage / Provenance",
+      "CRS Inventory",
+      "Notes"
+    ],
+    "title": "Metadata & Lineage",
+    "widgets": {
+      "_crs_text": "QPlainTextEdit",
+      "_lin_table": "QTableWidget",
+      "_log": "QPlainTextEdit",
+      "_notes_edit": "QPlainTextEdit",
+      "_reg_search": "QLineEdit",
+      "_reg_table": "QTableWidget"
+    }
+  },
+  "Module Builder": {
+    "buttons": [
+      "New",
+      "Open",
+      "\u21ba",
+      "Save",
+      "Install & Reload",
+      "Uninstall",
+      "Apply to Editor",
+      "Run Test",
+      "Browse Community Modules"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "My Modules",
+      "Templates",
+      "Untitled",
+      "Name:",
+      "Stage:",
+      "Label (tab text):",
+      "Description:",
+      "Version:",
+      "Author:",
+      "Category:",
+      "Run the module in a subprocess and capture stdout/stderr:",
+      "Extra args:"
+    ],
+    "options": {
+      "_m_category": [
+        "Transform",
+        "Signal",
+        "Raster",
+        "Vector",
+        "Statistical",
+        "Machine Learning",
+        "Visualisation",
+        "Utility",
+        "Custom"
+      ],
+      "_m_stage": [
+        "Preprocessing",
+        "Postprocessing and Signal Analysis",
+        "AI trainer",
+        "FEM model",
+        "Pipeline Editor",
+        "Settings"
+      ]
+    },
+    "placeholders": {
+      "_log": "Module builder log\u2026",
+      "_test_args": "(optional, passed as sys.argv[1:])"
+    },
+    "qt_class": "CustomModuleBuilderPage",
+    "qt_line": 18005,
+    "sections": [],
+    "subtitle": "Write, test and install custom Python toolkit modules.",
+    "tables": [],
+    "tabs": [
+      "Editor",
+      "Metadata",
+      "Test",
+      "Community"
+    ],
+    "title": "Module Builder",
+    "widgets": {
+      "_log": "QPlainTextEdit",
+      "_m_author": "QLineEdit",
+      "_m_category": "QComboBox",
+      "_m_desc": "QPlainTextEdit",
+      "_m_label": "QLineEdit",
+      "_m_name": "QLineEdit",
+      "_m_stage": "QComboBox",
+      "_m_version": "QLineEdit",
+      "_module_list": "QListWidget",
+      "_template_list": "QListWidget",
+      "_test_args": "QLineEdit",
+      "_test_output": "QPlainTextEdit"
+    }
+  },
+  "Plugin Manager": {
+    "buttons": [
+      "Rescan Plugins"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [],
+    "options": {},
+    "placeholders": {},
+    "qt_class": "PluginManagerPage",
+    "qt_line": 3328,
+    "sections": [],
+    "subtitle": "Inspect discovered plugins and their registered stages.",
+    "tables": [
+      [
+        "Plugin",
+        "Stage",
+        "Label",
+        "Source"
+      ]
+    ],
+    "tabs": [],
+    "title": "Plugin Manager",
+    "widgets": {
+      "table": "QTableWidget"
+    }
+  },
+  "Point Cloud 3D": {
+    "buttons": [
+      "Browse",
+      "Load",
+      "Decimate & Save",
+      "Export"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "No point cloud loaded.",
+      "Method:",
+      "Parameter:",
+      "Output:",
+      "Format:"
+    ],
+    "options": {
+      "_dec_method": [
+        "Every Nth point",
+        "Random sample",
+        "Voxel grid"
+      ],
+      "_exp_fmt": [
+        "CSV (X,Y,Z,\u2026)",
+        "XYZ ASCII",
+        "LAS (requires laspy)"
+      ]
+    },
+    "placeholders": {
+      "_exp_out": "Output path (auto if blank)",
+      "_file_edit": "LAS / LAZ / XYZ / CSV point file\u2026",
+      "dec_out": "Output path (auto if blank)"
+    },
+    "qt_class": "PointCloud3DPage",
+    "qt_line": 17624,
+    "sections": [],
+    "subtitle": "Inspect and process LAS / LAZ / XYZ point cloud files.",
+    "tables": [],
+    "tabs": [
+      "File Info / Stats",
+      "Decimate / Thin",
+      "Export"
+    ],
+    "title": "Point Cloud 3D",
+    "widgets": {
+      "_dec_method": "QComboBox",
+      "_dec_param": "QDoubleSpinBox",
+      "_exp_fmt": "QComboBox",
+      "_exp_out": "QLineEdit",
+      "_file_edit": "QLineEdit",
+      "_log": "QPlainTextEdit",
+      "_stats_text": "QPlainTextEdit",
+      "dec_out": "QLineEdit"
+    }
+  },
+  "Post Processing": {
+    "buttons": [
+      "Browse",
+      "Extract Interpolated DOF Timeseries",
+      "Quick Plot Last Extraction",
+      "Validate GALES Inputs",
+      "Refresh GALES Results",
+      "Open Selected GALES Result",
+      "Run Selected Module",
+      "Find Station Nodes",
+      "Find Station Elements",
+      "Extract Station Timeseries",
+      "Convert Binary To CSV"
+    ],
+    "checkboxes": [
+      "Overwrite outputs"
+    ],
+    "groups": [
+      "Advanced Generic DOF Utility",
+      "GALES/Postprocessing Toolkit Catalog"
+    ],
+    "labels": [
+      "Source mode",
+      "Source path",
+      "Time column",
+      "X/Y/Z columns",
+      "Gmsh entity column",
+      "DOF value column",
+      "Probe definitions",
+      "Mesh file",
+      "Station file",
+      "Surface file",
+      "Grid directory",
+      "Results directory",
+      "Output directory",
+      "Station format",
+      "Extract mode",
+      "Delta t",
+      "Run mode",
+      "Script modules",
+      "GALES validation: not run",
+      "Status",
+      "Catalog filters",
+      "Module catalog",
+      "Select a GALES module to inspect required user-defined files and outputs.",
+      "Module details",
+      "Module readiness: -",
+      "Module readiness",
+      "Outputs"
+    ],
+    "options": {
+      "gales_extract_mode": [
+        "Node-based extraction",
+        "Element interpolation"
+      ],
+      "gales_station_format": [
+        "Auto",
+        "Simple station_data",
+        "Joe info",
+        "Joe inside-element info"
+      ],
+      "mode": [
+        "Long CSV file",
+        "Snapshot CSV folder"
+      ]
+    },
+    "placeholders": {
+      "points": "name,x,y,z,entity\nP1,0.25,0.25,0.0,1\nP2,0.75,0.5,0.0,1"
+    },
+    "qt_class": "PostProcessingPage",
+    "qt_line": 9403,
+    "sections": [],
+    "subtitle": "Extract, visualise and export DOF time-series from simulation results.",
+    "tables": [
+      [
+        "Module",
+        "Script",
+        "Inputs"
+      ],
+      [
+        "Result",
+        "Type"
+      ]
+    ],
+    "tabs": [
+      "GALES Toolkit",
+      "Generic DOF Extractor"
+    ],
+    "title": "Post Processing",
+    "widgets": {
+      "dof_col": "QLineEdit",
+      "entity_col": "QLineEdit",
+      "gales_catalog": "QTreeWidget",
+      "gales_dt": "QDoubleSpinBox",
+      "gales_extract_mode": "QComboBox",
+      "gales_filter": "QComboBox",
+      "gales_grid_dir": "QLineEdit",
+      "gales_intent_filter": "QComboBox",
+      "gales_mesh_path": "QLineEdit",
+      "gales_output_dir": "QLineEdit",
+      "gales_restart": "QCheckBox",
+      "gales_results_dir": "QLineEdit",
+      "gales_results_tree": "QTreeWidget",
+      "gales_station_file": "QLineEdit",
+      "gales_station_format": "QComboBox",
+      "gales_surface_file": "QLineEdit",
+      "log": "QPlainTextEdit",
+      "mode": "QComboBox",
+      "points": "QPlainTextEdit",
+      "source_path": "QLineEdit",
+      "time_col": "QLineEdit",
+      "x_col": "QLineEdit",
+      "y_col": "QLineEdit",
+      "z_col": "QLineEdit"
+    }
+  },
+  "Preprocessing Transforms": {
+    "buttons": [
+      "Browse",
+      "Transform Coordinates",
+      "Clip Points",
+      "Resample Raster",
+      "Check Alignment"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Preprocessing \u2014 Transforms",
+      "No project",
+      "Reproject an XYZ point dataset (CSV/TXT) from one CRS to another using pyproj.",
+      "Source CRS",
+      "\u2192  Target CRS",
+      "X col",
+      "Y col",
+      "Z col (opt)",
+      "Input file",
+      "Output file",
+      "CRS",
+      "Columns",
+      "X",
+      "Y",
+      "Input",
+      "Output",
+      "X/Y cols",
+      "Bounds",
+      "Raster input",
+      "Raster output",
+      "Target resolution",
+      "Vector",
+      "Raster"
+    ],
+    "options": {},
+    "placeholders": {
+      "coord_input": "Input XYZ dataset (.csv or .txt)",
+      "coord_output": "Output path (.csv)",
+      "preview": "Results and status messages appear here.",
+      "w": "\u2014"
+    },
+    "qt_class": "PreprocessingTransformsPage",
+    "qt_line": 5968,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Clip points by bounding box"
+      },
+      {
+        "collapsed": true,
+        "title": "Raster resample"
+      },
+      {
+        "collapsed": true,
+        "title": "Vector / raster alignment check"
+      },
+      {
+        "collapsed": false,
+        "title": "Output / status"
+      }
+    ],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [
+      "Coordinate Transform",
+      "Spatial Tools"
+    ],
+    "title": null,
+    "widgets": {
+      "align_raster": "QLineEdit",
+      "align_vector": "QLineEdit",
+      "clip_input": "QLineEdit",
+      "clip_max_x": "QLineEdit",
+      "clip_max_y": "QLineEdit",
+      "clip_min_x": "QLineEdit",
+      "clip_min_y": "QLineEdit",
+      "clip_output": "QLineEdit",
+      "clip_x_col": "QLineEdit",
+      "clip_y_col": "QLineEdit",
+      "coord_input": "QLineEdit",
+      "coord_output": "QLineEdit",
+      "coord_source_crs": "QLineEdit",
+      "coord_target_crs": "QLineEdit",
+      "coord_x_col": "QLineEdit",
+      "coord_y_col": "QLineEdit",
+      "coord_z_col": "QLineEdit",
+      "preview": "QPlainTextEdit",
+      "raster_input": "QLineEdit",
+      "raster_output": "QLineEdit",
+      "raster_res": "QDoubleSpinBox"
+    }
+  },
+  "Project Board": {
+    "buttons": [
+      "Create Note",
+      "Import Dataset",
+      "Open Latest Figure",
+      "Resume Last Workflow",
+      "Open Storyboard",
+      "Export Repro Snapshot",
+      "Refresh Briefing",
+      "Export Briefing",
+      "Refresh Weekly",
+      "Export Weekly",
+      "Refresh Summary",
+      "Export Summary",
+      "Star",
+      "Annotate",
+      "Unstar",
+      "Open Selected",
+      "Refresh Board",
+      "Pin Selected",
+      "Annotate Pin",
+      "Unpin Selected"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Project Board",
+      "Project: -",
+      "Board mode",
+      "Mission Brief",
+      "Pipeline Snapshot",
+      "Starred Workflows",
+      "Live Resources"
+    ],
+    "options": {
+      "board_mode_combo": [
+        "Operations",
+        "Analysis",
+        "Stakeholder"
+      ],
+      "starred_combo": [
+        "Dashboard",
+        "Projects",
+        "Project Board",
+        "Ingest Generic Import",
+        "Ingest Land Use",
+        "Ingest Hydrology",
+        "Ingest Geology",
+        "Ingest Weather Climate",
+        "AI Trainer",
+        "Research Notes",
+        "Data Repository",
+        "CSV Plotter",
+        "Mesh",
+        "Inputs",
+        "Build New",
+        "Simulation",
+        "Post Processing",
+        "Signal Processing",
+        "Storyboard",
+        "Data Hub",
+        "Settings"
+      ]
+    },
+    "placeholders": {},
+    "qt_class": "ProjectBoardPage",
+    "qt_line": 6597,
+    "sections": [],
+    "subtitle": null,
+    "tables": [
+      [
+        "Area",
+        "Value"
+      ]
+    ],
+    "tabs": [
+      "Overview",
+      "Daily",
+      "Weekly",
+      "Executive",
+      "Reports",
+      "Resources"
+    ],
+    "title": null,
+    "widgets": {
+      "board_mode_combo": "QComboBox",
+      "pipeline": "QTreeWidget",
+      "starred_combo": "QComboBox",
+      "starred_list": "QListWidget",
+      "widget": "QListWidget"
+    }
+  },
+  "Projects": {
+    "buttons": [
+      "+ New Project",
+      "Delete",
+      "Refresh",
+      "Open Folder",
+      "\u25c8 Sync with Atlas",
+      "Add Milestone",
+      "Remove Milestone",
+      "Open Study Area Map",
+      "Save Project Details",
+      "Create Project",
+      "Export Project Brief",
+      "Move Up",
+      "Move Down",
+      "Apply Pipeline",
+      "Export Preset",
+      "Import Preset",
+      "Load Preset File"
+    ],
+    "checkboxes": [],
+    "groups": [
+      "Research Planner",
+      "Study Area Compass",
+      "Milestone Timeline"
+    ],
+    "labels": [
+      "Projects",
+      "Workspace",
+      "Project Editor",
+      "5%",
+      "Next actions (one per line)",
+      "Risks / caveats (one per line)",
+      "Key decisions / assumptions (one per line)",
+      "Milestones",
+      "Bounds summary: -",
+      "Pipeline Builder"
+    ],
+    "options": {
+      "phase": [
+        "Scoping",
+        "Data Assembly",
+        "Preprocessing",
+        "Modeling",
+        "Validation",
+        "Interpretation",
+        "Publication"
+      ],
+      "priority": [
+        "Critical",
+        "High",
+        "Medium",
+        "Low"
+      ],
+      "project_template": [
+        "Custom",
+        "Earthquake study",
+        "Volcanic monitoring",
+        "Weather ML",
+        "Single Plot",
+        "Data QA",
+        "Full Thesis Pipeline"
+      ]
+    },
+    "placeholders": {
+      "description": "What is this study about?",
+      "focus_question": "The one question this project answers",
+      "name": "Untitled project",
+      "tags": "volcano, etna, overpressure\u2026"
+    },
+    "qt_class": "GeoIDProjectsPage",
+    "qt_line": 4572,
+    "sections": [],
+    "subtitle": null,
+    "tables": [
+      [
+        "Title",
+        "Due",
+        "Status"
+      ],
+      [
+        "Due",
+        "Milestone",
+        "Status"
+      ],
+      [
+        "Stage",
+        "Enabled"
+      ]
+    ],
+    "tabs": [
+      "Projects",
+      "Command Center",
+      "Activity",
+      "Profile",
+      "Planning",
+      "Study Area",
+      "Review",
+      "Pipeline"
+    ],
+    "title": null,
+    "widgets": {
+      "activity_feed": "QListWidget",
+      "collaborators": "QLineEdit",
+      "command_center": "QPlainTextEdit",
+      "crs": "QLineEdit",
+      "decisions": "QPlainTextEdit",
+      "description": "QPlainTextEdit",
+      "focus_question": "QLineEdit",
+      "max_lat": "QLineEdit",
+      "max_lon": "QLineEdit",
+      "meta_view": "QPlainTextEdit",
+      "milestones": "QTableWidget",
+      "min_lat": "QLineEdit",
+      "min_lon": "QLineEdit",
+      "name": "QLineEdit",
+      "next_actions": "QPlainTextEdit",
+      "phase": "QComboBox",
+      "pipeline_table": "QTableWidget",
+      "priority": "QComboBox",
+      "progress": "QSlider",
+      "project_list": "QListWidget",
+      "project_template": "QComboBox",
+      "risks": "QPlainTextEdit",
+      "tags": "QLineEdit",
+      "timeline": "QTreeWidget"
+    }
+  },
+  "Properties": {
+    "buttons": [
+      "Add Key",
+      "Remove Key",
+      "Add Block",
+      "Remove Block",
+      "Parse Raw -> Form",
+      "Save props.txt"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Properties"
+    ],
+    "options": {},
+    "placeholders": {},
+    "qt_class": "PropertiesPage",
+    "qt_line": 13037,
+    "sections": [],
+    "subtitle": null,
+    "tables": [
+      [
+        "Key",
+        "Value"
+      ]
+    ],
+    "tabs": [
+      "Form",
+      "Raw"
+    ],
+    "title": null,
+    "widgets": {
+      "kv_table": "QTableWidget",
+      "raw_text": "QPlainTextEdit",
+      "tree": "QTreeWidget"
+    }
+  },
+  "QA / QC": {
+    "buttons": [
+      "Browse",
+      "Load & Audit",
+      "Run Temporal Check",
+      "\u2026",
+      "Apply Fixes & Export"
+    ],
+    "checkboxes": [
+      "Drop duplicate rows",
+      "Fill null values with method:",
+      "Trim string whitespace"
+    ],
+    "groups": [],
+    "labels": [
+      "No file loaded.",
+      "Column Schema",
+      "Duplicate rows: \u2013",
+      "Datetime column:"
+    ],
+    "options": {
+      "_fill_method": [
+        "forward fill",
+        "backward fill",
+        "interpolate (linear)",
+        "fill with 0",
+        "drop rows with nulls"
+      ]
+    },
+    "placeholders": {
+      "_file_edit": "CSV / TSV / GeoJSON / Shapefile\u2026",
+      "_log": "Audit log\u2026",
+      "_out_path": "Output path (blank = auto-name in project/data/)",
+      "_spatial_text": "Load a GeoJSON or Shapefile to run spatial QA.",
+      "_temporal_text": "Select a datetime column and click Run."
+    },
+    "qt_class": "QAQCPage",
+    "qt_line": 18358,
+    "sections": [],
+    "subtitle": "Schema, integrity, spatial and temporal quality audits before promoting datasets downstream.",
+    "tables": [
+      [
+        "Column",
+        "Type",
+        "Null %",
+        "Unique",
+        "Sample"
+      ]
+    ],
+    "tabs": [
+      "File QA",
+      "Spatial QA",
+      "Temporal QA",
+      "Fix & Export"
+    ],
+    "title": "QA / QC",
+    "widgets": {
+      "_file_edit": "QLineEdit",
+      "_fill_method": "QComboBox",
+      "_fix_drop_dup": "QCheckBox",
+      "_fix_fill_nulls": "QCheckBox",
+      "_fix_trim_ws": "QCheckBox",
+      "_log": "QPlainTextEdit",
+      "_out_path": "QLineEdit",
+      "_schema_table": "QTableWidget",
+      "_spatial_text": "QPlainTextEdit",
+      "_temporal_text": "QPlainTextEdit",
+      "_time_col_combo": "QComboBox"
+    }
+  },
+  "Raster Tools": {
+    "buttons": [
+      "Browse",
+      "Load",
+      "Heatmap",
+      "Histogram",
+      "All Band Stats",
+      "\u2026",
+      "Clip to BBox",
+      "Reproject Only",
+      "Run Band Math"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "No raster loaded.",
+      "Band:",
+      "North (max lat):",
+      "South (min lat):",
+      "East  (max lon):",
+      "West  (min lon):",
+      "Target CRS:",
+      "Output:",
+      "Expression \u2014 use B1, B2\u2026 for band arrays (NumPy syntax):",
+      "Output filename:"
+    ],
+    "options": {},
+    "placeholders": {
+      "_clip_out": "Output path (auto if blank)",
+      "_file_edit": "GeoTIFF / NetCDF / ASCII Grid\u2026",
+      "_math_expr": "e.g.  (B1 - B2) / (B1 + B2)   or   B1 * 0.0001",
+      "_math_out_name": "Output filename (auto if blank)",
+      "w": "decimal degrees"
+    },
+    "qt_class": "RasterToolsPage",
+    "qt_line": 19002,
+    "sections": [],
+    "subtitle": "Inspect, clip, reproject, and derive raster products from GeoTIFF / NetCDF files.",
+    "tables": [
+      [
+        "Band",
+        "Min",
+        "Max",
+        "Mean",
+        "Std",
+        "NoData count"
+      ]
+    ],
+    "tabs": [
+      "Inspect / Stats",
+      "Clip / Reproject",
+      "Band Math"
+    ],
+    "title": "Raster Tools",
+    "widgets": {
+      "_band_combo": "QComboBox",
+      "_clip_east": "QLineEdit",
+      "_clip_north": "QLineEdit",
+      "_clip_out": "QLineEdit",
+      "_clip_south": "QLineEdit",
+      "_clip_west": "QLineEdit",
+      "_file_edit": "QLineEdit",
+      "_log": "QPlainTextEdit",
+      "_math_expr": "QLineEdit",
+      "_math_out_name": "QLineEdit",
+      "_stats_table": "QTableWidget",
+      "_target_crs": "QLineEdit"
+    }
+  },
+  "Research Notes": {
+    "buttons": [
+      "Save",
+      "Timestamp",
+      "H1",
+      "H2",
+      "H3",
+      "B",
+      "I",
+      "</>",
+      "\u2022"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "unsaved",
+      "Find:",
+      "0 words"
+    ],
+    "options": {},
+    "placeholders": {
+      "_search_field": "Search notes\u2026",
+      "editor": "Start writing your research notes in Markdown\u2026\n\n# Heading\n**bold**, _italic_, `code`"
+    },
+    "qt_class": "GeoIDNotesPage",
+    "qt_line": 9252,
+    "sections": [],
+    "subtitle": "Markdown-formatted notes for the active project \u2014 auto-saved every 30 s.",
+    "tables": [],
+    "tabs": [],
+    "title": "Research Notes",
+    "widgets": {
+      "_search_field": "QLineEdit",
+      "editor": "QPlainTextEdit"
+    }
+  },
+  "Settings": {
+    "buttons": [
+      "Apply Appearance",
+      "Save Settings",
+      "Reload Settings",
+      "Sync Collaborators To Project"
+    ],
+    "checkboxes": [],
+    "groups": [
+      "Data Source Credentials",
+      "Communication + Sharing",
+      "Email Export (Optional SMTP)",
+      "Appearance"
+    ],
+    "labels": [
+      "Settings",
+      "Project: -",
+      "NASA username",
+      "NASA password/token",
+      "NOAA GFS key/token",
+      "RainViewer key/token",
+      "Other source name",
+      "Other source token",
+      "Daily summary email",
+      "Storyboard share list",
+      "Collaborator emails",
+      "SMTP server",
+      "SMTP port",
+      "SMTP username",
+      "SMTP password",
+      "Theme",
+      "Accent color"
+    ],
+    "options": {},
+    "placeholders": {
+      "accent_color": "#16f4ff",
+      "collaborator_emails": "One collaborator email per line",
+      "storyboard_share_emails": "One email per line"
+    },
+    "qt_class": "SettingsPage",
+    "qt_line": 9062,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [],
+    "title": null,
+    "widgets": {
+      "accent_color": "QLineEdit",
+      "collaborator_emails": "QPlainTextEdit",
+      "daily_summary_email": "QLineEdit",
+      "gfs_api_key": "QLineEdit",
+      "nasa_password": "QLineEdit",
+      "nasa_username": "QLineEdit",
+      "other_source_name": "QLineEdit",
+      "other_source_token": "QLineEdit",
+      "rainviewer_api_key": "QLineEdit",
+      "smtp_password": "QLineEdit",
+      "smtp_port": "QSpinBox",
+      "smtp_server": "QLineEdit",
+      "smtp_username": "QLineEdit",
+      "storyboard_share_emails": "QPlainTextEdit",
+      "theme_mode": "QComboBox"
+    }
+  },
+  "Setup": {
+    "buttons": [
+      "Add selected",
+      "Add all missing",
+      "Save setup.txt"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Setup",
+      "expected: -",
+      "missing: -"
+    ],
+    "options": {},
+    "placeholders": {},
+    "qt_class": "SetupPage",
+    "qt_line": 12878,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [
+      "Library",
+      "Editor"
+    ],
+    "title": null,
+    "widgets": {
+      "group": "QComboBox",
+      "library": "QListWidget",
+      "line": "QLineEdit"
+    }
+  },
+  "Signal Processing": {
+    "buttons": [
+      "Load Headers",
+      "Compare Model vs Real",
+      "Compare Model vs Other Model",
+      "PSD + Spectrogram",
+      "Cross-Correlation",
+      "Validate Inputs",
+      "Refresh Results",
+      "Open Selected Result",
+      "Run Selected Module",
+      "Load Peak CSVs",
+      "Run Wavelet Suite",
+      "Correlation",
+      "SNR",
+      "Joint",
+      "Temporal",
+      "Categorical",
+      "Summary CSV",
+      "Load Thesis Inputs",
+      "Run Thesis Suite",
+      "Refresh Catalog",
+      "Run Function",
+      "Run Script Main",
+      "Stop External Run",
+      "Browse"
+    ],
+    "checkboxes": [],
+    "groups": [
+      "Advanced Generic Signal Utilities",
+      "Advanced Signal Diagnostics",
+      "Thesis Analysis Toolkit",
+      "Advanced External Script Runner"
+    ],
+    "labels": [
+      "Spectral source",
+      "NFFT window",
+      "Overlap %",
+      "Peaks root",
+      "Output dir",
+      "Earthquake CSV",
+      "Volcanic CSV",
+      "Bandpassed root",
+      "Templates root",
+      "Top candidates",
+      "Wavelet plots",
+      "Validation: not run",
+      "Select a thesis function module to inspect required user-defined CSVs and directories.",
+      "Module readiness: -",
+      "Recipe",
+      "Source path",
+      "Function",
+      "Working dir",
+      "JSON kwargs",
+      "CSV path",
+      "Time column",
+      "Value column"
+    ],
+    "options": {
+      "spectral_source": [
+        "Model series",
+        "Real dataset",
+        "Other model series"
+      ]
+    },
+    "placeholders": {
+      "external_args": "{\"source_path\": \"...\", \"dest_path\": \"...\"}"
+    },
+    "qt_class": "SignalProcessingPage",
+    "qt_line": 10443,
+    "sections": [
+      {
+        "collapsed": false,
+        "title": "Thesis Analysis Toolkit"
+      },
+      {
+        "collapsed": true,
+        "title": "Generic signal diagnostics"
+      },
+      {
+        "collapsed": true,
+        "title": "External script runner"
+      },
+      {
+        "collapsed": false,
+        "title": "Output log"
+      }
+    ],
+    "subtitle": "Spectral diagnostics, wavelet analysis, earthquake/volcanic event detection and external script runner.",
+    "tables": [
+      [
+        "Module",
+        "Script",
+        "Inputs"
+      ],
+      [
+        "Result",
+        "Type"
+      ],
+      [
+        "Source",
+        "Type",
+        "Functions",
+        "Run"
+      ]
+    ],
+    "tabs": [],
+    "title": "Signal Analysis Toolkit",
+    "widgets": {
+      "external_args": "QPlainTextEdit",
+      "external_catalog": "QTreeWidget",
+      "external_function": "QLineEdit",
+      "external_path": "QLineEdit",
+      "external_workdir": "QLineEdit",
+      "log": "QPlainTextEdit",
+      "nfft": "QSpinBox",
+      "overlap_pct": "QSpinBox",
+      "path": "QLineEdit",
+      "recipe_combo": "QComboBox",
+      "spectral_source": "QComboBox",
+      "t_col": "QComboBox",
+      "thesis_bandpassed_root": "QLineEdit",
+      "thesis_candidate_count": "QSpinBox",
+      "thesis_catalog": "QTreeWidget",
+      "thesis_eq_csv": "QLineEdit",
+      "thesis_filter": "QComboBox",
+      "thesis_intent_filter": "QComboBox",
+      "thesis_output_dir": "QLineEdit",
+      "thesis_peaks_root": "QLineEdit",
+      "thesis_results_tree": "QTreeWidget",
+      "thesis_sync_plots": "QSpinBox",
+      "thesis_templates_root": "QLineEdit",
+      "thesis_volcanic_csv": "QLineEdit",
+      "y_col": "QComboBox"
+    }
+  },
+  "Simulation": {
+    "buttons": [
+      "Browse",
+      "Load",
+      "Convert Mesh",
+      "Build",
+      "Run",
+      "Run Full Pipeline",
+      "Stop"
+    ],
+    "checkboxes": [
+      "Oversubscribe MPI"
+    ],
+    "groups": [],
+    "labels": [
+      "Simulations",
+      "Simulation directory",
+      "Filter by type",
+      "Detected files",
+      "Run Pipeline",
+      "Mesh (.msh)",
+      "Cores (N)",
+      "Build command",
+      "Executable name",
+      "Execution profile",
+      "Remote host"
+    ],
+    "options": {
+      "exec_profile": [
+        "Local",
+        "SSH Remote"
+      ],
+      "filter": [
+        "All",
+        "Fluid (SC)",
+        "Fluid (MC)",
+        "Solid (ES)",
+        "Solid (ED)",
+        "FSI",
+        "Other"
+      ]
+    },
+    "placeholders": {
+      "exec_remote_host": "user@host"
+    },
+    "qt_class": "SimulationPage",
+    "qt_line": 12590,
+    "sections": [],
+    "subtitle": null,
+    "tables": [],
+    "tabs": [
+      "Discover",
+      "Run"
+    ],
+    "title": null,
+    "widgets": {
+      "build_cmd": "QLineEdit",
+      "cores": "QSpinBox",
+      "detail_files": "QListWidget",
+      "exec_name": "QLineEdit",
+      "exec_profile": "QComboBox",
+      "exec_remote_host": "QLineEdit",
+      "filter": "QComboBox",
+      "list": "QListWidget",
+      "mesh_path": "QLineEdit",
+      "oversub": "QCheckBox",
+      "run_log": "QPlainTextEdit",
+      "sim_dir": "QLineEdit"
+    }
+  },
+  "Statistics": {
+    "buttons": [
+      "Browse",
+      "Load",
+      "Use",
+      "Compute Correlation Matrix",
+      "Run PCA",
+      "Cluster",
+      "Run Test",
+      "Plot Distribution"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "or from bus:",
+      "Method:",
+      "Components:",
+      "k:",
+      "Test:",
+      "Column A:",
+      "Column B:",
+      "Column:",
+      "Load a dataset to begin."
+    ],
+    "options": {
+      "_clust_method": [
+        "kmeans",
+        "dbscan"
+      ],
+      "_corr_method": [
+        "pearson",
+        "spearman",
+        "kendall"
+      ],
+      "_hyp_test": [
+        "t-test (2 columns)",
+        "Mann-Whitney U",
+        "KS test",
+        "ANOVA"
+      ]
+    },
+    "placeholders": {
+      "_dist_col": "Column name\u2026",
+      "_file_edit": "CSV / TSV file\u2026",
+      "_hyp_col_a": "Column A",
+      "_hyp_col_b": "Column B"
+    },
+    "qt_class": "StatisticsPage",
+    "qt_line": 16232,
+    "sections": [],
+    "subtitle": "PCA, clustering, correlation matrices, and hypothesis testing on any dataset.",
+    "tables": [],
+    "tabs": [
+      "Correlation",
+      "PCA",
+      "Clustering",
+      "Hypothesis Tests",
+      "Distributions"
+    ],
+    "title": "Statistics Suite",
+    "widgets": {
+      "_bus_combo": "QComboBox",
+      "_clust_k": "QSpinBox",
+      "_clust_method": "QComboBox",
+      "_corr_method": "QComboBox",
+      "_dist_col": "QLineEdit",
+      "_file_edit": "QLineEdit",
+      "_hyp_col_a": "QLineEdit",
+      "_hyp_col_b": "QLineEdit",
+      "_hyp_result": "QPlainTextEdit",
+      "_hyp_test": "QComboBox",
+      "_pca_n": "QSpinBox"
+    }
+  },
+  "Storyboard": {
+    "buttons": [
+      "B",
+      "I",
+      "U",
+      "Bullets",
+      "Numbers",
+      "Quote",
+      "Code",
+      "Divider",
+      "Time Stamp",
+      "AI Outline",
+      "Insert Figure",
+      "Export HTML",
+      "Share",
+      "Compile",
+      "Add",
+      "Remove",
+      "Add Citation",
+      "Remove Citation",
+      "Insert [cite]",
+      "Export .bib"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Title:",
+      "Style",
+      "0 words | 0 chars",
+      "Assets",
+      "References / Citations",
+      "Document Preview",
+      "Outline",
+      "Comments / Tasks",
+      "Live collaboration endpoint: not configured"
+    ],
+    "options": {
+      "story_style": [
+        "Body",
+        "Heading 1",
+        "Heading 2",
+        "Heading 3"
+      ]
+    },
+    "placeholders": {
+      "comments": "Comments, collaborator tasks, and review notes.",
+      "notes": "Start writing your storyboard document..."
+    },
+    "qt_class": "StoryboardPage",
+    "qt_line": 11880,
+    "sections": [],
+    "subtitle": "Draft, annotate and publish your research narrative.",
+    "tables": [
+      [
+        "Asset",
+        "Caption"
+      ],
+      [
+        "Key",
+        "DOI",
+        "BibTeX"
+      ]
+    ],
+    "tabs": [],
+    "title": "StoryBoard",
+    "widgets": {
+      "citation_table": "QTableWidget",
+      "comments": "QPlainTextEdit",
+      "doc_title": "QLineEdit",
+      "notes": "QTextEdit",
+      "outline_list": "QListWidget",
+      "story_style": "QComboBox",
+      "table": "QTableWidget",
+      "template_combo": "QComboBox"
+    }
+  },
+  "Temporal Tools": {
+    "buttons": [
+      "Browse",
+      "Load",
+      "Run Resample",
+      "Run Rolling Stat",
+      "Run Gap Fill",
+      "Run De-spike",
+      "\u2026",
+      "Save Result"
+    ],
+    "checkboxes": [
+      "Centred window"
+    ],
+    "groups": [],
+    "labels": [
+      "Datetime col:",
+      "Value col:",
+      "Resample to:",
+      "Aggregation:",
+      "Rolling window (steps):",
+      "Rolling stat:",
+      "Gap fill method:",
+      "Fill limit (steps):",
+      "De-spike method:",
+      "Threshold (\u03c3 / IQR):"
+    ],
+    "options": {
+      "_despike_method": [
+        "Z-score",
+        "IQR fence"
+      ],
+      "_fill_method": [
+        "linear interpolation",
+        "forward fill",
+        "backward fill",
+        "spline (order 3)",
+        "fill with 0"
+      ],
+      "_resample_agg": [
+        "mean",
+        "sum",
+        "min",
+        "max",
+        "first",
+        "last",
+        "median",
+        "std"
+      ],
+      "_resample_freq": [
+        "1min",
+        "5min",
+        "15min",
+        "30min",
+        "1h",
+        "6h",
+        "12h",
+        "1D",
+        "1W",
+        "1ME"
+      ],
+      "_rolling_stat": [
+        "mean",
+        "median",
+        "std",
+        "sum",
+        "min",
+        "max"
+      ]
+    },
+    "placeholders": {
+      "_file_edit": "CSV / TSV file with a datetime column\u2026",
+      "_out_path": "Output path (auto if blank)\u2026"
+    },
+    "qt_class": "TemporalToolsPage",
+    "qt_line": 18676,
+    "sections": [],
+    "subtitle": "Resample, align, gap-fill and de-spike time-series CSV datasets.",
+    "tables": [],
+    "tabs": [
+      "Resample / Align",
+      "Gap Fill / De-spike",
+      "Preview / Export"
+    ],
+    "title": "Temporal Tools",
+    "widgets": {
+      "_despike_method": "QComboBox",
+      "_despike_thr": "QDoubleSpinBox",
+      "_file_edit": "QLineEdit",
+      "_fill_limit": "QSpinBox",
+      "_fill_method": "QComboBox",
+      "_log": "QPlainTextEdit",
+      "_out_path": "QLineEdit",
+      "_preview_table": "QTableWidget",
+      "_resample_agg": "QComboBox",
+      "_resample_freq": "QComboBox",
+      "_rolling_center": "QCheckBox",
+      "_rolling_stat": "QComboBox",
+      "_rolling_window": "QSpinBox",
+      "_time_col": "QComboBox",
+      "_val_col": "QComboBox"
+    }
+  },
+  "Vector Tools": {
+    "buttons": [
+      "Browse",
+      "Load",
+      "Buffer",
+      "Dissolve by Field",
+      "Simplify",
+      "Reproject",
+      "Run Join",
+      "Calculate Field",
+      "\u2026",
+      "Save"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "No vector file loaded.",
+      "Distance:",
+      "Buffer:",
+      "Dissolve field:",
+      "Tolerance:",
+      "Simplify:",
+      "Target CRS:",
+      "Join CSV:",
+      "Left key:",
+      "Right key:",
+      "New field:",
+      "Expression:",
+      "Format:",
+      "Output:"
+    ],
+    "options": {
+      "_buf_units": [
+        "metres (projected)",
+        "degrees (geographic)"
+      ],
+      "_export_fmt": [
+        "GeoJSON",
+        "Shapefile (.shp)",
+        "GPKG",
+        "CSV (attributes only)"
+      ]
+    },
+    "placeholders": {
+      "_calc_expr": "Expression \u2014 e.g.  area  or  length * 2  or  field_a + field_b",
+      "_calc_field": "New field name",
+      "_export_path": "Output path (auto if blank)",
+      "_file_edit": "GeoJSON / Shapefile / GPKG\u2026",
+      "_join_csv": "CSV file to join\u2026",
+      "_join_right_key": "Key column name in CSV"
+    },
+    "qt_class": "VectorToolsPage",
+    "qt_line": 19400,
+    "sections": [],
+    "subtitle": "Buffer, dissolve, clip, reproject, join and calculate attributes on vector datasets.",
+    "tables": [],
+    "tabs": [
+      "Geometry Ops",
+      "Table Ops",
+      "Export"
+    ],
+    "title": "Vector Tools",
+    "widgets": {
+      "_attr_table": "QTableWidget",
+      "_buf_dist": "QDoubleSpinBox",
+      "_buf_units": "QComboBox",
+      "_calc_expr": "QLineEdit",
+      "_calc_field": "QLineEdit",
+      "_dissolve_field": "QComboBox",
+      "_export_fmt": "QComboBox",
+      "_export_path": "QLineEdit",
+      "_file_edit": "QLineEdit",
+      "_join_csv": "QLineEdit",
+      "_join_left_key": "QComboBox",
+      "_join_right_key": "QLineEdit",
+      "_log": "QPlainTextEdit",
+      "_reproj_crs": "QLineEdit",
+      "_simplify_tol": "QDoubleSpinBox"
+    }
+  },
+  "Workflow Automation": {
+    "buttons": [
+      "Save Workflow",
+      "Load Workflow",
+      "+ Script",
+      "+ Command",
+      "Remove",
+      "Browse",
+      "Apply Changes",
+      "\u25b6  Run All Steps",
+      "\u25a0  Stop"
+    ],
+    "checkboxes": [],
+    "groups": [],
+    "labels": [
+      "Workflow name:",
+      "Pipeline Steps",
+      "Step Configuration",
+      "Name:",
+      "Command / Script:",
+      "Arguments:",
+      "Working dir:",
+      "Env vars:"
+    ],
+    "options": {},
+    "placeholders": {
+      "_step_args": "Arguments (optional)\u2026",
+      "_step_cmd": "Script path or shell command\u2026",
+      "_step_env": "KEY=VALUE,KEY2=VALUE2 env overrides",
+      "_step_name": "Step label",
+      "_step_workdir": "Working dir (blank = project dir)"
+    },
+    "qt_class": "WorkflowAutomationPage",
+    "qt_line": 17331,
+    "sections": [],
+    "subtitle": "Define and run sequences of scripts, tools and exports as reusable batch workflows.",
+    "tables": [],
+    "tabs": [],
+    "title": "Workflow Automation",
+    "widgets": {
+      "_output": "QPlainTextEdit",
+      "_step_args": "QLineEdit",
+      "_step_cmd": "QLineEdit",
+      "_step_env": "QLineEdit",
+      "_step_name": "QLineEdit",
+      "_step_workdir": "QLineEdit",
+      "_steps_list": "QListWidget",
+      "_wf_name": "QLineEdit"
+    }
+  },
+  "XYZ to STL": {
+    "buttons": [
+      "Browse",
+      "Convert to STL"
+    ],
+    "checkboxes": [
+      "Apply meshing"
+    ],
+    "groups": [],
+    "labels": [
+      "Input XYZ",
+      "Output STL",
+      "Mode",
+      "Max points"
+    ],
+    "options": {
+      "mesh_mode": [
+        "Delaunay 2D",
+        "Delaunay 3D Boundary",
+        "Sequential Triplets"
+      ]
+    },
+    "placeholders": {
+      "log": "Conversion output and mesh statistics appear here."
+    },
+    "qt_class": "XYZToSTLPage",
+    "qt_line": 6394,
+    "sections": [],
+    "subtitle": "Convert XYZ points into an STL surface with optional Delaunay meshing.",
+    "tables": [],
+    "tabs": [],
+    "title": "XYZ to STL",
+    "widgets": {
+      "input_path": "QLineEdit",
+      "log": "QPlainTextEdit",
+      "max_points": "QSpinBox",
+      "mesh_mode": "QComboBox",
+      "meshing_enabled": "QCheckBox",
+      "output_path": "QLineEdit"
+    }
+  }
+}

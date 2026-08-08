@@ -143,6 +143,39 @@ mesh → write a spec → read results back → plot → publish a figure.
 
 ---
 
+## Measuring it: the Qt fidelity audit
+
+Rebuilding pages from memory was leaving differences nobody could enumerate.
+So the target is now read out of the app mechanically:
+
+```bash
+python3 GeoID_GIS/services/qt-extract.py     # app_qt.py -> qt-spec.json
+python3 GeoID_GIS/services/qt-extract.py --summary
+```
+
+`qt-extract.py` walks `app_qt.py`'s AST and pulls each page class's
+`PageHeader`, `addTab`, `CollapsibleSection`, `QGroupBox`, `QPushButton`,
+`setPlaceholderText`, `addItems` and header labels — 38 page classes.
+
+`GeoID_GIS/services/qt-audit.js` runs in the browser, walks all 64 pages,
+records what they render and diffs it against the spec:
+
+```js
+await geoidQtAudit()                    // summary
+await geoidQtAudit({ page: "Setup" })   // one page and its gaps
+```
+
+**Baseline, 2026-08-08: 19% structural fidelity — 642 missing elements of
+788.** Best: Data Hub 96%, Docs & Sheets 67%, Projects 66%, Data Repository 60%.
+Twelve pages at 0%.
+
+It measures **structure only** — titles, tabs, sections, buttons, field
+placeholders, dropdown options, table headers. A page can score 100% and still
+do nothing; behaviour is not extractable and has to be written. But a page that
+scores low is definitely missing something, and the audit says exactly what.
+
+Run it after every page rebuild. The number should only go up.
+
 ## Phase 3 — Depth on the thin pages
 
 **Done so far:** Projects, Docs & Sheets, Data Repository and QA/QC are rebuilt
