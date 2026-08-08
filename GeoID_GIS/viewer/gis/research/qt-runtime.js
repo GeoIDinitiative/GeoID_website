@@ -1,11 +1,11 @@
-import * as store from "./project-store.js?v=20260808-903ae5a";
-import * as stats from "./stats.js?v=20260808-903ae5a";
-import * as dsp from "./dsp.js?v=20260808-903ae5a";
-import { parseTable, column } from "./table.js?v=20260808-903ae5a";
-import { linePlot, heatmap } from "./plot.js?v=20260808-903ae5a";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-903ae5a";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260808-903ae5a";
-import * as sidecar from "./sidecar.js?v=20260808-903ae5a";
+import * as store from "./project-store.js?v=20260808-cf712ff";
+import * as stats from "./stats.js?v=20260808-cf712ff";
+import * as dsp from "./dsp.js?v=20260808-cf712ff";
+import { parseTable, column } from "./table.js?v=20260808-cf712ff";
+import { linePlot, heatmap } from "./plot.js?v=20260808-cf712ff";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-cf712ff";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260808-cf712ff";
+import * as sidecar from "./sidecar.js?v=20260808-cf712ff";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -1146,11 +1146,83 @@ function pipelineEditor(host, api) {
   }
 }
 
+/* ── Pipeline Runner ──────────────────────────────────────────────────────
+ *
+ * `AutoPipelineRunnerPage` (app_qt.py:21136). Five fixed stages, each a
+ * checkbox + name + description + status pill, built in a loop over the class
+ * constant `_STAGES` — so the tree carried one empty template row. The runtime
+ * fills the stage frame from `class_consts._STAGES` and wires Run Pipeline /
+ * Reset Status, driving each enabled stage queued → running → done as
+ * `_run_pipeline` does.
+ */
+function pipelineRunner(host, api) {
+  const say = logger(api);
+  const page = host.querySelector(".qt-page") || host;
+  // The stage frame is the container that held the single template row.
+  const frame = page.querySelector(".qt-container, .qt-source-card")
+    || page.querySelector(":scope > .qt-layout > *");
+  const stages = (api.spec?.class_consts?._STAGES || [])
+    .map(([name, desc]) => ({ name, desc }));
+  const logNode = api.controls.get("log")
+    || page.querySelector(".qt-textarea[readonly], .qt-textarea");
+  if (!frame || !stages.length) return;
+
+  const rows = [];
+  // Replace the template row with the real five.
+  const grid = frame.querySelector(".qt-layout") || frame;
+  grid.textContent = "";
+  stages.forEach((stage) => {
+    const row = el("div", "pipe-run-row");
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = true;
+    const name = el("span", "pipe-run-name", stage.name);
+    const desc = el("span", "pipe-run-desc", stage.desc);
+    const status = el("span", "qt-pill pipe-run-status", "queued");
+    row.append(check, name, desc, status);
+    grid.appendChild(row);
+    rows.push({ ...stage, check, status });
+  });
+
+  const write = (line) => {
+    if (logNode) { logNode.value = logNode.value ? `${logNode.value}\n${line}` : line; logNode.scrollTop = logNode.scrollHeight; }
+    else say(line);
+  };
+  const setStatus = (row, text, cls) => {
+    row.status.textContent = text;
+    row.status.className = `qt-pill pipe-run-status ${cls || ""}`;
+  };
+
+  bind(host, "Reset Status", async () => {
+    rows.forEach((row) => setStatus(row, "queued", ""));
+    if (logNode) logNode.value = "";
+  });
+
+  bind(host, "▶  Run Pipeline", async () => {
+    if (logNode) logNode.value = "";
+    rows.forEach((row) => setStatus(row, "queued", ""));
+    const enabled = rows.filter((row) => row.check.checked);
+    if (!enabled.length) { write("No stages enabled."); return; }
+    write(`Pipeline run started — ${new Date().toLocaleTimeString()}`);
+    for (const row of enabled) {
+      setStatus(row, "running…", "is-running");
+      write(`  ${row.name} … running`);
+      // Each stage runs from its own page; a brief pause makes the progression
+      // visible, as processEvents does in the app.
+      await new Promise((r) => setTimeout(r, 250));
+      setStatus(row, "✅ done", "is-done");
+      write(`  ${row.name} … done`);
+    }
+    write("\nEach stage runs in full from its own page; this chains their status.");
+  });
+}
+
 export const RUNTIME = {
   "CSV Plotter": csvPlotter,
   "Map": mapComposer,
   "Live Monitor": liveMonitor,
   "Pipeline Editor": pipelineEditor,
+  "Pipeline Runner": pipelineRunner,
   // These *augment* pages the tree already renders; both call their base
   // runtime nothing, they only re-bind the run/stop buttons.
   "AI Trainer": aiTrainer,

@@ -2276,3 +2276,19 @@
   border-color: color-mix(in srgb, var(--node) 55%, transparent);
 }
 .pipe-node.is-step { color: var(--text); font-weight: 500; }
+
+/* ── Pipeline Runner stage rows ────────────────────────────────────────────
+   Built from _STAGES by qt-runtime.js: a checkbox, a fixed-width name, the
+   description that takes the slack, and a status pill — as the Qt row lays out. */
+.pipe-run-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 2px;
+}
+.pipe-run-row input[type="checkbox"] { flex: 0 0 auto; accent-color: rgb(var(--skin-chrome)); }
+.pipe-run-name { flex: 0 0 7rem; font-weight: 600; font-size: 0.78rem; color: var(--text); }
+.pipe-run-desc { flex: 1 1 auto; min-width: 0; font-size: 0.74rem; color: var(--atlas-muted); }
+.pipe-run-status { flex: 0 0 auto; min-width: 5rem; text-align: center; }
+.pipe-run-status.is-running { color: #f4b400; border-color: rgba(244,180,0,0.5); }
+.pipe-run-status.is-done { color: #00e58a; border-color: rgba(0,229,138,0.5); }
