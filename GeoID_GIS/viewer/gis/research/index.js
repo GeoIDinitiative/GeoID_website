@@ -1,18 +1,19 @@
-import * as hub from "./hub.js?v=20260809u";
-import { registeredCount } from "./stages.js?v=20260809u";
-import * as store from "./project-store.js?v=20260809u";
-import * as bridge from "./bridge.js?v=20260809u";
+import * as hub from "./hub.js?v=20260809v";
+import { registeredCount } from "./stages.js?v=20260809v";
+import * as store from "./project-store.js?v=20260809v";
+import * as bridge from "./bridge.js?v=20260809v";
 
 // Pages register themselves on import. This list is the only place that has to
 // change when one is added.
-import "./pages/dashboard.js?v=20260809u";
-import "./pages/projects.js?v=20260809u";
-import "./pages/repository.js?v=20260809u";
-import "./pages/notes.js?v=20260809u";
-import "./pages/plotter.js?v=20260809u";
-import "./pages/signal.js?v=20260809u";
-import "./pages/fem.js?v=20260809u";
-import "./pages/storyboard.js?v=20260809u";
+import "./pages/dashboard.js?v=20260809v";
+import "./pages/projects.js?v=20260809v";
+import "./pages/repository.js?v=20260809v";
+import "./pages/notes.js?v=20260809v";
+import "./pages/plotter.js?v=20260809v";
+import "./pages/signal.js?v=20260809v";
+import "./pages/fem.js?v=20260809v";
+import "./pages/storyboard.js?v=20260809v";
+import "./pages/ingest.js?v=20260809v";
 
 /**
  * Entry point for the Research Hub.
