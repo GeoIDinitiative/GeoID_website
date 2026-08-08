@@ -1,5 +1,5 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260809f";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260809f";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260809i";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260809i";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -67,6 +67,7 @@ const MOVES = [
 const TAB_ORDER = [
   "gis-group-geoid",
   "gis-group-import",
+  "gis-group-polygons",
   "gis-group-preprocess",
   "gis-group-events",
   "geoid-controls-group",

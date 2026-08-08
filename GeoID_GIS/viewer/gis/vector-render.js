@@ -1,6 +1,6 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260809f";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260809f";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260809i";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260809i";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -8,10 +8,47 @@ import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoproc
 
 const MAX_LINE_VERTICES = 6000000;
 
-function pushSegment(target, a, b, radius) {
-  const va = latLonToVector3(a[1], a[0], radius);
-  const vb = latLonToVector3(b[1], b[0], radius);
-  target.push(va.x, va.y, va.z, vb.x, vb.y, vb.z);
+/**
+ * A point on the globe's own displaced surface, plus clearance.
+ *
+ * Not radius + offset: the basemap is displaced by the relief, and at the
+ * default setting its surface spans 3.2095 to 3.2989 while a flat 3.2 + 0.006
+ * sits at 3.206 -- under the terrain everywhere, ocean included. Draped that
+ * way a coastline was in the scene, visible, correctly georeferenced, and
+ * drawing exactly nothing, because the planet was in front of it.
+ */
+function surfaceAt(lat, lon, drape) {
+  const surfacePoint = window.GeoIDViewer?.surfacePoint;
+  return surfacePoint
+    ? surfacePoint(lat, lon, drape)
+    : latLonToVector3(lat, lon, drapedRadius(drape));
+}
+
+// A straight line between two points on a sphere is a chord, and a chord sags
+// below the surface. Across 12 degrees of arc -- ordinary for a coarse boundary
+// polygon -- it sags 0.0175, nearly three times the clearance the geometry is
+// lifted by, so the segment dives through the planet and is hidden for most of
+// its length. Splitting long spans keeps the sag far under the clearance: at
+// one degree it is 0.0001 against 0.006.
+//
+// The split is linear in longitude and latitude, which is also what a shapefile
+// edge means -- straight in the coordinate space it was authored in, not a
+// great circle -- so densifying draws the geometry more correctly, not less.
+const MAX_SEGMENT_DEG = 1;
+const MAX_SEGMENT_SPLITS = 512;
+
+function pushSegment(target, a, b, drape) {
+  const steps = Math.min(
+    MAX_SEGMENT_SPLITS,
+    Math.max(1, Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) / MAX_SEGMENT_DEG)),
+  );
+  let previous = surfaceAt(a[1], a[0], drape);
+  for (let i = 1; i <= steps; i += 1) {
+    const t = i / steps;
+    const next = surfaceAt(a[1] + (b[1] - a[1]) * t, a[0] + (b[0] - a[0]) * t, drape);
+    target.push(previous.x, previous.y, previous.z, next.x, next.y, next.z);
+    previous = next;
+  }
 }
 
 export function renderFeatureCollection(fc, {
@@ -21,7 +58,6 @@ export function renderFeatureCollection(fc, {
   drape = 0.006,
   pointSize = 0.018,
 } = {}) {
-  const radius = drapedRadius(drape);
   const linePositions = [];
   const pointPositions = [];
   let truncated = false;
@@ -37,7 +73,7 @@ export function renderFeatureCollection(fc, {
     }
     if (geometry.type === "Point" || geometry.type === "MultiPoint") {
       geometryCoords(geometry).forEach((c) => {
-        const v = latLonToVector3(c[1], c[0], radius);
+        const v = surfaceAt(c[1], c[0], drape);
         pointPositions.push(v.x, v.y, v.z);
       });
       return;
@@ -47,7 +83,7 @@ export function renderFeatureCollection(fc, {
     const lines = linesOf(geometry);
     [...rings, ...lines].forEach((coords) => {
       for (let i = 0; i + 1 < coords.length; i += 1) {
-        pushSegment(linePositions, coords[i], coords[i + 1], radius);
+        pushSegment(linePositions, coords[i], coords[i + 1], drape);
       }
     });
   });

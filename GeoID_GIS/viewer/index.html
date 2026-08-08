@@ -14,8 +14,8 @@
   <link rel="stylesheet" href="styles.css?v=20260430-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260809f" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260809f" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260809i" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260809i" defer></script>
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -235,6 +235,26 @@
           </details>
         </div>
       </details>
+      <details id="gis-group-polygons" class="control-section toolbox-group">
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 6.1 7 2.4l6.4 2.5-1.5 6.2-5.6 2.5-3.9-3.3Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="7" cy="2.4" r="1" fill="currentColor"/><circle cx="13.4" cy="4.9" r="1" fill="currentColor"/><circle cx="2.6" cy="6.1" r="1" fill="currentColor"/><circle cx="6.3" cy="13.6" r="1" fill="currentColor"/></svg></span><span>Polygons</span></span></div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body">
+          <div class="control-stack">
+            <div class="section-summary-copy" style="margin-bottom:0.5rem;">Shapefile and vector overlays — coastlines, boundaries, basins. Switch one off to take it off the globe without unloading it.</div>
+            <div class="gis-btn-row">
+              <button id="polygon-browse" class="button" type="button">Add shapefile</button>
+            </div>
+            <input id="polygon-file" type="file" multiple hidden>
+            <div id="polygon-list" class="polygon-list"></div>
+          </div>
+        </div>
+      </details>
+
       <details id="gis-group-preprocess" class="control-section toolbox-group">
         <summary class="section-toggle">
           <div class="section-toggle-main">
@@ -2051,18 +2071,19 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260809f" defer></script>
-<script type="module" src="gis/import-manager.js?v=20260809f"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260809f"></script>
-<script type="module" src="gis/toolbox.js?v=20260809f"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260809f"></script>
-<script type="module" src="gis/model-studio.js?v=20260809f"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260809f"></script>
-<script type="module" src="gis/project.js?v=20260809f"></script>
-<script type="module" src="gis/events.js?v=20260809f"></script>
-<script type="module" src="gis/gee.js?v=20260809f"></script>
+<script src="gis/mode-manager.js?v=20260809i" defer></script>
+<script type="module" src="gis/import-manager.js?v=20260809i"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260809i"></script>
+<script type="module" src="gis/toolbox.js?v=20260809i"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260809i"></script>
+<script type="module" src="gis/model-studio.js?v=20260809i"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260809i"></script>
+<script type="module" src="gis/project.js?v=20260809i"></script>
+<script type="module" src="gis/events.js?v=20260809i"></script>
+<script type="module" src="gis/gee.js?v=20260809i"></script>
+<script type="module" src="gis/polygons.js?v=20260809i"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260809f" defer></script>
+<script src="music.js?v=20260809i" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>

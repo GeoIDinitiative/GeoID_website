@@ -4415,6 +4415,24 @@ canvas {
     .gee-dates-sep { flex: none; color: var(--soft-light); }
     .gee-dates input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.7; }
 
+    /* ── Polygons: the vector-overlay register ──────────────────────────── */
+    .polygon-list { display: flex; flex-direction: column; gap: 0.25rem; }
+    .polygon-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.28rem 0.4rem;
+      border: 1px solid rgba(82, 228, 232, 0.22);
+      border-radius: 0.4rem;
+      background: rgba(10, 14, 24, 0.55);
+      font-size: 0.7rem;
+      cursor: pointer;
+    }
+    .polygon-row:hover { border-color: rgba(var(--nav-accent-rgb), 0.5); }
+    .polygon-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .polygon-count { color: var(--soft-light); font-size: 0.62rem; }
+
     /* ── Layer dock: its own box, below the panel ───────────────────────── */
     /* Separate from the tab bar rather than docked inside it, and skinned like
        the panel itself -- cyan edge, same rounding and glow -- at a smaller

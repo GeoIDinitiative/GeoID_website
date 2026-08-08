@@ -1,14 +1,14 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260809f";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260809f";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260809f";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260809f";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260809f";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260809f";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260809f";
-import { loadMshFile } from "./msh-adapter.js?v=20260809f";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260809f";
-import { buildLayerProperties } from "./layer-properties.js?v=20260809f";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260809i";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260809i";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260809i";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260809i";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260809i";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260809i";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260809i";
+import { loadMshFile } from "./msh-adapter.js?v=20260809i";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260809i";
+import { buildLayerProperties } from "./layer-properties.js?v=20260809i";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -79,6 +79,25 @@ function getBaseName(fileName) {
   return dot === -1 ? fileName : fileName.slice(0, dot);
 }
 
+/**
+ * Georeferenced imports carry the globe's spin.
+ *
+ * Coordinates convert into the globe's baseline frame -- where the texture is
+ * laid out -- while the globe turns with simulated UTC. The scene group these
+ * layers hang from applies no spin, so a coastline placed from its own
+ * coordinates sat however far the planet had turned since midnight, drifting
+ * further as the day went on. Held every frame rather than set once, because
+ * the globe keeps turning while a layer is loaded.
+ */
+function holdSpin() {
+  const step = () => {
+    const delta = getViewer()?.getSpinDeltaRadians?.();
+    if (geoGroup && Number.isFinite(delta)) geoGroup.rotation.y = delta;
+    window.requestAnimationFrame(step);
+  };
+  window.requestAnimationFrame(step);
+}
+
 function ensureGroups() {
   const viewer = getViewer();
   if (!viewer || !viewer.scene) {
@@ -88,6 +107,7 @@ function ensureGroups() {
     geoGroup = new THREE.Group();
     geoGroup.name = "GeoID-ImportedGeoLayers";
     (viewer.earthSceneGroup || viewer.scene).add(geoGroup);
+    holdSpin();
   }
   if (!localGroup) {
     localGroup = new THREE.Group();
