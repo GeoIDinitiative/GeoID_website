@@ -1,6 +1,6 @@
-import { handlerFor } from "./spec-page.js?v=20260808-2045b49";
-import * as store from "./project-store.js?v=20260808-2045b49";
-import { el, statusLine } from "./pages/common.js?v=20260808-2045b49";
+import { handlerFor } from "./spec-page.js?v=20260808-ead8c8d";
+import * as store from "./project-store.js?v=20260808-ead8c8d";
+import { el, statusLine } from "./pages/common.js?v=20260808-ead8c8d";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -121,7 +121,15 @@ export function renderTree(spec, ctx) {
         if (child) row.appendChild(child);
         return row;
       }
-      case "scroll": return renderNode(node.content);
+      // `stacked_field(caption, widget)` — the app's own helper for a caption
+      // set above its field, used across the Ingest provenance grids.
+      case "stacked": {
+        const box = el("label", "qt-stacked");
+        box.appendChild(el("span", "qt-form-label", String(node.label || "")));
+        const child = renderNode(node.child);
+        if (child) box.appendChild(child);
+        return box;
+      }
       case "tabs": return renderTabs(node);
       case "widget": return renderWidget(node);
       default: return null;
@@ -333,6 +341,12 @@ export function renderTree(spec, ctx) {
       if (inner) body.appendChild(inner);
       box.appendChild(body);
       return box;
+    }
+
+    // A bare QFrame set to HLine/VLine is a separator rule, which is how the
+    // app breaks a long toolbar into groups.
+    if (kind === "QFrame" && node.frame && /line/.test(node.frame)) {
+      return el("span", `qt-rule is-${node.frame.startsWith("v") ? "v" : "h"}`);
     }
 
     if (kind === "QScrollArea") {

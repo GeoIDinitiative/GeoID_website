@@ -1716,3 +1716,18 @@
   scrollbar-width: thin;
 }
 #research-hub .qt-page .qt-number { max-width: 9rem; }
+
+/* A QFrame set to VLine/HLine: the separator the app uses to group a toolbar. */
+.qt-rule { flex: 0 0 auto; background: var(--atlas-line); align-self: stretch; }
+.qt-rule.is-v { width: 1px; margin: 2px 4px; }
+.qt-rule.is-h { height: 1px; width: 100%; margin: 4px 0; }
+
+/* stacked_field(): caption above its field, as the helper's name says. */
+.qt-stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  align-self: start;
+}
+.qt-grid > .qt-stacked { align-self: start; }

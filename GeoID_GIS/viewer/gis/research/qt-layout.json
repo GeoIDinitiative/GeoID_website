@@ -395,6 +395,7 @@
       "kind": "QVBoxLayout",
       "node": "layout"
      },
+     "frame": "noframe",
      "kind": "QScrollArea",
      "node": "widget",
      "stretch": 1,
@@ -3455,7 +3456,79 @@
      "content": {
       "children": [
        {
-        "children": [],
+        "children": [
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "https://source.example/dataset",
+           "text": null,
+           "var": "source_url"
+          },
+          "col": 0,
+          "label": "Source URL",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "License / usage terms",
+           "text": null,
+           "var": "source_license"
+          },
+          "col": 1,
+          "label": "License",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "Citation or dataset title",
+           "text": null,
+           "var": "source_citation"
+          },
+          "col": 0,
+          "label": "Citation",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QDateEdit",
+           "node": "widget",
+           "text": null,
+           "var": "source_acquired"
+          },
+          "col": 1,
+          "label": "Acquired",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "child": {
+           "kind": "QPlainTextEdit",
+           "maxHeight": 80,
+           "node": "widget",
+           "placeholder": "Acquisition notes, provider details, filters used, version, query params\u2026",
+           "text": null,
+           "var": "source_notes"
+          },
+          "col": 0,
+          "colspan": 2,
+          "label": "Notes",
+          "node": "stacked",
+          "row": 2,
+          "rowspan": 1
+         }
+        ],
         "kind": "QGridLayout",
         "node": "layout"
        }
@@ -3473,8 +3546,174 @@
      "node": "tabs",
      "tabs": [
       {
-       "content": null,
-       "label": null
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Administrative boundaries, place names, gazetteers, and census context layers.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Administrative boundaries",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Place names",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Population grids",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Census / statistical units",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Reference Layers"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open Natural Earth"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Boundary Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Boundaries and Places"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Roads, rail, buildings, parcels, and other built-environment context layers.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Roads and rail",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Buildings",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Parcels / cadastre",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Utilities and facilities",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Infrastructure"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open OpenStreetMap Export"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Infrastructure Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Infrastructure and Cadastre"
       }
      ],
      "text": null,
@@ -3640,7 +3879,79 @@
      "content": {
       "children": [
        {
-        "children": [],
+        "children": [
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "https://source.example/dataset",
+           "text": null,
+           "var": "source_url"
+          },
+          "col": 0,
+          "label": "Source URL",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "License / usage terms",
+           "text": null,
+           "var": "source_license"
+          },
+          "col": 1,
+          "label": "License",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "Citation or dataset title",
+           "text": null,
+           "var": "source_citation"
+          },
+          "col": 0,
+          "label": "Citation",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QDateEdit",
+           "node": "widget",
+           "text": null,
+           "var": "source_acquired"
+          },
+          "col": 1,
+          "label": "Acquired",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "child": {
+           "kind": "QPlainTextEdit",
+           "maxHeight": 80,
+           "node": "widget",
+           "placeholder": "Acquisition notes, provider details, filters used, version, query params\u2026",
+           "text": null,
+           "var": "source_notes"
+          },
+          "col": 0,
+          "colspan": 2,
+          "label": "Notes",
+          "node": "stacked",
+          "row": 2,
+          "rowspan": 1
+         }
+        ],
         "kind": "QGridLayout",
         "node": "layout"
        }
@@ -3658,8 +3969,174 @@
      "node": "tabs",
      "tabs": [
       {
-       "content": null,
-       "label": null
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Reference coastlines, shoreline change products, and coastal hazard boundaries.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Coastline shapefiles",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Shoreline change vectors",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Coastal hazard zones",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Marine protected areas",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Coastal Layers"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open Natural Earth Coastline"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Coast Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Coastlines and Shorelines"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Bathymetry grids, tides, and sea-level observations for coastal analysis.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Bathymetry rasters",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Tide gauges",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Sea-level time series",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Nearshore terrain products",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Marine Products"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open GEBCO"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Marine Grids"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Bathymetry and Sea Level"
       }
      ],
      "text": null,
@@ -3825,7 +4302,79 @@
      "content": {
       "children": [
        {
-        "children": [],
+        "children": [
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "https://source.example/dataset",
+           "text": null,
+           "var": "source_url"
+          },
+          "col": 0,
+          "label": "Source URL",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "License / usage terms",
+           "text": null,
+           "var": "source_license"
+          },
+          "col": 1,
+          "label": "License",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "Citation or dataset title",
+           "text": null,
+           "var": "source_citation"
+          },
+          "col": 0,
+          "label": "Citation",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QDateEdit",
+           "node": "widget",
+           "text": null,
+           "var": "source_acquired"
+          },
+          "col": 1,
+          "label": "Acquired",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "child": {
+           "kind": "QPlainTextEdit",
+           "maxHeight": 80,
+           "node": "widget",
+           "placeholder": "Acquisition notes, provider details, filters used, version, query params\u2026",
+           "text": null,
+           "var": "source_notes"
+          },
+          "col": 0,
+          "colspan": 2,
+          "label": "Notes",
+          "node": "stacked",
+          "row": 2,
+          "rowspan": 1
+         }
+        ],
         "kind": "QGridLayout",
         "node": "layout"
        }
@@ -3843,8 +4392,174 @@
      "node": "tabs",
      "tabs": [
       {
-       "content": null,
-       "label": null
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Import local files directly into the project ingest area.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Raster: GeoTIFF, NetCDF, GRIB, HDF",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Vector: Shapefile, GeoPackage, GeoJSON, KML",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Tables: CSV, TSV, TXT, Excel",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 3D: LAS, LAZ, OBJ, PLY",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Supported"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Files"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Folder"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Local Files"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Launch remote connectors and then import downloaded extracts or exports.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 PostGIS / SpatiaLite exports",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 STAC catalogs",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 WMS / WFS / WMTS services",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Cloud buckets and HTTPS endpoints",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Connectors"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open STAC Browser"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Service Export"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Databases and Services"
       }
      ],
      "text": null,
@@ -4010,7 +4725,79 @@
      "content": {
       "children": [
        {
-        "children": [],
+        "children": [
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "https://source.example/dataset",
+           "text": null,
+           "var": "source_url"
+          },
+          "col": 0,
+          "label": "Source URL",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "License / usage terms",
+           "text": null,
+           "var": "source_license"
+          },
+          "col": 1,
+          "label": "License",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "Citation or dataset title",
+           "text": null,
+           "var": "source_citation"
+          },
+          "col": 0,
+          "label": "Citation",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QDateEdit",
+           "node": "widget",
+           "text": null,
+           "var": "source_acquired"
+          },
+          "col": 1,
+          "label": "Acquired",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "child": {
+           "kind": "QPlainTextEdit",
+           "maxHeight": 80,
+           "node": "widget",
+           "placeholder": "Acquisition notes, provider details, filters used, version, query params\u2026",
+           "text": null,
+           "var": "source_notes"
+          },
+          "col": 0,
+          "colspan": 2,
+          "label": "Notes",
+          "node": "stacked",
+          "row": 2,
+          "rowspan": 1
+         }
+        ],
         "kind": "QGridLayout",
         "node": "layout"
        }
@@ -4028,8 +4815,169 @@
      "node": "tabs",
      "tabs": [
       {
-       "content": null,
-       "label": null
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Core geology layers for bedrock, surficial units, and quaternary deposits.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Bedrock geology",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Superficial deposits",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Quaternary maps",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Regolith and soils",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Geology Layers"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open OneGeology"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Geology Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Bedrock and Superficial"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Fault traces, lineaments, landslide inventories, boreholes, and stratigraphy logs.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Faults and fractures",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Lineaments",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Landslide inventories",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Boreholes and stratigraphy tables",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Structural Data"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Structural Data"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Structures and Boreholes"
       }
      ],
      "text": null,
@@ -4195,7 +5143,79 @@
      "content": {
       "children": [
        {
-        "children": [],
+        "children": [
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "https://source.example/dataset",
+           "text": null,
+           "var": "source_url"
+          },
+          "col": 0,
+          "label": "Source URL",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "License / usage terms",
+           "text": null,
+           "var": "source_license"
+          },
+          "col": 1,
+          "label": "License",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "Citation or dataset title",
+           "text": null,
+           "var": "source_citation"
+          },
+          "col": 0,
+          "label": "Citation",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QDateEdit",
+           "node": "widget",
+           "text": null,
+           "var": "source_acquired"
+          },
+          "col": 1,
+          "label": "Acquired",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "child": {
+           "kind": "QPlainTextEdit",
+           "maxHeight": 80,
+           "node": "widget",
+           "placeholder": "Acquisition notes, provider details, filters used, version, query params\u2026",
+           "text": null,
+           "var": "source_notes"
+          },
+          "col": 0,
+          "colspan": 2,
+          "label": "Notes",
+          "node": "stacked",
+          "row": 2,
+          "rowspan": 1
+         }
+        ],
         "kind": "QGridLayout",
         "node": "layout"
        }
@@ -4213,8 +5233,174 @@
      "node": "tabs",
      "tabs": [
       {
-       "content": null,
-       "label": null
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "River centerlines, catchments, lakes, wetlands, and river-network attributes.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 River and stream centerlines",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Catchments and watersheds",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Lakes and reservoirs",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Wetlands and floodplains",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Vector Layers"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open HydroSHEDS"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Hydrology Layers"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Rivers and Catchments"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Gauge stations, flood hazard extents, and observed hydrologic records.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Gauging stations",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Stage / discharge series",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Flood hazard extents",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Event footprints",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Monitoring"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open Flood Map Catalog"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Station Data"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Stations and Flood"
       }
      ],
      "text": null,
@@ -4380,7 +5566,79 @@
      "content": {
       "children": [
        {
-        "children": [],
+        "children": [
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "https://source.example/dataset",
+           "text": null,
+           "var": "source_url"
+          },
+          "col": 0,
+          "label": "Source URL",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "License / usage terms",
+           "text": null,
+           "var": "source_license"
+          },
+          "col": 1,
+          "label": "License",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "Citation or dataset title",
+           "text": null,
+           "var": "source_citation"
+          },
+          "col": 0,
+          "label": "Citation",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QDateEdit",
+           "node": "widget",
+           "text": null,
+           "var": "source_acquired"
+          },
+          "col": 1,
+          "label": "Acquired",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "child": {
+           "kind": "QPlainTextEdit",
+           "maxHeight": 80,
+           "node": "widget",
+           "placeholder": "Acquisition notes, provider details, filters used, version, query params\u2026",
+           "text": null,
+           "var": "source_notes"
+          },
+          "col": 0,
+          "colspan": 2,
+          "label": "Notes",
+          "node": "stacked",
+          "row": 2,
+          "rowspan": 1
+         }
+        ],
         "kind": "QGridLayout",
         "node": "layout"
        }
@@ -4398,8 +5656,174 @@
      "node": "tabs",
      "tabs": [
       {
-       "content": null,
-       "label": null
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "European land cover and land use products including CORINE and high-resolution layers.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 CORINE Land Cover",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 CLC change layers",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Copernicus High Resolution Layers",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Imperviousness and forest products",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Products"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open Copernicus Land Portal"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Land Use Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "CORINE / Copernicus"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Global land cover alternatives for areas outside CORINE coverage.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 ESA WorldCover",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Dynamic World",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 MODIS land cover",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Local zoning layers",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Products"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open ESA WorldCover"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Global Cover Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Global Land Cover"
       }
      ],
      "text": null,
@@ -4565,7 +5989,79 @@
      "content": {
       "children": [
        {
-        "children": [],
+        "children": [
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "https://source.example/dataset",
+           "text": null,
+           "var": "source_url"
+          },
+          "col": 0,
+          "label": "Source URL",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "License / usage terms",
+           "text": null,
+           "var": "source_license"
+          },
+          "col": 1,
+          "label": "License",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "Citation or dataset title",
+           "text": null,
+           "var": "source_citation"
+          },
+          "col": 0,
+          "label": "Citation",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QDateEdit",
+           "node": "widget",
+           "text": null,
+           "var": "source_acquired"
+          },
+          "col": 1,
+          "label": "Acquired",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "child": {
+           "kind": "QPlainTextEdit",
+           "maxHeight": 80,
+           "node": "widget",
+           "placeholder": "Acquisition notes, provider details, filters used, version, query params\u2026",
+           "text": null,
+           "var": "source_notes"
+          },
+          "col": 0,
+          "colspan": 2,
+          "label": "Notes",
+          "node": "stacked",
+          "row": 2,
+          "rowspan": 1
+         }
+        ],
         "kind": "QGridLayout",
         "node": "layout"
        }
@@ -4583,8 +6079,174 @@
      "node": "tabs",
      "tabs": [
       {
-       "content": null,
-       "label": null
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Satellite imagery for land cover, surface condition, and change detection workflows.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Sentinel-2",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Landsat",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Multispectral products",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Vegetation index derivatives",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Imagery"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open Copernicus Browser"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Optical Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Optical and Multispectral"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Radar, interferometric, and thermal remote sensing products.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Sentinel-1 SAR",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 InSAR derivatives",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Thermal imagery",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Change detection rasters",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Products"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open ASF Vertex"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import SAR Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "SAR and Thermal"
       }
      ],
      "text": null,
@@ -4750,7 +6412,79 @@
      "content": {
       "children": [
        {
-        "children": [],
+        "children": [
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "https://source.example/dataset",
+           "text": null,
+           "var": "source_url"
+          },
+          "col": 0,
+          "label": "Source URL",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "License / usage terms",
+           "text": null,
+           "var": "source_license"
+          },
+          "col": 1,
+          "label": "License",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "Citation or dataset title",
+           "text": null,
+           "var": "source_citation"
+          },
+          "col": 0,
+          "label": "Citation",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QDateEdit",
+           "node": "widget",
+           "text": null,
+           "var": "source_acquired"
+          },
+          "col": 1,
+          "label": "Acquired",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "child": {
+           "kind": "QPlainTextEdit",
+           "maxHeight": 80,
+           "node": "widget",
+           "placeholder": "Acquisition notes, provider details, filters used, version, query params\u2026",
+           "text": null,
+           "var": "source_notes"
+          },
+          "col": 0,
+          "colspan": 2,
+          "label": "Notes",
+          "node": "stacked",
+          "row": 2,
+          "rowspan": 1
+         }
+        ],
         "kind": "QGridLayout",
         "node": "layout"
        }
@@ -4768,8 +6502,174 @@
      "node": "tabs",
      "tabs": [
       {
-       "content": null,
-       "label": null
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Catalogs, station metadata, focal mechanisms, and waveform archives.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Earthquake catalogs",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Seismic station metadata",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Waveform time series",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Focal mechanisms",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Seismic Sources"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open IRIS"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Seismic Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Earthquakes and Stations"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Ground deformation products including GNSS and InSAR derivatives.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 GNSS displacement",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 InSAR rasters",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Velocity fields",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Ground deformation summaries",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Deformation"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open UNAVCO"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Deformation Data"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Deformation and Geodesy"
       }
      ],
      "text": null,
@@ -4935,7 +6835,79 @@
      "content": {
       "children": [
        {
-        "children": [],
+        "children": [
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "https://source.example/dataset",
+           "text": null,
+           "var": "source_url"
+          },
+          "col": 0,
+          "label": "Source URL",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "License / usage terms",
+           "text": null,
+           "var": "source_license"
+          },
+          "col": 1,
+          "label": "License",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "Citation or dataset title",
+           "text": null,
+           "var": "source_citation"
+          },
+          "col": 0,
+          "label": "Citation",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QDateEdit",
+           "node": "widget",
+           "text": null,
+           "var": "source_acquired"
+          },
+          "col": 1,
+          "label": "Acquired",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "child": {
+           "kind": "QPlainTextEdit",
+           "maxHeight": 80,
+           "node": "widget",
+           "placeholder": "Acquisition notes, provider details, filters used, version, query params\u2026",
+           "text": null,
+           "var": "source_notes"
+          },
+          "col": 0,
+          "colspan": 2,
+          "label": "Notes",
+          "node": "stacked",
+          "row": 2,
+          "rowspan": 1
+         }
+        ],
         "kind": "QGridLayout",
         "node": "layout"
        }
@@ -4953,8 +6925,169 @@
      "node": "tabs",
      "tabs": [
       {
-       "content": null,
-       "label": null
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "DEM/DSM/DTM sources and terrain derivatives.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 DEM / DSM / DTM",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Contours",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Hillshade and roughness",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Slope and aspect",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Terrain Products"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open Copernicus DEM"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Terrain Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "DEM and Terrain"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "LiDAR tiles and point clouds used for high-resolution elevation products.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 LAS/LAZ point clouds",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Classified point clouds",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 TIN inputs",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Surface meshes",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Point Clouds"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import LiDAR Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "LiDAR and Point Clouds"
       }
      ],
      "text": null,
@@ -5120,7 +7253,79 @@
      "content": {
       "children": [
        {
-        "children": [],
+        "children": [
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "https://source.example/dataset",
+           "text": null,
+           "var": "source_url"
+          },
+          "col": 0,
+          "label": "Source URL",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "License / usage terms",
+           "text": null,
+           "var": "source_license"
+          },
+          "col": 1,
+          "label": "License",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "Citation or dataset title",
+           "text": null,
+           "var": "source_citation"
+          },
+          "col": 0,
+          "label": "Citation",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QDateEdit",
+           "node": "widget",
+           "text": null,
+           "var": "source_acquired"
+          },
+          "col": 1,
+          "label": "Acquired",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "child": {
+           "kind": "QPlainTextEdit",
+           "maxHeight": 80,
+           "node": "widget",
+           "placeholder": "Acquisition notes, provider details, filters used, version, query params\u2026",
+           "text": null,
+           "var": "source_notes"
+          },
+          "col": 0,
+          "colspan": 2,
+          "label": "Notes",
+          "node": "stacked",
+          "row": 2,
+          "rowspan": 1
+         }
+        ],
         "kind": "QGridLayout",
         "node": "layout"
        }
@@ -5138,8 +7343,169 @@
      "node": "tabs",
      "tabs": [
       {
-       "content": null,
-       "label": null
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Tiltmeter, GNSS, and deformation products for volcanic unrest tracking.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Volcanic tilt data",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 GNSS displacement",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Crater deformation",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 InSAR snapshots",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Monitoring Streams"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Tilt Data"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Deformation Folder"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Tilt and Deformation"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Additional volcano observatory products for multiparameter monitoring.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Volcanic seismic data",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Gas emissions",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Thermal imagery",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Eruption event catalogs",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Observatory Products"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Observatory Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Seismic, Gas, Thermal"
       }
      ],
      "text": null,
@@ -5305,7 +7671,79 @@
      "content": {
       "children": [
        {
-        "children": [],
+        "children": [
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "https://source.example/dataset",
+           "text": null,
+           "var": "source_url"
+          },
+          "col": 0,
+          "label": "Source URL",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "License / usage terms",
+           "text": null,
+           "var": "source_license"
+          },
+          "col": 1,
+          "label": "License",
+          "node": "stacked",
+          "row": 0
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QLineEdit",
+           "node": "widget",
+           "placeholder": "Citation or dataset title",
+           "text": null,
+           "var": "source_citation"
+          },
+          "col": 0,
+          "label": "Citation",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "align": "top",
+          "child": {
+           "kind": "QDateEdit",
+           "node": "widget",
+           "text": null,
+           "var": "source_acquired"
+          },
+          "col": 1,
+          "label": "Acquired",
+          "node": "stacked",
+          "row": 1
+         },
+         {
+          "child": {
+           "kind": "QPlainTextEdit",
+           "maxHeight": 80,
+           "node": "widget",
+           "placeholder": "Acquisition notes, provider details, filters used, version, query params\u2026",
+           "text": null,
+           "var": "source_notes"
+          },
+          "col": 0,
+          "colspan": 2,
+          "label": "Notes",
+          "node": "stacked",
+          "row": 2,
+          "rowspan": 1
+         }
+        ],
         "kind": "QGridLayout",
         "node": "layout"
        }
@@ -5323,8 +7761,174 @@
      "node": "tabs",
      "tabs": [
       {
-       "content": null,
-       "label": null
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Operational weather datasets including forecast grids and radar composites.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 NOAA GFS",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Radar composites",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Near-real-time precipitation",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Nowcasting feeds",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Operational Weather"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open NOAA GFS Script Folder"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Weather Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Forecast and Radar"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "PageSubtitle",
+          "text": "Station observations, climate normals, and reanalysis archives.",
+          "wrap": true
+         },
+         {
+          "children": [
+           {
+            "col": 0,
+            "content": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Station observations",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Climate normals",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 IMERG precipitation",
+               "wrap": true
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "objectName": "PageSubtitle",
+               "text": "\u2022 Reanalysis archives",
+               "wrap": true
+              }
+             ],
+             "kind": "QVBoxLayout",
+             "node": "layout"
+            },
+            "kind": "QGroupBox",
+            "node": "widget",
+            "row": 0,
+            "text": "Climate Products"
+           }
+          ],
+          "kind": "QGridLayout",
+          "node": "layout"
+         },
+         {
+          "children": [
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Open NASA GES DISC"
+           },
+           {
+            "kind": "QPushButton",
+            "node": "widget",
+            "text": "Import Climate Files"
+           },
+           {
+            "node": "stretch"
+           }
+          ],
+          "kind": "QHBoxLayout",
+          "node": "layout"
+         },
+         {
+          "node": "stretch"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "label": "Climate and Stations"
       }
      ],
      "text": null,
@@ -5715,6 +8319,7 @@
            "node": "layout"
           },
           {
+           "frame": "hline",
            "kind": "QFrame",
            "node": "widget",
            "text": null,
@@ -5742,6 +8347,7 @@
             "kind": "QVBoxLayout",
             "node": "layout"
            },
+           "frame": "noframe",
            "kind": "QScrollArea",
            "node": "widget",
            "stretch": 1,
@@ -7282,6 +9888,7 @@
       "kind": "QVBoxLayout",
       "node": "layout"
      },
+     "frame": "noframe",
      "kind": "QScrollArea",
      "node": "widget",
      "stretch": 1,
@@ -9930,6 +12537,86 @@
     {
      "children": [
       {
+       "frame": "vline",
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "Save",
+       "var": "save_btn",
+       "width": 1
+      },
+      {
+       "frame": "vline",
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "Timestamp",
+       "var": "stamp_btn",
+       "width": 1
+      },
+      {
+       "frame": "vline",
+       "kind": "QFrame",
+       "node": "widget",
+       "text": null,
+       "var": "__loop1",
+       "width": 1
+      },
+      {
+       "frame": "vline",
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "H1",
+       "var": "h1_btn",
+       "width": 1
+      },
+      {
+       "frame": "vline",
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "H2",
+       "var": "h2_btn",
+       "width": 1
+      },
+      {
+       "frame": "vline",
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "H3",
+       "var": "h3_btn",
+       "width": 1
+      },
+      {
+       "frame": "vline",
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "B",
+       "var": "bold_btn",
+       "width": 1
+      },
+      {
+       "frame": "vline",
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "I",
+       "var": "italic_btn",
+       "width": 1
+      },
+      {
+       "frame": "vline",
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "</>",
+       "var": "code_btn",
+       "width": 1
+      },
+      {
+       "frame": "vline",
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "\u2022",
+       "var": "list_btn",
+       "width": 1
+      },
+      {
        "node": "stretch"
       },
       {
@@ -9949,7 +12636,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Find:",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "kind": "QLineEdit",
@@ -12131,6 +14818,81 @@
     {
      "children": [
       {
+       "kind": "QLabel",
+       "node": "widget",
+       "text": "Style",
+       "var": "__loop2"
+      },
+      {
+       "items": [
+        "Body",
+        "Heading 1",
+        "Heading 2",
+        "Heading 3"
+       ],
+       "kind": "QComboBox",
+       "node": "widget",
+       "text": null,
+       "var": "story_style"
+      },
+      {
+       "checked": false,
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "B",
+       "var": "story_bold"
+      },
+      {
+       "checked": false,
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "I",
+       "var": "story_italic"
+      },
+      {
+       "checked": false,
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "U",
+       "var": "story_underline"
+      },
+      {
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "Bullets",
+       "var": "bullets_btn"
+      },
+      {
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "Numbers",
+       "var": "number_btn"
+      },
+      {
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "Quote",
+       "var": "quote_btn"
+      },
+      {
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "Code",
+       "var": "code_btn"
+      },
+      {
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "Divider",
+       "var": "divider_btn"
+      },
+      {
+       "kind": "QPushButton",
+       "node": "widget",
+       "text": "Time Stamp",
+       "var": "stamp_btn"
+      },
+      {
        "kind": "QPushButton",
        "node": "widget",
        "text": "AI Outline",
@@ -12211,7 +14973,7 @@
            "kind": "QLabel",
            "node": "widget",
            "text": "Assets",
-           "var": "__inline2"
+           "var": "__inline3"
           },
           {
            "headers": [
@@ -12250,7 +15012,7 @@
            "kind": "QLabel",
            "node": "widget",
            "text": "References / Citations",
-           "var": "__inline3"
+           "var": "__inline4"
           },
           {
            "headers": [
@@ -12301,13 +15063,13 @@
            "kind": "QLabel",
            "node": "widget",
            "text": "Document Preview",
-           "var": "__inline4"
+           "var": "__inline5"
           },
           {
            "kind": "QLabel",
            "node": "widget",
            "text": "Outline",
-           "var": "__inline5"
+           "var": "__inline6"
           },
           {
            "kind": "QListWidget",
@@ -12320,7 +15082,7 @@
            "kind": "QLabel",
            "node": "widget",
            "text": "Comments / Tasks",
-           "var": "__inline6"
+           "var": "__inline7"
           },
           {
            "kind": "QPlainTextEdit",

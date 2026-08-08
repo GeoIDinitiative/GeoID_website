@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import copy
 import json
 from pathlib import Path
 
@@ -117,27 +118,78 @@ class PageReader(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_For(self, node):
-        """Apply a property set on a loop variable to each widget looped over.
+        """Expand a loop over a literal list of widgets.
 
-        `for w in (self.clip_min_x, self.clip_max_x): w.setFixedWidth(88)` is a
-        common Qt shorthand, and the receiver `w` is not a widget -- so the
-        width was being dropped for every field written that way.
+        Two Qt shorthands hide behind one construct, and both were losing whole
+        blocks of a page:
+
+            for w in (self.clip_min_x, self.clip_max_x): w.setFixedWidth(88)
+            for w in [save_btn, stamp_btn, h1_btn, ...]: toolbar.addWidget(w)
+
+        The receiver is the loop variable, which is not a widget, so the
+        property landed nowhere and the add referred to nothing. Research Notes'
+        entire Markdown toolbar -- ten buttons -- is written the second way.
         """
-        targets = [var_of(e) for e in node.iter.elts] if isinstance(node.iter, (ast.Tuple, ast.List)) else []
-        loop_var = var_of(node.target)
-        targets = [t for t in targets if t in self.widgets]
-        if loop_var and targets:
-            # Read the body once against a scratch widget, then copy what it set
-            # onto each real one.
-            scratch = {"kind": "QWidget", "text": None, "args": [], "props": {}, "line": node.lineno}
-            self.widgets[loop_var] = scratch
-            for stmt in node.body:
-                self.generic_visit(stmt)
-            self.widgets.pop(loop_var, None)
-            for name in targets:
-                self.widgets[name]["props"].update(scratch["props"])
+        if not isinstance(node.iter, (ast.Tuple, ast.List)):
+            self.generic_visit(node)
             return
-        self.generic_visit(node)
+        loop_var = var_of(node.target)
+        if not loop_var:
+            self.generic_visit(node)
+            return
+
+        # Each element, registering any built inline so it can be rendered.
+        members = []
+        for element in node.iter.elts:
+            name = var_of(element)
+            if name is None and isinstance(element, ast.Call):
+                kind = name_of(element)
+                if kind in WIDGET_KINDS or kind in CONTAINER_KINDS:
+                    self.counter += 1
+                    name = f"__loop{self.counter}"
+                    args = [const(a) for a in element.args]
+                    self.widgets[name] = {
+                        "kind": kind,
+                        "text": next((a for a in args if isinstance(a, str)), None),
+                        "args": [a for a in args if a is not None],
+                        "props": {}, "line": node.lineno,
+                    }
+            if name:
+                members.append(name)
+        if not members:
+            self.generic_visit(node)
+            return
+
+        # Read the body once against a scratch stand-in for the loop variable,
+        # then replay what it did onto each member in order.
+        scratch = {"kind": "QWidget", "text": None, "args": [], "props": {},
+                   "line": node.lineno}
+        saved = self.widgets.get(loop_var)
+        self.widgets[loop_var] = scratch
+        before = len(self.adds)
+        for stmt in node.body:
+            self.generic_visit(stmt)
+        body_adds = self.adds[before:]
+        del self.adds[before:]
+        if saved is None:
+            self.widgets.pop(loop_var, None)
+        else:
+            self.widgets[loop_var] = saved
+
+        for index, name in enumerate(members):
+            if name in self.widgets:
+                # Properties the body set apply to every member.
+                self.widgets[name]["props"].update(
+                    {k: v for k, v in scratch["props"].items()})
+            for offset, (line, owner, op, payload) in enumerate(body_adds):
+                if payload.get("child") != loop_var:
+                    continue
+                copy = dict(payload)
+                copy["child"] = name
+                # Fractional line numbers keep the members in source order
+                # against everything else added to the same layout.
+                self.adds.append((line + (index + offset / 100.0) / 1000.0,
+                                  owner, op, copy))
 
     def visit_Call(self, node):
         fn = node.func
@@ -155,7 +207,19 @@ class PageReader(ast.NodeVisitor):
                 child = var_of(node.args[0])
                 # An inline widget: addWidget(QtWidgets.QLabel("x"))
                 inline = None
-                if child is None and isinstance(node.args[0], ast.Call):
+                if child is None and isinstance(node.args[0], ast.Call) \
+                        and name_of(node.args[0]) == "stacked_field" \
+                        and len(node.args[0].args) >= 2:
+                    self.counter += 1
+                    child = f"__stacked{self.counter}"
+                    self.widgets[child] = {
+                        "kind": "StackedField",
+                        "text": const(node.args[0].args[0]),
+                        "args": [],
+                        "props": {"field": var_of(node.args[0].args[1])},
+                        "line": node.lineno,
+                    }
+                elif child is None and isinstance(node.args[0], ast.Call):
                     kind = name_of(node.args[0])
                     if kind in WIDGET_KINDS:
                         self.counter += 1
@@ -227,6 +291,9 @@ class PageReader(ast.NodeVisitor):
                     props["checked"] = bool(const(node.args[0])) if node.args else True
                 elif op in ("setMaximumHeight", "setFixedHeight") and node.args:
                     props["maxHeight"] = const(node.args[0])
+                elif op == "setFrameShape" and node.args:
+                    shape = node.args[0].attr if isinstance(node.args[0], ast.Attribute) else ""
+                    props["frame"] = shape.lower()
                 elif op == "setWordWrap":
                     props["wrap"] = True
                 elif op == "setToolTip" and node.args:
@@ -313,6 +380,9 @@ def build_tree(reader, root_layout):
             "text": info.get("props", {}).get("text") or info.get("text"),
             **{k: v for k, v in info.get("props", {}).items() if k != "text"},
         }
+        if info["kind"] == "StackedField":
+            return {"node": "stacked", "label": info.get("text"),
+                    "child": render_child(info["props"].get("field"), depth + 1)}
         if info["kind"] == "QTabWidget":
             node["node"] = "tabs"
             node["tabs"] = []
@@ -348,6 +418,98 @@ def build_tree(reader, root_layout):
     return render_layout(root_layout)
 
 
+def label(text, role=None, wrap=False):
+    node = {"node": "widget", "kind": "QLabel", "text": text}
+    if role:
+        node["objectName"] = role
+    if wrap:
+        node["wrap"] = True
+    return node
+
+
+def provider_tab(provider):
+    """Rebuild `IngestDomainPage._build_provider_tab` from its provider dict.
+
+    The eleven Ingest pages are one class constructed eleven times with
+    different `providers` lists, and the tabs are generated from them — so the
+    layout tree saw a QTabWidget with nothing in it. The lists are plain
+    literals in the source, which means the tabs are static content that merely
+    arrives by a different route, and the page is most of what these pages *are*.
+    """
+    children = [label(provider.get("description", ""), "PageSubtitle", wrap=True)]
+
+    groups = provider.get("source_groups") or []
+    if groups:
+        grid = {"node": "layout", "kind": "QGridLayout", "children": []}
+        for index, group in enumerate(groups):
+            card = {
+                "node": "widget", "kind": "QGroupBox",
+                "text": group.get("title", "Sources"),
+                "row": index // 2, "col": index % 2,
+                "content": {"node": "layout", "kind": "QVBoxLayout", "children": [
+                    label(f"• {entry}", "PageSubtitle", wrap=True)
+                    for entry in group.get("entries", [])
+                ]},
+            }
+            grid["children"].append(card)
+        children.append(grid)
+
+    actions = provider.get("actions") or []
+    row = {"node": "layout", "kind": "QHBoxLayout", "children": [
+        {"node": "widget", "kind": "QPushButton",
+         "text": action.get("label", "Action")}
+        for action in actions
+    ] + [{"node": "stretch"}]}
+    children.append(row)
+
+    note = provider.get("note", "")
+    if note:
+        children.append(label(note, "MutedLabel", wrap=True))
+    children.append({"node": "stretch"})
+    return {"node": "layout", "kind": "QVBoxLayout", "children": children}
+
+
+def ingest_specs(tree):
+    """The `ingest_domain_specs` literal, page name -> spec."""
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(var_of(t) == "ingest_domain_specs" for t in node.targets):
+            continue
+        try:
+            return ast.literal_eval(node.value)
+        except (ValueError, SyntaxError):
+            return {}
+    return {}
+
+
+def fill_provider_tabs(root, providers):
+    """Put the generated tabs into the page's empty provider QTabWidget."""
+    if isinstance(root, list):
+        for item in root:
+            fill_provider_tabs(item, providers)
+        return
+    if not isinstance(root, dict):
+        return
+    if root.get("node") == "tabs" and root.get("var") == "provider_tabs":
+        root["tabs"] = [
+            {"label": p.get("name", "Provider"), "content": provider_tab(p)}
+            for p in providers
+        ]
+        return
+    for key in ("children", "content", "child", "tabs"):
+        value = root.get(key)
+        if value is None:
+            continue
+        if isinstance(value, list):
+            for item in value:
+                fill_provider_tabs(item.get("content") if isinstance(item, dict)
+                                   and "label" in item and "content" in item else item,
+                                   providers)
+        else:
+            fill_provider_tabs(value, providers)
+
+
 def extract():
     tree = ast.parse(QT_APP.read_text(encoding="utf-8"), filename=str(QT_APP))
     spec_path = OUT.parent / "qt-spec.json"
@@ -372,7 +534,17 @@ def extract():
         if not built:
             continue
         for page_id in mapping[node.name]:
-            pages[page_id] = {"qt_class": node.name, "root": built}
+            pages[page_id] = {"qt_class": node.name,
+                              "root": copy.deepcopy(built) if len(mapping[node.name]) > 1
+                                      else built}
+
+    # The Ingest pages share one class and differ only by the provider list they
+    # were constructed with, so each needs its own copy of the tree filled in.
+    specs = ingest_specs(tree)
+    for page_id, spec in specs.items():
+        page = pages.get(page_id)
+        if page:
+            fill_provider_tabs(page["root"], spec.get("providers", []))
     return pages
 
 
@@ -395,6 +567,10 @@ def summarise(node, depth=0, out=None):
         out.append(f"{pad}{node['kind']}  {str(label)[:44]}")
         if node.get("content"):
             summarise(node["content"], depth + 1, out)
+    elif node["node"] == "stacked":
+        out.append(f"{pad}field: {node['label']}")
+        if node.get("child"):
+            summarise(node["child"], depth + 1, out)
     elif node["node"] == "row":
         out.append(f"{pad}row: {node['label']}")
         if node.get("child"):
