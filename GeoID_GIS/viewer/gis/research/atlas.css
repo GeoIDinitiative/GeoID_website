@@ -1629,3 +1629,15 @@
   color: rgb(var(--skin-data));
   white-space: nowrap;
 }
+
+/* A row that carries its own spacer has already said where the slack goes. */
+.qt-h.has-stretch > .qt-input,
+.qt-h.has-stretch > .qt-select { flex: 0 1 auto; }
+.qt-listwidget {
+  min-height: 4rem;
+  overflow: auto;
+  border: 1px solid var(--atlas-line);
+  border-radius: 6px;
+  background: var(--atlas-panel);
+  scrollbar-width: thin;
+}

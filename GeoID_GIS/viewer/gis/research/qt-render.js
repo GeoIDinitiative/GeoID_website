@@ -1,6 +1,6 @@
-import { handlerFor } from "./spec-page.js?v=20260808-92b26d4";
-import * as store from "./project-store.js?v=20260808-92b26d4";
-import { el, statusLine } from "./pages/common.js?v=20260808-92b26d4";
+import { handlerFor } from "./spec-page.js?v=20260808-e457625";
+import * as store from "./project-store.js?v=20260808-e457625";
+import { el, statusLine } from "./pages/common.js?v=20260808-e457625";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -55,6 +55,14 @@ export function renderTree(spec, ctx) {
 
   function renderLayout(layout) {
     const box = el("div", `qt-layout ${LAYOUT_CLASS[layout.kind] || "qt-v"}`);
+    // A row that states where its slack goes -- an addStretch spacer, or a
+    // child with a stretch factor -- has already answered the question, so the
+    // fields in it must NOT also grow. Qt gives an unweighted QComboBox its
+    // size hint and puts the leftover in the spacer; without this the combo ate
+    // the row and the spacer got nothing.
+    if (layout.children.some((c) => c.node === "stretch" || c.stretch)) {
+      box.classList.add("has-stretch");
+    }
     if (layout.kind === "QGridLayout") {
       // The widest column index decides the track count; the app never states
       // it, and counting is exact.
@@ -227,7 +235,15 @@ export function renderTree(spec, ctx) {
       return bar;
     }
 
-    if (kind === "QTableWidget" || kind === "QTreeWidget" || kind === "QListWidget") {
+    // A list has no columns, so it gets no header row -- a lone "—" heading
+    // over an empty list reads as a broken table.
+    if (kind === "QListWidget") {
+      const list = el("div", "qt-listwidget");
+      if (node.var) list.dataset.var = node.var;
+      return list;
+    }
+
+    if (kind === "QTableWidget" || kind === "QTreeWidget") {
       const headers = node.headers || [];
       const table = el("div", "qt-table is-empty qt-datatable");
       table.style.gridTemplateColumns =
