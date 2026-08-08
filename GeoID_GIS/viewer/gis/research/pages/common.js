@@ -1,6 +1,6 @@
-import * as store from "../project-store.js?v=20260810x";
-import { parseTable, column } from "../table.js?v=20260810x";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260810x";
+import * as store from "../project-store.js?v=20260808-043c54a";
+import { parseTable, column } from "../table.js?v=20260808-043c54a";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-043c54a";
 
 /**
  * The furniture every Research page uses.
@@ -343,4 +343,122 @@ export async function saveTable(relPath, header, rows, source, kind = "series") 
   const name = relPath.split("/").pop();
   await store.registerData({ name, kind, path: relPath, source });
   return relPath;
+}
+
+// ── Qt page furniture ────────────────────────────────────────────────────────
+//
+// The Qt pages share one shape: a page title, a horizontal splitter, and inside
+// each half a "Card" holding a secondary tab bar. Reproduced here as primitives
+// rather than per page, so a page module is about its subject and every page
+// comes out the same shape -- which is the whole point of matching the app.
+
+/** app_qt.py — `title.setObjectName("PageTitle")`, top of every page. */
+export function pageTitle(text) {
+  return el("h1", "page-title", text);
+}
+
+/**
+ * The Qt QSplitter. Stretch factors are the app's own (1 : 2), and the panes
+ * stack on a narrow window rather than being squeezed to nothing.
+ */
+export function splitPanes(leftNode, rightNode, ratio = "1fr 2fr") {
+  const box = el("div", "page-split");
+  box.style.gridTemplateColumns = ratio;
+  box.append(leftNode, rightNode);
+  return box;
+}
+
+/**
+ * Which tab each panel was last on, by heading.
+ *
+ * Pages re-mount for all sorts of reasons -- a project opens, a link is filed,
+ * a value is captured -- and every one of those used to throw you back to the
+ * first tab. Attaching a Sheet on the Sheets tab redrew the page on Docs, so
+ * the thing you had just added was not on screen.
+ */
+const lastTab = new Map();
+
+/** A `Card` with a heading and a secondary tab bar, which is what both halves
+ *  of a Qt page are. `panels` maps tab label to a builder. */
+export function tabbedPanel(heading, panels) {
+  const box = el("section", "qt-card");
+  box.appendChild(el("h2", "qt-card-heading", heading));
+  const strip = el("div", "qt-tabs");
+  const body = el("div", "qt-tab-body");
+  const show = (name) => {
+    lastTab.set(heading, name);
+    body.textContent = "";
+    Array.from(strip.children).forEach((b) =>
+      b.classList.toggle("is-active", b.dataset.tab === name));
+    const made = panels[name]();
+    if (made) body.appendChild(made);
+  };
+  Object.keys(panels).forEach((name) => {
+    const btn = el("button", "qt-tab", name);
+    btn.type = "button";
+    btn.dataset.tab = name;
+    btn.addEventListener("click", () => show(name));
+    strip.appendChild(btn);
+  });
+  box.append(strip, body);
+  const names = Object.keys(panels);
+  const remembered = lastTab.get(heading);
+  const start = names.includes(remembered) ? remembered : names[0];
+  if (start) show(start);
+  // Exposed so a caller can jump to a tab -- "Open Study Area Map" and friends
+  // move between them.
+  box.showTab = show;
+  return box;
+}
+
+/** app_qt.py `_card(title)` — EditorCard: a titled section inside a tab. */
+export function editorCard(title) {
+  const box = el("div", "editor-card");
+  if (title) box.appendChild(el("h3", "editor-card-title", title));
+  return box;
+}
+
+/** The magenta hero block at the top of the Profile tab (EditorHero). */
+export function editorHero() {
+  return el("div", "editor-hero");
+}
+
+/** A grid of fields, `cols` across. The Qt forms are all 2- or 4-column grids. */
+export function fieldGrid(cols, ...fields) {
+  const box = el("div", "field-grid");
+  box.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+  fields.forEach((f) => box.appendChild(f));
+  return box;
+}
+
+/** A slider with its own percentage readout, as the Qt progress row has. */
+export function slider(value, onInput) {
+  const wrap = el("div", "slider-row");
+  const input = document.createElement("input");
+  input.type = "range";
+  input.min = "0"; input.max = "100";
+  input.value = String(value ?? 0);
+  input.className = "input slider-input";
+  const readout = el("span", "slider-value", `${input.value}%`);
+  input.addEventListener("input", () => {
+    readout.textContent = `${input.value}%`;
+    onInput?.(Number(input.value));
+  });
+  wrap.append(input, readout);
+  wrap.input = input;
+  return wrap;
+}
+
+/** An editable table with a header row, as the Milestones and Pipeline
+ *  tables are. Returns the node plus a redraw bound to `rows`. */
+export function editTable(headers, rows, render) {
+  const table = el("div", "qt-table");
+  table.style.gridTemplateColumns = `repeat(${headers.length}, minmax(0, 1fr))`;
+  const draw = () => {
+    table.textContent = "";
+    headers.forEach((h) => table.appendChild(el("span", "qt-table-head", h)));
+    rows.forEach((row, index) => render(table, row, index, draw));
+  };
+  draw();
+  return { node: table, draw };
 }

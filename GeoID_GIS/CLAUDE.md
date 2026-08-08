@@ -102,11 +102,20 @@ key handler must make the same exemption.
 
 ## Cache-busting
 
-Every `gis/*` import carries `?v=<stamp>`; bump it on **every** edit or the
-browser serves stale ES modules. `myGeoID/index.html` carries its own
-`?v=gis-<stamp>` on the iframe src. Never version `../vendor/three.module.js` —
-`earth-viewer.js` imports it unversioned and a second copy breaks class
-identity.
+**Run `python3 GeoID_GIS/services/stamp.py`** after editing anything under
+`GeoID_GIS/viewer/`. Never edit a `?v=` by hand.
+
+Every import carries `?v=<stamp>`; a stale one serves an old module. Worse, a
+*split* one duplicates it: module identity is by URL, so
+`project-store.js?v=a` and `project-store.js?v=b` are two modules with two
+`active` projects, and the GIS page and the Research Hub silently stop sharing
+a store. That is exactly what a hand-run find-and-replace caused — launched
+from inside `gis/research/`, it missed `gis/shell.js` and left half the tree on
+each stamp. `stamp.py --check` exits non-zero when the tree is not uniform and
+is the thing to put in a pre-commit hook.
+
+Never version `../vendor/three.module.js` — `earth-viewer.js` imports it
+unversioned and a second copy breaks class identity.
 
 ## Verifying
 
@@ -214,6 +223,28 @@ analysis it exists for.
 answers. Run them after touching either file; three of the cases in it started as genuine bugs (bin scalloping, a
 resolution-blind band width, and an undetrended spectrum calling instrumental
 drift the dominant component).
+
+**Pages are laid out as the Qt pages are**, via primitives in
+`pages/common.js`: `pageTitle`, `splitPanes` (the QSplitter, 1:2, stacking
+under 1100px), `tabbedPanel` (a Card with a heading and a secondary tab bar),
+`editorCard`, `editorHero`, `fieldGrid`, `slider`, `editTable`. `pages/projects.js`
+is the worked example — it mirrors `GeoIDProjectsPage` (app_qt.py:4570) tab for
+tab and field for field. Match the Qt page when building a new one; someone who
+knows one app should know the other, and that breaks the moment a field moves.
+`tabbedPanel` remembers the active tab per heading, because pages re-mount often
+and every remount used to throw you back to the first tab.
+
+**Docs & Sheets** (`pages/docs.js`) is the Google workspace. Two things do not
+port from `DocsSheetsPage` (app_qt.py:24655): `docs.google.com` refuses to be
+framed, so documents open in a tab rather than an embedded browser; and there is
+no Atlas hub, so the link registry lives in the project at
+`metadata/links.json` in the hub's own `{docs, sheets}` shape — which keeps the
+interchange with the desktop app. Creating files through the Drive API is
+deliberately absent: the browser token flow needs only the **public Client ID**
+(the client secret must never appear in this static site) but also a configured
+consent screen, so until then "New Sheet" opens `sheets.new` and files the URL
+pasted back. Sheets round-trips through the clipboard as TSV, which is what
+Sheets pastes and copies natively.
 
 Pages register into `gis/research/stages.js`; the twelve stages mirror the Qt
 `base_stage_structure` and must not drift from it. An unregistered page renders

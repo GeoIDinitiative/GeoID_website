@@ -821,3 +821,267 @@
   .workspace-shell { flex-wrap: wrap; }
   .shell-actions { flex-wrap: wrap; }
 }
+
+/* ── Qt page furniture ──────────────────────────────────────────────────────
+   The shape every Qt page shares: a page title, a splitter, and inside each
+   half a Card holding a secondary tab bar. See pages/common.js. */
+
+.page-title {
+  margin: 0 0 12px;
+  font-family: var(--atlas-display);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--atlas-text);
+  text-shadow: 0 0 14px rgba(var(--atlas-chrome-rgb), 0.5);
+}
+
+/* Qt's QSplitter at 1:2. Grid rather than flex so the ratio is exact, and it
+   stacks rather than crushing either pane on a narrow window. */
+.page-split {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .page-split { grid-template-columns: 1fr !important; }
+}
+
+.qt-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 12px 14px;
+  background: var(--atlas-card);
+  border: 1px solid var(--atlas-border);
+  border-radius: 12px;
+  box-shadow: var(--atlas-bloom);
+}
+.qt-card-heading {
+  margin: 0 0 8px;
+  font-family: var(--atlas-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--atlas-text);
+  text-shadow: 0 0 12px rgba(var(--atlas-chrome-rgb), 0.5);
+}
+/* Secondary tabs: underline-selected, same as the shell's page tabs. */
+.qt-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  border-bottom: 1px solid var(--atlas-border);
+  margin-bottom: 10px;
+}
+.qt-tab {
+  padding: 4px 9px;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  color: var(--atlas-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.qt-tab:hover { color: var(--atlas-text); }
+.qt-tab.is-active {
+  color: var(--atlas-text);
+  border-bottom-color: var(--atlas-chrome);
+  text-shadow: 0 0 10px rgba(var(--atlas-chrome-rgb), 0.6);
+}
+.qt-tab-body { min-width: 0; }
+
+/* EditorHero — magenta, because it carries the project's identity. */
+.editor-hero {
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: rgba(var(--atlas-chrome-rgb), 0.07);
+  border: 1px solid rgba(var(--atlas-chrome-rgb), 0.3);
+  border-radius: 12px;
+}
+.editor-hero-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+/* The project's name is the biggest thing on the page, and underlined rather
+   than boxed -- a title you can type into, per the Qt HeroName. */
+#research-hub .input.hero-name {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--atlas-border);
+  border-radius: 0;
+  font-family: var(--atlas-display);
+  font-size: 17px;
+  font-weight: 700;
+  padding: 2px 2px 6px;
+}
+#research-hub .input.hero-name:focus {
+  border-bottom-color: var(--atlas-chrome);
+  box-shadow: none;
+}
+#research-hub .button.atlas-sync {
+  flex: none;
+  background: rgba(var(--atlas-chrome-rgb), 0.14);
+}
+
+.editor-card {
+  padding: 10px 14px 12px;
+  margin-bottom: 12px;
+  background: var(--atlas-panel);
+  border: 1px solid var(--atlas-border);
+  border-radius: 12px;
+}
+.editor-card-title {
+  margin: 0 0 10px;
+  font-family: var(--atlas-body);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(var(--atlas-data-rgb), 0.8);
+}
+
+.field-grid {
+  display: grid;
+  gap: 10px 12px;
+  align-items: end;
+}
+@media (max-width: 720px) {
+  .field-grid { grid-template-columns: 1fr !important; }
+}
+
+.slider-row { display: flex; align-items: center; gap: 8px; }
+#research-hub .input.slider-input {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  accent-color: var(--atlas-chrome);
+}
+.slider-value {
+  flex: none;
+  min-width: 3ch;
+  text-align: right;
+  font-size: 12px;
+  color: var(--atlas-data);
+}
+
+/* Workspace: the folder line, the project list, the action row. */
+.workspace-root {
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--atlas-border);
+}
+.workspace-root .research-note { margin: 2px 0 6px; }
+.workspace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 12rem;
+  max-height: 26rem;
+  overflow-y: auto;
+  padding: 6px;
+  margin-bottom: 10px;
+  background: var(--atlas-panel-soft);
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--skin-muted), 0.28) transparent;
+}
+.workspace-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 26px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--atlas-text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.workspace-row:hover { background: var(--atlas-wash-soft); }
+.workspace-row.is-selected {
+  background: var(--atlas-wash);
+  border-color: var(--atlas-wash-edge);
+}
+.workspace-row-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#research-hub .button.accent {
+  background: linear-gradient(180deg,
+    rgba(var(--atlas-chrome-rgb), 0.34), rgba(var(--atlas-chrome-rgb), 0.14));
+}
+
+/* Read-only console text: the Command Center and the Review metadata dump. */
+.qt-console {
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 26rem;
+  overflow: auto;
+  background: var(--atlas-panel-soft);
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--atlas-text);
+  white-space: pre-wrap;
+}
+#research-hub textarea.qt-console { width: 100%; }
+
+/* Editable tables: milestones, the pipeline builder. */
+.qt-table {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  padding: 8px;
+  background: var(--atlas-panel-soft);
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.qt-table-head {
+  font-family: var(--atlas-body);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(var(--atlas-data-rgb), 0.78);
+}
+.qt-table > span { font-size: 11.5px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.qt-table-cell {
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--atlas-text);
+  font: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.qt-table-cell:hover { background: var(--atlas-wash-soft); }
+.qt-table-cell.is-selected {
+  background: var(--atlas-wash);
+  border-color: var(--atlas-wash-edge);
+}
+
+.compass-canvas {
+  width: 100%;
+  height: auto;
+  background: var(--atlas-panel-soft);
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}

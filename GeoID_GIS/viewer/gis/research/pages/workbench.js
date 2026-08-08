@@ -1,12 +1,12 @@
-import { registerPage } from "../stages.js?v=20260810x";
-import * as store from "../project-store.js?v=20260810x";
-import { column } from "../table.js?v=20260810x";
-import { linePlot } from "../plot.js?v=20260810x";
-import * as dsp from "../dsp.js?v=20260810x";
+import { registerPage } from "../stages.js?v=20260808-043c54a";
+import * as store from "../project-store.js?v=20260808-043c54a";
+import { column } from "../table.js?v=20260808-043c54a";
+import { linePlot } from "../plot.js?v=20260808-043c54a";
+import * as dsp from "../dsp.js?v=20260808-043c54a";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, findTables, loadTable, inferSampling, saveTable,
-} from "./common.js?v=20260810x";
+} from "./common.js?v=20260808-043c54a";
 
 /**
  * AI trainer, the remaining FEM pages, Publish and Settings.
@@ -387,34 +387,6 @@ const mountSimulation = guard("Simulation", async (host, ctx) => {
 
 // ── Publish: Docs & Sheets, Figure Composer ──────────────────────────────────
 
-const mountDocs = guard("Docs & Sheets", async (host) => {
-  const { node: status, say } = statusLine();
-  const box = card("Documents in this project");
-  box.appendChild(el("p", "research-note",
-    "Everything written rather than measured: notes, reports, notebooks and "
-    + "storyboards, wherever they sit."));
-  const list = el("div", "research-list");
-  box.appendChild(list);
-  const places = ["notes", "plans/reports", "analysis", "exports/storyboard"];
-  let total = 0;
-  for (const place of places) {
-    let entries = [];
-    try {
-      entries = (await store.listProjectDir(place))
-        .filter((e) => e.kind === "file" && /\.(md|html|txt|csv)$/i.test(e.name));
-    } catch (error) { continue; }
-    entries.forEach((entry) => {
-      total += 1;
-      const line = el("div", "research-list-row");
-      line.append(el("span", "research-list-name", `${place}/${entry.name}`),
-        el("span", "research-list-tag", entry.name.split(".").pop()));
-      list.appendChild(line);
-    });
-  }
-  if (!total) list.appendChild(el("p", "research-note", "Nothing written yet."));
-  say(`${total} document(s).`);
-  host.append(box, status);
-});
 
 const mountFigures = guard("Figure Composer", async (host) => {
   const { node: status, say } = statusLine();
@@ -505,7 +477,7 @@ const mountPlugins = guard("Plugin Manager", async (host) => {
     "Which pages have been built and which are still to come. A page registers "
     + "itself with the stage list; nothing here is configuration, it is what is "
     + "actually loaded."));
-  const { STAGES: stages, getPage: get } = await import("../stages.js?v=20260810x");
+  const { STAGES: stages, getPage: get } = await import("../stages.js?v=20260808-043c54a");
   const table = el("div", "research-table");
   const head = el("div", "research-table-row is-head");
   ["Stage", "Pages", "Built", "Remaining"].forEach((h) => head.appendChild(el("span", null, h)));
@@ -569,7 +541,6 @@ registerPage("Notebook", { mount: mountNotebook });
 registerPage("Import / Clone", { mount: mountImportClone });
 registerPage("Build New", { mount: mountBuildNew });
 registerPage("Simulation", { mount: mountSimulation });
-registerPage("Docs & Sheets", { mount: mountDocs });
 registerPage("Figure Composer", { mount: mountFigures });
 registerPage("Settings", { mount: mountSettings });
 registerPage("Plugin Manager", { mount: mountPlugins });
