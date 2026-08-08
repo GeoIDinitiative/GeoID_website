@@ -151,6 +151,18 @@ worth restructuring the render loop for, but do not write a test that asserts
 the two match to better than a frame's worth of rotation -- that is what a
 "regression" here will usually turn out to be.
 
+**FEM is configured here and executed elsewhere.** The browser cannot run a
+native solver, so the FEM pages write `fem_runs/<run>/spec.json` — plain JSON,
+no browser-specific fields — and read results back from the same folder. Every
+FEM page edits the same spec, so a page must merge into it rather than
+overwrite it.
+
+**DSP has real tests.** `node GeoID_GIS/viewer/gis/research/dsp.test.mjs` checks
+`dsp.js` against signals whose answers are known. Run it after touching that
+file; three of the cases in it started as genuine bugs (bin scalloping, a
+resolution-blind band width, and an undetrended spectrum calling instrumental
+drift the dominant component).
+
 Pages register into `gis/research/stages.js`; the twelve stages mirror the Qt
 `base_stage_structure` and must not drift from it. An unregistered page renders
 a labelled "not built yet" panel — do not replace that with a plausible-looking

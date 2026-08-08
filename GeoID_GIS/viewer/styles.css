@@ -3904,6 +3904,8 @@ canvas {
     .research-card .gis-btn-row .button { flex: 0 0 auto; }
     .research-card .gis-btn-row .input { flex: 1 1 auto; }
 
+    .research-check { flex-direction: row; align-items: center; gap: 0.45rem; }
+
     .research-list { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.5rem; }
     .research-list-row {
       display: flex;
