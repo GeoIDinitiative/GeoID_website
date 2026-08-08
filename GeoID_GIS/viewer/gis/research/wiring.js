@@ -1,11 +1,11 @@
-import { wirePattern, wire } from "./spec-page.js?v=20260808-b5b50b0";
-import * as store from "./project-store.js?v=20260808-b5b50b0";
-import * as bridge from "./bridge.js?v=20260808-b5b50b0";
-import * as stats from "./stats.js?v=20260808-b5b50b0";
-import * as dsp from "./dsp.js?v=20260808-b5b50b0";
-import { linePlot } from "./plot.js?v=20260808-b5b50b0";
-import { column } from "./table.js?v=20260808-b5b50b0";
-import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260808-b5b50b0";
+import { wirePattern, wire } from "./spec-page.js?v=20260808-fad7740";
+import * as store from "./project-store.js?v=20260808-fad7740";
+import * as bridge from "./bridge.js?v=20260808-fad7740";
+import * as stats from "./stats.js?v=20260808-fad7740";
+import * as dsp from "./dsp.js?v=20260808-fad7740";
+import { linePlot } from "./plot.js?v=20260808-fad7740";
+import { column } from "./table.js?v=20260808-fad7740";
+import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260808-fad7740";
 
 /**
  * Behaviour for the controls the spec brings across.
@@ -158,10 +158,11 @@ wire("Pipeline Runner", {
   },
 });
 
-wire("Research Notes", {
-  // The app's formatting buttons act on the note being edited.
-  H1: async ({ say }) => { say("Select text in the editor first."); },
-});
+// Research Notes' formatting buttons are the shared markdown pattern below.
+// A page-specific handler always beats a pattern, so the stub that used to sit
+// here -- "Select text in the editor first.", which inserted nothing -- was
+// quietly shadowing the working one for H1 alone, on the one page whose whole
+// toolbar is those buttons.
 
 /**
  * Controls that stay disabled, and why.
@@ -338,7 +339,7 @@ async function writeCollection(name, collection, say) {
   say(`${(collection.features || []).length} feature(s) written to ${path}.`);
 }
 
-const geo = () => import(`../geoprocessing.js?v=20260808-b5b50b0`);
+const geo = () => import(`../geoprocessing.js?v=20260808-fad7740`);
 
 wire("Vector Tools", {
   Buffer: async ({ say }) => {
@@ -395,14 +396,14 @@ const MARKDOWN = {
  * The app's formatting buttons act on the focused editor; here the page's own
  * textarea is the editor, so the insert goes at its caret.
  */
-wirePattern(/^(H1|H2|H3|B|I|U|Bullets|•|Numbers|Quote|Code|<\/>|Divider|Time ?Stamp|Insert \[cite\])$/,
+wirePattern(/^(H1|H2|H3|B|I|U|Bullets|•|Numbers|Quote|Code|<\/>|Divider|Time ?[Ss]tamp|Insert \[cite\])$/,
   async ({ say }, label) => {
     const host = document.getElementById("research-page");
     const box = host.querySelector("textarea:focus")
       || host.querySelector("textarea.research-editor")
       || host.querySelector("textarea");
     if (!box) throw new Error("No editor on this page to insert into.");
-    const text = /^Time ?Stamp$/.test(label)
+    const text = /^Time ?[Ss]tamp$/.test(label)
       ? new Date().toISOString().slice(0, 16).replace("T", " ")
       : MARKDOWN[label] || "";
     const at = box.selectionStart ?? box.value.length;
