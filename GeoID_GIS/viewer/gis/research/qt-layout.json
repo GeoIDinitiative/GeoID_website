@@ -3544,6 +3544,7 @@
     {
      "kind": "QTabWidget",
      "node": "tabs",
+     "slug": "admin_infrastructure",
      "tabs": [
       {
        "content": {
@@ -3605,13 +3606,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://www.naturalearthdata.com/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Boundaries and Places",
             "text": "Open Natural Earth"
            },
            {
+            "action": {
+             "filter": "Vector/Tables (*.shp *.gpkg *.geojson *.csv *.zip);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Boundaries and Places",
             "text": "Import Boundary Files"
            },
            {
@@ -3690,13 +3701,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://download.geofabrik.de/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Infrastructure and Cadastre",
             "text": "Open OpenStreetMap Export"
            },
            {
+            "action": {
+             "filter": "Vector (*.shp *.gpkg *.geojson *.pbf *.zip);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Infrastructure and Cadastre",
             "text": "Import Infrastructure Files"
            },
            {
@@ -3814,7 +3835,9 @@
    ],
    "kind": "QVBoxLayout",
    "node": "layout"
-  }
+  },
+  "slug": "admin_infrastructure",
+  "title": "Ingest Admin Infrastructure"
  },
  "Ingest Coast Marine": {
   "qt_class": "IngestDomainPage",
@@ -3967,6 +3990,7 @@
     {
      "kind": "QTabWidget",
      "node": "tabs",
+     "slug": "coast_marine",
      "tabs": [
       {
        "content": {
@@ -4028,13 +4052,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://www.naturalearthdata.com/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Coastlines and Shorelines",
             "text": "Open Natural Earth Coastline"
            },
            {
+            "action": {
+             "filter": "Vector (*.shp *.gpkg *.geojson *.zip);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Coastlines and Shorelines",
             "text": "Import Coast Files"
            },
            {
@@ -4113,13 +4147,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://www.gebco.net/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Bathymetry and Sea Level",
             "text": "Open GEBCO"
            },
            {
+            "action": {
+             "filter": "Raster/Tables (*.tif *.tiff *.nc *.csv *.txt);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Bathymetry and Sea Level",
             "text": "Import Marine Grids"
            },
            {
@@ -4237,7 +4281,9 @@
    ],
    "kind": "QVBoxLayout",
    "node": "layout"
-  }
+  },
+  "slug": "coast_marine",
+  "title": "Ingest Coast Marine"
  },
  "Ingest Generic Import": {
   "qt_class": "IngestDomainPage",
@@ -4390,6 +4436,7 @@
     {
      "kind": "QTabWidget",
      "node": "tabs",
+     "slug": "generic_import",
      "tabs": [
       {
        "content": {
@@ -4451,13 +4498,22 @@
          {
           "children": [
            {
+            "action": {
+             "filter": "*.*",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Local Files",
             "text": "Import Files"
            },
            {
+            "action": {
+             "kind": "import_dir"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Local Files",
             "text": "Import Folder"
            },
            {
@@ -4536,13 +4592,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://radiantearth.github.io/stac-browser/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Databases and Services",
             "text": "Open STAC Browser"
            },
            {
+            "action": {
+             "filter": "*.*",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Databases and Services",
             "text": "Import Service Export"
            },
            {
@@ -4660,7 +4726,9 @@
    ],
    "kind": "QVBoxLayout",
    "node": "layout"
-  }
+  },
+  "slug": "generic_import",
+  "title": "Ingest Generic Import"
  },
  "Ingest Geology": {
   "qt_class": "IngestDomainPage",
@@ -4813,6 +4881,7 @@
     {
      "kind": "QTabWidget",
      "node": "tabs",
+     "slug": "geology",
      "tabs": [
       {
        "content": {
@@ -4874,13 +4943,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://www.onegeology.org/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Bedrock and Superficial",
             "text": "Open OneGeology"
            },
            {
+            "action": {
+             "filter": "Vector/Raster (*.shp *.gpkg *.geojson *.tif *.tiff);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Bedrock and Superficial",
             "text": "Import Geology Files"
            },
            {
@@ -4959,8 +5038,13 @@
          {
           "children": [
            {
+            "action": {
+             "filter": "Vector/Tables (*.shp *.gpkg *.geojson *.csv *.xlsx);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Structures and Boreholes",
             "text": "Import Structural Data"
            },
            {
@@ -5078,7 +5162,9 @@
    ],
    "kind": "QVBoxLayout",
    "node": "layout"
-  }
+  },
+  "slug": "geology",
+  "title": "Ingest Geology"
  },
  "Ingest Hydrology": {
   "qt_class": "IngestDomainPage",
@@ -5231,6 +5317,7 @@
     {
      "kind": "QTabWidget",
      "node": "tabs",
+     "slug": "hydrology",
      "tabs": [
       {
        "content": {
@@ -5292,13 +5379,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://www.hydrosheds.org/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Rivers and Catchments",
             "text": "Open HydroSHEDS"
            },
            {
+            "action": {
+             "filter": "Vector (*.shp *.gpkg *.geojson *.zip);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Rivers and Catchments",
             "text": "Import Hydrology Layers"
            },
            {
@@ -5377,13 +5474,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://global-flood.emergency.copernicus.eu/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Stations and Flood",
             "text": "Open Flood Map Catalog"
            },
            {
+            "action": {
+             "filter": "Tables/Vector (*.csv *.tsv *.xlsx *.shp *.gpkg *.geojson);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Stations and Flood",
             "text": "Import Station Data"
            },
            {
@@ -5501,7 +5608,9 @@
    ],
    "kind": "QVBoxLayout",
    "node": "layout"
-  }
+  },
+  "slug": "hydrology",
+  "title": "Ingest Hydrology"
  },
  "Ingest Land Use": {
   "qt_class": "IngestDomainPage",
@@ -5654,6 +5763,7 @@
     {
      "kind": "QTabWidget",
      "node": "tabs",
+     "slug": "land_use",
      "tabs": [
       {
        "content": {
@@ -5715,13 +5825,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://land.copernicus.eu/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "CORINE / Copernicus",
             "text": "Open Copernicus Land Portal"
            },
            {
+            "action": {
+             "filter": "Vector/Raster (*.shp *.gpkg *.geojson *.tif *.tiff *.nc);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "CORINE / Copernicus",
             "text": "Import Land Use Files"
            },
            {
@@ -5800,13 +5920,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://esa-worldcover.org/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Global Land Cover",
             "text": "Open ESA WorldCover"
            },
            {
+            "action": {
+             "filter": "Raster/Vector (*.tif *.tiff *.shp *.gpkg *.geojson);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Global Land Cover",
             "text": "Import Global Cover Files"
            },
            {
@@ -5924,7 +6054,9 @@
    ],
    "kind": "QVBoxLayout",
    "node": "layout"
-  }
+  },
+  "slug": "land_use",
+  "title": "Ingest Land Use"
  },
  "Ingest Remote Sensing": {
   "qt_class": "IngestDomainPage",
@@ -6077,6 +6209,7 @@
     {
      "kind": "QTabWidget",
      "node": "tabs",
+     "slug": "remote_sensing",
      "tabs": [
       {
        "content": {
@@ -6138,13 +6271,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://browser.dataspace.copernicus.eu/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Optical and Multispectral",
             "text": "Open Copernicus Browser"
            },
            {
+            "action": {
+             "filter": "Raster (*.tif *.tiff *.jp2 *.nc);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Optical and Multispectral",
             "text": "Import Optical Files"
            },
            {
@@ -6223,13 +6366,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://search.asf.alaska.edu/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "SAR and Thermal",
             "text": "Open ASF Vertex"
            },
            {
+            "action": {
+             "filter": "Raster (*.tif *.tiff *.nc *.h5 *.zip);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "SAR and Thermal",
             "text": "Import SAR Files"
            },
            {
@@ -6347,7 +6500,9 @@
    ],
    "kind": "QVBoxLayout",
    "node": "layout"
-  }
+  },
+  "slug": "remote_sensing",
+  "title": "Ingest Remote Sensing"
  },
  "Ingest Seismic Geophysics": {
   "qt_class": "IngestDomainPage",
@@ -6500,6 +6655,7 @@
     {
      "kind": "QTabWidget",
      "node": "tabs",
+     "slug": "seismic_geophysics",
      "tabs": [
       {
        "content": {
@@ -6561,13 +6717,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://www.iris.edu/hq/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Earthquakes and Stations",
             "text": "Open IRIS"
            },
            {
+            "action": {
+             "filter": "Seismic/Tables (*.mseed *.sac *.csv *.txt *.xml);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Earthquakes and Stations",
             "text": "Import Seismic Files"
            },
            {
@@ -6646,13 +6812,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://www.unavco.org/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Deformation and Geodesy",
             "text": "Open UNAVCO"
            },
            {
+            "action": {
+             "filter": "Raster/Tables/Vector (*.tif *.tiff *.csv *.txt *.shp *.gpkg *.geojson);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Deformation and Geodesy",
             "text": "Import Deformation Data"
            },
            {
@@ -6770,7 +6946,9 @@
    ],
    "kind": "QVBoxLayout",
    "node": "layout"
-  }
+  },
+  "slug": "seismic_geophysics",
+  "title": "Ingest Seismic Geophysics"
  },
  "Ingest Terrain Elevation": {
   "qt_class": "IngestDomainPage",
@@ -6923,6 +7101,7 @@
     {
      "kind": "QTabWidget",
      "node": "tabs",
+     "slug": "terrain_elevation",
      "tabs": [
       {
        "content": {
@@ -6984,13 +7163,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://dataspace.copernicus.eu/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "DEM and Terrain",
             "text": "Open Copernicus DEM"
            },
            {
+            "action": {
+             "filter": "Raster/Vector (*.tif *.tiff *.asc *.img *.shp *.gpkg *.geojson);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "DEM and Terrain",
             "text": "Import Terrain Files"
            },
            {
@@ -7069,8 +7258,13 @@
          {
           "children": [
            {
+            "action": {
+             "filter": "Point cloud (*.las *.laz *.ply *.obj);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "LiDAR and Point Clouds",
             "text": "Import LiDAR Files"
            },
            {
@@ -7188,7 +7382,9 @@
    ],
    "kind": "QVBoxLayout",
    "node": "layout"
-  }
+  },
+  "slug": "terrain_elevation",
+  "title": "Ingest Terrain Elevation"
  },
  "Ingest Volcano Monitoring": {
   "qt_class": "IngestDomainPage",
@@ -7341,6 +7537,7 @@
     {
      "kind": "QTabWidget",
      "node": "tabs",
+     "slug": "volcano_monitoring",
      "tabs": [
       {
        "content": {
@@ -7402,13 +7599,22 @@
          {
           "children": [
            {
+            "action": {
+             "filter": "Tables (*.csv *.tsv *.txt *.xlsx *.json);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Tilt and Deformation",
             "text": "Import Tilt Data"
            },
            {
+            "action": {
+             "kind": "import_dir"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Tilt and Deformation",
             "text": "Import Deformation Folder"
            },
            {
@@ -7487,8 +7693,13 @@
          {
           "children": [
            {
+            "action": {
+             "filter": "*.*",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Seismic, Gas, Thermal",
             "text": "Import Observatory Files"
            },
            {
@@ -7606,7 +7817,9 @@
    ],
    "kind": "QVBoxLayout",
    "node": "layout"
-  }
+  },
+  "slug": "volcano_monitoring",
+  "title": "Ingest Volcano Monitoring"
  },
  "Ingest Weather Climate": {
   "qt_class": "IngestDomainPage",
@@ -7759,6 +7972,7 @@
     {
      "kind": "QTabWidget",
      "node": "tabs",
+     "slug": "weather_climate",
      "tabs": [
       {
        "content": {
@@ -7820,13 +8034,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "file:///home/owen/GeoID/input/weather%20data/NOAA%20GFS/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Forecast and Radar",
             "text": "Open NOAA GFS Script Folder"
            },
            {
+            "action": {
+             "filter": "Raster/Tables (*.grib *.grb *.nc *.csv *.txt *.json *.tif *.tiff);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Forecast and Radar",
             "text": "Import Weather Files"
            },
            {
@@ -7905,13 +8129,23 @@
          {
           "children": [
            {
+            "action": {
+             "kind": "url",
+             "url": "https://disc.gsfc.nasa.gov/"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Climate and Stations",
             "text": "Open NASA GES DISC"
            },
            {
+            "action": {
+             "filter": "Raster/Tables (*.nc *.csv *.txt *.json *.grib *.grb *.tif *.tiff);;All files (*.*)",
+             "kind": "import_files"
+            },
             "kind": "QPushButton",
             "node": "widget",
+            "provider": "Climate and Stations",
             "text": "Import Climate Files"
            },
            {
@@ -8029,7 +8263,9 @@
    ],
    "kind": "QVBoxLayout",
    "node": "layout"
-  }
+  },
+  "slug": "weather_climate",
+  "title": "Ingest Weather Climate"
  },
  "Inputs": {
   "qt_class": "InputsPage",

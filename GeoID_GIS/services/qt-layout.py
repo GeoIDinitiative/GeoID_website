@@ -454,10 +454,14 @@ def provider_tab(provider):
             grid["children"].append(card)
         children.append(grid)
 
+    # The action travels with the button, so the renderer can do what
+    # `_execute_provider_action` does rather than leave it disabled.
     actions = provider.get("actions") or []
     row = {"node": "layout", "kind": "QHBoxLayout", "children": [
         {"node": "widget", "kind": "QPushButton",
-         "text": action.get("label", "Action")}
+         "text": action.get("label", "Action"),
+         "action": {k: v for k, v in action.items() if k != "label"},
+         "provider": provider.get("name", "Provider")}
         for action in actions
     ] + [{"node": "stretch"}]}
     children.append(row)
@@ -483,11 +487,11 @@ def ingest_specs(tree):
     return {}
 
 
-def fill_provider_tabs(root, providers):
+def fill_provider_tabs(root, providers, slug=""):
     """Put the generated tabs into the page's empty provider QTabWidget."""
     if isinstance(root, list):
         for item in root:
-            fill_provider_tabs(item, providers)
+            fill_provider_tabs(item, providers, slug)
         return
     if not isinstance(root, dict):
         return
@@ -496,6 +500,7 @@ def fill_provider_tabs(root, providers):
             {"label": p.get("name", "Provider"), "content": provider_tab(p)}
             for p in providers
         ]
+        root["slug"] = slug
         return
     for key in ("children", "content", "child", "tabs"):
         value = root.get(key)
@@ -505,9 +510,9 @@ def fill_provider_tabs(root, providers):
             for item in value:
                 fill_provider_tabs(item.get("content") if isinstance(item, dict)
                                    and "label" in item and "content" in item else item,
-                                   providers)
+                                   providers, slug)
         else:
-            fill_provider_tabs(value, providers)
+            fill_provider_tabs(value, providers, slug)
 
 
 def extract():
@@ -544,7 +549,10 @@ def extract():
     for page_id, spec in specs.items():
         page = pages.get(page_id)
         if page:
-            fill_provider_tabs(page["root"], spec.get("providers", []))
+            fill_provider_tabs(page["root"], spec.get("providers", []),
+                               spec.get("slug", ""))
+            page["slug"] = spec.get("slug", "")
+            page["title"] = page_id
     return pages
 
 

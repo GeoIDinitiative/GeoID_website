@@ -1,6 +1,6 @@
-import { handlerFor } from "./spec-page.js?v=20260808-ead8c8d";
-import * as store from "./project-store.js?v=20260808-ead8c8d";
-import { el, statusLine } from "./pages/common.js?v=20260808-ead8c8d";
+import { handlerFor } from "./spec-page.js?v=20260808-5ab803b";
+import * as store from "./project-store.js?v=20260808-5ab803b";
+import { el, statusLine } from "./pages/common.js?v=20260808-5ab803b";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -75,6 +75,84 @@ function applyBox(node, spec) {
     node.style.gridColumn = `${spec.col + 1} / span ${spec.colspan || 1}`;
   }
   return node;
+}
+
+/** The value of a control the tree named, e.g. `source_url`. */
+function controlValue(api, name) {
+  const node = api.controls.get(name);
+  if (!node) return "";
+  return (node.value || "").trim();
+}
+
+function appendLog(api, line) {
+  const log = api.controls.get("log");
+  if (log) log.value = log.value ? `${log.value}\n${line}` : line;
+  api.say(line);
+}
+
+async function runProviderAction(api, node, page) {
+  const action = node.action || {};
+  const provider = node.provider || "Provider";
+
+  if (action.kind === "url") {
+    const url = (action.url || "").trim();
+    if (!url) return;
+    const field = api.controls.get("source_url");
+    if (field) field.value = url;
+    window.open(url, "_blank", "noopener");
+    appendLog(api, `[open] ${provider}: ${url}`);
+    return;
+  }
+
+  if (action.kind !== "import_files" && action.kind !== "import_dir") return;
+  if (!store.getActive()) {
+    appendLog(api, "[ingest] select a project first.");
+    return;
+  }
+
+  const picker = document.createElement("input");
+  picker.type = "file";
+  if (action.kind === "import_dir") picker.webkitdirectory = true;
+  else picker.multiple = true;
+  const files = await new Promise((resolve) => {
+    picker.addEventListener("change", () => resolve(Array.from(picker.files || [])));
+    picker.click();
+  });
+  if (!files.length) return;
+
+  // Where the Qt page puts them: the Output box if set, else
+  // data/ingest/<domain slug>.
+  const slug = page.slug || "ingest";
+  const outDir = controlValue(api, "output_dir") || `data/ingest/${slug}`;
+  const tag = controlValue(api, "pull_tag") || "test";
+  const provenance = {
+    provider,
+    source_url: controlValue(api, "source_url"),
+    license: controlValue(api, "source_license"),
+    citation: controlValue(api, "source_citation"),
+    acquired_on: controlValue(api, "source_acquired"),
+    notes: controlValue(api, "source_notes"),
+    updated_at: new Date().toISOString().slice(0, 19),
+  };
+
+  let written = 0;
+  for (const file of files) {
+    const rel = `${outDir}/${file.webkitRelativePath || file.name}`;
+    try {
+      const text = await file.text();
+      await store.writeProjectFile(rel, text);
+      await store.registerData({
+        path: rel, tag,
+        source_stage: `${page.title || api.pageId} / ${provider}`,
+        note: provenance.citation || "",
+        ...provenance,
+      });
+      written += 1;
+    } catch (error) {
+      appendLog(api, `[import] ${file.name}: ${error.message}`);
+    }
+  }
+  appendLog(api, `[import] ${provider}: ${written} file(s) -> ${outDir}`);
 }
 
 export function renderTree(spec, ctx) {
@@ -194,7 +272,15 @@ export function renderTree(spec, ctx) {
     }
 
     if (kind === "QPushButton" || kind === "QToolButton") {
-      const handler = handlerFor(pageId, text);
+      // An Ingest provider action carries what it does, so it runs here rather
+      // than sitting disabled. This is `_execute_provider_action` (app_qt.py:3088)
+      // and `_copy_into_ingest` (:3112): files land in
+      // data/ingest/<slug>/ and are registered with the tag, the provider as
+      // the source stage, and the provenance fields off the metadata grid --
+      // the same contract, so the desktop app reads what this writes.
+      const handler = node.action
+        ? (a) => runProviderAction(a, node, spec)
+        : handlerFor(pageId, text);
       const btn = el("button", "button secondary qt-button", text);
       btn.type = "button";
       if (handler) {
