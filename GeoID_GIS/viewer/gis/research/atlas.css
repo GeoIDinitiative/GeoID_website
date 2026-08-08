@@ -237,15 +237,17 @@
 
 /* Page tabs: underline-selected, no boxes. Qt's SectionTabs. */
 .shell-tabs {
-  flex: 1 1 18rem;
+  order: 2;
+  flex: 1 1 100%;
   min-width: 0;
   display: flex;
-  flex-wrap: nowrap;
-  gap: 2px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 4px;
+  padding-top: 2px;
+  border-top: 1px solid var(--atlas-border);
+  margin-top: 2px;
 }
-.shell-tabs::-webkit-scrollbar { height: 0; }
 .shell-tab { flex: none; }
 .shell-tab {
   padding: 3px 8px;
@@ -276,9 +278,9 @@
    this row carries more than Qt's does (the GIS/Model/Research switch has no
    Qt equivalent), so it has to be able to fold. */
 .shell-actions {
-  flex: 1 1 auto;
+  order: 1;
+  flex: 1 1 100%;
   min-width: 0;
-  margin-left: auto;
   display: flex;
   align-items: center;
   justify-content: flex-end;
