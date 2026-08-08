@@ -1,5 +1,6 @@
-import { registerPage } from "../stages.js?v=20260810s";
-import * as store from "../project-store.js?v=20260810s";
+import { registerPage } from "../stages.js?v=20260810v";
+import * as store from "../project-store.js?v=20260810v";
+import { needProject } from "./common.js?v=20260810v";
 
 /**
  * Data Repository: the project folder, as it actually is on disk.
@@ -77,18 +78,7 @@ async function mount(host, ctx) {
   const status = el("p", "research-status");
   const say = (m, bad) => { status.textContent = m; status.classList.toggle("is-error", !!bad); };
 
-  if (!store.getActive()) {
-    const none = card("Data Repository");
-    none.appendChild(el("p", "research-note", "No project open."));
-    const row = el("div", "gis-btn-row");
-    const go = el("button", "button", "Go to Projects");
-    go.type = "button";
-    go.addEventListener("click", () => ctx.setPage?.("Projects"));
-    row.appendChild(go);
-    none.appendChild(row);
-    host.appendChild(none);
-    return;
-  }
+  if (!store.getActive()) { needProject(host, ctx, "Data Repository"); return; }
 
   const expanded = new Set(["data", "data/raw"]);
 

@@ -1,6 +1,6 @@
-import { directoryAdapter, memoryAdapter } from "./fs-adapter.js?v=20260810s";
-import { currentBodyId } from "../bodies.js?v=20260810s";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810s";
+import { directoryAdapter, memoryAdapter } from "./fs-adapter.js?v=20260810v";
+import { currentBodyId } from "../bodies.js?v=20260810v";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810v";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -201,10 +201,48 @@ export async function restoreRoot({ prompt = false } = {}) {
   return rootAdapter;
 }
 
+/**
+ * Which project was open last, so a reload comes back to the work rather than
+ * to an empty hub. Only the path is remembered -- the project itself is read
+ * back off disk, so nothing here can go stale against the folder.
+ */
+const LAST_PROJECT_KEY = "geoid-gis:last-project";
+
+function rememberProject(dir) {
+  try {
+    if (dir) window.localStorage.setItem(LAST_PROJECT_KEY, dir);
+    else window.localStorage.removeItem(LAST_PROJECT_KEY);
+  } catch (error) { /* storage unavailable, the session simply will not resume */ }
+}
+
+/**
+ * Reopen last session's folder *and* the project that was open in it.
+ *
+ * Returns the active project, or null when there is nothing to resume -- no
+ * stored folder, lapsed permission, or a project that has since been moved.
+ * Every one of those is ordinary, so none of them throws: the caller shows the
+ * pick-a-folder panel and the user carries on.
+ */
+export async function restoreSession({ prompt = false } = {}) {
+  if (!(await restoreRoot({ prompt }))) return null;
+  let dir = null;
+  try { dir = window.localStorage.getItem(LAST_PROJECT_KEY); } catch (error) { /* none */ }
+  if (!dir) return null;
+  try {
+    return await openProject(dir);
+  } catch (error) {
+    // Renamed, deleted, or opened from a different folder. Forget it rather
+    // than offering it again every load.
+    rememberProject(null);
+    return null;
+  }
+}
+
 export async function forgetRoot() {
   await clearRootHandle();
   rootAdapter = null;
   active = null;
+  rememberProject(null);
   announce();
 }
 
@@ -245,6 +283,7 @@ export async function createProject(name, overrides = {}) {
   await rootAdapter.writeFile(`${dir}/${METADATA_PATH}`, JSON.stringify(meta, null, 2));
   await rootAdapter.writeFile(`${dir}/${REGISTRY_PATH}`, JSON.stringify({ entries: [] }, null, 2));
   active = { name: meta.name, dir, folder: leaf, body, meta };
+  rememberProject(dir);
   announce();
   return active;
 }
@@ -267,12 +306,14 @@ export async function openProject(dir) {
   const leaf = parts[parts.length - 1];
   const meta = mergeMetadata(leaf, payload);
   active = { name: meta.name, dir, folder: leaf, body: meta.body, meta };
+  rememberProject(dir);
   announce();
   return active;
 }
 
 export function closeProject() {
   active = null;
+  rememberProject(null);
   announce();
 }
 

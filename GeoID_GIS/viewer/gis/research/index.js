@@ -1,24 +1,24 @@
-import * as hub from "./hub.js?v=20260810s";
-import { registeredCount } from "./stages.js?v=20260810s";
-import * as store from "./project-store.js?v=20260810s";
-import * as bridge from "./bridge.js?v=20260810s";
+import * as hub from "./hub.js?v=20260810v";
+import { registeredCount } from "./stages.js?v=20260810v";
+import * as store from "./project-store.js?v=20260810v";
+import * as bridge from "./bridge.js?v=20260810v";
 
 // Pages register themselves on import. This list is the only place that has to
 // change when one is added.
-import "./pages/dashboard.js?v=20260810s";
-import "./pages/projects.js?v=20260810s";
-import "./pages/repository.js?v=20260810s";
-import "./pages/notes.js?v=20260810s";
-import "./pages/plotter.js?v=20260810s";
-import "./pages/signal.js?v=20260810s";
-import "./pages/fem.js?v=20260810s";
-import "./pages/storyboard.js?v=20260810s";
-import "./pages/ingest.js?v=20260810s";
-import "./pages/postprocess.js?v=20260810s";
-import "./pages/prepare.js?v=20260810s";
-import "./pages/analysis.js?v=20260810s";
-import "./pages/manage.js?v=20260810s";
-import "./pages/workbench.js?v=20260810s";
+import "./pages/dashboard.js?v=20260810v";
+import "./pages/projects.js?v=20260810v";
+import "./pages/repository.js?v=20260810v";
+import "./pages/notes.js?v=20260810v";
+import "./pages/plotter.js?v=20260810v";
+import "./pages/signal.js?v=20260810v";
+import "./pages/fem.js?v=20260810v";
+import "./pages/storyboard.js?v=20260810v";
+import "./pages/ingest.js?v=20260810v";
+import "./pages/postprocess.js?v=20260810v";
+import "./pages/prepare.js?v=20260810v";
+import "./pages/analysis.js?v=20260810v";
+import "./pages/manage.js?v=20260810v";
+import "./pages/workbench.js?v=20260810v";
 
 /**
  * Entry point for the Research Hub.
@@ -34,6 +34,12 @@ function open() {
   if (opened) return;
   opened = true;
   hub.init({ store, bridge });
+  // Resume last session's folder and project. Deliberately after init, not
+  // before: the hub should paint immediately, and the pages re-mount by
+  // themselves when a project opens. It used to happen only on the Projects
+  // page, so landing anywhere else after a reload showed an empty hub even
+  // though a folder had been chosen.
+  void store.restoreSession().catch(() => { /* nothing to resume; the page asks */ });
 }
 
 window.GeoIDResearch = {

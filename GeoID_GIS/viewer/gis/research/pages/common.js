@@ -1,5 +1,5 @@
-import * as store from "../project-store.js?v=20260810s";
-import { parseTable, column } from "../table.js?v=20260810s";
+import * as store from "../project-store.js?v=20260810v";
+import { parseTable, column } from "../table.js?v=20260810v";
 
 /**
  * The furniture every Research page uses.
@@ -96,12 +96,59 @@ export function statusLine() {
   return { node, say };
 }
 
-/** Every page needs a project; this is the same refusal in one place. */
+/**
+ * What twenty-nine of the pages show when nothing is open.
+ *
+ * It used to say "No project open." and offer one button, which was true and
+ * useless: it never said that a project is a *folder on disk* you have to pick
+ * before anything can be recorded, so a first-time page read as an empty page.
+ * The two states are different problems and say so separately -- no folder
+ * chosen yet, or a folder with nothing open in it -- and each offers the action
+ * that resolves it rather than only a way to navigate elsewhere.
+ */
 export function needProject(host, ctx, title) {
   const box = card(title);
-  box.appendChild(el("p", "research-note", "No project open."));
-  box.appendChild(row(button("Go to Projects", () => ctx.setPage?.("Projects"))));
+  const { node: status, say } = statusLine();
+  const hasRoot = Boolean(store.getRoot());
+
+  box.appendChild(el("p", "research-note", hasRoot
+    ? "This page records its work into a project, and none is open yet. "
+      + "Open one below, or create one on the Projects page."
+    : "Every Research page writes into a project, which is a real folder on "
+      + "your machine \u2014 the same layout the desktop app reads, so work moves "
+      + "between them. Choose where geoid_projects should live to begin."));
+
+  const actions = row();
+  if (!hasRoot) {
+    const choose = button("Choose projects folder…", async () => {
+      try {
+        await store.chooseRoot();
+        // The hub re-mounts the page when a project opens, so there is nothing
+        // to redraw here -- but a chosen folder with no project in it yet is
+        // still this panel, and it should now say the other thing.
+        needProjectRefresh(host, ctx, title);
+      } catch (error) {
+        if (error.name !== "AbortError") say(error.message, true);
+      }
+    });
+    choose.disabled = !store.isSupported();
+    actions.appendChild(choose);
+    if (!store.isSupported()) {
+      box.appendChild(el("p", "research-note",
+        "This browser cannot open a folder directly. Chrome or Edge can."));
+    }
+  }
+  actions.appendChild(button(hasRoot ? "Open a project" : "Projects page",
+    () => ctx.setPage?.("Projects"), { secondary: hasRoot === false }));
+  box.append(actions, status);
   host.appendChild(box);
+}
+
+/** Redraw the refusal in place, once choosing a folder has changed which of
+ *  the two states applies. */
+function needProjectRefresh(host, ctx, title) {
+  host.textContent = "";
+  needProject(host, ctx, title);
 }
 
 export function guard(title, mount) {

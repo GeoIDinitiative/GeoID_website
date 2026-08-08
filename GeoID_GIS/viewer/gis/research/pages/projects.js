@@ -1,5 +1,5 @@
-import { registerPage } from "../stages.js?v=20260810s";
-import * as store from "../project-store.js?v=20260810s";
+import { registerPage } from "../stages.js?v=20260810v";
+import * as store from "../project-store.js?v=20260810v";
 
 /**
  * Projects: choose the folder, make a project, open one, edit its profile.
@@ -254,7 +254,9 @@ async function mount(host, ctx) {
   // Try last session's folder without a dialog; the picker needs a gesture, so
   // a lapsed permission just leaves the button waiting rather than throwing.
   if (!store.getRoot() && store.isSupported()) {
-    try { await store.restoreRoot(); } catch (error) { /* ask again on click */ }
+    // The hub restores the session on open (index.js); this covers the case
+    // where permission had lapsed and the user has now come here to sort it.
+    try { await store.restoreSession(); } catch (error) { /* ask again on click */ }
   }
   await refresh();
 }

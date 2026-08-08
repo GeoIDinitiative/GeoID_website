@@ -1,7 +1,8 @@
-import { registerPage } from "../stages.js?v=20260810s";
-import * as store from "../project-store.js?v=20260810s";
-import { parseTable } from "../table.js?v=20260810s";
-import { linePlot, toPngBlob } from "../plot.js?v=20260810s";
+import { registerPage } from "../stages.js?v=20260810v";
+import * as store from "../project-store.js?v=20260810v";
+import { parseTable } from "../table.js?v=20260810v";
+import { linePlot, toPngBlob } from "../plot.js?v=20260810v";
+import { needProject } from "./common.js?v=20260810v";
 
 /**
  * Post Processing: degree-of-freedom time series at probe points, and the DOF
@@ -59,17 +60,6 @@ function selectOf(values, selected) {
   return node;
 }
 
-function needProject(host, ctx, title) {
-  const none = card(title);
-  none.appendChild(el("p", "research-note", "No project open."));
-  const row = el("div", "gis-btn-row");
-  const go = el("button", "button", "Go to Projects");
-  go.type = "button";
-  go.addEventListener("click", () => ctx.setPage?.("Projects"));
-  row.appendChild(go);
-  none.appendChild(row);
-  host.appendChild(none);
-}
 
 // ── Extraction ───────────────────────────────────────────────────────────────
 

@@ -1,8 +1,9 @@
-import { registerPage } from "../stages.js?v=20260810s";
-import * as store from "../project-store.js?v=20260810s";
-import { parseTable, column, indexSeries } from "../table.js?v=20260810s";
-import { linePlot, heatmap, toPngBlob } from "../plot.js?v=20260810s";
-import * as dsp from "../dsp.js?v=20260810s";
+import { registerPage } from "../stages.js?v=20260810v";
+import * as store from "../project-store.js?v=20260810v";
+import { parseTable, column, indexSeries } from "../table.js?v=20260810v";
+import { linePlot, heatmap, toPngBlob } from "../plot.js?v=20260810v";
+import * as dsp from "../dsp.js?v=20260810v";
+import { needProject } from "./common.js?v=20260810v";
 
 /**
  * Signal Processing, Spectral Analysis and Statistics.
@@ -69,17 +70,6 @@ async function findTables() {
   return found;
 }
 
-function needProject(host, ctx, title) {
-  const none = card(title);
-  none.appendChild(el("p", "research-note", "No project open."));
-  const row = el("div", "gis-btn-row");
-  const go = el("button", "button", "Go to Projects");
-  go.type = "button";
-  go.addEventListener("click", () => ctx.setPage?.("Projects"));
-  row.appendChild(go);
-  none.appendChild(row);
-  host.appendChild(none);
-}
 
 /**
  * The source picker every page here shares: a file, a column, and a sampling
