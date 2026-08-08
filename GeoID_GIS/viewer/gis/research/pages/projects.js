@@ -1,5 +1,5 @@
-import { registerPage } from "../stages.js?v=20260809r";
-import * as store from "../project-store.js?v=20260809r";
+import { registerPage } from "../stages.js?v=20260809t";
+import * as store from "../project-store.js?v=20260809t";
 
 /**
  * Projects: choose the folder, make a project, open one, edit its profile.
