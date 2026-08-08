@@ -4,6 +4,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "AI Trainer",
@@ -263,6 +264,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -284,6 +286,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -305,6 +308,7 @@
      "var": "log_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -1545,6 +1549,13 @@
              "content": {
               "children": [
                {
+                "base": "QWidget",
+                "kind": "PipelineHealthPanel",
+                "node": "widget",
+                "text": null,
+                "var": "pipeline_health"
+               },
+               {
                 "children": [
                  {
                   "node": "stretch"
@@ -1607,6 +1618,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Data Hub",
@@ -1677,6 +1689,7 @@
      "var": "tree"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -1762,6 +1775,7 @@
      "var": "compare_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -1805,6 +1819,7 @@
      "var": "exp_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -1927,6 +1942,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -1987,6 +2003,7 @@
      "var": "tree"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -2040,6 +2057,7 @@
      "var": "compare_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -2062,6 +2080,7 @@
      "var": "preview_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -2099,6 +2118,7 @@
      "var": "quality_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -2166,6 +2186,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Docs & Sheets",
@@ -2253,6 +2274,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "EDA Report",
@@ -2305,6 +2327,14 @@
      "node": "layout"
     },
     {
+     "base": "QWidget",
+     "kind": "PlotlyViewer",
+     "node": "widget",
+     "stretch": 1,
+     "text": null,
+     "var": "_viewer"
+    },
+    {
      "kind": "QPlainTextEdit",
      "maxHeight": 160,
      "node": "widget",
@@ -2322,6 +2352,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Equation Workbench",
@@ -2617,6 +2648,14 @@
      "node": "layout"
     },
     {
+     "base": "QWidget",
+     "kind": "PlotlyViewer",
+     "node": "widget",
+     "stretch": 1,
+     "text": null,
+     "var": "_viewer"
+    },
+    {
      "children": [
       {
        "kind": "QLabel",
@@ -2692,6 +2731,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Event Detection",
@@ -3114,6 +3154,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "3D FEM Viewer",
@@ -3200,6 +3241,14 @@
      "node": "layout"
     },
     {
+     "base": "QWidget",
+     "kind": "PlotlyViewer",
+     "node": "widget",
+     "stretch": 1,
+     "text": null,
+     "var": "_viewer"
+    },
+    {
      "kind": "QLabel",
      "node": "widget",
      "objectName": "MutedLabel",
@@ -3216,6 +3265,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Feature Engineering",
@@ -3541,6 +3591,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Figure Composer",
@@ -3665,6 +3716,13 @@
         "node": "widget",
         "text": null,
         "var": "left"
+       },
+       {
+        "base": "QWidget",
+        "kind": "PlotlyViewer",
+        "node": "widget",
+        "text": null,
+        "var": "_viewer"
        }
       ],
       "kind": "QHBoxLayout",
@@ -3686,6 +3744,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "GIS Explorer",
@@ -4159,6 +4218,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": null,
@@ -4167,10 +4227,17 @@
     {
      "children": [
       {
+       "base": "QPushButton",
+       "kind": "ToolInfoButton",
+       "node": "widget",
+       "text": null,
+       "var": "__inline1"
+      },
+      {
        "kind": "QLabel",
        "node": "widget",
        "text": "Tag",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "items": [
@@ -4187,7 +4254,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Output",
-       "var": "__inline2"
+       "var": "__inline3"
       },
       {
        "kind": "QLineEdit",
@@ -4213,6 +4280,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -4502,6 +4570,7 @@
      "var": "provider_tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -4552,6 +4621,7 @@
      "var": "pulled_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -4573,6 +4643,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -4605,6 +4676,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": null,
@@ -4613,10 +4685,17 @@
     {
      "children": [
       {
+       "base": "QPushButton",
+       "kind": "ToolInfoButton",
+       "node": "widget",
+       "text": null,
+       "var": "__inline1"
+      },
+      {
        "kind": "QLabel",
        "node": "widget",
        "text": "Tag",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "items": [
@@ -4633,7 +4712,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Output",
-       "var": "__inline2"
+       "var": "__inline3"
       },
       {
        "kind": "QLineEdit",
@@ -4659,6 +4738,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -4948,6 +5028,7 @@
      "var": "provider_tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -4998,6 +5079,7 @@
      "var": "pulled_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -5019,6 +5101,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -5051,6 +5134,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": null,
@@ -5059,10 +5143,17 @@
     {
      "children": [
       {
+       "base": "QPushButton",
+       "kind": "ToolInfoButton",
+       "node": "widget",
+       "text": null,
+       "var": "__inline1"
+      },
+      {
        "kind": "QLabel",
        "node": "widget",
        "text": "Tag",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "items": [
@@ -5079,7 +5170,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Output",
-       "var": "__inline2"
+       "var": "__inline3"
       },
       {
        "kind": "QLineEdit",
@@ -5105,6 +5196,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -5393,6 +5485,7 @@
      "var": "provider_tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -5443,6 +5536,7 @@
      "var": "pulled_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -5464,6 +5558,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -5496,6 +5591,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": null,
@@ -5504,10 +5600,17 @@
     {
      "children": [
       {
+       "base": "QPushButton",
+       "kind": "ToolInfoButton",
+       "node": "widget",
+       "text": null,
+       "var": "__inline1"
+      },
+      {
        "kind": "QLabel",
        "node": "widget",
        "text": "Tag",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "items": [
@@ -5524,7 +5627,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Output",
-       "var": "__inline2"
+       "var": "__inline3"
       },
       {
        "kind": "QLineEdit",
@@ -5550,6 +5653,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -5829,6 +5933,7 @@
      "var": "provider_tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -5879,6 +5984,7 @@
      "var": "pulled_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -5900,6 +6006,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -5932,6 +6039,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": null,
@@ -5940,10 +6048,17 @@
     {
      "children": [
       {
+       "base": "QPushButton",
+       "kind": "ToolInfoButton",
+       "node": "widget",
+       "text": null,
+       "var": "__inline1"
+      },
+      {
        "kind": "QLabel",
        "node": "widget",
        "text": "Tag",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "items": [
@@ -5960,7 +6075,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Output",
-       "var": "__inline2"
+       "var": "__inline3"
       },
       {
        "kind": "QLineEdit",
@@ -5986,6 +6101,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -6275,6 +6391,7 @@
      "var": "provider_tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -6325,6 +6442,7 @@
      "var": "pulled_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -6346,6 +6464,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -6378,6 +6497,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": null,
@@ -6386,10 +6506,17 @@
     {
      "children": [
       {
+       "base": "QPushButton",
+       "kind": "ToolInfoButton",
+       "node": "widget",
+       "text": null,
+       "var": "__inline1"
+      },
+      {
        "kind": "QLabel",
        "node": "widget",
        "text": "Tag",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "items": [
@@ -6406,7 +6533,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Output",
-       "var": "__inline2"
+       "var": "__inline3"
       },
       {
        "kind": "QLineEdit",
@@ -6432,6 +6559,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -6721,6 +6849,7 @@
      "var": "provider_tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -6771,6 +6900,7 @@
      "var": "pulled_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -6792,6 +6922,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -6824,6 +6955,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": null,
@@ -6832,10 +6964,17 @@
     {
      "children": [
       {
+       "base": "QPushButton",
+       "kind": "ToolInfoButton",
+       "node": "widget",
+       "text": null,
+       "var": "__inline1"
+      },
+      {
        "kind": "QLabel",
        "node": "widget",
        "text": "Tag",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "items": [
@@ -6852,7 +6991,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Output",
-       "var": "__inline2"
+       "var": "__inline3"
       },
       {
        "kind": "QLineEdit",
@@ -6878,6 +7017,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -7167,6 +7307,7 @@
      "var": "provider_tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -7217,6 +7358,7 @@
      "var": "pulled_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -7238,6 +7380,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -7270,6 +7413,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": null,
@@ -7278,10 +7422,17 @@
     {
      "children": [
       {
+       "base": "QPushButton",
+       "kind": "ToolInfoButton",
+       "node": "widget",
+       "text": null,
+       "var": "__inline1"
+      },
+      {
        "kind": "QLabel",
        "node": "widget",
        "text": "Tag",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "items": [
@@ -7298,7 +7449,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Output",
-       "var": "__inline2"
+       "var": "__inline3"
       },
       {
        "kind": "QLineEdit",
@@ -7324,6 +7475,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -7613,6 +7765,7 @@
      "var": "provider_tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -7663,6 +7816,7 @@
      "var": "pulled_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -7684,6 +7838,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -7716,6 +7871,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": null,
@@ -7724,10 +7880,17 @@
     {
      "children": [
       {
+       "base": "QPushButton",
+       "kind": "ToolInfoButton",
+       "node": "widget",
+       "text": null,
+       "var": "__inline1"
+      },
+      {
        "kind": "QLabel",
        "node": "widget",
        "text": "Tag",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "items": [
@@ -7744,7 +7907,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Output",
-       "var": "__inline2"
+       "var": "__inline3"
       },
       {
        "kind": "QLineEdit",
@@ -7770,6 +7933,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -8049,6 +8213,7 @@
      "var": "provider_tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -8099,6 +8264,7 @@
      "var": "pulled_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -8120,6 +8286,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -8152,6 +8319,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": null,
@@ -8160,10 +8328,17 @@
     {
      "children": [
       {
+       "base": "QPushButton",
+       "kind": "ToolInfoButton",
+       "node": "widget",
+       "text": null,
+       "var": "__inline1"
+      },
+      {
        "kind": "QLabel",
        "node": "widget",
        "text": "Tag",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "items": [
@@ -8180,7 +8355,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Output",
-       "var": "__inline2"
+       "var": "__inline3"
       },
       {
        "kind": "QLineEdit",
@@ -8206,6 +8381,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -8484,6 +8660,7 @@
      "var": "provider_tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -8534,6 +8711,7 @@
      "var": "pulled_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -8555,6 +8733,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -8587,6 +8766,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": null,
@@ -8595,10 +8775,17 @@
     {
      "children": [
       {
+       "base": "QPushButton",
+       "kind": "ToolInfoButton",
+       "node": "widget",
+       "text": null,
+       "var": "__inline1"
+      },
+      {
        "kind": "QLabel",
        "node": "widget",
        "text": "Tag",
-       "var": "__inline1"
+       "var": "__inline2"
       },
       {
        "items": [
@@ -8615,7 +8802,7 @@
        "kind": "QLabel",
        "node": "widget",
        "text": "Output",
-       "var": "__inline2"
+       "var": "__inline3"
       },
       {
        "kind": "QLineEdit",
@@ -8641,6 +8828,7 @@
      "node": "layout"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -8930,6 +9118,7 @@
      "var": "provider_tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -8980,6 +9169,7 @@
      "var": "pulled_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -9001,6 +9191,7 @@
      "var": "summary_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -9109,6 +9300,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Live Monitor",
@@ -9198,6 +9390,14 @@
      "node": "layout"
     },
     {
+     "base": "QWidget",
+     "kind": "PlotlyViewer",
+     "node": "widget",
+     "stretch": 1,
+     "text": null,
+     "var": "_viewer"
+    },
+    {
      "children": [
       {
        "kind": "QLabel",
@@ -9233,6 +9433,7 @@
      "content": {
       "children": [
        {
+        "base": "QWidget",
         "kind": "PageHeader",
         "node": "widget",
         "text": "Map Composer",
@@ -9721,6 +9922,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Metadata & Lineage",
@@ -9894,6 +10096,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Model Fitting",
@@ -10267,6 +10470,7 @@
        {
         "children": [
          {
+          "base": "QWidget",
           "kind": "PageHeader",
           "node": "widget",
           "stretch": 1,
@@ -10310,7 +10514,16 @@
         "tabs": [
          {
           "content": {
-           "children": [],
+           "children": [
+            {
+             "base": "QPlainTextEdit",
+             "kind": "CodeEditor",
+             "node": "widget",
+             "stretch": 1,
+             "text": null,
+             "var": "_editor"
+            }
+           ],
            "kind": "QVBoxLayout",
            "node": "layout"
           },
@@ -10532,6 +10745,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Multi-Station Viewer",
@@ -10866,6 +11080,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Notebook",
@@ -10956,6 +11171,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Pipeline Editor",
@@ -11095,6 +11311,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Pipeline Runner",
@@ -11196,6 +11413,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Plugin Manager",
@@ -11252,6 +11470,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Point Cloud 3D",
@@ -11444,6 +11663,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Post Processing",
@@ -11473,7 +11693,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m4_button"
+                "var": "_m5_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -11495,7 +11715,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m6_button"
+                "var": "_m7_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -11517,7 +11737,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m8_button"
+                "var": "_m9_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -11539,7 +11759,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m10_button"
+                "var": "_m11_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -11561,7 +11781,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m12_button"
+                "var": "_m13_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -11583,7 +11803,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m14_button"
+                "var": "_m15_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -11888,6 +12108,13 @@
             {
              "children": [
               {
+               "base": "QPushButton",
+               "kind": "ToolInfoButton",
+               "node": "widget",
+               "text": "Generic DOF Extractor",
+               "var": "__inline3"
+              },
+              {
                "kind": "QPushButton",
                "node": "widget",
                "text": "Extract Interpolated DOF Timeseries",
@@ -12142,6 +12369,7 @@
        "content": {
         "children": [
          {
+          "base": "QFrame",
           "collapsed": false,
           "content": {
            "children": [
@@ -12281,6 +12509,7 @@
           "var": "clip_sec"
          },
          {
+          "base": "QFrame",
           "collapsed": true,
           "content": {
            "children": [
@@ -12361,6 +12590,7 @@
           "var": "raster_sec"
          },
          {
+          "base": "QFrame",
           "collapsed": true,
           "content": {
            "children": [
@@ -12439,6 +12669,7 @@
      "var": "tabs"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -12470,6 +12701,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Project Comparison",
@@ -12528,6 +12760,14 @@
      "stretch": 1,
      "text": null,
      "var": "_table"
+    },
+    {
+     "base": "QWidget",
+     "kind": "PlotlyViewer",
+     "maxHeight": 280,
+     "node": "widget",
+     "text": null,
+     "var": "_plot_viewer"
     }
    ],
    "kind": "QVBoxLayout",
@@ -13186,6 +13426,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "QA / QC",
@@ -13435,6 +13676,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Raster Tools",
@@ -13723,6 +13965,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Research Notes",
@@ -14381,12 +14624,14 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Signal Analysis Toolkit",
      "var": "_header"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -14408,7 +14653,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m5_button"
+                "var": "_m6_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -14430,7 +14675,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m7_button"
+                "var": "_m8_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -14452,7 +14697,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m9_button"
+                "var": "_m10_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -14474,7 +14719,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m11_button"
+                "var": "_m12_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -14496,7 +14741,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m13_button"
+                "var": "_m14_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -14518,7 +14763,7 @@
                 "kind": "QPushButton",
                 "node": "widget",
                 "text": "Browse",
-                "var": "_m15_button"
+                "var": "_m16_button"
                }
               ],
               "kind": "QHBoxLayout",
@@ -14655,6 +14900,13 @@
           {
            "children": [
             {
+             "base": "QPushButton",
+             "kind": "ToolInfoButton",
+             "node": "widget",
+             "text": "Wavelet Analysis",
+             "var": "__inline17"
+            },
+            {
              "kind": "QPushButton",
              "node": "widget",
              "text": "Run Selected Module",
@@ -14742,49 +14994,49 @@
              "kind": "QPushButton",
              "node": "widget",
              "text": "Contamination",
-             "var": "_i16_btn"
-            },
-            {
-             "kind": "QPushButton",
-             "node": "widget",
-             "text": "Cumulative",
-             "var": "_i17_btn"
-            },
-            {
-             "kind": "QPushButton",
-             "node": "widget",
-             "text": "Dataset Compare",
              "var": "_i18_btn"
             },
             {
              "kind": "QPushButton",
              "node": "widget",
-             "text": "Sync Events",
+             "text": "Cumulative",
              "var": "_i19_btn"
             },
             {
              "kind": "QPushButton",
              "node": "widget",
-             "text": "Best Candidates",
+             "text": "Dataset Compare",
              "var": "_i20_btn"
             },
             {
              "kind": "QPushButton",
              "node": "widget",
-             "text": "Spectrograms",
+             "text": "Sync Events",
              "var": "_i21_btn"
             },
             {
              "kind": "QPushButton",
              "node": "widget",
-             "text": "Morlet",
+             "text": "Best Candidates",
              "var": "_i22_btn"
             },
             {
              "kind": "QPushButton",
              "node": "widget",
-             "text": "P-wave Summaries",
+             "text": "Spectrograms",
              "var": "_i23_btn"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Morlet",
+             "var": "_i24_btn"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "P-wave Summaries",
+             "var": "_i25_btn"
             },
             {
              "node": "stretch"
@@ -14812,6 +15064,7 @@
      "var": "event_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -15041,6 +15294,13 @@
           {
            "children": [
             {
+             "base": "QPushButton",
+             "kind": "ToolInfoButton",
+             "node": "widget",
+             "text": "Signal Analysis",
+             "var": "__inline4"
+            },
+            {
              "kind": "QPushButton",
              "node": "widget",
              "text": "Load Headers",
@@ -15096,6 +15356,7 @@
      "var": "generic_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": true,
      "content": {
       "children": [
@@ -15109,7 +15370,7 @@
              "kind": "QLabel",
              "node": "widget",
              "text": "Recipe",
-             "var": "__inline24"
+             "var": "__inline26"
             },
             {
              "kind": "QComboBox",
@@ -15242,6 +15503,7 @@
      "var": "tool_sec"
     },
     {
+     "base": "QFrame",
      "collapsed": false,
      "content": {
       "children": [
@@ -15579,6 +15841,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Spectral Analysis",
@@ -15957,6 +16220,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Statistics Suite",
@@ -16037,6 +16301,13 @@
             "var": "_corr_method"
            },
            {
+            "base": "QPushButton",
+            "kind": "ToolInfoButton",
+            "node": "widget",
+            "text": "Correlation Matrix",
+            "var": "__inline2"
+           },
+           {
             "kind": "QPushButton",
             "node": "widget",
             "text": "Compute Correlation Matrix",
@@ -16048,6 +16319,14 @@
           ],
           "kind": "QHBoxLayout",
           "node": "layout"
+         },
+         {
+          "base": "QWidget",
+          "kind": "PlotlyViewer",
+          "node": "widget",
+          "stretch": 1,
+          "text": null,
+          "var": "_corr_viewer"
          }
         ],
         "kind": "QVBoxLayout",
@@ -16064,7 +16343,7 @@
             "kind": "QLabel",
             "node": "widget",
             "text": "Components:",
-            "var": "__inline2"
+            "var": "__inline3"
            },
            {
             "kind": "QSpinBox",
@@ -16078,6 +16357,13 @@
             "var": "_pca_n"
            },
            {
+            "base": "QPushButton",
+            "kind": "ToolInfoButton",
+            "node": "widget",
+            "text": "PCA",
+            "var": "__inline4"
+           },
+           {
             "kind": "QPushButton",
             "node": "widget",
             "text": "Run PCA",
@@ -16089,6 +16375,14 @@
           ],
           "kind": "QHBoxLayout",
           "node": "layout"
+         },
+         {
+          "base": "QWidget",
+          "kind": "PlotlyViewer",
+          "node": "widget",
+          "stretch": 1,
+          "text": null,
+          "var": "_pca_viewer"
          }
         ],
         "kind": "QVBoxLayout",
@@ -16105,7 +16399,7 @@
             "kind": "QLabel",
             "node": "widget",
             "text": "Method:",
-            "var": "__inline3"
+            "var": "__inline5"
            },
            {
             "items": [
@@ -16121,7 +16415,7 @@
             "kind": "QLabel",
             "node": "widget",
             "text": "k:",
-            "var": "__inline4"
+            "var": "__inline6"
            },
            {
             "kind": "QSpinBox",
@@ -16135,6 +16429,13 @@
             "var": "_clust_k"
            },
            {
+            "base": "QPushButton",
+            "kind": "ToolInfoButton",
+            "node": "widget",
+            "text": "Clustering",
+            "var": "__inline7"
+           },
+           {
             "kind": "QPushButton",
             "node": "widget",
             "text": "Cluster",
@@ -16146,6 +16447,14 @@
           ],
           "kind": "QHBoxLayout",
           "node": "layout"
+         },
+         {
+          "base": "QWidget",
+          "kind": "PlotlyViewer",
+          "node": "widget",
+          "stretch": 1,
+          "text": null,
+          "var": "_clust_viewer"
          }
         ],
         "kind": "QVBoxLayout",
@@ -16172,6 +16481,13 @@
                "node": "widget",
                "text": null,
                "var": "_hyp_test"
+              },
+              {
+               "base": "QPushButton",
+               "kind": "ToolInfoButton",
+               "node": "widget",
+               "text": "Hypothesis Test",
+               "var": "__inline8"
               },
               {
                "node": "stretch"
@@ -16235,7 +16551,7 @@
             "kind": "QLabel",
             "node": "widget",
             "text": "Column:",
-            "var": "__inline5"
+            "var": "__inline9"
            },
            {
             "kind": "QLineEdit",
@@ -16257,6 +16573,14 @@
           ],
           "kind": "QHBoxLayout",
           "node": "layout"
+         },
+         {
+          "base": "QWidget",
+          "kind": "PlotlyViewer",
+          "node": "widget",
+          "stretch": 1,
+          "text": null,
+          "var": "_dist_viewer"
          }
         ],
         "kind": "QVBoxLayout",
@@ -16287,6 +16611,7 @@
     {
      "children": [
       {
+       "base": "QWidget",
        "kind": "PageHeader",
        "node": "widget",
        "stretch": 1,
@@ -16625,6 +16950,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Temporal Tools",
@@ -16979,6 +17305,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Vector Tools",
@@ -17361,6 +17688,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "Workflow Automation",
@@ -17635,6 +17963,7 @@
   "root": {
    "children": [
     {
+     "base": "QWidget",
      "kind": "PageHeader",
      "node": "widget",
      "text": "XYZ to STL",

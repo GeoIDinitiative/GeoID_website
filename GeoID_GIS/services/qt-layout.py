@@ -41,6 +41,10 @@ QT_APP = Path("/home/owen/atlas-ai/apps/GeoID_Research/app_qt.py")
 OUT = Path(__file__).resolve().parents[1] / "viewer/gis/research/qt-layout.json"
 
 LAYOUT_KINDS = {"QVBoxLayout", "QHBoxLayout", "QGridLayout", "QFormLayout", "QStackedLayout"}
+
+# The app's own widget classes -> the Qt class each extends. Filled by
+# `custom_widgets()` so the renderer can treat `CodeEditor` as a QPlainTextEdit.
+CUSTOM_BASE = {}
 CONTAINER_KINDS = {"QWidget", "QFrame", "QGroupBox", "QScrollArea", "QStackedWidget",
                    "CollapsibleSection"}
 
@@ -635,6 +639,7 @@ def build_tree(reader, root_layout):
             return inner
         node = {
             "node": "widget", "kind": info["kind"], "var": var,
+            **({"base": CUSTOM_BASE[info["kind"]]} if info["kind"] in CUSTOM_BASE else {}),
             "text": info.get("props", {}).get("text") or info.get("text"),
             **{k: v for k, v in info.get("props", {}).items() if k != "text"},
         }
@@ -773,8 +778,38 @@ def fill_provider_tabs(root, providers, slug=""):
             fill_provider_tabs(value, providers, slug)
 
 
+def custom_widgets(tree):
+    """The app's own widget classes, mapped to the Qt class they extend.
+
+    `CodeEditor()` is a QPlainTextEdit, `ToolInfoButton()` a QPushButton,
+    `PlotlyViewer()` a QWidget. They are not in `WIDGET_KINDS` because they are
+    not Qt's, so every one of them was skipped — Module Builder's Editor tab
+    rendered as an empty box because its only child was a CodeEditor. Learning
+    them from their base class costs nothing and cannot go stale.
+
+    Page classes are excluded: those *are* the pages, not widgets inside one.
+    """
+    out = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name.endswith("Page"):
+            continue
+        for base in node.bases:
+            name = base.attr if isinstance(base, ast.Attribute) else getattr(base, "id", "")
+            if name in WIDGET_KINDS or name in CONTAINER_KINDS or name in LAYOUT_KINDS:
+                out[node.name] = name
+                break
+            if name in out:                 # a subclass of one of the app's own
+                out[node.name] = out[name]
+                break
+    return out
+
+
 def extract():
     tree = ast.parse(QT_APP.read_text(encoding="utf-8"), filename=str(QT_APP))
+    # Teach the reader the app's own widget classes before anything is read.
+    for name, base in custom_widgets(tree).items():
+        WIDGET_KINDS.add(name)
+        CUSTOM_BASE[name] = base
     spec_path = OUT.parent / "qt-spec.json"
     mapping = {}
     if spec_path.exists():

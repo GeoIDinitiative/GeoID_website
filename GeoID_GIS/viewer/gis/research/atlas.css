@@ -1590,7 +1590,11 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
-  flex: 1 1 auto;
+  /* Preferred, not Expanding — see packRoot(). It fills only when nothing else
+     on the page claims the leftover height, and it is never squashed below its
+     content: shrinking it cost Storyboard 36px and left Module Builder's tab
+     body at 20px. */
+  flex: 0 0 auto;
   border: 1px solid var(--atlas-line);
   border-radius: 8px;
   background: var(--atlas-panel);
@@ -1894,7 +1898,6 @@
 .qt-page .qt-v > * { flex-shrink: 0; }
 .qt-page .qt-v > .qt-grow,
 .qt-page .qt-v > .qt-stretch,
-.qt-page .qt-v > .qt-tabwidget,
 .qt-page .qt-v > .qt-scroll,
 .qt-page .qt-v > .qt-listwidget,
 .qt-page .qt-v > .qt-datatable,

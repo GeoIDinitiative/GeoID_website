@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260808-9c90c89";
-import * as store from "./project-store.js?v=20260808-9c90c89";
-import { el, statusLine } from "./pages/common.js?v=20260808-9c90c89";
-import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-9c90c89";
+import { handlerFor } from "./spec-page.js?v=20260808-3e1f513";
+import * as store from "./project-store.js?v=20260808-3e1f513";
+import { el, statusLine } from "./pages/common.js?v=20260808-3e1f513";
+import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-3e1f513";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -63,6 +63,16 @@ const LAYOUT_CLASS = {
  * A stretch factor still wins where the app states one; this is only what Qt
  * does when it is not told.
  */
+/** Widget kinds this renderer draws itself; anything else falls back to base. */
+const KNOWN = new Set([
+  "QLabel", "QLineEdit", "QPlainTextEdit", "QTextEdit", "QPushButton",
+  "QToolButton", "QComboBox", "QCheckBox", "QRadioButton", "QSpinBox",
+  "QDoubleSpinBox", "QSlider", "QListWidget", "QTableWidget", "QTreeWidget",
+  "QTabWidget", "QProgressBar", "QDateEdit", "QDateTimeEdit", "QSplitter",
+  "QGroupBox", "QFrame", "QWidget", "QScrollArea", "QStackedWidget",
+  "PageHeader", "CollapsibleSection",
+]);
+
 const EXPANDING = new Set([
   "QPlainTextEdit", "QTextEdit", "QTextBrowser",
   "QTableWidget", "QTreeWidget", "QListWidget",
@@ -284,12 +294,19 @@ export function renderTree(spec, ctx) {
 
   function renderWidget(node) {
     const dom = decorate(renderWidgetInner(node), node);
-    if (dom && EXPANDING.has(node.kind)) dom.classList.add("qt-expand");
+    // A custom widget expands if the Qt class it extends does — a CodeEditor is
+    // a QPlainTextEdit and fills its tab exactly as one.
+    if (dom && (EXPANDING.has(node.kind) || EXPANDING.has(node.base))) {
+      dom.classList.add("qt-expand");
+    }
     return dom;
   }
 
   function renderWidgetInner(node) {
-    const kind = node.kind;
+    // The app's own widget classes render as the Qt class they extend, which
+    // the extractor records. Without it a CodeEditor fell through to the
+    // container branch and Module Builder's Editor tab was an empty box.
+    const kind = KNOWN.has(node.kind) ? node.kind : (node.base || node.kind);
     const text = node.text || "";
 
     if (kind === "PageHeader") return null;   // the hub draws the header itself
@@ -536,6 +553,21 @@ function packRoot(root) {
     else flush();
   });
   flush();
+
+  // A QTabWidget is Preferred in Qt, not Expanding: it takes its size hint and
+  // yields the leftover height to a widget that actually wants it. Ingest gives
+  // its registry `addWidget(sec, 1)`, and with the tab strip also growing the
+  // two split the page and the provider tab showed one line of its card. So a
+  // tab strip only fills when nothing else on the page will.
+  const children = Array.from(root.children);
+  const claimed = children.some((node) =>
+    parseFloat(node.style.flexGrow || node.style.flex) > 0
+    || node.matches(".qt-expand") || node.querySelector(".qt-expand"));
+  if (!claimed) {
+    const fill = children.filter((node) =>
+      node.matches(".qt-tabwidget, .qt-splitter, .qt-stack, .qt-datatable, .qt-listwidget"));
+    (fill[fill.length - 1] || null)?.classList.add("qt-grow");
+  }
 }
 
 let layoutPromise = null;
