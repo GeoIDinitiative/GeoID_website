@@ -237,6 +237,58 @@ sixty-four have one. A page that draws its own sets `ownHeader = true` on its
 mount function — `projects`, `repository`, `docs`, `qaqc` and every `crossPage`
 do, and forgetting the flag gives that page two titles.
 
+**A page's structure is the Qt app's own layout tree, not a guess.**
+`services/qt-layout.py` walks `app_qt.py`'s AST and recovers how each page is
+actually built — `sel.addWidget(self._file_edit, 1)`, `layout.addLayout(sel)`,
+`tabs.addTab(file_tab, "File QA")` — in source order, into
+`gis/research/qt-layout.json`: 62 pages, 1973 nodes. `qt-render.js` walks that,
+and the mapping is nearly one to one: QVBoxLayout is a flex column, QHBoxLayout
+a flex row, `addWidget(w, 2)` is `flex: 2`, addStretch a spacer, QGridLayout a
+grid with each child at the row and column the app placed it at.
+
+This replaced building pages from `qt-spec.json`, which is an **inventory** —
+which buttons, which fields. The inventory was right and the pages still looked
+nothing like the app, because the arrangement is most of what a page is and the
+arrangement was invented here. If a page looks wrong, fix the extractor or the
+renderer; do not hand-write a layout for it.
+
+Three idioms the extractor must keep following, each of which silently
+swallowed whole pages when it did not:
+
+- `CollapsibleSection`'s API is `add_widget` / `add_layout`, not `addWidget`.
+  Missing it left Signal Processing as four empty sections.
+- A `QSplitter` takes `addWidget` directly rather than owning a layout. Missing
+  it left Projects as an empty splitter.
+- A container's content is either the layout it owns *or* the widgets added
+  straight to it, never both.
+
+Still missing: widgets built inside a helper method that takes a layout as a
+parameter — the call site carries no link to the tree. That is 114 of 737
+controls, nearly all of them the eleven Ingest pages' shared provenance block.
+They still render, appended by the completion, so nothing is lost; the page is
+85% tree-rendered rather than 100%.
+
+**Nine pages keep their hand-written module** — `KEEP_HANDBUILT` in
+`spec-page.js`. Each is a tool rather than a form: it holds state, parses files
+or drives a multi-step flow. The list was measured, not chosen: across all 62
+pages 238 of 310 buttons in the tree already have a handler matched by label,
+and these are where that falls below half (Build New 0/8, Projects 5/18, Data
+Hub 4/14, Data Repository 1/8, Docs & Sheets 1/6, QA/QC 1/5, Post Processing
+0/2, plus Notebook and Dashboard). Do not add to that list to avoid wiring a
+page — wire it, or let its controls render honestly disabled.
+
+**A tree-rendered page is a fixed-height flex column**, as a Qt page is: the
+window sets the height, stretch children absorb what is left, everything else
+takes its size hint. `min-height: 0` on every layout is what lets a flex child
+shrink at all — without it `min-height: auto` floors each child at its content
+height and the page overflows again. 53 of 53 fit 1920x1080 with no page-level
+scrolling. Two traps found the hard way: `.research-page`'s grid rule sets
+`align-content: start`, which computes to `align-items: start` in a flex column
+and shrank every page to 954px of an 1824px pane; and `#research-hub .input`
+sets `width: 100%` with an **id**, which outranks any class-only rule, so a
+combo in a spacer'd row spanned the row until the override carried
+`#research-hub` too.
+
 **Do not rebuild a page from memory.** `services/qt-extract.py` parses
 `app_qt.py`'s AST into `qt-spec.json` — every page's title, subtitle, tabs,
 collapsible sections, group boxes, button labels, field placeholders, dropdown
