@@ -1488,9 +1488,32 @@
 .qt-stretch { flex: 1 1 auto; min-height: 0; min-width: 0; }
 .qt-spacing { flex: 0 0 auto; display: block; }
 
-/* A field: caption above, control below — the QFormLayout row, which Qt draws
-   side by side. Stacked reads better at these column widths and keeps the
-   caption from being clipped. */
+/* A QFormLayout row, as Qt draws it: caption left, field right, captions
+   aligned down the column. Stacking the caption above the field was the most
+   visible way these pages stopped looking like the app -- every form on every
+   page was twice as tall and read as a list rather than a form. Under 640px it
+   stacks, because a 9rem caption column leaves nothing for the field. */
+.qt-form {
+  display: grid;
+  grid-template-columns: minmax(6rem, 9rem) minmax(0, 1fr);
+  gap: 6px 10px;
+  align-items: center;
+}
+.qt-form > .qt-form-row {
+  display: contents;
+}
+.qt-form > .qt-form-row > .qt-form-label {
+  text-align: right;
+  align-self: center;
+}
+/* Anything a form row holds that is not the caption sits in the field column. */
+.qt-form > *:not(.qt-form-row) { grid-column: 1 / -1; }
+@media (max-width: 640px) {
+  .qt-form { grid-template-columns: minmax(0, 1fr); }
+  .qt-form > .qt-form-row > .qt-form-label { text-align: left; }
+  .qt-form > .qt-form-row > *:not(.qt-form-label) { grid-column: 1; }
+}
+/* A form row outside a QFormLayout still stacks. */
 .qt-form-row {
   display: flex;
   flex-direction: column;
@@ -1651,3 +1674,45 @@
   background: var(--atlas-panel);
   scrollbar-width: thin;
 }
+
+/* Qt object names, each of which its stylesheet gives a distinct role. */
+.qt-page-title {
+  font-family: "Orbitron", system-ui, sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  color: rgb(var(--skin-chrome));
+  margin: 0;
+}
+.qt-subtitle, .qt-muted {
+  font-size: 0.76rem;
+  color: var(--atlas-muted);
+  margin: 0;
+}
+.qt-pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border: 1px solid rgba(var(--skin-chrome), 0.5);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  color: rgb(var(--skin-chrome));
+  white-space: nowrap;
+}
+.qt-label.is-wrapped, .qt-subtitle, .qt-muted { white-space: normal; }
+
+/* An explicit Qt alignment: the widget keeps its size hint. */
+.qt-v > .qt-align-left  { align-self: flex-start; }
+.qt-v > .qt-align-right { align-self: flex-end; }
+.qt-v > .qt-align-hcenter, .qt-v > .qt-align-center { align-self: center; }
+
+/* A QScrollArea scrolls; it is where a page puts content it builds on demand. */
+.qt-scroll {
+  flex: 1 1 auto;
+  min-height: 3rem;
+  overflow: auto;
+  border: 1px solid var(--atlas-line);
+  border-radius: 6px;
+  background: var(--atlas-panel);
+  scrollbar-width: thin;
+}
+#research-hub .qt-page .qt-number { max-width: 9rem; }

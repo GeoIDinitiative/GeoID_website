@@ -32,6 +32,7 @@
       },
       {
        "kind": "QComboBox",
+       "minWidth": 220,
        "node": "widget",
        "placeholder": "Registered datasets\u2026",
        "stretch": 1,
@@ -97,6 +98,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -117,10 +119,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 140,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -136,6 +140,7 @@
      "var": "log_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
@@ -145,6 +150,7 @@
          "Dataset"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 120,
         "node": "widget",
         "text": null,
         "var": "runs_table"
@@ -368,6 +374,27 @@
      "node": "layout"
     },
     {
+     "content": {
+      "children": [
+       {
+        "content": {
+         "children": [
+          {
+           "node": "stretch"
+          }
+         ],
+         "kind": "QVBoxLayout",
+         "node": "layout"
+        },
+        "kind": "QWidget",
+        "node": "widget",
+        "text": null,
+        "var": "rows_widget"
+       }
+      ],
+      "kind": "QVBoxLayout",
+      "node": "layout"
+     },
      "kind": "QScrollArea",
      "node": "widget",
      "stretch": 1,
@@ -547,6 +574,7 @@
        "node": "widget",
        "stretch": 0,
        "text": "Start Tour",
+       "tip": "Run the guided onboarding tour",
        "var": "tour_btn"
       },
       {
@@ -554,6 +582,7 @@
        "node": "widget",
        "stretch": 0,
        "text": "Run Pipeline",
+       "tip": "Open automated pipeline runner",
        "var": "run_pipe_btn"
       }
      ],
@@ -685,6 +714,7 @@
                 "node": "widget",
                 "stretch": 1,
                 "text": null,
+                "tip": "Double-click a project to open it",
                 "var": "project_list"
                },
                {
@@ -854,6 +884,7 @@
        "kind": "QPushButton",
        "node": "widget",
        "text": "Create Repro Bundle",
+       "tip": "Create a reproducibility bundle (pip freeze, hashes, lineage, config)",
        "var": "repro_btn"
       },
       {
@@ -882,6 +913,7 @@
      "var": "tree"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
@@ -966,6 +998,7 @@
      "var": "compare_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
@@ -1008,6 +1041,7 @@
      "var": "exp_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
@@ -1078,6 +1112,7 @@
        "kind": "QPushButton",
        "node": "widget",
        "text": "+ Add Dataset",
+       "tip": "Import a file into the project registry",
        "var": "add_data_btn"
       },
       {
@@ -1095,18 +1130,22 @@
        "kind": "QComboBox",
        "node": "widget",
        "text": null,
-       "var": "tag_combo"
+       "tip": "Tag applied to newly imported files",
+       "var": "tag_combo",
+       "width": 90
       },
       {
        "kind": "QPushButton",
        "node": "widget",
        "text": "Promote \u2192 main",
+       "tip": "Promote the selected dataset to 'main'",
        "var": "promote_btn"
       },
       {
        "kind": "QPushButton",
        "node": "widget",
        "text": "Clone \u2192 test",
+       "tip": "Clone the selected dataset as a test variant",
        "var": "clone_btn"
       },
       {
@@ -1116,6 +1155,7 @@
        "kind": "QPushButton",
        "node": "widget",
        "text": "Refresh",
+       "tip": "Rescan the project folder",
        "var": "refresh_btn"
       }
      ],
@@ -1123,6 +1163,7 @@
      "node": "layout"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
@@ -1182,6 +1223,7 @@
      "var": "tree"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
@@ -1234,6 +1276,7 @@
      "var": "compare_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -1255,6 +1298,7 @@
      "var": "preview_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
@@ -1291,12 +1335,32 @@
      "var": "quality_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "children": [
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QLineEdit",
+             "node": "widget",
+             "stretch": 1,
+             "text": null,
+             "var": "watch_dir"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "\u2026",
+             "var": "watch_browse",
+             "width": 32
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "Watch folder",
           "node": "row"
          },
@@ -1304,7 +1368,12 @@
           "child": {
            "kind": "QSpinBox",
            "node": "widget",
+           "range": [
+            5,
+            3600
+           ],
            "text": null,
+           "value": 30,
            "var": "watch_interval"
           },
           "label": "Interval (s)",
@@ -1344,16 +1413,19 @@
        "kind": "QPushButton",
        "node": "widget",
        "text": "\u2190",
-       "var": "back_btn"
+       "var": "back_btn",
+       "width": 34
       },
       {
        "kind": "QPushButton",
        "node": "widget",
        "text": "\u2192",
-       "var": "fwd_btn"
+       "var": "fwd_btn",
+       "width": 34
       },
       {
        "kind": "QComboBox",
+       "minWidth": 240,
        "node": "widget",
        "stretch": 1,
        "text": null,
@@ -1369,19 +1441,23 @@
        "kind": "QPushButton",
        "node": "widget",
        "text": "\uff0b New sheet",
+       "tip": "Creates a Google Sheet via Atlas (files the link under the project) when Google is connected; opens sheets.new otherwise.",
        "var": "new_sheet_btn"
       },
       {
        "kind": "QPushButton",
        "node": "widget",
        "text": "Attach page to project",
+       "tip": "File the currently open doc/sheet URL under the Atlas project's links.",
        "var": "attach_btn"
       },
       {
        "kind": "QPushButton",
        "node": "widget",
        "text": "\u21bb",
-       "var": "refresh_btn"
+       "tip": "Refresh the project's link list",
+       "var": "refresh_btn",
+       "width": 34
       }
      ],
      "kind": "QHBoxLayout",
@@ -1436,6 +1512,7 @@
       },
       {
        "kind": "QComboBox",
+       "minWidth": 160,
        "node": "widget",
        "stretch": 1,
        "text": null,
@@ -1517,6 +1594,7 @@
       },
       {
        "kind": "QComboBox",
+       "minWidth": 220,
        "node": "widget",
        "text": null,
        "var": "_bus_combo"
@@ -1735,7 +1813,8 @@
        "kind": "QLineEdit",
        "node": "widget",
        "text": "time",
-       "var": "_x_col"
+       "var": "_x_col",
+       "width": 80
       },
       {
        "kind": "QLabel",
@@ -1748,7 +1827,8 @@
        "node": "widget",
        "placeholder": "y column",
        "text": null,
-       "var": "_y_col"
+       "var": "_y_col",
+       "width": 100
       },
       {
        "kind": "QPushButton",
@@ -1885,6 +1965,7 @@
       {
        "items": [],
        "kind": "QComboBox",
+       "minWidth": 140,
        "node": "widget",
        "text": null,
        "var": "_sig_col"
@@ -1898,7 +1979,12 @@
       {
        "kind": "QDoubleSpinBox",
        "node": "widget",
+       "range": [
+        0.001,
+        100000
+       ],
        "text": null,
+       "value": 1.0,
        "var": "_fs"
       },
       {
@@ -1951,7 +2037,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               0,
+               1000000000.0
+              ],
               "text": null,
+              "value": 3.0,
               "var": "_thresh_val"
              },
              "label": "Threshold / N:",
@@ -1961,7 +2052,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               0,
+               1000000.0
+              ],
               "text": null,
+              "value": 0,
               "var": "_thresh_min_dur"
              },
              "label": "Min duration (s):",
@@ -1971,7 +2067,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               0,
+               1000000.0
+              ],
               "text": null,
+              "value": 0,
               "var": "_thresh_gap"
              },
              "label": "Min gap between events (s):",
@@ -1990,7 +2091,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               0.001,
+               1000000.0
+              ],
               "text": null,
+              "value": 1.0,
               "var": "_sta_win"
              },
              "label": "STA window (s):",
@@ -2000,7 +2106,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               0.001,
+               1000000.0
+              ],
               "text": null,
+              "value": 10.0,
               "var": "_lta_win"
              },
              "label": "LTA window (s):",
@@ -2010,7 +2121,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               1.0,
+               100.0
+              ],
               "text": null,
+              "value": 3.0,
               "var": "_stalta_on"
              },
              "label": "Trigger ON ratio:",
@@ -2020,7 +2136,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               0.1,
+               100.0
+              ],
               "text": null,
+              "value": 1.5,
               "var": "_stalta_off"
              },
              "label": "Trigger OFF ratio:",
@@ -2049,7 +2170,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               null,
+               1000000000.0
+              ],
               "text": null,
+              "value": 0,
               "var": "_peak_height"
              },
              "label": "Min height:",
@@ -2059,7 +2185,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               0,
+               1000000000.0
+              ],
               "text": null,
+              "value": 0,
               "var": "_peak_prominence"
              },
              "label": "Min prominence:",
@@ -2069,7 +2200,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               0,
+               1000000.0
+              ],
               "text": null,
+              "value": 0,
               "var": "_peak_width"
              },
              "label": "Min width (samples):",
@@ -2079,7 +2215,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               1,
+               1000000.0
+              ],
               "text": null,
+              "value": 1,
               "var": "_peak_distance"
              },
              "label": "Min distance (samples):",
@@ -2130,7 +2271,12 @@
                "child": {
                 "kind": "QDoubleSpinBox",
                 "node": "widget",
+                "range": [
+                 0,
+                 1
+                ],
                 "text": null,
+                "value": 0.7,
                 "var": "_pattern_threshold"
                },
                "label": "Correlation threshold (0\u20131):",
@@ -2250,7 +2396,8 @@
        "kind": "QLineEdit",
        "node": "widget",
        "text": "value",
-       "var": "_scalar_col"
+       "var": "_scalar_col",
+       "width": 90
       },
       {
        "kind": "QLabel",
@@ -2262,19 +2409,22 @@
        "kind": "QLineEdit",
        "node": "widget",
        "text": "x",
-       "var": "_x_col"
+       "var": "_x_col",
+       "width": 50
       },
       {
        "kind": "QLineEdit",
        "node": "widget",
        "text": "y",
-       "var": "_y_col"
+       "var": "_y_col",
+       "width": 50
       },
       {
        "kind": "QLineEdit",
        "node": "widget",
        "text": "z",
-       "var": "_z_col"
+       "var": "_z_col",
+       "width": 50
       },
       {
        "kind": "QPushButton",
@@ -2459,7 +2609,12 @@
           "child": {
            "kind": "QSpinBox",
            "node": "widget",
+           "range": [
+            2,
+            5
+           ],
            "text": null,
+           "value": 2,
            "var": "_poly_degree"
           },
           "label": "Degree:",
@@ -2498,6 +2653,7 @@
          {
           "child": {
            "kind": "QComboBox",
+           "minWidth": 140,
            "node": "widget",
            "text": null,
            "var": "_sel_target"
@@ -2524,7 +2680,12 @@
           "child": {
            "kind": "QSpinBox",
            "node": "widget",
+           "range": [
+            1,
+            500
+           ],
            "text": null,
+           "value": 10,
            "var": "_sel_k"
           },
           "label": "Top-K features:",
@@ -2651,7 +2812,12 @@
       {
        "kind": "QSpinBox",
        "node": "widget",
+       "range": [
+        1,
+        6
+       ],
        "text": null,
+       "value": 2,
        "var": "_cols_spin"
       },
       {
@@ -2663,7 +2829,12 @@
       {
        "kind": "QSpinBox",
        "node": "widget",
+       "range": [
+        72,
+        600
+       ],
        "text": null,
+       "value": 300,
        "var": "_dpi_spin"
       },
       {
@@ -2769,12 +2940,14 @@
        "kind": "QPushButton",
        "node": "widget",
        "text": "Stage dataset for globe\u2026",
+       "tip": "Copy a dataset into the earth_exchange the globe reads; it appears under '\u2295 Atlas data'.",
        "var": "stage_btn"
       },
       {
        "kind": "QPushButton",
        "node": "widget",
        "text": "Send file to Meshing Studio\u2026",
+       "tip": "DEM/geometry -> the Mesh tile; its 'To Explorer' button lands the meshed surface on this globe.",
        "var": "mesh_btn"
       },
       {
@@ -2895,6 +3068,10 @@
              "child": {
               "kind": "QSpinBox",
               "node": "widget",
+              "range": [
+               null,
+               9999
+              ],
               "text": null,
               "var": "bc_flag"
              },
@@ -2936,7 +3113,24 @@
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "bc_table"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse table",
+                "var": "browse_table"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Table file",
              "node": "row"
             },
@@ -3053,12 +3247,46 @@
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "target_dir"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "browse_target"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Target directory",
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "template_dir"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "browse_template"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Clone source (template)",
              "node": "row"
             },
@@ -3223,6 +3451,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3252,6 +3481,7 @@
      "var": "provider_tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3262,6 +3492,7 @@
          "Format"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 150,
         "node": "widget",
         "text": null,
         "var": "tree"
@@ -3272,12 +3503,14 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Earth viewer",
+          "tip": "Stage the selected dataset (or pick a file) for the GeoID Earth viewer.\nIt appears in the viewer's 'Atlas data' panel (Earth tab in Atlas).",
           "var": "send_earth_btn"
          },
          {
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Meshing Studio",
+          "tip": "Hand the selected dataset (or pick a file) to the Atlas Meshing Studio \u2014 DEM/xyz data lands as terrain geometry in the Mesh tile.",
           "var": "send_mesh_btn"
          },
          {
@@ -3298,6 +3531,7 @@
      "var": "pulled_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3318,10 +3552,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -3400,6 +3636,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3429,6 +3666,7 @@
      "var": "provider_tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3439,6 +3677,7 @@
          "Format"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 150,
         "node": "widget",
         "text": null,
         "var": "tree"
@@ -3449,12 +3688,14 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Earth viewer",
+          "tip": "Stage the selected dataset (or pick a file) for the GeoID Earth viewer.\nIt appears in the viewer's 'Atlas data' panel (Earth tab in Atlas).",
           "var": "send_earth_btn"
          },
          {
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Meshing Studio",
+          "tip": "Hand the selected dataset (or pick a file) to the Atlas Meshing Studio \u2014 DEM/xyz data lands as terrain geometry in the Mesh tile.",
           "var": "send_mesh_btn"
          },
          {
@@ -3475,6 +3716,7 @@
      "var": "pulled_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3495,10 +3737,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -3577,6 +3821,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3606,6 +3851,7 @@
      "var": "provider_tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3616,6 +3862,7 @@
          "Format"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 150,
         "node": "widget",
         "text": null,
         "var": "tree"
@@ -3626,12 +3873,14 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Earth viewer",
+          "tip": "Stage the selected dataset (or pick a file) for the GeoID Earth viewer.\nIt appears in the viewer's 'Atlas data' panel (Earth tab in Atlas).",
           "var": "send_earth_btn"
          },
          {
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Meshing Studio",
+          "tip": "Hand the selected dataset (or pick a file) to the Atlas Meshing Studio \u2014 DEM/xyz data lands as terrain geometry in the Mesh tile.",
           "var": "send_mesh_btn"
          },
          {
@@ -3652,6 +3901,7 @@
      "var": "pulled_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3672,10 +3922,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -3754,6 +4006,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3783,6 +4036,7 @@
      "var": "provider_tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3793,6 +4047,7 @@
          "Format"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 150,
         "node": "widget",
         "text": null,
         "var": "tree"
@@ -3803,12 +4058,14 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Earth viewer",
+          "tip": "Stage the selected dataset (or pick a file) for the GeoID Earth viewer.\nIt appears in the viewer's 'Atlas data' panel (Earth tab in Atlas).",
           "var": "send_earth_btn"
          },
          {
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Meshing Studio",
+          "tip": "Hand the selected dataset (or pick a file) to the Atlas Meshing Studio \u2014 DEM/xyz data lands as terrain geometry in the Mesh tile.",
           "var": "send_mesh_btn"
          },
          {
@@ -3829,6 +4086,7 @@
      "var": "pulled_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3849,10 +4107,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -3931,6 +4191,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3960,6 +4221,7 @@
      "var": "provider_tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -3970,6 +4232,7 @@
          "Format"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 150,
         "node": "widget",
         "text": null,
         "var": "tree"
@@ -3980,12 +4243,14 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Earth viewer",
+          "tip": "Stage the selected dataset (or pick a file) for the GeoID Earth viewer.\nIt appears in the viewer's 'Atlas data' panel (Earth tab in Atlas).",
           "var": "send_earth_btn"
          },
          {
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Meshing Studio",
+          "tip": "Hand the selected dataset (or pick a file) to the Atlas Meshing Studio \u2014 DEM/xyz data lands as terrain geometry in the Mesh tile.",
           "var": "send_mesh_btn"
          },
          {
@@ -4006,6 +4271,7 @@
      "var": "pulled_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4026,10 +4292,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -4108,6 +4376,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4137,6 +4406,7 @@
      "var": "provider_tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4147,6 +4417,7 @@
          "Format"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 150,
         "node": "widget",
         "text": null,
         "var": "tree"
@@ -4157,12 +4428,14 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Earth viewer",
+          "tip": "Stage the selected dataset (or pick a file) for the GeoID Earth viewer.\nIt appears in the viewer's 'Atlas data' panel (Earth tab in Atlas).",
           "var": "send_earth_btn"
          },
          {
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Meshing Studio",
+          "tip": "Hand the selected dataset (or pick a file) to the Atlas Meshing Studio \u2014 DEM/xyz data lands as terrain geometry in the Mesh tile.",
           "var": "send_mesh_btn"
          },
          {
@@ -4183,6 +4456,7 @@
      "var": "pulled_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4203,10 +4477,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -4285,6 +4561,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4314,6 +4591,7 @@
      "var": "provider_tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4324,6 +4602,7 @@
          "Format"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 150,
         "node": "widget",
         "text": null,
         "var": "tree"
@@ -4334,12 +4613,14 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Earth viewer",
+          "tip": "Stage the selected dataset (or pick a file) for the GeoID Earth viewer.\nIt appears in the viewer's 'Atlas data' panel (Earth tab in Atlas).",
           "var": "send_earth_btn"
          },
          {
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Meshing Studio",
+          "tip": "Hand the selected dataset (or pick a file) to the Atlas Meshing Studio \u2014 DEM/xyz data lands as terrain geometry in the Mesh tile.",
           "var": "send_mesh_btn"
          },
          {
@@ -4360,6 +4641,7 @@
      "var": "pulled_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4380,10 +4662,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -4462,6 +4746,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4491,6 +4776,7 @@
      "var": "provider_tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4501,6 +4787,7 @@
          "Format"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 150,
         "node": "widget",
         "text": null,
         "var": "tree"
@@ -4511,12 +4798,14 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Earth viewer",
+          "tip": "Stage the selected dataset (or pick a file) for the GeoID Earth viewer.\nIt appears in the viewer's 'Atlas data' panel (Earth tab in Atlas).",
           "var": "send_earth_btn"
          },
          {
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Meshing Studio",
+          "tip": "Hand the selected dataset (or pick a file) to the Atlas Meshing Studio \u2014 DEM/xyz data lands as terrain geometry in the Mesh tile.",
           "var": "send_mesh_btn"
          },
          {
@@ -4537,6 +4826,7 @@
      "var": "pulled_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4557,10 +4847,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -4639,6 +4931,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4668,6 +4961,7 @@
      "var": "provider_tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4678,6 +4972,7 @@
          "Format"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 150,
         "node": "widget",
         "text": null,
         "var": "tree"
@@ -4688,12 +4983,14 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Earth viewer",
+          "tip": "Stage the selected dataset (or pick a file) for the GeoID Earth viewer.\nIt appears in the viewer's 'Atlas data' panel (Earth tab in Atlas).",
           "var": "send_earth_btn"
          },
          {
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Meshing Studio",
+          "tip": "Hand the selected dataset (or pick a file) to the Atlas Meshing Studio \u2014 DEM/xyz data lands as terrain geometry in the Mesh tile.",
           "var": "send_mesh_btn"
          },
          {
@@ -4714,6 +5011,7 @@
      "var": "pulled_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4734,10 +5032,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -4816,6 +5116,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4845,6 +5146,7 @@
      "var": "provider_tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4855,6 +5157,7 @@
          "Format"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 150,
         "node": "widget",
         "text": null,
         "var": "tree"
@@ -4865,12 +5168,14 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Earth viewer",
+          "tip": "Stage the selected dataset (or pick a file) for the GeoID Earth viewer.\nIt appears in the viewer's 'Atlas data' panel (Earth tab in Atlas).",
           "var": "send_earth_btn"
          },
          {
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Meshing Studio",
+          "tip": "Hand the selected dataset (or pick a file) to the Atlas Meshing Studio \u2014 DEM/xyz data lands as terrain geometry in the Mesh tile.",
           "var": "send_mesh_btn"
          },
          {
@@ -4891,6 +5196,7 @@
      "var": "pulled_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -4911,10 +5217,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -4993,6 +5301,7 @@
      "node": "layout"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -5022,6 +5331,7 @@
      "var": "provider_tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -5032,6 +5342,7 @@
          "Format"
         ],
         "kind": "QTreeWidget",
+        "minHeight": 150,
         "node": "widget",
         "text": null,
         "var": "tree"
@@ -5042,12 +5353,14 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Earth viewer",
+          "tip": "Stage the selected dataset (or pick a file) for the GeoID Earth viewer.\nIt appears in the viewer's 'Atlas data' panel (Earth tab in Atlas).",
           "var": "send_earth_btn"
          },
          {
           "kind": "QPushButton",
           "node": "widget",
           "text": "Open in Meshing Studio",
+          "tip": "Hand the selected dataset (or pick a file) to the Atlas Meshing Studio \u2014 DEM/xyz data lands as terrain geometry in the Mesh tile.",
           "var": "send_mesh_btn"
          },
          {
@@ -5068,6 +5381,7 @@
      "var": "pulled_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -5088,10 +5402,12 @@
      "var": "summary_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -5223,7 +5539,8 @@
        "kind": "QLineEdit",
        "node": "widget",
        "text": "time",
-       "var": "_x_col"
+       "var": "_x_col",
+       "width": 90
       },
       {
        "kind": "QLabel",
@@ -5236,18 +5553,29 @@
        "node": "widget",
        "placeholder": "y column(s), comma-sep",
        "text": null,
-       "var": "_y_col"
+       "var": "_y_col",
+       "width": 180
       },
       {
        "kind": "QSpinBox",
        "node": "widget",
+       "range": [
+        1,
+        300
+       ],
        "text": null,
+       "value": 5,
        "var": "_interval_spin"
       },
       {
        "kind": "QSpinBox",
        "node": "widget",
+       "range": [
+        100,
+        100000
+       ],
        "text": null,
+       "value": 2000,
        "var": "_max_spin"
       },
       {
@@ -5255,7 +5583,8 @@
        "node": "widget",
        "placeholder": "Alert threshold (optional)",
        "text": null,
-       "var": "_alert_thresh"
+       "var": "_alert_thresh",
+       "width": 160
       },
       {
        "kind": "QPushButton",
@@ -5392,6 +5721,27 @@
            "var": "sep"
           },
           {
+           "content": {
+            "children": [
+             {
+              "content": {
+               "children": [
+                {
+                 "node": "stretch"
+                }
+               ],
+               "kind": "QVBoxLayout",
+               "node": "layout"
+              },
+              "kind": "QWidget",
+              "node": "widget",
+              "text": null,
+              "var": "_layer_list_widget"
+             }
+            ],
+            "kind": "QVBoxLayout",
+            "node": "layout"
+           },
            "kind": "QScrollArea",
            "node": "widget",
            "stretch": 1,
@@ -5429,10 +5779,12 @@
          "node": "layout"
         },
         "kind": "QFrame",
+        "minWidth": 220,
         "node": "widget",
         "objectName": "Card",
         "text": null,
-        "var": "layer_panel"
+        "var": "layer_panel",
+        "width": 320
        }
       ],
       "kind": "QHBoxLayout",
@@ -5566,7 +5918,12 @@
            {
             "kind": "QSpinBox",
             "node": "widget",
+            "range": [
+             1,
+             4096
+            ],
             "text": null,
+            "value": 4,
             "var": "cores"
            },
            {
@@ -5650,7 +6007,12 @@
              "child": {
               "kind": "QSpinBox",
               "node": "widget",
+              "range": [
+               1,
+               999999
+              ],
               "text": null,
+              "value": 1,
               "var": "embed_entity"
              },
              "label": "Entity tag",
@@ -5660,7 +6022,12 @@
              "child": {
               "kind": "QSpinBox",
               "node": "widget",
+              "range": [
+               0,
+               999999
+              ],
               "text": null,
+              "value": 0,
               "var": "embed_point_tag"
              },
              "label": "Point tag (0=auto)",
@@ -5911,7 +6278,9 @@
        "var": "__inline1"
       },
       {
+       "items": [],
        "kind": "QComboBox",
+       "minWidth": 110,
        "node": "widget",
        "text": null,
        "var": "_x_col"
@@ -5923,7 +6292,9 @@
        "var": "__inline2"
       },
       {
+       "items": [],
        "kind": "QComboBox",
+       "minWidth": 110,
        "node": "widget",
        "text": null,
        "var": "_y_col"
@@ -5950,7 +6321,12 @@
       {
        "kind": "QSpinBox",
        "node": "widget",
+       "range": [
+        2,
+        12
+       ],
        "text": null,
+       "value": 3,
        "var": "_poly_deg"
       },
       {
@@ -5978,6 +6354,7 @@
        },
        {
         "kind": "QLineEdit",
+        "minWidth": 250,
         "node": "widget",
         "stretch": 1,
         "text": "p0 * np.sin(p1 * x) + p2",
@@ -6195,7 +6572,8 @@
           "kind": "QPushButton",
           "node": "widget",
           "text": "\u21ba",
-          "var": "refresh_btn"
+          "var": "refresh_btn",
+          "width": 28
          }
         ],
         "kind": "QHBoxLayout",
@@ -6223,7 +6601,8 @@
      "node": "widget",
      "objectName": "Card",
      "text": null,
-     "var": "sidebar"
+     "var": "sidebar",
+     "width": 220
     },
     {
      "content": {
@@ -6561,7 +6940,12 @@
               "child": {
                "kind": "QDoubleSpinBox",
                "node": "widget",
+               "range": [
+                null,
+                1000000000.0
+               ],
                "text": null,
+               "value": null,
                "var": "_ch_scale"
               },
               "label": "Scale:",
@@ -6571,7 +6955,12 @@
               "child": {
                "kind": "QDoubleSpinBox",
                "node": "widget",
+               "range": [
+                null,
+                1000000000.0
+               ],
                "text": null,
+               "value": null,
                "var": "_ch_offset"
               },
               "label": "Offset:",
@@ -6632,7 +7021,8 @@
         "kind": "QWidget",
         "node": "widget",
         "text": null,
-        "var": "left"
+        "var": "left",
+        "width": 280
        },
        {
         "content": {
@@ -6742,7 +7132,12 @@
                  {
                   "kind": "QDoubleSpinBox",
                   "node": "widget",
+                  "range": [
+                   0.001,
+                   100000
+                  ],
                   "text": null,
+                  "value": 1.0,
                   "var": "_coh_fs"
                  },
                  {
@@ -6866,6 +7261,27 @@
      "node": "layout"
     },
     {
+     "content": {
+      "children": [
+       {
+        "content": {
+         "children": [
+          {
+           "node": "stretch"
+          }
+         ],
+         "kind": "QVBoxLayout",
+         "node": "layout"
+        },
+        "kind": "QWidget",
+        "node": "widget",
+        "text": null,
+        "var": "_cell_container"
+       }
+      ],
+      "kind": "QVBoxLayout",
+      "node": "layout"
+     },
      "kind": "QScrollArea",
      "node": "widget",
      "stretch": 1,
@@ -7037,13 +7453,15 @@
            "kind": "QCheckBox",
            "node": "widget",
            "text": null,
-           "var": "chk"
+           "var": "chk",
+           "width": 20
           },
           {
            "kind": "QLabel",
            "node": "widget",
            "text": null,
-           "var": "name_lbl"
+           "var": "name_lbl",
+           "width": 110
           },
           {
            "kind": "QLabel",
@@ -7058,7 +7476,8 @@
            "node": "widget",
            "objectName": "PillLabel",
            "text": "queued",
-           "var": "status_lbl"
+           "var": "status_lbl",
+           "width": 80
           }
          ],
          "kind": "QHBoxLayout",
@@ -7259,7 +7678,13 @@
           "child": {
            "kind": "QDoubleSpinBox",
            "node": "widget",
+           "range": [
+            0.001,
+            10000
+           ],
            "text": null,
+           "tip": "N for every-Nth; fraction 0-1 for random; voxel size for grid",
+           "value": 10,
            "var": "_dec_param"
           },
           "label": "Parameter:",
@@ -7432,6 +7857,7 @@
               "kind": "QComboBox",
               "node": "widget",
               "text": null,
+              "value": "Node-based extraction",
               "var": "gales_extract_mode"
              },
              "label": "Extract mode",
@@ -7441,7 +7867,12 @@
              "child": {
               "kind": "QDoubleSpinBox",
               "node": "widget",
+              "range": [
+               1e-06,
+               1000000.0
+              ],
               "text": null,
+              "value": 1.0,
               "var": "gales_dt"
              },
              "label": "Delta t",
@@ -7481,7 +7912,26 @@
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QComboBox",
+                "node": "widget",
+                "stretch": 1,
+                "text": null,
+                "var": "gales_filter"
+               },
+               {
+                "kind": "QComboBox",
+                "node": "widget",
+                "stretch": 1,
+                "text": null,
+                "var": "gales_intent_filter"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Catalog filters",
              "node": "row"
             },
@@ -7493,6 +7943,7 @@
                "Inputs"
               ],
               "kind": "QTreeWidget",
+              "minHeight": 170,
               "node": "widget",
               "text": null,
               "var": "gales_catalog"
@@ -7529,6 +7980,7 @@
                "Type"
               ],
               "kind": "QTreeWidget",
+              "minHeight": 180,
               "node": "widget",
               "text": null,
               "var": "gales_results_tree"
@@ -7578,7 +8030,24 @@
                "node": "row"
               },
               {
-               "child": null,
+               "child": {
+                "children": [
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "text": null,
+                  "var": "source_path"
+                 },
+                 {
+                  "kind": "QPushButton",
+                  "node": "widget",
+                  "text": "Browse",
+                  "var": "browse_src"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
                "label": "Source path",
                "node": "row"
               },
@@ -7733,22 +8202,135 @@
          {
           "children": [
            {
-            "child": null,
+            "child": {
+             "children": [
+              {
+               "kind": "QLineEdit",
+               "node": "widget",
+               "placeholder": "Input XYZ dataset (.csv or .txt)",
+               "stretch": 1,
+               "text": null,
+               "var": "coord_input"
+              },
+              {
+               "kind": "QPushButton",
+               "node": "widget",
+               "text": "Browse",
+               "var": "in_browse"
+              }
+             ],
+             "kind": "QHBoxLayout",
+             "node": "layout"
+            },
             "label": "Input file",
             "node": "row"
            },
            {
-            "child": null,
+            "child": {
+             "children": [
+              {
+               "kind": "QLineEdit",
+               "node": "widget",
+               "placeholder": "Output path (.csv)",
+               "stretch": 1,
+               "text": null,
+               "var": "coord_output"
+              },
+              {
+               "kind": "QPushButton",
+               "node": "widget",
+               "text": "Browse",
+               "var": "out_browse"
+              }
+             ],
+             "kind": "QHBoxLayout",
+             "node": "layout"
+            },
             "label": "Output file",
             "node": "row"
            },
            {
-            "child": null,
+            "child": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "text": "Source CRS",
+               "var": "__inline2"
+              },
+              {
+               "kind": "QLineEdit",
+               "node": "widget",
+               "stretch": 1,
+               "text": "EPSG:4326",
+               "var": "coord_source_crs"
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "text": "\u2192  Target CRS",
+               "var": "__inline3"
+              },
+              {
+               "kind": "QLineEdit",
+               "node": "widget",
+               "stretch": 1,
+               "text": "EPSG:32633",
+               "var": "coord_target_crs"
+              }
+             ],
+             "kind": "QHBoxLayout",
+             "node": "layout"
+            },
             "label": "CRS",
             "node": "row"
            },
            {
-            "child": null,
+            "child": {
+             "children": [
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "text": "X col",
+               "var": "__inline4"
+              },
+              {
+               "kind": "QLineEdit",
+               "node": "widget",
+               "text": "x",
+               "var": "coord_x_col"
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "text": "Y col",
+               "var": "__inline5"
+              },
+              {
+               "kind": "QLineEdit",
+               "node": "widget",
+               "text": "y",
+               "var": "coord_y_col"
+              },
+              {
+               "kind": "QLabel",
+               "node": "widget",
+               "text": "Z col (opt)",
+               "var": "__inline6"
+              },
+              {
+               "kind": "QLineEdit",
+               "node": "widget",
+               "text": "z",
+               "var": "coord_z_col"
+              },
+              {
+               "node": "stretch"
+              }
+             ],
+             "kind": "QHBoxLayout",
+             "node": "layout"
+            },
             "label": "Columns",
             "node": "row"
            }
@@ -7757,6 +8339,7 @@
           "node": "layout"
          },
          {
+          "align": "left",
           "kind": "QPushButton",
           "node": "widget",
           "stretch": 0,
@@ -7776,27 +8359,110 @@
        "content": {
         "children": [
          {
+          "collapsed": false,
           "content": {
            "children": [
             {
              "children": [
               {
-               "child": null,
+               "child": {
+                "children": [
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "stretch": 1,
+                  "text": null,
+                  "var": "clip_input"
+                 },
+                 {
+                  "kind": "QPushButton",
+                  "node": "widget",
+                  "text": "Browse",
+                  "var": "clip_browse_in"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
                "label": "Input",
                "node": "row"
               },
               {
-               "child": null,
+               "child": {
+                "children": [
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "stretch": 1,
+                  "text": null,
+                  "var": "clip_output"
+                 },
+                 {
+                  "kind": "QPushButton",
+                  "node": "widget",
+                  "text": "Browse",
+                  "var": "clip_browse_out"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
                "label": "Output",
                "node": "row"
               },
               {
-               "child": null,
+               "child": {
+                "children": [
+                 {
+                  "kind": "QLabel",
+                  "node": "widget",
+                  "text": "X",
+                  "var": "__inline7"
+                 },
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "text": "x",
+                  "var": "clip_x_col"
+                 },
+                 {
+                  "kind": "QLabel",
+                  "node": "widget",
+                  "text": "Y",
+                  "var": "__inline8"
+                 },
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "text": "y",
+                  "var": "clip_y_col"
+                 },
+                 {
+                  "node": "stretch"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
                "label": "X/Y cols",
                "node": "row"
               },
               {
-               "child": null,
+               "child": {
+                "children": [
+                 {
+                  "kind": "QLabel",
+                  "node": "widget",
+                  "text": null,
+                  "var": "__inline9"
+                 },
+                 {
+                  "node": "stretch"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
                "label": "Bounds",
                "node": "row"
               }
@@ -7814,17 +8480,54 @@
           "var": "clip_sec"
          },
          {
+          "collapsed": true,
           "content": {
            "children": [
             {
              "children": [
               {
-               "child": null,
+               "child": {
+                "children": [
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "stretch": 1,
+                  "text": null,
+                  "var": "raster_input"
+                 },
+                 {
+                  "kind": "QPushButton",
+                  "node": "widget",
+                  "text": "Browse",
+                  "var": "raster_browse_in"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
                "label": "Raster input",
                "node": "row"
               },
               {
-               "child": null,
+               "child": {
+                "children": [
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "stretch": 1,
+                  "text": null,
+                  "var": "raster_output"
+                 },
+                 {
+                  "kind": "QPushButton",
+                  "node": "widget",
+                  "text": "Browse",
+                  "var": "raster_browse_out"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
                "label": "Raster output",
                "node": "row"
               },
@@ -7832,7 +8535,12 @@
                "child": {
                 "kind": "QDoubleSpinBox",
                 "node": "widget",
+                "range": [
+                 1e-08,
+                 100000000.0
+                ],
                 "text": null,
+                "value": 0.001,
                 "var": "raster_res"
                },
                "label": "Target resolution",
@@ -7852,17 +8560,54 @@
           "var": "raster_sec"
          },
          {
+          "collapsed": true,
           "content": {
            "children": [
             {
              "children": [
               {
-               "child": null,
+               "child": {
+                "children": [
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "stretch": 1,
+                  "text": null,
+                  "var": "align_vector"
+                 },
+                 {
+                  "kind": "QPushButton",
+                  "node": "widget",
+                  "text": "Browse",
+                  "var": "align_vector_browse"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
                "label": "Vector",
                "node": "row"
               },
               {
-               "child": null,
+               "child": {
+                "children": [
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "stretch": 1,
+                  "text": null,
+                  "var": "align_raster"
+                 },
+                 {
+                  "kind": "QPushButton",
+                  "node": "widget",
+                  "text": "Browse",
+                  "var": "align_raster_browse"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
                "label": "Raster",
                "node": "row"
               }
@@ -7893,6 +8638,7 @@
      "var": "tabs"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -8150,6 +8896,7 @@
                    "node": "widget",
                    "row": 0,
                    "text": "\u25c8 Sync with Atlas",
+                   "tip": "Create/switch the matching Atlas project \u2014 meshes, GALES runs, globe layers and docs across Atlas then file under this study.",
                    "var": "atlas_sync_btn"
                   }
                  ],
@@ -8281,6 +9028,7 @@
                  "children": [
                   {
                    "kind": "QLabel",
+                   "minHeight": 180,
                    "node": "widget",
                    "objectName": "Card",
                    "text": null,
@@ -8748,6 +9496,7 @@
            },
            {
             "kind": "QComboBox",
+            "minWidth": 160,
             "node": "widget",
             "text": null,
             "var": "_time_col_combo"
@@ -8839,7 +9588,8 @@
             "kind": "QPushButton",
             "node": "widget",
             "text": "\u2026",
-            "var": "browse_out"
+            "var": "browse_out",
+            "width": 28
            },
            {
             "kind": "QPushButton",
@@ -8999,6 +9749,7 @@
           "child": {
            "kind": "QLineEdit",
            "node": "widget",
+           "placeholder": "decimal degrees",
            "text": null,
            "var": "_clip_north"
           },
@@ -9009,6 +9760,7 @@
           "child": {
            "kind": "QLineEdit",
            "node": "widget",
+           "placeholder": "decimal degrees",
            "text": null,
            "var": "_clip_south"
           },
@@ -9019,6 +9771,7 @@
           "child": {
            "kind": "QLineEdit",
            "node": "widget",
+           "placeholder": "decimal degrees",
            "text": null,
            "var": "_clip_east"
           },
@@ -9029,6 +9782,7 @@
           "child": {
            "kind": "QLineEdit",
            "node": "widget",
+           "placeholder": "decimal degrees",
            "text": null,
            "var": "_clip_west"
           },
@@ -9046,12 +9800,52 @@
           "node": "row"
          },
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QLineEdit",
+             "node": "widget",
+             "placeholder": "Output path (auto if blank)",
+             "text": null,
+             "var": "_clip_out"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "\u2026",
+             "var": "out_browse",
+             "width": 28
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "Output:",
           "node": "row"
          },
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "objectName": "AccentButton",
+             "text": "Clip to BBox",
+             "var": "run_clip"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Reproject Only",
+             "var": "run_proj"
+            },
+            {
+             "node": "stretch"
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "",
           "node": "row"
          }
@@ -9211,7 +10005,24 @@
          {
           "children": [
            {
-            "child": null,
+            "child": {
+             "children": [
+              {
+               "kind": "QLineEdit",
+               "node": "widget",
+               "text": null,
+               "var": "workdir"
+              },
+              {
+               "kind": "QPushButton",
+               "node": "widget",
+               "text": "Browse",
+               "var": "browse"
+              }
+             ],
+             "kind": "QHBoxLayout",
+             "node": "layout"
+            },
             "label": "Working directory",
             "node": "row"
            },
@@ -9431,7 +10242,12 @@
         "child": {
          "kind": "QSpinBox",
          "node": "widget",
+         "range": [
+          1,
+          65535
+         ],
          "text": null,
+         "value": null,
          "var": "smtp_port"
         },
         "label": "SMTP port",
@@ -9475,6 +10291,7 @@
          "kind": "QComboBox",
          "node": "widget",
          "text": null,
+         "value": null,
          "var": "theme_mode"
         },
         "label": "Theme",
@@ -9615,6 +10432,44 @@
        "content": {
         "children": [
          {
+          "content": {
+           "children": [
+            {
+             "content": {
+              "children": [
+               {
+                "child": {
+                 "kind": "QLineEdit",
+                 "node": "widget",
+                 "text": null,
+                 "var": "line"
+                },
+                "label": null,
+                "node": "row"
+               },
+               {
+                "child": {
+                 "kind": "QLineEdit",
+                 "node": "widget",
+                 "text": null,
+                 "var": "line"
+                },
+                "label": null,
+                "node": "row"
+               }
+              ],
+              "kind": "QFormLayout",
+              "node": "layout"
+             },
+             "kind": "QWidget",
+             "node": "widget",
+             "text": null,
+             "var": "form_widget"
+            }
+           ],
+           "kind": "QVBoxLayout",
+           "node": "layout"
+          },
           "kind": "QScrollArea",
           "node": "widget",
           "stretch": 1,
@@ -9653,6 +10508,7 @@
      "var": "_header"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
@@ -9694,7 +10550,12 @@
              "child": {
               "kind": "QSpinBox",
               "node": "widget",
+              "range": [
+               1,
+               500
+              ],
               "text": null,
+              "value": 20,
               "var": "thesis_candidate_count"
              },
              "label": "Top candidates",
@@ -9704,7 +10565,12 @@
              "child": {
               "kind": "QSpinBox",
               "node": "widget",
+              "range": [
+               1,
+               100
+              ],
               "text": null,
+              "value": 5,
               "var": "thesis_sync_plots"
              },
              "label": "Wavelet plots",
@@ -9775,6 +10641,7 @@
             "Inputs"
            ],
            "kind": "QTreeWidget",
+           "minHeight": 220,
            "node": "widget",
            "text": null,
            "var": "thesis_catalog"
@@ -9799,6 +10666,7 @@
             "Type"
            ],
            "kind": "QTreeWidget",
+           "minHeight": 180,
            "node": "widget",
            "text": null,
            "var": "thesis_results_tree"
@@ -9921,6 +10789,7 @@
      "var": "thesis_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
@@ -9949,7 +10818,12 @@
               "child": {
                "kind": "QSpinBox",
                "node": "widget",
+               "range": [
+                16,
+                16384
+               ],
                "text": null,
+               "value": 256,
                "var": "nfft"
               },
               "label": "NFFT window",
@@ -9959,7 +10833,12 @@
               "child": {
                "kind": "QSpinBox",
                "node": "widget",
+               "range": [
+                0,
+                95
+               ],
                "text": null,
+               "value": 50,
                "var": "overlap_pct"
               },
               "label": "Overlap %",
@@ -10032,6 +10911,7 @@
      "var": "generic_sec"
     },
     {
+     "collapsed": true,
      "content": {
       "children": [
        {
@@ -10078,6 +10958,7 @@
             "Run"
            ],
            "kind": "QTreeWidget",
+           "minHeight": 220,
            "node": "widget",
            "text": null,
            "var": "external_catalog"
@@ -10176,10 +11057,12 @@
      "var": "tool_sec"
     },
     {
+     "collapsed": false,
      "content": {
       "children": [
        {
         "kind": "QPlainTextEdit",
+        "minHeight": 120,
         "node": "widget",
         "readOnly": true,
         "text": null,
@@ -10221,7 +11104,30 @@
          {
           "children": [
            {
-            "child": null,
+            "child": {
+             "children": [
+              {
+               "kind": "QLineEdit",
+               "node": "widget",
+               "text": null,
+               "var": "sim_dir"
+              },
+              {
+               "kind": "QPushButton",
+               "node": "widget",
+               "text": "Browse",
+               "var": "browse"
+              },
+              {
+               "kind": "QPushButton",
+               "node": "widget",
+               "text": "Load",
+               "var": "load"
+              }
+             ],
+             "kind": "QHBoxLayout",
+             "node": "layout"
+            },
             "label": "Simulation directory",
             "node": "row"
            },
@@ -10314,7 +11220,24 @@
             {
              "children": [
               {
-               "child": null,
+               "child": {
+                "children": [
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "text": null,
+                  "var": "mesh_path"
+                 },
+                 {
+                  "kind": "QPushButton",
+                  "node": "widget",
+                  "text": "Browse",
+                  "var": "mesh_browse"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
                "label": "Mesh (.msh)",
                "node": "row"
               },
@@ -10322,7 +11245,12 @@
                "child": {
                 "kind": "QSpinBox",
                 "node": "widget",
+                "range": [
+                 1,
+                 256
+                ],
                 "text": null,
+                "value": 4,
                 "var": "cores"
                },
                "label": "Cores (N)",
@@ -10501,7 +11429,9 @@
        "var": "__inline1"
       },
       {
+       "items": [],
        "kind": "QComboBox",
+       "minWidth": 120,
        "node": "widget",
        "text": null,
        "var": "_time_col"
@@ -10513,7 +11443,9 @@
        "var": "__inline2"
       },
       {
+       "items": [],
        "kind": "QComboBox",
+       "minWidth": 120,
        "node": "widget",
        "text": null,
        "var": "_signal_col"
@@ -10527,7 +11459,12 @@
       {
        "kind": "QDoubleSpinBox",
        "node": "widget",
+       "range": [
+        0.001,
+        100000
+       ],
        "text": null,
+       "value": null,
        "var": "_fs_spin"
       },
       {
@@ -10607,7 +11544,12 @@
            {
             "kind": "QSpinBox",
             "node": "widget",
+            "range": [
+             1,
+             50
+            ],
             "text": null,
+            "value": 5,
             "var": "_fft_peak_n"
            },
            {
@@ -10649,7 +11591,12 @@
            {
             "kind": "QSpinBox",
             "node": "widget",
+            "range": [
+             16,
+             65536
+            ],
             "text": null,
+            "value": 256,
             "var": "_nperseg"
            },
            {
@@ -10661,7 +11608,12 @@
            {
             "kind": "QSpinBox",
             "node": "widget",
+            "range": [
+             0,
+             90
+            ],
             "text": null,
+            "value": 50,
             "var": "_overlap_pct"
            },
            {
@@ -10715,7 +11667,12 @@
            {
             "kind": "QSpinBox",
             "node": "widget",
+            "range": [
+             16,
+             4096
+            ],
             "text": null,
+            "value": 128,
             "var": "_spec_win"
            },
            {
@@ -10727,7 +11684,12 @@
            {
             "kind": "QSpinBox",
             "node": "widget",
+            "range": [
+             0,
+             95
+            ],
             "text": null,
+            "value": 75,
             "var": "_spec_overlap"
            },
            {
@@ -10848,6 +11810,7 @@
       },
       {
        "kind": "QComboBox",
+       "minWidth": 180,
        "node": "widget",
        "stretch": 1,
        "text": null,
@@ -10923,7 +11886,12 @@
            {
             "kind": "QSpinBox",
             "node": "widget",
+            "range": [
+             2,
+             20
+            ],
             "text": null,
+            "value": 3,
             "var": "_pca_n"
            },
            {
@@ -10975,7 +11943,12 @@
            {
             "kind": "QSpinBox",
             "node": "widget",
+            "range": [
+             2,
+             20
+            ],
             "text": null,
+            "value": 3,
             "var": "_clust_k"
            },
            {
@@ -11003,7 +11976,27 @@
          {
           "children": [
            {
-            "child": null,
+            "child": {
+             "children": [
+              {
+               "items": [
+                "t-test (2 columns)",
+                "Mann-Whitney U",
+                "KS test",
+                "ANOVA"
+               ],
+               "kind": "QComboBox",
+               "node": "widget",
+               "text": null,
+               "var": "_hyp_test"
+              },
+              {
+               "node": "stretch"
+              }
+             ],
+             "kind": "QHBoxLayout",
+             "node": "layout"
+            },
             "label": "Test:",
             "node": "row"
            },
@@ -11125,6 +12118,7 @@
       },
       {
        "kind": "QLineEdit",
+       "minWidth": 340,
        "node": "widget",
        "stretch": 2,
        "text": "Untitled Storyboard",
@@ -11225,6 +12219,7 @@
             "Caption"
            ],
            "kind": "QTableWidget",
+           "minHeight": 240,
            "node": "widget",
            "stretch": 1,
            "text": null,
@@ -11413,6 +12408,7 @@
       },
       {
        "kind": "QComboBox",
+       "minWidth": 130,
        "node": "widget",
        "text": null,
        "var": "_time_col"
@@ -11425,6 +12421,7 @@
       },
       {
        "kind": "QComboBox",
+       "minWidth": 130,
        "node": "widget",
        "text": null,
        "var": "_val_col"
@@ -11490,7 +12487,12 @@
           "child": {
            "kind": "QSpinBox",
            "node": "widget",
+           "range": [
+            2,
+            10000
+           ],
            "text": null,
+           "value": 5,
            "var": "_rolling_window"
           },
           "label": "Rolling window (steps):",
@@ -11525,7 +12527,28 @@
           "node": "row"
          },
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "objectName": "AccentButton",
+             "text": "Run Resample",
+             "var": "resample_btn"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Run Rolling Stat",
+             "var": "rolling_btn"
+            },
+            {
+             "node": "stretch"
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "",
           "node": "row"
          }
@@ -11559,7 +12582,13 @@
           "child": {
            "kind": "QSpinBox",
            "node": "widget",
+           "range": [
+            0,
+            10000
+           ],
            "text": null,
+           "tip": "0 = unlimited",
+           "value": 10,
            "var": "_fill_limit"
           },
           "label": "Fill limit (steps):",
@@ -11583,14 +12612,40 @@
           "child": {
            "kind": "QDoubleSpinBox",
            "node": "widget",
+           "range": [
+            0.5,
+            10.0
+           ],
            "text": null,
+           "value": 3.0,
            "var": "_despike_thr"
           },
           "label": "Threshold (\u03c3 / IQR):",
           "node": "row"
          },
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "objectName": "AccentButton",
+             "text": "Run Gap Fill",
+             "var": "fill_btn"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Run De-spike",
+             "var": "despike_btn"
+            },
+            {
+             "node": "stretch"
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "",
           "node": "row"
          }
@@ -11625,7 +12680,8 @@
             "kind": "QPushButton",
             "node": "widget",
             "text": "\u2026",
-            "var": "out_browse"
+            "var": "out_browse",
+            "width": 28
            },
            {
             "kind": "QPushButton",
@@ -11721,22 +12777,134 @@
        "content": {
         "children": [
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QLabel",
+             "node": "widget",
+             "text": "Distance:",
+             "var": "__inline1"
+            },
+            {
+             "kind": "QDoubleSpinBox",
+             "node": "widget",
+             "range": [
+              0,
+              1000000000.0
+             ],
+             "text": null,
+             "value": 100,
+             "var": "_buf_dist"
+            },
+            {
+             "items": [
+              "metres (projected)",
+              "degrees (geographic)"
+             ],
+             "kind": "QComboBox",
+             "node": "widget",
+             "text": null,
+             "var": "_buf_units"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Buffer",
+             "var": "buf_btn"
+            },
+            {
+             "node": "stretch"
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "Buffer:",
           "node": "row"
          },
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QComboBox",
+             "node": "widget",
+             "text": null,
+             "var": "_dissolve_field"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Dissolve by Field",
+             "var": "dissolve_btn"
+            },
+            {
+             "node": "stretch"
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "Dissolve field:",
           "node": "row"
          },
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QLabel",
+             "node": "widget",
+             "text": "Tolerance:",
+             "var": "__inline2"
+            },
+            {
+             "kind": "QDoubleSpinBox",
+             "node": "widget",
+             "range": [
+              0,
+              1000000.0
+             ],
+             "text": null,
+             "value": 0.0001,
+             "var": "_simplify_tol"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Simplify",
+             "var": "simplify_btn"
+            },
+            {
+             "node": "stretch"
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "Simplify:",
           "node": "row"
          },
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QLineEdit",
+             "node": "widget",
+             "text": "EPSG:4326",
+             "var": "_reproj_crs"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Reproject",
+             "var": "reproj_btn"
+            },
+            {
+             "node": "stretch"
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "Target CRS:",
           "node": "row"
          }
@@ -11750,12 +12918,67 @@
        "content": {
         "children": [
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QLineEdit",
+             "node": "widget",
+             "placeholder": "CSV file to join\u2026",
+             "stretch": 1,
+             "text": null,
+             "var": "_join_csv"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Browse",
+             "var": "join_browse"
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "Join CSV:",
           "node": "row"
          },
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QLabel",
+             "node": "widget",
+             "text": "Left key:",
+             "var": "__inline3"
+            },
+            {
+             "kind": "QComboBox",
+             "node": "widget",
+             "text": null,
+             "var": "_join_left_key"
+            },
+            {
+             "kind": "QLabel",
+             "node": "widget",
+             "text": "Right key:",
+             "var": "__inline4"
+            },
+            {
+             "kind": "QLineEdit",
+             "node": "widget",
+             "placeholder": "Key column name in CSV",
+             "text": null,
+             "var": "_join_right_key"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Run Join",
+             "var": "join_btn"
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "",
           "node": "row"
          },
@@ -11817,7 +13040,27 @@
           "node": "row"
          },
          {
-          "child": null,
+          "child": {
+           "children": [
+            {
+             "kind": "QLineEdit",
+             "node": "widget",
+             "placeholder": "Output path (auto if blank)",
+             "stretch": 1,
+             "text": null,
+             "var": "_export_path"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "\u2026",
+             "var": "exp_browse",
+             "width": 28
+            }
+           ],
+           "kind": "QHBoxLayout",
+           "node": "layout"
+          },
           "label": "Output:",
           "node": "row"
          },
@@ -11945,6 +13188,7 @@
          "node": "layout"
         },
         "kind": "QFrame",
+        "minWidth": 280,
         "node": "widget",
         "objectName": "Card",
         "text": null,
@@ -11975,7 +13219,26 @@
               "node": "row"
              },
              {
-              "child": null,
+              "child": {
+               "children": [
+                {
+                 "kind": "QLineEdit",
+                 "node": "widget",
+                 "placeholder": "Script path or shell command\u2026",
+                 "stretch": 1,
+                 "text": null,
+                 "var": "_step_cmd"
+                },
+                {
+                 "kind": "QPushButton",
+                 "node": "widget",
+                 "text": "Browse",
+                 "var": "browse_step"
+                }
+               ],
+               "kind": "QHBoxLayout",
+               "node": "layout"
+              },
               "label": "Command / Script:",
               "node": "row"
              },
@@ -12059,7 +13322,12 @@
              {
               "kind": "QProgressBar",
               "node": "widget",
+              "range": [
+               0,
+               100
+              ],
               "text": null,
+              "value": null,
               "var": "_progress"
              }
             ],
@@ -12117,12 +13385,48 @@
     {
      "children": [
       {
-       "child": null,
+       "child": {
+        "children": [
+         {
+          "kind": "QLineEdit",
+          "node": "widget",
+          "stretch": 1,
+          "text": null,
+          "var": "input_path"
+         },
+         {
+          "kind": "QPushButton",
+          "node": "widget",
+          "text": "Browse",
+          "var": "in_browse"
+         }
+        ],
+        "kind": "QHBoxLayout",
+        "node": "layout"
+       },
        "label": "Input XYZ",
        "node": "row"
       },
       {
-       "child": null,
+       "child": {
+        "children": [
+         {
+          "kind": "QLineEdit",
+          "node": "widget",
+          "stretch": 1,
+          "text": null,
+          "var": "output_path"
+         },
+         {
+          "kind": "QPushButton",
+          "node": "widget",
+          "text": "Browse",
+          "var": "out_browse"
+         }
+        ],
+        "kind": "QHBoxLayout",
+        "node": "layout"
+       },
        "label": "Output STL",
        "node": "row"
       },
@@ -12147,6 +13451,7 @@
         "kind": "QComboBox",
         "node": "widget",
         "text": null,
+        "value": "Delaunay 2D",
         "var": "mesh_mode"
        },
        "label": "Mode",
@@ -12156,7 +13461,12 @@
        "child": {
         "kind": "QSpinBox",
         "node": "widget",
+        "range": [
+         3,
+         1000000
+        ],
         "text": null,
+        "value": 50000,
         "var": "max_points"
        },
        "label": "Max points",

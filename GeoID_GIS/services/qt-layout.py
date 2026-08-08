@@ -103,13 +103,40 @@ class PageReader(ast.NodeVisitor):
                     self.layouts[var] = {"kind": kind, "owner": owner, "line": node.lineno}
                 elif kind in WIDGET_KINDS or kind in CONTAINER_KINDS:
                     args = [const(a) for a in node.value.args]
+                    props = {}
+                    for kw in node.value.keywords:
+                        if kw.arg == "collapsed":
+                            props["collapsed"] = bool(const(kw.value))
                     self.widgets[var] = {
                         "kind": kind,
                         "text": next((a for a in args if isinstance(a, str)), None),
                         "args": [a for a in args if a is not None],
-                        "props": {},
+                        "props": props,
                         "line": node.lineno,
                     }
+        self.generic_visit(node)
+
+    def visit_For(self, node):
+        """Apply a property set on a loop variable to each widget looped over.
+
+        `for w in (self.clip_min_x, self.clip_max_x): w.setFixedWidth(88)` is a
+        common Qt shorthand, and the receiver `w` is not a widget -- so the
+        width was being dropped for every field written that way.
+        """
+        targets = [var_of(e) for e in node.iter.elts] if isinstance(node.iter, (ast.Tuple, ast.List)) else []
+        loop_var = var_of(node.target)
+        targets = [t for t in targets if t in self.widgets]
+        if loop_var and targets:
+            # Read the body once against a scratch widget, then copy what it set
+            # onto each real one.
+            scratch = {"kind": "QWidget", "text": None, "args": [], "props": {}, "line": node.lineno}
+            self.widgets[loop_var] = scratch
+            for stmt in node.body:
+                self.generic_visit(stmt)
+            self.widgets.pop(loop_var, None)
+            for name in targets:
+                self.widgets[name]["props"].update(scratch["props"])
+            return
         self.generic_visit(node)
 
     def visit_Call(self, node):
@@ -145,6 +172,10 @@ class PageReader(ast.NodeVisitor):
                     extra = [const(a) for a in node.args[1:]]
                     nums = [a for a in extra if isinstance(a, int)]
                     payload = {"child": child, "kind": op}
+                    for arg in node.args[1:]:
+                        name = arg.attr if isinstance(arg, ast.Attribute) else ""
+                        if name.startswith("Align"):
+                            payload["align"] = name[5:].lower()
                     # QGridLayout: addWidget(w, row, col[, rowspan, colspan])
                     if len(nums) >= 2:
                         payload["row"], payload["col"] = nums[0], nums[1]
@@ -166,6 +197,12 @@ class PageReader(ast.NodeVisitor):
                     "label": const(node.args[0]),
                     "child": var_of(node.args[1]),
                 }))
+
+            elif op == "setWidget" and node.args:
+                child = var_of(node.args[0])
+                if child:
+                    self.adds.append((node.lineno, owner, "addWidget",
+                                      {"child": child, "kind": "addWidget"}))
 
             elif op == "addTab" and len(node.args) >= 2:
                 self.tabs.append((node.lineno, owner, var_of(node.args[0]),
@@ -192,6 +229,20 @@ class PageReader(ast.NodeVisitor):
                     props["maxHeight"] = const(node.args[0])
                 elif op == "setWordWrap":
                     props["wrap"] = True
+                elif op == "setToolTip" and node.args:
+                    props["tip"] = const(node.args[0])
+                elif op in ("setFixedWidth", "setMaximumWidth") and node.args:
+                    props["width"] = const(node.args[0])
+                elif op == "setMinimumWidth" and node.args:
+                    props["minWidth"] = const(node.args[0])
+                elif op in ("setMinimumHeight",) and node.args:
+                    props["minHeight"] = const(node.args[0])
+                elif op == "setRange" and len(node.args) >= 2:
+                    props["range"] = [const(node.args[0]), const(node.args[1])]
+                elif op == "setValue" and node.args:
+                    props["value"] = const(node.args[0])
+                elif op == "setCurrentText" and node.args:
+                    props["value"] = const(node.args[0])
         self.generic_visit(node)
 
 
@@ -213,6 +264,12 @@ def build_tree(reader, root_layout):
 
     seen = set()
 
+    def render_child(var, depth=0):
+        """Resolve an added child, which may be either a layout or a widget."""
+        if var in reader.layouts:
+            return render_layout(var, depth)
+        return render_widget(var, depth)
+
     def render_layout(var, depth=0):
         if not var or var in seen or depth > 12:
             return None
@@ -225,7 +282,7 @@ def build_tree(reader, root_layout):
             elif op == "addSpacing":
                 node["children"].append({"node": "spacing", "px": payload["px"]})
             elif op == "addRow":
-                child = render_widget(payload["child"], depth + 1)
+                child = render_child(payload["child"], depth + 1)
                 node["children"].append({
                     "node": "row", "label": payload["label"], "child": child,
                 })
@@ -233,13 +290,13 @@ def build_tree(reader, root_layout):
                 child = render_layout(payload["child"], depth + 1)
                 if child:
                     child.update({k: v for k, v in payload.items()
-                                  if k in ("stretch", "row", "col", "rowspan", "colspan")})
+                                  if k in ("stretch", "row", "col", "rowspan", "colspan", "align")})
                     node["children"].append(child)
             else:
-                child = render_widget(payload["child"], depth + 1)
+                child = render_child(payload["child"], depth + 1)
                 if child:
                     child.update({k: v for k, v in payload.items()
-                                  if k in ("stretch", "row", "col", "rowspan", "colspan")})
+                                  if k in ("stretch", "row", "col", "rowspan", "colspan", "align")})
                     node["children"].append(child)
         return node
 
@@ -263,7 +320,7 @@ def build_tree(reader, root_layout):
                 node["tabs"].append({
                     "label": label,
                     "content": render_layout(owned.get(child), depth + 1)
-                               or render_widget(child, depth + 1),
+                               or render_child(child, depth + 1),
                 })
             return node
         # A container's real content is the layout it owns...
@@ -275,9 +332,7 @@ def build_tree(reader, root_layout):
         elif var in by_layout:
             kids = []
             for _line, op, payload in by_layout.get(var, []):
-                child = (render_layout(payload["child"], depth + 1)
-                         if op == "addLayout"
-                         else render_widget(payload.get("child"), depth + 1))
+                child = render_child(payload.get("child"), depth + 1)
                 if child:
                     if "stretch" in payload:
                         child["stretch"] = payload["stretch"]

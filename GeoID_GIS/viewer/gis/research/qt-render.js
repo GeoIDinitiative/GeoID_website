@@ -1,6 +1,6 @@
-import { handlerFor } from "./spec-page.js?v=20260808-04e5242";
-import * as store from "./project-store.js?v=20260808-04e5242";
-import { el, statusLine } from "./pages/common.js?v=20260808-04e5242";
+import { handlerFor } from "./spec-page.js?v=20260808-b0aa879";
+import * as store from "./project-store.js?v=20260808-b0aa879";
+import { el, statusLine } from "./pages/common.js?v=20260808-b0aa879";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -36,13 +36,27 @@ const LAYOUT_CLASS = {
   QStackedLayout: "qt-v",
 };
 
-/** Labels the app uses as section headings rather than field captions. */
-const isHeading = (node) =>
-  node.objectName === "SectionTitle" || node.objectName === "PageTitle"
-  || node.objectName === "FieldLabel";
+/** How Qt's stylesheet treats each objectName it sets on a QLabel. */
+const LABEL_ROLE = {
+  PageTitle: ["h2", "qt-page-title"],
+  SectionTitle: ["h3", "qt-section-title"],
+  PageSubtitle: ["p", "qt-subtitle"],
+  MutedLabel: ["p", "qt-muted"],
+  PillLabel: ["span", "qt-pill"],
+  FieldLabel: ["span", "qt-form-label"],
+  StatLabel: ["span", "qt-form-label"],
+};
 
 function applyBox(node, spec) {
   if (spec.stretch) node.style.flex = String(spec.stretch);
+  // `addWidget(btn, 0, Qt.AlignLeft)` means the widget keeps its size hint
+  // instead of filling the row -- without this every such button stretched the
+  // full width of its column, which is the single most obvious way a rebuilt
+  // Qt page stops looking like one.
+  if (spec.align) {
+    node.classList.add(`qt-align-${spec.align}`);
+    node.style.flex = "0 0 auto";
+  }
   if (Number.isFinite(spec.row)) {
     node.style.gridRow = `${spec.row + 1} / span ${spec.rowspan || 1}`;
     node.style.gridColumn = `${spec.col + 1} / span ${spec.colspan || 1}`;
@@ -94,6 +108,7 @@ export function renderTree(spec, ctx) {
         if (child) row.appendChild(child);
         return row;
       }
+      case "scroll": return renderNode(node.content);
       case "tabs": return renderTabs(node);
       case "widget": return renderWidget(node);
       default: return null;
@@ -130,7 +145,20 @@ export function renderTree(spec, ctx) {
     return box;
   }
 
+  function decorate(dom, node) {
+    if (!dom) return dom;
+    if (node.tip) dom.title = node.tip;
+    if (node.width) { dom.style.width = `${node.width}px`; dom.style.flex = "0 0 auto"; }
+    if (node.minWidth) dom.style.minWidth = `${node.minWidth}px`;
+    if (node.minHeight) dom.style.minHeight = `${node.minHeight}px`;
+    return dom;
+  }
+
   function renderWidget(node) {
+    return decorate(renderWidgetInner(node), node);
+  }
+
+  function renderWidgetInner(node) {
     const kind = node.kind;
     const text = node.text || "";
 
@@ -138,8 +166,10 @@ export function renderTree(spec, ctx) {
 
     if (kind === "QLabel") {
       if (!text) return null;
-      return el(isHeading(node) ? "h3" : "p",
-        isHeading(node) ? "qt-section-title" : "qt-label", text);
+      const [tag, cls] = LABEL_ROLE[node.objectName] || ["p", "qt-label"];
+      const label = el(tag, cls, text);
+      if (node.wrap) label.classList.add("is-wrapped");
+      return label;
     }
 
     if (kind === "QPushButton" || kind === "QToolButton") {
@@ -194,6 +224,7 @@ export function renderTree(spec, ctx) {
         option.textContent = "—";
         select.appendChild(option);
       }
+      if (node.value !== undefined) select.value = String(node.value);
       if (node.var) select.dataset.var = node.var;
       api.controls.set(node.var || "choice", select);
       return select;
@@ -212,11 +243,25 @@ export function renderTree(spec, ctx) {
 
     if (kind === "QSpinBox" || kind === "QDoubleSpinBox") {
       const input = document.createElement("input");
-      input.className = "input qt-input";
+      input.className = "input qt-input qt-number";
       input.type = "number";
       input.step = kind === "QDoubleSpinBox" ? "any" : "1";
+      if (Array.isArray(node.range)) {
+        input.min = String(node.range[0]);
+        input.max = String(node.range[1]);
+      }
+      if (node.value !== undefined) input.value = String(node.value);
       if (node.var) input.dataset.var = node.var;
       api.controls.set(node.var || "number", input);
+      return input;
+    }
+
+    if (kind === "QDateEdit" || kind === "QDateTimeEdit") {
+      const input = document.createElement("input");
+      input.className = "input qt-input";
+      input.type = kind === "QDateEdit" ? "date" : "datetime-local";
+      if (node.var) input.dataset.var = node.var;
+      api.controls.set(node.var || "date", input);
       return input;
     }
 
@@ -265,6 +310,7 @@ export function renderTree(spec, ctx) {
     if (kind === "CollapsibleSection") {
       const box = document.createElement("details");
       box.className = "qt-section";
+      if (node.collapsed === false) box.open = true;
       const head = document.createElement("summary");
       head.className = "qt-section-head";
       head.textContent = text || "Section";
@@ -273,6 +319,13 @@ export function renderTree(spec, ctx) {
       const inner = renderNode(node.content);
       if (inner) body.appendChild(inner);
       box.appendChild(body);
+      return box;
+    }
+
+    if (kind === "QScrollArea") {
+      const box = el("div", "qt-scroll");
+      const inner = renderNode(node.content);
+      if (inner) box.appendChild(inner);
       return box;
     }
 
