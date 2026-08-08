@@ -1,6 +1,6 @@
-import { handlerFor } from "./spec-page.js?v=20260808-c55e438";
-import * as store from "./project-store.js?v=20260808-c55e438";
-import { el, statusLine } from "./pages/common.js?v=20260808-c55e438";
+import { handlerFor } from "./spec-page.js?v=20260808-04e5242";
+import * as store from "./project-store.js?v=20260808-04e5242";
+import { el, statusLine } from "./pages/common.js?v=20260808-04e5242";
 
 /**
  * Render a page from the Qt app's own layout tree.

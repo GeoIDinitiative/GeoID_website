@@ -1,35 +1,35 @@
-import * as hub from "./hub.js?v=20260808-c55e438";
-import { registeredCount } from "./stages.js?v=20260808-c55e438";
-import * as store from "./project-store.js?v=20260808-c55e438";
-import * as bridge from "./bridge.js?v=20260808-c55e438";
+import * as hub from "./hub.js?v=20260808-04e5242";
+import { registeredCount } from "./stages.js?v=20260808-04e5242";
+import * as store from "./project-store.js?v=20260808-04e5242";
+import * as bridge from "./bridge.js?v=20260808-04e5242";
 
 // Pages register themselves on import. This list is the only place that has to
 // change when one is added.
-import "./pages/dashboard.js?v=20260808-c55e438";
-import "./pages/projects.js?v=20260808-c55e438";
-import "./pages/repository.js?v=20260808-c55e438";
-import "./pages/notes.js?v=20260808-c55e438";
-import "./pages/plotter.js?v=20260808-c55e438";
-import "./pages/signal.js?v=20260808-c55e438";
-import "./pages/fem.js?v=20260808-c55e438";
-import "./pages/storyboard.js?v=20260808-c55e438";
-import "./pages/docs.js?v=20260808-c55e438";
-import "./pages/builder.js?v=20260808-c55e438";
-import "./pages/notebook.js?v=20260808-c55e438";
+import "./pages/dashboard.js?v=20260808-04e5242";
+import "./pages/projects.js?v=20260808-04e5242";
+import "./pages/repository.js?v=20260808-04e5242";
+import "./pages/notes.js?v=20260808-04e5242";
+import "./pages/plotter.js?v=20260808-04e5242";
+import "./pages/signal.js?v=20260808-04e5242";
+import "./pages/fem.js?v=20260808-04e5242";
+import "./pages/storyboard.js?v=20260808-04e5242";
+import "./pages/docs.js?v=20260808-04e5242";
+import "./pages/builder.js?v=20260808-04e5242";
+import "./pages/notebook.js?v=20260808-04e5242";
 
 // Imported last on purpose: it wraps whatever each page already does.
-import { completeAllPages } from "./spec-page.js?v=20260808-c55e438";
+import { completeAllPages } from "./spec-page.js?v=20260808-04e5242";
 // Behaviour for the controls the spec brings across; must load before
 // completion runs so a wired control is never drawn disabled.
-import "./wiring.js?v=20260808-c55e438";
-import "./wiring-pages.js?v=20260808-c55e438";
-import "./wiring-final.js?v=20260808-c55e438";
-import "./pages/ingest.js?v=20260808-c55e438";
-import "./pages/postprocess.js?v=20260808-c55e438";
-import "./pages/prepare.js?v=20260808-c55e438";
-import "./pages/analysis.js?v=20260808-c55e438";
-import "./pages/manage.js?v=20260808-c55e438";
-import "./pages/workbench.js?v=20260808-c55e438";
+import "./wiring.js?v=20260808-04e5242";
+import "./wiring-pages.js?v=20260808-04e5242";
+import "./wiring-final.js?v=20260808-04e5242";
+import "./pages/ingest.js?v=20260808-04e5242";
+import "./pages/postprocess.js?v=20260808-04e5242";
+import "./pages/prepare.js?v=20260808-04e5242";
+import "./pages/analysis.js?v=20260808-04e5242";
+import "./pages/manage.js?v=20260808-04e5242";
+import "./pages/workbench.js?v=20260808-04e5242";
 
 /**
  * Entry point for the Research Hub.

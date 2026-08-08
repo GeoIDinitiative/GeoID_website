@@ -1634,8 +1634,11 @@
 /* `width: 100%` further up is for a field in a column; in a spacer'd row the
    flex box governs, and leaving the 100% on resolved against the container and
    made the combo span the row anyway. */
-.qt-h.has-stretch > .qt-input,
-.qt-h.has-stretch > .qt-select {
+/* Carries `#research-hub` because the hub's own `#research-hub .input` sets
+   `width: 100%` and an id beats any number of classes -- without it the combo
+   went straight back to spanning the row. */
+#research-hub .qt-h.has-stretch > .qt-input,
+#research-hub .qt-h.has-stretch > .qt-select {
   flex: 0 1 auto;
   width: auto;
   min-width: 11rem;
