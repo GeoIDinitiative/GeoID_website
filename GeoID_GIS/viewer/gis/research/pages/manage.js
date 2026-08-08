@@ -1,10 +1,11 @@
-import { registerPage } from "../stages.js?v=20260808-4a66374";
-import * as store from "../project-store.js?v=20260808-4a66374";
-import { STAGES, getPage } from "../stages.js?v=20260808-4a66374";
+import { registerPage } from "../stages.js?v=20260808-a66c44a";
+import * as store from "../project-store.js?v=20260808-a66c44a";
+import { STAGES, getPage } from "../stages.js?v=20260808-a66c44a";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, saveTable,
-} from "./common.js?v=20260808-4a66374";
+  pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
+} from "./common.js?v=20260808-a66c44a";
 
 /**
  * Dashboard, Project Manager, Pipeline and Data Hub.
@@ -233,53 +234,269 @@ const mountPipelineEditor = guard("Pipeline Editor", async (host) => {
 
 // ── Data Hub ─────────────────────────────────────────────────────────────────
 
+/**
+ * Data Hub, laid out as `DataHubPage` does (app_qt.py:8651): header, a compact
+ * toolbar of seven actions, the artefact tree with Artifact/Type/Size, then run
+ * comparison, the experiment tracker and publish & release folded underneath.
+ *
+ * The four groups are the Qt groups -- figures, signals, exports, analysis --
+ * and the tracker reads `metadata/experiments.jsonl`, the same append-only file
+ * the desktop app writes, so a run recorded in either shows in both.
+ */
+
+const HUB_GROUPS = ["figures", "signals", "exports", "analysis"];
+const EXPERIMENTS = "metadata/experiments.jsonl";
+
+function sizeOf(text) {
+  if (typeof text !== "string") return "";
+  return `${(new Blob([text]).size / 1024).toFixed(1)} KB`;
+}
+
 const mountDataHub = guard("Data Hub", async (host, ctx) => {
   const { node: status, say } = statusLine();
-  const box = card("Everything this project holds");
-  const entries = await store.listData();
-  const byKind = entries.reduce((acc, e) => {
-    acc[e.kind] = (acc[e.kind] || 0) + 1; return acc;
-  }, {});
-  box.appendChild(statGrid([
-    ["Registered items", entries.length],
-    ...Object.entries(byKind).map(([k, n]) => [k, n]),
-  ]));
+  const active = store.getActive();
+  let selected = null;                       // relative path of the picked file
 
-  const filter = selectOf(["all", ...Object.keys(byKind)], "all");
-  const table = el("div", "research-table");
-  box.append(field("Kind", filter), row(button("Export inventory CSV", async () => {
-    await saveTable("exports/data-inventory.csv",
-      ["name", "kind", "source", "path", "added_at"],
-      entries.map((e) => [`"${e.name}"`, e.kind, `"${e.source || ""}"`, e.path, e.added_at]),
-      "Data Hub", "export");
-    say("Saved exports/data-inventory.csv.");
-  })), table);
+  const header = pageHeader("Data Hub",
+    "Browse all project artefacts — figures, signals, exports and analysis "
+    + "outputs.", active.name);
+  header.pill.classList.add("is-open");
 
-  function draw() {
-    table.textContent = "";
-    const head = el("div", "research-table-row is-head");
-    ["Name", "Kind", "Source", "Path", "Added"].forEach((h) =>
-      head.appendChild(el("span", null, h)));
-    table.appendChild(head);
-    entries
-      .filter((e) => filter.value === "all" || e.kind === filter.value)
-      .forEach((e) => {
-        const line = el("div", "research-table-row");
-        [e.name, e.kind, e.source || "—", e.path || "—", (e.added_at || "").slice(0, 10)]
-          .forEach((v) => line.appendChild(el("span", null, String(v))));
-        table.appendChild(line);
+  const redraw = () => { host.textContent = ""; void mountDataHub(host, ctx); };
+
+  // ── Artefact tree ─────────────────────────────────────────────────────────
+  const tree = el("div", "qt-table hub-tree");
+  tree.style.gridTemplateColumns = "1fr 6rem 6rem";
+  ["Artifact", "Type", "Size"].forEach((h) => tree.appendChild(el("span", "qt-table-head", h)));
+
+  /** Every file under a group, newest first, as the Qt page lists them. */
+  async function walk(dir, out = []) {
+    let entries = [];
+    try { entries = await store.listProjectDir(dir); } catch (error) { return out; }
+    for (const entry of entries) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.kind === "directory") await walk(path, out);
+      else out.push(path);
+    }
+    return out;
+  }
+
+  for (const group of HUB_GROUPS) {
+    const head = el("button", "qt-table-cell hub-group");
+    head.type = "button";
+    head.textContent = group;
+    head.addEventListener("click", () => { selected = group; paintSelection(); });
+    tree.append(head, el("span", null, "dir"), el("span", null, ""));
+
+    const files = await walk(group);
+    for (const path of files.slice(0, 300)) {
+      const cell = el("button", "qt-table-cell hub-file");
+      cell.type = "button";
+      cell.dataset.path = path;
+      cell.textContent = path;
+      cell.addEventListener("click", () => { selected = path; paintSelection(); });
+      let text = null;
+      try { text = await store.readProjectFile(path); } catch (error) { /* binary or gone */ }
+      tree.append(cell,
+        el("span", null, (path.split(".").pop() || "file").toLowerCase()),
+        el("span", null, sizeOf(text)));
+    }
+  }
+  if (!tree.querySelector(".hub-file")) {
+    const empty = el("span", "qt-table-empty",
+      "No artefacts yet. Figures, exports and analysis outputs land here as "
+      + "they are produced.");
+    empty.style.gridColumn = "1 / -1";
+    tree.appendChild(empty);
+  }
+
+  function paintSelection() {
+    Array.from(tree.querySelectorAll(".qt-table-cell")).forEach((b) =>
+      b.classList.toggle("is-selected", (b.dataset.path || b.textContent) === selected));
+  }
+
+  const needFile = () => {
+    if (!selected || !selected.includes("/")) {
+      say("Select an artefact in the tree first.", true);
+      return null;
+    }
+    return selected;
+  };
+
+  // ── Toolbar ───────────────────────────────────────────────────────────────
+  const bar = toolbar(
+    button("Refresh", () => { redraw(); }, { secondary: true }),
+    // A browser cannot hand a file to the desktop; it can show it, which is
+    // what "open" is for here.
+    button("Open", async () => {
+      const path = needFile(); if (!path) return;
+      try {
+        const text = await store.readProjectFile(path);
+        say(typeof text === "string"
+          ? `${path} — ${sizeOf(text)}, ${text.split("\n").length} line(s).`
+          : `${path} — binary.`);
+      } catch (error) { say(error.message, true); }
+    }, { secondary: true }),
+    button("Add to StoryBoard", async () => {
+      const path = needFile(); if (!path) return;
+      const manifest = await store.readJson("exports/storyboard/manifest.json", { panels: [] });
+      manifest.panels = Array.isArray(manifest.panels) ? manifest.panels : [];
+      manifest.panels.push({ path, added_at: new Date().toISOString(), caption: "" });
+      await store.writeJson("exports/storyboard/manifest.json", manifest);
+      say(`Added to the storyboard (${manifest.panels.length} panel(s)).`);
+    }, { secondary: true }),
+    button("Send to Preprocessing", () => {
+      const path = needFile(); if (!path) return;
+      ctx.setPage?.("Preprocessing Transforms");
+    }, { secondary: true }),
+    button("Send to AI Trainer", () => {
+      const path = needFile(); if (!path) return;
+      ctx.setPage?.("AI Trainer");
+    }, { secondary: true }),
+    button("Create Repro Bundle", async () => {
+      // What the desktop bundler records, minus pip freeze -- there is no
+      // Python environment here to freeze, and inventing one would be a lie in
+      // a file whose whole purpose is to be trusted later.
+      const data = await store.listData();
+      const bundle = {
+        created_at: new Date().toISOString(),
+        project: { name: active.name, dir: active.dir, body: active.meta.body },
+        metadata: active.meta,
+        data_registry: data,
+        artefacts: Array.from(tree.querySelectorAll(".hub-file")).map((b) => b.dataset.path),
+        environment: {
+          note: "Produced in the browser; no interpreter environment to record.",
+          user_agent: navigator.userAgent,
+        },
+      };
+      await store.writeJson("exports/repro-bundle.json", bundle);
+      say("Written to exports/repro-bundle.json.");
+      redraw();
+    }, { secondary: true }),
+    button("Generate PDF Report", async () => {
+      // A single self-contained HTML the browser prints to PDF: no PDF library
+      // vendored, and the output is editable before it is printed.
+      const data = await store.listData();
+      const html = [
+        "<!doctype html><meta charset=utf-8>",
+        `<title>${active.name}</title>`,
+        "<style>body{font:14px/1.6 system-ui;margin:3rem auto;max-width:52rem}"
+        + "h1{margin-bottom:0}code{background:#f3f3f3;padding:.1em .3em}"
+        + "td,th{border-bottom:1px solid #ddd;padding:.3rem .6rem;text-align:left}</style>",
+        `<h1>${active.name}</h1>`,
+        `<p>${active.meta.body || "earth"} · ${active.meta.phase} · `
+        + `${active.meta.priority} · ${active.meta.progress_pct ?? 0}%</p>`,
+        `<p>${active.meta.description || ""}</p>`,
+        active.meta.focus_question ? `<p><b>Focus:</b> ${active.meta.focus_question}</p>` : "",
+        "<h2>Registered data</h2><table><tr><th>Name<th>Kind<th>Path<th>Source</tr>",
+        ...data.map((e) => `<tr><td>${e.name}<td>${e.kind}<td><code>${e.path}</code><td>${e.source || ""}</tr>`),
+        "</table>",
+        "<h2>Artefacts</h2><ul>",
+        ...Array.from(tree.querySelectorAll(".hub-file")).map((b) => `<li><code>${b.dataset.path}</code>`),
+        "</ul>",
+      ].join("\n");
+      await store.writeProjectFile("exports/report.html", html);
+      say("Written to exports/report.html — open it and print to PDF.");
+      redraw();
+    }, { secondary: true }),
+  );
+
+  // ── Run comparison (folded) ───────────────────────────────────────────────
+  const compare = collapsible("Run comparison");
+  const runA = input("", "Run A path or JSON…");
+  const runB = input("", "Run B path or JSON…");
+  const compareOut = console_("", "Pick two runs and compare their configs and metrics.");
+  const useSelected = (target) => button("Use Selected", () => {
+    const path = needFile(); if (!path) return;
+    target.value = path;
+  }, { secondary: true });
+  compare.body.append(
+    row(inlineLabel("Run A"), runA, useSelected(runA)),
+    row(inlineLabel("Run B"), runB, useSelected(runB)),
+    row(button("Compare Runs", async () => {
+      try {
+        const [a, b] = await Promise.all([
+          store.readJson(runA.value, null), store.readJson(runB.value, null),
+        ]);
+        if (!a || !b) { say("Both runs must be readable JSON.", true); return; }
+        const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].sort();
+        compareOut.classList.remove("is-placeholder");
+        compareOut.textContent = keys.map((k) => {
+          const av = JSON.stringify(a[k]);
+          const bv = JSON.stringify(b[k]);
+          return `${av === bv ? "  " : "≠ "}${k.padEnd(22)} ${String(av).slice(0, 24).padEnd(26)} ${String(bv).slice(0, 24)}`;
+        }).join("\n");
+      } catch (error) {
+        compareOut.classList.remove("is-placeholder");
+        compareOut.textContent = `Could not compare: ${error.message}`;
+      }
+    })),
+    compareOut,
+  );
+
+  // ── Experiment tracker (folded) ───────────────────────────────────────────
+  const experiments = collapsible("Experiment tracker");
+  let runs = [];
+  try {
+    const raw = await store.readProjectFile(EXPERIMENTS);
+    runs = String(raw).split("\n").filter(Boolean).map((line) => {
+      try { return JSON.parse(line); } catch (error) { return null; }
+    }).filter(Boolean);
+  } catch (error) { /* no runs recorded yet */ }
+  runs.sort((a, b) => String(b.timestamp || "").localeCompare(String(a.timestamp || "")));
+  experiments.body.appendChild(el("p", "research-note",
+    "Read from metadata/experiments.jsonl — the same append-only file the "
+    + "desktop app writes, so a run recorded in either appears in both."));
+  experiments.body.appendChild(dataTable(
+    ["Run ID", "Timestamp", "Status", "Dataset", "Metrics", "Outputs"],
+    runs.map((entry) => {
+      const config = entry.config || {};
+      const metrics = entry.metrics || {};
+      return [
+        entry.run_id ?? "-",
+        (entry.timestamp || "-").replace("T", " "),
+        config.status || config.run_status || entry.status || "-",
+        String(config.dataset || "-").split("/").pop(),
+        Object.entries(metrics).slice(0, 3).map(([k, v]) => `${k}=${v}`).join(", ") || "-",
+        (entry.outputs || []).slice(0, 2).map((o) => String(o).split("/").pop()).join(", ") || "-",
+      ];
+    }),
+  ));
+
+  // ── Publish & release (folded) ────────────────────────────────────────────
+  const publish = collapsible("Publish & release");
+  publish.body.appendChild(row(
+    button("Create Release Bundle", async () => {
+      const manifest = {
+        released_at: new Date().toISOString(),
+        project: active.name,
+        body: active.meta.body,
+        artefacts: Array.from(tree.querySelectorAll(".hub-file")).map((b) => b.dataset.path),
+        data: (await store.listData()).map((e) => e.path),
+      };
+      await store.writeJson("exports/release-manifest.json", manifest);
+      say(`Release manifest written with ${manifest.artefacts.length} artefact(s).`);
+      redraw();
+    }, { secondary: true }),
+    button("Generate Publish Bundle", async () => {
+      const storyboard = await store.readJson("exports/storyboard/manifest.json", { panels: [] });
+      await store.writeJson("exports/publish-bundle.json", {
+        generated_at: new Date().toISOString(),
+        project: active.name,
+        focus_question: active.meta.focus_question,
+        panels: storyboard.panels || [],
+        figures: Array.from(tree.querySelectorAll(".hub-file"))
+          .map((b) => b.dataset.path).filter((p) => p.startsWith("figures/")),
       });
-  }
-  filter.addEventListener("change", draw);
-  draw();
-  if (!entries.length) {
-    box.appendChild(el("p", "research-note",
-      "Nothing registered yet. Imports on the GIS page, pulls on Fetch Data and "
-      + "anything saved from an analysis page all land here."));
-  }
-  say(`${entries.length} item(s).`);
-  host.append(box, status);
+      say("Written to exports/publish-bundle.json.");
+      redraw();
+    }, { secondary: true }),
+  ));
+
+  paintSelection();
+  host.append(header, bar, tree, compare, experiments, publish, status);
 });
+mountDataHub.ownHeader = true;
 
 registerPage("Pipeline Runner", { mount: mountPipelineRunner });
 registerPage("Project Board", { mount: mountBoard });
