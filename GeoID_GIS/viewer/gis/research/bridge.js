@@ -1,4 +1,4 @@
-import * as store from "./project-store.js?v=20260809-6e65365";
+import * as store from "./project-store.js?v=20260809-06bc458";
 
 /**
  * What makes the three pages one workspace.
@@ -174,6 +174,52 @@ export function isGeoFile(path) {
   return GEO_EXTENSIONS.has(ext);
 }
 
+/** Read a project file and wrap it as a File the import pipeline accepts. */
+async function projectFileAsFile(path) {
+  const raw = await store.readProjectFileBytes(path);
+  const blob = raw instanceof Blob ? raw
+    : raw instanceof ArrayBuffer ? new Blob([raw])
+    : new Blob([typeof raw === "string" ? raw : new Uint8Array(raw)]);
+  const name = path.split("/").pop();
+  return new File([blob], name, { type: blob.type || "application/octet-stream" });
+}
+
+/** The registry kinds that were globe layers, as `registerImportedLayer` tags them. */
+const LAYER_KINDS = new Set(["raster", "vector", "layer"]);
+
+/**
+ * Re-drape the open project's layers onto the globe.
+ *
+ * The other half of the round trip: `registerImportedLayer` copies every
+ * imported layer into the project and records its path, so on reopening a
+ * project those files can be read back and run through the import pipeline
+ * again — the globe comes back with the same overlays instead of bare. Only
+ * file-backed spatial layers are restored (a derived layer with no file cannot
+ * be), and anything already on the globe is skipped, so calling it twice is
+ * safe. Never throws: a project that will not fully restore should still open.
+ */
+export async function restoreLayers() {
+  if (!activeProject()) return 0;
+  const manager = window.GeoIDImportManager;
+  if (!manager?.importFileList) return 0;
+  let entries = [];
+  try { entries = await store.listData(); } catch (error) { return 0; }
+  const present = new Set((manager.getLayers?.() || []).map((l) => l.name));
+  const restorable = entries.filter((e) =>
+    LAYER_KINDS.has(e.kind) && e.path && isGeoFile(e.path) && !present.has(e.name));
+  let restored = 0;
+  for (const entry of restorable) {
+    try {
+      await manager.importFileList([await projectFileAsFile(entry.path)]);
+      restored += 1;
+    } catch (error) {
+      // A layer whose file has moved or won't parse must not stop the rest.
+      console.warn(`[GeoID] could not restore layer ${entry.name}:`, error.message);
+    }
+  }
+  return restored;
+}
+
 /**
  * Send a project file back onto the globe.
  *
@@ -199,14 +245,7 @@ export async function sendToGlobe(target) {
     throw new Error("The GIS viewer is not ready yet.");
   }
 
-  const raw = await store.readProjectFileBytes(path);
-  // Normalise whatever the adapter returned into a File the pipeline accepts.
-  const blob = raw instanceof Blob ? raw
-    : raw instanceof ArrayBuffer ? new Blob([raw])
-    : new Blob([typeof raw === "string" ? raw : new Uint8Array(raw)]);
-  const name = path.split("/").pop();
-  const file = new File([blob], name, { type: blob.type || "application/octet-stream" });
-
+  const file = await projectFileAsFile(path);
   // Show the globe, then import — the layer is meaningless behind the Research
   // page it was launched from.
   window.GeoIDModeManager?.setMode?.("gis");

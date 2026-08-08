@@ -1,6 +1,6 @@
-import * as store from "./research/project-store.js?v=20260809-6e65365";
-import { currentBodyId, currentBody } from "./bodies.js?v=20260809-6e65365";
-import { ready as shellReady } from "./shell.js?v=20260809-6e65365";
+import * as store from "./research/project-store.js?v=20260809-06bc458";
+import { currentBodyId, currentBody } from "./bodies.js?v=20260809-06bc458";
+import { ready as shellReady } from "./shell.js?v=20260809-06bc458";
 
 /**
  * The folder button in the sidebar header.
@@ -238,6 +238,31 @@ function refreshHeaderLabel() {
   button.classList.toggle("is-open", Boolean(active));
 }
 
+/**
+ * Re-drape a project's layers when it becomes active.
+ *
+ * The return path that makes a reload feel like resuming rather than starting
+ * over: `restoreSession` reopens the project, and this puts its overlays back on
+ * the globe. Keyed on the project folder so it fires once per switch, not on
+ * every metadata change; waits for the viewer, since on a cold load the project
+ * resolves before the globe is ready; and never lets a failed restore stop the
+ * project opening.
+ */
+let lastLayerRestoreDir = null;
+async function maybeRestoreLayers(active) {
+  const dir = active?.dir || null;
+  if (!dir) { lastLayerRestoreDir = null; return; }
+  if (dir === lastLayerRestoreDir) return;
+  lastLayerRestoreDir = dir;
+  for (let i = 0; i < 50 && !window.GeoIDViewer; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  try {
+    const n = await window.GeoIDResearch?.bridge?.restoreLayers?.();
+    if (n) status(`Restored ${n} layer${n === 1 ? "" : "s"} onto the globe.`);
+  } catch (error) { /* opening a project must never fail on its layer restore */ }
+}
+
 function init() {
   byId("project-open-modal")?.addEventListener("click", () => setDialogOpen(true));
   byId("project-dialog-close")?.addEventListener("click", () => setDialogOpen(false));
@@ -251,7 +276,11 @@ function init() {
   // The button follows the store, so opening a project on the Projects page
   // updates it too -- there is only the one project now.
   store.onChange(refreshHeaderLabel);
+  store.onChange(maybeRestoreLayers);
   refreshHeaderLabel();
+  // A project restored on load fires onChange before this listener is attached,
+  // so catch up on whatever is already open.
+  maybeRestoreLayers(store.getActive());
 }
 
 // On a planet page the button and dialog arrive with the shell, after
