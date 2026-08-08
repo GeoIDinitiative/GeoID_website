@@ -2508,3 +2508,58 @@
 
 /* The trailing spacer must never add height to a page that already fits. */
 .qt-page > .qt-layout > .qt-stretch:last-child { flex: 0 1 auto; min-height: 0; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EFFICIENT USE OF SPACE — two-column forms on wide screens.
+   Measured: form pages (Import/Clone, Simulation, IC/BC, Properties, Inputs)
+   stretched a ~180px single-column form down a 583px tab body — 400px of void.
+   A QFormLayout is one label:field column; on a wide screen that wastes half
+   the width and doubles the height. Flowing the rows into two columns halves
+   the height and uses the horizontal space, which is exactly the Qt density the
+   single column was throwing away. Functionality is unchanged — every field is
+   still a labelled input, just packed.
+   ══════════════════════════════════════════════════════════════════════════ */
+@media (min-width: 1100px) {
+  .qt-page .qt-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    gap: var(--sp-2) var(--sp-5);
+  }
+  /* Each row becomes a self-contained label+field unit so rows can pack into
+     the two columns; labels stay right-aligned in a fixed column within a row,
+     so they read as a form, not a list. */
+  .qt-page .qt-form > .qt-form-row {
+    display: grid;
+    grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr);
+    align-items: center;
+    gap: 4px var(--sp-3);
+    min-width: 0;
+  }
+  .qt-page .qt-form > .qt-form-row > .qt-form-label {
+    text-align: right;
+    align-self: center;
+  }
+  /* A multi-line field, a browse-row or anything that owns a sub-layout takes
+     the full width rather than being crushed into half a column. */
+  .qt-page .qt-form > .qt-form-row:has(textarea),
+  .qt-page .qt-form > .qt-form-row:has(.qt-layout),
+  .qt-page .qt-form > .qt-form-row.qt-wide { grid-column: 1 / -1; }
+  .qt-page .qt-form > .qt-form-row:has(textarea) { grid-template-columns: minmax(5rem, 8rem) minmax(0, 1fr); }
+  /* Field caps a touch wider now that two share the row. */
+  #research-hub .qt-page .qt-form > .qt-form-row > .qt-input,
+  #research-hub .qt-page .qt-form > .qt-form-row > .qt-select { max-width: 32rem; }
+}
+
+/* A tab widget is as tall as its ACTIVE tab needs. `tab-fills` is set per
+   switch (qt-render.js) when the visible tab holds a table, list, log or plot;
+   a form tab clears it. So a widget with a Configuration form and a Log tab
+   sizes to the form while configuring and expands to the log when you open it —
+   no 400px void below a short form, and no lost room for the log. */
+.qt-page .qt-tabwidget { flex: 0 0 auto; }
+.qt-page .qt-tabwidget.tab-fills.qt-grow { flex: 1 1 auto; min-height: 0; }
+.qt-page .qt-tabwidget:not(.tab-fills) > .qt-tab-body { min-height: 0; }
+
+/* An empty table or list inside a tab states its shape compactly instead of
+   implying a huge empty data area — it grows again the moment it holds rows. */
+.qt-tab-panel .qt-datatable:not(.has-rows),
+.qt-tab-panel .qt-listwidget:empty { max-height: 10rem; }

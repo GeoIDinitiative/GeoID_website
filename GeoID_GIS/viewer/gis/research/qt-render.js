@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260808-67ebb91";
-import * as store from "./project-store.js?v=20260808-67ebb91";
-import { el, statusLine } from "./pages/common.js?v=20260808-67ebb91";
-import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-67ebb91";
+import { handlerFor } from "./spec-page.js?v=20260808-7552917";
+import * as store from "./project-store.js?v=20260808-7552917";
+import { el, statusLine } from "./pages/common.js?v=20260808-7552917";
+import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-7552917";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -99,10 +99,16 @@ function applyBox(node, spec) {
   // getting its size hint first. Ingest's registry section carries
   // `addWidget(pulled_sec, 1)` and collapsed to 2px under the zero basis.
   if (spec.stretch) {
-    node.style.flex = `${spec.stretch} 1 auto`;
     // Marked as well as styled: this is the page's main work surface, and the
     // wide-screen layout gives it the full width rather than half of it.
     node.classList.add("qt-grow");
+    // A tab widget's growth is gated on its *active* tab (`tab-fills`, managed
+    // in renderTabs), so it must not carry an inline flex that would override
+    // that gate and stretch a short form tab into a void. Everything else takes
+    // its stretch inline as before.
+    if (!node.classList.contains("qt-tabwidget")) {
+      node.style.flex = `${spec.stretch} 1 auto`;
+    }
   }
   // `addWidget(btn, 0, Qt.AlignLeft)` means the widget keeps its size hint
   // instead of filling the row -- without this every such button stretched the
@@ -275,6 +281,7 @@ export function renderTree(spec, ctx) {
           b.classList.toggle("is-active", i === index);
           panels[i].hidden = i !== index;
         });
+        sizeToActive();
       });
       strip.appendChild(btn);
     });
@@ -282,6 +289,24 @@ export function renderTree(spec, ctx) {
     // has to click through them to find a control.
     panels.forEach((p, i) => { p.hidden = i !== 0; });
     if (strip.firstChild) strip.firstChild.classList.add("is-active");
+
+    // The tab widget is as tall as the *active* tab needs. A form tab does not
+    // want the height; a table/log/plot tab does. Without this, a widget with a
+    // Log tab stretched to fill even while a short Configuration form was
+    // showing, leaving 400px of void below the form — the wasted space the
+    // report is about. Re-checked on every switch so moving to the Log tab
+    // gives it the room.
+    // Only a widget that *inherently* wants the height makes the tab fill: a
+    // log that streams, a plot canvas, a scroll area. A table or list caps
+    // itself when empty (8rem), so a tab whose active panel is a short form and
+    // an empty table should size to them, not stretch 500px for a table with no
+    // rows — which was the remaining void on Inputs, IC/BC and Properties.
+    const WANTS_HEIGHT = ".qt-scroll, canvas, .qt-textarea";
+    function sizeToActive() {
+      const active = panels.find((p) => !p.hidden);
+      box.classList.toggle("tab-fills", !!active && !!active.querySelector(WANTS_HEIGHT));
+    }
+    sizeToActive();
     box.append(strip, body);
     return box;
   }
@@ -668,8 +693,15 @@ function packRoot(root) {
     parseFloat(node.style.flexGrow || node.style.flex) > 0
     || node.matches(".qt-expand") || node.querySelector(".qt-expand"));
   if (!claimed) {
+    // A tab widget is only worth stretching if it holds a data surface — a
+    // table, list, log or plot that *wants* the height. A tab widget of nothing
+    // but a form gets stretched into a 400px void below a 180px form, which is
+    // the wasted space the report is about, so it is not a fill candidate.
+    const holdsData = (node) => !node.matches(".qt-tabwidget")
+      || node.querySelector(".qt-scroll, canvas, .qt-textarea");
     const fill = children.filter((node) =>
-      node.matches(".qt-tabwidget, .qt-splitter, .qt-stack, .qt-datatable, .qt-listwidget"));
+      node.matches(".qt-tabwidget, .qt-splitter, .qt-stack, .qt-datatable, .qt-listwidget")
+      && holdsData(node));
     (fill[fill.length - 1] || null)?.classList.add("qt-grow");
   }
 }
