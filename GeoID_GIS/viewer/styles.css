@@ -4484,9 +4484,7 @@ canvas {
       font-size: 0.68rem;
     }
 
-    /* The globe HUD -- locator, surface conditions and the GMT clock -- reports
-       on a planet being explored. Model mode has no planet, and GIS mode is a
-       working surface rather than a view, so both drop it. */
+    /* Model mode has no planet, so the whole globe HUD stands down. */
     /* The scale bar and cursor readout stay in Model mode. They are the same
        elements the GIS page uses, driven by the studio's own local scale, so
        both pages report position and distance identically. */
@@ -4494,9 +4492,10 @@ canvas {
     body[data-view-mode="model"] #hemisphere-locator,
     body[data-view-mode="model"] #surface-conditions,
     body[data-view-mode="model"] #gmt-clock,
-    body[data-view-mode="gis"] #bottom-right-hud,
-    body[data-view-mode="gis"] #hemisphere-locator,
-    body[data-view-mode="gis"] #surface-conditions,
+    /* GIS keeps the locator and the conditions -- where the view is centred and
+       what it is like there are working facts, not decoration -- but not the
+       GMT clock, which paces the guided tour rather than describing anything
+       on the surface. */
     body[data-view-mode="gis"] #gmt-clock {
       display: none !important;
     }
