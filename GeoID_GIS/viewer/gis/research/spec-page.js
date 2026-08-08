@@ -1,10 +1,10 @@
-import { getPage, registerPage } from "./stages.js?v=20260808-0a9f32e";
-import { qtMount, loadLayouts } from "./qt-render.js?v=20260808-0a9f32e";
-import * as store from "./project-store.js?v=20260808-0a9f32e";
+import { getPage, registerPage } from "./stages.js?v=20260808-605b7bd";
+import { qtMount, loadLayouts } from "./qt-render.js?v=20260808-605b7bd";
+import * as store from "./project-store.js?v=20260808-605b7bd";
 import {
   el, button, row, field, input, selectOf, statusLine, needProject,
   pageHeader, toolbar, collapsible, tabbedPanel, editorCard, dataTable,
-} from "./pages/common.js?v=20260808-0a9f32e";
+} from "./pages/common.js?v=20260808-605b7bd";
 
 /**
  * Build a page from `qt-spec.json` — the structure the Qt app actually has,
@@ -521,9 +521,13 @@ export function completedMount(pageId, inner) {
       host.appendChild(card);
     }
 
-    // A tree-rendered page brings its own status line; two of them stacked read
-    // as a rendering fault.
-    if (!host.querySelector(".research-status")) host.appendChild(status);
+    // One status line, and it lives at the foot of the page. The inner page
+    // appends its own before the completion adds its cards, which stranded the
+    // line mid-DOM between two sections; appendChild on an existing node is a
+    // move, so this is also the de-duplication.
+    const existing = host.querySelector(".research-status");
+    if (existing) host.appendChild(existing);
+    else host.appendChild(status);
   }
   mount.ownHeader = true;
   return mount;

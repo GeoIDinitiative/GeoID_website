@@ -2067,3 +2067,143 @@
 }
 /* The row a ⓘ sits in has to be able to hold the popover. */
 .qt-page .qt-h, .qt-page .qt-v { position: relative; }
+
+/* ── The control metric ────────────────────────────────────────────────────
+   Measured on one page before this existed: four different control heights
+   (21, 28, 30 and 32px), the Tag select two pixels above the buttons beside
+   it, textarea cells at 77px next to 45px inputs. Nothing else reads as
+   "messy" faster than inline controls that almost line up.
+
+   One height for every inline control. Every real action button carries
+   `.button` and every field carries `.input`, in the hand-built pages and the
+   tree-rendered ones alike, so the metric lands everywhere at once. Textareas
+   are the deliberate exception (they are multi-line); icon affordances
+   (ⓘ, ↑↓✕, tabs) are not inline controls and keep their own size. */
+#research-hub { --ctl: 30px; }
+#research-hub .button {
+  height: var(--ctl);
+  padding-top: 0;
+  padding-bottom: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+#research-hub input.input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+#research-hub select.input,
+#research-hub select {
+  height: var(--ctl);
+  padding-top: 0;
+  padding-bottom: 0;
+  box-sizing: border-box;
+}
+
+/* The action bar: everything on one centre line, one gap. */
+.page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-height: calc(var(--ctl) + 4px);
+}
+.toolbar-label {
+  display: inline-flex;
+  align-items: center;
+  height: var(--ctl);
+  font-size: 0.66rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgb(var(--skin-data));
+}
+
+/* ── Section bars ──────────────────────────────────────────────────────────
+   A CollapsibleSection is full width in Qt — always. The grid was placing a
+   closed one in a 432px track beside 1316px cards, which is most of what made
+   the page read as scattered. Closed, it is a full-width bar; open, the bar
+   becomes the lid of a contained panel. */
+.research-page > .qt-section { grid-column: 1 / -1; }
+.qt-section > .qt-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--atlas-line);
+  border-radius: 8px;
+  background: var(--atlas-card);
+}
+.qt-section[open] > .qt-section-head {
+  border-radius: 8px 8px 0 0;
+  border-bottom-color: transparent;
+}
+.qt-section[open] > .qt-section-body,
+.qt-section[open] > .qt-tab-panel {
+  border: 1px solid var(--atlas-line);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: var(--atlas-panel);
+  padding: 10px 12px;
+}
+
+/* ── Tables are contained ──────────────────────────────────────────────────
+   An empty table was a row of floating headings over hairlines — "PATH TYPE
+   TAG FORMAT" adrift in space. A table is a box: lid, body, done. */
+.qt-table {
+  border: 1px solid var(--atlas-line);
+  border-radius: 8px;
+  background: var(--atlas-panel);
+  overflow: hidden;
+  align-content: start;
+}
+.qt-table > .qt-table-head {
+  background: var(--atlas-card);
+  padding: 6px 10px;
+  margin: 0;
+}
+.qt-table > span:not(.qt-table-head) { padding: 4px 10px; }
+.qt-table.is-empty { min-height: 3.4rem; }
+.qt-table.is-readonly { row-gap: 0; }
+
+/* ── Field grids align on a baseline ───────────────────────────────────────
+   Labels one height, controls one height, and a multi-line field takes its
+   own full row instead of inflating the row it happens to share. */
+.field-grid { align-items: start; gap: 8px 10px; }
+.field-grid .research-field { margin-bottom: 0; }
+.research-field-label {
+  display: block;
+  min-height: 0.95rem;
+  line-height: 0.95rem;
+}
+.field-grid > .research-field:has(textarea) { grid-column: 1 / -1; }
+.field-grid textarea.input { min-height: 4.2rem; }
+
+/* ── The hand-built pages are a flex column, like everything else ──────────
+   Measured, not aesthetic: with the auto-fill grid, Chromium sized the rows of
+   repo-tree and every open CollapsibleSection at roughly their first line
+   (~36-53px) while the items were 95-384px tall, so sections painted over each
+   other — the "all over the place" in the report. The identical DOM under a
+   flex column has zero overlaps. The nine hand-built pages are each one big
+   surface (a tree, a wizard, a board), so a full-width stack is also the right
+   reading order; density inside comes from their own cards and field grids. */
+.research-page:not(:has(> .qt-page)) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.research-page:not(:has(> .qt-page)) > * {
+  width: 100%;
+  /* Same rule as the tree pages: in a column nothing shrinks below its own
+     content — the host scrolls instead. Without it every closed section bar
+     was squeezed to 10px of its 34, which is the disappearing act all over
+     again, just by another route. */
+  flex: 0 0 auto;
+}
+/* A section can shrink (a .qt-grow one must), but never below usefulness.
+   `.qt-page .qt-section { min-height: 0 }` outranks a plain element selector,
+   so these carry the same specificity. A growing section keeps enough height
+   to be worked in — the page root scrolls when the page is over-full, which
+   beats a registry squeezed to a 2px sliver under its own bar. */
+.qt-page details.qt-section,
+.research-page details.qt-section { min-height: 36px; }
+.qt-page details.qt-section.qt-grow[open] { min-height: 11rem; }
