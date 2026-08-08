@@ -374,6 +374,605 @@
           "node": "layout"
          },
          {
+          "content": {
+           "children": [
+            {
+             "content": {
+              "children": [
+               {
+                "kind": "QLabel",
+                "node": "widget",
+                "text": "Welcome to the guided simulation builder",
+                "var": "__inline1"
+               },
+               {
+                "kind": "QLabel",
+                "node": "widget",
+                "text": "This wizard builds a new simulation from scratch using GALES solver architecture.",
+                "var": "__inline2"
+               },
+               {
+                "content": {
+                 "children": [
+                  {
+                   "kind": "QLabel",
+                   "node": "widget",
+                   "text": "Roadmap Templates",
+                   "var": "__inline3"
+                  },
+                  {
+                   "items": [
+                    "Custom",
+                    "FSI 3D Non-Isothermal (Two-way)"
+                   ],
+                   "kind": "QComboBox",
+                   "node": "widget",
+                   "text": null,
+                   "var": "roadmap_combo"
+                  },
+                  {
+                   "kind": "QPlainTextEdit",
+                   "node": "widget",
+                   "readOnly": true,
+                   "stretch": 1,
+                   "text": null,
+                   "var": "roadmap_text"
+                  },
+                  {
+                   "kind": "QPushButton",
+                   "node": "widget",
+                   "text": "Apply Roadmap Template",
+                   "var": "apply_roadmap_btn"
+                  }
+                 ],
+                 "kind": "QVBoxLayout",
+                 "node": "layout"
+                },
+                "kind": "QFrame",
+                "node": "widget",
+                "objectName": "Card",
+                "stretch": 1,
+                "text": null,
+                "var": "roadmap_card"
+               },
+               {
+                "node": "stretch"
+               }
+              ],
+              "kind": "QVBoxLayout",
+              "node": "layout"
+             },
+             "kind": "QWidget",
+             "node": "widget",
+             "text": null,
+             "var": "start"
+            },
+            {
+             "content": {
+              "children": [
+               {
+                "kind": "QLabel",
+                "node": "widget",
+                "text": "Choose Simulation Type",
+                "var": "__inline4"
+               },
+               {
+                "children": [
+                 {
+                  "kind": "QLabel",
+                  "node": "widget",
+                  "text": "Name:",
+                  "var": "__inline5"
+                 },
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "text": null,
+                  "var": "build_name"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
+               {
+                "children": [
+                 {
+                  "kind": "QLabel",
+                  "node": "widget",
+                  "text": "Target:",
+                  "var": "__inline6"
+                 },
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "text": null,
+                  "var": "build_target"
+                 },
+                 {
+                  "kind": "QPushButton",
+                  "node": "widget",
+                  "text": "Browse",
+                  "var": "browse_target"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
+               {
+                "kind": "QListWidget",
+                "node": "widget",
+                "stretch": 1,
+                "text": null,
+                "var": "sim_type_tiles"
+               },
+               {
+                "content": {
+                 "children": [
+                  {
+                   "kind": "QLabel",
+                   "node": "widget",
+                   "text": "Recommended Setup",
+                   "var": "__inline12"
+                  },
+                  {
+                   "kind": "QPlainTextEdit",
+                   "maxHeight": 120,
+                   "node": "widget",
+                   "readOnly": true,
+                   "text": null,
+                   "var": "sim_type_guidance"
+                  }
+                 ],
+                 "kind": "QVBoxLayout",
+                 "node": "layout"
+                },
+                "kind": "QFrame",
+                "node": "widget",
+                "objectName": "Card",
+                "text": null,
+                "var": "guidance_card"
+               },
+               {
+                "children": [
+                 {
+                  "kind": "QLabel",
+                  "node": "widget",
+                  "text": "Example sim (optional):",
+                  "var": "__inline13"
+                 },
+                 {
+                  "kind": "QComboBox",
+                  "node": "widget",
+                  "stretch": 1,
+                  "text": null,
+                  "var": "example_sim"
+                 },
+                 {
+                  "kind": "QPushButton",
+                  "node": "widget",
+                  "text": "Apply Example Defaults",
+                  "var": "apply_btn"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               }
+              ],
+              "kind": "QVBoxLayout",
+              "node": "layout"
+             },
+             "kind": "QWidget",
+             "node": "widget",
+             "text": null,
+             "var": "sim_type_page"
+            },
+            {
+             "content": {
+              "children": [
+               {
+                "kind": "QLabel",
+                "node": "widget",
+                "text": "Step 2: Configure Physics Modules",
+                "var": "__inline14"
+               },
+               {
+                "children": [
+                 {
+                  "child": {
+                   "kind": "QComboBox",
+                   "node": "widget",
+                   "text": null,
+                   "var": "combo"
+                  },
+                  "label": null,
+                  "node": "row"
+                 }
+                ],
+                "kind": "QFormLayout",
+                "node": "layout"
+               },
+               {
+                "content": {
+                 "children": [
+                  {
+                   "kind": "QLabel",
+                   "node": "widget",
+                   "text": "Physics Guidance",
+                   "var": "__inline15"
+                  },
+                  {
+                   "kind": "QPlainTextEdit",
+                   "maxHeight": 150,
+                   "node": "widget",
+                   "readOnly": true,
+                   "text": null,
+                   "var": "physics_guidance"
+                  }
+                 ],
+                 "kind": "QVBoxLayout",
+                 "node": "layout"
+                },
+                "kind": "QFrame",
+                "node": "widget",
+                "objectName": "Card",
+                "text": null,
+                "var": "phys_guide"
+               },
+               {
+                "node": "stretch"
+               }
+              ],
+              "kind": "QVBoxLayout",
+              "node": "layout"
+             },
+             "kind": "QWidget",
+             "node": "widget",
+             "text": null,
+             "var": "phys_page"
+            },
+            {
+             "content": {
+              "children": [
+               {
+                "kind": "QLabel",
+                "node": "widget",
+                "text": "Step 3: Select Material Model(s)",
+                "var": "__inline16"
+               },
+               {
+                "children": [
+                 {
+                  "child": {
+                   "kind": "QComboBox",
+                   "node": "widget",
+                   "text": null,
+                   "var": "combo"
+                  },
+                  "label": null,
+                  "node": "row"
+                 }
+                ],
+                "kind": "QFormLayout",
+                "node": "layout"
+               },
+               {
+                "content": {
+                 "children": [
+                  {
+                   "kind": "QLabel",
+                   "node": "widget",
+                   "text": "Material Model Guide",
+                   "var": "__inline17"
+                  },
+                  {
+                   "kind": "QPlainTextEdit",
+                   "maxHeight": 150,
+                   "node": "widget",
+                   "readOnly": true,
+                   "text": null,
+                   "var": "mat_model_guidance"
+                  }
+                 ],
+                 "kind": "QVBoxLayout",
+                 "node": "layout"
+                },
+                "kind": "QFrame",
+                "node": "widget",
+                "objectName": "Card",
+                "text": null,
+                "var": "mat_model_guide"
+               },
+               {
+                "node": "stretch"
+               }
+              ],
+              "kind": "QVBoxLayout",
+              "node": "layout"
+             },
+             "kind": "QWidget",
+             "node": "widget",
+             "text": null,
+             "var": "mat_model_page"
+            },
+            {
+             "content": {
+              "children": [
+               {
+                "kind": "QLabel",
+                "node": "widget",
+                "text": "Step 4a: Select DOFs",
+                "var": "__inline18"
+               },
+               {
+                "kind": "QListWidget",
+                "node": "widget",
+                "stretch": 1,
+                "text": null,
+                "var": "dof_tiles"
+               },
+               {
+                "kind": "QLabel",
+                "node": "widget",
+                "text": "",
+                "var": "dof_summary",
+                "wrap": true
+               },
+               {
+                "content": {
+                 "children": [
+                  {
+                   "content": {
+                    "children": [
+                     {
+                      "kind": "QLabel",
+                      "node": "widget",
+                      "text": "Step 2b: Material Properties",
+                      "var": "__inline19"
+                     },
+                     {
+                      "children": [
+                       {
+                        "child": {
+                         "kind": "QLineEdit",
+                         "node": "widget",
+                         "text": null,
+                         "var": "inp"
+                        },
+                        "label": null,
+                        "node": "row"
+                       }
+                      ],
+                      "kind": "QFormLayout",
+                      "node": "layout"
+                     },
+                     {
+                      "kind": "QPushButton",
+                      "node": "widget",
+                      "text": "Apply Recommended Presets",
+                      "var": "apply_presets_btn"
+                     },
+                     {
+                      "node": "stretch"
+                     }
+                    ],
+                    "kind": "QVBoxLayout",
+                    "node": "layout"
+                   },
+                   "kind": "QWidget",
+                   "node": "widget",
+                   "text": null,
+                   "var": "mat_left"
+                  },
+                  {
+                   "content": {
+                    "children": [
+                     {
+                      "kind": "QLabel",
+                      "node": "widget",
+                      "text": "Material Guidance",
+                      "var": "__inline20"
+                     },
+                     {
+                      "kind": "QPlainTextEdit",
+                      "node": "widget",
+                      "readOnly": true,
+                      "text": null,
+                      "var": "material_guidance"
+                     }
+                    ],
+                    "kind": "QVBoxLayout",
+                    "node": "layout"
+                   },
+                   "kind": "QWidget",
+                   "node": "widget",
+                   "text": null,
+                   "var": "mat_right"
+                  }
+                 ],
+                 "kind": "QHBoxLayout",
+                 "node": "layout"
+                },
+                "kind": "QSplitter",
+                "node": "widget",
+                "stretch": 1,
+                "text": null,
+                "var": "mat_splitter"
+               }
+              ],
+              "kind": "QVBoxLayout",
+              "node": "layout"
+             },
+             "kind": "QWidget",
+             "node": "widget",
+             "text": null,
+             "var": "dof_page"
+            },
+            {
+             "content": {
+              "children": [
+               {
+                "kind": "QLabel",
+                "node": "widget",
+                "text": "Recommended Solvers (filtered by DOFs & type)",
+                "var": "__inline21"
+               },
+               {
+                "kind": "QListWidget",
+                "node": "widget",
+                "stretch": 1,
+                "text": null,
+                "var": "solver_tiles"
+               },
+               {
+                "kind": "QPlainTextEdit",
+                "node": "widget",
+                "readOnly": true,
+                "text": null,
+                "var": "solver_details"
+               }
+              ],
+              "kind": "QVBoxLayout",
+              "node": "layout"
+             },
+             "kind": "QWidget",
+             "node": "widget",
+             "text": null,
+             "var": "solver_page"
+            },
+            {
+             "content": {
+              "children": [
+               {
+                "kind": "QLabel",
+                "node": "widget",
+                "text": "Mesh & Physical Groups",
+                "var": "__inline22"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Open Mesh Tools",
+                "var": "open_mesh"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Auto-detect Physical Groups",
+                "var": "detect_groups"
+               },
+               {
+                "kind": "QListWidget",
+                "node": "widget",
+                "stretch": 1,
+                "text": null,
+                "var": "mesh_flags"
+               }
+              ],
+              "kind": "QVBoxLayout",
+              "node": "layout"
+             },
+             "kind": "QWidget",
+             "node": "widget",
+             "text": null,
+             "var": "mesh_flags_page"
+            },
+            {
+             "content": {
+              "children": [
+               {
+                "kind": "QLabel",
+                "node": "widget",
+                "text": "Configure setup.txt parameters (auto-filled from solver)",
+                "var": "__inline24"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Open Setup Editor",
+                "var": "open_setup"
+               },
+               {
+                "node": "stretch"
+               }
+              ],
+              "kind": "QVBoxLayout",
+              "node": "layout"
+             },
+             "kind": "QWidget",
+             "node": "widget",
+             "text": null,
+             "var": "setup"
+            },
+            {
+             "content": {
+              "children": [
+               {
+                "kind": "QLabel",
+                "node": "widget",
+                "text": "Define IC/BC with mesh flags and physical groups.",
+                "var": "__inline25"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Open IC/BC Editor",
+                "var": "open_icbc"
+               },
+               {
+                "node": "stretch"
+               }
+              ],
+              "kind": "QVBoxLayout",
+              "node": "layout"
+             },
+             "kind": "QWidget",
+             "node": "widget",
+             "text": null,
+             "var": "icbc"
+            },
+            {
+             "content": {
+              "children": [
+               {
+                "kind": "QPlainTextEdit",
+                "node": "widget",
+                "readOnly": true,
+                "stretch": 1,
+                "text": null,
+                "var": "review_text"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Create Simulation Now",
+                "var": "create_btn"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Export Run Script",
+                "var": "export_run_btn"
+               }
+              ],
+              "kind": "QVBoxLayout",
+              "node": "layout"
+             },
+             "kind": "QWidget",
+             "node": "widget",
+             "text": null,
+             "var": "review"
+            }
+           ],
+           "kind": "QVBoxLayout",
+           "node": "layout"
+          },
+          "kind": "QStackedWidget",
+          "node": "widget",
+          "stretch": 1,
+          "text": null,
+          "var": "stack"
+         },
+         {
           "children": [
            {
             "kind": "QPushButton",
@@ -423,7 +1022,7 @@
           "kind": "QLabel",
           "node": "widget",
           "text": "AI Copilot",
-          "var": "__inline21"
+          "var": "__inline26"
          },
          {
           "kind": "QPlainTextEdit",
@@ -8712,8 +9311,36 @@
              "kind": "QPushButton",
              "maxHeight": 24,
              "node": "widget",
-             "text": null,
-             "var": "b"
+             "text": "CSV",
+             "var": "_i2_b"
+            },
+            {
+             "kind": "QPushButton",
+             "maxHeight": 24,
+             "node": "widget",
+             "text": "GeoJSON",
+             "var": "_i3_b"
+            },
+            {
+             "kind": "QPushButton",
+             "maxHeight": 24,
+             "node": "widget",
+             "text": "Raster BBox",
+             "var": "_i4_b"
+            },
+            {
+             "kind": "QPushButton",
+             "maxHeight": 24,
+             "node": "widget",
+             "text": "WMS",
+             "var": "_i5_b"
+            },
+            {
+             "kind": "QPushButton",
+             "maxHeight": 24,
+             "node": "widget",
+             "text": "Marker",
+             "var": "_i6_b"
             }
            ],
            "kind": "QHBoxLayout",
@@ -8761,7 +9388,7 @@
              "kind": "QLabel",
              "node": "widget",
              "text": "Input CRS",
-             "var": "__inline2"
+             "var": "__inline7"
             },
             {
              "items": [
@@ -8792,6 +9419,26 @@
         "text": null,
         "var": "layer_panel",
         "width": 320
+       },
+       {
+        "content": {
+         "children": [
+          {
+           "kind": "QLabel",
+           "node": "widget",
+           "objectName": "MutedLabel",
+           "text": "Embedded map requires PySide6-WebEngine.\nUse 'Open in Browser' instead.",
+           "var": "_fallback_label",
+           "wrap": true
+          }
+         ],
+         "kind": "QVBoxLayout",
+         "node": "layout"
+        },
+        "kind": "QStackedWidget",
+        "node": "widget",
+        "text": null,
+        "var": "_map_stack"
        }
       ],
       "kind": "QHBoxLayout",
@@ -11586,8 +12233,26 @@
                  {
                   "kind": "QLabel",
                   "node": "widget",
-                  "text": null,
-                  "var": "__inline9"
+                  "text": "MinX",
+                  "var": "_i9___inline1"
+                 },
+                 {
+                  "kind": "QLabel",
+                  "node": "widget",
+                  "text": "MaxX",
+                  "var": "_i10___inline1"
+                 },
+                 {
+                  "kind": "QLabel",
+                  "node": "widget",
+                  "text": "MinY",
+                  "var": "_i11___inline1"
+                 },
+                 {
+                  "kind": "QLabel",
+                  "node": "widget",
+                  "text": "MaxY",
+                  "var": "_i12___inline1"
                  },
                  {
                   "node": "stretch"
@@ -14075,8 +14740,50 @@
             {
              "kind": "QPushButton",
              "node": "widget",
-             "text": null,
-             "var": "btn"
+             "text": "Contamination",
+             "var": "_i16_btn"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Cumulative",
+             "var": "_i17_btn"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Dataset Compare",
+             "var": "_i18_btn"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Sync Events",
+             "var": "_i19_btn"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Best Candidates",
+             "var": "_i20_btn"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Spectrograms",
+             "var": "_i21_btn"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "Morlet",
+             "var": "_i22_btn"
+            },
+            {
+             "kind": "QPushButton",
+             "node": "widget",
+             "text": "P-wave Summaries",
+             "var": "_i23_btn"
             },
             {
              "node": "stretch"
@@ -14401,7 +15108,7 @@
              "kind": "QLabel",
              "node": "widget",
              "text": "Recipe",
-             "var": "__inline16"
+             "var": "__inline24"
             },
             {
              "kind": "QComboBox",

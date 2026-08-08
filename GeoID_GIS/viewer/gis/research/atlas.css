@@ -1779,3 +1779,91 @@
 }
 .qt-inline-item:hover { background: rgba(var(--skin-chrome), 0.16); }
 .qt-inline-item.is-cancel { color: var(--atlas-muted); border-top: 1px solid var(--atlas-line); }
+
+/* ── Map Composer ─────────────────────────────────────────────────────────
+   A canvas Web Mercator map (map2d.js) in place of the Qt page's Leaflet view,
+   because Export PNG is the point of the page and a canvas exports itself. */
+.map2d {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 14rem;
+  min-width: 0;
+  border: 1px solid var(--atlas-line);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #0b0d1a;
+}
+.map2d-canvas { display: block; width: 100%; height: 100%; cursor: grab; }
+.map2d-canvas:active { cursor: grabbing; }
+
+.map-layer-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border: 1px solid var(--atlas-line);
+  border-radius: 6px;
+  background: var(--atlas-card);
+}
+.map-layer-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.map-swatch {
+  flex: 0 0 auto;
+  width: 16px; height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+/* The real colour input drives the swatch; it is never shown itself. */
+.map-colour-input { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
+#research-hub .map-opacity { flex: 0 0 60px; width: 60px; padding: 0; }
+.map-icon-btn {
+  flex: 0 0 auto;
+  width: 20px; height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--atlas-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+.map-icon-btn:hover { color: rgb(var(--skin-chrome)); }
+.map-icon-btn.is-danger:hover { color: #ff4444; }
+
+.map-attrs {
+  position: absolute;
+  left: 8px; right: 8px; bottom: 8px;
+  max-height: 45%;
+  overflow: auto;
+  border: 1px solid rgba(var(--skin-chrome), 0.45);
+  border-radius: 6px;
+  background: rgba(10, 12, 26, 0.94);
+  scrollbar-width: thin;
+}
+.map-attrs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--atlas-line);
+  font-size: 0.72rem;
+  color: rgb(var(--skin-chrome));
+}
+.map-attrs-table { display: grid; gap: 1px; background: var(--atlas-line); }
+.map-attrs-cell {
+  padding: 3px 7px;
+  background: var(--atlas-panel);
+  font-size: 0.68rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qt-inline-menu.is-form { padding: 8px; gap: 6px; }

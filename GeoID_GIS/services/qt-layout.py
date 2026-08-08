@@ -41,7 +41,8 @@ QT_APP = Path("/home/owen/atlas-ai/apps/GeoID_Research/app_qt.py")
 OUT = Path(__file__).resolve().parents[1] / "viewer/gis/research/qt-layout.json"
 
 LAYOUT_KINDS = {"QVBoxLayout", "QHBoxLayout", "QGridLayout", "QFormLayout", "QStackedLayout"}
-CONTAINER_KINDS = {"QWidget", "QFrame", "QGroupBox", "QScrollArea", "CollapsibleSection"}
+CONTAINER_KINDS = {"QWidget", "QFrame", "QGroupBox", "QScrollArea", "QStackedWidget",
+                   "CollapsibleSection"}
 
 # Widgets worth rendering. Anything else is skipped rather than guessed at.
 WIDGET_KINDS = {
@@ -50,6 +51,7 @@ WIDGET_KINDS = {
     "QDoubleSpinBox", "QSlider", "QListWidget", "QTableWidget", "QTreeWidget",
     "QTabWidget", "QProgressBar", "QDateEdit", "QDateTimeEdit", "QSplitter",
     "QGroupBox", "QFrame", "QWidget", "PageHeader", "CollapsibleSection",
+    "QStackedWidget",
 }
 
 
@@ -97,6 +99,54 @@ class PageReader(ast.NodeVisitor):
         # The class's own methods, so a factory call can be inlined.
         self.methods = methods or {}
         self.depth = depth
+        # Loop variables currently bound to literals, so `QPushButton(label)`
+        # inside `for label, slot in [("CSV", …), …]` reads as "CSV".
+        self.consts = {}
+
+    def literal(self, node):
+        """A constant, resolving a name the enclosing loop bound to one."""
+        value = const(node)
+        if value is not None:
+            return value
+        name = var_of(node)
+        return self.consts.get(name) if name else None
+
+    def absorb(self, inner, tag, bound=None, offset=0.0):
+        """Merge a sub-reader's widgets, layouts and adds under a prefix.
+
+        Shared by the factory-method inlining and the loop expansion: both read
+        a body with its own reader and then need it to look as though it had
+        been written inline here.
+
+        `offset` nudges the line numbers: every pass of an expanded loop reads
+        the *same* source lines, so without it the passes tie and their order
+        is whatever sort happens to give.
+        """
+        bound = bound or {}
+
+        def rename(var):
+            if var is None or var == "self":
+                return var
+            if var in bound:
+                return bound[var]
+            if var in inner.widgets or var in inner.layouts:
+                return tag + var
+            return var
+
+        for var, info in inner.widgets.items():
+            self.widgets.setdefault(tag + var, info)
+        for var, info in inner.layouts.items():
+            info = dict(info)
+            info["owner"] = rename(info["owner"])
+            self.layouts.setdefault(tag + var, info)
+        for line, owner, op, payload in inner.adds:
+            payload = dict(payload)
+            if "child" in payload:
+                payload["child"] = rename(payload["child"])
+            self.adds.append((line + offset, rename(owner), op, payload))
+        for line, tabwidget, child, text in inner.tabs:
+            self.tabs.append((line + offset, rename(tabwidget), rename(child), text))
+        return rename
 
     def inline_method(self, name, call, targets):
         """Inline `self._series_box("…")` at its call site.
@@ -215,7 +265,7 @@ class PageReader(ast.NodeVisitor):
                     owner = var_of(node.value.args[0]) if node.value.args else None
                     self.layouts[var] = {"kind": kind, "owner": owner, "line": node.lineno}
                 elif kind in WIDGET_KINDS or kind in CONTAINER_KINDS:
-                    args = [const(a) for a in node.value.args]
+                    args = [self.literal(a) for a in node.value.args]
                     props = {}
                     for kw in node.value.keywords:
                         if kw.arg == "collapsed":
@@ -245,6 +295,43 @@ class PageReader(ast.NodeVisitor):
         if not isinstance(node.iter, (ast.Tuple, ast.List)):
             self.generic_visit(node)
             return
+
+        # A loop over literal *data* that builds a widget per item:
+        #
+        #     for label, slot in [("CSV", self._add_layer_csv),
+        #                         ("GeoJSON", self._add_layer_geojson), …]:
+        #         b = QtWidgets.QPushButton(label)
+        #         add_row.addWidget(b)
+        #
+        # Map's five add-layer buttons are written this way, and the tree saw
+        # one nameless button. Each pass gets the item bound to the loop
+        # variable, so the constructor reads the label it was given.
+        targets = ([var_of(e) for e in node.target.elts]
+                   if isinstance(node.target, (ast.Tuple, ast.List))
+                   else [var_of(node.target)])
+        items = []
+        for element in node.iter.elts:
+            parts = (element.elts if isinstance(element, (ast.Tuple, ast.List))
+                     else [element])
+            values = [const(p) for p in parts]
+            if any(v is not None for v in values):
+                items.append(values)
+            else:
+                items = []
+                break
+        if items and len(items) == len(node.iter.elts) and any(targets):
+            for index, values in enumerate(items):
+                inner = PageReader(self.methods, self.depth + 1)
+                inner.consts = dict(self.consts)
+                for name, value in zip(targets, values):
+                    if name and value is not None:
+                        inner.consts[name] = value
+                for stmt in node.body:
+                    inner.visit(stmt)
+                self.counter += 1
+                self.absorb(inner, f"_i{self.counter}_", offset=index / 1000.0)
+            return
+
         loop_var = var_of(node.target)
         if not loop_var:
             self.generic_visit(node)
@@ -356,7 +443,7 @@ class PageReader(ast.NodeVisitor):
                     if kind in WIDGET_KINDS:
                         self.counter += 1
                         child = f"__inline{self.counter}"
-                        args = [const(a) for a in node.args[0].args]
+                        args = [self.literal(a) for a in node.args[0].args]
                         inline = {
                             "kind": kind,
                             "text": next((a for a in args if isinstance(a, str)), None),
@@ -448,7 +535,10 @@ class PageReader(ast.NodeVisitor):
 def build_tree(reader, root_layout):
     """Turn the flat add-list into nested nodes."""
     by_layout = {}
-    for line, owner, op, payload in sorted(reader.adds):
+    # Sort on the line and the layout only: two adds can share a line after a
+    # loop expansion, and comparing the payload dicts that follow is a TypeError.
+    for line, owner, op, payload in sorted(
+            reader.adds, key=lambda add: (add[0], str(add[1]), add[2])):
         by_layout.setdefault(owner, []).append((line, op, payload))
 
     # widget var -> the layout it owns, so a container recurses into its content

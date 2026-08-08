@@ -1,9 +1,10 @@
-import * as store from "./project-store.js?v=20260808-6c40f83";
-import * as stats from "./stats.js?v=20260808-6c40f83";
-import * as dsp from "./dsp.js?v=20260808-6c40f83";
-import { parseTable, column } from "./table.js?v=20260808-6c40f83";
-import { linePlot, heatmap } from "./plot.js?v=20260808-6c40f83";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-6c40f83";
+import * as store from "./project-store.js?v=20260808-13d69c5";
+import * as stats from "./stats.js?v=20260808-13d69c5";
+import * as dsp from "./dsp.js?v=20260808-13d69c5";
+import { parseTable, column } from "./table.js?v=20260808-13d69c5";
+import { linePlot, heatmap } from "./plot.js?v=20260808-13d69c5";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-13d69c5";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260808-13d69c5";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -348,8 +349,405 @@ function bind(host, label, handler) {
   });
 }
 
+/* ── Map Composer ─────────────────────────────────────────────────────────
+ *
+ * `MapPage` (app_qt.py:21296). The tree gives the toolbar, the layer panel and
+ * the empty list; `_add_layer_row` (:21656) makes a card per layer and the five
+ * add-layer methods (:21743 onward) create them.
+ */
+
+const LAYER_COLOURS = ["#16F4FF", "#FF1FB8", "#FFA500", "#00FF88", "#FF4444",
+                       "#AA88FF", "#FFFF44", "#44AAFF", "#FF8844", "#88FF44"];
+
+/** Pick a file, from the project when there is one. */
+async function pickFile(anchor, accept, exts) {
+  if (store.getActive()) {
+    let entries = [];
+    for (const dir of ["data/raw", "data/processed", "data/external", "exports",
+                       "study_area", "metadata"]) {
+      try {
+        const found = await store.listProjectDir(dir);
+        entries.push(...found.filter((f) => f.kind === "file"
+          && exts.some((e) => f.name.toLowerCase().endsWith(e)))
+          .map((f) => `${dir}/${f.name}`));
+      } catch (error) { /* directory absent */ }
+    }
+    if (entries.length) {
+      const chosen = await pickFrom(anchor, entries);
+      if (chosen) return { path: chosen, text: await store.readProjectFile(chosen) };
+      return null;
+    }
+  }
+  const picker = document.createElement("input");
+  picker.type = "file";
+  picker.accept = accept;
+  const file = await new Promise((resolve) => {
+    picker.addEventListener("change", () => resolve(picker.files?.[0] || null));
+    picker.click();
+  });
+  if (!file) return null;
+  return { path: file.name, text: await file.text() };
+}
+
+function pickFrom(anchor, options) {
+  return new Promise((resolve) => {
+    const menu = el("div", "qt-inline-menu");
+    options.forEach((option) => {
+      const item = el("button", "qt-inline-item", option);
+      item.type = "button";
+      item.addEventListener("click", () => { menu.remove(); resolve(option); });
+      menu.appendChild(item);
+    });
+    const cancel = el("button", "qt-inline-item is-cancel", "Cancel");
+    cancel.type = "button";
+    cancel.addEventListener("click", () => { menu.remove(); resolve(null); });
+    menu.appendChild(cancel);
+    anchor.appendChild(menu);
+  });
+}
+
+/** Ask for a value inline, in place of a Qt input dialog. */
+function askFor(anchor, fields) {
+  return new Promise((resolve) => {
+    const box = el("div", "qt-inline-menu is-form");
+    const inputs = fields.map(({ label, value }) => {
+      const wrap = el("label", "qt-stacked");
+      wrap.appendChild(el("span", "qt-form-label", label));
+      const input = document.createElement("input");
+      input.className = "input qt-input";
+      input.value = value || "";
+      wrap.appendChild(input);
+      box.appendChild(wrap);
+      return input;
+    });
+    const row = el("div", "qt-h");
+    const ok = el("button", "button qt-button small", "OK");
+    ok.type = "button";
+    ok.addEventListener("click", () => {
+      box.remove();
+      resolve(inputs.map((i) => i.value.trim()));
+    });
+    const cancel = el("button", "button secondary qt-button small", "Cancel");
+    cancel.type = "button";
+    cancel.addEventListener("click", () => { box.remove(); resolve(null); });
+    row.append(ok, cancel);
+    box.appendChild(row);
+    anchor.appendChild(box);
+    inputs[0]?.focus();
+  });
+}
+
+/**
+ * The coordinate columns, exactly as `_add_layer_csv` (:21755) finds them:
+ * lat/lon by name for EPSG:4326, x/easting and y/northing otherwise, with the
+ * lat/lon names as the fallback either way.
+ */
+function coordColumns(columns, crs) {
+  const lower = columns.map((c) => c.toLowerCase());
+  const find = (test) => {
+    const at = lower.findIndex(test);
+    return at < 0 ? null : columns[at];
+  };
+  const latName = () => find((c) => c.includes("lat"));
+  const lonName = () => find((c) => c.includes("lon") || c.includes("lng"));
+  if (crs.toUpperCase() === "EPSG:4326") {
+    return { x: lonName(), y: latName(), geographic: true };
+  }
+  return {
+    x: find((c) => ["x", "easting", "e"].includes(c)) || lonName(),
+    y: find((c) => ["y", "northing", "n"].includes(c)) || latName(),
+    geographic: false,
+  };
+}
+
+/** Every ring of a GeoJSON geometry, flattened into what the map draws. */
+function geoShapes(geojson) {
+  const shapes = [];
+  const add = (geometry, props) => {
+    if (!geometry) return;
+    const { type, coordinates } = geometry;
+    if (type === "Point") shapes.push({ kind: "point", coords: coordinates, props });
+    else if (type === "MultiPoint") {
+      coordinates.forEach((c) => shapes.push({ kind: "point", coords: c, props }));
+    } else if (type === "LineString") {
+      shapes.push({ kind: "line", rings: [coordinates], props });
+    } else if (type === "MultiLineString") {
+      shapes.push({ kind: "line", rings: coordinates, props });
+    } else if (type === "Polygon") {
+      shapes.push({ kind: "polygon", rings: coordinates, props });
+    } else if (type === "MultiPolygon") {
+      coordinates.forEach((poly) => shapes.push({ kind: "polygon", rings: poly, props }));
+    } else if (type === "GeometryCollection") {
+      (geometry.geometries || []).forEach((g) => add(g, props));
+    }
+  };
+  const features = geojson.type === "FeatureCollection" ? geojson.features
+    : geojson.type === "Feature" ? [geojson] : [];
+  if (features.length) features.forEach((f) => add(f.geometry, f.properties || {}));
+  else add(geojson, {});
+  return shapes;
+}
+
+/** The bounding box of anything the map holds, for fitting the view. */
+function boundsOf(layer) {
+  let west = Infinity;
+  let south = Infinity;
+  let east = -Infinity;
+  let north = -Infinity;
+  const see = ([lon, lat]) => {
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
+    west = Math.min(west, lon); east = Math.max(east, lon);
+    south = Math.min(south, lat); north = Math.max(north, lat);
+  };
+  (layer.points || []).forEach(see);
+  if (layer.bbox) { see([layer.bbox[0], layer.bbox[1]]); see([layer.bbox[2], layer.bbox[3]]); }
+  (layer.shapes || []).forEach((shape) => {
+    if (shape.kind === "point") see(shape.coords);
+    else (shape.rings || []).forEach((ring) => ring.forEach(see));
+  });
+  return Number.isFinite(west) ? [west, south, east, north] : null;
+}
+
+function mapComposer(host, api) {
+  const say = logger(api);
+  const stack = host.querySelector(".qt-container, .qt-splitter > *:last-child");
+  const panel = host.querySelector(".qt-scroll");
+  if (!panel) return;
+  const listStretch = panel.querySelector(".qt-stretch");
+  const list = listStretch ? listStretch.parentElement : panel;
+
+  // The map replaces the Qt fallback label, which says the embedded map needs
+  // PySide6-WebEngine -- untrue here, and a browser is the one place it is.
+  const holder = el("div", "map2d");
+  const target = host.querySelector(".qt-splitter") ? stack : host;
+  if (target) { target.textContent = ""; target.appendChild(holder); }
+  const map = createMap(holder, { basemap: "OpenStreetMap" });
+
+  const layers = [];
+  let colourAt = 0;
+  const nextColour = () => LAYER_COLOURS[colourAt++ % LAYER_COLOURS.length];
+  const crs = () => (api.controls.get("_crs_selector")?.value || "EPSG:4326");
+
+  const basemap = api.controls.get("_basemap_combo");
+  if (basemap) {
+    // The tree gives the combo its five entries; make sure they are the ones
+    // the map knows how to fetch.
+    if (!BASEMAPS[basemap.value]) basemap.value = "OpenStreetMap";
+    basemap.addEventListener("change", () => map.setBasemap(basemap.value));
+  }
+
+  function refresh() {
+    map.setLayers(layers);
+    list.querySelectorAll(".map-layer-row").forEach((n) => n.remove());
+    layers.forEach((layer) => addLayerRow(layer));
+  }
+
+  function addLayer(layer) {
+    layer.id = `l${layers.length}_${Date.now()}`;
+    layer.visible = true;
+    layer.opacity = layer.opacity ?? 0.9;
+    layer.colour = layer.colour || nextColour();
+    layers.unshift(layer);         // newest on top, as the Qt panel shows it
+    const box = boundsOf(layer);
+    if (box) map.fit(box);
+    refresh();
+    say(`[map] added ${layer.name} (${layer.type})`);
+  }
+
+  /** `_add_layer_row` (:21656): tick, colour, name, opacity, up, down, remove. */
+  function addLayerRow(layer) {
+    const card = el("div", "map-layer-row");
+
+    const vis = document.createElement("input");
+    vis.type = "checkbox";
+    vis.checked = layer.visible;
+    vis.addEventListener("change", () => { layer.visible = vis.checked; map.redraw(); });
+
+    const swatch = el("button", "map-swatch");
+    swatch.type = "button";
+    swatch.style.background = layer.colour;
+    swatch.title = "Layer colour";
+    const colour = document.createElement("input");
+    colour.type = "color";
+    colour.value = layer.colour;
+    colour.className = "map-colour-input";
+    colour.addEventListener("input", () => {
+      layer.colour = colour.value;
+      swatch.style.background = colour.value;
+      map.redraw();
+    });
+    swatch.addEventListener("click", () => colour.click());
+
+    const name = el("span", "map-layer-name", layer.name);
+    name.title = `Type: ${layer.type}\n${layer.path || ""}`;
+
+    const opacity = document.createElement("input");
+    opacity.type = "range";
+    opacity.min = "0"; opacity.max = "100";
+    opacity.value = String(Math.round(layer.opacity * 100));
+    opacity.className = "map-opacity";
+    opacity.addEventListener("input", () => {
+      layer.opacity = Number(opacity.value) / 100;
+      map.redraw();
+    });
+
+    const move = (delta) => () => {
+      const at = layers.indexOf(layer);
+      const to = at + delta;
+      if (to < 0 || to >= layers.length) return;
+      layers.splice(at, 1);
+      layers.splice(to, 0, layer);
+      refresh();
+    };
+    const up = el("button", "map-icon-btn", "↑");
+    up.type = "button"; up.addEventListener("click", move(-1));
+    const down = el("button", "map-icon-btn", "↓");
+    down.type = "button"; down.addEventListener("click", move(1));
+    const drop = el("button", "map-icon-btn is-danger", "✕");
+    drop.type = "button";
+    drop.addEventListener("click", () => {
+      const at = layers.indexOf(layer);
+      if (at >= 0) layers.splice(at, 1);
+      refresh();
+    });
+
+    card.append(vis, swatch, colour, name, opacity, up, down, drop);
+    if (layer.type === "geojson") {
+      const table = el("button", "map-icon-btn", "⊞");
+      table.type = "button";
+      table.title = "Show attribute table";
+      table.addEventListener("click", () => showAttributes(layer));
+      card.appendChild(table);
+    }
+    if (listStretch) list.insertBefore(card, listStretch);
+    else list.appendChild(card);
+  }
+
+  function showAttributes(layer) {
+    const rows = (layer.shapes || []).map((s) => s.props).filter(Boolean);
+    if (!rows.length) { say(`[map] ${layer.name} has no attributes.`); return; }
+    const keys = Array.from(new Set(rows.flatMap((r) => Object.keys(r)))).slice(0, 12);
+    let panel = host.querySelector(".map-attrs");
+    if (!panel) {
+      panel = el("div", "map-attrs");
+      holder.appendChild(panel);
+    }
+    panel.textContent = "";
+    const head = el("div", "map-attrs-head", `${layer.name} — ${rows.length} feature(s)`);
+    const close = el("button", "map-icon-btn", "✕");
+    close.type = "button";
+    close.addEventListener("click", () => panel.remove());
+    head.appendChild(close);
+    const table = el("div", "map-attrs-table");
+    table.style.gridTemplateColumns = `repeat(${keys.length}, minmax(0, 1fr))`;
+    keys.forEach((k) => table.appendChild(el("span", "qt-table-head", k)));
+    rows.slice(0, 200).forEach((r) => keys.forEach((k) =>
+      table.appendChild(el("span", "map-attrs-cell", String(r[k] ?? "")))));
+    panel.append(head, table);
+  }
+
+  // ── The five add-layer actions ────────────────────────────────────────────
+  bind(host, "CSV", async () => {
+    const file = await pickFile(host, ".csv,.txt,.tsv", [".csv", ".txt", ".tsv"]);
+    if (!file) return;
+    const table = parseTable(file.text);
+    const cols = coordColumns(table.columns || [], crs());
+    if (!cols.x || !cols.y) {
+      say(`[map] no coordinate columns in: ${(table.columns || []).join(", ")}`);
+      return;
+    }
+    if (!cols.geographic) {
+      say(`[map] ${crs()} is projected — plotting the raw x/y, which is only `
+        + "right if they are already degrees. Reproject on the Transforms page.");
+    }
+    const xs = column(table, cols.x);
+    const ys = column(table, cols.y);
+    const points = [];
+    for (let i = 0; i < Math.min(xs.length, ys.length); i += 1) {
+      if (Number.isFinite(xs[i]) && Number.isFinite(ys[i])) points.push([xs[i], ys[i]]);
+    }
+    if (!points.length) { say("[map] no valid coordinate rows found."); return; }
+    addLayer({ name: file.path.split("/").pop().replace(/\.[^.]+$/, ""),
+               type: "points", path: file.path, points });
+  });
+
+  bind(host, "GeoJSON", async () => {
+    const file = await pickFile(host, ".geojson,.json", [".geojson", ".json"]);
+    if (!file) return;
+    let parsed;
+    try { parsed = JSON.parse(file.text); }
+    catch (error) { say(`[map] not valid JSON: ${error.message}`); return; }
+    const shapes = geoShapes(parsed);
+    if (!shapes.length) { say("[map] no geometry in that file."); return; }
+    addLayer({ name: file.path.split("/").pop().replace(/\.[^.]+$/, ""),
+               type: "geojson", path: file.path, shapes });
+  });
+
+  bind(host, "Raster BBox", async () => {
+    const values = await askFor(host, [
+      { label: "West", value: "-10" }, { label: "South", value: "35" },
+      { label: "East", value: "20" }, { label: "North", value: "60" },
+      { label: "Name", value: "raster bbox" },
+    ]);
+    if (!values) return;
+    const bbox = values.slice(0, 4).map(Number);
+    if (bbox.some((v) => !Number.isFinite(v))) { say("[map] bbox needs four numbers."); return; }
+    addLayer({ name: values[4] || "raster bbox", type: "bbox", bbox });
+  });
+
+  bind(host, "WMS", async () => {
+    const values = await askFor(host, [
+      { label: "Tile URL template ({z}/{x}/{y})", value: "" },
+      { label: "Name", value: "WMS" },
+    ]);
+    if (!values || !values[0]) return;
+    if (!/\{z\}/.test(values[0])) {
+      say("[map] that URL has no {z}/{x}/{y} placeholders.");
+      return;
+    }
+    addLayer({ name: values[1] || "WMS", type: "wms", template: values[0], opacity: 0.75 });
+  });
+
+  bind(host, "Marker", async () => {
+    say("[map] click the map to place the marker.");
+    const once = ([lon, lat]) => {
+      addLayer({ name: `${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+                 type: "marker", points: [[lon, lat]] });
+    };
+    map.onClick(function handler(coords) {
+      map.canvas.removeEventListener("click", handler);
+      once(coords);
+    });
+  });
+
+  bind(host, "Export PNG", async () => {
+    await map.settled();
+    if (!store.getActive()) { say("[map] open a project to save the map."); return; }
+    const iso = new Date().toISOString();
+    const stamp = `${iso.slice(0, 10).replace(/-/g, "")}_${iso.slice(11, 19).replace(/:/g, "")}`;
+    try {
+      const saved = await saveFigure(map.canvas, `map_${stamp}.png`, "Map Composer export");
+      say(`[map] saved: ${saved}`);
+    } catch (error) {
+      // A tainted canvas is the one failure worth naming precisely.
+      say(`[map] export failed: ${error.message}`);
+    }
+  });
+
+  bind(host, "Open in Browser", async () => {
+    await map.settled();
+    map.canvas.toBlob((blob) => {
+      if (!blob) { say("[map] could not render the map."); return; }
+      window.open(URL.createObjectURL(blob), "_blank", "noopener");
+    });
+  });
+
+  refresh();
+}
+
 export const RUNTIME = {
   "CSV Plotter": csvPlotter,
+  "Map": mapComposer,
 };
 
 export function install(pageId, host, api) {
