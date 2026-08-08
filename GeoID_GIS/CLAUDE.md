@@ -241,7 +241,7 @@ do, and forgetting the flag gives that page two titles.
 `services/qt-layout.py` walks `app_qt.py`'s AST and recovers how each page is
 actually built — `sel.addWidget(self._file_edit, 1)`, `layout.addLayout(sel)`,
 `tabs.addTab(file_tab, "File QA")` — in source order, into
-`gis/research/qt-layout.json`: 62 pages, 2665 nodes. `qt-render.js` walks that,
+`gis/research/qt-layout.json`: 62 pages, 2781 nodes. `qt-render.js` walks that,
 and the mapping is nearly one to one: QVBoxLayout is a flex column, QHBoxLayout
 a flex row, `addWidget(w, 2)` is `flex: 2`, addStretch a spacer, QGridLayout a
 grid with each child at the row and column the app placed it at.
@@ -301,9 +301,19 @@ disabling it — `url` fills Source URL and opens the link; `import_files` /
 tag, the provider as source stage, and the provenance grid's fields, which is
 the same registry contract the desktop app reads.
 
+- **A loop over literal data builds a widget per item.**
+  `for label, slot in [("CSV", self._add_layer_csv), …]` is how Map's five
+  add-layer buttons are written; each pass binds the item to the loop variable
+  so the constructor reads the label it was given.
+- **A property set outside `__init__` is runtime state, not initial state.**
+  MapPage sets `setChecked(True)` on its Embedded toggle in the constructor and
+  `setChecked(False)` in `_ensure_view`, its fallback for a missing WebEngine.
+  Source order let the fallback win and the page started with Embedded off. The
+  constructor has the last word on every property.
+
 Coverage is now **91%**. What is left out is genuinely built in response to a
 click, so there is nothing in the source to read until it happens: MapPage's
-per-layer rows and dialogs, and CSV Plotter's dataset cards.
+dialogs and CSV Plotter's dataset cards.
 
 **`qt-runtime.js` is where those live.** `install(pageId, host, api)` runs after
 the tree is on the page and fills in what a click creates, against the controls
@@ -313,6 +323,23 @@ that looks right but registers its dataset somewhere else is worse than no row.
 CSV Plotter is the worked example (`_build_dataset_card` :7597, `plot_csv`
 :7750): a card per dataset with its own plot type and column mapping, Load
 Columns taking the tag from the data registry, and one figure into `figures/`.
+
+**Map Composer** is the other one. `map2d.js` is a canvas Web Mercator tile map
+rather than a vendored Leaflet, because Export PNG is the point of that page — a
+figure-quality flat map bound for the Storyboard — and a canvas exports itself
+where a Leaflet map means rasterising a tree of DOM tiles with a second library.
+Tiles carry `crossOrigin = "anonymous"`; without it the first tile taints the
+canvas and `toBlob` throws, taking the export with it. The globe does not make
+this redundant: a drape is how you see where something is, a flat map is how you
+lay one out for print.
+
+**A page with a runtime module sets `specComplete`.** Map's leftover spec
+controls are the fields of its bbox and WMS dialogs, which the runtime asks for
+inline; appending them too gave the page a dead duplicate of a form that works.
+
+**`.qt-h` centres its children**, which is right for a toolbar and wrong for the
+panes of a QSplitter — Map's layer panel and map both sat at content height with
+the page empty below them.
 
 Its own traps, each caught by measuring rather than reading: `welch` and
 `spectrogram` take `fs` **positionally** and welch returns `psd` not `power`;
@@ -410,6 +437,14 @@ disabled duplicate of every button on the steps that are not showing. Build New,
 Notebook, Projects and QA/QC carry it. The cost is honest and worth naming: the
 audit can only see what the DOM shows, so a stacked wizard reads as ~3 points of
 "missing" that are not missing at all.
+
+**A page-specific handler beats a pattern, which is a trap as well as a
+feature.** A stub for Research Notes' H1 — "Select text in the editor first.",
+which inserted nothing — shadowed the working markdown pattern on the one page
+whose entire toolbar is those buttons. And half the pattern's labels were
+guessed: the app says "Timestamp", "</>" and "•", not "Time Stamp", "Code" and
+"Bullets". Neither was visible until the extractor started following the loop
+that builds that toolbar. **Click the buttons; counting them finds neither.**
 
 Behaviour goes in `wiring.js`. Three hundred-odd controls are not three hundred
 behaviours: the app reuses the same verbs everywhere, so `wirePattern(/^Refresh$/, fn)`
