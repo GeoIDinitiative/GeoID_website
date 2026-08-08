@@ -488,6 +488,42 @@ behaviours: the app reuses the same verbs everywhere, so `wirePattern(/^Refresh$
 wires them once by label across every page, and `wire(pageId, handlers)` covers
 the ones that genuinely differ — a page-specific handler always wins.
 
+**The Event Correlation Toolkit is native.** `event-correlation.js` ports
+`scripts/thesis/comprehensive_signal_analysis_complete.py` — the peaks loader,
+the synchronous-event clustering, the three candidate scorings, cumulative
+metrics, dataset comparison, station summaries, contamination and a Morlet CWT.
+Ported **against that file, not from memory**, and its constants are kept
+verbatim (`SYNC_TOLERANCE_SEC` 300, `MIN_STATIONS` 2, `MIN_CORRELATION` 0.2,
+`MIN_SNR_LINEAR` 3.16, and the 0.50/0.50, 0.25/0.25/0.50, 0.35/0.35/0.30
+weightings). If that script changes these must change with it, or the two apps
+will disagree about which candidate is best — worse than not having it.
+
+Two details that look like tidying and are not: peaks inside a *discarded* sync
+window are consumed rather than returned to the pool (the `-999` marker), and
+pywt is absent so the CWT is convolved directly with pywt's `morl` centre
+frequency of 0.8125.
+
+Only **four** controls remain disabled, and they are a group: Run Function, Run
+Script Main and Stop External Run are the external script runner — it exists to
+execute arbitrary Python a user points it at, the one thing a browser tab
+genuinely cannot do — and AI Outline needs a model.
+
+**Two shape assumptions cost a whole debugging pass, both caught by running the
+code rather than reading it.** `parseTable` returns each row as an **array**,
+not an object keyed by column, so every `row.peak_corr` was undefined and eight
+analyses reported "no readable rows" from files they had just read. And
+`findTables()` lists the known data folders **without walking into them**, while
+a peaks tree is `data/raw/<dataset>/<station>/<sim>/…` — the plotting buttons
+called the project empty while the loaders beside them were reading those files.
+
+**A transform must pick its series, and refuse a series too short.** Taking the
+first table found meant transforming whichever analysis CSV had just been
+written — a spectrogram of an 11-row ranking, saved with **zero frames** and
+reported as a success. Taking the longest column then meant transforming `t`, a
+monotonic ramp. Ignore `analysis/` outputs, skip time/index/rank columns unless
+nothing else exists, and refuse below 64 points for a spectrogram or 32 for a
+wavelet.
+
 **Wire it or leave it disabled.** A handler that pops a message and does nothing
 turns an honest disabled button into a dishonest live one. Where the desktop app
 shells out to a native binary or a Python interpreter — Gmsh, GALES, plugin
