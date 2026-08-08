@@ -1431,3 +1431,201 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--skin-muted), 0.28) transparent;
 }
+
+/* ── Pages rendered from the Qt layout tree ────────────────────────────────
+   `services/qt-layout.py` recovers each page's real layout out of app_qt.py and
+   `qt-render.js` walks it. These rules are the Qt box model, not decoration:
+
+     QVBoxLayout -> flex column     QHBoxLayout -> flex row
+     addWidget(w, 2) -> flex: 2     addStretch() -> a spacer that eats the rest
+     QGridLayout -> grid, each child at the row/column the app placed it at
+
+   The page is a FIXED-HEIGHT flex column, as a Qt page is: the window sets the
+   height, stretch children absorb what is left, and everything else takes its
+   size hint. That is why these pages fit without scrolling — not because they
+   were trimmed. `min-height: 0` on every layout is what lets a flex child
+   actually shrink; without it the default `min-height: auto` makes each child
+   at least its content height and the page overflows again. */
+.research-page:has(> .qt-page) {
+  display: flex;
+  flex-direction: column;
+  /* The grid layout above sets `align-content: start`, which computes to
+     `align-items: start` here and made every page shrink to its content width
+     -- 954px of a 1824px pane, with the rest empty. */
+  align-items: stretch;
+  align-content: stretch;
+  padding: 0;
+  overflow: hidden;
+}
+/* The header and the status line take their own height; the page takes the
+   rest. `flex: 1` with `min-height: 0` is the whole trick — the page area is
+   the window, exactly as a Qt page's height is the window's. */
+.research-page:has(> .qt-page) > .page-header { flex: 0 0 auto; padding: 10px 14px 0; }
+.research-page:has(> .qt-page) > .research-status { flex: 0 0 auto; padding: 0 14px 8px; }
+.qt-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px;
+  gap: 8px;
+}
+/* The root layout owns the leftover height and is the one place a page may
+   scroll internally — a Qt page that outgrows its window gets a QScrollArea
+   too, and that is far better than the whole hub scrolling. */
+.qt-page > .qt-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.qt-layout { min-height: 0; min-width: 0; }
+.qt-v { display: flex; flex-direction: column; gap: 8px; }
+.qt-h { display: flex; flex-direction: row; align-items: center; gap: 8px; }
+.qt-h > .qt-layout { align-self: stretch; }
+.qt-grid { display: grid; gap: 8px 10px; align-content: start; }
+.qt-form { display: flex; flex-direction: column; gap: 6px; }
+.qt-stretch { flex: 1 1 auto; min-height: 0; min-width: 0; }
+.qt-spacing { flex: 0 0 auto; display: block; }
+
+/* A field: caption above, control below — the QFormLayout row, which Qt draws
+   side by side. Stacked reads better at these column widths and keeps the
+   caption from being clipped. */
+.qt-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.qt-form-label,
+.qt-label {
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(var(--skin-data));
+  margin: 0;
+}
+.qt-label { text-transform: none; letter-spacing: 0.02em; opacity: 0.85; }
+.qt-section-title {
+  font-family: "Orbitron", system-ui, sans-serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(var(--skin-chrome));
+  margin: 4px 0 0;
+}
+
+.qt-page .qt-input,
+.qt-page .qt-select,
+.qt-page .qt-textarea { width: 100%; min-width: 0; }
+.qt-page .qt-textarea { resize: vertical; min-height: 3.5rem; }
+.qt-h > .qt-input,
+.qt-h > .qt-select { flex: 1 1 auto; }
+.qt-page .qt-button { flex: 0 0 auto; white-space: nowrap; }
+.qt-page .qt-button.is-unwired { opacity: 0.45; cursor: not-allowed; }
+.qt-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.qt-check input { accent-color: rgb(var(--skin-chrome)); }
+.qt-slider { padding: 0; }
+
+/* A QGroupBox is a titled card; a CollapsibleSection folds, because unfolded
+   these pages are unreadable — that is the design in the Qt app too. */
+.qt-groupbox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--atlas-line);
+  border-radius: 8px;
+  background: var(--atlas-card);
+}
+.qt-groupbox-title {
+  font-family: "Orbitron", system-ui, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgb(var(--skin-chrome));
+  margin: 0;
+}
+.qt-page .qt-section { min-height: 0; }
+.qt-page .qt-section-body { padding-top: 8px; }
+
+.qt-container,
+.qt-splitter { display: flex; min-height: 0; min-width: 0; }
+.qt-container > *, .qt-splitter > * { flex: 1 1 auto; min-height: 0; min-width: 0; }
+
+/* The QTabWidget. Every panel stays in the DOM, hidden — nothing has to click
+   through the tabs to find a control. */
+.qt-tabwidget {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  border: 1px solid var(--atlas-line);
+  border-radius: 8px;
+  background: var(--atlas-panel);
+  overflow: hidden;
+}
+.qt-tabwidget > .qt-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px 4px 0;
+  border-bottom: 1px solid var(--atlas-line);
+  flex: 0 0 auto;
+}
+.qt-tabwidget > .qt-tab-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 12px;
+  scrollbar-width: thin;
+}
+.qt-tab-panel { min-height: 0; }
+.qt-tabwidget .qt-tab {
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  padding: 5px 11px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--atlas-muted);
+  cursor: pointer;
+}
+.qt-tabwidget .qt-tab:hover { color: var(--text); }
+.qt-tabwidget .qt-tab.is-active {
+  border-color: var(--atlas-line);
+  background: var(--atlas-card);
+  color: rgb(var(--skin-chrome));
+}
+
+/* A table placeholder keeps its column headings so the page shows what it will
+   hold; it is empty until something loads, and says nothing to the contrary. */
+.qt-datatable {
+  display: grid;
+  gap: 1px;
+  align-content: start;
+  min-height: 4rem;
+  overflow: auto;
+  border: 1px solid var(--atlas-line);
+  border-radius: 6px;
+  background: var(--atlas-line);
+}
+.qt-datatable > .qt-table-head {
+  padding: 5px 8px;
+  background: var(--atlas-panel);
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgb(var(--skin-data));
+  white-space: nowrap;
+}

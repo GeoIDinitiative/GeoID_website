@@ -1,0 +1,321 @@
+import { handlerFor } from "./spec-page.js?v=20260808-92b26d4";
+import * as store from "./project-store.js?v=20260808-92b26d4";
+import { el, statusLine } from "./pages/common.js?v=20260808-92b26d4";
+
+/**
+ * Render a page from the Qt app's own layout tree.
+ *
+ * `qt-layout.py` recovers the tree out of `app_qt.py` — layout kinds, nesting,
+ * order, stretch factors, tabs, form rows. This walks it. The mapping is almost
+ * one to one, which is the whole reason this approach is worth having:
+ *
+ *   QVBoxLayout      flex column
+ *   QHBoxLayout      flex row
+ *   QGridLayout      CSS grid, with the row/column each child was placed at
+ *   QFormLayout      stacked label-above-field rows
+ *   addWidget(w, 2)  flex: 2
+ *   addStretch()     a spacer that eats the remaining room
+ *   QTabWidget       the hub's own tabbed panel
+ *   QGroupBox        a titled card
+ *   CollapsibleSection  a details/summary
+ *
+ * The previous approach extracted an *inventory* — which controls exist — and
+ * then invented an arrangement for them. The controls were right and the page
+ * looked nothing like the app, because the arrangement is most of what a page
+ * is. This renders the arrangement.
+ *
+ * Behaviour still comes from `wiring.js` via `handlerFor(pageId, label)`, so a
+ * button that was wired stays wired wherever the tree puts it.
+ */
+
+const LAYOUT_CLASS = {
+  QVBoxLayout: "qt-v",
+  QHBoxLayout: "qt-h",
+  QGridLayout: "qt-grid",
+  QFormLayout: "qt-form",
+  QStackedLayout: "qt-v",
+};
+
+/** Labels the app uses as section headings rather than field captions. */
+const isHeading = (node) =>
+  node.objectName === "SectionTitle" || node.objectName === "PageTitle"
+  || node.objectName === "FieldLabel";
+
+function applyBox(node, spec) {
+  if (spec.stretch) node.style.flex = String(spec.stretch);
+  if (Number.isFinite(spec.row)) {
+    node.style.gridRow = `${spec.row + 1} / span ${spec.rowspan || 1}`;
+    node.style.gridColumn = `${spec.col + 1} / span ${spec.colspan || 1}`;
+  }
+  return node;
+}
+
+export function renderTree(spec, ctx) {
+  const { pageId, api } = ctx;
+
+  function renderLayout(layout) {
+    const box = el("div", `qt-layout ${LAYOUT_CLASS[layout.kind] || "qt-v"}`);
+    if (layout.kind === "QGridLayout") {
+      // The widest column index decides the track count; the app never states
+      // it, and counting is exact.
+      const cols = layout.children.reduce(
+        (n, c) => Math.max(n, Number.isFinite(c.col) ? c.col + (c.colspan || 1) : 1), 1);
+      box.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    }
+    layout.children.forEach((child) => {
+      const node = renderNode(child);
+      if (node) box.appendChild(applyBox(node, child));
+    });
+    return box;
+  }
+
+  function renderNode(node) {
+    if (!node) return null;
+    switch (node.node) {
+      case "layout": return renderLayout(node);
+      case "stretch": return el("span", "qt-stretch");
+      case "spacing": {
+        const gap = el("span", "qt-spacing");
+        gap.style.height = `${Math.min(24, node.px || 8)}px`;
+        return gap;
+      }
+      case "row": {
+        const row = el("label", "qt-form-row");
+        row.appendChild(el("span", "qt-form-label", String(node.label || "").replace(/:$/, "")));
+        const child = renderNode(node.child);
+        if (child) row.appendChild(child);
+        return row;
+      }
+      case "tabs": return renderTabs(node);
+      case "widget": return renderWidget(node);
+      default: return null;
+    }
+  }
+
+  function renderTabs(node) {
+    const box = el("div", "qt-tabwidget");
+    const strip = el("div", "qt-tabs");
+    const body = el("div", "qt-tab-body");
+    const panels = [];
+    (node.tabs || []).forEach((tab, index) => {
+      const content = el("div", "qt-tab-panel");
+      const inner = renderNode(tab.content);
+      if (inner) content.appendChild(inner);
+      panels.push(content);
+      body.appendChild(content);
+
+      const btn = el("button", "qt-tab", tab.label);
+      btn.type = "button";
+      btn.addEventListener("click", () => {
+        Array.from(strip.children).forEach((b, i) => {
+          b.classList.toggle("is-active", i === index);
+          panels[i].hidden = i !== index;
+        });
+      });
+      strip.appendChild(btn);
+    });
+    // Every panel stays in the DOM; the inactive ones are hidden, so nothing
+    // has to click through them to find a control.
+    panels.forEach((p, i) => { p.hidden = i !== 0; });
+    if (strip.firstChild) strip.firstChild.classList.add("is-active");
+    box.append(strip, body);
+    return box;
+  }
+
+  function renderWidget(node) {
+    const kind = node.kind;
+    const text = node.text || "";
+
+    if (kind === "PageHeader") return null;   // the hub draws the header itself
+
+    if (kind === "QLabel") {
+      if (!text) return null;
+      return el(isHeading(node) ? "h3" : "p",
+        isHeading(node) ? "qt-section-title" : "qt-label", text);
+    }
+
+    if (kind === "QPushButton" || kind === "QToolButton") {
+      const handler = handlerFor(pageId, text);
+      const btn = el("button", "button secondary qt-button", text);
+      btn.type = "button";
+      if (handler) {
+        btn.addEventListener("click", async () => {
+          try { await handler(api, text); }
+          catch (error) { api.say(error.message, true); }
+        });
+      } else {
+        btn.disabled = true;
+        btn.classList.add("is-unwired");
+        btn.title = `"${text}" needs a process this page does not have.`;
+      }
+      return btn;
+    }
+
+    if (kind === "QLineEdit") {
+      const input = document.createElement("input");
+      input.className = "input qt-input";
+      input.type = "text";
+      input.placeholder = node.placeholder || "";
+      if (node.text) input.value = node.text;
+      if (node.var) input.dataset.var = node.var;
+      api.controls.set(node.var || input.placeholder || "field", input);
+      return input;
+    }
+
+    if (kind === "QPlainTextEdit" || kind === "QTextEdit") {
+      const area = document.createElement("textarea");
+      area.className = "input qt-textarea";
+      area.rows = node.maxHeight ? Math.max(2, Math.round(node.maxHeight / 24)) : 4;
+      area.placeholder = node.placeholder || "";
+      if (node.readOnly) area.readOnly = true;
+      if (node.var) area.dataset.var = node.var;
+      api.controls.set(node.var || "text", area);
+      return area;
+    }
+
+    if (kind === "QComboBox") {
+      const select = document.createElement("select");
+      select.className = "input qt-select";
+      (node.items || []).forEach((item) => {
+        const option = document.createElement("option");
+        option.value = String(item); option.textContent = String(item);
+        select.appendChild(option);
+      });
+      if (!select.options.length) {
+        const option = document.createElement("option");
+        option.textContent = "—";
+        select.appendChild(option);
+      }
+      if (node.var) select.dataset.var = node.var;
+      api.controls.set(node.var || "choice", select);
+      return select;
+    }
+
+    if (kind === "QCheckBox" || kind === "QRadioButton") {
+      const wrap = el("label", "qt-check");
+      const box = document.createElement("input");
+      box.type = kind === "QCheckBox" ? "checkbox" : "radio";
+      if (node.checked) box.checked = true;
+      if (node.var) box.dataset.var = node.var;
+      api.controls.set(node.var || text, box);
+      wrap.append(box, el("span", null, text));
+      return wrap;
+    }
+
+    if (kind === "QSpinBox" || kind === "QDoubleSpinBox") {
+      const input = document.createElement("input");
+      input.className = "input qt-input";
+      input.type = "number";
+      input.step = kind === "QDoubleSpinBox" ? "any" : "1";
+      if (node.var) input.dataset.var = node.var;
+      api.controls.set(node.var || "number", input);
+      return input;
+    }
+
+    if (kind === "QSlider") {
+      const input = document.createElement("input");
+      input.className = "input qt-slider";
+      input.type = "range";
+      if (node.var) input.dataset.var = node.var;
+      api.controls.set(node.var || "slider", input);
+      return input;
+    }
+
+    if (kind === "QProgressBar") {
+      const bar = el("div", "research-progress");
+      bar.appendChild(el("div", "research-progress-fill"));
+      return bar;
+    }
+
+    if (kind === "QTableWidget" || kind === "QTreeWidget" || kind === "QListWidget") {
+      const headers = node.headers || [];
+      const table = el("div", "qt-table is-empty qt-datatable");
+      table.style.gridTemplateColumns =
+        `repeat(${Math.max(1, headers.length)}, minmax(0, 1fr))`;
+      (headers.length ? headers : ["—"]).forEach((h) =>
+        table.appendChild(el("span", "qt-table-head", h)));
+      if (node.var) table.dataset.var = node.var;
+      return table;
+    }
+
+    if (kind === "QGroupBox") {
+      const card = el("section", "qt-groupbox");
+      if (text) card.appendChild(el("h3", "qt-groupbox-title", text));
+      const inner = renderNode(node.content);
+      if (inner) card.appendChild(inner);
+      return card;
+    }
+
+    if (kind === "CollapsibleSection") {
+      const box = document.createElement("details");
+      box.className = "qt-section";
+      const head = document.createElement("summary");
+      head.className = "qt-section-head";
+      head.textContent = text || "Section";
+      box.appendChild(head);
+      const body = el("div", "qt-section-body");
+      const inner = renderNode(node.content);
+      if (inner) body.appendChild(inner);
+      box.appendChild(body);
+      return box;
+    }
+
+    // QWidget / QFrame / QSplitter: a plain container for whatever it holds.
+    const inner = renderNode(node.content);
+    if (!inner) return null;
+    const wrap = el("div", kind === "QSplitter" ? "qt-splitter" : "qt-container");
+    wrap.appendChild(inner);
+    return wrap;
+  }
+
+  return renderLayout(spec.root);
+}
+
+let layoutPromise = null;
+export function loadLayouts() {
+  if (!layoutPromise) {
+    layoutPromise = fetch("/GeoID_GIS/viewer/gis/research/qt-layout.json")
+      .then((r) => {
+        if (!r.ok) throw new Error(`qt-layout.json: HTTP ${r.status}`);
+        return r.json();
+      });
+  }
+  return layoutPromise;
+}
+
+/**
+ * A mount that renders the page exactly as the app arranges it.
+ *
+ * Used for every page that has no hand-built module; the hand-built ones
+ * (Projects, Data Repository, QA/QC, Data Hub, Docs & Sheets, Build New,
+ * Notebook, Dashboard) keep theirs.
+ */
+export function qtMount(pageId) {
+  async function mount(host, ctx) {
+    const layouts = await loadLayouts();
+    const spec = layouts[pageId];
+    if (!spec) {
+      host.appendChild(el("p", "research-note",
+        `No layout recovered for "${pageId}" — run services/qt-layout.py.`));
+      return;
+    }
+    const { node: status, say } = statusLine();
+    const controls = new Map();
+    const values = () => {
+      const out = {};
+      controls.forEach((node, name) => {
+        out[name] = node.type === "checkbox" ? node.checked : node.value;
+      });
+      return out;
+    };
+    const redraw = () => { host.textContent = ""; void mount(host, ctx); };
+    const api = { values, controls, say, ctx, redraw, store, pageId };
+
+    const body = el("div", "qt-page");
+    body.appendChild(renderTree(spec, { pageId, api }));
+    host.append(body, status);
+  }
+  mount.ownHeader = false;   // the hub supplies title and subtitle
+  mount.qtRendered = true;
+  return mount;
+}

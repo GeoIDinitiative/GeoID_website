@@ -1,9 +1,10 @@
-import { getPage, registerPage } from "./stages.js?v=20260808-c93c2ea";
-import * as store from "./project-store.js?v=20260808-c93c2ea";
+import { getPage, registerPage } from "./stages.js?v=20260808-92b26d4";
+import { qtMount, loadLayouts } from "./qt-render.js?v=20260808-92b26d4";
+import * as store from "./project-store.js?v=20260808-92b26d4";
 import {
   el, button, row, field, input, selectOf, statusLine, needProject,
   pageHeader, toolbar, collapsible, tabbedPanel, editorCard, dataTable,
-} from "./pages/common.js?v=20260808-c93c2ea";
+} from "./pages/common.js?v=20260808-92b26d4";
 
 /**
  * Build a page from `qt-spec.json` — the structure the Qt app actually has,
@@ -331,10 +332,11 @@ export function completedMount(pageId, inner) {
       tabs: Array.from(host.querySelectorAll(".qt-tab, .shell-tab, .dash-tabs > *")).map(txt),
       shells: [...Array.from(host.querySelectorAll(".qt-section-head")).map(txt),
         ...Array.from(host.querySelectorAll(
-          ".research-card-title, .editor-card-title, .qt-card-heading")).map(txt)],
+          ".research-card-title, .editor-card-title, .qt-card-heading, "
+          + ".qt-groupbox-title, .qt-section-title")).map(txt)],
       buttons: Array.from(host.querySelectorAll(".button, button")).map(txt),
       labels: [...Array.from(host.querySelectorAll(
-        ".research-field-label, .toolbar-label")).map(txt),
+        ".research-field-label, .toolbar-label, .qt-form-label, .qt-check")).map(txt),
         ...Array.from(host.querySelectorAll("input, textarea"))
           .map((n) => n.placeholder || "")],
       options: Array.from(host.querySelectorAll("option")).map(txt),
@@ -516,7 +518,9 @@ export function completedMount(pageId, inner) {
       host.appendChild(card);
     }
 
-    host.appendChild(status);
+    // A tree-rendered page brings its own status line; two of them stacked read
+    // as a rendering fault.
+    if (!host.querySelector(".research-status")) host.appendChild(status);
   }
   mount.ownHeader = true;
   return mount;
@@ -528,12 +532,39 @@ export function completedMount(pageId, inner) {
  * Called last, after every hand-written module has registered, so `inner` is
  * whatever that page already does.
  */
+/**
+ * Pages that keep their hand-written module instead of the Qt layout tree.
+ *
+ * Every one of these is a *tool*, not a form: it holds state, parses files or
+ * drives a multi-step flow, and none of that survives being reduced to a tree of
+ * widgets with handlers hung off button labels. Measured before choosing them —
+ * across all 62 pages, 238 of 310 buttons in the tree already have a handler
+ * matched by label, and these seven are where that falls below half (Build New
+ * 0/8, Projects 5/18, Data Hub 4/14, Data Repository 1/8, Docs & Sheets 1/6,
+ * QA/QC 1/5, Post Processing 0/2). Rendering those from the tree would have
+ * traded a page that works for a page that looks right and does nothing.
+ *
+ * Everything else renders from the tree. Do not add to this list to avoid
+ * wiring a page -- wire it, or let its controls render honestly disabled.
+ */
+const KEEP_HANDBUILT = new Set([
+  "Projects", "Data Repository", "Data Hub", "Docs & Sheets",
+  "QA / QC", "Build New", "Notebook", "Dashboard", "Post Processing",
+]);
+
 export async function completeAllPages() {
   const spec = await loadSpec();
+  const layouts = await loadLayouts().catch(() => ({}));
   const done = [];
   for (const pageId of Object.keys(spec)) {
     const existing = getPage(pageId);
-    registerPage(pageId, { mount: completedMount(pageId, existing?.mount || null) });
+    // The Qt app's own layout tree is the page, unless the page is one of the
+    // tools above. The old inventory-driven modules said which controls exist
+    // and then invented an arrangement for them -- and the arrangement is most
+    // of what a page is, which is why they looked nothing like the app.
+    const useTree = layouts[pageId] && !KEEP_HANDBUILT.has(pageId);
+    const inner = useTree ? qtMount(pageId) : (existing?.mount || null);
+    registerPage(pageId, { mount: completedMount(pageId, inner) });
     done.push(pageId);
   }
   return done;
