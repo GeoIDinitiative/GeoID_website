@@ -1,12 +1,14 @@
-import { registerPage } from "../stages.js?v=20260808-043c54a";
-import * as store from "../project-store.js?v=20260808-043c54a";
-import { column } from "../table.js?v=20260808-043c54a";
-import { linePlot } from "../plot.js?v=20260808-043c54a";
-import { detrend, bandpass, statistics } from "../dsp.js?v=20260808-043c54a";
+import { registerPage } from "../stages.js?v=20260808-fb4f85c";
+import * as store from "../project-store.js?v=20260808-fb4f85c";
+import { column } from "../table.js?v=20260808-fb4f85c";
+import { linePlot } from "../plot.js?v=20260808-fb4f85c";
+import { detrend, bandpass, statistics } from "../dsp.js?v=20260808-fb4f85c";
 import {
   el, card, field, input, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, loadTable, inferSampling, saveTable,
-} from "./common.js?v=20260808-043c54a";
+  pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
+  tabbedPanel,
+} from "./common.js?v=20260808-fb4f85c";
 
 /**
  * The Preprocessing stage.
@@ -20,94 +22,290 @@ import {
 
 // ── QA / QC ──────────────────────────────────────────────────────────────────
 
+/**
+ * QA / QC, as `QAQCPage` lays it out (app_qt.py:18358): a header, a file
+ * selector, then File / Spatial / Temporal / Fix & Export tabs over one loaded
+ * table, and a log underneath.
+ *
+ * The checks are the Qt checks. Where pandas does the work there, this does it
+ * over the parsed table -- same questions, same answers, no solver required.
+ */
+
+const NULLISH = (v) => v === "" || v == null || v === "NaN";
+
 const mountQaQc = guard("QA / QC", async (host) => {
   const { node: status, say } = statusLine();
-  const box = card("Profile a table");
-  box.appendChild(el("p", "research-note",
-    "What is actually in a file before it is trusted: how much is missing, "
-    + "whether the time base is regular, and whether rows repeat."));
+  const logLines = [];
+  const log = console_("", "Nothing run yet.");
+  const note = (line) => {
+    logLines.push(`${new Date().toTimeString().slice(0, 8)}  ${line}`);
+    log.classList.remove("is-placeholder");
+    log.textContent = logLines.slice(-8).join("\n");
+  };
 
   const files = await findTables();
-  const fileSelect = selectOf(files.length ? files : ["(no tables)"]);
-  const report = el("div", "research-report");
-  box.append(field("File", fileSelect), row(button("Profile", async () => {
-    try {
-      const table = await loadTable(fileSelect.value);
-      report.textContent = "";
-      const problems = [];
+  const fileSelect = selectOf(files.length ? files : ["(no tables in this project)"]);
+  let table = null;
+  let loadedPath = "";
 
-      const summary = statGrid([
-        ["Rows", table.rows.length],
-        ["Columns", table.columns.length],
-      ]);
-      report.appendChild(summary);
+  const header = pageHeader("QA / QC",
+    "Schema, integrity, spatial and temporal quality audits before promoting "
+    + "datasets downstream.");
 
-      // Per column: how much is missing and what range it covers.
-      const head = el("div", "research-table-row is-head");
-      ["Column", "Type", "Missing", "Min", "Max"].forEach((h) =>
-        head.appendChild(el("span", null, h)));
-      const tableBox = el("div", "research-table");
-      tableBox.appendChild(head);
-      table.columns.forEach((name, i) => {
-        const cells = table.rows.map((r) => r[i]);
-        const missing = cells.filter((v) => v === undefined || String(v).trim() === "").length;
-        const numeric = table.numeric[i];
-        const values = numeric ? cells.map(Number).filter(Number.isFinite) : [];
-        const line = el("div", "research-table-row");
-        [name, numeric ? "numeric" : "text",
-          `${missing} (${((100 * missing) / (table.rows.length || 1)).toFixed(1)}%)`,
-          values.length ? Math.min(...values).toPrecision(5) : "—",
-          values.length ? Math.max(...values).toPrecision(5) : "—"]
-          .forEach((v) => line.appendChild(el("span", null, String(v))));
-        tableBox.appendChild(line);
-        if (missing) problems.push(`${name}: ${missing} missing value(s)`);
-      });
-      report.appendChild(tableBox);
+  // Every tab reads `table`, so they are rebuilt when a new file is audited.
+  let panel = null;
+  const panelHost = el("div");
 
-      // A time base that is not regular breaks every frequency estimate
-      // downstream, so it is checked here rather than discovered later.
-      const { fs, timeColumn } = inferSampling(table);
-      if (timeColumn) {
-        const times = column(table, timeColumn).filter(Number.isFinite);
-        const steps = [];
-        for (let i = 1; i < times.length; i += 1) steps.push(times[i] - times[i - 1]);
-        const median = [...steps].sort((a, b) => a - b)[Math.floor(steps.length / 2)];
-        const irregular = steps.filter((s) => Math.abs(s - median) > median * 0.01).length;
-        const backwards = steps.filter((s) => s <= 0).length;
-        report.appendChild(statGrid([
-          ["Time column", timeColumn],
-          ["Sampling", fs ? `${fs.toFixed(4)} Hz` : "—"],
-          ["Irregular steps", `${irregular} of ${steps.length}`],
-          ["Non-increasing", backwards],
-        ]));
-        if (irregular) problems.push(`${irregular} irregular time step(s)`);
-        if (backwards) problems.push(`${backwards} non-increasing time step(s)`);
-      }
-
-      // Duplicate rows, which usually mean a file was concatenated twice.
-      const seen = new Set();
-      let duplicates = 0;
-      table.rows.forEach((r) => {
-        const key = r.join("");
-        if (seen.has(key)) duplicates += 1; else seen.add(key);
-      });
-      if (duplicates) problems.push(`${duplicates} duplicate row(s)`);
-
-      const verdict = el("div", problems.length ? "research-flag is-warn" : "research-flag is-ok");
-      verdict.textContent = problems.length
-        ? `${problems.length} thing(s) to look at: ${problems.join("; ")}.`
-        : "No missing values, regular time base, no duplicate rows.";
-      report.appendChild(verdict);
-      say(`Profiled ${fileSelect.value}.`);
-    } catch (error) {
-      say(error.message, true);
+  function fileTab() {
+    const wrap = el("div");
+    if (!table) {
+      wrap.appendChild(el("p", "research-note", "No file loaded."));
+      return wrap;
     }
-  })));
-  box.appendChild(report);
-  host.append(box, status);
+    wrap.appendChild(el("h3", "research-card-title",
+      `${loadedPath} — ${table.rows.length} rows × ${table.columns.length} columns`));
+
+    const rows = table.columns.map((name, i) => {
+      const values = table.rows.map((r) => r[i]);
+      const blank = values.filter(NULLISH).length;
+      const filled = values.filter((v) => !NULLISH(v));
+      const numeric = filled.filter((v) => Number.isFinite(Number(v))).length;
+      return [
+        name,
+        filled.length && numeric === filled.length ? "numeric" : "text",
+        `${((blank / (values.length || 1)) * 100).toFixed(1)}%`,
+        String(new Set(filled).size),
+        String(filled[0] ?? "—").slice(0, 24),
+      ];
+    });
+    wrap.appendChild(el("h4", "editor-card-title", "Column schema"));
+    wrap.appendChild(dataTable(["Column", "Type", "Null %", "Unique", "Sample"], rows));
+
+    const seen = new Set();
+    let dupes = 0;
+    table.rows.forEach((r) => {
+      const key = r.join("\u0001");
+      if (seen.has(key)) dupes += 1; else seen.add(key);
+    });
+    wrap.appendChild(el("p", "research-note", `Duplicate rows: ${dupes}`));
+    return wrap;
+  }
+
+  function spatialTab() {
+    const wrap = el("div");
+    if (!table) {
+      wrap.appendChild(el("p", "research-note",
+        "Load a table with coordinate columns to run spatial QA."));
+      return wrap;
+    }
+    // Qt reads a GeoJSON or shapefile through geopandas. Here the table is
+    // already parsed, so the question is whether it carries usable coordinates.
+    const findCol = (re) => table.columns.findIndex((c) => re.test(c));
+    const latAt = findCol(/^(lat|latitude|y)$/i);
+    const lonAt = findCol(/^(lon|long|longitude|x)$/i);
+    if (latAt < 0 || lonAt < 0) {
+      wrap.appendChild(el("p", "research-note",
+        "No latitude/longitude columns found — spatial QA needs a lat and lon "
+        + "column (or y and x)."));
+      return wrap;
+    }
+    const lats = table.rows.map((r) => Number(r[latAt]));
+    const lons = table.rows.map((r) => Number(r[lonAt]));
+    const bad = lats.filter((v) => !Number.isFinite(v) || Math.abs(v) > 90).length;
+    const badLon = lons.filter((v) => !Number.isFinite(v) || Math.abs(v) > 180).length;
+    const finiteLat = lats.filter(Number.isFinite);
+    const finiteLon = lons.filter(Number.isFinite);
+    const nullIsland = lats.filter((v, i) => v === 0 && lons[i] === 0).length;
+
+    wrap.appendChild(console_([
+      `latitude column   ${table.columns[latAt]}`,
+      `longitude column  ${table.columns[lonAt]}`,
+      "",
+      `bounds  ${Math.min(...finiteLat).toFixed(4)} .. ${Math.max(...finiteLat).toFixed(4)} lat`,
+      `        ${Math.min(...finiteLon).toFixed(4)} .. ${Math.max(...finiteLon).toFixed(4)} lon`,
+      "",
+      `out-of-range latitudes   ${bad}`,
+      `out-of-range longitudes  ${badLon}`,
+      `points at exactly 0,0    ${nullIsland}${nullIsland ? "  (usually a missing value, not the Gulf of Guinea)" : ""}`,
+    ].join("\n")));
+    return wrap;
+  }
+
+  function temporalTab() {
+    const wrap = el("div");
+    if (!table) {
+      wrap.appendChild(el("p", "research-note", "Load a file first."));
+      return wrap;
+    }
+    const pick = selectOf(table.columns);
+    const guess = table.columns.find((c) => /^(t|time|date|datetime|timestamp)$/i.test(c));
+    if (guess) pick.value = guess;
+    const out = console_("", "Select a datetime column and run the check.");
+    wrap.append(row(inlineLabel("Datetime column:"), pick,
+      button("Run Temporal Check", () => {
+        const at = table.columns.indexOf(pick.value);
+        const raw = table.rows.map((r) => r[at]);
+        // Accept both a numeric time base and parseable dates -- research
+        // tables carry either, and refusing one of them is refusing half the
+        // project's data.
+        const nums = raw.map((v) => (Number.isFinite(Number(v))
+          ? Number(v) : Date.parse(v)));
+        const good = nums.filter(Number.isFinite);
+        if (good.length < 2) {
+          out.classList.remove("is-placeholder");
+          out.textContent = `"${pick.value}" does not parse as time.`;
+          return;
+        }
+        const steps = [];
+        for (let i = 1; i < good.length; i += 1) steps.push(good[i] - good[i - 1]);
+        const sorted = steps.slice().sort((a, b) => a - b);
+        const median = sorted[Math.floor(sorted.length / 2)];
+        const gaps = steps.filter((d) => d > median * 1.5).length;
+        const backwards = steps.filter((d) => d < 0).length;
+        const duplicates = steps.filter((d) => d === 0).length;
+        out.classList.remove("is-placeholder");
+        out.textContent = [
+          `column        ${pick.value}`,
+          `parsed        ${good.length} of ${raw.length}`,
+          `median step   ${median}`,
+          `gaps (>1.5×)  ${gaps}`,
+          `out of order  ${backwards}`,
+          `repeated      ${duplicates}`,
+          "",
+          gaps || backwards || duplicates
+            ? "Not a regular time base — resample on Temporal Tools before any "
+              + "spectral work."
+            : "Regular time base.",
+        ].join("\n");
+        note(`temporal check on ${pick.value}: ${gaps} gap(s)`);
+      }, { secondary: true })));
+    wrap.appendChild(out);
+    return wrap;
+  }
+
+  function fixTab() {
+    const wrap = el("div");
+    if (!table) {
+      wrap.appendChild(el("p", "research-note", "Load a file first."));
+      return wrap;
+    }
+    const dropDup = document.createElement("input");
+    dropDup.type = "checkbox"; dropDup.checked = true;
+    const fillNulls = document.createElement("input");
+    fillNulls.type = "checkbox";
+    const fillMethod = selectOf([
+      "forward fill", "backward fill", "interpolate (linear)",
+      "fill with 0", "drop rows with nulls",
+    ]);
+    const trim = document.createElement("input");
+    trim.type = "checkbox"; trim.checked = true;
+    const out = input("", "Output path (blank = auto-name in data/processed/)");
+
+    const check = (box, label) => {
+      const line = el("label", "research-check research-field");
+      line.append(box, el("span", null, label));
+      return line;
+    };
+    wrap.append(
+      check(dropDup, "Drop duplicate rows"),
+      check(fillNulls, "Fill null values with method:"),
+      fillMethod,
+      check(trim, "Trim string whitespace"),
+      field("Output", out),
+    );
+
+    wrap.appendChild(row(button("Apply Fixes & Export", async () => {
+      let rows = table.rows.map((r) => r.slice());
+      if (trim.checked) rows = rows.map((r) => r.map((c) => String(c ?? "").trim()));
+      if (dropDup.checked) {
+        const seen = new Set();
+        rows = rows.filter((r) => {
+          const key = r.join("\u0001");
+          if (seen.has(key)) return false;
+          seen.add(key); return true;
+        });
+      }
+      if (fillNulls.checked) {
+        const method = fillMethod.value;
+        if (method === "drop rows with nulls") {
+          rows = rows.filter((r) => !r.some(NULLISH));
+        } else {
+          for (let c = 0; c < table.columns.length; c += 1) {
+            if (method === "forward fill") {
+              let last = "";
+              rows.forEach((r) => { if (NULLISH(r[c])) r[c] = last; else last = r[c]; });
+            } else if (method === "backward fill") {
+              let next = "";
+              for (let i = rows.length - 1; i >= 0; i -= 1) {
+                if (NULLISH(rows[i][c])) rows[i][c] = next; else next = rows[i][c];
+              }
+            } else if (method === "fill with 0") {
+              rows.forEach((r) => { if (NULLISH(r[c])) r[c] = "0"; });
+            } else {
+              // Linear interpolation between the nearest filled neighbours;
+              // runs at either end fall back to the value that exists.
+              for (let i = 0; i < rows.length; i += 1) {
+                if (!NULLISH(rows[i][c])) continue;
+                let before = i - 1;
+                while (before >= 0 && NULLISH(rows[before][c])) before -= 1;
+                let after = i + 1;
+                while (after < rows.length && NULLISH(rows[after][c])) after += 1;
+                const a = before >= 0 ? Number(rows[before][c]) : NaN;
+                const b = after < rows.length ? Number(rows[after][c]) : NaN;
+                if (Number.isFinite(a) && Number.isFinite(b)) {
+                  rows[i][c] = String(a + ((b - a) * (i - before)) / (after - before));
+                } else if (Number.isFinite(a)) rows[i][c] = String(a);
+                else if (Number.isFinite(b)) rows[i][c] = String(b);
+              }
+            }
+          }
+        }
+      }
+      const target = out.value.trim()
+        || `data/processed/${loadedPath.split("/").pop().replace(/(\.[^.]+)?$/, "-qc.csv")}`;
+      try {
+        await saveTable(target, table.columns, rows, `QA/QC of ${loadedPath}`, "table");
+        say(`${rows.length} row(s) written to ${target}.`);
+        note(`fixed ${loadedPath} -> ${target} (${table.rows.length - rows.length} row(s) removed)`);
+      } catch (error) { say(error.message, true); }
+    })));
+    return wrap;
+  }
+
+  function rebuild() {
+    panelHost.textContent = "";
+    panel = tabbedPanel("Audit", {
+      "File QA": fileTab,
+      "Spatial QA": spatialTab,
+      "Temporal QA": temporalTab,
+      "Fix & Export": fixTab,
+    });
+    panelHost.appendChild(panel);
+  }
+
+  const loadBtn = button("Load & Audit", async () => {
+    if (!files.length) { say("No tables in this project yet.", true); return; }
+    try {
+      table = await loadTable(fileSelect.value);
+      loadedPath = fileSelect.value;
+      note(`loaded ${loadedPath}: ${table.rows.length} rows, ${table.columns.length} columns`);
+      say(`Audited ${loadedPath}.`);
+      rebuild();
+    } catch (error) { say(error.message, true); }
+  });
+  loadBtn.classList.add("accent");
+
+  rebuild();
+  host.append(header, toolbar(fileSelect, loadBtn), panelHost,
+    collapsibleLog(log), status);
 });
 
-// ── Preprocessing Transforms ─────────────────────────────────────────────────
+/** The Qt log strip under the tabs. Folded, because it matters after a run. */
+function collapsibleLog(log) {
+  const box = collapsible("Log", { open: true });
+  box.body.appendChild(log);
+  return box;
+}
 
 const mountTransforms = guard("Preprocessing Transforms", async (host) => {
   const { node: status, say } = statusLine();
@@ -342,6 +540,7 @@ const mountInputs = guard("Inputs", async (host, ctx) => {
 
 // ── Hand-offs ────────────────────────────────────────────────────────────────
 
+mountQaQc.ownHeader = true;
 registerPage("QA / QC", { mount: mountQaQc });
 registerPage("Preprocessing Transforms", { mount: mountTransforms });
 registerPage("Temporal Tools", { mount: mountTemporal });

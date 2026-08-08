@@ -225,10 +225,19 @@ resolution-blind band width, and an undetrended spectrum calling instrumental
 drift the dominant component).
 
 **Pages are laid out as the Qt pages are**, via primitives in
-`pages/common.js`: `pageTitle`, `splitPanes` (the QSplitter, 1:2, stacking
-under 1100px), `tabbedPanel` (a Card with a heading and a secondary tab bar),
-`editorCard`, `editorHero`, `fieldGrid`, `slider`, `editTable`. `pages/projects.js`
-is the worked example — it mirrors `GeoIDProjectsPage` (app_qt.py:4570) tab for
+`pages/common.js`: `pageHeader` (title + one line, optional status pill),
+`toolbar`, `collapsible` (the Qt `CollapsibleSection` — folding is the design,
+not decoration: unfolded, these pages are unreadable), `splitPanes` (the
+QSplitter, 1:2, stacking under 1100px), `tabbedPanel` (a Card with a heading and
+a secondary tab bar, which remembers its tab), `editorCard`, `editorHero`,
+`fieldGrid`, `slider`, `editTable`, `dataTable`, `console_`.
+
+**The hub renders the page header itself**, from `page-blurbs.js`, so all
+sixty-four have one. A page that draws its own sets `ownHeader = true` on its
+mount function — `projects`, `repository`, `docs`, `qaqc` and every `crossPage`
+do, and forgetting the flag gives that page two titles.
+
+`pages/projects.js` is the worked example — it mirrors `GeoIDProjectsPage` (app_qt.py:4570) tab for
 tab and field for field. Match the Qt page when building a new one; someone who
 knows one app should know the other, and that breaks the moment a field moves.
 `tabbedPanel` remembers the active tab per heading, because pages re-mount often

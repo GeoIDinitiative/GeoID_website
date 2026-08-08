@@ -1,6 +1,6 @@
-import * as store from "../project-store.js?v=20260808-043c54a";
-import { parseTable, column } from "../table.js?v=20260808-043c54a";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-043c54a";
+import * as store from "../project-store.js?v=20260808-fb4f85c";
+import { parseTable, column } from "../table.js?v=20260808-fb4f85c";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-fb4f85c";
 
 /**
  * The furniture every Research page uses.
@@ -220,16 +220,21 @@ export function guard(title, mount) {
 
 /** A page that is really an entry point to a tool that already exists. */
 export function crossPage(title, { blurb, mode, note, section }) {
-  return async function mount(host, ctx) {
-    const box = card(title);
-    box.appendChild(el("p", "research-note", blurb));
+  mount.ownHeader = true;   // the hub must not add a second one
+  async function mount(host, ctx) {
+    // Carries the same header as a page that does its own work, so a hand-off
+    // reads as a deliberate route to a tool rather than a page that failed to
+    // load. The tool it names is the real one; there is no second copy here.
+    host.appendChild(pageHeader(title, blurb));
+    const box = card(mode === "model" ? "In the Meshing Studio" : "On the GIS page");
     if (note) box.appendChild(el("p", "research-note", note));
     box.appendChild(row(button(
       mode === "model" ? "Open the Meshing Studio" : "Open the GIS page",
       () => ctx.bridge?.goToPage?.(mode, section ? { openSection: section } : {}),
     )));
     host.appendChild(box);
-  };
+  }
+  return mount;
 }
 
 // ── Shared data helpers ──────────────────────────────────────────────────────
@@ -461,4 +466,82 @@ export function editTable(headers, rows, render) {
   };
   draw();
   return { node: table, draw };
+}
+
+/**
+ * `PageHeader(title, subtitle)` — the Qt header on most pages: what the page
+ * is, and one line on what it is for. Optionally a right-aligned status pill
+ * (`PillLabel`), which is where the app puts "No project".
+ */
+export function pageHeader(title, subtitle, pillText) {
+  const box = el("header", "page-header");
+  const left = el("div", "page-header-main");
+  left.appendChild(el("h1", "page-title", title));
+  if (subtitle) left.appendChild(el("p", "page-subtitle", subtitle));
+  box.appendChild(left);
+  if (pillText != null) {
+    const chip = el("span", "page-pill", pillText);
+    box.appendChild(chip);
+    box.pill = chip;
+  }
+  return box;
+}
+
+/** A horizontal action bar under the header, as most Qt pages have. */
+export function toolbar(...nodes) {
+  const box = el("div", "page-toolbar");
+  nodes.forEach((n) => n && box.appendChild(n));
+  return box;
+}
+
+/** A small inline label inside a toolbar ("Tag:"). */
+export function inlineLabel(text) {
+  return el("span", "toolbar-label", text);
+}
+
+/**
+ * `CollapsibleSection` — the Qt disclosure box. The app opens the section you
+ * need and keeps the rest folded, which is what makes its dense pages readable;
+ * reproducing the sections but not the folding would just be a long page.
+ */
+export function collapsible(title, { open = false } = {}) {
+  const box = document.createElement("details");
+  box.className = "qt-section";
+  box.open = open;
+  const head = document.createElement("summary");
+  head.className = "qt-section-head";
+  head.textContent = title;
+  box.appendChild(head);
+  const body = el("div", "qt-section-body");
+  box.appendChild(body);
+  box.body = body;
+  return box;
+}
+
+/** A read-only table: headers plus rows of strings. */
+export function dataTable(headers, rows) {
+  const table = el("div", "qt-table is-readonly");
+  table.style.gridTemplateColumns = `repeat(${headers.length}, minmax(0, 1fr))`;
+  headers.forEach((h) => table.appendChild(el("span", "qt-table-head", h)));
+  rows.forEach((cells) => cells.forEach((cell) => {
+    const node = el("span", null, String(cell ?? ""));
+    node.title = String(cell ?? "");
+    table.appendChild(node);
+  }));
+  if (!rows.length) {
+    const empty = el("span", "qt-table-empty", "Nothing to show.");
+    empty.style.gridColumn = `1 / -1`;
+    table.appendChild(empty);
+  }
+  return table;
+}
+
+/** A read-only console block, for previews and reports. */
+export function console_(text, placeholder = "") {
+  const box = el("pre", "qt-console", text || "");
+  if (!text && placeholder) {
+    box.classList.add("is-placeholder");
+    box.textContent = placeholder;
+  }
+  return box;
 }

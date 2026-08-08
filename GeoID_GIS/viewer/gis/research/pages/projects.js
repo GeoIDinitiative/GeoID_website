@@ -1,12 +1,12 @@
-import { registerPage } from "../stages.js?v=20260808-043c54a";
-import * as store from "../project-store.js?v=20260808-043c54a";
-import * as bridge from "../bridge.js?v=20260808-043c54a";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-043c54a";
+import { registerPage } from "../stages.js?v=20260808-fb4f85c";
+import * as store from "../project-store.js?v=20260808-fb4f85c";
+import * as bridge from "../bridge.js?v=20260808-fb4f85c";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-fb4f85c";
 import {
   el, card, field, input, textarea, selectOf, button, row, statusLine,
-  pageTitle, splitPanes, tabbedPanel, editorCard, editorHero, fieldGrid,
+  pageHeader, splitPanes, tabbedPanel, editorCard, editorHero, fieldGrid,
   slider, editTable,
-} from "./common.js?v=20260808-043c54a";
+} from "./common.js?v=20260808-fb4f85c";
 
 /**
  * Projects, laid out as `GeoIDProjectsPage` lays it out (app_qt.py:4570):
@@ -548,11 +548,15 @@ async function mount(host, ctx) {
   save.disabled = !draft;
 
   host.append(
-    pageTitle("Projects"),
+    pageHeader("Projects",
+      "Every study this workspace holds, and everything the open one records "
+      + "about itself.",
+      store.getActive()?.name || "No project"),
     splitPanes(workspace, editor),
     row(save),
     status,
   );
 }
 
+mount.ownHeader = true;   // draws its own "Projects" title
 registerPage("Projects", { mount });

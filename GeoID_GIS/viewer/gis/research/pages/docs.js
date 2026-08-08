@@ -1,9 +1,9 @@
-import { registerPage } from "../stages.js?v=20260808-043c54a";
-import * as store from "../project-store.js?v=20260808-043c54a";
+import { registerPage } from "../stages.js?v=20260808-fb4f85c";
+import * as store from "../project-store.js?v=20260808-fb4f85c";
 import {
   el, input, button, row, statusLine, guard, field, selectOf,
-  pageTitle, splitPanes, tabbedPanel, editorCard, findTables, loadTable,
-} from "./common.js?v=20260808-043c54a";
+  pageHeader, splitPanes, tabbedPanel, editorCard, findTables, loadTable,
+} from "./common.js?v=20260808-fb4f85c";
 
 /**
  * Docs & Sheets — the Google workspace, ported from `DocsSheetsPage`
@@ -301,7 +301,12 @@ const mountDocs = guard("Docs & Sheets", async (host, ctx) => {
     "Signing in": aboutSignIn,
   });
 
-  host.append(pageTitle("Docs & Sheets"), splitPanes(left, right, "1fr 1fr"), status);
+  host.append(
+    pageHeader("Docs & Sheets",
+      "Project-linked Google documents — write up results without leaving the "
+      + "study, and pull a sheet back in as data."),
+    splitPanes(left, right, "1fr 1fr"), status);
 });
 
+mountDocs.ownHeader = true;
 registerPage("Docs & Sheets", { mount: mountDocs });

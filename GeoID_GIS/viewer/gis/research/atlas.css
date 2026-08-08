@@ -1085,3 +1085,157 @@
   border-radius: 8px;
   margin-bottom: 8px;
 }
+
+/* Page header: title, one line on what the page is for, optional status pill. */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.page-header-main { flex: 1; min-width: 0; }
+.page-header .page-title { margin-bottom: 2px; }
+.page-subtitle {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--atlas-muted);
+  max-width: 62ch;
+}
+.page-pill {
+  flex: none;
+  padding: 4px 12px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 999px;
+  background: var(--atlas-panel-alt);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--atlas-muted);
+  white-space: nowrap;
+}
+.page-pill.is-open {
+  border-color: var(--atlas-wash-edge);
+  background: var(--atlas-wash);
+  color: #ffffff;
+}
+
+.page-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+/* Toolbar controls size to their content. The base `#research-hub select.input`
+   rule is id-specific, so this has to be too or every select fills the row. */
+#research-hub .page-toolbar .input,
+#research-hub .page-toolbar select.input,
+#research-hub .page-toolbar input.input {
+  width: auto;
+  min-width: 8rem;
+  max-width: 22rem;
+}
+.page-toolbar .spacer { flex: 1; }
+.toolbar-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(var(--atlas-data-rgb), 0.72);
+}
+
+/* CollapsibleSection. Folded by default is the point: it is what keeps the
+   app's dense pages readable. */
+.qt-section {
+  margin-bottom: 10px;
+  background: var(--atlas-panel);
+  border: 1px solid var(--atlas-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.qt-section-head {
+  padding: 8px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--atlas-body);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(var(--atlas-data-rgb), 0.8);
+  user-select: none;
+}
+.qt-section-head::-webkit-details-marker { display: none; }
+.qt-section-head::before {
+  content: "▸";
+  display: inline-block;
+  width: 1.2em;
+  color: var(--atlas-chrome);
+  transition: transform 0.15s;
+}
+.qt-section[open] > .qt-section-head::before { transform: rotate(90deg); }
+.qt-section-head:hover { color: var(--atlas-data); }
+.qt-section-body { padding: 0 12px 12px; }
+
+.qt-table.is-readonly { row-gap: 4px; }
+.qt-table-empty { color: var(--atlas-muted); font-size: 11.5px; }
+.qt-console.is-placeholder { color: var(--atlas-muted); }
+
+/* The project tree. `details` markers are drawn by the browser and looked
+   like a directory listing from 1996; these are ours. */
+.repo-tree {
+  max-height: 24rem;
+  overflow: auto;
+  padding: 8px 10px;
+  background: var(--atlas-panel-soft);
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--skin-muted), 0.28) transparent;
+}
+.repo-node { margin-left: 0.9rem; }
+.repo-tree > .repo-node { margin-left: 0; }
+.repo-dir > summary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 4px;
+  border-radius: 5px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 11.5px;
+  color: var(--atlas-text);
+}
+.repo-dir > summary::-webkit-details-marker { display: none; }
+.repo-dir > summary::before {
+  content: "▸";
+  color: var(--atlas-chrome);
+  transition: transform 0.15s;
+}
+.repo-dir[open] > summary::before { transform: rotate(90deg); }
+.repo-dir > summary:hover { background: var(--atlas-wash-soft); }
+.repo-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 2px 4px 2px 1.35rem;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--atlas-muted);
+  font: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.repo-file:hover { background: var(--atlas-wash-soft); color: var(--atlas-text); }
+.repo-file.is-selected {
+  background: var(--atlas-wash);
+  border-color: var(--atlas-wash-edge);
+  color: #ffffff;
+}
+.repo-file-size { margin-left: auto; font-size: 10px; color: var(--atlas-muted); }
+.repo-count { font-size: 10px; color: var(--atlas-muted); }

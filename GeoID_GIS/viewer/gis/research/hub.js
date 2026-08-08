@@ -1,5 +1,6 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-043c54a";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-043c54a";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-fb4f85c";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-fb4f85c";
+import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-fb4f85c";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.
@@ -220,6 +221,29 @@ async function mountPage(pageId) {
   host.innerHTML = "";
   mountedPage = page;
   try {
+    // Every Qt page opens with a title and a line on what it is for. Rendered
+    // here so all sixty-four have one rather than each module remembering to;
+    // a page that draws its own (it needs a status pill, or a title different
+    // from its tab name) sets `ownHeader` and is left alone.
+    if (!page.mount?.ownHeader && !page.ownHeader) {
+      const header = document.createElement("header");
+      header.className = "page-header";
+      const main = document.createElement("div");
+      main.className = "page-header-main";
+      const title = document.createElement("h1");
+      title.className = "page-title";
+      title.textContent = pageId;
+      main.appendChild(title);
+      const blurb = PAGE_BLURBS[pageId];
+      if (blurb) {
+        const sub = document.createElement("p");
+        sub.className = "page-subtitle";
+        sub.textContent = blurb;
+        main.appendChild(sub);
+      }
+      header.appendChild(main);
+      host.appendChild(header);
+    }
     await page.mount(host, ctx);
   } catch (error) {
     host.innerHTML = "";

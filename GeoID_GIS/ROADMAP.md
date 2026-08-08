@@ -145,15 +145,23 @@ mesh → write a spec → read results back → plot → publish a figure.
 
 ## Phase 3 — Depth on the thin pages
 
-The 64/64 count is honest about coverage and dishonest about depth. Ranked by
-what a research user actually hits first:
+**Done so far:** Projects, Docs & Sheets, Data Repository and QA/QC are rebuilt
+to their Qt pages, field for field. Every one of the 64 now carries a Qt
+`PageHeader` — title and one line on what it is for — rendered by the hub from
+`page-blurbs.js`, so a page that has not been rebuilt yet still opens like part
+of the app rather than mid-thought.
 
-1. **Data Repository** (160 lines) — should be the file browser for the whole
-   project: preview any table, raster or mesh, see its lineage, re-register,
-   delete. It is the page people live in.
-2. **QA/QC** — real checks with pass/fail: gaps, spikes, CRS mismatch, unit
-   sanity, duplicate timestamps. Writes a report into `metadata/qaqc.json` so
-   the agent later has something to reason about.
+**The pattern to follow**, in `pages/common.js`: `pageHeader`, `toolbar`,
+`collapsible`, `splitPanes`, `tabbedPanel`, `editorCard`, `editorHero`,
+`fieldGrid`, `dataTable`, `console_`, `editTable`, `slider`. Read the Qt class
+first — the folding and the tab split *are* the design, and a page with the
+right fields in the wrong shape is still the wrong page.
+
+The rest, ranked by what a research user actually hits first:
+
+1. ~~Data Repository~~ — done: tree, preview, promote/clone, health, compare.
+2. ~~QA/QC~~ — done: File / Spatial / Temporal / Fix & Export, writing
+   `metadata/qaqc.json`.
 3. **Preprocessing Transforms** — resample, reproject, clip to study area, unit
    convert, join. Currently the weakest link between raw data and analysis.
 4. **Statistics / EDA Report** — one-click descriptive report over any table,
