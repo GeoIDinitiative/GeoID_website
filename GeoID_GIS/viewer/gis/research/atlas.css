@@ -1731,3 +1731,51 @@
   align-self: start;
 }
 .qt-grid > .qt-stacked { align-self: start; }
+
+/* Rows and cards the app builds while it runs (qt-runtime.js). */
+.qt-card-row {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--atlas-line);
+  border-radius: 8px;
+  background: var(--atlas-card);
+}
+.qt-card-row .qt-label { font-size: 0.7rem; opacity: 0.8; margin: 0; }
+#research-hub .qt-card-row .qt-input,
+#research-hub .qt-card-row .qt-select { width: auto; min-width: 6rem; }
+.qt-page .qt-button.small { padding: 3px 9px; font-size: 0.7rem; }
+.qt-figure { flex: 0 0 auto; margin-top: 8px; }
+.qt-figure canvas { max-width: 100%; height: auto; border-radius: 6px; }
+
+/* A pick-one list, in place of the Qt file dialog. */
+.qt-inline-menu {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% - 4px);
+  left: 8px;
+  max-height: 15rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 16rem;
+  border: 1px solid rgba(var(--skin-chrome), 0.5);
+  border-radius: 6px;
+  background: var(--atlas-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  scrollbar-width: thin;
+}
+.qt-inline-item {
+  padding: 5px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.74rem;
+  text-align: left;
+  cursor: pointer;
+}
+.qt-inline-item:hover { background: rgba(var(--skin-chrome), 0.16); }
+.qt-inline-item.is-cancel { color: var(--atlas-muted); border-top: 1px solid var(--atlas-line); }

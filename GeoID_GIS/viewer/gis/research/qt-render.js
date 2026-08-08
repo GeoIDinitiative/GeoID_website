@@ -1,6 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260808-4df5909";
-import * as store from "./project-store.js?v=20260808-4df5909";
-import { el, statusLine } from "./pages/common.js?v=20260808-4df5909";
+import { handlerFor } from "./spec-page.js?v=20260808-a744c6f";
+import * as store from "./project-store.js?v=20260808-a744c6f";
+import { el, statusLine } from "./pages/common.js?v=20260808-a744c6f";
+import { install as installRuntime } from "./qt-runtime.js?v=20260808-a744c6f";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -500,6 +501,9 @@ export function qtMount(pageId) {
     const body = el("div", "qt-page");
     body.appendChild(renderTree(spec, { pageId, api }));
     host.append(body, status);
+    // The parts the app builds while it runs -- dataset cards, layer rows --
+    // are not in a static tree and are filled in here.
+    installRuntime(pageId, body, api);
   }
   mount.ownHeader = false;   // the hub supplies title and subtitle
   mount.qtRendered = true;

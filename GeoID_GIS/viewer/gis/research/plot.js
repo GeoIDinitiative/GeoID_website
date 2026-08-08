@@ -138,6 +138,22 @@ export function linePlot(series, {
         ctx.arc(toX(s.x[k]), toY(s.y[k]), 1.6, 0, Math.PI * 2);
         ctx.fill();
       }
+    } else if (s.mode === "bar") {
+      // A histogram drawn as a line is a different chart, and reads as one:
+      // the bars are what say "these are counts in bins".
+      const zero = toY(0);
+      const step = s.x.length > 1
+        ? Math.abs(toX(s.x[1]) - toX(s.x[0]))
+        : box.width / 8;
+      const barWidth = Math.max(1, step * 0.86);
+      ctx.globalAlpha = 0.55;
+      for (let k = 0; k < s.x.length; k += 1) {
+        if (!Number.isFinite(s.y[k])) continue;
+        const py = toY(s.y[k]);
+        ctx.fillRect(toX(s.x[k]) - barWidth / 2, Math.min(py, zero),
+                     barWidth, Math.abs(zero - py));
+      }
+      ctx.globalAlpha = 1;
     } else {
       ctx.beginPath();
       let started = false;
