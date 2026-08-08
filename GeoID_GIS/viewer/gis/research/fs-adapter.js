@@ -168,3 +168,131 @@ export function memoryAdapter(name = "memory") {
     },
   };
 }
+
+
+// ── Browser storage ──────────────────────────────────────────────────────────
+
+/**
+ * The same tree, kept in IndexedDB instead of on disk.
+ *
+ * `showDirectoryPicker` needs a **secure context**, and it does not exist in
+ * Firefox or Safari at all. So the whole Research Hub was unusable unless you
+ * happened to be in Chrome on https or localhost -- open the very same server
+ * on http://0.0.0.0:8125 and no project could ever be created, which read as
+ * every page being broken.
+ *
+ * IndexedDB has neither restriction. This is not a substitute for the folder
+ * -- nothing here is visible to the desktop app, and clearing site data throws
+ * it away -- so callers must say so plainly and offer the export. It is the
+ * difference between a hub that works and one that does not.
+ */
+
+const DB_NAME = "geoid-projects";
+const STORE = "tree";
+const DB_VERSION = 1;
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        // Key is the full path; `kind` distinguishes a directory record from a
+        // file, so an empty directory still exists -- most of a fresh project's
+        // tree is empty directories.
+        db.createObjectStore(STORE, { keyPath: "path" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function tx(db, mode, run) {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(STORE, mode);
+    const store = transaction.objectStore(STORE);
+    let result;
+    try { result = run(store); } catch (error) { reject(error); return; }
+    transaction.oncomplete = () => resolve(result);
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
+const asPromise = (request) => new Promise((resolve, reject) => {
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+
+export async function indexedDbAdapter(name = "browser storage") {
+  const db = await openDb();
+
+  const putDirs = async (path) => {
+    const segments = parts(path);
+    await tx(db, "readwrite", (store) => {
+      for (let i = 1; i <= segments.length; i += 1) {
+        store.put({ path: segments.slice(0, i).join("/"), kind: "directory" });
+      }
+    });
+  };
+
+  return {
+    kind: "indexeddb",
+    name,
+
+    async ensureDir(path) { await putDirs(path); },
+
+    async writeFile(path, contents) {
+      const segments = parts(path);
+      segments.pop();
+      if (segments.length) await putDirs(segments.join("/"));
+      // Stored as given. A Blob survives structured clone, so binary imports
+      // round-trip without being stringified into "[object Blob]".
+      await tx(db, "readwrite", (store) =>
+        store.put({ path: parts(path).join("/"), kind: "file", contents }));
+    },
+
+    async readFile(path) {
+      const key = parts(path).join("/");
+      const record = await tx(db, "readonly", (store) => asPromise(store.get(key)));
+      if (!record || record.kind !== "file") throw new Error(`no such file: ${path}`);
+      return record.contents;
+    },
+
+    async exists(path) {
+      const key = parts(path).join("/");
+      const record = await tx(db, "readonly", (store) => asPromise(store.get(key)));
+      return Boolean(record);
+    },
+
+    async list(path = "") {
+      const base = parts(path).join("/");
+      const prefix = base ? `${base}/` : "";
+      const keys = await tx(db, "readonly", (store) => asPromise(store.getAll()));
+      const seen = new Map();
+      for (const record of keys) {
+        if (!record.path.startsWith(prefix) || record.path === base) continue;
+        const rest = record.path.slice(prefix.length);
+        if (!rest || rest.includes("/")) continue;
+        seen.set(rest, record.kind);
+      }
+      return [...seen.entries()]
+        .map(([entryName, kind]) => ({ name: entryName, kind }))
+        .sort((a, b) => (a.kind === b.kind
+          ? a.name.localeCompare(b.name)
+          : a.kind === "directory" ? -1 : 1));
+    },
+
+    async remove(path) {
+      const key = parts(path).join("/");
+      const all = await tx(db, "readonly", (store) => asPromise(store.getAll()));
+      await tx(db, "readwrite", (store) => {
+        store.delete(key);
+        for (const record of all) {
+          if (record.path.startsWith(`${key}/`)) store.delete(record.path);
+        }
+      });
+    },
+  };
+}

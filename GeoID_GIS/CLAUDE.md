@@ -129,6 +129,23 @@ native dialog no headless browser can drive. `memoryAdapter()` stands in for
 tests: `store.useMemoryAdapter()` then everything downstream of the picker is
 the real code path.
 
+**`showDirectoryPicker` needs a SECURE CONTEXT, and this is the single most
+expensive trap in the project.** `http://0.0.0.0:8125` is not one;
+`http://localhost:8125` — the same server, the same files, four characters
+different — is. On the insecure origin the API is simply `undefined`, so no
+folder could be chosen, no project created, and all twenty-nine project-scoped
+pages sat empty looking broken. The API is also absent from Firefox and Safari
+entirely. Never diagnose a missing picker as a browser problem without checking
+`window.isSecureContext` first; `folderSupport()` in the store does that and
+returns the reason, and every surface that offers the picker must report it.
+
+Because of that, **a project does not have to be on disk**:
+`indexedDbAdapter()` implements the same adapter interface and
+`store.useBrowserStorage()` selects it, so the hub works on any origin and in
+any browser. It is not equivalent and must never be presented as such — the
+desktop app cannot see it and clearing site data destroys it — so every offer of
+it says so.
+
 **Bridge contract** (`gis/research/bridge.js`) — what makes the three pages one
 workspace:
 

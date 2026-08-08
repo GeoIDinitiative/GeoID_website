@@ -62,19 +62,22 @@ async function render() {
   const root = store.getRoot();
   const active = store.getActive();
 
-  // Where projects live.
+  // Where projects live. The picker needs a secure context, so name the real
+  // obstacle when it is missing rather than blaming the browser -- the usual
+  // cause is the origin (0.0.0.0 rather than localhost), not Chrome.
+  const support = store.folderSupport();
   const folder = el("div", "project-block");
   folder.appendChild(el("h3", "project-block-title", "Projects folder"));
   folder.appendChild(el("p", "research-note", root
-    ? `Using "${root.name}".`
-    : store.isSupported()
-      ? "Choose where geoid_projects should live. Projects are real folders, "
-        + "readable by the desktop app."
-      : "This browser cannot open a folder directly. Chrome or Edge can."));
+    ? (root.kind === "indexeddb"
+      ? "Kept in this browser — the desktop app cannot see these."
+      : `Using "${root.name}".`)
+    : "Choose where geoid_projects should live. Projects are real folders, "
+      + "readable by the desktop app."));
   const chooseRow = el("div", "gis-btn-row");
   const choose = el("button", "button", root ? "Change folder…" : "Choose folder…");
   choose.type = "button";
-  choose.disabled = !store.isSupported();
+  choose.disabled = !support.ok;
   choose.addEventListener("click", async () => {
     try {
       await store.chooseRoot();
@@ -85,7 +88,28 @@ async function render() {
     }
   });
   chooseRow.appendChild(choose);
+  if (!root && typeof indexedDB !== "undefined") {
+    const inBrowser = el("button", "button secondary", "Keep in this browser");
+    inBrowser.type = "button";
+    inBrowser.addEventListener("click", async () => {
+      try {
+        await store.useBrowserStorage();
+        await render();
+        status("Projects are kept in this browser.");
+      } catch (error) {
+        status(error.message, true);
+      }
+    });
+    chooseRow.appendChild(inBrowser);
+  }
   folder.appendChild(chooseRow);
+  if (!support.ok) {
+    folder.appendChild(el("p", "research-note is-error",
+      support.reason === "insecure-origin"
+        ? `The picker needs a secure origin, and this page is served from `
+          + `${support.origin}. Open it at ${support.hint} instead.`
+        : "This browser has no folder picker — Chrome and Edge only."));
+  }
   body.appendChild(folder);
 
   if (!root) return;

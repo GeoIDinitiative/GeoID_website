@@ -1,5 +1,5 @@
-import { registerPage } from "../stages.js?v=20260810v";
-import * as store from "../project-store.js?v=20260810v";
+import { registerPage } from "../stages.js?v=20260810x";
+import * as store from "../project-store.js?v=20260810x";
 
 /**
  * Projects: choose the folder, make a project, open one, edit its profile.
@@ -64,17 +64,42 @@ async function mount(host, ctx) {
   const rootRow = el("div", "gis-btn-row");
   const chooseBtn = el("button", "button", "Choose folder…");
   chooseBtn.type = "button";
+  const browserBtn = el("button", "button secondary", "Keep projects in this browser");
+  browserBtn.type = "button";
   const forgetBtn = el("button", "button secondary", "Forget");
   forgetBtn.type = "button";
-  rootRow.append(chooseBtn, forgetBtn);
-  rootCard.append(rootLine, rootRow);
+  rootRow.append(chooseBtn, browserBtn, forgetBtn);
+  const rootWhy = el("p", "research-note");
+  rootCard.append(rootLine, rootRow, rootWhy);
 
-  if (!store.isSupported()) {
-    rootLine.textContent =
-      "This browser cannot open a folder directly. Chrome or Edge can; elsewhere, "
-      + "projects can only be moved as exported bundles.";
-    chooseBtn.disabled = true;
+  // Why the picker is unavailable, when it is. The usual cause is the origin,
+  // not the browser: showDirectoryPicker needs a secure context, so
+  // http://0.0.0.0:8125 has none while http://localhost:8125 does.
+  const support = store.folderSupport();
+  chooseBtn.disabled = !support.ok;
+  browserBtn.hidden = typeof indexedDB === "undefined";
+  if (support.reason === "insecure-origin") {
+    rootWhy.classList.add("is-error");
+    rootWhy.textContent =
+      `The folder picker needs a secure origin, and this page is served from `
+      + `${support.origin}. Open it at ${support.hint} instead — same server, `
+      + `same files — or keep projects in this browser.`;
+  } else if (support.reason === "unsupported-browser") {
+    rootWhy.classList.add("is-error");
+    rootWhy.textContent =
+      "This browser has no folder picker — that is Chrome and Edge only. "
+      + "Browser storage works everywhere, but the desktop app cannot see it.";
   }
+
+  browserBtn.addEventListener("click", async () => {
+    try {
+      await store.useBrowserStorage();
+      say("Projects are kept in this browser. Export to move one onto disk.");
+      await refresh();
+    } catch (error) {
+      say(error.message, true);
+    }
+  });
 
   chooseBtn.addEventListener("click", async () => {
     try {
@@ -204,10 +229,13 @@ async function mount(host, ctx) {
   async function refresh() {
     const root = store.getRoot();
     rootLine.textContent = root
-      ? `Using "${root.name}" (${root.kind === "disk" ? "on disk" : root.kind}).`
-      : store.isSupported()
+      ? (root.kind === "indexeddb"
+        ? "Kept in this browser. Real and it survives a reload, but the desktop "
+          + "app cannot see it and clearing site data throws it away."
+        : `Using "${root.name}" (${root.kind === "disk" ? "on disk" : root.kind}).`)
+      : support.ok
         ? "No folder chosen. Pick where geoid_projects should live."
-        : rootLine.textContent;
+        : "No store chosen yet.";
     forgetBtn.disabled = !root;
 
     list.textContent = "";
@@ -253,7 +281,7 @@ async function mount(host, ctx) {
 
   // Try last session's folder without a dialog; the picker needs a gesture, so
   // a lapsed permission just leaves the button waiting rather than throwing.
-  if (!store.getRoot() && store.isSupported()) {
+  if (!store.getRoot() && support.ok) {
     // The hub restores the session on open (index.js); this covers the case
     // where permission had lapsed and the user has now come here to sort it.
     try { await store.restoreSession(); } catch (error) { /* ask again on click */ }

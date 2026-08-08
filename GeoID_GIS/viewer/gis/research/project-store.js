@@ -1,6 +1,6 @@
-import { directoryAdapter, memoryAdapter } from "./fs-adapter.js?v=20260810v";
-import { currentBodyId } from "../bodies.js?v=20260810v";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810v";
+import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260810x";
+import { currentBodyId } from "../bodies.js?v=20260810x";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810x";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -149,6 +149,35 @@ export function isSupported() {
   return typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
 }
 
+/**
+ * Why the folder picker is unavailable, when it is — so the page can say the
+ * true thing instead of blaming the browser.
+ *
+ * The trap that cost real time: `showDirectoryPicker` needs a **secure
+ * context**, and `http://0.0.0.0:8125` is not one while `http://localhost:8125`
+ * — the same server, the same files — is. On the insecure origin the API is
+ * simply absent, so every project-scoped page sat empty with no way to fix it.
+ */
+export function folderSupport() {
+  if (typeof window === "undefined") return { ok: false, reason: "no-window" };
+  if (typeof window.showDirectoryPicker === "function") return { ok: true };
+  if (!window.isSecureContext) {
+    return {
+      ok: false,
+      reason: "insecure-origin",
+      origin: window.location?.origin || "",
+      hint: window.location?.origin?.replace(/\/\/0\.0\.0\.0/, "//localhost")
+        || "http://localhost",
+    };
+  }
+  return { ok: false, reason: "unsupported-browser" };
+}
+
+/** Whether a project can be made at all, by any means. */
+export function canStoreProjects() {
+  return isSupported() || typeof indexedDB !== "undefined";
+}
+
 /** Swap in a different filesystem — used by the tests, and by nothing else. */
 export function useAdapter(adapter) {
   rootAdapter = adapter;
@@ -161,6 +190,30 @@ export function useMemoryAdapter(name) {
   return useAdapter(memoryAdapter(name));
 }
 
+/**
+ * Keep projects in the browser instead of on disk.
+ *
+ * For everyone the folder picker cannot serve: an insecure origin, Firefox,
+ * Safari. Real and persistent, but invisible to the desktop app and thrown away
+ * with the site data, so whatever offers this must say so rather than let it
+ * look like the folder.
+ */
+export async function useBrowserStorage() {
+  const adapter = await indexedDbAdapter();
+  rootAdapter = adapter;
+  active = null;
+  try { window.localStorage.setItem(BROWSER_STORE_KEY, "1"); } catch (error) { /* fine */ }
+  announce();
+  return adapter;
+}
+
+const BROWSER_STORE_KEY = "geoid-gis:browser-store";
+
+/** Was the browser store in use last session? */
+export function usingBrowserStorage() {
+  return rootAdapter?.kind === "indexeddb";
+}
+
 // ── Choosing and restoring the projects folder ────────────────────────────────
 
 /**
@@ -170,8 +223,14 @@ export function useMemoryAdapter(name) {
  * pointing the Qt app at its own GUI directory.
  */
 export async function chooseRoot() {
-  if (!isSupported()) {
-    throw new Error("This browser cannot open folders. Use Chrome or Edge, or import a project bundle.");
+  const support = folderSupport();
+  if (!support.ok) {
+    throw new Error(support.reason === "insecure-origin"
+      ? `Folders need a secure origin, and this page is served from `
+        + `${support.origin}. Open it at ${support.hint} instead — same server, `
+        + `same files — or keep projects in the browser.`
+      : "This browser cannot open folders. Use Chrome or Edge, or keep "
+        + "projects in the browser.");
   }
   const picked = await window.showDirectoryPicker({ id: "geoid-projects", mode: "readwrite" });
   const handle = picked.name === PROJECTS_ROOT_DIR
@@ -179,6 +238,7 @@ export async function chooseRoot() {
     : await picked.getDirectoryHandle(PROJECTS_ROOT_DIR, { create: true });
   await saveRootHandle(handle);
   rootAdapter = directoryAdapter(handle);
+  try { window.localStorage.removeItem(BROWSER_STORE_KEY); } catch (error) { /* fine */ }
   announce();
   return rootAdapter;
 }
@@ -224,7 +284,17 @@ function rememberProject(dir) {
  * pick-a-folder panel and the user carries on.
  */
 export async function restoreSession({ prompt = false } = {}) {
-  if (!(await restoreRoot({ prompt }))) return null;
+  let root = await restoreRoot({ prompt });
+  if (!root) {
+    // No folder to resume. If last session used the browser store, come back
+    // to it -- otherwise the work would look lost when it is merely elsewhere.
+    let wanted = null;
+    try { wanted = window.localStorage.getItem(BROWSER_STORE_KEY); } catch (error) { /* none */ }
+    if (wanted && typeof indexedDB !== "undefined") {
+      try { root = await useBrowserStorage(); } catch (error) { return null; }
+    }
+  }
+  if (!root) return null;
   let dir = null;
   try { dir = window.localStorage.getItem(LAST_PROJECT_KEY); } catch (error) { /* none */ }
   if (!dir) return null;

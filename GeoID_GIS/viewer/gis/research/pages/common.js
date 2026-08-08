@@ -1,5 +1,6 @@
-import * as store from "../project-store.js?v=20260810v";
-import { parseTable, column } from "../table.js?v=20260810v";
+import * as store from "../project-store.js?v=20260810x";
+import { parseTable, column } from "../table.js?v=20260810x";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260810x";
 
 /**
  * The furniture every Research page uses.
@@ -100,55 +101,114 @@ export function statusLine() {
  * What twenty-nine of the pages show when nothing is open.
  *
  * It used to say "No project open." and offer one button, which was true and
- * useless: it never said that a project is a *folder on disk* you have to pick
- * before anything can be recorded, so a first-time page read as an empty page.
- * The two states are different problems and say so separately -- no folder
- * chosen yet, or a folder with nothing open in it -- and each offers the action
- * that resolves it rather than only a way to navigate elsewhere.
+ * useless. Worse, when the folder picker was missing it blamed the browser --
+ * and the usual cause is not the browser at all but the *origin*:
+ * `showDirectoryPicker` needs a secure context, so `http://0.0.0.0:8125` has no
+ * picker while `http://localhost:8125` does. Serving the same files from the
+ * wrong host made every project-scoped page look broken with no way out.
+ *
+ * So this panel does three things instead of one: names the real obstacle,
+ * offers browser storage as a way through it, and lets a project be *created*
+ * here rather than sending you to another page to do it.
  */
 export function needProject(host, ctx, title) {
   const box = card(title);
   const { node: status, say } = statusLine();
-  const hasRoot = Boolean(store.getRoot());
+  const redraw = () => { host.textContent = ""; needProject(host, ctx, title); };
 
-  box.appendChild(el("p", "research-note", hasRoot
-    ? "This page records its work into a project, and none is open yet. "
-      + "Open one below, or create one on the Projects page."
-    : "Every Research page writes into a project, which is a real folder on "
-      + "your machine \u2014 the same layout the desktop app reads, so work moves "
-      + "between them. Choose where geoid_projects should live to begin."));
-
-  const actions = row();
-  if (!hasRoot) {
-    const choose = button("Choose projects folder…", async () => {
-      try {
-        await store.chooseRoot();
-        // The hub re-mounts the page when a project opens, so there is nothing
-        // to redraw here -- but a chosen folder with no project in it yet is
-        // still this panel, and it should now say the other thing.
-        needProjectRefresh(host, ctx, title);
-      } catch (error) {
-        if (error.name !== "AbortError") say(error.message, true);
-      }
-    });
-    choose.disabled = !store.isSupported();
-    actions.appendChild(choose);
-    if (!store.isSupported()) {
-      box.appendChild(el("p", "research-note",
-        "This browser cannot open a folder directly. Chrome or Edge can."));
-    }
+  if (store.getRoot()) {
+    renderOpenOrCreate(box, ctx, say, redraw);
+  } else {
+    renderChooseStore(box, ctx, say, redraw);
   }
-  actions.appendChild(button(hasRoot ? "Open a project" : "Projects page",
-    () => ctx.setPage?.("Projects"), { secondary: hasRoot === false }));
-  box.append(actions, status);
+  box.appendChild(status);
   host.appendChild(box);
 }
 
-/** Redraw the refusal in place, once choosing a folder has changed which of
- *  the two states applies. */
-function needProjectRefresh(host, ctx, title) {
-  host.textContent = "";
-  needProject(host, ctx, title);
+/** No store at all yet: on disk, or in the browser. */
+function renderChooseStore(box, ctx, say, redraw) {
+  const support = store.folderSupport();
+
+  box.appendChild(el("p", "research-note",
+    "Every Research page writes into a project. On disk that is a real folder "
+    + "in the layout the desktop app reads, so work moves between them."));
+
+  const actions = row();
+  const choose = button("Choose projects folder…", async () => {
+    try {
+      await store.chooseRoot();
+      redraw();
+    } catch (error) {
+      if (error.name !== "AbortError") say(error.message, true);
+    }
+  });
+  choose.disabled = !support.ok;
+  actions.appendChild(choose);
+
+  // Browser storage is the way through when the folder cannot be had. Offered
+  // second and described honestly -- it is not the folder.
+  if (typeof indexedDB !== "undefined") {
+    actions.appendChild(button("Keep projects in this browser", async () => {
+      try {
+        await store.useBrowserStorage();
+        redraw();
+      } catch (error) {
+        say(error.message, true);
+      }
+    }, { secondary: support.ok }));
+  }
+  box.appendChild(actions);
+
+  if (support.reason === "insecure-origin") {
+    // The actionable one. Naming both origins matters: they differ by four
+    // characters and the difference is the whole problem.
+    box.appendChild(el("p", "research-note is-error",
+      `The folder picker needs a secure origin, and this page is served from `
+      + `${support.origin}. Open it at ${support.hint} instead — same server, `
+      + `same files — or use browser storage below.`));
+  } else if (support.reason === "unsupported-browser") {
+    box.appendChild(el("p", "research-note is-error",
+      "This browser has no folder picker — that is Chrome and Edge only. "
+      + "Browser storage works everywhere."));
+  }
+
+  box.appendChild(el("p", "research-note",
+    "Browser storage is real and survives a reload, but it lives in this "
+    + "browser: the desktop app cannot see it, and clearing site data throws "
+    + "it away. Export from the Projects page to move it onto disk."));
+}
+
+/** A store exists; open something in it or make something new. */
+function renderOpenOrCreate(box, ctx, say, redraw) {
+  const root = store.getRoot();
+  box.appendChild(el("p", "research-note",
+    `This page records into a project and none is open yet. Using `
+    + `${root.kind === "indexeddb" ? "browser storage" : `"${root.name}"`}.`));
+
+  const name = input("", `New ${currentBody()?.name || "Earth"} project`);
+  const create = button("Create", async () => {
+    if (!name.value.trim()) { say("Give the project a name first.", true); return; }
+    try {
+      // Stamped with the world in view, so it is filed under it.
+      await store.createProject(name.value.trim(), { body: currentBodyId() });
+      // The hub re-mounts the page when a project opens, so there is nothing
+      // to redraw here -- this panel is about to be replaced by the page.
+    } catch (error) {
+      say(error.message, true);
+    }
+  });
+  box.appendChild(row(name, create));
+
+  const actions = row(button("Open an existing project",
+    () => ctx.setPage?.("Projects"), { secondary: true }));
+  if (root.kind === "indexeddb" && store.folderSupport().ok) {
+    actions.appendChild(button("Switch to a folder on disk…", async () => {
+      try { await store.chooseRoot(); redraw(); } catch (error) {
+        if (error.name !== "AbortError") say(error.message, true);
+      }
+    }, { secondary: true }));
+  }
+  box.appendChild(actions);
 }
 
 export function guard(title, mount) {
