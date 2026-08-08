@@ -1,25 +1,28 @@
-import * as hub from "./hub.js?v=20260808-258856f";
-import { registeredCount } from "./stages.js?v=20260808-258856f";
-import * as store from "./project-store.js?v=20260808-258856f";
-import * as bridge from "./bridge.js?v=20260808-258856f";
+import * as hub from "./hub.js?v=20260808-61e2197";
+import { registeredCount } from "./stages.js?v=20260808-61e2197";
+import * as store from "./project-store.js?v=20260808-61e2197";
+import * as bridge from "./bridge.js?v=20260808-61e2197";
 
 // Pages register themselves on import. This list is the only place that has to
 // change when one is added.
-import "./pages/dashboard.js?v=20260808-258856f";
-import "./pages/projects.js?v=20260808-258856f";
-import "./pages/repository.js?v=20260808-258856f";
-import "./pages/notes.js?v=20260808-258856f";
-import "./pages/plotter.js?v=20260808-258856f";
-import "./pages/signal.js?v=20260808-258856f";
-import "./pages/fem.js?v=20260808-258856f";
-import "./pages/storyboard.js?v=20260808-258856f";
-import "./pages/docs.js?v=20260808-258856f";
-import "./pages/ingest.js?v=20260808-258856f";
-import "./pages/postprocess.js?v=20260808-258856f";
-import "./pages/prepare.js?v=20260808-258856f";
-import "./pages/analysis.js?v=20260808-258856f";
-import "./pages/manage.js?v=20260808-258856f";
-import "./pages/workbench.js?v=20260808-258856f";
+import "./pages/dashboard.js?v=20260808-61e2197";
+import "./pages/projects.js?v=20260808-61e2197";
+import "./pages/repository.js?v=20260808-61e2197";
+import "./pages/notes.js?v=20260808-61e2197";
+import "./pages/plotter.js?v=20260808-61e2197";
+import "./pages/signal.js?v=20260808-61e2197";
+import "./pages/fem.js?v=20260808-61e2197";
+import "./pages/storyboard.js?v=20260808-61e2197";
+import "./pages/docs.js?v=20260808-61e2197";
+
+// Imported last on purpose: it wraps whatever each page already does.
+import { completeAllPages } from "./spec-page.js?v=20260808-61e2197";
+import "./pages/ingest.js?v=20260808-61e2197";
+import "./pages/postprocess.js?v=20260808-61e2197";
+import "./pages/prepare.js?v=20260808-61e2197";
+import "./pages/analysis.js?v=20260808-61e2197";
+import "./pages/manage.js?v=20260808-61e2197";
+import "./pages/workbench.js?v=20260808-61e2197";
 
 /**
  * Entry point for the Research Hub.
@@ -35,6 +38,12 @@ function open() {
   if (opened) return;
   opened = true;
   hub.init({ store, bridge });
+  // Every page completes itself against the Qt spec: keeps what it does, and
+  // shows what the desktop app has that it does not, disabled rather than
+  // faked. Async because the spec is fetched; the hub repaints when it lands.
+  void completeAllPages()
+    .then(() => hub.refresh())
+    .catch((error) => console.warn("[research] spec completion:", error.message));
   // Resume last session's folder and project. Deliberately after init, not
   // before: the hub should paint immediately, and the pages re-mount by
   // themselves when a project opens. It used to happen only on the Projects

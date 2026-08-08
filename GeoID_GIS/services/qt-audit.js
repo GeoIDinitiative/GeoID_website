@@ -51,7 +51,12 @@ async function geoidQtAudit({ page = null, full = false } = {}) {
       hub.setPage(id);
       await wait(110);
       const host = d.getElementById("research-page");
-      rendered[id] = {
+
+      // A tabbed panel renders only its active tab, so scraping once counts
+      // every control on the other tabs as missing. Visit them all and union
+      // the results -- otherwise the audit measures the tab widget, not the
+      // page.
+      const scrape = () => ({
         tabs: Array.from(host.querySelectorAll(".qt-tab, .shell-tab, .dash-tabs > *")).map(txt),
         sections: Array.from(host.querySelectorAll(".qt-section-head")).map(txt),
         cardTitles: Array.from(host.querySelectorAll(
@@ -63,7 +68,29 @@ async function geoidQtAudit({ page = null, full = false } = {}) {
           .map((n) => n.placeholder || ""),
         options: Array.from(host.querySelectorAll("option")).map(txt),
         headers: Array.from(host.querySelectorAll(".qt-table-head")).map(txt),
-      };
+      });
+      const merged = scrape();
+      const seenTabs = new Set();
+      for (let pass = 0; pass < 3; pass += 1) {
+        const strips = Array.from(host.querySelectorAll(".qt-tabs, .dash-tabs"));
+        let clicked = false;
+        for (const strip of strips) {
+          for (const tab of Array.from(strip.children)) {
+            const key = `${strips.indexOf(strip)}:${txt(tab)}`;
+            if (seenTabs.has(key)) continue;
+            seenTabs.add(key);
+            tab.click();
+            clicked = true;
+            await wait(70);
+            const next = scrape();
+            for (const field of Object.keys(merged)) {
+              merged[field] = [...merged[field], ...next[field]];
+            }
+          }
+        }
+        if (!clicked) break;
+      }
+      rendered[id] = merged;
     }
   }
 

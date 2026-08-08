@@ -7,13 +7,25 @@
       "Run Training Script",
       "Browse"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [
       "Select inputs",
       "From data bus:",
       "Extra args:"
     ],
+    "loose": {
+      "buttons": [
+        "Use Selected",
+        "Refresh",
+        "Inspect Dataset",
+        "Run Training Script",
+        "Browse"
+      ],
+      "fields": []
+    },
     "options": {},
     "placeholders": {
       "_bus_combo": "Registered datasets\u2026"
@@ -77,7 +89,38 @@
       "Show Equations",
       "Auto-fill BC Placeholders"
     ],
+    "by_tab": {
+      "AI Copilot": {
+        "buttons": [
+          "Generate Suggestions",
+          "AI Populate Draft",
+          "Show Equations",
+          "Auto-fill BC Placeholders"
+        ],
+        "fields": []
+      },
+      "Guided Workflow": {
+        "buttons": [
+          "Apply Roadmap Template",
+          "Browse",
+          "Apply Example Defaults",
+          "Apply Recommended Presets",
+          "Open Mesh Tools",
+          "Auto-detect Physical Groups",
+          "Open Setup Editor",
+          "Open IC/BC Editor",
+          "Create Simulation Now",
+          "Export Run Script",
+          "Back",
+          "Next",
+          "Save Draft",
+          "Exit Builder"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [
       "Build Simulation",
@@ -103,6 +146,10 @@
       "Define IC/BC with mesh flags and physical groups.",
       "AI Copilot"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "roadmap_combo": [
         "Custom",
@@ -154,7 +201,9 @@
       "Load Columns",
       "Remove"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [
       "Preprocessing Plotter",
@@ -165,6 +214,18 @@
       "Z",
       "Tag"
     ],
+    "loose": {
+      "buttons": [
+        "+ Add Dataset",
+        "Plot Selected",
+        "Preview",
+        "Send to StoryBoard",
+        "Browse",
+        "Load Columns",
+        "Remove"
+      ],
+      "fields": []
+    },
     "options": {
       "plot_type": [
         "line",
@@ -206,8 +267,35 @@
       "Create solver variant",
       "Rebuild solver index"
     ],
+    "by_tab": {},
     "checkboxes": [
       "Guided patching (insert TODO blocks)"
+    ],
+    "fields": [
+      [
+        "Template solver",
+        "template"
+      ],
+      [
+        "New solver name",
+        "new_name"
+      ],
+      [
+        "DOF name",
+        "dof_name"
+      ],
+      [
+        "DOF type",
+        "dof_type"
+      ],
+      [
+        "Domain",
+        "domain"
+      ],
+      [
+        "Equation (math)",
+        "equation"
+      ]
     ],
     "groups": [],
     "labels": [
@@ -219,6 +307,38 @@
       "Domain",
       "Equation (math)"
     ],
+    "loose": {
+      "buttons": [
+        "Create solver variant",
+        "Rebuild solver index"
+      ],
+      "fields": [
+        [
+          "Template solver",
+          "template"
+        ],
+        [
+          "New solver name",
+          "new_name"
+        ],
+        [
+          "DOF name",
+          "dof_name"
+        ],
+        [
+          "DOF type",
+          "dof_type"
+        ],
+        [
+          "Domain",
+          "domain"
+        ],
+        [
+          "Equation (math)",
+          "equation"
+        ]
+      ]
+    },
     "options": {
       "dof_type": [
         "scalar",
@@ -258,7 +378,79 @@
       "Refresh",
       "Open Pipeline Runner"
     ],
+    "by_tab": {
+      "Atlas Ecosystem": {
+        "buttons": [
+          "Start Tour",
+          "Run Pipeline"
+        ],
+        "fields": []
+      },
+      "GeoID Overview": {
+        "buttons": [],
+        "fields": []
+      },
+      "Keyboard Shortcuts": {
+        "buttons": [],
+        "fields": []
+      },
+      "Navigation Guide": {
+        "buttons": [],
+        "fields": []
+      },
+      "Pipeline Status": {
+        "buttons": [
+          "Open Pipeline Runner"
+        ],
+        "fields": []
+      },
+      "Projects": {
+        "buttons": [
+          "Refresh"
+        ],
+        "fields": [
+          [
+            "Name:",
+            "project_name"
+          ],
+          [
+            "Phase:",
+            "project_phase"
+          ],
+          [
+            "Progress:",
+            "project_progress"
+          ],
+          [
+            "Next action:",
+            "project_next"
+          ]
+        ]
+      },
+      "Tips & Workflows": {
+        "buttons": [],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [
+      [
+        "Name:",
+        "project_name"
+      ],
+      [
+        "Phase:",
+        "project_phase"
+      ],
+      [
+        "Progress:",
+        "project_progress"
+      ],
+      [
+        "Next action:",
+        "project_next"
+      ]
+    ],
     "groups": [],
     "labels": [
       "Dashboard",
@@ -269,6 +461,10 @@
       "Progress:",
       "Next action:"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {},
     "placeholders": {
       "project_search": "Search projects\u2026"
@@ -309,12 +505,32 @@
       "Create Release Bundle",
       "Generate Publish Bundle"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [
       "Run A",
       "Run B"
     ],
+    "loose": {
+      "buttons": [
+        "Refresh",
+        "Open",
+        "Add to StoryBoard",
+        "Send to Preprocessing",
+        "Send to AI Trainer",
+        "Create Repro Bundle",
+        "Generate PDF Report",
+        "Use Selected",
+        "Compare Runs",
+        "Plot Metric Comparison",
+        "Refresh Experiments",
+        "Create Release Bundle",
+        "Generate Publish Bundle"
+      ],
+      "fields": []
+    },
     "options": {},
     "placeholders": {
       "run_compare_a": "Run A path or JSON\u2026",
@@ -375,7 +591,26 @@
       "Start Watch",
       "Accept Suggestion"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [
+      [
+        "Destination folder",
+        "dest_combo"
+      ],
+      [
+        "Custom path",
+        "custom_dest"
+      ],
+      [
+        "Watch folder",
+        "watch_row"
+      ],
+      [
+        "Interval (s)",
+        "watch_interval"
+      ]
+    ],
     "groups": [],
     "labels": [
       "Preprocessing Workspace",
@@ -386,6 +621,38 @@
       "Watch folder",
       "Interval (s)"
     ],
+    "loose": {
+      "buttons": [
+        "+ Add Dataset",
+        "Promote \u2192 main",
+        "Clone \u2192 test",
+        "Refresh",
+        "\u2190 Use selected",
+        "Compare",
+        "Run Quality Check",
+        "\u2026",
+        "Start Watch",
+        "Accept Suggestion"
+      ],
+      "fields": [
+        [
+          "Destination folder",
+          "dest_combo"
+        ],
+        [
+          "Custom path",
+          "custom_dest"
+        ],
+        [
+          "Watch folder",
+          "watch_row"
+        ],
+        [
+          "Interval (s)",
+          "watch_interval"
+        ]
+      ]
+    },
     "options": {
       "dest_combo": [
         "data/raw",
@@ -470,9 +737,22 @@
       "Attach page to project",
       "\u21bb"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [],
+    "loose": {
+      "buttons": [
+        "\u2190",
+        "\u2192",
+        "\uff0b New doc",
+        "\uff0b New sheet",
+        "Attach page to project",
+        "\u21bb"
+      ],
+      "fields": []
+    },
     "options": {},
     "placeholders": {},
     "qt_class": "DocsSheetsPage",
@@ -493,9 +773,20 @@
       "Export HTML",
       "Use"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Generate EDA Report",
+        "Export HTML",
+        "Use"
+      ],
+      "fields": []
+    },
     "options": {},
     "placeholders": {
       "_path": "CSV / TSV\u2026"
@@ -523,7 +814,18 @@
       "Run Equation",
       "Export Result CSV"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [
+      [
+        "Name",
+        "_symbol_name"
+      ],
+      [
+        "Type",
+        "_define_mode"
+      ]
+    ],
     "groups": [
       "Define Symbol"
     ],
@@ -535,6 +837,27 @@
       "Symbols",
       "Equation"
     ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Load Dataset",
+        "Use Bus",
+        "Create Symbol",
+        "Remove Symbol",
+        "Run Equation",
+        "Export Result CSV"
+      ],
+      "fields": [
+        [
+          "Name",
+          "_symbol_name"
+        ],
+        [
+          "Type",
+          "_define_mode"
+        ]
+      ]
+    },
     "options": {
       "_define_mode": [
         "Whole Matrix",
@@ -591,8 +914,136 @@
       "Rank Features",
       "Save Feature Matrix"
     ],
+    "by_tab": {
+      "Feature Selection": {
+        "buttons": [
+          "Rank Features"
+        ],
+        "fields": [
+          [
+            "Target column:",
+            "_sel_target"
+          ],
+          [
+            "Method:",
+            "_sel_method"
+          ],
+          [
+            "Top-K features:",
+            "_sel_k"
+          ],
+          [
+            "Results:",
+            "_sel_result"
+          ]
+        ]
+      },
+      "Lag Features": {
+        "buttons": [
+          "Browse",
+          "Load",
+          "Add Lag Features"
+        ],
+        "fields": [
+          [
+            "Columns:",
+            "_lag_cols"
+          ],
+          [
+            "Lag steps:",
+            "_lag_steps"
+          ]
+        ]
+      },
+      "Polynomial / Interaction": {
+        "buttons": [
+          "Generate Polynomial Features"
+        ],
+        "fields": [
+          [
+            "Columns:",
+            "_poly_cols"
+          ],
+          [
+            "Degree:",
+            "_poly_degree"
+          ]
+        ]
+      },
+      "Preview / Export": {
+        "buttons": [
+          "Save Feature Matrix"
+        ],
+        "fields": []
+      },
+      "Rolling Window": {
+        "buttons": [
+          "Add Rolling Features"
+        ],
+        "fields": [
+          [
+            "Columns:",
+            "_roll_cols"
+          ],
+          [
+            "Windows:",
+            "_roll_windows"
+          ],
+          [
+            "Statistics:",
+            "_roll_stats"
+          ]
+        ]
+      }
+    },
     "checkboxes": [
       "Interaction terms only (no powers)"
+    ],
+    "fields": [
+      [
+        "Columns:",
+        "_lag_cols"
+      ],
+      [
+        "Lag steps:",
+        "_lag_steps"
+      ],
+      [
+        "Columns:",
+        "_roll_cols"
+      ],
+      [
+        "Windows:",
+        "_roll_windows"
+      ],
+      [
+        "Statistics:",
+        "_roll_stats"
+      ],
+      [
+        "Columns:",
+        "_poly_cols"
+      ],
+      [
+        "Degree:",
+        "_poly_degree"
+      ],
+      [
+        "Target column:",
+        "_sel_target"
+      ],
+      [
+        "Method:",
+        "_sel_method"
+      ],
+      [
+        "Top-K features:",
+        "_sel_k"
+      ],
+      [
+        "Results:",
+        "_sel_result"
+      ]
     ],
     "groups": [],
     "labels": [
@@ -607,6 +1058,10 @@
       "Top-K features:",
       "Results:"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "_sel_method": [
         "Correlation (Pearson)",
@@ -664,7 +1119,89 @@
       "Load mesh groups",
       "Save"
     ],
+    "by_tab": {
+      "Composer": {
+        "buttons": [
+          "Browse table",
+          "Insert BC",
+          "Refresh vars",
+          "Load mesh groups"
+        ],
+        "fields": [
+          [
+            "Domain",
+            "bc_domain"
+          ],
+          [
+            "Type",
+            "bc_type"
+          ],
+          [
+            "Variables",
+            "bc_vars"
+          ],
+          [
+            "Mesh flag",
+            "bc_flag"
+          ],
+          [
+            "Physical group",
+            "bc_flag_name"
+          ],
+          [
+            "Value",
+            "bc_value"
+          ],
+          [
+            "Units",
+            "bc_units"
+          ],
+          [
+            "Table file",
+            "table_row"
+          ]
+        ]
+      },
+      "Files": {
+        "buttons": [],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [
+      [
+        "Domain",
+        "bc_domain"
+      ],
+      [
+        "Type",
+        "bc_type"
+      ],
+      [
+        "Variables",
+        "bc_vars"
+      ],
+      [
+        "Mesh flag",
+        "bc_flag"
+      ],
+      [
+        "Physical group",
+        "bc_flag_name"
+      ],
+      [
+        "Value",
+        "bc_value"
+      ],
+      [
+        "Units",
+        "bc_units"
+      ],
+      [
+        "Table file",
+        "table_row"
+      ]
+    ],
     "groups": [
       "BC Composer"
     ],
@@ -679,6 +1216,12 @@
       "Units",
       "Table file"
     ],
+    "loose": {
+      "buttons": [
+        "Save"
+      ],
+      "fields": []
+    },
     "options": {
       "bc_domain": [
         "Auto",
@@ -728,8 +1271,66 @@
       "Clone simulation",
       "Open folder"
     ],
+    "by_tab": {
+      "Configuration": {
+        "buttons": [
+          "Browse"
+        ],
+        "fields": [
+          [
+            "Simulation type",
+            "sim_type"
+          ],
+          [
+            "Solver",
+            "solver"
+          ],
+          [
+            "New simulation name",
+            "sim_name"
+          ],
+          [
+            "Target directory",
+            "target_row"
+          ],
+          [
+            "Clone source (template)",
+            "template_row"
+          ]
+        ]
+      },
+      "Log": {
+        "buttons": [
+          "Clone simulation",
+          "Open folder"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [
       "Clone from template"
+    ],
+    "fields": [
+      [
+        "Simulation type",
+        "sim_type"
+      ],
+      [
+        "Solver",
+        "solver"
+      ],
+      [
+        "New simulation name",
+        "sim_name"
+      ],
+      [
+        "Target directory",
+        "target_row"
+      ],
+      [
+        "Clone source (template)",
+        "template_row"
+      ]
     ],
     "groups": [],
     "labels": [
@@ -742,6 +1343,10 @@
       "required: -",
       "groups: -"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "sim_type": [
         "Fluid (SC)",
@@ -781,7 +1386,55 @@
       "Elicit",
       "Browse"
     ],
+    "by_tab": {
+      "DEM": {
+        "buttons": [],
+        "fields": []
+      },
+      "Literature": {
+        "buttons": [
+          "Google Scholar",
+          "Elicit"
+        ],
+        "fields": []
+      },
+      "Weather": {
+        "buttons": [
+          "\u2026",
+          "Refresh",
+          "Schedule Source"
+        ],
+        "fields": [
+          [
+            "Extra args",
+            "pull_cmd_args"
+          ],
+          [
+            "Retries",
+            "pull_retry"
+          ],
+          [
+            "Schedule",
+            "pull_schedule"
+          ]
+        ]
+      }
+    },
     "checkboxes": [],
+    "fields": [
+      [
+        "Extra args",
+        "pull_cmd_args"
+      ],
+      [
+        "Retries",
+        "pull_retry"
+      ],
+      [
+        "Schedule",
+        "pull_schedule"
+      ]
+    ],
     "groups": [],
     "labels": [
       "Data Puller",
@@ -794,6 +1447,12 @@
       "Schedule",
       "Keywords:"
     ],
+    "loose": {
+      "buttons": [
+        "Browse"
+      ],
+      "fields": []
+    },
     "options": {
       "pull_schedule": [
         "Manual",
@@ -869,11 +1528,25 @@
       "New input file",
       "Save"
     ],
+    "by_tab": {
+      "Files": {
+        "buttons": [
+          "New input file",
+          "Save"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [
       "Inputs"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {},
     "placeholders": {},
     "qt_class": "InputsPage",
@@ -900,7 +1573,85 @@
       "Convert",
       "Insert Embedded Point In Mesh Script"
     ],
+    "by_tab": {
+      "Files": {
+        "buttons": [
+          "New .geo",
+          "New .py",
+          "Save",
+          "Open Gmsh"
+        ],
+        "fields": []
+      },
+      "Tools": {
+        "buttons": [
+          "Browse .msh",
+          "Convert",
+          "Insert Embedded Point In Mesh Script"
+        ],
+        "fields": [
+          [
+            "X",
+            "embed_x"
+          ],
+          [
+            "Y",
+            "embed_y"
+          ],
+          [
+            "Z",
+            "embed_z"
+          ],
+          [
+            "Mesh size (lc)",
+            "embed_lc"
+          ],
+          [
+            "Relative entity",
+            "embed_kind"
+          ],
+          [
+            "Entity tag",
+            "embed_entity"
+          ],
+          [
+            "Point tag (0=auto)",
+            "embed_point_tag"
+          ]
+        ]
+      }
+    },
     "checkboxes": [],
+    "fields": [
+      [
+        "X",
+        "embed_x"
+      ],
+      [
+        "Y",
+        "embed_y"
+      ],
+      [
+        "Z",
+        "embed_z"
+      ],
+      [
+        "Mesh size (lc)",
+        "embed_lc"
+      ],
+      [
+        "Relative entity",
+        "embed_kind"
+      ],
+      [
+        "Entity tag",
+        "embed_entity"
+      ],
+      [
+        "Point tag (0=auto)",
+        "embed_point_tag"
+      ]
+    ],
     "groups": [
       "Embedded Points"
     ],
@@ -916,6 +1667,10 @@
       "Entity tag",
       "Point tag (0=auto)"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "embed_kind": [
         "Surface",
@@ -961,9 +1716,42 @@
       "Scan Project for CRS Info",
       "Save Notes"
     ],
+    "by_tab": {
+      "CRS Inventory": {
+        "buttons": [
+          "Scan Project for CRS Info"
+        ],
+        "fields": []
+      },
+      "Dataset Registry": {
+        "buttons": [
+          "Refresh",
+          "Register File"
+        ],
+        "fields": []
+      },
+      "Lineage / Provenance": {
+        "buttons": [
+          "Refresh",
+          "Clear History"
+        ],
+        "fields": []
+      },
+      "Notes": {
+        "buttons": [
+          "Save Notes"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {},
     "placeholders": {
       "_crs_text": "Click 'Scan' to inspect CRS metadata of all spatial files in the project.",
@@ -1018,7 +1806,97 @@
       "Run Test",
       "Browse Community Modules"
     ],
+    "by_tab": {
+      "Community": {
+        "buttons": [
+          "Browse Community Modules"
+        ],
+        "fields": []
+      },
+      "Editor": {
+        "buttons": [
+          "New",
+          "Open",
+          "\u21ba",
+          "Save",
+          "Install & Reload",
+          "Uninstall"
+        ],
+        "fields": []
+      },
+      "Metadata": {
+        "buttons": [
+          "Apply to Editor"
+        ],
+        "fields": [
+          [
+            "Name:",
+            "_m_name"
+          ],
+          [
+            "Stage:",
+            "_m_stage"
+          ],
+          [
+            "Label (tab text):",
+            "_m_label"
+          ],
+          [
+            "Description:",
+            "_m_desc"
+          ],
+          [
+            "Version:",
+            "_m_version"
+          ],
+          [
+            "Author:",
+            "_m_author"
+          ],
+          [
+            "Category:",
+            "_m_category"
+          ]
+        ]
+      },
+      "Test": {
+        "buttons": [
+          "Run Test"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [
+      [
+        "Name:",
+        "_m_name"
+      ],
+      [
+        "Stage:",
+        "_m_stage"
+      ],
+      [
+        "Label (tab text):",
+        "_m_label"
+      ],
+      [
+        "Description:",
+        "_m_desc"
+      ],
+      [
+        "Version:",
+        "_m_version"
+      ],
+      [
+        "Author:",
+        "_m_author"
+      ],
+      [
+        "Category:",
+        "_m_category"
+      ]
+    ],
     "groups": [],
     "labels": [
       "My Modules",
@@ -1034,6 +1912,10 @@
       "Run the module in a subprocess and capture stdout/stderr:",
       "Extra args:"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "_m_category": [
         "Transform",
@@ -1090,9 +1972,17 @@
     "buttons": [
       "Rescan Plugins"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [],
+    "loose": {
+      "buttons": [
+        "Rescan Plugins"
+      ],
+      "fields": []
+    },
     "options": {},
     "placeholders": {},
     "qt_class": "PluginManagerPage",
@@ -1120,7 +2010,72 @@
       "Decimate & Save",
       "Export"
     ],
+    "by_tab": {
+      "Decimate / Thin": {
+        "buttons": [
+          "Decimate & Save"
+        ],
+        "fields": [
+          [
+            "Method:",
+            "_dec_method"
+          ],
+          [
+            "Parameter:",
+            "_dec_param"
+          ],
+          [
+            "Output:",
+            "dec_out"
+          ]
+        ]
+      },
+      "Export": {
+        "buttons": [
+          "Export"
+        ],
+        "fields": [
+          [
+            "Format:",
+            "_exp_fmt"
+          ],
+          [
+            "Output:",
+            "_exp_out"
+          ]
+        ]
+      },
+      "File Info / Stats": {
+        "buttons": [
+          "Browse",
+          "Load"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [
+      [
+        "Method:",
+        "_dec_method"
+      ],
+      [
+        "Parameter:",
+        "_dec_param"
+      ],
+      [
+        "Output:",
+        "dec_out"
+      ],
+      [
+        "Format:",
+        "_exp_fmt"
+      ],
+      [
+        "Output:",
+        "_exp_out"
+      ]
+    ],
     "groups": [],
     "labels": [
       "No point cloud loaded.",
@@ -1129,6 +2084,10 @@
       "Output:",
       "Format:"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "_dec_method": [
         "Every Nth point",
@@ -1182,8 +2141,169 @@
       "Extract Station Timeseries",
       "Convert Binary To CSV"
     ],
+    "by_tab": {
+      "GALES Toolkit": {
+        "buttons": [
+          "Browse",
+          "Extract Interpolated DOF Timeseries",
+          "Quick Plot Last Extraction",
+          "Validate GALES Inputs",
+          "Refresh GALES Results",
+          "Open Selected GALES Result",
+          "Run Selected Module",
+          "Find Station Nodes",
+          "Find Station Elements",
+          "Extract Station Timeseries",
+          "Convert Binary To CSV"
+        ],
+        "fields": [
+          [
+            "Source mode",
+            "mode"
+          ],
+          [
+            "Source path",
+            "src_row"
+          ],
+          [
+            "Time column",
+            "time_col"
+          ],
+          [
+            "Gmsh entity column",
+            "entity_col"
+          ],
+          [
+            "DOF value column",
+            "dof_col"
+          ],
+          [
+            "Probe definitions",
+            "points"
+          ],
+          [
+            "Station format",
+            "gales_station_format"
+          ],
+          [
+            "Extract mode",
+            "gales_extract_mode"
+          ],
+          [
+            "Delta t",
+            "gales_dt"
+          ],
+          [
+            "Run mode",
+            "gales_restart"
+          ],
+          [
+            "Script modules",
+            "gales_module_list"
+          ],
+          [
+            "Status",
+            "gales_status"
+          ],
+          [
+            "Catalog filters",
+            "gales_filter_row"
+          ],
+          [
+            "Module catalog",
+            "gales_catalog"
+          ],
+          [
+            "Module details",
+            "gales_module_details"
+          ],
+          [
+            "Module readiness",
+            "gales_module_status"
+          ],
+          [
+            "Outputs",
+            "gales_results_tree"
+          ]
+        ]
+      },
+      "Generic DOF Extractor": {
+        "buttons": [],
+        "fields": []
+      }
+    },
     "checkboxes": [
       "Overwrite outputs"
+    ],
+    "fields": [
+      [
+        "Source mode",
+        "mode"
+      ],
+      [
+        "Source path",
+        "src_row"
+      ],
+      [
+        "Time column",
+        "time_col"
+      ],
+      [
+        "Gmsh entity column",
+        "entity_col"
+      ],
+      [
+        "DOF value column",
+        "dof_col"
+      ],
+      [
+        "Probe definitions",
+        "points"
+      ],
+      [
+        "Station format",
+        "gales_station_format"
+      ],
+      [
+        "Extract mode",
+        "gales_extract_mode"
+      ],
+      [
+        "Delta t",
+        "gales_dt"
+      ],
+      [
+        "Run mode",
+        "gales_restart"
+      ],
+      [
+        "Script modules",
+        "gales_module_list"
+      ],
+      [
+        "Status",
+        "gales_status"
+      ],
+      [
+        "Catalog filters",
+        "gales_filter_row"
+      ],
+      [
+        "Module catalog",
+        "gales_catalog"
+      ],
+      [
+        "Module details",
+        "gales_module_details"
+      ],
+      [
+        "Module readiness",
+        "gales_module_status"
+      ],
+      [
+        "Outputs",
+        "gales_results_tree"
+      ]
     ],
     "groups": [
       "Advanced Generic DOF Utility",
@@ -1218,6 +2338,12 @@
       "Module readiness",
       "Outputs"
     ],
+    "loose": {
+      "buttons": [
+        "Browse"
+      ],
+      "fields": []
+    },
     "options": {
       "gales_extract_mode": [
         "Node-based extraction",
@@ -1292,7 +2418,133 @@
       "Resample Raster",
       "Check Alignment"
     ],
+    "by_tab": {
+      "Coordinate Transform": {
+        "buttons": [
+          "Browse",
+          "Transform Coordinates"
+        ],
+        "fields": [
+          [
+            "Input file",
+            "in_row"
+          ],
+          [
+            "Output file",
+            "out_row"
+          ],
+          [
+            "CRS",
+            "crs_row"
+          ],
+          [
+            "Columns",
+            "col_row"
+          ]
+        ]
+      },
+      "Spatial Tools": {
+        "buttons": [
+          "Browse",
+          "Clip Points",
+          "Resample Raster",
+          "Check Alignment"
+        ],
+        "fields": [
+          [
+            "Input",
+            "clip_in_row"
+          ],
+          [
+            "Output",
+            "clip_out_row"
+          ],
+          [
+            "X/Y cols",
+            "clip_cols"
+          ],
+          [
+            "Bounds",
+            "clip_bounds"
+          ],
+          [
+            "Raster input",
+            "raster_in_row"
+          ],
+          [
+            "Raster output",
+            "raster_out_row"
+          ],
+          [
+            "Target resolution",
+            "raster_res"
+          ],
+          [
+            "Vector",
+            "align_vector_row"
+          ],
+          [
+            "Raster",
+            "align_raster_row"
+          ]
+        ]
+      }
+    },
     "checkboxes": [],
+    "fields": [
+      [
+        "Input file",
+        "in_row"
+      ],
+      [
+        "Output file",
+        "out_row"
+      ],
+      [
+        "CRS",
+        "crs_row"
+      ],
+      [
+        "Columns",
+        "col_row"
+      ],
+      [
+        "Input",
+        "clip_in_row"
+      ],
+      [
+        "Output",
+        "clip_out_row"
+      ],
+      [
+        "X/Y cols",
+        "clip_cols"
+      ],
+      [
+        "Bounds",
+        "clip_bounds"
+      ],
+      [
+        "Raster input",
+        "raster_in_row"
+      ],
+      [
+        "Raster output",
+        "raster_out_row"
+      ],
+      [
+        "Target resolution",
+        "raster_res"
+      ],
+      [
+        "Vector",
+        "align_vector_row"
+      ],
+      [
+        "Raster",
+        "align_raster_row"
+      ]
+    ],
     "groups": [],
     "labels": [
       "Preprocessing \u2014 Transforms",
@@ -1319,6 +2571,10 @@
       "Vector",
       "Raster"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {},
     "placeholders": {
       "coord_input": "Input XYZ dataset (.csv or .txt)",
@@ -1400,7 +2656,59 @@
       "Annotate Pin",
       "Unpin Selected"
     ],
+    "by_tab": {
+      "Daily": {
+        "buttons": [
+          "Refresh Briefing",
+          "Export Briefing"
+        ],
+        "fields": []
+      },
+      "Executive": {
+        "buttons": [
+          "Refresh Summary",
+          "Export Summary"
+        ],
+        "fields": []
+      },
+      "Overview": {
+        "buttons": [
+          "Create Note",
+          "Import Dataset",
+          "Open Latest Figure",
+          "Resume Last Workflow",
+          "Open Storyboard",
+          "Export Repro Snapshot"
+        ],
+        "fields": []
+      },
+      "Reports": {
+        "buttons": [],
+        "fields": []
+      },
+      "Resources": {
+        "buttons": [
+          "Star",
+          "Annotate",
+          "Unstar",
+          "Open Selected",
+          "Refresh Board",
+          "Pin Selected",
+          "Annotate Pin",
+          "Unpin Selected"
+        ],
+        "fields": []
+      },
+      "Weekly": {
+        "buttons": [
+          "Refresh Weekly",
+          "Export Weekly"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [
       "Project Board",
@@ -1411,6 +2719,10 @@
       "Starred Workflows",
       "Live Resources"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "board_mode_combo": [
         "Operations",
@@ -1489,7 +2801,170 @@
       "Import Preset",
       "Load Preset File"
     ],
+    "by_tab": {
+      "Activity": {
+        "buttons": [],
+        "fields": []
+      },
+      "Command Center": {
+        "buttons": [],
+        "fields": []
+      },
+      "Pipeline": {
+        "buttons": [
+          "Move Up",
+          "Move Down",
+          "Apply Pipeline",
+          "Export Preset",
+          "Import Preset",
+          "Load Preset File"
+        ],
+        "fields": []
+      },
+      "Planning": {
+        "buttons": [
+          "Add Milestone",
+          "Remove Milestone"
+        ],
+        "fields": []
+      },
+      "Profile": {
+        "buttons": [
+          "\u25c8 Sync with Atlas"
+        ],
+        "fields": [
+          [
+            "Phase",
+            "phase"
+          ],
+          [
+            "Priority",
+            "priority"
+          ],
+          [
+            "Progress",
+            "prog_wrap"
+          ],
+          [
+            "Description",
+            "description"
+          ],
+          [
+            "Collaborators",
+            "collaborators"
+          ],
+          [
+            "Tags",
+            "tags"
+          ],
+          [
+            "Focus question",
+            "focus_question"
+          ],
+          [
+            "Template",
+            "project_template"
+          ],
+          [
+            "Min latitude",
+            "min_lat"
+          ],
+          [
+            "Max latitude",
+            "max_lat"
+          ],
+          [
+            "Min longitude",
+            "min_lon"
+          ],
+          [
+            "Max longitude",
+            "max_lon"
+          ],
+          [
+            "CRS",
+            "crs"
+          ]
+        ]
+      },
+      "Projects": {
+        "buttons": [
+          "+ New Project",
+          "Delete",
+          "Refresh",
+          "Open Folder"
+        ],
+        "fields": []
+      },
+      "Review": {
+        "buttons": [
+          "Open Study Area Map",
+          "Save Project Details",
+          "Create Project",
+          "Export Project Brief"
+        ],
+        "fields": []
+      },
+      "Study Area": {
+        "buttons": [],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [
+      [
+        "Phase",
+        "phase"
+      ],
+      [
+        "Priority",
+        "priority"
+      ],
+      [
+        "Progress",
+        "prog_wrap"
+      ],
+      [
+        "Description",
+        "description"
+      ],
+      [
+        "Collaborators",
+        "collaborators"
+      ],
+      [
+        "Tags",
+        "tags"
+      ],
+      [
+        "Focus question",
+        "focus_question"
+      ],
+      [
+        "Template",
+        "project_template"
+      ],
+      [
+        "Min latitude",
+        "min_lat"
+      ],
+      [
+        "Max latitude",
+        "max_lat"
+      ],
+      [
+        "Min longitude",
+        "min_lon"
+      ],
+      [
+        "Max longitude",
+        "max_lon"
+      ],
+      [
+        "CRS",
+        "crs"
+      ]
+    ],
     "groups": [
       "Research Planner",
       "Study Area Compass",
@@ -1500,6 +2975,19 @@
       "Workspace",
       "Project Editor",
       "5%",
+      "Phase",
+      "Priority",
+      "Progress",
+      "Description",
+      "Collaborators",
+      "Tags",
+      "Focus question",
+      "Template",
+      "Min latitude",
+      "Max latitude",
+      "Min longitude",
+      "Max longitude",
+      "CRS",
       "Next actions (one per line)",
       "Risks / caveats (one per line)",
       "Key decisions / assumptions (one per line)",
@@ -1507,6 +2995,10 @@
       "Bounds summary: -",
       "Pipeline Builder"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "phase": [
         "Scoping",
@@ -1606,11 +3098,35 @@
       "Parse Raw -> Form",
       "Save props.txt"
     ],
+    "by_tab": {
+      "Form": {
+        "buttons": [
+          "Add Key",
+          "Remove Key",
+          "Add Block",
+          "Remove Block"
+        ],
+        "fields": []
+      },
+      "Raw": {
+        "buttons": [
+          "Parse Raw -> Form"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [
       "Properties"
     ],
+    "loose": {
+      "buttons": [
+        "Save props.txt"
+      ],
+      "fields": []
+    },
     "options": {},
     "placeholders": {},
     "qt_class": "PropertiesPage",
@@ -1642,11 +3158,38 @@
       "\u2026",
       "Apply Fixes & Export"
     ],
+    "by_tab": {
+      "File QA": {
+        "buttons": [
+          "Browse",
+          "Load & Audit"
+        ],
+        "fields": []
+      },
+      "Fix & Export": {
+        "buttons": [
+          "\u2026",
+          "Apply Fixes & Export"
+        ],
+        "fields": []
+      },
+      "Spatial QA": {
+        "buttons": [],
+        "fields": []
+      },
+      "Temporal QA": {
+        "buttons": [
+          "Run Temporal Check"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [
       "Drop duplicate rows",
       "Fill null values with method:",
       "Trim string whitespace"
     ],
+    "fields": [],
     "groups": [],
     "labels": [
       "No file loaded.",
@@ -1654,6 +3197,10 @@
       "Duplicate rows: \u2013",
       "Datetime column:"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "_fill_method": [
         "forward fill",
@@ -1716,7 +3263,84 @@
       "Reproject Only",
       "Run Band Math"
     ],
+    "by_tab": {
+      "Band Math": {
+        "buttons": [
+          "Run Band Math"
+        ],
+        "fields": []
+      },
+      "Clip / Reproject": {
+        "buttons": [
+          "\u2026",
+          "Clip to BBox",
+          "Reproject Only"
+        ],
+        "fields": [
+          [
+            "North (max lat):",
+            "_clip_north"
+          ],
+          [
+            "South (min lat):",
+            "_clip_south"
+          ],
+          [
+            "East  (max lon):",
+            "_clip_east"
+          ],
+          [
+            "West  (min lon):",
+            "_clip_west"
+          ],
+          [
+            "Target CRS:",
+            "_target_crs"
+          ],
+          [
+            "Output:",
+            "out_row"
+          ]
+        ]
+      },
+      "Inspect / Stats": {
+        "buttons": [
+          "Browse",
+          "Load",
+          "Heatmap",
+          "Histogram",
+          "All Band Stats"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [
+      [
+        "North (max lat):",
+        "_clip_north"
+      ],
+      [
+        "South (min lat):",
+        "_clip_south"
+      ],
+      [
+        "East  (max lon):",
+        "_clip_east"
+      ],
+      [
+        "West  (min lon):",
+        "_clip_west"
+      ],
+      [
+        "Target CRS:",
+        "_target_crs"
+      ],
+      [
+        "Output:",
+        "out_row"
+      ]
+    ],
     "groups": [],
     "labels": [
       "No raster loaded.",
@@ -1730,6 +3354,10 @@
       "Expression \u2014 use B1, B2\u2026 for band arrays (NumPy syntax):",
       "Output filename:"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {},
     "placeholders": {
       "_clip_out": "Output path (auto if blank)",
@@ -1785,13 +3413,29 @@
       "</>",
       "\u2022"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [
       "unsaved",
       "Find:",
       "0 words"
     ],
+    "loose": {
+      "buttons": [
+        "Save",
+        "Timestamp",
+        "H1",
+        "H2",
+        "H3",
+        "B",
+        "I",
+        "</>",
+        "\u2022"
+      ],
+      "fields": []
+    },
     "options": {},
     "placeholders": {
       "_search_field": "Search notes\u2026",
@@ -1816,7 +3460,70 @@
       "Reload Settings",
       "Sync Collaborators To Project"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [
+      [
+        "NASA username",
+        "nasa_username"
+      ],
+      [
+        "NASA password/token",
+        "nasa_password"
+      ],
+      [
+        "NOAA GFS key/token",
+        "gfs_api_key"
+      ],
+      [
+        "RainViewer key/token",
+        "rainviewer_api_key"
+      ],
+      [
+        "Other source name",
+        "other_source_name"
+      ],
+      [
+        "Other source token",
+        "other_source_token"
+      ],
+      [
+        "Daily summary email",
+        "daily_summary_email"
+      ],
+      [
+        "Storyboard share list",
+        "storyboard_share_emails"
+      ],
+      [
+        "Collaborator emails",
+        "collaborator_emails"
+      ],
+      [
+        "SMTP server",
+        "smtp_server"
+      ],
+      [
+        "SMTP port",
+        "smtp_port"
+      ],
+      [
+        "SMTP username",
+        "smtp_username"
+      ],
+      [
+        "SMTP password",
+        "smtp_password"
+      ],
+      [
+        "Theme",
+        "theme_mode"
+      ],
+      [
+        "Accent color",
+        "accent_color"
+      ]
+    ],
     "groups": [
       "Data Source Credentials",
       "Communication + Sharing",
@@ -1842,6 +3549,76 @@
       "Theme",
       "Accent color"
     ],
+    "loose": {
+      "buttons": [
+        "Apply Appearance",
+        "Save Settings",
+        "Reload Settings",
+        "Sync Collaborators To Project"
+      ],
+      "fields": [
+        [
+          "NASA username",
+          "nasa_username"
+        ],
+        [
+          "NASA password/token",
+          "nasa_password"
+        ],
+        [
+          "NOAA GFS key/token",
+          "gfs_api_key"
+        ],
+        [
+          "RainViewer key/token",
+          "rainviewer_api_key"
+        ],
+        [
+          "Other source name",
+          "other_source_name"
+        ],
+        [
+          "Other source token",
+          "other_source_token"
+        ],
+        [
+          "Daily summary email",
+          "daily_summary_email"
+        ],
+        [
+          "Storyboard share list",
+          "storyboard_share_emails"
+        ],
+        [
+          "Collaborator emails",
+          "collaborator_emails"
+        ],
+        [
+          "SMTP server",
+          "smtp_server"
+        ],
+        [
+          "SMTP port",
+          "smtp_port"
+        ],
+        [
+          "SMTP username",
+          "smtp_username"
+        ],
+        [
+          "SMTP password",
+          "smtp_password"
+        ],
+        [
+          "Theme",
+          "theme_mode"
+        ],
+        [
+          "Accent color",
+          "accent_color"
+        ]
+      ]
+    },
     "options": {},
     "placeholders": {
       "accent_color": "#16f4ff",
@@ -1879,13 +3656,33 @@
       "Add all missing",
       "Save setup.txt"
     ],
+    "by_tab": {
+      "Editor": {
+        "buttons": [],
+        "fields": []
+      },
+      "Library": {
+        "buttons": [
+          "Add selected",
+          "Add all missing"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [
       "Setup",
       "expected: -",
       "missing: -"
     ],
+    "loose": {
+      "buttons": [
+        "Save setup.txt"
+      ],
+      "fields": []
+    },
     "options": {},
     "placeholders": {},
     "qt_class": "SetupPage",
@@ -1931,7 +3728,58 @@
       "Stop External Run",
       "Browse"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [
+      [
+        "Spectral source",
+        "spectral_source"
+      ],
+      [
+        "NFFT window",
+        "nfft"
+      ],
+      [
+        "Overlap %",
+        "overlap_pct"
+      ],
+      [
+        "Top candidates",
+        "thesis_candidate_count"
+      ],
+      [
+        "Wavelet plots",
+        "thesis_sync_plots"
+      ],
+      [
+        "Source path",
+        "external_path"
+      ],
+      [
+        "Function",
+        "external_function"
+      ],
+      [
+        "Working dir",
+        "external_workdir"
+      ],
+      [
+        "JSON kwargs",
+        "external_args"
+      ],
+      [
+        "CSV path",
+        "row"
+      ],
+      [
+        "Time column",
+        "t_col"
+      ],
+      [
+        "Value column",
+        "y_col"
+      ]
+    ],
     "groups": [
       "Advanced Generic Signal Utilities",
       "Advanced Signal Diagnostics",
@@ -1962,6 +3810,84 @@
       "Time column",
       "Value column"
     ],
+    "loose": {
+      "buttons": [
+        "Load Headers",
+        "Compare Model vs Real",
+        "Compare Model vs Other Model",
+        "PSD + Spectrogram",
+        "Cross-Correlation",
+        "Validate Inputs",
+        "Refresh Results",
+        "Open Selected Result",
+        "Run Selected Module",
+        "Load Peak CSVs",
+        "Run Wavelet Suite",
+        "Correlation",
+        "SNR",
+        "Joint",
+        "Temporal",
+        "Categorical",
+        "Summary CSV",
+        "Load Thesis Inputs",
+        "Run Thesis Suite",
+        "Refresh Catalog",
+        "Run Function",
+        "Run Script Main",
+        "Stop External Run",
+        "Browse"
+      ],
+      "fields": [
+        [
+          "Spectral source",
+          "spectral_source"
+        ],
+        [
+          "NFFT window",
+          "nfft"
+        ],
+        [
+          "Overlap %",
+          "overlap_pct"
+        ],
+        [
+          "Top candidates",
+          "thesis_candidate_count"
+        ],
+        [
+          "Wavelet plots",
+          "thesis_sync_plots"
+        ],
+        [
+          "Source path",
+          "external_path"
+        ],
+        [
+          "Function",
+          "external_function"
+        ],
+        [
+          "Working dir",
+          "external_workdir"
+        ],
+        [
+          "JSON kwargs",
+          "external_args"
+        ],
+        [
+          "CSV path",
+          "row"
+        ],
+        [
+          "Time column",
+          "t_col"
+        ],
+        [
+          "Value column",
+          "y_col"
+        ]
+      ]
+    },
     "options": {
       "spectral_source": [
         "Model series",
@@ -2050,8 +3976,96 @@
       "Run Full Pipeline",
       "Stop"
     ],
+    "by_tab": {
+      "Discover": {
+        "buttons": [
+          "Browse",
+          "Load"
+        ],
+        "fields": [
+          [
+            "Simulation directory",
+            "row"
+          ],
+          [
+            "Filter by type",
+            "filter"
+          ]
+        ]
+      },
+      "Run": {
+        "buttons": [
+          "Browse",
+          "Convert Mesh",
+          "Build",
+          "Run",
+          "Run Full Pipeline",
+          "Stop"
+        ],
+        "fields": [
+          [
+            "Mesh (.msh)",
+            "mesh_row"
+          ],
+          [
+            "Cores (N)",
+            "cores"
+          ],
+          [
+            "Build command",
+            "build_cmd"
+          ],
+          [
+            "Executable name",
+            "exec_name"
+          ],
+          [
+            "Execution profile",
+            "exec_profile"
+          ],
+          [
+            "Remote host",
+            "exec_remote_host"
+          ]
+        ]
+      }
+    },
     "checkboxes": [
       "Oversubscribe MPI"
+    ],
+    "fields": [
+      [
+        "Simulation directory",
+        "row"
+      ],
+      [
+        "Filter by type",
+        "filter"
+      ],
+      [
+        "Mesh (.msh)",
+        "mesh_row"
+      ],
+      [
+        "Cores (N)",
+        "cores"
+      ],
+      [
+        "Build command",
+        "build_cmd"
+      ],
+      [
+        "Executable name",
+        "exec_name"
+      ],
+      [
+        "Execution profile",
+        "exec_profile"
+      ],
+      [
+        "Remote host",
+        "exec_remote_host"
+      ]
     ],
     "groups": [],
     "labels": [
@@ -2067,6 +4081,10 @@
       "Execution profile",
       "Remote host"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "exec_profile": [
         "Local",
@@ -2121,7 +4139,69 @@
       "Run Test",
       "Plot Distribution"
     ],
+    "by_tab": {
+      "Clustering": {
+        "buttons": [
+          "Cluster"
+        ],
+        "fields": []
+      },
+      "Correlation": {
+        "buttons": [
+          "Browse",
+          "Load",
+          "Use",
+          "Compute Correlation Matrix"
+        ],
+        "fields": []
+      },
+      "Distributions": {
+        "buttons": [
+          "Plot Distribution"
+        ],
+        "fields": []
+      },
+      "Hypothesis Tests": {
+        "buttons": [
+          "Run Test"
+        ],
+        "fields": [
+          [
+            "Test:",
+            "hyp_info_row"
+          ],
+          [
+            "Column A:",
+            "_hyp_col_a"
+          ],
+          [
+            "Column B:",
+            "_hyp_col_b"
+          ]
+        ]
+      },
+      "PCA": {
+        "buttons": [
+          "Run PCA"
+        ],
+        "fields": []
+      }
+    },
     "checkboxes": [],
+    "fields": [
+      [
+        "Test:",
+        "hyp_info_row"
+      ],
+      [
+        "Column A:",
+        "_hyp_col_a"
+      ],
+      [
+        "Column B:",
+        "_hyp_col_b"
+      ]
+    ],
     "groups": [],
     "labels": [
       "or from bus:",
@@ -2134,6 +4214,10 @@
       "Column:",
       "Load a dataset to begin."
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "_clust_method": [
         "kmeans",
@@ -2207,7 +4291,9 @@
       "Insert [cite]",
       "Export .bib"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [],
     "groups": [],
     "labels": [
       "Title:",
@@ -2220,6 +4306,31 @@
       "Comments / Tasks",
       "Live collaboration endpoint: not configured"
     ],
+    "loose": {
+      "buttons": [
+        "B",
+        "I",
+        "U",
+        "Bullets",
+        "Numbers",
+        "Quote",
+        "Code",
+        "Divider",
+        "Time Stamp",
+        "AI Outline",
+        "Insert Figure",
+        "Export HTML",
+        "Share",
+        "Compile",
+        "Add",
+        "Remove",
+        "Add Citation",
+        "Remove Citation",
+        "Insert [cite]",
+        "Export .bib"
+      ],
+      "fields": []
+    },
     "options": {
       "story_style": [
         "Body",
@@ -2271,8 +4382,101 @@
       "\u2026",
       "Save Result"
     ],
+    "by_tab": {
+      "Gap Fill / De-spike": {
+        "buttons": [
+          "Run Gap Fill",
+          "Run De-spike"
+        ],
+        "fields": [
+          [
+            "Gap fill method:",
+            "_fill_method"
+          ],
+          [
+            "Fill limit (steps):",
+            "_fill_limit"
+          ],
+          [
+            "De-spike method:",
+            "_despike_method"
+          ],
+          [
+            "Threshold (\u03c3 / IQR):",
+            "_despike_thr"
+          ]
+        ]
+      },
+      "Preview / Export": {
+        "buttons": [
+          "\u2026",
+          "Save Result"
+        ],
+        "fields": []
+      },
+      "Resample / Align": {
+        "buttons": [
+          "Browse",
+          "Load",
+          "Run Resample",
+          "Run Rolling Stat"
+        ],
+        "fields": [
+          [
+            "Resample to:",
+            "_resample_freq"
+          ],
+          [
+            "Aggregation:",
+            "_resample_agg"
+          ],
+          [
+            "Rolling window (steps):",
+            "_rolling_window"
+          ],
+          [
+            "Rolling stat:",
+            "_rolling_stat"
+          ]
+        ]
+      }
+    },
     "checkboxes": [
       "Centred window"
+    ],
+    "fields": [
+      [
+        "Resample to:",
+        "_resample_freq"
+      ],
+      [
+        "Aggregation:",
+        "_resample_agg"
+      ],
+      [
+        "Rolling window (steps):",
+        "_rolling_window"
+      ],
+      [
+        "Rolling stat:",
+        "_rolling_stat"
+      ],
+      [
+        "Gap fill method:",
+        "_fill_method"
+      ],
+      [
+        "Fill limit (steps):",
+        "_fill_limit"
+      ],
+      [
+        "De-spike method:",
+        "_despike_method"
+      ],
+      [
+        "Threshold (\u03c3 / IQR):",
+        "_despike_thr"
+      ]
     ],
     "groups": [],
     "labels": [
@@ -2287,6 +4491,10 @@
       "De-spike method:",
       "Threshold (\u03c3 / IQR):"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "_despike_method": [
         "Z-score",
@@ -2376,7 +4584,112 @@
       "\u2026",
       "Save"
     ],
+    "by_tab": {
+      "Export": {
+        "buttons": [
+          "\u2026",
+          "Save"
+        ],
+        "fields": [
+          [
+            "Format:",
+            "_export_fmt"
+          ],
+          [
+            "Output:",
+            "exp_out_row"
+          ]
+        ]
+      },
+      "Geometry Ops": {
+        "buttons": [
+          "Browse",
+          "Load",
+          "Buffer",
+          "Dissolve by Field",
+          "Simplify",
+          "Reproject"
+        ],
+        "fields": [
+          [
+            "Buffer:",
+            "buf_row"
+          ],
+          [
+            "Dissolve field:",
+            "diss_row"
+          ],
+          [
+            "Simplify:",
+            "simp_row"
+          ],
+          [
+            "Target CRS:",
+            "reproj_row"
+          ]
+        ]
+      },
+      "Table Ops": {
+        "buttons": [
+          "Browse",
+          "Run Join",
+          "Calculate Field"
+        ],
+        "fields": [
+          [
+            "Join CSV:",
+            "jcsv_row"
+          ],
+          [
+            "New field:",
+            "_calc_field"
+          ],
+          [
+            "Expression:",
+            "_calc_expr"
+          ]
+        ]
+      }
+    },
     "checkboxes": [],
+    "fields": [
+      [
+        "Buffer:",
+        "buf_row"
+      ],
+      [
+        "Dissolve field:",
+        "diss_row"
+      ],
+      [
+        "Simplify:",
+        "simp_row"
+      ],
+      [
+        "Target CRS:",
+        "reproj_row"
+      ],
+      [
+        "Join CSV:",
+        "jcsv_row"
+      ],
+      [
+        "New field:",
+        "_calc_field"
+      ],
+      [
+        "Expression:",
+        "_calc_expr"
+      ],
+      [
+        "Format:",
+        "_export_fmt"
+      ],
+      [
+        "Output:",
+        "exp_out_row"
+      ]
+    ],
     "groups": [],
     "labels": [
       "No vector file loaded.",
@@ -2394,6 +4707,10 @@
       "Format:",
       "Output:"
     ],
+    "loose": {
+      "buttons": [],
+      "fields": []
+    },
     "options": {
       "_buf_units": [
         "metres (projected)",
@@ -2455,7 +4772,30 @@
       "\u25b6  Run All Steps",
       "\u25a0  Stop"
     ],
+    "by_tab": {},
     "checkboxes": [],
+    "fields": [
+      [
+        "Name:",
+        "_step_name"
+      ],
+      [
+        "Command / Script:",
+        "cmd_row"
+      ],
+      [
+        "Arguments:",
+        "_step_args"
+      ],
+      [
+        "Working dir:",
+        "_step_workdir"
+      ],
+      [
+        "Env vars:",
+        "_step_env"
+      ]
+    ],
     "groups": [],
     "labels": [
       "Workflow name:",
@@ -2467,6 +4807,41 @@
       "Working dir:",
       "Env vars:"
     ],
+    "loose": {
+      "buttons": [
+        "Save Workflow",
+        "Load Workflow",
+        "+ Script",
+        "+ Command",
+        "Remove",
+        "Browse",
+        "Apply Changes",
+        "\u25b6  Run All Steps",
+        "\u25a0  Stop"
+      ],
+      "fields": [
+        [
+          "Name:",
+          "_step_name"
+        ],
+        [
+          "Command / Script:",
+          "cmd_row"
+        ],
+        [
+          "Arguments:",
+          "_step_args"
+        ],
+        [
+          "Working dir:",
+          "_step_workdir"
+        ],
+        [
+          "Env vars:",
+          "_step_env"
+        ]
+      ]
+    },
     "options": {},
     "placeholders": {
       "_step_args": "Arguments (optional)\u2026",
@@ -2498,8 +4873,27 @@
       "Browse",
       "Convert to STL"
     ],
+    "by_tab": {},
     "checkboxes": [
       "Apply meshing"
+    ],
+    "fields": [
+      [
+        "Input XYZ",
+        "in_row"
+      ],
+      [
+        "Output STL",
+        "out_row"
+      ],
+      [
+        "Mode",
+        "mesh_mode"
+      ],
+      [
+        "Max points",
+        "max_points"
+      ]
     ],
     "groups": [],
     "labels": [
@@ -2508,6 +4902,30 @@
       "Mode",
       "Max points"
     ],
+    "loose": {
+      "buttons": [
+        "Browse",
+        "Convert to STL"
+      ],
+      "fields": [
+        [
+          "Input XYZ",
+          "in_row"
+        ],
+        [
+          "Output STL",
+          "out_row"
+        ],
+        [
+          "Mode",
+          "mesh_mode"
+        ],
+        [
+          "Max points",
+          "max_points"
+        ]
+      ]
+    },
     "options": {
       "mesh_mode": [
         "Delaunay 2D",

@@ -242,9 +242,19 @@ do, and forgetting the flag gives that page two titles.
 collapsible sections, group boxes, button labels, field placeholders, dropdown
 options and table headers. Read that page's entry before writing it, and run
 `geoidQtAudit()` (`services/qt-audit.js`, in the browser) after. The baseline
-when the audit was built was **19% — 642 missing elements of 788**; it is the
-only honest measure of "identical to the Qt app" there is, and it measures
-structure only, never behaviour.
+when the audit was built was 19% — 642 missing of 788; it is now **98%**, 17
+missing, 32 of 38 pages exact.
+
+That came from `spec-page.js`, not from rewriting pages. `completeAllPages()`
+wraps every page after the hand-written modules register: the page runs and
+keeps what it does, then anything in the spec it did not render is appended in
+an "Also in the desktop app" section — **disabled, titled with why, bucketed by
+its Qt tab**. Never make those look live. A page that scores 100% may still do
+almost nothing; the audit measures inventory, never behaviour, and the honest
+signal is the disabled control rather than the percentage.
+
+To give one of them behaviour, call `wire(pageId, { "Button label": handler })`
+— the layout does not change, the control simply stops being disabled.
 
 `pages/projects.js` is the worked example — it mirrors `GeoIDProjectsPage` (app_qt.py:4570) tab for
 tab and field for field. Match the Qt page when building a new one; someone who

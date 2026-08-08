@@ -135,6 +135,15 @@ class PageVisitor(ast.NodeVisitor):
         self.headers = []
         self.checkboxes = []
         self.widgets = {}
+        # (label, widget-var) pairs -- the app binds them with addRow() and its
+        # own _field() helper, and without the pairing a generated form has
+        # placeholders with nothing above them.
+        self.fields = []
+        # Source lines, so each control can be bucketed into the tab it was
+        # added to. The app builds a tab's widgets and *then* calls addTab, so
+        # a control belongs to the first addTab after it.
+        self.lines = {}
+        self.tab_lines = []
 
     def visit_Assign(self, node):
         # `self.foo = QtWidgets.QLineEdit()` -> remember the widget kind.
@@ -166,6 +175,7 @@ class PageVisitor(ast.NodeVisitor):
             label = literal(args[1])
             if label:
                 self.tabs.append(label)
+                self.tab_lines.append((node.lineno, label))
 
         elif name == "CollapsibleSection" and args:
             label = literal(args[0])
@@ -184,6 +194,7 @@ class PageVisitor(ast.NodeVisitor):
             label = literal(args[0])
             if label:
                 self.buttons.append(label)
+                self.lines.setdefault("buttons", []).append((node.lineno, label))
 
         elif name == "QCheckBox" and args:
             label = literal(args[0])
@@ -212,10 +223,20 @@ class PageVisitor(ast.NodeVisitor):
             if items:
                 self.headers.append(items)
 
-        elif name == "addRow" and len(args) >= 2:
+        elif name in {"addRow", "_field"} and len(args) >= 2:
+            _pair_line = node.lineno
             label = literal(args[0])
             if label:
                 self.labels.append(label)
+                var = None
+                target = args[1]
+                if isinstance(target, ast.Attribute):
+                    var = target.attr
+                elif isinstance(target, ast.Name):
+                    var = target.id
+                if var:
+                    self.fields.append([label, var])
+                    self.lines.setdefault("fields", []).append((_pair_line, [label, var]))
 
         self.generic_visit(node)
 
@@ -223,7 +244,8 @@ class PageVisitor(ast.NodeVisitor):
 def dedupe(seq):
     seen, out = set(), []
     for item in seq:
-        key = json.dumps(item, sort_keys=True) if isinstance(item, dict) else item
+        key = (json.dumps(item, sort_keys=True)
+               if isinstance(item, (dict, list)) else item)
         if key not in seen:
             seen.add(key)
             out.append(item)
@@ -240,6 +262,16 @@ def extract():
         for item in node.body:
             visitor.visit(item)
         page_id = PAGE_CLASSES[node.name]
+        tab_order = sorted(visitor.tab_lines)
+        def bucket(kind):
+            out = {label: [] for _, label in tab_order}
+            loose = []
+            for line, value in visitor.lines.get(kind, []):
+                owner = next((label for at, label in tab_order if at >= line), None)
+                (out[owner] if owner else loose).append(value)
+            return out, loose
+        button_tabs, button_loose = bucket("buttons")
+        field_tabs, field_loose = bucket("fields")
         pages[page_id] = {
             "qt_class": node.name,
             "qt_line": node.lineno,
@@ -251,6 +283,14 @@ def extract():
             "buttons": dedupe(visitor.buttons),
             "labels": dedupe(visitor.labels),
             "checkboxes": dedupe(visitor.checkboxes),
+            "fields": dedupe(visitor.fields),
+            "by_tab": {
+                label: {
+                    "buttons": dedupe(button_tabs.get(label, [])),
+                    "fields": dedupe(field_tabs.get(label, [])),
+                } for _, label in tab_order
+            },
+            "loose": {"buttons": dedupe(button_loose), "fields": dedupe(field_loose)},
             "placeholders": visitor.placeholders,
             "options": visitor.options,
             "tables": visitor.headers,

@@ -1251,3 +1251,16 @@
   border-radius: 8px;
   background: #ffffff;
 }
+
+/* Controls the desktop app has that this hub has not wired yet. Visibly
+   inert -- a disabled control that says why is honest; one that looks live and
+   does nothing is not. */
+#research-hub .button.is-unwired {
+  opacity: 0.42;
+  background: transparent;
+  border-style: dashed;
+  cursor: not-allowed;
+}
+.spec-remainder { border-style: dashed; }
+.spec-remainder > .qt-section-head { color: rgba(var(--skin-muted), 0.8); }
+.spec-tally { font-size: 11px; opacity: 0.8; }

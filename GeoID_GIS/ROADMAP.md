@@ -165,9 +165,18 @@ await geoidQtAudit()                    // summary
 await geoidQtAudit({ page: "Setup" })   // one page and its gaps
 ```
 
-**Baseline, 2026-08-08: 19% structural fidelity — 642 missing elements of
-788.** Best: Data Hub 96%, Docs & Sheets 67%, Projects 66%, Data Repository 60%.
-Twelve pages at 0%.
+**2026-08-08 baseline: 19%** — 642 missing of 788, twelve pages at 0%.
+**After spec completion: 98%** — 17 missing of 788, 32 of 38 pages at 100%.
+
+The jump is `spec-page.js`: every page runs its own code first and keeps
+everything it does, then whatever the desktop app has and it does not is added
+underneath — **disabled, named, and grouped by the tab it belongs to over
+there**. Replacing the pages instead would have thrown away working behaviour
+(Post Processing really extracts probe series) to score better on a structural
+audit.
+
+So 98% is 98% of the *inventory*, not of the function. The controls are all
+there and the ones that do nothing say so on themselves.
 
 It measures **structure only** — titles, tabs, sections, buttons, field
 placeholders, dropdown options, table headers. A page can score 100% and still
