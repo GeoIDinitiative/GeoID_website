@@ -1,11 +1,11 @@
-import { wirePattern, wire } from "./spec-page.js?v=20260808-a50f140";
-import * as store from "./project-store.js?v=20260808-a50f140";
-import * as bridge from "./bridge.js?v=20260808-a50f140";
-import * as stats from "./stats.js?v=20260808-a50f140";
-import * as dsp from "./dsp.js?v=20260808-a50f140";
-import { linePlot } from "./plot.js?v=20260808-a50f140";
-import { column } from "./table.js?v=20260808-a50f140";
-import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260808-a50f140";
+import { wirePattern, wire } from "./spec-page.js?v=20260808-b5b50b0";
+import * as store from "./project-store.js?v=20260808-b5b50b0";
+import * as bridge from "./bridge.js?v=20260808-b5b50b0";
+import * as stats from "./stats.js?v=20260808-b5b50b0";
+import * as dsp from "./dsp.js?v=20260808-b5b50b0";
+import { linePlot } from "./plot.js?v=20260808-b5b50b0";
+import { column } from "./table.js?v=20260808-b5b50b0";
+import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260808-b5b50b0";
 
 /**
  * Behaviour for the controls the spec brings across.
@@ -338,7 +338,7 @@ async function writeCollection(name, collection, say) {
   say(`${(collection.features || []).length} feature(s) written to ${path}.`);
 }
 
-const geo = () => import(`../geoprocessing.js?v=20260808-a50f140`);
+const geo = () => import(`../geoprocessing.js?v=20260808-b5b50b0`);
 
 wire("Vector Tools", {
   Buffer: async ({ say }) => {
@@ -371,9 +371,21 @@ wire("Vector Tools", {
 
 // ── Text: the formatting buttons on Storyboard and Notes ────────────────────
 
+/**
+ * The insert each formatting button makes.
+ *
+ * Keyed by the label the app actually puts on the button. Half of these were
+ * written from a guess -- "Time Stamp", "Code", "Bullets" -- while Research
+ * Notes' toolbar says "Timestamp", "</>" and "•"; the mismatch only surfaced
+ * once the extractor started following the loop that builds that toolbar, and
+ * until then those four buttons rendered disabled beside four identical ones
+ * that worked.
+ */
 const MARKDOWN = {
-  H1: "# ", H2: "## ", H3: "### ", B: "**bold**",
-  Bullets: "- ", Numbers: "1. ", Quote: "> ", Code: "```\n\n```",
+  H1: "# ", H2: "## ", H3: "### ",
+  B: "**bold**", I: "_italic_", U: "<u>underline</u>",
+  Bullets: "- ", "•": "- ", Numbers: "1. ", Quote: "> ",
+  Code: "```\n\n```", "</>": "`code`",
   Divider: "\n---\n", "Insert [cite]": "[cite]",
 };
 
@@ -383,14 +395,14 @@ const MARKDOWN = {
  * The app's formatting buttons act on the focused editor; here the page's own
  * textarea is the editor, so the insert goes at its caret.
  */
-wirePattern(/^(H1|H2|H3|B|Bullets|Numbers|Quote|Code|Divider|Time Stamp|Insert \[cite\])$/,
+wirePattern(/^(H1|H2|H3|B|I|U|Bullets|•|Numbers|Quote|Code|<\/>|Divider|Time ?Stamp|Insert \[cite\])$/,
   async ({ say }, label) => {
     const host = document.getElementById("research-page");
     const box = host.querySelector("textarea:focus")
       || host.querySelector("textarea.research-editor")
       || host.querySelector("textarea");
     if (!box) throw new Error("No editor on this page to insert into.");
-    const text = label === "Time Stamp"
+    const text = /^Time ?Stamp$/.test(label)
       ? new Date().toISOString().slice(0, 16).replace("T", " ")
       : MARKDOWN[label] || "";
     const at = box.selectionStart ?? box.value.length;
