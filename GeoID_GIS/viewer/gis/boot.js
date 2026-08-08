@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20260808-0133dd5";
+import { ready } from "./shell.js?v=20260808-2648929";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -26,7 +26,7 @@ const MODULES = [
   "./planet-strip.js",
 ];
 
-const VERSION = "?v=20260808-0133dd5";
+const VERSION = "?v=20260808-2648929";
 
 async function boot() {
   const shell = await ready;

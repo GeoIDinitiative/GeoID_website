@@ -1,11 +1,11 @@
-import { wirePattern, wire } from "./spec-page.js?v=20260808-0133dd5";
-import * as store from "./project-store.js?v=20260808-0133dd5";
-import * as bridge from "./bridge.js?v=20260808-0133dd5";
-import * as stats from "./stats.js?v=20260808-0133dd5";
-import * as dsp from "./dsp.js?v=20260808-0133dd5";
-import { linePlot } from "./plot.js?v=20260808-0133dd5";
-import { column } from "./table.js?v=20260808-0133dd5";
-import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260808-0133dd5";
+import { wirePattern, wire } from "./spec-page.js?v=20260808-2648929";
+import * as store from "./project-store.js?v=20260808-2648929";
+import * as bridge from "./bridge.js?v=20260808-2648929";
+import * as stats from "./stats.js?v=20260808-2648929";
+import * as dsp from "./dsp.js?v=20260808-2648929";
+import { linePlot } from "./plot.js?v=20260808-2648929";
+import { column } from "./table.js?v=20260808-2648929";
+import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260808-2648929";
 
 /**
  * Behaviour for the controls the spec brings across.
@@ -171,31 +171,31 @@ wire("Research Notes", {
  * a button that cannot do what it says.
  */
 export const CANNOT_WIRE = {
-  "Open Gmsh": "Launches the Gmsh binary; the Meshing Studio is the browser's route.",
-  Convert: "Runs gmsh to convert a mesh; needs the desktop app.",
-  "Convert Mesh": "Same — gmsh, outside the browser.",
-  "Convert Binary To CSV": "Reads GALES binary output; needs the solver's own reader.",
-  "Run Selected Module": "Executes a Python module in the app's interpreter.",
-  "Run Script Main": "Executes Python; there is none here.",
-  "Run Function": "Executes Python; there is none here.",
-  "Run Training Script": "Trains through scikit-learn in the desktop app. The hub "
-    + "writes training_spec.json instead, which that script reads.",
-  "Install & Reload": "Installs a plugin into the desktop app's Python path.",
-  Uninstall: "Removes a plugin from the desktop app's Python path.",
-  "Rebuild solver index": "Indexes solver sources on disk outside the project.",
+  "Run Selected Module": "Executes a Python module in the desktop app's interpreter.",
+  "Run Script Main": "Executes Python; a browser tab has no interpreter.",
+  "Run Function": "Executes Python; a browser tab has no interpreter.",
   "Stop External Run": "There is no external process to stop from a browser tab.",
-  Share: "Publishing needs a service to publish to.",
-  "AI Outline": "Needs a model; see the Copilot note in the Alerts drawer.",
-  "AI Populate Draft": "Needs a model.",
-  "Generate Suggestions": "Needs a model.",
+  "Convert Binary To CSV": "Reads GALES binary output; needs the solver's own reader.",
+  "AI Outline": "Needs a model. See the Copilot note in the Alerts drawer.",
 };
 
 /**
- * These WERE on the impossible list and are not any more: PCA, k-means and the
- * hypothesis tests are short, well-defined algorithms, and `stats.js` writes
- * them out rather than shipping a disabled button. Checked against SciPy in
- * `stats.test.mjs`.
+ * Things that WERE on this list and are not any more, because re-reading beat
+ * trusting the first judgement about them:
+ *
+ * PCA, k-means and the hypothesis tests -- short algorithms, written out in
+ * `stats.js`. Heatmap, Run Join, Reproject and Convert -- `plot.heatmap`,
+ * `geoprocessing.spatialJoin`, `projection.latLonToUtm` and the gmsh node
+ * parser were already in the tree. Run Test, Install and Uninstall -- the
+ * hub's modules are JavaScript, so they genuinely load and run. Start Watch --
+ * a browser cannot be told when a folder changes, but it can look.
+ *
+ * Where a control does less here than in the desktop app it says so on the
+ * page: Convert writes vertices and not elements, Export writes XYZ and not
+ * LAS, Run Training Script fits a baseline and still hands over to the real
+ * trainer through training_spec.json.
  */
+
 
 // ── Analysis: the maths pages ────────────────────────────────────────────────
 
@@ -338,7 +338,7 @@ async function writeCollection(name, collection, say) {
   say(`${(collection.features || []).length} feature(s) written to ${path}.`);
 }
 
-const geo = () => import(`../geoprocessing.js?v=20260808-0133dd5`);
+const geo = () => import(`../geoprocessing.js?v=20260808-2648929`);
 
 wire("Vector Tools", {
   Buffer: async ({ say }) => {

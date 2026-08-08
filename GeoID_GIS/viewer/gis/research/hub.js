@@ -1,6 +1,6 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-0133dd5";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-0133dd5";
-import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-0133dd5";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-2648929";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-2648929";
+import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-2648929";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.

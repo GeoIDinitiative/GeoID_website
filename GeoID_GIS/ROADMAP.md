@@ -193,9 +193,17 @@ is the ten-step, three-phase wizard writing `fem_runs/<run>/spec.json`, and
 `stats`, `dsp` and `plot` in scope. The notebook says it runs JavaScript rather
 than pretending at Python, because a browser tab has no interpreter to lend it.
 
-**262 of 298 controls wired (88%).** The 36 left need a process a browser does
-not have: gmsh, GALES binaries, Python execution, plugin install, a model for
-the "AI" buttons. `CANNOT_WIRE` in wiring.js records each reason.
+**290 of 298 controls wired (97%).** The eight left are the ones that truly
+cannot work in a browser tab: `Run Selected Module`, `Run Script Main` and
+`Run Function` (Python), `Stop External Run` (no external process),
+`Convert Binary To CSV` (GALES binary), and `AI Outline` (needs a model).
+
+Most of what had been written off was not impossible, just unexamined:
+`plot.heatmap`, `geoprocessing.spatialJoin`, `projection.latLonToUtm` and a
+gmsh node parser were already in the tree. Where a control does less than the
+desktop version it says so on the page — Convert writes vertices not elements,
+Export writes XYZ not LAS, Run Training Script fits a baseline and still hands
+over through `training_spec.json`.
 
 It measures **structure only** — titles, tabs, sections, buttons, field
 placeholders, dropdown options, table headers. A page can score 100% and still

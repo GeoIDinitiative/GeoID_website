@@ -1,5 +1,5 @@
-import * as store from "./project-store.js?v=20260808-0133dd5";
-import { el, button, row, statusLine } from "./pages/common.js?v=20260808-0133dd5";
+import * as store from "./project-store.js?v=20260808-2648929";
+import { el, button, row, statusLine } from "./pages/common.js?v=20260808-2648929";
 
 /**
  * The five shell actions from the Qt Research Hub's WorkspaceShell row
