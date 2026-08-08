@@ -106,6 +106,7 @@ class PageReader(ast.NodeVisitor):
         # set anywhere else is *runtime* state, not initial state.
         self.in_init = True
         self.locked = {}      # var -> keys __init__ already decided
+        self.class_lists = {}  # class-level list constants, e.g. _MODELS
 
     def visit_FunctionDef(self, node):
         """Read each method, remembering whether it is the constructor.
@@ -524,7 +525,15 @@ class PageReader(ast.NodeVisitor):
                 if op == "setPlaceholderText" and node.args:
                     self.set_prop(owner, "placeholder", const(node.args[0]))
                 elif op == "addItems" and node.args:
-                    self.set_prop(owner, "items", const_list(node.args[0]))
+                    # `addItems(self._MODELS)` names a class attribute rather
+                    # than a literal; Model Fitting's model list is written that
+                    # way and the combo came out empty.
+                    items = const_list(node.args[0])
+                    if not items:
+                        named = var_of(node.args[0])
+                        items = self.class_lists.get(named, [])
+                    if items:
+                        self.set_prop(owner, "items", items)
                 elif op in ("setHorizontalHeaderLabels", "setHeaderLabels") and node.args:
                     self.set_prop(owner, "headers", const_list(node.args[0]))
                 elif op == "setText" and node.args:
@@ -780,6 +789,15 @@ def extract():
         methods = {m.name: m for m in node.body if isinstance(m, ast.FunctionDef)
                    and m.name != "__init__"}
         reader = PageReader(methods)
+        # Class-level list constants, so `addItems(self._MODELS)` resolves.
+        for item in node.body:
+            if isinstance(item, ast.Assign) and isinstance(item.value, (ast.List, ast.Tuple)):
+                values = const_list(item.value)
+                if values:
+                    for target in item.targets:
+                        name = var_of(target)
+                        if name:
+                            reader.class_lists[name] = values
         for item in node.body:
             reader.visit(item)
         # The page's root layout is the one constructed with `self`.

@@ -1,10 +1,10 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260808-fad7740";
-import * as store from "./project-store.js?v=20260808-fad7740";
-import * as stats from "./stats.js?v=20260808-fad7740";
-import * as dsp from "./dsp.js?v=20260808-fad7740";
-import { linePlot, heatmap } from "./plot.js?v=20260808-fad7740";
-import { column } from "./table.js?v=20260808-fad7740";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-fad7740";
+import { wire, wirePattern } from "./spec-page.js?v=20260808-81e08f4";
+import * as store from "./project-store.js?v=20260808-81e08f4";
+import * as stats from "./stats.js?v=20260808-81e08f4";
+import * as dsp from "./dsp.js?v=20260808-81e08f4";
+import { linePlot, heatmap } from "./plot.js?v=20260808-81e08f4";
+import { column } from "./table.js?v=20260808-81e08f4";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-81e08f4";
 
 /**
  * The last of the spec's controls.
@@ -107,7 +107,7 @@ wire("Raster Tools", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No coordinate columns to reproject.");
-    const projection = await import("../projection.js?v=20260808-fad7740");
+    const projection = await import("../projection.js?v=20260808-81e08f4");
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -164,7 +164,7 @@ wire("Vector Tools", {
     if (collections.length < 2) {
       throw new Error("A spatial join needs two GeoJSON layers in the project.");
     }
-    const g = await import("../geoprocessing.js?v=20260808-fad7740");
+    const g = await import("../geoprocessing.js?v=20260808-81e08f4");
     const joined = g.spatialJoin(collections[0].fc, collections[1].fc);
     const out = `data/processed/joined-${stamp()}.geojson`;
     await store.writeProjectFile(out, JSON.stringify(joined));
@@ -590,5 +590,260 @@ wire("AI Trainer", {
     await store.writeJson(`analysis/baseline-${stamp()}.json`, result);
     say(`Baseline ${feature} → ${target}: R² ${result.r2.toFixed(4)}, `
       + `RMSE ${result.rmse.toPrecision(4)}.`);
+  },
+});
+
+/* ── Analysis pages that had been left disabled ───────────────────────────
+ *
+ * Compute, Detect Events and Fit sat unwired because the Qt page runs them
+ * through numpy/scipy/matplotlib. Each is a short algorithm and `dsp.js` and
+ * `stats.js` already hold the hard parts, so leaving them disabled was the
+ * same mistake as the first pass at Heatmap and Reproject: written off without
+ * being read.
+ */
+
+/** The table a page's path field points at, or the project's first. */
+async function chosenTable(api) {
+  const named = Object.entries(api.values())
+    .find(([key, value]) => /path|file/i.test(key) && typeof value === "string"
+      && value.trim() && /\.(csv|txt|tsv|json)$/i.test(value.trim()));
+  if (named) {
+    const path = named[1].trim();
+    return { path, table: await loadTable(path) };
+  }
+  return firstTable();
+}
+
+/** A named column if the page chose one, else the first numeric column. */
+function seriesFrom(table, chosen) {
+  if (chosen && table.columns.includes(chosen)) {
+    const values = column(table, chosen).filter(Number.isFinite);
+    if (values.length > 1) return { name: chosen, values };
+  }
+  const numeric = numericOf(table);
+  const first = Object.keys(numeric)[0];
+  if (!first) throw new Error("No numeric column in that table.");
+  return { name: first, values: numeric[first] };
+}
+
+wire("Spectral Analysis", {
+  Compute: async (api) => {
+    const { say, values } = api;
+    const { path, table } = await chosenTable(api);
+    const v = values();
+    const signal = seriesFrom(table, v._signal_col);
+    // The page's own sample rate wins; otherwise derive it from the time
+    // column, which is what the spin box is pre-filled from.
+    let fs = Number(v._fs_spin);
+    if (!Number.isFinite(fs) || fs <= 0) {
+      const times = v._time_col && table.columns.includes(v._time_col)
+        ? column(table, v._time_col).filter(Number.isFinite) : [];
+      const step = times.length > 2
+        ? (times[times.length - 1] - times[0]) / (times.length - 1) : 0;
+      fs = step > 0 ? 1 / step : 1;
+    }
+    const windowName = String(v._window_combo || "hann");
+    const spectrum = dsp.amplitudeSpectrum(signal.values, fs, { window: windowName });
+    // `dominantPeak` takes the spectrum object, and the field is `amps`.
+    const peak = dsp.dominantPeak(spectrum);
+    const welch = dsp.welch(signal.values, fs, { window: windowName });
+
+    const canvas = linePlot([
+      { name: `${signal.name} amplitude`, x: Array.from(spectrum.freqs),
+        y: Array.from(spectrum.amps) },
+    ], { width: 880, height: 340, title: `Spectrum — ${path.split("/").pop()}`,
+         labels: { x: "Frequency (Hz)", y: "Amplitude" } });
+    const figure = await saveFigure(canvas, `spectrum_${slug(signal.name)}_${stamp()}.png`,
+                                    "Spectral Analysis");
+    await saveTable(`analysis/spectrum-${slug(signal.name)}-${stamp()}.csv`,
+      ["frequency_hz", "amplitude", "psd"],
+      Array.from(spectrum.freqs).map((f, i) => [f, spectrum.amps[i],
+        welch.psd[Math.min(i, welch.psd.length - 1)]]),
+      "Spectral Analysis", "spectrum");
+    say(`${signal.name} at ${fs.toPrecision(4)} Hz (${windowName}): peak `
+      + `${peak.frequency.toPrecision(4)} Hz. Saved ${figure}.`);
+  },
+});
+
+wire("Event Detection", {
+  "Detect Events": async (api) => {
+    const { say, values } = api;
+    const { path, table } = await chosenTable(api);
+    const v = values();
+    const signal = seriesFrom(table, v._sig_col);
+    const fs = Number(v._fs) > 0 ? Number(v._fs) : 1;
+
+    // The four modes of the Threshold tab (app_qt.py:24205). Each turns the
+    // page's number into an absolute level; detection itself is then the same.
+    const detrended = dsp.detrend(signal.values, "constant");
+    const n = Number(v._thresh_val) || 3;
+    const mode = String(v._thresh_mode || "N × RMS");
+    const rms = Math.sqrt(detrended.reduce((a, x) => a + x * x, 0) / detrended.length);
+    const sd = stats.stdev(Array.from(detrended));
+    const sorted = Array.from(detrended, Math.abs).sort((a, b) => a - b);
+    const mad = sorted[Math.floor(sorted.length / 2)] || 0;
+    const level = mode.startsWith("Absolute") ? n
+      : mode.includes("RMS") ? n * rms
+      : mode.includes("Std") ? n * sd
+      : n * mad * 1.4826;   // MAD scaled to a standard deviation
+
+    const minDur = Math.max(0, Number(v._thresh_min_dur) || 0) * fs;
+    const minGap = Math.max(0, Number(v._thresh_gap) || 0) * fs;
+    const events = [];
+    let start = -1;
+    for (let i = 0; i < detrended.length; i += 1) {
+      const over = Math.abs(detrended[i]) >= level;
+      if (over && start < 0) start = i;
+      if (!over && start >= 0) { events.push([start, i - 1]); start = -1; }
+    }
+    if (start >= 0) events.push([start, detrended.length - 1]);
+
+    // Merge events closer than the minimum gap, then drop the too-short ones --
+    // in that order, because merging can only make an event longer.
+    const merged = [];
+    events.forEach((event) => {
+      const last = merged[merged.length - 1];
+      if (last && event[0] - last[1] <= minGap) last[1] = event[1];
+      else merged.push(event.slice());
+    });
+    const kept = merged.filter(([a, b]) => (b - a + 1) >= minDur);
+
+    const rows = kept.map(([a, b], i) => {
+      const slice = Array.from(detrended.slice(a, b + 1), Math.abs);
+      return [i + 1, a / fs, b / fs, (b - a + 1) / fs, Math.max(...slice)];
+    });
+    const out = `analysis/events-${slug(signal.name)}-${stamp()}.csv`;
+    await saveTable(out, ["event", "start_s", "end_s", "duration_s", "peak_abs"],
+                    rows, "Event Detection", "events");
+    say(`${kept.length} event(s) in ${signal.name} at ${level.toPrecision(4)} `
+      + `(${mode}) from ${path.split("/").pop()}. Saved ${out}.`);
+  },
+});
+
+/**
+ * Least squares by normal equations on a Vandermonde-style basis.
+ *
+ * Every model the page offers is linear in its parameters once the right
+ * transform is applied, so one solver covers all of them: fit `y' = Σ pᵢ·bᵢ(x)`
+ * and invert the transform for the report.
+ */
+function leastSquares(xs, ys, basis) {
+  const k = basis.length;
+  const A = Array.from({ length: k }, () => new Float64Array(k));
+  const b = new Float64Array(k);
+  for (let n = 0; n < xs.length; n += 1) {
+    const row = basis.map((fn) => fn(xs[n]));
+    for (let i = 0; i < k; i += 1) {
+      b[i] += row[i] * ys[n];
+      for (let j = 0; j < k; j += 1) A[i][j] += row[i] * row[j];
+    }
+  }
+  // Gauss-Jordan with partial pivoting; k is at most a handful here.
+  const M = A.map((row, i) => [...row, b[i]]);
+  for (let i = 0; i < k; i += 1) {
+    let pivot = i;
+    for (let r = i + 1; r < k; r += 1) if (Math.abs(M[r][i]) > Math.abs(M[pivot][i])) pivot = r;
+    if (Math.abs(M[pivot][i]) < 1e-12) throw new Error("Model is singular for this data.");
+    [M[i], M[pivot]] = [M[pivot], M[i]];
+    const d = M[i][i];
+    for (let c = i; c <= k; c += 1) M[i][c] /= d;
+    for (let r = 0; r < k; r += 1) {
+      if (r === i) continue;
+      const f = M[r][i];
+      for (let c = i; c <= k; c += 1) M[r][c] -= f * M[i][c];
+    }
+  }
+  return M.map((row) => row[k]);
+}
+
+wire("Model Fitting", {
+  Fit: async (api) => {
+    const { say, values } = api;
+    const { path, table } = await chosenTable(api);
+    const v = values();
+    const numeric = numericOf(table);
+    const names = Object.keys(numeric);
+    const xName = table.columns.includes(v._x_col) ? v._x_col : names[0];
+    const yName = table.columns.includes(v._y_col) ? v._y_col : (names[1] || names[0]);
+    if (!xName || !yName) throw new Error("Need two numeric columns to fit.");
+
+    const rawX = column(table, xName);
+    const rawY = column(table, yName);
+    const xs = [];
+    const ys = [];
+    for (let i = 0; i < Math.min(rawX.length, rawY.length); i += 1) {
+      if (Number.isFinite(rawX[i]) && Number.isFinite(rawY[i])) { xs.push(rawX[i]); ys.push(rawY[i]); }
+    }
+    if (xs.length < 3) throw new Error("Not enough finite rows to fit.");
+
+    const model = String(v._model_combo || "Linear (y=ax+b)");
+    const degree = Math.max(1, Math.min(8, Number(v._poly_deg) || 2));
+    let basis;
+    let toY = (t) => t;
+    let fromY = (t) => t;
+    let form;
+
+    if (model.startsWith("Polynomial")) {
+      basis = Array.from({ length: degree + 1 }, (_, p) => (x) => x ** p);
+      form = `y = Σ pᵢ·x^i (degree ${degree})`;
+    } else if (model.startsWith("Exponential")) {
+      // ln y = ln a + b x, so the fit is linear in log space and only defined
+      // for positive y -- said plainly rather than returning NaNs.
+      if (ys.some((y) => y <= 0)) throw new Error("Exponential fit needs y > 0.");
+      basis = [() => 1, (x) => x];
+      toY = Math.log; fromY = Math.exp;
+      form = "y = a·e^(bx)";
+    } else if (model.startsWith("Logarithmic")) {
+      if (xs.some((x) => x <= 0)) throw new Error("Logarithmic fit needs x > 0.");
+      basis = [() => 1, (x) => Math.log(x)];
+      form = "y = a·ln(x) + b";
+    } else if (model.startsWith("Power")) {
+      if (xs.some((x) => x <= 0) || ys.some((y) => y <= 0)) {
+        throw new Error("Power-law fit needs x > 0 and y > 0.");
+      }
+      basis = [() => 1, (x) => Math.log(x)];
+      toY = Math.log; fromY = Math.exp;
+      form = "y = a·x^b";
+    } else if (model.startsWith("Sinusoidal")) {
+      // A·sin(wx+φ)+C is linear in A·cos φ and A·sin φ once w is fixed, so w
+      // comes from the spectrum and the rest is least squares.
+      const spec = dsp.amplitudeSpectrum(ys, 1);
+      const peak = dsp.dominantPeak(spec);
+      const w = 2 * Math.PI * (peak.frequency || 1 / Math.max(1, xs.length));
+      basis = [() => 1, (x) => Math.sin(w * x), (x) => Math.cos(w * x)];
+      form = `y = A·sin(${w.toPrecision(4)}·x + φ) + C`;
+    } else if (model.startsWith("Custom")) {
+      throw new Error("A custom equation needs an evaluator; use the Notebook page.");
+    } else {
+      basis = [() => 1, (x) => x];
+      form = "y = a·x + b";
+    }
+
+    const params = leastSquares(xs, ys.map(toY), basis);
+    const predict = (x) => fromY(basis.reduce((sum, fn, i) => sum + params[i] * fn(x), 0));
+
+    const fitted = xs.map(predict);
+    const meanY = ys.reduce((a, b) => a + b, 0) / ys.length;
+    const ssRes = ys.reduce((a, y, i) => a + (y - fitted[i]) ** 2, 0);
+    const ssTot = ys.reduce((a, y) => a + (y - meanY) ** 2, 0);
+    const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+    const rmse = Math.sqrt(ssRes / ys.length);
+
+    const order = xs.map((x, i) => i).sort((a, b) => xs[a] - xs[b]);
+    const canvas = linePlot([
+      { name: `${yName} observed`, x: order.map((i) => xs[i]),
+        y: order.map((i) => ys[i]), mode: "scatter" },
+      { name: `${model} fit`, x: order.map((i) => xs[i]), y: order.map((i) => fitted[i]) },
+    ], { width: 880, height: 360, title: `${model} — ${path.split("/").pop()}`,
+         labels: { x: xName, y: yName } });
+    const figure = await saveFigure(canvas, `fit_${slug(yName)}_${stamp()}.png`, "Model Fitting");
+    const result = {
+      source: path, model, form, x: xName, y: yName,
+      parameters: params.map((p, i) => ({ name: `p${i}`, value: p })),
+      r2, rmse, points: xs.length, figure,
+    };
+    await store.writeJson(`analysis/fit-${slug(yName)}-${stamp()}.json`, result);
+    say(`${model}: R² ${r2.toFixed(4)}, RMSE ${rmse.toPrecision(4)} over `
+      + `${xs.length} points. Saved ${figure}.`);
   },
 });

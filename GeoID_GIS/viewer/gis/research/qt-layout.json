@@ -1194,7 +1194,6 @@
      "children": [
       {
        "child": {
-        "items": [],
         "kind": "QComboBox",
         "node": "widget",
         "text": null,
@@ -2728,7 +2727,6 @@
        "var": "__inline1"
       },
       {
-       "items": [],
        "kind": "QComboBox",
        "minWidth": 140,
        "node": "widget",
@@ -3992,7 +3990,6 @@
             },
             {
              "child": {
-              "items": [],
               "kind": "QComboBox",
               "node": "widget",
               "text": null,
@@ -9932,7 +9929,6 @@
        "var": "__inline1"
       },
       {
-       "items": [],
        "kind": "QComboBox",
        "minWidth": 110,
        "node": "widget",
@@ -9946,7 +9942,6 @@
        "var": "__inline2"
       },
       {
-       "items": [],
        "kind": "QComboBox",
        "minWidth": 110,
        "node": "widget",
@@ -9960,7 +9955,15 @@
        "var": "__inline3"
       },
       {
-       "items": [],
+       "items": [
+        "Linear (y=ax+b)",
+        "Polynomial",
+        "Exponential (y=a*e^(bx))",
+        "Logarithmic (y=a*ln(x)+b)",
+        "Power Law (y=a*x^b)",
+        "Sinusoidal (y=A*sin(wx+phi)+C)",
+        "Custom equation"
+       ],
        "kind": "QComboBox",
        "node": "widget",
        "text": null,
@@ -14165,7 +14168,6 @@
       "children": [
        {
         "child": {
-         "items": [],
          "kind": "QComboBox",
          "node": "widget",
          "text": null,
@@ -14268,7 +14270,6 @@
          {
           "children": [
            {
-            "items": [],
             "kind": "QComboBox",
             "node": "widget",
             "text": null,
@@ -15613,7 +15614,6 @@
        "var": "__inline1"
       },
       {
-       "items": [],
        "kind": "QComboBox",
        "minWidth": 120,
        "node": "widget",
@@ -15627,7 +15627,6 @@
        "var": "__inline2"
       },
       {
-       "items": [],
        "kind": "QComboBox",
        "minWidth": 120,
        "node": "widget",
