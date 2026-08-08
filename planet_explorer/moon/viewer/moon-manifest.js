@@ -42,8 +42,8 @@ const manifest = {"planet":{"axial_tilt_deg":1.54},"texture":{"path":"assets/lro
         ? manifest.texture.path.replace("lroc_color_8k.jpg", "lroc_color_4k.jpg")
         : manifest.texture.path;
       const critical = [
-        "./vendor/three.module.js",
-        "./vendor/OrbitControls.js",
+        "/GeoID_GIS/viewer/vendor/three.module.js",
+        "/GeoID_GIS/viewer/vendor/OrbitControls.js",
         _texCheck,
       ];
       const optional = [

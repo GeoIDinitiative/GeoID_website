@@ -103,15 +103,23 @@
     /* Globe wrapper — first viewport experience */
     .globe-wrap {
       flex: 0 0 auto;
-      height: calc(100dvh - var(--nav-h) - 40px);
-      height: calc(100dvh - var(--nav-h) - 40px);
+      /* Full height by default. The 40px this used to subtract was reserved
+         for the hub's collapsed strip, which is display:none until a location
+         is picked -- so with GeoID mode off it was 40px of nothing, a black
+         band under every page. The reserve is now made only when the hub is
+         actually showing (below). */
+      height: calc(100dvh - var(--nav-h));
       min-height: 520px;
       position: relative;
       transition: height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
+    /* Hub armed but collapsed: give its strip the 40px back. */
+    .interface-main.is-hub-showing .globe-wrap {
+      height: calc(100dvh - var(--nav-h) - 40px);
+    }
+
     .interface-main.is-hub-expanded .globe-wrap {
-      height: calc(100dvh - var(--nav-h) - 40px - var(--hub-preview-h));
       height: calc(100dvh - var(--nav-h) - 40px - var(--hub-preview-h));
       min-height: 280px;
     }
@@ -1259,7 +1267,7 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20260810a"
+        src="/GeoID_GIS/viewer/?v=gis-20260810b"
         title="myGeoID — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
@@ -2000,6 +2008,10 @@
           const hubDrawer = document.getElementById("hub-drawer");
           if (hubStrip) hubStrip.hidden = !visible;
           if (hubDrawer) hubDrawer.hidden = !visible;
+          // The globe only gives up height while the hub is actually there.
+          // Announced on the shell so the stylesheet decides the layout rather
+          // than this function reaching into it.
+          shell.classList.toggle("is-hub-showing", visible);
           if (!visible) {
             setDrawerOpen(false);
           }

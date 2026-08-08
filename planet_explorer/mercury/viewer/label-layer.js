@@ -1,4 +1,4 @@
-import * as THREE from "./vendor/three.module.js";
+import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 

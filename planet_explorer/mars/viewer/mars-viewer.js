@@ -1,5 +1,5 @@
-import * as THREE from "./vendor/three.module.js";
-    import { OrbitControls } from "./vendor/OrbitControls.js";
+import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
+    import { OrbitControls } from "/GeoID_GIS/viewer/vendor/OrbitControls.js";
 import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterMoonFeature, getMoonFeatureConnectorStart, buildLabelLayer, buildMoonLayer, buildMoonFeatureLabelLayer, getEntryConnectorStart, updateLabelAnchors, rebuildLabelTextures, updateMoonFeatureLabelVisibility, updateMoonVisibility, updateLabelVisibility } from "./label-layer.js?v=20260802";
 
     if (!window.__ctxPatchDebug) {

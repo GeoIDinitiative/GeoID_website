@@ -1,5 +1,5 @@
-    import * as THREE from "./vendor/three.module.js";
-    import { OrbitControls } from "./vendor/OrbitControls.js";
+    import * as THREE from "/GeoID_GIS/viewer/vendor/three.module.js";
+    import { OrbitControls } from "/GeoID_GIS/viewer/vendor/OrbitControls.js";
 
     const manifest = window.__uranusViewerManifest;
     const app = document.getElementById("app");

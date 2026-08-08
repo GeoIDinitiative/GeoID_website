@@ -37,8 +37,8 @@ const manifest = {"planet":{"axial_tilt_deg":25.19},"texture":{"path":"assets/ma
       setStartupStatus("Checking local viewer files...");
 
       const critical = [
-        "./vendor/three.module.js",
-        "./vendor/OrbitControls.js",
+        "/GeoID_GIS/viewer/vendor/three.module.js",
+        "/GeoID_GIS/viewer/vendor/OrbitControls.js",
         manifest.texture.path,
       ];
       const optional = [
