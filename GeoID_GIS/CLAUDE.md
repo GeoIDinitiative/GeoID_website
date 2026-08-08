@@ -143,6 +143,14 @@ Two things to keep right when touching it:
   a project that is closed, full or unwritable must not break the import or the
   download it is recording.
 
+**Imported layers lag the globe by one frame.** `holdSpin()` in
+`import-manager.js` sets the group's rotation from its own rAF callback, which
+cannot be ordered against the viewer's render loop. Measured: 0.08 degrees at
+60 fps, 0.6 degrees at the ~8 fps the headless software renderer manages. Not
+worth restructuring the render loop for, but do not write a test that asserts
+the two match to better than a frame's worth of rotation -- that is what a
+"regression" here will usually turn out to be.
+
 Pages register into `gis/research/stages.js`; the twelve stages mirror the Qt
 `base_stage_structure` and must not drift from it. An unregistered page renders
 a labelled "not built yet" panel — do not replace that with a plausible-looking

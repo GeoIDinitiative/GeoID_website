@@ -1,14 +1,14 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260809n";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260809n";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260809n";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260809n";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260809n";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260809n";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260809n";
-import { loadMshFile } from "./msh-adapter.js?v=20260809n";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260809n";
-import { buildLayerProperties } from "./layer-properties.js?v=20260809n";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260809o";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260809o";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260809o";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260809o";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260809o";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260809o";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260809o";
+import { loadMshFile } from "./msh-adapter.js?v=20260809o";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260809o";
+import { buildLayerProperties } from "./layer-properties.js?v=20260809o";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -91,8 +91,15 @@ function getBaseName(fileName) {
  */
 function holdSpin() {
   const step = () => {
-    const delta = getViewer()?.getSpinDeltaRadians?.();
-    if (geoGroup && Number.isFinite(delta)) geoGroup.rotation.y = delta;
+    const viewer = getViewer();
+    // Taken from the globe's own rotation rather than recomputed from the
+    // clock: the globe carries a half-turn on top of the spin, and two
+    // parallel derivations of the same angle are two things that can drift
+    // apart. This way the layers use whatever the planet is actually at.
+    const globeY = viewer?.globe?.rotation?.y;
+    if (geoGroup && Number.isFinite(globeY)) {
+      geoGroup.rotation.y = globeY - Math.PI;
+    }
     window.requestAnimationFrame(step);
   };
   window.requestAnimationFrame(step);
