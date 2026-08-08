@@ -9264,7 +9264,7 @@
         "var": "_basemap_combo"
        },
        {
-        "checked": false,
+        "checked": true,
         "kind": "QCheckBox",
         "node": "widget",
         "text": "Embedded",
@@ -10599,7 +10599,7 @@
                 1000000000.0
                ],
                "text": null,
-               "value": null,
+               "value": 1.0,
                "var": "_ch_scale"
               },
               "label": "Scale:",
@@ -10614,7 +10614,7 @@
                 1000000000.0
                ],
                "text": null,
-               "value": null,
+               "value": 0.0,
                "var": "_ch_offset"
               },
               "label": "Offset:",
@@ -14125,7 +14125,7 @@
           65535
          ],
          "text": null,
-         "value": null,
+         "value": 587,
          "var": "smtp_port"
         },
         "label": "SMTP port",
@@ -15648,7 +15648,7 @@
         100000
        ],
        "text": null,
-       "value": null,
+       "value": 1.0,
        "var": "_fs_spin"
       },
       {
@@ -17516,7 +17516,7 @@
               "child": {
                "kind": "QLineEdit",
                "node": "widget",
-               "placeholder": null,
+               "placeholder": "Working dir (blank = project dir)",
                "text": null,
                "var": "_step_workdir"
               },
@@ -17586,7 +17586,7 @@
                100
               ],
               "text": null,
-              "value": null,
+              "value": 0,
               "var": "_progress"
              }
             ],

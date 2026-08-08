@@ -1869,3 +1869,13 @@
 .qt-inline-menu.is-form { padding: 8px; gap: 6px; }
 .qt-stack { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; min-width: 0; }
 .qt-stack > * { flex: 1 1 auto; min-height: 0; min-width: 0; }
+
+/* A splitter's panes fill its height. `.qt-h` centres its children, which is
+   right for a toolbar row and wrong for the two panes of a splitter — the map
+   and the layer panel both sat at their content height with the page empty
+   below them. */
+.qt-splitter > .qt-h,
+.qt-splitter > .qt-v { align-items: stretch; flex: 1 1 auto; min-height: 0; }
+.qt-splitter > .qt-h > * { align-self: stretch; }
+/* Qt gives the layer panel 220–320px and the map the rest. */
+.qt-splitter .qt-h > .qt-container:first-child { flex: 0 0 clamp(13.75rem, 22%, 20rem); }

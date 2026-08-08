@@ -102,6 +102,34 @@ class PageReader(ast.NodeVisitor):
         # Loop variables currently bound to literals, so `QPushButton(label)`
         # inside `for label, slot in [("CSV", …), …]` reads as "CSV".
         self.consts = {}
+        # Whether the statements being read are the constructor's. A property
+        # set anywhere else is *runtime* state, not initial state.
+        self.in_init = True
+        self.locked = {}      # var -> keys __init__ already decided
+
+    def visit_FunctionDef(self, node):
+        """Read each method, remembering whether it is the constructor.
+
+        MapPage sets `self._embed_toggle.setChecked(True)` in `__init__` and
+        `setChecked(False)` in `_ensure_view`, its fallback for when WebEngine
+        is missing. Reading the class in source order let the fallback win, and
+        the page rendered with Embedded switched off — a runtime branch that
+        never applies in a browser deciding how the page starts.
+        """
+        was, self.in_init = self.in_init, node.name == "__init__"
+        self.generic_visit(node)
+        self.in_init = was
+
+    def set_prop(self, var, key, value):
+        """Record a widget property, letting the constructor have the last word."""
+        info = self.widgets.get(var)
+        if info is None:
+            return
+        if not self.in_init and key in self.locked.get(var, ()):
+            return
+        info["props"][key] = value
+        if self.in_init:
+            self.locked.setdefault(var, set()).add(key)
 
     def literal(self, node):
         """A constant, resolving a name the enclosing loop bound to one."""
@@ -493,42 +521,41 @@ class PageReader(ast.NodeVisitor):
 
             # Widget properties, recorded against the receiver.
             elif owner in self.widgets:
-                props = self.widgets[owner]["props"]
                 if op == "setPlaceholderText" and node.args:
-                    props["placeholder"] = const(node.args[0])
+                    self.set_prop(owner, "placeholder", const(node.args[0]))
                 elif op == "addItems" and node.args:
-                    props["items"] = const_list(node.args[0])
+                    self.set_prop(owner, "items", const_list(node.args[0]))
                 elif op in ("setHorizontalHeaderLabels", "setHeaderLabels") and node.args:
-                    props["headers"] = const_list(node.args[0])
+                    self.set_prop(owner, "headers", const_list(node.args[0]))
                 elif op == "setText" and node.args:
-                    props["text"] = const(node.args[0])
+                    self.set_prop(owner, "text", const(node.args[0]))
                 elif op == "setObjectName" and node.args:
-                    props["objectName"] = const(node.args[0])
+                    self.set_prop(owner, "objectName", const(node.args[0]))
                 elif op == "setReadOnly":
-                    props["readOnly"] = bool(const(node.args[0])) if node.args else True
+                    self.set_prop(owner, "readOnly", bool(const(node.args[0])) if node.args else True)
                 elif op == "setChecked":
-                    props["checked"] = bool(const(node.args[0])) if node.args else True
+                    self.set_prop(owner, "checked", bool(const(node.args[0])) if node.args else True)
                 elif op in ("setMaximumHeight", "setFixedHeight") and node.args:
-                    props["maxHeight"] = const(node.args[0])
+                    self.set_prop(owner, "maxHeight", const(node.args[0]))
                 elif op == "setFrameShape" and node.args:
                     shape = node.args[0].attr if isinstance(node.args[0], ast.Attribute) else ""
-                    props["frame"] = shape.lower()
+                    self.set_prop(owner, "frame", shape.lower())
                 elif op == "setWordWrap":
-                    props["wrap"] = True
+                    self.set_prop(owner, "wrap", True)
                 elif op == "setToolTip" and node.args:
-                    props["tip"] = const(node.args[0])
+                    self.set_prop(owner, "tip", const(node.args[0]))
                 elif op in ("setFixedWidth", "setMaximumWidth") and node.args:
-                    props["width"] = const(node.args[0])
+                    self.set_prop(owner, "width", const(node.args[0]))
                 elif op == "setMinimumWidth" and node.args:
-                    props["minWidth"] = const(node.args[0])
+                    self.set_prop(owner, "minWidth", const(node.args[0]))
                 elif op in ("setMinimumHeight",) and node.args:
-                    props["minHeight"] = const(node.args[0])
+                    self.set_prop(owner, "minHeight", const(node.args[0]))
                 elif op == "setRange" and len(node.args) >= 2:
-                    props["range"] = [const(node.args[0]), const(node.args[1])]
+                    self.set_prop(owner, "range", [const(node.args[0]), const(node.args[1])])
                 elif op == "setValue" and node.args:
-                    props["value"] = const(node.args[0])
+                    self.set_prop(owner, "value", const(node.args[0]))
                 elif op == "setCurrentText" and node.args:
-                    props["value"] = const(node.args[0])
+                    self.set_prop(owner, "value", const(node.args[0]))
         self.generic_visit(node)
 
 
