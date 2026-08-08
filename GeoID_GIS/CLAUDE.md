@@ -688,11 +688,49 @@ filesystem and a job that outlives one click.
   desktop app uses — no picker, no IndexedDB, no drift. `--root` may be the
   projects parent or the `geoid_projects` folder itself; `_safe()` strips a
   leading `geoid_projects/` when root is already it.
-- **Wired at three seams:** Settings ▸ Local Sidecar (connect), AI Trainer's Run
+- **Wired at four seams:** Settings ▸ Local Sidecar (connect), AI Trainer's Run
   Training Script + Signal Processing's Run Script Main / Run Function / Stop
   External Run (real jobs, streamed into the page log — `makeRunner` in
-  qt-runtime.js), and the Jobs drawer (live processes with Stop). `hub.js`
-  reprobes a sidecar from last session on load.
+  qt-runtime.js), the FEM **Run** page (GALES, below), and the Jobs drawer (live
+  processes with Stop). `hub.js` reprobes a sidecar from last session on load.
+
+**GALES runs through the sidecar** — this is the FEM stage's execute step, and
+the reason the Model side is real rather than a spec editor. `POST /jobs/gales`
+takes `{dir, cmd?, deck?, cores?}`: it runs `cmd` in the run folder as a
+streamed job, or — with no `cmd` — builds `mpirun -n N gales <deck>` from the
+sole `.in` in the folder (the desktop app's own `atlas_run_gales` form). It
+writes a `status.json` beside the deck through a completion hook on the job
+(`Runner.start(..., on_finish=)`), lifecycle `running → done|failed|stopped`
+with exit code, seconds and a produced-file manifest. The Qt **Run Existing**
+page is already a command runner (working dir, command, Run, Log tab), so the
+wiring is a `qt-runtime.js` module (`galesRunner`), not a hand-built page —
+Browse steps through `fem_runs/`, the command pre-fills from the deck (`run.sh`
+if present, else the `mpirun` line), and Run streams into the Log tab via
+`runJob`. First cut runs a prepared deck; generating the deck from `spec.json`
+(mesh → `mesh_Ncore.txt`, `setup.txt`, `props.txt`, the `.in`) is the next step.
+The GALES box has `mpirun`; the solver binary is `gales` on PATH (the Qt app's
+`GALES_BASE_DIR` is `~/gales`).
+
+**A registered page mount is shadowed by the Qt layout tree.**
+`completeAllPages()` re-registers every page in the spec, and for any page with
+a `qt-layout.json` entry that is not in `KEEP_HANDBUILT` it uses the *tree*
+(`qtMount`), discarding whatever a `pages/*.js` module registered. So the FEM
+`pages/fem.js` mounts (Setup, Properties, IC/BC, Run Existing) never render —
+the tree does. To add behaviour to such a page, wire the tree page in
+`qt-runtime.js` (`RUNTIME[pageId]`, which also sets `specComplete`), or, only for
+a genuinely stateful tool, add it to `KEEP_HANDBUILT`. Do not "fix" a shadowed
+mount by editing the module — edit the runtime or the extractor.
+
+**Testing the sidecar wiring from the harness: `import()` runs in the caller's
+realm.** `javascript_tool` executes in the *top* document, but the hub runs in
+the viewer **iframe**, and ES module registries are per-realm — so
+`await import('…/sidecar.js?v=…')` from the top window gives a *different*
+`sidecar` instance than the page uses, and configuring it leaves the page's Run
+button reporting "no sidecar". Configure the iframe's instance instead: inject a
+`<script type="module">` into the iframe document that imports the same URL and
+calls `configure()`/`probe()` there. The store (`w.GeoIDResearch.store`) is the
+iframe's, so its adapter can be set from either realm; only the *sidecar
+connection state* is realm-bound.
 - **Everything degrades cleanly without it.** The run buttons say to start the
   sidecar rather than failing; the browser store backs the project. The static
   deploy is unchanged.

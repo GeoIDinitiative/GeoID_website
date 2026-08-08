@@ -1,11 +1,11 @@
-import * as store from "./project-store.js?v=20260808-eaa2d1d";
-import * as stats from "./stats.js?v=20260808-eaa2d1d";
-import * as dsp from "./dsp.js?v=20260808-eaa2d1d";
-import { parseTable, column } from "./table.js?v=20260808-eaa2d1d";
-import { linePlot, heatmap } from "./plot.js?v=20260808-eaa2d1d";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-eaa2d1d";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260808-eaa2d1d";
-import * as sidecar from "./sidecar.js?v=20260808-eaa2d1d";
+import * as store from "./project-store.js?v=20260809-e87fe50";
+import * as stats from "./stats.js?v=20260809-e87fe50";
+import * as dsp from "./dsp.js?v=20260809-e87fe50";
+import { parseTable, column } from "./table.js?v=20260809-e87fe50";
+import { linePlot, heatmap } from "./plot.js?v=20260809-e87fe50";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260809-e87fe50";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260809-e87fe50";
+import * as sidecar from "./sidecar.js?v=20260809-e87fe50";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -1217,16 +1217,90 @@ function pipelineRunner(host, api) {
   });
 }
 
+/* ── Run Existing: the FEM stage's execute step ───────────────────────────
+ *
+ * The Qt "Run Existing" page is a command runner — a working directory, a
+ * command, a Run button and a Log tab — which is exactly how the desktop app
+ * launches GALES (`mpirun -n N gales <deck>`). This wires that page to the
+ * sidecar: Run executes the command in the run folder as a streamed job, its
+ * output filling the Log tab, and the sidecar files a status.json beside the
+ * deck. Browse rotates through the project's fem_runs/ so a run is one click
+ * rather than a typed path, and the command is pre-filled from the deck it
+ * finds. Without a sidecar the button says how to start one — the tree still
+ * drew the page, so this only ever attaches behaviour to controls that exist.
+ */
+function galesRunner(host, api) {
+  const say = logger(api);
+  const val = (name) => (api.controls.get(name)?.value || "").trim();
+  const setVal = (name, v, { force = false } = {}) => {
+    const node = api.controls.get(name);
+    if (node && (force || !node.value)) node.value = v;
+  };
+
+  async function runsInProject() {
+    return (await store.listProjectDir("fem_runs").catch(() => []))
+      .filter((e) => e.kind === "directory").map((e) => e.name);
+  }
+  // The command a run implies: a run.sh wrapper if it has one, else the GALES
+  // line built from its deck, else nothing to suggest.
+  async function commandFor(run) {
+    const files = await store.listProjectDir(`fem_runs/${run}`).catch(() => []);
+    if (files.some((e) => e.name === "run.sh")) return "./run.sh";
+    const deck = files.find((e) => e.name.endsWith(".in"));
+    return deck ? `mpirun -n 4 gales ${deck.name}` : null;
+  }
+  async function selectRun(run, { force = false } = {}) {
+    const active = store.getActive();
+    if (!active) return;
+    setVal("workdir", `${active.dir}/fem_runs/${run}`, { force });
+    const cmd = await commandFor(run);
+    if (cmd) setVal("cmd", cmd, { force });
+  }
+
+  // Pre-fill from the first run on mount. Forced, because a freshly rendered
+  // field holds only the tree's placeholder default ("./run.sh"), never typed
+  // input — so replacing it with the run's real command is safe and useful.
+  (async () => {
+    const runs = await runsInProject();
+    if (runs.length) await selectRun(runs[0], { force: true });
+  })();
+
+  // Browse can't open a native dialog against a sandboxed sidecar, so it steps
+  // through the project's runs instead — press again for the next one.
+  bind(host, "Browse", async () => {
+    const runs = await runsInProject();
+    if (!runs.length) { say("No FEM runs yet — create one under FEM ▸ Setup.", true); return; }
+    const current = val("workdir").split("/").pop();
+    const next = runs[(runs.indexOf(current) + 1) % runs.length];
+    await selectRun(next, { force: true });
+    say(`Run: ${next} (${runs.length} in project). Press Browse for the next.`);
+  });
+
+  bind(host, "Run", async () => {
+    if (!sidecar.isConnected()) {
+      say("This runs the solver as a real process — connect the sidecar in "
+        + "Settings ▸ Sidecar first (python3 GeoID_GIS/sidecar/geoid_sidecar.py).", true);
+      return;
+    }
+    const dir = val("workdir");
+    const cmd = val("cmd");
+    if (!dir) { say("Set a working directory — a run folder under the project.", true); return; }
+    if (!cmd) { say("Enter a command to run.", true); return; }
+    runJob(api, host, () => sidecar.runGales({ dir, cmd }));
+  });
+}
+
 export const RUNTIME = {
   "CSV Plotter": csvPlotter,
   "Map": mapComposer,
   "Live Monitor": liveMonitor,
   "Pipeline Editor": pipelineEditor,
   "Pipeline Runner": pipelineRunner,
-  // These *augment* pages the tree already renders; both call their base
-  // runtime nothing, they only re-bind the run/stop buttons.
+  // These *augment* pages the tree already renders; both add nothing to their
+  // base runtime, they only re-bind the run/stop buttons.
   "AI Trainer": aiTrainer,
   "Signal Processing": externalRunner,
+  "Run Existing": galesRunner,
   "Settings": settingsSidecar,
 };
 

@@ -193,6 +193,18 @@ export async function runTraining({ script, dataset, output, args } = {}) {
   return (await call("/jobs/training", { method: "POST",
     body: { script, dataset, output, args } })).job_id;
 }
+/**
+ * Run a prepared GALES sim in a project run folder.
+ *
+ * `dir` is the run folder relative to the projects root — the store's active
+ * `dir` plus `fem_runs/<run>`. The deck (a `.in` file) is auto-detected when
+ * omitted. The sidecar writes `status.json` beside the deck and streams the
+ * solver log as an ordinary job.
+ */
+export async function runGales({ dir, deck, cores, cmd, label } = {}) {
+  return (await call("/jobs/gales", { method: "POST",
+    body: { dir, deck, cores, cmd, label } })).job_id;
+}
 export async function listJobs() {
   return (await call("/jobs")).jobs || [];
 }

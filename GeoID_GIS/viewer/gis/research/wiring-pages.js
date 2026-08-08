@@ -1,11 +1,11 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260808-eaa2d1d";
-import * as store from "./project-store.js?v=20260808-eaa2d1d";
-import * as bridge from "./bridge.js?v=20260808-eaa2d1d";
-import * as dsp from "./dsp.js?v=20260808-eaa2d1d";
-import * as stats from "./stats.js?v=20260808-eaa2d1d";
-import { linePlot } from "./plot.js?v=20260808-eaa2d1d";
-import { parseTable, column } from "./table.js?v=20260808-eaa2d1d";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-eaa2d1d";
+import { wire, wirePattern } from "./spec-page.js?v=20260809-e87fe50";
+import * as store from "./project-store.js?v=20260809-e87fe50";
+import * as bridge from "./bridge.js?v=20260809-e87fe50";
+import * as dsp from "./dsp.js?v=20260809-e87fe50";
+import * as stats from "./stats.js?v=20260809-e87fe50";
+import { linePlot } from "./plot.js?v=20260809-e87fe50";
+import { parseTable, column } from "./table.js?v=20260809-e87fe50";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260809-e87fe50";
 
 /**
  * The rest of the spec's controls.
@@ -453,6 +453,9 @@ wirePattern(/^(▶\s*Run Pipeline|Run Pipeline|▶\s*Run All Steps|Run All)$/,
     say(`${plan.length} step(s) marked run. Solver steps are queued for the desktop runner.`);
   });
 
+// "Run Existing" now runs GALES for real through the sidecar (galesRunner in
+// qt-runtime.js). This queued-status fallback stays only for "Simulation",
+// which has no runtime executor of its own.
 wirePattern(/^(Run|Run Existing)$/, async ({ say }) => {
   const runs = await store.listProjectDir("fem_runs").catch(() => []);
   const dirs = runs.filter((e) => e.kind === "directory");
@@ -463,7 +466,7 @@ wirePattern(/^(Run|Run Existing)$/, async ({ say }) => {
     note: "Queued from the browser; the desktop solver picks this up.",
   });
   say(`${run} queued — status.json written for the desktop runner.`);
-}, { pages: ["Run Existing", "Simulation"] });
+}, { pages: ["Simulation"] });
 
 wirePattern(/^(■\s*Stop|Stop)$/, async ({ say }) => {
   const runs = await store.listProjectDir("fem_runs").catch(() => []);
@@ -757,7 +760,7 @@ wire("Preprocessing Transforms", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No latitude/longitude columns to transform.");
-    const projection = await import(`../projection.js?v=20260808-eaa2d1d`);
+    const projection = await import(`../projection.js?v=20260809-e87fe50`);
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];

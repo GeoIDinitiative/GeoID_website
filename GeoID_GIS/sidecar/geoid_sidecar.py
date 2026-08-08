@@ -85,6 +85,9 @@ class Job:
         self.started_at = time.time()
         self.ended_at: float | None = None
         self.proc: subprocess.Popen | None = None
+        # Called once with this job when it reaches a terminal state, whatever
+        # that state is. A GALES run uses it to write its status.json.
+        self.on_finish = None
         self._lock = threading.Lock()
         self._cond = threading.Condition(self._lock)
 
@@ -133,13 +136,25 @@ class Runner:
         self.jobs: dict[str, Job] = {}
         self._lock = threading.Lock()
 
-    def start(self, kind: str, label: str, argv: list[str], cwd: Path, env: dict | None = None) -> Job:
+    def start(self, kind: str, label: str, argv: list[str], cwd: Path,
+              env: dict | None = None, on_finish=None) -> Job:
         job = Job(uuid.uuid4().hex[:12], kind, label, argv, cwd, env or {})
+        job.on_finish = on_finish
         with self._lock:
             self.jobs[job.id] = job
         thread = threading.Thread(target=self._run, args=(job,), daemon=True)
         thread.start()
         return job
+
+    @staticmethod
+    def _fire_finish(job: Job):
+        """Run a job's completion hook without letting it crash the thread."""
+        if not job.on_finish:
+            return
+        try:
+            job.on_finish(job)
+        except Exception as exc:  # noqa: BLE001 — a hook error must not lose the job
+            job.append(f"[sidecar] finish hook failed: {exc}")
 
     def _run(self, job: Job):
         merged = dict(os.environ)
@@ -159,6 +174,7 @@ class Runner:
         except Exception as exc:  # noqa: BLE001 — any launch failure is a job failure
             job.append(f"[sidecar] could not start: {exc}")
             job.finish("failed", None)
+            self._fire_finish(job)
             return
         job.proc = proc
         job.status = "running"
@@ -173,6 +189,7 @@ class Runner:
         else:
             job.append(f"[sidecar] finished with exit code {code}.")
             job.finish("done" if code == 0 else "failed", code)
+        self._fire_finish(job)
 
     def stop(self, job_id: str) -> bool:
         job = self.jobs.get(job_id)
@@ -292,7 +309,7 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": True, "service": "geoid-sidecar", "version": VERSION,
                 "root": str(self.runner.root),
                 "needs_token": self.token is not None,
-                "capabilities": ["fs", "jobs", "script", "function", "training", "events"],
+                "capabilities": ["fs", "jobs", "script", "function", "training", "gales", "events"],
             }, origin)
             return
 
@@ -351,6 +368,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._start_function(body, origin)
             elif route == "/jobs/training":
                 self._start_training(body, origin)
+            elif route == "/jobs/gales":
+                self._start_gales(body, origin)
             elif route.startswith("/jobs/") and route.endswith("/stop"):
                 ok = self.runner.stop(route.split("/")[2])
                 self._send(200 if ok else 404, {"ok": ok}, origin)
@@ -486,6 +505,95 @@ class Handler(BaseHTTPRequestHandler):
                 "--output", str(out_path), *[str(a) for a in extra]]
         job = self.runner.start("training", f"train {script.name}", argv, script.parent, body.get("env"))
         self._send(200, {"job_id": job.id}, origin)
+
+    def _start_gales(self, body: dict, origin: str):
+        """Run a prepared GALES sim under a run folder and file its status.json.
+
+        This is the FEM stage's execute step. The browser writes the run spec
+        and the deck; the sidecar, which is the process that actually has the
+        solver, runs it — `mpirun -n N gales <deck>`, exactly as the desktop app
+        does (app_qt.py `atlas_run_gales`) — as a streamed job the Jobs drawer
+        and the Run page already follow.
+
+        First cut: the deck (a GALES `.in` file) is expected to be present in the
+        run folder already. Generating the deck (mesh_Ncore.txt, setup.txt,
+        props.txt, the `.in`) from spec.json is a later, larger step.
+
+        The run folder is confined under the projects root like every other path;
+        a `status.json` is written beside the deck so the hub can show queued →
+        running → done|failed without tailing the log.
+        """
+        rel = str(body.get("dir", "")).strip()
+        if not rel:
+            raise ValueError("a run directory is required")
+        run_dir = self._safe(rel)
+        if not run_dir.is_dir():
+            raise FileNotFoundError(f"no such run directory: {rel}")
+
+        cores = int(body.get("cores") or 4)
+        if cores < 1:
+            cores = 1
+        gales_bin = str(body.get("gales_bin") or "gales")
+        mpirun_bin = str(body.get("mpirun") or "mpirun")
+
+        # Two ways in. An explicit command (the Run page's Command box) is run as
+        # given — it is already the whole `mpirun … gales …` line, and needs no
+        # deck. Otherwise the command is built from the deck: named, or the sole
+        # `.in` in the run folder.
+        explicit = str(body.get("cmd") or "").strip()
+        deck = str(body.get("deck", "")).strip()
+        if explicit:
+            argv = shlex.split(explicit)
+            if not argv:
+                raise ValueError("empty command")
+        else:
+            if deck:
+                if not (run_dir / deck).is_file():
+                    raise FileNotFoundError(f"deck not found in run: {deck}")
+            else:
+                decks = sorted(p.name for p in run_dir.glob("*.in"))
+                if not decks:
+                    raise ValueError(
+                        "no command and no .in deck in this run — give a command "
+                        "or place a prepared GALES deck in the run folder")
+                if len(decks) > 1:
+                    raise ValueError(
+                        f"several decks ({', '.join(decks)}) — name one with 'deck'")
+                deck = decks[0]
+            argv = [mpirun_bin, "-n", str(cores), gales_bin, deck]
+        cmd_str = " ".join(argv)
+        label = body.get("label") or f"GALES {Path(rel).name}/{deck}"
+
+        status_path = run_dir / "status.json"
+        started = time.time()
+
+        def write_status(state: str, extra: dict | None = None):
+            payload = {"status": state, "cmd": cmd_str, "deck": deck,
+                       "cores": cores, "updated_at": time.time()}
+            if extra:
+                payload.update(extra)
+            try:
+                status_path.write_text(json.dumps(payload, indent=2))
+            except OSError:
+                pass
+
+        def on_finish(job: Job):
+            secs = int((job.ended_at or time.time()) - started)
+            produced = sorted(
+                str(p.relative_to(run_dir)) for p in run_dir.rglob("*")
+                if p.is_file() and p.name != "status.json")
+            write_status(job.status, {
+                "exit_code": job.exit_code, "run_id": job.id,
+                "started_at": started, "ended_at": job.ended_at, "seconds": secs,
+                "message": f"exit {job.exit_code} in {secs}s"
+                           if job.status != "stopped" else f"stopped after {secs}s",
+                "files": produced,
+            })
+
+        write_status("running", {"started_at": started, "message": "solver started"})
+        job = self.runner.start("gales", label, argv, run_dir, body.get("env"),
+                                on_finish=on_finish)
+        self._send(200, {"job_id": job.id, "deck": deck, "cmd": cmd_str}, origin)
 
     def _job_events(self, job_id: str, query: dict, origin: str):
         """Server-Sent Events: replay the log from `from`, then follow live."""
