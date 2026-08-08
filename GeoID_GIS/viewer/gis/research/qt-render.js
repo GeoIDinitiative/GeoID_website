@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260808-3e1f513";
-import * as store from "./project-store.js?v=20260808-3e1f513";
-import { el, statusLine } from "./pages/common.js?v=20260808-3e1f513";
-import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-3e1f513";
+import { handlerFor } from "./spec-page.js?v=20260808-9c6bfef";
+import * as store from "./project-store.js?v=20260808-9c6bfef";
+import { el, statusLine } from "./pages/common.js?v=20260808-9c6bfef";
+import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-9c6bfef";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -324,6 +324,46 @@ export function renderTree(spec, ctx) {
       const label = el(tag, cls, text);
       if (node.wrap) label.classList.add("is-wrapped");
       return label;
+    }
+
+    // `ToolInfoButton` is a 20px ⓘ that pops what a tool needs — its first
+    // constructor argument names the tool, it is not the button's label.
+    if (node.kind === "ToolInfoButton") {
+      const info = node.info;
+      const button = el("button", "qt-info-btn", "ⓘ");
+      button.type = "button";
+      button.title = node.tool ? `What ${node.tool} needs` : "Requirements";
+      button.addEventListener("click", () => {
+        const open = button.parentElement.querySelector(".qt-info-pop");
+        if (open) { open.remove(); return; }
+        const pop = el("div", "qt-info-pop");
+        pop.appendChild(el("h4", "qt-info-title", node.tool || "Requirements"));
+        if (info && typeof info === "object") {
+          if (info.description) pop.appendChild(el("p", "qt-info-desc", info.description));
+          [["required", "Required"], ["columns", "Columns"], ["minimum", "Minimum"],
+           ["formats", "Formats"], ["notes", "Notes"]].forEach(([key, label]) => {
+            const items = info[key];
+            if (!Array.isArray(items) || !items.length) return;
+            pop.appendChild(el("h5", "qt-info-head", label));
+            const list = el("ul", "qt-info-list");
+            items.forEach((item) => list.appendChild(el("li", null, String(item))));
+            pop.appendChild(list);
+          });
+          if (info.example) {
+            pop.appendChild(el("h5", "qt-info-head", "Example"));
+            pop.appendChild(el("pre", "qt-info-example", String(info.example)));
+          }
+        } else {
+          pop.appendChild(el("p", "qt-info-desc",
+            "This tool's requirements are not recorded in the app's info table."));
+        }
+        const close = el("button", "map-icon-btn", "✕");
+        close.type = "button";
+        close.addEventListener("click", () => pop.remove());
+        pop.firstChild.appendChild(close);
+        button.parentElement.appendChild(pop);
+      });
+      return button;
     }
 
     if (kind === "QPushButton" || kind === "QToolButton") {

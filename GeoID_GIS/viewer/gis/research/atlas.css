@@ -1996,3 +1996,58 @@
   background: var(--atlas-panel);
 }
 .monitor-plot canvas { max-width: 100%; height: auto; }
+
+/* ToolInfoButton: a 20px ⓘ with the tool's requirements behind it. */
+.qt-info-btn {
+  flex: 0 0 auto;
+  width: 20px; height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: rgb(var(--skin-data));
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.qt-info-btn:hover { color: #fff; }
+.qt-info-pop {
+  position: absolute;
+  z-index: 60;
+  max-width: 30rem;
+  max-height: 24rem;
+  overflow: auto;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--skin-chrome), 0.5);
+  border-radius: 8px;
+  background: var(--atlas-panel);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+  scrollbar-width: thin;
+}
+.qt-info-title {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 0 0 6px;
+  font-family: "Orbitron", system-ui, sans-serif;
+  font-size: 0.76rem;
+  letter-spacing: 0.06em;
+  color: rgb(var(--skin-chrome));
+}
+.qt-info-desc { margin: 0 0 6px; font-size: 0.75rem; color: var(--text); }
+.qt-info-head {
+  margin: 8px 0 2px;
+  font-size: 0.66rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgb(var(--skin-data));
+}
+.qt-info-list { margin: 0; padding-left: 1.1rem; font-size: 0.73rem; }
+.qt-info-example {
+  margin: 2px 0 0;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 0.7rem;
+  white-space: pre-wrap;
+}
+/* The row a ⓘ sits in has to be able to hold the popover. */
+.qt-page .qt-h, .qt-page .qt-v { position: relative; }

@@ -4228,9 +4228,11 @@
      "children": [
       {
        "base": "QPushButton",
+       "info": null,
        "kind": "ToolInfoButton",
        "node": "widget",
        "text": null,
+       "tool": null,
        "var": "__inline1"
       },
       {
@@ -4686,9 +4688,11 @@
      "children": [
       {
        "base": "QPushButton",
+       "info": null,
        "kind": "ToolInfoButton",
        "node": "widget",
        "text": null,
+       "tool": null,
        "var": "__inline1"
       },
       {
@@ -5144,9 +5148,11 @@
      "children": [
       {
        "base": "QPushButton",
+       "info": null,
        "kind": "ToolInfoButton",
        "node": "widget",
        "text": null,
+       "tool": null,
        "var": "__inline1"
       },
       {
@@ -5601,9 +5607,11 @@
      "children": [
       {
        "base": "QPushButton",
+       "info": null,
        "kind": "ToolInfoButton",
        "node": "widget",
        "text": null,
+       "tool": null,
        "var": "__inline1"
       },
       {
@@ -6049,9 +6057,11 @@
      "children": [
       {
        "base": "QPushButton",
+       "info": null,
        "kind": "ToolInfoButton",
        "node": "widget",
        "text": null,
+       "tool": null,
        "var": "__inline1"
       },
       {
@@ -6507,9 +6517,11 @@
      "children": [
       {
        "base": "QPushButton",
+       "info": null,
        "kind": "ToolInfoButton",
        "node": "widget",
        "text": null,
+       "tool": null,
        "var": "__inline1"
       },
       {
@@ -6965,9 +6977,11 @@
      "children": [
       {
        "base": "QPushButton",
+       "info": null,
        "kind": "ToolInfoButton",
        "node": "widget",
        "text": null,
+       "tool": null,
        "var": "__inline1"
       },
       {
@@ -7423,9 +7437,11 @@
      "children": [
       {
        "base": "QPushButton",
+       "info": null,
        "kind": "ToolInfoButton",
        "node": "widget",
        "text": null,
+       "tool": null,
        "var": "__inline1"
       },
       {
@@ -7881,9 +7897,11 @@
      "children": [
       {
        "base": "QPushButton",
+       "info": null,
        "kind": "ToolInfoButton",
        "node": "widget",
        "text": null,
+       "tool": null,
        "var": "__inline1"
       },
       {
@@ -8329,9 +8347,11 @@
      "children": [
       {
        "base": "QPushButton",
+       "info": null,
        "kind": "ToolInfoButton",
        "node": "widget",
        "text": null,
+       "tool": null,
        "var": "__inline1"
       },
       {
@@ -8776,9 +8796,11 @@
      "children": [
       {
        "base": "QPushButton",
+       "info": null,
        "kind": "ToolInfoButton",
        "node": "widget",
        "text": null,
+       "tool": null,
        "var": "__inline1"
       },
       {
@@ -12109,9 +12131,35 @@
              "children": [
               {
                "base": "QPushButton",
+               "info": {
+                "columns": [
+                 "time: elapsed time (seconds)",
+                 "x, y, z: spatial coordinates",
+                 "entity: Gmsh entity ID (integer)",
+                 "dof: value column name (e.g. velocity_x)"
+                ],
+                "description": "Extracts Degree-of-Freedom time-series from FEM output CSV files at user-defined probe points.",
+                "example": "P1,0.25,0.25,0.0,1\nP2,0.75,0.50,0.0,1",
+                "formats": [
+                 "Long CSV (all timesteps in one file)",
+                 "Snapshot folder (one CSV per timestep)"
+                ],
+                "minimum": [
+                 "1 snapshot or 100 rows in long CSV",
+                 "At least 1 probe point defined"
+                ],
+                "notes": [
+                 "Probe points are defined as name,x,y,z,entity rows in the Probe definitions field",
+                 "Nearest-node or interpolated extraction mode available"
+                ],
+                "required": [
+                 "FEM output CSV \u2014 either a single long-format file or a folder of snapshot CSVs"
+                ]
+               },
                "kind": "ToolInfoButton",
                "node": "widget",
-               "text": "Generic DOF Extractor",
+               "text": null,
+               "tool": "Generic DOF Extractor",
                "var": "__inline3"
               },
               {
@@ -14901,9 +14949,32 @@
            "children": [
             {
              "base": "QPushButton",
+             "info": {
+              "columns": [
+               "Time column (seconds)",
+               "Amplitude column (numeric)"
+              ],
+              "description": "Continuous Wavelet Transform (CWT) for time-frequency analysis.",
+              "formats": [
+               "CSV",
+               "TXT"
+              ],
+              "minimum": [
+               "512 rows",
+               "Known sample rate"
+              ],
+              "notes": [
+               "Morlet wavelet used by default",
+               "Output: scalogram image + dominant period trace"
+              ],
+              "required": [
+               "Single uniformly-sampled CSV time series"
+              ]
+             },
              "kind": "ToolInfoButton",
              "node": "widget",
-             "text": "Wavelet Analysis",
+             "text": null,
+             "tool": "Wavelet Analysis",
              "var": "__inline17"
             },
             {
@@ -15295,9 +15366,32 @@
            "children": [
             {
              "base": "QPushButton",
+             "info": {
+              "columns": [
+               "Time column: uniform numeric (seconds)",
+               "Value column: numeric amplitude"
+              ],
+              "description": "Load up to 3 time-series (Model / Observed / Peer) and compute spectral diagnostics.",
+              "formats": [
+               "CSV",
+               "TXT"
+              ],
+              "minimum": [
+               "256 rows per series",
+               "Uniform time step"
+              ],
+              "notes": [
+               "Series are colour-coded: Model (cyan), Real (magenta), Peer (white)",
+               "Outputs: time-domain overlay, PSD, cross-correlation"
+              ],
+              "required": [
+               "1 \u2013 3 CSV time-series files"
+              ]
+             },
              "kind": "ToolInfoButton",
              "node": "widget",
-             "text": "Signal Analysis",
+             "text": null,
+             "tool": "Signal Analysis",
              "var": "__inline4"
             },
             {
@@ -16302,9 +16396,32 @@
            },
            {
             "base": "QPushButton",
+            "info": {
+             "columns": [
+              "All numeric columns are included automatically",
+              "Non-numeric columns are dropped before analysis"
+             ],
+             "description": "Computes pairwise correlation coefficients across all numeric columns.",
+             "formats": [
+              "CSV (.csv)",
+              "TSV (.tsv / .txt)"
+             ],
+             "minimum": [
+              "10 rows recommended",
+              "2 numeric columns minimum"
+             ],
+             "notes": [
+              "Method options: Pearson (linear), Spearman (rank), Kendall (concordance)",
+              "Missing values are dropped pairwise"
+             ],
+             "required": [
+              "CSV or TSV with 2+ numeric columns"
+             ]
+            },
             "kind": "ToolInfoButton",
             "node": "widget",
-            "text": "Correlation Matrix",
+            "text": null,
+            "tool": "Correlation Matrix",
             "var": "__inline2"
            },
            {
@@ -16358,9 +16475,32 @@
            },
            {
             "base": "QPushButton",
+            "info": {
+             "columns": [
+              "All numeric columns used as features",
+              "Non-numeric columns are excluded"
+             ],
+             "description": "Reduces dimensionality using Principal Component Analysis.",
+             "formats": [
+              "CSV",
+              "TSV"
+             ],
+             "minimum": [
+              "n_rows > n_components",
+              "2 numeric columns minimum"
+             ],
+             "notes": [
+              "Data is auto-standardised (zero mean, unit variance)",
+              "Components slider: 2 \u2013 20 (default 3)"
+             ],
+             "required": [
+              "CSV with 2+ numeric columns, no missing values"
+             ]
+            },
             "kind": "ToolInfoButton",
             "node": "widget",
-            "text": "PCA",
+            "text": null,
+            "tool": "PCA",
             "var": "__inline4"
            },
            {
@@ -16430,9 +16570,31 @@
            },
            {
             "base": "QPushButton",
+            "info": {
+             "columns": [
+              "All numeric columns used as feature space"
+             ],
+             "description": "Groups rows into K clusters using K-means.",
+             "formats": [
+              "CSV",
+              "TSV"
+             ],
+             "minimum": [
+              "K \u00d7 10 rows recommended",
+              "2 numeric columns"
+             ],
+             "notes": [
+              "K is set by the Clusters slider",
+              "Cluster labels are appended to the result CSV"
+             ],
+             "required": [
+              "CSV with 2+ numeric columns"
+             ]
+            },
             "kind": "ToolInfoButton",
             "node": "widget",
-            "text": "Clustering",
+            "text": null,
+            "tool": "Clustering",
             "var": "__inline7"
            },
            {
@@ -16484,9 +16646,30 @@
               },
               {
                "base": "QPushButton",
+               "info": {
+                "columns": [
+                 "Column A and Column B: numeric, same or different length"
+                ],
+                "description": "Runs t-test or Mann-Whitney U between two selected numeric columns.",
+                "formats": [
+                 "CSV",
+                 "TSV"
+                ],
+                "minimum": [
+                 "3 values per group minimum"
+                ],
+                "notes": [
+                 "Parametric (t-test) vs. non-parametric (Mann-Whitney) auto-selection based on normality",
+                 "p-value < 0.05 flagged as significant"
+                ],
+                "required": [
+                 "CSV with 2+ numeric columns"
+                ]
+               },
                "kind": "ToolInfoButton",
                "node": "widget",
-               "text": "Hypothesis Test",
+               "text": null,
+               "tool": "Hypothesis Test",
                "var": "__inline8"
               },
               {

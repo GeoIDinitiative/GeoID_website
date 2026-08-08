@@ -45,6 +45,51 @@ LAYOUT_KINDS = {"QVBoxLayout", "QHBoxLayout", "QGridLayout", "QFormLayout", "QSt
 # The app's own widget classes -> the Qt class each extends. Filled by
 # `custom_widgets()` so the renderer can treat `CodeEditor` as a QPlainTextEdit.
 CUSTOM_BASE = {}
+
+
+class InfoTables:
+    """The app's `*_INFO` dict literals, so an ⓘ button can show what it means.
+
+    `PLOT_TYPE_INFO`, `STATS_TOOL_INFO`, `SIGNAL_TOOL_INFO`, `INGEST_FORMAT_INFO`
+    and `POST_PROCESS_INFO` are module-level literals; a button referring to
+    `TABLE["key"]` resolves to that entry, and one referring to a computed key
+    resolves to the whole table so the page can still say something true.
+    """
+
+    def __init__(self):
+        self.tables = {}
+
+    def load(self, tree):
+        for node in tree.body:
+            if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Dict):
+                continue
+            for target in node.targets:
+                name = var_of(target)
+                if name and name.endswith("_INFO"):
+                    try:
+                        self.tables[name] = ast.literal_eval(node.value)
+                    except (ValueError, SyntaxError):
+                        pass
+
+    def resolve(self, node):
+        if node is None:
+            return None
+        if isinstance(node, ast.Subscript):
+            table = self.tables.get(var_of(node.value))
+            key = const(node.slice)
+            if table is not None and key in table:
+                return table[key]
+            return None
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+                and node.func.attr == "get" and node.args:
+            table = self.tables.get(var_of(node.func.value))
+            key = const(node.args[0])
+            if table is not None and key in table:
+                return table[key]
+        return None
+
+
+INFO_TABLES = InfoTables()
 CONTAINER_KINDS = {"QWidget", "QFrame", "QGroupBox", "QScrollArea", "QStackedWidget",
                    "CollapsibleSection"}
 
@@ -300,6 +345,15 @@ class PageReader(ast.NodeVisitor):
                 elif kind in WIDGET_KINDS or kind in CONTAINER_KINDS:
                     args = [self.literal(a) for a in node.value.args]
                     props = {}
+                    if kind == "ToolInfoButton":
+                        # `ToolInfoButton("Correlation Matrix", STATS_TOOL_INFO[…])`
+                        # -- the first argument names the tool it explains; the
+                        # button itself always reads "ⓘ". Taking it as the label
+                        # put "Correlation Matrix" on a 20px icon button.
+                        props["tool"] = args[0] if args else None
+                        props["info"] = INFO_TABLES.resolve(
+                            node.value.args[1] if len(node.value.args) > 1 else None)
+                        args = []
                     for kw in node.value.keywords:
                         if kw.arg == "collapsed":
                             props["collapsed"] = bool(const(kw.value))
@@ -477,11 +531,19 @@ class PageReader(ast.NodeVisitor):
                         self.counter += 1
                         child = f"__inline{self.counter}"
                         args = [self.literal(a) for a in node.args[0].args]
+                        props = {}
+                        if kind == "ToolInfoButton":
+                            # Same as the assigned form: the first argument names
+                            # the tool, and the button itself reads "ⓘ".
+                            props["tool"] = args[0] if args else None
+                            props["info"] = INFO_TABLES.resolve(
+                                node.args[0].args[1] if len(node.args[0].args) > 1 else None)
+                            args = []
                         inline = {
                             "kind": kind,
                             "text": next((a for a in args if isinstance(a, str)), None),
                             "args": [a for a in args if a is not None],
-                            "props": {}, "line": node.lineno,
+                            "props": props, "line": node.lineno,
                         }
                         self.widgets[child] = inline
                 if child:
@@ -806,6 +868,7 @@ def custom_widgets(tree):
 
 def extract():
     tree = ast.parse(QT_APP.read_text(encoding="utf-8"), filename=str(QT_APP))
+    INFO_TABLES.load(tree)
     # Teach the reader the app's own widget classes before anything is read.
     for name, base in custom_widgets(tree).items():
         WIDGET_KINDS.add(name)
