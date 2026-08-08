@@ -214,9 +214,28 @@ colours inside the hub loses silently, so atlas.css gives buttons geometry and
 fill only and lets the skin have the colour. Primary and secondary are told
 apart by their fill.
 
-Structure mirrors `AtlasRail` (`:24831`) and `WorkspaceShell` (`:3597`): a 76px
-glyph-above-label rail under the GeoID mark, then one row carrying the page
-tabs, the page filter, the magenta project chip and the five shell actions
+**The rail is the third source: the Atlas *hub's* Dock**, not the Qt rail and
+not the skin (`hub/frontend/src/components/layout/Dock.tsx`, `.dock-item` and
+`.dock-band` in its `global.css`). Each stage is a bordered card carrying its
+own capability colour in `--cap`, which drives the border, the hover wash and
+the active fill; bands group them with a hairline and a quiet label. **Active is
+a solid fill of the cap with dark ink** — which flatly contradicts the
+design-system skill's "NEVER a solid fill with dark text". The shipped Dock is
+the newer answer and is what was asked for, so it wins; don't "fix" it back.
+
+The cap values reuse the hub's own wherever a stage matches one of its
+capabilities (mesh, metrics, earth, settings, briefing, files, agents), so both
+products colour the same idea the same way. `RAIL` in `hub.js` holds cap, band
+and a 24px stroked icon per stage — presentation, deliberately kept out of
+`stages.js`, which stays a straight mirror of the Qt `base_stage_structure`.
+Band headers are emitted the first time a band appears **walking the stages in
+their existing order**; the order is the Qt pipeline's and is never re-sorted to
+suit the grouping. Twelve banded stages are taller than most windows, so the
+rail fades the edge it continues past (`has-more-above` / `has-more-below`,
+`mask-image` on the rail itself so it cannot swallow a click).
+
+The rest of the shell mirrors `WorkspaceShell` (`:3597`): one row carrying the
+page tabs, the page filter, the magenta project chip and the five shell actions
 (Jobs, Alerts, + New Note, Copilot, Data Shelf). Qt's stage tab bar and stage
 caption are both `hide()`n there — the rail says where you are — so they are
 absent here too rather than reproduced as dead widgets.

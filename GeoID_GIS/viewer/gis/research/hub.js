@@ -1,5 +1,5 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260810q";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260810q";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260810s";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260810s";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.
@@ -18,13 +18,62 @@ import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260810q
 
 const STATE_KEY = "geoid-gis:research-page";
 
-/** app_qt.py:24838 — AtlasRail._GLYPHS, by rail label. */
-const GLYPHS = {
-  Dashboard: "⌂", Projects: "▦", "Fetch Data": "⇣",
-  Train: "✦", Prepare: "≡", FEM: "△",
-  Analysis: "∿", GIS: "◍", Pipeline: "⇶", "Data Hub": "☁",
-  Publish: "✎", Settings: "⚙",
+/**
+ * The rail, as data.
+ *
+ * Design copied from the Atlas hub's Dock (`hub/frontend/src/components/
+ * layout/Dock.tsx` and `.dock-item` / `.dock-band` in its global.css), not
+ * from the Qt rail: a bordered card per stage carrying its own capability
+ * colour, grouped into bands by a hairline and a quiet label, and an active
+ * state that is a **solid fill of that colour** with dark ink.
+ *
+ * Note that solid fill contradicts the atlas-design-system skill, which says
+ * active is a soft wash and "NEVER a solid fill with dark text". The shipped
+ * Dock is the newer answer and it is what Owen asked for, so the Dock wins.
+ *
+ * `cap` reuses the hub's own values wherever a stage matches one of its
+ * capabilities (mesh, metrics, earth, settings, briefing, files, agents), so
+ * the two products colour the same idea the same way.
+ *
+ * `band` is presentation and lives here rather than in stages.js, which stays
+ * a straight mirror of the Qt `base_stage_structure`. `icon` replaces the Qt
+ * text glyphs (⌂ ▦ ⇣ …): those render differently in every font and looked
+ * scrappy at 24px on a solid fill.
+ *
+ * Keyed by rail label, which is what STAGES carries.
+ */
+const RAIL = {
+  Dashboard:  { band: "Workspace", cap: "#ff2ec4", icon: "M3 11 12 4l9 7v8a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z" },
+  Projects:   { band: "Workspace", cap: "#3dff8f", icon: "M3 7h6l2 2h10v10H3Zm0 0V5h6l2 2" },
+  "Fetch Data": { band: "Data", cap: "#00c8ff", icon: "M12 3v10m0 0 4-4m-4 4-4-4M4 17v3h16v-3" },
+  Train:      { band: "Data", cap: "#ff5cf0", icon: "M12 3l2.2 5.3L20 9.6l-4 3.9 1 5.5-5-2.8-5 2.8 1-5.5-4-3.9 5.8-1.3Z" },
+  Prepare:    { band: "Data", cap: "#7d5cff", icon: "M4 7h16M4 12h16M4 17h16M9 5v4m6 1v4M7 15v4" },
+  FEM:        { band: "Model", cap: "#c86bff", icon: "M12 3 21 19H3Zm0 0v16M3 19l9-8 9 8" },
+  Analysis:   { band: "Model", cap: "#5cf2ff", icon: "M3 12c2-6 4 6 6 0s4-6 6 0 4 6 6 0" },
+  GIS:        { band: "Platform", cap: "#35d49b", icon: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm0 0c3 3.5 3 14.5 0 18m0-18c-3 3.5-3 14.5 0 18M3.5 9h17M3.5 15h17" },
+  Pipeline:   { band: "Platform", cap: "#ffb300", icon: "M3 7h11l-3-3m3 3-3 3M21 17H10l3-3m-3 3 3 3" },
+  "Data Hub": { band: "Platform", cap: "#00e0d0", icon: "M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 10a4 4 0 0 1 0 8Z" },
+  Publish:    { band: "Publish", cap: "#ffd166", icon: "M4 20h16M5 16.5 16 5.5l3 3L8 19.5l-4 1Z" },
+  Settings:   { band: "System", cap: "#b8a8e8", icon: "M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm7.4 3a7.4 7.4 0 0 0-.15-1.4l2-1.5-2-3.4-2.3 1a7.4 7.4 0 0 0-2.4-1.4L14.2 3H9.8l-.35 2.3a7.4 7.4 0 0 0-2.4 1.4l-2.3-1-2 3.4 2 1.5a7.4 7.4 0 0 0 0 2.8l-2 1.5 2 3.4 2.3-1a7.4 7.4 0 0 0 2.4 1.4L9.8 21h4.4l.35-2.3a7.4 7.4 0 0 0 2.4-1.4l2.3 1 2-3.4-2-1.5c.1-.46.15-.93.15-1.4Z" },
 };
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+/** 24px stroked glyph, the size and weight the Dock's icons use. */
+function railIcon(path) {
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", "1.6");
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  const node = document.createElementNS(SVG_NS, "path");
+  node.setAttribute("d", path);
+  svg.appendChild(node);
+  return svg;
+}
 
 let activePage = null;
 let mountedPage = null;
@@ -49,27 +98,44 @@ function renderRail() {
   if (!rail) return;
   rail.textContent = "";
   const activeStage = stageForPage(activePage);
+  // A band header is emitted the first time its band appears, walking the
+  // stages in order -- the order is the Qt pipeline's and is never re-sorted
+  // to suit the grouping.
+  const headed = new Set();
+
   STAGES.forEach(([key, label, pages]) => {
+    const spec = RAIL[label] || {};
+    if (spec.band && !headed.has(spec.band)) {
+      headed.add(spec.band);
+      const head = document.createElement("div");
+      head.className = "atlas-rail-band";
+      if (headed.size === 1) head.classList.add("is-first");
+      head.setAttribute("aria-hidden", "true");
+      head.textContent = spec.band;
+      rail.appendChild(head);
+    }
+
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "atlas-rail-btn";
     btn.classList.toggle("is-active", key === activeStage);
     btn.dataset.stage = key;
+    // The capability colour drives the border, the hover wash and the active
+    // fill, exactly as --cap does in the Dock.
+    if (spec.cap) btn.style.setProperty("--cap", spec.cap);
+    btn.setAttribute("aria-pressed", key === activeStage ? "true" : "false");
     // The rail carries the short label; the full Qt stage key is the title, so
     // it stays discoverable without widening the rail for it.
     const built = pages.filter(([id]) => getPage(id)).length;
     btn.title = `${key} — ${built} of ${pages.length} pages built`;
 
-    const glyph = document.createElement("span");
-    glyph.className = "atlas-rail-glyph";
-    glyph.textContent = GLYPHS[label] || "●";
-    glyph.setAttribute("aria-hidden", "true");
+    if (spec.icon) btn.appendChild(railIcon(spec.icon));
 
     const name = document.createElement("span");
     name.className = "atlas-rail-name";
     name.textContent = label;
+    btn.appendChild(name);
 
-    btn.append(glyph, name);
     btn.addEventListener("click", () => {
       // Landing on a stage lands on its first *built* page where there is one,
       // so clicking a stage that has work in it does not open a placeholder.
@@ -78,6 +144,20 @@ function renderRail() {
     });
     rail.appendChild(btn);
   });
+  markRailOverflow();
+}
+
+/**
+ * Twelve banded stages are taller than most windows, and a rail that simply
+ * stops at the fold reads as though that is all there is. Same answer the Dock
+ * gives: fade the edge the content continues past.
+ */
+function markRailOverflow() {
+  const rail = document.querySelector(".atlas-rail");
+  if (!rail) return;
+  const slack = rail.scrollHeight - rail.clientHeight;
+  rail.classList.toggle("has-more-above", slack > 1 && rail.scrollTop > 1);
+  rail.classList.toggle("has-more-below", slack > 1 && rail.scrollTop < slack - 1);
 }
 
 function renderTabs() {
@@ -262,6 +342,13 @@ export function init(context = {}) {
     });
   }
   wireActions();
+  const rail = document.querySelector(".atlas-rail");
+  if (rail) {
+    rail.addEventListener("scroll", markRailOverflow, { passive: true });
+    // The hub is hidden until Research mode, so it has no height to measure at
+    // load; re-check whenever the rail's own box changes.
+    if (window.ResizeObserver) new ResizeObserver(markRailOverflow).observe(rail);
+  }
   let start = STAGES[0][2][0][0];
   try {
     const stored = window.localStorage.getItem(STATE_KEY);

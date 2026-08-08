@@ -95,18 +95,25 @@
 }
 #research-hub[hidden] { display: none; }
 
-/* ── The rail (app_qt.py:24831, AtlasRail) ─────────────────────────────────── */
-/* 76px, the GeoID mark on top, then one glyph-above-label button per stage.
-   The rail is the workflow, read top to bottom, so it never scrolls away from
+/* ── The rail ──────────────────────────────────────────────────────────────
+   Copied from the Atlas hub's Dock (`.dock-item` / `.dock-band` in
+   hub/frontend/src/styles/global.css), not from the Qt rail. Each button is a
+   bordered card carrying its own capability colour in --cap, which drives the
+   border, the hover wash and the active fill; bands group them with a hairline
+   and a quiet label. Active is a SOLID fill of the cap with dark ink -- which
+   contradicts the atlas-design-system skill and matches the shipped Dock, the
+   newer answer of the two.
+
+   The rail is the pipeline, read top to bottom, so it never scrolls away from
    the stage you are in. */
 .atlas-rail {
   flex: none;
-  width: 76px;
+  width: 96px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 10px 6px;
+  padding: 10px 8px;
   overflow-y: auto;
   background: var(--atlas-panel-soft);
   border-right: 1px solid var(--atlas-border);
@@ -114,55 +121,104 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(var(--skin-muted), 0.28) transparent;
 }
+/* The fade sits on the rail itself rather than on an overlay, so it cannot
+   intercept a click on the button underneath it. */
+.atlas-rail.has-more-above {
+  mask-image: linear-gradient(180deg, transparent 0, #000 26px);
+}
+.atlas-rail.has-more-below {
+  mask-image: linear-gradient(0deg, transparent 0, #000 26px);
+}
+.atlas-rail.has-more-above.has-more-below {
+  mask-image: linear-gradient(180deg,
+    transparent 0, #000 26px, #000 calc(100% - 26px), transparent 100%);
+}
+
 .atlas-rail-logo {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   flex: none;
 }
-.atlas-rail-buttons { display: flex; flex-direction: column; gap: 4px; }
+.atlas-rail-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+}
+
+/* Bands: grouping without nesting. A hairline and a quiet label, so every
+   destination stays one click away and on screen. */
+.atlas-rail-band {
+  width: 100%;
+  flex: none;
+  padding: 0.34rem 0 0.12rem;
+  margin-top: 0.22rem;
+  border-top: 1px solid rgba(var(--atlas-chrome-rgb), 0.2);
+  font-family: var(--atlas-body);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  text-align: center;
+  color: rgba(var(--skin-muted), 0.65);
+  user-select: none;
+}
+.atlas-rail-band.is-first {
+  margin-top: 0;
+  padding-top: 0.05rem;
+  border-top: none;
+}
+
 .atlas-rail-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  width: 64px;
-  height: 52px;
-  padding: 2px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: transparent;
+  gap: 4px;
+  width: 80px;
+  padding: 0.45rem 0.35rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid color-mix(in srgb, var(--cap, var(--atlas-chrome)) 30%, transparent);
+  border-radius: 8px;
   color: var(--atlas-muted);
   font-family: var(--atlas-body);
-  font-size: 8.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
 }
-.atlas-rail-btn:hover {
-  background: var(--atlas-wash-soft);
-  color: var(--atlas-text);
-}
-/* Active is a soft cyan wash and cyan text — never a solid fill with dark
-   text, which is the one thing the design system rules out by name. */
-/* The skin fills an active control with chrome and glows it; matched here so
-   the rail lights the same way the GIS tool rail does. */
-.atlas-rail-btn.is-active {
-  background: var(--atlas-wash);
-  border-color: var(--atlas-wash-edge);
-  color: #ffffff;
-  box-shadow: var(--atlas-glow);
-}
-.atlas-rail-glyph { font-size: 17px; line-height: 1.15; }
+.atlas-rail-btn svg { width: 24px; height: 24px; flex: none; }
 .atlas-rail-name {
   max-width: 100%;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  text-align: center;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(4, 0, 14, 0.8);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.atlas-rail-btn:hover {
+  color: var(--atlas-text);
+  background: color-mix(in srgb, var(--cap, var(--atlas-chrome)) 14%, transparent);
+  border-color: color-mix(in srgb, var(--cap, var(--atlas-chrome)) 60%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--cap, var(--atlas-chrome)) 28%, transparent);
+}
+.atlas-rail-btn.is-active {
+  background: var(--cap, var(--atlas-chrome));
+  border-color: var(--cap, var(--atlas-chrome));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--cap, var(--atlas-chrome)) 55%, transparent);
+}
+/* Dark ink on the bright fill. One neutral value rather than one per cap: the
+   caps span green to magenta and all of them are light. */
+.atlas-rail-btn.is-active svg { color: var(--atlas-bg); }
+.atlas-rail-btn.is-active .atlas-rail-name {
+  color: var(--atlas-bg);
+  text-shadow: none;
 }
 
 /* ── The shell row (app_qt.py:3597, WorkspaceShell) ────────────────────────── */
@@ -741,30 +797,27 @@
     overflow-y: hidden;
     border-right: none;
     border-bottom: 1px solid var(--atlas-border);
+    box-shadow: 0 1px 18px -6px rgba(var(--atlas-chrome-rgb), 0.4);
     padding: 4px 6px;
   }
   .atlas-rail-logo { width: 28px; height: 28px; margin: 0 6px 0 0; }
-  .atlas-rail-buttons { flex-direction: row; }
-  .atlas-rail-btn { width: 58px; height: 44px; }
+  .atlas-rail-buttons { flex-direction: row; width: auto; }
+  .atlas-rail-btn { width: 66px; padding: 0.35rem 0.3rem; gap: 2px; }
+  .atlas-rail-btn svg { width: 18px; height: 18px; }
+  .atlas-rail-name { font-size: 9px; }
+  /* Laid flat, a band label is a vertical rule between groups rather than a
+     caption over one -- the words would not fit and would not read sideways. */
+  .atlas-rail-band {
+    width: 1px;
+    align-self: stretch;
+    margin: 0 2px;
+    padding: 0;
+    border-top: none;
+    border-left: 1px solid rgba(var(--atlas-chrome-rgb), 0.2);
+    font-size: 0;
+    text-indent: -9999px;
+  }
+  .atlas-rail-band.is-first { display: none; }
   .workspace-shell { flex-wrap: wrap; }
   .shell-actions { flex-wrap: wrap; }
 }
-
-/* Dashboard columns and the tabbed boxes inside them. */
-.dash-col { display: flex; flex-direction: column; }
-.dash-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  border-bottom: 1px solid var(--atlas-border);
-}
-.dash-tab-body { padding-top: 10px; }
-.dash-loop-row {
-  display: grid;
-  grid-template-columns: 6rem 1fr;
-  gap: 8px;
-  align-items: baseline;
-  padding: 4px 0;
-  border-bottom: 1px solid var(--atlas-border);
-}
-.dash-loop-row .research-note { margin: 0; }
