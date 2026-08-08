@@ -2429,3 +2429,82 @@
   font-size: 0.78rem;
   color: rgba(var(--skin-muted), 0.55);
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ALIGNMENT & DE-BOXING  — everything shares one left spine, and the page stops
+   reading as a stack of identical outlined boxes.
+   Measured on AI Trainer before this: four different content left edges
+   (119 / 131 / 135 / 147) and four near-identical bordered boxes stacked. A
+   reader's eye needs ONE margin, and only the input zone needs to be a panel.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+#research-hub { --pad: 16px; }
+
+/* One inset for every top-level block's content, so a caption in the toolbar,
+   a section header and a section body all begin at the same x. */
+.qt-toolbar { padding: var(--pad); }
+.qt-page .qt-section > .qt-section-head { padding: 0 var(--pad); }
+.qt-page .qt-section[open] > .qt-section-body,
+.qt-page .qt-section[open] > .qt-tab-panel { padding: var(--sp-3) var(--pad) var(--pad); }
+.qt-groupbox { padding: var(--sp-3) var(--pad); }
+
+/* Sections are a clean list, not four heavy boxes. No outer outline: a closed
+   section is a quiet bar defined by its header fill and a hairline; open, the
+   body hangs beneath the same bar. The toolbar stays the one bordered panel —
+   the input zone — so the eye has a single grouped surface, then a tidy list. */
+.qt-page > .qt-layout > details.qt-section,
+.qt-page .qt-v > details.qt-section {
+  border: none;
+  background: transparent;
+  border-radius: 0;
+}
+.qt-page details.qt-section > .qt-section-head {
+  position: relative;
+  border: none;
+  border-bottom: 1px solid rgba(var(--skin-muted), 0.14);
+  border-radius: 0;
+  background: transparent;
+  min-height: 40px;
+  font-size: 0.7rem;
+  letter-spacing: 0.09em;
+  /* Text starts on the spine; the disclosure triangle lives in the padding to
+     its left, out of flow, so a section header lines up with the toolbar
+     caption and the body content instead of being pushed 20px right by the
+     marker. */
+  padding-left: var(--pad);
+}
+.qt-page details.qt-section > .qt-section-head::before {
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: auto;
+}
+.qt-page details.qt-section[open] > .qt-section-head::before {
+  transform: translateY(-50%) rotate(90deg);
+}
+.qt-page details.qt-section[open] > .qt-section-head {
+  color: rgb(var(--skin-chrome));
+  border-bottom-color: rgba(var(--skin-chrome-rgb), 0.35);
+}
+.qt-page details.qt-section[open] > .qt-section-body,
+.qt-page details.qt-section[open] > .qt-tab-panel {
+  border: none;
+  background: transparent;
+}
+
+/* The toolbar is the single grouped panel: soft edge, gentle fill, clearly the
+   "inputs" region without competing with the section list below it. */
+.qt-toolbar {
+  border: 1px solid rgba(var(--skin-muted), 0.16);
+  background: linear-gradient(rgba(var(--skin-chrome-rgb), 0.05),
+                              rgba(var(--skin-chrome-rgb), 0.02));
+}
+
+/* A read-only summary/log pane that is empty is a caption box, not a canvas —
+   cap it so it states its place in a few lines instead of a tall void, and it
+   grows back the moment it holds text. */
+.qt-page .qt-section .qt-textarea[readonly]:placeholder-shown { min-height: 3rem; max-height: 6rem; }
+
+/* The trailing spacer must never add height to a page that already fits. */
+.qt-page > .qt-layout > .qt-stretch:last-child { flex: 0 1 auto; min-height: 0; }
