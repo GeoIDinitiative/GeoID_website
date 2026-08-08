@@ -241,7 +241,7 @@ do, and forgetting the flag gives that page two titles.
 `services/qt-layout.py` walks `app_qt.py`'s AST and recovers how each page is
 actually built — `sel.addWidget(self._file_edit, 1)`, `layout.addLayout(sel)`,
 `tabs.addTab(file_tab, "File QA")` — in source order, into
-`gis/research/qt-layout.json`: 62 pages, 2781 nodes. `qt-render.js` walks that,
+`gis/research/qt-layout.json`: 62 pages, 2811 nodes. `qt-render.js` walks that,
 and the mapping is nearly one to one: QVBoxLayout is a flex column, QHBoxLayout
 a flex row, `addWidget(w, 2)` is `flex: 2`, addStretch a spacer, QGridLayout a
 grid with each child at the row and column the app placed it at.
@@ -429,6 +429,51 @@ At 1200px and up a tree-rendered page becomes **two columns**, with the primary
 surfaces — tab widgets, splitters, tables, toolbars, anything Qt gave a stretch
 factor — spanning both, because halving those is what made the earlier attempt
 worse. Fields stop at 42rem; an empty table states its shape in 8rem.
+
+**Qt size policies are the layout, and getting them wrong looks like bad
+design.** A QPlainTextEdit, table, tree, list or scroll area is **Expanding**:
+the log pane at the foot of a page *is* the rest of the page. Rendering them at
+content height left the average page filling **49%** of its height, GIS Explorer
+5% — which reads as sloppy formatting and is actually a modelling error. A
+QTabWidget by contrast is **Preferred**: it takes its size hint and yields the
+leftover to whatever wants it, so it fills only when nothing else on the page
+does (`packRoot()`). Average fill is now **99%**, with no page under 50%.
+
+**The root layout must stay a flex column.** An earlier pass made it a
+two-column grid, and `flex` means nothing to a grid item — the grid was actively
+preventing the size policies above from working. Density now comes from
+`packRoot()`, which wraps runs of **adjacent** short panels into a two-up block:
+nothing moves past anything else, so a page still reads in the app's order, and
+a card holding a tab strip, splitter, table, list or scroll area keeps the full
+width because it is the page's main surface. A card whose only expanding widget
+is a text pane still pairs — excluding those put the Ingest pages back into one
+column.
+
+**Learn the app's own widget classes, don't list them.** `CodeEditor` is a
+QPlainTextEdit, `ToolInfoButton` a QPushButton, `PlotlyViewer` a QWidget.
+`custom_widgets()` derives them from their bases (page classes excluded) and
+records the Qt class each extends, so the renderer draws a custom widget as its
+base and expands it if the base expands. Module Builder's Editor tab was an
+empty 20px box purely because its only child was a `CodeEditor`.
+
+**A ToolInfoButton's first argument is the tool's name, not its label** — the
+class always calls `super().__init__("ⓘ")`. Taking it as the text painted
+"Correlation Matrix" across a 20px icon. The second argument resolves against
+the app's `*_INFO` dict literals, so the button shows the requirements it exists
+for.
+
+**Fields stop at a readable measure**, and it is the form's *field column* that
+is capped, not just the form: a 58rem form still put a 780px ruler behind eight
+characters of "Target directory". Forty fields across 34 pages were over 700px
+wide; now none is.
+
+**Three labels are never rendered** — "Embedded map requires PySide6-WebEngine",
+"matplotlib not available", "rasterio not installed". Each is false here: the
+map is a canvas, the plots are canvases, the rasters go through geotiff.js.
+
+**When measuring for clipping, check whether an ancestor scrolls.** A box whose
+own overflow is visible but whose parent scrolls has lost nothing; counting it
+as clipped chases a fault that is not there.
 
 **A grid item with `overflow: hidden` has an automatic minimum size of ZERO**,
 so its row may be shorter than its content. That is how an *open*
