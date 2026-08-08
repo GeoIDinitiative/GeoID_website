@@ -1888,7 +1888,15 @@
   overflow: auto;
   scrollbar-width: thin;
 }
-.qt-splitter > .qt-h > * { align-self: stretch; }
+/* Each pane of the splitter -- the direct children of its row, one level below
+   the splitter itself, which is where the previous rule stopped short. */
+.qt-splitter > .qt-h > *,
+.qt-splitter > .qt-v > * {
+  align-self: stretch;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
 /* Qt gives the layer panel 220–320px and the map the rest. */
 .qt-splitter .qt-h > .qt-container:first-child { flex: 0 0 clamp(13.75rem, 22%, 20rem); }
 
