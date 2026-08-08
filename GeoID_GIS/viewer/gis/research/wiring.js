@@ -1,11 +1,11 @@
-import { wirePattern, wire } from "./spec-page.js?v=20260808-3bba925";
-import * as store from "./project-store.js?v=20260808-3bba925";
-import * as bridge from "./bridge.js?v=20260808-3bba925";
-import * as stats from "./stats.js?v=20260808-3bba925";
-import * as dsp from "./dsp.js?v=20260808-3bba925";
-import { linePlot } from "./plot.js?v=20260808-3bba925";
-import { column } from "./table.js?v=20260808-3bba925";
-import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260808-3bba925";
+import { wirePattern, wire } from "./spec-page.js?v=20260808-7ffdbc9";
+import * as store from "./project-store.js?v=20260808-7ffdbc9";
+import * as bridge from "./bridge.js?v=20260808-7ffdbc9";
+import * as stats from "./stats.js?v=20260808-7ffdbc9";
+import * as dsp from "./dsp.js?v=20260808-7ffdbc9";
+import { linePlot } from "./plot.js?v=20260808-7ffdbc9";
+import { column } from "./table.js?v=20260808-7ffdbc9";
+import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260808-7ffdbc9";
 
 /**
  * Behaviour for the controls the spec brings across.
@@ -172,6 +172,11 @@ wire("Pipeline Runner", {
  * a button that cannot do what it says.
  */
 export const CANNOT_WIRE = {
+  // The Event Correlation Toolkit's analyses are native now (see
+  // event-correlation.js); what stays here is the *external script runner*
+  // beside them, which exists to execute arbitrary Python a user points it at.
+  // That is not a missing feature — it is the one thing a browser tab genuinely
+  // cannot do.
   "Run Selected Module": "Executes a Python module in the desktop app's interpreter.",
   "Run Script Main": "Executes Python; a browser tab has no interpreter.",
   "Run Function": "Executes Python; a browser tab has no interpreter.",
@@ -339,7 +344,7 @@ async function writeCollection(name, collection, say) {
   say(`${(collection.features || []).length} feature(s) written to ${path}.`);
 }
 
-const geo = () => import(`../geoprocessing.js?v=20260808-3bba925`);
+const geo = () => import(`../geoprocessing.js?v=20260808-7ffdbc9`);
 
 wire("Vector Tools", {
   Buffer: async ({ say }) => {

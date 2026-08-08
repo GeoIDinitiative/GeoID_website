@@ -1,10 +1,12 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260808-3bba925";
-import * as store from "./project-store.js?v=20260808-3bba925";
-import * as stats from "./stats.js?v=20260808-3bba925";
-import * as dsp from "./dsp.js?v=20260808-3bba925";
-import { linePlot, heatmap } from "./plot.js?v=20260808-3bba925";
-import { column } from "./table.js?v=20260808-3bba925";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-3bba925";
+import { wire, wirePattern } from "./spec-page.js?v=20260808-7ffdbc9";
+import * as store from "./project-store.js?v=20260808-7ffdbc9";
+import * as stats from "./stats.js?v=20260808-7ffdbc9";
+import * as dsp from "./dsp.js?v=20260808-7ffdbc9";
+import { linePlot, heatmap } from "./plot.js?v=20260808-7ffdbc9";
+import { column } from "./table.js?v=20260808-7ffdbc9";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-7ffdbc9";
+import { parseTable } from "./table.js?v=20260808-7ffdbc9";
+import * as ec from "./event-correlation.js?v=20260808-7ffdbc9";
 
 /**
  * The last of the spec's controls.
@@ -107,7 +109,7 @@ wire("Raster Tools", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No coordinate columns to reproject.");
-    const projection = await import("../projection.js?v=20260808-3bba925");
+    const projection = await import("../projection.js?v=20260808-7ffdbc9");
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -164,7 +166,7 @@ wire("Vector Tools", {
     if (collections.length < 2) {
       throw new Error("A spatial join needs two GeoJSON layers in the project.");
     }
-    const g = await import("../geoprocessing.js?v=20260808-3bba925");
+    const g = await import("../geoprocessing.js?v=20260808-7ffdbc9");
     const joined = g.spatialJoin(collections[0].fc, collections[1].fc);
     const out = `data/processed/joined-${stamp()}.geojson`;
     await store.writeProjectFile(out, JSON.stringify(joined));
@@ -941,4 +943,409 @@ ANALYSIS_PAGES.forEach((pageId) => {
         + `column(s). Using ${roles.time} / ${roles.value}.`);
     },
   });
+});
+
+/* ── The Event Correlation Toolkit, and the last of the odd ones ──────────
+ *
+ * `event-correlation.js` holds the algorithms, ported against
+ * `scripts/thesis/comprehensive_signal_analysis_complete.py` rather than from
+ * memory. This is the wiring: load the peaks once into a table the buttons
+ * share, then each button is a call and a write.
+ */
+
+/** Every `*_peaks.csv` under a folder in the project. */
+async function peakFiles(root) {
+  const found = [];
+  const walk = async (dir, depth) => {
+    if (depth > 4) return;
+    let entries = [];
+    try { entries = await store.listProjectDir(dir); } catch (error) { return; }
+    for (const entry of entries) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.kind === "directory") await walk(path, depth + 1);
+      else if (/_peaks\.csv$/i.test(entry.name)) found.push(path);
+    }
+  };
+  await walk(root.replace(/\/$/, ""), 0);
+  return found;
+}
+
+/** The peaks table each toolkit button works from, loaded once per project. */
+const peakCache = new Map();
+
+async function loadPeaks(api, { reload = false } = {}) {
+  const project = store.getActive()?.folder || "project";
+  if (!reload && peakCache.has(project)) return peakCache.get(project);
+  const root = (api.values().event_peaks_root || "").trim() || "data/raw";
+  let files = await peakFiles(root);
+  if (!files.length && root !== "data/raw") files = await peakFiles("data/raw");
+  if (!files.length) {
+    throw new Error(`No *_peaks.csv under ${root}. Set the Peaks root and try again.`);
+  }
+  const peaks = [];
+  for (const path of files) {
+    try { peaks.push(...ec.peaksFromCsv(await store.readProjectFile(path), path)); }
+    catch (error) { /* one unreadable file must not stop the load */ }
+  }
+  if (!peaks.length) throw new Error("Peak files held no readable rows.");
+  const loaded = { peaks, files: files.length };
+  peakCache.set(project, loaded);
+  return loaded;
+}
+
+/** Write a result and say where it went, which every one of these does. */
+async function publish(say, name, headers, rows, note) {
+  const path = `analysis/${name}-${stamp()}.csv`;
+  await saveTable(path, headers, rows, "Event Correlation Toolkit", "analysis");
+  say(`${note} Saved ${path}.`);
+  return path;
+}
+
+const toolkit = {
+  "Load Event Inputs": async (api) => {
+    const { peaks, files } = await loadPeaks(api, { reload: true });
+    const stations = new Set(peaks.map((p) => p.station)).size;
+    const datasets = new Set(peaks.map((p) => p.dataset)).size;
+    api.say(`Loaded ${peaks.length.toLocaleString()} peaks from ${files} file(s): `
+      + `${datasets} dataset(s), ${stations} station(s).`);
+  },
+
+  "Sync Events": async (api) => {
+    const { peaks } = await loadPeaks(api);
+    const quality = peaks.filter((p) => p.peak_corr >= ec.MIN_CORRELATION
+      && p.snr_linear >= ec.MIN_SNR_LINEAR);
+    const found = ec.findSynchronousEvents(quality);
+    if (!found.count) { api.say("No synchronous events at the current tolerance."); return; }
+    await publish(api.say, "sync-events",
+      ["event_id", "peak_time", "dataset", "station", "sim", "template", "peak_corr", "snr_linear"],
+      found.peaks.map((p) => [p.event_id, p.peak_time_dt, p.dataset, p.station,
+                             p.sim, p.template, p.peak_corr, p.snr_linear]),
+      `${found.count} synchronous event(s) across ${found.peaks.length} peaks `
+      + `(±${ec.SYNC_TOLERANCE_SEC}s, ≥${ec.MIN_STATIONS} stations).`);
+  },
+
+  "Best Candidates": async (api) => {
+    const { peaks } = await loadPeaks(api);
+    const quality = peaks.filter((p) => p.peak_corr >= ec.MIN_CORRELATION
+      && p.snr_linear >= ec.MIN_SNR_LINEAR);
+    const sync = ec.findSynchronousEvents(quality);
+    const count = Number(api.values().event_candidate_count) || 20;
+    const result = ec.bestCandidates(peaks, sync.peaks, { count });
+    if (!result.candidates.length) { api.say("No peaks passed the quality filter."); return; }
+    await publish(api.say, "best-candidates",
+      ["rank", "peak_time", "dataset", "station", "sim", "template",
+       "peak_corr", "snr_linear", "num_sync_stations",
+       "score_ulp", "score_sync", "score_balanced"],
+      result.candidates.map((p, i) => [i + 1, p.peak_time_dt, p.dataset, p.station,
+        p.sim, p.template, p.peak_corr, p.snr_linear, p.num_sync_stations,
+        p.score_ulp.toFixed(4), p.score_sync.toFixed(4), p.score_balanced.toFixed(4)]),
+      `Top ${result.candidates.length} of ${result.quality} high-quality peaks.`);
+  },
+
+  Cumulative: async (api) => {
+    const { peaks } = await loadPeaks(api);
+    const result = ec.cumulativeMetrics(peaks);
+    if (!result) { api.say("Not enough peaks in any one group."); return; }
+    const canvas = linePlot([
+      { name: "cumulative |corr|", x: result.series.map((r) => r.n),
+        y: result.series.map((r) => r.cumulative_corr) },
+    ], { width: 880, height: 320, title: `Cumulative metrics — ${result.group}`,
+         labels: { x: "Peak number", y: "Cumulative correlation" } });
+    const figure = await saveFigure(canvas, `cumulative_${stamp()}.png`,
+                                    "Event Correlation Toolkit");
+    await publish(api.say, "cumulative-metrics",
+      ["n", "cumulative_corr", "cumulative_snr_db"],
+      result.series.map((r) => [r.n, r.cumulative_corr, r.cumulative_snr_db]),
+      `${result.series.length} peaks in ${result.group}. Figure ${figure}.`);
+  },
+
+  "Dataset Compare": async (api) => {
+    const { peaks } = await loadPeaks(api);
+    const rows = ec.datasetCompare(peaks);
+    await publish(api.say, "dataset-compare",
+      ["dataset", "peaks", "stations", "templates", "corr_mean", "corr_max", "snr_mean", "snr_max"],
+      rows.map((r) => [r.dataset, r.peaks, r.stations, r.templates,
+        r.corr_mean.toFixed(4), r.corr_max.toFixed(4), r.snr_mean.toFixed(3), r.snr_max.toFixed(3)]),
+      `${rows.length} dataset(s) compared.`);
+  },
+
+  "P-wave Summaries": async (api) => {
+    const { peaks } = await loadPeaks(api);
+    const rows = ec.stationSummaries(peaks);
+    await publish(api.say, "station-summaries",
+      ["dataset", "station", "peaks", "high_quality", "corr_mean", "corr_max", "snr_mean", "snr_max"],
+      rows.map((r) => [r.dataset, r.station, r.peaks, r.high_quality,
+        r.corr_mean.toFixed(4), r.corr_max.toFixed(4), r.snr_mean.toFixed(3), r.snr_max.toFixed(3)]),
+      `${rows.length} station summary row(s).`);
+  },
+
+  Contamination: async (api) => {
+    // The impact table is a separate product of the upstream pipeline.
+    const files = [];
+    for (const dir of ["data/raw", "data/processed", "analysis"]) {
+      try {
+        (await store.listProjectDir(dir))
+          .filter((f) => /pwave_impact_comparison\.csv$/i.test(f.name))
+          .forEach((f) => files.push(`${dir}/${f.name}`));
+      } catch (error) { /* absent */ }
+    }
+    if (!files.length) {
+      throw new Error("Contamination needs a *_pwave_impact_comparison.csv "
+        + "with corr_mean_clean and corr_mean_contaminated columns.");
+    }
+    const rows = [];
+    for (const path of files) rows.push(...parseTable(await store.readProjectFile(path)).rows);
+    const result = ec.contamination(rows);
+    if (!result) throw new Error("No rows with both clean and contaminated correlation means.");
+    await publish(api.say, "contamination",
+      ["station", "corr_mean_clean", "corr_mean_contaminated", "corr_improvement_pct"],
+      result.rows.map((r) => [r.station ?? "", r.corr_mean_clean, r.corr_mean_contaminated,
+                              r.corr_improvement_pct.toFixed(2)]),
+      `Clean beats contaminated on ${result.contaminated_worse} of ${result.total} `
+      + `rows; median improvement ${result.median_improvement_pct.toFixed(1)}%.`);
+  },
+
+  Spectrograms: async (api) => {
+    const { table, path } = await firstTable();
+    const numeric = numericOf(table);
+    const name = Object.keys(numeric)[0];
+    if (!name) throw new Error("No numeric series to transform.");
+    const spec = ec.candidateSpectrogram(numeric[name], 1);
+    const canvas = heatmap(spec.grid, { width: 880, height: 340,
+      title: `Spectrogram — ${path.split("/").pop()}:${name}`,
+      labels: { x: "Time", y: "Frequency" } });
+    const figure = await saveFigure(canvas, `spectrogram_${slug(name)}_${stamp()}.png`,
+                                    "Event Correlation Toolkit");
+    api.say(`Spectrogram of ${name} (${spec.grid.length} frames). Saved ${figure}.`);
+  },
+
+  Morlet: async (api) => {
+    const { table, path } = await firstTable();
+    const numeric = numericOf(table);
+    const name = Object.keys(numeric)[0];
+    if (!name) throw new Error("No numeric series to transform.");
+    // The script's band is ultra-low-frequency; scaled to this series' length
+    // so the wavelets actually fit inside it.
+    const values = numeric[name];
+    const cwt = ec.morletCwt(values, { fs: 1, freqMin: 2 / values.length, freqMax: 0.4, count: 36 });
+    if (!cwt) throw new Error("Series too short for a wavelet transform.");
+    const canvas = heatmap(cwt.grid, { width: 880, height: 340,
+      title: `Morlet CWT — ${path.split("/").pop()}:${name}`,
+      labels: { x: "Sample", y: "Frequency" } });
+    const figure = await saveFigure(canvas, `morlet_${slug(name)}_${stamp()}.png`,
+                                    "Event Correlation Toolkit");
+    api.say(`Morlet CWT of ${name} over ${cwt.freqs.length} scales. Saved ${figure}.`);
+  },
+
+  "Load Peak CSVs": async (api) => toolkit["Load Event Inputs"](api),
+
+  "Load Headers": async (api) => {
+    const paths = await findTables();
+    if (!paths.length) throw new Error("No tables in this project yet.");
+    const path = paths.length === 1 ? paths[0] : await chooseTable(paths);
+    if (!path) return;
+    const table = await loadTable(path);
+    api.say(`${path}: ${table.columns.join(", ")}`);
+  },
+
+  /** Dispatch whatever the catalogue has selected to the button that does it. */
+  "Run Selected Module": async (api) => {
+    const host = document.getElementById("research-page");
+    const selected = host.querySelector(".qt-datatable .is-selected, .qt-listwidget .is-selected");
+    const label = (selected?.textContent || "").trim();
+    const match = Object.keys(toolkit).find((key) =>
+      label && key.toLowerCase().includes(label.toLowerCase().split(" ")[0]));
+    if (!match) {
+      throw new Error("Select a module in the catalogue first — or press its "
+        + "button directly, which runs the same analysis.");
+    }
+    await toolkit[match](api);
+  },
+};
+
+wire("Signal Processing", toolkit);
+
+/* ── The last of the odd ones out ─────────────────────────────────────────
+ * One-offs whose labels no pattern was ever going to catch.
+ */
+
+/** Choose a folder inside the project, in place of a directory dialog. */
+async function chooseFolder(prompt = "Choose a folder") {
+  const roots = ["data/raw", "data/processed", "data/pulled", "data/external",
+                 "signals", "exports", "analysis", "figures", "fem_runs",
+                 "post_processing/extracted_dofs"];
+  const present = [];
+  for (const dir of roots) {
+    try { await store.listProjectDir(dir); present.push(dir); }
+    catch (error) { /* not in this project */ }
+  }
+  if (!present.length) throw new Error("This project has no data folders yet.");
+  return present.length === 1 ? present[0] : chooseTable(present);
+}
+
+// `…` is a directory chooser sitting beside a path field (app_qt.py:5616).
+wirePattern(/^…$/, async ({ say, controls }) => {
+  const folder = await chooseFolder();
+  if (!folder) return;
+  const target = Array.from(controls.entries()).find(([name, node]) =>
+    node.tagName === "INPUT" && node.type === "text"
+    && /(dir|folder|out|watch|root|path)/i.test(name));
+  if (target) target[1].value = folder;
+  say(target ? `Folder set to ${folder}.` : `Chose ${folder}.`);
+});
+
+// The watcher `Start` sets up, cleared by name rather than by toggling.
+wirePattern(/^Stop$/, async ({ say, pageId }) => {
+  if (!watchers.has(pageId)) { say("Not watching."); return; }
+  clearInterval(watchers.get(pageId));
+  watchers.delete(pageId);
+  say("Stopped watching.");
+});
+
+wire("Equation Workbench", {
+  "Load Dataset": async ({ say, controls }) => {
+    const paths = await findTables();
+    if (!paths.length) throw new Error("No tables in this project yet.");
+    const path = paths.length === 1 ? paths[0] : await chooseTable(paths);
+    if (!path) return;
+    const table = await loadTable(path);
+    const names = Object.keys(numericOf(table));
+    const field = Array.from(controls.values()).find((n) =>
+      n.tagName === "INPUT" && n.type === "text");
+    if (field) field.value = path;
+    say(`${path}: ${table.rows.length} rows. Variables available: ${names.join(", ") || "none"}.`);
+  },
+});
+
+wire("Event Annotation", {
+  "Add Annotation": async ({ say, values }) => {
+    const v = values();
+    const text = Object.entries(v)
+      .filter(([, value]) => typeof value === "string" && value.trim())
+      .map(([key, value]) => [key, value.trim()]);
+    if (!text.length) throw new Error("Fill in the annotation first.");
+    const doc = await store.readJson("metadata/annotations.json", { annotations: [] });
+    doc.annotations = doc.annotations || [];
+    doc.annotations.push({
+      id: `ann_${Date.now().toString(36)}`,
+      created_at: new Date().toISOString(),
+      ...Object.fromEntries(text),
+    });
+    await store.writeJson("metadata/annotations.json", doc);
+    say(`Annotation ${doc.annotations.length} saved to metadata/annotations.json.`);
+  },
+});
+
+wire("Import / Clone", {
+  "Clone simulation": async ({ say }) => {
+    let runs = [];
+    try {
+      runs = (await store.listProjectDir("fem_runs"))
+        .filter((f) => f.kind === "directory").map((f) => f.name);
+    } catch (error) { /* none yet */ }
+    if (!runs.length) throw new Error("No runs in fem_runs/ to clone.");
+    const source = runs.length === 1 ? runs[0] : await chooseTable(runs);
+    if (!source) return;
+    const target = `${source}-copy-${stamp().slice(0, 10)}`;
+    // A run is its spec plus whatever sits beside it; the spec is what makes
+    // the clone a run rather than a folder.
+    const spec = await store.readJson(`fem_runs/${source}/spec.json`, null);
+    if (!spec) throw new Error(`${source} has no spec.json to clone.`);
+    await store.writeJson(`fem_runs/${target}/spec.json`,
+      { ...spec, name: target, cloned_from: source, created_at: new Date().toISOString() });
+    say(`Cloned ${source} → fem_runs/${target}.`);
+  },
+});
+
+wire("Model Fitting", {
+  "Save Fit Parameters JSON": async ({ say }) => {
+    // Fit already writes one; this saves the most recent again under a name of
+    // its own, which is what the button does in the app.
+    let fits = [];
+    try {
+      fits = (await store.listProjectDir("analysis"))
+        .filter((f) => f.name.startsWith("fit-")).map((f) => f.name).sort();
+    } catch (error) { /* none */ }
+    if (!fits.length) throw new Error("Run Fit first — there is no result to save.");
+    const latest = fits[fits.length - 1];
+    const result = JSON.parse(await store.readProjectFile(`analysis/${latest}`));
+    const path = `exports/fit-parameters-${stamp()}.json`;
+    await store.writeProjectFile(path, JSON.stringify(result, null, 2));
+    await store.registerData({ name: path.split("/").pop(), kind: "parameters",
+                               path, source: "Model Fitting" });
+    say(`${result.model}: ${result.parameters.length} parameter(s), R² `
+      + `${result.r2.toFixed(4)}. Saved ${path}.`);
+  },
+});
+
+wire("Module Builder", {
+  "↺": async ({ say, redraw }) => { redraw(); say("Reset."); },
+});
+
+/** Move the selected pipeline step, which is what ▲ and ▼ do. */
+async function movePipelineStep(direction, say) {
+  const plan = await store.readJson("metadata/pipeline.json", { plan: [] });
+  const steps = plan.plan || [];
+  if (steps.length < 2) throw new Error("The pipeline has nothing to reorder.");
+  const host = document.getElementById("research-page");
+  const rows = Array.from(host.querySelectorAll(".qt-listwidget > *, .qt-datatable > *"));
+  const at = rows.findIndex((n) => n.classList?.contains("is-selected"));
+  const index = at >= 0 ? at : (direction < 0 ? steps.length - 1 : 0);
+  const to = index + direction;
+  if (to < 0 || to >= steps.length) { say("Already at the end."); return; }
+  [steps[index], steps[to]] = [steps[to], steps[index]];
+  plan.plan = steps;
+  await store.writeJson("metadata/pipeline.json", plan);
+  say(`Moved "${steps[to].name || `step ${index + 1}`}" ${direction < 0 ? "up" : "down"}.`);
+}
+
+wire("Pipeline Editor", {
+  "▲": async ({ say }) => movePipelineStep(-1, say),
+  "▼": async ({ say }) => movePipelineStep(1, say),
+});
+
+wire("Settings", {
+  "Save Settings": async ({ say, values }) => {
+    const settings = Object.fromEntries(Object.entries(values())
+      .filter(([, value]) => value !== "" && value !== undefined));
+    // Settings belong to the person, not the study, so they go to localStorage
+    // as the Google client id does -- and to the project too when one is open,
+    // because the desktop app reads them from there.
+    localStorage.setItem("geoid-gis:research-settings", JSON.stringify(settings));
+    if (store.getActive()) await store.writeJson("metadata/settings.json", settings);
+    say(`${Object.keys(settings).length} setting(s) saved`
+      + `${store.getActive() ? " to metadata/settings.json and this browser." : " in this browser."}`);
+  },
+});
+
+wire("Temporal Tools", {
+  "Run Resample": async (api) => {
+    const { say, values } = api;
+    const { path, table } = await chosenTable(api);
+    const numeric = numericOf(table);
+    const names = Object.keys(numeric);
+    if (!names.length) throw new Error("No numeric column to resample.");
+    const v = values();
+    // The interval the page asks for, in samples. A resample to a coarser grid
+    // is a block mean, which is the honest answer for irregular data too.
+    const factor = Math.max(2, Math.round(Number(
+      Object.entries(v).find(([k]) => /interval|factor|step|window/i.test(k))?.[1]) || 10));
+    const header = ["bin", ...names];
+    const source = numeric[names[0]];
+    const bins = Math.floor(source.length / factor);
+    if (bins < 1) throw new Error(`Series is shorter than one ${factor}-sample bin.`);
+    const rows = [];
+    for (let b = 0; b < bins; b += 1) {
+      const row = [b];
+      names.forEach((name) => {
+        const slice = numeric[name].slice(b * factor, (b + 1) * factor);
+        row.push(slice.reduce((a, x) => a + x, 0) / slice.length);
+      });
+      rows.push(row);
+    }
+    const out = `analysis/resampled-${stamp()}.csv`;
+    await saveTable(out, header, rows, "Temporal Tools", "series");
+    say(`${path.split("/").pop()}: ${source.length} → ${bins} rows `
+      + `(mean of ${factor}). Saved ${out}.`);
+  },
 });
