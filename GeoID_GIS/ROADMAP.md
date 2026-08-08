@@ -183,10 +183,15 @@ derived from MainWindow's own registry rather than hand-written, which is what
 finally brought in the Analysis stage and Pipeline — twenty-five pages a manual
 table had missed.
 
-**Controls: 116 of 323 wired (36%)**, almost all from patterns in `wiring.js` —
-Refresh, Browse/Import, Open in Globe/Studio, Export CSV, repro snapshot. The
-remaining 207 need per-page logic, and a handful need a native binary and are
-recorded in `CANNOT_WIRE` as permanently disabled here.
+**Controls: 268 of 323 wired (83%)** — patterns in `wiring.js` for the shared
+verbs, per-page handlers in `wiring-pages.js`, and `stats.js` for the maths the
+app hands to SciPy.
+
+The 55 still disabled are the ones that need a process a browser tab does not
+have: gmsh, GALES binaries, Python module execution, plugin install, a model
+for the "AI" buttons. `CANNOT_WIRE` in wiring.js records each reason. Two on
+that list are worth revisiting — a wizard (Build New) and a notebook runner —
+because both are possible, just larger than a handler.
 
 It measures **structure only** — titles, tabs, sections, buttons, field
 placeholders, dropdown options, table headers. A page can score 100% and still
