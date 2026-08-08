@@ -471,6 +471,27 @@ wide; now none is.
 "matplotlib not available", "rasterio not installed". Each is false here: the
 map is a canvas, the plots are canvases, the rasters go through geotiff.js.
 
+**The control metric.** `--ctl: 30px` on `#research-hub`: every `.button` and
+every `.input` (bar textareas) is exactly that tall, so toolbars centre on one
+line by construction. Before it existed one page held four control heights —
+21, 28, 30, 32 — and nothing reads as "messy" faster than controls that almost
+line up. Icon affordances (ⓘ, ↑↓✕, tabs) and tree rows are not inline controls
+and keep their own size. A CollapsibleSection is **full width, always** —
+closed it is a bar, open the bar is the lid of a contained panel. Tables are
+boxes with a lid. A multi-line field takes its own grid row. The status line is
+the page's last word — `completedMount` moves it to the foot.
+
+**Chromium mis-sizes auto grid rows for these children.** With the auto-fill
+grid, the rows holding repo-tree and every open CollapsibleSection came out at
+roughly their first line (~36-53px) while the items were 95-384px tall, and
+sections painted over each other — grid items that all span `1 / -1` are not
+supposed to be able to overlap at all. The identical DOM under a flex column
+has zero overlaps; the hand-built pages are flex columns now, children
+`flex: 0 0 auto` (a closed bar was otherwise squeezed to 10px of its 34), and
+an open `.qt-grow` section keeps an 11rem working minimum with the page root
+scrolling instead. If sibling overlap ever appears again, suspect the container
+before the children.
+
 **When measuring for clipping, check whether an ancestor scrolls.** A box whose
 own overflow is visible but whose parent scrolls has lost nothing; counting it
 as clipped chases a fault that is not there.
