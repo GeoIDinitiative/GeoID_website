@@ -1,5 +1,6 @@
-import { directoryAdapter, memoryAdapter } from "./fs-adapter.js?v=20260810c";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810c";
+import { directoryAdapter, memoryAdapter } from "./fs-adapter.js?v=20260810g";
+import { currentBodyId } from "../bodies.js?v=20260810g";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810g";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -47,10 +48,14 @@ export const PHASES = [
 export const PRIORITIES = ["Critical", "High", "Medium", "Low"];
 
 /** The Qt defaults, field for field (app_qt.py:723). */
-export function defaultMetadata(name) {
+export function defaultMetadata(name, body = currentBodyId()) {
   const now = new Date().toISOString();
   return {
     name,
+    // Which world this project is about. Defaulted rather than required, so a
+    // project written by the desktop app -- which predates the idea -- still
+    // opens here and is read as Earth.
+    body,
     description: "",
     collaborators: [],
     phase: "Scoping",
@@ -78,6 +83,8 @@ function mergeMetadata(name, payload) {
   const defaults = defaultMetadata(name);
   if (!payload || typeof payload !== "object") return defaults;
   const merged = { ...defaults, ...payload };
+  // An older project has no body; it was made before other worlds existed.
+  if (!merged.body) merged.body = "earth";
   merged.study_area = { ...defaults.study_area, ...(payload.study_area || {}) };
   merged.default_import_paths = {
     ...defaults.default_import_paths,

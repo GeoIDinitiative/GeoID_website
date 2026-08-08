@@ -1,0 +1,1804 @@
+/*
+ * The GIS layer's own styling, for pages that are not the Earth viewer.
+ *
+ * Extracted from styles.css by selector: only rules that name the GIS
+ * toolbox, layer box, Meshing Studio, Research Hub, planet strip and their
+ * parts. The rest of that file styles the base viewer chrome, which each
+ * planet page already has its own version of -- loading it whole would
+ * restyle nine viewers as a side effect of adding a toolbox to them.
+ */
+
+.layer-type-wrap {
+      display: grid;
+      gap: 0.45rem;
+      margin-top: 0.7rem;
+    }
+
+.layer-type-badge {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.28rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #d7edf6;
+      background: rgba(14, 20, 28, 0.94);
+      font-size: 0.73rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+    }
+
+.layer-type-help {
+      color: var(--muted);
+      font-size: 0.79rem;
+      line-height: 1.45;
+    }
+
+.gis-checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.5rem 0.8rem;
+      margin-top: 0.65rem;
+      color: var(--text);
+      font-size: 0.84rem;
+    }
+
+.gis-checkbox-grid label {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+.toolbox-accordion {
+      display: grid;
+      gap: 0.7rem;
+    }
+
+.toolbox-section .section-body {
+      display: grid;
+      gap: 0.6rem;
+    }
+
+.tool-copy {
+      margin: 0.5rem 0 0;
+      color: var(--soft-light);
+      font-size: 0.78rem;
+      line-height: 1.45;
+    }
+
+.gis-toolbox-stack {
+      display: grid;
+      gap: 0.55rem;
+    }
+
+.gis-tool-section {
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.18);
+      border-radius: 0.78rem;
+      background: rgba(255, 255, 255, 0.03);
+      overflow: hidden;
+    }
+
+.gis-tool-section > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 0.7rem 0.78rem;
+      color: var(--nav-accent);
+      font-size: 0.74rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-family: "Courier New", monospace;
+      border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.08);
+    }
+
+.gis-tool-section > summary::-webkit-details-marker {
+      display: none;
+    }
+
+.gis-tool-body {
+      display: grid;
+      gap: 0.55rem;
+      padding: 0.72rem 0.78rem 0.8rem;
+    }
+
+.gis-tool-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.45rem;
+    }
+
+.gis-metric {
+      color: #f6dcc8;
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+
+.gis-metric strong {
+      color: #fff1e7;
+      font-weight: 600;
+    }
+
+.view-mode-switch {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 0.4rem;
+      margin-bottom: 1.1rem;
+    }
+
+.view-mode-btn {
+      padding: 0.5rem 0.4rem;
+      border-radius: 0.65rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.26);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.76rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      outline: none;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+.view-mode-btn:hover {
+      border-color: rgba(var(--nav-accent-rgb), 0.45);
+    }
+
+.view-mode-btn.is-active {
+      background: linear-gradient(180deg, rgba(255, 135, 87, 0.44), rgba(164, 26, 38, 0.62));
+      border-color: rgba(var(--nav-accent-rgb), 0.68);
+      color: #fff0e7;
+    }
+
+.import-layer-list {
+      display: grid;
+      gap: 0.45rem;
+    }
+
+.import-empty-note {
+      margin: 0;
+    }
+
+.import-layer-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding: 0.5rem 0.6rem;
+      border-radius: 0.6rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.16);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+.import-layer-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      min-width: 0;
+    }
+
+.import-layer-text {
+      display: grid;
+      gap: 0.1rem;
+      min-width: 0;
+    }
+
+.import-layer-name {
+      color: var(--text);
+      font-size: 0.8rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+.import-layer-detail {
+      color: var(--soft-light);
+      font-size: 0.68rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+.import-layer-badge-loading {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--soft-light);
+    }
+
+.import-layer-badge {
+      flex: 0 0 auto;
+      padding: 0.12rem 0.4rem;
+      border-radius: 0.4rem;
+      font-size: 0.66rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: rgba(var(--nav-accent-rgb), 0.16);
+      color: var(--nav-accent);
+    }
+
+.import-layer-badge-error {
+      background: rgba(220, 90, 90, 0.22);
+      color: #ffb3b3;
+    }
+
+.import-layer-badge-unsupported {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--soft-light);
+    }
+
+.import-layer-actions {
+      display: flex;
+      gap: 0.35rem;
+      flex: 0 0 auto;
+    }
+
+.import-layer-btn {
+      padding: 0.3rem 0.5rem;
+      font-size: 0.72rem;
+    }
+
+.layer-prop-panel {
+      display: grid;
+      gap: 0.4rem;
+      margin: -0.15rem 0 0.2rem;
+      padding: 0.6rem 0.7rem;
+      border-radius: 0 0 0.6rem 0.6rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.16);
+      border-top: none;
+      background: rgba(var(--nav-accent-rgb), 0.05);
+    }
+
+.layer-prop-row {
+      display: grid;
+      grid-template-columns: 5.4rem minmax(0, 1fr);
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+.layer-prop-row label {
+      font-size: 0.72rem;
+      color: var(--soft-light);
+    }
+
+.layer-prop-slider {
+      width: 100%;
+    }
+
+/* GIS mode toolbox: one group per tool family, nested sections inside. */
+    #gis-toolbox-panels {
+      display: grid;
+      gap: 0.55rem;
+    }
+
+#gis-toolbox-panels[hidden] {
+      display: none;
+    }
+
+.toolbox-group > .section-toggle .section-title {
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-size: 0.76rem;
+    }
+
+.toolbox-group-body {
+      display: grid;
+      gap: 0.5rem;
+    }
+
+/* Panels relocated into a group keep their own accordion behaviour but drop
+       the outer card styling so the nesting reads as one toolbox. */
+    .toolbox-group-body > .control-section {
+      border-radius: 0.6rem;
+    }
+
+.toolbox-group-body > .control-section.toolbox-nested > .section-toggle .section-title {
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      font-size: 0.72rem;
+      color: var(--nav-accent);
+    }
+
+.layer-georef {
+      display: grid;
+      gap: 0.35rem;
+      margin-top: 0.35rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid rgba(var(--nav-accent-rgb), 0.16);
+    }
+
+.layer-georef-extent {
+      margin: 0;
+      font-size: 0.68rem;
+    }
+
+.layer-prop-number {
+      width: 100%;
+      padding: 0.25rem 0.4rem;
+      font-size: 0.74rem;
+    }
+
+.layer-georef-apply {
+      width: 100%;
+      padding: 0.32rem 0.5rem;
+      font-size: 0.74rem;
+    }
+
+.layer-georef-status {
+      font-size: 0.72rem;
+    }
+
+.layer-prop-color {
+      width: 2.6rem;
+      height: 1.5rem;
+      padding: 0;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.24);
+      border-radius: 0.35rem;
+      background: transparent;
+      cursor: pointer;
+    }
+
+.gis-extract-options {
+      display: grid;
+      gap: 0.32rem;
+      padding: 0.5rem 0.6rem;
+      border-radius: 0.6rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.14);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+.gis-extract-source {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-size: 0.76rem;
+      color: var(--text);
+      cursor: pointer;
+      min-width: 0;
+    }
+
+.gis-extract-source span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+.gis-extract-source input {
+      flex: 0 0 auto;
+    }
+
+#gis-extract-run {
+      width: 100%;
+    }
+
+#gis-extract-csv[disabled],
+    #gis-extract-geojson[disabled] {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+.legend-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.36rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      font-size: 0.73rem;
+      line-height: 1;
+      white-space: nowrap;
+    }
+
+.legend-dot,
+    .legend-line {
+      display: inline-block;
+      flex: 0 0 auto;
+    }
+
+.legend-dot {
+      width: 0.72rem;
+      height: 0.72rem;
+      border-radius: 50%;
+      background: #f15c44;
+      border: 2px solid rgba(255, 228, 220, 0.92);
+    }
+
+.legend-line {
+      width: 1.15rem;
+      height: 0;
+      border-top: 2px solid #58d0f6;
+    }
+
+.legend-swatch {
+      display: inline-block;
+      flex: 0 0 auto;
+      width: 1rem;
+      height: 1rem;
+      border-radius: 0.28rem;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+.legend-gradient-block {
+      margin-top: 0.65rem;
+    }
+
+.legend-gradient-bar {
+      width: 100%;
+      height: 0.9rem;
+      border-radius: 0.45rem;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+    }
+
+.legend-gradient-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 0.28rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.3;
+    }
+
+.legend-symbol-list {
+      display: grid;
+      gap: 0.5rem;
+      margin-top: 0.7rem;
+    }
+
+.legend-symbol-row {
+      display: grid;
+      grid-template-columns: 1.1rem minmax(0, 1fr);
+      gap: 0.7rem;
+      align-items: start;
+    }
+
+.legend-symbol-copy {
+      min-width: 0;
+    }
+
+.legend-symbol-label {
+      color: var(--text);
+      font-size: 0.82rem;
+      line-height: 1.35;
+    }
+
+.legend-symbol-detail {
+      margin-top: 0.12rem;
+      color: var(--muted);
+      font-size: 0.76rem;
+      line-height: 1.4;
+    }
+
+.legend-panel {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+.legend-entry {
+      padding: 0.8rem;
+      border-radius: 0.8rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+.legend-entry-image {
+      display: block;
+      width: 100%;
+      margin-top: 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+.legend-empty {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+` — so conditionally-shown tool rows need an
+       explicit override or they stay visible when hidden is set. */
+    .row[hidden],
+    .toolbox-group-body [hidden] {
+      display: none !important;
+    }
+
+/* ── Meshing Studio ──────────────────────────────────────────────────
+       Same structure as the Qt studio (header + two toolbars + left/right
+       tab decks around the viewport), restyled into this GUI's palette
+       instead of the Atlas purple/cyan QSS. */
+    /* ── Worlds strip, bottom centre ────────────────────────────────────── */
+    /* Centred on the viewport rather than on the globe area: the sidebar and
+       the tool rail are both fixed, so a centred strip stays put whether or
+       not they are open. */
+    .gis-planet-strip {
+      position: fixed;
+      left: 50%;
+      bottom: 0.6rem;
+      transform: translateX(-50%);
+      z-index: 12;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.3rem 0.75rem;
+      border: 1px solid rgba(82, 228, 232, 0.28);
+      border-radius: 999px;
+      background: rgba(6, 10, 16, 0.72);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    }
+
+.gis-planet-strip[hidden] { display: none; }
+
+.gis-planet-strip .planet-node {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.1rem;
+      height: 2.1rem;
+      border: 0;
+      border-radius: 50%;
+      background: none;
+      cursor: pointer;
+      opacity: 0.62;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+
+.gis-planet-strip .planet-node:hover { opacity: 1; transform: scale(1.12); }
+
+.gis-planet-strip .planet-icon {
+      width: var(--icon-size, 24px);
+      height: var(--icon-size, 24px);
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+/* Where you are: full strength, with a ring rather than a colour change so
+       the planet's own image still reads. */
+    .gis-planet-strip .planet-node.is-current {
+      opacity: 1;
+      cursor: default;
+      box-shadow: 0 0 0 1px rgba(var(--nav-accent-rgb), 0.9),
+        0 0 14px rgba(var(--nav-accent-rgb), 0.35);
+    }
+
+.gis-planet-strip .planet-node.is-current:hover { transform: none; }
+
+@media (max-height: 560px) and (orientation: landscape) {
+.gis-planet-strip { bottom: 0.3rem; padding: 0.2rem 0.5rem; gap: 0.35rem; }
+.gis-planet-strip .planet-node { width: 1.6rem; height: 1.6rem; }
+}
+
+/* ── Research Hub ───────────────────────────────────────────────────── */
+    /* Full screen like the Meshing Studio, but opaque: the hub is a workspace,
+       not an overlay on the globe, and reading a table through a rotating
+       planet is not a feature. */
+    #research-hub {
+      position: fixed;
+      inset: 0;
+      z-index: 15;
+      display: flex;
+      flex-direction: column;
+      font-family: "Exo 2", system-ui, sans-serif;
+      color: var(--text);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 20%),
+        linear-gradient(180deg, var(--mars-panel-top), var(--mars-panel-bottom)),
+        var(--panel);
+    }
+
+#research-hub[hidden] { display: none; }
+
+.research-topbar {
+      flex: none;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem 0.9rem;
+      border-bottom: 1px solid rgba(82, 228, 232, 0.28);
+      background: rgba(8, 12, 20, 0.55);
+    }
+
+.research-topbar-label {
+      font-size: 0.66rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--nav-accent);
+    }
+
+.research-crumb {
+      flex: 1;
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      color: var(--soft-light);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+.research-project {
+      font-size: 0.64rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--soft-light);
+      padding: 0.2rem 0.5rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.34);
+      border-radius: 0.4rem;
+    }
+
+.research-project.is-open { color: var(--text); border-color: rgba(var(--nav-accent-rgb), 0.8); }
+
+.research-body { flex: 1; min-height: 0; display: flex; }
+
+/* The rail is the pipeline: twelve stages, in order, always visible. Its
+       order is the workflow's order, so it does not scroll away. */
+    .research-rail {
+      flex: none;
+      width: 11rem;
+      overflow-y: auto;
+      padding: 0.5rem 0.4rem;
+      border-right: 1px solid rgba(82, 228, 232, 0.22);
+      background: rgba(8, 12, 20, 0.35);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
+    }
+
+.research-rail-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.4rem;
+      width: 100%;
+      margin-bottom: 0.2rem;
+      padding: 0.45rem 0.55rem;
+      border: 1px solid transparent;
+      border-left: 2px solid rgba(var(--nav-accent-rgb), 0);
+      border-radius: 0.4rem;
+      background: none;
+      color: var(--soft-light);
+      font: inherit;
+      font-size: 0.68rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+.research-rail-btn:hover {
+      background: rgba(var(--nav-accent-rgb), 0.1);
+      color: var(--text);
+    }
+
+.research-rail-btn.is-active {
+      border-left-color: rgba(var(--nav-accent-rgb), 0.9);
+      background: linear-gradient(90deg, rgba(var(--nav-accent-rgb), 0.16), rgba(255, 255, 255, 0.01));
+      color: var(--text);
+    }
+
+.research-rail-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* How much of a stage exists. Dim where nothing is built, so the rail does
+       not overstate what is behind it. */
+    .research-rail-count {
+      flex: none;
+      font-size: 0.58rem;
+      letter-spacing: 0.04em;
+      opacity: 0.45;
+    }
+
+.research-rail-count.is-built { opacity: 0.9; color: var(--nav-accent); }
+
+.research-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.research-tabs {
+      flex: none;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid rgba(82, 228, 232, 0.18);
+    }
+
+.research-tab {
+      padding: 0.3rem 0.6rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
+      border-radius: 0.4rem;
+      background: rgba(10, 14, 24, 0.5);
+      color: var(--soft-light);
+      font: inherit;
+      font-size: 0.64rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+.research-tab:hover { color: var(--text); border-color: rgba(var(--nav-accent-rgb), 0.6); }
+
+.research-tab.is-active {
+      color: var(--text);
+      background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.18), rgba(255, 255, 255, 0.01));
+      border-color: rgba(var(--nav-accent-rgb), 0.8);
+    }
+
+/* A tab with nothing behind it says so before it is clicked. */
+    .research-tab.is-stub { opacity: 0.5; border-style: dashed; }
+
+.research-page {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0.9rem;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
+    }
+
+/* Page furniture: cards, forms and lists in the panel's own idiom, so a
+       Research page reads as the same product as the GIS sidebar. */
+    .research-card {
+      max-width: 44rem;
+      margin: 0 0 0.75rem;
+      padding: 0.8rem 0.9rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.34);
+      border-radius: 0.7rem;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.012));
+    }
+
+.research-card-title {
+      margin: 0 0 0.5rem;
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+.research-subsection { margin-top: 0.6rem; }
+
+.research-subtitle {
+      margin: 0 0 0.3rem;
+      font-size: 0.64rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--soft-light);
+    }
+
+.research-note { margin: 0 0 0.5rem; font-size: 0.7rem; color: var(--soft-light); }
+
+.research-status { font-size: 0.7rem; color: var(--soft-light); min-height: 1.1rem; }
+
+.research-status.is-error { color: #ff8bd6; }
+
+.research-form { display: flex; flex-direction: column; gap: 0.4rem; }
+
+.research-field { display: flex; flex-direction: column; gap: 0.15rem; }
+
+.research-field-label {
+      font-size: 0.62rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--soft-light);
+    }
+
+.research-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.4rem;
+    }
+
+/* Repository tree, note editor and figures. */
+    .repo-tree {
+      max-height: 22rem;
+      overflow: auto;
+      padding: 0.3rem 0;
+      border: 1px solid rgba(82, 228, 232, 0.18);
+      border-radius: 0.4rem;
+      background: rgba(8, 12, 20, 0.5);
+      scrollbar-width: thin;
+      scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
+    }
+
+.repo-row { display: block; }
+
+.repo-entry {
+      display: flex; align-items: center; gap: 0.35rem;
+      width: 100%; padding: 0.12rem 0.5rem;
+      border: 0; background: none; color: var(--text);
+      font: inherit; font-size: 0.68rem; text-align: left; cursor: pointer;
+    }
+
+.repo-entry:hover { background: rgba(var(--nav-accent-rgb), 0.12); }
+
+.repo-glyph { flex: none; width: 0.8rem; color: var(--soft-light); }
+
+.repo-dir { color: var(--nav-accent); }
+
+.repo-file { color: var(--soft-light); }
+
+.repo-preview {
+      max-height: 16rem; overflow: auto; margin: 0;
+      padding: 0.5rem; border: 1px solid rgba(82, 228, 232, 0.18);
+      border-radius: 0.4rem; background: rgba(8, 12, 20, 0.6);
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size: 0.64rem; white-space: pre-wrap; word-break: break-word;
+      color: var(--soft-light);
+    }
+
+.research-editor {
+      width: 100%; min-height: 18rem; margin-bottom: 0.5rem;
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size: 0.7rem; line-height: 1.5; resize: vertical;
+    }
+
+.research-figure { margin-top: 0.5rem; overflow-x: auto; }
+
+.research-figure canvas {
+      border: 1px solid rgba(82, 228, 232, 0.2);
+      border-radius: 0.4rem;
+      max-width: 100%;
+    }
+
+.research-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+      gap: 0.4rem;
+      margin-bottom: 0.5rem;
+    }
+
+.research-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+      padding: 0.4rem 0.5rem;
+      border: 1px solid rgba(82, 228, 232, 0.22);
+      border-radius: 0.4rem;
+      background: rgba(10, 14, 24, 0.55);
+    }
+
+.research-stat-label {
+      font-size: 0.56rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--soft-light);
+    }
+
+.research-stat-value { font-size: 0.74rem; color: var(--text); overflow-wrap: anywhere; }
+
+.research-card .gis-btn-row { gap: 0.4rem; }
+
+.research-card .gis-btn-row .button { flex: 0 0 auto; }
+
+.research-card .gis-btn-row .input { flex: 1 1 auto; }
+
+/* Ingest source lists and the lineage table. */
+    /* Reports, boards, galleries and progress. */
+    .research-report { margin-top: 0.5rem; }
+
+.research-flag {
+      margin-top: 0.5rem; padding: 0.4rem 0.6rem;
+      border-radius: 0.4rem; font-size: 0.68rem;
+    }
+
+.research-flag.is-ok { border: 1px solid rgba(82, 228, 232, 0.4); color: var(--nav-accent); }
+
+.research-flag.is-warn { border: 1px solid rgba(255, 210, 106, 0.5); color: #ffd36a; }
+
+.research-progress {
+      height: 0.35rem; margin: 0.5rem 0 0.2rem;
+      border-radius: 0.2rem; background: rgba(255, 255, 255, 0.06); overflow: hidden;
+    }
+
+.research-progress-fill { height: 100%; background: var(--nav-accent); }
+
+.research-board {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+      gap: 0.5rem; margin-top: 0.5rem;
+    }
+
+.research-board-col {
+      padding: 0.4rem; border: 1px solid rgba(82, 228, 232, 0.2);
+      border-radius: 0.4rem; background: rgba(8, 12, 20, 0.4);
+    }
+
+.research-board-card {
+      display: flex; flex-direction: column; gap: 0.25rem;
+      margin-bottom: 0.3rem; padding: 0.35rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+      border-radius: 0.35rem; background: rgba(10, 14, 24, 0.6);
+      font-size: 0.68rem;
+    }
+
+.research-gallery {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+      gap: 0.6rem; margin-top: 0.5rem;
+    }
+
+.research-gallery-item {
+      display: flex; flex-direction: column; gap: 0.25rem;
+      padding: 0.4rem; border: 1px solid rgba(82, 228, 232, 0.2);
+      border-radius: 0.4rem; background: rgba(8, 12, 20, 0.4);
+    }
+
+.research-gallery-item img { width: 100%; border-radius: 0.3rem; }
+
+.research-gallery-name { font-size: 0.62rem; color: var(--soft-light); }
+
+.ingest-sources {
+      margin: 0 0 0.4rem;
+      padding-left: 1.1rem;
+      font-size: 0.68rem;
+      color: var(--soft-light);
+    }
+
+.ingest-sources li { margin: 0.1rem 0; }
+
+.research-table {
+      display: flex;
+      flex-direction: column;
+      overflow-x: auto;
+      font-size: 0.66rem;
+    }
+
+.research-table-row {
+      display: grid;
+      grid-template-columns: minmax(8rem, 1.4fr) 6rem minmax(8rem, 1.4fr) minmax(9rem, 1.6fr) 6rem;
+      gap: 0.5rem;
+      padding: 0.28rem 0.4rem;
+      border-bottom: 1px solid rgba(82, 228, 232, 0.14);
+    }
+
+.research-table-row span {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+.research-table-row.is-head {
+      color: var(--soft-light);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 0.58rem;
+      border-bottom-color: rgba(var(--nav-accent-rgb), 0.45);
+    }
+
+/* An <a> styled as a button still needs the button's box. */
+    .research-card a.button {
+      display: inline-flex; align-items: center;
+      text-decoration: none;
+    }
+
+.research-check { flex-direction: row; align-items: center; gap: 0.45rem; }
+
+.research-list { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.5rem; }
+
+.research-list-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid rgba(82, 228, 232, 0.22);
+      border-radius: 0.4rem;
+      background: rgba(10, 14, 24, 0.55);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.7rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+.research-list-row:hover { border-color: rgba(var(--nav-accent-rgb), 0.6); }
+
+.research-list-row.is-active { border-color: rgba(var(--nav-accent-rgb), 0.9); }
+
+.research-list-tag {
+      flex: none;
+      font-size: 0.56rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--nav-accent);
+    }
+
+.research-stub {
+      max-width: 32rem;
+      margin: 3rem auto;
+      padding: 1.4rem;
+      border: 1px dashed rgba(var(--nav-accent-rgb), 0.34);
+      border-radius: 0.7rem;
+      text-align: center;
+    }
+
+.research-stub-title {
+      margin: 0 0 0.4rem;
+      font-size: 0.9rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+.research-stub-note { margin: 0; font-size: 0.72rem; color: var(--soft-light); }
+
+#model-studio {
+      position: fixed;
+      inset: 0;
+      z-index: 14;
+      pointer-events: none;
+      font-family: "Exo 2", system-ui, sans-serif;
+    }
+
+#model-studio[hidden] { display: none; }
+
+#model-studio > * { pointer-events: auto; }
+
+.studio-header {
+      position: absolute;
+      top: 0.75rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: baseline;
+      gap: 0.7rem;
+    }
+
+.studio-title {
+      font-family: "Courier New", monospace;
+      font-size: 0.72rem;
+      letter-spacing: 0.22em;
+      color: var(--nav-accent);
+    }
+
+.studio-status { font-size: 0.7rem; color: var(--soft-light); }
+
+/* Tiles reuse the myGeoID panel treatment so the studio reads as part of
+       the same GUI: the same border, layered gradient and outer glow as #ui. */
+    .studio-toolbar,
+    .studio-dock,
+    .studio-modebar {
+      border: 1px solid rgba(82, 228, 232, 0.38);
+      border-radius: 0.75rem;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+        linear-gradient(180deg, var(--mars-panel-top), var(--mars-panel-bottom)),
+        var(--panel);
+      box-shadow:
+        0 18px 42px rgba(0, 0, 0, 0.42),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+        0 0 0 1px rgba(92, 235, 238, 0.14),
+        0 0 34px rgba(64, 220, 228, 0.12);
+      backdrop-filter: blur(10px);
+    }
+
+/* Both toolbars stack in one flow column: the main row wraps on narrow
+       viewports, and a fixed offset for the second row would then collide. */
+    .studio-toolbars {
+      position: absolute;
+      top: 0.9rem;
+      left: 50%;
+      transform: translateX(-50%);
+      display: grid;
+      gap: 0.4rem;
+      justify-items: center;
+      max-width: min(72vw, 60rem);
+    }
+
+.studio-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.22rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: min(72vw, 60rem);
+      padding: 0.4rem 0.6rem;
+    }
+
+/* Mode switcher, top-left where it sits on the myGeoID page. */
+    .studio-modebar {
+      position: absolute;
+      top: 0.9rem;
+      left: 0.9rem;
+      display: grid;
+      gap: 0.4rem;
+      padding: 0.6rem 0.7rem;
+    }
+
+.studio-modebar-label {
+      font-family: "Courier New", monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.16em;
+      color: var(--soft-light);
+    }
+
+.studio-btn {
+      padding: 0.24rem 0.5rem;
+      border-radius: 0.4rem;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--soft-light);
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+.studio-btn:hover {
+      color: var(--nav-accent);
+      background: rgba(var(--nav-accent-rgb), 0.1);
+    }
+
+.studio-btn.is-on {
+      color: var(--nav-accent);
+      border-color: rgba(var(--nav-accent-rgb), 0.6);
+      background: rgba(var(--nav-accent-rgb), 0.16);
+    }
+
+.studio-sep {
+      width: 1px;
+      align-self: stretch;
+      margin: 0 0.24rem;
+      background: rgba(var(--nav-accent-rgb), 0.28);
+    }
+
+.studio-label { font-size: 0.7rem; color: var(--soft-light); }
+
+.studio-select,
+    .studio-input {
+      padding: 0.16rem 0.3rem;
+      border-radius: 0.35rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
+      background: rgba(8, 13, 19, 0.96);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.72rem;
+    }
+
+.studio-select.wide, .studio-input { width: 100%; }
+
+.studio-clip { width: 7rem; }
+
+.studio-ai {
+      flex: 1 1 16rem;
+      min-width: 12rem;
+      padding: 0.24rem 0.5rem;
+      border-radius: 0.4rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
+      background: rgba(8, 13, 19, 0.96);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.72rem;
+    }
+
+.studio-dock {
+      position: absolute;
+      top: 10.6rem;
+      bottom: 3.2rem;
+      width: 16rem;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+.studio-dock-left { left: 0.9rem; }
+
+.studio-dock-right { right: 0.9rem; }
+
+.studio-tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.2);
+    }
+
+.studio-tab {
+      flex: 1;
+      padding: 0.52rem 0.2rem;
+      border: none;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.005));
+      color: var(--soft-light);
+      font: inherit;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: background 0.15s, color 0.15s;
+    }
+
+.studio-tab:hover {
+      color: var(--nav-accent);
+      background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.13), rgba(255, 255, 255, 0.025));
+    }
+
+.studio-tab.is-active {
+      color: var(--nav-accent);
+      border-bottom-color: var(--nav-accent);
+      background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.12), rgba(255, 255, 255, 0.01));
+      box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+.studio-pane {
+      display: none;
+      padding: 0.6rem 0.65rem;
+      overflow-y: auto;
+      gap: 0.4rem;
+    }
+
+.studio-pane.is-active { display: grid; align-content: start; }
+
+.studio-group-title {
+      margin: 0.35rem 0 0.1rem;
+      padding: 0.3rem 0.5rem;
+      border-radius: 0.45rem;
+      border-left: 2px solid rgba(var(--nav-accent-rgb), 0.82);
+      background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.12), rgba(255, 255, 255, 0.01));
+      font-family: "Courier New", monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--nav-accent);
+    }
+
+.studio-row {
+      display: grid;
+      grid-template-columns: 4.6rem minmax(0, 1fr);
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+.studio-row label { font-size: 0.7rem; color: var(--soft-light); }
+
+.studio-palette { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem; }
+
+.studio-palette button {
+      padding: 0.3rem 0.25rem;
+      border-radius: 0.4rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.24);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.68rem;
+      cursor: pointer;
+    }
+
+.studio-palette button:hover,
+    .studio-palette button.is-on {
+      border-color: rgba(var(--nav-accent-rgb), 0.6);
+      color: var(--nav-accent);
+    }
+
+.studio-primary,
+    .studio-secondary {
+      padding: 0.34rem 0.5rem;
+      border-radius: 0.45rem;
+      font: inherit;
+      font-size: 0.72rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+    }
+
+.studio-primary {
+      background: linear-gradient(180deg, rgba(255, 135, 87, 0.4), rgba(164, 26, 38, 0.58));
+      color: #fff0e7;
+    }
+
+.studio-secondary { background: rgba(255, 255, 255, 0.04); color: var(--text); }
+
+.studio-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.studio-actions { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+
+.studio-actions > * { flex: 1 1 auto; }
+
+.studio-check {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.7rem;
+      color: var(--soft-light);
+    }
+
+.studio-readout {
+      padding: 0.45rem 0.55rem;
+      border-radius: 0.6rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.012));
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      color: #f6dcc8;
+      font-size: 0.7rem;
+      line-height: 1.45;
+    }
+
+.studio-list {
+      display: grid;
+      gap: 0.22rem;
+      max-height: 12rem;
+      overflow-y: auto;
+    }
+
+.studio-list .studio-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.4rem;
+      padding: 0.28rem 0.4rem;
+      border-radius: 0.35rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.14);
+      background: rgba(255, 255, 255, 0.02);
+      font-size: 0.68rem;
+      cursor: pointer;
+    }
+
+.studio-list .studio-item.is-selected {
+      border-color: rgba(var(--nav-accent-rgb), 0.6);
+      color: var(--nav-accent);
+    }
+
+.studio-log {
+      font-family: "Courier New", monospace;
+      font-size: 0.64rem;
+      line-height: 1.5;
+      color: #b9f5d8;
+      white-space: pre-wrap;
+      max-height: 100%;
+      overflow-y: auto;
+    }
+
+.studio-canvas {
+      width: 100%;
+      height: 5rem;
+      border-radius: 0.4rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.2);
+      background: rgba(var(--nav-accent-rgb), 0.05);
+    }
+
+@media (max-width: 1100px) {
+.studio-dock { width: 12.5rem; }
+.studio-ai { flex-basis: 10rem; }
+}
+
+/* Entity rows carry their own hide/delete controls, and a right-click menu
+       mirrors the studio's tree context menu. */
+    .studio-item-actions { display: flex; gap: 0.2rem; flex: 0 0 auto; }
+
+.studio-mini {
+      padding: 0.1rem 0.3rem;
+      border-radius: 0.3rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.28);
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--soft-light);
+      font: inherit;
+      font-size: 0.6rem;
+      cursor: pointer;
+    }
+
+.studio-mini:hover { color: var(--nav-accent); border-color: rgba(var(--nav-accent-rgb), 0.6); }
+
+.studio-context {
+      position: fixed;
+      z-index: 40;
+      display: grid;
+      min-width: 8.5rem;
+      padding: 0.25rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.34);
+      background: rgba(10, 14, 22, 0.97);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+    }
+
+.studio-context button {
+      padding: 0.3rem 0.5rem;
+      border: none;
+      border-radius: 0.35rem;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      font-size: 0.72rem;
+      text-align: left;
+      cursor: pointer;
+    }
+
+.studio-context button:hover { background: rgba(var(--nav-accent-rgb), 0.16); color: var(--nav-accent); }
+
+/* In the studio the switcher keeps the myGeoID pill styling, just sized to
+       the mode bar rather than the full sidebar width. */
+    .view-mode-switch.is-in-studio {
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(4.2rem, 1fr);
+      gap: 0.35rem;
+      margin: 0;
+      /* Sized to its buttons rather than to a number of them. */
+      width: max-content;
+    }
+
+.view-mode-switch.is-in-studio .view-mode-btn {
+      padding: 0.4rem 0.3rem;
+      font-size: 0.68rem;
+    }
+
+/* ── GIS layer hierarchy ────────────────────────────────────────────── */
+    .layer-stack { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.5rem; }
+
+.layer-row {
+      display: grid;
+      grid-template-columns: auto auto 1fr auto 4.5rem auto;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.25rem 0.35rem;
+      border: 1px solid rgba(82, 228, 232, 0.22);
+      border-radius: 0.4rem;
+      background: rgba(10, 14, 24, 0.75);
+      font-size: 0.7rem;
+      cursor: grab;
+    }
+
+.layer-row.is-dragging { opacity: 0.45; }
+
+.layer-row.is-drop { border-color: var(--nav-accent); box-shadow: 0 0 0 1px var(--nav-accent) inset; }
+
+.layer-grip { background: none; border: 0; color: var(--soft-light); cursor: grab; padding: 0 0.1rem; }
+
+.layer-eye { display: flex; align-items: center; }
+
+.layer-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.layer-kind { color: var(--soft-light); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.layer-opacity { width: 4.5rem; }
+
+.layer-moves { display: flex; flex-direction: column; line-height: 0.8; }
+
+.layer-moves button {
+      background: none; border: 0; color: var(--soft-light);
+      font-size: 0.55rem; cursor: pointer; padding: 0;
+    }
+
+.layer-moves button:hover { color: var(--nav-accent); }
+
+.gis-code { font-family: "Courier New", monospace; font-size: 0.66rem; line-height: 1.35; resize: vertical; width: 100%; }
+
+.gis-plot { min-height: 6rem; margin: 0.4rem 0; border: 1px solid rgba(82, 228, 232, 0.22); border-radius: 0.4rem; background: rgba(4, 8, 16, 0.85); }
+
+.gis-checks { display: flex; flex-wrap: wrap; gap: 0.5rem; font-size: 0.66rem; }
+
+.gis-checks label { display: inline-flex; align-items: center; gap: 0.25rem; }
+
+/* ── Mode switch: two equal halves ──────────────────────────────────── */
+    #view-mode-switch {
+      display: grid;
+      /* One row, however many modes there are. Fixed at two columns this
+         wrapped the moment Research was added. */
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(0, 1fr);
+      gap: 0.5rem;
+    }
+
+#view-mode-switch .view-mode-btn { width: 100%; margin: 0; }
+
+/* One rhythm down the sidebar, whatever a section happens to be. */
+    #ui-scroll-body > .toolbox-group,
+    #ui-scroll-body > .geoid-mode-bar,
+    #gis-toolbox-panels > .toolbox-group {
+      margin: 0 0 0.5rem;
+    }
+
+#gis-toolbox-panels { display: block; }
+
+.gis-btn-row { display: flex; gap: 0.4rem; margin: 0.35rem 0; }
+
+.gis-btn-row .button { flex: 1; }
+
+/* ── Legend, left of the tool rail ──────────────────────────────────── */
+    .map-legend {
+      position: fixed;
+      top: 1rem;
+      right: 5.5rem;
+      z-index: 13;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.35rem;
+      pointer-events: auto;
+    }
+
+.map-legend-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.6rem;
+      border: 1px solid rgba(82, 228, 232, 0.35);
+      border-radius: 0.5rem;
+      background: rgba(8, 12, 20, 0.72);
+      backdrop-filter: blur(8px);
+      color: var(--text);
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+.map-legend-toggle:hover { border-color: var(--nav-accent); color: var(--nav-accent); }
+
+.map-legend-icon { display: inline-flex; width: 0.9rem; }
+
+.map-legend-caret { font-size: 0.6rem; transition: transform 0.15s ease; }
+
+.map-legend-toggle[aria-expanded="true"] .map-legend-caret { transform: rotate(180deg); }
+
+.map-legend-panel {
+      width: 15rem;
+      max-height: 60vh;
+      overflow-y: auto;
+      padding: 0.55rem 0.7rem;
+      border: 1px solid rgba(82, 228, 232, 0.3);
+      border-radius: 0.55rem;
+      /* Semi-transparent: the legend describes the scene, so the scene should
+         stay readable behind it. */
+      background: rgba(8, 12, 20, 0.62);
+      backdrop-filter: blur(10px);
+      font-size: 0.68rem;
+    }
+
+.legend-entry {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.22rem 0;
+    }
+
+.legend-entry + .legend-entry { border-top: 1px solid rgba(82, 228, 232, 0.14); }
+
+.legend-swatch {
+      width: 0.8rem; height: 0.8rem; flex: none;
+      border-radius: 0.15rem;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+.legend-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.legend-kind { color: var(--soft-light); font-size: 0.6rem; text-transform: uppercase; }
+
+.legend-entry.is-hidden { opacity: 0.4; }
+
+/* The drop-downs step left of the readout instead of dropping below it.
+       Only the readout is in their way -- the tools are below it, not beside
+       them -- so this is measured from the readout alone rather than carrying
+       the tool rail's clearance as well. */
+    body[data-hub-armed="true"] .map-legend {
+      right: var(--hazard-rail-w, 5.5rem);
+    }
+
+/* The legend keys map layers; the studio has none. */
+    body[data-view-mode="model"] .map-legend { display: none !important; }
+
+.project-dialog-body .gis-tool-section { margin-bottom: 0.6rem; }
+
+.brand-toprow #view-mode-switch {
+      /* In the header the switch sizes to its content rather than splitting the
+         sidebar in half, so the two buttons sit between the project button and
+         the panel actions without crowding either. */
+      display: flex;
+      grid-template-columns: none;
+      flex: 1;
+      justify-content: center;
+      gap: 0.35rem;
+      margin: 0;
+    }
+
+.brand-toprow #view-mode-switch .view-mode-btn {
+      width: auto;
+      flex: 0 1 5.5rem;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.66rem;
+    }
+
+.brand-toprow #view-mode-switch .view-mode-btn { flex: 1 1 0; }
+
+/* ── Events feed ────────────────────────────────────────────────────── */
+    /* With no legend the feed takes the slot beside the tool buttons; with one,
+       it steps left so the two sit side by side rather than overlapping. */
+    /* Placed from the legend's measured width by gis/events.js; this is the
+       starting position before that runs. */
+    .events-overlay { right: 5.5rem; }
+
+body[data-hub-armed="true"] .events-overlay {
+      right: var(--hazard-rail-w, 5.5rem);
+    }
+
+.event-group + .event-group { margin-top: 0.5rem; }
+
+.event-group-head {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.2rem 0; margin-bottom: 0.15rem;
+      border-bottom: 1px solid rgba(82, 228, 232, 0.2);
+      font-size: 0.64rem; letter-spacing: 0.05em; text-transform: uppercase;
+    }
+
+.event-group-head span:nth-child(2) { flex: 1; }
+
+.event-count { color: var(--soft-light); }
+
+.event-glyph { flex: none; width: 0.9rem; text-align: center; }
+
+.event-row {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.18rem 0; cursor: pointer;
+    }
+
+.event-row:hover .event-name { color: var(--nav-accent); }
+
+.event-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* display:flex on the overlays outranks the hidden attribute, so it has to
+       be restated -- otherwise "hidden" only stops them being announced, not
+       being drawn, and the Events drop-down showed with the mode switched off. */
+    .map-legend[hidden], .events-overlay[hidden] { display: none; }
+
+/* ── Event details, on picking a marker ─────────────────────────────── */
+    .event-popup {
+      position: fixed;
+      z-index: 40;
+      width: 17rem;
+      padding: 0.7rem 0.8rem;
+      border: 1px solid rgba(82, 228, 232, 0.4);
+      border-radius: 0.55rem;
+      background: rgba(8, 12, 20, 0.94);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.5);
+      font-size: 0.68rem;
+    }
+
+.event-popup[hidden] { display: none; }
+
+.event-popup-close {
+      position: absolute; top: 0.3rem; right: 0.45rem;
+      background: none; border: 0; color: var(--soft-light);
+      font-size: 1rem; line-height: 1; cursor: pointer;
+    }
+
+.event-popup-close:hover { color: var(--nav-accent); }
+
+.event-popup-head {
+      display: flex; align-items: center; gap: 0.35rem;
+      font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--soft-light);
+    }
+
+.event-popup h3 { margin: 0.25rem 0 0.4rem; font-size: 0.78rem; }
+
+.event-popup dl {
+      display: grid; grid-template-columns: auto 1fr;
+      gap: 0.1rem 0.5rem; margin: 0 0 0.5rem;
+    }
+
+.event-popup dt { color: var(--soft-light); }
+
+.event-popup dd { margin: 0; }
+
+.event-popup a { color: var(--nav-accent); }
+
+.event-popup-actions { margin-top: 0.45rem; }
+
+.event-popup-actions .button { width: 100%; }
+
+.event-row.is-selected { background: rgba(82, 228, 232, 0.16); border-radius: 0.25rem; }
+
+.event-row.is-selected .event-name { color: var(--nav-accent); }
+
+/* Gradient ramps in the legend, for continuous datasets. */
+    .legend-ramp { padding: 0.1rem 0 0.3rem 1.25rem; }
+
+.legend-ramp-bar {
+      display: block; height: 0.5rem; border-radius: 0.2rem;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+.legend-ramp-labels {
+      display: flex; justify-content: space-between;
+      font-size: 0.58rem; color: var(--soft-light); margin-top: 0.1rem;
+    }
+
+.legend-ramp.is-hidden { opacity: 0.4; }
+
+/* ── Polygons: the vector-overlay register ──────────────────────────── */
+    .polygon-list { display: flex; flex-direction: column; gap: 0.25rem; }
+
+.polygon-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.28rem 0.4rem;
+      border: 1px solid rgba(82, 228, 232, 0.22);
+      border-radius: 0.4rem;
+      background: rgba(10, 14, 24, 0.55);
+      font-size: 0.7rem;
+      cursor: pointer;
+    }
+
+.polygon-row:hover { border-color: rgba(var(--nav-accent-rgb), 0.5); }
+
+.polygon-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.polygon-count { color: var(--soft-light); font-size: 0.62rem; }
+
+/* ── Layer dock: its own box, below the panel ───────────────────────── */
+    /* Separate from the tab bar rather than docked inside it, and skinned like
+       the panel itself -- cyan edge, same rounding and glow -- at a smaller
+       scale. The panel's own max-height is reduced by this box's height (see
+       --layer-dock-space, set from JS) so the two never overlap. */
+    #layer-dock {
+      position: fixed;
+      left: 1rem;
+      bottom: 1rem;
+      /* Just above the panel. The two are laid out not to overlap, but where a
+         short viewport forces it the dock must be the thing you can see, not
+         the thing hidden behind. */
+      z-index: 11;
+      /* Same width as the panel above it -- the two read as one column. */
+      width: min(24rem, calc(100vw - 2rem));
+      border: 1px solid rgba(82, 228, 232, 0.38);
+      border-radius: 0.6rem;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+        linear-gradient(180deg, var(--mars-panel-top), var(--mars-panel-bottom)),
+        var(--panel);
+      box-shadow:
+        0 12px 28px rgba(0, 0, 0, 0.42),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+        0 0 0 1px rgba(92, 235, 238, 0.14),
+        0 0 22px rgba(64, 220, 228, 0.12);
+      overflow: hidden;
+    }
+
+#layer-dock[hidden], #layer-dock.is-away { display: none; }
+
+/* Smaller than a tab header, but the same idiom: icon, caps, +/- marker. */
+    .layer-dock-head {
+      cursor: pointer;
+      min-height: 2.1rem;
+      padding: 0.5rem 0.65rem;
+    }
+
+.layer-dock-head .section-title { font-size: 0.66rem; }
+
+.layer-dock-head .section-icon svg { width: 0.85rem; height: 0.85rem; }
+
+/* The +/- marker is the one .section-toggle already draws. It keys off
+       [open], which a <section> cannot have, so open is spelled here. */
+    #layer-dock:not(.is-collapsed) > .layer-dock-head::after { content: "\2212"; }
+
+#layer-dock:not(.is-collapsed) > .layer-dock-head {
+      border-left-color: rgba(var(--nav-accent-rgb), 0.82);
+      background: linear-gradient(180deg, rgba(var(--nav-accent-rgb), 0.12), rgba(255, 255, 255, 0.01));
+      box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+.layer-dock-body {
+      padding: 0.45rem 0.65rem 0.55rem;
+      /* Grows with what is loaded, then scrolls rather than climbing into the
+         panel's space. */
+      max-height: min(28vh, 13rem);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
+    }
+
+#layer-dock.is-collapsed .layer-dock-body { display: none; }
+
+/* In its own box the panel is the content, so its header is redundant --
+       and so is the body's own border and padding, which would otherwise draw
+       a second box inset inside the first. */
+    #layer-dock-body > .toolbox-group > summary { display: none; }
+
+#layer-dock-body > .toolbox-group { border: 0; background: none; margin: 0; }
+
+#layer-dock-body > .toolbox-group > .toolbox-group-body {
+      border: 0;
+      background: none;
+      padding: 0;
+    }
+
+#layer-dock-body .layer-stack { margin-bottom: 0; }
+
+/* Rows scale with the box. */
+    #layer-dock .layer-row { font-size: 0.66rem; padding: 0.2rem 0.3rem; }
+
+/* One rhythm for every tab, whatever kind of section it is. */
+    #gis-toolbox-panels > * { margin: 0 0 0.5rem !important; }

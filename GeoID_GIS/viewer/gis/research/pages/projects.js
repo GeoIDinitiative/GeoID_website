@@ -1,5 +1,5 @@
-import { registerPage } from "../stages.js?v=20260810c";
-import * as store from "../project-store.js?v=20260810c";
+import { registerPage } from "../stages.js?v=20260810g";
+import * as store from "../project-store.js?v=20260810g";
 
 /**
  * Projects: choose the folder, make a project, open one, edit its profile.
@@ -171,7 +171,12 @@ async function mount(host, ctx) {
       }
     });
 
+    // Shown, not editable: a project's world is decided by where it was made,
+    // and changing it after the fact would not move any of its data.
+    const bodyRow = el("p", "research-note",
+      `World: ${meta.body || "earth"}`);
     profileBody.append(
+      bodyRow,
       field("Name", name),
       field("Description", description),
       field("Focus question", focus),

@@ -1,4 +1,4 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260810c";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260810g";
 
 /**
  * The Research Hub shell: a stage rail down the left, a page tab strip across

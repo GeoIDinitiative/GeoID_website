@@ -1,10 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810c";
+import { currentBody } from "./bodies.js?v=20260810g";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810g";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260810c";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810c";
-import { downloadText } from "./extraction.js?v=20260810c";
+} from "./mesh-volume.js?v=20260810g";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810g";
+import { downloadText } from "./extraction.js?v=20260810g";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -259,7 +260,18 @@ function displayMesh(positions, name, color) {
 
 // ── Scene helpers: starfield, ground, view alignment ────────────────────────
 
-const EARTH_RADIUS_M = 6371000;
+/**
+ * The radius of the world this model sits on.
+ *
+ * Read from the body registry rather than fixed at Earth's: the ground patch,
+ * the horizon distance and the scale bar are all derived from it, and a Mars
+ * model drawn against a 6371 km sphere has a horizon almost twice as far away
+ * as it should be. Resolved on each call because the studio can be opened on
+ * any world, and the page it is on is the answer.
+ */
+function bodyRadiusM() {
+  return currentBody()?.radiusM ?? 6371000;
+}
 let groundMesh = null;
 
 // Mesh space is a local tangent frame on WGS84: model X/Y/Z are east/north/up
@@ -308,18 +320,18 @@ const DEFAULT_WORK_RADIUS_M = 250;
 const MIN_DOLLY_DISTANCE_M = 0.002;
 
 
-let groundRadius = 6371000;
+let groundRadius = bodyRadiusM();
 let patchRadius = 0;
 let modelAnchor = null;
 
 function computeGroundRadius() {
   // To scale with the model, always: the sphere is the Earth at the size the
   // model actually is, not a representative ball at a convenient radius.
-  return EARTH_RADIUS_M * studioScale;
+  return bodyRadiusM() * studioScale;
 }
 
 export function getGroundInfo() {
-  const trueRadius = EARTH_RADIUS_M * studioScale;
+  const trueRadius = bodyRadiusM() * studioScale;
   return {
     radius: groundRadius,
     trueRadius,
@@ -671,7 +683,7 @@ function sceneToWgs84(point) {
 /** Local east/north/up metres at the studio origin to WGS84. */
 function enuToWgs84(eastM, northM, upM) {
   const toRad = Math.PI / 180;
-  const R = EARTH_RADIUS_M + studioOrigin.elevation;
+  const R = bodyRadiusM() + studioOrigin.elevation;
   const distance = Math.hypot(eastM, northM);
   const elevation = studioOrigin.elevation + upM;
   if (distance < 1e-9) {
@@ -696,7 +708,7 @@ function enuToWgs84(eastM, northM, upM) {
 /** WGS84 to local east/north/up metres at the studio origin. */
 function wgs84ToEnu(lat, lon, elevation = 0) {
   const toRad = Math.PI / 180;
-  const R = EARTH_RADIUS_M + studioOrigin.elevation;
+  const R = bodyRadiusM() + studioOrigin.elevation;
   const lat1 = studioOrigin.lat * toRad;
   const lat2 = lat * toRad;
   const dLon = (lon - studioOrigin.lon) * toRad;
