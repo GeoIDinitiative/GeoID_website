@@ -1,60 +1,97 @@
 /*
- * The Research Hub's look, ported from the Qt app.
+ * The Research Hub's look.
  *
- * Source of truth: `THEME` / "GeoID Midnight" at app_qt.py:56 and
- * `build_app_stylesheet()` at :26170, plus the Atlas design system
- * (.claude/skills/atlas-design-system in the atlas-ai repo). The Qt app and
- * this page are two renderers of one visual language, so the tokens below are
- * the Qt values verbatim rather than an approximation of them.
+ * Structure is the Qt app's (`AtlasRail` at app_qt.py:24831, `WorkspaceShell`
+ * at :3597) and that has not changed. The *palette* deliberately has: the hub
+ * now wears the viewers' 80s retro skin from /styles/viewer-skin.css rather
+ * than Atlas's indigo-and-cyan, because it sits one click from the GIS sidebar
+ * and looked like a different application beside it.
  *
- * Identity: dark indigo ground, cyan = interactive, magenta = the Atlas thread
- * (project context, cross-facet links), calm by default.
+ * The skin's rule, held throughout: GLOW THE CHROME, NOT THE DATA.
+ *
+ *   magenta  --skin-chrome  chrome — frames, headings, active states
+ *   cyan     --skin-data    data — field labels, readouts, values
+ *
+ * Note this inverts Atlas, where cyan is interactive and magenta is the project
+ * thread. The viewer wins because the viewer is what is on screen all day. The
+ * Qt values are kept in a comment below; the desktop app has not changed.
+ *
+ * Fonts come from the skin too: "Orbitron" (served as Audiowide) for display
+ * headings, "Exo 2" (Chakra Petch) for everything else, both re-pointed by
+ * viewer-skin.css. Inter and JetBrains Mono are gone -- they were the one thing
+ * on this site not in the site's own faces, and instrument labels read as
+ * uppercase letterspaced Exo 2 exactly as the GIS panels' section titles do.
  *
  * Loaded by gis/shell.js on every page that carries the hub, so there is one
  * copy of it -- it used to be duplicated between styles.css and shell.css and
  * the two drifted.
  */
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap");
-
 #research-hub {
-  /* app_qt.py:56 — THEME, "GeoID Midnight". */
-  --atlas-bg: #0a0916;
-  --atlas-panel: #15132c;
-  --atlas-panel-alt: #211e42;
-  --atlas-panel-soft: #0f0e1f;
-  --atlas-card: #1a1836;
-  --atlas-border: #34305a;
-  --atlas-accent: #38e5ff;
-  --atlas-accent-dark: #216b7d;
-  --atlas-accent-alt: #ff4bcf;
-  --atlas-text: #edeafb;
-  --atlas-muted: #a8a0cc;
-  /* Cyan is the interactive colour; the wash values come straight from the
-     QSS, which uses rgba(0,240,255,·) for state rather than the accent hex. */
-  --atlas-wash: rgba(0, 240, 255, 0.14);
-  --atlas-wash-soft: rgba(0, 240, 255, 0.07);
-  --atlas-wash-edge: rgba(0, 240, 255, 0.35);
+  /* Everything resolves through the skin, so the ember variant and the flight
+     amber override reach the hub for free -- the same trick viewer-skin.css
+     uses for the eleven viewers.
 
-  /* The page furniture (cards, tables, lists) reads the viewer's own tokens.
-     Rebinding them here repaints all sixty pages in the Atlas palette without
-     touching a single page module. */
+     For reference, the Qt "GeoID Midnight" values this replaced (app_qt.py:56):
+     bg #0a0916 · panel #15132c · panel_alt #211e42 · panel_soft #0f0e1f ·
+     card #1a1836 · border #34305a · accent #38e5ff · accent_alt #ff4bcf ·
+     text #edeafb · muted #a8a0cc */
+
+  /* Elevation ladder: background < panel < card < control, each step lighter.
+     That ladder is what stops the page reading as one flat sheet. */
+  --atlas-bg: var(--skin-bg);
+  --atlas-panel-soft: rgba(var(--skin-vignette), 0.98);
+  --atlas-panel: rgba(var(--skin-panel), 0.97);
+  --atlas-card: rgba(var(--skin-panel), 0.86);
+  --atlas-panel-alt: rgba(var(--skin-muted), 0.07);
+
+  /* Chrome and data, kept as separate names so a rule has to say which it is. */
+  --atlas-chrome: var(--skin-chrome);
+  --atlas-chrome-rgb: var(--skin-chrome-rgb);
+  --atlas-data: var(--skin-data);
+  --atlas-data-rgb: var(--skin-data-rgb);
+  --atlas-text: var(--skin-ink);
+  --atlas-muted: rgba(var(--skin-muted), 0.78);
+
+  /* Magenta edge at the same alpha .control-section uses, so a card here and a
+     panel in the GIS sidebar have the same weight of line. */
+  --atlas-border: rgba(var(--skin-chrome-rgb), 0.34);
+  --atlas-bloom:
+    0 0 0 1px rgba(var(--skin-chrome-rgb), 0.10),
+    0 0 22px -6px rgba(var(--skin-chrome-rgb), 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --atlas-wash: rgba(var(--skin-chrome-rgb), 0.18);
+  --atlas-wash-soft: rgba(var(--skin-chrome-rgb), 0.08);
+  --atlas-wash-edge: rgba(var(--skin-chrome-rgb), 0.65);
+  --atlas-glow: 0 0 22px -2px rgba(var(--skin-chrome-rgb), 0.6);
+
+  /* Display face for headings, body face for the rest. Both are re-pointed by
+     viewer-skin.css, so asking for them by these names is asking for the
+     site's own faces. */
+  --atlas-display: "Orbitron", "Exo 2", system-ui, sans-serif;
+  --atlas-body: "Exo 2", "Segoe UI", system-ui, sans-serif;
+
+  /* The page furniture reads the viewer's own tokens. Rebinding them here
+     repaints all sixty-four pages without touching a single page module. */
   --text: var(--atlas-text);
   --soft-light: var(--atlas-muted);
   --muted: var(--atlas-muted);
-  --nav-accent: var(--atlas-accent);
-  --nav-accent-rgb: 56, 229, 255;
+  --nav-accent: var(--atlas-chrome);
+  --nav-accent-rgb: var(--atlas-chrome-rgb);
 
   position: fixed;
   inset: 0;
   z-index: 15;
   display: flex;
-  /* Inter for body and headings, JetBrains Mono for instrument labels: that
-     pairing is the research-console character, per the design system. */
-  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  font-family: var(--atlas-body);
   font-size: 12.5px;
   color: var(--atlas-text);
-  background: var(--atlas-bg);
+  /* One radial max, per the calm rule -- the CRT scanlines and vignette come
+     from viewer-skin.css's body::after, which already sits over this. */
+  background:
+    radial-gradient(120% 90% at 50% 0%,
+      rgba(var(--skin-chrome-rgb), 0.06), transparent 60%),
+    var(--atlas-bg);
 }
 #research-hub[hidden] { display: none; }
 
@@ -73,8 +110,9 @@
   overflow-y: auto;
   background: var(--atlas-panel-soft);
   border-right: 1px solid var(--atlas-border);
+  box-shadow: 1px 0 18px -6px rgba(var(--atlas-chrome-rgb), 0.4);
   scrollbar-width: thin;
-  scrollbar-color: rgba(168, 160, 204, 0.3) transparent;
+  scrollbar-color: rgba(var(--skin-muted), 0.28) transparent;
 }
 .atlas-rail-logo {
   width: 48px;
@@ -97,10 +135,11 @@
   border-radius: 12px;
   background: transparent;
   color: var(--atlas-muted);
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 8px;
+  font-family: var(--atlas-body);
+  font-size: 8.5px;
   font-weight: 600;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
@@ -110,10 +149,13 @@
 }
 /* Active is a soft cyan wash and cyan text — never a solid fill with dark
    text, which is the one thing the design system rules out by name. */
+/* The skin fills an active control with chrome and glows it; matched here so
+   the rail lights the same way the GIS tool rail does. */
 .atlas-rail-btn.is-active {
   background: var(--atlas-wash);
   border-color: var(--atlas-wash-edge);
-  color: var(--atlas-accent);
+  color: #ffffff;
+  box-shadow: var(--atlas-glow);
 }
 .atlas-rail-glyph { font-size: 17px; line-height: 1.15; }
 .atlas-rail-name {
@@ -163,7 +205,8 @@
 .shell-tab:hover { color: var(--atlas-text); }
 .shell-tab.is-active {
   color: var(--atlas-text);
-  border-bottom-color: var(--atlas-accent);
+  border-bottom-color: var(--atlas-chrome);
+  text-shadow: 0 0 10px rgba(var(--atlas-chrome-rgb), 0.6);
 }
 /* A tab with nothing behind it says so before it is clicked. */
 .shell-tab.is-stub { opacity: 0.45; }
@@ -189,8 +232,8 @@
 
 /* Qt's #ShellContext: the stage you are in, mono and magenta. */
 .shell-context {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  color: var(--atlas-accent-alt);
+  font-family: var(--atlas-body);
+  color: var(--atlas-chrome);
   font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -209,26 +252,32 @@
   font-size: 11.5px;
 }
 .shell-filter::placeholder { color: var(--atlas-muted); }
-.shell-filter:focus { outline: none; border-color: var(--atlas-accent); }
+.shell-filter:focus { outline: none; border-color: var(--atlas-chrome); }
 
 /* The magenta pill is the cross-facet grammar: this surface is bound to a
    project. Same shape on every Atlas surface. */
+/* The one piece of Atlas grammar worth keeping: a pill means this surface is
+   bound to a project. Filled and glowed so it still reads as the thread now
+   that the chrome around it is magenta too. */
 .atlas-chip {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  background: rgba(255, 75, 207, 0.12);
-  border: 1px solid rgba(255, 75, 207, 0.4);
+  font-family: var(--atlas-body);
+  background: var(--atlas-wash);
+  border: 1px solid var(--atlas-wash-edge);
   border-radius: 999px;
   padding: 5px 13px;
-  color: var(--atlas-accent-alt);
+  color: #ffffff;
   font-weight: 600;
   font-size: 9.5px;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   white-space: nowrap;
+  box-shadow: var(--atlas-glow);
 }
 .atlas-chip:not(.is-open) {
   background: transparent;
   border-color: var(--atlas-border);
   color: var(--atlas-muted);
+  box-shadow: none;
 }
 
 .shell-action {
@@ -243,11 +292,12 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.shell-action:hover { border-color: var(--atlas-accent); }
+.shell-action:hover { border-color: var(--atlas-chrome); }
 .shell-action.is-active {
   background: var(--atlas-wash);
   border-color: var(--atlas-wash-edge);
-  color: var(--atlas-accent);
+  color: #ffffff;
+  box-shadow: var(--atlas-glow);
 }
 
 /* ── The drawers the shell actions open ────────────────────────────────────── */
@@ -259,7 +309,7 @@
   background: var(--atlas-panel-soft);
   border-top: 1px solid var(--atlas-border);
   scrollbar-width: thin;
-  scrollbar-color: rgba(168, 160, 204, 0.3) transparent;
+  scrollbar-color: rgba(var(--skin-muted), 0.28) transparent;
 }
 .shell-drawer[hidden] { display: none; }
 .shell-drawer-head {
@@ -272,12 +322,13 @@
 .shell-drawer-title {
   grid-column: 1;
   margin: 0;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--atlas-display);
   font-size: 10px;
   font-weight: 600;
-  color: var(--atlas-accent);
-  letter-spacing: 0.14em;
+  color: var(--atlas-text);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(var(--atlas-chrome-rgb), 0.55);
 }
 .shell-drawer-head .research-note { grid-column: 1; margin: 0; }
 .shell-drawer-head .button { grid-column: 2; grid-row: 1 / span 2; }
@@ -295,10 +346,10 @@
 }
 .shelf-col-title {
   margin: 0 0 4px;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 9px;
+  font-family: var(--atlas-body);
+  font-size: 9.5px;
   font-weight: 600;
-  color: var(--atlas-accent);
+  color: rgba(var(--atlas-data-rgb), 0.8);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -320,7 +371,7 @@
   padding: 14px;
   background: var(--atlas-bg);
   scrollbar-width: thin;
-  scrollbar-color: rgba(168, 160, 204, 0.3) transparent;
+  scrollbar-color: rgba(var(--skin-muted), 0.28) transparent;
 }
 
 /* Page furniture. Cards on the elevation ladder: background < panel < card <
@@ -333,15 +384,20 @@
   background: var(--atlas-card);
   border: 1px solid var(--atlas-border);
   border-radius: 12px;
+  /* The same magenta edge-bloom viewer-skin.css gives .control-section, so a
+     card here and a panel in the GIS sidebar carry the same weight of line. */
+  box-shadow: var(--atlas-bloom);
 }
+/* A heading, so it glows -- the skin's rule is glow the chrome, not the data. */
 .research-card-title {
   margin: 0 0 8px;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--atlas-display);
   font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--atlas-accent);
+  color: var(--atlas-text);
+  text-shadow: 0 0 12px rgba(var(--atlas-chrome-rgb), 0.55);
 }
 .research-note {
   margin: 0 0 8px;
@@ -349,24 +405,26 @@
   line-height: 1.5;
   color: var(--atlas-muted);
 }
-.research-note.is-error { color: #ff8f8f; }
+/* Warm, so it cannot be mistaken for chrome now that chrome is magenta. */
+.research-note.is-error { color: #ff7b7b; }
 .research-status {
   margin: 6px 0 0;
   font-size: 11px;
   color: var(--atlas-muted);
   min-height: 1em;
 }
-.research-status.is-error { color: #ff8f8f; }
+.research-status.is-error { color: #ff7b7b; }
 
 /* Mono field labels stacked above their input — never label-beside-input. */
 .research-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
 .research-field-label {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 9px;
+  font-family: var(--atlas-body);
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--atlas-accent);
+  /* Labels a field of data, so cyan and un-glowed. */
+  color: var(--atlas-data);
 }
 #research-hub .input,
 #research-hub textarea.input,
@@ -381,29 +439,51 @@
   font-size: 12px;
   width: 100%;
 }
-#research-hub .input:focus { outline: none; border-color: var(--atlas-accent); }
+#research-hub .input:focus {
+  outline: none;
+  border-color: var(--atlas-chrome);
+  box-shadow: 0 0 12px -2px rgba(var(--atlas-chrome-rgb), 0.5);
+}
+
+/*
+ * Buttons: geometry and fill only.
+ *
+ * viewer-skin.css paints every .button on the site with `!important` -- cyan
+ * border and text at rest, white with a cyan bloom on hover, magenta when
+ * active. Restating those here would lose to it silently, so the skin keeps
+ * the colour and this keeps the shape. Primary and secondary are told apart by
+ * their fill, which the skin does not touch.
+ */
 #research-hub .button {
   min-height: 28px;
   padding: 6px 12px;
-  background: var(--atlas-wash);
-  border: 1px solid rgba(0, 240, 255, 0.4);
+  background: linear-gradient(180deg,
+    rgba(var(--atlas-chrome-rgb), 0.22), rgba(var(--atlas-chrome-rgb), 0.08));
   border-radius: 8px;
-  color: var(--atlas-accent);
   font: inherit;
-  font-weight: 700;
-  font-size: 11.5px;
-  cursor: pointer;
-}
-#research-hub .button:hover { background: rgba(0, 240, 255, 0.2); }
-#research-hub .button.secondary {
-  background: var(--atlas-panel);
-  border-color: var(--atlas-border);
-  color: var(--atlas-text);
   font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.2s, transform 0.12s;
 }
-#research-hub .button.secondary:hover { border-color: var(--atlas-accent); }
-#research-hub .button.small { padding: 3px 8px; font-size: 10px; }
-#research-hub .button:disabled { opacity: 0.45; cursor: default; }
+#research-hub .button:hover { transform: translateY(-1px); }
+#research-hub .button.secondary {
+  background: rgba(var(--skin-panel), 0.9);
+  font-weight: 500;
+}
+#research-hub .button.small {
+  padding: 3px 8px;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+}
+#research-hub .button:disabled {
+  opacity: 0.4;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
 
 .research-grid-2 {
   display: grid;
@@ -415,7 +495,8 @@
 
 .research-editor {
   width: 100%;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  /* The one place a fixed pitch still earns its keep: equations and scripts. */
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
   font-size: 11.5px;
 }
 .research-figure { margin-top: 8px; overflow-x: auto; }
@@ -441,14 +522,20 @@
   border-radius: 10px;
 }
 .research-stat-label {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 9px;
+  font-family: var(--atlas-body);
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--atlas-accent);
+  color: rgba(var(--atlas-data-rgb), 0.72);
 }
-.research-stat-value { font-size: 12.5px; color: var(--atlas-text); overflow-wrap: anywhere; }
+/* A readout. Bright cyan, deliberately un-blurred -- same treatment the skin
+   gives .gis-metric and .hazard-value. */
+.research-stat-value {
+  font-size: 13px;
+  color: var(--atlas-data);
+  overflow-wrap: anywhere;
+}
 
 #research-hub .gis-btn-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 #research-hub .gis-btn-row .button { flex: 0 0 auto; width: auto; }
@@ -461,7 +548,10 @@
   border-radius: 999px;
   font-size: 10px;
 }
-.research-flag.is-ok { border: 1px solid rgba(0, 240, 255, 0.4); color: var(--atlas-accent); }
+.research-flag.is-ok {
+  border: 1px solid rgba(var(--atlas-data-rgb), 0.45);
+  color: var(--atlas-data);
+}
 .research-flag.is-warn { border: 1px solid rgba(255, 210, 106, 0.5); color: #ffd36a; }
 .research-progress {
   height: 5px;
@@ -469,7 +559,7 @@
   background: var(--atlas-panel-alt);
   overflow: hidden;
 }
-.research-progress-fill { height: 100%; background: var(--atlas-accent); }
+.research-progress-fill { height: 100%; background: var(--atlas-data); }
 
 .research-board {
   display: grid;
@@ -529,12 +619,12 @@
   font-size: 11px;
 }
 .research-table-row.is-head span {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 9px;
+  font-family: var(--atlas-body);
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--atlas-accent);
+  color: rgba(var(--atlas-data-rgb), 0.78);
 }
 .research-table-row.is-active { background: var(--atlas-wash-soft); }
 
@@ -559,19 +649,21 @@
   text-align: left;
   cursor: pointer;
 }
-.research-list-row:hover { border-color: var(--atlas-accent); }
+.research-list-row:hover { border-color: var(--atlas-chrome); }
 .research-list-row.is-active {
   background: var(--atlas-wash);
   border-color: var(--atlas-wash-edge);
+  box-shadow: var(--atlas-glow);
 }
 .research-list-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .research-list-tag {
   flex: none;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--atlas-body);
   font-size: 9px;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--atlas-accent);
+  color: var(--atlas-data);
 }
 
 .research-stub {
@@ -585,8 +677,10 @@
 }
 .research-stub-title {
   margin: 0 0 6px;
-  font-size: 15px;
-  font-weight: 700;
+  font-family: var(--atlas-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   color: var(--atlas-text);
 }
 .research-stub-note { margin: 0; font-size: 11.5px; color: var(--atlas-muted); }
@@ -594,17 +688,18 @@
 /* ── The Atlas Ecosystem panel (app_qt.py:4167) ────────────────────────────── */
 /* Magenta throughout: this is the cross-facet surface. */
 .eco-status {
-  background: rgba(255, 46, 196, 0.08);
-  border: 1px solid rgba(255, 46, 196, 0.3);
+  background: rgba(var(--atlas-chrome-rgb), 0.10);
+  border: 1px solid rgba(var(--atlas-chrome-rgb), 0.38);
   border-radius: 10px;
   padding: 8px 12px;
   color: var(--atlas-text);
   font-weight: 600;
   font-size: 11.5px;
 }
+/* An instrument strip reading the pipeline's own stages, so cyan. */
 .eco-loop {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  color: var(--atlas-accent);
+  font-family: var(--atlas-body);
+  color: var(--atlas-data);
   font-weight: 600;
   font-size: 11px;
   letter-spacing: 0.16em;

@@ -186,15 +186,33 @@ empty form.
 
 ## The Research Hub's look
 
-The Qt app is the source of truth for it, not this repo: `THEME` /
-"GeoID Midnight" at `app_qt.py:56`, `build_app_stylesheet()` at `:26170`, and
-the Atlas design system at
-`/home/owen/atlas-ai/.claude/skills/atlas-design-system/SKILL.md`. Dark indigo
-ground, **cyan = interactive**, **magenta = the Atlas thread** (project context
-and cross-facet links), calm by default. Active state is a soft cyan wash plus
-cyan text — never a solid cyan fill with dark text. Inter for body, JetBrains
-Mono for instrument labels (uppercase, 9–11px, wide tracking); that pairing is
-the character, not decoration.
+**Structure** comes from the Qt app; **palette and type** come from the viewers.
+Those are two different sources and it matters which one a change is answering
+to.
+
+*Palette* is `/styles/viewer-skin.css`, which every viewer already loads, so its
+tokens are on the page wherever the hub is: purple-black ground `--skin-bg`,
+**magenta `--skin-chrome` = chrome** (frames, headings, active states) and
+**cyan `--skin-data` = data** (field labels, readouts, values). The rule the
+skin holds throughout, and so does the hub: **glow the chrome, not the data.**
+Type is the site's own faces — `"Orbitron"` (served as Audiowide) for display
+headings and `"Exo 2"` (Chakra Petch) for everything else, both re-pointed by
+viewer-skin.css. Instrument labels are uppercase letterspaced Exo 2, exactly as
+the GIS sidebar's section titles are.
+
+This deliberately **inverts** the Atlas design system
+(`/home/owen/atlas-ai/.claude/skills/atlas-design-system/SKILL.md`), where cyan
+is interactive and magenta is the project thread, and it drops Atlas's Inter +
+JetBrains Mono pairing. The viewer wins because the hub sits one click from the
+GIS sidebar and looked like a different application beside it. The Qt values
+(`THEME` at `app_qt.py:56`, `build_app_stylesheet()` at `:26170`) are kept in a
+comment in atlas.css; the desktop app has not changed.
+
+**viewer-skin.css paints `.button` and `.input` with `!important`** — cyan at
+rest, white with a cyan bloom on hover, magenta when active. Restating those
+colours inside the hub loses silently, so atlas.css gives buttons geometry and
+fill only and lets the skin have the colour. Primary and secondary are told
+apart by their fill.
 
 Structure mirrors `AtlasRail` (`:24831`) and `WorkspaceShell` (`:3597`): a 76px
 glyph-above-label rail under the GeoID mark, then one row carrying the page
@@ -209,7 +227,14 @@ Earth and one for the planets, and they drifted. Do not put Research Hub rules
 back into either file.
 
 The hub rebinds `--text`, `--soft-light`, `--nav-accent` and `--nav-accent-rgb`
-on `#research-hub`, which is how sixty page modules get the Atlas palette
-without one of them changing. Two base rules need overriding by name because an
+on `#research-hub`, which is how sixty-four page modules get the palette without
+one of them changing — and why the ember variant and the flight-amber override
+reach the hub for free. Two base rules need overriding by name because an
 explicit value beats a flex default: `.gis-btn-row .button { flex: 1 }` (which
 stretched every button to full width) and `.research-stat`'s inline spans.
+
+**A page must re-mount when a different project is opened** — the Atlas chip
+follows the store, and the page behind it used to keep reporting the project
+before. `watchProject()` in hub.js keys that on the project's *folder*, not on
+every store announcement: `updateMetadata()` also announces, and it fires while
+someone is typing into a metadata form.

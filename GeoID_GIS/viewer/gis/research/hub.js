@@ -1,5 +1,5 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260810n";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260810n";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260810q";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260810q";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.
@@ -201,14 +201,28 @@ export function setContext(next) {
  * per the Atlas grammar: this surface is bound to a project.
  */
 function watchProject(store) {
+  let shownDir = null;
   const paint = (active) => {
     const chip = byId("research-project");
-    if (!chip) return;
-    chip.textContent = active ? `◈ ${active.name}` : "No project open";
-    chip.title = active
-      ? `${active.meta?.body || "earth"} · ${active.dir}`
-      : "No project open — the folder button in the sidebar opens one.";
-    chip.classList.toggle("is-open", Boolean(active));
+    if (chip) {
+      chip.textContent = active ? `◈ ${active.name}` : "No project open";
+      chip.title = active
+        ? `${active.meta?.body || "earth"} · ${active.dir}`
+        : "No project open — the folder button in the sidebar opens one.";
+      chip.classList.toggle("is-open", Boolean(active));
+    }
+    // Re-mount when a *different* project is opened, so a page stops reporting
+    // the one before it -- the chip used to update while the page behind it
+    // still read "No project open".
+    //
+    // Keyed on the folder, not on every announcement: updateMetadata() also
+    // announces, and it is called while someone is typing into a metadata
+    // form. Re-mounting on that would take the form away mid-edit.
+    const dir = active?.dir ?? null;
+    if (dir !== shownDir) {
+      shownDir = dir;
+      if (activePage) void mountPage(activePage);
+    }
   };
   store.onChange(paint);
   paint(store.getActive());
