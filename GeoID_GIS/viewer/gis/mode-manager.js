@@ -83,7 +83,11 @@
       slot.appendChild(switcher);
     } else if (modeSwitchHome) {
       switcher.classList.remove("is-in-studio");
-      modeSwitchHome.parent.insertBefore(switcher, modeSwitchHome.next);
+      // Same guard as the toolbox's: the sibling recorded when the switch was
+      // parked may since have moved, and insertBefore throws rather than
+      // ignoring it.
+      const { parent, next } = modeSwitchHome;
+      parent.insertBefore(switcher, next && next.parentNode === parent ? next : null);
       modeSwitchHome = null;
     }
   }

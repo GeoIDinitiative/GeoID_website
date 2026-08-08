@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260810j";
-import { currentBody } from "./bodies.js?v=20260810j";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260810j";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260810k";
+import { currentBody } from "./bodies.js?v=20260810k";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260810k";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -17,9 +17,15 @@ function rememberHome(element) {
 
 function restoreHome(element) {
   const home = homes.get(element);
-  if (home?.parent) {
-    home.parent.insertBefore(element, home.next);
-  }
+  if (!home?.parent) return;
+  // The recorded sibling may have been moved somewhere else since -- on a
+  // planet page the shell is injected between these elements and orderTabs
+  // then rearranges them, so a node recorded as "next" can end up in the
+  // toolbox. insertBefore throws when that happens, and the throw reached the
+  // viewer's boot handler and took the whole page down on the way to Research.
+  // Falling back to the right container is the honest reading of "put it back".
+  const next = home.next && home.next.parentNode === home.parent ? home.next : null;
+  home.parent.insertBefore(element, next);
 }
 
 /**
