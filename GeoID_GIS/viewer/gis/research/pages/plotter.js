@@ -1,7 +1,7 @@
-import { registerPage } from "../stages.js?v=20260809v";
-import * as store from "../project-store.js?v=20260809v";
-import { parseTable, columnPair, indexSeries } from "../table.js?v=20260809v";
-import { linePlot, toPngBlob } from "../plot.js?v=20260809v";
+import { registerPage } from "../stages.js?v=20260809x";
+import * as store from "../project-store.js?v=20260809x";
+import { parseTable, columnPair, indexSeries } from "../table.js?v=20260809x";
+import { linePlot, toPngBlob } from "../plot.js?v=20260809x";
 
 /**
  * CSV Plotter: pick a file from the project, pick columns, plot, keep the
@@ -52,7 +52,8 @@ function selectOf(values, { includeIndex = false } = {}) {
 
 /** Every readable table in the project, wherever it happens to sit. */
 async function findTables() {
-  const roots = ["data/raw", "data/processed", "data/external", "data/pulled", "signals", "exports"];
+  const roots = ["data/raw", "data/processed", "data/external", "data/pulled",
+    "signals", "post_processing/extracted_dofs", "exports"];
   const found = [];
   for (const dir of roots) {
     let entries = [];

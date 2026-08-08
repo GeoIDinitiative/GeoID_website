@@ -1,8 +1,8 @@
-import { registerPage } from "../stages.js?v=20260809v";
-import * as store from "../project-store.js?v=20260809v";
-import { parseTable, column, indexSeries } from "../table.js?v=20260809v";
-import { linePlot, heatmap, toPngBlob } from "../plot.js?v=20260809v";
-import * as dsp from "../dsp.js?v=20260809v";
+import { registerPage } from "../stages.js?v=20260809x";
+import * as store from "../project-store.js?v=20260809x";
+import { parseTable, column, indexSeries } from "../table.js?v=20260809x";
+import { linePlot, heatmap, toPngBlob } from "../plot.js?v=20260809x";
+import * as dsp from "../dsp.js?v=20260809x";
 
 /**
  * Signal Processing, Spectral Analysis and Statistics.
@@ -56,7 +56,8 @@ function numberInput(value, step = "any") {
 }
 
 async function findTables() {
-  const roots = ["signals", "data/raw", "data/processed", "data/external", "data/pulled", "exports"];
+  const roots = ["signals", "post_processing/extracted_dofs", "data/raw",
+    "data/processed", "data/external", "data/pulled", "exports"];
   const found = [];
   for (const dir of roots) {
     let entries = [];

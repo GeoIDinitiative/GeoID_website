@@ -157,9 +157,18 @@ no browser-specific fields — and read results back from the same folder. Every
 FEM page edits the same spec, so a page must merge into it rather than
 overwrite it.
 
+**The FEM loop runs through the project folder**, not through memory: FEM
+pages write `fem_runs/<run>/spec.json` → the desktop solver writes results back
+beside it → Post Processing extracts probe time series into
+`post_processing/extracted_dofs/` → the Signal and Spectral pages read those as
+ordinary series. Any page that lists "time series in this project" must include
+`post_processing/extracted_dofs`, or the loop stops one step short of the
+analysis it exists for.
+
 **DSP has real tests.** `node GeoID_GIS/viewer/gis/research/dsp.test.mjs` checks
-`dsp.js` against signals whose answers are known. Run it after touching that
-file; three of the cases in it started as genuine bugs (bin scalloping, a
+`dsp.js` against signals whose answers are known, and
+`postprocess.test.mjs` checks the DOF interpolation against hand-worked
+answers. Run them after touching either file; three of the cases in it started as genuine bugs (bin scalloping, a
 resolution-blind band width, and an undetrended spectrum calling instrumental
 drift the dominant component).
 
