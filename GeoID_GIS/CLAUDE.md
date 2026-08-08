@@ -667,6 +667,40 @@ Pages register into `gis/research/stages.js`; the twelve stages mirror the Qt
 a labelled "not built yet" panel — do not replace that with a plausible-looking
 empty form.
 
+## The sidecar
+
+The hub is a static site with no interpreter, so its heavy verbs had nowhere to
+run. `sidecar/geoid_sidecar.py` is the second process the job-spec design always
+implied — a **stdlib-only** HTTP service (`python3 geoid_sidecar.py`, no pip)
+that runs beside a `geoid_projects` folder and lends the browser a subprocess, a
+filesystem and a job that outlives one click.
+
+- **Loopback only, token, path sandbox.** Binds 127.0.0.1; CORS limited to
+  localhost; every `/fs/*` confined under the projects root; a Bearer token gates
+  everything but `/health`. Script execution is deliberately unrestricted — that
+  is the feature — but only on an explicit request.
+- **SSE over `fetch`, not `EventSource`.** `EventSource` cannot set headers, so
+  it would force the token into the URL; `sidecar.js` parses the SSE stream out
+  of a `fetch` body so the token stays in an `Authorization` header. The
+  memory-note rule "never a secret in a URL" is why.
+- **`/fs/*` is the project layout `project-store` speaks.** When connected the
+  hub `store.useAdapter(sidecarAdapter())` and reads/writes the SAME folder the
+  desktop app uses — no picker, no IndexedDB, no drift. `--root` may be the
+  projects parent or the `geoid_projects` folder itself; `_safe()` strips a
+  leading `geoid_projects/` when root is already it.
+- **Wired at three seams:** Settings ▸ Local Sidecar (connect), AI Trainer's Run
+  Training Script + Signal Processing's Run Script Main / Run Function / Stop
+  External Run (real jobs, streamed into the page log — `makeRunner` in
+  qt-runtime.js), and the Jobs drawer (live processes with Stop). `hub.js`
+  reprobes a sidecar from last session on load.
+- **Everything degrades cleanly without it.** The run buttons say to start the
+  sidecar rather than failing; the browser store backs the project. The static
+  deploy is unchanged.
+
+Verified end to end in the browser against a live sidecar: a real training
+script ran, streamed its epochs live into the page, wrote `model.json` to disk,
+and Stop terminated a long job (SIGTERM, exit -15).
+
 ## The Research Hub's look
 
 **Structure** comes from the Qt app; **palette and type** come from the viewers.
