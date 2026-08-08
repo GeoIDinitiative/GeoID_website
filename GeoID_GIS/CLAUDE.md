@@ -260,6 +260,21 @@ a view then fired that side effect. The Build New wizard's phase strip
 navigates, so scraping it rendered the wizard three times over. Nothing clicks
 to scrape any more; do not reintroduce it.
 
+**The page area is a grid, not a stack.** `.research-page` flows its cards into
+`minmax(25rem, 1fr)` columns with `align-items: start`, and the wide items
+(header, toolbar, splitter, big tabbed cards, `research-grid-2`) span. Stacking
+made every page taller than the window while the width went unused; at 1920px
+this puts 60 of 63 pages on one screen. 25rem is deliberate — 21rem gave five
+columns of ~350px and a labelled input is unreadable in one.
+
+**Nothing says "also in the desktop app".** The spec's controls are part of the
+page: actions join the toolbar under the header, inputs go into the group card
+they belong to, tabbed groups become tabs. There is no elsewhere for a feature
+to live, and framing them as a separate list read as though the hub were a
+preview of something else. The only remaining mentions of the desktop app are
+statements of fact about shared file formats (`experiments.jsonl`,
+`pipeline.json`, the project layout), which are worth keeping.
+
 **A page that shows one step at a time sets `mount.specComplete = true`.**
 The completion finds only the visible controls, so without the flag it appends a
 disabled duplicate of every button on the steps that are not showing. Build New,

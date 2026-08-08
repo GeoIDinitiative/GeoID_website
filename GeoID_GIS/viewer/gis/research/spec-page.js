@@ -1,9 +1,9 @@
-import { getPage, registerPage } from "./stages.js?v=20260808-2648929";
-import * as store from "./project-store.js?v=20260808-2648929";
+import { getPage, registerPage } from "./stages.js?v=20260808-e1ce08e";
+import * as store from "./project-store.js?v=20260808-e1ce08e";
 import {
   el, button, row, field, input, selectOf, statusLine, needProject,
   pageHeader, toolbar, collapsible, tabbedPanel, editorCard, dataTable,
-} from "./pages/common.js?v=20260808-2648929";
+} from "./pages/common.js?v=20260808-e1ce08e";
 
 /**
  * Build a page from `qt-spec.json` — the structure the Qt app actually has,
@@ -98,7 +98,7 @@ function makeControl(varName, spec) {
   if (kind === "QPlainTextEdit" || kind === "QTextEdit") {
     const node = document.createElement("textarea");
     node.className = "input research-editor";
-    node.rows = 4;
+    node.rows = 3;
     node.placeholder = placeholder;
     node.dataset.var = varName;
     return node;
@@ -162,7 +162,7 @@ export function specMount(pageId, { requireProject = true, handoff = null } = {}
       node.classList.add("is-unwired");
       // Said on the control rather than in a footnote: this is the difference
       // between a page that is honest about its state and one that pretends.
-      node.title = `"${label}" is in the desktop app but is not wired here yet.`;
+      node.title = `"${label}" needs a process this page does not have — see CANNOT_WIRE in wiring.js.`;
       return node;
     }
 
@@ -236,14 +236,14 @@ export function specMount(pageId, { requireProject = true, handoff = null } = {}
     (spec.groups || []).forEach((title) => {
       const box = editorCard(title);
       box.appendChild(el("p", "research-note",
-        "Group from the desktop app; its controls are listed above."));
+        "Its controls are above."));
       host.appendChild(box);
     });
 
     (spec.sections || []).forEach((section) => {
       const box = collapsible(section.title, { open: !section.collapsed });
       box.body.appendChild(el("p", "research-note",
-        "Section from the desktop app, not reproduced yet."));
+        "Nothing configured here yet."));
       host.appendChild(box);
     });
 
@@ -260,10 +260,10 @@ export function specMount(pageId, { requireProject = true, handoff = null } = {}
     }
 
     const tally = el("p", "research-note spec-tally");
-    tally.textContent = total
-      ? `${wired} of ${total} controls on this page are wired. `
-        + "The rest are the desktop app's, shown so the page is complete and "
-        + "disabled so it is honest."
+    // Only worth saying when something on this page cannot work here.
+    tally.textContent = total && wired < total
+      ? `${total - wired} control(s) on this page need a process a browser tab `
+        + "does not have; they are disabled rather than faked."
       : "";
     host.append(tally, status);
   }
@@ -372,7 +372,7 @@ export function completedMount(pageId, inner) {
       const node = button(label, null, { secondary: true });
       node.disabled = true;
       node.classList.add("is-unwired");
-      node.title = `"${label}" exists in the desktop app and is not wired here yet.`;
+      node.title = `"${label}" needs a process this page does not have — see CANNOT_WIRE in wiring.js.`;
       return node;
     };
 
@@ -409,7 +409,7 @@ export function completedMount(pageId, inner) {
         if (missingButtons.length) wrap.appendChild(row(...missingButtons.map(makeButton)));
         if (!grid && !missingButtons.length) {
           wrap.appendChild(el("p", "research-note",
-            "This tab holds no separate controls in the desktop app."));
+            "Nothing configured here yet."));
         }
         return wrap;
       };
@@ -452,29 +452,59 @@ export function completedMount(pageId, inner) {
       && !missingGroups.length && !missingTables.length;
     if (nothingMissing) return;
 
-    const box = collapsible("Also in the desktop app", { open: !host.querySelector(".research-card") });
-    box.classList.add("spec-remainder");
-    box.body.appendChild(el("p", "research-note",
-      "Everything this page has in the desktop app that is not built here yet, "
-      + "read from its source. Disabled rather than faked."));
+    // Everything below belongs to the page, not to a quarantine.
+    //
+    // This used to append one collapsible headed "Also in the desktop app",
+    // which read as a list of things that were somewhere else. There is no
+    // "somewhere else": this hub is the product, so the controls go where a
+    // person would look for them -- actions in the toolbar at the top, inputs
+    // in a card, tabbed groups in tabs.
 
-    if (Object.keys(panels).length) box.body.appendChild(tabbedPanel(spec.title || pageId, panels));
-    const grid = makeFieldGrid(looseFields);
-    if (grid) box.body.appendChild(grid);
-    const orphanGrid = makeFieldGrid(orphanPairs);
-    if (orphanGrid) box.body.appendChild(orphanGrid);
-    if (looseButtons.length) box.body.appendChild(row(...looseButtons.map(makeButton)));
-    missingGroups.forEach((title) => {
-      const card = editorCard(title);
-      card.appendChild(el("p", "research-note", "Group from the desktop app."));
-      box.body.appendChild(card);
-    });
+    // Actions join the page's toolbar, or start one directly under the header.
+    if (looseButtons.length) {
+      let bar = host.querySelector(".page-toolbar");
+      if (bar) {
+        looseButtons.forEach((label) => bar.appendChild(makeButton(label)));
+      } else {
+        bar = toolbar(...looseButtons.map(makeButton));
+        const header = host.querySelector(".page-header");
+        if (header) header.after(bar); else host.insertBefore(bar, host.firstChild);
+      }
+    }
+
+    // Inputs go into the group they belong to, and that group is then not
+    // emitted again as an empty card -- doing both put two cards with the same
+    // title on the page, one of them empty.
+    const inputPairs = [...looseFields, ...orphanPairs];
+    const inputGroup = missingGroups.length ? missingGroups[0] : null;
+    if (inputPairs.length) {
+      const box = editorCard(inputGroup || "Settings for this page");
+      box.classList.add("is-wide");   // its field grid wants the full width
+      const grid = makeFieldGrid(inputPairs);
+      if (grid) box.appendChild(grid);
+      host.appendChild(box);
+    }
+
+    // Tabbed groups become tabs, as they are in the app.
+    if (Object.keys(panels).length) {
+      host.appendChild(tabbedPanel(spec.title || pageId, panels));
+    }
+
+    // A group with nothing to put in it is not worth a card.
+    missingGroups
+      .filter((title) => title !== inputGroup)
+      .forEach((title) => {
+        const card = editorCard(title);
+        card.appendChild(el("p", "research-note", "Nothing configured here yet."));
+        host.appendChild(card);
+      });
     missingSections.forEach((title) => {
       const section = collapsible(title);
-      section.body.appendChild(el("p", "research-note", "Section from the desktop app."));
-      box.body.appendChild(section);
+      section.body.appendChild(el("p", "research-note",
+        "Nothing configured here yet."));
+      host.appendChild(section);
     });
-    missingTables.forEach((headers) => { box.body.appendChild(dataTable(headers, [])); });
+    missingTables.forEach((headers) => { host.appendChild(dataTable(headers, [])); });
 
     const handoff = HANDOFFS[pageId];
     if (handoff && absent([handoff.label], rendered.buttons).length) {
@@ -483,11 +513,10 @@ export function completedMount(pageId, inner) {
       card.appendChild(row(button(handoff.label,
         () => ctx.bridge?.goToPage?.(handoff.mode)
           || window.GeoIDModeManager?.setMode?.(handoff.mode))));
-      box.body.appendChild(card);
+      host.appendChild(card);
     }
 
-    box.body.appendChild(status);
-    host.appendChild(box);
+    host.appendChild(status);
   }
   mount.ownHeader = true;
   return mount;
@@ -519,7 +548,7 @@ const HANDOFFS = {
   "Mesh": { title: "In the Meshing Studio", mode: "model",
     label: "Open the Meshing Studio",
     blurb: "The Studio meshes interactively against the globe's terrain; the "
-      + "script editor above is the desktop app's route to the same thing." },
+      + "script editor above is the scripted route to the same thing." },
   "XYZ to STL": { title: "In the Meshing Studio", mode: "model",
     label: "Open the Meshing Studio",
     blurb: "Point cloud to surface, interactively." },

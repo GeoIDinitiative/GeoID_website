@@ -1,6 +1,6 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-2648929";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-2648929";
-import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-2648929";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-e1ce08e";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-e1ce08e";
+import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-e1ce08e";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.
@@ -130,10 +130,10 @@ function renderRail() {
     // fill, exactly as --cap does in the Dock.
     if (spec.cap) btn.style.setProperty("--cap", spec.cap);
     btn.setAttribute("aria-pressed", key === activeStage ? "true" : "false");
-    // The rail carries the short label; the full Qt stage key is the title, so
-    // it stays discoverable without widening the rail for it.
-    const built = pages.filter(([id]) => getPage(id)).length;
-    btn.title = `${key} — ${built} of ${pages.length} pages built`;
+    // The rail carries the short label; the full stage name is the title, so it
+    // stays discoverable without widening the rail for it. Nothing about build
+    // progress: that was scaffolding talk on a finished product.
+    btn.title = key;
 
     if (spec.icon) btn.appendChild(railIcon(spec.icon));
 

@@ -1311,3 +1311,76 @@
 
 /* Inactive tab panels stay in the DOM so nothing has to click to find them. */
 .qt-tab-panel[hidden] { display: none; }
+
+/* ── One page, not a scroll ──────────────────────────────────────────────────
+   Cards flowed into columns rather than stacked. A research page is a set of
+   independent panels, and stacking them made every page taller than the window
+   for no reason — the width was simply going unused. Full-width items (header,
+   toolbar, splitter, the big tabbed cards) still span. */
+.research-page {
+  display: grid;
+  /* 25rem, not 21: at 1824px the narrower track gave five columns of ~350px
+     and a form field in one of those is unreadable. Four of ~440px is the
+     width a labelled input actually wants. */
+  grid-template-columns: repeat(auto-fill, minmax(25rem, 1fr));
+  align-content: start;
+  gap: 10px;
+  padding: 12px 14px;
+}
+.research-page > .page-header,
+.research-page > .page-toolbar,
+.research-page > .page-split,
+.research-page > .qt-card,
+.research-page > .repo-tree,
+.research-page > .build-steps,
+.research-page > .qt-tabs,
+.research-page > .research-status,
+.research-page > .spec-tally,
+.research-page > .research-stub,
+.research-page > .nb-cell,
+.research-page > .qt-table {
+  grid-column: 1 / -1;
+}
+/* Cards carry their own margin for the stacked case; in the grid the gap does
+   that work, so drop it or every row gains a phantom line. */
+.research-page > .research-card,
+.research-page > .editor-card,
+.research-page > .qt-section { margin-bottom: 0; }
+.research-page > .research-card { max-width: none; }
+
+/* Tighter furniture: the page has to earn its height now. */
+.research-card { padding: 10px 12px; }
+.editor-card { padding: 8px 12px 10px; margin-bottom: 8px; }
+.research-card-title { margin-bottom: 6px; }
+.research-field { margin-bottom: 6px; }
+.field-grid { gap: 8px 10px; }
+.page-header { margin-bottom: 8px; }
+.page-toolbar { margin-bottom: 8px; }
+
+/* A single-column page (one wide panel) should not be squeezed into a column. */
+@media (max-width: 900px) {
+  .research-page { grid-template-columns: 1fr; }
+}
+
+/* Short cards must not stretch to their row's height, or one tall panel makes
+   every card beside it tall and the page scrolls for nothing. */
+.research-page { align-items: start; }
+
+/* A card holding a field grid spans the page so the grid gets real columns —
+   fifteen fields stacked in a 400px column is what made these pages scroll. */
+.research-page > .editor-card.is-wide { grid-column: 1 / -1; }
+.editor-card.is-wide .field-grid {
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)) !important;
+}
+
+/* A two-column block inside the page grid was being squeezed into one cell,
+   so its own columns stacked. It spans, and lays out properly. */
+.research-page > .research-grid-2,
+.research-page > .research-stats,
+.research-page > .research-list { grid-column: 1 / -1; }
+
+/* Read-only output blocks earn their height rather than assuming it. */
+.qt-console { max-height: 16rem; }
+.nb-output { max-height: 14rem; }
+#research-hub textarea.input { min-height: 0; }
+.research-editor { max-height: 14rem; }
