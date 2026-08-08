@@ -1,10 +1,10 @@
-import * as store from "./project-store.js?v=20260808-ee0f968";
-import * as stats from "./stats.js?v=20260808-ee0f968";
-import * as dsp from "./dsp.js?v=20260808-ee0f968";
-import { parseTable, column } from "./table.js?v=20260808-ee0f968";
-import { linePlot, heatmap } from "./plot.js?v=20260808-ee0f968";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-ee0f968";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260808-ee0f968";
+import * as store from "./project-store.js?v=20260808-e64db71";
+import * as stats from "./stats.js?v=20260808-e64db71";
+import * as dsp from "./dsp.js?v=20260808-e64db71";
+import { parseTable, column } from "./table.js?v=20260808-e64db71";
+import { linePlot, heatmap } from "./plot.js?v=20260808-e64db71";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-e64db71";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260808-e64db71";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -748,9 +748,95 @@ function mapComposer(host, api) {
   refresh();
 }
 
+/* ── Live Monitor ─────────────────────────────────────────────────────────
+ *
+ * `LiveMonitorPage` puts a matplotlib canvas under its controls and redraws it
+ * as the watched file grows. The tree holds the controls and the status row;
+ * the canvas was added at runtime, so the page rendered as two rows and a blank
+ * screen — 7% of its height used.
+ */
+function liveMonitor(host, api) {
+  const say = logger(api);
+  const holder = el("div", "monitor-plot");
+  const empty = el("p", "research-note",
+    "Pick a table and press Start. The plot redraws each time the file grows.");
+  holder.appendChild(empty);
+  const status = host.querySelector(".research-status");
+  host.insertBefore(holder, status || null);
+
+  let timer = null;
+  let lastRows = -1;
+
+  async function draw() {
+    const chosen = (api.controls.get("_path")?.value
+      || api.controls.get("_watch_path")?.value || "").trim();
+    let path = chosen;
+    if (!path) {
+      const tables = await findTables();
+      if (!tables.length) return;
+      path = tables[0];
+    }
+    let table;
+    try { table = parseTable(await store.readProjectFile(path)); }
+    catch (error) { return; }
+    if (table.rows.length === lastRows) return;
+    lastRows = table.rows.length;
+
+    const numeric = table.columns
+      .map((name, i) => ({ name, i }))
+      .filter(({ i }) => table.numeric[i]);
+    if (!numeric.length) return;
+    // The page names its own x and y columns; fall back to the first two.
+    const xName = (api.controls.get("_x_col")?.value || "").trim();
+    const yNames = (api.controls.get("_y_cols")?.value || "").trim();
+    const xs = xName && table.columns.includes(xName)
+      ? column(table, xName)
+      : column(table, numeric[0].name);
+    const wanted = yNames ? yNames.split(",").map((s) => s.trim()).filter(Boolean)
+      : numeric.slice(xName ? 0 : 1).map((c) => c.name);
+    const series = wanted
+      .filter((name) => table.columns.includes(name))
+      .slice(0, 4)
+      .map((name) => ({ name, x: xs, y: column(table, name) }))
+      .filter((s) => s.y.some(Number.isFinite));
+    if (!series.length) return;
+
+    const canvas = linePlot(series, { width: 900, height: 360,
+      title: `${path.split("/").pop()} — ${lastRows} rows`,
+      labels: { x: xName || numeric[0].name, y: "" } });
+    holder.textContent = "";
+    holder.appendChild(canvas);
+  }
+
+  bind(host, "Start", async () => {
+    if (timer) { say("Already watching."); return; }
+    await draw();
+    const seconds = Math.max(2, Number(api.controls.get("_interval_spin")?.value) || 10);
+    timer = setInterval(draw, seconds * 1000);
+    say(`Watching every ${seconds}s.`);
+  });
+  bind(host, "Stop", async () => {
+    if (!timer) { say("Not watching."); return; }
+    clearInterval(timer);
+    timer = null;
+    say("Stopped watching.");
+  });
+  // The page can be left at any time; a timer outliving it would redraw into a
+  // node that is no longer on screen.
+  new MutationObserver((records, observer) => {
+    if (!host.isConnected) {
+      if (timer) clearInterval(timer);
+      observer.disconnect();
+    }
+  }).observe(document.getElementById("research-page"), { childList: true });
+
+  void draw();
+}
+
 export const RUNTIME = {
   "CSV Plotter": csvPlotter,
   "Map": mapComposer,
+  "Live Monitor": liveMonitor,
 };
 
 export function install(pageId, host, api) {

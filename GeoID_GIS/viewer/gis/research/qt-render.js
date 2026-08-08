@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260808-ee0f968";
-import * as store from "./project-store.js?v=20260808-ee0f968";
-import { el, statusLine } from "./pages/common.js?v=20260808-ee0f968";
-import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-ee0f968";
+import { handlerFor } from "./spec-page.js?v=20260808-e64db71";
+import * as store from "./project-store.js?v=20260808-e64db71";
+import { el, statusLine } from "./pages/common.js?v=20260808-e64db71";
+import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-e64db71";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -49,6 +49,25 @@ const LAYOUT_CLASS = {
   QFormLayout: "qt-form",
   QStackedLayout: "qt-v",
 };
+
+/**
+ * Widgets whose Qt size policy is Expanding, so they fill the space left over.
+ *
+ * This is the difference between a Qt page and a web page that merely contains
+ * the same widgets. A QPlainTextEdit, QTableWidget, QTreeWidget, QListWidget and
+ * QScrollArea all default to an expanding policy: the log pane at the bottom of
+ * a page *is* the rest of the page. Rendering them at their content height left
+ * every such page finished in its top half — measured across all of them, the
+ * average page filled 49% of its height, and GIS Explorer 5%.
+ *
+ * A stretch factor still wins where the app states one; this is only what Qt
+ * does when it is not told.
+ */
+const EXPANDING = new Set([
+  "QPlainTextEdit", "QTextEdit", "QTextBrowser",
+  "QTableWidget", "QTreeWidget", "QListWidget",
+  "QScrollArea", "QSplitter", "QStackedWidget",
+]);
 
 /** How Qt's stylesheet treats each objectName it sets on a QLabel. */
 const LABEL_ROLE = {
@@ -264,7 +283,9 @@ export function renderTree(spec, ctx) {
   }
 
   function renderWidget(node) {
-    return decorate(renderWidgetInner(node), node);
+    const dom = decorate(renderWidgetInner(node), node);
+    if (dom && EXPANDING.has(node.kind)) dom.classList.add("qt-expand");
+    return dom;
   }
 
   function renderWidgetInner(node) {
@@ -275,6 +296,13 @@ export function renderTree(spec, ctx) {
 
     if (kind === "QLabel") {
       if (!text) return null;
+      // A label announcing a missing *desktop* dependency is false here: the
+      // map is a canvas, the plots are canvases and the rasters go through
+      // geotiff.js. Rendering it would tell the user to go and install
+      // something they do not need.
+      if (/PySide6-WebEngine|matplotlib not available|rasterio not installed/i.test(text)) {
+        return null;
+      }
       const [tag, cls] = LABEL_ROLE[node.objectName] || ["p", "qt-label"];
       const label = el(tag, cls, text);
       if (node.wrap) label.classList.add("is-wrapped");
@@ -463,7 +491,47 @@ export function renderTree(spec, ctx) {
     return wrap;
   }
 
-  return renderLayout(spec.root);
+  const root = renderLayout(spec.root);
+  packRoot(root);
+  return root;
+}
+
+/**
+ * Pair up consecutive short panels, without disturbing the page's order.
+ *
+ * The root has to stay a flex **column**, because that is what makes an
+ * expanding widget fill the page — inside a grid, `flex` means nothing and the
+ * log pane sits at its content height with the rest of the page blank. But a
+ * single column of short cards on a 1900px screen is the other complaint.
+ *
+ * So the column keeps its order and only *runs of adjacent short panels* are
+ * wrapped into a two-up block. Nothing moves past anything else, so a page
+ * still reads top to bottom exactly as the app lays it out.
+ */
+const NEVER_PAIR = ".qt-h, .qt-tabwidget, .qt-splitter, .qt-stack, .qt-datatable,"
+  + " .qt-listwidget, .qt-scroll, .qt-expand, .qt-page-title, .qt-subtitle,"
+  + " .qt-section-title, .qt-stretch, .qt-spacing, .qt-figure";
+
+function packRoot(root) {
+  const pairable = (node) => node.nodeType === 1
+    && !node.matches(NEVER_PAIR)
+    // A card holding an expanding widget is the page's main surface, so it
+    // keeps the full width and the height that comes with it.
+    && !node.querySelector(".qt-expand, .qt-tabwidget, .qt-splitter");
+  let run = [];
+  const flush = () => {
+    if (run.length >= 2) {
+      const block = el("div", "qt-pair");
+      run[0].before(block);
+      run.forEach((node) => block.appendChild(node));
+    }
+    run = [];
+  };
+  Array.from(root.children).forEach((node) => {
+    if (pairable(node)) run.push(node);
+    else flush();
+  });
+  flush();
 }
 
 let layoutPromise = null;
