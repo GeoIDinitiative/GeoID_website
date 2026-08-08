@@ -1,6 +1,6 @@
-import { handlerFor } from "./spec-page.js?v=20260808-5ab803b";
-import * as store from "./project-store.js?v=20260808-5ab803b";
-import { el, statusLine } from "./pages/common.js?v=20260808-5ab803b";
+import { handlerFor } from "./spec-page.js?v=20260808-4df5909";
+import * as store from "./project-store.js?v=20260808-4df5909";
+import { el, statusLine } from "./pages/common.js?v=20260808-4df5909";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -61,7 +61,11 @@ const LABEL_ROLE = {
 };
 
 function applyBox(node, spec) {
-  if (spec.stretch) node.style.flex = String(spec.stretch);
+  // `flex: N`, not `flex: N 1 auto`, would set the basis to 0 -- and Qt's
+  // stretch factor governs only the *extra* space, with the widget still
+  // getting its size hint first. Ingest's registry section carries
+  // `addWidget(pulled_sec, 1)` and collapsed to 2px under the zero basis.
+  if (spec.stretch) node.style.flex = `${spec.stretch} 1 auto`;
   // `addWidget(btn, 0, Qt.AlignLeft)` means the widget keeps its size hint
   // instead of filling the row -- without this every such button stretched the
   // full width of its column, which is the single most obvious way a rebuilt
