@@ -3905,6 +3905,46 @@ canvas {
     .research-card .gis-btn-row .input { flex: 1 1 auto; }
 
     /* Ingest source lists and the lineage table. */
+    /* Reports, boards, galleries and progress. */
+    .research-report { margin-top: 0.5rem; }
+    .research-flag {
+      margin-top: 0.5rem; padding: 0.4rem 0.6rem;
+      border-radius: 0.4rem; font-size: 0.68rem;
+    }
+    .research-flag.is-ok { border: 1px solid rgba(82, 228, 232, 0.4); color: var(--nav-accent); }
+    .research-flag.is-warn { border: 1px solid rgba(255, 210, 106, 0.5); color: #ffd36a; }
+    .research-progress {
+      height: 0.35rem; margin: 0.5rem 0 0.2rem;
+      border-radius: 0.2rem; background: rgba(255, 255, 255, 0.06); overflow: hidden;
+    }
+    .research-progress-fill { height: 100%; background: var(--nav-accent); }
+    .research-board {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+      gap: 0.5rem; margin-top: 0.5rem;
+    }
+    .research-board-col {
+      padding: 0.4rem; border: 1px solid rgba(82, 228, 232, 0.2);
+      border-radius: 0.4rem; background: rgba(8, 12, 20, 0.4);
+    }
+    .research-board-card {
+      display: flex; flex-direction: column; gap: 0.25rem;
+      margin-bottom: 0.3rem; padding: 0.35rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+      border-radius: 0.35rem; background: rgba(10, 14, 24, 0.6);
+      font-size: 0.68rem;
+    }
+    .research-gallery {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+      gap: 0.6rem; margin-top: 0.5rem;
+    }
+    .research-gallery-item {
+      display: flex; flex-direction: column; gap: 0.25rem;
+      padding: 0.4rem; border: 1px solid rgba(82, 228, 232, 0.2);
+      border-radius: 0.4rem; background: rgba(8, 12, 20, 0.4);
+    }
+    .research-gallery-item img { width: 100%; border-radius: 0.3rem; }
+    .research-gallery-name { font-size: 0.62rem; color: var(--soft-light); }
+
     .ingest-sources {
       margin: 0 0 0.4rem;
       padding-left: 1.1rem;
