@@ -1,9 +1,9 @@
-import * as store from "./project-store.js?v=20260808-a744c6f";
-import * as stats from "./stats.js?v=20260808-a744c6f";
-import * as dsp from "./dsp.js?v=20260808-a744c6f";
-import { parseTable, column } from "./table.js?v=20260808-a744c6f";
-import { linePlot, heatmap } from "./plot.js?v=20260808-a744c6f";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-a744c6f";
+import * as store from "./project-store.js?v=20260808-c6293c4";
+import * as stats from "./stats.js?v=20260808-c6293c4";
+import * as dsp from "./dsp.js?v=20260808-c6293c4";
+import { parseTable, column } from "./table.js?v=20260808-c6293c4";
+import { linePlot, heatmap } from "./plot.js?v=20260808-c6293c4";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-c6293c4";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -81,9 +81,13 @@ function csvPlotter(host, api) {
   const scroll = host.querySelector(".qt-scroll");
   if (!scroll) return;
   // The tree renders the scroll area's rows_widget with its trailing stretch;
-  // cards are inserted before it, exactly as `add_dataset_row` does.
-  const container = scroll.querySelector(".qt-v") || scroll;
-  const stretch = container.querySelector(".qt-stretch");
+  // cards go before it, exactly as `add_dataset_row` does. Find the stretch
+  // first and take *its* parent -- the rows widget nests a level below the
+  // scroll area's own layout, so the first `.qt-v` is the wrong box and
+  // insertBefore threw on a node that was not its child.
+  const stretch = scroll.querySelector(".qt-stretch");
+  const container = stretch ? stretch.parentElement
+    : (scroll.querySelector(".qt-v") || scroll);
   const rows = [];
   let lastFigure = null;
 
