@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260808-13d69c5";
-import * as store from "./project-store.js?v=20260808-13d69c5";
-import { el, statusLine } from "./pages/common.js?v=20260808-13d69c5";
-import { install as installRuntime } from "./qt-runtime.js?v=20260808-13d69c5";
+import { handlerFor } from "./spec-page.js?v=20260808-2cd5a76";
+import * as store from "./project-store.js?v=20260808-2cd5a76";
+import { el, statusLine } from "./pages/common.js?v=20260808-2cd5a76";
+import { install as installRuntime } from "./qt-runtime.js?v=20260808-2cd5a76";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -447,11 +447,14 @@ export function renderTree(spec, ctx) {
       return box;
     }
 
-    // QWidget / QFrame / QSplitter: a plain container for whatever it holds.
+    // QWidget / QFrame / QSplitter / QStackedWidget: a plain container for
+    // whatever it holds. The stack gets its own class because it is the one a
+    // page's runtime needs to find and fill -- Map's right-hand pane.
     const inner = renderNode(node.content);
-    if (!inner) return null;
-    const wrap = el("div", kind === "QSplitter" ? "qt-splitter" : "qt-container");
-    wrap.appendChild(inner);
+    if (!inner && kind !== "QStackedWidget") return null;
+    const wrap = el("div", kind === "QSplitter" ? "qt-splitter"
+      : kind === "QStackedWidget" ? "qt-stack" : "qt-container");
+    if (inner) wrap.appendChild(inner);
     return wrap;
   }
 

@@ -1867,3 +1867,5 @@
   text-overflow: ellipsis;
 }
 .qt-inline-menu.is-form { padding: 8px; gap: 6px; }
+.qt-stack { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; min-width: 0; }
+.qt-stack > * { flex: 1 1 auto; min-height: 0; min-width: 0; }

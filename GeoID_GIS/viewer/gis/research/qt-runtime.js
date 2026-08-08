@@ -1,10 +1,10 @@
-import * as store from "./project-store.js?v=20260808-13d69c5";
-import * as stats from "./stats.js?v=20260808-13d69c5";
-import * as dsp from "./dsp.js?v=20260808-13d69c5";
-import { parseTable, column } from "./table.js?v=20260808-13d69c5";
-import { linePlot, heatmap } from "./plot.js?v=20260808-13d69c5";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-13d69c5";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260808-13d69c5";
+import * as store from "./project-store.js?v=20260808-2cd5a76";
+import * as stats from "./stats.js?v=20260808-2cd5a76";
+import * as dsp from "./dsp.js?v=20260808-2cd5a76";
+import { parseTable, column } from "./table.js?v=20260808-2cd5a76";
+import { linePlot, heatmap } from "./plot.js?v=20260808-2cd5a76";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-2cd5a76";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260808-2cd5a76";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -510,17 +510,20 @@ function boundsOf(layer) {
 
 function mapComposer(host, api) {
   const say = logger(api);
-  const stack = host.querySelector(".qt-container, .qt-splitter > *:last-child");
+  // The QStackedWidget is the splitter's right-hand pane. Targeting
+  // `.qt-container` instead matched the first container in the page and cleared
+  // the toolbar -- basemap, Embedded, Open in Browser, Export PNG all vanished.
+  const stack = host.querySelector(".qt-stack");
   const panel = host.querySelector(".qt-scroll");
-  if (!panel) return;
+  if (!panel || !stack) return;
   const listStretch = panel.querySelector(".qt-stretch");
   const list = listStretch ? listStretch.parentElement : panel;
 
   // The map replaces the Qt fallback label, which says the embedded map needs
   // PySide6-WebEngine -- untrue here, and a browser is the one place it is.
   const holder = el("div", "map2d");
-  const target = host.querySelector(".qt-splitter") ? stack : host;
-  if (target) { target.textContent = ""; target.appendChild(holder); }
+  stack.textContent = "";
+  stack.appendChild(holder);
   const map = createMap(holder, { basemap: "OpenStreetMap" });
 
   const layers = [];
