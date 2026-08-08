@@ -1,0 +1,15 @@
+{
+  "min_m": -8201.0,
+  "max_m": 21241.0,
+  "relief_m": 29442.0,
+  "width": 4096,
+  "height": 2048,
+  "encoding": "rg16",
+  "quantisation_m": 0.44925612268253606,
+  "source": "mars_elevation_upscaled.png",
+  "source_quantisation_m": 115.45882352941176,
+  "max_residual_m": 87.39420572597668,
+  "mean_residual_m": 40.422496521875885,
+  "flat_neighbour_fraction_before": 0.7410441229777167,
+  "flat_neighbour_fraction_after": 0.23540486206501832
+}

@@ -81,6 +81,25 @@ then show through it.
   that block restyles `#ui` (narrower, 0.5rem inset, z-index 20) and anything
   positioned relative to the panel must be given matching overrides there.
 
+## The viewer eats the space bar
+
+Every viewer binds a document-level `keydown` that intercepts **Space** to
+pause/resume the globe spin, `preventDefault()`s it, and **blurs the focused
+element** so a repeated press cannot accumulate on a control
+(`earth-viewer.js:1107` and its equivalent in each planet viewer).
+
+The Research Hub and the GIS panels live in that same document, so every text
+field inherited it: typing a space vanished and the field lost focus, and a
+project description could only ever be **one word long**. The handler now bails
+out for text entry — `textarea`, `contenteditable`, and `input` except
+checkbox/radio/button/submit/reset/range/file/color — and is otherwise
+unchanged, so space still pauses the globe from a focused checkbox rather than
+toggling it.
+
+The Saturn/Jupiter/Neptune/Uranus lineage was written differently and already
+guarded INPUT/TEXTAREA/SELECT, so it never had the bug. Any *new* document-level
+key handler must make the same exemption.
+
 ## Cache-busting
 
 Every `gis/*` import carries `?v=<stamp>`; bump it on **every** edit or the

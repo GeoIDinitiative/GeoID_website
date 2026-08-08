@@ -1078,6 +1078,21 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     }
     document.addEventListener("keydown", (event) => {
       if (event.code !== "Space") { return; }
+      // ...unless someone is typing. This handler swallows the space and blurs
+      // the focused element, so a space typed into any text field vanished and
+      // the field lost focus -- a project description could only ever be one
+      // word long. Checkboxes, buttons and sliders keep the old behaviour:
+      // there the point is that space pauses the globe rather than re-firing
+      // whatever was last clicked.
+      const focused = document.activeElement;
+      if (focused) {
+        const tag = focused.tagName;
+        const typing = focused.isContentEditable
+          || tag === "TEXTAREA"
+          || (tag === "INPUT" && !/^(checkbox|radio|button|submit|reset|range|file|color)$/i
+            .test(focused.type || "text"));
+        if (typing) { return; }
+      }
       // Always intercept space so it never activates whatever UI element last had focus.
       event.preventDefault();
       // Blur the active element so repeated space presses don't accumulate on a control.
