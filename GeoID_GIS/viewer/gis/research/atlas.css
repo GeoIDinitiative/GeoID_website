@@ -2292,3 +2292,140 @@
 .pipe-run-status { flex: 0 0 auto; min-width: 5rem; text-align: center; }
 .pipe-run-status.is-running { color: #f4b400; border-color: rgba(244,180,0,0.5); }
 .pipe-run-status.is-done { color: #00e58a; border-color: rgba(0,229,138,0.5); }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   COHESIVE DESIGN PASS
+   One calm anatomy for every tree page: header (drawn by the hub) → a contained
+   toolbar of inputs → the work surface → the log. The goal is that a page reads
+   as one organised instrument, not a scatter of floating controls over a void.
+   Works within the layout invariants in CLAUDE.md: root stays a flex column,
+   expanding widgets fill, --ctl governs control height, nothing clips.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+#research-hub {
+  /* One spacing scale, used everywhere below so the rhythm is consistent. */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 22px;
+  --radius: 10px;
+}
+
+/* The page breathes: generous, even padding and a single vertical rhythm. */
+.qt-page { padding: var(--sp-4) var(--sp-5); gap: var(--sp-4); }
+.qt-page > .qt-layout.qt-v { gap: var(--sp-4); }
+
+/* ── The toolbar of inputs ─────────────────────────────────────────────────
+   The leading control rows, grouped by zonePage() into one panel so the inputs
+   read as a bar rather than floating widgets. Aligned, wrapping, calm. */
+.qt-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--atlas-border);
+  border-radius: var(--radius);
+  background: var(--atlas-card);
+}
+.qt-toolbar > .qt-h { flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); row-gap: var(--sp-2); }
+/* A subtitle or section label that leads the toolbar is a caption, not a row. */
+.qt-toolbar > .qt-subtitle,
+.qt-toolbar > .qt-label { margin: 0; }
+.qt-toolbar > .qt-section-title { margin: 0 0 2px; }
+/* Field captions in the toolbar sit tight to their control, uppercase and cyan
+   — instrument labels, exactly like the GIS sidebar. */
+.qt-toolbar .qt-label {
+  font-size: 0.64rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgb(var(--skin-data));
+  opacity: 0.85;
+}
+
+/* ── The primary action ────────────────────────────────────────────────────
+   One accented button per toolbar (Compute / Run / Fit …) so the run action is
+   obvious. Magenta chrome fill with dark ink — the skin's active state. */
+#research-hub .qt-button.is-primary {
+  background: rgb(var(--skin-chrome));
+  color: #12030f;
+  border-color: rgb(var(--skin-chrome));
+  font-weight: 600;
+  box-shadow: 0 0 14px rgba(var(--skin-chrome-rgb), 0.45);
+}
+#research-hub .qt-button.is-primary:hover {
+  background: color-mix(in srgb, rgb(var(--skin-chrome)) 88%, white);
+  box-shadow: 0 0 18px rgba(var(--skin-chrome-rgb), 0.6);
+}
+
+/* ── Calmer surfaces ───────────────────────────────────────────────────────
+   Fewer hard lines: cards and group boxes carry a soft edge and a step of
+   elevation rather than a bright border, so a page of several panels does not
+   read as a stack of competing outlines. */
+.qt-groupbox,
+.qt-source-card,
+.qt-datatable,
+.qt-listwidget,
+.qt-scroll,
+.qt-tabwidget {
+  border-color: rgba(var(--skin-muted), 0.16);
+  border-radius: var(--radius);
+}
+.qt-groupbox { padding: var(--sp-3) var(--sp-4); gap: var(--sp-3); }
+.qt-groupbox-title,
+.qt-section-title {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+}
+/* A section bar reads as a quiet lid, not a bright button. */
+.qt-section > .qt-section-head {
+  background: var(--atlas-panel);
+  border-color: rgba(var(--skin-muted), 0.16);
+}
+.qt-section[open] > .qt-section-head { color: rgb(var(--skin-chrome)); }
+
+/* ── The tab widget as a clean panel ───────────────────────────────────────
+   A restful body and an underline-selected strip that matches the page tabs. */
+.qt-tabwidget { background: var(--atlas-panel); }
+.qt-tabwidget > .qt-tabs {
+  padding: var(--sp-1) var(--sp-2) 0;
+  gap: 2px;
+  background: transparent;
+  border-bottom-color: rgba(var(--skin-muted), 0.16);
+}
+.qt-tabwidget .qt-tab {
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+}
+.qt-tabwidget .qt-tab.is-active {
+  background: transparent;
+  color: var(--text);
+  border-bottom-color: rgb(var(--skin-chrome));
+  text-shadow: 0 0 10px rgba(var(--skin-chrome-rgb), 0.5);
+}
+.qt-tabwidget > .qt-tab-body { padding: var(--sp-4); }
+
+/* ── Empty-state: a filled area that is waiting, not broken ────────────────
+   The work surface fills the page (correct), but empty it read as a purple
+   void. A tab body or scroll area with nothing but controls shows a centred,
+   muted hint so the space reads as intentional. */
+.qt-tab-panel { display: flex; flex-direction: column; }
+.qt-tab-panel > .qt-layout { flex: 0 0 auto; }
+/* Only a panel with NO interactive content is a blank display area waiting for
+   a result -- a form tab keeps its own controls and gets no hint, so this never
+   mislabels an input surface as an output one. */
+.qt-tab-panel:not(:has(input)):not(:has(select)):not(:has(textarea)):not(:has(button)):not(:has(canvas)):not(:has(.qt-datatable))::after {
+  content: "Run the analysis to see results here.";
+  display: block;
+  margin: auto;
+  padding: var(--sp-5);
+  max-width: 24rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: rgba(var(--skin-muted), 0.55);
+}

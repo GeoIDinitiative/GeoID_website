@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260808-cf712ff";
-import * as store from "./project-store.js?v=20260808-cf712ff";
-import { el, statusLine } from "./pages/common.js?v=20260808-cf712ff";
-import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-cf712ff";
+import { handlerFor } from "./spec-page.js?v=20260808-16f4ac6";
+import * as store from "./project-store.js?v=20260808-16f4ac6";
+import { el, statusLine } from "./pages/common.js?v=20260808-16f4ac6";
+import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-16f4ac6";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -556,8 +556,65 @@ export function renderTree(spec, ctx) {
   }
 
   const root = renderLayout(spec.root);
+  zonePage(root);
   packRoot(root);
   return root;
+}
+
+/** The surfaces that are a page's main work area, not part of its toolbar. */
+const MAIN_SURFACE = ".qt-tabwidget, .qt-splitter, .qt-stack, .qt-datatable,"
+  + " .qt-listwidget, .qt-scroll, .qt-expand, details.qt-section, .qt-groupbox";
+
+/**
+ * Give a page a clean anatomy: a contained toolbar, then the work surface.
+ *
+ * A tree-rendered page is a flat column of rows, and the top of it is usually a
+ * cluster of control rows — a file field, a row of label:field pairs, the run
+ * button — floating directly on the page background above a large work surface.
+ * That floating cluster is what read as noisy: a dozen tiny controls with no
+ * container, no grouping, no rhythm.
+ *
+ * This wraps that leading run of control rows into one `.qt-toolbar` panel, so
+ * the inputs read as a single grouped bar the way a real application's toolbar
+ * does, and marks the last button in it as the primary action so the eye has
+ * somewhere to land. It only fires when a main surface follows — a page that is
+ * *all* form keeps its rows and is bounded by CSS instead.
+ */
+function zonePage(root) {
+  const kids = Array.from(root.children);
+  const firstMain = kids.findIndex((n) =>
+    n.matches(MAIN_SURFACE) || n.querySelector(MAIN_SURFACE));
+  if (firstMain < 1) return;   // nothing before the surface, or no surface
+
+  // The leading rows that are controls (a row, a form, a lone label/button) —
+  // everything up to the first main surface.
+  const lead = kids.slice(0, firstMain).filter((n) =>
+    n.matches(".qt-h, .qt-form, .qt-label, .qt-subtitle, .qt-section-title, .button, .qt-input, .qt-select, .qt-stacked"));
+  const hasControls = lead.some((n) =>
+    n.matches(".qt-h, .qt-form") || n.querySelector("input, select, button"));
+  if (lead.length < 1 || !hasControls) return;
+
+  const bar = el("div", "qt-toolbar");
+  lead[0].before(bar);
+  lead.forEach((n) => bar.appendChild(n));
+
+  // The primary action is the strongest "run" verb in the toolbar — accent it
+  // so the eye lands on the thing that produces a result. Ranked, because a
+  // toolbar often has both a run and an export/load, and the run is primary:
+  // "Detect Events" beats "Export CSV", not the other way round.
+  const RUN_VERBS = [
+    /^(compute|run|fit|detect|generate|analy|transform|rank|apply|simulate|execute|solve)/i,
+    /^(plot|preview|add |create|build|extract|convert)/i,
+    /^(load|import|save|export|start)/i,
+  ];
+  const buttons = Array.from(bar.querySelectorAll(".qt-button:not(.is-unwired)"))
+    .filter((b) => !/^browse$|^\.\.\.$/i.test((b.textContent || "").trim()));
+  let primary = null;
+  for (const verb of RUN_VERBS) {
+    primary = buttons.find((b) => verb.test((b.textContent || "").trim()));
+    if (primary) break;
+  }
+  if (primary) primary.classList.add("is-primary");
 }
 
 /**
