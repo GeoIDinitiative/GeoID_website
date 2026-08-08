@@ -919,10 +919,22 @@ def extract():
         built = build_tree(reader, root)
         if not built:
             continue
+        class_consts = {}
+        for item in node.body:
+            if isinstance(item, ast.Assign) and isinstance(item.value, (ast.List, ast.Tuple, ast.Dict)):
+                for target in item.targets:
+                    name = var_of(target)
+                    if not name:
+                        continue
+                    try:
+                        class_consts[name] = ast.literal_eval(item.value)
+                    except (ValueError, SyntaxError):
+                        pass
         for page_id in mapping[node.name]:
             pages[page_id] = {"qt_class": node.name,
                               "root": copy.deepcopy(built) if len(mapping[node.name]) > 1
-                                      else built}
+                                      else built,
+                              **({"class_consts": class_consts} if class_consts else {})}
 
     # The Ingest pages share one class and differ only by the provider list they
     # were constructed with, so each needs its own copy of the tree filled in.

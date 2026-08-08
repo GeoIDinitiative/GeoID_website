@@ -2249,3 +2249,28 @@
 .sidecar-status { margin: 2px 0 0; font-size: 0.72rem; color: var(--atlas-muted); }
 .sidecar-status.is-on { color: rgb(var(--skin-data)); }
 .sidecar-card .qt-card-desc { white-space: normal; }
+
+/* ── Pipeline Editor nodes ─────────────────────────────────────────────────
+   The node library and pipeline list are filled from the app's _AVAILABLE_NODES
+   catalogue (qt-runtime.js). Each node carries its category colour in --node,
+   as the Qt list colours its items. */
+.qt-listwidget { display: flex; flex-direction: column; gap: 3px; padding: 4px; }
+.pipe-node {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-left: 3px solid var(--node, var(--atlas-line));
+  border-radius: 5px;
+  background: transparent;
+  color: var(--node, var(--text));
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.pipe-node:hover { background: rgba(255, 255, 255, 0.04); }
+.pipe-node.is-selected {
+  background: color-mix(in srgb, var(--node) 18%, transparent);
+  border-color: color-mix(in srgb, var(--node) 55%, transparent);
+}
+.pipe-node.is-step { color: var(--text); font-weight: 500; }

@@ -3740,6 +3740,22 @@
   }
  },
  "GIS Explorer": {
+  "class_consts": {
+   "_VIEWERS": [
+    [
+     "Earth Globe",
+     "/GeoID_Earth/viewer/"
+    ],
+    [
+     "Etna Regional",
+     "/earth_explorer/etna/viewer/"
+    ],
+    [
+     "Explorer Hub",
+     "/"
+    ]
+   ]
+  },
   "qt_class": "GISExplorerPage",
   "root": {
    "children": [
@@ -9448,6 +9464,42 @@
   }
  },
  "Map": {
+  "class_consts": {
+   "_BASEMAP_TILES": {
+    "CartoDB Dark": [
+     "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+     "\u00a9 OpenStreetMap \u00a9 CARTO"
+    ],
+    "CartoDB Positron": [
+     "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+     "\u00a9 OpenStreetMap \u00a9 CARTO"
+    ],
+    "ESRI Satellite": [
+     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+     "\u00a9 Esri"
+    ],
+    "ESRI Topo": [
+     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+     "\u00a9 Esri"
+    ],
+    "OpenStreetMap": [
+     "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+     "\u00a9 OpenStreetMap contributors"
+    ]
+   },
+   "_COLOURS": [
+    "#16F4FF",
+    "#FF1FB8",
+    "#FFA500",
+    "#00FF88",
+    "#FF4444",
+    "#AA88FF",
+    "#FFFF44",
+    "#44AAFF",
+    "#FF8844",
+    "#88FF44"
+   ]
+  },
   "qt_class": "MapPage",
   "root": {
    "children": [
@@ -10114,6 +10166,17 @@
   }
  },
  "Model Fitting": {
+  "class_consts": {
+   "_MODELS": [
+    "Linear (y=ax+b)",
+    "Polynomial",
+    "Exponential (y=a*e^(bx))",
+    "Logarithmic (y=a*ln(x)+b)",
+    "Power Law (y=a*x^b)",
+    "Sinusoidal (y=A*sin(wx+phi)+C)",
+    "Custom equation"
+   ]
+  },
   "qt_class": "ModelFittingPage",
   "root": {
    "children": [
@@ -11189,6 +11252,85 @@
   }
  },
  "Pipeline Editor": {
+  "class_consts": {
+   "_AVAILABLE_NODES": [
+    [
+     "Pull Weather",
+     "data_puller",
+     "#16f4ff"
+    ],
+    [
+     "Pull DEM",
+     "data_puller",
+     "#16f4ff"
+    ],
+    [
+     "Pull Literature",
+     "data_puller",
+     "#16f4ff"
+    ],
+    [
+     "Coordinate Transform",
+     "preprocessing",
+     "#7b68ee"
+    ],
+    [
+     "Clip by Bbox",
+     "preprocessing",
+     "#7b68ee"
+    ],
+    [
+     "Raster Resample",
+     "preprocessing",
+     "#7b68ee"
+    ],
+    [
+     "Run EDA",
+     "analytics",
+     "#ffa500"
+    ],
+    [
+     "Run Statistics",
+     "analytics",
+     "#ffa500"
+    ],
+    [
+     "Train AI Model",
+     "ai",
+     "#ff1fb8"
+    ],
+    [
+     "Run FEM",
+     "fem",
+     "#00ff7f"
+    ],
+    [
+     "Extract DOF",
+     "postprocessing",
+     "#ff6347"
+    ],
+    [
+     "Signal Analysis",
+     "postprocessing",
+     "#ff6347"
+    ],
+    [
+     "Compose Figure",
+     "output",
+     "#87ceeb"
+    ],
+    [
+     "Compile StoryBoard",
+     "output",
+     "#87ceeb"
+    ],
+    [
+     "Export HTML",
+     "output",
+     "#87ceeb"
+    ]
+   ]
+  },
   "qt_class": "PipelineEditorPage",
   "root": {
    "children": [
@@ -11329,6 +11471,30 @@
   }
  },
  "Pipeline Runner": {
+  "class_consts": {
+   "_STAGES": [
+    [
+     "Data Pull",
+     "Pull new data from configured sources"
+    ],
+    [
+     "Preprocess",
+     "Register and clean datasets"
+    ],
+    [
+     "FEM Run",
+     "Execute the FEM simulation"
+    ],
+    [
+     "Postprocess",
+     "Apply postprocessing toolkit"
+    ],
+    [
+     "StoryBoard",
+     "Compile results into storyboard"
+    ]
+   ]
+  },
   "qt_class": "AutoPipelineRunnerPage",
   "root": {
    "children": [
@@ -16788,6 +16954,16 @@
   }
  },
  "Storyboard": {
+  "class_consts": {
+   "_SECTION_TEMPLATES": {
+    "Abstract": "# Abstract\n\n**Background:** \n\n**Methods:** \n\n**Results:** \n\n**Conclusions:** \n\n**Keywords:** keyword1, keyword2, keyword3\n\n",
+    "Conclusion": "# Conclusion\n\n## Summary\n\n\n\n## Future Work\n\n- \n\n",
+    "Discussion": "# Discussion\n\n## Interpretation\n\n\n\n## Comparison with Prior Work\n\n\n\n## Limitations\n\n\n\n",
+    "Introduction": "# Introduction\n\n## Background\n\nProvide context and motivation for the study.\n\n## Objectives\n\n- Objective 1\n- Objective 2\n\n## Scope\n\nDefine the scope and limitations of this work.\n\n",
+    "Methods": "# Methods\n\n## Study Area\n\n\n\n## Data Sources\n\n| Source | Type | Resolution | Period |\n|---|---|---|---|\n| | | | |\n\n## Processing Pipeline\n\n1. Step 1\n2. Step 2\n3. Step 3\n\n## Validation\n\n\n\n",
+    "Results": "# Results\n\n## Key Findings\n\n\n\n## Figures\n\n*See Assets panel \u2192*\n\n## Statistical Summary\n\n\n\n"
+   }
+  },
   "qt_class": "StoryboardPage",
   "root": {
    "children": [

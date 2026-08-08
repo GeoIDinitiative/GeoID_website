@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260808-402e82b";
-import * as store from "./project-store.js?v=20260808-402e82b";
-import { el, statusLine } from "./pages/common.js?v=20260808-402e82b";
-import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-402e82b";
+import { handlerFor } from "./spec-page.js?v=20260808-6f3e709";
+import * as store from "./project-store.js?v=20260808-6f3e709";
+import { el, statusLine } from "./pages/common.js?v=20260808-6f3e709";
+import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-6f3e709";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -655,7 +655,7 @@ export function qtMount(pageId) {
       return out;
     };
     const redraw = () => { host.textContent = ""; void mount(host, ctx); };
-    const api = { values, controls, say, ctx, redraw, store, pageId };
+    const api = { values, controls, say, ctx, redraw, store, pageId, spec };
 
     const body = el("div", "qt-page");
     body.appendChild(renderTree(spec, { pageId, api }));

@@ -1,11 +1,11 @@
-import * as store from "./project-store.js?v=20260808-402e82b";
-import * as stats from "./stats.js?v=20260808-402e82b";
-import * as dsp from "./dsp.js?v=20260808-402e82b";
-import { parseTable, column } from "./table.js?v=20260808-402e82b";
-import { linePlot, heatmap } from "./plot.js?v=20260808-402e82b";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-402e82b";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260808-402e82b";
-import * as sidecar from "./sidecar.js?v=20260808-402e82b";
+import * as store from "./project-store.js?v=20260808-6f3e709";
+import * as stats from "./stats.js?v=20260808-6f3e709";
+import * as dsp from "./dsp.js?v=20260808-6f3e709";
+import { parseTable, column } from "./table.js?v=20260808-6f3e709";
+import { linePlot, heatmap } from "./plot.js?v=20260808-6f3e709";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-6f3e709";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260808-6f3e709";
+import * as sidecar from "./sidecar.js?v=20260808-6f3e709";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -1017,10 +1017,140 @@ function settingsSidecar(host, api) {
   body.insertBefore(card, body.firstChild);
 }
 
+/* ── Pipeline Editor ──────────────────────────────────────────────────────
+ *
+ * `PipelineEditorPage` (app_qt.py:20574). A node library on the left, a
+ * pipeline list on the right, and the toolbar that moves between them. The
+ * library is filled at runtime from the class constant `_AVAILABLE_NODES`
+ * (name, category, colour), which the extractor now carries on the page as
+ * `class_consts`, so the catalogue stays in step with the app.
+ */
+const PIPELINE_DOC = "metadata/pipeline_definition.json";
+
+function pipelineEditor(host, api) {
+  const say = logger(api);
+  const nodeList = api.controls.get("_node_list")
+    || host.querySelector(".qt-listwidget");
+  const pipeList = api.controls.get("_pipeline_list")
+    || Array.from(host.querySelectorAll(".qt-listwidget"))[1];
+  const runLog = api.controls.get("_run_log");
+  if (!nodeList || !pipeList) return;
+
+  const catalog = (api.spec?.class_consts?._AVAILABLE_NODES || [])
+    .map(([name, category, color]) => ({ name, category, color }));
+  let pipeline = [];
+  let nodeSel = -1;
+  let pipeSel = -1;
+
+  const write = (line) => {
+    if (!runLog) { say(line); return; }
+    runLog.value = runLog.value ? `${runLog.value}\n${line}` : line;
+    runLog.scrollTop = runLog.scrollHeight;
+  };
+
+  // ── The node library, coloured as the app colours it ──────────────────────
+  nodeList.textContent = "";
+  catalog.forEach((node, index) => {
+    const row = el("button", "pipe-node", node.name);
+    row.type = "button";
+    row.style.setProperty("--node", node.color);
+    row.title = node.category;
+    row.addEventListener("click", () => {
+      nodeSel = index;
+      nodeList.querySelectorAll(".pipe-node").forEach((n, i) =>
+        n.classList.toggle("is-selected", i === index));
+    });
+    nodeList.appendChild(row);
+  });
+
+  function renderPipeline() {
+    pipeList.textContent = "";
+    if (!pipeline.length) {
+      pipeList.appendChild(el("p", "research-note", "Add nodes from the library."));
+    }
+    pipeline.forEach((node, index) => {
+      const row = el("button", "pipe-node is-step", `▶  ${node.name}`);
+      row.type = "button";
+      row.style.setProperty("--node", node.color);
+      row.classList.toggle("is-selected", index === pipeSel);
+      row.addEventListener("click", () => {
+        pipeSel = index;
+        pipeList.querySelectorAll(".pipe-node").forEach((n, i) =>
+          n.classList.toggle("is-selected", i === index));
+      });
+      pipeList.appendChild(row);
+    });
+  }
+  renderPipeline();
+
+  const persist = async () => {
+    if (store.getActive()) await store.writeJson(PIPELINE_DOC, pipeline).catch(() => {});
+  };
+
+  bind(host, "Add to Pipeline →", async () => {
+    if (nodeSel < 0) { say("Select a node in the library first."); return; }
+    pipeline.push({ ...catalog[nodeSel] });
+    pipeSel = pipeline.length - 1;
+    renderPipeline();
+    await persist();
+  });
+  bind(host, "Remove Selected", async () => {
+    if (pipeSel < 0) { say("Select a step to remove."); return; }
+    pipeline.splice(pipeSel, 1);
+    pipeSel = Math.min(pipeSel, pipeline.length - 1);
+    renderPipeline();
+    await persist();
+  });
+  const move = (delta) => async () => {
+    const to = pipeSel + delta;
+    if (pipeSel < 0 || to < 0 || to >= pipeline.length) return;
+    [pipeline[pipeSel], pipeline[to]] = [pipeline[to], pipeline[pipeSel]];
+    pipeSel = to;
+    renderPipeline();
+    await persist();
+  };
+  bind(host, "▲", move(-1));
+  bind(host, "▼", move(1));
+
+  bind(host, "Save", async () => {
+    if (!store.getActive()) { say("Open a project to save the pipeline."); return; }
+    await store.writeJson(PIPELINE_DOC, pipeline);
+    write(`Pipeline saved to ${PIPELINE_DOC} (${pipeline.length} step(s)).`);
+  });
+  bind(host, "Load", async () => {
+    if (!store.getActive()) { say("Open a project first."); return; }
+    pipeline = await store.readJson(PIPELINE_DOC, []);
+    if (!Array.isArray(pipeline)) pipeline = [];
+    pipeSel = -1;
+    renderPipeline();
+    write(`Loaded ${pipeline.length} step(s) from ${PIPELINE_DOC}.`);
+  });
+  bind(host, "Run Pipeline", async () => {
+    if (!pipeline.length) { say("The pipeline is empty."); return; }
+    if (runLog) runLog.value = "";
+    const now = new Date().toLocaleTimeString();
+    write(`Pipeline run started — ${now}`);
+    pipeline.forEach((node, i) => {
+      write(`  [${i + 1}/${pipeline.length}] ${node.name} (${node.category})  … queued`);
+    });
+    write("\nEach stage runs from its own page, or on the sidecar when it "
+      + "maps to a script. Full auto-run wires to the stage pages.");
+    await persist();
+  });
+
+  // Open with whatever the project already holds.
+  if (store.getActive()) {
+    store.readJson(PIPELINE_DOC, []).then((saved) => {
+      if (Array.isArray(saved) && saved.length) { pipeline = saved; renderPipeline(); }
+    });
+  }
+}
+
 export const RUNTIME = {
   "CSV Plotter": csvPlotter,
   "Map": mapComposer,
   "Live Monitor": liveMonitor,
+  "Pipeline Editor": pipelineEditor,
   // These *augment* pages the tree already renders; both call their base
   // runtime nothing, they only re-bind the run/stop buttons.
   "AI Trainer": aiTrainer,
