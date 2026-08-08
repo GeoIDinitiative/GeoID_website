@@ -416,6 +416,27 @@ panel flow into a column instead of spanning (the tab strip wrapped and every
 field stacked, taking Post Processing from 1.28 screens to 2.16), and a 21rem
 column floor (five columns of ~350px, too narrow to read a labelled input in).
 
+**Nothing may be cut, and the width must be used.** Two faults with one cause:
+every child of a flex column could shrink below its own content, so a section
+that did not fit was *clipped* rather than scrolled — thirteen pages, Signal
+Processing losing 623px of its Event Correlation toolkit and every Ingest page
+95px of its registry. Qt does not do this: a widget gets its sizeHint and only a
+widget given a stretch factor absorbs what is spare. So in a `.qt-v` nothing
+shrinks except `.qt-grow` and the scrolling boxes, and those **scroll rather
+than clip**.
+
+At 1200px and up a tree-rendered page becomes **two columns**, with the primary
+surfaces — tab widgets, splitters, tables, toolbars, anything Qt gave a stretch
+factor — spanning both, because halving those is what made the earlier attempt
+worse. Fields stop at 42rem; an empty table states its shape in 8rem.
+
+**A grid item with `overflow: hidden` has an automatic minimum size of ZERO**,
+so its row may be shorter than its content. That is how an *open*
+CollapsibleSection still lost 399px inside an otherwise fixed page, after the
+flex-shrink fix. `.qt-section[open]` overflows visibly, which restores the
+content-based minimum. Measured at 1920x1080: 50 of 53 pages two-column, **zero
+clipping**, one page scrolling and that one honestly.
+
 **The page area is a grid, not a stack.** `.research-page` flows its cards into
 `minmax(25rem, 1fr)` columns with `align-items: start`, and the wide items
 (header, toolbar, splitter, big tabbed cards, `research-grid-2`) span. Stacking
@@ -445,6 +466,22 @@ whose entire toolbar is those buttons. And half the pattern's labels were
 guessed: the app says "Timestamp", "</>" and "•", not "Time Stamp", "Code" and
 "Bullets". Neither was visible until the extractor started following the loop
 that builds that toolbar. **Click the buttons; counting them finds neither.**
+
+**Verify an analysis against an answer you planted.** Compute, Detect Events
+and Fit were checked on a CSV holding a 4 Hz unit sine, two rectangular bursts
+at 3.00–3.40 s and 7.00–7.60 s, and `y = 3t + 7`: the spectrum peaks at
+4.0039 Hz (a quarter of a bin) with amplitude 0.999, which also confirms the
+window-gain correction; detection returns exactly those two intervals; the fit
+returns p1 = 2.999999999999995 and p0 = 7.000000000000021 with R² = 1. A first
+attempt used one column carrying both the sine *and* the bursts and the peak
+came back at 0.49 Hz — correct for that signal, since 3.0 bursts dwarf a 0.2
+sine, and useless as a test. Plant the answer in a column that isolates it.
+
+**Those pages need Browse to fill their column combos.** The tree renders
+`_time_col`, `_signal_col`, `_x_col` and `_y_col` empty because the Qt page
+fills them from a file header after its own dialog. Without that the analysis
+handlers fall back to the project's first table and first numeric column —
+which runs, and analyses whatever happened to be there.
 
 Behaviour goes in `wiring.js`. Three hundred-odd controls are not three hundred
 behaviours: the app reuses the same verbs everywhere, so `wirePattern(/^Refresh$/, fn)`
