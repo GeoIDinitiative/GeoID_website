@@ -1,12 +1,12 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260808-5d549f4";
-import * as store from "./project-store.js?v=20260808-5d549f4";
-import * as stats from "./stats.js?v=20260808-5d549f4";
-import * as dsp from "./dsp.js?v=20260808-5d549f4";
-import { linePlot, heatmap } from "./plot.js?v=20260808-5d549f4";
-import { column } from "./table.js?v=20260808-5d549f4";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-5d549f4";
-import { parseTable } from "./table.js?v=20260808-5d549f4";
-import * as ec from "./event-correlation.js?v=20260808-5d549f4";
+import { wire, wirePattern } from "./spec-page.js?v=20260808-3a7b462";
+import * as store from "./project-store.js?v=20260808-3a7b462";
+import * as stats from "./stats.js?v=20260808-3a7b462";
+import * as dsp from "./dsp.js?v=20260808-3a7b462";
+import { linePlot, heatmap } from "./plot.js?v=20260808-3a7b462";
+import { column } from "./table.js?v=20260808-3a7b462";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-3a7b462";
+import { parseTable } from "./table.js?v=20260808-3a7b462";
+import * as ec from "./event-correlation.js?v=20260808-3a7b462";
 
 /**
  * The last of the spec's controls.
@@ -109,7 +109,7 @@ wire("Raster Tools", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No coordinate columns to reproject.");
-    const projection = await import("../projection.js?v=20260808-5d549f4");
+    const projection = await import("../projection.js?v=20260808-3a7b462");
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -166,7 +166,7 @@ wire("Vector Tools", {
     if (collections.length < 2) {
       throw new Error("A spatial join needs two GeoJSON layers in the project.");
     }
-    const g = await import("../geoprocessing.js?v=20260808-5d549f4");
+    const g = await import("../geoprocessing.js?v=20260808-3a7b462");
     const joined = g.spatialJoin(collections[0].fc, collections[1].fc);
     const out = `data/processed/joined-${stamp()}.geojson`;
     await store.writeProjectFile(out, JSON.stringify(joined));
@@ -1007,6 +1007,29 @@ async function anyTable() {
   return peakFiles("data/raw");
 }
 
+/**
+ * The longest numeric series in the project, for the transforms.
+ *
+ * Taking the first table found meant taking whichever analysis CSV had just
+ * been written — a spectrogram of an 11-row candidate ranking, saved as a
+ * figure with zero frames in it. A transform wants the longest *signal*, and
+ * results the toolkit itself produced are not signals.
+ */
+async function longestSeries() {
+  const paths = (await anyTable()).filter((p) => !p.startsWith("analysis/"));
+  let best = null;
+  for (const path of paths.slice(0, 24)) {
+    let table;
+    try { table = await loadTable(path); } catch (error) { continue; }
+    const numeric = numericOf(table);
+    for (const [name, values] of Object.entries(numeric)) {
+      if (!best || values.length > best.values.length) best = { path, name, values };
+    }
+  }
+  if (!best) throw new Error("No numeric series in this project yet.");
+  return best;
+}
+
 /** Write a result and say where it went, which every one of these does. */
 async function publish(say, name, headers, rows, note) {
   const path = `analysis/${name}-${stamp()}.csv`;
@@ -1122,14 +1145,15 @@ const toolkit = {
   },
 
   Spectrograms: async (api) => {
-    const paths = await anyTable();
-    if (!paths.length) throw new Error("No tables in this project yet.");
-    const path = paths[0];
-    const table = await loadTable(path);
-    const numeric = numericOf(table);
-    const name = Object.keys(numeric)[0];
-    if (!name) throw new Error("No numeric series to transform.");
-    const spec = ec.candidateSpectrogram(numeric[name], 1);
+    const { path, name, values } = await longestSeries();
+    // A spectrogram needs several windows to be a spectrogram at all; below
+    // that it silently produced an empty figure.
+    if (values.length < 64) {
+      throw new Error(`Longest series is ${values.length} points — a `
+        + "spectrogram needs at least 64.");
+    }
+    const spec = ec.candidateSpectrogram(values, 1);
+    if (!spec.grid.length) throw new Error("Series too short for a spectrogram.");
     const canvas = heatmap(spec.grid, { width: 880, height: 340,
       title: `Spectrogram — ${path.split("/").pop()}:${name}`,
       labels: { x: "Time", y: "Frequency" } });
@@ -1139,16 +1163,13 @@ const toolkit = {
   },
 
   Morlet: async (api) => {
-    const paths = await anyTable();
-    if (!paths.length) throw new Error("No tables in this project yet.");
-    const path = paths[0];
-    const table = await loadTable(path);
-    const numeric = numericOf(table);
-    const name = Object.keys(numeric)[0];
-    if (!name) throw new Error("No numeric series to transform.");
+    const { path, name, values } = await longestSeries();
+    if (values.length < 32) {
+      throw new Error(`Longest series is ${values.length} points — a wavelet `
+        + "transform needs at least 32.");
+    }
     // The script's band is ultra-low-frequency; scaled to this series' length
     // so the wavelets actually fit inside it.
-    const values = numeric[name];
     const cwt = ec.morletCwt(values, { fs: 1, freqMin: 2 / values.length, freqMax: 0.4, count: 36 });
     if (!cwt) throw new Error("Series too short for a wavelet transform.");
     const canvas = heatmap(cwt.grid, { width: 880, height: 340,
