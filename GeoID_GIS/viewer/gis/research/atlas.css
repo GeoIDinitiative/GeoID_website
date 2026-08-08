@@ -1631,8 +1631,15 @@
 }
 
 /* A row that carries its own spacer has already said where the slack goes. */
+/* `width: 100%` further up is for a field in a column; in a spacer'd row the
+   flex box governs, and leaving the 100% on resolved against the container and
+   made the combo span the row anyway. */
 .qt-h.has-stretch > .qt-input,
-.qt-h.has-stretch > .qt-select { flex: 0 1 auto; }
+.qt-h.has-stretch > .qt-select {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 11rem;
+}
 .qt-listwidget {
   min-height: 4rem;
   overflow: auto;
