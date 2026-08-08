@@ -1,6 +1,11 @@
-import { wirePattern, wire } from "./spec-page.js?v=20260808-824ab45";
-import * as store from "./project-store.js?v=20260808-824ab45";
-import * as bridge from "./bridge.js?v=20260808-824ab45";
+import { wirePattern, wire } from "./spec-page.js?v=20260808-0a47f83";
+import * as store from "./project-store.js?v=20260808-0a47f83";
+import * as bridge from "./bridge.js?v=20260808-0a47f83";
+import * as stats from "./stats.js?v=20260808-0a47f83";
+import * as dsp from "./dsp.js?v=20260808-0a47f83";
+import { linePlot } from "./plot.js?v=20260808-0a47f83";
+import { column } from "./table.js?v=20260808-0a47f83";
+import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260808-0a47f83";
 
 /**
  * Behaviour for the controls the spec brings across.
@@ -167,10 +172,230 @@ wire("Research Notes", {
  */
 export const CANNOT_WIRE = {
   "Open Gmsh": "Launches the Gmsh binary; the Meshing Studio is the browser's route.",
-  "Open Copernicus Land Portal": "Opens an external site — use the link, not the app.",
-  "Convert": "Runs gmsh to convert a mesh; needs the desktop app.",
-  "Export": "LAS export needs laspy; CSV and XYZ export are wired.",
-  "Run Test": "SciPy hypothesis tests; not vendored in the browser yet.",
-  "Run PCA": "Needs a linear-algebra library that is not vendored yet.",
-  Cluster: "k-means/DBSCAN are not vendored yet.",
+  Convert: "Runs gmsh to convert a mesh; needs the desktop app.",
+  "Convert Mesh": "Same — gmsh, outside the browser.",
+  "Convert Binary To CSV": "Reads GALES binary output; needs the solver's own reader.",
+  "Run Selected Module": "Executes a Python module in the app's interpreter.",
+  "Run Script Main": "Executes Python; there is none here.",
+  "Run Function": "Executes Python; there is none here.",
+  "Run Training Script": "Trains through scikit-learn in the desktop app. The hub "
+    + "writes training_spec.json instead, which that script reads.",
+  "Install & Reload": "Installs a plugin into the desktop app's Python path.",
+  Uninstall: "Removes a plugin from the desktop app's Python path.",
+  "Rebuild solver index": "Indexes solver sources on disk outside the project.",
+  "Stop External Run": "There is no external process to stop from a browser tab.",
+  Share: "Publishing needs a service to publish to.",
+  "AI Outline": "Needs a model; see the Copilot note in the Alerts drawer.",
+  "AI Populate Draft": "Needs a model.",
+  "Generate Suggestions": "Needs a model.",
 };
+
+/**
+ * These WERE on the impossible list and are not any more: PCA, k-means and the
+ * hypothesis tests are short, well-defined algorithms, and `stats.js` writes
+ * them out rather than shipping a disabled button. Checked against SciPy in
+ * `stats.test.mjs`.
+ */
+
+// ── Analysis: the maths pages ────────────────────────────────────────────────
+
+
+/** Every numeric column of the first table in the project, as {name: values}. */
+async function numericColumns() {
+  const tables = await findTables();
+  if (!tables.length) throw new Error("No tables in this project yet.");
+  const table = await loadTable(tables[0]);
+  const out = {};
+  table.columns.forEach((name, i) => {
+    if (!table.numeric[i]) return;
+    const values = column(table, name).filter(Number.isFinite);
+    if (values.length > 1) out[name] = values;
+  });
+  if (!Object.keys(out).length) throw new Error(`${tables[0]} has no numeric columns.`);
+  return { path: tables[0], columns: out };
+}
+
+/** Write a result where the analysis pages already look for one. */
+async function saveAnalysis(name, payload, say) {
+  const path = `analysis/${name}-${nowStamp()}.json`;
+  await store.writeJson(path, payload);
+  say(`Written to ${path}.`);
+  return path;
+}
+
+wire("Statistics", {
+  "Compute Correlation Matrix": async ({ say }) => {
+    const { path, columns } = await numericColumns();
+    const result = stats.correlationMatrix(columns, "pearson");
+    await saveAnalysis("correlation", { source: path, ...result }, say);
+  },
+  "Run PCA": async ({ say }) => {
+    const { path, columns } = await numericColumns();
+    if (Object.keys(columns).length < 2) throw new Error("PCA needs two or more numeric columns.");
+    const result = stats.pca(columns, { components: 3 });
+    const first = result.components[0];
+    await saveAnalysis("pca", { source: path, ...result }, say);
+    say(`PC1 explains ${(first.explained * 100).toFixed(1)}% — written to analysis/.`);
+  },
+  Cluster: async ({ say }) => {
+    const { path, columns } = await numericColumns();
+    const result = stats.kmeans(columns, { k: 3 });
+    await saveAnalysis("kmeans", { source: path, ...result }, say);
+    const sizes = [0, 1, 2].map((c) => result.labels.filter((l) => l === c).length);
+    say(`k=3 clusters of ${sizes.join(", ")} points — written to analysis/.`);
+  },
+  "Run Test": async ({ say }) => {
+    const { columns } = await numericColumns();
+    const names = Object.keys(columns);
+    if (names.length < 2) throw new Error("A two-sample test needs two numeric columns.");
+    const [a, b] = [columns[names[0]], columns[names[1]]];
+    const t = stats.tTest(a, b);
+    const mw = stats.mannWhitney(a, b);
+    const ks = stats.ksTest(a, b);
+    await saveAnalysis("hypothesis-tests",
+      { columns: names.slice(0, 2), tTest: t, mannWhitney: mw, ks }, say);
+    say(`${names[0]} vs ${names[1]}: Welch p=${t.p.toExponential(2)}, `
+      + `Mann-Whitney p=${mw.p.toExponential(2)}, KS p=${ks.p.toExponential(2)}.`);
+  },
+  "Plot Distribution": async ({ say }) => {
+    const { columns } = await numericColumns();
+    const name = Object.keys(columns)[0];
+    const h = stats.histogram(columns[name], 24);
+    // linePlot takes an array of {x, y} series, and saveFigure wants the
+    // filename with its extension -- both checked against plot.js rather than
+    // assumed, after the first draft guessed and threw.
+    const canvas = linePlot(
+      [{ x: h.edges.slice(0, -1), y: h.counts, label: name }],
+      { title: `Distribution of ${name}`, labels: { x: name, y: "count" } });
+    const path = await saveFigure(canvas, `distribution-${name}.png`, "Statistics");
+    say(`Histogram of ${name} saved to ${path}.`);
+  },
+});
+
+wire("Multi-Station Viewer", {
+  "Compute Cross-Correlation": async ({ say }) => {
+    const { columns } = await numericColumns();
+    const names = Object.keys(columns);
+    if (names.length < 2) throw new Error("Cross-correlation needs two columns.");
+    const n = Math.min(columns[names[0]].length, columns[names[1]].length);
+    const correlation = dsp.crossCorrelation(
+      columns[names[0]].slice(0, n), columns[names[1]].slice(0, n));
+    const best = dsp.bestLag(correlation, 1);
+    await saveAnalysis("cross-correlation", {
+      columns: names.slice(0, 2),
+      bestLagSamples: best.lagSamples,
+      peak: best.value,
+      lags: Array.from(correlation.lags),
+      values: Array.from(correlation.values),
+    }, say);
+    say(`Best lag ${best.lagSamples} samples, r=${best.value.toFixed(3)}.`);
+  },
+  "Compute Coherence": async ({ say }) => {
+    const { columns } = await numericColumns();
+    const names = Object.keys(columns);
+    if (names.length < 2) throw new Error("Coherence needs two columns.");
+    const n = Math.min(columns[names[0]].length, columns[names[1]].length);
+    const result = dsp.coherence(
+      columns[names[0]].slice(0, n), columns[names[1]].slice(0, n), 1);
+    const values = Array.from(result.values).filter(Number.isFinite);
+    const mean = stats.mean(values);
+    await saveAnalysis("coherence", {
+      columns: names.slice(0, 2),
+      segments: result.segments,
+      meanCoherence: mean,
+      freqs: Array.from(result.freqs),
+      values,
+    }, say);
+    say(`Mean coherence ${mean.toFixed(3)} over ${result.segments} segment(s).`);
+  },
+});
+
+// ── Vector Tools: the geoprocessing already in the GIS layer ─────────────────
+
+/** The project's first GeoJSON, parsed. */
+async function firstCollection() {
+  for (const dir of ["data/raw", "data/processed", "data/external", "exports"]) {
+    let entries = [];
+    try { entries = await store.listProjectDir(dir); } catch (error) { continue; }
+    const hit = entries.find((e) => /\.(geojson|json)$/i.test(e.name));
+    if (!hit) continue;
+    try {
+      const parsed = JSON.parse(await store.readProjectFile(`${dir}/${hit.name}`));
+      if (parsed && (parsed.type === "FeatureCollection" || parsed.features)) {
+        return { path: `${dir}/${hit.name}`, collection: parsed };
+      }
+    } catch (error) { /* not GeoJSON after all */ }
+  }
+  throw new Error("No GeoJSON in this project yet — import one first.");
+}
+
+async function writeCollection(name, collection, say) {
+  const path = `data/processed/${name}-${nowStamp()}.geojson`;
+  await store.writeProjectFile(path, JSON.stringify(collection));
+  await store.registerData({
+    name: path.split("/").pop(), kind: "vector", path, source: "Vector Tools",
+  });
+  say(`${(collection.features || []).length} feature(s) written to ${path}.`);
+}
+
+const geo = () => import(`../geoprocessing.js?v=20260808-0a47f83`);
+
+wire("Vector Tools", {
+  Buffer: async ({ say }) => {
+    const { path, collection } = await firstCollection();
+    const g = await geo();
+    await writeCollection("buffer", g.buffer(collection, 1000), say);
+  },
+  Simplify: async ({ say }) => {
+    const { collection } = await firstCollection();
+    const g = await geo();
+    await writeCollection("simplify", g.simplifyCollection(collection, 0.001), say);
+  },
+  "Dissolve by Field": async ({ say }) => {
+    const { collection } = await firstCollection();
+    const g = await geo();
+    await writeCollection("dissolve", g.dissolve(collection), say);
+  },
+  Reproject: async ({ say }) => {
+    const { collection } = await firstCollection();
+    const g = await geo();
+    await writeCollection("reprojected", g.reproject(collection, "EPSG:4326"), say);
+  },
+  "Calculate Field": async ({ say }) => {
+    const { collection } = await firstCollection();
+    const g = await geo();
+    await writeCollection("calculated",
+      g.fieldCalculator(collection, "area_m2", "featureAreaM"), say);
+  },
+});
+
+// ── Text: the formatting buttons on Storyboard and Notes ────────────────────
+
+const MARKDOWN = {
+  H1: "# ", H2: "## ", H3: "### ", B: "**bold**",
+  Bullets: "- ", Numbers: "1. ", Quote: "> ", Code: "```\n\n```",
+  Divider: "\n---\n", "Insert [cite]": "[cite]",
+};
+
+/**
+ * Insert into whichever editor the page has.
+ *
+ * The app's formatting buttons act on the focused editor; here the page's own
+ * textarea is the editor, so the insert goes at its caret.
+ */
+wirePattern(/^(H1|H2|H3|B|Bullets|Numbers|Quote|Code|Divider|Time Stamp|Insert \[cite\])$/,
+  async ({ say }, label) => {
+    const host = document.getElementById("research-page");
+    const box = host.querySelector("textarea:focus")
+      || host.querySelector("textarea.research-editor")
+      || host.querySelector("textarea");
+    if (!box) throw new Error("No editor on this page to insert into.");
+    const text = label === "Time Stamp"
+      ? new Date().toISOString().slice(0, 16).replace("T", " ")
+      : MARKDOWN[label] || "";
+    const at = box.selectionStart ?? box.value.length;
+    box.value = `${box.value.slice(0, at)}${text}${box.value.slice(at)}`;
+    box.focus();
+    box.selectionStart = box.selectionEnd = at + text.length;
+    say(`Inserted ${label}.`);
+  });

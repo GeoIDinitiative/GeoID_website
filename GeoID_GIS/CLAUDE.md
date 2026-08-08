@@ -260,8 +260,18 @@ the ones that genuinely differ — a page-specific handler always wins.
 
 **Wire it or leave it disabled.** A handler that pops a message and does nothing
 turns an honest disabled button into a dishonest live one. Where the desktop app
-shells out to a native binary — Gmsh, laspy, a system file manager — the control
-stays disabled, and `CANNOT_WIRE` in wiring.js records why.
+shells out to a native binary or a Python interpreter — Gmsh, GALES, plugin
+install, a training script — the control stays disabled, and `CANNOT_WIRE` in
+wiring.js records why.
+
+`stats.js` is what "not vendored" should mean in practice: PCA, k-means,
+Welch's t, Mann-Whitney, KS and one-way ANOVA are each a short algorithm, so
+they are written out rather than shipped as disabled buttons waiting on SciPy.
+`stats.test.mjs` checks them **against SciPy's own answers on the same inputs**
+— run `python3 -c "from scipy import stats; ..."` to produce a reference before
+adding a case. The first draft of that file guessed its expected values from
+memory and six of them were wrong while the implementations were exact; the
+lesson is that a reference value is a measurement, not a recollection.
 
 The page-class mapping is **derived, not written**: `derive_page_classes()`
 joins MainWindow's `self.<attr> = SomePage()` assignments to its
