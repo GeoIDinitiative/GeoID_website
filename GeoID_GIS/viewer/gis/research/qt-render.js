@@ -1,6 +1,6 @@
-import { handlerFor } from "./spec-page.js?v=20260808-b0aa879";
-import * as store from "./project-store.js?v=20260808-b0aa879";
-import { el, statusLine } from "./pages/common.js?v=20260808-b0aa879";
+import { handlerFor } from "./spec-page.js?v=20260808-2045b49";
+import * as store from "./project-store.js?v=20260808-2045b49";
+import { el, statusLine } from "./pages/common.js?v=20260808-2045b49";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -27,6 +27,19 @@ import { el, statusLine } from "./pages/common.js?v=20260808-b0aa879";
  * Behaviour still comes from `wiring.js` via `handlerFor(pageId, label)`, so a
  * button that was wired stays wired wherever the tree puts it.
  */
+
+/**
+ * Carry this module's own `?v=` onto a data file it fetches.
+ *
+ * Every import is stamped, but a plain `fetch` is not -- so the browser kept
+ * serving a stale `qt-layout.json` while the modules around it updated, and a
+ * regenerated tree appeared to have no effect at all. `import.meta.url` already
+ * holds the stamp, so the file cannot fall out of step with the code reading it.
+ */
+function stamped(path) {
+  const v = new URL(import.meta.url).searchParams.get("v");
+  return v ? `${path}?v=${v}` : path;
+}
 
 const LAYOUT_CLASS = {
   QVBoxLayout: "qt-v",
@@ -343,7 +356,7 @@ export function renderTree(spec, ctx) {
 let layoutPromise = null;
 export function loadLayouts() {
   if (!layoutPromise) {
-    layoutPromise = fetch("/GeoID_GIS/viewer/gis/research/qt-layout.json")
+    layoutPromise = fetch(stamped("/GeoID_GIS/viewer/gis/research/qt-layout.json"))
       .then((r) => {
         if (!r.ok) throw new Error(`qt-layout.json: HTTP ${r.status}`);
         return r.json();

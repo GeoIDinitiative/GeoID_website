@@ -1,10 +1,10 @@
-import { getPage, registerPage } from "./stages.js?v=20260808-b0aa879";
-import { qtMount, loadLayouts } from "./qt-render.js?v=20260808-b0aa879";
-import * as store from "./project-store.js?v=20260808-b0aa879";
+import { getPage, registerPage } from "./stages.js?v=20260808-2045b49";
+import { qtMount, loadLayouts } from "./qt-render.js?v=20260808-2045b49";
+import * as store from "./project-store.js?v=20260808-2045b49";
 import {
   el, button, row, field, input, selectOf, statusLine, needProject,
   pageHeader, toolbar, collapsible, tabbedPanel, editorCard, dataTable,
-} from "./pages/common.js?v=20260808-b0aa879";
+} from "./pages/common.js?v=20260808-2045b49";
 
 /**
  * Build a page from `qt-spec.json` — the structure the Qt app actually has,
@@ -20,12 +20,15 @@ import {
  * a real one without its layout being rewritten each time.
  */
 
+// Stamped like every import: an unstamped fetch let the browser serve a stale
+// spec against fresh code.
 const SPEC_URL = "/GeoID_GIS/viewer/gis/research/qt-spec.json";
 
 let specPromise = null;
 export function loadSpec() {
   if (!specPromise) {
-    specPromise = fetch(SPEC_URL).then((r) => {
+    const v = new URL(import.meta.url).searchParams.get("v");
+    specPromise = fetch(v ? `${SPEC_URL}?v=${v}` : SPEC_URL).then((r) => {
       if (!r.ok) throw new Error(`qt-spec.json: HTTP ${r.status}`);
       return r.json();
     });
