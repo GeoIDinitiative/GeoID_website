@@ -1,6 +1,6 @@
-import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260809-e87fe50";
-import { currentBodyId } from "../bodies.js?v=20260809-e87fe50";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260809-e87fe50";
+import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260809-6e65365";
+import { currentBodyId } from "../bodies.js?v=20260809-6e65365";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260809-6e65365";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -416,6 +416,20 @@ export async function writeProjectFile(relPath, contents) {
 export async function readProjectFile(relPath) {
   const { dir } = requireActive();
   return rootAdapter.readFile(`${dir}/${relPath}`);
+}
+
+/**
+ * A project file as bytes, for anything binary — a GeoTIFF sent back to the
+ * globe cannot survive `readFile`'s `.text()`. Returns whatever the adapter
+ * holds (a Blob, ArrayBuffer, or string); the caller normalises. Adapters
+ * without a bytes path fall back to their text read.
+ */
+export async function readProjectFileBytes(relPath) {
+  const { dir } = requireActive();
+  const full = `${dir}/${relPath}`;
+  return rootAdapter.readFileBytes
+    ? rootAdapter.readFileBytes(full)
+    : rootAdapter.readFile(full);
 }
 
 export async function listProjectDir(relPath = "") {

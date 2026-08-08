@@ -1,4 +1,4 @@
-import * as store from "./project-store.js?v=20260809-e87fe50";
+import * as store from "./project-store.js?v=20260809-6e65365";
 
 /**
  * What makes the three pages one workspace.
@@ -157,6 +157,60 @@ export function frameStudyArea() {
   viewer.camera.position.copy(point).setLength(distance);
   viewer.controls?.target.set(0, 0, 0);
   viewer.controls?.update();
+  return true;
+}
+
+// ── Research result → GIS globe ───────────────────────────────────────────────
+
+/** Extensions the GIS import pipeline can place on the globe. */
+const GEO_EXTENSIONS = new Set([
+  "tif", "tiff", "geotiff", "geojson", "json", "shp", "gpkg", "kml", "kmz",
+  "gpx", "wkt", "csv", "xyz", "asc", "stl", "obj", "ply", "msh",
+]);
+
+/** Whether a path is something the globe can show — for gating a "Show on globe" button. */
+export function isGeoFile(path) {
+  const ext = String(path || "").split(".").pop().toLowerCase();
+  return GEO_EXTENSIONS.has(ext);
+}
+
+/**
+ * Send a project file back onto the globe.
+ *
+ * The return path the workspace was missing: an analysis result — a classified
+ * raster, an extracted vector, a mesh — reappears on the planet it came from
+ * instead of dead-ending in `exports/`. Rather than a second georeferencing
+ * path, it reads the file out of the project and hands it to the *same* import
+ * pipeline the GIS page uses for a dropped file, so a GeoTIFF drapes and a
+ * GeoJSON draws exactly as they would on import.
+ *
+ * `target` is a registry entry or a project-relative path. Bytes, not text, so
+ * a binary raster survives the trip.
+ */
+export async function sendToGlobe(target) {
+  if (!activeProject()) throw new Error("Open a project first.");
+  const path = typeof target === "string" ? target : (target?.path || "");
+  if (!path) throw new Error("That result has no file to show.");
+  if (!isGeoFile(path)) {
+    throw new Error(`${path.split("/").pop()} is not a spatial file the globe can place.`);
+  }
+  const manager = window.GeoIDImportManager;
+  if (!manager?.importFileList) {
+    throw new Error("The GIS viewer is not ready yet.");
+  }
+
+  const raw = await store.readProjectFileBytes(path);
+  // Normalise whatever the adapter returned into a File the pipeline accepts.
+  const blob = raw instanceof Blob ? raw
+    : raw instanceof ArrayBuffer ? new Blob([raw])
+    : new Blob([typeof raw === "string" ? raw : new Uint8Array(raw)]);
+  const name = path.split("/").pop();
+  const file = new File([blob], name, { type: blob.type || "application/octet-stream" });
+
+  // Show the globe, then import — the layer is meaningless behind the Research
+  // page it was launched from.
+  window.GeoIDModeManager?.setMode?.("gis");
+  await manager.importFileList([file]);
   return true;
 }
 

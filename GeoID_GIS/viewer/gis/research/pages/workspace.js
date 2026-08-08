@@ -1,8 +1,8 @@
-import { registerPage } from "../stages.js?v=20260809-e87fe50";
-import * as store from "../project-store.js?v=20260809-e87fe50";
-import * as bridge from "../bridge.js?v=20260809-e87fe50";
-import { currentBody } from "../../bodies.js?v=20260809-e87fe50";
-import { el } from "./common.js?v=20260809-e87fe50";
+import { registerPage } from "../stages.js?v=20260809-6e65365";
+import * as store from "../project-store.js?v=20260809-6e65365";
+import * as bridge from "../bridge.js?v=20260809-6e65365";
+import { currentBody } from "../../bodies.js?v=20260809-6e65365";
+import { el } from "./common.js?v=20260809-6e65365";
 
 /**
  * The Workspace — the curated home of the analysis ecosystem.
@@ -208,6 +208,19 @@ function mount(host, ctx) {
           rowEl.appendChild(el("span", "ws-feed-src", d.source || d.source_stage));
         }
         if (d.tag) rowEl.appendChild(el("span", "ws-feed-tag", d.tag));
+        // A spatial result can go back onto the globe it came from — the return
+        // path that stops analysis dead-ending in a folder.
+        if (bridge.isGeoFile(d.path)) {
+          const show = el("button", "button secondary ws-feed-globe", "◉ Globe");
+          show.type = "button";
+          show.title = "Show on the globe";
+          show.addEventListener("click", async () => {
+            show.disabled = true;
+            try { await bridge.sendToGlobe(d); }
+            catch (error) { show.disabled = false; show.textContent = "✕"; show.title = error.message; }
+          });
+          rowEl.appendChild(show);
+        }
         feed.appendChild(rowEl);
       });
     }

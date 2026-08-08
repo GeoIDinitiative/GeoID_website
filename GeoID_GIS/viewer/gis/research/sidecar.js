@@ -164,6 +164,11 @@ export function sidecarAdapter() {
       return response.text();
     },
 
+    async readFileBytes(path) {
+      const response = await call(`/fs/read?path=${encodeURIComponent(path)}`, { raw: true });
+      return response.blob();
+    },
+
     async exists(path) {
       const info = await call(`/fs/exists?path=${encodeURIComponent(path)}`);
       return !!info.exists;

@@ -2779,3 +2779,10 @@
   background: rgba(var(--skin-data-rgb), 0.12);
 }
 .ws-feed-tag { color: var(--atlas-muted); background: rgba(255, 255, 255, 0.06); }
+.ws-feed-globe {
+  flex: none;
+  height: auto !important;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+}

@@ -52,6 +52,16 @@ export function directoryAdapter(rootHandle) {
       return (await file.getFile()).text();
     },
 
+    // The raw file, for binary reads. A File is a Blob, so the georeferenced
+    // import pipeline can consume it directly without a lossy .text() round.
+    async readFileBytes(path) {
+      const segments = parts(path);
+      const name = segments.pop();
+      const dir = await dirFor(segments, false);
+      const file = await dir.getFileHandle(name, { create: false });
+      return file.getFile();
+    },
+
     async exists(path) {
       const segments = parts(path);
       if (!segments.length) return true;
@@ -125,6 +135,12 @@ export function memoryAdapter(name = "memory") {
       const key = parts(path).join("/");
       if (!files.has(key)) throw new Error(`no such file: ${path}`);
       return files.get(key);
+    },
+
+    async readFileBytes(path) {
+      const key = parts(path).join("/");
+      if (!files.has(key)) throw new Error(`no such file: ${path}`);
+      return files.get(key);   // stored as given — a Blob survives verbatim
     },
 
     async exists(path) {
@@ -258,6 +274,13 @@ export async function indexedDbAdapter(name = "browser storage") {
       const record = await tx(db, "readonly", (store) => asPromise(store.get(key)));
       if (!record || record.kind !== "file") throw new Error(`no such file: ${path}`);
       return record.contents;
+    },
+
+    async readFileBytes(path) {
+      const key = parts(path).join("/");
+      const record = await tx(db, "readonly", (store) => asPromise(store.get(key)));
+      if (!record || record.kind !== "file") throw new Error(`no such file: ${path}`);
+      return record.contents;   // a Blob round-trips structured clone verbatim
     },
 
     async exists(path) {

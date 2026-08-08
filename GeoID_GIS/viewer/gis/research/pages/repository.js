@@ -1,10 +1,11 @@
-import { registerPage } from "../stages.js?v=20260809-e87fe50";
-import * as store from "../project-store.js?v=20260809-e87fe50";
-import { parseTable } from "../table.js?v=20260809-e87fe50";
+import { registerPage } from "../stages.js?v=20260809-6e65365";
+import * as store from "../project-store.js?v=20260809-6e65365";
+import * as bridge from "../bridge.js?v=20260809-6e65365";
+import { parseTable } from "../table.js?v=20260809-6e65365";
 import {
   el, input, button, row, selectOf, field, statusLine, needProject,
   pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
-} from "./common.js?v=20260809-e87fe50";
+} from "./common.js?v=20260809-6e65365";
 
 /**
  * Data Repository, laid out as `GeoIDDataRepoPage` does (app_qt.py:5487):
@@ -119,8 +120,19 @@ async function mount(host, ctx) {
     } catch (error) { say(error.message, true); }
   }, { secondary: true });
 
+  const showOnGlobe = button("◉ Show on globe", async () => {
+    if (!selected) { say("Select a file in the tree first.", true); return; }
+    if (!bridge.isGeoFile(selected.path)) {
+      say(`${selected.name} is not a spatial file the globe can place.`, true); return;
+    }
+    try {
+      await bridge.sendToGlobe(selected);
+      say(`Showing ${selected.name} on the globe.`);
+    } catch (error) { say(error.message, true); }
+  }, { secondary: true });
+
   const spacer = el("span", "spacer");
-  const bar = toolbar(addBtn, inlineLabel("Tag:"), tagPick, promote, clone, spacer, refreshBtn);
+  const bar = toolbar(addBtn, inlineLabel("Tag:"), tagPick, promote, clone, showOnGlobe, spacer, refreshBtn);
 
   // ── Destination (folded) ──────────────────────────────────────────────────
   const dest = collapsible("File destination");
