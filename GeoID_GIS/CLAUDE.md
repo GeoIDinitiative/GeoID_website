@@ -116,6 +116,13 @@ at :692 and the metadata schema at :723). Both are ported verbatim into
 field for field — so a project made in either app opens in the other. Changing
 either shape breaks that interchange; change both together or not at all.
 
+**Projects are filed by world**: `geoid_projects/<body>/<name>/`, not flat.
+`bodyFolder()` in the store decides the folder and `createProject` stamps
+`body` into the metadata; `listProjects()` defaults to the current world and
+takes `null` for all of them. The desktop app writes the flat layout, so point
+it at `geoid_projects/earth/` (or whichever world) rather than at the root — at
+the root it will list the world folders as though they were projects.
+
 The store writes through `gis/research/fs-adapter.js` rather than to
 `FileSystemDirectoryHandle` directly, because `showDirectoryPicker` needs a
 native dialog no headless browser can drive. `memoryAdapter()` stands in for
@@ -176,3 +183,33 @@ Pages register into `gis/research/stages.js`; the twelve stages mirror the Qt
 `base_stage_structure` and must not drift from it. An unregistered page renders
 a labelled "not built yet" panel — do not replace that with a plausible-looking
 empty form.
+
+## The Research Hub's look
+
+The Qt app is the source of truth for it, not this repo: `THEME` /
+"GeoID Midnight" at `app_qt.py:56`, `build_app_stylesheet()` at `:26170`, and
+the Atlas design system at
+`/home/owen/atlas-ai/.claude/skills/atlas-design-system/SKILL.md`. Dark indigo
+ground, **cyan = interactive**, **magenta = the Atlas thread** (project context
+and cross-facet links), calm by default. Active state is a soft cyan wash plus
+cyan text — never a solid cyan fill with dark text. Inter for body, JetBrains
+Mono for instrument labels (uppercase, 9–11px, wide tracking); that pairing is
+the character, not decoration.
+
+Structure mirrors `AtlasRail` (`:24831`) and `WorkspaceShell` (`:3597`): a 76px
+glyph-above-label rail under the GeoID mark, then one row carrying the page
+tabs, the page filter, the magenta project chip and the five shell actions
+(Jobs, Alerts, + New Note, Copilot, Data Shelf). Qt's stage tab bar and stage
+caption are both `hide()`n there — the rail says where you are — so they are
+absent here too rather than reproduced as dead widgets.
+
+**All of it lives in `gis/research/atlas.css`, loaded by `gis/shell.js`.** It
+used to be a block in `styles.css` and a second copy in `gis/shell.css`, one for
+Earth and one for the planets, and they drifted. Do not put Research Hub rules
+back into either file.
+
+The hub rebinds `--text`, `--soft-light`, `--nav-accent` and `--nav-accent-rgb`
+on `#research-hub`, which is how sixty page modules get the Atlas palette
+without one of them changing. Two base rules need overriding by name because an
+explicit value beats a flex default: `.gis-btn-row .button { flex: 1 }` (which
+stretched every button to full width) and `.research-stat`'s inline spans.

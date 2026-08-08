@@ -1,6 +1,6 @@
-import { directoryAdapter, memoryAdapter } from "./fs-adapter.js?v=20260810k";
-import { currentBodyId } from "../bodies.js?v=20260810k";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810k";
+import { directoryAdapter, memoryAdapter } from "./fs-adapter.js?v=20260810n";
+import { currentBodyId } from "../bodies.js?v=20260810n";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810n";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -38,6 +38,22 @@ export const PROJECT_DIRS = [
 ];
 
 export const PROJECTS_ROOT_DIR = "geoid_projects";
+
+/**
+ * Projects are filed by world: geoid_projects/<body>/<name>/.
+ *
+ * With ten worlds in play a flat root becomes a list of unrelated projects with
+ * no way to tell a Moon study from a Mars one until each is opened. The body
+ * folder is the obvious index, and it matches how anyone would organise this by
+ * hand.
+ *
+ * Note for the desktop app: it writes geoid_projects/<name>/ flat, so point it
+ * at geoid_projects/earth/ (or the relevant world) rather than at the root, or
+ * it will list the world folders as though they were projects.
+ */
+export function bodyFolder(body = currentBodyId()) {
+  return String(body || "earth").toLowerCase();
+}
 export const METADATA_PATH = "metadata/project.json";
 export const REGISTRY_PATH = "metadata/data_registry.json";
 
@@ -194,26 +210,41 @@ export async function forgetRoot() {
 
 // ── Projects ──────────────────────────────────────────────────────────────────
 
-export async function listProjects() {
+/**
+ * The projects for one world, as paths relative to the root.
+ * Pass `null` to list every world's.
+ */
+export async function listProjects(body = currentBodyId()) {
   if (!rootAdapter) return [];
-  const entries = await rootAdapter.list("");
-  return entries.filter((e) => e.kind === "directory").map((e) => e.name);
+  const worlds = body === null
+    ? (await rootAdapter.list("")).filter((e) => e.kind === "directory").map((e) => e.name)
+    : [bodyFolder(body)];
+  const out = [];
+  for (const world of worlds) {
+    let entries = [];
+    try { entries = await rootAdapter.list(world); } catch (error) { continue; }
+    entries.filter((e) => e.kind === "directory")
+      .forEach((e) => out.push(`${world}/${e.name}`));
+  }
+  return out;
 }
 
 /** Creates the full tree and writes metadata. Returns the active project. */
 export async function createProject(name, overrides = {}) {
   if (!rootAdapter) throw new Error("No projects folder chosen yet.");
-  const dir = safeName(name);
+  const body = overrides.body || currentBodyId();
+  const leaf = safeName(name);
+  const dir = `${bodyFolder(body)}/${leaf}`;
   if (await rootAdapter.exists(dir)) {
-    throw new Error(`"${dir}" already exists in this folder.`);
+    throw new Error(`"${leaf}" already exists under ${bodyFolder(body)}.`);
   }
   for (const rel of PROJECT_DIRS) {
     await rootAdapter.ensureDir(`${dir}/${rel}`);
   }
-  const meta = { ...defaultMetadata(name.trim() || dir), ...overrides };
+  const meta = { ...defaultMetadata(name.trim() || leaf, body), ...overrides };
   await rootAdapter.writeFile(`${dir}/${METADATA_PATH}`, JSON.stringify(meta, null, 2));
   await rootAdapter.writeFile(`${dir}/${REGISTRY_PATH}`, JSON.stringify({ entries: [] }, null, 2));
-  active = { name: meta.name, dir, meta };
+  active = { name: meta.name, dir, folder: leaf, body, meta };
   announce();
   return active;
 }
@@ -232,8 +263,10 @@ export async function openProject(dir) {
   for (const rel of PROJECT_DIRS) {
     await rootAdapter.ensureDir(`${dir}/${rel}`);
   }
-  const meta = mergeMetadata(dir, payload);
-  active = { name: meta.name, dir, meta };
+  const parts = String(dir).split("/").filter(Boolean);
+  const leaf = parts[parts.length - 1];
+  const meta = mergeMetadata(leaf, payload);
+  active = { name: meta.name, dir, folder: leaf, body: meta.body, meta };
   announce();
   return active;
 }

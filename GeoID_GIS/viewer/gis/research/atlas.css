@@ -1,0 +1,675 @@
+/*
+ * The Research Hub's look, ported from the Qt app.
+ *
+ * Source of truth: `THEME` / "GeoID Midnight" at app_qt.py:56 and
+ * `build_app_stylesheet()` at :26170, plus the Atlas design system
+ * (.claude/skills/atlas-design-system in the atlas-ai repo). The Qt app and
+ * this page are two renderers of one visual language, so the tokens below are
+ * the Qt values verbatim rather than an approximation of them.
+ *
+ * Identity: dark indigo ground, cyan = interactive, magenta = the Atlas thread
+ * (project context, cross-facet links), calm by default.
+ *
+ * Loaded by gis/shell.js on every page that carries the hub, so there is one
+ * copy of it -- it used to be duplicated between styles.css and shell.css and
+ * the two drifted.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap");
+
+#research-hub {
+  /* app_qt.py:56 — THEME, "GeoID Midnight". */
+  --atlas-bg: #0a0916;
+  --atlas-panel: #15132c;
+  --atlas-panel-alt: #211e42;
+  --atlas-panel-soft: #0f0e1f;
+  --atlas-card: #1a1836;
+  --atlas-border: #34305a;
+  --atlas-accent: #38e5ff;
+  --atlas-accent-dark: #216b7d;
+  --atlas-accent-alt: #ff4bcf;
+  --atlas-text: #edeafb;
+  --atlas-muted: #a8a0cc;
+  /* Cyan is the interactive colour; the wash values come straight from the
+     QSS, which uses rgba(0,240,255,·) for state rather than the accent hex. */
+  --atlas-wash: rgba(0, 240, 255, 0.14);
+  --atlas-wash-soft: rgba(0, 240, 255, 0.07);
+  --atlas-wash-edge: rgba(0, 240, 255, 0.35);
+
+  /* The page furniture (cards, tables, lists) reads the viewer's own tokens.
+     Rebinding them here repaints all sixty pages in the Atlas palette without
+     touching a single page module. */
+  --text: var(--atlas-text);
+  --soft-light: var(--atlas-muted);
+  --muted: var(--atlas-muted);
+  --nav-accent: var(--atlas-accent);
+  --nav-accent-rgb: 56, 229, 255;
+
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  /* Inter for body and headings, JetBrains Mono for instrument labels: that
+     pairing is the research-console character, per the design system. */
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
+  font-size: 12.5px;
+  color: var(--atlas-text);
+  background: var(--atlas-bg);
+}
+#research-hub[hidden] { display: none; }
+
+/* ── The rail (app_qt.py:24831, AtlasRail) ─────────────────────────────────── */
+/* 76px, the GeoID mark on top, then one glyph-above-label button per stage.
+   The rail is the workflow, read top to bottom, so it never scrolls away from
+   the stage you are in. */
+.atlas-rail {
+  flex: none;
+  width: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 6px;
+  overflow-y: auto;
+  background: var(--atlas-panel-soft);
+  border-right: 1px solid var(--atlas-border);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 160, 204, 0.3) transparent;
+}
+.atlas-rail-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  margin-bottom: 6px;
+  flex: none;
+}
+.atlas-rail-buttons { display: flex; flex-direction: column; gap: 4px; }
+.atlas-rail-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 64px;
+  height: 52px;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--atlas-muted);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.atlas-rail-btn:hover {
+  background: var(--atlas-wash-soft);
+  color: var(--atlas-text);
+}
+/* Active is a soft cyan wash and cyan text — never a solid fill with dark
+   text, which is the one thing the design system rules out by name. */
+.atlas-rail-btn.is-active {
+  background: var(--atlas-wash);
+  border-color: var(--atlas-wash-edge);
+  color: var(--atlas-accent);
+}
+.atlas-rail-glyph { font-size: 17px; line-height: 1.15; }
+.atlas-rail-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── The shell row (app_qt.py:3597, WorkspaceShell) ────────────────────────── */
+.research-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+.workspace-shell {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 6px 10px;
+  background: var(--atlas-panel-soft);
+  border-bottom: 1px solid var(--atlas-border);
+}
+
+/* Page tabs: underline-selected, no boxes. Qt's SectionTabs. */
+.shell-tabs {
+  flex: 1 1 18rem;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.shell-tabs::-webkit-scrollbar { height: 0; }
+.shell-tab { flex: none; }
+.shell-tab {
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--atlas-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.shell-tab:hover { color: var(--atlas-text); }
+.shell-tab.is-active {
+  color: var(--atlas-text);
+  border-bottom-color: var(--atlas-accent);
+}
+/* A tab with nothing behind it says so before it is clicked. */
+.shell-tab.is-stub { opacity: 0.45; }
+.shell-tab-empty {
+  padding: 3px 8px;
+  color: var(--atlas-muted);
+  font-size: 11px;
+}
+
+/* Shrinkable and wrapping. Fixed-width it simply ran off the right-hand edge:
+   this row carries more than Qt's does (the GIS/Model/Research switch has no
+   Qt equivalent), so it has to be able to fold. */
+.shell-actions {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Qt's #ShellContext: the stage you are in, mono and magenta. */
+.shell-context {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: var(--atlas-accent-alt);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.shell-filter {
+  width: 170px;
+  height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  background: var(--atlas-panel-alt);
+  color: var(--atlas-text);
+  font: inherit;
+  font-size: 11.5px;
+}
+.shell-filter::placeholder { color: var(--atlas-muted); }
+.shell-filter:focus { outline: none; border-color: var(--atlas-accent); }
+
+/* The magenta pill is the cross-facet grammar: this surface is bound to a
+   project. Same shape on every Atlas surface. */
+.atlas-chip {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  background: rgba(255, 75, 207, 0.12);
+  border: 1px solid rgba(255, 75, 207, 0.4);
+  border-radius: 999px;
+  padding: 5px 13px;
+  color: var(--atlas-accent-alt);
+  font-weight: 600;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.atlas-chip:not(.is-open) {
+  background: transparent;
+  border-color: var(--atlas-border);
+  color: var(--atlas-muted);
+}
+
+.shell-action {
+  height: 28px;
+  padding: 5px 9px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  background: var(--atlas-panel);
+  color: var(--atlas-text);
+  font: inherit;
+  font-size: 11.5px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.shell-action:hover { border-color: var(--atlas-accent); }
+.shell-action.is-active {
+  background: var(--atlas-wash);
+  border-color: var(--atlas-wash-edge);
+  color: var(--atlas-accent);
+}
+
+/* ── The drawers the shell actions open ────────────────────────────────────── */
+.shell-drawer {
+  flex: none;
+  max-height: 42vh;
+  overflow-y: auto;
+  padding: 10px 14px 14px;
+  background: var(--atlas-panel-soft);
+  border-top: 1px solid var(--atlas-border);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 160, 204, 0.3) transparent;
+}
+.shell-drawer[hidden] { display: none; }
+.shell-drawer-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.shell-drawer-title {
+  grid-column: 1;
+  margin: 0;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--atlas-accent);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.shell-drawer-head .research-note { grid-column: 1; margin: 0; }
+.shell-drawer-head .button { grid-column: 2; grid-row: 1 / span 2; }
+
+.shelf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 10px;
+}
+.shelf-col {
+  padding: 10px 12px;
+  background: var(--atlas-card);
+  border: 1px solid var(--atlas-border);
+  border-radius: 12px;
+}
+.shelf-col-title {
+  margin: 0 0 4px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--atlas-accent);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.shelf-item {
+  font-size: 11px;
+  color: var(--atlas-text);
+  padding: 2px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shelf-item.is-more { color: var(--atlas-muted); }
+
+/* ── The page ──────────────────────────────────────────────────────────────── */
+.research-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+  background: var(--atlas-bg);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(168, 160, 204, 0.3) transparent;
+}
+
+/* Page furniture. Cards on the elevation ladder: background < panel < card <
+   control, each step visibly lighter — that ladder is what stops the page
+   reading as one flat sheet. */
+.research-card {
+  max-width: 44rem;
+  margin: 0 0 10px;
+  padding: 12px 14px;
+  background: var(--atlas-card);
+  border: 1px solid var(--atlas-border);
+  border-radius: 12px;
+}
+.research-card-title {
+  margin: 0 0 8px;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--atlas-accent);
+}
+.research-note {
+  margin: 0 0 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--atlas-muted);
+}
+.research-note.is-error { color: #ff8f8f; }
+.research-status {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--atlas-muted);
+  min-height: 1em;
+}
+.research-status.is-error { color: #ff8f8f; }
+
+/* Mono field labels stacked above their input — never label-beside-input. */
+.research-field { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+.research-field-label {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--atlas-accent);
+}
+#research-hub .input,
+#research-hub textarea.input,
+#research-hub select.input {
+  min-height: 28px;
+  padding: 6px 10px;
+  background: var(--atlas-panel-alt);
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  color: var(--atlas-text);
+  font: inherit;
+  font-size: 12px;
+  width: 100%;
+}
+#research-hub .input:focus { outline: none; border-color: var(--atlas-accent); }
+#research-hub .button {
+  min-height: 28px;
+  padding: 6px 12px;
+  background: var(--atlas-wash);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  border-radius: 8px;
+  color: var(--atlas-accent);
+  font: inherit;
+  font-weight: 700;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+#research-hub .button:hover { background: rgba(0, 240, 255, 0.2); }
+#research-hub .button.secondary {
+  background: var(--atlas-panel);
+  border-color: var(--atlas-border);
+  color: var(--atlas-text);
+  font-weight: 600;
+}
+#research-hub .button.secondary:hover { border-color: var(--atlas-accent); }
+#research-hub .button.small { padding: 3px 8px; font-size: 10px; }
+#research-hub .button:disabled { opacity: 0.45; cursor: default; }
+
+.research-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+.research-grid-2 .research-card { max-width: none; }
+
+.research-editor {
+  width: 100%;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+}
+.research-figure { margin-top: 8px; overflow-x: auto; }
+.research-figure canvas {
+  background: var(--atlas-panel-soft);
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  max-width: 100%;
+}
+
+.research-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 8px;
+}
+.research-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--atlas-panel-alt);
+  border: 1px solid var(--atlas-border);
+  border-radius: 10px;
+}
+.research-stat-label {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--atlas-accent);
+}
+.research-stat-value { font-size: 12.5px; color: var(--atlas-text); overflow-wrap: anywhere; }
+
+#research-hub .gis-btn-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#research-hub .gis-btn-row .button { flex: 0 0 auto; width: auto; }
+#research-hub .gis-btn-row .input { flex: 1 1 auto; width: auto; }
+
+.research-report { margin-top: 8px; }
+.research-flag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+}
+.research-flag.is-ok { border: 1px solid rgba(0, 240, 255, 0.4); color: var(--atlas-accent); }
+.research-flag.is-warn { border: 1px solid rgba(255, 210, 106, 0.5); color: #ffd36a; }
+.research-progress {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--atlas-panel-alt);
+  overflow: hidden;
+}
+.research-progress-fill { height: 100%; background: var(--atlas-accent); }
+
+.research-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 8px;
+}
+.research-board-col {
+  padding: 8px;
+  background: var(--atlas-panel-alt);
+  border: 1px solid var(--atlas-border);
+  border-radius: 10px;
+}
+.research-board-card {
+  padding: 6px 8px;
+  margin-bottom: 5px;
+  background: var(--atlas-card);
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  font-size: 11px;
+}
+
+.research-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 8px;
+}
+.research-gallery-item {
+  padding: 6px;
+  background: var(--atlas-panel-alt);
+  border: 1px solid var(--atlas-border);
+  border-radius: 10px;
+}
+.research-gallery-item img { width: 100%; border-radius: 6px; }
+.research-gallery-name { font-size: 10px; color: var(--atlas-muted); }
+
+.research-table {
+  border: 1px solid var(--atlas-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--atlas-panel-soft);
+}
+.research-table-row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1.4fr) 6rem minmax(8rem, 1.4fr) minmax(9rem, 1.6fr) 6rem;
+  gap: 8px;
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--atlas-border);
+}
+/* The project comparison carries a World column, so it needs its own track
+   list — the default five columns silently dropped the overflow. */
+.research-table.is-wide .research-table-row {
+  grid-template-columns:
+    minmax(7rem, 1.3fr) 4.5rem 6rem 5rem minmax(8rem, 1.4fr) 3.5rem 5.5rem;
+}
+.research-table-row span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px;
+}
+.research-table-row.is-head span {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--atlas-accent);
+}
+.research-table-row.is-active { background: var(--atlas-wash-soft); }
+
+#research-hub a.button { display: inline-flex; align-items: center; text-decoration: none; }
+.research-check { flex-direction: row; align-items: center; gap: 6px; }
+
+.research-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.research-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 26px;
+  padding: 5px 8px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  background: var(--atlas-card);
+  color: var(--atlas-text);
+  font: inherit;
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.research-list-row:hover { border-color: var(--atlas-accent); }
+.research-list-row.is-active {
+  background: var(--atlas-wash);
+  border-color: var(--atlas-wash-edge);
+}
+.research-list-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.research-list-tag {
+  flex: none;
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--atlas-accent);
+}
+
+.research-stub {
+  max-width: 32rem;
+  margin: 3rem auto;
+  padding: 18px 20px;
+  background: var(--atlas-card);
+  border: 1px dashed var(--atlas-border);
+  border-radius: 12px;
+  text-align: center;
+}
+.research-stub-title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--atlas-text);
+}
+.research-stub-note { margin: 0; font-size: 11.5px; color: var(--atlas-muted); }
+
+/* ── The Atlas Ecosystem panel (app_qt.py:4167) ────────────────────────────── */
+/* Magenta throughout: this is the cross-facet surface. */
+.eco-status {
+  background: rgba(255, 46, 196, 0.08);
+  border: 1px solid rgba(255, 46, 196, 0.3);
+  border-radius: 10px;
+  padding: 8px 12px;
+  color: var(--atlas-text);
+  font-weight: 600;
+  font-size: 11.5px;
+}
+.eco-loop {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  color: var(--atlas-accent);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  padding: 8px 0;
+  text-align: center;
+}
+.eco-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 10px;
+}
+.eco-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--atlas-panel-alt);
+  border: 1px solid var(--atlas-border);
+  border-radius: 12px;
+}
+.eco-card-title {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--atlas-text);
+}
+.eco-card-desc { flex: 1; margin: 0; font-size: 11px; line-height: 1.5; color: var(--atlas-muted); }
+.eco-card .button { align-self: flex-start; }
+
+/* The hub is a workspace, and on a short landscape window the rail plus the
+   shell row leave nothing for the page. Below that, the rail lies flat. */
+@media (max-height: 560px), (max-width: 720px) {
+  #research-hub { flex-direction: column; }
+  .atlas-rail {
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: none;
+    border-bottom: 1px solid var(--atlas-border);
+    padding: 4px 6px;
+  }
+  .atlas-rail-logo { width: 28px; height: 28px; margin: 0 6px 0 0; }
+  .atlas-rail-buttons { flex-direction: row; }
+  .atlas-rail-btn { width: 58px; height: 44px; }
+  .workspace-shell { flex-wrap: wrap; }
+  .shell-actions { flex-wrap: wrap; }
+}
+
+/* Dashboard columns and the tabbed boxes inside them. */
+.dash-col { display: flex; flex-direction: column; }
+.dash-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  border-bottom: 1px solid var(--atlas-border);
+}
+.dash-tab-body { padding-top: 10px; }
+.dash-loop-row {
+  display: grid;
+  grid-template-columns: 6rem 1fr;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--atlas-border);
+}
+.dash-loop-row .research-note { margin: 0; }

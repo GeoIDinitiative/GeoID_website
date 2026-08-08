@@ -1,10 +1,10 @@
-import { registerPage } from "../stages.js?v=20260810k";
-import * as store from "../project-store.js?v=20260810k";
-import { STAGES, getPage } from "../stages.js?v=20260810k";
+import { registerPage } from "../stages.js?v=20260810n";
+import * as store from "../project-store.js?v=20260810n";
+import { STAGES, getPage } from "../stages.js?v=20260810n";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, saveTable,
-} from "./common.js?v=20260810k";
+} from "./common.js?v=20260810n";
 
 /**
  * Dashboard, Project Manager, Pipeline and Data Hub.
@@ -141,12 +141,14 @@ const mountCompare = guard("Project Comparison", async (host) => {
   box.appendChild(el("p", "research-note",
     "Every project in the folder side by side: phase, study area and how much "
     + "each one holds."));
-  const table = el("div", "research-table");
+  const table = el("div", "research-table is-wide");
   box.appendChild(table);
 
-  const names = await store.listProjects();
+  // Every world's, not just this one -- comparing projects is the point of
+  // the page, and a Mars study next to an Earth one is a fair comparison.
+  const names = await store.listProjects(null);
   const head = el("div", "research-table-row is-head");
-  ["Project", "Phase", "Priority", "Study area", "Data", "Updated"].forEach((h) =>
+  ["Project", "World", "Phase", "Priority", "Study area", "Data", "Updated"].forEach((h) =>
     head.appendChild(el("span", null, h)));
   table.appendChild(head);
 
@@ -168,13 +170,15 @@ const mountCompare = guard("Project Comparison", async (host) => {
       .every((k) => String(area[k] || "").trim() !== "");
     const line = el("div", "research-table-row");
     if (active?.dir === dir) line.classList.add("is-active");
-    [dir, meta?.phase || "—", meta?.priority || "—",
+    const parts = dir.split("/");
+    [parts[parts.length - 1], meta?.body || parts[0] || "earth",
+      meta?.phase || "—", meta?.priority || "—",
       hasArea ? `${area.min_lat}..${area.max_lat}, ${area.min_lon}..${area.max_lon}` : "not set",
       String(count), (meta?.updated_at || "").slice(0, 10) || "—"]
       .forEach((v) => line.appendChild(el("span", null, String(v))));
     table.appendChild(line);
   }
-  say(`${names.length} project(s) in this folder.`);
+  say(`${names.length} project(s) across all worlds in this folder.`);
   host.append(box, status);
 });
 

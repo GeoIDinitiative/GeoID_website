@@ -1,4 +1,4 @@
-import * as store from "./project-store.js?v=20260810k";
+import * as store from "./project-store.js?v=20260810n";
 
 /**
  * What makes the three pages one workspace.
@@ -193,6 +193,10 @@ export function summary() {
     dir: project.dir,
     phase: project.meta.phase,
     priority: project.meta.priority,
+    // Which world the project is about, so pages can say so without reaching
+    // past the bridge into the store.
+    body: project.meta.body || "earth",
+    meta: project.meta,
     hasStudyArea: hasArea,
     studyArea: hasArea ? area : null,
   };

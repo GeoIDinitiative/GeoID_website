@@ -14,6 +14,23 @@
  */
 
 const SHELL_URL = "/GeoID_GIS/viewer/gis/shell.html";
+const ATLAS_CSS = "/GeoID_GIS/viewer/gis/research/atlas.css?v=20260810n";
+
+/**
+ * The Research Hub's stylesheet, loaded here rather than from ten <head>s.
+ *
+ * It used to be a block inside styles.css and a second copy inside shell.css,
+ * one for Earth and one for the planets, and the two drifted. One file, linked
+ * once per page, cannot.
+ */
+function loadAtlasCss() {
+  if (document.querySelector('link[data-atlas-css]')) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = ATLAS_CSS;
+  link.dataset.atlasCss = "true";
+  document.head.appendChild(link);
+}
 
 /**
  * Panels belong after the viewer's own name and icon, which is the order the
@@ -33,6 +50,23 @@ function afterBrand(node) {
 
 /** Where each block goes, and how to tell it is already there. */
 const SLOTS = {
+  // The folder button opens the project dialog. It is the way in to a project
+  // from any world, so it leads the sidebar header on every page, not just
+  // Earth's -- a Moon study is filed under the Moon and has to be reachable
+  // from the Moon.
+  "project-button": {
+    marker: "project-open-modal",
+    place(node) {
+      const header = document.querySelector(".brand-toprow");
+      if (!header) return false;
+      header.insertBefore(node, header.firstChild);
+      return true;
+    },
+  },
+  "project-dialog": {
+    marker: "project-dialog",
+    place: (n) => !!document.body.appendChild(n),
+  },
   // The mode switch belongs in the sidebar header, beside the project button.
   "mode-switch": {
     marker: "view-mode-switch",
@@ -68,6 +102,7 @@ const SLOTS = {
 };
 
 async function inject() {
+  loadAtlasCss();
   // Earth already has all of it in its own markup; nothing to do.
   const needed = Object.entries(SLOTS)
     .filter(([, slot]) => !document.getElementById(slot.marker));

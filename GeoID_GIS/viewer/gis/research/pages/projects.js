@@ -1,5 +1,5 @@
-import { registerPage } from "../stages.js?v=20260810k";
-import * as store from "../project-store.js?v=20260810k";
+import { registerPage } from "../stages.js?v=20260810n";
+import * as store from "../project-store.js?v=20260810n";
 
 /**
  * Projects: choose the folder, make a project, open one, edit its profile.
@@ -220,15 +220,20 @@ async function mount(host, ctx) {
         list.appendChild(el("p", "research-note", "No projects here yet."));
       }
       names.forEach((dir) => {
+        // Projects are filed under their world, so the path reads
+        // "moon/Tycho_survey". Show the name; the world is a tag.
+        const parts = dir.split("/");
+        const leaf = parts[parts.length - 1];
         const row = el("button", "research-list-row");
         row.type = "button";
         row.classList.toggle("is-active", active?.dir === dir);
-        row.appendChild(el("span", "research-list-name", dir));
+        row.appendChild(el("span", "research-list-name", leaf));
+        if (parts.length > 1) row.appendChild(el("span", "research-list-tag", parts[0]));
         if (active?.dir === dir) row.appendChild(el("span", "research-list-tag", "open"));
         row.addEventListener("click", async () => {
           try {
             await store.openProject(dir);
-            say(`Opened "${dir}".`);
+            say(`Opened "${leaf}".`);
             await refresh();
           } catch (error) {
             say(error.message, true);

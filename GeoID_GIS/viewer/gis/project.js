@@ -1,43 +1,39 @@
-// GIS projects: a named, saved workspace.
-//
-// A project is the unit of work a researcher hands on -- what was loaded, where
-// it came from, who made it and under what licence -- not a map projection.
-// Coordinate systems are handled in the import section, and deliberately kept
-// out of here to stop the two senses of "projection" colliding.
-//
-// Projects live in localStorage for the working session and export as a single
-// .geoidproj file, which is plain JSON. Layer *data* is not embedded: rasters
-// and meshes are far too large for either store. What is recorded is the
-// description of each layer -- name, format, source, CRS, styling, stack order
-// and visibility -- so a project reopens as a manifest of what to reload.
+import * as store from "./research/project-store.js?v=20260810n";
+import { currentBodyId, currentBody } from "./bodies.js?v=20260810n";
+import { ready as shellReady } from "./shell.js?v=20260810n";
 
-const STORE_KEY = "geoid-gis:projects";
-const CURRENT_KEY = "geoid-gis:project-current";
-const FORMAT = "geoid-project/1";
+/**
+ * The folder button in the sidebar header.
+ *
+ * It used to keep its own projects in localStorage, which meant the GIS page
+ * and the Research Hub each had a private idea of what a project was: you could
+ * "open" one here and the Research pages would still say none was open. There
+ * is one store now -- the folder tree the Research Hub writes -- and this is a
+ * quick way in and out of it.
+ *
+ * Deliberately small. Anything beyond choosing a folder, making a project and
+ * opening one belongs on the Projects page, which has the room for it.
+ */
 
-const byId = (id) => document.getElementById(id);
-
-function readStore() {
-  try {
-    return JSON.parse(window.localStorage.getItem(STORE_KEY) || "{}");
-  } catch (error) {
-    return {};
-  }
+function byId(id) {
+  return document.getElementById(id);
 }
 
-function writeStore(store) {
-  try {
-    window.localStorage.setItem(STORE_KEY, JSON.stringify(store));
-  } catch (error) {
-    status("Could not save: browser storage is full or unavailable.");
-  }
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
 }
 
-function status(message) {
+function status(message, isError) {
   const node = byId("project-status");
-  if (node) node.textContent = message || "";
+  if (!node) return;
+  node.textContent = message || "";
+  node.classList.toggle("is-error", Boolean(isError));
 }
 
+/** What the GIS page has loaded, recorded alongside the project. */
 function layerManifest() {
   const layers = window.GeoIDImportManager?.getLayers?.() || [];
   return layers.map((layer) => ({
@@ -53,140 +49,146 @@ function layerManifest() {
   }));
 }
 
-function readForm() {
-  return {
-    format: FORMAT,
-    name: byId("project-name")?.value.trim() || "Untitled project",
-    author: byId("project-author")?.value.trim() || "",
-    description: byId("project-description")?.value.trim() || "",
-    keywords: (byId("project-keywords")?.value || "")
-      .split(",").map((k) => k.trim()).filter(Boolean),
-    licence: byId("project-licence")?.value || "",
-    savedAt: new Date().toISOString(),
-    layers: layerManifest(),
-  };
-}
+// ── The dialog ────────────────────────────────────────────────────────────────
 
-function writeForm(project) {
-  if (!project) return;
-  const set = (id, value) => { const n = byId(id); if (n) n.value = value ?? ""; };
-  set("project-name", project.name);
-  set("project-author", project.author);
-  set("project-description", project.description);
-  set("project-keywords", (project.keywords || []).join(", "));
-  set("project-licence", project.licence);
-  const saved = byId("project-saved-at");
-  if (saved) {
-    saved.textContent = project.savedAt
-      ? `Saved ${new Date(project.savedAt).toLocaleString()}`
-      + ` · ${(project.layers || []).length} layer(s) recorded`
-      : "Not saved yet.";
-  }
-}
+/** Off by default: on Mars you almost always want Mars's projects. */
+let showAllWorlds = false;
 
-function refreshSavedList(selectName) {
-  const select = byId("project-saved-list");
-  if (!select) return;
-  const store = readStore();
-  const names = Object.keys(store).sort();
-  select.innerHTML = names.length
-    ? names.map((n) => `<option value="${n}">${n}</option>`).join("")
-    : '<option value="">No saved projects</option>';
-  if (selectName && names.includes(selectName)) select.value = selectName;
-}
-
-function save() {
-  const project = readForm();
-  const store = readStore();
-  store[project.name] = project;
-  writeStore(store);
-  try {
-    window.localStorage.setItem(CURRENT_KEY, project.name);
-  } catch (error) { /* ignore */ }
-  writeForm(project);
-  refreshSavedList(project.name);
-  refreshHeaderLabel();
-  status(`Saved "${project.name}".`);
-}
-
-function open() {
-  const name = byId("project-saved-list")?.value;
-  const project = readStore()[name];
-  if (!project) {
-    status("Nothing to open.");
-    return;
-  }
-  writeForm(project);
-  try {
-    window.localStorage.setItem(CURRENT_KEY, name);
-  } catch (error) { /* ignore */ }
-  // Layer data is not stored, so reopening restores the description of the
-  // project and lists what it expects rather than silently loading nothing.
-  const missing = (project.layers || []).length;
-  status(missing
-    ? `Opened "${name}". ${missing} layer(s) recorded — reload their files to restore them.`
-    : `Opened "${name}".`);
-  window.dispatchEvent(new CustomEvent("geoid-gis:project-open", { detail: { project } }));
-}
-
-function remove() {
-  const name = byId("project-saved-list")?.value;
-  if (!name) return;
-  const store = readStore();
-  delete store[name];
-  writeStore(store);
-  refreshSavedList();
-  status(`Deleted "${name}".`);
-}
-
-function reset() {
-  writeForm({ name: "", author: "", description: "", keywords: [], licence: "" });
-  const saved = byId("project-saved-at");
-  if (saved) saved.textContent = "Not saved yet.";
-  status("New project.");
-}
-
-function exportFile() {
-  const project = readForm();
-  const blob = new Blob([JSON.stringify(project, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${project.name.replace(/[^\w.-]+/g, "_")}.geoidproj`;
-  a.click();
-  URL.revokeObjectURL(url);
-  status(`Exported "${project.name}".`);
-}
-
-async function importFile(file) {
-  if (!file) return;
-  try {
-    const project = JSON.parse(await file.text());
-    if (project.format !== FORMAT) {
-      status("That file is not a GeoID project.");
-      return;
-    }
-    writeForm(project);
-    status(`Imported "${project.name}". Save it to keep it.`);
-  } catch (error) {
-    status(`Could not read that file: ${error.message}`);
-  }
-}
-
-/**
- * The project controls live in a dialog, but their markup is authored in the
- * sidebar section so it stays with the rest of the toolbox. It is moved across
- * once, rather than duplicated, so there is only ever one set of fields and no
- * chance of the two drifting apart.
- */
-function mountDialog() {
+async function render() {
   const body = byId("project-dialog-body");
-  const source = byId("gis-group-project");
-  if (!body || !source || body.childElementCount) return;
-  source.querySelectorAll(".gis-tool-section").forEach((section) => {
-    section.open = true;
-    body.appendChild(section);
+  if (!body) return;
+  body.textContent = "";
+
+  const root = store.getRoot();
+  const active = store.getActive();
+
+  // Where projects live.
+  const folder = el("div", "project-block");
+  folder.appendChild(el("h3", "project-block-title", "Projects folder"));
+  folder.appendChild(el("p", "research-note", root
+    ? `Using "${root.name}".`
+    : store.isSupported()
+      ? "Choose where geoid_projects should live. Projects are real folders, "
+        + "readable by the desktop app."
+      : "This browser cannot open a folder directly. Chrome or Edge can."));
+  const chooseRow = el("div", "gis-btn-row");
+  const choose = el("button", "button", root ? "Change folder…" : "Choose folder…");
+  choose.type = "button";
+  choose.disabled = !store.isSupported();
+  choose.addEventListener("click", async () => {
+    try {
+      await store.chooseRoot();
+      await render();
+      status("Projects folder set.");
+    } catch (error) {
+      if (error.name !== "AbortError") status(error.message, true);
+    }
   });
+  chooseRow.appendChild(choose);
+  folder.appendChild(chooseRow);
+  body.appendChild(folder);
+
+  if (!root) return;
+
+  // New project.
+  const world = currentBody();
+  const worldName = world?.name || "Earth";
+
+  const make = el("div", "project-block");
+  make.appendChild(el("h3", "project-block-title", `New ${worldName} project`));
+  // Said plainly, because it decides where the folder is written and the answer
+  // comes from which viewer you happen to be in -- not from anything on screen.
+  make.appendChild(el("p", "research-note",
+    `Filed under geoid_projects/${currentBodyId()}/, so ${worldName} work stays `
+    + `together and is not mixed in with the other worlds.`));
+  const nameInput = document.createElement("input");
+  nameInput.className = "input";
+  nameInput.id = "project-name";
+  nameInput.placeholder = "Project name";
+  const makeRow = el("div", "gis-btn-row");
+  const create = el("button", "button", "Create");
+  create.type = "button";
+  create.addEventListener("click", async () => {
+    const name = nameInput.value.trim();
+    if (!name) { status("Give the project a name first.", true); return; }
+    try {
+      // Stamped with the world it was made on, so a Mars project is not
+      // mistaken for an Earth one later.
+      const project = await store.createProject(name, { body: currentBodyId() });
+      await store.writeJson("metadata/layers.json", { layers: layerManifest() });
+      nameInput.value = "";
+      await render();
+      refreshHeaderLabel();
+      status(`Created "${project.dir}" with the full project tree.`);
+    } catch (error) {
+      status(error.message, true);
+    }
+  });
+  makeRow.append(nameInput, create);
+  make.appendChild(makeRow);
+  body.appendChild(make);
+
+  // Open one.
+  const list = el("div", "project-block");
+  const head = el("div", "project-block-head");
+  head.appendChild(el("h3", "project-block-title",
+    showAllWorlds ? "Open — all worlds" : `Open — ${worldName}`));
+  const swap = el("button", "button secondary small",
+    showAllWorlds ? `Only ${worldName}` : "All worlds");
+  swap.type = "button";
+  swap.addEventListener("click", () => { showAllWorlds = !showAllWorlds; void render(); });
+  head.appendChild(swap);
+  list.appendChild(head);
+
+  const names = await store.listProjects(showAllWorlds ? null : currentBodyId());
+  if (!names.length) {
+    list.appendChild(el("p", "research-note", showAllWorlds
+      ? "No projects in this folder yet."
+      : `No ${worldName} projects yet.`));
+  }
+  const rows = el("div", "research-list");
+  names.forEach((dir) => {
+    const parts = dir.split("/");
+    const leaf = parts[parts.length - 1];
+    const home = parts.length > 1 ? parts[0] : null;
+    const row = el("button", "research-list-row");
+    row.type = "button";
+    row.classList.toggle("is-active", active?.dir === dir);
+    row.appendChild(el("span", "research-list-name", leaf));
+    // The world is only worth showing when the list spans more than one.
+    if (showAllWorlds && home) row.appendChild(el("span", "research-list-tag", home));
+    if (active?.dir === dir) row.appendChild(el("span", "research-list-tag", "open"));
+    row.addEventListener("click", async () => {
+      try {
+        await store.openProject(dir);
+        await render();
+        refreshHeaderLabel();
+        status(`Opened "${leaf}".`);
+      } catch (error) {
+        status(error.message, true);
+      }
+    });
+    rows.appendChild(row);
+  });
+  list.appendChild(rows);
+  body.appendChild(list);
+
+  // The rest of a project's life is the Research Hub's job, so point at it
+  // rather than growing a second, smaller version of that page here.
+  const more = el("div", "gis-btn-row");
+  const go = el("button", "button secondary", "Open in Research Hub");
+  go.type = "button";
+  go.addEventListener("click", () => {
+    setDialogOpen(false);
+    window.GeoIDModeManager?.setMode?.("research");
+    window.GeoIDResearch?.setPage?.("Projects");
+  });
+  more.appendChild(go);
+  body.appendChild(more);
+
+  const statusLine = el("p", "research-status");
+  statusLine.id = "project-status";
+  body.appendChild(statusLine);
 }
 
 function setDialogOpen(open) {
@@ -194,25 +196,25 @@ function setDialogOpen(open) {
   if (!dialog) return;
   dialog.hidden = !open;
   byId("project-open-modal")?.setAttribute("aria-expanded", open ? "true" : "false");
-  if (open) byId("project-name")?.focus();
+  if (open) void render();
 }
 
 /**
- * The header button is an icon, so the current project's name goes to its
- * tooltip and accessible name rather than onto its face -- the name still
- * reaches anyone who needs it without the button growing to fit it.
+ * The header button is an icon, so the open project's name goes to its tooltip
+ * and accessible name rather than onto its face -- the name still reaches
+ * anyone who needs it without the button growing to fit it.
  */
 function refreshHeaderLabel() {
   const button = byId("project-open-modal");
   if (!button) return;
-  const name = byId("project-name")?.value.trim();
-  const label = name ? `Project: ${name}` : "Projects";
+  const active = store.getActive();
+  const label = active ? `Project: ${active.name}` : "Projects";
   button.title = label;
   button.setAttribute("aria-label", label);
+  button.classList.toggle("is-open", Boolean(active));
 }
 
 function init() {
-  mountDialog();
   byId("project-open-modal")?.addEventListener("click", () => setDialogOpen(true));
   byId("project-dialog-close")?.addEventListener("click", () => setDialogOpen(false));
   byId("project-dialog")?.addEventListener("click", (event) => {
@@ -222,31 +224,14 @@ function init() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !byId("project-dialog")?.hidden) setDialogOpen(false);
   });
-  byId("project-name")?.addEventListener("input", refreshHeaderLabel);
-
-  byId("project-new")?.addEventListener("click", reset);
-  byId("project-save")?.addEventListener("click", save);
-  byId("project-open")?.addEventListener("click", open);
-  byId("project-delete")?.addEventListener("click", remove);
-  byId("project-export")?.addEventListener("click", exportFile);
-  byId("project-import")?.addEventListener("click", () => byId("project-import-file")?.click());
-  byId("project-import-file")?.addEventListener("change", (e) => {
-    importFile(e.target.files?.[0]);
-    e.target.value = "";
-  });
-  refreshSavedList();
-  try {
-    const current = window.localStorage.getItem(CURRENT_KEY);
-    if (current) writeForm(readStore()[current]);
-    refreshSavedList(current);
-  } catch (error) { /* ignore */ }
+  // The button follows the store, so opening a project on the Projects page
+  // updates it too -- there is only the one project now.
+  store.onChange(refreshHeaderLabel);
   refreshHeaderLabel();
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
-  init();
-}
+// On a planet page the button and dialog arrive with the shell, after
+// DOMContentLoaded -- binding on DOM ready alone would find nothing to bind to.
+shellReady.then(init).catch(init);
 
-window.GeoIDProject = { save, open, exportFile, readForm };
+window.GeoIDProject = { open: setDialogOpen, layerManifest };
