@@ -1,9 +1,9 @@
-import * as store from "./project-store.js?v=20260808-c6293c4";
-import * as stats from "./stats.js?v=20260808-c6293c4";
-import * as dsp from "./dsp.js?v=20260808-c6293c4";
-import { parseTable, column } from "./table.js?v=20260808-c6293c4";
-import { linePlot, heatmap } from "./plot.js?v=20260808-c6293c4";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-c6293c4";
+import * as store from "./project-store.js?v=20260808-e9319ca";
+import * as stats from "./stats.js?v=20260808-e9319ca";
+import * as dsp from "./dsp.js?v=20260808-e9319ca";
+import { parseTable, column } from "./table.js?v=20260808-e9319ca";
+import { linePlot, heatmap } from "./plot.js?v=20260808-e9319ca";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-e9319ca";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -281,7 +281,10 @@ function csvPlotter(host, api) {
     figure.appendChild(canvas);
 
     if (store.getActive()) {
-      const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 15);
+      // Qt's `%Y%m%d_%H%M%S`. Slicing 15 kept the milliseconds' dot and gave
+      // "…175402..png".
+      const iso = new Date().toISOString();
+      const stamp = `${iso.slice(0, 10).replace(/-/g, "")}_${iso.slice(11, 19).replace(/:/g, "")}`;
       try {
         lastFigure = await saveFigure(canvas, `preprocessing_plot_${stamp}.png`,
                                       "Preprocessing Plotter export");
