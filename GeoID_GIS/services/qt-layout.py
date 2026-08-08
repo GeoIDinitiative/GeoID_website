@@ -31,7 +31,11 @@ import argparse
 import ast
 import copy
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from qt_names import rename_tree  # noqa: E402
 
 QT_APP = Path("/home/owen/atlas-ai/apps/GeoID_Research/app_qt.py")
 OUT = Path(__file__).resolve().parents[1] / "viewer/gis/research/qt-layout.json"
@@ -683,6 +687,10 @@ def extract():
                                spec.get("slug", ""))
             page["slug"] = spec.get("slug", "")
             page["title"] = page_id
+
+    # The hub names these functions for what they do, not for the work that
+    # produced them -- see services/qt_names.py.
+    rename_tree(pages)
     return pages
 
 

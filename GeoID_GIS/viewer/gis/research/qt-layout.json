@@ -13736,7 +13736,7 @@
                 "kind": "QLineEdit",
                 "node": "widget",
                 "text": null,
-                "var": "thesis_peaks_root"
+                "var": "event_peaks_root"
                },
                {
                 "kind": "QPushButton",
@@ -13758,7 +13758,7 @@
                 "kind": "QLineEdit",
                 "node": "widget",
                 "text": null,
-                "var": "thesis_output_dir"
+                "var": "event_output_dir"
                },
                {
                 "kind": "QPushButton",
@@ -13780,7 +13780,7 @@
                 "kind": "QLineEdit",
                 "node": "widget",
                 "text": null,
-                "var": "thesis_eq_csv"
+                "var": "event_eq_csv"
                },
                {
                 "kind": "QPushButton",
@@ -13802,7 +13802,7 @@
                 "kind": "QLineEdit",
                 "node": "widget",
                 "text": null,
-                "var": "thesis_volcanic_csv"
+                "var": "event_volcanic_csv"
                },
                {
                 "kind": "QPushButton",
@@ -13824,7 +13824,7 @@
                 "kind": "QLineEdit",
                 "node": "widget",
                 "text": null,
-                "var": "thesis_bandpassed_root"
+                "var": "event_bandpassed_root"
                },
                {
                 "kind": "QPushButton",
@@ -13846,7 +13846,7 @@
                 "kind": "QLineEdit",
                 "node": "widget",
                 "text": null,
-                "var": "thesis_templates_root"
+                "var": "event_templates_root"
                },
                {
                 "kind": "QPushButton",
@@ -13871,7 +13871,7 @@
               ],
               "text": null,
               "value": 20,
-              "var": "thesis_candidate_count"
+              "var": "event_candidate_count"
              },
              "label": "Top candidates",
              "node": "row"
@@ -13886,7 +13886,7 @@
               ],
               "text": null,
               "value": 5,
-              "var": "thesis_sync_plots"
+              "var": "event_sync_plots"
              },
              "label": "Wavelet plots",
              "node": "row"
@@ -13901,19 +13901,19 @@
              "kind": "QPushButton",
              "node": "widget",
              "text": "Validate Inputs",
-             "var": "btn_thesis_validate"
+             "var": "btn_event_validate"
             },
             {
              "kind": "QPushButton",
              "node": "widget",
              "text": "Refresh Results",
-             "var": "btn_thesis_refresh"
+             "var": "btn_event_refresh"
             },
             {
              "kind": "QPushButton",
              "node": "widget",
              "text": "Open Selected Result",
-             "var": "btn_thesis_open"
+             "var": "btn_event_open"
             },
             {
              "node": "stretch"
@@ -13926,7 +13926,7 @@
            "kind": "QLabel",
            "node": "widget",
            "text": "Validation: not run",
-           "var": "thesis_status",
+           "var": "event_status",
            "wrap": true
           },
           {
@@ -13936,14 +13936,14 @@
              "node": "widget",
              "stretch": 1,
              "text": null,
-             "var": "thesis_filter"
+             "var": "event_filter"
             },
             {
              "kind": "QComboBox",
              "node": "widget",
              "stretch": 1,
              "text": null,
-             "var": "thesis_intent_filter"
+             "var": "event_intent_filter"
             }
            ],
            "kind": "QHBoxLayout",
@@ -13959,20 +13959,20 @@
            "minHeight": 220,
            "node": "widget",
            "text": null,
-           "var": "thesis_catalog"
+           "var": "event_catalog"
           },
           {
            "kind": "QLabel",
            "node": "widget",
-           "text": "Select a thesis function module to inspect required user-defined CSVs and directories.",
-           "var": "thesis_module_details",
+           "text": "Select a analysis module to inspect required user-defined CSVs and directories.",
+           "var": "event_module_details",
            "wrap": true
           },
           {
            "kind": "QLabel",
            "node": "widget",
            "text": "Module readiness: -",
-           "var": "thesis_module_status",
+           "var": "event_module_status",
            "wrap": true
           },
           {
@@ -13984,7 +13984,7 @@
            "minHeight": 180,
            "node": "widget",
            "text": null,
-           "var": "thesis_results_tree"
+           "var": "event_results_tree"
           },
           {
            "children": [
@@ -14054,13 +14054,13 @@
             {
              "kind": "QPushButton",
              "node": "widget",
-             "text": "Load Thesis Inputs",
+             "text": "Load Event Inputs",
              "var": "btn_comp_load"
             },
             {
              "kind": "QPushButton",
              "node": "widget",
-             "text": "Run Thesis Suite",
+             "text": "Run Full Suite",
              "var": "btn_comp_full"
             },
             {
@@ -14091,8 +14091,8 @@
         },
         "kind": "QGroupBox",
         "node": "widget",
-        "text": "Thesis Analysis Toolkit",
-        "var": "thesis_box"
+        "text": "Event Correlation Toolkit",
+        "var": "event_box"
        }
       ],
       "kind": "QVBoxLayout",
@@ -14100,8 +14100,8 @@
      },
      "kind": "CollapsibleSection",
      "node": "widget",
-     "text": "Thesis Analysis Toolkit",
-     "var": "thesis_sec"
+     "text": "Event Correlation Toolkit",
+     "var": "event_sec"
     },
     {
      "collapsed": true,
@@ -14423,7 +14423,7 @@
           {
            "kind": "QLabel",
            "node": "widget",
-           "text": "Optional fallback for direct script/function execution outside the primary Thesis and GALES toolkits.",
+           "text": "Optional fallback for direct script/function execution outside the primary Event Correlation and GALES toolkits.",
            "var": "recipe_summary",
            "wrap": true
           },

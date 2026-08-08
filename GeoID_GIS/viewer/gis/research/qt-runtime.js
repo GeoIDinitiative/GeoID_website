@@ -1,9 +1,9 @@
-import * as store from "./project-store.js?v=20260808-dac444d";
-import * as stats from "./stats.js?v=20260808-dac444d";
-import * as dsp from "./dsp.js?v=20260808-dac444d";
-import { parseTable, column } from "./table.js?v=20260808-dac444d";
-import { linePlot, heatmap } from "./plot.js?v=20260808-dac444d";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-dac444d";
+import * as store from "./project-store.js?v=20260808-6c40f83";
+import * as stats from "./stats.js?v=20260808-6c40f83";
+import * as dsp from "./dsp.js?v=20260808-6c40f83";
+import { parseTable, column } from "./table.js?v=20260808-6c40f83";
+import { linePlot, heatmap } from "./plot.js?v=20260808-6c40f83";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-6c40f83";
 
 /**
  * The parts of a page the app builds while it runs.

@@ -1,10 +1,10 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260808-dac444d";
-import * as store from "./project-store.js?v=20260808-dac444d";
-import * as stats from "./stats.js?v=20260808-dac444d";
-import * as dsp from "./dsp.js?v=20260808-dac444d";
-import { linePlot, heatmap } from "./plot.js?v=20260808-dac444d";
-import { column } from "./table.js?v=20260808-dac444d";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-dac444d";
+import { wire, wirePattern } from "./spec-page.js?v=20260808-6c40f83";
+import * as store from "./project-store.js?v=20260808-6c40f83";
+import * as stats from "./stats.js?v=20260808-6c40f83";
+import * as dsp from "./dsp.js?v=20260808-6c40f83";
+import { linePlot, heatmap } from "./plot.js?v=20260808-6c40f83";
+import { column } from "./table.js?v=20260808-6c40f83";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-6c40f83";
 
 /**
  * The last of the spec's controls.
@@ -107,7 +107,7 @@ wire("Raster Tools", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No coordinate columns to reproject.");
-    const projection = await import("../projection.js?v=20260808-dac444d");
+    const projection = await import("../projection.js?v=20260808-6c40f83");
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -164,7 +164,7 @@ wire("Vector Tools", {
     if (collections.length < 2) {
       throw new Error("A spatial join needs two GeoJSON layers in the project.");
     }
-    const g = await import("../geoprocessing.js?v=20260808-dac444d");
+    const g = await import("../geoprocessing.js?v=20260808-6c40f83");
     const joined = g.spatialJoin(collections[0].fc, collections[1].fc);
     const out = `data/processed/joined-${stamp()}.geojson`;
     await store.writeProjectFile(out, JSON.stringify(joined));
@@ -534,7 +534,7 @@ wire("Signal Processing", {
       { title: `Wavelet power — ${name}`, labels: { x: "scale", y: "power" } });
     say(`Saved ${await saveFigure(canvas, `wavelet-${slug(name)}.png`, "Signal Processing")}.`);
   },
-  "Run Thesis Suite": async ({ say }) => {
+  "Run Full Suite": async ({ say }) => {
     // Every analysis this page can do, in one pass, written as one report --
     // which is what the desktop suite produces too.
     const { path, table } = await firstTable();
@@ -551,7 +551,7 @@ wire("Signal Processing", {
         return { column: n, peak_frequency: peak.frequency, peak_amplitude: peak.amplitude };
       }),
     };
-    const out = `analysis/thesis-suite-${stamp()}.json`;
+    const out = `analysis/event-suite-${stamp()}.json`;
     await store.writeJson(out, report);
     say(`${names.length} column(s) profiled, correlated and spectrally analysed into ${out}.`);
   },

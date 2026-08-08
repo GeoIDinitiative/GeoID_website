@@ -1,12 +1,12 @@
-import { registerPage } from "../stages.js?v=20260808-dac444d";
-import * as store from "../project-store.js?v=20260808-dac444d";
-import * as bridge from "../bridge.js?v=20260808-dac444d";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-dac444d";
+import { registerPage } from "../stages.js?v=20260808-6c40f83";
+import * as store from "../project-store.js?v=20260808-6c40f83";
+import * as bridge from "../bridge.js?v=20260808-6c40f83";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-6c40f83";
 import {
   el, card, field, input, textarea, selectOf, button, row, statusLine,
   pageHeader, splitPanes, tabbedPanel, editorCard, editorHero, fieldGrid,
   slider, editTable,
-} from "./common.js?v=20260808-dac444d";
+} from "./common.js?v=20260808-6c40f83";
 
 /**
  * Projects, laid out as `GeoIDProjectsPage` lays it out (app_qt.py:4570):
@@ -25,7 +25,7 @@ import {
 
 const PROJECT_TEMPLATES = [
   "Custom", "Earthquake study", "Volcanic monitoring", "Weather ML",
-  "Single Plot", "Data QA", "Full Thesis Pipeline",
+  "Single Plot", "Data QA", "Full Event Pipeline",
 ];
 const PHASES = [
   "Scoping", "Data Assembly", "Preprocessing", "Modeling",

@@ -28,6 +28,7 @@ and do nothing.
 from __future__ import annotations
 
 import argparse
+import sys
 import ast
 import json
 import re
@@ -288,6 +289,10 @@ def dedupe(seq):
     return out
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from qt_names import rename_tree  # noqa: E402
+
+
 def extract():
     tree = ast.parse(QT_APP.read_text(encoding="utf-8"), filename=str(QT_APP))
     derived = derive_page_classes(tree)
@@ -368,7 +373,8 @@ def main():
         return 0
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(pages, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    OUT.write_text(json.dumps(rename_tree(pages), indent=2, sort_keys=True) + "\n",
+                   encoding="utf-8")
     print(f"wrote {OUT.relative_to(Path.cwd()) if OUT.is_relative_to(Path.cwd()) else OUT}"
           f" — {len(pages)} pages")
     return 0
