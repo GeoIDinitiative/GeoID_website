@@ -2571,3 +2571,19 @@
 .qt-splitter > .qt-h > *:not(:has(.qt-textarea)):not(:has(canvas)):not(:has(.qt-datatable:not(.is-empty))) {
   align-self: start;
 }
+
+/* The project chip is the spine's control — clickable everywhere to create,
+   open or link a folder. It reads as a button, not a passive label. */
+#research-hub .atlas-chip[role="button"] {
+  cursor: pointer;
+  transition: border-color .12s, box-shadow .12s, color .12s;
+}
+#research-hub .atlas-chip[role="button"]:hover {
+  border-color: rgb(var(--skin-chrome));
+  color: rgb(var(--skin-chrome));
+  box-shadow: 0 0 12px rgba(var(--skin-chrome-rgb), 0.35);
+}
+#research-hub .atlas-chip[role="button"]:not(.is-open) {
+  border-color: rgba(var(--skin-chrome-rgb), 0.55);
+  color: rgb(var(--skin-chrome));
+}

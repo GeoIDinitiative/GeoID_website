@@ -1,8 +1,8 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-e6780f9";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-e6780f9";
-import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-e6780f9";
-import * as sidecar from "./sidecar.js?v=20260808-e6780f9";
-import * as store from "./project-store.js?v=20260808-e6780f9";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-6c4b22b";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-6c4b22b";
+import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-6c4b22b";
+import * as sidecar from "./sidecar.js?v=20260808-6c4b22b";
+import * as store from "./project-store.js?v=20260808-6c4b22b";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.
@@ -334,13 +334,29 @@ export function setContext(next) {
  */
 function watchProject(store) {
   let shownDir = null;
+  // The chip is the project spine's control everywhere in the hub: click it to
+  // create, open or link a folder, the same dialog the GIS sidebar opens. It
+  // used to be a dead label that told you to go and find the sidebar button —
+  // the "can't link a folder from Research" gap.
+  const chipBtn = byId("research-project");
+  if (chipBtn && !chipBtn.dataset.wired) {
+    chipBtn.dataset.wired = "1";
+    chipBtn.style.cursor = "pointer";
+    chipBtn.setAttribute("role", "button");
+    chipBtn.setAttribute("tabindex", "0");
+    const openDialog = () => window.GeoIDProject?.open?.(true);
+    chipBtn.addEventListener("click", openDialog);
+    chipBtn.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDialog(); }
+    });
+  }
   const paint = (active) => {
     const chip = byId("research-project");
     if (chip) {
-      chip.textContent = active ? `◈ ${active.name}` : "No project open";
+      chip.textContent = active ? `◈ ${active.name}` : "+ New / Open Project";
       chip.title = active
-        ? `${active.meta?.body || "earth"} · ${active.dir}`
-        : "No project open — the folder button in the sidebar opens one.";
+        ? `${active.meta?.body || "earth"} · ${active.dir} — click to switch or link a folder`
+        : "Click to create, open or link a project folder.";
       chip.classList.toggle("is-open", Boolean(active));
     }
     // Re-mount when a *different* project is opened, so a page stops reporting
