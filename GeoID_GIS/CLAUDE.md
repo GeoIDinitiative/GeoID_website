@@ -117,6 +117,25 @@ is the thing to put in a pre-commit hook.
 Never version `../vendor/three.module.js` — `earth-viewer.js` imports it
 unversioned and a second copy breaks class identity.
 
+**The stamp is the git sha, so an uncommitted edit re-stamps to the SAME
+value** — and the browser then serves its cached copy of anything at that URL.
+A whole verify loop ran against a stale `qt-spec.json` this way, chasing two
+ghost buttons that the disk no longer contained; grep said clean, the fetch
+said Thesis, and both were right. Commit first (the amend dance), stamp, then
+verify. Never trust a verification made on a reused stamp.
+
+**A factory parameter bound to a literal is a constant inside the body.**
+`_make_input_card("Training Dataset", "CSV / NetCDF…", field, …)` passes the
+card's title and description as strings; binding only variables left every
+card's `QLabel(title)` with no text, which is most of why AI Trainer "looked a
+mess" next to its reference. Renames must also cover the spec's plain string
+lists — "buttons" — or the completion appends the old name as a disabled ghost
+beside its renamed, wired twin.
+
+**A control the tree rendered is recognised by its data-var, not its text.** A
+`<select>` has no placeholder attribute, so the text-based scrape could not see
+AI Trainer's live data-bus combo and appended a dead duplicate.
+
 ## Verifying
 
 There is a headless-Chrome + CDP harness (`shoot.py` in the session scratchpad):
