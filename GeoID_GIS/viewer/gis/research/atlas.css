@@ -2563,3 +2563,11 @@
    implying a huge empty data area — it grows again the moment it holds rows. */
 .qt-tab-panel .qt-datatable:not(.has-rows),
 .qt-tab-panel .qt-listwidget:empty { max-height: 10rem; }
+
+/* A splitter pane that holds only a form (no data surface) does not need to grow
+   to match a taller sibling — Event Detection's threshold form was stretched
+   370px to match the results pane. It sizes to its content; the results pane
+   still gets the room it wants. */
+.qt-splitter > .qt-h > *:not(:has(.qt-textarea)):not(:has(canvas)):not(:has(.qt-datatable:not(.is-empty))) {
+  align-self: start;
+}
