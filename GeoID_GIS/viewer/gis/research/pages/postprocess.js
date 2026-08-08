@@ -1,8 +1,8 @@
-import { registerPage } from "../stages.js?v=20260808-e1ce08e";
-import * as store from "../project-store.js?v=20260808-e1ce08e";
-import { parseTable } from "../table.js?v=20260808-e1ce08e";
-import { linePlot, toPngBlob } from "../plot.js?v=20260808-e1ce08e";
-import { needProject } from "./common.js?v=20260808-e1ce08e";
+import { registerPage } from "../stages.js?v=20260808-c93c2ea";
+import * as store from "../project-store.js?v=20260808-c93c2ea";
+import { parseTable } from "../table.js?v=20260808-c93c2ea";
+import { linePlot, toPngBlob } from "../plot.js?v=20260808-c93c2ea";
+import { needProject } from "./common.js?v=20260808-c93c2ea";
 
 /**
  * Post Processing: degree-of-freedom time series at probe points, and the DOF
@@ -209,7 +209,7 @@ async function mountPostProcess(host, ctx) {
     + "the probe to nodes on that Gmsh entity."));
   const probeBox = document.createElement("textarea");
   probeBox.className = "input research-editor";
-  probeBox.rows = 6;
+  probeBox.rows = 4;
   probeBox.placeholder = "P1,0.25,0.25,0.0,1\nP2,0.75,0.50,0.0,1";
   const modeSelect = selectOf(["interpolated", "nearest"], "interpolated");
   probeCard.append(probeBox, field("Extraction mode", modeSelect));

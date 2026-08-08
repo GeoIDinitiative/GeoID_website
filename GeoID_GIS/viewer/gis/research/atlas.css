@@ -541,11 +541,20 @@
   box-shadow: none;
 }
 
+/* 20rem never fitted twice inside a 440px card, so every "two-column" block
+   inside a card was silently one column and six fields became six rows. 11rem
+   gives two or three columns where there is room and still one where there is
+   not. */
 .research-grid-2 {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 8px 10px;
   align-items: start;
+}
+/* When it is the page's own top-level layout it wants real columns, not many
+   narrow ones. */
+.research-page > .research-grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr));
 }
 .research-grid-2 .research-card { max-width: none; }
 
@@ -1384,3 +1393,41 @@
 .nb-output { max-height: 14rem; }
 #research-hub textarea.input { min-height: 0; }
 .research-editor { max-height: 14rem; }
+
+
+/* The project's directory list is twenty short strings, not twenty rows. */
+.project-dirs {
+  columns: 3 8rem;
+  column-gap: 12px;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--atlas-muted);
+}
+.project-dirs > span { display: block; break-inside: avoid; }
+
+/* An empty table is a heading strip: the columns are the information. */
+.qt-table.is-empty {
+  padding: 5px 8px;
+  opacity: 0.75;
+}
+.qt-table.is-empty .qt-table-head { font-size: 9px; }
+
+/* The tabbed panels the completion adds are compact by default. */
+.research-page > .qt-card { padding: 10px 12px; }
+.research-page > .qt-card .qt-tab-body { padding-top: 8px; }
+
+
+/* Tabbed panels always span. Letting them flow into a column was tried and was
+   worse: the tab strip wrapped and every field inside stacked, taking Post
+   Processing from 1.28 screens to 2.16. */
+.research-page > .qt-card { min-width: 0; }
+
+/* A tabbed panel bounds its own body rather than pushing the page past the
+   window. Scrolling inside one panel is ordinary; scrolling the whole page to
+   reach a control is what we were trying to stop. */
+.research-page > .qt-card > .qt-tab-body {
+  max-height: 15rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--skin-muted), 0.28) transparent;
+}

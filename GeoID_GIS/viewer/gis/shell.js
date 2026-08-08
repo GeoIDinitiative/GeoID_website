@@ -14,7 +14,7 @@
  */
 
 const SHELL_URL = "/GeoID_GIS/viewer/gis/shell.html";
-const ATLAS_CSS = "/GeoID_GIS/viewer/gis/research/atlas.css?v=20260808-e1ce08e";
+const ATLAS_CSS = "/GeoID_GIS/viewer/gis/research/atlas.css?v=20260808-c93c2ea";
 
 /**
  * The Research Hub's stylesheet, loaded here rather than from ten <head>s.

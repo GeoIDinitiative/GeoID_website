@@ -1,6 +1,6 @@
-import * as store from "../project-store.js?v=20260808-e1ce08e";
-import { parseTable, column } from "../table.js?v=20260808-e1ce08e";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-e1ce08e";
+import * as store from "../project-store.js?v=20260808-c93c2ea";
+import { parseTable, column } from "../table.js?v=20260808-c93c2ea";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-c93c2ea";
 
 /**
  * The furniture every Research page uses.
@@ -544,9 +544,10 @@ export function dataTable(headers, rows) {
     table.appendChild(node);
   }));
   if (!rows.length) {
-    const empty = el("span", "qt-table-empty", "Nothing to show.");
-    empty.style.gridColumn = `1 / -1`;
-    table.appendChild(empty);
+    // An empty table is its column headings, nothing more. The extra
+    // "Nothing to show." row said the same thing the emptiness already does,
+    // and two of them were most of why Post Processing did not fit.
+    table.classList.add("is-empty");
   }
   return table;
 }

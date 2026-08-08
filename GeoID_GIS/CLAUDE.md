@@ -260,6 +260,17 @@ a view then fired that side effect. The Build New wizard's phase strip
 navigates, so scraping it rendered the wizard three times over. Nothing clicks
 to scrape any more; do not reintroduce it.
 
+**Measure page height at 1920x1080, not in the harness's default window.**
+The preview iframe is ~966x705, which is far narrower than any real screen; the
+grid gives two columns there and four at 1920, so a page that "scrolls" in the
+harness usually does not on a desktop. Quote the number with the size it was
+measured at.
+
+**Two layout changes were tried and reverted, both worse:** letting a tabbed
+panel flow into a column instead of spanning (the tab strip wrapped and every
+field stacked, taking Post Processing from 1.28 screens to 2.16), and a 21rem
+column floor (five columns of ~350px, too narrow to read a labelled input in).
+
 **The page area is a grid, not a stack.** `.research-page` flows its cards into
 `minmax(25rem, 1fr)` columns with `align-items: start`, and the wide items
 (header, toolbar, splitter, big tabbed cards, `research-grid-2`) span. Stacking

@@ -1,14 +1,14 @@
-import { registerPage } from "../stages.js?v=20260808-e1ce08e";
-import * as store from "../project-store.js?v=20260808-e1ce08e";
-import { column } from "../table.js?v=20260808-e1ce08e";
-import { linePlot } from "../plot.js?v=20260808-e1ce08e";
-import { detrend, bandpass, statistics } from "../dsp.js?v=20260808-e1ce08e";
+import { registerPage } from "../stages.js?v=20260808-c93c2ea";
+import * as store from "../project-store.js?v=20260808-c93c2ea";
+import { column } from "../table.js?v=20260808-c93c2ea";
+import { linePlot } from "../plot.js?v=20260808-c93c2ea";
+import { detrend, bandpass, statistics } from "../dsp.js?v=20260808-c93c2ea";
 import {
   el, card, field, input, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, loadTable, inferSampling, saveTable,
   pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
   tabbedPanel,
-} from "./common.js?v=20260808-e1ce08e";
+} from "./common.js?v=20260808-c93c2ea";
 
 /**
  * The Preprocessing stage.
@@ -280,6 +280,7 @@ const mountQaQc = guard("QA / QC", async (host) => {
       "Temporal QA": temporalTab,
       "Fix & Export": fixTab,
     });
+    panel.classList.add("is-wide");   // four tabs over one loaded table
     panelHost.appendChild(panel);
   }
 

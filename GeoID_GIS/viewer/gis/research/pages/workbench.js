@@ -1,13 +1,13 @@
-import { registerPage } from "../stages.js?v=20260808-e1ce08e";
-import * as store from "../project-store.js?v=20260808-e1ce08e";
-import * as google from "../google-credentials.js?v=20260808-e1ce08e";
-import { column } from "../table.js?v=20260808-e1ce08e";
-import { linePlot } from "../plot.js?v=20260808-e1ce08e";
-import * as dsp from "../dsp.js?v=20260808-e1ce08e";
+import { registerPage } from "../stages.js?v=20260808-c93c2ea";
+import * as store from "../project-store.js?v=20260808-c93c2ea";
+import * as google from "../google-credentials.js?v=20260808-c93c2ea";
+import { column } from "../table.js?v=20260808-c93c2ea";
+import { linePlot } from "../plot.js?v=20260808-c93c2ea";
+import * as dsp from "../dsp.js?v=20260808-c93c2ea";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, findTables, loadTable, inferSampling, saveTable,
-} from "./common.js?v=20260808-e1ce08e";
+} from "./common.js?v=20260808-c93c2ea";
 
 /**
  * AI trainer, the remaining FEM pages, Publish and Settings.
@@ -441,8 +441,10 @@ const mountSettings = guard("Settings", async (host, ctx) => {
   layout.appendChild(el("p", "research-note",
     "The directories this project was created with. They match the desktop "
     + "app's layout exactly, which is what lets a project open in both."));
-  const grid = el("div", "research-grid-2");
-  store.PROJECT_DIRS.forEach((dir) => grid.appendChild(el("span", "research-note", dir)));
+  // Twenty short paths read as a list, not as twenty stacked rows -- that card
+  // was 778px tall on its own and was most of why this page scrolled.
+  const grid = el("div", "project-dirs");
+  store.PROJECT_DIRS.forEach((dir) => grid.appendChild(el("span", null, dir)));
   layout.appendChild(grid);
 
   host.append(box, gbox, layout, status);
@@ -455,7 +457,7 @@ const mountPlugins = guard("Plugin Manager", async (host) => {
     "Which pages have been built and which are still to come. A page registers "
     + "itself with the stage list; nothing here is configuration, it is what is "
     + "actually loaded."));
-  const { STAGES: stages, getPage: get } = await import("../stages.js?v=20260808-e1ce08e");
+  const { STAGES: stages, getPage: get } = await import("../stages.js?v=20260808-c93c2ea");
   const table = el("div", "research-table");
   const head = el("div", "research-table-row is-head");
   ["Stage", "Pages", "Built", "Remaining"].forEach((h) => head.appendChild(el("span", null, h)));

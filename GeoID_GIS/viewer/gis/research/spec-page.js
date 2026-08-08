@@ -1,9 +1,9 @@
-import { getPage, registerPage } from "./stages.js?v=20260808-e1ce08e";
-import * as store from "./project-store.js?v=20260808-e1ce08e";
+import { getPage, registerPage } from "./stages.js?v=20260808-c93c2ea";
+import * as store from "./project-store.js?v=20260808-c93c2ea";
 import {
   el, button, row, field, input, selectOf, statusLine, needProject,
   pageHeader, toolbar, collapsible, tabbedPanel, editorCard, dataTable,
-} from "./pages/common.js?v=20260808-e1ce08e";
+} from "./pages/common.js?v=20260808-c93c2ea";
 
 /**
  * Build a page from `qt-spec.json` — the structure the Qt app actually has,
