@@ -1,5 +1,5 @@
-import * as dsp from "./dsp.js?v=20260808-7ffdbc9";
-import { parseTable, column } from "./table.js?v=20260808-7ffdbc9";
+import * as dsp from "./dsp.js?v=20260808-5d549f4";
+import { parseTable, column } from "./table.js?v=20260808-5d549f4";
 
 /**
  * The Event Correlation Toolkit's analyses, written out.
@@ -26,6 +26,18 @@ export const MIN_STATIONS = 2;
 export const MIN_CORRELATION = 0.2;
 export const MIN_SNR_LINEAR = 3.16;
 
+/**
+ * A parsed table's rows as objects keyed by column name.
+ *
+ * `parseTable` returns rows as **arrays**, not objects — every field read as
+ * `row.peak_corr` came back undefined and the whole toolkit reported "peak
+ * files held no readable rows".
+ */
+export function rowObjects(table) {
+  return table.rows.map((row) =>
+    Object.fromEntries(table.columns.map((name, i) => [name, row[i]])));
+}
+
 /** A peaks CSV as row objects, with the facets the tree layout implies. */
 export function peaksFromCsv(text, path) {
   const table = parseTable(text);
@@ -44,7 +56,7 @@ export function peaksFromCsv(text, path) {
     station: parts[parts.length - 3] || "",
     dataset: parts[parts.length - 4] || "",
   };
-  return table.rows.map((row) => {
+  return rowObjects(table).map((row) => {
     const out = { ...row };
     Object.entries(fromPath).forEach(([key, value]) => {
       if (out[key] === undefined || out[key] === "") out[key] = value;

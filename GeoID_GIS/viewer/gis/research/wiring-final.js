@@ -1,12 +1,12 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260808-7ffdbc9";
-import * as store from "./project-store.js?v=20260808-7ffdbc9";
-import * as stats from "./stats.js?v=20260808-7ffdbc9";
-import * as dsp from "./dsp.js?v=20260808-7ffdbc9";
-import { linePlot, heatmap } from "./plot.js?v=20260808-7ffdbc9";
-import { column } from "./table.js?v=20260808-7ffdbc9";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-7ffdbc9";
-import { parseTable } from "./table.js?v=20260808-7ffdbc9";
-import * as ec from "./event-correlation.js?v=20260808-7ffdbc9";
+import { wire, wirePattern } from "./spec-page.js?v=20260808-5d549f4";
+import * as store from "./project-store.js?v=20260808-5d549f4";
+import * as stats from "./stats.js?v=20260808-5d549f4";
+import * as dsp from "./dsp.js?v=20260808-5d549f4";
+import { linePlot, heatmap } from "./plot.js?v=20260808-5d549f4";
+import { column } from "./table.js?v=20260808-5d549f4";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260808-5d549f4";
+import { parseTable } from "./table.js?v=20260808-5d549f4";
+import * as ec from "./event-correlation.js?v=20260808-5d549f4";
 
 /**
  * The last of the spec's controls.
@@ -109,7 +109,7 @@ wire("Raster Tools", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No coordinate columns to reproject.");
-    const projection = await import("../projection.js?v=20260808-7ffdbc9");
+    const projection = await import("../projection.js?v=20260808-5d549f4");
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -166,7 +166,7 @@ wire("Vector Tools", {
     if (collections.length < 2) {
       throw new Error("A spatial join needs two GeoJSON layers in the project.");
     }
-    const g = await import("../geoprocessing.js?v=20260808-7ffdbc9");
+    const g = await import("../geoprocessing.js?v=20260808-5d549f4");
     const joined = g.spatialJoin(collections[0].fc, collections[1].fc);
     const out = `data/processed/joined-${stamp()}.geojson`;
     await store.writeProjectFile(out, JSON.stringify(joined));
@@ -993,6 +993,20 @@ async function loadPeaks(api, { reload = false } = {}) {
   return loaded;
 }
 
+/**
+ * Any table this project holds, peaks tree included.
+ *
+ * `findTables()` lists the known data folders but does not walk into them, and
+ * a peaks tree is `data/raw/<dataset>/<station>/<sim>/…` — three levels down,
+ * so the toolkit's plotting buttons reported an empty project while its loading
+ * buttons were reading the same files happily.
+ */
+async function anyTable() {
+  const flat = await findTables();
+  if (flat.length) return flat;
+  return peakFiles("data/raw");
+}
+
 /** Write a result and say where it went, which every one of these does. */
 async function publish(say, name, headers, rows, note) {
   const path = `analysis/${name}-${stamp()}.csv`;
@@ -1094,7 +1108,9 @@ const toolkit = {
         + "with corr_mean_clean and corr_mean_contaminated columns.");
     }
     const rows = [];
-    for (const path of files) rows.push(...parseTable(await store.readProjectFile(path)).rows);
+    for (const path of files) {
+      rows.push(...ec.rowObjects(parseTable(await store.readProjectFile(path))));
+    }
     const result = ec.contamination(rows);
     if (!result) throw new Error("No rows with both clean and contaminated correlation means.");
     await publish(api.say, "contamination",
@@ -1106,7 +1122,10 @@ const toolkit = {
   },
 
   Spectrograms: async (api) => {
-    const { table, path } = await firstTable();
+    const paths = await anyTable();
+    if (!paths.length) throw new Error("No tables in this project yet.");
+    const path = paths[0];
+    const table = await loadTable(path);
     const numeric = numericOf(table);
     const name = Object.keys(numeric)[0];
     if (!name) throw new Error("No numeric series to transform.");
@@ -1120,7 +1139,10 @@ const toolkit = {
   },
 
   Morlet: async (api) => {
-    const { table, path } = await firstTable();
+    const paths = await anyTable();
+    if (!paths.length) throw new Error("No tables in this project yet.");
+    const path = paths[0];
+    const table = await loadTable(path);
     const numeric = numericOf(table);
     const name = Object.keys(numeric)[0];
     if (!name) throw new Error("No numeric series to transform.");
@@ -1140,7 +1162,7 @@ const toolkit = {
   "Load Peak CSVs": async (api) => toolkit["Load Event Inputs"](api),
 
   "Load Headers": async (api) => {
-    const paths = await findTables();
+    const paths = await anyTable();
     if (!paths.length) throw new Error("No tables in this project yet.");
     const path = paths.length === 1 ? paths[0] : await chooseTable(paths);
     if (!path) return;
