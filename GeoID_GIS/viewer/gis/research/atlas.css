@@ -1879,3 +1879,77 @@
 .qt-splitter > .qt-h > * { align-self: stretch; }
 /* Qt gives the layer panel 220–320px and the map the rest. */
 .qt-splitter .qt-h > .qt-container:first-child { flex: 0 0 clamp(13.75rem, 22%, 20rem); }
+
+/* ── Page layout: nothing clips, and the width gets used ───────────────────
+   Two faults, one cause. Every child of a flex column could shrink below its
+   own content, so a section that did not fit was silently *cut* -- measured at
+   1440x850: thirteen pages clipping, Signal Processing losing 623px of its
+   Event Correlation toolkit and every Ingest page losing 95px of its registry.
+   And because the column was one file of full-width boxes, a 1900px screen
+   spent its width on 900px-wide "Citation" fields while the page scrolled.
+
+   Qt does neither. A widget gets its sizeHint; only widgets given a stretch
+   factor absorb what is spare. That is the rule below: in a column nothing
+   shrinks except the boxes built to. */
+.qt-page .qt-v > * { flex-shrink: 0; }
+.qt-page .qt-v > .qt-grow,
+.qt-page .qt-v > .qt-stretch,
+.qt-page .qt-v > .qt-tabwidget,
+.qt-page .qt-v > .qt-scroll,
+.qt-page .qt-v > .qt-listwidget,
+.qt-page .qt-v > .qt-datatable,
+.qt-page .qt-v > .qt-splitter,
+.qt-page .qt-v > .qt-stack { flex-shrink: 1; }
+
+/* Wide screens: the page becomes two columns. The primary surfaces -- a tab
+   widget, a splitter, a table, anything Qt gave a stretch factor, and any
+   toolbar row -- keep the full width, because halving them is what made an
+   earlier attempt at this worse. Everything else pairs up, which is where the
+   height goes. `dense` lets a short box fill a gap a spanning one left. */
+@media (min-width: 1200px) {
+  .qt-page > .qt-layout.qt-v {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: dense;
+    gap: 10px 14px;
+    align-content: start;
+  }
+  .qt-page > .qt-layout.qt-v > .qt-h,
+  .qt-page > .qt-layout.qt-v > .qt-grow,
+  .qt-page > .qt-layout.qt-v > .qt-tabwidget,
+  .qt-page > .qt-layout.qt-v > .qt-splitter,
+  .qt-page > .qt-layout.qt-v > .qt-stack,
+  .qt-page > .qt-layout.qt-v > .qt-datatable,
+  .qt-page > .qt-layout.qt-v > .qt-page-title,
+  .qt-page > .qt-layout.qt-v > .qt-section-title,
+  .qt-page > .qt-layout.qt-v > .qt-subtitle { grid-column: 1 / -1; }
+  /* A page that is essentially one panel keeps its single column. */
+  .qt-page > .qt-layout.qt-v:has(> .qt-grow:only-child) { display: flex; }
+}
+
+/* A form field stops growing at a readable measure. A "Citation" box 900px
+   wide is harder to read than one at 40rem, and the space is better spent on
+   the column beside it. */
+#research-hub .qt-form > .qt-form-row > .qt-input,
+#research-hub .qt-form > .qt-form-row > .qt-select,
+#research-hub .qt-stacked > .qt-input,
+#research-hub .qt-stacked > .qt-select { max-width: 42rem; }
+
+/* An empty table or list states its shape without claiming the page. It grows
+   again the moment it holds something. */
+.qt-datatable:not(.has-rows) { max-height: 8rem; }
+.qt-listwidget:empty { max-height: 8rem; }
+
+/* A box allowed to shrink must SCROLL, not clip. `.qt-grow` marks the ones Qt
+   gave a stretch factor — they absorb spare space, and when there is none they
+   were quietly cutting their content off instead of offering it. */
+.qt-page .qt-v > .qt-grow { overflow: auto; scrollbar-width: thin; }
+.qt-page .qt-section.qt-grow > .qt-section-body { overflow: auto; scrollbar-width: thin; }
+
+/* A grid item with `overflow: hidden` has an automatic minimum size of ZERO,
+   so the row is free to be shorter than its content — which is how an *open*
+   CollapsibleSection was still losing 399px inside an otherwise fixed page.
+   Letting it overflow visibly restores the content-based minimum, the row grows
+   to fit, and the page scrolls instead of cutting. A shut section is one line
+   tall and none of this applies to it. */
+.qt-page .qt-section[open]:not(.qt-grow) { overflow: visible; min-height: auto; }

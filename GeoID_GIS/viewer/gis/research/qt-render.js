@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260808-81e08f4";
-import * as store from "./project-store.js?v=20260808-81e08f4";
-import { el, statusLine } from "./pages/common.js?v=20260808-81e08f4";
-import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-81e08f4";
+import { handlerFor } from "./spec-page.js?v=20260808-abdc9bf";
+import * as store from "./project-store.js?v=20260808-abdc9bf";
+import { el, statusLine } from "./pages/common.js?v=20260808-abdc9bf";
+import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-abdc9bf";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -66,7 +66,12 @@ function applyBox(node, spec) {
   // stretch factor governs only the *extra* space, with the widget still
   // getting its size hint first. Ingest's registry section carries
   // `addWidget(pulled_sec, 1)` and collapsed to 2px under the zero basis.
-  if (spec.stretch) node.style.flex = `${spec.stretch} 1 auto`;
+  if (spec.stretch) {
+    node.style.flex = `${spec.stretch} 1 auto`;
+    // Marked as well as styled: this is the page's main work surface, and the
+    // wide-screen layout gives it the full width rather than half of it.
+    node.classList.add("qt-grow");
+  }
   // `addWidget(btn, 0, Qt.AlignLeft)` means the widget keeps its size hint
   // instead of filling the row -- without this every such button stretched the
   // full width of its column, which is the single most obvious way a rebuilt
