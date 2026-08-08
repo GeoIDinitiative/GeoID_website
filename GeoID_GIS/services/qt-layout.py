@@ -245,6 +245,20 @@ class PageReader(ast.NodeVisitor):
         if method is None or self.depth > 3:
             return False
         inner = PageReader(self.methods, self.depth + 1)
+        # A parameter bound to a *literal* at the call site is a constant inside
+        # the body — `_make_input_card("Training Dataset", "CSV / NetCDF…", …)`
+        # passes the card's title and description as strings, and binding only
+        # variables left every card's QLabel(title) with no text at all.
+        inner.consts = dict(self.consts)
+        params_ = [a.arg for a in method.args.args[1:]]
+        for param, arg in zip(params_, call.args):
+            value = const(arg)
+            if value is not None:
+                inner.consts[param] = value
+        for kw in call.keywords:
+            value = const(kw.value)
+            if kw.arg and value is not None:
+                inner.consts[kw.arg] = value
         for stmt in method.body:
             inner.visit(stmt)
 

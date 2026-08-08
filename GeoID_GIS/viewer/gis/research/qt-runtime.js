@@ -1,10 +1,10 @@
-import * as store from "./project-store.js?v=20260808-605b7bd";
-import * as stats from "./stats.js?v=20260808-605b7bd";
-import * as dsp from "./dsp.js?v=20260808-605b7bd";
-import { parseTable, column } from "./table.js?v=20260808-605b7bd";
-import { linePlot, heatmap } from "./plot.js?v=20260808-605b7bd";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-605b7bd";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260808-605b7bd";
+import * as store from "./project-store.js?v=20260808-4e25c60";
+import * as stats from "./stats.js?v=20260808-4e25c60";
+import * as dsp from "./dsp.js?v=20260808-4e25c60";
+import { parseTable, column } from "./table.js?v=20260808-4e25c60";
+import { linePlot, heatmap } from "./plot.js?v=20260808-4e25c60";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260808-4e25c60";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260808-4e25c60";
 
 /**
  * The parts of a page the app builds while it runs.

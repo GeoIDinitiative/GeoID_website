@@ -26,14 +26,14 @@
           "kind": "QLabel",
           "node": "widget",
           "objectName": "SourceCardTitle",
-          "text": null,
+          "text": "Training Dataset",
           "var": "_m2_t"
          },
          {
           "kind": "QLabel",
           "node": "widget",
           "objectName": "SourceCardDesc",
-          "text": null,
+          "text": "CSV / NetCDF / binary file to train on",
           "var": "_m2_d",
           "wrap": true
          },
@@ -67,14 +67,14 @@
           "kind": "QLabel",
           "node": "widget",
           "objectName": "SourceCardTitle",
-          "text": null,
+          "text": "Reference Corpus",
           "var": "_m4_t"
          },
          {
           "kind": "QLabel",
           "node": "widget",
           "objectName": "SourceCardDesc",
-          "text": null,
+          "text": "Root folder with reference weather/signal data",
           "var": "_m4_d",
           "wrap": true
          },
@@ -108,14 +108,14 @@
           "kind": "QLabel",
           "node": "widget",
           "objectName": "SourceCardTitle",
-          "text": null,
+          "text": "Trainer Script",
           "var": "_m6_t"
          },
          {
           "kind": "QLabel",
           "node": "widget",
           "objectName": "SourceCardDesc",
-          "text": null,
+          "text": "Python training script to execute",
           "var": "_m6_d",
           "wrap": true
          },
@@ -149,14 +149,14 @@
           "kind": "QLabel",
           "node": "widget",
           "objectName": "SourceCardTitle",
-          "text": null,
+          "text": "Output Directory",
           "var": "_m8_t"
          },
          {
           "kind": "QLabel",
           "node": "widget",
           "objectName": "SourceCardDesc",
-          "text": null,
+          "text": "Where model weights and artefacts are saved",
           "var": "_m8_d",
           "wrap": true
          },
@@ -15194,7 +15194,7 @@
            },
            "kind": "QGroupBox",
            "node": "widget",
-           "text": null,
+           "text": "Model series",
            "var": "model_box"
           },
           {
@@ -15248,7 +15248,7 @@
            },
            "kind": "QGroupBox",
            "node": "widget",
-           "text": null,
+           "text": "Real dataset",
            "var": "obs_box"
           },
           {
@@ -15302,7 +15302,7 @@
            },
            "kind": "QGroupBox",
            "node": "widget",
-           "text": null,
+           "text": "Other model series",
            "var": "peer_box"
           },
           {

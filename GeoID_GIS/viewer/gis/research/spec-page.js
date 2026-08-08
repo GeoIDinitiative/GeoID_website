@@ -1,10 +1,10 @@
-import { getPage, registerPage } from "./stages.js?v=20260808-605b7bd";
-import { qtMount, loadLayouts } from "./qt-render.js?v=20260808-605b7bd";
-import * as store from "./project-store.js?v=20260808-605b7bd";
+import { getPage, registerPage } from "./stages.js?v=20260808-4e25c60";
+import { qtMount, loadLayouts } from "./qt-render.js?v=20260808-4e25c60";
+import * as store from "./project-store.js?v=20260808-4e25c60";
 import {
   el, button, row, field, input, selectOf, statusLine, needProject,
   pageHeader, toolbar, collapsible, tabbedPanel, editorCard, dataTable,
-} from "./pages/common.js?v=20260808-605b7bd";
+} from "./pages/common.js?v=20260808-4e25c60";
 
 /**
  * Build a page from `qt-spec.json` — the structure the Qt app actually has,
@@ -441,7 +441,12 @@ export function completedMount(pageId, inner) {
       ...Object.keys(spec.placeholders || {}),
       ...Object.keys(spec.options || {}),
     ])]
-      .filter((v) => !paired.has(v) && !controls.has(v))
+      // A control the tree already rendered carries its Qt variable as
+      // data-var; a <select> has no placeholder attribute, so the text-based
+      // check below cannot see it and the completion appended a dead duplicate
+      // of AI Trainer's live data-bus combo.
+      .filter((v) => !paired.has(v) && !controls.has(v)
+        && !host.querySelector(`[data-var="${CSS.escape(v)}"]`))
       .filter((v) => {
         const wanted = [spec.placeholders?.[v], ...(spec.options?.[v] || [])]
           .filter(Boolean);

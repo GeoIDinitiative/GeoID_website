@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260808-605b7bd";
-import * as store from "./project-store.js?v=20260808-605b7bd";
-import { el, statusLine } from "./pages/common.js?v=20260808-605b7bd";
-import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-605b7bd";
+import { handlerFor } from "./spec-page.js?v=20260808-4e25c60";
+import * as store from "./project-store.js?v=20260808-4e25c60";
+import { el, statusLine } from "./pages/common.js?v=20260808-4e25c60";
+import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260808-4e25c60";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -86,6 +86,9 @@ const LABEL_ROLE = {
   PageSubtitle: ["p", "qt-subtitle"],
   MutedLabel: ["p", "qt-muted"],
   PillLabel: ["span", "qt-pill"],
+  SectionLabel: ["h3", "qt-section-title"],
+  SourceCardTitle: ["h4", "qt-card-title"],
+  SourceCardDesc: ["p", "qt-card-desc"],
   FieldLabel: ["span", "qt-form-label"],
   StatLabel: ["span", "qt-form-label"],
 };
@@ -539,11 +542,15 @@ export function renderTree(spec, ctx) {
 
     // QWidget / QFrame / QSplitter / QStackedWidget: a plain container for
     // whatever it holds. The stack gets its own class because it is the one a
-    // page's runtime needs to find and fill -- Map's right-hand pane.
+    // page's runtime needs to find and fill -- Map's right-hand pane. A frame
+    // the app names as a card ("SourceCard", "Card") gets card chrome, which
+    // is what its stylesheet gives it.
     const inner = renderNode(node.content);
     if (!inner && kind !== "QStackedWidget") return null;
+    const isCard = /card/i.test(node.objectName || "");
     const wrap = el("div", kind === "QSplitter" ? "qt-splitter"
-      : kind === "QStackedWidget" ? "qt-stack" : "qt-container");
+      : kind === "QStackedWidget" ? "qt-stack"
+      : isCard ? "qt-container qt-source-card" : "qt-container");
     if (inner) wrap.appendChild(inner);
     return wrap;
   }
@@ -567,7 +574,7 @@ export function renderTree(spec, ctx) {
  */
 const NEVER_PAIR = ".qt-h, .qt-tabwidget, .qt-splitter, .qt-stack, .qt-datatable,"
   + " .qt-listwidget, .qt-scroll, .qt-expand, .qt-page-title, .qt-subtitle,"
-  + " .qt-section-title, .qt-stretch, .qt-spacing, .qt-figure";
+  + " .qt-section-title, .qt-stretch, .qt-spacing, .qt-figure, details";
 
 function packRoot(root) {
   const pairable = (node) => node.nodeType === 1

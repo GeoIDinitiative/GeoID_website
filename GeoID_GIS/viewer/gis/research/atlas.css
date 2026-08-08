@@ -2207,3 +2207,37 @@
 .qt-page details.qt-section,
 .research-page details.qt-section { min-height: 36px; }
 .qt-page details.qt-section.qt-grow[open] { min-height: 11rem; }
+
+/* ── Source cards (AI Trainer and kin) ────────────────────────────────────
+   A QFrame the app names "SourceCard": title, one-line description, path
+   field, full-width Browse. Equal cards in a row — align-self stretch so four
+   of them stand shoulder to shoulder even when a description wraps to two
+   lines and the others stay on one. */
+.qt-source-card {
+  flex: 1 1 0;
+  min-width: 0;
+  align-self: stretch;
+  padding: 10px 12px;
+  border: 1px solid var(--atlas-line);
+  border-radius: 8px;
+  background: var(--atlas-card);
+}
+.qt-source-card > .qt-v { height: 100%; }
+.qt-source-card .qt-card-title {
+  margin: 0;
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--text);
+}
+.qt-source-card .qt-card-desc {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--atlas-muted);
+  white-space: normal;
+}
+/* The description absorbs the slack so the field and Browse pin to the foot
+   and line up across all four cards. */
+.qt-source-card .qt-card-desc { flex: 1 1 auto; }
+.qt-source-card .qt-button { width: 100%; }

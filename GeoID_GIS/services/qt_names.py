@@ -79,7 +79,11 @@ def rename_tree(node):
                 node[key] = rename_text(value)
             elif key == "var":
                 node[key] = rename_var(value)
-            elif key in ("items", "headers") and isinstance(value, list):
+            elif key in ("items", "headers", "buttons") and isinstance(value, list):
+                # "buttons" carries plain label strings — leaving it out kept
+                # "Load Thesis Inputs" in qt-spec.json while the rendered tree
+                # said "Load Event Inputs", and the completion appended the old
+                # name as a disabled ghost beside its renamed, wired twin.
                 node[key] = [rename_text(v) for v in value]
             else:
                 rename_tree(value)
