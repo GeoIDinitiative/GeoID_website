@@ -17,7 +17,172 @@
      "var": "cards_label"
     },
     {
-     "children": [],
+     "children": [
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "SourceCardTitle",
+          "text": null,
+          "var": "_m2_t"
+         },
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "SourceCardDesc",
+          "text": null,
+          "var": "_m2_d",
+          "wrap": true
+         },
+         {
+          "kind": "QLineEdit",
+          "node": "widget",
+          "text": null,
+          "var": "dataset_path"
+         },
+         {
+          "kind": "QPushButton",
+          "node": "widget",
+          "objectName": "SourceCardBtn",
+          "text": "Browse",
+          "var": "_m2_btn"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "kind": "QFrame",
+       "node": "widget",
+       "objectName": "SourceCard",
+       "text": null,
+       "var": "__factory1"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "SourceCardTitle",
+          "text": null,
+          "var": "_m4_t"
+         },
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "SourceCardDesc",
+          "text": null,
+          "var": "_m4_d",
+          "wrap": true
+         },
+         {
+          "kind": "QLineEdit",
+          "node": "widget",
+          "text": null,
+          "var": "reference_root"
+         },
+         {
+          "kind": "QPushButton",
+          "node": "widget",
+          "objectName": "SourceCardBtn",
+          "text": "Browse",
+          "var": "_m4_btn"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "kind": "QFrame",
+       "node": "widget",
+       "objectName": "SourceCard",
+       "text": null,
+       "var": "__factory3"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "SourceCardTitle",
+          "text": null,
+          "var": "_m6_t"
+         },
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "SourceCardDesc",
+          "text": null,
+          "var": "_m6_d",
+          "wrap": true
+         },
+         {
+          "kind": "QLineEdit",
+          "node": "widget",
+          "text": null,
+          "var": "trainer_script"
+         },
+         {
+          "kind": "QPushButton",
+          "node": "widget",
+          "objectName": "SourceCardBtn",
+          "text": "Browse",
+          "var": "_m6_btn"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "kind": "QFrame",
+       "node": "widget",
+       "objectName": "SourceCard",
+       "text": null,
+       "var": "__factory5"
+      },
+      {
+       "content": {
+        "children": [
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "SourceCardTitle",
+          "text": null,
+          "var": "_m8_t"
+         },
+         {
+          "kind": "QLabel",
+          "node": "widget",
+          "objectName": "SourceCardDesc",
+          "text": null,
+          "var": "_m8_d",
+          "wrap": true
+         },
+         {
+          "kind": "QLineEdit",
+          "node": "widget",
+          "text": null,
+          "var": "export_dir"
+         },
+         {
+          "kind": "QPushButton",
+          "node": "widget",
+          "objectName": "SourceCardBtn",
+          "text": "Browse",
+          "var": "_m8_btn"
+         }
+        ],
+        "kind": "QVBoxLayout",
+        "node": "layout"
+       },
+       "kind": "QFrame",
+       "node": "widget",
+       "objectName": "SourceCard",
+       "text": null,
+       "var": "__factory7"
+      }
+     ],
      "kind": "QHBoxLayout",
      "node": "layout"
     },
@@ -10646,32 +10811,134 @@
           "content": {
            "children": [
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "gales_mesh_path"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m4_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Mesh file",
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "gales_station_file"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m6_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Station file",
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "gales_surface_file"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m8_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Surface file",
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "gales_grid_dir"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m10_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Grid directory",
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "gales_results_dir"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m12_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Results directory",
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "gales_output_dir"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m14_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Output directory",
              "node": "row"
             },
@@ -10905,7 +11172,30 @@
                "node": "row"
               },
               {
-               "child": null,
+               "child": {
+                "children": [
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "text": "x",
+                  "var": "x_col"
+                 },
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "text": "y",
+                  "var": "y_col"
+                 },
+                 {
+                  "kind": "QLineEdit",
+                  "node": "widget",
+                  "text": "z",
+                  "var": "z_col"
+                 }
+                ],
+                "kind": "QHBoxLayout",
+                "node": "layout"
+               },
                "label": "X/Y/Z columns",
                "node": "row"
               },
@@ -10936,7 +11226,7 @@
                 "node": "widget",
                 "placeholder": "name,x,y,z,entity\nP1,0.25,0.25,0.0,1\nP2,0.75,0.5,0.0,1",
                 "text": null,
-                "var": "points"
+                "var": "probes"
                },
                "label": "Probe definitions",
                "node": "row"
@@ -13440,32 +13730,134 @@
           {
            "children": [
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "thesis_peaks_root"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m5_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Peaks root",
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "thesis_output_dir"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m7_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Output dir",
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "thesis_eq_csv"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m9_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Earthquake CSV",
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "thesis_volcanic_csv"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m11_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Volcanic CSV",
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "thesis_bandpassed_root"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m13_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Bandpassed root",
              "node": "row"
             },
             {
-             "child": null,
+             "child": {
+              "children": [
+               {
+                "kind": "QLineEdit",
+                "node": "widget",
+                "text": null,
+                "var": "thesis_templates_root"
+               },
+               {
+                "kind": "QPushButton",
+                "node": "widget",
+                "text": "Browse",
+                "var": "_m15_button"
+               }
+              ],
+              "kind": "QHBoxLayout",
+              "node": "layout"
+             },
              "label": "Templates root",
              "node": "row"
             },
@@ -13724,6 +14116,168 @@
             "children": [
              {
               "child": {
+               "children": [
+                {
+                 "kind": "QLineEdit",
+                 "node": "widget",
+                 "text": null,
+                 "var": "model_path"
+                },
+                {
+                 "kind": "QPushButton",
+                 "node": "widget",
+                 "text": "Browse",
+                 "var": "_m1_browse"
+                }
+               ],
+               "kind": "QHBoxLayout",
+               "node": "layout"
+              },
+              "label": "CSV path",
+              "node": "row"
+             },
+             {
+              "child": {
+               "kind": "QComboBox",
+               "node": "widget",
+               "text": null,
+               "var": "model_t"
+              },
+              "label": "Time column",
+              "node": "row"
+             },
+             {
+              "child": {
+               "kind": "QComboBox",
+               "node": "widget",
+               "text": null,
+               "var": "model_y"
+              },
+              "label": "Value column",
+              "node": "row"
+             }
+            ],
+            "kind": "QFormLayout",
+            "node": "layout"
+           },
+           "kind": "QGroupBox",
+           "node": "widget",
+           "text": null,
+           "var": "model_box"
+          },
+          {
+           "content": {
+            "children": [
+             {
+              "child": {
+               "children": [
+                {
+                 "kind": "QLineEdit",
+                 "node": "widget",
+                 "text": null,
+                 "var": "obs_path"
+                },
+                {
+                 "kind": "QPushButton",
+                 "node": "widget",
+                 "text": "Browse",
+                 "var": "_m2_browse"
+                }
+               ],
+               "kind": "QHBoxLayout",
+               "node": "layout"
+              },
+              "label": "CSV path",
+              "node": "row"
+             },
+             {
+              "child": {
+               "kind": "QComboBox",
+               "node": "widget",
+               "text": null,
+               "var": "obs_t"
+              },
+              "label": "Time column",
+              "node": "row"
+             },
+             {
+              "child": {
+               "kind": "QComboBox",
+               "node": "widget",
+               "text": null,
+               "var": "obs_y"
+              },
+              "label": "Value column",
+              "node": "row"
+             }
+            ],
+            "kind": "QFormLayout",
+            "node": "layout"
+           },
+           "kind": "QGroupBox",
+           "node": "widget",
+           "text": null,
+           "var": "obs_box"
+          },
+          {
+           "content": {
+            "children": [
+             {
+              "child": {
+               "children": [
+                {
+                 "kind": "QLineEdit",
+                 "node": "widget",
+                 "text": null,
+                 "var": "peer_path"
+                },
+                {
+                 "kind": "QPushButton",
+                 "node": "widget",
+                 "text": "Browse",
+                 "var": "_m3_browse"
+                }
+               ],
+               "kind": "QHBoxLayout",
+               "node": "layout"
+              },
+              "label": "CSV path",
+              "node": "row"
+             },
+             {
+              "child": {
+               "kind": "QComboBox",
+               "node": "widget",
+               "text": null,
+               "var": "peer_t"
+              },
+              "label": "Time column",
+              "node": "row"
+             },
+             {
+              "child": {
+               "kind": "QComboBox",
+               "node": "widget",
+               "text": null,
+               "var": "peer_y"
+              },
+              "label": "Value column",
+              "node": "row"
+             }
+            ],
+            "kind": "QFormLayout",
+            "node": "layout"
+           },
+           "kind": "QGroupBox",
+           "node": "widget",
+           "text": null,
+           "var": "peer_box"
+          },
+          {
+           "content": {
+            "children": [
+             {
+              "child": {
                "items": [
                 "Model series",
                 "Real dataset",
@@ -13847,7 +14401,7 @@
              "kind": "QLabel",
              "node": "widget",
              "text": "Recipe",
-             "var": "__inline1"
+             "var": "__inline16"
             },
             {
              "kind": "QComboBox",

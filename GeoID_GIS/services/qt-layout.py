@@ -84,15 +84,123 @@ def const_list(node):
 class PageReader(ast.NodeVisitor):
     """Reads one page class into widgets, layouts and an ordered add-list."""
 
-    def __init__(self):
+    def __init__(self, methods=None, depth=0):
         self.widgets = {}     # var -> {kind, text, props}
         self.layouts = {}     # var -> {kind, owner}
         self.adds = []        # (line, owner_layout, op, payload)
         self.tabs = []        # (line, tabwidget_var, child_widget_var, label)
         self.counter = 0
+        # The class's own methods, so a factory call can be inlined.
+        self.methods = methods or {}
+        self.depth = depth
+
+    def inline_method(self, name, call, targets):
+        """Inline `self._series_box("…")` at its call site.
+
+        A page builds part of itself in a helper that *returns* a widget or a
+        layout — `_series_box` (app_qt.py:10750) returns a QGroupBox holding a
+        three-row form, and `_browse_row` returns a QHBoxLayout of a field and
+        its Browse button. The call site is the only thing `__init__` shows, so
+        the whole box was invisible to the tree.
+
+        The method body is read with its own reader, its variables are renamed
+        so they cannot collide with the caller's, its parameters are bound to
+        whatever the caller passed, and what it returns is bound to whatever the
+        caller assigned. After that it is indistinguishable from code written
+        inline, which is what it is.
+        """
+        method = self.methods.get(name)
+        if method is None or self.depth > 3:
+            return False
+        inner = PageReader(self.methods, self.depth + 1)
+        for stmt in method.body:
+            inner.visit(stmt)
+
+        self.counter += 1
+        tag = f"_m{self.counter}_"
+
+        # Parameters take the caller's arguments, so a widget passed in stays
+        # the caller's widget rather than becoming a fresh unknown.
+        bound = {}
+        params = [a.arg for a in method.args.args[1:]]
+        for param, arg in zip(params, call.args):
+            supplied = var_of(arg)
+            if supplied:
+                bound[param] = supplied
+        # Keywords too: `self._browse_row(self.thesis_peaks_root, file_mode=False)`
+        # is how most of these are actually called.
+        for kw in call.keywords:
+            supplied = var_of(kw.value) if kw.arg else None
+            if kw.arg and supplied:
+                bound[kw.arg] = supplied
+
+        def rename(var):
+            if var is None or var == "self":
+                return var
+            if var in bound:
+                return bound[var]
+            if var in inner.widgets or var in inner.layouts:
+                return tag + var
+            return var
+
+        for var, info in inner.widgets.items():
+            self.widgets.setdefault(tag + var, info)
+        for var, info in inner.layouts.items():
+            info = dict(info)
+            info["owner"] = rename(info["owner"])
+            self.layouts.setdefault(tag + var, info)
+        for line, owner, op, payload in inner.adds:
+            payload = dict(payload)
+            if "child" in payload:
+                payload["child"] = rename(payload["child"])
+            self.adds.append((line, rename(owner), op, payload))
+        for line, tabwidget, child, text in inner.tabs:
+            self.tabs.append((line, rename(tabwidget), rename(child), text))
+
+        # What the method returns, bound to what the caller assigned.
+        returned = next((st.value for st in ast.walk(method)
+                         if isinstance(st, ast.Return) and st.value is not None), None)
+        if returned is None:
+            return True
+        names = ([var_of(e) for e in returned.elts]
+                 if isinstance(returned, (ast.Tuple, ast.List)) else [var_of(returned)])
+        for target, source in zip(targets, names):
+            if not target or not source:
+                continue
+            renamed = rename(source)
+            if renamed in self.widgets:
+                self.widgets[target] = self.widgets[renamed]
+            elif renamed in self.layouts:
+                self.layouts[target] = self.layouts[renamed]
+            # Anything already added under the inner name must follow the alias.
+            for index, (line, owner, op, payload) in enumerate(self.adds):
+                if owner == renamed:
+                    self.adds[index] = (line, target, op, payload)
+                elif payload.get("child") == renamed:
+                    fixed = dict(payload)
+                    fixed["child"] = target
+                    self.adds[index] = (line, owner, op, fixed)
+            if renamed in self.layouts:
+                self.layouts[target] = self.layouts.pop(renamed)
+            for var, info in self.layouts.items():
+                if info.get("owner") == renamed:
+                    info["owner"] = target
+        return True
 
     # `x = QtWidgets.Something(...)`
     def visit_Assign(self, node):
+        # `path, t_col, y_col, group = self._series_box("…")`
+        if isinstance(node.value, ast.Call) and isinstance(node.value.func, ast.Attribute) \
+                and var_of(node.value.func.value) == "self" \
+                and node.value.func.attr in self.methods:
+            targets = []
+            for target in node.targets:
+                if isinstance(target, (ast.Tuple, ast.List)):
+                    targets = [var_of(e) for e in target.elts]
+                else:
+                    targets = [var_of(target)]
+            if self.inline_method(node.value.func.attr, node.value, targets):
+                return
         if isinstance(node.value, ast.Call):
             kind = name_of(node.value)
             for target in node.targets:
@@ -193,6 +301,26 @@ class PageReader(ast.NodeVisitor):
 
     def visit_Call(self, node):
         fn = node.func
+        # `layout.addLayout(self._browse_row(self.field, False))` -- inline the
+        # factory, then add whatever it returned.
+        # A factory can be the child of addWidget/addLayout, or the *field* of
+        # an addRow -- `form.addRow("Peaks root", self._browse_row(field, False))`
+        # is how most of Signal Processing's form is written.
+        slot = {"addWidget": 0, "addLayout": 0, "addRow": 1}.get(
+            fn.attr if isinstance(fn, ast.Attribute) else "")
+        if slot is not None and len(node.args) > slot \
+                and isinstance(node.args[slot], ast.Call) \
+                and isinstance(node.args[slot].func, ast.Attribute) \
+                and var_of(node.args[slot].func.value) == "self" \
+                and node.args[slot].func.attr in self.methods:
+            self.counter += 1
+            alias = f"__factory{self.counter}"
+            if self.inline_method(node.args[slot].func.attr, node.args[slot], [alias]):
+                args = list(node.args)
+                args[slot] = ast.Name(id=alias, ctx=ast.Load())
+                node = ast.copy_location(
+                    ast.Call(func=fn, args=args, keywords=node.keywords), node)
+                fn = node.func
         if isinstance(fn, ast.Attribute):
             owner = var_of(fn.value)
             op = fn.attr
@@ -528,7 +656,9 @@ def extract():
     for node in ast.walk(tree):
         if not isinstance(node, ast.ClassDef) or node.name not in mapping:
             continue
-        reader = PageReader()
+        methods = {m.name: m for m in node.body if isinstance(m, ast.FunctionDef)
+                   and m.name != "__init__"}
+        reader = PageReader(methods)
         for item in node.body:
             reader.visit(item)
         # The page's root layout is the one constructed with `self`.
