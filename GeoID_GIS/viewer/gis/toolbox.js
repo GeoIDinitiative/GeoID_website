@@ -1,5 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260810a";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260810a";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260810c";
+import { currentBody } from "./bodies.js?v=20260810c";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260810c";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -81,12 +82,35 @@ const TAB_ORDER = [
   "gis-group-metadata",
 ];
 
+/**
+ * The tabs this world actually gets.
+ *
+ * Off Earth, some panels have nothing behind them: the Analysis Hub models an
+ * Earth hazard, the Events feed is NASA EONET, and Earth Engine is Earth's.
+ * Those are dropped by the body registry rather than by a check here, so a new
+ * world is a record rather than another branch. Panels that simply do not
+ * exist in a viewer -- most planets have no basemap or sea-level section --
+ * need no entry at all: the loop below already skips what it cannot find,
+ * which is why Mars keeps its sea level and the gas giants silently do not.
+ */
+function tabsForBody() {
+  const drop = new Set(currentBody()?.tabs?.drop || []);
+  return TAB_ORDER.filter((id) => !drop.has(id));
+}
+
 function orderTabs(toolbox) {
-  TAB_ORDER.forEach((id) => {
+  const drop = new Set(currentBody()?.tabs?.drop || []);
+  tabsForBody().forEach((id) => {
     const node = document.getElementById(id);
     if (!node) return;
     rememberHome(node);
     toolbox.appendChild(node);
+  });
+  // A dropped panel is hidden rather than left loose in the sidebar, where it
+  // would still be reachable and still be empty.
+  drop.forEach((id) => {
+    const node = document.getElementById(id);
+    if (node) node.hidden = true;
   });
 }
 

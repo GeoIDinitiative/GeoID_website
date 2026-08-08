@@ -1,6 +1,6 @@
-import { registerPage } from "../stages.js?v=20260810a";
-import * as store from "../project-store.js?v=20260810a";
-import * as bridge from "../bridge.js?v=20260810a";
+import { registerPage } from "../stages.js?v=20260810c";
+import * as store from "../project-store.js?v=20260810c";
+import * as bridge from "../bridge.js?v=20260810c";
 
 /**
  * Dashboard: what is open, what it knows, and the ways across to the other

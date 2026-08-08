@@ -3643,6 +3643,63 @@ canvas {
        Same structure as the Qt studio (header + two toolbars + left/right
        tab decks around the viewport), restyled into this GUI's palette
        instead of the Atlas purple/cyan QSS. */
+    /* ── Worlds strip, bottom centre ────────────────────────────────────── */
+    /* Centred on the viewport rather than on the globe area: the sidebar and
+       the tool rail are both fixed, so a centred strip stays put whether or
+       not they are open. */
+    .gis-planet-strip {
+      position: fixed;
+      left: 50%;
+      bottom: 0.6rem;
+      transform: translateX(-50%);
+      z-index: 12;
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.3rem 0.75rem;
+      border: 1px solid rgba(82, 228, 232, 0.28);
+      border-radius: 999px;
+      background: rgba(6, 10, 16, 0.72);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    }
+    .gis-planet-strip[hidden] { display: none; }
+
+    .gis-planet-strip .planet-node {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.1rem;
+      height: 2.1rem;
+      border: 0;
+      border-radius: 50%;
+      background: none;
+      cursor: pointer;
+      opacity: 0.62;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .gis-planet-strip .planet-node:hover { opacity: 1; transform: scale(1.12); }
+    .gis-planet-strip .planet-icon {
+      width: var(--icon-size, 24px);
+      height: var(--icon-size, 24px);
+      object-fit: contain;
+      pointer-events: none;
+    }
+    /* Where you are: full strength, with a ring rather than a colour change so
+       the planet's own image still reads. */
+    .gis-planet-strip .planet-node.is-current {
+      opacity: 1;
+      cursor: default;
+      box-shadow: 0 0 0 1px rgba(var(--nav-accent-rgb), 0.9),
+        0 0 14px rgba(var(--nav-accent-rgb), 0.35);
+    }
+    .gis-planet-strip .planet-node.is-current:hover { transform: none; }
+
+    @media (max-height: 560px) and (orientation: landscape) {
+      .gis-planet-strip { bottom: 0.3rem; padding: 0.2rem 0.5rem; gap: 0.35rem; }
+      .gis-planet-strip .planet-node { width: 1.6rem; height: 1.6rem; }
+    }
+
     /* ── Research Hub ───────────────────────────────────────────────────── */
     /* Full screen like the Meshing Studio, but opaque: the hub is a workspace,
        not an overlay on the globe, and reading a table through a rotating

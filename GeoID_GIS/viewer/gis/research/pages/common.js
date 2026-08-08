@@ -1,5 +1,5 @@
-import * as store from "../project-store.js?v=20260810a";
-import { parseTable, column } from "../table.js?v=20260810a";
+import * as store from "../project-store.js?v=20260810c";
+import { parseTable, column } from "../table.js?v=20260810c";
 
 /**
  * The furniture every Research page uses.

@@ -11121,6 +11121,28 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       baseMaterial.needsUpdate = true;
 
       const globe = new THREE.Mesh(sphereGeometry, baseMaterial);
+
+      // -- GeoID GIS seam ------------------------------------------------
+      // The same contract earth-viewer.js exposes, so the shared gis/ modules
+      // work here without knowing which world they are on. Kept to references
+      // the viewer already has rather than new machinery: this file is not the
+      // place to grow behaviour.
+      window.GeoIDViewer = Object.assign(window.GeoIDViewer || {}, {
+        bodyId: "pluto",
+        scene, camera, renderer, controls, globe,
+        // The object carrying this planet's tilt and spin. Named per lineage;
+        // gis/bodies.js records which name belongs to which world.
+        earthSceneGroup: plutoGroup,
+        elevationSampler,
+        manifest,
+        GLOBE_RADIUS: 3.2,
+        latLonToVector3,
+        // Simulated-UTC spin is an Earth idea. These worlds turn on their own
+        // clocks, and the shared modules only need the angle to be truthful,
+        // so the planet group's own rotation is the answer.
+        getSpinDeltaRadians: () => (plutoGroup ? plutoGroup.rotation.y : 0),
+      });
+      document.body.dataset.body = "pluto";
       globe.rotation.y = 3 * Math.PI / 2;
       plutoGroup.add(globe);
       plutoGlobeRef = globe;
