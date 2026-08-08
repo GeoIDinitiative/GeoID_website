@@ -1,14 +1,14 @@
-import { registerPage } from "../stages.js?v=20260808-b3a4d05";
-import * as store from "../project-store.js?v=20260808-b3a4d05";
-import { column } from "../table.js?v=20260808-b3a4d05";
-import { linePlot } from "../plot.js?v=20260808-b3a4d05";
-import { detrend, bandpass, statistics } from "../dsp.js?v=20260808-b3a4d05";
+import { registerPage } from "../stages.js?v=20260808-0133dd5";
+import * as store from "../project-store.js?v=20260808-0133dd5";
+import { column } from "../table.js?v=20260808-0133dd5";
+import { linePlot } from "../plot.js?v=20260808-0133dd5";
+import { detrend, bandpass, statistics } from "../dsp.js?v=20260808-0133dd5";
 import {
   el, card, field, input, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, loadTable, inferSampling, saveTable,
   pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
   tabbedPanel,
-} from "./common.js?v=20260808-b3a4d05";
+} from "./common.js?v=20260808-0133dd5";
 
 /**
  * The Preprocessing stage.
@@ -541,6 +541,8 @@ const mountInputs = guard("Inputs", async (host, ctx) => {
 // ── Hand-offs ────────────────────────────────────────────────────────────────
 
 mountQaQc.ownHeader = true;
+// Its tabs only fill in once a file is audited.
+mountQaQc.specComplete = true;
 registerPage("QA / QC", { mount: mountQaQc });
 registerPage("Preprocessing Transforms", { mount: mountTransforms });
 registerPage("Temporal Tools", { mount: mountTemporal });

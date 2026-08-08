@@ -1,12 +1,12 @@
-import { registerPage } from "../stages.js?v=20260808-b3a4d05";
-import * as store from "../project-store.js?v=20260808-b3a4d05";
-import * as bridge from "../bridge.js?v=20260808-b3a4d05";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-b3a4d05";
+import { registerPage } from "../stages.js?v=20260808-0133dd5";
+import * as store from "../project-store.js?v=20260808-0133dd5";
+import * as bridge from "../bridge.js?v=20260808-0133dd5";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-0133dd5";
 import {
   el, card, field, input, textarea, selectOf, button, row, statusLine,
   pageHeader, splitPanes, tabbedPanel, editorCard, editorHero, fieldGrid,
   slider, editTable,
-} from "./common.js?v=20260808-b3a4d05";
+} from "./common.js?v=20260808-0133dd5";
 
 /**
  * Projects, laid out as `GeoIDProjectsPage` lays it out (app_qt.py:4570):
@@ -559,4 +559,5 @@ async function mount(host, ctx) {
 }
 
 mount.ownHeader = true;   // draws its own "Projects" title
+mount.specComplete = true;
 registerPage("Projects", { mount });

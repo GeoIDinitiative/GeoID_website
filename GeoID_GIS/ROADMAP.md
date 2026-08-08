@@ -187,11 +187,15 @@ table had missed.
 verbs, per-page handlers in `wiring-pages.js`, and `stats.js` for the maths the
 app hands to SciPy.
 
-The 55 still disabled are the ones that need a process a browser tab does not
-have: gmsh, GALES binaries, Python module execution, plugin install, a model
-for the "AI" buttons. `CANNOT_WIRE` in wiring.js records each reason. Two on
-that list are worth revisiting — a wizard (Build New) and a notebook runner —
-because both are possible, just larger than a handler.
+**Build New and Notebook are now real pages**, not handlers: `pages/builder.js`
+is the ten-step, three-phase wizard writing `fem_runs/<run>/spec.json`, and
+`pages/notebook.js` runs cells — JavaScript, with the project's parsed tables,
+`stats`, `dsp` and `plot` in scope. The notebook says it runs JavaScript rather
+than pretending at Python, because a browser tab has no interpreter to lend it.
+
+**262 of 298 controls wired (88%).** The 36 left need a process a browser does
+not have: gmsh, GALES binaries, Python execution, plugin install, a model for
+the "AI" buttons. `CANNOT_WIRE` in wiring.js records each reason.
 
 It measures **structure only** — titles, tabs, sections, buttons, field
 placeholders, dropdown options, table headers. A page can score 100% and still

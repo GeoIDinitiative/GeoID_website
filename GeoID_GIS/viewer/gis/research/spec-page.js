@@ -1,9 +1,9 @@
-import { getPage, registerPage } from "./stages.js?v=20260808-b3a4d05";
-import * as store from "./project-store.js?v=20260808-b3a4d05";
+import { getPage, registerPage } from "./stages.js?v=20260808-0133dd5";
+import * as store from "./project-store.js?v=20260808-0133dd5";
 import {
   el, button, row, field, input, selectOf, statusLine, needProject,
   pageHeader, toolbar, collapsible, tabbedPanel, editorCard, dataTable,
-} from "./pages/common.js?v=20260808-b3a4d05";
+} from "./pages/common.js?v=20260808-0133dd5";
 
 /**
  * Build a page from `qt-spec.json` — the structure the Qt app actually has,
@@ -299,6 +299,14 @@ function absent(want, have) {
  * do something it does not.
  */
 export function completedMount(pageId, inner) {
+  // A page that implements its spec itself opts out. Some show one step or one
+  // tab at a time on purpose -- the Build New wizard is a ten-step stack -- so
+  // scanning the DOM for its controls finds only the visible ones and the
+  // completion would append a disabled duplicate of every button on the other
+  // nine steps. The audit still measures these pages; this only stops the
+  // remainder being drawn.
+  if (inner?.specComplete) return inner;
+
   async function mount(host, ctx) {
     if (inner) {
       try { await inner(host, ctx); } catch (error) {
@@ -333,25 +341,11 @@ export function completedMount(pageId, inner) {
       headers: Array.from(host.querySelectorAll(".qt-table-head")).map(txt),
     });
 
-    // A tabbed panel renders only its active tab, so a single scrape reports
-    // every control on the other tabs as missing -- and this file would then
-    // add a disabled DUPLICATE of a button that is already there and working.
-    // Visit every tab, union what they show, and put the original back.
+    // One scrape is enough: tabbedPanel keeps every panel in the DOM and hides
+    // the inactive ones, so a hidden control is still findable. This used to
+    // click through the tabs instead, which fired the handlers of any tab that
+    // did more than switch a view.
     const rendered = scrape();
-    const strips = Array.from(host.querySelectorAll(".qt-tabs, .dash-tabs"));
-    for (const strip of strips) {
-      const kids = Array.from(strip.children);
-      const wasActive = kids.find((k) => k.classList.contains("is-active"));
-      for (const tab of kids) {
-        if (tab === wasActive) continue;
-        tab.click();
-        const next = scrape();
-        for (const key of Object.keys(rendered)) {
-          rendered[key] = [...rendered[key], ...next[key]];
-        }
-      }
-      if (wasActive) wasActive.click();
-    }
 
     const handlers = wiring.get(pageId) || {};
     const controls = new Map();

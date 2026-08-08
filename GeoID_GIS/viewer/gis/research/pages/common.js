@@ -1,6 +1,6 @@
-import * as store from "../project-store.js?v=20260808-b3a4d05";
-import { parseTable, column } from "../table.js?v=20260808-b3a4d05";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-b3a4d05";
+import * as store from "../project-store.js?v=20260808-0133dd5";
+import { parseTable, column } from "../table.js?v=20260808-0133dd5";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260808-0133dd5";
 
 /**
  * The furniture every Research page uses.
@@ -390,13 +390,26 @@ export function tabbedPanel(heading, panels) {
   box.appendChild(el("h2", "qt-card-heading", heading));
   const strip = el("div", "qt-tabs");
   const body = el("div", "qt-tab-body");
+  // Every panel is built and kept in the DOM; the inactive ones are hidden.
+  //
+  // Rebuilding on each switch meant anything wanting to know what a page
+  // contains had to CLICK through the tabs, and a tab whose handler does more
+  // than switch views -- the Build New wizard's phase strip navigates -- then
+  // fired that side effect. It rendered the wizard three times over. Nothing
+  // needs to click now.
+  const built = new Map();
   const show = (name) => {
     lastTab.set(heading, name);
-    body.textContent = "";
     Array.from(strip.children).forEach((b) =>
       b.classList.toggle("is-active", b.dataset.tab === name));
-    const made = panels[name]();
-    if (made) body.appendChild(made);
+    if (!built.has(name)) {
+      const wrap = el("div", "qt-tab-panel");
+      const made = panels[name]();
+      if (made) wrap.appendChild(made);
+      built.set(name, wrap);
+      body.appendChild(wrap);
+    }
+    built.forEach((node, key) => { node.hidden = key !== name; });
   };
   Object.keys(panels).forEach((name) => {
     const btn = el("button", "qt-tab", name);
@@ -409,6 +422,8 @@ export function tabbedPanel(heading, panels) {
   const names = Object.keys(panels);
   const remembered = lastTab.get(heading);
   const start = names.includes(remembered) ? remembered : names[0];
+  // Build them all, then reveal the one that should be showing.
+  names.forEach(show);
   if (start) show(start);
   // Exposed so a caller can jump to a tab -- "Open Study Area Map" and friends
   // move between them.

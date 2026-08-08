@@ -1264,3 +1264,50 @@
 .spec-remainder { border-style: dashed; }
 .spec-remainder > .qt-section-head { color: rgba(var(--skin-muted), 0.8); }
 .spec-tally { font-size: 11px; opacity: 0.8; }
+
+/* Build New: the ten step cards under the phase strip. */
+.build-steps { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+.build-step {
+  padding: 5px 10px;
+  border: 1px solid var(--atlas-border);
+  border-radius: 8px;
+  background: var(--atlas-panel);
+  color: var(--atlas-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.build-step:hover { border-color: var(--atlas-chrome); color: var(--atlas-text); }
+.build-step.is-done { color: var(--atlas-data); border-color: rgba(var(--atlas-data-rgb), 0.4); }
+.build-step.is-active {
+  background: var(--atlas-wash);
+  border-color: var(--atlas-wash-edge);
+  color: #ffffff;
+  box-shadow: var(--atlas-glow);
+}
+
+/* Notebook cells. */
+.nb-cell {
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: var(--atlas-card);
+  border: 1px solid var(--atlas-border);
+  border-radius: 10px;
+}
+.nb-cell-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.nb-cell-index {
+  font-family: ui-monospace, monospace;
+  font-size: 10px;
+  color: rgba(var(--atlas-data-rgb), 0.75);
+  margin-right: auto;
+}
+#research-hub .nb-editor {
+  font-family: ui-monospace, "Cascadia Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.nb-output { margin-top: 6px; max-height: 18rem; }
+.nb-output.is-error { color: #ff7b7b; border-color: rgba(255, 123, 123, 0.45); }
+
+/* Inactive tab panels stay in the DOM so nothing has to click to find them. */
+.qt-tab-panel[hidden] { display: none; }

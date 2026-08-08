@@ -1,13 +1,13 @@
-import { registerPage } from "../stages.js?v=20260808-b3a4d05";
-import * as store from "../project-store.js?v=20260808-b3a4d05";
-import * as google from "../google-credentials.js?v=20260808-b3a4d05";
-import { column } from "../table.js?v=20260808-b3a4d05";
-import { linePlot } from "../plot.js?v=20260808-b3a4d05";
-import * as dsp from "../dsp.js?v=20260808-b3a4d05";
+import { registerPage } from "../stages.js?v=20260808-0133dd5";
+import * as store from "../project-store.js?v=20260808-0133dd5";
+import * as google from "../google-credentials.js?v=20260808-0133dd5";
+import { column } from "../table.js?v=20260808-0133dd5";
+import { linePlot } from "../plot.js?v=20260808-0133dd5";
+import * as dsp from "../dsp.js?v=20260808-0133dd5";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, findTables, loadTable, inferSampling, saveTable,
-} from "./common.js?v=20260808-b3a4d05";
+} from "./common.js?v=20260808-0133dd5";
 
 /**
  * AI trainer, the remaining FEM pages, Publish and Settings.
@@ -239,64 +239,6 @@ const mountAutomation = guard("Workflow Automation", async (host) => {
 
 // ── Notebook ─────────────────────────────────────────────────────────────────
 
-const mountNotebook = guard("Notebook", async (host) => {
-  const { node: status, say } = statusLine();
-  const box = card("Analysis notebook");
-  box.appendChild(el("p", "research-note",
-    "Prose and results in one document, kept in analysis/. Not a Python "
-    + "kernel -- the browser has none -- but the place to write down what a "
-    + "figure meant while it is still fresh."));
-
-  let current = null;
-  const list = el("div", "research-list");
-  const nameInput = input("", "new notebook");
-  const editor = textarea("", 20, "Select or create a notebook.");
-  editor.disabled = true;
-
-  async function draw() {
-    list.textContent = "";
-    let entries = [];
-    try {
-      entries = (await store.listProjectDir("analysis"))
-        .filter((e) => e.kind === "file" && e.name.endsWith(".md"));
-    } catch (error) { /* none */ }
-    if (!entries.length) list.appendChild(el("p", "research-note", "No notebooks yet."));
-    entries.forEach((entry) => {
-      const line = el("button", "research-list-row");
-      line.type = "button";
-      line.classList.toggle("is-active", current === entry.name);
-      line.appendChild(el("span", "research-list-name", entry.name));
-      line.addEventListener("click", async () => {
-        const text = await store.readProjectFile(`analysis/${entry.name}`);
-        current = entry.name;
-        editor.value = typeof text === "string" ? text : "";
-        editor.disabled = false;
-        say(`Editing analysis/${entry.name}.`);
-        await draw();
-      });
-      list.appendChild(line);
-    });
-  }
-
-  box.append(list, row(nameInput, button("New", async () => {
-    const safe = nameInput.value.trim().replace(/[^\w\-. ]+/g, "_").replace(/\s+/g, "_");
-    if (!safe) { say("Name it first.", true); return; }
-    const file = safe.endsWith(".md") ? safe : `${safe}.md`;
-    await store.writeProjectFile(`analysis/${file}`,
-      `# ${nameInput.value.trim()}\n\n`);
-    nameInput.value = "";
-    current = file;
-    editor.value = `# ${file.replace(/\.md$/, "")}\n\n`;
-    editor.disabled = false;
-    await draw();
-  })), editor, row(button("Save", async () => {
-    if (!current) { say("Nothing open.", true); return; }
-    await store.writeProjectFile(`analysis/${current}`, editor.value);
-    say(`Saved analysis/${current}.`);
-  })));
-  host.append(box, status);
-  await draw();
-});
 
 // ── FEM: Import / Clone, Build New, Simulation ───────────────────────────────
 
@@ -327,27 +269,6 @@ const mountImportClone = guard("Import / Clone", async (host, ctx) => {
   host.append(box, status);
 });
 
-const mountBuildNew = guard("Build New", async (host, ctx) => {
-  const { node: status } = statusLine();
-  const box = card("Build a new run");
-  box.appendChild(el("p", "research-note",
-    "A run is a folder under fem_runs/ holding a spec.json the solver reads. "
-    + "The four pages below fill in that spec; they are separate because the "
-    + "decisions are, not because the file is."));
-  const steps = el("div", "research-list");
-  [["Setup", "Physics, mesh and time stepping"],
-    ["Properties", "Fluid and solid material properties"],
-    ["IC/BC", "Initial state and boundary conditions"],
-    ["Inputs", "Check the run has everything it names"]]
-    .forEach(([page, what]) => {
-      const line = el("div", "research-list-row");
-      line.append(el("span", "research-list-name", `${page} — ${what}`),
-        button("Open", () => ctx.setPage?.(page), { secondary: true }));
-      steps.appendChild(line);
-    });
-  box.appendChild(steps);
-  host.append(box, status);
-});
 
 const mountSimulation = guard("Simulation", async (host, ctx) => {
   const { node: status, say } = statusLine();
@@ -385,6 +306,11 @@ const mountSimulation = guard("Simulation", async (host, ctx) => {
   say(`${runs.length} run(s).`);
   host.append(box, status);
 });
+
+// Notebook and Build New used to live here as one-card stubs. They are real
+// pages now -- pages/notebook.js runs cells, pages/builder.js is the ten-step
+// wizard -- and two registrations for one page id means whichever module
+// imports last silently wins, which is exactly what happened.
 
 // ── Publish: Docs & Sheets, Figure Composer ──────────────────────────────────
 
@@ -529,7 +455,7 @@ const mountPlugins = guard("Plugin Manager", async (host) => {
     "Which pages have been built and which are still to come. A page registers "
     + "itself with the stage list; nothing here is configuration, it is what is "
     + "actually loaded."));
-  const { STAGES: stages, getPage: get } = await import("../stages.js?v=20260808-b3a4d05");
+  const { STAGES: stages, getPage: get } = await import("../stages.js?v=20260808-0133dd5");
   const table = el("div", "research-table");
   const head = el("div", "research-table-row is-head");
   ["Stage", "Pages", "Built", "Remaining"].forEach((h) => head.appendChild(el("span", null, h)));
@@ -589,9 +515,7 @@ registerPage("${id}", { mount });
 registerPage("Feature Engineering", { mount: mountFeatures });
 registerPage("AI Trainer", { mount: mountTrainer });
 registerPage("Workflow Automation", { mount: mountAutomation });
-registerPage("Notebook", { mount: mountNotebook });
 registerPage("Import / Clone", { mount: mountImportClone });
-registerPage("Build New", { mount: mountBuildNew });
 registerPage("Simulation", { mount: mountSimulation });
 registerPage("Figure Composer", { mount: mountFigures });
 registerPage("Settings", { mount: mountSettings });

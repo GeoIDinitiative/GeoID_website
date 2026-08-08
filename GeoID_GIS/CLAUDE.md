@@ -253,6 +253,20 @@ its Qt tab**. Never make those look live. A page that scores 100% may still do
 almost nothing; the audit measures inventory, never behaviour, and the honest
 signal is the disabled control rather than the percentage.
 
+**`tabbedPanel` keeps every panel in the DOM**, hidden rather than rebuilt.
+It used to rebuild on switch, so anything wanting to know what a page contains
+had to *click* through the tabs — and a tab whose handler does more than switch
+a view then fired that side effect. The Build New wizard's phase strip
+navigates, so scraping it rendered the wizard three times over. Nothing clicks
+to scrape any more; do not reintroduce it.
+
+**A page that shows one step at a time sets `mount.specComplete = true`.**
+The completion finds only the visible controls, so without the flag it appends a
+disabled duplicate of every button on the steps that are not showing. Build New,
+Notebook, Projects and QA/QC carry it. The cost is honest and worth naming: the
+audit can only see what the DOM shows, so a stacked wizard reads as ~3 points of
+"missing" that are not missing at all.
+
 Behaviour goes in `wiring.js`. Three hundred-odd controls are not three hundred
 behaviours: the app reuses the same verbs everywhere, so `wirePattern(/^Refresh$/, fn)`
 wires them once by label across every page, and `wire(pageId, handlers)` covers

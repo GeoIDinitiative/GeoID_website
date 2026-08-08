@@ -1,6 +1,6 @@
-import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-b3a4d05";
-import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-b3a4d05";
-import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-b3a4d05";
+import { STAGES, getPage, stageOf } from "./stages.js?v=20260808-0133dd5";
+import { openDrawer, closeDrawer, currentDrawer } from "./drawers.js?v=20260808-0133dd5";
+import { PAGE_BLURBS } from "./page-blurbs.js?v=20260808-0133dd5";
 
 /**
  * The Research Hub shell, laid out as the Qt app lays it out.
@@ -211,7 +211,28 @@ function renderStub(host, pageId) {
   host.appendChild(box);
 }
 
-async function mountPage(pageId) {
+/**
+ * One mount at a time, and only the newest.
+ *
+ * `setPage`, the project watcher and `setContext` can all ask for a mount, and
+ * a page that awaits anything (every page reads the project) leaves a window
+ * where three of them interleave: each clears the host, then all three append.
+ * Build New rendered its ten step cards three times over because of exactly
+ * that. Queueing serialises them; the token drops any that were superseded
+ * while they waited.
+ */
+let mountToken = 0;
+let mountChain = Promise.resolve();
+
+function mountPage(pageId) {
+  const token = ++mountToken;
+  mountChain = mountChain.then(() => (token === mountToken
+    ? mountPageNow(pageId)
+    : undefined));
+  return mountChain;
+}
+
+async function mountPageNow(pageId) {
   const host = byId("research-page");
   if (!host) return;
   if (mountedPage?.unmount) {
