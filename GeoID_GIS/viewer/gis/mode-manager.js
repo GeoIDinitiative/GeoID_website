@@ -2,7 +2,7 @@
   "use strict";
 
   const MODE_STORAGE_KEY = "geoid-gis:view-mode";
-  const VALID_MODES = ["geoid", "model", "gis"];
+  const VALID_MODES = ["geoid", "model", "gis", "research"];
 
   const EARTH_PANEL_IDS = [
     "tour-mode-section",
@@ -64,26 +64,45 @@
   // way back to GeoID or GIS.
   let modeSwitchHome = null;
 
+  /**
+   * Parks the mode switcher in whichever full-screen page owns the screen.
+   *
+   * The switcher lives in the globe sidebar, which those pages hide -- so
+   * without this, Model and Research are dead ends with no way back. Takes the
+   * slot id rather than assuming the studio, now that two pages need it.
+   */
+  function parkModeSwitch(slotId) {
+    const switcher = document.getElementById("view-mode-switch");
+    if (!switcher) return;
+    const slot = slotId ? document.getElementById(slotId) : null;
+    if (slot) {
+      if (!modeSwitchHome) {
+        modeSwitchHome = { parent: switcher.parentNode, next: switcher.nextSibling };
+      }
+      switcher.classList.add("is-in-studio");
+      slot.appendChild(switcher);
+    } else if (modeSwitchHome) {
+      switcher.classList.remove("is-in-studio");
+      modeSwitchHome.parent.insertBefore(switcher, modeSwitchHome.next);
+      modeSwitchHome = null;
+    }
+  }
+
   function setModelToolboxVisible(visible) {
     const node = document.getElementById("model-studio");
     if (node) {
       node.hidden = !visible;
     }
-    const switcher = document.getElementById("view-mode-switch");
-    const slot = document.getElementById("studio-mode-slot");
-    if (switcher && slot) {
-      if (visible) {
-        if (!modeSwitchHome) {
-          modeSwitchHome = { parent: switcher.parentNode, next: switcher.nextSibling };
-        }
-        switcher.classList.add("is-in-studio");
-        slot.appendChild(switcher);
-      } else if (modeSwitchHome) {
-        switcher.classList.remove("is-in-studio");
-        modeSwitchHome.parent.insertBefore(switcher, modeSwitchHome.next);
-      }
-    }
     document.body.classList.toggle("studio-open", visible);
+  }
+
+  function setResearchHubVisible(visible) {
+    const node = document.getElementById("research-hub");
+    if (node) {
+      node.hidden = !visible;
+    }
+    document.body.classList.toggle("research-open", visible);
+    if (visible) window.GeoIDResearch?.open?.();
   }
 
     function setGeoidGroupVisible(visible) {
@@ -200,13 +219,34 @@
   function watchForInteraction() {}
 
   function applyMode(mode) {
-    if (mode === "model") {
+    // Whichever full-screen page is up takes the switcher with it.
+    parkModeSwitch(mode === "model" ? "studio-mode-slot"
+      : mode === "research" ? "research-mode-slot"
+      : null);
+    if (mode === "research") {
+      // The hub owns the whole screen: no globe, no sidebar, no rail. The
+      // globe keeps rendering behind it rather than being torn down, so
+      // switching back is instant and the scene keeps its state.
+      setPanelsHidden(EARTH_PANEL_IDS, true);
+      setGisToolboxVisible(false);
+      setImportPanelVisible(false);
+      setAnalysisPanelVisible(false);
+      setToolboxLayout(false);
+      setModelToolboxVisible(false);
+      setResearchHubVisible(true);
+      setGeoidGroupVisible(false);
+      setSpin(false);
+      setHazardReadoutVisible(false);
+      setAnalysisToolsEnabled(false);
+      setGlobeVisible(false);
+    } else if (mode === "model") {
       setPanelsHidden(EARTH_PANEL_IDS, true);
       setGisToolboxVisible(false);
       setImportPanelVisible(true);
       setAnalysisPanelVisible(false);
       setToolboxLayout(false);
       setModelToolboxVisible(true);
+      setResearchHubVisible(false);
       setGeoidGroupVisible(false);
       setSpin(false);
       setHazardReadoutVisible(false);
@@ -221,6 +261,7 @@
       setAnalysisPanelVisible(true);
       setToolboxLayout(true);
       setModelToolboxVisible(false);
+      setResearchHubVisible(false);
       setGeoidGroupVisible(true);
       setGlobeVisible(true);
       applyHubState();
@@ -234,6 +275,7 @@
       setAnalysisPanelVisible(false);
       setToolboxLayout(false);
       setModelToolboxVisible(false);
+      setResearchHubVisible(false);
       setHazardReadoutVisible(true);
       // GeoID mode mirrors the live public viewer, which keeps these hidden.
       setAnalysisToolsEnabled(false);
