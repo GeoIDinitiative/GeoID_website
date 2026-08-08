@@ -3769,6 +3769,11 @@
     {
      "children": [
       {
+       "items": [
+        "Earth Globe",
+        "Etna Regional",
+        "Explorer Hub"
+       ],
        "kind": "QComboBox",
        "node": "widget",
        "text": null,
@@ -11354,6 +11359,23 @@
            "var": "__inline1"
           },
           {
+           "items": [
+            "Pull Weather",
+            "Pull DEM",
+            "Pull Literature",
+            "Coordinate Transform",
+            "Clip by Bbox",
+            "Raster Resample",
+            "Run EDA",
+            "Run Statistics",
+            "Train AI Model",
+            "Run FEM",
+            "Extract DOF",
+            "Signal Analysis",
+            "Compose Figure",
+            "Compile StoryBoard",
+            "Export HTML"
+           ],
            "kind": "QListWidget",
            "node": "widget",
            "stretch": 1,
@@ -15633,6 +15655,17 @@
              "var": "__inline26"
             },
             {
+             "items": [
+              "UTC Conversion (single CSV)",
+              "Peaks Overview Plot",
+              "SWCC Redesigned Pipeline",
+              "SWCC + Cumulative Pipeline",
+              "Comprehensive Signal Analysis",
+              "Wavelet Peak Diagnostics",
+              "Notebook Plot Suite",
+              "Notebook Correlation Filter",
+              "GALES Station Scripts"
+             ],
              "kind": "QComboBox",
              "node": "widget",
              "stretch": 1,

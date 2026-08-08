@@ -880,8 +880,98 @@ def custom_widgets(tree):
     return out
 
 
+def combo_loop_items(class_node, module_nodes):
+    """{widget var: [item text, …]} for widgets filled by an addItem loop.
+
+    `for name, _p in self._VIEWERS: self.viewer_combo.addItem(name)` — the
+    display value is whichever unpacked variable is passed to addItem, so the
+    column it came from is recovered and that column of the constant becomes the
+    items. A scalar loop (`for x in CONST: combo.addItem(x)`) takes the whole row.
+    """
+    # Const name -> the AST List/Tuple node, so a display column can be read
+    # element by element even when other fields are not literals.
+    nodes = dict(module_nodes)
+    for m in class_node.body:
+        if isinstance(m, ast.Assign) and isinstance(m.value, (ast.List, ast.Tuple)):
+            for t in m.targets:
+                if isinstance(t, ast.Name):
+                    nodes[t.id] = m.value
+
+    def cell(element, col, name_first):
+        """One display string from a const element (dict/tuple/scalar node)."""
+        if isinstance(element, ast.Dict):
+            # Prefer "name", else the first string-valued key.
+            wanted = None
+            for key, value in zip(element.keys, element.values):
+                if isinstance(key, ast.Constant) and key.value == "name" \
+                        and isinstance(value, ast.Constant):
+                    return str(value.value)
+                if wanted is None and isinstance(value, ast.Constant) \
+                        and isinstance(value.value, str):
+                    wanted = str(value.value)
+            return wanted
+        if isinstance(element, (ast.Tuple, ast.List)):
+            if col < len(element.elts) and isinstance(element.elts[col], ast.Constant):
+                return str(element.elts[col].value)
+            return None
+        if isinstance(element, ast.Constant):
+            return str(element.value)
+        return None
+    out = {}
+    for loop in ast.walk(class_node):
+        if not isinstance(loop, ast.For):
+            continue
+        iter_name = (loop.iter.attr if isinstance(loop.iter, ast.Attribute)
+                     else loop.iter.id if isinstance(loop.iter, ast.Name) else None)
+        const_node = nodes.get(iter_name)
+        if not isinstance(const_node, (ast.List, ast.Tuple)) or not const_node.elts:
+            continue
+        # The loop's unpacked names, in order, so an addItem arg maps to a column.
+        targets = ([e.id for e in loop.target.elts if isinstance(e, ast.Name)]
+                   if isinstance(loop.target, (ast.Tuple, ast.List))
+                   else [loop.target.id] if isinstance(loop.target, ast.Name) else [])
+        for call in ast.walk(loop):
+            if not (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                    and call.func.attr == "addItem" and call.args):
+                continue
+            recv = (call.func.value.attr if isinstance(call.func.value, ast.Attribute)
+                    else call.func.value.id if isinstance(call.func.value, ast.Name) else None)
+            if not recv:
+                continue
+            arg = call.args[0]
+            col = 0
+            if isinstance(arg, ast.Name) and arg.id in targets:
+                col = targets.index(arg.id)
+            elif isinstance(arg, ast.Subscript) and isinstance(arg.slice, ast.Constant):
+                col = arg.slice.value if isinstance(arg.slice.value, int) else 0
+            items = [cell(el_node, col, True) for el_node in const_node.elts]
+            items = [x for x in items if x is not None]
+            if items:
+                out[recv] = items
+    return out
+
+
+def apply_combo_items(node, items_by_var):
+    """Set `items` on any widget in the tree whose var is in the map."""
+    if isinstance(node, dict):
+        var = node.get("var")
+        if var in items_by_var and not node.get("items"):
+            node["items"] = items_by_var[var]
+        for value in node.values():
+            apply_combo_items(value, items_by_var)
+    elif isinstance(node, list):
+        for item in node:
+            apply_combo_items(item, items_by_var)
+
+
 def extract():
     tree = ast.parse(QT_APP.read_text(encoding="utf-8"), filename=str(QT_APP))
+    module_nodes = {}
+    for n in tree.body:
+        if isinstance(n, ast.Assign) and isinstance(n.value, (ast.List, ast.Tuple)):
+            for t in n.targets:
+                if isinstance(t, ast.Name):
+                    module_nodes[t.id] = n.value
     INFO_TABLES.load(tree)
     # Teach the reader the app's own widget classes before anything is read.
     for name, base in custom_widgets(tree).items():
@@ -930,6 +1020,9 @@ def extract():
                         class_consts[name] = ast.literal_eval(item.value)
                     except (ValueError, SyntaxError):
                         pass
+        combo_items = combo_loop_items(node, module_nodes)
+        if combo_items:
+            apply_combo_items(built, combo_items)
         for page_id in mapping[node.name]:
             pages[page_id] = {"qt_class": node.name,
                               "root": copy.deepcopy(built) if len(mapping[node.name]) > 1
