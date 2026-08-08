@@ -15,17 +15,36 @@
 
 const SHELL_URL = "/GeoID_GIS/viewer/gis/shell.html";
 
+/**
+ * Panels belong after the viewer's own name and icon, which is the order the
+ * Earth page has: viewer-info, brand-hero, then the GIS groups. Inserted at the
+ * top instead, the toolbox pushed the planet's title and icon to the foot of
+ * the sidebar, under every tab -- which is where they were showing.
+ */
+function afterBrand(node) {
+  const list = document.getElementById("ui-scroll-body");
+  if (!list) return false;
+  const brand = list.querySelector(".brand-hero")
+    || list.querySelector(".viewer-info");
+  if (brand) brand.after(node);
+  else list.insertBefore(node, list.firstChild);
+  return true;
+}
+
 /** Where each block goes, and how to tell it is already there. */
 const SLOTS = {
   // The mode switch belongs in the sidebar header, beside the project button.
   "mode-switch": {
     marker: "view-mode-switch",
     place(node) {
-      const header = document.querySelector(".brand-toprow")
-        || document.querySelector(".brand-hero")
-        || document.getElementById("ui-scroll-body");
+      const header = document.querySelector(".brand-toprow");
       if (!header) return false;
-      header.appendChild(node);
+      // Before the info and collapse buttons, which is where the Earth page
+      // keeps it. Appending put the switch after them and the row read
+      // backwards against every other page.
+      const actions = header.querySelector(".brand-toprow-actions");
+      if (actions) header.insertBefore(node, actions);
+      else header.appendChild(node);
       return true;
     },
   },
@@ -34,23 +53,13 @@ const SLOTS = {
   // its own -- which is exactly what happened when this was left out.
   "geoid-group": {
     marker: "geoid-controls-group",
-    place(node) {
-      const list = document.getElementById("ui-scroll-body");
-      if (!list) return false;
-      list.insertBefore(node, list.firstChild);
-      return true;
-    },
+    place: afterBrand,
   },
   // The toolbox goes at the top of the scrolling panel; toolbox.js then moves
   // the viewer's own sections into it and puts them in order.
   toolbox: {
     marker: "gis-toolbox-panels",
-    place(node) {
-      const list = document.getElementById("ui-scroll-body");
-      if (!list) return false;
-      list.insertBefore(node, list.firstChild);
-      return true;
-    },
+    place: afterBrand,
   },
   // These three are full-screen or fixed, so they hang off <body>.
   "layer-dock": { marker: "layer-dock", place: (n) => !!document.body.appendChild(n) },

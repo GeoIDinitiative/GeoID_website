@@ -10,7 +10,8 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810h";
+import { currentBody } from "./bodies.js?v=20260810j";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810j";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -177,6 +178,13 @@ export function render() {
   renderLegend(stack);
 }
 
+/**
+ * The globe's own imagery, as the floor of the layer stack.
+ *
+ * Named from the body registry rather than fixed at Earth: this box appears on
+ * every world now, and a Mars page listing an "Earth basemap" is telling the
+ * user the wrong thing about what they are looking at.
+ */
 function basemapRow() {
   const viewer = window.GeoIDViewer;
   const node = document.createElement("div");
@@ -187,7 +195,7 @@ function basemapRow() {
     <label class="layer-eye" title="Visible">
       <input type="checkbox" ${visible ? "checked" : ""} data-role="visible">
     </label>
-    <span class="layer-name">Earth basemap</span>
+    <span class="layer-name">${currentBody()?.name || "Earth"} basemap</span>
     <span class="layer-kind">default</span>`;
   node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
     // The imported imagery hangs off the globe so it turns with it, which means

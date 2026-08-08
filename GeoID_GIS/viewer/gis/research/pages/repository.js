@@ -1,5 +1,5 @@
-import { registerPage } from "../stages.js?v=20260810h";
-import * as store from "../project-store.js?v=20260810h";
+import { registerPage } from "../stages.js?v=20260810j";
+import * as store from "../project-store.js?v=20260810j";
 
 /**
  * Data Repository: the project folder, as it actually is on disk.
