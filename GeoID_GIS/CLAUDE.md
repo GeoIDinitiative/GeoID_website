@@ -204,6 +204,35 @@ workspace:
 | Meshing Studio | `meshes/` | `saveMesh()` |
 | project | globe camera | `frameStudyArea()` |
 
+**The return paths (project → globe) close the loop.** For a long time
+everything flowed GIS/Model → project and nothing came back, so analysis
+dead-ended in a folder. Three bridge calls reverse it:
+
+- **`sendToGlobe(entry|path)`** reads a project file as *bytes* and hands it to
+  the **same** `window.GeoIDImportManager.importFileList` a dropped file uses —
+  no second georeferencing path. A GeoTIFF drapes, a GeoJSON draws, exactly as
+  on import. Wired as "Show on globe" (Workspace recent feed, Data Repository
+  toolbar), gated by `isGeoFile`. Needed a binary read: `readFileBytes` across
+  all four adapters + `store.readProjectFileBytes`, because the disk/sidecar
+  `readFile` returns `.text()` and a raster cannot survive that.
+- **`restoreLayers()`** re-drapes a project's layers when it opens. The data
+  registry already records each imported layer's project path (kind
+  raster/vector/layer), so restore re-imports those, skipping any already on the
+  globe — idempotent. Triggered by a `store.onChange` listener in `project.js`
+  keyed on the project *folder* (once per switch, not per metadata write), which
+  waits for `window.GeoIDViewer` because on a cold load the project resolves
+  before the globe exists. `restoreSession()` already reopened the project; this
+  is what makes the reload feel like resuming.
+- **`pickOnGlobe()`** fills a coordinate by clicking instead of typing. The pick
+  lives in `earth-viewer.js` (`pickOnGlobe` on the seam) because the inverse —
+  `marsGroup.worldToLocal(hit.point)`, undo `globe.rotation.y - π`,
+  `vectorToLatLon` — must match the cursor readout exactly, and those helpers are
+  in that closure. Returns east-positive 0..360; the bridge adds the signed
+  value the schema wants. **Earth only so far** — the planet viewers need the
+  same seam method for parity. Verify it headlessly by dispatching a
+  `pointerdown` at the canvas centre (the globe fills it) and asserting the
+  resolved lat/lon is in range.
+
 Two things to keep right when touching it:
 
 - **Longitude.** The viewer carries east-positive 0–360; EPSG:4326, GeoJSON and
