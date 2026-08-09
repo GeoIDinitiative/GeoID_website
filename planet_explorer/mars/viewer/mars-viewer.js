@@ -13688,6 +13688,45 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         // clocks, and the shared modules only need the angle to be truthful,
         // so the planet group's own rotation is the answer.
         getSpinDeltaRadians: () => (marsGroup ? marsGroup.rotation.y : 0),
+        // One-shot "click a point on the globe", so a Research form can be
+        // filled by pointing. Raycasts a sphere at the globe radius and maps the
+        // hit into the body-fixed frame (undo the group tilt/spin, then the
+        // globe's half-turn) with the viewer's own vectorToLatLon -- the same
+        // inverse the cursor readout uses. Resolves { lat, lon } in this world's
+        // own longitude convention; Escape rejects.
+        pickOnGlobe: () => new Promise((resolve, reject) => {
+          const canvas = renderer.domElement;
+          const previousCursor = canvas.style.cursor;
+          canvas.style.cursor = "crosshair";
+          const raycaster = new THREE.Raycaster();
+          const pickSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), 3.2);
+          const hitWorld = new THREE.Vector3();
+          const finish = () => {
+            canvas.removeEventListener("pointerdown", onDown, true);
+            document.removeEventListener("keydown", onKey, true);
+            canvas.style.cursor = previousCursor;
+          };
+          const onDown = (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const ndc = new THREE.Vector2(
+              ((event.clientX - rect.left) / rect.width) * 2 - 1,
+              -((event.clientY - rect.top) / rect.height) * 2 + 1);
+            raycaster.setFromCamera(ndc, camera);
+            if (!raycaster.ray.intersectSphere(pickSphere, hitWorld)) return;
+            const localPoint = marsGroup.worldToLocal(hitWorld.clone());
+            localPoint.applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
+            const latLon = vectorToLatLon(localPoint);
+            event.preventDefault();
+            event.stopPropagation();
+            finish();
+            resolve({ lat: latLon.lat, lon: latLon.lon });
+          };
+          const onKey = (event) => {
+            if (event.key === "Escape") { finish(); reject(new Error("Pick cancelled.")); }
+          };
+          canvas.addEventListener("pointerdown", onDown, true);
+          document.addEventListener("keydown", onKey, true);
+        }),
       });
       document.body.dataset.body = "mars";
       globe.rotation.y = Math.PI;
