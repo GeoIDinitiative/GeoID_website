@@ -1,11 +1,11 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260809-4de93c6";
-import * as store from "./project-store.js?v=20260809-4de93c6";
-import * as bridge from "./bridge.js?v=20260809-4de93c6";
-import * as dsp from "./dsp.js?v=20260809-4de93c6";
-import * as stats from "./stats.js?v=20260809-4de93c6";
-import { linePlot } from "./plot.js?v=20260809-4de93c6";
-import { parseTable, column } from "./table.js?v=20260809-4de93c6";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260809-4de93c6";
+import { wire, wirePattern } from "./spec-page.js?v=20260809-6d337b3";
+import * as store from "./project-store.js?v=20260809-6d337b3";
+import * as bridge from "./bridge.js?v=20260809-6d337b3";
+import * as dsp from "./dsp.js?v=20260809-6d337b3";
+import * as stats from "./stats.js?v=20260809-6d337b3";
+import { linePlot } from "./plot.js?v=20260809-6d337b3";
+import { parseTable, column } from "./table.js?v=20260809-6d337b3";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260809-6d337b3";
 
 /**
  * The rest of the spec's controls.
@@ -760,7 +760,7 @@ wire("Preprocessing Transforms", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No latitude/longitude columns to transform.");
-    const projection = await import(`../projection.js?v=20260809-4de93c6`);
+    const projection = await import(`../projection.js?v=20260809-6d337b3`);
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];

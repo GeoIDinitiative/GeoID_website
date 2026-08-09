@@ -206,9 +206,32 @@ export async function runTraining({ script, dataset, output, args } = {}) {
  * omitted. The sidecar writes `status.json` beside the deck and streams the
  * solver log as an ordinary job.
  */
-export async function runGales({ dir, deck, cores, cmd, label } = {}) {
+export async function runGales({ dir, deck, cores, cmd, label, target } = {}) {
   return (await call("/jobs/gales", { method: "POST",
-    body: { dir, deck, cores, cmd, label } })).job_id;
+    body: { dir, deck, cores, cmd, label, target } })).job_id;
+}
+
+// ── Compute targets: this machine, or a server over SSH ──────────────────────
+//
+// Where a solve runs. `local` is mpirun here; an `ssh` target is a box you
+// already have (a Hetzner VPS, a lab workstation, a cluster login node) — the
+// sidecar pushes the deck, solves there and brings the results back.
+//
+// Key-based access only: the sidecar refuses a password outright, and every ssh
+// call is batch-mode so it fails fast instead of waiting on a prompt.
+
+export async function listCompute() {
+  return call("/compute");
+}
+export async function saveCompute(target) {
+  return call("/compute/save", { method: "POST", body: target });
+}
+export async function deleteCompute(name) {
+  return call("/compute/delete", { method: "POST", body: { name } });
+}
+/** Check a target really works — reachable, key accepted, mpirun and gales present. */
+export async function testCompute(name) {
+  return (await call("/compute/test", { method: "POST", body: { name } })).job_id;
 }
 /**
  * Generate a runnable GALES deck from the run's spec.json and build it: the

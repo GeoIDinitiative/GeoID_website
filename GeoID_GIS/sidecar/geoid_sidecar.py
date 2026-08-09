@@ -45,6 +45,7 @@ import mimetypes
 import os
 import secrets
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -310,7 +311,8 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": True, "service": "geoid-sidecar", "version": VERSION,
                 "root": str(self.runner.root),
                 "needs_token": self.token is not None,
-                "capabilities": ["fs", "jobs", "script", "function", "training", "gales", "events"]
+                "capabilities": ["fs", "jobs", "script", "function", "training", "gales",
+                                 "compute", "events"]
                     + (["gales-prepare"] if self.gales_dir else []),
                 "gales_dir": str(self.gales_dir) if self.gales_dir else None,
             }, origin)
@@ -330,6 +332,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._fs_read(query.get("path", [""])[0], origin)
             elif route == "/fs/exists":
                 self._fs_exists(query.get("path", [""])[0], origin)
+            elif route == "/compute":
+                self._compute_list(origin)
             elif route == "/jobs":
                 self._send(200, {"jobs": [j.snapshot() for j in self.runner.jobs.values()]}, origin)
             elif route.startswith("/jobs/") and route.endswith("/events"):
@@ -377,6 +381,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._start_gales_prepare(body, origin)
             elif route == "/jobs/gales/postprocess":
                 self._start_gales_postprocess(body, origin)
+            elif route == "/compute/save":
+                self._compute_save(body, origin)
+            elif route == "/compute/delete":
+                self._compute_delete(body, origin)
+            elif route == "/compute/test":
+                self._compute_test(body, origin)
             elif route.startswith("/jobs/") and route.endswith("/stop"):
                 ok = self.runner.stop(route.split("/")[2])
                 self._send(200 if ok else 404, {"ok": ok}, origin)
@@ -513,6 +523,128 @@ class Handler(BaseHTTPRequestHandler):
         job = self.runner.start("training", f"train {script.name}", argv, script.parent, body.get("env"))
         self._send(200, {"job_id": job.id}, origin)
 
+    # ── Compute targets: this machine, or a server over SSH ───────────────────
+    #
+    # A solve outgrows a laptop quickly, so where it runs is a choice rather than
+    # an assumption. A target is either `local` (mpirun here) or `ssh` (a box you
+    # already have — a Hetzner VPS, a lab workstation, a cluster login node).
+    #
+    # **Keys only, never passwords.** Every ssh/rsync call carries
+    # `BatchMode=yes`, so if key-based auth is not set up the command fails
+    # immediately instead of sitting on a password prompt — and this service
+    # never asks for, stores, or forwards a password. Set the key up with
+    # `ssh-copy-id` once and the agent does the rest.
+
+    COMPUTE_FILE = ".compute_targets.json"
+
+    def _compute_path(self) -> Path:
+        return self.runner.root / self.COMPUTE_FILE
+
+    def _load_targets(self) -> dict:
+        try:
+            data = json.loads(self._compute_path().read_text())
+            return data if isinstance(data, dict) else {}
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+    def _save_targets(self, targets: dict):
+        self._compute_path().write_text(json.dumps(targets, indent=2))
+
+    @staticmethod
+    def _ssh_prefix(target: dict) -> str:
+        """The ssh command for a target, batch-mode so it can never prompt."""
+        parts = ["ssh", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=accept-new"]
+        if target.get("port"):
+            parts += ["-p", str(int(target["port"]))]
+        if target.get("key"):
+            parts += ["-i", shlex.quote(str(target["key"]))]
+        return " ".join(parts)
+
+    @staticmethod
+    def _ssh_dest(target: dict) -> str:
+        user = str(target.get("user") or "").strip()
+        host = str(target.get("host") or "").strip()
+        if not host:
+            raise ValueError("that compute target has no host")
+        return f"{user}@{host}" if user else host
+
+    def _compute_list(self, origin: str):
+        targets = self._load_targets()
+        self._send(200, {
+            "targets": targets,
+            "local": {"mpirun": bool(shutil.which("mpirun")),
+                      "gales": bool(shutil.which("gales"))},
+        }, origin)
+
+    def _compute_save(self, body: dict, origin: str):
+        name = str(body.get("name", "")).strip()
+        if not name:
+            raise ValueError("a target needs a name")
+        kind = str(body.get("kind") or "ssh").strip()
+        if kind not in ("local", "ssh"):
+            raise ValueError("a target is either 'local' or 'ssh'")
+        # A password must never reach this service; keys are the only way in.
+        if body.get("password"):
+            raise ValueError(
+                "Passwords are not accepted. Set up key-based access "
+                "(ssh-copy-id) and this will use your key.")
+        target = {
+            "kind": kind,
+            "host": str(body.get("host") or "").strip(),
+            "user": str(body.get("user") or "").strip(),
+            "port": int(body.get("port") or 0) or None,
+            "key": str(body.get("key") or "").strip() or None,
+            "remote_root": str(body.get("remote_root") or "~/geoid_runs").strip(),
+            "ranks": int(body.get("ranks") or 4),
+            "mpirun": str(body.get("mpirun") or "mpirun").strip(),
+            "gales_bin": str(body.get("gales_bin") or "gales").strip(),
+            # Anything the remote needs before the solver: `module load openmpi`,
+            # sourcing an env, activating a spack view.
+            "preamble": str(body.get("preamble") or "").strip(),
+        }
+        if kind == "ssh" and not target["host"]:
+            raise ValueError("an ssh target needs a host")
+        targets = self._load_targets()
+        targets[name] = target
+        self._save_targets(targets)
+        self._send(200, {"ok": True, "name": name, "target": target}, origin)
+
+    def _compute_delete(self, body: dict, origin: str):
+        name = str(body.get("name", "")).strip()
+        targets = self._load_targets()
+        targets.pop(name, None)
+        self._save_targets(targets)
+        self._send(200, {"ok": True}, origin)
+
+    def _compute_test(self, body: dict, origin: str):
+        """Prove a target actually works: reachable, keys accepted, and the
+        solver and mpirun present on the far side. Streamed like any job."""
+        name = str(body.get("name", "")).strip()
+        target = self._load_targets().get(name)
+        if not target:
+            raise ValueError(f"no compute target named {name!r}")
+        mpirun_bin = target.get("mpirun") or "mpirun"
+        gales_bin = target.get("gales_bin") or "gales"
+        if target.get("kind") == "local":
+            script = (
+                'echo "[check] this machine"; '
+                f'command -v {shlex.quote(mpirun_bin)} && {shlex.quote(mpirun_bin)} --version | head -1; '
+                f'command -v {shlex.quote(gales_bin)} || echo "gales not on PATH"; '
+                'echo "cores: $(nproc)"')
+        else:
+            dest = self._ssh_dest(target)
+            pre = target.get("preamble") or "true"
+            remote = (
+                f'{pre}; echo "host: $(hostname)"; '
+                f'command -v {shlex.quote(mpirun_bin)} || echo "NO mpirun"; '
+                f'command -v {shlex.quote(gales_bin)} || echo "NO gales"; '
+                'echo "cores: $(nproc)"')
+            script = (f'echo "[check] {dest}"; '
+                      f'{self._ssh_prefix(target)} {shlex.quote(dest)} {shlex.quote(remote)}')
+        job = self.runner.start("compute-test", f"test {name}",
+                                ["bash", "-lc", script], self.runner.root)
+        self._send(200, {"job_id": job.id}, origin)
+
     def _start_gales(self, body: dict, origin: str):
         """Run a prepared GALES sim under a run folder and file its status.json.
 
@@ -571,12 +703,54 @@ class Handler(BaseHTTPRequestHandler):
         cmd_str = " ".join(argv)
         label = body.get("label") or f"GALES {Path(rel).name}/{deck}"
 
+        # Where it runs. No target, or "local", means this machine and the argv
+        # above. An ssh target instead pushes the run folder to the server,
+        # solves there, and brings the results back — the same streamed job and
+        # the same status.json either way, so nothing downstream has to care.
+        target_name = str(body.get("target") or "").strip()
+        target = self._load_targets().get(target_name) if target_name else None
+        if target and target.get("kind") == "ssh":
+            ranks = int(body.get("cores") or target.get("ranks") or 4)
+            remote_mpirun = target.get("mpirun") or "mpirun"
+            remote_gales = target.get("gales_bin") or "gales"
+            # Rebuild the command for the far side unless one was typed: the
+            # local box's paths and rank count rarely suit the server.
+            remote_cmd = explicit or f"{remote_mpirun} -n {ranks} {remote_gales} {deck}"
+            dest = self._ssh_dest(target)
+            ssh = self._ssh_prefix(target)
+            root = (target.get("remote_root") or "~/geoid_runs").rstrip("/")
+            remote_dir = f"{root}/{Path(rel).name}"
+            pre = target.get("preamble") or "true"
+            script = run_dir / "_remote_run.sh"
+            script.write_text(
+                "#!/usr/bin/env bash\nset -e\n"
+                f'echo "[remote] {dest}:{remote_dir}"\n'
+                f'{ssh} {shlex.quote(dest)} {shlex.quote(f"mkdir -p {remote_dir}")}\n'
+                'echo "[remote] sending the deck…"\n'
+                # The deck goes up; results are pulled back separately, so an
+                # earlier run's output is never re-uploaded.
+                f'rsync -az --delete --exclude results/ -e {shlex.quote(ssh)} '
+                f'./ {shlex.quote(f"{dest}:{remote_dir}/")}\n'
+                f'echo "[remote] solving: {remote_cmd}"\n'
+                f'{ssh} {shlex.quote(dest)} '
+                f'{shlex.quote(f"cd {remote_dir} && {pre} && {remote_cmd}")}\n'
+                'echo "[remote] fetching results…"\n'
+                'mkdir -p results\n'
+                f'rsync -az -e {shlex.quote(ssh)} '
+                f'{shlex.quote(f"{dest}:{remote_dir}/results/")} ./results/\n'
+                'echo "[remote] done — results are in this run folder."\n')
+            script.chmod(0o755)
+            argv = ["bash", str(script)]
+            cmd_str = f"{dest}: {remote_cmd}"
+            label = f"GALES {Path(rel).name} @ {target_name}"
+
         status_path = run_dir / "status.json"
         started = time.time()
 
         def write_status(state: str, extra: dict | None = None):
             payload = {"status": state, "cmd": cmd_str, "deck": deck,
-                       "cores": cores, "updated_at": time.time()}
+                       "cores": cores, "where": target_name or "local",
+                       "updated_at": time.time()}
             if extra:
                 payload.update(extra)
             try:
@@ -600,7 +774,8 @@ class Handler(BaseHTTPRequestHandler):
         write_status("running", {"started_at": started, "message": "solver started"})
         job = self.runner.start("gales", label, argv, run_dir, body.get("env"),
                                 on_finish=on_finish)
-        self._send(200, {"job_id": job.id, "deck": deck, "cmd": cmd_str}, origin)
+        self._send(200, {"job_id": job.id, "deck": deck, "cmd": cmd_str,
+                         "where": target_name or "local"}, origin)
 
     # ── GALES deck generation ─────────────────────────────────────────────────
     #

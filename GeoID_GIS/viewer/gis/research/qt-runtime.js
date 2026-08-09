@@ -1,13 +1,13 @@
-import * as store from "./project-store.js?v=20260809-4de93c6";
-import * as stats from "./stats.js?v=20260809-4de93c6";
-import * as dsp from "./dsp.js?v=20260809-4de93c6";
-import { parseTable, column } from "./table.js?v=20260809-4de93c6";
-import { linePlot, heatmap } from "./plot.js?v=20260809-4de93c6";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260809-4de93c6";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260809-4de93c6";
-import * as sidecar from "./sidecar.js?v=20260809-4de93c6";
-import * as bridge from "./bridge.js?v=20260809-4de93c6";
-import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260809-4de93c6";
+import * as store from "./project-store.js?v=20260809-6d337b3";
+import * as stats from "./stats.js?v=20260809-6d337b3";
+import * as dsp from "./dsp.js?v=20260809-6d337b3";
+import { parseTable, column } from "./table.js?v=20260809-6d337b3";
+import { linePlot, heatmap } from "./plot.js?v=20260809-6d337b3";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260809-6d337b3";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260809-6d337b3";
+import * as sidecar from "./sidecar.js?v=20260809-6d337b3";
+import * as bridge from "./bridge.js?v=20260809-6d337b3";
+import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260809-6d337b3";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -1288,7 +1288,13 @@ function galesRunner(host, api) {
     const cmd = val("cmd");
     if (!dir) { say("Set a working directory — a run folder under the project.", true); return; }
     if (!cmd) { say("Enter a command to run.", true); return; }
-    runJob(api, host, () => sidecar.runGales({ dir, cmd }));
+    // Where, and with how many ranks, comes from the compute card below.
+    const target = api._galesTarget?.() || undefined;
+    const cores = api._galesRanks?.();
+    // A remote target rebuilds the command for the server, so the local box's
+    // rank count and paths do not travel with it.
+    runJob(api, host, () => sidecar.runGales(
+      target ? { dir, target, cores } : { dir, cmd, cores }));
   });
 
   // "Generate & build deck": turn the run's spec.json into a runnable, compiled
@@ -1309,13 +1315,164 @@ function galesRunner(host, api) {
     }
     const dir = val("workdir");
     if (!dir) { say("Choose a run folder first (Browse).", true); return; }
-    const cores = Number((val("cmd").match(/-n\s+(\d+)/) || [])[1]) || 4;
+    // The mesh must be partitioned for the rank count the solve will use, so
+    // this takes the compute card's ranks rather than the typed command's.
+    const cores = api._galesRanks?.()
+      || Number((val("cmd").match(/-n\s+(\d+)/) || [])[1]) || 4;
     runJob(api, host, () => sidecar.prepareGales({ dir, cores }));
   });
   const prepRow = el("div", "gis-btn-row");
   prepRow.appendChild(prepBtn);
   prep.appendChild(prepRow);
   host.insertBefore(prep, host.firstChild);
+
+  // ── Where it runs ─────────────────────────────────────────────────────────
+  // A solve outgrows a laptop fast, so the machine is a choice: mpirun here, or
+  // a server you already have. The sidecar pushes the deck over ssh, solves
+  // there and brings the results back, so everything downstream is unchanged.
+  const compute = el("section", "research-card gis-live-sources");
+  compute.appendChild(el("h2", "research-card-title", "Where it runs"));
+  compute.appendChild(el("p", "research-note",
+    "Solve on this machine with mpirun, or on a server (a Hetzner box, a lab "
+    + "workstation, a cluster login node). The deck is sent over, solved there, "
+    + "and the results come back into this run folder."));
+  const targetPick = selectOf(["This machine (mpirun)"], "This machine (mpirun)");
+  const ranksInput = textInput("ranks");
+  ranksInput.type = "number";
+  ranksInput.min = "1";
+  ranksInput.value = "4";
+  ranksInput.style.maxWidth = "7rem";
+  const testBtn = el("button", "button secondary", "Test");
+  testBtn.type = "button";
+  const addBtn = el("button", "button secondary", "+ Add a server");
+  addBtn.type = "button";
+  const row1 = el("div", "gis-btn-row");
+  row1.append(el("span", "qt-label", "Run on"), targetPick,
+    el("span", "qt-label", "MPI ranks"), ranksInput, testBtn, addBtn);
+  compute.appendChild(row1);
+
+  // The saved targets, by display label. "local" is always offered and is not
+  // stored — it needs no configuration.
+  let targets = {};
+  const labelFor = (name, t) => (t.kind === "local"
+    ? `${name} (this machine)`
+    : `${name} — ${t.user ? `${t.user}@` : ""}${t.host}${t.ranks ? ` · ${t.ranks} ranks` : ""}`);
+  const chosen = () => {
+    const label = targetPick.value;
+    if (label === "This machine (mpirun)") return null;   // local, the default
+    return Object.entries(targets).find(([n, t]) => labelFor(n, t) === label)?.[0] || null;
+  };
+
+  async function refreshTargets() {
+    if (!sidecar.isConnected()) return;
+    try {
+      const info = await sidecar.listCompute();
+      targets = info.targets || {};
+      const previous = targetPick.value;
+      targetPick.textContent = "";
+      targetPick.appendChild(new Option("This machine (mpirun)", "This machine (mpirun)"));
+      Object.entries(targets).forEach(([name, t]) => {
+        const label = labelFor(name, t);
+        targetPick.appendChild(new Option(label, label));
+      });
+      if ([...targetPick.options].some((o) => o.value === previous)) targetPick.value = previous;
+      if (!info.local?.mpirun) {
+        compute.appendChild(el("p", "research-note is-error",
+          "mpirun is not on this machine's PATH — local runs will fail. Install "
+          + "an MPI (openmpi) or use a server."));
+      }
+    } catch (error) { /* sidecar not up; the card still explains itself */ }
+  }
+  // Keep the ranks box in step with the chosen server's own default.
+  targetPick.addEventListener("change", () => {
+    const name = chosen();
+    if (name && targets[name]?.ranks) ranksInput.value = String(targets[name].ranks);
+  });
+
+  testBtn.addEventListener("click", () => {
+    if (!sidecar.isConnected()) { say("Connect the sidecar first.", true); return; }
+    const name = chosen();
+    if (!name) {
+      // Testing "local" still tells you whether mpirun and gales are present.
+      sidecar.saveCompute({ name: "local", kind: "local" })
+        .then(() => runJob(api, host, () => sidecar.testCompute("local")))
+        .catch((e) => say(e.message, true));
+      return;
+    }
+    runJob(api, host, () => sidecar.testCompute(name));
+  });
+
+  // The add-a-server form. Deliberately no password field: the sidecar refuses
+  // one, and key-based access is what makes an unattended run possible.
+  const form = el("div", "research-grid-2");
+  form.hidden = true;
+  const f = {};
+  [["name", "Name (e.g. hetzner)"], ["host", "Host or IP"], ["user", "SSH user"],
+    ["port", "Port (22)"], ["remote_root", "Remote folder (~/geoid_runs)"],
+    ["ranks", "MPI ranks"], ["preamble", "Setup command (e.g. module load openmpi)"]]
+    .forEach(([key, label]) => {
+      f[key] = textInput(label);
+      const wrap = el("label", "research-field");
+      wrap.append(el("span", "research-field-label", label), f[key]);
+      form.appendChild(wrap);
+    });
+  const saveBtn = el("button", "button", "Save server");
+  saveBtn.type = "button";
+  const dropBtn = el("button", "button secondary", "Remove selected");
+  dropBtn.type = "button";
+  const formRow = el("div", "gis-btn-row");
+  formRow.append(saveBtn, dropBtn);
+  const keyNote = el("p", "research-note",
+    "Access is by SSH key only — run `ssh-copy-id user@host` once and this uses "
+    + "your key. Passwords are refused: an unattended solve cannot answer a "
+    + "prompt, and this service will not hold one.");
+  compute.append(form, formRow, keyNote);
+  formRow.hidden = true;
+  addBtn.addEventListener("click", () => {
+    form.hidden = !form.hidden;
+    formRow.hidden = form.hidden;
+  });
+
+  saveBtn.addEventListener("click", async () => {
+    if (!sidecar.isConnected()) { say("Connect the sidecar first.", true); return; }
+    const name = f.name.value.trim();
+    if (!name || !f.host.value.trim()) {
+      say("A server needs at least a name and a host.", true); return;
+    }
+    try {
+      await sidecar.saveCompute({
+        name, kind: "ssh", host: f.host.value.trim(), user: f.user.value.trim(),
+        port: Number(f.port.value) || 0, remote_root: f.remote_root.value.trim(),
+        ranks: Number(f.ranks.value) || 4, preamble: f.preamble.value.trim(),
+      });
+      await refreshTargets();
+      targetPick.value = labelFor(name, targets[name]);
+      // Setting `.value` in code does not fire `change`, and the ranks box has
+      // to follow: it drives the mesh partition as well as the solve, so a
+      // stale 4 beside a 16-rank server would partition the mesh wrongly.
+      targetPick.dispatchEvent(new Event("change"));
+      say(`Saved "${name}". Press Test to check the key and the solver.`);
+      form.hidden = true; formRow.hidden = true;
+    } catch (error) { say(error.message, true); }
+  });
+
+  dropBtn.addEventListener("click", async () => {
+    const name = chosen();
+    if (!name) { say("Pick a saved server first.", true); return; }
+    try {
+      await sidecar.deleteCompute(name);
+      await refreshTargets();
+      say(`Removed "${name}".`);
+    } catch (error) { say(error.message, true); }
+  });
+
+  host.insertBefore(compute, host.firstChild);
+  void refreshTargets();
+
+  // The Run and Prepare buttons above were bound before this card existed, so
+  // they read the chosen target and ranks through these getters.
+  api._galesTarget = chosen;
+  api._galesRanks = () => Number(ranksInput.value) || 4;
 }
 
 /* ── Live data connectors on the Ingest pages ─────────────────────────────
