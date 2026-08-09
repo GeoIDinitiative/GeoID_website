@@ -1,11 +1,13 @@
-import * as store from "./project-store.js?v=20260809-17ab50e";
-import * as stats from "./stats.js?v=20260809-17ab50e";
-import * as dsp from "./dsp.js?v=20260809-17ab50e";
-import { parseTable, column } from "./table.js?v=20260809-17ab50e";
-import { linePlot, heatmap } from "./plot.js?v=20260809-17ab50e";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260809-17ab50e";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260809-17ab50e";
-import * as sidecar from "./sidecar.js?v=20260809-17ab50e";
+import * as store from "./project-store.js?v=20260809-4cac472";
+import * as stats from "./stats.js?v=20260809-4cac472";
+import * as dsp from "./dsp.js?v=20260809-4cac472";
+import { parseTable, column } from "./table.js?v=20260809-4cac472";
+import { linePlot, heatmap } from "./plot.js?v=20260809-4cac472";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260809-4cac472";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260809-4cac472";
+import * as sidecar from "./sidecar.js?v=20260809-4cac472";
+import * as bridge from "./bridge.js?v=20260809-4cac472";
+import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260809-4cac472";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -1290,6 +1292,93 @@ function galesRunner(host, api) {
   });
 }
 
+/* ── Live data connectors on the Ingest pages ─────────────────────────────
+ *
+ * The ingest catalogue mirrors the desktop app, which only ever *links* to data
+ * portals — so the tree draws "Open USGS" and "Import files", never a fetch.
+ * But a few sources are open (no key, CORS-friendly), and this is the web, which
+ * can fetch. This augments the tree-rendered ingest page with a "Live sources"
+ * card: a real pull that files GeoJSON into data/pulled/ with full provenance
+ * and offers it straight onto the globe. Kept here, not in the catalogue,
+ * because it is a web-only capability the desktop app does not have.
+ */
+const INGEST_CONNECTORS = {
+  "Ingest Seismic Geophysics": { slug: "seismic_geophysics", connectors: ["usgs-earthquakes"] },
+  "Ingest Volcano Monitoring": { slug: "volcano_monitoring", connectors: ["eonet-volcanoes", "eonet-wildfires"] },
+};
+
+/** Fetch one connector, file it with provenance, return its project path. */
+async function pullConnector(name, slug, say) {
+  const label = CONNECTORS[name]?.label || name;
+  say(`Fetching from ${label}…`);
+  const bbox = studyBbox(store.getActive()?.meta?.study_area);
+  let result;
+  try {
+    result = await runConnector(name, { bbox });
+  } catch (error) {
+    say(error.message, true);
+    return null;
+  }
+  if (!result.geojson.features.length) {
+    say(`${result.provider} returned nothing for this area or window.`);
+    return null;
+  }
+  const path = `data/pulled/${slug}/${result.filename}`;
+  await store.writeProjectFile(path, JSON.stringify(result.geojson));
+  await store.registerData({
+    name: result.filename, kind: "vector", path,
+    source: `${result.provider} — live`,
+    extra: { domain: slug, live: true, ...result.provenance },
+  });
+  // Per-domain lineage, so provenance survives a registry rewrite.
+  const log = await store.readJson(`data/pulled/${slug}/_lineage.json`, { pulls: [] });
+  log.pulls = Array.isArray(log.pulls) ? log.pulls : [];
+  log.pulls.push({ at: result.provenance.fetched_at, provider: result.provider,
+    endpoint: result.provenance.endpoint, features: result.provenance.features });
+  await store.writeJson(`data/pulled/${slug}/_lineage.json`, log);
+  say(`Pulled ${result.geojson.features.length} feature(s) into ${path}.`);
+  return path;
+}
+
+function ingestConnectors(host, api) {
+  const config = INGEST_CONNECTORS[api.pageId];
+  if (!config || !store.getActive()) return;
+  const say = logger(api);
+
+  const card = el("section", "research-card gis-live-sources");
+  card.appendChild(el("h2", "research-card-title", "Live sources"));
+  card.appendChild(el("p", "research-note",
+    "Open data, fetched straight into the project with its provenance — no key, "
+    + "no download. Uses the study area as the extent when one is set."));
+  const row = el("div", "gis-btn-row");
+  config.connectors.forEach((name) => {
+    const connector = CONNECTORS[name];
+    if (!connector) return;
+    const button = el("button", "button", `Fetch ${connector.label}`);
+    button.type = "button";
+    let globeBtn = null;
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      const path = await pullConnector(name, config.slug, say);
+      button.disabled = false;
+      if (path && !globeBtn) {
+        globeBtn = el("button", "button secondary", "◉ Show on globe");
+        globeBtn.type = "button";
+        globeBtn.addEventListener("click", async () => {
+          try { await bridge.sendToGlobe(path); }
+          catch (error) { say(error.message, true); }
+        });
+        button.after(globeBtn);
+      }
+    });
+    row.appendChild(button);
+  });
+  card.appendChild(row);
+  // Above the catalogue's portal links — the thing that actually returns data
+  // should read first.
+  host.insertBefore(card, host.firstChild);
+}
+
 export const RUNTIME = {
   "CSV Plotter": csvPlotter,
   "Map": mapComposer,
@@ -1301,6 +1390,8 @@ export const RUNTIME = {
   "AI Trainer": aiTrainer,
   "Signal Processing": externalRunner,
   "Run Existing": galesRunner,
+  "Ingest Seismic Geophysics": ingestConnectors,
+  "Ingest Volcano Monitoring": ingestConnectors,
   "Settings": settingsSidecar,
 };
 

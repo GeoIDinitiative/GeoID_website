@@ -49,7 +49,7 @@
       "label": "Day LST",
       "min": -13,
       "max": 57,
-      "unit": "°C"
+      "unit": "\u00b0C"
     },
     "file": "MODIS_061_MOD11A1.png",
     "savedAt": "2026-08-07T21:58:21.966Z"
@@ -120,40 +120,6 @@
     "savedAt": "2026-08-07T21:58:34.676Z"
   },
   {
-    "dataset": "NASA/SMAP/SPL4SMGP/007",
-    "name": "Soil moisture (SMAP)",
-    "bounds": {
-      "minX": -180,
-      "minY": -85,
-      "maxX": 180,
-      "maxY": 85
-    },
-    "bands": [
-      "sm_surface"
-    ],
-    "scale": 10000,
-    "from": "2025-04-28",
-    "to": "2025-06-27",
-    "crs": "EPSG:4326",
-    "attribution": "NASA SMAP L4",
-    "palette": [
-      "8c510a",
-      "d8b365",
-      "f6e8c3",
-      "c7eae5",
-      "5ab4ac",
-      "01665e"
-    ],
-    "legend": {
-      "label": "Soil moisture",
-      "min": 0.05,
-      "max": 0.5,
-      "unit": "m³/m³"
-    },
-    "file": "NASA_SMAP_SPL4SMGP_007.png",
-    "savedAt": "2026-08-07T21:58:51.141Z"
-  },
-  {
     "dataset": "MODIS/061/MOD11A2",
     "name": "Land surface temperature",
     "bounds": {
@@ -181,7 +147,7 @@
       "label": "Day LST",
       "min": -13,
       "max": 57,
-      "unit": "°C"
+      "unit": "\u00b0C"
     },
     "file": "MODIS_061_MOD11A2.png",
     "savedAt": "2026-08-07T21:58:54.670Z"
@@ -282,7 +248,7 @@
       "label": "LST anomaly",
       "min": -16,
       "max": 16,
-      "unit": "°C"
+      "unit": "\u00b0C"
     },
     "file": "anomaly_LST.png",
     "savedAt": "2026-08-07T21:59:24.946Z"

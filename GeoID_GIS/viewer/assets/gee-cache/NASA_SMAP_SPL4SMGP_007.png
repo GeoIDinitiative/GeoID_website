@@ -1,7 +1,0 @@
-{
-  "error": {
-    "code": 400,
-    "message": "User memory limit exceeded.",
-    "status": "INVALID_ARGUMENT"
-  }
-}

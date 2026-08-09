@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260809-17ab50e";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260809-4cac472";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -24,6 +24,19 @@ const ENDPOINT_KEY = "geoid-gis:gee-endpoint";
 const byId = (id) => document.getElementById(id);
 
 let THREE = null;
+
+// The two sources the dataset list is built from. Cached snapshots ship with
+// the app and always work, offline and with no credential; the live service
+// fills in anything the cache does not hold, when it is reachable.
+let cacheEntries = [];   // from assets/gee-cache/manifest.json
+let liveDatasets = [];   // from the service's ?list, when up
+
+// Anchored to this module, not the document: `fetch` and TextureLoader resolve
+// against the page's base URL (the viewer index one directory up), so a
+// document-relative "../assets/…" would miss. `import.meta.url` gives the module
+// its own base, the same way the dynamic `import()` of three.js already does.
+const CACHE_BASE = new URL("../assets/gee-cache/", import.meta.url);
+const cacheUrl = (file) => new URL(file, CACHE_BASE).href;
 
 /**
  * Where the service lives. Held in storage rather than compiled in, so the
@@ -252,10 +265,15 @@ async function drape(imageUrl, bounds) {
 
 async function request() {
   const url = endpoint();
-  const dataset = byId("gee-dataset")?.value;
+  const select = byId("gee-dataset");
+  const dataset = select?.value;
   if (!dataset) {
     status("Choose a dataset first.");
     return;
+  }
+  // A cached snapshot drapes from disk; only a live dataset goes to the service.
+  if (select?.selectedOptions?.[0]?.dataset.source === "cache") {
+    return requestFromCache(dataset);
   }
   status("Requesting…");
   byId("gee-request")?.setAttribute("disabled", "");
@@ -339,21 +357,113 @@ async function request() {
   }
 }
 
-/** Fills the dataset list from the service, so the two cannot drift apart. */
+/**
+ * Build the dataset dropdown from both sources: the cached snapshots first,
+ * because they always work, then anything the live service adds that the cache
+ * does not already hold. Rebuilt whenever either source changes.
+ */
+function populateSelect() {
+  const select = byId("gee-dataset");
+  if (!select) return;
+  const previous = select.value;
+  const options = ['<option value="">Select a dataset…</option>'];
+  if (cacheEntries.length) {
+    options.push('<optgroup label="Available offline">');
+    cacheEntries.forEach((entry) => {
+      options.push(`<option value="${entry.dataset}" data-source="cache">${entry.name}</option>`);
+    });
+    options.push("</optgroup>");
+  }
+  const cachedIds = new Set(cacheEntries.map((e) => e.dataset));
+  const extra = liveDatasets.filter((d) => !cachedIds.has(d.id));
+  if (extra.length) {
+    options.push('<optgroup label="Live service">');
+    extra.forEach((d) => {
+      options.push(`<option value="${d.id}" data-source="live">${d.name}</option>`);
+    });
+    options.push("</optgroup>");
+  }
+  select.innerHTML = options.join("");
+  if (previous) select.value = previous;
+}
+
+/** The shipped snapshots, read from disk — no network, no credential. */
+async function loadCache() {
+  try {
+    const response = await fetch(cacheUrl("manifest.json"), { cache: "no-store" });
+    if (!response.ok) return;
+    const data = await response.json();
+    cacheEntries = Array.isArray(data) ? data.filter((e) => e && e.dataset && e.file) : [];
+    populateSelect();
+    if (cacheEntries.length) {
+      status(`${cacheEntries.length} snapshot${cacheEntries.length === 1 ? "" : "s"} available offline.`);
+    }
+  } catch (error) {
+    /* no cache on disk; the live service, if any, still works */
+  }
+}
+
+/** Drape a cached snapshot straight from disk — the offline path. */
+async function requestFromCache(datasetId) {
+  const entry = cacheEntries.find((e) => e.dataset === datasetId);
+  if (!entry) { status("That snapshot is not in the cache."); return; }
+  status("Draping cached snapshot…");
+  byId("gee-request")?.setAttribute("disabled", "");
+  try {
+    if (!THREE) THREE = await import("../vendor/three.module.js");
+    const object3D = await drape(cacheUrl(entry.file), entry.bounds);
+    const layer = window.GeoIDImportManager?.addDerivedLayer?.(
+      `${entry.name} · ${entry.from}–${entry.to} (cached)`,
+      { object3D, bounds: entry.bounds, georeferenced: true },
+      "gee",
+    );
+    if (layer) {
+      object3D.userData.geoidLayer = true;
+      window.GeoIDViewer?.globe?.add?.(object3D);
+      layer.metadata = {
+        source: `Google Earth Engine · ${entry.dataset} (cached)`,
+        format: "PNG composite",
+        crs: entry.crs || "EPSG:4326",
+        citation: entry.attribution,
+        importedAt: new Date().toISOString(),
+      };
+      layer.colour = "#4fd1a5";
+      if (entry.legend || entry.palette) {
+        layer.legendInfo = {
+          label: entry.legend?.label || entry.name,
+          min: entry.legend?.min,
+          max: entry.legend?.max,
+          unit: entry.legend?.unit || "",
+          palette: entry.palette,
+        };
+      }
+    }
+    window.dispatchEvent(new CustomEvent("geoid-gis:layers-changed"));
+    status(`Added "${entry.name}" from cache${entry.scale ? ` at ${entry.scale} m` : ""}.`);
+  } catch (error) {
+    status(`Could not drape the cached snapshot: ${error.message}`);
+  } finally {
+    byId("gee-request")?.removeAttribute("disabled");
+  }
+}
+
+/** Fills the dataset list from the service, merged with the cache. */
 async function loadCatalogue() {
   const url = endpoint();
-  const select = byId("gee-dataset");
-  if (!url || !select) return;
+  if (!url) return;
   try {
     const response = await fetch(`${url}?list`, { cache: "no-store" });
     if (!response.ok) return;
     const data = await response.json();
     if (!Array.isArray(data.datasets) || !data.datasets.length) return;
-    select.innerHTML = '<option value="">Select a collection…</option>'
-      + data.datasets.map((d) => `<option value="${d.id}">${d.name}</option>`).join("");
-    status(`Service connected · ${data.datasets.length} collections.`);
+    liveDatasets = data.datasets;
+    populateSelect();
+    status(`Service connected · ${data.datasets.length} live collection(s), `
+      + `${cacheEntries.length} cached.`);
   } catch (error) {
-    status(`Service unreachable: ${error.message}`);
+    // The live service is optional. Say nothing over the cache's own message —
+    // an unreachable service is the normal offline case, not an error.
+    if (!cacheEntries.length) status(`Service unreachable: ${error.message}`);
   }
 }
 
@@ -376,6 +486,13 @@ function init() {
   byId("gee-dataset")?.addEventListener("change", async (e) => {
     const id = e.target.value;
     if (!id) return;
+    // A cached snapshot carries its own fixed window; no availability call.
+    if (e.target.selectedOptions?.[0]?.dataset.source === "cache") {
+      const entry = cacheEntries.find((c) => c.dataset === id);
+      status(entry ? `Cached snapshot · ${entry.from} to ${entry.to}. Draped from disk.`
+        : "Cached snapshot.");
+      return;
+    }
     status("Checking availability…");
     try {
       const r = await fetch(`${endpoint()}?dates&dataset=${encodeURIComponent(id)}`);
@@ -407,6 +524,9 @@ function init() {
     });
   });
 
+  // The cache first, so the panel is useful the moment it opens even with no
+  // service and no network; the live catalogue merges in if it answers.
+  loadCache();
   loadCatalogue();
 }
 
