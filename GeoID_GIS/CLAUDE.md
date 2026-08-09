@@ -793,8 +793,21 @@ page is already a command runner (working dir, command, Run, Log tab), so the
 wiring is a `qt-runtime.js` module (`galesRunner`), not a hand-built page —
 Browse steps through `fem_runs/`, the command pre-fills from the deck (`run.sh`
 if present, else the `mpirun` line), and Run streams into the Log tab via
-`runJob`. First cut runs a prepared deck; generating the deck from `spec.json`
-(mesh → `mesh_Ncore.txt`, `setup.txt`, `props.txt`, the `.in`) is the next step.
+`runJob`. **Deck generation is wired** — `POST /jobs/gales/prepare` turns a run's
+`spec.json` into a runnable, compiled GALES sim. It writes `setup.txt` and
+`props.txt` (a faithful text translation, verified field-for-field against
+`sim/solid_es/*/`), clones the `solid_es` C++ boilerplate (`main.cpp`,
+`CMakeLists.txt`, a default `solid_ic_bc.hpp` — fixed base flag 5, one pressure
+surface flag 4, which the user edits to their mesh's flags), symlinks the GALES
+tree as `GALES_SRC` for the includes, copies the project mesh, runs
+`gales_mesh.py N` and builds (`cmake && make`) as one streamed job. The FEM Run
+page's "⚙ Generate & build deck" (injected by `galesRunner`) calls it; the rank
+count comes from the command's `mpirun -n`. The sidecar finds the tree via
+`--gales`, `$GALES_DIR`, or the copy beside it (`GeoID_GIS/gales`). The build
+needs **Trilinos** (`FIND_PACKAGE(Trilinos REQUIRED)`); the *generation* is
+independent of it and is what the sidecar test covers. Only the `solid_es`
+family (elastostatic solid — the volcano-deformation case) is generated so far;
+the fluid/thermal families have different `setup.txt` keys.
 The GALES box has `mpirun`; the solver binary is `gales` on PATH (the Qt app's
 `GALES_BASE_DIR` is `~/gales`).
 

@@ -210,6 +210,15 @@ export async function runGales({ dir, deck, cores, cmd, label } = {}) {
   return (await call("/jobs/gales", { method: "POST",
     body: { dir, deck, cores, cmd, label } })).job_id;
 }
+/**
+ * Generate a runnable GALES deck from the run's spec.json and build it: the
+ * sidecar writes setup.txt/props.txt, clones the solver boilerplate, converts
+ * the mesh for N ranks and compiles. Returns the streamed job's id.
+ */
+export async function prepareGales({ dir, cores } = {}) {
+  return (await call("/jobs/gales/prepare", { method: "POST",
+    body: { dir, cores } })).job_id;
+}
 export async function listJobs() {
   return (await call("/jobs")).jobs || [];
 }

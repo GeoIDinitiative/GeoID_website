@@ -1,13 +1,13 @@
-import * as store from "./project-store.js?v=20260809-95d7b49";
-import * as stats from "./stats.js?v=20260809-95d7b49";
-import * as dsp from "./dsp.js?v=20260809-95d7b49";
-import { parseTable, column } from "./table.js?v=20260809-95d7b49";
-import { linePlot, heatmap } from "./plot.js?v=20260809-95d7b49";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260809-95d7b49";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260809-95d7b49";
-import * as sidecar from "./sidecar.js?v=20260809-95d7b49";
-import * as bridge from "./bridge.js?v=20260809-95d7b49";
-import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260809-95d7b49";
+import * as store from "./project-store.js?v=20260809-ef3c957";
+import * as stats from "./stats.js?v=20260809-ef3c957";
+import * as dsp from "./dsp.js?v=20260809-ef3c957";
+import { parseTable, column } from "./table.js?v=20260809-ef3c957";
+import { linePlot, heatmap } from "./plot.js?v=20260809-ef3c957";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260809-ef3c957";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260809-ef3c957";
+import * as sidecar from "./sidecar.js?v=20260809-ef3c957";
+import * as bridge from "./bridge.js?v=20260809-ef3c957";
+import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260809-ef3c957";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -1290,6 +1290,32 @@ function galesRunner(host, api) {
     if (!cmd) { say("Enter a command to run.", true); return; }
     runJob(api, host, () => sidecar.runGales({ dir, cmd }));
   });
+
+  // "Generate & build deck": turn the run's spec.json into a runnable, compiled
+  // GALES sim — setup.txt, props.txt, the solver boilerplate, the converted mesh
+  // and the build. The Qt command-runner page has no such button, so it is
+  // injected. Uses the rank count from the command's `mpirun -n`.
+  const prep = el("section", "research-card gis-live-sources");
+  prep.appendChild(el("h2", "research-card-title", "Prepare GALES deck"));
+  prep.appendChild(el("p", "research-note",
+    "Generate the deck (setup.txt, props.txt, solver boilerplate) from this "
+    + "run's spec.json, convert its mesh and build it — then Run solves it. "
+    + "Needs the sidecar started with a GALES tree (--gales)."));
+  const prepBtn = el("button", "button", "⚙ Generate & build deck");
+  prepBtn.type = "button";
+  prepBtn.addEventListener("click", () => {
+    if (!sidecar.isConnected()) {
+      say("Connect the sidecar first (Settings ▸ Sidecar).", true); return;
+    }
+    const dir = val("workdir");
+    if (!dir) { say("Choose a run folder first (Browse).", true); return; }
+    const cores = Number((val("cmd").match(/-n\s+(\d+)/) || [])[1]) || 4;
+    runJob(api, host, () => sidecar.prepareGales({ dir, cores }));
+  });
+  const prepRow = el("div", "gis-btn-row");
+  prepRow.appendChild(prepBtn);
+  prep.appendChild(prepRow);
+  host.insertBefore(prep, host.firstChild);
 }
 
 /* ── Live data connectors on the Ingest pages ─────────────────────────────

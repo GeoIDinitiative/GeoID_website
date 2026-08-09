@@ -217,6 +217,7 @@ class Handler(BaseHTTPRequestHandler):
     runner: Runner
     token: str | None
     curated: set  # resolved paths a function may be run from
+    gales_dir: Path | None = None  # the GALES source tree, for deck templates
 
     # ── plumbing ────────────────────────────────────────────────────────────
 
@@ -309,7 +310,9 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": True, "service": "geoid-sidecar", "version": VERSION,
                 "root": str(self.runner.root),
                 "needs_token": self.token is not None,
-                "capabilities": ["fs", "jobs", "script", "function", "training", "gales", "events"],
+                "capabilities": ["fs", "jobs", "script", "function", "training", "gales", "events"]
+                    + (["gales-prepare"] if self.gales_dir else []),
+                "gales_dir": str(self.gales_dir) if self.gales_dir else None,
             }, origin)
             return
 
@@ -370,6 +373,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._start_training(body, origin)
             elif route == "/jobs/gales":
                 self._start_gales(body, origin)
+            elif route == "/jobs/gales/prepare":
+                self._start_gales_prepare(body, origin)
             elif route.startswith("/jobs/") and route.endswith("/stop"):
                 ok = self.runner.stop(route.split("/")[2])
                 self._send(200 if ok else 404, {"ok": ok}, origin)
@@ -595,6 +600,216 @@ class Handler(BaseHTTPRequestHandler):
                                 on_finish=on_finish)
         self._send(200, {"job_id": job.id, "deck": deck, "cmd": cmd_str}, origin)
 
+    # ── GALES deck generation ─────────────────────────────────────────────────
+    #
+    # spec.json (what the FEM pages write) → a runnable GALES sim. The two config
+    # files are a faithful text translation; the C++ (main.cpp, CMakeLists,
+    # <family>_ic_bc.hpp) is cloned from the GALES source tree because it is
+    # boilerplate a mesh's boundary flags drive, not something a generic spec can
+    # invent correctly. The mesh is converted for N ranks and the whole thing is
+    # built, so the folder that comes out is ready for the Run step.
+
+    @staticmethod
+    def gales_setup_txt(spec: dict, mesh_file: str) -> str:
+        """setup.txt for solid_es, matching sim/solid_es/*/setup.txt field for field."""
+        time = spec.get("time") or {}
+        def num(v, default):
+            try:
+                return v if v not in (None, "") else default
+            except Exception:
+                return default
+        lines = [
+            f"solid_mesh_file       {mesh_file}",
+            f"dim                   {int(spec.get('dim', 3))}",
+            f"delta_t               {num(time.get('step'), 1)}",
+            f"final_time            {num(time.get('end'), 1)}",
+            "restart               F",
+            "restart_time          0.0",
+            f"n_max_it              {int(spec.get('n_max_it', 1))}",
+            f"print_freq            {int(spec.get('print_freq', 1))}",
+            "",
+            "ls_solver           CG",
+            "ls_precond          ILU",
+            "ls_overlaplevel     0",
+            "ls_fill             0",
+            "ls_left_precond     T",
+            "ls_rel_res_tol      1.e-9",
+            "ls_maxsubspace      200",
+            "ls_maxrestarts      5",
+            "ls_maxiters        -1",
+            "",
+        ]
+        return "\n".join(lines)
+
+    @staticmethod
+    def gales_props_txt(spec: dict) -> str:
+        """props.txt for solid_es (Hooke's) from spec.properties.solid."""
+        solid = (spec.get("properties") or {}).get("solid") or {}
+        def g(key, default):
+            v = solid.get(key)
+            return v if v not in (None, "") else default
+        # GALES writes E and rho in plain decimal / scientific; keep the user's
+        # numbers verbatim so a value they typed is the value that solves.
+        return (
+            "\nsolid\n{\n"
+            "   material        Hookes\n\n"
+            f"   plane_strain    {'T' if spec.get('plane_strain') else 'F'}\n"
+            "   plane_stress    F\n"
+            "   axisymmetric    F\n\n"
+            f"   rho             {g('density', 3000.0)}\n"
+            f"   E               {g('young', 25.0e9)}\n"
+            f"   nu              {g('poisson', 0.25)}\n"
+            "}\n"
+        )
+
+    def _start_gales_prepare(self, body: dict, origin: str):
+        """Turn a run's spec.json into a runnable GALES sim, then build it.
+
+        Writes setup.txt/props.txt from the spec, clones the solid_es C++
+        boilerplate from the GALES tree, copies the project mesh in, converts it
+        for N ranks and builds — all as one streamed job so the page shows
+        progress. First cut targets the solid_es family (elastostatic solid), the
+        volcano-deformation case the etna sims use.
+        """
+        if not self.gales_dir or not self.gales_dir.exists():
+            raise ValueError(
+                "No GALES source tree configured. Start the sidecar with "
+                "--gales <path to the gales checkout>.")
+        rel = str(body.get("dir", "")).strip()
+        if not rel:
+            raise ValueError("a run directory is required")
+        run_dir = self._safe(rel)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        spec_path = run_dir / "spec.json"
+        if not spec_path.is_file():
+            raise FileNotFoundError("no spec.json in this run — configure it in FEM ▸ Setup first")
+        try:
+            spec = json.loads(spec_path.read_text())
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"spec.json is not valid JSON: {exc}")
+
+        cores = int(body.get("cores") or 4)
+        if cores < 1:
+            cores = 1
+        family = "solid_es"   # the only family generated for now
+        template = self.gales_dir / "src" / "solvers" / family
+        mesh_tool = self.gales_dir / "tpl" / "gales_mesh_preprocessing"
+        if not template.exists():
+            raise FileNotFoundError(f"GALES {family} solver not found under {self.gales_dir}")
+
+        # 1. The config, from the spec. mesh_<N>core.txt is what setup references,
+        #    generated below by gales_mesh.py.
+        (run_dir / "setup.txt").write_text(self.gales_setup_txt(spec, f"mesh_{cores}core.txt"))
+        (run_dir / "props.txt").write_text(self.gales_props_txt(spec))
+
+        # 2. The C++ boilerplate. main.cpp includes the sim-local ic_bc and the
+        #    family solver; the ic_bc is a sensible default (fixed base, one
+        #    pressure BC) the user refines against their mesh's flags.
+        (run_dir / "main.cpp").write_text(
+            f'#include "solid_ic_bc.hpp"\n#include "GALES_SRC/src/solvers/{family}/solver.hpp"\n')
+        ic_bc_src = self._gales_default_ic_bc()
+        (run_dir / "solid_ic_bc.hpp").write_text(ic_bc_src)
+        (run_dir / "CMakeLists.txt").write_text(self._gales_cmakelists())
+
+        # 3. The mesh. Prefer a .msh the run already holds, else the project's
+        #    first mesh copied in.
+        input_dir = run_dir / "input"
+        input_dir.mkdir(exist_ok=True)
+        mesh_msh = self._locate_run_mesh(run_dir, input_dir)
+
+        # 4. Convert + build, streamed. gales_mesh.py writes mesh_<N>core.txt;
+        #    ./build runs cmake+make. A tiny shell script keeps it one job with
+        #    ordered, legible output.
+        script = run_dir / "_prepare.sh"
+        script.write_text(
+            "#!/usr/bin/env bash\nset -e\n"
+            f'echo "[prepare] converting mesh for {cores} rank(s)…"\n'
+            f'cd "{input_dir}"\n'
+            f'python3 "{mesh_tool}/gales_mesh.py" {cores} "{mesh_msh.name}"\n'
+            f'cd "{run_dir}"\n'
+            'echo "[prepare] building (cmake + make)…"\n'
+            'cmake . && make\n'
+            'echo "[prepare] done — the run is ready. Use Run to solve it."\n')
+        script.chmod(0o755)
+        env = dict(body.get("env") or {})
+        # main.cpp includes GALES_SRC/…; point that at the tree via a symlink so
+        # the include path is stable regardless of where the run folder sits.
+        link = run_dir / "GALES_SRC"
+        try:
+            if link.is_symlink() or link.exists():
+                link.unlink()
+            link.symlink_to(self.gales_dir)
+        except OSError:
+            pass
+        job = self.runner.start("gales-prepare", f"prepare {Path(rel).name}",
+                                ["bash", str(script)], run_dir, env)
+        self._send(200, {"job_id": job.id, "family": family, "cores": cores,
+                         "mesh": mesh_msh.name}, origin)
+
+    def _locate_run_mesh(self, run_dir: Path, input_dir: Path) -> Path:
+        """A .msh for this run: one already in the run, else the project mesh."""
+        for folder in (input_dir, run_dir):
+            found = sorted(folder.glob("*.msh"))
+            if found:
+                return found[0]
+        # The project's meshes/ live two levels up from fem_runs/<run>/.
+        meshes = run_dir.parent.parent / "meshes"
+        found = sorted(meshes.glob("*.msh")) if meshes.exists() else []
+        if not found:
+            raise FileNotFoundError(
+                "no .msh mesh found in the run or the project's meshes/ — "
+                "build or import a mesh first")
+        dest = input_dir / found[0].name
+        import shutil
+        shutil.copy(found[0], dest)
+        return dest
+
+    @staticmethod
+    def _gales_cmakelists() -> str:
+        return (
+            "cmake_minimum_required(VERSION 3.5)\n"
+            "project(GeoIDGalesRun)\n"
+            "set(sim executable)\n"
+            "set(CMAKE_INCLUDE_CURRENT_DIR ON)\n"
+            "FIND_PACKAGE(Trilinos REQUIRED)\n"
+            "SET(CMAKE_CXX_COMPILER ${Trilinos_CXX_COMPILER})\n"
+            "SET(CMAKE_C_COMPILER ${Trilinos_C_COMPILER})\n"
+            "SET(CMAKE_Fortran_COMPILER ${Trilinos_Fortran_COMPILER})\n"
+            'SET(CMAKE_CXX_FLAGS "${Trilinos_CXX_COMPILER_FLAGS} ${CMAKE_CXX_FLAGS}")\n'
+            "INCLUDE_DIRECTORIES(${Trilinos_INCLUDE_DIRS} ${Trilinos_TPL_INCLUDE_DIRS})\n"
+            "LINK_DIRECTORIES(${Trilinos_LIBRARY_DIRS} ${Trilinos_TPL_LIBRARY_DIRS})\n"
+            "add_executable(${sim} main.cpp)\n"
+            "target_link_libraries(${sim} ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})\n")
+
+    @staticmethod
+    def _gales_default_ic_bc() -> str:
+        """A minimal, valid solid_es IC/BC: zero initial displacement, the base
+        (flag 5) fixed, one pressure surface (flag 4). The user edits the flags to
+        match their mesh; this compiles and runs as-is."""
+        return (
+            "#ifndef SOLID_IC_BC_HPP\n#define SOLID_IC_BC_HPP\n"
+            '#include "GALES_SRC/src/fem/fem.hpp"\n'
+            "namespace GALES{\n"
+            "  template<int dim>\n"
+            "  class solid_ic_bc : public base_ic_bc<dim>{\n"
+            "    using nd_type = node<dim>;\n"
+            "    public:\n"
+            "    double initial_ux(const nd_type &nd)const {return 0.0;}\n"
+            "    double initial_uy(const nd_type &nd)const {return 0.0;}\n"
+            "    double initial_uz(const nd_type &nd)const {return 0.0;}\n"
+            "    auto dirichlet_ux(const nd_type &nd)const{ if(nd.flag()==5) return std::make_pair(true,0.0); return std::make_pair(false,0.0);}\n"
+            "    auto dirichlet_uy(const nd_type &nd)const{ if(nd.flag()==5) return std::make_pair(true,0.0); return std::make_pair(false,0.0);}\n"
+            "    auto dirichlet_uz(const nd_type &nd)const{ if(nd.flag()==5) return std::make_pair(true,0.0); return std::make_pair(false,0.0);}\n"
+            "    auto neumann_tau11(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
+            "    auto neumann_tau22(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
+            "    auto neumann_tau33(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
+            "    auto neumann_tau12(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
+            "    auto neumann_tau13(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
+            "    auto neumann_tau23(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
+            "    auto neumann_pressure(const std::vector<int>& b, int s)const{ if(s==4) return std::make_pair(true, 10.e6); return std::make_pair(false,0.0);}\n"
+            "  };\n"
+            "}\n#endif\n")
+
     def _job_events(self, job_id: str, query: dict, origin: str):
         """Server-Sent Events: replay the log from `from`, then follow live."""
         job = self.runner.jobs.get(job_id)
@@ -642,15 +857,27 @@ def main() -> int:
                         help="loopback only by default; changing this exposes an interpreter")
     parser.add_argument("--no-token", action="store_true",
                         help="skip the auth token (single-user machine only)")
+    parser.add_argument("--gales", default=os.environ.get("GALES_DIR", ""),
+                        help="the GALES source tree, so the FEM stage can generate "
+                             "and build a deck ($GALES_DIR, or auto-detected)")
     args = parser.parse_args()
 
     root = Path(args.root).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
     token = None if args.no_token else secrets.token_urlsafe(18)
 
+    # The GALES tree: the flag, else the copy that ships beside this sidecar
+    # (GeoID_GIS/gales), else nothing (deck generation stays disabled).
+    gales_dir = None
+    for candidate in (args.gales, Path(__file__).resolve().parents[1] / "gales"):
+        if candidate and Path(candidate).expanduser().exists():
+            gales_dir = Path(candidate).expanduser().resolve()
+            break
+
     runner = Runner(root)
     Handler.runner = runner
     Handler.token = token
+    Handler.gales_dir = gales_dir
 
     if args.host not in ("127.0.0.1", "localhost", "::1"):
         print(f"⚠  Binding {args.host} exposes a Python interpreter beyond this "

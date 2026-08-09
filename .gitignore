@@ -26,3 +26,6 @@ planet_explorer/moon/viewer/assets/geology/Unified_Geologic_Map_of_the_Moon_GIS_
 # Local restore points created during the flight-sim merge (not for the repo)
 .merge-backup-*/
 assets/etna_viewer_demo_audio.webm
+
+# GALES solver source tree (placed locally; huge, has its own .git)
+GeoID_GIS/gales/
