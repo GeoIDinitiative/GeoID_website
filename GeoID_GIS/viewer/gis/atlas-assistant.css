@@ -1,0 +1,195 @@
+/**
+ * Atlas — the assistant launcher and panel.
+ *
+ * Lives on every page, so it takes its colour from the viewer skin's tokens
+ * (`--skin-chrome` magenta for chrome, `--skin-data` cyan for values) rather
+ * than from the Research Hub's stylesheet, which is not loaded on the globe.
+ * Fixed bottom-right, above the viewer's own furniture but below any modal.
+ */
+
+.atlas-launcher {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 900;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  cursor: pointer;
+  background: rgba(var(--skin-panel, 22, 9, 51), 0.92);
+  border: 1.5px solid rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.75);
+  box-shadow: 0 0 18px -2px rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.55),
+    0 4px 16px rgba(0, 0, 0, 0.45);
+  color: rgb(var(--skin-chrome, 255, 43, 214));
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.atlas-launcher:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 26px -2px rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.8),
+    0 6px 20px rgba(0, 0, 0, 0.5);
+}
+.atlas-launcher.is-open {
+  background: rgb(var(--skin-chrome, 255, 43, 214));
+  color: #12001f;
+}
+.atlas-launcher-mark {
+  font-size: 20px;
+  line-height: 1;
+  /* The mark is the only thing that moves, so the button reads as alive
+     without pulling the eye off the map. */
+  animation: atlas-pulse 4s ease-in-out infinite;
+}
+@keyframes atlas-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-launcher-mark { animation: none; }
+}
+
+.atlas-panel {
+  position: fixed;
+  right: 18px;
+  bottom: 82px;
+  z-index: 900;
+  width: min(380px, calc(100vw - 36px));
+  max-height: min(560px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(var(--skin-panel, 22, 9, 51), 0.98);
+  border: 1px solid rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.42);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55),
+    0 0 22px -8px rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.5);
+  font-family: "Exo 2", "Segoe UI", system-ui, sans-serif;
+  color: rgb(var(--skin-ink, 253, 247, 255));
+}
+.atlas-panel[hidden] { display: none !important; }
+
+.atlas-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.28);
+  background: rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.08);
+}
+.atlas-title {
+  font-family: "Orbitron", "Exo 2", system-ui, sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  color: rgb(var(--skin-chrome, 255, 43, 214));
+}
+.atlas-sub {
+  flex: 1;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.6;
+}
+.atlas-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 2px 4px;
+  color: inherit;
+  opacity: 0.6;
+}
+.atlas-close:hover { opacity: 1; }
+
+.atlas-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--skin-muted, 214, 194, 255), 0.28) transparent;
+}
+
+.atlas-msg {
+  max-width: 92%;
+  padding: 8px 10px;
+  border-radius: 9px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  word-wrap: break-word;
+}
+.atlas-msg strong { color: rgb(var(--skin-data, 0, 229, 255)); font-weight: 600; }
+.atlas-atlas {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.18);
+}
+.atlas-user {
+  align-self: flex-end;
+  background: rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.16);
+  border: 1px solid rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.38);
+}
+
+.atlas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: -2px 0 2px;
+}
+.atlas-action {
+  cursor: pointer;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-family: inherit;
+  color: rgb(var(--skin-data, 0, 229, 255));
+  background: rgba(var(--skin-data-rgb, 0, 229, 255), 0.08);
+  border: 1px solid rgba(var(--skin-data-rgb, 0, 229, 255), 0.4);
+  transition: background .12s, color .12s;
+}
+.atlas-action:hover {
+  background: rgb(var(--skin-data, 0, 229, 255));
+  color: #04121a;
+}
+
+.atlas-form {
+  display: flex;
+  gap: 6px;
+  padding: 10px;
+  border-top: 1px solid rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.24);
+}
+.atlas-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.3);
+}
+.atlas-input:focus {
+  outline: none;
+  border-color: rgba(var(--skin-data-rgb, 0, 229, 255), 0.7);
+}
+.atlas-send {
+  cursor: pointer;
+  width: 34px;
+  border-radius: 7px;
+  font-size: 1rem;
+  color: #12001f;
+  background: rgb(var(--skin-chrome, 255, 43, 214));
+  border: none;
+}
+.atlas-send:hover { filter: brightness(1.15); }
+
+/* On a phone the panel takes the width it needs and sits clear of the mark. */
+@media (max-width: 520px) {
+  .atlas-panel { right: 10px; left: 10px; width: auto; bottom: 76px; }
+  .atlas-launcher { right: 12px; bottom: 12px; }
+}

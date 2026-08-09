@@ -168,6 +168,44 @@ so provenance fields end up top-level (`record.endpoint`, not
 — so a project scoped to an ocean box correctly returns no earthquakes; test a
 global pull with no study area.
 
+## Atlas — the assistant
+
+`gis/atlas-assistant.js` puts a fixed launcher bottom-right on **every** page
+(Earth's index lists it as a script tag; the planet pages get it from `boot.js`'s
+MODULES). It loads its own CSS, so adding it to a page is one tag.
+
+**It is grounded, not mocked, and that is the whole design.** `ECOSYSTEM`
+describes the workflow once — each link's `produces`, `needs`, `has(state)`,
+`act` — and `probe()` reads the live truth across all three modes (project,
+study area, datasets, meshes, runs, built decks, results, series, analysis,
+figures, globe layers, sidecar, compute targets). Every answer is derived from
+those two: `nextStep()` is the first unmet link whose prerequisites are met,
+`blockers()` walks the chain for "why can't I…". So it cannot invent a page, it
+is always about *this* project right now, and **adding a capability is a row in
+that table, not a new branch.** Each answer carries the button that performs it.
+
+A model is optional and additive. With an Atlas hub configured
+(`GeoIDAtlas.connect(url)`), anything the grounded layer cannot answer goes to
+its `POST /api/chat/simple` with `{messages, context}` — the shape that endpoint
+documents for exactly this ("the Research Hub's project/page/selection"). It has
+its own reflex layer, so trivial intents never reach a model there either.
+Without a hub Atlas says what it can and cannot do rather than improvising.
+
+**Page search must be intent-weighted or it lies confidently.** Matching the
+question's words against page *blurbs* made "**where** do I do meshing?" return
+Metadata & Lineage, whose blurb begins "**Where** every file came from" — the
+grammar outvoted the subject. So: strip interrogatives/auxiliaries (`STOPWORDS`,
+deliberately excluding real page words like run/data/mesh), light-stem
+(`meshing`→`mesh`), score a **name** hit 5× a blurb hit, and require ≥3 — a
+floor only a name match clears. That floor is what makes "I don't know" possible
+at all; without it an unanswerable question matched some blurb and got a
+confident wrong answer.
+
+`window.GeoIDAtlas.notify(message, actions)` is the seam the future live-feed
+monitor pushes hazard alerts through. "Anything happening nearby?" already runs
+the verified connectors bounded to the study area, which is that role in
+miniature.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together
