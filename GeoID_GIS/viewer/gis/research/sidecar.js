@@ -219,6 +219,15 @@ export async function prepareGales({ dir, cores } = {}) {
   return (await call("/jobs/gales/prepare", { method: "POST",
     body: { dir, cores } })).job_id;
 }
+/**
+ * Extract probe time series from a solved GALES run's binary results into
+ * post_processing/extracted_dofs/<probe>.csv, which the Signal and Spectral
+ * pages then read. `stations` are { name, x, y, z } in mesh coordinates.
+ */
+export async function postprocessGales({ dir, stations, field } = {}) {
+  return (await call("/jobs/gales/postprocess", { method: "POST",
+    body: { dir, stations, field } })).job_id;
+}
 export async function listJobs() {
   return (await call("/jobs")).jobs || [];
 }

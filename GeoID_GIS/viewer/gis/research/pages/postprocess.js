@@ -1,8 +1,9 @@
-import { registerPage } from "../stages.js?v=20260809-ef3c957";
-import * as store from "../project-store.js?v=20260809-ef3c957";
-import { parseTable } from "../table.js?v=20260809-ef3c957";
-import { linePlot, toPngBlob } from "../plot.js?v=20260809-ef3c957";
-import { needProject } from "./common.js?v=20260809-ef3c957";
+import { registerPage } from "../stages.js?v=20260809-4de93c6";
+import * as store from "../project-store.js?v=20260809-4de93c6";
+import * as sidecar from "../sidecar.js?v=20260809-4de93c6";
+import { parseTable } from "../table.js?v=20260809-4de93c6";
+import { linePlot, toPngBlob } from "../plot.js?v=20260809-4de93c6";
+import { needProject } from "./common.js?v=20260809-4de93c6";
 
 /**
  * Post Processing: degree-of-freedom time series at probe points, and the DOF
@@ -304,7 +305,61 @@ async function mountPostProcess(host, ctx) {
   });
 
   actions.append(extractBtn, saveBtn, figBtn);
-  host.append(sourceCard, probeCard, resultCard, status);
+
+  // ── GALES binary results → extracted_dofs, via the sidecar ──────────────────
+  // A solved GALES run writes binary displacement fields, not a long-format CSV,
+  // so the client extraction above cannot read them. The sidecar can: it finds
+  // the nearest mesh node to each probe and writes the series straight into
+  // post_processing/extracted_dofs/, where Signal Processing reads it.
+  const galesCard = card("Extract from a GALES run");
+  galesCard.appendChild(el("p", "research-note",
+    "A solved GALES run writes binary displacement fields. This reads them "
+    + "directly — for each probe above it takes the nearest mesh node and writes "
+    + "its time series (t, ux, uy, uz, magnitude) to "
+    + "post_processing/extracted_dofs/, ready for Signal Processing. Probe "
+    + "coordinates are the mesh's own (metres). Needs the sidecar."));
+  const galesRuns = (await store.listProjectDir("fem_runs").catch(() => []))
+    .filter((e) => e.kind === "directory").map((e) => e.name);
+  const runSelect = selectOf(galesRuns.length ? galesRuns : ["(no FEM runs)"]);
+  const galesBtn = el("button", "button", "Extract from GALES results");
+  galesBtn.type = "button";
+  const galesLog = el("pre", "qt-console is-placeholder");
+  galesLog.textContent = "No extraction run yet.";
+  galesBtn.addEventListener("click", () => {
+    if (!sidecar.isConnected()) {
+      say("Connect the sidecar first (Settings ▸ Sidecar).", true); return;
+    }
+    if (!galesRuns.length) { say("No FEM runs — solve one first.", true); return; }
+    const probes = parseProbes(probeBox.value)
+      .map((p) => ({ name: p.name, x: p.x, y: p.y, z: p.z }));
+    if (!probes.length) { say("Define at least one probe above (name,x,y,z).", true); return; }
+    const dir = `${store.getActive().dir}/fem_runs/${runSelect.value}`;
+    galesLog.classList.remove("is-placeholder");
+    galesLog.textContent = "";
+    galesBtn.disabled = true;
+    (async () => {
+      let jobId;
+      try { jobId = await sidecar.postprocessGales({ dir, stations: probes }); }
+      catch (error) { say(error.message, true); galesBtn.disabled = false; return; }
+      sidecar.streamJob(jobId, {
+        onLine: (line) => {
+          galesLog.textContent += `${line}\n`;
+          galesLog.scrollTop = galesLog.scrollHeight;
+        },
+        onStatus: (st) => {
+          galesBtn.disabled = false;
+          say(st === "done"
+            ? "Extracted — the series are in post_processing/extracted_dofs/. Open Signal Processing."
+            : `Extraction ${st}.`, st === "failed");
+        },
+      });
+    })();
+  });
+  const galesRow = el("div", "gis-btn-row");
+  galesRow.append(runSelect, galesBtn);
+  galesCard.append(galesRow, galesLog);
+
+  host.append(sourceCard, probeCard, galesCard, resultCard, status);
 }
 
 // ── DOF Wizard ───────────────────────────────────────────────────────────────

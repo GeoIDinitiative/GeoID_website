@@ -812,6 +812,20 @@ no heat props). The FEM Run page's "⚙ Generate & build deck" (injected by
 or the copy beside it (`GeoID_GIS/gales`). The build needs **Trilinos**; the
 *generation* is independent of it and is what the sidecar test covers. FSI (two
 meshes) still needs manual setup; it falls back to a solid deck.
+
+**Post-processing closes the loop** — `POST /jobs/gales/postprocess` reads a
+solved run's **binary** results and writes the CSVs the analysis pages consume.
+`results/<field>/<timestep>` is a flat `3·N` little-endian float64 array (node i's
+displacement at `u[3i:3i+3]`, `N` the mesh node count, confirmed against etna:
+6027528 B = 3×251147 doubles). For each probe it finds the nearest mesh node
+(coords from `input/mesh_Ncore.txt`, `Node <i> x y z flag` lines) and reads that
+node across the timesteps, writing `post_processing/extracted_dofs/<probe>.csv`
+(`t, ux, uy, uz, magnitude`) — the long-format the Signal and Spectral pages
+already list via `findTables`. Verified against the real etna results (t=0 all
+zero, t=1 `uz≈-80`). Probe coordinates are the mesh's own metric frame, not
+lat/lon. Wired as "Extract from GALES results" on the Post Processing page,
+reusing its probe list. The client-side `extractSeries`/`idwSample` path stays
+for long-format CSVs; this is the binary path the browser cannot do.
 The GALES box has `mpirun`; the solver binary is `gales` on PATH (the Qt app's
 `GALES_BASE_DIR` is `~/gales`).
 

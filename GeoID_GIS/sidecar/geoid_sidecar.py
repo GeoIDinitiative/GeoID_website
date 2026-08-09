@@ -375,6 +375,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._start_gales(body, origin)
             elif route == "/jobs/gales/prepare":
                 self._start_gales_prepare(body, origin)
+            elif route == "/jobs/gales/postprocess":
+                self._start_gales_postprocess(body, origin)
             elif route.startswith("/jobs/") and route.endswith("/stop"):
                 ok = self.runner.stop(route.split("/")[2])
                 self._send(200 if ok else 404, {"ok": ok}, origin)
@@ -760,6 +762,88 @@ class Handler(BaseHTTPRequestHandler):
                                 ["bash", str(script)], run_dir, dict(body.get("env") or {}))
         self._send(200, {"job_id": job.id, "family": family, "physics": physics,
                          "cores": cores, "mesh": mesh_msh.name}, origin)
+
+    def _start_gales_postprocess(self, body: dict, origin: str):
+        """Extract probe time series from a GALES run's results into CSVs the
+        Signal and Spectral pages read.
+
+        The results are flat binary: results/<field>/<timestep> is 3·N float64,
+        node i's displacement at u[3i:3i+3], N the mesh node count. For each probe
+        this finds the nearest mesh node and reads its displacement across the
+        timesteps, writing post_processing/extracted_dofs/<probe>.csv
+        (t, ux, uy, uz, magnitude) — the long-format the extraction page and the
+        analysis pages already consume. Runs as a streamed job because a large
+        mesh is a lot of nodes to scan.
+        """
+        rel = str(body.get("dir", "")).strip()
+        if not rel:
+            raise ValueError("a run directory is required")
+        run_dir = self._safe(rel)
+        if not run_dir.is_dir():
+            raise FileNotFoundError(f"no such run directory: {rel}")
+        field = str(body.get("field") or "solid/u").strip("/")
+        results = run_dir / "results" / field
+        if not results.is_dir():
+            raise FileNotFoundError(
+                f"no results/{field} in this run — solve it with Run first")
+        meshes = sorted((run_dir / "input").glob("*core.txt"))
+        if not meshes:
+            raise FileNotFoundError(
+                "no converted mesh (input/mesh_Ncore.txt) — prepare the run first")
+        stations = body.get("stations") or []
+        if not stations:
+            raise ValueError("give at least one probe point (name, x, y, z in mesh coordinates)")
+
+        script = run_dir / "_postprocess.py"
+        script.write_text(self._gales_postprocess_py(
+            str(run_dir), str(meshes[0]), field, stations))
+        job = self.runner.start("gales-postprocess", f"extract {Path(rel).name}",
+                                [sys.executable, str(script)], run_dir, dict(body.get("env") or {}))
+        self._send(200, {"job_id": job.id, "field": field, "probes": len(stations)}, origin)
+
+    @staticmethod
+    def _gales_postprocess_py(run_dir: str, mesh_path: str, field: str, stations: list) -> str:
+        return (
+            "#!/usr/bin/env python3\n"
+            "import os, struct, math, json\n"
+            f"RUN={run_dir!r}\nMESH={mesh_path!r}\nFIELD={field!r}\n"
+            f"STATIONS={json.dumps(stations)}\n"
+            "coords={}\n"
+            "with open(MESH) as f:\n"
+            "    for line in f:\n"
+            "        if line.startswith('Node'):\n"
+            "            p=line.split()\n"
+            "            coords[int(p[1])]=(float(p[2]),float(p[3]),float(p[4]))\n"
+            "N=len(coords)\n"
+            "print(f'[postprocess] {N} mesh nodes')\n"
+            "def nearest(sx,sy,sz):\n"
+            "    best=-1; bd=None\n"
+            "    for i,(x,y,z) in coords.items():\n"
+            "        d=(x-sx)**2+(y-sy)**2+(z-sz)**2\n"
+            "        if bd is None or d<bd: bd=d; best=i\n"
+            "    return best, math.sqrt(bd)\n"
+            "picks=[]\n"
+            "for st in STATIONS:\n"
+            "    i,dist=nearest(float(st['x']),float(st['y']),float(st['z']))\n"
+            "    picks.append((st['name'], i)); print(f\"[postprocess] {st['name']}: node {i} at {dist:.1f} m\")\n"
+            "udir=os.path.join(RUN,'results',FIELD)\n"
+            "steps=sorted([s for s in os.listdir(udir) if s.isdigit()], key=int)\n"
+            "print(f'[postprocess] {len(steps)} timestep(s)')\n"
+            "out=os.path.join(RUN,'..','..','post_processing','extracted_dofs')\n"
+            "os.makedirs(out, exist_ok=True)\n"
+            "series={name:[] for name,_ in picks}\n"
+            "for t in steps:\n"
+            "    data=open(os.path.join(udir,t),'rb').read()\n"
+            "    for name,i in picks:\n"
+            "        ux,uy,uz=struct.unpack('<3d', data[i*24:i*24+24])\n"
+            "        series[name].append((int(t),ux,uy,uz,math.sqrt(ux*ux+uy*uy+uz*uz)))\n"
+            "for name,i in picks:\n"
+            "    path=os.path.join(out, ''.join(c if c.isalnum() or c in '-_.' else '_' for c in name)+'.csv')\n"
+            "    with open(path,'w') as f:\n"
+            "        f.write('t,ux,uy,uz,magnitude\\n')\n"
+            "        for row in series[name]: f.write(','.join(str(v) for v in row)+'\\n')\n"
+            "    print(f'[postprocess] wrote {path} ({len(series[name])} rows)')\n"
+            "print('[postprocess] done — open Signal Processing to analyse the series.')\n")
 
     def _locate_run_mesh(self, run_dir: Path, input_dir: Path) -> Path:
         """A .msh for this run: one already in the run, else the project mesh."""
