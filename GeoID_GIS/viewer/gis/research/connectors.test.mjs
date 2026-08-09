@@ -10,7 +10,10 @@
  *   node GeoID_GIS/viewer/gis/research/connectors.test.mjs
  */
 
-import { usgsToGeoJSON, eonetToGeoJSON, studyBbox } from "./connectors.js";
+import {
+  usgsToGeoJSON, eonetToGeoJSON, studyBbox,
+  nwsToGeoJSON, usgsWaterToGeoJSON, overpassToGeoJSON,
+} from "./connectors.js";
 
 let failures = 0;
 function check(name, ok, detail = "") {
@@ -85,6 +88,53 @@ check("studyBbox rejects the zero default",
   studyBbox({ min_lat: 0, max_lat: 0, min_lon: 0, max_lon: 0 }) === null);
 check("studyBbox rejects empty strings",
   studyBbox({ min_lat: "", max_lat: "", min_lon: "", max_lon: "" }) === null);
+
+// ── NWS: already GeoJSON, drop alerts with no geometry ────────────────────────
+const nws = nwsToGeoJSON({
+  features: [
+    { type: "Feature", geometry: { type: "Polygon", coordinates: [[[-90, 30], [-89, 30], [-89, 31], [-90, 30]]] },
+      properties: { event: "Flood Warning", severity: "Severe", areaDesc: "Somewhere County", headline: "H" } },
+    { type: "Feature", geometry: null, properties: { event: "Zone-only alert" } },  // dropped
+  ],
+});
+check("nws drops geometry-less alerts", nws.features.length === 1, `${nws.features.length} kept`);
+check("nws carries event and severity",
+  nws.features[0].properties.event === "Flood Warning"
+  && nws.features[0].properties.severity === "Severe");
+
+// ── USGS Water: timeSeries → gauge points with latest discharge ───────────────
+const water = usgsWaterToGeoJSON({
+  value: { timeSeries: [
+    {
+      sourceInfo: { siteName: "Creek nr Town", siteCode: [{ value: "01234567" }],
+        geoLocation: { geogLocation: { latitude: "38.5", longitude: "-121.4" } } },
+      values: [{ value: [{ value: "12.0", dateTime: "2026-08-09T00:00" }, { value: "13.5", dateTime: "2026-08-09T00:15" }] }],
+    },
+    { sourceInfo: { geoLocation: {} }, values: [] },   // no coords → dropped
+  ] },
+});
+check("usgs-water drops sites with no coordinates", water.features.length === 1,
+  `${water.features.length} kept`);
+check("usgs-water takes the latest reading",
+  water.features[0].properties.discharge_cfs === 13.5);
+check("usgs-water keeps [lon,lat] and the site id",
+  water.features[0].geometry.coordinates[0] === -121.4
+  && water.features[0].properties.site === "01234567");
+
+// ── Overpass: nodes → place points ────────────────────────────────────────────
+const osm = overpassToGeoJSON({
+  elements: [
+    { type: "node", lat: 37.5, lon: 15.0, tags: { name: "Catania", place: "city", population: "311000" } },
+    { type: "way", id: 9 },   // not a node → dropped
+  ],
+});
+check("overpass keeps only located nodes", osm.features.length === 1, `${osm.features.length} kept`);
+check("overpass parses population to a number",
+  osm.features[0].properties.population === 311000
+  && osm.features[0].properties.name === "Catania");
+check("overpass keeps [lon,lat] order",
+  osm.features[0].geometry.coordinates[0] === 15.0
+  && osm.features[0].geometry.coordinates[1] === 37.5);
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

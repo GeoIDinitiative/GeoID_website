@@ -112,6 +112,91 @@ export function eonetToGeoJSON(payload) {
   return { type: "FeatureCollection", features };
 }
 
+// ── NWS active weather alerts (api.weather.gov) ───────────────────────────────
+// Live US watches/warnings as polygons, GeoJSON already. CORS-open, no key.
+
+function nwsUrl() {
+  return "https://api.weather.gov/alerts/active?status=actual&message_type=alert";
+}
+export function nwsToGeoJSON(payload) {
+  const features = (payload?.features || [])
+    .filter((f) => f?.geometry?.coordinates)   // many alerts reference zones, no geometry
+    .map((f) => ({
+      type: "Feature",
+      geometry: f.geometry,
+      properties: {
+        event: f.properties?.event || "alert",
+        headline: f.properties?.headline || "",
+        severity: f.properties?.severity || "",
+        area: f.properties?.areaDesc || "",
+        effective: f.properties?.effective || null,
+        expires: f.properties?.expires || null,
+      },
+    }));
+  return { type: "FeatureCollection", features };
+}
+
+// ── USGS streamflow (Water Services, instantaneous values) ────────────────────
+// Active US gauges with their latest discharge. CORS-open, no key. Needs a bbox
+// (US only), so it requires a study area.
+
+function usgsWaterUrl({ bbox } = {}) {
+  if (!bbox) throw new Error("USGS streamflow needs a study area over the US — draw one first.");
+  // USGS bBox is west,south,east,north and capped at a ~25° span per side.
+  const bBox = [bbox.minLon, bbox.minLat, bbox.maxLon, bbox.maxLat].map((n) => n.toFixed(6)).join(",");
+  const params = new URLSearchParams({ format: "json", bBox, parameterCd: "00060", siteStatus: "active" });
+  return `https://waterservices.usgs.gov/nwis/iv/?${params}`;
+}
+export function usgsWaterToGeoJSON(payload) {
+  const series = payload?.value?.timeSeries || [];
+  const features = [];
+  for (const ts of series) {
+    const geo = ts.sourceInfo?.geoLocation?.geogLocation;
+    const lat = Number(geo?.latitude);
+    const lon = Number(geo?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+    const readings = ts.values?.[0]?.value || [];
+    const latest = readings[readings.length - 1];
+    features.push({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [lon, lat] },
+      properties: {
+        site: ts.sourceInfo?.siteCode?.[0]?.value || "",
+        siteName: ts.sourceInfo?.siteName || "",
+        discharge_cfs: latest ? Number(latest.value) : null,
+        time: latest?.dateTime || null,
+      },
+    });
+  }
+  return { type: "FeatureCollection", features };
+}
+
+// ── OpenStreetMap places (Overpass API) ───────────────────────────────────────
+// Cities, towns and villages in an area. CORS-open, no key. Needs a bbox, so it
+// requires a study area (a global Overpass query would time out).
+
+function overpassUrl({ bbox } = {}) {
+  if (!bbox) throw new Error("OSM places needs a study area — draw one first, then fetch.");
+  const query = "[out:json][timeout:25];("
+    + `node["place"~"^(city|town|village)$"](${bbox.minLat},${bbox.minLon},${bbox.maxLat},${bbox.maxLon});`
+    + ");out 800;";
+  return `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+}
+export function overpassToGeoJSON(payload) {
+  const features = (payload?.elements || [])
+    .filter((e) => e.type === "node" && Number.isFinite(e.lat) && Number.isFinite(e.lon))
+    .map((e) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [e.lon, e.lat] },
+      properties: {
+        name: e.tags?.name || "",
+        place: e.tags?.place || "",
+        population: e.tags?.population ? Number(e.tags.population) : null,
+      },
+    }));
+  return { type: "FeatureCollection", features };
+}
+
 // ── The registry ──────────────────────────────────────────────────────────────
 
 export const CONNECTORS = {
@@ -162,6 +247,30 @@ export const CONNECTORS = {
     toGeoJSON: eonetToGeoJSON,
     filename: () => "eonet_sea_lake_ice.geojson",
     defaults: { days: 60 },
+  },
+  "nws-alerts": {
+    label: "NWS weather alerts",
+    attribution: "NOAA / US National Weather Service",
+    url: nwsUrl,
+    toGeoJSON: nwsToGeoJSON,
+    filename: () => "nws_active_alerts.geojson",
+    defaults: {},
+  },
+  "usgs-streamflow": {
+    label: "USGS streamflow gauges",
+    attribution: "U.S. Geological Survey — National Water Information System",
+    url: usgsWaterUrl,
+    toGeoJSON: usgsWaterToGeoJSON,
+    filename: () => "usgs_streamflow.geojson",
+    defaults: {},
+  },
+  "osm-places": {
+    label: "OSM places",
+    attribution: "© OpenStreetMap contributors (ODbL)",
+    url: overpassUrl,
+    toGeoJSON: overpassToGeoJSON,
+    filename: () => "osm_places.geojson",
+    defaults: {},
   },
 };
 
