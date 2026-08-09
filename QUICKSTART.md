@@ -35,6 +35,27 @@ Options: `python3 serve.py --help` (`--port`, `--projects`, `--no-sidecar`,
 | the sidecar | `GeoID_GIS/sidecar/geoid_sidecar.py` — runs GALES, scripts, and owns the project folder | Python 3 (stdlib) |
 | GALES | the native FEM solver | installed separately, on `PATH` as `gales` (with `mpirun`) |
 
+## Running a simulation somewhere bigger
+
+A solve outgrows a laptop quickly, so **FEM ▸ Run ▸ "Where it runs"** lets you
+pick the machine:
+
+- **This machine** — `mpirun -n <ranks> gales <deck>` locally.
+- **A server** — add one with its host, SSH user and rank count (a Hetzner box,
+  a lab workstation, a cluster login node). The deck is sent over with `rsync`,
+  solved there, and the results come back into the same run folder, so
+  Post Processing and the analysis pages are unchanged.
+
+Access is by **SSH key only**. Run this once and the app uses your key:
+
+```bash
+ssh-copy-id user@your-server
+```
+
+Passwords are refused by design — an unattended solve cannot answer a prompt,
+and the sidecar will not hold one. Press **Test** on a target to check it is
+reachable and that `mpirun` and `gales` are actually there.
+
 The site works without the sidecar — projects are kept in the browser and the
 solver/script buttons explain what to start. The sidecar is what turns the
 viewer into a workbench.

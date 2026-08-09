@@ -813,6 +813,35 @@ or the copy beside it (`GeoID_GIS/gales`). The build needs **Trilinos**; the
 *generation* is independent of it and is what the sidecar test covers. FSI (two
 meshes) still needs manual setup; it falls back to a solid deck.
 
+**Where a solve runs is a choice** — `.compute_targets.json` at the projects
+root holds named targets: `local` (mpirun here) or `ssh` (a Hetzner box, a lab
+workstation, a cluster login node). `/compute` lists them and probes for a local
+mpirun; `/compute/save`, `/compute/delete`, `/compute/test` manage and prove
+them. Passing `target` to `/jobs/gales` switches the run remote: it rsyncs the
+deck up (`--exclude results/`, so an earlier run's output is never re-uploaded),
+solves over ssh, and rsyncs `results/` back — the same streamed job and the same
+`status.json`, which gains `where`. The command is **rebuilt for the far side**
+(`mpirun -n <ranks> gales <deck>`) unless one was typed, because the local box's
+rank count and paths rarely suit the server.
+
+**Keys only, never passwords.** `/compute/save` rejects a `password` field
+outright, and every ssh/rsync carries `BatchMode=yes` so a missing key fails in
+about a second instead of hanging on a prompt an unattended solve could never
+answer. `StrictHostKeyChecking=accept-new` keeps a first connection from
+blocking. Setup is `ssh-copy-id user@host`, once.
+
+The FEM Run page's "Where it runs" card (in `galesRunner`) exposes all of it,
+and the **ranks box drives the mesh partition too** — prepare converts to
+`mesh_<ranks>core.txt`, so a stale rank count partitions the mesh wrongly.
+Selecting a server syncs the box, and the save handler must
+`dispatchEvent(new Event("change"))` because setting `.value` in code does not.
+
+**`hidden` needs `#research-hub [hidden] { display: none !important }`.** The
+attribute is only a UA-level `display:none`, so any author rule setting
+`display` (`.research-grid-2 { display: grid }`, the flex rows) outranks it and
+a panel built collapsed renders open — which is exactly what happened to the
+add-a-server form.
+
 **Post-processing closes the loop** — `POST /jobs/gales/postprocess` reads a
 solved run's **binary** results and writes the CSVs the analysis pages consume.
 `results/<field>/<timestep>` is a flat `3·N` little-endian float64 array (node i's
