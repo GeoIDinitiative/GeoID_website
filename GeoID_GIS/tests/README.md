@@ -36,11 +36,32 @@ with `--headless`, and drives it over the DevTools protocol through a
 stdlib-only WebSocket client — no puppeteer, no chromium download. If no browser
 is found it prints a note and exits 0 (set `GEOID_CHROME` to point at one).
 
+## Sidecar tests — the process runner behaves
+
+```bash
+python3 GeoID_GIS/tests/sidecar.py
+```
+
+The sidecar executes subprocesses, hands out a filesystem, and generates and runs
+GALES decks. It was verified by hand at each step and by nothing afterwards —
+exactly the shape that rots. This drives a throwaway instance end to end: the
+filesystem contract, the **path sandbox** (reads and writes outside the projects
+root must be refused), **token auth**, compute targets including the refusal to
+accept a password, which command a run resolves to, deck generation for each
+physics family, and the binary results reader — that last against a synthetic
+mesh and result file whose answers are known exactly, so a wrong byte offset
+fails loudly.
+
+No network, no Trilinos and no GALES binary are needed; the deck-generation
+cases skip cleanly when there is no GALES tree at `GeoID_GIS/gales`.
+
 ## In CI
 
 ```bash
-node GeoID_GIS/tests/run.mjs && python3 GeoID_GIS/tests/smoke.py
+node GeoID_GIS/tests/run.mjs \
+  && python3 GeoID_GIS/tests/sidecar.py \
+  && python3 GeoID_GIS/tests/smoke.py
 ```
 
-The unit tests are fast and need nothing; the smoke test needs a Chrome on the
-runner.
+The unit and sidecar tests are self-contained; the smoke test needs a Chrome on
+the runner.

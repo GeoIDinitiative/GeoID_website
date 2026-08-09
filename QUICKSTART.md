@@ -72,5 +72,7 @@ python3 GeoID_GIS/services/stamp.py
 Before shipping, run the tests (see `GeoID_GIS/tests/README.md`):
 
 ```bash
-node GeoID_GIS/tests/run.mjs && python3 GeoID_GIS/tests/smoke.py
+node GeoID_GIS/tests/run.mjs \
+  && python3 GeoID_GIS/tests/sidecar.py \
+  && python3 GeoID_GIS/tests/smoke.py
 ```

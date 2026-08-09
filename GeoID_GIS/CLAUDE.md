@@ -178,6 +178,13 @@ Two committed test commands, no dependencies (`GeoID_GIS/tests/`):
 
 - `node GeoID_GIS/tests/run.mjs` — runs every `*.test.mjs` under `viewer/` (dsp,
   stats, postprocess) and aggregates. The analysis correctness net.
+- `python3 GeoID_GIS/tests/sidecar.py` — drives a throwaway sidecar end to end:
+  the fs contract, the **path sandbox** (escapes must 403), token auth, compute
+  targets and the password refusal, run-command resolution, deck generation per
+  family, and the binary reader against a synthetic mesh whose answers are exact.
+  Needs no network, Trilinos or GALES binary. **Use `-u` when reading a
+  sidecar's banner from a pipe** — it prints then blocks in serve_forever, so a
+  block-buffered pipe never delivers the token line and the read hangs.
 - `python3 GeoID_GIS/tests/smoke.py` — boots the real site in headless Chrome and
   asserts all 64 Research pages mount. It drives CDP over a **hand-rolled
   stdlib WebSocket** (no puppeteer, no chromium download); finds Chrome by name
