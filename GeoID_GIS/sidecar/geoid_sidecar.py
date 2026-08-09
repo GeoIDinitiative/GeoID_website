@@ -602,75 +602,43 @@ class Handler(BaseHTTPRequestHandler):
 
     # ── GALES deck generation ─────────────────────────────────────────────────
     #
-    # spec.json (what the FEM pages write) → a runnable GALES sim. The two config
-    # files are a faithful text translation; the C++ (main.cpp, CMakeLists,
-    # <family>_ic_bc.hpp) is cloned from the GALES source tree because it is
-    # boilerplate a mesh's boundary flags drive, not something a generic spec can
-    # invent correctly. The mesh is converted for N ranks and the whole thing is
-    # built, so the folder that comes out is ready for the Run step.
+    # spec.json (what the FEM pages write) → a runnable GALES sim. Rather than
+    # invent each family's config, this clones the reference sim for the physics
+    # (setup.txt with its stabilisation parameters, props.txt, the IC/BC, main.cpp,
+    # CMakeLists, and any extras like fluid's mueluOptions.xml) and patches in the
+    # values the spec actually provides — mesh, time step, and materials. That way
+    # the fluid deck's thirty tuning parameters come from a real, working sim, not
+    # from a guess, and only what the user set is overwritten.
+
+    # spec.physics → (family, reference sim under sim/, the setup key that names
+    # the mesh). Volcano deformation is the domain, so anything not fluid or
+    # thermal generates a solid (elastostatic) deck.
+    GALES_FAMILIES = {
+        "fluid":   ("fluid_sc", "fluid_sc/fixed_cylinder_2d", "fluid_mesh_file"),
+        "thermal": ("heat_equation", "heat_equation/test_3d", "heat_eq_mesh_file"),
+        "heat":    ("heat_equation", "heat_equation/test_3d", "heat_eq_mesh_file"),
+        "solid":   ("solid_es", "solid_es/mogi_test_3d", "solid_mesh_file"),
+    }
 
     @staticmethod
-    def gales_setup_txt(spec: dict, mesh_file: str) -> str:
-        """setup.txt for solid_es, matching sim/solid_es/*/setup.txt field for field."""
-        time = spec.get("time") or {}
-        def num(v, default):
-            try:
-                return v if v not in (None, "") else default
-            except Exception:
-                return default
-        lines = [
-            f"solid_mesh_file       {mesh_file}",
-            f"dim                   {int(spec.get('dim', 3))}",
-            f"delta_t               {num(time.get('step'), 1)}",
-            f"final_time            {num(time.get('end'), 1)}",
-            "restart               F",
-            "restart_time          0.0",
-            f"n_max_it              {int(spec.get('n_max_it', 1))}",
-            f"print_freq            {int(spec.get('print_freq', 1))}",
-            "",
-            "ls_solver           CG",
-            "ls_precond          ILU",
-            "ls_overlaplevel     0",
-            "ls_fill             0",
-            "ls_left_precond     T",
-            "ls_rel_res_tol      1.e-9",
-            "ls_maxsubspace      200",
-            "ls_maxrestarts      5",
-            "ls_maxiters        -1",
-            "",
-        ]
-        return "\n".join(lines)
-
-    @staticmethod
-    def gales_props_txt(spec: dict) -> str:
-        """props.txt for solid_es (Hooke's) from spec.properties.solid."""
-        solid = (spec.get("properties") or {}).get("solid") or {}
-        def g(key, default):
-            v = solid.get(key)
-            return v if v not in (None, "") else default
-        # GALES writes E and rho in plain decimal / scientific; keep the user's
-        # numbers verbatim so a value they typed is the value that solves.
-        return (
-            "\nsolid\n{\n"
-            "   material        Hookes\n\n"
-            f"   plane_strain    {'T' if spec.get('plane_strain') else 'F'}\n"
-            "   plane_stress    F\n"
-            "   axisymmetric    F\n\n"
-            f"   rho             {g('density', 3000.0)}\n"
-            f"   E               {g('young', 25.0e9)}\n"
-            f"   nu              {g('poisson', 0.25)}\n"
-            "}\n"
-        )
+    def _patch_lines(text: str, patches: dict) -> str:
+        """Rewrite `key   value` lines whose first token is a patch key, keeping
+        each line's indentation. Used for both setup.txt and props.txt."""
+        out = []
+        for line in text.splitlines():
+            token = line.strip().split()[0] if line.strip() else ""
+            if token in patches and patches[token] not in (None, ""):
+                indent = line[: len(line) - len(line.lstrip())]
+                out.append(f"{indent}{token}{' ' * max(1, 16 - len(token))}{patches[token]}")
+            else:
+                out.append(line)
+        return "\n".join(out) + "\n"
 
     def _start_gales_prepare(self, body: dict, origin: str):
-        """Turn a run's spec.json into a runnable GALES sim, then build it.
-
-        Writes setup.txt/props.txt from the spec, clones the solid_es C++
-        boilerplate from the GALES tree, copies the project mesh in, converts it
-        for N ranks and builds — all as one streamed job so the page shows
-        progress. First cut targets the solid_es family (elastostatic solid), the
-        volcano-deformation case the etna sims use.
-        """
+        """Turn a run's spec.json into a runnable GALES sim by cloning the
+        reference for its physics and patching in the spec's values, then convert
+        the mesh for N ranks and build — one streamed job, so the run folder comes
+        out ready for the Run step."""
         if not self.gales_dir or not self.gales_dir.exists():
             raise ValueError(
                 "No GALES source tree configured. Start the sidecar with "
@@ -691,49 +659,27 @@ class Handler(BaseHTTPRequestHandler):
         cores = int(body.get("cores") or 4)
         if cores < 1:
             cores = 1
-        family = "solid_es"   # the only family generated for now
-        template = self.gales_dir / "src" / "solvers" / family
-        mesh_tool = self.gales_dir / "tpl" / "gales_mesh_preprocessing"
-        if not template.exists():
-            raise FileNotFoundError(f"GALES {family} solver not found under {self.gales_dir}")
+        physics = str(spec.get("physics", "solid")).lower()
+        family, ref_rel, mesh_key = self.GALES_FAMILIES.get(
+            physics, self.GALES_FAMILIES["solid"])
+        ref_dir = self.gales_dir / "sim" / ref_rel
+        if not ref_dir.is_dir():
+            raise FileNotFoundError(f"reference sim not found: sim/{ref_rel}")
 
-        # 1. The config, from the spec. mesh_<N>core.txt is what setup references,
-        #    generated below by gales_mesh.py.
-        (run_dir / "setup.txt").write_text(self.gales_setup_txt(spec, f"mesh_{cores}core.txt"))
-        (run_dir / "props.txt").write_text(self.gales_props_txt(spec))
+        import shutil
+        # Clone the reference's config, leaving its input/, results/ and build
+        # artefacts behind — only the deck files.
+        keep = {"setup.txt", "props.txt", "main.cpp", "CMakeLists.txt", "mueluOptions.xml"}
+        for item in ref_dir.iterdir():
+            if item.is_file() and (item.name in keep or item.name.endswith("_ic_bc.hpp")):
+                shutil.copy(item, run_dir / item.name)
 
-        # 2. The C++ boilerplate. main.cpp includes the sim-local ic_bc and the
-        #    family solver; the ic_bc is a sensible default (fixed base, one
-        #    pressure BC) the user refines against their mesh's flags.
-        (run_dir / "main.cpp").write_text(
-            f'#include "solid_ic_bc.hpp"\n#include "GALES_SRC/src/solvers/{family}/solver.hpp"\n')
-        ic_bc_src = self._gales_default_ic_bc()
-        (run_dir / "solid_ic_bc.hpp").write_text(ic_bc_src)
-        (run_dir / "CMakeLists.txt").write_text(self._gales_cmakelists())
-
-        # 3. The mesh. Prefer a .msh the run already holds, else the project's
-        #    first mesh copied in.
-        input_dir = run_dir / "input"
-        input_dir.mkdir(exist_ok=True)
-        mesh_msh = self._locate_run_mesh(run_dir, input_dir)
-
-        # 4. Convert + build, streamed. gales_mesh.py writes mesh_<N>core.txt;
-        #    ./build runs cmake+make. A tiny shell script keeps it one job with
-        #    ordered, legible output.
-        script = run_dir / "_prepare.sh"
-        script.write_text(
-            "#!/usr/bin/env bash\nset -e\n"
-            f'echo "[prepare] converting mesh for {cores} rank(s)…"\n'
-            f'cd "{input_dir}"\n'
-            f'python3 "{mesh_tool}/gales_mesh.py" {cores} "{mesh_msh.name}"\n'
-            f'cd "{run_dir}"\n'
-            'echo "[prepare] building (cmake + make)…"\n'
-            'cmake . && make\n'
-            'echo "[prepare] done — the run is ready. Use Run to solve it."\n')
-        script.chmod(0o755)
-        env = dict(body.get("env") or {})
-        # main.cpp includes GALES_SRC/…; point that at the tree via a symlink so
-        # the include path is stable regardless of where the run folder sits.
+        # The reference includes the engine as ../../../src; from the run folder
+        # that path is wrong, so point every include at the GALES_SRC symlink.
+        for name in ["main.cpp"] + [p.name for p in run_dir.glob("*_ic_bc.hpp")]:
+            f = run_dir / name
+            if f.exists():
+                f.write_text(f.read_text().replace("../../../src/", "GALES_SRC/src/"))
         link = run_dir / "GALES_SRC"
         try:
             if link.is_symlink() or link.exists():
@@ -741,10 +687,58 @@ class Handler(BaseHTTPRequestHandler):
             link.symlink_to(self.gales_dir)
         except OSError:
             pass
+
+        # Patch setup.txt: the mesh gales_mesh.py will write, the time stepping,
+        # and the dimension.
+        time = spec.get("time") or {}
+        setup_path = run_dir / "setup.txt"
+        if setup_path.exists():
+            setup_path.write_text(self._patch_lines(setup_path.read_text(), {
+                mesh_key: f"mesh_{cores}core.txt",
+                "delta_t": time.get("step"),
+                "final_time": time.get("end"),
+                "end_time": time.get("end"),
+                "dim": spec.get("dim"),
+            }))
+
+        # Patch props.txt with the materials the spec carries for this family.
+        props_path = run_dir / "props.txt"
+        if props_path.exists():
+            solid = (spec.get("properties") or {}).get("solid") or {}
+            fluid = (spec.get("properties") or {}).get("fluid") or {}
+            init = spec.get("initial") or {}
+            patches = {}
+            if family == "solid_es":
+                patches = {"rho": solid.get("density"), "E": solid.get("young"),
+                           "nu": solid.get("poisson"),
+                           "plane_strain": "T" if spec.get("plane_strain") else "F"}
+            elif family == "fluid_sc":
+                patches = {"rho": fluid.get("density"), "mu": fluid.get("viscosity"),
+                           "Isothermal_T": init.get("temperature")}
+            # heat_equation's rho/cp/kappa are not in the web spec, so its props
+            # keep the reference defaults, which the user edits.
+            props_path.write_text(self._patch_lines(props_path.read_text(), patches))
+
+        # The mesh, then convert + build as one streamed job.
+        input_dir = run_dir / "input"
+        input_dir.mkdir(exist_ok=True)
+        mesh_msh = self._locate_run_mesh(run_dir, input_dir)
+        mesh_tool = self.gales_dir / "tpl" / "gales_mesh_preprocessing"
+        script = run_dir / "_prepare.sh"
+        script.write_text(
+            "#!/usr/bin/env bash\nset -e\n"
+            f'echo "[prepare] {family}: converting mesh for {cores} rank(s)…"\n'
+            f'cd "{input_dir}"\n'
+            f'python3 "{mesh_tool}/gales_mesh.py" {cores} "{mesh_msh.name}"\n'
+            f'cd "{run_dir}"\n'
+            'echo "[prepare] building (cmake + make)…"\n'
+            'cmake . && make\n'
+            'echo "[prepare] done — the run is ready. Use Run to solve it."\n')
+        script.chmod(0o755)
         job = self.runner.start("gales-prepare", f"prepare {Path(rel).name}",
-                                ["bash", str(script)], run_dir, env)
-        self._send(200, {"job_id": job.id, "family": family, "cores": cores,
-                         "mesh": mesh_msh.name}, origin)
+                                ["bash", str(script)], run_dir, dict(body.get("env") or {}))
+        self._send(200, {"job_id": job.id, "family": family, "physics": physics,
+                         "cores": cores, "mesh": mesh_msh.name}, origin)
 
     def _locate_run_mesh(self, run_dir: Path, input_dir: Path) -> Path:
         """A .msh for this run: one already in the run, else the project mesh."""
@@ -759,56 +753,10 @@ class Handler(BaseHTTPRequestHandler):
             raise FileNotFoundError(
                 "no .msh mesh found in the run or the project's meshes/ — "
                 "build or import a mesh first")
-        dest = input_dir / found[0].name
         import shutil
+        dest = input_dir / found[0].name
         shutil.copy(found[0], dest)
         return dest
-
-    @staticmethod
-    def _gales_cmakelists() -> str:
-        return (
-            "cmake_minimum_required(VERSION 3.5)\n"
-            "project(GeoIDGalesRun)\n"
-            "set(sim executable)\n"
-            "set(CMAKE_INCLUDE_CURRENT_DIR ON)\n"
-            "FIND_PACKAGE(Trilinos REQUIRED)\n"
-            "SET(CMAKE_CXX_COMPILER ${Trilinos_CXX_COMPILER})\n"
-            "SET(CMAKE_C_COMPILER ${Trilinos_C_COMPILER})\n"
-            "SET(CMAKE_Fortran_COMPILER ${Trilinos_Fortran_COMPILER})\n"
-            'SET(CMAKE_CXX_FLAGS "${Trilinos_CXX_COMPILER_FLAGS} ${CMAKE_CXX_FLAGS}")\n'
-            "INCLUDE_DIRECTORIES(${Trilinos_INCLUDE_DIRS} ${Trilinos_TPL_INCLUDE_DIRS})\n"
-            "LINK_DIRECTORIES(${Trilinos_LIBRARY_DIRS} ${Trilinos_TPL_LIBRARY_DIRS})\n"
-            "add_executable(${sim} main.cpp)\n"
-            "target_link_libraries(${sim} ${Trilinos_LIBRARIES} ${Trilinos_TPL_LIBRARIES})\n")
-
-    @staticmethod
-    def _gales_default_ic_bc() -> str:
-        """A minimal, valid solid_es IC/BC: zero initial displacement, the base
-        (flag 5) fixed, one pressure surface (flag 4). The user edits the flags to
-        match their mesh; this compiles and runs as-is."""
-        return (
-            "#ifndef SOLID_IC_BC_HPP\n#define SOLID_IC_BC_HPP\n"
-            '#include "GALES_SRC/src/fem/fem.hpp"\n'
-            "namespace GALES{\n"
-            "  template<int dim>\n"
-            "  class solid_ic_bc : public base_ic_bc<dim>{\n"
-            "    using nd_type = node<dim>;\n"
-            "    public:\n"
-            "    double initial_ux(const nd_type &nd)const {return 0.0;}\n"
-            "    double initial_uy(const nd_type &nd)const {return 0.0;}\n"
-            "    double initial_uz(const nd_type &nd)const {return 0.0;}\n"
-            "    auto dirichlet_ux(const nd_type &nd)const{ if(nd.flag()==5) return std::make_pair(true,0.0); return std::make_pair(false,0.0);}\n"
-            "    auto dirichlet_uy(const nd_type &nd)const{ if(nd.flag()==5) return std::make_pair(true,0.0); return std::make_pair(false,0.0);}\n"
-            "    auto dirichlet_uz(const nd_type &nd)const{ if(nd.flag()==5) return std::make_pair(true,0.0); return std::make_pair(false,0.0);}\n"
-            "    auto neumann_tau11(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
-            "    auto neumann_tau22(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
-            "    auto neumann_tau33(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
-            "    auto neumann_tau12(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
-            "    auto neumann_tau13(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
-            "    auto neumann_tau23(const std::vector<int>& b, int s)const{return std::make_pair(false,0.0);}\n"
-            "    auto neumann_pressure(const std::vector<int>& b, int s)const{ if(s==4) return std::make_pair(true, 10.e6); return std::make_pair(false,0.0);}\n"
-            "  };\n"
-            "}\n#endif\n")
 
     def _job_events(self, job_id: str, query: dict, origin: str):
         """Server-Sent Events: replay the log from `from`, then follow live."""

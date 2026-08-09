@@ -794,20 +794,24 @@ wiring is a `qt-runtime.js` module (`galesRunner`), not a hand-built page —
 Browse steps through `fem_runs/`, the command pre-fills from the deck (`run.sh`
 if present, else the `mpirun` line), and Run streams into the Log tab via
 `runJob`. **Deck generation is wired** — `POST /jobs/gales/prepare` turns a run's
-`spec.json` into a runnable, compiled GALES sim. It writes `setup.txt` and
-`props.txt` (a faithful text translation, verified field-for-field against
-`sim/solid_es/*/`), clones the `solid_es` C++ boilerplate (`main.cpp`,
-`CMakeLists.txt`, a default `solid_ic_bc.hpp` — fixed base flag 5, one pressure
-surface flag 4, which the user edits to their mesh's flags), symlinks the GALES
-tree as `GALES_SRC` for the includes, copies the project mesh, runs
-`gales_mesh.py N` and builds (`cmake && make`) as one streamed job. The FEM Run
-page's "⚙ Generate & build deck" (injected by `galesRunner`) calls it; the rank
-count comes from the command's `mpirun -n`. The sidecar finds the tree via
-`--gales`, `$GALES_DIR`, or the copy beside it (`GeoID_GIS/gales`). The build
-needs **Trilinos** (`FIND_PACKAGE(Trilinos REQUIRED)`); the *generation* is
-independent of it and is what the sidecar test covers. Only the `solid_es`
-family (elastostatic solid — the volcano-deformation case) is generated so far;
-the fluid/thermal families have different `setup.txt` keys.
+`spec.json` into a runnable, compiled GALES sim by **cloning the reference sim
+for its physics and patching in the spec's values**. This beats generating each
+family from scratch: fluid's ~30 stabilisation parameters and its
+`mueluOptions.xml` come from a real working sim, and only the mesh, time step,
+`dim` and materials are overwritten (`_patch_lines`, first-token line rewrite).
+`spec.physics` maps to a family (`GALES_FAMILIES`): `fluid`→`fluid_sc`,
+`thermal`→`heat_equation`, everything else→`solid_es` (volcano deformation is
+the domain). It rewrites the reference's `../../../src` includes to the
+`GALES_SRC` symlink, copies the project mesh, runs `gales_mesh.py N` and builds
+(`cmake && make`) as one streamed job. Verified across all three families: each
+clones the right reference (correct mesh key, fluid's XML), patches setup.txt
+(mesh→`mesh_Ncore.txt`, times, dim) and props.txt (solid: rho/E/nu/plane_strain;
+fluid: rho/mu/Isothermal_T; heat keeps reference rho/cp/kappa — the web spec has
+no heat props). The FEM Run page's "⚙ Generate & build deck" (injected by
+`galesRunner`) calls it. The sidecar finds the tree via `--gales`, `$GALES_DIR`,
+or the copy beside it (`GeoID_GIS/gales`). The build needs **Trilinos**; the
+*generation* is independent of it and is what the sidecar test covers. FSI (two
+meshes) still needs manual setup; it falls back to a solid deck.
 The GALES box has `mpirun`; the solver binary is `gales` on PATH (the Qt app's
 `GALES_BASE_DIR` is `~/gales`).
 
