@@ -139,6 +139,30 @@ export const CONNECTORS = {
     filename: () => "eonet_wildfires.geojson",
     defaults: { days: 30 },
   },
+  "eonet-storms": {
+    label: "EONET severe storms",
+    attribution: "NASA Earth Observatory Natural Event Tracker (EONET)",
+    url: (o = {}) => eonetUrl({ ...o, category: "severeStorms" }),
+    toGeoJSON: eonetToGeoJSON,
+    filename: () => "eonet_severe_storms.geojson",
+    defaults: { days: 30 },
+  },
+  "eonet-floods": {
+    label: "EONET floods",
+    attribution: "NASA Earth Observatory Natural Event Tracker (EONET)",
+    url: (o = {}) => eonetUrl({ ...o, category: "floods" }),
+    toGeoJSON: eonetToGeoJSON,
+    filename: () => "eonet_floods.geojson",
+    defaults: { days: 120 },
+  },
+  "eonet-ice": {
+    label: "EONET sea & lake ice",
+    attribution: "NASA Earth Observatory Natural Event Tracker (EONET)",
+    url: (o = {}) => eonetUrl({ ...o, category: "seaLakeIce" }),
+    toGeoJSON: eonetToGeoJSON,
+    filename: () => "eonet_sea_lake_ice.geojson",
+    defaults: { days: 60 },
+  },
 };
 
 /**

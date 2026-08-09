@@ -1,13 +1,13 @@
-import * as store from "./project-store.js?v=20260809-4630c69";
-import * as stats from "./stats.js?v=20260809-4630c69";
-import * as dsp from "./dsp.js?v=20260809-4630c69";
-import { parseTable, column } from "./table.js?v=20260809-4630c69";
-import { linePlot, heatmap } from "./plot.js?v=20260809-4630c69";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260809-4630c69";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260809-4630c69";
-import * as sidecar from "./sidecar.js?v=20260809-4630c69";
-import * as bridge from "./bridge.js?v=20260809-4630c69";
-import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260809-4630c69";
+import * as store from "./project-store.js?v=20260809-fc50571";
+import * as stats from "./stats.js?v=20260809-fc50571";
+import * as dsp from "./dsp.js?v=20260809-fc50571";
+import { parseTable, column } from "./table.js?v=20260809-fc50571";
+import { linePlot, heatmap } from "./plot.js?v=20260809-fc50571";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260809-fc50571";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260809-fc50571";
+import * as sidecar from "./sidecar.js?v=20260809-fc50571";
+import * as bridge from "./bridge.js?v=20260809-fc50571";
+import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260809-fc50571";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -1305,6 +1305,9 @@ function galesRunner(host, api) {
 const INGEST_CONNECTORS = {
   "Ingest Seismic Geophysics": { slug: "seismic_geophysics", connectors: ["usgs-earthquakes"] },
   "Ingest Volcano Monitoring": { slug: "volcano_monitoring", connectors: ["eonet-volcanoes", "eonet-wildfires"] },
+  "Ingest Weather Climate": { slug: "weather_climate", connectors: ["eonet-storms"] },
+  "Ingest Hydrology": { slug: "hydrology", connectors: ["eonet-floods"] },
+  "Ingest Coast Marine": { slug: "coast_marine", connectors: ["eonet-ice"] },
 };
 
 /** Fetch one connector, file it with provenance, return its project path. */
@@ -1392,6 +1395,9 @@ export const RUNTIME = {
   "Run Existing": galesRunner,
   "Ingest Seismic Geophysics": ingestConnectors,
   "Ingest Volcano Monitoring": ingestConnectors,
+  "Ingest Weather Climate": ingestConnectors,
+  "Ingest Hydrology": ingestConnectors,
+  "Ingest Coast Marine": ingestConnectors,
   "Settings": settingsSidecar,
 };
 

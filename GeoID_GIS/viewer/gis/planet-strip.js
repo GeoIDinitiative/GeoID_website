@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20260809-4630c69";
+import { BODIES, currentBodyId } from "./bodies.js?v=20260809-fc50571";
 
 /**
  * The worlds, along the bottom of the GIS page.
