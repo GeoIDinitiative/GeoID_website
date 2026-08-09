@@ -659,7 +659,12 @@ class Handler(BaseHTTPRequestHandler):
         cores = int(body.get("cores") or 4)
         if cores < 1:
             cores = 1
-        physics = str(spec.get("physics", "solid")).lower()
+        # Two spec shapes exist: the FEM pages write `physics` as a family string
+        # ("solid"/"fluid"/…), the Build New wizard writes it as a properties
+        # object. A string names the family; anything else defaults to solid,
+        # the volcano-deformation case.
+        physics_raw = spec.get("physics")
+        physics = physics_raw.lower() if isinstance(physics_raw, str) else "solid"
         family, ref_rel, mesh_key = self.GALES_FAMILIES.get(
             physics, self.GALES_FAMILIES["solid"])
         ref_dir = self.gales_dir / "sim" / ref_rel
@@ -688,33 +693,49 @@ class Handler(BaseHTTPRequestHandler):
         except OSError:
             pass
 
+        # Time stepping lives at spec.time (FEM pages) or spec.setup (Build New).
+        time = spec.get("time") or {}
+        setup = spec.get("setup") or {}
+        step = time.get("step") if time.get("step") not in (None, "") else setup.get("timestep")
+        end = time.get("end") if time.get("end") not in (None, "") else setup.get("end_time")
+
         # Patch setup.txt: the mesh gales_mesh.py will write, the time stepping,
         # and the dimension.
-        time = spec.get("time") or {}
         setup_path = run_dir / "setup.txt"
         if setup_path.exists():
             setup_path.write_text(self._patch_lines(setup_path.read_text(), {
                 mesh_key: f"mesh_{cores}core.txt",
-                "delta_t": time.get("step"),
-                "final_time": time.get("end"),
-                "end_time": time.get("end"),
+                "delta_t": step,
+                "final_time": end,
+                "end_time": end,
                 "dim": spec.get("dim"),
             }))
 
         # Patch props.txt with the materials the spec carries for this family.
+        # The wizard's `physics` object carries reference_density/viscosity/
+        # temperature; the FEM pages carry properties.{solid,fluid}. Read both.
         props_path = run_dir / "props.txt"
         if props_path.exists():
-            solid = (spec.get("properties") or {}).get("solid") or {}
-            fluid = (spec.get("properties") or {}).get("fluid") or {}
+            props = spec.get("properties") or {}
+            solid = props.get("solid") or {}
+            fluid = props.get("fluid") or {}
             init = spec.get("initial") or {}
+            wiz = physics_raw if isinstance(physics_raw, dict) else {}
+            def pick(*vals):
+                for v in vals:
+                    if v not in (None, ""):
+                        return v
+                return None
             patches = {}
             if family == "solid_es":
-                patches = {"rho": solid.get("density"), "E": solid.get("young"),
-                           "nu": solid.get("poisson"),
+                patches = {"rho": pick(solid.get("density"), wiz.get("reference_density")),
+                           "E": solid.get("young"), "nu": solid.get("poisson"),
                            "plane_strain": "T" if spec.get("plane_strain") else "F"}
             elif family == "fluid_sc":
-                patches = {"rho": fluid.get("density"), "mu": fluid.get("viscosity"),
-                           "Isothermal_T": init.get("temperature")}
+                patches = {"rho": pick(fluid.get("density"), wiz.get("reference_density")),
+                           "mu": pick(fluid.get("viscosity"), wiz.get("reference_viscosity")),
+                           "Isothermal_T": pick(init.get("temperature"),
+                                                wiz.get("reference_temperature"))}
             # heat_equation's rho/cp/kappa are not in the web spec, so its props
             # keep the reference defaults, which the user edits.
             props_path.write_text(self._patch_lines(props_path.read_text(), patches))
