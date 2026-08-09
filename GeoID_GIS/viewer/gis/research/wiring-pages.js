@@ -1,11 +1,11 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260810-2ef39e6";
-import * as store from "./project-store.js?v=20260810-2ef39e6";
-import * as bridge from "./bridge.js?v=20260810-2ef39e6";
-import * as dsp from "./dsp.js?v=20260810-2ef39e6";
-import * as stats from "./stats.js?v=20260810-2ef39e6";
-import { linePlot } from "./plot.js?v=20260810-2ef39e6";
-import { parseTable, column } from "./table.js?v=20260810-2ef39e6";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260810-2ef39e6";
+import { wire, wirePattern } from "./spec-page.js?v=20260810-e707b73";
+import * as store from "./project-store.js?v=20260810-e707b73";
+import * as bridge from "./bridge.js?v=20260810-e707b73";
+import * as dsp from "./dsp.js?v=20260810-e707b73";
+import * as stats from "./stats.js?v=20260810-e707b73";
+import { linePlot } from "./plot.js?v=20260810-e707b73";
+import { parseTable, column } from "./table.js?v=20260810-e707b73";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260810-e707b73";
 
 /**
  * The rest of the spec's controls.
@@ -760,7 +760,7 @@ wire("Preprocessing Transforms", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No latitude/longitude columns to transform.");
-    const projection = await import(`../projection.js?v=20260810-2ef39e6`);
+    const projection = await import(`../projection.js?v=20260810-e707b73`);
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -1025,5 +1025,43 @@ wire("Settings", {
     doc.applied_at = new Date().toISOString();
     await store.writeJson("metadata/appearance.json", doc);
     say("The hub follows the viewer's skin; preference recorded.");
+  },
+});
+
+/**
+ * Post Processing's GALES Toolkit buttons.
+ *
+ * These were disabled on the honest grounds that reading GALES's binary output
+ * "needs the solver's own reader". The sidecar has one now — verified against a
+ * real etna run — so they do the thing they name instead of sitting dark. All
+ * three drive the one extraction path the page already uses, through the hook it
+ * exposes, rather than a second implementation that could drift from it.
+ */
+function postProcessHook(say) {
+  const hook = window.__geoidPostProcess;
+  if (!hook) throw new Error("Open the Post Processing page first.");
+  if (!hook.runs().length) throw new Error("No FEM runs in this project yet.");
+  if (!hook.probes().length) {
+    throw new Error("Define at least one probe first — name,x,y,z per line in Probes.");
+  }
+  return hook;
+}
+
+wire("Post Processing", {
+  // Binary displacement fields → one CSV per station. Exactly what the page's
+  // own "Extract from GALES results" does.
+  "Convert Binary To CSV": async ({ say }) => {
+    postProcessHook(say).extract();
+    say("Reading the run's binary results into post_processing/extracted_dofs/…");
+  },
+  "Extract Station Timeseries": async ({ say }) => {
+    postProcessHook(say).extract();
+    say("Extracting station time series from the run's results…");
+  },
+  // The same pass writes stations_info.txt — the station→node mapping in
+  // GALES's own format, which is what finding station nodes produces.
+  "Find Station Nodes": async ({ say }) => {
+    postProcessHook(say).extract();
+    say("Matching each probe to its nearest mesh node → stations_info.txt.");
   },
 });

@@ -1041,6 +1041,16 @@ class Handler(BaseHTTPRequestHandler):
             "for st in STATIONS:\n"
             "    i,dist=nearest(float(st['x']),float(st['y']),float(st['z']))\n"
             "    picks.append((st['name'], i)); print(f\"[postprocess] {st['name']}: node {i} at {dist:.1f} m\")\n"
+            # The station->node mapping in GALES's own stations_info.txt shape
+            # (count, then `name node x y z`) — what find_stations.py produces,
+            # and what the extract scripts read.
+            "info=os.path.join(RUN,'stations_info.txt')\n"
+            "with open(info,'w') as fh:\n"
+            "    fh.write(f'{len(picks)}\\n')\n"
+            "    for (name,i),st in zip(picks,STATIONS):\n"
+            "        x,y,z=coords[i]\n"
+            "        fh.write(f'{name} {i} {x} {y} {z}\\n')\n"
+            "print(f'[postprocess] wrote {info}')\n"
             "udir=os.path.join(RUN,'results',FIELD)\n"
             "steps=sorted([s for s in os.listdir(udir) if s.isdigit()], key=int)\n"
             "print(f'[postprocess] {len(steps)} timestep(s)')\n"

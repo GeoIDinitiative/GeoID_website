@@ -1,9 +1,9 @@
-import { registerPage } from "../stages.js?v=20260810-2ef39e6";
-import * as store from "../project-store.js?v=20260810-2ef39e6";
-import * as sidecar from "../sidecar.js?v=20260810-2ef39e6";
-import { parseTable } from "../table.js?v=20260810-2ef39e6";
-import { linePlot, toPngBlob } from "../plot.js?v=20260810-2ef39e6";
-import { needProject } from "./common.js?v=20260810-2ef39e6";
+import { registerPage } from "../stages.js?v=20260810-e707b73";
+import * as store from "../project-store.js?v=20260810-e707b73";
+import * as sidecar from "../sidecar.js?v=20260810-e707b73";
+import { parseTable } from "../table.js?v=20260810-e707b73";
+import { linePlot, toPngBlob } from "../plot.js?v=20260810-e707b73";
+import { needProject } from "./common.js?v=20260810-e707b73";
 
 /**
  * Post Processing: degree-of-freedom time series at probe points, and the DOF
@@ -358,6 +358,20 @@ async function mountPostProcess(host, ctx) {
   const galesRow = el("div", "gis-btn-row");
   galesRow.append(runSelect, galesBtn);
   galesCard.append(galesRow, galesLog);
+
+  // The Qt page's own GALES Toolkit buttons — "Convert Binary To CSV", "Extract
+  // Station Timeseries", "Find Station Nodes" — are appended by the spec
+  // completion, so they need a way into this page's probe list and run picker.
+  // Exposed rather than re-implemented, so every route runs the one verified
+  // extraction (wiring-pages.js binds the buttons to this).
+  window.__geoidPostProcess = {
+    runs: () => galesRuns,
+    run: () => runSelect.value,
+    probes: () => parseProbes(probeBox.value).map((p) => ({
+      name: p.name, x: p.x, y: p.y, z: p.z,
+    })),
+    extract: () => galesBtn.click(),
+  };
 
   host.append(sourceCard, probeCard, galesCard, resultCard, status);
 }

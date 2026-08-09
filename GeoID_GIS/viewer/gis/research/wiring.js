@@ -1,11 +1,11 @@
-import { wirePattern, wire } from "./spec-page.js?v=20260810-2ef39e6";
-import * as store from "./project-store.js?v=20260810-2ef39e6";
-import * as bridge from "./bridge.js?v=20260810-2ef39e6";
-import * as stats from "./stats.js?v=20260810-2ef39e6";
-import * as dsp from "./dsp.js?v=20260810-2ef39e6";
-import { linePlot } from "./plot.js?v=20260810-2ef39e6";
-import { column } from "./table.js?v=20260810-2ef39e6";
-import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260810-2ef39e6";
+import { wirePattern, wire } from "./spec-page.js?v=20260810-e707b73";
+import * as store from "./project-store.js?v=20260810-e707b73";
+import * as bridge from "./bridge.js?v=20260810-e707b73";
+import * as stats from "./stats.js?v=20260810-e707b73";
+import * as dsp from "./dsp.js?v=20260810-e707b73";
+import { linePlot } from "./plot.js?v=20260810-e707b73";
+import { column } from "./table.js?v=20260810-e707b73";
+import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260810-e707b73";
 
 /**
  * Behaviour for the controls the spec brings across.
@@ -182,7 +182,10 @@ export const CANNOT_WIRE = {
   "Run Script Main": "Executes Python; a browser tab has no interpreter.",
   "Run Function": "Executes Python; a browser tab has no interpreter.",
   "Stop External Run": "There is no external process to stop from a browser tab.",
-  "Convert Binary To CSV": "Reads GALES binary output; needs the solver's own reader.",
+  // "Convert Binary To CSV", "Extract Station Timeseries" and "Find Station
+  // Nodes" used to live here — GALES binary output did need the solver's own
+  // reader. The sidecar has one now (verified against a real run), so they are
+  // wired in wiring-pages.js rather than disabled.
   "AI Outline": "Needs a model. See the Copilot note in the Alerts drawer.",
 };
 
@@ -345,7 +348,7 @@ async function writeCollection(name, collection, say) {
   say(`${(collection.features || []).length} feature(s) written to ${path}.`);
 }
 
-const geo = () => import(`../geoprocessing.js?v=20260810-2ef39e6`);
+const geo = () => import(`../geoprocessing.js?v=20260810-e707b73`);
 
 wire("Vector Tools", {
   Buffer: async ({ say }) => {
