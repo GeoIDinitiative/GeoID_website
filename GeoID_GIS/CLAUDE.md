@@ -201,10 +201,41 @@ floor only a name match clears. That floor is what makes "I don't know" possible
 at all; without it an unanswerable question matched some blurb and got a
 confident wrong answer.
 
-`window.GeoIDAtlas.notify(message, actions)` is the seam the future live-feed
-monitor pushes hazard alerts through. "Anything happening nearby?" already runs
-the verified connectors bounded to the study area, which is that role in
-miniature.
+`window.GeoIDAtlas.notify(message, actions)` is the seam the watcher pushes
+hazard alerts through.
+
+### The watcher
+
+`gis/atlas-watch.js` polls the connectors on a timer against the study area.
+Driven conversationally — "watch this area", "watch every 5 minutes", "watch
+status", "stop watching". Three rules decide everything, each because the naive
+version is actively harmful, and **all three fail silently**, so
+`atlas-watch.test.mjs` pins them (16 checks):
+
+1. **The first pass never announces**, it records a baseline. Measured on the
+   live feeds: a global area baselines **2,209 events** — without this rule that
+   is 2,209 alerts on open, and the user stops reading them, which is worse than
+   no monitoring at all.
+2. **Only new events announce**, keyed by a stable id (a USGS event url, an
+   EONET id) and persisted to `metadata/atlas_watch.json`, so a reload does not
+   re-announce the same eruption. The seen-set is trimmed to 500 per feed.
+3. **New is not significant**: a magnitude floor (M4) and a severity floor
+   (Severe/Extreme). A feed of every M0.5 tremor is noise wearing the clothes of
+   information.
+
+`triage()` is pure — no clock, network or storage — which is what makes those
+rules testable rather than hoped for; the polling around it is the only impure
+part, and one unreachable feed never stops the others.
+
+**A narrower intent must be checked before a broader one.** "watch status" was
+swallowed by the generic `status` branch and answered with the *project* status;
+that branch now excludes watch/monitor. Any new intent sharing a keyword needs
+the same care.
+
+Honest limitation, stated in the UI: it runs **in the page**, so it watches only
+while a tab is open and browsers throttle background timers. Persistent watching
+belongs in the sidecar, which already outlives a click — the logic is pure and
+ready to move there.
 
 ## Running and testing
 

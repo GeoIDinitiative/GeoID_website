@@ -358,6 +358,7 @@ async function grounded(question) {
         + "• suggest the next step — “what should I do next?”\n"
         + "• explain what a stage needs — “what does a deck need?”, “why can't I run?”\n"
         + "• check live hazards near your study area — “anything happening nearby?”\n"
+        + "• keep watching them for you — “watch this area”, “watch status”\n"
         + (endpoint()
           ? "A model is connected, so you can also just ask me things in plain English."
           : "For open-ended questions I need a model: connect an Atlas hub and I'll use it."),
@@ -366,7 +367,10 @@ async function grounded(question) {
   }
 
   // Status: the whole ecosystem's state, read live rather than remembered.
-  if (/\b(status|where am i|what.*(project|open)|current project|overview)\b/.test(q)) {
+  // "watch status" is about the watcher, not the project, and this generic
+  // branch would otherwise swallow it — the narrower intent has to win.
+  if (!/\b(watch|monitor)/.test(q)
+    && /\b(status|where am i|what.*(project|open)|current project|overview)\b/.test(q)) {
     const s = await probe();
     if (!s.open) {
       return {
@@ -426,6 +430,53 @@ async function grounded(question) {
         + (named.requiresSidecar && !s.sidecar
           ? "\nIt also needs the sidecar connected." : ""),
       actions: [(missing[missing.length - 1] || named).act],
+    };
+  }
+
+  // Standing surveillance of the live feeds. Kept distinct from the one-off
+  // "anything happening nearby?" below, which this defers to for the first look.
+  if (/\b(watch|monitor|keep an eye|notify me|surveill)/.test(q)) {
+    const watch = await import(`./atlas-watch.js${STAMP}`);
+    if (/\b(stop|off|cancel|disable|quit)\b/.test(q)) {
+      watch.stop();
+      return { text: "Stopped watching. Ask me to watch again whenever you like." };
+    }
+    if (/\b(status|state|what.*watching|are you)\b/.test(q)) {
+      const st = watch.status();
+      return {
+        text: st.running
+          ? `Watching ${st.sources.join(", ")} every ${st.intervalMin} min.\n`
+            + `• earthquakes at or above M${st.minMagnitude}\n`
+            + `• weather alerts rated ${st.severities.join(" or ")}\n`
+            + `• ${st.known} event(s) already known, so only new ones will reach you\n`
+            + (st.lastRun ? `• last checked ${new Date(st.lastRun).toLocaleTimeString()}` : "")
+            + (st.lastError ? `\n• last problem: ${st.lastError}` : "")
+          : "I'm not watching anything at the moment.",
+        actions: st.running
+          ? [["Stop watching", () => submit("stop watching")]]
+          : [["Start watching", () => submit("watch this area")]],
+      };
+    }
+    const s = await probe();
+    if (!s.open) {
+      return {
+        text: "Open a project first — I watch its study area, so that is what scopes the alerts.",
+        actions: [["Open or create a project", () => window.GeoIDProject?.open?.(true)]],
+      };
+    }
+    const minutes = Number((q.match(/(\d+)\s*(?:min|minute)/) || [])[1]) || undefined;
+    const st = await watch.start(minutes ? { intervalMin: minutes } : {});
+    return {
+      text: `Watching ${st.sources.join(", ")} around `
+        + `${s.hasArea ? "your study area" : "the whole globe (no study area set)"}, `
+        + `every ${st.intervalMin} minutes.\n\n`
+        + "This first pass just recorded what is already out there — I'll only "
+        + `interrupt you for something **new** at or above M${st.minMagnitude}, `
+        + `or a ${st.severities.join("/")} weather alert.\n\n`
+        + "One caveat, plainly: this runs in the page, so I can only watch while "
+        + "a tab is open.",
+      actions: [["Watch status", () => submit("watch status")],
+        ["Stop watching", () => submit("stop watching")]],
     };
   }
 
