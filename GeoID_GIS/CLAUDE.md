@@ -813,6 +813,25 @@ or the copy beside it (`GeoID_GIS/gales`). The build needs **Trilinos**; the
 *generation* is independent of it and is what the sidecar test covers. FSI (two
 meshes) still needs manual setup; it falls back to a solid deck.
 
+**A GALES sim is a built executable, not a deck file.** There is **not one
+`.in` file in the whole GALES tree** — every reference sim under `sim/` is
+`cmake && make` → `executable`, run as `mpirun -n N ./executable`, reading
+`setup.txt` and `props.txt` from the working directory. The `gales <deck>.in`
+form comes from the desktop app's example command text and matches nothing on
+disk; it survives only as a last-resort fallback. So the run path prefers
+`./executable`, then `run.sh`, then a `.in`, and when none exists it says
+"press Generate & build deck" rather than inventing a command. Getting this
+wrong meant a correctly prepared sim could not be run at all.
+
+Consequence for remote solves: **the executable must be built on the machine
+that runs it** — one compiled here is bound to this box's MPI and Trilinos. The
+remote run therefore rsyncs *sources only* (excluding `executable`, `GALES_SRC`
+and the CMake artefacts) and builds on the server against that target's
+`gales_dir`. For the same reason the local prepare's build step is **non-fatal**:
+the mesh conversion it also does is portable and is what a remote solve needs,
+so a machine without Trilinos must still be able to prepare a run destined for
+a server.
+
 **Where a solve runs is a choice** — `.compute_targets.json` at the projects
 root holds named targets: `local` (mpirun here) or `ssh` (a Hetzner box, a lab
 workstation, a cluster login node). `/compute` lists them and probes for a local

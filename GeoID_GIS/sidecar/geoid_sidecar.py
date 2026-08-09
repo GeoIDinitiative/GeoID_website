@@ -595,6 +595,10 @@ class Handler(BaseHTTPRequestHandler):
             "port": int(body.get("port") or 0) or None,
             "key": str(body.get("key") or "").strip() or None,
             "remote_root": str(body.get("remote_root") or "~/geoid_runs").strip(),
+            # The GALES checkout on the server. With it, the deck is compiled
+            # there — which is the only way it can run there, since a binary
+            # built here is tied to this machine's MPI and Trilinos.
+            "gales_dir": str(body.get("gales_dir") or "").strip(),
             "ranks": int(body.get("ranks") or 4),
             "mpirun": str(body.get("mpirun") or "mpirun").strip(),
             "gales_bin": str(body.get("gales_bin") or "gales").strip(),
@@ -676,29 +680,40 @@ class Handler(BaseHTTPRequestHandler):
         mpirun_bin = str(body.get("mpirun") or "mpirun")
 
         # Two ways in. An explicit command (the Run page's Command box) is run as
-        # given — it is already the whole `mpirun … gales …` line, and needs no
-        # deck. Otherwise the command is built from the deck: named, or the sole
-        # `.in` in the run folder.
+        # given. Otherwise it is built from what the run folder actually holds.
+        #
+        # A GALES sim is **a built executable, not a deck file**: every reference
+        # sim under sim/ is `cmake && make` → `executable`, run as
+        # `mpirun -n N ./executable`, with setup.txt and props.txt read from the
+        # working directory. There is not one `.in` file in the whole tree — that
+        # form comes from the desktop app's example text and matches nothing, so
+        # it is only a last-resort fallback here.
         explicit = str(body.get("cmd") or "").strip()
         deck = str(body.get("deck", "")).strip()
         if explicit:
             argv = shlex.split(explicit)
             if not argv:
                 raise ValueError("empty command")
+        elif deck:
+            if not (run_dir / deck).is_file():
+                raise FileNotFoundError(f"deck not found in run: {deck}")
+            argv = [mpirun_bin, "-n", str(cores), gales_bin, deck]
+        elif (run_dir / "executable").is_file():
+            deck = "executable"
+            argv = [mpirun_bin, "-n", str(cores), "./executable"]
+        elif (run_dir / "run.sh").is_file():
+            deck = "run.sh"
+            argv = ["bash", "./run.sh"]
         else:
-            if deck:
-                if not (run_dir / deck).is_file():
-                    raise FileNotFoundError(f"deck not found in run: {deck}")
-            else:
-                decks = sorted(p.name for p in run_dir.glob("*.in"))
-                if not decks:
-                    raise ValueError(
-                        "no command and no .in deck in this run — give a command "
-                        "or place a prepared GALES deck in the run folder")
-                if len(decks) > 1:
-                    raise ValueError(
-                        f"several decks ({', '.join(decks)}) — name one with 'deck'")
-                deck = decks[0]
+            decks = sorted(p.name for p in run_dir.glob("*.in"))
+            if not decks:
+                raise ValueError(
+                    "nothing to run here: no built `executable`, no run.sh. "
+                    "Press 'Generate & build deck' first, or type a command.")
+            if len(decks) > 1:
+                raise ValueError(
+                    f"several decks ({', '.join(decks)}) — name one with 'deck'")
+            deck = decks[0]
             argv = [mpirun_bin, "-n", str(cores), gales_bin, deck]
         cmd_str = " ".join(argv)
         label = body.get("label") or f"GALES {Path(rel).name}/{deck}"
@@ -712,10 +727,11 @@ class Handler(BaseHTTPRequestHandler):
         if target and target.get("kind") == "ssh":
             ranks = int(body.get("cores") or target.get("ranks") or 4)
             remote_mpirun = target.get("mpirun") or "mpirun"
-            remote_gales = target.get("gales_bin") or "gales"
             # Rebuild the command for the far side unless one was typed: the
             # local box's paths and rank count rarely suit the server.
-            remote_cmd = explicit or f"{remote_mpirun} -n {ranks} {remote_gales} {deck}"
+            remote_cmd = explicit or f"{remote_mpirun} -n {ranks} ./executable"
+            # Where GALES lives on the server, so the deck can be built there.
+            remote_gales_dir = (target.get("gales_dir") or "").strip()
             dest = self._ssh_dest(target)
             ssh = self._ssh_prefix(target)
             root = (target.get("remote_root") or "~/geoid_runs").rstrip("/")
@@ -726,12 +742,26 @@ class Handler(BaseHTTPRequestHandler):
                 "#!/usr/bin/env bash\nset -e\n"
                 f'echo "[remote] {dest}:{remote_dir}"\n'
                 f'{ssh} {shlex.quote(dest)} {shlex.quote(f"mkdir -p {remote_dir}")}\n'
-                'echo "[remote] sending the deck…"\n'
-                # The deck goes up; results are pulled back separately, so an
-                # earlier run's output is never re-uploaded.
-                f'rsync -az --delete --exclude results/ -e {shlex.quote(ssh)} '
+                'echo "[remote] sending the sources…"\n'
+                # Sources only. The results come back separately, and the local
+                # build artefacts must NOT travel: an executable compiled here
+                # against this machine's MPI and Trilinos will not run there, so
+                # the server builds its own from the same sources.
+                f'rsync -az --delete -e {shlex.quote(ssh)} '
+                '--exclude results/ --exclude executable --exclude GALES_SRC '
+                '--exclude CMakeFiles/ --exclude CMakeCache.txt --exclude Makefile '
+                '--exclude cmake_install.cmake --exclude make/ '
                 f'./ {shlex.quote(f"{dest}:{remote_dir}/")}\n'
-                f'echo "[remote] solving: {remote_cmd}"\n'
+                # Build on the server when it has a GALES tree; otherwise assume
+                # the executable is already there and say so rather than guess.
+                + (
+                    f'echo "[remote] building against {remote_gales_dir}…"\n'
+                    f'{ssh} {shlex.quote(dest)} {shlex.quote(f"cd {remote_dir} && {pre} && ln -sfn {remote_gales_dir} GALES_SRC && cmake . >/dev/null && make")}\n'
+                    if remote_gales_dir else
+                    'echo "[remote] no GALES tree configured for this server — '
+                    'expecting ./executable to be there already."\n'
+                )
+                + f'echo "[remote] solving: {remote_cmd}"\n'
                 f'{ssh} {shlex.quote(dest)} '
                 f'{shlex.quote(f"cd {remote_dir} && {pre} && {remote_cmd}")}\n'
                 'echo "[remote] fetching results…"\n'
@@ -930,8 +960,18 @@ class Handler(BaseHTTPRequestHandler):
             f'python3 "{mesh_tool}/gales_mesh.py" {cores} "{mesh_msh.name}"\n'
             f'cd "{run_dir}"\n'
             'echo "[prepare] building (cmake + make)…"\n'
-            'cmake . && make\n'
-            'echo "[prepare] done — the run is ready. Use Run to solve it."\n')
+            # Not fatal. The mesh conversion above is portable and is what a
+            # remote solve needs; the build is machine-specific and only matters
+            # for running here. Failing the whole prepare because this box has no
+            # Trilinos would block preparing a run destined for a server.
+            'if cmake . >/dev/null 2>&1 && make; then\n'
+            '  echo "[prepare] built — Run will solve it here."\n'
+            'else\n'
+            '  echo "[prepare] local build failed (no Trilinos here?). The deck and"\n'
+            '  echo "[prepare] converted mesh are ready — a server with GALES can build"\n'
+            '  echo "[prepare] and run it; set that server\'s GALES path in Where it runs."\n'
+            'fi\n'
+            'echo "[prepare] done."\n')
         script.chmod(0o755)
         job = self.runner.start("gales-prepare", f"prepare {Path(rel).name}",
                                 ["bash", str(script)], run_dir, dict(body.get("env") or {}))

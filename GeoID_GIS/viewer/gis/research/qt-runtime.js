@@ -1,13 +1,13 @@
-import * as store from "./project-store.js?v=20260809-6d337b3";
-import * as stats from "./stats.js?v=20260809-6d337b3";
-import * as dsp from "./dsp.js?v=20260809-6d337b3";
-import { parseTable, column } from "./table.js?v=20260809-6d337b3";
-import { linePlot, heatmap } from "./plot.js?v=20260809-6d337b3";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260809-6d337b3";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260809-6d337b3";
-import * as sidecar from "./sidecar.js?v=20260809-6d337b3";
-import * as bridge from "./bridge.js?v=20260809-6d337b3";
-import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260809-6d337b3";
+import * as store from "./project-store.js?v=20260810-2ef39e6";
+import * as stats from "./stats.js?v=20260810-2ef39e6";
+import * as dsp from "./dsp.js?v=20260810-2ef39e6";
+import { parseTable, column } from "./table.js?v=20260810-2ef39e6";
+import { linePlot, heatmap } from "./plot.js?v=20260810-2ef39e6";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260810-2ef39e6";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260810-2ef39e6";
+import * as sidecar from "./sidecar.js?v=20260810-2ef39e6";
+import * as bridge from "./bridge.js?v=20260810-2ef39e6";
+import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260810-2ef39e6";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -1243,13 +1243,20 @@ function galesRunner(host, api) {
     return (await store.listProjectDir("fem_runs").catch(() => []))
       .filter((e) => e.kind === "directory").map((e) => e.name);
   }
-  // The command a run implies: a run.sh wrapper if it has one, else the GALES
-  // line built from its deck, else nothing to suggest.
+  // The command a run implies. A GALES sim is a *built executable* reading
+  // setup.txt/props.txt from its folder — `mpirun -n N ./executable` — which is
+  // how every reference sim runs; there is no deck file. A run.sh wrapper wins
+  // if the run has one, and a `.in` is only a legacy fallback.
   async function commandFor(run) {
     const files = await store.listProjectDir(`fem_runs/${run}`).catch(() => []);
     if (files.some((e) => e.name === "run.sh")) return "./run.sh";
+    const ranks = Number(api._galesRanks?.()) || 4;
+    if (files.some((e) => e.name === "executable")) return `mpirun -n ${ranks} ./executable`;
     const deck = files.find((e) => e.name.endsWith(".in"));
-    return deck ? `mpirun -n 4 gales ${deck.name}` : null;
+    if (deck) return `mpirun -n ${ranks} gales ${deck.name}`;
+    // Nothing built yet — say what to press rather than suggest a command that
+    // cannot work.
+    return null;
   }
   async function selectRun(run, { force = false } = {}) {
     const active = store.getActive();
@@ -1409,7 +1416,8 @@ function galesRunner(host, api) {
   const f = {};
   [["name", "Name (e.g. hetzner)"], ["host", "Host or IP"], ["user", "SSH user"],
     ["port", "Port (22)"], ["remote_root", "Remote folder (~/geoid_runs)"],
-    ["ranks", "MPI ranks"], ["preamble", "Setup command (e.g. module load openmpi)"]]
+    ["ranks", "MPI ranks"], ["gales_dir", "GALES path on the server (~/gales)"],
+    ["preamble", "Setup command (e.g. module load openmpi)"]]
     .forEach(([key, label]) => {
       f[key] = textInput(label);
       const wrap = el("label", "research-field");
@@ -1443,7 +1451,8 @@ function galesRunner(host, api) {
       await sidecar.saveCompute({
         name, kind: "ssh", host: f.host.value.trim(), user: f.user.value.trim(),
         port: Number(f.port.value) || 0, remote_root: f.remote_root.value.trim(),
-        ranks: Number(f.ranks.value) || 4, preamble: f.preamble.value.trim(),
+        ranks: Number(f.ranks.value) || 4, gales_dir: f.gales_dir.value.trim(),
+        preamble: f.preamble.value.trim(),
       });
       await refreshTargets();
       targetPick.value = labelFor(name, targets[name]);
