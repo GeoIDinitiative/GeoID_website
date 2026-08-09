@@ -136,6 +136,38 @@ beside its renamed, wired twin.
 `<select>` has no placeholder attribute, so the text-based scrape could not see
 AI Trainer's live data-bus combo and appended a dead duplicate.
 
+## Real data — GEE cache and live connectors
+
+**GEE loads from `assets/gee-cache/` first.** The page was hardwired to a live
+credentialed endpoint that fails; nine rendered snapshots sat unused. `gee.js`
+now reads the manifest and drapes the PNGs from disk (offline, no key), merging
+the live service in when it answers. Two traps: (1) **`fetch` and TextureLoader
+resolve against the document base, not the module** — the viewer index is one
+dir up, so a document-relative `../assets/…` misses; anchor to `import.meta.url`
+(`new URL("../assets/gee-cache/", import.meta.url)`), the way dynamic `import()`
+already does. (2) A cache PNG can be a **saved error** — SMAP was 117 bytes of
+JSON with a `.png` name, a failed snapshot written verbatim, which is exactly
+why it read as broken. The manifest is validated by PNG magic bytes; keep only
+real images.
+
+**Live connectors are `connectors.js` + a `qt-runtime` module, not the
+catalogue.** `ingest-catalogue.js` mirrors the desktop app, which only *links*
+to portals — so the connectors (a web-only capability) are injected onto the
+tree-rendered ingest pages by `ingestConnectors` in qt-runtime.js, a "Live
+sources" card, exactly like the FEM Run wiring. Editing the catalogue does
+nothing: those pages are tree-rendered and the catalogue edit is shadowed.
+`connectors.js` holds the open, key-free, CORS-friendly sources — USGS
+earthquakes (native GeoJSON) and NASA EONET volcanoes/wildfires — each a pure
+URL builder + pure converter (unit-tested in `connectors.test.mjs`) with the one
+impure `runConnector` on top. A pull files GeoJSON into `data/pulled/<slug>/`
+with provenance (endpoint, query, timestamp, count), registers it **kind
+`vector`** so it restores and shows on the globe, and appends `_lineage.json`.
+`store.registerData` **flattens `extra` onto the record** (via `...entry.extra`),
+so provenance fields end up top-level (`record.endpoint`, not
+`record.extra.endpoint`). The connector uses the study area as its bbox when set
+— so a project scoped to an ocean box correctly returns no earthquakes; test a
+global pull with no study area.
+
 ## Running and testing
 
 `python3 serve.py` (repo root) starts the static site *and* the sidecar together
