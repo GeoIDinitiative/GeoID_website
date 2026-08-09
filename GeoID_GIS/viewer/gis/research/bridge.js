@@ -1,4 +1,4 @@
-import * as store from "./project-store.js?v=20260809-06bc458";
+import * as store from "./project-store.js?v=20260809-17ab50e";
 
 /**
  * What makes the three pages one workspace.
@@ -251,6 +251,24 @@ export async function sendToGlobe(target) {
   window.GeoIDModeManager?.setMode?.("gis");
   await manager.importFileList([file]);
   return true;
+}
+
+/**
+ * Fill a coordinate by clicking the globe instead of typing it.
+ *
+ * FEM probe locations, station coordinates and study bounds are all typed by
+ * hand today; this lets a Research form ask the globe. Switches to GIS so there
+ * is a globe to click, then resolves the picked point. Returns the viewer's
+ * east-positive 0..360 longitude *and* the signed -180..180 the project schema
+ * and any file want, so the caller uses whichever it needs. Rejects if the
+ * viewer has no picker or the user presses Escape.
+ */
+export async function pickOnGlobe() {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.pickOnGlobe) throw new Error("The globe is not ready to pick from.");
+  window.GeoIDModeManager?.setMode?.("gis");
+  const { lat, lon } = await viewer.pickOnGlobe();
+  return { lat, lon, lonSigned: signedLon(lon) };
 }
 
 // ── Cross-page navigation ─────────────────────────────────────────────────────

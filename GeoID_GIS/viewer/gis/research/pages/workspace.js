@@ -1,8 +1,8 @@
-import { registerPage } from "../stages.js?v=20260809-06bc458";
-import * as store from "../project-store.js?v=20260809-06bc458";
-import * as bridge from "../bridge.js?v=20260809-06bc458";
-import { currentBody } from "../../bodies.js?v=20260809-06bc458";
-import { el } from "./common.js?v=20260809-06bc458";
+import { registerPage } from "../stages.js?v=20260809-17ab50e";
+import * as store from "../project-store.js?v=20260809-17ab50e";
+import * as bridge from "../bridge.js?v=20260809-17ab50e";
+import { currentBody } from "../../bodies.js?v=20260809-17ab50e";
+import { el } from "./common.js?v=20260809-17ab50e";
 
 /**
  * The Workspace — the curated home of the analysis ecosystem.
@@ -146,12 +146,37 @@ function mount(host, ctx) {
     saCard.appendChild(acts);
   } else {
     saCard.appendChild(el("p", "ws-muted",
-      "No study area yet. Draw one on the globe — the Area tool writes it here, "
-      + "and every stage below reads it."));
+      "No study area yet. Draw one with the Area tool, or click a point on the "
+      + "globe to set a box around it — every stage below reads it."));
+    const acts = el("div", "ws-actions");
     const draw = el("button", "button", "Draw on the globe");
     draw.type = "button";
     draw.addEventListener("click", () => bridge.goToPage("gis"));
-    saCard.appendChild(draw);
+    const pick = el("button", "button secondary", "◎ Pick a point");
+    pick.type = "button";
+    pick.addEventListener("click", () => pickStudyArea(pick));
+    acts.append(draw, pick);
+    saCard.appendChild(acts);
+  }
+
+  /** Click the globe → a small study-area box around that point. */
+  async function pickStudyArea(btn) {
+    btn.disabled = true;
+    const restore = btn.textContent;
+    btn.textContent = "Click the globe…";
+    try {
+      const { lat, lonSigned } = await bridge.pickOnGlobe();
+      const half = 0.5;   // a ~1° box, a sensible default the user can refine
+      await store.updateMetadata({ study_area: {
+        min_lat: (lat - half).toFixed(6), max_lat: (lat + half).toFixed(6),
+        min_lon: (lonSigned - half).toFixed(6), max_lon: (lonSigned + half).toFixed(6),
+        crs: "EPSG:4326",
+      } });
+      window.GeoIDResearch?.setPage?.("Dashboard");   // re-mount with the new area
+    } catch (error) {
+      btn.disabled = false;
+      btn.textContent = restore;
+    }
   }
 
   // ── The workflow: five stages, each a door with a live count ────────────────

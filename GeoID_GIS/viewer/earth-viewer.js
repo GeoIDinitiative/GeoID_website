@@ -18329,6 +18329,52 @@ uniform float uViewportWidth;`,
         pointerDown = { x: event.clientX, y: event.clientY };
       });
 
+      // One-shot "click a point on the globe", so a Research form can be filled
+      // by pointing rather than by typing coordinates. Reuses the exact inverse
+      // the cursor readout uses (worldToLocal, undo the spin, vectorToLatLon) so
+      // the picked lat/lon matches what the readout shows under the cursor. The
+      // next surface click resolves; Escape rejects. Capture-phase, so the pick
+      // is consumed before the viewer's own pin/selection handling runs.
+      function pickOnGlobeOnce() {
+        return new Promise((resolve, reject) => {
+          const canvas = renderer.domElement;
+          const previousCursor = canvas.style.cursor;
+          canvas.style.cursor = "crosshair";
+          const finish = () => {
+            canvas.removeEventListener("pointerdown", onDown, true);
+            document.removeEventListener("keydown", onKey, true);
+            canvas.style.cursor = previousCursor;
+          };
+          const onDown = (event) => {
+            const hit = intersectAnySurface(event.clientX, event.clientY);
+            if (!hit) return;   // a click in space is not a pick; keep waiting
+            let latLon;
+            if (hit.context?.kind === "moon") {
+              const moonEntry = moonLayer.entries.find((e) => e.item?.name === hit.context.bodyName);
+              const moonAngle = moonEntry?.item?._currentAngle ?? 0;
+              const relPoint = hit.localPoint.clone().sub(hit.context.centerLocal);
+              relPoint.applyEuler(new THREE.Euler(0, moonAngle, 0));
+              latLon = vectorToMoonLatLon(relPoint);
+            } else if (hit.context) {
+              latLon = { lat: hit.lat, lon: hit.lon };
+            } else {
+              const localPoint = marsGroup.worldToLocal(hit.point.clone());
+              localPoint.applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
+              latLon = vectorToLatLon(localPoint);
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            finish();
+            resolve({ lat: latLon.lat, lon: latLon.lon });
+          };
+          const onKey = (event) => {
+            if (event.key === "Escape") { finish(); reject(new Error("Pick cancelled.")); }
+          };
+          canvas.addEventListener("pointerdown", onDown, true);
+          document.addEventListener("keydown", onKey, true);
+        });
+      }
+
       renderer.domElement.addEventListener("pointermove", (event) => {
         // Model mode hides the globe and the studio owns the cursor readout,
         // filling it from its own local frame. Letting this run there would
@@ -18823,6 +18869,11 @@ uniform float uViewportWidth;`,
         // duplicating the drawing and sampling logic.
         estimateSurfaceSlopeDegrees: (lat, lon) => estimateSurfaceSlopeDegrees(elevationSampler, lat, lon),
         getExtractionGeometry: (sourceType) => getExtractionGeometry(sourceType),
+        // One-shot "click a point on the globe" — a Research form fills a
+        // coordinate by pointing. Resolves { lat, lon } in the viewer's own
+        // east-positive 0..360 convention; the caller converts if it needs
+        // signed. Rejects on Escape.
+        pickOnGlobe: () => pickOnGlobeOnce(),
         pointInProjectedPolygon,
         sphericalPolygonAreaKm2,
         getGeologyFeatureAtLatLon: (lat, lon) => getGeologyFeatureAtLatLon(lat, lon, geologyInteractiveState),
