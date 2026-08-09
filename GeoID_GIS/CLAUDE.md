@@ -136,6 +136,23 @@ beside its renamed, wired twin.
 `<select>` has no placeholder attribute, so the text-based scrape could not see
 AI Trainer's live data-bus combo and appended a dead duplicate.
 
+## Running and testing
+
+`python3 serve.py` (repo root) starts the static site *and* the sidecar together
+and prints the URL — the one-command way to run the whole thing. Stdlib only.
+`QUICKSTART.md` is the user-facing version.
+
+Two committed test commands, no dependencies (`GeoID_GIS/tests/`):
+
+- `node GeoID_GIS/tests/run.mjs` — runs every `*.test.mjs` under `viewer/` (dsp,
+  stats, postprocess) and aggregates. The analysis correctness net.
+- `python3 GeoID_GIS/tests/smoke.py` — boots the real site in headless Chrome and
+  asserts all 64 Research pages mount. It drives CDP over a **hand-rolled
+  stdlib WebSocket** (no puppeteer, no chromium download); finds Chrome by name
+  or `$GEOID_CHROME`, and skips green if none is installed. This is the guard
+  against a page rotting silently — the registry shape makes that easy and this
+  is the only thing that catches it.
+
 ## Verifying
 
 There is a headless-Chrome + CDP harness (`shoot.py` in the session scratchpad):
