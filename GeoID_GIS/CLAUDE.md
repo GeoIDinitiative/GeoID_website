@@ -273,14 +273,23 @@ dead-ended in a folder. Three bridge calls reverse it:
   before the globe exists. `restoreSession()` already reopened the project; this
   is what makes the reload feel like resuming.
 - **`pickOnGlobe()`** fills a coordinate by clicking instead of typing. The pick
-  lives in `earth-viewer.js` (`pickOnGlobe` on the seam) because the inverse —
-  `marsGroup.worldToLocal(hit.point)`, undo `globe.rotation.y - π`,
-  `vectorToLatLon` — must match the cursor readout exactly, and those helpers are
-  in that closure. Returns east-positive 0..360; the bridge adds the signed
-  value the schema wants. **Earth only so far** — the planet viewers need the
-  same seam method for parity. Verify it headlessly by dispatching a
-  `pointerdown` at the canvas centre (the globe fills it) and asserting the
-  resolved lat/lon is in range.
+  lives on each viewer's seam because the inverse — `<group>.worldToLocal(hit)`,
+  undo `globe.rotation.y - π`, `vectorToLatLon` — must match that viewer's cursor
+  readout, and those helpers are in its closure. Returns the viewer's own
+  longitude; the bridge adds the signed value the schema wants. **All ten worlds
+  have it.** Earth uses `intersectAnySurface` (hits the displaced terrain); the
+  nine planet viewers use a uniform block that raycasts a sphere at the globe
+  radius instead — equivalent to a fraction of a degree, verified against Mars's
+  cursor readout (`5.32°, 61.08°` pick vs `5.32°, 61.27°E` readout). Only the
+  **group name differs per lineage**: `marsGroup` (mars/moon and all four gas
+  giants), `mercuryGroup`, `plutoGroup`, `venusGroup`. Verify headlessly by
+  dispatching a `pointerdown` at the canvas centre and asserting the lat/lon is
+  in range. **One convention caveat:** the pick returns the viewer's *internal*
+  `vectorToLatLon` longitude, which round-trips correctly through
+  `latLonToVector3` (so study-area → frame-on-globe is consistent), but on a
+  west-positive world like Mercury it is not the `°W` value the readout shows —
+  the display applies a further east→west conversion the pick does not. Correct
+  for Earth (east-positive), round-trip-correct everywhere; cosmetic only.
 
 Two things to keep right when touching it:
 
