@@ -1870,23 +1870,47 @@
       return 2 * radiusKm * Math.asin(Math.min(1, Math.sqrt(hav)));
     }
 
+    /**
+     * The area of a polygon on this body, in km^2.
+     *
+     * The line-integral form: for each edge, the change in longitude times the
+     * mean of the endpoint sines. Exact for great-circle edges and, crucially,
+     * **stable under subdivision** -- adding vertices along an edge cannot
+     * change the answer.
+     *
+     * What was here summed the interior angle at every vertex and subtracted
+     * (n-2)pi, which is right on paper and unusable in practice: subdividing
+     * drives every angle toward pi and the result becomes the difference of two
+     * large, nearly equal numbers. Measured on Earth's identical copy, one
+     * 300 km box gave 89,806 km^2 at four vertices and then 58,939 / 96,124 /
+     * 113,026 at twelve, twenty-four and forty-four -- diverging with vertex
+     * count. Every hand-drawn area with more than a handful of points was
+     * quoted wrongly, silently, on every world.
+     *
+     * The tested copy is `GeoID_GIS/viewer/gis/geo-utils.js`. It is written out
+     * again here rather than imported because these files carry epoch-second
+     * cache stamps that `stamp.py` does not sweep, and a cross-tree import at a
+     * stale stamp would be a second instance of that module. If the formula
+     * changes, change it in both -- `geo-utils.test.mjs` is what proves it.
+     */
     function sphericalPolygonAreaKm2(points) {
-      if (points.length < 3) {
+      if (!Array.isArray(points) || points.length < 3) {
         return 0;
       }
       const radiusKm = points[0]?.radiusKm || MARS_MEAN_RADIUS_KM;
-      const vectors = points.map((point) => latLonToVector3(point.lat, point.lon, 1).normalize());
-      let totalAngle = 0;
-      for (let i = 0; i < vectors.length; i += 1) {
-        const a = vectors[(i - 1 + vectors.length) % vectors.length];
-        const b = vectors[i];
-        const c = vectors[(i + 1) % vectors.length];
-        const ab = a.clone().cross(b).normalize();
-        const cb = c.clone().cross(b).normalize();
-        totalAngle += Math.acos(clamp(ab.dot(cb), -1, 1));
+      const rad = (degrees) => (degrees * Math.PI) / 180;
+      let sum = 0;
+      for (let i = 0; i < points.length; i += 1) {
+        const a = points[i];
+        const b = points[(i + 1) % points.length];
+        let dLon = rad(b.lon - a.lon);
+        // The short way round, so a polygon over the antimeridian does not
+        // sweep the long way and report most of the body.
+        if (dLon > Math.PI) dLon -= 2 * Math.PI;
+        if (dLon < -Math.PI) dLon += 2 * Math.PI;
+        sum += dLon * (2 + Math.sin(rad(a.lat)) + Math.sin(rad(b.lat)));
       }
-      const excess = totalAngle - ((vectors.length - 2) * Math.PI);
-      return Math.abs(excess) * (radiusKm ** 2);
+      return Math.abs((sum * radiusKm * radiusKm) / 2);
     }
 
     function sampleGreatCircleProfile(start, end, elevationSampler, sampleCount = 72) {
@@ -7495,7 +7519,23 @@
         }
       }
 
-      function measureSurfaceRadius(latDegrees, lonDegrees, lift = 0.012, context = getActiveMeasureContext()) {
+      /**
+       * A measure marker's lift, scaled to the viewing distance.
+       *
+       * A lift is an altitude and an altitude parallaxes. The flat 0.012 this
+       * replaces is 23.9 km above the ground: looking straight down it costs
+       * nothing, which is why it survived, but measured on Earth's identical
+       * copy at 4 km altitude it put markers 235, 248 and 334 px from the click.
+       * A fixed fraction of the distance to the surface holds the parallax to a
+       * constant small angle at every scale; the ceiling keeps the far view
+       * exactly as it was.
+       */
+      function measureDisplayLiftForView() {
+        const surfaceDistance = Math.max(1e-6, camera.position.length() - 3.2);
+        return Math.max(5e-7, Math.min(surfaceDistance * 0.0015, 0.012));
+      }
+
+      function measureSurfaceRadius(latDegrees, lonDegrees, lift = measureDisplayLiftForView(), context = getActiveMeasureContext()) {
         if (context.kind === "moon") {
           return context.radiusWorld + lift;
         }
@@ -7504,12 +7544,12 @@
         return 3.2 + displacement + lift;
       }
 
-      function sampleMeasureSurfacePoint(latDegrees, lonDegrees, lift = 0.012, context = getActiveMeasureContext()) {
+      function sampleMeasureSurfacePoint(latDegrees, lonDegrees, lift = measureDisplayLiftForView(), context = getActiveMeasureContext()) {
         const point = latLonToVector3(latDegrees, lonDegrees, measureSurfaceRadius(latDegrees, lonDegrees, lift, context));
         return context.kind === "moon" ? point.add(context.centerLocal) : point;
       }
 
-      function projectMeasurePoint(pointLike, lift = 0.012) {
+      function projectMeasurePoint(pointLike, lift = measureDisplayLiftForView()) {
         const context = getMeasurePointContext(pointLike);
         const localPoint = getMeasurePointLocal(pointLike);
         if (context.kind === "moon") {
