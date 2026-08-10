@@ -233,6 +233,40 @@ export async function deleteCompute(name) {
 export async function testCompute(name) {
   return (await call("/compute/test", { method: "POST", body: { name } })).job_id;
 }
+
+// ── Atlas: your own model subscription, and the watcher that outlives the tab ─
+//
+// The key is set *into the sidecar* and stays there: a page cannot hold a
+// secret, so the call that needs one is made on that side and only a masked
+// hint ever comes back. Same reason the watcher lives there — it has to keep
+// running when every tab is closed.
+
+export async function atlasKeys() {
+  return call("/atlas/keys");
+}
+export async function saveAtlasKey(name, value) {
+  return call("/atlas/keys/save", { method: "POST", body: { name, value } });
+}
+export async function deleteAtlasKey(name) {
+  return call("/atlas/keys/delete", { method: "POST", body: { name } });
+}
+export async function atlasChat({ messages, context, provider, model } = {}) {
+  return call("/atlas/chat", { method: "POST",
+    body: { messages, context, provider, model } });
+}
+export async function watchStart(options = {}) {
+  return call("/atlas/watch/start", { method: "POST", body: options });
+}
+export async function watchStop() {
+  return call("/atlas/watch/stop", { method: "POST", body: {} });
+}
+export async function watchStatus() {
+  return call("/atlas/watch");
+}
+/** Alerts raised since an index — how a browser that was closed catches up. */
+export async function atlasAlerts(since = 0) {
+  return (await call(`/atlas/alerts?since=${since}`)).alerts || [];
+}
 /**
  * Generate a runnable GALES deck from the run's spec.json and build it: the
  * sidecar writes setup.txt/props.txt, clones the solver boilerplate, converts

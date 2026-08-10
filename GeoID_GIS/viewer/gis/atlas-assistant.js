@@ -12,20 +12,24 @@
  * network and no key, and it can never invent a page that does not exist. That
  * is also why it can *act*: an answer carries the button that performs it.
  *
- * A model is optional and additive. When an Atlas hub is configured
- * (Settings ▸ Atlas, or `window.GeoIDAtlas.connect(url)`) anything the grounded
- * layer cannot answer is sent to its `/api/chat/simple` with the app's state as
- * `context` — the shape that endpoint documents for exactly this. Without one,
- * Atlas says plainly what it can and cannot do rather than guessing.
+ * A model is optional and additive, and there are two ways to give it one, tried
+ * in this order:
  *
- * Named Atlas after the wider Atlas AI it will eventually be, and deliberately
- * separate from it for now: this speaks the hub's HTTP contract, so pointing it
- * at the real thing is a URL, not a rewrite.
+ *   1. **Your own subscription, through the sidecar** — Claude, ChatGPT or
+ *      Gemini. The key is set *into the sidecar* and never touches this page,
+ *      because a browser cannot keep a secret; only a masked hint comes back.
+ *   2. **An Atlas hub**, via its `/api/chat/simple` with the app's state as
+ *      `context` — the shape that endpoint documents for exactly this.
  *
- * Where this is going: `notify()` already accepts a message from outside, which
- * is the seam the live-feed monitor will push hazard alerts through — the
- * connectors it would watch (USGS, NWS, EONET) are wired and verified today, and
- * "what's happening near my study area" already runs them on demand.
+ * With neither, Atlas says plainly what it can and cannot do rather than
+ * guessing. Named after the wider Atlas AI it will eventually be, and speaking
+ * that hub's contract already, so pointing it at the real thing is a URL rather
+ * than a rewrite.
+ *
+ * The watcher has two homes for the same reason: `atlas-watch.js` runs in the
+ * page when there is no sidecar, and the sidecar's own watcher takes over when
+ * there is — because that one keeps running with every tab closed, and tells you
+ * what it saw when you come back (`drainAlerts`).
  */
 
 const STAMP = new URL(import.meta.url).search || "";
@@ -83,7 +87,31 @@ async function appContext() {
   return bits.join("\n");
 }
 
+/** The sidecar, when it is up and has a subscription wired in. */
+async function sidecarBrain() {
+  try {
+    const sc = await import(`./research/sidecar.js${STAMP}`);
+    if (!sc.isConnected()) return null;
+    const keys = await sc.atlasKeys();
+    return keys.providers?.length ? { sc, providers: keys.providers } : null;
+  } catch (error) {
+    return null;
+  }
+}
+
 async function askModel(question) {
+  // Prefer the sidecar: the key lives there, so the page never holds a secret
+  // and the user's own Claude/ChatGPT/Gemini subscription is what answers.
+  const brain = await sidecarBrain();
+  if (brain) {
+    history.push({ role: "user", content: question });
+    const reply = await brain.sc.atlasChat({
+      messages: history.slice(-10), context: await appContext(),
+    });
+    const text = String(reply.text || "").trim();
+    if (text) history.push({ role: "assistant", content: text });
+    return { text, provider: reply.provider, sources: [] };
+  }
   const base = endpoint();
   if (!base) return null;
   history.push({ role: "user", content: question });
@@ -435,7 +463,41 @@ async function grounded(question) {
 
   // Standing surveillance of the live feeds. Kept distinct from the one-off
   // "anything happening nearby?" below, which this defers to for the first look.
+  // Wiring in your own model subscription. The key goes to the sidecar and
+  // stays there — never into this page — so it is only offered when one is up.
+  if (/\b(key|api key|claude|chatgpt|openai|gemini|anthropic|subscription|model)\b/.test(q)
+    && /\b(add|set|connect|wire|use|configure|remove|delete|which|what|status)\b/.test(q)) {
+    const sc = await import(`./research/sidecar.js${STAMP}`);
+    if (!sc.isConnected()) {
+      return {
+        text: "Your own Claude, ChatGPT or Gemini subscription plugs in through "
+          + "the sidecar — the key is held by that local service, never by this "
+          + "page, because a browser cannot keep a secret. Connect the sidecar "
+          + "first (Settings ▸ Sidecar).",
+      };
+    }
+    const keys = await sc.atlasKeys();
+    const rows = Object.entries(keys.keys || {})
+      .map(([name, k]) => `• ${name.replace("_API_KEY", "")}: `
+        + (k.configured ? `set (${k.hint})` : "not set"));
+    return {
+      text: `Model subscriptions, held by the sidecar:\n${rows.join("\n")}\n\n`
+        + (keys.providers?.length
+          ? `I'll use ${keys.providers.join(" / ")} for anything I can't answer from the app itself.`
+          : "Add one and I can answer open-ended questions, not just app ones."),
+      actions: [
+        ["Add Claude key", () => addKey(sc, "ANTHROPIC_API_KEY", "Anthropic (Claude)")],
+        ["Add ChatGPT key", () => addKey(sc, "OPENAI_API_KEY", "OpenAI (ChatGPT)")],
+        ["Add Gemini key", () => addKey(sc, "GEMINI_API_KEY", "Google (Gemini)")],
+      ],
+    };
+  }
+
   if (/\b(watch|monitor|keep an eye|notify me|surveill)/.test(q)) {
+    // The sidecar's watcher is the real one: it keeps running with every tab
+    // closed. The in-page watcher is the fallback when there is no sidecar.
+    const sc = await import(`./research/sidecar.js${STAMP}`);
+    if (sc.isConnected()) return watchViaSidecar(q, sc);
     const watch = await import(`./atlas-watch.js${STAMP}`);
     if (/\b(stop|off|cancel|disable|quit)\b/.test(q)) {
       watch.stop();
@@ -508,6 +570,104 @@ async function grounded(question) {
     };
   }
   return null;   // nothing grounded matched; the model gets a turn
+}
+
+/**
+ * Take a key and hand it straight to the sidecar.
+ *
+ * Deliberately never stored, echoed or logged on this side: the prompt's value
+ * goes over loopback to the local service and the only thing that comes back is
+ * a mask. The same reason the chat call is made there.
+ */
+async function addKey(sc, name, label) {
+  const value = window.prompt(
+    `${label} API key.\n\n`
+    + "It is sent to your local sidecar and kept there at file mode 0600 — "
+    + "never stored in this page, never sent anywhere else. Leave blank to remove.");
+  if (value === null) return;
+  try {
+    const after = await sc.saveAtlasKey(name, value.trim());
+    const entry = after.keys?.[name] || {};
+    bubble("atlas", entry.configured
+      ? `${label} is wired in (${entry.hint}). I'll use it for open questions.`
+      : `${label} removed.`);
+  } catch (error) {
+    bubble("atlas", `That key was not accepted: ${error.message}`);
+  }
+}
+
+/** The persistent watcher: it runs in the sidecar, so it survives the tab. */
+async function watchViaSidecar(q, sc) {
+  if (/\b(stop|off|cancel|disable|quit)\b/.test(q)) {
+    await sc.watchStop();
+    return { text: "Stopped watching." };
+  }
+  if (/\b(status|state|what.*watching|are you)\b/.test(q)) {
+    const st = await sc.watchStatus();
+    return {
+      text: st.running
+        ? `Watching ${st.sources.join(", ")} every ${st.config.intervalMin} min, `
+          + "**in the sidecar** — so it keeps going with every tab closed.\n"
+          + `• earthquakes at or above M${st.config.minMagnitude}\n`
+          + `• weather alerts rated ${st.config.severities.join(" or ")}\n`
+          + `• ${st.known} event(s) known${st.bbox ? " inside your study area" : " worldwide"}\n`
+          + `• ${st.alerts} alert(s) raised so far`
+          + (st.last_error ? `\n• last problem: ${st.last_error}` : "")
+        : "The sidecar is not watching anything at the moment.",
+      actions: st.running
+        ? [["Stop watching", () => submit("stop watching")]]
+        : [["Start watching", () => submit("watch this area")]],
+    };
+  }
+  const state = await probe();
+  const area = state.area;
+  const bbox = state.hasArea ? {
+    minLat: Number(area.min_lat), maxLat: Number(area.max_lat),
+    minLon: Number(area.min_lon), maxLon: Number(area.max_lon),
+  } : null;
+  const minutes = Number((q.match(/(\d+)\s*(?:min|minute)/) || [])[1]) || undefined;
+  const st = await sc.watchStart({
+    ...(minutes ? { intervalMin: minutes } : {}), ...(bbox ? { bbox } : {}),
+  });
+  return {
+    text: `Watching ${st.sources.join(", ")} every ${st.config.intervalMin} minutes, `
+      + `${bbox ? "inside your study area" : "worldwide (no study area set)"}.\n\n`
+      + "This runs **in the sidecar**, so it keeps watching with every tab closed — "
+      + "and tells you what it found when you come back.\n\n"
+      + "The first pass only records what is already out there; I'll interrupt you "
+      + `for something new at or above M${st.config.minMagnitude}, or a `
+      + `${st.config.severities.join("/")} weather alert.`,
+    actions: [["Watch status", () => submit("watch status")],
+      ["Stop watching", () => submit("stop watching")]],
+  };
+}
+
+/**
+ * Catch up on what the sidecar saw while this tab was closed, then keep an eye
+ * on it. This is the point of moving the loop out of the page: you come back and
+ * Atlas already knows.
+ */
+const ALERT_CURSOR = "geoid-gis:atlas-alert-cursor";
+async function drainAlerts() {
+  try {
+    const sc = await import(`./research/sidecar.js${STAMP}`);
+    if (!sc.isConnected()) return;
+    const st = await sc.watchStatus();
+    if (!st.running && !st.alerts) return;
+    let since = 0;
+    try { since = Number(window.localStorage.getItem(ALERT_CURSOR)) || 0; }
+    catch (error) { /* storage unavailable */ }
+    const alerts = await sc.atlasAlerts(since);
+    if (!alerts.length) return;
+    try { window.localStorage.setItem(ALERT_CURSOR, String(since + alerts.length)); }
+    catch (error) { /* storage unavailable */ }
+    window.GeoIDAtlas?.notify?.(
+      `While you were away I saw **${alerts.length} new `
+      + `${alerts.length === 1 ? "event" : "events"}**:\n`
+      + alerts.slice(-8).map((a) => `• ${a.text}`).join("\n")
+      + (alerts.length > 8 ? `\n…and ${alerts.length - 8} more.` : ""),
+      [["Watch status", () => submit("watch status")]]);
+  } catch (error) { /* the watcher is a bonus, never a blocker */ }
 }
 
 // ── Panel ────────────────────────────────────────────────────────────────────
@@ -656,6 +816,10 @@ function init() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && open) toggle(false);
   });
+  // What the sidecar's watcher saw while this tab was closed, then a light
+  // poll so a long-open tab still hears about it.
+  setTimeout(() => { void drainAlerts(); }, 4000);
+  setInterval(() => { void drainAlerts(); }, 3 * 60 * 1000);
 }
 
 if (document.readyState === "loading") {

@@ -278,6 +278,62 @@ def run_tests(root: Path) -> None:
                           any(line.split()[:2] == [key, val]
                               for line in props.splitlines() if line.split()),
                           " ".join(props.split()[:8]))
+        # ── Atlas: keys are masked, never returned ───────────────────────────
+        status, keys = c.call("/atlas/keys")
+        check("atlas reports its supported keys",
+              status == 200 and set(keys.get("keys", {})) ==
+              {"ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"},
+              str(list(keys.get("keys", {}))))
+        check("no provider before a key is set", keys.get("providers") == [])
+        # A throwaway value, never a real credential.
+        probe_value = "sk-test-DONOTUSE-abcd1234tail"
+        status, after = c.call("/atlas/keys/save",
+                               {"name": "ANTHROPIC_API_KEY", "value": probe_value})
+        entry = after.get("keys", {}).get("ANTHROPIC_API_KEY", {})
+        check("saving a key reports it configured", entry.get("configured") is True)
+        check("the key is masked to its last four", entry.get("hint") == "••••••tail",
+              str(entry.get("hint")))
+        # The property that matters most: the value must never come back out.
+        check("the key itself is never returned", probe_value not in json.dumps(after))
+        check("the provider becomes available", after.get("providers") == ["anthropic"])
+        secrets_file = root / ".atlas_secrets.json"
+        check("secrets are owner-only on disk",
+              secrets_file.exists() and (secrets_file.stat().st_mode & 0o777) == 0o600,
+              oct(secrets_file.stat().st_mode & 0o777) if secrets_file.exists() else "missing")
+        status, refused = c.call("/atlas/keys/save", {"name": "AWS_SECRET", "value": "x"})
+        check("an unsupported key name is refused", status == 400, str(refused)[:60])
+        c.call("/atlas/keys/delete", {"name": "ANTHROPIC_API_KEY"})
+        _, cleared = c.call("/atlas/keys")
+        check("a key can be removed",
+              cleared["keys"]["ANTHROPIC_API_KEY"]["configured"] is False)
+
+        # ── the watcher's rules, and its geography ───────────────────────────
+        sys.path.insert(0, str(SIDECAR.parent))
+        import atlas_watch as aw
+
+        seen = set()
+        items = [{"key": "a", "text": "big", "significant": True},
+                 {"key": "b", "text": "small", "significant": False}]
+        check("a baseline sweep announces nothing", aw.triage(items, seen, True) == [])
+        check("a baseline sweep still records", seen == {"a", "b"}, str(seen))
+        check("known events never announce again", aw.triage(items, seen, False) == [])
+        seen2 = set()
+        alerts = aw.triage(items, seen2, False)
+        check("only significant new events announce",
+              len(alerts) == 1 and alerts[0]["text"] == "big", str(alerts))
+
+        sicily = [13, 36, 16, 39]
+        check("a point inside the study area is kept", aw._in_bbox(15.0, 37.5, sicily))
+        check("a point outside it is dropped", not aw._in_bbox(-121.0, 38.0, sicily))
+        check("no study area means the whole world", aw._in_bbox(-121.0, 38.0, None))
+        check("a polygon is placed by its first vertex",
+              aw._first_point({"type": "Polygon",
+                               "coordinates": [[[15.0, 37.5], [15.1, 37.5]]]}) == (15.0, 37.5))
+        check("a geometry-less alert cannot be placed", aw._first_point(None) is None)
+
+        status, watch = c.call("/atlas/watch")
+        check("the watcher reports itself idle before it starts",
+              status == 200 and watch.get("running") is False, str(watch)[:60])
     finally:
         proc.terminate()
         try:

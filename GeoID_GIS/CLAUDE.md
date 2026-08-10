@@ -232,10 +232,38 @@ swallowed by the generic `status` branch and answered with the *project* status;
 that branch now excludes watch/monitor. Any new intent sharing a keyword needs
 the same care.
 
-Honest limitation, stated in the UI: it runs **in the page**, so it watches only
-while a tab is open and browsers throttle background timers. Persistent watching
-belongs in the sidecar, which already outlives a click — the logic is pure and
-ready to move there.
+### The watcher in the sidecar, and your own model key
+
+`sidecar/atlas_watch.py` is the same three rules where they can run **with every
+tab closed**. `atlas-assistant.js` prefers it whenever the sidecar is connected
+and falls back to the in-page watcher otherwise; `drainAlerts()` catches the
+browser up on what it missed, keyed by a cursor in localStorage. State persists
+to `.atlas_watch.json` beside the projects, so a sidecar restart does not
+re-announce.
+
+**Bring your own subscription** — Claude, ChatGPT or Gemini — following Atlas
+AI's own procedure (`hub/secrets_config.py`), deliberately mirrored so the two
+agree: an allowlist of key names, a JSON file outside git at **mode 0600**, and
+status masked to `••••••last4`. The key is set *into the sidecar* and stays
+there: never written to the page, never returned, never logged. That is why
+`/atlas/chat` exists at all — **a browser cannot hold a secret**, so the call
+that needs one is made on that side.
+
+**The bbox must be applied per feed or the promise is a lie.** Only USGS takes a
+bbox parameter; NWS and EONET are global. Unfiltered, "watching your study area"
+was really watching 300 global wildfires and 122 nationwide alerts, so the study
+area is now applied in `_nws`/`_eonet` against each event's own geometry
+(`_first_point` reduces any geometry to a placeable point, and an alert with no
+geometry cannot be placed, so it is not claimed to be nearby). Measured to prove
+it narrows rather than silently dropping everything: western US 30 quakes / 1
+alert / 155 fires against 416 / 121 / 300 worldwide.
+
+**The Earth page's script tag needs its own `?v=`.** `atlas-assistant.js` was
+added unstamped, so it imported an *unstamped* `sidecar.js` — a second module
+instance with its own connection state, and Atlas insisted the sidecar was not
+connected while the hub was talking to it happily. Exactly the module-identity
+trap above: `stamp.py` only rewrites stamps that already exist, so a new tag must
+be given one by hand once.
 
 ## Running and testing
 

@@ -56,6 +56,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+import atlas_watch
+
 VERSION = "1.0.0"
 
 # Origins allowed to call in. Any localhost/loopback port, nothing else — the
@@ -312,7 +314,7 @@ class Handler(BaseHTTPRequestHandler):
                 "root": str(self.runner.root),
                 "needs_token": self.token is not None,
                 "capabilities": ["fs", "jobs", "script", "function", "training", "gales",
-                                 "compute", "events"]
+                                 "compute", "atlas", "events"]
                     + (["gales-prepare"] if self.gales_dir else []),
                 "gales_dir": str(self.gales_dir) if self.gales_dir else None,
             }, origin)
@@ -334,6 +336,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._fs_exists(query.get("path", [""])[0], origin)
             elif route == "/compute":
                 self._compute_list(origin)
+            elif route == "/atlas/keys":
+                self._atlas_keys(origin)
+            elif route == "/atlas/watch":
+                self._send(200, atlas_watch.status(), origin)
+            elif route == "/atlas/alerts":
+                self._send(200, {"alerts": atlas_watch.drain(
+                    int(query.get("since", ["0"])[0] or 0))}, origin)
             elif route == "/jobs":
                 self._send(200, {"jobs": [j.snapshot() for j in self.runner.jobs.values()]}, origin)
             elif route.startswith("/jobs/") and route.endswith("/events"):
@@ -385,6 +394,17 @@ class Handler(BaseHTTPRequestHandler):
                 self._compute_save(body, origin)
             elif route == "/compute/delete":
                 self._compute_delete(body, origin)
+            elif route == "/atlas/keys/save":
+                self._atlas_keys_save(body, origin)
+            elif route == "/atlas/keys/delete":
+                self._atlas_keys_delete(body, origin)
+            elif route == "/atlas/chat":
+                self._atlas_chat(body, origin)
+            elif route == "/atlas/watch/start":
+                self._send(200, atlas_watch.start(body, self.runner.root), origin)
+            elif route == "/atlas/watch/stop":
+                atlas_watch.stop()
+                self._send(200, atlas_watch.status(), origin)
             elif route == "/compute/test":
                 self._compute_test(body, origin)
             elif route.startswith("/jobs/") and route.endswith("/stop"):
@@ -1088,6 +1108,36 @@ class Handler(BaseHTTPRequestHandler):
         shutil.copy(found[0], dest)
         return dest
 
+    # ── Atlas: your own model keys, and the chat that uses them ──────────────
+    #
+    # The key lives here, in this local process, and never goes to the browser:
+    # a page cannot hold a secret, so the call that needs one is made on this
+    # side. Status is masked the way Atlas AI masks it — last four characters,
+    # never the value.
+
+    def _atlas_keys(self, origin: str):
+        self._send(200, atlas_watch.key_status(), origin)
+
+    def _atlas_keys_save(self, body: dict, origin: str):
+        name = str(body.get("name", "")).strip()
+        value = str(body.get("value", "")).strip()
+        atlas_watch.save_secret(name, value)
+        # The masked status, never the key that was just set.
+        self._send(200, atlas_watch.key_status(), origin)
+
+    def _atlas_keys_delete(self, body: dict, origin: str):
+        atlas_watch.save_secret(str(body.get("name", "")).strip(), "")
+        self._send(200, atlas_watch.key_status(), origin)
+
+    def _atlas_chat(self, body: dict, origin: str):
+        messages = body.get("messages")
+        if not isinstance(messages, list) or not messages:
+            raise ValueError("messages must be a non-empty list")
+        result = atlas_watch.chat(
+            messages, str(body.get("context") or ""),
+            str(body.get("provider") or ""), str(body.get("model") or ""))
+        self._send(200, result, origin)
+
     def _job_events(self, job_id: str, query: dict, origin: str):
         """Server-Sent Events: replay the log from `from`, then follow live."""
         job = self.runner.jobs.get(job_id)
@@ -1156,6 +1206,8 @@ def main() -> int:
     Handler.runner = runner
     Handler.token = token
     Handler.gales_dir = gales_dir
+    # Keys and watcher state live beside the projects, at 0600.
+    atlas_watch.configure_root(root)
 
     if args.host not in ("127.0.0.1", "localhost", "::1"):
         print(f"⚠  Binding {args.host} exposes a Python interpreter beyond this "
