@@ -4,9 +4,11 @@
  * Lives on every page, so it takes its colour from the viewer skin's tokens
  * (`--skin-chrome` magenta for chrome, `--skin-data` cyan for values) rather
  * than from the Research Hub's stylesheet, which is not loaded on the globe.
- * Fixed top-right, left of the GIS tool rail — placed against that rail's own
- * measured box by `placeLauncher()`, since its width changes with the
- * breakpoint. The values here are the fallback for a page with no rail.
+ * Fixed in the top-right corner, with the GIS tool rail stepping down below it
+ * — `placeLauncher()` measures what already owns that corner (the hazard
+ * readout in GeoID mode, the logo on the standalone page) and places the mark
+ * under it, then moves the rail under the mark. The values here are the
+ * fallback for a page with neither.
  */
 
 .atlas-launcher {

@@ -743,36 +743,47 @@ function connectPrompt() {
 }
 
 /**
- * The mark sits in the top-right corner, left of the GIS tool rail.
+ * The mark takes the top-right corner, and the GIS tool rail steps down below
+ * it.
  *
- * Measured from what is actually in that corner rather than written as an
- * offset: the rail's width changes with the breakpoint (3.7rem, 2.3rem, 1.85rem
- * embedded) and `.map-legend` shares the corner when a layer has a legend, so a
- * fixed `right:` would either overlap one of them or leave a gap at every other
- * size. Whichever is furthest left decides.
+ * Which is to say the corner is shared, so it is measured rather than written
+ * as an offset: the hazard readout owns that corner in GeoID mode (and the rail
+ * already yields to it), and on the standalone viewer page the logo does. The
+ * mark goes below whichever of those is showing, and the rail below the mark.
  *
- * On a page with neither — the Research Hub, a planet viewer with no rail — the
- * stylesheet's own top-right values stand.
+ * The rail is moved from here rather than from CSS because its top is set in
+ * four places — base, two breakpoints and `data-hub-armed` — and a fifth rule
+ * would have to restate all of them. One measured number instead.
  */
 function placeLauncher(launcher, panelNode) {
-  const GAP = 12;
-  const boxes = [document.getElementById("tool-rail"), document.querySelector(".map-legend")]
+  const GAP = 10;
+  const occupied = [
+    document.getElementById("hazard-readout"),
+    document.getElementById("top-right-logo"),
+  ]
     .filter((n) => n && getComputedStyle(n).display !== "none")
     .map((n) => n.getBoundingClientRect())
-    // A rail parked at mid-height (the narrow embedded layout centres it) is no
-    // guide for a top-corner control.
     .filter((b) => b.width && b.top < window.innerHeight * 0.5);
-  if (!boxes.length) return;
 
-  const top = Math.round(Math.min(
-    Math.max(8, Math.min(...boxes.map((b) => b.top))), window.innerHeight * 0.25,
-  ));
-  const right = Math.max(8, Math.round(
-    window.innerWidth - Math.min(...boxes.map((b) => b.left)) + GAP,
-  ));
+  const top = occupied.length
+    ? Math.round(Math.max(...occupied.map((b) => b.bottom)) + GAP)
+    : 16;
   launcher.style.top = `${top}px`;
-  launcher.style.right = `${right}px`;
+  launcher.style.right = "16px";
   launcher.style.bottom = "auto";
+
+  // The GIS tools move down to clear the mark. Skipped where the rail is not
+  // top-anchored — the narrow embedded layout centres it vertically with
+  // `!important`, so there is nothing to clear and nothing we could set.
+  const rail = document.getElementById("tool-rail");
+  if (rail && getComputedStyle(rail).display !== "none") {
+    const railTop = `${top + (launcher.offsetHeight || 52) + GAP}px`;
+    if (rail.getBoundingClientRect().top < window.innerHeight * 0.4
+      && rail.style.top !== railTop) {
+      rail.style.top = railTop;
+      rail.style.bottom = "auto";
+    }
+  }
 
   // The panel drops from the mark instead of rising to it, and takes the height
   // that leaves rather than the stylesheet's bottom-anchored guess — with the
