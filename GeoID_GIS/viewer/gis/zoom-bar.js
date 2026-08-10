@@ -17,7 +17,7 @@
  * cannot fight over the camera.
  */
 
-import { isEarth } from "./bodies.js?v=20260810-d5b078d";
+import { isEarth } from "./bodies.js?v=20260810-bc997f7";
 
 /**
  * The bands, named for what the view is of — the thing a person is actually
@@ -58,32 +58,74 @@ export function formatAltitude(metres) {
   return `${Math.round(metres)} m`;
 }
 
+/**
+ * Which band an altitude is in, and the one a step away.
+ *
+ * Stepping by *band* rather than by a fixed factor is the whole idea: the
+ * question a person has is "show me this regionally", not "multiply my altitude
+ * by 2.5". Index 0 is the closest band.
+ */
+export function bandIndexFor(metres) {
+  const at = ZOOM_BANDS.findIndex((b) => metres < b.upTo);
+  return at < 0 ? ZOOM_BANDS.length - 1 : at;
+}
+
+/**
+ * A representative altitude for a band: its geometric middle.
+ *
+ * Geometric, not arithmetic, because the bands are decades — the arithmetic
+ * middle of 100–1000 km is 550 km, which sits visually against the top of the
+ * band rather than in it.
+ */
+export function bandAltitude(index, { minMetres = 1, maxMetres = Infinity } = {}) {
+  const i = Math.max(0, Math.min(ZOOM_BANDS.length - 1, index));
+  const lower = i === 0 ? Math.max(1, minMetres) : ZOOM_BANDS[i - 1].upTo;
+  const upper = Number.isFinite(ZOOM_BANDS[i].upTo)
+    ? ZOOM_BANDS[i].upTo
+    : Math.max(lower * 4, maxMetres);
+  const lo = Math.max(lower, minMetres);
+  const hi = Math.min(upper, maxMetres);
+  if (!(hi > lo)) return Math.max(minMetres, Math.min(maxMetres, lower));
+  return Math.exp((Math.log(lo) + Math.log(hi)) / 2);
+}
+
+/** Bands the current floor and ceiling actually allow. */
+export function reachableBands({ minMetres, maxMetres }) {
+  return ZOOM_BANDS
+    .map((b, i) => i)
+    .filter((i) => {
+      const lower = i === 0 ? 0 : ZOOM_BANDS[i - 1].upTo;
+      const upper = ZOOM_BANDS[i].upTo;
+      return upper > minMetres && lower < maxMetres;
+    });
+}
+
 const STYLE = `
-#geoid-zoom-bar {
-  position: fixed; left: 50%; transform: translateX(-50%);
-  bottom: 5.4rem; z-index: 14; width: min(38rem, 62vw);
-  padding: 0.45rem 0.7rem 0.3rem;
-  background: rgba(8, 10, 22, 0.72);
-  border: 1px solid rgba(var(--nav-accent-rgb, 120 200 255), 0.28);
-  border-radius: 0.6rem; backdrop-filter: blur(6px);
-  font-family: "Exo 2", system-ui, sans-serif; pointer-events: auto;
+#geoid-zoom-step {
+  display: flex; align-items: stretch; gap: 0;
+  border: 1px solid rgba(var(--nav-accent-rgb, 120 200 255), 0.32);
+  border-radius: 0.4rem; overflow: hidden;
+  background: rgba(8, 10, 22, 0.66); backdrop-filter: blur(6px);
+  font-family: "Exo 2", system-ui, sans-serif;
 }
-#geoid-zoom-bar[hidden] { display: none; }
-#geoid-zoom-bar .zb-head {
-  display: flex; justify-content: space-between; align-items: baseline;
-  font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase;
-  color: rgba(220, 232, 255, 0.72); margin-bottom: 0.15rem;
+#geoid-zoom-step[hidden] { display: none; }
+#geoid-zoom-step button {
+  background: none; border: 0; color: rgba(226, 236, 255, 0.9);
+  font: inherit; cursor: pointer; padding: 0 0.5rem; line-height: 1;
 }
-#geoid-zoom-bar .zb-alt { font-variant-numeric: tabular-nums; color: rgb(var(--nav-accent-rgb, 120 200 255)); }
-#geoid-zoom-bar input[type=range] { width: 100%; margin: 0; cursor: ew-resize; }
-#geoid-zoom-bar .zb-scale {
-  position: relative; height: 1.05rem; margin-top: 0.1rem;
-  font-size: 0.62rem; color: rgba(200, 214, 240, 0.6);
+#geoid-zoom-step button:hover:not(:disabled) {
+  background: rgba(var(--nav-accent-rgb, 120 200 255), 0.16);
+  color: #fff;
 }
-#geoid-zoom-bar .zb-tick {
-  position: absolute; transform: translateX(-50%); white-space: nowrap;
+#geoid-zoom-step button:disabled { opacity: 0.32; cursor: default; }
+#geoid-zoom-step .zs-step { font-size: 0.95rem; font-weight: 600; }
+#geoid-zoom-step .zs-band {
+  min-width: 6.6rem; text-align: center; font-size: 0.7rem;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgb(var(--nav-accent-rgb, 120 200 255));
+  border-left: 1px solid rgba(var(--nav-accent-rgb, 120 200 255), 0.22);
+  border-right: 1px solid rgba(var(--nav-accent-rgb, 120 200 255), 0.22);
 }
-#geoid-zoom-bar .zb-tick.is-active { color: rgb(var(--nav-accent-rgb, 120 200 255)); font-weight: 600; }
 `;
 
 let installed = false;
@@ -92,113 +134,83 @@ export function installZoomBar() {
   if (installed || typeof document === "undefined") return false;
   const viewer = window.GeoIDViewer;
   if (!viewer?.getZoomAltitudeMetres || !viewer.setZoomAltitudeMetres) return false;
-  const range = viewer.getZoomAltitudeMetres();
-  if (!range) return false;
+  if (viewer.getZoomAltitudeMetres() === null) return false;
+  // Sits inside the viewer's own control cluster rather than floating beside it:
+  // it is a flex row, so being the first child puts this to the LEFT of the
+  // tools with no coordinates to keep in step as that cluster changes.
+  const host = document.getElementById("top-right-controls");
+  if (!host) return false;
 
   const style = document.createElement("style");
   style.textContent = STYLE;
   document.head.appendChild(style);
 
   const box = document.createElement("div");
-  box.id = "geoid-zoom-bar";
+  box.id = "geoid-zoom-step";
   box.innerHTML = `
-    <div class="zb-head"><span id="zb-band">Global</span><span class="zb-alt" id="zb-alt">—</span></div>
-    <input id="zb-range" type="range" min="0" max="1000" value="1000" step="1"
-           aria-label="Zoom altitude">
-    <div class="zb-scale" id="zb-scale"></div>`;
-  document.body.appendChild(box);
+    <button class="zs-step" id="zs-out" type="button" title="Zoom out" aria-label="Zoom out">‹</button>
+    <button class="zs-band" id="zs-band" type="button" title="Scale">Global</button>
+    <button class="zs-step" id="zs-in" type="button" title="Zoom in" aria-label="Zoom in">›</button>`;
+  host.prepend(box);
 
-  const slider = box.querySelector("#zb-range");
-  const bandOut = box.querySelector("#zb-band");
-  const altOut = box.querySelector("#zb-alt");
-  const scale = box.querySelector("#zb-scale");
-
-  // Ticks at the band boundaries, placed where they actually fall on the log
-  // track -- so the annotation is the scale rather than a decoration beside it.
-  const drawTicks = ({ minMetres, maxMetres }) => {
-    scale.textContent = "";
-    ZOOM_BANDS.forEach((band, i) => {
-      const lower = i === 0 ? minMetres : ZOOM_BANDS[i - 1].upTo;
-      const upper = Math.min(band.upTo, maxMetres);
-      if (!(upper > lower)) return;
-      const mid = Math.exp((Math.log(lower) + Math.log(upper)) / 2);
-      const tick = document.createElement("span");
-      tick.className = "zb-tick";
-      tick.dataset.band = band.name;
-      tick.textContent = band.name;
-      tick.style.left = `${altitudeToFraction(mid, minMetres, maxMetres) * 100}%`;
-      scale.appendChild(tick);
-    });
-  };
-  drawTicks(range);
-
-  let dragging = false;
-  slider.addEventListener("pointerdown", () => { dragging = true; });
-  window.addEventListener("pointerup", () => { dragging = false; });
-  slider.addEventListener("input", () => {
-    const now = viewer.getZoomAltitudeMetres();
-    if (!now) return;
-    const fraction = Number(slider.value) / 1000;
-    /**
-     * The ends of the track mean "as far as this goes", not "as far as it goes
-     * right now".
-     *
-     * The floor is not fixed — descending tapers the terrain, which lowers it —
-     * so mapping 0 to the *current* minimum asks for a value that is satisfied
-     * on the way down and then abandoned. Measured: dragging to the bottom
-     * stopped at 130 km while the floor settled at 53 km a moment later, and it
-     * took repeated drags to actually arrive. Asking for zero instead leaves the
-     * request permanently floor-limited, and the viewer follows the floor the
-     * rest of the way.
-     */
-    const metres = fraction <= 0 ? 0
-      : fraction >= 1 ? now.maxMetres
-      : fractionToAltitude(fraction, now.minMetres, now.maxMetres);
-    viewer.setZoomAltitudeMetres(metres);
-    paint(Math.max(metres, now.minMetres), now);
-  });
-
-  const paint = (metres, r) => {
-    const band = bandFor(metres);
-    bandOut.textContent = band;
-    altOut.textContent = formatAltitude(metres);
-    scale.querySelectorAll(".zb-tick").forEach((t) => {
-      t.classList.toggle("is-active", t.dataset.band === band);
-    });
-    if (!dragging) slider.value = String(Math.round(
-      altitudeToFraction(metres, r.minMetres, r.maxMetres) * 1000,
-    ));
-  };
+  const out = box.querySelector("#zs-out");
+  const into = box.querySelector("#zs-in");
+  const label = box.querySelector("#zs-band");
 
   /**
-   * Follow the camera, whatever moved it.
-   *
-   * Polled rather than event-driven because the render loop moves the camera
-   * itself — the surface barrier clamps it every frame and the zoom easing
-   * closes distance over many frames — so there is no single event that means
-   * "the altitude changed".
+   * A step moves one band, except at the closest one, where it goes to the
+   * floor — otherwise "closer" would do nothing exactly when a person most
+   * wants it, since the floor drops as you descend.
    */
-  let lastShown = -1;
-  let lastFloor = range.minMetres;
-  setInterval(() => {
+  const step = (direction) => {
     const r = viewer.getZoomAltitudeMetres();
     if (!r) return;
-    // The floor is not fixed: close-range imagery drops it from about 995 km to
-    // 1.8 km, which is nearly three decades of new track and brings Site and
-    // Local into reach. Redraw the scale when it moves, or the bands keep
-    // describing a range that is no longer the one you are on.
-    if (Math.abs(Math.log(r.minMetres / lastFloor)) > 0.01) {
-      lastFloor = r.minMetres;
-      drawTicks(r);
-      lastShown = -1;                       // force a repaint against the new track
-    }
-    if (Math.abs(Math.log((r.metres + 1) / (lastShown + 1))) > 0.004) {
-      lastShown = r.metres;
-      paint(r.metres, r);
-    }
-  }, 120);
+    const here = bandIndexFor(r.metres);
+    const next = here + direction;             // +1 = coarser, -1 = closer
+    if (next < 0) { viewer.setZoomAltitudeMetres(0); return; }
+    if (next >= ZOOM_BANDS.length) { viewer.setZoomAltitudeMetres(r.maxMetres); return; }
+    /**
+     * Asked for WITHOUT the floor, deliberately.
+     *
+     * The floor only drops once you descend — the relief tapers on the way in —
+     * so at 999 km the floor is still 995 km and a request clamped to it asks
+     * for where you already are. Measured: stepping Global → Continental →
+     * Regional worked and then stalled, because Local clamped to 995 km.
+     * Asking for the band's own altitude leaves the request floor-limited, and
+     * the viewer walks the floor down until it can be satisfied. The ceiling is
+     * still real, since nothing lifts that.
+     */
+    viewer.setZoomAltitudeMetres(bandAltitude(next, { minMetres: 1, maxMetres: r.maxMetres }));
+  };
+  out.addEventListener("click", () => step(+1));
+  into.addEventListener("click", () => step(-1));
+  // The band name is a control too: clicking re-centres on the current band,
+  // which is how you get back to a round number after a lot of scrolling.
+  label.addEventListener("click", () => {
+    const r = viewer.getZoomAltitudeMetres();
+    if (r) viewer.setZoomAltitudeMetres(bandAltitude(bandIndexFor(r.metres), r));
+  });
 
-  // A globe control belongs to the globe: hidden in Model and Research modes.
+  let shown = "";
+  const paint = () => {
+    const r = viewer.getZoomAltitudeMetres();
+    if (!r) return;
+    const band = bandFor(r.metres);
+    const text = `${band} · ${formatAltitude(r.metres)}`;
+    if (text === shown) return;
+    shown = text;
+    label.textContent = band;
+    label.title = `${band} — ${formatAltitude(r.metres)} above the surface`;
+    // Greyed at the ends of what is actually reachable, so the control never
+    // offers a scale the floor forbids.
+    const bands = reachableBands(r);
+    const here = bandIndexFor(r.metres);
+    into.disabled = here <= Math.min(...bands) && r.metres <= r.minMetres * 1.05;
+    out.disabled = here >= Math.max(...bands) && r.metres >= r.maxMetres * 0.95;
+  };
+  paint();
+  setInterval(paint, 150);
+
   const syncMode = () => {
     const mode = window.GeoIDModeManager?.getMode?.() || document.body.dataset.viewMode;
     box.hidden = mode !== "gis" || !isEarth();
@@ -211,7 +223,8 @@ export function installZoomBar() {
 }
 
 if (typeof document !== "undefined") {
-  // The viewer boots async, so keep trying until its seam is there.
+  // The viewer boots async and the control cluster is in the page markup, so
+  // keep trying until both are there.
   let tries = 0;
   const attempt = () => {
     if (installZoomBar() || (tries += 1) > 60) return;

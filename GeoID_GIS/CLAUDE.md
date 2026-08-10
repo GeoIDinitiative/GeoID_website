@@ -1018,14 +1018,27 @@ cleared when the clamped target equals it, and the zoom bar's track ends ask for
 0 / max rather than the current floor. One drag now arrives at 1.81 km instead of
 stalling at 130 km with the floor settling at 53 km a moment later.
 
-**`gis/zoom-bar.js` is annotated by what the view is OF** — Site, Local,
-Regional, Continental, Global — not by a level number, and it is logarithmic
-because zoom is: linear in altitude, Site and Local together get 0.06% of the
-track; logarithmic they get 35%, and every decade gets equal width. Bands below
-the current floor are **not drawn**, and the scale redraws when the floor moves,
-so it never offers a range that is not reachable. It follows the camera by
-polling, because the render loop moves the camera itself and there is no event
-meaning "the altitude changed".
+**`gis/zoom-bar.js` is a stepper, not a slider.** A 556 px track across the map
+was furniture for a value that is glanced at, not dragged; it is now a 149 px
+pill — `‹ REGIONAL ›` — **prepended into `#top-right-controls`**, which is a flex
+row, so being its first child puts it left of the viewer tools with no
+coordinates to keep in step.
+
+It steps by **band** (Site · Local · Regional · Continental · Global), because
+the question is "show me this regionally", not "multiply my altitude by 2.5".
+Each step lands on the band's **geometric** middle — arithmetic would put
+100–1000 km at 550 km, against the top of the band rather than in it — and there
+is a test per band asserting the step lands inside the band it is named for.
+Clicking the name re-centres the current band.
+
+**A step must ask for the band unclamped.** The floor only drops once you
+descend, so at 999 km it is still 995 km and a request clamped to it asks for
+where you already are: measured, stepping Global → Continental → Regional worked
+and then stalled dead at Local. Asking for the band's own altitude leaves the
+request floor-limited and the viewer walks the floor down until it can be
+satisfied. This is the same trap as the slider's track ends, hit from a second
+direction — **any control that asks to go closer must express the request
+without the floor in it.**
 
 **The terrain slider is the zoom wall, not the floor logic.** It exaggerates
 relief roughly tenfold, so at its 0.11 default the ground stands about 219 km

@@ -10,6 +10,7 @@
 
 import {
   ZOOM_BANDS, bandFor, altitudeToFraction, fractionToAltitude, formatAltitude,
+  bandIndexFor, bandAltitude, reachableBands,
 } from "./zoom-bar.js";
 
 let failures = 0;
@@ -74,6 +75,46 @@ check("whole kilometres above ten", formatAltitude(45_000) === "45 km", formatAl
 check("thousands separated at orbit", formatAltitude(16_694_000) === "16,694 km",
   formatAltitude(16_694_000));
 check("nonsense is not printed as a number", formatAltitude(NaN) === "—");
+
+// ── Stepping by band ─────────────────────────────────────────────────────────
+// Stepping by band is the point of the control: the question is "show me this
+// regionally", not "multiply my altitude by 2.5".
+check("index 0 is the closest band", bandIndexFor(2e3) === 0);
+check("and the last is Global", bandIndexFor(50_000e3) === ZOOM_BANDS.length - 1);
+check("a step is one band", bandIndexFor(400e3) - bandIndexFor(50e3) === 1,
+  `${bandIndexFor(50e3)} -> ${bandIndexFor(400e3)}`);
+
+const RANGE = { minMetres: MIN, maxMetres: MAX };
+// Each band's representative altitude must land inside that band, or a step
+// would jump somewhere the label does not describe.
+for (let i = 0; i < ZOOM_BANDS.length; i += 1) {
+  const a = bandAltitude(i, RANGE);
+  check(`the ${ZOOM_BANDS[i].name} step lands in ${ZOOM_BANDS[i].name}`,
+    bandIndexFor(a) === i, `${formatAltitude(a)} -> ${bandFor(a)}`);
+}
+// Geometric, not arithmetic: 100-1000 km gives ~316 km, not 550.
+close("a band's altitude is its geometric middle",
+  bandAltitude(2, RANGE), Math.sqrt(100e3 * 1000e3), 1);
+
+// Stepping is monotonic — coarser really is further out, every time.
+let monotonic = true;
+for (let i = 1; i < ZOOM_BANDS.length; i += 1) {
+  if (!(bandAltitude(i, RANGE) > bandAltitude(i - 1, RANGE))) monotonic = false;
+}
+check("each band steps strictly further out", monotonic);
+
+// A high floor removes the close bands, so the control cannot offer a scale
+// that the floor forbids.
+const highFloor = reachableBands({ minMetres: 995e3, maxMetres: MAX });
+check("a 995 km floor puts Site and Local out of reach",
+  !highFloor.includes(0) && !highFloor.includes(1), JSON.stringify(highFloor));
+const lowFloor = reachableBands({ minMetres: 1.8e3, maxMetres: MAX });
+check("a 1.8 km floor reaches every band", lowFloor.length === ZOOM_BANDS.length);
+
+// Clamping: asking for a band below the floor must not return something under it.
+check("a band under the floor clamps to the floor",
+  bandAltitude(0, { minMetres: 995e3, maxMetres: MAX }) >= 995e3,
+  formatAltitude(bandAltitude(0, { minMetres: 995e3, maxMetres: MAX })));
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);
