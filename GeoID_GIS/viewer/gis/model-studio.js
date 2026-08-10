@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody } from "./bodies.js?v=20260810-e7aa4f0";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-e7aa4f0";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260810-4e1763e";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-4e1763e";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260810-e7aa4f0";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-e7aa4f0";
-import { downloadText } from "./extraction.js?v=20260810-e7aa4f0";
+} from "./mesh-volume.js?v=20260810-4e1763e";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-4e1763e";
+import { downloadText } from "./extraction.js?v=20260810-4e1763e";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -2101,6 +2101,32 @@ function init() {
       centreOnOrigin();
       updateStudioContext();
     } else {
+      /**
+       * Leaving the studio for a globe means leaving for THAT world's globe.
+       *
+       * Switching worlds in Model mode is a radius, not a navigation — the page
+       * stays put, which is the point. But the globe of another world is a
+       * different page, so if the studio was moved somewhere else, this is the
+       * moment to go there. Without it you always landed back on whichever
+       * viewer you happened to open, whatever the strip was showing.
+       *
+       * `currentBodyId()` reads the page, `studioBody()` reads the studio; they
+       * agree unless the strip was used in Model mode.
+       */
+      const wanted = studioBody();
+      if (wanted && wanted.id !== currentBodyId() && wanted.path) {
+        const built = state.solids.length + state.fields.length;
+        if (!built || window.confirm(
+          `Opening the ${wanted.name} globe will load a new page and discard `
+          + `this model (${built === 1 ? "1 object" : `${built} objects`}). `
+          + "Export it first if you want to keep it.\n\nOpen anyway?")) {
+          window.location.assign(wanted.path);
+          return;
+        }
+        // Declined: stay, and put the studio back on this page's world so the
+        // strip is not left claiming somewhere we are not going.
+        setStudioBody(currentBodyId());
+      }
       setStudioOrbitLimits(false);
       setStarsVisible(true);
       setGroundVisible(false);
