@@ -16,7 +16,7 @@
  * cannot fight over the camera.
  */
 
-import { isEarth } from "./bodies.js?v=20260810-60337b7";
+import { isEarth } from "./bodies.js?v=20260810-34eed68";
 
 /**
  * The bands, named for what the view is of — the thing a person is actually
@@ -184,7 +184,7 @@ const STYLE = `
   /* Absorbs the width the arrows do not use, and may shrink below its content
      on a narrow breakpoint — the scale bar is 5rem embedded, so a minimum here
      would push the pill wider than the bar it is matching. The type is sized to
-     fit by `fitLabel()`; the ellipsis is the floor case, not the plan. */
+     fit by fitLabel(); the ellipsis is the floor case, not the plan. */
   flex: 1 1 auto; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   text-align: center; font-size: 0.7rem;
