@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody } from "./bodies.js?v=20260810-70ba427";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-70ba427";
+import { currentBody, getBody } from "./bodies.js?v=20260810-0fc473f";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-0fc473f";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260810-70ba427";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-70ba427";
-import { downloadText } from "./extraction.js?v=20260810-70ba427";
+} from "./mesh-volume.js?v=20260810-0fc473f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-0fc473f";
+import { downloadText } from "./extraction.js?v=20260810-0fc473f";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1606,12 +1606,28 @@ function applyCameraClip(camera, d) {
  * camera at that point instead of the planet -- which reads as the view jumping
  * to the north pole.
  */
-let savedGlobeView = null;
+/**
+ * The globe's view as the page launched, captured once and never overwritten.
+ *
+ * Model mode moves the camera into a completely different frame — the studio
+ * works in metres about a point on the surface, millions of scene units from
+ * where the globe camera sits — so coming back is a jump however it is done.
+ * Restoring "wherever you were before" made that jump unpredictable: it
+ * depended on what you had been looking at, and after switching worlds in the
+ * studio it could land somewhere that made no sense on the globe at all.
+ *
+ * So the return is fixed: always the view the page opened with. One known
+ * place, every time. The cost is real and worth stating — a close look at Etna
+ * is not resumed after a trip to the studio — but a predictable jump beats an
+ * arbitrary one, and the zoom pill puts you back in three presses.
+ */
+let launchGlobeView = null;
 
+/** Captured once — the first call wins, so later ones cannot drift it. */
 function rememberGlobeView() {
   const viewer = window.GeoIDViewer;
-  if (!viewer?.camera || savedGlobeView) return;
-  savedGlobeView = {
+  if (!viewer?.camera || launchGlobeView) return;
+  launchGlobeView = {
     position: viewer.camera.position.clone(),
     target: viewer.controls?.target.clone() || new THREE.Vector3(),
     up: viewer.camera.up.clone(),
@@ -1622,15 +1638,16 @@ function rememberGlobeView() {
 
 function restoreGlobeView() {
   const viewer = window.GeoIDViewer;
-  if (!viewer?.camera || !savedGlobeView) return;
-  viewer.camera.position.copy(savedGlobeView.position);
-  viewer.camera.up.copy(savedGlobeView.up);
-  viewer.camera.near = savedGlobeView.near;
-  viewer.camera.far = savedGlobeView.far;
+  if (!viewer?.camera || !launchGlobeView) return;
+  viewer.camera.position.copy(launchGlobeView.position);
+  viewer.camera.up.copy(launchGlobeView.up);
+  viewer.camera.near = launchGlobeView.near;
+  viewer.camera.far = launchGlobeView.far;
   viewer.camera.updateProjectionMatrix();
-  viewer.controls?.target.copy(savedGlobeView.target);
+  viewer.controls?.target.copy(launchGlobeView.target);
   viewer.controls?.update();
-  savedGlobeView = null;
+  // Deliberately NOT cleared: this is the launch view, and every return to the
+  // globe uses it. Clearing it meant the second trip had nothing to restore.
 }
 
 function modelFocus() {
@@ -2010,6 +2027,15 @@ function init() {
   const waitForViewer = () => {
     if (window.GeoIDViewer?.renderer) {
       installPicking();
+      /**
+       * The launch view, captured before anything can move the camera.
+       *
+       * Taking it at the first switch to Model instead would capture wherever
+       * the user had already navigated to, which is exactly the arbitrary
+       * starting point this is meant to replace. It is the first call that
+       * wins, so this one is the one that counts.
+       */
+      rememberGlobeView();
       updateStudioContext();
       /**
        * The Research store loads on its own schedule, so subscribing is retried
@@ -2023,22 +2049,12 @@ function init() {
       })();
       const startsInModel = window.GeoIDModeManager?.getMode?.() === "model";
       if (startsInModel) {
-        /**
-         * Remember the globe's view even when Model mode is restored from a
-         * previous session.
-         *
-         * `rememberGlobeView` normally runs on the mode-change event, and that
-         * event never fires on this path — so nothing was saved, and leaving
-         * for GIS found nothing to restore and left the camera wherever the
-         * studio had put it: straight up the +Y axis, which renders as the
-         * north pole. (Measured: the camera at (0, 11.6, 0), and the locator
-         * reading 66.56° — 90 minus the 23.44° axial tilt.)
-         *
-         * The camera is still the globe's default here, which is exactly the
-         * view worth going back to. It must be captured before the orbit limits
-         * and `centreOnOrigin` move it.
-         */
-        rememberGlobeView();
+        // The capture above already ran, which is what a page restored straight
+        // into Model mode needs: the mode-change event never fires on that
+        // path, so nothing was saved and leaving for GIS left the camera
+        // wherever the studio had put it -- straight up the +Y axis, which
+        // renders as the north pole. Measured at (0, 11.6, 0), the locator
+        // reading 66.56 degrees: 90 minus the 23.44 axial tilt.
         setStudioOrbitLimits(true);
       }
       // Only Model mode wants the studio's scene: it hides the starfield and
