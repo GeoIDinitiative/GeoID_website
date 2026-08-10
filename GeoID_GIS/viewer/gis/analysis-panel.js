@@ -3,8 +3,8 @@ import {
   rowsToCsv,
   rowsToGeoJson,
   downloadText,
-} from "./extraction.js?v=20260810-b917b23";
-import { rectangleVertices } from "./draw-area.js?v=20260810-b917b23";
+} from "./extraction.js?v=20260810-c47ffa7";
+import { rectangleVertices } from "./draw-area.js?v=20260810-c47ffa7";
 
 let lastResult = null;
 
@@ -174,6 +174,7 @@ function runExtraction() {
       stepKm,
       includeBuiltIn: builtInChecked("gis-extract-builtin"),
       includeGeology: builtInChecked("gis-extract-geology"),
+      includeClimate: builtInChecked("gis-extract-climate"),
       layers: selectedLayers(),
     });
     lastResult = result.ok ? result : null;

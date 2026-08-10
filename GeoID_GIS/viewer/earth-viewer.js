@@ -297,13 +297,6 @@ import * as THREE from "./vendor/three.module.js";
     const csvPlotterRender = document.getElementById("csv-plotter-render");
     const csvPlotterMeta = document.getElementById("csv-plotter-meta");
     const csvPlotterCanvas = document.getElementById("csv-plotter-canvas");
-    const gisExtractModal = document.getElementById("gis-extract-modal");
-    const gisExtractClose = document.getElementById("gis-extract-close");
-    const gisExtractSource = document.getElementById("gis-extract-source");
-    const gisExtractStep = document.getElementById("gis-extract-step");
-    const gisExtractColumns = document.getElementById("gis-extract-columns");
-    const gisExtractRun = document.getElementById("gis-extract-run");
-    const gisExtractMeta = document.getElementById("gis-extract-meta");
     const legendPanel = document.getElementById("legend-panel");
 
     if (brandLogo) {
@@ -3745,12 +3738,6 @@ import * as THREE from "./vendor/three.module.js";
     function hideCsvPlotterModal() {
       if (csvPlotterModal) {
         csvPlotterModal.hidden = true;
-      }
-    }
-
-    function hideGisExtractModal() {
-      if (gisExtractModal) {
-        gisExtractModal.hidden = true;
       }
     }
 
@@ -14863,62 +14850,6 @@ uniform float uViewportWidth;`,
         return null;
       }
 
-      function sampleExtractionRecord(lat, lon, columnSet) {
-        const elevation = sampleElevationMeters(elevationSampler, lat, lon);
-        const record = {};
-        if (columnSet.has("lat")) record.lat_deg = lat.toFixed(6);
-        if (columnSet.has("lon")) record.lon_deg_e = lon.toFixed(6);
-        if (columnSet.has("elevation")) record.elevation_m = elevation !== null ? elevation.toFixed(3) : "";
-        if (columnSet.has("slope")) {
-          const slope = estimateSurfaceSlopeDegrees(elevationSampler, lat, lon);
-          record.slope_deg = slope !== null ? slope.toFixed(3) : "";
-        }
-        if (columnSet.has("temperature")) record.temperature_c = estimateEarthTemperature(lat, elevation || 0);
-        if (columnSet.has("pressure")) record.pressure_pa = estimateEarthPressure(elevation || 0);
-        if (columnSet.has("wind")) record.wind_m_s = estimateEarthWindSpeed(lat, elevation || 0);
-        if (columnSet.has("irradiance")) record.irradiance_w_m2 = estimateEarthIrradiance(lat, elevation || 0);
-        if (columnSet.has("radiation")) record.radiation_msv_day = estimateEarthRadiation(lat, elevation || 0);
-        if (columnSet.has("geology")) {
-          const geology = getGeologyFeatureAtLatLon(lat, lon, geologyInteractiveState);
-          record.geology = geology?.rock_type || geology?.name || "";
-        }
-        return record;
-      }
-
-      function exportPolygonSampleCsv(sourceType, stepKm, selectedColumns) {
-        const geometry = getExtractionGeometry(sourceType);
-        if (!geometry) {
-          return { ok: false, message: "No valid geometry is available for extraction." };
-        }
-        const vertices = geometry.vertices;
-        const center = geometry.center;
-        const stepLat = Math.max(1, stepKm) / 59.15;
-        const latMin = Math.min(...vertices.map((vertex) => vertex.lat));
-        const latMax = Math.max(...vertices.map((vertex) => vertex.lat));
-        const lonMin = Math.min(...vertices.map((vertex) => vertex.lon));
-        const lonMax = Math.max(...vertices.map((vertex) => vertex.lon));
-        const rows = [];
-        const columnSet = new Set(selectedColumns);
-        for (let lat = latMin; lat <= latMax + stepLat * 0.25; lat += stepLat) {
-          const lonStep = stepLat / Math.max(Math.cos((lat * Math.PI) / 180), 0.2);
-          for (let lon = lonMin; lon <= lonMax + lonStep * 0.25; lon += lonStep) {
-            if (!pointInProjectedPolygon({ lat, lon }, vertices, center)) {
-              continue;
-            }
-            rows.push(sampleExtractionRecord(lat, lon, columnSet));
-          }
-        }
-        if (!rows.length) {
-          return { ok: false, message: "No samples fell inside the selected geometry." };
-        }
-        const headers = Object.keys(rows[0]);
-        downloadCsv(`earth_${geometry.name}_extract.csv`, [
-          headers,
-          ...rows.map((row) => headers.map((header) => row[header] ?? "")),
-        ]);
-        return { ok: true, message: `Exported ${rows.length} samples from the ${geometry.name}.` };
-      }
-
       function clearGisBufferOverlay() {
         while (gisBufferGroup.children.length) {
           const child = gisBufferGroup.children.pop();
@@ -18059,13 +17990,6 @@ uniform float uViewportWidth;`,
           }
         });
       }
-      if (gisExtractModal) {
-        gisExtractModal.addEventListener("click", (event) => {
-          if (event.target === gisExtractModal) {
-            hideGisExtractModal();
-          }
-        });
-      }
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape" && !metadataModal.hidden) {
@@ -18081,9 +18005,6 @@ uniform float uViewportWidth;`,
         }
         if (event.key === "Escape" && csvPlotterModal && !csvPlotterModal.hidden) {
           hideCsvPlotterModal();
-        }
-        if (event.key === "Escape" && gisExtractModal && !gisExtractModal.hidden) {
-          hideGisExtractModal();
         }
       });
 
@@ -18169,35 +18090,26 @@ uniform float uViewportWidth;`,
           if (csvPlotterCanvas) exportCanvasPng(csvPlotterCanvas, "earth_csv_plot.png");
         });
       }
-      if (gisStudyExtractButton) {
-        gisStudyExtractButton.addEventListener("click", () => {
-          if (gisExtractSource) gisExtractSource.value = "study";
-          if (gisExtractModal) gisExtractModal.hidden = false;
-        });
-      }
-      if (gisBufferExtractButton) {
-        gisBufferExtractButton.addEventListener("click", () => {
-          if (gisExtractSource) gisExtractSource.value = "buffer";
-          if (gisExtractModal) gisExtractModal.hidden = false;
-        });
-      }
-      if (gisExtractClose) {
-        gisExtractClose.addEventListener("click", () => hideGisExtractModal());
-      }
-      if (gisExtractRun) {
-        gisExtractRun.addEventListener("click", () => {
-          const selectedColumns = [...(gisExtractColumns?.querySelectorAll('input[type="checkbox"]:checked') || [])]
-            .map((node) => node.value);
-          const result = exportPolygonSampleCsv(
-            gisExtractSource?.value || "study",
-            Number(gisExtractStep?.value || 25),
-            selectedColumns,
-          );
-          if (gisExtractMeta) {
-            gisExtractMeta.textContent = result.message;
-          }
-        });
-      }
+      /**
+       * Both Extract buttons open the Extract From Layers panel.
+       *
+       * They used to open a second extraction dialog with its own fixed column
+       * list, whose ids collided with that panel's -- `getElementById` returns
+       * the first in the document, so the dialog's Run button and step field
+       * were dead while its handler had silently bound itself to the PANEL's
+       * button. One click therefore ran the panel's extraction and downloaded
+       * the dialog's CSV. The panel does strictly more (every active layer,
+       * GEE drapes, the project), so the dialog is gone.
+       */
+      const openExtractPanel = () => {
+        const section = document.getElementById("gis-analysis-section");
+        if (!section) return;
+        section.hidden = false;
+        section.open = true;
+        section.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      };
+      gisStudyExtractButton?.addEventListener("click", openExtractPanel);
+      gisBufferExtractButton?.addEventListener("click", openExtractPanel);
 
       featureSearchGo.addEventListener("click", () => {
         focusSearchedFeature(resolveFeatureSearchSelection(), camera, controls);
@@ -19074,6 +18986,26 @@ uniform float uViewportWidth;`,
         // duplicating the drawing and sampling logic.
         estimateSurfaceSlopeDegrees: (lat, lon) => estimateSurfaceSlopeDegrees(elevationSampler, lat, lon),
         getExtractionGeometry: (sourceType) => getExtractionGeometry(sourceType),
+        /**
+         * The viewer's analytic environment estimates at a coordinate.
+         *
+         * **Models, not observations**, and the column names say so: a cosine
+         * of latitude with a 6.5 K/km lapse rate, and the barometric formula.
+         * They belong in an extraction — they are cheap, everywhere, and often
+         * what a first pass wants — but a column called `temperature_c` beside
+         * one called `Rainfall_CHIRPS_mm` would imply the two came from the same
+         * kind of place, and they did not.
+         */
+        sampleEnvironment(lat, lon) {
+          const elevation = sampleElevationMeters(elevationSampler, lat, lon) || 0;
+          return {
+            model_temperature_c: estimateEarthTemperature(lat, elevation),
+            model_pressure_pa: estimateEarthPressure(elevation),
+            model_wind_m_s: estimateEarthWindSpeed(lat, elevation),
+            model_irradiance_w_m2: estimateEarthIrradiance(lat, elevation),
+            model_radiation_msv_day: estimateEarthRadiation(lat, elevation),
+          };
+        },
         // One-shot "click a point on the globe" — a Research form fills a
         // coordinate by pointing. Resolves { lat, lon } in the viewer's own
         // east-positive 0..360 convention; the caller converts if it needs

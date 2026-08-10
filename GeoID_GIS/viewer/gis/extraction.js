@@ -1,4 +1,4 @@
-import { computeBounds2D } from "./geo-utils.js?v=20260810-b917b23";
+import { computeBounds2D } from "./geo-utils.js?v=20260810-c47ffa7";
 
 // Sampling a polygon on a lat/lon grid: the spacing is expressed in km and
 // converted per-row, because a degree of longitude shrinks toward the poles.
@@ -65,6 +65,7 @@ export function extractPolygonSamples({
   stepKm = 1,
   includeBuiltIn = true,
   includeGeology = false,
+  includeClimate = false,
   layers = [],
 } = {}) {
   if (!Array.isArray(vertices) || vertices.length < 3) {
@@ -103,6 +104,16 @@ export function extractPolygonSamples({
           const feature = viewer.getGeologyFeatureAtLatLon?.(lat, lon360);
           row.geoid_geology = feature?.rock_type || feature?.name || "";
         }
+      }
+
+      if (includeClimate && viewer?.sampleEnvironment) {
+        // Prefixed `geoid_`, and each already carries `model_` from the viewer:
+        // these are analytic estimates from latitude and elevation, and must not
+        // read like a reading beside a column that is one.
+        const environment = viewer.sampleEnvironment(lat, ((lon % 360) + 360) % 360);
+        Object.keys(environment).forEach((key) => {
+          row[`geoid_${key}`] = environment[key];
+        });
       }
 
       layers.forEach((layer) => {
