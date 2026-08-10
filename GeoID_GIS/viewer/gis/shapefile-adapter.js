@@ -1,6 +1,6 @@
-import { looksLikeGeographic } from "./geo-utils.js?v=20260810-c9c0b4f";
-import { featureCollection, feature } from "./geoprocessing.js?v=20260810-c9c0b4f";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260810-c9c0b4f";
+import { looksLikeGeographic } from "./geo-utils.js?v=20260810-616fa10";
+import { featureCollection, feature } from "./geoprocessing.js?v=20260810-616fa10";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260810-616fa10";
 
 // ESRI Shapefile technical description 98-016. Only the geometry types that
 // actually appear in GIS exports are handled; anything else is reported rather

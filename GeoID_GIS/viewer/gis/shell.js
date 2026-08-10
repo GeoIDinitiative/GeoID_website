@@ -13,8 +13,22 @@
  * toolbox at all.
  */
 
-const SHELL_URL = "/GeoID_GIS/viewer/gis/shell.html";
-const ATLAS_CSS = "/GeoID_GIS/viewer/gis/research/atlas.css?v=20260810-c9c0b4f";
+/**
+ * The shell markup, stamped like every other module.
+ *
+ * This was fetched unstamped, so a warm browser kept its first copy for ever
+ * and **every edit to the shell was invisible on the planet pages** — the
+ * markup on disk and the markup on screen simply diverged, with nothing to
+ * show for it. Found when a new element in the studio's mode bar was in the
+ * served file and absent from the page.
+ *
+ * The stamp is taken off this module's own URL, which is the same trick
+ * qt-layout.json needed for the same reason: `stamp.py` rewrites the import
+ * above, and the fetch below then rides along.
+ */
+const SHELL_STAMP = new URL(import.meta.url).search || "";
+const SHELL_URL = `/GeoID_GIS/viewer/gis/shell.html${SHELL_STAMP}`;
+const ATLAS_CSS = "/GeoID_GIS/viewer/gis/research/atlas.css?v=20260810-616fa10";
 
 /**
  * The Research Hub's stylesheet, loaded here rather than from ten <head>s.
