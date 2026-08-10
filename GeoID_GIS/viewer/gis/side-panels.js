@@ -49,9 +49,33 @@ const PANELS = [
  * reskin, without a second copy of those values existing anywhere.
  */
 const STYLE = `
-.tool-rail-panel-btn.is-open {
-  border-color: rgba(var(--nav-accent-rgb), 0.9);
-  background: rgba(var(--nav-accent-rgb), 0.18);
+/* ── The active state, once, for the whole GUI ───────────────────────────────
+ *
+ * Active is a SOLID fill of the accent with dark ink -- the Atlas hub Dock's
+ * answer, already recorded in CLAUDE.md as the one this project follows. A
+ * tinted wash reads as hover; at a glance you could not tell an armed tool from
+ * one the pointer happened to be over.
+ *
+ * It lives here because this stylesheet is injected from a module and therefore
+ * reaches Earth and the nine planet pages from one place. The rail's own rules
+ * are duplicated across ten stylesheets, and every attempt to change something
+ * in one of them has so far reached exactly one page.
+ */
+.tool-rail-btn.is-active,
+.tool-rail-panel-btn.is-open,
+.view-mode-btn.is-active {
+  background: rgb(var(--nav-accent-rgb)) !important;
+  border-color: rgb(var(--nav-accent-rgb)) !important;
+  color: var(--skin-chrome-ink, #2b0030) !important;
+  box-shadow: 0 0 18px -4px rgba(var(--nav-accent-rgb), 0.7) !important;
+}
+/* The glyph and label ride the same ink, or the icon stays pale on the fill. */
+.tool-rail-btn.is-active svg,
+.tool-rail-panel-btn.is-open svg,
+.tool-rail-btn.is-active span,
+.tool-rail-panel-btn.is-open span {
+  color: var(--skin-chrome-ink, #2b0030);
+  stroke: currentColor;
 }
 
 /* While a workbench is open the rest of the rail shrinks to its icons. The
@@ -299,6 +323,13 @@ function buildRailItem(spec) {
   item.appendChild(button);
   return { item, button };
 }
+
+/** So another module can raise a workbench without knowing how it is built. */
+window.GeoIDSidePanels = {
+  open: (id) => setOpen(id, true),
+  close: (id) => setOpen(id, false),
+  isOpen: (id) => panels.get(id)?.panel.hidden === false,
+};
 
 export function init() {
   const rail = document.getElementById("tool-rail");

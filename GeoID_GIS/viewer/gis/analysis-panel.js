@@ -3,8 +3,8 @@ import {
   rowsToCsv,
   rowsToGeoJson,
   downloadText,
-} from "./extraction.js?v=20260810-1bd286d";
-import { rectangleVertices } from "./draw-area.js?v=20260810-1bd286d";
+} from "./extraction.js?v=20260811-075aba6";
+import { rectangleVertices } from "./draw-area.js?v=20260811-075aba6";
 
 let lastResult = null;
 
@@ -234,12 +234,16 @@ function init() {
   document.getElementById("tool-rail-area")?.addEventListener("click", () => {
     setTimeout(() => {
       if (!document.getElementById("tool-rail-area")?.classList.contains("is-active")) return;
-      for (const id of ["gis-group-analysis", "gis-analysis-section"]) {
-        const node = document.getElementById(id);
-        if (node) { node.hidden = false; node.open = true; }
+      // Extraction is a rail workbench now, so this raises that panel. It used
+      // to expand two <details> in the sidebar -- which the group no longer
+      // lives in, so the call quietly did nothing at all.
+      if (window.GeoIDSidePanels?.open) {
+        window.GeoIDSidePanels.open("analysis");
+        return;
       }
-      document.getElementById("gis-analysis-section")
-        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      const section = document.getElementById("gis-analysis-section");
+      if (section) { section.hidden = false; section.open = true; }
+      section?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }, 80);
   });
   const centreMode = document.getElementById("gis-box-centre");

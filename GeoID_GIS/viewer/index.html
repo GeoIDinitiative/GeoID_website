@@ -18,11 +18,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260810-1bd286d-hazard-readout-large">
+  <link rel="stylesheet" href="styles.css?v=20260811-075aba6-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260810-1bd286d" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260810-1bd286d" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260811-075aba6" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260811-075aba6" defer></script>
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -105,7 +105,7 @@
           </div>
         </summary>
         <div class="section-body toolbox-group-body">
-          <details class="gis-tool-section" open>
+          <details class="gis-tool-section">
             <summary>Earth Engine Catalogue</summary>
             <div class="gis-tool-body">
               <label class="row"><span>Dataset</span>
@@ -208,7 +208,7 @@
           </div>
         </summary>
         <div class="section-body toolbox-group-body">
-          <details class="gis-tool-section" open>
+          <details class="gis-tool-section">
             <summary>Surface Analysis</summary>
             <div class="gis-tool-body">
               <div class="row"><label for="ras-op-a">Raster</label><select id="ras-op-a" class="mini-select"></select></div>
@@ -239,7 +239,7 @@
               <div id="raster-sample-result" class="gis-metric">No sample taken.</div>
             </div>
           </details>
-          <details class="gis-tool-section" open>
+          <details class="gis-tool-section">
             <summary>Geoprocessing</summary>
             <div class="gis-tool-body">
               <div class="row"><label for="vec-op-a">Input</label><select id="vec-op-a" class="mini-select"></select></div>
@@ -368,7 +368,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
           </div>
         </summary>
         <div class="section-body toolbox-group-body">
-          <details class="gis-tool-section" open>
+          <details class="gis-tool-section">
             <summary>Export Layers</summary>
             <div class="gis-tool-body">
               <label class="row"><span>Layer</span>
@@ -423,7 +423,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
         </summary>
         <div class="section-body toolbox-group-body">
           <div id="geoid-metadata-host"></div>
-          <details class="gis-tool-section" open>
+          <details class="gis-tool-section">
             <summary>Layer Provenance</summary>
             <div class="gis-tool-body">
               <div id="metadata-list" class="gis-metric">No layers loaded.</div>
@@ -1311,7 +1311,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
         <button id="toolbar-collapse-btn" aria-label="Collapse toolbox" title="Collapse panel">›</button>
       </div>
       <div id="gis-panel" class="toolbox-accordion">
-        <details id="toolbox-pane-measure" class="control-section toolbox-section" data-toolbox-pane="measure" open>
+        <details id="toolbox-pane-measure" class="control-section toolbox-section" data-toolbox-pane="measure">
           <summary class="section-toggle">
             <div class="section-toggle-main">
               <div class="section-heading">
@@ -1415,7 +1415,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
           </summary>
           <div class="section-body">
             <div class="gis-toolbox-stack">
-            <details id="gis-route-section" class="gis-tool-section" open>
+            <details id="gis-route-section" class="gis-tool-section">
               <summary>Route Planner</summary>
               <div class="gis-tool-body">
                 <div class="gis-tool-grid">
@@ -1972,7 +1972,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
     </div>
   </div>
 
-<script id="earth-manifest-script" src="earth-manifest.js?v=20260810-1bd286d-blue-marble" defer></script>
+<script id="earth-manifest-script" src="earth-manifest.js?v=20260811-075aba6-blue-marble" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -2051,27 +2051,27 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260810-1bd286d" defer></script>
-<script type="module" src="gis/atlas-assistant.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/import-manager.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/toolbox.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/model-studio.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260810-1bd286d"></script>
+<script src="gis/mode-manager.js?v=20260811-075aba6" defer></script>
+<script type="module" src="gis/atlas-assistant.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/import-manager.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/toolbox.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/model-studio.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260811-075aba6"></script>
 <!-- Pre-processing and Extraction & Analysis, as workbenches on the tool
      rail rather than two more collapsibles in the sidebar column. -->
-<script type="module" src="gis/side-panels.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/project.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/events.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/gee.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/basemap-drape.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/zoom-bar.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/polygons.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/research/index.js?v=20260810-1bd286d"></script>
-<script type="module" src="gis/planet-strip.js?v=20260810-1bd286d"></script>
+<script type="module" src="gis/side-panels.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/project.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/events.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/gee.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/basemap-drape.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/zoom-bar.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/polygons.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/research/index.js?v=20260811-075aba6"></script>
+<script type="module" src="gis/planet-strip.js?v=20260811-075aba6"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260810-1bd286d" defer></script>
+<script src="music.js?v=20260811-075aba6" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>
