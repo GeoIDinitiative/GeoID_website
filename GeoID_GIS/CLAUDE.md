@@ -829,6 +829,79 @@ Exactly six were genuinely inert. Judge silence by whether the DOM, the project
 or a `hidden` attribute changed — not by the absence of a status line, and never
 by reading the code alone.
 
+**The Draw tool takes a size as well as a shape.** Clicking out a polygon is
+right when the shape matters and wrong when it does not — "sample 10 km around
+this volcano" is a size, and drawing it by hand gives an approximate box with a
+made-up area. `gis/draw-area.js` builds the polygon from a width and a height in
+km, centred on the view or on typed coordinates, and hands it to the viewer's
+**own** `activateStudyArea` through `setStudyAreaPolygon`. That routing is the
+point: a box and a hand-drawn area are then the same object — same overlay, same
+stats, same `getExtractionGeometry` — where a second geometry would have to be
+taught each of those separately. Edges longer than 1° are subdivided, per the
+chord-sag rule above.
+
+The width is exact **at the centre latitude and only there**: a lat/lon box is
+not a rectangle on a sphere, and its north edge is shorter on the ground than
+its south edge. That is what every GIS means by a bounding box, and the test
+pins it rather than letting someone "fix" it into a claim the geometry cannot
+support.
+
+**Centre the box on the sub-camera point, not on a middle-pixel raycast.** The
+globe does not sit at the centre of the canvas — the panels take the left of it
+— so that ray misses and returns nothing at the default view. Measured: null.
+The hemisphere locator has always called the sub-camera point "Center", so
+`getViewCentreLatLon` returns *that*, from the same function, and the box lands
+where the readout says you are.
+
+**`sphericalPolygonAreaKm2` summed interior angles, and diverged with vertex
+count.** The formula — Σ(interior angles) − (n−2)π — is right on paper and
+unusable in practice: subdividing an edge drives every angle toward π, so the
+result becomes the difference of two large, nearly equal numbers. Measured on
+one 300 km box: **89,806 km² at four vertices, then 58,939 / 96,124 / 113,026 at
+twelve, twenty-four and forty-four**, and 2.2× over on a 40°×40° box at 160
+vertices. Every hand-drawn area with more than a handful of points was quoted
+wrongly, silently, in the readout, the saved study area and the extraction
+summary. It is now the line-integral form in `gis/geo-utils.js` — exact against
+the closed form and **identical at 4, 12, 24, 44 and 108 vertices** — with
+earth-viewer importing it rather than keeping a second copy, which is the same
+mistake the zoom floor made. `geo-utils.test.mjs` pins subdivision invariance,
+the hemisphere, and the antimeridian taking the short way round.
+
+**Extraction spans every active layer, including GEE drapes.** A drape is a
+*picture* of data, so `gee.js` registered layers with no sampler and rainfall
+could not be extracted at all. The cache manifest records how the picture was
+made — palette stops plus legend min/max/unit — and Earth Engine ramps a single
+band linearly between those, so `gis/gee-sample.js` inverts it. Measured round
+trip: CHIRPS 0–300 mm to within **1.18 mm**, a five-stop LST palette to within
+**0.14 °C**.
+
+Two rules keep that from being a lie, and both are load-bearing:
+
+- **A colour further than 60 from the ramp is not a reading.** The nearest ramp
+  colour always exists, so without a distance test every pixel returns a
+  confident number — ocean under a rainfall layer becomes millimetres.
+- **No legend, no inverse.** The sampler then returns the colour *as* a colour
+  and the source list says "colour only", rather than inventing a scale.
+
+The column carries the unit (`Rainfall_CHIRPS_mm`) and the list says the value
+was read from the palette, because it is a few percent off the source band and
+must never pass as the archive. Verified end to end: a 300 km box over the Congo
+basin yields one table of lat, lon, elevation, slope, geology, the modelled
+climate group and `Rainfall_CHIRPS_mm` at 135–148 mm.
+
+**`geoid_model_*` columns are models, not observations** — a cosine of latitude
+with a 6.5 K/km lapse rate, and the barometric formula. They are worth having
+and they now sit beside columns that *are* readings, so the prefix and the
+checkbox label both say what they are.
+
+**There was a second extraction dialog, and it was half-dead.** `gis-extract-step`
+and `gis-extract-run` existed twice — in the sidebar panel and in that dialog.
+`getElementById` returns the first in the document, so the dialog's own Run
+button and step field did nothing while its handler had silently bound itself to
+the **panel's** button: one click ran the panel's extraction *and* downloaded the
+dialog's CSV. The panel does strictly more, so the dialog is gone along with the
+two functions whose only caller it was, and its Extract buttons open the panel.
+
 **The study-area drape is how the globe gets real resolution.**
 `gis/basemap-drape.js` fetches XYZ tiles for the open project's study area,
 composites them into one canvas and drapes it as an ordinary derived layer

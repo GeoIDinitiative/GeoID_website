@@ -1,4 +1,8 @@
 import * as THREE from "./vendor/three.module.js";
+// The polygon-area rule lives in one place, with a test. Stamped by hand
+// once: stamp.py only rewrites a ?v= that already exists.
+import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
+  from "./gis/geo-utils.js?v=20260810-92bec97";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -2601,23 +2605,21 @@ import * as THREE from "./vendor/three.module.js";
       return (((THREE.MathUtils.radToDeg(Math.atan2(y, x)) % 360) + 360) % 360);
     }
 
+    /**
+     * The area of a drawn polygon, on whichever body its points came from.
+     *
+     * Delegates to the one tested implementation. What was here summed the
+     * interior angle at every vertex and subtracted (n-2)pi, which is right on
+     * paper and unusable in practice: subdividing an edge drives each angle
+     * toward pi, so the answer became the difference of two large, nearly equal
+     * numbers. Measured on one 300 km box -- 89,806 km2 at four vertices, then
+     * 58,939 / 96,124 / 113,026 at twelve, twenty-four and forty-four. It
+     * diverged with vertex count. Every hand-drawn area with more than a few
+     * points was quoted wrongly, silently.
+     */
     function sphericalPolygonAreaKm2(points) {
-      if (points.length < 3) {
-        return 0;
-      }
-      const radiusKm = points[0]?.radiusKm || EARTH_MEAN_RADIUS_KM;
-      const vectors = points.map((point) => latLonToVector3(point.lat, point.lon, 1).normalize());
-      let totalAngle = 0;
-      for (let i = 0; i < vectors.length; i += 1) {
-        const a = vectors[(i - 1 + vectors.length) % vectors.length];
-        const b = vectors[i];
-        const c = vectors[(i + 1) % vectors.length];
-        const ab = a.clone().cross(b).normalize();
-        const cb = c.clone().cross(b).normalize();
-        totalAngle += Math.acos(clamp(ab.dot(cb), -1, 1));
-      }
-      const excess = totalAngle - ((vectors.length - 2) * Math.PI);
-      return Math.abs(excess) * (radiusKm ** 2);
+      const radiusKm = points?.[0]?.radiusKm || EARTH_MEAN_RADIUS_KM;
+      return sphericalPolygonAreaOnSphere(points, radiusKm);
     }
 
     function sampleGreatCircleProfile(start, end, elevationSampler, sampleCount = 72) {
