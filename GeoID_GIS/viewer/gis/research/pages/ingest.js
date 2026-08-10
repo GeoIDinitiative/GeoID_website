@@ -1,7 +1,7 @@
-import { registerPage } from "../stages.js?v=20260811-af82be9";
-import * as store from "../project-store.js?v=20260811-af82be9";
-import { INGEST_DOMAINS, filterToAccept } from "../ingest-catalogue.js?v=20260811-af82be9";
-import { needProject } from "./common.js?v=20260811-af82be9";
+import { registerPage } from "../stages.js?v=20260811-477120d";
+import * as store from "../project-store.js?v=20260811-477120d";
+import { INGEST_DOMAINS, filterToAccept } from "../ingest-catalogue.js?v=20260811-477120d";
+import { needProject } from "./common.js?v=20260811-477120d";
 
 /**
  * The Data Puller: eleven domain pages, all built from the catalogue.

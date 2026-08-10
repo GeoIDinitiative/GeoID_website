@@ -129,16 +129,38 @@ const STYLE = `
   padding: 0.35rem 0.5rem 0.35rem 0.75rem;
   border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.2);
 }
+/* Titled as the sidebar titles its groups -- .section-title, copied value for
+   value: white ink in Exo 2, not the accent. The accent is for state (armed,
+   open, selected); using it for a heading as well left nothing to tell the two
+   apart. */
 .gis-side-panel-title {
   flex: 1;
   min-width: 0;
-  font-size: 0.66rem;
-  letter-spacing: 0.14em;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.71rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgb(var(--nav-accent-rgb, 120 200 255));
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* And the sections inside it read as the sidebar's headings do.
+ *
+ * A .gis-tool-section summary is pink Courier everywhere else, which is right
+ * when it is one row among many inside a group. In a workbench those rows ARE
+ * the panel, so they take the group heading's voice instead -- the same white
+ * Exo 2 the nav bar uses for Add / Import Data and Shapefiles.
+ */
+.gis-side-panel-body .gis-tool-section > summary {
+  color: var(--text);
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  font-size: 0.71rem;
+  letter-spacing: 0.12em;
 }
 
 /* Scrolls exactly as #ui-scroll-body does. */
