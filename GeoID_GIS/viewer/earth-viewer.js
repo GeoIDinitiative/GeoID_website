@@ -11942,17 +11942,54 @@ import * as THREE from "./vendor/three.module.js";
        * margin clears the drape's own 0.005 lift rather than only the terrain,
        * so the camera cannot end up underneath it.
        */
+      const cameraGroundCache = new Map();
+      const _groundProbe = new THREE.Vector3();
+
+      /**
+       * The displaced surface radius directly beneath the camera.
+       *
+       * The floor was built from `getTerrainRelief()`, which is the **global
+       * maximum** displacement — and the terrain slider exaggerates relief, so
+       * that is 0.11 units, about 219 km. Over Etna, whose ground sits 141 km
+       * up in the same exaggerated units, a floor of 235 km left the camera 94
+       * km above the actual surface and unable to descend: the scale bar bottomed
+       * out around 50 km. Clamping to the ground that is really there instead of
+       * the highest ground anywhere lets it come down to the margin.
+       */
+      function groundRadiusUnderCamera() {
+        if (!globe || !elevationSampler) return null;
+        _groundProbe.copy(camera.position);
+        globe.worldToLocal(_groundProbe);
+        // Undo the globe's half turn to reach the frame latLonToVector3 uses --
+        // the same involution the drapes bake in going the other way.
+        _groundProbe.set(-_groundProbe.x, _groundProbe.y, -_groundProbe.z);
+        if (!(_groundProbe.lengthSq() > 0)) return null;
+        const { lat, lon } = vectorToLatLon(_groundProbe);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        if (cameraGroundCache.size > 4096) cameraGroundCache.clear();
+        const displacement = getCachedElevationNormalized(
+          cameraGroundCache, elevationSampler, lat, lon,
+        ) * getTerrainRelief();
+        return 3.2 + Math.max(0, displacement);
+      }
+
       function computeSafeMinDistance() {
         const maxTerrainDisp = Math.max(0, getTerrainRelief());
         const ctxMode = baseLayerSelect.value === "ctx-mosaic"
           || baseLayerSelect.value === "ctx-mosaic-color";
         const drapeMode = !ctxMode && Boolean(window.GeoIDBasemapDrape?.hasDrape?.());
-        const surfaceMargin = ctxMode ? 0.0005 : (drapeMode ? 0.008 : 0.092);
+        // 0.0009 units is about 1.8 km, which clears the drape's own lift with
+        // room to spare. Without close-range imagery the old global-maximum
+        // floor stands: an 8 km/px texture has nothing to show down there.
+        const surfaceMargin = ctxMode ? 0.0005 : (drapeMode ? 0.0009 : 0.092);
         const baseMin = ctxMode ? 3.20002 : (drapeMode ? 3.2 : DEFAULT_CONTROL_MIN_DISTANCE);
+        const ground = drapeMode ? groundRadiusUnderCamera() : null;
+        const floor = (ground ?? (3.2 + maxTerrainDisp)) + surfaceMargin;
         return {
-          safeMin: Math.max(baseMin, 3.2 + maxTerrainDisp + surfaceMargin),
+          safeMin: Math.max(baseMin, floor),
           surfaceMargin,
           maxTerrainDisp,
+          groundRadius: ground,
           ctxMode,
           drapeMode,
         };
@@ -19216,14 +19253,22 @@ ${error && error.message ? error.message : error}`;
           // Same source of truth as the wheel zoom's floor — see
           // computeSafeMinDistance. These were two copies of one rule.
           const { safeMin: _computedMin, surfaceMargin: _surfaceMargin,
-            maxTerrainDisp: _maxTerrainDisp } = computeSafeMinDistance();
+            maxTerrainDisp: _maxTerrainDisp,
+            groundRadius: _groundRadius } = computeSafeMinDistance();
           _safeMin = _computedMin;
           // Pre-clamp: push camera out before OrbitControls processes this frame's zoom input
           if (camera.position.length() < _safeMin) camera.position.setLength(_safeMin);
           controls.minDistance = _safeMin;
           // Shrink near clip plane as camera approaches surface so sphere/tile geometry is never
           // inside the near frustum. Factor 0.4 guarantees nearest displaced tile renders correctly.
-          _distToMaxSurface = Math.max(0.005, camera.position.length() - (3.2 + _maxTerrainDisp + _surfaceMargin));
+          // Against the ground actually under the camera when there is one, so
+          // the near plane can follow it down. Against the global maximum the
+          // floor is 0.005 (about 10 km) and everything nearer than that is
+          // clipped -- which is the other half of why close zoom looked broken.
+          _distToMaxSurface = Math.max(
+            _groundRadius == null ? 0.005 : 0.00015,
+            camera.position.length() - ((_groundRadius ?? (3.2 + _maxTerrainDisp)) + _surfaceMargin),
+          );
           _controlSurfaceDistance = _distToMaxSurface;
           camera.near = Math.min(0.1, _distToMaxSurface * 0.4);
           camera.updateProjectionMatrix();
