@@ -37,10 +37,10 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-c279dda";
-import { isEarth } from "./bodies.js?v=20260810-c279dda";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-4c9d12b";
+import { isEarth } from "./bodies.js?v=20260810-4c9d12b";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260810-c279dda";
+  from "./view-extent.js?v=20260810-4c9d12b";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -336,7 +336,7 @@ export async function installBaseLayer(sourceName = DEFAULT_SOURCE, { onProgress
   texture.wrapS = THREE.RepeatWrapping;
   texture.anisotropy = 8;
 
-  const id = `tiles-${sourceName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  const id = baseLayerIdFor(sourceName);
   viewer.registerBaseLayer({ id, label: sourceName, texture });
   return { id, ...result, equirect };
 }
@@ -518,6 +518,7 @@ if (typeof window !== "undefined") {
     drapeStudyArea, composite, chooseZoom, tileGrid, normaliseBbox, hasDrape,
     installBaseLayer, toEquirectangular, wholeGlobe,
     startRefining, stopRefining, isRefining, tileBasemapSource,
+    listBaseLayerOptions, watchBaseLayerSelection, baseLayerIdFor,
   };
 }
 
@@ -544,6 +545,10 @@ function buildPanel() {
     || document.querySelector("#gis-group-import .section-body");
   if (!host || document.getElementById("basemap-drape-tool")) return;
   if (!isEarth()) return;
+
+  // The dropdown gets its entries here, not on first use -- that is the whole
+  // point of them being basemaps.
+  listBaseLayerOptions();
 
   const box = document.createElement("details");
   box.id = "basemap-drape-tool";
@@ -650,8 +655,8 @@ function buildPanel() {
    * not on screen would be wrong in the other direction, so it tracks the actual
    * selection both ways.
    */
-  const creditForId = (id) => Object.entries(TILE_SOURCES).find(([name]) =>
-    `tiles-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` === id)?.[1]?.credit || "";
+  const creditForId = (id) => Object.entries(TILE_SOURCES)
+    .find(([name]) => baseLayerIdFor(name) === id)?.[1]?.credit || "";
   document.getElementById("base-layer-select")?.addEventListener("change", (event) => {
     const id = event.target.value || "";
     showCredit(creditForId(id));
@@ -675,16 +680,49 @@ function buildPanel() {
   });
 }
 
+/**
+ * Two things have to be ready, and neither is ready when this module loads: the
+ * GIS panels (injected into the page) and the viewer itself (booted async, and
+ * the owner of the dropdown). Retrying the panel alone was enough while the
+ * entries were created on first use; now that the dropdown must list the
+ * services up front, missing the viewer means they never appear at all — which
+ * is precisely the failure this replaced.
+ *
+ * So: keep trying until both have happened, then stop.
+ */
+let selectionWatched = false;
+
+function initWhenReady() {
+  let tries = 0;
+  const attempt = () => {
+    buildPanel();
+    // Listing and watching are retried HERE, not inside buildPanel: that runs
+    // its body once and returns early ever after, so anything needing the
+    // viewer got one attempt at whatever moment the panels happened to appear.
+    // The options came back on a later try and the selection watcher did not,
+    // which is why choosing a service left the planet bare.
+    listBaseLayerOptions();
+    if (!selectionWatched && window.GeoIDViewer && document.getElementById("base-layer-select")) {
+      const status = document.getElementById("basemap-drape-status");
+      watchBaseLayerSelection({
+        onStatus: (m) => { if (status) status.textContent = m; },
+      });
+      selectionWatched = true;
+    }
+    const inDropdown = document.querySelector('#base-layer-select option[value^="tiles-"]');
+    if ((selectionWatched && inDropdown) || (tries += 1) > 40) return;
+    setTimeout(attempt, 500);
+  };
+  attempt();
+}
+
 if (typeof document !== "undefined") {
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", buildPanel);
+    document.addEventListener("DOMContentLoaded", initWhenReady);
   } else {
-    buildPanel();
+    initWhenReady();
   }
-  // The planet pages inject their panels after this module loads, so the host
-  // may not exist yet on the first try.
-  window.addEventListener("geoid-gis:shell-ready", buildPanel);
-  setTimeout(buildPanel, 1500);
+  window.addEventListener("geoid-gis:shell-ready", initWhenReady);
 }
 
 // ── Refining with zoom ───────────────────────────────────────────────────────
@@ -737,8 +775,7 @@ function disposeMesh(mesh) {
 export function tileBasemapSource() {
   const id = window.GeoIDViewer?.getBaseLayerId?.() || "";
   if (!id.startsWith("tiles-")) return null;
-  return Object.keys(TILE_SOURCES).find((name) =>
-    `tiles-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` === id) || null;
+  return Object.keys(TILE_SOURCES).find((name) => baseLayerIdFor(name) === id) || null;
 }
 
 /** One refinement pass: fetch the visible extent and swap the detail patch in. */
@@ -762,6 +799,11 @@ async function refineOnce({ onStatus } = {}) {
   onStatus?.(`Refining to zoom ${zoom}…`);
   try {
     const result = await composite(bbox, source, { credit: false });
+    // Switched off, or the basemap changed, while these tiles were in flight.
+    // `stopRefining` nulls the state, so reading it unguarded here crashed on
+    // the one interaction most likely to happen during a slow fetch: giving up
+    // and unticking the box.
+    if (!refineState) return null;
     // Another pass overtook this one; its patch is the current view, not ours.
     if (refineState.bbox !== bbox) return null;
     const mesh = buildMesh(result.canvas, bbox);
@@ -805,4 +847,87 @@ export function stopRefining() {
 
 export function isRefining() {
   return Boolean(refineState?.stop);
+}
+
+// ── Listing the services in the Basemap dropdown ─────────────────────────────
+
+/**
+ * Put every tile service in the Basemap dropdown, before any of them is used.
+ *
+ * The entries used to be created by `installBaseLayer`, i.e. on first use — so
+ * the dropdown offered them only *after* someone had found the panel and
+ * pressed a button, and the honest report was "no sign of street view in the
+ * basemap dropdown". A picker has to list what it can show; choosing one is
+ * what loads it, not the other way round.
+ *
+ * Listed with no texture, fetched on selection.
+ */
+export function listBaseLayerOptions() {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.registerBaseLayer || !isEarth()) return 0;
+  let added = 0;
+  for (const name of Object.keys(TILE_SOURCES)) {
+    if (viewer.registerBaseLayer({ id: baseLayerIdFor(name), label: name })) added += 1;
+  }
+  return added;
+}
+
+export function baseLayerIdFor(sourceName) {
+  return `tiles-${sourceName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+}
+
+/**
+ * Load a listed service when it is chosen, and keep the old map up meanwhile.
+ *
+ * The globe's material falls back to a flat sandy colour when a layer has no
+ * texture, so selecting an unfetched service would blank the planet for the
+ * seconds the tiles take. Instead the selection is put back to whatever was
+ * showing, the tiles are fetched, and the switch happens once there is
+ * something to switch to.
+ */
+export function watchBaseLayerSelection({ onStatus } = {}) {
+  const select = document.getElementById("base-layer-select");
+  const viewer = window.GeoIDViewer;
+  if (!select || !viewer) return null;
+
+  const loaded = new Set();
+  let showing = select.value;
+  let loading = false;
+
+  const handler = async () => {
+    const id = select.value;
+    if (!id.startsWith("tiles-") || loaded.has(id)) { showing = id; return; }
+    if (loading) return;
+    const source = Object.keys(TILE_SOURCES).find((n) => baseLayerIdFor(n) === id);
+    if (!source) { showing = id; return; }
+
+    loading = true;
+    // Hold the current map on screen. Setting `.value` is not enough: the
+    // viewer's own change listener is registered first and has already run,
+    // seen a layer with no texture, and set the sphere's map to null -- so the
+    // planet is bare ground by the time we get here. Re-dispatching is what
+    // puts the previous texture back while the tiles are on their way.
+    select.value = showing;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    onStatus?.(`Loading ${source}…`);
+    try {
+      const out = await installBaseLayer(source, {
+        onProgress: (done, total) => onStatus?.(`${source}: ${done}/${total} tiles…`),
+      });
+      loaded.add(id);
+      showing = id;
+      select.value = id;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      onStatus?.(`${source} — ${out.drawn}/${out.tiles} tiles at zoom ${out.zoom} `
+        + `(${Math.round(out.metresPerPixel / 1000)} km/px).`);
+    } catch (error) {
+      select.value = showing;
+      onStatus?.(`${source} could not be loaded: ${error.message}`);
+    } finally {
+      loading = false;
+    }
+  };
+
+  select.addEventListener("change", handler);
+  return () => select.removeEventListener("change", handler);
 }

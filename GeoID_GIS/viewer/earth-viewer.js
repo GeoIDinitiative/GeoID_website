@@ -18904,12 +18904,18 @@ uniform float uViewportWidth;`,
          * Re-registering the same id swaps the texture in place, which is how a
          * basemap refines without the dropdown or the selection changing.
          */
-        registerBaseLayer({ id, label, texture, group = "Live services" }) {
-          if (!id || !texture) return false;
+        registerBaseLayer({ id, label, texture = null, group = "Live services" }) {
+          if (!id) return false;
           const existing = baseLayers.find((l) => l.id === id);
-          const previous = layerTextures.get(id);
-          if (previous && previous !== texture) previous.dispose?.();
-          layerTextures.set(id, texture);
+          // A texture is optional, so an entry can be listed before it is
+          // fetched. Registering only on first use meant the dropdown did not
+          // offer these at all until someone had already found them elsewhere
+          // and pressed a button — which is not what a basemap picker is for.
+          if (texture) {
+            const previous = layerTextures.get(id);
+            if (previous && previous !== texture) previous.dispose?.();
+            layerTextures.set(id, texture);
+          }
           if (!existing) {
             baseLayers.push({ id, label: label || id });
             let optgroup = baseLayerSelect.querySelector(`optgroup[label="${group}"]`);
