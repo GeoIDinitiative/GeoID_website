@@ -19079,6 +19079,34 @@ uniform float uViewportWidth;`,
         // east-positive 0..360 convention; the caller converts if it needs
         // signed. Rejects on Escape.
         pickOnGlobe: () => pickOnGlobeOnce(),
+        /**
+         * Hand the Draw tool a polygon from outside — a preset box, a restored
+         * study area — instead of clicking it out.
+         *
+         * Routed through `activateStudyArea` rather than writing `measurePoints`
+         * directly, so a synthesised area is the *same* object a drawn one is:
+         * same overlay, same stats, same `getExtractionGeometry`. Anything that
+         * builds its own point objects will drift from the drawn path the first
+         * time a field is added to one.
+         */
+        setStudyAreaPolygon(vertices) {
+          if (!Array.isArray(vertices) || vertices.length < 3) return false;
+          activateStudyArea(vertices);
+          syncGisPanel();
+          return measurePoints.length >= 3;
+        },
+        /**
+         * What the camera is looking at, so a box can be centred on the view.
+         * Null when the centre of the screen is off the globe — the caller must
+         * ask for coordinates instead rather than guessing.
+         */
+        getViewCentreLatLon() {
+          const rect = renderer.domElement.getBoundingClientRect();
+          const hit = intersectAnySurface(
+            rect.left + rect.width / 2, rect.top + rect.height / 2,
+          );
+          return hit?.context ? { lat: hit.lat, lon: hit.lon } : null;
+        },
         pointInProjectedPolygon,
         sphericalPolygonAreaKm2,
         getGeologyFeatureAtLatLon: (lat, lon) => getGeologyFeatureAtLatLon(lat, lon, geologyInteractiveState),

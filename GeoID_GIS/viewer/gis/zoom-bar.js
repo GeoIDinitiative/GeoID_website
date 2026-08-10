@@ -16,7 +16,7 @@
  * cannot fight over the camera.
  */
 
-import { isEarth } from "./bodies.js?v=20260810-60090db";
+import { isEarth } from "./bodies.js?v=20260810-c0d1049";
 
 /**
  * The bands, named for what the view is of — the thing a person is actually

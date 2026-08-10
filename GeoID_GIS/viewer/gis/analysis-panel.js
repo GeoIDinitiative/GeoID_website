@@ -3,9 +3,70 @@ import {
   rowsToCsv,
   rowsToGeoJson,
   downloadText,
-} from "./extraction.js?v=20260810-60090db";
+} from "./extraction.js?v=20260810-c0d1049";
+import { rectangleVertices } from "./draw-area.js?v=20260810-c0d1049";
 
 let lastResult = null;
+
+/**
+ * The preset box: a size rather than a shape.
+ *
+ * It hands the polygon to the viewer's own Draw tool rather than keeping a
+ * second geometry of its own, so from here on a box and a hand-drawn area are
+ * the same thing — same overlay, same area readout, same extraction. A second
+ * geometry would have to be taught every one of those separately, and would
+ * disagree with the drawn one the first time either changed.
+ */
+function drawBox() {
+  const viewer = window.GeoIDViewer;
+  const say = (message) => {
+    const node = document.getElementById("gis-box-status");
+    if (node) node.textContent = message;
+  };
+  if (!viewer?.setStudyAreaPolygon) {
+    say("Viewer is not ready yet.");
+    return;
+  }
+  const mode = document.getElementById("gis-box-centre")?.value || "view";
+  let centre = null;
+  if (mode === "manual") {
+    const lat = Number(document.getElementById("gis-box-lat")?.value);
+    const lon = Number(document.getElementById("gis-box-lon")?.value);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)
+      || document.getElementById("gis-box-lat")?.value === ""
+      || document.getElementById("gis-box-lon")?.value === "") {
+      say("Enter a latitude and a longitude, or centre the box on the view.");
+      return;
+    }
+    centre = { lat, lon };
+  } else {
+    centre = viewer.getViewCentreLatLon?.() || null;
+    if (!centre) {
+      // The middle of the screen is off the globe. Asking is the honest answer;
+      // guessing a centre would put the box somewhere never looked at.
+      say("The middle of the view is not on the globe — turn to it, or enter coordinates.");
+      return;
+    }
+  }
+
+  const box = rectangleVertices({
+    lat: centre.lat,
+    lon: centre.lon,
+    widthKm: Number(document.getElementById("gis-box-width")?.value),
+    heightKm: Number(document.getElementById("gis-box-height")?.value),
+  });
+  if (!box) {
+    say("Give the box a width and a height in kilometres.");
+    return;
+  }
+  if (!viewer.setStudyAreaPolygon(box.vertices)) {
+    say("The viewer would not take that box.");
+    return;
+  }
+  const east = ((centre.lon % 360) + 360) % 360;
+  say(`${box.areaHintKm2.toLocaleString()} km² box at `
+    + `${centre.lat.toFixed(3)}°, ${east.toFixed(3)}°E. Run the extraction below.`);
+}
 
 function setStatus(message) {
   const node = document.getElementById("gis-extract-status");
@@ -84,11 +145,11 @@ function runExtraction() {
     setStatus("Viewer is not ready yet.");
     return;
   }
-  // Reuses whatever the user drew with the existing Area tool (or a buffer),
-  // rather than introducing a second polygon-drawing workflow.
+  // Whatever the Draw tool currently holds -- clicked out, or a preset box --
+  // or a buffer. There is deliberately no second polygon workflow here.
   const geometry = viewer.getExtractionGeometry("study") || viewer.getExtractionGeometry("buffer");
   if (!geometry) {
-    setStatus("Draw a polygon with the Area tool first, then run extraction.");
+    setStatus("Mark out an area first — the Draw tool, or the box above.");
     setExportsEnabled(false);
     return;
   }
@@ -129,6 +190,15 @@ function exportAs(kind) {
 }
 
 function init() {
+  document.getElementById("gis-box-draw")?.addEventListener("click", drawBox);
+  const centreMode = document.getElementById("gis-box-centre");
+  const manualRow = document.getElementById("gis-box-manual");
+  const syncCentreMode = () => {
+    if (manualRow) manualRow.hidden = centreMode?.value !== "manual";
+  };
+  centreMode?.addEventListener("change", syncCentreMode);
+  syncCentreMode();
+
   document.getElementById("gis-extract-run")?.addEventListener("click", runExtraction);
   document.getElementById("gis-extract-csv")?.addEventListener("click", () => exportAs("csv"));
   document.getElementById("gis-extract-geojson")?.addEventListener("click", () => exportAs("geojson"));

@@ -18,11 +18,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260810-60090db-hazard-readout-large">
+  <link rel="stylesheet" href="styles.css?v=20260810-c0d1049-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260810-60090db" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260810-60090db" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260810-c0d1049" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260810-c0d1049" defer></script>
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -475,7 +475,31 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
         </div>
       </summary>
       <div class="section-body">
-        <p class="tool-copy">Draw an area with the Area tool, then sample the GeoID basemap and any imported layers across it and export the table.</p>
+        <p class="tool-copy">Mark out an area — click one out with the <strong>Draw</strong> tool, or set a box below — then sample every active layer across it and export one table.</p>
+        <div class="gis-draw-box">
+          <div class="row">
+            <label for="gis-box-width">Box width (km)</label>
+            <input id="gis-box-width" class="input" type="number" min="0.05" step="1" value="10">
+          </div>
+          <div class="row">
+            <label for="gis-box-height">Box height (km)</label>
+            <input id="gis-box-height" class="input" type="number" min="0.05" step="1" value="10">
+          </div>
+          <div class="row">
+            <label for="gis-box-centre">Centred on</label>
+            <select id="gis-box-centre" class="input">
+              <option value="view">The middle of the view</option>
+              <option value="manual">Coordinates below</option>
+            </select>
+          </div>
+          <div class="row" id="gis-box-manual" hidden>
+            <label for="gis-box-lat">Lat / lon</label>
+            <input id="gis-box-lat" class="input" type="number" step="0.0001" placeholder="lat" aria-label="Box centre latitude">
+            <input id="gis-box-lon" class="input" type="number" step="0.0001" placeholder="lon °E" aria-label="Box centre longitude east">
+          </div>
+          <button id="gis-box-draw" class="tool-button" type="button">Draw box</button>
+          <div id="gis-box-status" class="gis-metric">No box drawn.</div>
+        </div>
         <div class="gis-extract-options">
           <label class="gis-extract-source" for="gis-extract-builtin">
             <input type="checkbox" id="gis-extract-builtin" checked>
@@ -1011,7 +1035,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
       </div>
     </div>
     <div class="tool-rail-item" data-measure-item="area">
-      <button class="tool-rail-btn" id="tool-rail-area" type="button" data-measure-mode="area" aria-label="Activate area tool" title="Area">
+      <button class="tool-rail-btn" id="tool-rail-area" type="button" data-measure-mode="area" aria-label="Activate draw tool" title="Draw an area: click out a polygon, or set a box in Extract From Layers">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M6 17.5 8 6.2l9 2.4-2.2 9.2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
           <circle cx="6" cy="17.5" r="1.1" fill="currentColor"/>
@@ -1019,7 +1043,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
           <circle cx="17" cy="8.6" r="1.1" fill="currentColor"/>
           <circle cx="14.8" cy="17.8" r="1.1" fill="currentColor"/>
         </svg>
-        <span>Area</span>
+        <span>Draw</span>
       </button>
       <div class="measure-rail-actions" data-measure-actions="area" hidden>
         <button class="tool-rail-action-btn" type="button" data-measure-export="area" aria-label="Export area CSV" title="Export area CSV">Export CSV</button>
@@ -1974,7 +1998,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
     </div>
   </div>
 
-<script id="earth-manifest-script" src="earth-manifest.js?v=20260810-60090db-blue-marble" defer></script>
+<script id="earth-manifest-script" src="earth-manifest.js?v=20260810-c0d1049-blue-marble" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -2053,24 +2077,24 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260810-60090db" defer></script>
-<script type="module" src="gis/atlas-assistant.js?v=20260810-60090db"></script>
-<script type="module" src="gis/import-manager.js?v=20260810-60090db"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260810-60090db"></script>
-<script type="module" src="gis/toolbox.js?v=20260810-60090db"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260810-60090db"></script>
-<script type="module" src="gis/model-studio.js?v=20260810-60090db"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260810-60090db"></script>
-<script type="module" src="gis/project.js?v=20260810-60090db"></script>
-<script type="module" src="gis/events.js?v=20260810-60090db"></script>
-<script type="module" src="gis/gee.js?v=20260810-60090db"></script>
-<script type="module" src="gis/basemap-drape.js?v=20260810-60090db"></script>
-<script type="module" src="gis/zoom-bar.js?v=20260810-60090db"></script>
-<script type="module" src="gis/polygons.js?v=20260810-60090db"></script>
-<script type="module" src="gis/research/index.js?v=20260810-60090db"></script>
-<script type="module" src="gis/planet-strip.js?v=20260810-60090db"></script>
+<script src="gis/mode-manager.js?v=20260810-c0d1049" defer></script>
+<script type="module" src="gis/atlas-assistant.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/import-manager.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/toolbox.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/model-studio.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/project.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/events.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/gee.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/basemap-drape.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/zoom-bar.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/polygons.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/research/index.js?v=20260810-c0d1049"></script>
+<script type="module" src="gis/planet-strip.js?v=20260810-c0d1049"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260810-60090db" defer></script>
+<script src="music.js?v=20260810-c0d1049" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>
