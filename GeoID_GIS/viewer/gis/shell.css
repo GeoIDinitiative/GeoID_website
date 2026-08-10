@@ -1436,3 +1436,19 @@ body.studio-open #tool-rail,
 body.studio-open #top-right-controls,
 body.studio-open #music-btn,
 body.studio-open .hub-link { display: none !important; }
+
+/* ── Model mode has no planet ────────────────────────────────────────────────
+ *
+ * The globe HUD stands down, exactly as it does on the Earth page (that copy
+ * is in `viewer/styles.css`). The scale bar and the cursor readout deliberately
+ * STAY: they are the same elements the GIS page uses, driven by the studio's
+ * own local scale, so both pages report distance and position identically —
+ * which is why they live in `#cursor-readout-bar` and not in the HUD below.
+ */
+body[data-view-mode="model"] #bottom-right-hud,
+body[data-view-mode="model"] #hemisphere-locator,
+body[data-view-mode="model"] #surface-conditions,
+body[data-view-mode="model"] #interior-conditions,
+body[data-view-mode="model"] #gmt-clock {
+  display: none !important;
+}

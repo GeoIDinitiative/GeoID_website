@@ -733,6 +733,10 @@
       ];
     }
     function updateScaleReadout(camera, renderer, controls) {
+      // In Model mode the studio owns the bar and fills it from its own local
+      // scale. This measures against a planet, so leaving it running would
+      // overwrite the studio's figures with globe distances every frame.
+      if (document.body.dataset.viewMode === "model") return;
       if (!scaleReadout || !camera || !renderer) return;
       const viewportWidth = Math.max(1, renderer.domElement.clientWidth || window.innerWidth || 1);
       const target = controls?.target || new THREE.Vector3();
@@ -6162,6 +6166,58 @@
       // place to grow behaviour.
       window.GeoIDViewer = Object.assign(window.GeoIDViewer || {}, {
         bodyId: "neptune",
+        /**
+         * The scale bar and cursor readout, driven from outside.
+         *
+         * Model mode needs these: the Meshing Studio works in its own local
+         * frame at an arbitrary scale, so it computes metres-per-pixel itself
+         * and fills the same bar the globe uses. Without them on the seam,
+         * `updateScaleReadout()` in model-studio.js returned at its first line
+         * and the bar kept whatever this viewer's own globe loop had written —
+         * which, at the studio's camera distances, was 2e10 km.
+         */
+        renderScaleBar(metersPerPixel) {
+          if (!Number.isFinite(metersPerPixel) || metersPerPixel <= 0) {
+            scaleReadout.hidden = true;
+            return;
+          }
+          const widthPx = resolveScaleBarWidthPx();
+          const nice = chooseNiceScaleDistance(metersPerPixel, widthPx);
+          scaleReadout.hidden = false;
+          if (!Number.isFinite(nice)) {
+            scaleLabel0.textContent = "0";
+            [scaleLabel1, scaleLabel2, scaleLabel3, scaleLabel4, scaleLabel5]
+              .forEach((node) => { if (node) node.textContent = ""; });
+            return;
+          }
+          window.__lastScaleBarMeters = nice;
+          const scheme = chooseFittedScaleLabelScheme(nice, widthPx);
+          [scaleLabel0, scaleLabel1, scaleLabel2, scaleLabel3, scaleLabel4, scaleLabel5]
+            .forEach((node, i) => {
+              if (!node) return;
+              const spec = scheme[i];
+              if (!spec) {
+                node.textContent = "";
+                node.style.left = "0%";
+                node.style.transform = "translateX(-50%)";
+                return;
+              }
+              node.textContent = spec.label;
+              node.style.left = `${spec.position * 100}%`;
+              node.style.transform = spec.position <= 0
+                ? "none"
+                : spec.position >= 1
+                  ? "translateX(-100%)"
+                  : "translateX(-50%)";
+            });
+        },
+        hideScaleBar() {
+          scaleReadout.hidden = true;
+        },
+        hideCursorReadout() {
+          cursorReadout.hidden = true;
+          cursorReadout.textContent = "";
+        },
         // This body's mean radius, so anything sized in kilometres -- the
         // Draw tool's preset box above all -- is sized on THIS world.
         bodyRadiusKm: MARS_MEAN_RADIUS_KM,
