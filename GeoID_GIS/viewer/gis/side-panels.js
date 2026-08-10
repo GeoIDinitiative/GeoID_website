@@ -163,6 +163,29 @@ const STYLE = `
   letter-spacing: 0.1em;
 }
 
+/* An open one is filled, everywhere in the GUI.
+ *
+ * A .gis-tool-section is the nested tab that opens a self-contained tile, and
+ * open is a state -- the same state the rail buttons already say with a solid
+ * accent. Saying it the same way here means one rule to read across the whole
+ * interface: filled is open, and the fill runs along the head of the tile it
+ * opened, so which header belongs to which body is never in question when
+ * several are stacked.
+ *
+ * The head is a bar, not a button, so it keeps its square shoulders where they
+ * meet the body and rounds only into the tile's own corners.
+ */
+.gis-tool-section[open] > summary {
+  background: rgb(var(--nav-accent-rgb));
+  color: var(--skin-chrome-ink, #2b0030);
+  border-bottom-color: rgba(0, 0, 0, 0.22);
+}
+.gis-tool-section[open] > summary * { color: inherit; }
+.gis-tool-section[open] {
+  border-color: rgb(var(--nav-accent-rgb));
+  box-shadow: 0 0 18px -6px rgba(var(--nav-accent-rgb), 0.55);
+}
+
 /* Scrolls exactly as #ui-scroll-body does. */
 .gis-side-panel-body {
   flex: 1;
