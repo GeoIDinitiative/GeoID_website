@@ -195,10 +195,8 @@ const STYLE = `
  * carries ten, Flight Simulator through Sources And Metadata -- where the open
  * one has to be findable after you have scrolled its body past its head.
  *
- * The group head itself deliberately keeps the wash. Two levels of solid fill
- * would flatten the nesting; washed group over filled sub-tab keeps it legible.
- * :not(.toolbox-group) is what draws that line, and it also spares the GeoID
- * and Events mode bars, which are groups too.
+ * :not(.toolbox-group) keeps this off the level-1 heads, which are lit their
+ * own way below -- two identical fills would flatten the nesting.
  *
  * This lives in an injected stylesheet rather than in styles.css because Earth
  * loads styles.css and the nine planet pages do not -- a rule written there
@@ -244,6 +242,50 @@ const STYLE = `
 .control-section:not(.toolbox-group)[open]:hover > .section-toggle {
   background: rgb(var(--nav-accent-rgb));
   filter: brightness(1.12);
+}
+
+/* Level 1: the open group is the deep bar, not the bright one.
+ *
+ * Open at level 1 was a 12% wash and a hairline spine, which next to a closed
+ * group is very nearly nothing -- the screenshot that prompted this had
+ * Explorer open and Shapefiles shut and they read the same. But it cannot take
+ * the level-2 fill: two bars in the same bright accent and the eye stops being
+ * able to say which one contains the other.
+ *
+ * So the accent is used at two depths. The group is the accent mixed down into
+ * the panel, a deep magenta that still carries white heading ink; the sub-tab
+ * inside it is the accent at full strength with dark ink. Parent darker, child
+ * brighter -- the nesting is legible without reading a word, and a closed group
+ * is neither.
+ *
+ * The rest is the frame around it: a 3px spine instead of a hairline, the
+ * group's own border brought up to near-solid accent, and an outer glow, so an
+ * open group reads as one lit object down its whole height rather than a
+ * slightly different header.
+ */
+.control-section.toolbox-group[open] > .section-toggle {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgb(var(--nav-accent-rgb)) 48%, #17021b),
+    color-mix(in srgb, rgb(var(--nav-accent-rgb)) 30%, #17021b)
+  );
+  border-left: 3px solid rgb(var(--nav-accent-rgb));
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.32);
+}
+.control-section.toolbox-group[open] {
+  border-color: rgba(var(--nav-accent-rgb), 0.72);
+  box-shadow:
+    0 0 26px -10px rgba(var(--nav-accent-rgb), 0.85),
+    inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.18);
+}
+/* On the deep bar the marker and icon were accent-on-accent. White reads. */
+.control-section.toolbox-group[open] > .section-toggle .section-icon,
+.control-section.toolbox-group[open] > .section-toggle::after {
+  color: rgba(255, 255, 255, 0.92) !important;
+  filter: none;
+}
+.control-section.toolbox-group[open]:hover > .section-toggle {
+  filter: brightness(1.1);
 }
 
 /* Scrolls exactly as #ui-scroll-body does. */
