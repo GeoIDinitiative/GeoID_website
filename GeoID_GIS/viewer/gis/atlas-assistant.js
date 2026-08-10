@@ -768,8 +768,24 @@ function placeLauncher(launcher, panelNode) {
   const top = occupied.length
     ? Math.round(Math.max(...occupied.map((b) => b.bottom)) + GAP)
     : 16;
+
+  /**
+   * Step aside for an open workbench.
+   *
+   * The side panels run from the top of the screen down the right-hand column,
+   * which is the corner this mark sits in. Only a panel that actually reaches
+   * this row counts — one scrolled short of it is no reason to move.
+   */
+  const panel = [...document.querySelectorAll(".gis-side-panel")]
+    .filter((node) => !node.hidden)
+    .map((node) => node.getBoundingClientRect())
+    .find((box) => box.width && box.top <= top + (launcher.offsetHeight || 52) && box.bottom >= top);
+  const right = panel
+    ? Math.max(8, Math.round(window.innerWidth - panel.left + GAP))
+    : 16;
+
   launcher.style.top = `${top}px`;
-  launcher.style.right = "16px";
+  launcher.style.right = `${right}px`;
   launcher.style.bottom = "auto";
 
   // The GIS tools move down to clear the mark. Skipped where the rail is not

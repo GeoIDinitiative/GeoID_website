@@ -54,6 +54,25 @@ const STYLE = `
   background: rgba(var(--nav-accent-rgb), 0.18);
 }
 
+/* While a workbench is open the rest of the rail shrinks to its icons. The
+   open one is untouched, so the rail still reads as a place you are. */
+#tool-rail.has-open-panel .tool-rail-btn:not(.is-open) {
+  width: 2.3rem;
+  min-height: 2.3rem;
+  padding: 0.3rem 0.18rem;
+  transition: width 0.15s ease, min-height 0.15s ease;
+}
+#tool-rail.has-open-panel .tool-rail-btn:not(.is-open) span { display: none; }
+#tool-rail.has-open-panel .tool-rail-btn:not(.is-open) svg { width: 1rem; height: 1rem; }
+
+/* ESC is a word, not a glyph, so it needs the room the icon buttons do not. */
+.gis-side-panel .brand-toprow-actions .info-btn {
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  padding: 0 0.35rem;
+  min-width: 1.6rem;
+}
+
 .gis-side-panel {
   position: fixed;
   z-index: 12;
@@ -124,12 +143,20 @@ const panels = new Map();
 
 /** Only one workbench at a time: they would otherwise stack on one another. */
 function setOpen(id, open) {
+  let any = false;
   panels.forEach((entry, key) => {
     const on = key === id ? open : false;
+    if (on) any = true;
     entry.panel.hidden = !on;
     entry.button.classList.toggle("is-open", on);
     entry.button.setAttribute("aria-expanded", on ? "true" : "false");
   });
+  /**
+   * With a workbench open the rail steps back: the tools you are not using
+   * shrink to their icons. The one you opened keeps its label, so the rail
+   * still says where you are, and the panel gets the width they gave up.
+   */
+  document.getElementById("tool-rail")?.classList.toggle("has-open-panel", any);
   place();
 }
 
@@ -146,10 +173,17 @@ function place() {
   if (!rail) return;
   const box = rail.getBoundingClientRect();
   if (!box.width) return;
-  const right = Math.max(8, Math.round(window.innerWidth - box.right));
-  // Directly under the rail. It was clamped to half the viewport, which on a
-  // short window put the panel's head ABOVE the buttons that open it.
-  const top = Math.round(box.bottom + 10);
+  // Left of the rail, sharing its gap.
+  const right = Math.max(8, Math.round(window.innerWidth - box.left + 10));
+  /**
+   * From the top down, level with the sidebar.
+   *
+   * A workbench is the other half of the screen from the toolbox, so it starts
+   * where the toolbox starts and grows downward — not hanging off the bottom of
+   * the rail, which left it floating in the middle with the globe above it.
+   */
+  const sidebar = document.getElementById("ui");
+  const top = Math.round(sidebar?.getBoundingClientRect().top ?? 16);
   panels.forEach(({ panel }) => {
     if (panel.hidden) return;
     panel.style.right = `${right}px`;
@@ -210,7 +244,16 @@ function buildPanel(spec, group) {
     collapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
     place();
   });
-  actions.appendChild(collapse);
+  // Esc closes the workbench outright, where the chevron only folds it away.
+  const escape = document.createElement("button");
+  escape.type = "button";
+  escape.className = "info-btn";
+  escape.textContent = "ESC";
+  escape.title = "Close";
+  escape.setAttribute("aria-label", `Close ${spec.title}`);
+  escape.addEventListener("click", () => setOpen(spec.id, false));
+
+  actions.append(collapse, escape);
   head.append(title, actions);
 
   const body = document.createElement("div");
