@@ -1,6 +1,6 @@
-import * as store from "../project-store.js?v=20260810-b3e2a53";
-import { parseTable, column } from "../table.js?v=20260810-b3e2a53";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260810-b3e2a53";
+import * as store from "../project-store.js?v=20260810-939ddfd";
+import { parseTable, column } from "../table.js?v=20260810-939ddfd";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260810-939ddfd";
 
 /**
  * The furniture every Research page uses.
@@ -129,6 +129,19 @@ export function persistentStatus(host, pageId) {
       : ([...host.querySelectorAll(".research-status")].pop() || node);
     live.textContent = message;
     live.classList.toggle("is-error", Boolean(isError));
+    // A hand-written page builds its own status node during its remount, which
+    // is async and so does not exist yet at this point — the message would be
+    // parked and never shown. Re-apply once that has settled, and only into a
+    // node that is still empty, so a page's own message is never overwritten.
+    if (!node.isConnected && message) {
+      setTimeout(() => {
+        if (host.dataset.statusPage !== pageId) return;
+        const latest = [...host.querySelectorAll(".research-status")].pop();
+        if (!latest || latest.textContent.trim()) return;
+        latest.textContent = host.dataset.statusText;
+        latest.classList.toggle("is-error", host.dataset.statusError === "1");
+      }, 300);
+    }
   };
   if (host.dataset.statusPage === pageId && host.dataset.statusText) {
     node.textContent = host.dataset.statusText;

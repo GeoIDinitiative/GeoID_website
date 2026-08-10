@@ -1,12 +1,12 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260810-b3e2a53";
-import * as store from "./project-store.js?v=20260810-b3e2a53";
-import * as stats from "./stats.js?v=20260810-b3e2a53";
-import * as dsp from "./dsp.js?v=20260810-b3e2a53";
-import { linePlot, heatmap } from "./plot.js?v=20260810-b3e2a53";
-import { column } from "./table.js?v=20260810-b3e2a53";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260810-b3e2a53";
-import { parseTable } from "./table.js?v=20260810-b3e2a53";
-import * as ec from "./event-correlation.js?v=20260810-b3e2a53";
+import { wire, wirePattern } from "./spec-page.js?v=20260810-939ddfd";
+import * as store from "./project-store.js?v=20260810-939ddfd";
+import * as stats from "./stats.js?v=20260810-939ddfd";
+import * as dsp from "./dsp.js?v=20260810-939ddfd";
+import { linePlot, heatmap } from "./plot.js?v=20260810-939ddfd";
+import { column } from "./table.js?v=20260810-939ddfd";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260810-939ddfd";
+import { parseTable } from "./table.js?v=20260810-939ddfd";
+import * as ec from "./event-correlation.js?v=20260810-939ddfd";
 
 /**
  * The last of the spec's controls.
@@ -109,7 +109,7 @@ wire("Raster Tools", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No coordinate columns to reproject.");
-    const projection = await import("../projection.js?v=20260810-b3e2a53");
+    const projection = await import("../projection.js?v=20260810-939ddfd");
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -166,7 +166,7 @@ wire("Vector Tools", {
     if (collections.length < 2) {
       throw new Error("A spatial join needs two GeoJSON layers in the project.");
     }
-    const g = await import("../geoprocessing.js?v=20260810-b3e2a53");
+    const g = await import("../geoprocessing.js?v=20260810-939ddfd");
     const joined = g.spatialJoin(collections[0].fc, collections[1].fc);
     const out = `data/processed/joined-${stamp()}.geojson`;
     await store.writeProjectFile(out, JSON.stringify(joined));
@@ -1397,5 +1397,128 @@ wire("Temporal Tools", {
     await saveTable(out, header, rows, "Temporal Tools", "series");
     say(`${path.split("/").pop()}: ${source.length} → ${bins} rows `
       + `(mean of ${factor}). Saved ${out}.`);
+  },
+});
+
+// ── Six buttons that were enabled and did nothing ────────────────────────────
+//
+// Found by clicking every control on all sixty-four pages and watching for a
+// status message, a DOM change or a file picker. Nearly every "silent" button
+// turned out to be a tab, a file dialog or a message the redraw was eating —
+// these six were the real thing: live-looking controls with no behaviour, which
+// this project treats as worse than an honest disabled one.
+
+/** The registered dataset that a page's list is currently showing. */
+async function registerExisting(say, dest) {
+  const picker = document.createElement("input");
+  picker.type = "file";
+  picker.multiple = true;
+  const chosen = await new Promise((resolve) => {
+    picker.addEventListener("change", () => resolve(Array.from(picker.files || [])));
+    picker.click();
+  });
+  if (!chosen.length) return;                       // cancelled: correctly nothing
+  for (const file of chosen) {
+    const path = `${dest}/${file.name}`;
+    const isText = /\.(csv|tsv|txt|dat|json|geojson|md|xyz|asc|obj|ply|msh|geo|vtk)$/i
+      .test(file.name);
+    await store.writeProjectFile(path, isText ? await file.text() : await file.arrayBuffer());
+    await store.registerData({
+      name: file.name, kind: "file", path, source: "Registered by hand",
+      extra: { bytes: file.size },
+    });
+  }
+  say(`${chosen.length} file(s) registered into ${dest}.`);
+}
+
+wire("Data Repository", {
+  "+ Add Dataset": async ({ say, redraw }) => {
+    await registerExisting(say, "data/raw");
+    redraw();
+  },
+  // The Qt page suggests a promotion when a file sits in data/raw with a
+  // processed twin. There was no suggestion engine here at all, so the button
+  // sat live and inert; this states what it would act on rather than pretending.
+  "Accept Suggestion": async ({ say }) => {
+    const rows = await store.listData();
+    const raw = rows.filter((r) => String(r.path || "").startsWith("data/raw/"));
+    if (!raw.length) throw new Error("Nothing in data/raw to promote.");
+    const target = raw[raw.length - 1];
+    const to = String(target.path).replace("data/raw/", "data/processed/");
+    const body = await store.readProjectFile(target.path);
+    await store.writeProjectFile(to, body);
+    await store.registerData({
+      name: target.name, kind: target.kind || "file", path: to,
+      source: "Promoted from data/raw",
+    });
+    say(`${target.name} promoted to ${to}.`);
+  },
+});
+
+wire("Metadata & Lineage", {
+  "Register File": async ({ say, redraw }) => {
+    await registerExisting(say, "data/raw");
+    redraw();
+  },
+});
+
+wire("Post Processing", {
+  // Both of these read the run picker the hand-built page exposes on
+  // window.__geoidPostProcess, so there is one list of runs, not two.
+  "Refresh GALES Results": async ({ say, redraw }) => {
+    // listProjectDir answers {name, kind} entries, not strings -- the same
+    // filter the page itself uses two files away (pages/postprocess.js:322).
+    const runs = (await store.listProjectDir("fem_runs").catch(() => []))
+      .filter((e) => e.kind === "directory").map((e) => e.name);
+    let solved = 0;
+    for (const run of runs) {
+      const inside = await store.listProjectDir(`fem_runs/${run}/results`).catch(() => []);
+      if (inside.length) solved += 1;
+    }
+    redraw();
+    say(`${runs.length} run(s) in fem_runs, ${solved} with results.`);
+  },
+  // Named "Open …", which the navigation pattern claims first and answers with
+  // "Nothing to open for that." A page-specific handler beats a pattern, which
+  // is what makes this fixable at all.
+  "Open Selected GALES Result": async ({ say }) => {
+    const api = window.__geoidPostProcess;
+    const run = api?.run?.();
+    if (!run || run.startsWith("(")) throw new Error("No FEM run selected.");
+    const files = (await store.listProjectDir(`fem_runs/${run}/results`).catch(() => []))
+      .map((e) => e.name);
+    if (!files.length) {
+      throw new Error(`${run} has no results/ yet — solve it first.`);
+    }
+    say(`${run}/results: ${files.slice(0, 6).join(", ")}`
+      + `${files.length > 6 ? ` … ${files.length} fields` : ""}.`);
+  },
+});
+
+wire("Signal Processing", {
+  /**
+   * Signal-to-noise, as the Event Correlation toolkit defines it.
+   *
+   * Peak amplitude over the standard deviation of the quiet part, taking the
+   * quietest fifth of the record as noise — the same shape as the toolkit's
+   * MIN_SNR_LINEAR test, so the two agree about what a strong signal is.
+   */
+  SNR: async ({ say }) => {
+    const { path, table } = await firstTable();
+    const numeric = numericOf(table);
+    const name = Object.keys(numeric).find((n) => !/^(t|time|index|rank)$/i.test(n));
+    if (!name) throw new Error("No signal column to measure.");
+    const v = numeric[name];
+    if (v.length < 32) throw new Error(`${name} has ${v.length} points; needs 32.`);
+    const mean = stats.mean(v);
+    const centred = v.map((x) => x - mean);
+    const sorted = centred.map(Math.abs).slice().sort((a, b) => a - b);
+    const quiet = sorted.slice(0, Math.max(8, Math.floor(sorted.length / 5)));
+    const noise = Math.sqrt(stats.mean(quiet.map((x) => x * x)));
+    const peak = sorted[sorted.length - 1];
+    if (!(noise > 0)) throw new Error(`${name} has no variation to measure against.`);
+    const ratio = peak / noise;
+    say(`${name} in ${path.split("/").pop()}: SNR ${ratio.toPrecision(3)} `
+      + `(${(20 * Math.log10(ratio)).toFixed(1)} dB), peak ${peak.toPrecision(3)}.`);
   },
 });

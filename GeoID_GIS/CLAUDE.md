@@ -800,6 +800,36 @@ monotonic ramp. Ignore `analysis/` outputs, skip time/index/rank columns unless
 nothing else exists, and refuse below 64 points for a spectrogram or 32 for a
 wavelet.
 
+**A `redraw()` eats the message the handler just wrote.** `redraw()` empties
+the host and mounts again, building a *new* status node, so `say()` wrote to the
+orphaned old one — in both orderings (`redraw(); say()` and `say(); redraw()`).
+Every Refresh, every Import Files and every Add reported success into a node
+that was no longer on the page. `persistentStatus(host, pageId)` in
+`pages/common.js` writes to whichever status node is currently mounted and
+parks the text on the host, which survives `textContent = ""`. **There are three
+mount paths and they all need it** — fixing only `spec-page.js` left all 53
+tree-rendered pages silent, because those come from `qt-render.js`. The nine
+hand-built pages build their own status node during an async remount, so the
+message is re-applied 300 ms later into a node that is still empty.
+
+**Clicking every button is the only way to find a dead one, and most "dead"
+buttons are not.** A full pass over all 64 pages produced 281 silent controls;
+classified, 75 were tab switches, ~50 file dialogs (a cancelled picker correctly
+does nothing), 11 info popovers, and most of the rest were the redraw bug above.
+Exactly six were genuinely inert. Judge silence by whether the DOM, the project
+or a `hidden` attribute changed — not by the absence of a status line, and never
+by reading the code alone.
+
+**Tile basemaps are attribution-conditional, and the credit is data.** Every
+source in `map2d.js` is free *on condition* of a specific credit line, which an
+exported PNG then carries into print. Esri's is the `copyrightText` its own
+service returns (`.../MapServer?f=json`) — "Esri" alone credits neither Vantor
+and Earthstar for the imagery nor the fifteen agencies behind the topo map. The
+credit is wrapped rather than truncated, because a truncated licence is not one.
+OSM's own tiles are governed by the OSMF Tile Usage Policy: fine for interactive
+viewing, but no bulk pre-fetching and no guarantee for a product — a real
+deployment self-hosts or buys tiles.
+
 **Wire it or leave it disabled.** A handler that pops a message and does nothing
 turns an honest disabled button into a dishonest live one. Where the desktop app
 shells out to a native binary or a Python interpreter — Gmsh, GALES, plugin
