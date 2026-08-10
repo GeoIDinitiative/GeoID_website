@@ -80,6 +80,10 @@
   text-transform: uppercase;
   color: rgba(var(--nav-accent-rgb, 120 200 255), 0.92);
   margin-left: 18px;
+  /* Takes the slack so it stays beside the wordmark instead of drifting to the
+     far right whenever the links collapse into the burger -- which is the
+     width the myGeoID shell is usually seen at. */
+  margin-right: auto;
   min-width: 0;
   max-width: 34ch;
   overflow: hidden;
@@ -89,8 +93,10 @@
 .site-nav .nav-context:empty { display: none; }
 .site-nav .nav-context.is-unset { color: var(--nav-ink); opacity: 0.5; }
 
-@media (max-width: 900px) {
-  /* The links and the burger win the space before this does. */
+@media (max-width: 560px) {
+  /* Only on a phone, where the wordmark and the burger want the whole row.
+     900px was far too eager: the shell is routinely used below that, and this
+     is the one place that says which project and which world are open. */
   .site-nav .nav-context { display: none; }
 }
 

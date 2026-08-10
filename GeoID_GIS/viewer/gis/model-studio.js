@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody } from "./bodies.js?v=20260810-256ccd2";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-256ccd2";
+import { currentBody, getBody } from "./bodies.js?v=20260810-70ba427";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-70ba427";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260810-256ccd2";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-256ccd2";
-import { downloadText } from "./extraction.js?v=20260810-256ccd2";
+} from "./mesh-volume.js?v=20260810-70ba427";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-70ba427";
+import { downloadText } from "./extraction.js?v=20260810-70ba427";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -92,29 +92,19 @@ function status(text) {
 }
 
 /**
- * What is being modelled, and where.
+ * Report what is being worked on, and where.
  *
- * The studio looks the same on every world and in every project — the geometry
- * on screen says nothing about either — so with two windows open, or after
- * coming back to one, there was no way to tell a Moon model in one project from
- * an Earth model in another. Project and world, stated.
- *
- * "No project" is worth saying rather than leaving blank: without one the
- * exports go to the downloads folder instead of into a study, which is a
- * difference people discover later.
+ * This used to draw a line inside the studio's mode bar. That bar is a CSS
+ * grid, so an extra span became its own grid row and sat on top of the label —
+ * which is what "NO PROJECT · MERCURY" overlapping the mode buttons was. The
+ * shell header carries it instead: outside the iframe, where there is room for
+ * it and nothing to collide with.
  */
 function updateStudioContext() {
-  const node = byId("studio-context");
-  if (!node) return;
-  const project = window.GeoIDResearch?.store?.getActive?.() || null;
-  const world = studioBody()?.name || "—";
-  node.textContent = `${project?.name || "No project"} · ${world}`;
-  node.title = project
-    ? `Modelling on ${world}, in the project "${project.name}"`
-    : `Modelling on ${world}. No project is open, so exports go to your `
-      + "downloads rather than into a study.";
-  node.classList.toggle("is-unset", !project);
-  announceContext(project, world);
+  announceContext(
+    window.GeoIDResearch?.store?.getActive?.() || null,
+    studioBody()?.name || null,
+  );
 }
 
 /**
