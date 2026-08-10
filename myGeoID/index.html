@@ -1220,9 +1220,27 @@
   </div>
 
   <script>
-    // Disclaimer gate — runs on every load. Keep UI inert until acknowledged.
+    /**
+     * Disclaimer gate — runs on every load. Keep UI inert until acknowledged.
+     *
+     * TURNED OFF FOR DEVELOPMENT. Set this back to `true` to restore it; the
+     * modal's markup and styles are untouched, so that is the only edit needed.
+     * It is off rather than deleted deliberately — the page still presents
+     * synthetic hazard values as though they were readings, which is exactly
+     * what the gate exists to say out loud, so this should go back on before
+     * anyone outside the project sees it.
+     */
+    const DEMO_DISCLAIMER_GATE = false;
+
     (function () {
       const backdrop = document.getElementById("demo-disclaimer-backdrop");
+      if (!DEMO_DISCLAIMER_GATE) {
+        // Take the modal out and release the UI, in that order, so the page is
+        // never left inert with nothing on screen to dismiss.
+        backdrop?.remove();
+        document.body.classList.remove("demo-disclaimer-active");
+        return;
+      }
       const checkbox = document.getElementById("demo-disclaimer-checkbox");
       const button   = document.getElementById("demo-disclaimer-accept");
       if (!backdrop || !checkbox || !button) return;
@@ -1274,7 +1292,7 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20260810-bc997f7"
+        src="/GeoID_GIS/viewer/?v=gis-20260810-c74b16f"
         title="myGeoID — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
@@ -2058,6 +2076,6 @@
   </script>
 
 <script src="/scripts/site.js"></script>
-<script src="/styles/nav.js?v=20260810-bc997f7" defer></script>
+<script src="/styles/nav.js?v=20260810-c74b16f" defer></script>
 </body>
 </html>
