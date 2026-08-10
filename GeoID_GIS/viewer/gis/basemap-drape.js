@@ -37,10 +37,11 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-bd2019e";
-import { isEarth } from "./bodies.js?v=20260810-bd2019e";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-8c8bd08";
+import { isEarth } from "./bodies.js?v=20260810-8c8bd08";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260810-8c8bd08";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260810-bd2019e";
+  from "./view-extent.js?v=20260810-8c8bd08";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -860,7 +861,7 @@ async function refineOnce({ onStatus } = {}) {
    * patch is invisible, never a dark rectangle over the map.
    */
   let live = null;
-  const showEarly = (done, total, canvas) => {
+  const showEarly = (done, total, canvas, level) => {
     if (!refineState || refineState.bbox !== bbox) return;
     if (!live) {
       const group = refineParent();
@@ -873,11 +874,35 @@ async function refineOnce({ onStatus } = {}) {
     }
     // A CanvasTexture re-uploads on demand; this is the whole progressive path.
     live.material.map.needsUpdate = true;
-    if (done % 10 === 0 || done === total) onStatus?.(`Zoom ${zoom}: ${done}/${total} tiles…`);
+    if (done % 8 === 0 || done === total) {
+      onStatus?.(`Sharpening: level ${level} — ${done}/${total} tiles…`);
+    }
   };
 
   try {
-    const result = await composite(bbox, source, { credit: false, onProgress: showEarly });
+    // Rings, coarsest first, into one canvas -- the streamer rather than a
+    // single-level composite. The coarsest ring is a tile or two and lands
+    // almost at once, so the ground is plausible immediately and sharpens,
+    // instead of arriving perfect and late.
+    const grid = tileGrid(bbox, zoom);
+    const canvas = document.createElement("canvas");
+    canvas.width = grid.width;
+    canvas.height = grid.height;
+    const streamed = await streamRings(canvas, bbox, source, {
+      targetZoom: zoom,
+      grid,
+      tileGridAt: tileGrid,
+      onPaint: showEarly,
+      // Retire: a newer view supersedes this pass. Requests already made are
+      // left to finish into the cache rather than aborted.
+      shouldContinue: () => Boolean(refineState) && refineState.bbox === bbox,
+    });
+    const result = {
+      canvas, zoom, source,
+      tiles: streamed.queued, drawn: streamed.painted,
+      metresPerPixel: metresPerPixel(bbox, zoom),
+      streamed,
+    };
     // Switched off, or the basemap changed, while these tiles were in flight.
     // `stopRefining` nulls the state, so reading it unguarded here crashed on
     // the one interaction most likely to happen during a slow fetch: giving up
@@ -904,7 +929,9 @@ async function refineOnce({ onStatus } = {}) {
     // detail on screen: the old one stays until the new one is complete.
     if (refineState.mesh !== live) disposeMesh(refineState.mesh);
     refineState.mesh = live;
-    onStatus?.(`Detail at zoom ${result.zoom} (${Math.round(result.metresPerPixel)} m/px).`);
+    const reused = streamed.fromCache ? `, ${streamed.fromCache} from cache` : "";
+    onStatus?.(`Detail at zoom ${result.zoom} (${Math.round(result.metresPerPixel)} m/px) `
+      + `over ${streamed.levels.length} levels${reused}.`);
     return { ...result, bbox };
   } catch (error) {
     disposeMesh(live);

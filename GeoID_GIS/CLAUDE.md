@@ -921,13 +921,35 @@ over the old and the old shows through the gaps until they close.
 A tile cache of our own is **not** needed: the browser's HTTP cache already
 returns a repeated 90-tile view in 11 ms against 1524 ms cold.
 
-**What this still is not.** One patch at one zoom over a base at 9.8 km/px, with
-nothing in between, replaced wholesale on each settle and fetched only at rest.
-Full sharpness takes ~3 s at zoom 16 (256 tiles, 6 at a time). A real streamer —
-`flight_sim/mars/viewer/STREAMING-DESIGN.md` — keeps rings at several zooms
-alive at once with one priority scheduler, substitutes a coarser ancestor while
-a finer tile is in flight, and fetches during motion. That is the gap, and it is
-a project rather than a tweak; do not describe the current thing as a streamer.
+**The streamer is ported, as architecture rather than mechanism.**
+`gis/tile-streamer.js` takes what the Mars fork arrived at
+(`flight_sim/mars/viewer/STREAMING-DESIGN.md`): rings painted coarsest-first
+into one canvas, a single scheduler over one in-flight budget, an LRU cache of
+*decoded* images with request coalescing, the coarse-under-fine paint guard,
+retire-don't-abort, and an ancestor fallback floor of target−4.
+
+Two of that doc's section 5 traps are honoured rather than rediscovered, and
+both are load-bearing:
+
+- **No per-tile mesh quadtree.** It "drowned the old fork". Tiles composite into
+  a canvas and the canvas is one texture on one mesh — the visual result of a
+  quadtree at a fraction of the cost.
+- **A shared fetch is never cancellable by one caller.** Two rings routinely
+  want the same tile, so retiring stops *scheduling* and aborts nothing; a
+  superseded pass leaves its work in the cache for the next one.
+
+Deliberately **not** ported: ship-anchored windows, speed-scaled spans, heading
+prefetch. An orbit camera has no heading and stops between moves.
+
+Measured on a 205-tile, zoom-15 target: first paint at level 12 in **92 ms**,
+level 13 at 141 ms, level 14 at 274 ms, the target at 1396 ms, all of it at
+2421 ms — a cascade where there used to be a cliff. Revisiting the same ground:
+**3 ms, 205 of 205 from cache, nothing requested.**
+
+Honest limits that remain, and the doc predicts them: full sharpness still takes
+seconds on a fresh region, because 15 tiles/s is the roof on this transport; and
+nothing is fetched during motion, which is a tile-policy choice rather than a
+technical one.
 
 **Sampling rays across the viewport asks for the horizon, not the view.**
 `visibleBounds` raycasts a grid through the screen, which is right from orbit
