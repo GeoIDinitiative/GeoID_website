@@ -35,6 +35,32 @@ Options: `python3 serve.py --help` (`--port`, `--projects`, `--no-sidecar`,
 | the sidecar | `GeoID_GIS/sidecar/geoid_sidecar.py` — runs GALES, scripts, and owns the project folder | Python 3 (stdlib) |
 | GALES | the native FEM solver | installed separately, on `PATH` as `gales` (with `mpirun`) |
 
+## Atlas — the assistant
+
+The **◆** button in the bottom-right corner of every page. Atlas knows this
+workspace and reads your open project, so with no setup at all it can:
+
+- find a tool — *"where do I import data?"*, *"open signal processing"*
+- say where the project stands — *"status"* — and what is missing
+- suggest the next step — *"what should I do next?"* — and explain what is
+  blocking one — *"why can't I get results?"*
+- check the live feeds around your study area — *"anything happening nearby?"*
+- keep watching them — *"watch this area"*, *"watch status"*, *"stop watching"*
+
+Every answer comes with the button that performs it.
+
+**Watching** runs in the sidecar when one is connected, so it continues with
+every tab closed and tells you what it found when you come back. The first pass
+only records what is already out there; after that you hear about new events at
+or above M4, and Severe/Extreme weather alerts, inside your study area.
+
+**Your own model (optional).** For open-ended questions, plug in a Claude,
+ChatGPT or Gemini subscription in the **Atlas** drawer at the top of the Research
+Hub. The key is held by your local sidecar at file mode `0600` — never by the web
+page, because a browser cannot keep a secret — and only a masked hint is ever
+shown. Without a key Atlas answers from the app and its project and says plainly
+when a question is beyond that.
+
 ## Running a simulation somewhere bigger
 
 A solve outgrows a laptop quickly, so **FEM ▸ Run ▸ "Where it runs"** lets you

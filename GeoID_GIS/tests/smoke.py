@@ -285,6 +285,25 @@ SWEEP_JS = r"""
 
   const d = w.document;
   const problems = [];
+
+  // Atlas is global furniture rather than a page, so nothing above would notice
+  // it disappearing. It has to be present, styled, and closed on arrival.
+  const launcher = d.getElementById('atlas-launcher');
+  if (!launcher) problems.push({ id: 'Atlas', reason: 'no launcher on the page' });
+  else if (w.getComputedStyle(launcher).position !== 'fixed') {
+    problems.push({ id: 'Atlas', reason: 'launcher is not fixed to the viewport' });
+  }
+  if (!d.querySelector('link[data-atlas-assistant]')) {
+    problems.push({ id: 'Atlas', reason: 'stylesheet not loaded' });
+  }
+  const atlasPanel = d.getElementById('atlas-panel');
+  if (atlasPanel && !atlasPanel.hidden) {
+    problems.push({ id: 'Atlas', reason: 'panel is open before it is asked for' });
+  }
+  if (!w.GeoIDAtlas || typeof w.GeoIDAtlas.notify !== 'function') {
+    problems.push({ id: 'Atlas', reason: 'the notify seam is missing' });
+  }
+
   for (const id of ids) {
     try {
       await R.setPage(id);
@@ -337,7 +356,7 @@ def run_smoke() -> int:
             for p in problems:
                 print(f"  ✗ {p['id']} — {p['reason']}")
             return 1
-        print(f"\nall {total} pages mounted cleanly.")
+        print(f"\nall {total} pages mounted cleanly, and Atlas is on the page.")
         return 0
     finally:
         if ws:
