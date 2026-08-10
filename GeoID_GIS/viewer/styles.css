@@ -2526,7 +2526,7 @@
     /* `hidden` is only a UA-level display:none, so any author rule that sets
        display outranks it -- and .row sets `display: grid`. Without this the
        coordinate row renders open however it was built. */
-    #gis-box-manual[hidden] { display: none; }
+    #gis-box-manual[hidden], #gis-box-height-row[hidden] { display: none; }
     #gis-box-manual {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
     }

@@ -867,6 +867,42 @@ earth-viewer importing it rather than keeping a second copy, which is the same
 mistake the zoom floor made. `geo-utils.test.mjs` pins subdivision invariance,
 the hemisphere, and the antimeridian taking the short way round.
 
+**Picking up the Draw tool opens the panel that completes it.** The box and the
+extraction sat two collapsed `<details>` deep — Extraction & Analysis, then
+Extract From Layers — so from the tool there was no sign either existed, and it
+was reported, fairly, as "no square preset option". The tool is on the rail and
+its settings are in the sidebar; something has to connect them. Square is the
+default shape and takes one number, because most study areas are one.
+
+**A measure marker's lift is an altitude, and an altitude parallaxes.** The lift
+was a flat `0.012` — **23.9 km above the ground**. Looking straight down that
+costs nothing, which is why it survived: from orbit the marker sits 0.2 px from
+the point it marks. Obliquely and close in it is ruinous — measured at 4 km
+altitude, clicks across the canvas put the marker **235, 248 and 334 px** from
+where they were made. It is now a fixed fraction of the distance to the surface,
+so the parallax is a constant small angle at every scale, with the old value as
+the ceiling so the far field is unchanged. The Mars mosaic branch already did
+exactly this. `measureSurfaceRadius` also read the terrain slider **raw** while
+the globe is drawn with `getEffectiveTerrainRelief()` — the tapered value — so
+points landed on terrain the viewer had already flattened.
+
+**Clicks are still not exact off-centre, and here is why.** After both fixes,
+measured marker-versus-click: **0 px dead centre at every altitude**, 4.5–7 px
+from orbit, but 24–45 px at 4 km and 94–177 px at 150 km near the edges of the
+view. The cause is `refineMeasureHitLocalPoint`: the raycast meets an
+**undisplaced sphere**, so its direction is not the direction of the terrain on
+screen, and the refinement then corrects only the *radius* — moving the point
+along its own radius can never recover a wrong direction. The signature is a
+radial spread from the middle of the view that grows with obliquity, which is
+what the numbers show.
+
+A ray-march against the DEM was written and **reverted**: it measured 0 px at
+4 km and 150 km on one run and 14–155 px on the next. The relief taper moves the
+ground as drape tiles arrive, so the surface being solved against changes
+underneath the solver, and an unconverged walk lands worse than where it began.
+Fixing this properly means raycasting geometry that is actually displaced —
+not iterating against a moving sampler. Do not retry the march alone.
+
 **Extraction spans every active layer, including GEE drapes.** A drape is a
 *picture* of data, so `gee.js` registered layers with no sampler and rainfall
 could not be extracted at all. The cache manifest records how the picture was

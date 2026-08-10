@@ -3,8 +3,8 @@ import {
   rowsToCsv,
   rowsToGeoJson,
   downloadText,
-} from "./extraction.js?v=20260810-92bec97";
-import { rectangleVertices } from "./draw-area.js?v=20260810-92bec97";
+} from "./extraction.js?v=20260810-28dc974";
+import { rectangleVertices } from "./draw-area.js?v=20260810-28dc974";
 
 let lastResult = null;
 
@@ -49,11 +49,14 @@ function drawBox() {
     }
   }
 
+  // A square is one number, which is what most study areas actually are.
+  const square = document.getElementById("gis-box-shape")?.value !== "rectangle";
+  const widthKm = Number(document.getElementById("gis-box-width")?.value);
   const box = rectangleVertices({
     lat: centre.lat,
     lon: centre.lon,
-    widthKm: Number(document.getElementById("gis-box-width")?.value),
-    heightKm: Number(document.getElementById("gis-box-height")?.value),
+    widthKm,
+    heightKm: square ? widthKm : Number(document.getElementById("gis-box-height")?.value),
   });
   if (!box) {
     say("Give the box a width and a height in kilometres.");
@@ -200,6 +203,42 @@ function exportAs(kind) {
 
 function init() {
   document.getElementById("gis-box-draw")?.addEventListener("click", drawBox);
+
+  const shape = document.getElementById("gis-box-shape");
+  const heightRow = document.getElementById("gis-box-height-row");
+  const widthLabel = document.getElementById("gis-box-width-label");
+  const syncShape = () => {
+    const square = shape?.value !== "rectangle";
+    if (heightRow) heightRow.hidden = square;
+    if (widthLabel) widthLabel.textContent = square ? "Side (km)" : "Width (km)";
+  };
+  shape?.addEventListener("change", syncShape);
+  syncShape();
+
+  /**
+   * Picking up the Draw tool opens the panel that completes it.
+   *
+   * The box and the extraction sat two collapsed <details> deep — Extraction &
+   * Analysis, then Extract From Layers — so from the tool there was no sign
+   * either existed, which is exactly how it was reported: "no square preset
+   * option". The tool is on the rail and its settings are in the sidebar, so
+   * something has to connect them.
+   *
+   * Deferred a tick because the viewer toggles the mode on the same click, and
+   * only opened when the tool ends up ON — otherwise putting it down would
+   * open the panel too.
+   */
+  document.getElementById("tool-rail-area")?.addEventListener("click", () => {
+    setTimeout(() => {
+      if (!document.getElementById("tool-rail-area")?.classList.contains("is-active")) return;
+      for (const id of ["gis-group-analysis", "gis-analysis-section"]) {
+        const node = document.getElementById(id);
+        if (node) { node.hidden = false; node.open = true; }
+      }
+      document.getElementById("gis-analysis-section")
+        ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 80);
+  });
   const centreMode = document.getElementById("gis-box-centre");
   const manualRow = document.getElementById("gis-box-manual");
   const syncCentreMode = () => {

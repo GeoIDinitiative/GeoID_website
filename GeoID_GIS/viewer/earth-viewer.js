@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260810-92bec97";
+  from "./gis/geo-utils.js?v=20260810-28dc974";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -15666,7 +15666,7 @@ uniform float uViewportWidth;`,
         });
         measureCopy.textContent = "Loaded study area. Use Draw Polygon to start a new area.";
         measurePoints = vertices.map((vertex) => {
-          const localPoint = sampleMeasureSurfacePoint(vertex.lat, vertex.lon, 0.012, context);
+          const localPoint = sampleMeasureSurfacePoint(vertex.lat, vertex.lon, getMeasureDisplayLift(context), context);
           return {
             lat: vertex.lat,
             lon: vertex.lon,
@@ -16394,8 +16394,24 @@ uniform float uViewportWidth;`,
             latLon,
           };
         }
-        // Reproject onto the DEM-sampled surface so close-zoom measurements land on
-        // the rendered terrain rather than the coarse raycast sphere approximation.
+        /**
+         * Reproject onto the DEM-sampled surface, keeping the coarse hit's
+         * direction and correcting only its radius.
+         *
+         * This is an approximation and a known source of error: the raycast
+         * meets an *undisplaced* sphere, so its direction is not quite the
+         * direction of the terrain on screen, and moving the point along its own
+         * radius cannot recover that. It shows as a radial spread from the
+         * middle of the view that grows with obliquity — measured at 4 km
+         * altitude, ~20 px near the edges of the canvas and 0 px dead centre.
+         *
+         * A ray-march against the DEM was tried and reverted: it measured 0 px
+         * at 4 km and 150 km on one run and 14–155 px on the next, because the
+         * relief taper moves the ground while drape tiles arrive, so the surface
+         * being solved against changes underneath the solver. Fixing it properly
+         * means raycasting geometry that is actually displaced, not iterating
+         * against a moving sampler.
+         */
         const refinedPoint = sampleMeasureSurfacePoint(latLon.lat, latLon.lon, 0, context);
         return {
           localPoint: refinedPoint,
@@ -16601,16 +16617,25 @@ uniform float uViewportWidth;`,
         }
       }
 
-      function measureSurfaceRadius(latDegrees, lonDegrees, lift = 0.012, context = getActiveMeasureContext()) {
+      function measureSurfaceRadius(latDegrees, lonDegrees, lift = getMeasureDisplayLift(), context = getActiveMeasureContext()) {
         if (context.kind === "moon") {
           return context.radiusWorld + lift;
         }
-        const relief = elevationMap ? Number(terrainScale.value) : 0;
+        /**
+         * The relief the globe is DRAWN with, not the slider's raw value.
+         *
+         * `getEffectiveTerrainRelief` tapers the exaggeration to nothing below
+         * ~300 km when close-range imagery is on the globe. Reading the slider
+         * instead placed every measure point on terrain that is no longer
+         * there, so a click landed on the ground and its marker sat on a
+         * mountain the viewer had already flattened.
+         */
+        const relief = elevationMap ? getEffectiveTerrainRelief() : 0;
         const displacement = elevationMap ? sampleElevationNormalized(elevationSampler, latDegrees, lonDegrees) * relief : 0;
         return 3.2 + displacement + lift;
       }
 
-      function sampleMeasureSurfacePoint(latDegrees, lonDegrees, lift = 0.012, context = getActiveMeasureContext()) {
+      function sampleMeasureSurfacePoint(latDegrees, lonDegrees, lift = getMeasureDisplayLift(), context = getActiveMeasureContext()) {
         const point = context.kind === "moon"
           ? moonLatLonToVector3(latDegrees, lonDegrees, measureSurfaceRadius(latDegrees, lonDegrees, lift, context))
           : latLonToVector3(latDegrees, lonDegrees, measureSurfaceRadius(latDegrees, lonDegrees, lift, context));
@@ -16624,10 +16649,33 @@ uniform float uViewportWidth;`,
         if (isMeasureCtxMosaicBasemap()) {
           return Math.max(0.00012, ctxDetailStreamer.surfaceLiftBase * 0.18);
         }
-        return 0.012;
+        /**
+         * Scaled to the viewing distance, because a lift is an altitude and an
+         * altitude parallaxes.
+         *
+         * A flat 0.012 is **23.9 km above the ground**. Looking straight down
+         * that costs nothing, which is why it survived: measured from orbit the
+         * marker sits 0.2 px from the point it marks. Obliquely and close in it
+         * is ruinous — at 4 km altitude, clicks across the canvas put the marker
+         * 235, 248 and 334 px from where they were made. Keeping the lift a
+         * fixed fraction of the distance to the surface holds the parallax to a
+         * constant, small angle at every scale; the ceiling keeps the far view
+         * exactly as it was, and the floor keeps the marker off the ground it
+         * is drawn on. The Mars mosaic branch above already did this.
+         */
+        const zc = getActiveZoomContext();
+        const surfaceDistance = zc
+          ? Math.max(1e-6, camera.position.distanceTo(zc.centerWorld) - zc.radiusWorld)
+          : 0.5;
+        // The floor is only there to keep the lift off exactly zero. It was
+        // 0.00003 — 60 m — which is invisible from orbit and still left the
+        // marker 19–22 px from an off-centre click at 4 km altitude, because
+        // 60 m of altitude viewed obliquely is ~24 m of ground. The
+        // proportional term governs at every scale that matters.
+        return clamp(surfaceDistance * 0.0015, 5e-7, 0.012);
       }
 
-      function projectMeasurePoint(pointLike, lift = 0.012) {
+      function projectMeasurePoint(pointLike, lift = getMeasureDisplayLift()) {
         const context = getMeasurePointContext(pointLike);
         const localPoint = getMeasurePointLocal(pointLike);
         if (context.kind === "moon") {
