@@ -1417,3 +1417,22 @@ body.is-embedded #ui.is-collapsed ~ #music-btn {
     left: 1rem;
   }
 }
+
+/* ── Model mode owns the screen ──────────────────────────────────────────────
+ *
+ * `mode-manager.js` puts `studio-open` on the body for every world, but only
+ * the Earth stylesheet acted on it — so on the planet pages the GIS sidebar,
+ * the tool rail and the top-right cluster stayed on screen behind the Meshing
+ * Studio, showing through its panels. Same shape of gap as the embedded chrome
+ * above: shared behaviour, per-page stylesheets, and only Earth's was taught.
+ *
+ * The studio is a full-screen workspace with its own docks and its own
+ * readouts; the globe's furniture is not merely redundant there, it is a
+ * different application's controls sitting under this one's.
+ */
+body.studio-open #ui,
+body.studio-open #toolbar,
+body.studio-open #tool-rail,
+body.studio-open #top-right-controls,
+body.studio-open #music-btn,
+body.studio-open .hub-link { display: none !important; }

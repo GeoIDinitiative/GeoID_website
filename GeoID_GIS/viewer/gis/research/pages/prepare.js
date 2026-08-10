@@ -1,14 +1,14 @@
-import { registerPage } from "../stages.js?v=20260810-c74b16f";
-import * as store from "../project-store.js?v=20260810-c74b16f";
-import { column } from "../table.js?v=20260810-c74b16f";
-import { linePlot } from "../plot.js?v=20260810-c74b16f";
-import { detrend, bandpass, statistics } from "../dsp.js?v=20260810-c74b16f";
+import { registerPage } from "../stages.js?v=20260810-6e9b25e";
+import * as store from "../project-store.js?v=20260810-6e9b25e";
+import { column } from "../table.js?v=20260810-6e9b25e";
+import { linePlot } from "../plot.js?v=20260810-6e9b25e";
+import { detrend, bandpass, statistics } from "../dsp.js?v=20260810-6e9b25e";
 import {
   el, card, field, input, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, loadTable, inferSampling, saveTable,
   pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
   tabbedPanel,
-} from "./common.js?v=20260810-c74b16f";
+} from "./common.js?v=20260810-6e9b25e";
 
 /**
  * The Preprocessing stage.
