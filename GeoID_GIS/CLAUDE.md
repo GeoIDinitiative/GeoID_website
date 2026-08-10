@@ -908,6 +908,42 @@ from `initWhenReady`, because `buildPanel` runs its body once and the viewer
 boots async — retrying only the panel gave the options a second chance and the
 watcher none, which left choosing a service showing bare ground.
 
+**The terrain slider is the zoom wall, not the floor logic.** It exaggerates
+relief roughly tenfold, so at its 0.11 default the ground stands about 219 km
+tall in render units — and a camera that may not enter terrain is therefore held
+~126 km up however clever the floor is. That is the 50 km scale bar. Measured:
+same flight with the slider at zero reaches 1.8 km and the bar reads 500 m, a
+hundredfold difference and nothing to do with imagery. `getEffectiveTerrainRelief`
+now smoothsteps the exaggeration to nothing below ~300 km, but **only when
+close-range imagery is on the globe** — otherwise there is nothing down there to
+fly to and the default globe keeps its relief. The CTX mosaic already did the
+blunt version by returning 0 outright. It is stable rather than a feedback loop
+because the taper keys on altitude above the BASE SPHERE, which does not depend
+on relief; descending shrinks the terrain, which lowers the floor, which allows
+more descent, converging on the margin. Consequence to remember: a study-area
+drape is a static mesh built at one relief, so it does not shrink with the
+terrain — the refine patch is rebuilt each settle and does.
+
+**Clamp to the ground under the camera, not the highest ground anywhere.**
+`groundRadiusUnderCamera()` samples the displaced surface beneath the camera;
+the floor was previously `3.2 + globalMaxRelief + margin`, which assumed Everest
+everywhere. Three things had to move together or it clipped instead of
+descending: the floor, the near plane (held at 10 km off the global maximum),
+and the drape's own lift — 10 km down to 1.2 km, because **a 10 km lift IS a
+10 km floor**; the camera cannot get under its own basemap. Safe to shrink
+because the drape material does not depth test.
+
+**Esri World Imagery is free of charge and not licensed for this.** Its ArcGIS
+item record puts it under the **Esri Master License Agreement** and states it is
+"not intended for offline tile export" — so no charge and no key on
+`server.arcgisonline.com` today, but that is not permission for unrestricted
+embedding, and compositing tiles into a canvas that gets saved into a project is
+closer to export than to viewing. It stays on the list because looking at it is
+fine and it is the best imagery there; the default is OpenStreetMap (ODbL,
+unambiguous) and every source carries its `licence` next to the picker. Esri's
+supported route is ArcGIS Location Platform with an API key and a metered free
+tier. OSM's own servers remain best-effort with no bulk pre-fetching.
+
 **`controls.enableZoom` is false — OrbitControls does not zoom this globe.**
 A custom wheel handler does (`handleSurfaceWheelZoom`), which makes
 `controls.minDistance` decorative: setting it changes a number nobody enforces.

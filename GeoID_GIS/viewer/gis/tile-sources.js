@@ -31,6 +31,10 @@ export const TILE_SOURCES = {
     credit: "© OpenStreetMap contributors",
     maxZoom: 19,
     kind: "map",
+    licence: "ODbL. Free to use with attribution. The OSMF tile servers are "
+      + "best-effort and forbid bulk pre-fetching; a real deployment self-hosts "
+      + "or buys tiles.",
+    freeToStream: true,
   },
   "CartoDB Dark": {
     url: "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
@@ -49,6 +53,17 @@ export const TILE_SOURCES = {
     credit: "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
     maxZoom: 19,
     kind: "imagery",
+    // Checked against the item record, not assumed: licenseInfo says "Esri
+    // Master License Agreement" and states the layer is "not intended for
+    // offline tile export". No charge and no key on this endpoint today, but
+    // that is not the same as licensed for arbitrary embedding — and
+    // compositing tiles into a canvas we then save is closer to export than to
+    // viewing. Fine to look at; check with Esri before shipping it.
+    licence: "Esri Master License Agreement. No charge on this endpoint, but "
+      + "not licensed for unrestricted or commercial embedding, and explicitly "
+      + "not for offline tile export. Esri's supported route is ArcGIS Location "
+      + "Platform with an API key and a metered free tier.",
+    freeToStream: false,
   },
   "ESRI Topo": {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
@@ -69,7 +84,15 @@ export const ATTRIBUTION = Object.fromEntries(
   Object.entries(TILE_SOURCES).map(([name, s]) => [name, s.credit]),
 );
 
-export const DEFAULT_SOURCE = "ESRI Satellite";
+/**
+ * OpenStreetMap, not the satellite imagery.
+ *
+ * Esri's World Imagery is the better-looking default and the wrong one: its
+ * item record puts it under the Esri Master License Agreement and rules out
+ * offline tile export, so it should be a deliberate choice rather than what
+ * everyone gets by opening the page. OSM is ODbL and unambiguous.
+ */
+export const DEFAULT_SOURCE = "OpenStreetMap";
 
 /** `{z}/{x}/{y}` filled in. Esri orders its path `{z}/{y}/{x}`; the template says so. */
 export function tileUrl(name, z, x, y) {

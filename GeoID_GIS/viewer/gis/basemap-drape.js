@@ -37,10 +37,10 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-3db9182";
-import { isEarth } from "./bodies.js?v=20260810-3db9182";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-2b39f6b";
+import { isEarth } from "./bodies.js?v=20260810-2b39f6b";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260810-3db9182";
+  from "./view-extent.js?v=20260810-2b39f6b";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -594,6 +594,7 @@ function buildPanel() {
       <button id="basemap-drape-run" class="tool-button" type="button">Add to globe</button>
       <div id="basemap-drape-status" class="gis-metric">Whole globe becomes the basemap; a study area is added as a layer.</div>
       <div id="basemap-drape-credit" class="gis-metric" hidden></div>
+      <div id="basemap-drape-licence" class="gis-metric" hidden></div>
     </div>`;
   host.appendChild(box);
 
@@ -611,6 +612,7 @@ function buildPanel() {
   const credit = box.querySelector("#basemap-drape-credit");
   const run = box.querySelector("#basemap-drape-run");
   const refine = box.querySelector("#basemap-drape-refine");
+  const licence = box.querySelector("#basemap-drape-licence");
 
   const showResolution = (out) => (out.metresPerPixel >= 1000
     ? `${Math.round(out.metresPerPixel / 1000)} km/px`
@@ -627,6 +629,21 @@ function buildPanel() {
     credit.textContent = text || "";
     credit.hidden = !text;
   };
+
+  /**
+   * The licence, shown where the choice is made.
+   *
+   * Esri's World Imagery is free of charge on that endpoint and NOT licensed
+   * for unrestricted embedding — a distinction invisible at the point of
+   * clicking it, which is exactly where it matters.
+   */
+  const showLicence = () => {
+    const src = TILE_SOURCES[select.value];
+    licence.textContent = src?.licence || "";
+    licence.hidden = !src?.licence;
+    licence.classList.toggle("is-warn", src && src.freeToStream === false);
+  };
+  select.addEventListener("change", showLicence);
 
   run.addEventListener("click", async () => {
     run.disabled = true;
@@ -684,6 +701,8 @@ function buildPanel() {
       stopRefining();
     }
   });
+
+  showLicence();
 
   refine.addEventListener("change", () => {
     if (refine.checked && tileBasemapSource()) {
