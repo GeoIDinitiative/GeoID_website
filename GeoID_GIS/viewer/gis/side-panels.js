@@ -21,20 +21,28 @@
  * One source, every page.
  */
 
+/**
+ * One word each, because the rail is a column of icons with a caption under
+ * them: "Pre-proc" wrapped to two lines and made its button taller than the
+ * measure tools beside it, so the rail read as two kinds of thing. The longer
+ * name survives as the tooltip, where there is room for it.
+ */
 const PANELS = [
   {
     id: "preprocess",
     group: "gis-group-preprocess",
-    label: "Pre-proc",
-    title: "Pre-processing Toolbox",
+    label: "Process",
+    title: "Process",
+    hint: "Pre-processing toolbox",
     // A funnel: raw in, tidy out.
     icon: '<path d="M3.5 4.5h17l-6.5 7.6v6.4l-4 2.4v-8.8z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
   },
   {
     id: "analysis",
     group: "gis-group-analysis",
-    label: "Extract",
-    title: "Extraction & Analysis",
+    label: "Analysis",
+    title: "Analysis",
+    hint: "Extraction and analysis",
     icon: '<path d="M2.6 12.6 5.4 8l2.3 2.6L10.2 5l3.2 5.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" transform="translate(3 3) scale(1.1)"/>',
   },
 ];
@@ -78,16 +86,17 @@ const STYLE = `
   stroke: currentColor;
 }
 
-/* While a workbench is open the rest of the rail shrinks to its icons. The
-   open one is untouched, so the rail still reads as a place you are. */
-#tool-rail.has-open-panel .tool-rail-btn:not(.is-open) {
+/* While a workbench is open the whole rail shrinks to its icons -- the open one
+   included. Its solid fill already says which it is, so keeping a label on it
+   only made the column ragged. */
+#tool-rail.has-open-panel .tool-rail-btn {
   width: 2.3rem;
   min-height: 2.3rem;
   padding: 0.3rem 0.18rem;
   transition: width 0.15s ease, min-height 0.15s ease;
 }
-#tool-rail.has-open-panel .tool-rail-btn:not(.is-open) span { display: none; }
-#tool-rail.has-open-panel .tool-rail-btn:not(.is-open) svg { width: 1rem; height: 1rem; }
+#tool-rail.has-open-panel .tool-rail-btn span { display: none; }
+#tool-rail.has-open-panel .tool-rail-btn svg { width: 1rem; height: 1rem; }
 
 /* The close mark, matching the Atlas panel's .atlas-close: no border, no
    fill, quiet until hovered. It is a dismissal, not an action. */
@@ -311,8 +320,8 @@ function buildRailItem(spec) {
   button.type = "button";
   button.className = "tool-rail-btn tool-rail-panel-btn";
   button.id = `tool-rail-${spec.id}`;
-  button.title = spec.title;
-  button.setAttribute("aria-label", spec.title);
+  button.title = spec.hint || spec.title;
+  button.setAttribute("aria-label", spec.hint || spec.title);
   button.setAttribute("aria-expanded", "false");
   button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${spec.icon}</svg>`
     + `<span>${spec.label}</span>`;
