@@ -1452,3 +1452,46 @@ body[data-view-mode="model"] #interior-conditions,
 body[data-view-mode="model"] #gmt-clock {
   display: none !important;
 }
+
+/* ── The project button ──────────────────────────────────────────────────────
+ *
+ * `shell.js` injects #project-open-modal into every planet page's header — a
+ * study is filed under its world and has to be reachable from that world — but
+ * the styling for it lived only in the Earth page's stylesheet. The button was
+ * therefore present and unstyled: measured at 16x21 and `display: block` on the
+ * Moon against 29x29 and `display: flex` on Earth, which reads as a broken
+ * icon rather than as a missing rule.
+ *
+ * Mirrors `viewer/styles.css`; Earth keeps its own copy, as with the rest of
+ * the shared chrome here.
+ */
+.eyebrow-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid rgba(82, 228, 232, 0.35);
+  border-radius: 0.45rem;
+  background: rgba(8, 12, 20, 0.6);
+  color: var(--nav-accent);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.eyebrow-project:hover {
+  border-color: var(--nav-accent);
+  background: rgba(82, 228, 232, 0.12);
+}
+.eyebrow-project svg { width: 0.95rem; height: 0.95rem; flex: none; }
+.eyebrow-project span {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Icon-only in the header row: just enough room for the glyph, the rest of the
+   row to the mode switch. */
+.brand-toprow .eyebrow-project { flex: none; padding: 0.32rem; gap: 0; }
+.brand-toprow .eyebrow-project svg { width: 1.05rem; height: 1.05rem; }
