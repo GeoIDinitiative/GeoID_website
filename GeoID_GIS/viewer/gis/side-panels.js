@@ -138,8 +138,8 @@ const STYLE = `
   min-width: 0;
   margin: 0;
   color: var(--text);
-  font-size: 0.71rem;
-  letter-spacing: 0.12em;
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   font-family: "Exo 2", "Segoe UI", sans-serif;
   font-weight: 600;
@@ -159,8 +159,8 @@ const STYLE = `
   color: var(--text);
   font-family: "Exo 2", "Segoe UI", sans-serif;
   font-weight: 600;
-  font-size: 0.71rem;
-  letter-spacing: 0.12em;
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
 }
 
 /* Scrolls exactly as #ui-scroll-body does. */
