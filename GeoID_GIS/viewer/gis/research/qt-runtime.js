@@ -1,13 +1,13 @@
-import * as store from "./project-store.js?v=20260810-ebad563";
-import * as stats from "./stats.js?v=20260810-ebad563";
-import * as dsp from "./dsp.js?v=20260810-ebad563";
-import { parseTable, column } from "./table.js?v=20260810-ebad563";
-import { linePlot, heatmap } from "./plot.js?v=20260810-ebad563";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260810-ebad563";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260810-ebad563";
-import * as sidecar from "./sidecar.js?v=20260810-ebad563";
-import * as bridge from "./bridge.js?v=20260810-ebad563";
-import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260810-ebad563";
+import * as store from "./project-store.js?v=20260810-147a351";
+import * as stats from "./stats.js?v=20260810-147a351";
+import * as dsp from "./dsp.js?v=20260810-147a351";
+import { parseTable, column } from "./table.js?v=20260810-147a351";
+import { linePlot, heatmap } from "./plot.js?v=20260810-147a351";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260810-147a351";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260810-147a351";
+import * as sidecar from "./sidecar.js?v=20260810-147a351";
+import * as bridge from "./bridge.js?v=20260810-147a351";
+import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260810-147a351";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -62,6 +62,31 @@ function smallButton(label, onClick) {
   node.type = "button";
   node.addEventListener("click", onClick);
   return node;
+}
+
+/**
+ * Pick one of a list, inline rather than in a file dialog.
+ *
+ * Module-scope because two pages need it: the CSV Plotter chooses a table and
+ * the Figure Composer chooses a figure. It lived inside csvPlotter and was
+ * therefore invisible to the second — a scope error `node --check` cannot see,
+ * because syntax is fine and only the call at runtime fails.
+ */
+function chooseFrom(anchor, options) {
+  return new Promise((resolve) => {
+    const menu = el("div", "qt-inline-menu");
+    options.forEach((option) => {
+      const item = el("button", "qt-inline-item", option);
+      item.type = "button";
+      item.addEventListener("click", () => { menu.remove(); resolve(option); });
+      menu.appendChild(item);
+    });
+    const cancel = el("button", "qt-inline-item is-cancel", "Cancel");
+    cancel.type = "button";
+    cancel.addEventListener("click", () => { menu.remove(); resolve(null); });
+    menu.appendChild(cancel);
+    anchor.appendChild(menu);
+  });
 }
 
 /** Read a table out of the project, or off disk if it was picked locally. */
@@ -171,24 +196,6 @@ function csvPlotter(host, api) {
     else container.appendChild(card);
     rows.push(row);
     return row;
-  }
-
-  /** Pick one of the project's tables, inline rather than in a dialog. */
-  function chooseFrom(anchor, options) {
-    return new Promise((resolve) => {
-      const menu = el("div", "qt-inline-menu");
-      options.forEach((option) => {
-        const item = el("button", "qt-inline-item", option);
-        item.type = "button";
-        item.addEventListener("click", () => { menu.remove(); resolve(option); });
-        menu.appendChild(item);
-      });
-      const cancel = el("button", "qt-inline-item is-cancel", "Cancel");
-      cancel.type = "button";
-      cancel.addEventListener("click", () => { menu.remove(); resolve(null); });
-      menu.appendChild(cancel);
-      anchor.appendChild(menu);
-    });
   }
 
   /**
@@ -1622,8 +1629,201 @@ function ingestConnectors(host, api) {
   host.insertBefore(card, host.firstChild);
 }
 
+/* ── Figure Composer ──────────────────────────────────────────────────────
+ *
+ * The publish stage's headline page, and it did nothing: the tree drew Add
+ * Figure, Compose & Preview and Export PNG, none of them wired, so all three
+ * were live-looking buttons that fell through to a generic handler or silence.
+ * Walking the workflow as a user is what found it — every earlier check only
+ * asked whether the page *mounted*.
+ *
+ * What it does now is what the Qt page does: gather figures the project already
+ * holds, lay them out in a grid at a chosen column count and DPI with a title
+ * and caption, and export the composite back into the project as a figure in
+ * its own right. Everything is drawn on one canvas, so the export is the
+ * preview rather than a second rendering that could disagree with it.
+ */
+function figureComposer(host, api) {
+  const say = logger(api);
+  const val = (name) => api.controls.get(name)?.value;
+  const picked = [];                     // {name, path, image}
+
+  const panel = el("section", "research-card");
+  panel.appendChild(el("h2", "research-card-title", "Figures in this composition"));
+  const list = el("div", "research-list");
+  const preview = el("div", "research-figure");
+  panel.append(list, preview);
+  // Into the splitter itself — the page's flexible content area.
+  //
+  // Two wrong homes were tried first, and each looked fine until measured.
+  // Appended to the page it pushed past the fixed height and scrolled the
+  // toolbar — the five buttons this page exists for — out of view. Dropped into
+  // the splitter's `.qt-container` it landed in that pane's 220px column and
+  // squeezed the preview to a thumbnail. The splitter is the box that absorbs
+  // leftover space, so it is the one that can hold a figure.
+  const slot = host.querySelector(".qt-splitter") || host;
+  panel.style.flex = "1 1 auto";
+  panel.style.minWidth = "0";
+  slot.appendChild(panel);
+
+  function draw() {
+    list.textContent = "";
+    if (!picked.length) {
+      list.appendChild(el("p", "research-note",
+        "Nothing added yet. “Add Figure” lists the PNGs in this project's "
+        + "figures/ folder — anything a plot page has saved."));
+      return;
+    }
+    picked.forEach((item, index) => {
+      const row = el("div", "research-list-row");
+      row.appendChild(el("span", "research-list-name", `${index + 1}. ${item.name}`));
+      row.appendChild(el("span", "research-list-tag",
+        `${item.image.naturalWidth}×${item.image.naturalHeight}`));
+      list.appendChild(row);
+    });
+  }
+  draw();
+
+  /** The project's saved figures, offered inline rather than in a file dialog. */
+  async function projectFigures() {
+    try {
+      return (await store.listProjectDir("figures"))
+        .filter((e) => e.kind === "file" && /\.(png|jpe?g)$/i.test(e.name))
+        .map((e) => e.name);
+    } catch (error) { return []; }
+  }
+
+  async function loadFigure(name) {
+    const blob = await store.readProjectFileBytes(`figures/${name}`);
+    const url = URL.createObjectURL(blob instanceof Blob ? blob : new Blob([blob]));
+    const image = new Image();
+    await new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error(`${name} is not a readable image`));
+      image.src = url;
+    });
+    return image;
+  }
+
+  bind(host, "Add Figure", async () => {
+    if (!store.getActive()) { say("Open a project first."); return; }
+    const names = await projectFigures();
+    if (!names.length) {
+      say("No figures in this project yet — save one from a plot page first "
+        + "(CSV Plotter, Signal Processing, Post Processing).");
+      return;
+    }
+    const choice = await chooseFrom(panel, names);
+    if (!choice) return;
+    try {
+      picked.push({ name: choice, path: `figures/${choice}`, image: await loadFigure(choice) });
+      draw();
+      say(`${choice} added — ${picked.length} figure(s) in the composition.`);
+    } catch (error) { say(error.message, true); }
+  });
+
+  bind(host, "Remove Selected", () => {
+    if (!picked.length) { say("Nothing to remove."); return; }
+    const gone = picked.pop();
+    draw();
+    say(`Removed ${gone.name}.`);
+  });
+
+  bind(host, "Clear All", () => {
+    picked.length = 0;
+    preview.textContent = "";
+    draw();
+    say("Composition cleared.");
+  });
+
+  /** Lay the figures out in a grid and return the canvas. */
+  function compose() {
+    const cols = Math.max(1, Number(val("_cols_spin")) || 2);
+    // DPI scales the whole canvas, which is what makes an export publication
+    // sized rather than screen sized.
+    const scale = Math.max(1, (Number(val("_dpi_spin")) || 150) / 96);
+    const title = (val("_title_edit") || "").trim();
+    const caption = (val("_caption_edit") || "").trim();
+    const rows = Math.ceil(picked.length / cols);
+    const cellW = Math.max(...picked.map((p) => p.image.naturalWidth));
+    const cellH = Math.max(...picked.map((p) => p.image.naturalHeight));
+    const pad = 16;
+    const titleH = title ? 34 : 0;
+    const capH = caption ? 30 + 16 * Math.ceil(caption.length / 90) : 0;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round((cols * cellW + pad * (cols + 1)) * scale);
+    canvas.height = Math.round((rows * cellH + pad * (rows + 1) + titleH + capH) * scale);
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+    const w = canvas.width / scale;
+    ctx.fillStyle = "#0d0221";
+    ctx.fillRect(0, 0, w, canvas.height / scale);
+    if (title) {
+      ctx.fillStyle = "#fdf7ff";
+      ctx.font = "600 20px 'Exo 2', system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(title, w / 2, 25);
+    }
+    picked.forEach((item, i) => {
+      const cx = pad + (i % cols) * (cellW + pad);
+      const cy = titleH + pad + Math.floor(i / cols) * (cellH + pad);
+      // Centred in its cell, never stretched: a figure with a different aspect
+      // must not be distorted to fill a grid.
+      ctx.drawImage(item.image,
+        cx + (cellW - item.image.naturalWidth) / 2,
+        cy + (cellH - item.image.naturalHeight) / 2);
+    });
+    if (caption) {
+      ctx.fillStyle = "rgba(214,194,255,0.85)";
+      ctx.font = "13px 'Exo 2', system-ui, sans-serif";
+      ctx.textAlign = "left";
+      const y0 = titleH + pad + rows * (cellH + pad);
+      // Wrapped by measurement rather than a character count, so a long caption
+      // does not run off the canvas.
+      const words = caption.split(/\s+/);
+      let line = "";
+      let y = y0 + 8;
+      words.forEach((word) => {
+        const next = line ? `${line} ${word}` : word;
+        if (ctx.measureText(next).width > w - 2 * pad) {
+          ctx.fillText(line, pad, y);
+          y += 16;
+          line = word;
+        } else line = next;
+      });
+      if (line) ctx.fillText(line, pad, y);
+    }
+    return canvas;
+  }
+
+  bind(host, "Compose & Preview", () => {
+    if (!picked.length) { say("Add at least one figure first.", true); return; }
+    try {
+      const canvas = compose();
+      preview.textContent = "";
+      canvas.style.maxWidth = "100%";
+      canvas.style.height = "auto";
+      preview.appendChild(canvas);
+      say(`Composed ${picked.length} figure(s) at ${canvas.width}×${canvas.height}.`);
+    } catch (error) { say(error.message, true); }
+  });
+
+  bind(host, "Export PNG", async () => {
+    const canvas = preview.querySelector("canvas");
+    if (!canvas) { say("Press Compose & Preview first.", true); return; }
+    try {
+      const name = `composition-${new Date().toISOString().slice(0, 19)
+        .replace(/[:T]/g, "-")}.png`;
+      const path = await saveFigure(canvas, name, "Figure Composer");
+      say(`Exported to ${path}.`);
+    } catch (error) { say(error.message, true); }
+  });
+}
+
 export const RUNTIME = {
   "CSV Plotter": csvPlotter,
+  "Figure Composer": figureComposer,
   "Map": mapComposer,
   "Live Monitor": liveMonitor,
   "Pipeline Editor": pipelineEditor,
