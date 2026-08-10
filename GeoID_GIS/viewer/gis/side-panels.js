@@ -209,13 +209,36 @@ const STYLE = `
   border-left-color: rgb(var(--nav-accent-rgb));
   box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.18);
 }
+/* !important, which is not decoration here: viewer-skin.css:127 paints every
+   heading "color: var(--skin-ink) !important" with a glow behind it. That is
+   right for pale ink on a dark panel and wrong on a filled one -- it left the
+   title white-on-pink and haloed. An !important at higher specificity is the
+   only thing that reaches it, and the glow goes with it. */
 .control-section:not(.toolbox-group)[open] > .section-toggle .section-title,
+.control-section:not(.toolbox-group)[open] > .section-toggle .section-heading,
 .control-section:not(.toolbox-group)[open] > .section-toggle .section-icon,
 .control-section:not(.toolbox-group)[open] > .section-toggle .section-sub,
 .control-section:not(.toolbox-group)[open] > .section-toggle::after {
-  color: var(--skin-chrome-ink, #2b0030);
+  color: var(--skin-chrome-ink, #2b0030) !important;
+  text-shadow: none !important;
   filter: none;
 }
+/* Some heads carry a control -- Flight Simulator and Tour Mode an Enter
+   button, Locations a master checkbox -- and those were drawn to sit on a dark
+   panel: an accent border, an accent glow, pale ink. Every one of those is the
+   fill's own colour once the head is filled, so the button read as pale text
+   floating on pink with no edge at all. On the fill they invert. */
+.control-section:not(.toolbox-group)[open] > .section-toggle .section-toggle-controls button {
+  color: var(--skin-chrome-ink, #2b0030) !important;
+  background: rgba(255, 255, 255, 0.24) !important;
+  border-color: rgba(0, 0, 0, 0.42) !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+.control-section:not(.toolbox-group)[open] > .section-toggle .section-toggle-controls input {
+  accent-color: var(--skin-chrome-ink, #2b0030);
+}
+
 /* Hover still has to register on one that is already open, so it brightens
    rather than repainting -- the fill is the state and must not blink off. */
 .control-section:not(.toolbox-group)[open]:hover > .section-toggle {
