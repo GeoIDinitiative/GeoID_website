@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260810-50e6179-neptune">
+  <link rel="stylesheet" href="styles.css?v=20260810-d23a7be-neptune">
   <style>html,body{background:#000;margin:0}/* GeoID-force-landscape: in portrait, hide the dismiss button and
          the is-dismissed escape so the user must rotate the device. */
       @media (orientation: portrait) and (pointer: coarse) {
@@ -20,10 +20,10 @@
       }
     </style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260810-50e6179" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260810-50e6179" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260810-d23a7be" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260810-d23a7be" defer></script>
   <!-- The GIS layer: shared shell markup, styling and modules. -->
-  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260810-50e6179">
+  <link rel="stylesheet" href="/GeoID_GIS/viewer/gis/shell.css?v=20260810-d23a7be">
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -483,7 +483,7 @@
       </div>
     </div>
     <div class="tool-rail-item" data-measure-item="area">
-      <button class="tool-rail-btn" id="tool-rail-area" type="button" data-measure-mode="area" aria-label="Activate area tool" title="Area">
+      <button class="tool-rail-btn" id="tool-rail-area" type="button" data-measure-mode="area" aria-label="Activate draw tool" title="Draw an area: click out a polygon, or set a box in Extract From Layers">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M6 17.5 8 6.2l9 2.4-2.2 9.2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
           <circle cx="6" cy="17.5" r="1.1" fill="currentColor"/>
@@ -491,7 +491,7 @@
           <circle cx="17" cy="8.6" r="1.1" fill="currentColor"/>
           <circle cx="14.8" cy="17.8" r="1.1" fill="currentColor"/>
         </svg>
-        <span>Area</span>
+        <span>Draw</span>
       </button>
       <div class="measure-rail-actions" data-measure-actions="area" hidden>
         <button class="tool-rail-action-btn" type="button" data-measure-export="area" aria-label="Export area CSV" title="Export area CSV">Export CSV</button>
@@ -746,7 +746,7 @@
       </div>
       <div id="metadata-sections"></div>
     </div>
-  </div><script src="neptune-manifest.js?v=20260810-50e6179-rings"></script>
+  </div><script src="neptune-manifest.js?v=20260810-d23a7be-rings"></script>
 <script>
   const statusNode = document.getElementById("status");
   function setBootStatus(message, isError = false) {
@@ -793,7 +793,7 @@
 </script>
 <script src="ui-controls.js" defer></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260810-50e6179-neptune" defer></script>
+<script src="music.js?v=20260810-d23a7be-neptune" defer></script>
   <div id="portrait-advisory" role="status" aria-live="polite">
     <img src="../../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon">
     <p id="portrait-advisory-text">Rotate to landscape for the best experience</p>
@@ -812,6 +812,7 @@
       });
     })();
   </script>
-  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260810-50e6179"></script>
+  <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
+  <script type="module" src="/GeoID_GIS/viewer/gis/boot.js?v=20260810-d23a7be"></script>
 </body>
 </html>

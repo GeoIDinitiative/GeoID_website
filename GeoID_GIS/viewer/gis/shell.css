@@ -1358,3 +1358,62 @@ body[data-hub-armed="true"] .events-overlay {
 
 /* One rhythm for every tab, whatever kind of section it is. */
     #gis-toolbox-panels > * { margin: 0 0 0.5rem !important; }
+
+/* ── Inside the myGeoID frame ────────────────────────────────────────────────
+ *
+ * The planet pages are standalone pages that are ALSO framed by the myGeoID
+ * GUI, and the two want different chrome. Standalone, the Planet Explorer logo
+ * and Return Home belong there; framed, the shell already provides both and
+ * they are duplicate furniture crowding the corners.
+ *
+ * These rules live here rather than in the nine per-planet stylesheets because
+ * this file is the one every planet page loads and Earth's does not — Earth
+ * carries its own equivalents in `viewer/styles.css`, which is what this is
+ * matching. Nine copies would drift the first time one was edited.
+ *
+ * The class comes from a one-line inline script in each page, as on Earth. It
+ * has to be inline to apply before first paint; nothing loaded as a module is
+ * early enough to avoid a flash of the standalone layout.
+ */
+
+/* The big Planet Explorer wordmark. Framed, the shell says which world this is,
+   and this was pushing the Atlas mark and the tool rail a hundred pixels down —
+   `placeLauncher` measures whatever occupies the corner and yields to it, so
+   hiding this is what moves both back up. */
+body.is-embedded #top-right-logo { display: none; }
+
+/* Return Home. The shell owns navigation between worlds. */
+body.is-embedded .hub-link { display: none; }
+
+/* Rotation and freeze take the space Return Home occupied, which is where the
+   Earth viewer puts them when framed: top left, clear of the panel. */
+body.is-embedded #top-right-controls {
+  top: 1rem;
+  bottom: auto;
+  left: calc(min(24rem, calc(100vw - 2rem)) + 1.75rem);
+  right: auto;
+}
+body.is-embedded #music-btn {
+  top: 3.6rem;
+  bottom: auto;
+  left: calc(min(24rem, calc(100vw - 2rem)) + 1.75rem);
+}
+/* With the panel collapsed there is no panel to clear. */
+body.is-embedded #ui.is-collapsed ~ #top-right-controls,
+body.is-embedded #ui.is-collapsed ~ #music-btn {
+  left: 1rem;
+}
+
+@media (max-width: 720px) {
+  body.is-embedded #top-right-controls {
+    top: 0.85rem;
+    bottom: auto;
+    left: 1rem;
+    right: auto;
+  }
+  body.is-embedded #music-btn {
+    top: 3.45rem;
+    bottom: auto;
+    left: 1rem;
+  }
+}

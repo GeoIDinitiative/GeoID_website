@@ -878,6 +878,25 @@ extraction helpers. The four gas giants have no `activateStudyArea` and no
 surface to draw on, so they take zoom only — that is a fact about the bodies,
 not a gap.
 
+**Only the Earth page marked itself as framed.** `is-embedded` comes from a
+one-line inline script, and it lived in Earth's index.html alone — so every
+`body.is-embedded` rule was dead on the nine planet pages, which are standalone
+pages that are ALSO framed by the myGeoID GUI. Framed, they now drop the Planet
+Explorer wordmark and Return Home (the shell provides both) and move rotation
+and freeze into the space Return Home had, which is where Earth puts them.
+Hiding the wordmark is also what lifts the Atlas mark and the tool rail:
+`placeLauncher` yields to whatever occupies that corner, and the wordmark was
+pushing them from 16/78 down to 85/147. The rules live in `gis/shell.css` — the
+one stylesheet every planet page loads and Earth's does not — because nine
+per-planet copies would drift the first time one was edited. The marker has to
+stay inline in each page: nothing loaded as a module runs early enough to avoid
+a flash of the standalone layout.
+
+**The rail label is per page.** Renaming Area → Draw on the Earth page left all
+nine planets saying "Area", because each has its own copy of that markup. The
+internal `measureMode` is still `"area"` everywhere — it is threaded through the
+project schema and `getExtractionGeometry`.
+
 **The planet viewers have no eased zoom target**, so `targetMetres` is null
 there and the pill compounds on the *achieved* altitude. On Earth that would
 collapse the travel rate to the easing rate; with nothing to lag behind it is
