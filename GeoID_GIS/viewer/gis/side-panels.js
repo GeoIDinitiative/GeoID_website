@@ -186,106 +186,95 @@ const STYLE = `
   box-shadow: 0 0 18px -6px rgba(var(--nav-accent-rgb), 0.55);
 }
 
-/* And the same for a sub-tab of the main tab bar, which is the other half of
- * the GUI and a different element: .control-section with a .section-toggle
- * head, not a .gis-tool-section with a summary.
+/* Two tiers of open in the main tab bar, and which one gets the loud accent.
  *
- * Open there said 12% accent over a dark panel, which is not a difference the
- * eye finds. It matters most in a group that holds many at once -- Explorer
- * carries ten, Flight Simulator through Sources And Metadata -- where the open
- * one has to be findable after you have scrolled its body past its head.
+ * The main bar is the other half of the GUI and a different element from the
+ * workbench tiles above: .control-section with a .section-toggle head, not a
+ * .gis-tool-section with a summary. Open there used to mean a 12% wash and a
+ * hairline spine, which beside a shut neighbour is very nearly nothing.
  *
- * :not(.toolbox-group) keeps this off the level-1 heads, which are lit their
- * own way below -- two identical fills would flatten the nesting.
+ * Both tiers cannot take the same fill -- two bars in the same bright accent
+ * and the eye stops being able to say which one contains the other -- so the
+ * accent runs at two depths. The tab you picked in the bar is the full-strength
+ * one; whatever is open inside it is the accent mixed down into the panel, a
+ * deep magenta that still carries white heading ink. Loud parent, quiet child:
+ * the pick stays the thing you see first, and the sub-tab reads as belonging to
+ * it rather than competing with it.
  *
  * This lives in an injected stylesheet rather than in styles.css because Earth
  * loads styles.css and the nine planet pages do not -- a rule written there
  * would be an Earth-only rule.
  */
-.control-section:not(.toolbox-group)[open] > .section-toggle {
+
+/* ── Level 1: the picked tab ──────────────────────────────────────────── */
+.control-section.toolbox-group[open] > .section-toggle {
   background: rgb(var(--nav-accent-rgb));
-  border-left-color: rgb(var(--nav-accent-rgb));
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  border-left: 3px solid rgb(var(--nav-accent-rgb));
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.22);
 }
 /* !important, which is not decoration here: viewer-skin.css:127 paints every
    heading "color: var(--skin-ink) !important" with a glow behind it. That is
    right for pale ink on a dark panel and wrong on a filled one -- it left the
    title white-on-pink and haloed. An !important at higher specificity is the
    only thing that reaches it, and the glow goes with it. */
-.control-section:not(.toolbox-group)[open] > .section-toggle .section-title,
-.control-section:not(.toolbox-group)[open] > .section-toggle .section-heading,
-.control-section:not(.toolbox-group)[open] > .section-toggle .section-icon,
-.control-section:not(.toolbox-group)[open] > .section-toggle .section-sub,
-.control-section:not(.toolbox-group)[open] > .section-toggle::after {
+.control-section.toolbox-group[open] > .section-toggle .section-title,
+.control-section.toolbox-group[open] > .section-toggle .section-heading,
+.control-section.toolbox-group[open] > .section-toggle .section-icon,
+.control-section.toolbox-group[open] > .section-toggle .section-sub,
+.control-section.toolbox-group[open] > .section-toggle::after {
   color: var(--skin-chrome-ink, #2b0030) !important;
   text-shadow: none !important;
   filter: none;
 }
-/* Some heads carry a control -- Flight Simulator and Tour Mode an Enter
-   button, Locations a master checkbox -- and those were drawn to sit on a dark
-   panel: an accent border, an accent glow, pale ink. Every one of those is the
-   fill's own colour once the head is filled, so the button read as pale text
-   floating on pink with no edge at all. On the fill they invert. */
-.control-section:not(.toolbox-group)[open] > .section-toggle .section-toggle-controls button {
+/* Some heads carry a control -- GeoID Mode and Events an Enter button, others a
+   master checkbox -- drawn to sit on a dark panel: accent border, accent glow,
+   pale ink. Every one of those is the fill's own colour once the head is
+   filled, so the button read as pale text on pink with no edge at all. */
+.control-section.toolbox-group[open] > .section-toggle .section-toggle-controls button {
   color: var(--skin-chrome-ink, #2b0030) !important;
   background: rgba(255, 255, 255, 0.24) !important;
   border-color: rgba(0, 0, 0, 0.42) !important;
   box-shadow: none !important;
   text-shadow: none !important;
 }
-.control-section:not(.toolbox-group)[open] > .section-toggle .section-toggle-controls input {
+.control-section.toolbox-group[open] > .section-toggle .section-toggle-controls input {
   accent-color: var(--skin-chrome-ink, #2b0030);
 }
-
-/* Hover still has to register on one that is already open, so it brightens
-   rather than repainting -- the fill is the state and must not blink off. */
-.control-section:not(.toolbox-group)[open]:hover > .section-toggle {
-  background: rgb(var(--nav-accent-rgb));
-  filter: brightness(1.12);
-}
-
-/* Level 1: the open group is the deep bar, not the bright one.
- *
- * Open at level 1 was a 12% wash and a hairline spine, which next to a closed
- * group is very nearly nothing -- the screenshot that prompted this had
- * Explorer open and Shapefiles shut and they read the same. But it cannot take
- * the level-2 fill: two bars in the same bright accent and the eye stops being
- * able to say which one contains the other.
- *
- * So the accent is used at two depths. The group is the accent mixed down into
- * the panel, a deep magenta that still carries white heading ink; the sub-tab
- * inside it is the accent at full strength with dark ink. Parent darker, child
- * brighter -- the nesting is legible without reading a word, and a closed group
- * is neither.
- *
- * The rest is the frame around it: a 3px spine instead of a hairline, the
- * group's own border brought up to near-solid accent, and an outer glow, so an
- * open group reads as one lit object down its whole height rather than a
- * slightly different header.
- */
-.control-section.toolbox-group[open] > .section-toggle {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, rgb(var(--nav-accent-rgb)) 48%, #17021b),
-    color-mix(in srgb, rgb(var(--nav-accent-rgb)) 30%, #17021b)
-  );
-  border-left: 3px solid rgb(var(--nav-accent-rgb));
-  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.32);
-}
+/* The frame, so an open group reads as one lit object down its whole height
+   rather than a header that happens to differ. */
 .control-section.toolbox-group[open] {
   border-color: rgba(var(--nav-accent-rgb), 0.72);
   box-shadow:
     0 0 26px -10px rgba(var(--nav-accent-rgb), 0.85),
     inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.18);
 }
-/* On the deep bar the marker and icon were accent-on-accent. White reads. */
-.control-section.toolbox-group[open] > .section-toggle .section-icon,
-.control-section.toolbox-group[open] > .section-toggle::after {
+/* Hover still has to register on one already open, so it brightens rather than
+   repainting -- the fill is the state and must not blink off under the
+   pointer. */
+.control-section.toolbox-group[open]:hover > .section-toggle {
+  background: rgb(var(--nav-accent-rgb));
+  filter: brightness(1.1);
+}
+
+/* ── Level 2: what is open inside it ──────────────────────────────────── */
+.control-section:not(.toolbox-group)[open] > .section-toggle {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgb(var(--nav-accent-rgb)) 46%, #17021b),
+    color-mix(in srgb, rgb(var(--nav-accent-rgb)) 28%, #17021b)
+  );
+  border-left-color: rgba(var(--nav-accent-rgb), 0.9);
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+/* On the deep bar the marker and icon were accent-on-accent. White reads, and
+   the title keeps the pale ink the skin gives it -- the bar is dark enough. */
+.control-section:not(.toolbox-group)[open] > .section-toggle .section-icon,
+.control-section:not(.toolbox-group)[open] > .section-toggle::after {
   color: rgba(255, 255, 255, 0.92) !important;
   filter: none;
 }
-.control-section.toolbox-group[open]:hover > .section-toggle {
-  filter: brightness(1.1);
+.control-section:not(.toolbox-group)[open]:hover > .section-toggle {
+  filter: brightness(1.12);
 }
 
 /* Scrolls exactly as #ui-scroll-body does. */
