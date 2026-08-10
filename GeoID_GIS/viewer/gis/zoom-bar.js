@@ -16,7 +16,7 @@
  * cannot fight over the camera.
  */
 
-import { isEarth } from "./bodies.js?v=20260810-179ddbc";
+import { isEarth } from "./bodies.js?v=20260810-9f3229e";
 
 /**
  * The bands, named for what the view is of — the thing a person is actually
@@ -260,7 +260,11 @@ export function installZoomBar() {
 
   const tick = (now) => {
     if (!dir) return;
-    const dt = Math.min(0.05, Math.max(0, (now - lastFrame) / 1000));
+    // Capped only against a stall, well above a real frame: at 0.05 a 5 fps
+    // display advanced a quarter of its elapsed time and a hold travelled at a
+    // quarter of the rate asked for. Overshoot is not the risk here — the lead
+    // bound in `zoomRequest` is what stops the request running away.
+    const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000));
     lastFrame = now;
     drive(dir, Math.exp(holdRate(now - heldFrom) * dt));
     raf = requestAnimationFrame(tick);

@@ -19383,7 +19383,15 @@ ${error && error.message ? error.message : error}`;
                 zoomTargetSurfaceDistance = null;        // genuinely arrived
               }
             } else {
-              const dt = Math.min(0.05, Math.max(0.001, (_rs.lastFrameMs || 16.7) / 1000));
+              /**
+               * The cap is a stall guard, and it must stay well above a real
+               * frame or it silently undoes the correction it sits inside. At
+               * 0.05 a 5 fps display advanced a quarter of its elapsed time and
+               * the zoom crawled at a quarter speed — measured, and exactly the
+               * crawl the correction exists to prevent. A large dt cannot
+               * overshoot: `k` saturates at 1, which lands on the target.
+               */
+              const dt = Math.min(0.25, Math.max(0.001, (_rs.lastFrameMs || 16.7) / 1000));
               const k = 1 - Math.pow(1 - 0.22, dt * 60);
               const next = current * Math.pow(ratio, k);
               offset.normalize().multiplyScalar(zc.radiusWorld + next);

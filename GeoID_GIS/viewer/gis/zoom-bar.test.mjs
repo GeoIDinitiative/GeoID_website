@@ -166,31 +166,38 @@ check("and rises monotonically", ramps);
 // The requirement itself, simulated at 60 fps: a hold must cross the whole
 // range in a few seconds AND never move more than a few percent in one frame.
 // Those pull against each other, which is why both are pinned here.
-{
+// Run it at 60 fps AND at 5 fps. The rate is expressed per *second*, so a slow
+// display must take the same time as a fast one — it just gets there in coarser
+// steps. Capping the frame delta at 0.05 s broke exactly this, and only below
+// 20 fps, which is where heavy tile streaming puts it.
+for (const fps of [60, 30, 5]) {
   let achieved = 16_694e3;         // the default view
   let pending = null;
   let frames = 0;
   let worstRatio = 1;
-  const dt = 1 / 60;
-  while (achieved > 2e3 && frames < 60 * 20) {
+  const dt = Math.min(0.25, 1 / fps);
+  while (achieved > 2e3 && frames < fps * 20) {
     const next = zoomRequest({
       achieved, pending, dir: -1,
-      factor: Math.exp(holdRate((frames * 1000) / 60) * dt), maxMetres: MAX,
+      factor: Math.exp(holdRate((frames * 1000) / fps) * dt), maxMetres: MAX,
     });
     pending = next;
     // The camera eases toward the target rather than teleporting: 22% of the
-    // remaining ratio per frame, as the render loop does. Smoothness is what
-    // the CAMERA does per frame — the target may sit well ahead of it, and
-    // that steady gap is the glide, not a jump.
-    const moved = (next / achieved) ** 0.22;
+    // remaining ratio per frame, frame-rate corrected, as the render loop does.
+    // Smoothness is what the CAMERA does per frame — the target may sit well
+    // ahead of it, and that steady gap is the glide, not a jump.
+    const moved = (next / achieved) ** (1 - (1 - 0.22) ** (dt * 60));
     worstRatio = Math.max(worstRatio, 1 / moved);
     achieved *= moved;
     frames += 1;
   }
-  const seconds = frames / 60;
-  check("holding crosses the whole range in a few seconds",
+  const seconds = frames / fps;
+  check(`holding crosses the whole range in a few seconds at ${fps} fps`,
     seconds > 1 && seconds < 8, `${seconds.toFixed(1)}s`);
-  check("and no single frame is a jump", worstRatio < 1.06, `worst ${worstRatio.toFixed(4)}x`);
+  // A 5 fps display cannot be smooth frame to frame — it is 5 fps — so the
+  // budget is per second of travel, not per frame.
+  check(`and travels evenly at ${fps} fps`,
+    worstRatio ** fps < 30, `worst ${worstRatio.toFixed(3)}x/frame`);
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

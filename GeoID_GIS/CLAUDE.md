@@ -1018,27 +1018,47 @@ cleared when the clamped target equals it, and the zoom bar's track ends ask for
 0 / max rather than the current floor. One drag now arrives at 1.81 km instead of
 stalling at 130 km with the floor settling at 53 km a moment later.
 
-**`gis/zoom-bar.js` is a stepper, not a slider.** A 556 px track across the map
-was furniture for a value that is glanced at, not dragged; it is now a 149 px
-pill — `‹ REGIONAL ›` — **prepended into `#top-right-controls`**, which is a flex
-row, so being its first child puts it left of the viewer tools with no
-coordinates to keep in step.
+**`gis/zoom-bar.js` is a hold-to-zoom pill in the top-right corner.** A 556 px
+track across the map was furniture for a value that is glanced at, not dragged;
+it is a 149 px `‹ SITE ›` pill whose arrows zoom **while held** and whose middle
+names the scale (Site · Local · Regional · Continental · Global), so the
+annotation answers "how far in am I?" without anyone reading a number.
 
-It steps by **band** (Site · Local · Regional · Continental · Global), because
-the question is "show me this regionally", not "multiply my altitude by 2.5".
-Each step lands on the band's **geometric** middle — arithmetic would put
-100–1000 km at 550 km, against the top of the band rather than in it — and there
-is a test per band asserting the step lands inside the band it is named for.
-Clicking the name re-centres the current band.
+**`#top-right-controls` is not in the top right.** Despite the id,
+`body.is-embedded` sets `left:` and clears `right:`, so in the shell — the way
+anyone actually sees this — that cluster is pinned beside the sidebar. Measured:
+the cluster at x=412 while `#tool-rail`, the real top-right furniture, is at
+x=822. A control that belongs in that corner must read the **rail's** box and
+sit beside it, which also follows the rail down when the hub arms and pushes it
+below the hazard readout.
 
-**A step must ask for the band unclamped.** The floor only drops once you
-descend, so at 999 km it is still 995 km and a request clamped to it asks for
-where you already are: measured, stepping Global → Continental → Regional worked
-and then stalled dead at Local. Asking for the band's own altitude leaves the
-request floor-limited and the viewer walks the floor down until it can be
-satisfied. This is the same trap as the slider's track ends, hit from a second
-direction — **any control that asks to go closer must express the request
-without the floor in it.**
+**Holding compounds on the pending target, never on the camera.** The camera is
+always easing along behind the target, so compounding on where it has *got to*
+converges on a fixed lag and the travel rate collapses to the easing rate.
+`getZoomAltitudeMetres()` therefore reports `targetMetres` alongside `metres`.
+The request is bounded to `LEAD` (2.2×) either side of the camera: at the floor
+the camera stops while a held arrow would go on compounding, and without the
+bound, releasing left it flying on for seconds into ground it can never reach.
+
+**A frame-delta cap of 0.05 s silently undoes the frame-rate correction it sits
+inside.** Both the hold loop and the render loop's zoom easing capped `dt` at
+50 ms — shorter than a real frame below 20 fps, so each step advanced a fraction
+of its elapsed time and the zoom crawled at a quarter speed. Measured in the
+preview at 5 fps: 0.25 e-folds/s against the 1.1 asked for, which reads as a
+sticky control rather than as a frame-rate problem. The cap is a **stall** guard
+and belongs at 0.25 s, well clear of any real frame; it cannot overshoot,
+because the easing exponent saturates at 1 and the hold is bounded by its lead.
+Tile streaming is exactly what drops a real machine into that range.
+`zoom-bar.test.mjs` simulates 60, 30 and 5 fps and asserts the same 3.2 s.
+
+**Nothing greys out for being close.** `minMetres` is the floor of *this moment*
+and descending lowers it, so disabling the zoom-in arrow against it disables the
+button at 999 km — where the floor is still 995 km and one more press would have
+moved it. Only the ceiling, which nothing lifts, is a real end. Same trap as the
+clamped request, wearing a different hat: **any control that asks to go closer
+must express the request without the floor in it.** Measured with an OSM
+basemap: one unbroken hold runs 6,116 km → 1.8 km while the floor walks down
+84.6 km → 1.8 km alongside it, and parks there with no coast on release.
 
 **The terrain slider is the zoom wall, not the floor logic.** It exaggerates
 relief roughly tenfold, so at its 0.11 default the ground stands about 219 km
