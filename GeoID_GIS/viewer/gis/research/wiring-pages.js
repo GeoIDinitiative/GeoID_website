@@ -1,11 +1,11 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260810-5124646";
-import * as store from "./project-store.js?v=20260810-5124646";
-import * as bridge from "./bridge.js?v=20260810-5124646";
-import * as dsp from "./dsp.js?v=20260810-5124646";
-import * as stats from "./stats.js?v=20260810-5124646";
-import { linePlot } from "./plot.js?v=20260810-5124646";
-import { parseTable, column } from "./table.js?v=20260810-5124646";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260810-5124646";
+import { wire, wirePattern } from "./spec-page.js?v=20260810-790ee3c";
+import * as store from "./project-store.js?v=20260810-790ee3c";
+import * as bridge from "./bridge.js?v=20260810-790ee3c";
+import * as dsp from "./dsp.js?v=20260810-790ee3c";
+import * as stats from "./stats.js?v=20260810-790ee3c";
+import { linePlot } from "./plot.js?v=20260810-790ee3c";
+import { parseTable, column } from "./table.js?v=20260810-790ee3c";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260810-790ee3c";
 
 /**
  * The rest of the spec's controls.
@@ -760,7 +760,7 @@ wire("Preprocessing Transforms", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No latitude/longitude columns to transform.");
-    const projection = await import(`../projection.js?v=20260810-5124646`);
+    const projection = await import(`../projection.js?v=20260810-790ee3c`);
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -1063,5 +1063,72 @@ wire("Post Processing", {
   "Find Station Nodes": async ({ say }) => {
     postProcessHook(say).extract();
     say("Matching each probe to its nearest mesh node → stations_info.txt.");
+  },
+});
+
+/**
+ * Storyboard's AI Outline.
+ *
+ * Disabled for a long time on honest grounds — it needs a model, and a browser
+ * has none. It does now, when the user has wired their own subscription into the
+ * sidecar (Atlas drawer), so the button does what it says instead of sitting
+ * dark. Without a key it stays honest and points at where to add one.
+ *
+ * Grounded, like everything else here: the outline is drafted from what the
+ * project actually contains — its study area, datasets, runs and figures — not
+ * from the page title, so it is a starting draft about *this* work.
+ */
+wire("Storyboard", {
+  "AI Outline": async ({ say }) => {
+    const sidecar = await import("./sidecar.js?v=20260810-790ee3c");
+    if (!sidecar.isConnected()) {
+      throw new Error("This drafts with your own model through the sidecar — "
+        + "connect it in Settings ▸ Sidecar first.");
+    }
+    const keys = await sidecar.atlasKeys();
+    if (!keys.providers?.length) {
+      throw new Error("No model subscription is wired in yet. Add a Claude, "
+        + "ChatGPT or Gemini key in the Atlas drawer and this will use it.");
+    }
+    const active = store.getActive();
+    const count = async (dir) => {
+      try { return (await store.listProjectDir(dir)).length; } catch (e) { return 0; }
+    };
+    const data = await store.listData().catch(() => []);
+    const area = active.meta?.study_area || {};
+    const hasArea = Number(area.max_lat) - Number(area.min_lat) !== 0;
+    const facts = [
+      `Project: ${active.name} (${active.meta?.body || "earth"})`,
+      hasArea ? `Study area: ${area.min_lat},${area.min_lon} to ${area.max_lat},${area.max_lon}`
+        : "Study area: not set",
+      `Datasets (${data.length}): ${data.slice(0, 12).map((d) => d.name).join(", ") || "none"}`,
+      `FEM runs: ${await count("fem_runs")}`,
+      `Extracted series: ${await count("post_processing/extracted_dofs")}`,
+      `Figures: ${await count("figures")}`,
+      active.meta?.focus_question ? `Focus question: ${active.meta.focus_question}` : "",
+    ].filter(Boolean).join("\n");
+
+    say("Drafting an outline from what this project holds…");
+    const reply = await sidecar.atlasChat({
+      messages: [{ role: "user", content:
+        "Draft a short storyboard outline for this geoscience study — the "
+        + "sections a report or presentation should have, one line each on what "
+        + "goes in them, grounded in what the project actually contains. Mark "
+        + "anything the project is missing for a section as a gap rather than "
+        + "inventing it. Markdown, no preamble." }],
+      context: facts,
+    });
+    const text = String(reply.text || "").trim();
+    if (!text) throw new Error("The model returned nothing.");
+    const path = "plans/storyboard-outline.md";
+    await store.writeProjectFile(path,
+      `# Storyboard outline — ${active.name}\n\n`
+      + `_Drafted ${new Date().toISOString()} by ${reply.provider} (${reply.model}) `
+      + `from this project's contents._\n\n${text}\n`);
+    await store.registerData({
+      name: "storyboard-outline.md", kind: "note", path,
+      source: `Atlas outline (${reply.provider})`,
+    });
+    say(`Outline written to ${path} — drafted by ${reply.provider}.`);
   },
 });

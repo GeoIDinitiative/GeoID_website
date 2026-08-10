@@ -1,6 +1,6 @@
-import * as store from "./project-store.js?v=20260810-5124646";
-import { el, button, row, statusLine } from "./pages/common.js?v=20260810-5124646";
-import * as sidecar from "./sidecar.js?v=20260810-5124646";
+import * as store from "./project-store.js?v=20260810-790ee3c";
+import { el, button, row, statusLine } from "./pages/common.js?v=20260810-790ee3c";
+import * as sidecar from "./sidecar.js?v=20260810-790ee3c";
 
 /**
  * The five shell actions from the Qt Research Hub's WorkspaceShell row
@@ -184,17 +184,108 @@ async function mountNotes(node) {
 // ── Copilot ──────────────────────────────────────────────────────────────────
 
 /**
- * Stated plainly rather than mocked up. The Qt Copilot talks to the Atlas hub
- * over HTTP; a static page served from geoidinitiative.com has no hub to talk
- * to, and a chat box that cannot answer is worse than an absent one.
+ * The Copilot is Atlas now.
+ *
+ * This drawer used to say plainly that no assistant could run in the browser,
+ * which was true and is no longer: Atlas sits bottom-right on every page,
+ * grounded in the real page registry and the open project. So the drawer's job
+ * changed from explaining an absence to being the place you *configure* it —
+ * the subscription it uses, and the watcher.
+ *
+ * Keys are managed here rather than only through a chat prompt because a field
+ * you can see, mask and clear is the right shape for a credential. The value
+ * goes straight to the sidecar; this page never stores it, and only ever gets
+ * the mask back.
  */
 function mountCopilot(node) {
-  node.appendChild(head("Copilot", null));
+  node.appendChild(head("Atlas", "The assistant, its model, and what it watches."));
   node.appendChild(el("p", "research-note",
-    "The Copilot runs in the Atlas hub, not in the browser: it needs a service "
-    + "that can read the project folder and call a model. This page has no hub "
-    + "to reach, so it is not wired here — use the Copilot in the desktop app, "
-    + "which reads the same project folder."));
+    "Atlas is the ◆ button in the bottom-right corner of every page. It knows "
+    + "this workspace and reads your open project, so it can find a tool, say "
+    + "what the project is missing, and check the live feeds — no model needed "
+    + "for any of that."));
+  const openBtn = button("Ask Atlas", () => window.GeoIDAtlas?.open?.(true));
+  node.appendChild(row(openBtn));
+
+  const { node: status, say } = statusLine();
+  const keysBox = el("div", "research-subsection");
+  keysBox.appendChild(el("h3", "research-subtitle", "Model subscription"));
+  keysBox.appendChild(el("p", "research-note",
+    "Bring your own Claude, ChatGPT or Gemini for open-ended questions. The key "
+    + "is held by the local sidecar at file mode 0600 — never by this page, "
+    + "because a browser cannot keep a secret — and only a masked hint comes "
+    + "back. Leave a field blank and save to remove that key."));
+  const keyRows = el("div", "research-list");
+  keysBox.append(keyRows, status);
+  node.appendChild(keysBox);
+
+  const PROVIDERS = [
+    ["ANTHROPIC_API_KEY", "Claude (Anthropic)"],
+    ["OPENAI_API_KEY", "ChatGPT (OpenAI)"],
+    ["GEMINI_API_KEY", "Gemini (Google)"],
+  ];
+
+  async function drawKeys() {
+    keyRows.textContent = "";
+    if (!sidecar.isConnected()) {
+      keyRows.appendChild(el("p", "research-note",
+        "Connect the sidecar first (Settings ▸ Sidecar) — it is what holds the key."));
+      return;
+    }
+    let info;
+    try { info = await sidecar.atlasKeys(); }
+    catch (error) { say(error.message, true); return; }
+    PROVIDERS.forEach(([name, label]) => {
+      const entry = info.keys?.[name] || {};
+      const line = el("div", "research-list-row");
+      line.appendChild(el("span", "research-list-name", label));
+      const field = document.createElement("input");
+      field.className = "input";
+      field.type = "password";           // not shoulder-readable while typing
+      field.autocomplete = "off";
+      field.placeholder = entry.configured ? entry.hint : "paste a key to enable";
+      line.appendChild(field);
+      line.appendChild(button(entry.configured ? "Replace" : "Save", async () => {
+        try {
+          await sidecar.saveAtlasKey(name, field.value.trim());
+          field.value = "";              // never leave a credential in the DOM
+          say(`${label} updated.`);
+          await drawKeys();
+        } catch (error) { say(error.message, true); }
+      }, { secondary: true }));
+      keyRows.appendChild(line);
+    });
+    const active = info.providers || [];
+    keyRows.appendChild(el("p", "research-note", active.length
+      ? `Atlas will use ${active.join(" / ")} for anything it cannot answer from the app itself.`
+      : "No key set — Atlas answers from the app and its project, and says so for anything else."));
+  }
+
+  const watchBox = el("div", "research-subsection");
+  watchBox.appendChild(el("h3", "research-subtitle", "Watching the live feeds"));
+  watchBox.appendChild(el("p", "research-note",
+    "Earthquakes, weather alerts, volcanoes and wildfires, checked against the "
+    + "open project's study area. Run by the sidecar, so it keeps watching with "
+    + "every tab closed and tells you what it found when you come back."));
+  const watchState = el("p", "research-note", "");
+  const watchRow = row(
+    button("Start watching", () => window.GeoIDAtlas?.ask?.("watch this area")),
+    button("Status", () => window.GeoIDAtlas?.ask?.("watch status"), { secondary: true }),
+    button("Stop", () => window.GeoIDAtlas?.ask?.("stop watching"), { secondary: true }));
+  watchBox.append(watchState, watchRow);
+  node.appendChild(watchBox);
+
+  (async () => {
+    await drawKeys();
+    if (!sidecar.isConnected()) return;
+    try {
+      const st = await sidecar.watchStatus();
+      watchState.textContent = st.running
+        ? `Watching ${st.sources.length} feed(s) every ${st.config.intervalMin} min — `
+          + `${st.known} event(s) known, ${st.alerts} alert(s) raised.`
+        : "Not watching at the moment.";
+    } catch (error) { /* the watcher is a bonus, not a blocker */ }
+  })();
 }
 
 // ── Data Shelf ───────────────────────────────────────────────────────────────

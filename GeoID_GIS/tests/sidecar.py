@@ -331,6 +331,16 @@ def run_tests(root: Path) -> None:
                                "coordinates": [[[15.0, 37.5], [15.1, 37.5]]]}) == (15.0, 37.5))
         check("a geometry-less alert cannot be placed", aw._first_point(None) is None)
 
+        # Chat with no key must fail honestly rather than hang or pretend. (A
+        # real call needs a real subscription, so that path is not tested here —
+        # this pins the refusal, which is the part that must never regress.)
+        status, chat = c.call("/atlas/chat", {"messages": [{"role": "user", "content": "hi"}]})
+        check("chat without a key refuses and says why",
+              status == 400 and "key" in str(chat.get("error", "")).lower(),
+              str(chat)[:80])
+        status, chat = c.call("/atlas/chat", {"messages": []})
+        check("chat rejects an empty conversation", status == 400, f"HTTP {status}")
+
         status, watch = c.call("/atlas/watch")
         check("the watcher reports itself idle before it starts",
               status == 200 and watch.get("running") is False, str(watch)[:60])

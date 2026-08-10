@@ -1,11 +1,11 @@
-import { wirePattern, wire } from "./spec-page.js?v=20260810-5124646";
-import * as store from "./project-store.js?v=20260810-5124646";
-import * as bridge from "./bridge.js?v=20260810-5124646";
-import * as stats from "./stats.js?v=20260810-5124646";
-import * as dsp from "./dsp.js?v=20260810-5124646";
-import { linePlot } from "./plot.js?v=20260810-5124646";
-import { column } from "./table.js?v=20260810-5124646";
-import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260810-5124646";
+import { wirePattern, wire } from "./spec-page.js?v=20260810-790ee3c";
+import * as store from "./project-store.js?v=20260810-790ee3c";
+import * as bridge from "./bridge.js?v=20260810-790ee3c";
+import * as stats from "./stats.js?v=20260810-790ee3c";
+import * as dsp from "./dsp.js?v=20260810-790ee3c";
+import { linePlot } from "./plot.js?v=20260810-790ee3c";
+import { column } from "./table.js?v=20260810-790ee3c";
+import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260810-790ee3c";
 
 /**
  * Behaviour for the controls the spec brings across.
@@ -186,7 +186,9 @@ export const CANNOT_WIRE = {
   // Nodes" used to live here — GALES binary output did need the solver's own
   // reader. The sidecar has one now (verified against a real run), so they are
   // wired in wiring-pages.js rather than disabled.
-  "AI Outline": "Needs a model. See the Copilot note in the Alerts drawer.",
+  // "AI Outline" used to live here — it needs a model, and a browser has none.
+  // It can have one now: the user's own Claude/ChatGPT/Gemini key, held by the
+  // sidecar. Wired in wiring-pages.js, and honest about needing a key.
 };
 
 /**
@@ -348,7 +350,7 @@ async function writeCollection(name, collection, say) {
   say(`${(collection.features || []).length} feature(s) written to ${path}.`);
 }
 
-const geo = () => import(`../geoprocessing.js?v=20260810-5124646`);
+const geo = () => import(`../geoprocessing.js?v=20260810-790ee3c`);
 
 wire("Vector Tools", {
   Buffer: async ({ say }) => {
