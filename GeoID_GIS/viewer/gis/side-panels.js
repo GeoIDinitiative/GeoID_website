@@ -186,6 +186,43 @@ const STYLE = `
   box-shadow: 0 0 18px -6px rgba(var(--nav-accent-rgb), 0.55);
 }
 
+/* And the same for a sub-tab of the main tab bar, which is the other half of
+ * the GUI and a different element: .control-section with a .section-toggle
+ * head, not a .gis-tool-section with a summary.
+ *
+ * Open there said 12% accent over a dark panel, which is not a difference the
+ * eye finds. It matters most in a group that holds many at once -- Explorer
+ * carries ten, Flight Simulator through Sources And Metadata -- where the open
+ * one has to be findable after you have scrolled its body past its head.
+ *
+ * The group head itself deliberately keeps the wash. Two levels of solid fill
+ * would flatten the nesting; washed group over filled sub-tab keeps it legible.
+ * :not(.toolbox-group) is what draws that line, and it also spares the GeoID
+ * and Events mode bars, which are groups too.
+ *
+ * This lives in an injected stylesheet rather than in styles.css because Earth
+ * loads styles.css and the nine planet pages do not -- a rule written there
+ * would be an Earth-only rule.
+ */
+.control-section:not(.toolbox-group)[open] > .section-toggle {
+  background: rgb(var(--nav-accent-rgb));
+  border-left-color: rgb(var(--nav-accent-rgb));
+  box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+}
+.control-section:not(.toolbox-group)[open] > .section-toggle .section-title,
+.control-section:not(.toolbox-group)[open] > .section-toggle .section-icon,
+.control-section:not(.toolbox-group)[open] > .section-toggle .section-sub,
+.control-section:not(.toolbox-group)[open] > .section-toggle::after {
+  color: var(--skin-chrome-ink, #2b0030);
+  filter: none;
+}
+/* Hover still has to register on one that is already open, so it brightens
+   rather than repainting -- the fill is the state and must not blink off. */
+.control-section:not(.toolbox-group)[open]:hover > .section-toggle {
+  background: rgb(var(--nav-accent-rgb));
+  filter: brightness(1.12);
+}
+
 /* Scrolls exactly as #ui-scroll-body does. */
 .gis-side-panel-body {
   flex: 1;
