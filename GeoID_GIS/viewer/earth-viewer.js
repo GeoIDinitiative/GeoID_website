@@ -11922,6 +11922,41 @@ import * as THREE from "./vendor/three.module.js";
 	      const wheelZoomBodyCenter = new THREE.Vector3();
       const wheelZoomDirection = new THREE.Vector3();
       let lastSafeMosaicCameraPosition = camera.position.clone();
+
+      /**
+       * How close the camera may come to the planet's centre. One definition.
+       *
+       * This rule was written out twice, identically -- once in the render
+       * loop's per-frame clamp and once inside `getActiveZoomContext` below --
+       * and the duplication was invisible until someone tried to change it.
+       * `controls.enableZoom` is false, so OrbitControls never zooms and its
+       * `minDistance` is decorative: the wheel handler does the zooming and
+       * enforces its own private copy of this. Lowering the floor in the render
+       * loop alone therefore changed `controls.minDistance` and nothing a user
+       * could see, with the camera still stopping dead at 3.7.
+       *
+       * `drapeMode` is the new case. The 3.7 floor -- about 1000 km up -- is
+       * right for an 8 km/px basemap and makes a study-area drape at metres per
+       * pixel pointless: correctly placed imagery that can never be reached.
+       * The CTX mosaic already had exactly this escape for the same reason. The
+       * margin clears the drape's own 0.005 lift rather than only the terrain,
+       * so the camera cannot end up underneath it.
+       */
+      function computeSafeMinDistance() {
+        const maxTerrainDisp = Math.max(0, getTerrainRelief());
+        const ctxMode = baseLayerSelect.value === "ctx-mosaic"
+          || baseLayerSelect.value === "ctx-mosaic-color";
+        const drapeMode = !ctxMode && Boolean(window.GeoIDBasemapDrape?.hasDrape?.());
+        const surfaceMargin = ctxMode ? 0.0005 : (drapeMode ? 0.008 : 0.092);
+        const baseMin = ctxMode ? 3.20002 : (drapeMode ? 3.2 : DEFAULT_CONTROL_MIN_DISTANCE);
+        return {
+          safeMin: Math.max(baseMin, 3.2 + maxTerrainDisp + surfaceMargin),
+          surfaceMargin,
+          maxTerrainDisp,
+          ctxMode,
+          drapeMode,
+        };
+      }
       function getActiveZoomContext() {
         if (coreToggle.checked) return null;
         if (activeMoonViewerFeature) {
@@ -11936,11 +11971,9 @@ import * as THREE from "./vendor/three.module.js";
           };
         }
         marsGroup.getWorldPosition(wheelZoomBodyCenter);
-        const maxTerrainDisp = Math.max(0, getTerrainRelief());
-        const ctxSurfaceMargin = (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color") ? 0.0005 : 0.092;
-        const terrainFloor = 3.2 + maxTerrainDisp + ctxSurfaceMargin;
-        const baseMin = (baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color") ? 3.20002 : DEFAULT_CONTROL_MIN_DISTANCE;
-        const safeMin = Math.max(baseMin, terrainFloor);
+        // The floor comes from computeSafeMinDistance, not from a second copy of
+        // the formula -- this is the one that actually stops the wheel.
+        const { safeMin } = computeSafeMinDistance();
         return {
           centerWorld: wheelZoomBodyCenter.clone(),
           radiusWorld: 3.2,
@@ -19132,12 +19165,11 @@ ${error && error.message ? error.message : error}`;
         let _distToMaxSurface = Infinity;
         let _controlSurfaceDistance = Infinity;
         if (!activeMoonViewerFeature) {
-          const _maxTerrainDisp = Math.max(0, getTerrainRelief());
-          const _ctxMode = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
-          const _surfaceMargin = _ctxMode ? 0.0005 : 0.092;
-          const _terrainFloor = 3.2 + _maxTerrainDisp + _surfaceMargin;
-          const _baseMin = _ctxMode ? 3.20002 : DEFAULT_CONTROL_MIN_DISTANCE;
-          _safeMin = Math.max(_baseMin, _terrainFloor);
+          // Same source of truth as the wheel zoom's floor — see
+          // computeSafeMinDistance. These were two copies of one rule.
+          const { safeMin: _computedMin, surfaceMargin: _surfaceMargin,
+            maxTerrainDisp: _maxTerrainDisp } = computeSafeMinDistance();
+          _safeMin = _computedMin;
           // Pre-clamp: push camera out before OrbitControls processes this frame's zoom input
           if (camera.position.length() < _safeMin) camera.position.setLength(_safeMin);
           controls.minDistance = _safeMin;
