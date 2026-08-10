@@ -69,6 +69,31 @@
   color: var(--nav-ink);
   gap: 11px;
 }
+/* What is open in the viewer, between the wordmark and the links.
+   Only the myGeoID shells carry this element, so the rule is inert elsewhere.
+   It is a label rather than a heading: quieter than the wordmark, and it must
+   never push the nav links out of place, so it truncates instead of wrapping. */
+.site-nav .nav-context {
+  font-family: "Exo 2", system-ui, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(var(--nav-accent-rgb, 120 200 255), 0.92);
+  margin-left: 18px;
+  min-width: 0;
+  max-width: 34ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.site-nav .nav-context:empty { display: none; }
+.site-nav .nav-context.is-unset { color: var(--nav-ink); opacity: 0.5; }
+
+@media (max-width: 900px) {
+  /* The links and the burger win the space before this does. */
+  .site-nav .nav-context { display: none; }
+}
+
 .site-nav .nav-brand-icon {
   width: 30px; height: 30px;
   min-width: 30px; min-height: 30px;

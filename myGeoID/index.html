@@ -1261,6 +1261,11 @@
       GeoID Initiative
     </a>
 
+    <!-- What is open in the viewer: project and world. Filled from the
+         "geoid:context" message the viewer sends; empty until it arrives, so
+         nothing flashes on a page where no viewer is framed. -->
+    <span class="nav-context" id="nav-context" aria-live="polite"></span>
+
     <ul class="nav-links">
       <li><a href="/dashboard/">Dashboard</a></li>
       <li class="nav-dropdown">
@@ -1292,7 +1297,7 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20260810-c74b16f"
+        src="/GeoID_GIS/viewer/?v=gis-20260810-256ccd2"
         title="myGeoID — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
@@ -2042,6 +2047,21 @@
           }
         };
 
+        // Project and world, reported by the viewer. The header is outside the
+        // iframe and cannot read either, so it is told.
+        if (msg.type === "geoid:context") {
+          const node = document.getElementById("nav-context");
+          if (node) {
+            const parts = [msg.project, msg.world].filter(Boolean);
+            node.textContent = parts.join(" · ");
+            node.classList.toggle("is-unset", !msg.project);
+            node.title = msg.project
+              ? `Working in "${msg.project}" on ${msg.world}`
+              : `Working on ${msg.world}. No project is open.`;
+          }
+          return;
+        }
+
         if (msg.type === "geoid:pin") {
           currentPinData = msg;
           updatePinDisplay(msg);
@@ -2076,6 +2096,6 @@
   </script>
 
 <script src="/scripts/site.js"></script>
-<script src="/styles/nav.js?v=20260810-c74b16f" defer></script>
+<script src="/styles/nav.js?v=20260810-256ccd2" defer></script>
 </body>
 </html>

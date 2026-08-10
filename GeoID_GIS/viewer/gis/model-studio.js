@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody } from "./bodies.js?v=20260810-616fa10";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-616fa10";
+import { currentBody, getBody } from "./bodies.js?v=20260810-256ccd2";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-256ccd2";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260810-616fa10";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-616fa10";
-import { downloadText } from "./extraction.js?v=20260810-616fa10";
+} from "./mesh-volume.js?v=20260810-256ccd2";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-256ccd2";
+import { downloadText } from "./extraction.js?v=20260810-256ccd2";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -114,6 +114,28 @@ function updateStudioContext() {
     : `Modelling on ${world}. No project is open, so exports go to your `
       + "downloads rather than into a study.";
   node.classList.toggle("is-unset", !project);
+  announceContext(project, world);
+}
+
+/**
+ * Tell the myGeoID shell what is being worked on.
+ *
+ * The header lives outside the iframe, so it cannot read the project store or
+ * the body registry — it is told, over the same postMessage bridge the mode
+ * switch already uses. Sent for every mode, not just Model: "which project, and
+ * which world" is a standing fact about the page, not a studio detail.
+ */
+function announceContext(project, world) {
+  if (window.self === window.top) return;
+  try {
+    window.parent.postMessage({
+      type: "geoid:context",
+      project: project?.name || null,
+      world: world || null,
+    }, "*");
+  } catch (error) {
+    /* cross-origin parent, ignore */
+  }
 }
 
 function record(op) {
