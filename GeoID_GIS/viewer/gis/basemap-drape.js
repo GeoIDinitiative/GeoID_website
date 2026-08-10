@@ -37,10 +37,10 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-4c9d12b";
-import { isEarth } from "./bodies.js?v=20260810-4c9d12b";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-191b491";
+import { isEarth } from "./bodies.js?v=20260810-191b491";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260810-4c9d12b";
+  from "./view-extent.js?v=20260810-191b491";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -362,7 +362,7 @@ export async function installBaseLayer(sourceName = DEFAULT_SOURCE, { onProgress
  *     off the flat plane they were built as and a stale one gets the whole
  *     patch culled, which looks exactly like a failed request.
  */
-export function buildMesh(canvas, bbox) {
+export function buildMesh(canvas, bbox, { frame = "geo" } = {}) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
@@ -394,6 +394,10 @@ export function buildMesh(canvas, bbox) {
       const point = viewer?.surfacePoint?.(lat, lon, LIFT);
       if (!point) throw new Error("The globe is not ready to be draped on yet.");
       vertex.copy(point);
+      // `surfacePoint` answers in the baseline frame, which is what the geo
+      // group wants. Parenting to the globe mesh instead means carrying its
+      // half turn, exactly as the Earth Engine drapes do.
+      if (frame === "globe") vertex.set(-vertex.x, vertex.y, -vertex.z);
       position.setXYZ(y * (segments + 1) + x, vertex.x, vertex.y, vertex.z);
     }
   }
@@ -508,7 +512,14 @@ export async function drapeStudyArea({ source = DEFAULT_SOURCE, extent = "study"
  */
 export function hasDrape() {
   const layers = window.GeoIDImportManager?.getLayers?.() || [];
-  return layers.some((l) => l.ext === "tiles" && l.status === "loaded");
+  if (layers.some((l) => l.ext === "tiles" && l.status === "loaded")) return true;
+  // A tile BASEMAP counts too, and so does a refine patch. Only counting
+  // registered layers meant flying in with OpenStreetMap as the basemap stopped
+  // dead at 995 km — the floor stayed where it is for an 8 km/px texture, so the
+  // refinement fetched detail nobody could get close enough to see.
+  const id = window.GeoIDViewer?.getBaseLayerId?.() || "";
+  if (id.startsWith("tiles-")) return true;
+  return Boolean(window.GeoIDViewer?.globe?.getObjectByName?.("GeoID-BasemapRefine"));
 }
 
 // Guarded so the projection maths can be imported and tested under Node, where
@@ -759,8 +770,19 @@ const BASE_GLOBE_ZOOM = 4;
 
 let refineState = null;
 
-function geoGroup() {
-  return window.GeoIDViewer?.scene?.getObjectByName?.("GeoID-ImportedGeoLayers") || null;
+/**
+ * Where the detail patch hangs.
+ *
+ * NOT the imported-layers group: `import-manager` creates that lazily on the
+ * first import, so in a session with no imports it does not exist and the patch
+ * had nowhere to go — `refineOnce` returned null without a word and the status
+ * sat on "Refining to zoom 7…" forever while the tiles had actually arrived in
+ * 243 ms. The globe mesh is always there, and is where the Earth Engine drapes
+ * already parent; the cost is carrying its half turn, which `buildMesh` does
+ * when asked for the "globe" frame.
+ */
+function refineParent() {
+  return window.GeoIDViewer?.globe || null;
 }
 
 function disposeMesh(mesh) {
@@ -806,11 +828,14 @@ async function refineOnce({ onStatus } = {}) {
     if (!refineState) return null;
     // Another pass overtook this one; its patch is the current view, not ours.
     if (refineState.bbox !== bbox) return null;
-    const mesh = buildMesh(result.canvas, bbox);
+    const mesh = buildMesh(result.canvas, bbox, { frame: "globe" });
     mesh.renderOrder = 60;                 // the imported band, over the sphere
     mesh.name = "GeoID-BasemapRefine";
-    const group = geoGroup();
-    if (!group) return null;
+    const group = refineParent();
+    if (!group) {
+      onStatus?.("The globe is not ready for detail yet.");
+      return null;
+    }
     disposeMesh(refineState.mesh);
     group.add(mesh);
     refineState.mesh = mesh;

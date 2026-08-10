@@ -864,11 +864,49 @@ where it must not be. The basemap path shows it in the panel and tracks the
 **dropdown**, not the button that installed it — hooking it to the button left
 the credit gone whenever the layer was re-selected later.
 
-**Resolution does not refine with zoom, by design.** The zoom is chosen once
-from the extent: whole globe 9.8 km/px, a study area 15 m/px, fixed. Flying in
-does not fetch finer tiles. The two-tier path — global basemap plus a
-study-area drape over it — is the manual version of what a streamer would do
-automatically, and is what to build on if that is ever wanted.
+**Resolution refines with zoom, in two tiers.** The basemap texture is one
+image at one resolution (global 9.8 km/px); a second tier fetches a patch for
+the *visible* extent at the zoom that extent deserves and replaces it whenever
+the view settles somewhere new. Measured end to end: OpenStreetMap chosen from
+the dropdown gives 256 tiles at zoom 4 (10 km/px), flying in drops the camera to
+235 km, and settling produces `Detail at zoom 8 (564 m/px)` — an 18x
+improvement, unattended.
+
+Three things keep that from being a bulk downloader, and each is load-bearing:
+it fires on **rest** (`onViewSettled`), never per frame, so a drag issues one
+round of tiles at the end rather than thousands on the way; `viewChangedEnough`
+gates on a real change by **scale or position**, since a view can shift without
+resizing and shrink without moving; and nothing happens above ~2000 km or below
+zoom 4, which the base texture already covers.
+
+**The refine patch parents to the globe mesh, not the imported-layers group.**
+`import-manager` creates `GeoID-ImportedGeoLayers` lazily on the first import,
+so in a session with no imports it does not exist — the patch had nowhere to go,
+`refineOnce` returned null silently, and the status sat on "Refining to zoom 7…"
+forever while the tiles had actually arrived in 243 ms. The globe mesh is always
+there. The cost is its half turn, so `buildMesh` takes a `frame` — `"geo"` for
+the baseline frame the geo group wants, `"globe"` for the π-baked one.
+
+**`hasDrape()` decides the zoom floor, so it must count every kind of close-range
+imagery.** Counting only registered `tiles` *layers* meant a tile **basemap**
+did not unlock the closer floor, and flying in still stopped at 995 km — detail
+was being fetched that nobody could get close enough to see. A tile basemap and
+a live refine patch both count. It must still NOT be conditioned on layer
+*visibility*: keying it on `visible` made switching a layer off move the camera,
+measured at 71% of the frame's pixels.
+
+**The Basemap dropdown lists the services before any is used.** They used to be
+created by `installBaseLayer`, i.e. on first use, so the dropdown offered them
+only *after* someone had found the panel and pressed a button — reported, fairly,
+as "no sign of street view in the basemaps dropdown". `registerBaseLayer` takes
+an optional texture so an entry can be listed unfetched, and
+`watchBaseLayerSelection` loads on selection. Two traps there: the viewer's own
+change listener is registered first and has **already** blanked the sphere by the
+time ours runs, so holding the old map on screen needs a re-**dispatch**, not
+just resetting `.value`; and both the listing and the watcher must be retried
+from `initWhenReady`, because `buildPanel` runs its body once and the viewer
+boots async — retrying only the panel gave the options a second chance and the
+watcher none, which left choosing a service showing bare ground.
 
 **`controls.enableZoom` is false — OrbitControls does not zoom this globe.**
 A custom wheel handler does (`handleSurfaceWheelZoom`), which makes
