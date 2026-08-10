@@ -37,8 +37,10 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-564fd5f";
-import { isEarth } from "./bodies.js?v=20260810-564fd5f";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-c279dda";
+import { isEarth } from "./bodies.js?v=20260810-c279dda";
+import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
+  from "./view-extent.js?v=20260810-c279dda";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -514,6 +516,8 @@ export function hasDrape() {
 if (typeof window !== "undefined") {
   window.GeoIDBasemapDrape = {
     drapeStudyArea, composite, chooseZoom, tileGrid, normaliseBbox, hasDrape,
+    installBaseLayer, toEquirectangular, wholeGlobe,
+    startRefining, stopRefining, isRefining, tileBasemapSource,
   };
 }
 
@@ -562,6 +566,10 @@ function buildPanel() {
           <option value="study">Study area (full detail, as a layer)</option>
         </select>
       </div>
+      <label class="row" for="basemap-drape-refine" style="gap:0.4rem;">
+        <input id="basemap-drape-refine" type="checkbox" checked>
+        <span>Sharpen as I zoom in</span>
+      </label>
       <button id="basemap-drape-run" class="tool-button" type="button">Add to globe</button>
       <div id="basemap-drape-status" class="gis-metric">Whole globe becomes the basemap; a study area is added as a layer.</div>
       <div id="basemap-drape-credit" class="gis-metric" hidden></div>
@@ -581,6 +589,7 @@ function buildPanel() {
   const status = box.querySelector("#basemap-drape-status");
   const credit = box.querySelector("#basemap-drape-credit");
   const run = box.querySelector("#basemap-drape-run");
+  const refine = box.querySelector("#basemap-drape-refine");
 
   const showResolution = (out) => (out.metresPerPixel >= 1000
     ? `${Math.round(out.metresPerPixel / 1000)} km/px`
@@ -616,6 +625,9 @@ function buildPanel() {
         status.textContent = `${source} is now the basemap — ${out.drawn}/${out.tiles} tiles `
           + `at zoom ${out.zoom} (${showResolution(out)}).`;
         showCredit(TILE_SOURCES[source].credit);
+        // A basemap texture is one resolution; this is what makes flying in
+        // mean something. Off by default would hide the whole point.
+        if (refine.checked) startRefining({ onStatus: (m) => { status.textContent = m; } });
       } else {
         const out = await drapeStudyArea({ source, extent: "study", onProgress: progress });
         status.textContent = `${out.drawn}/${out.tiles} tiles at zoom ${out.zoom} `
@@ -641,7 +653,25 @@ function buildPanel() {
   const creditForId = (id) => Object.entries(TILE_SOURCES).find(([name]) =>
     `tiles-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` === id)?.[1]?.credit || "";
   document.getElementById("base-layer-select")?.addEventListener("change", (event) => {
-    showCredit(creditForId(event.target.value || ""));
+    const id = event.target.value || "";
+    showCredit(creditForId(id));
+    // Refinement belongs to the tile basemap. Left running under Blue Marble it
+    // would keep fetching tiles for a basemap nobody is looking at.
+    if (id.startsWith("tiles-")) {
+      if (refine.checked) startRefining({ onStatus: (m) => { status.textContent = m; } });
+    } else {
+      stopRefining();
+    }
+  });
+
+  refine.addEventListener("change", () => {
+    if (refine.checked && tileBasemapSource()) {
+      startRefining({ onStatus: (m) => { status.textContent = m; } });
+      status.textContent = "Sharpening on. Fly in and it will fetch detail when you stop.";
+    } else {
+      stopRefining();
+      status.textContent = "Sharpening off — the basemap stays at its global resolution.";
+    }
   });
 }
 
@@ -655,4 +685,124 @@ if (typeof document !== "undefined") {
   // may not exist yet on the first try.
   window.addEventListener("geoid-gis:shell-ready", buildPanel);
   setTimeout(buildPanel, 1500);
+}
+
+// ── Refining with zoom ───────────────────────────────────────────────────────
+
+/**
+ * Detail for whatever is on screen, refreshed when the camera comes to rest.
+ *
+ * A basemap texture is one image at one resolution: the global composite is
+ * 9.8 km/px and no amount of flying in gives it more. This is the second tier —
+ * a patch covering just the visible extent, fetched at the zoom that extent
+ * deserves, replaced each time the view settles somewhere new.
+ *
+ * Two tiers rather than a streamer, deliberately. A streamer keeps a quadtree of
+ * tiles alive with a scheduler, an eviction policy and a per-frame budget; this
+ * keeps exactly one patch and rebuilds it, which is a few hundred lines less and
+ * enough for a globe someone is reading rather than flying.
+ *
+ * What makes it safe to leave running:
+ *
+ *   * it fires only on rest, never per frame — a drag issues one round of tiles
+ *     at the end, not thousands on the way;
+ *   * it only acts when the view has genuinely changed (`viewChangedEnough`);
+ *   * it does nothing at all above `MIN_REFINE_ALTITUDE`, where the global
+ *     texture is already as good as the screen can show;
+ *   * and it never asks for a zoom the base texture already covers, so sitting
+ *     still costs nothing.
+ */
+
+// Above this the whole-globe basemap out-resolves the screen and a patch would
+// be identical to what is already there. Roughly 2000 km up.
+const MIN_REFINE_ALTITUDE = 1.0;
+// The base global composite is zoom 4; below that there is nothing to add.
+const BASE_GLOBE_ZOOM = 4;
+
+let refineState = null;
+
+function geoGroup() {
+  return window.GeoIDViewer?.scene?.getObjectByName?.("GeoID-ImportedGeoLayers") || null;
+}
+
+function disposeMesh(mesh) {
+  if (!mesh) return;
+  mesh.parent?.remove(mesh);
+  mesh.geometry?.dispose?.();
+  mesh.material?.map?.dispose?.();
+  mesh.material?.dispose?.();
+}
+
+/** Is a tile basemap the one currently showing? */
+export function tileBasemapSource() {
+  const id = window.GeoIDViewer?.getBaseLayerId?.() || "";
+  if (!id.startsWith("tiles-")) return null;
+  return Object.keys(TILE_SOURCES).find((name) =>
+    `tiles-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` === id) || null;
+}
+
+/** One refinement pass: fetch the visible extent and swap the detail patch in. */
+async function refineOnce({ onStatus } = {}) {
+  const viewer = window.GeoIDViewer;
+  const source = tileBasemapSource();
+  if (!viewer || !source) return null;
+  if (altitudeUnits(viewer) > MIN_REFINE_ALTITUDE) return null;
+
+  if (!THREE) THREE = await import("../vendor/three.module.js");
+  const bbox = visibleBounds(viewer, THREE);
+  if (!bbox) return null;
+  if (!viewChangedEnough(refineState?.bbox, bbox)) return null;
+
+  const zoom = chooseZoom(bbox, { maxZoom: TILE_SOURCES[source].maxZoom });
+  if (zoom <= BASE_GLOBE_ZOOM) return null;
+
+  // Claim the request before awaiting, so a second settle while this one is in
+  // flight is measured against where we are going rather than where we were.
+  refineState = { ...(refineState || {}), bbox, zoom, source, busy: true };
+  onStatus?.(`Refining to zoom ${zoom}…`);
+  try {
+    const result = await composite(bbox, source, { credit: false });
+    // Another pass overtook this one; its patch is the current view, not ours.
+    if (refineState.bbox !== bbox) return null;
+    const mesh = buildMesh(result.canvas, bbox);
+    mesh.renderOrder = 60;                 // the imported band, over the sphere
+    mesh.name = "GeoID-BasemapRefine";
+    const group = geoGroup();
+    if (!group) return null;
+    disposeMesh(refineState.mesh);
+    group.add(mesh);
+    refineState.mesh = mesh;
+    onStatus?.(`Detail at zoom ${result.zoom} (${Math.round(result.metresPerPixel)} m/px).`);
+    return { ...result, bbox };
+  } finally {
+    if (refineState) refineState.busy = false;
+  }
+}
+
+/**
+ * Start refining, and keep doing it until told to stop.
+ *
+ * Idempotent: calling it twice does not stack two watchers, which matters
+ * because the panel wires it to a checkbox and the basemap can be reselected.
+ */
+export function startRefining({ onStatus } = {}) {
+  if (refineState?.stop) return refineState.stop;
+  const viewer = window.GeoIDViewer;
+  if (!viewer) return null;
+  refineState = { ...(refineState || {}) };
+  refineState.stop = onViewSettled(viewer, () => {
+    if (!refineState || refineState.busy) return;
+    void refineOnce({ onStatus });
+  });
+  return refineState.stop;
+}
+
+export function stopRefining() {
+  refineState?.stop?.();
+  disposeMesh(refineState?.mesh);
+  refineState = null;
+}
+
+export function isRefining() {
+  return Boolean(refineState?.stop);
 }

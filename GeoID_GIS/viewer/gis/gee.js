@@ -10,7 +10,9 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260810-564fd5f";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260810-c279dda";
+import { visibleBounds, viewChangedEnough, onViewSettled }
+  from "./view-extent.js?v=20260810-c279dda";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -93,63 +95,16 @@ function requestBounds() {
 }
 
 /**
- * Roughly what the camera is looking at, as a lat/lon box.
+ * The camera's extent in this panel's own {minX,minY,maxX,maxY} shape.
  *
- * Taken from the point the camera faces and how much of the globe is in shot,
- * rather than by projecting the sphere exactly: the request only needs to be
- * about right, and a box that is a little generous costs nothing but a slightly
- * larger picture.
+ * The sampling and the antimeridian handling now live in `view-extent.js`,
+ * shared with the tile basemaps, which need exactly the same answer. This was a
+ * second copy of it.
  */
 function viewBounds() {
-  const viewer = window.GeoIDViewer;
-  const camera = viewer?.camera;
-  if (!camera || !THREE) return null;
-  const radius = viewer.GLOBE_RADIUS || 3.2;
-  const sphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), radius);
-  const ray = new THREE.Raycaster();
-  const hit = new THREE.Vector3();
-  // Read back through the globe's own frame with the same half turn the drape
-  // bakes in. The old box was computed in the unrotated frame, so it sat east
-  // of the view by however far the planet had spun -- which is why the imagery
-  // covered half the picture and the wrong half.
-  viewer.globe?.updateMatrixWorld(true);
-  const toGlobe = viewer.globe
-    ? new THREE.Matrix4().copy(viewer.globe.matrixWorld).invert()
-    : null;
-  const lats = [];
-  const lons = [];
-  const steps = 8;
-  for (let i = 0; i <= steps; i += 1) {
-    for (let j = 0; j <= steps; j += 1) {
-      ray.setFromCamera(new THREE.Vector2((i / steps) * 2 - 1, (j / steps) * 2 - 1), camera);
-      if (!ray.ray.intersectSphere(sphere, hit)) continue;
-      const local = toGlobe ? hit.clone().applyMatrix4(toGlobe) : hit.clone();
-      local.set(-local.x, local.y, -local.z);
-      const r = local.length() || 1;
-      lats.push(Math.asin(Math.max(-1, Math.min(1, local.y / r))) * (180 / Math.PI));
-      lons.push(Math.atan2(local.z, -local.x) * (180 / Math.PI));
-    }
-  }
-  if (lats.length < 3) return null;
-  let minX = Math.min(...lons);
-  let maxX = Math.max(...lons);
-  if (maxX - minX > 180) {
-    // Spanning the antimeridian: treat the widest gap between samples as the
-    // part not being looked at, rather than asking for the whole world.
-    const sorted = [...lons].sort((a, b) => a - b);
-    let gap = 0;
-    let at = 0;
-    for (let i = 1; i < sorted.length; i += 1) {
-      if (sorted[i] - sorted[i - 1] > gap) { gap = sorted[i] - sorted[i - 1]; at = i; }
-    }
-    if (gap > 60) { minX = sorted[at]; maxX = sorted[at - 1] + 360; }
-  }
-  const pad = Math.min(2, (maxX - minX) * 0.05);
-  return {
-    minX: Math.max(-180, minX - pad), maxX: Math.min(180, maxX + pad),
-    minY: Math.max(-85, Math.min(...lats) - pad),
-    maxY: Math.min(85, Math.max(...lats) + pad),
-  };
+  const b = visibleBounds(window.GeoIDViewer, THREE);
+  if (!b) return null;
+  return { minX: b.minLon, maxX: b.maxLon, minY: b.minLat, maxY: b.maxLat };
 }
 
 /**
@@ -455,6 +410,42 @@ async function loadCache() {
   }
 }
 
+/**
+ * Re-request as you zoom, so an import sharpens instead of staying global.
+ *
+ * The service renders a fixed pixel budget over whatever extent it is given, so
+ * asking for a smaller box IS the refinement -- the same 1024 px spread over a
+ * tenth of the ground is ten times the detail. No scale parameter needed, which
+ * is fortunate because the endpoint does not take one.
+ *
+ * **Off by default, unlike the tile basemaps.** Those pull from free tile
+ * services; this invokes a billed Cloud Function on every settle. Turning that
+ * on is a spending decision and belongs to whoever owns the project, so it is
+ * one click away and never assumed.
+ */
+let refineStop = null;
+let lastRefineBounds = null;
+
+export function setRefineOnZoom(on) {
+  if (refineStop) { refineStop(); refineStop = null; }
+  lastRefineBounds = null;
+  if (!on) return;
+  const viewer = window.GeoIDViewer;
+  if (!viewer) return;
+  refineStop = onViewSettled(viewer, () => {
+    const select = byId("gee-dataset");
+    if (!select?.value || !THREE) return;
+    // A cached snapshot is one global PNG on disk; there is nothing finer to ask
+    // for, and re-draping it every time the camera stops would be pure churn.
+    if (select.selectedOptions?.[0]?.dataset.source === "cache") return;
+    if (byId("gee-extent")?.value !== "view") return;
+    const bounds = visibleBounds(viewer, THREE);
+    if (!viewChangedEnough(lastRefineBounds, bounds)) return;
+    lastRefineBounds = bounds;
+    void request();
+  });
+}
+
 /** Drape a cached snapshot straight from disk — the offline path. */
 async function requestFromCache(datasetId) {
   const entry = cacheEntries.find((e) => e.dataset === datasetId);
@@ -577,6 +568,25 @@ function init() {
     });
   });
 
+  // Injected rather than written into the markup, which exists twice -- once in
+  // the Earth page and once in the shared planet shell -- and drifts.
+  const extentRow = byId("gee-extent")?.closest(".row") || byId("gee-extent")?.parentElement;
+  if (extentRow && !byId("gee-refine")) {
+    const label = document.createElement("label");
+    label.className = "row";
+    label.style.gap = "0.4rem";
+    label.htmlFor = "gee-refine";
+    label.innerHTML = '<input id="gee-refine" type="checkbox">'
+      + '<span>Re-request as I zoom (uses the live service)</span>';
+    extentRow.insertAdjacentElement("afterend", label);
+    byId("gee-refine").addEventListener("change", (event) => {
+      setRefineOnZoom(event.target.checked);
+      status(event.target.checked
+        ? "Will re-request for the visible extent when the view settles."
+        : "Zoom re-requesting off.");
+    });
+  }
+
   // The cache first, so the panel is useful the moment it opens even with no
   // service and no network; the live catalogue merges in if it answers.
   loadCache();
@@ -591,5 +601,5 @@ if (typeof document !== "undefined") {
   } else {
     init();
   }
-  window.GeoIDEarthEngine = { request, setEndpoint, getEndpoint: endpoint };
+  window.GeoIDEarthEngine = { request, setEndpoint, getEndpoint: endpoint, setRefineOnZoom };
 }
