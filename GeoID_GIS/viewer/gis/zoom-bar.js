@@ -1,23 +1,22 @@
 /**
- * A horizontal zoom control, annotated by what you can actually see at each
- * altitude rather than by an abstract level number.
+ * A zoom control in the top-right corner, annotated by what you can actually
+ * see at each altitude rather than by an abstract level number.
  *
- * The scroll wheel answers "a bit closer"; it does not answer "take me to
- * regional scale" or "how far in am I?". A globe with five orders of magnitude
- * of range needs a control that shows the whole range at once, which is what
- * every mapping product ships and this did not have.
+ * The scroll wheel answers "a bit closer"; it does not answer "how far in am
+ * I?" or "keep going". So: a `‹ REGIONAL ›` pill whose arrows zoom **while
+ * held**, continuously, and whose middle names the scale you are at.
  *
- * **Logarithmic, because zoom is.** Linear in altitude, ninety-nine percent of
- * the travel would be spent between orbit and the stratosphere and the entire
- * useful range — regional to site — would live in the last pixel. Each band
- * below is a decade or so of altitude and gets a comparable share of the track.
+ * **The travel is exponential, because zoom is.** A fixed number of metres per
+ * tick is imperceptible at 10,000 km and a leap at 2 km; a fixed *ratio* per
+ * second reads as one steady glide at every scale. Holding therefore multiplies
+ * the target by `e^(rate·dt)` each frame rather than adding to it.
  *
  * It drives the same target the wheel does (`setZoomAltitudeMetres`) rather
- * than moving the camera, so a drag glides exactly as a scroll does and the two
+ * than moving the camera, so a hold glides exactly as a scroll does and the two
  * cannot fight over the camera.
  */
 
-import { isEarth } from "./bodies.js?v=20260810-bc997f7";
+import { isEarth } from "./bodies.js?v=20260810-179ddbc";
 
 /**
  * The bands, named for what the view is of — the thing a person is actually
@@ -100,8 +99,54 @@ export function reachableBands({ minMetres, maxMetres }) {
     });
 }
 
+// ── Holding an arrow ─────────────────────────────────────────────────────────
+
+/** One press, before any hold begins: small enough to aim with. */
+export const CLICK_RATIO = 1.35;
+/**
+ * A hold accelerates. It starts gently so a short press is fine-grained, and
+ * reaches full rate after RAMP_MS so a long one crosses the whole range in a
+ * few seconds rather than asking someone to hold an arrow for half a minute.
+ * Rates are e-folds per second.
+ */
+export const HOLD = { rateMin: 1.1, rateMax: 3.2, rampMs: 900, delayMs: 260 };
+
+/** The rate a hold has reached, ramped over its first RAMP_MS. */
+export function holdRate(heldMs, { rateMin, rateMax, rampMs } = HOLD) {
+  const t = Math.min(1, Math.max(0, heldMs / rampMs));
+  return rateMin + (rateMax - rateMin) * t;
+}
+
+/**
+ * How far the request may run ahead of the camera.
+ *
+ * The camera eases toward the target, so the target is always a little ahead —
+ * fine, that is the glide. But at the zoom floor the camera **stops** while a
+ * held arrow would go on compounding, and releasing would then leave it flying
+ * on for seconds into ground it can never reach. Bounding the lead means a hold
+ * against the floor simply idles there, and release settles at once.
+ */
+export const LEAD = 2.2;
+
+/**
+ * The next zoom request: exponential, bounded ahead of the camera, and
+ * deliberately **not** floored.
+ *
+ * `dir` is +1 for further out, −1 for closer. The low end clamps to 0, not to
+ * `minMetres`: the floor drops only as you descend, so a request clamped to the
+ * floor of the moment asks for where you already are. See CLAUDE.md — this is
+ * the third place that trap has surfaced.
+ */
+export function zoomRequest({ achieved, pending, dir, factor, maxMetres, lead = LEAD }) {
+  const from = Number.isFinite(pending) && pending !== null ? pending : achieved;
+  const base = Math.min(achieved * lead, Math.max(achieved / lead, from));
+  const next = dir > 0 ? base * factor : base / factor;
+  return Math.min(maxMetres, Math.max(0, next));
+}
+
 const STYLE = `
 #geoid-zoom-step {
+  position: fixed; z-index: 13; pointer-events: auto;
   display: flex; align-items: stretch; gap: 0;
   border: 1px solid rgba(var(--nav-accent-rgb, 120 200 255), 0.32);
   border-radius: 0.4rem; overflow: hidden;
@@ -112,6 +157,11 @@ const STYLE = `
 #geoid-zoom-step button {
   background: none; border: 0; color: rgba(226, 236, 255, 0.9);
   font: inherit; cursor: pointer; padding: 0 0.5rem; line-height: 1;
+  /* A hold is a press, not a gesture: no text selection, no touch scrolling. */
+  user-select: none; -webkit-user-select: none; touch-action: none;
+}
+#geoid-zoom-step button.is-held {
+  background: rgba(var(--nav-accent-rgb, 120 200 255), 0.28); color: #fff;
 }
 #geoid-zoom-step button:hover:not(:disabled) {
   background: rgba(var(--nav-accent-rgb, 120 200 255), 0.16);
@@ -135,11 +185,6 @@ export function installZoomBar() {
   const viewer = window.GeoIDViewer;
   if (!viewer?.getZoomAltitudeMetres || !viewer.setZoomAltitudeMetres) return false;
   if (viewer.getZoomAltitudeMetres() === null) return false;
-  // Sits inside the viewer's own control cluster rather than floating beside it:
-  // it is a flex row, so being the first child puts this to the LEFT of the
-  // tools with no coordinates to keep in step as that cluster changes.
-  const host = document.getElementById("top-right-controls");
-  if (!host) return false;
 
   const style = document.createElement("style");
   style.textContent = STYLE;
@@ -150,49 +195,122 @@ export function installZoomBar() {
   box.innerHTML = `
     <button class="zs-step" id="zs-out" type="button" title="Zoom out" aria-label="Zoom out">‹</button>
     <button class="zs-band" id="zs-band" type="button" title="Scale">Global</button>
-    <button class="zs-step" id="zs-in" type="button" title="Zoom in" aria-label="Zoom in">›</button>`;
-  host.prepend(box);
+    <button class="zs-step" id="zs-in" type="button" title="Zoom in — hold to keep going" aria-label="Zoom in">›</button>`;
+  document.body.appendChild(box);
 
   const out = box.querySelector("#zs-out");
   const into = box.querySelector("#zs-in");
   const label = box.querySelector("#zs-band");
 
   /**
-   * A step moves one band, except at the closest one, where it goes to the
-   * floor — otherwise "closer" would do nothing exactly when a person most
-   * wants it, since the floor drops as you descend.
+   * Pinned to the real top-right corner, just left of the GIS tool rail.
+   *
+   * Not by joining `#top-right-controls` — despite the id, the embedded page
+   * moves that cluster to the LEFT (`body.is-embedded` sets `left:` and clears
+   * `right:`), so a child of it lands mid-screen. Measured in the shell: the
+   * cluster at x=412 while the tool rail, the actual top-right furniture, is at
+   * x=822. So this reads the rail's own box and sits beside it, which also
+   * follows the rail when the hub arms and pushes it down.
    */
-  const step = (direction) => {
+  const place = () => {
+    const rail = document.getElementById("tool-rail");
+    const vis = rail && getComputedStyle(rail).display !== "none";
+    const r = vis ? rail.getBoundingClientRect() : null;
+    const right = r && r.width
+      ? `${Math.max(8, Math.round(window.innerWidth - r.left + 10))}px` : "1rem";
+    // A rail parked at mid-height (the narrow embedded layout centres it) is no
+    // guide for a top-corner control, so the top is capped near the top.
+    const top = r && r.width
+      ? `${Math.round(Math.min(Math.max(8, r.top), window.innerHeight * 0.25))}px` : "1rem";
+    if (box.style.right !== right) box.style.right = right;
+    if (box.style.top !== top) box.style.top = top;
+  };
+  place();
+  window.addEventListener("resize", place);
+
+  const request = (metres) => viewer.setZoomAltitudeMetres(metres);
+
+  /** One frame's worth of travel, or one press when `factor` is CLICK_RATIO. */
+  const drive = (dir, factor) => {
     const r = viewer.getZoomAltitudeMetres();
     if (!r) return;
-    const here = bandIndexFor(r.metres);
-    const next = here + direction;             // +1 = coarser, -1 = closer
-    if (next < 0) { viewer.setZoomAltitudeMetres(0); return; }
-    if (next >= ZOOM_BANDS.length) { viewer.setZoomAltitudeMetres(r.maxMetres); return; }
-    /**
-     * Asked for WITHOUT the floor, deliberately.
-     *
-     * The floor only drops once you descend — the relief tapers on the way in —
-     * so at 999 km the floor is still 995 km and a request clamped to it asks
-     * for where you already are. Measured: stepping Global → Continental →
-     * Regional worked and then stalled, because Local clamped to 995 km.
-     * Asking for the band's own altitude leaves the request floor-limited, and
-     * the viewer walks the floor down until it can be satisfied. The ceiling is
-     * still real, since nothing lifts that.
-     */
-    viewer.setZoomAltitudeMetres(bandAltitude(next, { minMetres: 1, maxMetres: r.maxMetres }));
+    request(zoomRequest({
+      achieved: r.metres, pending: r.targetMetres, dir, factor, maxMetres: r.maxMetres,
+    }));
   };
-  out.addEventListener("click", () => step(+1));
-  into.addEventListener("click", () => step(-1));
-  // The band name is a control too: clicking re-centres on the current band,
-  // which is how you get back to a round number after a lot of scrolling.
+
+  // Holding an arrow zooms continuously: press for a nudge, keep holding and it
+  // accelerates into a glide. The rAF loop drives the same target the wheel
+  // sets, so the viewer's easing does the smoothing and there is no second
+  // animation to fight it.
+  let raf = 0;
+  let delay = 0;
+  let dir = 0;
+  let heldFrom = 0;
+  let lastFrame = 0;
+  let fromPointer = false;
+
+  const stopHold = () => {
+    clearTimeout(delay);
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0; dir = 0;
+    out.classList.remove("is-held");
+    into.classList.remove("is-held");
+  };
+
+  const tick = (now) => {
+    if (!dir) return;
+    const dt = Math.min(0.05, Math.max(0, (now - lastFrame) / 1000));
+    lastFrame = now;
+    drive(dir, Math.exp(holdRate(now - heldFrom) * dt));
+    raf = requestAnimationFrame(tick);
+  };
+
+  const startHold = (button, direction) => {
+    stopHold();
+    dir = direction;
+    button.classList.add("is-held");
+    drive(direction, CLICK_RATIO);          // the press itself, felt at once
+    delay = setTimeout(() => {
+      heldFrom = performance.now();
+      lastFrame = heldFrom;
+      raf = requestAnimationFrame(tick);
+    }, HOLD.delayMs);
+  };
+
+  for (const [button, direction] of [[out, +1], [into, -1]]) {
+    button.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 && event.pointerType === "mouse") return;
+      event.preventDefault();
+      fromPointer = true;
+      startHold(button, direction);
+    });
+    // Activated from the keyboard, where there is no pointer sequence to ride.
+    button.addEventListener("click", () => {
+      if (fromPointer) { fromPointer = false; return; }
+      drive(direction, CLICK_RATIO);
+    });
+  }
+  // Released anywhere, or the pointer left the window mid-hold, or the tab lost
+  // focus — all of them must stop it, or the globe keeps flying.
+  for (const event of ["pointerup", "pointercancel", "blur"]) {
+    window.addEventListener(event, stopHold);
+  }
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stopHold(); });
+
+  // The band name is a control too: clicking snaps to the middle of the current
+  // band, which is how you get back to a round number after a lot of zooming.
+  // Asked for WITHOUT the floor, for the reason in `zoomRequest`.
   label.addEventListener("click", () => {
     const r = viewer.getZoomAltitudeMetres();
-    if (r) viewer.setZoomAltitudeMetres(bandAltitude(bandIndexFor(r.metres), r));
+    if (r) {
+      request(bandAltitude(bandIndexFor(r.metres), { minMetres: 1, maxMetres: r.maxMetres }));
+    }
   });
 
   let shown = "";
   const paint = () => {
+    place();
     const r = viewer.getZoomAltitudeMetres();
     if (!r) return;
     const band = bandFor(r.metres);
@@ -201,12 +319,16 @@ export function installZoomBar() {
     shown = text;
     label.textContent = band;
     label.title = `${band} — ${formatAltitude(r.metres)} above the surface`;
-    // Greyed at the ends of what is actually reachable, so the control never
-    // offers a scale the floor forbids.
-    const bands = reachableBands(r);
-    const here = bandIndexFor(r.metres);
-    into.disabled = here <= Math.min(...bands) && r.metres <= r.minMetres * 1.05;
-    out.disabled = here >= Math.max(...bands) && r.metres >= r.maxMetres * 0.95;
+    /**
+     * Only the ceiling greys out. There is no honest test for "as close as it
+     * gets": `minMetres` is the floor of *this moment* and descending lowers it,
+     * so greying against it disables the button at 999 km — where the floor is
+     * still 995 km and one more press would have moved it. The same trap as the
+     * clamped request, wearing a different hat.
+     */
+    out.disabled = bandIndexFor(r.metres) >= Math.max(...reachableBands(r))
+      && r.metres >= r.maxMetres * 0.95;
+    if (out.disabled && dir > 0) stopHold();
   };
   paint();
   setInterval(paint, 150);

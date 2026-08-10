@@ -11,6 +11,7 @@
 import {
   ZOOM_BANDS, bandFor, altitudeToFraction, fractionToAltitude, formatAltitude,
   bandIndexFor, bandAltitude, reachableBands,
+  zoomRequest, holdRate, CLICK_RATIO, HOLD, LEAD,
 } from "./zoom-bar.js";
 
 let failures = 0;
@@ -115,6 +116,82 @@ check("a 1.8 km floor reaches every band", lowFloor.length === ZOOM_BANDS.length
 check("a band under the floor clamps to the floor",
   bandAltitude(0, { minMetres: 995e3, maxMetres: MAX }) >= 995e3,
   formatAltitude(bandAltitude(0, { minMetres: 995e3, maxMetres: MAX })));
+
+// ── Pressing and holding ─────────────────────────────────────────────────────
+const req = (o) => zoomRequest({ maxMetres: MAX, ...o });
+
+// A press is multiplicative, so it feels the same at every scale — the whole
+// reason a fixed number of metres per press cannot work.
+close("one press in divides the altitude",
+  req({ achieved: 400e3, pending: null, dir: -1, factor: CLICK_RATIO }),
+  400e3 / CLICK_RATIO, 1);
+close("one press out multiplies it",
+  req({ achieved: 400e3, pending: null, dir: +1, factor: CLICK_RATIO }),
+  400e3 * CLICK_RATIO, 1);
+check("a press is a modest change, not a jump", CLICK_RATIO < 1.6, `${CLICK_RATIO}`);
+
+// Presses compound on the PENDING target, not on where the camera has got to;
+// otherwise a quick double-press is half a press, because the camera has not
+// moved yet.
+close("a second press compounds on the first",
+  req({ achieved: 400e3, pending: 400e3 / CLICK_RATIO, dir: -1, factor: CLICK_RATIO }),
+  400e3 / CLICK_RATIO ** 2, 1);
+
+// The floor is deliberately absent: descending lowers it, so a request stopping
+// at the floor of the moment asks for where you already are.
+check("a request may ask below the floor",
+  req({ achieved: 999e3, pending: null, dir: -1, factor: CLICK_RATIO }) < 995e3,
+  formatAltitude(req({ achieved: 999e3, pending: null, dir: -1, factor: CLICK_RATIO })));
+check("but never below the ground",
+  req({ achieved: 1, pending: 1, dir: -1, factor: 1e9 }) >= 0);
+check("and never above the ceiling",
+  req({ achieved: MAX, pending: MAX, dir: +1, factor: 4 }) === MAX);
+
+// The lead bound: at the floor the camera stops while a held arrow keeps
+// compounding, and without this, releasing leaves it flying on for seconds.
+check("a request cannot run far ahead of the camera",
+  req({ achieved: 2e3, pending: 1, dir: -1, factor: 1 }) >= 2e3 / LEAD - 1,
+  formatAltitude(req({ achieved: 2e3, pending: 1, dir: -1, factor: 1 })));
+check("nor far behind it",
+  req({ achieved: 2e3, pending: 1e9, dir: +1, factor: 1 }) <= 2e3 * LEAD + 1);
+
+// The ramp: gentle at first so a tap is fine-grained, full rate once held.
+close("a hold starts at the gentle rate", holdRate(0), HOLD.rateMin, 1e-9);
+close("and reaches full rate after the ramp", holdRate(HOLD.rampMs), HOLD.rateMax, 1e-9);
+check("it never exceeds it", holdRate(60_000) === HOLD.rateMax);
+let ramps = true;
+for (let t = 0; t < HOLD.rampMs; t += 50) if (!(holdRate(t + 50) > holdRate(t))) ramps = false;
+check("and rises monotonically", ramps);
+
+// The requirement itself, simulated at 60 fps: a hold must cross the whole
+// range in a few seconds AND never move more than a few percent in one frame.
+// Those pull against each other, which is why both are pinned here.
+{
+  let achieved = 16_694e3;         // the default view
+  let pending = null;
+  let frames = 0;
+  let worstRatio = 1;
+  const dt = 1 / 60;
+  while (achieved > 2e3 && frames < 60 * 20) {
+    const next = zoomRequest({
+      achieved, pending, dir: -1,
+      factor: Math.exp(holdRate((frames * 1000) / 60) * dt), maxMetres: MAX,
+    });
+    pending = next;
+    // The camera eases toward the target rather than teleporting: 22% of the
+    // remaining ratio per frame, as the render loop does. Smoothness is what
+    // the CAMERA does per frame — the target may sit well ahead of it, and
+    // that steady gap is the glide, not a jump.
+    const moved = (next / achieved) ** 0.22;
+    worstRatio = Math.max(worstRatio, 1 / moved);
+    achieved *= moved;
+    frames += 1;
+  }
+  const seconds = frames / 60;
+  check("holding crosses the whole range in a few seconds",
+    seconds > 1 && seconds < 8, `${seconds.toFixed(1)}s`);
+  check("and no single frame is a jump", worstRatio < 1.06, `worst ${worstRatio.toFixed(4)}x`);
+}
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

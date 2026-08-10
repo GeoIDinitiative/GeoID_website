@@ -19049,6 +19049,14 @@ uniform float uViewportWidth;`,
             metres: toM(Math.max(0, here)),
             minMetres: toM(zc.minSurfaceDistance),
             maxMetres: toM(zc.maxSurfaceDistance),
+            // Where the camera is HEADED, null once it has arrived. A control
+            // that zooms continuously must compound on this rather than on
+            // `metres`: the camera is always easing along behind the target, so
+            // compounding on where it has got to converges on a fixed lag and
+            // the travel rate collapses to the easing rate.
+            targetMetres: zoomTargetSurfaceDistance === null
+              ? null
+              : toM(zoomTargetSurfaceDistance),
           };
         },
         // Imported GIS layers must use the viewer's own longitude convention
