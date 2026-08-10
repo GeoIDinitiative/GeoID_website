@@ -39,73 +39,68 @@ const PANELS = [
   },
 ];
 
+/**
+ * Only what the sidebar cannot lend.
+ *
+ * The shell — border, ground, rounding, glow, type — is not written here at
+ * all: it is READ off `#ui` at build time and applied to the panel, so these
+ * are the sidebar, on the other side of the screen. That is what makes them
+ * match on Earth, on a planet page, embedded or not, and through any future
+ * reskin, without a second copy of those values existing anywhere.
+ */
 const STYLE = `
-/* The rail item, matching .tool-rail-item exactly -- these sit in the same
-   column as Distance/Draw/Profile and must not read as a different kind of
-   control. Only the active state differs: a measure tool is "armed", a
-   workbench is "open". */
 .tool-rail-panel-btn.is-open {
   border-color: rgba(var(--nav-accent-rgb), 0.9);
   background: rgba(var(--nav-accent-rgb), 0.18);
 }
 
-/* The panel: the sidebar's shell, on the other side of the screen. */
 .gis-side-panel {
   position: fixed;
   z-index: 12;
   display: flex;
   flex-direction: column;
-  width: min(23rem, calc(100vw - 2rem));
-  border: 1px solid rgba(82, 228, 232, 0.38);
-  border-radius: 0.85rem;
-  background:
-    radial-gradient(ellipse at top, rgba(57, 127, 214, 0.2), transparent 45%),
-    linear-gradient(165deg, rgba(9, 20, 30, 0.97) 0%, rgba(5, 12, 19, 0.96) 100%);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5), 0 0 22px -8px rgba(82, 228, 232, 0.35);
   overflow: hidden;
-  font-family: "Exo 2", "Trebuchet MS", "Segoe UI", sans-serif;
 }
 .gis-side-panel[hidden] { display: none; }
 
-.gis-side-panel-head {
+/* The sidebar's own header row, and its own buttons inside it. */
+.gis-side-panel .brand-toprow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.5rem 0.6rem 0.5rem 0.8rem;
-  border-bottom: 1px solid rgba(82, 228, 232, 0.22);
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem 0.35rem 0.75rem;
+  border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.2);
+}
+.gis-side-panel-title {
+  flex: 1;
+  min-width: 0;
   font-size: 0.66rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgb(var(--nav-accent-rgb, 120 200 255));
-}
-.gis-side-panel-close {
-  background: none;
-  border: 1px solid rgba(var(--nav-accent-rgb), 0.35);
-  border-radius: 0.4rem;
-  color: inherit;
-  font: inherit;
-  line-height: 1;
-  padding: 0.2rem 0.45rem;
-  cursor: pointer;
-}
-.gis-side-panel-close:hover {
-  border-color: rgb(var(--nav-accent-rgb));
-  background: rgba(var(--nav-accent-rgb), 0.16);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Scrolls like #ui-scroll-body does, so a long toolbox behaves the same here. */
+/* Scrolls exactly as #ui-scroll-body does. */
 .gis-side-panel-body {
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0.55rem;
+  flex: 1;
   min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(151, 182, 194, 0.32) transparent;
+  padding: 0.5rem 0.55rem 0.85rem;
 }
 
-/* The group arrives as a collapsible that was one of nine. On its own it is the
-   whole panel, so its shell is dropped: the panel's header already names it,
-   and a second title inside said everything twice. */
+/* Collapsed is a bar, exactly as #ui.is-collapsed is: the header stays, the
+   body goes, and the panel keeps its place in the column. */
+.gis-side-panel.is-collapsed .gis-side-panel-body { display: none; }
+
+/* The group arrives as one collapsible of nine. On its own it IS the panel, so
+   its shell is dropped -- the header above already names it, and a second
+   title inside said everything twice. */
 .gis-side-panel-body > .toolbox-group {
   border: 0;
   background: none;
@@ -152,7 +147,9 @@ function place() {
   const box = rail.getBoundingClientRect();
   if (!box.width) return;
   const right = Math.max(8, Math.round(window.innerWidth - box.right));
-  const top = Math.round(Math.min(box.bottom + 10, window.innerHeight * 0.5));
+  // Directly under the rail. It was clamped to half the viewport, which on a
+  // short window put the panel's head ABOVE the buttons that open it.
+  const top = Math.round(box.bottom + 10);
   panels.forEach(({ panel }) => {
     if (panel.hidden) return;
     panel.style.right = `${right}px`;
@@ -162,6 +159,24 @@ function place() {
   });
 }
 
+/**
+ * The shell properties borrowed from `#ui`.
+ *
+ * Read rather than declared, so the panel is the sidebar and not a likeness of
+ * it. Width is included: the two columns then balance, one each side.
+ */
+const SHELL_PROPS = [
+  "width", "border", "borderRadius", "background", "backdropFilter",
+  "boxShadow", "color", "fontFamily",
+];
+
+function adoptSidebarShell(panel) {
+  const sidebar = document.getElementById("ui");
+  if (!sidebar) return;
+  const from = getComputedStyle(sidebar);
+  SHELL_PROPS.forEach((prop) => { panel.style[prop] = from[prop]; });
+}
+
 function buildPanel(spec, group) {
   const panel = document.createElement("section");
   panel.className = "gis-side-panel";
@@ -169,18 +184,34 @@ function buildPanel(spec, group) {
   panel.hidden = true;
   panel.setAttribute("aria-label", spec.title);
 
-  const head = document.createElement("header");
-  head.className = "gis-side-panel-head";
+  // The sidebar's header row, class for class, so it inherits whatever that
+  // row is skinned with on this page.
+  const head = document.createElement("div");
+  head.className = "brand-toprow";
   const title = document.createElement("span");
+  title.className = "gis-side-panel-title";
   title.textContent = spec.title;
-  const close = document.createElement("button");
-  close.type = "button";
-  close.className = "gis-side-panel-close";
-  close.textContent = "✕";
-  close.title = "Close";
-  close.setAttribute("aria-label", `Close ${spec.title}`);
-  close.addEventListener("click", () => setOpen(spec.id, false));
-  head.append(title, close);
+
+  const actions = document.createElement("div");
+  actions.className = "brand-toprow-actions";
+  // `#nav-collapse-btn` carries no class -- the sidebar styles it by id -- so
+  // the chevron borrows `.info-btn`, the other button in that row, which is
+  // styled by class and therefore lends itself.
+  const collapse = document.createElement("button");
+  collapse.type = "button";
+  collapse.className = "info-btn";
+  collapse.textContent = "‹";
+  collapse.title = "Collapse";
+  collapse.setAttribute("aria-label", `Collapse ${spec.title}`);
+  collapse.setAttribute("aria-expanded", "true");
+  collapse.addEventListener("click", () => {
+    const collapsed = panel.classList.toggle("is-collapsed");
+    collapse.textContent = collapsed ? "›" : "‹";
+    collapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    place();
+  });
+  actions.appendChild(collapse);
+  head.append(title, actions);
 
   const body = document.createElement("div");
   body.className = "gis-side-panel-body";
@@ -191,6 +222,7 @@ function buildPanel(spec, group) {
 
   panel.append(head, body);
   document.body.appendChild(panel);
+  adoptSidebarShell(panel);
   return panel;
 }
 
