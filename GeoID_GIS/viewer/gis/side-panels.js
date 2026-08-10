@@ -65,7 +65,7 @@ const STYLE = `
 #tool-rail.has-open-panel .tool-rail-btn:not(.is-open) span { display: none; }
 #tool-rail.has-open-panel .tool-rail-btn:not(.is-open) svg { width: 1rem; height: 1rem; }
 
-/* The close mark, matching the Atlas panel's `.atlas-close`: no border, no
+/* The close mark, matching the Atlas panel's .atlas-close: no border, no
    fill, quiet until hovered. It is a dismissal, not an action. */
 .gis-side-panel-close {
   background: none;
