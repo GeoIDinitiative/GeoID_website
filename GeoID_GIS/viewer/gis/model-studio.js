@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody } from "./bodies.js?v=20260810-0fc473f";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-0fc473f";
+import { currentBody, getBody } from "./bodies.js?v=20260810-e7aa4f0";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-e7aa4f0";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260810-0fc473f";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-0fc473f";
-import { downloadText } from "./extraction.js?v=20260810-0fc473f";
+} from "./mesh-volume.js?v=20260810-e7aa4f0";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-e7aa4f0";
+import { downloadText } from "./extraction.js?v=20260810-e7aa4f0";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1633,6 +1633,13 @@ function rememberGlobeView() {
     up: viewer.camera.up.clone(),
     near: viewer.camera.near,
     far: viewer.camera.far,
+    // The altitude too, because the globe's zoom is a TARGET the render loop
+    // eases towards, not a position. Restoring the camera without it leaves a
+    // stale target alive and the loop simply pulls the camera back off the
+    // restored view over the next second -- measured: restored to 4.57 units
+    // and dragged back to 3.70 within three seconds, which reads as the view
+    // "offsetting dramatically" a beat after the mode switch.
+    altitudeMetres: viewer.getZoomAltitudeMetres?.()?.metres ?? null,
   };
 }
 
@@ -1646,6 +1653,11 @@ function restoreGlobeView() {
   viewer.camera.updateProjectionMatrix();
   viewer.controls?.target.copy(launchGlobeView.target);
   viewer.controls?.update();
+  // Point the zoom target at where the camera now is, so the easing agrees with
+  // the restore instead of undoing it.
+  if (Number.isFinite(launchGlobeView.altitudeMetres)) {
+    viewer.setZoomAltitudeMetres?.(launchGlobeView.altitudeMetres);
+  }
   // Deliberately NOT cleared: this is the launch view, and every return to the
   // globe uses it. Clearing it meant the second trip had nothing to restore.
 }
