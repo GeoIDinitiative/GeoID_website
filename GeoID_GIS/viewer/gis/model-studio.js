@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody } from "./bodies.js?v=20260810-5d04e7a";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-5d04e7a";
+import { currentBody, getBody } from "./bodies.js?v=20260810-c12c514";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-c12c514";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260810-5d04e7a";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-5d04e7a";
-import { downloadText } from "./extraction.js?v=20260810-5d04e7a";
+} from "./mesh-volume.js?v=20260810-c12c514";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-c12c514";
+import { downloadText } from "./extraction.js?v=20260810-c12c514";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -303,8 +303,31 @@ function bodyRadiusM() {
 export function setStudioBody(id) {
   const body = getBody(id);
   if (!body) return null;
+  const previousRadius = groundRadius;
   studioBodyId = body.id;
   groundRadius = computeGroundRadius();
+
+  /**
+   * Carry the camera and the orbit target with the surface.
+   *
+   * The model is anchored ON the ground, at `y = groundRadius`, so changing the
+   * radius moves the ground out from under whatever is looking at it. Left
+   * behind, a larger body simply swallows the camera: the target ends up inside
+   * the new sphere, the dolly floor fires, and zoom dies. Measured going from
+   * Earth to Jupiter — `minDistance` jumped from 0.002 m to 63,596 km, which is
+   * "cannot zoom in at all".
+   *
+   * Shifting both by the same delta keeps the model exactly where it was on
+   * screen, so switching worlds changes the curvature, the horizon and the
+   * scale, and nothing else.
+   */
+  const shift = groundRadius - previousRadius;
+  const viewer = window.GeoIDViewer;
+  if (shift && viewer?.camera && viewer?.controls) {
+    viewer.camera.position.y += shift;
+    viewer.controls.target.y += shift;
+  }
+
   // Force the patch to be rebuilt: its size is judged against the horizon, and
   // the horizon just moved.
   patchRadius = 0;
@@ -312,7 +335,7 @@ export function setStudioBody(id) {
   applyOrbitDistanceLimits();
   keepCameraAboveGround();
   updateScaleReadout();
-  window.GeoIDViewer?.controls?.update?.();
+  viewer?.controls?.update?.();
   return body;
 }
 
