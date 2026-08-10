@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260810-9916322";
-import { currentBody } from "./bodies.js?v=20260810-9916322";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260810-9916322";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260810-da7f6f0";
+import { currentBody } from "./bodies.js?v=20260810-da7f6f0";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260810-da7f6f0";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -71,11 +71,17 @@ const MOVES = [
 // The tab bar, in the order it reads. Every tab is gathered into one parent so
 // the sequence is this list and the spacing is one rule, rather than an
 // accident of which container each panel happened to be moved into.
+/**
+ * Pre-processing and Extraction & Analysis are NOT here.
+ *
+ * They live on the tool rail as workbenches (`gis/side-panels.js`), which moves
+ * their groups out of this column. Leaving them in this list would append them
+ * straight back on the next `orderTabs`, which runs on every mode change.
+ */
 const TAB_ORDER = [
   "gis-group-geoid",
   "gis-group-import",
   "gis-group-polygons",
-  "gis-group-preprocess",
   "gis-group-events",
   "geoid-controls-group",
   "basemap-relief-section",
@@ -83,7 +89,6 @@ const TAB_ORDER = [
   "gis-group-modelled",
   "sea-level-section",
   "modelled-data-section",
-  "gis-group-analysis",
   "gis-group-export",
   "gis-group-metadata",
 ];
