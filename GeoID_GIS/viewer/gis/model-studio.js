@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody } from "./bodies.js?v=20260810-c12c514";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-c12c514";
+import { currentBody, getBody } from "./bodies.js?v=20260810-c9c0b4f";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-c9c0b4f";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260810-c12c514";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-c12c514";
-import { downloadText } from "./extraction.js?v=20260810-c12c514";
+} from "./mesh-volume.js?v=20260810-c9c0b4f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-c9c0b4f";
+import { downloadText } from "./extraction.js?v=20260810-c9c0b4f";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -89,6 +89,31 @@ function log(line) {
 function status(text) {
   const node = byId("studio-status");
   if (node) node.textContent = text;
+}
+
+/**
+ * What is being modelled, and where.
+ *
+ * The studio looks the same on every world and in every project — the geometry
+ * on screen says nothing about either — so with two windows open, or after
+ * coming back to one, there was no way to tell a Moon model in one project from
+ * an Earth model in another. Project and world, stated.
+ *
+ * "No project" is worth saying rather than leaving blank: without one the
+ * exports go to the downloads folder instead of into a study, which is a
+ * difference people discover later.
+ */
+function updateStudioContext() {
+  const node = byId("studio-context");
+  if (!node) return;
+  const project = window.GeoIDResearch?.store?.getActive?.() || null;
+  const world = studioBody()?.name || "—";
+  node.textContent = `${project?.name || "No project"} · ${world}`;
+  node.title = project
+    ? `Modelling on ${world}, in the project "${project.name}"`
+    : `Modelling on ${world}. No project is open, so exports go to your `
+      + "downloads rather than into a study.";
+  node.classList.toggle("is-unset", !project);
 }
 
 function record(op) {
@@ -335,6 +360,7 @@ export function setStudioBody(id) {
   applyOrbitDistanceLimits();
   keepCameraAboveGround();
   updateScaleReadout();
+  updateStudioContext();
   viewer?.controls?.update?.();
   return body;
 }
@@ -1972,8 +1998,35 @@ function init() {
   const waitForViewer = () => {
     if (window.GeoIDViewer?.renderer) {
       installPicking();
+      updateStudioContext();
+      /**
+       * The Research store loads on its own schedule, so subscribing is retried
+       * rather than assumed. Without it the line would be right on arrival and
+       * then go stale the moment a different project was opened.
+       */
+      (function subscribeToProject(tries = 0) {
+        const store = window.GeoIDResearch?.store;
+        if (store?.onChange) { store.onChange(updateStudioContext); updateStudioContext(); return; }
+        if (tries < 40) setTimeout(() => subscribeToProject(tries + 1), 500);
+      })();
       const startsInModel = window.GeoIDModeManager?.getMode?.() === "model";
       if (startsInModel) {
+        /**
+         * Remember the globe's view even when Model mode is restored from a
+         * previous session.
+         *
+         * `rememberGlobeView` normally runs on the mode-change event, and that
+         * event never fires on this path — so nothing was saved, and leaving
+         * for GIS found nothing to restore and left the camera wherever the
+         * studio had put it: straight up the +Y axis, which renders as the
+         * north pole. (Measured: the camera at (0, 11.6, 0), and the locator
+         * reading 66.56° — 90 minus the 23.44° axial tilt.)
+         *
+         * The camera is still the globe's default here, which is exactly the
+         * view worth going back to. It must be captured before the orbit limits
+         * and `centreOnOrigin` move it.
+         */
+        rememberGlobeView();
         setStudioOrbitLimits(true);
       }
       // Only Model mode wants the studio's scene: it hides the starfield and
@@ -2006,6 +2059,7 @@ function init() {
       setStudioOrbitLimits(true);
       applyStudioScene();
       centreOnOrigin();
+      updateStudioContext();
     } else {
       setStudioOrbitLimits(false);
       setStarsVisible(true);
