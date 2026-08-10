@@ -16,7 +16,7 @@
  * cannot fight over the camera.
  */
 
-import { isEarth } from "./bodies.js?v=20260810-9f3229e";
+import { isEarth } from "./bodies.js?v=20260810-570c14d";
 
 /**
  * The bands, named for what the view is of — the thing a person is actually
@@ -146,7 +146,14 @@ export function zoomRequest({ achieved, pending, dir, factor, maxMetres, lead = 
 
 const STYLE = `
 #geoid-zoom-step {
-  position: fixed; z-index: 13; pointer-events: auto;
+  /**
+   * Below every popup, deliberately. The readouts and description windows that
+   * open near this corner all sit at 14 and up (#hover-tooltip 14, #scene-popup
+   * 20, #geo-popup 22, #event-popup 40, #measurement-result-card 140), and the
+   * HUD clusters at 13 — so 12 is under all of them with no reliance on DOM
+   * order, and a popup can never end up behind a zoom arrow.
+   */
+  position: fixed; z-index: 12; pointer-events: auto;
   display: flex; align-items: stretch; gap: 0;
   border: 1px solid rgba(var(--nav-accent-rgb, 120 200 255), 0.32);
   border-radius: 0.4rem; overflow: hidden;
@@ -203,27 +210,43 @@ export function installZoomBar() {
   const label = box.querySelector("#zs-band");
 
   /**
-   * Pinned to the real top-right corner, just left of the GIS tool rail.
+   * Directly above the scale bar, centred on it.
    *
-   * Not by joining `#top-right-controls` — despite the id, the embedded page
-   * moves that cluster to the LEFT (`body.is-embedded` sets `left:` and clears
-   * `right:`), so a child of it lands mid-screen. Measured in the shell: the
-   * cluster at x=412 while the tool rail, the actual top-right furniture, is at
-   * x=822. So this reads the rail's own box and sits beside it, which also
-   * follows the rail when the hub arms and pushes it down.
+   * The two answer the same question — how big is what I am looking at — so
+   * they belong together, and the scale bar is already the corner of the HUD
+   * that reports distance. Measured from the bar's own box rather than written
+   * as coordinates: it is `grid-area: scale` inside the bottom HUD, its width
+   * changes with the breakpoint (10.5rem, 7rem, 5rem embedded), and a hard
+   * offset would drift from it at every size.
+   *
+   * Not `#top-right-controls`, which was the first attempt: despite the id,
+   * `body.is-embedded` sets `left:` and clears `right:`, so in the shell that
+   * cluster is pinned beside the sidebar — measured at x=412 while the tool
+   * rail, the real top-right furniture, was at x=822.
    */
+  const GAP = 10;
   const place = () => {
-    const rail = document.getElementById("tool-rail");
-    const vis = rail && getComputedStyle(rail).display !== "none";
-    const r = vis ? rail.getBoundingClientRect() : null;
-    const right = r && r.width
-      ? `${Math.max(8, Math.round(window.innerWidth - r.left + 10))}px` : "1rem";
-    // A rail parked at mid-height (the narrow embedded layout centres it) is no
-    // guide for a top-corner control, so the top is capped near the top.
-    const top = r && r.width
-      ? `${Math.round(Math.min(Math.max(8, r.top), window.innerHeight * 0.25))}px` : "1rem";
-    if (box.style.right !== right) box.style.right = right;
-    if (box.style.top !== top) box.style.top = top;
+    const bar = document.getElementById("scale-readout");
+    const vis = bar && !bar.hidden && getComputedStyle(bar).display !== "none";
+    const s = vis ? bar.getBoundingClientRect() : null;
+    let left = "";
+    let bottom = "";
+    let right = "";
+    if (s && s.width) {
+      const width = box.offsetWidth || 149;
+      left = `${Math.round(Math.max(8, Math.min(
+        s.left + (s.width - width) / 2, window.innerWidth - width - 8,
+      )))}px`;
+      bottom = `${Math.round(Math.max(8, window.innerHeight - s.top + GAP))}px`;
+    } else {
+      // No scale bar on the page yet (it starts hidden): hold the corner it
+      // will appear in rather than jumping there later.
+      right = "1rem";
+      bottom = "3rem";
+    }
+    for (const [prop, value] of [["left", left], ["right", right], ["bottom", bottom]]) {
+      if (box.style[prop] !== value) box.style[prop] = value;
+    }
   };
   place();
   window.addEventListener("resize", place);

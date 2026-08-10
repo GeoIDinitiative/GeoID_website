@@ -1024,13 +1024,28 @@ it is a 149 px `‹ SITE ›` pill whose arrows zoom **while held** and whose mi
 names the scale (Site · Local · Regional · Continental · Global), so the
 annotation answers "how far in am I?" without anyone reading a number.
 
-**`#top-right-controls` is not in the top right.** Despite the id,
-`body.is-embedded` sets `left:` and clears `right:`, so in the shell — the way
-anyone actually sees this — that cluster is pinned beside the sidebar. Measured:
-the cluster at x=412 while `#tool-rail`, the real top-right furniture, is at
-x=822. A control that belongs in that corner must read the **rail's** box and
-sit beside it, which also follows the rail down when the hub arms and pushes it
-below the hazard readout.
+**It sits directly above the scale bar, centred on it** — the two answer the
+same question, how big is what I am looking at. Placed from the bar's own
+measured box, never as coordinates: `#scale-readout` is `grid-area: scale`
+inside the bottom HUD and its width changes with the breakpoint (10.5rem, 7rem,
+5rem embedded), so a hard offset drifts off it at every other size.
+
+**`#top-right-controls` is not in the top right**, which is what the first
+attempt assumed. Despite the id, `body.is-embedded` sets `left:` and clears
+`right:`, so in the shell — the way anyone actually sees this — that cluster is
+pinned beside the sidebar: measured at x=412 while `#tool-rail`, the real
+top-right furniture, was at x=822. `.map-legend` also lives in that corner
+(`top: 1rem; right: 5.5rem`), so it is busier than it looks.
+
+**z-index 12, below every popup.** All ten of the viewer's popups and modals are
+siblings of this pill under `body` — one stacking context, so paint order is
+purely numeric — and the lowest is `.map-legend` at 13, rising through
+`#hover-tooltip` 14, `#scene-popup` 20, `#geo-popup` 22, the modals at 62 and
+`#measurement-result-card` at 140. Sitting at 12 puts a description window above
+the zoom arrows without depending on DOM order. **Do not hit-test this with
+`elementFromPoint`**: `#hover-tooltip` and `#measurement-result-card` are
+`pointer-events: none`, so they read as "behind" a control they in fact paint
+over, and that reads as a stacking bug that is not there.
 
 **Holding compounds on the pending target, never on the camera.** The camera is
 always easing along behind the target, so compounding on where it has *got to*
