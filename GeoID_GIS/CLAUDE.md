@@ -105,6 +105,15 @@ key handler must make the same exemption.
 **Run `python3 GeoID_GIS/services/stamp.py`** after editing anything under
 `GeoID_GIS/viewer/`. Never edit a `?v=` by hand.
 
+**A backtick inside a CSS template literal ends the string.** A comment in
+zoom-bar.js's `STYLE` referred to `` `fitLabel()` `` in backticks; the module
+became unparseable from that point, `installZoomBar` never ran, and the control
+vanished from the page entirely while the script tag still loaded and the seam
+still reported ready — it looks like a placement bug, not a syntax error. The
+unit suite imports every one of these modules and says so in one line; that
+change was committed without re-running it. **Run `tests/run.mjs` before the
+commit, not after the browser disagrees.**
+
 Every import carries `?v=<stamp>`; a stale one serves an old module. Worse, a
 *split* one duplicates it: module identity is by URL, so
 `project-store.js?v=a` and `project-store.js?v=b` are two modules with two
@@ -1024,11 +1033,22 @@ it is a 149 px `‹ SITE ›` pill whose arrows zoom **while held** and whose mi
 names the scale (Site · Local · Regional · Continental · Global), so the
 annotation answers "how far in am I?" without anyone reading a number.
 
-**It sits directly above the scale bar, centred on it** — the two answer the
-same question, how big is what I am looking at. Placed from the bar's own
-measured box, never as coordinates: `#scale-readout` is `grid-area: scale`
-inside the bottom HUD and its width changes with the breakpoint (10.5rem, 7rem,
-5rem embedded), so a hard offset drifts off it at every other size.
+**It sits directly above the scale bar and is exactly as wide as it** — the two
+answer the same question, how big is what I am looking at, so they read as one
+instrument. Placed and sized from the bar's own measured box, never as
+coordinates: `#scale-readout` is `grid-area: scale` inside the bottom HUD and
+its width changes with the breakpoint (10.5rem, 7rem, 5rem embedded), so a hard
+offset drifts off it at every other size. `box-sizing: border-box`, or the 1px
+border puts the two out by two pixels everywhere.
+
+**Matching the bar's width means the label must fit whatever that width is.**
+At 660px the bar is 112px and "Continental" needed 86px in a 69px box — simply
+cut off. `fitLabel()` steps the type down against the **longest** band name
+rather than the current one, so it does not resize as you zoom past Continental,
+and only re-measures when the width changes. Below the 0.5rem floor it stops
+shrinking text and adds `is-tight`, taking the width back from the arrows'
+padding and the label's tracking instead; that buys enough that the type goes
+back **up** to 0.7rem and all five names fit.
 
 **`#top-right-controls` is not in the top right**, which is what the first
 attempt assumed. Despite the id, `body.is-embedded` sets `left:` and clears
@@ -1431,6 +1451,16 @@ page tabs, the page filter, the magenta project chip and the five shell actions
 (Jobs, Alerts, + New Note, Copilot, Data Shelf). Qt's stage tab bar and stage
 caption are both `hide()`n there — the rail says where you are — so they are
 absent here too rather than reproduced as dead widgets.
+
+**The Atlas mark is top-right, left of the tool rail** — `placeLauncher()` in
+atlas-assistant.js measures whichever of `#tool-rail` and `.map-legend` sits
+furthest left and places against that, because the rail's width changes with the
+breakpoint (3.7rem / 2.3rem / 1.85rem embedded) and the legend shares that
+corner whenever a layer has one. The panel drops **from** the mark rather than
+rising to it, and takes the height that is left rather than the stylesheet's
+bottom-anchored guess — with the hub armed the rail moves down and everything
+measured from it follows. It is polled at 500ms rather than hooked to an event,
+since arming the hub and switching mode both move the rail without a resize.
 
 **All of it lives in `gis/research/atlas.css`, loaded by `gis/shell.js`.** It
 used to be a block in `styles.css` and a second copy in `gis/shell.css`, one for

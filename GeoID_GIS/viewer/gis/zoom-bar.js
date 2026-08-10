@@ -16,7 +16,7 @@
  * cannot fight over the camera.
  */
 
-import { isEarth } from "./bodies.js?v=20260810-34eed68";
+import { isEarth } from "./bodies.js?v=20260810-3eb55c8";
 
 /**
  * The bands, named for what the view is of — the thing a person is actually
@@ -178,6 +178,11 @@ const STYLE = `
   color: #fff;
 }
 #geoid-zoom-step button:disabled { opacity: 0.32; cursor: default; }
+/* Last resort before the type becomes unreadable: take the width back from the
+   arrows' padding and the label's tracking rather than shrinking the text
+   further. Applied by fitLabel() only when the smallest size still overruns. */
+#geoid-zoom-step.is-tight button { padding: 0 0.25rem; }
+#geoid-zoom-step.is-tight .zs-band { letter-spacing: 0.02em; }
 #geoid-zoom-step .zs-step { font-size: 0.95rem; font-weight: 600; }
 #geoid-zoom-step .zs-step { flex: 0 0 auto; }
 #geoid-zoom-step .zs-band {
@@ -256,9 +261,20 @@ export function installZoomBar() {
     fittedFor = width;
     const shown = label.textContent;
     label.textContent = LONGEST;
-    for (const size of FONT_STEPS) {
-      label.style.fontSize = `${size}rem`;
-      if (label.scrollWidth <= label.clientWidth) break;
+    const fits = () => {
+      for (const size of FONT_STEPS) {
+        label.style.fontSize = `${size}rem`;
+        if (label.scrollWidth <= label.clientWidth) return true;
+      }
+      return false;
+    };
+    // Shrinking the type has a floor — 8px is already small — so if the longest
+    // name still overruns there, take the width back from the arrows' padding
+    // and the tracking and try the sizes again.
+    box.classList.remove("is-tight");
+    if (!fits()) {
+      box.classList.add("is-tight");
+      fits();
     }
     label.textContent = shown;
   };
