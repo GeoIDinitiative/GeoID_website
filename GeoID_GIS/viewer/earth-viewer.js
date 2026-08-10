@@ -19096,16 +19096,18 @@ uniform float uViewportWidth;`,
           return measurePoints.length >= 3;
         },
         /**
-         * What the camera is looking at, so a box can be centred on the view.
-         * Null when the centre of the screen is off the globe — the caller must
-         * ask for coordinates instead rather than guessing.
+         * What the camera is over, so a box can be centred on the view.
+         *
+         * The **sub-camera point**, which is what the hemisphere locator has
+         * always called "Center" — the same number, from the same function, so
+         * the box lands where that readout says you are. Raycasting the middle
+         * pixel instead sounds equivalent and is not: the globe does not sit at
+         * the centre of the canvas (the panels take the left of it), so that ray
+         * misses and returns nothing at the default view. Measured: null.
          */
         getViewCentreLatLon() {
-          const rect = renderer.domElement.getBoundingClientRect();
-          const hit = intersectAnySurface(
-            rect.left + rect.width / 2, rect.top + rect.height / 2,
-          );
-          return hit?.context ? { lat: hit.lat, lon: hit.lon } : null;
+          const here = sampleLocatorLatLon() || locatorLatLon;
+          return here && Number.isFinite(here.lat) ? { lat: here.lat, lon: here.lon } : null;
         },
         pointInProjectedPolygon,
         sphericalPolygonAreaKm2,
