@@ -1000,6 +1000,33 @@ drag six times gentler than designed, so the navigation went from jumpy to stuck
 The rates take an unclamped distance above the local ground; the near plane keeps
 its floor.
 
+**Zoom moves a target; the render loop closes the distance.** The custom wheel
+handler had replaced OrbitControls' dolly and taken its damping with it, writing
+`camera.position` outright — so every notch was a discontinuity, and a trackpad,
+which sends a burst of small deltas, produced a burst of small jumps. A notch
+now sets `zoomTargetSurfaceDistance` and the loop eases toward it **geometrically**
+(a constant fraction of the remaining *ratio* per frame, frame-rate corrected):
+the same absolute step is imperceptible at 10,000 km and a leap at 2 km, so only
+a multiplicative rate reads as one steady glide at every scale. Notches compound
+on the target rather than on the camera, or a fast scroll fights its own easing.
+
+**A floor-limited zoom request must stay alive.** Descending lowers the floor —
+the relief taper shrinks the terrain as you come in — so a request for "all the
+way" is satisfied at whatever the floor was *on the way down* and then forgotten.
+Measured twice, from both ends: the request is now stored **unclamped** and only
+cleared when the clamped target equals it, and the zoom bar's track ends ask for
+0 / max rather than the current floor. One drag now arrives at 1.81 km instead of
+stalling at 130 km with the floor settling at 53 km a moment later.
+
+**`gis/zoom-bar.js` is annotated by what the view is OF** — Site, Local,
+Regional, Continental, Global — not by a level number, and it is logarithmic
+because zoom is: linear in altitude, Site and Local together get 0.06% of the
+track; logarithmic they get 35%, and every decade gets equal width. Bands below
+the current floor are **not drawn**, and the scale redraws when the floor moves,
+so it never offers a range that is not reachable. It follows the camera by
+polling, because the render loop moves the camera itself and there is no event
+meaning "the altitude changed".
+
 **The terrain slider is the zoom wall, not the floor logic.** It exaggerates
 relief roughly tenfold, so at its 0.11 default the ground stands about 219 km
 tall in render units — and a camera that may not enter terrain is therefore held

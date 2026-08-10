@@ -11924,6 +11924,21 @@ import * as THREE from "./vendor/three.module.js";
       let lastSafeMosaicCameraPosition = camera.position.clone();
 
       /**
+       * Where the zoom is heading, in surface distance.
+       *
+       * The wheel used to write `camera.position` outright, so every notch was
+       * an instant jump -- and a trackpad, which sends a burst of small deltas,
+       * produced a burst of small jumps rather than a glide. OrbitControls damps
+       * its own dolly; this handler had replaced it and taken the damping with
+       * it.
+       *
+       * Now a notch moves a *target* and the render loop eases toward it, so
+       * consecutive notches compound into one smooth run instead of stacking
+       * discontinuities. Null when there is nothing to approach.
+       */
+      let zoomTargetSurfaceDistance = null;
+
+      /**
        * How close the camera may come to the planet's centre. One definition.
        *
        * This rule was written out twice, identically -- once in the render
@@ -12073,7 +12088,11 @@ import * as THREE from "./vendor/three.module.js";
         wheelZoomDirection.copy(camera.position).sub(zoomContext.centerWorld);
         const centerDistance = wheelZoomDirection.length();
         if (!(centerDistance > 0)) return;
-        const surfaceDistance = Math.max(0.00001, centerDistance - zoomContext.radiusWorld);
+        // Compound on where the zoom is ALREADY going, not on where the camera
+        // has reached. Otherwise a fast scroll fights its own easing and the
+        // run stalls short of where the gesture asked for.
+        const surfaceDistance = Math.max(0.00001,
+          zoomTargetSurfaceDistance ?? (centerDistance - zoomContext.radiusWorld));
         const normalizedDelta = clamp(Math.abs(delta) / 120, moonViewerMode ? 0.65 : 0.4, 6);
         const distanceT = clamp(surfaceDistance / (moonViewerMode ? 0.55 : 1.5), 0, 1);
         const stepStrength = THREE.MathUtils.lerp(
@@ -12104,12 +12123,11 @@ import * as THREE from "./vendor/three.module.js";
         if (ctxMode && Number.isFinite(nextScaleBarMeters) && nextScaleBarMeters < CTX_MOSAIC_MIN_SCALEBAR_METERS) {
           return;
         }
-        camera.position.copy(nextPosition);
+        // The render loop closes the distance; this only says where to.
+        zoomTargetSurfaceDistance = nextSurfaceDistance;
         if (ctxMode && (!Number.isFinite(nextScaleBarMeters) || nextScaleBarMeters >= CTX_MOSAIC_MIN_SCALEBAR_METERS)) {
           lastSafeMosaicCameraPosition.copy(camera.position);
         }
-        controls.update();
-        enforceActiveZoomFloor(zoomContext);
       }
       renderer.domElement.addEventListener("wheel", handleSurfaceWheelZoom, { passive: false });
 
@@ -19002,6 +19020,37 @@ uniform float uViewportWidth;`,
         },
         /** Which basemap is showing, so a caller can tell if its own is live. */
         getBaseLayerId: () => baseLayerSelect?.value || null,
+        /**
+         * Drive the zoom from outside, in metres above the surface.
+         *
+         * Sets the same target the wheel does rather than moving the camera, so
+         * a slider drag glides exactly as a scroll does and the two cannot fight
+         * each other for the camera.
+         */
+        setZoomAltitudeMetres(metres) {
+          const zc = getActiveZoomContext();
+          if (!zc || !Number.isFinite(metres)) return false;
+          // Stored UNCLAMPED. The render loop clamps against the floor of the
+          // moment, and a request below it stays alive so it can follow the
+          // floor down as the terrain tapers. Clamping here instead would turn
+          // "take me all the way in" into "take me to wherever the floor is
+          // right now", which is satisfied on the way and then forgotten.
+          zoomTargetSurfaceDistance = Math.max(0,
+            (metres / 1000) / (EARTH_MEAN_RADIUS_KM / 3.2));
+          return true;
+        },
+        /** Where the camera is now, and the range it may occupy. */
+        getZoomAltitudeMetres() {
+          const zc = getActiveZoomContext();
+          if (!zc) return null;
+          const toM = (u) => u * (EARTH_MEAN_RADIUS_KM / 3.2) * 1000;
+          const here = camera.position.distanceTo(zc.centerWorld) - zc.radiusWorld;
+          return {
+            metres: toM(Math.max(0, here)),
+            minMetres: toM(zc.minSurfaceDistance),
+            maxMetres: toM(zc.maxSurfaceDistance),
+          };
+        },
         // Imported GIS layers must use the viewer's own longitude convention
         // and globe radius, so they are shared here rather than re-derived.
         GLOBE_RADIUS: 3.2,
@@ -19243,9 +19292,19 @@ ${error && error.message ? error.message : error}`;
         camPos: new THREE.Vector3(Infinity, Infinity, Infinity),
         camQuat: new THREE.Quaternion(),
         moving: false,
+        // Frame time, so easing is a rate rather than a per-frame constant --
+        // the headless renderer manages about 8 fps and a 144 Hz display is
+        // eighteen times that.
+        lastFrameMs: 16.7,
+        lastFrameAt: 0,
       };
 
       function render() {
+        {
+          const now = performance.now();
+          if (_rs.lastFrameAt) _rs.lastFrameMs = now - _rs.lastFrameAt;
+          _rs.lastFrameAt = now;
+        }
         // ── Motion throttle ───────────────────────────────────────────────────
         // Track camera movement. When the camera is rotating/panning quickly,
         // skip label visibility passes and tile-stream bbox work on 2 out of 3
@@ -19273,6 +19332,57 @@ ${error && error.message ? error.message : error}`;
           }
         } else if (spinToggleBtn) {
           spinToggleBtn.disabled = false;
+        }
+
+        /**
+         * Ease toward the zoom target, geometrically.
+         *
+         * Interpolating the distance linearly looks wrong on a globe: the same
+         * absolute step is imperceptible at 10,000 km and a leap at 2 km. Zoom
+         * is multiplicative, so the easing is too — a constant *fraction* of the
+         * remaining ratio per frame, which reads as one steady glide at every
+         * scale.
+         *
+         * Frame-rate corrected, because the headless renderer runs at about
+         * 8 fps and a per-frame constant would make it crawl there and race on a
+         * 144 Hz display.
+         */
+        if (zoomTargetSurfaceDistance !== null) {
+          const zc = getActiveZoomContext();
+          if (!zc) {
+            zoomTargetSurfaceDistance = null;
+          } else {
+            const offset = camera.position.clone().sub(zc.centerWorld);
+            const current = Math.max(1e-6, offset.length() - zc.radiusWorld);
+            const target = clamp(zoomTargetSurfaceDistance,
+              zc.minSurfaceDistance, zc.maxSurfaceDistance);
+            const ratio = target / current;
+            if (Math.abs(Math.log(ratio)) < 0.002) {
+              /**
+               * At the target — but only forget the request if it was actually
+               * satisfied rather than merely floored.
+               *
+               * Descending lowers the floor: the relief taper shrinks the
+               * terrain as the camera comes in, so the reachable bottom moves
+               * down *while* you approach it. Clearing on arrival meant asking
+               * for the bottom of the scale stopped at whatever the floor
+               * happened to be on the way — measured, 130 km, with the floor
+               * settling at 53.7 km a moment later — and you had to ask again,
+               * repeatedly, to actually get down. Keeping a floor-limited
+               * request alive lets it follow the floor the rest of the way.
+               */
+              if (Math.abs(Math.log(target / zoomTargetSurfaceDistance)) < 0.002) {
+                zoomTargetSurfaceDistance = null;        // genuinely arrived
+              }
+            } else {
+              const dt = Math.min(0.05, Math.max(0.001, (_rs.lastFrameMs || 16.7) / 1000));
+              const k = 1 - Math.pow(1 - 0.22, dt * 60);
+              const next = current * Math.pow(ratio, k);
+              offset.normalize().multiplyScalar(zc.radiusWorld + next);
+              camera.position.copy(zc.centerWorld).add(offset);
+              controls.object.position.copy(camera.position);
+            }
+          }
         }
 
         // Surface barrier: prevent camera from entering the planet or slipping between globe and
