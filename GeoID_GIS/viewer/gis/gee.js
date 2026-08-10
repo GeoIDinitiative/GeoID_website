@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260810-c6df62d";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260810-e4339eb";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:

@@ -1,17 +1,26 @@
-// Real map imagery, draped over the project's study area on the globe.
+// Real map imagery on the globe: OpenStreetMap streets, Esri satellite, either
+// over the whole planet or over the project's study area.
 //
-// The globe's basemap is a single equirectangular texture at roughly 8 km per
-// pixel, so it has no zoom pyramid: past a certain altitude there is simply no
-// more detail to show, whatever the camera does. That is fine for a planet and
-// useless for a site. This module fills the gap where it actually matters --
-// over the study area -- by fetching XYZ tiles for that box, compositing them
-// into one canvas and draping it on the terrain as an ordinary layer.
+// The shipped basemap is a single equirectangular texture at roughly 8 km per
+// pixel with no zoom pyramid, so past a certain altitude there is no more
+// detail to show whatever the camera does, and it is a fixed composite rather
+// than anything current. This fetches XYZ tiles for an extent, composites them
+// into one canvas and drapes it on the terrain as an ordinary layer.
+//
+// Two extents, because they answer different questions:
+//
+//   * **Whole globe** -- the tile budget tops out at zoom 4, which is 4096 px
+//     across the world, about 9.8 km/px. That is comparable to the 7.4 km/px
+//     Blue Marble already on the globe, so this is a genuine alternative
+//     basemap rather than a compromise: streets, or imagery from this year.
+//   * **Study area** -- the same machinery over a small box reaches metres per
+//     pixel (measured over Etna: 90 tiles at zoom 13, 15.1 m/px).
 //
 // Deliberately NOT a globe-wide tile streamer. That is a real project (the
 // design is written up in flight_sim/mars/viewer/STREAMING-DESIGN.md) and it
-// would be the wrong first move: a study area is bounded, so one composite at a
-// fixed zoom answers the question "what is actually on the ground here?" with
-// no scheduler, no cache eviction and no per-frame budget.
+// would be the wrong first move: both extents here are bounded, so one
+// composite at a fixed zoom answers the question with no scheduler, no cache
+// eviction and no per-frame budget.
 //
 // Two things make this cheap that would not be obvious:
 //
@@ -25,8 +34,8 @@
 //     answers in -- no half-turn to bake in, unlike the Earth Engine drapes
 //     which parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-c6df62d";
-import { isEarth } from "./bodies.js?v=20260810-c6df62d";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-e4339eb";
+import { isEarth } from "./bodies.js?v=20260810-e4339eb";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -341,6 +350,23 @@ function studyArea() {
 }
 
 /**
+ * The whole planet, as a drape.
+ *
+ * Worth having as well as the study area, because "basemap" is what most people
+ * come looking for and a study-area patch is not one. It fits: the tile budget
+ * tops out at zoom 4, which is 4096 px across the world — about 9.8 km/px,
+ * comparable to the 7.4 km/px Blue Marble the globe already ships. So this is a
+ * real global basemap rather than a compromise, and it is street maps and
+ * current satellite imagery where the shipped texture is a fixed composite.
+ *
+ * 85 rather than 90 because Mercator cannot express the poles; the same cut the
+ * Earth Engine panel makes for the same reason.
+ */
+export function wholeGlobe() {
+  return { minLat: -MAX_LAT, maxLat: MAX_LAT, minLon: -180, maxLon: 180 };
+}
+
+/**
  * Fetch, composite and drape, registering the result as an ordinary layer.
  *
  * Going in through `addDerivedLayer` rather than adding to the scene directly is
@@ -348,16 +374,17 @@ function studyArea() {
  * draw-order stack — all of which already exist and none of which this has to
  * know about.
  */
-export async function drapeStudyArea({ source = DEFAULT_SOURCE, onProgress } = {}) {
+export async function drapeStudyArea({ source = DEFAULT_SOURCE, extent = "study", onProgress } = {}) {
   if (!isEarth()) {
     throw new Error("These tile services only cover Earth.");
   }
   if (!THREE) THREE = await import("../vendor/three.module.js");
-  const bbox = studyArea();
+  const global = extent === "globe";
+  const bbox = global ? wholeGlobe() : studyArea();
   const result = await composite(bbox, source, { onProgress });
   const mesh = buildMesh(result.canvas, bbox);
 
-  const name = `${source} — study area`;
+  const name = `${source} — ${global ? "whole globe" : "study area"}`;
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, {
     object3D: mesh,
     georeferenced: true,
@@ -419,7 +446,16 @@ if (typeof window !== "undefined") {
  * not appear on the worlds where these services have no data.
  */
 function buildPanel() {
-  const host = document.querySelector("#gis-group-import .section-body");
+  // Into Basemap & Relief, not Add / Import Data.
+  //
+  // It sat under imports first, which is where a developer files "fetches tiles
+  // from a service" and nowhere near where anyone looks for a basemap: the
+  // report was simply "there's no option in basemaps for them", and that was
+  // fair -- it was two closed disclosure triangles deep in a different tab.
+  // Falls back to the import group on a page that has no basemap panel.
+  const host = document.querySelector("#basemap-relief-section .section-body .control-stack")
+    || document.querySelector("#basemap-relief-section .section-body")
+    || document.querySelector("#gis-group-import .section-body");
   if (!host || document.getElementById("basemap-drape-tool")) return;
   if (!isEarth()) return;
 
@@ -427,17 +463,25 @@ function buildPanel() {
   box.id = "basemap-drape-tool";
   box.className = "gis-tool-section";
   box.innerHTML = `
-    <summary>Map imagery over the study area</summary>
+    <summary>Street map &amp; satellite imagery</summary>
     <div class="gis-tool-body">
-      <p class="tool-copy">The globe's basemap is one texture at about 8&nbsp;km per pixel.
-        This fetches real map tiles for the project's study area and drapes them on the
-        terrain, down to sub-metre where the service has it.</p>
+      <p class="tool-copy">The shipped basemap is one fixed texture at about 8&nbsp;km per pixel.
+        These are live services: OpenStreetMap streets, current Esri satellite imagery.
+        Over the whole globe they are a basemap; over a study area they go down to
+        metres per pixel.</p>
       <div class="row">
         <label for="basemap-drape-source">Source</label>
         <select id="basemap-drape-source" class="mini-select"></select>
       </div>
-      <button id="basemap-drape-run" class="tool-button" type="button">Drape over study area</button>
-      <div id="basemap-drape-status" class="gis-metric">Uses the study area from the open project.</div>
+      <div class="row">
+        <label for="basemap-drape-extent">Cover</label>
+        <select id="basemap-drape-extent" class="mini-select">
+          <option value="globe">Whole globe</option>
+          <option value="study">Study area (full detail)</option>
+        </select>
+      </div>
+      <button id="basemap-drape-run" class="tool-button" type="button">Add to globe</button>
+      <div id="basemap-drape-status" class="gis-metric">Adds a layer you can fade or remove in Active Layers.</div>
     </div>`;
   host.appendChild(box);
 
@@ -450,6 +494,7 @@ function buildPanel() {
   });
   select.value = DEFAULT_SOURCE;
 
+  const extent = box.querySelector("#basemap-drape-extent");
   const status = box.querySelector("#basemap-drape-status");
   const run = box.querySelector("#basemap-drape-run");
   run.addEventListener("click", async () => {
@@ -458,10 +503,13 @@ function buildPanel() {
     try {
       const out = await drapeStudyArea({
         source: select.value,
+        extent: extent.value,
         onProgress: (done, total) => { status.textContent = `Fetching tiles ${done}/${total}…`; },
       });
-      status.textContent = `Draped ${out.drawn}/${out.tiles} tiles at zoom ${out.zoom} `
-        + `(${out.metresPerPixel < 1 ? out.metresPerPixel.toFixed(2) : Math.round(out.metresPerPixel)} m/px). `
+      const res = out.metresPerPixel >= 1000
+        ? `${Math.round(out.metresPerPixel / 1000)} km/px`
+        : `${Math.round(out.metresPerPixel)} m/px`;
+      status.textContent = `${out.drawn}/${out.tiles} tiles at zoom ${out.zoom} (${res}). `
         + `It is in Active Layers.`;
     } catch (error) {
       status.textContent = error.message;

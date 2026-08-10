@@ -13,7 +13,7 @@
 
 import {
   clampLat, lonToPixelX, latToPixelY, pixelYToLat,
-  chooseZoom, tileGrid, metresPerPixel, normaliseBbox, MAX_LAT,
+  chooseZoom, tileGrid, metresPerPixel, normaliseBbox, wholeGlobe, MAX_LAT,
 } from "./basemap-drape.js";
 
 let failures = 0;
@@ -128,6 +128,25 @@ throws("an empty study area is refused too",
   () => normaliseBbox({ min_lat: "", max_lat: "", min_lon: "", max_lon: "" }), /no study area/i);
 throws("a point is refused — there would be nothing to drape",
   () => normaliseBbox({ min_lat: 37.7, max_lat: 37.7, min_lon: 15, max_lon: 15 }), /no area/i);
+
+// ── The whole-globe extent, as a basemap ─────────────────────────────────────
+// This has to be good enough to stand beside the shipped Blue Marble, or the
+// "whole globe" option is a worse basemap wearing the name.
+const g = wholeGlobe();
+check("the globe extent spans all longitudes", g.minLon === -180 && g.maxLon === 180);
+check("and is cut at the Mercator limit", g.maxLat === MAX_LAT && g.minLat === -MAX_LAT);
+
+const gz = chooseZoom(g, { maxZoom: 19 });
+const gGrid = tileGrid(g, gz);
+check("a global composite fits in one 4096 px texture",
+  gGrid.width <= 4096 && gGrid.height <= 4096, `${gGrid.width}x${gGrid.height}`);
+check("and within the tile budget", gGrid.tilesX * gGrid.tilesY <= 256,
+  `${gGrid.tilesX * gGrid.tilesY} tiles`);
+// Blue Marble is 5400 px across the world = 7.4 km/px. Anything within about a
+// factor of two of that is a credible alternative basemap.
+const globalMpp = 40075017 / gGrid.width;
+check("a global drape is comparable to Blue Marble's 7.4 km/px",
+  globalMpp < 15000, `${Math.round(globalMpp)} m/px at zoom ${gz}`);
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);
