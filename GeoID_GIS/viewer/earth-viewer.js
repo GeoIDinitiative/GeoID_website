@@ -19349,6 +19349,50 @@ ${error && error.message ? error.message : error}`;
               controls.zoomSpeed = THREE.MathUtils.lerp(0.24, 0.8, _distanceEase);
               controls.dampingFactor = THREE.MathUtils.lerp(0.22, 0.08, _distanceEase);
             }
+
+            /**
+             * Match the drag to the ground, not to the planet.
+             *
+             * OrbitControls turns `2π × rotateSpeed` radians for a drag of one
+             * screen height. That is an angle at the planet's centre, so the
+             * ground it covers is fixed no matter how low you are: at the old
+             * near-ground floor of 0.012 a full drag swept 4.3° — about 480 km —
+             * while the view from 1.8 km up is roughly 1 km across. Four hundred
+             * screens per drag, which is the jumpiness.
+             *
+             * What a person expects is that dragging a screen height moves the
+             * ground about a screen height. That is the angle subtending the
+             * visible span, so the rate has to fall with altitude rather than
+             * bottom out. Applied as a **cap**, never a boost: it can only make
+             * the existing curve gentler, so the far-field feel is untouched and
+             * this cannot make anything jumpier than it already was.
+             */
+            const _fovRad = THREE.MathUtils.degToRad(camera.fov || 50);
+            const _visibleGround = 2 * _controlSurfaceDistance * Math.tan(_fovRad / 2);
+            // 1.25 rather than 1.0: exactly one screen per drag reads as
+            // sluggish, since a drag rarely uses the whole screen.
+            const _groundMatched = Math.max(
+              (_visibleGround / 3.2) / (2 * Math.PI) * 1.25, 2e-6,
+            );
+            // Faded in as it descends rather than applied throughout. Held at
+            // every altitude it would also slow the far field fivefold, and up
+            // there sweeping most of the planet in one drag is the point — you
+            // are turning a globe, not walking a map. Below ~300 km you have
+            // arrived somewhere, and the ground-matched rate takes over.
+            const _matchT = Math.min(1, _controlSurfaceDistance / 0.15);
+            const _matchBlend = _matchT * _matchT * (3 - 2 * _matchT);   // smoothstep
+            controls.rotateSpeed = THREE.MathUtils.lerp(
+              Math.min(controls.rotateSpeed, _groundMatched),
+              controls.rotateSpeed,
+              _matchBlend,
+            );
+            // And more resistance the closer it gets: inertia that is pleasant
+            // from orbit overshoots the thing you were trying to centre when a
+            // screen is a kilometre wide. Higher dampingFactor settles sooner.
+            controls.dampingFactor = Math.max(
+              controls.dampingFactor,
+              THREE.MathUtils.lerp(0.38, 0.0, Math.min(1, _controlSurfaceDistance / 0.02)),
+            );
           }
         }
         controls.update();
