@@ -1,11 +1,11 @@
-import { wirePattern, wire } from "./spec-page.js?v=20260810-d678ce6";
-import * as store from "./project-store.js?v=20260810-d678ce6";
-import * as bridge from "./bridge.js?v=20260810-d678ce6";
-import * as stats from "./stats.js?v=20260810-d678ce6";
-import * as dsp from "./dsp.js?v=20260810-d678ce6";
-import { linePlot } from "./plot.js?v=20260810-d678ce6";
-import { column } from "./table.js?v=20260810-d678ce6";
-import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260810-d678ce6";
+import { wirePattern, wire } from "./spec-page.js?v=20260810-b3e2a53";
+import * as store from "./project-store.js?v=20260810-b3e2a53";
+import * as bridge from "./bridge.js?v=20260810-b3e2a53";
+import * as stats from "./stats.js?v=20260810-b3e2a53";
+import * as dsp from "./dsp.js?v=20260810-b3e2a53";
+import { linePlot } from "./plot.js?v=20260810-b3e2a53";
+import { column } from "./table.js?v=20260810-b3e2a53";
+import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260810-b3e2a53";
 
 /**
  * Behaviour for the controls the spec brings across.
@@ -125,7 +125,7 @@ wirePattern(/^(Save Notes?|Save narrative|Save)$/i, async ({ values, say, pageId
 // A reproducibility snapshot: the metadata, the registry, and what produced it.
 wirePattern(/^(Export Repro Snapshot|Create Repro Bundle|Export Project Brief)$/i,
   async ({ say }) => {
-    const active = store.getActive();
+    const active = store.requireActive();
     const path = `exports/snapshot-${nowStamp()}.json`;
     await store.writeJson(path, {
       created_at: new Date().toISOString(),
@@ -140,7 +140,7 @@ wirePattern(/^(Export Repro Snapshot|Create Repro Bundle|Export Project Brief)$/
 
 wire("Project Comparison", {
   "Add Current Project": async ({ say }) => {
-    const active = store.getActive();
+    const active = store.requireActive();
     const list = await store.readJson("metadata/comparison.json", { projects: [] });
     list.projects = Array.isArray(list.projects) ? list.projects : [];
     if (!list.projects.includes(active.dir)) list.projects.push(active.dir);
@@ -350,7 +350,7 @@ async function writeCollection(name, collection, say) {
   say(`${(collection.features || []).length} feature(s) written to ${path}.`);
 }
 
-const geo = () => import(`../geoprocessing.js?v=20260810-d678ce6`);
+const geo = () => import(`../geoprocessing.js?v=20260810-b3e2a53`);
 
 wire("Vector Tools", {
   Buffer: async ({ say }) => {

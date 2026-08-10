@@ -28,6 +28,26 @@ export const BASEMAPS = {
   "ESRI Topo": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
 };
 
+/**
+ * The credit each source requires, verbatim.
+ *
+ * Not decoration: every one of these services is free to use *on condition* of
+ * attribution, so a wrong line is a licence breach and an exported figure
+ * carries it into print. The Esri strings are the `copyrightText` their own
+ * MapServer returns (`.../MapServer?f=json`) — this used to print "Esri", which
+ * credits neither Vantor and Earthstar for the imagery nor the fifteen
+ * agencies behind the topo map.
+ */
+const ATTRIBUTION = {
+  "OpenStreetMap": "© OpenStreetMap contributors",
+  "CartoDB Dark": "© OpenStreetMap contributors, © CARTO",
+  "CartoDB Positron": "© OpenStreetMap contributors, © CARTO",
+  "ESRI Satellite": "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
+  "ESRI Topo": "Sources: Esri, HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, "
+    + "NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, "
+    + "Esri China (Hong Kong), © OpenStreetMap contributors, and the GIS User Community",
+};
+
 export const lonToX = (lon) => (lon + 180) / 360;
 export function latToY(lat) {
   const clamped = Math.max(-MAX_LAT, Math.min(MAX_LAT, lat));
@@ -226,13 +246,35 @@ export function createMap(host, { basemap = "OpenStreetMap" } = {}) {
     ctx.fillStyle = "rgba(220,230,255,0.55)";
     ctx.font = "10px 'Exo 2', system-ui, sans-serif";
     ctx.textAlign = "right";
-    ctx.fillText(attribution(), width - 8, height - 7);
+    // The credit has to be readable in full to count as attribution, and the
+    // topo line names fifteen agencies -- one line ran off the left edge of the
+    // canvas and off the exported PNG with it. So wrap instead of truncating.
+    const lines = wrapToWidth(attribution(), width - 16);
+    lines.forEach((line, i) => {
+      ctx.fillText(line, width - 8, height - 7 - (lines.length - 1 - i) * 11);
+    });
+  }
+
+  /** Greedy word wrap against the measured width of the current font. */
+  function wrapToWidth(text, maxWidth) {
+    const words = String(text).split(" ");
+    const lines = [];
+    let line = "";
+    for (const word of words) {
+      const next = line ? `${line} ${word}` : word;
+      if (line && ctx.measureText(next).width > maxWidth) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = next;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
   }
 
   function attribution() {
-    if (state.basemap.startsWith("ESRI")) return "Esri";
-    if (state.basemap.startsWith("CartoDB")) return "© OpenStreetMap, © CARTO";
-    return "© OpenStreetMap contributors";
+    return ATTRIBUTION[state.basemap] || "© OpenStreetMap contributors";
   }
 
   function schedule() {

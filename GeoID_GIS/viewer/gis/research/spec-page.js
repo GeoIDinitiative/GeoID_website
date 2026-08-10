@@ -1,10 +1,10 @@
-import { getPage, registerPage } from "./stages.js?v=20260810-d678ce6";
-import { qtMount, loadLayouts } from "./qt-render.js?v=20260810-d678ce6";
-import * as store from "./project-store.js?v=20260810-d678ce6";
+import { getPage, registerPage } from "./stages.js?v=20260810-b3e2a53";
+import { qtMount, loadLayouts } from "./qt-render.js?v=20260810-b3e2a53";
+import * as store from "./project-store.js?v=20260810-b3e2a53";
 import {
-  el, button, row, field, input, selectOf, statusLine, needProject,
+  el, button, row, field, input, selectOf, persistentStatus, needProject,
   pageHeader, toolbar, collapsible, tabbedPanel, editorCard, dataTable,
-} from "./pages/common.js?v=20260810-d678ce6";
+} from "./pages/common.js?v=20260810-b3e2a53";
 
 /**
  * Build a page from `qt-spec.json` — the structure the Qt app actually has,
@@ -136,7 +136,7 @@ export function specMount(pageId, { requireProject = true, handoff = null } = {}
       needProject(host, ctx, spec.title || pageId);
       return;
     }
-    const { node: status, say } = statusLine();
+    const { node: status, say } = persistentStatus(host, pageId);
     const handlers = wiring.get(pageId) || {};
     let wired = 0;
     let total = 0;
@@ -361,7 +361,7 @@ export function completedMount(pageId, inner) {
       });
       return out;
     };
-    const { node: status, say } = statusLine();
+    const { node: status, say } = persistentStatus(host, pageId);
     const redraw = () => { host.textContent = ""; void mount(host, ctx); };
     const api = { values, controls, say, ctx, redraw, store, pageId };
 

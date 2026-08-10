@@ -1,12 +1,12 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260810-d678ce6";
-import * as store from "./project-store.js?v=20260810-d678ce6";
-import * as stats from "./stats.js?v=20260810-d678ce6";
-import * as dsp from "./dsp.js?v=20260810-d678ce6";
-import { linePlot, heatmap } from "./plot.js?v=20260810-d678ce6";
-import { column } from "./table.js?v=20260810-d678ce6";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260810-d678ce6";
-import { parseTable } from "./table.js?v=20260810-d678ce6";
-import * as ec from "./event-correlation.js?v=20260810-d678ce6";
+import { wire, wirePattern } from "./spec-page.js?v=20260810-b3e2a53";
+import * as store from "./project-store.js?v=20260810-b3e2a53";
+import * as stats from "./stats.js?v=20260810-b3e2a53";
+import * as dsp from "./dsp.js?v=20260810-b3e2a53";
+import { linePlot, heatmap } from "./plot.js?v=20260810-b3e2a53";
+import { column } from "./table.js?v=20260810-b3e2a53";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260810-b3e2a53";
+import { parseTable } from "./table.js?v=20260810-b3e2a53";
+import * as ec from "./event-correlation.js?v=20260810-b3e2a53";
 
 /**
  * The last of the spec's controls.
@@ -92,7 +92,7 @@ wire("Raster Tools", {
   },
   "Clip to BBox": async ({ say }) => {
     const { path, table } = await firstTable();
-    const area = store.getActive().meta.study_area || {};
+    const area = store.requireActive().meta.study_area || {};
     const b = ["min_lat", "max_lat", "min_lon", "max_lon"].map((k) => Number(area[k]));
     if (!b.every(Number.isFinite)) throw new Error("Set the project's study area first.");
     const { latAt, lonAt } = coordinateColumns(table);
@@ -109,7 +109,7 @@ wire("Raster Tools", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No coordinate columns to reproject.");
-    const projection = await import("../projection.js?v=20260810-d678ce6");
+    const projection = await import("../projection.js?v=20260810-b3e2a53");
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
@@ -166,7 +166,7 @@ wire("Vector Tools", {
     if (collections.length < 2) {
       throw new Error("A spatial join needs two GeoJSON layers in the project.");
     }
-    const g = await import("../geoprocessing.js?v=20260810-d678ce6");
+    const g = await import("../geoprocessing.js?v=20260810-b3e2a53");
     const joined = g.spatialJoin(collections[0].fc, collections[1].fc);
     const out = `data/processed/joined-${stamp()}.geojson`;
     await store.writeProjectFile(out, JSON.stringify(joined));
@@ -392,7 +392,7 @@ wire("Storyboard", {
   Share: async ({ say }) => {
     // No service to publish to, so "share" is a single self-contained file --
     // which is the shareable artefact, just moved by hand.
-    const active = store.getActive();
+    const active = store.requireActive();
     const manifest = await store.readJson("exports/storyboard/manifest.json", { panels: [] });
     const parts = ["<!doctype html><meta charset=utf-8>", `<title>${active.name}</title>`,
       "<style>body{font:15px/1.7 system-ui;margin:3rem auto;max-width:46rem}"

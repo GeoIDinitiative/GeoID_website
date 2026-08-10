@@ -1,11 +1,11 @@
-import { wire, wirePattern } from "./spec-page.js?v=20260810-d678ce6";
-import * as store from "./project-store.js?v=20260810-d678ce6";
-import * as bridge from "./bridge.js?v=20260810-d678ce6";
-import * as dsp from "./dsp.js?v=20260810-d678ce6";
-import * as stats from "./stats.js?v=20260810-d678ce6";
-import { linePlot } from "./plot.js?v=20260810-d678ce6";
-import { parseTable, column } from "./table.js?v=20260810-d678ce6";
-import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260810-d678ce6";
+import { wire, wirePattern } from "./spec-page.js?v=20260810-b3e2a53";
+import * as store from "./project-store.js?v=20260810-b3e2a53";
+import * as bridge from "./bridge.js?v=20260810-b3e2a53";
+import * as dsp from "./dsp.js?v=20260810-b3e2a53";
+import * as stats from "./stats.js?v=20260810-b3e2a53";
+import { linePlot } from "./plot.js?v=20260810-b3e2a53";
+import { parseTable, column } from "./table.js?v=20260810-b3e2a53";
+import { findTables, loadTable, saveTable, saveFigure } from "./pages/common.js?v=20260810-b3e2a53";
 
 /**
  * The rest of the spec's controls.
@@ -516,7 +516,7 @@ wire("EDA Report", {
 
 wire("Storyboard", {
   "Export HTML": async ({ say }) => {
-    const active = store.getActive();
+    const active = store.requireActive();
     const panels = await store.readJson("exports/storyboard/manifest.json", { panels: [] });
     const html = ["<!doctype html><meta charset=utf-8>", `<title>${active.name}</title>`,
       "<style>body{font:15px/1.7 system-ui;margin:3rem auto;max-width:46rem}"
@@ -617,7 +617,7 @@ wire("FEM 3D Viewer", {
 
 wire("Settings", {
   "Sync Collaborators To Project": async ({ say }) => {
-    const active = store.getActive();
+    const active = store.requireActive();
     await store.updateMetadata({ collaborators: active.meta.collaborators || [] });
     say(`${(active.meta.collaborators || []).length} collaborator(s) saved to metadata.`);
   },
@@ -760,24 +760,38 @@ wire("Preprocessing Transforms", {
     const { path, table } = await firstTable();
     const { latAt, lonAt } = coordinateColumns(table);
     if (latAt < 0 || lonAt < 0) throw new Error("No latitude/longitude columns to transform.");
-    const projection = await import(`../projection.js?v=20260810-d678ce6`);
+    const projection = await import(`../projection.js?v=20260810-b3e2a53`);
+    const zones = new Set();
+    let projected = 0;
     const rows = table.rows.map((r) => {
       const lat = Number(r[latAt]); const lon = Number(r[lonAt]);
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [...r, "", "", ""];
+      projected += 1;
       // latLonToUtm returns {x, y, zone, north} -- not {easting, northing}.
       // Guessing that produced a file with two empty columns and no error.
       const utm = projection.latLonToUtm(lat, lon);
+      zones.add(utm.zone);
       return [...r, utm.x.toFixed(2), utm.y.toFixed(2), utm.zone];
     });
+    // With no projectable row this wrote the file anyway and reported "UTM zone
+    // undefined" -- a success message for a conversion that had not happened.
+    // Refuse before writing, and name the zones actually used, since a table
+    // spanning a zone boundary has more than one and reporting a single zone
+    // for it would be wrong.
+    if (!zones.size) {
+      throw new Error(`No row in ${path} has a usable latitude and longitude to project.`);
+    }
     const out = `data/processed/utm-${stamp()}.csv`;
     await saveTable(out, [...table.columns, "easting", "northing", "utm_zone"], rows,
       `UTM from ${path}`, "table");
-    const zone = rows.find((r) => r[r.length - 1])?.[rows[0].length - 1];
-    say(`Projected to UTM zone ${zone}; written to ${out}.`);
+    const list = [...zones].sort((a, b) => a - b);
+    const skipped = rows.length - projected;
+    say(`${projected} row(s) projected to UTM zone${list.length > 1 ? "s" : ""} ${list.join(", ")}`
+      + `${skipped ? `, ${skipped} skipped` : ""}; written to ${out}.`);
   },
   "Clip Points": async ({ say }) => {
     const { path, table } = await firstTable();
-    const area = store.getActive().meta.study_area || {};
+    const area = store.requireActive().meta.study_area || {};
     const bounds = ["min_lat", "max_lat", "min_lon", "max_lon"].map((k) => Number(area[k]));
     if (!bounds.every(Number.isFinite)) {
       throw new Error("Set the project's study area first — Projects ▸ Study Area.");
@@ -1080,7 +1094,7 @@ wire("Post Processing", {
  */
 wire("Storyboard", {
   "AI Outline": async ({ say }) => {
-    const sidecar = await import("./sidecar.js?v=20260810-d678ce6");
+    const sidecar = await import("./sidecar.js?v=20260810-b3e2a53");
     if (!sidecar.isConnected()) {
       throw new Error("This drafts with your own model through the sidecar — "
         + "connect it in Settings ▸ Sidecar first.");
@@ -1090,7 +1104,7 @@ wire("Storyboard", {
       throw new Error("No model subscription is wired in yet. Add a Claude, "
         + "ChatGPT or Gemini key in the Atlas drawer and this will use it.");
     }
-    const active = store.getActive();
+    const active = store.requireActive();
     const count = async (dir) => {
       try { return (await store.listProjectDir(dir)).length; } catch (e) { return 0; }
     };

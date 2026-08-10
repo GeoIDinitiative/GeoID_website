@@ -1,7 +1,7 @@
-import { handlerFor } from "./spec-page.js?v=20260810-d678ce6";
-import * as store from "./project-store.js?v=20260810-d678ce6";
-import { el, statusLine } from "./pages/common.js?v=20260810-d678ce6";
-import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260810-d678ce6";
+import { handlerFor } from "./spec-page.js?v=20260810-b3e2a53";
+import * as store from "./project-store.js?v=20260810-b3e2a53";
+import { el, persistentStatus } from "./pages/common.js?v=20260810-b3e2a53";
+import { install as installRuntime, RUNTIME } from "./qt-runtime.js?v=20260810-b3e2a53";
 
 /**
  * Render a page from the Qt app's own layout tree.
@@ -734,7 +734,7 @@ export function qtMount(pageId) {
         `No layout recovered for "${pageId}" — run services/qt-layout.py.`));
       return;
     }
-    const { node: status, say } = statusLine();
+    const { node: status, say } = persistentStatus(host, pageId);
     const controls = new Map();
     const values = () => {
       const out = {};

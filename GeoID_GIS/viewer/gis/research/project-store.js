@@ -1,6 +1,6 @@
-import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260810-d678ce6";
-import { currentBodyId } from "../bodies.js?v=20260810-d678ce6";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810-d678ce6";
+import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260810-b3e2a53";
+import { currentBodyId } from "../bodies.js?v=20260810-b3e2a53";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810-b3e2a53";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -403,7 +403,14 @@ export async function updateMetadata(patch) {
 
 // ── Files inside the active project ───────────────────────────────────────────
 
-function requireActive() {
+/**
+ * The open project, or a readable refusal.
+ *
+ * Exported because the wiring needs it too: a handler that went straight for
+ * `.dir` or `.meta` off `getActive()` showed the user "Cannot read properties
+ * of null (reading 'dir')" where the handler beside it said "No project open."
+ */
+export function requireActive() {
   if (!active || !rootAdapter) throw new Error("No project open.");
   return active;
 }

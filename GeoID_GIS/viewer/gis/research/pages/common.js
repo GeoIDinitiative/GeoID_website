@@ -1,6 +1,6 @@
-import * as store from "../project-store.js?v=20260810-d678ce6";
-import { parseTable, column } from "../table.js?v=20260810-d678ce6";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260810-d678ce6";
+import * as store from "../project-store.js?v=20260810-b3e2a53";
+import { parseTable, column } from "../table.js?v=20260810-b3e2a53";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260810-b3e2a53";
 
 /**
  * The furniture every Research page uses.
@@ -94,6 +94,46 @@ export function statusLine() {
     node.textContent = message;
     node.classList.toggle("is-error", Boolean(isError));
   };
+  return { node, say };
+}
+
+/**
+ * A status line that survives `redraw()`.
+ *
+ * `redraw()` empties the host and mounts again, which builds a *brand new*
+ * status node — so a handler's `say()` was writing to the detached old one and
+ * the user saw nothing at all. Both orderings were broken, which is why every
+ * Refresh, every Import Files and every Add appeared to do nothing while
+ * quietly succeeding:
+ *
+ *   redraw(); say(msg)   — the message went to the node redraw had just orphaned
+ *   say(msg); redraw()   — the message was written, then wiped by the remount
+ *
+ * So the message is written to whichever status node is *currently* on the page
+ * and parked on the host as well. `host.textContent = ""` removes children but
+ * not attributes, so the remount can restore it; keying it by page id stops one
+ * page inheriting the previous page's last word.
+ *
+ * Lives here because all three mount paths need it — `qt-render`'s tree pages
+ * are the majority, and fixing only `spec-page` left every one of them silent.
+ */
+export function persistentStatus(host, pageId) {
+  const { node } = statusLine();
+  const say = (message, isError) => {
+    host.dataset.statusPage = pageId;
+    host.dataset.statusText = message == null ? "" : String(message);
+    host.dataset.statusError = isError ? "1" : "";
+    // After a redraw the captured node is detached; the live one is the remount's.
+    const live = node.isConnected
+      ? node
+      : ([...host.querySelectorAll(".research-status")].pop() || node);
+    live.textContent = message;
+    live.classList.toggle("is-error", Boolean(isError));
+  };
+  if (host.dataset.statusPage === pageId && host.dataset.statusText) {
+    node.textContent = host.dataset.statusText;
+    node.classList.toggle("is-error", host.dataset.statusError === "1");
+  }
   return { node, say };
 }
 
