@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20260810-70daaac";
+import { BODIES, currentBodyId } from "./bodies.js?v=20260810-3675f72";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -75,12 +75,47 @@ function apply() {
   const strip = document.getElementById(STRIP_ID);
   if (!strip) return;
   const mode = document.body.dataset.viewMode;
-  strip.hidden = mode === "model" || mode === "research";
+  /**
+   * The strip stays up in Model mode.
+   *
+   * The Meshing Studio is per-world — its ground sphere is that body's radius,
+   * so the horizon and the scale bar are the body's too (Earth 6,371 km, the
+   * Moon 1,737 km, Jupiter 69,911 km, all read from the body registry). Which
+   * world you are modelling on is therefore a property of the page you are on,
+   * and the strip is how you change it.
+   *
+   * Research keeps standing down: the hub is a project workspace and its pages
+   * are about a project, not about a globe.
+   */
+  strip.hidden = mode === "research";
+}
+
+/**
+ * Leaving Model mode by switching worlds throws the model away, because each
+ * world is a separate page. A confirm is the whole guard — the studio has no
+ * autosave, and silently discarding someone's geometry because they clicked a
+ * planet icon is the kind of loss that is nobody's fault and entirely ours.
+ */
+function guardModelLoss(event) {
+  if (document.body.dataset.viewMode !== "model") return;
+  const state = window.GeoIDMeshStudio?.state;
+  const built = (state?.solids?.length || 0) + (state?.fields?.length || 0);
+  if (!built) return;
+  const noun = built === 1 ? "1 object" : `${built} objects`;
+  if (!window.confirm(
+    `Leaving for another world will discard this model (${noun}). `
+    + "Save or export it first if you want to keep it.\n\nSwitch anyway?")) {
+    event.preventDefault();
+  }
 }
 
 export function init() {
   if (document.getElementById(STRIP_ID)) return;
-  document.body.appendChild(build());
+  const strip = build();
+  strip.addEventListener("click", (event) => {
+    if (event.target.closest("a[href]")) guardModelLoss(event);
+  });
+  document.body.appendChild(strip);
   // Mode is announced on <body>, so watching the attribute keeps the strip in
   // step without the mode manager needing to know it exists.
   new MutationObserver(apply).observe(document.body, {
