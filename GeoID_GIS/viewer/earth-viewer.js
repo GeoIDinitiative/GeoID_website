@@ -12308,10 +12308,40 @@ import * as THREE from "./vendor/three.module.js";
       }
       const elevationSampler = createElevationSamplerState(elevationMap);
       const getRequestedTerrainRelief = () => elevationMap ? Number(terrainScale.value) : 0;
+      // Above this altitude the relief is shown at full strength; below it, it
+      // eases off. 0.15 units is about 300 km, comfortably clear of the tallest
+      // exaggerated terrain (0.11 units, ~219 km) so the taper never starts
+      // with the camera already inside a mountain.
+      const RELIEF_TAPER_START = 0.15;
+
+      /**
+       * Terrain relief, eased off as the camera comes in to land.
+       *
+       * The slider exaggerates relief roughly tenfold, which is right from
+       * orbit and is what stopped close zoom dead: at 0.11 units the ground
+       * stands ~219 km tall, so a camera that may not enter it is held ~126 km
+       * up and the scale bar bottoms out at 50 km. Measured with the slider at
+       * zero, the same flight reaches 1.8 km and the bar reads 500 m.
+       *
+       * So the exaggeration is spent where it helps and given back where it
+       * hurts. Only when close-range imagery is on the globe — otherwise there
+       * is nothing down there worth flying to, and the default globe keeps the
+       * relief people came for. The CTX mosaic already does the blunt version
+       * of this by returning 0 outright.
+       *
+       * Stable rather than a feedback loop: this depends on altitude above the
+       * BASE SPHERE, which does not itself depend on the relief. Descending
+       * shrinks the terrain, which lowers the floor, which allows more descent
+       * — converging on the margin instead of oscillating.
+       */
       const getEffectiveTerrainRelief = () => {
         if (!elevationMap) return 0;
         if (baseLayerSelect?.value === "ctx-mosaic" || baseLayerSelect?.value === "ctx-mosaic-color") return 0;
-        return getRequestedTerrainRelief();
+        const requested = getRequestedTerrainRelief();
+        if (!requested || !window.GeoIDBasemapDrape?.hasDrape?.()) return requested;
+        const altitude = Math.max(0, camera.position.length() - 3.2);
+        const t = Math.min(1, altitude / RELIEF_TAPER_START);
+        return requested * (t * t * (3 - 2 * t));      // smoothstep
       };
       const getTerrainRelief = () => getEffectiveTerrainRelief();
       const labelElevationCache = new Map();
@@ -19205,6 +19235,8 @@ ${error && error.message ? error.message : error}`;
         }
       }
 
+      let _lastAppliedRelief = -1;
+
       // Persistent state for per-frame motion throttling.
       const _rs = {
         frame: 0,
@@ -19259,6 +19291,15 @@ ${error && error.message ? error.message : error}`;
           // Pre-clamp: push camera out before OrbitControls processes this frame's zoom input
           if (camera.position.length() < _safeMin) camera.position.setLength(_safeMin);
           controls.minDistance = _safeMin;
+          // Relief is altitude-dependent now, so the displacement uniforms have
+          // to follow it rather than only the slider. applyTerrainRelief just
+          // sets displacementScale, so this is cheap; the threshold keeps it
+          // from running every frame for a change nobody can see.
+          const _reliefNow = getEffectiveTerrainRelief();
+          if (Math.abs(_reliefNow - _lastAppliedRelief) > 0.0004) {
+            _lastAppliedRelief = _reliefNow;
+            syncTerrainReliefState();
+          }
           // Shrink near clip plane as camera approaches surface so sphere/tile geometry is never
           // inside the near frustum. Factor 0.4 guarantees nearest displaced tile renders correctly.
           // Against the ground actually under the camera when there is one, so
