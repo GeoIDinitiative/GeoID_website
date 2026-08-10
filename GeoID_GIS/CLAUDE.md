@@ -820,6 +820,47 @@ Exactly six were genuinely inert. Judge silence by whether the DOM, the project
 or a `hidden` attribute changed — not by the absence of a status line, and never
 by reading the code alone.
 
+**The study-area drape is how the globe gets real resolution.**
+`gis/basemap-drape.js` fetches XYZ tiles for the open project's study area,
+composites them into one canvas and drapes it as an ordinary derived layer
+(`addDerivedLayer`, ext `tiles`), which is what gives it the layer list,
+opacity, visibility, removal and the draw-order stack for nothing. Measured over
+Etna: 90 tiles at zoom 13, 15.1 m/px, against a basemap of ~8 km/px.
+
+Two things make it cheap, and both are easy to get wrong:
+
+- **No reprojection.** The mesh's rows are spaced evenly in *Mercator y* and
+  their latitudes come from the inverse projection, so the plane's default UVs
+  line up with a Mercator canvas exactly and not one pixel is resampled. Verified
+  on the interior rows, not just the corners — corners agree under either
+  convention, which is what makes this failure silent. The two conventions
+  differ by 17 m on the ground over a 0.3° box.
+- **The geo group already holds the spin**, so vertices go in the baseline frame
+  `surfacePoint` answers in, with no half-turn to bake in. That is the opposite
+  of the GEE drapes, which parent to the globe mesh and must bake it. Getting
+  this backwards puts the imagery half a world away.
+
+Everything the GEE drapes learnt still applies: `surfacePoint` not
+`radius + offset`, no depth test against displaced terrain, single-sided so that
+is safe, recomputed bounding sphere so the patch is not culled.
+
+**Known limit: you cannot yet zoom in far enough to see it.** The render loop
+pins the camera to `_safeMin` (3.7, about 1000 km up), which is right for an
+8 km/px basemap and wrong for 15 m/px imagery. Lowering it the way the viewer
+already does for Mars CTX tiles was tried and **reverted**: `controls.minDistance`
+did drop to 3.316 and the camera still stopped dead at 3.7, so a third clamp
+exists beyond the two `setLength(_safeMin)` calls. `hasDrape()` is left in place
+for whoever finishes it, along with the one trap found: it must not be
+conditioned on layer *visibility*, or switching the layer off moves the camera
+(measured: 71% of the frame's pixels changed).
+
+**When diffing rendered frames, pause the spin and run a control.** Two frames
+taken moments apart differ everywhere because the globe turns with UTC — the
+first attempt read 44,859 changed pixels of pure rotation. With
+`setSpinPaused(true)` the same comparison gives a noise floor of **0**, and the
+drape then shows as 26 pixels in a 6×7 box at the exact centre of the frame,
+which is the whole measurement.
+
 **Tile basemaps are attribution-conditional, and the credit is data.** Every
 source in `map2d.js` is free *on condition* of a specific credit line, which an
 exported PNG then carries into print. Esri's is the `copyrightText` its own

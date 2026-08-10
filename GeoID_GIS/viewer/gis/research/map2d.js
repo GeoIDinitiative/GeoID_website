@@ -16,37 +16,14 @@
  * see where something is; a flat map is the right way to lay one out for print.
  */
 
+import { BASEMAPS, ATTRIBUTION } from "../tile-sources.js?v=20260810-87ba6d4";
+
+// Re-exported because the Map Composer page imports the list from here; the
+// list itself is shared with the globe drape so the two cannot drift.
+export { BASEMAPS };
+
 const TILE = 256;
 const MAX_LAT = 85.0511287798;
-
-/** Tile sources, the same five the Qt page offers (app_qt.py:21976). */
-export const BASEMAPS = {
-  "OpenStreetMap": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-  "CartoDB Dark": "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-  "CartoDB Positron": "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-  "ESRI Satellite": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  "ESRI Topo": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-};
-
-/**
- * The credit each source requires, verbatim.
- *
- * Not decoration: every one of these services is free to use *on condition* of
- * attribution, so a wrong line is a licence breach and an exported figure
- * carries it into print. The Esri strings are the `copyrightText` their own
- * MapServer returns (`.../MapServer?f=json`) — this used to print "Esri", which
- * credits neither Vantor and Earthstar for the imagery nor the fifteen
- * agencies behind the topo map.
- */
-const ATTRIBUTION = {
-  "OpenStreetMap": "© OpenStreetMap contributors",
-  "CartoDB Dark": "© OpenStreetMap contributors, © CARTO",
-  "CartoDB Positron": "© OpenStreetMap contributors, © CARTO",
-  "ESRI Satellite": "Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community",
-  "ESRI Topo": "Sources: Esri, HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, "
-    + "NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, "
-    + "Esri China (Hong Kong), © OpenStreetMap contributors, and the GIS User Community",
-};
 
 export const lonToX = (lon) => (lon + 180) / 360;
 export function latToY(lat) {
