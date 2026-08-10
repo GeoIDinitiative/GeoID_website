@@ -3,8 +3,8 @@ import {
   rowsToCsv,
   rowsToGeoJson,
   downloadText,
-} from "./extraction.js?v=20260810-d89154b";
-import { rectangleVertices } from "./draw-area.js?v=20260810-d89154b";
+} from "./extraction.js?v=20260810-b917b23";
+import { rectangleVertices } from "./draw-area.js?v=20260810-b917b23";
 
 let lastResult = null;
 
@@ -131,7 +131,15 @@ function renderSources() {
     input.value = String(layer.id);
     input.checked = previous.has(String(layer.id)) ? previous.get(String(layer.id)) : true;
     const text = document.createElement("span");
-    const kind = layer.info?.valueKind === "attributes" ? "attributes" : "values";
+    // What the column will actually hold, said plainly. A GEE drape's value is
+    // read back out of the rendered palette, which is a few percent off the
+    // source band — the list says so rather than letting a column of
+    // millimetres imply it came from the archive.
+    const info = layer.info || {};
+    let kind = "values";
+    if (info.valueKind === "attributes") kind = "attributes";
+    else if (info.valueKind === "colour") kind = "colour only";
+    else if (info.recoveredFromPalette) kind = `${info.unit || "values"}, read from the palette`;
     text.textContent = `${layer.name} (${kind})`;
     row.appendChild(input);
     row.appendChild(text);

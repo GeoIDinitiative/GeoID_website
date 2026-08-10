@@ -10,9 +10,10 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260810-d89154b";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260810-b917b23";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260810-b917b23";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260810-d89154b";
+  from "./view-extent.js?v=20260810-b917b23";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -266,7 +267,40 @@ async function drape(imageUrl, bounds) {
   // Drawn after the globe, which is what puts it over the basemap now that it
   // no longer depth-tests against it. Still below the event markers at 20.
   mesh.renderOrder = 6;
+  // The decoded image travels with the patch so the layer can be sampled later.
+  // A drape is a picture of data; without this the picture is all there is, and
+  // extraction over a rainfall layer has nothing to report.
+  mesh.userData.geeImage = texture.image || null;
   return mesh;
+}
+
+/**
+ * Make a drape sampleable, so extraction can put it in a column.
+ *
+ * The value is recovered from the rendered palette (see gee-sample.js) — a
+ * reading of the picture, not the source band — so `info` records that and the
+ * column carries the unit. Where the manifest has no legend there is no
+ * inverse; the layer is still registered, and reports colour rather than a
+ * number that could not be checked.
+ */
+function samplerFor(object3D, entry) {
+  const image = object3D?.userData?.geeImage;
+  const sampler = geeSamplerFromImage(image, {
+    bounds: entry?.bounds,
+    palette: entry?.palette,
+    legend: entry?.legend,
+  });
+  if (!sampler) return {};
+  const invertible = Boolean(entry?.palette && entry?.legend);
+  return {
+    sampler,
+    info: {
+      valueKind: invertible ? "values" : "colour",
+      column: columnName(entry?.name, entry?.legend),
+      unit: entry?.legend?.unit || "",
+      recoveredFromPalette: invertible,
+    },
+  };
 }
 
 async function request() {
@@ -315,7 +349,12 @@ async function request() {
     const object3D = await drape(data.imageUrl, data.bounds);
     const layer = window.GeoIDImportManager?.addDerivedLayer?.(
       `${data.name} · ${data.from}–${data.to}`,
-      { object3D, bounds: data.bounds, georeferenced: true },
+      {
+        object3D,
+        bounds: data.bounds,
+        georeferenced: true,
+        ...samplerFor(object3D, data),
+      },
       "gee",
     );
     if (layer) {
@@ -457,7 +496,12 @@ async function requestFromCache(datasetId) {
     const object3D = await drape(cacheUrl(entry.file), entry.bounds);
     const layer = window.GeoIDImportManager?.addDerivedLayer?.(
       `${entry.name} · ${entry.from}–${entry.to} (cached)`,
-      { object3D, bounds: entry.bounds, georeferenced: true },
+      {
+        object3D,
+        bounds: entry.bounds,
+        georeferenced: true,
+        ...samplerFor(object3D, entry),
+      },
       "gee",
     );
     if (layer) {

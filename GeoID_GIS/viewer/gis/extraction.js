@@ -1,4 +1,4 @@
-import { computeBounds2D } from "./geo-utils.js?v=20260810-d89154b";
+import { computeBounds2D } from "./geo-utils.js?v=20260810-b917b23";
 
 // Sampling a polygon on a lat/lon grid: the spacing is expressed in km and
 // converted per-row, because a degree of longitude shrinks toward the poles.
@@ -110,7 +110,11 @@ export function extractPolygonSamples({
           return;
         }
         const value = layer.sampler(lat, normalizeLon(lon));
-        const key = layer.name.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9]+/g, "_");
+        // A layer may name its own column — a GEE drape does, so a rainfall
+        // reading arrives as `Rainfall_CHIRPS_mm` rather than as the layer's
+        // display name with its date range and "(cached)" welded on.
+        const key = layer.info?.column
+          || layer.name.replace(/\.[^.]+$/, "").replace(/[^A-Za-z0-9]+/g, "_");
         if (value !== null && typeof value === "object") {
           flattenAttributes(key, value, row);
         } else {
