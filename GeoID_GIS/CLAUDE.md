@@ -908,6 +908,27 @@ from `initWhenReady`, because `buildPanel` runs its body once and the viewer
 boots async — retrying only the panel gave the options a second chance and the
 watcher none, which left choosing a service showing bare ground.
 
+**Show the tiles as they arrive, not after.** Measured on a 90-tile patch: the
+first tile lands at 122 ms and the last at 1524 ms, and nothing was drawn until
+the last one — the imagery existed for 1.4 s before it could be seen, then
+popped. The composite canvas is therefore **not** given a backdrop: unfetched
+tiles stay transparent so the globe shows through, which is what makes it safe
+to hang the mesh up front and re-upload the texture as tiles land. With the
+settle cut to 250 ms, stop-to-first-detail went from about 2 s to **119 ms**.
+The previous patch is dropped only when the new one completes, so the new draws
+over the old and the old shows through the gaps until they close.
+
+A tile cache of our own is **not** needed: the browser's HTTP cache already
+returns a repeated 90-tile view in 11 ms against 1524 ms cold.
+
+**What this still is not.** One patch at one zoom over a base at 9.8 km/px, with
+nothing in between, replaced wholesale on each settle and fetched only at rest.
+Full sharpness takes ~3 s at zoom 16 (256 tiles, 6 at a time). A real streamer —
+`flight_sim/mars/viewer/STREAMING-DESIGN.md` — keeps rings at several zooms
+alive at once with one priority scheduler, substitutes a coarser ancestor while
+a finer tile is in flight, and fetches during motion. That is the gap, and it is
+a project rather than a tweak; do not describe the current thing as a streamer.
+
 **Sampling rays across the viewport asks for the horizon, not the view.**
 `visibleBounds` raycasts a grid through the screen, which is right from orbit
 and wrong low down: the rays near the top graze the horizon. Measured at 2.78 km

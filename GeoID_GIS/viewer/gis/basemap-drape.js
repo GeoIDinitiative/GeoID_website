@@ -37,10 +37,10 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-1b754f8";
-import { isEarth } from "./bodies.js?v=20260810-1b754f8";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-bd2019e";
+import { isEarth } from "./bodies.js?v=20260810-bd2019e";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260810-1b754f8";
+  from "./view-extent.js?v=20260810-bd2019e";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -202,8 +202,10 @@ export async function composite(bbox, sourceName = DEFAULT_SOURCE, { onProgress,
   canvas.width = grid.width;
   canvas.height = grid.height;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#0b0d18";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Deliberately NOT filled. An unfetched tile leaves transparent pixels, so the
+  // globe underneath shows through instead of a dark hole -- which is what lets
+  // the patch be shown while it is still arriving, and what makes a missing tile
+  // a gap in detail rather than a black square.
 
   let done = 0;
   let drawn = 0;
@@ -222,7 +224,7 @@ export async function composite(bbox, sourceName = DEFAULT_SOURCE, { onProgress,
           drawn += 1;
         }
         done += 1;
-        onProgress?.(done, total);
+        onProgress?.(done, total, canvas);
       });
     }
   }
@@ -843,28 +845,70 @@ async function refineOnce({ onStatus } = {}) {
   // flight is measured against where we are going rather than where we were.
   refineState = { ...(refineState || {}), bbox, zoom, source, busy: true };
   onStatus?.(`Refining to zoom ${zoom}…`);
+
+  /**
+   * Show it while it is still arriving, rather than after.
+   *
+   * Measured on a 90-tile patch: the first tile lands at 122 ms and the last at
+   * 1524 ms, and nothing at all was drawn until the last one — so the imagery
+   * existed for 1.4 seconds before anyone could see it, then appeared all at
+   * once. That pop is most of what "not seamless" meant.
+   *
+   * The canvas is no longer given a backdrop, so the parts that have not
+   * arrived are transparent and the globe shows through them. That is what
+   * makes it safe to hang the mesh up front and let it fill in: at worst the
+   * patch is invisible, never a dark rectangle over the map.
+   */
+  let live = null;
+  const showEarly = (done, total, canvas) => {
+    if (!refineState || refineState.bbox !== bbox) return;
+    if (!live) {
+      const group = refineParent();
+      if (!group) return;
+      const mesh = buildMesh(canvas, bbox, { frame: "globe" });
+      mesh.renderOrder = 60;
+      mesh.name = "GeoID-BasemapRefinePending";
+      group.add(mesh);
+      live = mesh;
+    }
+    // A CanvasTexture re-uploads on demand; this is the whole progressive path.
+    live.material.map.needsUpdate = true;
+    if (done % 10 === 0 || done === total) onStatus?.(`Zoom ${zoom}: ${done}/${total} tiles…`);
+  };
+
   try {
-    const result = await composite(bbox, source, { credit: false });
+    const result = await composite(bbox, source, { credit: false, onProgress: showEarly });
     // Switched off, or the basemap changed, while these tiles were in flight.
     // `stopRefining` nulls the state, so reading it unguarded here crashed on
     // the one interaction most likely to happen during a slow fetch: giving up
     // and unticking the box.
-    if (!refineState) return null;
+    if (!refineState) { disposeMesh(live); return null; }
     // Another pass overtook this one; its patch is the current view, not ours.
-    if (refineState.bbox !== bbox) return null;
-    const mesh = buildMesh(result.canvas, bbox, { frame: "globe" });
-    mesh.renderOrder = 60;                 // the imported band, over the sphere
-    mesh.name = "GeoID-BasemapRefine";
-    const group = refineParent();
-    if (!group) {
-      onStatus?.("The globe is not ready for detail yet.");
-      return null;
+    if (refineState.bbox !== bbox) { disposeMesh(live); return null; }
+    // `live` is already on the globe and already carries every tile that
+    // arrived — it only has to be promoted. Building a second mesh here would
+    // re-upload the same canvas and flicker between the two.
+    if (!live) {
+      const group = refineParent();
+      if (!group) {
+        onStatus?.("The globe is not ready for detail yet.");
+        return null;
+      }
+      live = buildMesh(result.canvas, bbox, { frame: "globe" });
+      live.renderOrder = 60;               // the imported band, over the sphere
+      group.add(live);
     }
-    disposeMesh(refineState.mesh);
-    group.add(mesh);
-    refineState.mesh = mesh;
+    live.name = "GeoID-BasemapRefine";
+    live.material.map.needsUpdate = true;
+    // The previous patch is only dropped now, so there is never a moment with no
+    // detail on screen: the old one stays until the new one is complete.
+    if (refineState.mesh !== live) disposeMesh(refineState.mesh);
+    refineState.mesh = live;
     onStatus?.(`Detail at zoom ${result.zoom} (${Math.round(result.metresPerPixel)} m/px).`);
     return { ...result, bbox };
+  } catch (error) {
+    disposeMesh(live);
+    throw error;
   } finally {
     if (refineState) refineState.busy = false;
   }
@@ -884,7 +928,12 @@ export function startRefining({ onStatus } = {}) {
   refineState.stop = onViewSettled(viewer, () => {
     if (!refineState || refineState.busy) return;
     void refineOnce({ onStatus });
-  });
+    // 250 ms rather than the 500 ms default. Half a second of stillness before
+    // anything begins is itself most of a second added to every move, and the
+    // first tiles now appear about 150 ms after the request rather than at the
+    // end -- so the wait is what dominates. 250 ms is still unambiguously
+    // "stopped" and does not fire during a drag.
+  }, { settleMs: 250, pollMs: 100 });
   return refineState.stop;
 }
 
