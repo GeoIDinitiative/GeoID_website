@@ -1,11 +1,11 @@
-import { wirePattern, wire } from "./spec-page.js?v=20260810-147a351";
-import * as store from "./project-store.js?v=20260810-147a351";
-import * as bridge from "./bridge.js?v=20260810-147a351";
-import * as stats from "./stats.js?v=20260810-147a351";
-import * as dsp from "./dsp.js?v=20260810-147a351";
-import { linePlot } from "./plot.js?v=20260810-147a351";
-import { column } from "./table.js?v=20260810-147a351";
-import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260810-147a351";
+import { wirePattern, wire } from "./spec-page.js?v=20260810-d678ce6";
+import * as store from "./project-store.js?v=20260810-d678ce6";
+import * as bridge from "./bridge.js?v=20260810-d678ce6";
+import * as stats from "./stats.js?v=20260810-d678ce6";
+import * as dsp from "./dsp.js?v=20260810-d678ce6";
+import { linePlot } from "./plot.js?v=20260810-d678ce6";
+import { column } from "./table.js?v=20260810-d678ce6";
+import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260810-d678ce6";
 
 /**
  * Behaviour for the controls the spec brings across.
@@ -350,7 +350,7 @@ async function writeCollection(name, collection, say) {
   say(`${(collection.features || []).length} feature(s) written to ${path}.`);
 }
 
-const geo = () => import(`../geoprocessing.js?v=20260810-147a351`);
+const geo = () => import(`../geoprocessing.js?v=20260810-d678ce6`);
 
 wire("Vector Tools", {
   Buffer: async ({ say }) => {
@@ -421,5 +421,10 @@ wirePattern(/^(H1|H2|H3|B|I|U|Bullets|•|Numbers|Quote|Code|<\/>|Divider|Time ?
     box.value = `${box.value.slice(0, at)}${text}${box.value.slice(at)}`;
     box.focus();
     box.selectionStart = box.selectionEnd = at + text.length;
-    say(`Inserted ${label}.`);
+    // Name what landed in the editor, not the button that put it there —
+    // echoing the label gave "Inserted Insert [cite].", which reads like a bug
+    // in a feature that is working correctly.
+    // JSON.stringify already escapes the newlines in a fenced code block;
+    // escaping them first as well printed "```\\n\\n```".
+    say(`Inserted ${JSON.stringify(text)} at the caret.`);
   });
