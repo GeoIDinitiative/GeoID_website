@@ -1,13 +1,13 @@
-import * as store from "./project-store.js?v=20260810-790ee3c";
-import * as stats from "./stats.js?v=20260810-790ee3c";
-import * as dsp from "./dsp.js?v=20260810-790ee3c";
-import { parseTable, column } from "./table.js?v=20260810-790ee3c";
-import { linePlot, heatmap } from "./plot.js?v=20260810-790ee3c";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260810-790ee3c";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260810-790ee3c";
-import * as sidecar from "./sidecar.js?v=20260810-790ee3c";
-import * as bridge from "./bridge.js?v=20260810-790ee3c";
-import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260810-790ee3c";
+import * as store from "./project-store.js?v=20260810-ebad563";
+import * as stats from "./stats.js?v=20260810-ebad563";
+import * as dsp from "./dsp.js?v=20260810-ebad563";
+import { parseTable, column } from "./table.js?v=20260810-ebad563";
+import { linePlot, heatmap } from "./plot.js?v=20260810-ebad563";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260810-ebad563";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260810-ebad563";
+import * as sidecar from "./sidecar.js?v=20260810-ebad563";
+import * as bridge from "./bridge.js?v=20260810-ebad563";
+import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260810-ebad563";
 
 /**
  * The parts of a page the app builds while it runs.
@@ -1503,6 +1503,35 @@ const INGEST_CONNECTORS = {
   "Ingest Admin Infrastructure": { slug: "admin_infrastructure", connectors: ["osm-places"] },
 };
 
+/**
+ * GeoJSON features to a CSV the analysis pages can read.
+ *
+ * Every feature's properties become columns, with `lon`/`lat` from its geometry
+ * so the table can still be placed. The union of keys is taken rather than the
+ * first feature's, because a feed's records are not always uniform and a missing
+ * key should be an empty cell, not a dropped column.
+ */
+export function featuresToCsv(features) {
+  const rows = (features || []).filter((f) => f && f.properties);
+  if (!rows.length) return "";
+  const keys = [...new Set(rows.flatMap((f) => Object.keys(f.properties)))];
+  const cell = (v) => {
+    if (v === null || v === undefined) return "";
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = ["lon", "lat", ...keys].join(",");
+  const body = rows.map((f) => {
+    let coords = f.geometry?.coordinates;
+    // A polygon reduces to a placeable point, the same rule the watcher uses.
+    while (Array.isArray(coords) && Array.isArray(coords[0])) coords = coords[0];
+    const lon = Array.isArray(coords) ? coords[0] : "";
+    const lat = Array.isArray(coords) ? coords[1] : "";
+    return [cell(lon), cell(lat), ...keys.map((k) => cell(f.properties[k]))].join(",");
+  });
+  return [header, ...body].join("\n");
+}
+
 /** Fetch one connector, file it with provenance, return its project path. */
 async function pullConnector(name, slug, say) {
   const label = CONNECTORS[name]?.label || name;
@@ -1526,6 +1555,24 @@ async function pullConnector(name, slug, say) {
     source: `${result.provider} — live`,
     extra: { domain: slug, live: true, ...result.provenance },
   });
+
+  // The same pull, as a table.
+  //
+  // The globe wants GeoJSON; every analysis page reads CSV through
+  // `findTables`, which cannot see a .geojson at all — so a pull was a dead end
+  // the moment you wanted to *study* what you had fetched, rather than look at
+  // it. Writing both closes that: one file to draw, one to analyse, from a
+  // single fetch and with the same provenance.
+  const csvPath = `data/pulled/${slug}/${result.filename.replace(/\.geojson$/, "")}.csv`;
+  const csv = featuresToCsv(result.geojson.features);
+  if (csv) {
+    await store.writeProjectFile(csvPath, csv);
+    await store.registerData({
+      name: csvPath.split("/").pop(), kind: "series", path: csvPath,
+      source: `${result.provider} — live`,
+      extra: { domain: slug, live: true, ...result.provenance, from: path },
+    });
+  }
   // Per-domain lineage, so provenance survives a registry rewrite.
   const log = await store.readJson(`data/pulled/${slug}/_lineage.json`, { pulls: [] });
   log.pulls = Array.isArray(log.pulls) ? log.pulls : [];

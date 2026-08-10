@@ -1,12 +1,12 @@
-import { registerPage } from "../stages.js?v=20260810-790ee3c";
-import * as store from "../project-store.js?v=20260810-790ee3c";
-import * as bridge from "../bridge.js?v=20260810-790ee3c";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260810-790ee3c";
+import { registerPage } from "../stages.js?v=20260810-ebad563";
+import * as store from "../project-store.js?v=20260810-ebad563";
+import * as bridge from "../bridge.js?v=20260810-ebad563";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260810-ebad563";
 import {
   el, card, field, input, textarea, selectOf, button, row, statusLine,
   pageHeader, splitPanes, tabbedPanel, editorCard, editorHero, fieldGrid,
   slider, editTable,
-} from "./common.js?v=20260810-790ee3c";
+} from "./common.js?v=20260810-ebad563";
 
 /**
  * Projects, laid out as `GeoIDProjectsPage` lays it out (app_qt.py:4570):

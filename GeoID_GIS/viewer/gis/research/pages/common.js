@@ -1,6 +1,6 @@
-import * as store from "../project-store.js?v=20260810-790ee3c";
-import { parseTable, column } from "../table.js?v=20260810-790ee3c";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260810-790ee3c";
+import * as store from "../project-store.js?v=20260810-ebad563";
+import { parseTable, column } from "../table.js?v=20260810-ebad563";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260810-ebad563";
 
 /**
  * The furniture every Research page uses.
@@ -245,13 +245,25 @@ export async function findTables(roots = [
   "data/external", "data/pulled", "exports", "analysis",
 ]) {
   const found = [];
-  for (const dir of roots) {
+  // Walks into subfolders, which it used not to do — and that was a real dead
+  // end twice over: a peaks tree is `data/raw/<dataset>/<station>/…`, and a live
+  // pull writes `data/pulled/<domain>/…`, so a project could hold exactly the
+  // table an analysis wanted and every page would call itself empty. Depth is
+  // capped because these trees can be deep and a file picker listing hundreds of
+  // paths is its own kind of useless.
+  const MAX_DEPTH = 3;
+  async function walk(dir, depth) {
     let entries = [];
-    try { entries = await store.listProjectDir(dir); } catch (error) { continue; }
-    entries
-      .filter((e) => e.kind === "file" && /\.(csv|tsv|txt|dat)$/i.test(e.name))
-      .forEach((e) => found.push(`${dir}/${e.name}`));
+    try { entries = await store.listProjectDir(dir); } catch (error) { return; }
+    for (const entry of entries) {
+      if (entry.kind === "file") {
+        if (/\.(csv|tsv|txt|dat)$/i.test(entry.name)) found.push(`${dir}/${entry.name}`);
+      } else if (entry.kind === "directory" && depth < MAX_DEPTH) {
+        await walk(`${dir}/${entry.name}`, depth + 1);
+      }
+    }
   }
+  for (const dir of roots) await walk(dir, 1);
   return found;
 }
 

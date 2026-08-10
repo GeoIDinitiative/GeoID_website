@@ -1,6 +1,6 @@
-import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260810-790ee3c";
-import { currentBodyId } from "../bodies.js?v=20260810-790ee3c";
-import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810-790ee3c";
+import { directoryAdapter, memoryAdapter, indexedDbAdapter } from "./fs-adapter.js?v=20260810-ebad563";
+import { currentBodyId } from "../bodies.js?v=20260810-ebad563";
+import { saveRootHandle, loadRootHandle, clearRootHandle } from "./handles.js?v=20260810-ebad563";
 
 /**
  * Projects, on disk, in the layout the Qt Research app uses.
@@ -476,7 +476,17 @@ export async function registerData(entry) {
   };
   // Re-importing the same file updates its record rather than stacking copies.
   const at = entries.findIndex((e) => e.name === record.name && e.kind === record.kind);
-  if (at >= 0) entries[at] = { ...entries[at], ...record };
+  if (at >= 0) {
+    // An empty field must not erase a filled one. Showing a *pulled* layer on
+    // the globe re-registers it through the import path, which knows nothing
+    // about the fetch — and blanked "USGS earthquakes — live" back to "",
+    // losing where the data came from at the moment it became most useful.
+    const kept = { ...record };
+    Object.keys(kept).forEach((key) => {
+      if ((kept[key] === "" || kept[key] === null) && entries[at][key]) delete kept[key];
+    });
+    entries[at] = { ...entries[at], ...kept };
+  }
   else entries.push(record);
   await writeJson(REGISTRY_PATH, { entries });
   return record;
