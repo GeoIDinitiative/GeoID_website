@@ -91,7 +91,6 @@
   white-space: nowrap;
 }
 .site-nav .nav-context:empty { display: none; }
-.site-nav .nav-context.is-unset { color: var(--nav-ink); opacity: 0.5; }
 
 @media (max-width: 560px) {
   /* Only on a phone, where the wordmark and the burger want the whole row.

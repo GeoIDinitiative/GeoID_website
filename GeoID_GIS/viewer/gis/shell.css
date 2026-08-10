@@ -1495,3 +1495,114 @@ body[data-view-mode="model"] #gmt-clock {
    row to the mode switch. */
 .brand-toprow .eyebrow-project { flex: none; padding: 0.32rem; gap: 0; }
 .brand-toprow .eyebrow-project svg { width: 1.05rem; height: 1.05rem; }
+
+/* ── Stranded Earth rules, swept ─────────────────────────────────────────────
+ *
+ * These style markup that `shell.html` injects into every planet page, and
+ * every one of them lived only in `viewer/styles.css` — which the planet pages
+ * do not load. So the element was there and unstyled, which never looks like a
+ * missing stylesheet; it looks like a broken feature.
+ *
+ * Found by diffing the ids and classes shell.html declares against the rules in
+ * Earth's stylesheet, the planet stylesheets and this one: 213 ids, 93 classes,
+ * eleven selectors styled on Earth and nowhere the planets load. Three of them
+ * were the Draw tool's own box, added to Earth alone earlier in the same
+ * session, which is exactly how this keeps happening.
+ *
+ * Earth keeps its copies. If you edit one, edit both — or better, delete
+ * Earth's and let it load this file too.
+ */
+
+#geoid-controls-host {
+  display: grid;
+  gap: 0.45rem;
+}
+
+#geoid-controls-host > .control-section {
+  border-radius: 0.6rem;
+}
+
+.gis-draw-box {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.55rem 0.6rem;
+  margin-bottom: 0.65rem;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.22);
+  border-radius: 0.5rem;
+}
+
+/* `hidden` is only a UA-level display:none, so any author rule that sets
+   display outranks it -- and .row sets `display: grid`. Without this the
+   coordinate row renders open however it was built. */
+#gis-box-manual[hidden], #gis-box-height-row[hidden] { display: none; }
+
+#gis-box-manual {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.attr-table-host {
+  max-height: 11rem;
+  overflow: auto;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.16);
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.project-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 5, 11, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.project-dialog-backdrop[hidden] { display: none; }
+
+.project-dialog {
+  width: min(30rem, calc(100vw - 2rem));
+  max-height: min(38rem, calc(100vh - 4rem));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(82, 228, 232, 0.4);
+  border-radius: 0.7rem;
+  background: rgba(10, 14, 24, 0.97);
+  box-shadow: 0 1.4rem 3rem rgba(0, 0, 0, 0.55);
+}
+
+.project-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid rgba(82, 228, 232, 0.22);
+}
+
+.project-dialog-head h2 {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--nav-accent);
+}
+
+.project-dialog-close {
+  background: none; border: 0; color: var(--soft-light);
+  font-size: 1.2rem; line-height: 1; cursor: pointer;
+}
+
+.project-dialog-close:hover { color: var(--nav-accent); }
+
+/* GEE date pair on one line, sized so neither clips. */
+.gee-dates { display: flex; align-items: center; gap: 0.25rem; flex: 1; min-width: 0; }
+
+.gee-dates input {
+  flex: 1 1 0; min-width: 0; width: auto;
+  font-size: 0.66rem; padding: 0.3rem 0.3rem; cursor: pointer;
+}
+
+.gee-dates-sep { flex: none; color: var(--soft-light); }
+
+.gee-dates input::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.7; }

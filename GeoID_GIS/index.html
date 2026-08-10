@@ -2027,17 +2027,20 @@
             setDrawerOpen(false);
           }
         };
-        // Project and world, reported by the viewer. The header is outside the
-        // iframe and cannot read either, so it is told.
+        // The open project, reported by the viewer. The header is outside the
+        // iframe and cannot read the store, so it is told.
+        //
+        // The project only -- the world is already unmistakable from the globe
+        // filling the page, and naming it here just repeated what the eye had
+        // already been told. When no project is open this is empty, and the
+        // stylesheet collapses it rather than leaving a gap.
         if (msg.type === "geoid:context") {
           const node = document.getElementById("nav-context");
           if (node) {
-            const parts = [msg.project, msg.world].filter(Boolean);
-            node.textContent = parts.join(" · ");
-            node.classList.toggle("is-unset", !msg.project);
+            node.textContent = msg.project || "";
             node.title = msg.project
-              ? `Working in "${msg.project}" on ${msg.world}`
-              : `Working on ${msg.world}. No project is open.`;
+              ? `Working in "${msg.project}"${msg.world ? ` on ${msg.world}` : ""}`
+              : "";
           }
           return;
         }
