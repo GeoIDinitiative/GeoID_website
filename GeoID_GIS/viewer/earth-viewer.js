@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260810-f2e4741";
+  from "./gis/geo-utils.js?v=20260810-50e6179";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -19024,6 +19024,9 @@ uniform float uViewportWidth;`,
         // Imported GIS layers must use the viewer's own longitude convention
         // and globe radius, so they are shared here rather than re-derived.
         GLOBE_RADIUS: 3.2,
+        // Earth's mean radius, so the Draw tool's box is sized on this world
+        // rather than on a constant that happens to be Earth's.
+        bodyRadiusKm: EARTH_MEAN_RADIUS_KM,
         latLonToVector3,
         // latLonToVector3 answers in the globe's baseline frame -- where the
         // texture is laid out -- not where that place currently is. The globe

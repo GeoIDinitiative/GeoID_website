@@ -16,7 +16,6 @@
  * cannot fight over the camera.
  */
 
-import { isEarth } from "./bodies.js?v=20260810-f2e4741";
 
 /**
  * The bands, named for what the view is of — the thing a person is actually
@@ -421,7 +420,11 @@ export function installZoomBar() {
 
   const syncMode = () => {
     const mode = window.GeoIDModeManager?.getMode?.() || document.body.dataset.viewMode;
-    box.hidden = mode !== "gis" || !isEarth();
+    // Every world, not just Earth. The control is driven entirely through the
+    // viewer seam, so the honest test is whether this viewer answers the zoom
+    // questions at all — `installZoomBar` already refuses to mount when it does
+    // not, which is a better gate than a hard-coded body.
+    box.hidden = mode !== "gis";
   };
   syncMode();
   window.addEventListener("geoid-gis:mode-change", syncMode);

@@ -9,7 +9,7 @@
  * Run: node GeoID_GIS/viewer/gis/draw-area.test.mjs
  */
 
-import { rectangleVertices, lonDegPerKm } from "./draw-area.js";
+import { rectangleVertices, lonDegPerKm, kmPerDegLat, EARTH_RADIUS_KM } from "./draw-area.js";
 
 let failures = 0;
 function check(name, ok, detail = "") {
@@ -58,8 +58,11 @@ function haversineKm(a, b) {
 }
 
 // ── Latitude scaling ─────────────────────────────────────────────────────────
-close("a degree of longitude is ~111 km at the equator", 1 / lonDegPerKm(0), 111.32, 0.01);
-close("and about half that at 60°", 1 / lonDegPerKm(60), 55.66, 0.05);
+// Against the MEAN radius, which is what the haversine check above uses too.
+// These expected 111.32 -- the degree at the equatorial radius, 6378 km -- while
+// the code now derives them from whichever radius the body has.
+close("a degree of longitude is ~111 km at the equator", 1 / lonDegPerKm(0), 111.195, 0.01);
+close("and about half that at 60°", 1 / lonDegPerKm(60), 55.60, 0.05);
 check("it never divides by zero at the pole", Number.isFinite(lonDegPerKm(90)));
 
 // ── Subdivision ──────────────────────────────────────────────────────────────
@@ -102,6 +105,36 @@ check("text is not a size",
   check("east-positive longitude is left alone",
     box.vertices.every((v) => v.lon > 299 && v.lon < 301), `${box.vertices[0].lon}`);
 }
+
+// ── Other worlds ─────────────────────────────────────────────────────────────
+// The Draw tool is on every world, and a degree is not 111 km on any of the
+// others. Hard-coding Earth's made a "200 km" box on Mars 106 km across, which
+// reported 11,296 km2 against the 40,000 asked for -- exactly (R_e/R_m)^2 out.
+{
+  const MARS_R = 3389.5;
+  const marsKm = (a, b) => {
+    const toRad = (deg) => (deg * Math.PI) / 180;
+    const dLat = toRad(b.lat - a.lat);
+    const dLon = toRad(b.lon - a.lon);
+    const h = Math.sin(dLat / 2) ** 2
+      + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
+    return 2 * MARS_R * Math.asin(Math.min(1, Math.sqrt(h)));
+  };
+  const box = rectangleVertices({ lat: 0, lon: 80, widthKm: 200, heightKm: 200, radiusKm: MARS_R });
+  const { south, north, west, east } = box.bounds;
+  close("a 200 km box on Mars is 200 km tall on Mars",
+    marsKm({ lat: south, lon: west }, { lat: north, lon: west }), 200, 0.5);
+  close("and 200 km wide at its centre latitude",
+    marsKm({ lat: 0, lon: west }, { lat: 0, lon: east }), 200, 0.5);
+  // The same request on Earth's radius must span more degrees, not fewer.
+  const earth = rectangleVertices({ lat: 0, lon: 80, widthKm: 200, heightKm: 200 });
+  check("a Mars box spans more degrees than an Earth one of the same size",
+    (box.bounds.north - box.bounds.south) > (earth.bounds.north - earth.bounds.south),
+    `${(box.bounds.north - box.bounds.south).toFixed(2)}° vs ${(earth.bounds.north - earth.bounds.south).toFixed(2)}°`);
+}
+close("a degree of latitude is ~111 km on Earth", kmPerDegLat(), 111.19, 0.02);
+close("and ~59 km on Mars", kmPerDegLat(3389.5), 59.16, 0.02);
+check("the default radius is Earth's", kmPerDegLat(EARTH_RADIUS_KM) === kmPerDegLat());
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

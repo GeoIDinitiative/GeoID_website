@@ -14,7 +14,16 @@
  * file, and doing it here would put the box a hemisphere away.
  */
 
-const KM_PER_DEG_LAT = 111.32;
+/**
+ * A degree of latitude, in kilometres, on a body of a given radius.
+ *
+ * This was the Earth constant 111.32, hard-coded — so a "200 km" box on Mars
+ * came out 106 km across and reported 11,296 km² against the 40,000 asked for,
+ * exactly (R_earth/R_mars)² out. The Draw tool is on every world, so the body
+ * has to be a parameter.
+ */
+export const EARTH_RADIUS_KM = 6371.0088;
+export const kmPerDegLat = (radiusKm = EARTH_RADIUS_KM) => (Math.PI * radiusKm) / 180;
 /**
  * Longer edges are split.
  *
@@ -26,11 +35,11 @@ const KM_PER_DEG_LAT = 111.32;
 const MAX_SEGMENT_DEG = 1;
 
 /** Degrees of longitude per kilometre at a given latitude. */
-export function lonDegPerKm(lat) {
+export function lonDegPerKm(lat, radiusKm = EARTH_RADIUS_KM) {
   const cos = Math.cos((lat * Math.PI) / 180);
   // Within ~0.1° of a pole the scaling runs away; clamp so a box there is
   // merely wrong-looking rather than infinite.
-  return 1 / (KM_PER_DEG_LAT * Math.max(cos, 0.0018));
+  return 1 / (kmPerDegLat(radiusKm) * Math.max(cos, 0.0018));
 }
 
 /**
@@ -46,14 +55,15 @@ export function lonDegPerKm(lat) {
  */
 export function rectangleVertices({
   lat, lon, widthKm, heightKm, maxSegmentDeg = MAX_SEGMENT_DEG,
+  radiusKm = EARTH_RADIUS_KM,
 } = {}) {
   const wide = Number(widthKm);
   const tall = Number(heightKm);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
   if (!(wide > 0) || !(tall > 0)) return null;
 
-  const halfLat = Math.min(tall / 2 / KM_PER_DEG_LAT, 89.9);
-  const halfLon = Math.min((wide / 2) * lonDegPerKm(lat), 179.9);
+  const halfLat = Math.min(tall / 2 / kmPerDegLat(radiusKm), 89.9);
+  const halfLon = Math.min((wide / 2) * lonDegPerKm(lat, radiusKm), 179.9);
   const south = Math.max(-89.99, lat - halfLat);
   const north = Math.min(89.99, lat + halfLat);
   const west = lon - halfLon;

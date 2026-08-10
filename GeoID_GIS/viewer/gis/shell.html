@@ -244,7 +244,82 @@
           </div>
         </summary>
         <div class="section-body toolbox-group-body">
-          <div id="analysis-tools-host"></div>
+          <div id="analysis-tools-host">
+            <!-- The Extract From Layers panel, identical to the Earth page's.
+                 toolbox.js MOVES this into the host by id, so the host was empty
+                 on every planet and the Draw box and extraction simply did not
+                 exist there. -->
+      <details id="gis-analysis-section" class="control-section" hidden>
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title">Extract From Layers</div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body">
+          <p class="tool-copy">Mark out an area — click one out with the <strong>Draw</strong> tool, or set a box below — then sample every active layer across it and export one table.</p>
+          <div class="gis-draw-box">
+            <div class="row">
+              <label for="gis-box-shape">Shape</label>
+              <select id="gis-box-shape" class="input">
+                <option value="square">Square</option>
+                <option value="rectangle">Rectangle</option>
+              </select>
+            </div>
+            <div class="row">
+              <label for="gis-box-width"><span id="gis-box-width-label">Side (km)</span></label>
+              <input id="gis-box-width" class="input" type="number" min="0.05" step="1" value="10">
+            </div>
+            <div class="row" id="gis-box-height-row" hidden>
+              <label for="gis-box-height">Height (km)</label>
+              <input id="gis-box-height" class="input" type="number" min="0.05" step="1" value="10">
+            </div>
+            <div class="row">
+              <label for="gis-box-centre">Centred on</label>
+              <select id="gis-box-centre" class="input">
+                <option value="view">The middle of the view</option>
+                <option value="manual">Coordinates below</option>
+              </select>
+            </div>
+            <div class="row" id="gis-box-manual" hidden>
+              <label for="gis-box-lat">Lat / lon</label>
+              <input id="gis-box-lat" class="input" type="number" step="0.0001" placeholder="lat" aria-label="Box centre latitude">
+              <input id="gis-box-lon" class="input" type="number" step="0.0001" placeholder="lon °E" aria-label="Box centre longitude east">
+            </div>
+            <button id="gis-box-draw" class="tool-button" type="button">Draw box</button>
+            <div id="gis-box-status" class="gis-metric">No box drawn.</div>
+          </div>
+          <div class="gis-extract-options">
+            <label class="gis-extract-source" for="gis-extract-builtin">
+              <input type="checkbox" id="gis-extract-builtin" checked>
+              <span>GeoID DEM elevation + slope</span>
+            </label>
+            <label class="gis-extract-source" for="gis-extract-geology">
+              <input type="checkbox" id="gis-extract-geology">
+              <span>GeoID geology class (slower)</span>
+            </label>
+            <label class="gis-extract-source" for="gis-extract-climate">
+              <input type="checkbox" id="gis-extract-climate">
+              <span>Modelled climate (temperature, pressure, wind, irradiance) &mdash; estimated from latitude and elevation, not observed</span>
+            </label>
+          </div>
+          <div id="gis-extract-sources" class="gis-extract-options">
+            <p class="tool-copy import-empty-note">No sampleable imported layers.</p>
+          </div>
+          <div class="row">
+            <label for="gis-extract-step">Sample spacing (km)</label>
+            <input id="gis-extract-step" class="input" type="number" min="0.05" step="0.05" value="1">
+          </div>
+          <button id="gis-extract-run" class="tool-button" type="button">Run Extraction</button>
+          <div id="gis-extract-status" class="gis-metric">No extraction run yet.</div>
+          <div class="measure-actions">
+            <button id="gis-extract-csv" class="button secondary" type="button" disabled>Export CSV</button>
+            <button id="gis-extract-geojson" class="button secondary" type="button" disabled>Export GeoJSON</button>
+          </div>
+        </div>
+      </details>
+          </div>
           <details class="gis-tool-section">
             <summary>Point &amp; Pixel Extraction</summary>
             <div class="gis-tool-body">

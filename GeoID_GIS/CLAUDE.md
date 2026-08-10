@@ -867,6 +867,57 @@ earth-viewer importing it rather than keeping a second copy, which is the same
 mistake the zoom floor made. `geo-utils.test.mjs` pins subdivision invariance,
 the hemisphere, and the antimeridian taking the short way round.
 
+**The GIS controls are on every world, and three things had to be true for
+that.** The shell carried an **empty** `#analysis-tools-host`: `toolbox.js`
+moves `#gis-analysis-section` into it, and that section only ever existed on the
+Earth page — so the Draw box and the extraction did not exist on any planet.
+The panel now lives in `gis/shell.html`. Each viewer's seam gained
+`get/setZoomAltitudeMetres` (measured from `controls.target`), and the five
+**rocky** bodies also `setStudyAreaPolygon`, `getViewCentreLatLon` and the
+extraction helpers. The four gas giants have no `activateStudyArea` and no
+surface to draw on, so they take zoom only — that is a fact about the bodies,
+not a gap.
+
+**The planet viewers have no eased zoom target**, so `targetMetres` is null
+there and the pill compounds on the *achieved* altitude. On Earth that would
+collapse the travel rate to the easing rate; with nothing to lag behind it is
+exact, and a held arrow issues a small step every frame, which is the glide.
+Verified: Mars 8,881 → 530 km, Jupiter 194,557 → 28,401 km, Pluto 3,114 → 44 km.
+
+**The zoom pill is not gated on `isEarth()`.** `installZoomBar` already refuses
+to mount when the seam cannot answer the zoom questions, which is a truer test
+than a hard-coded body.
+
+**A kilometre is not a degree anywhere except Earth.** The preset box had
+Earth's 111.32 km/degree hard-coded, so a 200 km box on Mars came out 106 km
+across and reported 11,296 km² against the 40,000 asked for — exactly
+(R⊕/R♂)² out. The radius is a parameter now, carried on every seam as
+`bodyRadiusKm`. Verified after: Mars 39,994 km² for a 200 km box, Pluto
+9,997 km² for a 100 km one.
+
+**Jupiter, Uranus and Neptune all defined `MARS_MEAN_RADIUS_KM = 58232` —
+Saturn's.** The gas viewers were cloned from Saturn's and the constant kept its
+value along with its (Mars-lineage) name; Jupiter's own comment beside it said
+69911. Every kilometre those three reported was scaled by it: distances, polygon
+areas, and now the zoom readout. **Saturn's copy was correct, which is why it
+went unnoticed.** Corrected to the IAU means (69911 / 25362 / 24622). The name
+is still `MARS_MEAN_RADIUS_KM` on all four — renaming it touches eight call
+sites per file for no behaviour.
+
+**`stamp.py` does not sweep `planet_explorer/**/*.js`, and must not.** Those
+files carry **epoch-second** stamps (`?v=1773813890`) from a different tooling
+convention; the sweep's 8-digit regex matches the first eight and leaves the
+rest, mangling 21 of them. That is why the corrected polygon-area formula is
+written out again in each planet viewer rather than imported from `geo-utils` —
+a cross-tree import would need a stamp, and a stale one is a second instance of
+the module. If the formula changes, change it in both; `geo-utils.test.mjs` is
+what proves it.
+
+**The zoom bands are absolute altitudes, so they read Earth-ish on other
+worlds.** "Global" begins at 8,000 km everywhere, which is right for Earth and
+early for Jupiter, whose radius is 69,911 km. Coarse enough to be usable, worth
+scaling by body radius if it ever grates.
+
 **Picking up the Draw tool opens the panel that completes it.** The box and the
 extraction sat two collapsed `<details>` deep — Extraction & Analysis, then
 Extract From Layers — so from the tool there was no sign either existed, and it

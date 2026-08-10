@@ -661,7 +661,12 @@
     };
     let currentMetadataState = null;
     let activeCutClipPlane = null;
-    const MARS_MEAN_RADIUS_KM = 58232.0;
+    // Jupiter's IAU mean radius. This held 58232 -- Saturn's -- because the
+    // gas-giant viewers were cloned from Saturn's and the constant kept its
+    // value along with its (Mars-lineage) name. Every kilometre this viewer
+    // reported was scaled by it: distances, polygon areas, and the zoom
+    // readout. Saturn's own copy was correct, which is why it went unnoticed.
+    const MARS_MEAN_RADIUS_KM = 69911.0;
     const JUPITER_MEAN_RADIUS_KM = MARS_MEAN_RADIUS_KM; // 69911 km
     let activeCameraFlight = null;
     const jupiterViewModeSelect = document.getElementById("jupiter-view-mode");
@@ -6398,6 +6403,41 @@
       // place to grow behaviour.
       window.GeoIDViewer = Object.assign(window.GeoIDViewer || {}, {
         bodyId: "jupiter",
+        // This body's mean radius, so anything sized in kilometres -- the
+        // Draw tool's preset box above all -- is sized on THIS world.
+        bodyRadiusKm: MARS_MEAN_RADIUS_KM,
+        /**
+         * Zoom from outside, in metres above the surface — what the zoom pill
+         * drives.
+         *
+         * Measured from `controls.target` rather than the origin, so it stays
+         * true if the camera is ever orbited about something that is not the
+         * body centre. There is no eased target here as there is on Earth, so
+         * `targetMetres` is null and the pill compounds on the achieved
+         * altitude instead: with nothing to lag behind, that is exact, and a
+         * held arrow issues a small step every frame, which is the glide.
+         */
+        getZoomAltitudeMetres() {
+          const perUnit = (MARS_MEAN_RADIUS_KM / 3.2) * 1000;
+          const distance = camera.position.distanceTo(controls.target);
+          return {
+            metres: Math.max(0, distance - 3.2) * perUnit,
+            minMetres: Math.max(0, controls.minDistance - 3.2) * perUnit,
+            maxMetres: Math.max(0, controls.maxDistance - 3.2) * perUnit,
+            targetMetres: null,
+          };
+        },
+        setZoomAltitudeMetres(metres) {
+          if (!Number.isFinite(metres)) return false;
+          const perUnit = (MARS_MEAN_RADIUS_KM / 3.2) * 1000;
+          const wanted = 3.2 + Math.max(0, metres) / perUnit;
+          const clamped = Math.min(controls.maxDistance,
+            Math.max(controls.minDistance, wanted));
+          const offset = camera.position.clone().sub(controls.target).setLength(clamped);
+          camera.position.copy(controls.target).add(offset);
+          controls.update();
+          return true;
+        },
         scene, camera, renderer, controls, globe,
         // The object carrying this planet's tilt and spin. Named per lineage;
         // gis/bodies.js records which name belongs to which world.

@@ -3,8 +3,8 @@ import {
   rowsToCsv,
   rowsToGeoJson,
   downloadText,
-} from "./extraction.js?v=20260810-f2e4741";
-import { rectangleVertices } from "./draw-area.js?v=20260810-f2e4741";
+} from "./extraction.js?v=20260810-50e6179";
+import { rectangleVertices } from "./draw-area.js?v=20260810-50e6179";
 
 let lastResult = null;
 
@@ -57,6 +57,9 @@ function drawBox() {
     lon: centre.lon,
     widthKm,
     heightKm: square ? widthKm : Number(document.getElementById("gis-box-height")?.value),
+    // Sized on whichever world this is. Without it a 200 km box on Mars came
+    // out 106 km across, because a degree there is 59 km and not 111.
+    radiusKm: viewer.bodyRadiusKm || undefined,
   });
   if (!box) {
     say("Give the box a width and a height in kilometres.");
