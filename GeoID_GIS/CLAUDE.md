@@ -908,6 +908,29 @@ from `initWhenReady`, because `buildPanel` runs its body once and the viewer
 boots async — retrying only the panel gave the options a second chance and the
 watcher none, which left choosing a service showing bare ground.
 
+**Drag speed is an angle at the planet's centre, so it must be scaled by
+altitude or it is unusable up close.** OrbitControls turns `2π × rotateSpeed`
+radians per screen-height drag; the ground that covers is fixed however low you
+are. At the old near-ground floor of 0.012 a full drag swept 4.3° — about
+480 km — while the view from 1.8 km up is roughly 1 km across. Four hundred
+screens per drag, which is arithmetic rather than taste. The rate is now capped
+by the angle subtending the *visible ground*, and damping rises the same way,
+because inertia that is pleasant from orbit overshoots what you were centring
+when a screen is a kilometre wide. Measured with the same drag: 0.73 screens per
+half-drag high up (unchanged), 0.35 down at 1.8 km, against ~480 before.
+
+The cap is **faded in on descent, not applied throughout** — held everywhere it
+also slows the far field fivefold, and up there sweeping most of the planet in
+one drag is the point. Above ~300 km the numbers are identical to before.
+
+**Two things wanted different answers from `_controlSurfaceDistance`.** It was
+borrowing `_distToMaxSurface`, which carries a floor so the near plane can never
+reach zero — and at the zoom floor that floor is exactly what it returns: 0.3 km
+while the camera is really 1.9 km up. Scaling the control rates from it made the
+drag six times gentler than designed, so the navigation went from jumpy to stuck.
+The rates take an unclamped distance above the local ground; the near plane keeps
+its floor.
+
 **The terrain slider is the zoom wall, not the floor logic.** It exaggerates
 relief roughly tenfold, so at its 0.11 default the ground stands about 219 km
 tall in render units — and a camera that may not enter terrain is therefore held

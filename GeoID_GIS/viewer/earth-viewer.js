@@ -19310,7 +19310,15 @@ ${error && error.message ? error.message : error}`;
             _groundRadius == null ? 0.005 : 0.00015,
             camera.position.length() - ((_groundRadius ?? (3.2 + _maxTerrainDisp)) + _surfaceMargin),
           );
-          _controlSurfaceDistance = _distToMaxSurface;
+          // Deliberately NOT _distToMaxSurface. That one carries a floor so the
+          // near plane never reaches zero, and at the zoom floor the floor is
+          // what it returns -- 0.3 km when the camera is really 1.9 km up. The
+          // control rates are scaled from this, so borrowing it made the drag
+          // six times gentler than intended and the navigation felt stuck.
+          _controlSurfaceDistance = Math.max(
+            1e-6,
+            camera.position.length() - (_groundRadius ?? (3.2 + _maxTerrainDisp)),
+          );
           camera.near = Math.min(0.1, _distToMaxSurface * 0.4);
           camera.updateProjectionMatrix();
         } else {
