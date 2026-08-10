@@ -65,13 +65,19 @@ const STYLE = `
 #tool-rail.has-open-panel .tool-rail-btn:not(.is-open) span { display: none; }
 #tool-rail.has-open-panel .tool-rail-btn:not(.is-open) svg { width: 1rem; height: 1rem; }
 
-/* ESC is a word, not a glyph, so it needs the room the icon buttons do not. */
-.gis-side-panel .brand-toprow-actions .info-btn {
-  font-size: 0.58rem;
-  letter-spacing: 0.08em;
-  padding: 0 0.35rem;
-  min-width: 1.6rem;
+/* The close mark, matching the Atlas panel's `.atlas-close`: no border, no
+   fill, quiet until hovered. It is a dismissal, not an action. */
+.gis-side-panel-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 2px 4px;
+  color: inherit;
+  opacity: 0.6;
 }
+.gis-side-panel-close:hover { opacity: 1; }
 
 .gis-side-panel {
   position: fixed;
@@ -244,16 +250,19 @@ function buildPanel(spec, group) {
     collapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
     place();
   });
-  // Esc closes the workbench outright, where the chevron only folds it away.
-  const escape = document.createElement("button");
-  escape.type = "button";
-  escape.className = "info-btn";
-  escape.textContent = "ESC";
-  escape.title = "Close";
-  escape.setAttribute("aria-label", `Close ${spec.title}`);
-  escape.addEventListener("click", () => setOpen(spec.id, false));
+  // Closes the workbench outright, where the chevron only folds it away. The
+  // Atlas panel's own close (`.atlas-close`) is the house style for this, so it
+  // is that mark and that weight: a bare glyph, quiet until hovered, rather
+  // than another bordered button competing with the chevron beside it.
+  const dismiss = document.createElement("button");
+  dismiss.type = "button";
+  dismiss.className = "gis-side-panel-close";
+  dismiss.textContent = "✕";
+  dismiss.title = "Close";
+  dismiss.setAttribute("aria-label", `Close ${spec.title}`);
+  dismiss.addEventListener("click", () => setOpen(spec.id, false));
 
-  actions.append(collapse, escape);
+  actions.append(collapse, dismiss);
   head.append(title, actions);
 
   const body = document.createElement("div");
