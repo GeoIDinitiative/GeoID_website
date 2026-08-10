@@ -18887,6 +18887,48 @@ uniform float uViewportWidth;`,
         earthSceneGroup,
         elevationSampler,
         manifest,
+        /**
+         * Add a basemap the manifest does not ship.
+         *
+         * The dropdown is built from `baseLayers` and the texture comes from
+         * `layerTextures`, both private to this closure, so a live tile service
+         * had no way in and could only drape a mesh *over* the globe. That is a
+         * layer, not a basemap: it does not take the relief, it does not appear
+         * where anyone looks for a basemap, and it cannot be the thing the
+         * planet is made of.
+         *
+         * The texture must be **equirectangular** — the sphere's UVs are linear
+         * in latitude, so handing it a Web Mercator canvas would stretch
+         * everything polewards. The caller reprojects; this only hands it over.
+         *
+         * Re-registering the same id swaps the texture in place, which is how a
+         * basemap refines without the dropdown or the selection changing.
+         */
+        registerBaseLayer({ id, label, texture, group = "Live services" }) {
+          if (!id || !texture) return false;
+          const existing = baseLayers.find((l) => l.id === id);
+          const previous = layerTextures.get(id);
+          if (previous && previous !== texture) previous.dispose?.();
+          layerTextures.set(id, texture);
+          if (!existing) {
+            baseLayers.push({ id, label: label || id });
+            let optgroup = baseLayerSelect.querySelector(`optgroup[label="${group}"]`);
+            if (!optgroup) {
+              optgroup = document.createElement("optgroup");
+              optgroup.label = group;
+              baseLayerSelect.appendChild(optgroup);
+            }
+            const option = document.createElement("option");
+            option.value = id;
+            option.textContent = label || id;
+            optgroup.appendChild(option);
+          }
+          // Already showing? Re-apply so a refreshed texture appears at once.
+          if (baseLayerSelect.value === id) syncBasemapVisibility();
+          return true;
+        },
+        /** Which basemap is showing, so a caller can tell if its own is live. */
+        getBaseLayerId: () => baseLayerSelect?.value || null,
         // Imported GIS layers must use the viewer's own longitude convention
         // and globe radius, so they are shared here rather than re-derived.
         GLOBE_RADIUS: 3.2,

@@ -844,6 +844,32 @@ Everything the GEE drapes learnt still applies: `surfacePoint` not
 `radius + offset`, no depth test against displaced terrain, single-sided so that
 is safe, recomputed bounding sphere so the patch is not culled.
 
+**A basemap is not a layer, and the difference is reprojection.**
+`registerBaseLayer()` on the viewer seam puts a texture into the private
+`baseLayers`/`layerTextures` pair, which is the only way into the Basemap
+dropdown; re-registering an id swaps the texture in place, so a basemap can be
+refreshed without the selection changing. But the sphere's UVs are **linear in
+latitude**, so a Web Mercator composite must be resampled row by row
+(`toEquirectangular`) or every coastline slides polewards — at 60°N the Mercator
+row is 1190 where the linear one is 341. The *drape* path deliberately avoids
+this by spacing its mesh rows in Mercator instead; do not copy one path's
+approach into the other. Beyond ±85.05° Mercator has nothing, so those rows
+repeat the edge — a stretched cap reads as a pole, where transparency shows the
+sphere's fallback colour as a bright ring.
+
+**A basemap cannot carry its own credit.** A drape burns the licence line into
+the image, which is right when there is no corner to put it in; reprojected, the
+bottom of a texture is the south pole, so the same trick would hide it exactly
+where it must not be. The basemap path shows it in the panel and tracks the
+**dropdown**, not the button that installed it — hooking it to the button left
+the credit gone whenever the layer was re-selected later.
+
+**Resolution does not refine with zoom, by design.** The zoom is chosen once
+from the extent: whole globe 9.8 km/px, a study area 15 m/px, fixed. Flying in
+does not fetch finer tiles. The two-tier path — global basemap plus a
+study-area drape over it — is the manual version of what a streamer would do
+automatically, and is what to build on if that is ever wanted.
+
 **`controls.enableZoom` is false — OrbitControls does not zoom this globe.**
 A custom wheel handler does (`handleSurfaceWheelZoom`), which makes
 `controls.minDistance` decorative: setting it changes a number nobody enforces.

@@ -22,20 +22,23 @@
 // composite at a fixed zoom answers the question with no scheduler, no cache
 // eviction and no per-frame budget.
 //
-// Two things make this cheap that would not be obvious:
+// Mercator and the globe disagree about latitude, and the two paths answer that
+// differently -- which is the main thing to understand here:
 //
-//   * **No reprojection.** Web Mercator and the globe disagree about latitude,
-//     which normally means resampling every pixel. Instead the mesh's rows are
-//     spaced evenly in Mercator y and their latitudes come from the inverse
-//     projection, so the default plane UVs land exactly right and the tile
-//     pixels are used untouched.
-//   * **The geo group already holds the spin.** `GeoID-ImportedGeoLayers` turns
-//     with the globe, so vertices go in the baseline frame that `surfacePoint`
-//     answers in -- no half-turn to bake in, unlike the Earth Engine drapes
-//     which parent to the globe mesh itself.
+//   * A **drape** avoids reprojection entirely. Its mesh rows are spaced evenly
+//     in Mercator y with latitudes from the inverse projection, so the default
+//     plane UVs line up and not one pixel is resampled.
+//   * A **basemap** has no such freedom: it becomes the sphere's own texture and
+//     the sphere's UVs are linear in latitude, so it must be reprojected row by
+//     row (`toEquirectangular`). Skip that and every coastline slides polewards.
+//
+// And: **the geo group already holds the spin.** `GeoID-ImportedGeoLayers` turns
+// with the globe, so drape vertices go in the baseline frame that `surfacePoint`
+// answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
+// parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-e4339eb";
-import { isEarth } from "./bodies.js?v=20260810-e4339eb";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260810-564fd5f";
+import { isEarth } from "./bodies.js?v=20260810-564fd5f";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -187,7 +190,7 @@ async function pool(jobs, limit = CONCURRENCY) {
  * put it in and no guarantee any panel is open, so burning it into the texture
  * is the only way it travels with the imagery — including into a screenshot.
  */
-export async function composite(bbox, sourceName = DEFAULT_SOURCE, { onProgress } = {}) {
+export async function composite(bbox, sourceName = DEFAULT_SOURCE, { onProgress, credit = true } = {}) {
   const source = TILE_SOURCES[sourceName];
   if (!source) throw new Error(`No tile source named "${sourceName}".`);
   const z = chooseZoom(bbox, { maxZoom: source.maxZoom });
@@ -225,7 +228,11 @@ export async function composite(bbox, sourceName = DEFAULT_SOURCE, { onProgress 
   if (!drawn) {
     throw new Error(`${sourceName} returned no tiles for this area.`);
   }
-  paintCredit(ctx, canvas.width, canvas.height, source.credit);
+  // Burnt in for a drape, where there is no corner to put it in. Not for a
+  // basemap: reprojected to equirectangular the bottom of the image is the
+  // south pole, so a credit there would be hidden exactly where it must not be.
+  // That path shows it in the panel instead, the way every web map does.
+  if (credit) paintCredit(ctx, canvas.width, canvas.height, source.credit);
   return { canvas, zoom: z, tiles: total, drawn, metresPerPixel: metresPerPixel(bbox, z), source: sourceName };
 }
 
@@ -255,6 +262,81 @@ function paintCredit(ctx, width, height, credit) {
   lines.forEach((text, i) => {
     ctx.fillText(text, width - pad, height - boxH + pad + (i + 1) * size - 2);
   });
+}
+
+// ── Reprojection, for the basemap path ───────────────────────────────────────
+
+/**
+ * A Mercator composite turned into the equirectangular image a globe wants.
+ *
+ * The drape avoids this entirely by spacing its mesh rows in Mercator, so the
+ * default UVs line up and no pixel is touched. A *basemap* has no such freedom:
+ * it becomes the sphere's own texture, and the sphere's UVs are linear in
+ * latitude. Hand it Mercator and every coastline slides polewards — Greenland
+ * ends up over the pole and the tropics are squeezed into a band.
+ *
+ * Row by row, because that is all the distortion is: longitude maps linearly in
+ * both projections, so only the vertical sampling changes. Each output row asks
+ * which source row holds its latitude and copies it.
+ *
+ * Beyond ±85.05° Mercator has nothing, so those rows repeat the last real one.
+ * A stretched ice cap is the conventional answer and reads as a pole; leaving
+ * them transparent would show the sphere's fallback colour as a bright ring.
+ */
+export function equirectRowToSourceY(j, height, bbox, srcH) {
+  const worldSize = TILE * 1024;                       // any zoom; only ratios matter
+  const pyTop = latToPixelY(bbox.maxLat, worldSize);
+  const pyBottom = latToPixelY(bbox.minLat, worldSize);
+  const lat = 90 - ((j + 0.5) / height) * 180;
+  const t = (latToPixelY(clampLat(lat), worldSize) - pyTop) / (pyBottom - pyTop);
+  return Math.min(srcH - 1, Math.max(0, t * srcH));
+}
+
+export function toEquirectangular(mercCanvas, bbox, { width = 4096, height = 2048 } = {}) {
+  const out = document.createElement("canvas");
+  out.width = width;
+  out.height = height;
+  const ctx = out.getContext("2d");
+
+  const srcH = mercCanvas.height;
+  const srcW = mercCanvas.width;
+
+  for (let j = 0; j < height; j += 1) {
+    const srcY = equirectRowToSourceY(j, height, bbox, srcH);
+    ctx.drawImage(mercCanvas, 0, srcY, srcW, 1, 0, j, width, 1);
+  }
+  return out;
+}
+
+/**
+ * Install a live tile service as the globe's basemap.
+ *
+ * This is the difference between a layer and a basemap: the texture goes onto
+ * the sphere itself, so it takes the relief, the terrain slider and the
+ * lighting like Blue Marble does, and it appears in the Basemap dropdown rather
+ * than floating above everything in Active Layers.
+ */
+export async function installBaseLayer(sourceName = DEFAULT_SOURCE, { onProgress } = {}) {
+  if (!isEarth()) throw new Error("These tile services only cover Earth.");
+  if (!THREE) THREE = await import("../vendor/three.module.js");
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.registerBaseLayer) {
+    throw new Error("This viewer does not accept extra basemaps.");
+  }
+  const bbox = wholeGlobe();
+  const result = await composite(bbox, sourceName, { onProgress, credit: false });
+  const equirect = toEquirectangular(result.canvas, bbox);
+
+  const texture = new THREE.CanvasTexture(equirect);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  // The seam at the antimeridian is a real edge of the image, so let it wrap
+  // rather than clamp -- clamped, the last column smears around the join.
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+
+  const id = `tiles-${sourceName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  viewer.registerBaseLayer({ id, label: sourceName, texture });
+  return { id, ...result, equirect };
 }
 
 // ── The mesh ─────────────────────────────────────────────────────────────────
@@ -476,12 +558,13 @@ function buildPanel() {
       <div class="row">
         <label for="basemap-drape-extent">Cover</label>
         <select id="basemap-drape-extent" class="mini-select">
-          <option value="globe">Whole globe</option>
-          <option value="study">Study area (full detail)</option>
+          <option value="globe">Whole globe (becomes the basemap)</option>
+          <option value="study">Study area (full detail, as a layer)</option>
         </select>
       </div>
       <button id="basemap-drape-run" class="tool-button" type="button">Add to globe</button>
-      <div id="basemap-drape-status" class="gis-metric">Adds a layer you can fade or remove in Active Layers.</div>
+      <div id="basemap-drape-status" class="gis-metric">Whole globe becomes the basemap; a study area is added as a layer.</div>
+      <div id="basemap-drape-credit" class="gis-metric" hidden></div>
     </div>`;
   host.appendChild(box);
 
@@ -496,26 +579,69 @@ function buildPanel() {
 
   const extent = box.querySelector("#basemap-drape-extent");
   const status = box.querySelector("#basemap-drape-status");
+  const credit = box.querySelector("#basemap-drape-credit");
   const run = box.querySelector("#basemap-drape-run");
+
+  const showResolution = (out) => (out.metresPerPixel >= 1000
+    ? `${Math.round(out.metresPerPixel / 1000)} km/px`
+    : `${Math.round(out.metresPerPixel)} m/px`);
+
+  /**
+   * The credit, on screen and permanent while the basemap is showing.
+   *
+   * A drape burns it into the image; a basemap cannot, because reprojected the
+   * bottom of the texture is the south pole. So it lives here, which is where
+   * Leaflet, Mapbox and every other web map put it.
+   */
+  const showCredit = (text) => {
+    credit.textContent = text || "";
+    credit.hidden = !text;
+  };
+
   run.addEventListener("click", async () => {
     run.disabled = true;
+    const source = select.value;
+    const progress = (done, total) => { status.textContent = `Fetching tiles ${done}/${total}…`; };
     status.textContent = "Working out the zoom…";
     try {
-      const out = await drapeStudyArea({
-        source: select.value,
-        extent: extent.value,
-        onProgress: (done, total) => { status.textContent = `Fetching tiles ${done}/${total}…`; },
-      });
-      const res = out.metresPerPixel >= 1000
-        ? `${Math.round(out.metresPerPixel / 1000)} km/px`
-        : `${Math.round(out.metresPerPixel)} m/px`;
-      status.textContent = `${out.drawn}/${out.tiles} tiles at zoom ${out.zoom} (${res}). `
-        + `It is in Active Layers.`;
+      if (extent.value === "globe") {
+        // A basemap: onto the sphere itself, selected in the dropdown above.
+        const out = await installBaseLayer(source, { onProgress: progress });
+        const viewer = window.GeoIDViewer;
+        const select2 = document.getElementById("base-layer-select");
+        if (select2) {
+          select2.value = out.id;
+          select2.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        status.textContent = `${source} is now the basemap — ${out.drawn}/${out.tiles} tiles `
+          + `at zoom ${out.zoom} (${showResolution(out)}).`;
+        showCredit(TILE_SOURCES[source].credit);
+      } else {
+        const out = await drapeStudyArea({ source, extent: "study", onProgress: progress });
+        status.textContent = `${out.drawn}/${out.tiles} tiles at zoom ${out.zoom} `
+          + `(${showResolution(out)}). It is in Active Layers.`;
+        showCredit("");   // a study-area drape carries its own credit in the image
+      }
     } catch (error) {
       status.textContent = error.message;
     } finally {
       run.disabled = false;
     }
+  });
+
+  /**
+   * The credit follows the dropdown, not the button that installed it.
+   *
+   * Hooking it to the button alone was an attribution hole: once a tile basemap
+   * is in the list it can be chosen again later, or switched away from and back,
+   * and the licence line simply never reappeared. Crediting a service that is
+   * not on screen would be wrong in the other direction, so it tracks the actual
+   * selection both ways.
+   */
+  const creditForId = (id) => Object.entries(TILE_SOURCES).find(([name]) =>
+    `tiles-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` === id)?.[1]?.credit || "";
+  document.getElementById("base-layer-select")?.addEventListener("change", (event) => {
+    showCredit(creditForId(event.target.value || ""));
   });
 }
 

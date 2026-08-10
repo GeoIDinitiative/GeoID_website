@@ -13,7 +13,7 @@
 
 import {
   clampLat, lonToPixelX, latToPixelY, pixelYToLat,
-  chooseZoom, tileGrid, metresPerPixel, normaliseBbox, wholeGlobe, MAX_LAT,
+  chooseZoom, tileGrid, metresPerPixel, normaliseBbox, wholeGlobe, equirectRowToSourceY, MAX_LAT,
 } from "./basemap-drape.js";
 
 let failures = 0;
@@ -147,6 +147,51 @@ check("and within the tile budget", gGrid.tilesX * gGrid.tilesY <= 256,
 const globalMpp = 40075017 / gGrid.width;
 check("a global drape is comparable to Blue Marble's 7.4 km/px",
   globalMpp < 15000, `${Math.round(globalMpp)} m/px at zoom ${gz}`);
+
+// ── Reprojection, for the basemap path ──────────────────────────────────────
+// The drape dodges this; a basemap cannot, because it becomes the sphere's own
+// texture and the sphere's UVs are linear in latitude. Get it wrong and every
+// coastline slides polewards, which looks like a plausible map of nowhere.
+const SRC_H = 4096;                       // a global Mercator composite is square
+const OUT_H = 2048;                       // the equirectangular texture
+
+// The equator is the middle row of both, so it must map to the middle.
+close("the equator maps to the middle of the source",
+  equirectRowToSourceY(OUT_H / 2, OUT_H, g, SRC_H), SRC_H / 2, 2);
+
+// Rows must run monotonically down the source as they run down the output.
+let monotonic = true;
+let prev = -1;
+for (let j = 0; j < OUT_H; j += 8) {
+  const y = equirectRowToSourceY(j, OUT_H, g, SRC_H);
+  if (y < prev - 1e-9) monotonic = false;
+  prev = y;
+}
+check("source rows advance monotonically", monotonic);
+
+// Every row lands inside the source image — this is what stops drawImage
+// silently sampling nothing and leaving bands of blank texture.
+let inRange = true;
+for (let j = 0; j < OUT_H; j += 1) {
+  const y = equirectRowToSourceY(j, OUT_H, g, SRC_H);
+  if (!(y >= 0 && y <= SRC_H - 1)) inRange = false;
+}
+check("every output row samples inside the source", inRange);
+
+// Beyond the Mercator cut there is no data, so those rows repeat the edge.
+check("the north cap clamps to the first source row",
+  equirectRowToSourceY(0, OUT_H, g, SRC_H) === 0);
+check("the south cap clamps to the last",
+  equirectRowToSourceY(OUT_H - 1, OUT_H, g, SRC_H) === SRC_H - 1);
+
+// The distortion is real and in the right direction: at 60°N, Mercator has
+// already stretched, so that latitude sits nearer the middle of the source than
+// its equirectangular row does. Row for 60N = (90-60)/180 * 2048 = 341.
+const row60 = Math.round(((90 - 60) / 180) * OUT_H);
+const src60 = equirectRowToSourceY(row60, OUT_H, g, SRC_H);
+check("60 N is pulled toward the equator by the reprojection",
+  src60 > (row60 / OUT_H) * SRC_H,
+  `output row ${row60} reads source row ${Math.round(src60)}`);
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);
