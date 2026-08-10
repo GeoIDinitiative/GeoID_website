@@ -70,11 +70,63 @@ export function visibleBounds(viewer, THREE, { steps = 8, padFraction = 0.05 } =
     if (gap > 60) { minX = sorted[at]; maxX = sorted[at - 1] + 360; }
   }
   const pad = Math.min(2, (maxX - minX) * padFraction);
-  return {
+  const box = {
     minLon: Math.max(-180, minX - pad),
     maxLon: Math.min(180, maxX + pad),
     minLat: Math.max(-85, Math.min(...lats) - pad),
     maxLat: Math.min(85, Math.max(...lats) + pad),
+  };
+  return clampToForeground(box, viewer, THREE, sphere, ray, hit);
+}
+
+/**
+ * Cut the box back to what is actually being looked at.
+ *
+ * Sampling rays across the viewport is right from orbit and badly wrong low
+ * down, because the rays near the top of the screen grazed the horizon: at
+ * 2.8 km up, where the view is 2.3 km across, the sampled box came out **28 km
+ * wide — twelve times too big**. Two consequences, and the second is the one
+ * people notice:
+ *
+ *   * the zoom chosen for that box is far coarser than the view deserves —
+ *     10 m/px where 0.8 m/px was available;
+ *   * and the box is dominated by the horizon rather than by altitude, so
+ *     zooming IN barely changes it. `viewChangedEnough` then says nothing
+ *     happened and no tiles are fetched. Zooming out does change it, which is
+ *     exactly the reported "I have to zoom out for new tiles".
+ *
+ * So the raycast box is intersected with the ground the camera can actually
+ * see: the distance to the surface along the centre ray, times the field of
+ * view. High up that span exceeds the planet and the clamp does nothing, which
+ * is why the far-field behaviour is unchanged.
+ */
+function clampToForeground(box, viewer, THREE, sphere, ray, hit) {
+  const camera = viewer?.camera;
+  if (!camera) return box;
+  ray.setFromCamera(new THREE.Vector2(0, 0), camera);
+  if (!ray.ray.intersectSphere(sphere, hit)) return box;
+
+  const distance = hit.distanceTo(camera.position);
+  const radius = viewer.GLOBE_RADIUS || 3.2;
+  const fov = ((camera.fov || 50) * Math.PI) / 180;
+  // 1.6x the strict field of view: a ring of context around the view is worth
+  // having, and it keeps a small pan from immediately needing new tiles.
+  const spanScene = 2 * distance * Math.tan(fov / 2) * 1.6;
+  const spanDeg = (spanScene / radius) * DEG;
+  if (!Number.isFinite(spanDeg) || spanDeg <= 0) return box;
+
+  const midLat = (box.minLat + box.maxLat) / 2;
+  const midLon = (box.minLon + box.maxLon) / 2;
+  const halfLat = spanDeg / 2;
+  // A degree of longitude is shorter away from the equator, so the same ground
+  // span covers more of them.
+  const halfLon = halfLat / Math.max(0.05, Math.cos(midLat * RAD));
+
+  return {
+    minLat: Math.max(box.minLat, midLat - halfLat),
+    maxLat: Math.min(box.maxLat, midLat + halfLat),
+    minLon: Math.max(box.minLon, midLon - halfLon),
+    maxLon: Math.min(box.maxLon, midLon + halfLon),
   };
 }
 

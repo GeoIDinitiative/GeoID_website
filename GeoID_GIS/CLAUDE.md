@@ -908,6 +908,32 @@ from `initWhenReady`, because `buildPanel` runs its body once and the viewer
 boots async — retrying only the panel gave the options a second chance and the
 watcher none, which left choosing a service showing bare ground.
 
+**Sampling rays across the viewport asks for the horizon, not the view.**
+`visibleBounds` raycasts a grid through the screen, which is right from orbit
+and wrong low down: the rays near the top graze the horizon. Measured at 2.78 km
+altitude, where the view is 2.3 km across, the box came out **28 km wide —
+twelve times too big**. Two consequences, and the second is the one people
+report:
+
+- the zoom chosen for that box is far coarser than the view deserves — 10 m/px
+  where 0.8 m/px was available;
+- the box is set by the horizon rather than by altitude, so zooming **in** barely
+  changes it, `viewChangedEnough` concludes nothing happened, and no tiles are
+  fetched at all. Zooming **out** does change it, so tiles arrive then — which
+  presents as "I have to zoom out for new tiles to stream in".
+
+`clampToForeground` intersects the raycast box with what the camera can actually
+see: distance to the surface along the **centre** ray times the field of view,
+×1.6 for a ring of context so a small pan does not immediately need new tiles.
+Measured after: 2 m/px at 1.79 km, up from 10 m/px. High up the geometric span
+exceeds the raycast box and the clamp does nothing — at the default 16,694 km
+view it would allow 22,127 km against a 13,681 km box — so the far field is
+untouched by construction rather than by a special case.
+
+`visibleBounds` returns **null** when fewer than three rays hit, which happens at
+extreme zoom-out where the globe subtends almost nothing. Pre-existing, and every
+caller already guards it; do not treat it as a failure.
+
 **Drag speed is an angle at the planet's centre, so it must be scaled by
 altitude or it is unusable up close.** OrbitControls turns `2π × rotateSpeed`
 radians per screen-height drag; the ground that covers is fixed however low you
