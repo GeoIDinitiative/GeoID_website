@@ -4,13 +4,16 @@
  * Lives on every page, so it takes its colour from the viewer skin's tokens
  * (`--skin-chrome` magenta for chrome, `--skin-data` cyan for values) rather
  * than from the Research Hub's stylesheet, which is not loaded on the globe.
- * Fixed bottom-right, above the viewer's own furniture but below any modal.
+ * Fixed top-right, left of the GIS tool rail — placed against that rail's own
+ * measured box by `placeLauncher()`, since its width changes with the
+ * breakpoint. The values here are the fallback for a page with no rail.
  */
 
 .atlas-launcher {
   position: fixed;
   right: 18px;
-  bottom: 18px;
+  top: 16px;
+  bottom: auto;
   z-index: 900;
   width: 52px;
   height: 52px;
@@ -52,7 +55,9 @@
 .atlas-panel {
   position: fixed;
   right: 18px;
-  bottom: 82px;
+  /* Opens downward from the mark, which is now at the top of the screen. */
+  top: 82px;
+  bottom: auto;
   z-index: 900;
   width: min(380px, calc(100vw - 36px));
   max-height: min(560px, calc(100vh - 120px));
@@ -190,6 +195,6 @@
 
 /* On a phone the panel takes the width it needs and sits clear of the mark. */
 @media (max-width: 520px) {
-  .atlas-panel { right: 10px; left: 10px; width: auto; bottom: 76px; }
-  .atlas-launcher { right: 12px; bottom: 12px; }
+  .atlas-panel { right: 10px; left: 10px; width: auto; top: 76px; bottom: auto; }
+  .atlas-launcher { right: 12px; top: 12px; bottom: auto; }
 }

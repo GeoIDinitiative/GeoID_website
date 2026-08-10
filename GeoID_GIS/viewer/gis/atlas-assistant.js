@@ -742,6 +742,47 @@ function connectPrompt() {
     : "Disconnected. I'll stick to what I know about the app.");
 }
 
+/**
+ * The mark sits in the top-right corner, left of the GIS tool rail.
+ *
+ * Measured from what is actually in that corner rather than written as an
+ * offset: the rail's width changes with the breakpoint (3.7rem, 2.3rem, 1.85rem
+ * embedded) and `.map-legend` shares the corner when a layer has a legend, so a
+ * fixed `right:` would either overlap one of them or leave a gap at every other
+ * size. Whichever is furthest left decides.
+ *
+ * On a page with neither — the Research Hub, a planet viewer with no rail — the
+ * stylesheet's own top-right values stand.
+ */
+function placeLauncher(launcher, panelNode) {
+  const GAP = 12;
+  const boxes = [document.getElementById("tool-rail"), document.querySelector(".map-legend")]
+    .filter((n) => n && getComputedStyle(n).display !== "none")
+    .map((n) => n.getBoundingClientRect())
+    // A rail parked at mid-height (the narrow embedded layout centres it) is no
+    // guide for a top-corner control.
+    .filter((b) => b.width && b.top < window.innerHeight * 0.5);
+  if (!boxes.length) return;
+
+  const top = Math.round(Math.min(
+    Math.max(8, Math.min(...boxes.map((b) => b.top))), window.innerHeight * 0.25,
+  ));
+  const right = Math.max(8, Math.round(
+    window.innerWidth - Math.min(...boxes.map((b) => b.left)) + GAP,
+  ));
+  launcher.style.top = `${top}px`;
+  launcher.style.right = `${right}px`;
+  launcher.style.bottom = "auto";
+
+  // The panel drops from the mark instead of rising to it, and takes the height
+  // that leaves rather than the stylesheet's bottom-anchored guess — with the
+  // hub armed the rail moves down, and so does everything measured from it.
+  const below = top + (launcher.offsetHeight || 52) + 10;
+  panelNode.style.top = `${below}px`;
+  panelNode.style.bottom = "auto";
+  panelNode.style.maxHeight = `${Math.max(220, window.innerHeight - below - 18)}px`;
+}
+
 function build() {
   if (byId("atlas-launcher")) return;
 
@@ -779,6 +820,13 @@ function build() {
 
   panel.append(head, logNode, form);
   document.body.append(launcher, panel);
+  const replace = () => placeLauncher(launcher, panel);
+  replace();
+  window.addEventListener("resize", replace);
+  // The rail moves without a resize — arming the hub pushes it below the hazard
+  // readout, and switching mode hides it — so this is polled rather than
+  // hooked to any one of those events.
+  setInterval(replace, 500);
 
   bubble("atlas",
     "I'm **Atlas**. I know this workspace and your open project — ask where a tool "

@@ -16,7 +16,7 @@
  * cannot fight over the camera.
  */
 
-import { isEarth } from "./bodies.js?v=20260810-570c14d";
+import { isEarth } from "./bodies.js?v=20260810-50c2726";
 
 /**
  * The bands, named for what the view is of — the thing a person is actually
@@ -154,6 +154,9 @@ const STYLE = `
    * order, and a popup can never end up behind a zoom arrow.
    */
   position: fixed; z-index: 12; pointer-events: auto;
+  /* The width is set from the scale bar's measured box, so the border must be
+     inside it or the two would be a couple of pixels out at every size. */
+  box-sizing: border-box;
   display: flex; align-items: stretch; gap: 0;
   border: 1px solid rgba(var(--nav-accent-rgb, 120 200 255), 0.32);
   border-radius: 0.4rem; overflow: hidden;
@@ -176,8 +179,13 @@ const STYLE = `
 }
 #geoid-zoom-step button:disabled { opacity: 0.32; cursor: default; }
 #geoid-zoom-step .zs-step { font-size: 0.95rem; font-weight: 600; }
+#geoid-zoom-step .zs-step { flex: 0 0 auto; }
 #geoid-zoom-step .zs-band {
-  min-width: 6.6rem; text-align: center; font-size: 0.7rem;
+  /* Absorbs the width the arrows do not use, and may shrink below its content
+     on a narrow breakpoint — the scale bar is 5rem embedded, so a minimum here
+     would push the pill wider than the bar it is matching. */
+  flex: 1 1 auto; min-width: 0;
+  text-align: center; font-size: 0.7rem;
   letter-spacing: 0.06em; text-transform: uppercase;
   color: rgb(var(--nav-accent-rgb, 120 200 255));
   border-left: 1px solid rgba(var(--nav-accent-rgb, 120 200 255), 0.22);
@@ -232,11 +240,13 @@ export function installZoomBar() {
     let left = "";
     let bottom = "";
     let right = "";
+    let width = "";
     if (s && s.width) {
-      const width = box.offsetWidth || 149;
-      left = `${Math.round(Math.max(8, Math.min(
-        s.left + (s.width - width) / 2, window.innerWidth - width - 8,
-      )))}px`;
+      // Exactly the bar's width, so the two read as one instrument. The pill is
+      // `border-box`, so this is the outer edge and the 1px border is inside it;
+      // the band label flexes to absorb whatever the arrows do not use.
+      width = `${Math.round(s.width)}px`;
+      left = `${Math.round(s.left)}px`;
       bottom = `${Math.round(Math.max(8, window.innerHeight - s.top + GAP))}px`;
     } else {
       // No scale bar on the page yet (it starts hidden): hold the corner it
@@ -244,7 +254,9 @@ export function installZoomBar() {
       right = "1rem";
       bottom = "3rem";
     }
-    for (const [prop, value] of [["left", left], ["right", right], ["bottom", bottom]]) {
+    for (const [prop, value] of [
+      ["left", left], ["right", right], ["bottom", bottom], ["width", width],
+    ]) {
       if (box.style[prop] !== value) box.style[prop] = value;
     }
   };
