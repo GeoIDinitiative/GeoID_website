@@ -10811,6 +10811,14 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
         if (freezeViewActive) {
           return;
         }
+        // This zooms relative to the planet's centre and surface, in globe
+        // units. Model mode has no globe and works in metres, so it hands zoom
+        // back to OrbitControls, which dollies towards the orbit target. Left
+        // running here, one notch moved the camera hundreds of kilometres and
+        // metre-scale zoom was unreachable.
+        if (document.body.dataset.viewMode === "model") {
+          return;
+        }
         const zoomContext = getActiveZoomContext();
         if (!zoomContext) return;
         const ctxMode = isStreamedBaseLayer(baseLayerSelect.value);

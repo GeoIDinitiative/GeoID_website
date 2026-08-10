@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20260810-3675f72";
+import { BODIES, currentBodyId } from "./bodies.js?v=20260810-5d04e7a";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -55,7 +55,9 @@ function build() {
     node.setAttribute("aria-label", `Open the ${body.name} viewer`);
     if (body.id === here) {
       node.classList.add("is-current");
-      // The page you are on is not a link to itself.
+      // The page you are on is not a link to itself. It stays in the DOM as a
+      // node rather than a link, so Model mode can still select it -- there the
+      // current world is a studio setting, not the page.
       node.removeAttribute("href");
       node.setAttribute("aria-current", "page");
     }
@@ -91,29 +93,44 @@ function apply() {
 }
 
 /**
- * Leaving Model mode by switching worlds throws the model away, because each
- * world is a separate page. A confirm is the whole guard — the studio has no
- * autosave, and silently discarding someone's geometry because they clicked a
- * planet icon is the kind of loss that is nobody's fault and entirely ours.
+ * In Model mode a planet is a radius, not a destination.
+ *
+ * The Meshing Studio has no globe in it — the body only sets the ground
+ * curvature, the horizon and the scale. So the strip changes the world **in
+ * place**: no navigation, no transit page, and the model stays exactly where it
+ * is. Loading another viewer to change one float would throw the model away and
+ * cost a full WebGL boot to do it.
+ *
+ * In GIS mode the strip still navigates, because there the world IS the page.
  */
-function guardModelLoss(event) {
-  if (document.body.dataset.viewMode !== "model") return;
-  const state = window.GeoIDMeshStudio?.state;
-  const built = (state?.solids?.length || 0) + (state?.fields?.length || 0);
-  if (!built) return;
-  const noun = built === 1 ? "1 object" : `${built} objects`;
-  if (!window.confirm(
-    `Leaving for another world will discard this model (${noun}). `
-    + "Save or export it first if you want to keep it.\n\nSwitch anyway?")) {
-    event.preventDefault();
-  }
+function switchWorldInPlace(event, bodyId) {
+  if (document.body.dataset.viewMode !== "model") return false;
+  const studio = window.GeoIDMeshStudio;
+  if (!studio?.setStudioBody) return false;
+  event.preventDefault();
+  if (!studio.setStudioBody(bodyId)) return false;
+  markCurrent(bodyId);
+  return true;
+}
+
+/** Which icon reads as the world you are on. */
+function markCurrent(bodyId) {
+  const strip = document.getElementById(STRIP_ID);
+  if (!strip) return;
+  strip.querySelectorAll(".planet-node").forEach((node) => {
+    const isHere = node.dataset.planet === bodyId;
+    node.classList.toggle("is-current", isHere);
+    if (isHere) node.setAttribute("aria-current", "page");
+    else node.removeAttribute("aria-current");
+  });
 }
 
 export function init() {
   if (document.getElementById(STRIP_ID)) return;
   const strip = build();
   strip.addEventListener("click", (event) => {
-    if (event.target.closest("a[href]")) guardModelLoss(event);
+    const node = event.target.closest(".planet-node");
+    if (node?.dataset.planet) switchWorldInPlace(event, node.dataset.planet);
   });
   document.body.appendChild(strip);
   // Mode is announced on <body>, so watching the attribute keeps the strip in

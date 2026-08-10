@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody } from "./bodies.js?v=20260810-3675f72";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-3675f72";
+import { currentBody, getBody } from "./bodies.js?v=20260810-5d04e7a";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260810-5d04e7a";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260810-3675f72";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-3675f72";
-import { downloadText } from "./extraction.js?v=20260810-3675f72";
+} from "./mesh-volume.js?v=20260810-5d04e7a";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260810-5d04e7a";
+import { downloadText } from "./extraction.js?v=20260810-5d04e7a";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -269,8 +269,55 @@ function displayMesh(positions, name, color) {
  * as it should be. Resolved on each call because the studio can be opened on
  * any world, and the page it is on is the answer.
  */
+/**
+ * The world the studio is modelling on, which need NOT be the world whose page
+ * this is.
+ *
+ * Model mode has no globe in it — the body is only a radius, setting the ground
+ * curvature, the horizon and the scale. So switching worlds here is a number,
+ * not a navigation: the planet strip sets this and the model stays exactly
+ * where it is. Navigating to another viewer instead would reload the page and
+ * throw the model away to change one float.
+ *
+ * Null means "whatever page this is", which is the right answer on arrival.
+ */
+let studioBodyId = null;
+
+function studioBody() {
+  return (studioBodyId ? getBody(studioBodyId) : null) || currentBody();
+}
+
 function bodyRadiusM() {
-  return currentBody()?.radiusM ?? 6371000;
+  return studioBody()?.radiusM ?? 6371000;
+}
+
+/**
+ * Move the model onto another world, in place.
+ *
+ * Everything sized from the radius has to be re-derived together: the ground
+ * sphere is rebuilt at the new curvature, the pull-back limit is re-applied
+ * (it is `groundRadius * 4`, so Jupiter needs forty times the Moon's), and the
+ * camera is re-floored — otherwise switching to a larger body leaves the camera
+ * *inside* the new sphere.
+ */
+export function setStudioBody(id) {
+  const body = getBody(id);
+  if (!body) return null;
+  studioBodyId = body.id;
+  groundRadius = computeGroundRadius();
+  // Force the patch to be rebuilt: its size is judged against the horizon, and
+  // the horizon just moved.
+  patchRadius = 0;
+  updateGround();
+  applyOrbitDistanceLimits();
+  keepCameraAboveGround();
+  updateScaleReadout();
+  window.GeoIDViewer?.controls?.update?.();
+  return body;
+}
+
+export function getStudioBody() {
+  return studioBody();
 }
 let groundMesh = null;
 
@@ -1969,6 +2016,7 @@ function setStudioOrigin(lat, lon, elevation = studioOrigin.elevation) {
 
 window.GeoIDMeshStudio = {
   state, addSolid, meshModel, ACTIONS, fitView, viewAxis,
+  setStudioBody, getStudioBody,
   origin: studioOrigin, setStudioOrigin, sceneToWgs84, wgs84ToScene,
   enuToWgs84, wgs84ToEnu, getGroundInfo,
   getAnchor: () => modelAnchor,
