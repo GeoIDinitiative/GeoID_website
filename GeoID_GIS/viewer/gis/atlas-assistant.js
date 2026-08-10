@@ -784,7 +784,30 @@ function placeLauncher(launcher, panelNode) {
     ? Math.max(8, Math.round(window.innerWidth - panel.left + GAP))
     : 16;
 
-  launcher.style.top = `${top}px`;
+  /**
+   * Having stepped left, it may have stepped onto something else.
+   *
+   * The rotate/freeze cluster and the music button live on that side of the
+   * screen when the page is framed, so the slot left of the panel is already
+   * taken — measured, the mark landed at 369–421 across a cluster at 412–506,
+   * drawn straight over the freeze button. Where that happens it drops below
+   * them rather than shuffling further left, which would only walk it into the
+   * sidebar.
+   */
+  let row = top;
+  if (panel) {
+    const size = launcher.offsetHeight || 52;
+    const left = window.innerWidth - right - (launcher.offsetWidth || 52);
+    const clash = ["top-right-controls", "music-btn"]
+      .map((id) => document.getElementById(id))
+      .filter((node) => node && getComputedStyle(node).display !== "none")
+      .map((node) => node.getBoundingClientRect())
+      .filter((b) => b.width && b.right > left && b.left < left + size
+        && b.bottom > row && b.top < row + size);
+    if (clash.length) row = Math.round(Math.max(...clash.map((b) => b.bottom)) + GAP);
+  }
+
+  launcher.style.top = `${row}px`;
   launcher.style.right = `${right}px`;
   launcher.style.bottom = "auto";
 
@@ -793,7 +816,7 @@ function placeLauncher(launcher, panelNode) {
   // `!important`, so there is nothing to clear and nothing we could set.
   const rail = document.getElementById("tool-rail");
   if (rail && getComputedStyle(rail).display !== "none") {
-    const railTop = `${top + (launcher.offsetHeight || 52) + GAP}px`;
+    const railTop = `${row + (launcher.offsetHeight || 52) + GAP}px`;
     if (rail.getBoundingClientRect().top < window.innerHeight * 0.4
       && rail.style.top !== railTop) {
       rail.style.top = railTop;
@@ -804,7 +827,7 @@ function placeLauncher(launcher, panelNode) {
   // The panel drops from the mark instead of rising to it, and takes the height
   // that leaves rather than the stylesheet's bottom-anchored guess — with the
   // hub armed the rail moves down, and so does everything measured from it.
-  const below = top + (launcher.offsetHeight || 52) + 10;
+  const below = row + (launcher.offsetHeight || 52) + 10;
   panelNode.style.top = `${below}px`;
   panelNode.style.bottom = "auto";
   panelNode.style.maxHeight = `${Math.max(220, window.innerHeight - below - 18)}px`;
