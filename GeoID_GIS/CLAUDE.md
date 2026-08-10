@@ -844,15 +844,39 @@ Everything the GEE drapes learnt still applies: `surfacePoint` not
 `radius + offset`, no depth test against displaced terrain, single-sided so that
 is safe, recomputed bounding sphere so the patch is not culled.
 
-**Known limit: you cannot yet zoom in far enough to see it.** The render loop
-pins the camera to `_safeMin` (3.7, about 1000 km up), which is right for an
-8 km/px basemap and wrong for 15 m/px imagery. Lowering it the way the viewer
-already does for Mars CTX tiles was tried and **reverted**: `controls.minDistance`
-did drop to 3.316 and the camera still stopped dead at 3.7, so a third clamp
-exists beyond the two `setLength(_safeMin)` calls. `hasDrape()` is left in place
-for whoever finishes it, along with the one trap found: it must not be
-conditioned on layer *visibility*, or switching the layer off moves the camera
-(measured: 71% of the frame's pixels changed).
+**`controls.enableZoom` is false — OrbitControls does not zoom this globe.**
+A custom wheel handler does (`handleSurfaceWheelZoom`), which makes
+`controls.minDistance` decorative: setting it changes a number nobody enforces.
+The floor that matters is `zoomContext.minSurfaceDistance`, and the rule behind
+it was written out **twice**, identically — once in the render loop's per-frame
+clamp and once inside `getActiveZoomContext`. That duplication is why lowering
+the floor in the render loop moved `controls.minDistance` to 3.316 and left the
+camera stopping dead at 3.7. Both now call `computeSafeMinDistance()`; if a
+third enforcement point ever appears, it must call it too.
+
+A drape lowers the floor, exactly as the CTX mosaic already did: 3.7 (about
+1000 km up) is right for an 8 km/px basemap and makes metres-per-pixel imagery
+unreachable. Measured through real wheel events: **995 km with no drape,
+235 km with one**, and the no-drape case is unchanged. The margin clears the
+drape's own 0.005 lift, not just the terrain, so the camera cannot end up
+underneath the imagery. `hasDrape()` must NOT be conditioned on layer
+*visibility* — keying it on `visible` meant switching the layer off moved the
+camera, measured at 71% of the frame's pixels.
+
+`CTX_ZOOM_STEPS` and its four companions at the top of earth-viewer.js are
+declared and never read. Dead, and misleading while hunting a zoom clamp.
+
+**`scale` from Earth Engine is the dataset's resolution, not the picture's.**
+The panel reported it as though it described what arrived — "Added NASADEM
+elevation at 30 m" — while every shipped cache snapshot is 1024 px covering the
+whole world, a delivered sample of **39 km per pixel**. Over-claimed by 1305×,
+and never noticed because 30 m is a true fact about NASADEM. Measured across the
+cache: NASADEM 1305× coarser than native, MCD64A1 78×, the MODIS 1 km products
+39×, CHIRPS 8×. `deliveredMetresPerPixel()` computes it from the bounds and the
+image, quoted the same way as the tile drape (latitude convergence included) so
+the two surfaces can be compared. The client also sends no scale or dimensions
+with a request, so the extent is asked for but the resolution is entirely the
+service's choice — a small study area gets the same pixel budget as a global one.
 
 **When diffing rendered frames, pause the spin and run a control.** Two frames
 taken moments apart differ everywhere because the globe turns with UTC — the

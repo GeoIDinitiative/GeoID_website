@@ -10,7 +10,7 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260810-7b2f516";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260810-c6df62d";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -171,6 +171,57 @@ function dateRange() {
   if (fromField) fromField.value = from;
   if (toField) toField.value = to;
   return { from, to };
+}
+
+/**
+ * The ground sample of the image that actually arrived.
+ *
+ * `scale` in the response and the cache manifest is the DATASET's native
+ * resolution — what the instrument records — not the resolution of the PNG the
+ * service rendered, and the panel reported it as though it were the latter.
+ * Measured across the shipped cache, every snapshot is 1024 px wide covering
+ * the whole world, so the delivered sample is 39 km per pixel while the panel
+ * said "at 30 m" for NASADEM: an over-claim of 1305x. Both numbers are worth
+ * having and only one of them describes what is on screen.
+ */
+export function deliveredMetresPerPixel(bounds, image) {
+  const width = image?.naturalWidth || image?.width || 0;
+  if (!width || !bounds) return null;
+  const spanDeg = Math.abs(Number(bounds.maxX) - Number(bounds.minX));
+  const midLat = (Number(bounds.minY) + Number(bounds.maxY)) / 2;
+  if (!Number.isFinite(spanDeg) || !Number.isFinite(midLat)) return null;
+  // Equatorial circumference narrowed by latitude, the same convergence the
+  // tile drape uses, so the two surfaces quote resolution the same way.
+  const spanMetres = (spanDeg / 360) * 40075017 * Math.cos((midLat * Math.PI) / 180);
+  return spanMetres / width;
+}
+
+/** A ground sample a person can read: metres up close, km once it is coarse. */
+export function formatResolution(metres) {
+  if (!Number.isFinite(metres) || metres <= 0) return "unknown resolution";
+  if (metres >= 10000) return `${Math.round(metres / 1000)} km/px`;
+  if (metres >= 1000) return `${(metres / 1000).toFixed(1)} km/px`;
+  if (metres >= 10) return `${Math.round(metres)} m/px`;
+  return `${metres.toFixed(1)} m/px`;
+}
+
+/**
+ * What to say about resolution: what arrived, and what the dataset can do.
+ *
+ * Naming the native scale alongside is the useful part — it is the difference
+ * between "this is as good as this dataset gets" and "the service down-sampled
+ * this by three orders of magnitude", and those call for different actions.
+ */
+function resolutionNote(bounds, image, nativeScale) {
+  const delivered = deliveredMetresPerPixel(bounds, image);
+  if (delivered == null) return nativeScale ? ` (dataset native ${nativeScale} m)` : "";
+  const native = Number(nativeScale);
+  const shortfall = Number.isFinite(native) && native > 0 ? delivered / native : null;
+  return ` — ${formatResolution(delivered)}`
+    + (shortfall && shortfall >= 2
+      ? `, ${shortfall >= 10 ? Math.round(shortfall) : shortfall.toFixed(1)}× coarser than `
+        + `this dataset's native ${native} m`
+      : Number.isFinite(native) ? ` (native ${native} m)` : "");
 }
 
 /** Loads the returned PNG and drapes it across its bounds on the globe. */
@@ -340,7 +391,8 @@ async function request() {
       }
     }
     window.dispatchEvent(new CustomEvent("geoid-gis:layers-changed"));
-    status(`Added "${data.name}" at ${data.scale} m.`);
+    status(`Added "${data.name}"`
+      + resolutionNote(bounds, object3D?.material?.map?.image, data.scale) + ".");
   } catch (error) {
     // "Failed to fetch" is what a browser reports for a blocked cross-origin
     // request, and it says nothing about the cause. The page's own origin is
@@ -439,7 +491,8 @@ async function requestFromCache(datasetId) {
       }
     }
     window.dispatchEvent(new CustomEvent("geoid-gis:layers-changed"));
-    status(`Added "${entry.name}" from cache${entry.scale ? ` at ${entry.scale} m` : ""}.`);
+    status(`Added "${entry.name}" from cache`
+      + resolutionNote(entry.bounds, object3D?.material?.map?.image, entry.scale) + ".");
   } catch (error) {
     status(`Could not drape the cached snapshot: ${error.message}`);
   } finally {
@@ -530,10 +583,13 @@ function init() {
   loadCatalogue();
 }
 
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", init);
-} else {
-  init();
+// Guarded so the resolution maths can be imported and tested under Node, where
+// there is no document and this file would throw at import.
+if (typeof document !== "undefined") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+  window.GeoIDEarthEngine = { request, setEndpoint, getEndpoint: endpoint };
 }
-
-window.GeoIDEarthEngine = { request, setEndpoint, getEndpoint: endpoint };
