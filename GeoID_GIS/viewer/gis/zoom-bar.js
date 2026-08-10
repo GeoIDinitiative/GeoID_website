@@ -16,7 +16,7 @@
  * cannot fight over the camera.
  */
 
-import { isEarth } from "./bodies.js?v=20260810-50c2726";
+import { isEarth } from "./bodies.js?v=20260810-60337b7";
 
 /**
  * The bands, named for what the view is of — the thing a person is actually
@@ -183,8 +183,10 @@ const STYLE = `
 #geoid-zoom-step .zs-band {
   /* Absorbs the width the arrows do not use, and may shrink below its content
      on a narrow breakpoint — the scale bar is 5rem embedded, so a minimum here
-     would push the pill wider than the bar it is matching. */
+     would push the pill wider than the bar it is matching. The type is sized to
+     fit by `fitLabel()`; the ellipsis is the floor case, not the plan. */
   flex: 1 1 auto; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   text-align: center; font-size: 0.7rem;
   letter-spacing: 0.06em; text-transform: uppercase;
   color: rgb(var(--nav-accent-rgb, 120 200 255));
@@ -233,6 +235,34 @@ export function installZoomBar() {
    * rail, the real top-right furniture, was at x=822.
    */
   const GAP = 10;
+
+  /**
+   * Size the band name to the width the scale bar has given us.
+   *
+   * Measured against the **longest** name rather than the current one, so the
+   * type does not resize as you zoom past Continental — a label that changes
+   * size while you use the control is far more distracting than a small one.
+   * At 660px the bar is 112px and "Continental" needs 86px in a 69px box, so
+   * without this it is simply cut off.
+   *
+   * Only on a width change: each step forces a layout to measure.
+   */
+  const LONGEST = ZOOM_BANDS.reduce((a, b) => (b.name.length > a.length ? b.name : a), "");
+  const FONT_STEPS = [0.7, 0.66, 0.62, 0.58, 0.54, 0.5];
+  let fittedFor = -1;
+  const fitLabel = () => {
+    const width = box.clientWidth;
+    if (!width || width === fittedFor) return;
+    fittedFor = width;
+    const shown = label.textContent;
+    label.textContent = LONGEST;
+    for (const size of FONT_STEPS) {
+      label.style.fontSize = `${size}rem`;
+      if (label.scrollWidth <= label.clientWidth) break;
+    }
+    label.textContent = shown;
+  };
+
   const place = () => {
     const bar = document.getElementById("scale-readout");
     const vis = bar && !bar.hidden && getComputedStyle(bar).display !== "none";
@@ -259,6 +289,7 @@ export function installZoomBar() {
     ]) {
       if (box.style[prop] !== value) box.style[prop] = value;
     }
+    fitLabel();
   };
   place();
   window.addEventListener("resize", place);
