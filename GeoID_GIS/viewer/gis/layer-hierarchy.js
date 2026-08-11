@@ -10,8 +10,8 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260811-07bb355";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-07bb355";
+import { currentBody } from "./bodies.js?v=20260811-d707ff9";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-d707ff9";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -56,9 +56,14 @@ const STYLE = `
 .layer-disclose[aria-expanded="true"] span { display: block; transform: rotate(180deg); }
 
 .layer-options {
-  display: grid;
-  justify-items: center;
-  gap: 0.35rem;
+  /* One line: the detail, then the actions. A wrapped tile pushed the rows
+     below it down every time one was opened, which made a list of layers jump
+     about while you were reading it. */
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   margin: -0.15rem 0 0.15rem 1.35rem;
   padding: 0.45rem 0.5rem;
   border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
@@ -67,26 +72,33 @@ const STYLE = `
   background: #000;
   font-size: 0.66rem;
 }
+/* The one thing that may be shortened: the buttons must stay whole and
+   readable, and the detail repeats what the layer's own row already says. */
 .layer-options-detail {
-  max-width: 100%;
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--muted);
-  text-align: center;
+  font-size: 0.6rem;
 }
 /* Centred, and equal: the three are alternatives to one another, so none of
    them leads. */
 .layer-options-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
-  gap: 0.3rem;
+  gap: 0.25rem;
+  flex: 0 0 auto;
 }
 .layer-options-btn {
-  padding: 0.2rem 0.55rem;
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0.18rem 0.4rem;
   border-radius: 0.35rem;
-  font-size: 0.64rem;
+  font-size: 0.6rem;
+  white-space: nowrap;
 }
 /* Removing a layer throws work away and cannot be undone, so it does not look
    like the two beside it that only change what you are looking at. */
@@ -307,6 +319,7 @@ function optionsTile(layer) {
   // Framing needs the loader's camera maths, which knows how to fit a layer's
   // bounds; only offered once there is something in the scene to frame.
   if (layer.object3D && manager?.frameLayer) act("Focus", () => manager.frameLayer(layer));
+  act("Export", () => window.GeoIDLayerExport?.open?.(layer));
   act("Remove", () => manager?.removeLayer?.(layer.id), true);
 
   tile.appendChild(actions);
