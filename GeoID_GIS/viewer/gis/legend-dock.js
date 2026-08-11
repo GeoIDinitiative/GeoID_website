@@ -124,7 +124,36 @@ const STYLE = `
 #map-legend-panel .legend-symbol-label { font-size: 0.74rem; }
 #map-legend-panel .legend-symbol-detail { font-size: 0.68rem; }
 #map-legend-panel .legend-entry-image { margin-top: 0.5rem; }
-#map-legend-panel .result-chip-row { margin: 0; }
+
+/* The keyword pills go. In a tab you had opened on purpose they were a way of
+   saying what kind of overlay this was; over the map the heading already says
+   it, and the pills repeated it in a second visual language while pushing the
+   swatches -- the part you actually read against the scene -- further down.
+   Hidden rather than stripped from the clone, so this stays a mirror of what
+   the viewer emits and restoring them is deleting a rule. */
+#map-legend-panel .result-chip-row { display: none; }
+
+/* The scroll bar was the browser default: a white slab against a dark
+   translucent panel, brighter than anything it sat beside. Thin, accent-tinted
+   and on a transparent track, which is what #ui-scroll-body already does -- the
+   same shape of control should not be a different colour in two corners of the
+   same GUI. */
+#map-legend-panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--nav-accent-rgb), 0.32) transparent;
+}
+#map-legend-panel::-webkit-scrollbar { width: 0.7rem; }
+#map-legend-panel::-webkit-scrollbar-track { background: transparent; }
+#map-legend-panel::-webkit-scrollbar-thumb {
+  background: rgba(var(--nav-accent-rgb), 0.28);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+#map-legend-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--nav-accent-rgb), 0.45);
+  background-clip: padding-box;
+}
 
 /* Transferred, not duplicated: the two tab-bar homes stop being shown. Left in
    the DOM and still rendering, because this dock mirrors what they produce --

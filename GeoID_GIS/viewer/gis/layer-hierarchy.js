@@ -10,8 +10,8 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260811-d72b01c";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-d72b01c";
+import { currentBody } from "./bodies.js?v=20260811-792a5f1";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-792a5f1";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
