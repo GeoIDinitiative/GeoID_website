@@ -109,9 +109,8 @@ function readDbf(bytes) {
     const row = { deleted: bytes[start] !== 0x20, values: {} };
     let at = start + 1;
     for (const field of fields) {
-      let text = "";
-      for (let i = 0; i < field.width; i += 1) text += String.fromCharCode(bytes[at + i]);
-      row.values[field.name] = text;
+      // Decoded as UTF-8, which is what the .cpg in the archive declares.
+      row.values[field.name] = new TextDecoder().decode(bytes.subarray(at, at + field.width));
       at += field.width;
     }
     rows.push(row);
@@ -291,7 +290,9 @@ eq("with the size written twice, both matching",
 const bundle = buildShapefileZip(fc(...points), "sites");
 check("a single-type collection produces an archive", bundle instanceof Uint8Array);
 
-// All four files, because three of them is a shapefile that fails somewhere.
+// All five, because a missing one is a shapefile that fails somewhere: no .shx
+// and many readers refuse it, no .prj and it lands in an unknown system, no
+// .cpg and every accented name is decoded against a guessed code page.
 const names = [];
 {
   const view = new DataView(bundle.buffer);
@@ -303,7 +304,27 @@ const names = [];
     at += 30 + nameLength + dataLength;
   }
 }
-eq("the archive holds all four files", names, ["sites.shp", "sites.shx", "sites.dbf", "sites.prj"]);
+eq("the archive holds every file a reader needs",
+  names, ["sites.shp", "sites.shx", "sites.dbf", "sites.prj", "sites.cpg"]);
+
+/* ── text that is not English ── */
+
+// Values were being forced through ASCII, so Krakow lost its o and every CJK
+// label became a row of question marks -- silent, permanent data loss in an
+// export whose whole job is fidelity.
+const accented = [feature({ type: "Point", coordinates: [0, 0] },
+  { name: "Kraków", jp: "東京" })];
+const accentedFields = dbfFields(accented);
+const accentedRows = readDbf(writeDbf(accented, accentedFields));
+eq("an accented name survives", accentedRows.rows[0].values.NAME.trim(), "Kraków");
+eq("and a CJK one", accentedRows.rows[0].values.JP.trim(), "東京");
+
+// Columns are measured in bytes, not characters: sized in characters, a
+// six-character name of nine bytes is cut off inside a character.
+eq("a column is wide enough for its bytes",
+  accentedFields.find((f) => f.name === "NAME").width, 7);
+check("nothing is written as a replacement character",
+  !JSON.stringify(accentedRows.rows[0].values).includes("?"));
 
 check("the projection file names WGS84", PRJ_WGS84.includes("WGS_1984"));
 

@@ -254,7 +254,7 @@ export function dbfFields(features) {
         continue;
       }
       if (typeof value !== "number" || !Number.isFinite(value)) field.numeric = false;
-      field.text = Math.max(field.text, String(value).length);
+      field.text = Math.max(field.text, byteLength(String(value)));
       if (typeof value === "number" && Number.isFinite(value)) {
         // The column has to fit the text that will be written into it, which
         // for a number is its whole part plus the decimals this writer emits --
@@ -268,6 +268,9 @@ export function dbfFields(features) {
   }
   const names = new Set();
   return [...seen.values()].map((field) => {
+    // Column names stay ASCII on purpose: readers are far less forgiving about
+    // them than about values, and a name is ours to sanitise where a value is
+    // the user's data.
     let name = field.key.replace(/[^A-Za-z0-9_]/g, "_").slice(0, 10).toUpperCase() || "FIELD";
     if (names.has(name)) {
       // Ten characters is the hard limit, so the counter has to eat into the
@@ -296,10 +299,37 @@ export function dbfFields(features) {
   });
 }
 
-function ascii(target, offset, text, width) {
+const UTF8 = new TextEncoder();
+
+/**
+ * How many bytes a value occupies in the table, which is not how many
+ * characters it has.
+ *
+ * dBASE columns are sized in bytes. Sizing them in characters and then writing
+ * UTF-8 truncates every accented name at the column edge -- and an earlier
+ * version avoided that by replacing anything non-ASCII with a question mark,
+ * so Krakow lost its o and every CJK label became a row of them.
+ */
+function byteLength(text) {
+  return UTF8.encode(text).length;
+}
+
+/**
+ * Text into a fixed-width column, space padded.
+ *
+ * Truncation walks back off a partial character: cutting UTF-8 mid-sequence
+ * leaves bytes no decoder can read, which is a worse failure than a shortened
+ * name because it can make a reader reject the whole record.
+ */
+function writeText(target, offset, text, width) {
+  let bytes = UTF8.encode(text);
+  if (bytes.length > width) {
+    let end = width;
+    while (end > 0 && (bytes[end] & 0xC0) === 0x80) end -= 1;  // continuation byte
+    bytes = bytes.subarray(0, end);
+  }
   for (let i = 0; i < width; i += 1) {
-    const code = i < text.length ? text.charCodeAt(i) : 32;
-    target[offset + i] = code < 128 ? code : 63; // non-ASCII becomes "?"
+    target[offset + i] = i < bytes.length ? bytes[i] : 32;
   }
 }
 
@@ -350,7 +380,7 @@ export function writeDbf(features, fields, { date = new Date(2000, 0, 1) } = {})
       } else {
         text = String(value).slice(0, field.width);
       }
-      ascii(out, at, text, field.width);
+      writeText(out, at, text, field.width);
       at += field.width;
     }
     offset += recordLength;
@@ -467,6 +497,10 @@ export function buildShapefileZip(collection, name = "layer", options = {}) {
     { name: `${name}.shp`, data: shp },
     { name: `${name}.shx`, data: shx },
     { name: `${name}.dbf`, data: dbf },
-    { name: `${name}.prj`, data: new TextEncoder().encode(PRJ_WGS84) },
+    { name: `${name}.prj`, data: UTF8.encode(PRJ_WGS84) },
+    // A .dbf carries no encoding of its own, so a reader guesses -- usually at
+    // some 1990s code page. This is the file that tells it, and it is why the
+    // values above can be UTF-8 at all.
+    { name: `${name}.cpg`, data: UTF8.encode("UTF-8") },
   ]);
 }

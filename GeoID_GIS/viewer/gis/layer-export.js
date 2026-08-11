@@ -21,16 +21,48 @@
  * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260811-5a550d1";
-import { downloadText } from "./extraction.js?v=20260811-5a550d1";
-import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES } from "./shapefile-writer.js?v=20260811-5a550d1";
+import * as VF from "./vector-formats.js?v=20260811-947bc23";
+import { downloadText } from "./extraction.js?v=20260811-947bc23";
+import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES } from "./shapefile-writer.js?v=20260811-947bc23";
 
-/** What a layer is, read from its contents rather than its name. */
+/**
+ * What a layer is, read from its contents rather than its name.
+ *
+ * A vector layer normally carries both a collection and its feature array --
+ * every adapter goes through buildVectorLayerResult, which sets the pair. But
+ * the layer record declares them independently, so a features-only layer is
+ * expressible, and reading only the collection would have classified one as a
+ * mesh: a road network offered as STL and written out as an empty solid.
+ */
 export function layerKind(layer) {
-  if (layer?.collection?.features?.length) return "vector";
+  if (layer?.collection?.features?.length || layer?.features?.length) return "vector";
   if (layer?.raster?.band) return "raster";
   if (layer?.object3D) return "mesh";
   return "unknown";
+}
+
+/** The collection to write, built from the feature array if that is all there is. */
+export function collectionOf(layer) {
+  if (layer?.collection?.features?.length) return layer.collection;
+  if (layer?.features?.length) return { type: "FeatureCollection", features: layer.features };
+  return null;
+}
+
+/**
+ * Whether a raster's bounds can actually georeference it.
+ *
+ * Finite is not enough: a raster crossing the antimeridian arrives as minX 170,
+ * maxX -170, which passes geo-utils.js looksLikeGeographic -- that check never
+ * compares the two -- and yields a negative pixel scale, so the image lands
+ * mirrored and in the wrong hemisphere. This is a limit of the whole pipeline
+ * rather than of the export, but the export is where it becomes a file someone
+ * else opens, so it declines rather than writing something wrong.
+ */
+export function hasUsableBounds(raster) {
+  const bounds = raster?.bounds;
+  if (!bounds) return false;
+  const { minX, minY, maxX, maxY } = bounds;
+  return [minX, minY, maxX, maxY].every(Number.isFinite) && maxX > minX && maxY > minY;
 }
 
 const VECTOR_FORMATS = [
@@ -75,7 +107,7 @@ export function suggestedFormat(layer) {
   const ext = String(layer?.ext || "").toLowerCase();
   if (kind === "vector") {
     // Back to what it came from, when the collection can still be one file.
-    if (ext === "shp" && shapeTypeFor(layer.collection)) return "shp";
+    if (ext === "shp" && shapeTypeFor(collectionOf(layer))) return "shp";
     if (ext === "kml") return "kml";
     if (ext === "wkt") return "wkt";
     if (ext === "csv" || ext === "xyz" || ext === "pts") return "csv";
@@ -83,7 +115,7 @@ export function suggestedFormat(layer) {
   }
   // Back to what it came from. A raster with no georeferencing has nothing to
   // put in a GeoTIFF's tiepoint, so that one goes out as a plain grid.
-  if (kind === "raster") return layer?.raster?.bounds ? "tif" : "asc";
+  if (kind === "raster") return hasUsableBounds(layer?.raster) ? "tif" : "asc";
   if (kind === "mesh") return ext === "obj" || ext === "ply" ? "obj" : "stl";
   return null;
 }
@@ -101,14 +133,18 @@ export function formatsFor(layer) {
   const kind = layerKind(layer);
   return (BY_KIND[kind] || []).map((format) => {
     const entry = { ...format, suggested: format.id === suggestion };
-    if (format.id === "shp" && !shapeTypeFor(layer.collection)) {
+    if (format.id === "shp" && !shapeTypeFor(collectionOf(layer))) {
       entry.disabled = true;
-      entry.reason = mixedGeometryReason(layer.collection);
+      entry.reason = mixedGeometryReason(collectionOf(layer));
     }
-    if (format.id === "tif" && !layer?.raster?.bounds) {
+    if (format.id === "tif" && !hasUsableBounds(layer?.raster)) {
       entry.disabled = true;
-      entry.reason = "This raster has no georeferencing, and a GeoTIFF is an "
-        + "image plus its coordinates. ASCII Grid writes the values on their own.";
+      entry.reason = layer?.raster?.bounds
+        ? "This raster's bounds do not describe a north-up area — it may cross "
+          + "the antimeridian, which this viewer cannot georeference. ASCII Grid "
+          + "writes the values on their own."
+        : "This raster has no georeferencing, and a GeoTIFF is an image plus its "
+          + "coordinates. ASCII Grid writes the values on their own.";
     }
     return entry;
   });
@@ -310,26 +346,32 @@ export function renderExport(layer, formatId) {
   if (!format) return null;
   const base = baseName(layer);
   let text = "";
+  const collection = collectionOf(layer);
   if (kind === "vector" && formatId === "shp") {
-    const bytes = buildShapefileZip(layer.collection, base);
+    const bytes = buildShapefileZip(collection, base);
     if (!bytes) return null;
     return {
       filename: `${base}_shapefile.zip`,
       mime: format.mime,
       bytes,
-      shapeType: SHAPE_NAMES[shapeTypeFor(layer.collection)],
+      shapeType: SHAPE_NAMES[shapeTypeFor(collection)],
     };
   }
   if (kind === "vector") {
-    if (formatId === "geojson") text = VF.toGeoJson(layer.collection);
-    else if (formatId === "kml") text = VF.toKml(layer.collection, { name: base });
-    else if (formatId === "wkt") text = VF.toWkt(layer.collection);
-    else text = VF.toCsv(layer.collection);
+    if (formatId === "geojson") text = VF.toGeoJson(collection);
+    else if (formatId === "kml") text = VF.toKml(collection, { name: base });
+    else if (formatId === "wkt") text = VF.toWkt(collection);
+    else text = VF.toCsv(collection);
   } else if (kind === "raster") {
     if (formatId === "tif") {
+      if (!hasUsableBounds(layer.raster)) return null;
       return { filename: `${base}.tif`, mime: format.mime, bytes: writeGeoTiff(layer.raster) };
     }
-    text = formatId === "asc" ? toAsciiGrid(layer.raster) : toRasterCsv(layer.raster);
+    // Unusable bounds are dropped rather than passed through: a cell size taken
+    // from an inverted span is a confidently wrong header, and no header at all
+    // is the honest version of not knowing where the raster sits.
+    const raster = hasUsableBounds(layer.raster) ? layer.raster : { ...layer.raster, bounds: null };
+    text = formatId === "asc" ? toAsciiGrid(raster) : toRasterCsv(raster);
   } else if (kind === "mesh") {
     const positions = collectTriangles(layer.object3D);
     text = formatId === "obj" ? toObj(positions, base) : toStl(positions, base);

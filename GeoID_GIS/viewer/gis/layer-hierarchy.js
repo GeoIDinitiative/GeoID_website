@@ -10,8 +10,8 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260811-5a550d1";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-5a550d1";
+import { currentBody } from "./bodies.js?v=20260811-947bc23";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-947bc23";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --

@@ -1,6 +1,6 @@
-import * as store from "./project-store.js?v=20260811-5a550d1";
-import { el, button, row, statusLine } from "./pages/common.js?v=20260811-5a550d1";
-import * as sidecar from "./sidecar.js?v=20260811-5a550d1";
+import * as store from "./project-store.js?v=20260811-947bc23";
+import { el, button, row, statusLine } from "./pages/common.js?v=20260811-947bc23";
+import * as sidecar from "./sidecar.js?v=20260811-947bc23";
 
 /**
  * The five shell actions from the Qt Research Hub's WorkspaceShell row

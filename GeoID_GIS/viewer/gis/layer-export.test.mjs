@@ -14,7 +14,7 @@
  */
 
 import {
-  layerKind, suggestedFormat, formatsFor, baseName,
+  layerKind, suggestedFormat, formatsFor, baseName, collectionOf, hasUsableBounds,
   toAsciiGrid, toRasterCsv, toStl, toObj,
 } from "./layer-export.js";
 
@@ -109,6 +109,47 @@ eq("a mixed collection falls back to GeoJSON as the suggestion",
   suggestedFormat(mixedLayer), "geojson");
 check("shapefile is still listed for it, not dropped",
   formatsFor(mixedLayer).some((f) => f.id === "shp"));
+
+// A vector layer that carries only its feature array, with no collection
+// beside it. Not reachable today -- every adapter goes through
+// buildVectorLayerResult, which sets both -- but the layer record declares them
+// independently, and read wrongly this is a road network offered as STL.
+const featuresOnly = { name: "roads.shp", ext: "shp", object3D: {}, collection: null,
+  features: [{ type: "Feature", properties: {},
+    geometry: { type: "LineString", coordinates: [[0, 0], [1, 1]] } }] };
+eq("features without a collection is still a vector layer", layerKind(featuresOnly), "vector");
+check("and is offered vector formats, not mesh ones",
+  formatsFor(featuresOnly).every((f) => ["shp", "geojson", "kml", "wkt", "csv"].includes(f.id)));
+eq("a collection is built from them to write", collectionOf(featuresOnly).features.length, 1);
+eq("a real collection is used as it stands",
+  collectionOf(pointLayer), pointLayer.collection);
+eq("nothing at all yields no collection", collectionOf({ name: "x" }), null);
+
+/* ── bounds that cannot georeference ── */
+
+// looksLikeGeographic (geo-utils.js:41) never compares minX with maxX, so a
+// raster crossing the antimeridian passes as geographic with an inverted span
+// and would be written with a negative pixel scale -- mirrored, in the wrong
+// hemisphere, and legal enough that no reader complains.
+const antimeridian = { name: "strip.tif", ext: "tif", raster: {
+  band: [1, 2, 3, 4], width: 2, height: 2,
+  bounds: { minX: 170, minY: -10, maxX: -170, maxY: 10 }, noData: null } };
+check("an inverted span is not usable bounds", !hasUsableBounds(antimeridian.raster));
+check("a normal span is", hasUsableBounds(geoRaster.raster));
+check("bounds of zero width are not", !hasUsableBounds({ bounds: { minX: 1, minY: 0, maxX: 1, maxY: 1 } }));
+check("nor are missing ones", !hasUsableBounds({ bounds: null }));
+check("GeoTIFF is declined for it, with the antimeridian named",
+  formatsFor(antimeridian).find((f) => f.id === "tif").disabled === true
+  && /antimeridian/.test(formatsFor(antimeridian).find((f) => f.id === "tif").reason));
+eq("and the suggestion falls to the grid", suggestedFormat(antimeridian), "asc");
+
+// The grid must not inherit the bad numbers either: no header beats a
+// confidently wrong one.
+{
+  const header = toAsciiGrid({ ...antimeridian.raster, bounds: null }).split("\n");
+  eq("with no bounds the grid writes a unit cell at the origin",
+    [header[2], header[3], header[4]], ["xllcorner 0", "yllcorner 0", "cellsize 1"]);
+}
 
 /* ── the name ── */
 
