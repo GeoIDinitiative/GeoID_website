@@ -660,6 +660,11 @@ function init() {
   window.addEventListener("geoid-gis:layers-changed", () => {
     window.requestAnimationFrame(placeOverlay);
   });
+  // The legend now opens itself when a layer arrives, so its width can change
+  // without anyone having clicked the toggle this listens to above.
+  window.addEventListener("geoid:legend-changed", () => {
+    window.requestAnimationFrame(placeOverlay);
+  });
   window.addEventListener("resize", placeOverlay);
   // Escape drops the selection, the way it dismisses the other overlays.
   document.addEventListener("keydown", (event) => {

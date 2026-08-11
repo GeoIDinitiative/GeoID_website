@@ -10,8 +10,8 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260811-b843940";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-b843940";
+import { currentBody } from "./bodies.js?v=20260811-d72b01c";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-d72b01c";
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -227,42 +227,81 @@ function basemapRow() {
  * dimmed, so turning one off does not make it vanish from the key as well.
  */
 function renderLegend(stack) {
-  const host = document.getElementById("map-legend");
-  const panel = document.getElementById("map-legend-panel");
-  if (!host || !panel) return;
-  host.hidden = stack.length === 0;
-  // Announced on <body> so the events feed can sit beside the legend when it is
-  // there and take its place when it is not, without either knowing about the
-  // other's markup.
-  document.body.dataset.legend = stack.length ? "true" : "false";
-  if (!stack.length) {
-    panel.hidden = true;
-    document.getElementById("map-legend-toggle")?.setAttribute("aria-expanded", "false");
-    return;
+  // The drop-down is shared now -- imported layers are one source in it beside
+  // the viewer's overlays and the interior cutaway -- so this hands over cards
+  // instead of owning the panel. Whether it is shown, and whether it opens, is
+  // the dock's to decide once it knows about every source.
+  const dock = window.GeoIDLegendDock;
+  if (!dock) return;
+  dock.publish("layers", stack.map((layer) => buildLayerCard(layer)));
+}
+
+/**
+ * One imported layer as a legend card, in the same shape the viewer's overlay
+ * legend emits, so the two read as one list rather than two conventions
+ * stacked. Hidden layers stay listed but dimmed: switching a layer off should
+ * not also delete it from the key.
+ */
+function buildLayerCard(layer) {
+  const name = layer.name || "layer";
+  const card = document.createElement("section");
+  card.className = `legend-entry${layer.visible === false ? " is-hidden" : ""}`;
+  card.dataset.legendKey = name;
+
+  const badge = document.createElement("p");
+  badge.className = "layer-type-badge";
+  badge.textContent = name;
+  card.appendChild(badge);
+
+  const list = document.createElement("div");
+  list.className = "legend-symbol-list";
+  const row = document.createElement("div");
+  row.className = "legend-symbol-row";
+  const swatch = document.createElement("span");
+  swatch.className = "legend-swatch";
+  swatch.style.background = layerColour(layer);
+  row.appendChild(swatch);
+  const copyWrap = document.createElement("div");
+  copyWrap.className = "legend-symbol-copy";
+  const label = document.createElement("div");
+  label.className = "legend-symbol-label";
+  label.textContent = layer.type || "layer";
+  copyWrap.appendChild(label);
+  if (layer.visible === false) {
+    const detail = document.createElement("div");
+    detail.className = "legend-symbol-detail";
+    detail.textContent = "hidden";
+    copyWrap.appendChild(detail);
   }
-  panel.innerHTML = stack.map((layer) => {
-    const colour = layerColour(layer);
-    const hidden = layer.visible === false ? " is-hidden" : "";
-    const head = `<div class="legend-entry${hidden}">`
-      + `<span class="legend-swatch" style="background:${colour}"></span>`
-      + `<span class="legend-name" title="${layer.name || "layer"}">${layer.name || "layer"}</span>`
-      + `<span class="legend-kind">${layer.type || ""}</span>`
-      + `</div>`;
-    // Continuous data carries its ramp and what the ends mean, not just a
-    // name: a legend that cannot be read against the map is furniture.
-    const info = layer.legendInfo;
-    if (!info) return head;
+  row.appendChild(copyWrap);
+  list.appendChild(row);
+  card.appendChild(list);
+
+  // Continuous data carries its ramp and what the ends mean, not just a name:
+  // a legend that cannot be read against the map is furniture.
+  const info = layer.legendInfo;
+  if (info) {
     const ramp = Array.isArray(info.palette) && info.palette.length
       ? `linear-gradient(to right, ${info.palette.map((c) => `#${c}`).join(", ")})`
       : "linear-gradient(to right, #000, #fff)";
     const unit = info.unit ? ` ${info.unit}` : "";
-    return head
-      + `<div class="legend-ramp${hidden}">`
-      + `<span class="legend-ramp-bar" style="background:${ramp}"></span>`
-      + `<span class="legend-ramp-labels"><span>${info.min}${unit}</span>`
-      + `<span>${info.label || ""}</span><span>${info.max}${unit}</span></span>`
-      + `</div>`;
-  }).join("");
+    const block = document.createElement("div");
+    block.className = "legend-ramp";
+    const bar = document.createElement("span");
+    bar.className = "legend-ramp-bar";
+    bar.style.background = ramp;
+    block.appendChild(bar);
+    const labels = document.createElement("span");
+    labels.className = "legend-ramp-labels";
+    for (const text of [`${info.min}${unit}`, info.label || "", `${info.max}${unit}`]) {
+      const span = document.createElement("span");
+      span.textContent = text;
+      labels.appendChild(span);
+    }
+    block.appendChild(labels);
+    card.appendChild(block);
+  }
+  return card;
 }
 
 /** Whatever the layer is actually drawn in, so the key matches the map. */
@@ -368,20 +407,10 @@ function initDock() {
 function init() {
   initDock();
   document.getElementById("metadata-copy")?.addEventListener("click", copyCitations);
-  // The legend is an overlay on the scene, so it must hang off <body>: parsed
-  // where it sits in the markup it can end up nested inside another control,
-  // where fixed positioning and its own styling do not apply.
-  const legend = document.getElementById("map-legend");
-  if (legend && legend.parentElement !== document.body) {
-    document.body.appendChild(legend);
-  }
-  const toggle = document.getElementById("map-legend-toggle");
-  toggle?.addEventListener("click", () => {
-    const panel = document.getElementById("map-legend-panel");
-    if (!panel) return;
-    panel.hidden = !panel.hidden;
-    toggle.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
-  });
+  // Reparenting the legend to <body> and opening it on click both moved to
+  // legend-dock.js, which owns that drop-down now. Binding a second click
+  // handler here would have toggled it twice per press -- open then shut in the
+  // same event -- and it would have looked like the button had stopped working.
   // The import manager announces changes; fall back to a light poll so layers
   // added by other paths (the studio, extraction results) still show up.
   window.addEventListener("geoid-gis:layers-changed", render);
