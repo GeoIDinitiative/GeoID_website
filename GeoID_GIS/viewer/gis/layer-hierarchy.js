@@ -10,8 +10,8 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260811-e1233c3";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-e1233c3";
+import { currentBody } from "./bodies.js?v=20260811-2c12f21";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-2c12f21";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -20,6 +20,56 @@ import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-e1233c3";
  * the GUI.
  */
 const STYLE = `
+/* The dock is not one of the tabs.
+ *
+ * It sits directly under the tab bar in the same column, in the same chrome,
+ * with a head that is literally a .section-toggle -- so it read as an eleventh
+ * group that had somehow escaped the box above. It is a different kind of
+ * thing: the bar is where you go to do something, this is a standing readout of
+ * what is currently drawn, and it is the one panel that stays put while the
+ * tabs come and go.
+ *
+ * So it stops borrowing the tab language. No accent spine, no +/- marker, a
+ * squarer frame and a quieter head in the body typeface rather than the
+ * uppercase Exo 2 the groups use, with a caret of its own that turns when it
+ * folds.
+ */
+#layer-dock {
+  border-radius: 0.55rem;
+  border-color: rgba(var(--nav-accent-rgb), 0.28);
+}
+#layer-dock .layer-dock-head {
+  min-height: 2.1rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.025);
+  border-left: 0;
+  border-bottom: 1px solid rgba(var(--nav-accent-rgb), 0.18);
+}
+#layer-dock .layer-dock-head:hover {
+  background: rgba(var(--nav-accent-rgb), 0.08);
+  box-shadow: none;
+}
+/* The groups above draw a +/- through .section-toggle::after. This has its own
+   caret, on the other side of the head, so the two are not mistaken for the
+   same control. */
+#layer-dock .layer-dock-head::after {
+  content: "\25BE";
+  margin-left: auto;
+  color: rgba(var(--nav-accent-rgb), 0.75);
+  font-size: 0.62rem;
+  transition: transform 0.2s ease;
+}
+#layer-dock.is-collapsed .layer-dock-head::after { transform: rotate(-90deg); }
+#layer-dock .layer-dock-head .section-title {
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--muted) !important;
+  text-shadow: none !important;
+}
+#layer-dock .layer-dock-head .section-icon { color: rgba(var(--nav-accent-rgb), 0.7) !important; }
 /* Seven columns now: grip, disclosure, eye, name, kind, opacity, moves. */
 .layer-stack .layer-row {
   grid-template-columns: auto auto auto 1fr auto 4.5rem auto;
