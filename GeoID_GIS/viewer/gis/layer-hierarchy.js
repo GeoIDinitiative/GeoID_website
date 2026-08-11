@@ -10,8 +10,8 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260811-f68f01a";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-f68f01a";
+import { currentBody } from "./bodies.js?v=20260811-07bb355";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-07bb355";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -57,9 +57,8 @@ const STYLE = `
 
 .layer-options {
   display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 0.3rem 0.45rem;
+  justify-items: center;
+  gap: 0.35rem;
   margin: -0.15rem 0 0.15rem 1.35rem;
   padding: 0.45rem 0.5rem;
   border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
@@ -68,26 +67,20 @@ const STYLE = `
   background: #000;
   font-size: 0.66rem;
 }
-.layer-options-badge {
-  justify-self: start;
-  padding: 0.1rem 0.35rem;
-  border-radius: 0.3rem;
-  background: rgba(var(--nav-accent-rgb), 0.16);
-  color: rgb(var(--nav-accent-rgb));
-  font-size: 0.58rem;
-  letter-spacing: 0.08em;
-}
 .layer-options-detail {
-  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--muted);
+  text-align: center;
 }
+/* Centred, and equal: the three are alternatives to one another, so none of
+   them leads. */
 .layer-options-actions {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 0.3rem;
 }
 .layer-options-btn {
@@ -287,11 +280,9 @@ function optionsTile(layer) {
 
   const manager = window.GeoIDImportManager;
   const what = manager?.describeLayer?.(layer);
-  const badge = document.createElement("span");
-  badge.className = "layer-options-badge";
-  badge.textContent = (layer.ext || layer.type || "layer").toUpperCase();
-  tile.appendChild(badge);
-
+  // No format badge. The row above already carries the layer's kind in its own
+  // column, so the tile was repeating it directly underneath -- and the format
+  // is not something you act on, which is what this tile is for.
   if (what) {
     const detail = document.createElement("span");
     detail.className = "layer-options-detail";
