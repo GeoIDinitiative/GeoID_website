@@ -22,7 +22,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -72,6 +72,38 @@ for (const file of files) {
 }
 
 check("there are module stylesheets to check", checked > 0, `${checked} block(s)`);
+
+/**
+ * And every module still parses.
+ *
+ * The backtick check above catches a string that ends early; it does not catch
+ * a string that cannot be parsed at all. A CSS escape written into a template
+ * literal is the case that got through: `content: "\25BE"` is read by
+ * JavaScript as an octal escape long before CSS sees it, which is a hard syntax
+ * error -- and the symptom is identical to the backtick bug, a module that
+ * simply never runs while the page carries on without it.
+ *
+ * A SyntaxError is the failure. Anything else means the file parsed and then
+ * asked for a browser, which is exactly what these modules are supposed to do.
+ */
+// These modules boot themselves and reach for a browser as they load, some of
+// it asynchronously. Those rejections are the expected outcome here, not the
+// thing being tested, so they are absorbed rather than allowed to end the run.
+process.on("unhandledRejection", () => {});
+process.on("uncaughtException", (error) => {
+  if (error instanceof SyntaxError) throw error;
+});
+
+for (const file of files) {
+  if (file.endsWith(".test.mjs")) continue;
+  let verdict = null;
+  try {
+    await import(pathToFileURL(join(here, file)).href);
+  } catch (error) {
+    if (error instanceof SyntaxError) verdict = error.message;
+  }
+  check(`${file}: parses`, verdict === null, verdict || "");
+}
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

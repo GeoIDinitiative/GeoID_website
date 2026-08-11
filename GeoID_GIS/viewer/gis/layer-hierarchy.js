@@ -10,8 +10,8 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260811-2c12f21";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-2c12f21";
+import { currentBody } from "./bodies.js?v=20260811-d57db16";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-d57db16";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -52,14 +52,18 @@ const STYLE = `
 /* The groups above draw a +/- through .section-toggle::after. This has its own
    caret, on the other side of the head, so the two are not mistaken for the
    same control. */
-#layer-dock .layer-dock-head::after {
-  content: "\25BE";
+/* Matched to the specificity of the pair in shell.css that draws the +/- here
+   -- #layer-dock:not(.is-collapsed) > .layer-dock-head::after -- since a
+   shorter selector loses to them and leaves the tab marker in place. */
+#layer-dock:not(.is-collapsed) > .layer-dock-head::after,
+#layer-dock.is-collapsed > .layer-dock-head::after {
+  content: "▾";
   margin-left: auto;
   color: rgba(var(--nav-accent-rgb), 0.75);
   font-size: 0.62rem;
   transition: transform 0.2s ease;
 }
-#layer-dock.is-collapsed .layer-dock-head::after { transform: rotate(-90deg); }
+#layer-dock.is-collapsed > .layer-dock-head::after { transform: rotate(-90deg); }
 #layer-dock .layer-dock-head .section-title {
   font-family: inherit;
   font-weight: 500;
