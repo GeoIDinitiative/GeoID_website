@@ -12,14 +12,18 @@
  * band and cannot become a polygon. So the offer is built from the layer's
  * contents, with the format closest to what came in marked as the suggestion.
  *
- * Shapefile is deliberately not on the list. Writing one means four binary
- * files -- .shp, .shx, .dbf and .prj -- zipped together, and a half-written
- * shapefile is worse than none: it opens, and it is wrong. GeoJSON carries the
- * same geometry and attributes, and every GIS that reads .shp reads it.
+ * Shapefile is written properly or not offered. It is four binary files --
+ * .shp, .shx, .dbf and .prj -- that have to agree with each other, and a
+ * half-written one is worse than none because it opens and is quietly wrong.
+ * shapefile-writer.js does the work; the one case it cannot serve is a
+ * collection mixing points and polygons, since a shapefile holds a single
+ * geometry type, and there the option is offered greyed with the reason on it
+ * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260811-d707ff9";
-import { downloadText } from "./extraction.js?v=20260811-d707ff9";
+import * as VF from "./vector-formats.js?v=20260811-657ef02";
+import { downloadText } from "./extraction.js?v=20260811-657ef02";
+import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES } from "./shapefile-writer.js?v=20260811-657ef02";
 
 /** What a layer is, read from its contents rather than its name. */
 export function layerKind(layer) {
@@ -30,6 +34,8 @@ export function layerKind(layer) {
 }
 
 const VECTOR_FORMATS = [
+  { id: "shp", label: "Shapefile", ext: "zip", mime: "application/zip", binary: true,
+    note: "A zip of .shp, .shx, .dbf and .prj. One geometry type per file." },
   { id: "geojson", label: "GeoJSON", ext: "geojson", mime: "application/geo+json",
     note: "Geometry and attributes together, nothing lost." },
   { id: "kml", label: "KML", ext: "kml", mime: "application/vnd.google-earth.kml+xml",
@@ -66,6 +72,8 @@ export function suggestedFormat(layer) {
   const kind = layerKind(layer);
   const ext = String(layer?.ext || "").toLowerCase();
   if (kind === "vector") {
+    // Back to what it came from, when the collection can still be one file.
+    if (ext === "shp" && shapeTypeFor(layer.collection)) return "shp";
     if (ext === "kml") return "kml";
     if (ext === "wkt") return "wkt";
     if (ext === "csv" || ext === "xyz" || ext === "pts") return "csv";
@@ -76,13 +84,34 @@ export function suggestedFormat(layer) {
   return null;
 }
 
-/** Everything this layer can be written as, the suggestion marked. */
+/**
+ * Everything this layer can be written as, the suggestion marked and anything
+ * unavailable carrying the reason why.
+ *
+ * Unavailable rather than absent: a shapefile export that vanishes for some
+ * layers looks like a bug, where one that says "this collection mixes Point
+ * and Polygon" tells you what to do about it.
+ */
 export function formatsFor(layer) {
   const suggestion = suggestedFormat(layer);
-  return (BY_KIND[layerKind(layer)] || []).map((format) => ({
-    ...format,
-    suggested: format.id === suggestion,
-  }));
+  const kind = layerKind(layer);
+  return (BY_KIND[kind] || []).map((format) => {
+    const entry = { ...format, suggested: format.id === suggestion };
+    if (format.id === "shp" && !shapeTypeFor(layer.collection)) {
+      entry.disabled = true;
+      entry.reason = mixedGeometryReason(layer.collection);
+    }
+    return entry;
+  });
+}
+
+/** Which types are in there, so the message names them. */
+function mixedGeometryReason(collection) {
+  const names = [...new Set((collection?.features || [])
+    .map((f) => f?.geometry?.type).filter(Boolean))];
+  if (!names.length) return "This layer has no geometry to write.";
+  return `A shapefile holds one geometry type, and this layer mixes ${names.join(", ")}.`
+    + " GeoJSON keeps them together.";
 }
 
 /** The name to offer, without the extension it arrived with. */
@@ -266,6 +295,16 @@ export function renderExport(layer, formatId) {
   if (!format) return null;
   const base = baseName(layer);
   let text = "";
+  if (kind === "vector" && formatId === "shp") {
+    const bytes = buildShapefileZip(layer.collection, base);
+    if (!bytes) return null;
+    return {
+      filename: `${base}_shapefile.zip`,
+      mime: format.mime,
+      bytes,
+      shapeType: SHAPE_NAMES[shapeTypeFor(layer.collection)],
+    };
+  }
   if (kind === "vector") {
     if (formatId === "geojson") text = VF.toGeoJson(layer.collection);
     else if (formatId === "kml") text = VF.toKml(layer.collection, { name: base });
@@ -280,11 +319,26 @@ export function renderExport(layer, formatId) {
   return { filename: `${base}.${format.ext}`, mime: format.mime, text };
 }
 
-/** Write it out, through the same path every other export here uses -- which
-    also files it against the open project when there is one. */
+/**
+ * Write it out. Text goes through the same path every other export here uses,
+ * which also files it against the open project when there is one; the zip
+ * cannot take that path, because the project bridge stores text.
+ */
 export function exportLayer(layer, formatId) {
   const result = renderExport(layer, formatId);
   if (!result) return null;
-  downloadText(result.filename, result.text, result.mime);
+  if (result.bytes) downloadBytes(result.filename, result.bytes, result.mime);
+  else downloadText(result.filename, result.text, result.mime);
   return result;
+}
+
+function downloadBytes(filename, bytes, mime) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

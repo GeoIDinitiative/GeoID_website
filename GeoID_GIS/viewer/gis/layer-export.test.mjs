@@ -61,7 +61,7 @@ eq("nothing writable has no suggestion", suggestedFormat({ name: "x" }), null);
 check("a raster is never offered vector formats",
   formatsFor(raster).every((f) => ["asc", "csv"].includes(f.id)));
 check("a vector layer is never offered a mesh format",
-  formatsFor(vector).every((f) => ["geojson", "kml", "wkt", "csv"].includes(f.id)));
+  formatsFor(vector).every((f) => ["shp", "geojson", "kml", "wkt", "csv"].includes(f.id)));
 eq("exactly one format is marked as the suggestion",
   formatsFor(vector).filter((f) => f.suggested).length, 1);
 eq("and it is the right one",
@@ -70,9 +70,34 @@ eq("a layer with nothing in it is offered nothing", formatsFor({ name: "x" }), [
 check("every offered format explains itself",
   formatsFor(vector).every((f) => f.note && f.label && f.ext && f.mime));
 
-// Shapefile must not appear anywhere: a half-written one opens, and is wrong.
-check("shapefile is not offered for any layer",
-  [vector, raster, mesh].every((l) => formatsFor(l).every((f) => f.ext !== "shp")));
+// Shapefile is a vector format and only a vector format.
+check("shapefile is offered to a vector layer",
+  formatsFor(vector).some((f) => f.id === "shp"));
+check("and never to a raster or a mesh",
+  [raster, mesh].every((l) => formatsFor(l).every((f) => f.id !== "shp")));
+
+const pointLayer = { name: "sites.shp", ext: "shp", collection: { features: [
+  { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [1, 2] } }] } };
+const mixedLayer = { name: "mixed.shp", ext: "shp", collection: { features: [
+  { type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [1, 2] } },
+  { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] } }] } };
+
+eq("a single-type shapefile round-trips back to a shapefile",
+  suggestedFormat(pointLayer), "shp");
+check("and it is offered as usable",
+  formatsFor(pointLayer).find((f) => f.id === "shp").disabled === undefined);
+
+// A shapefile holds one geometry type, so a mixed collection cannot be one.
+// It stays listed with the reason: vanishing would read as a missing feature.
+check("a mixed collection cannot be a shapefile",
+  formatsFor(mixedLayer).find((f) => f.id === "shp").disabled === true);
+check("and the reason names the types that clash",
+  /Point/.test(formatsFor(mixedLayer).find((f) => f.id === "shp").reason)
+  && /Polygon/.test(formatsFor(mixedLayer).find((f) => f.id === "shp").reason));
+eq("a mixed collection falls back to GeoJSON as the suggestion",
+  suggestedFormat(mixedLayer), "geojson");
+check("shapefile is still listed for it, not dropped",
+  formatsFor(mixedLayer).some((f) => f.id === "shp"));
 
 /* ── the name ── */
 

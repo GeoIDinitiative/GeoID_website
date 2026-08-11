@@ -12,7 +12,7 @@
  */
 
 import { formatsFor, suggestedFormat, baseName, exportLayer, layerKind }
-  from "./layer-export.js?v=20260811-d707ff9";
+  from "./layer-export.js?v=20260811-657ef02";
 
 const DIALOG_ID = "geoid-export-dialog";
 
@@ -80,6 +80,9 @@ const STYLE = `
   text-transform: uppercase;
 }
 .geoid-export-note { grid-column: 2; color: var(--muted); font-size: 0.66rem; line-height: 1.35; }
+/* Still listed, so its absence is never mistaken for a missing feature. */
+.geoid-export-option.is-unavailable { opacity: 0.5; cursor: not-allowed; }
+.geoid-export-option.is-unavailable:hover { border-color: rgba(var(--nav-accent-rgb), 0.28); }
 .geoid-export-actions { display: flex; justify-content: flex-end; gap: 0.4rem; }
 .geoid-export-empty { margin: 0 0 0.8rem; color: var(--muted); font-size: 0.7rem; line-height: 1.4; }
 `;
@@ -115,7 +118,13 @@ export function openExportDialog(layer) {
   close();
 
   const formats = formatsFor(layer);
-  const picked = { id: suggestedFormat(layer) };
+  // The suggestion can be the one thing unavailable -- a .shp whose collection
+  // has since been mixed by a geoprocessing step -- so the preselection falls
+  // to the first option that can actually be written.
+  const usable = formats.filter((f) => !f.disabled);
+  const suggestion = formats.find((f) => f.suggested && !f.disabled);
+  const picked = { id: (suggestion || usable[0])?.id || null };
+  formats.forEach((f) => { f.suggested = f.id === picked.id; });
 
   const backdrop = document.createElement("div");
   backdrop.id = DIALOG_ID;
@@ -151,12 +160,14 @@ export function openExportDialog(layer) {
   options.className = "geoid-export-options";
   formats.forEach((format) => {
     const option = document.createElement("label");
-    option.className = `geoid-export-option${format.suggested ? " is-picked" : ""}`;
+    option.className = `geoid-export-option${format.suggested ? " is-picked" : ""}`
+      + (format.disabled ? " is-unavailable" : "");
     const radio = document.createElement("input");
     radio.type = "radio";
     radio.name = "geoid-export-format";
     radio.value = format.id;
-    radio.checked = Boolean(format.suggested);
+    radio.disabled = Boolean(format.disabled);
+    radio.checked = Boolean(format.suggested) && !format.disabled;
     radio.addEventListener("change", () => {
       picked.id = format.id;
       options.querySelectorAll(".geoid-export-option")
@@ -178,7 +189,9 @@ export function openExportDialog(layer) {
 
     const note = document.createElement("span");
     note.className = "geoid-export-note";
-    note.textContent = format.note;
+    // The reason it cannot be used replaces the description of what it is:
+    // what you need at that moment is what to do instead.
+    note.textContent = format.disabled ? format.reason : format.note;
     option.appendChild(note);
 
     options.appendChild(option);
@@ -194,7 +207,7 @@ export function openExportDialog(layer) {
   cancel.addEventListener("click", close);
   actions.appendChild(cancel);
 
-  if (formats.length) {
+  if (usable.length) {
     const confirm = document.createElement("button");
     confirm.type = "button";
     confirm.className = "button";
