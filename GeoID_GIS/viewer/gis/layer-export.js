@@ -21,9 +21,9 @@
  * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260811-657ef02";
-import { downloadText } from "./extraction.js?v=20260811-657ef02";
-import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES } from "./shapefile-writer.js?v=20260811-657ef02";
+import * as VF from "./vector-formats.js?v=20260811-5a550d1";
+import { downloadText } from "./extraction.js?v=20260811-5a550d1";
+import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES } from "./shapefile-writer.js?v=20260811-5a550d1";
 
 /** What a layer is, read from its contents rather than its name. */
 export function layerKind(layer) {
@@ -47,6 +47,8 @@ const VECTOR_FORMATS = [
 ];
 
 const RASTER_FORMATS = [
+  { id: "tif", label: "GeoTIFF", ext: "tif", mime: "image/tiff", binary: true,
+    note: "32-bit float, uncompressed, WGS84. Values exactly as sampled." },
   { id: "asc", label: "ASCII Grid", ext: "asc", mime: "text/plain",
     note: "ESRI .asc. Cell values with their georeferencing header." },
   { id: "csv", label: "CSV", ext: "csv", mime: "text/csv",
@@ -79,7 +81,9 @@ export function suggestedFormat(layer) {
     if (ext === "csv" || ext === "xyz" || ext === "pts") return "csv";
     return "geojson";
   }
-  if (kind === "raster") return "asc";
+  // Back to what it came from. A raster with no georeferencing has nothing to
+  // put in a GeoTIFF's tiepoint, so that one goes out as a plain grid.
+  if (kind === "raster") return layer?.raster?.bounds ? "tif" : "asc";
   if (kind === "mesh") return ext === "obj" || ext === "ply" ? "obj" : "stl";
   return null;
 }
@@ -100,6 +104,11 @@ export function formatsFor(layer) {
     if (format.id === "shp" && !shapeTypeFor(layer.collection)) {
       entry.disabled = true;
       entry.reason = mixedGeometryReason(layer.collection);
+    }
+    if (format.id === "tif" && !layer?.raster?.bounds) {
+      entry.disabled = true;
+      entry.reason = "This raster has no georeferencing, and a GeoTIFF is an "
+        + "image plus its coordinates. ASCII Grid writes the values on their own.";
     }
     return entry;
   });
@@ -125,8 +134,14 @@ export function baseName(layer) {
  * ESRI ASCII grid.
  *
  * The header is the georeferencing: without it the file is a block of numbers
- * that lands at the origin. Rows run north to south, which is the opposite of
- * the row order a raster is stored in, so the band is walked backwards.
+ * that lands at the origin.
+ *
+ * Rows are written in stored order. Both an ASCII grid and this viewer's bands
+ * start at the north edge -- geotiff-adapter.js:213 resolves a latitude to a
+ * row as (maxY - lat), so row 0 is at maxY -- and an earlier version of this
+ * walked the band backwards on the belief that the two disagreed. They do not,
+ * and the result was a grid flipped about its own centre line: it loaded, it
+ * georeferenced, and the terrain was upside down.
  */
 export function toAsciiGrid(raster, { noDataOut = -9999, decimals = 4 } = {}) {
   const { band, width, height, bounds, noData } = raster;
@@ -143,7 +158,7 @@ export function toAsciiGrid(raster, { noDataOut = -9999, decimals = 4 } = {}) {
   ];
   const blank = (value) => value === null || value === undefined
     || Number.isNaN(value) || (noData !== null && noData !== undefined && value === noData);
-  for (let row = height - 1; row >= 0; row -= 1) {
+  for (let row = 0; row < height; row += 1) {
     const cells = [];
     for (let col = 0; col < width; col += 1) {
       const value = band[row * width + col];
@@ -311,6 +326,9 @@ export function renderExport(layer, formatId) {
     else if (formatId === "wkt") text = VF.toWkt(layer.collection);
     else text = VF.toCsv(layer.collection);
   } else if (kind === "raster") {
+    if (formatId === "tif") {
+      return { filename: `${base}.tif`, mime: format.mime, bytes: writeGeoTiff(layer.raster) };
+    }
     text = formatId === "asc" ? toAsciiGrid(layer.raster) : toRasterCsv(layer.raster);
   } else if (kind === "mesh") {
     const positions = collectTriangles(layer.object3D);

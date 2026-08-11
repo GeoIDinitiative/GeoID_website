@@ -51,7 +51,18 @@ eq("a point CSV stays a CSV", suggestedFormat({ ...vector, ext: "csv" }), "csv")
 eq("an XYZ cloud is a CSV too", suggestedFormat({ ...vector, ext: "xyz" }), "csv");
 eq("a derived layer with no extension still gets a suggestion",
   suggestedFormat({ collection: { features: [{}] } }), "geojson");
-eq("a raster is suggested out as a grid", suggestedFormat(raster), "asc");
+// A GeoTIFF is an image plus its coordinates, so a raster without bounds has
+// nothing to put in one and falls back to the format that writes values alone.
+eq("a raster with no georeferencing falls back to a grid", suggestedFormat(raster), "asc");
+const geoRaster = { name: "dem.tif", ext: "tif", raster: {
+  band: [1, 2, 3, 4], width: 2, height: 2,
+  bounds: { minX: 0, minY: 0, maxX: 2, maxY: 2 }, noData: null } };
+eq("a georeferenced one round-trips to GeoTIFF", suggestedFormat(geoRaster), "tif");
+check("and GeoTIFF is usable for it",
+  formatsFor(geoRaster).find((f) => f.id === "tif").disabled === undefined);
+check("while an ungeoreferenced raster has it listed with the reason",
+  formatsFor(raster).find((f) => f.id === "tif").disabled === true
+  && /georeferencing/.test(formatsFor(raster).find((f) => f.id === "tif").reason));
 eq("an STL round-trips to STL", suggestedFormat(mesh), "stl");
 eq("an OBJ round-trips to OBJ", suggestedFormat({ ...mesh, ext: "obj" }), "obj");
 eq("nothing writable has no suggestion", suggestedFormat({ name: "x" }), null);
@@ -59,7 +70,7 @@ eq("nothing writable has no suggestion", suggestedFormat({ name: "x" }), null);
 /* ── the offer ── */
 
 check("a raster is never offered vector formats",
-  formatsFor(raster).every((f) => ["asc", "csv"].includes(f.id)));
+  formatsFor(raster).every((f) => ["tif", "asc", "csv"].includes(f.id)));
 check("a vector layer is never offered a mesh format",
   formatsFor(vector).every((f) => ["shp", "geojson", "kml", "wkt", "csv"].includes(f.id)));
 eq("exactly one format is marked as the suggestion",
@@ -108,8 +119,10 @@ eq("an unnamed layer still gets a filename", baseName({}), "layer");
 
 /* ── ASCII grid ── */
 
-// Rows are stored north-first and written south-first. Getting this backwards
-// produces a file that loads, looks plausible, and is flipped.
+// Both the band and the file start at the north edge, so rows go out in stored
+// order. This was wrong once in the other direction, and the symptom is a grid
+// that loads, georeferences, and is upside down -- so it is pinned here against
+// the convention geotiff-adapter.js:213 actually uses.
 const grid = {
   band: [1, 2, 3, 4, 5, 6],
   width: 3, height: 2,
@@ -121,16 +134,26 @@ eq("the header names the column count", asc[0], "ncols 3");
 eq("and the row count", asc[1], "nrows 2");
 eq("the corner is the south-west one", [asc[2], asc[3]], ["xllcorner 10", "yllcorner 50"]);
 eq("cell size comes from the span, not a guess", asc[4], "cellsize 1");
-eq("the last stored row is written first", asc[6], "4 5 6");
-eq("and the first stored row last", asc[7], "1 2 3");
+eq("the northmost stored row is written first", asc[6], "1 2 3");
+eq("and the southmost last", asc[7], "4 5 6");
 
 eq("no-data cells are written as the no-data value",
   toAsciiGrid({ ...grid, band: [1, 2, 3, 4, 5, -999], noData: -999 })
-    .trim().split("\n")[6].split(" ")[2],
+    .trim().split("\n")[7].split(" ")[2],
   "-9999");
 eq("NaN counts as no-data even when none was declared",
-  toAsciiGrid({ ...grid, band: [1, 2, 3, 4, 5, NaN] }).trim().split("\n")[6].split(" ")[2],
+  toAsciiGrid({ ...grid, band: [1, 2, 3, 4, 5, NaN] }).trim().split("\n")[7].split(" ")[2],
   "-9999");
+
+// The grid and the per-cell CSV must agree about which row is north: they read
+// the same band, and disagreeing means one of the two exports is flipped.
+{
+  const gridNorth = toAsciiGrid(grid).trim().split("\n")[6].split(" ")[0];
+  const csvFirst = toRasterCsv(grid).trim().split("\n")[1].split(",");
+  eq("the grid's first row and the CSV's first cell are the same value",
+    [gridNorth, csvFirst[2]], ["1", "1"]);
+  eq("and that cell is at the northern latitude", csvFirst[1], "51.5");
+}
 
 /* ── raster CSV ── */
 
