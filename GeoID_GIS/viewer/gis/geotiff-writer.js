@@ -7,12 +7,10 @@
  * order is rejected by strict readers, and a TIFF that reads fine with no
  * ModelTiepoint is an image, not a map.
  *
- * Written as single-band 32-bit float, uncompressed, in one strip. That is the
- * shape of what this viewer holds -- an elevation or index band with real
- * values and a no-data marker -- and float32 keeps them exactly as sampled
- * rather than quantising to an integer range on the way out. Uncompressed
- * because the alternative is shipping a deflate implementation for a file the
- * user is about to open in something that would decompress it anyway.
+ * Written as 32-bit float, uncompressed, one sample per band. Float because it
+ * keeps the values exactly as sampled rather than quantising them to an
+ * integer range on the way out, which for an elevation model is the whole
+ * point of exporting it.
  *
  * Three things here produce a file that opens and is wrong:
  *
@@ -32,7 +30,7 @@ const T = {
   ImageWidth: 256, ImageLength: 257, BitsPerSample: 258, Compression: 259,
   Photometric: 262, StripOffsets: 273, SamplesPerPixel: 277, RowsPerStrip: 278,
   StripByteCounts: 279, PlanarConfig: 284, SampleFormat: 339,
-  ModelPixelScale: 33550, ModelTiepoint: 33922,
+  ExtraSamples: 338, ModelPixelScale: 33550, ModelTiepoint: 33922,
   GeoKeyDirectory: 34735, GeoAsciiParams: 34737, GdalNoData: 42113,
 };
 
@@ -68,17 +66,31 @@ const CITATION = "WGS 84|";   // the bar is the separator GeoTIFF's ASCII tag us
  * geotiff-adapter.js resolves a latitude to a row as (maxY - lat) -- and so
  * does a TIFF, whose first row is the top of the image.
  */
-export function writeGeoTiff(raster, { noDataOut = -9999 } = {}) {
-  const { band, width, height, bounds, noData } = raster;
+export function writeGeoTiff(raster, { noDataOut = -9999, targetStripBytes = 8 << 20 } = {}) {
+  const { width, height, bounds, noData } = raster;
+  // Every band the layer kept. A single-band raster still has one here, so
+  // there is one path rather than two.
+  const bands = raster.bands?.length ? raster.bands : [raster.band];
+  const samplesPerPixel = bands.length;
   const pixels = width * height;
 
-  // Samples first, so the no-data marker is applied once rather than per read.
-  const samples = new Float32Array(pixels);
-  for (let i = 0; i < pixels; i += 1) {
-    const value = band[i];
-    const blank = value === null || value === undefined || Number.isNaN(value)
-      || (noData !== null && noData !== undefined && value === noData);
-    samples[i] = blank ? noDataOut : value;
+  const blank = (value) => value === null || value === undefined || Number.isNaN(value)
+    || (noData !== null && noData !== undefined && value === noData);
+
+  /**
+   * Strips, not one block.
+   *
+   * A single strip means a reader must have the whole image in memory to touch
+   * any of it, and some refuse a strip over 4 GB outright. Rows are grouped to
+   * about eight megabytes, which is what GDAL itself writes by default.
+   */
+  const bytesPerRow = width * samplesPerPixel * 4;
+  const rowsPerStrip = Math.max(1, Math.min(height, Math.floor(targetStripBytes / bytesPerRow) || 1));
+  const stripCount = Math.ceil(height / rowsPerStrip);
+  const stripByteCounts = [];
+  for (let s = 0; s < stripCount; s += 1) {
+    const rows = Math.min(rowsPerStrip, height - s * rowsPerStrip);
+    stripByteCounts.push(rows * bytesPerRow);
   }
 
   const scaleX = bounds ? (bounds.maxX - bounds.minX) / width : 1;
@@ -87,19 +99,18 @@ export function writeGeoTiff(raster, { noDataOut = -9999 } = {}) {
   const citation = `${CITATION}\0`;
   const keys = geoKeys(citation.length);
 
-  // Entries in ascending tag order, which is what a reader assumes.
   const entries = [
     { tag: T.ImageWidth, type: TYPE.LONG, values: [width] },
     { tag: T.ImageLength, type: TYPE.LONG, values: [height] },
-    { tag: T.BitsPerSample, type: TYPE.SHORT, values: [32] },
-    { tag: T.Compression, type: TYPE.SHORT, values: [1] },      // none
+    { tag: T.BitsPerSample, type: TYPE.SHORT, values: Array(samplesPerPixel).fill(32) },
+    { tag: T.Compression, type: TYPE.SHORT, values: [1] },
     { tag: T.Photometric, type: TYPE.SHORT, values: [1] },      // black is zero
-    { tag: T.StripOffsets, type: TYPE.LONG, values: [0], isStripOffset: true },
-    { tag: T.SamplesPerPixel, type: TYPE.SHORT, values: [1] },
-    { tag: T.RowsPerStrip, type: TYPE.LONG, values: [height] }, // one strip
-    { tag: T.StripByteCounts, type: TYPE.LONG, values: [pixels * 4] },
-    { tag: T.PlanarConfig, type: TYPE.SHORT, values: [1] },
-    { tag: T.SampleFormat, type: TYPE.SHORT, values: [3] },     // IEEE float
+    { tag: T.StripOffsets, type: TYPE.LONG, values: Array(stripCount).fill(0), isStripOffsets: true },
+    { tag: T.SamplesPerPixel, type: TYPE.SHORT, values: [samplesPerPixel] },
+    { tag: T.RowsPerStrip, type: TYPE.LONG, values: [rowsPerStrip] },
+    { tag: T.StripByteCounts, type: TYPE.LONG, values: stripByteCounts },
+    { tag: T.PlanarConfig, type: TYPE.SHORT, values: [1] },     // chunky
+    { tag: T.SampleFormat, type: TYPE.SHORT, values: Array(samplesPerPixel).fill(3) },
     { tag: T.ModelPixelScale, type: TYPE.DOUBLE, values: [scaleX, scaleY, 0] },
     // Raster (0,0) is the north-west corner: column 0 at minX, row 0 at maxY.
     { tag: T.ModelTiepoint, type: TYPE.DOUBLE,
@@ -107,10 +118,14 @@ export function writeGeoTiff(raster, { noDataOut = -9999 } = {}) {
     { tag: T.GeoKeyDirectory, type: TYPE.SHORT, values: keys },
     { tag: T.GeoAsciiParams, type: TYPE.ASCII, values: [...citation].map((c) => c.charCodeAt(0)) },
     { tag: T.GdalNoData, type: TYPE.ASCII, values: [...noDataText].map((c) => c.charCodeAt(0)) },
-  ].sort((a, b) => a.tag - b.tag);
+  ];
+  // Bands beyond the first are data, not alpha. Without this a reader is
+  // entitled to treat sample two as transparency and composite the image away.
+  if (samplesPerPixel > 1) {
+    entries.push({ tag: T.ExtraSamples, type: TYPE.SHORT, values: Array(samplesPerPixel - 1).fill(0) });
+  }
+  entries.sort((a, b) => a.tag - b.tag);
 
-  // 8-byte header, then the directory, then anything too big to sit in an
-  // entry, then the samples.
   const ifdOffset = 8;
   const ifdSize = 2 + entries.length * 12 + 4;
   let extraOffset = ifdOffset + ifdSize;
@@ -124,8 +139,15 @@ export function writeGeoTiff(raster, { noDataOut = -9999 } = {}) {
     }
   }
   const dataOffset = extraOffset;
-  const total = dataOffset + pixels * 4;
 
+  // Now that the layout is fixed, the strip offsets are known.
+  const stripOffsets = [];
+  let at = dataOffset;
+  for (const count of stripByteCounts) { stripOffsets.push(at); at += count; }
+  const stripEntry = entries.find((e) => e.isStripOffsets);
+  stripEntry.values = stripOffsets;
+
+  const total = dataOffset + stripByteCounts.reduce((sum, n) => sum + n, 0);
   const out = new Uint8Array(total);
   const view = new DataView(out.buffer);
 
@@ -135,29 +157,32 @@ export function writeGeoTiff(raster, { noDataOut = -9999 } = {}) {
 
   view.setUint16(ifdOffset, entries.length, true);
   entries.forEach((entry, i) => {
-    const at = ifdOffset + 2 + i * 12;
-    view.setUint16(at, entry.tag, true);
-    view.setUint16(at + 2, entry.type, true);
-    view.setUint32(at + 4, entry.values.length, true);
+    const head = ifdOffset + 2 + i * 12;
+    view.setUint16(head, entry.tag, true);
+    view.setUint16(head + 2, entry.type, true);
+    view.setUint32(head + 4, entry.values.length, true);
     const write = (offset, values) => values.forEach((value, k) => {
       if (entry.type === TYPE.SHORT) view.setUint16(offset + k * 2, value, true);
       else if (entry.type === TYPE.LONG) view.setUint32(offset + k * 4, value, true);
       else if (entry.type === TYPE.DOUBLE) view.setFloat64(offset + k * 8, value, true);
       else out[offset + k] = value;    // ASCII
     });
-    if (entry.isStripOffset) {
-      view.setUint32(at + 8, dataOffset, true);
-    } else if (entry.inline) {
-      write(at + 8, entry.values);
-    } else {
-      view.setUint32(at + 8, entry.offset, true);
+    if (entry.inline) write(head + 8, entry.values);
+    else {
+      view.setUint32(head + 8, entry.offset, true);
       write(entry.offset, entry.values);
     }
   });
   view.setUint32(ifdOffset + 2 + entries.length * 12, 0, true);  // no next IFD
 
+  // Chunky: every sample of a pixel together, then the next pixel.
+  let write = dataOffset;
   for (let i = 0; i < pixels; i += 1) {
-    view.setFloat32(dataOffset + i * 4, samples[i], true);
+    for (let b = 0; b < samplesPerPixel; b += 1) {
+      const value = bands[b][i];
+      view.setFloat32(write, blank(value) ? noDataOut : value, true);
+      write += 4;
+    }
   }
   return out;
 }

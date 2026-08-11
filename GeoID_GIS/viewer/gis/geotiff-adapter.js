@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260811-947bc23";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260811-e1233c3";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -263,7 +263,10 @@ export function buildRasterLayer(bands, width, height, bounds, {
     georeferenced,
     bounds: georeferenced ? bounds : null,
     sampler: georeferenced ? createRasterSampler(bands[0], width, height, bounds, noData) : null,
-    raster: { band: bands[0], width, height, bounds, noData },
+    // Band 1 is what the sampler reads and what the drape colours from; the
+    // rest are kept so an export can write back what was imported. Before this
+    // an RGB GeoTIFF came in with three bands and could only leave with one.
+    raster: { band: bands[0], bands, width, height, bounds, noData },
     info: {
       width,
       height,

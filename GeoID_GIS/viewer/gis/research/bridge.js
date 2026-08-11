@@ -1,4 +1,4 @@
-import * as store from "./project-store.js?v=20260811-947bc23";
+import * as store from "./project-store.js?v=20260811-e1233c3";
 
 /**
  * What makes the three pages one workspace.
@@ -115,6 +115,24 @@ export async function saveExport(filename, text, kind = "export") {
   const path = `exports/${filename}`;
   await store.writeProjectFile(path, text);
   await store.registerData({ name: filename, kind, path, source: "GIS extraction" });
+  return path;
+}
+
+/**
+ * The same, for an export that is not text.
+ *
+ * A GeoTIFF or a zipped shapefile cannot go through the call above -- it would
+ * be stringified, and what landed in the project would be the word "[object
+ * Object]" or a corrupted transcoding. Handed to the adapter as a Blob, which
+ * is what the bytes read path on the other side already expects. Without this
+ * the binary exports were the only ones that downloaded but never joined the
+ * project they were exported from.
+ */
+export async function saveExportBytes(filename, bytes, mime = "application/octet-stream", kind = "export") {
+  if (!activeProject()) return null;
+  const path = `exports/${filename}`;
+  await store.writeProjectFile(path, new Blob([bytes], { type: mime }));
+  await store.registerData({ name: filename, kind, path, source: "GIS export" });
   return path;
 }
 

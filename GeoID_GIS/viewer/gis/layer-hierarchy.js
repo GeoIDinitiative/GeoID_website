@@ -10,8 +10,8 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260811-947bc23";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-947bc23";
+import { currentBody } from "./bodies.js?v=20260811-e1233c3";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-e1233c3";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -91,6 +91,22 @@ const STYLE = `
   justify-content: center;
   gap: 0.25rem;
   flex: 0 0 auto;
+}
+.layer-props-inline {
+  margin: -0.15rem 0 0.15rem 1.35rem;
+  padding: 0.5rem 0.55rem 0.6rem;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+  border-top: 0;
+  border-radius: 0 0 0.45rem 0.45rem;
+  background: #000;
+  font-size: 0.66rem;
+}
+/* The tile above it stops rounding off where the two meet, so they read as one
+   drawer rather than two boxes that happen to be touching. */
+.layer-options:has(+ .layer-props-inline) {
+  border-radius: 0;
+  border-bottom: 0;
+  margin-bottom: 0;
 }
 .layer-options-btn {
   flex: 0 0 auto;
@@ -320,10 +336,63 @@ function optionsTile(layer) {
   // bounds; only offered once there is something in the scene to frame.
   if (layer.object3D && manager?.frameLayer) act("Focus", () => manager.frameLayer(layer));
   act("Export", () => window.GeoIDLayerExport?.open?.(layer));
-  act("Remove", () => manager?.removeLayer?.(layer.id), true);
+
+  /**
+   * Remove asks first.
+   *
+   * It disposes the geometry and there is no undo -- an imported layer would
+   * have to be found and loaded again, and a derived one recomputed. It also
+   * now sits an inch from Hide, which is the button people reach for when they
+   * mean "get this off my screen", so a misfire is likely rather than exotic.
+   * A second click inside the tile rather than a modal: the weight should match
+   * losing one layer, not losing the project.
+   */
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "button secondary layer-options-btn is-danger";
+  remove.textContent = layer.confirmRemove ? "Sure?" : "Remove";
+  remove.title = layer.confirmRemove
+    ? "Click again to remove this layer for good"
+    : "Remove this layer";
+  remove.addEventListener("click", () => {
+    if (layer.confirmRemove) { manager?.removeLayer?.(layer.id); return; }
+    layer.confirmRemove = true;
+    render();
+    // It stands down on its own, so an armed button is never left lying under
+    // the pointer for the next person to press.
+    window.setTimeout(() => {
+      if (!layer.confirmRemove) return;
+      layer.confirmRemove = false;
+      render();
+    }, 4000);
+  });
+  actions.appendChild(remove);
 
   tile.appendChild(actions);
   return tile;
+}
+
+/**
+ * A layer's own settings, under its actions.
+ *
+ * These were behind the Style button, which went because it duplicated the
+ * visibility and opacity already on the row. What it also held did not
+ * duplicate anything: placing an ungeoreferenced model on the globe by
+ * latitude and longitude, its scale and rotation, drape offset, colour and
+ * wireframe. Removing the button took those with it.
+ *
+ * So they come back attached to the layer rather than behind a second one --
+ * no extra button, since the disclosure already means "this layer's controls",
+ * and only where the layer actually has something to set.
+ */
+function propertiesPanel(layer) {
+  if (!layer.object3D || layer.status !== "loaded") return null;
+  const build = window.GeoIDLayerProperties?.build;
+  if (!build) return null;
+  const panel = build(layer);
+  if (!panel) return null;
+  panel.classList.add("layer-props-inline");
+  return panel;
 }
 
 export function render() {
@@ -344,7 +413,11 @@ export function render() {
     // The tile belongs to the row above it, so it is a sibling rather than a
     // child: the row is a grid whose columns are the controls, and a panel
     // inside it would have had to be a seventh column of full width.
-    if (layer.optionsOpen) panel.appendChild(optionsTile(layer));
+    if (layer.optionsOpen) {
+      panel.appendChild(optionsTile(layer));
+      const props = propertiesPanel(layer);
+      if (props) panel.appendChild(props);
+    }
   });
   // The default basemap accounted for alongside everything drawn over it. It
   // is the floor of the stack rather than a movable member, so it carries a

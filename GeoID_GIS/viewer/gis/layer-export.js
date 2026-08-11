@@ -21,9 +21,9 @@
  * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260811-947bc23";
-import { downloadText } from "./extraction.js?v=20260811-947bc23";
-import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES } from "./shapefile-writer.js?v=20260811-947bc23";
+import * as VF from "./vector-formats.js?v=20260811-e1233c3";
+import { downloadText } from "./extraction.js?v=20260811-e1233c3";
+import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES } from "./shapefile-writer.js?v=20260811-e1233c3";
 
 /**
  * What a layer is, read from its contents rather than its name.
@@ -84,7 +84,7 @@ const RASTER_FORMATS = [
   { id: "asc", label: "ASCII Grid", ext: "asc", mime: "text/plain",
     note: "ESRI .asc. Cell values with their georeferencing header." },
   { id: "csv", label: "CSV", ext: "csv", mime: "text/csv",
-    note: "One row per cell: longitude, latitude, value." },
+    note: "One row per cell: longitude, latitude, value.", perCell: true },
 ];
 
 const MESH_FORMATS = [
@@ -136,6 +136,16 @@ export function formatsFor(layer) {
     if (format.id === "shp" && !shapeTypeFor(collectionOf(layer))) {
       entry.disabled = true;
       entry.reason = mixedGeometryReason(collectionOf(layer));
+    }
+    // A per-cell CSV is one row per pixel, so a modest-looking raster becomes a
+    // very large file. Better to say the number before writing it than to have
+    // the tab lock up and leave the user guessing why.
+    if (format.perCell && layer?.raster) {
+      const cells = (layer.raster.width || 0) * (layer.raster.height || 0);
+      if (cells > 250000) {
+        entry.note = `${entry.note} This raster is ${cells.toLocaleString()} cells, `
+          + "so that is the same number of rows.";
+      }
     }
     if (format.id === "tif" && !hasUsableBounds(layer?.raster)) {
       entry.disabled = true;
@@ -393,6 +403,13 @@ export function exportLayer(layer, formatId) {
 }
 
 function downloadBytes(filename, bytes, mime) {
+  // Filed against the open project as well as downloaded, which is what the
+  // text path has always done -- see downloadText in extraction.js.
+  try {
+    void window.GeoIDResearch?.bridge?.saveExportBytes?.(filename, bytes, mime);
+  } catch (error) {
+    /* no project open, or it declined -- the download below still happens */
+  }
   const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
   const anchor = document.createElement("a");
   anchor.href = url;

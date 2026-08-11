@@ -1,6 +1,6 @@
 import * as THREE from "../vendor/three.module.js";
-import { placeLocalModel, placeGeoreferencedModel } from "./geo-utils.js?v=20260811-947bc23";
-import { CRS_OPTIONS, projectedToLatLon } from "./projection.js?v=20260811-947bc23";
+import { placeLocalModel, placeGeoreferencedModel } from "./geo-utils.js?v=20260811-e1233c3";
+import { CRS_OPTIONS, projectedToLatLon } from "./projection.js?v=20260811-e1233c3";
 
 // Derived from ETNA_3_chambers/station_data.txt (summit station at local
 // 50000,50000) against Etna's true summit at 37.751N 14.993E.
@@ -330,4 +330,11 @@ export function buildLayerProperties(layer) {
   }
 
   return host;
+}
+
+// Reached from the layer hierarchy's row drawer, which is the only place these
+// settings are offered now. A global rather than an import so the hierarchy
+// does not have to load this module to render a row without one.
+if (typeof window !== "undefined") {
+  window.GeoIDLayerProperties = { build: buildLayerProperties, applyModelGeoreference };
 }
