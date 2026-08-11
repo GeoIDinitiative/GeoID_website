@@ -241,9 +241,15 @@ const STYLE = `
   accent-color: var(--skin-chrome-ink, #2b0030);
 }
 /* The frame, so an open group reads as one lit object down its whole height
-   rather than a header that happens to differ. */
+   rather than a header that happens to differ. A hairline at 72% was doing
+   that job at the very edge of visibility; 2px at full accent draws the
+   selected tab as a box you can see the extent of at a glance. */
 .control-section.toolbox-group[open] {
-  border-color: rgba(var(--nav-accent-rgb), 0.72);
+  border: 2px solid rgb(var(--nav-accent-rgb));
+  /* The skin pins every .control-section border-color at 34% !important, which
+     is why the frame came out 2px of the same faint pink the shut ones wear --
+     the width landed and the colour did not. */
+  border-color: rgb(var(--nav-accent-rgb)) !important;
   box-shadow:
     0 0 26px -10px rgba(var(--nav-accent-rgb), 0.85),
     inset 0 0 0 1px rgba(var(--nav-accent-rgb), 0.18);
@@ -275,6 +281,16 @@ const STYLE = `
 }
 .control-section:not(.toolbox-group)[open]:hover > .section-toggle {
   filter: brightness(1.12);
+}
+/* The tile that drops out of it is solid black rather than the translucent
+   white the panel gives every other surface. Two reasons it earns the
+   exception: it is the only place in the bar where you read and set values, and
+   black is the one fill in this palette that no accent sits on top of, so the
+   deep bar above it reads as the lid of a well instead of one more tinted
+   layer. The seam keeps a trace of accent so the pair stays one object. */
+.control-section:not(.toolbox-group)[open] > .section-body {
+  background: #000;
+  border-top-color: rgba(var(--nav-accent-rgb), 0.32);
 }
 
 /* Scrolls exactly as #ui-scroll-body does. */
