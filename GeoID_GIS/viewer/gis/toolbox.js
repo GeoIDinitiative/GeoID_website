@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260811-d57db16";
-import { currentBody } from "./bodies.js?v=20260811-d57db16";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260811-d57db16";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260811-118fc88";
+import { currentBody } from "./bodies.js?v=20260811-118fc88";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260811-118fc88";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -79,11 +79,19 @@ const MOVES = [
  * straight back on the next `orderTabs`, which runs on every mode change.
  */
 const TAB_ORDER = [
+  // Explorer leads. It holds the controls for the thing on the screen -- the
+  // globe, where it is pointed, what is drawn on it -- and it was sitting fifth
+  // behind three tabs about bringing data in, so the first thing a viewer
+  // offered was import rather than the world it had just loaded.
+  //
+  // One entry serves both halves of that: Earth keeps the Analysis Hub above it,
+  // and every other world drops gis-group-geoid in the body registry, so on
+  // those pages the filter leaves Explorer at the top with nothing to move.
   "gis-group-geoid",
+  "geoid-controls-group",
   "gis-group-import",
   "gis-group-polygons",
   "gis-group-events",
-  "geoid-controls-group",
   "basemap-relief-section",
   "geology-section",
   "gis-group-modelled",
