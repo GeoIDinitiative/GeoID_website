@@ -10,8 +10,111 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260811-0d3456e";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-0d3456e";
+import { currentBody } from "./bodies.js?v=20260811-f68f01a";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-f68f01a";
+
+/**
+ * The row grew a column and gained a tile, and .layer-row is declared twice --
+ * styles.css for Earth, shell.css for the nine planet pages -- so this is
+ * injected rather than written to either, which would have been a rule for half
+ * the GUI.
+ */
+const STYLE = `
+/* Seven columns now: grip, disclosure, eye, name, kind, opacity, moves. */
+.layer-stack .layer-row {
+  grid-template-columns: auto auto auto 1fr auto 4.5rem auto;
+}
+.layer-grip { letter-spacing: -0.08em; }
+
+.layer-disclose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+  border-radius: 0.3rem;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.6rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.layer-disclose:hover {
+  border-color: rgb(var(--nav-accent-rgb));
+  color: rgb(var(--nav-accent-rgb));
+}
+/* Open, it is filled and the caret has turned -- the same thing every other
+   open control in this GUI says, so the tile below is clearly its doing. */
+.layer-disclose[aria-expanded="true"] {
+  background: rgb(var(--nav-accent-rgb));
+  border-color: rgb(var(--nav-accent-rgb));
+  color: var(--skin-chrome-ink, #2b0030);
+}
+.layer-disclose[aria-expanded="true"] span { display: block; transform: rotate(180deg); }
+
+.layer-options {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 0.3rem 0.45rem;
+  margin: -0.15rem 0 0.15rem 1.35rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
+  border-top-color: transparent;
+  border-radius: 0 0 0.45rem 0.45rem;
+  background: #000;
+  font-size: 0.66rem;
+}
+.layer-options-badge {
+  justify-self: start;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.3rem;
+  background: rgba(var(--nav-accent-rgb), 0.16);
+  color: rgb(var(--nav-accent-rgb));
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+}
+.layer-options-detail {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.layer-options-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.layer-options-btn {
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.35rem;
+  font-size: 0.64rem;
+}
+/* Removing a layer throws work away and cannot be undone, so it does not look
+   like the two beside it that only change what you are looking at. */
+.layer-options-btn.is-danger {
+  border-color: rgba(255, 110, 110, 0.5) !important;
+  color: rgba(255, 150, 150, 0.95) !important;
+}
+.layer-options-btn.is-danger:hover {
+  border-color: rgba(255, 110, 110, 0.9) !important;
+  background: rgba(220, 70, 70, 0.16) !important;
+  color: #fff !important;
+}
+`;
+
+function injectStyle() {
+  if (document.getElementById("geoid-layer-row-style")) return;
+  const tag = document.createElement("style");
+  tag.id = "geoid-layer-row-style";
+  tag.textContent = STYLE;
+  document.head.appendChild(tag);
+}
 
 const HOST_ID = "layers-tools-host";
 const METADATA_ID = "metadata-list";
@@ -112,8 +215,14 @@ function row(layer) {
   node.dataset.layerId = layer.id;
   const opacity = Number.isFinite(layer.opacity) ? layer.opacity : 1;
   const visible = layer.visible !== false;
+  // Two dot columns used to sit at the head of the row and both meant the same
+  // thing: grab here. One says it, and the space the other took becomes the way
+  // into this layer's own options.
   node.innerHTML = `
-    <button class="layer-grip" type="button" title="Drag to reorder" aria-hidden="true">⋮⋮</button>
+    <button class="layer-grip" type="button" title="Drag to reorder" aria-hidden="true">⋮</button>
+    <button class="layer-disclose" type="button" data-role="disclose"
+      title="Layer options" aria-label="Layer options"
+      aria-expanded="${layer.optionsOpen ? "true" : "false"}"><span aria-hidden="true">▾</span></button>
     <label class="layer-eye" title="Visible">
       <input type="checkbox" ${visible ? "checked" : ""} data-role="visible">
     </label>
@@ -134,6 +243,10 @@ function row(layer) {
   });
   node.querySelector('[data-role="up"]').addEventListener("click", () => move(layer.id, -1));
   node.querySelector('[data-role="down"]').addEventListener("click", () => move(layer.id, 1));
+  node.querySelector('[data-role="disclose"]').addEventListener("click", () => {
+    layer.optionsOpen = !layer.optionsOpen;
+    render();
+  });
 
   const grip = node.querySelector(".layer-grip");
   grip.addEventListener("pointerdown", () => { node.draggable = true; });
@@ -154,6 +267,61 @@ function row(layer) {
   return node;
 }
 
+/**
+ * One layer's options, under its own row.
+ *
+ * These used to be a strip of buttons in a second list further down the dock,
+ * which meant the same layer appeared twice and the buttons were a walk away
+ * from the row they acted on -- with several layers loaded, which strip
+ * belonged to which row was a guess. Attached to the row and opened from it,
+ * there is nothing to match up.
+ *
+ * Style is gone. It opened a properties panel that duplicated the row's own
+ * visibility and opacity, so it was a second way to the controls already an
+ * inch above it.
+ */
+function optionsTile(layer) {
+  const tile = document.createElement("div");
+  tile.className = "layer-options";
+  tile.dataset.layerId = layer.id;
+
+  const manager = window.GeoIDImportManager;
+  const what = manager?.describeLayer?.(layer);
+  const badge = document.createElement("span");
+  badge.className = "layer-options-badge";
+  badge.textContent = (layer.ext || layer.type || "layer").toUpperCase();
+  tile.appendChild(badge);
+
+  if (what) {
+    const detail = document.createElement("span");
+    detail.className = "layer-options-detail";
+    detail.textContent = what;
+    tile.appendChild(detail);
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "layer-options-actions";
+
+  const visible = layer.visible !== false && layer.object3D?.visible !== false;
+  const act = (label, onClick, danger = false) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `button secondary layer-options-btn${danger ? " is-danger" : ""}`;
+    button.textContent = label;
+    button.addEventListener("click", onClick);
+    actions.appendChild(button);
+  };
+
+  act(visible ? "Hide" : "Show", () => { setVisible(layer, !visible); render(); });
+  // Framing needs the loader's camera maths, which knows how to fit a layer's
+  // bounds; only offered once there is something in the scene to frame.
+  if (layer.object3D && manager?.frameLayer) act("Focus", () => manager.frameLayer(layer));
+  act("Remove", () => manager?.removeLayer?.(layer.id), true);
+
+  tile.appendChild(actions);
+  return tile;
+}
+
 export function render() {
   const host = document.getElementById(HOST_ID);
   if (!host) return;
@@ -167,7 +335,13 @@ export function render() {
   const stack = ordered();
   // No empty-state text: the basemap row below already shows the dock is alive,
   // and two lines saying nothing is loaded said it twice.
-  stack.forEach((layer) => panel.appendChild(row(layer)));
+  stack.forEach((layer) => {
+    panel.appendChild(row(layer));
+    // The tile belongs to the row above it, so it is a sibling rather than a
+    // child: the row is a grid whose columns are the controls, and a panel
+    // inside it would have had to be a seventh column of full width.
+    if (layer.optionsOpen) panel.appendChild(optionsTile(layer));
+  });
   // The default basemap accounted for alongside everything drawn over it. It
   // is the floor of the stack rather than a movable member, so it carries a
   // visibility eye but no drag and no opacity -- the globe is shader-drawn,
@@ -405,6 +579,7 @@ function initDock() {
 }
 
 function init() {
+  injectStyle();
   initDock();
   document.getElementById("metadata-copy")?.addEventListener("click", copyCitations);
   // Reparenting the legend to <body> and opening it on click both moved to

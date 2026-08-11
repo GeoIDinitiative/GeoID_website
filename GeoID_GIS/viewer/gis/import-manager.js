@@ -1,14 +1,14 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260811-0d3456e";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260811-0d3456e";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260811-0d3456e";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260811-0d3456e";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260811-0d3456e";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260811-0d3456e";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260811-0d3456e";
-import { loadMshFile } from "./msh-adapter.js?v=20260811-0d3456e";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260811-0d3456e";
-import { buildLayerProperties } from "./layer-properties.js?v=20260811-0d3456e";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260811-f68f01a";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260811-f68f01a";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260811-f68f01a";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260811-f68f01a";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260811-f68f01a";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260811-f68f01a";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260811-f68f01a";
+import { loadMshFile } from "./msh-adapter.js?v=20260811-f68f01a";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260811-f68f01a";
+import { buildLayerProperties } from "./layer-properties.js?v=20260811-f68f01a";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -213,6 +213,13 @@ function renderLayerList() {
   // already there, and in the import panel the buttons above say what to do.
   if (!layers.length) return;
   layers.forEach((layer) => {
+    // A layer that loaded has a row of its own in the hierarchy above, with its
+    // actions in that row's drop-down. Listing it again here put the same layer
+    // on the screen twice -- once as a row you could reorder and fade, once as
+    // a strip of buttons -- so what is left in this list is the states the row
+    // cannot show: still loading, failed, or a format not read yet.
+    if (layer.status === "loaded" && layer.object3D) return;
+
     const item = document.createElement("div");
     item.className = "import-layer-item";
 
@@ -267,15 +274,6 @@ function renderLayerList() {
       focusBtn.addEventListener("click", () => frameResult(layer));
       actions.appendChild(focusBtn);
 
-      const propsBtn = document.createElement("button");
-      propsBtn.type = "button";
-      propsBtn.className = "button secondary import-layer-btn";
-      propsBtn.textContent = layer.propsOpen ? "Close" : "Style";
-      propsBtn.addEventListener("click", () => {
-        layer.propsOpen = !layer.propsOpen;
-        renderLayerList();
-      });
-      actions.appendChild(propsBtn);
     }
 
     const removeBtn = document.createElement("button");
@@ -550,6 +548,10 @@ window.GeoIDImportManager = {
   registerParser,
   addDerivedLayer,
   getLayers: () => layers,
+  /** Frame a layer in the view, and say what it is -- both moved to the
+      hierarchy row's drop-down, which is where a layer's actions live now. */
+  frameLayer: frameResult,
+  describeLayer,
   /** Loaded layers that can be queried at a lat/lon (imported rasters). */
   getSampleableLayers: () => layers.filter((layer) => layer.status === "loaded" && layer.sampler),
   /** Loaded vector layers carrying per-feature attributes. */
