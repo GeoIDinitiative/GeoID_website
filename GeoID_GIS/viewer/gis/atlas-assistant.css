@@ -35,9 +35,15 @@
   box-shadow: 0 0 26px -2px rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.8),
     0 6px 20px rgba(0, 0, 0, 0.5);
 }
+/* --skin-chrome is a colour (#ff2bd6), not the "255, 43, 214" triplet an rgb()
+   slot needs -- so this said rgb(#ff2bd6), which is invalid, and the open
+   launcher fell back to its shut background and never filled. The triplet lives
+   in --skin-chrome-rgb, which the hover rule above already uses. */
 .atlas-launcher.is-open {
-  background: rgb(var(--skin-chrome, 255, 43, 214));
-  color: #12001f;
+  background: rgb(var(--skin-chrome-rgb, 255, 43, 214)) !important;
+  border-color: rgb(var(--skin-chrome-rgb, 255, 43, 214)) !important;
+  color: var(--skin-chrome-ink, #12001f) !important;
+  box-shadow: 0 0 22px -4px rgba(var(--skin-chrome-rgb, 255, 43, 214), 0.75);
 }
 .atlas-launcher-mark {
   font-size: 20px;

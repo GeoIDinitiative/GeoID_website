@@ -148,14 +148,16 @@ const STYLE = `
   white-space: nowrap;
 }
 
-/* And the sections inside it read as the sidebar's headings do.
+/* Every .gis-tool-section head reads as a heading, wherever it is.
  *
- * A .gis-tool-section summary is pink Courier everywhere else, which is right
- * when it is one row among many inside a group. In a workbench those rows ARE
- * the panel, so they take the group heading's voice instead -- the same white
- * Exo 2 the nav bar uses for Add / Import Data and Shapefiles.
+ * This was scoped to the workbench panels on the argument that a tool section
+ * is only one row among many inside a nav-bar group and could keep its pink
+ * Courier there. Metadata shows why that does not hold: opened in the bar, its
+ * Layer Provenance head sits alone under a heading in Exo 2 white and reads as
+ * a different kind of thing than the sub-tab heads either side of it. One
+ * voice for section heads across the GUI, which is the sidebar's own.
  */
-.gis-side-panel-body .gis-tool-section > summary {
+.gis-tool-section > summary {
   color: var(--text);
   font-family: "Exo 2", "Segoe UI", sans-serif;
   font-weight: 600;
@@ -282,6 +284,34 @@ const STYLE = `
 .control-section:not(.toolbox-group)[open]:hover > .section-toggle {
   filter: brightness(1.12);
 }
+/* The primary button: an accent fill with ink dark enough to sit on it.
+ *
+ * viewer-skin.css:134 sweeps .button in with .tool-button, .input, .hub-link
+ * and the rest of the outlined controls and paints them all one cyan ink with
+ * !important. For every other member that is right -- they are transparent over
+ * a dark panel. .button is the one with an opaque light fill, so it came out
+ * cyan text on a pale cyan slab: a contrast ratio of 1.18, which is close to
+ * invisible, and it overrode the "color: #041116" styles.css had already given
+ * it. Add shapefile, Go, Export, Compose map view, Copy citations and Request
+ * basemap were all wearing it.
+ *
+ * .secondary is excluded on purpose: it shares the class but is transparent, so
+ * it is one of the members the skin rule is right about.
+ */
+.button:not(.secondary) {
+  background: rgb(var(--nav-accent-rgb)) !important;
+  color: var(--skin-chrome-ink, #2b0030) !important;
+  border-color: rgba(0, 0, 0, 0.32) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+/* The skin's hover turns every control's ink white, which on the accent fill
+   undoes exactly what the rule above is for. */
+.button:not(.secondary):hover {
+  color: var(--skin-chrome-ink, #2b0030) !important;
+  border-color: rgba(0, 0, 0, 0.45) !important;
+  filter: brightness(1.08);
+}
+
 /* The tile that drops out of it is solid black rather than the translucent
    white the panel gives every other surface. Two reasons it earns the
    exception: it is the only place in the bar where you read and set values, and
