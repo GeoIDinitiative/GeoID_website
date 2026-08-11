@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20260811-792a5f1";
+import { BODIES, currentBodyId } from "./bodies.js?v=20260811-0d3456e";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -33,6 +33,103 @@ const SIZES = {
 };
 
 const STRIP_ID = "gis-planet-strip";
+const DOCK_ID = "gis-planet-dock";
+const TOGGLE_ID = "gis-planet-toggle";
+// Remembered, because every world is a separate page: without this the strip
+// would come back up on each hop, and dismissing it would only ever last until
+// you used it.
+const STORE_KEY = "geoid:planet-strip-collapsed";
+
+/**
+ * The strip is styled twice -- Earth reads styles.css, the nine planet pages
+ * read shell.css, and both carry a copy of .gis-planet-strip. Anything written
+ * to either would be a rule for one half of the GUI, so the dock's own styling
+ * is injected here instead, which is the one place both halves share.
+ */
+const STYLE = `
+.gis-planet-dock {
+  position: fixed;
+  left: 50%;
+  bottom: 0.6rem;
+  transform: translateX(-50%);
+  z-index: 12;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.28rem;
+  /* The column is wider than the arrow and taller than the strip, so it would
+     otherwise sit over the globe swallowing drags in the gap beside them. */
+  pointer-events: none;
+}
+.gis-planet-dock > * { pointer-events: auto; }
+.gis-planet-dock[hidden] { display: none; }
+
+/* The strip stops positioning itself -- the dock does it now, so the arrow can
+   sit above the strip and stay put when the strip goes. */
+#gis-planet-dock > .gis-planet-strip {
+  position: static;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  z-index: auto;
+  max-height: 7rem;
+  overflow: hidden;
+  transition: max-height 0.24s ease, opacity 0.16s ease,
+              padding-top 0.24s ease, padding-bottom 0.24s ease, border-width 0.24s ease;
+}
+/* Collapsed downward into the footer rather than switched off, so it is clear
+   where it went and where it will come back from. */
+#gis-planet-dock.is-collapsed > .gis-planet-strip {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+  pointer-events: none;
+}
+
+.gis-planet-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 1.2rem;
+  padding: 0;
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.38);
+  border-radius: 999px;
+  background: rgba(6, 10, 16, 0.72);
+  backdrop-filter: blur(10px);
+  color: var(--text);
+  font-size: 0.6rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.gis-planet-toggle:hover {
+  border-color: rgb(var(--nav-accent-rgb));
+  color: rgb(var(--nav-accent-rgb));
+}
+/* Collapsed, the arrow is the only thing left, so it takes the accent to say
+   there is something down there rather than reading as a stray pill. */
+#gis-planet-dock.is-collapsed .gis-planet-toggle {
+  background: rgb(var(--nav-accent-rgb));
+  border-color: rgb(var(--nav-accent-rgb));
+  color: var(--skin-chrome-ink, #2b0030);
+}
+.gis-planet-caret {
+  display: block;
+  transition: transform 0.22s ease;
+}
+#gis-planet-dock.is-collapsed .gis-planet-caret { transform: rotate(180deg); }
+`;
+
+function injectStyle() {
+  if (document.getElementById("geoid-planet-dock-style")) return;
+  const tag = document.createElement("style");
+  tag.id = "geoid-planet-dock-style";
+  tag.textContent = STYLE;
+  document.head.appendChild(tag);
+}
 
 function build() {
   const strip = document.createElement("nav");
@@ -73,8 +170,50 @@ function build() {
   return strip;
 }
 
+/** The arrow, and the dock that lets it stay put while the strip goes. */
+function buildDock(strip) {
+  const dock = document.createElement("div");
+  dock.id = DOCK_ID;
+  dock.className = "gis-planet-dock";
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.id = TOGGLE_ID;
+  toggle.className = "gis-planet-toggle";
+  toggle.setAttribute("aria-controls", STRIP_ID);
+  toggle.innerHTML = '<span class="gis-planet-caret" aria-hidden="true">&#9662;</span>';
+  toggle.addEventListener("click", () => setCollapsed(!isCollapsed()));
+
+  dock.appendChild(toggle);
+  dock.appendChild(strip);
+  return dock;
+}
+
+function isCollapsed() {
+  return document.getElementById(DOCK_ID)?.classList.contains("is-collapsed") || false;
+}
+
+function setCollapsed(collapsed) {
+  const dock = document.getElementById(DOCK_ID);
+  const toggle = document.getElementById(TOGGLE_ID);
+  if (!dock || !toggle) return;
+  dock.classList.toggle("is-collapsed", collapsed);
+  toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+  const label = collapsed ? "Show the worlds" : "Hide the worlds";
+  toggle.title = label;
+  toggle.setAttribute("aria-label", label);
+  // Private browsing and blocked storage both throw on write; a strip that
+  // forgets is a smaller problem than a strip that fails to appear.
+  try { window.localStorage?.setItem(STORE_KEY, collapsed ? "1" : "0"); } catch { /* not fatal */ }
+}
+
+function storedCollapsed() {
+  try { return window.localStorage?.getItem(STORE_KEY) === "1"; } catch { return false; }
+}
+
 function apply() {
   const strip = document.getElementById(STRIP_ID);
+  const dock = document.getElementById(DOCK_ID);
   if (!strip) return;
   const mode = document.body.dataset.viewMode;
   /**
@@ -89,7 +228,10 @@ function apply() {
    * Research keeps standing down: the hub is a project workspace and its pages
    * are about a project, not about a globe.
    */
-  strip.hidden = mode === "research";
+  // Stood down as a whole: hiding the strip but leaving its arrow behind would
+  // offer to expand something that is not there.
+  if (dock) dock.hidden = mode === "research";
+  else strip.hidden = mode === "research";
 }
 
 /**
@@ -127,12 +269,24 @@ function markCurrent(bodyId) {
 
 export function init() {
   if (document.getElementById(STRIP_ID)) return;
+  injectStyle();
   const strip = build();
   strip.addEventListener("click", (event) => {
     const node = event.target.closest(".planet-node");
     if (node?.dataset.planet) switchWorldInPlace(event, node.dataset.planet);
   });
-  document.body.appendChild(strip);
+  document.body.appendChild(buildDock(strip));
+  // Set without a transition on the first paint: restoring a remembered state
+  // should look like the page loaded that way, not like the strip collapsed by
+  // itself a moment after arriving.
+  const dock = document.getElementById(DOCK_ID);
+  if (storedCollapsed()) {
+    strip.style.transition = "none";
+    setCollapsed(true);
+    requestAnimationFrame(() => { strip.style.transition = ""; });
+  } else {
+    setCollapsed(false);
+  }
   // Mode is announced on <body>, so watching the attribute keeps the strip in
   // step without the mode manager needing to know it exists.
   new MutationObserver(apply).observe(document.body, {
