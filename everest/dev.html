@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ASCENT — terrain harness</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;font:12px ui-monospace,monospace;color:#ffc93c}
+  canvas{display:block}
+  #hud{position:fixed;top:8px;left:8px;background:rgba(0,0,0,.6);padding:8px 10px;
+       border:1px solid rgba(255,201,60,.4);white-space:pre;line-height:1.5;z-index:5}
+</style>
+</head>
+<body>
+<div id="hud">booting…</div>
+<script type="module">
+/* A harness, not the game. It exists so the streaming + clipmap can be
+   verified on its own — if the mountain is wrong, it is wrong here first and
+   with nothing else in the way. */
+import * as THREE from "./vendor/three.module.js?v=901165e-10e9c71d";
+import { Heightfield } from "./game/dem.js?v=901165e-10e9c71d";
+import { Imagery } from "./game/imagery.js?v=901165e-10e9c71d";
+import { Terrain } from "./game/terrain.js?v=901165e-10e9c71d";
+import { Sky } from "./game/sky.js?v=901165e-10e9c71d";
+import { llToLocal, localToLL } from "./game/geo.js?v=901165e-10e9c71d";
+import { ROUTE, SUMMIT } from "./game/config.js?v=901165e-10e9c71d";
+import * as tiles from "./game/tiles.js?v=901165e-10e9c71d";
+
+const hud = document.getElementById("hud");
+const renderer = new THREE.WebGLRenderer({
+  antialias: true, powerPreference: "high-performance",
+  // So a frame can be read back after the fact. Only the harness does this;
+  // the game leaves it off.
+  preserveDrawingBuffer: true,
+});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.6, 200000);
+
+const field = new Heightfield();
+const imagery = new Imagery();
+const sky = new Sky();
+scene.add(sky.mesh);
+
+hud.textContent = "loading elevation…";
+await field.boot((p, k) => { hud.textContent = `elevation ${k} ${(p * 100) | 0}%`; });
+hud.textContent = "loading imagery…";
+await imagery.boot((p, k) => { hud.textContent = `imagery ${k} ${(p * 100) | 0}%`; });
+
+const terrain = new Terrain(field, imagery);
+scene.add(terrain.group);
+
+// Start at Base Camp looking at the summit.
+const bc = llToLocal(ROUTE[0].lat, ROUTE[0].lon);
+const sm = llToLocal(SUMMIT.lat, SUMMIT.lon);
+let pos = new THREE.Vector3(bc.x, field.height(bc.x, bc.z) + 30, bc.z);
+let yaw = Math.atan2(sm.x - bc.x, -(sm.z - bc.z));
+let pitch = 0.06;
+
+await field.update(0, 0);
+terrain.update(pos.x, pos.z, 500);
+imagery.update(pos.x, pos.z);
+field.update(pos.x, pos.z);
+
+/* free-fly */
+const keys = {};
+addEventListener("keydown", (e) => { keys[e.code] = true; });
+addEventListener("keyup", (e) => { keys[e.code] = false; });
+renderer.domElement.addEventListener("click", () => {
+  // Rejects in an embedded document; not worth an unhandled promise.
+  const r = renderer.domElement.requestPointerLock?.();
+  if (r && r.catch) r.catch(() => {});
+});
+addEventListener("mousemove", (e) => {
+  if (document.pointerLockElement !== renderer.domElement) return;
+  yaw -= e.movementX * 0.0022; pitch -= e.movementY * 0.0022;
+  pitch = Math.max(-1.5, Math.min(1.5, pitch));
+});
+addEventListener("resize", () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+});
+
+const clock = new THREE.Clock();
+let t0 = performance.now(), frames = 0, fps = 0;
+const date = new Date(Date.UTC(2026, 4, 20, 1, 30));   // 07:15 Nepal, in May
+
+function frame() {
+  const dt = Math.min(0.1, clock.getDelta());
+  const speed = (keys.ShiftLeft ? 900 : 60) * dt;
+  const fwd = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+  const right = new THREE.Vector3(Math.cos(yaw), 0, Math.sin(yaw));
+  if (keys.KeyW) pos.addScaledVector(fwd, speed);
+  if (keys.KeyS) pos.addScaledVector(fwd, -speed);
+  if (keys.KeyA) pos.addScaledVector(right, -speed);
+  if (keys.KeyD) pos.addScaledVector(right, speed);
+  if (keys.Space) pos.y += speed;
+  if (keys.ControlLeft) pos.y -= speed;
+
+  const ground = field.height(pos.x, pos.z);
+  if (keys.KeyG) pos.y = ground + 1.7;
+
+  camera.position.copy(pos);
+  camera.lookAt(pos.clone().add(fwd));
+
+  sky.update(date, 0, performance.now() / 1000);
+  terrain.uniforms.sunDir.value.copy(sky.sun.dir);
+  terrain.uniforms.sunColor.value.copy(sky.sun.color);
+  terrain.uniforms.skyColor.value.copy(sky.skyLight);
+  terrain.uniforms.fogColor.value.copy(sky.fog);
+  terrain.setCamera(camera);
+
+  terrain.update(pos.x, pos.z);
+  field.update(pos.x, pos.z);
+  imagery.update(pos.x, pos.z);
+
+  renderer.render(scene, camera);
+
+  frames++;
+  const now = performance.now();
+  if (now - t0 > 500) { fps = frames * 1000 / (now - t0); frames = 0; t0 = now; }
+  const ll = localToLL(pos.x, pos.z);
+  hud.textContent =
+    `fps ${fps.toFixed(0)}  draws ${renderer.info.render.calls}  tris ${(renderer.info.render.triangles / 1000).toFixed(0)}k\n` +
+    `lat ${ll.lat.toFixed(5)}  lon ${ll.lon.toFixed(5)}\n` +
+    `alt ${pos.y.toFixed(0)} m   ground ${ground.toFixed(0)} m   agl ${(pos.y - ground).toFixed(0)} m\n` +
+    `slope ${field.slope(pos.x, pos.z).toFixed(1)}°  detail z${field.detailAt(pos.x, pos.z)}\n` +
+    `tiles ${tiles.stats.requested} net / ${tiles.stats.fromCache} cache / ${tiles.stats.failed} fail  pending ${tiles.pending()}\n` +
+    `WASD fly · shift fast · G to ground · click to look`;
+  if (auto) requestAnimationFrame(frame);
+}
+
+/* Driving the harness from outside.
+   requestAnimationFrame does not fire in a tab that is not compositing, so a
+   headless check has to be able to step the loop itself and read the frame
+   back. That is the whole reason preserveDrawingBuffer is on above. */
+let auto = true;
+window.__dev = {
+  THREE, scene, camera, renderer, field, imagery, terrain, sky, tiles,
+  get pos() { return pos; },
+  stop() { auto = false; },
+  start() { auto = true; frame(); },
+  step(n = 1) { auto = false; for (let i = 0; i < n; i++) frame(); return hud.textContent; },
+  look(lat, lon, alt, targetLat, targetLon) {
+    const p = llToLocal(lat, lon);
+    pos.set(p.x, alt ?? field.height(p.x, p.z) + 2, p.z);
+    if (targetLat != null) {
+      const t = llToLocal(targetLat, targetLon);
+      yaw = Math.atan2(t.x - p.x, -(t.z - p.z));
+      const th = field.height(t.x, t.z);
+      pitch = Math.atan2(th - pos.y, Math.hypot(t.x - p.x, t.z - p.z));
+    }
+  },
+  setYawPitch(y, p) { yaw = y; pitch = p; },
+  /** Nepal keeps UTC+5:45, so a local hour is h−5.75 in UTC. */
+  setLocalHour(h) { date.setTime(Date.UTC(2026, 4, 20, 0, 0) + (h - 5.75) * 3600000); return date.toISOString(); },
+  shot() { return renderer.domElement.toDataURL("image/png"); },
+  /** Render at a fixed size and post the frame to the local sink, so a
+   *  headless check can look at the picture rather than at numbers. */
+  async snap(name, w = 960, h = 540, quality = 0.86) {
+    const old = { w: renderer.domElement.width, h: renderer.domElement.height };
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+    frame(); frame();
+    const url = renderer.domElement.toDataURL("image/jpeg", quality);
+    let ok = "no sink";
+    try {
+      ok = await (await fetch("http://127.0.0.1:8199/" + name, { method: "POST", body: url })).text();
+    } catch (e) { ok = "sink error: " + e.message; }
+    renderer.setSize(old.w, old.h, false);
+    camera.aspect = old.w / old.h; camera.updateProjectionMatrix();
+    return ok;
+  },
+  settle: async (ms = 4000) => {
+    // Pumping only while tiles are outstanding exits the moment one window
+    // finishes and the next has not started — which left the near imagery
+    // parked four kilometres behind the camera and looked like a rendering
+    // bug. Keep going while anything is fetching OR rebuilding.
+    const end = performance.now() + ms;
+    let quiet = 0;
+    while (performance.now() < end) {
+      frame();
+      const busy = tiles.pending() > 0 || imagery.rebuilding || field.rebuilding;
+      quiet = busy ? 0 : quiet + 1;
+      if (quiet > 12) break;
+      await new Promise((r) => setTimeout(r, 60));
+    }
+    for (let i = 0; i < 40; i++) frame();     // let the clipmap catch up
+    return hud.textContent;
+  },
+};
+frame();
+</script>
+</body>
+</html>

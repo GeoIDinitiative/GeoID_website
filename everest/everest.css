@@ -1,0 +1,1079 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   ASCENT — interface skin
+
+   Structure and interaction language: Red Dead Redemption. Cores instead of
+   bars, a radial wheel instead of a menu, small-caps notifications low on the
+   screen, letterbox bars for a moment that matters, and a journal you read.
+
+   Palette and type: the myGeoID viewer skin, /styles/viewer-skin.css —
+   magenta chrome, cyan data, purple-black ground. An earlier pass used the
+   ember variant on the reasoning that magenta is wrong in front of a
+   mountain; that was the wrong call. This sits one click from the GIS
+   sidebar and it should look like the same application, so the house palette
+   wins. Type is the site's faces: Orbitron (served as Audiowide) for
+   display, Exo 2 (Chakra Petch) for everything else.
+
+   The rule the skin holds throughout is held here too:
+   GLOW THE CHROME, NOT THE DATA.
+
+   Names are kept generic (--chrome / --data) rather than colour words, so
+   the next variant is a palette block and nothing else.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --chrome: #ff2bd6;
+  --chrome-rgb: 255, 43, 214;
+  --data: #00e5ff;
+  --data-rgb: 0, 229, 255;
+  --chrome-ink: #2b0030;
+
+  --ink: #fdf7ff;
+  --ink-dim: rgba(214, 194, 255, 0.72);
+  --ground: #0d0221;
+  --panel: rgba(22, 9, 51, 0.92);
+  --panel-solid: rgba(16, 5, 38, 0.97);
+  --line: rgba(255, 43, 214, 0.42);
+  --line-soft: rgba(255, 43, 214, 0.18);
+  --bad: #ff4d6d;
+  --good: #5ef2b0;
+  --hud-pad: clamp(0.9rem, 2vw, 1.8rem);
+  --nav-h: 46px;
+}
+
+/* ── The CRT overlay, turned down ────────────────────────────────────────
+   `viewer-skin.css` paints scanlines and a 48% vignette over the whole
+   document (`body::after`, z-index 99999). On a globe that is the house
+   look. Over a full-screen 3D mountain it is a purple fog on every pixel and
+   a 1-in-3 scanline mask on top — which is precisely what "everything looks
+   too low resolution" is. So the effect is kept, because it is the skin, and
+   taken down to where it reads as an instrument screen rather than as a
+   filter: a third of the scanline contrast, a vignette that stays out of the
+   middle of the frame, and neither of them tinted.
+
+   The skin also runs `filter: saturate(1.18) contrast(1.04)` on every
+   canvas. That is fine on the HUD and wrong on satellite imagery, which is
+   already colour-graded — so the scene canvas opts out.               */
+body::after {
+  /* Nothing. Not scanlines, not a vignette, not a tint.
+     The skin paints a 1-in-3 scanline mask and a 48% vignette over the whole
+     document. On a globe that is the house look; over a full-screen 3D
+     mountain it is a grid printed on the terrain and purple fog in the
+     corners. The scanlines went first and the vignette was kept at 0.28 as a
+     compromise — but a compromise is still an effect layered over a
+     photograph, and the map is the thing being looked at. So the overlay is
+     gone. The retro skin still owns every piece of chrome: the bar, the
+     instruments, the labels, the type. It just stops painting on the map. */
+  content: none !important;
+  display: none !important;
+}
+/* No filter on the scene, and none on the effect layers either — a blurred
+   full-screen gradient over a photoreal render is the same mistake in a
+   different place. */
+canvas.scene { filter: none !important; }
+.fx-layer, .fx-vignette, .fx-frost, .fx-flash { display: none !important; }
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Exo 2", "Chakra Petch", system-ui, sans-serif;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+canvas.scene { display: block; position: fixed; inset: 0; }
+
+#hud {
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  user-select: none;
+}
+#hud button, #hud .pointer { pointer-events: auto; }
+
+/* ── Screen effects ──────────────────────────────────────────────────── */
+
+.fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 6; }
+
+.fx-vignette {
+  position: absolute; inset: 0;
+  opacity: 0;
+  transition: opacity .5s ease;
+  background: radial-gradient(ellipse at center,
+    rgba(0,0,0,0) calc(46% - var(--squeeze, 20%) * 0.4),
+    rgba(8,1,20,0.55) 72%, rgba(6,0,16,0.95) 100%);
+}
+.fx-frost {
+  position: absolute; inset: 0; opacity: 0;
+  transition: opacity 1.2s ease;
+  background:
+    radial-gradient(circle at 8% 12%, rgba(190,225,245,0.30), transparent 26%),
+    radial-gradient(circle at 92% 18%, rgba(190,225,245,0.26), transparent 24%),
+    radial-gradient(circle at 14% 88%, rgba(190,225,245,0.24), transparent 22%),
+    radial-gradient(circle at 86% 84%, rgba(190,225,245,0.28), transparent 26%);
+  filter: blur(2px);
+}
+.fx-flash {
+  position: absolute; inset: 0; opacity: 0;
+  transition: opacity .9s ease;
+}
+
+/* Cinematic bars: the game asking for a moment. */
+.cine-bar {
+  position: fixed; left: 0; right: 0; height: 0;
+  background: #000; z-index: 12;
+  transition: height .8s cubic-bezier(.22,.61,.36,1);
+  pointer-events: none;
+}
+.cine-top { top: 0; }
+.cine-bottom { bottom: 0; }
+
+/* ── Points of interest ──────────────────────────────────────────────── */
+
+.poi-layer { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
+
+.poi-label {
+  position: absolute; top: 0; left: 0;
+  pointer-events: auto;
+  display: flex; align-items: center; gap: .42rem;
+  padding: .18rem .5rem .18rem .34rem;
+  background: linear-gradient(180deg, rgba(22,9,51,.82), rgba(13,2,33,.86));
+  border: 1px solid var(--line-soft);
+  border-radius: 2px;
+  color: var(--ink);
+  font: 600 11px/1 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color .18s, background .18s;
+  backdrop-filter: blur(2px);
+}
+.poi-label:hover { border-color: var(--chrome); background: rgba(30,12,64,.94); }
+.poi-pip {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--chrome);
+  box-shadow: 0 0 6px rgba(var(--chrome-rgb), .9);
+  flex: none;
+}
+.poi-dist { color: var(--data); font-weight: 700; font-size: 10px; letter-spacing: .02em; }
+.poi-peak .poi-pip { background: #7fd4e8; box-shadow: 0 0 6px rgba(127,212,232,.9); }
+.poi-peak .poi-text { color: rgba(214,194,255,.82); }
+.poi-warning .poi-pip { background: var(--bad); box-shadow: 0 0 8px rgba(224,90,58,.9); }
+.poi-camp .poi-pip, .poi-summit .poi-pip { width: 7px; height: 7px; }
+.poi-summit { border-color: rgba(var(--chrome-rgb), .55); }
+
+/* ── Cores ───────────────────────────────────────────────────────────── */
+
+.cores {
+  position: fixed;
+  left: var(--hud-pad); bottom: var(--hud-pad);
+  z-index: 10;
+}
+.core-canvas { display: block; }
+/* The ring captions (HEALTH, STAMINA, WARMTH, OXYGEN) sit directly on snow,
+   where a drop-shadow gives nothing. A dark halo does. */
+.core-wrap, .core-canvas { filter:
+  drop-shadow(0 0 3px rgba(6,0,16,.95)) drop-shadow(0 1px 6px rgba(6,0,16,.8)); }
+.core-note {
+  margin-top: .15rem;
+  font: 600 11px/1.3 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .10em; text-transform: uppercase;
+  color: var(--bad);
+  opacity: 0; transition: opacity .35s;
+  text-shadow: 0 1px 6px rgba(0,0,0,.9);
+  max-width: 300px;
+}
+.core-note[data-on="1"] { opacity: 1; }
+
+/* ── Instruments ─────────────────────────────────────────────────────
+   Collapsible, and genuinely see-through: the panel sits over the mountain,
+   so it is a pane of tinted glass with a hairline frame rather than a solid
+   card. Nothing in it is white — keys are magenta, values cyan, which is the
+   skin's own division of chrome from data.                              */
+
+.instruments {
+  /* A rail on the right margin, not a box in the corner. It holds the
+     altimeter, the readouts and the lat/long, and collapses to its header. */
+  position: fixed;
+  right: var(--hud-pad);
+  top: calc(var(--nav-h) + var(--hud-pad));
+  width: 268px; min-width: 268px;
+  max-height: calc(100vh - var(--nav-h) - var(--hud-pad) * 2);
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgba(22,9,51,.30), rgba(13,2,33,.40));
+  box-shadow: 0 0 24px rgba(var(--chrome-rgb), .12), 0 8px 26px rgba(0,0,0,.45);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+  z-index: 10;
+}
+
+.instr-head {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; gap: .8rem;
+  padding: .34rem .6rem;
+  background: rgba(var(--chrome-rgb), .06);
+  border: 0; border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+  font: 600 9px/1.4 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .22em; text-transform: uppercase;
+  color: var(--chrome);
+}
+.instr-head:hover { background: rgba(var(--chrome-rgb), .18); }
+.ih-chevron { transition: transform .22s ease; font-size: 11px; }
+.instruments[data-open="0"] .ih-chevron { transform: rotate(-90deg); }
+
+.instr-body { padding: .5rem .6rem .55rem; }
+.instruments[data-open="0"] .instr-grid { display: none; }
+.instruments[data-open="0"] .instr-body { padding-bottom: .45rem; }
+
+.instr-pos {
+  display: flex; flex-direction: column; gap: .12rem;
+  margin-top: .45rem; padding-top: .4rem;
+  border-top: 1px solid var(--line-soft);
+}
+.instr-pos .k {
+  font: 600 8px/1.4 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .22em; text-transform: uppercase; color: rgba(214,194,255,.62);
+}
+.instr-pos .v {
+  font: 600 11px/1.35 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .04em; color: var(--data);
+}
+
+.instr-alt {
+  display: flex; align-items: baseline; gap: .3rem;
+  border-bottom: 1px solid var(--line-soft);
+  padding-bottom: .3rem; margin-bottom: .4rem;
+}
+.instr-alt .v {
+  font: 400 29px/1 "Orbitron", "Audiowide", system-ui, sans-serif;
+  color: var(--data);
+  letter-spacing: .01em;
+  text-shadow: 0 0 14px rgba(var(--data-rgb), .28);
+}
+.instr-alt .u {
+  font-size: 11px; color: rgba(var(--data-rgb), .6);
+  letter-spacing: .12em;
+}
+/* The avalanche rating rides on the title row so it survives collapsing. */
+.instr-alt .instr-avy {
+  margin-left: auto; display: flex; flex-direction: column; align-items: flex-end;
+}
+.instr-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: .2rem .8rem;
+}
+.instr-grid > div { display: flex; justify-content: space-between; gap: .5rem; }
+.instr-grid .k, .instr-avy .k {
+  font: 600 9px/1.6 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(var(--chrome-rgb), .72);
+}
+.instr-grid .v, .instr-avy .v {
+  font: 600 12px/1.5 "Exo 2", system-ui, sans-serif;
+  color: var(--data);
+}
+.instr-avy .v[data-level="1"] { color: var(--good); }
+.instr-avy .v[data-level="2"] { color: #c9e86a; }
+.instr-avy .v[data-level="3"] { color: #ffc93c; }
+.instr-avy .v[data-level="4"] { color: #ff8a3c; }
+.instr-avy .v[data-level="5"] { color: var(--bad); text-shadow: 0 0 10px rgba(255,77,109,.7); }
+
+/* ── Compass ─────────────────────────────────────────────────────────── */
+
+.compass {
+  position: fixed;
+  left: 50%; bottom: calc(var(--hud-pad) + 1.3rem);
+  transform: translateX(-50%);
+  z-index: 10;
+  /* No plate. The dark backing panel was tried and rejected — over snow it
+     read as a black bar stuck on the mountain. Legibility now lives in the
+     glyphs themselves: the canvas strokes a heavy dark outline behind every
+     letter and marker, which works on any ground and vanishes as a shape. */
+  background: none;
+  border: 0;
+  padding: 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+/* ── Objective ───────────────────────────────────────────────────────── */
+
+.objective {
+  position: fixed; left: var(--hud-pad); top: var(--hud-pad);
+  padding-left: .6rem;
+  border-left: 2px solid var(--chrome);
+  z-index: 10;
+  text-shadow: 0 1px 8px rgba(0,0,0,.9);
+}
+.obj-eyebrow {
+  font: 600 9px/1.4 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .22em; text-transform: uppercase; color: rgba(214,194,255,.5);
+}
+.obj-name {
+  font: 400 19px/1.2 "Orbitron", "Audiowide", system-ui, sans-serif;
+  color: var(--ink);
+}
+.obj-meta {
+  font: 600 11px/1.5 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .06em; color: var(--data);
+}
+
+/* ── Control centre ──────────────────────────────────────────────────
+   One bar across the top holding the clock and every toggle. It is the
+   myGeoID shell's control strip, not a game menu: a hairline magenta frame
+   over a purple-black panel, uppercase letterspaced labels, cyan for
+   anything that is a value.                                            */
+
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h);
+  display: flex; align-items: stretch; gap: .1rem;
+  padding: 0 .55rem;
+  background: linear-gradient(180deg, rgba(22,9,51,.95), rgba(13,2,33,.90));
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 0 26px rgba(var(--chrome-rgb), .16), 0 6px 22px rgba(0,0,0,.55);
+  backdrop-filter: blur(6px);
+  z-index: 13;
+  pointer-events: auto;
+}
+
+.nav-brand {
+  display: flex; flex-direction: column; justify-content: center;
+  padding-right: .9rem; margin-right: .5rem;
+  border-right: 1px solid var(--line-soft);
+}
+.nav-mark {
+  font: 400 15px/1 "Orbitron", "Audiowide", system-ui, sans-serif;
+  color: var(--chrome);
+  letter-spacing: .12em;
+  text-shadow: 0 0 16px rgba(var(--chrome-rgb), .55);
+}
+.nav-sub {
+  font: 600 8px/1.4 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .34em; text-transform: uppercase;
+  color: rgba(214,194,255,.5);
+}
+
+.nav-clock {
+  display: flex; align-items: center; gap: .5rem;
+  padding-right: .9rem; margin-right: .5rem;
+  border-right: 1px solid var(--line-soft);
+}
+.nc-time {
+  font: 400 21px/1 "Orbitron", "Audiowide", system-ui, sans-serif;
+  color: var(--data);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .03em;
+}
+.nc-meta { display: flex; flex-direction: column; }
+.nc-meta b {
+  font: 600 9px/1.3 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--ink);
+}
+.nc-meta i {
+  font: 500 9px/1.3 "Exo 2", system-ui, sans-serif; font-style: normal;
+  letter-spacing: .16em; text-transform: uppercase; color: rgba(214,194,255,.55);
+}
+.navbar[data-night="1"] .nc-time { color: #9fc9ff; }
+
+.nav-tools {
+  flex: 1 1 auto; min-width: 0;
+  display: flex; align-items: center; gap: .22rem;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;
+}
+.nav-tools::-webkit-scrollbar { display: none; }
+
+.nav-btn {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: .34rem;
+  height: 28px; padding: 0 .55rem;
+  background: rgba(var(--chrome-rgb), .05);
+  border: 1px solid var(--line-soft);
+  border-radius: 2px;
+  color: rgba(214,194,255,.78);
+  cursor: pointer;
+  font: 600 10px/1 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .12em; text-transform: uppercase;
+  white-space: nowrap;
+  transition: color .15s, border-color .15s, background .15s, box-shadow .15s;
+}
+.nav-btn:hover { color: var(--ink); border-color: var(--line); background: rgba(var(--chrome-rgb), .13); }
+.nb-icon { font-size: 12px; line-height: 1; opacity: .85; }
+.nb-key {
+  font-size: 8px; letter-spacing: .1em;
+  color: rgba(214,194,255,.42);
+  border-left: 1px solid var(--line-soft);
+  padding-left: .34rem;
+}
+/* Active: a solid chrome fill with dark ink, which is what the Atlas dock
+   does and what the skin's active state looks like on the globe. */
+.nav-btn[data-on="1"] {
+  background: var(--chrome);
+  border-color: var(--chrome);
+  color: var(--chrome-ink);
+  box-shadow: 0 0 18px rgba(var(--chrome-rgb), .45);
+}
+.nav-btn[data-on="1"] .nb-key { color: rgba(43,0,48,.62); border-left-color: rgba(43,0,48,.28); }
+.nav-btn[data-warn="1"][data-on="1"] { background: var(--bad); border-color: var(--bad); box-shadow: 0 0 18px rgba(255,77,109,.5); }
+
+.nav-status {
+  display: flex; flex-direction: column; justify-content: center;
+  align-items: flex-end;
+  padding-left: .9rem; margin-left: .5rem;
+  border-left: 1px solid var(--line-soft);
+}
+.ns-alt {
+  font: 400 15px/1.1 "Orbitron", "Audiowide", system-ui, sans-serif;
+  color: var(--data);
+  font-variant-numeric: tabular-nums;
+}
+.ns-standing {
+  font: 600 8px/1.3 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .16em; text-transform: uppercase;
+  color: rgba(214,194,255,.5);
+}
+.ns-standing[data-tone="good"] { color: var(--good); }
+.ns-standing[data-tone="bad"] { color: var(--bad); }
+
+/* Everything else that lived at the top of the screen moves down under it. */
+.objective { top: calc(var(--nav-h) + .7rem) !important; }
+
+/* ── Notifications and subtitles ─────────────────────────────────────── */
+
+.notify {
+  position: fixed; left: 50%; bottom: calc(var(--hud-pad) + 3.2rem);
+  transform: translateX(-50%);
+  width: min(640px, 74vw);
+  display: flex; flex-direction: column; align-items: center; gap: .28rem;
+  z-index: 10;
+}
+.note {
+  font: 600 12px/1.45 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .10em; text-transform: uppercase;
+  color: var(--ink);
+  text-align: center;
+  text-shadow: 0 1px 10px rgba(0,0,0,.95);
+  animation: noteIn .45s cubic-bezier(.22,.61,.36,1);
+  transition: opacity .7s, transform .7s;
+}
+.note.out { opacity: 0; transform: translateY(-6px); }
+.note-warn { color: var(--chrome); }
+.note-bad { color: var(--bad); }
+.note-good { color: var(--good); }
+@keyframes noteIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.subtitle {
+  position: fixed; left: 50%; bottom: calc(var(--hud-pad) + 6.4rem);
+  transform: translateX(-50%);
+  width: min(760px, 82vw);
+  text-align: center;
+  font: 400 15px/1.55 "Exo 2", system-ui, sans-serif;
+  color: rgba(214,194,255,.94);
+  text-shadow: 0 2px 12px rgba(0,0,0,.98);
+  opacity: 0; transition: opacity .5s;
+  z-index: 10;
+}
+.subtitle.on { opacity: 1; }
+
+.prompt {
+  position: fixed; left: 50%; top: 58%;
+  transform: translateX(-50%);
+  font: 600 12px/1.5 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink);
+  text-shadow: 0 1px 10px rgba(0,0,0,.95);
+  opacity: 0; transition: opacity .25s;
+  text-align: center;
+  z-index: 10;
+}
+.prompt.on { opacity: 1; }
+.prompt kbd {
+  display: inline-block; min-width: 1.5em;
+  padding: .1em .38em; margin: 0 .18em;
+  border: 1px solid var(--chrome); border-radius: 2px;
+  color: var(--chrome); font: 700 11px/1.4 "Exo 2", system-ui, sans-serif;
+  background: rgba(var(--chrome-rgb),.10);
+}
+
+/* ── Radial wheel ────────────────────────────────────────────────────── */
+
+.wheel {
+  position: fixed; inset: 0;
+  display: none; place-items: center;
+  background: radial-gradient(circle at center, rgba(8,1,20,.28), rgba(8,1,20,.72));
+  z-index: 14;
+  backdrop-filter: blur(2px) saturate(.7);
+}
+.wheel.on { display: grid; animation: wheelIn .18s ease-out; }
+@keyframes wheelIn { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+.wheel canvas { filter: drop-shadow(0 10px 40px rgba(0,0,0,.8)); }
+.wheel-info {
+  position: absolute; left: 50%; bottom: 12%;
+  transform: translateX(-50%);
+  width: min(520px, 76vw); text-align: center;
+}
+.wi-name {
+  font: 400 20px/1.3 "Orbitron", "Audiowide", system-ui, sans-serif;
+  color: var(--chrome); text-shadow: 0 0 18px rgba(var(--chrome-rgb), .35);
+}
+.wi-desc {
+  margin: .35rem 0 .5rem;
+  font: 400 13px/1.6 "Exo 2", system-ui, sans-serif;
+  color: rgba(214,194,255,.86);
+}
+.wi-use {
+  font: 600 10px/1.4 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .16em; text-transform: uppercase; color: var(--ink-dim);
+}
+
+/* ── Journal ─────────────────────────────────────────────────────────── */
+
+.journal {
+  position: fixed; inset: 0;
+  display: none;
+  background: rgba(4, 2, 0, .86);
+  z-index: 16;
+  backdrop-filter: blur(6px);
+}
+.journal.on { display: grid; place-items: center; animation: wheelIn .2s ease-out; }
+.journal-inner {
+  width: min(920px, 92vw); height: min(76vh, 720px);
+  display: flex; flex-direction: column;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  box-shadow: 0 0 60px rgba(var(--chrome-rgb), .10), 0 20px 70px rgba(0,0,0,.8);
+  pointer-events: auto;
+}
+.journal-head {
+  padding: .9rem 1.2rem .5rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+.journal-title {
+  font: 400 22px/1.2 "Orbitron", "Audiowide", system-ui, sans-serif;
+  color: var(--chrome); text-shadow: 0 0 20px rgba(var(--chrome-rgb), .3);
+  margin-bottom: .55rem;
+}
+.journal-tabs { display: flex; gap: .3rem; flex-wrap: wrap; }
+.jt {
+  pointer-events: auto;
+  background: transparent; border: 1px solid var(--line-soft);
+  color: var(--ink-dim); cursor: pointer;
+  padding: .28rem .75rem; border-radius: 2px;
+  font: 600 10px/1.4 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .14em; text-transform: uppercase;
+  transition: all .16s;
+}
+.jt:hover { color: var(--ink); border-color: var(--line); }
+.jt.active { color: var(--ground); background: var(--chrome); border-color: var(--chrome); }
+.journal-body { flex: 1; overflow-y: auto; padding: 1rem 1.2rem; }
+.journal-foot {
+  padding: .5rem 1.2rem; border-top: 1px solid var(--line-soft);
+  font: 600 9px/1.4 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .18em; text-transform: uppercase; color: rgba(214,194,255,.4);
+}
+
+.j-lead { font: 400 14px/1.7 "Exo 2", system-ui, sans-serif; color: rgba(214,194,255,.85); margin: 0 0 1rem; }
+.j-lead b { color: var(--data); }
+.j-row {
+  display: grid; grid-template-columns: 1.4rem 1fr auto auto; gap: .8rem;
+  align-items: baseline;
+  padding: .34rem 0; border-bottom: 1px solid rgba(var(--chrome-rgb),.08);
+  font: 400 13px/1.4 "Exo 2", system-ui, sans-serif;
+  color: rgba(214,194,255,.62);
+}
+.j-row.camp .j-name { color: var(--ink); font-weight: 600; }
+.j-row.done .j-tick { color: var(--good); }
+.j-tick { color: rgba(var(--chrome-rgb),.35); }
+.j-alt { color: var(--ink-dim); font-size: 11px; letter-spacing: .06em; }
+.j-dist { color: var(--data); font-size: 11px; font-weight: 600; min-width: 4.5rem; text-align: right; }
+
+.j-forecast { display: grid; grid-template-columns: repeat(5, 1fr); gap: .5rem; margin-bottom: 1rem; }
+.j-fc {
+  border: 1px solid var(--line-soft); padding: .55rem .5rem; text-align: center;
+}
+.fc-day { font: 600 10px/1.4 "Exo 2"; letter-spacing: .14em; color: rgba(214,194,255,.5); }
+.fc-state { font: 600 13px/1.5 "Exo 2"; color: var(--ink); }
+.fc-wind { font: 700 15px/1.4 "Exo 2"; }
+.fc-wind.ok { color: var(--good); }
+.fc-wind.warn { color: var(--chrome); }
+.fc-wind.bad { color: var(--bad); }
+.fc-conf { font: 600 9px/1.4 "Exo 2"; letter-spacing: .1em; color: rgba(214,194,255,.4); }
+.j-now { font: 400 12px/1.7 "Exo 2"; color: rgba(214,194,255,.7); }
+.j-now b { color: var(--chrome); }
+
+.j-place { margin-bottom: 1.1rem; }
+.j-place h4 {
+  margin: 0 0 .2rem;
+  font: 600 13px/1.4 "Exo 2"; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--chrome);
+}
+.j-place p { margin: 0; font: 400 13px/1.7 "Exo 2"; color: rgba(214,194,255,.78); }
+
+.j-body-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: .5rem; }
+.j-body-grid > div {
+  display: flex; justify-content: space-between; align-items: baseline;
+  border: 1px solid var(--line-soft); padding: .4rem .6rem;
+}
+.j-body-grid span { font: 600 10px/1.4 "Exo 2"; letter-spacing: .12em; text-transform: uppercase; color: rgba(214,194,255,.5); }
+.j-body-grid b { font: 600 14px/1.3 "Exo 2"; color: var(--data); }
+
+.j-log p {
+  margin: 0 0 .55rem; padding-left: .7rem;
+  border-left: 1px solid var(--line-soft);
+  font: 400 13px/1.65 "Exo 2"; color: rgba(214,194,255,.76);
+}
+.j-empty { color: rgba(214,194,255,.4) !important; border: 0 !important; }
+
+/* ── Reader ──────────────────────────────────────────────────────────── */
+
+.reader {
+  position: fixed; inset: 0;
+  display: none; place-items: center;
+  background: rgba(8,1,20,.72);
+  z-index: 15; backdrop-filter: blur(5px);
+}
+.reader.on { display: grid; animation: wheelIn .2s ease-out; }
+.reader-inner {
+  width: min(620px, 90vw);
+  padding: 1.4rem 1.6rem 1.2rem;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  box-shadow: 0 0 50px rgba(var(--chrome-rgb), .12), 0 18px 60px rgba(0,0,0,.8);
+  pointer-events: auto;
+}
+.reader-kind {
+  font: 600 9px/1.4 "Exo 2"; letter-spacing: .24em; text-transform: uppercase;
+  color: var(--data);
+}
+.reader-inner h2 {
+  margin: .25rem 0 .35rem;
+  font: 400 26px/1.2 "Orbitron", "Audiowide", system-ui, sans-serif;
+  color: var(--ink);
+}
+.reader-meta {
+  font: 600 11px/1.5 "Exo 2"; letter-spacing: .08em;
+  color: rgba(214,194,255,.5); margin-bottom: .9rem;
+}
+.reader-inner p {
+  margin: 0 0 1.1rem;
+  font: 400 15px/1.75 "Exo 2"; color: rgba(214,194,255,.88);
+}
+.reader-close {
+  pointer-events: auto;
+  background: var(--chrome); color: var(--ground); border: 0;
+  padding: .42rem 1.1rem; border-radius: 2px; cursor: pointer;
+  font: 700 11px/1.4 "Exo 2"; letter-spacing: .16em; text-transform: uppercase;
+}
+.reader-close:hover { background: var(--ink); }
+
+/* ── Title screen ────────────────────────────────────────────────────── */
+
+#title {
+  position: fixed; inset: 0; z-index: 30;
+  display: grid; place-items: center;
+  background:
+    radial-gradient(ellipse at 50% 120%, rgba(var(--data-rgb),.12), transparent 60%),
+    linear-gradient(180deg, #12002b 0%, var(--ground) 55%, #1b0640 100%);
+  transition: opacity .9s ease, visibility .9s;
+}
+#title.gone { opacity: 0; visibility: hidden; }
+.title-inner { width: min(760px, 90vw); text-align: center; padding: 2rem; }
+.title-mark {
+  font: 600 10px/1.4 "Exo 2"; letter-spacing: .42em; text-transform: uppercase;
+  color: var(--data); margin-bottom: 1.1rem;
+}
+.title-name {
+  font: 400 clamp(46px, 11vw, 104px)/0.95 "Orbitron", "Audiowide", system-ui, sans-serif;
+  color: var(--ink);
+  letter-spacing: .04em;
+  text-shadow: 0 0 60px rgba(var(--chrome-rgb), .30);
+  margin: 0;
+}
+.title-sub {
+  margin: .5rem 0 1.6rem;
+  font: 400 clamp(13px, 1.7vw, 16px)/1.6 "Exo 2";
+  color: rgba(214,194,255,.66);
+  letter-spacing: .12em; text-transform: uppercase;
+}
+.title-blurb {
+  margin: 0 auto 1.8rem; max-width: 56ch;
+  font: 400 14px/1.75 "Exo 2"; color: rgba(214,194,255,.74);
+}
+.title-actions { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+.btn {
+  pointer-events: auto;
+  background: transparent; color: var(--chrome);
+  border: 1px solid var(--chrome); border-radius: 2px;
+  padding: .6rem 1.5rem; cursor: pointer;
+  font: 700 11px/1.4 "Exo 2"; letter-spacing: .18em; text-transform: uppercase;
+  transition: all .18s;
+}
+.btn:hover { background: var(--chrome); color: var(--ground); box-shadow: 0 0 24px rgba(var(--chrome-rgb), .35); }
+.btn.ghost { border-color: var(--line); color: var(--ink-dim); }
+.btn.ghost:hover { background: rgba(var(--chrome-rgb),.12); color: var(--ink); box-shadow: none; }
+
+.title-progress {
+  margin-top: 1.7rem;
+  font: 600 10px/1.6 "Exo 2"; letter-spacing: .18em; text-transform: uppercase;
+  color: rgba(214,194,255,.5);
+}
+.title-bar {
+  margin: .5rem auto 0; width: min(420px, 80vw); height: 2px;
+  background: rgba(var(--chrome-rgb),.16);
+}
+.title-bar span {
+  display: block; height: 100%; width: 0%;
+  background: var(--chrome);
+  box-shadow: 0 0 12px rgba(var(--chrome-rgb), .7);
+  transition: width .3s ease;
+}
+.title-credit {
+  margin-top: 2rem;
+  font: 400 10px/1.7 "Exo 2"; color: rgba(214,194,255,.34);
+  max-width: 60ch; margin-inline: auto;
+}
+.title-credit a { color: rgba(var(--chrome-rgb),.6); }
+
+/* ── Controls sheet ──────────────────────────────────────────────────── */
+
+#controls {
+  position: fixed; inset: 0; z-index: 20;
+  display: none; place-items: center;
+  background: rgba(8,1,20,.88); backdrop-filter: blur(6px);
+}
+#controls.on { display: grid; }
+.controls-inner {
+  width: min(720px, 92vw);
+  background: var(--panel-solid); border: 1px solid var(--line);
+  padding: 1.4rem 1.6rem; pointer-events: auto;
+}
+.controls-inner h3 {
+  margin: 0 0 1rem;
+  font: 400 22px/1.2 "Orbitron", "Audiowide", system-ui, sans-serif; color: var(--chrome);
+}
+.key-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: .35rem 1.4rem; }
+.key-row { display: flex; justify-content: space-between; gap: 1rem; align-items: baseline;
+  padding: .22rem 0; border-bottom: 1px solid rgba(var(--chrome-rgb),.08); }
+.key-row b { font: 600 11px/1.5 "Exo 2"; letter-spacing: .1em; color: var(--chrome); white-space: nowrap; }
+.key-row span { font: 400 12px/1.5 "Exo 2"; color: rgba(214,194,255,.72); text-align: right; }
+
+/* ── End card ────────────────────────────────────────────────────────── */
+
+#endcard {
+  position: fixed; inset: 0; z-index: 22;
+  display: none; place-items: center;
+  background: rgba(6,0,16,.94);
+  transition: opacity 1.4s;
+}
+#endcard.on { display: grid; }
+.end-inner { width: min(680px, 90vw); text-align: center; padding: 2rem; }
+.end-title {
+  font: 400 clamp(30px, 6vw, 56px)/1.1 "Orbitron", "Audiowide", system-ui, sans-serif;
+  color: var(--ink); margin: 0 0 .6rem;
+}
+.end-sub { font: 400 15px/1.8 "Exo 2"; color: rgba(214,194,255,.76); margin: 0 auto 1.6rem; max-width: 54ch; }
+.end-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: .5rem; margin-bottom: 1.6rem; }
+.end-stats > div { border: 1px solid var(--line-soft); padding: .5rem; }
+.end-stats span { display: block; font: 600 9px/1.4 "Exo 2"; letter-spacing: .16em; text-transform: uppercase; color: rgba(214,194,255,.5); }
+.end-stats b { font: 400 20px/1.3 "Orbitron", "Audiowide", system-ui, sans-serif; color: var(--data); }
+
+/* ── Small screens ───────────────────────────────────────────────────── */
+
+@media (max-width: 780px) {
+  .instruments { min-width: 0; transform: scale(.86); transform-origin: bottom right; }
+  .cores { transform: scale(.82); transform-origin: bottom left; }
+  .compass { display: none; }
+  .j-forecast { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-height: 560px) {
+  .objective, .standing { font-size: 10px; }
+  .obj-name { font-size: 15px; }
+}
+
+/* ── The control panel — the Etna explorer's #ui, transplanted ──────────
+   Etna keeps ALL of its chrome in one left sidebar: brand banner on top, a
+   scrolling body of sections beneath, a bordered collapse button in the
+   header, and — when dismissed — a slim vertical tab pinned mid-edge to
+   bring it back (1px accent border with the edge side removed, .55rem outer
+   radius, panel fill, 0.28s cubic-bezier slide). This is that layout with
+   this skin's palette. The old top strip is gone; every toggle, the clock,
+   the instruments and the position readout live in the panel. */
+.navbar {
+  position: fixed;
+  left: 1.25rem; top: 1.25rem;
+  /* Every geometry property the old top-strip block sets must be reset here
+     explicitly, because that block is still in the file above and ties on
+     specificity. `height: var(--nav-h)` was the killer: it clipped this
+     panel to a 46 px stub — brand row visible, collapse button, tools and
+     instruments all cut off by overflow. The user saw "no collapsible bar"
+     because the button was physically outside the visible 46 px. */
+  right: auto; bottom: auto;
+  height: auto;
+  width: 19rem;
+  max-height: calc(100vh - 2.5rem);
+  display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--chrome-rgb), .32) transparent;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-radius: .9rem;
+  box-shadow: 0 18px 42px rgba(0,0,0,.52),
+              0 0 0 1px rgba(var(--chrome-rgb), .18),
+              0 0 28px rgba(var(--chrome-rgb), .14),
+              inset 0 1px 0 rgba(255,255,255,.06);
+  z-index: 13;
+  padding: 0;
+  transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+}
+.navbar.is-hidden {
+  transform: translateX(calc(-100% - 2rem));
+  pointer-events: none;
+}
+.nav-brand {
+  display: flex; align-items: baseline; gap: .5rem;
+  padding: .8rem .9rem .6rem;
+  border-bottom: 1px solid var(--line-soft);
+  background: linear-gradient(180deg, rgba(var(--chrome-rgb), .10), transparent);
+}
+.nav-brand .nav-mark { font: 400 20px/1 "Orbitron", "Audiowide", system-ui, sans-serif; color: var(--ink); }
+.nav-brand .nav-sub { font: 600 9px/1 "Exo 2", system-ui, sans-serif; letter-spacing: .3em;
+  text-transform: uppercase; color: var(--chrome); }
+.nav-clock {
+  display: flex; align-items: baseline; gap: .6rem;
+  padding: .5rem .9rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+.nav-tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .3rem;
+  padding: .55rem .7rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+.nav-status {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .45rem .9rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+/* Reopen tab — Etna's #nav-tab verbatim: left edge, vertical, mid-height. */
+.nav-tab {
+  position: fixed;
+  top: 50%; left: 0;
+  transform: translateY(-50%);
+  z-index: 11;
+  background: var(--panel-solid);
+  border: 1px solid var(--line);
+  border-left: 0;
+  border-radius: 0 .55rem .55rem 0;
+  padding: .85rem .34rem;
+  writing-mode: vertical-rl;
+  color: var(--chrome);
+  font: 600 10px/1.3 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .18em; text-transform: uppercase;
+  cursor: pointer; pointer-events: auto;
+  box-shadow: 0 6px 18px rgba(0,0,0,.4);
+  transition: background .15s, border-color .15s;
+}
+.nav-tab:hover { background: rgba(var(--chrome-rgb), .14); border-color: rgba(var(--chrome-rgb), .82); }
+
+/* Collapse button — Etna's #nav-collapse-btn. */
+.nav-hide {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.55rem; height: 1.55rem;
+  border: 1px solid rgba(var(--chrome-rgb), .72);
+  border-radius: .42rem;
+  background: none; color: var(--chrome);
+  font-size: 1rem; line-height: 1; padding: 0;
+  cursor: pointer; margin-left: auto;
+  transition: background .15s, border-color .15s;
+}
+.nav-hide:hover { background: rgba(var(--chrome-rgb), .12); border-color: rgba(var(--chrome-rgb), .64); }
+
+/* Instruments docked as a panel section: floating chrome stripped. */
+.instruments.in-panel {
+  position: static;
+  width: auto; min-width: 0; max-height: none;
+  border: 0; border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  overflow: visible;
+}
+
+/* ── Binocular mask ─────────────────────────────────────────────────────
+   Canvas painted by hud.js: black field, two feathered circles cut out.
+   Above the scene and labels, below the control panel, mouse-transparent. */
+.binoc-mask {
+  position: fixed; inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+/* ── Map view — interactive, Etna label furniture ──────────────────────── */
+.map-view {
+  position: fixed; inset: 0;
+  z-index: 17;
+  user-select: none; -webkit-user-select: none;
+  display: flex; flex-direction: column; align-items: center;
+  background: rgba(6, 0, 16, .93);
+  pointer-events: auto;
+}
+.mv-head {
+  display: flex; align-items: center; gap: .5rem;
+  width: min(94vw, 1280px);
+  padding: .7rem .2rem .5rem;
+}
+.mv-title { font: 400 18px/1 "Orbitron", "Audiowide", system-ui, sans-serif; color: var(--ink); }
+.mv-hint { font: 600 9px/1.4 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .2em; text-transform: uppercase; color: var(--ink-dim); margin-right: auto; }
+.mv-btn {
+  width: 1.55rem; height: 1.55rem;
+  border: 1px solid rgba(var(--chrome-rgb), .72); border-radius: .42rem;
+  background: none; color: var(--chrome); cursor: pointer;
+  font-size: 12px; line-height: 1;
+}
+.mv-btn:hover { background: rgba(var(--chrome-rgb), .12); }
+.mv-frame {
+  position: relative;
+  width: min(94vw, 1280px); height: 74vh;
+  border: 1px solid var(--line); border-radius: .6rem;
+  overflow: hidden;
+  cursor: grab;
+  background: #070310;
+  box-shadow: 0 18px 42px rgba(0,0,0,.52);
+  touch-action: none;
+}
+.mv-frame:active { cursor: grabbing; }
+.mv-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.mv-img { display: block; user-select: none; pointer-events: none; image-rendering: auto; }
+.mv-pins { position: absolute; inset: 0; }
+
+/* The Etna label, in DOM: ground dot, leader stem, accent-barred pill.
+   Counter-scaled by --invk about its own anchor so the dot stays welded to
+   the geography while the pill keeps constant screen size — the behaviour
+   of Etna's 3D sprite labels, transplanted. */
+.mv-pin {
+  position: absolute; width: 0; height: 0;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  transform: scale(var(--invk, 1));
+  transform-origin: 0 0;
+  pointer-events: auto;
+}
+.pin-dot {
+  position: absolute; left: -4px; top: -4px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--chrome);
+  border: 1.5px solid #fff;
+  box-shadow: 0 0 8px rgba(var(--chrome-rgb), .9);
+}
+.pin-stem {
+  position: absolute; left: -0.5px; top: -22px;
+  width: 1px; height: 18px;
+  background: rgba(255,255,255,.55);
+}
+.pin-pill {
+  position: absolute; left: 0; top: -22px;
+  transform: translate(-50%, -100%);
+  display: inline-block;
+  white-space: nowrap;
+  padding: .28rem .7rem .28rem .55rem;
+  border: 1.6px solid var(--line);
+  border-left: 5px solid var(--chrome);
+  border-radius: 999px;
+  background: rgba(13, 2, 33, .88);
+  color: var(--ink);
+  font: 600 11px/1 "Orbitron", "Exo 2", system-ui, sans-serif;
+  letter-spacing: .04em;
+}
+.mv-pin:hover .pin-pill { border-color: var(--chrome); background: rgba(30,12,64,.95); }
+.mv-pin[data-kind="peak"] .pin-dot { background: #7fd4e8; box-shadow: 0 0 8px rgba(127,212,232,.9); }
+.mv-pin[data-kind="peak"] .pin-pill { border-left-color: #7fd4e8; }
+.mv-pin[data-kind="warning"] .pin-dot { background: var(--bad); }
+.mv-pin[data-kind="warning"] .pin-pill { border-left-color: var(--bad); }
+
+.mv-pop {
+  position: fixed; left: 50%; bottom: 4vh; transform: translateX(-50%);
+  width: min(480px, 90vw);
+  padding: .9rem 1rem;
+  background: var(--panel-solid);
+  border: 1px solid var(--line); border-radius: .6rem;
+  box-shadow: 0 12px 34px rgba(0,0,0,.6);
+  z-index: 18;
+}
+.mv-pop-name { font: 400 16px/1.2 "Orbitron", system-ui, sans-serif; color: var(--ink); }
+.mv-pop-meta { font: 600 10px/1.6 "Exo 2", system-ui, sans-serif; color: var(--data); }
+.mv-pop-text { font: 400 12px/1.55 "Exo 2", system-ui, sans-serif;
+  color: var(--ink-dim); margin: .4rem 0 .7rem; }
+.mv-pop-actions { display: flex; gap: .5rem; }
+
+
+/* ── Info bar — the instruments, repackaged ─────────────────────────────
+   One strip under the compass in the flight sim's readout idiom: label in
+   faint caps, value in data ink, dark chip behind each segment so it holds
+   on snow without becoming the black plate the compass rejected. */
+.info-bar {
+  position: fixed;
+  left: 50%; bottom: calc(var(--hud-pad) - .55rem);
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex; align-items: stretch; gap: .3rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.info-bar .ib-seg {
+  display: inline-flex; align-items: baseline; gap: .34rem;
+  padding: .24rem .55rem;
+  background: rgba(8, 1, 20, .58);
+  border: 1px solid rgba(214, 202, 255, .14);
+  border-radius: 5px;
+  backdrop-filter: blur(3px);
+}
+.info-bar .k {
+  font: 700 9px "Exo 2", system-ui, sans-serif;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-faint, rgba(214, 202, 255, .55));
+}
+.info-bar .v {
+  font: 700 12px "Exo 2", system-ui, sans-serif;
+  color: var(--data, #7fd4e8);
+  font-variant-numeric: tabular-nums;
+}
+.info-bar .u {
+  font: 700 9px "Exo 2", system-ui, sans-serif;
+  color: var(--ink-faint, rgba(214, 202, 255, .55));
+}
+.info-bar .ib-alt .v { font-size: 14px; color: var(--accent, #ff2fd6); }
+@media (max-width: 900px) { .info-bar { display: none; } }
+
+
+/* ── Footer collapse for the compass + info bar ─────────────────────────
+   The bars slide down past the edge; the arrow tab stays, flipped. */
+.compass, .info-bar {
+  transition: transform .28s ease, opacity .28s ease;
+}
+body.bars-hidden .compass { transform: translateX(-50%) translateY(220%); opacity: 0; pointer-events: none; }
+body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opacity: 0; pointer-events: none; }
+.bars-tab {
+  position: fixed;
+  left: 50%; bottom: 0;
+  transform: translateX(-50%);
+  z-index: 11;
+  width: 44px; height: 15px;
+  display: flex; align-items: center; justify-content: center;
+  font: 700 10px "Exo 2", system-ui, sans-serif;
+  color: var(--ink-faint, rgba(214, 202, 255, .6));
+  background: rgba(8, 1, 20, .58);
+  border: 1px solid rgba(214, 202, 255, .14);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  user-select: none;
+}
+.bars-tab:hover { color: var(--data, #7fd4e8); }

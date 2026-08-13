@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- The modules bust their own cache via ?v= (tools/stamp.py), but this
+     page has no stamp on its own URL — so it must revalidate, or the
+     browser serves a cached copy still pointing at the old stamps. -->
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ASCENT — Everest · GeoID Initiative</title>
+<meta name="description" content="A hyper-real ascent of Mount Everest, built on live satellite imagery and elevation data. Weather, avalanches, crevasses, oxygen and the death zone.">
+<link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://server.arcgisonline.com">
+<link rel="preconnect" href="https://s3.amazonaws.com">
+<link rel="stylesheet" href="/styles/viewer-skin.css">
+<link rel="stylesheet" href="everest.css?v=901165e-10e9c71d">
+
+<!-- ── The reset switch, and why it has to exist ─────────────────────────────
+     A site-wide service worker is registered at the root of this origin
+     (/sw.js, scope "/"), so it controls this page whether or not this page
+     asked for it. A service worker is not cleared by a hard reload: Ctrl+Shift+R
+     bypasses the HTTP cache, but the worker still sits in front of the network
+     and answers from its own store. An old worker — registered on some earlier
+     visit to another part of the site, back when it was cache-first for JS —
+     will happily serve a build from hours ago and no amount of reloading will
+     shift it. That is exactly the shape of "unchanged in Chrome, fine in the
+     other browser": one profile has the worker registered and the other does
+     not.
+
+     So: /everest/?reset unregisters every worker on this origin, deletes every
+     cache, and reloads clean. Runs before the module script, so nothing stale
+     is imported on the way through. -->
+<script>
+if (location.search.includes("reset")) {
+  document.write("<p style='font:14px monospace;color:#fdf7ff;background:#0d0221;"
+    + "padding:20px;margin:0'>Clearing service workers and caches…</p>");
+  (async () => {
+    try {
+      const regs = await (navigator.serviceWorker?.getRegistrations?.() ?? []);
+      await Promise.all([...regs].map((r) => r.unregister()));
+      const keys = await (self.caches?.keys?.() ?? []);
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch (e) { /* nothing to clear, or storage blocked — reload anyway */ }
+    location.replace(location.pathname + "?fresh=" + Date.now());
+  })();
+} else {
+  /* Otherwise: say so, do not act. Unregistering on every visit would strip
+     the worker from the whole origin — it is scoped to "/" — and the rest of
+     the site is entitled to keep it. The current worker (v39) is network-first
+     for HTML and for code, so it is not the problem; an *older* registered
+     copy would be, and only the person seeing the stale build can tell. So
+     this reports, and offers the switch. */
+  addEventListener("DOMContentLoaded", () => {
+    if (!navigator.serviceWorker?.controller) return;
+    const w = document.createElement("div");
+    w.innerHTML = "a service worker is serving this page &mdash; "
+      + "<a href='?reset' style='color:#0d0221;text-decoration:underline'>clear it</a>";
+    w.style.cssText = "position:fixed;left:50%;top:8px;transform:translateX(-50%);"
+      + "z-index:100002;padding:6px 12px;border-radius:3px;background:#ffd400;"
+      + "color:#0d0221;font:600 11px/1.3 ui-monospace,monospace";
+    document.body.appendChild(w);
+  });
+}
+
+/* The build stamp, on screen. Half of today went into arguing about whether a
+   change had reached the browser at all; a number you can read off the corner
+   settles that in one glance instead of one round trip. Taken from the
+   stylesheet href, which tools/stamp.py rewrites on every build. */
+addEventListener("DOMContentLoaded", () => {
+  const href = document.querySelector('link[href*="everest.css"]')?.href || "";
+  const el = document.createElement("div");
+  el.textContent = "build " + (href.split("?v=")[1] || "unstamped");
+  el.style.cssText = "position:fixed;right:8px;bottom:6px;z-index:100001;"
+    + "font:10px/1 ui-monospace,monospace;letter-spacing:.08em;opacity:.55;"
+    + "color:#00e5ff;pointer-events:none;text-shadow:0 1px 3px #000";
+  document.body.appendChild(el);
+});
+</script>
+</head>
+<body>
+
+<canvas class="scene" id="scene"></canvas>
+
+<div id="hud"></div>
+
+<!-- ── Title ──────────────────────────────────────────────────────────── -->
+<div id="title">
+  <div class="title-inner">
+    <div class="title-mark">GeoID Initiative</div>
+    <h1 class="title-name">ASCENT</h1>
+    <div class="title-sub">Everest · 27.9894° N, 86.9254° E · 8,848.86 m</div>
+    <p class="title-blurb">
+      The mountain you are about to walk up is the real one. The ground is Esri's
+      satellite imagery streamed to half a metre a pixel, draped over an elevation
+      model read tile by tile out of the same web services a GIS uses. The route
+      was not drawn by hand — it was found by asking that elevation model for the
+      least-effort line from Base Camp to the summit, and it came back with the
+      South Col route.
+      <br><br>
+      Above 8,000 metres the air holds a third of the oxygen it does at the sea.
+      Nothing acclimatises to that. Everything else here follows from it.
+    </p>
+    <div class="title-actions">
+      <button class="btn" id="btn-start" disabled>Loading…</button>
+      <button class="btn ghost" id="btn-controls">Controls</button>
+      <a class="btn ghost" href="/myGeoID/">myGeoID</a>
+    </div>
+    <div class="title-progress" id="prog-text">Contacting the tile services</div>
+    <div class="title-bar"><span id="prog-bar"></span></div>
+    <p class="title-credit">
+      Imagery: Esri, Vantor, Earthstar Geographics and the GIS User Community —
+      streamed for viewing only, under the Esri Master License Agreement.
+      Elevation: Mapzen Terrain Tiles on AWS Open Data (SRTM, ASTER and national
+      sources). Both are read live; nothing is cached to disk.
+      <br>
+      This is a game. It is not a route description, a training aid, or advice of
+      any kind about a mountain that has killed more than three hundred people.
+    </p>
+  </div>
+</div>
+
+<!-- ── Controls ───────────────────────────────────────────────────────── -->
+<div id="controls">
+  <div class="controls-inner">
+    <h3>Controls</h3>
+    <div class="key-grid">
+      <div class="key-row"><b>W A S D</b><span>Move</span></div>
+      <div class="key-row"><b>Mouse</b><span>Look — click the world first</span></div>
+      <div class="key-row"><b>Shift</b><span>Push hard — costs more</span></div>
+      <div class="key-row"><b>Ctrl</b><span>Stop and get your breath</span></div>
+      <div class="key-row"><b>Space</b><span>Probe the snow ahead / prusik / dig</span></div>
+      <div class="key-row"><b>E</b><span>Arrive, rest, read, help</span></div>
+      <div class="key-row"><b>Q</b><span>Item wheel — time slows</span></div>
+      <div class="key-row"><b>← →</b><span>Oxygen flow, in the wheel</span></div>
+      <div class="key-row"><b>Enter</b><span>Use the selected item</span></div>
+      <div class="key-row"><b>R</b><span>Rope up / untie</span></div>
+      <div class="key-row"><b>L</b><span>Head torch — the battery is finite</span></div>
+      <div class="key-row"><b>F</b><span>Fire a signal flare</span></div>
+      <div class="key-row"><b>V</b><span>First / third person</span></div>
+      <div class="key-row"><b>N</b><span>Fixed line on / off</span></div>
+      <div class="key-row"><b>Tab</b><span>Field journal</span></div>
+      <div class="key-row"><b>M</b><span>Map — the navigation hub, with fast travel</span></div>
+      <div class="key-row"><b>T</b><span>Place labels on / off</span></div>
+      <div class="key-row"><b>O</b><span>Oxygen regulator — cycles 0 / 1 / 2 / 4 L/min</span></div>
+      <div class="key-row"><b>B</b><span>Binoculars</span></div>
+      <div class="key-row"><b>← ↑ ↓ →</b><span>Look, without the mouse</span></div>
+      <div class="key-row"><b>`</b><span>Hide / show the control panel</span></div>
+      <div class="key-row"><b>Bar</b><span>Every toggle is also a button, top of screen</span></div>
+      <div class="key-row"><b>H</b><span>This list</span></div>
+      <div class="key-row"><b>Esc</b><span>Release the mouse</span></div>
+    </div>
+    <div style="margin-top:1.2rem">
+      <button class="btn" id="btn-controls-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── End card ───────────────────────────────────────────────────────── -->
+<div id="endcard">
+  <div class="end-inner">
+    <h2 class="end-title"></h2>
+    <p class="end-sub"></p>
+    <div class="end-stats"></div>
+    <div class="title-actions">
+      <button class="btn" onclick="location.reload()">Again</button>
+      <a class="btn ghost" href="/myGeoID/">Back to myGeoID</a>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { Game } from "./game/main.js?v=901165e-10e9c71d";
+
+const canvas = document.getElementById("scene");
+const hudRoot = document.getElementById("hud");
+const title = document.getElementById("title");
+const startBtn = document.getElementById("btn-start");
+const progText = document.getElementById("prog-text");
+const progBar = document.getElementById("prog-bar");
+
+document.getElementById("btn-controls").addEventListener("click", () => {
+  document.getElementById("controls").classList.add("on");
+});
+document.getElementById("btn-controls-close").addEventListener("click", () => {
+  document.getElementById("controls").classList.remove("on");
+});
+
+const game = new Game(canvas, hudRoot);
+window.__ascent = game;      // for the harness, and for anyone curious
+
+/* Headless driving. Only with ?shot, and only ever additive — the game does
+   not behave differently because these exist. */
+if (game.headless) {
+  const { llToLocal } = await import("./game/geo.js?v=901165e-10e9c71d");
+  window.__drive = {
+    game,
+    run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
+    settle: async (ms = 15000) => {
+      const tiles = await import("./game/tiles.js?v=901165e-10e9c71d");
+      const end = performance.now() + ms;
+      let quiet = 0;
+      while (performance.now() < end) {
+        game.tick(1 / 30);
+        const busy = tiles.pending() > 0 || game.imagery.rebuilding || game.field.rebuilding;
+        quiet = busy ? 0 : quiet + 1;
+        if (quiet > 14) break;
+        await new Promise((r) => setTimeout(r, 55));
+      }
+      return quiet;
+    },
+    teleport: (lat, lon, yawDeg = null) => {
+      const p = llToLocal(lat, lon);
+      game.player.placeAt(p.x, p.z, yawDeg == null ? game.player.yaw : yawDeg * Math.PI / 180);
+      game.field.update(p.x, p.z);
+      game.imagery.update(p.x, p.z);
+      game.glacier.update(p.x, p.z, true);
+      game.glacier.bindTerrain(game.terrain.uniforms);
+      game.terrain.invalidate();
+    },
+    setHour: (h, day = 28) => {
+      game.date = new Date(Date.UTC(2026, 4, day, 0, 0) + (h - 5.75) * 3600000);
+    },
+    /* Shader compile errors are the failure mode that looks least like one.
+       A material whose program will not link still issues every draw call it
+       was going to — so the geometry count, the uniforms and the bound
+       textures all read correct, and the only symptom is that the pixels are
+       black. That cost a long detour reading back framebuffers when the
+       answer was one line in the console. Check it first, always. */
+    shaderErrors: () => {
+      // three keeps every compiled program in `info.programs` and hangs a
+      // `diagnostics` object on any that failed to link. That is the record
+      // to read — `properties.get(material).currentProgram` is three's own
+      // wrapper, not a raw WebGLProgram, and gl calls reject it.
+      const gl = game.renderer.getContext();
+      return (game.renderer.info.programs || []).flatMap((p) => {
+        if (p.diagnostics && !p.diagnostics.runnable) {
+          return [`${p.name || "(shader)"}: ${p.diagnostics.programLog} ` +
+                  `${p.diagnostics.fragmentShader?.log || ""} ${p.diagnostics.vertexShader?.log || ""}`.trim()];
+        }
+        if (p.program && !gl.getProgramParameter(p.program, gl.LINK_STATUS)) {
+          return [`${p.name || "(shader)"}: ${gl.getProgramInfoLog(p.program)}`];
+        }
+        return [];
+      });
+    },
+    snap: async (name, w = 960, h = 540) => {
+      game.renderer.setSize(w, h, false);
+      game.camera.aspect = w / h; game.camera.updateProjectionMatrix();
+      game.tick(1 / 30); game.tick(1 / 30);
+      const url = game.renderer.domElement.toDataURL("image/jpeg", 0.86);
+      game.resize();          // or the canvas stays at the capture size
+      try {
+        return await (await fetch("http://127.0.0.1:8199/" + name, { method: "POST", body: url })).text();
+      } catch (e) { return "sink error: " + e.message; }
+    },
+  };
+}
+
+try {
+  await game.boot((frac, what) => {
+    progBar.style.width = `${Math.round(frac * 100)}%`;
+    progText.textContent = what;
+  });
+  startBtn.disabled = false;
+  startBtn.textContent = "Leave Base Camp";
+  progText.textContent = "05:20 · one hour before it gets light";
+} catch (err) {
+  progText.textContent = "Could not reach the tile services — " + err.message;
+  console.error(err);
+}
+
+startBtn.addEventListener("click", () => {
+  title.classList.add("gone");
+  game.start();
+  setTimeout(() => game.lockPointer(), 300);
+  game.hud.say(
+    "Base Camp, 5,364 metres, an hour before light. The Icefall starts about " +
+    "four hundred metres up the glacier and the Doctors have had the route " +
+    "open since March. Rope up before you go into it — press R.", 15);
+});
+</script>
+</body>
+</html>
