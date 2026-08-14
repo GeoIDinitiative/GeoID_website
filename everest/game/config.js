@@ -252,13 +252,19 @@ export const CLIPMAP = {
    through the Yellow Band and Geneva Spur at col latitude, and the summit
    is at its surveyed 27.98806 N, 86.92528 E. */
 export const ROUTE = [
+  /* The lower half is fitted to THIS terrain, not to an atlas: textbook
+     camp coordinates landed on the Nuptse-side slopes in our DEM/imagery
+     frame, so the Cwm floor was traced in-game (minimum-height,
+     minimum-slope scans across the valley at each longitude) and every
+     point below the bergschrund now sits on measured flat glacier —
+     Camp I at 3\u00b0, the Cwm at 1\u00b0, Camp II at 1\u00b0. */
   { id: "bc",       name: "Base Camp",            lat: 28.00260, lon: 86.85280, dem: 5299, published: 5364, camp: true },
-  { id: "icefall",  name: "Khumbu Icefall",       lat: 28.00000, lon: 86.86500, dem: 5560, published: 5700 },
-  { id: "icefall2", name: "The Popcorn Field",    lat: 27.99950, lon: 86.87100, dem: 5820, published: 5900 },
-  { id: "c1",       name: "Camp I",               lat: 28.00050, lon: 86.87550, dem: 6059, published: 6065, camp: true },
-  { id: "cwm1",     name: "Western Cwm",          lat: 27.99550, lon: 86.88250, dem: 6036, published: 6100 },
-  { id: "cwm2",     name: "Valley of Silence",    lat: 27.98650, lon: 86.89400, dem: 6240, published: 6300 },
-  { id: "c2",       name: "Camp II",              lat: 27.98080, lon: 86.90220, dem: 6411, published: 6400, camp: true },
+  { id: "icefall",  name: "Khumbu Icefall",       lat: 27.99500, lon: 86.86300, dem: 5450, published: 5700 },
+  { id: "icefall2", name: "The Popcorn Field",    lat: 27.99280, lon: 86.86800, dem: 5750, published: 5900 },
+  { id: "c1",       name: "Camp I",               lat: 27.99000, lon: 86.87100, dem: 6007, published: 6065, camp: true },
+  { id: "cwm1",     name: "Western Cwm",          lat: 27.98700, lon: 86.87700, dem: 6046, published: 6100 },
+  { id: "cwm2",     name: "Valley of Silence",    lat: 27.98310, lon: 86.88970, dem: 6274, published: 6300 },
+  { id: "c2",       name: "Camp II",              lat: 27.97945, lon: 86.90245, dem: 6481, published: 6400, camp: true },
   { id: "bergs",    name: "Bergschrund",          lat: 27.97700, lon: 86.91000, dem: 6569, published: 6700 },
   { id: "face1",    name: "Lhotse Face",          lat: 27.97500, lon: 86.91600, dem: 7166, published: 7200 },
   { id: "c3",       name: "Camp III",             lat: 27.97370, lon: 86.92070, dem: 7417, published: 7470, camp: true },
