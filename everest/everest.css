@@ -1817,7 +1817,11 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 .title-bar {
   width: min(45rem, 88vw);
   height: 6px;
-  margin: 1.1rem auto 0;
+  /* No auto margins: the bar is wider than title-inner's padded content
+     box, and auto margins resolve to zero on overflow — which shoved it
+     12px right of centre. The flex column's align-items centres it the
+     same way it centres the equally-wide map above. */
+  margin: 1.1rem 0 0;
   border-radius: 999px;
   overflow: hidden;
   background: rgba(77, 141, 255, 0.14);
