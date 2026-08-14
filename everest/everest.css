@@ -2058,3 +2058,182 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   margin-top: 0.25rem;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.75);
 }
+
+
+/* ═══ GLACIAL: the unified reskin ════════════════════════════════════════
+   One face, one palette, everywhere. The display face is Chakra Petch
+   Italic and the body face is Rajdhani — aliased over the family names
+   every existing rule already asks for, so the entire interface changes
+   typeface in one place. The palette is LED blue on deep glacial navy,
+   matching the seven-segment clock. Declared after every earlier skin
+   block; cascade order is the mechanism. */
+@font-face {
+  font-family: "Exo 2";
+  font-style: normal;
+  font-weight: 100 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/rajdhani/v17/LDI2apCSOBg7S-QT7pb0EMOs.ttf) format('truetype');
+}
+@font-face {
+  font-family: "Exo 2";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/rajdhani/v17/LDI2apCSOBg7S-QT7pbYF8Os.ttf) format('truetype');
+}
+@font-face {
+  font-family: "Exo 2";
+  font-style: normal;
+  font-weight: 700 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/rajdhani/v17/LDI2apCSOBg7S-QT7pa8FsOs.ttf) format('truetype');
+}
+@font-face {
+  font-family: "Orbitron";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIfnMapbsEk7TDLdtEz1BwkWmpK9RJ_A.ttf) format('truetype');
+}
+
+:root {
+  --chrome: #4d8dff;
+  --chrome-rgb: 77, 141, 255;
+  --data: #8fb8ff;
+  --data-rgb: 143, 184, 255;
+  --chrome-ink: #04122e;
+  --ink: #eef4ff;
+  --ink-dim: rgba(200, 216, 245, 0.72);
+  --ink-faint: rgba(200, 216, 245, 0.4);
+  --ground: #04070f;
+  --panel: rgba(6, 10, 20, 0.94);
+  --panel-solid: rgba(5, 8, 16, 0.97);
+  --line: rgba(77, 141, 255, 0.45);
+  --line-soft: rgba(77, 141, 255, 0.2);
+}
+
+/* The panel sheds its Etna orange for the same structure in glacial blue. */
+.navbar {
+  --nav-accent: #4d8dff;
+  --nav-accent-rgb: 77, 141, 255;
+  --etna-text: #eef4ff;
+  --etna-muted: #8fa4c8;
+  --etna-soft: #dbe7ff;
+  border-color: #4d8dff;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+    linear-gradient(180deg, rgba(9, 15, 30, 0.94), rgba(3, 6, 13, 0.98)),
+    rgba(4, 8, 17, 0.98);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.52),
+    0 0 0 1px rgba(77, 141, 255, 0.45),
+    0 0 28px rgba(60, 120, 255, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.navbar .eyebrow { color: #dbe7ff; }
+.navbar .info-btn { border-color: rgba(77, 141, 255, 0.72); color: #8fb8ff; }
+.navbar .info-btn:hover { color: #eef4ff; border-color: rgba(77, 141, 255, 0.9); background: rgba(77, 141, 255, 0.16); }
+.navbar #nav-collapse-btn { border-color: rgba(77, 141, 255, 0.72); color: #4d8dff; }
+.navbar #nav-collapse-btn:hover { background: rgba(77, 141, 255, 0.12); border-color: rgba(77, 141, 255, 0.64); }
+.navbar .brand-banner::after {
+  background:
+    linear-gradient(to right,  #04070f 0%, transparent 22%, transparent 78%, #04070f 100%),
+    linear-gradient(to bottom, #04070f 0%, transparent 28%, transparent 65%, #04070f 100%);
+}
+.navbar .brand h1 { color: #eef4ff; }
+.navbar .brand-subtitle { color: #8fa4c8; }
+.control-section { border-color: rgba(77, 141, 255, 0.3); box-shadow: 0 0 12px rgba(60, 120, 255, 0.08); }
+.section-toggle::after { color: rgba(77, 141, 255, 0.86); }
+.section-title { color: #eef4ff; }
+.section-body { color: #eef4ff; }
+.section-summary-copy { color: #8fa4c8; }
+.navbar .nav-btn { border-color: rgba(77, 141, 255, 0.3); color: #eef4ff; }
+.navbar .nav-btn:hover { border-color: rgba(77, 141, 255, 0.72); background: rgba(77, 141, 255, 0.12); color: #f4f8ff; }
+.navbar .nav-btn[data-on="1"] {
+  border-color: rgba(77, 141, 255, 0.9);
+  background: linear-gradient(180deg, rgba(77, 141, 255, 0.2), rgba(77, 141, 255, 0.06));
+  color: #f4f8ff;
+  box-shadow: 0 0 14px rgba(60, 120, 255, 0.2);
+}
+.navbar .nav-btn .nb-icon { color: rgba(143, 184, 255, 0.95); }
+.navbar .nav-btn .nb-key { color: #8fa4c8; border-color: rgba(77, 141, 255, 0.34); }
+.navbar .nav-btn[data-on="1"] .nb-key { color: #8fb8ff; border-color: rgba(77, 141, 255, 0.6); }
+.key-list dt { color: #8fb8ff; }
+.key-list dd { color: #8fa4c8; }
+.nav-status { border-top-color: rgba(77, 141, 255, 0.2); }
+.nav-brandline { color: rgba(143, 184, 255, 0.8); text-shadow: 0 0 8px rgba(77, 141, 255, 0.3); }
+.nav-tab { border-color: #4d8dff; color: #4d8dff; background: rgba(5, 8, 16, 0.98); box-shadow: 2px 0 16px rgba(60, 120, 255, 0.28), 2px 0 6px rgba(0, 0, 0, 0.4); }
+.nav-tab:hover { background: rgba(77, 141, 255, 0.14); }
+
+/* Info bar + footer tab. */
+.info-bar .ib-seg { background: rgba(5, 8, 16, 0.96); border-color: rgba(77, 141, 255, 0.45); box-shadow: 0 0 12px rgba(60, 120, 255, 0.12); }
+.info-bar .k { color: #8fa4c8; }
+.info-bar .v { color: #eef4ff; }
+.info-bar .u { color: #8fa4c8; }
+.info-bar .ib-alt .v { color: #8fb8ff; }
+.bars-tab { background: rgba(5, 8, 16, 0.96); border-color: rgba(77, 141, 255, 0.45); color: #8fa4c8; }
+.bars-tab:hover { color: #8fb8ff; border-color: rgba(77, 141, 255, 0.8); }
+
+/* Map view chrome, route and marker. */
+.mv-route-line { stroke: #5d95ff; filter: drop-shadow(0 0 4px rgba(77, 141, 255, 0.6)); }
+.mv-route-casing { stroke: rgba(2, 6, 14, 0.78); }
+.sm-route-line { stroke: #5d95ff; filter: drop-shadow(0 0 3px rgba(77, 141, 255, 0.65)); }
+.sm-route-casing { stroke: rgba(2, 6, 14, 0.78); }
+.sm-pin i { background: #4d8dff; box-shadow: 0 0 10px rgba(77, 141, 255, 0.9), 0 1px 4px rgba(0, 0, 0, 0.7); }
+.sm-pin span { border-color: rgba(77, 141, 255, 0.5); background: rgba(4, 8, 17, 0.85); }
+.sm-pin:hover span { background: rgba(77, 141, 255, 0.92); color: #04122e; }
+.start-map-box { border-color: rgba(77, 141, 255, 0.6); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), 0 0 22px rgba(60, 120, 255, 0.2); }
+.mv-player { background: #4d8dff; box-shadow: 0 0 0 3px rgba(77, 141, 255, 0.35), 0 0 16px rgba(77, 141, 255, 0.9); }
+@keyframes mvPlayerPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(77, 141, 255, 0.35), 0 0 16px rgba(77, 141, 255, 0.9); }
+  50%      { box-shadow: 0 0 0 8px rgba(77, 141, 255, 0.12), 0 0 22px rgba(77, 141, 255, 0.9); }
+}
+
+/* Popups and chips. */
+.scene-popup {
+  border-color: rgba(77, 141, 255, 0.36);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+    linear-gradient(180deg, rgba(9, 15, 30, 0.95), rgba(3, 6, 13, 0.985)),
+    rgba(4, 8, 17, 0.98);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 0 0 1px rgba(77, 141, 255, 0.1),
+    0 0 20px rgba(60, 120, 255, 0.1);
+  color: #eef4ff;
+  scrollbar-color: rgba(77, 141, 255, 0.35) transparent;
+}
+.scene-popup .feature-kicker { color: #4d8dff; }
+.scene-popup .feature-meta { color: #8fa4c8; }
+.scene-popup .feature-copy { color: #dbe7ff; }
+.scene-popup-close { color: #8fa4c8; }
+.scene-popup-close:hover { color: #eef4ff; background: rgba(77, 141, 255, 0.14); }
+.subtitle,
+.notify .note {
+  color: #cfe0ff;
+  background: rgba(4, 8, 18, 0.8);
+  border-color: rgba(77, 141, 255, 0.42);
+}
+
+/* The display face slants by nature now; where extra slant was skewed on,
+   keep it only on the clock. */
+.corner-readout .cr-latlon { font-family: "Exo 2", sans-serif; font-weight: 600; }
+.corner-readout canvas { display: block; margin-left: auto; }
+
+
+/* The site skin (viewer-skin.css) drives its !important frames and glows
+   from --skin-* variables. Retuning THOSE — not fighting its rules — is
+   how this page goes glacial while the shared file stays untouched. */
+:root {
+  --skin-chrome: #4d8dff;
+  --skin-chrome-rgb: 77, 141, 255;
+  --skin-data: #8fb8ff;
+  --skin-data-rgb: 143, 184, 255;
+  --skin-bg: #04070f;
+  --skin-panel: 6, 10, 20;
+  --skin-ink: #eef4ff;
+  --skin-muted: 200, 216, 245;
+  --skin-vignette: 2, 6, 16;
+  --skin-chrome-ink: #04122e;
+}

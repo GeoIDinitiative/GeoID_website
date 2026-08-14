@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=ead7b7a-68b0a607";
-import { ITEMS } from "./survival.js?v=ead7b7a-68b0a607";
-import { compassPoint } from "./geo.js?v=ead7b7a-68b0a607";
+import { Director } from "./director.js?v=51a90d3-786fe681";
+import { ITEMS } from "./survival.js?v=51a90d3-786fe681";
+import { compassPoint } from "./geo.js?v=51a90d3-786fe681";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -30,15 +30,15 @@ import { compassPoint } from "./geo.js?v=ead7b7a-68b0a607";
    where the palette is written twice. */
 /* One palette for every canvas the HUD draws (compass, wheel, cores):
    the Etna explorer's warm instrument set, matching the CSS variables. */
-const CHROME = "#ff6a00";
-const CHROME_BRIGHT = "rgba(255,106,0,0.88)";
-const CHROME_LINE = "rgba(255,106,0,0.34)";
-const CHROME_FAINT = "rgba(255,106,0,0.20)";
-const DATA = "#ffb080";
-const INK = "#f8f0eb";
-const INK_SOFT = "rgba(248,240,235,0.86)";
-const INK_DIM = "rgba(240,222,206,0.62)";
-const INK_FAINT = "rgba(240,222,206,0.30)";
+const CHROME = "#4d8dff";
+const CHROME_BRIGHT = "rgba(77,141,255,0.88)";
+const CHROME_LINE = "rgba(77,141,255,0.34)";
+const CHROME_FAINT = "rgba(77,141,255,0.20)";
+const DATA = "#8fb8ff";
+const INK = "#eef4ff";
+const INK_SOFT = "rgba(238,244,255,0.86)";
+const INK_DIM = "rgba(200,216,245,0.62)";
+const INK_FAINT = "rgba(200,216,245,0.30)";
 
 const CORE_DEFS = [
   { key: "health",  label: "Health",  colour: "#ff2d6f" },
@@ -99,6 +99,7 @@ export class Hud {
     this.el.instr = mk("info-bar");
     this.el.instr.innerHTML = `
       <span class="ib-seg ib-alt"><span class="v" id="i-alt">—</span><span class="u">m</span></span>
+      <span class="ib-seg"><span class="k">Dist</span><span class="v" id="i-dist">—</span></span>
       <span class="ib-seg"><span class="k">Avy</span><span class="v" id="i-avy">—</span></span>
       <span class="ib-seg"><span class="k">Temp</span><span class="v" id="i-temp">—</span></span>
       <span class="ib-seg"><span class="k">Wind</span><span class="v" id="i-wind">—</span></span>
@@ -107,7 +108,7 @@ export class Hud {
       <span class="ib-seg"><span class="k">SpO\u2082</span><span class="v" id="i-spo2">—</span></span>
       <span class="ib-seg"><span class="k">O\u2082</span><span class="v" id="i-flow">—</span></span>
 `;
-    for (const id of ["alt", "temp", "wind", "resist", "slope", "spo2", "flow", "avy"]) {
+    for (const id of ["alt", "dist", "temp", "wind", "resist", "slope", "spo2", "flow", "avy"]) {
       this.el["i_" + id] = this.el.instr.querySelector("#i-" + id);
     }
 
@@ -128,10 +129,77 @@ export class Hud {
           the planet viewers' cursor-readout idiom. ── */
     this.el.corner = mk("corner-readout");
     this.el.corner.innerHTML = `
-      <div class="cr-time" id="cr-time">--:--</div>
+      <canvas id="cr-clock" width="340" height="96"></canvas>
       <div class="cr-latlon" id="cr-latlon">\u2014</div>`;
-    this.el.crTime = this.el.corner.querySelector("#cr-time");
     this.el.crLatlon = this.el.corner.querySelector("#cr-latlon");
+    /* A drawn seven-segment clock, not a font: lit segments in LED blue
+       with a glow, unlit segments ghosted behind them the way a real LCD
+       shows its whole figure-eight, the panel slanted like every display
+       readout here. Redrawn only when the minute changes. */
+    this.clockCanvas = this.el.corner.querySelector("#cr-clock");
+    this.clockCanvas.style.transform = "skewX(-8deg)";
+    this._clockShown = "";
+    this._drawClock = (text) => {
+      if (text === this._clockShown) return;
+      this._clockShown = text;
+      const c = this.clockCanvas.getContext("2d");
+      const W = this.clockCanvas.width, H = this.clockCanvas.height;
+      c.clearRect(0, 0, W, H);
+      const SEGS = {
+        a: [[0.14, 0.04], [0.86, 0.04], [0.72, 0.16], [0.28, 0.16]],
+        b: [[0.88, 0.06], [0.88, 0.48], [0.76, 0.42], [0.76, 0.18]],
+        c: [[0.88, 0.52], [0.88, 0.94], [0.76, 0.82], [0.76, 0.58]],
+        d: [[0.14, 0.96], [0.86, 0.96], [0.72, 0.84], [0.28, 0.84]],
+        e: [[0.12, 0.52], [0.12, 0.94], [0.24, 0.82], [0.24, 0.58]],
+        f: [[0.12, 0.06], [0.12, 0.48], [0.24, 0.42], [0.24, 0.18]],
+        g: [[0.16, 0.50], [0.28, 0.44], [0.72, 0.44], [0.84, 0.50], [0.72, 0.56], [0.28, 0.56]],
+      };
+      const DIGIT = {
+        "0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc",
+        "5": "afgcd", "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcfgd",
+      };
+      const dw = 64, dh = 88, gap = 14, colonW = 22;
+      const drawDigit = (x0, y0, lit) => {
+        for (const [name, poly] of Object.entries(SEGS)) {
+          const on = lit.includes(name);
+          c.beginPath();
+          for (let i = 0; i < poly.length; i++) {
+            const px = x0 + poly[i][0] * dw, py = y0 + poly[i][1] * dh;
+            if (i) c.lineTo(px, py); else c.moveTo(px, py);
+          }
+          c.closePath();
+          if (on) {
+            c.shadowColor = "rgba(77,141,255,0.9)";
+            c.shadowBlur = 10;
+            c.fillStyle = "#4d8dff";
+          } else {
+            c.shadowBlur = 0;
+            c.fillStyle = "rgba(77,141,255,0.10)";
+          }
+          c.fill();
+        }
+        c.shadowBlur = 0;
+      };
+      let x = 8;
+      const y = 4;
+      for (const ch of text) {
+        if (ch === ":") {
+          for (const cy of [0.30, 0.70]) {
+            c.shadowColor = "rgba(77,141,255,0.9)";
+            c.shadowBlur = 8;
+            c.fillStyle = "#4d8dff";
+            c.beginPath();
+            c.arc(x + colonW / 2, y + cy * dh, 5, 0, Math.PI * 2);
+            c.fill();
+          }
+          c.shadowBlur = 0;
+          x += colonW + gap * 0.5;
+        } else {
+          drawDigit(x, y, DIGIT[ch] ?? "");
+          x += dw + gap;
+        }
+      }
+    };
 
     /* ── Footer collapse: one arrow folds the compass and info bar down
           into the edge, U mirrors it from the keyboard. ── */
@@ -992,6 +1060,12 @@ export class Hud {
       el.style.color = `rgb(${c[0]},${c[1]},${c[2]})`;
     };
     this.setText(this.el.i_alt, Math.round(s.altitude).toLocaleString());
+    /* Total ground covered this expedition, walked or fallen. */
+    if (s.distance !== undefined) {
+      this.setText(this.el.i_dist, s.distance >= 1000
+        ? (s.distance / 1000).toFixed(2) + " km"
+        : Math.round(s.distance) + " m");
+    }
     this.setText(this.el.i_temp, `${s.tempC.toFixed(0)}°C  (${s.chillC.toFixed(0)}°)`);
     tint(this.el.i_temp, (s.tempC + 35) / 50);
     this.setText(this.el.i_wind, `${(s.windMs * 3.6).toFixed(0)} km/h ${compassPoint(s.windFrom)}`);
@@ -1010,7 +1084,7 @@ export class Hud {
     this.setText(this.el.i_flow, s.survival.o2Flow > 0 && s.survival.bottleLitres > 0
       ? `${s.survival.o2Flow} L/min · ${Math.round(s.survival.bottleLitres)} L`
       : "off");
-    this.setText(this.el.crTime, s.clock);
+    this._drawClock(s.clock);
     if (s.lat !== undefined && s.lon !== undefined) {
       this._lastLat = s.lat; this._lastLon = s.lon;
       this.setText(this.el.crLatlon,
