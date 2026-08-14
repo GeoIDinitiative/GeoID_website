@@ -1699,3 +1699,14 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 }
 .sm-contours { opacity: 0.75; pointer-events: none; }
 .start-map-box { position: relative; }
+
+
+/* ── Map view: pills over the route, frame over most of the screen ────── */
+/* The pins container must out-stack the route SVG (z 2) and the contour
+   sheet (z 1), or the line runs straight through every name. */
+.mv-pins { z-index: 4; }
+.mv-frame {
+  width: calc(100vw - 3rem);
+  height: calc(100vh - 7.5rem);
+  max-width: none;
+}
