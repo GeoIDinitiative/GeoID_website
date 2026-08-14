@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=a3960f9-482e0b99";
-import { ITEMS } from "./survival.js?v=a3960f9-482e0b99";
-import { compassPoint } from "./geo.js?v=a3960f9-482e0b99";
+import { Director } from "./director.js?v=1f005d2-a1d30c12";
+import { ITEMS } from "./survival.js?v=1f005d2-a1d30c12";
+import { compassPoint } from "./geo.js?v=1f005d2-a1d30c12";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -350,8 +350,8 @@ export class Hud {
        what its switches do is the difference between chrome and a guide. */
     this.el.nav.innerHTML = `
       <div class="nav-head">
-        <span class="nh-brand">ASCENT <i>GeoID</i></span>
-        <button class="nav-hide" id="nav-hide" title="Hide panel (\u0060)">Close \u25C2 \u0060</button>
+        <button class="info-btn" id="nav-info" title="Guide (H)">i</button>
+        <button class="nav-hide" id="nav-hide" title="Collapse panel (\u0060)">\u2039</button>
       </div>
       <div class="nav-scroll">
         <div class="brand-banner">
@@ -371,6 +371,8 @@ export class Hud {
       </div>`;
     this.el.nav.querySelector("#nav-hide")
       .addEventListener("click", () => this.setNavHidden(true));
+    this.el.nav.querySelector("#nav-info")
+      .addEventListener("click", () => this.onTool && this.onTool("help"));
 
     /* The instruments no longer live in the panel: they are the info bar
        under the compass, and the panel is navigation only. */
@@ -387,7 +389,7 @@ export class Hud {
       { id: "help",    key: "H",   label: "Controls card", icon: "?",       tip: "" },
     ];
     const SECTIONS = [
-      { id: "display", title: "Display", open: true,
+      { id: "display", title: "Display",
         copy: "What the mountain shows. Every switch is a preference \u2014 set it here, or use its key anywhere.",
         tools: ["labels", "route", "third", "torch"] },
       { id: "climb", title: "Climb",

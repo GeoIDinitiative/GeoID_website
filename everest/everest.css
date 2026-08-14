@@ -1348,3 +1348,75 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   height: 4.6rem; width: auto;
   filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
 }
+
+
+/* ── Popups off the snow ────────────────────────────────────────────────
+   White-ish narration over white snow read as a blur (no depth bug — just
+   no contrast). Deep purple ink on a dark violet chip stands on any
+   ground the mountain has: snow, scree or sky. */
+.subtitle {
+  color: #d9b8ff;
+  background: rgba(26, 6, 48, 0.72);
+  border: 1px solid rgba(158, 100, 255, 0.35);
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.9rem;
+  backdrop-filter: blur(3px);
+  text-shadow: 0 1px 6px rgba(10, 0, 24, 0.9);
+}
+.notify .note {
+  color: #d9b8ff;
+  background: rgba(26, 6, 48, 0.72);
+  border: 1px solid rgba(158, 100, 255, 0.35);
+  border-radius: 0.5rem;
+  padding: 0.32rem 0.7rem;
+  backdrop-filter: blur(3px);
+  text-shadow: 0 1px 6px rgba(10, 0, 24, 0.9);
+}
+.notify .note-warn { color: #ffd28a; }
+.notify .note-bad { color: #ff9aae; }
+.notify .note-good { color: #9af0c0; }
+
+/* ── Toprow, the planet viewers' exact header ───────────────────────────
+   A slim actions-only row: round info button and the bare chevron
+   collapse, right-aligned over an accent hairline — the Mars viewer's
+   brand-toprow verbatim. The Everest photo hero below carries the title
+   in the planet h1 type: clamp size, tight tracking, stroked. */
+.nav-head { justify-content: flex-end; gap: 0.35rem; padding: 0.5rem 0.6rem; }
+.nh-brand { display: none; }
+.nav-head .info-btn {
+  background: none;
+  border: 1px solid rgba(var(--pv-rgb, 111, 217, 232), 0.48);
+  border-radius: 50%;
+  width: 1.45rem; height: 1.45rem;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: #d8e6ec;
+  font: 700 0.82rem "Exo 2", "Segoe UI", sans-serif;
+  line-height: 1; padding: 0;
+  text-shadow: 0 0 6px rgba(var(--pv-rgb, 111, 217, 232), 0.28);
+  box-shadow: inset 0 0 0 1px rgba(var(--pv-rgb, 111, 217, 232), 0.08), 0 0 12px rgba(var(--pv-rgb, 111, 217, 232), 0.12);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.nav-head .info-btn:hover { color: #f3f7fa; border-color: rgba(var(--pv-rgb, 111, 217, 232), 0.82); background: rgba(var(--pv-rgb, 111, 217, 232), 0.16); }
+.navbar .nav-hide {
+  background: none;
+  border: 1px solid rgba(var(--pv-rgb, 111, 217, 232), 0.48);
+  border-radius: 0.5rem;
+  color: #d8e6ec;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.9rem; line-height: 1;
+  letter-spacing: 0; text-transform: none;
+  width: auto; height: auto;
+  box-shadow: inset 0 0 0 1px rgba(var(--pv-rgb, 111, 217, 232), 0.08), 0 0 12px rgba(var(--pv-rgb, 111, 217, 232), 0.12);
+}
+.bb-text h1 {
+  font-size: clamp(2rem, 4.2vw, 2.9rem);
+  line-height: 0.92;
+  color: #f4f8fa;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  -webkit-text-stroke: 1.25px rgba(10, 10, 18, 0.72);
+  paint-order: stroke fill;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+}
