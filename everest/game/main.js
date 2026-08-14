@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=1aeaea3-7f2604cf";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=1aeaea3-7f2604cf";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=1aeaea3-7f2604cf";
-import { Heightfield } from "./dem.js?v=1aeaea3-7f2604cf";
-import { Imagery } from "./imagery.js?v=1aeaea3-7f2604cf";
-import { Terrain } from "./terrain.js?v=1aeaea3-7f2604cf";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=1aeaea3-7f2604cf";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=1aeaea3-7f2604cf";
-import { Glacier } from "./glacier.js?v=1aeaea3-7f2604cf";
-import { TerrainShadows } from "./shadows.js?v=1aeaea3-7f2604cf";
-import { PostFX, QUALITY } from "./postfx.js?v=1aeaea3-7f2604cf";
-import { estimateCaptureSun } from "./delight.js?v=1aeaea3-7f2604cf";
-import { SnowField } from "./snowfield.js?v=1aeaea3-7f2604cf";
-import { Photoclinometry } from "./photoclino.js?v=1aeaea3-7f2604cf";
-import { World } from "./world.js?v=1aeaea3-7f2604cf";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=1aeaea3-7f2604cf";
-import { Player, STATE } from "./player.js?v=1aeaea3-7f2604cf";
-import { Director, Climbers } from "./director.js?v=1aeaea3-7f2604cf";
-import { Hud } from "./hud.js?v=1aeaea3-7f2604cf";
-import { Audio } from "./audio.js?v=1aeaea3-7f2604cf";
-import { install as installDiag } from "./diag.js?v=1aeaea3-7f2604cf";
-import * as tiles from "./tiles.js?v=1aeaea3-7f2604cf";
+import * as THREE from "../vendor/three.module.js?v=deee5eb-4b034ad8";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=deee5eb-4b034ad8";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=deee5eb-4b034ad8";
+import { Heightfield } from "./dem.js?v=deee5eb-4b034ad8";
+import { Imagery } from "./imagery.js?v=deee5eb-4b034ad8";
+import { Terrain } from "./terrain.js?v=deee5eb-4b034ad8";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=deee5eb-4b034ad8";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=deee5eb-4b034ad8";
+import { Glacier } from "./glacier.js?v=deee5eb-4b034ad8";
+import { TerrainShadows } from "./shadows.js?v=deee5eb-4b034ad8";
+import { PostFX, QUALITY } from "./postfx.js?v=deee5eb-4b034ad8";
+import { estimateCaptureSun } from "./delight.js?v=deee5eb-4b034ad8";
+import { SnowField } from "./snowfield.js?v=deee5eb-4b034ad8";
+import { Photoclinometry } from "./photoclino.js?v=deee5eb-4b034ad8";
+import { World } from "./world.js?v=deee5eb-4b034ad8";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=deee5eb-4b034ad8";
+import { Player, STATE } from "./player.js?v=deee5eb-4b034ad8";
+import { Director, Climbers } from "./director.js?v=deee5eb-4b034ad8";
+import { Hud } from "./hud.js?v=deee5eb-4b034ad8";
+import { Audio } from "./audio.js?v=deee5eb-4b034ad8";
+import { install as installDiag } from "./diag.js?v=deee5eb-4b034ad8";
+import * as tiles from "./tiles.js?v=deee5eb-4b034ad8";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -201,6 +201,33 @@ export class Game {
         applyMoraine(tx);
       };
       new THREE.TextureLoader().load("data/pebbles.jpg", applyMoraine, undefined, procedural);
+
+      /* Procedural snow grain: R is low-contrast multi-scale lump noise,
+         G is sparse sparkle. Drawn once — no asset to fetch. */
+      {
+        const c = document.createElement("canvas");
+        c.width = c.height = 512;
+        const x = c.getContext("2d");
+        x.fillStyle = "#808000"; x.fillRect(0, 0, 512, 512);
+        let seed = 31;
+        const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+        for (let i = 0; i < 4200; i++) {
+          const r = 2 + rnd() * 16;
+          const v = 96 + rnd() * 64;
+          x.fillStyle = `rgba(${v},0,0,0.30)`;
+          x.beginPath();
+          x.ellipse(rnd() * 512, rnd() * 512, r, r * (0.6 + rnd() * 0.5), rnd() * Math.PI, 0, Math.PI * 2);
+          x.fill();
+        }
+        for (let i = 0; i < 900; i++) {
+          x.fillStyle = "rgba(0,255,0,0.9)";
+          x.fillRect(rnd() * 512, rnd() * 512, 1.4, 1.4);
+        }
+        const tx = new THREE.CanvasTexture(c);
+        tx.wrapS = tx.wrapT = THREE.RepeatWrapping;
+        this.terrain.uniforms.snowTex.value = tx;
+        this.terrain.uniforms.snowTexOn.value = 1;
+      }
     }
 
     this.sky = new Sky();

@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=1aeaea3-7f2604cf";
-import { CLIPMAP, RENDER } from "./config.js?v=1aeaea3-7f2604cf";
+import * as THREE from "../vendor/three.module.js?v=deee5eb-4b034ad8";
+import { CLIPMAP, RENDER } from "./config.js?v=deee5eb-4b034ad8";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -183,6 +183,8 @@ const FRAG = /* glsl */`
   uniform float debugMode;   // 0 normal, 1 shape only, 2 picture only, 3 coarse tier
   uniform sampler2D moraineTex;
   uniform float moraineOn;
+  uniform sampler2D snowTex;
+  uniform float snowTexOn;
 
   /* Same decode as the vertex shader — the surface was displaced there, so the
      normal has to be built from the same field or the relief only exists in
@@ -807,6 +809,24 @@ const FRAG = /* glsl */`
         fill *= 0.45 + 1.15 * lumA;
         col = mix(col, fill, darkness * 0.88);
       }
+      /* Snow grain above the valley, the counterpart of the valley's
+         pebbles: where the imagery is featureless bright snow, a grain
+         texture MODULATES it in the same 200 m reach — the satellite
+         keeps precedence (this multiplies, never replaces), but white
+         ground underfoot reads as snow rather than as blank paper. */
+      if (snowTexOn > 0.5) {
+        float snowBand = smoothstep(5550.0, 5750.0, P.y);
+        float white = smoothstep(0.60, 0.78, lumA)
+                    * (1.0 - smoothstep(0.16, 0.28, satA));
+        float g = snowBand * white * reach;
+        if (g > 0.01) {
+          float n = mix(texture2D(snowTex, P.xz * 0.9).r,
+                        texture2D(snowTex, P.xz * 0.17).r, 0.4);
+          col *= 1.0 + (n - 0.5) * 0.26 * g;
+          float sp = texture2D(snowTex, P.xz * 2.3).g;
+          col += vec3(0.09) * smoothstep(0.965, 1.0, sp) * g;
+        }
+      }
       /* Aerial perspective — the one thing raw mapping cannot carry. The
          old far tier was z11, whose pixels arrive pre-hazed by the
          atmosphere the satellite itself looked through, so the horizon
@@ -1237,6 +1257,8 @@ export class Terrain {
       detailOn:      { value: 0 },
       moraineTex:    { value: null },   // gravel stand-in for black imagery voids
       moraineOn:     { value: 0 },
+      snowTex:       { value: null },   // procedural grain for featureless white ground
+      snowTexOn:     { value: 0 },
       debugMode:     { value: 0 },   // isolation modes, cycled with F10
     }, imagery.uniforms());
 
