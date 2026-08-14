@@ -24,7 +24,7 @@ export const ORIGIN = { lat: 27.9930, lon: 86.8950 };
  *  it. The DEM is 100 m low because SRTM-lineage data smooths a summit cone —
  *  the game corrects the top 300 m back onto the surveyed height, and says so
  *  in the summit POI rather than quietly fudging it. */
-export const SUMMIT = { lat: 27.98940, lon: 86.92537, surveyed: 8848.86, dem: 8749 };
+export const SUMMIT = { lat: 27.98806, lon: 86.92528, surveyed: 8848.86, dem: 8749 };
 
 /* ── Tile services ────────────────────────────────────────────────────────
    Both were probed from this machine before being relied on: both answer over
@@ -244,24 +244,31 @@ export const CLIPMAP = {
    north-south transects between 86.876 and 86.915 — the valley floor, found
    rather than guessed, which is why it bends south-east instead of running
    along a parallel the way the first draft had it. */
+/* Corrected against the published South Col route geometry (and the shape
+   every route graphic agrees on): the Cwm runs ESE from Camp I before
+   bending south, Camp III sits DOWN the face at 27.974 — the old 27.9806
+   was ~770 m north, which drew the C2→C3 leg flat east instead of
+   climbing southeast up the Lhotse Face — the traverse to the Col runs
+   through the Yellow Band and Geneva Spur at col latitude, and the summit
+   is at its surveyed 27.98806 N, 86.92528 E. */
 export const ROUTE = [
   { id: "bc",       name: "Base Camp",            lat: 28.00260, lon: 86.85280, dem: 5299, published: 5364, camp: true },
-  { id: "icefall",  name: "Khumbu Icefall",       lat: 27.99900, lon: 86.86500, dem: 5560, published: 5700 },
-  { id: "icefall2", name: "The Popcorn Field",    lat: 27.99700, lon: 86.87100, dem: 5820, published: 5900 },
-  { id: "c1",       name: "Camp I",               lat: 27.99950, lon: 86.87600, dem: 6059, published: 6065, camp: true },
-  { id: "cwm1",     name: "Western Cwm",          lat: 27.99100, lon: 86.87900, dem: 6036, published: 6100 },
-  { id: "cwm2",     name: "Valley of Silence",    lat: 27.98300, lon: 86.88800, dem: 6240, published: 6300 },
-  { id: "c2",       name: "Camp II",              lat: 27.98150, lon: 86.90000, dem: 6411, published: 6400, camp: true },
-  { id: "bergs",    name: "Bergschrund",          lat: 27.97900, lon: 86.90900, dem: 6569, published: 6700 },
-  { id: "face1",    name: "Lhotse Face",          lat: 27.97990, lon: 86.91460, dem: 7166, published: 7200 },
-  { id: "c3",       name: "Camp III",             lat: 27.98060, lon: 86.91790, dem: 7417, published: 7470, camp: true },
-  { id: "yellow",   name: "The Yellow Band",      lat: 27.97600, lon: 86.92300, dem: 7600, published: 7700 },
-  { id: "geneva",   name: "The Geneva Spur",      lat: 27.97390, lon: 86.92660, dem: 7669, published: 7800 },
-  { id: "c4",       name: "Camp IV — South Col",  lat: 27.97440, lon: 86.92970, dem: 7842, published: 7920, camp: true },
-  { id: "balcony",  name: "The Balcony",          lat: 27.98150, lon: 86.92830, dem: 8280, published: 8430 },
-  { id: "ssummit",  name: "The South Summit",     lat: 27.98750, lon: 86.92620, dem: 8600, published: 8749 },
-  { id: "step",     name: "The Hillary Step",     lat: 27.98860, lon: 86.92570, dem: 8690, published: 8790 },
-  { id: "summit",   name: "The Summit",           lat: 27.98940, lon: 86.92537, dem: 8749, published: 8848.86, camp: true },
+  { id: "icefall",  name: "Khumbu Icefall",       lat: 28.00000, lon: 86.86500, dem: 5560, published: 5700 },
+  { id: "icefall2", name: "The Popcorn Field",    lat: 27.99950, lon: 86.87100, dem: 5820, published: 5900 },
+  { id: "c1",       name: "Camp I",               lat: 28.00050, lon: 86.87550, dem: 6059, published: 6065, camp: true },
+  { id: "cwm1",     name: "Western Cwm",          lat: 27.99550, lon: 86.88250, dem: 6036, published: 6100 },
+  { id: "cwm2",     name: "Valley of Silence",    lat: 27.98650, lon: 86.89400, dem: 6240, published: 6300 },
+  { id: "c2",       name: "Camp II",              lat: 27.98080, lon: 86.90220, dem: 6411, published: 6400, camp: true },
+  { id: "bergs",    name: "Bergschrund",          lat: 27.97700, lon: 86.91000, dem: 6569, published: 6700 },
+  { id: "face1",    name: "Lhotse Face",          lat: 27.97500, lon: 86.91600, dem: 7166, published: 7200 },
+  { id: "c3",       name: "Camp III",             lat: 27.97370, lon: 86.92070, dem: 7417, published: 7470, camp: true },
+  { id: "yellow",   name: "The Yellow Band",      lat: 27.97350, lon: 86.92450, dem: 7600, published: 7700 },
+  { id: "geneva",   name: "The Geneva Spur",      lat: 27.97380, lon: 86.92800, dem: 7669, published: 7800 },
+  { id: "c4",       name: "Camp IV — South Col",  lat: 27.97350, lon: 86.92970, dem: 7842, published: 7920, camp: true },
+  { id: "balcony",  name: "The Balcony",          lat: 27.97930, lon: 86.92960, dem: 8280, published: 8430 },
+  { id: "ssummit",  name: "The South Summit",     lat: 27.98680, lon: 86.92620, dem: 8600, published: 8749 },
+  { id: "step",     name: "The Hillary Step",     lat: 27.98760, lon: 86.92560, dem: 8690, published: 8790 },
+  { id: "summit",   name: "The Summit",           lat: 27.98806, lon: 86.92528, dem: 8749, published: 8848.86, camp: true },
 ];
 
 /** The five camps, in order, with what each one is for. Progress is measured
