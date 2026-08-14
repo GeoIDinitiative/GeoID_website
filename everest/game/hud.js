@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=4becb87-599a0ad6";
-import { ITEMS } from "./survival.js?v=4becb87-599a0ad6";
-import { compassPoint } from "./geo.js?v=4becb87-599a0ad6";
+import { Director } from "./director.js?v=6bb04dc-31a2ea98";
+import { ITEMS } from "./survival.js?v=6bb04dc-31a2ea98";
+import { compassPoint } from "./geo.js?v=6bb04dc-31a2ea98";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -1029,6 +1029,10 @@ export class Hud {
   setBinoculars(on) {
     this.binocularsOn = on;
     this.el.binoc.style.display = on ? "" : "none";
+    /* Through the glasses the eyes are on the mountain: the compass and
+       the info bar fold away exactly as the U key folds them, and return
+       when the binoculars drop (unless U had them folded already). */
+    document.body.classList.toggle("binoc-on", on);
   }
 
   setNavHidden(hidden) {

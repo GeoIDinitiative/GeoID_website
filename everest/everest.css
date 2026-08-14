@@ -833,8 +833,10 @@ canvas.scene { display: block; position: fixed; inset: 0; }
 .compass, .info-bar {
   transition: transform .28s ease, opacity .28s ease;
 }
-body.bars-hidden .compass { transform: translateX(-50%) translateY(220%); opacity: 0; pointer-events: none; }
-body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opacity: 0; pointer-events: none; }
+body.bars-hidden .compass,
+body.binoc-on .compass { transform: translateX(-50%) translateY(220%); opacity: 0; pointer-events: none; }
+body.bars-hidden .info-bar,
+body.binoc-on .info-bar { transform: translateX(-50%) translateY(220%); opacity: 0; pointer-events: none; }
 .bars-tab {
   letter-spacing: .12em; text-transform: uppercase;
   white-space: nowrap;
