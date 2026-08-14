@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=27e13eb-b3f75c4d";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=27e13eb-b3f75c4d";
-import { llToLocal, haversine } from "./geo.js?v=27e13eb-b3f75c4d";
+import * as THREE from "../vendor/three.module.js?v=bbd9d4f-df49ee3e";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=bbd9d4f-df49ee3e";
+import { llToLocal, haversine } from "./geo.js?v=bbd9d4f-df49ee3e";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be
@@ -433,10 +433,10 @@ export class World {
     for (const poi of this.pois) {
       const d = Math.hypot(poi.x - playerPos.x, poi.z - playerPos.z);
       if (d > maxDist) { this.hide(poi); continue; }
-      /* The tag hangs 300 m over the place, like the flight sim's horizon
-         labels — high enough to clear foreground relief and read as a
-         marker in the air rather than a sticker on the ground. */
-      v.set(poi.x, poi.y + 300, poi.z);
+      /* The tag hangs 100 m over the place, like the flight sim's horizon
+         labels — enough air to read as a marker rather than a sticker,
+         without drifting into the sky above its feature. */
+      v.set(poi.x, poi.y + 100, poi.z);
       v.project(camera);
       if (v.z > 1 || v.x < -1.05 || v.x > 1.05 || v.y < -1.05 || v.y > 1.05) { this.hide(poi); continue; }
       /* Terrain occlusion. A label is a claim that the place is in view, and
