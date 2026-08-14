@@ -17,10 +17,10 @@
  * that blanks while it re-centres is a hole opening under the player.
  */
 
-import * as THREE from "../vendor/three.module.js?v=05c6ecf-cd980f5f";
-import { IMAGERY, IMG_TIERS } from "./config.js?v=05c6ecf-cd980f5f";
-import { tileWindow } from "./geo.js?v=05c6ecf-cd980f5f";
-import { fetchWindow } from "./tiles.js?v=05c6ecf-cd980f5f";
+import * as THREE from "../vendor/three.module.js?v=b5c915e-02c98a01";
+import { IMAGERY, IMG_TIERS } from "./config.js?v=b5c915e-02c98a01";
+import { tileWindow } from "./geo.js?v=b5c915e-02c98a01";
+import { fetchWindow } from "./tiles.js?v=b5c915e-02c98a01";
 
 /* ── The next thing to do here: compressed textures ───────────────────────
    The four tiers currently hold about 410 MB of RGBA8, plus a third again for

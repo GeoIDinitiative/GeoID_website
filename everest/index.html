@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="/styles/viewer-skin.css">
 <link rel="preload" as="image" href="data/khumbu_hillshade.png">
 <link rel="preload" as="image" href="data/khumbu_contours.png">
-<link rel="stylesheet" href="everest.css?v=05c6ecf-cd980f5f">
+<link rel="stylesheet" href="everest.css?v=b5c915e-02c98a01">
 
 <!-- ── The reset switch, and why it has to exist ─────────────────────────────
      A site-wide service worker is registered at the root of this origin
@@ -47,22 +47,12 @@ if (location.search.includes("reset")) {
     location.replace(location.pathname + "?fresh=" + Date.now());
   })();
 } else {
-  /* Otherwise: say so, do not act. Unregistering on every visit would strip
-     the worker from the whole origin — it is scoped to "/" — and the rest of
-     the site is entitled to keep it. The current worker (v39) is network-first
-     for HTML and for code, so it is not the problem; an *older* registered
-     copy would be, and only the person seeing the stale build can tell. So
-     this reports, and offers the switch. */
-  addEventListener("DOMContentLoaded", () => {
-    if (!navigator.serviceWorker?.controller) return;
-    const w = document.createElement("div");
-    w.innerHTML = "a service worker is serving this page &mdash; "
-      + "<a href='?reset' style='color:#0d0221;text-decoration:underline'>clear it</a>";
-    w.style.cssText = "position:fixed;left:50%;top:8px;transform:translateX(-50%);"
-      + "z-index:100002;padding:6px 12px;border-radius:3px;background:#ffd400;"
-      + "color:#0d0221;font:600 11px/1.3 ui-monospace,monospace";
-    document.body.appendChild(w);
-  });
+  /* Otherwise: nothing. The yellow "a service worker is serving this page"
+     banner that used to render here was a debugging aid from the stale-build
+     hunt — the origin-wide worker is network-first for HTML and code, so a
+     controlled page is the normal case, and the banner nagged every visitor.
+     The ?reset escape hatch above stays for anyone genuinely stuck on a
+     stale build. */
 }
 
 /* Build stamp removed by request — tools/stamp.py still versions every URL. */
@@ -162,8 +152,8 @@ if (location.search.includes("reset")) {
 </div>
 
 <script type="module">
-import { Game } from "./game/main.js?v=05c6ecf-cd980f5f";
-import { ROUTE } from "./game/config.js?v=05c6ecf-cd980f5f";
+import { Game } from "./game/main.js?v=b5c915e-02c98a01";
+import { ROUTE } from "./game/config.js?v=b5c915e-02c98a01";
 
 const canvas = document.getElementById("scene");
 const hudRoot = document.getElementById("hud");
@@ -185,12 +175,12 @@ window.__ascent = game;      // for the harness, and for anyone curious
 /* Headless driving. Only with ?shot, and only ever additive — the game does
    not behave differently because these exist. */
 if (game.headless) {
-  const { llToLocal } = await import("./game/geo.js?v=05c6ecf-cd980f5f");
+  const { llToLocal } = await import("./game/geo.js?v=b5c915e-02c98a01");
   window.__drive = {
     game,
     run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
     settle: async (ms = 15000) => {
-      const tiles = await import("./game/tiles.js?v=05c6ecf-cd980f5f");
+      const tiles = await import("./game/tiles.js?v=b5c915e-02c98a01");
       const end = performance.now() + ms;
       let quiet = 0;
       while (performance.now() < end) {

@@ -14,8 +14,8 @@
  * committing to a summit push on a bad one is how the mountain kills you.
  */
 
-import * as THREE from "../vendor/three.module.js?v=05c6ecf-cd980f5f";
-import { WEATHER, PHYS } from "./config.js?v=05c6ecf-cd980f5f";
+import * as THREE from "../vendor/three.module.js?v=b5c915e-02c98a01";
+import { WEATHER, PHYS } from "./config.js?v=b5c915e-02c98a01";
 
 const STATE = {
   clear:      { cloud: 0.02, precip: 0.00, windMul: 0.75, vis: 60000, name: "Clear" },
