@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=5ef04db-bf9f5b7c";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=5ef04db-bf9f5b7c";
-import { llToLocal, haversine } from "./geo.js?v=5ef04db-bf9f5b7c";
+import * as THREE from "../vendor/three.module.js?v=eb5a684-bf53358c";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=eb5a684-bf53358c";
+import { llToLocal, haversine } from "./geo.js?v=eb5a684-bf53358c";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be
@@ -290,7 +290,7 @@ export class World {
        counts carry that difference, because it is most of what those two
        places feel like. */
     if (this.campTents) this.group.remove(this.campTents);
-    const SIZE = { bc: [34, 90], c1: [7, 26], c2: [11, 34], c3: [4, 16], c4: [5, 22] };
+    const SIZE = { bc: [110, 170], c1: [8, 28], c2: [14, 40], c3: [4, 16], c4: [6, 24] };
     let seed = 3, places = [];
     for (const camp of this.camps) {
       const spec = SIZE[camp.id];
@@ -527,7 +527,7 @@ export function pitchCamp(field, x, z, count, radius, seed) {
     const tx = x + Math.cos(a) * r, tz = z + Math.sin(a) * r;
     // Nobody pitches on a slope, and nobody pitches on a crevasse either —
     // but the glacier does not exist yet at boot, so flatness is the test.
-    if (field.slope(tx, tz, 10) > 11) continue;
+    if (field.slope(tx, tz, 10) > 16) continue;
     out.push({
       x: tx, z: tz, y: field.height(tx, tz),
       yaw: a + 1.1,
@@ -713,19 +713,16 @@ function campMarker(isSummit) {
   pole.position.y = 1.6;
   g.add(pole);
 
-  // Prayer flags: five colours, in the order they are always strung —
-  // blue, white, red, green, yellow, sky to earth.
-  const colours = [0x2f6fd0, 0xf2f2f2, 0xcf2f2f, 0x2f9a52, 0xe8c53a];
-  for (let i = 0; i < 10; i++) {
-    const f = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.42, 0.34),
-      new THREE.MeshLambertMaterial({ color: colours[i % 5], side: THREE.DoubleSide }),
-    );
-    const t = i / 9;
-    f.position.set((t - 0.5) * 5.5, 2.9 - Math.sin(t * Math.PI) * 0.9, 0);
-    f.userData.flag = i;
-    g.add(f);
-  }
+  /* One generic flag at the masthead — a plain rectangle that still
+     flutters through updateMarkers, gold for the summit, expedition red
+     for the camps. The prayer-flag string is retired by request. */
+  const f = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.85, 0.55),
+    new THREE.MeshLambertMaterial({ color: isSummit ? 0xffc93c : 0xd8402f, side: THREE.DoubleSide }),
+  );
+  f.position.set(0.44, 2.9, 0);
+  f.userData.flag = 0;
+  g.add(f);
   g.userData.flags = true;
   return g;
 }

@@ -13,8 +13,8 @@
  * hypoxic, exhausted and frostbitten turns into being slow.
  */
 
-import * as THREE from "../vendor/three.module.js?v=5ef04db-bf9f5b7c";
-import { MOVE, TIME_SCALE, OPEN } from "./config.js?v=5ef04db-bf9f5b7c";
+import * as THREE from "../vendor/three.module.js?v=eb5a684-bf53358c";
+import { MOVE, TIME_SCALE, OPEN } from "./config.js?v=eb5a684-bf53358c";
 
 const D2R = Math.PI / 180;
 
@@ -585,14 +585,22 @@ function buildClimber() {
   const shL = ball(suit, 0.085); shL.position.set(-0.19, 0.27, 0); torso.add(shL);
   const shR = ball(suit, 0.085); shR.position.set(0.19, 0.27, 0); torso.add(shR);
 
-  const head = new THREE.Group(); head.position.y = 0.44; torso.add(head);
-  const neck = cyl(suitD, 0.05, 0.055, 0.07); neck.position.y = 0.03; head.add(neck);
-  const hood = ball(suit, 0.115); hood.position.y = 0.15; hood.scale.set(1, 1.08, 1.05); head.add(hood);
+  /* The head SITS ON the shoulders now. The old head group hung at
+     y 0.44 with a 7 cm neck starting above it — a fifteen-centimetre air
+     gap between collar and chin that read as a floating head from every
+     angle. The whole assembly comes down, the neck is a real column
+     rising OUT of the chest, and a down collar cone bridges chest to
+     hood so there is no silhouette break anywhere. */
+  const upperChest = cyl(suit, 0.175, 0.19, 0.10); upperChest.position.y = 0.285; torso.add(upperChest);
+  const head = new THREE.Group(); head.position.y = 0.315; torso.add(head);
+  const neck = cyl(suitD, 0.055, 0.068, 0.12); neck.position.y = 0.015; head.add(neck);
+  const collar = cyl(suitD, 0.088, 0.128, 0.09); collar.position.y = 0.035; head.add(collar);
+  const hood = ball(suit, 0.115); hood.position.y = 0.185; hood.scale.set(1, 1.08, 1.05); head.add(hood);
   const ruff = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.025, 8, 16), fur);
-  ruff.position.set(0, 0.14, 0.075); head.add(ruff);
-  const face = ball(skin, 0.07); face.position.set(0, 0.14, 0.055); head.add(face);
+  ruff.position.set(0, 0.175, 0.075); head.add(ruff);
+  const face = ball(skin, 0.07); face.position.set(0, 0.175, 0.055); head.add(face);
   const goggle = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.032, 0.028), metal);
-  goggle.position.set(0, 0.165, 0.104); head.add(goggle);
+  goggle.position.set(0, 0.2, 0.104); head.add(goggle);
 
   const bag = cyl(pack, 0.13, 0.145, 0.34, 12); bag.position.set(0, 0.06, -0.225);
   bag.scale.z = 0.72; torso.add(bag);
