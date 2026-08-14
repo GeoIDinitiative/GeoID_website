@@ -25,9 +25,9 @@
  * be roped, or to have gone that way before.
  */
 
-import * as THREE from "../vendor/three.module.js?v=0296a0c-f9529789";
-import { llToLocal } from "./geo.js?v=0296a0c-f9529789";
-import { ROUTE, OPEN } from "./config.js?v=0296a0c-f9529789";
+import * as THREE from "../vendor/three.module.js?v=5b4190f-19e076d0";
+import { llToLocal } from "./geo.js?v=5b4190f-19e076d0";
+import { ROUTE, OPEN } from "./config.js?v=5b4190f-19e076d0";
 
 const MASK_PX = 1024;
 const MASK_M = 1024;            // metres covered — so exactly 1 m per pixel
@@ -158,7 +158,10 @@ export class Glacier {
         // organised, not parallel.
         const along = Math.atan2(fx, fz) + Math.PI / 2 + (r2 - 0.5) * 0.55;
         const len = 26 + r3 * 74 + steepness * 40;
-        const width = 1.1 + r4 * 5.5 + steepness * 4.2;
+        /* Halved from 1.1 + 5.5r + 4.2s: at full spread the slots gaped
+           ten metres and read as terrain damage. Real visible slots on the
+           route are mostly a stride to a ladder-length across. */
+        const width = 0.7 + r4 * 2.4 + steepness * 1.8;
         // Crevasses on the Khumbu reach forty metres and more. Only the top
         // few are ever visible, but the depth is what the fall is measured
         // against, so it should be the real number.
@@ -169,7 +172,7 @@ export class Glacier {
            single most dangerous thing that can happen to it. A wide crevasse
            does not bridge as readily as a narrow one. */
         const bridged = Math.max(0, Math.min(1,
-          freshSnow * 1.5 * (1 - (width - 1) / 12) + (r3 - 0.5) * 0.35));
+          freshSnow * 1.5 * (1 - (width - 0.7) / 4.5) + (r3 - 0.5) * 0.35));
 
         segs.push({
           x: wx, z: wz, angle: along, len, width, depth,
@@ -186,7 +189,7 @@ export class Glacier {
     for (const seg of segs) {
       const near = this.routeDistance(seg.x, seg.z);
       if (near > 22) continue;
-      if (seg.width < 1.6 || seg.width > 11) continue;
+      if (seg.width < 1.0 || seg.width > 5.5) continue;
       seg.hasLadder = true;
       seg.bridged = 1;                     // a ladder is as good as a bridge
       this.ladders.push(seg);

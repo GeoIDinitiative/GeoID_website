@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=0296a0c-f9529789";
-import { CLIPMAP, RENDER } from "./config.js?v=0296a0c-f9529789";
+import * as THREE from "../vendor/three.module.js?v=5b4190f-19e076d0";
+import { CLIPMAP, RENDER } from "./config.js?v=5b4190f-19e076d0";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -306,7 +306,11 @@ const FRAG = /* glsl */`
         // Red channel is the hole; green is the shadow the lip casts inward,
         // painted a couple of metres wider, which is what stops the edge
         // reading as a sticker cut out of the snow.
-        if (m > 0.5) discard;
+        /* Black, not discarded. The discard showed whatever happened to be
+           behind the surface — often the far shell or sky — so a slot read
+           as a gap in the MAPPING rather than a hole in the GLACIER. A
+           crevasse seen from above is black: no sky reaches the bottom. */
+        if (m > 0.5) { gl_FragColor = vec4(0.010, 0.012, 0.016, 1.0); return; }
         lipShade = texture2D(crevasseMask, cu).g;
       }
     }

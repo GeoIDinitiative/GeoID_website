@@ -23,7 +23,7 @@
  *    half on a revisit.
  */
 
-import { TILE_BUDGET, TILE_CACHE } from "./config.js?v=0296a0c-f9529789";
+import { TILE_BUDGET, TILE_CACHE } from "./config.js?v=5b4190f-19e076d0";
 
 const cache = new Map();      // url -> HTMLImageElement (insertion order = LRU)
 const inflight = new Map();   // url -> Promise<Image>
