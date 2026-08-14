@@ -1474,3 +1474,43 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 }
 .bars-tab:hover { color: #ffb080; border-color: rgba(255, 106, 0, 0.8); }
 .corner-readout .cr-time { color: #ffb080; }
+
+
+/* ── Guide key list, set as a table not a waterfall ─────────────────────
+   The dt/dd pairs were stacking because the grid that lined them up went
+   out with an old skin block. Fixed two-column rows: keys right-aligned
+   in a fixed rail, descriptions flowing beside them. */
+.key-list {
+  margin: 0.6rem 0 0;
+  display: grid;
+  gap: 0.24rem;
+  grid-template-columns: 1fr;
+}
+.key-list div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+}
+.key-list dt {
+  flex: 0 0 6.4rem;
+  text-align: right;
+  font: 700 0.68rem "Exo 2", monospace;
+  letter-spacing: 0.08em;
+  color: #ffb080;
+  white-space: nowrap;
+}
+.key-list dd {
+  margin: 0;
+  font: 400 0.72rem/1.4 "Exo 2", sans-serif;
+  color: #b89880;
+}
+
+/* Footer: standing on the left, the house name on the right. */
+.nav-status { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; }
+.nav-brandline {
+  font: 700 0.62rem "Exo 2", "Segoe UI", sans-serif;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 176, 128, 0.85);
+  text-shadow: 0 0 8px rgba(255, 106, 0, 0.25);
+}

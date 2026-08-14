@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=7d86a7e-8843819e";
-import { ITEMS } from "./survival.js?v=7d86a7e-8843819e";
-import { compassPoint } from "./geo.js?v=7d86a7e-8843819e";
+import { Director } from "./director.js?v=d1bc06b-911a7123";
+import { ITEMS } from "./survival.js?v=d1bc06b-911a7123";
+import { compassPoint } from "./geo.js?v=d1bc06b-911a7123";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -369,6 +369,7 @@ export class Hud {
       </div>
       <div class="nav-status">
         <span class="ns-standing" id="n-standing">\u2014</span>
+        <span class="nav-brandline">GeoID Initiative</span>
         <span class="nav-clock-hidden" hidden><span id="c-time"></span><span id="c-day"></span><span id="c-phase"></span></span>
       </div>`;
     this.el.nav.querySelector("#nav-collapse-btn")
@@ -385,6 +386,7 @@ export class Hud {
       { id: "rope",    key: "R",   label: "Rope up",       icon: "\u2307", tip: "Clip the fixed line. In the Icefall this is what holds a bridge fall." },
       { id: "oxygen",  key: "O",   label: "Oxygen flow",   icon: "\u25CD", tip: "Cycles the regulator: off, 1, 2, 4 L/min. Watch the bottle." },
       { id: "journal", key: "TAB", label: "Journal",       icon: "\u25A4", tip: "The forecast, the plan, and what has happened so far." },
+      { id: "binoculars", key: "B", label: "Binoculars", icon: "\u25CC", tip: "Zoom the centre of view through the glasses." },
       { id: "map",     key: "M",   label: "Open map",      icon: "\u25A6", tip: "" },
       { id: "help",    key: "H",   label: "Controls card", icon: "?",       tip: "" },
     ];
@@ -395,8 +397,8 @@ export class Hud {
         tools: ["labels", "route", "third", "torch"] },
       { id: "climb", title: "Climb",
         icon: '<svg viewBox="0 0 16 16"><path d="m2 13 4.4-7 2.4 3.6L11 6.4 14 13Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>',
-        copy: "The gear on your harness.",
-        tools: ["items", "rope", "oxygen", "journal"] },
+        copy: "The whole expedition from one place: gas, gear, glass and the record. Each control shows its live state.",
+        tools: ["oxygen", "items", "rope", "binoculars", "torch", "journal"] },
       { id: "map", title: "Map & fast travel",
         icon: '<svg viewBox="0 0 16 16"><path d="M2 3.6 6 2l4 1.6L14 2v10.4L10 14l-4-1.6L2 14Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 2v10.4M10 3.6V14" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
         copy: "The navigation hub: the massif from above, every named place labelled. Click a pill for its story; fast travel to anywhere you have reached.",
@@ -446,9 +448,29 @@ export class Hud {
                       `<span class="nb-key">${t.key}</span>`;
         b.addEventListener("click", (e) => { e.preventDefault(); this.onTool && this.onTool(t.id); });
         holder.appendChild(b);
-        this.toolEls[t.id] = b;
+        /* A tool may sit in more than one section (the torch is Display and
+           Climb); every button gets state updates, so the store is a list. */
+        (this.toolEls[t.id] || (this.toolEls[t.id] = [])).push(b);
       }
       host.appendChild(d);
+    }
+    /* A dry click as the cursor crosses anything pressable — WebAudio so it
+       needs no asset; created on first use because the context must follow
+       a user gesture. */
+    this._blip = () => {
+      try {
+        const ctx = this._blipCtx || (this._blipCtx = new (window.AudioContext || window.webkitAudioContext)());
+        if (ctx.state === "suspended") return;
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "square"; o.frequency.value = 1750;
+        g.gain.setValueAtTime(0.045, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.03);
+        o.connect(g).connect(ctx.destination);
+        o.start(); o.stop(ctx.currentTime + 0.035);
+      } catch { /* no audio is not an error */ }
+    };
+    for (const el of this.el.nav.querySelectorAll(".nav-btn, .section-toggle, .info-btn, #nav-collapse-btn")) {
+      el.addEventListener("mouseenter", this._blip);
     }
     for (const [k, id] of [["cTime", "c-time"], ["cDay", "c-day"], ["cPhase", "c-phase"],
                            ["nStanding", "n-standing"]]) {
@@ -712,6 +734,7 @@ export class Hud {
   }
 
   setBinoculars(on) {
+    this.binocularsOn = on;
     this.el.binoc.style.display = on ? "" : "none";
   }
 
@@ -801,16 +824,19 @@ export class Hud {
        thing. The torch also shows what is left in it. */
     const on = s.toggles || {};
     for (const t of this.tools) {
-      const el = this.toolEls[t.id];
-      const v = on[t.id];
-      el.dataset.on = v ? "1" : "0";
-      if (t.id === "quality") {
-        el.dataset.on = "0";
-        el.querySelector(".nb-key").textContent = s.qualityName || t.key;
-      }
-      if (t.id === "torch") {
-        el.dataset.warn = s.lampBattery < 25 ? "1" : "0";
-        el.querySelector(".nb-key").textContent = v ? `${Math.round(s.lampBattery)}%` : t.key;
+      for (const el of this.toolEls[t.id] || []) {
+        const v = on[t.id];
+        el.dataset.on = v ? "1" : "0";
+        if (t.id === "torch") {
+          el.dataset.warn = s.lampBattery < 25 ? "1" : "0";
+          el.querySelector(".nb-key").textContent = v ? `${Math.round(s.lampBattery)}%` : t.key;
+        }
+        if (t.id === "oxygen") {
+          const f = s.survival.o2Flow, litres = Math.round(s.survival.bottleLitres);
+          el.dataset.on = f > 0 && litres > 0 ? "1" : "0";
+          el.querySelector(".nb-key").textContent = f > 0 ? `${f} L \u00b7 ${litres}` : t.key;
+        }
+        if (t.id === "binoculars") el.dataset.on = this.binocularsOn ? "1" : "0";
       }
     }
 

@@ -28,7 +28,7 @@
  * plausible snow albedo rather than amplifying noise.
  */
 
-import * as THREE from "../vendor/three.module.js?v=7d86a7e-8843819e";
+import * as THREE from "../vendor/three.module.js?v=d1bc06b-911a7123";
 
 const SAMPLES = 4000;
 

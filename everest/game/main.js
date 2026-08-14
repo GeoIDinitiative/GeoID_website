@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=7d86a7e-8843819e";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=7d86a7e-8843819e";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=7d86a7e-8843819e";
-import { Heightfield } from "./dem.js?v=7d86a7e-8843819e";
-import { Imagery } from "./imagery.js?v=7d86a7e-8843819e";
-import { Terrain } from "./terrain.js?v=7d86a7e-8843819e";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=7d86a7e-8843819e";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=7d86a7e-8843819e";
-import { Glacier } from "./glacier.js?v=7d86a7e-8843819e";
-import { TerrainShadows } from "./shadows.js?v=7d86a7e-8843819e";
-import { PostFX, QUALITY } from "./postfx.js?v=7d86a7e-8843819e";
-import { estimateCaptureSun } from "./delight.js?v=7d86a7e-8843819e";
-import { SnowField } from "./snowfield.js?v=7d86a7e-8843819e";
-import { Photoclinometry } from "./photoclino.js?v=7d86a7e-8843819e";
-import { World } from "./world.js?v=7d86a7e-8843819e";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=7d86a7e-8843819e";
-import { Player, STATE } from "./player.js?v=7d86a7e-8843819e";
-import { Director, Climbers } from "./director.js?v=7d86a7e-8843819e";
-import { Hud } from "./hud.js?v=7d86a7e-8843819e";
-import { Audio } from "./audio.js?v=7d86a7e-8843819e";
-import { install as installDiag } from "./diag.js?v=7d86a7e-8843819e";
-import * as tiles from "./tiles.js?v=7d86a7e-8843819e";
+import * as THREE from "../vendor/three.module.js?v=d1bc06b-911a7123";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=d1bc06b-911a7123";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=d1bc06b-911a7123";
+import { Heightfield } from "./dem.js?v=d1bc06b-911a7123";
+import { Imagery } from "./imagery.js?v=d1bc06b-911a7123";
+import { Terrain } from "./terrain.js?v=d1bc06b-911a7123";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=d1bc06b-911a7123";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=d1bc06b-911a7123";
+import { Glacier } from "./glacier.js?v=d1bc06b-911a7123";
+import { TerrainShadows } from "./shadows.js?v=d1bc06b-911a7123";
+import { PostFX, QUALITY } from "./postfx.js?v=d1bc06b-911a7123";
+import { estimateCaptureSun } from "./delight.js?v=d1bc06b-911a7123";
+import { SnowField } from "./snowfield.js?v=d1bc06b-911a7123";
+import { Photoclinometry } from "./photoclino.js?v=d1bc06b-911a7123";
+import { World } from "./world.js?v=d1bc06b-911a7123";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=d1bc06b-911a7123";
+import { Player, STATE } from "./player.js?v=d1bc06b-911a7123";
+import { Director, Climbers } from "./director.js?v=d1bc06b-911a7123";
+import { Hud } from "./hud.js?v=d1bc06b-911a7123";
+import { Audio } from "./audio.js?v=d1bc06b-911a7123";
+import { install as installDiag } from "./diag.js?v=d1bc06b-911a7123";
+import * as tiles from "./tiles.js?v=d1bc06b-911a7123";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -589,20 +589,17 @@ export class Game {
       if (msg) this.hud.notify(msg);
       return;
     }
-    if (e.code === "KeyB") {
-      this.binoculars = !this.binoculars;
-      this.camera.fov = this.binoculars ? 16 : RENDER.fov;
-      this.camera.updateProjectionMatrix();
-      this.player.lookScale = this.binoculars ? 16 / RENDER.fov : 1;
-      this.hud.setBinoculars(this.binoculars);
-      return;
-    }
+    if (e.code === "KeyB") { this.toggleBinoculars(); return; }
 
     const c = e.code;
     if (c === "Escape") {
       if (this.hud.readerOpen) return this.hud.closeReader();
       if (this.hud.journalOpen) return this.hud.toggleJournal(false);
-      document.exitPointerLock?.();
+      /* With nothing open and the pointer already free, Esc drives the
+         panel — the browser owns Esc while the pointer is locked, so that
+         press only unlocks and the next one reaches the panel. */
+      if (document.pointerLockElement) { document.exitPointerLock?.(); return; }
+      this.hud.setNavHidden(!this.hud.navHidden);
       return;
     }
     if (!this.running) return;
@@ -640,6 +637,14 @@ export class Game {
    * no way for the lit state of a button to drift from the thing it claims
    * to control.
    */
+  toggleBinoculars() {
+    this.binoculars = !this.binoculars;
+    this.camera.fov = this.binoculars ? 16 : RENDER.fov;
+    this.camera.updateProjectionMatrix();
+    this.player.lookScale = this.binoculars ? 16 / RENDER.fov : 1;
+    this.hud.setBinoculars(this.binoculars);
+  }
+
   tool(id) {
     switch (id) {
       case "third":
@@ -679,6 +684,8 @@ export class Game {
         return;
       case "map":
         return this.hud.toggleMap();
+      case "binoculars":
+        return this.toggleBinoculars();
       case "oxygen": {
         const flows = [0, 1, 2, 4];
         const cur = flows.indexOf(this.survival.o2Flow);
