@@ -25,9 +25,9 @@
  * be roped, or to have gone that way before.
  */
 
-import * as THREE from "../vendor/three.module.js?v=4b1b5a5-d4cb1834";
-import { llToLocal } from "./geo.js?v=4b1b5a5-d4cb1834";
-import { ROUTE, OPEN } from "./config.js?v=4b1b5a5-d4cb1834";
+import * as THREE from "../vendor/three.module.js?v=99aef70-518737ac";
+import { llToLocal } from "./geo.js?v=99aef70-518737ac";
+import { ROUTE, OPEN } from "./config.js?v=99aef70-518737ac";
 
 const MASK_PX = 1024;
 const MASK_M = 1024;            // metres covered — so exactly 1 m per pixel
@@ -158,10 +158,10 @@ export class Glacier {
         // organised, not parallel.
         const along = Math.atan2(fx, fz) + Math.PI / 2 + (r2 - 0.5) * 0.55;
         const len = 26 + r3 * 74 + steepness * 40;
-        /* Halved from 1.1 + 5.5r + 4.2s: at full spread the slots gaped
-           ten metres and read as terrain damage. Real visible slots on the
-           route are mostly a stride to a ladder-length across. */
-        const width = 0.7 + r4 * 2.4 + steepness * 1.8;
+        /* Narrowed again, to crack widths: a visible slot on the route is
+           mostly half a metre to two metres across; anything wider is an
+           event. */
+        const width = 0.35 + r4 * 1.2 + steepness * 0.9;
         // Crevasses on the Khumbu reach forty metres and more. Only the top
         // few are ever visible, but the depth is what the fall is measured
         // against, so it should be the real number.
@@ -172,7 +172,7 @@ export class Glacier {
            single most dangerous thing that can happen to it. A wide crevasse
            does not bridge as readily as a narrow one. */
         const bridged = Math.max(0, Math.min(1,
-          freshSnow * 1.5 * (1 - (width - 0.7) / 4.5) + (r3 - 0.5) * 0.35));
+          freshSnow * 1.5 * (1 - (width - 0.35) / 2.2) + (r3 - 0.5) * 0.35));
 
         segs.push({
           x: wx, z: wz, angle: along, len, width, depth,
@@ -189,7 +189,7 @@ export class Glacier {
     for (const seg of segs) {
       const near = this.routeDistance(seg.x, seg.z);
       if (near > 22) continue;
-      if (seg.width < 1.0 || seg.width > 5.5) continue;
+      if (seg.width < 0.7 || seg.width > 2.6) continue;
       seg.hasLadder = true;
       seg.bridged = 1;                     // a ladder is as good as a bridge
       this.ladders.push(seg);
@@ -240,14 +240,33 @@ export class Glacier {
         // A bridged crevasse still sags: the ground over one is dished, so
         // the occlusion is drawn for it too, at half strength. It is the
         // only visual tell there is, and it is a fair one.
-        const hx = Math.sin(seg.angle) * seg.len / 2;
-        const hz = Math.cos(seg.angle) * seg.len / 2;
-        const [x1, y1] = toPx(seg.x - hx, seg.z - hz);
-        const [x2, y2] = toPx(seg.x + hx, seg.z + hz);
+        /* A crack, not a capsule: the segment is drawn as a jagged
+           polyline — perpendicular jitter that is deterministic per
+           segment — and its width tapers to nothing at both tips, the way
+           real slots pinch out. */
+        const ux = Math.sin(seg.angle), uz = Math.cos(seg.angle);
+        const nx = uz, nz = -ux;
+        const N = 8;
+        const segHash = (k) => {
+          const v = Math.sin(seg.x * 12.9898 + seg.z * 78.233 + k * 37.719) * 43758.5453;
+          return v - Math.floor(v);
+        };
         c.strokeStyle = p.ch;
-        c.lineWidth = Math.max(1, (seg.width + p.extra) * S);
         c.globalAlpha = p.alpha * (open ? 1 : 0.35);
-        c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+        for (let k = 0; k < N; k++) {
+          const t0 = k / N - 0.5, t1 = (k + 1) / N - 0.5;
+          const j0 = (segHash(k) - 0.5) * seg.width * 1.6;
+          const j1 = (segHash(k + 1) - 0.5) * seg.width * 1.6;
+          const ax = seg.x + ux * seg.len * t0 + nx * j0;
+          const az = seg.z + uz * seg.len * t0 + nz * j0;
+          const bx = seg.x + ux * seg.len * t1 + nx * j1;
+          const bz = seg.z + uz * seg.len * t1 + nz * j1;
+          const [x1, y1] = toPx(ax, az);
+          const [x2, y2] = toPx(bx, bz);
+          const taper = Math.sin(((k + 0.5) / N) * Math.PI);   // 0 at tips, 1 mid
+          c.lineWidth = Math.max(0.8, (seg.width * (0.35 + 0.65 * taper) + p.extra) * S);
+          c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+        }
       }
     }
     c.globalCompositeOperation = "source-over";

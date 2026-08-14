@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=4b1b5a5-d4cb1834";
-import { CLIPMAP, RENDER } from "./config.js?v=4b1b5a5-d4cb1834";
+import * as THREE from "../vendor/three.module.js?v=99aef70-518737ac";
+import { CLIPMAP, RENDER } from "./config.js?v=99aef70-518737ac";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -913,7 +913,8 @@ const FRAG = /* glsl */`
                current running up the mountain and is retired by request.
                (The along-distance still rides the mask's G channel if a
                use for it returns.) */
-            float aR = 0.52 * rm.r * (1.0 - smoothstep(700.0, 2600.0, vDist));
+            float aR = 0.52 * rm.r * (1.0 - smoothstep(700.0, 2600.0, vDist))
+                     * smoothstep(2.5, 9.0, vDist);   // not a gold carpet underfoot
             col = mix(col, vec3(0.878, 0.627, 0.145), clamp(aR, 0.0, 0.9));
           }
         }

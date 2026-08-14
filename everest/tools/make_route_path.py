@@ -99,10 +99,14 @@ def astar(dem, start, goal, m_per_px):
                 continue
             run = w * m_per_px
             slope = abs(dem[ny, nx] - h0) / run
-            if slope > 0.85:            # ~40 degrees: a wall, not a route
-                cost = run * 60
+            if slope > 0.70:            # ~35 degrees: a wall, not a route.
+                # 60x was too cheap over a short climb — the path went
+                # straight up the Popcorn Field's serac wall rather than
+                # switchbacking the icefall. 500x makes any wall crossing
+                # cost half a kilometre of walking per metre.
+                cost = run * 500
             else:
-                cost = run * (1 + (slope * 5) ** 2)
+                cost = run * (1 + (slope * 8) ** 2)
             nd = d + cost
             if nd < dist.get((nx, ny), 1e18):
                 dist[(nx, ny)] = nd
