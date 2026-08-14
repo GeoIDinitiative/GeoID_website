@@ -29,7 +29,7 @@
  * metres.
  */
 
-import * as THREE from "../vendor/three.module.js?v=ec81085-177e95b0";
+import * as THREE from "../vendor/three.module.js?v=488112e-177e95b0";
 
 /** 512 over the mid tier's ~17 km is 34 m a texel. A mountain's shadow is a
  *  kilometre-scale object; resolving it finer buys nothing and costs the

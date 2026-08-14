@@ -2339,3 +2339,15 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 .info-bar .v { font-size: 15px; }
 .info-bar .u { font-size: 11px; }
 .info-bar .ib-alt .v { font-size: 18px; }
+
+
+/* ── The compass rises over the taller info bar; the bar leans ──────────
+   The chips grew, so the strip above them moves up with the growth
+   instead of sitting on their heads. And the bar takes the display face
+   like every other instrument. */
+.compass { bottom: calc(var(--hud-pad) + 2.1rem); }
+.info-bar .k,
+.info-bar .v,
+.info-bar .u {
+  font-family: Orbitron, "Exo 2", sans-serif;
+}

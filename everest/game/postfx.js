@@ -18,7 +18,7 @@
  * target at all, and is the honest fallback rather than a degraded chain.
  */
 
-import * as THREE from "../vendor/three.module.js?v=ec81085-177e95b0";
+import * as THREE from "../vendor/three.module.js?v=488112e-177e95b0";
 
 /** A fullscreen triangle. Cheaper than a quad — one triangle, no diagonal
  *  seam, and every fragment is shaded exactly once. */
