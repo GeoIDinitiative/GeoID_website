@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=eb5a684-bf53358c";
-import { CLIPMAP, RENDER } from "./config.js?v=eb5a684-bf53358c";
+import * as THREE from "../vendor/three.module.js?v=1c22a4f-d22a29b4";
+import { CLIPMAP, RENDER } from "./config.js?v=1c22a4f-d22a29b4";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -860,12 +860,12 @@ const FRAG = /* glsl */`
         if (ru.x > 0.0 && ru.x < 1.0 && ru.y > 0.0 && ru.y < 1.0) {
           vec4 rm = texture2D(routeMask, ru);
           if (rm.r > 0.08) {
-            float s2 = mod(rm.g * 620.0 - time * 46.0, 620.0);
-            float pulse = exp(-(s2 * s2) / (2.0 * 40.0 * 40.0));
-            float aR = (0.38 + pulse * 0.62) * rm.r
-                     * (1.0 - smoothstep(700.0, 2600.0, vDist));
-            vec3 ropeC = mix(vec3(0.878, 0.627, 0.145), vec3(1.0, 0.941, 0.753), pulse);
-            col = mix(col, ropeC, clamp(aR, 0.0, 0.9));
+            /* A steady line — the travelling pulse read as an electrical
+               current running up the mountain and is retired by request.
+               (The along-distance still rides the mask's G channel if a
+               use for it returns.) */
+            float aR = 0.52 * rm.r * (1.0 - smoothstep(700.0, 2600.0, vDist));
+            col = mix(col, vec3(0.878, 0.627, 0.145), clamp(aR, 0.0, 0.9));
           }
         }
       }

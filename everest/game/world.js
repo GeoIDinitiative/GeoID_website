@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=eb5a684-bf53358c";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=eb5a684-bf53358c";
-import { llToLocal, haversine } from "./geo.js?v=eb5a684-bf53358c";
+import * as THREE from "../vendor/three.module.js?v=1c22a4f-d22a29b4";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=1c22a4f-d22a29b4";
+import { llToLocal, haversine } from "./geo.js?v=1c22a4f-d22a29b4";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be
@@ -528,9 +528,22 @@ export function pitchCamp(field, x, z, count, radius, seed) {
     // Nobody pitches on a slope, and nobody pitches on a crevasse either —
     // but the glacier does not exist yet at boot, so flatness is the test.
     if (field.slope(tx, tz, 10) > 16) continue;
+    /* Seat height is the terrain the MESH renders, not the raw point
+       sample: the clipmap box-filters heights at its cell scale, so on
+       hummocky moraine a point sample can sit a metre off the drawn
+       surface and the tent floats or drowns. A 3x3 box at 8 m spacing
+       approximates the rendered ground; a small sink buries the
+       groundsheet; and the local gradient tilts the tent so its floor
+       lies IN the slope rather than bridging it. */
+    let fh = 0;
+    for (const dx of [-8, 0, 8]) for (const dz of [-8, 0, 8]) fh += field.height(tx + dx, tz + dz);
+    fh /= 9;
+    const gx = (field.height(tx + 6, tz) - field.height(tx - 6, tz)) / 12;
+    const gz = (field.height(tx, tz + 6) - field.height(tx, tz - 6)) / 12;
     out.push({
-      x: tx, z: tz, y: field.height(tx, tz),
+      x: tx, z: tz, y: fh - 0.14,
       yaw: a + 1.1,
+      tiltX: Math.atan(gz) * 0.8, tiltZ: -Math.atan(gx) * 0.8,
       scale: 0.85 + ((tries * 29) % 40) / 100,
       colour: colours[(out.length + seed) % colours.length],
     });
@@ -685,7 +698,7 @@ function buildTents(places) {
   const c = new THREE.Color();
   places.forEach((p, i) => {
     _d.position.set(p.x, p.y, p.z);
-    _d.rotation.set(0, p.yaw, 0);
+    _d.rotation.set(p.tiltX || 0, p.yaw, p.tiltZ || 0, "YXZ");
     _d.scale.setScalar(p.scale);
     _d.updateMatrix();
     fabric.setMatrixAt(i, _d.matrix);
