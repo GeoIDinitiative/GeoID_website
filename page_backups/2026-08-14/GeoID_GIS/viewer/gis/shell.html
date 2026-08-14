@@ -1,0 +1,699 @@
+<!--
+  The GIS shell, shared by every world.
+
+  Extracted from the Earth page so the panels exist once instead of ten
+  times. gis/shell.js fetches this and injects each block into whichever page
+  is missing it, which is how a planet viewer gets the toolbox, the layer box,
+  the Meshing Studio and the Research Hub without carrying a copy of their
+  markup.
+
+  Each block is a <template> named by data-slot; shell.js reads that rather
+  than guessing from the markup.
+-->
+<template data-slot="project-button"><button type="button" id="project-open-modal" class="eyebrow-project"
+  title="Projects" aria-label="Projects" aria-haspopup="dialog">
+  <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.4 4.2h4.2l1.2 1.5h5.8v6.8H2.4Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+</button></template>
+
+<template data-slot="project-dialog"><div class="project-dialog-backdrop" id="project-dialog" hidden>
+  <section class="project-dialog" role="dialog" aria-modal="true" aria-labelledby="project-dialog-title">
+    <header class="project-dialog-head">
+      <h2 id="project-dialog-title">Project</h2>
+      <button type="button" id="project-dialog-close" class="project-dialog-close" aria-label="Close">&times;</button>
+    </header>
+    <div class="project-dialog-body" id="project-dialog-body"></div>
+  </section>
+</div></template>
+
+<template data-slot="mode-switch"><div class="view-mode-switch" id="view-mode-switch" role="group" aria-label="View mode">
+        <button type="button" class="view-mode-btn is-active" data-mode="gis" id="view-mode-gis">GIS</button>
+        <button type="button" class="view-mode-btn" data-mode="model" id="view-mode-model">Model</button>
+        <button type="button" class="view-mode-btn" data-mode="research" id="view-mode-research">Research</button>
+      </div></template>
+
+<template data-slot="geoid-group"><details id="geoid-controls-group" class="control-section toolbox-group" hidden>
+      <summary class="section-toggle">
+        <div class="section-toggle-main">
+          <div class="section-heading">
+            <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M2.9 8h10.2M8 2.8c1.5 1.6 1.5 8.8 0 10.4-1.5-1.6-1.5-8.8 0-10.4Z" fill="none" stroke="currentColor" stroke-width="1.1"/></svg></span><span>Explorer</span></span></div>
+          </div>
+        </div>
+      </summary>
+      <div class="section-body toolbox-group-body" id="geoid-controls-host"></div>
+    </details></template>
+
+<template data-slot="toolbox"><div id="gis-toolbox-panels" hidden>
+      <details id="gis-group-modelled" class="control-section toolbox-group">
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 11.4 6 7.6l2.6 2.3L13.4 4.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M2.6 13.4h10.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span>Earth Engine</span></span></div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body toolbox-group-body">
+          <details class="gis-tool-section">
+            <summary>Earth Engine Catalogue</summary>
+            <div class="gis-tool-body">
+              <label class="row"><span>Dataset</span>
+                <select id="gee-dataset" class="input">
+                  <option value="">Select a collection…</option>
+                  <option value="COPERNICUS/S2_SR_HARMONIZED">Sentinel-2 surface reflectance</option>
+                  <option value="LANDSAT/LC09/C02/T1_L2">Landsat 9 surface reflectance</option>
+                  <option value="COPERNICUS/S1_GRD">Sentinel-1 SAR (GRD)</option>
+                  <option value="NASA/NASADEM_HGT/001">NASADEM elevation</option>
+                  <option value="COPERNICUS/DEM/GLO30">Copernicus GLO-30 DEM</option>
+                  <option value="MODIS/061/MOD11A1">MODIS land surface temperature</option>
+                  <option value="UCSB-CHG/CHIRPS/DAILY">CHIRPS daily precipitation</option>
+                </select>
+              </label>
+              <div class="row"><span>Date range</span>
+                <span class="gee-dates">
+                  <input id="gee-date-from" class="input" type="date" title="From">
+                  <span class="gee-dates-sep">–</span>
+                  <input id="gee-date-to" class="input" type="date" title="To">
+                </span>
+              </div>
+              <label class="row"><span>Extent</span>
+                <select id="gee-extent" class="input">
+                  <option value="global" selected>Global</option>
+                  <option value="view">Current view</option>
+                  <option value="polygon">Drawn polygon</option>
+                </select>
+              </label>
+              <button id="gee-request" class="button" type="button">Request basemap</button>
+              <p id="gee-status" class="gis-hint" aria-live="polite"></p>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Service</summary>
+            <div class="gis-tool-body">
+              <p class="gis-hint">Earth Engine cannot be called from a page directly:
+                it needs a credential, and anything the browser holds is public. A
+                small service holds it instead. See services/gee-tiles.</p>
+              <label class="row"><span>Endpoint</span>
+                <input id="gee-endpoint" class="input" type="url"
+                  placeholder="https://region-project.cloudfunctions.net/geeImage"></label>
+              <button id="gee-endpoint-save" class="button secondary" type="button">Save endpoint</button>
+            </div>
+          </details>
+        </div>
+      </details>
+      <details id="gis-group-import" class="control-section toolbox-group">
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 2.9v7.2M5.2 7.4 8 10.2l2.8-2.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 12.4h9.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span><span>Add / Import Data</span></span></div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body toolbox-group-body">
+          <div id="import-tools-host"></div>
+          <details class="gis-tool-section">
+            <summary>Coordinate Transformer</summary>
+            <div class="gis-tool-body">
+              <p class="tool-copy">Convert a coordinate pair between reference systems.</p>
+              <div class="row"><label for="crs-from">From</label><select id="crs-from" class="mini-select"></select></div>
+              <div class="gis-tool-grid">
+                <input id="crs-in-x" class="input" type="number" step="any" placeholder="X / lon">
+                <input id="crs-in-y" class="input" type="number" step="any" placeholder="Y / lat">
+              </div>
+              <div class="row"><label for="crs-to">To</label><select id="crs-to" class="mini-select"></select></div>
+              <button id="crs-convert" class="tool-button" type="button">Convert</button>
+              <div id="crs-result" class="gis-metric">Enter a coordinate to convert.</div>
+              <button id="crs-use-view" class="button secondary" type="button">Use current view centre</button>
+            </div>
+          </details>
+        </div>
+      </details>
+      <details id="gis-group-polygons" class="control-section toolbox-group">
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 6.1 7 2.4l6.4 2.5-1.5 6.2-5.6 2.5-3.9-3.3Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="7" cy="2.4" r="1" fill="currentColor"/><circle cx="13.4" cy="4.9" r="1" fill="currentColor"/><circle cx="2.6" cy="6.1" r="1" fill="currentColor"/><circle cx="6.3" cy="13.6" r="1" fill="currentColor"/></svg></span><span>Shapefiles</span></span></div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body">
+          <div class="control-stack">
+            <div class="section-summary-copy" style="margin-bottom:0.5rem;">Shapefile and vector overlays — coastlines, boundaries, basins. Switch one off to take it off the globe without unloading it.</div>
+            <div class="gis-btn-row">
+              <button id="polygon-browse" class="button" type="button">Add shapefile</button>
+            </div>
+            <input id="polygon-file" type="file" multiple hidden>
+            <div id="polygon-list" class="polygon-list"></div>
+          </div>
+        </div>
+      </details>
+
+      <details id="gis-group-preprocess" class="control-section toolbox-group">
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 4.4h10M3 8h10M3 11.6h6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="11.6" cy="11.6" r="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></span><span>Pre-processing Toolbox</span></span></div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body toolbox-group-body">
+          <details class="gis-tool-section">
+            <summary>Surface Analysis</summary>
+            <div class="gis-tool-body">
+              <div class="row"><label for="ras-op-a">Raster</label><select id="ras-op-a" class="mini-select"></select></div>
+              <div class="row"><label for="ras-op">Tool</label><select id="ras-op" class="mini-select"></select></div>
+              <div class="row" id="ras-op-param-row" hidden><label id="ras-op-param-label" for="ras-op-param">Value</label><input id="ras-op-param" class="input" type="number"></div>
+              <button id="ras-op-run" class="tool-button" type="button">Run</button>
+              <div id="ras-op-status" class="gis-metric">Slope, aspect, hillshade, contours, reclassify and raster-to-points.</div>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Zonal Statistics</summary>
+            <div class="gis-tool-body">
+              <div class="row"><label for="zonal-raster">Raster</label><select id="zonal-raster" class="mini-select"></select></div>
+              <div class="row"><label for="zonal-zones">Zones</label><select id="zonal-zones" class="mini-select"></select></div>
+              <button id="zonal-run" class="tool-button" type="button">Compute</button>
+              <div id="zonal-status" class="gis-metric">Summarise raster values inside each polygon.</div>
+              <button id="zonal-export" class="button secondary" type="button" disabled>Export CSV</button>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Sample Raster At Point</summary>
+            <div class="gis-tool-body">
+              <div class="gis-tool-grid">
+                <input id="raster-lat" class="input" type="number" step="any" placeholder="lat">
+                <input id="raster-lon" class="input" type="number" step="any" placeholder="lon">
+              </div>
+              <button id="raster-sample" class="tool-button" type="button">Sample All Rasters</button>
+              <div id="raster-sample-result" class="gis-metric">No sample taken.</div>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Geoprocessing</summary>
+            <div class="gis-tool-body">
+              <div class="row"><label for="vec-op-a">Input</label><select id="vec-op-a" class="mini-select"></select></div>
+              <div class="row"><label for="vec-op">Tool</label><select id="vec-op" class="mini-select"></select></div>
+              <div class="row" id="vec-op-second-row" hidden><label for="vec-op-b">Overlay</label><select id="vec-op-b" class="mini-select"></select></div>
+              <div class="row" id="vec-op-field-row" hidden><label for="vec-op-field">Field</label><select id="vec-op-field" class="mini-select"></select></div>
+              <div class="row" id="vec-op-param-row" hidden><label id="vec-op-param-label" for="vec-op-param">Value</label><input id="vec-op-param" class="input" type="number"></div>
+              <button id="vec-op-run" class="tool-button" type="button">Run</button>
+              <div id="vec-op-status" class="gis-metric">Buffer, clip, difference, intersect, dissolve, hull, centroids, simplify, spatial join.</div>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Attribute Table</summary>
+            <div class="gis-tool-body">
+              <div class="row"><label for="attr-layer">Layer</label><select id="attr-layer" class="mini-select"></select></div>
+              <div id="attr-table-host" class="attr-table-host"></div>
+              <div class="row"><label for="attr-field">Field</label><select id="attr-field" class="mini-select"></select></div>
+              <button id="attr-stats-run" class="button secondary" type="button">Field Statistics</button>
+              <div class="gis-tool-grid">
+                <input id="calc-field" class="input" type="text" placeholder="new field">
+                <input id="calc-expr" class="input" type="text" placeholder="e.g. area_m2 / 1000">
+              </div>
+              <button id="calc-run" class="button secondary" type="button">Field Calculator</button>
+              <div id="attr-stats" class="gis-metric">Select a layer to inspect its attributes.</div>
+              <p class="tool-copy">Export selected layer</p>
+              <div class="measure-actions">
+                <button id="export-geojson" class="button secondary" type="button">GeoJSON</button>
+                <button id="export-csv" class="button secondary" type="button">CSV</button>
+                <button id="export-wkt" class="button secondary" type="button">WKT</button>
+              </div>
+              <div class="measure-actions">
+                <button id="export-kml" class="button secondary" type="button">KML</button>
+              </div>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Attribute Query</summary>
+            <div class="gis-tool-body">
+              <div class="row"><label for="vector-layer">Layer</label><select id="vector-layer" class="mini-select"></select></div>
+              <div class="row"><label for="vector-field">Field</label><select id="vector-field" class="mini-select"></select></div>
+              <input id="vector-value" class="input" type="text" placeholder="Contains text (blank = all)">
+              <button id="vector-query" class="tool-button" type="button">Run Query</button>
+              <div id="vector-query-result" class="gis-metric">No query run.</div>
+              <button id="vector-query-export" class="button secondary" type="button" disabled>Export Matches CSV</button>
+            </div>
+          </details>
+        </div>
+      </details>
+      <details id="gis-group-analysis" class="control-section toolbox-group">
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 12.6 5.4 8l2.3 2.6L10.2 5l3.2 5.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Extraction &amp; Analysis</span></span></div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body toolbox-group-body">
+          <div id="analysis-tools-host">
+            <!-- The Extract From Layers panel, identical to the Earth page's.
+                 toolbox.js MOVES this into the host by id, so the host was empty
+                 on every planet and the Draw box and extraction simply did not
+                 exist there. -->
+      <details id="gis-analysis-section" class="control-section" hidden>
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title">Extract From Layers</div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body">
+          <p class="tool-copy">Mark out an area — click one out with the <strong>Draw</strong> tool, or set a box below — then sample every active layer across it and export one table.</p>
+          <div class="gis-draw-box">
+            <div class="row">
+              <label for="gis-box-shape">Shape</label>
+              <select id="gis-box-shape" class="input">
+                <option value="square">Square</option>
+                <option value="rectangle">Rectangle</option>
+              </select>
+            </div>
+            <div class="row">
+              <label for="gis-box-width"><span id="gis-box-width-label">Side (km)</span></label>
+              <input id="gis-box-width" class="input" type="number" min="0.05" step="1" value="10">
+            </div>
+            <div class="row" id="gis-box-height-row" hidden>
+              <label for="gis-box-height">Height (km)</label>
+              <input id="gis-box-height" class="input" type="number" min="0.05" step="1" value="10">
+            </div>
+            <div class="row">
+              <label for="gis-box-centre">Centred on</label>
+              <select id="gis-box-centre" class="input">
+                <option value="view">The middle of the view</option>
+                <option value="manual">Coordinates below</option>
+              </select>
+            </div>
+            <div class="row" id="gis-box-manual" hidden>
+              <label for="gis-box-lat">Lat / lon</label>
+              <input id="gis-box-lat" class="input" type="number" step="0.0001" placeholder="lat" aria-label="Box centre latitude">
+              <input id="gis-box-lon" class="input" type="number" step="0.0001" placeholder="lon °E" aria-label="Box centre longitude east">
+            </div>
+            <button id="gis-box-draw" class="tool-button" type="button">Draw box</button>
+            <div id="gis-box-status" class="gis-metric">No box drawn.</div>
+          </div>
+          <div class="gis-extract-options">
+            <label class="gis-extract-source" for="gis-extract-builtin">
+              <input type="checkbox" id="gis-extract-builtin" checked>
+              <span>GeoID DEM elevation + slope</span>
+            </label>
+            <label class="gis-extract-source" for="gis-extract-geology">
+              <input type="checkbox" id="gis-extract-geology">
+              <span>GeoID geology class (slower)</span>
+            </label>
+            <label class="gis-extract-source" for="gis-extract-climate">
+              <input type="checkbox" id="gis-extract-climate">
+              <span>Modelled climate (temperature, pressure, wind, irradiance) &mdash; estimated from latitude and elevation, not observed</span>
+            </label>
+          </div>
+          <div id="gis-extract-sources" class="gis-extract-options">
+            <p class="tool-copy import-empty-note">No sampleable imported layers.</p>
+          </div>
+          <div class="row">
+            <label for="gis-extract-step">Sample spacing (km)</label>
+            <input id="gis-extract-step" class="input" type="number" min="0.05" step="0.05" value="1">
+          </div>
+          <button id="gis-extract-run" class="tool-button" type="button">Run Extraction</button>
+          <div id="gis-extract-status" class="gis-metric">No extraction run yet.</div>
+          <div class="measure-actions">
+            <button id="gis-extract-csv" class="button secondary" type="button" disabled>Export CSV</button>
+            <button id="gis-extract-geojson" class="button secondary" type="button" disabled>Export GeoJSON</button>
+          </div>
+        </div>
+      </details>
+          </div>
+          <details class="gis-tool-section">
+            <summary>Point &amp; Pixel Extraction</summary>
+            <div class="gis-tool-body">
+              <label class="row"><span>Source layer</span>
+                <select id="extract-source" class="input"></select>
+              </label>
+              <label class="row"><span>Geometry</span>
+                <select id="extract-geometry" class="input">
+                  <option value="pin">Dropped pin</option>
+                  <option value="polygon">Drawn polygon</option>
+                  <option value="all">Whole layer</option>
+                </select>
+              </label>
+              <button id="extract-run" class="button" type="button">Extract series</button>
+              <div id="extract-summary" class="gis-metric">Nothing extracted yet.</div>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Signal Analysis</summary>
+            <div class="gis-tool-body">
+              <label class="row"><span>Method</span>
+                <select id="signal-method" class="input">
+                  <option value="stats">Descriptive statistics</option>
+                  <option value="detrend">Detrend (linear)</option>
+                  <option value="fft">FFT amplitude spectrum</option>
+                  <option value="stft">STFT spectrogram</option>
+                  <option value="psd">Power spectral density</option>
+                </select>
+              </label>
+              <label class="row"><span>Window</span>
+                <input id="signal-window" class="input" type="number" min="8" step="8" value="128">
+              </label>
+              <label class="row"><span>Overlap %</span>
+                <input id="signal-overlap" class="input" type="number" min="0" max="90" step="5" value="50">
+              </label>
+              <button id="signal-run" class="button" type="button">Run analysis</button>
+              <div id="signal-plot" class="gis-plot"></div>
+              <div id="signal-summary" class="gis-metric">No series loaded.</div>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Model Builder</summary>
+            <div class="gis-tool-body">
+              <p class="gis-hint">Write a model over the active layers. Runs against the
+                layer registry and returns a new layer or a table.</p>
+              <label class="row"><span>Language</span>
+                <select id="builder-language" class="input">
+                  <option value="js">Expression (JavaScript)</option>
+                  <option value="py" disabled>Python (needs runtime)</option>
+                </select>
+              </label>
+              <textarea id="builder-source" class="input gis-code" rows="8"
+                spellcheck="false">// layers: named layer accessors, e.g. layers["dem"].sample(lat, lon)
+// return an array of {lat, lon, value} or a scalar table.
+return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
+              <button id="builder-run" class="button" type="button">Run model</button>
+              <div id="builder-output" class="gis-metric">Not run.</div>
+            </div>
+          </details>
+        </div>
+      </details>
+      <details id="gis-group-export" class="control-section toolbox-group">
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 11.6V4.4M5.2 7.2 8 4.4l2.8 2.8" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><path d="M3.2 12.6h9.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></span><span>Export Data</span></span></div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body toolbox-group-body">
+          <details class="gis-tool-section">
+            <summary>Export Layers</summary>
+            <div class="gis-tool-body">
+              <label class="row"><span>Layer</span>
+                <select id="export-layer" class="input"></select>
+              </label>
+              <label class="row"><span>Format</span>
+                <select id="export-format" class="input">
+                  <option value="geojson">GeoJSON</option>
+                  <option value="csv">CSV</option>
+                  <option value="xyz">XYZ</option>
+                  <option value="wkt">WKT</option>
+                  <option value="stl">STL</option>
+                  <option value="msh">Gmsh .msh</option>
+                  <option value="obj">OBJ</option>
+                </select>
+              </label>
+              <label class="row"><span>Output CRS</span>
+                <select id="export-crs" class="input">
+                  <option value="epsg:4326">WGS84 lat/lon</option>
+                  <option value="local">Local metres (model origin)</option>
+                  <option value="utm">UTM (auto zone)</option>
+                </select>
+              </label>
+              <button id="export-run" class="button" type="button">Export</button>
+            </div>
+          </details>
+          <details class="gis-tool-section">
+            <summary>Map View</summary>
+            <div class="gis-tool-body">
+              <label class="row"><span>Title</span><input id="map-title" class="input" type="text" placeholder="Figure title"></label>
+              <label class="row"><span>Elements</span>
+                <span class="gis-checks">
+                  <label><input id="map-scale" type="checkbox" checked> Scale bar</label>
+                  <label><input id="map-north" type="checkbox" checked> North arrow</label>
+                  <label><input id="map-show-legend" type="checkbox" checked> Legend</label>
+                  <label><input id="map-grid" type="checkbox"> Graticule</label>
+                </span>
+              </label>
+              <button id="map-compose" class="button" type="button">Compose map view</button>
+              <p class="gis-hint">Renders the current view with the selected furniture as a PNG.</p>
+            </div>
+          </details>
+        </div>
+      </details>
+      <details id="gis-group-metadata" class="control-section toolbox-group">
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><rect x="3.2" y="2.8" width="9.6" height="10.4" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.4 5.8h5.2M5.4 8h5.2M5.4 10.2h3.2" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg></span><span>Metadata</span></span></div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body toolbox-group-body">
+          <div id="geoid-metadata-host"></div>
+          <details class="gis-tool-section">
+            <summary>Layer Provenance</summary>
+            <div class="gis-tool-body">
+              <div id="metadata-list" class="gis-metric">No layers loaded.</div>
+              <button id="metadata-copy" class="button" type="button">Copy citations</button>
+            </div>
+          </details>
+        </div>
+      </details>
+      <details id="gis-group-layers" class="control-section toolbox-group">
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-heading">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 2.7 13.6 5.6 8 8.5 2.4 5.6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="m2.4 8.4 5.6 2.9 5.6-2.9M2.4 11.2l5.6 2.9 5.6-2.9" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></span><span>Layer Hierarchy</span></span></div>
+            </div>
+          </div>
+        </summary>
+        <div class="section-body toolbox-group-body" id="layers-tools-host"></div>
+      </details>
+    </div></template>
+
+<template data-slot="layer-dock"><section id="layer-dock" hidden>
+      <header class="section-toggle layer-dock-head" role="button" tabindex="0"
+        aria-controls="layer-dock-body" aria-expanded="true">
+        <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 2.4 14 5.5 8 8.6 2 5.5Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="m2 8.4 6 3.1 6-3.1M2 11.2l6 3.1 6-3.1" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/></svg></span><span>Layer Visibility</span></span></div>
+      </header>
+      <div class="layer-dock-body" id="layer-dock-body"></div>
+    </section></template>
+
+<template data-slot="research-hub"><section id="research-hub" hidden>
+    <!-- Laid out as the Qt Research Hub is (app_qt.py: AtlasRail +
+         WorkspaceShell): a glyph rail down the left, one shell row carrying the
+         page tabs, the page filter, the Atlas project chip and the shell
+         actions, then the page itself. Rail and tabs are drawn by hub.js. -->
+    <nav class="atlas-rail" id="research-rail" aria-label="Pipeline stages">
+      <img class="atlas-rail-logo" src="/assets/GeoID_logo_icon.png" alt=""
+        title="GeoID: Research Hub — a facet of the Atlas GIS ecosystem">
+      <div class="atlas-rail-buttons" id="research-rail-buttons"></div>
+    </nav>
+    <div class="research-main">
+      <div class="workspace-shell">
+        <div class="shell-tabs" id="research-tabs" role="tablist"></div>
+        <div class="shell-actions">
+          <input type="search" class="shell-filter" id="research-filter"
+            placeholder="Filter pages…" aria-label="Filter pages">
+          <span class="atlas-chip" id="research-project">No project open</span>
+          <span id="research-mode-slot"></span>
+          <button type="button" class="shell-action" id="research-act-jobs"
+            data-drawer="jobs" aria-pressed="false">Jobs</button>
+          <button type="button" class="shell-action" id="research-act-alerts"
+            data-drawer="alerts" aria-pressed="false">Alerts</button>
+          <button type="button" class="shell-action" id="research-act-notes"
+            data-drawer="notes" aria-pressed="false">+ New Note</button>
+          <button type="button" class="shell-action" id="research-act-copilot"
+            data-drawer="copilot" aria-pressed="false">Atlas</button>
+          <button type="button" class="shell-action" id="research-act-shelf"
+            data-drawer="shelf" aria-pressed="false">Data Shelf</button>
+        </div>
+      </div>
+      <div class="research-page" id="research-page"></div>
+      <div class="shell-drawer" id="research-drawer" hidden></div>
+    </div>
+  </section></template>
+
+<template data-slot="model-studio"><section id="model-studio" hidden>
+    <!-- The mode switcher is moved in here while the studio is open, so GeoID
+         and GIS stay one click away instead of being hidden with the sidebar.
+         Top-left, where it sits on the myGeoID page. -->
+    <div class="studio-modebar">
+      <span class="studio-modebar-label">MESHING STUDIO</span>
+      <span id="studio-mode-slot"></span>
+      <span class="studio-status" id="studio-status"></span>
+    </div>
+
+    <div class="studio-toolbars">
+    <div class="studio-toolbar" id="studio-toolbar-main">
+      <button class="studio-btn" data-act="new" title="Clear the model and start over">New</button>
+      <button class="studio-btn" data-act="open" title="Open a studio project (.msproj.json)">Open</button>
+      <button class="studio-btn" data-act="save" title="Save the project (full edit history)">Save</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn" data-act="undo">Undo</button>
+      <button class="studio-btn" data-act="redo">Redo</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn" data-act="import-cad" title="STL / MSH / OBJ / PLY via merge">Import CAD&hellip;</button>
+      <button class="studio-btn" data-act="import-xyz" title="Point data to terrain surface or solid volume">Import XYZ&hellip;</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn" data-act="fuse" title="Fuse: first entity is the object, the rest are tools">Fuse</button>
+      <button class="studio-btn" data-act="cut" title="Cut: subtract the tools from the object">Cut</button>
+      <button class="studio-btn" data-act="intersect" title="Intersect the selection">Intersect</button>
+      <button class="studio-btn" data-act="fragment" title="Fragment: split at shared interfaces">Fragment</button>
+      <button class="studio-btn" data-act="transform" title="Translate / rotate / scale the selection">Transform&hellip;</button>
+      <button class="studio-btn" data-act="delete">Delete</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn" data-act="export-script" title="Write the model as a standalone gmsh Python script">Export script</button>
+      <button class="studio-btn" data-act="to-gales" title="Export MSH 2.2 for the GALES tree">To GALES</button>
+      <button class="studio-btn" data-act="to-explorer" title="Export the meshed surface into the Earth viewer with a lat/lon manifest">To Explorer</button>
+      <button class="studio-btn" data-act="save-template" title="Save this model's op history as a reusable template">Save as template</button>
+      <button class="studio-btn" data-act="snapshot" title="Save a PNG of the viewport">Snapshot</button>
+      <span class="studio-sep"></span>
+      <input id="studio-ai" class="studio-ai" type="text"
+             placeholder="Tell Atlas what to build&hellip;  (e.g. 'volcano with a chamber at 4 km, mesh at 500 m')">
+    </div>
+
+    <div class="studio-toolbar" id="studio-toolbar-view">
+      <span class="studio-label">Pick:</span>
+      <select id="studio-pick" class="studio-select">
+        <option>Surfaces</option><option>Volumes</option><option>Curves</option>
+      </select>
+      <button class="studio-btn is-toggle is-on" data-toggle="edges">Edges</button>
+      <button class="studio-btn is-toggle" data-toggle="wireframe">Wireframe</button>
+      <button class="studio-btn is-toggle" data-toggle="gizmo" title="Drag-to-move/scale the selection">Gizmo</button>
+      <button class="studio-btn is-toggle" data-toggle="stars" title="Starfield backdrop">Stars</button>
+      <button class="studio-btn is-toggle is-on" data-toggle="ground" title="Earth-radius ground surface tangent to z = 0">Ground</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn" data-view="fit">Fit</button>
+      <button class="studio-btn" data-view="x">X</button>
+      <button class="studio-btn" data-view="y">Y</button>
+      <button class="studio-btn" data-view="z">Z</button>
+      <button class="studio-btn" data-view="iso">Iso</button>
+      <span class="studio-sep"></span>
+      <button class="studio-btn is-toggle" data-toggle="clip" title="Cutaway view of the volume mesh">Clip</button>
+      <select id="studio-clip-axis" class="studio-select">
+        <option>x</option><option>y</option><option>z</option>
+      </select>
+      <input id="studio-clip" class="studio-clip" type="range" min="0" max="100" value="50">
+    </div>
+    </div>
+
+    <div class="studio-dock studio-dock-left">
+      <div class="studio-tabs" data-deck="left">
+        <button class="studio-tab is-active" data-tab="add">Add</button>
+        <button class="studio-tab" data-tab="model">Model</button>
+        <button class="studio-tab" data-tab="label">Label</button>
+        <button class="studio-tab" data-tab="history">History</button>
+      </div>
+      <div class="studio-pane is-active" data-pane="add">
+        <p class="studio-group-title">Templates (whole scenarios)</p>
+        <div id="studio-templates" class="studio-palette"></div>
+        <p class="studio-group-title">Primitives</p>
+        <div id="studio-palette" class="studio-palette"></div>
+        <p class="studio-group-title">Parameters</p>
+        <div id="studio-params" class="studio-params"></div>
+        <button id="studio-add" class="studio-primary" type="button">Add to model</button>
+      </div>
+      <div class="studio-pane" data-pane="model">
+        <p class="studio-group-title">Origin (WGS84)</p>
+        <div class="studio-row"><label for="studio-origin-lat">Latitude</label>
+          <input id="studio-origin-lat" class="studio-input" type="number" step="any" value="0"></div>
+        <div class="studio-row"><label for="studio-origin-lon">Longitude</label>
+          <input id="studio-origin-lon" class="studio-input" type="number" step="any" value="0"></div>
+        <div class="studio-row"><label for="studio-origin-elev">Elevation</label>
+          <input id="studio-origin-elev" class="studio-input" type="number" step="any" value="0"></div>
+        <button id="studio-origin-apply" class="studio-secondary" type="button">Anchor model here</button>
+        <div id="studio-origin-note" class="studio-readout">Model x/y/z stay local metres about this point.</div>
+        <p class="studio-group-title">Info</p>
+        <div id="studio-info" class="studio-readout">Empty model.</div>
+        <p class="studio-group-title">Entities</p>
+        <div id="studio-entities" class="studio-list"></div>
+        <p class="studio-group-title">Physical groups</p>
+        <div id="studio-groups" class="studio-list"></div>
+      </div>
+      <div class="studio-pane" data-pane="label">
+        <div id="studio-selection" class="studio-readout">Nothing selected</div>
+        <div class="studio-row"><label for="studio-label-name">Name</label>
+          <input id="studio-label-name" class="studio-input" type="text" placeholder="group name"></div>
+        <button id="studio-label-apply" class="studio-primary" type="button">Label selection</button>
+        <p class="studio-group-title">Refine near selection</p>
+        <div class="studio-row"><label for="studio-size-min">SizeMin</label>
+          <input id="studio-size-min" class="studio-input" type="number" step="any" value="0.25"></div>
+        <div class="studio-row"><label for="studio-size-max">SizeMax</label>
+          <input id="studio-size-max" class="studio-input" type="number" step="any" value="1"></div>
+        <button id="studio-refine-sel" class="studio-secondary" type="button">Refine near selection&hellip;</button>
+      </div>
+      <div class="studio-pane" data-pane="history">
+        <div id="studio-history" class="studio-list"></div>
+      </div>
+    </div>
+
+    <div class="studio-dock studio-dock-right">
+      <div class="studio-tabs" data-deck="right">
+        <button class="studio-tab is-active" data-tab="mesh">Mesh</button>
+        <button class="studio-tab" data-tab="structured">Structured</button>
+        <button class="studio-tab" data-tab="refine">Refine</button>
+        <button class="studio-tab" data-tab="log">Log</button>
+      </div>
+      <div class="studio-pane is-active" data-pane="mesh">
+        <p class="studio-group-title">Mesh settings</p>
+        <div class="studio-row"><label for="studio-alg2">2D algorithm</label>
+          <select id="studio-alg2" class="studio-select wide"><option>auto</option><option>MeshAdapt</option><option>Delaunay</option><option>Frontal-Delaunay</option></select></div>
+        <div class="studio-row"><label for="studio-alg3">3D algorithm</label>
+          <select id="studio-alg3" class="studio-select wide"><option>auto</option><option>Delaunay</option><option>HXT</option><option>Lattice</option></select></div>
+        <div class="studio-row"><label for="studio-order">Element order</label>
+          <select id="studio-order" class="studio-select wide"><option>1</option><option>2</option></select></div>
+        <div class="studio-row"><label for="studio-size-lo">Size min</label>
+          <input id="studio-size-lo" class="studio-input" type="number" step="any" value="0.5"></div>
+        <div class="studio-row"><label for="studio-size-hi">Size max</label>
+          <input id="studio-size-hi" class="studio-input" type="number" step="any" value="1"></div>
+        <button id="studio-suggest" class="studio-secondary" type="button">Suggest</button>
+        <label class="studio-check"><input id="studio-optimize" type="checkbox"> Optimize (tet quality pass)</label>
+        <div class="studio-actions">
+          <button id="studio-mesh1d" class="studio-secondary" type="button">Mesh 1D</button>
+          <button id="studio-mesh2d" class="studio-secondary" type="button">Mesh 2D</button>
+          <button id="studio-mesh3d" class="studio-primary" type="button">Mesh 3D</button>
+        </div>
+        <button id="studio-clear-mesh" class="studio-secondary" type="button">Clear mesh</button>
+        <div id="studio-mesh-info" class="studio-readout">No mesh.</div>
+        <canvas id="studio-quality" class="studio-canvas" width="240" height="80" hidden></canvas>
+        <p class="studio-group-title">Export mesh</p>
+        <div class="studio-actions">
+          <button id="studio-exp-msh" class="studio-secondary" type="button" disabled>.msh</button>
+          <button id="studio-exp-stl" class="studio-secondary" type="button" disabled>STL</button>
+          <button id="studio-exp-obj" class="studio-secondary" type="button" disabled>OBJ</button>
+          <button id="studio-exp-ply" class="studio-secondary" type="button" disabled>PLY</button>
+        </div>
+      </div>
+      <div class="studio-pane" data-pane="structured">
+        <p class="studio-group-title">Transfinite curves</p>
+        <div class="studio-row"><label for="studio-tf-nodes">Nodes</label>
+          <input id="studio-tf-nodes" class="studio-input" type="number" value="10"></div>
+        <label class="studio-check"><input id="studio-recombine" type="checkbox"> Recombine to quads</label>
+        <button id="studio-tf-surfaces" class="studio-secondary" type="button">Transfinite surfaces</button>
+        <button id="studio-tf-volumes" class="studio-secondary" type="button">Transfinite volumes</button>
+        <button id="studio-tf-auto" class="studio-primary" type="button">Auto transfinite (whole model)</button>
+        <button id="studio-recombine-sel" class="studio-secondary" type="button">Recombine selected surfaces</button>
+        <div id="studio-structured-info" class="studio-readout">Structured meshing controls the lattice directly.</div>
+      </div>
+      <div class="studio-pane" data-pane="refine">
+        <div class="studio-actions">
+          <button id="studio-field-add" class="studio-primary" type="button">Add field</button>
+          <button id="studio-field-remove" class="studio-secondary" type="button">Remove selected field</button>
+        </div>
+        <div class="studio-row"><label for="studio-field-type">Type</label>
+          <select id="studio-field-type" class="studio-select wide">
+            <option value="ball">Ball</option>
+            <option value="box">Box</option>
+            <option value="distance">Distance</option>
+            <option value="threshold">Threshold</option>
+          </select></div>
+        <div class="studio-row"><label for="studio-field-x">X</label><input id="studio-field-x" class="studio-input" type="number" step="any" value="0"></div>
+        <div class="studio-row"><label for="studio-field-y">Y</label><input id="studio-field-y" class="studio-input" type="number" step="any" value="0"></div>
+        <div class="studio-row"><label for="studio-field-z">Z</label><input id="studio-field-z" class="studio-input" type="number" step="any" value="0"></div>
+        <div class="studio-row"><label for="studio-field-r">Radius</label><input id="studio-field-r" class="studio-input" type="number" step="any" value="2"></div>
+        <div class="studio-row"><label for="studio-field-dmin">DistMin</label><input id="studio-field-dmin" class="studio-input" type="number" step="any" value="0.25"></div>
+        <div class="studio-row"><label for="studio-field-dmax">DistMax</label><input id="studio-field-dmax" class="studio-input" type="number" step="any" value="1"></div>
+        <div id="studio-fields" class="studio-list"></div>
+      </div>
+      <div class="studio-pane" data-pane="log">
+        <div id="studio-log" class="studio-log"></div>
+      </div>
+    </div>
+  </section></template>
+

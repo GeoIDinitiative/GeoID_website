@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Page not found — GeoID Initiative</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+  <!-- Self-contained on purpose: a 404 can be served for any path, so it must
+       not depend on the site's shared CSS being reachable/cached. The faces
+       below are the site's own, declared here rather than linked, for the
+       same reason. -->
+  <style>
+    @font-face {
+      font-family: "GeoID Display";
+      font-style: normal; font-weight: 400; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: "GeoID Body";
+      font-style: normal; font-weight: 400; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: "GeoID Body";
+      font-style: normal; font-weight: 600; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: flex;
+      align-items: center; justify-content: center;
+      background: #000;
+      color: #f2f5f8;
+      font-family: "GeoID Body", system-ui, sans-serif;
+      text-align: center;
+      padding: 24px;
+      overflow: hidden;
+    }
+
+    /* ── The test card, full bleed ──────────────────────────────────────
+       The source is 352x296 and under a kilobyte, so any smooth upscale
+       turns it to mush. It is flat colour bars, so `pixelated` is the right
+       call twice over: the edges stay razor sharp at any size, and hard
+       pixels are what a dead broadcast actually looked like.
+
+       Served from assets/opt/no-signal.png, cropped 352x296 -> 288x248. Two
+       things came off, both of which broke a full-bleed render:
+
+         - 64px of dead black margin down the right, 18% of the width, which
+           showed as a black column beside the bars and read as a misaligned
+           image rather than a design.
+         - the run of bars BELOW the NO SIGNAL band, so the band now ends at
+           96% of the height and can be anchored to the bottom of the screen.
+
+       That anchoring is the point. The source is near-square, so filling a
+       16:9 viewport crops about 45% of its height — centred, that ate the
+       band, which is the one part of the card carrying any meaning. Pinned
+       to the bottom the band always lands intact, below the panel, and the
+       crop falls on the bars instead, where it costs nothing. Every bar and
+       the whole NO SIGNAL text (x 74-277) survive. */
+    .tv {
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        url("/assets/opt/no-signal.png") center bottom / cover no-repeat,
+        linear-gradient(90deg,
+          #c5c7c5 0 16.667%, #caca00 16.667% 30.556%, #00caca 30.556% 44.444%,
+          #00ca00 44.444% 58.333%, #ca00ca 58.333% 72.222%, #ca0000 72.222% 86.111%,
+          #0000ca 86.111% 100%);
+      image-rendering: pixelated;
+    }
+    /* Portrait would crop horizontally and slice the ends off NO SIGNAL, but
+       letterboxing shrinks the card to a strip the panel then covers. So the
+       card is laid in at full width along the bottom and the bars are carried
+       up the rest of the screen by the gradient behind it — the stops are the
+       card's own bar boundaries, sampled from the pixels, so the columns line
+       up exactly and the join is invisible. Landscape never sees the gradient:
+       cover fills the viewport on its own. */
+    @media (max-aspect-ratio: 1/1) {
+      .tv { background-size: 100% auto, auto; }
+    }
+
+    /* Scanlines and vignette, matching the viewers. Static — the rolling
+       line was removed site-wide for being distracting, and a 404 is no
+       place to reintroduce it. */
+    .crt {
+      position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background:
+        repeating-linear-gradient(180deg, rgba(0,0,0,0.16) 0 1px, transparent 1px 3px),
+        radial-gradient(125% 125% at 50% 50%, transparent 42%, rgba(0,0,0,0.82) 100%);
+    }
+
+    /* ── On-screen display ──────────────────────────────────────────────
+       The copy has to sit on top of saturated colour bars, so it gets its
+       own darkened panel rather than trying to win on contrast alone. */
+    .osd {
+      position: relative; z-index: 2;
+      width: min(38rem, 100%);
+      padding: clamp(26px, 5vw, 44px) clamp(22px, 5vw, 40px);
+      background: rgba(6, 3, 14, 0.86);
+      backdrop-filter: blur(7px);
+      border: 1px solid rgba(255,255,255,0.16);
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,0.7),
+        0 0 60px -12px rgba(0,0,0,0.9);
+    }
+    .eyebrow {
+      font-size: 10px; font-weight: 600;
+      letter-spacing: 0.34em; text-transform: uppercase;
+      color: rgba(235,242,248,0.45);
+      margin-bottom: 14px;
+    }
+    .code {
+      font-family: "GeoID Display", sans-serif;
+      font-size: clamp(4rem, 15vw, 8rem);
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+      color: transparent;
+      -webkit-text-stroke: 1.5px rgba(255,255,255,0.4);
+      margin-bottom: 18px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-family: "GeoID Display", sans-serif;
+      font-size: clamp(1.05rem, 2.6vw, 1.45rem);
+      font-weight: 400;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+    }
+    p {
+      margin: 0 auto 26px;
+      max-width: 30rem;
+      line-height: 1.7;
+      color: rgba(235,242,248,0.62);
+      font-size: 14px;
+    }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      height: 42px; padding: 0 18px;
+      border-radius: 2px;
+      font-family: "GeoID Body", system-ui, sans-serif;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.09em; text-transform: uppercase;
+      text-decoration: none;
+      transition: background .25s, color .25s, border-color .25s;
+    }
+    .solid { background: #ff3ec8; border: 1px solid #ff3ec8; color: #2b0030; }
+    .solid:hover { background: #ffd319; border-color: #ffd319; color: #2b1e00; }
+    .line { background: none; border: 1px solid rgba(255,255,255,0.24); color: #f2f5f8; }
+    .line:hover { border-color: #fff; background: rgba(255,255,255,0.08); }
+    .foot {
+      display: block; margin-top: 24px;
+      font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+      color: rgba(235,242,248,0.3);
+    }
+
+    /* Short viewports: the panel matters more than the card, so let it
+       scroll rather than clipping the buttons off the bottom. */
+    @media (max-height: 560px) {
+      body { overflow: auto; align-items: flex-start; padding-top: 20px; }
+      .code { font-size: clamp(2.6rem, 11vw, 4rem); margin-bottom: 10px; }
+      p { margin-bottom: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="tv" aria-hidden="true"></div>
+  <div class="crt" aria-hidden="true"></div>
+
+  <main class="osd">
+    <!-- No "NO SIGNAL" eyebrow here: the card already says it, full width,
+         directly below this panel. -->
+    <div class="code">404</div>
+    <h1>This page has drifted off the map.</h1>
+    <p>The address may have changed in the redesign, or it never existed. Everything that matters is still charted below.</p>
+    <div class="row">
+      <a class="btn solid" href="/">Back to the dashboard</a>
+      <a class="btn line" href="/explorer/">Planet Explorer</a>
+      <a class="btn line" href="/earth_explorer/">Earth Explorer</a>
+      <a class="btn line" href="/contact/">Contact</a>
+    </div>
+    <span class="foot">GeoID Initiative · geoidinitiative.com</span>
+  </main>
+</body>
+</html>

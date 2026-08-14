@@ -1195,22 +1195,21 @@
       <span class="demo-disclaimer-eyebrow">Demonstration only</span>
       <h2 class="demo-disclaimer-title" id="demo-disclaimer-title">myGeoID is a UI concept, not a live hazard tool</h2>
       <p class="demo-disclaimer-body">
-        myGeoID is currently a <strong>visual prototype</strong> of a future user interface.
-        It is <strong>not connected to any live weather data, hazard model, or geotechnical engine</strong>.
-        Every metric, chart, and indicator shown is synthetic, generated at the moment of your click for
-        interface-design purposes only.
+        myGeoID is a <strong>visual prototype</strong> — <strong>not connected to any live weather data,
+        hazard model, or geotechnical engine</strong>. Every value shown is synthetic, generated for
+        interface design only.
       </p>
       <ul class="demo-disclaimer-list">
         <li>Not a certified or operational hazard system.</li>
         <li>No real precipitation, soil, slope-stability, or flood data is consumed.</li>
         <li>Values must not be used for any safety, engineering, planning, or operational decision.</li>
-        <li>Intended as a design preview of how future GeoID products might be presented.</li>
+        <li>A design preview of future GeoID products.</li>
       </ul>
       <label class="demo-disclaimer-confirm" for="demo-disclaimer-checkbox">
         <input type="checkbox" id="demo-disclaimer-checkbox">
         <span class="demo-disclaimer-confirm-label">
-          I understand that myGeoID is a demonstration of a future UI concept, that the values shown are
-          synthetic, and that nothing here should inform real-world decisions.
+          I understand myGeoID is a UI demonstration, its values are synthetic, and nothing here
+          should inform real-world decisions.
         </span>
       </label>
       <div class="demo-disclaimer-actions">
@@ -1297,7 +1296,7 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20260811-d57db16"
+        src="/GeoID_GIS/viewer/?v=gis-20260811-118fc88"
         title="myGeoID — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
@@ -1312,7 +1311,7 @@
             <div class="hub-empty" id="risk-empty">
               <span class="hub-empty-icon">◎</span>
               <span>Select a location on the globe to generate risk tracking plots.</span>
-              <span class="hub-empty-sub">Priority landslide, flood, saturation, and model stability indicators will appear here.</span>
+              <span class="hub-empty-sub">Landslide, flood, saturation and model stability indicators appear here.</span>
             </div>
             <div id="risk-summary" class="risk-summary-groups" hidden></div>
             <div id="risk-grid" class="market-grid" hidden></div>
@@ -1321,7 +1320,7 @@
           <div class="hub-panel-col" id="hub-panel-all" hidden>
             <div class="hub-empty" id="all-empty">
               <span class="hub-empty-icon">▦</span>
-              <span>All parameter plots will appear after a location is selected.</span>
+              <span>All parameter plots appear once a location is selected.</span>
             </div>
             <div id="all-parameters-grid" hidden></div>
           </div>
@@ -1329,7 +1328,7 @@
           <div class="hub-panel-col" id="hub-panel-hydrology" hidden>
             <div class="hub-empty" id="hydrology-empty">
               <span class="hub-empty-icon">≈</span>
-              <span>Hydrology plots will appear after a location is selected.</span>
+              <span>Hydrology plots appear once a location is selected.</span>
             </div>
             <div id="hydrology-grid" class="market-grid" hidden></div>
           </div>
@@ -1337,7 +1336,7 @@
           <div class="hub-panel-col" id="hub-panel-geotechnical" hidden>
             <div class="hub-empty" id="geotechnical-empty">
               <span class="hub-empty-icon">△</span>
-              <span>Geotechnical plots will appear after a location is selected.</span>
+              <span>Geotechnical plots appear once a location is selected.</span>
             </div>
             <div id="geotechnical-grid" class="market-grid" hidden></div>
           </div>
@@ -1345,7 +1344,7 @@
           <div class="hub-panel-col" id="hub-panel-sources" hidden>
             <div class="hub-empty" id="sources-empty">
               <span class="hub-empty-icon">⇄</span>
-              <span>Data source status will appear after a location is selected.</span>
+              <span>Data source status appears once a location is selected.</span>
             </div>
             <div id="sources-grid" class="hub-copy-grid" hidden></div>
           </div>
@@ -1353,7 +1352,7 @@
           <div class="hub-panel-col" id="hub-panel-metadata" hidden>
             <div class="hub-empty" id="metadata-empty">
               <span class="hub-empty-icon">i</span>
-              <span>Metadata will appear after a location is selected.</span>
+              <span>Metadata appears once a location is selected.</span>
             </div>
             <div id="metadata-grid" class="sc-grid" hidden></div>
           </div>
@@ -2099,6 +2098,6 @@
   </script>
 
 <script src="/scripts/site.js"></script>
-<script src="/styles/nav.js?v=20260811-d57db16" defer></script>
+<script src="/styles/nav.js?v=20260811-118fc88" defer></script>
 </body>
 </html>

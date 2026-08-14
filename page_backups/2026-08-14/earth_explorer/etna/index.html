@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Mount Etna — Planet Explorer</title>
+  <link rel="icon" href="../../assets/etna_icon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Faces come from the @font-face remaps below. -->
+  <style>
+    @font-face {
+      font-family: "Orbitron";
+      font-style: normal; font-weight: 100 900; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: "Exo 2";
+      font-style: normal; font-weight: 400; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: "Exo 2";
+      font-style: normal; font-weight: 500 900; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+    }
+    @font-face {
+      font-family: "Public Sans";
+      font-style: normal; font-weight: 100 900; font-display: swap;
+      src: url(https://fonts.gstatic.com/s/chakrapetch/v13/cIflMapbsEk7TDLdtEz1BwkeQI51R5_F.woff2) format('woff2');
+    }
+
+    :root {
+      --text: #fff4e8;
+      --muted: rgba(232, 197, 160, 0.78);
+      --accent: #ff6a00;
+      --border: rgba(255, 106, 0, 0.30);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100dvh;
+      overflow: hidden;
+      background: #080502;
+      color: var(--text);
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+    }
+
+    /* ── CRT: scanlines and vignette ─────────────────────────────────────
+       Same treatment as the Etna viewer this page hands off to, so the
+       crossfade between them doesn't change texture. Static only — the
+       moving roll was removed site-wide. */
+    body::after {
+      content: "";
+      position: fixed; inset: 0;
+      z-index: 9999; pointer-events: none;
+      background:
+        repeating-linear-gradient(180deg, rgba(0,0,0,0.13) 0 1px, transparent 1px 3px),
+        radial-gradient(125% 125% at 50% 50%, transparent 55%, rgba(12, 5, 1, 0.48) 100%);
+    }
+
+    /* ── Background image ─────────────────────────────── */
+    .bg {
+      position: fixed;
+      inset: 0;
+      background: url('viewer/assets/etna.jpg') center / cover no-repeat;
+      z-index: 0;
+    }
+    .bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg,
+          rgba(6,2,0,0.72) 0%,
+          rgba(6,2,0,0.48) 40%,
+          rgba(6,2,0,0.68) 100%);
+    }
+
+    /* ── Shell ───────────────────────────────────────── */
+    .shell {
+      position: relative;
+      z-index: 1;
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: 1rem;
+      transition: opacity 0.5s ease;
+    }
+
+    /* ── Logo ────────────────────────────────────────── */
+    .logo-img {
+      position: fixed;
+      top: 1.2rem;
+      right: 1.4rem;
+      width: 13.5rem;
+      height: 13.5rem;
+      object-fit: contain;
+      filter: drop-shadow(0 4px 24px rgba(0,0,0,0.6));
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    /* ── Card ────────────────────────────────────────── */
+    .card {
+      position: relative;
+      width: min(780px, 100%);
+      border-radius: 1.5rem;
+      border: 2px solid #ff6a00;
+      background:
+        radial-gradient(ellipse 70% 40% at 50% 0%, rgba(247,120,30,0.08) 0%, transparent 60%),
+        linear-gradient(170deg, rgba(18,8,3,0.55) 0%, rgba(8,3,1,0.50) 100%);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      box-shadow:
+        0 50px 140px rgba(0,0,0,0.55),
+        0 0 0 1px rgba(255,106,0,0.45),
+        0 0 28px rgba(255,80,0,0.28),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+
+    /* ── Hero ────────────────────────────────────────── */
+    .hero {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: clamp(1.25rem, 4vw, 2rem);
+      padding: 1.6rem clamp(1.25rem, 3vw, 2rem) 1.4rem;
+    }
+
+    .etna-icon {
+      width: clamp(5rem, 12vw, 8rem);
+      height: clamp(5rem, 12vw, 8rem);
+      object-fit: contain;
+      filter: drop-shadow(0 4px 18px rgba(247,100,20,0.5));
+      flex-shrink: 0;
+    }
+
+    .hero-text { min-width: 0; }
+
+    .dest-title {
+      font-family: "Orbitron", sans-serif;
+      font-size: clamp(2.6rem, 8vw, 5rem);
+      font-weight: 800;
+      line-height: 0.9;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+      background: linear-gradient(130deg, #ffffff 20%, rgba(247,200,160,0.75) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .dest-sub {
+      margin-top: 0.6rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    /* ── Fact box ─────────────────────────────────────── */
+    .fact-box {
+      margin: 0 clamp(1.25rem, 3vw, 2rem);
+      padding: 1.1rem 1.4rem;
+      border-radius: 0.9rem;
+      border: 1px solid rgba(255,106,0,0.30);
+      background: rgba(255,80,0,0.07);
+    }
+
+    .fact-label {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.5rem;
+    }
+
+    .fact-text {
+      font-size: 0.97rem;
+      line-height: 1.6;
+      color: rgba(245,237,224,0.9);
+    }
+
+    /* ── Elevation block (top-right of card) ─────────── */
+    .arrival-block {
+      position: absolute;
+      top: 1.1rem;
+      right: 1.4rem;
+      text-align: right;
+      z-index: 2;
+    }
+    .arrival-label {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(160,136,120,0.8);
+    }
+    .arrival-value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-top: 0.14rem;
+    }
+
+    /* ── Footer ──────────────────────────────────────── */
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.9rem clamp(1.25rem, 3vw, 2rem);
+      margin-top: 1.2rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.015);
+    }
+
+    .home-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.58rem 1.05rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      font-size: 0.88rem;
+      font-family: inherit;
+      text-decoration: none;
+      transition: border-color 0.15s, background 0.15s, transform 0.15s;
+      white-space: nowrap;
+    }
+    .home-btn:hover {
+      border-color: rgba(255,255,255,0.28);
+      background: rgba(255,255,255,0.08);
+      transform: translateY(-1px);
+    }
+
+    /* ── Initialising indicator ──────────────────────── */
+    .init-row {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .init-dots {
+      display: flex;
+      gap: 0.35rem;
+      align-items: center;
+    }
+    .init-dots span {
+      width: 0.42rem;
+      height: 0.42rem;
+      border-radius: 50%;
+      background: rgba(247,160,85,0.85);
+      animation: dot-pulse 1.3s ease-in-out infinite;
+    }
+    .init-dots span:nth-child(2) { animation-delay: 0.18s; }
+    .init-dots span:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes dot-pulse {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+      40%            { transform: scale(1);   opacity: 1;   }
+    }
+    .init-status {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: rgba(160,136,120,0.8);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    /* ── Landscape / constrained-height ─────────────────── */
+    @media (max-height: 560px) and (pointer: coarse) {
+      .shell { padding: 0.4rem; }
+      .logo-img { width: 6.5rem; height: 6.5rem; top: 0.5rem; right: 0.7rem; }
+      .card { border-radius: 1rem; width: min(520px, 76%); }
+      .arrival-block { display: none; }
+      .hero { padding: 0.8rem 1rem 0.6rem; gap: 0.8rem; }
+      .etna-icon { width: clamp(3.5rem, 9vw, 5rem); height: clamp(3.5rem, 9vw, 5rem); }
+      .dest-title { font-size: clamp(2rem, 7vw, 3.2rem); }
+      .dest-sub { font-size: 0.8rem; margin-top: 0.3rem; }
+      .fact-box { margin: 0 1rem; padding: 0.7rem 1rem; }
+      .fact-text { font-size: 0.88rem; line-height: 1.45; }
+      .footer { margin-top: 0.6rem; padding: 0.6rem 1rem;
+                padding-bottom: max(0.6rem, env(safe-area-inset-bottom)); }
+    }
+
+    /* ── Portrait narrow ──────────────────────────────── */
+    @media (max-width: 560px) {
+      .shell { padding: 0.5rem; align-items: flex-start; padding-top: max(1rem, env(safe-area-inset-top)); }
+      .card { border-radius: 1rem; }
+      .logo-img { width: 7rem; height: 7rem; top: 0.6rem; right: 0.75rem; }
+      .hero { grid-template-columns: 1fr; gap: 0.6rem; padding: 1rem; }
+      .etna-icon { width: 5rem; height: 5rem; margin: 0 auto; }
+      .footer { flex-direction: column; align-items: flex-start; gap: 0.4rem;
+                padding-bottom: max(0.8rem, env(safe-area-inset-bottom)); }
+      .arrival-block { top: 0.7rem; right: 0.9rem; }
+      .arrival-value { font-size: 0.88rem; }
+    }
+
+    /* ── Portrait advisory ────────────────────────────── */
+    #portrait-advisory { display: none; }
+
+    @media (orientation: portrait) and (pointer: coarse) {
+      #portrait-advisory {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        position: fixed;
+        inset: 0;
+        z-index: 9000;
+        background: rgba(5,2,0,0.92);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 2rem;
+        text-align: center;
+        color: #f5ede0;
+      }
+      #portrait-advisory.is-dismissed { display: none; }
+      #portrait-advisory-icon {
+        width: 6rem;
+        height: 6rem;
+        filter: invert(1) sepia(1) hue-rotate(20deg) saturate(1.4) brightness(1.2);
+        animation: tilt-hint 1.8s ease-in-out infinite;
+      }
+      @keyframes tilt-hint {
+        0%, 100% { transform: rotate(-15deg); }
+        50%       { transform: rotate(15deg); }
+      }
+      #portrait-advisory-text {
+        font-size: 1.05rem;
+        font-weight: 500;
+        color: #f0dcc8;
+        max-width: 20rem;
+        line-height: 1.5;
+      }
+      #portrait-advisory-dismiss {
+        margin-top: 0.5rem;
+        padding: 0.55rem 1.6rem;
+        border-radius: 2rem;
+        border: 1px solid rgba(247,160,85,0.4);
+        background: rgba(247,160,85,0.1);
+        color: var(--accent);
+        font-size: 0.85rem;
+        font-family: inherit;
+        cursor: pointer;
+        letter-spacing: 0.06em;
+        transition: background 0.2s, border-color 0.2s;
+      }
+      #portrait-advisory-dismiss:hover { background: rgba(247,160,85,0.2); border-color: rgba(247,160,85,0.65); }
+    }
+    @media (orientation: portrait) and (pointer: coarse) {
+      #portrait-advisory-dismiss { display: none !important; }
+      #portrait-advisory.is-dismissed { display: flex !important; }
+    }
+  </style>
+  <link rel="stylesheet" href="/styles/v2-viewer.css">
+</head>
+<body>
+
+  <iframe id="viewer-frame" src=""
+    style="position:fixed;inset:0;width:100%;height:100%;border:none;opacity:0;pointer-events:none;z-index:0;background:#0a0502;"
+    allow="fullscreen"></iframe>
+
+  <div class="bg" aria-hidden="true"></div>
+
+  <img class="logo-img" src="../assets/logo.png" alt="GeoID logo" onerror="this.src='/planet_explorer/mars/viewer/assets/logo.png'">
+
+  <main class="shell" id="transit-shell">
+    <article class="card">
+
+      <div class="arrival-block">
+        <div class="arrival-label">Summit elevation</div>
+        <div class="arrival-value">3,329 m asl</div>
+      </div>
+
+      <div class="hero">
+        <img class="etna-icon" src="../../assets/etna_icon.png" alt="Mount Etna" loading="eager">
+        <div class="hero-text">
+          <h1 class="dest-title">Mount<br>Etna</h1>
+          <p class="dest-sub">Earth Explorer · Volcano Geology</p>
+        </div>
+      </div>
+
+      <div class="fact-box">
+        <div class="fact-label">Did you know?</div>
+        <p class="fact-text" id="fact-text">Loading…</p>
+      </div>
+
+      <footer class="footer">
+        <a class="home-btn" href="/" target="_top" rel="home">← Return Home</a>
+        <div class="init-row">
+          <div class="init-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+          <span class="init-status">Initialising viewer…</span>
+        </div>
+      </footer>
+
+    </article>
+  </main>
+
+  <div id="portrait-advisory" role="status" aria-live="polite">
+    <img src="../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon" loading="lazy" decoding="async"
+         onerror="this.style.display='none'">
+    <p id="portrait-advisory-text">Rotate to landscape for the best experience</p>
+    <button id="portrait-advisory-dismiss" type="button">Got it</button>
+  </div>
+
+  <script>
+    const FACTS = [
+      "At 3,329 m, Etna is the tallest active volcano in Europe — and one of the world's most active, erupting almost continuously since 2011.",
+      "Etna sits on the boundary between the African and Eurasian tectonic plates, fuelled by asthenospheric upwelling through a slab-tear fault beneath Sicily.",
+      "The 1669 eruption is one of the most destructive in European history — lava flows destroyed 15 towns and reached the sea at Catania, 40 km away.",
+      "Etna's magma is geochemically OIB-like, more similar to Hawaiian hot-spot lavas than typical subduction-zone volcanoes, reflecting its unusual deep-mantle source.",
+      "The STEP fault (Slab Tear Edge Propagator) beneath Sicily allows hot asthenosphere from below the Ionian slab to well up and feed Etna's magmatic system.",
+      "Etna's eastern flank is slowly sliding toward the Ionian Sea at 10–14 mm per year — a major hazard factor monitored continuously by INGV.",
+      "Over 300 eruptive vents dot Etna's slopes; many form the characteristic scoria cones that are a hallmark of the volcano's flanks.",
+      "UNESCO inscribed Etna as a World Heritage Site in 2013, recognising it as an outstanding natural laboratory for volcanological and geological research.",
+      "Three principal magma storage zones sit beneath Etna at depths of ~3 km, ~8 km, and 12–16 km — each playing a different role in eruption dynamics.",
+      "Snow typically covers Etna's summit from October to May, making it possible to ski on an active volcano just 30 km from the Mediterranean coast.",
+      "Etna's eruptions are documented as far back as 693 BC by Greek colonists, giving it one of the longest written volcanic records on Earth.",
+      "Despite frequent lava flows, Etna rarely poses a direct threat to human life — but ash falls can disrupt Catania airport and agriculture across eastern Sicily.",
+      "The Timpe fault system on Etna's eastern flank produces frequent magnitude 4–5 earthquakes and is responsible for the region's highest seismic hazard.",
+      "Etna's plume of SO₂ is visible from space and contributes measurably to atmospheric chemistry over the central Mediterranean.",
+      "During the 2001–03 eruptions, the Italian Army used explosive charges and earthworks to divert lava flows — some of the most ambitious volcanic intervention attempts ever made.",
+    ];
+
+    // Pick a random fact on each load
+    const idx = Math.floor(Math.random() * FACTS.length);
+    document.getElementById('fact-text').textContent = FACTS[idx];
+
+    // ── Viewer preload + crossfade ────────────────────────────────────────────
+    const TRANSIT_MS   = 5000;
+    const viewerFrame  = document.getElementById('viewer-frame');
+    const transitShell = document.getElementById('transit-shell');
+    const CROSSFADE_MS = 450;
+
+    // Start loading the viewer immediately — the viewer is open to everyone,
+    // so there is no auth step to wait on.
+    viewerFrame.src = 'viewer/?transit=1';
+
+    setTimeout(() => {
+      try { viewerFrame.contentWindow.postMessage('geoid-reveal', '*'); } catch (_) {}
+
+      let crossed = false;
+      function doCrossfade() {
+        if (crossed) return; crossed = true;
+        const logoImg = document.querySelector('.logo-img');
+        transitShell.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
+        transitShell.style.opacity = '0';
+        if (logoImg) {
+          logoImg.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
+          logoImg.style.opacity = '0';
+        }
+        viewerFrame.style.transition = `opacity ${CROSSFADE_MS}ms ease`;
+        viewerFrame.style.opacity = '1';
+        viewerFrame.style.zIndex = '2';
+        setTimeout(() => { viewerFrame.style.pointerEvents = 'auto'; }, CROSSFADE_MS);
+      }
+
+      window.addEventListener('message', function onReady(e) {
+        if (e.data !== 'geoid-ready') return;
+        window.removeEventListener('message', onReady);
+        doCrossfade();
+      });
+      setTimeout(doCrossfade, 700);
+    }, TRANSIT_MS);
+
+    // ── Portrait advisory ─────────────────────────────────────────────────────
+    (function () {
+      const advisory  = document.getElementById('portrait-advisory');
+      const dismissBtn = document.getElementById('portrait-advisory-dismiss');
+      if (!advisory || !dismissBtn) return;
+      dismissBtn.addEventListener('click', () => advisory.classList.add('is-dismissed'));
+      window.addEventListener('orientationchange', () => advisory.classList.remove('is-dismissed'));
+    })();
+  </script>
+
+</body>
+</html>

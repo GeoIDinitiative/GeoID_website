@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="GeoID Research & Funding Prospectus — the case for investment in an operational, physics-based geohazard early-warning platform.">
+  <title>GeoID Initiative — Research &amp; Funding Prospectus</title>
+  <!-- Social / search preview. Without an og:image, search engines pick an
+       arbitrary image off the page — which is why results showed a stray
+       Earth icon instead of the GeoID logo. -->
+  <link rel="canonical" href="https://geoidinitiative.com/fund.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoID Initiative">
+  <meta property="og:url" content="https://geoidinitiative.com/fund.html">
+  <meta property="og:title" content="GeoID Initiative — Research &amp; Funding Prospectus">
+  <meta property="og:description" content="GeoID Research &amp; Funding Prospectus — the case for investment in an operational, physics-based geohazard early-warning platform.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="1200">
+  <meta property="og:image:alt" content="GeoID Initiative logo">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="GeoID Initiative — Research &amp; Funding Prospectus">
+  <meta name="twitter:description" content="GeoID Research &amp; Funding Prospectus — the case for investment in an operational, physics-based geohazard early-warning platform.">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
+  <!-- font link consolidated by v2 skin -->
+  <link rel="stylesheet" href="/styles/shared.css">
+  <style>
+    /* ── Fixed background image — layered into body to beat shared.css background paint ── */
+    body {
+      background:
+        linear-gradient(rgba(5,13,20,0.87), rgba(5,13,20,0.87)),
+        url('/GeoID_initiative/photos/valencia-flooding.jpg') center / cover no-repeat fixed,
+        radial-gradient(circle at 12% 18%, rgba(88,198,179,0.13), transparent 26rem),
+        radial-gradient(circle at 86% 10%, rgba(79,195,247,0.08), transparent 24rem),
+        radial-gradient(circle at 66% 86%, rgba(16, 20, 26,0.12), transparent 32rem),
+        linear-gradient(180deg, #050b12 0%, #050d14 38%, #07131c 100%);
+    }
+
+    .page-wrap { padding-top: var(--nav-h, 64px); }
+    .page-inner { max-width: 820px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+
+    /* ── Section spacing ── */
+    section { margin-bottom: 1.4rem; }
+    p {
+      font-family: "Source Sans 3", "Public Sans", sans-serif;
+      font-size: 0.96rem; line-height: 1.75; color: var(--muted);
+      margin: 0 0 0.9rem;
+    }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Page header ── */
+    .page-header {
+      padding: 2.8rem 0 2.2rem;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 2rem;
+    }
+    .page-header-label {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.67rem; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--muted);
+      display: block; margin-bottom: 0.85rem;
+    }
+    .page-header h1 {
+      font-family: "Archivo", "Work Sans", sans-serif; font-weight: 800;
+      font-size: clamp(1.9rem, 4.5vw, 3rem); line-height: 1.08;
+      letter-spacing: -0.02em; color: var(--text); margin: 0 0 1.1rem;
+    }
+    .page-header p.lede {
+      font-family: "Public Sans", sans-serif;
+      font-size: 1.05rem; line-height: 1.65;
+      color: rgba(200,220,236,0.88); margin: 0 0 1.6rem;
+    }
+    .header-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+
+    /* ── Honest-status note ── */
+    .status-note {
+      margin-top: 1.5rem; padding: 1rem 1.2rem;
+      border-left: 3px solid rgba(247,189,104,0.5);
+      background: rgba(247,189,104,0.05);
+      border-radius: 0 0.6rem 0.6rem 0;
+    }
+    .status-note p { color: rgba(255,230,189,0.8); font-size: 0.88rem; line-height: 1.65; margin: 0; }
+    .status-note strong { color: #fff4e2; }
+
+    /* ── Section label + title — mirrors shared.css tile-label / tile-title ── */
+    .section-label {
+      display: inline-flex; align-items: center; gap: 0.42rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.67rem; font-weight: 700; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--cyan);
+      margin-bottom: 0.75rem;
+    }
+    .section-label::before {
+      content: ''; display: inline-block;
+      width: 5px; height: 5px; border-radius: 50%; background: var(--cyan);
+    }
+    .section-title {
+      font-family: "Archivo", "Work Sans", sans-serif; font-weight: 700;
+      font-size: clamp(1.4rem, 2.6vw, 1.95rem); line-height: 1.12;
+      letter-spacing: -0.015em; color: var(--text); margin: 0 0 1rem;
+    }
+
+    /* ── Content panels ── */
+    .panel {
+      border: 1px solid var(--line); border-radius: 1.2rem;
+      background: var(--panel); backdrop-filter: blur(16px);
+      box-shadow: var(--shadow); padding: clamp(1.4rem, 2.4vw, 2rem);
+    }
+
+    /* ── Grids ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; }
+
+    .mini {
+      border: 1px solid var(--line); border-radius: 1rem;
+      padding: 1.2rem; background: rgba(255,255,255,0.022);
+    }
+    .mini h3 {
+      margin: 0 0 0.5rem; font-size: 0.95rem;
+      color: var(--text); font-family: "Public Sans", sans-serif; font-weight: 700;
+    }
+    .mini p { font-size: 0.875rem; margin: 0; line-height: 1.68; }
+    .mini .ic { font-size: 1.4rem; line-height: 1; }
+
+    .proof-tag {
+      display: inline-block; font-size: 0.64rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 0.18rem 0.5rem; border-radius: 999px; margin-bottom: 0.3rem;
+    }
+    .proof-live {
+      color: var(--cyan); background: rgba(88,198,179,0.10);
+      border: 1px solid rgba(88,198,179,0.28);
+    }
+
+    /* ── Roadmap ── */
+    .roadmap { display: grid; gap: 1rem; }
+    .phase {
+      position: relative; border: 1px solid var(--line); border-radius: 1.1rem;
+      padding: 1.3rem 1.4rem 1.3rem 1.6rem; background: rgba(255,255,255,0.022);
+      overflow: hidden;
+    }
+    .phase::before {
+      content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    }
+    .phase-0::before { background: var(--cyan); }
+    .phase-1::before { background: var(--gold, #f7bd68); }
+    .phase-2::before { background: var(--accent); }
+    .phase-3::before { background: var(--accent); }
+    .phase-head {
+      display: flex; align-items: baseline;
+      justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+      margin-bottom: 0.4rem;
+    }
+    .phase-head h3 {
+      margin: 0; font-family: "Archivo", "Work Sans", sans-serif; font-weight: 700;
+      font-size: 1.05rem; color: var(--text); letter-spacing: -0.01em;
+    }
+    .phase-badge {
+      font-size: 0.64rem; font-weight: 700; letter-spacing: 0.1em;
+      text-transform: uppercase; padding: 0.22rem 0.55rem;
+      border-radius: 999px; white-space: nowrap;
+    }
+    .badge-done {
+      color: var(--cyan); background: rgba(88,198,179,0.10);
+      border: 1px solid rgba(88,198,179,0.28);
+    }
+    .badge-seek {
+      color: rgba(247,189,104,0.9); background: rgba(247,189,104,0.08);
+      border: 1px solid rgba(247,189,104,0.28);
+    }
+    .phase p.role { font-size: 0.85rem; margin: 0 0 0.7rem; }
+    .phase ul { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 0.35rem; }
+    .phase li {
+      position: relative; padding-left: 1.2rem;
+      font-size: 0.88rem; color: rgba(214,222,234,0.85); line-height: 1.5;
+    }
+    .phase li::before { content: "→"; position: absolute; left: 0; color: var(--cyan); opacity: 0.6; }
+    .phase .infra {
+      margin-top: 0.8rem; font-size: 0.78rem; color: var(--muted);
+      border-top: 1px dashed var(--line); padding-top: 0.65rem;
+    }
+    .phase .infra b { color: rgba(255,230,189,0.75); font-weight: 600; }
+
+    /* ── Engagement grid ── */
+    .ask-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.1rem; }
+    .ask { border: 1px solid var(--line); border-radius: 1.1rem; padding: 1.3rem; background: rgba(255,255,255,0.022); }
+    .ask h3 { margin: 0 0 0.4rem; font-size: 0.95rem; color: var(--text); font-family: "Public Sans", sans-serif; font-weight: 700; }
+    .ask p { font-size: 0.875rem; margin: 0; line-height: 1.68; }
+
+    /* ── PI ── */
+    .pi { display: grid; grid-template-columns: auto 1fr; gap: 1.3rem; align-items: start; }
+    .pi-photo {
+      width: 76px; height: 76px; border-radius: 0.9rem; flex-shrink: 0;
+      border: 1px solid var(--line); overflow: hidden;
+    }
+    .pi-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .pi h3 { margin: 0 0 0.2rem; font-size: 1.05rem; color: var(--text); font-family: "Archivo", "Work Sans", sans-serif; font-weight: 700; }
+    .pi .pi-role { font-size: 0.82rem; color: var(--cyan); font-weight: 600; margin-bottom: 0.6rem; display: block; }
+    .pi p { font-size: 0.88rem; margin: 0; }
+
+    /* ── Closing CTA ── */
+    .cta-section {
+      border: 1px solid var(--line); border-radius: 1.2rem;
+      background: var(--panel); padding: clamp(1.75rem, 3vw, 2.5rem);
+    }
+    .cta-section h2 {
+      font-family: "Archivo", "Work Sans", sans-serif; font-weight: 700;
+      font-size: clamp(1.4rem, 2.6vw, 1.95rem); color: var(--text);
+      margin: 0 0 0.7rem; letter-spacing: -0.015em;
+    }
+    .cta-section p { max-width: 68ch; margin: 0 0 1.4rem; }
+    .cta-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+
+    /* ── Responsive ── */
+    @media (max-width: 960px) {
+      .grid-2, .grid-3, .ask-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .pi { grid-template-columns: 1fr; }
+    }
+  </style>
+  <link rel="stylesheet" href="/styles/v2-site.css">
+  <script src="/scripts/v2-site.js" defer></script>
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
+  <link rel="stylesheet" href="/styles/site-nav.css">
+</head>
+<body>
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
+      GeoID Initiative
+    </a>
+    <ul class="nav-links">
+      <li><a href="/dashboard/">Dashboard</a></li>
+      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="/about/">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="/about/">Overview</a>
+          <a href="/about_myGeoID/">myGeoID App</a>
+          <a href="/team/">Our Team</a>
+          <a href="/research/">Research Hub</a>
+          <a href="/learn/">Resources</a>
+          <a href="/get-involved/">Get Involved</a>
+        </div>
+      </li>
+      <li><a href="/myGeoID/"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
+      <li><a href="/earth_explorer/">Earth Explorer</a></li>
+      <li><a href="/explorer/">Planet Explorer</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="page-inner">
+
+      <!-- PAGE HEADER -->
+      <header class="page-header">
+        <span class="page-header-label">Research &amp; Funding Prospectus</span>
+        <h1>Interactive geoscience platforms are live. Real-time flood and landslide forecasting applications are now just one computational step away.</h1>
+        <p class="lede">GeoID has built and deployed two accessible geoscience tools used by members today. The demos establish what the platform can do. The immediate next goal — driving physics-based hydrological models from live rainfall forecasts to produce a public flood and landslide risk index — is technically defined. What it needs is servers and HPC access.</p>
+        <div class="status-note" role="note">
+          <p><strong>STATUS:</strong> The Explorer platforms are live and usable today but the myGeoID flood and landslide forecasting system is the subject of this funding case, not a live service, the myGeoID prototype is only meant as a supplementary demo of the overall vision for the user interface.</p>
+        </div>
+      </header>
+
+      <!-- WHAT EXISTS -->
+      <section class="panel" id="proof">
+        <span class="section-label">What exists today</span>
+        <h2 class="section-title">Two live platforms that demonstrate the approach</h2>
+        <p style="margin-bottom:1.2rem;">The Explorer viewers are not prototypes. They are working, publicly accessible tools built from real scientific datasets. Their purpose here is to show what accessible, interactive geoscience looks like — and that GeoID can build and sustain it.</p>
+        <div class="grid-3">
+          <div class="mini">
+            <span class="proof-tag proof-live">Live today</span>
+            <h3>Planet Explorer</h3>
+            <p>Ten interactive viewers spanning every planet in the Solar System. Real topographic data, scientific overlays, guided tours. A working membership, authentication, and billing stack underpins it. Proof of sustained delivery — from raw planetary datasets to a polished public tool.</p>
+          </div>
+          <div class="mini">
+            <span class="proof-tag proof-live">Live today</span>
+            <h3>Earth Explorer — Etna</h3>
+            <p>A 3D geological viewer built from published INGV data: seismicity catalogue (2011–2023), fault planes, geological map, magma plumbing architecture, historical lava flows, and an interactive cross-section. The closest thing to a research GIS that runs in a browser, free of institutional access requirements.</p>
+          </div>
+          <div class="mini">
+            <span class="proof-tag proof-live">Ingested</span>
+            <h3>Hazard data pipelines</h3>
+            <p>Working ingestion of NOAA GFS global forecast data, IMERG precipitation, RainViewer radar, GEBCO bathymetry, and geological shapefiles. The raw material for an operational system is already flowing — it is not yet served continuously.</p>
+          </div>
+        </div>
+        <p style="margin-top:1.2rem;font-size:0.88rem;">The viewers show one thing above all: that rigorous, interactive geoscience can be made genuinely accessible. A curious student and a working scientist use the same tool and both get something useful from it. That is the design principle GeoID applies to everything it builds, including the forecasting system.</p>
+      </section>
+
+      <!-- THE FIRST STEP -->
+      <section class="panel" id="nextstep">
+        <span class="section-label">The immediate goal</span>
+        <h2 class="section-title">How does land respond to forecasted rainfall?</h2>
+        <p>NOAA GFS provides global rainfall forecasts at 0.25° resolution, updated every six hours. The question GeoID is equipped to answer: given that forecast, how will a given hillslope or drainage catchment respond?</p>
+        <p>The answer comes from a finite-element hydrological model — the GALES multi-physics solver lineage applied to shallow slope stability and flood routing. The output is a <strong style="color:var(--text);">Factor of Safety</strong>: a single, interpretable value that indicates whether a slope or catchment is in a stable, marginal, or failing condition, computed <em>before</em> the rainfall arrives.</p>
+        <p>This is not a new idea — the science is established in the literature. What does not exist is a public, continuously running, free implementation of it. That is what GeoID is building first.</p>
+
+        <div class="grid-2" style="margin-top:1.3rem;">
+          <div class="mini">
+            <h3>Constraint 1 — Servers</h3>
+            <p>Continuous GFS ingestion, time-series storage, and a public-facing web interface require always-on infrastructure. The data pipeline exists and has been tested. The hosting does not yet exist in a persistent form.</p>
+          </div>
+          <div class="mini">
+            <h3>Constraint 2 — Computational Capacity</h3>
+            <p>FEM slope-stability and flood-routing runs are computationally demanding. Running them continuously, at useful spatial resolution, across a pilot domain requires HPC allocation or dedicated cluster time. This is the principal cost this prospectus addresses.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ROADMAP -->
+      <section class="panel" id="roadmap">
+        <span class="section-label">The plan</span>
+        <h2 class="section-title">Phases of development</h2>
+        <div class="roadmap">
+          <article class="phase phase-0">
+            <div class="phase-head">
+              <h3>Phase 0 — Platform and capability proof</h3>
+              <span class="phase-badge badge-done">Complete · Live</span>
+            </div>
+            <p class="role">Build and ship accessible geoscience tools that demonstrate the platform can handle real scientific data at production quality.</p>
+            <ul>
+              <li>Planet Explorer: ten planetary viewers with scientific overlays, tours, and membership billing</li>
+              <li>Earth Explorer — Etna: 3D geological viewer from published INGV datasets</li>
+              <li>Hazard data ingestion: NOAA GFS, IMERG, radar, GEBCO, shapefiles</li>
+            </ul>
+            <p class="infra"><b>Infrastructure:</b> static hosting and client-side rendering — already covered.</p>
+          </article>
+
+          <article class="phase phase-1">
+            <div class="phase-head">
+              <h3>Phase 1 — Live GFS ingestion and first hydrological model</h3>
+              <span class="phase-badge badge-seek">Seeking funding</span>
+            </div>
+            <p class="role">Stand up persistent infrastructure and run the first continuous GFS → FEM → Factor of Safety pipeline for a defined pilot domain.</p>
+            <ul>
+              <li>Always-on server for scheduled GFS ingestion, storage, and data serving</li>
+              <li>FEM slope-stability and shallow flood-routing model driven by live GFS forecasts</li>
+              <li>Public-facing Factor of Safety output for the pilot domain</li>
+              <li>Validation against historical rainfall events and published landslide catalogues</li>
+            </ul>
+            <p class="infra"><b>Infrastructure:</b> managed server (ingestion and web interface) plus HPC or GPU allocation for FEM runs. This is the core funding ask.</p>
+          </article>
+
+          <article class="phase phase-2">
+            <div class="phase-head">
+              <h3>Phase 2 — Scale, public interface, and regional expansion</h3>
+              <span class="phase-badge badge-seek">Seeking funding</span>
+            </div>
+            <p class="role">Deliver the public-facing myGeoID experience and expand coverage beyond the pilot domain.</p>
+            <ul>
+              <li>Personalised risk dashboards with saved locations and alert thresholds (myGeoID)</li>
+              <li>Additional pilot regions based on partner and funder priorities</li>
+              <li>Open data-access layer and reproducible model outputs for researchers</li>
+              <li>Longer-term: further hazard types as the FEM lineage is extended</li>
+            </ul>
+            <p class="infra"><b>Infrastructure:</b> scaled hosting and storage as user base and regional coverage grow.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- THE ASK -->
+      <section class="panel" id="ask">
+        <span class="section-label">How to get involved</span>
+        <h2 class="section-title">Engagement models</h2>
+        <p style="margin-bottom:1.2rem;">GeoID is a non-exclusive, open-science initiative. The most direct forms of support are HPC access and funded research partnerships, but we are open to all routes below.</p>
+        <div class="ask-grid">
+          <div class="ask">
+            <h3>High Performance Computing (HPC) &amp; cloud in-kind</h3>
+            <p>HPC allocations or cloud-credit programmes that directly cover the Phase 1 FEM workloads — the single most direct path to making the first forecast pipeline operational.</p>
+          </div>
+          <div class="ask">
+            <h3>Research grant co-application</h3>
+            <p>Join as a named partner or host institution on hazard, climate-resilience, or open-science funding calls. GeoID supplies the platform, modelling lineage, and proof of capability.</p>
+          </div>
+          <div class="ask">
+            <h3>University &amp; data partnership</h3>
+            <p>Provide HPC time, validation datasets, or supervisory capacity in exchange for a live testbed for student and postdoctoral research and open teaching resources.</p>
+          </div>
+          <div class="ask">
+            <h3>Institutional sponsorship</h3>
+            <p>Civil-protection agencies, NGOs, or foundations seeking public-benefit early-warning capability in underserved regions, beginning with the Phase 1 pilot domain.</p>
+          </div>
+        </div>
+        <p style="margin-top:1.1rem;font-size:0.82rem;color:var(--muted);">The annual Explorer membership (£19.99/year) demonstrates public demand for accessible geoscience tools. At early-stage scale it is not, and is not presented as, the financing mechanism for the forecasting platform — that is what this prospectus addresses.</p>
+      </section>
+
+      <!-- PI -->
+      <section class="panel">
+        <span class="section-label">Leadership</span>
+        <h2 class="section-title">Who is building this</h2>
+        <div class="pi">
+          <div class="pi-photo">
+            <img src="/GeoID_initiative/photos/me.jpg" alt="Owen McCluskey" loading="lazy" decoding="async">
+          </div>
+          <div>
+            <h3>Owen McCluskey</h3>
+            <span class="pi-role">Founder &amp; Principal Investigator</span>
+            <p>Computational geoscientist (PhD, University of Pisa / INGV) specialising in finite-element modelling of geomechanical and hydrological systems using the GALES multi-physics solver, with research spanning magma dynamics at Mount Etna, glaciology, and volcanogenic flood modelling. The Etna viewer reflects direct domain expertise; the hydrological forecasting pipeline extends the same FEM approach toward public-facing hazard intelligence.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- CLOSING CTA -->
+      <section class="cta-section">
+        <h2>The demos are live and verifiable. The next step needs greater computational power.</h2>
+        <p>We would welcome a conversation with any institution, funder, or research partner who wants to see physics-based flood and landslide forecasting become a free public resource.</p>
+        <div class="cta-actions">
+          <a class="btn-primary" href="/contact/">Get in touch →</a>
+          <a class="btn-ghost" href="/earth_explorer/etna/viewer/">Explore the Etna viewer</a>
+          <a class="btn-ghost" href="/about_myGeoID/">About myGeoID</a>
+        </div>
+      </section>
+
+      <!-- FOOTER -->
+      <footer class="site-footer" style="margin-top:2.5rem;border-top:1px solid var(--line);background:rgba(5,10,16,0.7);backdrop-filter:blur(12px);padding:3rem 0 1.5rem;">
+        <div style="max-width:820px;margin:0 auto;padding:0 1.5rem;">
+          <div style="display:grid;grid-template-columns:2fr repeat(3,1fr);gap:3rem;padding-bottom:2.5rem;border-bottom:1px solid var(--line);">
+            <div>
+              <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem;">
+                <img src="/GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" style="height:32px;width:auto;" loading="lazy" decoding="async">
+              </div>
+              <p style="font-size:0.88rem;line-height:1.68;">Working toward democratising geohazard science through physics-based modelling and open data. Explorer viewers live now; hazard forecasting platform in development.</p>
+              <p style="font-size:0.88rem;line-height:1.68;margin-top:0.75rem;">GeoID is a non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>
+            </div>
+            <div>
+              <h4 style="font-size:0.7rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:1.1rem;">Navigation</h4>
+              <ul style="list-style:none;padding:0;margin:0;">
+                <li style="margin-bottom:0.6rem;"><a href="/about/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Overview</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="/earth_explorer/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Earth Explorer</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="/explorer/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Planet Explorer</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="/research/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Research Hub</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="/get-involved/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Get Involved</a></li>
+                <li><a href="/contact/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Contact</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 style="font-size:0.7rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:1.1rem;">This document</h4>
+              <ul style="list-style:none;padding:0;margin:0;">
+                <li style="margin-bottom:0.6rem;"><a href="#proof" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">What Exists Today</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="#nextstep" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">The Immediate Goal</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="#roadmap" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Roadmap</a></li>
+                <li><a href="#ask" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Engagement Models</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 style="font-size:0.7rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:1.1rem;">Contact</h4>
+              <ul style="list-style:none;padding:0;margin:0;">
+                <li style="margin-bottom:0.6rem;"><a href="mailto:geoid.initiative@gmail.com" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">geoid.initiative@gmail.com</a></li>
+                <li><a href="/contact/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Contact form</a></li>
+              </ul>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;padding-top:1.75rem;">
+            <p style="color:var(--muted);font-size:0.82rem;">&copy; 2026 GeoID Initiative. Led by Owen McCluskey. All rights reserved.</p>
+            <div style="display:flex;align-items:center;gap:0.6rem;">
+              <p style="color:var(--muted);font-size:0.82rem;opacity:0.7;">Research &amp; Funding Prospectus</p>
+              <a href="mailto:geoid.initiative@gmail.com" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center;color:var(--muted);text-decoration:none;" aria-label="Email">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+              </a>
+              <a href="https://www.linkedin.com/company/geoid-initiative" target="_blank" rel="noopener noreferrer" style="width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:rgba(255,255,255,0.03);display:flex;align-items:center;justify-content:center;color:var(--muted);text-decoration:none;" aria-label="LinkedIn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect x="2" y="9" width="4" height="12"></rect><circle cx="4" cy="4" r="2"></circle></svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <script src="/scripts/site.js"></script>
+  <script src="/styles/nav.js?v=20260516" defer></script>
+</body>
+</html>

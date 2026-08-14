@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Mount Etna — GeoID: Explorer</title>
+  <link rel="icon" href="../../../assets/etna_icon.png" type="image/png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=394">
+  <link rel="stylesheet" href="/styles/viewer-skin.css">
+  <script src="/scripts/tour-enter.js?v=20260802c" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260804b" defer></script>
+  <link rel="stylesheet" href="/styles/viewer-skin-ember.css">
+</head>
+<body class="viewer-page">
+  <div id="app"></div>
+
+  <!-- ─── Label overlay ─────────────────────────────────────────────────────── -->
+  <div id="label-overlay" aria-hidden="true"></div>
+
+  <!-- ─── Video popup modal ───────────────────────────────────────────────── -->
+  <div id="etna-video-overlay" class="video-overlay" hidden data-video-close>
+    <div class="video-modal" role="dialog" aria-label="Magma mixing video">
+      <button class="video-modal-close" id="etna-video-close" aria-label="Close video">✕</button>
+      <video id="etna-video-el" controls preload="metadata" width="100%" poster="../../../assets/etna_video_poster.jpg">
+        <source src="../../../assets/etna_video.mp4" type="video/mp4">
+      </video>
+    </div>
+  </div>
+
+  <!-- ─── Left control panel ───────────────────────────────────────────────── -->
+  <section id="ui">
+    <!-- Fixed header strip: always visible when panel scrolls -->
+    <div class="brand-toprow">
+      <p class="eyebrow">GeoID: Earth Explorer</p>
+      <div class="brand-toprow-actions">
+        <button class="info-btn" id="info-btn" aria-label="About this viewer" title="About this viewer">i</button>
+        <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel">‹</button>
+      </div>
+    </div>
+
+    <div id="ui-scroll-body">
+      <!-- Banner hero: Etna photo background, scrolls away with content -->
+      <div class="brand-banner">
+        <!-- Invisible full-banner reset button (behind text, above photo) -->
+        <button class="brand-logo-button" id="brand-reset-button" type="button" aria-label="Reset view" title="Reset to default view"></button>
+        <div class="brand-hero">
+          <div class="brand">
+            <h1>Etna <svg class="italy-flag" viewBox="0 0 30 20" aria-label="Italy" role="img"><rect width="10" height="20" fill="#009246"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ce2b37"/></svg></h1>
+            <p class="brand-subtitle">Sicily, Italy · 3,329 m</p>
+          </div>
+          <div class="brand-audio" hidden></div>
+        </div><!-- /.brand-hero -->
+      </div><!-- /.brand-banner -->
+
+      <div class="controls">
+
+        <!-- Tour Mode -->
+        <details id="tour-mode-section" class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 8h8.3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path d="m8.6 3.5 4.4 4.5-4.4 4.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Tour Mode</span></span></div>
+            </div>
+            <span class="section-toggle-controls">
+              <button type="button" id="tour-mode-enter" class="tour-enter-btn">Enter</button>
+              <input id="tour-mode-toggle" class="section-master-toggle" type="checkbox" aria-label="Activate guided tour mode" hidden>
+            </span>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <div class="section-summary-copy" style="margin-bottom:0.5rem;">Guided stops through the Etna model.</div>
+              <div id="tour-mode-controls" style="display:none;">
+                <div class="row">
+                  <label for="tour-mode-facet">Tour facet</label>
+                  <select id="tour-mode-facet" class="select"></select>
+                </div>
+                <p class="inline-nav-label">Current stop</p>
+                <div class="inline-nav-row">
+                  <button id="tour-mode-prev" class="btn-nav-arrow" type="button" disabled aria-label="Previous">
+                    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+                  </button>
+                  <select id="tour-mode-target" class="inline-nav-select"></select>
+                  <button id="tour-mode-next" class="btn-nav-arrow" type="button" disabled aria-label="Next">
+                    <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Search -->
+        <details class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="3.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="m10 10 2.8 2.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span>Search</span></span></div>
+            </div>
+          </summary>
+          <div class="section-body">
+            <div class="meta-grid">
+              <div>
+                <p class="compact-copy">Find features and stations.</p>
+                <div class="search-row">
+                  <input id="feature-search" class="input" placeholder="Search features or stations" autocomplete="off">
+                  <button id="feature-search-go" class="button" type="button">Go</button>
+                </div>
+                <div id="feature-search-results" class="search-suggestions" hidden></div>
+              </div>
+              <div>
+                <div class="search-row">
+                  <button id="explore-reset" class="button secondary" type="button">Reset View</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Locations -->
+        <details id="locations-section" class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M8 13.2s3.2-3.6 3.2-6A3.2 3.2 0 1 0 4.8 7.2c0 2.4 3.2 6 3.2 6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="8" cy="7.1" r="1.2" fill="currentColor"/></svg></span><span>Locations</span></span></div>
+            </div>
+            <span class="section-toggle-controls">
+              <input id="locations-master-toggle" class="section-master-toggle" type="checkbox" checked aria-label="Enable location labels">
+            </span>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <div class="section-summary-copy" style="margin-bottom:0.5rem;">Click any label to open its information card. Categories colour-coded by type.</div>
+              <div class="row">
+                <label for="label-settlement-toggle" style="color:#65dc78;">Settlements</label>
+                <span class="checkbox-wrap"><input id="label-settlement-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row">
+                <label for="label-vent-toggle" style="color:#ff735d;">Vents &amp; Craters</label>
+                <span class="checkbox-wrap"><input id="label-vent-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row">
+                <label for="label-fissure-toggle" style="color:#ff9100;">Fissures &amp; Eruptions</label>
+                <span class="checkbox-wrap"><input id="label-fissure-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row">
+                <label for="label-fault-toggle" style="color:#b87333;">Faults</label>
+                <span class="checkbox-wrap"><input id="label-fault-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row">
+                <label for="label-general-toggle" style="color:#34d7d1;">Points of Interest</label>
+                <span class="checkbox-wrap"><input id="label-general-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="row">
+                <label for="label-hydro-toggle" style="color:#40c4ff;">Rivers</label>
+                <span class="checkbox-wrap"><input id="label-hydro-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="lod-slider-row">
+                <div class="lod-slider-header">
+                  <label for="lod-slider">Label density</label>
+                  <span class="lod-value-label" id="lod-value-label">All features</span>
+                </div>
+                <input id="lod-slider" type="range" min="1" max="5" value="5" step="1" class="lod-slider">
+                <div class="lod-tick-labels">
+                  <span>Min</span>
+                  <span>Max</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Basemap -->
+        <details class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row">
+                <span class="section-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16"><path d="M2.4 4.1 5.7 3l4.2 1.2 3.7-1.1v8.8l-3.7 1.1-4.2-1.2-3.3 1.1Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5.7 3v8.8M9.9 4.2v8.8" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+                </span>
+                <span>Basemap &amp; Relief</span>
+              </span></div>
+            </div>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <div class="row">
+                <label for="basemap-select">Surface style</label>
+                <select id="basemap-select" class="select">
+                  <option value="plain">Plain terrain</option>
+                  <option value="satellite" selected>Satellite</option>
+                  <option value="hillshade">Hillshade</option>
+                  <option value="slope">Slope angle</option>
+                </select>
+              </div>
+              <div class="row">
+                <label for="surface-opacity">Surface opacity</label>
+                <input id="surface-opacity" class="slider" type="range" min="0" max="1" step="0.02" value="1">
+              </div>
+              <div class="row">
+                <label for="vert-exag-slider">Vert. exaggeration <span id="vert-exag-value" style="color:rgba(255,255,255,0.55);font-size:0.72rem;">1.0×</span></label>
+                <input id="vert-exag-slider" class="slider" type="range" min="1" max="5" step="0.1" value="1">
+              </div>
+              <div class="row">
+                <label for="wireframe-toggle">Wireframe</label>
+                <span class="checkbox-wrap"><input id="wireframe-toggle" type="checkbox"></span>
+              </div>
+              <div class="row">
+                <label for="domain-toggle">Domain box (50 km)</label>
+                <span class="checkbox-wrap"><input id="domain-toggle" type="checkbox" checked></span>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Geology -->
+        <details id="geology-section" class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="m3.2 10.6 2.2-5.2 3 2.3 1.9-3.1 2.5 6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M3 12.2h10" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span>Geology</span></span></div>
+            </div>
+            <span class="section-toggle-controls">
+              <input id="geology-master-toggle" class="section-master-toggle" type="checkbox" aria-label="Enable geology overlays">
+            </span>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+
+              <div class="row">
+                <label for="geology-opacity">Overlay opacity</label>
+                <input id="geology-opacity" class="slider" type="range" min="0" max="1" step="0.01" value="0.72">
+              </div>
+
+              <hr style="border-color:rgba(255,255,255,0.08);margin:0.2rem 0 0.4rem;">
+
+              <!-- Etna Geology sub-section -->
+              <div class="row">
+                <label for="etna-geology-master-toggle" style="color:#e8c080;">Etna Geology</label>
+                <span class="checkbox-wrap"><input id="etna-geology-master-toggle" type="checkbox" checked></span>
+              </div>
+              <div style="font-size:0.65rem;color:rgba(255,255,255,0.38);padding:0 0 0.3rem;">INGV EtnaGeoMap — Branca et al. 2011</div>
+              <!-- Lithology-type legend — colours represent stratigraphic age within each type -->
+              <div style="display:flex;flex-direction:column;gap:0.18rem;padding:0.15rem 0 0.4rem;font-size:0.68rem;color:rgba(255,255,255,0.65);">
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:rgba(224,73,79,0.92);flex-shrink:0;"></span>Lava flow (historical)</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:rgba(238,154,68,0.90);flex-shrink:0;"></span>Lava flow · Scoria cone</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:rgba(186,169,202,0.88);flex-shrink:0;"></span>Ancient lava flow</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:rgba(220,224,239,0.88);flex-shrink:0;"></span>Pyroclastic deposit</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:rgba(211,215,203,0.88);flex-shrink:0;"></span>Slope deposit · Flysch</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:rgba(128,128,128,0.85);flex-shrink:0;"></span>Alluvial deposit</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:rgba(254,246,122,0.85);flex-shrink:0;"></span>Marine sediment</span>
+              </div>
+
+              <hr style="border-color:rgba(255,255,255,0.08);margin:0.2rem 0 0.4rem;">
+
+              <!-- Regional Geology sub-section -->
+              <div class="row">
+                <label for="regional-geology-master-toggle" style="color:#e8c080;">Regional Geology</label>
+                <span class="checkbox-wrap"><input id="regional-geology-master-toggle" type="checkbox" checked></span>
+              </div>
+              <div style="font-size:0.65rem;color:rgba(255,255,255,0.38);padding:0 0 0.3rem;">EGDI 1:1M pan-European Geology (CC-BY 4.0)</div>
+              <!-- Lithology legend — colours are direct INSPIRE lithology classifications -->
+              <div style="display:flex;flex-direction:column;gap:0.18rem;padding:0.15rem 0 0.4rem;font-size:0.68rem;color:rgba(255,255,255,0.65);">
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#88c8e0;flex-shrink:0;"></span>Impure limestone</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#78bede;flex-shrink:0;"></span>Limestone</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#90c8dc;flex-shrink:0;"></span>Carbonate rock</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#c8a868;flex-shrink:0;"></span>Clastic rock</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#d0b878;flex-shrink:0;"></span>Clastic sediment</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#b09080;flex-shrink:0;"></span>Mudstone</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#a88878;flex-shrink:0;"></span>Shale</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#e89050;flex-shrink:0;"></span>Sandstone</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#b84a2d;flex-shrink:0;"></span>Basalt</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#cc5c3c;flex-shrink:0;"></span>Andesite</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#8858c0;flex-shrink:0;"></span>Gneiss</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#a070c8;flex-shrink:0;"></span>Phyllite</span>
+                <span style="display:flex;align-items:center;gap:0.5rem;"><span style="width:10px;height:10px;border-radius:2px;background:#9868c8;flex-shrink:0;"></span>Mica schist</span>
+              </div>
+
+            </div>
+          </div>
+        </details>
+
+        <!-- Surface Faults -->
+        <details id="surface-faults-section" class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2 8 l3-4 l3 4 l3-4 l3 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/><line x1="2" y1="11" x2="14" y2="11" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2,1"/></svg></span><span>Surface Faults</span></span></div>
+            </div>
+            <span class="section-toggle-controls">
+              <input id="faults-master-toggle" class="section-master-toggle" type="checkbox" aria-label="Show all fault overlays">
+            </span>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <p class="section-summary-copy" style="margin-bottom:0.5rem;">INGV mapped fault systems draped on terrain surface. Data: Azzaro et al. 2012; Neri et al. 2007.</p>
+
+              <div class="row">
+                <label for="etna-faults-master-toggle" style="color:#e8c080;">Etna Faults</label>
+                <span class="checkbox-wrap"><input id="etna-faults-master-toggle" type="checkbox" checked></span>
+              </div>
+              <p class="compact-copy" style="margin-bottom:0.4rem;">INGV volcanic fault systems mapped on the edifice flanks.</p>
+
+              <!-- Etna fault entries -->
+              <div style="display:flex;flex-direction:column;gap:0.28rem;padding:0.2rem 0 0.1rem;">
+
+                <div class="row" style="align-items:center;">
+                  <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;">
+                    <span style="flex:0 0 18px;height:2px;background:#ff6a00;border-radius:1px;"></span>
+                    <label for="fault-pfs-toggle" style="font-size:0.76rem;color:#ff6a00;font-weight:600;cursor:pointer;">Pernicana Fault System</label>
+                  </div>
+                  <span class="checkbox-wrap"><input id="fault-pfs-toggle" type="checkbox" checked></span>
+                </div>
+                <p class="compact-copy" style="margin:0 0 0.25rem 26px;">NE flank left-lateral transtensive system; active creep 10–25 mm/yr; linked to NE Rift.</p>
+
+                <div class="row" style="align-items:center;">
+                  <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;">
+                    <span style="flex:0 0 18px;height:2px;background:#00c8e0;border-radius:1px;"></span>
+                    <label for="fault-tfs-toggle" style="font-size:0.76rem;color:#00c8e0;font-weight:600;cursor:pointer;">Timpe Fault System</label>
+                  </div>
+                  <span class="checkbox-wrap"><input id="fault-tfs-toggle" type="checkbox" checked></span>
+                </div>
+                <p class="compact-copy" style="margin:0 0 0.25rem 26px;">Normal faults on the eastern flank; gravity-driven sector spreading; seismic hazard.</p>
+
+                <div class="row" style="align-items:center;">
+                  <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;">
+                    <span style="flex:0 0 18px;height:2px;background:#2ec46a;border-radius:1px;"></span>
+                    <label for="fault-sfs-toggle" style="font-size:0.76rem;color:#2ec46a;font-weight:600;cursor:pointer;">South Fault System</label>
+                  </div>
+                  <span class="checkbox-wrap"><input id="fault-sfs-toggle" type="checkbox" checked></span>
+                </div>
+                <p class="compact-copy" style="margin:0 0 0.25rem 26px;">Right-lateral strike-slip faults on the southern flank; volcanic tectonic origin.</p>
+
+                <div class="row" style="align-items:center;">
+                  <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;">
+                    <span style="flex:0 0 18px;height:2px;background:#c966e0;border-radius:1px;"></span>
+                    <label for="fault-rfs-toggle" style="font-size:0.76rem;color:#c966e0;font-weight:600;cursor:pointer;">Ragalna Fault System</label>
+                  </div>
+                  <span class="checkbox-wrap"><input id="fault-rfs-toggle" type="checkbox" checked></span>
+                </div>
+                <p class="compact-copy" style="margin:0 0 0.25rem 26px;">SW flank right-lateral transcurrent faults; seismogenic; Ml up to 4.8.</p>
+
+                <div class="row" style="align-items:center;">
+                  <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;">
+                    <span style="flex:0 0 18px;height:2px;background:#ffe040;border-radius:1px;"></span>
+                    <label for="fault-rnf-toggle" style="font-size:0.76rem;color:#ffe040;font-weight:600;cursor:pointer;">Ripe della Naca Faults</label>
+                  </div>
+                  <span class="checkbox-wrap"><input id="fault-rnf-toggle" type="checkbox" checked></span>
+                </div>
+                <p class="compact-copy" style="margin:0 0 0 26px;">Normal faults on the upper NE rift; surface scarps 2–7 mm/yr vertical slip.</p>
+
+              </div>
+
+              <hr style="border-color:rgba(255,255,255,0.08);margin:0.5rem 0 0.4rem;">
+              <div class="row">
+                <label for="tectonic-faults-toggle" style="color:#aab8cc;">Regional Tectonic Faults</label>
+                <span class="checkbox-wrap"><input id="tectonic-faults-toggle" type="checkbox" checked></span>
+              </div>
+              <p class="compact-copy" style="margin-bottom:0.5rem;">ISPRA ITHACA capable faults + GEM Global Active Faults. Colour indicates kinematics. Data: Styron &amp; Pagani 2020; ISPRA 2024.</p>
+
+              <!-- Regional lineament legend -->
+              <div style="display:flex;flex-direction:column;gap:0.28rem;padding:0.35rem 0 0.1rem;">
+
+                <div class="row" style="align-items:center;">
+                  <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;">
+                    <span style="flex:0 0 18px;height:2px;background:#e05050;border-radius:1px;"></span>
+                    <label for="tectonic-thrust-front-toggle" style="font-size:0.76rem;color:var(--text);font-weight:600;cursor:pointer;">Sicilian Chain Thrust Front</label>
+                  </div>
+                  <span class="checkbox-wrap"><input id="tectonic-thrust-front-toggle" type="checkbox" checked></span>
+                </div>
+                <p class="compact-copy" style="margin:0 0 0.25rem 26px;">S-domain reverse fault — frontal thrust of the Maghrebian fold-and-thrust belt bounding the Hyblean foreland to the north.</p>
+
+                <div class="row" style="align-items:center;">
+                  <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;">
+                    <span style="flex:0 0 18px;height:2px;border-top:2px dashed #e05050;"></span>
+                    <label for="tectonic-subduction-toggle" style="font-size:0.76rem;color:var(--text);font-weight:600;cursor:pointer;">Ionian Subduction Thrust</label>
+                  </div>
+                  <span class="checkbox-wrap"><input id="tectonic-subduction-toggle" type="checkbox" checked></span>
+                </div>
+                <p class="compact-copy" style="margin:0 0 0.25rem 26px;">SE-domain — leading edge of the Calabrian Arc subduction zone (Ionian slab). Reverse, shallow dip.</p>
+
+                <div class="row" style="align-items:center;">
+                  <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;">
+                    <span style="flex:0 0 18px;height:2px;background:#4499ff;border-radius:1px;"></span>
+                    <label for="tectonic-malta-toggle" style="font-size:0.76rem;color:#4499ff;font-weight:600;cursor:pointer;">Hyblean-Malta Escarpment</label>
+                  </div>
+                  <span class="checkbox-wrap"><input id="tectonic-malta-toggle" type="checkbox" checked></span>
+                </div>
+                <p class="compact-copy" style="margin:0 0 0.25rem 26px;">NNW–SSE normal fault system along the eastern Sicilian margin separating the Hyblean continental platform from the Ionian oceanic crust. ITHACA Scarpata di Malta traces + GEM northern segment.</p>
+
+                <div class="row" style="align-items:center;">
+                  <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;">
+                    <span style="flex:0 0 18px;height:2px;background:#2ec46a;border-radius:1px;"></span>
+                    <label for="tectonic-tindari-toggle" style="font-size:0.76rem;color:#2ec46a;font-weight:600;cursor:pointer;">Tindari-Letojanni Fault</label>
+                  </div>
+                  <span class="checkbox-wrap"><input id="tectonic-tindari-toggle" type="checkbox" checked></span>
+                </div>
+                <p class="compact-copy" style="margin:0 0 0.25rem 26px;">NW-domain sinistral strike-slip — major NE Sicily lineament associated with Ionian slab rollback and trench retreat.</p>
+
+                <div class="row" style="align-items:center;">
+                  <div style="display:flex;align-items:center;gap:0.5rem;flex:1;min-width:0;">
+                    <span style="flex:0 0 18px;height:2px;background:#2ec46a;border-radius:1px;"></span>
+                    <label for="tectonic-scicli-toggle" style="font-size:0.76rem;color:var(--muted);font-weight:600;cursor:pointer;">Scicli Sinistral Fault</label>
+                  </div>
+                  <span class="checkbox-wrap"><input id="tectonic-scicli-toggle" type="checkbox" checked></span>
+                </div>
+                <p class="compact-copy" style="margin:0 0 0 26px;">SW-domain left-lateral system — part of the E-W sinistral fault family of S Sicily.</p>
+
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Stations -->
+        <details id="stations-section" class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 4h10L8 13Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></span><span>Stations</span></span></div>
+            </div>
+            <span class="section-toggle-controls">
+              <input id="stations-master-toggle" class="section-master-toggle" type="checkbox" aria-label="Show all monitoring stations">
+            </span>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <div class="section-summary-copy" style="margin-bottom:0.5rem;">INGV monitoring network — 137 stations across 6 instrument types.</div>
+              <div class="row">
+                <label for="stn-gnss-toggle" style="color:#00e5ff;">GNSS (30)</label>
+                <span class="checkbox-wrap"><input id="stn-gnss-toggle" type="checkbox"></span>
+              </div>
+              <div class="row">
+                <label for="stn-gps-toggle" style="color:#76ff03;">GPS (3)</label>
+                <span class="checkbox-wrap"><input id="stn-gps-toggle" type="checkbox"></span>
+              </div>
+              <div class="row">
+                <label for="stn-gravity-toggle" style="color:#ff9100;">Gravity (28)</label>
+                <span class="checkbox-wrap"><input id="stn-gravity-toggle" type="checkbox"></span>
+              </div>
+              <div class="row">
+                <label for="stn-seismic-toggle" style="color:#ff3d00;">Seismic (47)</label>
+                <span class="checkbox-wrap"><input id="stn-seismic-toggle" type="checkbox"></span>
+              </div>
+              <div class="row">
+                <label for="stn-strain-toggle" style="color:#e040fb;">Strain (4)</label>
+                <span class="checkbox-wrap"><input id="stn-strain-toggle" type="checkbox"></span>
+              </div>
+              <div class="row">
+                <label for="stn-tilt-toggle" style="color:#ffea00;">Tilt (25)</label>
+                <span class="checkbox-wrap"><input id="stn-tilt-toggle" type="checkbox"></span>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Seismicity -->
+        <details id="seismicity-section" class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M1 8h2l1.5-3.5L6 11.5l1.5-5.5L9 10l1.5-2.5L12 8h3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Seismicity</span></span></div>
+            </div>
+            <span class="section-toggle-controls">
+              <input id="seismicity-master-toggle" class="section-master-toggle" type="checkbox" aria-label="Show seismic events">
+            </span>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <p class="section-summary-copy" style="margin-bottom:0.55rem;">12,368 earthquakes 2011–2023 (INGV). Sphere size = magnitude. Colour = depth.</p>
+
+              <!-- Min magnitude slider -->
+              <div style="margin-bottom:0.45rem;">
+                <div class="row" style="margin-bottom:0.15rem;">
+                  <label for="seismic-ml-slider" style="font-size:0.72rem;font-weight:600;">Min magnitude M<sub>L</sub></label>
+                  <span id="seismic-ml-value" style="font-size:0.72rem;color:var(--accent);">≥ 1.5</span>
+                </div>
+                <input id="seismic-ml-slider" type="range" min="0" max="4" step="0.1" value="1.5" style="width:100%;">
+              </div>
+
+              <!-- Depth band filters -->
+              <p style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.07em;color:var(--muted);margin:0.3rem 0 0.25rem;">Depth bands</p>
+              <div class="geo-legend">
+                <div class="geo-legend-item">
+                  <span class="geo-swatch" style="background:#44ff00;border-radius:50%;"></span>
+                  <label for="seismic-shallow-toggle" class="geo-legend-label">0 – 5 km (shallow)</label>
+                  <span class="checkbox-wrap"><input id="seismic-shallow-toggle" type="checkbox" checked></span>
+                </div>
+                <div class="geo-legend-item">
+                  <span class="geo-swatch" style="background:#ccff00;border-radius:50%;"></span>
+                  <label for="seismic-mid-toggle" class="geo-legend-label">5 – 15 km</label>
+                  <span class="checkbox-wrap"><input id="seismic-mid-toggle" type="checkbox" checked></span>
+                </div>
+                <div class="geo-legend-item">
+                  <span class="geo-swatch" style="background:#ff5500;border-radius:50%;"></span>
+                  <label for="seismic-deep-toggle" class="geo-legend-label">15 – 30 km</label>
+                  <span class="checkbox-wrap"><input id="seismic-deep-toggle" type="checkbox" checked></span>
+                </div>
+                <div class="geo-legend-item">
+                  <span class="geo-swatch" style="background:#ff0000;border-radius:50%;"></span>
+                  <label for="seismic-vdeep-toggle" class="geo-legend-label">&gt; 30 km (deep)</label>
+                  <span class="checkbox-wrap"><input id="seismic-vdeep-toggle" type="checkbox" checked></span>
+                </div>
+              </div>
+
+              <!-- Size reference -->
+              <p class="compact-copy" style="margin-top:0.4rem;">Sphere radii: M<sub>L</sub> 1 ≈ 130 m · M<sub>L</sub> 2 ≈ 210 m · M<sub>L</sub> 3 ≈ 340 m · M<sub>L</sub> 4 ≈ 540 m. Data: Aloisi et al.; INGV catalogues 2011–2023.</p>
+            </div>
+          </div>
+        </details>
+
+        <!-- ─── Hazards ──────────────────────────────────────────────────── -->
+        <details id="hazards-section" class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row">
+                <span class="section-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16">
+                    <polygon points="8,2 15,13.5 1,13.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+                    <line x1="8" y1="6" x2="8" y2="9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <circle cx="8" cy="11.5" r="0.8" fill="currentColor"/>
+                  </svg>
+                </span>
+                <span>Hazards</span>
+              </span></div>
+            </div>
+            <span class="section-toggle-controls">
+              <input id="hazards-toggle" class="section-master-toggle" type="checkbox" aria-label="Show hazard zones">
+            </span>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <div class="section-summary-copy" style="margin-bottom:0.75rem;">Volcanic hazard zones radiating from Etna's summit crater complex. Enable the overlay then click any zone — on the terrain or in the legend — for detailed hazard information.</div>
+              <div class="hazard-legend">
+                <button class="hazard-legend-item" data-hazard-zone="0" type="button">
+                  <span class="hazard-swatch" style="background:#ff1a1a;"></span>
+                  <span class="hazard-legend-text">
+                    <span class="hazard-legend-name">Extreme Risk</span>
+                    <span class="hazard-legend-range">0 – 5 km · Ballistics, PDCs, lava flows</span>
+                  </span>
+                  <span class="hazard-legend-chevron">›</span>
+                </button>
+                <button class="hazard-legend-item" data-hazard-zone="1" type="button">
+                  <span class="hazard-swatch" style="background:#ff6600;"></span>
+                  <span class="hazard-legend-text">
+                    <span class="hazard-legend-name">Very High Risk</span>
+                    <span class="hazard-legend-range">5 – 10 km · Heavy tephra, PDC run-out</span>
+                  </span>
+                  <span class="hazard-legend-chevron">›</span>
+                </button>
+                <button class="hazard-legend-item" data-hazard-zone="2" type="button">
+                  <span class="hazard-swatch" style="background:#ffaa00;"></span>
+                  <span class="hazard-legend-text">
+                    <span class="hazard-legend-name">High Risk</span>
+                    <span class="hazard-legend-range">10 – 20 km · Ash fall, lahars, airport closures</span>
+                  </span>
+                  <span class="hazard-legend-chevron">›</span>
+                </button>
+                <button class="hazard-legend-item" data-hazard-zone="3" type="button">
+                  <span class="hazard-swatch" style="background:#ddcc00;"></span>
+                  <span class="hazard-legend-text">
+                    <span class="hazard-legend-name">Moderate Risk</span>
+                    <span class="hazard-legend-range">20 – 35 km · Light ash, acid rain, visibility</span>
+                  </span>
+                  <span class="hazard-legend-chevron">›</span>
+                </button>
+                <button class="hazard-legend-item" data-hazard-zone="4" type="button">
+                  <span class="hazard-swatch" style="background:#44cc66;"></span>
+                  <span class="hazard-legend-text">
+                    <span class="hazard-legend-name">Low Risk</span>
+                    <span class="hazard-legend-range">35 – 50 km · Trace ash, aerosol, air quality</span>
+                  </span>
+                  <span class="hazard-legend-chevron">›</span>
+                </button>
+              </div>
+              <p class="compact-copy" style="margin-top:0.65rem;color:rgba(255,255,255,0.38);">Zones are schematic buffers. Real hazard extents depend on eruption style, vent location, wind direction, and topography. Source: INGV hazard assessments for Etna.</p>
+            </div>
+          </div>
+        </details>
+
+        <!-- Core View (Cross-Section) -->
+        <details id="cross-section-section" class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row">
+                <span class="section-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="4.9" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 3.1A4.9 4.9 0 0 1 12.9 8H8Z" fill="currentColor" opacity=".22"/><circle cx="8" cy="8" r="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+                </span>
+                <span>Cross-Section</span>
+              </span></div>
+            </div>
+            <span class="section-toggle-controls">
+              <input id="cross-section-toggle" class="section-master-toggle" type="checkbox" aria-label="Enable cross-section">
+            </span>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <p class="section-summary-copy" style="margin-bottom:0.4rem;">Slice the model to expose the interior.</p>
+              <div id="cross-section-controls" style="display:none;">
+                <div class="row">
+                  <label for="cross-section-angle">Slice angle</label>
+                  <span id="cross-section-angle-label" style="font-size:0.8rem;color:var(--nav-accent);text-align:right;">0°</span>
+                </div>
+                <input id="cross-section-angle" class="slider" type="range" min="0" max="360" step="1" value="0" style="margin-top:0.35rem;">
+                <div class="row" style="margin-top:0.5rem;">
+                  <label for="cap-face-toggle">Section face</label>
+                  <span class="checkbox-wrap"><input id="cap-face-toggle" type="checkbox" checked></span>
+                </div>
+                <div class="row" style="margin-top:0.35rem;">
+                  <label for="core-labels-toggle">Layer labels</label>
+                  <span class="checkbox-wrap"><input id="core-labels-toggle" type="checkbox" checked></span>
+                </div>
+                <!-- Layer legend — mirrors Mars core-view legend -->
+                <div class="geo-legend" style="margin-top:0.65rem;">
+                  <div class="geo-legend-item">
+                    <span class="geo-swatch" style="background:#7a5c38;"></span>
+                    <span class="geo-legend-label">Crust / Accretionary wedge</span>
+                    <span class="geo-legend-depth">0–25.5 km</span>
+                  </div>
+                  <div class="geo-legend-item">
+                    <span class="geo-swatch" style="background:#4a1606;"></span>
+                    <span class="geo-legend-label">Uppermost mantle</span>
+                    <span class="geo-legend-depth">25.5–50 km</span>
+                  </div>
+                  <div class="geo-legend-item geo-legend-boundary">
+                    <span class="geo-swatch geo-swatch-line" style="background:#d07840;"></span>
+                    <span class="geo-legend-label">— LAB / Thermal boundary</span>
+                    <span class="geo-legend-depth">50–60 km</span>
+                  </div>
+                  <div class="geo-legend-item">
+                    <span class="geo-swatch" style="background:#8c3818;"></span>
+                    <span class="geo-legend-label">Asthenosphere</span>
+                    <span class="geo-legend-depth">60–80 km</span>
+                  </div>
+                </div>
+                <p class="compact-copy" style="margin-top:0.5rem;">Rotate the clipping plane to reveal E–W, N–S, or oblique cross-sections. Click any layer label to read its description.</p>
+              </div>
+              <p class="compact-copy" id="cross-section-hint">Enable to apply a vertical cutting plane through the model.</p>
+            </div>
+          </div>
+        </details>
+
+        <!-- Deep Structure -->
+        <details id="deep-structure-section" class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row">
+                <span class="section-icon" aria-hidden="true">
+                  <svg viewBox="0 0 16 16"><path d="M2 3h12M2 8h12M2 13h12" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".3"/><path d="M2 5.5h12M2 10.5h12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+                </span>
+                <span>Deep Structure</span>
+              </span></div>
+            </div>
+            <span class="section-toggle-controls">
+              <input id="deep-structure-master-toggle" class="section-master-toggle" type="checkbox" checked aria-label="Show all deep structure">
+            </span>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+
+              <!-- Domain walls & stratigraphy toggle -->
+              <div class="row" style="margin-bottom:0.35rem;">
+                <label for="domain-walls-toggle" style="color:var(--nav-accent);">Domain walls &amp; stratigraphy</label>
+                <span class="checkbox-wrap"><input id="domain-walls-toggle" type="checkbox" checked></span>
+              </div>
+
+              <!-- 4-layer legend — matches GEO_LAYERS in etna-viewer.js -->
+              <div class="geo-legend">
+                <div class="geo-legend-item">
+                  <span class="geo-swatch" style="background:#7a5c38;"></span>
+                  <span class="geo-legend-label">Crust / Accretionary wedge</span>
+                  <span class="geo-legend-depth">0–25.5 km</span>
+                </div>
+                <div class="geo-legend-item">
+                  <span class="geo-swatch" style="background:#7a3c18;"></span>
+                  <span class="geo-legend-label">Uppermost mantle</span>
+                  <span class="geo-legend-depth">25.5–50 km</span>
+                </div>
+                <div class="geo-legend-item geo-legend-boundary">
+                  <span class="geo-swatch geo-swatch-line" style="background:#d07840;"></span>
+                  <span class="geo-legend-label">— LAB / Thermal boundary</span>
+                  <span class="geo-legend-depth">50–60 km</span>
+                </div>
+                <div class="geo-legend-item">
+                  <span class="geo-swatch" style="background:#8c3818;"></span>
+                  <span class="geo-legend-label">Asthenosphere</span>
+                  <span class="geo-legend-depth">60–80 km</span>
+                </div>
+              </div>
+
+              <!-- Magmatic plumbing toggle -->
+              <div class="row" style="margin-top:0.55rem; margin-bottom:0.1rem;">
+                <label for="plumbing-toggle" style="color:var(--nav-accent);">Slabs, plume &amp; chambers</label>
+                <span class="checkbox-wrap"><input id="plumbing-toggle" type="checkbox"></span>
+              </div>
+              <div class="row" style="margin-top:0.3rem; margin-bottom:0.1rem;">
+                <label for="plumbing-labels-toggle">Subsurface labels</label>
+                <span class="checkbox-wrap"><input id="plumbing-labels-toggle" type="checkbox"></span>
+              </div>
+
+              <!-- Subsurface property visualisation -->
+              <div class="geo-features" style="margin-top:0.55rem;">
+                <p class="geo-features-heading">Modelled Rock Parameters</p>
+                <div class="prop-mode-group" id="sub-prop-mode-group">
+
+                  <label class="prop-mode-row">
+                    <input type="radio" name="sub-prop-mode" value="0" checked>
+                    <span class="prop-mode-label">Geology (Simplified)</span>
+                    <span class="prop-mode-range">Default</span>
+                  </label>
+
+                  <label class="prop-mode-row">
+                    <input type="radio" name="sub-prop-mode" value="1">
+                    <span class="prop-mode-swatch" style="background:linear-gradient(90deg,#080f2e,#c42b08,#ffde00)"></span>
+                    <span class="prop-mode-label">Temperature</span>
+                    <span class="prop-mode-range">15–1230 °C</span>
+                  </label>
+
+                  <label class="prop-mode-row">
+                    <input type="radio" name="sub-prop-mode" value="2">
+                    <span class="prop-mode-swatch" style="background:linear-gradient(90deg,#e8f0fa,#3a70c0,#06143a)"></span>
+                    <span class="prop-mode-label">Pressure</span>
+                    <span class="prop-mode-range">0–1.35 GPa</span>
+                  </label>
+
+                  <label class="prop-mode-row">
+                    <input type="radio" name="sub-prop-mode" value="3">
+                    <span class="prop-mode-swatch" style="background:linear-gradient(90deg,#d4b896,#7a5e3c,#1c2a1e)"></span>
+                    <span class="prop-mode-label">Density</span>
+                    <span class="prop-mode-range">2500–2900 kg/m³</span>
+                  </label>
+
+                  <label class="prop-mode-row">
+                    <input type="radio" name="sub-prop-mode" value="4">
+                    <span class="prop-mode-swatch" style="background:linear-gradient(90deg,#dbf5e6,#1a9990,#0a2148)"></span>
+                    <span class="prop-mode-label">Young's Modulus</span>
+                    <span class="prop-mode-range">~2–65 GPa</span>
+                  </label>
+
+                  <label class="prop-mode-row">
+                    <input type="radio" name="sub-prop-mode" value="5">
+                    <span class="prop-mode-swatch" style="background:linear-gradient(90deg,#3a6ea8,#d4506a)"></span>
+                    <span class="prop-mode-label">Poisson's Ratio</span>
+                    <span class="prop-mode-range">0.18–0.48</span>
+                  </label>
+
+                  <label class="prop-mode-row">
+                    <input type="radio" name="sub-prop-mode" value="6">
+                    <span class="prop-mode-swatch" style="background:linear-gradient(90deg,#ff6b6b 0%,#ffb347 30%,#76c8e8 55%,#ff8c00 80%,#ff4500 100%)"></span>
+                    <span class="prop-mode-label">Rheological Regime</span>
+                    <span class="prop-mode-range"></span>
+                  </label>
+
+                </div>
+
+                <!-- Regime colour key (visible when mode 6 is active) -->
+                <div id="regime-legend" class="regime-legend" style="display:none;">
+                  <div class="regime-legend-item"><span class="regime-swatch" style="background:#ff6b6b"></span><span>Brittle</span><span class="prop-mode-range">&lt;300 °C</span></div>
+                  <div class="regime-legend-item"><span class="regime-swatch" style="background:#ffb347"></span><span>Brittle–Ductile</span><span class="prop-mode-range">300–550 °C</span></div>
+                  <div class="regime-legend-item"><span class="regime-swatch" style="background:#76c8e8"></span><span>Viscoelastic</span><span class="prop-mode-range">550–900 °C</span></div>
+                  <div class="regime-legend-item"><span class="regime-swatch" style="background:#ff8c00"></span><span>Partial Melt</span><span class="prop-mode-range">900–1100 °C</span></div>
+                  <div class="regime-legend-item"><span class="regime-swatch" style="background:#ff4500"></span><span>Asthenosphere</span><span class="prop-mode-range">&gt;1100 °C</span></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </details>
+
+        <!-- Sea Level -->
+        <details class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2 10.8c3.7 0 3-6.2 7-6.2 2.1 0 3.2 1.5 3.2 3.2 0 1.5-1 2.7-2.6 2.7-.8 0-1.5-.3-2.2-1.1.2 1.5 1 2.7 2.6 3.3" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Sea Level</span></span></div>
+            </div>
+          </summary>
+          <div class="section-body">
+            <div class="control-stack">
+              <div class="row">
+                <label for="sea-toggle">Sea level plane</label>
+                <span class="checkbox-wrap"><input id="sea-toggle" type="checkbox" checked></span>
+              </div>
+              <div class="slider-block">
+                <input id="sea-level-slider" class="slider" type="range" min="0" max="1000" step="1" value="700">
+                <div class="slider-axis">
+                  <span class="slider-axis-min">−200 m</span>
+                  <span id="sea-level-value" class="slider-axis-current">0 m</span>
+                  <span class="slider-axis-max">+8 m</span>
+                </div>
+                <!-- Reference marks: left% derived from non-linear mapping
+                     0–700 → −200m to 0m  |  700–1000 → 0m to +8m -->
+                <div class="slr-marks">
+                  <div class="slr-mark slr-mark-neg" style="left:28%">
+                    <div class="slr-mark-tick"></div>
+                    <div class="slr-mark-label">−120 m<small>LGM ~20 ka</small></div>
+                  </div>
+                  <div class="slr-mark slr-mark-now" style="left:70%">
+                    <div class="slr-mark-tick"></div>
+                    <div class="slr-mark-label">0 m<small>Present</small></div>
+                  </div>
+                  <div class="slr-mark slr-mark-pos" style="left:75.6%">
+                    <div class="slr-mark-tick"></div>
+                    <div class="slr-mark-label">+1.5 m<small>IPCC 2100</small></div>
+                  </div>
+                  <div class="slr-mark slr-mark-pos" style="left:88.8%">
+                    <div class="slr-mark-tick"></div>
+                    <div class="slr-mark-label">+5 m<small>2300</small></div>
+                  </div>
+                  <div class="slr-mark slr-mark-pos" style="left:96.3%">
+                    <div class="slr-mark-tick"></div>
+                    <div class="slr-mark-label">+7 m<small>Ice sheet</small></div>
+                  </div>
+                </div>
+              </div>
+              <p class="compact-copy">Explore past and projected sea levels. Left half: ice-age range. Right half: climate projections.</p>
+            </div>
+          </div>
+        </details>
+
+        <!-- Sources & Metadata -->
+        <details class="control-section">
+          <summary class="section-toggle">
+            <div class="section-toggle-main">
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 3.4h6.3L12 5.1v7.5H4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10.3 3.4v1.8H12M5.5 7h5M5.5 9.3h5M5.5 11.6h3.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span>Sources And Metadata</span></span></div>
+            </div>
+          </summary>
+          <div class="section-body">
+            <div class="section-summary-copy" style="margin-bottom:0.7rem;">Citations and layer provenance.</div>
+            <p class="compact-copy"><strong>Note:</strong> The subsurface plumbing geometry is <strong>speculative</strong> — a visualisation of chamber geometry estimates, not a formally validated model.</p>
+            <p class="compact-copy" style="margin-top:0.5rem;">Surface topography: 100 × 100 km DEM. Seismic network: INGV — Osservatorio Etneo. Geology: INGV EtnaGeoMap (Branca et al. 2011). Satellite imagery: ESRI World Imagery.</p>
+            <p class="compact-copy" style="margin-top:0.5rem;"><strong>Plumbing geometry sources:</strong><br>
+            Firetto Carlino et al. (2025). <em>Science Advances</em>, 11(41), eadx9873. <a href="https://doi.org/10.1126/sciadv.adx9873" target="_blank" rel="noopener">doi:10.1126/sciadv.adx9873</a><br>
+            Cannata et al. (2018). <em>Geochemistry, Geophysics, Geosystems</em>, 19(2), 471–495. <a href="https://doi.org/10.1002/2017GC007296" target="_blank" rel="noopener">doi:10.1002/2017GC007296</a></p>
+            <div class="metadata-launch" style="margin-top:0.6rem; padding:0; border:0; background:none;">
+              <button id="metadata-button" class="button secondary" type="button">Open Metadata</button>
+            </div>
+          </div>
+        </details>
+
+
+      </div><!-- .controls -->
+
+      <p class="status" id="status">© 2026 GeoID: Explorer. The GeoID Initiative, led by Owen McCluskey. All rights reserved.</p>
+    </div><!-- #ui-scroll-body -->
+  </section>
+
+  <!-- ─── Seismic event selection ring (screen-space CSS pulse) ───────────── -->
+  <div id="seismic-selection-ring" hidden></div>
+
+  <!-- ─── Feature info popup (bottom-right, appears on POI click) ─────────── -->
+  <div id="scene-popup" class="scene-popup" hidden>
+    <button id="scene-popup-close" class="scene-popup-close" type="button" aria-label="Close">&#x2715;</button>
+    <div id="scene-popup-state" class="scene-popup-state" hidden>Current Focus</div>
+    <p class="feature-kicker" id="scene-popup-kicker">Selected Feature</p>
+    <h3 class="feature-title" id="scene-popup-title"></h3>
+    <p class="feature-meta"   id="scene-popup-meta"></p>
+    <p class="feature-copy"   id="scene-popup-copy"></p>
+    <div id="scene-popup-detail" class="scene-popup-detail" hidden></div>
+    <img id="scene-popup-img" class="scene-popup-img" alt="" hidden>
+  </div>
+
+  <button id="nav-tab" aria-label="Open Control Centre">Open Control Centre &nbsp;›</button>
+
+  <a class="hub-link" href="/earth_explorer/" target="_top" rel="home">Return Home</a>
+
+  <!-- ─── Tool rail (right side measurement buttons) ────────────────────── -->
+  <div id="tool-rail" aria-label="Measurement tools">
+    <div class="tool-rail-item" data-measure-item="distance">
+      <button class="tool-rail-btn" id="tool-rail-distance" type="button" data-measure-mode="distance" aria-label="Activate distance tool" title="Distance">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M5 17.2 18.2 4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+          <circle cx="5" cy="17.2" r="1.7" fill="currentColor"/>
+          <circle cx="18.2" cy="4" r="1.7" fill="currentColor"/>
+        </svg>
+        <span>Distance</span>
+      </button>
+      <div class="measure-rail-actions" data-measure-actions="distance" hidden>
+        <button class="tool-rail-action-btn" type="button" data-measure-export="distance" aria-label="Export distance CSV" title="Export distance CSV">Export CSV</button>
+      </div>
+    </div>
+    <div class="tool-rail-item" data-measure-item="area">
+      <button class="tool-rail-btn" id="tool-rail-area" type="button" data-measure-mode="area" aria-label="Activate area tool" title="Area">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 17.5 8 6.2l9 2.4-2.2 9.2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          <circle cx="6" cy="17.5" r="1.1" fill="currentColor"/>
+          <circle cx="8" cy="6.2" r="1.1" fill="currentColor"/>
+          <circle cx="17" cy="8.6" r="1.1" fill="currentColor"/>
+          <circle cx="14.8" cy="17.8" r="1.1" fill="currentColor"/>
+        </svg>
+        <span>Area</span>
+      </button>
+      <div class="measure-rail-actions" data-measure-actions="area" hidden>
+        <button class="tool-rail-action-btn" type="button" data-measure-export="area" aria-label="Export area CSV" title="Export area CSV">Export CSV</button>
+      </div>
+    </div>
+    <div class="tool-rail-item" data-measure-item="profile">
+      <button class="tool-rail-btn" id="tool-rail-profile" type="button" data-measure-mode="profile" aria-label="Activate profile tool" title="Profile">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4.5 16.5h3.2l2.3-5.4 2.8 2.7 2.2-6.2 2.5 3.1H20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Profile</span>
+      </button>
+      <div class="measure-rail-actions" data-measure-actions="profile" hidden>
+        <button class="tool-rail-action-btn" type="button" data-measure-export="profile" aria-label="Export profile CSV" title="Export profile CSV">Export CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Top-right controls ────────────────────────────────────────────────── -->
+  <div id="top-right-controls">
+    <button id="spin-toggle" type="button" title="Rotate view" aria-label="Rotate view">
+      <svg class="viewer-control-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/>
+      </svg>
+    </button>
+  </div>
+  <a id="top-right-logo-link" href="/earth_explorer/" target="_top" aria-label="Back to Earth Explorer">
+    <img id="top-right-logo" src="../../assets/logo.png" alt="GeoID logo">
+  </a>
+
+  <!-- ─── Bottom-left HUD: compass inset + surface readers ───────────────────── -->
+  <div id="bottom-right-hud">
+    <div id="compass-anchor" aria-hidden="true"></div>
+    <div id="surface-conditions">
+      <div class="sc-row">
+        <span class="sc-label">TEMP</span>
+        <span id="sc-temp" class="sc-value">—</span>
+      </div>
+      <div class="sc-row">
+        <span class="sc-label">PRESSURE</span>
+        <span id="sc-pressure" class="sc-value">—</span>
+      </div>
+      <div class="sc-row" id="sc-depth-row" style="display:none">
+        <span class="sc-label">DEPTH</span>
+        <span id="sc-depth" class="sc-value">—</span>
+      </div>
+      <div class="sc-row" id="sc-density-row" style="display:none">
+        <span class="sc-label">DENSITY</span>
+        <span id="sc-density" class="sc-value">—</span>
+      </div>
+      <div class="sc-row" id="sc-youngs-row" style="display:none">
+        <span class="sc-label">E (YOUNGS)</span>
+        <span id="sc-youngs" class="sc-value">—</span>
+      </div>
+      <div class="sc-row" id="sc-poisson-row" style="display:none">
+        <span class="sc-label">ν (POISSON)</span>
+        <span id="sc-poisson" class="sc-value">—</span>
+      </div>
+      <div id="sc-regime-row" style="display:none">
+        <span id="sc-regime" class="sc-regime-badge">—</span>
+        <span id="sc-regime-desc" class="sc-regime-desc"></span>
+      </div>
+      <p class="sc-note" id="sc-context">ATMOS. EST.</p>
+    </div>
+  </div>
+
+  <!-- ─── Cursor readout bar: scale + lat/lon/elevation ───────────────────────── -->
+  <div id="cursor-readout-bar">
+    <div id="scale-readout" hidden>
+      <div class="scale-labels" aria-hidden="true">
+        <span id="scale-label-0" style="left:0%;">0</span>
+        <span id="scale-label-1" style="left:12.5%;">—</span>
+        <span id="scale-label-2" style="left:25%;">—</span>
+        <span id="scale-label-3" style="left:50%;">—</span>
+        <span id="scale-label-4" style="left:75%;">—</span>
+        <span id="scale-label-5" style="left:100%;">—</span>
+      </div>
+      <div class="scale-bar-track" aria-hidden="true">
+        <span class="scale-segment is-dark"></span>
+        <span class="scale-segment is-light"></span>
+        <span class="scale-segment is-dark"></span>
+        <span class="scale-segment is-light"></span>
+        <span class="scale-segment is-dark"></span>
+        <span class="scale-segment is-light"></span>
+        <span class="scale-segment is-dark"></span>
+        <span class="scale-segment is-dark"></span>
+      </div>
+    </div>
+    <div id="cursor-readout" hidden></div>
+  </div>
+
+  <!-- ─── Help / info overlay ──────────────────────────────────────────────── -->
+  <div class="viewer-help-overlay" id="viewer-help-overlay" hidden>
+    <div class="viewer-help-backdrop" data-help-close="true"></div>
+    <section class="viewer-help-modal" role="dialog" aria-modal="true" aria-labelledby="viewer-help-title" tabindex="-1">
+      <div class="viewer-help-head">
+        <div>
+          <p class="viewer-help-kicker">GeoID: Earth — Etna Guide</p>
+          <h2 id="viewer-help-title">Using The Etna 3D Viewer</h2>
+        </div>
+        <button class="viewer-help-close" id="viewer-help-close" type="button" aria-label="Close guide">×</button>
+      </div>
+      <div class="viewer-help-body">
+        <section class="viewer-help-section">
+          <h3>About This Model</h3>
+          <p>Surface topography from a 100 × 100 km DEM. Seismic stations from the INGV monitoring network (Osservatorio Etneo). Satellite imagery from ESRI World Imagery.</p>
+          <p><strong>The subsurface magmatic plumbing geometry is speculative.</strong> It is a visualisation of chamber geometry estimates derived from published seismic and geodetic studies and does not represent a formally validated model. Chamber positions, dimensions, and conduit networks are approximations consistent with the literature cited below, not outputs of a numerical inversion.</p>
+        </section>
+        <section class="viewer-help-section">
+          <h3>Navigating The Model</h3>
+          <div class="viewer-help-grid">
+            <article class="viewer-help-card">
+              <h4>Orbit</h4>
+              <p>Left-click and drag to rotate the model freely around the centre of Etna.</p>
+            </article>
+            <article class="viewer-help-card">
+              <h4>Zoom</h4>
+              <p>Scroll wheel or pinch to zoom in from the whole 100 km domain down to chamber scale.</p>
+            </article>
+            <article class="viewer-help-card">
+              <h4>Pan</h4>
+              <p>Right-click and drag (or two-finger trackpad drag) to pan the camera target.</p>
+            </article>
+            <article class="viewer-help-card">
+              <h4>Reset</h4>
+              <p>Click the Etna icon in the panel header to return to the default south-east view of the volcano.</p>
+            </article>
+          </div>
+        </section>
+        <section class="viewer-help-section">
+          <h3>The Plumbing System</h3>
+          <p>The model depicts a multi-reservoir magmatic system feeding the summit craters: a shallow spherical body (~1.5 km asl), a prolate intermediate reservoir (~2 km depth), a melt-bearing lens at ~5 km, an oblate mid-crustal storage zone at ~10 km, and a deep magma reservoir at ~18 km depth coupled to the subducting Sicilian Chain slab. A sill complex between 0–8 km represents lateral storage inferred from seismicity patterns. Interconnecting conduits (~50 m diameter) trace inferred ascent pathways.</p>
+          <p>This geometry is a schematic visualisation based on chamber depth and dimension estimates from the literature. It is not the output of a formal geophysical inversion.</p>
+          <p><strong>Key sources:</strong><br>
+          Firetto Carlino et al. (2025). Earthquake frequency-magnitude distribution at Mount Etna sheds light on magma ascent in the volcano's plumbing system. <em>Science Advances</em>, 11(41), eadx9873. <a href="https://doi.org/10.1126/sciadv.adx9873" target="_blank" rel="noopener">doi:10.1126/sciadv.adx9873</a><br>
+          Cannata et al. (2018). Space–time evolution of magma storage and transfer at Mt. Etna Volcano (Italy): The 2015–2016 reawakening of Voragine Crater. <em>Geochemistry, Geophysics, Geosystems</em>, 19(2), 471–495. <a href="https://doi.org/10.1002/2017GC007296" target="_blank" rel="noopener">doi:10.1002/2017GC007296</a></p>
+        </section>
+        <section class="viewer-help-section">
+          <h3>Cross-Section</h3>
+          <p>Enable <strong>Cross-Section</strong> from the control panel to slice through all model components simultaneously with a vertical cutting plane. Rotate the slice angle to reveal E–W, N–S, or oblique cross-sections through the volcano and its subsurface plumbing. This is equivalent to the Core View function in the planet explorers — the same Three.js clipping plane technique is used.</p>
+        </section>
+        <section class="viewer-help-section">
+          <h3>Seismic Stations</h3>
+          <p>Cyan spheres mark INGV monitoring stations from the Osservatorio Etneo network. Station positions are given in the GMSH domain coordinate system and converted to Three.js coordinates. Toggle station visibility and labels from the Labels section.</p>
+        </section>
+        <section class="viewer-help-section">
+          <h3>Coordinate System</h3>
+          <p>All distances in the viewer are in kilometres. The origin (0, 0, 0) is at the centre of the 100 × 100 km GMSH domain at sea level — approximately above the summit crater area. Positive Y is above sea level; negative Y is depth below sea level. The surface mesh extends from the domain boundary to the summit at approximately Y = +3.3 km.</p>
+        </section>
+      </div>
+    </section>
+  </div>
+
+  <!-- ─── Measurement result card ────────────────────────────────────────── -->
+  <div id="measurement-result-card" class="measurement-result-card" hidden>
+    <div id="measurement-result-title" class="measurement-result-title">Measurement</div>
+    <div id="measurement-result-body" class="measurement-result-body"></div>
+  </div>
+
+  <!-- ─── Elevation profile modal ─────────────────────────────────────────── -->
+  <div id="profile-modal" class="profile-modal" hidden>
+    <div class="profile-dialog">
+      <div class="profile-header">
+        <div>
+          <h2 class="profile-title" id="profile-modal-title">Elevation Profile</h2>
+          <p class="profile-subtitle" id="profile-modal-summary">Distance and elevation profile.</p>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-shrink:0;">
+          <button id="profile-modal-export-png" class="profile-modal-btn" type="button">Export PNG</button>
+          <button id="profile-modal-close"      class="profile-modal-btn" type="button">Close</button>
+        </div>
+      </div>
+      <canvas id="profile-modal-canvas" class="profile-modal-canvas" width="760" height="360"></canvas>
+    </div>
+  </div>
+
+  <div id="view-center-mark">+</div>
+  <div id="hover-tooltip" hidden></div>
+
+  <!-- ─── Portrait advisory ────────────────────────────────────────────────── -->
+  <div id="portrait-advisory" role="status" aria-live="polite">
+    <img src="../../../assets/tilt_phone.png" alt="Rotate device" id="portrait-advisory-icon">
+    <p id="portrait-advisory-text">Rotate to landscape for the best experience</p>
+    <button id="portrait-advisory-dismiss" type="button" aria-label="Dismiss">Got it</button>
+  </div>
+
+  <button id="music-btn" class="is-paused" title="Play ambient music">▶ MUSIC</button>
+  <script src="music.js" defer></script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+  </script>
+
+  <script type="module">
+    const statusNode = document.getElementById('status');
+
+    function setBootStatus(msg, isErr = false) {
+      if (statusNode) {
+        statusNode.textContent = msg;
+        statusNode.classList.toggle('is-error', isErr);
+      }
+    }
+
+    window.addEventListener('error', (e) => {
+      if (e.message) setBootStatus('Viewer error: ' + e.message, true);
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+      const msg = e.reason?.message || String(e.reason || 'Unknown rejection');
+      setBootStatus('Viewer error: ' + msg, true);
+    });
+
+    // Cross-section hint toggle
+    const crossToggle = document.getElementById('cross-section-toggle');
+    const crossHint = document.getElementById('cross-section-hint');
+    if (crossToggle && crossHint) {
+      crossToggle.addEventListener('change', () => {
+        crossHint.style.display = crossToggle.checked ? 'none' : '';
+      });
+    }
+
+    // Portrait advisory
+    const advisory = document.getElementById('portrait-advisory');
+    const dismissBtn = document.getElementById('portrait-advisory-dismiss');
+    if (advisory && dismissBtn) {
+      dismissBtn.addEventListener('click', () => advisory.classList.add('is-dismissed'));
+      window.addEventListener('orientationchange', () => advisory.classList.remove('is-dismissed'));
+    }
+
+    import('./etna-viewer.js?v=65').catch((err) => {
+      setBootStatus('Failed to load viewer: ' + err.message, true);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,2269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Earth — GeoID Earth Explorer</title>
+  <!-- Social / search preview. Without an og:image, search engines pick an
+       arbitrary image off the page — which is why results showed a stray
+       Earth icon instead of the GeoID logo. -->
+  <link rel="canonical" href="https://geoidinitiative.com/earth_explorer/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoID Initiative">
+  <meta property="og:url" content="https://geoidinitiative.com/earth_explorer/">
+  <meta property="og:title" content="Earth — GeoID Earth Explorer">
+  <meta property="og:description" content="GeoID is an open geoscience initiative turning satellite data and Earth observations into geohazard intelligence, with free interactive planetary and Earth viewers.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="1200">
+  <meta property="og:image:alt" content="GeoID Initiative logo">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Earth — GeoID Earth Explorer">
+  <meta name="twitter:description" content="GeoID is an open geoscience initiative turning satellite data and Earth observations into geohazard intelligence, with free interactive planetary and Earth viewers.">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
+  <!-- font link consolidated by v2 skin -->
+  <link rel="stylesheet" href="/styles/shared.css">
+  <style>
+    /* ── Theme variables ──────────────────────────────────────────────────────── */
+    :root {
+      --green-border: rgba(60, 200, 130, 0.30);
+      --green-glow:   rgba(60, 200, 130, 0.55);
+      --teal:         #00d4c0;
+      --teal-dim:     rgba(0, 225, 210, 0.55);
+      --amber:        #f0b030;
+      --panel-bg:     rgba(8, 14, 24, 0.82);
+      --panel-border: rgba(60, 200, 130, 0.32);
+      --text-main:    #e8f1ff;
+      --text-muted:   rgba(180, 190, 220, 0.65);
+    }
+
+    /* ── Body & star field ───────────────────────────────────────────────────── */
+    body {
+      color: var(--text-main);
+      font-family: "Source Sans 3", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 22% 16%, rgba(120, 40, 255, 0.13), transparent 30rem),
+        radial-gradient(circle at 80% 10%, rgba(60, 20, 180, 0.09), transparent 25rem),
+        radial-gradient(circle at 50% 70%, rgba(30, 10, 120, 0.14), transparent 38rem),
+        linear-gradient(180deg, #060410 0%, #09060f 42%, #040309 100%);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(1.5px 1.5px at 18% 12%, rgba(255,255,255,0.55), transparent),
+        radial-gradient(1px 1px   at 44% 28%, rgba(255,255,255,0.40), transparent),
+        radial-gradient(1px 1px   at 72% 8%,  rgba(255,255,255,0.35), transparent),
+        radial-gradient(1.5px 1.5px at 88% 55%, rgba(255,255,255,0.50), transparent),
+        radial-gradient(1px 1px   at 30% 68%, rgba(255,255,255,0.30), transparent),
+        radial-gradient(1px 1px   at 62% 80%, rgba(255,255,255,0.38), transparent),
+        radial-gradient(1.5px 1.5px at 8%  45%, rgba(255,255,255,0.42), transparent),
+        radial-gradient(1px 1px   at 55% 50%, rgba(255,255,255,0.28), transparent);
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────────────────── */
+    .page {
+      position: relative;
+      z-index: 1;
+      width: min(1840px, calc(100vw - 1rem));
+      margin: 0 auto;
+      padding-top: calc(var(--nav-h) + 0.5rem);
+      padding-bottom: 0.5rem;
+    }
+
+    .explorer-hero {
+      display: block;
+      margin-bottom: 0;
+      height: calc(100dvh - var(--nav-h) - 1rem);
+    }
+
+    /* ── Earth map panel (hero) ──────────────────────────────────────────────── */
+    .earth-panel {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      border-radius: 1.45rem;
+      border: 1.5px solid rgba(0,225,210,0.70);
+      background: rgba(4, 8, 18, 0.94);
+      box-shadow:
+        0 20px 54px rgba(0,0,0,0.52),
+        0 0 18px rgba(0,225,210,0.25),
+        0 0 48px rgba(0,225,210,0.12);
+    }
+
+    .earth-map-stage {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* ── Scrollable map container ────────────────────────────────────────────── */
+    /* Horizontal pan enabled on all views — canvas is wider than the viewport
+       so the user can drag/scroll to reach the Americas or Asia. Vertical
+       overflow is always clipped. Scrollbar hidden on all browsers. */
+    .earth-map-scroll {
+      position: absolute;
+      inset: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .earth-map-scroll::-webkit-scrollbar { display: none; }
+
+    /* Inner map canvas — always 4:1 (matching SVG viewBox) so the map never
+       distorts and markers always align. On desktop the canvas is wider than
+       the container and the scroll wrapper handles horizontal panning.
+       On portrait mobile this is overridden to the legacy 720 px fixed width. */
+    .earth-map-inner {
+      height: 100%;
+      aspect-ratio: 4 / 1;   /* width = 4 × height, matching viewBox 360×90  */
+      min-width: 100%;        /* never narrower than the container             */
+      position: relative;
+    }
+
+    /* ── Inline SVG world map ────────────────────────────────────────────────── */
+    .world-map-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Ocean background */
+    .map-ocean {
+      fill: rgba(4, 8, 22, 0.90);
+    }
+
+    /* Land polygons */
+    .map-land {
+      fill: rgba(70, 120, 175, 0.14);
+      stroke: rgba(28, 55, 120, 0.80);
+      stroke-width: 0.22;
+      stroke-linejoin: round;
+    }
+
+    /* Equator line */
+    .map-equator {
+      stroke: rgba(60, 200, 130, 0.18);
+      stroke-width: 0.4;
+      stroke-dasharray: 4 6;
+      fill: none;
+    }
+
+    /* Graticule grid */
+    .map-grid {
+      stroke: rgba(100, 120, 180, 0.08);
+      stroke-width: 0.3;
+      fill: none;
+    }
+
+    /* Bottom gradient fade (equator fade to nothing) */
+    .earth-map-stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(to bottom,
+          rgba(4,8,18,0.22) 0%,
+          transparent 18%,
+          transparent 72%,
+          rgba(4,8,18,0.70) 100%),
+        linear-gradient(to right,
+          rgba(4,8,18,0.30) 0%,
+          transparent 12%,
+          transparent 88%,
+          rgba(4,8,18,0.30) 100%);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* ── Map markers ─────────────────────────────────────────────────────────── */
+    .earth-markers {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    /* ── Map markers: dot + line + pill chip ────────────────────────────────────
+       Status colour tokens (RGB components for rgba() composition):
+         --live    = live viewer      → amber/yellow (solid + glow)
+         --dev     = in development   → amber/yellow (hollow outline)
+         (default) = planned          → cyan         (hollow outline)          */
+
+    .map-marker          { --cr:0;   --cg:212; --cb:192; } /* planned: cyan */
+    .map-marker--live    { --cr:240; --cg:176; --cb:48;  } /* live: amber */
+    .map-marker--dev     { --cr:240; --cg:176; --cb:48;  } /* dev: amber */
+
+    .map-marker {
+      position: absolute;
+      pointer-events: auto;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      z-index: 5;
+    }
+
+    .map-marker.dir-up   { flex-direction: column; transform: translate(-50%, -100%); }
+    .map-marker.dir-down { flex-direction: column; transform: translate(-50%, 0%);    }
+    .map-marker.dir-left { flex-direction: row;    transform: translate(-100%, -50%); }
+    .map-marker.dir-right{ flex-direction: row;    transform: translate(0%, -50%);    }
+
+    /* ── Dot ── */
+    .marker-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: rgba(var(--cr), var(--cg), var(--cb), 0.88);
+      border: 1.5px solid rgba(var(--cr), var(--cg), var(--cb), 0.55);
+      box-shadow: 0 0 6px rgba(var(--cr), var(--cg), var(--cb), 0.40);
+      flex-shrink: 0;
+      transition: transform 0.15s;
+    }
+    .map-marker:hover .marker-dot { transform: scale(1.5); }
+    .map-marker--live .marker-dot {
+      width: 11px; height: 11px;
+      animation: dot-pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes dot-pulse {
+      0%,100% { box-shadow: 0 0 8px  rgba(var(--cr),var(--cg),var(--cb),0.55), 0 0 18px rgba(var(--cr),var(--cg),var(--cb),0.22); }
+      50%     { box-shadow: 0 0 16px rgba(var(--cr),var(--cg),var(--cb),0.85), 0 0 36px rgba(var(--cr),var(--cg),var(--cb),0.42); }
+    }
+
+    /* ── Connector line ── */
+    .marker-line { flex-shrink: 0; }
+    .dir-up    .marker-line { width:1px;  height:22px; background: linear-gradient(to top,   rgba(var(--cr),var(--cg),var(--cb),0.50), rgba(var(--cr),var(--cg),var(--cb),0.05)); }
+    .dir-down  .marker-line { width:1px;  height:22px; background: linear-gradient(to bottom,rgba(var(--cr),var(--cg),var(--cb),0.50), rgba(var(--cr),var(--cg),var(--cb),0.05)); }
+    .dir-left  .marker-line { height:1px; width:24px;  background: linear-gradient(to left,  rgba(var(--cr),var(--cg),var(--cb),0.50), rgba(var(--cr),var(--cg),var(--cb),0.05)); }
+    .dir-right .marker-line { height:1px; width:24px;  background: linear-gradient(to right, rgba(var(--cr),var(--cg),var(--cb),0.50), rgba(var(--cr),var(--cg),var(--cb),0.05)); }
+
+    /* ── Pill chip — SOLID (live + dev) ── */
+    .marker-chip {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: rgba(0, 0, 0, 0.82);
+      background: rgba(var(--cr), var(--cg), var(--cb), 0.88);
+      border: 1.5px solid rgba(var(--cr), var(--cg), var(--cb), 1.0);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 100px;
+      padding: 0.20rem 0.62rem;
+      white-space: nowrap;
+      pointer-events: none;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .map-marker:hover .marker-chip {
+      background: rgba(var(--cr), var(--cg), var(--cb), 1.0);
+    }
+
+    /* ── Pill chip — HOLLOW (dev + planned: outline only, coloured text) ── */
+    .map-marker--dev .marker-chip,
+    .map-marker--planned .marker-chip {
+      color: rgba(var(--cr), var(--cg), var(--cb), 0.92);
+      background: rgba(var(--cr), var(--cg), var(--cb), 0.07);
+      border-color: rgba(var(--cr), var(--cg), var(--cb), 0.60);
+    }
+    .map-marker--dev:hover .marker-chip,
+    .map-marker--planned:hover .marker-chip {
+      background: rgba(var(--cr), var(--cg), var(--cb), 0.14);
+      border-color: rgba(var(--cr), var(--cg), var(--cb), 0.85);
+    }
+
+    /* ── Live: larger chip + glow pulse ── */
+    .map-marker--live .marker-chip {
+      font-size: 0.86rem;
+      padding: 0.28rem 0.80rem;
+      animation: chip-pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes chip-pulse {
+      0%,100% {
+        box-shadow: 0 0 8px  rgba(var(--cr),var(--cg),var(--cb),0.50), 0 0 22px rgba(var(--cr),var(--cg),var(--cb),0.20);
+        border-color: rgba(var(--cr),var(--cg),var(--cb),0.70);
+      }
+      50% {
+        box-shadow: 0 0 18px rgba(var(--cr),var(--cg),var(--cb),0.85), 0 0 44px rgba(var(--cr),var(--cg),var(--cb),0.38);
+        border-color: rgba(var(--cr),var(--cg),var(--cb),1.0);
+      }
+    }
+
+    /* ── Brand overlay (top-left) ────────────────────────────────────────────── */
+    .earth-brand {
+      position: absolute;
+      top: 1.1rem;
+      left: 1.1rem;
+      z-index: 8;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      max-width: 22rem;
+    }
+
+    .earth-brand-logo {
+      height: 6rem;
+      width: auto;
+      object-fit: contain;
+      object-position: left top;
+      filter: drop-shadow(0 2px 18px rgba(0,0,0,0.9));
+      display: block;
+    }
+
+    .earth-brand-desc {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.82rem;
+      line-height: 1.65;
+      color: rgba(185, 200, 230, 0.78);
+      text-shadow: 0 1px 8px rgba(0,0,0,0.9);
+      max-width: 20rem;
+    }
+
+    .earth-brand-cta {
+      pointer-events: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.7rem 1.2rem;
+      border-radius: 999px;
+      border: 1.5px solid rgba(240, 176, 48, 0.70);
+      background: rgba(240, 176, 48, 0.88);
+      color: rgba(0, 0, 0, 0.82);
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      text-decoration: none;
+      animation: cta-amber-pulse 2.2s ease-in-out infinite;
+      transition: transform 0.15s;
+    }
+    @keyframes cta-amber-pulse {
+      0%,100% {
+        box-shadow: 0 0 10px rgba(240,176,48,0.55), 0 0 28px rgba(240,176,48,0.22), 0 8px 20px rgba(0,0,0,0.45);
+        border-color: rgba(240,176,48,0.70);
+      }
+      50% {
+        box-shadow: 0 0 22px rgba(240,176,48,0.90), 0 0 52px rgba(240,176,48,0.40), 0 8px 20px rgba(0,0,0,0.45);
+        border-color: rgba(240,176,48,1.0);
+      }
+    }
+    .earth-brand-cta:hover {
+      transform: translateY(-2px);
+    }
+    .earth-brand-cta-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.50);
+      flex-shrink: 0;
+    }
+
+    /* ── Features overlay (top-right) ───────────────────────────────────────── */
+    .earth-features {
+      position: absolute;
+      top: 1.35rem;
+      right: 1.5rem;
+      z-index: 8;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.40rem;
+      max-width: 17rem;
+    }
+
+    .earth-features-label {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(0, 225, 210, 0.80);
+      text-shadow: 0 0 10px rgba(0,225,210,0.30), 0 1px 6px rgba(0,0,0,0.90);
+      margin-bottom: 0.12rem;
+    }
+
+    .earth-feature-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.80rem;
+      font-weight: 600;
+      line-height: 1.45;
+      color: rgba(210, 225, 245, 0.90);
+      text-shadow: 0 1px 10px rgba(0,0,0,1);
+    }
+
+    .earth-feature-dot {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: rgba(0,225,210,1);
+      box-shadow: 0 0 5px rgba(0,225,210,0.5);
+      flex-shrink: 0;
+      margin-top: 0.42em;
+    }
+
+    /* ── Legend (bottom-centre) ──────────────────────────────────────────────── */
+    .earth-legend {
+      position: absolute;
+      bottom: 1.1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 8;
+      display: flex;
+      align-items: center;
+      gap: 1.4rem;
+      pointer-events: none;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(185, 200, 225, 0.70);
+      text-shadow: 0 1px 6px rgba(0,0,0,0.95);
+    }
+
+    /* Mini pill chips — match the on-map marker style */
+    .legend-pill {
+      display: inline-block;
+      border-radius: 100px;
+      flex-shrink: 0;
+      width: 22px; height: 9px;
+    }
+    /* Live — larger, pulsing solid amber */
+    .legend-pill--live {
+      width: 28px; height: 11px;
+      background: rgba(240, 176, 48, 0.88);
+      border: 1.5px solid rgba(240, 176, 48, 1.0);
+      --cr:240; --cg:176; --cb:48;
+      animation: chip-pulse 2.2s ease-in-out infinite;
+    }
+    /* In development — hollow amber outline */
+    .legend-pill--dev {
+      background: rgba(240, 176, 48, 0.07);
+      border: 1.5px solid rgba(240, 176, 48, 0.65);
+    }
+    /* Planned — hollow cyan */
+    .legend-pill--planned {
+      background: rgba(0, 225, 210, 0.07);
+      border: 1.5px solid rgba(0, 225, 210, 0.65);
+    }
+
+    .earth-viewer-count {
+      position: absolute;
+      bottom: 1.1rem;
+      right: 1.5rem;
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      color: rgba(185, 200, 225, 0.80);
+      text-shadow: 0 0 14px rgba(0,225,210,0.18), 0 2px 10px rgba(0,0,0,0.95);
+      z-index: 8;
+      pointer-events: none;
+    }
+
+    /* ── Below-hero sections ─────────────────────────────────────────────────── */
+    .earth-section {
+      margin-top: 2.2rem;
+    }
+
+    .section-heading-row {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      margin-bottom: 1.3rem;
+    }
+
+    .section-heading {
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(1.05rem, 2.2vw, 1.5rem);
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-main);
+      margin: 0;
+    }
+
+    .section-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.38rem;
+      padding: 0.24rem 0.68rem;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 225, 210, 0.30);
+      background: rgba(0, 225, 210, 0.07);
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(0,225,210,0.90);
+    }
+
+    /* ── Etna info tile — About-explorer style, teal-themed ─────────────────── */
+    .earth-info-tile {
+      position: relative;
+      border-radius: 1.2rem;
+      border: 1.5px solid rgba(0,225,210,0.60);
+      background: rgba(3, 7, 24, 0.99);
+      overflow: hidden;
+    }
+
+    .earth-info-header {
+      position: relative;
+      padding: 1.1rem 2rem 1.1rem 2.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    /* Title wrapper must be allowed to shrink — without min-width:0 the flex
+       item defaults to min-width:auto and resists compression on narrow screens. */
+    .earth-info-header > div:first-child {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .earth-info-header::before {
+      content: "";
+      position: absolute;
+      left: 0.9rem; top: 0.7rem;
+      width: 0.85rem; height: 0.85rem;
+      border-left: 2px solid rgba(0,225,210,0.95);
+      border-top:  2px solid rgba(0,225,210,0.95);
+    }
+    .earth-info-header::after {
+      content: "";
+      position: absolute;
+      left: 0.9rem; bottom: 0.7rem;
+      width: 0.85rem; height: 0.85rem;
+      border-left:   2px solid rgba(0,225,210,0.50);
+      border-bottom: 2px solid rgba(0,225,210,0.50);
+    }
+
+    .earth-info-eyebrow {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(0,225,210,0.65);
+      margin: 0 0 0.3rem;
+    }
+
+    .earth-info-title {
+      font-family: "Archivo", "Work Sans", sans-serif;
+      font-size: clamp(1.5rem, 2.4vw, 2.1rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+      margin: 0;
+      text-shadow: 0 0 30px rgba(0,225,210,0.45), 0 0 60px rgba(0,225,210,0.18);
+    }
+
+    /* Live badge (reused) */
+    .flagship-live-badge {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.42rem;
+      padding: 0.30rem 0.70rem;
+      border-radius: 999px;
+      border: 1px solid rgba(0,225,210,0.45);
+      background: rgba(4,10,20,0.88);
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(0,225,210,0.90);
+    }
+    .flagship-live-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: rgba(0,225,210,1);
+      box-shadow: 0 0 8px rgba(0,225,210,0.9);
+      animation: live-pulse 2s ease-in-out infinite;
+    }
+
+    /* 2-column: blocks left, image right */
+    .earth-info-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .earth-info-body {
+      padding: 1.6rem 2rem 1.6rem 2.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .earth-info-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.55rem;
+      padding-bottom: 1.3rem;
+      margin-bottom: 1.3rem;
+    }
+    .earth-info-block:last-child {
+      padding-bottom: 0;
+      margin-bottom: 0;
+    }
+
+    .earth-info-heading {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.60rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(0,225,210,0.88);
+      margin: 0;
+      padding-left: 0.65rem;
+      border-left: 2px solid rgba(0,225,210,0.45);
+    }
+
+    .earth-info-body p {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.88rem;
+      line-height: 1.75;
+      color: rgba(210,230,240,0.82);
+      margin: 0;
+    }
+
+    .earth-info-image {
+      position: relative;
+      overflow: hidden;
+    }
+    .earth-info-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 40%;
+      display: block;
+    }
+
+    /* Stats bar */
+    .earth-info-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      padding: 1.1rem 2.4rem;
+      gap: 1rem;
+      border-top: 1px solid rgba(0,225,210,0.10);
+    }
+    .earth-info-stat-value {
+      font-family: "Archivo", "Public Sans", sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: rgba(0,225,210,0.90);
+      display: block;
+      line-height: 1;
+    }
+    .earth-info-stat-label {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.58rem;
+      font-weight: 600;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(160,185,210,0.50);
+      display: block;
+      margin-top: 0.3rem;
+    }
+
+    .earth-info-actions {
+      padding: 0 2.4rem 1.6rem;
+    }
+
+    /* ── Desktop: cap hero so map shows ~80% of the world at initial load ──────── */
+    /* Canvas = 4 × hero height; at full dvh the canvas is ~3760 px on a 940 px   */
+    /* hero, showing only 38% of the world. calc(100vw/3.2) keeps the canvas ≈    */
+    /* 1.25 × viewport width → shows ~80%, putting the Americas in initial view.   */
+    @media (min-width: 861px) {
+      .explorer-hero { height: clamp(360px, calc(100vw / 3.2), 72vh); }
+    }
+
+    @media (max-width: 860px) {
+      /* Hero: compact height so map doesn't stretch vertically in portrait */
+      .explorer-hero { height: 46vw; min-height: 180px; max-height: 260px; }
+      .earth-brand { max-width: 60%; pointer-events: auto; }
+      .earth-brand-logo { height: 3.4rem; }
+      .earth-brand-desc { display: none; }
+      .earth-features { display: none; }
+      /* Legend text wraps vertically at narrow widths — hide on mobile */
+      .earth-legend { display: none; }
+      .earth-brand-cta { font-size: 0.62rem; padding: 0.55rem 0.9rem; }
+      /* Info tiles */
+      .earth-info-layout { grid-template-columns: 1fr; }
+      .earth-info-image { min-height: 14rem; }
+      .earth-info-stats { grid-template-columns: repeat(2, 1fr); }
+      /* Tile panels: hide image columns and logo overlays that crowd the layout */
+      .new-worlds-image { display: none !important; }
+      .ee-whatis-logo { display: none !important; }
+      .earth-whatis-logo { display: none !important; }
+      .features-chips { padding-right: 0 !important; }
+    }
+
+    /* ── What is the Earth Explorer? logo watermark ─── */
+    .earth-whatis-logo {
+      position: absolute;
+      top: 1rem;
+      right: 1.4rem;
+      height: 4.5rem;
+      width: auto;
+      object-fit: contain;
+      opacity: 0.80;
+      filter: drop-shadow(0 0 12px rgba(0,225,210,0.22));
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    /* Plain body text for the whatis tile */
+    .earth-whatis-body {
+      padding: 1.6rem 2.4rem 2.2rem;
+    }
+    .earth-whatis-body p {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.92rem;
+      line-height: 1.80;
+      color: rgba(210,230,240,0.86);
+      margin: 0;
+    }
+    .earth-whatis-body p + p { margin-top: 0.9rem; }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.76rem 1.4rem;
+      border-radius: 999px;
+      border: 1px solid rgba(0,225,210,0.45);
+      background: linear-gradient(135deg, rgba(0,185,175,0.26), rgba(0,140,130,0.18));
+      box-shadow: 0 0 20px rgba(0,225,210,0.14), 0 10px 22px rgba(0,0,0,0.45);
+      color: #a0ffe8;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      text-decoration: none;
+      transition: border-color 0.18s, box-shadow 0.18s, transform 0.15s;
+    }
+    .btn-primary:hover {
+      border-color: rgba(0,225,210,0.80);
+      box-shadow: 0 0 32px rgba(0,225,210,0.28), 0 12px 28px rgba(0,0,0,0.5);
+      transform: translateY(-2px);
+    }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.76rem 1.2rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.04);
+      color: rgba(185, 200, 230, 0.72);
+      font-size: 0.84rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: border-color 0.18s, transform 0.15s;
+    }
+    .btn-ghost:hover {
+      border-color: rgba(255,255,255,0.22);
+      transform: translateY(-2px);
+    }
+
+    /* ── Viewer grid ─────────────────────────────────────────────────────────── */
+    .viewer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(16rem, 100%), 1fr));
+      gap: 1rem;
+      margin-top: 1.1rem;
+    }
+
+    .viewer-card {
+      border-radius: 1rem;
+      border: 1px solid var(--panel-border);
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      padding: 1.1rem 1.1rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.52rem;
+      transition: border-color 0.18s, box-shadow 0.18s, transform 0.18s;
+      cursor: default;
+    }
+
+    .viewer-card--dev {
+      border-color: rgba(0,225,210,0.18);
+    }
+
+    .viewer-card:hover {
+      border-color: rgba(0,225,210,0.55);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.32), 0 0 18px rgba(0,225,210,0.08);
+      transform: translateY(-3px);
+    }
+
+    .viewer-card--dev:hover {
+      border-color: rgba(0,225,210,0.36);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.32), 0 0 18px rgba(0,225,210,0.08);
+    }
+
+    .viewer-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .viewer-card-name {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: #d8e6f8;
+      line-height: 1.3;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.16rem 0.50rem;
+      border-radius: 999px;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .status-badge--dev {
+      border: 1px solid rgba(0,225,210,0.38);
+      background: rgba(0,225,210,0.07);
+      color: #f5d888;
+    }
+
+    .status-badge--planned {
+      border: 1px solid rgba(100,160,210,0.28);
+      background: rgba(100,160,210,0.06);
+      color: #90c4e8;
+    }
+
+    .viewer-card-region {
+      font-size: 0.70rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+    }
+
+    .viewer-card-type {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+    }
+
+    .type-tag {
+      display: inline-flex;
+      padding: 0.14rem 0.48rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.03);
+      font-size: 0.58rem;
+      color: rgba(180,200,225,0.55);
+      letter-spacing: 0.05em;
+    }
+
+    .viewer-card-coords {
+      font-family: "Orbitron", sans-serif;
+      font-size: 0.44rem;
+      letter-spacing: 0.12em;
+      color: rgba(130,160,200,0.40);
+      margin-top: auto;
+    }
+
+    /* ── About section ───────────────────────────────────────────────────────── */
+    .about-section {
+      margin-top: 2.6rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem;
+    }
+
+    .about-tile {
+      border-radius: 1.2rem;
+      border: 1px solid var(--panel-border);
+      background: var(--panel-bg);
+      backdrop-filter: blur(16px);
+      padding: 1.8rem 1.8rem 1.6rem;
+    }
+
+    .about-tile-label {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(0,225,210,0.65);
+      margin-bottom: 0.7rem;
+    }
+
+    .about-tile-heading {
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(1.1rem, 2vw, 1.5rem);
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--text-main);
+      margin: 0 0 0.9rem;
+      line-height: 1.15;
+    }
+
+    .about-tile-body {
+      font-size: 0.87rem;
+      line-height: 1.72;
+      color: rgba(175, 195, 225, 0.72);
+    }
+
+
+    /* ── Explore Earth tile (mirrors planet-explorer new-worlds-tile structure) ─ */
+    .about-explorer-section {
+      margin-top: 1.2rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .about-explorer-tile {
+      position: relative;
+      border-radius: 1.2rem;
+      border: 1.5px solid rgba(0,225,210,0.45);
+      background: rgba(5, 10, 38, 0.98);
+      overflow: hidden;
+      box-shadow: 0 20px 54px rgba(0,0,0,0.34);
+    }
+
+    .about-explorer-header {
+      position: relative;
+      padding: 1.1rem 2rem 1.1rem 2.6rem;
+      background:
+        radial-gradient(ellipse at 0% 50%, rgba(0,225,210,0.05) 0%, transparent 55%),
+        linear-gradient(90deg, rgba(0,225,210,0.03) 0%, transparent 40%);
+    }
+
+    .about-explorer-header::before {
+      content: "";
+      position: absolute;
+      left: 0.9rem; top: 0.7rem;
+      width: 0.85rem; height: 0.85rem;
+      border-left: 2px solid rgba(0,225,210,0.95);
+      border-top:  2px solid rgba(0,225,210,0.95);
+    }
+
+    .about-explorer-header::after {
+      content: "";
+      position: absolute;
+      left: 0.9rem; bottom: 0.7rem;
+      width: 0.85rem; height: 0.85rem;
+      border-left:   2px solid rgba(0,225,210,0.50);
+      border-bottom: 2px solid rgba(0,225,210,0.50);
+    }
+
+    .about-explorer-title {
+      font-family: "Archivo", "Public Sans", sans-serif;
+      font-size: clamp(1.5rem, 2.4vw, 2.1rem);
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+      margin: 0;
+      text-shadow:
+        0 0 30px rgba(0,225,210,0.45),
+        0 0 60px rgba(0,225,210,0.18);
+    }
+
+    .about-explorer-body {
+      padding: 1.4rem 2rem 2rem 2.4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.4rem;
+    }
+
+    .about-explorer-section-block {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      padding-bottom: 1.4rem;
+      border-bottom: 1px solid rgba(0,225,210,0.08);
+    }
+
+    .about-explorer-section-block:last-child {
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+
+    .about-col-heading {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(0,225,210,0.88);
+      margin: 0;
+      padding-left: 0.7rem;
+      border-left: 2px solid rgba(0,225,210,0.45);
+    }
+
+    .about-explorer-body p {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.92rem;
+      line-height: 1.78;
+      color: rgba(225, 240, 252, 0.92);
+      margin: 0;
+    }
+
+    .new-worlds-tile {
+      overflow: hidden;
+      background: rgba(3, 7, 24, 0.99);
+      border-color: rgba(0,225,210,0.40);
+    }
+
+    .new-worlds-layout {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: stretch;
+    }
+
+    .new-worlds-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .new-worlds-content .about-explorer-header {
+      border-radius: 0;
+    }
+
+    .new-worlds-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .new-worlds-rocket {
+      font-size: 2rem;
+      line-height: 1;
+      opacity: 0.80;
+      filter: drop-shadow(0 0 8px rgba(0,225,210,0.35));
+      flex-shrink: 0;
+    }
+
+    .new-worlds-image {
+      position: relative;
+      background: rgba(2, 5, 18, 0.98);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1.5rem;
+    }
+
+    .new-worlds-image::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      background:
+        linear-gradient(to right,  rgba(3,7,24,0.99) 0%, transparent 12%, transparent 88%, rgba(3,7,24,0.99) 100%),
+        linear-gradient(to bottom, rgba(3,7,24,0.99) 0%, transparent 10%, transparent 90%, rgba(3,7,24,0.99) 100%);
+    }
+
+    .new-worlds-image-img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 0.75rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .new-worlds-tools {
+      width: 100%;
+      margin-top: 2.2rem;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .new-worlds-tools .about-col-heading {
+      text-align: left;
+      margin-bottom: 0.9rem;
+    }
+
+    .new-worlds-tools-row {
+      display: flex;
+      gap: 0.6rem;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    .new-worlds-tool-item {
+      flex: 1;
+      min-width: 0;
+      border-radius: 0.55rem;
+      overflow: hidden;
+      border: 1px solid rgba(0,225,210,0.18);
+    }
+
+    .new-worlds-tool-item img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    @media (max-width: 900px) {
+      .new-worlds-layout { grid-template-columns: 1fr; }
+      .new-worlds-image  { padding: 1.2rem 1.5rem 1.8rem; }
+    }
+
+    /* ── Viewer Features tile ───────────────────────────────────────────────── */
+    .ee-whatis-logo {
+      position: absolute;
+      top: 50%;
+      right: 1.4rem;
+      transform: translateY(-50%);
+      height: 5rem;
+      width: auto;
+      object-fit: contain;
+      opacity: 0.80;
+      filter: drop-shadow(0 0 10px rgba(0,225,210,0.28));
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .features-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.55rem;
+      padding-right: 9rem;
+    }
+
+    .feature-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 0.5rem;
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.82rem;
+      font-weight: 500;
+      color: rgba(220, 240, 252, 0.92);
+    }
+
+    .feature-chip::before {
+      content: "";
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Terrain & geology — teal */
+    .feature-chip--terrain {
+      border: 1px solid rgba(0,225,210,0.30);
+      background: rgba(0,225,210,0.07);
+    }
+    .feature-chip--terrain::before {
+      background: rgba(0,225,210,0.90);
+      box-shadow: 0 0 5px rgba(0,225,210,0.55);
+    }
+
+    /* Subsurface & hazards — amber */
+    .feature-chip--sub {
+      border: 1px solid rgba(240,176,48,0.30);
+      background: rgba(240,176,48,0.07);
+    }
+    .feature-chip--sub::before {
+      background: rgba(240,176,48,0.90);
+      box-shadow: 0 0 5px rgba(240,176,48,0.55);
+    }
+
+    /* Interface & tools — soft blue */
+    .feature-chip--tool {
+      border: 1px solid rgba(100,165,255,0.28);
+      background: rgba(100,165,255,0.07);
+    }
+    .feature-chip--tool::before {
+      background: rgba(100,165,255,0.88);
+      box-shadow: 0 0 5px rgba(100,165,255,0.50);
+    }
+
+    /* ── Earth Access tile ───────────────────────────────────────────────────── */
+    .earth-access-tile {
+      position: relative;
+      overflow: hidden;
+      border-radius: 1.2rem;
+      border: 1.5px solid rgba(0,225,210,0.60);
+      background: rgba(5, 10, 38, 0.98);
+    }
+
+    /* Subtle topo-dot background */
+    .earth-access-tile::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(1px 1px at 4%  8%,  rgba(0,225,210,0.30), transparent),
+        radial-gradient(1px 1px at 12% 35%, rgba(0,225,210,0.22), transparent),
+        radial-gradient(1px 1px at 21% 62%, rgba(0,225,210,0.18), transparent),
+        radial-gradient(1px 1px at 8%  82%, rgba(0,225,210,0.28), transparent),
+        radial-gradient(1px 1px at 33% 18%, rgba(0,225,210,0.20), transparent),
+        radial-gradient(1px 1px at 47% 51%, rgba(0,225,210,0.16), transparent),
+        radial-gradient(1px 1px at 58% 28%, rgba(0,225,210,0.24), transparent),
+        radial-gradient(1px 1px at 66% 74%, rgba(0,225,210,0.18), transparent),
+        radial-gradient(1px 1px at 79% 11%, rgba(0,225,210,0.22), transparent),
+        radial-gradient(1px 1px at 88% 55%, rgba(0,225,210,0.20), transparent),
+        radial-gradient(1px 1px at 94% 87%, rgba(0,225,210,0.26), transparent),
+        radial-gradient(1px 1px at 40% 90%, rgba(0,225,210,0.18), transparent);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .earth-access-tile > * { position: relative; z-index: 1; }
+
+    .earth-access-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.3rem 2rem 1.3rem 2.6rem;
+      position: relative;
+    }
+
+    .earth-access-header::before {
+      content: "";
+      position: absolute;
+      left: 0.9rem; top: 0.85rem;
+      width: 0.85rem; height: 0.85rem;
+      border-left: 2px solid rgba(0,225,210,0.95);
+      border-top:  2px solid rgba(0,225,210,0.95);
+    }
+
+    .earth-access-header::after {
+      content: "";
+      position: absolute;
+      left: 0.9rem; bottom: 0.85rem;
+      width: 0.85rem; height: 0.85rem;
+      border-left:   2px solid rgba(0,225,210,0.50);
+      border-bottom: 2px solid rgba(0,225,210,0.50);
+    }
+
+    .earth-access-title {
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(1rem, 2.5vw, 1.5rem);
+      font-weight: 700;
+      color: rgba(220,240,255,0.95);
+      line-height: 1.2;
+    }
+
+    .earth-access-price-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    .earth-access-price {
+      font-family: "Public Sans", sans-serif;
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: rgba(0, 225, 210, 0.96);
+      line-height: 1;
+      letter-spacing: 0.02em;
+    }
+
+    .earth-access-period {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.10em;
+      text-transform: uppercase;
+      color: rgba(140, 180, 200, 0.65);
+      margin-top: 0.3rem;
+    }
+
+    .earth-access-body {
+      padding: 0 2rem 1.8rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .earth-access-desc {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.88rem;
+      line-height: 1.65;
+      color: rgba(190, 215, 230, 0.80);
+    }
+
+    .earth-site-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0.6rem;
+    }
+
+    .earth-site-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.85rem 0.5rem;
+      border-radius: 0.9rem;
+      border: 1px solid rgba(255,255,255,0.07);
+      background: rgba(255,255,255,0.03);
+      text-align: center;
+    }
+
+    .earth-site-card--free {
+      border-color: rgba(0,225,210,0.90);
+      background: rgba(0,225,210,0.10);
+      box-shadow: 0 0 18px rgba(0,225,210,0.30), 0 0 40px rgba(0,225,210,0.10);
+    }
+
+    .earth-site-card--dev {
+      border-color: rgba(240,176,48,0.35);
+      background: rgba(240,176,48,0.05);
+    }
+
+    .earth-site-card--planned {
+      border-color: rgba(0,225,210,0.18);
+      background: rgba(0,225,210,0.03);
+    }
+
+    .earth-site-icon {
+      width: 2.4rem;
+      height: 2.4rem;
+      object-fit: contain;
+    }
+
+    .earth-site-icon--dim { opacity: 0.40; }
+
+    .earth-site-name {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.60rem;
+      font-weight: 700;
+      color: rgba(210, 230, 245, 0.80);
+      line-height: 1.3;
+    }
+
+    .earth-site-tag {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.50rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      padding: 0.18rem 0.42rem;
+      border-radius: 999px;
+    }
+
+    .earth-site-tag--free {
+      color: rgba(0,225,210,0.90);
+      border: 1px solid rgba(0,225,210,0.45);
+      background: rgba(0,225,210,0.10);
+    }
+
+    .earth-site-tag--dev {
+      color: rgba(240,176,48,0.85);
+      border: 1px solid rgba(240,176,48,0.35);
+      background: rgba(240,176,48,0.07);
+    }
+
+    .earth-site-tag--planned {
+      color: rgba(140,180,200,0.55);
+      border: 1px solid rgba(140,180,200,0.20);
+      background: rgba(140,180,200,0.04);
+    }
+
+    .earth-access-cta-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 1.2rem;
+      padding-top: 0.4rem;
+    }
+
+    .earth-access-cta-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.65rem 1.4rem;
+      border-radius: 999px;
+      border: 1.5px solid rgba(0,225,210,0.85);
+      background: rgba(0,225,210,0.18);
+      color: rgba(0,225,210,0.96);
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-decoration: none;
+      transition: background 0.18s ease, box-shadow 0.18s ease;
+      white-space: nowrap;
+    }
+
+    .earth-access-cta-btn:hover {
+      background: rgba(0,225,210,0.28);
+      box-shadow: 0 0 20px rgba(0,225,210,0.35);
+    }
+
+    .earth-access-cta-note {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.70rem;
+      color: rgba(140, 175, 200, 0.60);
+      line-height: 1.5;
+    }
+
+    @media (max-width: 900px) {
+      .earth-site-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 640px) {
+      .earth-access-header { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
+      .earth-access-price-badge { align-items: flex-start; }
+      .earth-site-grid { grid-template-columns: repeat(2, 1fr); }
+      .earth-access-cta-row { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+      .earth-access-cta-btn { width: 100%; justify-content: center; }
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────────────────── */
+    .earth-footer {
+      margin-top: 3rem;
+      padding-bottom: 3rem;
+    }
+
+    /* ── Responsive ──────────────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .flagship-card { grid-template-columns: 1fr; }
+      .flagship-image { min-height: 14rem; }
+      .about-section { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      /* Footer grid — single column on small phones */
+      .viewer-grid { grid-template-columns: 1fr 1fr; }
+
+      /* Info tile fine-tuning */
+      .earth-info-image { display: none; }
+      .earth-info-title { font-size: 1.1rem; }
+      .earth-whatis-logo { height: 3rem; }
+
+      /* ── Etna tile header: stack title above badge+button on portrait mobile ── */
+      /* Without wrapping the title is squeezed to ~0 px by the flex-shrink:0 group */
+      .earth-info-header {
+        flex-wrap: wrap;
+        padding: 0.9rem 1.2rem 0.9rem 2rem;
+        gap: 0.5rem;
+      }
+      .earth-info-header > div:first-child {
+        flex: 1 1 100%;   /* title claims the full first row */
+      }
+
+      /* ── Explore the Living Planet tile ───────────────────────────── */
+      .about-explorer-section { margin-top: 0.6rem; margin-bottom: 0.6rem; }
+      .about-explorer-header { padding: 0.9rem 1.2rem 0.9rem 2rem !important; }
+      .about-explorer-title { font-size: clamp(1.1rem, 5vw, 1.5rem) !important; }
+      .about-explorer-body { padding: 0.9rem 1.2rem 1.4rem 1.6rem !important; gap: 1rem !important; }
+      .about-explorer-body p { font-size: 0.85rem !important; line-height: 1.65 !important; }
+      .about-col-heading { font-size: 0.58rem !important; }
+
+      /* ── Viewer Features tile ─────────────────────────────────────── */
+      .feature-chip { font-size: 0.75rem !important; padding: 0.4rem 0.75rem !important; }
+
+      /* ── Full Earth Explorer Access tile ─────────────────────────── */
+      .earth-access-title { font-size: 1.1rem !important; }
+      .earth-access-price { font-size: 1.4rem !important; }
+      .earth-access-body { padding: 0 1.2rem 1.2rem !important; }
+      .earth-access-desc { font-size: 0.82rem !important; }
+    }
+
+    /* ── Site footer ─────────────────────────────────────────────────────────── */
+    .site-footer {
+      margin-top: 2.5rem;
+      border-top: 1px solid rgba(0,225,210,0.55);
+      background: rgba(4, 8, 18, 0.70);
+      backdrop-filter: blur(12px);
+      padding: 3rem 0 1.5rem;
+    }
+
+    .footer-inner { max-width: 1840px; margin: 0 auto; padding: 0 1rem; }
+
+    .footer-content {
+      display: grid;
+      grid-template-columns: 2fr repeat(3, 1fr);
+      gap: 3rem;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid rgba(0,225,210,0.45);
+    }
+
+    .footer-brand-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+    .footer-brand-logo img { height: 32px; width: auto; }
+    .footer-brand p { color: var(--text-muted); font-size: 0.88rem; line-height: 1.68; }
+    .footer-brand p + p { margin-top: 0.75rem; }
+
+    .footer-section h4 {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.70rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1.1rem;
+    }
+
+    .footer-section ul { list-style: none; padding: 0; margin: 0; }
+    .footer-section li { margin-bottom: 0.6rem; }
+    .footer-section a { color: var(--text-muted); text-decoration: none; font-size: 0.88rem; transition: color 0.18s; }
+    .footer-section a:hover { color: var(--text-main); }
+
+    .footer-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding-top: 1.75rem;
+    }
+
+    .footer-bottom p { color: var(--text-muted); font-size: 0.82rem; }
+
+    .footer-social-links { display: flex; gap: 0.6rem; }
+
+    .footer-social-link {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      border: 1px solid rgba(0,225,210,0.22);
+      background: rgba(255,255,255,0.03);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); text-decoration: none;
+      transition: color 0.18s, background 0.18s;
+    }
+    .footer-social-link:hover { color: rgba(0,225,210,0.90); background: rgba(0,225,210,0.08); }
+
+    @media (max-width: 1080px) {
+      .footer-content { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .footer-content { grid-template-columns: 1fr; gap: 2rem; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+    }
+
+    /* ── All views: horizontal map scroll (hidden scrollbar) ────────────────── */
+    /* The inner canvas is always 4:1 so the SVG fills it exactly without
+       distortion. When it's wider than the viewport the scroll wrapper pans.   */
+    .earth-map-scroll {
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;           /* Firefox */
+    }
+    .earth-map-scroll::-webkit-scrollbar { display: none; } /* Chrome/Safari */
+
+    /* ── Portrait mobile: override to legacy fixed 720 px width ─────────────── */
+    /* 720 px ≈ 4 × typical portrait hero height (~180 px), preserving the ratio.
+       Kept separate so we can tune it independently of the desktop canvas.      */
+    @media (max-width: 860px) and (orientation: portrait) {
+      .earth-map-inner { aspect-ratio: auto; width: 720px; }
+    }
+
+    /* ── Landscape phone: chip grid + CTA pill top-right ─────────────────── */
+    @media (max-height: 560px) and (orientation: landscape) {
+      /* Restore legend for landscape (hidden in portrait to avoid wrapping) */
+      .earth-legend { display: flex; gap: 0.9rem; bottom: 0.7rem; }
+
+      /* Stretch brand bar across the top so CTA pill sits at the right edge */
+      .earth-brand {
+        flex-direction: row !important;
+        align-items: center !important;
+        max-width: none !important;
+        left: 0.8rem !important;
+        right: 1rem !important;
+        top: 0.6rem !important;
+        gap: 1rem !important;
+      }
+      .earth-brand-logo { height: 2.6rem !important; }
+      /* Push the CTA to the far right of the brand row */
+      .earth-brand-cta { margin-left: auto !important; }
+
+      /* Equal-width 3-column grid replaces ragged flex-wrap */
+      .features-chips {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 0.38rem !important;
+        padding-right: 0 !important;
+      }
+      .feature-chip {
+        font-size: 0.72rem !important;
+        padding: 0.32rem 0.6rem !important;
+      }
+    }
+
+  </style>
+  <link rel="stylesheet" href="/styles/v2-site.css">
+  <script src="/scripts/v2-site.js" defer></script>
+
+  <style id="v2-page-fixes">
+    /* v2 alignment for the Earth Explorer landing. This page drives its
+       palette through local custom properties, so redefining them here is
+       the entire re-skin. Neon green retires; map marker semantics
+       (live/in-dev/planned) stay legible. */
+    :root {
+      --green-border: rgba(255, 255, 255, 0.14);
+      --green-glow:   rgba(var(--accent-rgb), 0.45);
+      --teal:         var(--accent);
+      --teal-dim:     rgba(var(--accent-rgb), 0.55);
+      --amber:        #f0b542;
+      --panel-bg:     rgba(11, 13, 17, 0.88);
+      --panel-border: rgba(255, 255, 255, 0.12);
+      --text-main:    #f2f5f8;
+      --text-muted:   rgba(235, 242, 248, 0.55);
+    }
+    /* Neon product logo → monochrome white mark */
+    .earth-brand-logo, .earth-whatis-logo, img[src*="earth_explorer/assets/logo"] {
+      filter: grayscale(1) brightness(2.2) !important;
+      opacity: 0.92;
+    }
+  </style>
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
+  <link rel="stylesheet" href="/styles/site-nav.css">
+  <link rel="stylesheet" href="/styles/v2-viewer.css">
+  <link rel="stylesheet" href="/styles/skins/type-exo.css?v=20260804a">
+</head>
+
+<body>
+
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
+      GeoID Initiative
+    </a>
+    <ul class="nav-links">
+      <li><a href="/dashboard/">Dashboard</a></li>
+      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="/about/">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="/about/">Overview</a>
+          <a href="/about_myGeoID/">myGeoID App</a>
+          <a href="/team/">Our Team</a>
+          <a href="/research/">Research Hub</a>
+          <a href="/learn/">Resources</a>
+          <a href="/get-involved/">Get Involved</a>
+        </div>
+      </li>
+      <li><a href="/myGeoID/"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
+      <li><a href="/earth_explorer/" class="active" aria-current="page">Earth Explorer</a></li>
+      <li><a href="/explorer/">Planet Explorer</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+
+  <main class="page">
+
+    <!-- ── Hero: world map ───────────────────────────────────────────────────── -->
+    <section class="explorer-hero" id="earth-explorer" aria-label="Earth Explorer world map">
+      <article class="earth-panel">
+        <div class="earth-map-stage">
+
+          <!-- Scroll wrapper — clips in desktop/landscape, scrolls horizontally in portrait -->
+          <div class="earth-map-scroll">
+          <div class="earth-map-inner">
+
+          <!--
+            Inline SVG — equirectangular Northern Hemisphere (lat 0–90°N, lon ±180°)
+            viewBox "0 0 360 90":  x = lon+180,  y = 90-lat
+            Land polygons from Natural Earth 1:110m, simplified 0.7°, clipped to N hemisphere.
+          -->
+          <svg class="world-map-svg" viewBox="0 0 360 90"
+               preserveAspectRatio="xMidYMid slice"
+               xmlns="http://www.w3.org/2000/svg"
+               aria-hidden="true">
+
+            <!-- Ocean background -->
+            <rect class="map-ocean" width="360" height="90"/>
+
+            <!-- Graticule: 30° longitude lines -->
+            <g class="map-grid">
+              <line x1="60"  y1="0" x2="60"  y2="90"/>
+              <line x1="120" y1="0" x2="120" y2="90"/>
+              <line x1="180" y1="0" x2="180" y2="90"/>
+              <line x1="240" y1="0" x2="240" y2="90"/>
+              <line x1="300" y1="0" x2="300" y2="90"/>
+              <!-- 30° latitude lines (y = 90-lat) -->
+              <line x1="0" y1="30" x2="360" y2="30"/>
+              <line x1="0" y1="60" x2="360" y2="60"/>
+            </g>
+
+            <!-- Equator line (y=90) — bottom edge glow -->
+            <line class="map-equator" x1="0" y1="89.5" x2="360" y2="89.5"/>
+
+            <!-- Land polygons (Natural Earth 1:110m, N hemisphere) -->
+            <g class="map-land">
+              <path d="M 198.618,30.673 L 196.978,31.346 L 196.214,31.363 L 196.924,31.507 L 196.652,31.566 L 196.528,32.932 L 195.92,33.833 L 194.714,33.866 L 194.215,34.167 L 194.342,34.472 L 194.174,34.603 L 192.886,34.589 L 192.974,34.252 L 192.471,33.709 L 192.802,33.736 L 192.656,33.559 L 192.884,33.382 L 191.248,31.631 L 191.147,31.011 L 191.386,30.934 L 190.834,30.816 L 190.595,30.235 L 190.179,30.991 L 189.557,30.887 L 189.657,31.029 L 188.166,31.855 L 186.731,31.932 L 185.586,31.38 L 185.612,30.987 L 186.099,31.13 L 186.363,30.999 L 185.889,30.902 L 186.415,30.453 L 185.173,30.837 L 185.242,30.436 L 186.217,30.182 L 185.73,30.137 L 186.349,29.647 L 186.574,29.639 L 186.527,29.847 L 186.996,29.488 L 186.153,29.654 L 185.146,30.361 L 185.206,29.912 L 185.689,29.877 L 185.137,29.554 L 185.648,29.312 L 185.116,29.364 L 185.009,28.962 L 186.778,28.858 L 187.039,29.047 L 187.604,28.789 L 187.347,28.699 L 187.443,28.565 L 187.331,28.628 L 187.276,28.819 L 185.325,28.892 L 184.99,28.622 L 185.339,28.515 L 184.91,28.19 L 184.985,28.1 L 186.016,28.213 L 186.731,28.13 L 185.096,27.973 L 185.718,27.621 L 186.209,27.647 L 186.692,27.532 L 186.136,27.593 L 186.353,27.389 L 188.096,27.268 L 186.735,27.279 L 187.572,26.9 L 188.623,27.154 L 188.158,26.838 L 188.636,26.658 L 188.361,26.501 L 188.576,26.399 L 189.156,26.541 L 189.697,26.375 L 190.021,26.609 L 191.371,26.195 L 191.176,26.101 L 191.458,25.997 L 191.307,25.951 L 190.055,26.487 L 189.567,26.294 L 190.566,25.582 L 191.633,25.186 L 191.297,25.245 L 191.489,25.024 L 192.508,24.901 L 192.916,24.661 L 192.134,24.721 L 192.689,24.098 L 193.033,24.044 L 192.784,23.9 L 194.034,23.702 L 193.119,23.769 L 193.211,23.359 L 193.959,23.206 L 193.652,23.093 L 194.109,22.881 L 195.416,22.798 L 194.442,22.729 L 194.962,22.426 L 195.594,22.651 L 195.692,22.479 L 194.799,22.191 L 196.008,21.771 L 196.312,22.119 L 196.204,21.683 L 197.553,21.574 L 196.514,21.467 L 198.101,20.844 L 198.26,20.529 L 198.859,20.686 L 198.614,20.509 L 199.687,20.195 L 199.642,20.576 L 200.324,20.055 L 200.107,20.659 L 200.739,20.479 L 200.622,20.086 L 201.975,20.165 L 201.356,19.767 L 202.685,19.625 L 203.354,20.017 L 203.379,19.753 L 204.038,19.515 L 204.765,18.992 L 205.781,19.183 L 205.274,19.448 L 205.044,19.891 L 206.507,19.087 L 206.734,19.146 L 206.585,19.59 L 207.546,19.196 L 207.332,19.003 L 208.142,18.957 L 208.383,19.131 L 207.898,19.322 L 208.272,19.332 L 208.193,19.751 L 208.832,19.136 L 210.961,19.656 L 210.263,19.875 L 208.781,19.855 L 209.601,20.023 L 209.695,20.255 L 211.547,20.303 L 211.985,20.046 L 213.008,20.278 L 212.092,20.367 L 212.378,20.521 L 213.454,20.572 L 213.141,20.931 L 213.684,20.69 L 215.858,20.808 L 220.966,22.287 L 221.359,22.79 L 221.189,23.174 L 220.103,23.7 L 218.654,23.931 L 214.483,23.45 L 213.15,23.156 L 212.93,22.913 L 211.895,22.839 L 213.656,23.557 L 213.361,23.67 L 214.692,24.048 L 214.777,24.232 L 214.406,24.604 L 215.035,25.56 L 217.442,26.187 L 218.062,25.909 L 217.954,25.68 L 217.184,25.592 L 216.579,25.209 L 216.883,24.828 L 219.758,25.423 L 220.445,25.221 L 219.798,24.65 L 219.817,24.402 L 222.211,23.48 L 223.233,23.584 L 224.104,23.991 L 224.429,23.062 L 223.782,22.746 L 224.205,21.746 L 223.333,21.327 L 225.892,21.52 L 226.69,22.151 L 225.529,22.242 L 224.902,22.587 L 226.492,23.2 L 227.656,23.024 L 227.875,22.416 L 228.833,22.319 L 228.754,22.104 L 231.995,21.461 L 232.397,21.648 L 232.723,21.516 L 232.344,21.392 L 233.802,21.004 L 234.491,21.008 L 233.798,21.093 L 233.931,21.564 L 233.261,21.733 L 234.861,21.798 L 235.418,21.432 L 237.127,21.446 L 239.057,20.994 L 239.371,21.262 L 239.099,21.556 L 239.726,21.648 L 239.896,21.294 L 240.934,21.013 L 240.171,20.409 L 240.909,20.153 L 244.19,20.465 L 248.504,21.652 L 249.141,21.049 L 248.543,21.033 L 247.624,20.416 L 247.064,20.306 L 246.897,20.446 L 246.926,19.986 L 247.239,19.892 L 247.285,19.261 L 246.702,19.181 L 246.847,18.936 L 246.64,18.919 L 248.269,18.317 L 249.391,17.044 L 251.617,17.098 L 252.812,17.309 L 252.574,17.987 L 251.867,18.543 L 252.704,19.037 L 252.7,19.543 L 252.469,19.725 L 252.577,21.031 L 253.592,21.518 L 253.139,21.819 L 253.067,22.233 L 251.847,22.992 L 251.365,23.038 L 251.54,23.317 L 250.725,23.481 L 250.383,23.398 L 250.691,23.255 L 249.013,23.212 L 249.982,23.599 L 252.068,23.747 L 253.792,23.005 L 254.075,22.586 L 254.77,22.234 L 254.391,21.579 L 254.58,21.249 L 255.125,21.138 L 256.459,21.022 L 257.238,21.53 L 257.174,22.221 L 258.922,22.411 L 257.588,22.248 L 257.665,21.81 L 257.995,21.741 L 257.651,21.097 L 256.001,20.765 L 253.776,20.802 L 253.891,20.582 L 253.578,20.197 L 254.343,19.421 L 253.086,18.555 L 253.672,18.155 L 254.992,17.855 L 255.06,17.451 L 254.787,17.188 L 255.604,17.419 L 255.741,17.704 L 255.274,18.041 L 255.503,18.345 L 255.28,18.57 L 255.734,18.734 L 258.321,19.07 L 259.015,19.05 L 256.433,18.448 L 256.032,18.09 L 258.187,18.093 L 257.411,17.892 L 258.483,17.605 L 259.422,17.619 L 261.662,18.284 L 263.107,18.279 L 262.977,18.549 L 262.323,18.74 L 262.163,19.402 L 262.221,19.604 L 262.592,19.11 L 263.01,19.105 L 263.03,19.419 L 262.682,19.782 L 263.081,19.907 L 263.074,19.723 L 263.736,19.454 L 263.151,18.896 L 263.534,18.316 L 260.827,17.512 L 260.656,17.288 L 260.842,17.051 L 260.425,16.769 L 260.583,16.432 L 266.893,16.113 L 267.029,16.176 L 265.793,16.562 L 265.818,16.673 L 266.677,16.893 L 265.91,16.61 L 267.571,16.189 L 266.001,15.684 L 267.23,15.636 L 265.791,15.355 L 266.863,15.282 L 267.468,14.987 L 267.006,14.83 L 274.156,14.041 L 272.859,14.021 L 273.259,13.901 L 275.579,13.863 L 276.075,13.918 L 275.653,14.108 L 276.497,14.109 L 278.662,13.757 L 279.77,13.971 L 279.541,14.201 L 279.851,14.07 L 279.825,13.864 L 278.806,13.519 L 281.598,13.561 L 280.928,13.443 L 281.099,13.296 L 280.906,13.099 L 284.015,12.27 L 286.06,12.609 L 284.202,12.898 L 287.43,13.073 L 286.414,13.488 L 291.115,13.277 L 292.094,13.52 L 291.943,13.62 L 292.62,13.616 L 292.656,13.946 L 293.273,13.748 L 293.564,14.108 L 293.857,14.079 L 293.568,14.432 L 292.466,14.156 L 293.726,14.549 L 292.925,14.985 L 289.84,15.678 L 288.2,16.306 L 287.271,16.379 L 285.144,17.223 L 290.868,16.269 L 289.666,16.2 L 290.261,15.983 L 291.551,15.971 L 291.228,16.031 L 292.147,16.291 L 293.033,16.086 L 293.416,16.352 L 293.157,16.54 L 293.491,16.654 L 293.475,16.952 L 293.128,17.169 L 293.312,17.343 L 293.665,17.365 L 293.216,17.194 L 293.886,16.654 L 293.51,16.495 L 294.061,16.415 L 298.45,16.41 L 298.936,16.519 L 298.457,16.536 L 298.43,16.753 L 299.75,17.021 L 302.538,17.122 L 303.622,16.807 L 303.323,16.569 L 303.416,16.363 L 304.541,16.249 L 306.553,16.665 L 307.031,16.453 L 307.74,16.518 L 309.101,16.888 L 308.599,17.105 L 309.25,17.295 L 308.418,17.465 L 309.281,17.562 L 309.283,17.908 L 307.726,17.587 L 308.911,18.245 L 309.21,18.083 L 309.461,18.261 L 308.843,18.337 L 309.762,18.88 L 311.022,19.254 L 311.562,19.099 L 312.654,18.074 L 313.689,18.566 L 316.09,18.38 L 317.94,18.867 L 318.314,18.674 L 317.918,18.616 L 318.234,18.404 L 319.984,18.508 L 319.723,18.115 L 319.359,18.049 L 320.188,17.809 L 319.176,17.837 L 319.141,17.67 L 321.079,17.413 L 320.652,17.157 L 320.808,17.109 L 326.253,17.558 L 324.169,17.741 L 324.471,17.825 L 326.832,17.705 L 326.113,18.055 L 326.23,17.862 L 325.759,17.774 L 325.757,18.059 L 325.064,18.074 L 325.189,18.304 L 326.073,18.192 L 327.262,17.672 L 329.502,17.836 L 330.017,18.104 L 328.923,18.285 L 330.668,18.545 L 330.098,18.773 L 331.582,18.713 L 332.093,18.977 L 331.762,19.018 L 332.509,19.166 L 335.895,18.904 L 338.702,19.065 L 339.912,19.494 L 339.833,20.215 L 340.911,20.394 L 341.036,20.902 L 341.341,21.095 L 340.856,21.462 L 341.566,21.095 L 341.537,20.62 L 343.201,20.285 L 346.82,20.5 L 347.857,20.272 L 348.303,20.729 L 349.311,20.92 L 349.61,21.214 L 350.538,21.175 L 350.997,20.865 L 350.582,20.417 L 350.161,20.373 L 350.503,20.143 L 350.487,19.892 L 353.277,20.176 L 355.921,20.105 L 360.0,21.017 L 360.0,24.933 L 358.52,25.397 L 356.881,24.918 L 356.341,24.953 L 357.223,25.138 L 356.061,25.039 L 354.549,25.316 L 356.057,25.095 L 356.351,25.295 L 356.141,25.414 L 357.388,25.226 L 357.688,25.695 L 358.229,25.636 L 358.692,26.158 L 358.466,26.426 L 359.332,26.81 L 359.26,26.992 L 359.571,27.227 L 359.121,27.68 L 357.024,27.223 L 357.159,27.439 L 352.857,28.531 L 352.908,28.688 L 352.393,28.938 L 350.608,29.565 L 350.351,30.034 L 349.227,29.404 L 347.227,29.594 L 346.273,30.144 L 346.136,30.021 L 346.352,29.515 L 345.085,29.901 L 344.954,30.156 L 344.525,29.939 L 343.744,29.972 L 341.96,31.923 L 342.391,32.283 L 342.654,32.052 L 343.226,32.21 L 342.762,32.756 L 342.803,33.189 L 343.257,33.312 L 343.336,33.767 L 342.84,33.934 L 342.628,33.768 L 343.038,33.478 L 342.671,33.51 L 342.085,33.91 L 341.724,34.504 L 342.106,35.248 L 341.625,35.484 L 340.773,35.459 L 340.074,35.811 L 339.844,36.216 L 340.025,36.87 L 338.472,36.968 L 338.493,37.617 L 338.104,38.19 L 336.748,39.031 L 335.564,34.801 L 335.983,33.305 L 336.849,32.71 L 336.83,32.22 L 338.275,31.991 L 342.068,29.534 L 343.71,29.083 L 343.554,28.974 L 344.005,28.656 L 343.804,28.539 L 344.207,27.708 L 345.397,27.506 L 344.418,27.295 L 343.332,27.449 L 343.085,28.429 L 342.393,28.338 L 340.174,29.362 L 340.379,28.975 L 339.79,29.043 L 340.309,28.106 L 337.084,28.324 L 334.293,30.167 L 334.15,30.471 L 334.971,30.55 L 335.16,30.81 L 333.361,30.785 L 332.818,31.074 L 331.327,31.125 L 331.121,30.917 L 332.261,30.776 L 329.643,30.23 L 329.065,30.369 L 329.205,30.512 L 328.797,30.468 L 328.744,30.626 L 328.965,30.631 L 328.727,30.742 L 326.537,30.543 L 326.05,30.829 L 325.555,30.586 L 322.58,30.76 L 320.79,31.697 L 320.447,32.186 L 318.662,33.034 L 317.692,33.861 L 315.263,35.057 L 315.258,35.269 L 315.852,35.416 L 316.797,35.379 L 316.719,36.196 L 317.155,36.178 L 317.142,35.818 L 317.666,35.717 L 317.339,35.899 L 317.835,36.053 L 317.254,36.454 L 317.95,36.396 L 318.528,36.04 L 318.25,36.476 L 318.451,36.463 L 318.696,35.68 L 319.796,35.744 L 321.374,36.707 L 321.181,36.985 L 320.84,36.912 L 321.256,37.16 L 321.132,37.564 L 321.485,37.821 L 320.521,39.2 L 320.625,39.918 L 320.113,41.577 L 315.483,46.165 L 313.16,47.303 L 312.304,47.117 L 312.31,46.686 L 311.947,46.905 L 312.013,46.72 L 311.795,46.745 L 311.158,47.374 L 310.709,47.344 L 310.73,47.674 L 309.756,48.288 L 309.709,49.143 L 307.568,50.218 L 307.395,50.792 L 308.329,51.319 L 309.418,52.941 L 309.562,54.052 L 309.214,54.818 L 308.511,54.899 L 308.444,55.13 L 307.715,55.045 L 307.715,55.279 L 307.404,55.177 L 307.325,55.537 L 307.247,55.245 L 306.897,55.561 L 306.755,55.488 L 306.531,55.686 L 306.264,55.327 L 306.593,55.176 L 306.291,54.846 L 306.753,54.128 L 306.488,53.306 L 306.161,53.228 L 306.487,52.993 L 306.977,53.061 L 306.634,52.218 L 306.37,52.122 L 306.117,52.257 L 305.769,52.015 L 305.358,52.275 L 304.989,52.069 L 305.207,51.918 L 304.691,51.871 L 305.067,51.443 L 305.554,51.314 L 305.169,51.194 L 305.361,50.473 L 304.775,50.242 L 304.638,50.385 L 304.35,49.988 L 302.84,50.399 L 301.164,51.268 L 301.107,51.079 L 301.68,50.891 L 301.818,50.613 L 301.275,50.615 L 301.267,50.455 L 302.264,49.5 L 301.835,49.026 L 301.175,49.099 L 300.479,49.769 L 299.391,50.248 L 298.977,50.817 L 297.785,50.866 L 297.656,51.576 L 298.94,51.957 L 298.953,52.669 L 299.287,52.862 L 299.761,52.845 L 300.257,52.321 L 300.75,52.166 L 301.64,52.54 L 302.667,52.597 L 302.341,53.168 L 301.933,53.041 L 300.811,53.367 L 300.638,53.87 L 300.183,53.798 L 300.285,54.016 L 299.165,55.151 L 300.267,55.726 L 300.853,57.339 L 301.856,58.184 L 300.52,57.894 L 300.036,58.064 L 300.716,58.016 L 301.878,59.083 L 300.195,59.759 L 301.258,59.696 L 302.083,60.13 L 301.506,60.515 L 301.968,60.509 L 301.918,60.865 L 301.448,60.869 L 301.68,61.047 L 301.475,61.359 L 301.61,61.708 L 301.146,61.673 L 300.748,61.99 L 300.087,63.328 L 299.588,63.215 L 299.881,63.666 L 299.463,63.945 L 299.139,63.878 L 299.619,63.996 L 299.622,64.609 L 299.18,64.55 L 299.286,64.768 L 298.978,64.791 L 298.657,65.379 L 298.087,65.373 L 297.843,65.526 L 298.056,65.754 L 297.368,66.411 L 296.911,66.353 L 296.471,67.054 L 294.854,67.383 L 294.652,67.245 L 294.554,67.471 L 294.266,67.459 L 294.268,67.704 L 293.903,67.604 L 294.015,67.488 L 293.52,66.898 L 293.331,67.088 L 293.548,67.777 L 293.089,67.792 L 292.586,68.223 L 292.36,68.022 L 292.305,68.258 L 291.944,68.15 L 291.603,68.441 L 290.567,68.786 L 290.411,68.662 L 290.154,69.055 L 290.512,69.482 L 290.345,69.705 L 289.938,69.705 L 289.663,69.083 L 289.931,68.519 L 289.521,68.307 L 289.082,68.56 L 288.594,68.099 L 288.502,68.367 L 287.809,68.503 L 287.41,68.715 L 287.165,69.051 L 286.683,69.0 L 286.753,69.265 L 285.984,70.061 L 285.622,71.034 L 286.499,72.054 L 286.371,72.253 L 288.821,74.622 L 289.445,77.4 L 289.219,77.354 L 289.259,78.045 L 288.987,78.664 L 287.262,79.602 L 287.007,79.339 L 286.947,79.6 L 286.727,79.464 L 286.606,79.535 L 286.757,79.704 L 286.464,79.702 L 286.785,79.884 L 286.596,80.14 L 286.136,79.778 L 286.572,80.359 L 286.378,80.444 L 285.831,79.999 L 286.168,80.603 L 285.114,81.371 L 284.77,81.402 L 285.028,79.933 L 284.262,79.459 L 283.587,79.448 L 283.722,79.11 L 283.532,78.853 L 283.153,79.086 L 283.125,78.539 L 282.594,77.797 L 281.724,77.311 L 280.898,77.346 L 280.963,76.568 L 280.603,76.432 L 280.017,76.647 L 279.989,77.829 L 279.165,79.68 L 279.254,80.735 L 279.836,80.712 L 280.279,81.731 L 280.545,82.773 L 280.257,82.225 L 280.161,82.401 L 280.424,82.812 L 281.498,83.135 L 283.197,84.738 L 283.454,85.331 L 283.439,87.067 L 283.968,87.739 L 284.176,88.635 L 283.981,88.376 L 283.992,88.545 L 283.695,88.55 L 283.48,88.671 L 281.296,87.115 L 281.354,86.989 L 281.3,86.747 L 280.715,86.034 L 280.119,83.558 L 279.696,83.123 L 279.597,82.644 L 279.359,82.628 L 278.704,81.743 L 278.305,81.774 L 278.242,81.232 L 278.703,79.81 L 278.563,79.965 L 278.465,79.324 L 278.876,78.28 L 278.636,78.262 L 278.576,76.838 L 278.2,76.02 L 278.111,76.287 L 277.812,75.141 L 277.584,73.98 L 277.726,73.431 L 277.376,73.477 L 277.2,72.905 L 276.851,72.599 L 276.765,73.29 L 276.431,73.495 L 276.189,73.232 L 276.324,73.556 L 275.39,74.277 L 275.347,73.902 L 275.177,74.174 L 274.943,74.182 L 274.893,73.817 L 274.662,74.096 L 274.703,73.488 L 274.224,73.984 L 274.589,72.431 L 274.045,70.713 L 273.929,71.1 L 273.493,70.631 L 273.825,70.762 L 273.962,70.671 L 273.998,70.559 L 273.612,70.224 L 273.707,70.088 L 273.25,69.93 L 273.129,70.142 L 273.067,69.622 L 272.828,69.822 L 272.736,69.437 L 272.723,69.704 L 272.308,69.21 L 271.863,67.65 L 271.48,67.115 L 270.946,67.403 L 270.604,66.409 L 270.269,66.544 L 270.591,66.734 L 270.435,67.248 L 270.616,67.638 L 270.231,68.17 L 270.071,68.113 L 270.21,67.843 L 269.918,67.884 L 269.985,67.534 L 269.569,68.233 L 269.483,67.724 L 269.354,68.279 L 269.051,67.907 L 269.052,68.346 L 268.745,68.416 L 268.642,67.878 L 268.585,68.34 L 268.122,68.364 L 268.196,67.86 L 267.941,67.626 L 268.159,67.878 L 267.948,68.175 L 266.86,68.763 L 266.975,69.3 L 266.75,69.687 L 266.216,70.104 L 265.249,70.242 L 265.181,70.405 L 265.442,70.373 L 264.104,71.707 L 262.36,72.904 L 262.259,73.44 L 261.286,73.663 L 260.979,74.242 L 260.647,74.105 L 260.293,74.289 L 260.053,74.926 L 260.307,76.515 L 260.062,76.394 L 260.342,76.639 L 259.693,78.687 L 259.838,79.677 L 259.315,79.743 L 258.94,80.434 L 259.411,80.808 L 258.421,80.895 L 258.06,81.615 L 257.518,81.922 L 256.553,81.097 L 256.346,80.078 L 254.946,77.435 L 254.382,75.505 L 253.338,73.54 L 252.875,71.357 L 253.006,70.979 L 252.803,70.921 L 252.987,70.723 L 252.668,70.169 L 252.894,69.327 L 252.613,68.538 L 253.113,68.25 L 252.543,68.303 L 252.7,68.028 L 252.553,67.84 L 252.809,67.767 L 252.183,67.73 L 252.037,68.177 L 252.254,68.469 L 252.015,68.844 L 250.719,69.26 L 248.97,67.71 L 250.177,67.427 L 250.489,66.91 L 249.665,67.241 L 248.817,66.946 L 248.417,66.429 L 248.777,66.148 L 248.235,66.403 L 248.165,66.143 L 247.563,66.118 L 247.171,65.244 L 246.703,65.139 L 246.429,64.425 L 244.659,64.816 L 244.059,64.597 L 241.412,64.898 L 240.511,64.563 L 239.046,64.583 L 237.335,64.208 L 236.728,62.872 L 236.118,62.857 L 234.759,63.495 L 233.706,63.274 L 232.476,62.383 L 231.519,62.09 L 230.072,59.801 L 229.555,59.971 L 229.028,59.667 L 229.13,59.491 L 228.832,59.965 L 227.983,59.989 L 228.143,60.428 L 227.723,60.607 L 228.051,60.645 L 228.797,62.276 L 230.15,63.337 L 230.081,64.039 L 230.804,65.211 L 231.003,64.019 L 231.262,63.847 L 231.543,64.098 L 231.609,64.947 L 231.31,65.66 L 232.119,66.029 L 232.648,65.845 L 233.802,65.931 L 234.148,65.829 L 234.397,65.722 L 236.413,63.649 L 236.373,64.982 L 236.641,65.53 L 237.22,66.077 L 238.773,66.483 L 239.824,67.695 L 238.474,69.593 L 238.169,69.41 L 237.862,69.756 L 237.812,70.983 L 236.826,71.246 L 236.383,72.012 L 235.479,72.157 L 235.064,72.961 L 234.068,72.994 L 232.581,73.53 L 232.237,73.829 L 232.217,74.344 L 231.604,74.663 L 229.35,75.362 L 228.668,75.95 L 227.99,75.952 L 226.789,76.534 L 225.657,76.661 L 225.039,77.184 L 224.006,77.392 L 223.488,77.301 L 223.232,76.733 L 222.936,75.061 L 222.658,74.767 L 222.79,73.548 L 222.294,72.565 L 221.658,71.992 L 220.759,70.245 L 219.728,69.61 L 219.276,69.026 L 218.988,68.118 L 219.062,67.408 L 218.464,66.288 L 217.543,65.708 L 217.149,64.709 L 215.18,61.965 L 214.625,61.935 L 214.973,60.445 L 214.22,62.236 L 213.248,61.432 L 212.566,60.026 L 212.36,60.369 L 212.898,61.435 L 213.547,62.102 L 213.959,63.351 L 215.194,65.525 L 215.784,66.062 L 215.504,66.221 L 215.698,67.054 L 216.83,67.902 L 217.259,68.891 L 217.193,69.879 L 217.471,71.18 L 218.574,71.927 L 219.507,74.468 L 219.786,74.875 L 219.864,74.53 L 220.204,74.986 L 221.176,75.38 L 223.354,77.633 L 223.337,77.973 L 222.54,78.496 L 223.162,78.434 L 224.279,79.528 L 224.943,79.563 L 225.817,79.164 L 226.565,79.254 L 227.405,78.826 L 230.11,78.471 L 230.792,78.016 L 231.255,78.169 L 231.032,79.555 L 231.193,79.445 L 231.385,79.613 L 230.93,79.664 L 230.825,80.572 L 227.975,85.503 L 226.051,87.525 L 224.333,88.609 L 222.879,90.0 L 189.334,90.0 L 189.355,89.656 L 189.797,89.956 L 190.001,89.805 L 189.325,89.448 L 189.618,89.423 L 189.599,88.946 L 189.386,88.861 L 189.807,88.073 L 189.948,86.921 L 189.556,86.202 L 189.689,85.944 L 189.0,85.908 L 188.918,85.446 L 188.574,85.474 L 188.253,85.076 L 188.293,85.442 L 187.077,85.284 L 187.155,85.486 L 186.923,85.609 L 186.768,85.275 L 186.86,85.627 L 186.077,85.709 L 185.493,85.161 L 185.368,84.662 L 185.55,84.526 L 185.199,84.466 L 185.457,84.388 L 185.112,84.358 L 184.431,83.651 L 183.451,83.573 L 183.717,83.402 L 181.311,83.853 L 180.95,84.19 L 180.26,84.243 L 177.998,85.238 L 176.754,84.886 L 176.981,84.869 L 176.849,84.652 L 176.652,84.869 L 176.016,84.707 L 175.643,84.699 L 175.391,84.764 L 175.963,84.77 L 174.718,84.79 L 174.938,84.869 L 172.455,85.649 L 170.868,84.945 L 169.724,83.922 L 167.514,82.614 L 167.52,82.247 L 167.149,82.181 L 166.727,81.57 L 167.106,81.37 L 166.818,81.423 L 166.941,81.119 L 166.309,80.464 L 166.31,80.072 L 165.573,79.752 L 165.406,79.233 L 165.113,79.032 L 164.988,79.196 L 164.945,78.858 L 164.607,78.783 L 164.571,78.501 L 164.927,78.402 L 164.5,78.222 L 164.922,78.031 L 164.058,78.213 L 164.08,78.062 L 163.672,77.948 L 163.755,77.763 L 163.215,77.527 L 163.557,77.391 L 163.232,77.372 L 163.25,76.575 L 163.587,76.73 L 164.573,76.532 L 163.559,76.647 L 163.233,76.095 L 163.382,75.959 L 162.464,75.245 L 162.853,75.078 L 163.429,74.266 L 163.97,72.112 L 163.787,70.997 L 163.486,70.638 L 163.79,69.772 L 163.124,68.914 L 162.901,69.143 L 163.069,68.1 L 163.641,67.405 L 164.101,66.156 L 165.096,65.28 L 165.586,63.746 L 166.424,63.265 L 167.051,62.086 L 168.447,61.69 L 169.799,60.62 L 170.333,59.891 L 170.191,58.575 L 170.754,57.428 L 171.487,56.748 L 173.099,56.031 L 174.075,54.214 L 174.722,54.097 L 174.747,54.385 L 175.372,54.794 L 177.028,54.593 L 177.16,54.872 L 178.087,54.906 L 181.257,53.48 L 183.779,53.104 L 184.758,53.104 L 185.295,53.352 L 186.487,52.914 L 187.91,53.144 L 189.688,52.66 L 189.83,52.865 L 190.196,52.794 L 190.412,53.268 L 190.951,52.941 L 191.127,53.126 L 190.488,53.745 L 191.12,54.76 L 190.065,55.788 L 190.305,56.272 L 190.958,56.374 L 191.203,56.751 L 192.28,57.141 L 193.283,57.085 L 195.177,57.609 L 195.706,58.574 L 197.83,59.072 L 198.936,59.71 L 199.59,59.586 L 200.013,59.199 L 200.141,58.804 L 199.926,58.182 L 200.121,57.781 L 201.721,57.058 L 203.091,57.381 L 203.286,57.786 L 204.879,58.016 L 205.225,58.466 L 206.769,58.53 L 209.072,59.17 L 211.083,58.397 L 211.889,58.459 L 212.136,58.659 L 211.892,58.518 L 211.771,58.707 L 212.102,58.907 L 212.251,58.705 L 212.603,58.931 L 213.667,58.87 L 214.484,58.408 L 215.648,55.752 L 215.978,55.453 L 215.811,53.69 L 216.18,53.193 L 215.393,53.425 L 214.704,53.183 L 213.695,53.818 L 212.795,53.964 L 211.241,53.178 L 210.644,53.134 L 210.446,53.73 L 209.689,53.843 L 209.224,53.676 L 208.97,53.285 L 207.54,53.316 L 208.242,52.971 L 207.263,53.023 L 207.535,52.836 L 207.068,52.342 L 207.232,52.021 L 206.291,51.723 L 206.441,51.359 L 206.674,51.664 L 207.144,51.548 L 206.764,51.29 L 207.014,51.113 L 206.682,50.708 L 206.899,50.45 L 206.113,50.533 L 206.181,50.01 L 206.738,49.6 L 209.007,49.61 L 208.788,49.466 L 209.849,49.24 L 209.114,49.062 L 209.148,48.779 L 211.255,48.892 L 212.306,48.27 L 213.381,47.982 L 215.006,47.937 L 215.298,48.271 L 216.052,48.317 L 216.405,48.725 L 216.778,48.637 L 218.381,49.075 L 219.426,48.894 L 220.265,49.039 L 221.414,48.576 L 221.759,48.183 L 221.419,47.262 L 218.717,45.712 L 216.628,44.849 L 216.866,44.573 L 217.647,44.623 L 217.933,43.998 L 218.492,43.909 L 217.767,43.364 L 218.501,43.336 L 218.439,43.187 L 219.271,42.956 L 219.196,42.731 L 215.827,43.376 L 215.204,43.831 L 215.015,43.894 L 215.23,43.559 L 214.85,43.81 L 215.023,44.299 L 215.458,44.684 L 216.575,44.606 L 216.393,44.935 L 215.473,44.902 L 213.91,45.612 L 213.451,45.446 L 213.555,44.902 L 212.508,44.596 L 213.665,44.053 L 213.594,43.904 L 211.831,43.718 L 212.008,43.57 L 211.555,43.446 L 212.361,43.525 L 212.578,43.384 L 212.044,43.358 L 211.94,43.018 L 211.759,42.787 L 211.873,43.35 L 211.563,43.223 L 210.796,43.448 L 210.219,44.133 L 209.628,44.278 L 209.558,45.157 L 209.048,45.242 L 208.931,45.034 L 208.562,46.499 L 208.134,46.604 L 207.889,47.25 L 207.485,47.532 L 208.198,48.446 L 209.057,48.77 L 208.956,48.992 L 207.499,49.027 L 206.203,49.925 L 206.792,49.373 L 204.477,49.052 L 203.763,49.252 L 203.867,49.581 L 204.213,49.672 L 204.343,49.852 L 203.728,49.67 L 203.947,50.034 L 203.426,49.736 L 203.627,50.076 L 202.896,49.6 L 202.922,49.409 L 202.629,49.504 L 202.592,49.963 L 203.328,50.825 L 202.921,50.694 L 203.067,50.962 L 202.569,51.133 L 203.967,51.725 L 204.062,52.225 L 203.537,51.967 L 203.047,52.097 L 203.491,52.536 L 203.162,52.666 L 202.725,52.458 L 203.16,53.552 L 202.717,53.206 L 202.489,53.553 L 202.08,52.971 L 201.892,53.263 L 201.738,53.137 L 201.679,52.613 L 201.125,52.108 L 201.825,51.672 L 202.846,52.032 L 203.183,51.866 L 202.422,51.561 L 201.113,51.615 L 200.769,51.126 L 201.118,50.97 L 200.301,50.673 L 199.322,49.593 L 199.578,48.213 L 198.646,47.557 L 197.045,46.985 L 197.724,47.149 L 196.903,46.608 L 195.986,46.48 L 195.186,45.828 L 195.471,45.728 L 194.55,44.702 L 194.313,44.662 L 193.861,45.163 L 193.517,44.518 L 193.783,44.373 L 193.206,44.229 L 192.274,44.554 L 192.523,45.032 L 192.248,45.277 L 192.396,45.776 L 193.564,46.429 L 194.01,47.31 L 194.541,47.756 L 195.169,48.066 L 196.165,48.104 L 195.9,48.488 L 197.955,49.345 L 198.461,49.779 L 198.344,50.179 L 197.865,49.72 L 196.928,49.542 L 196.522,50.252 L 197.115,50.619 L 197.175,51.002 L 196.617,51.2 L 196.546,51.591 L 196.057,52.058 L 195.646,51.966 L 196.21,51.059 L 195.693,50.01 L 194.951,49.761 L 194.766,49.332 L 194.34,49.401 L 194.461,49.271 L 194.044,49.188 L 193.733,48.764 L 193.089,48.756 L 191.637,47.712 L 191.141,47.61 L 190.515,47.032 L 190.188,46.052 L 188.766,45.578 L 186.116,46.928 L 184.053,46.407 L 183.259,46.807 L 183.043,47.162 L 183.248,48.056 L 180.715,49.177 L 180.891,49.278 L 179.673,50.48 L 179.795,50.937 L 180.202,51.241 L 179.479,51.683 L 179.278,52.369 L 178.359,52.613 L 177.888,53.223 L 175.633,53.282 L 174.375,53.974 L 173.616,53.363 L 173.783,53.086 L 173.604,53.168 L 173.136,52.721 L 172.166,52.994 L 171.002,52.968 L 171.186,52.569 L 171.119,51.553 L 171.332,51.576 L 171.201,51.482 L 170.787,51.552 L 170.75,51.343 L 170.979,51.253 L 171.208,50.922 L 170.864,51.257 L 170.52,51.201 L 171.315,49.247 L 171.112,48.235 L 171.309,47.726 L 170.822,46.826 L 172.302,46.235 L 172.939,46.446 L 178.009,46.655 L 178.515,46.436 L 178.923,45.31 L 178.755,45.333 L 178.919,44.468 L 179.174,44.619 L 179.309,44.907 L 179.452,44.999 L 179.209,44.532 L 178.804,44.286 L 178.968,44.259 L 178.854,43.689 L 177.908,43.135 L 177.851,42.776 L 178.257,42.784 L 177.497,42.688 L 177.572,42.529 L 177.213,42.374 L 175.688,42.177 L 175.321,41.96 L 175.671,41.83 L 175.423,41.71 L 175.759,41.696 L 175.281,41.637 L 175.279,41.46 L 176.769,41.159 L 177.308,41.463 L 178.624,41.347 L 178.144,40.316 L 178.741,40.32 L 178.861,40.612 L 180.417,40.552 L 180.129,40.492 L 180.187,40.297 L 181.407,39.911 L 181.768,39.064 L 183.426,38.606 L 184.226,38.614 L 183.449,38.459 L 184.274,38.528 L 184.005,38.404 L 184.183,38.39 L 184.026,38.072 L 184.769,37.059 L 185.532,36.731 L 186.816,36.559 L 187.197,36.718 L 187.206,36.345 L 187.629,36.303 L 188.495,36.606 L 188.619,36.125 L 189.784,36.445 L 188.645,35.705 L 188.957,35.462 L 188.682,35.208 L 188.616,34.582 L 188.132,34.4 L 188.164,33.393 L 188.672,33.504 L 189.196,33.298 L 189.11,32.956 L 188.772,33.275 L 188.268,33.246 L 188.619,32.889 L 189.434,32.826 L 190.61,32.263 L 190.283,33.379 L 190.926,33.557 L 190.319,33.787 L 190.183,34.135 L 189.591,34.507 L 189.454,34.96 L 190.022,35.326 L 189.869,35.528 L 191.013,35.621 L 190.855,35.99 L 191.4,36.055 L 192.575,35.533 L 193.029,35.589 L 193.448,35.859 L 193.724,35.847 L 193.95,36.199 L 194.583,36.361 L 194.558,36.177 L 193.926,36.121 L 193.828,35.873 L 194.384,36.075 L 198.086,35.164 L 198.759,35.315 L 198.436,35.255 L 198.836,35.63 L 199.407,35.614 L 199.975,35.079 L 200.679,34.897 L 201.115,34.383 L 200.595,35.018 L 201.189,35.065 L 201.031,33.363 L 201.729,32.429 L 202.555,32.276 L 203.648,33.029 L 204.383,32.75 L 204.302,32.216 L 204.529,31.646 L 203.768,31.639 L 203.509,31.341 L 203.681,31.213 L 203.432,31.079 L 203.494,30.804 L 205.509,30.361 L 207.893,30.586 L 208.058,30.218 L 210.173,30.043 L 208.643,29.625 L 208.513,29.323 L 206.535,29.587 L 206.569,29.375 L 205.758,29.732 L 203.021,30.184 L 203.198,29.978 L 202.912,29.79 L 202.463,29.971 L 202.585,29.619 L 201.436,29.404 L 201.606,28.408 L 201.104,27.377 L 201.651,26.961 L 201.545,26.796 L 202.32,26.69 L 202.532,26.352 L 203.599,25.959 L 204.558,25.199 L 205.373,24.991 L 205.348,24.521 L 204.628,24.141 L 202.401,24.138 L 202.254,24.402 L 201.41,24.683 L 201.574,24.874 L 201.138,25.191 L 201.52,25.537 L 200.763,26.132 L 198.606,26.822 L 198.313,27.004 L 198.463,27.104 L 197.88,27.127 L 198.037,27.399 L 197.378,27.537 L 197.634,27.767 L 197.465,28.316 L 197.131,28.424 L 197.251,29.299 L 197.956,29.41 L 198.99,30.172 L 197.964,30.641 L 198.618,30.673 Z M 231.178,42.89 L 228.684,43.914 L 228.73,44.103 L 227.463,44.32 L 227.351,44.782 L 226.707,45.497 L 227.307,45.897 L 227.463,46.445 L 227.646,46.115 L 227.463,46.965 L 227.728,47.319 L 229.457,49.2 L 230.366,49.721 L 229.477,49.913 L 229.363,50.65 L 228.854,51.161 L 228.96,52.11 L 229.171,52.399 L 230.13,52.593 L 231.119,53.257 L 233.97,53.182 L 233.869,51.051 L 233.705,50.79 L 233.157,50.735 L 233.236,50.391 L 233.603,50.453 L 233.487,50.091 L 232.988,50.012 L 233.036,50.226 L 232.734,49.601 L 232.943,48.962 L 233.87,49.351 L 234.377,49.307 L 234.704,48.929 L 234.095,48.481 L 233.752,47.871 L 232.97,48.024 L 232.85,48.8 L 232.468,48.114 L 232.597,47.24 L 231.295,46.826 L 230.831,45.807 L 230.253,45.594 L 230.409,45.376 L 231.544,45.469 L 231.009,45.078 L 231.416,44.642 L 233.2,44.668 L 232.774,44.427 L 233.135,43.808 L 233.138,43.258 L 232.916,43.046 L 232.138,43.171 L 231.178,42.89 Z"/>
+              <path d="M 87.017,18.7 L 87.019,19.148 L 88.436,19.822 L 87.679,19.765 L 87.488,19.896 L 88.023,19.961 L 87.112,20.332 L 89.549,20.525 L 88.763,20.714 L 89.521,21.119 L 89.426,21.525 L 89.795,21.743 L 90.72,20.745 L 91.776,21.085 L 92.186,21.654 L 91.653,21.712 L 91.686,22.05 L 92.641,22.823 L 93.439,22.518 L 94.31,21.329 L 95.132,21.227 L 94.893,21.156 L 95.138,20.926 L 94.613,20.768 L 94.493,20.155 L 97.626,20.358 L 97.245,20.506 L 98.622,20.814 L 98.042,21.116 L 98.748,21.257 L 97.447,21.554 L 98.706,22.503 L 98.532,22.93 L 96.594,23.629 L 95.462,23.027 L 95.154,22.971 L 94.886,23.093 L 95.777,23.318 L 96.131,23.786 L 95.372,23.792 L 94.396,23.432 L 93.292,23.477 L 94.041,23.881 L 92.547,24.661 L 90.251,24.064 L 88.573,24.052 L 90.076,24.22 L 91.026,24.652 L 92.972,24.802 L 91.894,25.817 L 90.799,25.886 L 90.868,26.031 L 89.958,25.859 L 90.144,26.043 L 89.832,26.021 L 89.845,26.31 L 89.188,26.419 L 86.304,25.853 L 86.44,26.135 L 87.843,26.308 L 87.535,26.445 L 88.158,26.302 L 89.289,26.696 L 89.222,27.028 L 87.639,27.181 L 88.064,27.408 L 87.449,27.453 L 87.232,27.62 L 87.472,27.832 L 86.795,27.635 L 87.094,27.785 L 86.418,28.058 L 86.688,28.233 L 86.087,28.519 L 85.238,29.502 L 85.043,30.931 L 85.713,31.284 L 85.668,31.703 L 85.877,31.263 L 86.821,31.274 L 87.567,32.68 L 87.202,33.078 L 89.408,32.776 L 91.174,33.186 L 92.518,33.979 L 94.323,34.399 L 94.782,34.651 L 94.635,34.921 L 94.939,34.714 L 96.089,34.685 L 97.607,34.932 L 97.781,35.187 L 97.576,35.755 L 97.859,36.182 L 97.708,36.969 L 98.401,37.567 L 98.172,37.776 L 99.342,38.242 L 99.557,38.611 L 99.149,38.875 L 99.896,38.717 L 100.652,39.237 L 100.311,38.653 L 100.703,38.377 L 101.097,38.8 L 101.269,38.503 L 101.018,38.225 L 101.552,37.739 L 100.9,36.343 L 101.004,35.998 L 100.288,35.328 L 102.225,34.709 L 103.238,34.004 L 103.47,33.5 L 103.109,32.242 L 101.494,31.351 L 102.239,30.62 L 102.274,30.324 L 102.651,30.421 L 102.711,29.978 L 102.414,29.912 L 102.319,29.573 L 102.496,29.457 L 102.209,29.36 L 102.397,29.175 L 101.819,29.181 L 102.486,28.444 L 101.979,28.168 L 101.867,27.718 L 102.628,27.427 L 105.367,27.884 L 106.295,27.527 L 107.313,27.875 L 107.228,28.16 L 107.774,28.168 L 107.96,28.32 L 107.784,28.413 L 108.362,28.383 L 108.146,28.56 L 108.577,28.841 L 110.008,29.144 L 110.528,28.989 L 110.249,29.513 L 110.326,29.924 L 109.345,29.974 L 110.266,30.082 L 110.318,30.658 L 110.656,30.697 L 110.468,31.131 L 109.846,31.239 L 111.302,31.095 L 111.619,31.256 L 111.643,31.837 L 110.959,32.098 L 111.586,31.948 L 111.979,31.515 L 112.112,31.704 L 111.936,31.861 L 112.244,31.595 L 112.322,32.009 L 113.638,31.209 L 113.998,31.569 L 113.957,31.179 L 114.616,30.94 L 114.3,30.787 L 114.525,30.53 L 114.962,30.612 L 114.593,30.461 L 114.567,30.223 L 114.972,30.229 L 114.828,30.092 L 115.183,29.669 L 115.501,29.732 L 115.232,29.988 L 115.717,29.936 L 115.774,30.259 L 116.25,30.487 L 116.055,30.62 L 116.585,30.806 L 116.029,30.946 L 116.752,30.932 L 116.718,31.133 L 117.126,31.328 L 116.463,31.67 L 117.406,31.526 L 116.738,31.985 L 117.514,31.846 L 118.041,32.088 L 118.032,32.388 L 117.504,32.511 L 118.079,32.579 L 118.023,32.752 L 118.666,32.989 L 118.628,33.319 L 117.503,33.198 L 118.575,33.639 L 118.287,33.769 L 118.635,33.784 L 118.55,34.004 L 119.659,34.215 L 119.808,34.519 L 119.383,34.94 L 120.241,34.69 L 120.562,34.824 L 120.162,35.186 L 120.74,34.8 L 121.22,35.162 L 122.038,35.124 L 122.596,35.409 L 119.605,36.347 L 119.9,36.513 L 119.671,36.734 L 122.072,35.896 L 121.69,35.798 L 122.584,35.837 L 122.865,36.208 L 122.476,36.389 L 122.668,36.531 L 123.476,36.234 L 124.034,36.529 L 124.197,37.357 L 123.675,37.455 L 124.254,37.525 L 123.988,37.606 L 124.327,37.81 L 123.024,38.542 L 121.49,38.705 L 119.92,39.745 L 113.504,39.788 L 113.059,40.006 L 112.628,40.652 L 111.718,40.803 L 110.326,41.801 L 108.982,41.544 L 110.225,41.902 L 108.732,43.204 L 107.795,43.441 L 107.019,43.79 L 106.523,44.262 L 105.685,44.469 L 106.026,44.655 L 105.291,44.996 L 106.442,44.575 L 106.84,43.99 L 107.891,43.449 L 108.739,43.244 L 109.481,42.967 L 111.184,41.634 L 114.477,40.734 L 115.432,40.895 L 115.784,41.126 L 115.486,41.159 L 115.746,41.45 L 114.741,41.979 L 114.073,41.811 L 113.296,41.978 L 114.151,42.089 L 114.393,42.33 L 115.297,42.275 L 114.681,42.899 L 115.169,42.939 L 115.458,43.76 L 117.25,44.352 L 118.044,44.132 L 118.65,44.426 L 118.539,44.633 L 118.968,44.708 L 116.396,45.317 L 116.39,45.52 L 115.714,45.45 L 115.724,45.666 L 114.518,46.482 L 113.874,46.186 L 113.807,45.856 L 114.132,45.431 L 113.909,45.495 L 115.552,44.663 L 115.865,44.977 L 115.907,44.783 L 116.632,44.635 L 115.127,44.645 L 115.685,44.164 L 115.367,44.053 L 115.221,44.362 L 114.116,44.777 L 113.973,44.582 L 113.56,44.904 L 112.875,44.831 L 113.013,45.172 L 111.943,45.616 L 111.549,45.492 L 111.467,45.741 L 111.188,45.661 L 111.237,45.429 L 110.774,46.014 L 109.821,46.234 L 109.171,47.175 L 109.387,47.377 L 108.954,47.669 L 109.573,48.243 L 109.999,48.174 L 109.891,47.922 L 110.022,48.039 L 110.051,48.323 L 109.343,48.466 L 109.299,48.285 L 108.831,48.511 L 108.851,48.254 L 108.61,48.205 L 108.477,48.621 L 107.075,48.715 L 106.013,49.249 L 106.128,48.945 L 106.03,48.75 L 106.073,49.086 L 105.736,49.471 L 106.028,49.6 L 105.92,50.212 L 105.935,50.007 L 105.077,51.059 L 105.103,50.855 L 104.476,50.51 L 104.926,50.017 L 104.536,50.219 L 104.426,50.523 L 104.961,51.574 L 104.066,52.848 L 104.341,52.046 L 104.149,52.028 L 104.141,51.638 L 103.735,51.564 L 103.983,51.375 L 103.659,51.29 L 103.764,50.808 L 104.127,50.489 L 103.43,50.731 L 103.606,51.631 L 103.331,51.463 L 103.659,51.913 L 102.999,51.555 L 102.767,51.592 L 102.982,51.222 L 102.97,51.111 L 102.686,51.603 L 103.736,52.106 L 103.508,52.318 L 103.06,51.905 L 102.889,51.834 L 103.451,52.331 L 103.694,52.429 L 103.546,52.726 L 103.242,52.495 L 103.717,52.947 L 103.599,53.009 L 103.369,52.778 L 102.749,52.671 L 103.512,53.103 L 104.001,53.087 L 104.466,54.181 L 104.054,53.341 L 104.18,53.887 L 103.852,53.721 L 103.441,53.985 L 103.266,53.771 L 103.274,54.042 L 103.93,54.03 L 103.916,54.309 L 104.241,54.157 L 103.826,54.646 L 102.96,54.473 L 103.487,54.73 L 103.221,55.01 L 102.93,54.845 L 103.025,54.975 L 103.56,55.157 L 102.588,55.269 L 102.072,56.06 L 102.047,55.831 L 101.987,56.088 L 101.159,56.276 L 100.059,57.333 L 99.366,57.488 L 99.421,57.713 L 99.197,57.552 L 99.306,57.784 L 98.54,58.873 L 98.484,59.198 L 98.75,60.206 L 99.476,61.514 L 99.543,62.099 L 99.162,61.242 L 99.95,63.192 L 99.874,64.167 L 99.515,64.77 L 98.89,64.862 L 98.864,64.69 L 99.06,64.736 L 98.285,64.017 L 97.987,63.038 L 97.71,63.129 L 97.285,62.5 L 97.599,62.165 L 97.156,62.154 L 97.349,61.113 L 95.956,59.896 L 94.681,60.32 L 94.396,59.713 L 93.546,59.601 L 93.876,59.594 L 93.743,59.507 L 92.799,59.661 L 93.002,59.43 L 92.719,59.661 L 91.994,59.769 L 92.21,59.708 L 91.989,59.306 L 91.865,59.633 L 91.095,59.585 L 90.412,59.834 L 89.775,59.621 L 89.715,59.935 L 90.599,59.954 L 90.646,60.18 L 90.279,60.381 L 90.984,60.797 L 90.624,61.019 L 89.841,60.463 L 89.787,60.895 L 89.621,60.705 L 89.249,60.869 L 88.71,60.711 L 88.751,60.436 L 88.107,60.164 L 87.739,60.443 L 86.174,60.275 L 86.159,60.02 L 86.11,60.311 L 85.24,60.616 L 85.474,60.452 L 84.977,60.298 L 85.112,60.629 L 84.727,61.036 L 83.765,61.511 L 83.989,61.368 L 83.36,61.291 L 83.579,61.543 L 82.844,61.856 L 82.927,62.014 L 82.569,62.163 L 82.561,62.672 L 82.232,62.542 L 82.515,62.763 L 82.565,63.514 L 82.86,63.97 L 82.332,65.61 L 82.142,67.375 L 82.237,67.894 L 82.685,68.436 L 82.591,68.727 L 82.246,67.973 L 82.814,69.283 L 84.08,71.18 L 84.818,71.299 L 85.608,71.834 L 87.559,71.325 L 88.466,71.543 L 88.725,71.376 L 88.563,71.11 L 89.261,70.648 L 89.647,68.991 L 91.533,68.431 L 92.965,68.408 L 93.184,68.995 L 92.312,70.363 L 92.575,70.417 L 92.341,70.648 L 92.499,70.712 L 92.147,71.731 L 91.968,71.161 L 91.651,71.641 L 91.915,71.774 L 91.687,73.367 L 91.106,74.109 L 91.869,74.299 L 92.298,74.089 L 93.093,74.238 L 94.014,73.976 L 95.026,74.01 L 95.739,74.177 L 96.24,74.78 L 96.631,74.76 L 96.842,75.007 L 96.586,75.175 L 96.812,75.66 L 96.506,76.261 L 96.489,77.588 L 96.407,77.287 L 96.132,78.7 L 96.653,79.685 L 97.922,81.065 L 98.22,81.043 L 98.106,80.86 L 98.454,81.173 L 98.937,81.187 L 100.423,80.402 L 100.888,80.463 L 102.169,80.932 L 103.213,82.068 L 103.08,81.426 L 104.361,80.55 L 104.461,79.795 L 104.292,79.857 L 104.752,79.217 L 105.155,78.89 L 105.67,79.003 L 105.599,79.235 L 105.857,78.679 L 106.687,78.704 L 108.403,77.566 L 108.863,77.954 L 108.043,78.43 L 108.406,79.343 L 107.887,80.184 L 108.38,80.952 L 108.759,80.84 L 108.947,80.294 L 108.506,79.467 L 108.53,79.036 L 110.195,78.526 L 109.713,78.114 L 109.996,77.822 L 110.368,78.52 L 111.172,78.568 L 111.601,78.839 L 111.86,79.507 L 113.753,79.368 L 114.148,79.742 L 114.871,79.93 L 116.268,79.497 L 115.702,79.365 L 118.121,79.259 L 117.086,79.469 L 117.259,79.944 L 117.45,79.8 L 117.68,80.217 L 117.923,80.025 L 118.264,80.369 L 118.411,80.105 L 119.208,80.639 L 118.977,80.845 L 118.753,81.4 L 118.381,81.403 L 118.696,81.59 L 119.833,81.383 L 121.188,82.264 L 121.523,82.674 L 121.327,83.609 L 121.585,83.149 L 122.017,83.214 L 122.772,83.822 L 122.818,84.471 L 123.03,84.007 L 124.102,84.301 L 124.172,84.038 L 125.644,84.09 L 125.946,84.192 L 125.844,84.641 L 126.153,84.218 L 127.101,84.575 L 127.942,85.283 L 127.997,85.648 L 128.172,85.364 L 128.347,85.939 L 128.453,85.689 L 128.673,85.775 L 129.286,87.866 L 129.541,88.17 L 130.043,88.34 L 130.118,88.58 L 130.101,88.837 L 128.924,90.0 L 99.87,90.0 L 99.912,89.215 L 101.1,88.794 L 101.14,88.545 L 100.975,88.376 L 101.423,88.226 L 101.408,87.643 L 101.933,87.491 L 102.186,87.284 L 102.923,86.087 L 102.479,85.787 L 102.714,85.278 L 102.466,84.463 L 102.751,84.22 L 102.531,83.823 L 102.631,83.424 L 101.578,81.939 L 101.858,81.614 L 102.239,81.867 L 101.901,81.503 L 101.59,81.645 L 101.045,81.067 L 100.558,80.994 L 99.541,81.786 L 99.989,82.5 L 99.154,82.78 L 98.936,82.1 L 98.732,82.375 L 98.272,81.862 L 97.32,81.678 L 97.121,81.929 L 96.714,81.336 L 96.53,81.293 L 96.708,81.594 L 96.395,81.52 L 96.263,80.85 L 95.418,80.432 L 94.764,79.758 L 95.114,80.179 L 94.923,80.398 L 94.375,80.098 L 94.15,79.708 L 94.255,78.911 L 92.332,77.096 L 92.661,77.05 L 92.511,76.647 L 91.977,76.831 L 91.314,76.719 L 91.488,76.816 L 89.521,76.099 L 88.623,76.01 L 86.084,73.946 L 85.626,73.715 L 85.999,73.981 L 85.1,73.583 L 84.979,73.722 L 85.201,73.79 L 83.489,74.348 L 79.152,72.8 L 78.081,72.04 L 76.558,71.675 L 76.088,71.172 L 75.062,70.691 L 74.518,70.024 L 74.331,69.614 L 74.74,69.421 L 74.489,69.191 L 74.791,68.509 L 74.351,68.012 L 74.208,67.373 L 72.235,65.528 L 72.488,65.511 L 72.049,65.385 L 71.719,64.918 L 71.949,64.933 L 70.971,64.52 L 71.113,64.267 L 70.615,64.273 L 70.574,63.967 L 70.883,63.747 L 70.724,63.466 L 69.522,62.677 L 69.47,62.136 L 68.879,62.033 L 67.838,60.981 L 67.777,60.731 L 66.942,59.349 L 66.953,58.821 L 65.066,58.099 L 65.45,59.978 L 67.129,61.576 L 67.266,62.174 L 68.137,63.321 L 68.301,63.419 L 68.205,63.12 L 68.43,63.292 L 68.708,64.21 L 69.313,65.132 L 69.341,65.659 L 69.633,65.9 L 69.696,65.661 L 69.977,65.825 L 70.579,66.52 L 70.504,66.84 L 69.994,67.106 L 69.637,66.395 L 68.198,65.457 L 67.881,65.066 L 67.944,64.512 L 67.826,64.087 L 66.979,63.417 L 66.844,63.054 L 66.401,63.279 L 65.006,62.264 L 65.699,62.127 L 65.698,62.224 L 65.931,62.324 L 65.734,62.066 L 65.952,61.574 L 65.063,60.648 L 64.326,60.244 L 62.681,56.9 L 61.59,56.256 L 61.494,55.983 L 59.355,55.42 L 59.341,54.878 L 58.123,53.669 L 58.193,53.149 L 57.605,52.792 L 57.501,52.457 L 57.554,52.202 L 57.929,52.522 L 57.686,51.993 L 58.475,51.944 L 57.607,51.855 L 57.479,52.174 L 57.001,52.011 L 57.092,51.803 L 56.299,51.093 L 56.167,50.225 L 55.676,49.748 L 55.928,48.54 L 55.46,47.187 L 55.851,46.308 L 56.011,43.781 L 56.779,43.846 L 55.927,43.721 L 56.111,43.34 L 55.887,43.137 L 56.157,43.037 L 55.861,43.045 L 55.29,41.62 L 57.221,41.862 L 57.343,42.119 L 56.949,42.448 L 56.864,42.644 L 57.467,42.08 L 57.325,42.388 L 57.422,42.707 L 57.172,42.663 L 57.08,42.71 L 56.972,42.861 L 57.373,42.856 L 57.646,42.628 L 57.758,41.989 L 57.506,41.87 L 57.591,41.706 L 57.338,41.554 L 57.455,41.238 L 56.804,40.852 L 56.771,40.74 L 57.052,40.707 L 57.121,40.601 L 56.723,40.656 L 56.812,40.32 L 56.469,40.603 L 56.052,40.465 L 56.007,40.264 L 56.183,40.413 L 56.418,40.319 L 56.126,40.263 L 56.215,39.912 L 56.12,39.826 L 55.858,40.207 L 55.298,40.042 L 54.943,39.581 L 55.137,39.363 L 55.14,39.128 L 54.941,39.486 L 53.906,39.502 L 53.553,39.412 L 54.096,39.295 L 53.486,39.321 L 53.483,38.943 L 52.942,39.132 L 52.292,38.849 L 52.58,38.392 L 53.309,38.297 L 52.661,38.293 L 52.331,38.522 L 52.149,38.327 L 52.205,37.809 L 52.562,37.644 L 53.286,37.939 L 52.792,37.502 L 53.005,37.342 L 53.034,37.215 L 52.208,37.711 L 51.898,38.212 L 51.642,37.841 L 52.06,37.455 L 51.728,37.637 L 51.947,37.089 L 51.635,37.174 L 51.475,36.859 L 50.828,36.466 L 51.145,36.295 L 51.094,36.441 L 52.072,36.725 L 51.324,36.445 L 51.236,36.253 L 51.468,36.142 L 51.041,36.159 L 50.436,36.749 L 49.665,36.276 L 49.957,35.866 L 50.374,35.77 L 49.916,35.819 L 49.57,35.579 L 50.439,34.537 L 50.205,34.44 L 49.952,34.943 L 50.015,34.641 L 49.905,34.305 L 49.975,34.112 L 49.853,34.346 L 49.963,34.702 L 49.465,35.251 L 48.952,34.842 L 49.252,34.682 L 48.967,33.912 L 48.216,34.123 L 47.881,34.43 L 47.792,34.247 L 48.449,33.793 L 47.818,33.579 L 47.175,32.944 L 46.534,32.828 L 46.351,32.358 L 46.883,32.434 L 46.465,32.167 L 46.806,32.122 L 46.278,32.156 L 45.969,31.928 L 46.123,31.482 L 45.791,31.767 L 45.224,31.546 L 44.636,30.581 L 44.498,30.798 L 44.91,31.754 L 44.102,31.6 L 43.957,31.178 L 44.174,31.102 L 43.85,30.952 L 43.774,31.235 L 43.011,30.966 L 42.941,31.126 L 43.939,31.547 L 43.393,31.756 L 40.201,30.454 L 40.488,30.046 L 40.713,30.389 L 41.012,30.165 L 40.569,29.988 L 39.58,30.289 L 38.592,30.097 L 38.591,29.882 L 35.853,29.984 L 35.099,29.665 L 35.309,29.331 L 34.752,29.62 L 34.101,29.522 L 34.325,29.349 L 33.43,29.271 L 33.608,29.189 L 33.364,29.007 L 33.616,28.864 L 32.192,29.115 L 31.995,29.031 L 32.248,28.781 L 31.658,28.94 L 31.443,29.197 L 31.716,29.391 L 31.36,29.511 L 32.036,29.515 L 31.569,30.011 L 30.605,29.894 L 30.402,30.23 L 30.286,30.08 L 29.065,30.751 L 28.05,30.735 L 28.954,30.228 L 28.147,30.218 L 28.604,29.726 L 28.678,29.257 L 29.559,28.976 L 30.925,29.124 L 29.947,28.829 L 30.566,28.499 L 29.054,28.802 L 28.266,29.089 L 27.631,29.664 L 26.975,29.704 L 27.34,30.003 L 26.347,30.353 L 25.822,30.844 L 26.582,31.04 L 26.562,31.245 L 25.753,31.841 L 23.564,32.64 L 23.371,32.99 L 21.586,33.564 L 21.448,33.687 L 21.724,33.804 L 21.524,33.925 L 18.822,34.611 L 18.536,34.617 L 18.798,34.456 L 18.483,34.382 L 17.926,34.861 L 17.37,34.753 L 17.326,35.003 L 16.88,34.935 L 16.665,35.161 L 16.721,34.878 L 18.303,34.093 L 19.708,34.195 L 19.461,33.994 L 19.698,33.686 L 21.082,33.118 L 21.325,33.205 L 21.679,32.702 L 22.538,32.494 L 22.303,32.321 L 22.389,31.949 L 22.806,31.806 L 22.476,31.579 L 23.025,31.264 L 23.191,30.866 L 21.809,31.386 L 21.497,31.15 L 21.919,31.023 L 21.191,31.026 L 21.049,31.595 L 20.33,31.089 L 19.637,30.949 L 17.855,31.356 L 18.276,31.206 L 18.356,30.89 L 18.019,30.854 L 18.171,30.411 L 17.579,29.716 L 18.053,29.315 L 17.315,29.731 L 17.429,30.01 L 16.093,30.193 L 14.646,29.459 L 15.195,29.108 L 15.681,29.229 L 15.628,29.408 L 16.0,29.234 L 16.27,29.41 L 16.579,29.243 L 16.093,29.146 L 16.413,29.097 L 14.885,29.067 L 15.131,28.888 L 14.726,28.725 L 14.434,28.898 L 13.832,28.349 L 14.191,28.304 L 13.921,28.197 L 14.387,28.131 L 14.293,27.9 L 14.805,27.526 L 15.242,27.503 L 15.411,27.291 L 15.207,27.377 L 15.2,27.082 L 15.616,26.97 L 15.591,26.785 L 16.712,26.954 L 17.717,26.471 L 19.073,26.339 L 19.221,26.181 L 19.012,25.749 L 18.509,25.566 L 19.068,25.421 L 19.113,25.204 L 18.241,25.184 L 17.289,25.622 L 16.796,25.348 L 16.856,25.576 L 13.857,25.417 L 13.072,24.843 L 13.843,24.714 L 11.912,24.342 L 13.601,23.856 L 14.37,23.869 L 14.188,23.712 L 15.54,23.412 L 16.272,23.384 L 16.362,23.425 L 16.106,23.424 L 15.966,23.784 L 16.305,23.916 L 18.966,23.811 L 18.172,23.629 L 17.393,23.106 L 17.638,23.053 L 18.409,23.54 L 19.768,23.58 L 19.639,23.388 L 18.143,23.3 L 18.28,22.979 L 16.468,22.897 L 15.875,22.393 L 13.214,21.64 L 13.619,21.575 L 13.791,21.115 L 15.698,21.064 L 16.464,20.83 L 18.119,19.668 L 17.926,19.838 L 19.883,19.409 L 20.134,19.721 L 20.185,19.503 L 20.613,19.475 L 19.918,19.365 L 20.319,19.213 L 22.091,19.14 L 23.53,18.592 L 24.421,18.879 L 23.853,19.072 L 24.026,19.158 L 24.833,18.901 L 25.805,19.199 L 27.7,19.153 L 27.529,19.346 L 28.231,19.44 L 28.055,19.548 L 30.731,19.499 L 35.381,20.018 L 36.782,19.884 L 44.741,21.316 L 44.09,20.889 L 44.859,20.532 L 45.543,20.522 L 45.591,20.318 L 46.12,20.492 L 45.826,20.747 L 49.335,19.873 L 50.462,19.895 L 48.062,20.465 L 46.582,21.156 L 47.294,21.185 L 47.467,21.124 L 47.281,20.921 L 48.212,20.568 L 48.937,20.549 L 49.029,20.791 L 49.882,20.28 L 51.101,20.034 L 50.842,20.2 L 51.147,20.249 L 52.316,19.74 L 51.83,19.582 L 52.009,19.426 L 54.272,20.62 L 54.828,20.572 L 54.654,20.338 L 55.445,19.849 L 55.593,20.233 L 55.875,20.31 L 55.519,20.575 L 55.662,20.635 L 56.472,20.611 L 56.974,20.19 L 58.258,20.202 L 62.773,21.087 L 64.558,21.059 L 66.036,21.601 L 64.566,22.098 L 64.867,22.181 L 67.497,22.318 L 69.926,22.007 L 72.011,22.744 L 72.009,22.905 L 71.504,22.908 L 72.741,23.601 L 72.254,23.039 L 72.844,23.118 L 72.042,22.181 L 72.202,21.963 L 73.576,21.799 L 74.25,21.408 L 72.266,21.826 L 71.282,21.703 L 71.687,21.389 L 73.836,21.08 L 75.513,21.937 L 76.526,21.885 L 77.68,22.264 L 81.588,22.193 L 81.368,21.927 L 82.545,22.383 L 82.86,22.204 L 81.807,22.077 L 81.35,21.636 L 82.171,21.467 L 83.569,21.689 L 83.278,21.961 L 84.03,21.751 L 83.631,22.49 L 84.581,22.987 L 83.577,22.948 L 84.212,23.383 L 83.963,23.062 L 84.6,23.051 L 84.741,22.737 L 84.35,22.263 L 84.539,21.979 L 85.256,21.929 L 86.551,21.381 L 86.148,21.0 L 85.935,21.215 L 85.4,21.197 L 85.916,20.877 L 85.745,20.686 L 86.569,20.625 L 83.95,20.169 L 83.454,19.673 L 84.114,19.306 L 83.641,19.321 L 83.475,18.873 L 83.938,18.586 L 84.436,18.663 L 84.594,18.508 L 84.128,18.427 L 85.265,18.017 L 87.017,18.7 Z"/>
+              <path d="M 154.205,6.739 L 147.967,7.017 L 154.877,6.84 L 155.53,7.123 L 158.479,7.405 L 156.882,7.675 L 150.113,7.945 L 154.851,7.999 L 155.707,8.299 L 157.06,7.969 L 158.87,8.066 L 158.496,8.562 L 156.928,9.073 L 156.882,9.222 L 160.37,8.36 L 162.544,8.602 L 163.879,8.223 L 165.758,8.186 L 168.574,8.519 L 165.548,9.007 L 165.771,9.13 L 165.496,9.237 L 163.239,9.427 L 164.063,9.572 L 163.511,9.748 L 160.571,9.742 L 159.85,9.989 L 159.931,10.226 L 160.647,10.266 L 160.586,10.651 L 161.008,10.822 L 158.866,11.341 L 159.044,11.445 L 158.27,12.291 L 159.137,12.088 L 160.51,12.281 L 160.704,12.415 L 159.319,12.381 L 159.768,12.632 L 161.557,12.741 L 161.663,13.079 L 157.393,13.319 L 158.512,13.728 L 160.137,13.879 L 160.6,14.506 L 160.474,14.82 L 159.515,14.686 L 158.351,14.977 L 157.767,14.88 L 158.305,15.036 L 159.014,14.926 L 159.205,15.194 L 158.962,15.346 L 159.138,15.364 L 159.583,15.025 L 160.015,15.025 L 160.728,15.657 L 158.871,15.889 L 158.045,15.756 L 158.238,15.517 L 158.017,15.433 L 157.666,15.714 L 157.865,16.01 L 159.633,16.152 L 159.363,16.536 L 157.653,16.731 L 155.842,16.236 L 155.323,16.398 L 154.479,16.148 L 155.222,16.46 L 153.938,16.747 L 152.73,16.564 L 153.458,16.751 L 152.438,16.862 L 152.652,16.932 L 155.867,16.591 L 157.964,17.082 L 157.707,17.88 L 155.931,17.501 L 155.37,16.962 L 153.342,17.284 L 155.187,17.098 L 155.299,17.494 L 154.796,17.607 L 155.428,17.58 L 158.04,18.255 L 157.52,18.617 L 158.248,18.522 L 158.477,19.474 L 157.616,19.538 L 157.563,19.14 L 157.309,19.563 L 156.672,19.549 L 156.029,19.351 L 155.438,18.776 L 154.115,18.428 L 152.913,18.373 L 154.157,18.52 L 154.332,18.735 L 153.282,19.05 L 151.602,19.007 L 152.021,19.16 L 150.928,19.555 L 153.492,19.603 L 152.371,19.972 L 152.616,20.008 L 154.47,19.647 L 157.793,19.892 L 156.134,20.263 L 156.261,20.411 L 155.703,20.414 L 153.517,21.324 L 149.28,21.749 L 149.389,21.882 L 149.021,21.939 L 147.673,21.563 L 147.835,22.009 L 146.892,22.342 L 145.367,23.565 L 144.811,23.75 L 144.133,23.559 L 144.37,23.86 L 142.246,24.407 L 141.999,24.29 L 142.721,23.696 L 141.843,23.614 L 142.248,23.738 L 141.86,24.096 L 141.48,23.99 L 141.797,24.288 L 139.826,24.444 L 140.422,24.659 L 139.747,24.951 L 138.911,24.965 L 139.818,25.52 L 139.218,25.778 L 138.419,25.702 L 139.382,25.868 L 139.45,26.275 L 138.612,26.938 L 137.825,26.791 L 138.366,27.028 L 138.091,27.263 L 137.058,27.28 L 137.847,27.432 L 137.679,27.847 L 137.89,28.143 L 137.415,28.283 L 137.676,28.318 L 136.956,29.476 L 136.077,29.405 L 136.787,29.609 L 136.877,29.939 L 136.045,29.975 L 136.342,30.141 L 136.093,30.185 L 135.587,30.077 L 135.776,29.726 L 135.387,29.983 L 134.621,29.797 L 135.243,29.335 L 134.619,29.555 L 133.953,29.384 L 134.13,28.782 L 133.126,29.184 L 131.819,29.231 L 132.23,29.002 L 131.614,28.995 L 130.711,28.41 L 130.62,28.11 L 131.171,27.92 L 130.376,28.001 L 130.447,27.767 L 129.681,27.527 L 129.701,27.278 L 130.207,26.955 L 129.61,27.178 L 128.531,26.358 L 128.452,25.994 L 129.739,25.786 L 128.292,25.795 L 129.316,25.322 L 129.991,25.553 L 129.878,25.296 L 129.039,24.799 L 129.278,25.202 L 128.745,25.242 L 128.077,25.781 L 127.741,24.845 L 127.462,24.671 L 128.908,24.224 L 127.449,24.539 L 126.801,24.406 L 126.894,24.023 L 126.608,23.952 L 128.775,23.118 L 126.385,23.846 L 126.581,23.351 L 127.613,23.119 L 126.313,23.014 L 126.116,22.864 L 126.201,22.582 L 127.488,22.239 L 129.387,22.472 L 128.829,22.306 L 129.031,22.193 L 127.655,22.163 L 126.265,22.451 L 126.848,21.792 L 128.403,21.945 L 128.831,21.615 L 126.617,21.703 L 126.961,21.389 L 128.867,21.402 L 129.199,21.209 L 128.751,21.26 L 128.915,20.872 L 129.703,20.829 L 128.923,20.791 L 129.677,19.973 L 127.745,19.941 L 125.469,19.301 L 127.198,19.249 L 129.318,19.603 L 128.226,18.99 L 128.981,18.999 L 126.883,18.687 L 128.221,18.317 L 126.56,18.421 L 126.855,18.193 L 126.19,17.707 L 126.348,17.637 L 126.072,17.681 L 126.538,18.106 L 125.98,18.342 L 126.037,18.541 L 124.406,18.446 L 124.684,17.889 L 125.16,17.644 L 124.419,17.821 L 124.704,17.646 L 124.398,17.547 L 125.075,17.428 L 125.262,17.127 L 124.331,16.992 L 124.712,16.673 L 123.896,16.442 L 124.162,16.24 L 123.775,15.871 L 122.769,15.875 L 123.745,15.473 L 121.434,14.647 L 121.75,14.493 L 121.484,14.311 L 116.709,13.648 L 112.921,13.805 L 113.325,14.023 L 113.174,14.031 L 111.683,13.909 L 110.516,13.601 L 111.886,13.349 L 110.112,13.173 L 110.306,13.011 L 109.387,13.178 L 108.845,12.926 L 111.864,12.62 L 113.611,12.72 L 113.734,12.485 L 113.176,12.313 L 110.649,12.533 L 109.438,12.283 L 109.886,12.159 L 108.728,12.187 L 107.182,11.806 L 107.527,11.518 L 108.349,11.377 L 114.174,10.826 L 115.208,9.999 L 115.821,9.901 L 113.156,9.924 L 112.807,9.72 L 115.484,9.0 L 116.941,9.114 L 116.765,8.917 L 117.007,8.793 L 118.564,8.866 L 118.9,8.604 L 118.797,8.253 L 119.568,8.08 L 123.385,8.637 L 120.732,8.018 L 125.451,7.649 L 126.329,7.836 L 126.444,8.347 L 126.959,8.129 L 126.977,7.678 L 129.106,8.105 L 130.459,8.082 L 129.01,7.54 L 129.963,7.528 L 135.271,8.22 L 135.673,7.528 L 134.443,7.253 L 138.63,7.25 L 133.522,7.048 L 136.991,6.735 L 138.7,6.899 L 139.643,6.668 L 141.844,7.001 L 142.065,6.839 L 141.25,6.629 L 147.016,6.4 L 154.205,6.739 Z"/>
+              <path d="M 93.411,18.989 L 95.21,18.907 L 95.301,18.369 L 94.088,18.013 L 94.678,17.767 L 95.718,17.942 L 95.158,17.692 L 95.377,17.623 L 94.609,17.556 L 94.355,17.226 L 94.738,17.046 L 95.743,17.203 L 94.545,16.895 L 96.59,16.368 L 98.395,16.304 L 99.723,17.23 L 98.771,17.688 L 99.389,17.549 L 99.059,17.79 L 99.309,17.897 L 99.075,18.092 L 100.116,17.823 L 99.891,17.668 L 100.169,17.554 L 101.0,17.728 L 100.992,17.957 L 101.415,18.119 L 101.137,17.899 L 101.301,17.649 L 102.483,17.822 L 101.578,17.428 L 103.106,17.279 L 104.929,17.677 L 104.077,18.283 L 104.852,17.937 L 105.734,17.962 L 105.684,18.157 L 104.795,18.291 L 105.299,18.324 L 105.004,18.782 L 105.512,18.352 L 106.133,18.229 L 106.286,18.28 L 105.803,18.596 L 106.287,18.412 L 106.819,18.717 L 106.722,18.462 L 107.098,18.322 L 108.359,18.484 L 108.813,18.721 L 107.367,19.169 L 109.327,18.948 L 109.238,19.208 L 108.11,19.568 L 108.724,19.5 L 108.571,19.872 L 109.02,19.419 L 109.915,19.17 L 111.504,19.39 L 111.517,19.585 L 109.942,19.957 L 111.222,19.796 L 110.992,20.021 L 111.256,20.059 L 112.145,19.718 L 112.807,20.243 L 111.98,20.23 L 110.749,20.488 L 113.324,20.742 L 113.197,20.847 L 112.062,20.752 L 110.959,20.902 L 112.248,20.961 L 112.117,21.216 L 110.681,21.143 L 113.286,21.554 L 112.967,21.674 L 113.077,21.934 L 113.788,21.72 L 113.474,22.149 L 114.058,21.929 L 114.491,22.032 L 114.599,22.325 L 114.585,22.121 L 115.023,21.957 L 114.979,22.212 L 116.15,22.434 L 115.992,22.653 L 115.411,22.684 L 116.96,22.765 L 116.298,23.178 L 117.876,22.953 L 118.7,23.351 L 117.877,23.357 L 118.424,23.588 L 118.137,23.687 L 117.447,23.593 L 118.008,23.965 L 117.376,23.984 L 117.618,24.167 L 117.341,24.36 L 116.541,24.147 L 116.349,24.339 L 116.663,24.383 L 116.637,24.77 L 116.393,25.072 L 115.654,24.828 L 115.73,24.599 L 115.445,24.883 L 114.598,24.236 L 115.555,23.683 L 114.174,24.003 L 114.344,23.795 L 113.936,23.867 L 113.014,23.373 L 112.693,23.43 L 112.775,23.69 L 112.117,23.533 L 112.817,23.966 L 112.65,24.07 L 111.54,23.751 L 111.251,23.8 L 111.783,23.921 L 112.134,24.226 L 112.063,24.435 L 112.882,24.56 L 112.663,24.653 L 113.303,25.185 L 113.365,25.0 L 113.785,25.278 L 114.061,25.114 L 114.568,25.274 L 114.725,25.368 L 114.471,25.495 L 114.925,25.563 L 114.42,25.706 L 115.322,25.972 L 115.202,26.084 L 115.589,26.294 L 115.335,26.755 L 114.808,26.236 L 114.931,26.737 L 115.328,27.078 L 114.837,27.067 L 114.892,27.374 L 113.345,26.735 L 113.303,26.93 L 112.107,26.266 L 112.277,26.577 L 111.141,26.248 L 111.859,26.828 L 114.02,27.791 L 113.743,28.132 L 111.464,27.744 L 110.395,27.232 L 108.499,26.874 L 108.008,26.584 L 108.619,26.42 L 107.502,26.177 L 106.545,25.601 L 106.729,25.417 L 105.935,25.575 L 105.319,25.169 L 105.081,25.234 L 105.305,25.503 L 103.144,25.762 L 101.825,25.382 L 101.945,25.017 L 102.639,24.803 L 102.673,24.547 L 104.172,24.773 L 104.548,25.158 L 104.643,24.991 L 104.201,24.702 L 106.449,24.515 L 105.584,23.833 L 107.78,22.746 L 106.716,21.643 L 106.179,21.637 L 106.148,21.299 L 105.578,21.42 L 105.09,21.177 L 105.145,20.934 L 103.415,21.301 L 103.443,20.991 L 104.352,20.787 L 103.48,20.483 L 103.766,20.338 L 102.91,20.365 L 103.141,20.225 L 102.408,20.154 L 102.226,19.761 L 100.934,19.396 L 100.595,19.599 L 101.19,19.821 L 100.907,20.075 L 98.348,19.905 L 99.078,20.269 L 98.435,20.057 L 94.22,19.963 L 93.678,19.855 L 93.603,19.535 L 92.099,19.748 L 91.152,19.477 L 90.544,18.938 L 92.86,18.988 L 90.307,18.577 L 89.975,18.051 L 90.336,17.842 L 90.183,17.532 L 91.295,16.597 L 92.528,16.241 L 94.89,16.192 L 95.053,16.278 L 93.999,16.687 L 93.332,17.237 L 93.677,17.539 L 93.782,18.101 L 94.977,18.647 L 93.411,18.989 Z"/>
+              <path d="M 113.577,7.073 L 111.531,7.347 L 115.095,7.099 L 116.501,7.207 L 116.357,7.287 L 116.915,7.435 L 116.753,7.55 L 118.793,7.659 L 117.823,7.957 L 111.311,8.707 L 115.22,8.507 L 110.449,9.617 L 109.287,9.46 L 109.735,9.766 L 107.944,9.877 L 109.441,9.929 L 108.612,10.238 L 105.606,10.126 L 105.34,10.165 L 106.799,10.403 L 103.101,10.488 L 105.519,10.771 L 105.468,10.947 L 101.418,10.925 L 105.567,11.276 L 103.584,11.488 L 104.807,11.672 L 104.03,12.007 L 101.987,12.054 L 101.924,12.481 L 101.507,12.631 L 99.427,12.685 L 98.341,12.475 L 98.722,12.635 L 97.943,12.703 L 100.503,12.804 L 100.779,13.064 L 102.001,13.148 L 101.716,13.429 L 99.31,13.824 L 99.003,13.785 L 99.025,13.53 L 97.47,13.277 L 97.767,13.534 L 96.114,13.547 L 95.776,13.325 L 95.725,13.643 L 94.656,13.687 L 93.546,13.415 L 93.32,13.623 L 92.51,13.414 L 92.502,13.614 L 91.604,13.595 L 91.504,13.227 L 91.454,13.579 L 90.43,13.508 L 90.5,13.173 L 91.444,12.928 L 93.188,12.815 L 92.319,12.564 L 91.983,12.215 L 93.245,12.136 L 95.513,12.632 L 96.392,12.558 L 97.405,12.008 L 96.221,12.467 L 95.139,12.5 L 94.711,12.441 L 94.452,12.072 L 95.777,11.824 L 95.09,11.76 L 95.217,11.472 L 94.414,11.89 L 93.782,11.919 L 94.08,11.657 L 92.448,11.823 L 93.192,11.226 L 96.729,11.23 L 98.25,11.024 L 95.588,11.003 L 95.432,10.929 L 96.424,10.946 L 93.579,10.155 L 93.501,9.742 L 96.276,9.771 L 98.312,10.314 L 99.524,10.394 L 99.876,10.331 L 98.99,10.307 L 97.013,9.677 L 103.137,9.135 L 101.284,9.048 L 103.115,8.57 L 98.993,9.345 L 97.116,9.422 L 97.778,9.228 L 94.854,9.479 L 93.385,9.37 L 96.711,8.852 L 94.219,8.965 L 92.288,9.344 L 90.737,9.086 L 93.523,8.964 L 95.059,8.714 L 90.377,8.968 L 90.019,8.875 L 90.791,8.75 L 90.326,8.671 L 90.573,8.613 L 92.403,8.474 L 89.696,8.599 L 89.391,8.57 L 90.178,8.365 L 88.316,8.364 L 91.937,7.904 L 94.955,8.017 L 93.384,7.781 L 95.103,7.551 L 100.575,8.146 L 97.552,7.605 L 98.319,7.481 L 97.883,7.371 L 99.19,7.414 L 98.822,7.255 L 98.99,7.221 L 101.251,7.321 L 99.845,7.089 L 100.114,7.061 L 102.52,7.117 L 103.991,7.465 L 104.434,7.391 L 102.875,6.991 L 105.586,6.987 L 107.341,7.278 L 106.559,7.054 L 107.931,6.894 L 109.06,7.098 L 108.576,6.979 L 110.03,6.884 L 113.577,7.073 Z"/>
+              <path d="M 66.422,17.348 L 67.246,17.014 L 68.73,17.286 L 68.105,17.644 L 68.325,17.7 L 69.795,17.339 L 69.339,16.992 L 69.992,17.016 L 71.245,17.449 L 71.812,18.276 L 72.187,18.374 L 72.694,18.105 L 72.304,17.851 L 71.763,16.85 L 72.064,16.783 L 71.971,16.651 L 73.518,16.804 L 74.585,17.212 L 75.614,18.423 L 75.485,18.936 L 76.415,19.369 L 78.909,19.864 L 79.094,20.188 L 77.766,20.158 L 77.379,20.448 L 76.565,20.332 L 76.951,20.528 L 76.88,20.795 L 77.849,20.512 L 78.211,20.818 L 77.105,21.176 L 74.894,21.08 L 74.98,20.919 L 73.859,20.838 L 73.341,20.56 L 72.56,20.998 L 70.528,21.323 L 66.98,21.519 L 66.445,21.232 L 66.306,20.805 L 63.487,20.575 L 62.805,19.946 L 68.367,19.691 L 66.243,19.309 L 62.413,19.37 L 61.623,19.032 L 64.697,18.506 L 62.064,18.608 L 61.774,18.533 L 62.258,18.341 L 61.012,18.236 L 61.055,18.014 L 61.787,17.737 L 61.625,17.466 L 63.427,16.945 L 65.362,16.627 L 65.948,16.929 L 65.478,17.407 L 66.422,17.348 Z"/>
+              <path d="M 297.129,83.031 L 297.694,83.65 L 297.501,84.115 L 298.004,83.947 L 297.974,84.294 L 298.353,84.194 L 299.256,84.634 L 299.132,84.9 L 298.261,85.011 L 298.548,85.621 L 297.696,85.657 L 297.497,85.867 L 297.777,86.311 L 297.056,86.377 L 298.067,87.682 L 297.789,87.973 L 298.963,88.956 L 298.892,89.113 L 298.312,89.153 L 297.912,88.901 L 297.491,90.0 L 289.209,90.0 L 288.906,89.206 L 289.379,88.077 L 289.629,87.972 L 289.865,88.236 L 291.223,88.604 L 291.029,88.442 L 291.209,87.62 L 291.444,87.618 L 291.512,87.257 L 292.988,86.838 L 294.012,85.425 L 294.995,84.978 L 295.428,85.031 L 295.582,84.806 L 295.419,84.587 L 295.877,84.386 L 296.75,83.023 L 296.788,83.394 L 297.129,83.031 Z"/>
+              <path d="M 176.143,32.181 L 175.865,32.422 L 178.133,32.388 L 177.499,33.363 L 176.69,33.637 L 177.326,33.747 L 176.211,33.905 L 177.401,33.973 L 178.345,34.43 L 178.768,35.296 L 179.916,35.882 L 180.115,36.391 L 179.73,36.263 L 179.34,36.276 L 180.271,36.665 L 180.356,36.84 L 180.046,37.094 L 181.657,37.246 L 181.591,37.88 L 180.425,38.534 L 181.415,38.637 L 181.366,38.845 L 180.205,39.237 L 178.584,39.103 L 177.964,39.397 L 177.001,39.283 L 176.595,39.368 L 176.32,39.76 L 175.805,39.607 L 174.881,39.962 L 174.345,39.923 L 175.812,38.811 L 176.864,38.795 L 177.567,38.259 L 176.707,38.61 L 175.614,38.259 L 175.098,38.374 L 174.738,38.12 L 175.851,37.674 L 176.02,37.458 L 175.899,37.085 L 175.317,37.194 L 175.731,36.855 L 176.902,36.74 L 176.935,36.573 L 177.081,36.695 L 177.25,36.69 L 176.935,36.487 L 177.132,35.823 L 176.834,35.872 L 176.408,35.436 L 176.964,35.047 L 175.089,35.311 L 174.827,35.014 L 175.323,34.499 L 175.128,34.126 L 175.416,34.061 L 175.2,33.842 L 174.772,34.114 L 174.916,33.803 L 174.269,34.666 L 174.812,33.242 L 174.348,33.468 L 173.866,33.293 L 174.269,33.147 L 174.438,32.767 L 174.205,32.621 L 174.418,32.453 L 174.255,32.332 L 174.392,32.119 L 174.843,32.119 L 174.587,31.93 L 174.992,31.737 L 174.983,31.433 L 176.947,31.365 L 176.788,31.679 L 176.01,32.041 L 176.143,32.181 Z"/>
+              <path d="M 321.878,49.933 L 321.901,50.889 L 321.467,51.596 L 320.929,51.947 L 321.002,52.885 L 320.574,53.769 L 320.874,54.275 L 319.92,55.1 L 319.988,54.332 L 319.65,54.591 L 319.675,54.851 L 319.163,54.789 L 318.897,55.372 L 318.72,54.876 L 318.189,55.404 L 317.062,55.417 L 317.275,55.227 L 316.871,55.267 L 316.804,54.95 L 316.533,55.322 L 316.854,55.676 L 316.33,55.823 L 315.695,56.513 L 315.128,55.993 L 315.416,55.383 L 314.74,55.235 L 313.142,55.698 L 312.313,55.675 L 312.146,56.161 L 311.741,55.948 L 310.919,56.024 L 311.004,55.607 L 311.354,55.587 L 312.923,54.489 L 315.174,54.253 L 315.327,54.474 L 315.903,54.393 L 316.067,53.883 L 316.698,53.258 L 316.843,52.618 L 317.323,52.478 L 316.9,52.882 L 317.246,53.247 L 318.548,52.608 L 319.401,51.857 L 319.802,51.118 L 320.065,50.376 L 319.742,50.079 L 320.386,48.77 L 320.628,48.805 L 320.749,49.17 L 321.119,49.118 L 321.244,48.794 L 320.801,48.861 L 320.892,48.52 L 321.455,48.595 L 321.463,49.389 L 321.878,49.933 Z"/>
+              <path d="M 1.307,21.454 L 4.655,22.322 L 4.625,22.643 L 5.15,22.651 L 5.075,23.377 L 5.606,23.656 L 5.915,23.527 L 5.935,23.77 L 6.226,23.565 L 5.768,23.368 L 5.914,23.057 L 5.45,22.909 L 6.842,22.931 L 6.676,23.045 L 6.741,23.16 L 7.48,23.048 L 6.992,22.935 L 8.204,23.068 L 9.396,23.751 L 10.271,23.942 L 9.459,24.135 L 9.334,24.378 L 8.549,24.206 L 8.83,24.498 L 7.217,24.319 L 7.767,24.544 L 7.338,24.751 L 7.787,24.952 L 6.934,25.153 L 7.621,25.568 L 7.097,25.474 L 6.843,25.72 L 6.673,25.46 L 6.27,25.635 L 4.558,25.183 L 4.146,24.989 L 3.907,24.529 L 1.588,24.504 L 1.061,23.967 L 1.473,23.598 L 0.317,23.816 L 0.21,24.099 L 0.648,24.483 L 0.0,24.933 L 0.0,21.017 L 1.126,21.246 L 1.461,21.414 L 1.307,21.454 Z"/>
+              <path d="M 60.974,15.955 L 62.485,15.768 L 64.607,16.498 L 61.038,17.316 L 60.487,17.697 L 59.82,17.787 L 59.381,18.494 L 57.16,18.903 L 55.992,18.323 L 54.155,18.021 L 55.013,17.412 L 55.03,17.157 L 55.435,17.056 L 55.196,16.874 L 56.203,16.232 L 55.304,15.652 L 58.496,15.455 L 60.974,15.955 Z"/>
+              <path d="M 164.97,23.822 L 165.326,24.01 L 165.173,24.236 L 165.627,24.23 L 165.527,24.425 L 166.382,24.481 L 166.195,24.645 L 166.43,24.932 L 165.615,25.255 L 165.372,25.584 L 161.346,26.593 L 159.802,26.444 L 158.894,26.06 L 157.348,26.172 L 157.299,25.917 L 157.812,25.961 L 158.537,25.621 L 157.947,25.686 L 158.409,25.374 L 155.974,25.137 L 158.108,24.951 L 158.236,24.826 L 157.491,24.803 L 158.156,24.553 L 155.524,24.475 L 156.143,24.462 L 155.907,24.224 L 156.715,24.25 L 156.167,24.151 L 156.475,24.12 L 156.223,23.982 L 156.547,23.819 L 157.558,24.092 L 157.052,23.787 L 157.516,23.734 L 156.883,23.661 L 157.111,23.559 L 158.593,23.974 L 158.625,24.258 L 158.342,24.276 L 158.87,24.733 L 159.196,24.364 L 159.545,24.429 L 159.792,23.9 L 160.51,24.232 L 160.617,23.924 L 161.154,23.816 L 161.858,24.266 L 161.703,23.843 L 162.45,24.036 L 163.515,23.804 L 163.459,23.553 L 163.751,23.477 L 164.457,23.771 L 165.404,23.618 L 164.97,23.822 Z"/>
+              <path d="M 89.357,9.406 L 90.764,9.489 L 90.802,9.737 L 91.462,9.869 L 91.803,9.875 L 91.356,9.613 L 92.325,9.628 L 92.375,9.813 L 92.078,9.902 L 93.023,10.106 L 92.705,10.42 L 94.352,10.389 L 94.958,10.715 L 92.383,11.324 L 92.078,11.249 L 92.183,10.964 L 91.96,11.005 L 91.746,11.328 L 92.017,11.463 L 91.258,11.416 L 91.394,11.608 L 91.178,11.814 L 89.963,11.393 L 90.51,11.828 L 89.541,11.669 L 89.348,11.692 L 89.673,11.815 L 88.59,11.812 L 87.152,11.54 L 88.133,11.457 L 86.733,11.392 L 86.366,11.249 L 86.84,11.224 L 85.83,11.027 L 88.7,10.627 L 84.897,10.71 L 84.267,10.582 L 85.598,10.264 L 84.142,10.326 L 83.227,9.864 L 85.354,9.951 L 85.737,9.805 L 83.606,9.685 L 84.451,9.633 L 83.848,9.447 L 84.073,9.279 L 86.072,9.441 L 84.485,9.162 L 84.73,8.999 L 86.764,8.871 L 85.769,8.71 L 85.94,8.651 L 87.788,8.756 L 89.357,9.406 Z"/>
+              <path d="M 86.736,13.374 L 86.465,13.552 L 88.695,13.319 L 89.457,13.504 L 88.585,13.544 L 90.715,13.698 L 88.593,13.78 L 90.722,14.205 L 90.354,14.435 L 91.083,14.546 L 91.355,14.342 L 94.049,14.605 L 93.931,14.498 L 96.068,14.181 L 97.846,14.169 L 100.34,14.55 L 100.491,14.74 L 99.618,14.966 L 100.599,15.082 L 99.652,15.097 L 99.851,15.204 L 99.722,15.418 L 98.06,15.527 L 97.069,15.434 L 96.478,15.099 L 96.659,15.235 L 96.468,15.414 L 95.574,15.492 L 91.577,15.506 L 91.442,15.43 L 91.66,15.215 L 91.465,15.168 L 90.441,15.445 L 89.12,15.182 L 88.492,15.349 L 87.611,14.737 L 87.931,14.342 L 87.815,14.153 L 86.908,13.646 L 84.726,13.736 L 83.96,13.513 L 84.349,13.415 L 83.102,13.227 L 83.598,13.203 L 83.242,13.028 L 84.362,12.936 L 86.189,13.086 L 86.736,13.374 Z"/>
+              <path d="M 197.956,10.296 L 197.669,10.614 L 198.397,10.395 L 198.815,10.573 L 198.678,10.738 L 200.611,10.893 L 200.767,10.941 L 200.501,11.019 L 201.389,11.26 L 199.15,11.621 L 198.995,11.919 L 198.439,11.975 L 198.228,12.477 L 197.153,12.951 L 197.063,13.341 L 196.7,13.421 L 193.996,12.492 L 197.033,12.202 L 196.914,12.102 L 194.09,12.229 L 193.681,11.972 L 197.172,11.583 L 196.449,11.496 L 196.783,11.336 L 195.417,11.527 L 195.384,11.229 L 194.689,11.279 L 194.432,11.508 L 194.638,11.585 L 193.15,11.763 L 191.365,11.05 L 192.403,11.047 L 191.982,10.975 L 191.978,10.707 L 191.208,10.87 L 190.682,10.242 L 193.693,10.139 L 193.921,10.238 L 192.555,10.431 L 193.957,10.66 L 194.04,10.414 L 194.832,10.234 L 196.344,11.024 L 195.816,10.318 L 196.094,9.993 L 197.685,10.143 L 197.956,10.296 Z"/>
+              <path d="M 277.5,84.772 L 278.307,85.907 L 279.732,86.817 L 280.524,87.811 L 280.888,88.052 L 280.828,87.757 L 281.046,87.743 L 281.477,88.307 L 282.02,88.558 L 282.39,89.158 L 283.032,89.421 L 282.55,89.784 L 283.412,89.493 L 283.787,89.953 L 279.7,90.0 L 279.236,89.732 L 278.595,88.135 L 277.701,87.641 L 277.591,87.153 L 276.969,86.425 L 275.579,85.338 L 275.228,84.435 L 277.5,84.772 Z"/>
+              <path d="M 248.165,13.715 L 241.356,14.685 L 239.674,15.39 L 238.535,15.501 L 238.618,15.773 L 237.767,15.986 L 237.756,16.231 L 237.313,16.162 L 237.543,16.342 L 236.964,16.633 L 235.007,16.546 L 234.3,16.649 L 233.763,16.234 L 234.643,16.04 L 235.341,15.58 L 236.137,15.504 L 235.582,15.372 L 236.499,15.043 L 235.81,14.875 L 237.607,14.659 L 238.881,14.145 L 240.942,13.929 L 241.202,13.718 L 244.463,13.622 L 247.535,12.992 L 248.942,13.292 L 248.165,13.715 Z"/>
+              <path d="M 124.159,38.795 L 123.178,40.387 L 123.821,39.885 L 123.839,40.06 L 124.497,40.017 L 123.86,40.381 L 124.13,40.33 L 123.913,40.548 L 124.77,40.492 L 124.647,40.921 L 125.498,40.473 L 125.552,40.671 L 126.381,40.678 L 126.427,40.859 L 125.839,41.212 L 126.294,41.344 L 125.886,41.606 L 126.972,41.365 L 126.13,41.98 L 126.362,41.985 L 126.136,42.213 L 126.328,42.352 L 127.134,41.887 L 126.83,42.488 L 127.218,42.231 L 127.346,42.451 L 126.93,43.319 L 126.41,43.361 L 126.403,42.854 L 125.826,43.12 L 126.15,42.56 L 125.808,42.14 L 125.512,42.596 L 124.211,43.133 L 124.081,42.983 L 125.215,42.335 L 124.424,42.535 L 123.873,42.497 L 124.142,42.181 L 123.226,42.435 L 120.74,42.366 L 120.659,42.066 L 121.67,41.478 L 120.832,41.442 L 121.158,41.254 L 121.284,41.402 L 121.596,40.916 L 122.009,41.012 L 121.787,40.613 L 122.209,40.51 L 122.074,40.299 L 122.964,38.989 L 123.482,38.601 L 124.547,38.438 L 123.969,38.672 L 124.159,38.795 Z"/>
+              <path d="M 72.049,14.204 L 72.784,14.108 L 73.086,14.32 L 73.312,14.181 L 73.154,14.048 L 73.603,13.94 L 74.367,14.055 L 74.519,14.298 L 73.907,14.911 L 72.847,15.073 L 71.169,14.935 L 67.481,15.583 L 65.623,15.329 L 68.967,14.773 L 66.288,14.931 L 66.147,14.741 L 66.533,14.584 L 65.983,14.566 L 65.486,14.725 L 65.548,14.912 L 64.271,15.032 L 62.4,14.728 L 64.858,14.321 L 62.836,14.355 L 65.008,14.104 L 63.335,14.042 L 63.79,13.806 L 65.221,13.827 L 64.168,13.704 L 65.002,13.503 L 67.302,13.798 L 68.947,14.451 L 70.914,14.494 L 71.055,14.301 L 70.129,14.071 L 70.57,13.891 L 69.691,13.603 L 71.168,13.179 L 71.533,13.262 L 71.372,13.413 L 71.877,13.767 L 71.613,13.933 L 72.277,14.005 L 72.049,14.204 Z"/>
+              <path d="M 173.964,34.855 L 174.283,35.183 L 174.121,35.359 L 174.53,35.5 L 173.655,36.013 L 173.973,37.073 L 173.537,37.655 L 173.675,37.753 L 171.591,38.111 L 171.592,38.288 L 170.704,38.502 L 170.165,38.517 L 170.42,38.311 L 169.879,38.399 L 170.401,38.126 L 169.659,38.201 L 170.09,37.877 L 169.643,37.793 L 171.217,37.32 L 170.083,37.43 L 171.07,36.793 L 169.909,36.587 L 170.422,36.195 L 170.086,36.136 L 170.144,35.905 L 169.944,35.742 L 171.454,35.759 L 171.867,35.359 L 171.285,35.268 L 171.725,34.854 L 172.333,34.744 L 172.416,35.006 L 172.634,34.64 L 173.038,34.762 L 172.821,34.943 L 173.964,34.855 Z"/>
+              <path d="M 323.325,37.037 L 323.191,38.056 L 324.714,41.36 L 324.049,40.751 L 323.105,40.801 L 322.557,42.262 L 323.218,43.205 L 323.486,43.248 L 323.581,43.639 L 323.432,43.971 L 323.282,43.441 L 322.578,43.299 L 322.077,44.083 L 321.83,43.549 L 322.182,41.987 L 321.866,41.25 L 322.142,40.431 L 322.207,38.777 L 321.722,38.264 L 321.661,37.727 L 321.852,36.611 L 322.424,36.589 L 322.68,36.326 L 322.335,35.719 L 322.693,35.584 L 322.976,35.859 L 322.918,36.206 L 323.325,37.037 Z"/>
+              <path d="M 97.899,66.81 L 100.18,67.113 L 100.724,67.592 L 101.314,67.633 L 102.363,68.203 L 102.503,68.128 L 103.133,68.67 L 104.277,68.889 L 104.275,69.285 L 105.117,69.349 L 105.846,69.831 L 104.884,70.099 L 102.285,70.145 L 102.896,69.592 L 102.77,69.356 L 101.884,69.238 L 101.272,68.407 L 100.643,68.415 L 98.815,67.732 L 98.151,67.786 L 97.922,67.612 L 98.29,67.503 L 98.161,67.328 L 97.262,67.311 L 95.969,68.057 L 95.113,68.143 L 95.674,67.926 L 95.878,67.381 L 96.742,67.032 L 97.899,66.81 Z"/>
+              <path d="M 302.3,71.597 L 302.152,72.336 L 302.5,72.942 L 302.135,73.815 L 301.595,74.067 L 301.399,74.733 L 301.912,75.98 L 302.212,76.07 L 302.2,75.852 L 302.627,75.682 L 302.934,75.812 L 303.102,76.25 L 303.32,75.938 L 303.858,76.2 L 303.55,76.354 L 303.785,76.889 L 304.143,76.964 L 304.06,77.433 L 303.949,77.084 L 303.311,76.956 L 302.595,76.092 L 302.6,76.806 L 301.778,76.062 L 301.344,76.351 L 300.637,76.196 L 300.941,75.355 L 300.584,75.119 L 300.439,75.547 L 300.082,75.149 L 299.773,73.745 L 300.389,73.839 L 300.358,72.362 L 300.6,71.492 L 302.3,71.597 Z"/>
+              <path d="M 325.37,45.719 L 325.14,46.338 L 325.341,46.697 L 325.833,46.614 L 323.969,47.119 L 323.237,48.0 L 321.851,47.421 L 320.986,47.658 L 320.548,47.43 L 320.327,47.707 L 321.151,48.195 L 320.009,48.479 L 320.108,48.087 L 319.829,47.552 L 320.432,47.046 L 320.392,46.697 L 321.374,46.72 L 321.761,45.517 L 321.668,44.599 L 321.981,44.517 L 323.759,45.868 L 324.715,46.072 L 325.37,45.719 Z"/>
+              <path d="M 82.829,16.175 L 82.998,16.333 L 82.374,16.498 L 82.727,16.613 L 81.569,17.042 L 82.364,16.972 L 82.872,17.372 L 83.458,17.301 L 83.527,17.566 L 83.199,17.678 L 83.407,17.796 L 83.234,17.954 L 83.387,18.166 L 82.418,18.37 L 81.677,18.148 L 81.541,18.227 L 81.801,18.559 L 81.464,18.682 L 80.833,18.633 L 79.406,17.848 L 78.276,17.685 L 77.286,17.217 L 77.796,16.923 L 78.727,17.278 L 79.515,17.227 L 79.604,17.023 L 79.908,17.055 L 79.511,16.766 L 80.175,16.786 L 78.477,16.514 L 79.478,16.551 L 79.085,16.195 L 80.009,16.205 L 79.773,16.111 L 79.998,16.054 L 80.842,16.268 L 82.829,16.175 Z"/>
+              <path d="M 236.084,17.211 L 235.403,17.451 L 235.518,17.779 L 235.298,18.065 L 236.454,18.893 L 237.625,19.271 L 236.26,19.285 L 236.435,19.437 L 233.722,19.186 L 233.384,19.126 L 234.156,18.875 L 233.41,18.66 L 233.412,18.47 L 231.938,18.525 L 231.439,18.223 L 231.583,17.929 L 232.622,17.699 L 232.917,17.331 L 232.551,17.231 L 233.37,17.083 L 233.189,16.896 L 233.358,16.775 L 234.804,16.612 L 236.43,16.799 L 236.084,17.211 Z"/>
+              <path d="M 95.499,24.542 L 97.95,25.356 L 98.324,25.787 L 98.113,25.984 L 99.171,25.91 L 99.739,26.198 L 98.954,26.538 L 97.622,26.293 L 97.533,26.073 L 96.696,25.856 L 95.367,26.691 L 94.607,26.88 L 94.231,26.3 L 92.823,26.405 L 93.748,25.863 L 93.626,25.434 L 94.186,24.168 L 94.759,24.204 L 94.76,24.49 L 95.115,24.751 L 95.499,24.542 Z"/>
+              <path d="M 306.193,80.723 L 306.582,82.752 L 306.192,83.147 L 306.189,83.69 L 305.824,82.667 L 305.689,82.737 L 305.381,83.31 L 305.668,84.021 L 305.346,84.401 L 305.232,83.93 L 304.927,84.125 L 304.078,83.596 L 303.985,83.006 L 304.207,82.604 L 303.666,82.182 L 303.391,82.592 L 302.616,82.237 L 302.142,83.05 L 301.904,82.925 L 302.243,82.055 L 302.911,81.844 L 303.435,81.297 L 303.849,81.567 L 303.799,81.951 L 304.405,81.4 L 304.731,81.437 L 304.869,81.028 L 305.499,80.985 L 305.471,80.243 L 306.193,80.723 Z"/>
+              <path d="M 320.602,14.356 L 321.485,13.863 L 325.36,14.47 L 324.02,14.955 L 322.82,14.732 L 322.7,14.551 L 322.942,14.287 L 322.308,14.308 L 322.086,14.339 L 322.199,14.607 L 323.128,15.03 L 319.681,15.036 L 319.099,15.343 L 318.092,15.203 L 316.948,14.674 L 317.29,14.651 L 317.269,14.251 L 317.707,14.24 L 317.625,14.012 L 318.814,13.8 L 320.602,14.356 Z"/>
+              <path d="M 89.645,16.131 L 87.882,17.246 L 85.789,17.243 L 86.466,17.501 L 85.856,17.999 L 84.807,17.973 L 84.387,17.058 L 84.367,16.305 L 85.302,16.336 L 84.847,16.067 L 85.271,15.914 L 86.59,15.821 L 89.645,16.131 Z"/>
+              <path d="M 202.418,9.634 L 206.861,9.84 L 207.199,10.093 L 205.641,10.597 L 203.948,10.806 L 200.128,10.51 L 199.675,10.409 L 200.784,10.251 L 198.725,10.239 L 198.255,10.071 L 198.856,9.963 L 197.917,9.857 L 199.343,9.884 L 199.537,9.837 L 199.178,9.668 L 199.751,9.773 L 199.733,9.522 L 202.29,9.951 L 202.418,9.634 Z"/>
+              <path d="M 108.918,70.11 L 110.043,70.328 L 110.261,70.701 L 110.768,70.728 L 110.376,70.882 L 111.315,71.095 L 111.641,71.462 L 111.313,71.785 L 110.725,71.56 L 108.972,71.727 L 108.561,72.364 L 107.94,71.771 L 106.485,71.755 L 106.115,71.958 L 105.54,71.607 L 105.772,71.337 L 107.211,71.565 L 107.624,71.426 L 107.189,70.928 L 107.297,70.559 L 106.604,70.341 L 106.685,70.145 L 108.165,70.303 L 108.918,70.11 Z"/>
+              <path d="M 277.591,10.225 L 278.866,9.955 L 279.947,10.151 L 279.681,10.677 L 279.042,10.707 L 279.929,11.039 L 277.555,11.173 L 274.791,10.913 L 274.219,10.598 L 273.071,10.505 L 274.987,9.903 L 277.587,9.832 L 278.018,9.977 L 277.591,10.225 Z"/>
+              <path d="M 63.89,13.082 L 64.054,13.289 L 63.001,13.468 L 62.766,13.718 L 62.007,13.594 L 62.182,13.196 L 61.699,13.263 L 61.006,13.855 L 60.42,13.673 L 60.26,13.882 L 60.474,14.003 L 60.087,14.141 L 59.591,14.174 L 59.152,13.817 L 57.6,14.056 L 57.097,13.865 L 60.91,12.695 L 63.156,12.66 L 62.96,12.535 L 63.489,12.452 L 64.524,12.676 L 63.671,12.863 L 64.19,13.061 L 63.89,13.082 Z"/>
+              <path d="M 260.711,80.634 L 261.832,82.572 L 261.819,83.244 L 261.306,83.796 L 260.267,83.99 L 259.859,83.171 L 259.713,81.818 L 259.783,81.982 L 260.086,80.422 L 260.428,80.519 L 259.982,80.187 L 260.711,80.634 Z"/>
+              <path d="M 82.469,13.818 L 82.109,14.24 L 82.592,14.327 L 82.664,14.58 L 82.122,14.584 L 82.326,14.873 L 81.931,14.801 L 82.047,14.94 L 81.879,14.967 L 79.766,14.992 L 79.517,14.812 L 79.854,14.754 L 79.269,14.653 L 80.805,14.302 L 77.202,14.4 L 77.855,14.125 L 78.739,14.242 L 79.027,14.202 L 78.128,13.917 L 78.443,13.764 L 77.862,13.715 L 78.212,13.549 L 79.98,14.06 L 80.311,14.04 L 79.914,13.866 L 80.459,13.854 L 79.109,13.525 L 79.612,13.386 L 82.192,13.481 L 82.469,13.818 Z"/>
+              <path d="M 277.113,9.386 L 277.417,9.677 L 273.872,9.99 L 271.524,9.641 L 273.262,9.209 L 272.593,9.219 L 273.065,9.012 L 275.16,8.729 L 277.87,9.237 L 277.113,9.386 Z"/>
+              <path d="M 77.424,11.121 L 78.296,10.921 L 78.963,11.061 L 78.872,11.198 L 79.985,11.271 L 80.418,11.437 L 80.152,11.562 L 80.249,11.697 L 81.0,12.003 L 80.044,12.206 L 78.926,11.806 L 75.487,11.705 L 75.004,11.481 L 76.429,11.46 L 75.979,11.365 L 76.628,11.264 L 75.815,11.219 L 76.124,11.097 L 75.848,11.01 L 75.104,11.192 L 75.253,10.973 L 74.42,10.886 L 74.612,10.676 L 76.294,10.648 L 77.086,10.769 L 77.424,11.121 Z"/>
+              <path d="M 283.433,10.874 L 285.146,11.181 L 285.343,11.406 L 284.742,11.66 L 279.287,11.962 L 280.416,11.247 L 280.956,11.212 L 281.052,10.877 L 281.591,10.65 L 283.098,10.701 L 282.412,11.165 L 283.433,10.874 Z"/>
+              <path d="M 311.537,56.726 L 312.002,57.118 L 311.337,58.595 L 311.071,58.563 L 310.686,58.985 L 310.655,58.282 L 310.589,58.821 L 310.201,58.708 L 310.194,57.909 L 310.641,57.381 L 310.238,56.822 L 310.34,57.298 L 309.769,57.429 L 309.679,56.94 L 309.992,57.148 L 309.61,56.656 L 310.716,56.072 L 311.175,56.397 L 311.696,56.397 L 311.537,56.726 Z"/>
+              <path d="M 55.095,40.315 L 56.146,40.881 L 56.689,41.589 L 54.879,41.239 L 55.15,40.972 L 55.187,40.787 L 54.511,41.066 L 54.065,40.599 L 53.481,40.603 L 53.458,40.41 L 53.866,40.328 L 53.097,40.056 L 52.886,40.12 L 52.75,39.862 L 52.136,39.872 L 52.094,39.555 L 52.513,39.595 L 52.534,39.417 L 51.942,39.502 L 51.654,39.256 L 52.082,39.139 L 54.466,39.658 L 55.095,40.315 Z"/>
+              <path d="M 300.84,68.075 L 300.083,66.906 L 300.132,66.347 L 301.041,64.967 L 301.594,64.725 L 301.929,65.026 L 301.397,66.827 L 300.84,68.075 Z"/>
+              <path d="M 291.014,70.345 L 290.451,71.252 L 289.681,71.753 L 288.702,71.465 L 288.666,70.696 L 289.315,70.096 L 290.679,69.863 L 291.014,70.345 Z"/>
+              <path d="M 101.937,16.352 L 103.91,17.119 L 100.499,17.244 L 99.224,16.666 L 99.139,16.329 L 101.937,16.352 Z"/>
+              <path d="M 82.209,20.138 L 84.732,21.174 L 83.401,21.539 L 80.436,20.966 L 81.496,20.692 L 81.454,20.427 L 81.959,20.543 L 81.732,20.246 L 82.209,20.138 Z"/>
+              <path d="M 303.526,89.7 L 302.997,89.506 L 300.579,89.472 L 300.065,90.0 L 299.809,89.761 L 300.27,89.029 L 300.603,89.146 L 300.965,88.688 L 302.838,89.154 L 303.847,89.162 L 305.165,88.356 L 304.428,89.529 L 303.526,89.7 Z"/>
+              <path d="M 195.568,51.704 L 195.113,53.312 L 194.776,53.29 L 192.436,52.18 L 192.734,51.817 L 193.789,52.019 L 195.568,51.704 Z"/>
+              <path d="M 189.584,50.746 L 188.595,51.036 L 188.224,49.087 L 188.572,49.15 L 189.228,48.743 L 189.615,48.983 L 189.805,49.5 L 189.584,50.746 Z"/>
+              <path d="M 203.365,11.879 L 203.117,12.008 L 204.902,12.243 L 202.802,12.724 L 202.427,12.684 L 202.685,12.446 L 200.928,12.54 L 201.653,12.076 L 200.228,11.522 L 202.043,11.423 L 202.3,11.772 L 203.365,11.879 Z"/>
+              <path d="M 314.206,56.653 L 313.632,56.489 L 312.804,57.248 L 312.495,57.083 L 312.413,56.57 L 312.033,56.66 L 312.935,55.905 L 313.472,56.027 L 313.603,55.756 L 314.076,55.642 L 314.638,55.773 L 314.739,56.179 L 314.206,56.653 Z"/>
+              <path d="M 86.453,15.309 L 85.303,15.358 L 83.403,14.942 L 84.329,14.471 L 85.573,14.407 L 86.502,14.863 L 86.453,15.309 Z"/>
+              <path d="M 104.798,22.541 L 103.056,22.75 L 102.694,22.294 L 103.312,21.746 L 104.324,21.677 L 104.922,21.827 L 104.798,22.541 Z"/>
+              <path d="M 128.1,20.395 L 126.246,20.74 L 125.817,20.596 L 126.342,20.535 L 126.175,20.46 L 125.081,20.286 L 125.212,20.05 L 125.677,20.058 L 125.214,19.782 L 125.993,19.704 L 127.955,20.193 L 128.1,20.395 Z"/>
+              <path d="M 85.012,11.864 L 83.01,12.194 L 82.342,11.909 L 83.055,11.848 L 81.95,11.674 L 81.659,11.249 L 84.969,11.57 L 85.113,11.655 L 84.671,11.775 L 85.012,11.864 Z"/>
+              <path d="M 326.795,14.629 L 330.822,14.843 L 330.58,15.081 L 329.05,15.228 L 326.149,14.802 L 326.538,14.418 L 326.795,14.629 Z"/>
+            </g>
+          </svg>
+
+          <!-- Marker overlay (positions: left=(lon+180)/360*100%, top=(90-lat)/90*100%)
+               dir-up:    chip→line→dot  transform(-50%,-100%)  dot at bottom-center
+               dir-down:  dot→line→chip  transform(-50%,0%)     dot at top-center
+               dir-left:  chip→line→dot  transform(-100%,-50%)  dot at right-center
+               dir-right: dot→line→chip  transform(0%,-50%)     dot at left-center    -->
+          <div class="earth-markers" aria-label="Viewer locations">
+
+            <!-- LIVE — volcanic (orange solid) ──────────────────────────── -->
+            <a class="map-marker map-marker--live dir-down"
+               style="left:54.17%;top:58.05%;"
+               href="/earth_explorer/etna/"
+               title="Mount Etna Viewer — Open viewer">
+              <div class="marker-dot"></div>
+              <div class="marker-line"></div>
+              <div class="marker-chip">Mount Etna</div>
+            </a>
+
+            <a class="map-marker map-marker--live dir-up"
+               style="left:74.15%;top:68.90%;"
+               href="/everest/"
+               title="ASCENT — the Everest climbing game — Play now">
+              <div class="marker-chip">Everest</div>
+              <div class="marker-line"></div>
+              <div class="marker-dot"></div>
+            </a>
+
+            <!-- IN DEVELOPMENT — volcanic (orange solid) ─────────────────── -->
+            <button class="map-marker map-marker--dev dir-up"
+                    style="left:45.34%;top:26.97%;"
+                    title="Krafla — In Development">
+              <div class="marker-chip">Krafla</div>
+              <div class="marker-line"></div>
+              <div class="marker-dot"></div>
+            </button>
+
+            <button class="map-marker map-marker--dev dir-left"
+                    style="left:53.93%;top:54.64%;"
+                    title="Campi Flegrei &amp; Vesuvio — In Development">
+              <div class="marker-chip">Campi Flegrei</div>
+              <div class="marker-line"></div>
+              <div class="marker-dot"></div>
+            </button>
+
+            <button class="map-marker map-marker--dev dir-left"
+                    style="left:44.71%;top:29.30%;"
+                    title="Katla / Eyjafjallajökull — In Development">
+              <div class="marker-chip">Katla / Eyjafjallajökull</div>
+              <div class="marker-line"></div>
+              <div class="marker-dot"></div>
+            </button>
+
+            <!-- PLANNED — volcanic ──────────────────────────────────────────── -->
+            <button class="map-marker map-marker--planned dir-left"
+                    style="left:16.06%;top:48.68%;"
+                    title="Mount St. Helens — Planned">
+              <div class="marker-chip">Mount St. Helens</div>
+              <div class="marker-line"></div>
+              <div class="marker-dot"></div>
+            </button>
+
+            <button class="map-marker map-marker--planned dir-right"
+                    style="left:19.28%;top:50.67%;"
+                    title="Yellowstone Caldera — Planned">
+              <div class="marker-dot"></div>
+              <div class="marker-line"></div>
+              <div class="marker-chip">Yellowstone Caldera</div>
+            </button>
+
+            <button class="map-marker map-marker--planned dir-right"
+                    style="left:54.23%;top:56.90%;"
+                    title="Stromboli — Planned">
+              <div class="marker-dot"></div>
+              <div class="marker-line"></div>
+              <div class="marker-chip">Stromboli</div>
+            </button>
+
+            <button class="map-marker map-marker--planned dir-right"
+                    style="left:57.08%;top:59.42%;"
+                    title="Kolumbo Submarine Volcano — Planned">
+              <div class="marker-dot"></div>
+              <div class="marker-line"></div>
+              <div class="marker-chip">Kolumbo</div>
+            </button>
+
+            <button class="map-marker map-marker--planned dir-right"
+                    style="left:6.86%;top:78.44%;"
+                    title="Hawaiian Islands — Planned">
+              <div class="marker-dot"></div>
+              <div class="marker-line"></div>
+              <div class="marker-chip">Hawaiian Islands</div>
+            </button>
+
+            <!-- PLANNED — glacial / fluvial ────────────────────────────────────── -->
+            <button class="map-marker map-marker--planned dir-right"
+                    style="left:45.19%;top:28.44%;"
+                    title="Vatnajökull — Planned">
+              <div class="marker-dot"></div>
+              <div class="marker-line"></div>
+              <div class="marker-chip">Vatnajökull</div>
+            </button>
+
+            <button class="map-marker map-marker--planned dir-right"
+                    style="left:18.86%;top:59.89%;"
+                    title="Grand Canyon — Planned">
+              <div class="marker-dot"></div>
+              <div class="marker-line"></div>
+              <div class="marker-chip">Grand Canyon</div>
+            </button>
+
+            <!-- PLANNED — geological / tectonic ────────────────────────────────── -->
+            <button class="map-marker map-marker--planned dir-left"
+                    style="left:16.67%;top:60.00%;"
+                    title="San Andreas Fault — Planned">
+              <div class="marker-chip">San Andreas Fault</div>
+              <div class="marker-line"></div>
+              <div class="marker-dot"></div>
+            </button>
+
+
+            <button class="map-marker map-marker--planned dir-left"
+                    style="left:48.31%;top:39.89%;"
+                    title="N. Ireland — Planned">
+              <div class="marker-chip">N. Ireland</div>
+              <div class="marker-line"></div>
+              <div class="marker-dot"></div>
+            </button>
+
+          </div><!-- /earth-markers -->
+          </div><!-- /earth-map-inner -->
+          </div><!-- /earth-map-scroll -->
+
+          <!-- Brand / logo overlay -->
+          <div class="earth-brand" aria-label="Earth Explorer brand">
+            <img class="earth-brand-logo" src="/earth_explorer/assets/logo.png"
+                 alt="GeoID Earth Explorer" loading="eager" decoding="async">
+            <p class="earth-brand-desc">Interactive 3D viewers for some of Earth's most geologically significant regions — from active volcanoes and transform faults to canyon systems, ice sheets, and mountain belts. Compiled real geoscience data, simplified and accessable to all.</p>
+          </div>
+
+          <!-- Features overlay -->
+          <div class="earth-features" aria-label="Viewer features">
+            <span class="earth-features-label">What You Can Explore</span>
+            <div class="earth-feature-item"><span class="earth-feature-dot"></span><span>Immersive 3D geological models built from real scientific datasets</span></div>
+            <div class="earth-feature-item"><span class="earth-feature-dot"></span><span>Navigate subsurface structure, faults &amp; seismicity in real time</span></div>
+            <div class="earth-feature-item"><span class="earth-feature-dot"></span><span>Published research translated into interactive, explorable layers</span></div>
+            <div class="earth-feature-item"><span class="earth-feature-dot"></span><span>Measure distances, cross-sections &amp; elevation profiles on the terrain</span></div>
+            <div class="earth-feature-item"><span class="earth-feature-dot"></span><span>Cutting-edge geophysical models — runs entirely in your browser</span></div>
+          </div>
+
+          <!-- Legend -->
+          <div class="earth-legend" aria-label="Map legend">
+            <div class="legend-item"><div class="legend-pill legend-pill--live"></div>Live viewer</div>
+            <div class="legend-item"><div class="legend-pill legend-pill--dev"></div>In development</div>
+            <div class="legend-item"><div class="legend-pill legend-pill--planned"></div>Planned</div>
+          </div>
+
+
+        </div><!-- /earth-map-stage -->
+      </article>
+    </section>
+
+    <!-- ── What is the Earth Explorer? ─────────────────────────────────────── -->
+    <section class="earth-section" id="about-explorer" aria-labelledby="whatis-heading">
+      <article class="earth-info-tile" style="position:relative;background:rgba(5,10,38,0.98);">
+        <img class="earth-whatis-logo" src="/earth_explorer/assets/logo.png" alt="Earth Explorer" loading="lazy" decoding="async">
+        <div class="earth-info-header">
+          <h2 class="earth-info-title" id="whatis-heading">What is the Earth Explorer?</h2>
+        </div>
+        <div class="earth-whatis-body">
+          <p>Earth Explorer is GeoID's regional Earth science platform — a growing suite of high-resolution 3D environments built around specific geologically significant sites across the planet. Where Planet Explorer surveys entire worlds at global scale, Earth Explorer goes deeper into defined geographic domains: a volcano, a fault zone, a caldera system — each rendered at the resolution and scientific detail the site's own geological complexity demands.</p>
+          <p>The platform is built on the same open-science foundation as all GeoID tools: no institutional gatekeeping, no specialist prerequisites, and no gap between the data researchers use and what the public can access. Two environments are live now: the Mount Etna viewer, accessible via the annual membership, and ASCENT — a first-person climb of Mount Everest on real imagery and elevation data, free to play. Future environments currently under consideration include the Campi Flegrei caldera system, the Reykjanes Peninsula volcanic zone in Iceland, and the Aegean arc (Santorini–Milos) — each selected for their scientific significance and the availability of high-quality open datasets to support them.</p>
+        </div>
+      </article>
+    </section>
+
+    <!-- ── Explore Earth tile ───────────────────────────────────────────────── -->
+    <section class="about-explorer-section" aria-labelledby="explore-earth-title">
+      <article class="about-explorer-tile new-worlds-tile">
+        <div class="new-worlds-layout">
+
+          <!-- Left: text content -->
+          <div class="new-worlds-content">
+            <div class="about-explorer-header new-worlds-header">
+              <div>
+                <h2 class="about-explorer-title" id="explore-earth-title">Explore our Dynamic Earth</h2>
+              </div>
+              <span class="new-worlds-rocket" aria-hidden="true">🌋</span>
+            </div>
+            <div class="about-explorer-body">
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">A different kind of geoscience interface</p>
+                <p>Most Earth science tools give you one of two things: professional GIS software that demands institutional access, specialist training, and months of onboarding before it yields any insight — or educational apps that reduce active geology to passive imagery, beautiful but entirely disconnected from the underlying science. Earth Explorer was built to sit in neither category. Each viewer is a fully layered investigation environment where peer-reviewed datasets — seismic tomography, geological unit maps, fault system architectures, real earthquake catalogues, satellite terrain — can be toggled, stacked, and explored in a single coherent session. The interface is not a simplified substitute for scientific software. It is a rethinking of how that software should have worked from the beginning.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">Real science, directly interactive</p>
+                <p>Every layer in Earth Explorer is drawn from published, peer-reviewed sources. Subsurface magmatic structures are derived from seismic tomography and geodetic inversion models published in the primary literature. Fault architectures are taken from national geological survey databases. Earthquake hypocentres come from the INGV catalogue — the same dataset seismologists analyse. Basemap imagery is sourced from ESRI World Imagery at approximately 7 m resolution, pre-rendered into a local tile cache. These are not illustrative approximations. They are the actual datasets researchers publish from, rendered in real time, in your browser, with no software installation required.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">Full 3D terrain navigation in the browser</p>
+                <p>The viewer renders a full three-dimensional terrain model of the region — summit to coastline — using WebGL, with 7 m-resolution ESRI World Imagery satellite tiles pre-rendered into a local cache. Orbit, zoom, and pan with the mouse. Raise vertical exaggeration to read subtle topographic gradients. Switch between satellite, hillshade, and slope-angle basemaps in a single click. Open the subsurface cross-section to expose the magmatic plumbing system below the surface. Everything responds in real time, making exploration feel continuous rather than constrained — because the data no longer has to be downloaded before it can be understood.</p>
+              </div>
+              <div class="about-explorer-section-block">
+                <p class="about-col-heading">A platform that scales with your curiosity</p>
+                <p>A researcher cross-referencing fault kinematics with seismicity depth distributions uses exactly the same viewer as a student trying to understand what a stratovolcano is and why it erupts. That is not a coincidence — it is the central design principle. Labelled geological features open scientific descriptions written to be equally rewarding to a first-time visitor and to a volcanologist. Layer controls and filtering tools allow users to build their own picture of the landscape incrementally, the way a field geoscientist approaches a new site: with evidence, iteration, and curiosity. The more you put in, the more Earth Explorer gives back.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: screenshot + layer previews -->
+          <div class="new-worlds-image">
+            <img src="/earth_explorer/assets/cross_section.png"
+                 alt="Earth Explorer — subsurface cross-section view"
+                 class="new-worlds-image-img" loading="lazy" decoding="async">
+            <div class="new-worlds-tools">
+              <p class="about-col-heading">Scientific layers</p>
+              <div class="new-worlds-tools-row">
+                <div class="new-worlds-tool-item">
+                  <img src="/earth_explorer/etna/viewer/assets/subsurface.png"
+                       alt="Subsurface magma chamber view" loading="lazy" decoding="async">
+                </div>
+                <div class="new-worlds-tool-item">
+                  <img src="/earth_explorer/etna/viewer/assets/seismic.png"
+                       alt="Seismicity overlay" loading="lazy" decoding="async">
+                </div>
+                <div class="new-worlds-tool-item">
+                  <img src="/earth_explorer/etna/viewer/assets/etna_geology.png"
+                       alt="Geological map layer" loading="lazy" decoding="async">
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </article>
+    </section>
+
+    <!-- ── Viewer Features tile ─────────────────────────────────────────────── -->
+    <section class="about-explorer-section" aria-labelledby="ee-features-title">
+      <article class="about-explorer-tile" style="position:relative;">
+        <img class="ee-whatis-logo" src="/earth_explorer/assets/logo.png" alt="Earth Explorer" loading="lazy" decoding="async">
+        <div class="about-explorer-header">
+          <h2 class="about-explorer-title" id="ee-features-title">Viewer Features</h2>
+        </div>
+        <div class="about-explorer-body">
+          <div class="features-chips">
+            <span class="feature-chip feature-chip--terrain">Real-time satellite basemap streaming</span>
+            <span class="feature-chip feature-chip--terrain">3D terrain model navigation</span>
+            <span class="feature-chip feature-chip--terrain">Hillshade &amp; slope-angle basemaps</span>
+            <span class="feature-chip feature-chip--terrain">Vertical exaggeration control</span>
+            <span class="feature-chip feature-chip--terrain">Geological unit &amp; formation layers</span>
+            <span class="feature-chip feature-chip--terrain">Lava flow mapping &amp; classification</span>
+            <span class="feature-chip feature-chip--terrain">Surface geology overlay</span>
+            <span class="feature-chip feature-chip--sub">Subsurface magma chamber visualisation</span>
+            <span class="feature-chip feature-chip--sub">Seismic tomography-derived models</span>
+            <span class="feature-chip feature-chip--sub">Three-chamber conduit system</span>
+            <span class="feature-chip feature-chip--sub">Fault system architecture mapping</span>
+            <span class="feature-chip feature-chip--sub">INGV earthquake catalogue overlay</span>
+            <span class="feature-chip feature-chip--sub">Depth-coloured seismicity spheres</span>
+            <span class="feature-chip feature-chip--sub">Magnitude &amp; time-period filtering</span>
+            <span class="feature-chip feature-chip--sub">Interior cross-section cut-away</span>
+            <span class="feature-chip feature-chip--tool">Layer toggle &amp; opacity controls</span>
+            <span class="feature-chip feature-chip--tool">Labelled geological features</span>
+            <span class="feature-chip feature-chip--tool">Scientific description pop-ups</span>
+            <span class="feature-chip feature-chip--tool">Camera orbit, zoom &amp; pan</span>
+            <span class="feature-chip feature-chip--tool">Guided site navigation</span>
+            <span class="feature-chip feature-chip--tool">No installation required</span>
+            <span class="feature-chip feature-chip--tool">Mobile-compatible browser viewer</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ── Etna viewer tile ─────────────────────────────────────────────────── -->
+    <section class="earth-section" id="etna-viewer" aria-labelledby="flagship-heading">
+
+      <article class="earth-info-tile">
+
+        <!-- Header -->
+        <div class="earth-info-header">
+          <div>
+            <h3 class="earth-info-title" id="flagship-heading">Explore Europe's Most Active Volcano, Mount Etna, in 3D</h3>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+            <span class="flagship-live-badge" aria-label="Live viewer">
+              <span class="flagship-live-dot"></span>LIVE
+            </span>
+            <a class="btn-primary" href="/earth_explorer/etna/" style="white-space:nowrap;font-size:0.8rem;padding:0.45rem 1rem;">▶ &nbsp;Open Viewer</a>
+          </div>
+        </div>
+
+        <!-- Body: section blocks full width -->
+        <div class="earth-info-body" style="padding:0.6rem 2.4rem 1rem;">
+
+          <p style="font-family:'Public Sans',sans-serif;font-size:0.92rem;line-height:1.72;color:rgba(210,230,240,0.88);margin:0 0 1.6rem;border-left:2px solid rgba(0,225,210,0.3);padding-left:1rem;">
+            Sicily's Mount Etna is Europe's most active and tallest volcano — erupting almost continuously since 2011 and closely monitored by Italy's National Institute of Geophysics and Volcanology (INGV). It sits at the convergence of the African and Eurasian plates, fed by an unusually deep asthenospheric source more closely related to Hawaiian hot-spot volcanism than to a typical subduction system. The Earth Explorer viewer brings that complexity into a single interactive environment, letting you navigate the volcano from summit to coastline, from surface to deep conduit, using the same datasets that researchers publish from.
+          </p>
+
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Subsurface Structure</p>
+            <p>Three resolved magma chambers — shallow (~3 km), intermediate (~8 km), and deep (12–16 km) — connected by conduits and sill complexes derived from published seismic tomography and geodetic inversion models. Toggle each body independently and section through the edifice with the interactive cross-section tool to expose the full plumbing architecture below the surface.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Fault Architecture &amp; Seismicity</p>
+            <p>All major active fault systems mapped at surface and subsurface extent — including the Timpe fault system on Etna's eastern flank, the source of the region's highest seismic hazard, and the structures governing the volcano's documented 10–14 mm/year seaward flank motion. The full INGV earthquake catalogue (2011–2023, 12,000+ events) is overlaid as depth-coloured spheres, filterable by magnitude and time period.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Geological Map &amp; Lava Flows</p>
+            <p>Published geological unit mapping draped over the 3D terrain, including surface formations, volcanic stratigraphy, and historical lava flow extents classified by eruption period. Toggle individual units to compare the spatial extent of different eruptive phases across the volcano's flanks — from ancient shield-building flows to the products of recent summit activity.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">High-Resolution Basemap</p>
+            <p>7 m-resolution ESRI World Imagery satellite tiles pre-rendered into a local tile cache across the full 100 km domain, with switchable hillshade and slope-angle basemaps. Vertical exaggeration is adjustable in real time — increase it to read subtle topographic gradients invisible at natural scale, or reduce it for a geologically faithful view of the edifice.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Tour Mode &amp; Guided Navigation</p>
+            <p>A structured tour mode walks users through Etna's key geological features in sequence — summit craters, flank vents, the Timpe escarpment, the Valle del Bove collapse structure, and the deep conduit system — with scientific context at each stop. Each location is described at a level that rewards both first-time visitors and working volcanologists.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Data Sources</p>
+            <p>All datasets are drawn from published, peer-reviewed sources: INGV seismicity catalogues, national geological survey databases, geodetic inversion models from the primary literature, and ESRI satellite imagery. Nothing in the viewer is an illustration or approximation — every layer is the actual data that researchers use, rendered in your browser with no installation required.</p>
+          </div>
+        </div>
+
+        <!-- Demo video -->
+        <video controls preload="metadata" playsinline
+          style="width:100%;display:block;max-height:70vh;background:#000;border-top:1px solid rgba(0,225,210,0.15);"
+          aria-label="Earth Explorer — Mount Etna viewer demonstration">
+          <!-- 720p re-encode (~9 MB); the 82 MB original is out of the tree. -->
+          <source src="/assets/opt/etna_demo.webm" type="video/webm">
+        </video>
+
+      </article>
+    </section>
+
+
+    <!-- ── Everest / ASCENT tile ────────────────────────────────────────────── -->
+    <section class="earth-section" id="everest-ascent" aria-labelledby="ascent-heading">
+
+      <article class="earth-info-tile">
+
+        <div class="earth-info-header">
+          <div>
+            <h3 class="earth-info-title" id="ascent-heading">Climb the Real Mount Everest — ASCENT</h3>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+            <span class="flagship-live-badge" aria-label="Live game">
+              <span class="flagship-live-dot"></span>LIVE
+            </span>
+            <a class="btn-primary" href="/everest/" style="white-space:nowrap;font-size:0.8rem;padding:0.45rem 1rem;">▶ &nbsp;Play ASCENT</a>
+          </div>
+        </div>
+
+        <div class="earth-info-body" style="padding:0.6rem 2.4rem 1rem;">
+
+          <p style="font-family:'Public Sans',sans-serif;font-size:0.92rem;line-height:1.72;color:rgba(210,230,240,0.88);margin:0 0 1.6rem;border-left:2px solid rgba(0,225,210,0.3);padding-left:1rem;">
+            ASCENT is a first-person climb of Mount Everest built on the same open-data foundation as every GeoID viewer. The mountain is the real one: Esri satellite imagery streamed to half a metre per pixel, draped over an elevation model read tile by tile from the same web services a GIS uses. The route was not drawn by hand — it was found by asking that elevation model for the least-effort line from Base Camp to the summit, and it came back with the South Col route. Choose a starting camp on the map and walk out of it.
+          </p>
+
+          <div class="earth-info-block">
+            <p class="earth-info-heading">The Real Terrain</p>
+            <p>Satellite imagery at up to 0.53 m per pixel over a multi-resolution elevation model, streamed live — nothing pre-baked, nothing sculpted. The horizon runs 300 km on real relief, contours and hillshade fill where the satellites did not look, and every camp, icefall and col is where it is on Earth.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">The Climb</p>
+            <p>The South Col route from Base Camp through the Khumbu Icefall, the Western Cwm, the Lhotse Face and the Death Zone to the summit — with oxygen to manage, weather to respect, crevasses to probe and ladders to trust. Body instruments track health, stamina, warmth and blood oxygen; the environment is recorded honestly rather than gamified.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Navigation</p>
+            <p>A full interactive map — orthophoto, 100 m contours, the route as a cased line, a dynamic scale bar — with fast travel to every camp you have reached. In the scene, horizon tags name the peaks and camps around you with live distances, and hide honestly behind the terrain that hides their ground.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">The Guide</p>
+            <p>Gio, the expedition guide, warns you as you enter each hazard's ground — the seracs, the avalanche fans, the cornice line — teaches the first ladder, meets you at every camp, and writes it all into the field journal.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Data Sources</p>
+            <p>Esri World Imagery (streamed for viewing under the Esri Master License Agreement — nothing cached to disk), Mapzen Terrain Tiles on AWS Open Data (SRTM, ASTER and national sources), and Copernicus Sentinel-2 for the navigation orthophoto. It is a game, not a route description — but every layer in it is real.</p>
+          </div>
+        </div>
+
+      </article>
+    </section>
+
+
+    <!-- ── Open access ────────────────────────────────────────────────────────── -->
+    
+
+    <div class="earth-footer"></div>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <div class="footer-brand-logo">
+            <img src="/GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" loading="lazy" decoding="async">
+          </div>
+          <p>Democratizing geohazard science through real-time risk tracking and physics-based modeling. Empowering communities with actionable insights.</p>
+          <p>GeoID is a non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>
+        </div>
+        <div class="footer-section">
+          <h4>Navigation</h4>
+          <ul>
+            <li><a href="/about/">Overview</a></li>
+            <li><a href="/myGeoID/">myGeoID App</a></li>
+            <li><a href="/dashboard/">Dashboard</a></li>
+            <li><a href="/earth_explorer/">Earth Explorer</a></li>
+            <li><a href="/explorer/">Planet Explorer</a></li>
+            <li><a href="/get-involved/">Get Involved</a></li>
+            <li><a href="/team/">Our Team</a></li>
+            <li><a href="/contact/">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Resources</h4>
+          <ul>
+            <li><a href="https://www.copernicus.eu/" target="_blank" rel="noopener">Copernicus Programme</a></li>
+            <li><a href="https://earthdata.nasa.gov/" target="_blank" rel="noopener">NASA Earth Data</a></li>
+            <li><a href="https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs.php" target="_blank" rel="noopener">GFS NOAA API</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="#" onclick="alert('Privacy Policy: GeoID respects your privacy. Contact us for our full privacy policy.'); return false;">Privacy Policy</a></li>
+            <li><a href="#" onclick="alert('Terms of Service: GeoID is provided for informational and research purposes. Contact us for full terms.'); return false;">Terms of Service</a></li>
+            <li><a href="#" onclick="alert('Disclaimer: GeoID provides estimated geohazard risk based on best available scientific methods.'); return false;">Disclaimer</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; 2026 GeoID Initiative. Led by Owen McCluskey. All rights reserved.</p>
+        <div class="footer-social-links">
+          <a href="mailto:geoid.initiative@gmail.com" class="footer-social-link" aria-label="Email">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+          </a>
+          <a href="https://www.linkedin.com/company/geoid-initiative" class="footer-social-link" aria-label="LinkedIn" target="_blank" rel="noopener noreferrer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+              <rect x="2" y="9" width="4" height="12"></rect>
+              <circle cx="4" cy="4" r="2"></circle>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+
+<script src="/scripts/site.js"></script>
+<script src="/styles/nav.js?v=20260516" defer></script>
+<script>
+  /* Centre the map on Mount Etna (15 °E = 54.17 % of the 4:1 canvas) on load.
+     Desktop centres on Iceland (18°W → 0.45); portrait mobile keeps Etna (15°E → 0.5417). */
+  (function () {
+    function centreMap() {
+      var scroll = document.querySelector('.earth-map-scroll');
+      if (!scroll) return;
+      /* Laptop/desktop (>860 px): centre on Iceland (-18°W = 45% across the SVG).
+         Phone portrait (≤860 px): centre on Etna (15°E = 54.17%). */
+      var frac = window.innerWidth > 860 ? 0.45 : 0.5417;
+      scroll.scrollLeft = Math.max(0,
+        Math.round(scroll.scrollWidth * frac - scroll.clientWidth / 2));
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', centreMap);
+    } else {
+      centreMap();
+    }
+  })();
+</script>
+</body>
+</html>

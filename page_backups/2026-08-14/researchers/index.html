@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="GeoID for researchers: entry points to the Research Hub product, shared data repository, hazard app context, and supporting documentation.">
+  <title>GeoID Initiative — Researchers</title>
+  <!-- Social / search preview. Without an og:image, search engines pick an
+       arbitrary image off the page — which is why results showed a stray
+       Earth icon instead of the GeoID logo. -->
+  <link rel="canonical" href="https://geoidinitiative.com/researchers/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoID Initiative">
+  <meta property="og:url" content="https://geoidinitiative.com/researchers/">
+  <meta property="og:title" content="GeoID Initiative — Researchers">
+  <meta property="og:description" content="GeoID for researchers: entry points to the Research Hub product, shared data repository, hazard app context, and supporting documentation.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="1200">
+  <meta property="og:image:alt" content="GeoID Initiative logo">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="GeoID Initiative — Researchers">
+  <meta name="twitter:description" content="GeoID for researchers: entry points to the Research Hub product, shared data repository, hazard app context, and supporting documentation.">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
+  <!-- font link consolidated by v2 skin -->
+  <link rel="stylesheet" href="/styles/shared.css">
+  <style>
+    .hero,
+    .two-col,
+    .action-grid,
+    .workflow-grid {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    .hero {
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+      margin-bottom: 1.4rem;
+    }
+
+    .two-col {
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 1.25rem;
+    }
+
+    .action-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 1rem;
+    }
+
+    .workflow-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-top: 1rem;
+    }
+
+    .hero-panel,
+    .hero-side,
+    .section-panel,
+    .action-card,
+    .workflow-card {
+      border: 1px solid var(--line);
+      border-radius: 1.35rem;
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+      padding: 1.35rem;
+    }
+
+    .hero-panel {
+      background:
+        radial-gradient(circle at 14% 18%, rgba(95, 103, 149, 0.14), transparent 18rem),
+        radial-gradient(circle at 84% 14%, rgba(31, 92, 122, 0.10), transparent 18rem),
+        linear-gradient(160deg, rgba(8, 15, 26, 0.96), rgba(10, 18, 30, 0.88));
+    }
+
+    .hero-panel h1 {
+      margin: 0.35rem 0 0.8rem;
+      max-width: 12ch;
+      font-family: "Public Sans", sans-serif;
+      font-size: clamp(2rem, 5vw, 3.8rem);
+      line-height: 0.97;
+      text-transform: uppercase;
+    }
+
+    .hero-panel h1 span {
+      color: var(--accent);
+    }
+
+    .hero-panel p,
+    .hero-side p,
+    .section-panel p,
+    .action-card p,
+    .workflow-card p {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1.15rem;
+    }
+
+    .hero-side,
+    .action-card,
+    .workflow-card {
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,0.06), transparent 36%),
+        linear-gradient(180deg, rgba(10, 18, 30, 0.9), rgba(6, 13, 22, 0.82));
+    }
+
+    .hero-side h2,
+    .action-card h3,
+    .workflow-card h3 {
+      margin: 0.2rem 0 0.45rem;
+      font-size: 1rem;
+    }
+
+    .stack-list {
+      display: grid;
+      gap: 0.8rem;
+      margin-top: 1rem;
+    }
+
+    .stack-item {
+      padding: 0.9rem 1rem;
+      border-radius: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .stack-item strong {
+      display: block;
+      margin-bottom: 0.2rem;
+      color: #fff1dd;
+    }
+
+    .action-icon,
+    .workflow-icon {
+      font-size: 1.65rem;
+      line-height: 1;
+    }
+
+    .action-card a,
+    .workflow-card a,
+    .stack-item a {
+      color: var(--cyan);
+      font-weight: 600;
+    }
+
+    @media (max-width: 1080px) {
+      .hero,
+      .two-col,
+      .action-grid,
+      .workflow-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/styles/v2-site.css">
+  <script src="/scripts/v2-site.js" defer></script>
+  <link rel="stylesheet" href="/styles/skins/synthwave.css">
+  <link rel="stylesheet" href="/styles/site-nav.css">
+</head>
+<body>
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
+      GeoID Initiative
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="/dashboard/">Dashboard</a></li>      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="/about/">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="/about/">Overview</a>
+          <a href="/about_myGeoID/">myGeoID App</a>
+          <a href="/team/">Our Team</a>
+          <a href="/research/">Research Hub</a>
+          <a href="/learn/">Resources</a>
+          <a href="/get-involved/">Get Involved</a>
+        </div>
+      </li>
+      <li><a href="/myGeoID/"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
+
+      <li><a href="/earth_explorer/">Earth Explorer</a></li>
+      <li><a href="/explorer/">Planet Explorer</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+
+  <div class="page-wrap">
+    <div class="page-inner">
+      <section class="page-utility" aria-label="Researchers page links">
+        <div class="page-crumb">
+          <span>GeoID</span>
+          <span class="page-crumb-sep">/</span>
+          <span>About</span>
+          <span class="page-crumb-sep">/</span>
+          <strong>Researchers</strong>
+        </div>
+        <div class="page-jump">
+          <a href="/about/">About</a>
+          <a href="/researchers/">Researchers</a>
+          <a href="/research/">Research Hub</a>
+          <a href="/learn/#data-repo">Data Repo</a>
+        </div>
+      </section>
+
+      <section class="hero">
+        <article class="hero-panel">
+          <span class="eyebrow">About / Researchers</span>
+          <h1>GeoID For <span>Researchers</span></h1>
+          <p>
+            This page is the researcher-oriented entry point inside About. It separates the initiative-level story from the things a research user usually needs first: the Research Hub product, the shared data repository, hazard-facing context, and the project documentation that explains how the pieces fit together.
+          </p>
+          <div class="hero-actions">
+            <a class="btn-primary" href="/research/">Open Research Hub</a>
+            <a class="btn-ghost" href="/learn/#data-repo">Open Data Repo</a>
+          </div>
+        </article>
+
+        <aside class="hero-side">
+          <span class="section-label">Research Position</span>
+          <h2>The Research Hub Is A Product Inside The Initiative</h2>
+          <p>
+            Researchers should treat GeoID as a layered system. The initiative defines the mission. The Hazard App exposes monitoring context. Resources provide reusable materials and datasets. The Research Hub is where deeper project work happens.
+          </p>
+          <div class="stack-list">
+            <div class="stack-item">
+              <strong>Use the Hazard App for context</strong>
+              Start with monitored domains, terrain context, and public-facing data organization.
+            </div>
+            <div class="stack-item">
+              <strong>Use Resources for inputs</strong>
+              Pull crash courses, reference data, and shared repository paths when framing work.
+            </div>
+            <div class="stack-item">
+              <strong>Use Research Hub for execution</strong>
+              Move into project definition, preprocessing, solver setup, and output generation.
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="section-panel">
+        <span class="section-label">Entry Points</span>
+        <h2 class="section-title">What Researchers Will Usually Need</h2>
+        <div class="action-grid">
+          <article class="action-card">
+            <div class="action-icon">🧪</div>
+            <h3>Research Hub Product</h3>
+            <p>The Qt GUI and GALES workflow environment for project setup, simulation preparation, and downstream outputs.</p>
+            <a href="/research/">Open research hub →</a>
+          </article>
+          <article class="action-card">
+            <div class="action-icon">🗃️</div>
+            <h3>Data Repository</h3>
+            <p>Shared weather, terrain, shapefile, bathymetry, and planetary datasets used across learning, monitoring, and research work.</p>
+            <a href="/learn/#data-repo">Open resources data repo →</a>
+          </article>
+          <article class="action-card">
+            <div class="action-icon">🌍</div>
+            <h3>Hazard Context</h3>
+            <p>The hazard-facing interface for floods, landslides, volcanism, and Earth-system monitoring context.</p>
+            <a href="/data/">Open hazard app →</a>
+          </article>
+          <article class="action-card">
+            <div class="action-icon">📄</div>
+            <h3>Project Docs</h3>
+            <p>Vision, roadmap, architecture, and mission documents describing solver structure and platform direction.</p>
+            <a href="/GeoID_GUI/GeoID_GUI_Vision_and_Roadmap.html">Open docs →</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="two-col">
+        <article class="section-panel">
+          <span class="section-label">Suggested Flow</span>
+          <h2 class="section-title">A Practical Research Route Through GeoID</h2>
+          <div class="workflow-grid">
+            <article class="workflow-card">
+              <div class="workflow-icon">01</div>
+              <h3>Frame The Problem</h3>
+              <p>Use the Hazard App and Explorer to establish environmental or comparative context before building a workflow.</p>
+            </article>
+            <article class="workflow-card">
+              <div class="workflow-icon">02</div>
+              <h3>Collect Inputs</h3>
+              <p>Use Resources to identify the learning materials, repository paths, and shared data layers relevant to the study.</p>
+            </article>
+            <article class="workflow-card">
+              <div class="workflow-icon">03</div>
+              <h3>Build In Product Space</h3>
+              <p>Move into the Research Hub for structured project setup, preprocessing, GALES configuration, and output generation.</p>
+            </article>
+          </div>
+        </article>
+
+        <aside class="section-panel">
+          <span class="section-label">Linked Pages</span>
+          <h2 class="section-title">Related Parts Of The Site</h2>
+          <div class="stack-list">
+            <div class="stack-item">
+              <strong>About overview</strong>
+              Use <a href="/about/">About</a> for the umbrella initiative framing and platform map.
+            </div>
+            <div class="stack-item">
+              <strong>Resources</strong>
+              Use <a href="/learn/">Resources</a> for crash courses and the shared data repository.
+            </div>
+            <div class="stack-item">
+              <strong>Research Hub</strong>
+              Use <a href="/research/">Research Hub</a> for the actual product capabilities and documentation.
+            </div>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </div>
+
+  <div class="status-bar" role="status">
+    <div class="status-item"><span class="status-dot yellow"></span>Researchers Page Live</div>
+    <span class="status-sep">·</span>
+    <div class="status-item">About Subpage</div>
+    <div class="status-spacer"></div>
+    <div class="status-item">GeoID Initiative</div>
+    <span class="status-sep">·</span>
+    <div class="status-item">Research Hub · Data Repo · Hazard App</div>
+  </div>
+
+  <script src="/scripts/site.js"></script>
+<script src="/styles/nav.js?v=20260516" defer></script>
+</body>
+</html>

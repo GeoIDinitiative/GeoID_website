@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Starting Mars viewer (clean)…</title>
+<style>
+  html,body{height:100%;margin:0;background:#0a0e16;color:#dce9f7;
+    font:14px/1.6 system-ui,-apple-system,"Segoe UI",sans-serif;
+    display:flex;align-items:center;justify-content:center}
+  .box{max-width:34rem;padding:2rem}
+  h1{font-size:1.05rem;font-weight:600;letter-spacing:.02em;margin:0 0 1rem}
+  ol{margin:0;padding-left:1.2rem}
+  li{margin:.35rem 0;opacity:.45;transition:opacity .2s}
+  li.done{opacity:1}
+  li.done::marker{content:"✓ "}
+  li.skip{opacity:.75;color:#ffcf8a}
+  li.skip::marker{content:"! "}
+  .err{color:#ff9a8a;margin-top:1rem;white-space:pre-wrap}
+  .go{margin-top:1.25rem}
+  .go a{color:#7fc4ff}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>Starting the Mars viewer with a clean slate…</h1>
+  <ol>
+    <li id="s1">Unregistering service workers</li>
+    <li id="s2">Deleting all caches</li>
+    <li id="s3">Clearing localStorage / sessionStorage</li>
+    <li id="s4">Registering the CTX tile worker and waiting for it to take control</li>
+    <li id="s5">Opening the viewer</li>
+  </ol>
+  <div class="err" id="err"></div>
+  <div class="go"><a href="./">Open the viewer now →</a></div>
+</div>
+<script>
+// DEV-ONLY launcher for the PRODUCTION viewer. Same purpose as the copy under
+// /flight_sim/mars/viewer/, but pointed at this tree: mars-viewer.js registers
+// "../../sw-ctx-tiles.js" from here, i.e. /planet_explorer/sw-ctx-tiles.js, so
+// that is what gets pre-registered below.
+//
+// Clears stale service workers, caches and CTX service config, and gets the CTX
+// tile worker controlling the page BEFORE the viewer boots. That last part
+// matters because loadCtxServiceConfig() runs early in boot; if nothing is
+// controlling the page yet the /ctx-proxy/service probe 404s, the viewer falls
+// back to the direct ArcGIS endpoint, and that result is cached for 24 h.
+//
+// EVERY STEP IS ON A TIMEOUT AND NOTHING HERE CAN BLOCK THE HANDOFF. The
+// service worker API can stall indefinitely — getRegistrations() and especially
+// `serviceWorker.ready` never settle if an existing worker is wedged mid-install
+// — and the first version of this page awaited them bare, so a wedged worker
+// left it parked on step 1 forever with no error and no way through. A cleanup
+// convenience must never be able to stop you reaching the viewer, so each step
+// gets its own deadline, a failed step is marked and skipped, and a global
+// watchdog navigates regardless.
+const step = (id, cls) => document.getElementById(id).classList.add(cls || "done");
+const note = (m) => { document.getElementById("err").textContent += m + "\n"; };
+
+const VIEWER = "./?fresh=" + Date.now();
+let handedOff = false;
+const go = () => { if (!handedOff) { handedOff = true; location.replace(VIEWER); } };
+
+// Global watchdog: whatever happens above, we are in the viewer within 8 s.
+setTimeout(go, 8000);
+
+// Run a promise with a deadline. Never rejects — resolves false on timeout or
+// error so a stalled step degrades into a skipped step.
+const withTimeout = (promise, ms, label) => Promise.race([
+  Promise.resolve(promise).then(() => true).catch((e) => { note(label + ": " + (e && e.message ? e.message : e)); return false; }),
+  new Promise((r) => setTimeout(() => { note(label + ": timed out after " + ms + " ms — skipped"); r(false); }, ms)),
+]);
+
+(async () => {
+  const swSupported = "serviceWorker" in navigator;
+
+  step("s1", await withTimeout(
+    swSupported
+      ? navigator.serviceWorker.getRegistrations().then((rs) => Promise.all(rs.map((r) => r.unregister())))
+      : Promise.resolve(),
+    3000, "unregister") ? "done" : "skip");
+
+  step("s2", await withTimeout(
+    window.caches ? caches.keys().then((ks) => Promise.all(ks.map((k) => caches.delete(k)))) : Promise.resolve(),
+    3000, "caches") ? "done" : "skip");
+
+  try { localStorage.clear(); sessionStorage.clear(); step("s3"); }
+  catch (e) { note("storage: " + e.message); step("s3", "skip"); }
+
+  // `ready` is the classic hang: it never settles while a worker is stuck
+  // installing. Registration alone is enough to remove the config race in
+  // practice, so a timeout here is harmless.
+  step("s4", await withTimeout(
+    swSupported
+      ? navigator.serviceWorker
+          .register("/planet_explorer/sw-ctx-tiles.js", { scope: "/planet_explorer/" })
+          .then(() => navigator.serviceWorker.ready)
+      : Promise.resolve(),
+    4000, "worker") ? "done" : "skip");
+
+  step("s5");
+  go();
+})().catch((e) => { note("unexpected: " + e); go(); });
+</script>
+</body>
+</html>

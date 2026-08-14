@@ -5,7 +5,7 @@
       "status": "live",
       "kicker": "New release",
       "title": "ASCENT — climb Everest in your browser",
-      "desc": "Walk the real mountain: Esri imagery draped over a live elevation model, the South Col route from Base Camp to the summit, oxygen, weather and crevasses. Choose your starting camp and go.",
+      "desc": "Walk the real mountain: Esri imagery over a live elevation model, the South Col route, oxygen, weather and crevasses. Pick a camp and go.",
       "href": "/everest/",
       "image": "/assets/opt/everest_ascent.webp",
       "alt": "ASCENT — the Everest climbing game"
@@ -14,7 +14,7 @@
       "status": "live",
       "kicker": "Live now",
       "title": "The Mars Flight Simulator is live",
-      "desc": "Fly over real Martian terrain with CTX imagery streaming beneath you. Choose a launch site anywhere on the planet and take off.",
+      "desc": "Real Martian terrain, CTX imagery streaming beneath you. Launch from anywhere on the planet.",
       "href": "/planet_explorer/mars/viewer/",
       "image": "/assets/opt/hero_marsflight.webp",
       "alt": "Mars flight simulator"
@@ -23,7 +23,7 @@
       "status": "live",
       "kicker": "Update",
       "title": "Mt. Etna Volcano Explorer",
-      "desc": "Geological map overlays, regional tectonic faults and the subsurface cross-section are now live.",
+      "desc": "Geological overlays, regional faults and the subsurface cross-section are now live.",
       "href": "/earth_explorer/etna/",
       "image": "/assets/opt/etna_subsurface.webp",
       "alt": "Etna subsurface model"
@@ -32,7 +32,7 @@
       "status": "live",
       "kicker": "Live now",
       "title": "Planet Explorer",
-      "desc": "The interactive 3D planetary viewer is live. Navigate all ten worlds.",
+      "desc": "Navigate all ten worlds in interactive 3D.",
       "href": "/explorer/",
       "image": "/assets/opt/planet_explorer.webp",
       "alt": "Planet Explorer"

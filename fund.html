@@ -265,54 +265,53 @@
       <!-- PAGE HEADER -->
       <header class="page-header">
         <span class="page-header-label">Research &amp; Funding Prospectus</span>
-        <h1>Interactive geoscience platforms are live. Real-time flood and landslide forecasting applications are now just one computational step away.</h1>
-        <p class="lede">GeoID has built and deployed two accessible geoscience tools used by members today. The demos establish what the platform can do. The immediate next goal — driving physics-based hydrological models from live rainfall forecasts to produce a public flood and landslide risk index — is technically defined. What it needs is servers and HPC access.</p>
+        <h1>The platforms are live. Forecasting is one computational step away.</h1>
+        <p class="lede">Two GeoID platforms are live and in use today. The next goal — physics-based hydrological models driven by live rainfall forecasts, producing a public flood and landslide risk index — needs servers and HPC access.</p>
         <div class="status-note" role="note">
-          <p><strong>STATUS:</strong> The Explorer platforms are live and usable today but the myGeoID flood and landslide forecasting system is the subject of this funding case, not a live service, the myGeoID prototype is only meant as a supplementary demo of the overall vision for the user interface.</p>
+          <p><strong>STATUS:</strong> The Explorer platforms are live. The forecasting system is the funding case, not a live service — the myGeoID prototype demos the intended interface.</p>
         </div>
       </header>
 
       <!-- WHAT EXISTS -->
       <section class="panel" id="proof">
         <span class="section-label">What exists today</span>
-        <h2 class="section-title">Two live platforms that demonstrate the approach</h2>
-        <p style="margin-bottom:1.2rem;">The Explorer viewers are not prototypes. They are working, publicly accessible tools built from real scientific datasets. Their purpose here is to show what accessible, interactive geoscience looks like — and that GeoID can build and sustain it.</p>
+        <h2 class="section-title">Two live platforms</h2>
+        <p style="margin-bottom:1.2rem;">Working, publicly accessible tools built from real scientific datasets — proof GeoID can build and sustain accessible, interactive geoscience.</p>
         <div class="grid-3">
           <div class="mini">
             <span class="proof-tag proof-live">Live today</span>
             <h3>Planet Explorer</h3>
-            <p>Ten interactive viewers spanning every planet in the Solar System. Real topographic data, scientific overlays, guided tours. A working membership, authentication, and billing stack underpins it. Proof of sustained delivery — from raw planetary datasets to a polished public tool.</p>
+            <p>Ten viewers spanning every planet — real topography, scientific overlays, guided tours — with a working membership and billing stack.</p>
           </div>
           <div class="mini">
             <span class="proof-tag proof-live">Live today</span>
             <h3>Earth Explorer — Etna</h3>
-            <p>A 3D geological viewer built from published INGV data: seismicity catalogue (2011–2023), fault planes, geological map, magma plumbing architecture, historical lava flows, and an interactive cross-section. The closest thing to a research GIS that runs in a browser, free of institutional access requirements.</p>
+            <p>A 3D geological viewer from published INGV data: seismicity catalogue (2011–2023), fault planes, geological map, magma plumbing, lava flows, interactive cross-section. A research GIS in a browser.</p>
           </div>
           <div class="mini">
             <span class="proof-tag proof-live">Ingested</span>
             <h3>Hazard data pipelines</h3>
-            <p>Working ingestion of NOAA GFS global forecast data, IMERG precipitation, RainViewer radar, GEBCO bathymetry, and geological shapefiles. The raw material for an operational system is already flowing — it is not yet served continuously.</p>
+            <p>NOAA GFS forecasts, IMERG precipitation, RainViewer radar, GEBCO bathymetry, and geological shapefiles already ingested — not yet served continuously.</p>
           </div>
         </div>
-        <p style="margin-top:1.2rem;font-size:0.88rem;">The viewers show one thing above all: that rigorous, interactive geoscience can be made genuinely accessible. A curious student and a working scientist use the same tool and both get something useful from it. That is the design principle GeoID applies to everything it builds, including the forecasting system.</p>
       </section>
 
       <!-- THE FIRST STEP -->
       <section class="panel" id="nextstep">
         <span class="section-label">The immediate goal</span>
         <h2 class="section-title">How does land respond to forecasted rainfall?</h2>
-        <p>NOAA GFS provides global rainfall forecasts at 0.25° resolution, updated every six hours. The question GeoID is equipped to answer: given that forecast, how will a given hillslope or drainage catchment respond?</p>
-        <p>The answer comes from a finite-element hydrological model — the GALES multi-physics solver lineage applied to shallow slope stability and flood routing. The output is a <strong style="color:var(--text);">Factor of Safety</strong>: a single, interpretable value that indicates whether a slope or catchment is in a stable, marginal, or failing condition, computed <em>before</em> the rainfall arrives.</p>
-        <p>This is not a new idea — the science is established in the literature. What does not exist is a public, continuously running, free implementation of it. That is what GeoID is building first.</p>
+        <p>NOAA GFS delivers global rainfall forecasts at 0.25° resolution every six hours. The question: how will a hillslope or catchment respond?</p>
+        <p>A finite-element hydrological model — the GALES multi-physics solver lineage applied to slope stability and flood routing — outputs a <strong style="color:var(--text);">Factor of Safety</strong>: stable, marginal, or failing, computed <em>before</em> the rainfall arrives.</p>
+        <p>The science is established. A public, continuously running, free implementation is not. GeoID is building it first.</p>
 
         <div class="grid-2" style="margin-top:1.3rem;">
           <div class="mini">
             <h3>Constraint 1 — Servers</h3>
-            <p>Continuous GFS ingestion, time-series storage, and a public-facing web interface require always-on infrastructure. The data pipeline exists and has been tested. The hosting does not yet exist in a persistent form.</p>
+            <p>Continuous ingestion and a public interface need always-on infrastructure. The pipeline is tested; persistent hosting does not yet exist.</p>
           </div>
           <div class="mini">
             <h3>Constraint 2 — Computational Capacity</h3>
-            <p>FEM slope-stability and flood-routing runs are computationally demanding. Running them continuously, at useful spatial resolution, across a pilot domain requires HPC allocation or dedicated cluster time. This is the principal cost this prospectus addresses.</p>
+            <p>Continuous FEM runs at useful resolution require HPC allocation or dedicated cluster time — the principal cost this prospectus addresses.</p>
           </div>
         </div>
       </section>
@@ -327,13 +326,13 @@
               <h3>Phase 0 — Platform and capability proof</h3>
               <span class="phase-badge badge-done">Complete · Live</span>
             </div>
-            <p class="role">Build and ship accessible geoscience tools that demonstrate the platform can handle real scientific data at production quality.</p>
+            <p class="role">Ship accessible geoscience tools at production quality.</p>
             <ul>
-              <li>Planet Explorer: ten planetary viewers with scientific overlays, tours, and membership billing</li>
+              <li>Planet Explorer: ten planetary viewers with overlays, tours, and membership billing</li>
               <li>Earth Explorer — Etna: 3D geological viewer from published INGV datasets</li>
               <li>Hazard data ingestion: NOAA GFS, IMERG, radar, GEBCO, shapefiles</li>
             </ul>
-            <p class="infra"><b>Infrastructure:</b> static hosting and client-side rendering — already covered.</p>
+            <p class="infra"><b>Infrastructure:</b> static hosting — already covered.</p>
           </article>
 
           <article class="phase phase-1">
@@ -341,14 +340,14 @@
               <h3>Phase 1 — Live GFS ingestion and first hydrological model</h3>
               <span class="phase-badge badge-seek">Seeking funding</span>
             </div>
-            <p class="role">Stand up persistent infrastructure and run the first continuous GFS → FEM → Factor of Safety pipeline for a defined pilot domain.</p>
+            <p class="role">Run the first continuous GFS → FEM → Factor of Safety pipeline for a pilot domain.</p>
             <ul>
-              <li>Always-on server for scheduled GFS ingestion, storage, and data serving</li>
-              <li>FEM slope-stability and shallow flood-routing model driven by live GFS forecasts</li>
-              <li>Public-facing Factor of Safety output for the pilot domain</li>
+              <li>Always-on server for GFS ingestion, storage, and serving</li>
+              <li>FEM slope-stability and flood-routing model driven by live GFS forecasts</li>
+              <li>Public Factor of Safety output for the pilot domain</li>
               <li>Validation against historical rainfall events and published landslide catalogues</li>
             </ul>
-            <p class="infra"><b>Infrastructure:</b> managed server (ingestion and web interface) plus HPC or GPU allocation for FEM runs. This is the core funding ask.</p>
+            <p class="infra"><b>Infrastructure:</b> managed server plus HPC or GPU allocation for FEM runs — the core funding ask.</p>
           </article>
 
           <article class="phase phase-2">
@@ -356,14 +355,14 @@
               <h3>Phase 2 — Scale, public interface, and regional expansion</h3>
               <span class="phase-badge badge-seek">Seeking funding</span>
             </div>
-            <p class="role">Deliver the public-facing myGeoID experience and expand coverage beyond the pilot domain.</p>
+            <p class="role">Deliver the public myGeoID experience and expand beyond the pilot domain.</p>
             <ul>
-              <li>Personalised risk dashboards with saved locations and alert thresholds (myGeoID)</li>
-              <li>Additional pilot regions based on partner and funder priorities</li>
-              <li>Open data-access layer and reproducible model outputs for researchers</li>
-              <li>Longer-term: further hazard types as the FEM lineage is extended</li>
+              <li>Personalised risk dashboards with saved locations and alerts (myGeoID)</li>
+              <li>Additional pilot regions by partner and funder priority</li>
+              <li>Open data-access layer and reproducible outputs for researchers</li>
+              <li>Further hazard types as the FEM lineage extends</li>
             </ul>
-            <p class="infra"><b>Infrastructure:</b> scaled hosting and storage as user base and regional coverage grow.</p>
+            <p class="infra"><b>Infrastructure:</b> scaled hosting and storage as coverage grows.</p>
           </article>
         </div>
       </section>
@@ -372,26 +371,26 @@
       <section class="panel" id="ask">
         <span class="section-label">How to get involved</span>
         <h2 class="section-title">Engagement models</h2>
-        <p style="margin-bottom:1.2rem;">GeoID is a non-exclusive, open-science initiative. The most direct forms of support are HPC access and funded research partnerships, but we are open to all routes below.</p>
+        <p style="margin-bottom:1.2rem;">A non-exclusive, open-science initiative. HPC access and funded research partnerships help most — all routes below are open.</p>
         <div class="ask-grid">
           <div class="ask">
             <h3>High Performance Computing (HPC) &amp; cloud in-kind</h3>
-            <p>HPC allocations or cloud-credit programmes that directly cover the Phase 1 FEM workloads — the single most direct path to making the first forecast pipeline operational.</p>
+            <p>HPC allocations or cloud credits covering the Phase 1 FEM workloads.</p>
           </div>
           <div class="ask">
             <h3>Research grant co-application</h3>
-            <p>Join as a named partner or host institution on hazard, climate-resilience, or open-science funding calls. GeoID supplies the platform, modelling lineage, and proof of capability.</p>
+            <p>Named partner or host institution on hazard, climate-resilience, or open-science calls.</p>
           </div>
           <div class="ask">
             <h3>University &amp; data partnership</h3>
-            <p>Provide HPC time, validation datasets, or supervisory capacity in exchange for a live testbed for student and postdoctoral research and open teaching resources.</p>
+            <p>HPC time, validation data, or supervision — in return, a live research testbed and open teaching resources.</p>
           </div>
           <div class="ask">
             <h3>Institutional sponsorship</h3>
-            <p>Civil-protection agencies, NGOs, or foundations seeking public-benefit early-warning capability in underserved regions, beginning with the Phase 1 pilot domain.</p>
+            <p>Civil-protection agencies, NGOs, or foundations seeking public-benefit early warning in underserved regions.</p>
           </div>
         </div>
-        <p style="margin-top:1.1rem;font-size:0.82rem;color:var(--muted);">The annual Explorer membership (£19.99/year) demonstrates public demand for accessible geoscience tools. At early-stage scale it is not, and is not presented as, the financing mechanism for the forecasting platform — that is what this prospectus addresses.</p>
+        <p style="margin-top:1.1rem;font-size:0.82rem;color:var(--muted);">The Explorer membership (£19.99/year) shows public demand — it is not, and is not presented as, the financing mechanism for the forecasting platform.</p>
       </section>
 
       <!-- PI -->
@@ -405,15 +404,15 @@
           <div>
             <h3>Owen McCluskey</h3>
             <span class="pi-role">Founder &amp; Principal Investigator</span>
-            <p>Computational geoscientist (PhD, University of Pisa / INGV) specialising in finite-element modelling of geomechanical and hydrological systems using the GALES multi-physics solver, with research spanning magma dynamics at Mount Etna, glaciology, and volcanogenic flood modelling. The Etna viewer reflects direct domain expertise; the hydrological forecasting pipeline extends the same FEM approach toward public-facing hazard intelligence.</p>
+            <p>Computational geoscientist (PhD, University of Pisa / INGV): finite-element modelling with the GALES multi-physics solver — magma dynamics at Mount Etna, glaciology, volcanogenic floods. The forecasting pipeline extends the same approach.</p>
           </div>
         </div>
       </section>
 
       <!-- CLOSING CTA -->
       <section class="cta-section">
-        <h2>The demos are live and verifiable. The next step needs greater computational power.</h2>
-        <p>We would welcome a conversation with any institution, funder, or research partner who wants to see physics-based flood and landslide forecasting become a free public resource.</p>
+        <h2>The demos are live and verifiable. The next step needs compute.</h2>
+        <p>Talk to us if you want physics-based flood and landslide forecasting to become a free public resource.</p>
         <div class="cta-actions">
           <a class="btn-primary" href="/contact/">Get in touch →</a>
           <a class="btn-ghost" href="/earth_explorer/etna/viewer/">Explore the Etna viewer</a>
@@ -429,8 +428,7 @@
               <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1rem;">
                 <img src="/GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" style="height:32px;width:auto;" loading="lazy" decoding="async">
               </div>
-              <p style="font-size:0.88rem;line-height:1.68;">Working toward democratising geohazard science through physics-based modelling and open data. Explorer viewers live now; hazard forecasting platform in development.</p>
-              <p style="font-size:0.88rem;line-height:1.68;margin-top:0.75rem;">GeoID is a non-exclusive, open initiative committed to transparency, open science, and public benefit.</p>
+              <p style="font-size:0.88rem;line-height:1.68;">Democratising geohazard science through physics-based modelling and open data.</p>
             </div>
             <div>
               <h4 style="font-size:0.7rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:1.1rem;">Navigation</h4>

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- The modules bust their own cache via ?v= (tools/stamp.py), but this
+     page has no stamp on its own URL — so it must revalidate, or the
+     browser serves a cached copy still pointing at the old stamps. -->
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ASCENT — Everest · GeoID Initiative</title>
+<meta name="description" content="A hyper-real ascent of Mount Everest, built on live satellite imagery and elevation data. Weather, avalanches, crevasses, oxygen and the death zone.">
+<link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://server.arcgisonline.com">
+<link rel="preconnect" href="https://s3.amazonaws.com">
+<link rel="stylesheet" href="/styles/viewer-skin.css">
+<link rel="preload" as="image" href="data/khumbu_hillshade.png">
+<link rel="preload" as="image" href="data/khumbu_contours.png">
+<link rel="stylesheet" href="everest.css?v=bda57b2-5e879d56">
+
+<!-- ── The reset switch, and why it has to exist ─────────────────────────────
+     A site-wide service worker is registered at the root of this origin
+     (/sw.js, scope "/"), so it controls this page whether or not this page
+     asked for it. A service worker is not cleared by a hard reload: Ctrl+Shift+R
+     bypasses the HTTP cache, but the worker still sits in front of the network
+     and answers from its own store. An old worker — registered on some earlier
+     visit to another part of the site, back when it was cache-first for JS —
+     will happily serve a build from hours ago and no amount of reloading will
+     shift it. That is exactly the shape of "unchanged in Chrome, fine in the
+     other browser": one profile has the worker registered and the other does
+     not.
+
+     So: /everest/?reset unregisters every worker on this origin, deletes every
+     cache, and reloads clean. Runs before the module script, so nothing stale
+     is imported on the way through. -->
+<script>
+if (location.search.includes("reset")) {
+  document.write("<p style='font:14px monospace;color:#fdf7ff;background:#0d0221;"
+    + "padding:20px;margin:0'>Clearing service workers and caches…</p>");
+  (async () => {
+    try {
+      const regs = await (navigator.serviceWorker?.getRegistrations?.() ?? []);
+      await Promise.all([...regs].map((r) => r.unregister()));
+      const keys = await (self.caches?.keys?.() ?? []);
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    } catch (e) { /* nothing to clear, or storage blocked — reload anyway */ }
+    location.replace(location.pathname + "?fresh=" + Date.now());
+  })();
+} else {
+  /* Otherwise: say so, do not act. Unregistering on every visit would strip
+     the worker from the whole origin — it is scoped to "/" — and the rest of
+     the site is entitled to keep it. The current worker (v39) is network-first
+     for HTML and for code, so it is not the problem; an *older* registered
+     copy would be, and only the person seeing the stale build can tell. So
+     this reports, and offers the switch. */
+  addEventListener("DOMContentLoaded", () => {
+    if (!navigator.serviceWorker?.controller) return;
+    const w = document.createElement("div");
+    w.innerHTML = "a service worker is serving this page &mdash; "
+      + "<a href='?reset' style='color:#0d0221;text-decoration:underline'>clear it</a>";
+    w.style.cssText = "position:fixed;left:50%;top:8px;transform:translateX(-50%);"
+      + "z-index:100002;padding:6px 12px;border-radius:3px;background:#ffd400;"
+      + "color:#0d0221;font:600 11px/1.3 ui-monospace,monospace";
+    document.body.appendChild(w);
+  });
+}
+
+/* Build stamp removed by request — tools/stamp.py still versions every URL. */
+</script>
+</head>
+<body>
+
+<canvas class="scene" id="scene"></canvas>
+
+<div id="hud"></div>
+
+<!-- ── Title ──────────────────────────────────────────────────────────── -->
+<div id="title">
+  <img class="title-logo" src="/earth_explorer/assets/logo.png" alt="GeoID logo">
+  <div class="title-inner">
+    <div class="title-mark">GeoID Initiative</div>
+    <h1 class="title-name">ASCENT</h1>
+    <div class="title-sub">Everest · 27.9894° N, 86.9254° E · 8,848.86 m</div>
+    <p class="title-blurb">
+      The mountain you are about to walk up is the real one. The ground is Esri's
+      satellite imagery streamed to half a metre a pixel, draped over an elevation
+      model read tile by tile out of the same web services a GIS uses. The route
+      was not drawn by hand — it was found by asking that elevation model for the
+      least-effort line from Base Camp to the summit, and it came back with the
+      South Col route.
+      <br><br>
+      Above 8,000 metres the air holds a third of the oxygen it does at the sea.
+      Nothing acclimatises to that. Everything else here follows from it.
+    </p>
+    <div class="start-map" id="start-map" hidden>
+      <p class="start-map-label">Choose your starting point</p>
+      <div class="start-map-box" id="start-map-box">
+        <img src="data/khumbu_hillshade.png" alt="Khumbu hillshade map" draggable="false" loading="eager" fetchpriority="high">
+        <img class="sm-contours" src="data/khumbu_contours.png" alt="" draggable="false" loading="eager" fetchpriority="high">
+      </div>
+    </div>
+    <div class="title-actions">
+      <button class="btn" id="btn-start" disabled>Loading…</button>
+      <button class="btn ghost" id="btn-controls">Controls</button>
+      <a class="btn ghost" href="/myGeoID/">myGeoID</a>
+    </div>
+    <div class="title-progress" id="prog-text">Contacting the tile services</div>
+    <div class="title-bar"><span id="prog-bar"></span></div>
+    <!-- The Esri/Mapzen attribution the license requires lives in-game now:
+         the panel's Guide section and the map view carry it. -->
+  </div>
+</div>
+
+<!-- ── Controls ───────────────────────────────────────────────────────── -->
+<div id="controls">
+  <div class="controls-inner">
+    <h3>Controls</h3>
+    <div class="key-grid">
+      <div class="key-row"><b>W A S D</b><span>Move</span></div>
+      <div class="key-row"><b>Mouse</b><span>Look — click the world first</span></div>
+      <div class="key-row"><b>Shift</b><span>Push hard — costs more</span></div>
+      <div class="key-row"><b>Ctrl</b><span>Stop and get your breath</span></div>
+      <div class="key-row"><b>Space</b><span>Probe the snow ahead / prusik / dig</span></div>
+      <div class="key-row"><b>E</b><span>Arrive, rest, read, help</span></div>
+      <div class="key-row"><b>Q</b><span>Item wheel — time slows</span></div>
+      <div class="key-row"><b>← →</b><span>Oxygen flow, in the wheel</span></div>
+      <div class="key-row"><b>Enter</b><span>Use the selected item</span></div>
+      <div class="key-row"><b>R</b><span>Rope up / untie</span></div>
+      <div class="key-row"><b>L</b><span>Head torch — the battery is finite</span></div>
+      <div class="key-row"><b>F</b><span>Fire a signal flare</span></div>
+      <div class="key-row"><b>V</b><span>First / third person</span></div>
+      <div class="key-row"><b>N</b><span>Fixed line on / off</span></div>
+      <div class="key-row"><b>J</b><span>Field journal</span></div>
+      <div class="key-row"><b>M</b><span>Map — the navigation hub, with fast travel</span></div>
+      <div class="key-row"><b>T</b><span>Place labels on / off</span></div>
+      <div class="key-row"><b>O</b><span>Oxygen regulator — cycles 0 / 1 / 2 / 4 L/min</span></div>
+      <div class="key-row"><b>B</b><span>Binoculars</span></div>
+      <div class="key-row"><b>← ↑ ↓ →</b><span>Look, without the mouse</span></div>
+      <div class="key-row"><b>Tab</b><span>Hide / show the control panel</span></div>
+      <div class="key-row"><b>U</b><span>Fold the compass and info bar into the footer</span></div>
+      <div class="key-row"><b>Panel</b><span>Every toggle is also a button, in the panel's sections</span></div>
+      <div class="key-row"><b>H</b><span>This list</span></div>
+      <div class="key-row"><b>Esc</b><span>Close whatever is open; release the mouse</span></div>
+    </div>
+    <div style="margin-top:1.2rem">
+      <button class="btn" id="btn-controls-close">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── End card ───────────────────────────────────────────────────────── -->
+<div id="endcard">
+  <div class="end-inner">
+    <h2 class="end-title"></h2>
+    <p class="end-sub"></p>
+    <div class="end-stats"></div>
+    <div class="title-actions">
+      <button class="btn" onclick="location.reload()">Again</button>
+      <a class="btn ghost" href="/myGeoID/">Back to myGeoID</a>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { Game } from "./game/main.js?v=bda57b2-5e879d56";
+import { ROUTE } from "./game/config.js?v=bda57b2-5e879d56";
+
+const canvas = document.getElementById("scene");
+const hudRoot = document.getElementById("hud");
+const title = document.getElementById("title");
+const startBtn = document.getElementById("btn-start");
+const progText = document.getElementById("prog-text");
+const progBar = document.getElementById("prog-bar");
+
+document.getElementById("btn-controls").addEventListener("click", () => {
+  document.getElementById("controls").classList.add("on");
+});
+document.getElementById("btn-controls-close").addEventListener("click", () => {
+  document.getElementById("controls").classList.remove("on");
+});
+
+const game = new Game(canvas, hudRoot);
+window.__ascent = game;      // for the harness, and for anyone curious
+
+/* Headless driving. Only with ?shot, and only ever additive — the game does
+   not behave differently because these exist. */
+if (game.headless) {
+  const { llToLocal } = await import("./game/geo.js?v=bda57b2-5e879d56");
+  window.__drive = {
+    game,
+    run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
+    settle: async (ms = 15000) => {
+      const tiles = await import("./game/tiles.js?v=bda57b2-5e879d56");
+      const end = performance.now() + ms;
+      let quiet = 0;
+      while (performance.now() < end) {
+        game.tick(1 / 30);
+        const busy = tiles.pending() > 0 || game.imagery.rebuilding || game.field.rebuilding;
+        quiet = busy ? 0 : quiet + 1;
+        if (quiet > 14) break;
+        await new Promise((r) => setTimeout(r, 55));
+      }
+      return quiet;
+    },
+    teleport: (lat, lon, yawDeg = null) => {
+      const p = llToLocal(lat, lon);
+      game.player.placeAt(p.x, p.z, yawDeg == null ? game.player.yaw : yawDeg * Math.PI / 180);
+      game.field.update(p.x, p.z);
+      game.imagery.update(p.x, p.z);
+      game.glacier.update(p.x, p.z, true);
+      game.glacier.bindTerrain(game.terrain.uniforms);
+      game.terrain.invalidate();
+    },
+    setHour: (h, day = 28) => {
+      game.date = new Date(Date.UTC(2026, 4, day, 0, 0) + (h - 5.75) * 3600000);
+    },
+    /* Shader compile errors are the failure mode that looks least like one.
+       A material whose program will not link still issues every draw call it
+       was going to — so the geometry count, the uniforms and the bound
+       textures all read correct, and the only symptom is that the pixels are
+       black. That cost a long detour reading back framebuffers when the
+       answer was one line in the console. Check it first, always. */
+    shaderErrors: () => {
+      // three keeps every compiled program in `info.programs` and hangs a
+      // `diagnostics` object on any that failed to link. That is the record
+      // to read — `properties.get(material).currentProgram` is three's own
+      // wrapper, not a raw WebGLProgram, and gl calls reject it.
+      const gl = game.renderer.getContext();
+      return (game.renderer.info.programs || []).flatMap((p) => {
+        if (p.diagnostics && !p.diagnostics.runnable) {
+          return [`${p.name || "(shader)"}: ${p.diagnostics.programLog} ` +
+                  `${p.diagnostics.fragmentShader?.log || ""} ${p.diagnostics.vertexShader?.log || ""}`.trim()];
+        }
+        if (p.program && !gl.getProgramParameter(p.program, gl.LINK_STATUS)) {
+          return [`${p.name || "(shader)"}: ${gl.getProgramInfoLog(p.program)}`];
+        }
+        return [];
+      });
+    },
+    snap: async (name, w = 960, h = 540) => {
+      game.renderer.setSize(w, h, false);
+      game.camera.aspect = w / h; game.camera.updateProjectionMatrix();
+      game.tick(1 / 30); game.tick(1 / 30);
+      const url = game.renderer.domElement.toDataURL("image/jpeg", 0.86);
+      game.resize();          // or the canvas stays at the capture size
+      try {
+        return await (await fetch("http://127.0.0.1:8199/" + name, { method: "POST", body: url })).text();
+      } catch (e) { return "sink error: " + e.message; }
+    },
+  };
+}
+
+/* ── The order of the load is the point ──────────────────────────────────
+   The map is a couple of static images and a config list: it costs nothing
+   and answers the only question the player has at this screen. So it shows
+   IMMEDIATELY — the same composite sheet the in-game map view draws, camps
+   from the same config the game reads — and the expensive part, booting the
+   tile pyramid, starts only once a starting point is chosen. The progress
+   bar then narrates the boot for the place actually picked. */
+startBtn.style.display = "none";
+progText.style.display = "none";   // the bar alone narrates the load
+let booting = false;
+{
+  const B = { W: 86.780, E: 87.070, N: 28.120, S: 27.880 };
+  /* The box is a viewport, not the whole orthophoto: cropped to the route
+     corridor (Base Camp to the summit, with margin) so the camps read as
+     a route instead of a cluster of pins in one corner of the Khumbu. */
+  const CROP = { W: 86.836, E: 86.952, N: 28.018, S: 27.958 };
+  const u0 = (CROP.W - B.W) / (B.E - B.W), u1 = (CROP.E - B.W) / (B.E - B.W);
+  const v0 = (B.N - CROP.N) / (B.N - B.S), v1 = (B.N - CROP.S) / (B.N - B.S);
+  const box = document.getElementById("start-map-box");
+  const imgs = [...box.querySelectorAll("img")];
+  const wrap = document.getElementById("start-map");
+  wrap.hidden = false;
+  const IW = 3228, IH = 3026;
+  box.style.aspectRatio = `${(u1 - u0) * IW} / ${(v1 - v0) * IH}`;
+  const layout = () => {
+    const bw = box.clientWidth;
+    const scale = bw / ((u1 - u0) * IW);
+    for (const img of imgs) {
+      img.style.position = "absolute";
+      img.style.width = (IW * scale) + "px";
+      img.style.height = (IH * scale) + "px";
+      img.style.left = (-u0 * IW * scale) + "px";
+      img.style.top = (-v0 * IH * scale) + "px";
+      img.style.maxWidth = "none";
+    }
+  };
+  layout();
+  addEventListener("resize", layout);
+  for (const img of imgs) if (!img.complete) img.addEventListener("load", layout);
+  /* The route, outlined over the corridor before the pins go on — the
+     terrain-following path when it loads, the waypoint chords until. */
+  {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "sm-route");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    svg.setAttribute("preserveAspectRatio", "none");
+    const toD = (pts) => pts.map((p, i) => {
+      const u = (p.lon - B.W) / (B.E - B.W), v = (B.N - p.lat) / (B.N - B.S);
+      const x = ((u - u0) / (u1 - u0)) * 100, y = ((v - v0) / (v1 - v0)) * 100;
+      return `${i ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`;
+    }).join(" ");
+    const paths = [];
+    for (const cls of ["sm-route-casing", "sm-route-line"]) {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", toD(ROUTE));
+      path.setAttribute("class", cls);
+      path.setAttribute("vector-effect", "non-scaling-stroke");
+      svg.appendChild(path);
+      paths.push(path);
+    }
+    box.appendChild(svg);
+    fetch("data/route_path.json")
+      .then((r) => r.json())
+      .then((pts) => {
+        const d = toD(pts.map(([lat, lon]) => ({ lat, lon })));
+        for (const p of paths) p.setAttribute("d", d);
+      })
+      .catch(() => {});
+  }
+  /* Camps come from ROUTE itself — config, no boot required. */
+  for (const poi of ROUTE.filter((p) => p.camp)) {
+    const u = (poi.lon - B.W) / (B.E - B.W), v = (B.N - poi.lat) / (B.N - B.S);
+    if (u < u0 || u > u1 || v < v0 || v > v1) continue;
+    const pin = document.createElement("button");
+    pin.className = "sm-pin";
+    pin.style.left = (((u - u0) / (u1 - u0)) * 100).toFixed(2) + "%";
+    pin.style.top = (((v - v0) / (v1 - v0)) * 100).toFixed(2) + "%";
+    pin.innerHTML = `<i></i><span>${poi.name}</span>`;
+    pin.addEventListener("click", () => beginFlow(poi));
+    box.appendChild(pin);
+  }
+}
+
+async function beginFlow(poi) {
+  if (booting) return;
+  booting = true;
+  document.getElementById("start-map").classList.add("is-loading");
+  try {
+    await game.boot((frac, what) => {
+      progBar.style.width = `${Math.round(frac * 100)}%`;
+      progText.textContent = what;
+    });
+  } catch (err) {
+    progText.style.display = "";
+    progText.textContent = "Could not reach the tile services — " + err.message;
+    console.error(err);
+    booting = false;
+    document.getElementById("start-map").classList.remove("is-loading");
+    return;
+  }
+  title.classList.add("gone");
+  game.start();
+  /* The scene POI carries scene coordinates the config entry lacks;
+     resolve through the built world so fast travel lands exactly. */
+  const world = game.world.pois.find((p) => p.id === poi.id) || poi;
+  if (world.id !== "bc") game.hud.onFastTravel(world);
+  setTimeout(() => game.lockPointer(), 300);
+  if (world.id === "bc") {
+    game.hud.say(
+      "Base Camp, 5,364 metres, an hour before light. The Icefall starts about " +
+      "four hundred metres up the glacier and the Doctors have had the route " +
+      "open since March. Rope up before you go into it — press R.", 15);
+  } else {
+    game.hud.say(`${world.name}, ${Math.round(world.published ?? world.dem).toLocaleString()} metres. ` +
+      "The mountain does not care where you started. Watch the oxygen, and the light.", 12);
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,2104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- The stamped modules/CSS bust their own cache, but this shell HTML has
+       no stamp on its own URL, so a browser was serving a cached tab with an
+       old iframe stamp -- which read as "nothing changed" after every edit.
+       Always revalidate the shell so it loads the current build. -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="myGeoID — interactive Earth hazard modelling, surface condition analysis, and real-time data investigation.">
+  <title>GeoID Initiative — myGeoID</title>
+  <!-- Social / search preview. Without an og:image, search engines pick an
+       arbitrary image off the page — which is why results showed a stray
+       Earth icon instead of the GeoID logo. -->
+  <link rel="canonical" href="https://geoidinitiative.com/myGeoID/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GeoID Initiative">
+  <meta property="og:url" content="https://geoidinitiative.com/myGeoID/">
+  <meta property="og:title" content="GeoID Initiative — myGeoID">
+  <meta property="og:description" content="myGeoID — interactive Earth hazard modelling, surface condition analysis, and real-time data investigation.">
+  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="1200">
+  <meta property="og:image:alt" content="GeoID Initiative logo">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="GeoID Initiative — myGeoID">
+  <meta name="twitter:description" content="myGeoID — interactive Earth hazard modelling, surface condition analysis, and real-time data investigation.">
+  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
+  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&family=Archivo:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles/shared.css">
+  <style>
+    /* Scrollable interface shell: globe first, analysis hub below */
+    html {
+      height: 100%;
+      min-height: 100%;
+      overflow-x: hidden;
+      overflow-y: hidden;
+    }
+
+    body {
+      height: 100%;
+      min-height: 100%;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    /* Suppress background textures that bleed through the iframe */
+    body::before, body::after { display: none; }
+
+    body {
+      --hub-accent: #58c6b3;
+      --hub-accent-rgb: 88, 198, 179;
+      --hub-blue: #4fc3f7;
+      --hub-panel-top: rgba(14, 40, 54, 0.94);
+      --hub-panel-bottom: rgba(5, 16, 24, 0.98);
+      --hub-panel-fill: rgba(8, 22, 32, 0.98);
+      --hub-text: #e8f7f4;
+      --hub-muted: #8fc9be;
+      background: #0a1018;
+    }
+
+    body.is-hub-expanded {
+      --nav-h: 48px;
+    }
+
+    /* ── Nav overrides for dark interface shell ── */
+    .site-nav {
+      background: rgba(10, 16, 24, 0.96);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      backdrop-filter: blur(12px);
+      flex-shrink: 0;
+      z-index: 100;
+      transition: height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .nav-links > li > a          { color: rgba(255,255,255,0.55); }
+    .nav-links > li > a:hover    { color: #fff; }
+    .nav-links > li > a.active   { color: #fff; border-bottom-color: rgba(79,180,220,0.7); }
+    .nav-toggle                  { color: rgba(255,255,255,0.6); border-color: rgba(255,255,255,0.14); }
+    .nav-toggle:hover            { color: #fff; background: rgba(255,255,255,0.07); }
+    .nav-dropdown-menu           { background: #0f1c2a; border-color: rgba(255,255,255,0.10); }
+    .nav-dropdown-menu a         { color: rgba(255,255,255,0.55); }
+    .nav-dropdown-menu a:hover   { color: #fff; background: rgba(255,255,255,0.06); }
+
+    /* Mobile nav open */
+    @media (max-width: 980px) {
+      .site-nav.is-open .nav-links { background: #0a1018; border-top-color: rgba(255,255,255,0.08); }
+      .site-nav.is-open .nav-links > li > a { background: rgba(255,255,255,0.03); }
+    }
+
+    /* ── Interface shell ── */
+    .interface-main {
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+      min-height: 100dvh;
+      padding-top: var(--nav-h);
+      --hub-preview-h: 320px;
+    }
+
+    /* Globe wrapper — first viewport experience */
+    .globe-wrap {
+      flex: 0 0 auto;
+      /* Full height by default. The 40px this used to subtract was reserved
+         for the hub's collapsed strip, which is display:none until a location
+         is picked -- so with GeoID mode off it was 40px of nothing, a black
+         band under every page. The reserve is now made only when the hub is
+         actually showing (below). */
+      height: calc(100dvh - var(--nav-h));
+      min-height: 520px;
+      position: relative;
+      transition: height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Hub armed but collapsed: give its strip the 40px back. */
+    .interface-main.is-hub-showing .globe-wrap {
+      height: calc(100dvh - var(--nav-h) - 40px);
+    }
+
+    .interface-main.is-hub-expanded .globe-wrap {
+      height: calc(100dvh - var(--nav-h) - 40px - var(--hub-preview-h));
+      min-height: 280px;
+    }
+
+    .globe-iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+    }
+
+    /* ── Analysis Hub section ── */
+    .hub-drawer {
+      order: 3;
+      flex: 0 0 auto;
+      position: relative;
+      min-height: 0;
+      overflow: visible;
+      font-family: "Exo 2", "Trebuchet MS", "Segoe UI", sans-serif;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 28%),
+        linear-gradient(180deg, rgba(7, 21, 30, 0.985), rgba(4, 12, 18, 0.995));
+      border-top: 1px solid rgba(var(--hub-accent-rgb), 0.28);
+      transition: box-shadow 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .hub-drawer.is-open {
+      z-index: 80;
+      box-shadow:
+        0 -24px 70px rgba(0, 0, 0, 0.52),
+        inset 0 1px 0 rgba(var(--hub-accent-rgb), 0.12),
+        0 -1px 24px rgba(64, 220, 228, 0.08);
+    }
+
+    .hub-drawer-inner {
+      min-height: 0;
+      padding: 0.85rem 1rem 1rem;
+      box-sizing: border-box;
+    }
+
+    .hub-panel-row {
+      display: block;
+      min-height: 0;
+      overflow: visible;
+    }
+
+    .hub-panel-col {
+      min-height: 0;
+      overflow: visible;
+      border: 1px solid rgba(82, 228, 232, 0.22);
+      border-radius: 0.72rem;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+        linear-gradient(180deg, rgba(14, 40, 54, 0.55), rgba(5, 16, 24, 0.86));
+      padding: 0.78rem;
+      box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,0.025),
+        0 0 0 1px rgba(92, 235, 238, 0.06);
+    }
+
+    /* Empty state */
+    .hub-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: min(360px, 42dvh);
+      text-align: center;
+      gap: 0.45rem;
+      color: rgba(255,255,255,0.28);
+      font-family: "Source Sans 3", sans-serif;
+      font-size: 0.8rem;
+      line-height: 1.55;
+    }
+
+    .hub-empty-icon {
+      font-size: 1.35rem;
+      opacity: 0.45;
+      line-height: 1;
+    }
+
+    .hub-empty-sub {
+      font-size: 0.72rem;
+      opacity: 0.65;
+    }
+
+    /* Inspect data (populated by postMessage) */
+    .inspect-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem 1rem;
+    }
+
+    .inspect-field-label {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.63rem;
+      font-weight: 600;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 0.1rem;
+    }
+
+    .inspect-field-value {
+      font-family: "Source Sans 3", monospace;
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.78);
+      font-weight: 500;
+    }
+
+    /* SC Params grid */
+    .sc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 0.45rem;
+    }
+
+    .sc-cell {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 0.45rem;
+      padding: 0.45rem 0.6rem;
+    }
+
+    .sc-cell-label {
+      font-family: "Public Sans", sans-serif;
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 0.15rem;
+    }
+
+    .sc-cell-value {
+      font-family: "Source Sans 3", monospace;
+      font-size: 0.83rem;
+      color: rgba(255,255,255,0.75);
+      font-weight: 500;
+    }
+
+    .risk-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 0.5rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .risk-summary-groups {
+      display: block;
+      margin-bottom: 0.2rem;
+    }
+
+    .hub-analysis-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.7rem;
+      padding: 0.62rem 0.7rem;
+      border: 1px solid rgba(var(--hub-accent-rgb), 0.18);
+      border-left: 2px solid rgba(var(--hub-accent-rgb), 0.9);
+      border-radius: 0.62rem;
+      background:
+        linear-gradient(90deg, rgba(var(--hub-accent-rgb), 0.12), rgba(var(--hub-accent-rgb), 0.025) 42%, rgba(255,255,255,0.01)),
+        rgba(6, 18, 28, 0.88);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+    }
+
+    .hub-kicker {
+      margin: 0 0 0.22rem;
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.58rem;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(88,198,179,0.82);
+    }
+
+    .hub-analysis-title {
+      margin: 0;
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.92rem;
+      line-height: 1.1;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #effcff;
+      text-shadow: 0 0 10px rgba(var(--hub-accent-rgb), 0.14);
+    }
+
+    .hub-analysis-subtitle {
+      margin: 0.28rem 0 0;
+      font-size: 0.72rem;
+      color: rgba(143,201,190,0.62);
+      font-family: "Source Sans 3", sans-serif;
+    }
+
+    .hub-chip-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      max-width: min(48rem, 58vw);
+    }
+
+    .hub-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 1.45rem;
+      padding: 0.23rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(var(--hub-accent-rgb), 0.18);
+      background: rgba(8, 22, 32, 0.74);
+      color: rgba(232,247,244,0.74);
+      font-family: "Courier New", monospace;
+      font-size: 0.64rem;
+      white-space: nowrap;
+    }
+
+    .hub-chip.is-status {
+      color: rgba(88,198,179,0.92);
+      background: rgba(var(--hub-accent-rgb), 0.08);
+      border-color: rgba(var(--hub-accent-rgb), 0.28);
+    }
+
+    .risk-section {
+      margin-bottom: 0.72rem;
+    }
+
+    .risk-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .risk-section-title {
+      margin: 0 0 0.42rem;
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(143,201,190,0.78);
+    }
+
+    .risk-tile {
+      min-height: 64px;
+      border: 1px solid rgba(var(--hub-accent-rgb), 0.18);
+      border-left: 2px solid rgba(var(--hub-accent-rgb), 0.72);
+      border-radius: 0.58rem;
+      background:
+        linear-gradient(90deg, rgba(var(--hub-accent-rgb), 0.11), rgba(var(--hub-accent-rgb), 0.025) 34%, rgba(255,255,255,0.012)),
+        rgba(6, 18, 28, 0.92);
+      padding: 0.55rem 0.68rem;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.045),
+        0 0 16px rgba(var(--hub-accent-rgb), 0.035);
+    }
+
+    .risk-tile[data-severity="critical"],
+    .risk-tile[data-severity="high"] {
+      border-left-color: rgba(255, 122, 104, 0.9);
+      background:
+        linear-gradient(90deg, rgba(255, 122, 104, 0.12), rgba(255, 122, 104, 0.025) 38%, rgba(255,255,255,0.012)),
+        rgba(6, 18, 28, 0.92);
+    }
+
+    .risk-tile[data-severity="watch"] {
+      border-left-color: rgba(255, 213, 74, 0.9);
+      background:
+        linear-gradient(90deg, rgba(255, 213, 74, 0.11), rgba(255, 213, 74, 0.022) 38%, rgba(255,255,255,0.012)),
+        rgba(6, 18, 28, 0.92);
+    }
+
+    .risk-tile[data-severity="stable"],
+    .risk-tile[data-severity="good"] {
+      border-left-color: rgba(88, 198, 179, 0.9);
+    }
+
+    .risk-tile[data-severity="na"] {
+      border-left-color: rgba(160, 170, 185, 0.55);
+      background:
+        linear-gradient(90deg, rgba(160, 170, 185, 0.06), rgba(160, 170, 185, 0.012) 38%, rgba(255,255,255,0.012)),
+        rgba(6, 18, 28, 0.78);
+      opacity: 0.78;
+    }
+    .risk-tile[data-severity="na"] .risk-value { color: rgba(220, 226, 234, 0.5); }
+    .risk-tile[data-severity="na"] .risk-note { color: rgba(160, 170, 185, 0.7); font-style: italic; }
+
+    .risk-label {
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(143,201,190,0.78);
+      margin-bottom: 0.22rem;
+    }
+
+    .risk-value {
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 1.08rem;
+      line-height: 1.1;
+      color: var(--hub-text);
+      font-weight: 800;
+    }
+
+    .risk-note {
+      margin-top: 0.25rem;
+      font-size: 0.67rem;
+      color: rgba(143,201,190,0.56);
+    }
+
+    .market-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 0.55rem;
+      align-items: stretch;
+    }
+
+    .market-card {
+      min-height: 0;
+      height: clamp(148px, 24dvh, 208px);
+      border: 1px solid rgba(var(--hub-accent-rgb), 0.18);
+      border-radius: 0.62rem;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.008)),
+        rgba(6, 18, 28, 0.94);
+      padding: 0.62rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.42rem;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.045),
+        0 0 0 1px rgba(var(--hub-accent-rgb), 0.045);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, transform 0.15s;
+    }
+
+    .market-card:hover {
+      border-color: rgba(var(--hub-accent-rgb), 0.42);
+      background:
+        linear-gradient(180deg, rgba(var(--hub-accent-rgb), 0.11), rgba(255,255,255,0.018)),
+        rgba(6, 18, 28, 0.98);
+      box-shadow:
+        inset 0 0 0 1px rgba(var(--hub-accent-rgb), 0.12),
+        0 0 18px rgba(var(--hub-accent-rgb), 0.08);
+    }
+
+    .market-card-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 0.55rem;
+    }
+
+    .market-title {
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.67rem;
+      font-weight: 800;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      color: rgba(232,247,244,0.74);
+    }
+
+    .market-last {
+      font-family: "Source Sans 3", monospace;
+      font-size: 0.82rem;
+      color: var(--hub-accent);
+      white-space: nowrap;
+      margin-left: auto;
+    }
+
+    .market-expand-btn {
+      width: 1.35rem;
+      height: 1.35rem;
+      border-radius: 0.32rem;
+      border: 1px solid rgba(var(--hub-accent-rgb), 0.24);
+      background: rgba(var(--hub-accent-rgb), 0.08);
+      color: rgba(222,241,244,0.72);
+      font-size: 0.72rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .market-expand-btn:hover {
+      border-color: rgba(var(--hub-accent-rgb), 0.58);
+      color: #fff;
+    }
+
+    .candle-chart {
+      flex: 1;
+      min-height: 82px;
+      height: auto;
+      display: flex;
+      align-items: stretch;
+      gap: 0.34rem;
+      padding: 0.25rem 0.1rem 0.1rem;
+      border-top: 1px solid rgba(var(--hub-accent-rgb), 0.1);
+      border-bottom: 1px solid rgba(var(--hub-accent-rgb), 0.1);
+    }
+
+    .candle {
+      flex: 1;
+      min-width: 5px;
+      position: relative;
+    }
+
+    .candle-wick,
+    .candle-body {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      border-radius: 999px;
+    }
+
+    .candle-wick {
+      width: 1px;
+      background: rgba(255,255,255,0.32);
+    }
+
+    .candle-body {
+      width: min(11px, 72%);
+      min-height: 4px;
+    }
+
+    .candle.up .candle-body { background: #58c6b3; box-shadow: 0 0 10px rgba(88,198,179,0.22); }
+    .candle.down .candle-body { background: #ff7a68; box-shadow: 0 0 10px rgba(255,122,104,0.18); }
+
+    .market-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.7rem;
+      font-size: 0.67rem;
+      color: rgba(143,201,190,0.5);
+      font-family: "Courier New", monospace;
+    }
+
+    .market-submeta {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.7rem;
+      margin-top: -0.18rem;
+      font-family: "Source Sans 3", sans-serif;
+      font-size: 0.66rem;
+      color: rgba(143,201,190,0.5);
+    }
+
+    .plot-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+      background: rgba(0, 5, 10, 0.62);
+      backdrop-filter: blur(8px);
+    }
+
+    .plot-modal-shell {
+      width: min(980px, calc(100vw - 3rem));
+      max-height: min(760px, calc(100dvh - 3rem));
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(82, 228, 232, 0.32);
+      border-radius: 0.82rem;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.025), transparent 18%),
+        linear-gradient(180deg, var(--hub-panel-top), var(--hub-panel-bottom));
+      box-shadow:
+        0 26px 80px rgba(0,0,0,0.58),
+        inset 0 1px 0 rgba(255,255,255,0.05),
+        0 0 30px rgba(var(--hub-accent-rgb),0.09);
+      overflow: hidden;
+    }
+
+    .plot-modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid rgba(var(--hub-accent-rgb), 0.18);
+      background: rgba(7, 17, 26, 0.92);
+    }
+
+    .plot-modal-title {
+      margin: 0;
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.9rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #effcff;
+    }
+
+    .plot-modal-summary {
+      margin: 0.2rem 0 0;
+      font-size: 0.76rem;
+      color: rgba(143,201,190,0.68);
+    }
+
+    .plot-modal-close {
+      width: 2rem;
+      height: 2rem;
+      border-radius: 0.45rem;
+      border: 1px solid rgba(var(--hub-accent-rgb), 0.22);
+      background: rgba(var(--hub-accent-rgb), 0.08);
+      color: rgba(237,249,247,0.82);
+      cursor: pointer;
+    }
+
+    .plot-modal-body {
+      padding: 1rem;
+    }
+
+    .plot-modal-chart {
+      height: min(430px, 48dvh);
+      gap: 0.55rem;
+      padding: 0.75rem 0.35rem;
+      background: rgba(0,0,0,0.16);
+      border: 1px solid rgba(var(--hub-accent-rgb), 0.12);
+      border-radius: 0.6rem;
+    }
+
+    .parameter-section {
+      margin-bottom: 0.9rem;
+    }
+
+    .parameter-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .parameter-section-title {
+      margin: 0 0 0.45rem;
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.67rem;
+      font-weight: 800;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      color: rgba(143,201,190,0.72);
+    }
+
+    .hub-copy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 0.55rem;
+    }
+
+    .hub-copy-card {
+      min-height: 92px;
+      border: 1px solid rgba(var(--hub-accent-rgb), 0.18);
+      border-radius: 0.62rem;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.008)),
+        rgba(6, 18, 28, 0.94);
+      padding: 0.65rem 0.75rem;
+    }
+
+    .hub-copy-card h3 {
+      margin: 0 0 0.35rem;
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.66rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.6);
+    }
+
+    .hub-copy-card p {
+      margin: 0;
+      font-size: 0.78rem;
+      line-height: 1.4;
+      color: rgba(255,255,255,0.48);
+    }
+
+    /* ── Hub strip (always visible) ── */
+    .hub-strip {
+      order: 2;
+      position: sticky;
+      top: var(--nav-h);
+      z-index: 90;
+      flex: 0 0 auto;
+      min-height: 44px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.004)),
+        rgba(5, 13, 20, 0.98);
+      border-top: 1px solid rgba(82, 228, 232, 0.24);
+      border-bottom: 1px solid rgba(82, 228, 232, 0.14);
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0 0.9rem;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.025),
+        0 -1px 20px rgba(64,220,228,0.055);
+    }
+
+    .hub-strip-title {
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.67rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(143,201,190,0.7);
+      white-space: nowrap;
+      margin-right: 0.45rem;
+      text-shadow: 0 0 8px rgba(88,198,179,0.16);
+    }
+
+    .hub-tab-list {
+      display: flex;
+      gap: 0.35rem;
+      flex: 1;
+      min-width: 0;
+      overflow-x: auto;
+      scrollbar-width: thin;
+      align-items: center;
+    }
+
+    .hub-tab-btn {
+      position: relative;
+      min-height: 1.7rem;
+      padding: 0.34rem 0.78rem 0.31rem;
+      border-radius: 0.48rem;
+      border: 1px solid rgba(var(--hub-accent-rgb), 0.14);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.004)),
+        rgba(8, 22, 32, 0.62);
+      color: rgba(143,201,190,0.72);
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: color 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      white-space: nowrap;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.018);
+    }
+
+    .hub-tab-btn:hover {
+      color: #f2feff;
+      border-color: rgba(var(--hub-accent-rgb), 0.4);
+      background:
+        linear-gradient(180deg, rgba(var(--hub-accent-rgb), 0.16), rgba(255,255,255,0.022)),
+        rgba(8, 22, 32, 0.92);
+      box-shadow:
+        inset 0 0 0 1px rgba(var(--hub-accent-rgb), 0.12),
+        0 0 16px rgba(var(--hub-accent-rgb), 0.08);
+    }
+
+    .hub-tab-btn.is-active {
+      color: #effcff;
+      border-color: rgba(var(--hub-accent-rgb), 0.62);
+      background:
+        linear-gradient(180deg, rgba(var(--hub-accent-rgb), 0.22), rgba(255,255,255,0.028)),
+        rgba(8, 22, 32, 0.98);
+      box-shadow:
+        inset 2px 0 0 rgba(var(--hub-accent-rgb), 0.95),
+        inset 0 0 0 1px rgba(var(--hub-accent-rgb), 0.16),
+        0 0 20px rgba(var(--hub-accent-rgb), 0.11);
+    }
+
+    .hub-pin-display {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.42rem;
+      font-family: "Courier New", monospace;
+      font-size: 0.7rem;
+      color: rgba(143,201,190,0.46);
+      white-space: nowrap;
+      margin-left: auto;
+      padding-right: 0.75rem;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      margin-right: 0.75rem;
+      transition: color 0.2s;
+    }
+
+    .hub-pin-display.has-data {
+      color: rgba(79,195,247,0.9);
+      text-shadow: 0 0 8px rgba(79,195,247,0.12);
+    }
+
+    .hub-pin-primary {
+      color: rgba(105, 209, 245, 0.98);
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .hub-pin-elev {
+      color: rgba(232,247,244,0.9);
+      font-weight: 800;
+    }
+
+    .hub-pin-sep {
+      width: 1px;
+      height: 1rem;
+      background: rgba(255,255,255,0.12);
+    }
+
+    .hub-pin-metric {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.18rem;
+      color: rgba(143,201,190,0.64);
+    }
+
+    .hub-pin-metric b {
+      color: rgba(232,247,244,0.92);
+      font-weight: 800;
+    }
+
+    .hub-pin-metric[data-kind="temp"] b { color: #ff8a68; }
+    .hub-pin-metric[data-kind="precip"] b { color: #58c6b3; }
+
+    .hub-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.28rem;
+      padding: 0.22rem 0.55rem;
+      border-radius: 0.45rem;
+      border: 1px solid rgba(var(--hub-accent-rgb),0.16);
+      background: rgba(8, 22, 32, 0.72);
+      color: rgba(143,201,190,0.64);
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, background 0.15s, border-color 0.15s, opacity 0.15s;
+    }
+
+    .hub-action-btn:hover:not(:disabled) {
+      color: #effcff;
+      background: rgba(var(--hub-accent-rgb), 0.1);
+      border-color: rgba(var(--hub-accent-rgb),0.42);
+    }
+
+    .hub-action-btn.is-active {
+      color: #fff2a8;
+      border-color: rgba(255,213,74,0.44);
+      background: rgba(255,213,74,0.12);
+    }
+
+    .hub-action-btn.is-danger:hover:not(:disabled) {
+      color: #ffd5cf;
+      border-color: rgba(255,122,104,0.36);
+      background: rgba(255,122,104,0.12);
+    }
+
+    .hub-action-btn:disabled {
+      cursor: default;
+      opacity: 0.42;
+    }
+
+    .hub-toggle-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.22rem 0.65rem;
+      border-radius: 0.45rem;
+      border: 1px solid rgba(var(--hub-accent-rgb),0.18);
+      background: rgba(8, 22, 32, 0.78);
+      color: rgba(143,201,190,0.68);
+      font-family: "Exo 2", "Trebuchet MS", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
+    }
+
+    .hub-toggle-btn:hover {
+      color: #effcff;
+      background: rgba(var(--hub-accent-rgb), 0.1);
+      border-color: rgba(var(--hub-accent-rgb),0.44);
+    }
+
+    .hub-toggle-btn.is-open {
+      color: #effcff;
+      border-color: rgba(var(--hub-accent-rgb),0.5);
+      background: rgba(var(--hub-accent-rgb),0.14);
+    }
+
+    .hub-chevron {
+      display: inline-block;
+      font-size: 0.55rem;
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .hub-toggle-btn.is-open .hub-chevron { transform: rotate(180deg); }
+
+    /* Responsive */
+    @media (max-width: 700px) {
+      .hub-strip-title { display: none; }
+      .hub-pin-display { display: none; }
+      .globe-wrap { min-height: 420px; }
+      .interface-main {
+        --hub-preview-h: 220px;
+      }
+      .interface-main.is-hub-expanded .globe-wrap {
+        min-height: 260px;
+      }
+      .hub-drawer-inner { padding: 0.7rem; }
+      .hub-panel-row,
+      .hub-panel-col { min-height: 0; }
+      .risk-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .market-grid { grid-template-columns: 1fr; }
+      .market-card { height: 172px; }
+
+      /* Analysis hub head: stack vertically on portrait so neither the
+         title nor the chip row gets squeezed into one-word-per-line. */
+      .hub-analysis-head {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.45rem;
+        padding: 0.5rem 0.6rem;
+      }
+      .hub-kicker { font-size: 0.52rem; letter-spacing: 0.12em; margin: 0 0 0.15rem; }
+      .hub-analysis-title { font-size: 0.95rem; letter-spacing: 0.02em; }
+      .hub-analysis-subtitle { font-size: 0.65rem; margin-top: 0.2rem; line-height: 1.35; }
+      .hub-chip-row {
+        max-width: 100%;
+        justify-content: flex-start;
+        gap: 0.3rem;
+      }
+      .hub-chip { font-size: 0.58rem; min-height: 1.25rem; padding: 0.18rem 0.4rem; }
+    }
+
+    @media (max-width: 480px) {
+      .hub-tab-btn { padding: 0.18rem 0.45rem; font-size: 0.64rem; }
+    }
+
+    /* Phone landscape: fit the 3-up market / hub-copy grids in one row
+       (their auto-fit minmax(300px / 230px) collapses them on narrow
+       widths). Force 3 columns and tighten card sizing so content fits. */
+    @media (max-height: 560px) and (orientation: landscape) {
+      .market-grid,
+      .hub-copy-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 0.4rem !important;
+      }
+      .market-card { height: auto !important; min-height: 0 !important; padding: 0.5rem 0.6rem !important; }
+      .hub-copy-card { min-height: 0 !important; padding: 0.5rem 0.6rem !important; }
+      .risk-summary { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+
+      /* Landscape: make the page behave like the planet viewers — globe
+         iframe fills the viewport, only the Analysis Hub strip is
+         visible along the bottom. Override the 520px min-height that
+         otherwise pushes the drawer offscreen. */
+      .interface-main { min-height: 100dvh !important; padding-top: var(--nav-h) !important; }
+      .globe-wrap {
+        height: calc(100dvh - var(--nav-h) - 2.6rem) !important;
+        min-height: 0 !important;
+      }
+      .interface-main.is-hub-expanded .globe-wrap {
+        height: calc(100dvh - var(--nav-h) - 2.6rem - 60dvh) !important;
+        min-height: 0 !important;
+      }
+      .hub-strip { min-height: 2.6rem !important; padding: 0.25rem 0.6rem !important; }
+      .hub-toggle-btn { font-size: 0.6rem !important; padding: 0.25rem 0.6rem !important; }
+      .hub-tab-btn { font-size: 0.58rem !important; padding: 0.18rem 0.45rem !important; }
+      .hub-drawer-inner { padding: 0.5rem 0.6rem !important; }
+    }
+    /* ── Demo disclaimer modal ── */
+    .demo-disclaimer-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(6, 12, 18, 0.55);
+      backdrop-filter: blur(14px) saturate(110%);
+      -webkit-backdrop-filter: blur(14px) saturate(110%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      animation: demo-fade-in 0.25s ease-out;
+    }
+    @keyframes demo-fade-in { from { opacity: 0; } to { opacity: 1; } }
+    .demo-disclaimer-modal {
+      max-width: 38rem;
+      width: 100%;
+      max-height: calc(100dvh - 2rem);
+      overflow-y: auto;
+      background: linear-gradient(160deg, rgba(10, 24, 38, 0.98), rgba(4, 12, 20, 0.98));
+      border: 1px solid rgba(255, 184, 78, 0.42);
+      border-radius: 1rem;
+      padding: 1.6rem 1.6rem 1.4rem;
+      box-shadow:
+        0 18px 48px rgba(0, 0, 0, 0.6),
+        0 0 0 1px rgba(255, 184, 78, 0.1),
+        0 0 32px rgba(255, 184, 78, 0.08);
+      color: rgba(232, 240, 248, 0.94);
+      font-family: "Public Sans", "Work Sans", sans-serif;
+    }
+    /* Compact the disclaimer on narrow / short viewports so it fits in
+       a single scroll-free panel (was overflowing the iframe height on
+       phone landscape and tall portrait). */
+    @media (max-width: 720px), (max-height: 560px) {
+      .demo-disclaimer-backdrop { padding: 0.5rem; align-items: flex-start; }
+      .demo-disclaimer-modal {
+        padding: 0.7rem 0.85rem 0.7rem !important;
+        border-radius: 0.7rem !important;
+        max-height: calc(100dvh - 1rem) !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+      .demo-disclaimer-eyebrow {
+        font-size: 0.46rem !important; padding: 0.14rem 0.4rem !important;
+        margin-bottom: 0.35rem !important; letter-spacing: 0.12em !important;
+      }
+      .demo-disclaimer-title {
+        font-size: 0.88rem !important; margin: 0 0 0.3rem !important;
+        line-height: 1.2 !important;
+      }
+      .demo-disclaimer-body {
+        font-size: 0.66rem !important; line-height: 1.35 !important;
+        margin: 0 0 0.3rem !important;
+      }
+      .demo-disclaimer-list {
+        font-size: 0.62rem !important; line-height: 1.3 !important;
+        margin: 0.2rem 0 0.4rem !important; padding-left: 0.85rem !important;
+      }
+      .demo-disclaimer-list li { margin-bottom: 0.12rem !important; }
+      .demo-disclaimer-confirm {
+        padding: 0.38rem 0.5rem !important; gap: 0.4rem !important;
+        border-radius: 0.4rem !important;
+      }
+      .demo-disclaimer-confirm input[type="checkbox"] { width: 0.85rem !important; height: 0.85rem !important; }
+      .demo-disclaimer-confirm-label { font-size: 0.62rem !important; line-height: 1.25 !important; }
+      .demo-disclaimer-actions { margin-top: 0.45rem !important; }
+      .demo-disclaimer-button { font-size: 0.6rem !important; padding: 0.4rem 0.85rem !important; }
+    }
+    /* Very short viewports (phone landscape ~360-480px): pin the
+       Continue action row, and make the upper content scroll inside the
+       modal so the button is always reachable without scrolling the
+       page. */
+    @media (max-height: 520px) {
+      .demo-disclaimer-modal { padding: 0.5rem 0.7rem 0.5rem !important; }
+      .demo-disclaimer-title { font-size: 0.8rem !important; }
+      .demo-disclaimer-body, .demo-disclaimer-list { font-size: 0.58rem !important; }
+      .demo-disclaimer-confirm-label { font-size: 0.58rem !important; }
+      /* The modal becomes a flex column (set above); make the content
+         scroll while the actions row stays pinned. */
+      .demo-disclaimer-modal > .demo-disclaimer-actions {
+        flex-shrink: 0;
+        margin-top: 0.35rem !important;
+      }
+      .demo-disclaimer-modal > *:not(.demo-disclaimer-actions) {
+        flex-shrink: 0;
+      }
+    }
+    .demo-disclaimer-eyebrow {
+      display: inline-block;
+      font-family: "Orbitron", "Exo 2", sans-serif;
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #ffb84e;
+      background: rgba(255, 184, 78, 0.12);
+      border: 1px solid rgba(255, 184, 78, 0.32);
+      padding: 0.3rem 0.65rem;
+      border-radius: 999px;
+      margin-bottom: 0.85rem;
+    }
+    .demo-disclaimer-title {
+      margin: 0 0 0.6rem;
+      font-family: "Archivo", "Public Sans", sans-serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.005em;
+      color: #ffffff;
+    }
+    .demo-disclaimer-body {
+      margin: 0 0 0.7rem;
+      font-size: 0.92rem;
+      line-height: 1.55;
+      color: rgba(212, 222, 232, 0.92);
+    }
+    .demo-disclaimer-body strong { color: #ffd591; font-weight: 700; }
+    .demo-disclaimer-list {
+      margin: 0.5rem 0 1rem;
+      padding-left: 1.1rem;
+      font-size: 0.86rem;
+      line-height: 1.55;
+      color: rgba(196, 206, 218, 0.9);
+    }
+    .demo-disclaimer-list li { margin-bottom: 0.32rem; }
+    .demo-disclaimer-confirm {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+      padding: 0.85rem 0.9rem;
+      background: rgba(255, 184, 78, 0.06);
+      border: 1px solid rgba(255, 184, 78, 0.22);
+      border-radius: 0.55rem;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.18s ease, border-color 0.18s ease;
+    }
+    .demo-disclaimer-confirm:hover { background: rgba(255, 184, 78, 0.10); border-color: rgba(255, 184, 78, 0.4); }
+    .demo-disclaimer-confirm input[type="checkbox"] {
+      flex-shrink: 0;
+      margin: 0.18rem 0 0;
+      width: 1.05rem;
+      height: 1.05rem;
+      accent-color: #ffb84e;
+      cursor: pointer;
+    }
+    .demo-disclaimer-confirm-label {
+      font-size: 0.88rem;
+      line-height: 1.4;
+      color: rgba(232, 240, 248, 0.92);
+    }
+    .demo-disclaimer-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 1.1rem;
+    }
+    .demo-disclaimer-button {
+      font-family: "Orbitron", "Exo 2", sans-serif;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.7rem 1.4rem;
+      background: linear-gradient(180deg, rgba(88,198,179,0.32), rgba(88,198,179,0.18));
+      color: #d8fff5;
+      border: 1px solid rgba(88,198,179,0.55);
+      border-radius: 0.55rem;
+      cursor: pointer;
+      transition: transform 0.12s ease, background 0.18s ease, opacity 0.18s ease;
+    }
+    .demo-disclaimer-button:hover:not(:disabled) {
+      background: linear-gradient(180deg, rgba(88,198,179,0.42), rgba(88,198,179,0.24));
+      transform: translateY(-1px);
+    }
+    .demo-disclaimer-button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    /* Gate the underlying UI until the user dismisses the disclaimer. */
+    body.demo-disclaimer-active > *:not(.demo-disclaimer-backdrop) {
+      pointer-events: none;
+      user-select: none;
+    }
+  </style>
+  <!-- Site header only — the app UI below keeps its own styling -->
+  <link rel="stylesheet" href="/styles/site-nav.css">
+  <link rel="stylesheet" href="/styles/mygeoid-shell.css">
+  <link rel="stylesheet" href="/styles/v2-viewer.css">
+</head>
+<body class="demo-disclaimer-active">
+
+  <div class="demo-disclaimer-backdrop" id="demo-disclaimer-backdrop" role="dialog" aria-modal="true" aria-labelledby="demo-disclaimer-title">
+    <div class="demo-disclaimer-modal">
+      <span class="demo-disclaimer-eyebrow">Demonstration only</span>
+      <h2 class="demo-disclaimer-title" id="demo-disclaimer-title">myGeoID is a UI concept, not a live hazard tool</h2>
+      <p class="demo-disclaimer-body">
+        myGeoID is currently a <strong>visual prototype</strong> of a future user interface.
+        It is <strong>not connected to any live weather data, hazard model, or geotechnical engine</strong>.
+        Every metric, chart, and indicator shown is synthetic, generated at the moment of your click for
+        interface-design purposes only.
+      </p>
+      <ul class="demo-disclaimer-list">
+        <li>Not a certified or operational hazard system.</li>
+        <li>No real precipitation, soil, slope-stability, or flood data is consumed.</li>
+        <li>Values must not be used for any safety, engineering, planning, or operational decision.</li>
+        <li>Intended as a design preview of how future GeoID products might be presented.</li>
+      </ul>
+      <label class="demo-disclaimer-confirm" for="demo-disclaimer-checkbox">
+        <input type="checkbox" id="demo-disclaimer-checkbox">
+        <span class="demo-disclaimer-confirm-label">
+          I understand that myGeoID is a demonstration of a future UI concept, that the values shown are
+          synthetic, and that nothing here should inform real-world decisions.
+        </span>
+      </label>
+      <div class="demo-disclaimer-actions">
+        <button type="button" class="demo-disclaimer-button" id="demo-disclaimer-accept" disabled>Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * Disclaimer gate — runs on every load. Keep UI inert until acknowledged.
+     *
+     * TURNED OFF FOR DEVELOPMENT. Set this back to `true` to restore it; the
+     * modal's markup and styles are untouched, so that is the only edit needed.
+     * It is off rather than deleted deliberately — the page still presents
+     * synthetic hazard values as though they were readings, which is exactly
+     * what the gate exists to say out loud, so this should go back on before
+     * anyone outside the project sees it.
+     */
+    const DEMO_DISCLAIMER_GATE = false;
+
+    (function () {
+      const backdrop = document.getElementById("demo-disclaimer-backdrop");
+      if (!DEMO_DISCLAIMER_GATE) {
+        // Take the modal out and release the UI, in that order, so the page is
+        // never left inert with nothing on screen to dismiss.
+        backdrop?.remove();
+        document.body.classList.remove("demo-disclaimer-active");
+        return;
+      }
+      const checkbox = document.getElementById("demo-disclaimer-checkbox");
+      const button   = document.getElementById("demo-disclaimer-accept");
+      if (!backdrop || !checkbox || !button) return;
+      checkbox.addEventListener("change", () => { button.disabled = !checkbox.checked; });
+      function dismiss() {
+        if (!checkbox.checked) return;
+        backdrop.remove();
+        document.body.classList.remove("demo-disclaimer-active");
+      }
+      button.addEventListener("click", dismiss);
+      checkbox.addEventListener("keydown", (e) => { if (e.key === "Enter") dismiss(); });
+    })();
+  </script>
+
+  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
+    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
+      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
+      GeoID Initiative
+    </a>
+
+    <!-- What is open in the viewer: project and world. Filled from the
+         "geoid:context" message the viewer sends; empty until it arrives, so
+         nothing flashes on a page where no viewer is framed. -->
+    <span class="nav-context" id="nav-context" aria-live="polite"></span>
+
+    <ul class="nav-links">
+      <li><a href="/dashboard/">Dashboard</a></li>
+      <li class="nav-dropdown">
+        <a class="nav-dropdown-toggle" href="/about/">About</a>
+        <div class="nav-dropdown-menu" aria-label="About pages">
+          <a href="/about/">Overview</a>
+          <a href="/about_myGeoID/">myGeoID App</a>
+          <a href="/team/">Our Team</a>
+          <a href="/research/">Research Hub</a>
+          <a href="/learn/">Resources</a>
+          <a href="/get-involved/">Get Involved</a>
+        </div>
+      </li>
+      <li><a href="/myGeoID/" class="active" aria-current="page"><span class="mygeoid-word"><span class="mygeoid-prefix">my</span>GeoID</span></a></li>
+      <li><a href="/earth_explorer/">Earth Explorer</a></li>
+      <li><a href="/explorer/">Planet Explorer</a></li>
+      <li><a href="/contact/">Contact</a></li>
+    </ul>
+    <div class="nav-right-logo">
+      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
+    </div>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
+  </nav>
+
+  <main class="interface-main" id="interface-main">
+
+    <!-- Globe iframe fills all available space above the hub strip -->
+    <div class="globe-wrap">
+      <iframe
+        id="globe-iframe"
+        class="globe-iframe"
+        src="/GeoID_GIS/viewer/?v=gis-20260811-118fc88"
+        title="myGeoID — interactive 3D globe with surface condition modelling"
+        allow="fullscreen"
+      ></iframe>
+    </div>
+
+    <!-- Analysis Hub region: always scrolls below the globe; toggle raises it into view -->
+    <div class="hub-drawer" id="hub-drawer" aria-hidden="false">
+      <div class="hub-drawer-inner">
+        <div class="hub-panel-row">
+
+          <div class="hub-panel-col" id="hub-panel-risk">
+            <div class="hub-empty" id="risk-empty">
+              <span class="hub-empty-icon">◎</span>
+              <span>Select a location on the globe to generate risk tracking plots.</span>
+              <span class="hub-empty-sub">Priority landslide, flood, saturation, and model stability indicators will appear here.</span>
+            </div>
+            <div id="risk-summary" class="risk-summary-groups" hidden></div>
+            <div id="risk-grid" class="market-grid" hidden></div>
+          </div>
+
+          <div class="hub-panel-col" id="hub-panel-all" hidden>
+            <div class="hub-empty" id="all-empty">
+              <span class="hub-empty-icon">▦</span>
+              <span>All parameter plots will appear after a location is selected.</span>
+            </div>
+            <div id="all-parameters-grid" hidden></div>
+          </div>
+
+          <div class="hub-panel-col" id="hub-panel-hydrology" hidden>
+            <div class="hub-empty" id="hydrology-empty">
+              <span class="hub-empty-icon">≈</span>
+              <span>Hydrology plots will appear after a location is selected.</span>
+            </div>
+            <div id="hydrology-grid" class="market-grid" hidden></div>
+          </div>
+
+          <div class="hub-panel-col" id="hub-panel-geotechnical" hidden>
+            <div class="hub-empty" id="geotechnical-empty">
+              <span class="hub-empty-icon">△</span>
+              <span>Geotechnical plots will appear after a location is selected.</span>
+            </div>
+            <div id="geotechnical-grid" class="market-grid" hidden></div>
+          </div>
+
+          <div class="hub-panel-col" id="hub-panel-sources" hidden>
+            <div class="hub-empty" id="sources-empty">
+              <span class="hub-empty-icon">⇄</span>
+              <span>Data source status will appear after a location is selected.</span>
+            </div>
+            <div id="sources-grid" class="hub-copy-grid" hidden></div>
+          </div>
+
+          <div class="hub-panel-col" id="hub-panel-metadata" hidden>
+            <div class="hub-empty" id="metadata-empty">
+              <span class="hub-empty-icon">i</span>
+              <span>Metadata will appear after a location is selected.</span>
+            </div>
+            <div id="metadata-grid" class="sc-grid" hidden></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Hub strip — always visible, sits at the very bottom -->
+    <div class="hub-strip" role="toolbar" aria-label="Analysis Hub controls">
+      <!-- Location context. Lives in the strip rather than the Risk panel so
+           it stays on screen for every tab, and is empty until a pin exists. -->
+      <div class="hub-chip-row" id="risk-context-chips"></div>
+      <span class="hub-strip-title">Analysis Hub</span>
+      <div class="hub-tab-list" role="tablist">
+        <button class="hub-tab-btn is-active" role="tab" aria-selected="true"  data-panel="risk"         aria-controls="hub-panel-risk">Risk</button>
+        <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="all"          aria-controls="hub-panel-all">All Parameters</button>
+        <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="hydrology"    aria-controls="hub-panel-hydrology">Hydrology</button>
+        <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="geotechnical" aria-controls="hub-panel-geotechnical">Geotechnical</button>
+        <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="sources"      aria-controls="hub-panel-sources">Data Sources</button>
+        <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="metadata"     aria-controls="hub-panel-metadata">Metadata</button>
+      </div>
+      <!-- Grouped so the strip has three zones the layout can balance: title,
+           tabs, actions. Loose siblings could not be weighed against the
+           title, which is why the tabs never sat on centre. -->
+      <div class="hub-strip-actions">
+        <span class="hub-pin-display" id="hub-pin-display" aria-live="polite">No pin placed</span>
+        <button class="hub-action-btn is-danger" id="hub-exit-selection" type="button" disabled>Exit</button>
+        <button class="hub-toggle-btn" id="hub-toggle" aria-expanded="false" aria-controls="hub-drawer">
+          Analysis Hub <span class="hub-chevron" aria-hidden="true">▲</span>
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <div class="plot-modal" id="plot-modal" hidden role="dialog" aria-modal="true" aria-labelledby="plot-modal-title">
+    <div class="plot-modal-shell">
+      <div class="plot-modal-head">
+        <div>
+          <h2 class="plot-modal-title" id="plot-modal-title">Plot</h2>
+          <p class="plot-modal-summary" id="plot-modal-summary">Synthetic model run</p>
+        </div>
+        <button class="plot-modal-close" id="plot-modal-close" type="button" aria-label="Close plot">×</button>
+      </div>
+      <div class="plot-modal-body">
+        <div class="candle-chart plot-modal-chart" id="plot-modal-chart" aria-hidden="true"></div>
+        <div class="market-meta" id="plot-modal-meta"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Analysis Hub ─────────────────────────────────────────────────────────
+    (function () {
+      const drawer    = document.getElementById("hub-drawer");
+      const toggle    = document.getElementById("hub-toggle");
+      const tabBtns   = document.querySelectorAll(".hub-tab-btn");
+      const pinDisplay = document.getElementById("hub-pin-display");
+      const shell      = document.getElementById("interface-main");
+      const globeFrame = document.getElementById("globe-iframe");
+      const exitSelectionBtn = document.getElementById("hub-exit-selection");
+      const plotModal = document.getElementById("plot-modal");
+      const plotModalTitle = document.getElementById("plot-modal-title");
+      const plotModalSummary = document.getElementById("plot-modal-summary");
+      const plotModalChart = document.getElementById("plot-modal-chart");
+      const plotModalMeta = document.getElementById("plot-modal-meta");
+      const plotModalClose = document.getElementById("plot-modal-close");
+
+      const panels = {
+        risk:         document.getElementById("hub-panel-risk"),
+        all:          document.getElementById("hub-panel-all"),
+        hydrology:    document.getElementById("hub-panel-hydrology"),
+        geotechnical: document.getElementById("hub-panel-geotechnical"),
+        sources:      document.getElementById("hub-panel-sources"),
+        metadata:     document.getElementById("hub-panel-metadata"),
+      };
+
+      function selectHubPanel(target) {
+        tabBtns.forEach((btn) => {
+          const active = btn.dataset.panel === target;
+          btn.classList.toggle("is-active", active);
+          btn.setAttribute("aria-selected", String(active));
+        });
+        Object.entries(panels).forEach(([key, el]) => { el.hidden = key !== target; });
+
+        // The strip is sticky, so a tab whose content is shorter than the
+        // previous one leaves the page scrolled such that the new panel's
+        // first row sits underneath it — the plots came up with their titles
+        // sliced off. Re-anchor below the strip.
+        //
+        // The offset is measured rather than hard-coded: the strip is one row
+        // before a pin is placed and two once the context banner fills, so a
+        // fixed scroll-margin is wrong half the time.
+        const shown = panels[target];
+        if (shown && !shown.hidden) {
+          requestAnimationFrame(() => {
+            const strip = document.querySelector(".hub-strip");
+            if (!strip) return;
+            const navH = parseFloat(
+              getComputedStyle(document.documentElement).getPropertyValue("--nav-h")
+            ) || 72;
+            // Anchor on the strip's NATURAL offset, not the panel's position.
+            // Scrolling the panel to the top fails on short tabs: the document
+            // runs out of room, the scroll clamps, and the first row stays
+            // under the strip. Parking the strip exactly at the nav's lower
+            // edge means the drawer flows below it and nothing is ever
+            // covered, whatever the panel's height.
+            // offsetTop is used because getBoundingClientRect() on a stuck
+            // element reports the stuck position, not the real one.
+            let el = strip, top = 0;
+            while (el) { top += el.offsetTop; el = el.offsetParent; }
+            window.scrollTo({ top: Math.max(0, top - navH), behavior: "smooth" });
+          });
+        }
+      }
+
+      // Toggle raised mode. The hub remains in normal page flow either way.
+      function setDrawerOpen(open) {
+        document.body.classList.toggle("is-hub-expanded", open);
+        shell.classList.toggle("is-hub-expanded", open);
+        drawer.classList.toggle("is-open", open);
+        drawer.setAttribute("aria-hidden", "false");
+        toggle.classList.toggle("is-open", open);
+        toggle.setAttribute("aria-expanded", String(open));
+        requestAnimationFrame(() => {
+          window.dispatchEvent(new Event("resize"));
+          globeFrame?.contentWindow?.dispatchEvent(new Event("resize"));
+          globeFrame?.contentWindow?.postMessage({ type: "geoid:resize", hubExpanded: open }, "*");
+        });
+        window.setTimeout(() => {
+          window.dispatchEvent(new Event("resize"));
+          globeFrame?.contentWindow?.dispatchEvent(new Event("resize"));
+          globeFrame?.contentWindow?.postMessage({ type: "geoid:resize", hubExpanded: open }, "*");
+        }, 360);
+      }
+
+      toggle.addEventListener("click", () => setDrawerOpen(!drawer.classList.contains("is-open")));
+      globeFrame?.addEventListener("load", () => {
+        globeFrame.contentWindow?.postMessage({
+          type: "geoid:resize",
+          hubExpanded: drawer.classList.contains("is-open"),
+        }, "*");
+      });
+
+      // Tab switching
+      tabBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const target = btn.dataset.panel;
+          selectHubPanel(target);
+          // Auto-open drawer when a tab is clicked
+          if (!drawer.classList.contains("is-open")) setDrawerOpen(true);
+        });
+      });
+
+      exitSelectionBtn?.addEventListener("click", () => {
+        clearHubSelection(true);
+        setDrawerOpen(false);
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && plotModal && !plotModal.hidden) {
+          event.preventDefault();
+          closePlotModal();
+          return;
+        }
+        if (event.key !== "Escape" || !currentPinData) return;
+        event.preventDefault();
+        clearHubSelection(true);
+        setDrawerOpen(false);
+      });
+
+      let currentPinData = null;
+      let currentHazardModel = null;
+
+      function postViewerMessage(message) {
+        globeFrame?.contentWindow?.postMessage(message, "*");
+      }
+
+      function setSelectionControlsEnabled(enabled) {
+        if (exitSelectionBtn) exitSelectionBtn.disabled = !enabled;
+      }
+
+      function closePlotModal() {
+        if (plotModal) plotModal.hidden = true;
+      }
+
+      function openPlotModal(chartTitle) {
+        const chart = currentHazardModel?.charts?.find((item) => item.title === chartTitle);
+        if (!chart || !plotModal) return;
+        const decimals = chart.unit === "FoS" || chart.unit === "Mw" || chart.unit === "m" || chart.unit === "mm/h" ? 2 : 1;
+        const last = chart.candles[chart.candles.length - 1].close;
+        const first = chart.candles[0].open;
+        const move = last - first;
+        plotModalTitle.textContent = chart.title;
+        plotModalSummary.textContent = `${chart.category} · latest ${last.toFixed(decimals)} ${chart.unit} · 18-step synthetic run`;
+        plotModalChart.innerHTML = renderCandleChart(chart.candles);
+        plotModalMeta.innerHTML = `
+          <span>${chart.category}</span>
+          <span>${move >= 0 ? "+" : ""}${move.toFixed(decimals)} ${chart.unit}</span>
+        `;
+        plotModal.hidden = false;
+      }
+
+      plotModalClose?.addEventListener("click", closePlotModal);
+      plotModal?.addEventListener("click", (event) => {
+        if (event.target === plotModal) closePlotModal();
+      });
+
+      function buildWeatherSnapshot(data) {
+        const lat = Number(data.lat || 0);
+        const lon = Number(data.lon || 0);
+        const elevation = Number(data.elevation || 0);
+        // Approximate surface air temperature (°C): equatorial baseline minus
+        // ~0.55 °C per degree of latitude, ISA lapse rate 6.5 °C / km of elevation,
+        // mild longitudinal variation to break symmetry.
+        const temp = data.temperatureC ?? (
+          28 - Math.abs(lat) * 0.55 - Math.max(0, elevation) / 154 + Math.sin(lon * 0.08) * 3
+        );
+        // Barometric formula: P = P0 · exp(-h / H) with scale height H ≈ 8400 m.
+        const pressure = data.pressurePa ?? (
+          101325 * Math.exp(-Math.max(0, elevation) / 8400)
+        );
+        // Precipitation rate at the moment of the snapshot (mm/h).
+        // Defaults to 0 — most clicks at any given moment land on dry ground.
+        const precip = data.precipMmH ?? 0;
+        return {
+          tempC: Number(temp),
+          pressurePa: Math.max(12000, Number(pressure)),
+          precipMmH: Math.max(0, Number(precip)),
+        };
+      }
+
+      function isWaterLocation(data) {
+        // Earth surface heuristic: elevation < 0 m → below sea level → ocean.
+        // Edge cases (Dead Sea ≈ −430 m, Caspian ≈ −28 m, Death Valley ≈ −86 m)
+        // are accepted; they're rare on a global click distribution.
+        if (data.isWater === true) return true;
+        const elevation = Number(data.elevation);
+        return Number.isFinite(elevation) && elevation < 0;
+      }
+
+      function buildWaterStateModel(data) {
+        const lat = Number(data.lat || 0);
+        const lon = Number(data.lon || 0);
+        const elevation = Number(data.elevation || 0);
+        const NA = "—";
+        return {
+          isWater: true,
+          summary: [
+            { label: "Landslide FoS",     value: NA, note: "water surface", group: "Primary Indicators", severity: "na" },
+            { label: "Flood Probability", value: NA, note: "open water",    group: "Primary Indicators", severity: "na" },
+            { label: "Ground Saturation", value: NA, note: "no soil column", group: "Primary Indicators", severity: "na" },
+            { label: "Rainfall 24h",      value: NA, note: "land metric",   group: "Primary Indicators", severity: "na" },
+            { label: "Pore Pressure",     value: NA, note: "no soil column", group: "Model Signals",    severity: "na" },
+            { label: "Model Confidence",  value: NA, note: "water surface", group: "Model Signals",    severity: "na" },
+          ],
+          metadata: {
+            Body: data.bodyName || "Earth",
+            Latitude: lat.toFixed(5) + "°",
+            Longitude: lon.toFixed(5) + "°",
+            Elevation: `${elevation.toFixed(1)} m (below sea level)`,
+            "Surface type": "Water body / ocean",
+            "Risk state": "Not applicable",
+            "Model mode": "geohazard model bypassed for water surface",
+          },
+          sources: [
+            { title: "Water surface detected", body: "Pin is at or below sea level. Landslide, slope-stability, and soil-moisture indicators are not applicable here." },
+            { title: "Drop on land for hazard data", body: "Choose a coastal, inland, or upland location to populate the risk dashboard with synthetic hazard indicators." },
+          ],
+          charts: [],
+        };
+      }
+
+      function updatePinDisplay(data) {
+        const { lat, lon, elevation } = data;
+        const weather = buildWeatherSnapshot(data);
+        const water = isWaterLocation(data);
+        const coordText = `${lat != null ? lat.toFixed(4) : "?"}°, ${lon != null ? lon.toFixed(4) : "?"}°`;
+        const elevText = elevation != null
+          ? `${elevation.toFixed(0)} m${water ? " (water)" : ""}`
+          : "elev n/a";
+        // Land-only hazard metrics are null over water; air temp/pressure still valid.
+        const precipText = water ? "—" : `${weather.precipMmH.toFixed(1)} mm/h`;
+        pinDisplay.innerHTML = `
+          <span class="hub-pin-primary">${coordText}</span>
+          <span class="hub-pin-elev">${elevText}</span>
+          <span class="hub-pin-sep" aria-hidden="true"></span>
+          <span class="hub-pin-metric" data-kind="temp">TEMP <b>${weather.tempC >= 0 ? "+" : ""}${weather.tempC.toFixed(0)}°C</b></span>
+          <span class="hub-pin-metric" data-kind="pressure">PRESS <b>${weather.pressurePa.toFixed(0)} Pa</b></span>
+          <span class="hub-pin-metric" data-kind="precip">PRECIP <b>${precipText}</b></span>
+        `;
+        pinDisplay.classList.add("has-data");
+      }
+
+      function seededRandom(seed) {
+        let value = seed % 2147483647;
+        if (value <= 0) value += 2147483646;
+        return () => {
+          value = (value * 16807) % 2147483647;
+          return (value - 1) / 2147483646;
+        };
+      }
+
+      function buildDummyHazardModel(data) {
+        if (isWaterLocation(data)) return buildWaterStateModel(data);
+
+        const lat = Number(data.lat || 0);
+        const lon = Number(data.lon || 0);
+        const elevation = Number(data.elevation || 0);
+        const slope = Number(data.slope || (Math.abs(lat) % 24) + 3);
+        const seed = Math.round((lat + 90) * 1000) ^ Math.round((lon + 180) * 1000);
+        const rand = seededRandom(Math.abs(seed) + 17);
+
+        // ── Climate proxy ───────────────────────────────────────────────────
+        // Tropical-to-polar gradient: cos(lat) is 1 at the equator, 0 at the poles.
+        const latAbs = Math.abs(lat);
+        const tropicalFactor = Math.max(0, Math.cos(latAbs * Math.PI / 180));
+        // Mild monsoon/coastal-style variation around the globe.
+        const continentality = 0.45 + 0.55 * Math.abs(Math.cos(lon * Math.PI / 90));
+
+        // ── Annual rainfall (mm/year) ───────────────────────────────────────
+        // Realistic span: ~80 mm (hyperarid) to ~3500 mm (wet tropics).
+        const annualRainfall = 80 + tropicalFactor * 2400 * continentality + rand() * 300;
+        const dailyAverage = annualRainfall / 365;  // typically 0.2–10 mm/day
+
+        // ── 24h rainfall snapshot (mm) ──────────────────────────────────────
+        // Most days are dry. Probability of a rain event scales with climate.
+        const rainProb = 0.12 + tropicalFactor * 0.45;
+        const isRainingToday = rand() < rainProb;
+        const rainfall = isRainingToday
+          ? dailyAverage * (1.2 + rand() * 7) + rand() * 1.5
+          : rand() * 0.4;
+
+        // ── Antecedent rainfall (prior 7 d, mm) ─────────────────────────────
+        const antecedentRain = dailyAverage * 7 * (0.4 + rand() * 1.5);
+
+        // ── Soil saturation (% of porosity) ─────────────────────────────────
+        // Realistic baseline 20–55% depending on climate; rises with recent rain.
+        const baseSoilMoisture = 18 + tropicalFactor * 28 + rand() * 8;
+        const saturation = Math.min(95, baseSoilMoisture + antecedentRain * 0.15 + rainfall * 0.35);
+
+        // ── Pore-water pressure (kPa, shallow 1–3 m) ────────────────────────
+        // Typical natural slope range: 0–60 kPa. Saturated heavy rain pushes to ~80.
+        const porePressure = Math.max(0.5, saturation * 0.45 + rainfall * 0.25 + rand() * 4);
+
+        // ── Slope stress (kPa, gravitational driver) ────────────────────────
+        const slopeStress = Math.max(2, slope * 0.9 + rand() * 3);
+
+        // ── Factor of Safety (Mohr-Coulomb infinite-slope simplification) ───
+        // Most natural slopes sit between 1.5–5.0 (stable). Critical < 1.0.
+        // Reductions: high saturation, recent rainfall, steep slope.
+        const baseFoS = 3.2 - slope * 0.04;
+        const fosReduction = Math.max(0, (saturation - 30) / 110)
+                           + Math.max(0, (rainfall - 5) / 160)
+                           + Math.max(0, (slope - 8) / 55);
+        const fos = Math.max(0.85, Math.min(6.5, baseFoS - fosReduction + (rand() - 0.5) * 0.3));
+
+        // ── Surface creep / displacement (mm/d) ─────────────────────────────
+        // Stable slopes show <1 mm/d. Active landslides: 10–100 mm/d.
+        const displacement = fos > 1.5
+          ? rand() * 0.4
+          : Math.max(0.2, (1.7 - fos) * 12 + rand() * 2);
+
+        // ── Confidence (%) ──────────────────────────────────────────────────
+        const confidence = Math.min(96, Math.max(58, 88 - rand() * 14));
+
+        // ── Annual flood exceedance probability (%) ─────────────────────────
+        // Most locations are <2%. Floodplains (low elevation): 5–25%. High-risk: up to 60%.
+        const isLowland = elevation < 80;
+        const baseFloodRisk = isLowland ? 2.5 + rand() * 4 : 0.4 + rand() * 1.0;
+        const rainContribution = rainfall > 25 ? (rainfall - 25) * 0.35 : 0;
+        const satContribution  = saturation > 65 ? (saturation - 65) * 0.15 : 0;
+        const floodProbability = Math.min(60, baseFloodRisk + rainContribution + satContribution);
+
+        // ── Precipitation rate now (mm/h) ───────────────────────────────────
+        // Most snapshots = 0. Active rain: 0.5–15 mm/h. Extreme: >30 mm/h.
+        const precipRateNow = isRainingToday ? Math.max(0.1, rainfall / 14) + rand() * 0.2 : 0;
+
+        const weather = buildWeatherSnapshot({ ...data, precipMmH: data.precipMmH ?? precipRateNow });
+        const seismic = Math.max(0.0, Math.abs(Math.sin((lat + lon) * 0.07)) * 2.8 + rand() * 0.6);
+        const relief = Math.max(6, Math.abs(elevation) / 60 + slope * 1.8);
+        // Landslide FoS = resisting forces / driving forces.
+        //   < 1.0  active failure (slope is moving)
+        //   1.0–1.3 high risk (failure plausible under load / saturation)
+        //   1.3–1.5 marginal — transition to stable; typically the design minimum
+        //   ≥ 1.5  stable
+        const risk = fos < 1.0 ? "Critical"
+                  : fos < 1.3 ? "High"
+                  : fos < 1.5 ? "Watch"
+                  : "Stable";
+        const seedBase = Math.abs(seed) + 101;
+
+        const chartDefs = [
+          { title: "Landslide FoS", category: "Risk", unit: "FoS", base: fos, volatility: 0.12, priority: true },
+          { title: "Flood Probability", category: "Risk", unit: "%", base: floodProbability, volatility: 13, priority: true },
+          { title: "Ground Saturation", category: "Risk", unit: "%", base: saturation, volatility: 10, priority: true },
+          { title: "Rainfall 24h", category: "Risk", unit: "mm", base: rainfall, volatility: 14, priority: true },
+          { title: "Pore Pressure", category: "Risk", unit: "kPa", base: porePressure, volatility: 8, priority: true },
+          { title: "Model Spread", category: "Risk", unit: "%", base: 100 - confidence, volatility: 7, priority: true },
+          { title: "Soil Moisture", category: "Hydrology", unit: "%", base: saturation * 0.88, volatility: 8 },
+          { title: "Runoff Index", category: "Hydrology", unit: "%", base: floodProbability * 0.74, volatility: 11 },
+          { title: "River Stage", category: "Hydrology", unit: "m", base: rainfall / 16 + rand() * 2, volatility: 1.2 },
+          { title: "Drainage Load", category: "Hydrology", unit: "%", base: saturation * 0.62 + rainfall * 0.25, volatility: 9 },
+          { title: "Infiltration Deficit", category: "Hydrology", unit: "mm", base: Math.max(2, 58 - saturation * 0.38), volatility: 9 },
+          { title: "Antecedent Rain", category: "Hydrology", unit: "mm", base: antecedentRain, volatility: 6 },
+          { title: "Slope Stress", category: "Geotechnical", unit: "kPa", base: slopeStress * 2.2, volatility: 9 },
+          { title: "Surface Creep", category: "Geotechnical", unit: "mm/d", base: displacement, volatility: 5 },
+          { title: "Shear Strength", category: "Geotechnical", unit: "kPa", base: 76 + fos * 24, volatility: 12 },
+          { title: "Relief Energy", category: "Geotechnical", unit: "MJ", base: relief, volatility: 18 },
+          { title: "Bearing Margin", category: "Geotechnical", unit: "%", base: Math.max(8, fos * 42), volatility: 10 },
+          { title: "Failure Velocity", category: "Geotechnical", unit: "mm/h", base: displacement / 8, volatility: 1.1 },
+          { title: "Seismic Coupling", category: "Seismic", unit: "Mw", base: seismic, volatility: 0.45 },
+          { title: "Volcanic Forcing", category: "Seismic", unit: "%", base: Math.max(2, seismic * 18 + rand() * 14), volatility: 10 },
+          { title: "Thermal Anomaly", category: "Seismic", unit: "K", base: 1.5 + rand() * 12, volatility: 3.5 },
+          { title: "Exposure Index", category: "Exposure", unit: "%", base: Math.min(98, 34 + Math.abs(lon % 40) + rand() * 12), volatility: 9 },
+          { title: "Asset Proximity", category: "Exposure", unit: "km", base: Math.max(0.5, 22 - Math.abs(lat % 18)), volatility: 4 },
+          { title: "Evacuation Friction", category: "Exposure", unit: "%", base: Math.min(95, 25 + relief * 0.18 + rand() * 16), volatility: 8 },
+          { title: "Model Confidence", category: "Model", unit: "%", base: confidence, volatility: 5 },
+          { title: "Sensor Coverage", category: "Model", unit: "%", base: Math.max(22, confidence - rand() * 18), volatility: 7 },
+          { title: "Forecast Divergence", category: "Model", unit: "%", base: 100 - confidence + rand() * 8, volatility: 6 },
+          { title: "Assimilation Lag", category: "Model", unit: "min", base: 8 + rand() * 28, volatility: 6 },
+        ];
+
+        return {
+          summary: [
+            { label: "Landslide FoS", value: fos.toFixed(2), note: risk, group: "Primary Indicators", severity: risk.toLowerCase() },
+            { label: "Flood Probability", value: `${floodProbability.toFixed(1)}%`, note: rainfall > 25 ? "rain forced" : isLowland ? "lowland" : "watching", group: "Primary Indicators", severity: floodProbability > 20 ? "high" : floodProbability > 8 ? "watch" : "stable" },
+            { label: "Ground Saturation", value: `${saturation.toFixed(0)}%`, note: antecedentRain > 30 ? "wet antecedent" : "near baseline", group: "Primary Indicators", severity: saturation > 80 ? "high" : saturation > 60 ? "watch" : "stable" },
+            { label: "Rainfall 24h", value: `${rainfall.toFixed(1)} mm`, note: isRainingToday ? "active rainfall" : "dry day", group: "Primary Indicators", severity: rainfall > 50 ? "high" : rainfall > 20 ? "watch" : "stable" },
+            { label: "Pore Pressure", value: `${porePressure.toFixed(1)} kPa`, note: "shallow soil column", group: "Model Signals", severity: porePressure > 55 ? "high" : porePressure > 35 ? "watch" : "stable" },
+            { label: "Model Confidence", value: `${confidence.toFixed(0)}%`, note: "dummy ensemble", group: "Model Signals", severity: confidence > 82 ? "good" : confidence > 68 ? "watch" : "high" },
+          ],
+          metadata: {
+            Body: data.bodyName || "Earth",
+            Latitude: lat.toFixed(5) + "°",
+            Longitude: lon.toFixed(5) + "°",
+            Elevation: elevation.toFixed(1) + " m",
+            "Surface slope": slope.toFixed(1) + " deg",
+            Temperature: `${weather.tempC >= 0 ? "+" : ""}${weather.tempC.toFixed(0)} °C`,
+            Pressure: `${weather.pressurePa.toFixed(0)} Pa`,
+            Precipitation: `${weather.precipMmH.toFixed(1)} mm/h`,
+            Geology: data.geology || "regional mixed lithology",
+            "Risk state": risk,
+            "Generated at": "synthetic nowcast",
+            "Model mode": "dummy geoselector run",
+          },
+          sources: [
+            { title: "Terrain and relief", body: "DEM-derived slope, aspect, relief energy, and flow accumulation placeholders." },
+            { title: "Hydrometeorology", body: "Synthetic rainfall, soil moisture, runoff, and river-stage feeds shaped by selected latitude and longitude." },
+            { title: "Geotechnical model", body: "Dummy factor-of-safety, pore-pressure, creep, and shear-strength ensemble outputs for interface testing." },
+            { title: "Exposure layer", body: "Placeholder proximity and accessibility indicators for future population, infrastructure, and route datasets." },
+          ],
+          charts: chartDefs.map((chart, index) => ({
+            ...chart,
+            candles: buildCandles(chart.base, chart.volatility, seededRandom(seedBase + index * 37)),
+          })),
+        };
+      }
+
+      function buildCandles(base, volatility, rand) {
+        let previous = Number(base) || 1;
+        return Array.from({ length: 18 }, () => {
+          const open = previous + (rand() - 0.5) * volatility * 0.55;
+          const close = open + (rand() - 0.46) * volatility * 0.75;
+          const high = Math.max(open, close) + rand() * volatility * 0.55;
+          const low = Math.min(open, close) - rand() * volatility * 0.55;
+          previous = close;
+          return { open, close, high, low };
+        });
+      }
+
+      function renderCandleChart(candles) {
+        const high = Math.max(...candles.map((c) => c.high));
+        const low = Math.min(...candles.map((c) => c.low));
+        const span = Math.max(high - low, 0.001);
+        return candles.map((candle) => {
+          const wickTop = ((high - candle.high) / span) * 100;
+          const wickBottom = ((candle.low - low) / span) * 100;
+          const bodyTop = ((high - Math.max(candle.open, candle.close)) / span) * 100;
+          const bodyBottom = ((Math.min(candle.open, candle.close) - low) / span) * 100;
+          const direction = candle.close >= candle.open ? "up" : "down";
+          return `
+            <span class="candle ${direction}">
+              <span class="candle-wick" style="top:${wickTop.toFixed(2)}%;bottom:${wickBottom.toFixed(2)}%"></span>
+              <span class="candle-body" style="top:${bodyTop.toFixed(2)}%;bottom:${bodyBottom.toFixed(2)}%"></span>
+            </span>
+          `;
+        }).join("");
+      }
+
+      function renderMarketCards(charts) {
+        return charts.map((chart) => {
+          const decimals = chart.unit === "FoS" || chart.unit === "Mw" || chart.unit === "m" || chart.unit === "mm/h" ? 2 : 1;
+          const last = chart.candles[chart.candles.length - 1].close;
+          const first = chart.candles[0].open;
+          const move = last - first;
+          const direction = move >= 0 ? "rising" : "falling";
+          return `
+            <article class="market-card">
+              <div class="market-card-head">
+                <span class="market-title">${chart.title}</span>
+                <span class="market-last">${last.toFixed(decimals)} ${chart.unit}</span>
+                <button class="market-expand-btn" type="button" data-chart-title="${chart.title}" aria-label="Expand ${chart.title}">↗</button>
+              </div>
+              <div class="market-submeta">
+                <span>${chart.category}</span>
+                <span>${direction}</span>
+              </div>
+              <div class="candle-chart" aria-hidden="true">${renderCandleChart(chart.candles)}</div>
+              <div class="market-meta">
+                <span>18-step run</span>
+                <span>${move >= 0 ? "+" : ""}${move.toFixed(decimals)} ${chart.unit}</span>
+              </div>
+            </article>
+          `;
+        }).join("");
+      }
+
+      function renderRiskSummaryGroups(summary) {
+        // One section, one row. Splitting the tiles into a 4-up group and a
+        // 2-up group meant the second row could only ever stretch or leave
+        // dead columns. Membership is not lost: it stays on data-group, and
+        // any tile outside the leading group carries a visible tag.
+        const lead = summary.length ? (summary[0].group || "Indicators") : "Indicators";
+        return `
+          <section class="risk-section">
+            <h3 class="risk-section-title">Indicators</h3>
+            <div class="risk-summary">
+              ${summary.map((tile) => {
+                const group = tile.group || "Indicators";
+                return `
+                <div class="risk-tile" data-severity="${tile.severity || "stable"}" data-group="${group}">
+                  ${group === lead ? "" : `<span class="risk-group" title="${group}">${group.split(" ")[0]}</span>`}
+                  <div class="risk-label">${tile.label}</div>
+                  <div class="risk-value">${tile.value}</div>
+                  <div class="risk-note">${tile.note}</div>
+                </div>`;
+              }).join("")}
+            </div>
+          </section>
+        `;
+      }
+
+      function renderRiskContext(data, model) {
+        const chips = document.getElementById("risk-context-chips");
+        if (!chips) return;
+        const meta = model.metadata || {};
+        // Each value gets its own label. Nine bare numbers in a row read as
+        // soup — "96835 Pa" only means something once it says PRESSURE.
+        chips.innerHTML = [
+          { key: "Position",   text: `${meta.Latitude || "?"}, ${meta.Longitude || "?"}`, status: true },
+          { key: "Elevation",  text: meta.Elevation || "n/a", status: true },
+          { key: "Temp",       text: meta.Temperature || "n/a" },
+          { key: "Pressure",   text: meta.Pressure || "n/a" },
+          { key: "Precip",     text: meta.Precipitation || "n/a" },
+          { key: "Lithology",  text: meta.Geology || "pending" },
+          { key: "Source",     text: "Synthetic", status: true },
+          { key: "Model run",  text: "18-step", status: true },
+          { key: "Feed",       text: "Live feed pending", status: true },
+        ].map((chip) => `<span class="hub-chip${chip.status ? " is-status" : ""}">`
+          + `<i class="hub-chip-k">${chip.key}</i>`
+          + `<b class="hub-chip-v">${chip.text}</b></span>`).join("");
+      }
+
+      function renderGroupedCharts(charts) {
+        const categories = [...new Set(charts.map((chart) => chart.category))];
+        return categories.map((category) => `
+          <section class="parameter-section">
+            <h2 class="parameter-section-title">${category}</h2>
+            <div class="market-grid">${renderMarketCards(charts.filter((chart) => chart.category === category))}</div>
+          </section>
+        `).join("");
+      }
+
+      function showGrid(emptyId, gridId, html) {
+        const empty = document.getElementById(emptyId);
+        const grid = document.getElementById(gridId);
+        empty.hidden = true;
+        grid.hidden = false;
+        grid.innerHTML = html;
+      }
+
+      function renderRiskDashboard(data) {
+        const riskSummary = document.getElementById("risk-summary");
+        const riskGrid = document.getElementById("risk-grid");
+        const model = buildDummyHazardModel(data);
+        const riskCharts = model.charts.filter((chart) => chart.priority);
+        currentHazardModel = model;
+
+        document.getElementById("risk-empty").hidden = true;
+        riskSummary.hidden = false;
+        renderRiskContext(data, model);
+        riskSummary.innerHTML = renderRiskSummaryGroups(model.summary);
+
+        // Water surface: hide chart panels entirely — the hazard model is null.
+        if (model.isWater) {
+          riskGrid.hidden = true;
+          riskGrid.innerHTML = "";
+          ["all", "hydrology", "geotechnical"].forEach((key) => {
+            const empty = document.getElementById(`${key}-empty`);
+            const grid = document.getElementById(
+              key === "all" ? "all-parameters-grid" : `${key}-grid`
+            );
+            if (empty) {
+              empty.hidden = false;
+              const sub = empty.querySelector(".hub-empty-sub");
+              if (sub) sub.textContent = "Water surface — hazard charts not applicable. Drop a pin on land.";
+            }
+            if (grid) { grid.hidden = true; grid.innerHTML = ""; }
+          });
+        } else {
+          riskGrid.hidden = false;
+          riskGrid.innerHTML = renderMarketCards(riskCharts);
+          showGrid("all-empty", "all-parameters-grid", renderGroupedCharts(model.charts));
+          showGrid("hydrology-empty", "hydrology-grid", renderMarketCards(model.charts.filter((chart) => chart.category === "Hydrology")));
+          showGrid("geotechnical-empty", "geotechnical-grid", renderMarketCards(model.charts.filter((chart) => chart.category === "Geotechnical")));
+        }
+        showGrid("sources-empty", "sources-grid", model.sources.map((source) => `
+          <article class="hub-copy-card">
+            <h3>${source.title}</h3>
+            <p>${source.body}</p>
+          </article>
+        `).join(""));
+        showGrid("metadata-empty", "metadata-grid", Object.entries(model.metadata).map(([key, value]) => `
+          <div class="sc-cell">
+            <div class="sc-cell-label">${key}</div>
+            <div class="sc-cell-value">${value}</div>
+          </div>
+        `).join(""));
+        return model;
+      }
+
+      function clearHubData() {
+        currentHazardModel = null;
+        closePlotModal();
+        const riskChips = document.getElementById("risk-context-chips");
+        if (riskChips) riskChips.innerHTML = "";
+        ["risk", "all", "hydrology", "geotechnical", "sources", "metadata"].forEach((key) => {
+          const empty = document.getElementById(`${key}-empty`);
+          if (empty) empty.hidden = false;
+        });
+        ["risk-summary", "risk-grid", "all-parameters-grid", "hydrology-grid", "geotechnical-grid", "sources-grid", "metadata-grid"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.hidden = true;
+          el.innerHTML = "";
+        });
+      }
+
+      drawer.addEventListener("click", (event) => {
+        const trigger = event.target.closest(".market-expand-btn, .market-card");
+        if (!trigger) return;
+        const title = trigger.dataset.chartTitle || trigger.querySelector(".market-expand-btn")?.dataset.chartTitle;
+        if (!title) return;
+        event.preventDefault();
+        openPlotModal(title);
+      });
+
+      function clearHubSelection(notifyViewer = true) {
+        currentPinData = null;
+        pinDisplay.textContent = "No pin placed";
+        pinDisplay.classList.remove("has-data");
+        setSelectionControlsEnabled(false);
+        clearHubData();
+        selectHubPanel("risk");
+        if (notifyViewer) {
+          postViewerMessage({ type: "geoid:clear-selection" });
+        }
+      }
+
+      // ── postMessage bridge (ready for viewer pin events) ─────────────────
+      // The Earth viewer should emit: window.parent.postMessage({ type: "geoid:pin", ... }, "*")
+      window.addEventListener("message", (event) => {
+        const msg = event.data;
+        if (!msg || typeof msg !== "object") return;
+
+        // The hub reports on one clicked location, so it stays out of the way
+        // until a location exists, then appears fully populated.
+        const setHubVisible = (visible) => {
+          const hubStrip = document.querySelector(".hub-strip");
+          const hubDrawer = document.getElementById("hub-drawer");
+          if (hubStrip) hubStrip.hidden = !visible;
+          if (hubDrawer) hubDrawer.hidden = !visible;
+          // The globe only gives up height while the hub is actually there.
+          // Announced on the shell so the stylesheet decides the layout rather
+          // than this function reaching into it.
+          shell.classList.toggle("is-hub-showing", visible);
+          if (!visible) {
+            setDrawerOpen(false);
+          }
+        };
+
+        // The open project, reported by the viewer. The header is outside the
+        // iframe and cannot read the store, so it is told.
+        //
+        // The project only -- the world is already unmistakable from the globe
+        // filling the page, and naming it here just repeated what the eye had
+        // already been told. When no project is open this is empty, and the
+        // stylesheet collapses it rather than leaving a gap.
+        if (msg.type === "geoid:context") {
+          const node = document.getElementById("nav-context");
+          if (node) {
+            node.textContent = msg.project || "";
+            node.title = msg.project
+              ? `Working in "${msg.project}"${msg.world ? ` on ${msg.world}` : ""}`
+              : "";
+          }
+          return;
+        }
+
+        if (msg.type === "geoid:pin") {
+          currentPinData = msg;
+          updatePinDisplay(msg);
+          setSelectionControlsEnabled(true);
+          renderRiskDashboard(msg);
+          selectHubPanel("risk");
+          setHubVisible(true);
+          setDrawerOpen(true);
+        }
+
+        if (msg.type === "geoid:pin:clear") {
+          clearHubSelection(false);
+          setHubVisible(false);
+        }
+
+        // The viewer now offers Model and GIS view modes alongside GeoID. The
+        // Analysis Hub describes a GeoID location, so it withdraws in the other
+        // modes and returns when a location is clicked again in GeoID mode.
+        if (msg.type === "geoid:mode") {
+          setHubVisible(msg.mode === "geoid" && Boolean(currentPinData));
+        }
+      });
+
+      // Hidden until the first location is clicked.
+      (() => {
+        const hubStrip = document.querySelector(".hub-strip");
+        const hubDrawer = document.getElementById("hub-drawer");
+        if (hubStrip) hubStrip.hidden = true;
+        if (hubDrawer) hubDrawer.hidden = true;
+      })();
+    })();
+  </script>
+
+<script src="/scripts/site.js"></script>
+<script src="/styles/nav.js?v=20260811-118fc88" defer></script>
+</body>
+</html>
