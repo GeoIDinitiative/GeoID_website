@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://server.arcgisonline.com">
 <link rel="preconnect" href="https://s3.amazonaws.com">
 <link rel="stylesheet" href="/styles/viewer-skin.css">
-<link rel="stylesheet" href="everest.css?v=d1bc06b-911a7123">
+<link rel="stylesheet" href="everest.css?v=eeb065e-911a7123">
 
 <!-- ── The reset switch, and why it has to exist ─────────────────────────────
      A site-wide service worker is registered at the root of this origin
@@ -171,7 +171,7 @@ addEventListener("DOMContentLoaded", () => {
 </div>
 
 <script type="module">
-import { Game } from "./game/main.js?v=d1bc06b-911a7123";
+import { Game } from "./game/main.js?v=eeb065e-911a7123";
 
 const canvas = document.getElementById("scene");
 const hudRoot = document.getElementById("hud");
@@ -193,12 +193,12 @@ window.__ascent = game;      // for the harness, and for anyone curious
 /* Headless driving. Only with ?shot, and only ever additive — the game does
    not behave differently because these exist. */
 if (game.headless) {
-  const { llToLocal } = await import("./game/geo.js?v=d1bc06b-911a7123");
+  const { llToLocal } = await import("./game/geo.js?v=eeb065e-911a7123");
   window.__drive = {
     game,
     run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
     settle: async (ms = 15000) => {
-      const tiles = await import("./game/tiles.js?v=d1bc06b-911a7123");
+      const tiles = await import("./game/tiles.js?v=eeb065e-911a7123");
       const end = performance.now() + ms;
       let quiet = 0;
       while (performance.now() < end) {

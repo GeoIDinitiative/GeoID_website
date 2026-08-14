@@ -1514,3 +1514,49 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   color: rgba(255, 176, 128, 0.85);
   text-shadow: 0 0 8px rgba(255, 106, 0, 0.25);
 }
+
+
+/* ── The panel stops above the rings ────────────────────────────────────
+   The core readers (health, stamina, warmth, oxygen) live at bottom-left
+   under the panel's column. Its height budget now subtracts their 84 px
+   canvas plus the HUD padding on both sides of them, so an expanded stack
+   of sections scrolls inside the panel rather than covering the body's
+   own instruments. */
+.navbar {
+  max-height: calc(100vh - 1rem - var(--hud-pad) - 84px - var(--hud-pad));
+}
+
+/* ── The phone screen ───────────────────────────────────────────────────
+   The panel alone renders like a small retro display: horizontal scan
+   lines, a faint RGB triad grid, and a corner vignette, all in one
+   non-interactive overlay clipped to the panel's own radius. Opacities
+   tuned so the type stays crisp — the effect should read as glass, not
+   as dirt on the content. */
+.navbar { position: fixed; }
+.navbar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 62%, rgba(0, 0, 0, 0.28) 100%),
+    repeating-linear-gradient(0deg,
+      rgba(0, 0, 0, 0.16) 0px, rgba(0, 0, 0, 0.16) 1px,
+      transparent 1px, transparent 3px),
+    repeating-linear-gradient(90deg,
+      rgba(255, 60, 40, 0.028) 0px, rgba(255, 60, 40, 0.028) 1px,
+      rgba(60, 255, 90, 0.022) 1px, rgba(60, 255, 90, 0.022) 2px,
+      rgba(70, 110, 255, 0.028) 2px, rgba(70, 110, 255, 0.028) 3px);
+}
+/* A whisper of phosphor bloom on the glass. */
+.navbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 39;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.05) 0%, transparent 28%);
+}
