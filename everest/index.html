@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://server.arcgisonline.com">
 <link rel="preconnect" href="https://s3.amazonaws.com">
 <link rel="stylesheet" href="/styles/viewer-skin.css">
-<link rel="stylesheet" href="everest.css?v=6ff1c42-ad5eb548">
+<link rel="stylesheet" href="everest.css?v=4bfc309-223f4a5a">
 
 <!-- ── The reset switch, and why it has to exist ─────────────────────────────
      A site-wide service worker is registered at the root of this origin
@@ -105,7 +105,7 @@ addEventListener("DOMContentLoaded", () => {
     <div class="start-map" id="start-map" hidden>
       <p class="start-map-label">Choose your starting point</p>
       <div class="start-map-box" id="start-map-box">
-        <img src="data/khumbu_map.png" alt="Khumbu orthophoto" draggable="false">
+        <img src="data/khumbu_map.png?r=3" alt="Khumbu orthophoto" draggable="false">
         <img class="sm-contours" src="data/khumbu_contours.png" alt="" draggable="false">
       </div>
     </div>
@@ -178,8 +178,8 @@ addEventListener("DOMContentLoaded", () => {
 </div>
 
 <script type="module">
-import { Game } from "./game/main.js?v=6ff1c42-ad5eb548";
-import { ROUTE } from "./game/config.js?v=6ff1c42-ad5eb548";
+import { Game } from "./game/main.js?v=4bfc309-223f4a5a";
+import { ROUTE } from "./game/config.js?v=4bfc309-223f4a5a";
 
 const canvas = document.getElementById("scene");
 const hudRoot = document.getElementById("hud");
@@ -201,12 +201,12 @@ window.__ascent = game;      // for the harness, and for anyone curious
 /* Headless driving. Only with ?shot, and only ever additive — the game does
    not behave differently because these exist. */
 if (game.headless) {
-  const { llToLocal } = await import("./game/geo.js?v=6ff1c42-ad5eb548");
+  const { llToLocal } = await import("./game/geo.js?v=4bfc309-223f4a5a");
   window.__drive = {
     game,
     run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
     settle: async (ms = 15000) => {
-      const tiles = await import("./game/tiles.js?v=6ff1c42-ad5eb548");
+      const tiles = await import("./game/tiles.js?v=4bfc309-223f4a5a");
       const end = performance.now() + ms;
       let quiet = 0;
       while (performance.now() < end) {

@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=6ff1c42-ad5eb548";
-import { ITEMS } from "./survival.js?v=6ff1c42-ad5eb548";
-import { compassPoint } from "./geo.js?v=6ff1c42-ad5eb548";
+import { Director } from "./director.js?v=4bfc309-223f4a5a";
+import { ITEMS } from "./survival.js?v=4bfc309-223f4a5a";
+import { compassPoint } from "./geo.js?v=4bfc309-223f4a5a";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -183,7 +183,7 @@ export class Hud {
       </div>
       <div class="mv-frame" id="mv-frame">
         <div class="mv-world" id="mv-world">
-          <img class="mv-img" src="data/khumbu_map.png" draggable="false">
+          <img class="mv-img" src="data/khumbu_map.png?r=3" draggable="false">
           <img class="mv-contours" src="data/khumbu_contours.png" draggable="false" alt="">
           <div class="mv-pins" id="mv-pins"></div>
         </div>

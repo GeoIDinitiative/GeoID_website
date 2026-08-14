@@ -58,28 +58,46 @@ def main():
     dem_img = Image.fromarray(dem).resize((W, H), Image.BILINEAR)
     dem = np.asarray(dem_img, dtype=np.float64)
 
-    # Hillshade, sun from the northwest at 45°.
+    # Hillshade, sun from the northwest at 45° — SOFTENED: full-range
+    # shading read as wet slate against the sunlit Sentinel snow, so the
+    # relief term only modulates the top half of the brightness range.
     gy, gx = np.gradient(dem, 8.83)          # metres per output pixel
     slope = np.pi / 2 - np.arctan(np.hypot(gx, gy))
     aspect = np.arctan2(-gx, gy)
     az, alt = math.radians(315), math.radians(45)
     shade = np.sin(alt) * np.sin(slope) + np.cos(alt) * np.cos(slope) * np.cos(az - aspect)
-    shade = np.clip(shade, 0, 1)
+    shade = 0.60 + 0.40 * np.clip(shade, 0, 1)
 
-    # Hypsometric tint: valley grey-green to high-snow white.
+    # Hypsometric tint, biased bright: these are snowfields and lit rock.
     t = np.clip((dem - 4000) / 4000, 0, 1)
-    r = 150 + t * 95
-    g = 150 + t * 98
-    b = 145 + t * 105
+    r = 196 + t * 52
+    g = 198 + t * 50
+    b = 196 + t * 54
     fill = np.stack([r * shade, g * shade, b * shade], axis=-1)
 
     src = np.asarray(ortho, dtype=np.float64)
     lum = src.mean(axis=2)
-    # Void mask: near-black, blurred so the seam feathers over ~30 px.
+
+    # Tone-match: scale the fill so its mean equals the mean of the last
+    # 150 rows of real imagery — the two sides of the seam then differ in
+    # texture, not in exposure.
+    valid_rows = np.where(lum.mean(axis=1) > 8)[0]
+    band = src[valid_rows[-160]:valid_rows[-10], :, :]
+    target = band.mean(axis=(0, 1))
+    current = fill.mean(axis=(0, 1))
+    fill = np.clip(fill * (target / current) * 0.97, 0, 255)
+
+    # Void mask feathered over ~90 px so the hand-off is a gradient the
+    # eye reads as haze, not a horizon line.
     mask = (lum < 4).astype(np.float64)
-    mask_img = Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(14))
+    mask_img = Image.fromarray((mask * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(42))
     m = np.asarray(mask_img, dtype=np.float64)[..., None] / 255
-    out = src * (1 - m) + fill * m
+    # Blend against a source whose void is ALREADY filled, or the feather
+    # zone mixes fill with the black it is trying to hide and the seam
+    # reads as a grey stripe. With the hard fill underneath, the gradient
+    # is imagery-to-fill all the way across.
+    src2 = np.where(mask[..., None] > 0.5, fill, src)
+    out = src2 * (1 - m) + fill * m
     Image.fromarray(out.astype(np.uint8)).save(OUT)
     print("wrote", OUT, ortho.size)
 
