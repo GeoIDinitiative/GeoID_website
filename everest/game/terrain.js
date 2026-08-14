@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=99aef70-518737ac";
-import { CLIPMAP, RENDER } from "./config.js?v=99aef70-518737ac";
+import * as THREE from "../vendor/three.module.js?v=6fb6f8f-2ea48d0c";
+import { CLIPMAP, RENDER } from "./config.js?v=6fb6f8f-2ea48d0c";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -915,7 +915,7 @@ const FRAG = /* glsl */`
                use for it returns.) */
             float aR = 0.52 * rm.r * (1.0 - smoothstep(700.0, 2600.0, vDist))
                      * smoothstep(2.5, 9.0, vDist);   // not a gold carpet underfoot
-            col = mix(col, vec3(0.878, 0.627, 0.145), clamp(aR, 0.0, 0.9));
+            col = mix(col, vec3(0.16, 0.72, 0.34), clamp(aR, 0.0, 0.9));   // route green
           }
         }
       }
