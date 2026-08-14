@@ -25,9 +25,9 @@
  * be roped, or to have gone that way before.
  */
 
-import * as THREE from "../vendor/three.module.js?v=cbbe893-1efb96f0";
-import { llToLocal } from "./geo.js?v=cbbe893-1efb96f0";
-import { ROUTE, OPEN } from "./config.js?v=cbbe893-1efb96f0";
+import * as THREE from "../vendor/three.module.js?v=bda57b2-5e879d56";
+import { llToLocal } from "./geo.js?v=bda57b2-5e879d56";
+import { ROUTE, OPEN } from "./config.js?v=bda57b2-5e879d56";
 
 const MASK_PX = 1024;
 const MASK_M = 1024;            // metres covered — so exactly 1 m per pixel
@@ -185,16 +185,42 @@ export class Glacier {
 
     /* Ladders where the route crosses. The Icefall Doctors have been through
        here already; the player is not the first person up this season. */
+    this.assignLadders(segs);
+  }
+
+  /** Ladders sit at the EXACT points where the route polyline crosses a
+   *  slot — not at the slot's centre because the route passed nearby. The
+   *  intersection is solved in each segment's own frame (along its axis,
+   *  across its width): a route edge whose across-coordinate changes sign
+   *  inside the slot's length crosses it, and the ladder is laid there.
+   *  Following the route therefore walks you ONTO every ladder. */
+  assignLadders(segs) {
+    this.segments = segs;
     this.ladders = [];
     for (const seg of segs) {
-      const near = this.routeDistance(seg.x, seg.z);
-      if (near > 22) continue;
-      if (seg.width < 0.7 || seg.width > 2.6) continue;
-      seg.hasLadder = true;
-      seg.bridged = 1;                     // a ladder is as good as a bridge
-      this.ladders.push(seg);
+      seg.hasLadder = false;
+      seg.ladder = null;
+      if (seg.width > 3.5) continue;       // wider than lashed ladders go
+      const ux = Math.sin(seg.angle), uz = Math.cos(seg.angle);
+      const nx = Math.cos(seg.angle), nz = -Math.sin(seg.angle);
+      for (let i = 1; i < this.routePath.length; i++) {
+        const a = this.routePath[i - 1], b = this.routePath[i];
+        const aN = (a.x - seg.x) * nx + (a.z - seg.z) * nz;
+        const bN = (b.x - seg.x) * nx + (b.z - seg.z) * nz;
+        if ((aN > 0) === (bN > 0)) continue;           // does not cross
+        const t = aN / (aN - bN);
+        const alongU = ((a.x + (b.x - a.x) * t) - seg.x) * ux
+                     + ((a.z + (b.z - a.z) * t) - seg.z) * uz;
+        if (Math.abs(alongU) > seg.len / 2 * 0.92) continue;
+        seg.hasLadder = true;
+        seg.bridged = 1;                   // a ladder is as good as a bridge
+        seg.ladderAlong = alongU;          // where on the slot it lies
+        this.ladders.push(seg);
+        break;
+      }
     }
     this.buildLadderProps();
+    this.buildStepLadders();
   }
 
   /** The ladders themselves: two aluminium rails and their rungs, laid
@@ -209,13 +235,27 @@ export class Glacier {
     const rungMat = new THREE.MeshLambertMaterial({ color: 0xaeb8bf });
     for (const seg of this.ladders) {
       const span = seg.width + 2.4;
+      const ux = Math.sin(seg.angle), uz = Math.cos(seg.angle);
       const nx = Math.cos(seg.angle), nz = -Math.sin(seg.angle);
-      const ya = this.field.height(seg.x - nx * span / 2, seg.z - nz * span / 2);
-      const yb = this.field.height(seg.x + nx * span / 2, seg.z + nz * span / 2);
-      const y = Math.min(ya, yb) + 0.10;
-      seg.ladder = { nx, nz, span, y };
+      const cx = seg.x + ux * (seg.ladderAlong || 0);
+      const cz = seg.z + uz * (seg.ladderAlong || 0);
+      /* Deck height against the surface the MESH renders (3x3 box at 8 m,
+         matching the clipmap's filtering) — raw point samples buried the
+         ladders under hummocky rendered snow, exactly as they buried the
+         tents. */
+      const fh = (px, pz) => {
+        let h = 0;
+        for (const dx of [-8, 0, 8]) for (const dz of [-8, 0, 8]) h += this.field.height(px + dx, pz + dz);
+        return h / 9;
+      };
+      const ya = Math.max(fh(cx - nx * span / 2, cz - nz * span / 2),
+                          this.field.height(cx - nx * span / 2, cz - nz * span / 2));
+      const yb = Math.max(fh(cx + nx * span / 2, cz + nz * span / 2),
+                          this.field.height(cx + nx * span / 2, cz + nz * span / 2));
+      const y = Math.max(ya, yb) + 0.14;
+      seg.ladder = { nx, nz, span, y, cx, cz };
       const grp = new THREE.Group();
-      grp.position.set(seg.x, y, seg.z);
+      grp.position.set(cx, y, cz);
       grp.rotation.y = -Math.atan2(nz, nx);      // local +X runs along the crossing
       for (const off of [-0.19, 0.19]) {
         const rail = new THREE.Mesh(new THREE.BoxGeometry(span, 0.055, 0.055), railMat);
@@ -516,20 +556,86 @@ export class Glacier {
   setRoutePath(pts) {
     this.routePath = pts;
     if (!this.segments || !this.segments.length) return;
-    for (const seg of this.segments) {
-      if (seg.hasLadder) { seg.hasLadder = false; }
-    }
-    this.ladders = [];
-    for (const seg of this.segments) {
-      const near = this.routeDistance(seg.x, seg.z);
-      if (near > 22) continue;
-      if (seg.width < 0.7 || seg.width > 2.6) continue;
-      seg.hasLadder = true;
-      seg.bridged = 1;
-      this.ladders.push(seg);
-    }
-    this.buildLadderProps();
+    this.assignLadders(this.segments);
     if (Number.isFinite(this.centre.x)) this.paintMask(this.centre.x, this.centre.z);
+  }
+
+  /** Vertical ladders, pre-perched against the steps: walk the route, and
+   *  wherever the ground ahead rises like a wall — a serac step, a short
+   *  cliff — a ladder already leans against it. E at the base boosts you
+   *  onto the top: the Doctors got here first. */
+  buildStepLadders() {
+    if (this.stepGroup) this.group.remove(this.stepGroup);
+    this.stepGroup = new THREE.Group();
+    this.stepGroup.name = "step-ladders";
+    this.stepLadders = [];
+    const railMat = new THREE.MeshLambertMaterial({ color: 0xc9d2d8 });
+    const rungMat = new THREE.MeshLambertMaterial({ color: 0xaeb8bf });
+    const fh = (px, pz) => {
+      let h = 0;
+      for (const dx of [-6, 0, 6]) for (const dz of [-6, 0, 6]) h += this.field.height(px + dx, pz + dz);
+      return h / 9;
+    };
+    let sinceLast = 1e9;
+    for (let i = 1; i < this.routePath.length; i++) {
+      const a = this.routePath[i - 1], b = this.routePath[i];
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      const dx = (b.x - a.x) / (len || 1), dz = (b.z - a.z) / (len || 1);
+      for (let d = 0; d < len; d += 3) {
+        sinceLast += 3;
+        if (sinceLast < 35) continue;
+        const px = a.x + dx * d, pz = a.z + dz * d;
+        /* A STEP, not a climb: the route gains height everywhere, so the
+           test is concentration — the steepest 2 m stride inside the
+           window must exceed ~39 degrees. Ordinary graded route (the A*
+           bars anything past 35) never trips this; the residual walls the
+           smoothing pass cut across are exactly what does. */
+        const h0 = fh(px, pz);
+        const h1 = fh(px + dx * 8, pz + dz * 8);
+        const rise = h1 - h0;
+        if (rise < 2.2 || rise > 12) continue;
+        let maxGrad = 0;
+        for (let m = 0; m < 8; m += 2) {
+          const ga = this.field.height(px + dx * m, pz + dz * m);
+          const gb = this.field.height(px + dx * (m + 2), pz + dz * (m + 2));
+          maxGrad = Math.max(maxGrad, (gb - ga) / 2);
+        }
+        if (maxGrad < 0.82) continue;
+        sinceLast = 0;
+        const run = 3.0;
+        const topX = px + dx * (run + 1.2), topZ = pz + dz * (run + 1.2);
+        const topY = fh(topX, topZ);
+        this.stepLadders.push({ x: px, z: pz, y: h0, topX, topZ, topY, rise });
+        const L = Math.hypot(run, rise) + 0.8;
+        const grp = new THREE.Group();
+        grp.position.set(px, h0, pz);
+        grp.rotation.y = -Math.atan2(dz, dx);
+        grp.rotation.z = Math.atan2(rise, run);       // lean against the step
+        for (const off of [-0.19, 0.19]) {
+          const rail = new THREE.Mesh(new THREE.BoxGeometry(L, 0.055, 0.055), railMat);
+          rail.position.set(L / 2, 0, off);
+          grp.add(rail);
+        }
+        const nRungs = Math.max(5, Math.floor(L / 0.32));
+        for (let k = 0; k < nRungs; k++) {
+          const rung = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.44), rungMat);
+          rung.position.set(0.3 + (k / (nRungs - 1)) * (L - 0.6), 0.02, 0);
+          grp.add(rung);
+        }
+        this.stepGroup.add(grp);
+      }
+    }
+    this.group.add(this.stepGroup);
+  }
+
+  /** Nearest step-ladder base within r. */
+  stepLadderNear(x, z, r = 3.5) {
+    let best = null, bd = r * r;
+    for (const l of this.stepLadders || []) {
+      const d = (l.x - x) ** 2 + (l.z - z) ** 2;
+      if (d < bd) { bd = d; best = l; }
+    }
+    return best;
   }
 
   ladderNear(x, z, radius = 14) {

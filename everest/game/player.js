@@ -13,8 +13,8 @@
  * hypoxic, exhausted and frostbitten turns into being slow.
  */
 
-import * as THREE from "../vendor/three.module.js?v=cbbe893-1efb96f0";
-import { MOVE, TIME_SCALE, OPEN } from "./config.js?v=cbbe893-1efb96f0";
+import * as THREE from "../vendor/three.module.js?v=bda57b2-5e879d56";
+import { MOVE, TIME_SCALE, OPEN } from "./config.js?v=bda57b2-5e879d56";
 
 const D2R = Math.PI / 180;
 
@@ -224,8 +224,8 @@ export class Player {
         && performance.now() > (this._ladderCd || 0)) {
       const L = seg.ladder;
       const ux = Math.sin(seg.angle), uz = Math.cos(seg.angle);
-      const along = (nx - seg.x) * ux + (nz - seg.z) * uz;
-      const sN = (nx - seg.x) * L.nx + (nz - seg.z) * L.nz;
+      const along = (nx - L.cx) * ux + (nz - L.cz) * uz;
+      const sN = (nx - L.cx) * L.nx + (nz - L.cz) * L.nz;
       const towardSlot = (dx * L.nx + dz * L.nz) * -Math.sign(sN) > 0.2;
       if (Math.abs(along) < 1.1 && Math.abs(sN) <= L.span / 2
           && Math.abs(sN) >= seg.width / 2 - 0.2 && towardSlot) {
@@ -355,8 +355,8 @@ export class Player {
       }
     }
 
-    this.pos.x = seg.x + L.nx * Ld.s + ux * Ld.sway * 0.30;
-    this.pos.z = seg.z + L.nz * Ld.s + uz * Ld.sway * 0.30;
+    this.pos.x = L.cx + L.nx * Ld.s + ux * Ld.sway * 0.30;
+    this.pos.z = L.cz + L.nz * Ld.s + uz * Ld.sway * 0.30;
     this.pos.y = L.y + 0.04;
     this.speed = Math.abs(fwd) * 0.55;
     this.stride += this.speed * dt * 2.4;
@@ -381,7 +381,9 @@ export class Player {
 
   nearLadderLine(seg, x, z) {
     const ux = Math.sin(seg.angle), uz = Math.cos(seg.angle);
-    const dx = x - seg.x, dz = z - seg.z;
+    const cx = seg.ladder ? seg.ladder.cx : seg.x;
+    const cz = seg.ladder ? seg.ladder.cz : seg.z;
+    const dx = x - cx, dz = z - cz;
     const across = dx * Math.cos(seg.angle) - dz * Math.sin(seg.angle);
     const along = dx * ux + dz * uz;
     return Math.abs(along) < 3.0 && Math.abs(across) < seg.width / 2 + 1.4;

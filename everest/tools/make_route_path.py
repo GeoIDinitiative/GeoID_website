@@ -108,7 +108,7 @@ def astar(dem, start, goal, m_per_px):
                 # shelves and the path zigzags up and down slopes for
                 # nothing. Since the endpoints fix the net climb, charging
                 # every metre up or down makes needless bumps pay double.
-                cost = run * (1 + (slope * 8) ** 2) + abs(dh) * 6.0
+                cost = run * (1 + (slope * 8) ** 2) + abs(dh) * 9.0
             nd = d + cost
             if nd < dist.get((nx, ny), 1e18):
                 dist[(nx, ny)] = nd
@@ -190,8 +190,11 @@ def main():
     for a, b in zip(wps, wps[1:]):
         leg = astar(dem, to_px(*a, W, H), to_px(*b, W, H), m_per_px)
         leg = string_pull(leg, dem)
-        leg = chaikin(leg, 2)
-        leg = rdp(leg, 0.8)
+        # No cosmetic smoothing: Chaikin cut corners WITHOUT validating
+        # them, dragging the drawn line off the A*'s corridor and up the
+        # slopes the search had paid to avoid. String-pull is the only
+        # simplifier because it is the only one that checks the ground.
+        leg = rdp(leg, 0.6)
         full.extend(leg if not full else leg[1:])
         print(f"leg {a} -> {b}: {len(leg)} pts")
     lls = [[round(la, 5), round(lo, 5)] for la, lo in (to_ll(x, y, W, H) for x, y in full)]

@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=cbbe893-1efb96f0";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=cbbe893-1efb96f0";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=cbbe893-1efb96f0";
-import { Heightfield } from "./dem.js?v=cbbe893-1efb96f0";
-import { Imagery } from "./imagery.js?v=cbbe893-1efb96f0";
-import { Terrain } from "./terrain.js?v=cbbe893-1efb96f0";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=cbbe893-1efb96f0";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=cbbe893-1efb96f0";
-import { Glacier } from "./glacier.js?v=cbbe893-1efb96f0";
-import { TerrainShadows } from "./shadows.js?v=cbbe893-1efb96f0";
-import { PostFX, QUALITY } from "./postfx.js?v=cbbe893-1efb96f0";
-import { estimateCaptureSun } from "./delight.js?v=cbbe893-1efb96f0";
-import { SnowField } from "./snowfield.js?v=cbbe893-1efb96f0";
-import { Photoclinometry } from "./photoclino.js?v=cbbe893-1efb96f0";
-import { World } from "./world.js?v=cbbe893-1efb96f0";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=cbbe893-1efb96f0";
-import { Player, STATE } from "./player.js?v=cbbe893-1efb96f0";
-import { Director, Climbers } from "./director.js?v=cbbe893-1efb96f0";
-import { Hud } from "./hud.js?v=cbbe893-1efb96f0";
-import { Audio } from "./audio.js?v=cbbe893-1efb96f0";
-import { install as installDiag } from "./diag.js?v=cbbe893-1efb96f0";
-import * as tiles from "./tiles.js?v=cbbe893-1efb96f0";
+import * as THREE from "../vendor/three.module.js?v=bda57b2-5e879d56";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=bda57b2-5e879d56";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=bda57b2-5e879d56";
+import { Heightfield } from "./dem.js?v=bda57b2-5e879d56";
+import { Imagery } from "./imagery.js?v=bda57b2-5e879d56";
+import { Terrain } from "./terrain.js?v=bda57b2-5e879d56";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=bda57b2-5e879d56";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=bda57b2-5e879d56";
+import { Glacier } from "./glacier.js?v=bda57b2-5e879d56";
+import { TerrainShadows } from "./shadows.js?v=bda57b2-5e879d56";
+import { PostFX, QUALITY } from "./postfx.js?v=bda57b2-5e879d56";
+import { estimateCaptureSun } from "./delight.js?v=bda57b2-5e879d56";
+import { SnowField } from "./snowfield.js?v=bda57b2-5e879d56";
+import { Photoclinometry } from "./photoclino.js?v=bda57b2-5e879d56";
+import { World } from "./world.js?v=bda57b2-5e879d56";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=bda57b2-5e879d56";
+import { Player, STATE } from "./player.js?v=bda57b2-5e879d56";
+import { Director, Climbers } from "./director.js?v=bda57b2-5e879d56";
+import { Hud } from "./hud.js?v=bda57b2-5e879d56";
+import { Audio } from "./audio.js?v=bda57b2-5e879d56";
+import { install as installDiag } from "./diag.js?v=bda57b2-5e879d56";
+import * as tiles from "./tiles.js?v=bda57b2-5e879d56";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -706,7 +706,20 @@ export class Game {
     if (c === "KeyR") return this.tool("rope");
     if (c === "KeyL") return this.tool("torch");
     if (c === "KeyF") return this.fireFlare();
-    if (c === "KeyE") return this.interact();
+    if (c === "KeyE") {
+      /* A perched step-ladder takes priority: E at its base boosts you
+         onto the top — three metres of aluminium, four of your breath. */
+      const sl = this.glacier.stepLadderNear(this.player.pos.x, this.player.pos.z, 3.5);
+      if (sl && this.player.pos.y < sl.topY - 1.0 && this.player.state === STATE.WALKING) {
+        this.player.placeAt(sl.topX, sl.topZ, this.player.yaw);
+        this.player.pos.y = sl.topY;
+        this.survival.energy = Math.max(0, this.survival.energy - 2.5);
+        this.audio.cue("chime");
+        this.hud.notify(`Up the ladder — ${sl.rise.toFixed(0)} m gained.`, "good");
+        return;
+      }
+      return this.interact();
+    }
     if (c === "KeyH") return this.tool("help");
     if (c === "KeyT") return this.tool("labels");
   }
@@ -1272,6 +1285,8 @@ export class Game {
       return `<kbd>E</kbd> ${c.alive ? "help" : "look"} — ${c.name}`;
     }
     if (P.state === STATE.LADDER) return `<kbd>W</kbd> cross · <kbd>A/D</kbd> balance`;
+    const sl = this.glacier.stepLadderNear(P.pos.x, P.pos.z, 3.5);
+    if (sl && P.pos.y < sl.topY - 1.0) return `<kbd>E</kbd> up the ladder — ${sl.rise.toFixed(0)} m`;
     const l = this.glacier.ladderNear(P.pos.x, P.pos.z, 12);
     if (l) return `Ladder crossing — ${l.width.toFixed(1)} m. Walk on from either end.`;
     const poi = this.world.nearest(P.pos.x, P.pos.z, 40);
