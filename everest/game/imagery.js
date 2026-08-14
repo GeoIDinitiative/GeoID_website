@@ -17,10 +17,10 @@
  * that blanks while it re-centres is a hole opening under the player.
  */
 
-import * as THREE from "../vendor/three.module.js?v=4aa1a88-d2dc7919";
-import { IMAGERY, IMG_TIERS } from "./config.js?v=4aa1a88-d2dc7919";
-import { tileWindow } from "./geo.js?v=4aa1a88-d2dc7919";
-import { fetchWindow } from "./tiles.js?v=4aa1a88-d2dc7919";
+import * as THREE from "../vendor/three.module.js?v=6a3a00f-3254d134";
+import { IMAGERY, IMG_TIERS } from "./config.js?v=6a3a00f-3254d134";
+import { tileWindow } from "./geo.js?v=6a3a00f-3254d134";
+import { fetchWindow } from "./tiles.js?v=6a3a00f-3254d134";
 
 /* ── The next thing to do here: compressed textures ───────────────────────
    The four tiers currently hold about 410 MB of RGBA8, plus a third again for
@@ -360,6 +360,22 @@ class ImgTier {
     const next = document.createElement("canvas");
     next.width = win.pxWidth; next.height = win.pxHeight;
     const nctx = next.getContext("2d");
+    /* Seed the new window with the previous one's pixels first. Same zoom,
+       same scale — the old canvas just slides by the recentre offset. The
+       overlap (nearly all of it) starts as yesterday's sharp picture and
+       each arriving tile replaces its patch; only the freshly exposed strip
+       at the leading edge waits on the network. Without this, every commit
+       during a walk showed the not-yet-landed HALF of the window as the
+       coarse tier underneath — smeared grey-olive areas crawling across
+       the mountain with the window, worst at altitude where the coarse
+       tiers stretch furthest. (The flight sim's repaint-from-cache, done
+       here with the previous canvas as the cache.) */
+    if (this.ready && this.canvas.width > 4) {
+      const mpp = win.width / win.pxWidth;
+      const dx = Math.round((this.bounds.x - win.minX) / mpp);
+      const dy = Math.round((this.bounds.y - win.minZ) / mpp);
+      nctx.drawImage(this.canvas, dx, dy);
+    }
     const me = { win, next, nctx, covered: 0, total: win.nx * win.ny };
     this.pending = me;
 
