@@ -255,14 +255,23 @@ export function booleanOp(subjectRing, clipRing, mode = "intersection") {
   const subject = buildList(subjectRing);
   const clip = buildList(clipRing);
 
-  const subjectNodes = toArray(subject).filter((n) => !n.intersect);
-  const clipNodes = toArray(clip).filter((n) => !n.intersect);
+  // Capture every ORIGINAL segment of both rings before inserting anything.
+  //
+  // The endpoints must be read before the loop runs, not during it: inserting
+  // an intersection node rewrites `.next`, so a segment read mid-loop is the
+  // truncated piece up to the last insertion — and any later crossing of that
+  // segment is silently missed. A segment crossed twice (a bar passing through
+  // a rectangle crosses each side wall twice) lost its second intersection
+  // that way, and the traversal then stitched the fragments into one
+  // self-crossing ring of zero net area. insertBetween is unaffected: it walks
+  // by alpha from the segment's start and stops at the original end vertex,
+  // stepping over any nodes inserted before it.
+  const subjectSegments = toArray(subject).map((n) => [n, n.next]);
+  const clipSegments = toArray(clip).map((n) => [n, n.next]);
 
   let found = false;
-  subjectNodes.forEach((sNode) => {
-    const sNext = sNode.next;
-    clipNodes.forEach((cNode) => {
-      const cNext = cNode.next;
+  subjectSegments.forEach(([sNode, sNext]) => {
+    clipSegments.forEach(([cNode, cNext]) => {
       const hit = segmentIntersection(sNode, sNext, cNode, cNext);
       if (!hit) {
         return;

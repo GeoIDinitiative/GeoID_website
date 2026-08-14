@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260814-5f43bbf";
-import { transform } from "./projection.js?v=20260814-5f43bbf";
+import * as G from "./geometry.js?v=20260814-9a8aae2";
+import { transform } from "./projection.js?v=20260814-9a8aae2";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //
@@ -104,36 +104,170 @@ export function buffer(fc, distanceM, { segments = 32 } = {}) {
   return featureCollection(out);
 }
 
-function ringsFromMask(maskFc) {
-  return maskFc.features.flatMap((f) => polygonsOf(f.geometry).map((p) => p[0]));
+// ── Multi-ring overlay ──────────────────────────────────────────────────────
+//
+// The primitive (geometry.js booleanOp) is ring-versus-ring: it knows nothing
+// of holes and returns bare rings. An earlier overlay fed it `polygon[0]` from
+// each side, which silently dropped every interior ring — clip a donut and the
+// hole filled in; clip BY a donut and the mask's hole was treated as solid.
+// The result was always a single-ring Polygon, never a MultiPolygon, and no
+// error anywhere: the output looked plausible and was wrong.
+//
+// So the composition happens here, in polygon-with-holes terms. A "polygon" in
+// this section is GeoJSON's [outer, ...holes] coordinate array.
+
+/** Do any two edges of the rings cross? O(n·m), fine at toolbox sizes. */
+function ringEdgesIntersect(a, b) {
+  for (let i = 0; i < a.length - 1; i += 1) {
+    const [x1, y1] = a[i];
+    const [x2, y2] = a[i + 1];
+    for (let j = 0; j < b.length - 1; j += 1) {
+      const [x3, y3] = b[j];
+      const [x4, y4] = b[j + 1];
+      const d = (x2 - x1) * (y4 - y3) - (y2 - y1) * (x4 - x3);
+      if (Math.abs(d) < 1e-18) continue;
+      const t = ((x3 - x1) * (y4 - y3) - (y3 - y1) * (x4 - x3)) / d;
+      const u = ((x3 - x1) * (y2 - y1) - (y3 - y1) * (x2 - x1)) / d;
+      if (t > 1e-12 && t < 1 - 1e-12 && u > 1e-12 && u < 1 - 1e-12) return true;
+    }
+  }
+  return false;
 }
 
-/** Applies a boolean op between every feature and every mask ring. */
+/** Is ring `inner` wholly inside ring `outer`? Assumes no edge crossings. */
+function ringInRing(inner, outer) {
+  return inner.length > 0 && G.pointInRing(inner[0], outer);
+}
+
+const validRing = (ring) => ring.length >= 4;
+
+/**
+ * Punch a set of hole rings out of a set of polygons.
+ *
+ * Three cases per (polygon, hole) pair, and each needs different machinery:
+ * a hole floating wholly inside the outer attaches as an interior ring — the
+ * one case the ring primitive cannot express, and the reason the old overlay
+ * lost holes; a hole crossing the outer edge is a genuine difference, which
+ * may fragment the polygon (each fragment keeps whichever existing holes still
+ * fall inside it); a hole outside contributes nothing.
+ *
+ * Even-odd within reason: holes are assumed disjoint from each other, which
+ * they are in valid GeoJSON. Overlapping holes in malformed input will not
+ * cancel each other pairwise.
+ */
+function punchHoles(polygons, holes) {
+  let out = polygons;
+  holes.forEach((hole) => {
+    if (!validRing(hole)) return;
+    out = out.flatMap((polygon) => {
+      const [outer, ...existing] = polygon;
+      if (!ringEdgesIntersect(outer, hole)) {
+        if (ringInRing(hole, outer)) {
+          // Inside an existing hole already? Then it removes nothing.
+          if (existing.some((h) => ringInRing(hole, h))) return [polygon];
+          return [[outer, ...existing, hole]];
+        }
+        if (ringInRing(outer, hole)) return []; // swallowed whole
+        return [polygon]; // disjoint
+      }
+      const fragments = G.booleanOp(outer, hole, "difference").filter(validRing);
+      return fragments.map((fragment) => [
+        fragment,
+        ...existing.filter((h) => ringInRing(h, fragment)),
+      ]);
+    });
+  });
+  return out;
+}
+
+/** Subject polygon ∩ mask polygon → array of polygons. */
+function intersectPolygons(subject, mask) {
+  const outers = G.booleanOp(subject[0], mask[0], "intersection").filter(validRing);
+  if (!outers.length) return [];
+  // A hole in either input is a hole in the intersection.
+  return punchHoles(outers.map((o) => [o]), [...subject.slice(1), ...mask.slice(1)]);
+}
+
+/**
+ * Subject polygon minus mask polygon → array of polygons.
+ *
+ * The mask's outer is punched out of the subject — punchHoles handles both the
+ * crossing case and the floating-island case, the latter being exactly where
+ * the ring primitive returns the subject unchanged and loses the subtraction.
+ * Then the parts of the subject inside the MASK's holes come back: a hole in
+ * the mask is ground the mask does not cover. Those restored parts are
+ * disjoint from the punched remainder by construction, so no union is needed.
+ * The subject's own holes apply to everything at the end.
+ */
+function subtractPolygons(subject, mask) {
+  let out = punchHoles([[subject[0]]], [mask[0]]);
+  mask.slice(1).forEach((maskHole) => {
+    if (!validRing(maskHole)) return;
+    const restored = G.booleanOp(subject[0], maskHole, "intersection").filter(validRing);
+    out = out.concat(restored.map((r) => [r]));
+  });
+  return punchHoles(out, subject.slice(1));
+}
+
+/** Orient for GeoJSON: outers counter-clockwise, holes clockwise. */
+function orientPolygon(polygon) {
+  return polygon.map((ring, index) => {
+    const ccw = G.signedAreaPlanar(ring) > 0;
+    const wantCcw = index === 0;
+    return ccw === wantCcw ? ring : [...ring].reverse();
+  });
+}
+
+/** Applies a boolean op between every feature and every mask polygon. */
 function overlay(fc, maskFc, mode, propsFrom) {
-  const masks = ringsFromMask(maskFc).map((ring) => ({ ring, bounds: G.boundsOf(ring) }));
+  const masks = maskFc.features
+    .flatMap((f) => polygonsOf(f.geometry))
+    .filter((polygon) => polygon.length && validRing(polygon[0]))
+    .map((polygon) => ({ polygon, bounds: G.boundsOf(polygon[0]) }));
   const out = [];
   fc.features.forEach((f) => {
     const fb = featureBounds(f);
+    const resultPolygons = [];
     polygonsOf(f.geometry).forEach((polygon) => {
-      let pieces = [polygon[0]];
-      masks.forEach((mask) => {
-        if (!pieces.length) return;
-        if (mode !== "union" && fb && !G.boundsIntersect(fb, mask.bounds)) {
-          if (mode === "intersection") pieces = [];
-          return;
-        }
-        pieces = pieces.flatMap((ring) => G.booleanOp(ring, mask.ring, mode));
-      });
-      pieces.forEach((ring) => {
-        if (ring.length >= 4) {
-          out.push(feature({ type: "Polygon", coordinates: [ring] }, propsFrom(f)));
-        }
-      });
+      if (!polygon.length || !validRing(polygon[0])) return;
+      if (mode === "intersection") {
+        // Clip keeps what falls in ANY mask polygon, so each mask contributes
+        // its own pieces. The old sequential form computed subject ∩ A ∩ B —
+        // a feature spanning two disjoint mask polygons came back empty.
+        // Overlapping mask polygons will cover shared ground twice; masks are
+        // usually disjoint (they tile), and double cover is the honest reading
+        // of overlap without a full union pass.
+        masks.forEach((mask) => {
+          if (fb && !G.boundsIntersect(fb, mask.bounds)) return;
+          resultPolygons.push(...intersectPolygons(polygon, mask.polygon));
+        });
+      } else {
+        // Difference is sequential by nature: subject minus A minus B.
+        let pieces = [polygon];
+        masks.forEach((mask) => {
+          if (!pieces.length) return;
+          if (fb && !G.boundsIntersect(fb, mask.bounds)) return;
+          pieces = pieces.flatMap((piece) => subtractPolygons(piece, mask.polygon));
+        });
+        resultPolygons.push(...pieces);
+      }
     });
+    if (resultPolygons.length) {
+      const oriented = resultPolygons.map(orientPolygon);
+      // One feature in, one feature out: fragments of the same input feature
+      // stay together as a MultiPolygon rather than multiplying its attributes
+      // across separate rows.
+      const geometry = oriented.length === 1
+        ? { type: "Polygon", coordinates: oriented[0] }
+        : { type: "MultiPolygon", coordinates: oriented };
+      out.push(feature(geometry, propsFrom(f)));
+    }
     // Points and lines are kept or dropped by containment rather than clipped.
+    // Containment now honours holes: a point inside a mask's hole is outside
+    // the mask.
     if (!polygonsOf(f.geometry).length && mode === "intersection") {
       const coords = geometryCoords(f.geometry);
-      const inside = coords.some((c) => masks.some((m) => G.pointInRing(c, m.ring)));
+      const inside = coords.some((c) => masks.some((m) => G.pointInPolygon(c, m.polygon)));
       if (inside) {
         out.push(feature(f.geometry, propsFrom(f)));
       }
