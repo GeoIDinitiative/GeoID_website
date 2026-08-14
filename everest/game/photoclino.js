@@ -63,7 +63,7 @@
  * the code says so where it applies it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=566aa96-a64ca6d4";
+import * as THREE from "../vendor/three.module.js?v=8bb7a43-ac776fe7";
 
 /** The elevation model's true resolution, in metres — measured, not assumed.
  *  Detail is only invented below this; above it the DEM keeps authority. */

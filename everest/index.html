@@ -14,7 +14,9 @@
 <link rel="preconnect" href="https://server.arcgisonline.com">
 <link rel="preconnect" href="https://s3.amazonaws.com">
 <link rel="stylesheet" href="/styles/viewer-skin.css">
-<link rel="stylesheet" href="everest.css?v=566aa96-a64ca6d4">
+<link rel="preload" as="image" href="data/khumbu_map.png?r=3">
+<link rel="preload" as="image" href="data/khumbu_contours.png">
+<link rel="stylesheet" href="everest.css?v=8bb7a43-ac776fe7">
 
 <!-- ── The reset switch, and why it has to exist ─────────────────────────────
      A site-wide service worker is registered at the root of this origin
@@ -93,8 +95,8 @@ if (location.search.includes("reset")) {
     <div class="start-map" id="start-map" hidden>
       <p class="start-map-label">Choose your starting point</p>
       <div class="start-map-box" id="start-map-box">
-        <img src="data/khumbu_map.png?r=3" alt="Khumbu orthophoto" draggable="false">
-        <img class="sm-contours" src="data/khumbu_contours.png" alt="" draggable="false">
+        <img src="data/khumbu_map.png?r=3" alt="Khumbu orthophoto" draggable="false" loading="eager" fetchpriority="high">
+        <img class="sm-contours" src="data/khumbu_contours.png" alt="" draggable="false" loading="eager" fetchpriority="high">
       </div>
     </div>
     <div class="title-actions">
@@ -104,15 +106,8 @@ if (location.search.includes("reset")) {
     </div>
     <div class="title-progress" id="prog-text">Contacting the tile services</div>
     <div class="title-bar"><span id="prog-bar"></span></div>
-    <p class="title-credit">
-      Imagery: Esri, Vantor, Earthstar Geographics and the GIS User Community —
-      streamed for viewing only, under the Esri Master License Agreement.
-      Elevation: Mapzen Terrain Tiles on AWS Open Data (SRTM, ASTER and national
-      sources). Both are read live; nothing is cached to disk.
-      <br>
-      This is a game. It is not a route description, a training aid, or advice of
-      any kind about a mountain that has killed more than three hundred people.
-    </p>
+    <!-- The Esri/Mapzen attribution the license requires lives in-game now:
+         the panel's Guide section and the map view carry it. -->
   </div>
 </div>
 
@@ -167,8 +162,8 @@ if (location.search.includes("reset")) {
 </div>
 
 <script type="module">
-import { Game } from "./game/main.js?v=566aa96-a64ca6d4";
-import { ROUTE } from "./game/config.js?v=566aa96-a64ca6d4";
+import { Game } from "./game/main.js?v=8bb7a43-ac776fe7";
+import { ROUTE } from "./game/config.js?v=8bb7a43-ac776fe7";
 
 const canvas = document.getElementById("scene");
 const hudRoot = document.getElementById("hud");
@@ -190,12 +185,12 @@ window.__ascent = game;      // for the harness, and for anyone curious
 /* Headless driving. Only with ?shot, and only ever additive — the game does
    not behave differently because these exist. */
 if (game.headless) {
-  const { llToLocal } = await import("./game/geo.js?v=566aa96-a64ca6d4");
+  const { llToLocal } = await import("./game/geo.js?v=8bb7a43-ac776fe7");
   window.__drive = {
     game,
     run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
     settle: async (ms = 15000) => {
-      const tiles = await import("./game/tiles.js?v=566aa96-a64ca6d4");
+      const tiles = await import("./game/tiles.js?v=8bb7a43-ac776fe7");
       const end = performance.now() + ms;
       let quiet = 0;
       while (performance.now() < end) {
@@ -263,7 +258,7 @@ if (game.headless) {
    tile pyramid, starts only once a starting point is chosen. The progress
    bar then narrates the boot for the place actually picked. */
 startBtn.style.display = "none";
-progText.textContent = "Choose a starting point";
+progText.style.display = "none";   // the bar alone narrates the load
 let booting = false;
 {
   const B = { W: 86.780, E: 87.070, N: 28.120, S: 27.880 };
@@ -338,6 +333,7 @@ async function beginFlow(poi) {
       progText.textContent = what;
     });
   } catch (err) {
+    progText.style.display = "";
     progText.textContent = "Could not reach the tile services — " + err.message;
     console.error(err);
     booting = false;

@@ -1786,3 +1786,49 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 }
 .scene-popup .feature-kicker { font-family: Orbitron, "Courier New", monospace; }
 
+
+
+/* ── Loading screen: actions to the corner, a clean stable bar ────────── */
+.title-actions {
+  position: fixed;
+  top: 0.9rem; left: 1rem;
+  margin: 0;
+  display: flex; gap: 0.5rem;
+  z-index: 31;
+}
+.title-actions .btn { font-size: 0.72rem; padding: 0.4rem 0.85rem; }
+.title-progress { display: none; }
+.title-bar {
+  width: min(45rem, 88vw);
+  height: 6px;
+  margin: 1.1rem auto 0;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(77, 141, 255, 0.14);
+  border: 1px solid rgba(77, 141, 255, 0.3);
+}
+.title-bar span {
+  display: block; height: 100%;
+  background: linear-gradient(90deg, #2244b8, #4d8dff);
+  box-shadow: 0 0 12px rgba(77, 141, 255, 0.7);
+  transition: width 0.25s ease;
+}
+/* Selection locks the map without fading it — stability over ceremony. */
+.start-map.is-loading { opacity: 1; pointer-events: none; }
+
+/* ── Attribution, relocated where the imagery actually shows ──────────── */
+.guide-attrib {
+  margin: 0.7rem 0 0;
+  font: 400 0.62rem/1.55 "Exo 2", sans-serif;
+  color: rgba(200, 216, 245, 0.5);
+}
+.mv-attrib {
+  position: absolute;
+  right: 1rem; bottom: 0.35rem;
+  z-index: 6;
+  font: 600 0.6rem "Exo 2", sans-serif;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+}

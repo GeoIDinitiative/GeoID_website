@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=566aa96-a64ca6d4";
-import { ITEMS } from "./survival.js?v=566aa96-a64ca6d4";
-import { compassPoint } from "./geo.js?v=566aa96-a64ca6d4";
+import { Director } from "./director.js?v=8bb7a43-ac776fe7";
+import { ITEMS } from "./survival.js?v=8bb7a43-ac776fe7";
+import { compassPoint } from "./geo.js?v=8bb7a43-ac776fe7";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -304,6 +304,7 @@ export class Hud {
           <img class="mv-contours" src="data/khumbu_contours.png" draggable="false" alt="">
           <div class="mv-pins" id="mv-pins"></div>
         </div>
+        <div class="mv-attrib">Imagery \u00a9 Esri \u00b7 Elevation: Mapzen Terrain Tiles \u00b7 Sentinel-2 \u00a9 Copernicus</div>
         <div class="mv-north" aria-hidden="true">
           <svg viewBox="0 0 24 24"><path d="M12 2 L17 20 L12 16 L7 20 Z" fill="currentColor"/></svg>
           <span>N</span>
@@ -591,7 +592,8 @@ export class Hud {
           <div><dt>U</dt><dd>fold compass + info bar</dd></div>
           <div><dt>Tab</dt><dd>fold this panel</dd></div>
           <div><dt>Esc</dt><dd>close any view</dd></div>
-        </dl>` },
+        </dl>
+        <p class="guide-attrib">Imagery: Esri, Vantor, Earthstar Geographics and the GIS User Community \u2014 streamed for viewing only under the Esri Master License Agreement. Elevation: Mapzen Terrain Tiles on AWS Open Data (SRTM, ASTER and national sources). Both are read live; nothing is cached to disk. This is a game, not a route description or advice of any kind.</p>` },
     ];
     const host = this.el.nav.querySelector("#nav-sections");
     this.toolEls = {};
