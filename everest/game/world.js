@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=b93f894-a61c4046";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=b93f894-a61c4046";
-import { llToLocal, haversine } from "./geo.js?v=b93f894-a61c4046";
+import * as THREE from "../vendor/three.module.js?v=0296a0c-f9529789";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=0296a0c-f9529789";
+import { llToLocal, haversine } from "./geo.js?v=0296a0c-f9529789";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be
@@ -173,15 +173,10 @@ export class World {
       return m;
     };
 
-    // The trail: a thousand pairs of boots have compacted and shadowed it.
-    // Barely darker than the snow and slightly warm — a cold blue-grey at
-    // any real opacity reads as a painted stripe rather than as a path.
-    g.add(ribbon(1.05, 0.04, new THREE.MeshBasicMaterial({
-      color: 0xb9bec4, transparent: true, opacity: 0.22,
-      depthWrite: false, side: THREE.DoubleSide,
-      polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
-    })));
-
+    /* The broad "trodden trail" under-ribbon is gone by request: over
+       bright snow the pale metre-wide band read as a second, fatter line
+       nesting the rope, not as compacted ground. The fixed line stands
+       alone. */
     /* The fixed line itself.
        Barely there at rest — a thin gold thread — with a current running up
        it toward the summit. A solid orange stripe read as a road marking
