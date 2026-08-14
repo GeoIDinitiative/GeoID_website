@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260811-118fc88";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260811-118fc88";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260814-5f43bbf";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260814-5f43bbf";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260811-118fc88";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260811-118fc88";
-import { downloadText } from "./extraction.js?v=20260811-118fc88";
+} from "./mesh-volume.js?v=20260814-5f43bbf";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260814-5f43bbf";
+import { downloadText } from "./extraction.js?v=20260814-5f43bbf";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -1563,7 +1563,36 @@ function exportMesh(kind) {
     ply: () => [surfaceToPly(state.mesh.surface), "ply", "text/plain"],
   };
   const [text, ext, mime] = map[kind]();
-  downloadText(`geoid_mesh_${stamp}.${ext}`, text, mime);
+  const filename = `geoid_mesh_${stamp}.${ext}`;
+
+  /**
+   * A .msh belongs in the project's meshes/, and only there.
+   *
+   * The default download path files everything under exports/ as kind
+   * "export", but nothing that consumes a mesh looks in exports/: the FEM
+   * Setup dropdown lists meshes/, and the sidecar's GALES prepare globs
+   * meshes/*.msh. So "To GALES" produced a file the rest of the pipeline
+   * could not see, while bridge.saveMesh -- which files to meshes/ as kind
+   * "mesh" -- sat uncalled. Only the .msh goes there: listMeshes offers every
+   * file in that folder as a FEM mesh, and an .stl accepted by the dropdown
+   * would then fail GALES prepare, which reads .msh alone.
+   */
+  if (kind === "msh") {
+    const saveMesh = window.GeoIDResearch?.bridge?.saveMesh;
+    if (saveMesh) {
+      saveMesh(filename, text, {
+        body: studioBody()?.id,
+        nodes: state.mesh.nodes.length,
+        tets: state.mesh.tets.length,
+      }).then(
+        (path) => log(`Mesh filed in project: ${path}`),
+        () => log("No project open — mesh downloaded only"),
+      );
+    }
+    downloadText(filename, text, mime, { project: false });
+  } else {
+    downloadText(filename, text, mime);
+  }
   log(`Exported ${ext.toUpperCase()}`);
 }
 

@@ -1,4 +1,4 @@
-import { computeBounds2D } from "./geo-utils.js?v=20260811-118fc88";
+import { computeBounds2D } from "./geo-utils.js?v=20260814-5f43bbf";
 
 // Sampling a polygon on a lat/lon grid: the spacing is expressed in km and
 // converted per-row, because a degree of longitude shrinks toward the poles.
@@ -200,13 +200,20 @@ export function rowsToGeoJson(rows) {
   });
 }
 
-export function downloadText(filename, text, mime = "text/plain") {
+export function downloadText(filename, text, mime = "text/plain", { project = true } = {}) {
   // With a project open the result belongs to it, not to the downloads folder.
   // Still downloaded as well, so the button does what it says either way.
-  try {
-    void window.GeoIDResearch?.bridge?.saveExport?.(filename, text);
-  } catch (error) {
-    /* no project open, or it declined -- the download below still happens */
+  //
+  // `project: false` opts out of the filing, for callers that file the same
+  // bytes somewhere more specific themselves -- the studio's .msh export goes
+  // to meshes/ via saveMesh, and letting this also write exports/ would put
+  // the identical mesh in the registry twice under two kinds.
+  if (project) {
+    try {
+      void window.GeoIDResearch?.bridge?.saveExport?.(filename, text);
+    } catch (error) {
+      /* no project open, or it declined -- the download below still happens */
+    }
   }
   const blob = new Blob([text], { type: `${mime};charset=utf-8` });
   const url = URL.createObjectURL(blob);
