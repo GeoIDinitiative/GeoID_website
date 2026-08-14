@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=310e0f0-46386f4e";
-import { ITEMS } from "./survival.js?v=310e0f0-46386f4e";
-import { compassPoint } from "./geo.js?v=310e0f0-46386f4e";
+import { Director } from "./director.js?v=c258b35-55266b61";
+import { ITEMS } from "./survival.js?v=c258b35-55266b61";
+import { compassPoint } from "./geo.js?v=c258b35-55266b61";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -315,6 +315,16 @@ export class Hud {
     this._drawBinocMask();
     addEventListener("resize", this._drawBinocMask);
 
+    /* The Earth Explorer logo, top right, linking home — same asset and
+       placement as every explorer page. */
+    this.el.logo = document.createElement("a");
+    this.el.logo.id = "top-right-logo-link";
+    this.el.logo.href = "/earth_explorer/";
+    this.el.logo.target = "_top";
+    this.el.logo.setAttribute("aria-label", "Back to Earth Explorer");
+    this.el.logo.innerHTML = `<img id="top-right-logo" src="/earth_explorer/assets/logo.png" alt="GeoID logo">`;
+    document.body.appendChild(this.el.logo);
+
     this.el.navTab = mk("nav-tab");
     this.el.navTab.textContent = "Open \u25B8 \u0060";
     this.el.navTab.style.display = "none";
@@ -324,57 +334,107 @@ export class Hud {
     this.navHidden = false;
 
     this.el.nav = mk("navbar");
+    /* Structured the way the Etna explorer structures its panel: a photo
+       hero naming the mountain, then collapsible sections that each explain
+       themselves before offering their controls. The flat strip of eight
+       unlabelled toggles told a new player nothing; a section that says
+       what its switches do is the difference between chrome and a guide. */
     this.el.nav.innerHTML = `
-      <div class="nav-brand">
-        <span class="nav-mark">ASCENT</span>
-        <span class="nav-sub">GeoID</span>
+      <div class="nav-head">
+        <span class="nh-brand">ASCENT <i>GeoID</i></span>
+        <button class="nav-hide" id="nav-hide" title="Hide panel (\u0060)">Close \u25C2 \u0060</button>
       </div>
-      <div class="nav-clock">
-        <span class="nc-time" id="c-time">--:--</span>
-        <span class="nc-meta"><b id="c-day">Day 1</b><i id="c-phase">night</i></span>
+      <div class="nav-scroll">
+        <div class="brand-banner">
+          <div class="bb-text">
+            <h1>Everest</h1>
+            <p>Khumbu, Nepal \u00b7 8,848.86 m</p>
+          </div>
+          <div class="bb-clock">
+            <span class="nc-time" id="c-time">--:--</span>
+            <span class="nc-meta"><b id="c-day">Day 1</b><i id="c-phase">night</i></span>
+          </div>
+        </div>
+        <div class="controls" id="nav-sections"></div>
       </div>
-      <div class="nav-tools" id="nav-tools"></div>
       <div class="nav-status">
-        <button class="nav-hide" id="nav-hide" title="Hide bar (\u0060)">Close \u25C2 \u0060</button>
-        <span class="ns-alt" id="n-alt">—</span>
-        <span class="ns-standing" id="n-standing">—</span>
+        <span class="ns-alt" id="n-alt">\u2014</span>
+        <span class="ns-standing" id="n-standing">\u2014</span>
       </div>`;
     this.el.nav.querySelector("#nav-hide")
       .addEventListener("click", () => this.setNavHidden(true));
 
     /* The instruments no longer live in the panel: they are the info bar
        under the compass, and the panel is navigation only. */
-    this.el.cTime = this.el.nav.querySelector("#c-time");
-    this.el.cDay = this.el.nav.querySelector("#c-day");
-    this.el.cPhase = this.el.nav.querySelector("#c-phase");
-    this.el.nAlt = this.el.nav.querySelector("#n-alt");
-    this.el.nStanding = this.el.nav.querySelector("#n-standing");
-
-    /* The tools. `state` is read every frame so a button and its shortcut can
-       never disagree about what is on. */
     this.tools = [
-      { id: "third",   key: "V",   label: "3rd person", icon: "◧" },
-      { id: "torch",   key: "L",   label: "Head torch", icon: "☀" },
-      { id: "rope",    key: "R",   label: "Rope up",    icon: "⌇" },
-      { id: "items",   key: "Q",   label: "Items",      icon: "◎" },
-      { id: "labels",  key: "M",   label: "Labels",     icon: "⌖" },
-      { id: "route",   key: "N",   label: "Fixed line", icon: "⟋" },
-      { id: "journal", key: "TAB", label: "Journal",    icon: "▤" },
-      { id: "help",    key: "H",   label: "Controls",   icon: "?" },
+      { id: "labels",  key: "T",   label: "Place labels",  icon: "\u2316", tip: "Name pills over camps, peaks and route features. They hide behind terrain like everything else." },
+      { id: "route",   key: "N",   label: "Route guider",  icon: "\u27CB", tip: "The fixed line up the South Col route, drawn on the ground." },
+      { id: "third",   key: "V",   label: "3rd person",    icon: "\u25E7", tip: "Step outside the climber. Scroll to set the camera distance." },
+      { id: "torch",   key: "L",   label: "Head torch",    icon: "\u2600", tip: "The only light between eight in the evening and five in the morning." },
+      { id: "items",   key: "Q",   label: "Items wheel",   icon: "\u25CE", tip: "Food, water, dex, the flare. Scroll to choose, click to use." },
+      { id: "rope",    key: "R",   label: "Rope up",       icon: "\u2307", tip: "Clip the fixed line. In the Icefall this is what holds a bridge fall." },
+      { id: "oxygen",  key: "O",   label: "Oxygen flow",   icon: "\u25CD", tip: "Cycles the regulator: off, 1, 2, 4 L/min. Watch the bottle." },
+      { id: "journal", key: "TAB", label: "Journal",       icon: "\u25A4", tip: "The forecast, the plan, and what has happened so far." },
+      { id: "map",     key: "M",   label: "Open map",      icon: "\u25A6", tip: "" },
+      { id: "help",    key: "H",   label: "Controls card", icon: "?",       tip: "" },
     ];
-    const tools = this.el.nav.querySelector("#nav-tools");
+    const SECTIONS = [
+      { id: "display", title: "Display", open: true,
+        copy: "What the mountain shows. Every switch is a preference \u2014 set it here, or use its key anywhere.",
+        tools: ["labels", "route", "third", "torch"] },
+      { id: "climb", title: "Climb",
+        copy: "The gear on your harness.",
+        tools: ["items", "rope", "oxygen", "journal"] },
+      { id: "map", title: "Map & fast travel",
+        copy: "The navigation hub: the massif from above, every named place labelled. Click a pill for its story; fast travel to anywhere you have reached.",
+        tools: ["map"] },
+      { id: "guide", title: "Guide",
+        copy: "You are walking the real mountain \u2014 Esri imagery on a real elevation model. Head up the glacier, rope up before the Icefall, and mind the oxygen above the Col.",
+        tools: ["help"],
+        extra: `<dl class="key-list">
+          <div><dt>W A S D</dt><dd>walk</dd></div>
+          <div><dt>Shift</dt><dd>run</dd></div>
+          <div><dt>Mouse / arrows</dt><dd>look</dd></div>
+          <div><dt>Space</dt><dd>probe a snow bridge</dd></div>
+          <div><dt>B</dt><dd>binoculars</dd></div>
+          <div><dt>U</dt><dd>fold compass + info bar</dd></div>
+          <div><dt>\u0060</dt><dd>fold this panel</dd></div>
+          <div><dt>Esc</dt><dd>close any view</dd></div>
+        </dl>` },
+    ];
+    const host = this.el.nav.querySelector("#nav-sections");
     this.toolEls = {};
-    for (const t of this.tools) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "nav-btn";
-      b.dataset.tool = t.id;
-      b.innerHTML = `<span class="nb-icon">${t.icon}</span>` +
-                    `<span class="nb-label">${t.label}</span>` +
-                    `<span class="nb-key">${t.key}</span>`;
-      b.addEventListener("click", (e) => { e.preventDefault(); this.onTool && this.onTool(t.id); });
-      tools.appendChild(b);
-      this.toolEls[t.id] = b;
+    for (const sec of SECTIONS) {
+      const d = document.createElement("details");
+      d.className = "control-section";
+      if (sec.open) d.open = true;
+      const tools = sec.tools.map((id) => this.tools.find((t) => t.id === id));
+      d.innerHTML = `
+        <summary class="section-toggle"><span class="st-title">${sec.title}</span><span class="st-chev">\u25BE</span></summary>
+        <div class="section-body">
+          <p class="section-copy">${sec.copy}</p>
+          <div class="section-tools"></div>
+          ${sec.extra || ""}
+        </div>`;
+      const holder = d.querySelector(".section-tools");
+      for (const t of tools) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "nav-btn";
+        b.dataset.tool = t.id;
+        if (t.tip) b.title = t.tip;
+        b.innerHTML = `<span class="nb-icon">${t.icon}</span>` +
+                      `<span class="nb-label">${t.label}</span>` +
+                      `<span class="nb-key">${t.key}</span>`;
+        b.addEventListener("click", (e) => { e.preventDefault(); this.onTool && this.onTool(t.id); });
+        holder.appendChild(b);
+        this.toolEls[t.id] = b;
+      }
+      host.appendChild(d);
+    }
+    for (const [k, id] of [["cTime", "c-time"], ["cDay", "c-day"], ["cPhase", "c-phase"],
+                           ["nAlt", "n-alt"], ["nStanding", "n-standing"]]) {
+      this.el[k] = this.el.nav.querySelector("#" + id);
     }
 
     /* ── Objective, top-left ── */

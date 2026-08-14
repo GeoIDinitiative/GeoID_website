@@ -676,8 +676,12 @@ canvas.scene { display: block; position: fixed; inset: 0; }
 #title {
   position: fixed; inset: 0; z-index: 30;
   display: grid; place-items: center;
+  /* The mountain itself is the loading wallpaper; the gradients keep the
+     type readable over its snow. */
   background:
     radial-gradient(ellipse at 50% 120%, rgba(var(--data-rgb),.12), transparent 60%),
+    linear-gradient(180deg, rgba(18,0,43,.88) 0%, rgba(18,0,43,.55) 45%, rgba(27,6,64,.86) 100%),
+    url("data/everest.jpg") center / cover no-repeat,
     linear-gradient(180deg, #12002b 0%, var(--ground) 55%, #1b0640 100%);
   transition: opacity .9s ease, visibility .9s;
 }
@@ -1089,3 +1093,86 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   user-select: none;
 }
 .bars-tab:hover { color: var(--data, #7fd4e8); }
+
+
+/* ── Panel revamp: Etna's structure in ASCENT's skin ────────────────────── */
+.nav-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .5rem .6rem;
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+.nh-brand {
+  font: 800 12px "Orbitron", "Exo 2", system-ui, sans-serif;
+  letter-spacing: .22em; color: var(--chrome);
+}
+.nh-brand i { font: 600 9px "Exo 2", sans-serif; letter-spacing: .3em; color: var(--ink-faint); font-style: normal; margin-left: .4rem; }
+.nav-scroll { overflow-y: auto; overflow-x: hidden; flex: 1 1 auto; scrollbar-width: thin; }
+
+.brand-banner {
+  position: relative;
+  min-height: 108px;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  padding: .6rem .7rem;
+  background:
+    linear-gradient(180deg, rgba(13,2,33,.20) 0%, rgba(13,2,33,.78) 100%),
+    url("data/everest.jpg") center 35% / cover no-repeat;
+  border-bottom: 1px solid var(--line);
+}
+.bb-text h1 {
+  margin: 0;
+  font: 800 26px "Orbitron", "Exo 2", system-ui, sans-serif;
+  letter-spacing: .08em; color: #fff;
+  text-shadow: 0 2px 10px rgba(0,0,0,.65);
+}
+.bb-text p {
+  margin: .1rem 0 0;
+  font: 600 10px "Exo 2", sans-serif; letter-spacing: .16em; text-transform: uppercase;
+  color: rgba(255,255,255,.82); text-shadow: 0 1px 6px rgba(0,0,0,.6);
+}
+.bb-clock {
+  position: absolute; top: .5rem; right: .6rem;
+  display: flex; flex-direction: column; align-items: flex-end; gap: .1rem;
+}
+.bb-clock .nc-time { font: 800 15px "Orbitron", sans-serif; color: var(--data); text-shadow: 0 1px 6px rgba(0,0,0,.7); }
+.bb-clock .nc-meta { font: 600 8px "Exo 2", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.75); }
+.bb-clock .nc-meta i { font-style: normal; margin-left: .3rem; color: var(--ink-faint); }
+
+.control-section { border-bottom: 1px solid var(--line); }
+.control-section > summary.section-toggle {
+  list-style: none;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .55rem .7rem;
+  cursor: pointer;
+  font: 700 11px "Exo 2", sans-serif; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--chrome);
+  transition: background .15s;
+}
+.control-section > summary.section-toggle::-webkit-details-marker { display: none; }
+.control-section > summary:hover { background: rgba(var(--chrome-rgb), .08); }
+.control-section .st-chev { transition: transform .18s; color: var(--ink-faint); }
+.control-section[open] .st-chev { transform: rotate(180deg); }
+.section-body { padding: 0 .7rem .6rem; }
+.section-copy {
+  margin: 0 0 .45rem;
+  font: 400 11px/1.45 "Exo 2", sans-serif;
+  color: var(--ink-faint);
+}
+.section-tools { display: flex; flex-direction: column; gap: .12rem; }
+
+.key-list { margin: .55rem 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: .18rem .6rem; }
+.key-list div { display: flex; align-items: baseline; gap: .4rem; }
+.key-list dt {
+  font: 700 9px "Exo 2", monospace; letter-spacing: .08em;
+  color: var(--data); white-space: nowrap;
+}
+.key-list dd { margin: 0; font: 400 10px "Exo 2", sans-serif; color: var(--ink-faint); }
+
+/* Earth Explorer logo, top right — Etna's placement. */
+#top-right-logo-link {
+  position: fixed; top: .45rem; right: .8rem;
+  z-index: 12; display: block; line-height: 0;
+  pointer-events: auto;
+}
+#top-right-logo { height: 4.2rem; width: auto; display: block; filter: drop-shadow(0 6px 18px rgba(0,0,0,.45)); }
+@media (max-width: 900px) { #top-right-logo { height: 2.7rem; } }
