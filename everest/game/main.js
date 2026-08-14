@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=6a3a00f-3254d134";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=6a3a00f-3254d134";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=6a3a00f-3254d134";
-import { Heightfield } from "./dem.js?v=6a3a00f-3254d134";
-import { Imagery } from "./imagery.js?v=6a3a00f-3254d134";
-import { Terrain } from "./terrain.js?v=6a3a00f-3254d134";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=6a3a00f-3254d134";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=6a3a00f-3254d134";
-import { Glacier } from "./glacier.js?v=6a3a00f-3254d134";
-import { TerrainShadows } from "./shadows.js?v=6a3a00f-3254d134";
-import { PostFX, QUALITY } from "./postfx.js?v=6a3a00f-3254d134";
-import { estimateCaptureSun } from "./delight.js?v=6a3a00f-3254d134";
-import { SnowField } from "./snowfield.js?v=6a3a00f-3254d134";
-import { Photoclinometry } from "./photoclino.js?v=6a3a00f-3254d134";
-import { World } from "./world.js?v=6a3a00f-3254d134";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=6a3a00f-3254d134";
-import { Player, STATE } from "./player.js?v=6a3a00f-3254d134";
-import { Director, Climbers } from "./director.js?v=6a3a00f-3254d134";
-import { Hud } from "./hud.js?v=6a3a00f-3254d134";
-import { Audio } from "./audio.js?v=6a3a00f-3254d134";
-import { install as installDiag } from "./diag.js?v=6a3a00f-3254d134";
-import * as tiles from "./tiles.js?v=6a3a00f-3254d134";
+import * as THREE from "../vendor/three.module.js?v=5d280e5-e507c198";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=5d280e5-e507c198";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=5d280e5-e507c198";
+import { Heightfield } from "./dem.js?v=5d280e5-e507c198";
+import { Imagery } from "./imagery.js?v=5d280e5-e507c198";
+import { Terrain } from "./terrain.js?v=5d280e5-e507c198";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=5d280e5-e507c198";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=5d280e5-e507c198";
+import { Glacier } from "./glacier.js?v=5d280e5-e507c198";
+import { TerrainShadows } from "./shadows.js?v=5d280e5-e507c198";
+import { PostFX, QUALITY } from "./postfx.js?v=5d280e5-e507c198";
+import { estimateCaptureSun } from "./delight.js?v=5d280e5-e507c198";
+import { SnowField } from "./snowfield.js?v=5d280e5-e507c198";
+import { Photoclinometry } from "./photoclino.js?v=5d280e5-e507c198";
+import { World } from "./world.js?v=5d280e5-e507c198";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=5d280e5-e507c198";
+import { Player, STATE } from "./player.js?v=5d280e5-e507c198";
+import { Director, Climbers } from "./director.js?v=5d280e5-e507c198";
+import { Hud } from "./hud.js?v=5d280e5-e507c198";
+import { Audio } from "./audio.js?v=5d280e5-e507c198";
+import { install as installDiag } from "./diag.js?v=5d280e5-e507c198";
+import * as tiles from "./tiles.js?v=5d280e5-e507c198";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -644,6 +644,20 @@ export class Game {
       if (document.pointerLockElement !== this.canvas) return;
       this.player.look(e.movementX, e.movementY);
     });
+    /* Hold-to-walk on the mouse. Ubuntu's libinput switches the touchpad
+       off while any KEYBOARD key is held ("disable while typing"), so on a
+       stock laptop W kills the look — the OS never sends the motion and no
+       page can get it back. The mouse's own button is exempt from that
+       gate: holding LMB while pointer-locked walks forward, and the same
+       device keeps looking. Keyboard walking is untouched. */
+    this.mouseWalk = false;
+    addEventListener("mousedown", (e) => {
+      if (e.button === 0 && document.pointerLockElement === this.canvas) this.mouseWalk = true;
+    });
+    addEventListener("mouseup", (e) => { if (e.button === 0) this.mouseWalk = false; });
+    document.addEventListener("pointerlockchange", () => {
+      if (document.pointerLockElement !== this.canvas) this.mouseWalk = false;
+    });
     addEventListener("wheel", (e) => {
       if (this.hud.wheelOpen) {
         this.hud.wheelMove(e.deltaY > 0 ? 1 : -1, this.survival);
@@ -652,7 +666,7 @@ export class Game {
         this.player.camDist = Math.max(2.4, Math.min(11, this.player.camDist + e.deltaY * 0.006));
       }
     }, { passive: false });
-    addEventListener("blur", () => { this.keys = {}; });
+    addEventListener("blur", () => { this.keys = {}; this.mouseWalk = false; });
   }
 
   onKey(e) {
@@ -975,7 +989,7 @@ export class Game {
     /* ── Input → intent ── */
     const k = this.keys;
     const locked = this.hud.wheelOpen || this.hud.journalOpen || this.hud.readerOpen || this.hud.mapOpen;
-    P.input.f = locked ? 0 : (k.KeyW ? 1 : 0) - (k.KeyS ? 1 : 0);
+    P.input.f = locked ? 0 : ((k.KeyW || this.mouseWalk) ? 1 : 0) - (k.KeyS ? 1 : 0);
     P.input.r = locked ? 0 : (k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0);
 
     /* Keyboard look, arrows, held-rate. Not a luxury: Ubuntu's libinput

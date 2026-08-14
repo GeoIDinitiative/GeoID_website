@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="/styles/viewer-skin.css">
 <link rel="preload" as="image" href="data/khumbu_hillshade.png">
 <link rel="preload" as="image" href="data/khumbu_contours.png">
-<link rel="stylesheet" href="everest.css?v=6a3a00f-3254d134">
+<link rel="stylesheet" href="everest.css?v=5d280e5-e507c198">
 
 <!-- ── The reset switch, and why it has to exist ─────────────────────────────
      A site-wide service worker is registered at the root of this origin
@@ -108,6 +108,7 @@ if (location.search.includes("reset")) {
     <div class="key-grid">
       <div class="key-row"><b>W A S D</b><span>Move</span></div>
       <div class="key-row"><b>Mouse</b><span>Look — click the world first</span></div>
+      <div class="key-row"><b>Hold LMB</b><span>Walk forward while looking — no key needed</span></div>
       <div class="key-row"><b>Shift</b><span>Push hard — costs more</span></div>
       <div class="key-row"><b>Ctrl</b><span>Stop and get your breath</span></div>
       <div class="key-row"><b>Space</b><span>Probe the snow ahead / prusik / dig</span></div>
@@ -152,8 +153,8 @@ if (location.search.includes("reset")) {
 </div>
 
 <script type="module">
-import { Game } from "./game/main.js?v=6a3a00f-3254d134";
-import { ROUTE } from "./game/config.js?v=6a3a00f-3254d134";
+import { Game } from "./game/main.js?v=5d280e5-e507c198";
+import { ROUTE } from "./game/config.js?v=5d280e5-e507c198";
 
 const canvas = document.getElementById("scene");
 const hudRoot = document.getElementById("hud");
@@ -175,12 +176,12 @@ window.__ascent = game;      // for the harness, and for anyone curious
 /* Headless driving. Only with ?shot, and only ever additive — the game does
    not behave differently because these exist. */
 if (game.headless) {
-  const { llToLocal } = await import("./game/geo.js?v=6a3a00f-3254d134");
+  const { llToLocal } = await import("./game/geo.js?v=5d280e5-e507c198");
   window.__drive = {
     game,
     run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
     settle: async (ms = 15000) => {
-      const tiles = await import("./game/tiles.js?v=6a3a00f-3254d134");
+      const tiles = await import("./game/tiles.js?v=5d280e5-e507c198");
       const end = performance.now() + ms;
       let quiet = 0;
       while (performance.now() < end) {
