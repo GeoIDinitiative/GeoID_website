@@ -14,9 +14,9 @@
 <link rel="preconnect" href="https://server.arcgisonline.com">
 <link rel="preconnect" href="https://s3.amazonaws.com">
 <link rel="stylesheet" href="/styles/viewer-skin.css">
-<link rel="preload" as="image" href="data/khumbu_map.png?r=3">
+<link rel="preload" as="image" href="data/khumbu_hillshade.png">
 <link rel="preload" as="image" href="data/khumbu_contours.png">
-<link rel="stylesheet" href="everest.css?v=daa3759-e552ca1e">
+<link rel="stylesheet" href="everest.css?v=48459e0-e0d38e6f">
 
 <!-- ── The reset switch, and why it has to exist ─────────────────────────────
      A site-wide service worker is registered at the root of this origin
@@ -95,7 +95,7 @@ if (location.search.includes("reset")) {
     <div class="start-map" id="start-map" hidden>
       <p class="start-map-label">Choose your starting point</p>
       <div class="start-map-box" id="start-map-box">
-        <img src="data/khumbu_map.png?r=3" alt="Khumbu orthophoto" draggable="false" loading="eager" fetchpriority="high">
+        <img src="data/khumbu_hillshade.png" alt="Khumbu hillshade map" draggable="false" loading="eager" fetchpriority="high">
         <img class="sm-contours" src="data/khumbu_contours.png" alt="" draggable="false" loading="eager" fetchpriority="high">
       </div>
     </div>
@@ -162,8 +162,8 @@ if (location.search.includes("reset")) {
 </div>
 
 <script type="module">
-import { Game } from "./game/main.js?v=daa3759-e552ca1e";
-import { ROUTE } from "./game/config.js?v=daa3759-e552ca1e";
+import { Game } from "./game/main.js?v=48459e0-e0d38e6f";
+import { ROUTE } from "./game/config.js?v=48459e0-e0d38e6f";
 
 const canvas = document.getElementById("scene");
 const hudRoot = document.getElementById("hud");
@@ -185,12 +185,12 @@ window.__ascent = game;      // for the harness, and for anyone curious
 /* Headless driving. Only with ?shot, and only ever additive — the game does
    not behave differently because these exist. */
 if (game.headless) {
-  const { llToLocal } = await import("./game/geo.js?v=daa3759-e552ca1e");
+  const { llToLocal } = await import("./game/geo.js?v=48459e0-e0d38e6f");
   window.__drive = {
     game,
     run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
     settle: async (ms = 15000) => {
-      const tiles = await import("./game/tiles.js?v=daa3759-e552ca1e");
+      const tiles = await import("./game/tiles.js?v=48459e0-e0d38e6f");
       const end = performance.now() + ms;
       let quiet = 0;
       while (performance.now() < end) {
