@@ -1994,3 +1994,67 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   border-radius: 0.4rem;
 }
 .scene-popup-close:hover { color: #fff0e8; background: rgba(255, 106, 0, 0.14); }
+
+
+/* ═══ One theme ══════════════════════════════════════════════════════════
+   The interface ran on two palettes at once: the original magenta/cyan
+   atlas variables under everything old, the Etna warm set on everything
+   new. This override retunes the ROOT variables to the Etna instrument
+   scheme, so every surface that reads them — objective, prompt, wheel,
+   journal, map chrome, title accents, notifications — falls into the same
+   warm near-black + #ff6a00 + amber system as the panel, in one move. */
+:root {
+  --chrome: #ff6a00;
+  --chrome-rgb: 255, 106, 0;
+  --data: #ffb080;
+  --data-rgb: 255, 176, 128;
+  --chrome-ink: #2a1000;
+  --ink: #f8f0eb;
+  --ink-dim: rgba(240, 222, 206, 0.72);
+  --ink-faint: rgba(240, 222, 206, 0.38);
+  --ground: #0a0402;
+  --panel: rgba(18, 8, 3, 0.92);
+  --panel-solid: rgba(12, 5, 2, 0.97);
+  --line: rgba(255, 106, 0, 0.42);
+  --line-soft: rgba(255, 106, 0, 0.18);
+}
+
+/* Popup chips join the theme (the purple was a contrast fix; the warm
+   near-black chip solves the same white-snow clash inside the system). */
+.subtitle,
+.notify .note {
+  color: #ffd9b3;
+  background: rgba(20, 8, 2, 0.78);
+  border-color: rgba(255, 106, 0, 0.4);
+}
+
+/* The player's map marker: amber core, white ring — same family. */
+.mv-player {
+  background: #ff6a00;
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.35), 0 0 16px rgba(255, 106, 0, 0.9);
+}
+@keyframes mvPlayerPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.35), 0 0 16px rgba(255, 106, 0, 0.9); }
+  50%      { box-shadow: 0 0 0 8px rgba(255, 106, 0, 0.12), 0 0 22px rgba(255, 106, 0, 0.9); }
+}
+
+/* ── Corner readout: a digital instrument ───────────────────────────────
+   Twice the size, Orbitron's geometric digits with a slight forward slant
+   and an amber glow — a cockpit clock over the coordinates. */
+.corner-readout .cr-time {
+  font: 700 3.4rem Orbitron, "Exo 2", sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.05em;
+  transform: skewX(-8deg);
+  color: #ffb080;
+  text-shadow: 0 0 14px rgba(255, 106, 0, 0.55), 0 1px 8px rgba(0, 0, 0, 0.8);
+  line-height: 1;
+}
+.corner-readout .cr-latlon {
+  font: 600 1.44rem "Exo 2", sans-serif;
+  color: rgba(248, 240, 235, 0.88);
+  letter-spacing: 0.03em;
+  margin-top: 0.25rem;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.75);
+}

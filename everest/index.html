@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://server.arcgisonline.com">
 <link rel="preconnect" href="https://s3.amazonaws.com">
 <link rel="stylesheet" href="/styles/viewer-skin.css">
-<link rel="stylesheet" href="everest.css?v=5b4190f-19e076d0">
+<link rel="stylesheet" href="everest.css?v=ead7b7a-68b0a607">
 
 <!-- ── The reset switch, and why it has to exist ─────────────────────────────
      A site-wide service worker is registered at the root of this origin
@@ -63,19 +63,7 @@ if (location.search.includes("reset")) {
   });
 }
 
-/* The build stamp, on screen. Half of today went into arguing about whether a
-   change had reached the browser at all; a number you can read off the corner
-   settles that in one glance instead of one round trip. Taken from the
-   stylesheet href, which tools/stamp.py rewrites on every build. */
-addEventListener("DOMContentLoaded", () => {
-  const href = document.querySelector('link[href*="everest.css"]')?.href || "";
-  const el = document.createElement("div");
-  el.textContent = "build " + (href.split("?v=")[1] || "unstamped");
-  el.style.cssText = "position:fixed;right:8px;bottom:6px;z-index:100001;"
-    + "font:10px/1 ui-monospace,monospace;letter-spacing:.08em;opacity:.55;"
-    + "color:#00e5ff;pointer-events:none;text-shadow:0 1px 3px #000";
-  document.body.appendChild(el);
-});
+/* Build stamp removed by request — tools/stamp.py still versions every URL. */
 </script>
 </head>
 <body>
@@ -178,8 +166,8 @@ addEventListener("DOMContentLoaded", () => {
 </div>
 
 <script type="module">
-import { Game } from "./game/main.js?v=5b4190f-19e076d0";
-import { ROUTE } from "./game/config.js?v=5b4190f-19e076d0";
+import { Game } from "./game/main.js?v=ead7b7a-68b0a607";
+import { ROUTE } from "./game/config.js?v=ead7b7a-68b0a607";
 
 const canvas = document.getElementById("scene");
 const hudRoot = document.getElementById("hud");
@@ -201,12 +189,12 @@ window.__ascent = game;      // for the harness, and for anyone curious
 /* Headless driving. Only with ?shot, and only ever additive — the game does
    not behave differently because these exist. */
 if (game.headless) {
-  const { llToLocal } = await import("./game/geo.js?v=5b4190f-19e076d0");
+  const { llToLocal } = await import("./game/geo.js?v=ead7b7a-68b0a607");
   window.__drive = {
     game,
     run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
     settle: async (ms = 15000) => {
-      const tiles = await import("./game/tiles.js?v=5b4190f-19e076d0");
+      const tiles = await import("./game/tiles.js?v=ead7b7a-68b0a607");
       const end = performance.now() + ms;
       let quiet = 0;
       while (performance.now() < end) {

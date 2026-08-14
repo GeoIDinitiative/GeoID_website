@@ -20,23 +20,25 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=5b4190f-19e076d0";
-import { ITEMS } from "./survival.js?v=5b4190f-19e076d0";
-import { compassPoint } from "./geo.js?v=5b4190f-19e076d0";
+import { Director } from "./director.js?v=ead7b7a-68b0a607";
+import { ITEMS } from "./survival.js?v=ead7b7a-68b0a607";
+import { compassPoint } from "./geo.js?v=ead7b7a-68b0a607";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
    step with `everest.css` by hand — they are the only place in the project
    where the palette is written twice. */
-const CHROME = "#ff2bd6";
-const CHROME_BRIGHT = "rgba(255,43,214,0.88)";
-const CHROME_LINE = "rgba(255,43,214,0.34)";
-const CHROME_FAINT = "rgba(255,43,214,0.20)";
-const DATA = "#00e5ff";
-const INK = "#fdf7ff";
-const INK_SOFT = "rgba(253,247,255,0.86)";
-const INK_DIM = "rgba(214,194,255,0.62)";
-const INK_FAINT = "rgba(214,194,255,0.30)";
+/* One palette for every canvas the HUD draws (compass, wheel, cores):
+   the Etna explorer's warm instrument set, matching the CSS variables. */
+const CHROME = "#ff6a00";
+const CHROME_BRIGHT = "rgba(255,106,0,0.88)";
+const CHROME_LINE = "rgba(255,106,0,0.34)";
+const CHROME_FAINT = "rgba(255,106,0,0.20)";
+const DATA = "#ffb080";
+const INK = "#f8f0eb";
+const INK_SOFT = "rgba(248,240,235,0.86)";
+const INK_DIM = "rgba(240,222,206,0.62)";
+const INK_FAINT = "rgba(240,222,206,0.30)";
 
 const CORE_DEFS = [
   { key: "health",  label: "Health",  colour: "#ff2d6f" },
