@@ -16,14 +16,14 @@
 /* A harness, not the game. It exists so the streaming + clipmap can be
    verified on its own — if the mountain is wrong, it is wrong here first and
    with nothing else in the way. */
-import * as THREE from "./vendor/three.module.js?v=c258b35-55266b61";
-import { Heightfield } from "./game/dem.js?v=c258b35-55266b61";
-import { Imagery } from "./game/imagery.js?v=c258b35-55266b61";
-import { Terrain } from "./game/terrain.js?v=c258b35-55266b61";
-import { Sky } from "./game/sky.js?v=c258b35-55266b61";
-import { llToLocal, localToLL } from "./game/geo.js?v=c258b35-55266b61";
-import { ROUTE, SUMMIT } from "./game/config.js?v=c258b35-55266b61";
-import * as tiles from "./game/tiles.js?v=c258b35-55266b61";
+import * as THREE from "./vendor/three.module.js?v=a3960f9-482e0b99";
+import { Heightfield } from "./game/dem.js?v=a3960f9-482e0b99";
+import { Imagery } from "./game/imagery.js?v=a3960f9-482e0b99";
+import { Terrain } from "./game/terrain.js?v=a3960f9-482e0b99";
+import { Sky } from "./game/sky.js?v=a3960f9-482e0b99";
+import { llToLocal, localToLL } from "./game/geo.js?v=a3960f9-482e0b99";
+import { ROUTE, SUMMIT } from "./game/config.js?v=a3960f9-482e0b99";
+import * as tiles from "./game/tiles.js?v=a3960f9-482e0b99";
 
 const hud = document.getElementById("hud");
 const renderer = new THREE.WebGLRenderer({

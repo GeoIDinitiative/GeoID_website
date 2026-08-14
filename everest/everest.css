@@ -1176,3 +1176,175 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 }
 #top-right-logo { height: 4.2rem; width: auto; display: block; filter: drop-shadow(0 6px 18px rgba(0,0,0,.45)); }
 @media (max-width: 900px) { #top-right-logo { height: 2.7rem; } }
+
+
+/* ── Planet-viewer skin ──────────────────────────────────────────────────
+   The panel, sections, buttons and readouts restyled to the planet
+   explorers' exact design language: arctic-cyan accent on slate cards,
+   rounded outlined sections with an accent spine when open, Exo 2
+   throughout. Values lifted from planet_explorer/mars/viewer/styles.css. */
+.navbar {
+  --pv-rgb: 111, 217, 232;
+  --pv-text: #f3f7fa;
+  --pv-muted: #9bb3bd;
+  width: min(24rem, calc(100vw - 2rem));
+  top: 1rem; left: 1rem;
+  border: 1px solid rgba(var(--pv-rgb), 0.38);
+  border-radius: 0.75rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+    linear-gradient(180deg, rgba(18, 28, 38, 0.94), rgba(6, 11, 17, 0.98));
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 0 0 1px rgba(var(--pv-rgb), 0.14),
+    0 0 34px rgba(var(--pv-rgb), 0.12);
+  outline: 1px solid rgba(var(--pv-rgb), 0.1);
+  outline-offset: -6px;
+  color: var(--pv-text);
+  font-family: "Exo 2", "Trebuchet MS", "Segoe UI", sans-serif;
+}
+.nav-head {
+  border-bottom: 1px solid rgba(var(--pv-rgb), 0.18);
+  padding: 0.55rem 0.75rem;
+}
+.nh-brand { color: var(--pv-text); font-family: "Exo 2", sans-serif; letter-spacing: 0.14em; }
+.nh-brand i { color: var(--pv-muted); }
+.nav-hide {
+  border-color: rgba(var(--pv-rgb), 0.48);
+  color: var(--pv-text);
+  font-family: "Exo 2", sans-serif;
+  text-shadow: 0 0 6px rgba(var(--pv-rgb), 0.28);
+  box-shadow: inset 0 0 0 1px rgba(var(--pv-rgb), 0.08), 0 0 12px rgba(var(--pv-rgb), 0.12);
+}
+.nav-hide:hover { border-color: rgba(var(--pv-rgb), 0.82); background: rgba(var(--pv-rgb), 0.16); }
+.navbar .controls {
+  margin: 0.75rem 0.6rem 0.75rem;
+  display: grid;
+  gap: 0.65rem;
+}
+.control-section {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.7rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0.012));
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+.control-section > summary.section-toggle {
+  min-height: 2.65rem;
+  padding: 0.72rem 0.82rem;
+  box-sizing: border-box;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.005));
+  border-left: 2px solid rgba(var(--pv-rgb), 0);
+  font: 600 0.71rem "Exo 2", "Segoe UI", sans-serif;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--pv-text);
+  transition: background 0.15s, border-color 0.15s;
+}
+.control-section[open] > summary.section-toggle {
+  border-left-color: rgba(var(--pv-rgb), 0.82);
+  background: linear-gradient(180deg, rgba(var(--pv-rgb), 0.12), rgba(255, 255, 255, 0.01));
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+.control-section:hover > summary.section-toggle {
+  background: linear-gradient(180deg, rgba(var(--pv-rgb), 0.18), rgba(255, 255, 255, 0.03));
+  border-left-color: rgba(var(--pv-rgb), 1);
+  box-shadow: inset 0 0 0 1px rgba(var(--pv-rgb), 0.2), 0 0 22px rgba(var(--pv-rgb), 0.1);
+}
+.control-section .st-chev { color: var(--pv-muted); }
+.section-body { padding: 0.15rem 0.82rem 0.7rem; }
+.section-copy { font: 400 0.74rem/1.5 "Exo 2", sans-serif; color: var(--pv-muted); }
+.section-tools { gap: 0.28rem; }
+.navbar .nav-btn {
+  display: flex; align-items: center; gap: 0.5rem;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.42rem 0.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.005));
+  color: var(--pv-text);
+  font: 500 0.78rem "Exo 2", sans-serif;
+  letter-spacing: 0.02em; text-transform: none;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.navbar .nav-btn:hover {
+  border-color: rgba(var(--pv-rgb), 0.6);
+  background: rgba(var(--pv-rgb), 0.1);
+  box-shadow: 0 0 14px rgba(var(--pv-rgb), 0.12);
+}
+.navbar .nav-btn[data-on="1"] {
+  border-color: rgba(var(--pv-rgb), 0.82);
+  background: linear-gradient(180deg, rgba(var(--pv-rgb), 0.18), rgba(var(--pv-rgb), 0.06));
+  box-shadow: inset 0 0 0 1px rgba(var(--pv-rgb), 0.14), 0 0 16px rgba(var(--pv-rgb), 0.16);
+}
+.navbar .nav-btn .nb-icon { width: 1.1rem; text-align: center; color: rgba(var(--pv-rgb), 0.9); }
+.navbar .nav-btn .nb-label { flex: 1 1 auto; text-align: left; }
+.navbar .nav-btn .nb-key {
+  font: 700 0.62rem "Exo 2", monospace;
+  letter-spacing: 0.08em;
+  color: var(--pv-muted);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.3rem;
+  padding: 0.1rem 0.32rem;
+}
+.key-list dt { color: rgba(var(--pv-rgb), 0.95); }
+.key-list dd { color: var(--pv-muted); }
+.nav-status {
+  border-top: 1px solid rgba(var(--pv-rgb), 0.18);
+  padding: 0.45rem 0.75rem;
+  font: 600 0.7rem "Exo 2", sans-serif;
+  color: var(--pv-muted);
+}
+.bb-text h1 { font-family: "Exo 2", "Segoe UI", sans-serif; font-weight: 700; letter-spacing: 0.04em; }
+.bb-text p { font-family: "Exo 2", sans-serif; }
+.nav-tab {
+  font-family: "Exo 2", sans-serif;
+  border-color: rgba(var(--pv-rgb, 111, 217, 232), 0.48);
+}
+
+/* Info bar joins the same language. */
+.info-bar { --pv-rgb: 111, 217, 232; }
+.info-bar .ib-seg {
+  background: rgba(11, 17, 24, 0.98);
+  border: 1px solid rgba(var(--pv-rgb), 0.28);
+  border-radius: 0.55rem;
+  box-shadow: inset 0 0 0 1px rgba(var(--pv-rgb), 0.06);
+}
+.info-bar .k { font-family: "Exo 2", sans-serif; color: #9bb3bd; }
+.info-bar .v { font-family: "Exo 2", sans-serif; color: #f3f7fa; }
+.info-bar .u { color: #9bb3bd; }
+.info-bar .ib-alt .v { color: #6fd9e8; }
+.bars-tab {
+  font-family: "Exo 2", sans-serif;
+  border-color: rgba(111, 217, 232, 0.28);
+  background: rgba(11, 17, 24, 0.98);
+  color: #9bb3bd;
+}
+.bars-tab:hover { color: #f3f7fa; border-color: rgba(111, 217, 232, 0.6); }
+
+/* Corner readout: the clock over the coordinates, bottom right. */
+.corner-readout {
+  position: fixed;
+  right: 1rem; bottom: 0.9rem;
+  z-index: 10;
+  text-align: right;
+  pointer-events: none;
+  font-family: "Exo 2", "Segoe UI", sans-serif;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
+.corner-readout .cr-time { font-size: 1.05rem; font-weight: 700; color: #6fd9e8; }
+.corner-readout .cr-latlon { font-size: 0.72rem; color: rgba(243, 247, 250, 0.85); margin-top: 0.1rem; }
+@media (max-width: 900px) { .corner-readout { display: none; } }
+
+/* Loading page logo, top right — fades with the title. */
+.title-logo {
+  position: absolute;
+  top: 0.6rem; right: 0.9rem;
+  height: 4.6rem; width: auto;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
+}

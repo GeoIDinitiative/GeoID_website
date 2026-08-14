@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=c258b35-55266b61";
-import { ITEMS } from "./survival.js?v=c258b35-55266b61";
-import { compassPoint } from "./geo.js?v=c258b35-55266b61";
+import { Director } from "./director.js?v=a3960f9-482e0b99";
+import { ITEMS } from "./survival.js?v=a3960f9-482e0b99";
+import { compassPoint } from "./geo.js?v=a3960f9-482e0b99";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -104,10 +104,19 @@ export class Hud {
       <span class="ib-seg"><span class="k">Slope</span><span class="v" id="i-slope">—</span></span>
       <span class="ib-seg"><span class="k">SpO\u2082</span><span class="v" id="i-spo2">—</span></span>
       <span class="ib-seg"><span class="k">O\u2082</span><span class="v" id="i-flow">—</span></span>
-      <span class="ib-seg"><span class="k">Time</span><span class="v" id="i-time">—</span></span>`;
-    for (const id of ["alt", "temp", "wind", "resist", "slope", "spo2", "flow", "time", "avy"]) {
+`;
+    for (const id of ["alt", "temp", "wind", "resist", "slope", "spo2", "flow", "avy"]) {
       this.el["i_" + id] = this.el.instr.querySelector("#i-" + id);
     }
+
+    /* ── Corner readout, bottom right: the clock over the coordinates,
+          the planet viewers' cursor-readout idiom. ── */
+    this.el.corner = mk("corner-readout");
+    this.el.corner.innerHTML = `
+      <div class="cr-time" id="cr-time">--:--</div>
+      <div class="cr-latlon" id="cr-latlon">\u2014</div>`;
+    this.el.crTime = this.el.corner.querySelector("#cr-time");
+    this.el.crLatlon = this.el.corner.querySelector("#cr-latlon");
 
     /* ── Footer collapse: one arrow folds the compass and info bar down
           into the edge, U mirrors it from the keyboard. ── */
@@ -358,7 +367,6 @@ export class Hud {
         <div class="controls" id="nav-sections"></div>
       </div>
       <div class="nav-status">
-        <span class="ns-alt" id="n-alt">\u2014</span>
         <span class="ns-standing" id="n-standing">\u2014</span>
       </div>`;
     this.el.nav.querySelector("#nav-hide")
@@ -433,7 +441,7 @@ export class Hud {
       host.appendChild(d);
     }
     for (const [k, id] of [["cTime", "c-time"], ["cDay", "c-day"], ["cPhase", "c-phase"],
-                           ["nAlt", "n-alt"], ["nStanding", "n-standing"]]) {
+                           ["nStanding", "n-standing"]]) {
       this.el[k] = this.el.nav.querySelector("#" + id);
     }
 
@@ -776,7 +784,6 @@ export class Hud {
     this.setText(this.el.cDay, `Day ${Math.floor(s.seasonDay) + 1}`);
     this.setText(this.el.cPhase, s.phase);
     this.el.nav.dataset.night = s.sunAltitude < -1 ? "1" : "0";
-    this.setText(this.el.nAlt, `${Math.round(s.altitude).toLocaleString()} m`);
     this.setText(this.el.nStanding, s.standingWord);
 
     /* Every toggle's lit state comes from the game, once a frame — so the
@@ -828,7 +835,12 @@ export class Hud {
     this.setText(this.el.i_flow, s.survival.o2Flow > 0 && s.survival.bottleLitres > 0
       ? `${s.survival.o2Flow} L/min · ${Math.round(s.survival.bottleLitres)} L`
       : "off");
-    this.setText(this.el.i_time, s.clock);
+    this.setText(this.el.crTime, s.clock);
+    if (s.lat !== undefined && s.lon !== undefined) {
+      this.setText(this.el.crLatlon,
+        `${Math.abs(s.lat).toFixed(5)}\u00b0 ${s.lat < 0 ? "S" : "N"}  ` +
+        `${Math.abs(s.lon).toFixed(5)}\u00b0 ${s.lon < 0 ? "W" : "E"}`);
+    }
     const r = Director.rate(s.stability);
     this.setText(this.el.i_avy, r.word);
     tint(this.el.i_avy, { Low: 0.1, Moderate: 0.45, Considerable: 0.75, High: 1 }[this.el.i_avy.textContent] ?? 0.5);
