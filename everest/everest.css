@@ -1496,9 +1496,12 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
    mapped kind→theme: camps and the summit are settlements, peaks slab,
    warnings plumbing, route features fissure, everything else general. */
 .mv-pin .pin-pill {
-  display: inline-block;
+  /* Flex centring, not line-height: the italic display face's metrics sat
+     the text high in the pill under line-height centring. */
+  display: inline-flex;
+  align-items: center;
   position: relative;
-  height: 34px; line-height: 34px;
+  height: 34px;
   padding: 0 14px 0 27px;
   border-radius: 14px;
   background: var(--lbl-bg);

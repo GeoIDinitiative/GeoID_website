@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=74d9be6-074d8bf6";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=74d9be6-074d8bf6";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=74d9be6-074d8bf6";
-import { Heightfield } from "./dem.js?v=74d9be6-074d8bf6";
-import { Imagery } from "./imagery.js?v=74d9be6-074d8bf6";
-import { Terrain } from "./terrain.js?v=74d9be6-074d8bf6";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=74d9be6-074d8bf6";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=74d9be6-074d8bf6";
-import { Glacier } from "./glacier.js?v=74d9be6-074d8bf6";
-import { TerrainShadows } from "./shadows.js?v=74d9be6-074d8bf6";
-import { PostFX, QUALITY } from "./postfx.js?v=74d9be6-074d8bf6";
-import { estimateCaptureSun } from "./delight.js?v=74d9be6-074d8bf6";
-import { SnowField } from "./snowfield.js?v=74d9be6-074d8bf6";
-import { Photoclinometry } from "./photoclino.js?v=74d9be6-074d8bf6";
-import { World } from "./world.js?v=74d9be6-074d8bf6";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=74d9be6-074d8bf6";
-import { Player, STATE } from "./player.js?v=74d9be6-074d8bf6";
-import { Director, Climbers } from "./director.js?v=74d9be6-074d8bf6";
-import { Hud } from "./hud.js?v=74d9be6-074d8bf6";
-import { Audio } from "./audio.js?v=74d9be6-074d8bf6";
-import { install as installDiag } from "./diag.js?v=74d9be6-074d8bf6";
-import * as tiles from "./tiles.js?v=74d9be6-074d8bf6";
+import * as THREE from "../vendor/three.module.js?v=5ef04db-bf9f5b7c";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=5ef04db-bf9f5b7c";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=5ef04db-bf9f5b7c";
+import { Heightfield } from "./dem.js?v=5ef04db-bf9f5b7c";
+import { Imagery } from "./imagery.js?v=5ef04db-bf9f5b7c";
+import { Terrain } from "./terrain.js?v=5ef04db-bf9f5b7c";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=5ef04db-bf9f5b7c";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=5ef04db-bf9f5b7c";
+import { Glacier } from "./glacier.js?v=5ef04db-bf9f5b7c";
+import { TerrainShadows } from "./shadows.js?v=5ef04db-bf9f5b7c";
+import { PostFX, QUALITY } from "./postfx.js?v=5ef04db-bf9f5b7c";
+import { estimateCaptureSun } from "./delight.js?v=5ef04db-bf9f5b7c";
+import { SnowField } from "./snowfield.js?v=5ef04db-bf9f5b7c";
+import { Photoclinometry } from "./photoclino.js?v=5ef04db-bf9f5b7c";
+import { World } from "./world.js?v=5ef04db-bf9f5b7c";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=5ef04db-bf9f5b7c";
+import { Player, STATE } from "./player.js?v=5ef04db-bf9f5b7c";
+import { Director, Climbers } from "./director.js?v=5ef04db-bf9f5b7c";
+import { Hud } from "./hud.js?v=5ef04db-bf9f5b7c";
+import { Audio } from "./audio.js?v=5ef04db-bf9f5b7c";
+import { install as installDiag } from "./diag.js?v=5ef04db-bf9f5b7c";
+import * as tiles from "./tiles.js?v=5ef04db-bf9f5b7c";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -297,7 +297,12 @@ export class Game {
     this.hud.bindMapRoute(ROUTE);
     fetch("data/route_path.json")
       .then((r) => r.json())
-      .then((pts) => this.hud.bindMapRoute(pts.map(([lat, lon]) => ({ lat, lon }))))
+      .then((pts) => {
+        const ll = pts.map(([lat, lon]) => ({ lat, lon }));
+        this.hud.bindMapRoute(ll);
+        /* One route everywhere: the scene walks the same line the maps draw. */
+        this.world.setRoutePath(ll);
+      })
       .catch(() => {});
     this.hud.onFastTravel = (poi) => {
       /* The full relocation, not a bare placeAt — copied from the helicopter
@@ -718,6 +723,7 @@ export class Game {
       case "route":
         this.showRoute = !this.showRoute;
         this.world.routeGroup.visible = this.showRoute;
+        this.terrain.uniforms.routeOn.value = this.showRoute ? 1 : 0;
         return this.hud.notify(this.showRoute
           ? "Fixed line shown."
           : "Fixed line hidden. You are navigating on your own now.", this.showRoute ? "info" : "warn");
@@ -1194,7 +1200,13 @@ export class Game {
     });
 
     this.world.updateMarkers(this.camera.position, windMs, u.time.value);
-    if (this.world.routeMat) this.world.routeMat.uniforms.time.value = u.time.value;
+    /* The rope rides the terrain shader now; keep its mask fed and its
+       window following the player. */
+    this.world.updateRouteMask(P.pos.x, P.pos.z);
+    if (this.world.routeMaskTex && this.terrain.uniforms.routeMask.value !== this.world.routeMaskTex) {
+      this.terrain.uniforms.routeMask.value = this.world.routeMaskTex;
+      this.terrain.uniforms.routeMaskBounds.value = this.world.routeMaskBounds;
+    }
     this.world.updateLabels(this.camera, P.pos, {
       width: innerWidth, height: innerHeight,
       maxDist: Math.max(600, Math.min(24000, this.weather.visibility)),

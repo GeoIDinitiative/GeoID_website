@@ -289,12 +289,12 @@ export const CAMPS = ROUTE.filter((p) => p.camp);
    so both numbers are kept. */
 export const PEAKS = [
   { name: "Lhotse",        lat: 27.96170, lon: 86.93260, dem: 8430, published: 8516, note: "Fourth-highest mountain on Earth. Shares the South Col with Everest." },
-  { name: "Lhotse Shar",   lat: 27.95900, lon: 86.94370, dem: 8195, published: 8383, note: "The eastern summit of the Lhotse massif." },
+  { name: "Lhotse Shar",   lat: 27.96030, lon: 86.93710, dem: 8195, published: 8383, note: "The eastern summit of the Lhotse massif." },
   { name: "Nuptse",        lat: 27.96760, lon: 86.88690, dem: 7814, published: 7861, note: "The south wall of the Western Cwm. Its ridge shades Camp II by mid-afternoon." },
-  { name: "Changtse",      lat: 28.02570, lon: 86.91090, dem: 7497, published: 7543, note: "Everest's north peak, in Tibet. Visible over the Lho La from Base Camp." },
-  { name: "West Shoulder", lat: 27.99660, lon: 86.89170, dem: 7282, published: 7300, note: "The Everest west ridge above the Cwm. Its seracs hang over the Icefall." },
-  { name: "Pumori",        lat: 28.01610, lon: 86.82750, dem: 7116, published: 7161, note: "“Unmarried daughter” — named by Mallory. The view of Everest from Kala Patthar is on its south ridge." },
-  { name: "Khumbutse",     lat: 28.02800, lon: 86.85460, dem: 6682, published: 6636, note: "At the head of the Khumbu, on the Nepal-Tibet border." },
+  { name: "Changtse",      lat: 28.02500, lon: 86.90770, dem: 7497, published: 7543, note: "Everest's north peak, in Tibet. Visible over the Lho La from Base Camp." },
+  { name: "West Shoulder", lat: 27.99900, lon: 86.89800, dem: 7282, published: 7300, note: "The Everest west ridge above the Cwm. Its seracs hang over the Icefall." },
+  { name: "Pumori",        lat: 28.01420, lon: 86.82810, dem: 7116, published: 7161, note: "“Unmarried daughter” — named by Mallory. The view of Everest from Kala Patthar is on its south ridge." },
+  { name: "Khumbutse",     lat: 28.00940, lon: 86.85370, dem: 6682, published: 6636, note: "At the head of the Khumbu, on the Nepal-Tibet border." },
 ];
 
 /* ── Points of interest ───────────────────────────────────────────────────
@@ -316,7 +316,7 @@ export const POI_EXTRA = [
   { id: "rainbow", name: "Rainbow Valley", lat: 27.99250, lon: 86.92900,
     kind: "warning",
     text: "Below the northeast ridge on the Tibet side, northeast of the summit. The name is gallows humour: the colours are down jackets. The dead stay where they fall up here, because bringing a body down from 8,500 metres costs more lives than it saves." },
-  { id: "lhola", name: "The Lho La", lat: 28.00890, lon: 86.86170,
+  { id: "lhola", name: "The Lho La", lat: 28.00600, lon: 86.86200,
     kind: "site",
     text: "The pass at the head of the Khumbu, 6,000 m, and the Tibetan border. Mallory looked through it in 1921 and saw the Western Cwm for the first time — and judged it unclimbable from that side." },
 ];

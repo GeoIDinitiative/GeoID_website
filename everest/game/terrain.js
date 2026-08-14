@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=74d9be6-074d8bf6";
-import { CLIPMAP, RENDER } from "./config.js?v=74d9be6-074d8bf6";
+import * as THREE from "../vendor/three.module.js?v=5ef04db-bf9f5b7c";
+import { CLIPMAP, RENDER } from "./config.js?v=5ef04db-bf9f5b7c";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -187,6 +187,9 @@ const FRAG = /* glsl */`
   uniform float snowTexOn;
   uniform sampler2D boulderTex;
   uniform float boulderOn;
+  uniform sampler2D routeMask;
+  uniform vec4 routeMaskBounds;
+  uniform float routeOn;
 
   /* Same decode as the vertex shader — the surface was displaced there, so the
      normal has to be built from the same field or the relief only exists in
@@ -847,6 +850,25 @@ const FRAG = /* glsl */`
           col += vec3(0.09) * smoothstep(0.965, 1.0, sp) * g;
         }
       }
+      /* The fixed line, as surface paint. The mask's R channel is the
+         rope, G carries along-distance so the gold pulse still travels
+         toward the summit; conformance is perfect by construction because
+         this IS the ground being shaded. Fades with distance like the old
+         ribbon so it stays a hint near you, not a line across the massif. */
+      if (routeOn > 0.5) {
+        vec2 ru = (P.xz - routeMaskBounds.xy) / routeMaskBounds.zw;
+        if (ru.x > 0.0 && ru.x < 1.0 && ru.y > 0.0 && ru.y < 1.0) {
+          vec4 rm = texture2D(routeMask, ru);
+          if (rm.r > 0.08) {
+            float s2 = mod(rm.g * 620.0 - time * 46.0, 620.0);
+            float pulse = exp(-(s2 * s2) / (2.0 * 40.0 * 40.0));
+            float aR = (0.38 + pulse * 0.62) * rm.r
+                     * (1.0 - smoothstep(700.0, 2600.0, vDist));
+            vec3 ropeC = mix(vec3(0.878, 0.627, 0.145), vec3(1.0, 0.941, 0.753), pulse);
+            col = mix(col, ropeC, clamp(aR, 0.0, 0.9));
+          }
+        }
+      }
       /* Aerial perspective — the one thing raw mapping cannot carry. The
          old far tier was z11, whose pixels arrive pre-hazed by the
          atmosphere the satellite itself looked through, so the horizon
@@ -1281,6 +1303,9 @@ export class Terrain {
       snowTexOn:     { value: 0 },
       boulderTex:    { value: null },   // broken rock for FLAT dark ground above the valley
       boulderOn:     { value: 0 },
+      routeMask:     { value: null },   // the fixed line, painted onto the surface
+      routeMaskBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
+      routeOn:       { value: 1 },
       debugMode:     { value: 0 },   // isolation modes, cycled with F10
     }, imagery.uniforms());
 

@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=74d9be6-074d8bf6";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=74d9be6-074d8bf6";
-import { llToLocal, haversine } from "./geo.js?v=74d9be6-074d8bf6";
+import * as THREE from "../vendor/three.module.js?v=5ef04db-bf9f5b7c";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=5ef04db-bf9f5b7c";
+import { llToLocal, haversine } from "./geo.js?v=5ef04db-bf9f5b7c";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be
@@ -125,7 +125,7 @@ export class World {
     this.group.add(g);
 
     const pts = [];
-    const src = ROUTE.map((p) => ({ ...llToLocal(p.lat, p.lon) }));
+    const src = (this.routePathLL || ROUTE).map((p) => ({ ...llToLocal(p.lat, p.lon) }));
     for (let i = 1; i < src.length; i++) {
       const a = src[i - 1], b = src[i];
       const len = Math.hypot(b.x - a.x, b.z - a.z);
@@ -139,102 +139,14 @@ export class World {
     pts.push({ ...src[src.length - 1], y: this.field.height(src[src.length - 1].x, src[src.length - 1].z) });
     this.routePoints = pts;
 
-    /* A ribbon needs a direction to be wide in. Use the horizontal normal to
-       the path, which for a trail draped on the ground is what you want —
-       banking it into the slope would make it a flag, not a track.
-       `along` carries distance in metres so the shader can run something
-       down the line. */
-    const ribbon = (width, lift, material) => {
-      const pos = [], idx = [], along = [];
-      let dist = 0;
-      for (let i = 0; i < pts.length; i++) {
-        const p = pts[i];
-        const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
-        let dx = b.x - a.x, dz = b.z - a.z;
-        const l = Math.hypot(dx, dz) || 1;
-        dx /= l; dz /= l;
-        if (i > 0) dist += Math.hypot(p.x - pts[i - 1].x, p.z - pts[i - 1].z);
-        pos.push(p.x - dz * width / 2, p.y + lift, p.z + dx * width / 2);
-        pos.push(p.x + dz * width / 2, p.y + lift, p.z - dx * width / 2);
-        along.push(dist, dist);
-        if (i > 0) {
-          const c = (i - 1) * 2;
-          idx.push(c, c + 1, c + 2, c + 2, c + 1, c + 3);
-        }
-      }
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-      geo.setAttribute("along", new THREE.Float32BufferAttribute(along, 1));
-      geo.setIndex(idx);
-      geo.computeBoundingSphere();
-      const m = new THREE.Mesh(geo, material);
-      m.renderOrder = 3;
-      m.frustumCulled = false;
-      return m;
-    };
-
-    /* The broad "trodden trail" under-ribbon is gone by request: over
-       bright snow the pale metre-wide band read as a second, fatter line
-       nesting the rope, not as compacted ground. The fixed line stands
-       alone. */
-    /* The fixed line itself.
-       Barely there at rest — a thin gold thread — with a current running up
-       it toward the summit. A solid orange stripe read as a road marking
-       painted on the glacier; this reads as something live that you follow,
-       and it doubles as the direction of travel, since the pulse always
-       moves the way you are going. */
-    this.routeMat = new THREE.ShaderMaterial({
-      uniforms: {
-        time:    { value: 0 },
-        gold:    { value: new THREE.Color(0xe0a025) },
-        hot:     { value: new THREE.Color(0xfff0c0) },
-        base:    { value: 0.34 },     // how visible the line is at rest
-        speed:   { value: 46.0 },     // metres a second the pulse travels
-        spacing: { value: 620.0 },    // metres between pulses
-        width:   { value: 40.0 },     // metres of pulse
-      },
-      vertexShader: /* glsl */`
-        attribute float along;
-        varying float vAlong;
-        varying float vDist;
-        void main() {
-          vAlong = along;
-          vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          vDist = -mv.z;
-          gl_Position = projectionMatrix * mv;
-        }`,
-      fragmentShader: /* glsl */`
-        precision highp float;
-        varying float vAlong;
-        varying float vDist;
-        uniform float time, base, speed, spacing, width;
-        uniform vec3 gold, hot;
-        void main() {
-          // One travelling band, repeating along the rope.
-          float s = mod(vAlong - time * speed, spacing);
-          float pulse = exp(-(s * s) / (2.0 * width * width));
-          // ...and a soft wake trailing behind it.
-          float wake = exp(-max(0.0, spacing - s) / 90.0) * 0.35;
-          float a = base + (pulse + wake) * 0.62;
-          vec3 c = mix(gold, hot, pulse);
-          // Fade out far away, so it is a hint near you and not a line drawn
-          // across the whole massif.
-          a *= 1.0 - smoothstep(700.0, 2600.0, vDist);
-          if (a <= 0.004) discard;
-          gl_FragColor = vec4(c, clamp(a, 0.0, 0.95));
-        }`,
-      transparent: true,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      /* Alpha, not additive. Additive over snow is the same as adding to
-         white: the line saturates to white and the gold disappears, which is
-         exactly what it did. Alpha lets the colour tint the surface instead,
-         so gold stays gold on the brightest glacier and still reads at
-         night, and the pulse shows as a shift toward hot white rather than
-         as a brightness the snow has no headroom for. */
-      blending: THREE.NormalBlending,
-    });
-    g.add(ribbon(0.09, 0.26, this.routeMat));
+    /* The rope is no longer geometry. A ribbon draped over a mesh that
+       renders FILTERED heights disagrees with that mesh systematically —
+       buried on every crest, floating over every hollow — and no constant
+       lift can fix a spatially varying error. The route is now painted
+       into a world-space mask (buildRouteMask below) and tinted onto the
+       ground by the terrain shader itself: part of the surface by
+       construction, at every LOD. The wands stay as geometry — points
+       have none of these problems. */
 
     /* Wands, every sixty metres or so.
        **Instanced.** There are 173 of them and each was a Group holding two
@@ -510,6 +422,57 @@ export class World {
    * shot of the game was two enormous green and yellow slabs. Also flutter
    * the flags, since they are here and the wind is a variable.
    */
+  /** Swap in the terrain-following path (lat/lon list) and rebuild —
+   *  the same line the maps draw, so there is one route everywhere. */
+  setRoutePath(ll) {
+    this.routePathLL = ll;
+    this.buildRoute();
+    this._routeMaskCentre = null;      // force a repaint on next update
+  }
+
+  /** Paint the route into a 1.5 m/px mask window that follows the player.
+   *  R is the line, G encodes along-distance mod 620 m so the shader can
+   *  run the travelling pulse. Repainted only when the player nears the
+   *  window's edge. */
+  updateRouteMask(px, pz) {
+    if (!this.routePoints || !this.routePoints.length) return;
+    const SIZE = 2048, SCALE = 1.5, HALF = SIZE * SCALE / 2;   // 3.07 km window
+    if (!this.routeMaskCanvas) {
+      this.routeMaskCanvas = document.createElement("canvas");
+      this.routeMaskCanvas.width = this.routeMaskCanvas.height = SIZE;
+      this.routeMaskTex = new THREE.CanvasTexture(this.routeMaskCanvas);
+      this.routeMaskTex.minFilter = THREE.LinearFilter;
+      this.routeMaskTex.magFilter = THREE.LinearFilter;
+      this.routeMaskBounds = new THREE.Vector4(0, 0, 1, 1);
+    }
+    const c = this._routeMaskCentre;
+    if (c && Math.hypot(px - c.x, pz - c.z) < HALF * 0.45) return;
+    this._routeMaskCentre = { x: px, z: pz };
+    const minX = px - HALF, minZ = pz - HALF;
+    const ctx = this.routeMaskCanvas.getContext("2d");
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    ctx.lineWidth = 1.2;               // ~1.8 m of rope on the ground
+    ctx.lineCap = "round";
+    let along = 0;
+    const pts = this.routePoints;
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      const seg = Math.hypot(b.x - a.x, b.z - a.z);
+      along += seg;
+      const inA = Math.abs(a.x - px) < HALF && Math.abs(a.z - pz) < HALF;
+      const inB = Math.abs(b.x - px) < HALF && Math.abs(b.z - pz) < HALF;
+      if (!inA && !inB) continue;
+      const g = Math.round(((along % 620) / 620) * 255);
+      ctx.strokeStyle = `rgb(255, ${g}, 0)`;
+      ctx.beginPath();
+      ctx.moveTo((a.x - minX) / SCALE, (a.z - minZ) / SCALE);
+      ctx.lineTo((b.x - minX) / SCALE, (b.z - minZ) / SCALE);
+      ctx.stroke();
+    }
+    this.routeMaskTex.needsUpdate = true;
+    this.routeMaskBounds.set(minX, minZ, SIZE * SCALE, SIZE * SCALE);
+  }
+
   updateMarkers(cameraPos, wind = 0, t = 0) {
     for (const poi of this.pois) {
       const m = poi.marker;
