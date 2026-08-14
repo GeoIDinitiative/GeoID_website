@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=34d9924-2a28a20b";
-import { ITEMS } from "./survival.js?v=34d9924-2a28a20b";
-import { compassPoint } from "./geo.js?v=34d9924-2a28a20b";
+import { Director } from "./director.js?v=566aa96-a64ca6d4";
+import { ITEMS } from "./survival.js?v=566aa96-a64ca6d4";
+import { compassPoint } from "./geo.js?v=566aa96-a64ca6d4";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -1179,9 +1179,9 @@ export class Hud {
       c.arc(cx, cy, sel ? R1 + 12 : R1, a0, a1);
       c.arc(cx, cy, R0, a1, a0, true);
       c.closePath();
-      c.fillStyle = sel ? "rgba(255,43,214,0.26)" : "rgba(22,9,51,0.78)";
+      c.fillStyle = sel ? "rgba(77,141,255,0.26)" : "rgba(6,10,20,0.78)";
       c.fill();
-      c.strokeStyle = sel ? CHROME : "rgba(255,43,214,0.30)";
+      c.strokeStyle = sel ? CHROME : "rgba(77,141,255,0.30)";
       c.lineWidth = sel ? 2 : 1;
       c.stroke();
 
@@ -1202,8 +1202,8 @@ export class Hud {
     // Oxygen flow lives in the middle of the wheel, because it is the thing
     // you change most often and it is not an item you use up in one go.
     c.beginPath(); c.arc(cx, cy, R0 - 8, 0, Math.PI * 2);
-    c.fillStyle = "rgba(13,2,33,0.88)"; c.fill();
-    c.strokeStyle = "rgba(255,43,214,0.45)"; c.lineWidth = 1; c.stroke();
+    c.fillStyle = "rgba(4,7,15,0.88)"; c.fill();
+    c.strokeStyle = "rgba(77,141,255,0.45)"; c.lineWidth = 1; c.stroke();
     c.fillStyle = CHROME; c.textAlign = "center";
     c.font = "700 26px 'Exo 2', system-ui, sans-serif";
     c.fillText(`${s.survival.o2Flow}`, cx, cy - 6);

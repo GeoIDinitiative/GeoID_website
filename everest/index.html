@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://server.arcgisonline.com">
 <link rel="preconnect" href="https://s3.amazonaws.com">
 <link rel="stylesheet" href="/styles/viewer-skin.css">
-<link rel="stylesheet" href="everest.css?v=34d9924-2a28a20b">
+<link rel="stylesheet" href="everest.css?v=566aa96-a64ca6d4">
 
 <!-- ── The reset switch, and why it has to exist ─────────────────────────────
      A site-wide service worker is registered at the root of this origin
@@ -135,16 +135,17 @@ if (location.search.includes("reset")) {
       <div class="key-row"><b>F</b><span>Fire a signal flare</span></div>
       <div class="key-row"><b>V</b><span>First / third person</span></div>
       <div class="key-row"><b>N</b><span>Fixed line on / off</span></div>
-      <div class="key-row"><b>Tab</b><span>Field journal</span></div>
+      <div class="key-row"><b>J</b><span>Field journal</span></div>
       <div class="key-row"><b>M</b><span>Map — the navigation hub, with fast travel</span></div>
       <div class="key-row"><b>T</b><span>Place labels on / off</span></div>
       <div class="key-row"><b>O</b><span>Oxygen regulator — cycles 0 / 1 / 2 / 4 L/min</span></div>
       <div class="key-row"><b>B</b><span>Binoculars</span></div>
       <div class="key-row"><b>← ↑ ↓ →</b><span>Look, without the mouse</span></div>
-      <div class="key-row"><b>`</b><span>Hide / show the control panel</span></div>
-      <div class="key-row"><b>Bar</b><span>Every toggle is also a button, top of screen</span></div>
+      <div class="key-row"><b>Tab</b><span>Hide / show the control panel</span></div>
+      <div class="key-row"><b>U</b><span>Fold the compass and info bar into the footer</span></div>
+      <div class="key-row"><b>Panel</b><span>Every toggle is also a button, in the panel's sections</span></div>
       <div class="key-row"><b>H</b><span>This list</span></div>
-      <div class="key-row"><b>Esc</b><span>Release the mouse</span></div>
+      <div class="key-row"><b>Esc</b><span>Close whatever is open; release the mouse</span></div>
     </div>
     <div style="margin-top:1.2rem">
       <button class="btn" id="btn-controls-close">Close</button>
@@ -166,8 +167,8 @@ if (location.search.includes("reset")) {
 </div>
 
 <script type="module">
-import { Game } from "./game/main.js?v=34d9924-2a28a20b";
-import { ROUTE } from "./game/config.js?v=34d9924-2a28a20b";
+import { Game } from "./game/main.js?v=566aa96-a64ca6d4";
+import { ROUTE } from "./game/config.js?v=566aa96-a64ca6d4";
 
 const canvas = document.getElementById("scene");
 const hudRoot = document.getElementById("hud");
@@ -189,12 +190,12 @@ window.__ascent = game;      // for the harness, and for anyone curious
 /* Headless driving. Only with ?shot, and only ever additive — the game does
    not behave differently because these exist. */
 if (game.headless) {
-  const { llToLocal } = await import("./game/geo.js?v=34d9924-2a28a20b");
+  const { llToLocal } = await import("./game/geo.js?v=566aa96-a64ca6d4");
   window.__drive = {
     game,
     run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
     settle: async (ms = 15000) => {
-      const tiles = await import("./game/tiles.js?v=34d9924-2a28a20b");
+      const tiles = await import("./game/tiles.js?v=566aa96-a64ca6d4");
       const end = performance.now() + ms;
       let quiet = 0;
       while (performance.now() < end) {

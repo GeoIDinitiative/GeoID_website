@@ -326,10 +326,12 @@ export function install(game) {
 
   addEventListener("keydown", (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.code === "F9" || e.code === "KeyJ") {
+    /* Function keys only: J and K became gameplay keys (journal, and the
+       letter row generally belongs to the player, not the toolbox). */
+    if (e.code === "F9") {
       e.preventDefault(); e.stopPropagation(); run(); return;
     }
-    if (e.code === "F10" || e.code === "KeyK") {
+    if (e.code === "F10") {
       e.preventDefault(); e.stopPropagation(); cycle();
     }
   }, true);
