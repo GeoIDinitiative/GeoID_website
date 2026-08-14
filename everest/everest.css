@@ -1573,3 +1573,129 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   text-align: center;
   color: rgba(255, 176, 128, 0.72);
 }
+
+
+/* ── Title screen: white ink and the starting-point map ────────────────── */
+.title-sub { color: rgba(255, 255, 255, 0.92); }
+.title-blurb { color: rgba(255, 255, 255, 0.88); }
+.title-progress { color: rgba(255, 255, 255, 0.85); }
+.title-credit { color: rgba(255, 255, 255, 0.55); }
+.title-mark { color: rgba(255, 255, 255, 0.8); }
+
+.start-map { margin: 0.9rem 0 0.3rem; }
+.start-map-label {
+  margin: 0 0 0.45rem;
+  font: 600 0.72rem "Exo 2", "Segoe UI", sans-serif;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: #ffffff;
+  text-align: center;
+}
+.start-map-box {
+  position: relative;
+  width: min(30rem, 76vw);
+  margin: 0 auto;
+  border: 1px solid rgba(255, 106, 0, 0.6);
+  border-radius: 0.7rem;
+  overflow: hidden;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), 0 0 22px rgba(255, 80, 0, 0.2);
+}
+.start-map-box img { display: block; }
+.sm-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: none; border: 0; padding: 0.4rem;
+  cursor: pointer;
+  display: grid; justify-items: center; gap: 0.16rem;
+}
+.sm-pin i {
+  width: 0.62rem; height: 0.62rem;
+  border-radius: 50%;
+  background: #ff6a00;
+  border: 2px solid #fff;
+  box-shadow: 0 0 10px rgba(255, 106, 0, 0.9), 0 1px 4px rgba(0, 0, 0, 0.7);
+  transition: transform 0.15s;
+}
+.sm-pin span {
+  font: 700 0.58rem "Exo 2", sans-serif;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: #fff;
+  background: rgba(10, 4, 2, 0.82);
+  border: 1px solid rgba(255, 106, 0, 0.5);
+  border-radius: 999px;
+  padding: 0.14rem 0.44rem;
+  white-space: nowrap;
+  text-shadow: none;
+}
+.sm-pin:hover i { transform: scale(1.45); }
+.sm-pin:hover span { background: rgba(255, 106, 0, 0.92); color: #16060a; }
+
+/* ── The player on the big map ──────────────────────────────────────────── */
+.mv-player {
+  position: absolute;
+  width: 14px; height: 14px;
+  transform: translate(-50%, -50%) scale(var(--invk, 1));
+  transform-origin: center;
+  border-radius: 50%;
+  background: #ff2fd6;
+  border: 2.5px solid #fff;
+  box-shadow: 0 0 0 3px rgba(255, 47, 214, 0.35), 0 0 16px rgba(255, 47, 214, 0.9);
+  pointer-events: none;
+  z-index: 5;
+  animation: mvPlayerPulse 1.6s ease-in-out infinite;
+}
+@keyframes mvPlayerPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255, 47, 214, 0.35), 0 0 16px rgba(255, 47, 214, 0.9); }
+  50%      { box-shadow: 0 0 0 8px rgba(255, 47, 214, 0.12), 0 0 22px rgba(255, 47, 214, 0.9); }
+}
+
+
+/* ── The route on both maps ─────────────────────────────────────────────
+   A cased line — dark under, hot over — so it survives snow and shadow
+   alike. On the big map the stroke counter-scales with zoom via --invk. */
+.mv-route {
+  position: absolute; left: 0; top: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.mv-route-casing {
+  fill: none;
+  stroke: rgba(10, 2, 0, 0.75);
+  stroke-width: calc(7px * var(--invk, 1));
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.mv-route-line {
+  fill: none;
+  stroke: #ff6a00;
+  stroke-width: calc(3.2px * var(--invk, 1));
+  stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: calc(10px * var(--invk, 1)) calc(7px * var(--invk, 1));
+  filter: drop-shadow(0 0 4px rgba(255, 106, 0, 0.55));
+}
+.sm-route {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+.sm-route-casing {
+  fill: none; stroke: rgba(10, 2, 0, 0.75); stroke-width: 5px;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.sm-route-line {
+  fill: none; stroke: #ff6a00; stroke-width: 2.4px;
+  stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 8 6;
+  filter: drop-shadow(0 0 3px rgba(255, 106, 0, 0.6));
+}
+
+
+/* ── Contour sheets over both maps ──────────────────────────────────────
+   Same extent and pixel grid as the orthophoto, so they overlay 1:1;
+   under the route line and pins, over the imagery. */
+.mv-contours {
+  position: absolute; left: 0; top: 0;
+  pointer-events: none; user-select: none;
+  opacity: 0.8;
+  z-index: 1;
+}
+.sm-contours { opacity: 0.75; pointer-events: none; }
+.start-map-box { position: relative; }

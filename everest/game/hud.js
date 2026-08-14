@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=9309225-e26646e6";
-import { ITEMS } from "./survival.js?v=9309225-e26646e6";
-import { compassPoint } from "./geo.js?v=9309225-e26646e6";
+import { Director } from "./director.js?v=f06d8a4-4d0aec6e";
+import { ITEMS } from "./survival.js?v=f06d8a4-4d0aec6e";
+import { compassPoint } from "./geo.js?v=f06d8a4-4d0aec6e";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -184,6 +184,7 @@ export class Hud {
       <div class="mv-frame" id="mv-frame">
         <div class="mv-world" id="mv-world">
           <img class="mv-img" src="data/khumbu_s2_20260615.png" draggable="false">
+          <img class="mv-contours" src="data/khumbu_contours.png" draggable="false" alt="">
           <div class="mv-pins" id="mv-pins"></div>
         </div>
       </div>
@@ -216,6 +217,13 @@ export class Hud {
       world.style.transform = `translate(${M.tx}px, ${M.ty}px) scale(${M.k})`;
       world.style.setProperty("--invk", (1 / M.k).toFixed(4));
     };
+    this._mapApply = apply;
+    this._mapFrame = frame;
+    /* The wearer of the map. A pulsing marker distinct from every pill,
+       positioned from the last known lat/lon each time the map opens. */
+    this._mapPlayer = document.createElement("div");
+    this._mapPlayer.className = "mv-player";
+    world.appendChild(this._mapPlayer);
     this._mapFit = () => {
       const fw = frame.clientWidth, fh = frame.clientHeight;
       if (!fw || !fh) return;
@@ -234,7 +242,15 @@ export class Hud {
     mimg.addEventListener("load", () => {
       M.iw = mimg.naturalWidth; M.ih = mimg.naturalHeight;
       mimg.style.width = M.iw + "px"; mimg.style.height = M.ih + "px";
+      /* The contour sheet shares the ortho's exact extent and pixel grid,
+         so it takes the same size and rides the same transform. */
+      const cimg = this.el.map.querySelector(".mv-contours");
+      cimg.style.width = M.iw + "px"; cimg.style.height = M.ih + "px";
       this._mapFit();
+      /* The first open races this load: centring computed against the
+         placeholder dimensions is centring on the wrong map. Redone here,
+         it is right the moment the real image exists. */
+      if (this.mapOpen) this._mapCentrePlayer();
     });
     const zoomAt = (mx, my, factor) => {
       const k2 = Math.max(M.kMin, Math.min(M.kMin * 14, M.k * factor));
@@ -688,6 +704,37 @@ export class Hud {
   /** Populate pins once, from the world's POI list — Etna label furniture:
    *  dot on the ground truth, leader stem, accent-barred pill. Positioned in
    *  IMAGE PIXELS inside the transformed plane, counter-scaled per pin. */
+  /** Draw the climbing route on the map: one SVG polyline in image-pixel
+   *  space, under the pins, its stroke counter-scaled so the line keeps a
+   *  constant screen width at any zoom. */
+  bindMapRoute(points) {
+    const B = { W: 86.780, E: 87.070, N: 28.120, S: 27.880 };
+    const M = this._map;
+    const world = this.el.map.querySelector("#mv-world");
+    const old = world.querySelector(".mv-route");
+    if (old) old.remove();
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "mv-route");
+    svg.setAttribute("viewBox", `0 0 ${M.iw} ${M.ih}`);
+    svg.setAttribute("width", M.iw);
+    svg.setAttribute("height", M.ih);
+    const d = points.map((p, i) => {
+      const x = ((p.lon - B.W) / (B.E - B.W)) * M.iw;
+      const y = ((B.N - p.lat) / (B.N - B.S)) * M.ih;
+      return `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`;
+    }).join(" ");
+    const casing = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    casing.setAttribute("d", d);
+    casing.setAttribute("class", "mv-route-casing");
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    line.setAttribute("d", d);
+    line.setAttribute("class", "mv-route-line");
+    svg.appendChild(casing);
+    svg.appendChild(line);
+    const pins = world.querySelector("#mv-pins");
+    world.insertBefore(svg, pins);
+  }
+
   bindMapPois(pois) {
     const B = { W: 86.780, E: 87.070, N: 28.120, S: 27.880 };
     const host = this.el.map.querySelector("#mv-pins");
@@ -719,13 +766,34 @@ export class Hud {
     }
   }
 
+  /** Plant the player marker at their coordinates and centre the view on
+   *  it at a readable zoom — the map opens ON the player, not wherever it
+   *  was last left. */
+  _mapCentrePlayer() {
+    if (this._lastLat === undefined) return;
+    const B = { W: 86.780, E: 87.070, N: 28.120, S: 27.880 };
+    const M = this._map;
+    const px = ((this._lastLon - B.W) / (B.E - B.W)) * M.iw;
+    const py = ((B.N - this._lastLat) / (B.N - B.S)) * M.ih;
+    this._mapPlayer.style.left = px.toFixed(1) + "px";
+    this._mapPlayer.style.top = py.toFixed(1) + "px";
+    M.k = Math.max(M.kMin * 3, M.k);
+    const fw = this._mapFrame.clientWidth, fh = this._mapFrame.clientHeight;
+    M.tx = fw / 2 - px * M.k;
+    M.ty = fh / 2 - py * M.k;
+    this._mapApply();
+  }
+
   toggleMap() {
     this.mapOpen = !this.mapOpen;
     this.el.map.style.display = this.mapOpen ? "" : "none";
     this.el.map.querySelector("#mv-pop").style.display = "none";
     if (this.mapOpen) {
       if (document.pointerLockElement) document.exitPointerLock();
-      requestAnimationFrame(() => this._mapFit());
+      requestAnimationFrame(() => {
+        this._mapFit();
+        this._mapCentrePlayer();
+      });
     }
   }
 
@@ -868,6 +936,7 @@ export class Hud {
       : "off");
     this.setText(this.el.crTime, s.clock);
     if (s.lat !== undefined && s.lon !== undefined) {
+      this._lastLat = s.lat; this._lastLon = s.lon;
       this.setText(this.el.crLatlon,
         `${Math.abs(s.lat).toFixed(5)}\u00b0 ${s.lat < 0 ? "S" : "N"}  ` +
         `${Math.abs(s.lon).toFixed(5)}\u00b0 ${s.lon < 0 ? "W" : "E"}`);
