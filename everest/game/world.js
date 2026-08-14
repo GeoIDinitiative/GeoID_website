@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=dcf2e7e-7307b6b9";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=dcf2e7e-7307b6b9";
-import { llToLocal, haversine } from "./geo.js?v=dcf2e7e-7307b6b9";
+import * as THREE from "../vendor/three.module.js?v=27e13eb-b3f75c4d";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=27e13eb-b3f75c4d";
+import { llToLocal, haversine } from "./geo.js?v=27e13eb-b3f75c4d";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be
@@ -23,9 +23,13 @@ class Label {
     this.el = document.createElement("button");
     this.el.type = "button";
     this.el.className = "poi-label poi-" + poi.kind;
+    /* The flight sim's horizon-tag form: the pill floats high over the
+       feature, the distance reads beneath it, and a chevron points down
+       the connector line at what is being named. */
     this.el.innerHTML =
-      `<span class="poi-pip"></span><span class="poi-text">${poi.name}</span>` +
-      `<span class="poi-dist"></span>`;
+      `<span class="poi-pill"><span class="poi-pip"></span><span class="poi-text">${poi.name}</span></span>` +
+      `<span class="poi-dist"></span>` +
+      `<span class="poi-arrow">\u25BE</span>`;
     this.dist = this.el.querySelector(".poi-dist");
     this.el.addEventListener("click", () => poi.onOpen && poi.onOpen(poi));
     host.appendChild(this.el);
@@ -429,7 +433,10 @@ export class World {
     for (const poi of this.pois) {
       const d = Math.hypot(poi.x - playerPos.x, poi.z - playerPos.z);
       if (d > maxDist) { this.hide(poi); continue; }
-      v.set(poi.x, poi.y + (poi.kind === "peak" ? 30 : 6), poi.z);
+      /* The tag hangs 300 m over the place, like the flight sim's horizon
+         labels — high enough to clear foreground relief and read as a
+         marker in the air rather than a sticker on the ground. */
+      v.set(poi.x, poi.y + 300, poi.z);
       v.project(camera);
       if (v.z > 1 || v.x < -1.05 || v.x > 1.05 || v.y < -1.05 || v.y > 1.05) { this.hide(poi); continue; }
       /* Terrain occlusion. A label is a claim that the place is in view, and
@@ -441,7 +448,11 @@ export class World {
          ridge does not make the label flicker. */
       {
         const cp = camera.position;
-        const ay = poi.y + (poi.kind === "peak" ? 30 : 6);
+        /* The occlusion ray still runs to just above the GROUND point — a
+           feature IS its ground location (the flight sim's ground-point
+           horizon test), so a tag 300 m in the air over a hidden valley
+           does not advertise a place you cannot see. */
+        const ay = poi.y + 20;
         const ddx = poi.x - cp.x, ddy = ay - cp.y, ddz = poi.z - cp.z;
         const steps = Math.min(28, Math.max(8, Math.floor(Math.hypot(ddx, ddz) / 120)));
         let blocked = false;
@@ -474,7 +485,7 @@ export class World {
       let lab = this.labels.get(c.poi.id);
       if (!lab) { lab = new Label(c.poi, this.labelHost); this.labels.set(c.poi.id, lab); }
       lab.setVisible(true);
-      lab.el.style.transform = `translate(-50%,-50%) translate(${c.sx.toFixed(1)}px,${c.sy.toFixed(1)}px)`;
+      lab.el.style.transform = `translate(-50%,-100%) translate(${c.sx.toFixed(1)}px,${c.sy.toFixed(1)}px)`;
       lab.el.style.opacity = String(Math.max(0.35, 1 - c.d / maxDist));
       lab.dist.textContent = c.d > 1200 ? `${(c.d / 1000).toFixed(1)} km` : `${c.d.toFixed(0)} m`;
     }

@@ -1841,3 +1841,89 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 
 /* While the pyramid boots, the chosen map dims and locks. */
 .start-map.is-loading { opacity: 0.55; pointer-events: none; transition: opacity 0.3s; }
+
+
+/* ── Scene labels as flight-sim horizon tags, in the explorer's pill ────
+   A vertical stack whose arrow tip is the anchor: Etna pill on top,
+   distance beneath, chevron pointing down the 300 m of air between the
+   tag and the place. Palettes are the same THEME_PALETTE mapping the map
+   pins use, so a camp is green everywhere it is named. */
+.poi-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  backdrop-filter: none;
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+  --lbl-bg: rgba(9, 14, 24, 0.62);
+  --lbl-stroke: rgba(90, 214, 233, 0.28);
+  --lbl-accent: rgba(58, 214, 208, 0.92);
+  --lbl-title: rgba(242, 247, 250, 0.94);
+}
+.poi-label:hover { background: none; border: 0; }
+.poi-label .poi-pill {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  height: 26px;
+  padding: 0 11px 0 21px;
+  border-radius: 13px;
+  background: var(--lbl-bg);
+  border: 1.4px solid var(--lbl-stroke);
+  color: var(--lbl-title);
+  font: 600 12px Orbitron, "Exo 2", Aldrich, "Trebuchet MS", sans-serif;
+  white-space: nowrap;
+  transition: border-color 0.15s;
+}
+.poi-label:hover .poi-pill { border-color: var(--lbl-accent); }
+.poi-label .poi-pill::before {
+  content: '';
+  position: absolute;
+  left: 11px; top: 4px; bottom: 4px;
+  width: 5px;
+  background: var(--lbl-accent);
+}
+.poi-label .poi-pip { display: none; }
+.poi-label .poi-text { line-height: 1; }
+.poi-label .poi-dist {
+  font: 700 10px "Exo 2", sans-serif;
+  color: rgba(255, 255, 255, 0.92);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.9);
+}
+.poi-label .poi-arrow {
+  font-size: 13px;
+  line-height: 0.7;
+  color: var(--lbl-accent);
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.9);
+}
+.poi-camp, .poi-summit {
+  --lbl-bg: rgba(10, 22, 14, 0.74);
+  --lbl-stroke: rgba(128, 229, 160, 0.42);
+  --lbl-accent: rgba(98, 222, 132, 0.94);
+  --lbl-title: rgba(237, 255, 242, 0.96);
+}
+.poi-peak {
+  --lbl-bg: rgba(4, 10, 26, 0.84);
+  --lbl-stroke: rgba(55, 120, 200, 0.50);
+  --lbl-accent: rgba(44, 148, 220, 0.96);
+  --lbl-title: rgba(195, 222, 255, 0.98);
+}
+.poi-warning {
+  --lbl-bg: rgba(25, 7, 2, 0.84);
+  --lbl-stroke: rgba(255, 100, 35, 0.52);
+  --lbl-accent: rgba(255, 75, 18, 0.96);
+  --lbl-title: rgba(255, 220, 195, 0.98);
+}
+.poi-route {
+  --lbl-bg: rgba(28, 14, 4, 0.74);
+  --lbl-stroke: rgba(255, 160, 60, 0.48);
+  --lbl-accent: rgba(255, 145, 0, 0.92);
+  --lbl-title: rgba(255, 235, 200, 0.96);
+}
