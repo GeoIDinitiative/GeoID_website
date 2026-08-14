@@ -25,9 +25,9 @@
  * be roped, or to have gone that way before.
  */
 
-import * as THREE from "../vendor/three.module.js?v=bbd9d4f-df49ee3e";
-import { llToLocal } from "./geo.js?v=bbd9d4f-df49ee3e";
-import { ROUTE, OPEN } from "./config.js?v=bbd9d4f-df49ee3e";
+import * as THREE from "../vendor/three.module.js?v=b93f894-a61c4046";
+import { llToLocal } from "./geo.js?v=b93f894-a61c4046";
+import { ROUTE, OPEN } from "./config.js?v=b93f894-a61c4046";
 
 const MASK_PX = 1024;
 const MASK_M = 1024;            // metres covered — so exactly 1 m per pixel

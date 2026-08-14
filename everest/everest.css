@@ -1927,3 +1927,70 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   --lbl-accent: rgba(255, 145, 0, 0.92);
   --lbl-title: rgba(255, 235, 200, 0.96);
 }
+
+
+/* ── The time reader grows to a proper instrument ──────────────────────── */
+.corner-readout .cr-time { font-size: 1.7rem; letter-spacing: 0.04em; }
+
+/* ── POI card: the planet explorers' scene-popup, bottom-right variant ──
+   Geometry and type from the Mars viewer's .scene-popup; the accent is
+   this explorer's orange. Esc or the cross dismisses it. */
+.scene-popup {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 4.8rem;
+  z-index: 20;
+  width: min(22rem, calc(100vw - 2rem));
+  max-height: min(46vh, 32rem);
+  overflow: auto;
+  padding: 1rem 1rem 0.9rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(255, 106, 0, 0.34);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 18%),
+    linear-gradient(180deg, rgba(22, 10, 4, 0.95), rgba(8, 3, 1, 0.985)),
+    rgba(10, 4, 2, 0.98);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 18px 42px rgba(0, 0, 0, 0.42),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+    0 0 0 1px rgba(255, 106, 0, 0.1),
+    0 0 20px rgba(255, 106, 0, 0.08);
+  color: #f8f0eb;
+  pointer-events: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 106, 0, 0.35) transparent;
+  font-family: "Exo 2", "Trebuchet MS", "Segoe UI", sans-serif;
+}
+.scene-popup .feature-kicker {
+  margin: 0;
+  color: #ff6a00;
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: "Courier New", monospace;
+}
+.scene-popup .feature-title { margin: 0.3rem 0 0; font-size: 1rem; font-weight: 600; }
+.scene-popup .feature-meta {
+  margin: 0.25rem 0 0;
+  color: #b89880;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+.scene-popup .feature-copy {
+  margin: 0.4rem 0 0;
+  color: #f0dece;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+.scene-popup-close {
+  position: absolute;
+  top: 0.45rem; right: 0.6rem;
+  background: none; border: none;
+  color: #b89880;
+  font-size: 1.1rem; line-height: 1;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.4rem;
+}
+.scene-popup-close:hover { color: #fff0e8; background: rgba(255, 106, 0, 0.14); }

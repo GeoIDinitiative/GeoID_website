@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=bbd9d4f-df49ee3e";
-import { ITEMS } from "./survival.js?v=bbd9d4f-df49ee3e";
-import { compassPoint } from "./geo.js?v=bbd9d4f-df49ee3e";
+import { Director } from "./director.js?v=b93f894-a61c4046";
+import { ITEMS } from "./survival.js?v=b93f894-a61c4046";
+import { compassPoint } from "./geo.js?v=b93f894-a61c4046";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -108,6 +108,19 @@ export class Hud {
     for (const id of ["alt", "temp", "wind", "resist", "slope", "spo2", "flow", "avy"]) {
       this.el["i_" + id] = this.el.instr.querySelector("#i-" + id);
     }
+
+    /* ── POI card: the planet explorers' scene-popup, bottom right ── */
+    this.el.poiCard = mk("scene-popup");
+    this.el.poiCard.style.display = "none";
+    this.el.poiCard.innerHTML = `
+      <button class="scene-popup-close" id="poi-card-close" aria-label="Close">\u2715</button>
+      <p class="feature-kicker" id="poi-card-kicker">Selected feature</p>
+      <h3 class="feature-title" id="poi-card-title"></h3>
+      <p class="feature-meta" id="poi-card-meta"></p>
+      <p class="feature-copy" id="poi-card-copy"></p>`;
+    this.el.poiCard.querySelector("#poi-card-close")
+      .addEventListener("click", () => this.closePoiCard());
+    this.poiCardOpen = false;
 
     /* ── Corner readout, bottom right: the clock over the coordinates,
           the planet viewers' cursor-readout idiom. ── */
@@ -394,7 +407,7 @@ export class Hud {
     document.body.appendChild(this.el.logo);
 
     this.el.navTab = mk("nav-tab");
-    this.el.navTab.textContent = "Open \u25B8 \u0060";
+    this.el.navTab.textContent = "Open \u25B8 Tab";
     this.el.navTab.style.display = "none";
     this.el.navTab.addEventListener("click", () => this.setNavHidden(false));
 
@@ -412,7 +425,7 @@ export class Hud {
         <p class="eyebrow">GeoID: Earth Explorer</p>
         <div class="brand-toprow-actions">
           <button class="info-btn" id="nav-info" aria-label="Guide" title="Guide (H)">i</button>
-          <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel (\u0060)">\u2039</button>
+          <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel (Tab)">\u2039</button>
         </div>
       </div>
       <div id="ui-scroll-body">
@@ -443,7 +456,7 @@ export class Hud {
       { id: "items",   key: "Q",   label: "Items wheel",   icon: "\u25CE", tip: "Food, water, dex, the flare. Scroll to choose, click to use." },
       { id: "rope",    key: "R",   label: "Rope up",       icon: "\u2307", tip: "Clip the fixed line. In the Icefall this is what holds a bridge fall." },
       { id: "oxygen",  key: "O",   label: "Oxygen flow",   icon: "\u25CD", tip: "Cycles the regulator: off, 1, 2, 4 L/min. Watch the bottle." },
-      { id: "journal", key: "TAB", label: "Journal",       icon: "\u25A4", tip: "The forecast, the plan, and what has happened so far." },
+      { id: "journal", key: "J",   label: "Journal",       icon: "\u25A4", tip: "The forecast, the plan, and what has happened so far." },
       { id: "binoculars", key: "B", label: "Binoculars", icon: "\u25CC", tip: "Zoom the centre of view through the glasses." },
       { id: "map",     key: "M",   label: "Open map",      icon: "\u25A6", tip: "" },
       { id: "help",    key: "H",   label: "Controls card", icon: "?",       tip: "" },
@@ -472,7 +485,7 @@ export class Hud {
           <div><dt>Space</dt><dd>probe a snow bridge</dd></div>
           <div><dt>B</dt><dd>binoculars</dd></div>
           <div><dt>U</dt><dd>fold compass + info bar</dd></div>
-          <div><dt>\u0060</dt><dd>fold this panel</dd></div>
+          <div><dt>Tab</dt><dd>fold this panel</dd></div>
           <div><dt>Esc</dt><dd>close any view</dd></div>
         </dl>` },
     ];
@@ -825,6 +838,24 @@ export class Hud {
     M.tx = fw / 2 - px * M.k;
     M.ty = fh / 2 - py * M.k;
     this._mapApply();
+  }
+
+  showPoiCard(poi) {
+    const KIND = { camp: "Camp", summit: "Summit", peak: "Peak", warning: "Hazard", route: "Route feature", site: "Site" };
+    this.el.poiCard.querySelector("#poi-card-kicker").textContent = KIND[poi.kind] || "Selected feature";
+    this.el.poiCard.querySelector("#poi-card-title").textContent = poi.name;
+    this.el.poiCard.querySelector("#poi-card-meta").textContent =
+      `${poi.lat.toFixed(4)}\u00b0 N, ${poi.lon.toFixed(4)}\u00b0 E` +
+      (poi.published ? `  \u00b7  ${Math.round(poi.published).toLocaleString()} m` : "");
+    this.el.poiCard.querySelector("#poi-card-copy").textContent =
+      poi.text || "No notes on this location.";
+    this.el.poiCard.style.display = "";
+    this.poiCardOpen = true;
+  }
+
+  closePoiCard() {
+    this.el.poiCard.style.display = "none";
+    this.poiCardOpen = false;
   }
 
   toggleMap() {
