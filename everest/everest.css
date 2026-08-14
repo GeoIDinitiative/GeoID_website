@@ -1710,3 +1710,130 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   height: calc(100vh - 7.5rem);
   max-width: none;
 }
+
+
+/* ── North arrow + scale bar, fixed in the frame corners ────────────────
+   Scale styles are the Mars viewer's #scale-readout verbatim, with a
+   drop shadow added because this bar sits over snow, not over space. */
+.mv-north {
+  position: absolute; top: 0.9rem; right: 1rem;
+  z-index: 6;
+  display: grid; justify-items: center; gap: 0.05rem;
+  color: #ffffff;
+  filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.8));
+  pointer-events: none;
+}
+.mv-north svg { width: 1.5rem; height: 1.5rem; }
+.mv-north span { font: 700 0.7rem "Exo 2", sans-serif; letter-spacing: 0.1em; }
+.mv-scale {
+  --scale-bar-width: 10.5rem;
+  position: absolute; left: 1rem; bottom: 0.9rem;
+  z-index: 6;
+  display: flex; flex: 0 0 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.96);
+  filter: drop-shadow(0 1px 5px rgba(0, 0, 0, 0.85));
+  pointer-events: none;
+}
+.mv-scale .scale-labels {
+  position: relative;
+  width: var(--scale-bar-width);
+  height: 1rem;
+  color: rgba(255, 255, 255, 0.98);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.mv-scale .scale-labels span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.mv-scale .scale-bar-track {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  width: var(--scale-bar-width);
+  height: 0.62rem;
+  border: 1px solid rgba(255, 255, 255, 0.96);
+  overflow: hidden;
+}
+.mv-scale .scale-segment { height: 100%; border-right: 1px solid rgba(255, 255, 255, 0.96); }
+.mv-scale .scale-segment:last-child { border-right: none; }
+.mv-scale .scale-segment.is-dark { background: rgba(255, 255, 255, 0.98); }
+.mv-scale .scale-segment.is-light { background: rgba(255, 255, 255, 0.08); }
+
+/* ── Location labels: the Etna label layer's pill, verbatim ─────────────
+   Same geometry the canvas texture draws — 34px pill, 14px radius, 1.6px
+   stroke, a 6px accent bar inset 4px from top and bottom starting at the
+   radius, Orbitron 600 15px title — and the exact THEME_PALETTE values,
+   mapped kind→theme: camps and the summit are settlements, peaks slab,
+   warnings plumbing, route features fissure, everything else general. */
+.mv-pin .pin-pill {
+  display: inline-block;
+  position: relative;
+  height: 34px; line-height: 34px;
+  padding: 0 14px 0 27px;
+  border-radius: 14px;
+  background: var(--lbl-bg);
+  border: 1.6px solid var(--lbl-stroke);
+  color: var(--lbl-title);
+  font: 600 15px Orbitron, "Exo 2", Aldrich, "Trebuchet MS", sans-serif;
+  letter-spacing: 0; text-transform: none;
+  white-space: nowrap;
+}
+.mv-pin .pin-pill::before {
+  content: '';
+  position: absolute;
+  left: 15px; top: 4px; bottom: 4px;
+  width: 6px;
+  background: var(--lbl-accent);
+}
+.mv-pin .pin-dot { background: var(--lbl-marker); border-color: var(--lbl-title); }
+.mv-pin .pin-stem { background: var(--lbl-line); }
+.mv-pin, .mv-pin[data-kind] {
+  --lbl-bg: rgba(9, 14, 24, 0.62);
+  --lbl-stroke: rgba(90, 214, 233, 0.28);
+  --lbl-accent: rgba(58, 214, 208, 0.92);
+  --lbl-title: rgba(242, 247, 250, 0.94);
+  --lbl-marker: #34d7d1;
+  --lbl-line: #46d7d1;
+}
+.mv-pin[data-kind="camp"], .mv-pin[data-kind="summit"] {
+  --lbl-bg: rgba(10, 22, 14, 0.74);
+  --lbl-stroke: rgba(128, 229, 160, 0.42);
+  --lbl-accent: rgba(98, 222, 132, 0.94);
+  --lbl-title: rgba(237, 255, 242, 0.96);
+  --lbl-marker: #65dc78;
+  --lbl-line: #86f19a;
+}
+.mv-pin[data-kind="peak"] {
+  --lbl-bg: rgba(4, 10, 26, 0.84);
+  --lbl-stroke: rgba(55, 120, 200, 0.50);
+  --lbl-accent: rgba(44, 148, 220, 0.96);
+  --lbl-title: rgba(195, 222, 255, 0.98);
+  --lbl-marker: #2c94dc;
+  --lbl-line: #4ab4f0;
+}
+.mv-pin[data-kind="warning"] {
+  --lbl-bg: rgba(25, 7, 2, 0.84);
+  --lbl-stroke: rgba(255, 100, 35, 0.52);
+  --lbl-accent: rgba(255, 75, 18, 0.96);
+  --lbl-title: rgba(255, 220, 195, 0.98);
+  --lbl-marker: #ff4c12;
+  --lbl-line: #ff7030;
+}
+.mv-pin[data-kind="route"] {
+  --lbl-bg: rgba(28, 14, 4, 0.74);
+  --lbl-stroke: rgba(255, 160, 60, 0.48);
+  --lbl-accent: rgba(255, 145, 0, 0.92);
+  --lbl-title: rgba(255, 235, 200, 0.96);
+  --lbl-marker: #ff9100;
+  --lbl-line: #ffb347;
+}

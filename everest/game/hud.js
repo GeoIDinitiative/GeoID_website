@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=ad92696-4d0aec6e";
-import { ITEMS } from "./survival.js?v=ad92696-4d0aec6e";
-import { compassPoint } from "./geo.js?v=ad92696-4d0aec6e";
+import { Director } from "./director.js?v=6ff1c42-ad5eb548";
+import { ITEMS } from "./survival.js?v=6ff1c42-ad5eb548";
+import { compassPoint } from "./geo.js?v=6ff1c42-ad5eb548";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -183,9 +183,29 @@ export class Hud {
       </div>
       <div class="mv-frame" id="mv-frame">
         <div class="mv-world" id="mv-world">
-          <img class="mv-img" src="data/khumbu_s2_20260615.png" draggable="false">
+          <img class="mv-img" src="data/khumbu_map.png" draggable="false">
           <img class="mv-contours" src="data/khumbu_contours.png" draggable="false" alt="">
           <div class="mv-pins" id="mv-pins"></div>
+        </div>
+        <div class="mv-north" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M12 2 L17 20 L12 16 L7 20 Z" fill="currentColor"/></svg>
+          <span>N</span>
+        </div>
+        <div class="mv-scale" id="mv-scale" aria-hidden="true">
+          <div class="scale-labels">
+            <span data-f="0" style="left:0%">0</span>
+            <span data-f="0.125" style="left:12.5%">\u2014</span>
+            <span data-f="0.25" style="left:25%">\u2014</span>
+            <span data-f="0.5" style="left:50%">\u2014</span>
+            <span data-f="0.75" style="left:75%">\u2014</span>
+            <span data-f="1" style="left:100%">\u2014</span>
+          </div>
+          <div class="scale-bar-track">
+            <span class="scale-segment is-dark"></span><span class="scale-segment is-light"></span>
+            <span class="scale-segment is-dark"></span><span class="scale-segment is-light"></span>
+            <span class="scale-segment is-dark"></span><span class="scale-segment is-light"></span>
+            <span class="scale-segment is-dark"></span><span class="scale-segment is-light"></span>
+          </div>
         </div>
       </div>
       <div class="mv-pop" id="mv-pop" style="display:none">
@@ -205,6 +225,28 @@ export class Hud {
     const world = this.el.map.querySelector("#mv-world");
     const mimg = this.el.map.querySelector(".mv-img");
     const M = this._map = { k: 1, kMin: 0.1, tx: 0, ty: 0, iw: 3228, ih: 3026 };
+    /* The scale bar answers "how far is that" at the current zoom: ground
+       metres per screen pixel fall out of the bounds box and the transform,
+       and the bar picks the roundest distance that fits its rail — the
+       Mars viewer's readout, driven by this map's own numbers. */
+    this._updateScale = () => {
+      const el = this.el.map.querySelector("#mv-scale");
+      if (!el) return;
+      const B = { W: 86.780, E: 87.070, N: 28.120, S: 27.880 };
+      const midLat = (B.N + B.S) / 2;
+      const groundW = (B.E - B.W) * 111320 * Math.cos(midLat * Math.PI / 180);
+      const mPerScreenPx = groundW / M.iw / M.k;
+      const nice = [100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000];
+      let D = nice[0];
+      for (const d of nice) if (d / mPerScreenPx <= 260) D = d;
+      const px = D / mPerScreenPx;
+      el.style.setProperty("--scale-bar-width", px.toFixed(0) + "px");
+      const fmt = (m) => m >= 1000 ? (m / 1000).toLocaleString() + " km" : m + " m";
+      for (const span of el.querySelectorAll(".scale-labels span")) {
+        const f = parseFloat(span.dataset.f);
+        span.textContent = f === 0 ? "0" : fmt(Math.round(D * f));
+      }
+    };
     const apply = () => {
       /* The box is fixed; the imagery moves inside it, and only inside it.
          Pan is clamped so the image's edges can never cross into the frame —
@@ -216,6 +258,7 @@ export class Hud {
       M.ty = Math.min(0, Math.max(fh - M.ih * M.k, M.ty));
       world.style.transform = `translate(${M.tx}px, ${M.ty}px) scale(${M.k})`;
       world.style.setProperty("--invk", (1 / M.k).toFixed(4));
+      this._updateScale();
     };
     this._mapApply = apply;
     this._mapFrame = frame;
