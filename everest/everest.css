@@ -2293,3 +2293,26 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 /* ── Corner readout, 40% smaller; the clock goes dark blue ────────────── */
 .corner-readout canvas { width: 204px; height: 58px; }
 .corner-readout .cr-latlon { font-size: 0.86rem; }
+
+
+/* ── Popups take the slanted display face too ──────────────────────────── */
+.scene-popup .feature-kicker,
+.scene-popup .feature-title,
+.scene-popup .feature-meta,
+.scene-popup .feature-copy,
+.gio-card .gio-text,
+.mv-pop .mv-pop-name,
+.mv-pop .mv-pop-meta,
+.mv-pop .mv-pop-text {
+  font-family: Orbitron, "Exo 2", "Segoe UI", sans-serif;
+}
+.scene-popup .feature-kicker { font-family: Orbitron, "Courier New", monospace; }
+
+/* ── No clashes: the scene popup clears the clock, Gio clears the logo ──
+   The corner readout reaches ~6.3rem up from the bottom edge; the popup
+   starts above it. Gio's right offset is measured against the logo's real
+   rendered width (5.4rem tall art is ~5.6rem wide) plus breathing room. */
+.scene-popup { bottom: 8rem; }
+/* Measured: the logo's left edge sits 10.7rem in from the right of the
+   viewport, so the card starts at 11.2rem to keep clear air between them. */
+.gio-card { right: 11.2rem; }

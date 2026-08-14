@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=ac6e163-83e20102";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=ac6e163-83e20102";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=ac6e163-83e20102";
-import { Heightfield } from "./dem.js?v=ac6e163-83e20102";
-import { Imagery } from "./imagery.js?v=ac6e163-83e20102";
-import { Terrain } from "./terrain.js?v=ac6e163-83e20102";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=ac6e163-83e20102";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=ac6e163-83e20102";
-import { Glacier } from "./glacier.js?v=ac6e163-83e20102";
-import { TerrainShadows } from "./shadows.js?v=ac6e163-83e20102";
-import { PostFX, QUALITY } from "./postfx.js?v=ac6e163-83e20102";
-import { estimateCaptureSun } from "./delight.js?v=ac6e163-83e20102";
-import { SnowField } from "./snowfield.js?v=ac6e163-83e20102";
-import { Photoclinometry } from "./photoclino.js?v=ac6e163-83e20102";
-import { World } from "./world.js?v=ac6e163-83e20102";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=ac6e163-83e20102";
-import { Player, STATE } from "./player.js?v=ac6e163-83e20102";
-import { Director, Climbers } from "./director.js?v=ac6e163-83e20102";
-import { Hud } from "./hud.js?v=ac6e163-83e20102";
-import { Audio } from "./audio.js?v=ac6e163-83e20102";
-import { install as installDiag } from "./diag.js?v=ac6e163-83e20102";
-import * as tiles from "./tiles.js?v=ac6e163-83e20102";
+import * as THREE from "../vendor/three.module.js?v=07181a5-177e95b0";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=07181a5-177e95b0";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=07181a5-177e95b0";
+import { Heightfield } from "./dem.js?v=07181a5-177e95b0";
+import { Imagery } from "./imagery.js?v=07181a5-177e95b0";
+import { Terrain } from "./terrain.js?v=07181a5-177e95b0";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=07181a5-177e95b0";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=07181a5-177e95b0";
+import { Glacier } from "./glacier.js?v=07181a5-177e95b0";
+import { TerrainShadows } from "./shadows.js?v=07181a5-177e95b0";
+import { PostFX, QUALITY } from "./postfx.js?v=07181a5-177e95b0";
+import { estimateCaptureSun } from "./delight.js?v=07181a5-177e95b0";
+import { SnowField } from "./snowfield.js?v=07181a5-177e95b0";
+import { Photoclinometry } from "./photoclino.js?v=07181a5-177e95b0";
+import { World } from "./world.js?v=07181a5-177e95b0";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=07181a5-177e95b0";
+import { Player, STATE } from "./player.js?v=07181a5-177e95b0";
+import { Director, Climbers } from "./director.js?v=07181a5-177e95b0";
+import { Hud } from "./hud.js?v=07181a5-177e95b0";
+import { Audio } from "./audio.js?v=07181a5-177e95b0";
+import { install as installDiag } from "./diag.js?v=07181a5-177e95b0";
+import * as tiles from "./tiles.js?v=07181a5-177e95b0";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -951,7 +951,9 @@ export class Game {
         if (!seg.hasLadder) continue;
         if (Math.hypot(P.pos.x - seg.x, P.pos.z - seg.z) < 26) {
           this._gioLadder = true;
-          this.hud.guideSay("First ladder. Face the rungs, points between them, both safeties clipped. It wobbles \u2014 it holds. Do not stop in the middle.");
+          const ladderMsg = "First ladder. Face the rungs, points between them, both safeties clipped. It wobbles \u2014 it holds. Do not stop in the middle.";
+          this.hud.guideSay(ladderMsg);
+          this.survival.note("Gio \u2014 " + ladderMsg);
           break;
         }
       }
@@ -962,6 +964,7 @@ export class Game {
         if (Math.hypot(P.pos.x - z.x, P.pos.z - z.z) < z.r) {
           z.fired = true;
           this.hud.guideSay(z.msg);
+          this.survival.note("Gio \u2014 " + z.msg);
           break;
         }
       }
