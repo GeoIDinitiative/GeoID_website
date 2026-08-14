@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=5d280e5-e507c198";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=5d280e5-e507c198";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=5d280e5-e507c198";
-import { Heightfield } from "./dem.js?v=5d280e5-e507c198";
-import { Imagery } from "./imagery.js?v=5d280e5-e507c198";
-import { Terrain } from "./terrain.js?v=5d280e5-e507c198";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=5d280e5-e507c198";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=5d280e5-e507c198";
-import { Glacier } from "./glacier.js?v=5d280e5-e507c198";
-import { TerrainShadows } from "./shadows.js?v=5d280e5-e507c198";
-import { PostFX, QUALITY } from "./postfx.js?v=5d280e5-e507c198";
-import { estimateCaptureSun } from "./delight.js?v=5d280e5-e507c198";
-import { SnowField } from "./snowfield.js?v=5d280e5-e507c198";
-import { Photoclinometry } from "./photoclino.js?v=5d280e5-e507c198";
-import { World } from "./world.js?v=5d280e5-e507c198";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=5d280e5-e507c198";
-import { Player, STATE } from "./player.js?v=5d280e5-e507c198";
-import { Director, Climbers } from "./director.js?v=5d280e5-e507c198";
-import { Hud } from "./hud.js?v=5d280e5-e507c198";
-import { Audio } from "./audio.js?v=5d280e5-e507c198";
-import { install as installDiag } from "./diag.js?v=5d280e5-e507c198";
-import * as tiles from "./tiles.js?v=5d280e5-e507c198";
+import * as THREE from "../vendor/three.module.js?v=0ec76b3-133b17a7";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=0ec76b3-133b17a7";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=0ec76b3-133b17a7";
+import { Heightfield } from "./dem.js?v=0ec76b3-133b17a7";
+import { Imagery } from "./imagery.js?v=0ec76b3-133b17a7";
+import { Terrain } from "./terrain.js?v=0ec76b3-133b17a7";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=0ec76b3-133b17a7";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=0ec76b3-133b17a7";
+import { Glacier } from "./glacier.js?v=0ec76b3-133b17a7";
+import { TerrainShadows } from "./shadows.js?v=0ec76b3-133b17a7";
+import { PostFX, QUALITY } from "./postfx.js?v=0ec76b3-133b17a7";
+import { estimateCaptureSun } from "./delight.js?v=0ec76b3-133b17a7";
+import { SnowField } from "./snowfield.js?v=0ec76b3-133b17a7";
+import { Photoclinometry } from "./photoclino.js?v=0ec76b3-133b17a7";
+import { World } from "./world.js?v=0ec76b3-133b17a7";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=0ec76b3-133b17a7";
+import { Player, STATE } from "./player.js?v=0ec76b3-133b17a7";
+import { Director, Climbers } from "./director.js?v=0ec76b3-133b17a7";
+import { Hud } from "./hud.js?v=0ec76b3-133b17a7";
+import { Audio } from "./audio.js?v=0ec76b3-133b17a7";
+import { install as installDiag } from "./diag.js?v=0ec76b3-133b17a7";
+import * as tiles from "./tiles.js?v=0ec76b3-133b17a7";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -845,7 +845,9 @@ export class Game {
     const poi = this.world.nearest(p.x, p.z, 40);
     if (poi && poi.camp) {
       if (!this.reached.has(poi.id)) this.arriveAtCamp(poi);
-      else this.restAt(poi);
+      /* No resting at the summit: nobody sleeps at 8,849 m. Arrival is
+         the whole event there — the camps below are where you rest. */
+      else if (poi.id !== "summit") this.restAt(poi);
       return;
     }
     /* Non-camp locations: E does nothing — the description arrives as a
@@ -1319,7 +1321,7 @@ export class Game {
     const poi = this.world.nearest(P.pos.x, P.pos.z, 40);
     if (poi) {
       if (poi.camp && !this.reached.has(poi.id)) return `<kbd>E</kbd> arrive at ${poi.name}`;
-      if (poi.camp) return `<kbd>E</kbd> rest at ${poi.name}`;
+      if (poi.camp && poi.id !== "summit") return `<kbd>E</kbd> rest at ${poi.name}`;
       /* Non-camp locations no longer prompt: Gio texts their story as you
          walk in (see the auto zones), so the chip stays for actions only. */
     }

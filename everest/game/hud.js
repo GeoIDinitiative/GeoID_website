@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=5d280e5-e507c198";
-import { ITEMS } from "./survival.js?v=5d280e5-e507c198";
-import { compassPoint } from "./geo.js?v=5d280e5-e507c198";
+import { Director } from "./director.js?v=0ec76b3-133b17a7";
+import { ITEMS } from "./survival.js?v=0ec76b3-133b17a7";
+import { compassPoint } from "./geo.js?v=0ec76b3-133b17a7";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
