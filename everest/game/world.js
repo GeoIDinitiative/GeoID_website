@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=4c207c0-e5c0ab8b";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=4c207c0-e5c0ab8b";
-import { llToLocal, haversine } from "./geo.js?v=4c207c0-e5c0ab8b";
+import * as THREE from "../vendor/three.module.js?v=1aeaea3-7f2604cf";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=1aeaea3-7f2604cf";
+import { llToLocal, haversine } from "./geo.js?v=1aeaea3-7f2604cf";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be
@@ -419,6 +419,7 @@ export class World {
    * on top of a nearer one is dropped.
    */
   updateLabels(camera, playerPos, opts = {}) {
+    this._occTick = (this._occTick ?? 0) + 1;
     const maxDist = opts.maxDist ?? 20000;
     const w = opts.width, h = opts.height;
     const v = _v;
@@ -442,20 +443,32 @@ export class World {
          camera's feet) cannot occlude it, and 12 m of clearance so a grazing
          ridge does not make the label flicker. */
       {
+        /* The occlusion ray runs to just above the GROUND point — a
+           feature IS its ground location. Two failure modes were fixed
+           the hard way: the old 28-sample cap spaced samples ~360 m
+           apart at range, wide enough for a whole ridge to pass between
+           them; and the percentage end-skip ignored the last several
+           hundred metres of the ray — precisely where the occluding
+           crest sits for a feature just behind a ridge. Samples are now
+           a fixed ~55 m with absolute 35 m end-skips, and each label
+           re-tests every third frame from a cache, which keeps the cost
+           where the cheap version was. */
         const cp = camera.position;
-        /* The occlusion ray still runs to just above the GROUND point — a
-           feature IS its ground location (the flight sim's ground-point
-           horizon test), so a tag 300 m in the air over a hidden valley
-           does not advertise a place you cannot see. */
-        const ay = poi.y + 20;
-        const ddx = poi.x - cp.x, ddy = ay - cp.y, ddz = poi.z - cp.z;
-        const steps = Math.min(28, Math.max(8, Math.floor(Math.hypot(ddx, ddz) / 120)));
-        let blocked = false;
-        for (let i = 1; i < steps; i++) {
-          const t = 0.03 + (i / steps) * 0.91;
-          if (this.field.height(cp.x + ddx * t, cp.z + ddz * t) > cp.y + ddy * t + 12) { blocked = true; break; }
+        this._occTick = this._occTick ?? 0;
+        if ((this._occTick + (poi._occPhase ?? (poi._occPhase = Math.floor(Math.random() * 3)))) % 3 === 0 || poi._occBlocked === undefined) {
+          const ay = poi.y + 20;
+          const ddx = poi.x - cp.x, ddy = ay - cp.y, ddz = poi.z - cp.z;
+          const dist = Math.hypot(ddx, ddz) || 1;
+          const steps = Math.min(220, Math.max(10, Math.ceil(dist / 55)));
+          const t0 = Math.min(0.2, 35 / dist), t1 = 1 - Math.min(0.2, 35 / dist);
+          let blocked = false;
+          for (let i = 1; i < steps; i++) {
+            const t = t0 + (i / steps) * (t1 - t0);
+            if (this.field.height(cp.x + ddx * t, cp.z + ddz * t) > cp.y + ddy * t + 8) { blocked = true; break; }
+          }
+          poi._occBlocked = blocked;
         }
-        if (blocked) { this.hide(poi); continue; }
+        if (poi._occBlocked) { this.hide(poi); continue; }
       }
       cand.push({ poi, d, sx: (v.x * 0.5 + 0.5) * w, sy: (-v.y * 0.5 + 0.5) * h });
     }

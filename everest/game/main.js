@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=4c207c0-e5c0ab8b";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=4c207c0-e5c0ab8b";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=4c207c0-e5c0ab8b";
-import { Heightfield } from "./dem.js?v=4c207c0-e5c0ab8b";
-import { Imagery } from "./imagery.js?v=4c207c0-e5c0ab8b";
-import { Terrain } from "./terrain.js?v=4c207c0-e5c0ab8b";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=4c207c0-e5c0ab8b";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=4c207c0-e5c0ab8b";
-import { Glacier } from "./glacier.js?v=4c207c0-e5c0ab8b";
-import { TerrainShadows } from "./shadows.js?v=4c207c0-e5c0ab8b";
-import { PostFX, QUALITY } from "./postfx.js?v=4c207c0-e5c0ab8b";
-import { estimateCaptureSun } from "./delight.js?v=4c207c0-e5c0ab8b";
-import { SnowField } from "./snowfield.js?v=4c207c0-e5c0ab8b";
-import { Photoclinometry } from "./photoclino.js?v=4c207c0-e5c0ab8b";
-import { World } from "./world.js?v=4c207c0-e5c0ab8b";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=4c207c0-e5c0ab8b";
-import { Player, STATE } from "./player.js?v=4c207c0-e5c0ab8b";
-import { Director, Climbers } from "./director.js?v=4c207c0-e5c0ab8b";
-import { Hud } from "./hud.js?v=4c207c0-e5c0ab8b";
-import { Audio } from "./audio.js?v=4c207c0-e5c0ab8b";
-import { install as installDiag } from "./diag.js?v=4c207c0-e5c0ab8b";
-import * as tiles from "./tiles.js?v=4c207c0-e5c0ab8b";
+import * as THREE from "../vendor/three.module.js?v=1aeaea3-7f2604cf";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=1aeaea3-7f2604cf";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=1aeaea3-7f2604cf";
+import { Heightfield } from "./dem.js?v=1aeaea3-7f2604cf";
+import { Imagery } from "./imagery.js?v=1aeaea3-7f2604cf";
+import { Terrain } from "./terrain.js?v=1aeaea3-7f2604cf";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=1aeaea3-7f2604cf";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=1aeaea3-7f2604cf";
+import { Glacier } from "./glacier.js?v=1aeaea3-7f2604cf";
+import { TerrainShadows } from "./shadows.js?v=1aeaea3-7f2604cf";
+import { PostFX, QUALITY } from "./postfx.js?v=1aeaea3-7f2604cf";
+import { estimateCaptureSun } from "./delight.js?v=1aeaea3-7f2604cf";
+import { SnowField } from "./snowfield.js?v=1aeaea3-7f2604cf";
+import { Photoclinometry } from "./photoclino.js?v=1aeaea3-7f2604cf";
+import { World } from "./world.js?v=1aeaea3-7f2604cf";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=1aeaea3-7f2604cf";
+import { Player, STATE } from "./player.js?v=1aeaea3-7f2604cf";
+import { Director, Climbers } from "./director.js?v=1aeaea3-7f2604cf";
+import { Hud } from "./hud.js?v=1aeaea3-7f2604cf";
+import { Audio } from "./audio.js?v=1aeaea3-7f2604cf";
+import { install as installDiag } from "./diag.js?v=1aeaea3-7f2604cf";
+import * as tiles from "./tiles.js?v=1aeaea3-7f2604cf";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -201,18 +201,6 @@ export class Game {
         applyMoraine(tx);
       };
       new THREE.TextureLoader().load("data/pebbles.jpg", applyMoraine, undefined, procedural);
-      /* The same voids exist on the mountain proper, where a pebble fill is
-         the wrong material — up there the ground is broken rock, so the
-         boulder skin stands in instead (the shader picks by altitude). No
-         procedural fallback: without the photo the shader's boulder band
-         simply stays off and dark patches stay as the imagery has them. */
-      new THREE.TextureLoader().load("data/boulder_skin.jpg", (tex) => {
-        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        tex.colorSpace = THREE.SRGBColorSpace;
-        tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-        this.terrain.uniforms.boulderTex.value = tex;
-        this.terrain.uniforms.boulderOn.value = 1;
-      });
     }
 
     this.sky = new Sky();

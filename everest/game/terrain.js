@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=4c207c0-e5c0ab8b";
-import { CLIPMAP, RENDER } from "./config.js?v=4c207c0-e5c0ab8b";
+import * as THREE from "../vendor/three.module.js?v=1aeaea3-7f2604cf";
+import { CLIPMAP, RENDER } from "./config.js?v=1aeaea3-7f2604cf";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -183,8 +183,6 @@ const FRAG = /* glsl */`
   uniform float debugMode;   // 0 normal, 1 shape only, 2 picture only, 3 coarse tier
   uniform sampler2D moraineTex;
   uniform float moraineOn;
-  uniform sampler2D boulderTex;
-  uniform float boulderOn;
 
   /* Same decode as the vertex shader — the surface was displaced there, so the
      normal has to be built from the same field or the relief only exists in
@@ -795,32 +793,17 @@ const FRAG = /* glsl */`
       float darkness = (1.0 - smoothstep(0.55, 0.78, lumA))
                      * (1.0 - smoothstep(0.12, 0.22, satA))
                      * reach;
-      /* The fill material follows the mountain's own altitude bands, because
-         the ground the voids interrupt changes with height: moraine gravel on
-         the valley floor (below ~5,650 m), broken rock on the mountain
-         proper, and above ~8,200 m snow — the summit must read as snow, never
-         as imported rock. Bands blend over ~200 m so no contour line is drawn
-         where one material hands to the next. */
+      /* One rule, settled after three rounds: the pebble fill exists for
+         the Base Camp valley's no-capture voids and dark moraine streaks,
+         and ONLY there. Above the valley the satellite imagery takes
+         precedence, always — the boulder-skin and snow fills that briefly
+         stood in for dark ground kept winning fights they should not have
+         been in. The fill still wears the ground's own light so the reach
+         fade has no rim. */
+      darkness *= 1.0 - smoothstep(5550.0, 5750.0, P.y);
       if (moraineOn > 0.5 && darkness > 0.01) {
         vec3 fill = mix(texture2D(moraineTex, P.xz * 0.85).rgb,
                         texture2D(moraineTex, P.xz * 0.16).rgb, 0.35);
-        if (boulderOn > 0.5) {
-          vec3 rock = mix(texture2D(boulderTex, P.xz * 0.55).rgb,
-                          texture2D(boulderTex, P.xz * 0.11).rgb, 0.35);
-          fill = mix(fill, rock, smoothstep(5550.0, 5750.0, P.y));
-        } else {
-          /* No boulder photo loaded: on the mountain the imagery stands. */
-          darkness *= 1.0 - smoothstep(5550.0, 5750.0, P.y);
-        }
-        /* Snow, slightly blue and broken up by the pebble texture's own
-           luminance so it is a surface rather than a paint fill. */
-        float snowBand = smoothstep(8100.0, 8300.0, P.y);
-        vec3 snw = vec3(0.88, 0.91, 0.96)
-                 * (0.92 + 0.08 * texture2D(moraineTex, P.xz * 0.30).g);
-        fill = mix(fill, snw, snowBand);
-        /* The fill wears the ground's own light: scaled by the imagery's
-           luminance so a shadowed patch stays shadowed after filling and
-           the 140-200 m fade never reads as a painted circle. */
         fill *= 0.45 + 1.15 * lumA;
         col = mix(col, fill, darkness * 0.88);
       }
@@ -1254,8 +1237,6 @@ export class Terrain {
       detailOn:      { value: 0 },
       moraineTex:    { value: null },   // gravel stand-in for black imagery voids
       moraineOn:     { value: 0 },
-      boulderTex:    { value: null },   // broken-rock stand-in for voids on the mountain
-      boulderOn:     { value: 0 },
       debugMode:     { value: 0 },   // isolation modes, cycled with F10
     }, imagery.uniforms());
 
