@@ -50,7 +50,7 @@
   <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <!-- LCP is the first hero frame; everything else can wait. -->
-  <link rel="preload" as="image" href="/assets/opt/hero_etna.webp" fetchpriority="high">
+  <link rel="preload" as="image" href="/assets/opt/hero_everest_ascent.webp" fetchpriority="high">
   <link rel="stylesheet" href="/styles/shared.css">
   <script>
     /* Animation styles are gated on this class so that if scripting is off —
@@ -697,8 +697,22 @@
   <!-- ══════════ HERO ══════════ -->
   <section class="hero" id="hero" aria-label="Featured" aria-roledescription="carousel">
 
-    <div class="hs-slide is-active" id="hsp-0" role="tabpanel" aria-roledescription="slide" aria-label="1 of 4: Mount Etna">
-      <div class="hs-media"><img src="/assets/opt/hero_etna.webp" alt="Mount Etna erupting at dusk" fetchpriority="high"></div>
+    <div class="hs-slide is-active" id="hsp-0" role="tabpanel" aria-roledescription="slide" aria-label="1 of 5: ASCENT — climb Everest">
+      <div class="hs-media"><img src="/assets/opt/hero_everest_ascent.webp" alt="ASCENT — first-person view on the Khumbu Glacier below Everest" fetchpriority="high"></div>
+      <div class="hs-scrim"></div>
+      <div class="hs-body"><div class="shell"><div class="hs-copy">
+        <span class="hs-tag">New · Earth Explorer</span>
+        <h1 class="hs-title">Climb <em>Everest</em>.</h1>
+        <p class="hs-lede">The real mountain, first-person: satellite imagery draped over live elevation data, the South Col route, oxygen, crevasses and a guide named Gio. Free, in your browser.</p>
+        <div class="hs-actions">
+          <a class="btn btn-solid" href="/everest/">Play ASCENT <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+          <a class="btn btn-line" href="/earth_explorer/">Earth Explorer</a>
+        </div>
+      </div></div></div>
+    </div>
+
+    <div class="hs-slide" id="hsp-1" role="tabpanel" aria-roledescription="slide" aria-label="2 of 5: Mount Etna">
+      <div class="hs-media"><img src="/assets/opt/hero_etna.webp" alt="Mount Etna erupting at dusk" loading="lazy"></div>
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
         <span class="hs-tag">Live · Earth Explorer</span>
@@ -711,7 +725,7 @@
       </div></div></div>
     </div>
 
-    <div class="hs-slide" id="hsp-1" role="tabpanel" aria-roledescription="slide" aria-label="2 of 4: Mars Flight Simulator">
+    <div class="hs-slide" id="hsp-2" role="tabpanel" aria-roledescription="slide" aria-label="3 of 5: Mars Flight Simulator">
       <div class="hs-media">
         <video muted loop playsinline preload="none" poster="/assets/opt/hero_marsflight.webp" data-src="/assets/flight_sim_demo_hero.webm" aria-label="Flying over Martian terrain"></video>
       </div>
@@ -727,7 +741,7 @@
       </div></div></div>
     </div>
 
-    <div class="hs-slide" id="hsp-2" role="tabpanel" aria-roledescription="slide" aria-label="3 of 4: Our mission">
+    <div class="hs-slide" id="hsp-3" role="tabpanel" aria-roledescription="slide" aria-label="4 of 5: Our mission">
       <div class="hs-media"><img src="/assets/opt/hero_flood.webp" alt="Aerial view of a flooded town" loading="lazy"></div>
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
@@ -741,7 +755,7 @@
       </div></div></div>
     </div>
 
-    <div class="hs-slide" id="hsp-3" role="tabpanel" aria-roledescription="slide" aria-label="4 of 4: myGeoID">
+    <div class="hs-slide" id="hsp-4" role="tabpanel" aria-roledescription="slide" aria-label="5 of 5: myGeoID">
       <div class="hs-media"><img src="/assets/opt/mygeoid.webp" alt="myGeoID concept dashboard" loading="lazy"></div>
       <div class="hs-scrim"></div>
       <div class="hs-body"><div class="shell"><div class="hs-copy">
@@ -758,10 +772,11 @@
     <div class="hs-rail" id="hs-rail">
       <div class="shell">
         <div class="hs-rail-inner" role="tablist" aria-label="Featured slides">
-          <button class="hs-tab" role="tab" aria-selected="true"  aria-controls="hsp-0" data-i="0"><span class="hs-num">01</span><span class="hs-label">Mount Etna</span></button>
-          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-1" data-i="1" tabindex="-1"><span class="hs-num">02</span><span class="hs-label">Mars flight sim</span></button>
-          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-2" data-i="2" tabindex="-1"><span class="hs-num">03</span><span class="hs-label">Our mission</span></button>
-          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-3" data-i="3" tabindex="-1"><span class="hs-num">04</span><span class="hs-label">myGeoID</span></button>
+          <button class="hs-tab" role="tab" aria-selected="true"  aria-controls="hsp-0" data-i="0"><span class="hs-num">01</span><span class="hs-label">ASCENT — Everest</span></button>
+          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-1" data-i="1" tabindex="-1"><span class="hs-num">02</span><span class="hs-label">Mount Etna</span></button>
+          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-2" data-i="2" tabindex="-1"><span class="hs-num">03</span><span class="hs-label">Mars flight sim</span></button>
+          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-3" data-i="3" tabindex="-1"><span class="hs-num">04</span><span class="hs-label">Our mission</span></button>
+          <button class="hs-tab" role="tab" aria-selected="false" aria-controls="hsp-4" data-i="4" tabindex="-1"><span class="hs-num">05</span><span class="hs-label">myGeoID</span></button>
         </div>
       </div>
     </div>
