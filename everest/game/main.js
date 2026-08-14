@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=51a90d3-786fe681";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=51a90d3-786fe681";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=51a90d3-786fe681";
-import { Heightfield } from "./dem.js?v=51a90d3-786fe681";
-import { Imagery } from "./imagery.js?v=51a90d3-786fe681";
-import { Terrain } from "./terrain.js?v=51a90d3-786fe681";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=51a90d3-786fe681";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=51a90d3-786fe681";
-import { Glacier } from "./glacier.js?v=51a90d3-786fe681";
-import { TerrainShadows } from "./shadows.js?v=51a90d3-786fe681";
-import { PostFX, QUALITY } from "./postfx.js?v=51a90d3-786fe681";
-import { estimateCaptureSun } from "./delight.js?v=51a90d3-786fe681";
-import { SnowField } from "./snowfield.js?v=51a90d3-786fe681";
-import { Photoclinometry } from "./photoclino.js?v=51a90d3-786fe681";
-import { World } from "./world.js?v=51a90d3-786fe681";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=51a90d3-786fe681";
-import { Player, STATE } from "./player.js?v=51a90d3-786fe681";
-import { Director, Climbers } from "./director.js?v=51a90d3-786fe681";
-import { Hud } from "./hud.js?v=51a90d3-786fe681";
-import { Audio } from "./audio.js?v=51a90d3-786fe681";
-import { install as installDiag } from "./diag.js?v=51a90d3-786fe681";
-import * as tiles from "./tiles.js?v=51a90d3-786fe681";
+import * as THREE from "../vendor/three.module.js?v=7967fec-a4d57da1";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=7967fec-a4d57da1";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=7967fec-a4d57da1";
+import { Heightfield } from "./dem.js?v=7967fec-a4d57da1";
+import { Imagery } from "./imagery.js?v=7967fec-a4d57da1";
+import { Terrain } from "./terrain.js?v=7967fec-a4d57da1";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=7967fec-a4d57da1";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=7967fec-a4d57da1";
+import { Glacier } from "./glacier.js?v=7967fec-a4d57da1";
+import { TerrainShadows } from "./shadows.js?v=7967fec-a4d57da1";
+import { PostFX, QUALITY } from "./postfx.js?v=7967fec-a4d57da1";
+import { estimateCaptureSun } from "./delight.js?v=7967fec-a4d57da1";
+import { SnowField } from "./snowfield.js?v=7967fec-a4d57da1";
+import { Photoclinometry } from "./photoclino.js?v=7967fec-a4d57da1";
+import { World } from "./world.js?v=7967fec-a4d57da1";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=7967fec-a4d57da1";
+import { Player, STATE } from "./player.js?v=7967fec-a4d57da1";
+import { Director, Climbers } from "./director.js?v=7967fec-a4d57da1";
+import { Hud } from "./hud.js?v=7967fec-a4d57da1";
+import { Audio } from "./audio.js?v=7967fec-a4d57da1";
+import { install as installDiag } from "./diag.js?v=7967fec-a4d57da1";
+import * as tiles from "./tiles.js?v=7967fec-a4d57da1";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -280,6 +280,28 @@ export class Game {
       this.hud.notify(`Travelled to ${poi.name}.`);
     };
     this.world.buildRoute();
+    /* Gio's ground: each hazard area warns once, in the guide's voice, as
+       the player walks into it — the replacement for the retired random
+       hazard events. Zones anchor to the POIs they describe. */
+    this.guideZones = [];
+    const zone = (namePat, r, msg) => {
+      const poi = this.world.pois.find((p) => namePat.test(p.name));
+      if (poi) this.guideZones.push({ x: poi.x, z: poi.z, r, msg, fired: false });
+    };
+    zone(/Khumbu Icefall/i, 420,
+      "Seracs stand over this whole section and they do not announce themselves. Clip the line, keep moving, and do not stop under the blue ice.");
+    zone(/Popcorn/i, 260,
+      "The Popcorn Field. Snow bridges here fail under the second climber, not the first. Probe before you commit \u2014 SPACE \u2014 and stay roped.");
+    zone(/Western Cwm|Valley of Silence/i, 480,
+      "Avalanche fans run off Nuptse right across the Cwm. If the snowpack speaks \u2014 a deep whumpf \u2014 you move downhill, immediately.");
+    zone(/Camp III/i, 420,
+      "Rockfall comes down the Lhotse Face all afternoon once the sun has been on it. Helmet on, stay in the rope line, do not linger.");
+    zone(/South Col/i, 420,
+      "Above the Col you are dying, just slowly. The turn-around time matters more than the summit does. Watch the bottle, watch the clock.");
+    zone(/Balcony/i, 260,
+      "The Balcony. The wind owns this ridge \u2014 if it rises past a hundred, the mountain is closed today, whatever the summit looks like.");
+    zone(/South Summit/i, 260,
+      "Cornice line ahead overhangs the Kangshung face by metres. Stay on the rock side of the crest \u2014 the snow side is air.");
     this.world.onOpen = (poi) => this.hud.showPoiCard(poi);
     this.scene.add(this.world.group);
 
@@ -909,6 +931,18 @@ export class Game {
       sheltered: !!nearCamp || P.state === STATE.HANGING,
       sunUp: this.sky.sun.altitude > 0,
     });
+
+    /* Gio watches the ground the player is on. */
+    if (this.guideZones && this.running) {
+      for (const z of this.guideZones) {
+        if (z.fired) continue;
+        if (Math.hypot(P.pos.x - z.x, P.pos.z - z.z) < z.r) {
+          z.fired = true;
+          this.hud.guideSay(z.msg);
+          break;
+        }
+      }
+    }
 
     /* ── Streaming ── */
     this.field.update(P.pos.x, P.pos.z);

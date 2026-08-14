@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=51a90d3-786fe681";
-import { ITEMS } from "./survival.js?v=51a90d3-786fe681";
-import { compassPoint } from "./geo.js?v=51a90d3-786fe681";
+import { Director } from "./director.js?v=7967fec-a4d57da1";
+import { ITEMS } from "./survival.js?v=7967fec-a4d57da1";
+import { compassPoint } from "./geo.js?v=7967fec-a4d57da1";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -111,6 +111,40 @@ export class Hud {
     for (const id of ["alt", "dist", "temp", "wind", "resist", "slope", "spo2", "flow", "avy"]) {
       this.el["i_" + id] = this.el.instr.querySelector("#i-" + id);
     }
+
+    /* ── Gio, the guide: hazard-area messages, top right beside the
+          logo. One card at a time; an alert tone announces it and it
+          fades itself off screen after thirty seconds. ── */
+    this.el.gio = mk("gio-card");
+    this.el.gio.style.display = "none";
+    this._gioTimer = 0;
+    this.guideSay = (text) => {
+      this.el.gio.innerHTML = `
+        <div class="gio-head"><span class="gio-name">Gio</span><span class="gio-role">\u00b7 guide</span></div>
+        <div class="gio-text">${text}</div>`;
+      this.el.gio.style.display = "";
+      this.el.gio.classList.remove("out");
+      clearTimeout(this._gioTimer);
+      this._gioTimer = setTimeout(() => {
+        this.el.gio.classList.add("out");
+        setTimeout(() => { this.el.gio.style.display = "none"; }, 900);
+      }, 30000);
+      /* Two rising tones — an alert, not an alarm. */
+      try {
+        const ctx = this._blipCtx || (this._blipCtx = new (window.AudioContext || window.webkitAudioContext)());
+        if (ctx.state !== "suspended") {
+          for (const [f, t0] of [[740, 0], [1108, 0.14]]) {
+            const o = ctx.createOscillator(), g = ctx.createGain();
+            o.type = "sine"; o.frequency.value = f;
+            g.gain.setValueAtTime(0.0001, ctx.currentTime + t0);
+            g.gain.exponentialRampToValueAtTime(0.09, ctx.currentTime + t0 + 0.02);
+            g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t0 + 0.22);
+            o.connect(g).connect(ctx.destination);
+            o.start(ctx.currentTime + t0); o.stop(ctx.currentTime + t0 + 0.25);
+          }
+        }
+      } catch { /* silence is fine */ }
+    };
 
     /* ── POI card: the planet explorers' scene-popup, bottom right ── */
     this.el.poiCard = mk("scene-popup");

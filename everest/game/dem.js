@@ -20,9 +20,9 @@
  *     error is local to the cone and so is the fix.
  */
 
-import { ELEVATION, DEM_TIERS, DEM_DESPIKE_M, SUMMIT, ORIGIN } from "./config.js?v=51a90d3-786fe681";
-import { tileWindow, llToLocal } from "./geo.js?v=51a90d3-786fe681";
-import { fetchWindow } from "./tiles.js?v=51a90d3-786fe681";
+import { ELEVATION, DEM_TIERS, DEM_DESPIKE_M, SUMMIT, ORIGIN } from "./config.js?v=7967fec-a4d57da1";
+import { tileWindow, llToLocal } from "./geo.js?v=7967fec-a4d57da1";
+import { fetchWindow } from "./tiles.js?v=7967fec-a4d57da1";
 
 const decode = ELEVATION.decode;
 

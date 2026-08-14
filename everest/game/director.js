@@ -23,9 +23,9 @@
  * there and it is not improved by being made tidy.
  */
 
-import * as THREE from "../vendor/three.module.js?v=51a90d3-786fe681";
-import { HAZARD } from "./config.js?v=51a90d3-786fe681";
-import { llToLocal } from "./geo.js?v=51a90d3-786fe681";
+import * as THREE from "../vendor/three.module.js?v=7967fec-a4d57da1";
+import { HAZARD } from "./config.js?v=7967fec-a4d57da1";
+import { llToLocal } from "./geo.js?v=7967fec-a4d57da1";
 
 /* ── Avalanche ───────────────────────────────────────────────────────────*/
 
@@ -321,6 +321,13 @@ export class Director {
        of frame rate. */
     this.cooldown -= dtSim;
     if (this.cooldown > 0) return;
+    /* The random hazard theatre — serac lets-go, rockfall hits, slab
+       releases and the avalanche animation they trigger — is retired by
+       request. Danger is now communicated, not simulated: the guide (Gio,
+       wired in main.js) warns as you enter each hazard's ground, and the
+       stability rating still runs the instruments. The rolls below stay in
+       the file as the record of the model, behind this return. */
+    return;
     const window = 240;                       // simulated seconds per roll
     this.cooldown = window;
 

@@ -2237,3 +2237,40 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   --skin-vignette: 2, 6, 16;
   --skin-chrome-ink: #04122e;
 }
+
+
+/* ── Gio's messages: top right, beside the Earth Explorer logo ─────────── */
+.gio-card {
+  position: fixed;
+  top: 0.7rem;
+  right: calc(0.8rem + 5.4rem + 0.8rem);   /* logo width + gaps */
+  z-index: 14;
+  width: min(19rem, calc(100vw - 12rem));
+  padding: 0.7rem 0.85rem 0.75rem;
+  border-radius: 0.8rem 0.2rem 0.8rem 0.8rem;
+  border: 1px solid rgba(77, 141, 255, 0.45);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 20%),
+    linear-gradient(180deg, rgba(9, 15, 30, 0.96), rgba(3, 6, 13, 0.98));
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.45),
+    0 0 0 1px rgba(77, 141, 255, 0.12),
+    0 0 18px rgba(60, 120, 255, 0.16);
+  color: #eef4ff;
+  pointer-events: none;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.9s ease, transform 0.9s ease;
+  animation: gioIn 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.gio-card.out { opacity: 0; transform: translateY(-8px); }
+@keyframes gioIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: none; } }
+.gio-head { display: flex; align-items: baseline; gap: 0.35rem; margin-bottom: 0.3rem; }
+.gio-name {
+  font: 600 0.86rem Orbitron, "Exo 2", sans-serif;
+  color: #8fb8ff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.gio-role { font: 600 0.62rem "Exo 2", sans-serif; color: rgba(200, 216, 245, 0.55); letter-spacing: 0.14em; text-transform: uppercase; }
+.gio-text { font: 500 0.82rem/1.5 "Exo 2", sans-serif; color: #dbe7ff; }
