@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=357117d-c208ec06";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=357117d-c208ec06";
-import { llToLocal, haversine } from "./geo.js?v=357117d-c208ec06";
+import * as THREE from "../vendor/three.module.js?v=519d010-4b018bcc";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=519d010-4b018bcc";
+import { llToLocal, haversine } from "./geo.js?v=519d010-4b018bcc";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be

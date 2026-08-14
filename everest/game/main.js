@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=357117d-c208ec06";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=357117d-c208ec06";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=357117d-c208ec06";
-import { Heightfield } from "./dem.js?v=357117d-c208ec06";
-import { Imagery } from "./imagery.js?v=357117d-c208ec06";
-import { Terrain } from "./terrain.js?v=357117d-c208ec06";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=357117d-c208ec06";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=357117d-c208ec06";
-import { Glacier } from "./glacier.js?v=357117d-c208ec06";
-import { TerrainShadows } from "./shadows.js?v=357117d-c208ec06";
-import { PostFX, QUALITY } from "./postfx.js?v=357117d-c208ec06";
-import { estimateCaptureSun } from "./delight.js?v=357117d-c208ec06";
-import { SnowField } from "./snowfield.js?v=357117d-c208ec06";
-import { Photoclinometry } from "./photoclino.js?v=357117d-c208ec06";
-import { World } from "./world.js?v=357117d-c208ec06";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=357117d-c208ec06";
-import { Player, STATE } from "./player.js?v=357117d-c208ec06";
-import { Director, Climbers } from "./director.js?v=357117d-c208ec06";
-import { Hud } from "./hud.js?v=357117d-c208ec06";
-import { Audio } from "./audio.js?v=357117d-c208ec06";
-import { install as installDiag } from "./diag.js?v=357117d-c208ec06";
-import * as tiles from "./tiles.js?v=357117d-c208ec06";
+import * as THREE from "../vendor/three.module.js?v=519d010-4b018bcc";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=519d010-4b018bcc";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=519d010-4b018bcc";
+import { Heightfield } from "./dem.js?v=519d010-4b018bcc";
+import { Imagery } from "./imagery.js?v=519d010-4b018bcc";
+import { Terrain } from "./terrain.js?v=519d010-4b018bcc";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=519d010-4b018bcc";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=519d010-4b018bcc";
+import { Glacier } from "./glacier.js?v=519d010-4b018bcc";
+import { TerrainShadows } from "./shadows.js?v=519d010-4b018bcc";
+import { PostFX, QUALITY } from "./postfx.js?v=519d010-4b018bcc";
+import { estimateCaptureSun } from "./delight.js?v=519d010-4b018bcc";
+import { SnowField } from "./snowfield.js?v=519d010-4b018bcc";
+import { Photoclinometry } from "./photoclino.js?v=519d010-4b018bcc";
+import { World } from "./world.js?v=519d010-4b018bcc";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=519d010-4b018bcc";
+import { Player, STATE } from "./player.js?v=519d010-4b018bcc";
+import { Director, Climbers } from "./director.js?v=519d010-4b018bcc";
+import { Hud } from "./hud.js?v=519d010-4b018bcc";
+import { Audio } from "./audio.js?v=519d010-4b018bcc";
+import { install as installDiag } from "./diag.js?v=519d010-4b018bcc";
+import * as tiles from "./tiles.js?v=519d010-4b018bcc";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -142,6 +142,10 @@ export class Game {
     this.quality = QUALITY.low;
     this.postfx = new PostFX(this.renderer);
     this.hud.onTool = (id) => this.tool(id);
+    this.hud.onBasemap = (mode) => {
+      this.terrain.uniforms.basemapMode.value = mode;
+      this.hud.notify(["Satellite imagery", "Hillshade", "Slope angle", "Contours", "Hazard map"][mode] + ".");
+    };
   }
 
   async boot(onProgress) {
@@ -665,6 +669,7 @@ export class Game {
 
     const c = e.code;
     if (c === "Escape") {
+      if (this.hud.wheelOpen) return this.hud.closeWheel();
       if (this.hud.poiCardOpen) return this.hud.closePoiCard();
       if (this.hud.readerOpen) return this.hud.closeReader();
       if (this.hud.journalOpen) return this.hud.toggleJournal(false);
@@ -675,7 +680,12 @@ export class Game {
 
     if (c === "Tab") { e.preventDefault(); this.hud.setNavHidden(!this.hud.navHidden); return; }
     if (c === "KeyJ") return this.tool("journal");
-    if (c === "KeyQ") { this.hud.openWheel(); document.exitPointerLock?.(); return; }
+    if (c === "KeyQ") {
+      if (this.hud.wheelOpen) return this.hud.closeWheel();
+      this.hud.openWheel();
+      document.exitPointerLock?.();
+      return;
+    }
     if (this.hud.wheelOpen) {
       if (c === "ArrowLeft") return this.setFlow(this.survival.o2Flow - 1);
       if (c === "ArrowRight") return this.setFlow(this.survival.o2Flow + 1);

@@ -13,8 +13,8 @@
  * a time that looks wrong if you assume a whole-hour zone.
  */
 
-import * as THREE from "../vendor/three.module.js?v=357117d-c208ec06";
-import { ORIGIN } from "./config.js?v=357117d-c208ec06";
+import * as THREE from "../vendor/three.module.js?v=519d010-4b018bcc";
+import { ORIGIN } from "./config.js?v=519d010-4b018bcc";
 
 export const NEPAL_UTC_OFFSET_H = 5.75;
 
@@ -129,15 +129,16 @@ const SKY_FRAG = /* glsl */`
   uniform float haze;         // weather: cloud closing in
   uniform float time;
 
-  // Cheap hash-based starfield — no texture, and it twinkles because the
-  // atmosphere it is being seen through is thin but not still.
+  // Cheap hash-based starfield — no texture. STATIC by request: the
+  // twinkle term made the whole field flicker, so each star holds a
+  // fixed brightness (hash-varied so the field still has depth).
   float hash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
   float stars(vec3 d) {
     vec3 g = floor(d * 340.0);
     float h = hash(g);
     if (h < 0.9972) return 0.0;
-    float tw = 0.6 + 0.4 * sin(time * 2.7 + h * 90.0);
-    return smoothstep(0.9972, 1.0, h) * tw;
+    float mag = 0.55 + 0.45 * hash(g + 17.0);
+    return smoothstep(0.9972, 1.0, h) * mag;
   }
 
   void main() {

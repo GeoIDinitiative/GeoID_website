@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=357117d-c208ec06";
-import { CLIPMAP, RENDER } from "./config.js?v=357117d-c208ec06";
+import * as THREE from "../vendor/three.module.js?v=519d010-4b018bcc";
+import { CLIPMAP, RENDER } from "./config.js?v=519d010-4b018bcc";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -188,6 +188,7 @@ const FRAG = /* glsl */`
   uniform sampler2D boulderTex;
   uniform float boulderOn;
   uniform float dayLight;       // 0 night .. 1 day, from solar altitude
+  uniform float basemapMode;    // 0 real, 1 hillshade, 2 slope, 3 contours, 4 risk
   uniform sampler2D routeMask;
   uniform vec4 routeMaskBounds;
   uniform float routeOn;
@@ -851,6 +852,53 @@ const FRAG = /* glsl */`
           col += vec3(0.09) * smoothstep(0.965, 1.0, sp) * g;
         }
       }
+      /* ── Analytical basemaps ─────────────────────────────────────────
+         Every alternative drape is computed from the surface itself —
+         height and normal — so nothing streams and nothing is licensed:
+         hillshade (fixed NW sun over a hypsometric tint), slope (the
+         mountaineer's ramp, green flat to violet past sixty degrees),
+         contours (the map sheet: paper, brown lines, heavy every 500 m),
+         and risk (avalanche-angle slopes burn red, glacier flats cool).
+         Night, the route line and aerial perspective still apply over
+         whichever surface is chosen. */
+      if (basemapMode > 0.5) {
+        vec3 an = normalize(vNormal);
+        float slopeDeg = degrees(acos(clamp(an.y, 0.0, 1.0)));
+        float hyp = clamp((P.y - 4200.0) / 4400.0, 0.0, 1.0);
+        if (basemapMode < 1.5) {
+          float sh = clamp(dot(an, normalize(vec3(-0.5, 0.8, -0.5))), 0.0, 1.0);
+          col = (vec3(0.74, 0.75, 0.76) + hyp * 0.22) * (0.35 + 0.65 * sh);
+        } else if (basemapMode < 2.5) {
+          vec3 ramp = slopeDeg < 15.0 ? mix(vec3(0.22, 0.62, 0.32), vec3(0.92, 0.85, 0.25), slopeDeg / 15.0)
+                    : slopeDeg < 30.0 ? mix(vec3(0.92, 0.85, 0.25), vec3(0.94, 0.52, 0.16), (slopeDeg - 15.0) / 15.0)
+                    : slopeDeg < 45.0 ? mix(vec3(0.94, 0.52, 0.16), vec3(0.86, 0.16, 0.16), (slopeDeg - 30.0) / 15.0)
+                    : mix(vec3(0.86, 0.16, 0.16), vec3(0.48, 0.12, 0.62), clamp((slopeDeg - 45.0) / 15.0, 0.0, 1.0));
+          float sh = 0.75 + 0.25 * clamp(dot(an, normalize(vec3(-0.5, 0.8, -0.5))), 0.0, 1.0);
+          col = ramp * sh;
+        } else if (basemapMode < 3.5) {
+          float w100 = fwidth(P.y) * 1.2 + 0.35;
+          float d100 = abs(fract(P.y / 100.0 + 0.5) - 0.5) * 100.0;
+          float d500 = abs(fract(P.y / 500.0 + 0.5) - 0.5) * 500.0;
+          float minor = 1.0 - smoothstep(w100, w100 * 2.0, d100);
+          float major = 1.0 - smoothstep(w100 * 1.6, w100 * 3.2, d500);
+          col = vec3(0.94, 0.92, 0.87);
+          col = mix(col, vec3(0.62, 0.44, 0.26), minor * 0.55);
+          col = mix(col, vec3(0.42, 0.28, 0.14), major * 0.8);
+          float sh = clamp(dot(an, normalize(vec3(-0.5, 0.8, -0.5))), 0.0, 1.0);
+          col *= 0.82 + 0.18 * sh;
+        } else {
+          float avy = smoothstep(28.0, 35.0, slopeDeg) * (1.0 - smoothstep(48.0, 58.0, slopeDeg));
+          float wall = smoothstep(50.0, 60.0, slopeDeg);
+          float ice = (1.0 - smoothstep(0.0, 14.0, slopeDeg)) * smoothstep(5300.0, 5600.0, P.y);
+          vec3 base = vec3(0.35, 0.62, 0.42);
+          col = mix(base, vec3(0.92, 0.75, 0.20), smoothstep(18.0, 28.0, slopeDeg));
+          col = mix(col, vec3(0.88, 0.15, 0.12), avy);
+          col = mix(col, vec3(0.35, 0.10, 0.30), wall);
+          col = mix(col, vec3(0.30, 0.55, 0.85), ice * 0.6);
+          float sh = 0.75 + 0.25 * clamp(dot(an, normalize(vec3(-0.5, 0.8, -0.5))), 0.0, 1.0);
+          col *= sh;
+        }
+      }
       /* The fixed line, as surface paint. The mask's R channel is the
          rope, G carries along-distance so the gold pulse still travels
          toward the summit; conformance is perfect by construction because
@@ -1328,6 +1376,7 @@ export class Terrain {
       boulderTex:    { value: null },   // broken rock for FLAT dark ground above the valley
       boulderOn:     { value: 0 },
       dayLight:      { value: 1 },
+      basemapMode:   { value: 0 },
       routeMask:     { value: null },   // the fixed line, painted onto the surface
       routeMaskBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
       routeOn:       { value: 1 },

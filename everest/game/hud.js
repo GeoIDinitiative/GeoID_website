@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=357117d-c208ec06";
-import { ITEMS } from "./survival.js?v=357117d-c208ec06";
-import { compassPoint } from "./geo.js?v=357117d-c208ec06";
+import { Director } from "./director.js?v=519d010-4b018bcc";
+import { ITEMS } from "./survival.js?v=519d010-4b018bcc";
+import { compassPoint } from "./geo.js?v=519d010-4b018bcc";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -568,6 +568,16 @@ export class Hud {
     ];
     const SECTIONS = [
       { id: "display", title: "Display",
+        extra: `<div class="bm-row">
+          <label for="basemap-sel">Basemap</label>
+          <select id="basemap-sel" class="bm-select">
+            <option value="0" selected>Real \u2014 satellite</option>
+            <option value="1">Hillshade</option>
+            <option value="2">Slope angle</option>
+            <option value="3">Contours</option>
+            <option value="4">Hazard / risk</option>
+          </select>
+        </div>`,
         icon: '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.6-4.2 6.5-4.2S14.5 8 14.5 8 11.9 12.2 8 12.2 1.5 8 1.5 8Z" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="1.9" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
         copy: "What the mountain shows. Every switch is a preference \u2014 set it here, or use its key anywhere.",
         tools: ["labels", "route", "third", "torch"] },
@@ -649,6 +659,8 @@ export class Hud {
     for (const el of this.el.nav.querySelectorAll(".nav-btn, .section-toggle, .info-btn, #nav-collapse-btn")) {
       el.addEventListener("mouseenter", this._blip);
     }
+    const bmSel = this.el.nav.querySelector("#basemap-sel");
+    bmSel.addEventListener("change", () => this.onBasemap && this.onBasemap(+bmSel.value));
     for (const [k, id] of [["cTime", "c-time"], ["cDay", "c-day"], ["cPhase", "c-phase"]]) {
       this.el[k] = this.el.nav.querySelector("#" + id);
     }
