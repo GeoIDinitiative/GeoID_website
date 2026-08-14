@@ -886,11 +886,15 @@ canvas.scene { display: block; position: fixed; inset: 0; }
 /* Collapse button — Etna's #nav-collapse-btn. */
 .nav-hide {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 1.55rem; height: 1.55rem;
+  gap: .3rem;
+  width: auto; height: 1.55rem;
+  padding: 0 .5rem;
+  font: 600 9px/1 "Exo 2", system-ui, sans-serif;
+  letter-spacing: .14em; text-transform: uppercase;
+  white-space: nowrap;
   border: 1px solid rgba(var(--chrome-rgb), .72);
   border-radius: .42rem;
   background: none; color: var(--chrome);
-  font-size: 1rem; line-height: 1; padding: 0;
   cursor: pointer; margin-left: auto;
   transition: background .15s, border-color .15s;
 }
@@ -1061,6 +1065,8 @@ canvas.scene { display: block; position: fixed; inset: 0; }
 body.bars-hidden .compass { transform: translateX(-50%) translateY(220%); opacity: 0; pointer-events: none; }
 body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opacity: 0; pointer-events: none; }
 .bars-tab {
+  letter-spacing: .12em; text-transform: uppercase;
+  white-space: nowrap;
   /* The HUD layer it lives in is pointer-events:none (the mountain must
      stay clickable through the chrome), so the one control that IS chrome
      has to opt back in explicitly or every click falls through to the
@@ -1070,7 +1076,8 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   left: 50%; bottom: 0;
   transform: translateX(-50%);
   z-index: 11;
-  width: 44px; height: 15px;
+  width: auto; height: 16px;
+  padding: 0 .6rem;
   display: flex; align-items: center; justify-content: center;
   font: 700 10px "Exo 2", system-ui, sans-serif;
   color: var(--ink-faint, rgba(214, 202, 255, .6));

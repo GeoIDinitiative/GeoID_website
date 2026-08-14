@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=9dab064-9baec5c2";
-import { ITEMS } from "./survival.js?v=9dab064-9baec5c2";
-import { compassPoint } from "./geo.js?v=9dab064-9baec5c2";
+import { Director } from "./director.js?v=310e0f0-46386f4e";
+import { ITEMS } from "./survival.js?v=310e0f0-46386f4e";
+import { compassPoint } from "./geo.js?v=310e0f0-46386f4e";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -113,7 +113,7 @@ export class Hud {
           into the edge, U mirrors it from the keyboard. ── */
     this.barsHidden = false;
     this.el.barsTab = mk("bars-tab");
-    this.el.barsTab.textContent = "▾";
+    this.el.barsTab.textContent = "Close \u25BE U";
     this.el.barsTab.title = "Collapse bars (U)";
     this.el.barsTab.addEventListener("click", () => this.setBarsHidden(!this.barsHidden));
 
@@ -316,7 +316,7 @@ export class Hud {
     addEventListener("resize", this._drawBinocMask);
 
     this.el.navTab = mk("nav-tab");
-    this.el.navTab.textContent = "Menu";
+    this.el.navTab.textContent = "Open \u25B8 \u0060";
     this.el.navTab.style.display = "none";
     this.el.navTab.addEventListener("click", () => this.setNavHidden(false));
 
@@ -335,7 +335,7 @@ export class Hud {
       </div>
       <div class="nav-tools" id="nav-tools"></div>
       <div class="nav-status">
-        <button class="nav-hide" id="nav-hide" title="Hide bar (\u0060)">▴</button>
+        <button class="nav-hide" id="nav-hide" title="Hide bar (\u0060)">Close \u25C2 \u0060</button>
         <span class="ns-alt" id="n-alt">—</span>
         <span class="ns-standing" id="n-standing">—</span>
       </div>`;
@@ -646,7 +646,7 @@ export class Hud {
   setBarsHidden(on) {
     this.barsHidden = on;
     document.body.classList.toggle("bars-hidden", on);
-    this.el.barsTab.textContent = on ? "▴" : "▾";
+    this.el.barsTab.textContent = on ? "Open \u25B4 U" : "Close \u25BE U";
   }
 
   drawCompass(s) {
