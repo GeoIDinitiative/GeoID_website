@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=488112e-177e95b0";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=488112e-177e95b0";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=488112e-177e95b0";
-import { Heightfield } from "./dem.js?v=488112e-177e95b0";
-import { Imagery } from "./imagery.js?v=488112e-177e95b0";
-import { Terrain } from "./terrain.js?v=488112e-177e95b0";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=488112e-177e95b0";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=488112e-177e95b0";
-import { Glacier } from "./glacier.js?v=488112e-177e95b0";
-import { TerrainShadows } from "./shadows.js?v=488112e-177e95b0";
-import { PostFX, QUALITY } from "./postfx.js?v=488112e-177e95b0";
-import { estimateCaptureSun } from "./delight.js?v=488112e-177e95b0";
-import { SnowField } from "./snowfield.js?v=488112e-177e95b0";
-import { Photoclinometry } from "./photoclino.js?v=488112e-177e95b0";
-import { World } from "./world.js?v=488112e-177e95b0";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=488112e-177e95b0";
-import { Player, STATE } from "./player.js?v=488112e-177e95b0";
-import { Director, Climbers } from "./director.js?v=488112e-177e95b0";
-import { Hud } from "./hud.js?v=488112e-177e95b0";
-import { Audio } from "./audio.js?v=488112e-177e95b0";
-import { install as installDiag } from "./diag.js?v=488112e-177e95b0";
-import * as tiles from "./tiles.js?v=488112e-177e95b0";
+import * as THREE from "../vendor/three.module.js?v=34d9924-2a28a20b";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=34d9924-2a28a20b";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=34d9924-2a28a20b";
+import { Heightfield } from "./dem.js?v=34d9924-2a28a20b";
+import { Imagery } from "./imagery.js?v=34d9924-2a28a20b";
+import { Terrain } from "./terrain.js?v=34d9924-2a28a20b";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=34d9924-2a28a20b";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=34d9924-2a28a20b";
+import { Glacier } from "./glacier.js?v=34d9924-2a28a20b";
+import { TerrainShadows } from "./shadows.js?v=34d9924-2a28a20b";
+import { PostFX, QUALITY } from "./postfx.js?v=34d9924-2a28a20b";
+import { estimateCaptureSun } from "./delight.js?v=34d9924-2a28a20b";
+import { SnowField } from "./snowfield.js?v=34d9924-2a28a20b";
+import { Photoclinometry } from "./photoclino.js?v=34d9924-2a28a20b";
+import { World } from "./world.js?v=34d9924-2a28a20b";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=34d9924-2a28a20b";
+import { Player, STATE } from "./player.js?v=34d9924-2a28a20b";
+import { Director, Climbers } from "./director.js?v=34d9924-2a28a20b";
+import { Hud } from "./hud.js?v=34d9924-2a28a20b";
+import { Audio } from "./audio.js?v=34d9924-2a28a20b";
+import { install as installDiag } from "./diag.js?v=34d9924-2a28a20b";
+import * as tiles from "./tiles.js?v=34d9924-2a28a20b";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */

@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=488112e-177e95b0";
-import { ITEMS } from "./survival.js?v=488112e-177e95b0";
-import { compassPoint } from "./geo.js?v=488112e-177e95b0";
+import { Director } from "./director.js?v=34d9924-2a28a20b";
+import { ITEMS } from "./survival.js?v=34d9924-2a28a20b";
+import { compassPoint } from "./geo.js?v=34d9924-2a28a20b";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -85,7 +85,7 @@ export class Hud {
     /* ── Cores, bottom-left ── */
     this.el.cores = mk("cores");
     this.coreCanvas = document.createElement("canvas");
-    this.coreCanvas.width = 300; this.coreCanvas.height = 84;
+    this.coreCanvas.width = 340; this.coreCanvas.height = 104;
     this.coreCanvas.className = "core-canvas";
     this.el.cores.appendChild(this.coreCanvas);
     this.cctx = this.coreCanvas.getContext("2d");
@@ -811,9 +811,9 @@ export class Hud {
       warmth: s.survival.warmth / 100,
       oxygen: Math.max(0, Math.min(1, (s.spo2 - 45) / 53)),
     };
-    const R = 22, step = 70;
+    const R = 22, step = 78;
     CORE_DEFS.forEach((def, i) => {
-      const cx = 34 + i * step, cy = 42;
+      const cx = 36 + i * step, cy = 40;
       const v = values[def.key];
 
       // Outer ring — the ring is the reserve, the fill is what is left.
@@ -839,12 +839,15 @@ export class Hud {
       /* Labelled in the core's own colour rather than in white. Four white
          captions under four coloured rings makes you read the ring to know
          which is which; colouring the word means you never have to. */
-      c.font = "600 8px 'Exo 2', system-ui, sans-serif";
-      c.fillStyle = def.colour;
-      c.globalAlpha = 0.82;
+      /* Readable captions: a real size, clear air under the ring, and a
+         dark halo so the coloured word holds on snow. */
+      c.font = "700 12px Orbitron, 'Exo 2', system-ui, sans-serif";
       c.textAlign = "center";
-      c.fillText(def.label.toUpperCase(), cx, cy + R + 12);
-      c.globalAlpha = 1;
+      c.lineWidth = 3;
+      c.strokeStyle = "rgba(2,6,14,0.85)";
+      c.strokeText(def.label.toUpperCase(), cx, cy + R + 24);
+      c.fillStyle = def.colour;
+      c.fillText(def.label.toUpperCase(), cx, cy + R + 24);
     });
 
     // The one-line reason, when there is one.

@@ -2351,3 +2351,15 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 .info-bar .u {
   font-family: Orbitron, "Exo 2", sans-serif;
 }
+
+
+/* ── The bottom row lines up ────────────────────────────────────────────
+   Rings (left), info bar (centre) and clock (right) share one bottom
+   line, and the info bar's chips are lifted so their midline runs
+   through the rings' circles and the clock's digits — one instrument
+   row across the base of the screen. */
+:root { --hud-row: 1.05rem; }
+.cores { bottom: var(--hud-row); }
+.corner-readout { bottom: var(--hud-row); }
+.info-bar { bottom: calc(var(--hud-row) + 1.5rem); }
+.compass { bottom: calc(var(--hud-row) + 4.6rem); }
