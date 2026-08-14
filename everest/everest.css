@@ -2274,3 +2274,22 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 }
 .gio-role { font: 600 0.62rem "Exo 2", sans-serif; color: rgba(200, 216, 245, 0.55); letter-spacing: 0.14em; text-transform: uppercase; }
 .gio-text { font: 500 0.82rem/1.5 "Exo 2", sans-serif; color: #dbe7ff; }
+
+
+/* ── Panel takes the display face (Chakra Petch Italic via the Orbitron
+     alias): the slant belongs to headings, titles and controls; body copy
+     stays in Rajdhani for reading. ── */
+.navbar .eyebrow,
+.navbar .brand h1,
+.navbar .brand-subtitle,
+.section-title,
+.navbar .nav-btn,
+.navbar .nav-btn .nb-key,
+.nav-brandline,
+.nav-tab {
+  font-family: Orbitron, "Exo 2", "Segoe UI", sans-serif;
+}
+
+/* ── Corner readout, 40% smaller; the clock goes dark blue ────────────── */
+.corner-readout canvas { width: 204px; height: 58px; }
+.corner-readout .cr-latlon { font-size: 0.86rem; }

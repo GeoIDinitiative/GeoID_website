@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=7967fec-a4d57da1";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=7967fec-a4d57da1";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=7967fec-a4d57da1";
-import { Heightfield } from "./dem.js?v=7967fec-a4d57da1";
-import { Imagery } from "./imagery.js?v=7967fec-a4d57da1";
-import { Terrain } from "./terrain.js?v=7967fec-a4d57da1";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=7967fec-a4d57da1";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=7967fec-a4d57da1";
-import { Glacier } from "./glacier.js?v=7967fec-a4d57da1";
-import { TerrainShadows } from "./shadows.js?v=7967fec-a4d57da1";
-import { PostFX, QUALITY } from "./postfx.js?v=7967fec-a4d57da1";
-import { estimateCaptureSun } from "./delight.js?v=7967fec-a4d57da1";
-import { SnowField } from "./snowfield.js?v=7967fec-a4d57da1";
-import { Photoclinometry } from "./photoclino.js?v=7967fec-a4d57da1";
-import { World } from "./world.js?v=7967fec-a4d57da1";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=7967fec-a4d57da1";
-import { Player, STATE } from "./player.js?v=7967fec-a4d57da1";
-import { Director, Climbers } from "./director.js?v=7967fec-a4d57da1";
-import { Hud } from "./hud.js?v=7967fec-a4d57da1";
-import { Audio } from "./audio.js?v=7967fec-a4d57da1";
-import { install as installDiag } from "./diag.js?v=7967fec-a4d57da1";
-import * as tiles from "./tiles.js?v=7967fec-a4d57da1";
+import * as THREE from "../vendor/three.module.js?v=ac6e163-83e20102";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=ac6e163-83e20102";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=ac6e163-83e20102";
+import { Heightfield } from "./dem.js?v=ac6e163-83e20102";
+import { Imagery } from "./imagery.js?v=ac6e163-83e20102";
+import { Terrain } from "./terrain.js?v=ac6e163-83e20102";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=ac6e163-83e20102";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=ac6e163-83e20102";
+import { Glacier } from "./glacier.js?v=ac6e163-83e20102";
+import { TerrainShadows } from "./shadows.js?v=ac6e163-83e20102";
+import { PostFX, QUALITY } from "./postfx.js?v=ac6e163-83e20102";
+import { estimateCaptureSun } from "./delight.js?v=ac6e163-83e20102";
+import { SnowField } from "./snowfield.js?v=ac6e163-83e20102";
+import { Photoclinometry } from "./photoclino.js?v=ac6e163-83e20102";
+import { World } from "./world.js?v=ac6e163-83e20102";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=ac6e163-83e20102";
+import { Player, STATE } from "./player.js?v=ac6e163-83e20102";
+import { Director, Climbers } from "./director.js?v=ac6e163-83e20102";
+import { Hud } from "./hud.js?v=ac6e163-83e20102";
+import { Audio } from "./audio.js?v=ac6e163-83e20102";
+import { install as installDiag } from "./diag.js?v=ac6e163-83e20102";
+import * as tiles from "./tiles.js?v=ac6e163-83e20102";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -302,6 +302,17 @@ export class Game {
       "The Balcony. The wind owns this ridge \u2014 if it rises past a hundred, the mountain is closed today, whatever the summit looks like.");
     zone(/South Summit/i, 260,
       "Cornice line ahead overhangs the Kangshung face by metres. Stay on the rock side of the crest \u2014 the snow side is air.");
+    /* Camp arrivals, in the same voice. */
+    zone(/^Base Camp$/i, 140,
+      "Base Camp. Eat, drink, sort your kit here \u2014 nothing above this line forgives improvisation.");
+    zone(/^Camp I$/i, 130,
+      "Camp One, top of the Icefall. The worst objective danger is below you now. Rest \u2014 then move before the sun softens everything.");
+    zone(/^Camp II/i, 140,
+      "Camp Two \u2014 Advanced Base. The Cwm cooks by noon and freezes an hour after shadow. This is the last comfortable sleep on the mountain.");
+    zone(/^Camp III/i, 130,
+      "Camp Three, hanging on the Face. Stay clipped even at the tents \u2014 people have rolled out of this camp.");
+    zone(/Camp IV/i, 140,
+      "Camp Four. Summit night starts here: sleep if you can, leave before midnight, and agree your turn-around before you stand up.");
     this.world.onOpen = (poi) => this.hud.showPoiCard(poi);
     this.scene.add(this.world.group);
 
@@ -933,6 +944,18 @@ export class Game {
     });
 
     /* Gio watches the ground the player is on. */
+    /* The first ladder is its own lesson, wherever it is met: fired when
+       the player first closes on any laddered crossing. */
+    if (!this._gioLadder && this.running && this.glacier.segments) {
+      for (const seg of this.glacier.segments) {
+        if (!seg.hasLadder) continue;
+        if (Math.hypot(P.pos.x - seg.x, P.pos.z - seg.z) < 26) {
+          this._gioLadder = true;
+          this.hud.guideSay("First ladder. Face the rungs, points between them, both safeties clipped. It wobbles \u2014 it holds. Do not stop in the middle.");
+          break;
+        }
+      }
+    }
     if (this.guideZones && this.running) {
       for (const z of this.guideZones) {
         if (z.fired) continue;

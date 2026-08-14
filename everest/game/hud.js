@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=7967fec-a4d57da1";
-import { ITEMS } from "./survival.js?v=7967fec-a4d57da1";
-import { compassPoint } from "./geo.js?v=7967fec-a4d57da1";
+import { Director } from "./director.js?v=ac6e163-83e20102";
+import { ITEMS } from "./survival.js?v=ac6e163-83e20102";
+import { compassPoint } from "./geo.js?v=ac6e163-83e20102";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -203,12 +203,12 @@ export class Hud {
           }
           c.closePath();
           if (on) {
-            c.shadowColor = "rgba(77,141,255,0.9)";
+            c.shadowColor = "rgba(31,58,166,0.9)";
             c.shadowBlur = 10;
-            c.fillStyle = "#4d8dff";
+            c.fillStyle = "#2244b8";
           } else {
             c.shadowBlur = 0;
-            c.fillStyle = "rgba(77,141,255,0.10)";
+            c.fillStyle = "rgba(34,68,184,0.12)";
           }
           c.fill();
         }
@@ -219,9 +219,9 @@ export class Hud {
       for (const ch of text) {
         if (ch === ":") {
           for (const cy of [0.30, 0.70]) {
-            c.shadowColor = "rgba(77,141,255,0.9)";
+            c.shadowColor = "rgba(31,58,166,0.9)";
             c.shadowBlur = 8;
-            c.fillStyle = "#4d8dff";
+            c.fillStyle = "#2244b8";
             c.beginPath();
             c.arc(x + colonW / 2, y + cy * dh, 5, 0, Math.PI * 2);
             c.fill();
