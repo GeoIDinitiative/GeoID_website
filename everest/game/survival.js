@@ -12,7 +12,7 @@
  * is a game's approximation. The pressure is not.
  */
 
-import { PHYS, MOVE } from "./config.js?v=81f4946-ac776fe7";
+import { PHYS, MOVE } from "./config.js?v=4c207c0-e5c0ab8b";
 
 /**
  * Atmospheric pressure in kPa.

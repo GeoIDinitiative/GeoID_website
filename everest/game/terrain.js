@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=81f4946-ac776fe7";
-import { CLIPMAP, RENDER } from "./config.js?v=81f4946-ac776fe7";
+import * as THREE from "../vendor/three.module.js?v=4c207c0-e5c0ab8b";
+import { CLIPMAP, RENDER } from "./config.js?v=4c207c0-e5c0ab8b";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -785,9 +785,14 @@ const FRAG = /* glsl */`
          imported rock while real snow showed beyond it: a stamp around the
          player. Above the valley only a true void (near-black, no-capture)
          qualifies; dark ground that the satellite actually saw stands. */
-      float maskValley = 1.0 - smoothstep(0.55, 0.78, lumA);
-      float maskVoid   = 1.0 - smoothstep(0.10, 0.18, lumA);
-      float darkness = mix(maskValley, maskVoid, smoothstep(5550.0, 5750.0, P.y))
+      /* One mask, all altitudes: the measured dark-and-grey band. An
+         earlier fix restricted the mountain to near-black voids only —
+         which also switched off the boulder texture on genuine exposed
+         rock and starved the summit's snow fill. The stamp that fix
+         chased is prevented differently now: the fill inherits the
+         imagery's own luminance below, so filled ground keeps its
+         shading and the reach circle has no visible rim. */
+      float darkness = (1.0 - smoothstep(0.55, 0.78, lumA))
                      * (1.0 - smoothstep(0.12, 0.22, satA))
                      * reach;
       /* The fill material follows the mountain's own altitude bands, because
@@ -813,7 +818,11 @@ const FRAG = /* glsl */`
         vec3 snw = vec3(0.88, 0.91, 0.96)
                  * (0.92 + 0.08 * texture2D(moraineTex, P.xz * 0.30).g);
         fill = mix(fill, snw, snowBand);
-        col = mix(col, fill, darkness * 0.95);
+        /* The fill wears the ground's own light: scaled by the imagery's
+           luminance so a shadowed patch stays shadowed after filling and
+           the 140-200 m fade never reads as a painted circle. */
+        fill *= 0.45 + 1.15 * lumA;
+        col = mix(col, fill, darkness * 0.88);
       }
       /* Aerial perspective — the one thing raw mapping cannot carry. The
          old far tier was z11, whose pixels arrive pre-hazed by the
