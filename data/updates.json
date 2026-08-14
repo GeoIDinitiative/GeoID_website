@@ -3,6 +3,15 @@
   "updates": [
     {
       "status": "live",
+      "kicker": "New release",
+      "title": "ASCENT — climb Everest in your browser",
+      "desc": "Walk the real mountain: Esri imagery draped over a live elevation model, the South Col route from Base Camp to the summit, oxygen, weather, crevasses and a guide named Gio. Choose your starting camp and go.",
+      "href": "/everest/",
+      "image": "/assets/opt/everest_ascent.webp",
+      "alt": "ASCENT — the Everest climbing game"
+    },
+    {
+      "status": "live",
       "kicker": "Live now",
       "title": "The Mars Flight Simulator is live",
       "desc": "Fly over real Martian terrain with CTX imagery streaming beneath you. Choose a launch site anywhere on the planet and take off.",

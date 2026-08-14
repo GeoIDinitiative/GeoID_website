@@ -1808,6 +1808,15 @@
               <div class="marker-chip">Mount Etna</div>
             </a>
 
+            <a class="map-marker map-marker--live dir-up"
+               style="left:74.15%;top:68.90%;"
+               href="/everest/"
+               title="ASCENT — the Everest climbing game — Play now">
+              <div class="marker-chip">Everest</div>
+              <div class="marker-line"></div>
+              <div class="marker-dot"></div>
+            </a>
+
             <!-- IN DEVELOPMENT — volcanic (orange solid) ─────────────────── -->
             <button class="map-marker map-marker--dev dir-up"
                     style="left:45.34%;top:26.97%;"
@@ -1959,7 +1968,7 @@
         </div>
         <div class="earth-whatis-body">
           <p>Earth Explorer is GeoID's regional Earth science platform — a growing suite of high-resolution 3D environments built around specific geologically significant sites across the planet. Where Planet Explorer surveys entire worlds at global scale, Earth Explorer goes deeper into defined geographic domains: a volcano, a fault zone, a caldera system — each rendered at the resolution and scientific detail the site's own geological complexity demands.</p>
-          <p>The platform is built on the same open-science foundation as all GeoID tools: no institutional gatekeeping, no specialist prerequisites, and no gap between the data researchers use and what the public can access. The Mount Etna viewer is live now and accessible via the annual membership. Future environments currently under consideration include the Campi Flegrei caldera system, the Reykjanes Peninsula volcanic zone in Iceland, the Aegean arc (Santorini–Milos), and Himalayan seismic corridors — each selected for their scientific significance and the availability of high-quality open datasets to support them.</p>
+          <p>The platform is built on the same open-science foundation as all GeoID tools: no institutional gatekeeping, no specialist prerequisites, and no gap between the data researchers use and what the public can access. Two environments are live now: the Mount Etna viewer, accessible via the annual membership, and ASCENT — a first-person climb of Mount Everest on real imagery and elevation data, free to play. Future environments currently under consideration include the Campi Flegrei caldera system, the Reykjanes Peninsula volcanic zone in Iceland, and the Aegean arc (Santorini–Milos) — each selected for their scientific significance and the availability of high-quality open datasets to support them.</p>
         </div>
       </article>
     </section>
@@ -2119,6 +2128,55 @@
           <!-- 720p re-encode (~9 MB); the 82 MB original is out of the tree. -->
           <source src="/assets/opt/etna_demo.webm" type="video/webm">
         </video>
+
+      </article>
+    </section>
+
+
+    <!-- ── Everest / ASCENT tile ────────────────────────────────────────────── -->
+    <section class="earth-section" id="everest-ascent" aria-labelledby="ascent-heading">
+
+      <article class="earth-info-tile">
+
+        <div class="earth-info-header">
+          <div>
+            <h3 class="earth-info-title" id="ascent-heading">Climb the Real Mount Everest — ASCENT</h3>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-shrink:0;">
+            <span class="flagship-live-badge" aria-label="Live game">
+              <span class="flagship-live-dot"></span>LIVE
+            </span>
+            <a class="btn-primary" href="/everest/" style="white-space:nowrap;font-size:0.8rem;padding:0.45rem 1rem;">▶ &nbsp;Play ASCENT</a>
+          </div>
+        </div>
+
+        <div class="earth-info-body" style="padding:0.6rem 2.4rem 1rem;">
+
+          <p style="font-family:'Public Sans',sans-serif;font-size:0.92rem;line-height:1.72;color:rgba(210,230,240,0.88);margin:0 0 1.6rem;border-left:2px solid rgba(0,225,210,0.3);padding-left:1rem;">
+            ASCENT is a first-person climb of Mount Everest built on the same open-data foundation as every GeoID viewer. The mountain is the real one: Esri satellite imagery streamed to half a metre per pixel, draped over an elevation model read tile by tile from the same web services a GIS uses. The route was not drawn by hand — it was found by asking that elevation model for the least-effort line from Base Camp to the summit, and it came back with the South Col route. Choose a starting camp on the map and walk out of it.
+          </p>
+
+          <div class="earth-info-block">
+            <p class="earth-info-heading">The Real Terrain</p>
+            <p>Satellite imagery at up to 0.53 m per pixel over a multi-resolution elevation model, streamed live — nothing pre-baked, nothing sculpted. The horizon runs 300 km on real relief, contours and hillshade fill where the satellites did not look, and every camp, icefall and col is where it is on Earth.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">The Climb</p>
+            <p>The South Col route from Base Camp through the Khumbu Icefall, the Western Cwm, the Lhotse Face and the Death Zone to the summit — with oxygen to manage, weather to respect, crevasses to probe and ladders to trust. Body instruments track health, stamina, warmth and blood oxygen; the environment is recorded honestly rather than gamified.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Navigation</p>
+            <p>A full interactive map — orthophoto, 100 m contours, the route as a cased line, a dynamic scale bar — with fast travel to every camp you have reached. In the scene, horizon tags name the peaks and camps around you with live distances, and hide honestly behind the terrain that hides their ground.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">The Guide</p>
+            <p>Gio, the expedition guide, warns you as you enter each hazard's ground — the seracs, the avalanche fans, the cornice line — teaches the first ladder, meets you at every camp, and writes it all into the field journal.</p>
+          </div>
+          <div class="earth-info-block">
+            <p class="earth-info-heading">Data Sources</p>
+            <p>Esri World Imagery (streamed for viewing under the Esri Master License Agreement — nothing cached to disk), Mapzen Terrain Tiles on AWS Open Data (SRTM, ASTER and national sources), and Copernicus Sentinel-2 for the navigation orthophoto. It is a game, not a route description — but every layer in it is real.</p>
+          </div>
+        </div>
 
       </article>
     </section>
