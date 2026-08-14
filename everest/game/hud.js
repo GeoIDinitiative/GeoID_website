@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=1f005d2-a1d30c12";
-import { ITEMS } from "./survival.js?v=1f005d2-a1d30c12";
-import { compassPoint } from "./geo.js?v=1f005d2-a1d30c12";
+import { Director } from "./director.js?v=7d86a7e-8843819e";
+import { ITEMS } from "./survival.js?v=7d86a7e-8843819e";
+import { compassPoint } from "./geo.js?v=7d86a7e-8843819e";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -349,33 +349,33 @@ export class Hud {
        unlabelled toggles told a new player nothing; a section that says
        what its switches do is the difference between chrome and a guide. */
     this.el.nav.innerHTML = `
-      <div class="nav-head">
-        <button class="info-btn" id="nav-info" title="Guide (H)">i</button>
-        <button class="nav-hide" id="nav-hide" title="Collapse panel (\u0060)">\u2039</button>
+      <div class="brand-toprow">
+        <p class="eyebrow">GeoID: Earth Explorer</p>
+        <div class="brand-toprow-actions">
+          <button class="info-btn" id="nav-info" aria-label="Guide" title="Guide (H)">i</button>
+          <button id="nav-collapse-btn" aria-label="Collapse navigation panel" title="Collapse panel (\u0060)">\u2039</button>
+        </div>
       </div>
-      <div class="nav-scroll">
+      <div id="ui-scroll-body">
         <div class="brand-banner">
-          <div class="bb-text">
-            <h1>Everest</h1>
-            <p>Khumbu, Nepal \u00b7 8,848.86 m</p>
-          </div>
-          <div class="bb-clock">
-            <span class="nc-time" id="c-time">--:--</span>
-            <span class="nc-meta"><b id="c-day">Day 1</b><i id="c-phase">night</i></span>
+          <div class="brand-hero">
+            <div class="brand">
+              <h1>Everest <svg class="nepal-flag" viewBox="0 0 22 26" aria-label="Nepal" role="img"><path d="M1 1 L15 7.5 L8 10 L21 19 L1 25 Z" fill="#dc143c" stroke="#003893" stroke-width="1.6" stroke-linejoin="round"/></svg></h1>
+              <p class="brand-subtitle">Khumbu, Nepal \u00b7 8,848.86 m</p>
+            </div>
           </div>
         </div>
         <div class="controls" id="nav-sections"></div>
       </div>
       <div class="nav-status">
         <span class="ns-standing" id="n-standing">\u2014</span>
+        <span class="nav-clock-hidden" hidden><span id="c-time"></span><span id="c-day"></span><span id="c-phase"></span></span>
       </div>`;
-    this.el.nav.querySelector("#nav-hide")
+    this.el.nav.querySelector("#nav-collapse-btn")
       .addEventListener("click", () => this.setNavHidden(true));
     this.el.nav.querySelector("#nav-info")
       .addEventListener("click", () => this.onTool && this.onTool("help"));
 
-    /* The instruments no longer live in the panel: they are the info bar
-       under the compass, and the panel is navigation only. */
     this.tools = [
       { id: "labels",  key: "T",   label: "Place labels",  icon: "\u2316", tip: "Name pills over camps, peaks and route features. They hide behind terrain like everything else." },
       { id: "route",   key: "N",   label: "Route guider",  icon: "\u27CB", tip: "The fixed line up the South Col route, drawn on the ground." },
@@ -390,15 +390,19 @@ export class Hud {
     ];
     const SECTIONS = [
       { id: "display", title: "Display",
+        icon: '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.6-4.2 6.5-4.2S14.5 8 14.5 8 11.9 12.2 8 12.2 1.5 8 1.5 8Z" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="1.9" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
         copy: "What the mountain shows. Every switch is a preference \u2014 set it here, or use its key anywhere.",
         tools: ["labels", "route", "third", "torch"] },
       { id: "climb", title: "Climb",
+        icon: '<svg viewBox="0 0 16 16"><path d="m2 13 4.4-7 2.4 3.6L11 6.4 14 13Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>',
         copy: "The gear on your harness.",
         tools: ["items", "rope", "oxygen", "journal"] },
       { id: "map", title: "Map & fast travel",
+        icon: '<svg viewBox="0 0 16 16"><path d="M2 3.6 6 2l4 1.6L14 2v10.4L10 14l-4-1.6L2 14Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 2v10.4M10 3.6V14" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
         copy: "The navigation hub: the massif from above, every named place labelled. Click a pill for its story; fast travel to anywhere you have reached.",
         tools: ["map"] },
       { id: "guide", title: "Guide",
+        icon: '<svg viewBox="0 0 16 16"><path d="M3 2.5h6.5a2 2 0 0 1 2 2V13.5H5a2 2 0 0 0-2 2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M3 2.5v13" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
         copy: "You are walking the real mountain \u2014 Esri imagery on a real elevation model. Head up the glacier, rope up before the Icefall, and mind the oxygen above the Col.",
         tools: ["help"],
         extra: `<dl class="key-list">
@@ -420,9 +424,13 @@ export class Hud {
       if (sec.open) d.open = true;
       const tools = sec.tools.map((id) => this.tools.find((t) => t.id === id));
       d.innerHTML = `
-        <summary class="section-toggle"><span class="st-title">${sec.title}</span><span class="st-chev">\u25BE</span></summary>
+        <summary class="section-toggle">
+          <div class="section-toggle-main">
+            <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true">${sec.icon}</span><span>${sec.title}</span></span></div>
+          </div>
+        </summary>
         <div class="section-body">
-          <p class="section-copy">${sec.copy}</p>
+          <p class="section-summary-copy">${sec.copy}</p>
           <div class="section-tools"></div>
           ${sec.extra || ""}
         </div>`;
