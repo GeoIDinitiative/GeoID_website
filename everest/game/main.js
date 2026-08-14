@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=6bb04dc-31a2ea98";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=6bb04dc-31a2ea98";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=6bb04dc-31a2ea98";
-import { Heightfield } from "./dem.js?v=6bb04dc-31a2ea98";
-import { Imagery } from "./imagery.js?v=6bb04dc-31a2ea98";
-import { Terrain } from "./terrain.js?v=6bb04dc-31a2ea98";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=6bb04dc-31a2ea98";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=6bb04dc-31a2ea98";
-import { Glacier } from "./glacier.js?v=6bb04dc-31a2ea98";
-import { TerrainShadows } from "./shadows.js?v=6bb04dc-31a2ea98";
-import { PostFX, QUALITY } from "./postfx.js?v=6bb04dc-31a2ea98";
-import { estimateCaptureSun } from "./delight.js?v=6bb04dc-31a2ea98";
-import { SnowField } from "./snowfield.js?v=6bb04dc-31a2ea98";
-import { Photoclinometry } from "./photoclino.js?v=6bb04dc-31a2ea98";
-import { World } from "./world.js?v=6bb04dc-31a2ea98";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=6bb04dc-31a2ea98";
-import { Player, STATE } from "./player.js?v=6bb04dc-31a2ea98";
-import { Director, Climbers } from "./director.js?v=6bb04dc-31a2ea98";
-import { Hud } from "./hud.js?v=6bb04dc-31a2ea98";
-import { Audio } from "./audio.js?v=6bb04dc-31a2ea98";
-import { install as installDiag } from "./diag.js?v=6bb04dc-31a2ea98";
-import * as tiles from "./tiles.js?v=6bb04dc-31a2ea98";
+import * as THREE from "../vendor/three.module.js?v=b8c1559-f4720e24";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=b8c1559-f4720e24";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=b8c1559-f4720e24";
+import { Heightfield } from "./dem.js?v=b8c1559-f4720e24";
+import { Imagery } from "./imagery.js?v=b8c1559-f4720e24";
+import { Terrain } from "./terrain.js?v=b8c1559-f4720e24";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=b8c1559-f4720e24";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=b8c1559-f4720e24";
+import { Glacier } from "./glacier.js?v=b8c1559-f4720e24";
+import { TerrainShadows } from "./shadows.js?v=b8c1559-f4720e24";
+import { PostFX, QUALITY } from "./postfx.js?v=b8c1559-f4720e24";
+import { estimateCaptureSun } from "./delight.js?v=b8c1559-f4720e24";
+import { SnowField } from "./snowfield.js?v=b8c1559-f4720e24";
+import { Photoclinometry } from "./photoclino.js?v=b8c1559-f4720e24";
+import { World } from "./world.js?v=b8c1559-f4720e24";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=b8c1559-f4720e24";
+import { Player, STATE } from "./player.js?v=b8c1559-f4720e24";
+import { Director, Climbers } from "./director.js?v=b8c1559-f4720e24";
+import { Hud } from "./hud.js?v=b8c1559-f4720e24";
+import { Audio } from "./audio.js?v=b8c1559-f4720e24";
+import { install as installDiag } from "./diag.js?v=b8c1559-f4720e24";
+import * as tiles from "./tiles.js?v=b8c1559-f4720e24";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -357,6 +357,17 @@ export class Game {
       "Camp Three, hanging on the Face. Stay clipped even at the tents \u2014 people have rolled out of this camp.");
     zone(/Camp IV/i, 140,
       "Camp Four. Summit night starts here: sleep if you can, leave before midnight, and agree your turn-around before you stand up.");
+    /* Every OTHER named location texts its description as you walk in —
+       the replacement for the retired "press E to read" prompt. Places
+       Gio already covers with a hand-written line above are skipped, so
+       nobody gets two cards for the same ground. Camps keep E (that is
+       an action — rest — not a description). */
+    const covered = new Set(this.guideZones.map((z) => `${Math.round(z.x)}_${Math.round(z.z)}`));
+    for (const poi of this.world.pois) {
+      if (poi.camp || !poi.text) continue;
+      if (covered.has(`${Math.round(poi.x)}_${Math.round(poi.z)}`)) continue;
+      this.guideZones.push({ x: poi.x, z: poi.z, r: 120, msg: poi.text, fired: false });
+    }
     this.world.onOpen = (poi) => this.hud.showPoiCard(poi);
     this.scene.add(this.world.group);
 
@@ -818,12 +829,14 @@ export class Game {
     }
 
     const poi = this.world.nearest(p.x, p.z, 40);
-    if (poi) {
-      if (poi.camp && !this.reached.has(poi.id)) this.arriveAtCamp(poi);
-      else if (poi.camp) this.restAt(poi);
-      else this.hud.showReader(poi);
+    if (poi && poi.camp) {
+      if (!this.reached.has(poi.id)) this.arriveAtCamp(poi);
+      else this.restAt(poi);
       return;
     }
+    /* Non-camp locations: E does nothing — the description arrives as a
+       Gio text when you walk in, and the label's popup card remains for
+       reading at leisure. */
   }
 
   arriveAtCamp(poi) {
@@ -1293,7 +1306,8 @@ export class Game {
     if (poi) {
       if (poi.camp && !this.reached.has(poi.id)) return `<kbd>E</kbd> arrive at ${poi.name}`;
       if (poi.camp) return `<kbd>E</kbd> rest at ${poi.name}`;
-      return `<kbd>E</kbd> ${poi.name}`;
+      /* Non-camp locations no longer prompt: Gio texts their story as you
+         walk in (see the auto zones), so the chip stays for actions only. */
     }
     return null;
   }

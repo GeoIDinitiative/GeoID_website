@@ -13,8 +13,8 @@
  * a time that looks wrong if you assume a whole-hour zone.
  */
 
-import * as THREE from "../vendor/three.module.js?v=6bb04dc-31a2ea98";
-import { ORIGIN } from "./config.js?v=6bb04dc-31a2ea98";
+import * as THREE from "../vendor/three.module.js?v=b8c1559-f4720e24";
+import { ORIGIN } from "./config.js?v=b8c1559-f4720e24";
 
 export const NEPAL_UTC_OFFSET_H = 5.75;
 
