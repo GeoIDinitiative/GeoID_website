@@ -13,8 +13,8 @@
  * hypoxic, exhausted and frostbitten turns into being slow.
  */
 
-import * as THREE from "../vendor/three.module.js?v=e563802-b9294f21";
-import { MOVE, TIME_SCALE, OPEN } from "./config.js?v=e563802-b9294f21";
+import * as THREE from "../vendor/three.module.js?v=daa3759-e552ca1e";
+import { MOVE, TIME_SCALE, OPEN } from "./config.js?v=daa3759-e552ca1e";
 
 const D2R = Math.PI / 180;
 

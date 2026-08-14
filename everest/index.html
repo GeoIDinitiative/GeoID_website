@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="/styles/viewer-skin.css">
 <link rel="preload" as="image" href="data/khumbu_map.png?r=3">
 <link rel="preload" as="image" href="data/khumbu_contours.png">
-<link rel="stylesheet" href="everest.css?v=e563802-b9294f21">
+<link rel="stylesheet" href="everest.css?v=daa3759-e552ca1e">
 
 <!-- ── The reset switch, and why it has to exist ─────────────────────────────
      A site-wide service worker is registered at the root of this origin
@@ -162,8 +162,8 @@ if (location.search.includes("reset")) {
 </div>
 
 <script type="module">
-import { Game } from "./game/main.js?v=e563802-b9294f21";
-import { ROUTE } from "./game/config.js?v=e563802-b9294f21";
+import { Game } from "./game/main.js?v=daa3759-e552ca1e";
+import { ROUTE } from "./game/config.js?v=daa3759-e552ca1e";
 
 const canvas = document.getElementById("scene");
 const hudRoot = document.getElementById("hud");
@@ -185,12 +185,12 @@ window.__ascent = game;      // for the harness, and for anyone curious
 /* Headless driving. Only with ?shot, and only ever additive — the game does
    not behave differently because these exist. */
 if (game.headless) {
-  const { llToLocal } = await import("./game/geo.js?v=e563802-b9294f21");
+  const { llToLocal } = await import("./game/geo.js?v=daa3759-e552ca1e");
   window.__drive = {
     game,
     run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
     settle: async (ms = 15000) => {
-      const tiles = await import("./game/tiles.js?v=e563802-b9294f21");
+      const tiles = await import("./game/tiles.js?v=daa3759-e552ca1e");
       const end = performance.now() + ms;
       let quiet = 0;
       while (performance.now() < end) {
@@ -289,25 +289,35 @@ let booting = false;
   layout();
   addEventListener("resize", layout);
   for (const img of imgs) if (!img.complete) img.addEventListener("load", layout);
-  /* The route, outlined over the corridor before the pins go on. */
+  /* The route, outlined over the corridor before the pins go on — the
+     terrain-following path when it loads, the waypoint chords until. */
   {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("class", "sm-route");
     svg.setAttribute("viewBox", "0 0 100 100");
     svg.setAttribute("preserveAspectRatio", "none");
-    const d = ROUTE.map((p, i) => {
+    const toD = (pts) => pts.map((p, i) => {
       const u = (p.lon - B.W) / (B.E - B.W), v = (B.N - p.lat) / (B.N - B.S);
       const x = ((u - u0) / (u1 - u0)) * 100, y = ((v - v0) / (v1 - v0)) * 100;
       return `${i ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`;
     }).join(" ");
+    const paths = [];
     for (const cls of ["sm-route-casing", "sm-route-line"]) {
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      path.setAttribute("d", d);
+      path.setAttribute("d", toD(ROUTE));
       path.setAttribute("class", cls);
       path.setAttribute("vector-effect", "non-scaling-stroke");
       svg.appendChild(path);
+      paths.push(path);
     }
     box.appendChild(svg);
+    fetch("data/route_path.json")
+      .then((r) => r.json())
+      .then((pts) => {
+        const d = toD(pts.map(([lat, lon]) => ({ lat, lon })));
+        for (const p of paths) p.setAttribute("d", d);
+      })
+      .catch(() => {});
   }
   /* Camps come from ROUTE itself — config, no boot required. */
   for (const poi of ROUTE.filter((p) => p.camp)) {

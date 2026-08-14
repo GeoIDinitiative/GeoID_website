@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=e563802-b9294f21";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=e563802-b9294f21";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=e563802-b9294f21";
-import { Heightfield } from "./dem.js?v=e563802-b9294f21";
-import { Imagery } from "./imagery.js?v=e563802-b9294f21";
-import { Terrain } from "./terrain.js?v=e563802-b9294f21";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=e563802-b9294f21";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=e563802-b9294f21";
-import { Glacier } from "./glacier.js?v=e563802-b9294f21";
-import { TerrainShadows } from "./shadows.js?v=e563802-b9294f21";
-import { PostFX, QUALITY } from "./postfx.js?v=e563802-b9294f21";
-import { estimateCaptureSun } from "./delight.js?v=e563802-b9294f21";
-import { SnowField } from "./snowfield.js?v=e563802-b9294f21";
-import { Photoclinometry } from "./photoclino.js?v=e563802-b9294f21";
-import { World } from "./world.js?v=e563802-b9294f21";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=e563802-b9294f21";
-import { Player, STATE } from "./player.js?v=e563802-b9294f21";
-import { Director, Climbers } from "./director.js?v=e563802-b9294f21";
-import { Hud } from "./hud.js?v=e563802-b9294f21";
-import { Audio } from "./audio.js?v=e563802-b9294f21";
-import { install as installDiag } from "./diag.js?v=e563802-b9294f21";
-import * as tiles from "./tiles.js?v=e563802-b9294f21";
+import * as THREE from "../vendor/three.module.js?v=daa3759-e552ca1e";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=daa3759-e552ca1e";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=daa3759-e552ca1e";
+import { Heightfield } from "./dem.js?v=daa3759-e552ca1e";
+import { Imagery } from "./imagery.js?v=daa3759-e552ca1e";
+import { Terrain } from "./terrain.js?v=daa3759-e552ca1e";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=daa3759-e552ca1e";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=daa3759-e552ca1e";
+import { Glacier } from "./glacier.js?v=daa3759-e552ca1e";
+import { TerrainShadows } from "./shadows.js?v=daa3759-e552ca1e";
+import { PostFX, QUALITY } from "./postfx.js?v=daa3759-e552ca1e";
+import { estimateCaptureSun } from "./delight.js?v=daa3759-e552ca1e";
+import { SnowField } from "./snowfield.js?v=daa3759-e552ca1e";
+import { Photoclinometry } from "./photoclino.js?v=daa3759-e552ca1e";
+import { World } from "./world.js?v=daa3759-e552ca1e";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=daa3759-e552ca1e";
+import { Player, STATE } from "./player.js?v=daa3759-e552ca1e";
+import { Director, Climbers } from "./director.js?v=daa3759-e552ca1e";
+import { Hud } from "./hud.js?v=daa3759-e552ca1e";
+import { Audio } from "./audio.js?v=daa3759-e552ca1e";
+import { install as installDiag } from "./diag.js?v=daa3759-e552ca1e";
+import * as tiles from "./tiles.js?v=daa3759-e552ca1e";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -290,7 +290,15 @@ export class Game {
     this.world.snapToGround();
     this.world.buildBoulders();
     this.hud.bindMapPois(this.world.pois);
+    /* The map line follows the terrain, not the waypoint chords: a
+       least-cost path over the DEM (tools/make_route_path.py) that bends
+       through the icefall and around the walls. Waypoints stand in until
+       it loads, and stand alone if it cannot. */
     this.hud.bindMapRoute(ROUTE);
+    fetch("data/route_path.json")
+      .then((r) => r.json())
+      .then((pts) => this.hud.bindMapRoute(pts.map(([lat, lon]) => ({ lat, lon }))))
+      .catch(() => {});
     this.hud.onFastTravel = (poi) => {
       /* The full relocation, not a bare placeAt — copied from the helicopter
          lift-out, which is the one path that already teleports correctly.
