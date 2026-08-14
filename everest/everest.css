@@ -914,6 +914,13 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   position: fixed;
   top: 1rem; left: 1rem; right: auto; bottom: auto;
   z-index: 13;
+  /* The HUD host is pointer-events:none so the mountain stays clickable
+     through the empty parts of the overlay — but the panel is an opaque
+     card and EVERYTHING in it must catch the mouse, including elements
+     the `#hud button` opt-in misses: the <summary> section toggles, the
+     basemap <select>, plain-label rows. Without this the whole panel is
+     click-through and the canvas underneath takes the pointer instead. */
+  pointer-events: auto;
   width: min(24rem, calc(100vw - 2rem));
   /* Height budget subtracts the core rings' canvas + padding so an
      expanded stack scrolls inside the panel, never over the body's own

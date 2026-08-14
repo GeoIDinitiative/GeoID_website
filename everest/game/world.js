@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=b5c915e-02c98a01";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=b5c915e-02c98a01";
-import { llToLocal, haversine } from "./geo.js?v=b5c915e-02c98a01";
+import * as THREE from "../vendor/three.module.js?v=4becb87-599a0ad6";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=4becb87-599a0ad6";
+import { llToLocal, haversine } from "./geo.js?v=4becb87-599a0ad6";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be
@@ -456,13 +456,15 @@ export class World {
     const minX = px - HALF, minZ = pz - HALF;
     const ctx = this.routeMaskCanvas.getContext("2d");
     ctx.clearRect(0, 0, SIZE, SIZE);
-    /* Blue channel first: the GLACIER CORRIDOR, a ~500 m band along the
+    /* Blue channel first: the GLACIER CORRIDOR, a ~900 m band along the
        route. The terrain shader reads it as "this ground is the Khumbu /
        the Cwm" — the spatial gate the fills need, because the glacier and
        the Base Camp valley overlap in altitude and can only be told apart
-       by where the route runs. */
+       by where the route runs. 900 m spans the Cwm's full width; the
+       valley walls inside the band stay safe behind the shader's slope
+       and altitude gates. */
     ctx.strokeStyle = "rgb(0, 0, 255)";
-    ctx.lineWidth = 500 / SCALE;
+    ctx.lineWidth = 900 / SCALE;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.beginPath();

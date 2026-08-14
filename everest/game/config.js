@@ -266,7 +266,7 @@ export const ROUTE = [
   { id: "cwm2",     name: "Valley of Silence",    lat: 27.98310, lon: 86.88970, dem: 6274, published: 6300 },
   { id: "c2",       name: "Camp II",              lat: 27.97945, lon: 86.90245, dem: 6481, published: 6400, camp: true },
   { id: "bergs",    name: "Bergschrund",          lat: 27.97700, lon: 86.91000, dem: 6569, published: 6700 },
-  { id: "face1",    name: "Lhotse Face",          lat: 27.97500, lon: 86.91600, dem: 7166, published: 7200 },
+  { id: "face1",    name: "Lhotse Face",          lat: 27.97250, lon: 86.92400, dem: 7508, published: 7450 },
   { id: "c3",       name: "Camp III",             lat: 27.97370, lon: 86.92070, dem: 7417, published: 7470, camp: true },
   { id: "yellow",   name: "The Yellow Band",      lat: 27.97350, lon: 86.92450, dem: 7600, published: 7700 },
   { id: "geneva",   name: "The Geneva Spur",      lat: 27.97380, lon: 86.92800, dem: 7669, published: 7800 },
