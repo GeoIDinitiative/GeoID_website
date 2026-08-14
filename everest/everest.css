@@ -1560,3 +1560,16 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   border-radius: inherit;
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.05) 0%, transparent 28%);
 }
+
+
+/* Footer: the copyright line, centred, quiet. */
+.nav-status { justify-content: center; }
+.nav-brandline {
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-weight: 600;
+  font-size: 0.58rem;
+  line-height: 1.45;
+  text-align: center;
+  color: rgba(255, 176, 128, 0.72);
+}

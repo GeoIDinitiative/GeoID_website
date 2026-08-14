@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=eeb065e-911a7123";
-import { ITEMS } from "./survival.js?v=eeb065e-911a7123";
-import { compassPoint } from "./geo.js?v=eeb065e-911a7123";
+import { Director } from "./director.js?v=9309225-e26646e6";
+import { ITEMS } from "./survival.js?v=9309225-e26646e6";
+import { compassPoint } from "./geo.js?v=9309225-e26646e6";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -368,8 +368,7 @@ export class Hud {
         <div class="controls" id="nav-sections"></div>
       </div>
       <div class="nav-status">
-        <span class="ns-standing" id="n-standing">\u2014</span>
-        <span class="nav-brandline">GeoID Initiative</span>
+        <span class="nav-brandline">\u00a9 2026 GeoID: Explorer. The GeoID Initiative, led by Owen McCluskey. All rights reserved.</span>
         <span class="nav-clock-hidden" hidden><span id="c-time"></span><span id="c-day"></span><span id="c-phase"></span></span>
       </div>`;
     this.el.nav.querySelector("#nav-collapse-btn")
@@ -472,8 +471,7 @@ export class Hud {
     for (const el of this.el.nav.querySelectorAll(".nav-btn, .section-toggle, .info-btn, #nav-collapse-btn")) {
       el.addEventListener("mouseenter", this._blip);
     }
-    for (const [k, id] of [["cTime", "c-time"], ["cDay", "c-day"], ["cPhase", "c-phase"],
-                           ["nStanding", "n-standing"]]) {
+    for (const [k, id] of [["cTime", "c-time"], ["cDay", "c-day"], ["cPhase", "c-phase"]]) {
       this.el[k] = this.el.nav.querySelector("#" + id);
     }
 
@@ -615,8 +613,6 @@ export class Hud {
         `  ·  ${up > 0 ? "+" : ""}${up} m  ·  ${compassPoint(s.bearingToNext)}`);
     }
 
-    const st = s.survival.standing;
-    this.el.nStanding.dataset.tone = st >= 2 ? "good" : st <= -2 ? "bad" : "neutral";
 
     // Interact prompt
     const p = s.prompt;
@@ -817,7 +813,6 @@ export class Hud {
     this.setText(this.el.cDay, `Day ${Math.floor(s.seasonDay) + 1}`);
     this.setText(this.el.cPhase, s.phase);
     this.el.nav.dataset.night = s.sunAltitude < -1 ? "1" : "0";
-    this.setText(this.el.nStanding, s.standingWord);
 
     /* Every toggle's lit state comes from the game, once a frame — so the
        bar cannot drift out of step with the shortcut that does the same

@@ -23,9 +23,9 @@
  * there and it is not improved by being made tidy.
  */
 
-import * as THREE from "../vendor/three.module.js?v=eeb065e-911a7123";
-import { HAZARD } from "./config.js?v=eeb065e-911a7123";
-import { llToLocal } from "./geo.js?v=eeb065e-911a7123";
+import * as THREE from "../vendor/three.module.js?v=9309225-e26646e6";
+import { HAZARD } from "./config.js?v=9309225-e26646e6";
+import { llToLocal } from "./geo.js?v=9309225-e26646e6";
 
 /* ── Avalanche ───────────────────────────────────────────────────────────*/
 
