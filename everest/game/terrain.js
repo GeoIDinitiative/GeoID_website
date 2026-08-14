@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=6fb6f8f-2ea48d0c";
-import { CLIPMAP, RENDER } from "./config.js?v=6fb6f8f-2ea48d0c";
+import * as THREE from "../vendor/three.module.js?v=cbbe893-1efb96f0";
+import { CLIPMAP, RENDER } from "./config.js?v=cbbe893-1efb96f0";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;

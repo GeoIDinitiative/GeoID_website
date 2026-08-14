@@ -13,13 +13,14 @@
  * hypoxic, exhausted and frostbitten turns into being slow.
  */
 
-import * as THREE from "../vendor/three.module.js?v=6fb6f8f-2ea48d0c";
-import { MOVE, TIME_SCALE, OPEN } from "./config.js?v=6fb6f8f-2ea48d0c";
+import * as THREE from "../vendor/three.module.js?v=cbbe893-1efb96f0";
+import { MOVE, TIME_SCALE, OPEN } from "./config.js?v=cbbe893-1efb96f0";
 
 const D2R = Math.PI / 180;
 
 export const STATE = {
   WALKING: "walking",
+  LADDER: "ladder",       // shuffling across a crevasse ladder
   FALLING: "falling",     // through a snow bridge
   HANGING: "hanging",     // on the rope, in the slot
   CLIMBING_OUT: "out",
@@ -103,6 +104,7 @@ export class Player {
       this.emit("died", { cause: surv.causeOfDeath });
     }
     switch (this.state) {
+      case STATE.LADDER: return this.updateLadder(dt, ctx);
       case STATE.FALLING: return this.updateFalling(dt);
       case STATE.HANGING: return this.updateHanging(dt, ctx);
       case STATE.CLIMBING_OUT: return this.updateClimbOut(dt);
@@ -214,6 +216,30 @@ export class Player {
        bridges all season — and re-rolling every time would make retracing
        your steps more dangerous than breaking new ground. */
     const seg = this.glacier.at(nx, nz);
+    /* Stepping onto a ladder is its own state, not a walk-over. Entry
+       when the step lands inside the ladder's corridor, near the lip,
+       heading across — with a short cooldown so stepping OFF one does
+       not immediately step back on. */
+    if (seg && seg.hasLadder && seg.ladder && !seg.collapsed
+        && performance.now() > (this._ladderCd || 0)) {
+      const L = seg.ladder;
+      const ux = Math.sin(seg.angle), uz = Math.cos(seg.angle);
+      const along = (nx - seg.x) * ux + (nz - seg.z) * uz;
+      const sN = (nx - seg.x) * L.nx + (nz - seg.z) * L.nz;
+      const towardSlot = (dx * L.nx + dz * L.nz) * -Math.sign(sN) > 0.2;
+      if (Math.abs(along) < 1.1 && Math.abs(sN) <= L.span / 2
+          && Math.abs(sN) >= seg.width / 2 - 0.2 && towardSlot) {
+        this.state = STATE.LADDER;
+        this.ladder = {
+          seg, s: sN, tDir: -Math.sign(sN),
+          startS: Math.sign(sN) * (L.span / 2),
+          sway: 0, swayV: 0,
+        };
+        this.pitch = Math.min(this.pitch, -0.35);   // eyes to the rungs
+        this.emit("ladderOn", { width: seg.width });
+        return this.updateCamera(dt, ctx);
+      }
+    }
     if (seg && !seg.collapsed && seg !== this.onSeg) {
       const onLadder = seg.hasLadder && this.nearLadderLine(seg, nx, nz);
       if (!onLadder && !seg.held) {
@@ -284,6 +310,72 @@ export class Player {
       }
     }
 
+    this.updateCamera(dt, ctx);
+  }
+
+  /** On the rungs: locked to the crossing line, shuffling with W/S,
+   *  balancing with A/D against wind and fatigue. Drift past the rails
+   *  and you are off — into the rope if you are tied in, into the slot
+   *  if you are not. */
+  updateLadder(dt, ctx) {
+    const Ld = this.ladder;
+    if (!Ld) { this.state = STATE.WALKING; return; }
+    const seg = Ld.seg, L = seg.ladder;
+    const ux = Math.sin(seg.angle), uz = Math.cos(seg.angle);
+
+    // Shuffle. Half a metre a second, eyes down, no running on rungs.
+    const fwd = this.input.f || 0;
+    Ld.s += Ld.tDir * fwd * 0.55 * dt;
+
+    /* Balance: wind pushes along the crevasse axis, fatigue adds noise,
+       A/D counters, and the rails give a little self-centering — a calm
+       crossing needs almost no input; a 100 km/h gust mid-span does not. */
+    const windLat = (ctx.windDir.x * ux + ctx.windDir.z * uz)
+                  * Math.max(0, ctx.windMs - 6) * 0.010;
+    const distress = this.survival.distress(this.pos.y);
+    Ld.swayV += (windLat + (Math.random() - 0.5) * 0.30 * (0.3 + distress)) * dt * 3.0;
+    Ld.swayV -= this.input.r * 1.9 * dt;
+    Ld.swayV -= Ld.sway * 2.0 * dt;
+    Ld.swayV *= Math.exp(-1.5 * dt);
+    Ld.sway += Ld.swayV * dt;
+
+    if (Math.abs(Ld.sway) > 1.0) {
+      if (this.survival.roped) {
+        Ld.s = Ld.startS;
+        Ld.sway = 0; Ld.swayV = 0;
+        this.stumble = 0.8;
+        this.emit("ladderSlip", { caught: true });
+      } else {
+        this.state = STATE.LADDER === this.state ? STATE.WALKING : this.state;
+        this.ladder = null;
+        this._ladderCd = performance.now() + 1500;
+        this.beginFall(seg, this.pos.x, this.pos.z);
+        this.emit("ladderSlip", { caught: false });
+        return;
+      }
+    }
+
+    this.pos.x = seg.x + L.nx * Ld.s + ux * Ld.sway * 0.30;
+    this.pos.z = seg.z + L.nz * Ld.s + uz * Ld.sway * 0.30;
+    this.pos.y = L.y + 0.04;
+    this.speed = Math.abs(fwd) * 0.55;
+    this.stride += this.speed * dt * 2.4;
+    this.moveDir.x = L.nx * Ld.tDir; this.moveDir.z = L.nz * Ld.tDir;
+    this.ladderRoll = Ld.sway * 0.30;
+
+    const edge = L.span / 2;
+    if (Ld.s * Ld.tDir >= edge || Ld.s * Ld.tDir <= -edge - 0.001) {
+      const forward = Ld.s * Ld.tDir >= edge;
+      const off = 0.7 * (forward ? Ld.tDir : -Ld.tDir);
+      this.pos.x += L.nx * off; this.pos.z += L.nz * off;
+      this.pos.y = this.field.height(this.pos.x, this.pos.z);
+      seg.held = true;
+      this.state = STATE.WALKING;
+      this.ladder = null;
+      this.ladderRoll = 0;
+      this._ladderCd = performance.now() + 1500;
+      if (forward) this.emit("ladderOff", {});
+    }
     this.updateCamera(dt, ctx);
   }
 
@@ -457,8 +549,11 @@ export class Player {
     } else {
       this.camera.position.copy(head);
       this.camera.lookAt(head.x + dir.x, head.y + dir.y, head.z + dir.z);
-      // Roll removed with the rest of the camera shake — a rolling horizon
-      // reads as the screen tilting, not the climber.
+      // Roll stays off in general — except on the ladder, where the tilt
+      // IS the information: it shows which way you are losing it.
+      if (this.state === STATE.LADDER && this.ladderRoll) {
+        this.camera.rotateZ(this.ladderRoll);
+      }
     }
 
     this.updateAvatar(dt);

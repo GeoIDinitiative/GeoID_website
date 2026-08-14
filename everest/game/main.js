@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=6fb6f8f-2ea48d0c";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=6fb6f8f-2ea48d0c";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=6fb6f8f-2ea48d0c";
-import { Heightfield } from "./dem.js?v=6fb6f8f-2ea48d0c";
-import { Imagery } from "./imagery.js?v=6fb6f8f-2ea48d0c";
-import { Terrain } from "./terrain.js?v=6fb6f8f-2ea48d0c";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=6fb6f8f-2ea48d0c";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=6fb6f8f-2ea48d0c";
-import { Glacier } from "./glacier.js?v=6fb6f8f-2ea48d0c";
-import { TerrainShadows } from "./shadows.js?v=6fb6f8f-2ea48d0c";
-import { PostFX, QUALITY } from "./postfx.js?v=6fb6f8f-2ea48d0c";
-import { estimateCaptureSun } from "./delight.js?v=6fb6f8f-2ea48d0c";
-import { SnowField } from "./snowfield.js?v=6fb6f8f-2ea48d0c";
-import { Photoclinometry } from "./photoclino.js?v=6fb6f8f-2ea48d0c";
-import { World } from "./world.js?v=6fb6f8f-2ea48d0c";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=6fb6f8f-2ea48d0c";
-import { Player, STATE } from "./player.js?v=6fb6f8f-2ea48d0c";
-import { Director, Climbers } from "./director.js?v=6fb6f8f-2ea48d0c";
-import { Hud } from "./hud.js?v=6fb6f8f-2ea48d0c";
-import { Audio } from "./audio.js?v=6fb6f8f-2ea48d0c";
-import { install as installDiag } from "./diag.js?v=6fb6f8f-2ea48d0c";
-import * as tiles from "./tiles.js?v=6fb6f8f-2ea48d0c";
+import * as THREE from "../vendor/three.module.js?v=cbbe893-1efb96f0";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=cbbe893-1efb96f0";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=cbbe893-1efb96f0";
+import { Heightfield } from "./dem.js?v=cbbe893-1efb96f0";
+import { Imagery } from "./imagery.js?v=cbbe893-1efb96f0";
+import { Terrain } from "./terrain.js?v=cbbe893-1efb96f0";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=cbbe893-1efb96f0";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=cbbe893-1efb96f0";
+import { Glacier } from "./glacier.js?v=cbbe893-1efb96f0";
+import { TerrainShadows } from "./shadows.js?v=cbbe893-1efb96f0";
+import { PostFX, QUALITY } from "./postfx.js?v=cbbe893-1efb96f0";
+import { estimateCaptureSun } from "./delight.js?v=cbbe893-1efb96f0";
+import { SnowField } from "./snowfield.js?v=cbbe893-1efb96f0";
+import { Photoclinometry } from "./photoclino.js?v=cbbe893-1efb96f0";
+import { World } from "./world.js?v=cbbe893-1efb96f0";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=cbbe893-1efb96f0";
+import { Player, STATE } from "./player.js?v=cbbe893-1efb96f0";
+import { Director, Climbers } from "./director.js?v=cbbe893-1efb96f0";
+import { Hud } from "./hud.js?v=cbbe893-1efb96f0";
+import { Audio } from "./audio.js?v=cbbe893-1efb96f0";
+import { install as installDiag } from "./diag.js?v=cbbe893-1efb96f0";
+import * as tiles from "./tiles.js?v=cbbe893-1efb96f0";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -304,8 +304,10 @@ export class Game {
       .then((pts) => {
         const ll = pts.map(([lat, lon]) => ({ lat, lon }));
         this.hud.bindMapRoute(ll);
-        /* One route everywhere: the scene walks the same line the maps draw. */
+        /* One route everywhere: the scene walks the same line the maps draw,
+           and the glacier lays its ladders along it. */
         this.world.setRoutePath(ll);
+        this.glacier.setRoutePath(ll.map((p) => llToLocal(p.lat, p.lon)));
       })
       .catch(() => {});
     this.hud.onFastTravel = (poi) => {
@@ -1269,8 +1271,9 @@ export class Game {
       if (c.helped && c.fate === "beyond") return `${c.name}`;
       return `<kbd>E</kbd> ${c.alive ? "help" : "look"} — ${c.name}`;
     }
+    if (P.state === STATE.LADDER) return `<kbd>W</kbd> cross · <kbd>A/D</kbd> balance`;
     const l = this.glacier.ladderNear(P.pos.x, P.pos.z, 12);
-    if (l) return `Ladder crossing — ${l.width.toFixed(1)} m. Walk it.`;
+    if (l) return `Ladder crossing — ${l.width.toFixed(1)} m. Walk on from either end.`;
     const poi = this.world.nearest(P.pos.x, P.pos.z, 40);
     if (poi) {
       if (poi.camp && !this.reached.has(poi.id)) return `<kbd>E</kbd> arrive at ${poi.name}`;
@@ -1294,6 +1297,19 @@ export class Game {
       }
       if (e.type === "crevasseBottom") {
         this.hud.say("You stop wedged, on your side, somewhere under the glacier. Nobody saw where you went in.", 12);
+      }
+      if (e.type === "ladderOn") {
+        this.audio.cue("chime");
+        this.hud.notify(`On the ladder — ${e.width.toFixed(1)} m of air below.`, "warn");
+      }
+      if (e.type === "ladderOff") this.hud.notify("Across.", "good");
+      if (e.type === "ladderSlip") {
+        if (e.caught) {
+          this.hud.flash("rgba(255,255,255,0.3)");
+          this.hud.notify("A foot goes through — the rope holds. Back to the start.", "bad");
+        } else {
+          this.hud.notify("Off the ladder.", "bad");
+        }
       }
       if (e.type === "climbedOut") this.hud.notify("Out. Sit down for a moment.", "good");
       if (e.type === "died") this.endGame("dead");

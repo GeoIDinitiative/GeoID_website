@@ -25,9 +25,9 @@
  * be roped, or to have gone that way before.
  */
 
-import * as THREE from "../vendor/three.module.js?v=6fb6f8f-2ea48d0c";
-import { llToLocal } from "./geo.js?v=6fb6f8f-2ea48d0c";
-import { ROUTE, OPEN } from "./config.js?v=6fb6f8f-2ea48d0c";
+import * as THREE from "../vendor/three.module.js?v=cbbe893-1efb96f0";
+import { llToLocal } from "./geo.js?v=cbbe893-1efb96f0";
+import { ROUTE, OPEN } from "./config.js?v=cbbe893-1efb96f0";
 
 const MASK_PX = 1024;
 const MASK_M = 1024;            // metres covered — so exactly 1 m per pixel
@@ -194,6 +194,43 @@ export class Glacier {
       seg.bridged = 1;                     // a ladder is as good as a bridge
       this.ladders.push(seg);
     }
+    this.buildLadderProps();
+  }
+
+  /** The ladders themselves: two aluminium rails and their rungs, laid
+   *  flat across each laddered slot, spanning both lips with overlap. The
+   *  crossing frame each ladder carries (n, span, deck height) is also
+   *  what the player's crossing state walks along — one source. */
+  buildLadderProps() {
+    if (this.ladderGroup) this.group.remove(this.ladderGroup);
+    this.ladderGroup = new THREE.Group();
+    this.ladderGroup.name = "ladders";
+    const railMat = new THREE.MeshLambertMaterial({ color: 0xc9d2d8 });
+    const rungMat = new THREE.MeshLambertMaterial({ color: 0xaeb8bf });
+    for (const seg of this.ladders) {
+      const span = seg.width + 2.4;
+      const nx = Math.cos(seg.angle), nz = -Math.sin(seg.angle);
+      const ya = this.field.height(seg.x - nx * span / 2, seg.z - nz * span / 2);
+      const yb = this.field.height(seg.x + nx * span / 2, seg.z + nz * span / 2);
+      const y = Math.min(ya, yb) + 0.10;
+      seg.ladder = { nx, nz, span, y };
+      const grp = new THREE.Group();
+      grp.position.set(seg.x, y, seg.z);
+      grp.rotation.y = -Math.atan2(nz, nx);      // local +X runs along the crossing
+      for (const off of [-0.19, 0.19]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(span, 0.055, 0.055), railMat);
+        rail.position.set(0, 0, off);
+        grp.add(rail);
+      }
+      const nRungs = Math.max(4, Math.floor(span / 0.32));
+      for (let i = 0; i < nRungs; i++) {
+        const rung = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.44), rungMat);
+        rung.position.set((i / (nRungs - 1) - 0.5) * (span - 0.1), -0.01, 0);
+        grp.add(rung);
+      }
+      this.ladderGroup.add(grp);
+    }
+    this.group.add(this.ladderGroup);
   }
 
   /** Distance from a point to the fixed route polyline, in metres. */
@@ -474,6 +511,27 @@ export class Glacier {
   }
 
   /** The nearest ladder crossing within reach, for the crossing prompt. */
+  /** The route moved (the terrain-following path loaded): ladders follow
+   *  it. Re-run the ladder pass over the current segments and repaint. */
+  setRoutePath(pts) {
+    this.routePath = pts;
+    if (!this.segments || !this.segments.length) return;
+    for (const seg of this.segments) {
+      if (seg.hasLadder) { seg.hasLadder = false; }
+    }
+    this.ladders = [];
+    for (const seg of this.segments) {
+      const near = this.routeDistance(seg.x, seg.z);
+      if (near > 22) continue;
+      if (seg.width < 0.7 || seg.width > 2.6) continue;
+      seg.hasLadder = true;
+      seg.bridged = 1;
+      this.ladders.push(seg);
+    }
+    this.buildLadderProps();
+    if (Number.isFinite(this.centre.x)) this.paintMask(this.centre.x, this.centre.z);
+  }
+
   ladderNear(x, z, radius = 14) {
     let best = null, bd = radius * radius;
     for (const l of this.ladders) {

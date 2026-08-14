@@ -99,14 +99,16 @@ def astar(dem, start, goal, m_per_px):
                 continue
             run = w * m_per_px
             slope = abs(dem[ny, nx] - h0) / run
+            dh = dem[ny, nx] - h0
             if slope > 0.70:            # ~35 degrees: a wall, not a route.
-                # 60x was too cheap over a short climb — the path went
-                # straight up the Popcorn Field's serac wall rather than
-                # switchbacking the icefall. 500x makes any wall crossing
-                # cost half a kilometre of walking per metre.
                 cost = run * 500
             else:
-                cost = run * (1 + (slope * 8) ** 2)
+                # Slope-squared for steepness, PLUS a per-metre-of-height
+                # charge: without it, DEM noise at 38 m/px offers "cheap"
+                # shelves and the path zigzags up and down slopes for
+                # nothing. Since the endpoints fix the net climb, charging
+                # every metre up or down makes needless bumps pay double.
+                cost = run * (1 + (slope * 8) ** 2) + abs(dh) * 6.0
             nd = d + cost
             if nd < dist.get((nx, ny), 1e18):
                 dist[(nx, ny)] = nd
@@ -116,6 +118,48 @@ def astar(dem, start, goal, m_per_px):
     while path[-1] != (sx, sy):
         path.append(prev[path[-1]])
     return path[::-1]
+
+
+def line_ok(dem, a, b, max_slope=0.60):
+    """True if the straight pixel line a->b never crosses ground steeper
+    than max_slope between consecutive samples."""
+    n = max(2, int(math.hypot(b[0] - a[0], b[1] - a[1])))
+    prev = None
+    for i in range(n + 1):
+        t = i / n
+        x = int(round(a[0] + (b[0] - a[0]) * t))
+        y = int(round(a[1] + (b[1] - a[1]) * t))
+        h = dem[y, x]
+        if prev is not None and abs(h - prev[0]) / max(prev[1], 1e-6) > max_slope:
+            return False
+        step = math.hypot((b[0] - a[0]) / n, (b[1] - a[1]) / n)
+        prev = (h, step * 38.0)
+    return True
+
+
+def string_pull(path, dem):
+    """Drop intermediate points wherever the direct line is safe — this is
+    what removes the A* grid's staircase zigzags."""
+    out = [path[0]]
+    i = 0
+    while i < len(path) - 1:
+        j = min(i + 14, len(path) - 1)
+        while j > i + 1 and not line_ok(dem, path[i], path[j]):
+            j -= 1
+        out.append(path[j])
+        i = j
+    return out
+
+
+def chaikin(pts, passes=2):
+    for _ in range(passes):
+        out = [pts[0]]
+        for a, b in zip(pts, pts[1:]):
+            out.append((a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25))
+            out.append((a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75))
+        out.append(pts[-1])
+        pts = out
+    return pts
 
 
 def rdp(pts, eps):
@@ -145,7 +189,9 @@ def main():
     full = []
     for a, b in zip(wps, wps[1:]):
         leg = astar(dem, to_px(*a, W, H), to_px(*b, W, H), m_per_px)
-        leg = rdp(leg, 1.2)
+        leg = string_pull(leg, dem)
+        leg = chaikin(leg, 2)
+        leg = rdp(leg, 0.8)
         full.extend(leg if not full else leg[1:])
         print(f"leg {a} -> {b}: {len(leg)} pts")
     lls = [[round(la, 5), round(lo, 5)] for la, lo in (to_ll(x, y, W, H) for x, y in full)]
