@@ -2316,3 +2316,26 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 /* Measured: the logo's left edge sits 10.7rem in from the right of the
    viewport, so the card starts at 11.2rem to keep clear air between them. */
 .gio-card { right: 11.2rem; }
+
+
+/* ── Label distances wear their label's colour ──────────────────────────
+   The reading under each pill takes the same accent the pill's bar and
+   marker use, so distance and identity read as one object. */
+.poi-label .poi-dist {
+  color: var(--lbl-accent);
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.92);
+}
+
+/* ── Start map, half again larger and centred; the intro essay yields the
+     room it needs ── */
+.title-blurb { display: none; }
+.start-map-box { width: min(45rem, 88vw); }
+.title-inner { display: flex; flex-direction: column; align-items: center; }
+
+/* ── Info bar, up a size ────────────────────────────────────────────────── */
+.info-bar { gap: 0.38rem; }
+.info-bar .ib-seg { padding: 0.32rem 0.7rem; gap: 0.42rem; border-radius: 0.6rem; }
+.info-bar .k { font-size: 11px; }
+.info-bar .v { font-size: 15px; }
+.info-bar .u { font-size: 11px; }
+.info-bar .ib-alt .v { font-size: 18px; }
