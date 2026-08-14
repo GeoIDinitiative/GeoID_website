@@ -791,6 +791,12 @@ canvas.scene { display: block; position: fixed; inset: 0; }
 }
 .info-bar .ib-seg {
   display: inline-flex; align-items: baseline; gap: 0.42rem;
+  /* Fixed-width chips: the row is centred, so any chip growing with its
+     number used to shove every other chip sideways each frame. Each chip
+     is sized for its widest realistic reading (labels left, values
+     right-aligned in the remaining space, digits tabular), so nothing
+     moves and nothing resizes as the numbers run. */
+  justify-content: space-between;
   padding: 0.32rem 0.7rem;
   background: rgba(5, 8, 16, 0.96);
   border: 1px solid rgba(77, 141, 255, 0.45);
@@ -810,6 +816,16 @@ canvas.scene { display: block; position: fixed; inset: 0; }
 }
 .info-bar .u { font: 700 11px Orbitron, "Exo 2", sans-serif; color: #8fa4c8; }
 .info-bar .ib-alt .v { font-size: 18px; color: #8fb8ff; }
+.info-bar .ib-seg:has(#i-alt)    { width: 7.6rem; }
+.info-bar .ib-seg:has(#i-dist)   { width: 7.4rem; }
+.info-bar .ib-seg:has(#i-avy)    { width: 8.6rem; }
+.info-bar .ib-seg:has(#i-temp)   { width: 9.4rem; }
+.info-bar .ib-seg:has(#i-wind)   { width: 11.2rem; }
+.info-bar .ib-seg:has(#i-resist) { width: 7.2rem; }
+.info-bar .ib-seg:has(#i-slope)  { width: 6.6rem; }
+.info-bar .ib-seg:has(#i-spo2)   { width: 6.9rem; }
+.info-bar .ib-seg:has(#i-flow)   { width: 8.4rem; }
+.info-bar .v { text-align: right; }
 @media (max-width: 900px) { .info-bar { display: none; } }
 
 /* ── Footer collapse for the compass + info bar ─────────────────────────
