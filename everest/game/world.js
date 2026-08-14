@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=b8c1559-f4720e24";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=b8c1559-f4720e24";
-import { llToLocal, haversine } from "./geo.js?v=b8c1559-f4720e24";
+import * as THREE from "../vendor/three.module.js?v=4aa1a88-d2dc7919";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=4aa1a88-d2dc7919";
+import { llToLocal, haversine } from "./geo.js?v=4aa1a88-d2dc7919";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be
@@ -371,12 +371,37 @@ export class World {
           const ay = poi.y + 20;
           const ddx = poi.x - cp.x, ddy = ay - cp.y, ddz = poi.z - cp.z;
           const dist = Math.hypot(ddx, ddz) || 1;
-          const steps = Math.min(220, Math.max(10, Math.ceil(dist / 55)));
-          const t0 = Math.min(0.2, 35 / dist), t1 = 1 - Math.min(0.2, 35 / dist);
           let blocked = false;
-          for (let i = 1; i < steps; i++) {
-            const t = t0 + (i / steps) * (t1 - t0);
-            if (this.field.height(cp.x + ddx * t, cp.z + ddz * t) > cp.y + ddy * t + 8) { blocked = true; break; }
+          /* Near pass first: on steep ground the occluding crest is often
+             METRES from the camera — inside the far pass's 35 m end-skip,
+             which existed so the ground at your feet could not hide the
+             world. 12 m still covers the feet; from there to 90 m the ray
+             is tested every ~6.5 m with a tight 3 m clearance, because a
+             slope face grazing the sightline at close range really does
+             hide what is behind it (the high-altitude leak: labels shining
+             through the summit pyramid's own flank). */
+          for (let s = 12; s < Math.min(90, dist - 35); s += 6.5) {
+            const t = s / dist;
+            if (this.field.height(cp.x + ddx * t, cp.z + ddz * t) > cp.y + ddy * t + 3) { blocked = true; break; }
+          }
+          if (!blocked) {
+            const steps = Math.min(220, Math.max(10, Math.ceil(dist / 55)));
+            /* Label-side skip is kind-aware: a PEAK's ground point sits on
+               its own massif, and at z12 smoothing the summit's shoulder
+               grazes the sight line a hundred-odd metres before the point —
+               its own mountain blanking its own label. 180 m of skip clears
+               the home shoulder; foreign ridges still occlude. Everything
+               else keeps the tight 35 m. */
+            const endSkip = poi.kind === "peak" ? 180 : 35;
+            const t0 = Math.min(0.2, 90 / dist), t1 = 1 - Math.min(0.25, endSkip / dist);
+            for (let i = 1; i < steps; i++) {
+              const t = t0 + (i / steps) * (t1 - t0);
+              if (t <= 0 || t >= 1) continue;
+              /* 8 m of clearance, as before the near pass existed: any
+                 tighter and a big peak's own shoulder — grazing the ray a
+                 few metres under the summit point — blanks its label. */
+              if (this.field.height(cp.x + ddx * t, cp.z + ddz * t) > cp.y + ddy * t + 8) { blocked = true; break; }
+            }
           }
           poi._occBlocked = blocked;
         }
