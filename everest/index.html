@@ -16,7 +16,7 @@
 <link rel="stylesheet" href="/styles/viewer-skin.css">
 <link rel="preload" as="image" href="data/khumbu_map.png?r=3">
 <link rel="preload" as="image" href="data/khumbu_contours.png">
-<link rel="stylesheet" href="everest.css?v=d10fd8c-ac776fe7">
+<link rel="stylesheet" href="everest.css?v=a03d2a5-ac776fe7">
 
 <!-- ── The reset switch, and why it has to exist ─────────────────────────────
      A site-wide service worker is registered at the root of this origin
@@ -162,8 +162,8 @@ if (location.search.includes("reset")) {
 </div>
 
 <script type="module">
-import { Game } from "./game/main.js?v=d10fd8c-ac776fe7";
-import { ROUTE } from "./game/config.js?v=d10fd8c-ac776fe7";
+import { Game } from "./game/main.js?v=a03d2a5-ac776fe7";
+import { ROUTE } from "./game/config.js?v=a03d2a5-ac776fe7";
 
 const canvas = document.getElementById("scene");
 const hudRoot = document.getElementById("hud");
@@ -185,12 +185,12 @@ window.__ascent = game;      // for the harness, and for anyone curious
 /* Headless driving. Only with ?shot, and only ever additive — the game does
    not behave differently because these exist. */
 if (game.headless) {
-  const { llToLocal } = await import("./game/geo.js?v=d10fd8c-ac776fe7");
+  const { llToLocal } = await import("./game/geo.js?v=a03d2a5-ac776fe7");
   window.__drive = {
     game,
     run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
     settle: async (ms = 15000) => {
-      const tiles = await import("./game/tiles.js?v=d10fd8c-ac776fe7");
+      const tiles = await import("./game/tiles.js?v=a03d2a5-ac776fe7");
       const end = performance.now() + ms;
       let quiet = 0;
       while (performance.now() < end) {

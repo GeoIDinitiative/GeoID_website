@@ -13,7 +13,7 @@
  * the player should not claim more precision than that.
  */
 
-import { ORIGIN } from "./config.js?v=d10fd8c-ac776fe7";
+import { ORIGIN } from "./config.js?v=a03d2a5-ac776fe7";
 
 export const R_EARTH = 6378137.0;
 const D2R = Math.PI / 180, R2D = 180 / Math.PI;
