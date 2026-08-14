@@ -1894,3 +1894,23 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
 }
 .bm-select:hover { border-color: rgba(77, 141, 255, 0.8); }
 .bm-select option { background: #060a14; color: #eef4ff; }
+
+
+/* ── Basemap legend, under the picker ──────────────────────────────────── */
+.bm-legend {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.28rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid rgba(77, 141, 255, 0.22);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+.bm-leg-row { display: flex; align-items: center; gap: 0.55rem; }
+.bm-leg-row i {
+  flex: 0 0 auto;
+  width: 1.5rem; height: 0.7rem;
+  border-radius: 0.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.bm-leg-row span { font: 500 0.7rem "Exo 2", sans-serif; color: #c8d8f5; }

@@ -20,9 +20,9 @@
  * shadows is a layout pass.
  */
 
-import { Director } from "./director.js?v=519d010-4b018bcc";
-import { ITEMS } from "./survival.js?v=519d010-4b018bcc";
-import { compassPoint } from "./geo.js?v=519d010-4b018bcc";
+import { Director } from "./director.js?v=4b1b5a5-d4cb1834";
+import { ITEMS } from "./survival.js?v=4b1b5a5-d4cb1834";
+import { compassPoint } from "./geo.js?v=4b1b5a5-d4cb1834";
 
 /* The skin, restated for the canvas.
    A 2D context cannot read a CSS custom property, so these must be kept in
@@ -577,7 +577,8 @@ export class Hud {
             <option value="3">Contours</option>
             <option value="4">Hazard / risk</option>
           </select>
-        </div>`,
+        </div>
+        <div class="bm-legend" id="bm-legend" style="display:none"></div>`,
         icon: '<svg viewBox="0 0 16 16"><path d="M1.5 8s2.6-4.2 6.5-4.2S14.5 8 14.5 8 11.9 12.2 8 12.2 1.5 8 1.5 8Z" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="1.9" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>',
         copy: "What the mountain shows. Every switch is a preference \u2014 set it here, or use its key anywhere.",
         tools: ["labels", "route", "third", "torch"] },
@@ -660,7 +661,40 @@ export class Hud {
       el.addEventListener("mouseenter", this._blip);
     }
     const bmSel = this.el.nav.querySelector("#basemap-sel");
-    bmSel.addEventListener("change", () => this.onBasemap && this.onBasemap(+bmSel.value));
+    /* Each analytical basemap carries its legend; the satellite needs
+       none. Swatches are inline gradients so the legend and the shader
+       ramp can only drift if someone edits one without the other — they
+       are written side by side for that reason. */
+    const LEGENDS = {
+      0: null,
+      1: [["linear-gradient(90deg,#3a3b3c,#e8e9ea)", "Shaded relief \u2014 lit from the northwest"],
+          ["linear-gradient(90deg,#b4b6b8,#f2f4f5)", "Brighter with altitude (hypsometric)"]],
+      2: [["#38a052", "Under 15\u00b0 \u2014 walking ground"],
+          ["#ebd940", "15\u201330\u00b0 \u2014 moderate"],
+          ["#f08429", "30\u201345\u00b0 \u2014 steep, front-pointing"],
+          ["#db2929", "45\u00b0+ \u2014 very steep"],
+          ["#7a1f9e", "60\u00b0+ \u2014 walls"]],
+      3: [["#9e703f", "Contour \u2014 every 100 m"],
+          ["#6b4724", "Index contour \u2014 every 500 m"],
+          ["#f0ecdd", "Surface, hillshaded"]],
+      4: [["#59a06b", "Low angle \u2014 low hazard"],
+          ["#ebc033", "Rolling 18\u201328\u00b0"],
+          ["#e02620", "28\u201348\u00b0 \u2014 avalanche angle"],
+          ["#59194d", "50\u00b0+ \u2014 walls, rockfall"],
+          ["#4d8dd9", "Flat glacier \u2014 crevasse ground"]],
+    };
+    const bmLegend = this.el.nav.querySelector("#bm-legend");
+    const renderLegend = (mode) => {
+      const rows = LEGENDS[mode];
+      if (!rows) { bmLegend.style.display = "none"; bmLegend.innerHTML = ""; return; }
+      bmLegend.style.display = "";
+      bmLegend.innerHTML = rows.map(([bg, label]) =>
+        `<div class="bm-leg-row"><i style="background:${bg}"></i><span>${label}</span></div>`).join("");
+    };
+    bmSel.addEventListener("change", () => {
+      renderLegend(+bmSel.value);
+      this.onBasemap && this.onBasemap(+bmSel.value);
+    });
     for (const [k, id] of [["cTime", "c-time"], ["cDay", "c-day"], ["cPhase", "c-phase"]]) {
       this.el[k] = this.el.nav.querySelector("#" + id);
     }
