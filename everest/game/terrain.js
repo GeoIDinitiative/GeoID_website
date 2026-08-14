@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=901165e-10e9c71d";
-import { CLIPMAP, RENDER } from "./config.js?v=901165e-10e9c71d";
+import * as THREE from "../vendor/three.module.js?v=9dab064-9baec5c2";
+import { CLIPMAP, RENDER } from "./config.js?v=9dab064-9baec5c2";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -773,7 +773,17 @@ const FRAG = /* glsl */`
          Faded over the last 60 m rather than cut, so the gravel has no
          visible circular rim. */
       float reach = 1.0 - smoothstep(140.0, 200.0, vDist);
-      float darkness = (1.0 - smoothstep(0.55, 0.78, lumA))
+      /* Two thresholds, because "dark" means different things at different
+         heights. In the valley the fill targets the measured 0.40-0.70
+         moraine streak band. On the mountain those same numbers matched
+         ordinary scree and shadow — genuine mapping — and after a fast
+         travel the whole 200 m reach circle around the spawn repainted as
+         imported rock while real snow showed beyond it: a stamp around the
+         player. Above the valley only a true void (near-black, no-capture)
+         qualifies; dark ground that the satellite actually saw stands. */
+      float maskValley = 1.0 - smoothstep(0.55, 0.78, lumA);
+      float maskVoid   = 1.0 - smoothstep(0.10, 0.18, lumA);
+      float darkness = mix(maskValley, maskVoid, smoothstep(5550.0, 5750.0, P.y))
                      * (1.0 - smoothstep(0.12, 0.22, satA))
                      * reach;
       /* The fill material follows the mountain's own altitude bands, because
