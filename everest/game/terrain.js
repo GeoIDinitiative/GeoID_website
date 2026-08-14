@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=bda57b2-5e879d56";
-import { CLIPMAP, RENDER } from "./config.js?v=bda57b2-5e879d56";
+import * as THREE from "../vendor/three.module.js?v=05c6ecf-cd980f5f";
+import { CLIPMAP, RENDER } from "./config.js?v=05c6ecf-cd980f5f";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -802,6 +802,26 @@ const FRAG = /* glsl */`
       float darkness = (1.0 - smoothstep(0.55, 0.78, lumA))
                      * (1.0 - smoothstep(0.12, 0.22, satA))
                      * reach;
+      /* The glacier band — the Khumbu and the Cwm floor, between the Base
+         Camp moraine below and the South Col's rock above. Altitude alone
+         cannot draw it (the glacier and the valley moraine overlap in
+         height), so the spatial half comes from the route mask's blue
+         channel: a ~500 m corridor painted along the route, which IS the
+         glacier the whole way. Dark imagery inside the band is the
+         glacier's own crevasse bands, so both rock fills stand down there
+         and the darkness reads as slots. The rope line itself overwrites
+         blue with red in the mask, hence max(b, r). */
+      float glacBand = smoothstep(5390.0, 5460.0, P.y)
+                     * (1.0 - smoothstep(6480.0, 6650.0, P.y));
+      {
+        vec2 gru = (P.xz - routeMaskBounds.xy) / routeMaskBounds.zw;
+        if (gru.x > 0.0 && gru.x < 1.0 && gru.y > 0.0 && gru.y < 1.0) {
+          vec4 grm = texture2D(routeMask, gru);
+          glacBand *= max(grm.b, grm.r);
+        } else {
+          glacBand = 0.0;
+        }
+      }
       /* One rule, settled after three rounds: the pebble fill exists for
          the Base Camp valley's no-capture voids and dark moraine streaks,
          and ONLY there. Above the valley the satellite imagery takes
@@ -810,6 +830,7 @@ const FRAG = /* glsl */`
          been in. The fill still wears the ground's own light so the reach
          fade has no rim. */
       darkness *= 1.0 - smoothstep(5550.0, 5750.0, P.y);
+      darkness *= 1.0 - glacBand;
       if (moraineOn > 0.5 && darkness > 0.01) {
         vec3 fill = mix(texture2D(moraineTex, P.xz * 0.85).rgb,
                         texture2D(moraineTex, P.xz * 0.16).rgb, 0.35);
@@ -824,14 +845,31 @@ const FRAG = /* glsl */`
       if (boulderOn > 0.5) {
         float rockBand = smoothstep(5550.0, 5750.0, P.y);
         float flatness = smoothstep(0.906, 0.966, normalize(vNormal).y);
-        float dRock = (1.0 - smoothstep(0.55, 0.78, lumA))
+        /* Inside the glacier band flat dark ground is not scree — the
+           imagery's dark patches on the Khumbu are its crevasse bands, so
+           they read as slots (cold, near-black, a little of the ground's
+           own light) instead of wearing the boulder skin. Above the band
+           the South Col's dark flats are genuine broken rock and keep the
+           boulders. The slot gate accepts steeper ground than the boulder
+           gate because the Icefall itself leans. */
+        float dDark = (1.0 - smoothstep(0.55, 0.78, lumA))
                     * (1.0 - smoothstep(0.12, 0.22, satA))
-                    * reach * rockBand * flatness;
+                    * reach;
+        float dRock = dDark * flatness * rockBand * (1.0 - glacBand);
         if (dRock > 0.01) {
           vec3 rock = mix(texture2D(boulderTex, P.xz * 0.55).rgb,
                           texture2D(boulderTex, P.xz * 0.11).rgb, 0.35);
           rock *= 0.45 + 1.15 * lumA;
           col = mix(col, rock, dRock * 0.85);
+        }
+        float softFlat = smoothstep(0.819, 0.906, normalize(vNormal).y);
+        float dCrev = dDark * softFlat * glacBand;
+        if (dCrev > 0.01) {
+          /* Not a flat paint: the imagery keeps its own band structure and
+             is pulled down and cooled, so the glacier's dark stripes read
+             as shadowed slots in the ice rather than as an unlit void. */
+          vec3 slot = col * vec3(0.30, 0.36, 0.50) + vec3(0.012, 0.016, 0.028);
+          col = mix(col, slot, dCrev * 0.75);
         }
       }
       /* Snow grain above the valley, the counterpart of the valley's

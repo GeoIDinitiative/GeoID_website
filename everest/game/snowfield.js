@@ -32,7 +32,7 @@
  * for the cost of one blit, and only the newly exposed strip is blank.
  */
 
-import * as THREE from "../vendor/three.module.js?v=bda57b2-5e879d56";
+import * as THREE from "../vendor/three.module.js?v=05c6ecf-cd980f5f";
 
 /**
  * 1024 px over 48 m — **4.7 cm per pixel**.

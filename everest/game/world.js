@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=bda57b2-5e879d56";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=bda57b2-5e879d56";
-import { llToLocal, haversine } from "./geo.js?v=bda57b2-5e879d56";
+import * as THREE from "../vendor/three.module.js?v=05c6ecf-cd980f5f";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=05c6ecf-cd980f5f";
+import { llToLocal, haversine } from "./geo.js?v=05c6ecf-cd980f5f";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be
@@ -441,6 +441,11 @@ export class World {
       this.routeMaskCanvas = document.createElement("canvas");
       this.routeMaskCanvas.width = this.routeMaskCanvas.height = SIZE;
       this.routeMaskTex = new THREE.CanvasTexture(this.routeMaskCanvas);
+      /* The painter maps world +z to canvas +y and the shader samples with
+         the same convention; CanvasTexture's default flipY would mirror the
+         whole window about its centreline — the route drawn on the wrong
+         side of the valley everywhere the line has a north-south component. */
+      this.routeMaskTex.flipY = false;
       this.routeMaskTex.minFilter = THREE.LinearFilter;
       this.routeMaskTex.magFilter = THREE.LinearFilter;
       this.routeMaskBounds = new THREE.Vector4(0, 0, 1, 1);
@@ -451,6 +456,26 @@ export class World {
     const minX = px - HALF, minZ = pz - HALF;
     const ctx = this.routeMaskCanvas.getContext("2d");
     ctx.clearRect(0, 0, SIZE, SIZE);
+    /* Blue channel first: the GLACIER CORRIDOR, a ~500 m band along the
+       route. The terrain shader reads it as "this ground is the Khumbu /
+       the Cwm" — the spatial gate the fills need, because the glacier and
+       the Base Camp valley overlap in altitude and can only be told apart
+       by where the route runs. */
+    ctx.strokeStyle = "rgb(0, 0, 255)";
+    ctx.lineWidth = 500 / SCALE;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    let started = false;
+    for (let i = 1; i < this.routePoints.length; i++) {
+      const a = this.routePoints[i - 1], b = this.routePoints[i];
+      const inA = Math.abs(a.x - px) < HALF && Math.abs(a.z - pz) < HALF;
+      const inB = Math.abs(b.x - px) < HALF && Math.abs(b.z - pz) < HALF;
+      if (!inA && !inB) { started = false; continue; }
+      if (!started) { ctx.moveTo((a.x - minX) / SCALE, (a.z - minZ) / SCALE); started = true; }
+      ctx.lineTo((b.x - minX) / SCALE, (b.z - minZ) / SCALE);
+    }
+    ctx.stroke();
     ctx.lineWidth = 1.2;               // ~1.8 m of rope on the ground
     ctx.lineCap = "round";
     let along = 0;

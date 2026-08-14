@@ -25,9 +25,9 @@
  * be roped, or to have gone that way before.
  */
 
-import * as THREE from "../vendor/three.module.js?v=bda57b2-5e879d56";
-import { llToLocal } from "./geo.js?v=bda57b2-5e879d56";
-import { ROUTE, OPEN } from "./config.js?v=bda57b2-5e879d56";
+import * as THREE from "../vendor/three.module.js?v=05c6ecf-cd980f5f";
+import { llToLocal } from "./geo.js?v=05c6ecf-cd980f5f";
+import { ROUTE, OPEN } from "./config.js?v=05c6ecf-cd980f5f";
 
 const MASK_PX = 1024;
 const MASK_M = 1024;            // metres covered — so exactly 1 m per pixel
@@ -60,6 +60,11 @@ export class Glacier {
     this.canvas.width = this.canvas.height = MASK_PX;
     this.ctx = this.canvas.getContext("2d", { willReadFrequently: false });
     this.texture = new THREE.CanvasTexture(this.canvas);
+    /* Same convention as the route mask: painter maps world +z to canvas
+       +y and the shader samples likewise, so flipY must be off — with it
+       on, every crack was DRAWN mirrored about the window's centreline,
+       away from the trench and the hazard it was supposed to mark. */
+    this.texture.flipY = false;
     this.texture.minFilter = THREE.LinearFilter;
     this.texture.magFilter = THREE.LinearFilter;
     this.texture.generateMipmaps = false;
@@ -81,8 +86,15 @@ export class Glacier {
   /** Is this ground glacier at all? Ice, not rock — the Khumbu and the Cwm,
    *  not the Lhotse Face and not the summit ridge. */
   isGlacier(x, z, h, slope) {
-    if (h > 6950 || h < 4900) return false;
-    if (slope > 46) return false;             // too steep to hold a glacier body
+    /* The glacier is the valley floor the route follows — the Khumbu below
+       Base Camp, the Icefall, the Western Cwm — and it ends where the
+       Lhotse Face begins. The old gate was an altitude band alone, which
+       stamped crevasses across every moderate mountainside in it; the
+       corridor test pins them to the ice. */
+    if (h > 6600 || h < 4900) return false;
+    if (slope > 30) return false;             // a face, not a glacier body
+    if (this.routePath && this.routePath.length > 1
+        && this.routeDistance(x, z) > 420) return false;
     return true;
   }
 
@@ -555,9 +567,12 @@ export class Glacier {
    *  it. Re-run the ladder pass over the current segments and repaint. */
   setRoutePath(pts) {
     this.routePath = pts;
-    if (!this.segments || !this.segments.length) return;
-    this.assignLadders(this.segments);
-    if (Number.isFinite(this.centre.x)) this.paintMask(this.centre.x, this.centre.z);
+    /* The corridor gate in isGlacier reads the route, so the whole field —
+       not just the ladders — is stale the moment the path changes. A full
+       forced update regenerates the segments against the new corridor and
+       rebuilds everything that hangs off them (ladders, mask, trench,
+       seracs) in one pass. */
+    if (Number.isFinite(this.centre.x)) this.update(this.centre.x, this.centre.z, true);
   }
 
   /** Vertical ladders, pre-perched against the steps: walk the route, and
