@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://server.arcgisonline.com">
 <link rel="preconnect" href="https://s3.amazonaws.com">
 <link rel="stylesheet" href="/styles/viewer-skin.css">
-<link rel="stylesheet" href="everest.css?v=4bfc309-223f4a5a">
+<link rel="stylesheet" href="everest.css?v=dcf2e7e-7307b6b9">
 
 <!-- ── The reset switch, and why it has to exist ─────────────────────────────
      A site-wide service worker is registered at the root of this origin
@@ -178,8 +178,8 @@ addEventListener("DOMContentLoaded", () => {
 </div>
 
 <script type="module">
-import { Game } from "./game/main.js?v=4bfc309-223f4a5a";
-import { ROUTE } from "./game/config.js?v=4bfc309-223f4a5a";
+import { Game } from "./game/main.js?v=dcf2e7e-7307b6b9";
+import { ROUTE } from "./game/config.js?v=dcf2e7e-7307b6b9";
 
 const canvas = document.getElementById("scene");
 const hudRoot = document.getElementById("hud");
@@ -201,12 +201,12 @@ window.__ascent = game;      // for the harness, and for anyone curious
 /* Headless driving. Only with ?shot, and only ever additive — the game does
    not behave differently because these exist. */
 if (game.headless) {
-  const { llToLocal } = await import("./game/geo.js?v=4bfc309-223f4a5a");
+  const { llToLocal } = await import("./game/geo.js?v=dcf2e7e-7307b6b9");
   window.__drive = {
     game,
     run: (n = 60, dt = 1 / 30) => { for (let i = 0; i < n; i++) game.tick(dt); },
     settle: async (ms = 15000) => {
-      const tiles = await import("./game/tiles.js?v=4bfc309-223f4a5a");
+      const tiles = await import("./game/tiles.js?v=dcf2e7e-7307b6b9");
       const end = performance.now() + ms;
       let quiet = 0;
       while (performance.now() < end) {
@@ -266,97 +266,112 @@ if (game.headless) {
   };
 }
 
-try {
-  await game.boot((frac, what) => {
-    progBar.style.width = `${Math.round(frac * 100)}%`;
-    progText.textContent = what;
-  });
-  /* The button gives way to a map: pick where the expedition begins and
-     the mountain loads you there directly. */
-  startBtn.style.display = "none";
-  progText.textContent = "05:20 · one hour before it gets light — choose a starting point";
+/* ── The order of the load is the point ──────────────────────────────────
+   The map is a couple of static images and a config list: it costs nothing
+   and answers the only question the player has at this screen. So it shows
+   IMMEDIATELY — the same composite sheet the in-game map view draws, camps
+   from the same config the game reads — and the expensive part, booting the
+   tile pyramid, starts only once a starting point is chosen. The progress
+   bar then narrates the boot for the place actually picked. */
+startBtn.style.display = "none";
+progText.textContent = "Choose a starting point";
+let booting = false;
+{
+  const B = { W: 86.780, E: 87.070, N: 28.120, S: 27.880 };
+  /* The box is a viewport, not the whole orthophoto: cropped to the route
+     corridor (Base Camp to the summit, with margin) so the camps read as
+     a route instead of a cluster of pins in one corner of the Khumbu. */
+  const CROP = { W: 86.836, E: 86.952, N: 28.018, S: 27.958 };
+  const u0 = (CROP.W - B.W) / (B.E - B.W), u1 = (CROP.E - B.W) / (B.E - B.W);
+  const v0 = (B.N - CROP.N) / (B.N - B.S), v1 = (B.N - CROP.S) / (B.N - B.S);
+  const box = document.getElementById("start-map-box");
+  const imgs = [...box.querySelectorAll("img")];
+  const wrap = document.getElementById("start-map");
+  wrap.hidden = false;
+  const IW = 3228, IH = 3026;
+  box.style.aspectRatio = `${(u1 - u0) * IW} / ${(v1 - v0) * IH}`;
+  const layout = () => {
+    const bw = box.clientWidth;
+    const scale = bw / ((u1 - u0) * IW);
+    for (const img of imgs) {
+      img.style.position = "absolute";
+      img.style.width = (IW * scale) + "px";
+      img.style.height = (IH * scale) + "px";
+      img.style.left = (-u0 * IW * scale) + "px";
+      img.style.top = (-v0 * IH * scale) + "px";
+      img.style.maxWidth = "none";
+    }
+  };
+  layout();
+  addEventListener("resize", layout);
+  for (const img of imgs) if (!img.complete) img.addEventListener("load", layout);
+  /* The route, outlined over the corridor before the pins go on. */
   {
-    const B = { W: 86.780, E: 87.070, N: 28.120, S: 27.880 };
-    /* The box is a viewport, not the whole orthophoto: cropped to the route
-       corridor (Base Camp to the summit, with margin) so the camps read as
-       a route instead of a cluster of pins in one corner of the Khumbu. */
-    const CROP = { W: 86.836, E: 86.952, N: 28.018, S: 27.958 };
-    const u0 = (CROP.W - B.W) / (B.E - B.W), u1 = (CROP.E - B.W) / (B.E - B.W);
-    const v0 = (B.N - CROP.N) / (B.N - B.S), v1 = (B.N - CROP.S) / (B.N - B.S);
-    const box = document.getElementById("start-map-box");
-    const imgs = [...box.querySelectorAll("img")];
-    const wrap = document.getElementById("start-map");
-    wrap.hidden = false;
-    const IW = 3228, IH = 3026;
-    box.style.aspectRatio = `${(u1 - u0) * IW} / ${(v1 - v0) * IH}`;
-    const layout = () => {
-      const bw = box.clientWidth;
-      const scale = bw / ((u1 - u0) * IW);
-      for (const img of imgs) {
-        img.style.position = "absolute";
-        img.style.width = (IW * scale) + "px";
-        img.style.height = (IH * scale) + "px";
-        img.style.left = (-u0 * IW * scale) + "px";
-        img.style.top = (-v0 * IH * scale) + "px";
-        img.style.maxWidth = "none";
-      }
-    };
-    layout();
-    addEventListener("resize", layout);
-    for (const img of imgs) if (!img.complete) img.addEventListener("load", layout);
-    /* The route, outlined over the corridor before the pins go on. */
-    {
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("class", "sm-route");
-      svg.setAttribute("viewBox", "0 0 100 100");
-      svg.setAttribute("preserveAspectRatio", "none");
-      const d = ROUTE.map((p, i) => {
-        const u = (p.lon - B.W) / (B.E - B.W), v = (B.N - p.lat) / (B.N - B.S);
-        const x = ((u - u0) / (u1 - u0)) * 100, y = ((v - v0) / (v1 - v0)) * 100;
-        return `${i ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`;
-      }).join(" ");
-      for (const cls of ["sm-route-casing", "sm-route-line"]) {
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.setAttribute("d", d);
-        path.setAttribute("class", cls);
-        path.setAttribute("vector-effect", "non-scaling-stroke");
-        svg.appendChild(path);
-      }
-      box.appendChild(svg);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "sm-route");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    svg.setAttribute("preserveAspectRatio", "none");
+    const d = ROUTE.map((p, i) => {
+      const u = (p.lon - B.W) / (B.E - B.W), v = (B.N - p.lat) / (B.N - B.S);
+      const x = ((u - u0) / (u1 - u0)) * 100, y = ((v - v0) / (v1 - v0)) * 100;
+      return `${i ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`;
+    }).join(" ");
+    for (const cls of ["sm-route-casing", "sm-route-line"]) {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", d);
+      path.setAttribute("class", cls);
+      path.setAttribute("vector-effect", "non-scaling-stroke");
+      svg.appendChild(path);
     }
-    for (const poi of game.world.pois.filter((p) => p.camp)) {
-      const u = (poi.lon - B.W) / (B.E - B.W), v = (B.N - poi.lat) / (B.N - B.S);
-      if (u < u0 || u > u1 || v < v0 || v > v1) continue;
-      const pin = document.createElement("button");
-      pin.className = "sm-pin";
-      pin.style.left = (((u - u0) / (u1 - u0)) * 100).toFixed(2) + "%";
-      pin.style.top = (((v - v0) / (v1 - v0)) * 100).toFixed(2) + "%";
-      pin.innerHTML = `<i></i><span>${poi.name}</span>`;
-      pin.addEventListener("click", () => beginAt(poi));
-      box.appendChild(pin);
-    }
+    box.appendChild(svg);
   }
-} catch (err) {
-  progText.textContent = "Could not reach the tile services — " + err.message;
-  console.error(err);
+  /* Camps come from ROUTE itself — config, no boot required. */
+  for (const poi of ROUTE.filter((p) => p.camp)) {
+    const u = (poi.lon - B.W) / (B.E - B.W), v = (B.N - poi.lat) / (B.N - B.S);
+    if (u < u0 || u > u1 || v < v0 || v > v1) continue;
+    const pin = document.createElement("button");
+    pin.className = "sm-pin";
+    pin.style.left = (((u - u0) / (u1 - u0)) * 100).toFixed(2) + "%";
+    pin.style.top = (((v - v0) / (v1 - v0)) * 100).toFixed(2) + "%";
+    pin.innerHTML = `<i></i><span>${poi.name}</span>`;
+    pin.addEventListener("click", () => beginFlow(poi));
+    box.appendChild(pin);
+  }
 }
 
-function beginAt(poi) {
+async function beginFlow(poi) {
+  if (booting) return;
+  booting = true;
+  document.getElementById("start-map").classList.add("is-loading");
+  try {
+    await game.boot((frac, what) => {
+      progBar.style.width = `${Math.round(frac * 100)}%`;
+      progText.textContent = what;
+    });
+  } catch (err) {
+    progText.textContent = "Could not reach the tile services — " + err.message;
+    console.error(err);
+    booting = false;
+    document.getElementById("start-map").classList.remove("is-loading");
+    return;
+  }
   title.classList.add("gone");
   game.start();
-  if (poi && poi.id !== "bc") game.hud.onFastTravel(poi);
+  /* The scene POI carries scene coordinates the config entry lacks;
+     resolve through the built world so fast travel lands exactly. */
+  const world = game.world.pois.find((p) => p.id === poi.id) || poi;
+  if (world.id !== "bc") game.hud.onFastTravel(world);
   setTimeout(() => game.lockPointer(), 300);
-  if (!poi || poi.id === "bc") {
+  if (world.id === "bc") {
     game.hud.say(
       "Base Camp, 5,364 metres, an hour before light. The Icefall starts about " +
       "four hundred metres up the glacier and the Doctors have had the route " +
       "open since March. Rope up before you go into it — press R.", 15);
   } else {
-    game.hud.say(`${poi.name}, ${Math.round(poi.published ?? poi.dem).toLocaleString()} metres. ` +
+    game.hud.say(`${world.name}, ${Math.round(world.published ?? world.dem).toLocaleString()} metres. ` +
       "The mountain does not care where you started. Watch the oxygen, and the light.", 12);
   }
 }
-startBtn.addEventListener("click", () => beginAt(null));
 </script>
 </body>
 </html>

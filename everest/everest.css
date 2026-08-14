@@ -1837,3 +1837,7 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   --lbl-marker: #ff9100;
   --lbl-line: #ffb347;
 }
+
+
+/* While the pyramid boots, the chosen map dims and locks. */
+.start-map.is-loading { opacity: 0.55; pointer-events: none; transition: opacity 0.3s; }
