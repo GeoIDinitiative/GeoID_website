@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=27255b9-b44e61e7";
-import { CLIPMAP, RENDER } from "./config.js?v=27255b9-b44e61e7";
+import * as THREE from "../vendor/three.module.js?v=357117d-c208ec06";
+import { CLIPMAP, RENDER } from "./config.js?v=357117d-c208ec06";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -187,6 +187,7 @@ const FRAG = /* glsl */`
   uniform float snowTexOn;
   uniform sampler2D boulderTex;
   uniform float boulderOn;
+  uniform float dayLight;       // 0 night .. 1 day, from solar altitude
   uniform sampler2D routeMask;
   uniform vec4 routeMaskBounds;
   uniform float routeOn;
@@ -869,6 +870,29 @@ const FRAG = /* glsl */`
           }
         }
       }
+      /* ── Night, fully implemented in the bare path ──────────────────
+         pictureOnly used to return daylight imagery at any hour: the sky
+         turned black and the ground stayed noon. Three terms fix it, all
+         from uniforms the full path already maintains:
+         day    — the sun's altitude dims the ground through twilight;
+         moon   — nightSky (starlight + moonlight, set per phase) gives a
+                  blue-grey floor so a clear night is navigable;
+         torch  — the head lamp's cone, without which L at night lit
+                  nothing because this path returned before the lamp. */
+      /* dayLight is fed from the sky model in degrees — sunDir here is
+         the CAPTURE sun (the light baked into the imagery), which never
+         sets, and reading it kept the ground at noon all night. */
+      float day = dayLight;
+      vec3 nightGround = col * (vec3(0.05, 0.065, 0.11) + nightSky * 0.85);
+      if (lampIntensity > 0.001) {
+        vec3 Ld = P - lampPos;
+        float lDist = length(Ld);
+        Ld /= max(lDist, 0.001);
+        float spot = smoothstep(lampCosOuter, lampCosInner, dot(Ld, lampDir));
+        float fall = 1.0 - smoothstep(lampRange * 0.25, lampRange, lDist);
+        nightGround += col * lampColour * lampIntensity * spot * fall;
+      }
+      col = mix(nightGround, col, day);
       /* Aerial perspective — the one thing raw mapping cannot carry. The
          old far tier was z11, whose pixels arrive pre-hazed by the
          atmosphere the satellite itself looked through, so the horizon
@@ -1303,6 +1327,7 @@ export class Terrain {
       snowTexOn:     { value: 0 },
       boulderTex:    { value: null },   // broken rock for FLAT dark ground above the valley
       boulderOn:     { value: 0 },
+      dayLight:      { value: 1 },
       routeMask:     { value: null },   // the fixed line, painted onto the surface
       routeMaskBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
       routeOn:       { value: 1 },

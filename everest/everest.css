@@ -1855,3 +1855,16 @@ body.bars-hidden .info-bar { transform: translateX(-50%) translateY(220%); opaci
   text-shadow: 0 1px 5px rgba(0, 0, 0, 0.85);
   pointer-events: none;
 }
+
+
+/* ── Label furniture holds against the sky ──────────────────────────────
+   Blue distances and chevrons vanished on blue sky. A crisp white
+   outline (four-direction shadow) plus the dark drop keeps the accent
+   colour readable on sky, snow and rock alike. */
+.poi-label .poi-dist,
+.poi-label .poi-arrow {
+  text-shadow:
+    -1px 0 rgba(255, 255, 255, 0.95), 1px 0 rgba(255, 255, 255, 0.95),
+    0 -1px rgba(255, 255, 255, 0.95), 0 1px rgba(255, 255, 255, 0.95),
+    0 2px 6px rgba(0, 0, 0, 0.65);
+}
