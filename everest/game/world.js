@@ -9,9 +9,9 @@
  * its own snow is the kind of thing nobody notices until they walk through it.
  */
 
-import * as THREE from "../vendor/three.module.js?v=1c22a4f-d22a29b4";
-import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=1c22a4f-d22a29b4";
-import { llToLocal, haversine } from "./geo.js?v=1c22a4f-d22a29b4";
+import * as THREE from "../vendor/three.module.js?v=27255b9-b44e61e7";
+import { ROUTE, CAMPS, PEAKS, POI_EXTRA, SUMMIT } from "./config.js?v=27255b9-b44e61e7";
+import { llToLocal, haversine } from "./geo.js?v=27255b9-b44e61e7";
 
 /** Screen-space label for a point in the world. Drawn as DOM rather than as
  *  sprites: text stays crisp at any distance, wraps properly, and can be
@@ -729,13 +729,21 @@ function campMarker(isSummit) {
   /* One generic flag at the masthead — a plain rectangle that still
      flutters through updateMarkers, gold for the summit, expedition red
      for the camps. The prayer-flag string is retired by request. */
+  /* The flag hinges AT the pole. The flutter animation rotates whatever
+     carries userData.flag around its own origin — on the flag mesh itself
+     that origin is the flag's centre, so every gust swung the cloth clean
+     off the mast. A pivot group sits on the pole; the cloth hangs off its
+     hinge edge inside it. */
+  const hinge = new THREE.Group();
+  hinge.position.set(0.05, 2.9, 0);
   const f = new THREE.Mesh(
     new THREE.PlaneGeometry(0.85, 0.55),
     new THREE.MeshLambertMaterial({ color: isSummit ? 0xffc93c : 0xd8402f, side: THREE.DoubleSide }),
   );
-  f.position.set(0.44, 2.9, 0);
-  f.userData.flag = 0;
-  g.add(f);
+  f.position.x = 0.425;
+  hinge.add(f);
+  hinge.userData.flag = 0;
+  g.add(hinge);
   g.userData.flags = true;
   return g;
 }
