@@ -12,28 +12,28 @@
  * whichever one it means, and says which in its signature.
  */
 
-import * as THREE from "../vendor/three.module.js?v=deee5eb-4b034ad8";
-import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=deee5eb-4b034ad8";
-import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=deee5eb-4b034ad8";
-import { Heightfield } from "./dem.js?v=deee5eb-4b034ad8";
-import { Imagery } from "./imagery.js?v=deee5eb-4b034ad8";
-import { Terrain } from "./terrain.js?v=deee5eb-4b034ad8";
-import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=deee5eb-4b034ad8";
-import { Weather, Precipitation, Spindrift } from "./weather.js?v=deee5eb-4b034ad8";
-import { Glacier } from "./glacier.js?v=deee5eb-4b034ad8";
-import { TerrainShadows } from "./shadows.js?v=deee5eb-4b034ad8";
-import { PostFX, QUALITY } from "./postfx.js?v=deee5eb-4b034ad8";
-import { estimateCaptureSun } from "./delight.js?v=deee5eb-4b034ad8";
-import { SnowField } from "./snowfield.js?v=deee5eb-4b034ad8";
-import { Photoclinometry } from "./photoclino.js?v=deee5eb-4b034ad8";
-import { World } from "./world.js?v=deee5eb-4b034ad8";
-import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=deee5eb-4b034ad8";
-import { Player, STATE } from "./player.js?v=deee5eb-4b034ad8";
-import { Director, Climbers } from "./director.js?v=deee5eb-4b034ad8";
-import { Hud } from "./hud.js?v=deee5eb-4b034ad8";
-import { Audio } from "./audio.js?v=deee5eb-4b034ad8";
-import { install as installDiag } from "./diag.js?v=deee5eb-4b034ad8";
-import * as tiles from "./tiles.js?v=deee5eb-4b034ad8";
+import * as THREE from "../vendor/three.module.js?v=61ed879-ade81a12";
+import { ROUTE, SUMMIT, TIME_SCALE, MOVE, RENDER, IMAGERY, ELEVATION, PHYS } from "./config.js?v=61ed879-ade81a12";
+import { llToLocal, localToLL, haversine, bearing, compassPoint } from "./geo.js?v=61ed879-ade81a12";
+import { Heightfield } from "./dem.js?v=61ed879-ade81a12";
+import { Imagery } from "./imagery.js?v=61ed879-ade81a12";
+import { Terrain } from "./terrain.js?v=61ed879-ade81a12";
+import { Sky, NEPAL_UTC_OFFSET_H } from "./sky.js?v=61ed879-ade81a12";
+import { Weather, Precipitation, Spindrift } from "./weather.js?v=61ed879-ade81a12";
+import { Glacier } from "./glacier.js?v=61ed879-ade81a12";
+import { TerrainShadows } from "./shadows.js?v=61ed879-ade81a12";
+import { PostFX, QUALITY } from "./postfx.js?v=61ed879-ade81a12";
+import { estimateCaptureSun } from "./delight.js?v=61ed879-ade81a12";
+import { SnowField } from "./snowfield.js?v=61ed879-ade81a12";
+import { Photoclinometry } from "./photoclino.js?v=61ed879-ade81a12";
+import { World } from "./world.js?v=61ed879-ade81a12";
+import { Survival, pressureKPa, inspiredO2 } from "./survival.js?v=61ed879-ade81a12";
+import { Player, STATE } from "./player.js?v=61ed879-ade81a12";
+import { Director, Climbers } from "./director.js?v=61ed879-ade81a12";
+import { Hud } from "./hud.js?v=61ed879-ade81a12";
+import { Audio } from "./audio.js?v=61ed879-ade81a12";
+import { install as installDiag } from "./diag.js?v=61ed879-ade81a12";
+import * as tiles from "./tiles.js?v=61ed879-ade81a12";
 
 /** Photoclinometric relief: off. See Game.refreshDetail for the measurement
  *  and the mechanism. The estimator still runs; nothing is displaced. */
@@ -201,6 +201,16 @@ export class Game {
         applyMoraine(tx);
       };
       new THREE.TextureLoader().load("data/pebbles.jpg", applyMoraine, undefined, procedural);
+
+      /* Broken rock for flat dark ground above the valley — the shader
+         gates it by slope, so faces never take it. */
+      new THREE.TextureLoader().load("data/boulder_skin.jpg", (tex) => {
+        tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+        this.terrain.uniforms.boulderTex.value = tex;
+        this.terrain.uniforms.boulderOn.value = 1;
+      });
 
       /* Procedural snow grain: R is low-contrast multi-scale lump noise,
          G is sparse sparkle. Drawn once — no asset to fetch. */

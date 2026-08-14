@@ -28,8 +28,8 @@
  * crack. It also kills the pop when a level re-snaps, for free.
  */
 
-import * as THREE from "../vendor/three.module.js?v=deee5eb-4b034ad8";
-import { CLIPMAP, RENDER } from "./config.js?v=deee5eb-4b034ad8";
+import * as THREE from "../vendor/three.module.js?v=61ed879-ade81a12";
+import { CLIPMAP, RENDER } from "./config.js?v=61ed879-ade81a12";
 
 const { levels: LEVELS, cells: N, baseCell: BASE } = CLIPMAP;
 const VERTS = N + 1;
@@ -185,6 +185,8 @@ const FRAG = /* glsl */`
   uniform float moraineOn;
   uniform sampler2D snowTex;
   uniform float snowTexOn;
+  uniform sampler2D boulderTex;
+  uniform float boulderOn;
 
   /* Same decode as the vertex shader — the surface was displaced there, so the
      normal has to be built from the same field or the relief only exists in
@@ -809,6 +811,24 @@ const FRAG = /* glsl */`
         fill *= 0.45 + 1.15 * lumA;
         col = mix(col, fill, darkness * 0.88);
       }
+      /* Boulder skin, conditionally: above the valley, dark ground gets
+         the broken-rock texture ONLY where the land is flat — a col or a
+         scree terrace is boulder ground; a steep face is not, and there
+         the imagery keeps absolute precedence. Flatness comes from the
+         surface normal: full at slopes under ~15\u00b0, gone by ~25\u00b0. */
+      if (boulderOn > 0.5) {
+        float rockBand = smoothstep(5550.0, 5750.0, P.y);
+        float flatness = smoothstep(0.906, 0.966, normalize(vNormal).y);
+        float dRock = (1.0 - smoothstep(0.55, 0.78, lumA))
+                    * (1.0 - smoothstep(0.12, 0.22, satA))
+                    * reach * rockBand * flatness;
+        if (dRock > 0.01) {
+          vec3 rock = mix(texture2D(boulderTex, P.xz * 0.55).rgb,
+                          texture2D(boulderTex, P.xz * 0.11).rgb, 0.35);
+          rock *= 0.45 + 1.15 * lumA;
+          col = mix(col, rock, dRock * 0.85);
+        }
+      }
       /* Snow grain above the valley, the counterpart of the valley's
          pebbles: where the imagery is featureless bright snow, a grain
          texture MODULATES it in the same 200 m reach — the satellite
@@ -1259,6 +1279,8 @@ export class Terrain {
       moraineOn:     { value: 0 },
       snowTex:       { value: null },   // procedural grain for featureless white ground
       snowTexOn:     { value: 0 },
+      boulderTex:    { value: null },   // broken rock for FLAT dark ground above the valley
+      boulderOn:     { value: 0 },
       debugMode:     { value: 0 },   // isolation modes, cycled with F10
     }, imagery.uniforms());
 
