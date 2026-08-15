@@ -13,6 +13,7 @@
 import {
   usgsToGeoJSON, eonetToGeoJSON, studyBbox,
   nwsToGeoJSON, usgsWaterToGeoJSON, overpassToGeoJSON,
+  bgsGeologyToGeoJSON, metRainfallToGeoJSON, CONNECTORS,
 } from "./connectors.js";
 
 let failures = 0;
@@ -135,6 +136,94 @@ check("overpass parses population to a number",
 check("overpass keeps [lon,lat] order",
   osm.features[0].geometry.coordinates[0] === 15.0
   && osm.features[0].geometry.coordinates[1] === 37.5);
+
+// ── BGS geology 625k: URL building against the OGC API ────────────────────────
+// The bbox is lon,lat order and falls back to the NI prototype's extent — a
+// swapped axis order or a global default would pull the wrong country silently.
+const bedrockUrl = CONNECTORS["bgs-geology-bedrock"].url({});
+const bedrockParams = new URL(bedrockUrl).searchParams;
+check("bgs bedrock hits its own collection",
+  bedrockUrl.includes("/collections/bgsgeology625kbedrock/items"));
+check("bgs superficial hits its own collection",
+  CONNECTORS["bgs-geology-superficial"].url({})
+    .includes("/collections/bgsgeology625ksuperficial/items"));
+check("bgs falls back to the NI bbox with no study area",
+  bedrockParams.get("bbox") === "-8.2,54.0,-5.4,55.4");
+check("bgs asks for one full GeoJSON page by default",
+  bedrockParams.get("limit") === "1000" && bedrockParams.get("f") === "json");
+const bedrockScoped = new URL(CONNECTORS["bgs-geology-bedrock"].url({
+  bbox: { minLat: 54.4, maxLat: 54.6, minLon: -6.4, maxLon: -6.1 }, limit: 50,
+})).searchParams;
+check("bgs takes a study bbox in lon,lat order and honours the limit",
+  bedrockScoped.get("bbox") === "-6.4,54.4,-6.1,54.6"
+  && bedrockScoped.get("limit") === "50");
+
+// ── Met Office rainfall normals: the verified ArcGIS parameter set ───────────
+// The exact set that returned 112 NI cells live (2026-08-15); a missing
+// spatialRel or a wrong inSR degrades to zero features, not to an error.
+const metParams = new URL(CONNECTORS["met-rainfall-normals"].url({})).searchParams;
+check("met rainfall carries the verified ArcGIS parameter set",
+  metParams.get("where") === "1=1"
+  && metParams.get("geometryType") === "esriGeometryEnvelope"
+  && metParams.get("inSR") === "4326"
+  && metParams.get("spatialRel") === "esriSpatialRelIntersects"
+  && metParams.get("outFields") === "*"
+  && metParams.get("f") === "geojson");
+check("met rainfall falls back to the NI bbox as its envelope",
+  metParams.get("geometry") === "-8.2,54.0,-5.4,55.4");
+
+// ── BGS/Met passthrough: already GeoJSON, but assert before trusting ─────────
+// A service error page is JSON too (ArcGIS even returns errors as HTTP 200),
+// so the passthrough must reject anything that is not a FeatureCollection
+// rather than filing an error object into the project as a layer.
+const geologyPayload = {
+  type: "FeatureCollection",
+  features: [
+    { type: "Feature", id: 13,
+      properties: { lex: "HGUW", lex_d: "HIBERNIAN GREENSANDS FORMATION" },
+      geometry: { type: "Polygon",
+        coordinates: [[[-6.5, 54.5], [-6.4, 54.5], [-6.4, 54.6], [-6.5, 54.5]]] } },
+  ],
+};
+const geology = bgsGeologyToGeoJSON(geologyPayload);
+check("bgs passthrough keeps every feature and its geometry",
+  geology.features.length === 1
+  && geology.features[0].geometry.coordinates[0][0][0] === -6.5);
+check("bgs passthrough keeps the source properties",
+  geology.features[0].properties.lex === "HGUW");
+check("bgs passthrough stamps the UKRI attribution on each feature",
+  geology.features[0].properties.attribution
+  === `Contains British Geological Survey materials © UKRI ${new Date().getFullYear()}`);
+check("bgs passthrough does not mutate the source payload",
+  geologyPayload.features[0].properties.attribution === undefined);
+let bgsRejected = false;
+try { bgsGeologyToGeoJSON({ error: { code: 400, message: "Invalid query" } }); }
+catch { bgsRejected = true; }
+check("bgs passthrough rejects a non-GeoJSON payload", bgsRejected);
+
+const rain = metRainfallToGeoJSON({
+  type: "FeatureCollection",
+  features: [
+    { type: "Feature", properties: { GRID_ID: "V-64", pr: 1087.47 },
+      geometry: { type: "Polygon",
+        coordinates: [[[-6.2, 54.4], [-6.0, 54.4], [-6.0, 54.5], [-6.2, 54.4]]] } },
+  ],
+});
+check("met passthrough keeps the pr field (mm/yr)",
+  rain.features[0].properties.pr === 1087.47);
+check("met passthrough stamps the OGL attribution",
+  rain.features[0].properties.attribution
+  === "Contains Met Office data licensed under the Open Government Licence v3.0; HadUK-Grid © Crown copyright");
+let metRejected = false;
+try { metRainfallToGeoJSON({ features: [] }); }   // no type → not a FeatureCollection
+catch { metRejected = true; }
+check("met passthrough rejects a payload without the FeatureCollection type", metRejected);
+
+// ── Filename slugs: stable names, since data/pulled/<slug>/ paths key on them ─
+check("new connector filenames are stable slugs",
+  CONNECTORS["bgs-geology-bedrock"].filename({}) === "bgs_geology_625k_bedrock.geojson"
+  && CONNECTORS["bgs-geology-superficial"].filename({}) === "bgs_geology_625k_superficial.geojson"
+  && CONNECTORS["met-rainfall-normals"].filename({}) === "rainfall_normals_haduk_12km.geojson");
 
 console.log(failures ? `\n${failures} FAILED` : "\nall checks passed");
 process.exit(failures ? 1 : 0);

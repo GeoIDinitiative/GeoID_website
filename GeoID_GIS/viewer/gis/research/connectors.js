@@ -197,6 +197,83 @@ export function overpassToGeoJSON(payload) {
   return { type: "FeatureCollection", features };
 }
 
+// ── BGS geology 625k (OGC API – Features) ─────────────────────────────────────
+// Bedrock and superficial polygons, GeoJSON already (CRS84 lon/lat). CORS-open
+// (origin echo), no key. The 625k product covers Northern Ireland — verified
+// live 2026-08-15: 758 bedrock / 801 superficial features over the NI bbox,
+// complete in a single page at limit=1000 (docs/ni-prototype/data-sources.md).
+
+// The NI prototype's home extent, used whenever no study area is set. These
+// collections are UK-wide, so a bounded default beats pulling the whole nation.
+const NI_BBOX = "-8.2,54.0,-5.4,55.4";
+
+/** OGC API / ArcGIS envelope order is lon,lat: minLon,minLat,maxLon,maxLat. */
+function bboxOrNI(bbox) {
+  if (!bbox) return NI_BBOX;
+  return [bbox.minLon, bbox.minLat, bbox.maxLon, bbox.maxLat].join(",");
+}
+
+const BGS_ATTRIBUTION =
+  `Contains British Geological Survey materials © UKRI ${new Date().getFullYear()}`;
+
+function bgsGeologyUrl(collection, { bbox, limit = 1000 } = {}) {
+  const params = new URLSearchParams({
+    bbox: bboxOrNI(bbox), limit: String(limit), f: "json",
+  });
+  return `https://ogcapi.bgs.ac.uk/collections/${collection}/items?${params}`;
+}
+
+// The payload IS GeoJSON, but passing it through must still be a checkpoint —
+// a service error page is JSON too (ArcGIS even returns its errors as HTTP
+// 200), and filing one as a layer poisons the data registry. Assert the shape,
+// and stamp the licence line onto every feature so the credit survives any
+// later split of the collection. Never mutates the source payload.
+function passthroughGeoJSON(payload, attribution) {
+  if (payload?.type !== "FeatureCollection" || !Array.isArray(payload.features)) {
+    throw new Error("Expected a GeoJSON FeatureCollection — the service answered with something else.");
+  }
+  return {
+    type: "FeatureCollection",
+    features: payload.features.map((f) => ({
+      ...f,
+      properties: { ...(f.properties || {}), attribution },
+    })),
+  };
+}
+
+export function bgsGeologyToGeoJSON(payload) {
+  return passthroughGeoJSON(payload, BGS_ATTRIBUTION);
+}
+
+// ── Met Office rainfall normals (HadUK-Grid 12 km, ArcGIS FeatureServer) ─────
+// 1991–2020 annual precipitation normals as 12 km grid cells, field `pr`
+// (mm/yr). CORS-open (ACAO:*), no key. Climatology, not live rain — right for
+// susceptibility weighting, wrong for event rainfall. Parameter set verified
+// live 2026-08-15 (112 cells over the NI bbox): where=1=1, geometry=<bbox>,
+// geometryType=esriGeometryEnvelope, inSR=4326,
+// spatialRel=esriSpatialRelIntersects, outFields=*, f=geojson.
+
+const MET_ATTRIBUTION =
+  "Contains Met Office data licensed under the Open Government Licence v3.0; HadUK-Grid © Crown copyright";
+
+function metRainfallUrl({ bbox } = {}) {
+  const params = new URLSearchParams({
+    where: "1=1",
+    geometry: bboxOrNI(bbox),
+    geometryType: "esriGeometryEnvelope",
+    inSR: "4326",
+    spatialRel: "esriSpatialRelIntersects",
+    outFields: "*",
+    f: "geojson",
+  });
+  return "https://services.arcgis.com/Lq3V5RFuTBC9I7kv/arcgis/rest/services/"
+    + `Annual_Precipitation_Observations_1991_2020/FeatureServer/0/query?${params}`;
+}
+
+export function metRainfallToGeoJSON(payload) {
+  return passthroughGeoJSON(payload, MET_ATTRIBUTION);
+}
+
 // ── The registry ──────────────────────────────────────────────────────────────
 
 export const CONNECTORS = {
@@ -270,6 +347,30 @@ export const CONNECTORS = {
     url: overpassUrl,
     toGeoJSON: overpassToGeoJSON,
     filename: () => "osm_places.geojson",
+    defaults: {},
+  },
+  "bgs-geology-bedrock": {
+    label: "BGS geology (bedrock 625k)",
+    attribution: BGS_ATTRIBUTION,
+    url: (o = {}) => bgsGeologyUrl("bgsgeology625kbedrock", o),
+    toGeoJSON: bgsGeologyToGeoJSON,
+    filename: () => "bgs_geology_625k_bedrock.geojson",
+    defaults: { limit: 1000 },
+  },
+  "bgs-geology-superficial": {
+    label: "BGS geology (superficial 625k)",
+    attribution: BGS_ATTRIBUTION,
+    url: (o = {}) => bgsGeologyUrl("bgsgeology625ksuperficial", o),
+    toGeoJSON: bgsGeologyToGeoJSON,
+    filename: () => "bgs_geology_625k_superficial.geojson",
+    defaults: { limit: 1000 },
+  },
+  "met-rainfall-normals": {
+    label: "Rainfall normals (HadUK 12km)",
+    attribution: MET_ATTRIBUTION,
+    url: metRainfallUrl,
+    toGeoJSON: metRainfallToGeoJSON,
+    filename: () => "rainfall_normals_haduk_12km.geojson",
     defaults: {},
   },
 };
