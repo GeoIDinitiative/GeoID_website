@@ -39,9 +39,9 @@
  * law is honoured by having nothing to exempt.
  */
 
-import { prefs, mergeParams } from "./tool-prefs.js?v=20260815-cb9ed4b";
+import { prefs, mergeParams } from "./tool-prefs.js?v=20260815-1576710";
 
-const RUNNER_URL = "./tool-runner.js?v=20260815-cb9ed4b";
+const RUNNER_URL = "./tool-runner.js?v=20260815-1576710";
 
 /* ── Dialog-only styles, injected as the house pattern dictates.
       NEVER a backtick inside this literal — it ends the string and kills the
@@ -205,7 +205,12 @@ const raf = (fn) => (typeof window !== "undefined" && window.requestAnimationFra
   : setTimeout(fn, 16));
 
 function byId(id) {
-  return document.getElementById(id);
+  // The dialog's own root first: renderTool fills its controls BEFORE the
+  // fallback container joins the document, and getElementById cannot see a
+  // detached tree — every select rendered empty for exactly that reason.
+  // querySelector on the root works attached or not; the document fallback
+  // still finds panel-host nodes that live outside the root.
+  return state.contentRoot?.querySelector?.(`#${id}`) || document.getElementById(id);
 }
 
 function setStatus(text) {

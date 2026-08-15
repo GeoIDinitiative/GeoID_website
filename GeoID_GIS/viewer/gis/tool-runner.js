@@ -1,8 +1,8 @@
-import * as GP from "./geoprocessing.js?v=20260815-cb9ed4b";
-import * as RA from "./raster-analysis.js?v=20260815-cb9ed4b";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260815-cb9ed4b";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260815-cb9ed4b";
-import { CRS_OPTIONS } from "./projection.js?v=20260815-cb9ed4b";
+import * as GP from "./geoprocessing.js?v=20260815-1576710";
+import * as RA from "./raster-analysis.js?v=20260815-1576710";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260815-1576710";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260815-1576710";
+import { CRS_OPTIONS } from "./projection.js?v=20260815-1576710";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -40,10 +40,11 @@ export const TOOLS = [
     inputs: [{ name: "input", label: "Input", type: "vector" }],
     params: [
       { name: "distance", label: "Distance (m)", kind: "number", default: 1000, step: 100, min: 0.001 },
+      { name: "dissolve", label: "Merge overlapping buffers", kind: "checkbox", default: true },
     ],
     outputType: "vector",
     outputName: "buffer_{input}",
-    engines: { native: (i, p) => GP.buffer(i.input.collection, p.distance) },
+    engines: { native: (i, p) => GP.buffer(i.input.collection, p.distance, { dissolve: p.dissolve !== false }) },
   },
   {
     id: "clip",
@@ -274,19 +275,30 @@ export const TOOLS = [
   },
   {
     id: "reclassify",
-    label: "Reclassify (above/below)",
+    label: "Reclassify (rules)",
     category: "Surface analysis",
-    blurb: "Split a raster at a threshold: cells become 0 below it and 1 at or above it.",
-    keywords: ["threshold", "binary", "classify", "split"],
+    blurb: "Map value ranges to classes with min..max:class rules — the risk-scoring step of every susceptibility recipe.",
+    keywords: ["threshold", "classify", "rules", "classes", "score", "bands"],
     inputs: [{ name: "input", label: "Input", type: "raster" }],
     params: [
-      { name: "threshold", label: "Threshold", kind: "number", default: 1000, step: 100 },
+      // The default is the NI methodology's slope classes — a working example
+      // that teaches the syntax at the same time.
+      { name: "rules", label: "Rules (min..max:class)", kind: "text",
+        default: "0..2:1, 2..5:2, 5..15:3, 15..35:4, 35..90:5" },
     ],
     outputType: "raster",
     outputName: "reclass_{input}",
     engines: {
-      native: (i, p) => RA.reclassify(i.input.raster,
-        [[-Infinity, p.threshold, 0], [p.threshold + 1e-9, Infinity, 1]]),
+      native: (i, p) => {
+        const parsed = RA.parseReclassifyRules(p.rules);
+        if (!parsed.ok) return parsed;
+        const out = RA.reclassify(i.input.raster, parsed.rules);
+        const stats = RA.rasterStatistics(out);
+        if (!stats.count) {
+          return { ok: false, message: "No cell matched any rule — check the ranges against the data." };
+        }
+        return { raster: out, note: `${parsed.rules.length} rules, ${stats.count} cells classified.` };
+      },
     },
   },
   {
@@ -307,17 +319,17 @@ export const TOOLS = [
     engines: {
       native: (i, p) => {
         const other = i.b || null;
-        if (other && (other.raster.width !== i.input.raster.width
-          || other.raster.height !== i.input.raster.height)) {
-          return {
-            ok: false,
-            message: `Rasters differ in shape (${i.input.raster.width}x${i.input.raster.height} vs `
-              + `${other.raster.width}x${other.raster.height}) — resample first.`,
-          };
+        let b = other?.raster || null;
+        let note = "";
+        // Mismatched grids are resampled rather than refused: "resample
+        // first" was a correct answer that made the user do the tool's job.
+        if (b && !sameGrid(b, i.input.raster)) {
+          b = RA.resampleToGrid(b, i.input.raster);
+          note = `${other.name} was resampled onto the first raster's grid (nearest).`;
         }
-        const res = RA.rasterCalculator(i.input.raster, other?.raster || null, p.expression || "a");
+        const res = RA.rasterCalculator(i.input.raster, b, p.expression || "a");
         if (!res.ok) return res;
-        return { raster: res.raster };
+        return { raster: res.raster, note };
       },
     },
   },
@@ -335,6 +347,160 @@ export const TOOLS = [
     outputType: "raster",
     outputName: "clip_{input}",
     engines: { native: (i) => RA.clipRasterByPolygon(i.input.raster, i.zones.collection) },
+  },
+  {
+    id: "resample",
+    label: "Resample to grid",
+    category: "Surface analysis",
+    blurb: "Put a raster onto another raster's grid (nearest neighbour), so cell-by-cell tools can pair them.",
+    keywords: ["align", "grid", "nearest", "snap", "match"],
+    inputs: [
+      { name: "input", label: "Input", type: "raster" },
+      { name: "template", label: "Template grid", type: "raster" },
+    ],
+    params: [],
+    outputType: "raster",
+    outputName: "resample_{input}",
+    engines: {
+      native: (i) => {
+        if (i.input.id === i.template.id) {
+          return { ok: false, message: "A raster is already on its own grid." };
+        }
+        return RA.resampleToGrid(i.input.raster, i.template.raster);
+      },
+    },
+  },
+  {
+    id: "distance",
+    label: "Distance to features",
+    category: "Surface analysis",
+    blurb: "Metres from every cell to the nearest feature — rivers, faults, roads — on the input raster's grid.",
+    keywords: ["proximity", "near", "metres", "euclidean", "rivers", "drainage"],
+    inputs: [
+      { name: "input", label: "Grid to fill", type: "raster" },
+      { name: "features", label: "Features", type: "vector" },
+    ],
+    params: [],
+    outputType: "raster",
+    outputName: "dist_{features}",
+    engines: { native: (i) => RA.distanceRaster(i.features.collection, i.input.raster) },
+  },
+  {
+    id: "rasterize",
+    label: "Rasterize (vector → raster)",
+    category: "Surface analysis",
+    blurb: "Burn a numeric attribute of a vector layer into a raster grid — geology scores become cells.",
+    keywords: ["burn", "vector", "convert", "attribute", "geology"],
+    inputs: [
+      { name: "input", label: "Grid to match", type: "raster" },
+      { name: "features", label: "Vector layer", type: "vector" },
+    ],
+    params: [
+      { name: "field", label: "Attribute", kind: "field", of: "features" },
+    ],
+    outputType: "raster",
+    outputName: "rasterize_{features}",
+    engines: {
+      native: (i, p) => {
+        const out = RA.rasterizeByAttribute(i.features.collection, p.field, i.input.raster);
+        const stats = RA.rasterStatistics(out);
+        if (!stats.count) {
+          return {
+            ok: false,
+            message: `No cell took a value — is "${p.field}" numeric where the polygons overlap this raster?`,
+          };
+        }
+        return { raster: out, note: `${stats.count} cells burned from "${p.field}".` };
+      },
+    },
+  },
+  {
+    id: "samplePoints",
+    label: "Sample raster at points",
+    category: "Surface analysis",
+    blurb: "Read the raster value under each point into a new attribute — risk scores at schools, gauges, sites.",
+    keywords: ["extract", "read", "probe", "values", "join"],
+    inputs: [
+      { name: "input", label: "Raster", type: "raster" },
+      { name: "points", label: "Points", type: "vector" },
+    ],
+    params: [
+      { name: "attr", label: "New attribute name", kind: "text", default: "sampled" },
+    ],
+    outputType: "vector",
+    outputName: "sampled_{points}",
+    engines: {
+      native: (i, p) => {
+        const attr = (p.attr || "sampled").trim().replace(/[^\w]/g, "_") || "sampled";
+        const fc = RA.sampleAtPoints(i.input.raster, i.points.collection, attr);
+        if (!fc.features.length) {
+          return { ok: false, message: "That layer has no point features." };
+        }
+        return {
+          collection: fc,
+          note: `${fc.sampled} of ${fc.features.length} points read a value into "${attr}".`,
+        };
+      },
+    },
+  },
+  {
+    id: "overlay",
+    label: "Weighted overlay",
+    category: "Surface analysis",
+    blurb: "Sum weighted factor rasters into one score — the multi-criteria core of every susceptibility map.",
+    keywords: ["weights", "susceptibility", "risk", "combine", "multicriteria", "score"],
+    inputs: [
+      { name: "input", label: "Factor A", type: "raster" },
+      { name: "b", label: "Factor B", type: "raster", optional: true },
+    ],
+    params: [
+      { name: "weights", label: "Weights (A, B — or name:weight, …)", kind: "text", default: "50, 50" },
+    ],
+    outputType: "raster",
+    outputName: "overlay_{input}",
+    engines: {
+      native: (i, p) => {
+        const text = (p.weights || "").trim();
+        let entries;
+        if (text.includes(":")) {
+          // name:weight pairs reach past the two dropdowns to every loaded
+          // raster — the NI susceptibility recipe is five factors, not two.
+          const pool = layersByType("raster");
+          entries = [];
+          for (const piece of text.split(",")) {
+            const at = piece.lastIndexOf(":");
+            const layerName = piece.slice(0, at).trim();
+            const weight = Number(piece.slice(at + 1));
+            const layer = pool.find((l) => l.name === layerName
+              || l.name.replace(/\.[^.]+$/, "") === layerName);
+            if (!layer) return { ok: false, message: `No raster layer called "${layerName}".` };
+            if (!Number.isFinite(weight) || weight < 0) {
+              return { ok: false, message: `"${layerName}" needs a non-negative weight.` };
+            }
+            entries.push({ raster: layer.raster, weight });
+          }
+        } else {
+          if (!i.b) {
+            return { ok: false, message: "Pick Factor B, or list name:weight pairs." };
+          }
+          const weights = text.split(",").map((w) => Number(w.trim()));
+          if (weights.length !== 2 || weights.some((w) => !Number.isFinite(w))) {
+            return { ok: false, message: 'Give two weights, e.g. "60, 40".' };
+          }
+          entries = [
+            { raster: i.input.raster, weight: weights[0] },
+            { raster: i.b.raster, weight: weights[1] },
+          ];
+        }
+        const res = RA.weightedOverlay(entries);
+        if (!res.ok) return res;
+        return {
+          raster: res.raster,
+          note: `${entries.length} factors, weights normalised.`
+            + (res.resampled ? ` ${res.resampled} resampled onto the first grid.` : ""),
+        };
+      },
+    },
   },
   {
     id: "toPoints",
@@ -411,6 +577,14 @@ export function layersByType(type) {
   return loaded;
 }
 
+/** Same shape AND same bounds — equal dimensions over different ground is
+ *  still a mismatch, and the silent kind. */
+function sameGrid(a, b) {
+  return a.width === b.width && a.height === b.height
+    && a.bounds.minX === b.bounds.minX && a.bounds.maxX === b.bounds.maxX
+    && a.bounds.minY === b.bounds.minY && a.bounds.maxY === b.bounds.maxY;
+}
+
 function matchesType(layer, type) {
   if (type === "vector") return Boolean(layer.collection);
   if (type === "raster") return Boolean(layer.raster);
@@ -436,9 +610,18 @@ function resolveLayer(ref) {
 export function resolveOutputName(desc, inputs = {}) {
   const first = desc.inputs?.length ? inputs[desc.inputs[0].name] : null;
   const base = first?.name ? String(first.name).replace(/\.[^.]+$/, "") : "layer";
-  const name = String(desc.outputName)
+  let name = String(desc.outputName)
     .replaceAll("{input}", base)
     .replaceAll("{tool}", desc.id || "tool");
+  // Any input's own name is a token too, so "dist_{features}" names the
+  // output after the layer it measures to, not the grid it fills.
+  for (const spec of desc.inputs || []) {
+    const layer = inputs[spec.name];
+    if (layer?.name) {
+      name = name.replaceAll(`{${spec.name}}`,
+        String(layer.name).replace(/\.[^.]+$/, ""));
+    }
+  }
   const existing = new Set(
     (window.GeoIDImportManager?.getLayers?.() || []).map((l) => l.name),
   );
@@ -605,7 +788,7 @@ export function runTool(toolId, inputs = {}, params = {}, { outputName } = {}) {
       // When the input layer declares its fields, an unknown name is a typo,
       // not a request — GP.dissolve would otherwise group everything under
       // `undefined` and report success.
-      const host = resolvedInputs[desc.inputs[0]?.name];
+      const host = resolvedInputs[p.of || desc.inputs[0]?.name];
       const fields = host?.info?.fields;
       if (Array.isArray(fields) && fields.length && !fields.includes(value)) {
         return fail(`"${value}" is not a field of ${host.name}.`);
