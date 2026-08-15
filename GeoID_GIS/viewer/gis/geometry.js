@@ -383,7 +383,13 @@ export function offsetRing(ring, distanceM) {
   if (pts.length < 3) {
     return ring.slice();
   }
-  const outward = signedAreaPlanar(pts) > 0 ? 1 : -1;
+  // The edge normals below are LEFT normals, (-dy, dx) — and a left normal
+  // points INTO a counter-clockwise ring. So outward for CCW is the NEGATIVE
+  // bisector. This sign was inverted, and a positive distance shrank every
+  // ring it was asked to grow: buffer() on a polygon — whose outers are CCW —
+  // quietly returned a smaller polygon. Found by the geometry test agent, and
+  // pinned by the "buffering a square grows it" case in geometry.test.mjs.
+  const outward = signedAreaPlanar(pts) > 0 ? -1 : 1;
   const out = pts.map((point, i) => {
     const prev = pts[(i - 1 + pts.length) % pts.length];
     const next = pts[(i + 1) % pts.length];
