@@ -40,9 +40,11 @@ app uses*, and the two apps stop being able to drift.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import mimetypes
 import os
+import re
 import secrets
 import shlex
 import shutil
@@ -91,6 +93,10 @@ class Job:
         # Called once with this job when it reaches a terminal state, whatever
         # that state is. A GALES run uses it to write its status.json.
         self.on_finish = None
+        # Written to the child's stdin at start, then the pipe is closed. How
+        # /jobs/tool delivers its one JSON object without touching argv or a
+        # temp file.
+        self.stdin_data: str | None = None
         self._lock = threading.Lock()
         self._cond = threading.Condition(self._lock)
 
@@ -140,9 +146,11 @@ class Runner:
         self._lock = threading.Lock()
 
     def start(self, kind: str, label: str, argv: list[str], cwd: Path,
-              env: dict | None = None, on_finish=None) -> Job:
+              env: dict | None = None, on_finish=None,
+              stdin_data: str | None = None) -> Job:
         job = Job(uuid.uuid4().hex[:12], kind, label, argv, cwd, env or {})
         job.on_finish = on_finish
+        job.stdin_data = stdin_data
         with self._lock:
             self.jobs[job.id] = job
         thread = threading.Thread(target=self._run, args=(job,), daemon=True)
@@ -168,6 +176,7 @@ class Runner:
         try:
             proc = subprocess.Popen(
                 job.argv, cwd=job.cwd, env=merged,
+                stdin=subprocess.PIPE if job.stdin_data is not None else None,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1,
                 # Own process group, so a stop can take the child and anything
@@ -182,6 +191,15 @@ class Runner:
         job.proc = proc
         job.status = "running"
         job.append(f"[sidecar] {job.label} — pid {proc.pid}")
+        if job.stdin_data is not None and proc.stdin is not None:
+            # Write-then-close, before the read loop below: the payloads this
+            # carries are small JSON objects, far under a pipe buffer, so this
+            # cannot deadlock against an already-printing child.
+            try:
+                proc.stdin.write(job.stdin_data)
+                proc.stdin.close()
+            except (BrokenPipeError, OSError) as exc:
+                job.append(f"[sidecar] could not deliver stdin: {exc}")
         assert proc.stdout is not None
         for line in proc.stdout:
             job.append(line.rstrip("\n"))
@@ -314,7 +332,8 @@ class Handler(BaseHTTPRequestHandler):
                 "root": str(self.runner.root),
                 "needs_token": self.token is not None,
                 "capabilities": ["fs", "jobs", "script", "function", "training", "gales",
-                                 "compute", "atlas", "events"]
+                                 "compute", "atlas", "events", "capabilities",
+                                 "gdal", "tools"]
                     + (["gales-prepare"] if self.gales_dir else []),
                 "gales_dir": str(self.gales_dir) if self.gales_dir else None,
             }, origin)
@@ -328,7 +347,9 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         try:
-            if route == "/fs/list":
+            if route == "/capabilities":
+                self._capabilities(origin)
+            elif route == "/fs/list":
                 self._fs_list(query.get("path", [""])[0], origin)
             elif route == "/fs/read":
                 self._fs_read(query.get("path", [""])[0], origin)
@@ -390,6 +411,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._start_gales_prepare(body, origin)
             elif route == "/jobs/gales/postprocess":
                 self._start_gales_postprocess(body, origin)
+            elif route == "/jobs/gdal":
+                self._start_gdal(body, origin)
+            elif route == "/jobs/tool":
+                self._start_tool(body, origin)
             elif route == "/compute/save":
                 self._compute_save(body, origin)
             elif route == "/compute/delete":
@@ -542,6 +567,153 @@ class Handler(BaseHTTPRequestHandler):
                 "--output", str(out_path), *[str(a) for a in extra]]
         job = self.runner.start("training", f"train {script.name}", argv, script.parent, body.get("env"))
         self._send(200, {"job_id": job.id}, origin)
+
+    # ── Capabilities, GDAL jobs, and the vetted tool scripts ──────────────────
+    #
+    # The GIS grows past what a browser can compute by borrowing this process —
+    # but never as "run arbitrary code from a page". Three pieces:
+    #
+    # - GET /capabilities says what this machine actually has (probed, never
+    #   assumed), so the hub can offer sidecar-backed tools only where they
+    #   will work and explain the absence where they won't.
+    # - POST /jobs/gdal runs one allowlisted GDAL/OGR binary. The browser names
+    #   *what* to run but never *where*: every real path arrives via inputs/
+    #   output and is resolved through the same sandbox as /fs; args may carry
+    #   only flags, values and the $IN0…/$OUT placeholders.
+    # - POST /jobs/tool runs one vetted script from sidecar/tools/, its request
+    #   delivered as a single JSON object on stdin. The allowlist is the
+    #   directory listing itself — a tool exists exactly when its file does.
+
+    # gdal* and ogr2ogr only — gmsh and mpirun are probed below but are not
+    # runnable through this route.
+    GDAL_PROGRAMS = ("gdalwarp", "ogr2ogr", "gdaldem", "gdal_contour",
+                     "gdal_viewshed", "gdal_rasterize", "gdal_translate")
+    CAPABILITY_PYTHON = ("numpy", "scipy", "pywt", "matplotlib", "sklearn")
+    CAPABILITY_GEO = ("osgeo", "rasterio", "pyproj", "shapely")
+    CAPABILITY_BINS = GDAL_PROGRAMS + ("gmsh", "mpirun")
+    TOOLS_DIR = Path(__file__).resolve().parent / "tools"
+    _PLACEHOLDER = re.compile(r"^\$(?:IN(\d+)|OUT)$")
+
+    @staticmethod
+    def _module_present(name: str) -> bool:
+        """Whether a module is importable, without importing it and without a
+        subprocess: find_spec touches only the import machinery. Guarded,
+        because a broken package can make even the probe raise."""
+        try:
+            return importlib.util.find_spec(name) is not None
+        except Exception:  # noqa: BLE001 — an unprobeable module is an absent one
+            return False
+
+    def _capabilities(self, origin: str):
+        self._send(200, {
+            "version": VERSION,
+            "python": {n: self._module_present(n) for n in self.CAPABILITY_PYTHON},
+            "geo": {n: self._module_present(n) for n in self.CAPABILITY_GEO},
+            "bins": {n: bool(shutil.which(n)) for n in self.CAPABILITY_BINS},
+        }, origin)
+
+    def _start_gdal(self, body: dict, origin: str):
+        """{program, args, inputs, output} → one streamed GDAL/OGR job.
+
+        args is the raw GDAL argument list with $IN0, $IN1, … and $OUT where
+        the paths belong; the paths themselves come only from inputs/output,
+        sandbox-resolved. Any non-placeholder arg that looks like a path is
+        refused outright — the placeholder mechanism IS the path policy, and
+        a browser must not be able to smuggle one past it.
+        """
+        program = str(body.get("program", "")).strip()
+        if program not in self.GDAL_PROGRAMS:
+            raise ValueError(
+                f"program must be one of: {', '.join(self.GDAL_PROGRAMS)}")
+        inputs = body.get("inputs") or []
+        if not isinstance(inputs, list):
+            raise ValueError("inputs must be a list of project-relative paths")
+        in_paths = [self._safe(str(p)) for p in inputs]
+        for rel, path in zip(inputs, in_paths):
+            if not path.exists():
+                raise FileNotFoundError(f"no such input: {rel}")
+        out_path = None
+        output = str(body.get("output") or "").strip()
+        if output:
+            out_path = self._safe(output)
+        args = body.get("args")
+        if not isinstance(args, list):
+            raise ValueError("args must be a list")
+        argv = [program]
+        for raw in args:
+            arg = str(raw)
+            m = self._PLACEHOLDER.match(arg)
+            if m:
+                if m.group(1) is not None:
+                    i = int(m.group(1))
+                    if i >= len(in_paths):
+                        raise ValueError(
+                            f"{arg} named, but only {len(in_paths)} input(s) given")
+                    argv.append(str(in_paths[i]))
+                elif out_path is None:
+                    raise ValueError("$OUT named, but no output given")
+                else:
+                    argv.append(str(out_path))
+            else:
+                if "/" in arg or "\\" in arg or ".." in arg or arg.startswith("~"):
+                    raise ValueError(
+                        f"argument {arg!r} looks like a path — real paths go in "
+                        "inputs/output and appear in args as $IN0…, $OUT")
+                argv.append(arg)
+        # Shape first, presence second: a malformed request is a 400 even on a
+        # machine with no GDAL, and a 409 means exactly "install the binary".
+        if not shutil.which(program):
+            self._send(409, {"error": f"{program} is not installed on this "
+                                      "machine — install GDAL/OGR to run this "
+                                      "tool"}, origin)
+            return
+        if out_path is not None:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+        job = self.runner.start("gdal", body.get("label") or program, argv,
+                                self.runner.root, body.get("env"))
+        # argv goes back so the caller can see exactly what was substituted.
+        self._send(200, {"job_id": job.id, "program": program, "argv": argv},
+                   origin)
+
+    def _start_tool(self, body: dict, origin: str):
+        """{tool, params, inputs, output} → one streamed run of a vetted
+        script from sidecar/tools/.
+
+        The script receives ONE JSON object on stdin — {params, inputs,
+        output}, its paths already absolute and sandbox-resolved — prints
+        progress to stdout (streamed into the job log), writes its result
+        file(s) to output, and exits 0 on success / nonzero with a final
+        "ERROR: <reason>" line. sidecar/tools/smooth.py is the reference.
+        """
+        tool = str(body.get("tool", "")).strip()
+        # A bare name only: the tool names a file in tools/, never a path.
+        if not re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_\-]*", tool or " "):
+            raise ValueError("tool must be a bare name (letters, digits, _ and -)")
+        available = sorted(p.stem for p in self.TOOLS_DIR.glob("*.py")) \
+            if self.TOOLS_DIR.is_dir() else []
+        if tool not in available:
+            raise ValueError(f"no such tool {tool!r} — available: "
+                             f"{', '.join(available) or '(none installed)'}")
+        inputs = body.get("inputs") or []
+        if not isinstance(inputs, list):
+            raise ValueError("inputs must be a list of project-relative paths")
+        in_paths = [str(self._safe(str(p))) for p in inputs]
+        out_abs = ""
+        output = str(body.get("output") or "").strip()
+        if output:
+            out_path = self._safe(output)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            out_abs = str(out_path)
+        params = body.get("params") or {}
+        if not isinstance(params, dict):
+            raise ValueError("params must be an object")
+        payload = json.dumps({"params": params, "inputs": in_paths,
+                              "output": out_abs})
+        argv = [sys.executable, str(self.TOOLS_DIR / f"{tool}.py")]
+        job = self.runner.start("tool", body.get("label") or f"tool {tool}",
+                                argv, self.runner.root, body.get("env"),
+                                stdin_data=payload)
+        self._send(200, {"job_id": job.id, "tool": tool}, origin)
 
     # ── Compute targets: this machine, or a server over SSH ───────────────────
     #

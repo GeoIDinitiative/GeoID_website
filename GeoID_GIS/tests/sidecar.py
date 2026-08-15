@@ -6,9 +6,13 @@ runs GALES decks. It was verified by hand at every step and by nothing
 afterwards, which is exactly the shape that rots. This exercises it end to end
 against a throwaway projects root: the filesystem contract, the **path sandbox**,
 token auth, compute targets (including the refusal to accept a password), deck
-generation for each physics family, which command a run resolves to, and the
-binary results reader — the last checked against a synthetic mesh and result
-file whose answers are known exactly.
+generation for each physics family, which command a run resolves to, the
+binary results reader — checked against a synthetic mesh and result file whose
+answers are known exactly — and the Phase 3 processing routes: /capabilities
+(probed, token-gated), /jobs/gdal (allowlist, placeholder substitution, path
+smuggling, missing binary = 409, proven by a PATH-stripped instance), and
+/jobs/tool (the tools/ allowlist, smooth.py on a grid whose 3×3 means are
+hand-computed, and the numpy-absent ERROR path forced by a shadowing shim).
 
 No network, no Trilinos, no GALES binary needed: everything here is either pure
 translation or reads bytes this script wrote itself. The deck-generation cases
@@ -100,8 +104,34 @@ class Client:
             time.sleep(0.4)
         return {"status": "timeout"}
 
+    def job_log(self, job_id: str) -> str:
+        """A finished job's whole log, replayed over the same SSE endpoint the
+        hub uses. The stream ends with a `status` EVENT, not EOF — the server
+        keeps the socket alive for a next request — so this reads event by
+        event and stops at the status marker, exactly as the hub's client
+        does. Reading to EOF instead hangs until the socket timeout."""
+        req = urllib.request.Request(self.base + f"/jobs/{job_id}/events?from=0")
+        if self.token:
+            req.add_header("Authorization", f"Bearer {self.token}")
+        lines, event = [], ""
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            for raw in resp:
+                row = raw.decode().rstrip("\n")
+                if row.startswith("event: "):
+                    event = row[len("event: "):]
+                elif row.startswith("data: ") and event == "line":
+                    try:
+                        payload = json.loads(row[len("data: "):])
+                    except json.JSONDecodeError:
+                        continue
+                    lines.append(str(payload.get("text", "")))
+                elif row.startswith("data: ") and event == "status":
+                    break
+        return "\n".join(lines)
 
-def start(root: Path, port: int, token: bool = False, gales: bool = False):
+
+def start(root: Path, port: int, token: bool = False, gales: bool = False,
+          env: dict | None = None):
     argv = [sys.executable, str(SIDECAR), "--root", str(root), "--port", str(port)]
     if not token:
         argv.append("--no-token")
@@ -109,7 +139,8 @@ def start(root: Path, port: int, token: bool = False, gales: bool = False):
         argv += ["--gales", str(GALES)]
     # Its banner is not read here, so discard it rather than let a full pipe
     # buffer block the service.
-    proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    proc = subprocess.Popen(argv, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            env={**os.environ, **env} if env else None)
     base = f"http://127.0.0.1:{port}"
     deadline = time.time() + 15
     while time.time() < deadline:
@@ -278,6 +309,175 @@ def run_tests(root: Path) -> None:
                           any(line.split()[:2] == [key, val]
                               for line in props.splitlines() if line.split()),
                           " ".join(props.split()[:8]))
+        # ── capabilities: probed, never assumed ──────────────────────────────
+        status, caps = c.call("/capabilities")
+        check("capabilities answers with a version",
+              status == 200 and bool(caps.get("version")), str(caps)[:60])
+        check("capabilities probes the python modules",
+              set(caps.get("python", {})) ==
+              {"numpy", "scipy", "pywt", "matplotlib", "sklearn"}
+              and all(isinstance(v, bool) for v in caps["python"].values()),
+              str(caps.get("python")))
+        check("capabilities probes the geo stack",
+              set(caps.get("geo", {})) == {"osgeo", "rasterio", "pyproj", "shapely"}
+              and all(isinstance(v, bool) for v in caps["geo"].values()),
+              str(caps.get("geo")))
+        BINS = {"gdalwarp", "ogr2ogr", "gdaldem", "gdal_contour", "gdal_viewshed",
+                "gdal_rasterize", "gdal_translate", "gmsh", "mpirun"}
+        check("capabilities probes the binaries",
+              set(caps.get("bins", {})) == BINS
+              and all(isinstance(v, bool) for v in caps["bins"].values()),
+              str(caps.get("bins")))
+        # A reference value is a measurement: the same interpreter runs both
+        # processes, so the sidecar's probe must agree with a direct one here.
+        import importlib.util as ilu
+        check("the numpy probe agrees with a direct measurement",
+              caps["python"]["numpy"] == (ilu.find_spec("numpy") is not None),
+              str(caps["python"]["numpy"]))
+        check("the gdalwarp probe agrees with which",
+              caps["bins"]["gdalwarp"] == bool(shutil.which("gdalwarp")),
+              str(caps["bins"]["gdalwarp"]))
+
+        # ── /jobs/gdal: allowlist, placeholders, smuggling ───────────────────
+        status, err = c.call("/jobs/gdal", {"program": "bash", "args": []})
+        check("a non-gdal program is refused", status == 400, f"HTTP {status}")
+        # gmsh and mpirun are probed by /capabilities but are NOT gdal-runnable.
+        status, err = c.call("/jobs/gdal", {"program": "gmsh", "args": []})
+        check("a probed-but-not-gdal binary is refused", status == 400,
+              f"HTTP {status}")
+        (root / "earth" / "p" / "data").mkdir(parents=True, exist_ok=True)
+        (root / "earth" / "p" / "data" / "tiny.asc").write_text(
+            "ncols 2\nnrows 2\nxllcorner 0\nyllcorner 0\ncellsize 1\n"
+            "1 2\n3 4\n")
+        status, err = c.call("/jobs/gdal", {
+            "program": "gdal_translate",
+            "args": ["-of", "XYZ", "../smuggled.asc", "$OUT"],
+            "inputs": [], "output": "earth/p/exports/out.xyz"})
+        check("an arg carrying .. is refused",
+              status == 400 and "path" in str(err.get("error", "")),
+              str(err)[:80])
+        status, err = c.call("/jobs/gdal", {
+            "program": "gdal_translate", "args": ["/etc/passwd", "$OUT"],
+            "inputs": [], "output": "earth/p/exports/out.xyz"})
+        check("an arg carrying a separator is refused", status == 400,
+              f"HTTP {status}")
+        status, err = c.call("/jobs/gdal", {
+            "program": "gdal_translate", "args": ["$IN0", "$OUT"],
+            "inputs": ["../../outside.tif"], "output": "earth/p/exports/out.tif"})
+        check("a sandbox escape in gdal inputs is 403", status == 403,
+              f"HTTP {status}")
+        status, err = c.call("/jobs/gdal", {
+            "program": "gdal_translate", "args": ["$IN0", "$OUT"],
+            "inputs": ["earth/p/data/tiny.asc"], "output": "../escape.tif"})
+        check("a sandbox escape in gdal output is 403", status == 403,
+              f"HTTP {status}")
+        status, err = c.call("/jobs/gdal", {
+            "program": "gdal_translate", "args": ["$IN0", "$OUT"], "inputs": []})
+        check("a placeholder past the inputs list is refused", status == 400,
+              str(err)[:70])
+        if not caps["bins"]["gdal_translate"]:
+            skip("gdal placeholder job", "no gdal_translate on this machine")
+        else:
+            status, started = c.call("/jobs/gdal", {
+                "program": "gdal_translate", "args": ["-of", "XYZ", "$IN0", "$OUT"],
+                "inputs": ["earth/p/data/tiny.asc"],
+                "output": "earth/p/exports/tiny.xyz"})
+            argv = started.get("argv", []) if isinstance(started, dict) else []
+            check("placeholders substitute to sandbox-resolved absolute paths",
+                  status == 200 and len(argv) == 5
+                  and argv[3] == str(root / "earth" / "p" / "data" / "tiny.asc")
+                  and argv[4] == str(root / "earth" / "p" / "exports" / "tiny.xyz")
+                  and not any("$" in a for a in argv),
+                  str(argv))
+            if status == 200:
+                snap = c.wait_job(started["job_id"])
+                check("the gdal job runs to done", snap.get("status") == "done",
+                      f"status={snap.get('status')} "
+                      f"log={c.job_log(started['job_id'])[-120:]}")
+                xyz = root / "earth" / "p" / "exports" / "tiny.xyz"
+                # 2x2 grid → 4 "x y z" lines; the z column is the grid values,
+                # which proves the real binary read the real input.
+                rows = xyz.read_text().split("\n") if xyz.is_file() else []
+                zs = [float(r.split()[2]) for r in rows if len(r.split()) >= 3]
+                check("the converted output holds the grid's own values",
+                      zs == [1.0, 2.0, 3.0, 4.0], str(zs))
+
+        # ── /jobs/tool: the vetted script library ────────────────────────────
+        status, err = c.call("/jobs/tool", {"tool": "no_such_tool"})
+        check("an unknown tool is refused and lists what exists",
+              status == 400 and "smooth" in str(err.get("error", "")),
+              str(err)[:80])
+        status, err = c.call("/jobs/tool", {"tool": "../smooth"})
+        check("a tool name carrying a path is refused", status == 400,
+              f"HTTP {status}")
+        status, err = c.call("/jobs/tool", {
+            "tool": "smooth", "inputs": ["../../grid.asc"],
+            "output": "earth/p/exports/sm.asc"})
+        check("a sandbox escape in tool inputs is 403", status == 403,
+              f"HTTP {status}")
+        c.call("/fs/write", {"path": "earth/p/data/grid.asc", "content":
+               "ncols 3\nnrows 3\nxllcorner 0\nyllcorner 0\ncellsize 10\n"
+               "NODATA_value -9999\n1 2 3\n4 5 6\n7 8 9\n"})
+        status, job = c.call("/jobs/tool", {
+            "tool": "smooth", "params": {"passes": 1},
+            "inputs": ["earth/p/data/grid.asc"],
+            "output": "earth/p/data/processed/smoothed.asc"})
+        check("the smooth tool starts", status == 200 and job.get("job_id"),
+              str(job)[:60])
+        if status == 200:
+            snap = c.wait_job(job["job_id"])
+            log = c.job_log(job["job_id"])
+            if caps["python"]["numpy"]:
+                check("smooth completes with numpy present",
+                      snap.get("status") == "done",
+                      f"status={snap.get('status')} log={log[-120:]}")
+                out = root / "earth" / "p" / "data" / "processed" / "smoothed.asc"
+                check("smooth writes the output grid", out.is_file(), str(out))
+                if out.is_file():
+                    rows = [[float(v) for v in p] for p in
+                            (ln.split() for ln in out.read_text().splitlines())
+                            if p and not p[0][0].isalpha()]
+                    # Hand-computed 3×3 means: centre = mean of all nine = 5;
+                    # a corner = mean of its four in-grid cells (12/4, 28/4).
+                    check("3x3 mean: the centre is the mean of all nine",
+                          len(rows) == 3 and rows[1][1] == 5.0, str(rows))
+                    check("3x3 mean: corners average their four neighbours",
+                          rows[0][0] == 3.0 and rows[2][2] == 7.0,
+                          f"{rows[0][0]} {rows[2][2]}")
+                check("smooth streams its progress into the job log",
+                      "[smooth]" in log and "wrote" in log,
+                      log[:120].replace("\n", " | "))
+            else:
+                check("smooth without numpy fails with a clear ERROR",
+                      snap.get("status") == "failed" and "ERROR:" in log
+                      and "numpy" in log,
+                      f"status={snap.get('status')} log={log[-120:]}")
+        # The ERROR contract must hold on every machine, so when numpy IS
+        # here it is blocked with a shadowing shim delivered through the
+        # job's own env — which also proves env reaches the tool process.
+        if caps["python"]["numpy"]:
+            shim = root / "_shim"
+            shim.mkdir(exist_ok=True)
+            (shim / "numpy.py").write_text(
+                'raise ImportError("numpy blocked by test shim")\n')
+            status, job = c.call("/jobs/tool", {
+                "tool": "smooth", "inputs": ["earth/p/data/grid.asc"],
+                "output": "earth/p/data/processed/sm2.asc",
+                "env": {"PYTHONPATH": str(shim)}})
+            if status == 200:
+                snap = c.wait_job(job["job_id"])
+                # The tool's OWN last line must be the ERROR — the sidecar
+                # appends its exit-code trailer after it.
+                told = [l for l in c.job_log(job["job_id"]).splitlines()
+                        if not l.startswith("[sidecar]")]
+                check("without numpy the tool fails with a final ERROR line",
+                      snap.get("status") == "failed" and told
+                      and told[-1].startswith("ERROR:") and "numpy" in told[-1],
+                      f"status={snap.get('status')} last={told[-1:]}")
+            else:
+                check("without numpy the tool fails with a final ERROR line",
+                      False, f"HTTP {status}")
+
         # ── Atlas: keys are masked, never returned ───────────────────────────
         status, keys = c.call("/atlas/keys")
         check("atlas reports its supported keys",
@@ -379,12 +579,44 @@ def run_tests(root: Path) -> None:
             check("accepts the token", status == 200, f"HTTP {status}")
             status, _ = Client(base2, "wrong-token").call("/jobs")
             check("refuses a wrong token", status == 401, f"HTTP {status}")
+            # /capabilities is gated like everything but /health.
+            status, _ = anon.call("/capabilities")
+            check("capabilities is token-gated", status == 401, f"HTTP {status}")
+            status, capd = authed.call("/capabilities")
+            check("capabilities answers the token",
+                  status == 200 and "bins" in capd, f"HTTP {status}")
     finally:
         proc2.terminate()
         try:
             proc2.wait(timeout=5)
         except subprocess.TimeoutExpired:
             proc2.kill()
+
+    # ── missing binary is a 409, on a PATH-stripped third instance ───────────
+    # Every gdal binary is installed on some machines, so the 409 is proven by
+    # hiding PATH from a dedicated instance rather than hoping one is absent.
+    port3 = free_port()
+    proc3, base3 = start(root, port3, env={"PATH": "/nonexistent"})
+    try:
+        c3 = Client(base3)
+        _, caps3 = c3.call("/capabilities")
+        check("a stripped PATH reports every binary absent",
+              isinstance(caps3, dict)
+              and not any(caps3.get("bins", {"x": True}).values()),
+              str(caps3.get("bins") if isinstance(caps3, dict) else caps3))
+        status, err = c3.call("/jobs/gdal", {
+            "program": "gdalwarp", "args": ["$IN0", "$OUT"],
+            "inputs": ["earth/p/data/tiny.asc"],
+            "output": "earth/p/exports/warped.tif"})
+        check("a missing binary is a 409 that names it",
+              status == 409 and "gdalwarp" in str(err.get("error", "")),
+              f"HTTP {status} {str(err)[:70]}")
+    finally:
+        proc3.terminate()
+        try:
+            proc3.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc3.kill()
 
 
 def main() -> int:
