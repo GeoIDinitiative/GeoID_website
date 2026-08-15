@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260814-9a8aae2";
-import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260814-9a8aae2";
+import * as G from "./geometry.js?v=20260815-d33b5bb";
+import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260815-d33b5bb";
 
 // Raster analysis equivalents of the QGIS Raster menu / ArcGIS Spatial Analyst
 // surface tools. A raster here is { band, width, height, bounds, noData },
@@ -229,8 +229,63 @@ export function zonalStatistics(raster, zonesFc) {
 }
 
 /**
- * Marching squares contours. Returns a FeatureCollection of LineStrings, one
- * segment per crossed cell, tagged with the contour level.
+ * Chain loose segments into polylines by shared endpoints.
+ *
+ * Marching squares emits one segment per crossed cell, and a contour is a
+ * *line* — so unstitched output is unusable for anything past drawing: it
+ * cannot be labelled, measured, simplified or exported as a contour, and a
+ * modest DEM yields tens of thousands of two-point features.
+ *
+ * Endpoints are quantised to a grid before hashing. Neighbouring cells compute
+ * the shared crossing from the same two corner values, so the coordinates
+ * agree to the last bit in principle — but they arrive through different
+ * arithmetic, and an exact-equality join silently leaves every chain in
+ * pieces. The tolerance is a fraction of a cell, far below any real spacing.
+ */
+function stitchSegments(segments, cellSize) {
+  const quantum = Math.max(cellSize * 1e-6, 1e-12);
+  const key = (p) => `${Math.round(p[0] / quantum)},${Math.round(p[1] / quantum)}`;
+  // Every endpoint to the segments that touch it.
+  const ends = new Map();
+  const push = (k, index) => {
+    if (!ends.has(k)) ends.set(k, []);
+    ends.get(k).push(index);
+  };
+  segments.forEach((seg, i) => { push(key(seg[0]), i); push(key(seg[1]), i); });
+
+  const used = new Array(segments.length).fill(false);
+  const lines = [];
+  // Walk from one end of a segment until the chain runs out, then the other,
+  // so an open contour is built whichever segment of it is picked up first.
+  const extend = (line, fromKey, atStart) => {
+    let k = fromKey;
+    for (;;) {
+      const next = (ends.get(k) || []).find((i) => !used[i]);
+      if (next === undefined) return;
+      used[next] = true;
+      const [a, b] = segments[next];
+      const forward = key(a) === k;
+      const tip = forward ? b : a;
+      if (atStart) line.unshift(tip); else line.push(tip);
+      k = key(tip);
+    }
+  };
+  segments.forEach((seg, i) => {
+    if (used[i]) return;
+    used[i] = true;
+    const line = [seg[0], seg[1]];
+    extend(line, key(seg[1]), false);
+    extend(line, key(seg[0]), true);
+    lines.push(line);
+  });
+  return lines;
+}
+
+/**
+ * Marching squares contours, stitched into polylines and tagged with `level`.
+ *
+ * Closed contours come back with their first and last point equal, which is
+ * how a caller tells a loop from an open line running off the raster edge.
  */
 export function contours(raster, levels) {
   const features = [];
@@ -269,8 +324,10 @@ export function contours(raster, levels) {
         (cases[idx] || []).forEach((seg) => segments.push(seg));
       }
     }
-    segments.forEach((seg) => {
-      features.push(feature({ type: "LineString", coordinates: seg }, { level }));
+    const cellSize = Math.abs(raster.bounds.maxX - raster.bounds.minX) / (raster.width || 1);
+    stitchSegments(segments, cellSize).forEach((line) => {
+      if (line.length < 2) return;
+      features.push(feature({ type: "LineString", coordinates: line }, { level }));
     });
   });
   return featureCollection(features);

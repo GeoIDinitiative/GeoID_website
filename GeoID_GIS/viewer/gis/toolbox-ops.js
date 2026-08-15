@@ -1,10 +1,10 @@
-import * as GP from "./geoprocessing.js?v=20260814-9a8aae2";
-import * as RA from "./raster-analysis.js?v=20260814-9a8aae2";
-import * as VF from "./vector-formats.js?v=20260814-9a8aae2";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260814-9a8aae2";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260814-9a8aae2";
-import { downloadText } from "./extraction.js?v=20260814-9a8aae2";
-import { CRS_OPTIONS } from "./projection.js?v=20260814-9a8aae2";
+import * as GP from "./geoprocessing.js?v=20260815-d33b5bb";
+import * as RA from "./raster-analysis.js?v=20260815-d33b5bb";
+import * as VF from "./vector-formats.js?v=20260815-d33b5bb";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260815-d33b5bb";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260815-d33b5bb";
+import { downloadText } from "./extraction.js?v=20260815-d33b5bb";
+import { CRS_OPTIONS } from "./projection.js?v=20260815-d33b5bb";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -124,7 +124,11 @@ const VECTOR_OPS = {
   simplify: {
     label: "Simplify",
     needsSecond: false,
-    param: { label: "Tolerance (deg)", value: 0.001, step: 0.0005 },
+    // Metres, not degrees: a degree is 111 km at the equator and 20 km at 80°
+    // north, so the old unit simplified a dataset harder at one end than the
+    // other and had no meaning anyone could reason about. 100 m is a sane
+    // default for coastline-scale data.
+    param: { label: "Tolerance (m)", value: 100, step: 10 },
     run: (a, _b, param) => publishVector(GP.simplifyCollection(a.collection, param), `simplify_${a.name}`),
   },
   spatialJoin: {

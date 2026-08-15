@@ -186,6 +186,67 @@ function areaDeg2(collection) {
   near("intersect honours holes too", areaDeg2(out), 6, 1e-9);
 }
 
+/* ── buffer dissolves overlaps ── */
+
+{
+  // Two points 1 km apart, buffered 1 km: the circles overlap heavily, so the
+  // answer is ONE shape. Un-dissolved this double-counts the lens where they
+  // cross, which is what makes an area figure from a buffer wrong.
+  const pts = fc(
+    feature({ type: "Point", coordinates: [0, 0] }, {}),
+    feature({ type: "Point", coordinates: [0.009, 0] }, {}),  // ~1 km east
+  );
+  const merged = buffer(pts, 1000);
+  check("overlapping buffers merge to one feature", merged.features.length === 1);
+  const separate = buffer(pts, 1000, { dissolve: false });
+  check("and stay separate when asked", separate.features.length === 2);
+  check("the merged area is less than the sum of the parts",
+    areaDeg2(merged) < areaDeg2(separate) - 1e-9);
+}
+{
+  // Far apart: nothing to merge, so both survive as their own features.
+  const pts = fc(
+    feature({ type: "Point", coordinates: [0, 0] }, {}),
+    feature({ type: "Point", coordinates: [10, 10] }, {}),
+  );
+  check("disjoint buffers are not forced together", buffer(pts, 1000).features.length === 2);
+}
+{
+  // A chain: A overlaps B, B overlaps C, A does not reach C. All one region —
+  // this is what the re-scan after each merge is for.
+  const pts = fc(
+    feature({ type: "Point", coordinates: [0, 0] }, {}),
+    feature({ type: "Point", coordinates: [0.015, 0] }, {}),
+    feature({ type: "Point", coordinates: [0.030, 0] }, {}),
+  );
+  check("a chain of overlaps collapses to one", buffer(pts, 1000).features.length === 1);
+}
+
+/* ── simplify takes metres ── */
+
+{
+  // A line with a 50 m wiggle in the middle. A 100 m tolerance removes it; a
+  // 10 m tolerance keeps it. Under the old degree-based unit both numbers
+  // would have flattened the line to its endpoints.
+  const wiggle = fc(feature({ type: "LineString", coordinates: [
+    [0, 0], [0.01, 0.00045], [0.02, 0], // ~50 m off the straight line
+  ] }, {}));
+  const coarse = simplifyCollection(wiggle, 100).features[0].geometry.coordinates;
+  const fine = simplifyCollection(wiggle, 10).features[0].geometry.coordinates;
+  check("a 100 m tolerance drops a 50 m wiggle", coarse.length === 2);
+  check("a 10 m tolerance keeps it", fine.length === 3);
+}
+{
+  // The same shape at 60° north, where a degree of longitude is half as long.
+  // In metres the outcome must not depend on latitude; in degrees it did.
+  const at = (lat) => fc(feature({ type: "LineString", coordinates: [
+    [0, lat], [0.01, lat + 0.00045], [0.02, lat],
+  ] }, {}));
+  const equator = simplifyCollection(at(0), 100).features[0].geometry.coordinates.length;
+  const north = simplifyCollection(at(60), 100).features[0].geometry.coordinates.length;
+  check("the same tolerance behaves the same at 60° north", equator === north);
+}
+
 /* ── the untouched ops still behave (regression floor for this module) ── */
 
 {

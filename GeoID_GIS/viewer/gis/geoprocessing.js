@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260814-9a8aae2";
-import { transform } from "./projection.js?v=20260814-9a8aae2";
+import * as G from "./geometry.js?v=20260815-d33b5bb";
+import { transform } from "./projection.js?v=20260815-d33b5bb";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //
@@ -78,8 +78,17 @@ export function featureLengthM(f) {
 
 // ── Tools ───────────────────────────────────────────────────────────────────
 
-/** Buffer: points become circles, lines become corridors, polygons dilate. */
-export function buffer(fc, distanceM, { segments = 32 } = {}) {
+/**
+ * Buffer: points become circles, lines become corridors, polygons dilate.
+ *
+ * Overlapping buffers are merged by default, which is what a buffer is for —
+ * "within 5 km of any river" is one region, and every GIS dissolves it. Left
+ * un-merged the overlaps double-count on any area figure taken from the
+ * result, and the seams show through as darker bands wherever two buffers
+ * cross. Pass `{ dissolve: false }` to keep one buffer per input feature,
+ * which is what you want when the buffer is an attribute of its feature.
+ */
+export function buffer(fc, distanceM, { segments = 32, dissolve: merge = true } = {}) {
   const out = [];
   fc.features.forEach((f) => {
     const props = { ...f.properties, buffer_m: distanceM };
@@ -101,7 +110,56 @@ export function buffer(fc, distanceM, { segments = 32 } = {}) {
       });
     }
   });
-  return featureCollection(out);
+  const result = featureCollection(out);
+  return merge ? unionAll(result, { buffer_m: distanceM }) : result;
+}
+
+/**
+ * Union every polygon in a collection into as few as possible.
+ *
+ * Pairwise against an accumulating set, which is the honest use of a
+ * ring-versus-ring primitive: rings that do not touch stay separate, and each
+ * merge feeds back in so a chain of overlapping buffers collapses to one.
+ * Attributes cannot survive a merge — the output is one shape made of many
+ * inputs — so the caller says what the result should carry.
+ */
+function unionAll(fc, properties = {}) {
+  const rings = fc.features
+    .flatMap((f) => polygonsOf(f.geometry))
+    .map((polygon) => polygon[0])
+    .filter(validRing);
+  if (rings.length < 2) {
+    return rings.length
+      ? featureCollection([feature({ type: "Polygon", coordinates: [rings[0]] }, properties)])
+      : featureCollection([]);
+  }
+  const merged = [];
+  rings.forEach((ring) => {
+    let current = ring;
+    let touched = true;
+    // Re-scan after every merge: joining A to B can bring the result into
+    // contact with C, which an single pass would leave separate.
+    while (touched) {
+      touched = false;
+      for (let i = 0; i < merged.length; i += 1) {
+        if (!G.boundsIntersect(G.boundsOf(current), G.boundsOf(merged[i]))) continue;
+        const joined = G.booleanOp(current, merged[i], "union").filter(validRing);
+        // A union that comes back as two rings means they did not overlap
+        // after all -- the primitive returns both inputs. Only a single ring
+        // is a real merge.
+        if (joined.length === 1) {
+          current = joined[0];
+          merged.splice(i, 1);
+          touched = true;
+          break;
+        }
+      }
+    }
+    merged.push(current);
+  });
+  return featureCollection(merged.map((ring) => feature(
+    { type: "Polygon", coordinates: [ring] }, properties,
+  )));
 }
 
 // ── Multi-ring overlay ──────────────────────────────────────────────────────
@@ -339,10 +397,30 @@ export function centroids(fc) {
   }));
 }
 
-export function simplifyCollection(fc, toleranceDeg) {
+/**
+ * Douglas-Peucker simplify, tolerance in METRES.
+ *
+ * The underlying primitive works in degrees, which is not a distance: a degree
+ * of longitude is 111 km at the equator and 20 km at 80° north, so one
+ * tolerance applied to a dataset spanning latitudes simplified the north far
+ * harder than the south — and nobody can say what "0.001" should be anyway.
+ * The conversion is per feature at its own centroid latitude, which is the
+ * same approximation the draw-a-box tool documents: exact at the centre and
+ * close enough across any one feature.
+ */
+export function simplifyCollection(fc, toleranceM) {
+  const DEG_M = 111320; // one degree of latitude, near enough anywhere
   return featureCollection(fc.features.map((f) => {
     const geometry = f.geometry;
     if (!geometry) return f;
+    const coords = geometryCoords(f.geometry);
+    if (!coords.length) return f;
+    // Degrees of longitude shrink with latitude; a tolerance has to be a
+    // circle on the ground, so take the harsher (longitude) axis at this
+    // feature's latitude rather than simplifying more in x than in y.
+    const lat = coords.reduce((sum, c) => sum + c[1], 0) / coords.length;
+    const metresPerDegLon = DEG_M * Math.max(Math.cos((lat * Math.PI) / 180), 1e-6);
+    const toleranceDeg = toleranceM / Math.max(metresPerDegLon, 1e-6);
     if (geometry.type === "Polygon" || geometry.type === "MultiPolygon") {
       const mapPolygon = (polygon) => polygon
         .map((ring) => {
