@@ -1,8 +1,9 @@
-import * as GP from "./geoprocessing.js?v=20260816-e4d702c";
-import * as RA from "./raster-analysis.js?v=20260816-e4d702c";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-e4d702c";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-e4d702c";
-import { CRS_OPTIONS } from "./projection.js?v=20260816-e4d702c";
+import * as GP from "./geoprocessing.js?v=20260816-4b17eab";
+import * as RA from "./raster-analysis.js?v=20260816-4b17eab";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-4b17eab";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-4b17eab";
+import { CRS_OPTIONS } from "./projection.js?v=20260816-4b17eab";
+import * as IN from "./interpolation.js?v=20260816-4b17eab";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -626,6 +627,244 @@ export const TOOLS = [
   // ── Zonal statistics — its own toolbox tile, so its own category. Joins the
   //    registry per spec 1.1; outputType "table" returns rows, registers no
   //    layer. ─────────────────────────────────────────────────────────────────
+  // ── Hydrology and visibility (sidecar only: the browser cannot do these) ──
+  // Each names its own tool script and reads the DEM from inputs[0], per the
+  // /jobs/tool contract. No native engine, so the dialog reports honestly
+  // when the sidecar is absent rather than offering a button that cannot work.
+  {
+    id: "fillSinks",
+    label: "Fill sinks",
+    category: "Hydrology",
+    blurb: "Raise closed depressions until water can leave — the step every flow calculation needs first.",
+    keywords: ["pit", "depression", "hydrology", "priority flood", "drain", "sink"],
+    inputs: [{ name: "input", label: "DEM", type: "raster" }],
+    params: [],
+    outputType: "raster",
+    outputName: "filled_{input}",
+    engines: {
+      sidecar: {
+        requires: ["numpy"],
+        build: ({ inputs, outputName }) => ({
+          tool: "hydrology",
+          params: { operation: "fill" },
+          inputs: [inputs.input],
+          output: `data/processed/${outputName}.asc`,
+        }),
+      },
+    },
+  },
+  {
+    id: "flowAccumulation",
+    label: "Flow accumulation",
+    category: "Hydrology",
+    blurb: "How many cells drain through each cell — the river network falls out of it, and it is the top factor in flood susceptibility.",
+    keywords: ["drainage", "d8", "upstream", "catchment", "river", "flow", "hydrology"],
+    inputs: [{ name: "input", label: "DEM", type: "raster" }],
+    params: [],
+    outputType: "raster",
+    outputName: "flowacc_{input}",
+    engines: {
+      sidecar: {
+        requires: ["numpy"],
+        build: ({ inputs, outputName }) => ({
+          tool: "hydrology",
+          // "all" fills, computes D8 and writes accumulation in one pass —
+          // three jobs' worth of round trip saved, and the fill is mandatory
+          // anyway.
+          params: { operation: "all" },
+          inputs: [inputs.input],
+          output: `data/processed/${outputName}.asc`,
+        }),
+      },
+    },
+  },
+  {
+    id: "watershed",
+    label: "Watersheds",
+    category: "Hydrology",
+    blurb: "Label every cell with the outlet it drains to — catchment boundaries without drawing one.",
+    keywords: ["catchment", "basin", "divide", "drainage", "hydrology", "outlet"],
+    inputs: [{ name: "input", label: "DEM", type: "raster" }],
+    params: [],
+    outputType: "raster",
+    outputName: "basins_{input}",
+    engines: {
+      sidecar: {
+        requires: ["numpy"],
+        build: ({ inputs, outputName }) => ({
+          tool: "hydrology",
+          params: { operation: "watershed" },
+          inputs: [inputs.input],
+          output: `data/processed/${outputName}.asc`,
+        }),
+      },
+    },
+  },
+  {
+    id: "streams",
+    label: "Stream network",
+    category: "Hydrology",
+    blurb: "Cells with more than a threshold of upstream area — a drainage network derived from the terrain itself.",
+    keywords: ["river", "channel", "drainage", "network", "threshold", "hydrology"],
+    inputs: [{ name: "input", label: "DEM", type: "raster" }],
+    params: [
+      { name: "threshold", label: "Upstream cells", kind: "number", default: 100, step: 50, min: 1 },
+    ],
+    outputType: "raster",
+    outputName: "streams_{input}",
+    engines: {
+      sidecar: {
+        requires: ["numpy"],
+        build: ({ inputs, params, outputName }) => ({
+          tool: "hydrology",
+          params: { operation: "streams", threshold: params.threshold },
+          inputs: [inputs.input],
+          output: `data/processed/${outputName}.asc`,
+        }),
+      },
+    },
+  },
+  {
+    id: "viewshed",
+    label: "Viewshed",
+    category: "Hydrology",
+    blurb: "What can be seen from a point — line of sight over the terrain, cell by cell.",
+    keywords: ["visibility", "line of sight", "observer", "seen", "intervisibility"],
+    inputs: [{ name: "input", label: "DEM", type: "raster" }],
+    params: [
+      { name: "lat", label: "Observer latitude", kind: "number", default: 0, step: 0.001 },
+      { name: "lon", label: "Observer longitude", kind: "number", default: 0, step: 0.001 },
+      { name: "height", label: "Observer height (m)", kind: "number", default: 1.7, step: 0.5, min: 0 },
+    ],
+    outputType: "raster",
+    outputName: "viewshed_{input}",
+    engines: {
+      sidecar: {
+        requires: ["numpy"],
+        build: ({ inputs, params, outputName }) => ({
+          tool: "viewshed",
+          params: { observer: [params.lon, params.lat], observer_height: params.height },
+          inputs: [inputs.input],
+          output: `data/processed/${outputName}.asc`,
+        }),
+      },
+    },
+  },
+  {
+    id: "kriging",
+    label: "Kriging",
+    category: "Interpolation",
+    blurb: "Geostatistical interpolation with a fitted variogram — IDW's principled cousin, and it needs SciPy in the sidecar.",
+    keywords: ["geostatistics", "variogram", "ordinary", "interpolate", "surface", "scipy"],
+    inputs: [{ name: "input", label: "Points", type: "vector" }],
+    params: [
+      { name: "field", label: "Value field", kind: "field" },
+      { name: "model", label: "Variogram", kind: "select", default: "spherical", options: [
+        { id: "spherical", name: "Spherical" }, { id: "exponential", name: "Exponential" },
+      ] },
+      { name: "cellsAcross", label: "Cells across", kind: "number", default: 256, step: 32, min: 8 },
+    ],
+    outputType: "raster",
+    outputName: "kriging_{input}",
+    engines: {
+      sidecar: {
+        requires: ["numpy", "scipy"],
+        // kriging.py carries its samples INLINE (params.points), not as a
+        // file — so the points are read out of the layer here rather than
+        // staged. Its 2000-point cap is the tool's, and it says so itself.
+        build: ({ layers, params, outputName }) => {
+          const points = [];
+          (layers.input.collection?.features || []).forEach((f) => {
+            const value = Number(f.properties?.[params.field]);
+            if (!Number.isFinite(value)) return;
+            const g = f.geometry;
+            const coords = g?.type === "Point" ? [g.coordinates]
+              : g?.type === "MultiPoint" ? g.coordinates : [];
+            coords.forEach((c) => points.push([c[0], c[1], value]));
+          });
+          const bounds = boundsOfCollection(layers.input);
+          return {
+            tool: "kriging",
+            params: {
+              points, model: params.model,
+              cells_across: Math.round(params.cellsAcross),
+              bounds: bounds ? [bounds.minX, bounds.minY, bounds.maxX, bounds.maxY] : undefined,
+            },
+            inputs: [],
+            output: `data/processed/${outputName}.asc`,
+          };
+        },
+      },
+    },
+  },
+  // ── Interpolation (points to a continuous surface) ───────────────────────
+  {
+    id: "idw",
+    label: "IDW interpolation",
+    category: "Interpolation",
+    blurb: "Turn scattered measurements into a surface — nearer samples count for more. Exact at every sample.",
+    keywords: ["interpolate", "surface", "kriging", "points", "grid", "distance", "weighted"],
+    inputs: [{ name: "input", label: "Points", type: "vector" }],
+    params: [
+      { name: "field", label: "Value field", kind: "field" },
+      { name: "power", label: "Power", kind: "number", default: 2, step: 0.5, min: 0.1 },
+      { name: "cellsAcross", label: "Cells across", kind: "number", default: 256, step: 32, min: 8 },
+    ],
+    outputType: "raster",
+    outputName: "idw_{input}",
+    engines: {
+      native: (i, p) => {
+        const bounds = boundsOfCollection(i.input);
+        if (!bounds) return { ok: false, message: "That layer has no usable extent." };
+        const raster = IN.idwRaster(i.input.collection, p.field, bounds,
+          { power: p.power, cellsAcross: Math.round(p.cellsAcross) });
+        if (!raster) return { ok: false, message: `No numeric "${p.field}" values to interpolate.` };
+        return { raster };
+      },
+    },
+  },
+  {
+    id: "tin",
+    label: "TIN surface",
+    category: "Interpolation",
+    blurb: "Triangulate the points and interpolate across each triangle — linear between samples, blank outside their hull.",
+    keywords: ["triangulate", "delaunay", "surface", "linear", "mesh", "interpolate"],
+    inputs: [{ name: "input", label: "Points", type: "vector" }],
+    params: [
+      { name: "field", label: "Value field", kind: "field" },
+      { name: "cellsAcross", label: "Cells across", kind: "number", default: 256, step: 32, min: 8 },
+    ],
+    outputType: "raster",
+    outputName: "tin_{input}",
+    engines: {
+      native: (i, p) => {
+        const bounds = boundsOfCollection(i.input);
+        if (!bounds) return { ok: false, message: "That layer has no usable extent." };
+        const raster = IN.tinRaster(i.input.collection, p.field, bounds,
+          { cellsAcross: Math.round(p.cellsAcross) });
+        if (!raster) return { ok: false, message: "Not enough points with values to triangulate (three minimum)." };
+        return { raster };
+      },
+    },
+  },
+  {
+    id: "voronoi",
+    label: "Voronoi polygons",
+    category: "Interpolation",
+    blurb: "One polygon per point, covering everywhere closer to it than to any other — catchments, service areas, nearest-station zones.",
+    keywords: ["thiessen", "proximity", "nearest", "catchment", "tessellation", "polygons"],
+    inputs: [{ name: "input", label: "Points", type: "vector" }],
+    params: [],
+    outputType: "vector",
+    outputName: "voronoi_{input}",
+    engines: {
+      native: (i) => {
+        const bounds = boundsOfCollection(i.input);
+        if (!bounds) return { ok: false, message: "That layer has no usable extent." };
+        return IN.voronoiPolygons(i.input.collection, bounds);
+      },
+    },
+  },
   {
     id: "zonalStatistics",
     label: "Zonal statistics",
@@ -687,6 +926,30 @@ function sameGrid(a, b) {
   return a.width === b.width && a.height === b.height
     && a.bounds.minX === b.bounds.minX && a.bounds.maxX === b.bounds.maxX
     && a.bounds.minY === b.bounds.minY && a.bounds.maxY === b.bounds.maxY;
+}
+
+/**
+ * The extent to interpolate over: the layer's own, padded by 2% so the
+ * outermost samples are inside the grid rather than on its edge. A study area
+ * would be the other candidate, but a surface should not silently extend
+ * beyond the data that supports it.
+ */
+function boundsOfCollection(layer) {
+  const coords = [];
+  (layer.collection?.features || []).forEach((f) => {
+    const g = f.geometry;
+    if (g?.type === "Point") coords.push(g.coordinates);
+    else if (g?.type === "MultiPoint") coords.push(...g.coordinates);
+  });
+  if (!coords.length) return layer.bounds || null;
+  const xs = coords.map((c) => c[0]);
+  const ys = coords.map((c) => c[1]);
+  const padX = (Math.max(...xs) - Math.min(...xs)) * 0.02 || 0.01;
+  const padY = (Math.max(...ys) - Math.min(...ys)) * 0.02 || 0.01;
+  return {
+    minX: Math.min(...xs) - padX, maxX: Math.max(...xs) + padX,
+    minY: Math.min(...ys) - padY, maxY: Math.max(...ys) + padY,
+  };
 }
 
 function matchesType(layer, type) {
@@ -781,10 +1044,12 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260816-e4d702c");
+    const client = await import("./sidecar-client.js?v=20260816-4b17eab");
     await client.probe();
     const status = client.engineStatus(desc);
-    const big = client.shouldOffload(resolved);
+    // A tool with no native engine is sidecar-only: size is irrelevant, the
+    // sidecar is the only way it runs at all.
+    const big = !desc.engines.native || client.shouldOffload(resolved);
     if (status.ok && big) {
       const out = await client.runSidecarEngine(desc, resolved, params, name);
       if (out.ok) {
@@ -796,12 +1061,20 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
         });
         return out;
       }
+      if (!desc.engines.native) return out;   // nothing to fall back to
       why = ` ${out.message} Ran natively instead.`;
-    } else if (big && !status.ok) {
-      // Only worth saying when the job was large enough for it to matter.
-      why = ` ${status.reason}`;
+    } else if (!status.ok) {
+      if (!desc.engines.native) {
+        // Sidecar-only and it cannot run: the reason IS the answer.
+        return { ok: false, message: status.reason, layer: null, outputType: desc.outputType };
+      }
+      // Otherwise only worth saying when the job was large enough to matter.
+      if (big) why = ` ${status.reason}`;
     }
   } catch (error) {
+    if (!desc.engines.native) {
+      return { ok: false, message: `The sidecar could not be reached: ${error.message}`, layer: null, outputType: desc.outputType };
+    }
     why = ` The sidecar could not be reached (${error.message}); ran natively.`;
   }
 
@@ -826,7 +1099,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260816-e4d702c");
+    const bridge = await import("./research/bridge.js?v=20260816-4b17eab");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -838,12 +1111,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260816-e4d702c");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260816-4b17eab");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260816-e4d702c");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260816-4b17eab");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

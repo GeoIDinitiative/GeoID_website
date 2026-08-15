@@ -22,9 +22,9 @@
  * therefore means no sidecar engine — stated as such rather than half-tried.
  */
 
-import * as sidecar from "./research/sidecar.js?v=20260816-e4d702c";
-import { toGeoJson } from "./vector-formats.js?v=20260816-e4d702c";
-import { writeGeoTiff } from "./geotiff-writer.js?v=20260816-e4d702c";
+import * as sidecar from "./research/sidecar.js?v=20260816-4b17eab";
+import { toGeoJson } from "./vector-formats.js?v=20260816-4b17eab";
+import { writeGeoTiff } from "./geotiff-writer.js?v=20260816-4b17eab";
 
 /* ── capability probe ─────────────────────────────────────────────────────── */
 
@@ -173,7 +173,10 @@ export async function runSidecarEngine(desc, inputs, params, outputName) {
   }
   // The engine builds its own request from the staged paths, so a tool that
   // needs three inputs in a particular order says so once, here.
-  const request = engine.build({ inputs: staged, params, outputName, tmpName });
+  // `layers` as well as `inputs`: a tool whose contract carries the data in
+  // its params (kriging takes the sample points inline) needs the features,
+  // not a path to them.
+  const request = engine.build({ inputs: staged, layers: inputs, params, outputName, tmpName });
   const outPath = request.output;
 
   const jobId = request.tool
@@ -190,7 +193,7 @@ export async function runSidecarEngine(desc, inputs, params, outputName) {
 
   // Back through the ONE import path, so a sidecar result drapes exactly like
   // a dropped file — no second georeferencing path to keep in step.
-  const bridge = await import("./research/bridge.js?v=20260816-e4d702c");
+  const bridge = await import("./research/bridge.js?v=20260816-4b17eab");
   const layer = await bridge.sendToGlobe(outPath);
   return {
     ok: true,
