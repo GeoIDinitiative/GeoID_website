@@ -39,9 +39,9 @@
  * law is honoured by having nothing to exempt.
  */
 
-import { prefs, mergeParams } from "./tool-prefs.js?v=20260815-1576710";
+import { prefs, mergeParams } from "./tool-prefs.js?v=20260816-3657637";
 
-const RUNNER_URL = "./tool-runner.js?v=20260815-1576710";
+const RUNNER_URL = "./tool-runner.js?v=20260816-3657637";
 
 /* ── Dialog-only styles, injected as the house pattern dictates.
       NEVER a backtick inside this literal — it ends the string and kills the
@@ -557,7 +557,11 @@ function gatherAndRun() {
   setStatus(`Running ${desc.label || desc.id}…`);
   raf(() => {
     Promise.resolve()
-      .then(() => runner.runTool(desc.id, inputs, params, { outputName }))
+      // runToolAuto picks the engine (native here, or GDAL in the sidecar when
+      // it is connected, capable and the input is big enough to be worth it)
+      // and falls back to native by itself. A runner that predates it still
+      // answers runTool, so the dialog works against either.
+      .then(() => (runner.runToolAuto || runner.runTool)(desc.id, inputs, params, { outputName }))
       .then((result) => {
         if (!result || result.ok === false) {
           setStatus(result?.message || "Failed.");

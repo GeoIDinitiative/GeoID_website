@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260815-1576710";
-import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260815-1576710";
+import * as G from "./geometry.js?v=20260816-3657637";
+import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260816-3657637";
 
 // Raster analysis equivalents of the QGIS Raster menu / ArcGIS Spatial Analyst
 // surface tools. A raster here is { band, width, height, bounds, noData },
@@ -102,6 +102,95 @@ export function hillshade(raster, { azimuth = 315, altitude = 45, zFactor = 1 } 
       const value = 255 * ((Math.cos(zenith) * Math.cos(slopeRad))
         + (Math.sin(zenith) * Math.sin(slopeRad) * Math.cos(azimuthRad - aspectRad)));
       out[y * raster.width + x] = Math.max(0, Math.min(255, value));
+    }
+  }
+  return makeRaster(out, raster.width, raster.height, raster.bounds, NaN);
+}
+
+/**
+ * Curvature (Zevenbergen & Thorne 1987, the ArcGIS convention): −100·(z_xx +
+ * z_yy), positive over ridges/convexities, negative in hollows. Second
+ * derivatives from the 3×3 window with each axis using its own metre cell
+ * size — a degree of longitude is not a degree of latitude, and mixing them
+ * skews curvature east–west.
+ */
+export function curvature(raster) {
+  const cell = cellSizeMetres(raster);
+  const out = new Float32Array(raster.width * raster.height).fill(NaN);
+  for (let y = 0; y < raster.height; y += 1) {
+    for (let x = 0; x < raster.width; x += 1) {
+      const z5 = valueAt(raster, x, y);
+      const z4 = valueAt(raster, x - 1, y);
+      const z6 = valueAt(raster, x + 1, y);
+      const z2 = valueAt(raster, x, y - 1);
+      const z8 = valueAt(raster, x, y + 1);
+      if (z5 === null || z4 === null || z6 === null || z2 === null || z8 === null) continue;
+      const d = ((z4 + z6) / 2 - z5) / (cell.x * cell.x);
+      const e = ((z2 + z8) / 2 - z5) / (cell.y * cell.y);
+      out[y * raster.width + x] = -200 * (d + e);
+    }
+  }
+  return makeRaster(out, raster.width, raster.height, raster.bounds, NaN);
+}
+
+/**
+ * Roughness, GDAL's definition: the largest absolute difference between a
+ * cell and any of its 8 neighbours. Flat ground reads 0 in the units of the
+ * band; a scarp reads its own local relief.
+ */
+export function roughness(raster) {
+  const out = new Float32Array(raster.width * raster.height).fill(NaN);
+  for (let y = 0; y < raster.height; y += 1) {
+    for (let x = 0; x < raster.width; x += 1) {
+      const centre = valueAt(raster, x, y);
+      if (centre === null) continue;
+      let worst = null;
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (!dx && !dy) continue;
+          const v = valueAt(raster, x + dx, y + dy);
+          if (v === null) continue;
+          const diff = Math.abs(v - centre);
+          if (worst === null || diff > worst) worst = diff;
+        }
+      }
+      if (worst !== null) out[y * raster.width + x] = worst;
+    }
+  }
+  return makeRaster(out, raster.width, raster.height, raster.bounds, NaN);
+}
+
+/**
+ * Focal statistics over a square (2r+1)² window — QGIS's r.neighbors /
+ * ArcGIS Focal Statistics. NoData cells are excluded from the window, never
+ * averaged in as zero; a cell with no valid neighbour at all stays noData.
+ */
+export function focalStatistics(raster, { radius = 1, stat = "mean" } = {}) {
+  const r = Math.max(1, Math.round(radius));
+  const out = new Float32Array(raster.width * raster.height).fill(NaN);
+  const values = [];
+  for (let y = 0; y < raster.height; y += 1) {
+    for (let x = 0; x < raster.width; x += 1) {
+      values.length = 0;
+      for (let dy = -r; dy <= r; dy += 1) {
+        for (let dx = -r; dx <= r; dx += 1) {
+          const v = valueAt(raster, x + dx, y + dy);
+          if (v !== null) values.push(v);
+        }
+      }
+      if (!values.length) continue;
+      let result;
+      if (stat === "min") result = Math.min(...values);
+      else if (stat === "max") result = Math.max(...values);
+      else if (stat === "sum") result = values.reduce((a, b) => a + b, 0);
+      else if (stat === "range") result = Math.max(...values) - Math.min(...values);
+      else if (stat === "std") {
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        result = Math.sqrt(values.reduce((a, v) => a + (v - mean) ** 2, 0) / values.length);
+      } else {
+        result = values.reduce((a, b) => a + b, 0) / values.length;
+      }
+      out[y * raster.width + x] = result;
     }
   }
   return makeRaster(out, raster.width, raster.height, raster.bounds, NaN);

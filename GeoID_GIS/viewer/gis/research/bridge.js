@@ -1,4 +1,4 @@
-import * as store from "./project-store.js?v=20260815-1576710";
+import * as store from "./project-store.js?v=20260816-3657637";
 
 /**
  * What makes the three pages one workspace.
@@ -133,6 +133,38 @@ export async function saveExportBytes(filename, bytes, mime = "application/octet
   const path = `exports/${filename}`;
   await store.writeProjectFile(path, new Blob([bytes], { type: mime }));
   await store.registerData({ name: filename, kind, path, source: "GIS export" });
+  return path;
+}
+
+/**
+ * A tool's output, filed as a dataset of the project.
+ *
+ * Analysis used to be a one-way street: `addDerivedLayer` puts a result on the
+ * globe with no backing file, so `registerImportedLayer`/`restoreLayers` skip
+ * it and every buffer, slope and susceptibility index evaporates when the page
+ * reloads. This writes the result into `data/processed/` and registers it, so
+ * a derived layer restores exactly like an imported one and the Repository
+ * page lists it beside its inputs.
+ *
+ * The provenance travels with it — which tool, which parameters, which input
+ * datasets, which engine — because a susceptibility raster nobody can trace is
+ * a picture, not a result. `registerData` flattens `extra` onto the record, so
+ * these arrive top-level where the lineage walk can read them.
+ */
+export async function saveProcessed(filename, contents, { mime, provenance = {} } = {}) {
+  if (!activeProject()) return null;
+  const path = `data/processed/${filename}`;
+  await store.writeProjectFile(path,
+    typeof contents === "string" ? contents : new Blob([contents], { type: mime || "application/octet-stream" }));
+  await store.registerData({
+    name: filename,
+    // The kind the import path understands, so restoreLayers re-drapes it;
+    // `stage: "processed"` is what marks it as derived rather than ingested.
+    kind: provenance.outputType === "raster" ? "raster" : "vector",
+    path,
+    source: provenance.tool ? `Tool: ${provenance.label || provenance.tool}` : "GIS tool",
+    extra: { stage: "processed", ...provenance },
+  });
   return path;
 }
 

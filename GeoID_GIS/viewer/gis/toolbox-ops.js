@@ -1,10 +1,10 @@
-import * as GP from "./geoprocessing.js?v=20260815-1576710";
-import * as RA from "./raster-analysis.js?v=20260815-1576710";
-import * as VF from "./vector-formats.js?v=20260815-1576710";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260815-1576710";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260815-1576710";
-import { downloadText } from "./extraction.js?v=20260815-1576710";
-import { CRS_OPTIONS } from "./projection.js?v=20260815-1576710";
+import * as GP from "./geoprocessing.js?v=20260816-3657637";
+import * as RA from "./raster-analysis.js?v=20260816-3657637";
+import * as VF from "./vector-formats.js?v=20260816-3657637";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-3657637";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-3657637";
+import { downloadText } from "./extraction.js?v=20260816-3657637";
+import { CRS_OPTIONS } from "./projection.js?v=20260816-3657637";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -271,6 +271,29 @@ const RASTER_OPS = {
   slope: { label: "Slope (degrees)", run: (r, n) => publishRaster(RA.slope(r.raster), `slope_${n}`) },
   aspect: { label: "Aspect", run: (r, n) => publishRaster(RA.aspect(r.raster), `aspect_${n}`) },
   hillshade: { label: "Hillshade", run: (r, n) => publishRaster(RA.hillshade(r.raster), `hillshade_${n}`) },
+  curvature: {
+    label: "Curvature",
+    run: (r, n) => publishRaster(RA.curvature(r.raster), `curv_${n}`),
+  },
+  roughness: {
+    label: "Roughness",
+    run: (r, n) => publishRaster(RA.roughness(r.raster), `rough_${n}`),
+  },
+  focal: {
+    label: "Focal statistics",
+    param: { label: "Radius (cells)", value: 1, step: 1 },
+    text: { label: "Statistic (mean/min/max/sum/range/std)", value: "mean" },
+    run: (r, n, param, extras) => {
+      const stat = (extras.text || "mean").trim().toLowerCase();
+      if (!["mean", "min", "max", "sum", "range", "std"].includes(stat)) {
+        return { ok: false, message: `"${stat}" is not one of mean, min, max, sum, range, std.` };
+      }
+      const radius = Math.max(1, Math.round(param));
+      return publishRaster(
+        RA.focalStatistics(r.raster, { radius, stat }), `focal_${stat}_${n}`,
+      );
+    },
+  },
   contours: {
     label: "Contours",
     param: { label: "Interval", value: 250, step: 50 },

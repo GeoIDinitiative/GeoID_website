@@ -16,6 +16,7 @@ import {
   clipRasterByPolygon, rasterStatistics,
   resampleToGrid, parseReclassifyRules, distanceRaster,
   rasterizeByAttribute, weightedOverlay, sampleAtPoints,
+  curvature, roughness, focalStatistics,
 } from "./raster-analysis.js";
 
 let failures = 0;
@@ -269,6 +270,76 @@ const northward = build(8, 8, (_x, y) => (7 - y) * 10);
   const stats = rasterStatistics(holed);
   check("no-data is excluded from the count", stats.count === 12, `got ${stats.count}`);
   check("and from the range", stats.min === 10);
+}
+
+/* ── curvature, roughness, focal statistics ── */
+
+{
+  // A plane has no second derivative in any direction, so its curvature is
+  // zero everywhere the 3x3 window fits — the same "a plane has one slope"
+  // discipline as the slope tests above.
+  const c = curvature(eastward);
+  const interior = c.band[3 * 8 + 3];
+  near("a plane has zero curvature", interior, 0, 1e-9);
+  check("edges have no window and stay no-data", Number.isNaN(c.band[0]));
+}
+{
+  // A parabola in metres: z = a·x², whose second derivative is 2a, so the
+  // Zevenbergen–Thorne form returns -200·a exactly. Planting it through the
+  // raster's own cell size is what makes the expected value a measurement.
+  const a = 3e-6;
+  const cell = cellSizeMetres(flat);
+  const parabola = build(8, 8, (x) => a * (x * cell.x) ** 2);
+  const c = curvature(parabola);
+  near("a parabola's curvature is -200 times its quadratic coefficient",
+    c.band[3 * 8 + 3], -200 * a, 1e-9);
+}
+{
+  // Sign convention (ArcGIS): a peak is convex, so positive; a pit negative.
+  const peak = build(5, 5, (x, y) => 100 - ((x - 2) ** 2 + (y - 2) ** 2));
+  const pit = build(5, 5, (x, y) => ((x - 2) ** 2 + (y - 2) ** 2));
+  check("a peak reads convex (positive)", curvature(peak).band[2 * 5 + 2] > 0);
+  check("a pit reads concave (negative)", curvature(pit).band[2 * 5 + 2] < 0);
+}
+{
+  const r = roughness(flat);
+  check("flat ground has zero roughness", r.band[3 * 8 + 3] === 0);
+}
+{
+  // Every neighbour of an interior cell on a 10-per-cell eastward ramp is
+  // 10 away in value (the diagonals share the same column offset), so GDAL's
+  // largest-absolute-difference is exactly 10.
+  const r = roughness(eastward);
+  near("a 10-per-cell ramp is 10 rough", r.band[3 * 8 + 3], 10, 1e-9);
+}
+{
+  const mean = focalStatistics(eastward, { radius: 1, stat: "mean" });
+  // The 3x3 window of a linear ramp is symmetric about its centre.
+  near("focal mean of a ramp returns the centre value",
+    mean.band[3 * 8 + 3], eastward.band[3 * 8 + 3], 1e-4);
+  const max = focalStatistics(eastward, { radius: 1, stat: "max" });
+  near("focal max is the east neighbour", max.band[3 * 8 + 3], 40, 1e-9);
+  const range = focalStatistics(eastward, { radius: 1, stat: "range" });
+  near("focal range spans two cells of ramp", range.band[3 * 8 + 3], 20, 1e-9);
+  const std = focalStatistics(eastward, { radius: 1, stat: "std" });
+  // Three copies each of x-10, x, x+10 about the mean: variance 200/3.
+  near("focal std matches the hand-worked window",
+    std.band[3 * 8 + 3], Math.sqrt(200 / 3), 1e-6);
+}
+{
+  // A window at the raster's edge is clipped, not padded — the average must
+  // not be dragged toward a zero that is not in the data.
+  const mean = focalStatistics(flat, { radius: 2, stat: "mean" });
+  near("a clipped edge window still averages only real cells",
+    mean.band[0], 100, 1e-9);
+}
+{
+  // No-data is excluded from the window rather than counted as a value.
+  const holed = build(4, 4, (x, y) => (x === 1 && y === 1 ? -9999 : 10), -9999);
+  const mean = focalStatistics(holed, { radius: 1, stat: "mean" });
+  near("a hole does not pull its neighbours' mean", mean.band[2 * 4 + 2], 10, 1e-9);
+  check("the hole itself still has neighbours to average",
+    Number.isFinite(mean.band[1 * 4 + 1]));
 }
 
 /* ── resample to grid ── */

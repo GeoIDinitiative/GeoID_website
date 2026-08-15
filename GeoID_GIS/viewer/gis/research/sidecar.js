@@ -285,6 +285,56 @@ export async function postprocessGales({ dir, stations, field } = {}) {
   return (await call("/jobs/gales/postprocess", { method: "POST",
     body: { dir, stations, field } })).job_id;
 }
+/**
+ * What this machine can actually do — probed, never assumed.
+ *
+ * {version, python:{numpy,scipy,…}, geo:{osgeo,rasterio,pyproj,shapely},
+ * bins:{gdalwarp,ogr2ogr,gdaldem,gdal_contour,gdal_viewshed,gdal_rasterize,
+ * gdal_translate,gmsh,mpirun}} — each a boolean. An absent GDAL is a fact to
+ * report, not an error to swallow, so the GIS layer can disable a tool WITH
+ * its reason instead of failing at the point of use.
+ */
+export async function capabilities() {
+  return call("/capabilities");
+}
+
+/** One allowlisted GDAL/OGR run. Paths travel as $IN0…/$OUT placeholders. */
+export async function runGdal({ program, args, inputs, output, label } = {}) {
+  return (await call("/jobs/gdal", { method: "POST",
+    body: { program, args, inputs, output, label } })).job_id;
+}
+
+/** One vetted script from sidecar/tools/, its request a JSON object on stdin. */
+export async function runToolJob({ tool, params, inputs, output, label } = {}) {
+  return (await call("/jobs/tool", { method: "POST",
+    body: { tool, params, inputs, output, label } })).job_id;
+}
+
+/** Gmsh on a studio-generated script; the mesh lands in the project's meshes/. */
+export async function runGmsh({ project, script, scriptPath, name, dim } = {}) {
+  return (await call("/jobs/gmsh", { method: "POST",
+    body: { project, script, scriptPath, name, dim } })).job_id;
+}
+
+/**
+ * Wait for a job to stop running.
+ *
+ * Polled rather than streamed: a tool run wants the verdict, not the log —
+ * streamJob already exists for the pages that show output. Resolves with the
+ * final snapshot whatever the outcome, so the caller reads `status` and
+ * `exit_code` rather than catching; rejects only if the sidecar itself stops
+ * answering, or on timeout, which are genuinely different failures.
+ */
+export async function awaitJob(id, { timeoutMs = 600000, everyMs = 400 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const snap = await call(`/jobs/${encodeURIComponent(id)}`);
+    if (snap.status && snap.status !== "running") return snap;
+    if (Date.now() > deadline) throw new Error(`job ${id} did not finish within ${Math.round(timeoutMs / 1000)}s`);
+    await new Promise((resolve) => setTimeout(resolve, everyMs));
+  }
+}
+
 export async function listJobs() {
   return (await call("/jobs")).jobs || [];
 }

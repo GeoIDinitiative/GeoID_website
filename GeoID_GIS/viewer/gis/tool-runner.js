@@ -1,8 +1,8 @@
-import * as GP from "./geoprocessing.js?v=20260815-1576710";
-import * as RA from "./raster-analysis.js?v=20260815-1576710";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260815-1576710";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260815-1576710";
-import { CRS_OPTIONS } from "./projection.js?v=20260815-1576710";
+import * as GP from "./geoprocessing.js?v=20260816-3657637";
+import * as RA from "./raster-analysis.js?v=20260816-3657637";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-3657637";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-3657637";
+import { CRS_OPTIONS } from "./projection.js?v=20260816-3657637";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -221,7 +221,20 @@ export const TOOLS = [
     params: [],
     outputType: "raster",
     outputName: "slope_{input}",
-    engines: { native: (i) => RA.slope(i.input.raster) },
+    engines: {
+      native: (i) => RA.slope(i.input.raster),
+      // gdaldem computes Horn's method over the whole file without holding it
+      // in a JS array — the same estimator, no cell budget.
+      sidecar: {
+        requires: ["gdaldem"],
+        build: ({ inputs, outputName }) => ({
+          program: "gdaldem",
+          args: ["slope", "$IN0", "$OUT", "-compute_edges"],
+          inputs: [inputs.input],
+          output: `data/processed/${outputName}.tif`,
+        }),
+      },
+    },
   },
   {
     id: "aspect",
@@ -233,7 +246,18 @@ export const TOOLS = [
     params: [],
     outputType: "raster",
     outputName: "aspect_{input}",
-    engines: { native: (i) => RA.aspect(i.input.raster) },
+    engines: {
+      native: (i) => RA.aspect(i.input.raster),
+      sidecar: {
+        requires: ["gdaldem"],
+        build: ({ inputs, outputName }) => ({
+          program: "gdaldem",
+          args: ["aspect", "$IN0", "$OUT", "-compute_edges"],
+          inputs: [inputs.input],
+          output: `data/processed/${outputName}.tif`,
+        }),
+      },
+    },
   },
   {
     id: "hillshade",
@@ -245,7 +269,76 @@ export const TOOLS = [
     params: [],
     outputType: "raster",
     outputName: "hillshade_{input}",
-    engines: { native: (i) => RA.hillshade(i.input.raster) },
+    engines: {
+      native: (i) => RA.hillshade(i.input.raster),
+      sidecar: {
+        requires: ["gdaldem"],
+        build: ({ inputs, outputName }) => ({
+          program: "gdaldem",
+          args: ["hillshade", "$IN0", "$OUT", "-compute_edges"],
+          inputs: [inputs.input],
+          output: `data/processed/${outputName}.tif`,
+        }),
+      },
+    },
+  },
+  {
+    id: "curvature",
+    label: "Curvature",
+    category: "Surface analysis",
+    blurb: "Convexity of the surface — positive on ridges and noses, negative in hollows where water and debris converge.",
+    keywords: ["convex", "concave", "profile", "plan", "ridge", "hollow"],
+    inputs: [{ name: "input", label: "Input", type: "raster" }],
+    params: [],
+    outputType: "raster",
+    outputName: "curv_{input}",
+    engines: { native: (i) => RA.curvature(i.input.raster) },
+  },
+  {
+    id: "roughness",
+    label: "Roughness",
+    category: "Surface analysis",
+    blurb: "Largest height difference between a cell and its neighbours — smooth till against broken scarp.",
+    keywords: ["terrain", "rugged", "texture", "relief", "variability"],
+    inputs: [{ name: "input", label: "Input", type: "raster" }],
+    params: [],
+    outputType: "raster",
+    outputName: "rough_{input}",
+    engines: {
+      native: (i) => RA.roughness(i.input.raster),
+      sidecar: {
+        requires: ["gdaldem"],
+        build: ({ inputs, outputName }) => ({
+          program: "gdaldem",
+          args: ["roughness", "$IN0", "$OUT", "-compute_edges"],
+          inputs: [inputs.input],
+          output: `data/processed/${outputName}.tif`,
+        }),
+      },
+    },
+  },
+  {
+    id: "focal",
+    label: "Focal statistics",
+    category: "Surface analysis",
+    blurb: "Summarise a moving window over the raster — smooth noise, find local extremes, measure local spread.",
+    keywords: ["window", "neighbourhood", "smooth", "filter", "moving", "kernel"],
+    inputs: [{ name: "input", label: "Input", type: "raster" }],
+    params: [
+      { name: "radius", label: "Radius (cells)", kind: "number", default: 1, step: 1, min: 1 },
+      { name: "stat", label: "Statistic", kind: "select", default: "mean", options: [
+        { id: "mean", name: "Mean" }, { id: "min", name: "Minimum" },
+        { id: "max", name: "Maximum" }, { id: "sum", name: "Sum" },
+        { id: "range", name: "Range" }, { id: "std", name: "Standard deviation" },
+      ] },
+    ],
+    outputType: "raster",
+    outputName: "focal_{input}",
+    engines: {
+      native: (i, p) => RA.focalStatistics(i.input.raster, {
+        radius: Math.max(1, Math.round(p.radius)), stat: p.stat,
+      }),
+    },
   },
   {
     id: "contours",
@@ -411,6 +504,17 @@ export const TOOLS = [
           };
         }
         return { raster: out, note: `${stats.count} cells burned from "${p.field}".` };
+      },
+      // gdal_rasterize burns straight into a grid matched to the template's
+      // size and extent, which is the whole job — no per-feature scan here.
+      sidecar: {
+        requires: ["gdal_rasterize"],
+        build: ({ inputs, params, outputName }) => ({
+          program: "gdal_rasterize",
+          args: ["-a", String(params.field), "-of", "GTiff", "$IN0", "$OUT"],
+          inputs: [inputs.features],
+          output: `data/processed/${outputName}.tif`,
+        }),
       },
     },
   },
@@ -653,6 +757,103 @@ const STORE_CAP = 200;
  * so every path is caught and the return value only says where it landed
  * ("project" | "local" | null).
  */
+/**
+ * Run a tool, choosing the engine.
+ *
+ * The rule, in order: a tool with no sidecar engine runs natively, full stop.
+ * A tool that HAS one runs there only when the sidecar is connected, a project
+ * is open, the binaries it names are installed, and the input is big enough to
+ * be worth the round trip — otherwise native, with the reason appended when
+ * the input was big enough that the user would otherwise wonder why it took a
+ * minute. A sidecar run that fails falls back to native rather than failing
+ * the tool: the browser toolset is the promise, and the sidecar is an upgrade.
+ *
+ * Async, unlike runTool — the dialog already awaits its result, so this is a
+ * drop-in for it.
+ */
+export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
+  const desc = toolById(toolId);
+  if (!desc?.engines?.sidecar) return runTool(toolId, inputs, params, opts);
+
+  const resolved = {};
+  for (const spec of desc.inputs || []) resolved[spec.name] = resolveLayer(inputs[spec.name]);
+  const name = (opts.outputName || "").trim() || resolveOutputName(desc, resolved);
+
+  let why = "";
+  try {
+    const client = await import("./sidecar-client.js?v=20260816-3657637");
+    await client.probe();
+    const status = client.engineStatus(desc);
+    const big = client.shouldOffload(resolved);
+    if (status.ok && big) {
+      const out = await client.runSidecarEngine(desc, resolved, params, name);
+      if (out.ok) {
+        void appendToolHistory({
+          tool: desc.id, label: desc.label,
+          inputs: Object.values(resolved).filter(Boolean).map((l) => ({ layerId: l.id, name: l.name })),
+          params, output: { name, layerId: out.layer?.id ?? null },
+          engine: "sidecar", ok: true, message: out.message, t: Date.now(),
+        });
+        return out;
+      }
+      why = ` ${out.message} Ran natively instead.`;
+    } else if (big && !status.ok) {
+      // Only worth saying when the job was large enough for it to matter.
+      why = ` ${status.reason}`;
+    }
+  } catch (error) {
+    why = ` The sidecar could not be reached (${error.message}); ran natively.`;
+  }
+
+  const out = runTool(toolId, inputs, params, { ...opts, outputName: name });
+  return why && out.ok ? { ...out, message: `${out.message}${why}` } : out;
+}
+
+/**
+ * A tool's output, written into the open project as a real dataset.
+ *
+ * Without this a derived layer has no backing file, so `restoreLayers()` skips
+ * it and every analysis result evaporates on reload — the one-way street the
+ * plan names. Vector results go out as GeoJSON, rasters as GeoTIFF, both
+ * through the SAME writers the export path uses, so a re-imported result is
+ * byte-for-byte the layer that was on the globe.
+ *
+ * Best-effort throughout, like the history write beside it: a full disk or a
+ * closed project must never fail the run that produced the layer. The writers
+ * and the bridge are pulled in lazily because a page with no project open
+ * should not pay for the project store at all.
+ */
+async function persistDerived(desc, layer, name, record) {
+  if (!layer) return null;
+  try {
+    const bridge = await import("./research/bridge.js?v=20260816-3657637");
+    if (!bridge.isArmed?.()) return null;
+    const provenance = {
+      tool: record.tool,
+      label: record.label,
+      params: record.params,
+      inputs: record.inputs,
+      engine: record.engine,
+      outputType: desc.outputType,
+      created_at: new Date(record.t).toISOString(),
+    };
+    if (desc.outputType === "raster" && layer.raster) {
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260816-3657637");
+      return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
+        { mime: "image/tiff", provenance });
+    }
+    if (layer.collection) {
+      const { toGeoJson } = await import("./vector-formats.js?v=20260816-3657637");
+      return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
+        { mime: "application/geo+json", provenance });
+    }
+    return null;
+  } catch (error) {
+    console.warn("[GeoID GIS] result not filed in the project", error);
+    return null;
+  }
+}
+
 export async function appendToolHistory(record) {
   const store = window.GeoIDResearch?.store;
   try {
@@ -830,5 +1031,16 @@ export function runTool(toolId, inputs = {}, params = {}, { outputName } = {}) {
   };
   void appendToolHistory(record);
 
+  // REGISTER — the result becomes a dataset of the project, so it survives a
+  // reload and carries its lineage. Fire-and-forget for the same reason as
+  // history: the layer is already on the globe and must stay there whatever
+  // the filesystem says.
+  if (out.ok) void persistDerived(desc, out.layer, name, record);
+
+  // Say so when the result is only in memory. A layer that will vanish on the
+  // next reload must not look identical to one that was filed.
+  if (out.ok && !window.GeoIDResearch?.store?.getActive?.()) {
+    return { ...out, message: `${out.message} In memory — open a project to keep it.`, unsaved: true };
+  }
   return out;
 }
