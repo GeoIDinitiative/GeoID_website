@@ -1,6 +1,8 @@
-import { looksLikeGeographic } from "./geo-utils.js?v=20260816-4b17eab";
-import { featureCollection, feature } from "./geoprocessing.js?v=20260816-4b17eab";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-4b17eab";
+import { looksLikeGeographic } from "./geo-utils.js?v=20260816-d3da9b6";
+import { featureCollection, feature } from "./geoprocessing.js?v=20260816-d3da9b6";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-d3da9b6";
+import { detectCrs, crsLabel } from "./prj-detect.js?v=20260816-d3da9b6";
+import { projectedToLatLon, CRS_OPTIONS } from "./projection.js?v=20260816-d3da9b6";
 
 // ESRI Shapefile technical description 98-016. Only the geometry types that
 // actually appear in GIS exports are handled; anything else is reported rather
@@ -187,11 +189,34 @@ export async function loadShapefile(file, { sidecars = [] } = {}) {
     throw new Error(`No supported geometry found (shape type ${SHAPE_TYPES[fileType] || fileType}).`);
   }
 
+  /**
+   * A projected shapefile used to be refused outright — "reproject before
+   * importing", which sent every GSNI, OSNI and Ordnance Survey dataset out
+   * to ogr2ogr before this app could touch it. The .prj beside the .shp says
+   * exactly which CRS it is, so read it: a grid the transformer knows is
+   * reprojected here and now, and one it does not know is named in the error
+   * instead of being described as "a projected CRS".
+   */
+  let reproject = null;
   if (!looksLikeGeographic(bounds)) {
     const prj = sidecars.find((entry) => entry.name.toLowerCase().endsWith(".prj"));
-    throw new Error(prj
-      ? "Shapefile uses a projected CRS. Reproject to WGS84 lat/lon before importing."
-      : "Shapefile coordinates are not WGS84 lat/lon and no .prj was supplied.");
+    if (!prj) {
+      throw new Error("Shapefile coordinates are not WGS84 lat/lon and no .prj was supplied.");
+    }
+    const detected = detectCrs(await prj.text());
+    const crsId = detected.epsg ? `epsg:${detected.epsg}` : null;
+    const supported = crsId && CRS_OPTIONS.some((c) => c.id === crsId);
+    if (!supported) {
+      throw new Error(detected.epsg
+        ? `Shapefile is ${crsLabel(detected)} (EPSG:${detected.epsg}), which this viewer cannot transform yet — `
+          + "reproject it to WGS84, or run it through the sidecar's ogr2ogr."
+        : `Shapefile is projected (${detected.name || "unrecognised CRS"}) and its .prj names no EPSG code — `
+          + "reproject it to WGS84 before importing.");
+    }
+    reproject = (x, y) => projectedToLatLon(x, y, crsId);
+    // Note for the caller's provenance: what it WAS, not only what it is now.
+    reproject.crsId = crsId;
+    reproject.label = crsLabel(detected);
   }
 
   const dbf = sidecars.find((entry) => entry.name.toLowerCase().endsWith(".dbf"));
@@ -211,7 +236,15 @@ export async function loadShapefile(file, { sidecars = [] } = {}) {
     const entry = byRecord.get(shape.recordIndex);
     const coords = [];
     for (let i = 0; i < shape.points.length; i += 2) {
-      coords.push([shape.points[i], shape.points[i + 1]]);
+      // Transformed here rather than after assembly: every geometry kind
+      // funnels through this one loop, so there is one place a projected
+      // shapefile becomes lon/lat and no path that can miss it.
+      if (reproject) {
+        const point = reproject(shape.points[i], shape.points[i + 1]);
+        if (point) coords.push([point.lon, point.lat]);
+      } else {
+        coords.push([shape.points[i], shape.points[i + 1]]);
+      }
     }
     if (shape.kind === "polygon") entry.polygons.push(coords);
     else if (shape.kind === "line") entry.lines.push(coords);

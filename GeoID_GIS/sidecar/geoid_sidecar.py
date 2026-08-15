@@ -333,7 +333,7 @@ class Handler(BaseHTTPRequestHandler):
                 "needs_token": self.token is not None,
                 "capabilities": ["fs", "jobs", "script", "function", "training", "gales",
                                  "compute", "atlas", "events", "capabilities",
-                                 "gdal", "tools"]
+                                 "gdal", "tools", "gmsh"]
                     + (["gales-prepare"] if self.gales_dir else []),
                 "gales_dir": str(self.gales_dir) if self.gales_dir else None,
             }, origin)
@@ -415,6 +415,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._start_gdal(body, origin)
             elif route == "/jobs/tool":
                 self._start_tool(body, origin)
+            elif route == "/jobs/gmsh":
+                self._start_gmsh(body, origin)
             elif route == "/compute/save":
                 self._compute_save(body, origin)
             elif route == "/compute/delete":
@@ -585,7 +587,7 @@ class Handler(BaseHTTPRequestHandler):
     #   directory listing itself — a tool exists exactly when its file does.
 
     # gdal* and ogr2ogr only — gmsh and mpirun are probed below but are not
-    # runnable through this route.
+    # runnable through this route (gmsh has its own, POST /jobs/gmsh).
     GDAL_PROGRAMS = ("gdalwarp", "ogr2ogr", "gdaldem", "gdal_contour",
                      "gdal_viewshed", "gdal_rasterize", "gdal_translate")
     CAPABILITY_PYTHON = ("numpy", "scipy", "pywt", "matplotlib", "sklearn")
@@ -714,6 +716,178 @@ class Handler(BaseHTTPRequestHandler):
                                 argv, self.runner.root, body.get("env"),
                                 stdin_data=payload)
         self._send(200, {"job_id": job.id, "tool": tool}, origin)
+
+    # ── Gmsh: the Model Studio's mesher, where it can actually run ────────────
+    #
+    # The studio already emits a runnable gmsh Python (OCC) script — until now
+    # the only thing to do with it was download it and run it by hand, because
+    # the browser's own lattice mesher knows nothing of OCC booleans. This runs
+    # that exact text beside the project and leaves the mesh in `meshes/`, which
+    # is where FEM Setup and the GALES prepare already look.
+
+    _GMSH_WRITE = re.compile(r"^(\s*)gmsh\.write\s*\(")
+    _GMSH_FINALIZE = re.compile(r"^(\s*)gmsh\.finalize\s*\(")
+    _GMSH_NAME = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_.\-]*")
+
+    @classmethod
+    def _point_gmsh_output(cls, text: str, mesh: str) -> str:
+        """Make a gmsh Python script write its mesh to `mesh`.
+
+        The studio's script ends `gmsh.write("geoid.msh")` — a bare name, which
+        would land wherever the job happened to run. That line is rewritten to
+        the absolute path the caller asked for (a `.msh` write is preferred when
+        a script writes several formats). A script with no write line is given
+        one **before** `gmsh.finalize()`: finalize closes the API, so a line
+        appended after it could never write anything.
+        """
+        lines = text.splitlines()
+        writes = [i for i, line in enumerate(lines) if cls._GMSH_WRITE.match(line)]
+        call = f"gmsh.write({mesh!r})"
+        if writes:
+            msh = [i for i in writes if ".msh" in lines[i]]
+            i = (msh or writes)[0]
+            lines[i] = cls._GMSH_WRITE.match(lines[i]).group(1) + call
+        else:
+            fin = next((i for i, line in enumerate(lines)
+                        if cls._GMSH_FINALIZE.match(line)), None)
+            if fin is None:
+                lines.append(call)
+            else:
+                lines.insert(fin, cls._GMSH_FINALIZE.match(lines[fin]).group(1) + call)
+        return "\n".join(lines) + "\n"
+
+    def _start_gmsh(self, body: dict, origin: str):
+        """{project, script?, scriptPath?, name?, dim?} → one streamed gmsh job.
+
+        `script` is the text of a gmsh Python script exactly as the Model
+        Studio's `exportScript()` produces it; `scriptPath` names one already in
+        the project instead (a `.geo` or any other gmsh-readable file is fine
+        too), resolved through the same sandbox as /fs. Either way a copy is
+        filed at `<project>/meshes/_gmsh_job_<ts><ext>` — the input that made
+        the mesh sits beside the mesh — and the mesh lands at
+        `<project>/meshes/<name or ts>.msh`.
+
+        **How a Python script is run.** Not through the gmsh binary: gmsh's CLI
+        has no option for it (`gmsh -help` offers `-pyinterpreter`, nothing
+        that executes a script), and a gmsh Python/OCC script is an ordinary
+        Python program that imports the `gmsh` module. So it runs under this
+        interpreter, with the job's cwd set to `meshes/` so even an unpatched
+        relative write lands in the right folder. A non-Python input is handed
+        to the binary as `gmsh <file> -<dim> -o <mesh>`, which is gmsh's own
+        batch form.
+
+        The `gmsh` binary is still what decides whether this machine can mesh at
+        all — the package that provides the Python module provides it too — so
+        its absence is a 409 in the same shape /jobs/gdal uses.
+        """
+        project = str(body.get("project", "")).strip()
+        if not project:
+            raise ValueError("a project is required — the mesh is written "
+                             "into its meshes/ folder")
+        project_dir = self._safe(project)
+        if not project_dir.is_dir():
+            raise FileNotFoundError(f"no such project: {project}")
+
+        script_text = body.get("script")
+        rel_source = str(body.get("scriptPath") or "").strip()
+        suffix = ".py"
+        if isinstance(script_text, str) and script_text.strip():
+            text = script_text
+        elif rel_source:
+            source = self._safe(rel_source)
+            if not source.is_file():
+                raise FileNotFoundError(f"no such script: {rel_source}")
+            text = source.read_text(encoding="utf-8", errors="replace")
+            suffix = source.suffix.lower() or ".py"
+        else:
+            raise ValueError("give either script (the text of a gmsh script) "
+                             "or scriptPath (one in the project)")
+
+        params = body.get("params") if isinstance(body.get("params"), dict) else {}
+        raw_dim = body.get("dim", params.get("dim", 3))
+        try:
+            dim = int(raw_dim or 3)
+        except (TypeError, ValueError):
+            raise ValueError("dim must be 1, 2 or 3")
+        if dim not in (1, 2, 3):
+            raise ValueError("dim must be 1, 2 or 3")
+
+        meshes = project_dir / "meshes"
+        stamp = time.strftime("%Y%m%d-%H%M%S")
+        # Two jobs inside one second would otherwise write the same script file,
+        # and the first job's provenance would then point at the second's text.
+        attempt = 2
+        while (meshes / f"_gmsh_job_{stamp}{suffix}").exists():
+            stamp = f"{time.strftime('%Y%m%d-%H%M%S')}-{attempt}"
+            attempt += 1
+
+        name = str(body.get("name") or "").strip()
+        if name.lower().endswith(".msh"):
+            name = name[:-4]
+        name = name or stamp
+        if not self._GMSH_NAME.fullmatch(name):
+            raise ValueError("name must be a bare file name (letters, digits, "
+                             "_ . and -) — the mesh always goes to meshes/")
+
+        mesh_path = meshes / f"{name}.msh"
+        script_path = meshes / f"_gmsh_job_{stamp}{suffix}"
+        if suffix == ".py":
+            text = self._point_gmsh_output(text, str(mesh_path))
+            argv = [sys.executable, str(script_path)]
+        else:
+            argv = ["gmsh", str(script_path), f"-{dim}", "-o", str(mesh_path)]
+
+        # Shape first, presence second, exactly as /jobs/gdal does it: a
+        # malformed request is a 400 even where gmsh is absent, and a 409 means
+        # precisely "install the binary" — nothing is written to the project
+        # before that decision.
+        if not shutil.which("gmsh"):
+            self._send(409, {"error": "gmsh is not installed on this machine — "
+                                      "install Gmsh to mesh in the sidecar"},
+                       origin)
+            return
+
+        meshes.mkdir(parents=True, exist_ok=True)
+        script_path.write_text(text, encoding="utf-8")
+
+        root = self.runner.root.resolve()
+
+        def under_root(path: Path) -> str:
+            try:
+                return str(path.relative_to(root))
+            except ValueError:
+                return str(path)
+
+        rel_script, rel_mesh = under_root(script_path), under_root(mesh_path)
+        started = time.time()
+        # The provenance sits beside the mesh rather than in a registry, so a
+        # mesh that is copied, moved or opened by the desktop app can still say
+        # where it came from. Written whatever the outcome: a failed run leaves
+        # its exit code and its script, which is what makes it debuggable.
+        provenance = Path(f"{mesh_path}.provenance.json")
+
+        def on_finish(job: Job):
+            try:
+                provenance.write_text(json.dumps({
+                    "source": "gmsh",
+                    "script": rel_script,
+                    "started": started,
+                    "seconds": round((job.ended_at or time.time()) - started, 3),
+                    "exit": job.exit_code,
+                    "status": job.status,
+                    "mesh": rel_mesh,
+                    "dim": dim,
+                    "argv": argv,
+                    "job_id": job.id,
+                }, indent=2))
+            except OSError:
+                pass
+
+        job = self.runner.start("gmsh", body.get("label") or f"gmsh {name}",
+                                argv, meshes, body.get("env"),
+                                on_finish=on_finish)
+        self._send(200, {"job_id": job.id, "mesh": rel_mesh,
+                         "script": rel_script, "argv": argv}, origin)
 
     # ── Compute targets: this machine, or a server over SSH ───────────────────
     #

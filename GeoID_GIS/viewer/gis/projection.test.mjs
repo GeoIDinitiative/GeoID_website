@@ -39,6 +39,7 @@
 import {
   utmToLatLon, latLonToUtm, utmZoneForLon,
   latLonToProjected, projectedToLatLon, transform, CRS_OPTIONS,
+  tmGridToLatLon, latLonToTmGrid,
 } from "./projection.js";
 
 let failures = 0;
@@ -237,6 +238,40 @@ const ABS_DEG = 1e-7;
   check("projectedToLatLon of an unknown id is null", projectedToLatLon(1, 2, "epsg:9999") === null);
   const g = latLonToProjected(37.75, 14.99, "epsg:4326");
   check("epsg:4326 passthrough is (x, y) = (lon, lat)", g.x === 14.99 && g.y === 37.75);
+}
+
+
+/* ── national transverse Mercator grids, against PROJ ── */
+
+// Every expected value below was MEASURED with pyproj (EPSG:4326 -> the grid),
+// not recalled: these grids are on their own ellipsoids and need a datum
+// shift, so a plausible-looking number is exactly what a wrong Helmert
+// produces. The first draft used the semi-major axis in the meridional arc
+// and was out by 2.9 km at Ben Nevis while the easting stayed exact to a
+// millimetre — which reads as a datum fault and is arithmetic.
+const TM_CASES = [
+  { crs: "epsg:29902", name: "Irish Grid — Belfast", lat: 54.5973, lon: -5.9301, x: 333828.3348, y: 374087.5068 },
+  { crs: "epsg:29902", name: "Irish Grid — Slieve Donard", lat: 54.1803, lon: -5.9214, x: 335760.1728, y: 327695.0875 },
+  { crs: "epsg:29903", name: "TM75 — Derry", lat: 54.9966, lon: -7.3086, x: 244298.6134, y: 416787.2434 },
+  { crs: "epsg:2157", name: "ITM — Dublin", lat: 53.3498, lon: -6.2603, x: 715826.5066, y: 734697.5926 },
+  { crs: "epsg:27700", name: "BNG — Ben Nevis", lat: 56.7969, lon: -5.0036, x: 216671.8458, y: 771287.3326 },
+  { crs: "epsg:27700", name: "BNG — London", lat: 51.5074, lon: -0.1278, x: 530028.7469, y: 180380.0943 },
+];
+
+TM_CASES.forEach((c) => {
+  const fwd = latLonToTmGrid(c.lat, c.lon, c.crs);
+  near(`${c.name}: easting matches PROJ`, fwd.x, c.x, 0.01);
+  near(`${c.name}: northing matches PROJ`, fwd.y, c.y, 0.01);
+  const back = tmGridToLatLon(c.x, c.y, c.crs);
+  near(`${c.name}: inverse returns the latitude`, back.lat, c.lat, 1e-7);
+  near(`${c.name}: inverse returns the longitude`, back.lon, c.lon, 1e-7);
+});
+
+{
+  // The transformer must route through these like any other CRS.
+  const t = transform(333828.3348, 374087.5069, "epsg:29902", "epsg:4326");
+  near("transform() reaches Irish Grid too", t.y, 54.5973, 1e-5);
+  check("an unsupported grid id is still null", projectedToLatLon(1, 2, "epsg:99999") === null);
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

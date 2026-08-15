@@ -1,12 +1,12 @@
-import * as GP from "./geoprocessing.js?v=20260816-4b17eab";
-import * as RA from "./raster-analysis.js?v=20260816-4b17eab";
-import * as VF from "./vector-formats.js?v=20260816-4b17eab";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-4b17eab";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-4b17eab";
-import { downloadText } from "./extraction.js?v=20260816-4b17eab";
-import { CRS_OPTIONS } from "./projection.js?v=20260816-4b17eab";
-import { runQuery, QUERY_HELP } from "./query.js?v=20260816-4b17eab";
-import { selection } from "./selection.js?v=20260816-4b17eab";
+import * as GP from "./geoprocessing.js?v=20260816-d3da9b6";
+import * as RA from "./raster-analysis.js?v=20260816-d3da9b6";
+import * as VF from "./vector-formats.js?v=20260816-d3da9b6";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-d3da9b6";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-d3da9b6";
+import { downloadText } from "./extraction.js?v=20260816-d3da9b6";
+import { CRS_OPTIONS } from "./projection.js?v=20260816-d3da9b6";
+import { runQuery, QUERY_HELP } from "./query.js?v=20260816-d3da9b6";
+import { selection } from "./selection.js?v=20260816-d3da9b6";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -658,6 +658,73 @@ function runFieldCalculator() {
 }
 
 /**
+ * The four workbench tools that are not descriptors.
+ *
+ * Charts, the time slider and the editor own their own panels, and the WFS
+ * importer needs a URL rather than a layer — none of them fits the one-input
+ * one-output shape the tool dialog renders, so they get buttons instead of
+ * registry rows. Each reports honestly when its module is missing rather than
+ * failing silently, which is what a dead button looks like from outside.
+ */
+function openWorkbench(seamName, label, call) {
+  const seam = window[seamName];
+  if (!seam) {
+    setText("explore-status", `${label} is still loading — try again in a moment.`);
+    return;
+  }
+  try {
+    const layer = selectedLayer("attr-layer", vectorLayers()) || vectorLayers()[0];
+    call(seam, layer);
+  } catch (error) {
+    console.error(`[GeoID GIS] ${label} failed`, error);
+    setText("explore-status", `${label}: ${error.message}`);
+  }
+}
+
+/**
+ * Fetch a layer from a WFS / OGC API Features service.
+ *
+ * A prompt rather than a panel: the importer needs one URL and one collection
+ * name, and a two-field form is not worth a workbench of its own. The study
+ * area becomes the bbox when there is one, because pulling a national dataset
+ * to look at one county is the mistake this makes easy to avoid.
+ */
+async function importFromService() {
+  const seam = window.GeoIDWfsImport;
+  if (!seam) {
+    setText("explore-status", "The WFS importer is still loading.");
+    return;
+  }
+  const base = window.prompt(
+    "Service URL (OGC API landing page or WFS endpoint):",
+    "https://ogcapi.bgs.ac.uk",
+  );
+  if (!base) return;
+  const collection = window.prompt(
+    "Layer to fetch (collection id, or typeNames for WFS):",
+    "bgsgeology625kbedrock",
+  );
+  if (!collection) return;
+  const area = window.GeoIDResearch?.store?.getActive?.()?.meta?.study_area;
+  const bbox = area ? {
+    minLon: Number(area.min_lon), minLat: Number(area.min_lat),
+    maxLon: Number(area.max_lon), maxLat: Number(area.max_lat),
+  } : undefined;
+  setText("explore-status", `Fetching ${collection}…`);
+  try {
+    const result = await seam.importFromWfs(base, { collection, bbox }, {
+      onProgress: (info) => setText("explore-status",
+        `Fetching ${collection}: ${info.fetched || 0} features…`),
+    });
+    setText("explore-status", result?.truncated
+      ? `${collection}: ${result.fetched} features (capped — narrow the area for the rest).`
+      : `${collection}: ${result?.fetched ?? "?"} features imported.`);
+  } catch (error) {
+    setText("explore-status", `Could not fetch ${collection}: ${error.message}`);
+  }
+}
+
+/**
  * Select by query — the whole query engine on the attribute panel.
  *
  * This replaces a substring match on one field, which was the entire query
@@ -810,6 +877,20 @@ function init() {
     if (event.key === "Enter") runAttributeQuery();
   });
   renderQueryHelp();
+
+  byId("open-charts")?.addEventListener("click", () => openWorkbench(
+    "GeoIDCharts", "Charts", (seam, layer) => seam.open(layer?.id)));
+  byId("open-time")?.addEventListener("click", () => openWorkbench(
+    "GeoIDTime", "The time slider", (seam, layer) => seam.open(layer?.id)));
+  byId("open-edit")?.addEventListener("click", () => openWorkbench(
+    "GeoIDEditTools", "The editor", (seam, layer) => {
+      if (!layer) {
+        setText("explore-status", "Import or select a vector layer to edit.");
+        return;
+      }
+      seam.start(layer.id);
+    }));
+  byId("open-wfs")?.addEventListener("click", () => { void importFromService(); });
   byId("attr-stats-run")?.addEventListener("click", runFieldStatistics);
   byId("calc-run")?.addEventListener("click", runFieldCalculator);
   ["geojson", "csv", "wkt", "kml"].forEach((format) => {

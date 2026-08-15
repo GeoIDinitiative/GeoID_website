@@ -206,6 +206,20 @@
             </div>
           </details>
           <details class="gis-tool-section">
+            <summary>Explore &amp; Edit</summary>
+            <div class="gis-tool-body">
+              <div class="measure-actions">
+                <button id="open-charts" class="button secondary" type="button" title="Histogram, scatter and box plots of the selected layer">Charts</button>
+                <button id="open-time" class="button secondary" type="button" title="Filter and animate a layer through its date field">Time slider</button>
+              </div>
+              <div class="measure-actions">
+                <button id="open-edit" class="button secondary" type="button" title="Digitise and edit geometry; edits become a new layer">Edit layer</button>
+                <button id="open-wfs" class="button secondary" type="button" title="Import features from a WFS or OGC API Features service">Add WFS layer</button>
+              </div>
+              <div id="explore-status" class="gis-metric">Charts, time filtering, geometry editing and live web-feature services.</div>
+            </div>
+          </details>
+          <details class="gis-tool-section">
             <summary>Attribute Table</summary>
             <div class="gis-tool-body">
               <div class="row"><label for="attr-layer">Layer</label><select id="attr-layer" class="mini-select"></select></div>

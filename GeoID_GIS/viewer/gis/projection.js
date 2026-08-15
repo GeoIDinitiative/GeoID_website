@@ -207,6 +207,221 @@ export function utmZoneForLon(lon) {
 
 
 
+/* ── National transverse Mercator grids ──────────────────────────────────── */
+
+/**
+ * The grids the British Isles' open data actually ships in.
+ *
+ * OSNI's DTM and GSNI's mapping are Irish Grid; the Republic's newer data is
+ * ITM; Ordnance Survey GB is the National Grid. Until now the transformer
+ * spoke UTM and LAEA only, so every one of those datasets needed an external
+ * ogr2ogr before it could be imported — the "runnable with this app's
+ * toolset" claim failed at the first NI dataset.
+ *
+ * Two things make these different from UTM, and both matter:
+ *
+ * 1. They are not on WGS84. TM65 (Irish Grid) uses the Airy Modified
+ *    ellipsoid and OSGB36 uses Airy 1830, so a projection alone lands
+ *    hundreds of metres out — the datum shift is not optional. The Helmert
+ *    parameters here are the published national ones (OSi/OSNI for TM65,
+ *    OSGB for OSGB36); they are metre-level, which is right for 1:250k
+ *    geology and for a 100 m working grid, and NOT a substitute for OSTN15 if
+ *    someone needs centimetres.
+ * 2. ITM is on GRS80/ETRS89, which is within centimetres of WGS84 for this
+ *    purpose, so it takes the projection and no shift at all.
+ */
+const TM_GRIDS = {
+  // TM65 / Irish Grid — GSNI, OSNI, the Geological Survey of Ireland's older sets.
+  "epsg:29902": {
+    label: "TM65 / Irish Grid (EPSG:29902)",
+    a: 6377340.189, f: 1 / 299.3249646,
+    lat0: 53.5, lon0: -8, k0: 1.000035, fe: 200000, fn: 250000,
+    // Airy Modified -> WGS84, published TM65 parameters.
+    helmert: { dx: 482.5, dy: -130.6, dz: 564.6, rx: -1.042, ry: -0.214, rz: -0.631, s: 8.15 },
+  },
+  // TM75 / Irish Grid — the same grid on a later realisation; same numbers
+  // to the precision this transformer claims.
+  "epsg:29903": {
+    label: "TM75 / Irish Grid (EPSG:29903)",
+    a: 6377340.189, f: 1 / 299.3249646,
+    lat0: 53.5, lon0: -8, k0: 1.000035, fe: 200000, fn: 250000,
+    helmert: { dx: 482.5, dy: -130.6, dz: 564.6, rx: -1.042, ry: -0.214, rz: -0.631, s: 8.15 },
+  },
+  // IRENET95 / Irish Transverse Mercator — ETRS89, so no datum shift.
+  "epsg:2157": {
+    label: "IRENET95 / Irish Transverse Mercator (EPSG:2157)",
+    a: 6378137, f: 1 / 298.257222101,
+    lat0: 53.5, lon0: -8, k0: 0.99982, fe: 600000, fn: 750000,
+    helmert: null,
+  },
+  // OSGB36 / British National Grid.
+  "epsg:27700": {
+    label: "OSGB36 / British National Grid (EPSG:27700)",
+    a: 6377563.396, f: 1 / 299.3249646,
+    lat0: 49, lon0: -2, k0: 0.9996012717, fe: 400000, fn: -100000,
+    helmert: { dx: 446.448, dy: -125.157, dz: 542.06, rx: 0.1502, ry: 0.247, rz: 0.8421, s: -20.4894 },
+  },
+};
+
+/** Geodetic to geocentric (X, Y, Z) on a given ellipsoid. */
+function toGeocentric(lat, lon, a, f, height = 0) {
+  const rad = Math.PI / 180;
+  const e2 = f * (2 - f);
+  const sinLat = Math.sin(lat * rad);
+  const cosLat = Math.cos(lat * rad);
+  const nu = a / Math.sqrt(1 - e2 * sinLat * sinLat);
+  return {
+    X: (nu + height) * cosLat * Math.cos(lon * rad),
+    Y: (nu + height) * cosLat * Math.sin(lon * rad),
+    Z: ((1 - e2) * nu + height) * sinLat,
+  };
+}
+
+/** Geocentric back to geodetic, by the standard iteration on latitude. */
+function toGeodetic(X, Y, Z, a, f) {
+  const deg = 180 / Math.PI;
+  const e2 = f * (2 - f);
+  const lon = Math.atan2(Y, X);
+  const p = Math.hypot(X, Y);
+  let lat = Math.atan2(Z, p * (1 - e2));
+  for (let i = 0; i < 8; i += 1) {
+    const sinLat = Math.sin(lat);
+    const nu = a / Math.sqrt(1 - e2 * sinLat * sinLat);
+    lat = Math.atan2(Z + e2 * nu * sinLat, p);
+  }
+  return { lat: lat * deg, lon: lon * deg };
+}
+
+/**
+ * Seven-parameter Helmert, in the position-vector convention the national
+ * parameters above are published in. `inverse` runs it the other way, which
+ * is a sign flip on every term rather than a separate set of numbers.
+ */
+function helmert(point, h, inverse = false) {
+  const sec = Math.PI / (180 * 3600);
+  const sign = inverse ? -1 : 1;
+  const s = 1 + (sign * h.s) / 1e6;
+  const rx = sign * h.rx * sec;
+  const ry = sign * h.ry * sec;
+  const rz = sign * h.rz * sec;
+  const { X, Y, Z } = point;
+  return {
+    X: sign * h.dx + s * (X - rz * Y + ry * Z),
+    Y: sign * h.dy + s * (rz * X + Y - rx * Z),
+    Z: sign * h.dz + s * (-ry * X + rx * Y + Z),
+  };
+}
+
+/** Transverse Mercator forward (Redfearn), on the grid's own ellipsoid. */
+function tmForward(lat, lon, g) {
+  const rad = Math.PI / 180;
+  const e2 = g.f * (2 - g.f);
+  const n = g.f / (2 - g.f);
+  const phi = lat * rad;
+  const lam = lon * rad;
+  const phi0 = g.lat0 * rad;
+  const lam0 = g.lon0 * rad;
+  const sinPhi = Math.sin(phi);
+  const cosPhi = Math.cos(phi);
+  const tanPhi = Math.tan(phi);
+  const nu = g.a * g.k0 / Math.sqrt(1 - e2 * sinPhi * sinPhi);
+  const rho = g.a * g.k0 * (1 - e2) / ((1 - e2 * sinPhi * sinPhi) ** 1.5);
+  const eta2 = nu / rho - 1;
+  // The meridional arc scales with the SEMI-MINOR axis, not the semi-major:
+  // b·F0, in the Ordnance Survey's own notation. Using a here is a silent
+  // northing error that grows with distance from the grid's latitude of
+  // origin — measured against PROJ at 2.9 km on Ben Nevis, while the easting
+  // stayed exact to a millimetre, which is exactly what makes it look like a
+  // datum problem rather than an arithmetic one.
+  const b = g.a * (1 - g.f) * g.k0;
+  const M = b * (
+    (1 + n + 1.25 * n * n + 1.25 * n ** 3) * (phi - phi0)
+    - (3 * n + 3 * n * n + 2.625 * n ** 3) * Math.sin(phi - phi0) * Math.cos(phi + phi0)
+    + (1.875 * n * n + 1.875 * n ** 3) * Math.sin(2 * (phi - phi0)) * Math.cos(2 * (phi + phi0))
+    - (35 / 24) * n ** 3 * Math.sin(3 * (phi - phi0)) * Math.cos(3 * (phi + phi0))
+  );
+  const I = M + g.fn;
+  const II = (nu / 2) * sinPhi * cosPhi;
+  const III = (nu / 24) * sinPhi * cosPhi ** 3 * (5 - tanPhi ** 2 + 9 * eta2);
+  const IIIA = (nu / 720) * sinPhi * cosPhi ** 5 * (61 - 58 * tanPhi ** 2 + tanPhi ** 4);
+  const IV = nu * cosPhi;
+  const V = (nu / 6) * cosPhi ** 3 * (nu / rho - tanPhi ** 2);
+  const VI = (nu / 120) * cosPhi ** 5
+    * (5 - 18 * tanPhi ** 2 + tanPhi ** 4 + 14 * eta2 - 58 * tanPhi ** 2 * eta2);
+  const dl = lam - lam0;
+  return {
+    x: g.fe + IV * dl + V * dl ** 3 + VI * dl ** 5,
+    y: I + II * dl ** 2 + III * dl ** 4 + IIIA * dl ** 6,
+  };
+}
+
+/** Transverse Mercator inverse (Redfearn), on the grid's own ellipsoid. */
+function tmInverse(x, y, g) {
+  const deg = 180 / Math.PI;
+  const rad = Math.PI / 180;
+  const e2 = g.f * (2 - g.f);
+  const n = g.f / (2 - g.f);
+  const b = g.a * (1 - g.f) * g.k0;   // semi-minor, as in tmForward
+  const phi0 = g.lat0 * rad;
+  let phi = (y - g.fn) / b + phi0;
+  let M = 0;
+  for (let i = 0; i < 12; i += 1) {
+    M = b * (
+      (1 + n + 1.25 * n * n + 1.25 * n ** 3) * (phi - phi0)
+      - (3 * n + 3 * n * n + 2.625 * n ** 3) * Math.sin(phi - phi0) * Math.cos(phi + phi0)
+      + (1.875 * n * n + 1.875 * n ** 3) * Math.sin(2 * (phi - phi0)) * Math.cos(2 * (phi + phi0))
+      - (35 / 24) * n ** 3 * Math.sin(3 * (phi - phi0)) * Math.cos(3 * (phi + phi0))
+    );
+    const residual = y - g.fn - M;
+    if (Math.abs(residual) < 1e-6) break;
+    phi += residual / b;
+  }
+  const sinPhi = Math.sin(phi);
+  const cosPhi = Math.cos(phi);
+  const tanPhi = Math.tan(phi);
+  const nu = g.a * g.k0 / Math.sqrt(1 - e2 * sinPhi * sinPhi);
+  const rho = g.a * g.k0 * (1 - e2) / ((1 - e2 * sinPhi * sinPhi) ** 1.5);
+  const eta2 = nu / rho - 1;
+  const dE = x - g.fe;
+  const VII = tanPhi / (2 * rho * nu);
+  const VIII = (tanPhi / (24 * rho * nu ** 3)) * (5 + 3 * tanPhi ** 2 + eta2 - 9 * tanPhi ** 2 * eta2);
+  const IX = (tanPhi / (720 * rho * nu ** 5)) * (61 + 90 * tanPhi ** 2 + 45 * tanPhi ** 4);
+  const X = 1 / (cosPhi * nu);
+  const XI = (1 / (6 * cosPhi * nu ** 3)) * (nu / rho + 2 * tanPhi ** 2);
+  const XII = (1 / (120 * cosPhi * nu ** 5)) * (5 + 28 * tanPhi ** 2 + 24 * tanPhi ** 4);
+  const XIIA = (1 / (5040 * cosPhi * nu ** 7))
+    * (61 + 662 * tanPhi ** 2 + 1320 * tanPhi ** 4 + 720 * tanPhi ** 6);
+  return {
+    lat: (phi - VII * dE ** 2 + VIII * dE ** 4 - IX * dE ** 6) * deg,
+    lon: (g.lon0 * rad + X * dE - XI * dE ** 3 + XII * dE ** 5 - XIIA * dE ** 7) * deg,
+  };
+}
+
+/** A national grid easting/northing to WGS84 lat/lon, datum shift included. */
+export function tmGridToLatLon(x, y, crsId) {
+  const g = TM_GRIDS[crsId];
+  if (!g) return null;
+  const local = tmInverse(x, y, g);
+  if (!g.helmert) return local;
+  const geocentric = toGeocentric(local.lat, local.lon, g.a, g.f);
+  const shifted = helmert(geocentric, g.helmert);
+  // WGS84 ellipsoid on the far side of the shift.
+  return toGeodetic(shifted.X, shifted.Y, shifted.Z, 6378137, 1 / 298.257223563);
+}
+
+/** WGS84 lat/lon to a national grid easting/northing, datum shift included. */
+export function latLonToTmGrid(lat, lon, crsId) {
+  const g = TM_GRIDS[crsId];
+  if (!g) return null;
+  let local = { lat, lon };
+  if (g.helmert) {
+    const geocentric = toGeocentric(lat, lon, 6378137, 1 / 298.257223563);
+    const shifted = helmert(geocentric, g.helmert, true);
+    local = toGeodetic(shifted.X, shifted.Y, shifted.Z, g.a, g.f);
+  }
+  return tmForward(local.lat, local.lon, g);
+}
+
 /** Converts lat/lon into the given CRS. Returns null for unsupported ids. */
 export function latLonToProjected(lat, lon, crsId) {
   if (!crsId || crsId === "none") {
@@ -221,6 +436,9 @@ export function latLonToProjected(lat, lon, crsId) {
   }
   if (crsId === "epsg:3035") {
     return latLonToLaea(lat, lon, LAEA_3035_DEF);
+  }
+  if (TM_GRIDS[crsId]) {
+    return latLonToTmGrid(lat, lon, crsId);
   }
   return null;
 }
@@ -255,6 +473,10 @@ export const CRS_OPTIONS = [
   { id: "epsg:32632", label: "UTM 32N (EPSG:32632)" },
   { id: "epsg:32634", label: "UTM 34N (EPSG:32634)" },
   { id: "epsg:3035", label: "ETRS89 LAEA Europe (EPSG:3035)" },
+  { id: "epsg:29902", label: "TM65 / Irish Grid (EPSG:29902)" },
+  { id: "epsg:29903", label: "TM75 / Irish Grid (EPSG:29903)" },
+  { id: "epsg:2157", label: "Irish Transverse Mercator (EPSG:2157)" },
+  { id: "epsg:27700", label: "OSGB36 / British National Grid (EPSG:27700)" },
 ];
 
 /**
@@ -274,6 +496,9 @@ export function projectedToLatLon(x, y, crsId) {
   }
   if (crsId === "epsg:3035") {
     return laeaToLatLon(x, y, LAEA_3035_DEF);
+  }
+  if (TM_GRIDS[crsId]) {
+    return tmGridToLatLon(x, y, crsId);
   }
   return null;
 }
