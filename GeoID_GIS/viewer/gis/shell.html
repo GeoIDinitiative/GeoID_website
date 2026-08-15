@@ -162,11 +162,12 @@
               <div class="row"><label for="ras-op-a">Raster</label><select id="ras-op-a" class="mini-select"></select></div>
               <div class="row"><label for="ras-op">Tool</label><select id="ras-op" class="mini-select"></select></div>
                             <div class="row" id="ras-op-second-row" hidden><label for="ras-op-b">Raster B</label><select id="ras-op-b" class="mini-select"></select></div>
-              <div class="row" id="ras-op-zones-row" hidden><label for="ras-op-zones">Polygons</label><select id="ras-op-zones" class="mini-select"></select></div>
+              <div class="row" id="ras-op-zones-row" hidden><label id="ras-op-zones-label" for="ras-op-zones">Polygons</label><select id="ras-op-zones" class="mini-select"></select></div>
               <div class="row" id="ras-op-text-row" hidden><label id="ras-op-text-label" for="ras-op-text">Expression</label><input id="ras-op-text" class="input" type="text"></div>
+              <div class="row" id="ras-op-field-row" hidden><label for="ras-op-field">Attribute</label><select id="ras-op-field" class="mini-select"></select></div>
               <div class="row" id="ras-op-param-row" hidden><label id="ras-op-param-label" for="ras-op-param">Value</label><input id="ras-op-param" class="input" type="number"></div>
               <button id="ras-op-run" class="tool-button" type="button">Run</button>
-              <div id="ras-op-status" class="gis-metric">Slope, aspect, hillshade, contours, reclassify, raster calculator, clip by polygon and raster-to-points.</div>
+              <div id="ras-op-status" class="gis-metric">Slope, aspect, hillshade, contours, rules reclassify, calculator, resample, distance, rasterize, point sampling, weighted overlay, clip and raster-to-points.</div>
             </div>
           </details>
           <details class="gis-tool-section">
@@ -199,6 +200,7 @@
               <div class="row" id="vec-op-field-row" hidden><label for="vec-op-field">Field</label><select id="vec-op-field" class="mini-select"></select></div>
                             <div class="row" id="vec-op-crs-row" hidden><label for="vec-op-crs-from">CRS</label><select id="vec-op-crs-from" class="mini-select"></select><select id="vec-op-crs-to" class="mini-select"></select></div>
               <div class="row" id="vec-op-param-row" hidden><label id="vec-op-param-label" for="vec-op-param">Value</label><input id="vec-op-param" class="input" type="number"></div>
+              <div class="row" id="vec-op-check-row" hidden><label id="vec-op-check-label" for="vec-op-check">Option</label><input id="vec-op-check" type="checkbox" checked></div>
               <button id="vec-op-run" class="tool-button" type="button">Run</button>
               <div id="vec-op-status" class="gis-metric">Buffer, clip, difference, intersect, union, dissolve, hull, centroids, simplify, reproject, spatial join.</div>
             </div>

@@ -73,6 +73,14 @@ function publishVector(fc, name, { drape = 0.008 } = {}) {
   return { ok: true, message: `${name}: ${fc.features.length} features.` };
 }
 
+/** Same shape AND same bounds — equal dimensions over different ground is
+ *  still a mismatch, and the silent kind. */
+function gridsMatch(a, b) {
+  return a.width === b.width && a.height === b.height
+    && a.bounds.minX === b.bounds.minX && a.bounds.maxX === b.bounds.maxX
+    && a.bounds.minY === b.bounds.minY && a.bounds.maxY === b.bounds.maxY;
+}
+
 function publishRaster(raster, name) {
   const result = buildRasterLayer([raster.band], raster.width, raster.height, raster.bounds, {
     name, noData: raster.noData, isDem: true,
@@ -88,7 +96,12 @@ const VECTOR_OPS = {
     label: "Buffer",
     needsSecond: false,
     param: { label: "Distance (m)", value: 1000, step: 100 },
-    run: (a, _b, param) => publishVector(GP.buffer(a.collection, param), `buffer_${a.name}`),
+    // Merging is the right default (QGIS's too), but per-feature rings are a
+    // real product — service areas around individual sites — so it is a choice.
+    check: { label: "Merge overlapping buffers", value: true },
+    run: (a, _b, param, _field, extras) => publishVector(
+      GP.buffer(a.collection, param, { dissolve: extras.check !== false }), `buffer_${a.name}`,
+    ),
   },
   clip: {
     label: "Clip by layer",
@@ -183,8 +196,17 @@ function syncVectorOpInputs() {
   const paramRow = byId("vec-op-param-row");
   const fieldRow = byId("vec-op-field-row");
   const crsRow = byId("vec-op-crs-row");
+  const checkRow = byId("vec-op-check-row");
   if (secondRow) secondRow.hidden = !op.needsSecond;
   if (fieldRow) fieldRow.hidden = !op.usesField;
+  if (checkRow) {
+    checkRow.hidden = !op.check;
+    if (op.check) {
+      byId("vec-op-check-label").textContent = op.check.label;
+      const box = byId("vec-op-check");
+      if (box && !box.dataset.touched) box.checked = op.check.value;
+    }
+  }
   if (crsRow) {
     crsRow.hidden = !op.crs;
     // Filled here rather than in refreshToolboxSelects: the CRS list is
@@ -229,6 +251,7 @@ function runVectorOp() {
   const extras = {
     fromCrs: byId("vec-op-crs-from")?.value,
     toCrs: byId("vec-op-crs-to")?.value,
+    check: byId("vec-op-check")?.checked,
   };
   setText("vec-op-status", `Running ${op.label}...`);
   window.requestAnimationFrame(() => {
@@ -264,11 +287,21 @@ const RASTER_OPS = {
     },
   },
   reclassify: {
-    label: "Reclassify (above/below)",
-    param: { label: "Threshold", value: 1000, step: 100 },
-    run: (r, n, param) => publishRaster(
-      RA.reclassify(r.raster, [[-Infinity, param, 0], [param + 1e-9, Infinity, 1]]), `reclass_${n}`,
-    ),
+    label: "Reclassify (rules)",
+    // The default rules are the NI methodology's slope classes — a working
+    // example that teaches the syntax at the same time.
+    text: { label: "Rules (min..max:class)", value: "0..2:1, 2..5:2, 5..15:3, 15..35:4, 35..90:5" },
+    run: (r, n, _param, extras) => {
+      const parsed = RA.parseReclassifyRules(extras.text);
+      if (!parsed.ok) return parsed;
+      const out = RA.reclassify(r.raster, parsed.rules);
+      const stats = RA.rasterStatistics(out);
+      if (!stats.count) {
+        return { ok: false, message: "No cell matched any rule — check the ranges against the data." };
+      }
+      const result = publishRaster(out, `reclass_${n}`);
+      return { ...result, message: `${result.message} ${parsed.rules.length} rules, ${stats.count} cells classified.` };
+    },
   },
   calculator: {
     label: "Raster calculator",
@@ -276,17 +309,121 @@ const RASTER_OPS = {
     text: { label: "Expression", value: "(a - b) / (a + b)" },
     run: (r, n, _param, extras) => {
       const other = extras.b || null;
-      if (other && (other.raster.width !== r.raster.width
-        || other.raster.height !== r.raster.height)) {
-        return {
-          ok: false,
-          message: `Rasters differ in shape (${r.raster.width}x${r.raster.height} vs `
-            + `${other.raster.width}x${other.raster.height}) — resample first.`,
-        };
+      let b = other?.raster || null;
+      let note = "";
+      // Mismatched grids are resampled rather than refused: "resample first"
+      // was a correct answer that made the user do the tool's job.
+      if (b && !gridsMatch(b, r.raster)) {
+        b = RA.resampleToGrid(b, r.raster);
+        note = ` ${other.name} was resampled onto the first raster's grid (nearest).`;
       }
-      const res = RA.rasterCalculator(r.raster, other?.raster || null, extras.text || "a");
+      const res = RA.rasterCalculator(r.raster, b, extras.text || "a");
       if (!res.ok) return res;
-      return publishRaster(res.raster, `calc_${n}`);
+      const result = publishRaster(res.raster, `calc_${n}`);
+      return { ...result, message: result.message + note };
+    },
+  },
+  resample: {
+    label: "Resample to grid",
+    needsSecond: true,
+    run: (r, n, _param, extras) => {
+      if (!extras.b) return { ok: false, message: "Pick the raster (B) whose grid to match." };
+      if (extras.b.id === r.id) return { ok: false, message: "A raster is already on its own grid." };
+      return publishRaster(RA.resampleToGrid(r.raster, extras.b.raster), `resample_${n}`);
+    },
+  },
+  distance: {
+    label: "Distance to features (m)",
+    zones: true,
+    zonesLabel: "Features",
+    run: (r, _n, _param, extras) => {
+      if (!extras.zones) {
+        return { ok: false, message: "Pick the vector layer to measure distance to." };
+      }
+      const out = RA.distanceRaster(extras.zones.collection, r.raster);
+      const to = extras.zones.name.replace(/\.[^.]+$/, "");
+      return publishRaster(out, `dist_${to}`);
+    },
+  },
+  rasterize: {
+    label: "Rasterize (vector → raster)",
+    zones: true,
+    zonesLabel: "Vector layer",
+    usesField: true,
+    run: (r, _n, _param, extras) => {
+      if (!extras.zones) return { ok: false, message: "Pick the vector layer to burn in." };
+      if (!extras.field) return { ok: false, message: "Pick the attribute to burn." };
+      const out = RA.rasterizeByAttribute(extras.zones.collection, extras.field, r.raster);
+      const stats = RA.rasterStatistics(out);
+      if (!stats.count) {
+        return { ok: false, message: `No cell took a value — is "${extras.field}" numeric where the polygons overlap this raster?` };
+      }
+      const name = extras.zones.name.replace(/\.[^.]+$/, "");
+      const result = publishRaster(out, `rasterize_${name}`);
+      return { ...result, message: `${result.message} ${stats.count} cells burned from "${extras.field}".` };
+    },
+  },
+  samplePoints: {
+    label: "Sample raster at points",
+    zones: true,
+    zonesLabel: "Points",
+    text: { label: "New attribute name", value: "sampled" },
+    run: (r, _n, _param, extras) => {
+      if (!extras.zones) return { ok: false, message: "Pick the point layer to sample at." };
+      const attr = (extras.text || "sampled").trim().replace(/[^\w]/g, "_") || "sampled";
+      const fc = RA.sampleAtPoints(r.raster, extras.zones.collection, attr);
+      if (!fc.features.length) return { ok: false, message: "That layer has no point features." };
+      const name = extras.zones.name.replace(/\.[^.]+$/, "");
+      const result = publishVector(fc, `sampled_${name}`);
+      if (!result.ok) return result;
+      return { ...result, message: `${result.message} ${fc.sampled} of ${fc.features.length} points read a value into "${attr}".` };
+    },
+  },
+  overlay: {
+    label: "Weighted overlay",
+    needsSecond: true,
+    text: { label: "Weights (A, B — or name:weight, …)", value: "50, 50" },
+    run: (r, n, _param, extras) => {
+      const text = (extras.text || "").trim();
+      let entries;
+      if (text.includes(":")) {
+        // name:weight pairs reach past the two dropdowns to every loaded
+        // raster — the NI susceptibility recipe is five factors, not two.
+        const pool = rasterLayers();
+        entries = [];
+        for (const piece of text.split(",")) {
+          const at = piece.lastIndexOf(":");
+          const name = piece.slice(0, at).trim();
+          const weight = Number(piece.slice(at + 1));
+          const layer = pool.find((l) => l.name === name
+            || l.name.replace(/\.[^.]+$/, "") === name);
+          if (!layer) return { ok: false, message: `No raster layer called "${name}".` };
+          if (!Number.isFinite(weight) || weight < 0) {
+            return { ok: false, message: `"${name}" needs a non-negative weight.` };
+          }
+          entries.push({ raster: layer.raster, weight });
+        }
+      } else {
+        if (!extras.b) {
+          return { ok: false, message: "Pick the second raster (B), or list name:weight pairs." };
+        }
+        const weights = text.split(",").map((w) => Number(w.trim()));
+        if (weights.length !== 2 || weights.some((w) => !Number.isFinite(w))) {
+          return { ok: false, message: 'Give two weights, e.g. "60, 40".' };
+        }
+        entries = [
+          { raster: r.raster, weight: weights[0] },
+          { raster: extras.b.raster, weight: weights[1] },
+        ];
+      }
+      const res = RA.weightedOverlay(entries);
+      if (!res.ok) return res;
+      const result = publishRaster(res.raster, `overlay_${n}`);
+      return {
+        ...result,
+        message: `${result.message} ${entries.length} factors, weights normalised.`
+          + (res.resampled ? ` ${res.resampled} resampled onto the first grid.` : ""),
+      };
     },
   },
   clipByPolygon: {
@@ -320,8 +457,25 @@ function syncRasterOpInputs() {
   const secondRow = byId("ras-op-second-row");
   const zonesRow = byId("ras-op-zones-row");
   const textRow = byId("ras-op-text-row");
+  const fieldRow = byId("ras-op-field-row");
   if (secondRow) secondRow.hidden = !op.needsSecond;
-  if (zonesRow) zonesRow.hidden = !op.zones;
+  if (zonesRow) {
+    zonesRow.hidden = !op.zones;
+    // "Polygons" is a lie for distance (lines count) and sampling (points);
+    // the label states what THIS op wants.
+    const label = byId("ras-op-zones-label");
+    if (op.zones && label) label.textContent = op.zonesLabel || "Polygons";
+  }
+  if (fieldRow) {
+    fieldRow.hidden = !op.usesField;
+    if (op.usesField) {
+      // The field list belongs to whichever vector layer the zones select
+      // names right now, so it refreshes with that select, not the layer list.
+      const zones = selectedLayer("ras-op-zones", vectorLayers());
+      fillSelect(byId("ras-op-field"),
+        (zones?.info?.fields || []).map((f) => ({ id: f, name: f })));
+    }
+  }
   if (textRow) {
     textRow.hidden = !op.text;
     if (op.text) {
@@ -357,6 +511,7 @@ function runRasterOp() {
     b: selectedLayer("ras-op-b", rasterLayers()),
     zones: selectedLayer("ras-op-zones", vectorLayers()),
     text: byId("ras-op-text")?.value?.trim(),
+    field: byId("ras-op-field")?.value,
   };
   setText("ras-op-status", `Running ${op.label}...`);
   window.requestAnimationFrame(() => {
@@ -525,6 +680,11 @@ function init() {
   byId("ras-op")?.addEventListener("change", syncRasterOpInputs);
   byId("ras-op-run")?.addEventListener("click", runRasterOp);
   byId("ras-op-param")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
+  // Without the touched flag, the zones-change resync below would clobber
+  // typed rules or a typed expression with the op's default text.
+  byId("ras-op-text")?.addEventListener("input", (e) => { e.target.dataset.touched = "1"; });
+  byId("ras-op-zones")?.addEventListener("change", syncRasterOpInputs);
+  byId("vec-op-check")?.addEventListener("change", (e) => { e.target.dataset.touched = "1"; });
 
   byId("zonal-run")?.addEventListener("click", runZonalStats);
   byId("zonal-export")?.addEventListener("click", () => {
