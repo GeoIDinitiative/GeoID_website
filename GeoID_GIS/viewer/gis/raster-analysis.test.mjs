@@ -14,6 +14,8 @@ import {
   makeRaster, cellSizeMetres, slope, aspect, hillshade, reclassify,
   rasterCalculator, zonalStatistics, contours, rasterToPoints,
   clipRasterByPolygon, rasterStatistics,
+  resampleToGrid, parseReclassifyRules, distanceRaster,
+  rasterizeByAttribute, weightedOverlay, sampleAtPoints,
 } from "./raster-analysis.js";
 
 let failures = 0;
@@ -267,6 +269,179 @@ const northward = build(8, 8, (_x, y) => (7 - y) * 10);
   const stats = rasterStatistics(holed);
   check("no-data is excluded from the count", stats.count === 12, `got ${stats.count}`);
   check("and from the range", stats.min === 10);
+}
+
+/* ── resample to grid ── */
+
+{
+  // A 2×2 quadrant raster resampled onto 8×8: each quadrant's value must fill
+  // its own quarter of the finer grid exactly — nearest-neighbour invents
+  // nothing and misplaces nothing.
+  const quads = makeRaster(new Float32Array([1, 2, 3, 4]), 2, 2, bounds, null);
+  const fine = resampleToGrid(quads, flat);
+  check("NW quadrant lands north-west", fine.band[1 * 8 + 1] === 1);
+  check("NE quadrant lands north-east", fine.band[1 * 8 + 6] === 2);
+  check("SW quadrant lands south-west", fine.band[6 * 8 + 1] === 3);
+  check("SE quadrant lands south-east", fine.band[6 * 8 + 6] === 4);
+}
+{
+  // A source that covers only part of the template leaves the rest no-data.
+  const half = makeRaster(new Float32Array([9]), 1, 1,
+    { minX: 0, minY: 0.5, maxX: 1, maxY: 1 }, null);
+  const out = resampleToGrid(half, flat);
+  check("covered rows take the source value", out.band[0] === 9);
+  check("uncovered rows stay no-data", Number.isNaN(out.band[7 * 8]));
+}
+
+/* ── reclassify rules text ── */
+
+{
+  const r = parseReclassifyRules("0..5:1, 5..12:2, 30..90:5");
+  check("three pieces parse to three rules", r.ok && r.rules.length === 3);
+  check("bounds and class survive verbatim",
+    r.ok && r.rules[2][0] === 30 && r.rules[2][1] === 90 && r.rules[2][2] === 5);
+}
+{
+  const r = parseReclassifyRules("-10..10:4");
+  check("negative bounds parse", r.ok && r.rules[0][0] === -10);
+}
+{
+  check("hyphen ranges are refused with the piece named",
+    !parseReclassifyRules("5-10:1").ok
+    && parseReclassifyRules("5-10:1").message.includes("5-10:1"));
+  check("inverted bounds are refused", !parseReclassifyRules("10..5:1").ok);
+  check("empty text is refused", !parseReclassifyRules("").ok);
+}
+{
+  // The parsed rules must drive the existing reclassify unchanged.
+  const parsed = parseReclassifyRules("0..30:1, 31..80:2");
+  const r = reclassify(eastward, parsed.rules);
+  check("parsed rules classify low values", r.band[0] === 1);
+  check("and high values", r.band[6] === 2);
+}
+
+/* ── distance raster ── */
+
+{
+  // Seed the whole west edge with a meridian line: distance must then grow
+  // purely eastward, one longitude-cell-width per column — an analytic answer
+  // the chamfer meets exactly, because the path is axis-aligned.
+  const line = { type: "FeatureCollection", features: [{
+    type: "Feature", properties: {},
+    geometry: { type: "LineString", coordinates: [[0.01, 0], [0.01, 1]] },
+  }] };
+  const d = distanceRaster(line, flat);
+  const cell = cellSizeMetres(flat);
+  check("seeded column reads zero", d.band[0] === 0);
+  near("one column east is one cell-width away", d.band[1], cell.x, 1e-3);
+  near("the far column is seven cell-widths away", d.band[7], 7 * cell.x, 1e-2);
+  check("distance is uniform down a column",
+    Math.abs(d.band[7] - d.band[7 * 8 + 7]) < 1e-6);
+}
+{
+  // A polygon seeds its BOUNDARY, not its interior — distance inside the
+  // polygon is distance to its edge.
+  const poly = { type: "FeatureCollection", features: [{
+    type: "Feature", properties: {},
+    geometry: { type: "Polygon",
+      coordinates: [[[0.1, 0.1], [0.9, 0.1], [0.9, 0.9], [0.1, 0.9], [0.1, 0.1]]] },
+  }] };
+  const d = distanceRaster(poly, flat);
+  const centre = d.band[4 * 8 + 4];
+  check("the polygon interior is not zero", centre > 0, `got ${centre}`);
+}
+
+/* ── rasterize by attribute ── */
+
+{
+  const zones = { type: "FeatureCollection", features: [
+    { type: "Feature", properties: { score: 5 },
+      geometry: { type: "Polygon",
+        coordinates: [[[0, 0], [0.5, 0], [0.5, 1], [0, 1], [0, 0]]] } },
+    { type: "Feature", properties: { score: 2 },
+      geometry: { type: "Polygon",
+        coordinates: [[[0.5, 0], [1, 0], [1, 1], [0.5, 1], [0.5, 0]]] } },
+  ] };
+  const r = rasterizeByAttribute(zones, "score", flat);
+  check("west polygon burns its value", r.band[4 * 8 + 1] === 5);
+  check("east polygon burns its value", r.band[4 * 8 + 6] === 2);
+}
+{
+  // Overlap: the later feature wins, matching gdal_rasterize.
+  const zones = { type: "FeatureCollection", features: [
+    { type: "Feature", properties: { v: 1 },
+      geometry: { type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] } },
+    { type: "Feature", properties: { v: 9 },
+      geometry: { type: "Polygon",
+        coordinates: [[[0.4, 0.4], [0.6, 0.4], [0.6, 0.6], [0.4, 0.6], [0.4, 0.4]]] } },
+  ] };
+  const r = rasterizeByAttribute(zones, "v", flat);
+  check("later feature wins where they overlap", r.band[4 * 8 + 4] === 9);
+  check("first feature keeps the rest", r.band[0] === 1);
+}
+{
+  // A non-numeric attribute cannot be burned; those features are skipped, not
+  // written as NaN-that-looks-deliberate or a made-up code.
+  const zones = { type: "FeatureCollection", features: [
+    { type: "Feature", properties: { v: "basalt" },
+      geometry: { type: "Polygon",
+        coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] } },
+  ] };
+  const r = rasterizeByAttribute(zones, "v", flat);
+  check("text attributes leave no-data", Number.isNaN(r.band[30]));
+}
+
+/* ── weighted overlay ── */
+
+{
+  const fives = build(8, 8, () => 5);
+  const ones = build(8, 8, () => 1);
+  // 0.75×5 + 0.25×1 = 4, everywhere. Weights given as 75/25 to prove the
+  // normalisation — QGIS-style percentages must mean the same as fractions.
+  const wo = weightedOverlay([{ raster: fives, weight: 75 }, { raster: ones, weight: 25 }]);
+  check("weighted sum is exact", wo.ok && wo.raster.band[0] === 4, `got ${wo.raster?.band[0]}`);
+  check("nothing needed resampling", wo.resampled === 0);
+}
+{
+  // A cell missing ANY factor is unscored — never defaulted to zero.
+  const holed = build(8, 8, (x, y) => (x === 3 && y === 3 ? NaN : 2));
+  const full = build(8, 8, () => 4);
+  const wo = weightedOverlay([{ raster: holed, weight: 1 }, { raster: full, weight: 1 }]);
+  check("a hole in one factor holes the result", Number.isNaN(wo.raster.band[3 * 8 + 3]));
+  check("elsewhere both factors score", wo.raster.band[0] === 3);
+}
+{
+  // A coarser factor is resampled onto the reference grid, and says so.
+  const coarse = makeRaster(new Float32Array([10, 10, 10, 10]), 2, 2, bounds, null);
+  const fine = build(8, 8, () => 2);
+  const wo = weightedOverlay([{ raster: fine, weight: 1 }, { raster: coarse, weight: 1 }]);
+  check("mixed grids still score", wo.ok && wo.raster.band[0] === 6);
+  check("and the resample is reported", wo.resampled === 1);
+}
+{
+  check("zero total weight is refused", !weightedOverlay([{ raster: flat, weight: 0 }]).ok);
+  check("no layers is refused", !weightedOverlay([]).ok);
+}
+
+/* ── sample at points ── */
+
+{
+  const pts = { type: "FeatureCollection", features: [
+    { type: "Feature", properties: { name: "in" },
+      geometry: { type: "Point", coordinates: [0.3, 0.7] } },
+    { type: "Feature", properties: { name: "out" },
+      geometry: { type: "Point", coordinates: [5, 5] } },
+  ] };
+  const out = sampleAtPoints(eastward, pts, "elev");
+  const inside = out.features.find((f) => f.properties.name === "in");
+  const outside = out.features.find((f) => f.properties.name === "out");
+  // x=0.3 of an 8-wide raster is column 2, and eastward's value is 10x.
+  check("a point reads the cell under it", inside.properties.elev === 20,
+    `got ${inside.properties.elev}`);
+  check("a point off the raster reads null, not zero", outside.properties.elev === null);
+  check("existing attributes survive", inside.properties.name === "in");
+  check("the hit count is honest", out.sampled === 1);
 }
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

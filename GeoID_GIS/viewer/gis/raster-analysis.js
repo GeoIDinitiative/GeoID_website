@@ -379,6 +379,255 @@ export function samplerToRaster(sampler, bounds, { cellsAcross = 512, maxCells =
   return raster;
 }
 
+/**
+ * Nearest-neighbour resample onto another raster's grid.
+ *
+ * The calculator zips bands by index, so two rasters on different grids give
+ * silently wrong answers — HadUK's 1 km cells against a 100 m DEM is the NI
+ * recipe's own case. Nearest-neighbour is deliberate for a browser tool:
+ * it never invents values (a reclassified class grid must not be averaged),
+ * and the sidecar's gdalwarp owns bilinear/cubic when fidelity matters.
+ */
+export function resampleToGrid(raster, template) {
+  const out = new Float32Array(template.width * template.height).fill(NaN);
+  const sb = raster.bounds;
+  const tb = template.bounds;
+  for (let y = 0; y < template.height; y += 1) {
+    const lat = tb.maxY - ((y + 0.5) / template.height) * (tb.maxY - tb.minY);
+    const sy = Math.floor(((sb.maxY - lat) / (sb.maxY - sb.minY)) * raster.height);
+    if (sy < 0 || sy >= raster.height) continue;
+    for (let x = 0; x < template.width; x += 1) {
+      const lon = tb.minX + ((x + 0.5) / template.width) * (tb.maxX - tb.minX);
+      const sx = Math.floor(((lon - sb.minX) / (sb.maxX - sb.minX)) * raster.width);
+      if (sx < 0 || sx >= raster.width) continue;
+      const v = raster.band[sy * raster.width + sx];
+      if (Number.isFinite(v) && (raster.noData === null || v !== raster.noData)) {
+        out[y * template.width + x] = v;
+      }
+    }
+  }
+  return makeRaster(out, template.width, template.height, tb, NaN);
+}
+
+/**
+ * Rules text for reclassify: "0..5:1, 5..12:2, 30..90:5".
+ *
+ * `..` rather than `-` as the range mark, because a negative bound makes
+ * "-10-10:5" unreadable — "-10..10:5" is not. Returns { ok, rules | message },
+ * naming the first bad piece so the status line can point at it.
+ */
+export function parseReclassifyRules(text) {
+  const rules = [];
+  const pieces = String(text || "").split(",").map((piece) => piece.trim()).filter(Boolean);
+  if (!pieces.length) return { ok: false, message: "No rules given." };
+  for (const piece of pieces) {
+    const m = piece.match(/^(-?\d+(?:\.\d+)?)\.\.(-?\d+(?:\.\d+)?):(-?\d+(?:\.\d+)?)$/);
+    if (!m) return { ok: false, message: `Cannot read "${piece}" — use min..max:class.` };
+    const min = Number(m[1]);
+    const max = Number(m[2]);
+    const value = Number(m[3]);
+    if (!(max > min)) return { ok: false, message: `"${piece}": max must exceed min.` };
+    rules.push([min, max, value]);
+  }
+  return { ok: true, rules };
+}
+
+/**
+ * Euclidean distance in metres from vector features, on a template grid.
+ *
+ * Two-pass chamfer transform with the cell's real ground size on each axis
+ * (a degree of longitude is not a degree of latitude), so the answer is a
+ * distance, not a cell count. Seeds are laid by walking every segment at
+ * sub-cell steps — points seed their cell, lines and polygon BOUNDARIES seed
+ * theirs. Distance to a polygon's interior is deliberately distance to its
+ * edge: the drainage-proximity factor this exists for wants distance to the
+ * river line, and a filled polygon would zero its whole floodplain.
+ */
+export function distanceRaster(fc, template) {
+  const { width, height } = template;
+  const tb = template.bounds;
+  const dist = new Float64Array(width * height).fill(Infinity);
+
+  const cellOf = (lon, lat) => {
+    const x = Math.floor(((lon - tb.minX) / (tb.maxX - tb.minX)) * width);
+    const y = Math.floor(((tb.maxY - lat) / (tb.maxY - tb.minY)) * height);
+    return (x >= 0 && x < width && y >= 0 && y < height) ? y * width + x : -1;
+  };
+  const cell = cellSizeMetres(template);
+  const seedSegment = (a, b) => {
+    const steps = Math.max(1, Math.ceil(Math.max(
+      Math.abs(b[0] - a[0]) / ((tb.maxX - tb.minX) / width),
+      Math.abs(b[1] - a[1]) / ((tb.maxY - tb.minY) / height),
+    ) * 2));
+    for (let i = 0; i <= steps; i += 1) {
+      const t = i / steps;
+      const at = cellOf(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t);
+      if (at >= 0) dist[at] = 0;
+    }
+  };
+  fc.features.forEach((f) => {
+    const g = f.geometry;
+    if (!g) return;
+    if (g.type === "Point") {
+      const at = cellOf(g.coordinates[0], g.coordinates[1]);
+      if (at >= 0) dist[at] = 0;
+    } else if (g.type === "MultiPoint") {
+      g.coordinates.forEach((c) => {
+        const at = cellOf(c[0], c[1]);
+        if (at >= 0) dist[at] = 0;
+      });
+    } else {
+      const lines = g.type === "LineString" ? [g.coordinates]
+        : g.type === "MultiLineString" ? g.coordinates
+          : g.type === "Polygon" ? g.coordinates
+            : g.type === "MultiPolygon" ? g.coordinates.flat() : [];
+      lines.forEach((line) => {
+        for (let i = 0; i < line.length - 1; i += 1) seedSegment(line[i], line[i + 1]);
+      });
+    }
+  });
+
+  const dx = cell.x;
+  const dy = cell.y;
+  const dd = Math.hypot(dx, dy);
+  // Forward pass (top-left to bottom-right), then backward — the classic
+  // chamfer sweep, within ~2% of true Euclidean (the known chamfer bound),
+  // which is far inside what a proximity reclass band can tell apart.
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = y * width + x;
+      if (x > 0) dist[i] = Math.min(dist[i], dist[i - 1] + dx);
+      if (y > 0) dist[i] = Math.min(dist[i], dist[i - width] + dy);
+      if (x > 0 && y > 0) dist[i] = Math.min(dist[i], dist[i - width - 1] + dd);
+      if (x < width - 1 && y > 0) dist[i] = Math.min(dist[i], dist[i - width + 1] + dd);
+    }
+  }
+  for (let y = height - 1; y >= 0; y -= 1) {
+    for (let x = width - 1; x >= 0; x -= 1) {
+      const i = y * width + x;
+      if (x < width - 1) dist[i] = Math.min(dist[i], dist[i + 1] + dx);
+      if (y < height - 1) dist[i] = Math.min(dist[i], dist[i + width] + dy);
+      if (x < width - 1 && y < height - 1) dist[i] = Math.min(dist[i], dist[i + width + 1] + dd);
+      if (x > 0 && y < height - 1) dist[i] = Math.min(dist[i], dist[i + width - 1] + dd);
+    }
+  }
+  const out = new Float32Array(width * height);
+  for (let i = 0; i < out.length; i += 1) out[i] = Number.isFinite(dist[i]) ? dist[i] : NaN;
+  return makeRaster(out, width, height, tb, NaN);
+}
+
+/**
+ * Vector → raster: burn a numeric attribute into a grid.
+ *
+ * Iterates FEATURES and fills each polygon's own bbox cell range, rather than
+ * asking every cell which feature contains it — the difference between the sum
+ * of the polygons' footprints and cells×features, which at NI scale (millions
+ * of cells × hundreds of geology units) is the difference between running and
+ * not. Later features win where polygons overlap, matching gdal_rasterize.
+ */
+export function rasterizeByAttribute(fc, field, template) {
+  const { width, height } = template;
+  const tb = template.bounds;
+  const out = new Float32Array(width * height).fill(NaN);
+  fc.features.forEach((f) => {
+    const value = Number(f.properties?.[field]);
+    if (!Number.isFinite(value)) return;
+    polygonsOf(f.geometry).forEach((polygon) => {
+      if (!polygon.length || polygon[0].length < 4) return;
+      const pb = G.boundsOf(polygon[0]);
+      const x0 = Math.max(0, Math.floor(((pb.minX - tb.minX) / (tb.maxX - tb.minX)) * width));
+      const x1 = Math.min(width - 1, Math.ceil(((pb.maxX - tb.minX) / (tb.maxX - tb.minX)) * width));
+      const y0 = Math.max(0, Math.floor(((tb.maxY - pb.maxY) / (tb.maxY - tb.minY)) * height));
+      const y1 = Math.min(height - 1, Math.ceil(((tb.maxY - pb.minY) / (tb.maxY - tb.minY)) * height));
+      for (let y = y0; y <= y1; y += 1) {
+        const lat = tb.maxY - ((y + 0.5) / height) * (tb.maxY - tb.minY);
+        for (let x = x0; x <= x1; x += 1) {
+          const lon = tb.minX + ((x + 0.5) / width) * (tb.maxX - tb.minX);
+          if (G.pointInPolygon([lon, lat], polygon)) out[y * width + x] = value;
+        }
+      }
+    });
+  });
+  return makeRaster(out, width, height, tb, NaN);
+}
+
+/**
+ * Weighted overlay: sum of weight × raster, on the first raster's grid.
+ *
+ * The multi-criteria core of every susceptibility map. Weights are normalised
+ * so 30/30/40 and 0.3/0.3/0.4 mean the same thing; inputs off the reference
+ * grid are nearest-resampled onto it first. A cell is scored only where EVERY
+ * factor has a value — a missing factor silently defaulting to zero would read
+ * as "safest class" exactly where the data is worst.
+ */
+export function weightedOverlay(entries) {
+  if (!entries || !entries.length) return { ok: false, message: "No layers given." };
+  const total = entries.reduce((sum, e) => sum + e.weight, 0);
+  if (!(total > 0)) return { ok: false, message: "Weights must sum above zero." };
+  const template = entries[0].raster;
+  const sameGrid = (r) => r.width === template.width && r.height === template.height
+    && r.bounds.minX === template.bounds.minX && r.bounds.maxX === template.bounds.maxX
+    && r.bounds.minY === template.bounds.minY && r.bounds.maxY === template.bounds.maxY;
+  let resampled = 0;
+  const aligned = entries.map((e) => {
+    const fits = sameGrid(e.raster);
+    if (!fits) resampled += 1;
+    return {
+      weight: e.weight / total,
+      band: (fits ? e.raster : resampleToGrid(e.raster, template)).band,
+    };
+  });
+  const out = new Float32Array(template.width * template.height).fill(NaN);
+  for (let i = 0; i < out.length; i += 1) {
+    let sum = 0;
+    let all = true;
+    for (const { weight, band } of aligned) {
+      const v = band[i];
+      if (!Number.isFinite(v)) { all = false; break; }
+      sum += weight * v;
+    }
+    if (all) out[i] = sum;
+  }
+  return {
+    ok: true,
+    resampled,
+    raster: makeRaster(out, template.width, template.height, template.bounds, NaN),
+  };
+}
+
+/**
+ * Read the raster under each point feature, as a new attribute.
+ *
+ * The inverse of rasterToPoints, and the join that turns "a susceptibility
+ * raster" into "a risk value at each school/road/gauge". Points outside the
+ * raster or over noData get null rather than a made-up zero.
+ */
+export function sampleAtPoints(raster, fc, attrName = "value") {
+  const features = [];
+  let hits = 0;
+  fc.features.forEach((f) => {
+    const g = f.geometry;
+    const coords = g?.type === "Point" ? [g.coordinates]
+      : g?.type === "MultiPoint" ? g.coordinates : null;
+    if (!coords) return;
+    coords.forEach((c) => {
+      const x = Math.floor(((c[0] - raster.bounds.minX)
+        / (raster.bounds.maxX - raster.bounds.minX)) * raster.width);
+      const y = Math.floor(((raster.bounds.maxY - c[1])
+        / (raster.bounds.maxY - raster.bounds.minY)) * raster.height);
+      const v = valueAt(raster, x, y);
+      if (v !== null) hits += 1;
+      features.push(feature(
+        { type: "Point", coordinates: [c[0], c[1]] },
+        { ...f.properties, [attrName]: v },
+      ));
+    });
+  });
+  const out = featureCollection(features);
+  out.sampled = hits;
+  return out;
+}
+
 /** Raster cells to points, optionally thinned by a step. */
 export function rasterToPoints(raster, { step = 1, maxPoints = 200000 } = {}) {
   const features = [];
