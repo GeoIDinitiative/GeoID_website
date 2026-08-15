@@ -10,8 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260815-dee2647";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260815-dee2647";
+import { currentBody } from "./bodies.js?v=20260815-c6af6fc";
+import { samplerToRaster } from "./raster-analysis.js?v=20260815-c6af6fc";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260815-c6af6fc";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260815-c6af6fc";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -390,6 +392,42 @@ function optionsTile(layer) {
   // bounds; only offered once there is something in the scene to frame.
   if (layer.object3D && manager?.frameLayer) act("Focus", () => manager.frameLayer(layer));
   act("Export", () => window.GeoIDLayerExport?.open?.(layer));
+
+  /**
+   * A sampled layer becomes a real raster on request.
+   *
+   * A GEE drape is a picture with a sampler — a palette read — and no band, so
+   * the raster tools cannot touch it: slope, reclassify, the calculator and
+   * zonal statistics all want cells. This grids the sampler over the layer's
+   * own bounds into a first-class raster layer, which also makes it exportable
+   * as a GeoTIFF. Offered only where the sampler yields NUMBERS: a colour-only
+   * sampler (no legend to invert) would grid colours pretending to be values,
+   * and the source list already tells that layer's user why.
+   */
+  if (layer.sampler && layer.bounds && !layer.raster
+    && layer.info?.valueKind !== "colour") {
+    act("To raster", () => {
+      const raster = samplerToRaster(layer.sampler, layer.bounds);
+      if (!raster) {
+        window.alert("Nothing numeric could be sampled from this layer.");
+        return;
+      }
+      const column = layer.info?.column || layer.name;
+      const result = buildRasterLayer([raster.band], raster.width, raster.height,
+        raster.bounds, { name: `${column}_raster`, noData: NaN, isDem: false });
+      const made = window.GeoIDImportManager?.addDerivedLayer?.(
+        `${column}_raster`, result, "derived");
+      if (made) {
+        // The reading came off a rendered palette, so the provenance says so —
+        // the number must never pass as the archive band.
+        made.metadata = {
+          source: `Materialised from ${layer.name} (palette read)`,
+          format: `${raster.width}x${raster.height} grid`,
+          importedAt: new Date().toISOString(),
+        };
+      }
+    });
+  }
 
   /**
    * Remove asks first.

@@ -10,10 +10,10 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260815-dee2647";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260815-dee2647";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260815-c6af6fc";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260815-c6af6fc";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260815-dee2647";
+  from "./view-extent.js?v=20260815-c6af6fc";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -303,6 +303,21 @@ function samplerFor(object3D, entry) {
   };
 }
 
+/**
+ * Pixel budget for the request's long side. "Auto" scales with the extent —
+ * a small study area deserves the detail a global request would waste — and
+ * the explicit choices exist because detail is a cost the user may be paying
+ * for on their own Earth Engine quota.
+ */
+function requestDimensions(bounds) {
+  const chosen = byId("gee-res")?.value || "auto";
+  if (chosen !== "auto") return Number(chosen) || 1024;
+  const spanDeg = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, 0.01);
+  // Aim near 150 m/px, clamped to sane thumbnail sizes.
+  const px = Math.round((spanDeg * 111320) / 150);
+  return Math.max(256, Math.min(2048, px));
+}
+
 async function request() {
   const url = endpoint();
   const select = byId("gee-dataset");
@@ -341,6 +356,13 @@ async function request() {
     const { from, to } = dateRange();
     params.set("from", from);
     params.set("to", to);
+    // The service previously chose the pixel budget itself, so a study-area
+    // request got the same 1024 px a global one did — over NI that is the
+    // difference between ~190 m/px and ~39 km/px. Asked for explicitly now,
+    // sized to the extent; the status line still reports the DELIVERED
+    // resolution measured from what actually arrived, so a service that
+    // ignores the parameter cannot over-claim.
+    params.set("dimensions", String(requestDimensions(bounds)));
 
     const response = await fetch(`${url}?${params}`, { cache: "no-store" });
     const data = await response.json().catch(() => ({}));

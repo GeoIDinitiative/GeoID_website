@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260815-dee2647";
-import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260815-dee2647";
+import * as G from "./geometry.js?v=20260815-c6af6fc";
+import { featureCollection, feature, polygonsOf } from "./geoprocessing.js?v=20260815-c6af6fc";
 
 // Raster analysis equivalents of the QGIS Raster menu / ArcGIS Spatial Analyst
 // surface tools. A raster here is { band, width, height, bounds, noData },
@@ -331,6 +331,52 @@ export function contours(raster, levels) {
     });
   });
   return featureCollection(features);
+}
+
+
+/**
+ * Materialise a sampled layer into a real raster.
+ *
+ * A GEE drape carries a sampler — a reading of its rendered palette — but no
+ * band, so none of the raster tools can touch it: slope, reclassify, the
+ * calculator and zonal statistics all want cells. This grids the sampler over
+ * its own bounds at cell centres, producing a raster every tool accepts, and
+ * that the GeoTIFF writer can then export. The resolution honestly cannot
+ * exceed what the drape delivered; the default 512 cells across is at or above
+ * the delivered detail of every cache snapshot.
+ *
+ * Numeric samplers only. A colour-only sampler (no legend to invert) would
+ * grid colours pretending to be values — the caller must refuse it first.
+ */
+export function samplerToRaster(sampler, bounds, { cellsAcross = 512, maxCells = 4000000 } = {}) {
+  const spanX = bounds.maxX - bounds.minX;
+  const spanY = bounds.maxY - bounds.minY;
+  if (!(spanX > 0) || !(spanY > 0)) return null;
+  let width = Math.max(2, Math.round(cellsAcross));
+  let height = Math.max(2, Math.round(width * (spanY / spanX)));
+  if (width * height > maxCells) {
+    const shrink = Math.sqrt(maxCells / (width * height));
+    width = Math.max(2, Math.floor(width * shrink));
+    height = Math.max(2, Math.floor(height * shrink));
+  }
+  const band = new Float32Array(width * height).fill(NaN);
+  let hits = 0;
+  for (let y = 0; y < height; y += 1) {
+    // Row 0 is the north edge, matching every raster in this module.
+    const lat = bounds.maxY - ((y + 0.5) / height) * spanY;
+    for (let x = 0; x < width; x += 1) {
+      const lon = bounds.minX + ((x + 0.5) / width) * spanX;
+      const v = sampler(lat, lon);
+      if (typeof v === "number" && Number.isFinite(v)) {
+        band[y * width + x] = v;
+        hits += 1;
+      }
+    }
+  }
+  if (!hits) return null; // nothing numeric anywhere: not a raster
+  const raster = makeRaster(band, width, height, bounds, NaN);
+  raster.sampledCells = hits;
+  return raster;
 }
 
 /** Raster cells to points, optionally thinned by a step. */
