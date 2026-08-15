@@ -18,11 +18,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260815-d33b5bb-hazard-readout-large">
+  <link rel="stylesheet" href="styles.css?v=20260815-0887cf5-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260815-d33b5bb" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260815-d33b5bb" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260815-0887cf5" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260815-0887cf5" defer></script>
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -213,9 +213,12 @@
             <div class="gis-tool-body">
               <div class="row"><label for="ras-op-a">Raster</label><select id="ras-op-a" class="mini-select"></select></div>
               <div class="row"><label for="ras-op">Tool</label><select id="ras-op" class="mini-select"></select></div>
+                            <div class="row" id="ras-op-second-row" hidden><label for="ras-op-b">Raster B</label><select id="ras-op-b" class="mini-select"></select></div>
+              <div class="row" id="ras-op-zones-row" hidden><label for="ras-op-zones">Polygons</label><select id="ras-op-zones" class="mini-select"></select></div>
+              <div class="row" id="ras-op-text-row" hidden><label id="ras-op-text-label" for="ras-op-text">Expression</label><input id="ras-op-text" class="input" type="text"></div>
               <div class="row" id="ras-op-param-row" hidden><label id="ras-op-param-label" for="ras-op-param">Value</label><input id="ras-op-param" class="input" type="number"></div>
               <button id="ras-op-run" class="tool-button" type="button">Run</button>
-              <div id="ras-op-status" class="gis-metric">Slope, aspect, hillshade, contours, reclassify and raster-to-points.</div>
+              <div id="ras-op-status" class="gis-metric">Slope, aspect, hillshade, contours, reclassify, raster calculator, clip by polygon and raster-to-points.</div>
             </div>
           </details>
           <details class="gis-tool-section">
@@ -246,9 +249,10 @@
               <div class="row"><label for="vec-op">Tool</label><select id="vec-op" class="mini-select"></select></div>
               <div class="row" id="vec-op-second-row" hidden><label for="vec-op-b">Overlay</label><select id="vec-op-b" class="mini-select"></select></div>
               <div class="row" id="vec-op-field-row" hidden><label for="vec-op-field">Field</label><select id="vec-op-field" class="mini-select"></select></div>
+                            <div class="row" id="vec-op-crs-row" hidden><label for="vec-op-crs-from">CRS</label><select id="vec-op-crs-from" class="mini-select"></select><select id="vec-op-crs-to" class="mini-select"></select></div>
               <div class="row" id="vec-op-param-row" hidden><label id="vec-op-param-label" for="vec-op-param">Value</label><input id="vec-op-param" class="input" type="number"></div>
               <button id="vec-op-run" class="tool-button" type="button">Run</button>
-              <div id="vec-op-status" class="gis-metric">Buffer, clip, difference, intersect, dissolve, hull, centroids, simplify, spatial join.</div>
+              <div id="vec-op-status" class="gis-metric">Buffer, clip, difference, intersect, union, dissolve, hull, centroids, simplify, reproject, spatial join.</div>
             </div>
           </details>
           <details class="gis-tool-section">
@@ -1972,7 +1976,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
     </div>
   </div>
 
-<script id="earth-manifest-script" src="earth-manifest.js?v=20260815-d33b5bb-blue-marble" defer></script>
+<script id="earth-manifest-script" src="earth-manifest.js?v=20260815-0887cf5-blue-marble" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -2051,30 +2055,30 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260815-d33b5bb" defer></script>
-<script type="module" src="gis/atlas-assistant.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/import-manager.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/toolbox.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/model-studio.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/layer-properties.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/legend-dock.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/layer-export-dialog.js?v=20260815-d33b5bb"></script>
+<script src="gis/mode-manager.js?v=20260815-0887cf5" defer></script>
+<script type="module" src="gis/atlas-assistant.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/import-manager.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/toolbox.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/model-studio.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/layer-properties.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/legend-dock.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/layer-export-dialog.js?v=20260815-0887cf5"></script>
 <!-- Pre-processing and Extraction & Analysis, as workbenches on the tool
      rail rather than two more collapsibles in the sidebar column. -->
-<script type="module" src="gis/side-panels.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/project.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/events.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/gee.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/basemap-drape.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/zoom-bar.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/polygons.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/research/index.js?v=20260815-d33b5bb"></script>
-<script type="module" src="gis/planet-strip.js?v=20260815-d33b5bb"></script>
+<script type="module" src="gis/side-panels.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/project.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/events.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/gee.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/basemap-drape.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/zoom-bar.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/polygons.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/research/index.js?v=20260815-0887cf5"></script>
+<script type="module" src="gis/planet-strip.js?v=20260815-0887cf5"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260815-d33b5bb" defer></script>
+<script src="music.js?v=20260815-0887cf5" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>

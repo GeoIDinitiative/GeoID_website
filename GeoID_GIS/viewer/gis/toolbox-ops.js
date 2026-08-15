@@ -1,10 +1,10 @@
-import * as GP from "./geoprocessing.js?v=20260815-d33b5bb";
-import * as RA from "./raster-analysis.js?v=20260815-d33b5bb";
-import * as VF from "./vector-formats.js?v=20260815-d33b5bb";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260815-d33b5bb";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260815-d33b5bb";
-import { downloadText } from "./extraction.js?v=20260815-d33b5bb";
-import { CRS_OPTIONS } from "./projection.js?v=20260815-d33b5bb";
+import * as GP from "./geoprocessing.js?v=20260815-0887cf5";
+import * as RA from "./raster-analysis.js?v=20260815-0887cf5";
+import * as VF from "./vector-formats.js?v=20260815-0887cf5";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260815-0887cf5";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260815-0887cf5";
+import { downloadText } from "./extraction.js?v=20260815-0887cf5";
+import { CRS_OPTIONS } from "./projection.js?v=20260815-0887cf5";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -131,6 +131,37 @@ const VECTOR_OPS = {
     param: { label: "Tolerance (m)", value: 100, step: 10 },
     run: (a, _b, param) => publishVector(GP.simplifyCollection(a.collection, param), `simplify_${a.name}`),
   },
+  union: {
+    label: "Union (merge layers)",
+    needsSecond: true,
+    run: (a, b) => {
+      const merged = GP.union(a.collection, b.collection);
+      const result = publishVector(merged, `union_${a.name}`);
+      // A donut input cannot keep its hole through a ring-level merge; saying
+      // so beats a quietly solid result.
+      if (result.ok && merged.holesDropped) {
+        return { ...result, message: `${result.message} Interior rings were filled by the merge.` };
+      }
+      return result;
+    },
+  },
+  reproject: {
+    label: "Reproject (CRS)",
+    needsSecond: false,
+    crs: true,
+    run: (a, _b, _param, _field, extras) => {
+      if (!extras.fromCrs || !extras.toCrs) {
+        return { ok: false, message: "Pick both coordinate systems." };
+      }
+      if (extras.fromCrs === extras.toCrs) {
+        return { ok: false, message: "Source and target CRS are the same." };
+      }
+      return publishVector(
+        GP.reproject(a.collection, extras.fromCrs, extras.toCrs),
+        `reproject_${a.name}`,
+      );
+    },
+  },
   spatialJoin: {
     label: "Spatial join",
     needsSecond: true,
@@ -151,8 +182,21 @@ function syncVectorOpInputs() {
   const secondRow = byId("vec-op-second-row");
   const paramRow = byId("vec-op-param-row");
   const fieldRow = byId("vec-op-field-row");
+  const crsRow = byId("vec-op-crs-row");
   if (secondRow) secondRow.hidden = !op.needsSecond;
   if (fieldRow) fieldRow.hidden = !op.usesField;
+  if (crsRow) {
+    crsRow.hidden = !op.crs;
+    // Filled here rather than in refreshToolboxSelects: the CRS list is
+    // static, so filling it once when first shown is enough, and the "none"
+    // entry (not georeferenced) is not a thing a reprojection can mean.
+    const from = byId("vec-op-crs-from");
+    if (op.crs && from && !from.options.length) {
+      const options = CRS_OPTIONS.filter((c) => c.id !== "none");
+      fillSelect(from, options, { getLabel: (c) => c.name });
+      fillSelect(byId("vec-op-crs-to"), options, { getLabel: (c) => c.name });
+    }
+  }
   if (paramRow) {
     paramRow.hidden = !op.param;
     if (op.param) {
@@ -182,10 +226,14 @@ function runVectorOp() {
   }
   const param = Number(byId("vec-op-param")?.value);
   const field = byId("vec-op-field")?.value;
+  const extras = {
+    fromCrs: byId("vec-op-crs-from")?.value,
+    toCrs: byId("vec-op-crs-to")?.value,
+  };
   setText("vec-op-status", `Running ${op.label}...`);
   window.requestAnimationFrame(() => {
     try {
-      const result = op.run(a, b, param, field);
+      const result = op.run(a, b, param, field, extras);
       setText("vec-op-status", result.message);
     } catch (error) {
       console.error("[GeoID GIS] vector op failed", error);
@@ -222,6 +270,37 @@ const RASTER_OPS = {
       RA.reclassify(r.raster, [[-Infinity, param, 0], [param + 1e-9, Infinity, 1]]), `reclass_${n}`,
     ),
   },
+  calculator: {
+    label: "Raster calculator",
+    needsSecond: true,
+    text: { label: "Expression", value: "(a - b) / (a + b)" },
+    run: (r, n, _param, extras) => {
+      const other = extras.b || null;
+      if (other && (other.raster.width !== r.raster.width
+        || other.raster.height !== r.raster.height)) {
+        return {
+          ok: false,
+          message: `Rasters differ in shape (${r.raster.width}x${r.raster.height} vs `
+            + `${other.raster.width}x${other.raster.height}) — resample first.`,
+        };
+      }
+      const res = RA.rasterCalculator(r.raster, other?.raster || null, extras.text || "a");
+      if (!res.ok) return res;
+      return publishRaster(res.raster, `calc_${n}`);
+    },
+  },
+  clipByPolygon: {
+    label: "Clip by polygon",
+    zones: true,
+    run: (r, n, _param, extras) => {
+      if (!extras.zones) {
+        return { ok: false, message: "Pick a polygon layer to clip by." };
+      }
+      return publishRaster(
+        RA.clipRasterByPolygon(r.raster, extras.zones.collection), `clip_${n}`,
+      );
+    },
+  },
   toPoints: {
     label: "Raster to points",
     param: { label: "Sample every N cells", value: 8, step: 1 },
@@ -238,6 +317,21 @@ function currentRasterOp() {
 function syncRasterOpInputs() {
   const op = currentRasterOp();
   const paramRow = byId("ras-op-param-row");
+  const secondRow = byId("ras-op-second-row");
+  const zonesRow = byId("ras-op-zones-row");
+  const textRow = byId("ras-op-text-row");
+  if (secondRow) secondRow.hidden = !op.needsSecond;
+  if (zonesRow) zonesRow.hidden = !op.zones;
+  if (textRow) {
+    textRow.hidden = !op.text;
+    if (op.text) {
+      byId("ras-op-text-label").textContent = op.text.label;
+      const input = byId("ras-op-text");
+      if (!input.dataset.touched) {
+        input.value = op.text.value;
+      }
+    }
+  }
   if (paramRow) {
     paramRow.hidden = !op.param;
     if (op.param) {
@@ -259,10 +353,15 @@ function runRasterOp() {
     return;
   }
   const param = Number(byId("ras-op-param")?.value);
+  const extras = {
+    b: selectedLayer("ras-op-b", rasterLayers()),
+    zones: selectedLayer("ras-op-zones", vectorLayers()),
+    text: byId("ras-op-text")?.value?.trim(),
+  };
   setText("ras-op-status", `Running ${op.label}...`);
   window.requestAnimationFrame(() => {
     try {
-      const result = op.run(layer, layer.name.replace(/\.[^.]+$/, ""), param);
+      const result = op.run(layer, layer.name.replace(/\.[^.]+$/, ""), param, extras);
       setText("ras-op-status", result.message);
     } catch (error) {
       console.error("[GeoID GIS] raster op failed", error);
@@ -404,6 +503,8 @@ export function refreshToolboxSelects() {
   fillSelect(byId("vec-op-a"), vectors);
   fillSelect(byId("vec-op-b"), vectors);
   fillSelect(byId("ras-op-a"), rasters);
+  fillSelect(byId("ras-op-b"), rasters);
+  fillSelect(byId("ras-op-zones"), vectors);
   fillSelect(byId("zonal-raster"), rasters);
   fillSelect(byId("zonal-zones"), vectors);
   fillSelect(byId("attr-layer"), vectors);

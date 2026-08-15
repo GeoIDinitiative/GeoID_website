@@ -1,5 +1,5 @@
-import * as G from "./geometry.js?v=20260815-d33b5bb";
-import { transform } from "./projection.js?v=20260815-d33b5bb";
+import * as G from "./geometry.js?v=20260815-0887cf5";
+import { transform } from "./projection.js?v=20260815-0887cf5";
 
 // Vector geoprocessing on GeoJSON FeatureCollections.
 //
@@ -160,6 +160,31 @@ function unionAll(fc, properties = {}) {
   return featureCollection(merged.map((ring) => feature(
     { type: "Polygon", coordinates: [ring] }, properties,
   )));
+}
+
+/**
+ * Union of two layers: one collection of merged outer boundaries.
+ *
+ * This is the dissolve-style union — "these two footprints as one region" —
+ * not QGIS's planar Union, which keeps every intersected piece with both
+ * sides' attributes. The dissolve reading is what a buffer/clip workflow
+ * reaches for, and it is what the ring primitive can do honestly.
+ *
+ * Honest limit, reported rather than hidden: the merge works on OUTER rings,
+ * so interior rings do not survive it. The result carries `holesDropped` when
+ * an input had any, and the toolbox surfaces that in the status line instead
+ * of letting a donut quietly become solid.
+ */
+export function union(fcA, fcB) {
+  const merged = featureCollection([...fcA.features, ...fcB.features]);
+  const hadHoles = merged.features.some(
+    (f) => polygonsOf(f.geometry).some((polygon) => polygon.length > 1),
+  );
+  const out = unionAll(merged, {
+    union_inputs: fcA.features.length + fcB.features.length,
+  });
+  out.holesDropped = hadHoles;
+  return out;
 }
 
 // ── Multi-ring overlay ──────────────────────────────────────────────────────
