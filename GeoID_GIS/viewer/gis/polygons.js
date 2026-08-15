@@ -1,4 +1,4 @@
-import { describeCollection } from "./vector-render.js?v=20260816-3657637";
+import { describeCollection } from "./vector-render.js?v=20260816-e4d702c";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,

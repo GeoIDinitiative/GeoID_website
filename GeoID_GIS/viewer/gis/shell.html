@@ -546,6 +546,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
       <button class="studio-btn" data-act="delete">Delete</button>
       <span class="studio-sep"></span>
       <button class="studio-btn" data-act="export-script" title="Write the model as a standalone gmsh Python script">Export script</button>
+      <button class="studio-btn" data-act="mesh-gmsh" title="Run the model through gmsh in the local sidecar; the mesh lands in the project's meshes/">Mesh with gmsh</button>
       <button class="studio-btn" data-act="to-gales" title="Export MSH 2.2 for the GALES tree">To GALES</button>
       <button class="studio-btn" data-act="to-explorer" title="Export the meshed surface into the Earth viewer with a lat/lon manifest">To Explorer</button>
       <button class="studio-btn" data-act="save-template" title="Save this model's op history as a reusable template">Save as template</button>

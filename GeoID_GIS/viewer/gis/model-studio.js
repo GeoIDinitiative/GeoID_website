@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260816-3657637";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260816-3657637";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260816-e4d702c";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260816-e4d702c";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260816-3657637";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-3657637";
-import { downloadText } from "./extraction.js?v=20260816-3657637";
+} from "./mesh-volume.js?v=20260816-e4d702c";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-e4d702c";
+import { downloadText } from "./extraction.js?v=20260816-e4d702c";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -431,6 +431,16 @@ const MIN_DOLLY_DISTANCE_M = 0.002;
 let groundRadius = bodyRadiusM();
 let patchRadius = 0;
 let modelAnchor = null;
+/**
+ * Real terrain under the model, when a study area has been sent over.
+ *
+ * Null means the analytic sphere cap — right for a model that is about its own
+ * geometry. A sampler means the ground is the actual landscape at the origin,
+ * which is what makes a model of a slope, a dam or a caldera sit ON the thing
+ * it is modelling. Heights are metres above the ellipsoid, relative to the
+ * origin's own height so the anchor stays at y=0.
+ */
+let groundElevation = null;
 
 function computeGroundRadius() {
   // To scale with the model, always: the sphere is the Earth at the size the
@@ -634,9 +644,13 @@ function buildGroundPatch(patchRadius, rings = 128, segments = 192) {
     const drop = (r * r) / (Math.sqrt(Math.max(R * R - r * r, 0)) + R);
     for (let j = 0; j <= segments; j += 1) {
       const a = (j / segments) * Math.PI * 2;
-      positions[p] = r * Math.cos(a);
-      positions[p + 1] = -drop;
-      positions[p + 2] = r * Math.sin(a);
+      const east = r * Math.cos(a);
+      const north = r * Math.sin(a);
+      positions[p] = east;
+      // The relief rides on top of the curvature rather than replacing it:
+      // the sphere is still the sphere, the DEM is the surface on it.
+      positions[p + 1] = -drop + (groundElevation ? groundElevation(east, north) : 0);
+      positions[p + 2] = north;
       p += 3;
     }
   }
@@ -1517,8 +1531,9 @@ function surfaceToPly(p) {
   return out.join("\n");
 }
 
-/** Emits the model as a runnable gmsh script, matching the studio's action. */
-function exportScript() {
+/** The model as a runnable gmsh script — the text, so it can be downloaded
+ *  OR handed to the sidecar to run without a round trip through the disk. */
+function buildGmshScript() {
   const lines = ["import gmsh", "gmsh.initialize()", 'gmsh.model.add("geoid")',
     "occ = gmsh.model.occ", ""];
   state.solids.forEach((entry) => {
@@ -1549,8 +1564,67 @@ function exportScript() {
   lines.push("", "occ.synchronize()",
     `gmsh.option.setNumber("Mesh.MeshSizeMax", ${Number(byId("studio-size-hi")?.value) || 1})`,
     "gmsh.model.mesh.generate(3)", 'gmsh.write("geoid.msh")', "gmsh.finalize()");
-  downloadText("geoid_model.py", lines.join("\n"), "text/x-python");
+  return lines.join("\n");
+}
+
+/** Emits the model as a runnable gmsh script, matching the studio's action. */
+function exportScript() {
+  downloadText("geoid_model.py", buildGmshScript(), "text/x-python");
   log("Exported gmsh script");
+}
+
+/**
+ * Mesh with the real gmsh, in the sidecar.
+ *
+ * The browser's lattice mesher is capped at 400k cells and knows nothing of
+ * OCC booleans; gmsh does both properly. Until now the studio could only
+ * write the script and ask the user to run it by hand — this hands the exact
+ * same text to `/jobs/gmsh`, which runs it beside the project and leaves the
+ * mesh in `meshes/` where FEM Setup and the GALES prepare already look.
+ *
+ * Degrades honestly: no sidecar, no gmsh, or no project each produce a
+ * sentence saying which, and the Export script button still does what it
+ * always did.
+ */
+async function meshWithGmsh() {
+  const sidecar = window.GeoIDResearch?.sidecar;
+  const store = window.GeoIDResearch?.store;
+  if (!sidecar?.isConnected?.()) {
+    log("Gmsh runs in the local sidecar — connect it in Settings, or use Export script.");
+    return;
+  }
+  const project = store?.getActive?.();
+  if (!project) {
+    log("Open a project first: the mesh is written into its meshes/ folder.");
+    return;
+  }
+  if (!state.solids.length) {
+    log("Nothing to mesh — add a solid first.");
+    return;
+  }
+  try {
+    status("meshing in gmsh…");
+    log("Sending the model to gmsh in the sidecar…");
+    const name = `studio_${new Date().toISOString().slice(0, 10)}`;
+    const jobId = await sidecar.runGmsh({
+      project: project.folder || project.name,
+      script: buildGmshScript(),
+      name,
+      dim: 3,
+    });
+    const snap = await sidecar.awaitJob(jobId);
+    if (snap.status !== "done" || snap.exit_code) {
+      log(`Gmsh failed (exit ${snap.exit_code ?? "?"}). The Jobs drawer has its log.`);
+      status("gmsh failed");
+      return;
+    }
+    log(`Gmsh wrote meshes/${name}.msh — FEM Setup will list it.`);
+    status("mesh ready");
+  } catch (error) {
+    // A 409 from the sidecar is the honest "gmsh is not installed here".
+    log(`Gmsh could not run: ${error.message}`);
+    status("gmsh unavailable");
+  }
 }
 
 function exportMesh(kind) {
@@ -1857,6 +1931,7 @@ const ACTIONS = {
   transform: () => log("Transform: use the layer Style panel for scale and rotation"),
   delete: () => deleteEntities([...state.selection]),
   "export-script": exportScript,
+  "mesh-gmsh": meshWithGmsh,
   "to-gales": () => exportMesh("msh"),
   "to-explorer": () => {
     exportMesh("stl");
@@ -2176,6 +2251,50 @@ if (document.readyState === "loading") {
   init();
 }
 
+/**
+ * Take a study area from the GIS page: anchor there, and stand the ground up.
+ *
+ * This is the missing half of the pipeline — `setStudioOrigin` and
+ * `wgs84ToEnu` were built and never called, so a model had no way to know
+ * where on Earth it was. `sendToStudio` on the bridge calls this.
+ *
+ * The elevation sampler is the viewer's own (`sampleElevationMeters`), so the
+ * ground under the model is the SAME terrain the globe draws — not a second
+ * DEM path that could disagree with it. Heights are taken relative to the
+ * origin, so the anchor sits at y = 0 whatever the absolute elevation is, and
+ * scaled by `studioScale` like every other metre in the scene.
+ *
+ * Sampling is memoised per patch build: a 128x192 patch is ~25k lookups and
+ * the same rings are rebuilt whenever the camera pulls back.
+ */
+export function adoptStudyArea({ lat, lon, elevation, radiusM, terrain = true } = {}) {
+  const sampler = terrain ? window.GeoIDViewer?.sampleElevationMeters : null;
+  const originHeight = sampler
+    ? (sampler(Number(lat), ((Number(lon) % 360) + 360) % 360) || 0)
+    : 0;
+  groundElevation = sampler
+    ? (east, north) => {
+      const point = enuToWgs84(east, north, 0);
+      // The viewer carries east-positive 0..360; a signed longitude read
+      // straight from a study area would sample the wrong hemisphere.
+      const lon360 = ((point.lon % 360) + 360) % 360;
+      const height = sampler(point.lat, lon360);
+      return Number.isFinite(height) ? (height - originHeight) * studioScale : 0;
+    }
+    : null;
+  setStudioOrigin(lat, lon, elevation === undefined ? originHeight : elevation);
+  // A study area is a size as well as a place: reaching past it once means the
+  // first view shows the ground the analysis was done on.
+  if (radiusM > 0) {
+    patchRadius = 0;      // force a rebuild at the new reach
+    updateGround();
+  }
+  log(groundElevation
+    ? `Anchored on the study area with real terrain (${Math.round(radiusM || 0)} m across).`
+    : "Anchored on the study area; ground is the analytic sphere.");
+  return { lat: studioOrigin.lat, lon: studioOrigin.lon, terrain: Boolean(groundElevation) };
+}
+
 /** Moves the model's surface anchor to a new WGS84 origin. */
 function setStudioOrigin(lat, lon, elevation = studioOrigin.elevation) {
   studioOrigin.lat = Number(lat) || 0;
@@ -2192,6 +2311,7 @@ window.GeoIDMeshStudio = {
   origin: studioOrigin, setStudioOrigin, sceneToWgs84, wgs84ToScene,
   enuToWgs84, wgs84ToEnu, getGroundInfo,
   getAnchor: () => modelAnchor,
+  adoptStudyArea,
 };
 
 /**

@@ -1,4 +1,4 @@
-import * as store from "./project-store.js?v=20260816-3657637";
+import * as store from "./project-store.js?v=20260816-e4d702c";
 
 /**
  * What makes the three pages one workspace.
@@ -166,6 +166,58 @@ export async function saveProcessed(filename, contents, { mime, provenance = {} 
     extra: { stage: "processed", ...provenance },
   });
   return path;
+}
+
+/**
+ * The study area becomes the ground the model stands on.
+ *
+ * `sendToGlobe`'s mirror, and the step that made the georeferencing API real:
+ * `setStudioOrigin`, `wgs84ToEnu` and `getGroundInfo` were all built and had
+ * zero callers, so a model was geometry floating in a scene rather than a
+ * thing at a place. This anchors the studio at the study area's centre and
+ * displaces its ground with the viewer's own elevation sampler — the same
+ * terrain the globe draws.
+ *
+ * The area may be given explicitly, otherwise it is the open project's, and
+ * failing that whatever is drawn on the globe right now. Longitude is signed
+ * (-180..180) throughout here, as everywhere outside the viewer.
+ */
+export async function sendToStudio(area = null) {
+  const bounds = area || activeProject()?.meta?.study_area || (() => {
+    const drawn = window.GeoIDViewer?.getExtractionGeometry?.("area");
+    if (!drawn?.vertices?.length) return null;
+    const lats = drawn.vertices.map((v) => v.lat);
+    const lons = drawn.vertices.map((v) => signedLon(v.lon));
+    return {
+      min_lat: Math.min(...lats), max_lat: Math.max(...lats),
+      min_lon: Math.min(...lons), max_lon: Math.max(...lons),
+    };
+  })();
+  if (!bounds) {
+    throw new Error("Draw a study area on the GIS page first, or open a project that has one.");
+  }
+  const minLat = Number(bounds.min_lat);
+  const maxLat = Number(bounds.max_lat);
+  const minLon = Number(bounds.min_lon);
+  const maxLon = Number(bounds.max_lon);
+  const lat = (minLat + maxLat) / 2;
+  const lon = (minLon + maxLon) / 2;
+  // Half the diagonal in metres: the ground must reach past the corner of the
+  // area, not just to the middle of its edge.
+  const radiusM = Math.hypot(
+    (maxLat - minLat) * 110574,
+    (maxLon - minLon) * 111320 * Math.cos(lat * Math.PI / 180),
+  ) / 2;
+
+  goToPage("model");
+  // Model mode swaps the panels in; the studio's seam may be a tick behind it.
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (window.GeoIDMeshStudio?.adoptStudyArea) {
+      return window.GeoIDMeshStudio.adoptStudyArea({ lat, lon, radiusM });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error("The Meshing Studio did not come up.");
 }
 
 // ── Model → project ───────────────────────────────────────────────────────────

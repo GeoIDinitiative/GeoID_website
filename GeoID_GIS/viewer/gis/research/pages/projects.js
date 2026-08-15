@@ -1,12 +1,12 @@
-import { registerPage } from "../stages.js?v=20260816-3657637";
-import * as store from "../project-store.js?v=20260816-3657637";
-import * as bridge from "../bridge.js?v=20260816-3657637";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260816-3657637";
+import { registerPage } from "../stages.js?v=20260816-e4d702c";
+import * as store from "../project-store.js?v=20260816-e4d702c";
+import * as bridge from "../bridge.js?v=20260816-e4d702c";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260816-e4d702c";
 import {
   el, card, field, input, textarea, selectOf, button, row, statusLine,
   pageHeader, splitPanes, tabbedPanel, editorCard, editorHero, fieldGrid,
   slider, editTable,
-} from "./common.js?v=20260816-3657637";
+} from "./common.js?v=20260816-e4d702c";
 
 /**
  * Projects, laid out as `GeoIDProjectsPage` lays it out (app_qt.py:4570):
@@ -399,6 +399,16 @@ async function mount(host, ctx) {
           Object.assign(draft.study_area, b);
           say(`Study area set to ${b.min_lat}..${b.max_lat}, ${b.min_lon}..${b.max_lon}.`);
           refreshAll();
+        } catch (error) { say(error.message, true); }
+      }, { secondary: true }),
+      // The other direction: the area becomes the ground a model is built on,
+      // with the globe's own terrain under it.
+      button("Send to Meshing Studio", async () => {
+        try {
+          const result = await bridge.sendToStudio(draft.study_area);
+          say(result.terrain
+            ? `Studio anchored at ${result.lat.toFixed(4)}, ${result.lon.toFixed(4)} on real terrain.`
+            : `Studio anchored at ${result.lat.toFixed(4)}, ${result.lon.toFixed(4)}.`);
         } catch (error) { say(error.message, true); }
       }, { secondary: true }),
     ));
