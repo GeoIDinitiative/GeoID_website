@@ -210,6 +210,13 @@
             <div class="gis-tool-body">
               <div class="row"><label for="attr-layer">Layer</label><select id="attr-layer" class="mini-select"></select></div>
               <div id="attr-table-host" class="attr-table-host"></div>
+              <div class="row"><label for="attr-query">Query</label><input id="attr-query" class="input" type="text" placeholder="slope &gt; 20 AND rock contains 'mudstone'"></div>
+              <div class="measure-actions">
+                <button id="attr-query-run" class="button secondary" type="button">Select by query</button>
+                <button id="attr-query-layer" class="button secondary" type="button">Selection to layer</button>
+                <button id="attr-query-clear" class="button secondary" type="button">Clear</button>
+              </div>
+              <details class="gis-tool-section"><summary>Query syntax</summary><div id="attr-query-help" class="gis-tool-body"></div></details>
               <div class="row"><label for="attr-field">Field</label><select id="attr-field" class="mini-select"></select></div>
               <button id="attr-stats-run" class="button secondary" type="button">Field Statistics</button>
               <div class="gis-tool-grid">

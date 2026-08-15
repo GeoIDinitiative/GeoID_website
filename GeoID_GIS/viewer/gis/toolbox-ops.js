@@ -5,6 +5,8 @@ import { buildVectorLayerResult } from "./vector-render.js?v=20260816-e4d702c";
 import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-e4d702c";
 import { downloadText } from "./extraction.js?v=20260816-e4d702c";
 import { CRS_OPTIONS } from "./projection.js?v=20260816-e4d702c";
+import { runQuery, QUERY_HELP } from "./query.js?v=20260816-e4d702c";
+import { selection } from "./selection.js?v=20260816-e4d702c";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -655,6 +657,82 @@ function runFieldCalculator() {
   setText("attr-stats", `${published.message}${result.failures ? ` ${result.failures} rows failed.` : ""}`);
 }
 
+/**
+ * Select by query — the whole query engine on the attribute panel.
+ *
+ * This replaces a substring match on one field, which was the entire query
+ * capability: attributes, geometry and dates in one grammar, with the other
+ * layers reachable by name so "within('Study area')" and
+ * "distance('Rivers') < 500" are ordinary predicates rather than separate
+ * tools. The result goes into the shared selection store, so anything else
+ * watching it (charts, the map) sees the same rows.
+ */
+function runAttributeQuery() {
+  const layer = selectedLayer("attr-layer", vectorLayers());
+  const text = byId("attr-query")?.value?.trim();
+  if (!layer) {
+    setText("attr-stats", "Select a layer to query.");
+    return;
+  }
+  if (!text) {
+    setText("attr-stats", "Type a query, e.g. rock contains 'mudstone'.");
+    return;
+  }
+  // Spatial predicates name another layer; resolving by NAME is what lets a
+  // query read like a sentence rather than an id.
+  const resolveLayer = (name) => {
+    const other = vectorLayers().find((l) => l.name === name
+      || l.name.replace(/\.[^.]+$/, "") === name);
+    return other?.collection || null;
+  };
+  const result = runQuery(layer.collection, text, { resolveLayer });
+  if (!result.ok) {
+    setText("attr-stats", result.message);
+    return;
+  }
+  selection.set(layer.id, result.indices);
+  const total = layer.collection.features.length;
+  setText("attr-stats",
+    `${result.indices.length} of ${total} features selected`
+    + `${result.indices.length ? " — \"Selection to layer\" makes them a layer." : "."}`);
+}
+
+/** The selection becomes a layer, so every tool can take it as an input. */
+function selectionToLayer() {
+  const layer = selectedLayer("attr-layer", vectorLayers());
+  if (!layer) {
+    setText("attr-stats", "Select a layer first.");
+    return;
+  }
+  const indices = [...selection.get(layer.id)];
+  if (!indices.length) {
+    setText("attr-stats", "Nothing selected yet — run a query first.");
+    return;
+  }
+  const fc = {
+    type: "FeatureCollection",
+    features: indices.map((i) => layer.collection.features[i]).filter(Boolean),
+  };
+  const base = layer.name.replace(/\.[^.]+$/, "");
+  setText("attr-stats", publishVector(fc, `selected_${base}`).message);
+}
+
+/** The syntax card — a query language nobody can see is a query language
+ *  nobody uses, so the examples live beside the box. */
+function renderQueryHelp() {
+  const host = byId("attr-query-help");
+  if (!host || host.childElementCount) return;
+  QUERY_HELP.forEach((entry) => {
+    const row = document.createElement("p");
+    row.className = "tool-copy";
+    const code = document.createElement("code");
+    code.textContent = entry.example;
+    row.appendChild(code);
+    row.appendChild(document.createTextNode(` — ${entry.means}`));
+    host.appendChild(row);
+  });
+}
+
 function exportLayer(format) {
   const layer = selectedLayer("attr-layer", vectorLayers());
   if (!layer) {
@@ -722,6 +800,16 @@ function init() {
   });
 
   byId("attr-layer")?.addEventListener("change", renderAttributeTable);
+  byId("attr-query-run")?.addEventListener("click", runAttributeQuery);
+  byId("attr-query-layer")?.addEventListener("click", selectionToLayer);
+  byId("attr-query-clear")?.addEventListener("click", () => {
+    selection.clear();
+    setText("attr-stats", "Selection cleared.");
+  });
+  byId("attr-query")?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") runAttributeQuery();
+  });
+  renderQueryHelp();
   byId("attr-stats-run")?.addEventListener("click", runFieldStatistics);
   byId("calc-run")?.addEventListener("click", runFieldCalculator);
   ["geojson", "csv", "wkt", "kml"].forEach((format) => {
