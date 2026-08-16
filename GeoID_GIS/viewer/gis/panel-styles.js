@@ -14,6 +14,12 @@
  */
 
 const STYLE = `
+/* Project panel: the map's view of the pipeline it feeds. */
+.gis-project-name { font-weight: 600; font-size: 0.82rem; margin-bottom: 0.2rem;
+  color: var(--nav-accent, #ff3cac); overflow-wrap: anywhere; }
+.gis-project-recent { display: flex; flex-direction: column; gap: 0.15rem; margin-top: 0.4rem; }
+#gis-project-body .button { margin: 0.3rem 0; }
+
 /* Point extraction: a coordinate list and the table it produces. */
 .row-stack { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.4rem; }
 .row-stack > span { font-size: 0.66rem; opacity: 0.75; line-height: 1.3; }
