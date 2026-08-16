@@ -14,13 +14,13 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260816-9566705";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-9566705";
-import { makeRaster } from "./raster-analysis.js?v=20260816-9566705";
+} from "./geoid-pipeline.js?v=20260816-881f0b7";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-881f0b7";
+import { makeRaster } from "./raster-analysis.js?v=20260816-881f0b7";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260816-9566705";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260816-9566705";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260816-881f0b7";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260816-881f0b7";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -112,16 +112,43 @@ function drawStep(index) {
   }
 }
 
-/** Follow the simulated clock: the pill scrubs the map by construction. */
+/**
+ * Advance the map through the forecast.
+ *
+ * This is what made the map static, and it was self-inflicted: entering GeoID
+ * mode PAUSES the globe's spin — `mode-manager` does it, and `lockView` did it
+ * again to hold the study area — while the simulated clock that chose the step
+ * is derived from that spin. Frozen view, frozen clock, frozen map, with 384
+ * steps of real GFS sitting behind it unused.
+ *
+ * So the mode plays its own clock when the globe's is stopped, and follows the
+ * globe's when it is running. The view stays locked either way; time does not
+ * have to stop for the camera to hold still.
+ */
+const PLAY_MS_PER_STEP = 250;      // 384 hourly steps ≈ 96 s for the fortnight
+
 function watchClock() {
   if (state.watching) return;
   state.watching = true;
+  let lastSimMs = null;
+  let playFrom = Date.now();
   setInterval(() => {
-    if (!state.run) return;
+    const run = state.run;
+    if (!run) return;
     const ms = window.GeoIDViewer?.getSimulatedUtcMs?.();
-    if (!Number.isFinite(ms)) return;
-    drawStep(stepForClock(ms, state.run.dates));
-  }, 700);
+    const moving = Number.isFinite(ms) && ms !== lastSimMs;
+    lastSimMs = ms;
+    if (moving) {
+      // The globe is turning: the pill and the map agree by construction.
+      playFrom = Date.now() - stepForClock(ms, run.dates) * PLAY_MS_PER_STEP;
+      drawStep(stepForClock(ms, run.dates));
+      return;
+    }
+    // The globe is held for the study area, so the forecast plays itself and
+    // loops — sixteen days of GFS is a sequence to watch, not a still.
+    const elapsed = Date.now() - playFrom;
+    drawStep(Math.floor(elapsed / PLAY_MS_PER_STEP) % run.steps.length);
+  }, 200);
 }
 
 /**
