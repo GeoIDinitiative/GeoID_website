@@ -1,4 +1,4 @@
-import * as store from "./project-store.js?v=20260816-3abd38f";
+import * as store from "./project-store.js?v=20260816-821f7db";
 
 /**
  * What makes the three pages one workspace.
@@ -300,26 +300,45 @@ const LAYER_KINDS = new Set(["raster", "vector", "layer"]);
  * be), and anything already on the globe is skipped, so calling it twice is
  * safe. Never throws: a project that will not fully restore should still open.
  */
+let restoreInFlight = null;
+
 export async function restoreLayers() {
-  if (!activeProject()) return 0;
-  const manager = window.GeoIDImportManager;
-  if (!manager?.importFileList) return 0;
-  let entries = [];
-  try { entries = await store.listData(); } catch (error) { return 0; }
-  const present = new Set((manager.getLayers?.() || []).map((l) => l.name));
-  const restorable = entries.filter((e) =>
-    LAYER_KINDS.has(e.kind) && e.path && isGeoFile(e.path) && !present.has(e.name));
-  let restored = 0;
-  for (const entry of restorable) {
-    try {
-      await manager.importFileList([await projectFileAsFile(entry.path)]);
-      restored += 1;
-    } catch (error) {
-      // A layer whose file has moved or won't parse must not stop the rest.
-      console.warn(`[GeoID] could not restore layer ${entry.name}:`, error.message);
+  // Opening a project announces, and more than one thing listens — project.js
+  // restores on the change, and a page or a script may ask directly. Each call
+  // used to snapshot "what is already on the globe" BEFORE importing anything,
+  // so two overlapping calls both decided every layer was missing and imported
+  // the lot twice. Sharing one in-flight promise makes the second caller wait
+  // for the first rather than race it.
+  if (restoreInFlight) return restoreInFlight;
+  restoreInFlight = (async () => {
+    if (!activeProject()) return 0;
+    const manager = window.GeoIDImportManager;
+    if (!manager?.importFileList) return 0;
+    let entries = [];
+    try { entries = await store.listData(); } catch (error) { return 0; }
+    const restorable = entries.filter((e) =>
+      LAYER_KINDS.has(e.kind) && e.path && isGeoFile(e.path));
+    let restored = 0;
+    for (const entry of restorable) {
+      // Re-read the layer list each time rather than trusting a snapshot: the
+      // loop awaits, and anything at all may have added a layer meanwhile.
+      const present = new Set((manager.getLayers?.() || []).map((l) => l.name));
+      if (present.has(entry.name)) continue;
+      try {
+        await manager.importFileList([await projectFileAsFile(entry.path)]);
+        restored += 1;
+      } catch (error) {
+        // A layer whose file has moved or won't parse must not stop the rest.
+        console.warn(`[GeoID] could not restore layer ${entry.name}:`, error.message);
+      }
     }
+    return restored;
+  })();
+  try {
+    return await restoreInFlight;
+  } finally {
+    restoreInFlight = null;
   }
-  return restored;
 }
 
 /**

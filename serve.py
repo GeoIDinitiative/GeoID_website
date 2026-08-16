@@ -55,11 +55,14 @@ def start_static(port: int) -> ThreadingHTTPServer:
 
 
 def start_sidecar(projects: Path, no_token: bool) -> subprocess.Popen:
-    argv = [sys.executable, str(SIDECAR), "--root", str(projects)]
+    # -u matters: the sidecar's banner carries the token, and Python block-buffers
+    # a stdout that is not a terminal. Piped into a log, a launcher or an IDE
+    # console, the connect line — the one thing the user copies — sat in a buffer
+    # and never appeared, which looks like a sidecar that failed to start.
+    argv = [sys.executable, "-u", str(SIDECAR), "--root", str(projects)]
     if no_token:
         argv.append("--no-token")
-    # Inherit stdout so the sidecar prints its own banner — the connect line with
-    # the token is the one thing the user copies.
+    # Inherit stdout so the sidecar prints its own banner.
     return subprocess.Popen(argv)
 
 

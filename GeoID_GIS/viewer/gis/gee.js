@@ -10,10 +10,10 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260816-3abd38f";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260816-3abd38f";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260816-821f7db";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260816-821f7db";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260816-3abd38f";
+  from "./view-extent.js?v=20260816-821f7db";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
