@@ -47,10 +47,19 @@ def check(name, ok, detail=""):
 
 # ── static checks: the two sidebars are one design ────────────────────────
 
+PANELS = ROOT / "GeoID_GIS/viewer/gis/panels.js"
+
+
 def panel_ids(path):
-    """Ids that carry behaviour, i.e. the ones a module looks up."""
-    return set(re.findall(r'id="(gis-[a-z0-9\-]+|extract-[a-z\-]+|polygon-[a-z\-]+)"',
-                          path.read_text()))
+    """Ids that carry behaviour, i.e. the ones a module looks up.
+
+    The shared panels moved out of both HTML files and into `panels.js`, so the
+    markup a page ends up with is its own file plus that module. Reading only
+    the HTML reports every shared control missing — which is the test failing
+    to follow the architecture, not the page.
+    """
+    text = path.read_text() + PANELS.read_text()
+    return set(re.findall(r'id=\\?"(gis-[a-z0-9\-]+|extract-[a-z\-]+|polygon-[a-z\-]+)\\?"', text))
 
 
 def static_checks():
@@ -77,6 +86,14 @@ def static_checks():
     check("both sidebars carry the same GIS panel ids",
           not missing_on_planets,
           f"missing from shell.html: {sorted(missing_on_planets)[:6]}")
+
+    # Stronger than parity now: the shared panels have ONE source, so neither
+    # page may define a group of its own. Parity can be satisfied by two copies
+    # that happen to agree today; this cannot.
+    for page in (EARTH, SHELL):
+        stray = re.findall(r'<details id="(gis-group-[a-z]+)"', page.read_text())
+        check(f"{page.name} defines no panel of its own",
+              not stray, f"defined in the page instead of panels.js: {stray}")
 
     # Every id a module reads by name must exist in the markup it belongs to.
     gis = ROOT / "GeoID_GIS/viewer/gis"
