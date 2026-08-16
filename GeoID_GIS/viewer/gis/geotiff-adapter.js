@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-3d930b4";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-9ed4fe1";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -455,12 +455,18 @@ export function buildRasterLayer(bands, width, height, bounds, {
         // as five blocks of colour.
         palette: Array.from({ length: 24 }, (_, i) =>
           hex(classColour((i / 23) * (classList.length - 1), classList.length))),
+        // The ends are the real lowest and highest cell values, because that
+        // is what the reader is matching against the map. "5 classes" said how
+        // many buckets there were, which answers a question nobody asked while
+        // standing in front of a susceptibility surface.
         min: classList[0],
         max: classList[classList.length - 1],
-        label: classList.length <= 8 ? `${classList.length} classes` : "",
+        label: "",
       }
       : {
         palette: [0, 0.25, 0.45, 0.65, 0.82, 1].map((t) => hex(elevationColor(t))),
+        // Measured from the band itself, not from the class table: for a DEM
+        // these are metres of real elevation.
         min: Math.round(range.min),
         max: Math.round(range.max),
         label: "",

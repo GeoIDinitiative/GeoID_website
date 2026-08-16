@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260816-3d930b4";
-import { samplerToRaster } from "./raster-analysis.js?v=20260816-3d930b4";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-3d930b4";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-3d930b4";
+import { currentBody } from "./bodies.js?v=20260816-9ed4fe1";
+import { samplerToRaster } from "./raster-analysis.js?v=20260816-9ed4fe1";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-9ed4fe1";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-9ed4fe1";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -593,7 +593,10 @@ function buildLayerCard(layer) {
 
   const badge = document.createElement("p");
   badge.className = "layer-type-badge";
-  badge.textContent = name;
+  // The file extension is how the layer arrived, not what it is. A key that
+  // shouts ".TIF" tells the reader about plumbing while they are trying to
+  // read a map.
+  badge.textContent = name.replace(/\.(tif|tiff|geojson|json|shp|asc|kml|gpx|csv|wkt)$/i, "");
   card.appendChild(badge);
 
   const list = document.createElement("div");
