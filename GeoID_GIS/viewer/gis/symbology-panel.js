@@ -165,7 +165,7 @@ function recompute(apply) {
       labels: sym.rows.map((r) => r.value),
       categorical: true, field,
     };
-    window.GeoIDLayers?.render?.();
+    window.GeoIDLayerHierarchy?.render?.();
     if (status) {
       status.textContent = painted
         ? `${layer.name} coloured by ${field}: ${sym.rows.length} categories.`
@@ -194,7 +194,7 @@ function recompute(apply) {
     ];
   });
   layer.legendInfo = legendInfoFrom(symbology, { unit: layer.legendInfo?.unit || null });
-  window.GeoIDLayers?.render?.();
+  window.GeoIDLayerHierarchy?.render?.();
   if (status) {
     status.textContent = painted
       ? `${layer.name}: ${symbology.rows.length} classes by ${METHODS[symbology.method]?.label || symbology.method}.`
