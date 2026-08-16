@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-960ffbc";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-05ed4d3";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -80,7 +80,7 @@ function elevationColor(t) {
   return [245, 245, 245];
 }
 
-function buildTexture(bands, width, height, range, noData, classes = null) {
+function buildTexture(bands, width, height, range, noData, classes = null, colourOf = null) {
   const canvas = document.createElement("canvas");
   const scale = Math.min(1, TEXTURE_MAX / Math.max(width, height));
   canvas.width = Math.max(1, Math.round(width * scale));
@@ -95,6 +95,23 @@ function buildTexture(bands, width, height, range, noData, classes = null) {
       const sx = Math.min(width - 1, Math.round((x / (canvas.width - 1 || 1)) * (width - 1)));
       const si = sy * width + sx;
       const di = (y * canvas.width + x) * 4;
+      // A chosen symbology beats every automatic rule below it. This is the
+      // whole point of letting someone classify a layer: their breaks and
+      // their ramp, not the adapter's guess about what the data looks like.
+      if (colourOf && !isRgb) {
+        const raw = bands[0][si];
+        const rgb = colourOf(raw);
+        if (rgb) {
+          image.data[di] = rgb[0];
+          image.data[di + 1] = rgb[1];
+          image.data[di + 2] = rgb[2];
+          image.data[di + 3] = 255;
+        } else {
+          image.data[di + 3] = 0;                       // no value, no pixel
+        }
+        continue;
+      }
+
       if (isRgb) {
         image.data[di] = bands[0][si];
         image.data[di + 1] = bands[1][si];
@@ -434,8 +451,32 @@ export function buildRasterLayer(bands, width, height, bounds, {
     object3D.userData.baseScale = 1;
   }
 
+  /**
+   * Repaint with a different symbology, in place.
+   *
+   * The mesh, its geometry and its position on the globe are unchanged — only
+   * the texture is redrawn — so re-classifying a layer costs one canvas rather
+   * than a re-import, and the layer keeps its place in the stack, its opacity
+   * and its visibility. Rebuilding it as a new layer instead would put a fresh
+   * copy on top of the old one every time a slider moved.
+   */
+  const repaint = (colourOf) => {
+    const next = buildTexture(bands, width, height, range, noData, classList, colourOf);
+    let applied = false;
+    object3D.traverse?.((node) => {
+      const material = Array.isArray(node.material) ? node.material[0] : node.material;
+      if (!material || !("map" in material)) return;
+      material.map?.dispose?.();
+      material.map = next;
+      material.needsUpdate = true;
+      applied = true;
+    });
+    return applied;
+  };
+
   return {
     object3D,
+    repaint,
     georeferenced,
     /**
      * What the map is drawn in, so the key can be read against it.

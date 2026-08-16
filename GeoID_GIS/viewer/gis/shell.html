@@ -511,7 +511,34 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
             </div>
           </div>
         </summary>
-        <div class="section-body toolbox-group-body" id="layers-tools-host"></div>
+        <div class="section-body toolbox-group-body" id="layers-tools-host">
+          <details class="gis-tool-section" id="gis-symbology-host">
+            <summary>Symbology</summary>
+            <div class="gis-tool-body">
+              <p class="tool-copy">How a layer is coloured. Quantile ranks, equal
+                interval measures, natural breaks follow the data's own gaps.</p>
+              <label class="row"><span>Layer</span>
+                <select id="gis-sym-layer" class="input"></select>
+              </label>
+              <label class="row"><span>Method</span>
+                <select id="gis-sym-method" class="input"></select>
+              </label>
+              <label class="row"><span>Classes</span>
+                <input id="gis-sym-classes" class="input" type="number" min="2" max="12" value="5">
+              </label>
+              <label class="row"><span>Ramp</span>
+                <select id="gis-sym-ramp" class="input"></select>
+              </label>
+              <label class="row"><span>Reverse</span>
+                <input id="gis-sym-reverse" type="checkbox">
+              </label>
+              <button id="gis-sym-apply" class="button primary" type="button">Apply to layer</button>
+              <div id="gis-symbology-status" class="gis-metric">Pick a raster layer.</div>
+              <div id="gis-symbology-preview"></div>
+              
+            </div>
+          </details>
+</div>
       </details>
     </div></template>
 

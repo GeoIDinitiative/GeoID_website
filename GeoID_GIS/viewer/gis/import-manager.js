@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260816-960ffbc";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260816-960ffbc";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260816-960ffbc";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260816-960ffbc";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-960ffbc";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260816-960ffbc";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260816-960ffbc";
-import { loadMshFile } from "./msh-adapter.js?v=20260816-960ffbc";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260816-960ffbc";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260816-05ed4d3";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260816-05ed4d3";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260816-05ed4d3";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260816-05ed4d3";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-05ed4d3";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260816-05ed4d3";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260816-05ed4d3";
+import { loadMshFile } from "./msh-adapter.js?v=20260816-05ed4d3";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260816-05ed4d3";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -389,6 +389,7 @@ async function importDataset(primaryFile, sidecars) {
     // The key has to say what the map is drawn in; without this it fell back
     // to the material's colour, and a textured drape has none worth reading.
     layer.legendInfo = result.legendInfo || null;
+    layer.repaint = result.repaint || null;
     layer.status = "loaded";
     (layer.georeferenced ? groups.geoGroup : groups.localGroup).add(result.object3D);
     placeLocalModel(result.object3D, window.GeoIDModeManager?.getMode?.());
@@ -535,6 +536,8 @@ export function addDerivedLayer(name, result, ext = "derived") {
     collection: result.collection || null,
     raster: result.raster || null,
     legendInfo: result.legendInfo || null,
+    // Carried so a layer can be re-classified without re-importing it.
+    repaint: result.repaint || null,
     derived: true,
   };
   layers.push(layer);

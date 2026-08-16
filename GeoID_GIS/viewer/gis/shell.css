@@ -1668,3 +1668,12 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
   font-size: 0.62rem !important;
   padding: 0.24rem 0.6rem !important;
 }
+
+/* Symbology preview: the classes as they will paint. */
+.gis-sym-bar { display: flex; height: 14px; border-radius: 0.2rem; overflow: hidden;
+  margin: 0.35rem 0 0.3rem; border: 1px solid rgba(255,255,255,0.16); }
+.gis-sym-bar > span { flex: 1 1 auto; }
+.gis-sym-rows { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.64rem; }
+.gis-sym-rows > div { display: flex; gap: 0.35rem; align-items: center; }
+.gis-sym-swatch { width: 0.7rem; height: 0.7rem; border-radius: 0.15rem; flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,0.2); }
