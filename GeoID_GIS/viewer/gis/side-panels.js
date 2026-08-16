@@ -45,6 +45,19 @@ const PANELS = [
     hint: "Extraction and analysis",
     icon: '<path d="M2.6 12.6 5.4 8l2.3 2.6L10.2 5l3.2 5.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" transform="translate(3 3) scale(1.1)"/>',
   },
+  {
+    // Not a panel: the palette is already the one door to all 46 tools, and it
+    // was reachable only by knowing to press "/". A rail button under the
+    // Atlas mark, built by the same function as Process and Analysis, is the
+    // affordance that was missing — the feature existed, the way in did not.
+    id: "search",
+    label: "Search",
+    title: "Search",
+    hint: "Search every tool and function  (/)",
+    icon: '<circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.7"/>'
+      + '<path d="m15.2 15.2 4.3 4.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
+    action: () => window.GeoIDToolSearch?.open?.(""),
+  },
 ];
 
 /**
@@ -508,6 +521,7 @@ function buildRailItem(spec) {
   button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${spec.icon}</svg>`
     + `<span>${spec.label}</span>`;
   button.addEventListener("click", () => {
+    if (spec.action) { spec.action(); return; }
     setOpen(spec.id, panels.get(spec.id)?.panel.hidden !== false);
   });
 
@@ -525,7 +539,9 @@ window.GeoIDSidePanels = {
 export function init() {
   const rail = document.getElementById("tool-rail");
   if (!rail || panels.size) return false;
-  const groups = PANELS.map((spec) => document.getElementById(spec.group));
+  // An action entry has no group to move, so it is never the reason the rail
+  // decides there is nothing to build.
+  const groups = PANELS.map((spec) => (spec.action ? true : document.getElementById(spec.group)));
   // Nothing to move means nothing to open. A body whose registry drops one of
   // these tabs simply does not get its button.
   if (!groups.some(Boolean)) return false;
@@ -536,6 +552,7 @@ export function init() {
     if (!group) return;
     const { item, button } = buildRailItem(spec);
     rail.appendChild(item);
+    if (spec.action) return;                    // a button, not a workbench
     panels.set(spec.id, { panel: buildPanel(spec, group), button });
   });
 

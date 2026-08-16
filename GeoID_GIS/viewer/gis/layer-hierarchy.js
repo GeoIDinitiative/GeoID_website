@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260816-59b2d36";
-import { samplerToRaster } from "./raster-analysis.js?v=20260816-59b2d36";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-59b2d36";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-59b2d36";
+import { currentBody } from "./bodies.js?v=20260816-dc82265";
+import { samplerToRaster } from "./raster-analysis.js?v=20260816-dc82265";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-dc82265";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-dc82265";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -377,6 +377,17 @@ function optionsTile(layer) {
   const actions = document.createElement("div");
   actions.className = "layer-options-actions";
 
+  // Whatever the last action on this layer had to say. Written into the drawer
+  // rather than a global status line, because it is about this layer and the
+  // drawer is where the user is looking when they press its buttons.
+  const note = () => {
+    if (!layer.saveNote) return;
+    const line = document.createElement("div");
+    line.className = "gis-metric layer-options-note";
+    line.textContent = layer.saveNote;
+    actions.parentElement?.appendChild(line);
+  };
+
   const visible = layer.visible !== false && layer.object3D?.visible !== false;
   const act = (label, onClick, danger = false) => {
     const button = document.createElement("button");
@@ -392,6 +403,41 @@ function optionsTile(layer) {
   // bounds; only offered once there is something in the scene to frame.
   if (layer.object3D && manager?.frameLayer) act("Focus", () => manager.frameLayer(layer));
   act("Export", () => window.GeoIDLayerExport?.open?.(layer));
+
+  /**
+   * The last mile of the one output rule: tool results, drawn areas and
+   * georeferenced images record themselves, and imports register on arrival —
+   * but a layer that arrived before a project was opened had no way in
+   * afterwards, so the project's record depended on the order someone happened
+   * to do things in.
+   *
+   * The bytes are produced by the SAME encoder the Export dialog uses, so what
+   * lands in the project is byte-for-byte what a download would have been.
+   */
+  act("To project", async () => {
+    const exporter = window.GeoIDLayerExport;
+    const bridge = window.GeoIDResearch?.bridge;
+    if (!exporter?.renderExport || !bridge?.saveProcessed) {
+      layer.saveNote = "The project bridge is not loaded.";
+      render();
+      return;
+    }
+    try {
+      const format = exporter.suggestedFormat?.(layer);
+      const out = exporter.renderExport(layer, format?.id || format);
+      if (!out) throw new Error("this layer has nothing to write");
+      await bridge.saveProcessed(out.filename, out.bytes || out.text, {
+        mime: out.mime,
+        provenance: { tool: "layer", inputs: [layer.name], kind: layer.ext || "layer" },
+      });
+      layer.saveNote = `Saved as ${out.filename}.`;
+    } catch (error) {
+      // Never silent: a project that is closed, full or unwritable is the
+      // commonest reason this does nothing, and the user cannot guess it.
+      layer.saveNote = `Not saved: ${error?.message || error}`;
+    }
+    render();
+  });
 
   /**
    * A sampled layer becomes a real raster on request.
@@ -461,6 +507,7 @@ function optionsTile(layer) {
   actions.appendChild(remove);
 
   tile.appendChild(actions);
+  note();
   return tile;
 }
 
@@ -684,11 +731,71 @@ function layerColour(layer) {
  * at import -- filename, format, CRS, feature or cell counts -- so a figure can
  * be traced back to what produced it.
  */
+/**
+ * What the PROJECT holds, above what this session holds.
+ *
+ * Provenance answered "where did this layer come from" and stopped there, so
+ * from the map there was no way to see that the last tool wrote a file, that a
+ * mesh exists, or that eleven datasets are already recorded — all of which the
+ * Research Hub could see and the GIS could not.
+ *
+ * It goes HERE, in the group already called Project · Provenance, rather than
+ * into a group of its own: the nav header names the open project, this panel
+ * says what is in it, and one more top-level tab would have said neither
+ * better.
+ */
+async function renderProjectContents(host) {
+  let store = window.GeoIDResearch?.store;
+  if (!store) return;
+  const active = store.getActive?.();
+  if (!active) return;
+  let records = [];
+  try {
+    records = await store.listData();
+  } catch (error) {
+    return;
+  }
+  const counts = new Map();
+  records.forEach((r) => {
+    const kind = r?.kind || "other";
+    counts.set(kind, (counts.get(kind) || 0) + 1);
+  });
+  const wrap = document.createElement("div");
+  wrap.className = "meta-entry gis-project-contents";
+  const title = document.createElement("b");
+  title.textContent = active.meta?.name || active.folder || "project";
+  wrap.appendChild(title);
+  const line = document.createElement("span");
+  line.innerHTML = `<i>Holds</i> ${counts.size
+    ? [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `${n} ${k}`).join(" · ")
+    : "nothing recorded yet"}`;
+  wrap.appendChild(line);
+  // The newest few, each a way back onto the globe — the return path exists
+  // and had no entry point from this side.
+  records.slice()
+    .sort((a, b) => String(b.registered_at || "").localeCompare(String(a.registered_at || "")))
+    .slice(0, 4)
+    .forEach((r) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "gis-tool-item";
+      const name = document.createElement("b");
+      name.textContent = r.name || r.path;
+      const kind = document.createElement("span");
+      kind.textContent = `${r.kind || "file"}${r.tool ? ` · ${r.tool}` : ""} — show on globe`;
+      row.append(name, kind);
+      row.addEventListener("click", () => window.GeoIDResearch?.bridge?.sendToGlobe?.(r));
+      wrap.appendChild(row);
+    });
+  host.prepend(wrap);
+}
+
 function renderMetadata(stack) {
   const host = document.getElementById(METADATA_ID);
   if (!host) return;
   if (!stack.length) {
     host.textContent = "No layers loaded.";
+    void renderProjectContents(host);
     return;
   }
   host.innerHTML = stack.map((layer) => {
@@ -706,6 +813,7 @@ function renderMetadata(stack) {
       + bits.map(([k, v]) => `<span><i>${k}</i> ${v}</span>`).join("")
       + `</div>`;
   }).join("");
+  void renderProjectContents(host);
 }
 
 function copyCitations() {

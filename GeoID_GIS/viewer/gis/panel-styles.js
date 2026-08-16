@@ -14,6 +14,14 @@
  */
 
 const STYLE = `
+/* Project contents, at the head of the provenance list. */
+.gis-project-contents { border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 0.4rem;
+  margin-bottom: 0.4rem; }
+.gis-project-contents > b { color: var(--nav-accent, #ff3cac); }
+.gis-project-contents .gis-tool-item { margin-top: 0.15rem; }
+
+.layer-options-note { margin-top: 0.25rem; overflow-wrap: anywhere; }
+
 /* Project panel: the map's view of the pipeline it feeds. */
 .gis-project-name { font-weight: 600; font-size: 0.82rem; margin-bottom: 0.2rem;
   color: var(--nav-accent, #ff3cac); overflow-wrap: anywhere; }
