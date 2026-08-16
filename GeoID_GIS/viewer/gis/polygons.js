@@ -1,4 +1,4 @@
-import { describeCollection } from "./vector-render.js?v=20260816-1e1ecb0";
+import { describeCollection } from "./vector-render.js?v=20260816-0fe0492";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -86,6 +86,16 @@ function init() {
     input.value = "";
   });
 
+  document.getElementById("polygon-capture-drawn")?.addEventListener("click", () => {
+    const out = window.GeoIDDrawnLayers?.captureDrawn?.();
+    const host = document.getElementById("polygon-list");
+    if (host && out && !out.ok) {
+      const note = document.createElement("div");
+      note.className = "gis-metric";
+      note.textContent = out.message;
+      host.prepend(note);
+    }
+  });
   window.GeoIDImportManager?.onChange?.(render);
   render();
 }

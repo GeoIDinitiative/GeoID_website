@@ -3,8 +3,8 @@ import {
   rowsToCsv,
   rowsToGeoJson,
   downloadText,
-} from "./extraction.js?v=20260816-1e1ecb0";
-import { rectangleVertices } from "./draw-area.js?v=20260816-1e1ecb0";
+} from "./extraction.js?v=20260816-0fe0492";
+import { rectangleVertices } from "./draw-area.js?v=20260816-0fe0492";
 
 let lastResult = null;
 
@@ -65,6 +65,13 @@ function drawBox() {
     say("Give the box a width and a height in kilometres.");
     return;
   }
+  // The shape joins the layer list as well as becoming the study area. An
+  // area is both a place you are working and a polygon you can operate on,
+  // and the user should not have to capture it twice.
+  const alsoALayer = () => {
+    const out = window.GeoIDDrawnLayers?.captureDrawn?.();
+    if (out?.ok) setStatus(`${out.message}`);
+  };
   if (!viewer.setStudyAreaPolygon(box.vertices)) {
     say("The viewer would not take that box.");
     return;
@@ -164,6 +171,7 @@ function runExtraction() {
   const geometry = viewer.getExtractionGeometry("study") || viewer.getExtractionGeometry("buffer");
   if (!geometry) {
     setStatus("Mark out an area first — the Draw tool, or the box above.");
+  alsoALayer();
     setExportsEnabled(false);
     return;
   }

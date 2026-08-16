@@ -37,11 +37,11 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260816-1e1ecb0";
-import { isEarth } from "./bodies.js?v=20260816-1e1ecb0";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260816-1e1ecb0";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260816-0fe0492";
+import { isEarth } from "./bodies.js?v=20260816-0fe0492";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260816-0fe0492";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260816-1e1ecb0";
+  from "./view-extent.js?v=20260816-0fe0492";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -531,10 +531,17 @@ export function hasDrape() {
    * what qualifies it: a raster covering a few degrees is a local dataset,
    * while a global one says nothing about how close anybody should get.
    *
+   * The test is the EXTENT, not the type. Qualifying only rasters meant the NI
+   * susceptibility map reached 1.8 km while the NI geology polygons — the same
+   * country, the same scale, drawn from the same survey — stopped at 995 km.
+   * Two layers over one place behaved differently because of how they happened
+   * to be stored, which is exactly what a user cannot be expected to model.
+   *
    * NOT conditioned on visibility, for the reason recorded below: keying this
    * on `visible` made switching a layer off move the camera.
    */
-  const local = layers.some((l) => l.status === "loaded" && l.raster && l.bounds
+  const local = layers.some((l) => l.status === "loaded" && l.bounds
+    && (l.raster || l.features?.length)
     && Math.max(l.bounds.maxX - l.bounds.minX, l.bounds.maxY - l.bounds.minY) < 20);
   if (local) return true;
   // A tile BASEMAP counts too, and so does a refine patch. Only counting

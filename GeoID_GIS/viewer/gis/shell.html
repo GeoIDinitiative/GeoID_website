@@ -131,7 +131,7 @@
         <summary class="section-toggle">
           <div class="section-toggle-main">
             <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 6.1 7 2.4l6.4 2.5-1.5 6.2-5.6 2.5-3.9-3.3Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="7" cy="2.4" r="1" fill="currentColor"/><circle cx="13.4" cy="4.9" r="1" fill="currentColor"/><circle cx="2.6" cy="6.1" r="1" fill="currentColor"/><circle cx="6.3" cy="13.6" r="1" fill="currentColor"/></svg></span><span>Shapefiles</span></span></div>
+              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.6 6.1 7 2.4l6.4 2.5-1.5 6.2-5.6 2.5-3.9-3.3Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="7" cy="2.4" r="1" fill="currentColor"/><circle cx="13.4" cy="4.9" r="1" fill="currentColor"/><circle cx="2.6" cy="6.1" r="1" fill="currentColor"/><circle cx="6.3" cy="13.6" r="1" fill="currentColor"/></svg></span><span>Vectors &amp; Shapes</span></span></div>
             </div>
           </div>
         </summary>
@@ -139,6 +139,7 @@
           <div class="control-stack">
             <div class="section-summary-copy" style="margin-bottom:0.5rem;">Shapefile and vector overlays — coastlines, boundaries, basins. Switch one off to take it off the globe without unloading it.</div>
             <div class="gis-btn-row">
+              <button id="polygon-capture-drawn" class="button" type="button" title="Add the area currently drawn on the globe to the layer list">Add drawn area</button>
               <button id="polygon-browse" class="button" type="button">Add shapefile</button>
             </div>
             <input id="polygon-file" type="file" multiple hidden>

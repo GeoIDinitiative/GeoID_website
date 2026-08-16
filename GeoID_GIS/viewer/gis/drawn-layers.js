@@ -1,0 +1,103 @@
+/**
+ * A polygon you drew is a layer.
+ *
+ * The Draw tool handed its shape to the viewer's `activateStudyArea`, which
+ * kept it in viewer state — so the one piece of geometry the user made by hand
+ * was the one piece the layer list did not carry. It could not be clipped,
+ * buffered, sampled, symbolised, exported or restored, and no tool's input
+ * select had ever heard of it.
+ *
+ * Registering it as an ordinary vector layer costs one call and buys all of
+ * those at once, because everything downstream already works on layers. The
+ * study area is still set: an area is both a place you are working and a shape
+ * you can operate on, and it should not have to be captured twice.
+ */
+
+import { buildVectorLayerResult } from "./vector-render.js";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js";
+
+let counter = 0;
+
+function areaOf(ring) {
+  try {
+    const km2 = sphericalPolygonAreaKm2(ring.map(([lon, lat]) => ({ lat, lon })));
+    return Number.isFinite(km2) ? Number(km2.toFixed(3)) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/** The Draw tool's current geometry as a GeoJSON polygon feature. */
+export function drawnFeature(geometry, options) {
+  // Explicit null is a real caller, not a missing argument, and a default
+  // parameter does not cover it — destructuring null throws.
+  const { name = null, kind = "drawn" } = options || {};
+  const vertices = geometry?.vertices;
+  if (!Array.isArray(vertices) || vertices.length < 3) return null;
+  const ring = vertices.map((v) => {
+    let lon = Number(v.lon ?? v.longitude);
+    const lat = Number(v.lat ?? v.latitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    // The viewer carries east-positive 0..360; a file means signed.
+    if (lon > 180) lon -= 360;
+    return [Number(lon.toFixed(6)), Number(lat.toFixed(6))];
+  }).filter(Boolean);
+  if (ring.length < 3) return null;
+  // A GeoJSON ring closes on itself; the drawn one does not.
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) ring.push([...first]);
+  return {
+    type: "Feature",
+    properties: {
+      name: name || `Drawn area ${counter + 1}`,
+      kind,
+      vertices: ring.length - 1,
+      // Computed from the ring rather than read off the draw tool: the study
+      // geometry does not always carry an area, and a layer whose attribute is
+      // sometimes null is a layer nobody can chart or sort by.
+      area_km2: areaOf(ring),
+      drawn_at: null,          // stamped by the caller, which has a clock
+    },
+    geometry: { type: "Polygon", coordinates: [ring] },
+  };
+}
+
+/**
+ * Put whatever the Draw tool is currently holding into the layer list.
+ *
+ * Returns the layer, or null with a reason. Idempotent by shape: drawing the
+ * same box twice would otherwise stack two identical layers, and the second
+ * teaches the user nothing.
+ */
+export function captureDrawn({ name = null, stampedAt = null } = {}) {
+  const viewer = window.GeoIDViewer;
+  const geometry = viewer?.getExtractionGeometry?.("study")
+    || viewer?.getExtractionGeometry?.("buffer");
+  if (!geometry) return { ok: false, message: "Draw an area first — the Draw tool, or the box preset." };
+  const feature = drawnFeature(geometry, { name });
+  if (!feature) return { ok: false, message: "That shape has too few points to be a polygon." };
+  feature.properties.drawn_at = stampedAt || new Date().toISOString();
+
+  const signature = JSON.stringify(feature.geometry.coordinates);
+  const existing = (window.GeoIDImportManager?.getLayers?.() || [])
+    .find((l) => l.ext === "drawn" && l.collection
+      && JSON.stringify(l.collection.features?.[0]?.geometry?.coordinates) === signature);
+  if (existing) return { ok: true, layer: existing, message: `That area is already a layer (${existing.name}).` };
+
+  counter += 1;
+  const layerName = feature.properties.name;
+  const fc = { type: "FeatureCollection", features: [feature] };
+  const built = buildVectorLayerResult(fc, { name: layerName });
+  const layer = window.GeoIDImportManager?.addDerivedLayer?.(layerName, built, "drawn");
+  if (!layer) return { ok: false, message: "The layer could not be added — is the globe ready?" };
+  return {
+    ok: true,
+    layer,
+    message: `${layerName} added — every tool can take it as input now.`,
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.GeoIDDrawnLayers = { captureDrawn, drawnFeature };
+}
