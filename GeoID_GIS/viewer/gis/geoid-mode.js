@@ -14,12 +14,14 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260816-6ce8ecd";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-6ce8ecd";
-import { makeRaster } from "./raster-analysis.js?v=20260816-6ce8ecd";
+} from "./geoid-pipeline.js?v=20260816-471dc39";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-471dc39";
+import { makeRaster } from "./raster-analysis.js?v=20260816-471dc39";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-6ce8ecd";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-471dc39";
+
+const STAMP = "20260816-6ce8ecd";
 
 const state = {
   run: null,        // { dates, steps, cells, grid, layer, band }
@@ -123,11 +125,63 @@ export function lockView(bounds) {
 
 /* ── the run ────────────────────────────────────────────────────────────── */
 
+/**
+ * The inputs, loaded if they are not already there.
+ *
+ * "Load a DEM first" was a dead end: the prototype's DEM and geology SHIP WITH
+ * THE APP, at `/ni-prototype/data/`, and demanding that the user find two tick
+ * boxes before the mode does anything is asking them to assemble the thing the
+ * mode exists to run. GeoID mode loads its own base and says it is doing so.
+ *
+ * Anything already loaded wins — a user who has brought their own DEM for
+ * somewhere else is not overridden by Northern Ireland.
+ */
+async function ensureInputs() {
+  let found = inputsFromLayers();
+  if (found.dem?.raster && found.geology) return found;
+
+  say("Loading the Northern Ireland base — elevation and bedrock geology…");
+  try {
+    const demos = await import(`./demo-layers.js?v=${STAMP}`);
+    // 5 is the 100 m Copernicus DEM, 3 the BGS bedrock; the indices are the
+    // shipped order in demo-layers.js and are named there.
+    if (!found.dem?.raster) await demos.toggle("ni-prototype", 5, true);
+    if (!found.geology) await demos.toggle("ni-prototype", 3, true);
+  } catch (error) {
+    say(`Could not load the prototype base: ${error.message}`);
+    return found;
+  }
+
+  // The importer resolves before the layer is drawable, so wait for the
+  // RECORDS rather than assuming the toggle finished the job — and wait long
+  // enough to be true: the 100 m DEM is 1.5 MB of Int16 over 1834x1444 cells
+  // and takes minutes on a slow machine. A 120-second ceiling reported "the
+  // base did not load" while it was still loading, which is the same dead end
+  // wearing a different message.
+  const started = Date.now();
+  const CEILING_MS = 6 * 60 * 1000;
+  while (Date.now() - started < CEILING_MS) {
+    found = inputsFromLayers();
+    if (found.dem?.raster && found.geology) return found;
+    const seconds = Math.round((Date.now() - started) / 1000);
+    say(`Loading the Northern Ireland base — ${found.dem ? "geology" : "elevation"} still coming `
+      + `(${seconds}s). The DEM is 1834x1444 cells; the first run is the slow one.`);
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  return found;
+}
+
 export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
-  const { dem, geology } = inputsFromLayers();
+  const { dem, geology } = await ensureInputs();
   if (!dem?.raster) {
-    say("Load a DEM for the study area first — GeoID mode takes its slopes from it.");
+    say("No elevation data — the Northern Ireland base did not load, and "
+      + "GeoID mode takes its slopes from a DEM.");
     return { ok: false };
+  }
+  if (!geology) {
+    say("Running on slope alone: no geology layer, so every cell uses the "
+      + "default material rather than its own lithology.");
   }
   const viewer = window.GeoIDViewer;
   const area = viewer?.getExtractionGeometry?.("study")
