@@ -416,12 +416,24 @@ if (typeof window !== "undefined") {
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire);
     else wire();
   }
-  window.GeoIDEarthEngine = {
+  // MERGED, never assigned — and under its own name.
+  //
+  // `gee.js` (the cached-catalogue module) also writes `window.GeoIDEarthEngine`
+  // and loads after this file, so a plain assignment here was silently replaced:
+  // the module evaluated, the global existed, and every function this file adds
+  // was missing. From the page it looked like a module that had not loaded at
+  // all, which is what sent me chasing caches and origins for three rounds.
+  //
+  // The live client gets its own name; the merge keeps the catalogue's API
+  // working for anything already using it.
+  window.GeoIDEarthEngine = Object.assign(window.GeoIDEarthEngine || {}, {
     showOneFrame,
     drawFetchArea,
     fillExtentSelect,
     fetchArea: () => fetchArea,
     frames, stepImageBody, tileTemplate, rainVis, sampleGrid,
     settings, token, fetchStepGrid, fetchStepTiles,
-  };
+    originProblem, requiredOrigin,
+  });
+  window.GeoIDGEE = window.GeoIDEarthEngine;
 }

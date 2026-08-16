@@ -63,10 +63,23 @@ def start_static(port: int) -> ThreadingHTTPServer:
             `no-store` on documents costs one small request per navigation and
             removes the whole class.
             """
-            path = self.path.split("?", 1)[0]
-            if path.endswith((".html", "/")) or "." not in path.rsplit("/", 1)[-1]:
-                self.send_header("Cache-Control", "no-store, must-revalidate")
-                self.send_header("Pragma", "no-cache")
+            # NOTHING is cached by the development server.
+            #
+            # The stamp was supposed to make this unnecessary: every module URL
+            # carries `?v=<sha>`, so a changed module is a changed URL. But the
+            # stamp IS the git sha, so editing a file and re-stamping before
+            # committing produces the SAME `?v=` — and the browser then serves
+            # its cached copy of a URL whose contents have changed underneath
+            # it. Measured here: the server was sending a module containing
+            # `originProblem` while the page held a copy without it, at the same
+            # stamped URL.
+            #
+            # From the outside that is indistinguishable from a fix that was
+            # never made, and it has been mistaken for exactly that more than
+            # once in this project. On a loopback dev server the cost of
+            # `no-store` is nothing; the cost of a stale module is a day.
+            self.send_header("Cache-Control", "no-store, must-revalidate")
+            self.send_header("Pragma", "no-cache")
             super().end_headers()
     handler = partial(QuietHandler, directory=str(REPO_ROOT))
     httpd = ThreadingHTTPServer(("127.0.0.1", port), handler)

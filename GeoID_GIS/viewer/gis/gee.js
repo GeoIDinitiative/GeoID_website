@@ -10,10 +10,10 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260816-75278cc";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260816-75278cc";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260816-6ca6346";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260816-6ca6346";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260816-75278cc";
+  from "./view-extent.js?v=20260816-6ca6346";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -667,5 +667,8 @@ if (typeof document !== "undefined") {
   } else {
     init();
   }
-  window.GeoIDEarthEngine = { request, setEndpoint, getEndpoint: endpoint, setRefineOnZoom };
+  // Merged for the same reason `gee-live.js` merges: two modules share this
+  // name and load order must not decide which one's functions survive.
+  window.GeoIDEarthEngine = Object.assign(window.GeoIDEarthEngine || {},
+    { request, setEndpoint, getEndpoint: endpoint, setRefineOnZoom });
 }
