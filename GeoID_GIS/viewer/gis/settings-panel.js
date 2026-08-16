@@ -144,8 +144,11 @@ function refresh() {
       + "over http it accepts only localhost and 127.0.0.1. Open the same server "
       + `at http://localhost:${window.location.port || 80}/.`
     : ready
-      ? `Configured. Add "${origin}" to Authorised JavaScript origins for this `
-        + "Client ID in the Google console, or sign-in returns error 400."
+      // A condition, not an instruction. The page cannot see the console, so
+      // it names what must be true there and stops short of nagging about it
+      // — the first sign-in is the test, and its error says which half failed.
+      ? `Ready. This page is ${origin}; that exact string must be an Authorised `
+        + "JavaScript origin for the Client ID, or Google returns error 400."
       : "Not configured. Earth Engine needs a Client ID and a project; neither is a secret.");
 }
 
