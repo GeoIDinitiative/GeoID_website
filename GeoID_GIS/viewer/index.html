@@ -18,11 +18,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260816-547d4bf-hazard-readout-large">
+  <link rel="stylesheet" href="styles.css?v=20260816-d597d22-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260816-547d4bf" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260816-547d4bf" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260816-d597d22" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260816-d597d22" defer></script>
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -316,19 +316,6 @@
           </details>
         </div>
       </details>
-      <details id="gis-group-toolbox" class="control-section toolbox-group">
-        <summary class="section-toggle">
-          <div class="section-toggle-main">
-            <div class="section-heading">
-              <div class="section-title"><span class="section-title-row"><span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2.5 5.5h11M2.5 8h11M2.5 10.5h7" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span><span>Analysis Toolbox</span></span></div>
-            </div>
-          </div>
-        </summary>
-        <div class="section-body toolbox-group-body">
-          <p class="tool-copy">Every tool, grouped. Press <strong>/</strong> to search them by name.</p>
-          <div id="gis-tool-catalogue"></div>
-        </div>
-      </details>
       <details id="gis-group-analysis" class="control-section toolbox-group">
         <summary class="section-toggle">
           <div class="section-toggle-main">
@@ -339,6 +326,18 @@
         </summary>
         <div class="section-body toolbox-group-body">
           <div id="analysis-tools-host"></div>
+          <!-- The toolbox lives HERE, inside Extraction & Analysis, rather than
+               as a group of its own. Analysis is one place in this sidebar; a
+               second place beside it is a second place to look, and the rail's
+               analysis affordance already points at this one. Built from the
+               TOOLS registry, folded by category. -->
+          <details class="gis-tool-section">
+            <summary>Analysis tools</summary>
+            <div class="gis-tool-body">
+              <p class="tool-copy">Every tool, grouped. Press <strong>/</strong> to search them by name.</p>
+              <div id="gis-tool-catalogue"></div>
+            </div>
+          </details>
           <details class="gis-tool-section">
             <summary>Point &amp; Pixel Extraction</summary>
             <div class="gis-tool-body">
@@ -2042,7 +2041,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
     </div>
   </div>
 
-<script id="earth-manifest-script" src="earth-manifest.js?v=20260816-547d4bf-blue-marble" defer></script>
+<script id="earth-manifest-script" src="earth-manifest.js?v=20260816-d597d22-blue-marble" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -2121,40 +2120,41 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260816-547d4bf" defer></script>
-<script type="module" src="gis/atlas-assistant.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/import-manager.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/toolbox.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/sidecar-client.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/tool-search.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/tool-dialog.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/charts.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/time.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/edit-tools.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/feature-popup.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/forecast.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/wfs-import.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/demo-layers.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/model-studio.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/layer-properties.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/legend-dock.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/layer-export-dialog.js?v=20260816-547d4bf"></script>
+<script src="gis/mode-manager.js?v=20260816-d597d22" defer></script>
+<script type="module" src="gis/atlas-assistant.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/import-manager.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/toolbox.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/sidecar-client.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/tool-search.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/tool-dialog.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/charts.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/time.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/edit-tools.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/feature-popup.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/forecast.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/location-tools.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/wfs-import.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/demo-layers.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/model-studio.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/layer-properties.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/legend-dock.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/layer-export-dialog.js?v=20260816-d597d22"></script>
 <!-- Pre-processing and Extraction & Analysis, as workbenches on the tool
      rail rather than two more collapsibles in the sidebar column. -->
-<script type="module" src="gis/side-panels.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/project.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/events.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/gee.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/basemap-drape.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/zoom-bar.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/polygons.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/research/index.js?v=20260816-547d4bf"></script>
-<script type="module" src="gis/planet-strip.js?v=20260816-547d4bf"></script>
+<script type="module" src="gis/side-panels.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/project.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/events.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/gee.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/basemap-drape.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/zoom-bar.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/polygons.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/research/index.js?v=20260816-d597d22"></script>
+<script type="module" src="gis/planet-strip.js?v=20260816-d597d22"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260816-547d4bf" defer></script>
+<script src="music.js?v=20260816-d597d22" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>

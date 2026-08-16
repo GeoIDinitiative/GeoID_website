@@ -215,6 +215,32 @@
       opacity: 0.65;
     }
 
+    /* Tools panel — the analyses this location supports */
+    .lt-split { display: grid; grid-template-columns: minmax(14rem, 20rem) 1fr; gap: 1rem; }
+    @media (max-width: 900px) { .lt-split { grid-template-columns: 1fr; } }
+    .lt-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem; }
+    .lt-group { font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase;
+      opacity: 0.55; margin: 0.4rem 0 0.1rem; }
+    .lt-tool { text-align: left; width: 100%; padding: 0.35rem 0.5rem; cursor: pointer;
+      background: rgba(255,255,255,0.04); color: inherit; font: inherit;
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 0.3rem; }
+    .lt-tool:hover { background: rgba(255,60,172,0.16); border-color: rgba(255,60,172,0.5); }
+    .lt-tool[disabled] { opacity: 0.45; cursor: not-allowed; }
+    .lt-tool b { display: block; font-weight: 600; font-size: 0.78rem; }
+    .lt-tool span { display: block; font-size: 0.66rem; opacity: 0.7; }
+    .lt-status { font-size: 0.8rem; margin-bottom: 0.5rem; min-height: 1.2em; }
+    .lt-value { color: #ff3cac; font-weight: 600; }
+    .lt-profile-row { display: flex; gap: 0.6rem; align-items: end; flex-wrap: wrap;
+      font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.8; }
+    .lt-profile-row label { display: flex; flex-direction: column; gap: 0.2rem; }
+    .lt-profile-row select { font: inherit; text-transform: none; letter-spacing: 0;
+      background: rgba(255,255,255,0.06); color: inherit; padding: 0.15rem 0.3rem;
+      border: 1px solid rgba(255,255,255,0.22); border-radius: 0.25rem; max-width: 14rem; }
+    #tools-chart svg { width: 100%; height: 140px; display: block; margin-top: 0.5rem; }
+    #tools-log { font-size: 0.7rem; opacity: 0.75; margin-top: 0.5rem;
+      max-height: 90px; overflow-y: auto; }
+    #tools-log div { padding: 0.1rem 0; border-top: 1px solid rgba(255,255,255,0.06); }
+
     /* Forecast panel — the hub's time axis */
     .fc-head { display: flex; gap: 1rem; align-items: center; justify-content: space-between;
       flex-wrap: wrap; margin-bottom: 0.5rem; }
@@ -1319,7 +1345,7 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20260816-547d4bf"
+        src="/GeoID_GIS/viewer/?v=gis-20260816-d597d22"
         title="myGeoID — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
@@ -1362,6 +1388,40 @@
               <span>Geotechnical plots appear once a location is selected.</span>
             </div>
             <div id="geotechnical-grid" class="market-grid" hidden></div>
+          </div>
+
+          <!-- Tools — what is worth running HERE. Not a catalogue: the pin
+               says which layers have a value at this point, and only the
+               tools that consume one of those are offered, each with the
+               reason it appeared. -->
+          <div class="hub-panel-col" id="hub-panel-tools" hidden>
+            <div class="hub-empty" id="tools-empty">
+              <span class="hub-empty-icon">⚙</span>
+              <span>Click a location to see the analyses its data supports.</span>
+            </div>
+            <div id="tools-body" hidden>
+              <div class="lt-split">
+                <div class="lt-list" id="tools-list"></div>
+                <div class="lt-out">
+                  <div class="lt-status" id="tools-status">Pick an analysis.</div>
+                  <div class="lt-profile-row">
+                    <label>Profile through here
+                      <select id="tools-profile-layer"></select>
+                    </label>
+                    <label>Length
+                      <select id="tools-profile-length">
+                        <option value="2">2 km</option>
+                        <option value="10" selected>10 km</option>
+                        <option value="50">50 km</option>
+                      </select>
+                    </label>
+                    <button type="button" class="hub-action-btn" id="tools-profile-run">Plot</button>
+                  </div>
+                  <div id="tools-chart"></div>
+                  <div id="tools-log"></div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Forecast — the time axis of the hub. Every other panel answers
@@ -1416,6 +1476,7 @@
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="all"          aria-controls="hub-panel-all">All Parameters</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="hydrology"    aria-controls="hub-panel-hydrology">Hydrology</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="geotechnical" aria-controls="hub-panel-geotechnical">Geotechnical</button>
+        <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="tools"        aria-controls="hub-panel-tools">Tools</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="forecast"     aria-controls="hub-panel-forecast">Forecast</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="sources"      aria-controls="hub-panel-sources">Data Sources</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="metadata"     aria-controls="hub-panel-metadata">Metadata</button>
@@ -2115,6 +2176,7 @@
           setSelectionControlsEnabled(true);
           renderRiskDashboard(msg);
           window.renderGeoIDForecast?.(msg);
+          window.renderGeoIDTools?.(msg);
           selectHubPanel("risk");
           setHubVisible(true);
           setDrawerOpen(true);
@@ -2144,7 +2206,7 @@
   </script>
 
 <script src="/scripts/site.js"></script>
-<script src="/styles/nav.js?v=20260816-547d4bf" defer></script>
+<script src="/styles/nav.js?v=20260816-d597d22" defer></script>
 
   <!-- ── Forecast panel ────────────────────────────────────────────────────
        Mapping first, then the location, then the time series. The pin says
@@ -2339,6 +2401,218 @@
 
       window.renderGeoIDForecast = render;
     }
+  </script>
+
+  <!-- ── Tools at a location ───────────────────────────────────────────────
+       The hub asks the viewer what this point supports and the viewer
+       answers from its own layer list; running one comes straight back as a
+       value AT the point, and a profile as a plot THROUGH it. The tools stay
+       in the viewer with the data they operate on — this side owns the pin
+       and the presentation, nothing else.
+  -->
+  <script>
+    (() => {
+      const frame = () => document.querySelector(".globe-iframe") || document.querySelector("iframe");
+      const byId = (id) => document.getElementById(id);
+      const pending = new Map();
+      let token = 0;
+      let pin = null;
+
+      function ask(type, payload) {
+        const id = `t${token += 1}`;
+        const target = frame()?.contentWindow;
+        if (!target) return Promise.reject(new Error("the globe is not loaded"));
+        return new Promise((resolve, reject) => {
+          // A request that is never answered must fail rather than hang: the
+          // viewer may be mid-reload, and a spinner with no end is worse than
+          // an error anyone can act on.
+          const timer = setTimeout(() => {
+            pending.delete(id);
+            reject(new Error("the globe did not answer"));
+          }, 30000);
+          pending.set(id, { resolve, timer });
+          target.postMessage({ type, token: id, pin, ...payload }, "*");
+        });
+      }
+
+      window.addEventListener("message", (event) => {
+        const msg = event.data;
+        if (!msg || typeof msg.type !== "string") return;
+        if (!msg.type.startsWith("geoid:tools:")) return;
+        const held = pending.get(msg.token);
+        if (!held) return;
+        clearTimeout(held.timer);
+        pending.delete(msg.token);
+        held.resolve(msg);
+      });
+
+      function log(text) {
+        const host = byId("tools-log");
+        const row = document.createElement("div");
+        row.textContent = text;
+        host.prepend(row);
+      }
+
+      function chart(profile) {
+        const ns = "http://www.w3.org/2000/svg";
+        const w = 640, h = 140, pad = { l: 42, r: 8, t: 10, b: 22 };
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        const innerW = w - pad.l - pad.r, innerH = h - pad.t - pad.b;
+        const values = profile.series.map((s) => s.value);
+        const lo = profile.min, hi = profile.max === profile.min ? profile.min + 1 : profile.max;
+        const x = (km) => pad.l + ((km + profile.lengthKm / 2) / profile.lengthKm) * innerW;
+        const y = (v) => pad.t + innerH - ((v - lo) / (hi - lo)) * innerH;
+
+        [lo, (lo + hi) / 2, hi].forEach((value) => {
+          const line = document.createElementNS(ns, "line");
+          line.setAttribute("x1", pad.l); line.setAttribute("x2", w - pad.r);
+          line.setAttribute("y1", y(value)); line.setAttribute("y2", y(value));
+          line.setAttribute("stroke", "rgba(255,255,255,0.10)");
+          svg.appendChild(line);
+          const label = document.createElementNS(ns, "text");
+          label.setAttribute("x", pad.l - 5); label.setAttribute("y", y(value) + 3);
+          label.setAttribute("text-anchor", "end"); label.setAttribute("font-size", "8");
+          label.setAttribute("fill", "rgba(255,255,255,0.5)");
+          label.textContent = value.toFixed(Math.abs(hi - lo) < 10 ? 2 : 0);
+          svg.appendChild(label);
+        });
+
+        const points = profile.series.filter((s) => Number.isFinite(s.value))
+          .map((s) => `${x(s.km).toFixed(1)},${y(s.value).toFixed(1)}`).join(" ");
+        const line = document.createElementNS(ns, "polyline");
+        line.setAttribute("points", points);
+        line.setAttribute("fill", "none");
+        line.setAttribute("stroke", "#59f2ff");
+        line.setAttribute("stroke-width", "2");
+        svg.appendChild(line);
+
+        // The pin is the middle of the transect, and saying so is the whole
+        // point of drawing it here rather than anywhere else.
+        const mark = document.createElementNS(ns, "line");
+        mark.setAttribute("x1", x(0)); mark.setAttribute("x2", x(0));
+        mark.setAttribute("y1", pad.t); mark.setAttribute("y2", pad.t + innerH);
+        mark.setAttribute("stroke", "#ff3cac");
+        mark.setAttribute("stroke-dasharray", "3 3");
+        svg.appendChild(mark);
+
+        [-profile.lengthKm / 2, 0, profile.lengthKm / 2].forEach((km) => {
+          const label = document.createElementNS(ns, "text");
+          label.setAttribute("x", x(km)); label.setAttribute("y", h - 6);
+          label.setAttribute("text-anchor", "middle"); label.setAttribute("font-size", "8");
+          label.setAttribute("fill", "rgba(255,255,255,0.5)");
+          label.textContent = km === 0 ? "pin" : `${km > 0 ? "+" : ""}${km} km`;
+          svg.appendChild(label);
+        });
+        return svg;
+      }
+
+      async function runOne(suggestion, button) {
+        byId("tools-status").textContent = `Running ${suggestion.label} on ${suggestion.inputLayerName}…`;
+        button.disabled = true;
+        try {
+          const { result } = await ask("geoid:tools:run", { request: suggestion });
+          if (!result?.ok) {
+            byId("tools-status").textContent = `${suggestion.label}: ${result?.message || "failed"}`;
+            log(`✗ ${suggestion.label} — ${result?.message || "failed"}`);
+            return;
+          }
+          const value = Number.isFinite(result.value)
+            ? `<span class="lt-value">${result.value.toFixed(2)}${result.unit ? " " + result.unit : ""}</span> here`
+            : "no value at this point";
+          byId("tools-status").innerHTML =
+            `${result.tool}: ${value}${result.layerName ? ` — <em>${result.layerName}</em> is on the globe.` : "."}`;
+          log(`✓ ${result.tool} → ${result.layerName || "result"}`
+            + (Number.isFinite(result.value) ? ` (${result.value.toFixed(2)} at the pin)` : ""));
+        } catch (error) {
+          byId("tools-status").textContent = `${suggestion.label}: ${error.message}`;
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      function renderList(suggestions) {
+        const host = byId("tools-list");
+        host.innerHTML = "";
+        if (!suggestions.length) {
+          host.innerHTML = '<div class="lt-group">Nothing here yet — load a raster or a '
+            + 'vector layer over this area and click again.</div>';
+          return;
+        }
+        let group = null;
+        suggestions.forEach((suggestion) => {
+          if (suggestion.group !== group) {
+            group = suggestion.group;
+            const head = document.createElement("div");
+            head.className = "lt-group";
+            head.textContent = group;
+            host.appendChild(head);
+          }
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "lt-tool";
+          button.innerHTML = `<b>${suggestion.label}</b><span>${suggestion.why}</span>`;
+          if (suggestion.needsSidecar) {
+            button.disabled = true;
+            button.querySelector("span").textContent =
+              `${suggestion.why} — needs the local sidecar`;
+          }
+          button.addEventListener("click", () => runOne(suggestion, button));
+          host.appendChild(button);
+        });
+      }
+
+      async function render(message) {
+        pin = message;
+        byId("tools-empty").hidden = true;
+        byId("tools-body").hidden = false;
+        byId("tools-status").textContent = "Asking the globe what this point supports…";
+        byId("tools-chart").innerHTML = "";
+        try {
+          const answer = await ask("geoid:tools:list", {});
+          renderList(answer.suggestions || []);
+          const select = byId("tools-profile-layer");
+          select.innerHTML = "";
+          (answer.profiles || []).forEach((layer) => {
+            const option = document.createElement("option");
+            option.value = layer.id;
+            option.textContent = layer.name.replace(/\.[a-z]+$/i, "");
+            select.appendChild(option);
+          });
+          const dem = (answer.profiles || []).find((l) => l.isDem);
+          if (dem) select.value = dem.id;
+          byId("tools-status").textContent = (answer.suggestions || []).length
+            ? `${answer.suggestions.length} analyses available at this point.`
+            : "No loaded layer covers this point.";
+        } catch (error) {
+          byId("tools-status").textContent = `Could not reach the globe: ${error.message}`;
+        }
+      }
+
+      byId("tools-profile-run")?.addEventListener("click", async () => {
+        const layerId = byId("tools-profile-layer").value;
+        const lengthKm = Number(byId("tools-profile-length").value);
+        if (!layerId) return;
+        byId("tools-status").textContent = "Sampling the transect…";
+        try {
+          const { result } = await ask("geoid:tools:profile", { request: { layerId, lengthKm } });
+          if (!result?.ok) {
+            byId("tools-status").textContent = result?.message || "the profile came back empty";
+            return;
+          }
+          byId("tools-chart").innerHTML = "";
+          byId("tools-chart").appendChild(chart(result));
+          byId("tools-status").innerHTML = `${result.layerName.replace(/\.[a-z]+$/i, "")} along `
+            + `${result.lengthKm} km: ${result.min.toFixed(2)} to ${result.max.toFixed(2)}`
+            + (Number.isFinite(result.centre)
+              ? `, <span class="lt-value">${result.centre.toFixed(2)}</span> at the pin.` : ".");
+        } catch (error) {
+          byId("tools-status").textContent = `Profile failed: ${error.message}`;
+        }
+      });
+
+      window.renderGeoIDTools = render;
+    })();
   </script>
 </body>
 </html>
