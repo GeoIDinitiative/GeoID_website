@@ -410,6 +410,22 @@
             </div>
           </details>
           <details class="gis-tool-section">
+            <summary>Batch runner</summary>
+            <div class="gis-tool-body">
+              <p class="tool-copy">One recipe over many layers. A tool per line,
+                <code>name=value</code> for parameters; each step feeds the next.</p>
+              <textarea id="gis-batch-chain" class="input gis-code" rows="4" spellcheck="false"
+                placeholder="slope&#10;focal radius=2 stat=mean&#10;reclassify"></textarea>
+              <div class="gis-batch-list" id="gis-batch-layers"></div>
+              <div class="gis-btn-row">
+                <button id="gis-batch-run" class="button primary" type="button">Run batch</button>
+                <button id="gis-batch-stop" class="button" type="button" disabled>Stop</button>
+              </div>
+              <div id="gis-batch-status" class="gis-metric">Pick layers and write a recipe.</div>
+              <div id="gis-batch-results" class="gis-point-table-host"></div>
+            </div>
+          </details>
+          <details class="gis-tool-section">
             <summary>Model Builder</summary>
             <div class="gis-tool-body">
               <p class="gis-hint">Write a model over the active layers. Runs against the
