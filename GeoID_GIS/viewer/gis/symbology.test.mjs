@@ -10,6 +10,7 @@
 import {
   RAMPS, rampColour, hex, buildSymbology, classOf, colourOf, legendInfoFrom,
   equalIntervalBreaks, quantileBreaks, jenksBreaks, stdDevBreaks,
+  categoricalSymbology, suggestCategoryField,
 } from "./symbology.js";
 
 let passed = 0;
@@ -157,6 +158,57 @@ check("jenks on a large layer samples rather than hanging", () => {
   const breaks = jenksBreaks(big, 5);
   eq(breaks.length, 4, "cuts");
   if (Date.now() - started > 4000) throw new Error("jenks took over four seconds");
+});
+
+/* ── categories ─────────────────────────────────────────────────────────── */
+
+const GEOLOGY = [
+  { properties: { objectid: 1, lex_d: "GALA GROUP", rcs_d: "SANDSTONE", age_onegl: "SIL" } },
+  { properties: { objectid: 2, lex_d: "GALA GROUP", rcs_d: "SANDSTONE", age_onegl: "SIL" } },
+  { properties: { objectid: 3, lex_d: "ANTRIM LAVA", rcs_d: "BASALT", age_onegl: "PAL" } },
+  { properties: { objectid: 4, lex_d: "SHERWOOD", rcs_d: "MUDSTONE", age_onegl: "TRI" } },
+];
+
+check("the suggested field is the rock description, not an id", () => {
+  eq(suggestCategoryField(GEOLOGY), "rcs_d", "field");
+});
+
+check("an id column is never suggested — one value per feature is not a map", () => {
+  const rows = Array.from({ length: 20 }, (_, i) => ({ properties: { objectid: i, note: "x" } }));
+  const field = suggestCategoryField(rows);
+  if (field === "objectid") throw new Error("colouring by the id would give 20 categories");
+});
+
+check("categories are coloured, counted and ordered by coverage", () => {
+  const sym = categoricalSymbology(GEOLOGY, "rcs_d");
+  eq(sym.ok, true, "ok");
+  eq(sym.categories, 3, "distinct values");
+  eq(sym.rows[0].value, "SANDSTONE", "the commonest leads");
+  eq(sym.rows[0].count, 2, "count");
+  eq(new Set(sym.rows.map((r) => r.colour)).size, 3, "three colours");
+});
+
+check("a feature gets the colour of its category", () => {
+  const sym = categoricalSymbology(GEOLOGY, "rcs_d");
+  eq(sym.colourOf(GEOLOGY[0]), sym.rows[0].colour, "sandstone");
+  eq(sym.colourOf(GEOLOGY[2]), sym.rows.find((r) => r.value === "BASALT").colour, "basalt");
+  eq(sym.colourOf({ properties: {} }), null, "no value, no colour");
+});
+
+check("past the cap the tail becomes one honest grey", () => {
+  const many = Array.from({ length: 30 }, (_, i) => ({ properties: { unit: `U${i}` } }));
+  const sym = categoricalSymbology(many, "unit", { maxCategories: 5 });
+  eq(sym.rows.length, 6, "five plus other");
+  const other = sym.rows[5];
+  eq(other.other, true, "flagged");
+  eq(other.count, 25, "everything else counted");
+  eq(sym.colourOf(many[29]), other.colour, "a tail feature takes the grey");
+});
+
+check("a field nothing carries is refused by name", () => {
+  const out = categoricalSymbology(GEOLOGY, "no_such_column");
+  eq(out.ok, false, "ok");
+  if (!out.message.includes("no_such_column")) throw new Error("the field was not named");
 });
 
 if (failures.length) {

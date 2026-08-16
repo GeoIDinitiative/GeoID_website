@@ -216,6 +216,99 @@ export function buildSymbology(values, {
   };
 }
 
+/* ── categories, for vector layers ──────────────────────────────────────── */
+
+/**
+ * Fields worth colouring a geology layer by, best first.
+ *
+ * A BGS polygon carries fifty-seven columns and only a handful describe the
+ * rock; offering the first alphabetically ("age_onegl") or the first in the
+ * file ("bgsref") means the user hunts through a list to find the one that
+ * makes the map. These are the standard BGS/GSNI names, then generic ones.
+ */
+export const PREFERRED_CATEGORY_FIELDS = [
+  "lex_rcs_d",   // lexicon unit + rock class, the full description
+  "rcs_d",       // rock class description — the lithology
+  "lex_d",       // the named unit
+  "bgstype",
+  "rock_type", "ROCK_TYPE", "lithology", "LITHOLOGY",
+  "type", "TYPE", "class", "CLASS", "unit", "UNIT", "name", "NAME",
+];
+
+/** The field most likely to be what someone means by "the rock type". */
+export function suggestCategoryField(features, fields = null) {
+  const names = fields && fields.length
+    ? fields
+    : [...new Set((features || []).flatMap((f) => Object.keys(f?.properties || {})))];
+  const has = (name) => names.includes(name)
+    && (features || []).some((f) => String(f?.properties?.[name] ?? "").trim());
+  const preferred = PREFERRED_CATEGORY_FIELDS.find(has);
+  if (preferred) return preferred;
+  // Otherwise the field with the most distinct non-empty values that is still
+  // a category rather than an identifier — an id has one value per feature and
+  // colouring by it produces noise, not a map.
+  let best = null;
+  names.forEach((name) => {
+    const values = new Set();
+    (features || []).forEach((f) => {
+      const v = f?.properties?.[name];
+      if (v != null && String(v).trim()) values.add(String(v));
+    });
+    const n = values.size;
+    if (n < 2 || n > Math.max(3, (features || []).length * 0.5)) return;
+    if (!best || n > best.n) best = { name, n };
+  });
+  return best?.name || null;
+}
+
+/**
+ * Distinct values → colours. Categories are ordered by how much of the layer
+ * they cover, so the ramp's ends land on the units someone will actually see,
+ * and everything past `maxCategories` becomes one honest "other" rather than
+ * fifty indistinguishable greys.
+ */
+export function categoricalSymbology(features, field, { ramp = "spectral", maxCategories = 12 } = {}) {
+  const counts = new Map();
+  (features || []).forEach((f) => {
+    const raw = f?.properties?.[field];
+    const key = raw == null || !String(raw).trim() ? null : String(raw);
+    if (key == null) return;
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  if (!counts.size) return { ok: false, message: `no feature carries a value for "${field}"` };
+  const ordered = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  const shown = ordered.slice(0, maxCategories);
+  const rest = ordered.slice(maxCategories);
+  const rows = shown.map(([value, count], i) => ({
+    value,
+    count,
+    colour: hex(rampColour(ramp, shown.length <= 1 ? 0.5 : i / (shown.length - 1))),
+  }));
+  if (rest.length) {
+    rows.push({
+      value: "(other)",
+      count: rest.reduce((n, [, c]) => n + c, 0),
+      colour: "#8a8a8a",
+      other: true,
+      hidden: rest.length,
+    });
+  }
+  const lookup = new Map(rows.filter((r) => !r.other).map((r) => [r.value, r.colour]));
+  return {
+    ok: true, categorical: true, field, ramp, rows,
+    categories: counts.size,
+    palette: rows.map((r) => r.colour),
+    colourOf: (feature) => {
+      const raw = feature?.properties?.[field];
+      const key = raw == null ? null : String(raw);
+      if (key == null) return null;
+      return lookup.get(key) || (rest.length ? "#8a8a8a" : null);
+    },
+    message: `${counts.size} distinct values in "${field}"`
+      + (rest.length ? `; the ${shown.length} largest are coloured and ${rest.length} share one grey.` : "."),
+  };
+}
+
 /** Which class a value falls in, given the breaks. */
 export function classOf(value, breaks) {
   if (!Number.isFinite(value)) return -1;

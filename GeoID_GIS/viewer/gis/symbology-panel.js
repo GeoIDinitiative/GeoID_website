@@ -13,6 +13,7 @@
 
 import {
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
+  categoricalSymbology, suggestCategoryField,
 } from "./symbology.js";
 
 const HOST_ID = "gis-symbology-host";
@@ -21,8 +22,31 @@ const state = { layerId: null, last: null };
 function byId(id) { return document.getElementById(id); }
 
 function paintable() {
+  // Vector layers repaint too now, so the filter is "can this be redrawn",
+  // not "is this a raster".
   return (window.GeoIDImportManager?.getLayers?.() || [])
-    .filter((l) => l.status === "loaded" && typeof l.repaint === "function" && l.raster);
+    .filter((l) => l.status === "loaded" && typeof l.repaint === "function"
+      && (l.raster || l.features?.length));
+}
+
+function isVector(layer) { return Boolean(!layer?.raster && layer?.features?.length); }
+
+/** Fields a vector layer could be coloured by, the likely one first. */
+function fillFieldSelect(layer) {
+  const select = byId("gis-sym-field");
+  if (!select) return;
+  const held = select.value;
+  select.innerHTML = "";
+  if (!isVector(layer)) return;
+  const names = [...new Set(layer.features.flatMap((f) => Object.keys(f.properties || {})))];
+  const suggested = suggestCategoryField(layer.features, names);
+  names.forEach((name) => {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    select.appendChild(option);
+  });
+  select.value = held && names.includes(held) ? held : (suggested || names[0] || "");
 }
 
 function valuesOf(layer) {
@@ -40,6 +64,26 @@ function valuesOf(layer) {
     out.push(v);
   }
   return out;
+}
+
+function previewCategories(sym) {
+  const host = byId("gis-symbology-preview");
+  if (!host) return;
+  host.innerHTML = "";
+  const table = document.createElement("div");
+  table.className = "gis-sym-rows";
+  sym.rows.forEach((row) => {
+    const line = document.createElement("div");
+    const swatch = document.createElement("span");
+    swatch.className = "gis-sym-swatch";
+    swatch.style.background = row.colour;
+    const text = document.createElement("span");
+    text.textContent = `${row.value}  (${row.count.toLocaleString()})`;
+    text.title = row.value;
+    line.append(swatch, text);
+    table.appendChild(line);
+  });
+  host.appendChild(table);
 }
 
 function preview(symbology) {
@@ -93,7 +137,40 @@ function recompute(apply) {
   const layer = paintable().find((l) => String(l.id ?? l.name) === state.layerId);
   const status = byId("gis-symbology-status");
   if (!layer) {
-    if (status) status.textContent = "Pick a raster layer.";
+    if (status) status.textContent = "Pick a layer.";
+    return;
+  }
+  // A vector layer has categories, not classes: geology is a list of units,
+  // and cutting a list of names into five quantiles is meaningless.
+  const vector = isVector(layer);
+  ["gis-sym-method-row", "gis-sym-classes-row"].forEach((id) => {
+    const row = byId(id);
+    if (row) row.hidden = vector;
+  });
+  const fieldRow = byId("gis-sym-field-row");
+  if (fieldRow) fieldRow.hidden = !vector;
+  if (vector) {
+    const field = byId("gis-sym-field")?.value;
+    if (!field) { if (status) status.textContent = "That layer has no attributes."; return; }
+    const sym = categoricalSymbology(layer.features, field, {
+      ramp: byId("gis-sym-ramp")?.value || "spectral",
+    });
+    if (!sym.ok) { if (status) status.textContent = sym.message; return; }
+    state.last = sym;
+    previewCategories(sym);
+    if (!apply) { if (status) status.textContent = `${sym.message} Press Apply.`; return; }
+    const painted = layer.repaint((feature) => sym.colourOf(feature));
+    layer.legendInfo = {
+      palette: sym.rows.map((r) => r.colour.replace("#", "")),
+      labels: sym.rows.map((r) => r.value),
+      categorical: true, field,
+    };
+    window.GeoIDLayers?.render?.();
+    if (status) {
+      status.textContent = painted
+        ? `${layer.name} coloured by ${field}: ${sym.rows.length} categories.`
+        : "That layer could not be repainted.";
+    }
     return;
   }
   const symbology = buildSymbology(valuesOf(layer), currentSpec());
@@ -177,12 +254,21 @@ export function init() {
   }
 
   fillLayers();
-  window.GeoIDImportManager?.onChange?.(fillLayers);
+  fillFieldSelect(paintable().find((l) => String(l.id ?? l.name) === state.layerId));
+  window.GeoIDImportManager?.onChange?.(() => {
+    fillLayers();
+    fillFieldSelect(paintable().find((l) => String(l.id ?? l.name) === state.layerId));
+  });
   byId("gis-sym-layer")?.addEventListener("change", (e) => {
     state.layerId = e.target.value;
     recompute(false);
   });
-  ["gis-sym-method", "gis-sym-classes", "gis-sym-ramp", "gis-sym-reverse"].forEach((id) => {
+  byId("gis-sym-layer")?.addEventListener("change", () => {
+    const layer = paintable().find((l) => String(l.id ?? l.name) === state.layerId);
+    fillFieldSelect(layer);
+    recompute(false);
+  });
+  ["gis-sym-method", "gis-sym-classes", "gis-sym-ramp", "gis-sym-reverse", "gis-sym-field"].forEach((id) => {
     byId(id)?.addEventListener("change", () => recompute(false));
   });
   byId("gis-sym-apply")?.addEventListener("click", () => recompute(true));

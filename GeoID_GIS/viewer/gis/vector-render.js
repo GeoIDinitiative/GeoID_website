@@ -1,6 +1,6 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-545ecf3";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260816-545ecf3";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-1e1ecb0";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260816-1e1ecb0";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -51,15 +51,56 @@ function pushSegment(target, a, b, drape) {
   }
 }
 
+/**
+ * Triangulate one polygon (outer ring plus holes) in lon/lat, then lift each
+ * vertex to the globe.
+ *
+ * three.js's own `ShapeUtils.triangulateShape` handles holes, which matters
+ * for geology more than anywhere: a formation with an inlier of something else
+ * is a ring with a ring inside it, and filling the outer one alone paints over
+ * the unit that is actually there.
+ */
+function fillTriangles(polygon, drape, out, colour) {
+  const outer = polygon[0];
+  if (!outer || outer.length < 4) return;
+  const toV2 = (ring) => ring.slice(0, -1).map(([x, y]) => new THREE.Vector2(x, y));
+  const contour = toV2(outer);
+  const holes = polygon.slice(1).map(toV2).filter((h) => h.length >= 3);
+  let faces;
+  try {
+    faces = THREE.ShapeUtils.triangulateShape(contour, holes);
+  } catch (error) {
+    return;                          // a self-touching ring is not worth a crash
+  }
+  const all = [...contour, ...holes.flat()];
+  faces.forEach((face) => {
+    face.forEach((index) => {
+      const v = all[index];
+      if (!v) return;
+      const p = surfaceAt(v.y, v.x, drape);
+      out.positions.push(p.x, p.y, p.z);
+      out.colours.push(colour.r, colour.g, colour.b);
+    });
+  });
+}
+
 export function renderFeatureCollection(fc, {
   name = "vector",
   lineColor = 0x8ef6c4,
   pointColor = 0xffd166,
   drape = 0.006,
   pointSize = 0.018,
+  // A function of the feature returning a CSS colour. With one, every feature
+  // is drawn in its own colour and polygons are filled — which is the whole
+  // difference between "there are polygons here" and a geological map.
+  colourFor = null,
+  fillOpacity = 0.55,
 } = {}) {
   const linePositions = [];
+  const lineColours = [];
   const pointPositions = [];
+  const fill = { positions: [], colours: [] };
+  const scratch = new THREE.Color();
   let truncated = false;
 
   fc.features.forEach((feature) => {
@@ -79,11 +120,32 @@ export function renderFeatureCollection(fc, {
       return;
     }
     // Polygon rings are drawn as closed boundaries; lines as-is.
-    const rings = polygonsOf(geometry).flat();
+    const polygons = polygonsOf(geometry);
+    const rings = polygons.flat();
     const lines = linesOf(geometry);
+    let colour = null;
+    if (colourFor) {
+      // A feature with no value in the chosen field still gets a colour — the
+      // neutral grey the legend shows for it. Leaving it out desynchronised
+      // the colour array from the position array by exactly that feature's
+      // vertices, the lengths stopped matching, and the whole layer silently
+      // fell back to one colour for its outlines while the fills were right.
+      const css = colourFor(feature) || "#8a8a8a";
+      scratch.set(css);
+      colour = { r: scratch.r, g: scratch.g, b: scratch.b };
+    }
+    if (colour) polygons.forEach((polygon) => fillTriangles(polygon, drape, fill, colour));
     [...rings, ...lines].forEach((coords) => {
+      const before = linePositions.length;
       for (let i = 0; i + 1 < coords.length; i += 1) {
         pushSegment(linePositions, coords[i], coords[i + 1], drape);
+      }
+      if (colour) {
+        // One colour entry per position, added after the fact because
+        // pushSegment splits long spans and only it knows how many it made.
+        for (let i = before; i < linePositions.length; i += 3) {
+          lineColours.push(colour.r, colour.g, colour.b);
+        }
       }
     });
   });
@@ -91,12 +153,34 @@ export function renderFeatureCollection(fc, {
   const group = new THREE.Group();
   group.name = name;
 
+  if (fill.positions.length) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(fill.positions, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(fill.colours, 3));
+    geometry.computeBoundingSphere();
+    const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+      vertexColors: true, transparent: true, opacity: fillOpacity,
+      // Same rule the drapes follow: a flat facet cannot win on depth against
+      // displaced terrain, so it does not compete — it is drawn over, and
+      // single-sided so the far hemisphere is still culled.
+      depthTest: false, depthWrite: false, side: THREE.FrontSide,
+    }));
+    mesh.renderOrder = 1;
+    group.add(mesh);
+  }
   if (linePositions.length) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(linePositions, 3));
-    group.add(new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({
-      color: lineColor, transparent: true, opacity: 0.9, depthWrite: false,
-    })));
+    const material = { transparent: true, opacity: 0.9, depthWrite: false };
+    if (lineColours.length === linePositions.length) {
+      geometry.setAttribute("color", new THREE.Float32BufferAttribute(lineColours, 3));
+      material.vertexColors = true;
+    } else {
+      material.color = lineColor;
+    }
+    const segments = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial(material));
+    segments.renderOrder = 2;
+    group.add(segments);
   }
   if (pointPositions.length) {
     const geometry = new THREE.BufferGeometry();
@@ -129,6 +213,25 @@ export function buildVectorLayerResult(fc, { name, fields = [], drape = 0.006 } 
   const bounds = collectionBounds(fc);
   const georeferenced = looksLikeGeographic(bounds);
   const { object3D, truncated } = renderFeatureCollection(fc, { name, drape });
+
+  /**
+   * Redraw this layer with a colour per feature.
+   *
+   * The children are replaced inside the SAME group, so the layer keeps its
+   * place in the scene, its parent's spin frame and its entry in the stack —
+   * re-rendering into a new group would drop it out of the globe's frame and
+   * leave it a fixed distance from a turning planet.
+   */
+  const repaintVector = (colourFor) => {
+    const next = renderFeatureCollection(fc, { name, drape, colourFor });
+    [...object3D.children].forEach((child) => {
+      child.geometry?.dispose?.();
+      child.material?.dispose?.();
+      object3D.remove(child);
+    });
+    [...next.object3D.children].forEach((child) => object3D.add(child));
+    return object3D.children.length > 0;
+  };
   const counts = describeCollection(fc);
 
   const polygonIndex = fc.features
@@ -146,6 +249,7 @@ export function buildVectorLayerResult(fc, { name, fields = [], drape = 0.006 } 
 
   return {
     object3D,
+    repaint: repaintVector,
     georeferenced,
     bounds: georeferenced ? bounds : null,
     collection: fc,
