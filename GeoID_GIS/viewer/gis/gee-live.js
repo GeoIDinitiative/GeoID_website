@@ -212,6 +212,12 @@ function tokenViaParent() {
 
 export async function token({ interactive = true } = {}) {
   if (tokenValue && Date.now() < tokenExpires - 60e3) return tokenValue;
+  // A pasted token wins, and deliberately skips the origin check: the whole
+  // point of it is to reach Earth Engine while the origin is the thing that is
+  // broken. It is not cached into tokenValue -- Settings owns it, so clearing
+  // the field there takes effect immediately rather than an hour later.
+  const pasted = (settings().accessToken || "").trim();
+  if (pasted) return pasted;
   const problem = originProblem();
   if (problem) throw new Error(problem);
   const { clientId } = settings();
