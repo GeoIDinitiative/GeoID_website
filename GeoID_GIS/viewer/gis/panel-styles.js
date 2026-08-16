@@ -92,12 +92,32 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
   line-height: 1.2; text-transform: none;
 }
 .gis-tool-item span {
-  display: block; font-size: 0.62rem; opacity: 0.62; line-height: 1.25;
-  margin-top: 0.08rem;
-  /* One line. The blurb is a reminder, not documentation — the dialog has the
-     full text and the title attribute carries it on hover. */
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  font-size: 0.62rem; opacity: 0.62; line-height: 1.25; margin-top: 0.08rem;
+  overflow: hidden;
+  /* WRAPPED to two lines, not "nowrap" with an ellipsis.
+     An ellipsis needs a definite width to elide against; a nowrap line inside
+     ancestors whose min-width computes to "auto" cannot shrink below its own
+     text, so it pushed the whole nested section — summary bars and all — wider
+     than the sidebar and the right-hand end was simply cut off. Wrapping text
+     can shrink to any width, so nothing in this panel demands one. */
 }
+
+/* And the chain that let it push: a flex or grid item floors at its content
+   width unless told otherwise. Every container between the panel and the text
+   has to allow shrinking, or fixing the leaf alone just moves the problem. */
+#gis-tool-catalogue,
+#gis-tool-catalogue details,
+#gis-tool-catalogue summary,
+.gis-tool-catalogue-body,
+.gis-tool-item {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+#gis-tool-catalogue { overflow-x: hidden; }
+.gis-tool-item { overflow: hidden; }
+.gis-tool-item b { overflow-wrap: anywhere; }
 `;
 
 if (typeof document !== "undefined" && !document.getElementById("gis-panel-styles")) {
