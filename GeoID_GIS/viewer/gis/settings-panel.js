@@ -128,8 +128,18 @@ function refresh() {
   host.appendChild(actions);
 
   const ready = current.clientId && current.project;
-  say(ready ? "Earth Engine is configured for this browser."
-    : "Not configured. Earth Engine needs a Client ID and a project; neither is a secret.");
+  // The origin is half of every OAuth failure and is never in the error text.
+  const origin = window.location.origin;
+  const httpBad = window.location.protocol === "http:"
+    && !["localhost", "127.0.0.1"].includes(window.location.hostname);
+  say(httpBad
+    ? `This page is served from ${origin}, which Google will not sign in from — `
+      + "over http it accepts only localhost and 127.0.0.1. Open the same server "
+      + `at http://localhost:${window.location.port || 80}/.`
+    : ready
+      ? `Configured. Add "${origin}" to Authorised JavaScript origins for this `
+        + "Client ID in the Google console, or sign-in returns error 400."
+      : "Not configured. Earth Engine needs a Client ID and a project; neither is a secret.");
 }
 
 export function init() {

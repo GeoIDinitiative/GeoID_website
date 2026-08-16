@@ -144,8 +144,44 @@ function loadGsi() {
  * Held in memory and never written anywhere: it expires in an hour, and a
  * token in storage is a credential in storage.
  */
+/**
+ * Why Google will refuse before Google is asked.
+ *
+ * "Error 400: invalid_request — this app doesn't comply with Google's OAuth
+ * 2.0 policy" is what you get from an origin Google will not accept, and its
+ * text never says which. Over http it accepts ONLY localhost and 127.0.0.1:
+ * an IP literal like 0.0.0.0, a LAN address, or a bare hostname is refused
+ * whatever is registered in the console.
+ *
+ * This project has met the same trap before, from the other side — the folder
+ * picker is undefined on `http://0.0.0.0:8125` and present on
+ * `http://localhost:8125`, the same server four characters apart. Origin is
+ * the first thing to check and the last thing anyone suspects, so the app
+ * checks it rather than forwarding an error that cannot be acted on.
+ */
+export function originProblem() {
+  const { protocol, hostname, origin } = window.location;
+  if (protocol === "https:") return null;
+  if (hostname === "localhost" || hostname === "127.0.0.1") return null;
+  if (protocol === "file:") {
+    return "Google will not sign in from a file:// page. Serve the site "
+      + "(python3 serve.py) and open it at http://localhost.";
+  }
+  return `Google refuses OAuth from ${origin}. Over http it accepts only `
+    + `localhost and 127.0.0.1 — an address like ${hostname} is rejected `
+    + "whatever the console says. Open the same server at "
+    + `http://localhost:${window.location.port || 80}/ and try again.`;
+}
+
+/** The exact string the Google console needs in Authorised JavaScript origins. */
+export function requiredOrigin() {
+  return window.location.origin;
+}
+
 export async function token({ interactive = true } = {}) {
   if (tokenValue && Date.now() < tokenExpires - 60e3) return tokenValue;
+  const problem = originProblem();
+  if (problem) throw new Error(problem);
   const { clientId } = settings();
   if (!clientId) throw new Error("no Client ID — set one in Settings");
   await loadGsi();
@@ -163,7 +199,13 @@ export async function token({ interactive = true } = {}) {
         tokenExpires = Date.now() + (Number(response.expires_in) || 3600) * 1000;
         resolve(tokenValue);
       },
-      error_callback: (error) => reject(new Error(error?.message || "sign-in was dismissed")),
+      error_callback: (error) => {
+        // Google's own message is short and blames the app; add the one fact
+        // that resolves it nine times in ten.
+        const detail = error?.message || error?.type || "sign-in was dismissed";
+        reject(new Error(`${detail}. Check that "${requiredOrigin()}" is listed `
+          + "under Authorised JavaScript origins for this Client ID."));
+      },
     });
     client.requestAccessToken();
   });

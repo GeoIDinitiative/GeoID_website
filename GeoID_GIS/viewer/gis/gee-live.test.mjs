@@ -8,7 +8,12 @@
  * only ever grows — a map that can never dry out.
  */
 
-globalThis.window = { localStorage: { getItem: () => null } };
+// A stand-in page. The origin matters now: `token()` refuses before it asks
+// Google, and the test has to say where it is pretending to be.
+globalThis.window = {
+  localStorage: { getItem: () => null },
+  location: { protocol: "http:", hostname: "localhost", port: "8125", origin: "http://localhost:8125" },
+};
 const G = await import("./gee-live.js");
 
 let passed = 0;
@@ -69,11 +74,24 @@ check("a returned grid is read at the nearest cell, and refuses outside", () => 
   eq(G.sampleGrid(null, BOUNDS, 54.5, -6), null, "no grid");
 });
 
-check("no Client ID is a named refusal, not a silent failure", async () => {
+check("localhost is allowed; an IP literal is refused with the reason", () => {
+  eq(G.originProblem(), null, "localhost is fine");
+  window.location = { protocol: "http:", hostname: "0.0.0.0", port: "8100", origin: "http://0.0.0.0:8100" };
+  const problem = G.originProblem();
+  if (!/only\s+localhost/.test(problem)) throw new Error(`unhelpful: ${problem}`);
+  if (!problem.includes("http://localhost:8100")) throw new Error("no way out offered");
+  window.location = { protocol: "https:", hostname: "geoidinitiative.com", origin: "https://geoidinitiative.com" };
+  eq(G.originProblem(), null, "https is fine anywhere");
+  window.location = { protocol: "http:", hostname: "localhost", port: "8125", origin: "http://localhost:8125" };
+});
+
+await (async () => {
   let message = "";
   try { await G.token(); } catch (e) { message = e.message; }
-  if (!/Client ID/.test(message)) throw new Error(`unhelpful: ${message}`);
-});
+  check("no Client ID is a named refusal, not a silent failure", () => {
+    if (!/Client ID/.test(message)) throw new Error(`unhelpful: ${message}`);
+  });
+})();
 
 if (failures.length) {
   failures.forEach((f) => console.error(`  ✗ ${f}`));
