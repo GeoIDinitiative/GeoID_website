@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-e4b0862";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-628796d";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -374,13 +374,17 @@ export function buildRasterLayer(bands, width, height, bounds, {
      */
     legendInfo: classList
       ? {
-        palette: classList.map((_, i) => hex(classColour(i, classList.length))),
+        // A ramp from the lowest class to the highest, not a row of chips: a
+        // swatch labelled "Class 4" says there are five of something without
+        // saying what five means. The bar carries the direction and the ends
+        // carry the numbers, which is the smallest honest key for a ranked
+        // surface. Sampled finely so the bar reads as a gradient rather than
+        // as five blocks of colour.
+        palette: Array.from({ length: 24 }, (_, i) =>
+          hex(classColour((i / 23) * (classList.length - 1), classList.length))),
         min: classList[0],
         max: classList[classList.length - 1],
-        label: `${classList.length} classes`,
-        classes: classList.map((value, i) => ({
-          value, colour: `#${hex(classColour(i, classList.length))}`,
-        })),
+        label: classList.length <= 8 ? `${classList.length} classes` : "",
       }
       : {
         palette: [0, 0.25, 0.45, 0.65, 0.82, 1].map((t) => hex(elevationColor(t))),

@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260816-e4b0862";
-import { samplerToRaster } from "./raster-analysis.js?v=20260816-e4b0862";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-e4b0862";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-e4b0862";
+import { currentBody } from "./bodies.js?v=20260816-628796d";
+import { samplerToRaster } from "./raster-analysis.js?v=20260816-628796d";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-628796d";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-628796d";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -623,29 +623,7 @@ function buildLayerCard(layer) {
   // Continuous data carries its ramp and what the ends mean, not just a name:
   // a legend that cannot be read against the map is furniture.
   const info = layer.legendInfo;
-  if (info?.classes?.length) {
-    // Classes are discrete, so they get one swatch each rather than a smooth
-    // bar: a gradient implies values between the classes, and there are none.
-    const block = document.createElement("div");
-    block.className = "legend-symbol-list";
-    info.classes.forEach((entry) => {
-      const line = document.createElement("div");
-      line.className = "legend-symbol-row";
-      const chip = document.createElement("span");
-      chip.className = "legend-swatch";
-      chip.style.background = entry.colour;
-      line.appendChild(chip);
-      const text = document.createElement("div");
-      text.className = "legend-symbol-copy";
-      const label = document.createElement("div");
-      label.className = "legend-symbol-label";
-      label.textContent = `Class ${entry.value}`;
-      text.appendChild(label);
-      line.appendChild(text);
-      block.appendChild(line);
-    });
-    card.appendChild(block);
-  } else if (info) {
+  if (info) {
     const ramp = Array.isArray(info.palette) && info.palette.length
       ? `linear-gradient(to right, ${info.palette.map((c) => `#${c}`).join(", ")})`
       : "linear-gradient(to right, #000, #fff)";

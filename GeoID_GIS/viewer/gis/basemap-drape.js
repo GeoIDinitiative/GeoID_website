@@ -37,11 +37,11 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260816-e4b0862";
-import { isEarth } from "./bodies.js?v=20260816-e4b0862";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260816-e4b0862";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260816-628796d";
+import { isEarth } from "./bodies.js?v=20260816-628796d";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260816-628796d";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260816-e4b0862";
+  from "./view-extent.js?v=20260816-628796d";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -521,6 +521,22 @@ export async function drapeStudyArea({ source = DEFAULT_SOURCE, extent = "study"
 export function hasDrape() {
   const layers = window.GeoIDImportManager?.getLayers?.() || [];
   if (layers.some((l) => l.ext === "tiles" && l.status === "loaded")) return true;
+  /**
+   * An imported georeferenced raster is close-range imagery too.
+   *
+   * A 100 m susceptibility map over one country is exactly the case this floor
+   * exists to allow: measured with the NI prototype loaded, the camera stopped
+   * at 995 km — the floor for an 8 km/px basemap — so a map with detail at
+   * 100 m could never be seen anywhere near its own resolution. The extent is
+   * what qualifies it: a raster covering a few degrees is a local dataset,
+   * while a global one says nothing about how close anybody should get.
+   *
+   * NOT conditioned on visibility, for the reason recorded below: keying this
+   * on `visible` made switching a layer off move the camera.
+   */
+  const local = layers.some((l) => l.status === "loaded" && l.raster && l.bounds
+    && Math.max(l.bounds.maxX - l.bounds.minX, l.bounds.maxY - l.bounds.minY) < 20);
+  if (local) return true;
   // A tile BASEMAP counts too, and so does a refine patch. Only counting
   // registered layers meant flying in with OpenStreetMap as the basemap stopped
   // dead at 995 km — the floor stayed where it is for an 8 km/px texture, so the
