@@ -39,6 +39,11 @@ CANDIDATES = [
     ("code", "http://localhost:3000"),
     ("code", "urn:ietf:wg:oauth:2.0:oob"),
     ("token", "storagerelay://http/localhost:8100?id=auth1"),
+    # The headline check. `postmessage` is validated against the JavaScript
+    # ORIGINS list rather than the redirect list, so this line reproduces the
+    # browser's own "no registered origin / 401 invalid_client" from a shell.
+    # It is the line to watch after editing the console.
+    ("code", "postmessage"),
 ]
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -51,6 +56,8 @@ ctx = ssl.create_default_context()
 def probe(rtype, redirect):
     q = {"client_id": CID, "response_type": rtype, "scope": SCOPE,
          "redirect_uri": redirect, "access_type": "online"}
+    if redirect == "postmessage":
+        q["origin"] = "http://localhost:8100"
     if rtype == "code":
         q["code_challenge"] = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
         q["code_challenge_method"] = "S256"
