@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260816-1ff18fd";
+  from "./gis/geo-utils.js?v=20260816-547d4bf";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -14095,6 +14095,38 @@ uniform float uViewportWidth;`,
 	          || Boolean(userPinLayer?.entries?.some((entry) => entry.item?.type === "GeoSelector pin"));
 	      }
 
+	      /** Every loaded raster read at one coordinate, with its own scale. */
+	      function sampleLayersAt(lat, lon) {
+	        try {
+	          const layers = window.GeoIDImportManager?.getSampleableLayers?.() || [];
+	          return layers.map((layer) => {
+	            let value = null;
+	            try {
+	              const reading = layer.sampler(lat, lon);
+	              value = (reading && typeof reading === "object") ? reading.value : reading;
+	            } catch (error) { value = null; }
+	            return Number.isFinite(value) ? {
+	              id: layer.id != null ? String(layer.id) : layer.name,
+	              name: layer.name,
+	              value,
+	              min: layer.legendInfo?.min ?? null,
+	              max: layer.legendInfo?.max ?? null,
+	              unit: layer.legendInfo?.unit || null,
+	              isDem: Boolean(layer.isDem),
+	            } : null;
+	          }).filter(Boolean);
+	        } catch (error) { return []; }
+	      }
+
+	      /** The vector features under a coordinate — geology units, catchments. */
+	      function featuresAt(lat, lon) {
+	        try {
+	          const hit = window.GeoIDFeaturePopup?.featureAt?.(lat, lon);
+	          if (!hit) return [];
+	          return [{ layer: hit.layer.name, properties: hit.feature.properties || {} }];
+	        } catch (error) { return []; }
+	      }
+
 	      function emitGeoSelectorPoint(point) {
 	        if (window.self === window.top || !point) {
 	          return;
@@ -14108,6 +14140,14 @@ uniform float uViewportWidth;`,
 	          elevation: point.elevationMeters,
 	          slope: point.slopeDegrees,
 	          geology: point.geologyFeature?.rock_type || point.geologyFeature?.name || null,
+	          // Everything else the globe knows about this spot. A pin is the
+	          // user asking "what is here"; answering with elevation, slope and
+	          // a rock name while eight loaded layers sit unread is answering a
+	          // narrower question than the one that was asked. The hub needs
+	          // the ranges too, or a susceptibility value is a number with no
+	          // scale to read it against.
+	          layers: sampleLayersAt(point.lat, point.lon),
+	          features: featuresAt(point.lat, point.lon),
 	        }, "*");
 	      }
 

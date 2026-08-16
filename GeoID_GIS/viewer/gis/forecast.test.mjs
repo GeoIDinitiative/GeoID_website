@@ -27,12 +27,45 @@ function near(a, b, tol, what) {
   if (!(Math.abs(a - b) <= tol)) throw new Error(`${what} — expected ~${b}, got ${a}`);
 }
 
-check("the url asks GFS for 16 days plus the antecedent history", () => {
+check("the forecast request names GFS and asks for no past days", () => {
   const url = new URL(buildUrl({ lat: 54.67, lon: -6.775 }));
   eq(url.searchParams.get("forecast_days"), "16", "forecast_days");
-  eq(url.searchParams.get("past_days"), String(DEFAULTS.antecedentDays), "past_days");
+  eq(url.searchParams.get("past_days"), null, "past_days");
   eq(url.searchParams.get("models"), "gfs_seamless", "model");
   eq(url.searchParams.get("daily"), "precipitation_sum", "variable");
+});
+
+check("the history request drops the model, because GFS has no archive", () => {
+  // Measured against the live service: past_days together with
+  // models=gfs_seamless returns null for EVERY day, forecast included.
+  const url = new URL(buildUrl({ lat: 54.67, lon: -6.775, days: 1, pastDays: 15, model: null }));
+  eq(url.searchParams.get("past_days"), "15", "past_days");
+  eq(url.searchParams.get("models"), null, "no model on the history call");
+});
+
+check("a null day is not zero rain", () => {
+  const out = parseForecast({
+    daily_units: { precipitation_sum: "mm" },
+    daily: { time: ["a", "b"], precipitation_sum: [null, 4] },
+  });
+  eq(out.days[0].precipMm, null, "unknown day");
+  eq(out.days[1].precipMm, 4, "known day");
+});
+
+check("a response that is null throughout is refused, not drawn as dry", () => {
+  let message = "";
+  try {
+    parseForecast({ daily: { time: ["a", "b"], precipitation_sum: [null, null] } });
+  } catch (e) { message = e.message; }
+  if (!/no precipitation values/.test(message)) {
+    throw new Error(`expected a refusal, got "${message}"`);
+  }
+});
+
+check("an unfillable antecedent window is flagged rather than counted as dry", () => {
+  const days = [{ date: "a", precipMm: null }, { date: "b", precipMm: 10 }];
+  const rows = triggerIndex(days, { fromIndex: 1 });
+  eq(rows[0].antecedentComplete, false, "completeness");
 });
 
 check("more than 16 days is clamped, not requested", () => {
@@ -114,13 +147,23 @@ await checkAsync("the whole chain reports the forecast half even with no raster"
     latitude: 54.65, longitude: -6.79, elevation: 112,
     daily_units: { precipitation_sum: "mm" },
     daily: {
-      time: Array.from({ length: 31 }, (_, i) => `d${i}`),
-      precipitation_sum: Array.from({ length: 31 }, () => 1),
+      time: Array.from({ length: 16 }, (_, i) => `2026-08-${String(16 + i).padStart(2, "0")}`),
+      precipitation_sum: Array.from({ length: 16 }, () => 1),
+    },
+  };
+  const history = {
+    daily_units: { precipitation_sum: "mm" },
+    daily: {
+      time: Array.from({ length: 15 }, (_, i) => `2026-08-${String(1 + i).padStart(2, "0")}`),
+      precipitation_sum: Array.from({ length: 15 }, () => 2),
     },
   };
   const out = await forecastRiskAt({
     lat: 54.67, lon: -6.775, days: 16,
-    fetchImpl: async () => ({ ok: true, json: async () => body }),
+    fetchImpl: async (url) => ({
+      ok: true,
+      json: async () => (String(url).includes("past_days") ? history : body),
+    }),
   });
   eq(out.days.length, 16, "forecast days");
   eq(out.susceptibility, null, "no layer");
@@ -134,15 +177,15 @@ await checkAsync("a sampled raster completes it", async () => {
   const body = {
     latitude: 54.65, longitude: -6.79,
     daily_units: { precipitation_sum: "mm" },
-    daily: {
-      time: Array.from({ length: 17 }, (_, i) => `d${i}`),
-      precipitation_sum: Array.from({ length: 17 }, (_, i) => (i === 16 ? 40 : 0)),
-    },
+    daily: { time: ["z9"], precipitation_sum: [40] },
   };
   const out = await forecastRiskAt({
     lat: 54.67, lon: -6.775, days: 1,
     layer: { name: "susceptibility", sampler: () => 4, legendInfo: { min: 1, max: 5 } },
-    fetchImpl: async () => ({ ok: true, json: async () => body }),
+    // The history call fails; the forecast must still answer.
+    fetchImpl: async (url) => String(url).includes("past_days")
+      ? { ok: false, status: 500 }
+      : { ok: true, json: async () => body },
   });
   eq(out.susceptibility, 0.75, "normalised reading");
   near(out.days[0].risk, 0.45, 0.001, "risk on the wet day");

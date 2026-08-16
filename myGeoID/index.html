@@ -215,6 +215,28 @@
       opacity: 0.65;
     }
 
+    /* Forecast panel — the hub's time axis */
+    .fc-head { display: flex; gap: 1rem; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .fc-status { font-size: 0.78rem; opacity: 0.9; }
+    .fc-pick { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase;
+      opacity: 0.75; display: flex; gap: 0.4rem; align-items: center; }
+    .fc-pick select { font: inherit; text-transform: none; letter-spacing: 0;
+      background: rgba(255,255,255,0.06); color: inherit;
+      border: 1px solid rgba(255,255,255,0.22); border-radius: 0.25rem; padding: 0.15rem 0.3rem;
+      max-width: 15rem; }
+    #forecast-chart svg { width: 100%; height: 150px; display: block; }
+    #forecast-chart .fc-day:hover rect { fill: rgba(89,242,255,0.75); }
+    .fc-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-top: 0.5rem; }
+    .fc-table th { text-align: left; font-weight: 500; opacity: 0.65; padding: 0.15rem 0.35rem;
+      position: sticky; top: 0; background: rgba(10,4,18,0.9); }
+    .fc-table td { padding: 0.15rem 0.35rem; border-top: 1px solid rgba(255,255,255,0.06); }
+    .fc-table tr.is-peak td { background: rgba(255,60,172,0.12); }
+    .fc-band { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 0.15rem;
+      margin-right: 0.35rem; vertical-align: -0.05rem; }
+    .fc-scroll { max-height: 220px; overflow-y: auto; }
+    .fc-note { font-size: 0.66rem; opacity: 0.62; line-height: 1.4; margin-top: 0.5rem; }
+
     /* Inspect data (populated by postMessage) */
     .inspect-grid {
       display: grid;
@@ -1297,7 +1319,7 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20260816-9ed4fe1"
+        src="/GeoID_GIS/viewer/?v=gis-20260816-547d4bf"
         title="myGeoID — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
@@ -1342,6 +1364,27 @@
             <div id="geotechnical-grid" class="market-grid" hidden></div>
           </div>
 
+          <!-- Forecast — the time axis of the hub. Every other panel answers
+               "what is here"; this one answers "what is coming", which is the
+               question a hazard map on its own can never address. -->
+          <div class="hub-panel-col" id="hub-panel-forecast" hidden>
+            <div class="hub-empty" id="forecast-empty">
+              <span class="hub-empty-icon">◷</span>
+              <span>Click a location to track rainfall and risk over the next 16 days.</span>
+            </div>
+            <div id="forecast-body" hidden>
+              <div class="fc-head">
+                <span class="fc-status" id="forecast-status"></span>
+                <label class="fc-pick">Susceptibility
+                  <select id="forecast-layer"></select>
+                </label>
+              </div>
+              <div id="forecast-chart"></div>
+              <div id="forecast-table"></div>
+              <p class="fc-note" id="forecast-note"></p>
+            </div>
+          </div>
+
           <div class="hub-panel-col" id="hub-panel-sources" hidden>
             <div class="hub-empty" id="sources-empty">
               <span class="hub-empty-icon">⇄</span>
@@ -1373,6 +1416,7 @@
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="all"          aria-controls="hub-panel-all">All Parameters</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="hydrology"    aria-controls="hub-panel-hydrology">Hydrology</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="geotechnical" aria-controls="hub-panel-geotechnical">Geotechnical</button>
+        <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="forecast"     aria-controls="hub-panel-forecast">Forecast</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="sources"      aria-controls="hub-panel-sources">Data Sources</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="metadata"     aria-controls="hub-panel-metadata">Metadata</button>
       </div>
@@ -2070,6 +2114,7 @@
           updatePinDisplay(msg);
           setSelectionControlsEnabled(true);
           renderRiskDashboard(msg);
+          window.renderGeoIDForecast?.(msg);
           selectHubPanel("risk");
           setHubVisible(true);
           setDrawerOpen(true);
@@ -2099,6 +2144,201 @@
   </script>
 
 <script src="/scripts/site.js"></script>
-<script src="/styles/nav.js?v=20260816-9ed4fe1" defer></script>
+<script src="/styles/nav.js?v=20260816-547d4bf" defer></script>
+
+  <!-- ── Forecast panel ────────────────────────────────────────────────────
+       Mapping first, then the location, then the time series. The pin says
+       what is at a place; this says what the next sixteen days do to it.
+
+       It runs in the SHELL rather than the viewer because the Analysis Hub is
+       the shell's, and because the pin message already carries everything it
+       needs — the coordinate, every loaded raster read at that coordinate and
+       its scale. No second sampling path, no asking the iframe twice.
+  -->
+  <script type="module">
+    const forecast = await import("/GeoID_GIS/viewer/gis/forecast.js")
+      .catch((error) => { console.warn("[myGeoID] forecast module absent", error); return null; });
+    if (forecast) {
+      const BAND = { high: "#d7191c", moderate: "#fdae61", low: "#ffffbf", minimal: "#3d8f4e" };
+      const byId = (id) => document.getElementById(id);
+      let lastPin = null;
+
+      /* A DEM is not a susceptibility, and offering it as one invites a
+         reading that means nothing. Rasters whose legend has no range cannot
+         be normalised either, so they are not offered. */
+      const candidates = (pin) => (pin.layers || [])
+        .filter((l) => !l.isDem && Number.isFinite(l.min) && Number.isFinite(l.max) && l.min !== l.max);
+
+      function fillPicker(pin) {
+        const select = byId("forecast-layer");
+        const held = select.value;
+        select.innerHTML = "";
+        const none = document.createElement("option");
+        none.value = "";
+        none.textContent = "Rain only";
+        select.appendChild(none);
+        candidates(pin).forEach((layer) => {
+          const option = document.createElement("option");
+          option.value = layer.id;
+          option.textContent = layer.name.replace(/\.(tif|tiff|geojson|asc)$/i, "");
+          select.appendChild(option);
+        });
+        // Default to a susceptibility-looking layer, so the common case needs
+        // no choice at all.
+        const guess = candidates(pin).find((l) => /suscept|risk|hazard|flood|landslide/i.test(l.name));
+        select.value = held && [...select.options].some((o) => o.value === held)
+          ? held : (guess ? guess.id : "");
+      }
+
+      function chart(days) {
+        const w = 640, h = 150, pad = { l: 34, r: 8, t: 10, b: 20 };
+        const ns = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        const innerW = w - pad.l - pad.r, innerH = h - pad.t - pad.b;
+        const maxRain = Math.max(1, ...days.map((d) => d.precipMm));
+        const step = innerW / days.length;
+
+        // Rain axis, so the bars are a measurement rather than a shape.
+        [0, maxRain / 2, maxRain].forEach((value) => {
+          const y = pad.t + innerH - (value / maxRain) * innerH;
+          const line = document.createElementNS(ns, "line");
+          line.setAttribute("x1", pad.l); line.setAttribute("x2", w - pad.r);
+          line.setAttribute("y1", y); line.setAttribute("y2", y);
+          line.setAttribute("stroke", "rgba(255,255,255,0.10)");
+          svg.appendChild(line);
+          const label = document.createElementNS(ns, "text");
+          label.setAttribute("x", pad.l - 5); label.setAttribute("y", y + 3);
+          label.setAttribute("text-anchor", "end");
+          label.setAttribute("font-size", "8");
+          label.setAttribute("fill", "rgba(255,255,255,0.5)");
+          label.textContent = `${value.toFixed(0)}mm`;
+          svg.appendChild(label);
+        });
+
+        days.forEach((day, i) => {
+          const group = document.createElementNS(ns, "g");
+          group.setAttribute("class", "fc-day");
+          const barH = (day.precipMm / maxRain) * innerH;
+          const rect = document.createElementNS(ns, "rect");
+          rect.setAttribute("x", pad.l + i * step + step * 0.18);
+          rect.setAttribute("y", pad.t + innerH - barH);
+          rect.setAttribute("width", step * 0.64);
+          rect.setAttribute("height", Math.max(0, barH));
+          rect.setAttribute("fill", "rgba(89,242,255,0.45)");
+          const title = document.createElementNS(ns, "title");
+          title.textContent = `${day.date} — ${day.precipMm} mm`
+            + (Number.isFinite(day.risk) ? `, risk ${day.risk.toFixed(2)} (${day.band})` : "");
+          group.append(rect, title);
+          svg.appendChild(group);
+          if (i % 3 === 0) {
+            const label = document.createElementNS(ns, "text");
+            label.setAttribute("x", pad.l + i * step + step / 2);
+            label.setAttribute("y", h - 6);
+            label.setAttribute("text-anchor", "middle");
+            label.setAttribute("font-size", "8");
+            label.setAttribute("fill", "rgba(255,255,255,0.5)");
+            label.textContent = day.date.slice(5);
+            svg.appendChild(label);
+          }
+        });
+
+        if (days.some((d) => Number.isFinite(d.risk))) {
+          const line = document.createElementNS(ns, "polyline");
+          line.setAttribute("points", days.map((day, i) =>
+            `${pad.l + i * step + step / 2},${pad.t + innerH - day.risk * innerH}`).join(" "));
+          line.setAttribute("fill", "none");
+          line.setAttribute("stroke", "#ff3cac");
+          line.setAttribute("stroke-width", "2");
+          svg.appendChild(line);
+          days.forEach((day, i) => {
+            const dot = document.createElementNS(ns, "circle");
+            dot.setAttribute("cx", pad.l + i * step + step / 2);
+            dot.setAttribute("cy", pad.t + innerH - day.risk * innerH);
+            dot.setAttribute("r", 2.6);
+            dot.setAttribute("fill", BAND[day.band] || "#ff3cac");
+            svg.appendChild(dot);
+          });
+        }
+        return svg;
+      }
+
+      function table(days, peak) {
+        const wrap = document.createElement("div");
+        wrap.className = "fc-scroll";
+        const t = document.createElement("table");
+        t.className = "fc-table";
+        t.innerHTML = "<tr><th>Date</th><th>Rain</th><th>3-day</th><th>15-day before</th><th>Risk</th></tr>";
+        days.forEach((day) => {
+          const row = t.insertRow();
+          if (peak && day.date === peak.date) row.className = "is-peak";
+          row.insertCell().textContent = day.date;
+          row.insertCell().textContent = `${day.precipMm} mm`;
+          row.insertCell().textContent = `${day.burstMm} mm`;
+          row.insertCell().textContent = `${day.antecedentMm} mm`;
+          const cell = row.insertCell();
+          if (Number.isFinite(day.risk)) {
+            const chip = document.createElement("span");
+            chip.className = "fc-band";
+            chip.style.background = BAND[day.band] || "#888";
+            cell.append(chip, document.createTextNode(`${day.risk.toFixed(2)} ${day.band}`));
+          } else cell.textContent = "—";
+        });
+        wrap.appendChild(t);
+        return wrap;
+      }
+
+      async function render(pin) {
+        if (!pin || !Number.isFinite(pin.lat)) return;
+        lastPin = pin;
+        byId("forecast-empty").hidden = true;
+        byId("forecast-body").hidden = false;
+        fillPicker(pin);
+        const status = byId("forecast-status");
+        status.textContent = `Asking ${forecast.SOURCE.name} for 16 days at `
+          + `${pin.lat.toFixed(3)}, ${pin.lon.toFixed(3)}…`;
+        byId("forecast-chart").innerHTML = "";
+        byId("forecast-table").innerHTML = "";
+        try {
+          const raw = await forecast.fetchForecast({ lat: pin.lat, lon: pin.lon });
+          const fromIndex = Math.max(0, raw.days.length - forecast.DEFAULTS.days);
+          const trigger = forecast.triggerIndex(raw.days, { fromIndex });
+          const chosen = candidates(pin).find((l) => l.id === byId("forecast-layer").value);
+          const susceptibility = chosen
+            ? forecast.normalise(chosen.value, chosen.min, chosen.max) : null;
+          const days = susceptibility == null
+            ? trigger.map((d) => ({ ...d, risk: null, band: null }))
+            : forecast.riskEvolution(susceptibility, trigger);
+          const peak = days.reduce((best, d) =>
+            (Number.isFinite(d.risk) && (!best || d.risk > best.risk)) ? d : best, null);
+          const wettest = days.reduce((best, d) => d.precipMm > best.precipMm ? d : best, days[0]);
+          status.textContent = peak
+            ? `${chosen.name.replace(/\.[a-z]+$/i, "")}: ${susceptibility.toFixed(2)} here — `
+              + `peak risk ${peak.risk.toFixed(2)} (${peak.band}) on ${peak.date}.`
+            : `Wettest day ${wettest.date} at ${wettest.precipMm} mm — `
+              + "choose a susceptibility layer to turn rain into risk.";
+          byId("forecast-chart").appendChild(chart(days));
+          byId("forecast-table").appendChild(table(days, peak));
+          byId("forecast-note").textContent =
+            `${forecast.SOURCE.attribution}. Risk = susceptibility x a rainfall trigger `
+            + `(${forecast.DEFAULTS.burstDays}-day and ${forecast.DEFAULTS.antecedentDays}-day `
+            + `windows against ${forecast.DEFAULTS.burstMm} mm and `
+            + `${forecast.DEFAULTS.antecedentMm} mm). Published regional thresholds, not `
+            + "calibrated against an inventory: this ranks the next sixteen days against each "
+            + "other, it does not forecast failures.";
+        } catch (error) {
+          status.textContent = `Forecast unavailable: ${error.message}`;
+        }
+      }
+
+      // Changing the layer re-reads the same forecast rather than re-fetching:
+      // the weather did not change because you picked a different raster.
+      document.addEventListener("change", (event) => {
+        if (event.target?.id === "forecast-layer" && lastPin) render(lastPin);
+      });
+
+      window.renderGeoIDForecast = render;
+    }
+  </script>
 </body>
 </html>

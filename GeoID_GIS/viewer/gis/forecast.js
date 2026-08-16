@@ -47,23 +47,32 @@ export const DEFAULTS = {
 
 /* ── pure ───────────────────────────────────────────────────────────────── */
 
-export function buildUrl({ lat, lon, days = DEFAULTS.days }) {
+export function buildUrl({ lat, lon, days = DEFAULTS.days, pastDays = 0, model = "gfs_seamless" }) {
   const q = new URLSearchParams({
     latitude: String(Number(lat).toFixed(4)),
     longitude: String(Number(lon).toFixed(4)),
     daily: "precipitation_sum",
     forecast_days: String(Math.max(1, Math.min(16, Math.round(days)))),
-    // Past days give the antecedent window something real to sum. Without
-    // them day 1's "15-day antecedent" is one day of rain wearing the name of
-    // a fortnight, and every early day reads far too dry.
-    past_days: String(DEFAULTS.antecedentDays),
-    models: "gfs_seamless",
     timezone: "UTC",
   });
+  if (pastDays > 0) q.set("past_days", String(Math.round(pastDays)));
+  // GFS has no archive behind it, and asking one model for past days does not
+  // return fewer days — it returns SIXTEEN NULLS AND FIFTEEN MORE, forecast
+  // included. Measured against the live service. So the two windows are two
+  // requests: the forecast from GFS, the antecedent from Open-Meteo's
+  // best-match analysis, and the panel says which is which rather than
+  // pretending one model answered both.
+  if (model && pastDays <= 0) q.set("models", model);
   return `${SOURCE.endpoint}?${q}`;
 }
 
-/** The response, as days. Throws with the service's own message on an error. */
+/**
+ * The response, as days. A null is NOT zero rain — it is the service saying it
+ * has no value, and writing it down as 0 mm turns a broken request into a
+ * confident dry forecast. That is precisely how the null-for-every-day bug
+ * above stayed invisible: the chart drew sixteen empty bars and the panel
+ * reported minimal risk, which is what a genuinely dry fortnight looks like.
+ */
 export function parseForecast(json) {
   if (json?.error) throw new Error(json.reason || "the forecast service refused");
   const time = json?.daily?.time;
@@ -71,22 +80,32 @@ export function parseForecast(json) {
   if (!Array.isArray(time) || !Array.isArray(rain) || !time.length) {
     throw new Error("no daily precipitation in the response");
   }
+  const days = time.map((date, i) => ({
+    date,
+    precipMm: Number.isFinite(rain[i]) ? rain[i] : null,
+  }));
+  if (days.every((d) => d.precipMm == null)) {
+    throw new Error("the service returned no precipitation values for any day");
+  }
   return {
     lat: json.latitude,
     lon: json.longitude,
     elevation: json.elevation,
     unit: json.daily_units?.precipitation_sum || "mm",
-    days: time.map((date, i) => ({
-      date,
-      precipMm: Number.isFinite(rain[i]) ? rain[i] : 0,
-    })),
+    days,
   };
 }
 
+/** Sums a window, and says how much of it was actually known. */
 function rollingSum(values, index, window) {
   let total = 0;
-  for (let i = Math.max(0, index - window + 1); i <= index; i += 1) total += values[i] || 0;
-  return total;
+  let known = 0;
+  let wanted = 0;
+  for (let i = Math.max(0, index - window + 1); i <= index; i += 1) {
+    wanted += 1;
+    if (Number.isFinite(values[i])) { total += values[i]; known += 1; }
+  }
+  return { total, known, wanted };
 }
 
 /**
@@ -95,7 +114,7 @@ function rollingSum(values, index, window) {
  */
 export function triggerIndex(days, options = {}) {
   const o = { ...DEFAULTS, ...options };
-  const rain = days.map((d) => d.precipMm || 0);
+  const rain = days.map((d) => d.precipMm);
   const fromIndex = Number.isInteger(options.fromIndex) ? options.fromIndex : 0;
   const out = [];
   for (let i = fromIndex; i < days.length; i += 1) {
@@ -103,15 +122,19 @@ export function triggerIndex(days, options = {}) {
     // The antecedent window ENDS the day before: rain that falls today is the
     // burst, and counting it twice makes a single wet day look like a wet
     // fortnight as well.
-    const antecedent = i > 0 ? rollingSum(rain, i - 1, o.antecedentDays) : 0;
+    const antecedent = i > 0 ? rollingSum(rain, i - 1, o.antecedentDays)
+      : { total: 0, known: 0, wanted: o.antecedentDays };
     const trigger = Math.min(1,
-      0.6 * Math.min(1, burst / o.burstMm)
-      + 0.4 * Math.min(1, antecedent / o.antecedentMm));
+      0.6 * Math.min(1, burst.total / o.burstMm)
+      + 0.4 * Math.min(1, antecedent.total / o.antecedentMm));
     out.push({
       date: days[i].date,
       precipMm: rain[i],
-      burstMm: Number(burst.toFixed(1)),
-      antecedentMm: Number(antecedent.toFixed(1)),
+      burstMm: Number(burst.total.toFixed(1)),
+      antecedentMm: Number(antecedent.total.toFixed(1)),
+      // A trigger built on a window the service could not fill is a smaller
+      // number than the truth, so whether it was complete travels with it.
+      antecedentComplete: antecedent.known === antecedent.wanted,
       trigger: Number(trigger.toFixed(3)),
     });
   }
@@ -148,9 +171,35 @@ export function normalise(value, min, max) {
 export async function fetchForecast({ lat, lon, days = DEFAULTS.days, fetchImpl } = {}) {
   const f = fetchImpl || (typeof fetch === "function" ? fetch : null);
   if (!f) throw new Error("no fetch available");
-  const response = await f(buildUrl({ lat, lon, days }));
-  if (!response.ok) throw new Error(`the forecast service answered ${response.status}`);
-  return parseForecast(await response.json());
+  const get = async (url) => {
+    const response = await f(url);
+    if (!response.ok) throw new Error(`the forecast service answered ${response.status}`);
+    return parseForecast(await response.json());
+  };
+  const forecast = await get(buildUrl({ lat, lon, days }));
+  // The history is a second request and a different model, so a failure there
+  // must not take the forecast with it — an antecedent window we could not
+  // fill is a weaker answer, not no answer.
+  let history = null;
+  try {
+    history = await get(buildUrl({
+      lat, lon, days: 1, pastDays: DEFAULTS.antecedentDays, model: null,
+    }));
+  } catch (error) {
+    history = null;
+  }
+  // Overlap is decided by which dates the forecast already holds, not by
+  // comparing date strings — the service returns ISO days where that would
+  // work, but a comparison that depends on the format is a comparison waiting
+  // for a service that changes it.
+  const held = new Set(forecast.days.map((d) => d.date));
+  const past = history ? history.days.filter((d) => !held.has(d.date)) : [];
+  return {
+    ...forecast,
+    days: [...past, ...forecast.days],
+    forecastFrom: forecast.days[0].date,
+    historyDays: past.length,
+  };
 }
 
 /**
@@ -159,8 +208,8 @@ export async function fetchForecast({ lat, lon, days = DEFAULTS.days, fetchImpl 
  */
 export async function forecastRiskAt({ lat, lon, layer, days = DEFAULTS.days, fetchImpl } = {}) {
   const forecast = await fetchForecast({ lat, lon, days, fetchImpl });
-  // Everything before today is the antecedent history, not a forecast.
-  const fromIndex = Math.max(0, forecast.days.length - days);
+  // Everything before the first forecast day is antecedent history.
+  const fromIndex = forecast.historyDays ?? Math.max(0, forecast.days.length - days);
   const trigger = triggerIndex(forecast.days, { fromIndex });
   let susceptibility = null;
   let reading = null;
