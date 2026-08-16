@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260816-e7bbe3e";
+  from "./gis/geo-utils.js?v=20260816-6ce8ecd";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -19109,6 +19109,15 @@ uniform float uViewportWidth;`,
         // east-positive 0..360 convention; the caller converts if it needs
         // signed. Rejects on Escape.
         pickOnGlobe: () => pickOnGlobeOnce(),
+        /**
+         * The clock the globe is turning to, in real UTC milliseconds.
+         *
+         * GeoID mode's risk surface is a stack of time steps and this is what
+         * chooses which one is drawn — the same simulated clock the pill shows,
+         * so the map and the readout can never disagree about when it is.
+         */
+        getSimulatedUtcMs: () => getSimulatedUtcMs(),
+        getSimulationCycleDays: () => SIMULATION_CYCLE_DAYS,
         /**
          * Where is this pixel on the globe? The passive form of the pick
          * above: no arming, no promise, no cursor change — an ordinary click

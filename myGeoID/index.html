@@ -1367,7 +1367,7 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20260816-a3afed3"
+        src="/GeoID_GIS/viewer/?v=gis-20260816-6ce8ecd"
         title="myGeoID — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
@@ -2192,6 +2192,21 @@
           return;
         }
 
+        // The FoS run posts its series; the Forecast tab shows the same
+        // numbers the globe is drawn from rather than computing its own.
+        if (msg.type === "geoid:fos") {
+          const node = document.getElementById("forecast-status");
+          if (node && Array.isArray(msg.failing)) {
+            const peak = msg.failing.reduce((a, b) => (b > a ? b : a), 0);
+            const when = msg.dates?.[msg.failing.indexOf(peak)] || "";
+            node.textContent = `Risk forecast: ${(msg.failing[msg.step] * 100).toFixed(1)}% of `
+              + `slopes below FoS 1 today, peaking at ${(peak * 100).toFixed(1)}% on ${when}.`;
+            document.getElementById("forecast-empty").hidden = true;
+            document.getElementById("forecast-body").hidden = false;
+          }
+          return;
+        }
+
         if (msg.type === "geoid:pin") {
           currentPinData = msg;
           updatePinDisplay(msg);
@@ -2228,7 +2243,7 @@
   </script>
 
 <script src="/scripts/site.js"></script>
-<script src="/styles/nav.js?v=20260816-a3afed3" defer></script>
+<script src="/styles/nav.js?v=20260816-6ce8ecd" defer></script>
 
   <!-- ── Forecast panel ────────────────────────────────────────────────────
        Mapping first, then the location, then the time series. The pin says
