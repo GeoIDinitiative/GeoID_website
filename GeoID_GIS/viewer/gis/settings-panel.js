@@ -158,7 +158,46 @@ function refresh() {
     refresh();
     say("Cleared from this browser.");
   });
-  actions.append(save, clear);
+  /**
+   * Signing in is its own action, with its own button.
+   *
+   * It used to happen as a side effect of pressing Fetch, which meant a failed
+   * sign-in presented as a broken fetch — and that is most of why a console
+   * misconfiguration took a session to identify rather than a minute. A popup
+   * that the user asked for, reporting its own outcome, separates "you are not
+   * signed in" from "the data request failed" for good.
+   *
+   * The popup must be opened by a real click. Browsers block one that a
+   * background callback tries to open, so this can never be moved into an
+   * automatic retry.
+   */
+  const signIn = document.createElement("button");
+  signIn.type = "button";
+  signIn.className = "button";
+  signIn.textContent = "Sign in to Earth Engine";
+  signIn.addEventListener("click", async () => {
+    const ee = window.GeoIDEarthEngine;
+    if (!ee?.token) { say("The Earth Engine client is not loaded on this page."); return; }
+    if (read().accessToken) {
+      say("A pasted token is set, so sign-in is skipped. Clear that field to use Google sign-in.");
+      return;
+    }
+    signIn.disabled = true;
+    say("Opening Google sign-in…");
+    try {
+      await ee.token({ interactive: true });
+      say("Signed in. Earth Engine requests will work from now on, and the token "
+        + "refreshes itself — you should not need to do this again on this browser.");
+    } catch (error) {
+      // Google's own text blames the app and never names the origin, which is
+      // the fact that resolves it nine times in ten.
+      say(`Sign-in failed: ${error.message}`);
+    } finally {
+      signIn.disabled = false;
+    }
+  });
+
+  actions.append(save, signIn, clear);
   host.appendChild(actions);
 
   const ready = current.clientId && current.project;
