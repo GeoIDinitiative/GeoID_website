@@ -1683,3 +1683,6 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
   border: 1px solid rgba(255,255,255,0.12); border-radius: 0.25rem; padding: 0.25rem; }
 .gis-batch-row { display: flex; gap: 0.35rem; align-items: center; font-size: 0.68rem;
   padding: 0.1rem 0.15rem; overflow-wrap: anywhere; }
+
+.gis-geo-report { white-space: pre-wrap; font-size: 0.62rem; margin-top: 0.35rem;
+  max-height: 110px; overflow-y: auto; }
