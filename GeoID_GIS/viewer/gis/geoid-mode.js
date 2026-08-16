@@ -14,13 +14,13 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260816-842b786";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-842b786";
-import { makeRaster } from "./raster-analysis.js?v=20260816-842b786";
+} from "./geoid-pipeline.js?v=20260816-d25e112";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-d25e112";
+import { makeRaster } from "./raster-analysis.js?v=20260816-d25e112";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260816-842b786";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260816-842b786";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260816-d25e112";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260816-d25e112";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -320,7 +320,16 @@ export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
     };
   });
 
+  // Seed the band with the FIRST step before the layer is built.
+  //
+  // Built from an all-NaN band, the adapter resamples nothing, the drape gets
+  // no valid vertices and the mesh is empty — a layer that exists, reports a
+  // name, accepts repaints and draws NOTHING. Every later repaint then
+  // recoloured geometry that was never there, which is exactly what "the map
+  // is static" looks like from the outside: the old layers, unchanged, with an
+  // invisible one on top.
   const band = new Float32Array(table.cells.length).fill(NaN);
+  if (steps[0]?.values) band.set(steps[0].values);
   const raster = makeRaster(band, table.cols, table.rows, table.bounds, NaN);
   // The globe has to exist before a layer can join it: `addDerivedLayer`
   // returns null when the scene is not up, and the run is fast enough now to
