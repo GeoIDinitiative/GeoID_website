@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260816-0ab024e";
-import { samplerToRaster } from "./raster-analysis.js?v=20260816-0ab024e";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-0ab024e";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-0ab024e";
+import { currentBody } from "./bodies.js?v=20260816-1ff18fd";
+import { samplerToRaster } from "./raster-analysis.js?v=20260816-1ff18fd";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-1ff18fd";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-1ff18fd";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -599,6 +599,12 @@ function buildLayerCard(layer) {
   badge.textContent = name.replace(/\.(tif|tiff|geojson|json|shp|asc|kml|gpx|csv|wkt)$/i, "");
   card.appendChild(badge);
 
+  // A continuous raster's symbology IS its ramp. Drawing a single swatch
+  // beside it says the layer is one colour and then contradicts itself an inch
+  // lower — and the only text that row can carry is the layer's *type*, which
+  // is how the file arrived ("tif") rather than what the map shows. So a layer
+  // with a graded legend gets the ramp alone.
+  const graded = Array.isArray(layer.legendInfo?.palette) && layer.legendInfo.palette.length > 2;
   const list = document.createElement("div");
   list.className = "legend-symbol-list";
   const row = document.createElement("div");
@@ -621,7 +627,7 @@ function buildLayerCard(layer) {
   }
   row.appendChild(copyWrap);
   list.appendChild(row);
-  card.appendChild(list);
+  if (!graded) card.appendChild(list);
 
   // Continuous data carries its ramp and what the ends mean, not just a name:
   // a legend that cannot be read against the map is furniture.
@@ -631,6 +637,17 @@ function buildLayerCard(layer) {
       ? `linear-gradient(to right, ${info.palette.map((c) => `#${c}`).join(", ")})`
       : "linear-gradient(to right, #000, #fff)";
     const unit = info.unit ? ` ${info.unit}` : "";
+    // The ends are pixel values, so they are read as numbers: 0.0000381 and
+    // 3.75e-5 are the same measurement and only one of them can be compared
+    // against the map at a glance.
+    const num = (v) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return String(v ?? "");
+      const abs = Math.abs(n);
+      if (n === 0) return "0";
+      if (abs >= 1000 || abs < 0.01) return n.toPrecision(3);
+      return String(Number(n.toPrecision(4)));
+    };
     const block = document.createElement("div");
     block.className = "legend-ramp";
     const bar = document.createElement("span");
@@ -639,7 +656,7 @@ function buildLayerCard(layer) {
     block.appendChild(bar);
     const labels = document.createElement("span");
     labels.className = "legend-ramp-labels";
-    for (const text of [`${info.min}${unit}`, info.label || "", `${info.max}${unit}`]) {
+    for (const text of [`${num(info.min)}${unit}`, info.label || "", `${num(info.max)}${unit}`]) {
       const span = document.createElement("span");
       span.textContent = text;
       labels.appendChild(span);
