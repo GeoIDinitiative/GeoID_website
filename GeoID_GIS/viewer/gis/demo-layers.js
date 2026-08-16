@@ -24,13 +24,35 @@ const DEMOS = {
     label: "Northern Ireland prototype",
     // Ranked first: it is the map to read, and it is the one the page shows.
     files: [
+      // 0-2: the results.
       { path: "/ni-prototype/data/ni_landslide_susceptibility_quantile.tif",
         name: "NI landslide susceptibility (ranked).tif" },
       { path: "/ni-prototype/data/ni_flood_susceptibility.tif",
         name: "NI flood susceptibility.tif" },
       { path: "/ni-prototype/data/ni_landslide_susceptibility.tif",
         name: "NI landslide susceptibility (absolute).tif" },
+      // 3-7: what they were made from.
+      { path: "/ni-prototype/data/ni_bedrock.geojson",
+        name: "NI bedrock geology (BGS 625k).geojson" },
+      { path: "/ni-prototype/data/ni_superficial.geojson",
+        name: "NI superficial geology (BGS 625k).geojson" },
+      { path: "/ni-prototype/data/ni_dem_100m.tif",
+        name: "NI elevation 100 m (Copernicus).tif" },
+      { path: "/ni-prototype/data/ni_rainfall.geojson",
+        name: "NI rainfall 1991-2020 (HadUK).geojson" },
+      { path: "/ni-prototype/data/ni_rivers.geojson",
+        name: "NI rivers (OpenStreetMap).geojson" },
     ],
+    /**
+     * The INPUTS, indexed on from the outputs.
+     *
+     * A prototype that ships only its three finished pictures is a claim, not
+     * a demonstration: the geology, rainfall, drainage and terrain the maps
+     * were made from have to be on the globe too, or nobody can check the
+     * result against what produced it. Geometry is simplified to about 50 m —
+     * well below the 1:625k source's own precision — and the DEM is Int16,
+     * because a 100 m grid carries no sub-metre vertical detail.
+     */
     // Where to look once they are on the globe.
     view: { lat: 54.67, lon: -6.775, spanDeg: 2.9 },
     note: "Susceptibility screening from open BGS, Met Office, Copernicus and "
