@@ -48,6 +48,26 @@ def start_static(port: int) -> ThreadingHTTPServer:
         # A launcher should print the two URLs that matter, not a line per asset.
         def log_message(self, *_args):
             pass
+
+        def end_headers(self):
+            """HTML is never cached; everything else keeps its stamp.
+
+            Every module URL carries `?v=<sha>`, so a module cannot go stale —
+            but the HTML that names those URLs carries no stamp at all, and a
+            browser is entitled to keep it. The result is a page holding last
+            week's script tags while every file on disk is current: fixes land,
+            tests pass, and the tab shows none of it. That failure is invisible
+            from this side and indistinguishable, from the other, from work
+            that was never done.
+
+            `no-store` on documents costs one small request per navigation and
+            removes the whole class.
+            """
+            path = self.path.split("?", 1)[0]
+            if path.endswith((".html", "/")) or "." not in path.rsplit("/", 1)[-1]:
+                self.send_header("Cache-Control", "no-store, must-revalidate")
+                self.send_header("Pragma", "no-cache")
+            super().end_headers()
     handler = partial(QuietHandler, directory=str(REPO_ROOT))
     httpd = ThreadingHTTPServer(("127.0.0.1", port), handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
