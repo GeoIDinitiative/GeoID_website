@@ -1,9 +1,9 @@
-import * as GP from "./geoprocessing.js?v=20260816-fc0bc1f";
-import * as RA from "./raster-analysis.js?v=20260816-fc0bc1f";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-fc0bc1f";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-fc0bc1f";
-import { CRS_OPTIONS } from "./projection.js?v=20260816-fc0bc1f";
-import * as IN from "./interpolation.js?v=20260816-fc0bc1f";
+import * as GP from "./geoprocessing.js?v=20260816-17653d0";
+import * as RA from "./raster-analysis.js?v=20260816-17653d0";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-17653d0";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-17653d0";
+import { CRS_OPTIONS } from "./projection.js?v=20260816-17653d0";
+import * as IN from "./interpolation.js?v=20260816-17653d0";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -444,6 +444,7 @@ export const TOOLS = [
   },
   {
     id: "resample",
+    elevationOutput: true,   // a filled/resampled DEM is still a DEM
     label: "Resample to grid",
     category: "Surface analysis",
     blurb: "Put a raster onto another raster's grid (nearest neighbour), so cell-by-cell tools can pair them.",
@@ -633,6 +634,7 @@ export const TOOLS = [
   // when the sidecar is absent rather than offering a button that cannot work.
   {
     id: "fillSinks",
+    elevationOutput: true,   // a filled/resampled DEM is still a DEM
     label: "Fill sinks",
     category: "Hydrology",
     blurb: "Raise closed depressions until water can leave — the step every flow calculation needs first.",
@@ -1044,7 +1046,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260816-fc0bc1f");
+    const client = await import("./sidecar-client.js?v=20260816-17653d0");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1099,7 +1101,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260816-fc0bc1f");
+    const bridge = await import("./research/bridge.js?v=20260816-17653d0");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1111,12 +1113,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260816-fc0bc1f");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260816-17653d0");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260816-fc0bc1f");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260816-17653d0");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
@@ -1191,7 +1193,13 @@ function register(desc, raw, name) {
   if (desc.outputType === "raster") {
     const raster = raw.raster || raw;
     const result = buildRasterLayer([raster.band], raster.width, raster.height, raster.bounds, {
-      name, noData: raster.noData, isDem: true,
+      name,
+      noData: raster.noData,
+      // Only a tool whose OUTPUT is a height may displace the surface. Slope,
+      // a susceptibility index and a class map are all single-band numbers and
+      // none of them is elevation; displacing them turned a five-class map
+      // into a comb of spikes. Tools that do produce heights say so.
+      isDem: Boolean(desc.elevationOutput),
     });
     const layer = window.GeoIDImportManager?.addDerivedLayer?.(name, result, "derived") || null;
     return { ok: true, message: `${name} created.${note}`, layer, outputType: "raster" };

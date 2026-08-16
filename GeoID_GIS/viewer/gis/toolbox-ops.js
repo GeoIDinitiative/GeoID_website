@@ -1,12 +1,12 @@
-import * as GP from "./geoprocessing.js?v=20260816-fc0bc1f";
-import * as RA from "./raster-analysis.js?v=20260816-fc0bc1f";
-import * as VF from "./vector-formats.js?v=20260816-fc0bc1f";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-fc0bc1f";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-fc0bc1f";
-import { downloadText } from "./extraction.js?v=20260816-fc0bc1f";
-import { CRS_OPTIONS } from "./projection.js?v=20260816-fc0bc1f";
-import { runQuery, QUERY_HELP } from "./query.js?v=20260816-fc0bc1f";
-import { selection } from "./selection.js?v=20260816-fc0bc1f";
+import * as GP from "./geoprocessing.js?v=20260816-17653d0";
+import * as RA from "./raster-analysis.js?v=20260816-17653d0";
+import * as VF from "./vector-formats.js?v=20260816-17653d0";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-17653d0";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-17653d0";
+import { downloadText } from "./extraction.js?v=20260816-17653d0";
+import { CRS_OPTIONS } from "./projection.js?v=20260816-17653d0";
+import { runQuery, QUERY_HELP } from "./query.js?v=20260816-17653d0";
+import { selection } from "./selection.js?v=20260816-17653d0";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -83,9 +83,12 @@ function gridsMatch(a, b) {
     && a.bounds.minY === b.bounds.minY && a.bounds.maxY === b.bounds.maxY;
 }
 
-function publishRaster(raster, name) {
+function publishRaster(raster, name, { elevation = false } = {}) {
   const result = buildRasterLayer([raster.band], raster.width, raster.height, raster.bounds, {
-    name, noData: raster.noData, isDem: true,
+    // Flat unless the caller says the values ARE heights: an index or a class
+    // map displaced by its own value reads as a field of spikes rather than a
+    // map (see geotiff-adapter's looksLikeHeightField).
+    name, noData: raster.noData, isDem: elevation,
   });
   window.GeoIDImportManager.addDerivedLayer(name, result, "derived");
   return { ok: true, message: `${name} created.` };
@@ -354,7 +357,7 @@ const RASTER_OPS = {
     run: (r, n, _param, extras) => {
       if (!extras.b) return { ok: false, message: "Pick the raster (B) whose grid to match." };
       if (extras.b.id === r.id) return { ok: false, message: "A raster is already on its own grid." };
-      return publishRaster(RA.resampleToGrid(r.raster, extras.b.raster), `resample_${n}`);
+      return publishRaster(RA.resampleToGrid(r.raster, extras.b.raster), `resample_${n}`, { elevation: true });
     },
   },
   distance: {
@@ -891,16 +894,23 @@ function init() {
       seam.start(layer.id);
     }));
   byId("open-wfs")?.addEventListener("click", () => { void importFromService(); });
-  // The worked example, served with the site: no sidecar, no project, no token
-  // — reading a file is not one of the things a browser cannot do.
-  byId("load-demo-ni")?.addEventListener("click", () => {
-    const demo = window.GeoIDDemo;
-    if (!demo) {
-      setText("explore-status", "The demo loader is still starting — try again in a moment.");
-      return;
-    }
-    setText("explore-status", "Loading the Northern Ireland prototype…");
-    void demo.load("ni-prototype");
+  // Modelled data: one tick box per shipped dataset. Served with the site, so
+  // no sidecar, no project and no token — reading a file is not one of the
+  // things a browser cannot do.
+  document.querySelectorAll("[data-demo]").forEach((box) => {
+    box.addEventListener("change", () => {
+      const demo = window.GeoIDDemo;
+      if (!demo?.toggle) {
+        setText("demo-status", "The dataset loader is still starting — try again in a moment.");
+        box.checked = !box.checked;
+        return;
+      }
+      const wanted = box.checked;
+      box.disabled = true;
+      Promise.resolve(demo.toggle(box.dataset.demo, Number(box.dataset.demoFile), wanted))
+        .then((now) => { box.checked = Boolean(now); })
+        .finally(() => { box.disabled = false; });
+    });
   });
   byId("attr-stats-run")?.addEventListener("click", runFieldStatistics);
   byId("calc-run")?.addEventListener("click", runFieldCalculator);

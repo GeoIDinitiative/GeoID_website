@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-fc0bc1f";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-17653d0";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -126,10 +126,53 @@ function buildTexture(bands, width, height, range, noData) {
  * bounds. Single-band rasters additionally displace the surface so relief is
  * visible against the basemap.
  */
+/**
+ * Is this band a height field, or a set of categories wearing numbers?
+ *
+ * The old test was the band COUNT — one band meant elevation — and that is
+ * true of a DEM and false of everything else a GIS produces: a susceptibility
+ * class, a land-cover code, a reclassified index are all single-band and none
+ * of them is a height. Displaced anyway, a five-class map became a comb of
+ * 240 km spikes, which is what "the mapping is a mess, it appears as 3D
+ * fibers" looks like from the outside.
+ *
+ * So the test is about the values: a surface with a handful of distinct
+ * heights is not a surface. Real terrain over any real extent has thousands
+ * of distinct values; a classification has as many as it has classes. The
+ * sample is bounded because this runs on import, and a flat raster that is
+ * wrongly called categorical loses nothing — its relief was invisible anyway.
+ */
+function looksLikeHeightField(band, noData, limit = 40) {
+  const distinct = new Set();
+  const stride = Math.max(1, Math.floor(band.length / 50000));
+  for (let i = 0; i < band.length; i += stride) {
+    const v = band[i];
+    if (!Number.isFinite(v) || (noData !== null && v === noData)) continue;
+    distinct.add(v);
+    if (distinct.size > limit) return true;
+  }
+  return false;
+}
+
 function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, isDem, noData) {
   const geometry = new THREE.PlaneGeometry(1, 1, gridWidth - 1, gridHeight - 1);
   const position = geometry.attributes.position;
   const baseRadius = drapedRadius(0.002);
+  /**
+   * Follow the relief, never a fixed radius.
+   *
+   * The basemap is displaced by terrain: its surface spans 3.2095-3.2989
+   * against a base radius of 3.2, so a flat drape at 3.202 sits UNDERNEATH it
+   * everywhere, ocean included, and the layer is invisible. That is exactly
+   * what happened the moment classified rasters stopped being displaced — the
+   * spikes had been the only thing poking through.
+   *
+   * `surfacePoint` is the viewer's own displaced surface and tracks the
+   * terrain slider, so the patch hugs the ground at whatever exaggeration is
+   * set. It only exists once a globe is up; the flat radius remains the
+   * fallback for Model mode and for tests with no viewer.
+   */
+  const surfacePoint = window.GeoIDViewer?.surfacePoint;
   // Exaggerated so continental-scale relief stays legible at globe radius 3.2.
   const reliefScale = isDem ? 0.12 : 0;
   const vertex = new THREE.Vector3();
@@ -147,7 +190,12 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
         const t = (value - range.min) / (range.max - range.min);
         radius += reliefScale * Math.min(1, Math.max(0, t));
       }
-      vertex.copy(latLonToVector3(lat, lon, radius));
+      if (surfacePoint && !isDem) {
+        // Draped: sit on the terrain, lifted clear of it.
+        vertex.copy(surfacePoint(lat, lon, 0.004));
+      } else {
+        vertex.copy(latLonToVector3(lat, lon, radius));
+      }
       position.setXYZ(index, vertex.x, vertex.y, vertex.z);
     }
   }
@@ -159,7 +207,11 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
     transparent: true,
     roughness: 0.95,
     metalness: 0.0,
-    side: THREE.DoubleSide,
+    // A tessellated patch cannot out-clearance terrain that has detail below
+    // any grid, so it does not try: no depth test, and single-sided so the far
+    // hemisphere is still culled. The same answer the GEE drapes arrived at.
+    depthTest: !surfacePoint,
+    side: surfacePoint ? THREE.FrontSide : THREE.DoubleSide,
   }));
 }
 
@@ -241,7 +293,10 @@ function createRasterSampler(band, width, height, bounds, noData) {
 export function buildRasterLayer(bands, width, height, bounds, {
   name = "raster", noData = null, isDem = null,
 } = {}) {
-  const demLike = isDem === null ? bands.length < 3 : isDem;
+  // Not the band count: what the values actually are (see above).
+  const demLike = isDem === null
+    ? bands.length < 3 && looksLikeHeightField(bands[0], noData)
+    : isDem;
   const gridWidth = Math.max(2, Math.min(MAX_GRID, width));
   const gridHeight = Math.max(2, Math.min(MAX_GRID, height));
   const range = computeRange(bands[0], noData);

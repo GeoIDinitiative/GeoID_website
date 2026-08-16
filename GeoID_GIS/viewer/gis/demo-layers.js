@@ -134,6 +134,46 @@ function frame({ lat, lon, spanDeg = 3 }) {
 }
 
 
+/**
+ * One dataset on or off — what a tick box means.
+ *
+ * Ticking maps it and unticking takes it off the globe entirely rather than
+ * hiding it, so the layer list stays a list of what is actually there. The
+ * first tick also frames the region; later ones do not, because moving the
+ * camera under someone who is comparing two maps is rude.
+ */
+export async function toggle(id, index, on) {
+  const demo = DEMOS[id];
+  const entry = demo?.files?.[index];
+  const manager = window.GeoIDImportManager;
+  if (!entry || !manager?.importFileList) return false;
+
+  const find = () => (manager.getLayers?.() || []).find((l) => l.name === entry.name);
+  if (!on) {
+    const layer = find();
+    if (layer && manager.removeLayer) manager.removeLayer(layer.id);
+    say(`${entry.name.replace(/\.tif$/, "")} removed.`);
+    return false;
+  }
+  if (find()) return true;
+  try {
+    say(`Loading ${entry.name.replace(/\.tif$/, "")}…`);
+    const response = await fetch(entry.path);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    await manager.importFileList([
+      new File([await response.blob()], entry.name, { type: "image/tiff" }),
+    ]);
+  } catch (error) {
+    say(`${entry.name} did not load: ${error.message}`);
+    return false;
+  }
+  const others = (manager.getLayers?.() || [])
+    .filter((l) => demo.files.some((f) => f.name === l.name)).length;
+  if (others <= 1) frame(demo.view);
+  say(`${entry.name.replace(/\.tif$/, "")} mapped. ${demo.note}`);
+  return true;
+}
+
 export function list() {
   return Object.entries(DEMOS).map(([id, d]) => ({ id, label: d.label, note: d.note }));
 }
@@ -177,7 +217,7 @@ function init() {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDDemo = { load, list };
+  window.GeoIDDemo = { load, list, toggle };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
