@@ -1,6 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-bdb55a5";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260816-bdb55a5";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-ea41ca2";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260816-ea41ca2";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260816-ea41ca2";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -209,9 +210,50 @@ export function describeCollection(fc) {
  * Wraps a FeatureCollection into the shape the import manager expects,
  * including an attribute sampler so it can take part in extraction.
  */
+/**
+ * A polygon layer is DRAWN as polygons, from the moment it lands.
+ *
+ * Rendering boundaries and nothing else made every vector layer look the same:
+ * geology, catchments and a coastline were all the same green outline, and the
+ * only way to see a geological map was to find the symbology panel and apply a
+ * classification by hand. A map that requires a second step before it is a map
+ * is not one.
+ *
+ * So the default symbology is computed at import — the rock-type column if the
+ * layer has one, otherwise the best category field, otherwise a single wash —
+ * and can be changed afterwards exactly as before. The legend is built from
+ * the same object, so it agrees from the first frame.
+ */
+function defaultSymbology(fc) {
+  const features = fc?.features || [];
+  const hasPolygons = features.some((f) => polygonsOf(f.geometry).length);
+  if (!hasPolygons) return null;
+  const field = suggestCategoryField(features);
+  if (field) {
+    const sym = categoricalSymbology(features, field, { ramp: "spectral" });
+    if (sym.ok) return sym;
+  }
+  // No attribute worth classifying: one colour, still filled, so the extent of
+  // the thing is visible rather than only its edge.
+  return {
+    ok: true, categorical: false, field: null,
+    rows: [{ value: "features", count: features.length, colour: "#4fd1a5" }],
+    colourOf: () => "#4fd1a5",
+  };
+}
+
 export function buildVectorLayerResult(fc, { name, fields = [], drape = 0.006 } = {}) {
   const bounds = collectionBounds(fc);
   const georeferenced = looksLikeGeographic(bounds);
+  const symbology = defaultSymbology(fc);
+  // Outlines first, fills straight after — NOT both in one pass.
+  //
+  // Filling means triangulating every ring and lifting every triangle vertex
+  // onto the displaced surface, and doing that inside the import blocked it:
+  // measured on the BGS bedrock layer, the import did not complete in five
+  // minutes where it used to take seconds. The geometry is the same either
+  // way; what changes is that the layer is on the globe immediately and gains
+  // its colours a moment later, instead of the user waiting for both.
   const { object3D, truncated } = renderFeatureCollection(fc, { name, drape });
 
   /**
@@ -247,9 +289,28 @@ export function buildVectorLayerResult(fc, { name, fields = [], drape = 0.006 } 
       return { ...entry, bbox: { minX, minY, maxX, maxY } };
     });
 
+  // Scheduled rather than awaited: `addDerivedLayer` puts `object3D` into the
+  // scene as soon as this returns, and repaint replaces the children of that
+  // same group, so the fills land in a layer that is already visible.
+  if (symbology) {
+    setTimeout(() => {
+      try { repaintVector((f) => symbology.colourOf(f)); } catch (error) { /* outlines stand */ }
+    }, 0);
+  }
+
   return {
     object3D,
     repaint: repaintVector,
+    // The legend is derived from the symbology that was actually drawn, never
+    // from a second guess about it.
+    legendInfo: symbology?.rows?.length
+      ? {
+        palette: symbology.rows.map((r) => r.colour.replace("#", "")),
+        labels: symbology.rows.map((r) => r.value),
+        categorical: Boolean(symbology.categorical),
+        field: symbology.field || null,
+      }
+      : null,
     georeferenced,
     bounds: georeferenced ? bounds : null,
     collection: fc,
