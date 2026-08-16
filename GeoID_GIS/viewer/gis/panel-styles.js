@@ -14,6 +14,12 @@
  */
 
 const STYLE = `
+/* Settings rows: a label, a field, its actions, and what it is for. */
+.gis-setting-row { margin-bottom: 0.6rem; }
+.gis-setting-row > label { display: block; font-size: 0.7rem; margin-bottom: 0.15rem; }
+.gis-setting-row .input { width: 100%; box-sizing: border-box; }
+.gis-setting-hint { display: block; font-size: 0.62rem; opacity: 0.62; line-height: 1.3; }
+
 /* Project contents, at the head of the provenance list. */
 .gis-project-contents { border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 0.4rem;
   margin-bottom: 0.4rem; }

@@ -37,7 +37,14 @@ from pathlib import Path
 
 # ── Secrets, the Atlas AI way ────────────────────────────────────────────────
 
-SUPPORTED_KEYS = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY")
+# Earth Engine joins the model keys for the same reason they are here at all:
+# a browser cannot hold a secret, so the credentialed call is made on this side.
+# GEE wants a service account (an email) and its private key (a PEM); both are
+# credentials and both are masked in every reply.
+SUPPORTED_KEYS = (
+    "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY",
+    "EE_SERVICE_ACCOUNT", "EE_PRIVATE_KEY", "EE_PROJECT",
+)
 SECRETS_FILE = ".atlas_secrets.json"
 _root: Path | None = None
 
