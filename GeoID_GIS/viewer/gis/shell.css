@@ -1686,3 +1686,29 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
 
 .gis-geo-report { white-space: pre-wrap; font-size: 0.62rem; margin-top: 0.35rem;
   max-height: 110px; overflow-y: auto; }
+
+/* Tool catalogue: a list of names, each with one line about it. Compact
+   enough that a category reads at a glance, which a column of bordered
+   buttons and full-width paragraphs never did. */
+.gis-tool-catalogue-body { display: flex; flex-direction: column; gap: 0.15rem; }
+.gis-tool-item {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: 0.3rem 0.45rem; border-radius: 0.25rem;
+  border: 1px solid transparent; background: rgba(255, 255, 255, 0.03);
+  color: inherit; font: inherit;
+}
+.gis-tool-item:hover, .gis-tool-item:focus-visible {
+  background: rgba(var(--nav-accent-rgb, 255, 60, 172), 0.14);
+  border-color: rgba(var(--nav-accent-rgb, 255, 60, 172), 0.45);
+}
+.gis-tool-item b {
+  display: block; font-size: 0.74rem; font-weight: 600; letter-spacing: 0.01em;
+  line-height: 1.2; text-transform: none;
+}
+.gis-tool-item span {
+  display: block; font-size: 0.62rem; opacity: 0.62; line-height: 1.25;
+  margin-top: 0.08rem;
+  /* One line. The blurb is a reminder, not documentation — the dialog has the
+     full text and the title attribute carries it on hover. */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}

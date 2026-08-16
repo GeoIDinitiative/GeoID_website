@@ -1,12 +1,12 @@
-import * as GP from "./geoprocessing.js?v=20260816-97c3683";
-import * as RA from "./raster-analysis.js?v=20260816-97c3683";
-import * as VF from "./vector-formats.js?v=20260816-97c3683";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-97c3683";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-97c3683";
-import { downloadText } from "./extraction.js?v=20260816-97c3683";
-import { CRS_OPTIONS } from "./projection.js?v=20260816-97c3683";
-import { runQuery, QUERY_HELP } from "./query.js?v=20260816-97c3683";
-import { selection } from "./selection.js?v=20260816-97c3683";
+import * as GP from "./geoprocessing.js?v=20260816-76daa05";
+import * as RA from "./raster-analysis.js?v=20260816-76daa05";
+import * as VF from "./vector-formats.js?v=20260816-76daa05";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-76daa05";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-76daa05";
+import { downloadText } from "./extraction.js?v=20260816-76daa05";
+import { CRS_OPTIONS } from "./projection.js?v=20260816-76daa05";
+import { runQuery, QUERY_HELP } from "./query.js?v=20260816-76daa05";
+import { selection } from "./selection.js?v=20260816-76daa05";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -678,7 +678,7 @@ async function buildToolCatalogue() {
   if (!host || host.childElementCount) return;
   let runner;
   try {
-    runner = await import("./tool-runner.js?v=20260816-97c3683");
+    runner = await import("./tool-runner.js?v=20260816-76daa05");
   } catch {
     host.textContent = "The toolbox is still loading.";
     return;
@@ -689,7 +689,6 @@ async function buildToolCatalogue() {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(tool);
   });
-  const client = window.GeoIDSidecarClient;
   groups.forEach((tools, category) => {
     const section = document.createElement("details");
     section.className = "gis-tool-section";
@@ -697,40 +696,28 @@ async function buildToolCatalogue() {
     summary.textContent = `${category} (${tools.length})`;
     section.appendChild(summary);
     const body = document.createElement("div");
-    body.className = "gis-tool-body";
+    body.className = "gis-tool-body gis-tool-catalogue-body";
     tools.slice().sort((a, b) => (a.label || "").localeCompare(b.label || ""))
       .forEach((tool) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "button secondary";
-        button.style.textAlign = "left";
-        button.style.width = "100%";
-        button.textContent = tool.label || tool.id;
-        button.title = tool.blurb || "";
-        // A sidecar-only tool is listed, never hidden: knowing it exists and
-        // what it needs beats wondering why the app cannot do something.
-        if (!tool.engines?.native) {
-          const status = client?.engineStatus?.(tool);
-          if (status && !status.ok) button.title = `${tool.blurb || ""} — ${status.reason}`;
-          const tag = document.createElement("span");
-          tag.className = "research-list-tag";
-          tag.textContent = "sidecar";
-          tag.style.marginLeft = "0.4rem";
-          button.appendChild(tag);
-        }
-        button.addEventListener("click", () => {
+        // ONE element per tool, not a button in a row followed by a paragraph.
+        // The old shape gave every tool a boxed button sized to its longest
+        // word and a full-width block of prose underneath, so five tools
+        // filled the panel and the name wrapped inside its own border.
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "gis-tool-item";
+        const name = document.createElement("b");
+        name.textContent = tool.label || tool.id;
+        const blurb = document.createElement("span");
+        blurb.textContent = tool.blurb || "";
+        item.append(name, blurb);
+        item.title = tool.blurb || "";
+        item.addEventListener("click", () => {
           const seam = window.GeoIDToolSearch;
           if (seam?.openTool) void seam.openTool(tool.id);
           else setText("explore-status", "The tool dialog is still loading.");
         });
-        const row = document.createElement("div");
-        row.className = "measure-actions";
-        row.appendChild(button);
-        body.appendChild(row);
-        const blurb = document.createElement("p");
-        blurb.className = "tool-copy";
-        blurb.textContent = tool.blurb || "";
-        body.appendChild(blurb);
+        body.appendChild(item);
       });
     section.appendChild(body);
     host.appendChild(section);

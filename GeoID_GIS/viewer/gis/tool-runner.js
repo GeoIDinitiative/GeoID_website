@@ -1,11 +1,13 @@
-import * as GP from "./geoprocessing.js?v=20260816-97c3683";
-import * as RA from "./raster-analysis.js?v=20260816-97c3683";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-97c3683";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-97c3683";
-import { CRS_OPTIONS } from "./projection.js?v=20260816-97c3683";
-import * as IN from "./interpolation.js?v=20260816-97c3683";
-import * as VAL from "./validation.js?v=20260816-97c3683";
-import * as EX from "./analysis-extra.js?v=20260816-97c3683";
+import * as GP from "./geoprocessing.js?v=20260816-76daa05";
+import * as RA from "./raster-analysis.js?v=20260816-76daa05";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-76daa05";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-76daa05";
+import { CRS_OPTIONS } from "./projection.js?v=20260816-76daa05";
+import * as IN from "./interpolation.js?v=20260816-76daa05";
+import * as VAL from "./validation.js?v=20260816-76daa05";
+import * as EX from "./analysis-extra.js?v=20260816-76daa05";
+import * as HY from "./hydrology.js?v=20260816-76daa05";
+import * as KR from "./kriging.js?v=20260816-76daa05";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -667,6 +669,7 @@ export const TOOLS = [
     outputType: "raster",
     outputName: "filled_{input}",
     engines: {
+      native: (i) => HY.fillSinks(i.input.raster),
       sidecar: {
         requires: ["numpy"],
         build: ({ inputs, outputName }) => ({
@@ -689,6 +692,7 @@ export const TOOLS = [
     outputType: "raster",
     outputName: "flowacc_{input}",
     engines: {
+      native: (i) => HY.flowAccumulation(i.input.raster),
       sidecar: {
         requires: ["numpy"],
         build: ({ inputs, outputName }) => ({
@@ -714,6 +718,10 @@ export const TOOLS = [
     outputType: "raster",
     outputName: "basins_{input}",
     engines: {
+      native: (i, p) => {
+        const out = HY.watershed(i.input.raster, Number(p.lat), Number(p.lon));
+        return out.ok ? out.raster : { ok: false, message: out.message };
+      },
       sidecar: {
         requires: ["numpy"],
         build: ({ inputs, outputName }) => ({
@@ -738,6 +746,11 @@ export const TOOLS = [
     outputType: "raster",
     outputName: "streams_{input}",
     engines: {
+      native: (i, p) => {
+        const out = HY.streams(i.input.raster, { threshold: Number(p.threshold) || 500 });
+        if (!out.count) return { ok: false, message: "no cell reached that threshold" };
+        return out.raster;
+      },
       sidecar: {
         requires: ["numpy"],
         build: ({ inputs, params, outputName }) => ({
@@ -764,6 +777,13 @@ export const TOOLS = [
     outputType: "raster",
     outputName: "viewshed_{input}",
     engines: {
+      native: (i, p) => {
+        const out = HY.viewshed(i.input.raster, Number(p.lat), Number(p.lon), {
+          observerHeight: Number(p.observerHeight) || 1.7,
+          radiusKm: Number(p.radiusKm) || 10,
+        });
+        return out.ok ? out.raster : { ok: false, message: out.message };
+      },
       sidecar: {
         requires: ["numpy"],
         build: ({ inputs, params, outputName }) => ({
@@ -779,7 +799,7 @@ export const TOOLS = [
     id: "kriging",
     label: "Kriging",
     category: "Interpolation",
-    blurb: "Geostatistical interpolation with a fitted variogram — IDW's principled cousin, and it needs SciPy in the sidecar.",
+    blurb: "Geostatistical interpolation with a fitted variogram, and a variance surface saying how far to trust it.",
     keywords: ["geostatistics", "variogram", "ordinary", "interpolate", "surface", "scipy"],
     inputs: [{ name: "input", label: "Points", type: "vector" }],
     params: [
@@ -792,6 +812,24 @@ export const TOOLS = [
     outputType: "raster",
     outputName: "kriging_{input}",
     engines: {
+      native: (i, p) => {
+        const points = (i.input.collection?.features || []).map((f) => ({
+          lat: f.geometry?.coordinates?.[1],
+          lon: f.geometry?.coordinates?.[0],
+          value: Number(f.properties?.[p.field]),
+        })).filter((q) => Number.isFinite(q.lat) && Number.isFinite(q.value));
+        if (points.length < 4) return { ok: false, message: "kriging needs at least four samples" };
+        const pad = 0.02;
+        const bounds = points.reduce((acc, q) => ({
+          minX: Math.min(acc.minX, q.lon - pad), minY: Math.min(acc.minY, q.lat - pad),
+          maxX: Math.max(acc.maxX, q.lon + pad), maxY: Math.max(acc.maxY, q.lat + pad),
+        }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+        const out = KR.krigeGrid(points, bounds, {
+          cellSizeDeg: Number(p.cellSizeDeg) || 0.01,
+        });
+        if (!out.ok) return { ok: false, message: out.message };
+        return RA.makeRaster(out.values, out.width, out.height, out.bounds, NaN);
+      },
       sidecar: {
         requires: ["numpy", "scipy"],
         // kriging.py carries its samples INLINE (params.points), not as a
@@ -1351,7 +1389,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260816-97c3683");
+    const client = await import("./sidecar-client.js?v=20260816-76daa05");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1406,7 +1444,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260816-97c3683");
+    const bridge = await import("./research/bridge.js?v=20260816-76daa05");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1418,12 +1456,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260816-97c3683");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260816-76daa05");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260816-97c3683");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260816-76daa05");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }
