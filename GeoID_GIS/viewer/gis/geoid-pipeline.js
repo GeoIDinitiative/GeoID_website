@@ -19,9 +19,9 @@
  * fetches, samples and draws.
  */
 
-import { fosSeries, wetnessSeries, materialFor, stabilityBand } from "./fos.js?v=20260816-7a20000";
-import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260816-7a20000";
-import { SOURCE as WEATHER_SOURCE } from "./forecast.js?v=20260816-7a20000";
+import { fosSeries, wetnessSeries, materialFor, stabilityBand } from "./fos.js?v=20260816-98ea962";
+import { makeRaster, slope as slopeOf } from "./raster-analysis.js?v=20260816-98ea962";
+import { SOURCE as WEATHER_SOURCE } from "./forecast.js?v=20260816-98ea962";
 
 /* ── 1. the weather SURFACE ─────────────────────────────────────────────── */
 
@@ -52,7 +52,12 @@ export function weatherUrl(points, { days = 16 } = {}) {
   const q = new URLSearchParams({
     latitude: points.map((p) => p.lat.toFixed(4)).join(","),
     longitude: points.map((p) => p.lon.toFixed(4)).join(","),
-    daily: "precipitation_sum",
+    // HOURLY, which is GFS's own step. A daily total is one number for a
+    // fortnight of weather: a storm that lands in six hours and a drizzle
+    // spread over a day look identical to it, and a map built on it cannot
+    // move faster than once a day however often it is redrawn. This is the
+    // difference between "sixteen pictures" and a forecast.
+    hourly: "precipitation",
     forecast_days: String(Math.max(1, Math.min(16, days))),
     models: "gfs_seamless",
     timezone: "UTC",
@@ -67,18 +72,26 @@ export function weatherUrl(points, { days = 16 } = {}) {
  */
 export function parseWeatherGrid(json, points) {
   const list = Array.isArray(json) ? json : [json];
-  const series = list.map((entry, i) => ({
-    lat: Number.isFinite(entry?.latitude) ? entry.latitude : points[i]?.lat,
-    lon: Number.isFinite(entry?.longitude) ? entry.longitude : points[i]?.lon,
-    dates: entry?.daily?.time || [],
-    rain: (entry?.daily?.precipitation_sum || []).map((v) => (Number.isFinite(v) ? v : null)),
-  })).filter((s) => s.rain.length);
+  // Hourly where the service gave it, daily where it did not — the same
+  // parser serves both so a fallback response is still a forecast.
+  const stepHours = list[0]?.hourly?.time ? 1 : 24;
+  const series = list.map((entry, i) => {
+    const source = entry?.hourly?.time
+      ? { times: entry.hourly.time, values: entry.hourly.precipitation }
+      : { times: entry?.daily?.time || [], values: entry?.daily?.precipitation_sum || [] };
+    return {
+      lat: Number.isFinite(entry?.latitude) ? entry.latitude : points[i]?.lat,
+      lon: Number.isFinite(entry?.longitude) ? entry.longitude : points[i]?.lon,
+      dates: source.times,
+      rain: (source.values || []).map((v) => (Number.isFinite(v) ? v : null)),
+    };
+  }).filter((s) => s.rain.length);
   if (!series.length) return { ok: false, message: "the forecast returned no daily rainfall" };
   const dates = series[0].dates;
   if (series.some((s) => s.rain.every((v) => v == null))) {
     return { ok: false, message: "the forecast returned nulls — the model has no data here" };
   }
-  return { ok: true, dates, series };
+  return { ok: true, dates, series, stepHours };
 }
 
 /** Inverse-distance rainfall at a cell for one day, from the coarse points. */
@@ -167,8 +180,10 @@ export function stepForClock(utcMs, dates) {
   if (!dates?.length) return 0;
   const day = new Date(utcMs);
   if (Number.isNaN(day.getTime())) return 0;
-  const iso = day.toISOString().slice(0, 10);
-  const exact = dates.indexOf(iso);
+  // Hourly stamps look like "2026-08-16T13:00"; daily ones stop at the day.
+  const hourly = String(dates[0] || "").includes("T");
+  const iso = hourly ? day.toISOString().slice(0, 13) : day.toISOString().slice(0, 10);
+  const exact = dates.findIndex((d) => String(d).slice(0, iso.length) === iso);
   if (exact >= 0) return exact;
   // Outside the forecast — clamp rather than wrap, so a clock that has run
   // past the horizon holds the last step instead of jumping back to day one

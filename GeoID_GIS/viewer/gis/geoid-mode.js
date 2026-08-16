@@ -14,13 +14,13 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260816-7a20000";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-7a20000";
-import { makeRaster } from "./raster-analysis.js?v=20260816-7a20000";
+} from "./geoid-pipeline.js?v=20260816-98ea962";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-98ea962";
+import { makeRaster } from "./raster-analysis.js?v=20260816-98ea962";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260816-7a20000";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260816-7a20000";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260816-98ea962";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260816-98ea962";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -60,6 +60,26 @@ function geologyReader(geology) {
 }
 
 /** Values for one step, written into the layer's own band, then repainted. */
+/**
+ * A ramp over the RUN's own FoS range, not fixed stability bands.
+ *
+ * Banding was why the map looked frozen. Between two steps a cell might go
+ * from 1.62 to 1.44 — a real change, a fifth of its margin — and both are
+ * "stable", so the pixel never moved. The bands are the right way to READ a
+ * single map and the wrong way to WATCH a sequence, and a time series has to
+ * be coloured by where a value sits in the range the series actually covers.
+ */
+function rampColour(value, lo, hi) {
+  if (!Number.isFinite(value)) return null;
+  const t = hi === lo ? 0.5 : Math.max(0, Math.min(1, (value - lo) / (hi - lo)));
+  // Red at the low (least safe) end through amber to blue at the safe end.
+  const stops = [[215, 25, 28], [253, 141, 60], [254, 217, 118], [161, 218, 180], [44, 127, 184]];
+  const at = t * (stops.length - 1);
+  const i = Math.min(stops.length - 2, Math.floor(at));
+  const f = at - i;
+  return [0, 1, 2].map((c) => Math.round(stops[i][c] + (stops[i + 1][c] - stops[i][c]) * f));
+}
+
 function drawStep(index) {
   const run = state.run;
   if (!run || index === state.step) return;
@@ -68,7 +88,7 @@ function drawStep(index) {
   run.band.set(step.values);
   state.step = index;
   try {
-    run.layer.repaint?.((value) => fosColour(value));
+    run.layer.repaint?.((value) => rampColour(value, run.lo, run.hi));
   } catch (error) {
     /* the layer stands with its previous colours */
   }
@@ -76,8 +96,8 @@ function drawStep(index) {
   const run2 = state.run;
   say(`${step.date}: ${step.failing.toLocaleString()} of ${step.applicable.toLocaleString()} `
     + `cells below FoS 1 (${pct}%), wetness ${step.wetFraction.toFixed(2)}. `
-    + `Over the 16 days the failing fraction moves ${(run2.moved * 100).toFixed(1)} points on `
-    + `${run2.rainTotal.toFixed(0)} mm of forecast rain — a flat run means a dry forecast, not a frozen map.`);
+    + `FoS here spans ${run2.lo.toFixed(2)}–${run2.hi.toFixed(2)} across `
+    + `${run2.steps.length} steps of ${run2.stepHours}h on ${run2.rainTotal.toFixed(0)} mm of GFS rain.`);
   // The Hub charts the same numbers rather than computing its own.
   if (window.self !== window.top) {
     try {
@@ -249,8 +269,10 @@ export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
   // Each cell carries its own rainfall history, so the wet fraction is a
   // surface too — a single catchment-wide series would make the map a
   // recolouring of the slope raster rather than a risk model.
+  const stepHours = weather.stepHours || 24;
   const series = table.cells.map((cell) => wetnessSeries(
     weather.dates.map((_, s) => rainAt(weather.series, cell.lat, cell.lon, s)),
+    { stepHours },
   ));
   const steps = weather.dates.map((date, s) => {
     const values = new Float32Array(table.cells.length).fill(NaN);
@@ -292,11 +314,28 @@ export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
   if (!layer) { say("The FoS layer could not be drawn."); return { ok: false }; }
   layer.raster = raster;
 
+  let lo = Infinity;
+  let hi = -Infinity;
+  steps.forEach((st) => st.values.forEach((v) => {
+    if (!Number.isFinite(v)) return;
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }));
+  // A percentile rather than the extremes: one improbable cell at FoS 40 would
+  // otherwise compress every real value into the first pixel of the ramp.
+  const sorted = steps[0].values.filter(Number.isFinite).slice().sort((a, b) => a - b);
+  if (sorted.length > 20) {
+    lo = Math.min(lo, sorted[Math.floor(sorted.length * 0.02)]);
+    hi = sorted[Math.floor(sorted.length * 0.98)];
+  }
   const spread = steps.map((st) => st.failingFraction);
   const moved = Math.max(...spread) - Math.min(...spread);
   const rainTotal = weather.series.reduce((sum, ser) =>
     sum + ser.rain.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0), 0) / weather.series.length;
-  state.run = { dates: weather.dates, steps, cells: table.cells, layer, band, moved, rainTotal };
+  state.run = {
+    dates: weather.dates, steps, cells: table.cells, layer, band, moved, rainTotal, lo, hi,
+    stepHours: weather.stepHours || 24,
+  };
   state.step = -1;
   lockView(table.bounds);
   watchClock();

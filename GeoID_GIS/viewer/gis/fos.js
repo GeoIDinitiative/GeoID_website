@@ -82,15 +82,19 @@ export function materialFor(description) {
  * whole reason a time-stepped FoS differs from a single rainfall map, and a
  * more elaborate model would need soil data this screening does not have.
  */
-export function wetnessSeries(dailyRainMm, {
-  capacityMm = 120, drainPerDay = 0.12, initial = 0.2,
+export function wetnessSeries(rainMm, {
+  capacityMm = 120, drainPerDay = 0.12, initial = 0.2, stepHours = 24,
 } = {}) {
   let m = Math.max(0, Math.min(1, initial));
-  return (dailyRainMm || []).map((rain) => {
+  // Drainage is a RATE. Feeding an hourly series a per-day recession dries the
+  // column twenty-four times too fast and every storm vanishes within the hour
+  // it fell — which looks exactly like a map that does not respond to rain.
+  const drainPerStep = drainPerDay * (Math.max(0.001, stepHours) / 24);
+  return (rainMm || []).map((rain) => {
     const add = Number.isFinite(rain) ? Math.max(0, rain) / capacityMm : 0;
     m = Math.min(1, m + add);
     const before = m;
-    m = Math.max(0, m - drainPerDay);          // drainage applies to the NEXT day
+    m = Math.max(0, m - drainPerStep);         // drainage applies to the NEXT step
     return Number(before.toFixed(4));
   });
 }
