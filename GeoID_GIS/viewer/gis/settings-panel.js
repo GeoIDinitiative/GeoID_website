@@ -43,7 +43,14 @@ export function looksSecret(value) {
 // the Google console beside the redirect-origin allowlist that protects it,
 // and inventing one would produce a sign-in that fails with a confusing error
 // rather than an honest empty field.
-const DEFAULTS = { clientId: "", project: "geoid-504623" };
+// Both ship: a Client ID travels in the sign-in URL of every request that
+// uses it, and a project id is in every REST path. Neither is a secret —
+// what protects this pair is the Authorised JavaScript origins list in the
+// Google console, which is why the app checks the page's origin first.
+const DEFAULTS = {
+  clientId: "473900633008-n15n9va0orhq6v0f5g83bjbeq6r6jhh9.apps.googleusercontent.com",
+  project: "geoid-504623",
+};
 
 export function read() {
   try {
