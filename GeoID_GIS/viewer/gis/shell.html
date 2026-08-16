@@ -206,13 +206,6 @@
             </div>
           </details>
           <details class="gis-tool-section">
-            <summary>Analysis tools</summary>
-            <div class="gis-tool-body">
-              <p class="tool-copy">Every tool, grouped. Press <strong>/</strong> to search them by name.</p>
-              <div id="gis-tool-catalogue"></div>
-            </div>
-          </details>
-          <details class="gis-tool-section">
             <summary>Explore &amp; Edit</summary>
             <div class="gis-tool-body">
               <div class="measure-actions">
@@ -279,6 +272,16 @@
           </div>
         </summary>
         <div class="section-body toolbox-group-body">
+          <!-- The toolbox belongs to THIS panel. It was in Preprocess, which is
+               a different button on the rail: the tools were present and
+               nobody pressing Analysis would ever find them. -->
+          <details class="gis-tool-section">
+            <summary>Analysis tools</summary>
+            <div class="gis-tool-body">
+              <p class="tool-copy">Every tool, grouped. Press <strong>/</strong> to search them by name.</p>
+              <div id="gis-tool-catalogue"></div>
+            </div>
+          </details>
           <div id="analysis-tools-host">
             <!-- The Extract From Layers panel, identical to the Earth page's.
                  toolbox.js MOVES this into the host by id, so the host was empty
