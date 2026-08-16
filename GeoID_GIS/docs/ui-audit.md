@@ -212,18 +212,24 @@ easier.
 | --- | --- |
 | 1 Drawn polygons are layers | **done** — registered on draw, deduplicated by shape, area computed from the ring |
 | 2 Zoom floor by extent | **done** — `hasDrape()` qualifies any local layer; verified false → true on a drawn box |
-| 3 Project group | **done** — name, study area, counts by kind, last five writes, each a button back to the globe |
+| 3 Project group | **withdrawn** — the shell's nav header already names the open project (`#nav-context`); a sidebar group repeated it. F6's real content is that the GIS cannot see the project's *contents*, which the header does not carry either — left open, deliberately, rather than solved by duplication |
 | 4 Verb-named groups | **done** — Project · Data · Analyse · Style · Export, and the Attribute Table and Query panels moved to Analyse |
 | 5 Structural UI tests | **done** — `tests/ui.py`, 12 checks on Earth and Mars; found the `GeoIDLayers` seam bug on its first run |
-| 6 One panel source | **not started** — see below |
+| 6 One panel source | **done** — `panels.js` holds the shared markup (36 KB, 189 ids); both pages carry only `<div id="gis-panel-host">`, and a test asserts neither may define a group of its own |
 | 7 One output rule | **partly** — georeferencing and drawn areas now record to the project like tool output; the remaining gap is a per-layer "save to project" for anything imported |
 
-**Why 6 is still open.** Unifying the two markup files means moving every
-panel into a module that renders it, for ten viewers, in one change — and the
-thing that made that change safe (the structural tests, step 5) only started
-existing today. The tests now assert id parity between the two files, so drift
-is caught rather than discovered; that lowers the cost of doing 6 properly
-later and removes the reason to rush it now.
+**How 6 went.** Measured first: six of the seven comparable groups were
+byte-identical and the seventh differed only by a runtime move that had never
+been reconciled. That made the unification a move rather than a rewrite. The
+structural tests from step 5 were what made it checkable, and they were
+extended rather than exempted — `panel_ids` reads the module as well as the
+page, and a new check asserts neither HTML file defines a group at all, which
+is stronger than the parity it replaces.
+
+**What remains open**, honestly: F6's substance — the GIS showing what the
+project *contains* — and F7's last mile, a per-layer "save to project" for
+anything imported. The Project group was the wrong answer to the first and has
+been withdrawn.
 
 Steps 1 and 2 are hours, not days, and they are the two you named.
 
