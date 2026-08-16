@@ -14,13 +14,14 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260816-f61b5f5";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-f61b5f5";
-import { makeRaster } from "./raster-analysis.js?v=20260816-f61b5f5";
+} from "./geoid-pipeline.js?v=20260816-94ec560";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-94ec560";
+import * as EE from "./gee-live.js?v=20260816-94ec560";
+import { makeRaster } from "./raster-analysis.js?v=20260816-94ec560";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260816-f61b5f5";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260816-f61b5f5";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260816-94ec560";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260816-94ec560";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -274,6 +275,40 @@ export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
     ? boundsOfGeometry(viewer.getExtractionGeometry("study"))
     : dem.bounds;
 
+  /**
+   * Earth Engine first, when it is configured.
+   *
+   * Same GFS, taken from the source the project asked for, over the study
+   * area as a GRID rather than a handful of points. If Earth Engine is not
+   * set up, or the sign-in is declined, or a request fails, the Open-Meteo
+   * path still runs — a forecast the user did not have to configure beats a
+   * blank map, and the status line says which one produced the numbers.
+   */
+  const ee = EE.settings();
+  if (ee.clientId && ee.project) {
+    say("Signing in to Earth Engine…");
+    try {
+      const eeFrames = EE.frames(new Date().toISOString(), { hours: 384, stepHours: 3 });
+      const grids = [];
+      for (let i = 0; i < eeFrames.length; i += 1) {
+        say(`Earth Engine: GFS step ${i + 1} of ${eeFrames.length}…`);
+        // eslint-disable-next-line no-await-in-loop
+        grids.push(await EE.fetchStepGrid(eeFrames[i], area));
+      }
+      const weatherEE = {
+        ok: true,
+        dates: eeFrames.map((f) => f.from),
+        stepHours: 3,
+        series: null,
+        grids,
+        area,
+      };
+      return await computeAndDraw({ weather: weatherEE, dem, base, area, maxCells });
+    } catch (error) {
+      say(`Earth Engine: ${error.message} — falling back to the open GFS feed.`);
+    }
+  }
+
   say("Asking GFS for the study area…");
   const points = weatherPoints(area, { across: 4 });
   let weather;
@@ -288,6 +323,10 @@ export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
     return { ok: false };
   }
 
+  return computeAndDraw({ weather, dem, base, area, maxCells });
+}
+
+async function computeAndDraw({ weather, dem, base, area, maxCells }) {
   say("Reading slope and geology…");
   const table = buildCells(dem, area, { maxCells, geologyAt: base.geologyAt });
   if (!table.ok) { say(table.message); return { ok: false }; }
@@ -297,8 +336,15 @@ export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
   // surface too — a single catchment-wide series would make the map a
   // recolouring of the slope raster rather than a risk model.
   const stepHours = weather.stepHours || 24;
+  // One reader for both sources: a grid per step from Earth Engine, or the
+  // coarse point set interpolated. The pipeline below cannot tell them apart,
+  // which is what makes swapping the source a one-line change rather than a
+  // second pipeline.
+  const rainFor = weather.grids
+    ? (cell, s) => EE.sampleGrid(weather.grids[s], weather.area, cell.lat, cell.lon)
+    : (cell, s) => rainAt(weather.series, cell.lat, cell.lon, s);
   const series = table.cells.map((cell) => wetnessSeries(
-    weather.dates.map((_, s) => rainAt(weather.series, cell.lat, cell.lon, s)),
+    weather.dates.map((_, s) => rainFor(cell, s)),
     { stepHours },
   ));
   const steps = weather.dates.map((date, s) => {
