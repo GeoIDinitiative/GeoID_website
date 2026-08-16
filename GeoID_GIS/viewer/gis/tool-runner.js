@@ -1,9 +1,11 @@
-import * as GP from "./geoprocessing.js?v=20260816-1a4e46c";
-import * as RA from "./raster-analysis.js?v=20260816-1a4e46c";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-1a4e46c";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-1a4e46c";
-import { CRS_OPTIONS } from "./projection.js?v=20260816-1a4e46c";
-import * as IN from "./interpolation.js?v=20260816-1a4e46c";
+import * as GP from "./geoprocessing.js?v=20260816-960ffbc";
+import * as RA from "./raster-analysis.js?v=20260816-960ffbc";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-960ffbc";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-960ffbc";
+import { CRS_OPTIONS } from "./projection.js?v=20260816-960ffbc";
+import * as IN from "./interpolation.js?v=20260816-960ffbc";
+import * as VAL from "./validation.js?v=20260816-960ffbc";
+import * as EX from "./analysis-extra.js?v=20260816-960ffbc";
 
 // The descriptor registry and run pipeline (tool-ux-spec.md section 1). One
 // table holds every tool the toolbox knows; one pipeline runs any of them. The
@@ -29,6 +31,27 @@ import * as IN from "./interpolation.js?v=20260816-1a4e46c";
 
 const CRS_CHOICES = CRS_OPTIONS.filter((c) => c.id !== "none")
   .map((c) => ({ id: c.id, name: c.label }));
+
+/**
+ * One raster cell at a coordinate. `raster-analysis` samples whole point
+ * collections but exports nothing for a single lat/lon, and the validation
+ * tools need exactly that — once per observation, thousands of times.
+ * Nearest-cell rather than interpolated: a classified surface has no meaningful
+ * value between its classes, and validation runs on classified surfaces.
+ */
+function sampleRaster(raster, lat, lon) {
+  if (!raster?.band) return NaN;
+  const { bounds, width, height } = raster;
+  if (lat < bounds.minY || lat > bounds.maxY || lon < bounds.minX || lon > bounds.maxX) return NaN;
+  const x = Math.min(width - 1, Math.max(0, Math.floor(
+    ((lon - bounds.minX) / (bounds.maxX - bounds.minX)) * width)));
+  const y = Math.min(height - 1, Math.max(0, Math.floor(
+    ((bounds.maxY - lat) / (bounds.maxY - bounds.minY)) * height)));
+  const v = raster.band[y * width + x];
+  if (!Number.isFinite(v)) return NaN;
+  if (raster.noData != null && Number.isFinite(raster.noData) && v === raster.noData) return NaN;
+  return v;
+}
 
 export const TOOLS = [
   // ── Vector geoprocessing (the legacy VECTOR_OPS table, one row each) ──────
@@ -903,8 +926,290 @@ export const TOOLS = [
       },
     },
   },
+  /* ── Validation (Is the model any good?) ─────────────────────────────────
+     Every tool above makes a map; these say whether to believe it. */
+  {
+    id: "rocAuc",
+    label: "ROC / AUC",
+    category: "Validation",
+    blurb: "How well a surface separates observed occurrences from non-occurrences.",
+    keywords: ["validate", "accuracy", "auc", "roc", "skill", "performance"],
+    inputs: [
+      { name: "input", label: "Model raster", type: "raster" },
+      { name: "observations", label: "Observations", type: "vector" },
+    ],
+    params: [
+      { name: "field", label: "Outcome field (blank = all are occurrences)", kind: "field" },
+      { name: "positiveValue", label: "Value meaning \u201cit happened\u201d", kind: "text", default: "" },
+    ],
+    outputType: "table",
+    outputName: "roc_{input}",
+    engines: {
+      native: (i, p) => {
+        const sample = (lat, lon) => sampleRaster(i.input.raster, lat, lon);
+        const pairs = VAL.pairsFromFeatures(i.observations.collection.features, sample, {
+          field: p.field || null,
+          positiveValue: p.positiveValue === "" ? null : p.positiveValue,
+        });
+        const roc = VAL.rocCurve(pairs);
+        if (!roc.ok) return { ok: false, message: roc.message };
+        const best = VAL.bestThreshold(pairs);
+        return {
+          rows: roc.points.map((pt) => ({
+            threshold: Number.isFinite(pt.score) ? Number(pt.score.toFixed(4)) : "",
+            false_positive_rate: pt.fpr, true_positive_rate: pt.tpr,
+          })),
+          message: `AUC ${roc.auc} over ${roc.positives} occurrences and ${roc.negatives} `
+            + `non-occurrences. Best split at ${Number(best.threshold).toFixed(3)} `
+            + `(catches ${(best.tpr * 100).toFixed(0)}% for ${(best.fpr * 100).toFixed(0)}% false alarms).`,
+        };
+      },
+    },
+  },
+  {
+    id: "successRate",
+    label: "Success-rate curve",
+    category: "Validation",
+    blurb: "What share of recorded events falls in the highest-ranked share of the area.",
+    keywords: ["validate", "success", "rate", "curve", "landslide", "auc", "inventory"],
+    inputs: [
+      { name: "input", label: "Susceptibility raster", type: "raster" },
+      { name: "events", label: "Event inventory", type: "vector" },
+    ],
+    params: [{ name: "steps", label: "Steps", kind: "number", default: 100, min: 10, step: 10 }],
+    outputType: "table",
+    outputName: "success_{input}",
+    engines: {
+      native: (i, p) => {
+        const sample = (lat, lon) => sampleRaster(i.input.raster, lat, lon);
+        const eventScores = EX.pointsOf(i.events.collection)
+          .map((pt) => sample(pt.lat, pt.lon)).filter(Number.isFinite);
+        const out = VAL.successRate(VAL.rasterValues(i.input.raster), eventScores, p.steps || 100);
+        if (!out.ok) return { ok: false, message: out.message };
+        const at = (f) => out.points.find((q) => Math.abs(q.areaFraction - f) < 1e-9);
+        return {
+          rows: out.points.map((q) => ({
+            area_fraction: q.areaFraction, event_fraction: q.eventFraction, threshold: q.threshold,
+          })),
+          message: `AUC ${out.auc}. The top 10% of the area holds `
+            + `${((at(0.1)?.eventFraction || 0) * 100).toFixed(1)}% of ${out.events} events; `
+            + `the top 25% holds ${((at(0.25)?.eventFraction || 0) * 100).toFixed(1)}%.`,
+        };
+      },
+    },
+  },
+  {
+    id: "confusion",
+    label: "Confusion matrix",
+    category: "Validation",
+    blurb: "True and false positives at a threshold, with precision, recall and kappa.",
+    keywords: ["validate", "accuracy", "kappa", "precision", "recall", "matrix", "error"],
+    inputs: [
+      { name: "input", label: "Model raster", type: "raster" },
+      { name: "observations", label: "Observations", type: "vector" },
+    ],
+    params: [
+      { name: "threshold", label: "Threshold", kind: "number", default: 0.5, step: 0.1 },
+      { name: "field", label: "Outcome field", kind: "field" },
+    ],
+    outputType: "table",
+    outputName: "confusion_{input}",
+    engines: {
+      native: (i, p) => {
+        const sample = (lat, lon) => sampleRaster(i.input.raster, lat, lon);
+        const pairs = VAL.pairsFromFeatures(i.observations.collection.features, sample,
+          { field: p.field || null });
+        const m = VAL.confusionMatrix(pairs, Number(p.threshold));
+        if (!m.ok) return { ok: false, message: m.message };
+        return {
+          rows: [
+            { measure: "true positives", value: m.tp },
+            { measure: "false positives", value: m.fp },
+            { measure: "false negatives", value: m.fn },
+            { measure: "true negatives", value: m.tn },
+            { measure: "accuracy", value: m.accuracy },
+            { measure: "precision", value: m.precision },
+            { measure: "recall (sensitivity)", value: m.recall },
+            { measure: "specificity", value: m.specificity },
+            { measure: "F1", value: m.f1 },
+            { measure: "Cohen's kappa", value: m.kappa },
+          ],
+          message: `At ${m.threshold}: accuracy ${m.accuracy}, kappa ${m.kappa} over ${m.n} observations.`
+            + (m.kappa != null && m.kappa < 0.2
+              ? " Kappa this low means the accuracy is mostly the base rate, not skill." : ""),
+        };
+      },
+    },
+  },
+  {
+    id: "randomSample",
+    label: "Random sample points",
+    category: "Validation",
+    blurb: "Reproducible points spread evenly over a raster's extent, for validation.",
+    keywords: ["sample", "random", "validation", "points", "training", "seed"],
+    inputs: [{ name: "input", label: "Extent from raster", type: "raster" }],
+    params: [
+      { name: "count", label: "Points", kind: "number", default: 200, min: 1, step: 50 },
+      { name: "seed", label: "Seed (same seed, same points)", kind: "number", default: 1, min: 1 },
+    ],
+    outputType: "vector",
+    outputName: "sample_{input}",
+    engines: {
+      native: (i, p) => {
+        const raster = i.input.raster;
+        const points = VAL.randomPoints(raster.bounds, Number(p.count) || 200, {
+          seed: Number(p.seed) || 1,
+          sampler: (lat, lon) => sampleRaster(raster, lat, lon),
+        });
+        if (!points.length) return { ok: false, message: "no sample point fell on data" };
+        return {
+          type: "FeatureCollection",
+          features: points.map((pt, n) => ({
+            type: "Feature",
+            properties: { point: n + 1, value: pt.value, seed: Number(p.seed) || 1 },
+            geometry: { type: "Point", coordinates: [pt.lon, pt.lat] },
+          })),
+        };
+      },
+    },
+  },
+  {
+    id: "stratifiedSample",
+    label: "Stratified sample points",
+    category: "Validation",
+    blurb: "Equal numbers from each class, so the rare high class is not missed.",
+    keywords: ["sample", "stratified", "class", "validation", "balanced"],
+    inputs: [{ name: "input", label: "Classified raster", type: "raster" }],
+    params: [
+      { name: "perClass", label: "Points per class", kind: "number", default: 50, min: 1, step: 10 },
+      { name: "seed", label: "Seed", kind: "number", default: 1, min: 1 },
+    ],
+    outputType: "vector",
+    outputName: "strata_{input}",
+    engines: {
+      native: (i, p) => {
+        const raster = i.input.raster;
+        const seen = new Set();
+        VAL.rasterValues(raster).forEach((v) => { if (seen.size < 40) seen.add(Math.round(v)); });
+        const points = VAL.stratifiedPoints(raster.bounds,
+          (lat, lon) => sampleRaster(raster, lat, lon),
+          { perClass: Number(p.perClass) || 50, seed: Number(p.seed) || 1, classes: [...seen] });
+        if (!points.length) return { ok: false, message: "no class could be sampled" };
+        return {
+          type: "FeatureCollection",
+          features: points.map((pt, n) => ({
+            type: "Feature",
+            properties: { point: n + 1, class: Number(pt.class), value: pt.value },
+            geometry: { type: "Point", coordinates: [pt.lon, pt.lat] },
+          })),
+        };
+      },
+    },
+  },
+  /* ── The four raster functions the hazard work needed ───────────────────── */
+  {
+    id: "twi",
+    label: "Topographic wetness index",
+    category: "Surface analysis",
+    blurb: "ln(upslope area / tan slope) — where water gathers. Needs flow accumulation and slope.",
+    keywords: ["twi", "wetness", "saturation", "flood", "hydrology", "index"],
+    inputs: [
+      { name: "input", label: "Flow accumulation", type: "raster" },
+      { name: "slope", label: "Slope (degrees)", type: "raster" },
+    ],
+    params: [{ name: "minSlopeDeg", label: "Flat-ground floor (deg)", kind: "number", default: 0.1, step: 0.05, min: 0.001 }],
+    outputType: "raster",
+    outputName: "twi_{input}",
+    engines: {
+      native: (i, p) => {
+        const out = EX.topographicWetness(i.input.raster, i.slope.raster,
+          { minSlopeDeg: Number(p.minSlopeDeg) || 0.1 });
+        return out.ok ? out.raster : { ok: false, message: out.message };
+      },
+    },
+  },
+  {
+    id: "mosaic",
+    label: "Mosaic rasters",
+    category: "Surface analysis",
+    blurb: "Merge tiles into one grid at the finest input resolution.",
+    keywords: ["merge", "mosaic", "tiles", "combine", "join", "dem"],
+    inputs: [
+      { name: "input", label: "First raster", type: "raster" },
+      { name: "second", label: "Second raster", type: "raster" },
+    ],
+    params: [{
+      name: "method", label: "Where they overlap", kind: "select", default: "first",
+      options: [
+        { value: "first", label: "Keep the first" }, { value: "last", label: "Keep the last" },
+        { value: "mean", label: "Average" }, { value: "max", label: "Highest" },
+        { value: "min", label: "Lowest" },
+      ],
+    }],
+    outputType: "raster",
+    outputName: "mosaic_{input}",
+    engines: {
+      native: (i, p) => {
+        const out = EX.mosaic([i.input.raster, i.second.raster], { method: p.method || "first" });
+        return out.ok ? out.raster : { ok: false, message: out.message };
+      },
+    },
+  },
+  {
+    id: "density",
+    label: "Point density (KDE)",
+    category: "Surface analysis",
+    blurb: "Turn a scatter of events into a surface, per square kilometre.",
+    keywords: ["density", "kde", "kernel", "heatmap", "inventory", "hotspot"],
+    inputs: [{ name: "input", label: "Points", type: "vector" }],
+    params: [
+      { name: "radiusKm", label: "Search radius (km)", kind: "number", default: 5, min: 0.1, step: 1 },
+      { name: "cellSizeDeg", label: "Cell size (deg)", kind: "number", default: 0.005, min: 0.0001, step: 0.001 },
+    ],
+    outputType: "raster",
+    outputName: "density_{input}",
+    engines: {
+      native: (i, p) => {
+        const points = EX.pointsOf(i.input.collection);
+        if (!points.length) return { ok: false, message: "that layer holds no points" };
+        const pad = (Number(p.radiusKm) || 5) / 100;
+        const bounds = points.reduce((acc, pt) => ({
+          minX: Math.min(acc.minX, pt.lon - pad), minY: Math.min(acc.minY, pt.lat - pad),
+          maxX: Math.max(acc.maxX, pt.lon + pad), maxY: Math.max(acc.maxY, pt.lat + pad),
+        }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
+        const out = EX.kernelDensity(points, bounds, {
+          radiusKm: Number(p.radiusKm) || 5,
+          cellSizeDeg: Number(p.cellSizeDeg) || 0.005,
+        });
+        return out.ok ? out.raster : { ok: false, message: out.message };
+      },
+    },
+  },
+  {
+    id: "histogram",
+    label: "Histogram & statistics",
+    category: "Zonal statistics",
+    blurb: "What is actually in this raster: counts per bin, mean, median and spread.",
+    keywords: ["histogram", "statistics", "distribution", "summary", "mean", "median"],
+    inputs: [{ name: "input", label: "Raster", type: "raster" }],
+    params: [{ name: "bins", label: "Bins", kind: "number", default: 20, min: 2, step: 1 }],
+    outputType: "table",
+    outputName: "histogram_{input}",
+    engines: {
+      native: (i, p) => {
+        const out = EX.histogram(VAL.rasterValues(i.input.raster), { bins: Number(p.bins) || 20 });
+        if (!out.ok) return { ok: false, message: out.message };
+        return {
+          rows: out.bins.map((b) => ({
+            from: b.from, to: b.to, count: b.count, fraction: b.fraction,
+          })),
+          message: `${out.count.toLocaleString()} cells, ${out.min} to ${out.max}, `
+            + `mean ${out.mean}, median ${out.median}, sd ${out.stdDev}.`,
+        };
+      },
+    },
+  },
 ];
-
 export const toolById = (id) => TOOLS.find((t) => t.id === id);
 
 /**
@@ -1046,7 +1351,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 
   let why = "";
   try {
-    const client = await import("./sidecar-client.js?v=20260816-1a4e46c");
+    const client = await import("./sidecar-client.js?v=20260816-960ffbc");
     await client.probe();
     const status = client.engineStatus(desc);
     // A tool with no native engine is sidecar-only: size is irrelevant, the
@@ -1101,7 +1406,7 @@ export async function runToolAuto(toolId, inputs = {}, params = {}, opts = {}) {
 async function persistDerived(desc, layer, name, record) {
   if (!layer) return null;
   try {
-    const bridge = await import("./research/bridge.js?v=20260816-1a4e46c");
+    const bridge = await import("./research/bridge.js?v=20260816-960ffbc");
     if (!bridge.isArmed?.()) return null;
     const provenance = {
       tool: record.tool,
@@ -1113,12 +1418,12 @@ async function persistDerived(desc, layer, name, record) {
       created_at: new Date(record.t).toISOString(),
     };
     if (desc.outputType === "raster" && layer.raster) {
-      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260816-1a4e46c");
+      const { writeGeoTiff } = await import("./geotiff-writer.js?v=20260816-960ffbc");
       return await bridge.saveProcessed(`${name}.tif`, writeGeoTiff(layer.raster),
         { mime: "image/tiff", provenance });
     }
     if (layer.collection) {
-      const { toGeoJson } = await import("./vector-formats.js?v=20260816-1a4e46c");
+      const { toGeoJson } = await import("./vector-formats.js?v=20260816-960ffbc");
       return await bridge.saveProcessed(`${name}.geojson`, toGeoJson(layer.collection),
         { mime: "application/geo+json", provenance });
     }

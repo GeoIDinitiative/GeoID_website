@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260816-1a4e46c";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260816-1a4e46c";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260816-1a4e46c";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260816-1a4e46c";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-1a4e46c";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260816-1a4e46c";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260816-1a4e46c";
-import { loadMshFile } from "./msh-adapter.js?v=20260816-1a4e46c";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260816-1a4e46c";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260816-960ffbc";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260816-960ffbc";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260816-960ffbc";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260816-960ffbc";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-960ffbc";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260816-960ffbc";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260816-960ffbc";
+import { loadMshFile } from "./msh-adapter.js?v=20260816-960ffbc";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260816-960ffbc";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
