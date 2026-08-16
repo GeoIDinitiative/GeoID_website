@@ -361,15 +361,26 @@
               <label class="row"><span>Source layer</span>
                 <select id="extract-source" class="input"></select>
               </label>
-              <label class="row"><span>Geometry</span>
-                <select id="extract-geometry" class="input">
-                  <option value="pin">Dropped pin</option>
-                  <option value="polygon">Drawn polygon</option>
-                  <option value="all">Whole layer</option>
-                </select>
+              <!-- Any number of points, not one pin: a transect, a set of
+                   boreholes, a station network. Paste a column from a
+                   spreadsheet — commas, tabs or spaces all separate. -->
+              <label class="row-stack"><span>Points — one per line, <code>lat, lon</code> (height and label optional)</span>
+                <textarea id="extract-points" class="input" rows="5"
+                  placeholder="54.67, -6.775&#10;Station 4: 54.60, -6.30, 120&#10;54.5985 -5.9301"></textarea>
               </label>
-              <button id="extract-run" class="button" type="button">Extract series</button>
+              <div class="gis-btn-row">
+                <button id="extract-pick" class="button" type="button">Pick on globe</button>
+                <button id="extract-add-centre" class="button" type="button">Add view centre</button>
+                <button id="extract-clear" class="button" type="button">Clear</button>
+              </div>
+              <button id="extract-run" class="button primary" type="button">Extract at points</button>
               <div id="extract-summary" class="gis-metric">Nothing extracted yet.</div>
+              <div id="extract-table" class="gis-point-table-host"></div>
+              <div class="gis-btn-row">
+                <button id="extract-csv" class="button" type="button" disabled>CSV</button>
+                <button id="extract-geojson" class="button" type="button" disabled>GeoJSON</button>
+                <button id="extract-to-layer" class="button" type="button" disabled>To layer</button>
+              </div>
             </div>
           </details>
           <details class="gis-tool-section">

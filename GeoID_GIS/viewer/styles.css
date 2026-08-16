@@ -2896,6 +2896,32 @@
       white-space: nowrap;
     }
 
+
+    /* ── GeoID mode: the datetime pill replaces the planet bar ─────────────────
+       Both live at bottom centre, so one has to stand down for the other to be
+       readable. Armed, the question is when — the globe's clock paces the
+       sixteen-day loop the Forecast tab plots — and the way out to the other nine
+       worlds is not what that mode is for. */
+    body[data-hub-armed="true"] #gis-planet-dock,
+    body[data-hub-armed="true"] .gis-planet-dock {
+      display: none !important;
+    }
+    /* GIS mode hides the clock (it paces the guided tour there). Armed, it IS the
+       instrument, so the hiding rule must not reach it. */
+    body[data-view-mode="gis"][data-hub-armed="true"] #gmt-clock {
+      display: block !important;
+      bottom: 0.6rem;
+      font-size: 0.82rem;
+      padding: 0.34rem 0.8rem;
+      border-color: rgba(var(--nav-accent-rgb, 255, 60, 172), 0.5);
+      box-shadow: 0 0 18px rgba(var(--nav-accent-rgb, 255, 60, 172), 0.18);
+    }
+    body.is-embedded[data-hub-armed="true"] #gmt-clock {
+      bottom: 0.5rem !important;
+      font-size: 0.62rem !important;
+      padding: 0.24rem 0.6rem !important;
+    }
+    
     #scale-readout {
       --scale-bar-width: 10.5rem;
       display: flex;

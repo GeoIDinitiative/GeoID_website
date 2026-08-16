@@ -302,6 +302,16 @@
     }
   }
 
+  /**
+   * GeoID mode is about this world at this moment, so the bottom centre
+   * carries the clock rather than the way out to the other nine.
+   *
+   * Done in CSS off `body[data-hub-armed]`, NOT by setting `hidden` here:
+   * planet-strip.js owns its dock and sets `dock.hidden` from its own mode
+   * handler, so whichever ran last won and the bar came back. State on the
+   * body is the one instruction neither module can overwrite by accident.
+   */
+
   /** Applies whatever the hub's armed state implies for pins and the readout. */
   function applyHubState() {
     const armed = currentMode === "gis" && hubArmed;

@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260816-d597d22";
+  from "./gis/geo-utils.js?v=20260816-a3afed3";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -991,7 +991,12 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
     const EARTH_ROTATION_PERIOD_MS = 120000;
     const UTC_DAY_MS = 24 * 60 * 60 * 1000;
     const CLOCK_TICK_INTERVAL_MS = 5 * 60 * 1000;
-    const SIMULATION_CYCLE_DAYS = 5;
+    // Sixteen, because that is GFS's horizon and the Analysis Hub's Forecast
+    // tab plots exactly that far. A five-day loop under a sixteen-day forecast
+    // meant the globe's clock said day 2 while the plot beside it said day 11,
+    // and neither was wrong on its own. The loop and the forecast now end
+    // together.
+    const SIMULATION_CYCLE_DAYS = 16;
     const SIMULATION_CYCLE_MS = SIMULATION_CYCLE_DAYS * UTC_DAY_MS;
     const CLOCK_INITIAL_MODE = "midnight"; // "load" | "midnight"
     let spinUtcDayStartMs = 0;
