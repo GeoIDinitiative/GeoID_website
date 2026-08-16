@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-17653d0";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-e4b0862";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -80,7 +80,7 @@ function elevationColor(t) {
   return [245, 245, 245];
 }
 
-function buildTexture(bands, width, height, range, noData) {
+function buildTexture(bands, width, height, range, noData, classes = null) {
   const canvas = document.createElement("canvas");
   const scale = Math.min(1, TEXTURE_MAX / Math.max(width, height));
   canvas.width = Math.max(1, Math.round(width * scale));
@@ -106,8 +106,16 @@ function buildTexture(bands, width, height, range, noData) {
           image.data[di + 3] = 0;
           continue;
         }
-        const t = (v - range.min) / (range.max - range.min);
-        const [r, g, b] = elevationColor(Math.min(1, Math.max(0, t)));
+        let r;
+        let g;
+        let b;
+        if (classes) {
+          const at = classes.indexOf(v);
+          [r, g, b] = classColour(at < 0 ? 0 : at, classes.length);
+        } else {
+          const t = (v - range.min) / (range.max - range.min);
+          [r, g, b] = elevationColor(Math.min(1, Math.max(0, t)));
+        }
         image.data[di] = r;
         image.data[di + 1] = g;
         image.data[di + 2] = b;
@@ -142,17 +150,53 @@ function buildTexture(bands, width, height, range, noData) {
  * sample is bounded because this runs on import, and a flat raster that is
  * wrongly called categorical loses nothing — its relief was invisible anyway.
  */
-function looksLikeHeightField(band, noData, limit = 40) {
+function distinctValues(band, noData, limit = 40) {
   const distinct = new Set();
   const stride = Math.max(1, Math.floor(band.length / 50000));
   for (let i = 0; i < band.length; i += stride) {
     const v = band[i];
     if (!Number.isFinite(v) || (noData !== null && v === noData)) continue;
     distinct.add(v);
-    if (distinct.size > limit) return true;
+    if (distinct.size > limit) return null;    // continuous: stop counting
   }
-  return false;
+  return [...distinct].sort((a, b) => a - b);
 }
+
+function looksLikeHeightField(band, noData, limit = 40) {
+  return distinctValues(band, noData, limit) === null;
+}
+
+/**
+ * The five-step risk ramp, green through red — ColorBrewer RdYlGn reversed,
+ * and the same colours the prototype page prints.
+ *
+ * A classified raster was being coloured with the hypsometric ELEVATION ramp,
+ * whose top stop is white: the worst class of a susceptibility map came out
+ * white, and the legend showed white as the layer's colour. Classes are not
+ * heights and must not borrow a height's palette. Fewer or more than five
+ * classes are sampled from the same ramp, so the reading stays "green is
+ * lower, red is worse" whatever the class count.
+ */
+const CLASS_RAMP = [
+  [26, 152, 80], [166, 217, 106], [255, 255, 191], [253, 174, 97], [215, 25, 28],
+];
+
+function classColour(index, count) {
+  if (count <= 1) return CLASS_RAMP[CLASS_RAMP.length - 1];
+  const t = index / (count - 1);
+  const at = t * (CLASS_RAMP.length - 1);
+  const i = Math.min(CLASS_RAMP.length - 2, Math.floor(at));
+  const f = at - i;
+  const a = CLASS_RAMP[i];
+  const b = CLASS_RAMP[i + 1];
+  return [
+    Math.round(a[0] + (b[0] - a[0]) * f),
+    Math.round(a[1] + (b[1] - a[1]) * f),
+    Math.round(a[2] + (b[2] - a[2]) * f),
+  ];
+}
+
+const hex = ([r, g, b]) => [r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("");
 
 function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, isDem, noData) {
   const geometry = new THREE.PlaneGeometry(1, 1, gridWidth - 1, gridHeight - 1);
@@ -293,14 +337,18 @@ function createRasterSampler(band, width, height, bounds, noData) {
 export function buildRasterLayer(bands, width, height, bounds, {
   name = "raster", noData = null, isDem = null,
 } = {}) {
-  // Not the band count: what the values actually are (see above).
-  const demLike = isDem === null
-    ? bands.length < 3 && looksLikeHeightField(bands[0], noData)
-    : isDem;
+  // Not the band count: what the values actually are (see above). The same
+  // scan answers both questions — is this a height field, and if not, which
+  // classes does it hold — so it runs once.
+  const classes = bands.length < 3 ? distinctValues(bands[0], noData) : null;
+  const demLike = isDem === null ? bands.length < 3 && classes === null : isDem;
+  // A raster the caller declared a DEM keeps the elevation ramp even if it
+  // happens to hold few values; a classified one never borrows it.
+  const classList = demLike ? null : classes;
   const gridWidth = Math.max(2, Math.min(MAX_GRID, width));
   const gridHeight = Math.max(2, Math.min(MAX_GRID, height));
   const range = computeRange(bands[0], noData);
-  const texture = buildTexture(bands, width, height, range, noData);
+  const texture = buildTexture(bands, width, height, range, noData, classList);
   const grid = resample(bands[0], width, height, gridWidth, gridHeight);
   const georeferenced = looksLikeGeographic(bounds);
 
@@ -316,6 +364,30 @@ export function buildRasterLayer(bands, width, height, bounds, {
   return {
     object3D,
     georeferenced,
+    /**
+     * What the map is drawn in, so the key can be read against it.
+     *
+     * The legend showed one white swatch for a five-class susceptibility map,
+     * because it fell back to the layer's material colour and the material is
+     * textured. A classified raster now hands over its actual classes and
+     * their colours; a continuous one hands over its ramp and its ends.
+     */
+    legendInfo: classList
+      ? {
+        palette: classList.map((_, i) => hex(classColour(i, classList.length))),
+        min: classList[0],
+        max: classList[classList.length - 1],
+        label: `${classList.length} classes`,
+        classes: classList.map((value, i) => ({
+          value, colour: `#${hex(classColour(i, classList.length))}`,
+        })),
+      }
+      : {
+        palette: [0, 0.25, 0.45, 0.65, 0.82, 1].map((t) => hex(elevationColor(t))),
+        min: Math.round(range.min),
+        max: Math.round(range.max),
+        label: "",
+      },
     bounds: georeferenced ? bounds : null,
     sampler: georeferenced ? createRasterSampler(bands[0], width, height, bounds, noData) : null,
     // Band 1 is what the sampler reads and what the drape colours from; the

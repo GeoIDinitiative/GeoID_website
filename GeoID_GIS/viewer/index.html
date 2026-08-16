@@ -18,11 +18,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700&family=Exo+2:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260816-17653d0-hazard-readout-large">
+  <link rel="stylesheet" href="styles.css?v=20260816-e4b0862-hazard-readout-large">
   <style>html,body{background:#000;margin:0}</style>
   <link rel="stylesheet" href="/styles/viewer-skin.css">
-  <script src="/scripts/tour-enter.js?v=20260816-17653d0" defer></script>
-  <script src="/scripts/ui-sound.js?v=20260816-17653d0" defer></script>
+  <script src="/scripts/tour-enter.js?v=20260816-e4b0862" defer></script>
+  <script src="/scripts/ui-sound.js?v=20260816-e4b0862" defer></script>
 </head>
 <body class="viewer-page">
   <div id="app"></div>
@@ -256,16 +256,6 @@
               <div class="row" id="vec-op-check-row" hidden><label id="vec-op-check-label" for="vec-op-check">Option</label><input id="vec-op-check" type="checkbox" checked></div>
               <button id="vec-op-run" class="tool-button" type="button">Run</button>
               <div id="vec-op-status" class="gis-metric">Buffer, clip, difference, intersect, union, dissolve, hull, centroids, simplify, reproject, spatial join.</div>
-            </div>
-          </details>
-          <details class="gis-tool-section">
-            <summary>Modelled Data</summary>
-            <div class="gis-tool-body">
-              <p class="tool-copy">Finished analyses that ship with the app. Tick to map, untick to take off the globe.</p>
-              <div class="row"><label for="model-ni-landslide-ranked">Landslide susceptibility (ranked)</label><input id="model-ni-landslide-ranked" type="checkbox" data-demo="ni-prototype" data-demo-file="0"></div>
-              <div class="row"><label for="model-ni-flood">Flood susceptibility</label><input id="model-ni-flood" type="checkbox" data-demo="ni-prototype" data-demo-file="1"></div>
-              <div class="row"><label for="model-ni-landslide-abs">Landslide susceptibility (absolute)</label><input id="model-ni-landslide-abs" type="checkbox" data-demo="ni-prototype" data-demo-file="2"></div>
-              <div id="demo-status" class="gis-metric">Northern Ireland prototype — susceptibility screening from open BGS, Met Office, Copernicus and OpenStreetMap data.</div>
             </div>
           </details>
           <details class="gis-tool-section">
@@ -872,8 +862,11 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
         </summary>
         <div class="section-body">
           <div class="control-stack">
-            <div class="section-summary-copy" style="margin-bottom:0.5rem;">Model layer placeholder.</div>
-            <p class="compact-copy">No modelled hazard data layers are connected yet.</p>
+            <div class="section-summary-copy" style="margin-bottom:0.5rem;">Finished analyses that ship with the app. Tick to map, untick to remove.</div>
+            <label class="compact-copy" style="display:flex;align-items:center;gap:0.45rem;margin:0.15rem 0;"><input type="checkbox" data-demo="ni-prototype" data-demo-file="0"> NI landslide susceptibility (ranked)</label>
+            <label class="compact-copy" style="display:flex;align-items:center;gap:0.45rem;margin:0.15rem 0;"><input type="checkbox" data-demo="ni-prototype" data-demo-file="1"> NI flood susceptibility</label>
+            <label class="compact-copy" style="display:flex;align-items:center;gap:0.45rem;margin:0.15rem 0;"><input type="checkbox" data-demo="ni-prototype" data-demo-file="2"> NI landslide susceptibility (absolute)</label>
+            <p id="demo-status" class="compact-copy" style="margin-top:0.4rem;">Northern Ireland prototype — susceptibility screening from open BGS, Met Office, Copernicus and OpenStreetMap data.</p>
           </div>
         </div>
       </details>
@@ -2011,7 +2004,7 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
     </div>
   </div>
 
-<script id="earth-manifest-script" src="earth-manifest.js?v=20260816-17653d0-blue-marble" defer></script>
+<script id="earth-manifest-script" src="earth-manifest.js?v=20260816-e4b0862-blue-marble" defer></script>
 <script>
   const statusNode = document.getElementById("status");
 
@@ -2090,38 +2083,38 @@ return layers.list().map(l =&gt; ({ name: l.name, type: l.type }));</textarea>
   void bootEarthViewer();
 </script>
 <script src="ui-controls.js" defer></script>
-<script src="gis/mode-manager.js?v=20260816-17653d0" defer></script>
-<script type="module" src="gis/atlas-assistant.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/import-manager.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/analysis-panel.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/toolbox.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/toolbox-ops.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/sidecar-client.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/tool-search.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/tool-dialog.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/charts.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/time.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/edit-tools.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/wfs-import.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/demo-layers.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/model-studio.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/layer-properties.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/layer-hierarchy.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/legend-dock.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/layer-export-dialog.js?v=20260816-17653d0"></script>
+<script src="gis/mode-manager.js?v=20260816-e4b0862" defer></script>
+<script type="module" src="gis/atlas-assistant.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/import-manager.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/analysis-panel.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/toolbox.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/toolbox-ops.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/sidecar-client.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/tool-search.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/tool-dialog.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/charts.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/time.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/edit-tools.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/wfs-import.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/demo-layers.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/model-studio.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/layer-properties.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/layer-hierarchy.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/legend-dock.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/layer-export-dialog.js?v=20260816-e4b0862"></script>
 <!-- Pre-processing and Extraction & Analysis, as workbenches on the tool
      rail rather than two more collapsibles in the sidebar column. -->
-<script type="module" src="gis/side-panels.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/project.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/events.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/gee.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/basemap-drape.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/zoom-bar.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/polygons.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/research/index.js?v=20260816-17653d0"></script>
-<script type="module" src="gis/planet-strip.js?v=20260816-17653d0"></script>
+<script type="module" src="gis/side-panels.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/project.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/events.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/gee.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/basemap-drape.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/zoom-bar.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/polygons.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/research/index.js?v=20260816-e4b0862"></script>
+<script type="module" src="gis/planet-strip.js?v=20260816-e4b0862"></script>
 <button id="music-btn" class="is-paused" title="Play music">▶ MUSIC</button>
-<script src="music.js?v=20260816-17653d0" defer></script>
+<script src="music.js?v=20260816-e4b0862" defer></script>
 <script>if (window.self !== window.top) document.body.classList.add("is-embedded");</script>
 
 </body>

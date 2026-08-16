@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260816-17653d0";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260816-17653d0";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260816-17653d0";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260816-17653d0";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-17653d0";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260816-17653d0";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260816-17653d0";
-import { loadMshFile } from "./msh-adapter.js?v=20260816-17653d0";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260816-17653d0";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260816-e4b0862";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260816-e4b0862";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260816-e4b0862";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260816-e4b0862";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-e4b0862";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260816-e4b0862";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260816-e4b0862";
+import { loadMshFile } from "./msh-adapter.js?v=20260816-e4b0862";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260816-e4b0862";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -386,6 +386,9 @@ async function importDataset(primaryFile, sidecars) {
     // layer without re-parsing the source file.
     layer.collection = result.collection || null;
     layer.raster = result.raster || null;
+    // The key has to say what the map is drawn in; without this it fell back
+    // to the material's colour, and a textured drape has none worth reading.
+    layer.legendInfo = result.legendInfo || null;
     layer.status = "loaded";
     (layer.georeferenced ? groups.geoGroup : groups.localGroup).add(result.object3D);
     placeLocalModel(result.object3D, window.GeoIDModeManager?.getMode?.());
@@ -531,6 +534,7 @@ export function addDerivedLayer(name, result, ext = "derived") {
     features: result.features || null,
     collection: result.collection || null,
     raster: result.raster || null,
+    legendInfo: result.legendInfo || null,
     derived: true,
   };
   layers.push(layer);
