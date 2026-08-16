@@ -88,8 +88,15 @@ class 1, and **0.0 % reaches class 5**. On a scale calibrated to work anywhere,
 Northern Ireland scores low — which is a true statement about a country whose
 highest point is 850 m, and is why the ranked map is the one to use locally.
 
-Flood susceptibility covers all 2.64 M cells: 10.7 % class 1, 43.7 % class 2,
-40.4 % class 3, 5.1 % class 4, 0.1 % class 5.
+Flood susceptibility, masked to land: 8.5 % class 1, 49.1 % class 2, 34.8 %
+class 3, 7.4 % class 4, 0.1 % class 5.
+
+**The mask was added because the rendered map showed the fault and no
+statistic did.** The DEM covers the whole bounding box and the sea sits at
+zero — the highest elevation class, flat, beside a river mouth — so the
+first flood map scored the Irish Sea as the most flood-prone ground in the
+country. Land is now defined as the bedrock geology coverage, which is
+where BGS maps rock, and both maps therefore cover the same 1.41 M cells.
 
 Coverage differs between the two because the landslide map needs bedrock
 geology, which stops at the UK border — the bounding box includes the Republic

@@ -373,7 +373,27 @@ const floodFactors = [
 ];
 if (permC) floodFactors.push({ raster: permC, weight: 0.20 });
 if (distC) floodFactors.push({ raster: distC, weight: 0.30 });  // drainage proximity stands in for flow accumulation
-const fsi = RA.weightedOverlay(floodFactors);
+const fsiRaw = RA.weightedOverlay(floodFactors);
+
+/**
+ * Mask to land, or the map scores the sea.
+ *
+ * The DEM covers the whole bounding box, and the sea sits at zero — which is
+ * the highest elevation class, beside a river mouth, on flat ground. The first
+ * flood map therefore painted the Irish Sea as the most flood-prone ground in
+ * the country, which the rendered image made obvious at a glance and no
+ * summary statistic did.
+ *
+ * The land definition is the one already in the data: the bedrock geology
+ * coverage. It is exactly "where BGS maps rock", which is the UK land surface,
+ * and it makes both maps cover the same ground so they can be read together.
+ */
+const fsi = {
+  ok: fsiRaw.ok,
+  raster: RA.makeRaster(Float32Array.from(fsiRaw.raster.band, (v, i) =>
+    (Number.isFinite(lithoC.band[i]) ? v : NaN)),
+  fsiRaw.raster.width, fsiRaw.raster.height, fsiRaw.raster.bounds, NaN),
+};
 const fsiC = RA.reclassify(fsi.raster,
   RA.parseReclassifyRules("1..1.8:1, 1.8..2.6:2, 2.6..3.4:3, 3.4..4.2:4, 4.2..5:5").rules);
 classStats(fsiC, `FLOOD SUSCEPTIBILITY (${AREA.toUpperCase()})`);
