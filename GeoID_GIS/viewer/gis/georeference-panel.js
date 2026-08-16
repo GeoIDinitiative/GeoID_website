@@ -102,6 +102,27 @@ async function place() {
     // returned null, which reads as "the image failed to decode".
     const layer = window.GeoIDImportManager?.addDerivedLayer?.(
       state.file.name, built, "image");
+    // One output rule: a tool that makes a layer also offers it to the project,
+    // with what it was made from. Georeferencing wrote nothing at all, so a
+    // placed image survived only as long as the tab did.
+    if (layer) {
+      try {
+        const { saveProcessed } = await import(`./research/bridge.js${new URL(import.meta.url).search}`);
+        await saveProcessed(`${state.file.name.replace(/\.[a-z]+$/i, "")}.geojson`,
+          JSON.stringify({
+            type: "Feature",
+            properties: { source: state.file.name, placed_by: mode, warning: warning || null },
+            geometry: {
+              type: "Polygon",
+              coordinates: [[[bounds.minX, bounds.minY], [bounds.maxX, bounds.minY],
+                [bounds.maxX, bounds.maxY], [bounds.minX, bounds.maxY], [bounds.minX, bounds.minY]]],
+            },
+          }),
+          { mime: "application/geo+json", provenance: { tool: "georeference", inputs: [state.file.name] } });
+      } catch (error) {
+        /* a closed or unwritable project must never fail the placement */
+      }
+    }
     status(layer
       ? `${state.file.name} placed over ${bounds.minY.toFixed(3)}–${bounds.maxY.toFixed(3)}°N, `
         + `${bounds.minX.toFixed(3)}–${bounds.maxX.toFixed(3)}°E.${warning ? ` ${warning}` : ""}`

@@ -206,6 +206,25 @@ easier.
 | 6 | **One panel source for ten worlds** (F4) | L | Drift becomes impossible rather than unlikely |
 | 7 | **One output rule** (F7) | M | Results are predictable and always recoverable |
 
+### Status, 2026-08-16
+
+| # | State |
+| --- | --- |
+| 1 Drawn polygons are layers | **done** — registered on draw, deduplicated by shape, area computed from the ring |
+| 2 Zoom floor by extent | **done** — `hasDrape()` qualifies any local layer; verified false → true on a drawn box |
+| 3 Project group | **done** — name, study area, counts by kind, last five writes, each a button back to the globe |
+| 4 Verb-named groups | **done** — Project · Data · Analyse · Style · Export, and the Attribute Table and Query panels moved to Analyse |
+| 5 Structural UI tests | **done** — `tests/ui.py`, 12 checks on Earth and Mars; found the `GeoIDLayers` seam bug on its first run |
+| 6 One panel source | **not started** — see below |
+| 7 One output rule | **partly** — georeferencing and drawn areas now record to the project like tool output; the remaining gap is a per-layer "save to project" for anything imported |
+
+**Why 6 is still open.** Unifying the two markup files means moving every
+panel into a module that renders it, for ten viewers, in one change — and the
+thing that made that change safe (the structural tests, step 5) only started
+existing today. The tests now assert id parity between the two files, so drift
+is caught rather than discovered; that lowers the cost of doing 6 properly
+later and removes the reason to rush it now.
+
 Steps 1 and 2 are hours, not days, and they are the two you named.
 
 ---

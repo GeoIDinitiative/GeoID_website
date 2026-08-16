@@ -91,6 +91,19 @@ export function captureDrawn({ name = null, stampedAt = null } = {}) {
   const built = buildVectorLayerResult(fc, { name: layerName });
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(layerName, built, "drawn");
   if (!layer) return { ok: false, message: "The layer could not be added — is the globe ready?" };
+  // Same rule as every tool's output: it is a layer AND it is offered to the
+  // project. A shape you drew and then lost with the tab is not a record.
+  void (async () => {
+    try {
+      const { saveProcessed } = await import(`./research/bridge.js${new URL(import.meta.url).search}`);
+      await saveProcessed(`${layerName.replace(/\s+/g, "_").toLowerCase()}.geojson`,
+        JSON.stringify(fc),
+        { mime: "application/geo+json", provenance: { tool: "draw", inputs: [] } });
+    } catch (error) {
+      /* never fail the draw because the project is closed */
+    }
+  })();
+
   return {
     ok: true,
     layer,
