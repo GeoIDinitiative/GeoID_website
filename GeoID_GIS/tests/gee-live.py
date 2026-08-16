@@ -76,7 +76,11 @@ def call(path, body, token, raw=False):
             data = r.read()
         return True, (data if raw else json.loads(data))
     except urllib.error.HTTPError as e:
-        return False, e.read().decode("utf8", "replace")[:400]
+        # NOT truncated. A 400-character cut hid `precipitation_rate` past the
+        # end of EE's band list and failed stage 2 for a band stage 3 then
+        # fetched successfully -- a false failure manufactured by the test's
+        # own tidiness. An error body is the useful part of a failed call.
+        return False, e.read().decode("utf8", "replace")
     except Exception as e:  # network, DNS, timeout
         return False, str(e)
 
@@ -149,7 +153,7 @@ def check(name, fn):
         print(f"  PASS  {name}" + (f"\n        {detail}" if detail else ""))
     except Exception as e:
         failed.append(name)
-        print(f"  FAIL  {name}\n        {e}")
+        print(f"  FAIL  {name}\n        {str(e)[:600]}")
 
 
 def main():
