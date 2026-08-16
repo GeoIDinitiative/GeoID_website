@@ -35,21 +35,47 @@ check("a bad start gives no frames rather than Invalid Date", () => {
   eq(G.frames("not a date").length, 0, "frames");
 });
 
-check("the request asks for a DIFFERENCE over the window", () => {
+check("the request is a serialised graph, which is the only shape EE accepts", () => {
+  // Rewritten after the first live call. These used to pin
+  // {collection, band, reducer, window, region} -- a readable object the API
+  // rejects outright with `Unknown name "collection"`. They passed throughout,
+  // because they checked my invention against itself. A test can only pin a
+  // contract it has actually seen honoured.
   const body = G.stepImageBody(G.frames("2026-08-16T00:00:00Z", { hours: 3, stepHours: 3 })[0], BOUNDS);
-  eq(body.expression.collection, "NOAA/GFS0P25", "collection");
-  eq(body.expression.band, "total_precipitation_surface", "band");
-  eq(body.expression.reducer, "difference", "cumulative band needs a difference");
-  eq(body.expression.window.start, "2026-08-16T00:00:00.000Z", "window start");
+  const v = body.expression.values;
+  eq(body.expression.result, "0", "the graph names its result");
+  eq(v["3"].functionInvocationValue.arguments.id.constantValue, "NOAA/GFS0P25", "collection");
+  eq(v["0"].functionInvocationValue.arguments.bandSelectors.constantValue[0],
+    "precipitation_rate", "band");
+  // Not filterDate: the API has no such algorithm. Its own list of 985 -- worth
+  // asking for rather than guessing at -- gives these three.
+  eq(v["2"].functionInvocationValue.functionName, "Collection.filter", "filter");
+  eq(v["4"].functionInvocationValue.functionName, "Filter.dateRangeContains", "predicate");
+  eq(v["5"].functionInvocationValue.arguments.start.constantValue,
+    "2026-08-16T00:00:00.000Z", "window start");
 });
 
-check("the region is the study area, closed", () => {
-  const ring = G.stepImageBody(G.frames("2026-08-16T00:00:00Z")[0], BOUNDS)
-    .expression.region.coordinates[0];
-  eq(ring.length, 5, "four corners and the close");
-  eq(JSON.stringify(ring[0]), JSON.stringify(ring[4]), "closed");
-  eq(ring[0][0], BOUNDS.minX, "west");
-  eq(ring[2][1], BOUNDS.maxY, "north");
+check("the grid is north-up and covers the study area exactly", () => {
+  const body = G.stepImageBody(G.frames("2026-08-16T00:00:00Z")[0], BOUNDS, { width: 64, height: 32 });
+  const t = body.grid.affineTransform;
+  eq(body.grid.crsCode, "EPSG:4326", "crs");
+  eq(t.translateX, BOUNDS.minX, "origin west");
+  // The origin is the TOP-left and scaleY is negative -- that is what north-up
+  // means in a geotransform. The wrong sign flips the map and still returns a
+  // perfectly plausible-looking picture.
+  eq(t.translateY, BOUNDS.maxY, "origin north");
+  eq(t.scaleY < 0, true, "north-up");
+  eq(t.scaleX * 64, BOUNDS.maxX - BOUNDS.minX, "spans the box east-west");
+  eq(t.scaleY * 32, -(BOUNDS.maxY - BOUNDS.minY), "spans the box north-south");
+});
+
+check("a rate becomes millimetres in an hour", () => {
+  // Measured over Northern Ireland: 8.664e-4 kg/m2/s was the wettest cell,
+  // which is 3.12 mm/h -- rain you would notice, and the check that the
+  // conversion runs the right way round.
+  eq(Math.round(G.mmPerHour(8.664e-4) * 1000) / 1000, 3.119, "mm per hour");
+  eq(G.mmPerHour(0), 0, "dry is dry");
+  eq(Number.isNaN(G.mmPerHour(null)), true, "no reading is not zero rain");
 });
 
 check("a map name becomes an XYZ template", () => {
@@ -62,7 +88,7 @@ check("a map name becomes an XYZ template", () => {
 check("the rain palette runs from nothing to heavy", () => {
   const vis = G.rainVis({ maxMm: 12 });
   eq(vis.max, 12, "max");
-  eq(vis.bands[0], "total_precipitation_surface", "band");
+  eq(vis.bands[0], "precipitation_rate", "band");
   if (vis.palette.length < 5) throw new Error("too few stops to read");
 });
 

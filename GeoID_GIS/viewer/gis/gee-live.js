@@ -49,28 +49,65 @@ export function frames(startIso, { hours = 384, stepHours = 3 } = {}) {
  * gives a surface that only ever grows — a map that can never dry out, which
  * looks like a broken model rather than a wrong reading.
  */
-export function stepImageBody(frame, bounds, { collection = "NOAA/GFS0P25" } = {}) {
-  const region = {
-    type: "Polygon",
-    coordinates: [[
-      [bounds.minX, bounds.minY], [bounds.maxX, bounds.minY],
-      [bounds.maxX, bounds.maxY], [bounds.minX, bounds.maxY], [bounds.minX, bounds.minY],
-    ]],
-  };
+const RAIN_BAND = "precipitation_rate";
+
+export function stepImageBody(frame, bounds, { collection = "NOAA/GFS0P25", width = 128, height = 128 } = {}) {
+  // Earth Engine takes a SERIALISED EXPRESSION GRAPH -- {values, result} with
+  // every node a functionInvocationValue. The readable object this used to
+  // send ({collection, band, reducer, window, region}) was rejected outright:
+  // `Unknown name "collection" at 'expression': Cannot find field`. It read
+  // well in a network log and could never have worked.
+  //
+  // Two more corrections are baked in here, both measured against the live API:
+  //
+  //   * there is no Collection.filterDate. The API's own algorithm list -- 985
+  //     of them, worth asking for rather than guessing at -- has Collection.filter
+  //     with Filter.dateRangeContains over a DateRange.
+  //   * the band is precipitation_rate. total_precipitation_surface is simply
+  //     not on these images, and that changes the physics for the better:
+  //     a rate is instantaneous, so millimetres in an hour is rate x 3600 and a
+  //     step needs no difference against the run's start. The cumulative-within-
+  //     a-run subtraction this pipeline was built around is not needed at all.
+  const spanX = bounds.maxX - bounds.minX;
+  const spanY = bounds.maxY - bounds.minY;
   return {
     expression: {
-      // A named expression rather than a serialised graph: EE accepts an
-      // "expression" object and this keeps the request readable in a network
-      // log, which matters when the failure mode is a 400 with no detail.
-      collection,
-      band: "total_precipitation_surface",
-      reducer: "difference",
-      window: { start: frame.from, end: frame.to },
-      region,
+      result: "0",
+      values: {
+        0: { functionInvocationValue: { functionName: "Image.select", arguments: {
+          input: { valueReference: "1" },
+          bandSelectors: { constantValue: [RAIN_BAND] } } } },
+        1: { functionInvocationValue: { functionName: "Collection.first", arguments: {
+          collection: { valueReference: "2" } } } },
+        2: { functionInvocationValue: { functionName: "Collection.filter", arguments: {
+          collection: { valueReference: "3" }, filter: { valueReference: "4" } } } },
+        3: { functionInvocationValue: { functionName: "ImageCollection.load", arguments: {
+          id: { constantValue: collection } } } },
+        4: { functionInvocationValue: { functionName: "Filter.dateRangeContains", arguments: {
+          leftValue: { valueReference: "5" },
+          rightField: { constantValue: "system:time_start" } } } },
+        5: { functionInvocationValue: { functionName: "DateRange", arguments: {
+          start: { constantValue: frame.from }, end: { constantValue: frame.to } } } },
+      },
     },
-    fileFormat: "GEO_TIFF",
-    grid: { dimensions: { width: 128, height: 128 } },
+    // NPY comes back as a typed array this code can read directly; GeoTIFF
+    // would mean parsing a container to recover numbers it already has.
+    fileFormat: "NPY",
+    grid: {
+      dimensions: { width, height },
+      // North-up: scaleY is negative and the origin is the TOP-left corner.
+      affineTransform: {
+        scaleX: spanX / width, shearX: 0, translateX: bounds.minX,
+        shearY: 0, scaleY: -spanY / height, translateY: bounds.maxY,
+      },
+      crsCode: "EPSG:4326",
+    },
   };
+}
+
+/** Millimetres in an hour from the rate EE returns (kg/m2/s == mm/s). */
+export function mmPerHour(rate) {
+  return Number.isFinite(rate) ? rate * 3600 : NaN;
 }
 
 /* ── 2. tiles ───────────────────────────────────────────────────────────── */
@@ -84,7 +121,7 @@ export function tileTemplate(mapName) {
 /** Visualisation for rainfall, in the units GFS reports (kg/m² ≈ mm). */
 export function rainVis({ maxMm = 10 } = {}) {
   return {
-    bands: ["total_precipitation_surface"],
+    bands: [RAIN_BAND],
     min: 0,
     max: maxMm,
     palette: ["000000", "1f4b99", "3d8fd1", "7ecfa4", "f4e04d", "e8712f", "c1272d"],
@@ -256,7 +293,15 @@ async function post(path, body) {
   const bearer = await token();
   const response = await fetch(`${EE}/projects/${project}${path}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${bearer}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${bearer}`,
+      "Content-Type": "application/json",
+      // Measured, not assumed: without this EVERY call returns 403 -- "the
+      // earthengine.googleapis.com API requires a quota project, which is not
+      // set by default". It costs one header and it was the first of four
+      // faults between this client and a working request.
+      "x-goog-user-project": project,
+    },
     body: JSON.stringify(body),
   });
   if (!response.ok) {
@@ -437,7 +482,7 @@ if (typeof window !== "undefined") {
     drawFetchArea,
     fillExtentSelect,
     fetchArea: () => fetchArea,
-    frames, stepImageBody, tileTemplate, rainVis, sampleGrid,
+    frames, stepImageBody, tileTemplate, rainVis, sampleGrid, mmPerHour,
     settings, token, fetchStepGrid, fetchStepTiles,
     originProblem, requiredOrigin,
   });

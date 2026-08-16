@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260816-63ad70a";
-import { samplerToRaster } from "./raster-analysis.js?v=20260816-63ad70a";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-63ad70a";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-63ad70a";
+import { currentBody } from "./bodies.js?v=20260816-7f8e66b";
+import { samplerToRaster } from "./raster-analysis.js?v=20260816-7f8e66b";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-7f8e66b";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-7f8e66b";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
