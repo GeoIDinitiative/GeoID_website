@@ -214,13 +214,85 @@ export async function fetchStepTiles(frame, bounds, options = {}) {
  * request, decode, drape — because every part of this session that went wrong
  * went wrong by assembling six links and testing none of them.
  */
+let fetchArea = null;
+
+/** Every vector layer is a possible extent; the list is rebuilt as they land. */
+export function fillExtentSelect() {
+  const select = document.getElementById("gee-gfs-extent");
+  if (!select) return;
+  const held = select.value;
+  select.innerHTML = "";
+  const drawn = document.createElement("option");
+  drawn.value = "drawn";
+  drawn.textContent = "The area you drew";
+  select.appendChild(drawn);
+  (window.GeoIDImportManager?.getLayers?.() || [])
+    .filter((l) => l.status === "loaded" && l.bounds && (l.features?.length || l.collection))
+    .forEach((layer) => {
+      const option = document.createElement("option");
+      option.value = String(layer.id ?? layer.name);
+      option.textContent = layer.name;
+      select.appendChild(option);
+    });
+  if (held) select.value = held;
+}
+
+/** The bounds of the chosen layer, or null when "the area you drew" is set. */
+function extentFromSelect() {
+  const select = document.getElementById("gee-gfs-extent");
+  const value = select?.value;
+  if (!value || value === "drawn") return null;
+  const layer = (window.GeoIDImportManager?.getLayers?.() || [])
+    .find((l) => String(l.id ?? l.name) === value);
+  return layer?.bounds || null;
+}
+
+/**
+ * Draw the box Earth Engine will be asked for.
+ *
+ * The SAME draw tool the study area uses — one gesture to learn — but the
+ * result is kept here rather than becoming the study area, because the extent
+ * you want weather for and the extent you want risk over are different
+ * questions. It is registered as a layer like every other drawn shape, so it
+ * appears in Vectors & Shapes and can be clipped, exported and restored.
+ */
+export async function drawFetchArea() {
+  const status = document.getElementById("gee-gfs-status");
+  const say = (t) => { if (status) status.textContent = t; };
+  const view = window.GeoIDViewer;
+  if (!view?.getExtractionGeometry) { say("This viewer has no draw tool."); return; }
+  const geometry = view.getExtractionGeometry("study");
+  if (!geometry) {
+    say("Pick up the Draw tool and mark a box, then press this again to claim it "
+      + "as the Earth Engine fetch area.");
+    return;
+  }
+  fetchArea = geometry;
+  const captured = window.GeoIDDrawnLayers?.captureDrawn?.({ name: "Earth Engine fetch area" });
+  const b = boundsOf(geometry);
+  say(`Fetch area set: ${b.minY.toFixed(2)}–${b.maxY.toFixed(2)}°N, `
+    + `${b.minX.toFixed(2)}–${b.maxX.toFixed(2)}°E.`
+    + (captured?.ok ? " Listed in Vectors & Shapes." : ""));
+}
+
 export async function showOneFrame() {
   const status = document.getElementById("gee-gfs-status");
   const say = (t) => { if (status) status.textContent = t; };
   const view = window.GeoIDViewer;
-  const geometry = view?.getExtractionGeometry?.("study");
-  const bounds = geometry ? boundsOf(geometry) : null;
-  if (!bounds) { say("Draw a study area first — Earth Engine is asked for a box, not the world."); return; }
+  // The FETCH area, if one was drawn for Earth Engine; otherwise the study
+  // area. Two boxes, one draw tool: the fetch box is what EE is asked for and
+  // the study area is what the risk pipeline runs over, and they are usually
+  // but not always the same.
+  // Three ways to say where: a layer chosen from the list, the box drawn for
+  // Earth Engine, or the study area. A polygon you already have is the
+  // commonest case and was the one with no way to express it.
+  const bounds = extentFromSelect()
+    || (fetchArea ? boundsOf(fetchArea) : null)
+    || (view?.getExtractionGeometry?.("study") ? boundsOf(view.getExtractionGeometry("study")) : null);
+  if (!bounds) {
+    say("Draw a fetch area first — Earth Engine is asked for a box, not the world.");
+    return;
+  }
   try {
     say("Signing in…");
     await token();
@@ -258,13 +330,22 @@ if (typeof window !== "undefined") {
   // Guarded: the unit run imports this file for the pure half and has no DOM,
   // and an unguarded `document` here takes the whole module down with it.
   if (typeof document !== "undefined") {
-    const wire = () => document.getElementById("gee-gfs-fetch")
-      ?.addEventListener("click", () => { void showOneFrame(); });
+    const wire = () => {
+      document.getElementById("gee-gfs-fetch")
+        ?.addEventListener("click", () => { void showOneFrame(); });
+      document.getElementById("gee-gfs-area")
+        ?.addEventListener("click", () => { void drawFetchArea(); });
+      fillExtentSelect();
+      window.GeoIDImportManager?.onChange?.(fillExtentSelect);
+    };
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire);
     else wire();
   }
   window.GeoIDEarthEngine = {
     showOneFrame,
+    drawFetchArea,
+    fillExtentSelect,
+    fetchArea: () => fetchArea,
     frames, stepImageBody, tileTemplate, rainVis, sampleGrid,
     settings, token, fetchStepGrid, fetchStepTiles,
   };

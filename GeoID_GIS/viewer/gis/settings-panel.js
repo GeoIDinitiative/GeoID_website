@@ -37,11 +37,20 @@ export function looksSecret(value) {
   return v.startsWith("GOCSPX-") || (/^[A-Za-z0-9_-]{24}$/.test(v) && !v.endsWith(".apps.googleusercontent.com"));
 }
 
+// The project this deployment uses. A project id is not a credential — it
+// appears in every request URL — so it ships as the default and saves a step.
+// The Client ID is NOT here and cannot be: it is per-deployment, it lives in
+// the Google console beside the redirect-origin allowlist that protects it,
+// and inventing one would produce a sign-in that fails with a confusing error
+// rather than an honest empty field.
+const DEFAULTS = { clientId: "", project: "geoid-504623" };
+
 export function read() {
   try {
-    return JSON.parse(window.localStorage.getItem(STORE_KEY) || "null") || { clientId: "", project: "" };
+    const stored = JSON.parse(window.localStorage.getItem(STORE_KEY) || "null");
+    return { ...DEFAULTS, ...(stored || {}) };
   } catch (error) {
-    return { clientId: "", project: "" };
+    return { ...DEFAULTS };
   }
 }
 
