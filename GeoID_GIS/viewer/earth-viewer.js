@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260816-d38eab1";
+  from "./gis/geo-utils.js?v=20260816-fc0bc1f";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -19101,6 +19101,23 @@ uniform float uViewportWidth;`,
          * the area was in Ireland.
          */
         getAxialTiltRadians: () => earthSceneGroup?.rotation?.z || 0,
+        /**
+         * A point in the globe's BASELINE frame, in world space.
+         *
+         * The exact conversion the viewer's own focus path uses
+         * (`earthSceneGroup.localToWorld`, :4786) rather than a reconstruction
+         * of it: latLonToVector3 answers in the baseline frame, the camera
+         * lives in world space, and every rotation and offset between them is
+         * whatever that group carries. Re-deriving it from an exposed tilt
+         * angle got the latitude right and the longitude 25 degrees wrong,
+         * because the group is not only a tilt.
+         *
+         * Callers still apply the day's spin about Y first: the spin belongs
+         * to the globe inside this group, not to the group.
+         */
+        baselineToWorld: (vector) => (earthSceneGroup
+          ? earthSceneGroup.localToWorld(vector.clone())
+          : vector.clone()),
         getViewCentreLatLon() {
           const here = sampleLocatorLatLon() || locatorLatLon;
           return here && Number.isFinite(here.lat) ? { lat: here.lat, lon: here.lon } : null;

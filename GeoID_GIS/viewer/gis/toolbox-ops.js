@@ -1,12 +1,12 @@
-import * as GP from "./geoprocessing.js?v=20260816-d38eab1";
-import * as RA from "./raster-analysis.js?v=20260816-d38eab1";
-import * as VF from "./vector-formats.js?v=20260816-d38eab1";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-d38eab1";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-d38eab1";
-import { downloadText } from "./extraction.js?v=20260816-d38eab1";
-import { CRS_OPTIONS } from "./projection.js?v=20260816-d38eab1";
-import { runQuery, QUERY_HELP } from "./query.js?v=20260816-d38eab1";
-import { selection } from "./selection.js?v=20260816-d38eab1";
+import * as GP from "./geoprocessing.js?v=20260816-fc0bc1f";
+import * as RA from "./raster-analysis.js?v=20260816-fc0bc1f";
+import * as VF from "./vector-formats.js?v=20260816-fc0bc1f";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-fc0bc1f";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-fc0bc1f";
+import { downloadText } from "./extraction.js?v=20260816-fc0bc1f";
+import { CRS_OPTIONS } from "./projection.js?v=20260816-fc0bc1f";
+import { runQuery, QUERY_HELP } from "./query.js?v=20260816-fc0bc1f";
+import { selection } from "./selection.js?v=20260816-fc0bc1f";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -891,6 +891,17 @@ function init() {
       seam.start(layer.id);
     }));
   byId("open-wfs")?.addEventListener("click", () => { void importFromService(); });
+  // The worked example, served with the site: no sidecar, no project, no token
+  // — reading a file is not one of the things a browser cannot do.
+  byId("load-demo-ni")?.addEventListener("click", () => {
+    const demo = window.GeoIDDemo;
+    if (!demo) {
+      setText("explore-status", "The demo loader is still starting — try again in a moment.");
+      return;
+    }
+    setText("explore-status", "Loading the Northern Ireland prototype…");
+    void demo.load("ni-prototype");
+  });
   byId("attr-stats-run")?.addEventListener("click", runFieldStatistics);
   byId("calc-run")?.addEventListener("click", runFieldCalculator);
   ["geojson", "csv", "wkt", "kml"].forEach((format) => {
