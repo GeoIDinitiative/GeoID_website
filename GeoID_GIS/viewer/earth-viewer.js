@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260816-821f7db";
+  from "./gis/geo-utils.js?v=20260816-d38eab1";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -19090,6 +19090,17 @@ uniform float uViewportWidth;`,
          * the centre of the canvas (the panels take the left of it), so that ray
          * misses and returns nothing at the default view. Measured: null.
          */
+        /**
+         * The axial tilt, as the rotation it actually is.
+         *
+         * latLonToVector3 answers in the globe's BASELINE frame; the camera
+         * lives in world space, which is that frame spun by the day and then
+         * tilted 23.44 degrees about Z. Anything placing a camera from a
+         * coordinate needs both, and without this it could only get the spin
+         * -- which is why framing a study area landed in the North Sea when
+         * the area was in Ireland.
+         */
+        getAxialTiltRadians: () => earthSceneGroup?.rotation?.z || 0,
         getViewCentreLatLon() {
           const here = sampleLocatorLatLon() || locatorLatLon;
           return here && Number.isFinite(here.lat) ? { lat: here.lat, lon: here.lon } : null;

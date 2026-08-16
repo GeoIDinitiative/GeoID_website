@@ -1,4 +1,4 @@
-import * as store from "./project-store.js?v=20260816-821f7db";
+import * as store from "./project-store.js?v=20260816-d38eab1";
 
 /**
  * What makes the three pages one workspace.
@@ -234,6 +234,23 @@ export async function saveMesh(filename, contents, extra = {}) {
 // ── project → GIS ─────────────────────────────────────────────────────────────
 
 /** Frame the globe on the open project's study area. */
+/**
+ * Fly the globe to the open project's study area.
+ *
+ * Aimed by FEEDBACK rather than by a forward transform, and deliberately so.
+ * A coordinate becomes a camera position through three frames — the baseline
+ * one `latLonToVector3` answers in, the day's spin about Y, and the 23.44°
+ * axial tilt about Z — and only the first two are exposed here. Placing a
+ * point with the spin alone put the camera over the North Sea when the area
+ * was in Ireland; adding the tilt fixed the latitude exactly and left the
+ * longitude 25° out, because the remaining step is inside the viewer.
+ *
+ * So this asks the viewer where it is actually looking — `getViewCentreLatLon`
+ * is the same function the on-screen readout uses, and therefore the authority
+ * — and corrects by the residual. Two or three passes land inside a tenth of a
+ * degree, and it stays correct if the frame chain ever changes, which a
+ * hard-coded transform would not.
+ */
 export function frameStudyArea() {
   const project = activeProject();
   const area = project?.meta?.study_area;
@@ -242,25 +259,49 @@ export function frameStudyArea() {
   const nums = ["min_lat", "max_lat", "min_lon", "max_lon"].map((k) => Number(area[k]));
   if (nums.some((n) => !Number.isFinite(n))) return false;
   const [minLat, maxLat, minLon, maxLon] = nums;
-  const lat = (minLat + maxLat) / 2;
-  const lon = (minLon + maxLon) / 2;
-
-  const point = viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS);
-  // Same frame correction every pinned thing needs: coordinates answer in the
-  // globe's baseline frame while the globe itself has spun on.
-  const spin = viewer.getSpinDeltaRadians?.() || 0;
-  const axis = viewer.camera.position.clone().set(0, 1, 0);
-  point.applyAxisAngle(axis, spin);
+  const wantLat = (minLat + maxLat) / 2;
+  // The viewer reads longitude east-positive 0..360; a study area is signed.
+  const wantLon = ((((minLon + maxLon) / 2) % 360) + 360) % 360;
 
   // Pull back far enough to hold the whole extent, with a floor so a tiny area
   // does not put the camera inside the planet.
-  const span = Math.max(maxLat - minLat, (maxLon - minLon) * Math.cos(lat * Math.PI / 180));
+  const span = Math.max(maxLat - minLat, (maxLon - minLon) * Math.cos(wantLat * Math.PI / 180));
   const distance = viewer.GLOBE_RADIUS * Math.max(1.35, Math.min(4, 1.2 + span / 18));
-  viewer.camera.position.copy(point).setLength(distance);
-  viewer.controls?.target.set(0, 0, 0);
-  viewer.controls?.update();
+
+  const place = (lat, lon) => {
+    const point = viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS);
+    const spin = viewer.getSpinDeltaRadians?.() || 0;
+    const tilt = viewer.getAxialTiltRadians?.() || 0;
+    // Vector3s borrowed from the camera rather than importing three.js here:
+    // a second copy of the library breaks class identity across the viewer.
+    const yAxis = viewer.camera.position.clone().set(0, 1, 0);
+    const zAxis = viewer.camera.position.clone().set(0, 0, 1);
+    point.applyAxisAngle(yAxis, spin);
+    point.applyAxisAngle(zAxis, tilt);
+    viewer.camera.position.copy(point).setLength(distance);
+    viewer.controls?.target.set(0, 0, 0);
+    viewer.controls?.update();
+  };
+
+  /** Shortest signed way round the circle, so 359 -> 1 is +2 and not -358. */
+  const wrap = (d) => ((d + 540) % 360) - 180;
+
+  let aimLat = wantLat;
+  let aimLon = wantLon;
+  place(aimLat, aimLon);
+  for (let pass = 0; pass < 4; pass += 1) {
+    const at = viewer.getViewCentreLatLon?.();
+    if (!at || !Number.isFinite(at.lat)) break;      // no readout: one shot is all we have
+    const dLat = wantLat - at.lat;
+    const dLon = wrap(wantLon - at.lon);
+    if (Math.abs(dLat) < 0.1 && Math.abs(dLon) < 0.1) break;
+    aimLat = Math.max(-89, Math.min(89, aimLat + dLat));
+    aimLon = ((aimLon + dLon) % 360 + 360) % 360;
+    place(aimLat, aimLon);
+  }
   return true;
 }
+
 
 // ── Research result → GIS globe ───────────────────────────────────────────────
 
