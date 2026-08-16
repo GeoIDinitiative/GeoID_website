@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260816-4d7c2aa";
+  from "./gis/geo-utils.js?v=20260816-0ab024e";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -19064,6 +19064,29 @@ uniform float uViewportWidth;`,
         // east-positive 0..360 convention; the caller converts if it needs
         // signed. Rejects on Escape.
         pickOnGlobe: () => pickOnGlobeOnce(),
+        /**
+         * Where is this pixel on the globe? The passive form of the pick
+         * above: no arming, no promise, no cursor change — an ordinary click
+         * handler asks after the fact whether it landed on the planet, and
+         * on what. Returns signed longitude (-180..180), because every caller
+         * of this one is comparing against GeoJSON, and null off the globe.
+         */
+        surfaceLatLonAt: (clientX, clientY) => {
+          const hit = intersectAnySurface(clientX, clientY);
+          if (!hit) return null;
+          let latLon;
+          if (hit.context) {
+            latLon = { lat: hit.lat, lon: hit.lon };
+          } else {
+            const localPoint = marsGroup.worldToLocal(hit.point.clone());
+            localPoint.applyEuler(new THREE.Euler(0, -(globe.rotation.y - Math.PI), 0));
+            latLon = vectorToLatLon(localPoint);
+          }
+          if (!Number.isFinite(latLon?.lat) || !Number.isFinite(latLon?.lon)) return null;
+          let lon = ((latLon.lon % 360) + 360) % 360;
+          if (lon > 180) lon -= 360;
+          return { lat: latLon.lat, lon };
+        },
         /**
          * Hand the Draw tool a polygon from outside — a preset box, a restored
          * study area — instead of clicking it out.
