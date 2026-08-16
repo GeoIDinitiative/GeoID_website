@@ -14,12 +14,13 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260816-471dc39";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-471dc39";
-import { makeRaster } from "./raster-analysis.js?v=20260816-471dc39";
+} from "./geoid-pipeline.js?v=20260816-bd23890";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-bd23890";
+import { makeRaster } from "./raster-analysis.js?v=20260816-bd23890";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-471dc39";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260816-bd23890";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260816-bd23890";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -136,52 +137,85 @@ export function lockView(bounds) {
  * Anything already loaded wins — a user who has brought their own DEM for
  * somewhere else is not overridden by Northern Ireland.
  */
-async function ensureInputs() {
-  let found = inputsFromLayers();
-  if (found.dem?.raster && found.geology) return found;
+/** The prototype's own files, read straight from the site. */
+const BASE = {
+  dem: "/ni-prototype/data/ni_dem_100m.tif",
+  geology: "/ni-prototype/data/ni_bedrock.geojson",
+};
 
-  say("Loading the Northern Ireland base — elevation and bedrock geology…");
-  try {
-    const demos = await import(`./demo-layers.js?v=${STAMP}`);
-    // 5 is the 100 m Copernicus DEM, 3 the BGS bedrock; the indices are the
-    // shipped order in demo-layers.js and are named there.
-    if (!found.dem?.raster) await demos.toggle("ni-prototype", 5, true);
-    if (!found.geology) await demos.toggle("ni-prototype", 3, true);
-  } catch (error) {
-    say(`Could not load the prototype base: ${error.message}`);
-    return found;
-  }
+/** A lightweight geology reader: bbox test, then point-in-polygon. */
+function samplerFromFeatures(features) {
+  const index = (features || []).map((f) => {
+    const geometry = f?.geometry;
+    const polys = geometry?.type === "Polygon" ? [geometry.coordinates]
+      : geometry?.type === "MultiPolygon" ? geometry.coordinates : [];
+    if (!polys.length) return null;
+    const bbox = boundsOf(polys.flat().flat());
+    return bbox ? { polys, bbox, properties: f.properties || {} } : null;
+  }).filter(Boolean);
+  return (lat, lon) => {
+    for (const entry of index) {
+      const b = entry.bbox;
+      if (lon < b.minX || lon > b.maxX || lat < b.minY || lat > b.maxY) continue;
+      if (entry.polys.some((poly) => pointInPolygon([lon, lat], poly))) return entry.properties;
+    }
+    return null;
+  };
+}
 
-  // The importer resolves before the layer is drawable, so wait for the
-  // RECORDS rather than assuming the toggle finished the job — and wait long
-  // enough to be true: the 100 m DEM is 1.5 MB of Int16 over 1834x1444 cells
-  // and takes minutes on a slow machine. A 120-second ceiling reported "the
-  // base did not load" while it was still loading, which is the same dead end
-  // wearing a different message.
-  const started = Date.now();
-  const CEILING_MS = 6 * 60 * 1000;
-  while (Date.now() - started < CEILING_MS) {
-    found = inputsFromLayers();
-    if (found.dem?.raster && found.geology) return found;
-    const seconds = Math.round((Date.now() - started) / 1000);
-    say(`Loading the Northern Ireland base — ${found.dem ? "geology" : "elevation"} still coming `
-      + `(${seconds}s). The DEM is 1834x1444 cells; the first run is the slow one.`);
-    // eslint-disable-next-line no-await-in-loop
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+/**
+ * The inputs, WITHOUT waiting for the import path.
+ *
+ * "Load a DEM first" was a dead end, and loading the base through the layer
+ * importer only moved it: that path decodes the GeoTIFF, resamples it, builds a
+ * draped mesh and a texture, which is minutes of work for data the pipeline
+ * needs only as NUMBERS. So the base is fetched and decoded directly — the
+ * files ship with the app — and the only thing drawn is the FoS surface at the
+ * end. Layers the user already has still win, and still cost nothing.
+ */
+async function ensureInputs(fetchImpl) {
+  const found = inputsFromLayers();
+  const out = { dem: null, geology: null, geologyAt: null };
+  if (found.dem?.raster) out.dem = found.dem.raster;
+  if (found.geology) out.geologyAt = geologyReader(found.geology);
+
+  const f = fetchImpl || fetch;
+  if (!out.dem) {
+    say("Reading the Northern Ireland elevation…");
+    try {
+      const response = await f(BASE.dem);
+      const decoded = await loadGeoTiffFromArrayBuffer(await response.arrayBuffer(),
+        { name: "NI elevation" });
+      out.dem = decoded?.raster || null;
+    } catch (error) {
+      say(`Could not read the base elevation: ${error.message}`);
+      return out;
+    }
   }
-  return found;
+  if (!out.geologyAt) {
+    say("Reading the bedrock geology…");
+    try {
+      const response = await f(BASE.geology);
+      const fc = await response.json();
+      const at = samplerFromFeatures(fc.features);
+      out.geologyAt = (lat, lon) => {
+        const props = at(lat, lon);
+        return props ? (props.rcs_d || props.lex_rcs_d || props.lex_d || null) : null;
+      };
+    } catch (error) {
+      // Slope alone is a weaker model, not no model — say so and continue.
+      say("No geology: every cell will use the default material.");
+    }
+  }
+  return out;
 }
 
 export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
-  const { dem, geology } = await ensureInputs();
-  if (!dem?.raster) {
-    say("No elevation data — the Northern Ireland base did not load, and "
-      + "GeoID mode takes its slopes from a DEM.");
+  const base = await ensureInputs(fetchImpl);
+  const dem = base.dem;
+  if (!dem?.band) {
+    say("No elevation data — GeoID mode takes its slopes from a DEM.");
     return { ok: false };
-  }
-  if (!geology) {
-    say("Running on slope alone: no geology layer, so every cell uses the "
-      + "default material rather than its own lithology.");
   }
   const viewer = window.GeoIDViewer;
   const area = viewer?.getExtractionGeometry?.("study")
@@ -203,7 +237,7 @@ export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
   }
 
   say("Reading slope and geology…");
-  const table = buildCells(dem.raster, area, { maxCells, geologyAt: geologyReader(geology) });
+  const table = buildCells(dem, area, { maxCells, geologyAt: base.geologyAt });
   if (!table.ok) { say(table.message); return { ok: false }; }
 
   say(`Computing ${weather.dates.length} steps over ${table.cells.length.toLocaleString()} cells…`);
@@ -234,6 +268,16 @@ export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
 
   const band = new Float32Array(table.cells.length).fill(NaN);
   const raster = makeRaster(band, table.cols, table.rows, table.bounds, NaN);
+  // The globe has to exist before a layer can join it: `addDerivedLayer`
+  // returns null when the scene is not up, and the run is fast enough now to
+  // finish before the viewer has booted — which read as "the FoS layer could
+  // not be drawn" when in fact the arithmetic was already done.
+  for (let i = 0; i < 120 && !Number.isFinite(
+    window.GeoIDViewer?.getViewCentreLatLon?.()?.lat); i += 1) {
+    say("Waiting for the globe…");
+    // eslint-disable-next-line no-await-in-loop
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
   const built = buildRasterLayer(
     [band], table.cols, table.rows, table.bounds, { name: "GeoID FoS", isDem: false },
   );
