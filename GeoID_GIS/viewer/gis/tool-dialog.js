@@ -39,9 +39,9 @@
  * law is honoured by having nothing to exempt.
  */
 
-import { prefs, mergeParams } from "./tool-prefs.js?v=20260816-9ed4fe1";
+import { prefs, mergeParams } from "./tool-prefs.js?v=20260816-4d7c2aa";
 
-const RUNNER_URL = "./tool-runner.js?v=20260816-9ed4fe1";
+const RUNNER_URL = "./tool-runner.js?v=20260816-4d7c2aa";
 
 /* ── Dialog-only styles, injected as the house pattern dictates.
       NEVER a backtick inside this literal — it ends the string and kills the
@@ -734,11 +734,25 @@ function isPanelOpen() {
 }
 
 function openPanel() {
-  if (state.registered) {
-    window.GeoIDSidePanels.open("tool");
-  } else if (state.fallback) {
-    state.fallback.hidden = false;
+  // Neither container may exist yet — the side-panel seam arrives with the
+  // sidebar and the fallback is only built when it doesn't. Both branches
+  // being false used to mean "open" did nothing at all, silently: the tool
+  // rendered into a contentRoot that was attached to no document. Opening
+  // therefore ensures a container rather than assuming one.
+  if (!state.registered && !state.fallback) {
+    if (!tryRegisterPanel()) buildFallback();
   }
+  if (state.registered && document.getElementById("gis-side-panel-tool")) {
+    window.GeoIDSidePanels.open("tool");
+    return;
+  }
+  if (state.registered && !state.fallback) {
+    // Registered against a seam that never rendered the panel. Nothing would
+    // ever become visible; build the fallback and use it.
+    state.registered = false;
+    buildFallback();
+  }
+  if (state.fallback) state.fallback.hidden = false;
 }
 
 function focusFirstEmpty() {
@@ -771,10 +785,20 @@ export async function openTool(id, prefill = {}) {
     }
     state.runner = runner;
     renderTool(desc, prefill || {});
-    setPanelTitle(desc.label || desc.id);
-    updateStar();
+    // SHOW IT FIRST. Everything after this is decoration — the title, the
+    // favourite star, the focus — and each was running before the panel was
+    // opened, so anything that threw in one of them left a fully built dialog
+    // sitting hidden: the tool "did nothing" while its Run button existed in
+    // the DOM the whole time. Opening cannot be the last step in a sequence
+    // whose earlier steps are allowed to fail.
     openPanel();
-    focusFirstEmpty();
+    try {
+      setPanelTitle(desc.label || desc.id);
+      updateStar();
+      focusFirstEmpty();
+    } catch (error) {
+      console.warn("[GeoID GIS] tool dialog trimming failed", error);
+    }
   } catch (error) {
     console.error("[GeoID GIS] openTool failed", error);
   }

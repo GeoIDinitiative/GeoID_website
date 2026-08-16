@@ -43,7 +43,7 @@
 import {
   binData, boxStats, chartColors, drawBox, drawHistogram, drawScatter,
   formatNumber, plotRect, prepareCanvas, toNumber,
-} from "./chart-core.js?v=20260816-9ed4fe1";
+} from "./chart-core.js?v=20260816-4d7c2aa";
 
 /**
  * What this module calls on window.GeoIDSelection. selection.js ships exactly

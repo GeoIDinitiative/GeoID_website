@@ -1,6 +1,6 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-9ed4fe1";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260816-9ed4fe1";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-4d7c2aa";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260816-4d7c2aa";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,

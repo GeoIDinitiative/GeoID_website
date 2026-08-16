@@ -1,6 +1,6 @@
 import * as THREE from "../vendor/three.module.js";
 import { STLLoader } from "../vendor/STLLoader.js";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-9ed4fe1";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260816-4d7c2aa";
 
 const loader = new STLLoader();
 

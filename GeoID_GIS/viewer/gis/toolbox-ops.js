@@ -1,12 +1,12 @@
-import * as GP from "./geoprocessing.js?v=20260816-9ed4fe1";
-import * as RA from "./raster-analysis.js?v=20260816-9ed4fe1";
-import * as VF from "./vector-formats.js?v=20260816-9ed4fe1";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260816-9ed4fe1";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-9ed4fe1";
-import { downloadText } from "./extraction.js?v=20260816-9ed4fe1";
-import { CRS_OPTIONS } from "./projection.js?v=20260816-9ed4fe1";
-import { runQuery, QUERY_HELP } from "./query.js?v=20260816-9ed4fe1";
-import { selection } from "./selection.js?v=20260816-9ed4fe1";
+import * as GP from "./geoprocessing.js?v=20260816-4d7c2aa";
+import * as RA from "./raster-analysis.js?v=20260816-4d7c2aa";
+import * as VF from "./vector-formats.js?v=20260816-4d7c2aa";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260816-4d7c2aa";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260816-4d7c2aa";
+import { downloadText } from "./extraction.js?v=20260816-4d7c2aa";
+import { CRS_OPTIONS } from "./projection.js?v=20260816-4d7c2aa";
+import { runQuery, QUERY_HELP } from "./query.js?v=20260816-4d7c2aa";
+import { selection } from "./selection.js?v=20260816-4d7c2aa";
 
 // Wiring between the toolbox UI and the geoprocessing / raster engines. Every
 // operation produces a new layer rather than mutating its input, which is how
@@ -661,6 +661,83 @@ function runFieldCalculator() {
 }
 
 /**
+ * Every tool, listed where the panels are.
+ *
+ * The palette answers "/" and the dialog runs anything, but a keystroke is not
+ * an interface: a tool nobody can SEE is a tool nobody has. This builds the
+ * catalogue from the same registry the palette searches — one source, so a new
+ * descriptor appears here without anyone editing markup — grouped by category
+ * into the folding sections the rest of the sidebar uses.
+ *
+ * A row states what the tool does, because a list of 37 verbs is a glossary
+ * rather than a toolbox; and a tool that cannot run here (sidecar-only, no
+ * connection) says so on the row instead of failing when pressed.
+ */
+async function buildToolCatalogue() {
+  const host = byId("gis-tool-catalogue");
+  if (!host || host.childElementCount) return;
+  let runner;
+  try {
+    runner = await import("./tool-runner.js?v=20260816-4d7c2aa");
+  } catch {
+    host.textContent = "The toolbox is still loading.";
+    return;
+  }
+  const groups = new Map();
+  (runner.TOOLS || []).forEach((tool) => {
+    const key = tool.category || "Tools";
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(tool);
+  });
+  const client = window.GeoIDSidecarClient;
+  groups.forEach((tools, category) => {
+    const section = document.createElement("details");
+    section.className = "gis-tool-section";
+    const summary = document.createElement("summary");
+    summary.textContent = `${category} (${tools.length})`;
+    section.appendChild(summary);
+    const body = document.createElement("div");
+    body.className = "gis-tool-body";
+    tools.slice().sort((a, b) => (a.label || "").localeCompare(b.label || ""))
+      .forEach((tool) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "button secondary";
+        button.style.textAlign = "left";
+        button.style.width = "100%";
+        button.textContent = tool.label || tool.id;
+        button.title = tool.blurb || "";
+        // A sidecar-only tool is listed, never hidden: knowing it exists and
+        // what it needs beats wondering why the app cannot do something.
+        if (!tool.engines?.native) {
+          const status = client?.engineStatus?.(tool);
+          if (status && !status.ok) button.title = `${tool.blurb || ""} — ${status.reason}`;
+          const tag = document.createElement("span");
+          tag.className = "research-list-tag";
+          tag.textContent = "sidecar";
+          tag.style.marginLeft = "0.4rem";
+          button.appendChild(tag);
+        }
+        button.addEventListener("click", () => {
+          const seam = window.GeoIDToolSearch;
+          if (seam?.openTool) void seam.openTool(tool.id);
+          else setText("explore-status", "The tool dialog is still loading.");
+        });
+        const row = document.createElement("div");
+        row.className = "measure-actions";
+        row.appendChild(button);
+        body.appendChild(row);
+        const blurb = document.createElement("p");
+        blurb.className = "tool-copy";
+        blurb.textContent = tool.blurb || "";
+        body.appendChild(blurb);
+      });
+    section.appendChild(body);
+    host.appendChild(section);
+  });
+}
+
+/**
  * The four workbench tools that are not descriptors.
  *
  * Charts, the time slider and the editor own their own panels, and the WFS
@@ -880,6 +957,7 @@ function init() {
     if (event.key === "Enter") runAttributeQuery();
   });
   renderQueryHelp();
+  void buildToolCatalogue();
 
   byId("open-charts")?.addEventListener("click", () => openWorkbench(
     "GeoIDCharts", "Charts", (seam, layer) => seam.open(layer?.id)));
