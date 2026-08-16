@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-2d7a44f";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-3d930b4";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -235,7 +235,13 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
    * concurrently" looks like; a few metres of separation each, in load order,
    * costs nothing and stacks them predictably.
    */
-  const stackLift = 0.0015 + 0.0004 * (drapeCount++ % 12);
+  // Scene units: the globe is radius 3.2 for 6371 km, so 0.0015 is THREE
+  // KILOMETRES of clearance — which is why the maps read as floating once the
+  // camera came below about 10 km. The patch does not depth-test, so it draws
+  // over the ground whatever its height and needs no clearance to be visible;
+  // the lift only separates one drape from the next, and 30 m does that
+  // without lifting anything off the surface it is meant to be painted on.
+  const stackLift = 0.000015 * (drapeCount++ % 12);
   const vertex = new THREE.Vector3();
 
   for (let y = 0; y < gridHeight; y += 1) {
@@ -256,8 +262,9 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
   }
   position.needsUpdate = true;
   geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
 
-  return new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
     map: texture,
     transparent: true,
     roughness: 0.95,
@@ -268,6 +275,61 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
     depthTest: false,
     side: THREE.FrontSide,
   }));
+  /**
+   * A drape is a STATIC mesh, and the ground under it is not.
+   *
+   * Descending tapers the terrain exaggeration away, so a patch built at one
+   * relief is left hanging above the shrinking surface and steps each time the
+   * taper moves. The Esri refine patch never shows this because it is rebuilt
+   * whenever the view settles; a study-area drape is not, and neither was
+   * this. So each patch keeps what it needs to rebuild — its own grid — and
+   * re-lays its vertices when the relief it was built at no longer matches the
+   * one being drawn.
+   */
+  mesh.userData.rebuildDrape = () => {
+    const surface = window.GeoIDViewer?.surfacePoint;
+    if (!surface) return;
+    const pos = geometry.attributes.position;
+    for (let y = 0; y < gridHeight; y += 1) {
+      const lat = bounds.maxY - (bounds.maxY - bounds.minY) * (y / (gridHeight - 1 || 1));
+      for (let x = 0; x < gridWidth; x += 1) {
+        const lon = bounds.minX + (bounds.maxX - bounds.minX) * (x / (gridWidth - 1 || 1));
+        const point = surface(lat, lon, stackLift);
+        pos.setXYZ(y * gridWidth + x, point.x, point.y, point.z);
+      }
+    }
+    pos.needsUpdate = true;
+    geometry.computeVertexNormals();
+    geometry.computeBoundingSphere();
+  };
+  registerDrape(mesh);
+  return mesh;
+}
+
+/**
+ * Every drape on the globe, re-laid when the relief the globe is drawn with
+ * changes enough to see. Polled rather than hooked, because the taper is
+ * driven by altitude inside the viewer's render loop and there is no event to
+ * listen for; the threshold is the viewer's own (0.0004), so this runs when
+ * the terrain itself is re-synced and not otherwise.
+ */
+const drapes = new Set();
+let lastRelief = null;
+
+function registerDrape(mesh) {
+  drapes.add(mesh);
+  if (drapes.size === 1 && typeof window !== "undefined") {
+    setInterval(() => {
+      const relief = window.GeoIDViewer?.getEffectiveRelief?.();
+      if (typeof relief !== "number") return;
+      if (lastRelief !== null && Math.abs(relief - lastRelief) <= 0.0004) return;
+      lastRelief = relief;
+      drapes.forEach((m) => {
+        if (!m.parent) { drapes.delete(m); return; }   // removed layers stop costing
+        try { m.userData.rebuildDrape?.(); } catch { /* one bad patch is not all of them */ }
+      });
+    }, 250);
+  }
 }
 
 /** Flat local tile used when the globe is not on screen (Model mode). */

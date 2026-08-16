@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260816-2d7a44f";
+  from "./gis/geo-utils.js?v=20260816-3d930b4";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -19130,16 +19130,38 @@ uniform float uViewportWidth;`,
         // metres-per-pixel and reuses the rest -- the nice-number rounding, the
         // label fitting and the bar itself -- so the readouts on the Model page
         // are the same ones the GIS page draws, not a lookalike.
-        // The globe's own displaced surface at a lat/lon, so overlays can sit
-        // on the terrain rather than floating above it or sinking into it.
-        // Tracks the terrain-relief slider through getTerrainRelief.
+        /**
+         * The globe's own displaced surface at a lat/lon, so overlays sit on
+         * the terrain rather than floating above it or sinking into it.
+         *
+         * EFFECTIVE relief, not the slider. The globe is drawn with
+         * getEffectiveTerrainRelief(), which smoothsteps the exaggeration away
+         * below about 300 km so a camera can descend; reading the raw slider
+         * here returned heights for terrain the viewer had already flattened,
+         * so every drape floated above the ground and stepped each time the
+         * taper moved — "the maps appear to be floating and they jump as we
+         * zoom". measureSurfaceRadius had exactly this bug once; this is the
+         * same mistake in the seam every overlay uses.
+         *
+         * The cache is keyed by relief as well as position, or it would serve
+         * heights from whatever altitude first asked.
+         */
         surfacePoint: (() => {
-          // Its own cache: the viewer's elevationCache lives in a narrower
-          // closure than this seam, and the cache is only a memo anyway.
           const cache = new Map();
-          return (lat, lon, lift = 0) =>
-            getReliefPoint(3.2, elevationSampler, cache, getTerrainRelief, lat, lon, lift);
+          let cachedRelief = null;
+          return (lat, lon, lift = 0) => {
+            const relief = getEffectiveTerrainRelief();
+            if (cachedRelief === null || Math.abs(relief - cachedRelief) > 1e-6) {
+              cache.clear();
+              cachedRelief = relief;
+            }
+            return getReliefPoint(3.2, elevationSampler, cache,
+              () => relief, lat, lon, lift);
+          };
         })(),
+        /** What the globe is actually drawn with, so a drape can tell when it
+         *  has gone stale and rebuild rather than hang in the air. */
+        getEffectiveRelief: () => getEffectiveTerrainRelief(),
         renderScaleBar(metersPerPixel) {
           if (!Number.isFinite(metersPerPixel) || metersPerPixel <= 0) {
             scaleReadout.hidden = true;
