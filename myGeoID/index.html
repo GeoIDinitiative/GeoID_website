@@ -1367,7 +1367,7 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20260816-6ce8ecd"
+        src="/GeoID_GIS/viewer/?v=gis-20260816-75278cc"
         title="myGeoID — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
@@ -2243,7 +2243,7 @@
   </script>
 
 <script src="/scripts/site.js"></script>
-<script src="/styles/nav.js?v=20260816-6ce8ecd" defer></script>
+<script src="/styles/nav.js?v=20260816-75278cc" defer></script>
 
   <!-- ── Forecast panel ────────────────────────────────────────────────────
        Mapping first, then the location, then the time series. The pin says
@@ -2650,6 +2650,63 @@
       });
 
       window.renderGeoIDTools = render;
+    })();
+  </script>
+
+  <!-- ── The Earth Engine sign-in broker ───────────────────────────────────
+       Google Identity Services expects a TOP-LEVEL context. The viewer runs
+       in the iframe below, same origin, and a popup opened from there is
+       attributed to the frame — Google answers "no registered origin" for an
+       origin that is registered. So the token is obtained here, in the page,
+       and passed down. It is never stored: it lives in the viewer's memory
+       and expires within the hour.
+  -->
+  <script>
+    (() => {
+      let gsi = null;
+      function loadGsi() {
+        if (window.google?.accounts?.oauth2) return Promise.resolve();
+        if (gsi) return gsi;
+        gsi = new Promise((resolve, reject) => {
+          const tag = document.createElement("script");
+          tag.src = "https://accounts.google.com/gsi/client";
+          tag.async = true;
+          tag.onload = resolve;
+          tag.onerror = () => reject(new Error("Google's sign-in script could not be loaded"));
+          document.head.appendChild(tag);
+        });
+        return gsi;
+      }
+
+      window.addEventListener("message", async (event) => {
+        const msg = event.data;
+        if (!msg || msg.type !== "geoid:gee:token-request") return;
+        const frame = document.getElementById("globe-iframe");
+        const reply = (payload) => frame?.contentWindow?.postMessage(
+          { type: "geoid:gee:token", id: msg.id, ...payload }, "*");
+        try {
+          if (!msg.clientId) throw new Error("no Client ID set in Settings");
+          await loadGsi();
+          const client = window.google.accounts.oauth2.initTokenClient({
+            client_id: msg.clientId,
+            scope: "https://www.googleapis.com/auth/earthengine.readonly",
+            callback: (response) => {
+              if (response?.access_token) {
+                reply({ token: response.access_token, expiresIn: response.expires_in });
+              } else {
+                reply({ error: response?.error_description || response?.error || "no token returned" });
+              }
+            },
+            error_callback: (error) => reply({
+              error: `${error?.type || error?.message || "sign-in failed"} — check that `
+                + `"${window.location.origin}" is an Authorised JavaScript origin for this Client ID`,
+            }),
+          });
+          client.requestAccessToken();
+        } catch (error) {
+          reply({ error: error.message });
+        }
+      });
     })();
   </script>
 </body>

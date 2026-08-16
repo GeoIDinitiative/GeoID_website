@@ -178,12 +178,45 @@ export function requiredOrigin() {
   return window.location.origin;
 }
 
+/**
+ * Ask the SHELL to sign in, when we are inside its iframe.
+ *
+ * Google Identity Services expects a top-level browsing context. The viewer is
+ * an iframe — same origin, so the origin string is identical, but the popup it
+ * opens is attributed to the frame rather than the page, and Google answers
+ * "no registered origin" for an origin that is in fact registered. Running the
+ * token client in the shell and passing the token down removes the whole
+ * question; the token still never touches storage.
+ */
+function tokenViaParent() {
+  return new Promise((resolve, reject) => {
+    const id = `gee-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+    const timer = setTimeout(() => {
+      window.removeEventListener("message", onReply);
+      reject(new Error("the page did not answer the sign-in request"));
+    }, 120000);
+    function onReply(event) {
+      const msg = event.data;
+      if (!msg || msg.type !== "geoid:gee:token" || msg.id !== id) return;
+      clearTimeout(timer);
+      window.removeEventListener("message", onReply);
+      if (msg.error) { reject(new Error(msg.error)); return; }
+      tokenValue = msg.token;
+      tokenExpires = Date.now() + (Number(msg.expiresIn) || 3600) * 1000;
+      resolve(tokenValue);
+    }
+    window.addEventListener("message", onReply);
+    window.parent.postMessage({ type: "geoid:gee:token-request", id, ...settings() }, "*");
+  });
+}
+
 export async function token({ interactive = true } = {}) {
   if (tokenValue && Date.now() < tokenExpires - 60e3) return tokenValue;
   const problem = originProblem();
   if (problem) throw new Error(problem);
   const { clientId } = settings();
   if (!clientId) throw new Error("no Client ID — set one in Settings");
+  if (window.self !== window.top) return tokenViaParent();
   await loadGsi();
   return new Promise((resolve, reject) => {
     const client = window.google.accounts.oauth2.initTokenClient({
