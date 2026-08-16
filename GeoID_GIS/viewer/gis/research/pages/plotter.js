@@ -1,8 +1,8 @@
-import { registerPage } from "../stages.js?v=20260816-d25e112";
-import * as store from "../project-store.js?v=20260816-d25e112";
-import { parseTable, columnPair, indexSeries } from "../table.js?v=20260816-d25e112";
-import { linePlot, toPngBlob } from "../plot.js?v=20260816-d25e112";
-import { needProject } from "./common.js?v=20260816-d25e112";
+import { registerPage } from "../stages.js?v=20260816-f61b5f5";
+import * as store from "../project-store.js?v=20260816-f61b5f5";
+import { parseTable, columnPair, indexSeries } from "../table.js?v=20260816-f61b5f5";
+import { linePlot, toPngBlob } from "../plot.js?v=20260816-f61b5f5";
+import { needProject } from "./common.js?v=20260816-f61b5f5";
 
 /**
  * CSV Plotter: pick a file from the project, pick columns, plot, keep the

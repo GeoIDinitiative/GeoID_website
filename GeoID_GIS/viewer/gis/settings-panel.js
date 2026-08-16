@@ -1,46 +1,56 @@
 /**
- * Settings: the credentials the GIS needs, held where they can be held.
+ * Settings: Earth Engine, natively, with no second process.
  *
- * A browser cannot keep a secret. Anything typed into a page served from disk
- * is readable by anything else on that page, so a Google Earth Engine service
- * account cannot live here — it lives in the sidecar, in a file outside git at
- * mode 0600, and the credentialed call is made on that side. This panel is the
- * way IN to that store and deliberately not a way out: the value is posted
- * once and every reply is masked to the last four characters.
+ * A service-account key cannot live in a page — but Earth Engine does not
+ * require one. Its REST API accepts an OAuth bearer token, and the browser
+ * flow that produces one uses a **Client ID**, which is public by design: it
+ * is safe in a page precisely because the redirect-origin allowlist in the
+ * Google console, not secrecy, is what protects it. That is the same rule
+ * `google-credentials.js` already enforces for the Docs workspace — it stores
+ * a Client ID and THROWS on anything shaped like a secret.
  *
- * The same store already holds the model keys, with the same rules, so this
- * adds a row rather than a mechanism.
+ * So this panel holds two public values in localStorage (per browser, because
+ * a credential is the person rather than the study) and nothing else. The
+ * token itself is obtained by signing in, lives in memory, and expires.
  */
 
-const KEYS = [
+const STORE_KEY = "geoid:earth-engine";
+
+const FIELDS = [
   {
-    name: "EE_PROJECT",
+    name: "clientId",
+    label: "Google OAuth Client ID",
+    hint: "From the Google Cloud console, type \"Web application\". Public by "
+      + "design — it is the redirect-origin allowlist that protects it, not secrecy. "
+      + "A client SECRET is refused.",
+  },
+  {
+    name: "project",
     label: "Earth Engine project",
-    hint: "The Cloud project the service account belongs to, e.g. geoid-504623.",
-    secret: false,
-  },
-  {
-    name: "EE_SERVICE_ACCOUNT",
-    label: "Service account",
-    hint: "The account's email address, ending in .iam.gserviceaccount.com.",
-    secret: false,
-  },
-  {
-    name: "EE_PRIVATE_KEY",
-    label: "Private key",
-    hint: "The PEM from the account's JSON key file. It is written to the "
-      + "sidecar at mode 0600 and never returned to this page.",
-    secret: true,
+    hint: "The Cloud project Earth Engine is enabled on, e.g. geoid-504623.",
   },
 ];
 
-let client = null;
+/** A client secret in a page is a published secret; refuse it by shape. */
+export function looksSecret(value) {
+  const v = String(value || "").trim();
+  return v.startsWith("GOCSPX-") || (/^[A-Za-z0-9_-]{24}$/.test(v) && !v.endsWith(".apps.googleusercontent.com"));
+}
 
-async function sidecar() {
-  if (client) return client;
-  const stamp = new URL(import.meta.url).search;
-  client = await import(`./research/sidecar.js${stamp}`);
-  return client;
+export function read() {
+  try {
+    return JSON.parse(window.localStorage.getItem(STORE_KEY) || "null") || { clientId: "", project: "" };
+  } catch (error) {
+    return { clientId: "", project: "" };
+  }
+}
+
+export function write(next) {
+  if (looksSecret(next.clientId)) {
+    throw new Error("that looks like a client SECRET — a secret in a page is a published secret");
+  }
+  window.localStorage.setItem(STORE_KEY, JSON.stringify({ ...read(), ...next }));
+  return read();
 }
 
 function byId(id) { return document.getElementById(id); }
@@ -50,103 +60,77 @@ function say(text) {
   if (node) node.textContent = text;
 }
 
-async function refresh() {
+function refresh() {
   const host = byId("gis-settings-keys");
   if (!host) return;
+  const current = read();
   host.innerHTML = "";
-  let status = null;
-  try {
-    const api = await sidecar();
-    status = await api.atlasKeys();
-  } catch (error) {
-    say("The sidecar is not connected. Earth Engine needs it: a credential "
-      + "cannot be kept in a page, so it is kept in that process. Start it with "
-      + "python3 serve.py and connect from the Research Hub.");
-    return;
-  }
-
-  KEYS.forEach((key) => {
-    const state = status?.[key.name] || {};
+  FIELDS.forEach((field) => {
     const row = document.createElement("div");
     row.className = "gis-setting-row";
-
     const label = document.createElement("label");
-    label.textContent = key.label;
-    label.setAttribute("for", `gis-setting-${key.name}`);
-
+    label.textContent = field.label;
+    label.setAttribute("for", `gis-setting-${field.name}`);
     const input = document.createElement("input");
-    input.id = `gis-setting-${key.name}`;
+    input.id = `gis-setting-${field.name}`;
     input.className = "input";
-    input.type = key.secret ? "password" : "text";
+    input.type = "text";
     input.autocomplete = "off";
     input.spellcheck = false;
-    // Never the value: a configured key shows only that it is configured.
-    input.placeholder = state.configured
-      ? `configured (${state.hint || "set"}${state.source === "environment" ? ", from the environment" : ""})`
-      : "not set";
-
-    const save = document.createElement("button");
-    save.type = "button";
-    save.className = "button";
-    save.textContent = "Save";
-    save.addEventListener("click", async () => {
-      const value = input.value.trim();
-      if (!value) { say(`${key.label}: nothing typed.`); return; }
-      try {
-        const api = await sidecar();
-        await api.saveAtlasKey(key.name, value);
-        input.value = "";                 // out of the DOM as soon as it is sent
-        say(`${key.label} saved to the sidecar.`);
-        void refresh();
-      } catch (error) {
-        say(`Could not save ${key.label}: ${error.message}`);
-      }
-    });
-
-    const clear = document.createElement("button");
-    clear.type = "button";
-    clear.className = "button";
-    clear.textContent = "Clear";
-    clear.disabled = !state.configured || state.source === "environment";
-    clear.title = state.source === "environment"
-      ? "This one comes from the environment; unset it there."
-      : "Remove this credential from the sidecar";
-    clear.addEventListener("click", async () => {
-      try {
-        const api = await sidecar();
-        await api.deleteAtlasKey(key.name);
-        say(`${key.label} removed.`);
-        void refresh();
-      } catch (error) {
-        say(`Could not remove ${key.label}: ${error.message}`);
-      }
-    });
-
+    input.value = current[field.name] || "";
+    input.placeholder = field.name === "clientId" ? "…apps.googleusercontent.com" : "project id";
     const note = document.createElement("span");
     note.className = "gis-setting-hint";
-    note.textContent = key.hint;
-
-    const actions = document.createElement("div");
-    actions.className = "gis-btn-row";
-    actions.append(save, clear);
-    row.append(label, input, actions, note);
+    note.textContent = field.hint;
+    row.append(label, input, note);
     host.appendChild(row);
   });
 
-  const configured = KEYS.filter((k) => status?.[k.name]?.configured).length;
-  say(configured === KEYS.length
-    ? "Earth Engine is configured. Imagery requests are made by the sidecar."
-    : `${configured} of ${KEYS.length} Earth Engine settings in place.`);
+  const actions = document.createElement("div");
+  actions.className = "gis-btn-row";
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "button primary";
+  save.textContent = "Save";
+  save.addEventListener("click", () => {
+    try {
+      const next = write({
+        clientId: byId("gis-setting-clientId").value.trim(),
+        project: byId("gis-setting-project").value.trim(),
+      });
+      say(next.clientId && next.project
+        ? "Saved. Earth Engine will ask you to sign in when a layer needs it — "
+          + "the token lives in memory and expires; nothing secret is stored."
+        : "Saved. Both fields are needed before Earth Engine can be called.");
+    } catch (error) {
+      say(error.message);
+    }
+  });
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.className = "button";
+  clear.textContent = "Clear";
+  clear.addEventListener("click", () => {
+    window.localStorage.removeItem(STORE_KEY);
+    refresh();
+    say("Cleared from this browser.");
+  });
+  actions.append(save, clear);
+  host.appendChild(actions);
+
+  const ready = current.clientId && current.project;
+  say(ready ? "Earth Engine is configured for this browser."
+    : "Not configured. Earth Engine needs a Client ID and a project; neither is a secret.");
 }
 
 export function init() {
   if (!byId("gis-settings-keys")) return;
-  byId("gis-settings-refresh")?.addEventListener("click", () => { void refresh(); });
-  void refresh();
+  byId("gis-settings-refresh")?.addEventListener("click", refresh);
+  refresh();
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDSettings = { init, refresh, KEYS };
+  window.GeoIDSettings = { init, refresh, read, write, looksSecret };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 }
