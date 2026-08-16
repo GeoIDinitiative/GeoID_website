@@ -1,5 +1,5 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-7592bf1";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260816-e9794bf";
 
 // Rasters are resampled onto a mesh grid rather than used at native size: a
 // 4000x4000 DEM would otherwise mean 16M vertices. 192 keeps relief readable
@@ -177,6 +177,8 @@ function looksLikeHeightField(band, noData, limit = 40) {
  * classes are sampled from the same ramp, so the reading stays "green is
  * lower, red is worse" whatever the class count.
  */
+let drapeCount = 0;
+
 const CLASS_RAMP = [
   [26, 152, 80], [166, 217, 106], [255, 255, 191], [253, 174, 97], [215, 25, 28],
 ];
@@ -217,8 +219,23 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
    * fallback for Model mode and for tests with no viewer.
    */
   const surfacePoint = window.GeoIDViewer?.surfacePoint;
-  // Exaggerated so continental-scale relief stays legible at globe radius 3.2.
-  const reliefScale = isDem ? 0.12 : 0;
+  /**
+   * Every drape sits ON the globe's terrain. None of them makes its own.
+   *
+   * A DEM used to displace the patch by its own values at a raw radius — not
+   * following the ground, just pushed outward — which is what turned an
+   * elevation layer into a firework of spikes. The globe already draws
+   * terrain, and it draws it with the exaggeration the relief slider sets; a
+   * raster's job is to colour that surface, not to invent a second one. So the
+   * displacement is gone, the height only chooses the COLOUR ramp, and every
+   * layer follows `surfacePoint`, which tracks the slider.
+   *
+   * The lift is per layer and tiny. Two maps drawn at the same height fight
+   * for the same pixels, which is what "two or more maps cannot be mapped
+   * concurrently" looks like; a few metres of separation each, in load order,
+   * costs nothing and stacks them predictably.
+   */
+  const stackLift = 0.0015 + 0.0004 * (drapeCount++ % 12);
   const vertex = new THREE.Vector3();
 
   for (let y = 0; y < gridHeight; y += 1) {
@@ -228,17 +245,11 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
       const lonT = x / (gridWidth - 1 || 1);
       const lon = bounds.minX + (bounds.maxX - bounds.minX) * lonT;
       const index = y * gridWidth + x;
-      const value = grid[index];
-      let radius = baseRadius;
-      if (isDem && Number.isFinite(value) && (noData === null || value !== noData)) {
-        const t = (value - range.min) / (range.max - range.min);
-        radius += reliefScale * Math.min(1, Math.max(0, t));
-      }
-      if (surfacePoint && !isDem) {
-        // Draped: sit on the terrain, lifted clear of it.
-        vertex.copy(surfacePoint(lat, lon, 0.004));
+      if (surfacePoint) {
+        vertex.copy(surfacePoint(lat, lon, stackLift));
       } else {
-        vertex.copy(latLonToVector3(lat, lon, radius));
+        // No globe (Model mode, tests): a plain sphere is the honest fallback.
+        vertex.copy(latLonToVector3(lat, lon, baseRadius));
       }
       position.setXYZ(index, vertex.x, vertex.y, vertex.z);
     }
@@ -254,8 +265,8 @@ function buildDrapedPatch(grid, gridWidth, gridHeight, bounds, texture, range, i
     // A tessellated patch cannot out-clearance terrain that has detail below
     // any grid, so it does not try: no depth test, and single-sided so the far
     // hemisphere is still culled. The same answer the GEE drapes arrived at.
-    depthTest: !surfacePoint,
-    side: surfacePoint ? THREE.FrontSide : THREE.DoubleSide,
+    depthTest: false,
+    side: THREE.FrontSide,
   }));
 }
 
