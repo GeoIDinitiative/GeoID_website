@@ -20,13 +20,13 @@
  * other's keys.
  */
 
-import { TOOLS, toolById } from "./tool-runner.js?v=20260816-dc82265";
-import { tokenize } from "./search-text.js?v=20260816-dc82265";
+import { TOOLS, toolById } from "./tool-runner.js?v=20260816-bdb55a5";
+import { tokenize } from "./search-text.js?v=20260816-bdb55a5";
 // Namespace import, not named: the prefs verbs are read through optional
 // access inside try/catch (the house localStorage pattern), so an API-shape
 // difference degrades to "no prefs" instead of a module-link error taking
 // the whole palette down with it.
-import * as toolPrefs from "./tool-prefs.js?v=20260816-dc82265";
+import * as toolPrefs from "./tool-prefs.js?v=20260816-bdb55a5";
 
 /* ── prefs, read defensively ──────────────────────────────────────────────
  *
@@ -285,9 +285,6 @@ const STYLE = `
   opacity: 0.5;
 }
 
-/* The persistent box at the top of the toolbox tab bar. */
-#gis-tool-search-box { padding: 0 0 8px; }
-#gis-tool-search { width: 100%; box-sizing: border-box; }
 `;
 
 let styleInjected = false;
@@ -602,37 +599,6 @@ function onDocumentKeydown(e) {
   open("");
 }
 
-/* ── the persistent search box in the toolbox ───────────────────────────── */
-
-let boxInstalled = false;
-function installSearchBox() {
-  if (boxInstalled) return true;
-  const host = document.getElementById("gis-toolbox-panels");
-  if (!host) return false;
-  if (document.getElementById("gis-tool-search-box")) { boxInstalled = true; return true; }
-
-  const wrap = document.createElement("div");
-  wrap.id = "gis-tool-search-box";
-  const input = document.createElement("input");
-  input.id = "gis-tool-search";
-  input.className = "input";
-  input.type = "search";
-  input.placeholder = "Search tools…  ( / )";
-  input.setAttribute("aria-label", "Search tools");
-  wrap.appendChild(input);
-
-  // First child of the tab bar. Safe against orderTabs: that function
-  // appendChild's the named tabs (toolbox.js:120–134), so an unlisted node
-  // inserted first stays first.
-  host.insertBefore(wrap, host.firstChild);
-
-  // On focus the palette opens and takes over — one renderer, no second
-  // results list. The box's own value seeds the query.
-  input.addEventListener("focus", () => open(input.value));
-  boxInstalled = true;
-  return true;
-}
-
 /* ── install ────────────────────────────────────────────────────────────── */
 
 let installed = false;
@@ -654,12 +620,14 @@ function installToolSearch() {
 }
 
 if (typeof document !== "undefined") {
-  // The viewer boots async and the toolbox markup arrives with it, so keep
-  // trying until both are there (the zoom-bar.js tail pattern). The palette
-  // and the shortcut need only <body>; the search box waits for its host.
+  // The palette and the "/" shortcut need only <body>. There is nothing else
+  // to wait for now: the search bar that used to sit in the toolbox tab bar
+  // is gone, because the rail's Search button opens this same palette and a
+  // second, permanently visible way in was taking a row of the sidebar to
+  // duplicate a button.
   let tries = 0;
   const attempt = () => {
-    if ((installToolSearch() && installSearchBox()) || (tries += 1) > 60) return;
+    if (installToolSearch() || (tries += 1) > 60) return;
     setTimeout(attempt, 500);
   };
   if (document.readyState === "loading") {
