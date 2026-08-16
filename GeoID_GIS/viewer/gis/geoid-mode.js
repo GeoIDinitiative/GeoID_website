@@ -14,13 +14,13 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260816-bd23890";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-bd23890";
-import { makeRaster } from "./raster-analysis.js?v=20260816-bd23890";
+} from "./geoid-pipeline.js?v=20260816-7a20000";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260816-7a20000";
+import { makeRaster } from "./raster-analysis.js?v=20260816-7a20000";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260816-bd23890";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260816-bd23890";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260816-7a20000";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260816-7a20000";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -73,8 +73,11 @@ function drawStep(index) {
     /* the layer stands with its previous colours */
   }
   const pct = (step.failingFraction * 100).toFixed(1);
+  const run2 = state.run;
   say(`${step.date}: ${step.failing.toLocaleString()} of ${step.applicable.toLocaleString()} `
-    + `cells below FoS 1 (${pct}%), wetness ${step.wetFraction.toFixed(2)}.`);
+    + `cells below FoS 1 (${pct}%), wetness ${step.wetFraction.toFixed(2)}. `
+    + `Over the 16 days the failing fraction moves ${(run2.moved * 100).toFixed(1)} points on `
+    + `${run2.rainTotal.toFixed(0)} mm of forecast rain — a flat run means a dry forecast, not a frozen map.`);
   // The Hub charts the same numbers rather than computing its own.
   if (window.self !== window.top) {
     try {
@@ -184,11 +187,13 @@ async function ensureInputs(fetchImpl) {
     say("Reading the Northern Ireland elevation…");
     try {
       const response = await f(BASE.dem);
+      if (!response.ok) throw new Error(`${BASE.dem} answered ${response.status}`);
       const decoded = await loadGeoTiffFromArrayBuffer(await response.arrayBuffer(),
         { name: "NI elevation" });
       out.dem = decoded?.raster || null;
+      if (!out.dem) throw new Error(`${BASE.dem} decoded to no raster`);
     } catch (error) {
-      say(`Could not read the base elevation: ${error.message}`);
+      say(`Could not read the base elevation — ${error.message}`);
       return out;
     }
   }
@@ -287,7 +292,11 @@ export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
   if (!layer) { say("The FoS layer could not be drawn."); return { ok: false }; }
   layer.raster = raster;
 
-  state.run = { dates: weather.dates, steps, cells: table.cells, layer, band };
+  const spread = steps.map((st) => st.failingFraction);
+  const moved = Math.max(...spread) - Math.min(...spread);
+  const rainTotal = weather.series.reduce((sum, ser) =>
+    sum + ser.rain.reduce((a, b) => a + (Number.isFinite(b) ? b : 0), 0), 0) / weather.series.length;
+  state.run = { dates: weather.dates, steps, cells: table.cells, layer, band, moved, rainTotal };
   state.step = -1;
   lockView(table.bounds);
   watchClock();
@@ -306,8 +315,28 @@ function boundsOfGeometry(geometry) {
   };
 }
 
+/**
+ * Entering GeoID mode runs the pipeline.
+ *
+ * There was a Run button, which made the mode a thing you enter and then have
+ * to remember to start — two steps for one intention, and a mode that does
+ * nothing on its own is not a mode. Arming is now the trigger; leaving stops
+ * nothing, so coming back is instant.
+ */
 export function init() {
-  document.getElementById("geoid-fos-run")?.addEventListener("click", () => { void run(); });
+  const armed = () => document.body.dataset.hubArmed === "true";
+  let was = armed();
+  let running = false;
+  setInterval(() => {
+    const now = armed();
+    if (now && !was && !running && !state.run) {
+      running = true;
+      void run().finally(() => { running = false; });
+    }
+    was = now;
+  }, 400);
+  // Already in the mode when this module loads — the same intention.
+  if (armed() && !state.run) void run();
 }
 
 if (typeof window !== "undefined") {
