@@ -24,7 +24,18 @@ Run it again after editing the console. The storagerelay line is the one the
 browser token flow uses, so that is the line that must flip.
 """
 import base64, urllib.parse, urllib.request, re, ssl
-CID = "473900633008-n15n9va0orhq6v0f5g83bjbeq6r6jhh9.apps.googleusercontent.com"
+import sys
+
+# The client to ask about. Hardcoding it was a real flaw: after making a NEW
+# client in the console, this script went on reporting the OLD one's empty
+# lists, which reads as "the fix did not work" when the fix was never tested.
+# Pass the id as the first argument -- it is public, that is the whole point of
+# a browser client -- or edit Settings and pass what you pasted there.
+DEFAULT_CID = "473900633008-n15n9va0orhq6v0f5g83bjbeq6r6jhh9.apps.googleusercontent.com"
+CID = (sys.argv[1] if len(sys.argv) > 1 else DEFAULT_CID).strip()
+if not CID.endswith(".apps.googleusercontent.com"):
+    CID += ".apps.googleusercontent.com"
+print(f"asking about {CID}\n")
 SCOPE = "https://www.googleapis.com/auth/earthengine.readonly"
 
 CANDIDATES = [
