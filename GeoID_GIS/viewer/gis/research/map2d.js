@@ -16,7 +16,7 @@
  * see where something is; a flat map is the right way to lay one out for print.
  */
 
-import { BASEMAPS, ATTRIBUTION } from "../tile-sources.js?v=20260817-a184b6f";
+import { BASEMAPS, ATTRIBUTION } from "../tile-sources.js?v=20260817-981a0ae";
 
 // Re-exported because the Map Composer page imports the list from here; the
 // list itself is shared with the globe drape so the two cannot drift.

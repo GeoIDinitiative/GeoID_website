@@ -23,7 +23,7 @@
  * instead of a study area (`captureDrawnLine`), which is what a transect is.
  */
 
-import { regularPolygonVertices, lineVertices } from "./draw-area.js?v=20260817-a184b6f";
+import { regularPolygonVertices, lineVertices } from "./draw-area.js?v=20260817-981a0ae";
 
 /* ── The shapes ──────────────────────────────────────────────────────────────
  *
@@ -196,6 +196,26 @@ const STYLE = `
   color: var(--skin-data, #7ee7ff);
 }
 #gis-draw-status:empty { display: none; }
+
+/* Freehand's finish row. The count is the only running feedback the drawing
+   has -- the viewer draws the outline but never says how many points are in it,
+   and three is the number at which a polygon exists at all. */
+#gis-draw-finish {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+#gis-draw-finish[hidden] { display: none !important; }
+#gis-draw-count {
+  font: 400 0.6rem/1.3 'Exo 2', sans-serif;
+  letter-spacing: 0.03em;
+  opacity: 0.75;
+}
+#gis-draw-finish-btn { width: 100%; font-size: 0.63rem; }
+#gis-draw-finish-btn:disabled { opacity: 0.45; cursor: default; }
 `;
 
 function installStyle() {
@@ -278,7 +298,8 @@ function place(shape) {
     const out = window.GeoIDDrawnLayers?.captureDrawnLine?.(line.vertices);
     // A line makes a layer rather than a study area, so the layer list is where
     // it reports; only the refusal needs saying here.
-    if (out?.ok) clear(); else say(out?.message || "The line could not be added.");
+    if (out?.ok) say(`Line · ${sizeKm} km · ${out.layer?.name || "added"}`);
+    else say(out?.message || "The line could not be added.");
     return;
   }
 
@@ -301,9 +322,66 @@ function place(shape) {
   // A shape is both the place you are working and a polygon you can operate on,
   // and it should not have to be captured twice.
   window.GeoIDDrawnLayers?.captureDrawn?.();
-  // Nothing to report: the shape is on the globe, and its area is in the
-  // viewer's own readout because it went through the viewer's own study area.
-  clear();
+  // Not prose, but not silence either. The card said nothing at all after a
+  // placement, so changing the size and pressing a shape again looked like it
+  // had done nothing -- a 10 km box and a 100 km box are the same handful of
+  // pixels from orbit. The numbers are the confirmation.
+  say(`${shape.label} · ${sizeKm} km · ${Math.round(built.areaHintKm2).toLocaleString()} km²`);
+}
+
+
+/* ── Freehand: knowing where you are, and saying when you are done ────────────
+ *
+ * The viewer has no notion of a finished polygon: `getExtractionGeometry`
+ * returns the area from the THIRD point onward and keeps returning a bigger one
+ * with every click. So there was never a moment the drawing was complete, no
+ * signal that it had started, and no way to say "that one, keep it" -- the
+ * shape existed only as a study area and joining the layer list was something
+ * the preset shapes did for you and freehand did not.
+ *
+ * Polled rather than hooked, because the points are added inside the viewer's
+ * own pointer handling and it publishes no event when they change.
+ */
+let freehandTimer = null;
+
+function freehandGeometry() {
+  return window.GeoIDViewer?.getExtractionGeometry?.("study") || null;
+}
+
+function watchFreehand() {
+  stopWatchingFreehand();
+  const tick = () => {
+    if (!card || card.hidden || state.shape !== "freehand") return stopWatchingFreehand();
+    const geometry = freehandGeometry();
+    const points = geometry?.vertices?.length || 0;
+    nodes.finish.disabled = points < 3;
+    // "the current shape", not "your drawing": the viewer keeps ONE study area,
+    // so a preset placed a moment ago is what this counts until the next click
+    // on the globe. Calling a 12-vertex square "12 points" read as though the
+    // user had clicked them out.
+    nodes.finishCount.textContent = points === 0
+      ? "Click the globe to start drawing"
+      : `Current shape: ${points} point${points === 1 ? "" : "s"}`
+        + (points < 3 ? " — 3 needed" : "");
+    return undefined;
+  };
+  tick();
+  freehandTimer = setInterval(tick, 300);
+}
+
+function stopWatchingFreehand() {
+  if (freehandTimer) clearInterval(freehandTimer);
+  freehandTimer = null;
+}
+
+function finishFreehand() {
+  const geometry = freehandGeometry();
+  if (!geometry || geometry.vertices.length < 3) {
+    say("Click out at least three points on the globe first.", true);
+    return;
+  }
+  const out = window.GeoIDDrawnLayers?.captureDrawn?.();
+  say(out?.ok ? out.message : (out?.message || "That shape could not be saved."));
 }
 
 function selectShape(id) {
@@ -316,14 +394,15 @@ function selectShape(id) {
   nodes.centreRow.hidden = freehand;
   nodes.manualRow.hidden = freehand || nodes.centre.value !== "manual";
   nodes.sizeLabel.textContent = shape.sizeLabel || "Side (km)";
+  // Freehand is the only mode with a drawing in progress, so it is the only one
+  // that needs a finish button and a running count.
+  nodes.finishRow.hidden = !freehand;
   if (freehand) {
-    // Nothing to place: the viewer's own tool is already armed, and this is the
-    // way back to it after a shape has been picked. What that means is on the
-    // icon's tooltip, where it is read once, rather than printed under the
-    // strip every time the card opens.
     clear();
+    watchFreehand();
     return;
   }
+  stopWatchingFreehand();
   place(shape);
 }
 
@@ -451,11 +530,27 @@ function buildCard() {
   const exportSlot = document.createElement("div");
   exportSlot.id = "gis-draw-export";
 
+  // Freehand's own row: how far the drawing has got, and the button that keeps
+  // it. Hidden for every preset shape, which is placed complete.
+  const finishRow = document.createElement("div");
+  finishRow.id = "gis-draw-finish";
+  const finishCount = document.createElement("div");
+  finishCount.id = "gis-draw-count";
+  const finish = document.createElement("button");
+  finish.type = "button";
+  finish.className = "button";
+  finish.id = "gis-draw-finish-btn";
+  finish.textContent = "Finish & save shape";
+  finish.title = "Keep the current shape as a layer you can style, sample and export";
+  finish.disabled = true;
+  finish.addEventListener("click", finishFreehand);
+  finishRow.append(finishCount, finish);
+
   const status = document.createElement("div");
   status.id = "gis-draw-status";
 
   body.append(grid, sizeRow.wrap, bearingRow.wrap, centreRow.wrap, manualRow.wrap,
-    exportSlot, status);
+    finishRow, exportSlot, status);
   card.append(head, body);
   document.body.appendChild(card);
 
@@ -463,7 +558,7 @@ function buildCard() {
     buttons, size, sizeLabel: sizeRow.label, sizeRow: sizeRow.wrap,
     bearing, bearingRow: bearingRow.wrap,
     centre, centreRow: centreRow.wrap, manualRow: manualRow.wrap, lat, lon,
-    exportSlot, status,
+    exportSlot, status, finishRow, finish, finishCount,
   };
   centre.addEventListener("change", () => {
     nodes.manualRow.hidden = state.shape === "freehand" || centre.value !== "manual";
@@ -543,6 +638,7 @@ function open() {
 
 function close() {
   if (!card || card.hidden) return;
+  stopWatchingFreehand();
   returnExport();
   card.hidden = true;
   window.removeEventListener("resize", position);
