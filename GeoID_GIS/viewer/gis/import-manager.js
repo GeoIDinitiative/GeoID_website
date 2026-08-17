@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260817-981a0ae";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260817-981a0ae";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260817-981a0ae";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260817-981a0ae";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260817-981a0ae";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260817-981a0ae";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260817-981a0ae";
-import { loadMshFile } from "./msh-adapter.js?v=20260817-981a0ae";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260817-981a0ae";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260817-e6905f9";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260817-e6905f9";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260817-e6905f9";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260817-e6905f9";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260817-e6905f9";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260817-e6905f9";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260817-e6905f9";
+import { loadMshFile } from "./msh-adapter.js?v=20260817-e6905f9";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260817-e6905f9";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -582,8 +582,66 @@ export function addDerivedLayer(name, result, ext = "derived") {
   return layer;
 }
 
+/**
+ * Rename a layer, everywhere it is named.
+ *
+ * A layer's name is in three places that must not drift: the record the list
+ * draws, the GeoJSON feature's own `name` property (which is what leaves for a
+ * file and what the desktop app reads), and the project's data registry. A
+ * rename that touched only the first looked right until the layer was exported
+ * or the project reopened, and then it was "Drawn area 3" again.
+ *
+ * Returns the applied name, which is not always the one asked for: blank is
+ * refused rather than allowed to erase the only handle the layer has.
+ */
+function renameLayer(target, name) {
+  const layer = typeof target === "object" && target
+    ? target
+    : layers.find((l) => String(l.id) === String(target));
+  const wanted = String(name ?? "").trim();
+  if (!layer || !wanted) return null;
+  layer.name = wanted;
+  // A drawn shape carries its name in the feature, and that is the copy that
+  // survives an export.
+  const feature = layer.collection?.features?.[0];
+  if (feature?.properties) feature.properties.name = wanted;
+  if (layer.object3D) layer.object3D.name = wanted;
+  renderLayerList();
+  window.GeoIDLayerHierarchy?.render?.();
+  notifyLayerChange();
+  return wanted;
+}
+
+/**
+ * Free-form metadata on a layer, kept where an export will carry it.
+ *
+ * Written onto the feature's properties for a drawn layer -- so "surveyed by",
+ * "confidence", whatever the work needs, travels with the geometry -- and onto
+ * the layer record otherwise, where nothing downstream would lose it.
+ */
+function setLayerMetadata(target, entries) {
+  const layer = typeof target === "object" && target
+    ? target
+    : layers.find((l) => String(l.id) === String(target));
+  if (!layer || !entries || typeof entries !== "object") return null;
+  const feature = layer.collection?.features?.[0];
+  const sink = feature?.properties || (layer.meta = layer.meta || {});
+  Object.entries(entries).forEach(([key, value]) => {
+    const k = String(key).trim();
+    if (!k) return;
+    if (value === null || value === "") delete sink[k];
+    else sink[k] = value;
+  });
+  renderLayerList();
+  window.GeoIDLayerHierarchy?.render?.();
+  notifyLayerChange();
+  return sink;
+}
+
 window.GeoIDImportManager = {
   importFileList,
+  renameLayer,
+  setLayerMetadata,
   removeLayer,
   registerParser,
   addDerivedLayer,

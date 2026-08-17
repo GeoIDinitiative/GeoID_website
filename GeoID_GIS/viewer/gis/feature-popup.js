@@ -20,7 +20,7 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-981a0ae";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-e6905f9";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -82,6 +82,58 @@ const STYLE = `
 #gis-feature-popup .gis-fp-more {
   margin-top: 0.4rem; font-size: 0.62rem; opacity: 0.65;
 }
+
+/* The drawn-shape editor. NEVER a backtick in this block -- it is a template
+   literal and one ends it; module-css.test.mjs catches that, a browser does not. */
+#gis-feature-popup .gis-fp-edit {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+#gis-feature-popup .gis-fp-field {
+  display: grid;
+  grid-template-columns: 3.6rem 1fr;
+  gap: 0.35rem;
+  align-items: center;
+}
+#gis-feature-popup .gis-fp-field span {
+  font: 500 0.6rem/1.2 'Exo 2', sans-serif;
+  letter-spacing: 0.04em;
+  color: var(--skin-data, #7ee7ff);
+}
+#gis-feature-popup .gis-fp-field input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.12rem 0.3rem;
+  font: 400 0.65rem/1.35 'Exo 2', sans-serif;
+  color: var(--text, #e8f4ff);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.18rem;
+}
+#gis-feature-popup .gis-fp-field input:focus {
+  outline: none;
+  border-color: rgba(var(--nav-accent-rgb), 0.85);
+}
+#gis-feature-popup .gis-fp-save {
+  margin-top: 0.2rem;
+  padding: 0.25rem 0.5rem;
+  font: 600 0.62rem/1.2 'Exo 2', sans-serif;
+  letter-spacing: 0.05em;
+  color: var(--skin-chrome-ink, #2b0030);
+  background: rgb(var(--nav-accent-rgb));
+  border: none;
+  border-radius: 0.2rem;
+  cursor: pointer;
+}
+#gis-feature-popup .gis-fp-said {
+  font: 400 0.6rem/1.3 'Exo 2', sans-serif;
+  opacity: 0.8;
+}
+#gis-feature-popup .gis-fp-said:empty { display: none; }
 `;
 
 function ensurePopup() {
@@ -139,7 +191,80 @@ function orderedEntries(props) {
   return rows;
 }
 
-function showPopup(x, y, layerName, feature) {
+
+/**
+ * Rename and annotate a shape you drew, where you clicked it.
+ *
+ * The name goes through `renameLayer` rather than being written here, because
+ * it lives in three places and this popup can only see one of them. Notes and
+ * any custom field go onto the feature's own properties, which is the copy that
+ * travels into an export and into the project -- metadata that only existed in
+ * the viewer would be lost by the first thing that read the file.
+ */
+function buildEditor(layerRecord, feature, titleNode) {
+  const wrap = document.createElement("div");
+  wrap.className = "gis-fp-edit";
+
+  const field = (labelText, value, placeholder) => {
+    const row = document.createElement("label");
+    row.className = "gis-fp-field";
+    const span = document.createElement("span");
+    span.textContent = labelText;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = value || "";
+    input.placeholder = placeholder || "";
+    // The viewer intercepts Space document-wide and blurs the focused element,
+    // which would make every one of these fields one word long.
+    input.addEventListener("keydown", (e) => e.stopPropagation());
+    row.append(span, input);
+    wrap.appendChild(row);
+    return input;
+  };
+
+  const name = field("Name", layerRecord.name, "Name this shape");
+  const notes = field("Notes", feature.properties?.notes, "What is it, why it matters");
+  const keyInput = field("Field", "", "e.g. surveyed_by");
+  const valueInput = field("Value", "", "e.g. O. Mitchell");
+
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "gis-fp-save";
+  save.textContent = "Save";
+  const said = document.createElement("div");
+  said.className = "gis-fp-said";
+
+  save.addEventListener("click", () => {
+    const manager = window.GeoIDImportManager;
+    const wanted = name.value.trim();
+    const changes = [];
+    if (wanted && wanted !== layerRecord.name) {
+      manager?.renameLayer?.(layerRecord, wanted);
+      if (titleNode) titleNode.textContent = wanted;
+      changes.push("renamed");
+    }
+    const meta = {};
+    const noteText = notes.value.trim();
+    if (noteText !== String(feature.properties?.notes || "")) {
+      meta.notes = noteText;
+      changes.push(noteText ? "notes saved" : "notes cleared");
+    }
+    const key = keyInput.value.trim();
+    if (key) {
+      meta[key] = valueInput.value.trim();
+      changes.push(`${key} set`);
+      keyInput.value = "";
+      valueInput.value = "";
+    }
+    if (Object.keys(meta).length) manager?.setLayerMetadata?.(layerRecord, meta);
+    said.textContent = changes.length ? changes.join(", ") : "Nothing changed.";
+  });
+
+  wrap.append(save, said);
+  return wrap;
+}
+
+function showPopup(x, y, layerName, feature, layerRecord = null) {
   const host = ensurePopup();
   host.innerHTML = "";
   const props = feature.properties || {};
@@ -172,6 +297,12 @@ function showPopup(x, y, layerName, feature) {
   });
 
   host.append(head, layer, list);
+  // A shape you drew is yours to name and annotate; a shapefile somebody else
+  // published is a record, and letting this popup rewrite its attributes would
+  // be editing the source. So the editor is offered for drawn layers only.
+  if (layerRecord?.ext === "drawn") {
+    host.appendChild(buildEditor(layerRecord, feature, title));
+  }
   if (rows.length > 24) {
     const more = document.createElement("div");
     more.className = "gis-fp-more";
@@ -312,7 +443,9 @@ function install() {
     if (!at) { hidePopup(); return; }
     const hit = featureAt(at.lat, at.lon);
     if (!hit) { hidePopup(); return; }
-    showPopup(event.clientX, event.clientY, hit.layer.name || "Layer", hit.feature);
+    // The layer record travels too: the editor renames THE LAYER, and the
+    // popup could otherwise only see the feature it was built from.
+    showPopup(event.clientX, event.clientY, hit.layer.name || "Layer", hit.feature, hit.layer);
   });
 
   document.addEventListener("keydown", (event) => {

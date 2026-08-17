@@ -190,6 +190,27 @@ input.gis-sym-name:focus {
   border-radius: 0.12rem;
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
+/* The layer name is a rename affordance, so it says so on hover. The row sets
+   cursor:grab for drag-to-reorder and that wins on a bare class, so the name
+   states its own cursor with the row in the selector. NEVER a backtick here --
+   this block is a template literal and one ends it. */
+.layer-stack .layer-row .layer-name, .layer-name {
+  cursor: text;
+  border-radius: 0.15rem;
+}
+.layer-stack .layer-row .layer-name:hover, .layer-name:hover {
+  background: rgba(var(--nav-accent-rgb), 0.14);
+}
+input.layer-name-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0 0.2rem;
+  font: inherit;
+  color: var(--text, #e8f4ff);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.8);
+  border-radius: 0.15rem;
+}
 .legend-class-label {
   font-size: 0.62rem;
   overflow: hidden;

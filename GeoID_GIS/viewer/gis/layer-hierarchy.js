@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260817-981a0ae";
-import { samplerToRaster } from "./raster-analysis.js?v=20260817-981a0ae";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260817-981a0ae";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260817-981a0ae";
+import { currentBody } from "./bodies.js?v=20260817-e6905f9";
+import { samplerToRaster } from "./raster-analysis.js?v=20260817-e6905f9";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260817-e6905f9";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260817-e6905f9";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -303,7 +303,7 @@ function row(layer) {
     <label class="layer-eye" title="Visible">
       <input type="checkbox" ${visible ? "checked" : ""} data-role="visible">
     </label>
-    <span class="layer-name" title="${layer.name || "layer"}">${layer.name || "layer"}</span>
+    <span class="layer-name" title="Click to rename" tabindex="0" role="button">${layer.name || "layer"}</span>
     <span class="layer-kind">${layer.type || ""}</span>
     <input class="layer-opacity" type="range" min="0" max="1" step="0.05"
       value="${opacity}" data-role="opacity" title="Transparency">
@@ -311,6 +311,53 @@ function row(layer) {
       <button type="button" data-role="up" title="Move up">▲</button>
       <button type="button" data-role="down" title="Move down">▼</button>
     </span>`;
+
+  /**
+   * The name is the field people most want to change and the one place the list
+   * offered no way to. Click it and it becomes an input in place -- Enter or
+   * blur commits, Escape puts the old one back.
+   *
+   * `renameLayer` on the import manager does the actual work, because a name
+   * lives in three places (the record, the GeoJSON feature, the object3D) and a
+   * rename that touches one of them looks right until the layer is exported.
+   */
+  const nameNode = node.querySelector(".layer-name");
+  nameNode?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (nameNode.querySelector("input")) return;
+    const before = layer.name || "layer";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "layer-name-input";
+    input.value = before;
+    input.setAttribute("aria-label", "Layer name");
+    nameNode.textContent = "";
+    nameNode.appendChild(input);
+    input.focus();
+    input.select();
+    let done = false;
+    const commit = (keep) => {
+      if (done) return;
+      done = true;
+      const wanted = input.value.trim();
+      if (keep && wanted && wanted !== before) {
+        window.GeoIDImportManager?.renameLayer?.(layer, wanted);
+      }
+      // render() rebuilds the row either way, so the input never lingers.
+      render();
+    };
+    input.addEventListener("keydown", (e) => {
+      // The viewer eats the space bar document-wide; a text input must keep it.
+      e.stopPropagation();
+      if (e.key === "Enter") { e.preventDefault(); commit(true); }
+      if (e.key === "Escape") { e.preventDefault(); commit(false); }
+    });
+    input.addEventListener("blur", () => commit(true));
+    input.addEventListener("click", (e) => e.stopPropagation());
+  });
+  nameNode?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); nameNode.click(); }
+  });
 
   node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
     setVisible(layer, e.target.checked);
