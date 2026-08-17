@@ -253,6 +253,28 @@ export function buildSymbology(values, {
   };
 }
 
+
+/**
+ * A QUALITATIVE palette, for categories.
+ *
+ * Sampling a sequential or diverging ramp across n categories is right for
+ * ordered classes and wrong for named ones: thirteen rock units taken along
+ * "spectral" gives four consecutive shades of the same red, and the map reads
+ * as one colour with a legend that claims otherwise. Categories have no order,
+ * so their colours should be as far apart as possible rather than evenly spaced
+ * along a line.
+ *
+ * Twelve hues chosen to stay distinguishable side by side and to survive the
+ * common colour-vision deficiencies reasonably well (a ColorBrewer-style
+ * qualitative set). Beyond twelve the ramp takes over -- at that point a legend
+ * is unreadable whatever the colours, and `maxCategories` already folds the
+ * tail into one grey.
+ */
+export const QUALITATIVE = [
+  "#4e79a7", "#f28e2b", "#59a14f", "#e15759", "#b07aa1", "#76b7b2",
+  "#edc948", "#9c755f", "#bab0ac", "#86bcb6", "#d37295", "#8cd17d",
+];
+
 /* ── categories, for vector layers ──────────────────────────────────────── */
 
 /**
@@ -304,7 +326,9 @@ export function suggestCategoryField(features, fields = null) {
  * and everything past `maxCategories` becomes one honest "other" rather than
  * fifty indistinguishable greys.
  */
-export function categoricalSymbology(features, field, { ramp = "spectral", maxCategories = 12 } = {}) {
+export function categoricalSymbology(features, field, {
+  ramp = "spectral", maxCategories = 12, qualitative = true,
+} = {}) {
   const counts = new Map();
   (features || []).forEach((f) => {
     const raw = f?.properties?.[field];
@@ -316,10 +340,15 @@ export function categoricalSymbology(features, field, { ramp = "spectral", maxCa
   const ordered = [...counts.entries()].sort((a, b) => b[1] - a[1]);
   const shown = ordered.slice(0, maxCategories);
   const rest = ordered.slice(maxCategories);
+  // Qualitative unless a ramp is asked for by name, and only while the palette
+  // has a colour left -- past that the ramp is the honest fallback.
+  const useQualitative = qualitative && shown.length <= QUALITATIVE.length;
   const rows = shown.map(([value, count], i) => ({
     value,
     count,
-    colour: hex(rampColour(ramp, shown.length <= 1 ? 0.5 : i / (shown.length - 1))),
+    colour: useQualitative
+      ? QUALITATIVE[i]
+      : hex(rampColour(ramp, shown.length <= 1 ? 0.5 : i / (shown.length - 1))),
   }));
   if (rest.length) {
     rows.push({
@@ -333,6 +362,7 @@ export function categoricalSymbology(features, field, { ramp = "spectral", maxCa
   const lookup = new Map(rows.filter((r) => !r.other).map((r) => [r.value, r.colour]));
   return {
     ok: true, categorical: true, field, ramp, rows,
+    qualitative: useQualitative,
     categories: counts.size,
     palette: rows.map((r) => r.colour),
     colourOf: (feature) => {
@@ -395,6 +425,6 @@ if (typeof window !== "undefined") {
   window.GeoIDSymbology = {
     RAMPS, RAMP_NAMES, METHODS, rampColour, hex, buildSymbology,
     equalIntervalBreaks, quantileBreaks, jenksBreaks, stdDevBreaks,
-    classOf, colourOf, legendInfoFrom, fmtBound,
+    classOf, colourOf, legendInfoFrom, fmtBound, QUALITATIVE,
   };
 }

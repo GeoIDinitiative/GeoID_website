@@ -15,7 +15,7 @@ import {
   RAMPS,
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
   categoricalSymbology, suggestCategoryField,
-} from "./symbology.js?v=20260817-bdac695";
+} from "./symbology.js?v=20260817-b9230ec";
 
 const HOST_ID = "gis-symbology-host";
 /**
@@ -374,12 +374,14 @@ function recompute(apply) {
     });
     const lookup = new Map(sym.rows.filter((r) => !r.other).map((r) => [r.value, r.colour]));
     const otherColour = sym.rows.find((r) => r.other)?.colour || null;
-    const rgbOf = (c) => (c ? [
-      parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16),
-    ] : null);
+    // A CSS string, not [r,g,b]: this is the VECTOR repaint, which passes the
+    // value to THREE.Color.set. Rewriting this branch to rebuild the lookup, I
+    // also converted to RGB arrays to match the raster branch below -- and
+    // every polygon went white while the legend stayed right, which is exactly
+    // why the legend must never be the thing a paint is verified by.
     const painted = layer.repaint((feature) => {
       const value = feature?.properties?.[field];
-      return rgbOf(lookup.has(value) ? lookup.get(value) : otherColour);
+      return (lookup.has(value) ? lookup.get(value) : otherColour) || null;
     });
     layer.legendInfo = {
       palette: sym.rows.map((r) => r.colour.replace("#", "")),

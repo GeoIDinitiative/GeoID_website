@@ -28,8 +28,8 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-bdac695";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-bdac695";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-b9230ec";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-b9230ec";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -311,12 +311,14 @@ async function applyField(layer, field, { ramp = "spectral", overrides = null, l
   }
   const lookup = new Map(sym.rows.filter((r) => !r.other).map((r) => [r.value, r.colour]));
   const other = sym.rows.find((r) => r.other)?.colour || null;
-  const rgb = (c) => (c ? [
-    parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16),
-  ] : null);
+  // A VECTOR repaint wants a CSS colour string -- `renderFeatureCollection`
+  // does `scratch.set(css)`. A raster repaint wants an [r,g,b] array. Handing
+  // the array to a vector layer is not an error: THREE.Color.set swallows it
+  // and every polygon comes out WHITE, with a perfectly correct legend beside
+  // it. The legend is not evidence that the map was painted.
   layer.repaint?.((feature) => {
     const value = feature?.properties?.[field];
-    return rgb(lookup.has(value) ? lookup.get(value) : other);
+    return (lookup.has(value) ? lookup.get(value) : other) || null;
   });
   layer.legendInfo = {
     palette: sym.rows.map((r) => r.colour.replace("#", "")),

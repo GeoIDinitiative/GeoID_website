@@ -20,7 +20,7 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-bdac695";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-b9230ec";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -85,6 +85,9 @@ const STYLE = `
 
 /* The drawn-shape editor. NEVER a backtick in this block -- it is a template
    literal and one ends it; module-css.test.mjs catches that, a browser does not. */
+#gis-feature-popup .gis-fp-kicker { margin: 0.1rem 0 0; }
+#gis-feature-popup .gis-fp-copy { margin: 0.2rem 0 0.1rem; }
+#gis-feature-popup .gis-fp-copy:empty { display: none; }
 #gis-feature-popup .gis-fp-beneath {
   margin-top: 0.5rem;
   padding-top: 0.4rem;
@@ -412,7 +415,10 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
   const head = document.createElement("div");
   head.className = "gis-fp-head";
   const title = document.createElement("span");
-  title.className = "gis-fp-title";
+  // The planetary viewers' own class, so a unit clicked on Earth reads exactly
+  // as one clicked on Mars: same face, weight and tracking, from the same rule
+  // in styles.css rather than a second copy of it here.
+  title.className = "gis-fp-title feature-title";
   title.textContent = titleOf(props);
   const close = document.createElement("button");
   close.type = "button";
@@ -422,9 +428,25 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
   close.addEventListener("click", hidePopup);
   head.append(title, close);
 
+  // Kicker, title, meta, copy -- the planetary popup's own shape. A geological
+  // unit says so above its name, which is what "Geologic unit" is doing in the
+  // markup's #geo-popup that Earth never got to use.
+  const kicker = document.createElement("p");
+  kicker.className = "gis-fp-kicker feature-kicker";
+  kicker.textContent = layerRecord?.geologyDataset ? "Geologic unit"
+    : layerRecord?.ext === "drawn" ? "Drawn shape" : "Selected feature";
+
   const layer = document.createElement("div");
-  layer.className = "gis-fp-layer";
+  layer.className = "gis-fp-layer feature-meta";
   layer.textContent = layerName;
+
+  // The unit's own description, where the data carries one, in the place the
+  // planetary popup puts it -- above the attribute table rather than lost
+  // among fifty-seven rows of it.
+  const copyText = props.rcs_d || props.bgstype || props.description || props.rock_d || "";
+  const copy = document.createElement("p");
+  copy.className = "gis-fp-copy feature-copy";
+  copy.textContent = String(copyText || "");
 
   const list = document.createElement("dl");
   const rows = orderedEntries(props);
@@ -436,7 +458,7 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
     list.append(dt, dd);
   });
 
-  host.append(head, layer, list);
+  host.append(head, kicker, layer, copy, list);
   // A shape you drew is yours to name and annotate; a shapefile somebody else
   // published is a record, and letting this popup rewrite its attributes would
   // be editing the source. So the editor is offered for drawn layers only.
