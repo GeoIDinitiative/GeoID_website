@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-06ade53";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260818-06ade53";
-import { currentBodyId } from "./bodies.js?v=20260818-06ade53";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-06ade53";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-58fd334";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260818-58fd334";
+import { currentBodyId } from "./bodies.js?v=20260818-58fd334";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-58fd334";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -405,6 +405,20 @@ function boundsOfRings(rings) {
 }
 
 /**
+ * A dataset's short name: whatever follows the last dash in its title.
+ *
+ * The catalogue's labels are "<region> — <part of the record>", so the tail is
+ * the part that distinguishes one sheet from another over the same ground —
+ * bedrock from superficial — which is exactly what a card listing both needs to
+ * key its rows on. A name with no dash keeps its own name.
+ */
+function datasetLabel(name) {
+  const text = String(name || "").trim();
+  const tail = text.split(/\s[—–-]\s/).pop().trim() || text;
+  return tail ? tail.charAt(0).toUpperCase() + tail.slice(1) : "Dataset";
+}
+
+/**
  * One layer's features as the viewer's catalogue.
  *
  * `field` is whatever the layer is coloured by, so the unit named in the card
@@ -462,6 +476,10 @@ function toInteractiveCatalogue(layers) {
         polygons,
         selection_bounds: boundsOfRings(polygons.map((p) => p.outer)),
         source_layer: layer.name,
+        // What to CALL this dataset in a card that names several of them.
+        // "Northern Ireland — superficial" is the layer's name and too long to
+        // be a key beside a rock type; "Superficial" is what the row is about.
+        dataset_label: datasetLabel(layer.name),
       });
       if (!unitSeen.has(name)) {
         unitSeen.set(name, paint.get(String(props[field])) || "#8a8a8a");

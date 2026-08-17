@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260818-06ade53";
+  from "./gis/geo-utils.js?v=20260818-58fd334";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -1602,22 +1602,59 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       return lonOffset >= Number(bounds.lon_min_offset) && lonOffset <= Number(bounds.lon_max_offset);
     }
 
+    /**
+     * The unit under a point — one answer per DATASET, not one answer overall.
+     *
+     * A single catalogue used to mean a single hit: the first feature in the
+     * list containing the point, and everything under it went unreported. With
+     * one geology sheet, as Mars and the Moon have, those are the same thing.
+     * With two stacked sheets they are not — Northern Ireland's superficial
+     * deposits sit over its bedrock, so every click answered for the superficial
+     * cover and the bedrock beneath it could not be asked about at all without
+     * switching the top layer off.
+     *
+     * So the scan takes the first hit **per source layer**. The topmost, which
+     * is the one you are looking at, is still the feature returned and still
+     * titles the card; the rest ride along in `stack` for the popup to list.
+     * A catalogue whose features carry no `source_layer` — every planet — has
+     * exactly one group, so this short-circuits on the first hit and behaves as
+     * it always did.
+     */
     function getGeologyFeatureAtLatLon(latDegrees, lonDegrees, geologyInteractiveState) {
       if (!geologyInteractiveState) {
         return null;
       }
       const featureList = geologyInteractiveState.featureList || [];
-      const feature = featureList.find((candidate) => (
-        pointWithinFeatureBounds(lonDegrees, latDegrees, candidate)
-        && pointInPolygonFeature(lonDegrees, latDegrees, candidate)
-      ));
-      if (!feature) {
+      const wanted = geologyInteractiveState.datasetCount || 1;
+      const perDataset = new Map();
+      for (const candidate of featureList) {
+        const key = candidate.source_layer || "";
+        if (perDataset.has(key)) {
+          continue;
+        }
+        if (
+          pointWithinFeatureBounds(lonDegrees, latDegrees, candidate)
+          && pointInPolygonFeature(lonDegrees, latDegrees, candidate)
+        ) {
+          perDataset.set(key, candidate);
+          if (perDataset.size >= wanted) {
+            break;
+          }
+        }
+      }
+      const hits = [...perDataset.values()];
+      if (!hits.length) {
         return null;
       }
       return {
-        ...feature,
+        ...hits[0],
         lat: latDegrees,
         lon: lonDegrees,
+        stack: hits.slice(1).map((f) => ({
+          label: f.dataset_label || f.source_layer || "Also here",
+          unit: f.rock_type || f.name || "",
+          name: f.name || "",
+        })).filter((entry) => entry.unit),
       };
     }
 
@@ -5710,6 +5747,19 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
           row.className = "scene-popup-detail-row";
           row.innerHTML = `<span class="scene-popup-detail-key">Area</span>`
                         + `<span class="scene-popup-detail-val">${Number(feature.mapped_area_km2).toLocaleString()} km²</span>`;
+          geoPopupDetail.appendChild(row);
+          hasDetail = true;
+        }
+        // What the OTHER geology datasets say about the same point, keyed by the
+        // sheet each came from. With superficial deposits over bedrock the card
+        // reported only the cover, and the rock under it could not be asked
+        // about without switching a layer off. Nothing here for a world with one
+        // geology sheet, which is every planet.
+        for (const entry of feature.stack || []) {
+          const row = document.createElement("div");
+          row.className = "scene-popup-detail-row";
+          row.innerHTML = `<span class="scene-popup-detail-key">${entry.label}</span>`
+                        + `<span class="scene-popup-detail-val">${entry.unit}</span>`;
           geoPopupDetail.appendChild(row);
           hasDetail = true;
         }
@@ -19337,6 +19387,14 @@ uniform float uViewportWidth;`,
             structures: catalog.structures || [],
             landing_sites: catalog.landing_sites || [],
           } : null;
+          // How many datasets a click has to ask, counted once here rather than
+          // per click: it is what lets the scan stop early instead of walking
+          // all 1,559 features every time.
+          if (geologyInteractiveState) {
+            geologyInteractiveState.datasetCount = new Set(
+              geologyInteractiveState.featureList.map((f) => f.source_layer || ""),
+            ).size || 1;
+          }
           // The click path is gated on the geology toggle, which is hidden on
           // this page now that the relief overlay it used to drive has moved to
           // the basemaps. Holding it true while a catalogue is loaded is what
