@@ -28,9 +28,9 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-e80b34d";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-e80b34d";
-import { currentBodyId } from "./bodies.js?v=20260817-e80b34d";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-2497cbf";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-2497cbf";
+import { currentBodyId } from "./bodies.js?v=20260817-2497cbf";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *

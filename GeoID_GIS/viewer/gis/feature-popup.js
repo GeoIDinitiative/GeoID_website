@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-e80b34d";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260817-e80b34d";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-2497cbf";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260817-2497cbf";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -90,6 +90,24 @@ const STYLE = `
 
 /* The drawn-shape editor. NEVER a backtick in this block -- it is a template
    literal and one ends it; module-css.test.mjs catches that, a browser does not. */
+#gis-feature-popup .gis-fp-head-stacked {
+  display: block;
+  position: relative;
+  padding-right: 1.2rem;
+}
+#gis-feature-popup .gis-fp-head-stacked .gis-fp-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+#gis-feature-popup .gis-fp-raw { margin-top: 0.45rem; }
+#gis-feature-popup .gis-fp-raw > summary {
+  cursor: pointer;
+  font: 500 0.6rem/1.3 'Exo 2', sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
 #gis-feature-popup .gis-fp-detail { margin: 0.5rem 0 0.2rem; }
 #gis-feature-popup .gis-fp-kicker { margin: 0.1rem 0 0; }
 #gis-feature-popup .gis-fp-copy { margin: 0.2rem 0 0.1rem; }
@@ -323,7 +341,15 @@ function buildDetail(feature, props) {
       km2 += sphericalPolygonAreaKm2(outer.map(([lon, lat]) => ({ lat, lon })));
     }
   });
-  if (km2 > 0) rows.push(["Area", `${Math.round(km2).toLocaleString()} km²`]);
+  if (km2 > 0) {
+    // A sliver is not nothing. Rounding to whole square kilometres printed
+    // "Area 0 km²" for a polygon that plainly exists, which reads as a broken
+    // measurement rather than a small one.
+    const area = km2 >= 100 ? Math.round(km2).toLocaleString()
+      : km2 >= 1 ? km2.toFixed(1)
+        : km2.toPrecision(2);
+    rows.push(["Area", `${area} km²`]);
+  }
   // The code beside the name, where the survey publishes one -- it is what a
   // map sheet is keyed by and it is short enough to belong in the strip.
   const code = props.lex || props.lex_rcs || props.map_code || props.unit || null;
@@ -416,17 +442,38 @@ async function showPin(lat, lon, feature) {
   const holder = new THREE.Group();
   holder.name = "GeoID-FeaturePin";
 
-  // The pin: a short stem from the ground with a head, so it reads at a glance
-  // and does not vanish into a busy polygon fill.
+  /**
+   * The pin is sized from the VIEW, not in scene units.
+   *
+   * A fixed 0.012 radius is 0.4% of the globe, which is about 48 km across --
+   * from orbit an invisible speck and over Northern Ireland a magenta blob a
+   * third the width of the country, painted over the map it was meant to point
+   * at. Same class of mistake as the measure marker's fixed lift that CLAUDE.md
+   * records: a constant in scene units is a different thing at every altitude.
+   *
+   * Sized as a fraction of the distance from the camera to the point, it
+   * subtends a constant small angle and therefore looks the same at every zoom.
+   */
+  const anchor = viewer.surfacePoint(lat, lon, 0.001);
+  const viewDistance = viewer.camera
+    ? Math.max(0.02, viewer.camera.position.distanceTo(anchor)) : 1;
+  // No upper cap: a ceiling in scene units is the very thing being fixed, and
+  // it re-broke the far view -- clamped at 0.012 the pin subtended a tenth of
+  // the angle from orbit that it did up close. 0.006 of the view distance is
+  // about 0.7 degrees across, roughly fourteen pixels, at every altitude. The
+  // floor only stops it vanishing when the camera is almost on the ground.
+  const headRadius = Math.max(0.0004, viewDistance * 0.006);
+  const stemLength = headRadius * 4;
+
   const base = viewer.surfacePoint(lat, lon, 0.001);
-  const top = viewer.surfacePoint(lat, lon, 0.05);
+  const top = viewer.surfacePoint(lat, lon, 0.001 + stemLength);
   const stem = new THREE.Line(
     new THREE.BufferGeometry().setFromPoints([base, top]),
     new THREE.LineBasicMaterial({ color: 0xff2bd6, depthTest: false, transparent: true }),
   );
   stem.renderOrder = 240;
   const head = new THREE.Mesh(
-    new THREE.SphereGeometry(0.012, 12, 10),
+    new THREE.SphereGeometry(headRadius, 12, 10),
     new THREE.MeshBasicMaterial({ color: 0xff2bd6, depthTest: false, transparent: true }),
   );
   head.position.copy(top);
@@ -478,7 +525,7 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
   const props = feature.properties || {};
 
   const head = document.createElement("div");
-  head.className = "gis-fp-head";
+  head.className = "gis-fp-head gis-fp-head-stacked";
   const title = document.createElement("span");
   // The planetary viewers' own class, so a unit clicked on Earth reads exactly
   // as one clicked on Mars: same face, weight and tracking, from the same rule
@@ -524,9 +571,22 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
   });
 
   const detail = buildDetail(feature, props);
-  host.append(head, kicker, layer, copy);
+  // Kicker above the title, as the planetary card reads: the class of thing
+  // first, then which one. The close button lives in the head row, so the head
+  // stays where it is and the kicker is inserted into it rather than after.
+  head.insertBefore(kicker, head.firstChild);
+  head.insertBefore(title, kicker.nextSibling);
+  host.append(head, layer, copy);
   if (detail) host.appendChild(detail);
-  host.appendChild(list);
+  // Mars shows the curated fields and stops. Fifty-seven raw columns under them
+  // is an attribute table wearing a popup's clothes -- so they fold, and the
+  // summary above is what the card actually says.
+  const more = document.createElement("details");
+  more.className = "gis-fp-raw";
+  const summary = document.createElement("summary");
+  summary.textContent = `All ${rows.length} attributes`;
+  more.append(summary, list);
+  host.appendChild(more);
   // A shape you drew is yours to name and annotate; a shapefile somebody else
   // published is a record, and letting this popup rewrite its attributes would
   // be editing the source. So the editor is offered for drawn layers only.

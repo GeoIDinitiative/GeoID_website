@@ -181,12 +181,25 @@ export function frameGlobeBounds(bounds, { paddingFactor = 2.2 } = {}) {
   const spanDeg = Math.max(bounds.maxY - bounds.minY, bounds.maxX - bounds.minX, 0.05);
   const spanFraction = Math.min(spanDeg / 180, 1);
   const distance = Math.max(radius * 1.06, radius * (1 + spanFraction * paddingFactor));
-  // latLonToVector3 works in the globe group's local frame, which carries
-  // Earth's axial tilt and spin. The camera lives in world space, so the
-  // direction has to be taken through that transform or the view lands
-  // roughly 23 degrees away from the requested coordinates.
+  // `latLonToVector3` answers in the BASELINE frame -- where the texture is laid
+  // out, not where that place is now. Two transforms stand between it and world
+  // space, and taking only one of them is the bug this fixes:
+  //
+  //   - `earthSceneGroup` carries the 23.44 degree axial tilt;
+  //   - the imported-layers group carries the SPIN, which is the globe's own
+  //     `rotation.y` off simulated UTC and therefore changes through the day.
+  //
+  // Only the tilt was applied, so a layer was framed at the coordinate it would
+  // occupy at midnight and the camera missed by however far Earth had turned --
+  // an offset that GROWS through the day, which is exactly the signature
+  // CLAUDE.md records for this mistake.
+  //
+  // The layers are drawn as children of that group, so framing through ITS
+  // world matrix asks where the geometry actually is rather than deriving the
+  // angle a second time and hoping the two agree.
   const direction = latLonToVector3(center.lat, center.lon, 1);
-  const group = viewer.earthSceneGroup;
+  const group = viewer.scene?.getObjectByName("GeoID-ImportedGeoLayers")
+    || viewer.earthSceneGroup;
   if (group) {
     group.updateMatrixWorld();
     direction.applyMatrix4(group.matrixWorld);
