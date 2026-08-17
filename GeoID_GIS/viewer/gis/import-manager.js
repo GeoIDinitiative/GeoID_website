@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260817-8c77f1d";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260817-8c77f1d";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260817-8c77f1d";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260817-8c77f1d";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260817-8c77f1d";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260817-8c77f1d";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260817-8c77f1d";
-import { loadMshFile } from "./msh-adapter.js?v=20260817-8c77f1d";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260817-8c77f1d";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260817-b57b86d";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260817-b57b86d";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260817-b57b86d";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260817-b57b86d";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260817-b57b86d";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260817-b57b86d";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260817-b57b86d";
+import { loadMshFile } from "./msh-adapter.js?v=20260817-b57b86d";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260817-b57b86d";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -409,6 +409,20 @@ async function importDataset(primaryFile, sidecars, options = {}) {
     (layer.georeferenced ? groups.geoGroup : groups.localGroup).add(result.object3D);
     placeLocalModel(result.object3D, window.GeoIDModeManager?.getMode?.());
     frameResult(layer);
+    // Symbology chosen in the Add-data dialog, applied through the SAME path the
+    // symbology panel's Apply uses -- so a layer looks the same when it lands as
+    // it does the moment somebody opens that panel. Imported lazily because the
+    // panel is a module that may load after this one, and never allowed to fail
+    // the import it is only decorating.
+    if (options.symbology) {
+      try {
+        const { applyImportSymbology } =
+          await import(`./symbology-panel.js${new URL(import.meta.url).search}`);
+        layer.symbologyApplied = applyImportSymbology(layer, options.symbology);
+      } catch (error) {
+        console.warn("[GeoID GIS] symbology could not be applied on import:", error.message);
+      }
+    }
     setStatus(`Loaded ${primaryFile.name}.`);
     // An import belongs to whatever project is open, so the Research page's
     // repository and the Qt app both see it. Silent when none is open, and

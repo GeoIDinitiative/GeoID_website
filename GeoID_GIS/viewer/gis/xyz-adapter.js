@@ -1,6 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260817-8c77f1d";
-import { readHead, parseRows, validateMapping } from "./delimited.js?v=20260817-8c77f1d";
+import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260817-b57b86d";
+import { readHead, parseRows, validateMapping } from "./delimited.js?v=20260817-b57b86d";
+import { rampColour } from "./symbology.js?v=20260817-b57b86d";
 
 const MAX_POINTS = 2000000;
 
@@ -29,10 +30,33 @@ function detectHeader(line) {
   return { skip: true, lonIndex, latIndex, elevIndex: elevIndex === -1 ? 2 : elevIndex };
 }
 
-function colorForHeight(t) {
+/**
+ * A point's colour.
+ *
+ * Points are coloured HERE rather than by `applyImportSymbology`, and that is not
+ * a duplicate path: that helper works through `layer.repaint`, which needs either
+ * a raster band or per-feature attributes, and a point cloud has neither. So a
+ * ramp chosen in the Add-data dialog has to be honoured at build time or it
+ * silently does nothing -- which is exactly what it did until this.
+ *
+ * The old built-in was a hard-coded HSL sweep unrelated to any ramp the
+ * symbology panel offers; going through `rampColour` means "Magma" here and
+ * "Magma" there are the same seven stops.
+ */
+function colorForHeight(t, ramp) {
   const color = new THREE.Color();
+  if (ramp) {
+    const [r, g, b] = rampColour(ramp, t);
+    color.setRGB(r / 255, g / 255, b / 255);
+    return color;
+  }
   color.setHSL(0.62 - 0.62 * Math.min(1, Math.max(0, t)), 0.75, 0.55);
   return color;
+}
+
+/** Does this mapping give the points a value worth grading? */
+function isGradedMapping(mapping) {
+  return Boolean(mapping) && (mapping.elev >= 0 || mapping.magnitude >= 0);
 }
 
 /**
@@ -50,6 +74,12 @@ export async function loadXyzPoints(file, options = {}) {
   if (!head.mapping) throw new Error("No readable rows were found in this file.");
 
   const mapping = options.columns || head.mapping;
+  const symbology = options.symbology || {};
+  // A flat colour only means something when there is nothing to grade; with a Z
+  // or a magnitude the ramp wins, which is what the dialog says it will do.
+  const graded = isGradedMapping(mapping);
+  const ramp = graded ? (symbology.ramp || null) : null;
+  const flatColour = !graded && symbology.colour ? new THREE.Color(symbology.colour) : null;
   const valid = validateMapping(mapping, head.columns.length);
   if (!valid.ok) throw new Error(valid.problems.join(" "));
 
@@ -133,7 +163,7 @@ export async function loadXyzPoints(file, options = {}) {
     positions[i * 3] = vertex.x;
     positions[i * 3 + 1] = vertex.y;
     positions[i * 3 + 2] = vertex.z;
-    const color = colorForHeight(t);
+    const color = flatColour || colorForHeight(t, ramp);
     colors[i * 3] = color.r;
     colors[i * 3 + 1] = color.g;
     colors[i * 3 + 2] = color.b;
@@ -144,10 +174,13 @@ export async function loadXyzPoints(file, options = {}) {
   geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
   geometry.computeBoundingSphere();
 
+  const opacity = Number.isFinite(symbology.opacity) ? symbology.opacity : 1;
   const points = new THREE.Points(geometry, new THREE.PointsMaterial({
     size: georeferenced ? 0.012 : 0.05,
     sizeAttenuation: true,
     vertexColors: true,
+    transparent: opacity < 1,
+    opacity,
   }));
   points.name = file.name;
   if (!georeferenced) {
@@ -167,7 +200,8 @@ export async function loadXyzPoints(file, options = {}) {
       min: zMin,
       max: zMax,
       projected: !georeferenced,
-      colouredBy: hasMagnitude ? "magnitude" : "elevation",
+      colouredBy: flatColour ? "single colour" : (hasMagnitude ? "magnitude" : "elevation"),
+      ramp: ramp || null,
       magnitudeRange: hasMagnitude ? { min: mMin, max: mMax } : null,
       skippedRows: skipped,
       truncated: rawX.length >= MAX_POINTS,

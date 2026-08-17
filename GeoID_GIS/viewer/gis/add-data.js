@@ -30,8 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260817-8c77f1d";
-import { readHead, validateMapping } from "./delimited.js?v=20260817-8c77f1d";
+import { CRS_OPTIONS } from "./projection.js?v=20260817-b57b86d";
+import { readHead, validateMapping } from "./delimited.js?v=20260817-b57b86d";
+import { RAMP_NAMES } from "./symbology.js?v=20260817-b57b86d";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -218,6 +219,38 @@ function installStyle() {
   document.head.appendChild(tag);
 }
 
+
+/**
+ * Which of the two symbology controls this file will actually use.
+ *
+ * A raster or a point set with a value to grade takes the RAMP; a polygon layer
+ * with nothing to grade takes the flat COLOUR. The dialog offers both because
+ * only the file settles it, and saying which one applies is the difference
+ * between a control and a decoration.
+ */
+const GRADED_EXTENSIONS = new Set(["tif", "tiff", "asc"]);
+
+function symbologyModeFor() {
+  const file = state.files.find((f) => !["prj", "dbf", "shx", "tfw", "pgw", "jgw"]
+    .includes(extensionOf(f.name)));
+  if (!file) return null;
+  if (GRADED_EXTENSIONS.has(extensionOf(file.name))) return "ramp";
+  if (state.mapping) {
+    return (state.mapping.elev >= 0 || state.mapping.magnitude >= 0) ? "ramp" : "colour";
+  }
+  return "colour";
+}
+
+function describeSymbology() {
+  if (!ui) return;
+  const mode = symbologyModeFor();
+  ui.symNote.textContent = mode === "ramp"
+    ? "This layer has values to grade, so the ramp is used and the colour is ignored."
+    : mode === "colour"
+      ? "Nothing here to grade, so the flat colour is used and the ramp is ignored."
+      : "";
+}
+
 /* ── State ───────────────────────────────────────────────────────────────── */
 
 let backdrop = null;
@@ -337,16 +370,17 @@ function build() {
   opacity.max = "1";
   opacity.step = "0.05";
   opacity.value = "0.85";
-  const ramp = select([
-    { value: "viridis", label: "Viridis" },
-    { value: "magma", label: "Magma" },
-    { value: "terrain", label: "Terrain" },
-    { value: "greyscale", label: "Greyscale" },
-  ], "viridis");
+  // Derived from RAMPS, not written out: a hand-typed list offered "greyscale"
+  // where the engine's ramp is "greys", so that choice silently fell back to
+  // viridis. The dialog and the symbology panel now cannot disagree.
+  const ramp = select(
+    RAMP_NAMES.map((n) => ({ value: n, label: n[0].toUpperCase() + n.slice(1) })),
+    "viridis",
+  );
   const symNote = document.createElement("p");
   symNote.className = "add-note";
   symSet.append(symLegend, row("Colour", colour), row("Opacity", opacity),
-    row("Ramp (graded)", ramp), symNote);
+    row("Ramp", ramp), symNote);
 
   // ── Name ──
   const nameSet = document.createElement("fieldset");
@@ -446,6 +480,7 @@ async function takeFiles(fileList) {
     ui.colSet.hidden = true;
     state.head = null;
     state.mapping = null;
+    describeSymbology();
     return;
   }
   const text = await table.slice(0, 64 * 1024).text();
@@ -459,6 +494,7 @@ async function takeFiles(fileList) {
   state.mapping = { ...head.mapping };
   renderColumns();
   ui.colSet.hidden = false;
+  describeSymbology();
 }
 
 function renderColumns() {
@@ -515,6 +551,9 @@ function renderColumns() {
     ? "No coordinate column names were recognised, so these are the first columns in order — check them."
     : "";
   ui.colNote.classList.toggle("is-warning", Boolean(state.mapping.guessed));
+  // Choosing a Z or a magnitude is what makes this layer gradeable, so the
+  // symbology note is recomputed here as well as on the file choice.
+  describeSymbology();
 }
 
 /* ── Adding ──────────────────────────────────────────────────────────────── */
@@ -576,6 +615,7 @@ export function open(roleId) {
   ui.name.value = "";
   ui.name.placeholder = "Named after the file unless you say otherwise";
   ui.crsNote.textContent = "";
+  ui.symNote.textContent = "";
   // A mesh has no map projection to speak of, so it opens on "not
   // georeferenced" rather than asking a question with no honest answer.
   ui.crs.value = state.role.id === "mesh" ? "none" : "epsg:4326";

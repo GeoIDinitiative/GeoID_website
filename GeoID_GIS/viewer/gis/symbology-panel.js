@@ -14,7 +14,7 @@
 import {
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
   categoricalSymbology, suggestCategoryField,
-} from "./symbology.js?v=20260817-8c77f1d";
+} from "./symbology.js?v=20260817-b57b86d";
 
 const HOST_ID = "gis-symbology-host";
 const state = { layerId: null, last: null };
@@ -200,6 +200,74 @@ function recompute(apply) {
       ? `${layer.name}: ${symbology.rows.length} classes by ${METHODS[symbology.method]?.label || symbology.method}.`
       : "That layer could not be repainted.";
   }
+}
+
+/**
+ * The symbology chosen on the way IN, applied to the layer that just loaded.
+ *
+ * This is deliberately the same path the panel's Apply uses -- `layer.repaint`,
+ * `buildSymbology`, `legendInfoFrom` -- rather than a second implementation for
+ * imports. Two paths would drift, and the first symptom would be a layer that
+ * looks one way when added and another way the moment somebody opens the panel.
+ *
+ * The dialog offers a colour AND a ramp because a file can be either kind, and
+ * only the file can settle which: a raster or a point cloud with a value is
+ * GRADED and takes the ramp, while a polygon layer with nothing to grade takes
+ * the flat colour. Applying both would mean one of them silently losing.
+ */
+export function applyImportSymbology(layer, symbology = {}) {
+  if (!layer || typeof layer.repaint !== "function") return { ok: false, reason: "not repaintable" };
+  const { ramp = "viridis", colour = null, opacity = null } = symbology;
+
+  // Opacity is a material property and applies to every kind of layer, so it
+  // is set whether or not there is anything to grade.
+  if (Number.isFinite(opacity) && layer.object3D) {
+    layer.object3D.traverse((node) => {
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach((m) => {
+        if (!m) return;
+        m.transparent = opacity < 1;
+        m.opacity = opacity;
+        m.needsUpdate = true;
+      });
+    });
+  }
+
+  const values = valuesOf(layer);
+  if (values.length) {
+    // Graded: equal intervals over five classes is the neutral default, and the
+    // panel can reclassify it afterwards without repainting from scratch.
+    const built = buildSymbology(values, { ramp, method: "equal", classes: 5 });
+    if (!built.ok) return { ok: false, reason: built.message };
+    const painted = layer.repaint((value) => {
+      const hexColour = colourOf(value, built);
+      if (!hexColour) return null;
+      return [
+        parseInt(hexColour.slice(1, 3), 16),
+        parseInt(hexColour.slice(3, 5), 16),
+        parseInt(hexColour.slice(5, 7), 16),
+      ];
+    });
+    if (painted) layer.legendInfo = legendInfoFrom(built, { unit: layer.legendInfo?.unit || null });
+    window.GeoIDLayerHierarchy?.render?.();
+    return { ok: Boolean(painted), graded: true, ramp, classes: built.rows.length };
+  }
+
+  if (colour && isVector(layer)) {
+    const rgb = [
+      parseInt(colour.slice(1, 3), 16),
+      parseInt(colour.slice(3, 5), 16),
+      parseInt(colour.slice(5, 7), 16),
+    ];
+    const painted = layer.repaint(() => rgb);
+    if (painted) {
+      layer.legendInfo = { palette: [colour.replace("#", "")], labels: [layer.name], categorical: true };
+    }
+    window.GeoIDLayerHierarchy?.render?.();
+    return { ok: Boolean(painted), graded: false, colour };
+  }
+  // Opacity may still have been applied, which is a real change.
+  return { ok: Number.isFinite(opacity), graded: false };
 }
 
 function fillLayers() {
