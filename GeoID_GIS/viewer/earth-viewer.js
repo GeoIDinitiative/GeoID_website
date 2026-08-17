@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260817-2497cbf";
+  from "./gis/geo-utils.js?v=20260817-edb8bf0";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -19299,6 +19299,46 @@ uniform float uViewportWidth;`,
         },
         // Leaving GeoID mode has to take the pin with it, otherwise a location
         // stays marked on a map that no longer has a selection behind it.
+        /**
+         * Hand the viewer an interactive geology catalogue.
+         *
+         * Mars and Moon load one from `manifest.geology_interactive.feature_path`
+         * and get the whole behaviour for free: click a unit, the polygon
+         * outlines, an anchored card rises from a pin and tracks the point as
+         * the globe turns, and the legend lists the units. Earth's manifest
+         * carries `feature_count: 0` -- there has never been a features file for
+         * it -- so all of that machinery sat unused on this page.
+         *
+         * This is the way in. `gis/geology-panel.js` converts whatever mapped
+         * geology is loaded (BGS sheets today) into the same shape and calls
+         * this, so Earth runs the SAME code path rather than a lookalike beside
+         * it. Passing null puts it back to nothing.
+         */
+        setGeologyInteractive(catalog) {
+          geologyInteractiveState = catalog ? {
+            width: catalog.width || 4096,
+            height: catalog.height || 2048,
+            features: catalog.features || {},
+            featureList: catalog.featureList || Object.values(catalog.features || {}),
+            unit_legend: catalog.unit_legend || [],
+            rock_legend: catalog.rock_legend || [],
+            contacts: catalog.contacts || [],
+            structures: catalog.structures || [],
+            landing_sites: catalog.landing_sites || [],
+          } : null;
+          // The click path is gated on the geology toggle, which is hidden on
+          // this page now that the relief overlay it used to drive has moved to
+          // the basemaps. Holding it true while a catalogue is loaded is what
+          // makes the units answer a click.
+          if (geologyToggle) geologyToggle.checked = Boolean(geologyInteractiveState);
+          syncInfoPanels(baseLayers, geologyLayers, mineralLayers,
+            geologyInteractiveState, geologyStructureLayers);
+          return Boolean(geologyInteractiveState);
+        },
+        /** What the click path can actually see, for verifying the seam above. */
+        getGeologyInteractiveCount() {
+          return geologyInteractiveState?.featureList?.length || 0;
+        },
         clearGeoSelection() {
           clearGeoSelectorSelection({ notifyParent: true, resetView: false });
         },

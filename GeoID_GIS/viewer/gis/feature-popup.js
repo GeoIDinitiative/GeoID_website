@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-2497cbf";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260817-2497cbf";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-edb8bf0";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260817-edb8bf0";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -790,6 +790,24 @@ function install() {
     if (window.GeoIDViewer?.isMeasuring?.()) return;
     const at = window.GeoIDViewer?.surfaceLatLonAt?.(event.clientX, event.clientY);
     if (!at) { hidePopup(); return; }
+    /**
+     * Geology is handed to the viewer's own interactive path FIRST.
+     *
+     * `setGeologyInteractive` gives it the same catalogue Mars and the Moon
+     * load from their manifests, so a click there should raise the anchored
+     * card that rises from a pin and tracks the point. That path is not
+     * answering yet -- the state is in place and the coordinates are right, but
+     * its internal conversion does not match -- so this stays as the fallback
+     * rather than leaving a geology click doing nothing at all.
+     *
+     * When the viewer answers it will have opened #geo-popup by now and this
+     * defers to it, so the two can never both be up.
+     */
+    const viewerAnswered = (() => {
+      const own = document.getElementById("geo-popup");
+      return Boolean(own && !own.hidden);
+    })();
+    if (viewerAnswered) return;
     const hits = featuresAt(at.lat, at.lon);
     if (!hits.length) { hidePopup(); return; }
     // Every layer under the point, not just the top one -- superficial deposits

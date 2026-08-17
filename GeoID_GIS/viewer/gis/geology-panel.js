@@ -28,9 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-2497cbf";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-2497cbf";
-import { currentBodyId } from "./bodies.js?v=20260817-2497cbf";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-edb8bf0";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-edb8bf0";
+import { currentBodyId } from "./bodies.js?v=20260817-edb8bf0";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260817-edb8bf0";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -292,6 +293,7 @@ async function loadDataset(entry) {
     layer.geologyDataset = entry.id;
     layer.credit = entry.credit;
     applyField(layer, entry.colourBy);
+    publishInteractive();
     say(`${entry.label} — ${layer.features?.length || 0} polygons. ${entry.credit}`);
   } catch (error) {
     say(`${entry.label} did not load: ${error.message}`);
@@ -342,7 +344,136 @@ async function applyField(layer, field, { ramp = "spectral", overrides = null, l
   layer.geologyRamp = ramp;
   layer.geologyLabels = labels ? [...labels.entries()] : null;
   window.GeoIDLayerHierarchy?.render?.();
+  // The card and the legend name the unit the map is coloured by, so the
+  // catalogue is rebuilt whenever that column changes.
+  publishInteractive();
   return sym;
+}
+
+
+/* ── Into the viewer's own interactive-geology catalogue ─────────────────────
+ *
+ * Mars and Moon get the whole behaviour -- click a unit, it outlines, a card
+ * rises from a pin and tracks the point as the globe turns, the legend lists
+ * the units -- from ONE thing: a catalogue at
+ * `manifest.geology_interactive.feature_path`. Earth's manifest says
+ * `feature_count: 0`, so that machinery has always been on this page and never
+ * had anything to read.
+ *
+ * So rather than reimplementing any of it, the mapped geology is converted into
+ * exactly that shape and handed over. Earth then runs the same code path as the
+ * other worlds, and a fix to it fixes all eleven.
+ *
+ * The shape is not guessed: `pointInPolygonFeature` wants
+ * `polygons: [{ outer, holes }]` with rings as [lon, lat];
+ * `pointWithinFeatureBounds` wants `selection_bounds` with a longitude CENTRE
+ * and offsets, because a unit crossing the antimeridian cannot be described by
+ * a min and a max; and the popup reads name, rock_type, description and
+ * mapped_area_km2.
+ */
+
+/** Longitude difference wrapped to -180..180, so an offset is the short way. */
+function wrapLon(delta) {
+  let d = Number(delta);
+  while (d > 180) d -= 360;
+  while (d < -180) d += 360;
+  return d;
+}
+
+function boundsOfRings(rings) {
+  let latMin = Infinity;
+  let latMax = -Infinity;
+  let lonRef = null;
+  let offMin = Infinity;
+  let offMax = -Infinity;
+  rings.forEach((ring) => ring.forEach(([lon, lat]) => {
+    if (lat < latMin) latMin = lat;
+    if (lat > latMax) latMax = lat;
+    if (lonRef === null) lonRef = lon;
+    const off = wrapLon(lon - lonRef);
+    if (off < offMin) offMin = off;
+    if (off > offMax) offMax = off;
+  }));
+  if (lonRef === null) return null;
+  // Re-centre so the offsets straddle the middle rather than the first vertex.
+  const centre = lonRef + (offMin + offMax) / 2;
+  const half = (offMax - offMin) / 2;
+  return {
+    lat_min: latMin, lat_max: latMax,
+    lon_center: centre, lon_min_offset: -half, lon_max_offset: half,
+  };
+}
+
+/**
+ * One layer's features as the viewer's catalogue.
+ *
+ * `field` is whatever the layer is coloured by, so the unit named in the card
+ * is the unit named in the legend -- if they were chosen separately they would
+ * disagree the first time somebody recoloured the map.
+ */
+function toInteractiveCatalogue(layers) {
+  const features = {};
+  const unitSeen = new Map();
+  let n = 0;
+  layers.forEach((layer) => {
+    const field = layer.geologyField || "lex_d";
+    (layer.features || []).forEach((f) => {
+      const geometry = f?.geometry;
+      const polys = geometry?.type === "Polygon" ? [geometry.coordinates]
+        : geometry?.type === "MultiPolygon" ? geometry.coordinates : [];
+      if (!polys.length) return;
+      const polygons = polys
+        .map((poly) => ({ outer: poly[0], holes: poly.slice(1) }))
+        .filter((p) => Array.isArray(p.outer) && p.outer.length >= 3);
+      if (!polygons.length) return;
+      const props = f.properties || {};
+      const name = String(props[field] ?? props.lex_d ?? props.rcs_d ?? "Unit");
+      let km2 = 0;
+      polygons.forEach((p) => {
+        km2 += sphericalPolygonAreaKm2(p.outer.map(([lon, lat]) => ({ lat, lon })));
+      });
+      n += 1;
+      features[`geo-${layer.id}-${n}`] = {
+        id: `geo-${layer.id}-${n}`,
+        name,
+        type: "Geologic unit polygon",
+        unit: props.lex || props.map_code || null,
+        unit_description: props.lex_d || null,
+        rock_type: props.rcs_d || props.rock_d || null,
+        rock_type_detail: props.lex_rcs_d || null,
+        description: props.rcs_d || props.bgstype || null,
+        origin: layer.credit || layer.name || null,
+        dimension: props.max_period && props.min_period
+          ? (props.max_period === props.min_period ? props.max_period
+            : `${props.min_period} – ${props.max_period}`)
+          : null,
+        mapped_area_km2: km2 > 0 ? Number(km2.toFixed(1)) : null,
+        polygons,
+        selection_bounds: boundsOfRings(polygons.map((p) => p.outer)),
+        source_layer: layer.name,
+      };
+      if (!unitSeen.has(name)) {
+        const i = unitSeen.size;
+        unitSeen.set(name, layer.legendInfo?.palette?.[i]
+          ? `#${layer.legendInfo.palette[i]}` : "#8a8a8a");
+      }
+    });
+  });
+  return {
+    features,
+    featureList: Object.values(features),
+    unit_legend: [...unitSeen.entries()].map(([label, colour]) => ({ label, colour })),
+    rock_legend: [],
+  };
+}
+
+/** Push whatever mapped geology is loaded into the viewer's own click path. */
+function publishInteractive() {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.setGeologyInteractive) return false;
+  const layers = loadedLayers().filter((l) => l.visible !== false && l.features?.length);
+  if (!layers.length) return viewer.setGeologyInteractive(null);
+  return viewer.setGeologyInteractive(toInteractiveCatalogue(layers));
 }
 
 /* ── The symbology dialog ────────────────────────────────────────────────── */
@@ -683,6 +814,7 @@ async function setActive(on) {
     window.GeoIDLayerHierarchy?.setVisible?.(layer, on);
   });
   render();
+  publishInteractive();
   if (!on) say("Mapped geology hidden — tick the box to bring it back.");
 }
 
@@ -789,6 +921,8 @@ if (typeof window !== "undefined") {
   window.GeoIDGeology = {
     init, render, openSymbology, applyField,
     catalogue: () => CATALOGUE.map((c) => c.id),
+    publishInteractive,
+    toInteractiveCatalogue,
     loadDefaults,
     isActive,
     setActive,
