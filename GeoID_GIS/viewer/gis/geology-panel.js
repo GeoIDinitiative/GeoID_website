@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-311f20e";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-311f20e";
-import { currentBodyId } from "./bodies.js?v=20260817-311f20e";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260817-311f20e";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-06ade53";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260818-06ade53";
+import { currentBodyId } from "./bodies.js?v=20260818-06ade53";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-06ade53";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -417,6 +417,13 @@ function toInteractiveCatalogue(layers) {
   let n = 0;
   layers.forEach((layer) => {
     const field = layer.geologyField || "lex_d";
+    // The colour a unit is PAINTED in, looked up by the value it was painted
+    // from. Taking `palette[unitSeen.size]` instead paired the nth unit the
+    // scan happened to meet with the nth colour of a palette ordered by feature
+    // count -- a key that disagrees with the map it is a key to.
+    const paint = new Map((layer.legendInfo?.values || [])
+      .map((value, i) => [String(value), `#${String(layer.legendInfo.palette?.[i] || "8a8a8a").replace("#", "")}`]));
+    const made = [];
     (layer.features || []).forEach((f) => {
       const geometry = f?.geometry;
       const polys = geometry?.type === "Polygon" ? [geometry.coordinates]
@@ -427,13 +434,17 @@ function toInteractiveCatalogue(layers) {
         .filter((p) => Array.isArray(p.outer) && p.outer.length >= 3);
       if (!polygons.length) return;
       const props = f.properties || {};
-      const name = String(props[field] ?? props.lex_d ?? props.rcs_d ?? "Unit");
+      // `??` only falls through on null and undefined, and a BGS sheet carries
+      // polygons whose lithology column is an empty string -- which came out as
+      // a card titled with a space. Blank is missing.
+      const name = [props[field], props.lex_d, props.rcs_d]
+        .map((v) => String(v ?? "").trim()).find(Boolean) || "Unit";
       let km2 = 0;
       polygons.forEach((p) => {
         km2 += sphericalPolygonAreaKm2(p.outer.map(([lon, lat]) => ({ lat, lon })));
       });
       n += 1;
-      features[`geo-${layer.id}-${n}`] = {
+      made.push({
         id: `geo-${layer.id}-${n}`,
         name,
         type: "Geologic unit polygon",
@@ -451,13 +462,16 @@ function toInteractiveCatalogue(layers) {
         polygons,
         selection_bounds: boundsOfRings(polygons.map((p) => p.outer)),
         source_layer: layer.name,
-      };
+      });
       if (!unitSeen.has(name)) {
-        const i = unitSeen.size;
-        unitSeen.set(name, layer.legendInfo?.palette?.[i]
-          ? `#${layer.legendInfo.palette[i]}` : "#8a8a8a");
+        unitSeen.set(name, paint.get(String(props[field])) || "#8a8a8a");
       }
     });
+    // Smallest first WITHIN the layer, so a polygon lying inside a larger one
+    // is still reachable: the pick takes the first feature that contains the
+    // point, and a big unit listed ahead of an inlier answers for it forever.
+    made.sort((a, b) => (a.mapped_area_km2 || 0) - (b.mapped_area_km2 || 0));
+    made.forEach((feature) => { features[feature.id] = feature; });
   });
   return {
     features,
@@ -467,11 +481,30 @@ function toInteractiveCatalogue(layers) {
   };
 }
 
-/** Push whatever mapped geology is loaded into the viewer's own click path. */
+/**
+ * Push whatever mapped geology is loaded into the viewer's own click path.
+ *
+ * **Order is the whole behaviour.** `getGeologyFeatureAtLatLon` takes the FIRST
+ * feature in the list that contains the point, so the list decides which unit a
+ * click reports and, for anything underneath it, whether it can be clicked at
+ * all. Handed over in layer order, bedrock (id 1) came before superficial
+ * (id 2) and won every click -- measured: **793 of 1,559 features, the entire
+ * superficial sheet, could not be reached by any click**, and every click over
+ * superficial cover named the bedrock beneath it instead of the unit painted on
+ * screen.
+ *
+ * So the list is built top of the draw stack first, which is the layer you are
+ * looking at. `renderOrder` is what `applyStack` writes, so this follows the
+ * layer list rather than keeping a second idea of which layer is on top.
+ * Hiding the top layer both un-draws it and takes it out of here, so the one
+ * underneath answers again -- switching superficial off is how you click
+ * bedrock everywhere, exactly as in any GIS.
+ */
 function publishInteractive() {
   const viewer = window.GeoIDViewer;
   if (!viewer?.setGeologyInteractive) return false;
-  const layers = loadedLayers().filter((l) => l.visible !== false && l.features?.length);
+  const layers = loadedLayers().filter((l) => l.visible !== false && l.features?.length)
+    .sort((a, b) => (b.object3D?.renderOrder || 0) - (a.object3D?.renderOrder || 0));
   if (!layers.length) return viewer.setGeologyInteractive(null);
   return viewer.setGeologyInteractive(toInteractiveCatalogue(layers));
 }

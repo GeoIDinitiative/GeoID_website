@@ -125,6 +125,36 @@ const STYLE = `
 #map-legend-panel .legend-symbol-detail { font-size: 0.68rem; }
 #map-legend-panel .legend-entry-image { margin-top: 0.5rem; }
 
+/* A classed legend is a list of swatches, and a swatch needs a SIZE.
+   The class swatch is a bare span -- display: inline, so a background
+   colour paints across a box 0px wide. Measured: 23 rows, every colour correct
+   in the inline style and computed style, every swatch 0 x 14. The key read as
+   a bulleted list of unit names with no symbology at all, which is exactly what
+   it was. The other legend shapes here inherit their swatch from styles.css;
+   these classes are newer and had no rule anywhere in the tree. */
+#map-legend-panel .legend-classes { margin-top: 0.5rem; display: grid; gap: 0.28rem; }
+#map-legend-panel .legend-class {
+  display: grid;
+  grid-template-columns: 0.85rem 1fr;
+  gap: 0.45rem;
+  align-items: start;
+}
+#map-legend-panel .legend-class-swatch {
+  display: block;
+  width: 0.85rem;
+  height: 0.85rem;
+  margin-top: 0.12rem;
+  border-radius: 0.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+#map-legend-panel .legend-class-label {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  /* A BGS unit name runs to eighty characters. Wrapping keeps the swatch beside
+     the whole of it rather than beside a truncated first word. */
+  overflow-wrap: anywhere;
+}
+
 /* The keyword pills go. In a tab you had opened on purpose they were a way of
    saying what kind of overlay this was; over the map the heading already says
    it, and the pills repeated it in a second visual language while pushing the
