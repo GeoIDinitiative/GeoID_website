@@ -12,12 +12,55 @@
  */
 
 import {
+  RAMPS,
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
   categoricalSymbology, suggestCategoryField,
-} from "./symbology.js?v=20260817-356ba96";
+} from "./symbology.js?v=20260817-4861be4";
 
 const HOST_ID = "gis-symbology-host";
-const state = { layerId: null, last: null };
+/**
+ * `overrides` and `edges` are the two things the user can say that no method
+ * can compute: this class should be THAT colour, and the cut belongs THERE.
+ *
+ * Both are cleared whenever the classification itself changes -- a different
+ * method, class count, ramp or field produces different classes, and carrying a
+ * colour keyed to class 3 across that would paint an unrelated band of values.
+ * That is also what QGIS does, and the alternative (silently reassigning) is
+ * worse than starting again.
+ */
+const state = { layerId: null, last: null, overrides: new Map(), edges: null };
+
+function resetChoices() {
+  state.overrides = new Map();
+  state.edges = null;
+}
+
+/** A class row's colour: the user's, if they set one, else the ramp's. */
+function colourFor(key, fallback) {
+  return state.overrides.get(String(key)) || fallback;
+}
+
+/**
+ * A swatch you can click.
+ *
+ * This is the ask the ramp cannot serve on its own: a ramp gives every class a
+ * defensible starting colour, and then one class is "the one that matters" and
+ * has to be red whatever the ramp thinks. `<input type="color">` is the native
+ * picker, so it costs nothing and works on a phone.
+ */
+function swatchInput(key, colour, onChange) {
+  const input = document.createElement("input");
+  input.type = "color";
+  input.className = "gis-sym-swatch-input";
+  input.value = colour;
+  input.title = "Click to recolour this class";
+  input.setAttribute("aria-label", `Colour for ${key}`);
+  input.addEventListener("input", () => {
+    state.overrides.set(String(key), input.value);
+    onChange();
+  });
+  return input;
+}
 
 function byId(id) { return document.getElementById(id); }
 
@@ -71,19 +114,33 @@ function previewCategories(sym) {
   if (!host) return;
   host.innerHTML = "";
   const table = document.createElement("div");
-  table.className = "gis-sym-rows";
+  table.className = "gis-sym-rows is-editable";
   sym.rows.forEach((row) => {
     const line = document.createElement("div");
-    const swatch = document.createElement("span");
-    swatch.className = "gis-sym-swatch";
-    swatch.style.background = row.colour;
+    line.className = "gis-sym-row";
+    // Keyed by the category's own value rather than its position: the list is
+    // ordered by count, so a new feature can reorder it and an index-keyed
+    // colour would jump to a different unit.
+    line.append(swatchInput(row.value, colourFor(row.value, row.colour), () => recompute(false)));
     const text = document.createElement("span");
-    text.textContent = `${row.value}  (${row.count.toLocaleString()})`;
-    text.title = row.value;
-    line.append(swatch, text);
+    text.className = "gis-sym-label";
+    text.textContent = String(row.value);
+    text.title = String(row.value);
+    const count = document.createElement("span");
+    count.className = "gis-sym-count";
+    count.textContent = row.count.toLocaleString();
+    line.append(text, count);
     table.appendChild(line);
   });
   host.appendChild(table);
+  if (state.overrides.size) {
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "button secondary gis-sym-reset";
+    reset.textContent = "Reset colours";
+    reset.addEventListener("click", () => { resetChoices(); recompute(false); });
+    host.appendChild(reset);
+  }
 }
 
 function preview(symbology) {
@@ -91,36 +148,131 @@ function preview(symbology) {
   if (!host) return;
   host.innerHTML = "";
   if (!symbology?.ok) return;
+
   const bar = document.createElement("div");
   bar.className = "gis-sym-bar";
   bar.style.background = symbology.continuous
     ? `linear-gradient(to right, ${symbology.palette.join(", ")})`
     : "";
   if (!symbology.continuous) {
-    symbology.rows.forEach((row) => {
+    symbology.rows.forEach((row, i) => {
       const cell = document.createElement("span");
-      cell.style.background = row.colour;
+      cell.style.background = colourFor(i, row.colour);
       cell.title = `${row.from.toFixed(3)} to ${row.to.toFixed(3)} — ${row.count} cells`;
       bar.appendChild(cell);
     });
   }
   host.appendChild(bar);
+  if (symbology.continuous) return;
+
+  const fmt = (v) => (Math.abs(v) >= 1000 || (Math.abs(v) < 0.01 && v !== 0)
+    ? v.toPrecision(3) : String(Number(v.toPrecision(4))));
+
   const table = document.createElement("div");
-  table.className = "gis-sym-rows";
-  symbology.rows.forEach((row) => {
+  table.className = "gis-sym-rows is-editable";
+  symbology.rows.forEach((row, i) => {
     const line = document.createElement("div");
-    const swatch = document.createElement("span");
-    swatch.className = "gis-sym-swatch";
-    swatch.style.background = row.colour;
-    const text = document.createElement("span");
-    const fmt = (v) => (Math.abs(v) >= 1000 || (Math.abs(v) < 0.01 && v !== 0)
-      ? v.toPrecision(3) : String(Number(v.toPrecision(4))));
-    text.textContent = `${fmt(row.from)} – ${fmt(row.to)}`
-      + (symbology.continuous ? "" : `  (${row.count.toLocaleString()})`);
-    line.append(swatch, text);
+    line.className = "gis-sym-row";
+    line.append(swatchInput(i, colourFor(i, row.colour), () => recompute(false)));
+
+    // The lower edge of every class after the first IS a break, so editing it
+    // moves the cut. The first class starts at the minimum and the last ends at
+    // the maximum; neither is a choice, so neither is offered as one.
+    if (i === 0) {
+      const from = document.createElement("span");
+      from.className = "gis-sym-edge is-fixed";
+      from.textContent = fmt(row.from);
+      from.title = "The layer's minimum";
+      line.appendChild(from);
+    } else {
+      const edit = document.createElement("input");
+      edit.type = "number";
+      edit.step = "any";
+      edit.className = "gis-sym-edge";
+      edit.value = String(Number(row.from.toPrecision(6)));
+      edit.title = "The threshold between this class and the one above";
+      edit.addEventListener("change", () => {
+        const edges = symbology.rows.slice(1).map((r, j) => (j === i - 1
+          ? Number(edit.value) : r.from));
+        // Colours are keyed by class index and the indices survive an edge move,
+        // so overrides are deliberately kept here where a method change clears
+        // them: the classes are the same classes, cut in a different place.
+        state.edges = edges.filter((n) => Number.isFinite(n)).sort((a, b) => a - b);
+        recompute(false);
+      });
+      line.appendChild(edit);
+    }
+
+    const to = document.createElement("span");
+    to.className = "gis-sym-to";
+    to.textContent = `– ${fmt(row.to)}`;
+    line.appendChild(to);
+
+    const count = document.createElement("span");
+    count.className = "gis-sym-count";
+    count.textContent = row.count.toLocaleString();
+    count.title = `${row.count.toLocaleString()} cells in this class`;
+    line.appendChild(count);
     table.appendChild(line);
   });
   host.appendChild(table);
+
+  const reset = document.createElement("button");
+  reset.type = "button";
+  reset.className = "button secondary gis-sym-reset";
+  reset.textContent = "Reset colours & thresholds";
+  reset.addEventListener("click", () => { resetChoices(); recompute(false); });
+  if (state.overrides.size || state.edges) host.appendChild(reset);
+}
+
+/**
+ * The ramps, as the thing they are.
+ *
+ * A dropdown of the words "viridis, magma, blues" asks the user to remember what
+ * each looks like. The gallery draws each one as the gradient it is and the
+ * select stays as the value store, so `currentSpec()` is unchanged and nothing
+ * downstream needs to know the picker was replaced.
+ */
+function buildRampGallery() {
+  const select = byId("gis-sym-ramp");
+  if (!select || byId("gis-sym-ramp-gallery")) return;
+  const row = select.closest(".row") || select.parentElement;
+  const gallery = document.createElement("div");
+  gallery.id = "gis-sym-ramp-gallery";
+  gallery.setAttribute("role", "radiogroup");
+  gallery.setAttribute("aria-label", "Colour ramp");
+  RAMP_NAMES.forEach((name) => {
+    const stops = RAMPS[name].map((rgb) => `rgb(${rgb.join(",")})`);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "gis-sym-ramp-option";
+    button.dataset.ramp = name;
+    button.title = name;
+    button.setAttribute("aria-label", name);
+    const bar = document.createElement("span");
+    bar.className = "gis-sym-ramp-bar";
+    bar.style.background = `linear-gradient(to right, ${stops.join(", ")})`;
+    const label = document.createElement("span");
+    label.className = "gis-sym-ramp-name";
+    label.textContent = name;
+    button.append(bar, label);
+    button.addEventListener("click", () => {
+      select.value = name;
+      select.dispatchEvent(new Event("change"));
+      syncRampGallery();
+    });
+    gallery.appendChild(button);
+  });
+  row?.parentElement?.insertBefore(gallery, row.nextSibling);
+  // The select keeps the value and stops being furniture.
+  if (row) row.hidden = true;
+  syncRampGallery();
+}
+
+function syncRampGallery() {
+  const current = byId("gis-sym-ramp")?.value;
+  byId("gis-sym-ramp-gallery")?.querySelectorAll(".gis-sym-ramp-option")
+    .forEach((b) => b.classList.toggle("is-active", b.dataset.ramp === current));
 }
 
 function currentSpec() {
@@ -130,6 +282,7 @@ function currentSpec() {
     ramp: byId("gis-sym-ramp")?.value || "risk",
     reverse: Boolean(byId("gis-sym-reverse")?.checked),
     continuous: byId("gis-sym-method")?.value === "continuous",
+    edges: state.edges,
   };
 }
 
@@ -159,7 +312,20 @@ function recompute(apply) {
     state.last = sym;
     previewCategories(sym);
     if (!apply) { if (status) status.textContent = `${sym.message} Press Apply.`; return; }
-    const painted = layer.repaint((feature) => sym.colourOf(feature));
+    // The overrides go onto the rows AND the lookup is rebuilt from them.
+    // `sym.colourOf` closes over a Map built when the symbology was created, so
+    // mutating rows alone would recolour the legend and not the layer -- the two
+    // disagreeing is precisely what this panel exists to prevent.
+    sym.rows.forEach((r) => { r.colour = colourFor(r.value, r.colour); });
+    const lookup = new Map(sym.rows.filter((r) => !r.other).map((r) => [r.value, r.colour]));
+    const otherColour = sym.rows.find((r) => r.other)?.colour || null;
+    const rgbOf = (c) => (c ? [
+      parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16),
+    ] : null);
+    const painted = layer.repaint((feature) => {
+      const value = feature?.properties?.[field];
+      return rgbOf(lookup.has(value) ? lookup.get(value) : otherColour);
+    });
     layer.legendInfo = {
       palette: sym.rows.map((r) => r.colour.replace("#", "")),
       labels: sym.rows.map((r) => r.value),
@@ -178,10 +344,19 @@ function recompute(apply) {
     if (status) status.textContent = symbology.message;
     return;
   }
+  // A per-class colour is the user's answer and outranks the ramp's, so it goes
+  // onto the rows before anything reads them -- the preview, the repaint and the
+  // legend then all see the same colours.
+  symbology.rows.forEach((r, i) => { r.colour = colourFor(i, r.colour); });
+  symbology.palette = symbology.rows.map((r) => r.colour);
   state.last = symbology;
   preview(symbology);
   if (!apply) {
-    if (status) status.textContent = `${symbology.rows.length} classes ready — press Apply.`;
+    if (status) {
+      const edited = state.overrides.size
+        ? ` ${state.overrides.size} colour${state.overrides.size === 1 ? "" : "s"} customised.` : "";
+      status.textContent = `${symbology.rows.length} classes ready — press Apply.${edited}`;
+    }
     return;
   }
   const painted = layer.repaint((value) => {
@@ -321,6 +496,7 @@ export function init() {
     });
   }
 
+  buildRampGallery();
   fillLayers();
   fillFieldSelect(paintable().find((l) => String(l.id ?? l.name) === state.layerId));
   window.GeoIDImportManager?.onChange?.(() => {
@@ -329,6 +505,8 @@ export function init() {
   });
   byId("gis-sym-layer")?.addEventListener("change", (e) => {
     state.layerId = e.target.value;
+    // Another layer's classes are not this layer's classes.
+    resetChoices();
     recompute(false);
   });
   byId("gis-sym-layer")?.addEventListener("change", () => {
@@ -336,8 +514,15 @@ export function init() {
     fillFieldSelect(layer);
     recompute(false);
   });
+  // A new method, class count, ramp, direction or field means new classes, so a
+  // colour or a threshold pinned to the old ones is discarded rather than
+  // reassigned to an unrelated band of values.
   ["gis-sym-method", "gis-sym-classes", "gis-sym-ramp", "gis-sym-reverse", "gis-sym-field"].forEach((id) => {
-    byId(id)?.addEventListener("change", () => recompute(false));
+    byId(id)?.addEventListener("change", () => {
+      resetChoices();
+      syncRampGallery();
+      recompute(false);
+    });
   });
   byId("gis-sym-apply")?.addEventListener("click", () => recompute(true));
 }

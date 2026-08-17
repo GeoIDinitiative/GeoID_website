@@ -178,8 +178,18 @@ export const METHODS = {
  * Breaks, colours and legend rows in one object — everything a renderer and a
  * legend both need, computed once so the two cannot disagree.
  */
+/**
+ * `edges` overrides the method.
+ *
+ * Class thresholds are hand-editable in the panel -- the QGIS behaviour, where a
+ * natural-breaks pass is a starting point rather than the answer. Given an
+ * explicit edge list the method is not consulted at all, so what the legend says
+ * and what the renderer does stay the same object; recomputing from the method
+ * here would quietly discard the numbers the user typed.
+ */
 export function buildSymbology(values, {
   method = "jenks", classes = 5, ramp = "risk", reverse = false, continuous = false,
+  edges: givenEdges = null,
 } = {}) {
   const v = clean(values);
   if (!v.length) return { ok: false, message: "the layer has no values to classify" };
@@ -194,7 +204,12 @@ export function buildSymbology(values, {
     };
   }
   const chosen = METHODS[method] ? method : "jenks";
-  let breaks = METHODS[chosen].fn(v, classes);
+  // A supplied edge list is used verbatim, minus anything outside the data --
+  // a threshold beyond the range would make an empty class and an honest legend
+  // cannot show one.
+  let breaks = Array.isArray(givenEdges) && givenEdges.length
+    ? givenEdges.map(Number).filter((n) => Number.isFinite(n))
+    : METHODS[chosen].fn(v, classes);
   // Duplicate cuts make empty classes, which read as a broken legend. Data
   // with fewer distinct values than classes is the usual cause and is a fact
   // about the layer, so the class count drops rather than the legend lying.
@@ -209,7 +224,9 @@ export function buildSymbology(values, {
     rows.push({ from, to, colour: hex(rampColour(ramp, t, { reverse })), count });
   }
   return {
-    ok: true, continuous: false, method: chosen, classes: rows.length, ramp, reverse,
+    ok: true, continuous: false,
+    method: Array.isArray(givenEdges) && givenEdges.length ? "custom" : chosen,
+    classes: rows.length, ramp, reverse,
     min, max, breaks,
     palette: rows.map((r) => r.colour),
     rows,

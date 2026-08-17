@@ -82,6 +82,77 @@ body.is-embedded[data-hub-armed="true"] #gmt-clock {
 .gis-sym-rows { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.64rem; }
 .gis-sym-rows > div { display: flex; gap: 0.35rem; align-items: center; }
 .gis-sym-swatch { width: 0.7rem; height: 0.7rem; border-radius: 0.15rem; flex: 0 0 auto;
+
+/* ── Symbology: ramps you can see, classes you can edit ────────────────────
+ *
+ * NEVER a backtick in here -- this whole block is a template literal and one
+ * ends it. module-css.test.mjs is what catches that; a browser does not.
+ *
+ * The gallery draws each ramp as the gradient it is, because a dropdown reading
+ * "viridis, magma, blues" asks the reader to remember what each looks like. */
+#gis-sym-ramp-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.2rem, 1fr));
+  gap: 0.25rem;
+  margin: 0.35rem 0;
+}
+.gis-sym-ramp-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.2rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 0.3rem;
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+.gis-sym-ramp-option:hover { border-color: rgba(var(--nav-accent-rgb), 0.7); }
+.gis-sym-ramp-option.is-active {
+  border-color: rgb(var(--nav-accent-rgb));
+  box-shadow: inset 0 0 0 1px rgb(var(--nav-accent-rgb));
+}
+.gis-sym-ramp-bar { display: block; height: 0.62rem; border-radius: 0.12rem; }
+.gis-sym-ramp-name {
+  font: 500 0.56rem/1 'Exo 2', sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+/* An editable class row: swatch, threshold, upper bound, count. The swatch is a
+   real colour input, so the ramp is a starting point rather than the answer. */
+.gis-sym-rows.is-editable .gis-sym-row {
+  display: grid;
+  grid-template-columns: 1.3rem minmax(3.4rem, 1fr) auto auto;
+  gap: 0.3rem;
+  align-items: center;
+}
+.gis-sym-swatch-input {
+  width: 1.25rem;
+  height: 1.05rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.15rem;
+  background: none;
+  cursor: pointer;
+}
+.gis-sym-swatch-input::-webkit-color-swatch-wrapper { padding: 1px; }
+.gis-sym-swatch-input::-webkit-color-swatch { border: none; border-radius: 0.1rem; }
+input.gis-sym-edge {
+  width: 100%;
+  min-width: 0;
+  padding: 0.05rem 0.2rem;
+  font: 400 0.62rem/1.3 'Exo 2', sans-serif;
+  color: var(--skin-data, #7ee7ff);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.15rem;
+}
+span.gis-sym-edge.is-fixed { opacity: 0.6; font-size: 0.62rem; }
+.gis-sym-to, .gis-sym-count { font-size: 0.62rem; opacity: 0.8; white-space: nowrap; }
+.gis-sym-count { opacity: 0.55; }
+.gis-sym-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gis-sym-reset { margin-top: 0.4rem; font-size: 0.6rem; }
   border: 1px solid rgba(255,255,255,0.2); }
 
 /* Batch: the layer list is a checklist, not a select — you pick several. */

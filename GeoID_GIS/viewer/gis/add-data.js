@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260817-356ba96";
-import { readHead, validateMapping } from "./delimited.js?v=20260817-356ba96";
-import { RAMP_NAMES } from "./symbology.js?v=20260817-356ba96";
+import { CRS_OPTIONS } from "./projection.js?v=20260817-4861be4";
+import { readHead, validateMapping } from "./delimited.js?v=20260817-4861be4";
+import { RAMP_NAMES } from "./symbology.js?v=20260817-4861be4";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -244,6 +244,19 @@ function symbologyModeFor() {
 function describeSymbology() {
   if (!ui) return;
   const mode = symbologyModeFor();
+  /**
+   * A raster is not symbolised here.
+   *
+   * Choosing a ramp for it at import time is a decision made before you have
+   * seen the data, and the thing you actually want -- five classes, their
+   * thresholds, one of them recoloured by hand -- is what the symbology panel
+   * does. Offering a single ramp here implied that was the whole choice.
+   */
+  ui.symSet.hidden = mode === "ramp" && !state.mapping;
+  if (ui.symSet.hidden) {
+    ui.symNote.textContent = "";
+    return;
+  }
   ui.symNote.textContent = mode === "ramp"
     ? "This layer has values to grade, so the ramp is used and the colour is ignored."
     : mode === "colour"
@@ -416,7 +429,7 @@ function build() {
   document.body.appendChild(backdrop);
 
   ui = {
-    title, hint, drop, fileInput, chosen, crs, crsNote,
+    title, hint, drop, fileInput, chosen, crs, crsNote, symSet,
     colSet, tableWrap, colRows, colNote,
     colour, opacity, ramp, symNote, name, note, add,
   };
@@ -579,12 +592,17 @@ async function submit() {
     role: state.role.id,
     crs: ui.crs.value,
     name: ui.name.value.trim() || undefined,
-    symbology: {
+  };
+  // Only when the section is actually offered. Hiding it for rasters and then
+  // sending its values anyway would apply a ramp chosen before the data was
+  // seen -- the decision this stopped asking for.
+  if (!ui.symSet.hidden) {
+    options.symbology = {
       colour: ui.colour.value,
       opacity: Number(ui.opacity.value),
       ramp: ui.ramp.value,
-    },
-  };
+    };
+  }
   if (state.mapping) options.columns = state.mapping;
 
   ui.add.disabled = true;
@@ -616,6 +634,7 @@ export function open(roleId) {
   ui.name.placeholder = "Named after the file unless you say otherwise";
   ui.crsNote.textContent = "";
   ui.symNote.textContent = "";
+  ui.symSet.hidden = false;
   // A mesh has no map projection to speak of, so it opens on "not
   // georeferenced" rather than asking a question with no honest answer.
   ui.crs.value = state.role.id === "mesh" ? "none" : "epsg:4326";
