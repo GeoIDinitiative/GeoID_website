@@ -240,16 +240,23 @@ export function attributeHead(features, { rows = 6, maxColumns = 80 } = {}) {
       columns.push(key);
     });
   });
+  // Counting distinct values stops at a cap, because a column with a value per
+  // feature would otherwise build a 100,000-entry Set to prove it is useless.
+  // `capped` says the number is a floor rather than a count -- reporting "201
+  // values" for a column with 758 is a small lie, and the picker shows it.
+  const DISTINCT_CAP = 200;
   const stats = columns.map((key) => {
     const values = new Set();
     let filled = 0;
+    let capped = false;
     list.forEach((f) => {
       const v = f?.properties?.[key];
       if (v === undefined || v === null || String(v).trim() === "") return;
       filled += 1;
-      if (values.size <= 200) values.add(String(v));
+      if (values.size < DISTINCT_CAP) values.add(String(v));
+      else if (!values.has(String(v))) capped = true;
     });
-    return { key, distinct: values.size, filled };
+    return { key, distinct: values.size, filled, capped };
   });
   return {
     count: list.length,
@@ -271,7 +278,7 @@ export function attributeHead(features, { rows = 6, maxColumns = 80 } = {}) {
 export function rankColourFields(head, { maxClasses = 60 } = {}) {
   const total = head?.count || 0;
   return (head?.columns || [])
-    .filter((c) => c.distinct > 1 && c.distinct <= maxClasses && c.distinct < total)
+    .filter((c) => !c.capped && c.distinct > 1 && c.distinct <= maxClasses && c.distinct < total)
     .sort((a, b) => b.distinct - a.distinct)
     .map((c) => c.key);
 }

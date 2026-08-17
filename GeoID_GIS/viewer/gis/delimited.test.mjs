@@ -159,6 +159,22 @@ check("a mixed row is a header", looksLikeHeader(["station", "37.75", "1200"]));
   // A field with more classes than a legend can show is refused by the cap.
   eq("the class cap is honoured", rankColourFields(head, { maxClasses: 2 }), ["rcs_d"]);
 }
+// The distinct count stops at a cap, and says so rather than reporting a floor
+// as though it were a total.
+{
+  const many = Array.from({ length: 260 }, (_, i) => ({ properties: { id: `v${i}`, kind: i % 3 } }));
+  const head = attributeHead(many, { rows: 2 });
+  const by = Object.fromEntries(head.columns.map((c) => [c.key, c]));
+  check("a high-cardinality column is capped", by.id.capped === true);
+  eq("and stops at the cap", by.id.distinct, 200);
+  check("a small column is not capped", by.kind.capped === false);
+  eq("and is counted exactly", by.kind.distinct, 3);
+  const ranked = rankColourFields(head, { maxClasses: 500 });
+  check("a capped column is never offered, whatever the class cap allows",
+    !ranked.includes("id"), JSON.stringify(ranked));
+  eq("the countable one still is", ranked, ["kind"]);
+}
+
 check("no features, no head", attributeHead([]).columns.length === 0);
 check("and nothing to rank", rankColourFields(attributeHead([])).length === 0);
 

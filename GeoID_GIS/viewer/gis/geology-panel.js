@@ -28,8 +28,8 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-9325eb2";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-9325eb2";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-8517678";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-8517678";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -191,13 +191,20 @@ const STYLE = `
   background: none;
   cursor: pointer;
 }
-#gis-geo-sym-preview .geo-class-label {
+input.geo-class-label {
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
+  padding: 0.08rem 0.25rem;
+  font: 400 0.63rem/1.35 'Exo 2', sans-serif;
+  color: var(--text, #e8f4ff);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.15rem;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.63rem;
+}
+input.geo-class-label:focus {
+  outline: none;
+  border-color: rgba(var(--nav-accent-rgb), 0.85);
 }
 #gis-geo-sym-preview .geo-class-count { font-size: 0.6rem; opacity: 0.55; }
 `;
@@ -262,7 +269,7 @@ async function loadDataset(entry) {
  * path the symbology panel's Apply uses — so the legend the layer card draws is
  * produced by the act of colouring rather than kept in step with it.
  */
-async function applyField(layer, field, { ramp = "spectral", overrides = null } = {}) {
+async function applyField(layer, field, { ramp = "spectral", overrides = null, labels = null } = {}) {
   if (!layer?.features?.length || !field) return null;
   const { categoricalSymbology } = await import(`./symbology.js${new URL(import.meta.url).search}`);
   const sym = categoricalSymbology(layer.features, field, { ramp });
@@ -284,12 +291,17 @@ async function applyField(layer, field, { ramp = "spectral", overrides = null } 
   });
   layer.legendInfo = {
     palette: sym.rows.map((r) => r.colour.replace("#", "")),
-    labels: sym.rows.map((r) => String(r.value)),
+    // The name the user gave the unit, else the attribute's own value.
+    labels: sym.rows.map((r) => labels?.get(String(r.value)) || String(r.value)),
+    // The raw value stays alongside, so a renamed legend entry can still be
+    // traced to the attribute it was made from.
+    values: sym.rows.map((r) => String(r.value)),
     counts: sym.rows.map((r) => r.count),
     categorical: true, classed: true, field,
   };
   layer.geologyField = field;
   layer.geologyRamp = ramp;
+  layer.geologyLabels = labels ? [...labels.entries()] : null;
   window.GeoIDLayerHierarchy?.render?.();
   return sym;
 }
@@ -338,6 +350,9 @@ function openSymbology(layer) {
     field: layer.geologyField || ranked[0] || head6.columns[0]?.key,
     ramp: layer.geologyRamp || "spectral",
     overrides: new Map(),
+    // Keyed by the unit's own value, so a renamed entry survives a reordering
+    // of the class list -- which is ordered by count and does reorder.
+    labels: new Map(layer.geologyLabels || []),
   };
 
   // ── Colour by ──
@@ -352,8 +367,9 @@ function openSymbology(layer) {
     o.value = c.key;
     // The class count is the fact that decides whether a column is worth
     // colouring by, so it is on the option rather than left to be discovered.
-    o.textContent = `${c.key} — ${c.distinct} value${c.distinct === 1 ? "" : "s"}`;
-    o.disabled = c.distinct < 2;
+    o.textContent = `${c.key} — ${c.capped ? `${c.distinct}+` : c.distinct} `
+      + `value${c.distinct === 1 ? "" : "s"}`;
+    o.disabled = c.distinct < 2 || c.capped;
     if (c.key === state.field) o.selected = true;
     fieldSelect.appendChild(o);
   });
@@ -396,16 +412,24 @@ function openSymbology(layer) {
       const th = document.createElement("th");
       th.textContent = c.key;
       const small = document.createElement("small");
-      small.textContent = `${c.distinct} value${c.distinct === 1 ? "" : "s"}`;
+      // "200+" rather than "200": the count stops at a cap, and reporting a
+      // floor as a total is a small lie the picker would be built on.
+      small.textContent = `${c.capped ? `${c.distinct}+` : c.distinct} `
+        + `value${c.distinct === 1 ? "" : "s"}`;
       th.appendChild(small);
-      th.title = "Click to colour the map by this column";
+      th.title = c.capped
+        ? `More than ${c.distinct} distinct values — too many to colour by`
+        : "Click to colour the map by this column";
       if (c.key === state.field) th.classList.add("is-colour");
       // Clicking the column IS choosing it: the head is the natural place to
       // decide, having just read the values.
       th.addEventListener("click", () => {
-        if (c.distinct < 2) return;
+        if (c.distinct < 2 || c.capped) return;
         state.field = c.key;
         state.overrides = new Map();
+        // A different column is different units; a name pinned to the old ones
+        // would label an unrelated rock.
+        state.labels = new Map();
         fieldSelect.value = c.key;
         redraw();
       });
@@ -446,10 +470,22 @@ function openSymbology(layer) {
       swatch.addEventListener("input", () => {
         state.overrides.set(String(r.value), swatch.value);
       });
-      const label = document.createElement("span");
+      // The unit's name is editable, because a BGS lithostratigraphic string is
+      // not a legend entry: "HIBERNIAN GREENSANDS FORMATION AND ULSTER WHITE
+      // LIMESTONE FORMATION (UNDIFFERENTIATED)" is 84 characters and the map is
+      // read at a glance. The original stays as the title, so a renamed entry
+      // can still be checked against the attribute it came from.
+      const label = document.createElement("input");
+      label.type = "text";
       label.className = "geo-class-label";
-      label.textContent = String(r.value);
+      label.value = state.labels.get(String(r.value)) ?? String(r.value);
       label.title = String(r.value);
+      label.addEventListener("keydown", (e) => e.stopPropagation());
+      label.addEventListener("change", () => {
+        const text = label.value.trim();
+        if (text && text !== String(r.value)) state.labels.set(String(r.value), text);
+        else state.labels.delete(String(r.value));
+      });
       const count = document.createElement("span");
       count.className = "geo-class-count";
       count.textContent = r.count.toLocaleString();
@@ -463,6 +499,7 @@ function openSymbology(layer) {
   fieldSelect.addEventListener("change", () => {
     state.field = fieldSelect.value;
     state.overrides = new Map();
+    state.labels = new Map();
     redraw();
   });
   rampSelect.addEventListener("change", () => {
@@ -485,7 +522,7 @@ function openSymbology(layer) {
   apply.textContent = "Apply";
   apply.addEventListener("click", async () => {
     const sym = await applyField(layer, state.field,
-      { ramp: state.ramp, overrides: state.overrides });
+      { ramp: state.ramp, overrides: state.overrides, labels: state.labels });
     if (sym) {
       say(`${layer.name} coloured by ${state.field}: ${sym.rows.length} units.`);
       symBackdrop.hidden = true;
