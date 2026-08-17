@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-fb901be";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260818-fb901be";
-import { currentBodyId } from "./bodies.js?v=20260818-fb901be";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-fb901be";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-ea8a679";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260818-ea8a679";
+import { currentBodyId } from "./bodies.js?v=20260818-ea8a679";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-ea8a679";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -448,11 +448,27 @@ function toInteractiveCatalogue(layers) {
         .filter((p) => Array.isArray(p.outer) && p.outer.length >= 3);
       if (!polygons.length) return;
       const props = f.properties || {};
-      // `??` only falls through on null and undefined, and a BGS sheet carries
-      // polygons whose lithology column is an empty string -- which came out as
-      // a card titled with a space. Blank is missing.
-      const name = [props[field], props.lex_d, props.rcs_d]
-        .map((v) => String(v ?? "").trim()).find(Boolean) || "Unit";
+      /**
+       * A field of WHITESPACE is a field with nothing in it.
+       *
+       * `props.rcs_d || props.rock_d` looks like it handles a missing value and
+       * does not: **200 of the 801 superficial polygons carry rcs_d as a single
+       * space**, and a space is truthy. Those became a card whose title, meta
+       * and copy were all one space -- an empty box, which is indistinguishable
+       * from a click that did nothing. ALLUVIUM is the biggest group of them, so
+       * every river valley on the sheet opened blank.
+       *
+       * Everything read off a feature goes through here, and `null` means the
+       * card falls back to the next thing it knows: the unit name.
+       */
+      const val = (...candidates) => {
+        for (const c of candidates) {
+          const text = String(c ?? "").trim();
+          if (text) return text;
+        }
+        return null;
+      };
+      const name = val(props[field], props.lex_d, props.rcs_d) || "Unit";
       let km2 = 0;
       polygons.forEach((p) => {
         km2 += sphericalPolygonAreaKm2(p.outer.map(([lon, lat]) => ({ lat, lon })));
@@ -462,15 +478,17 @@ function toInteractiveCatalogue(layers) {
         id: `geo-${layer.id}-${n}`,
         name,
         type: "Geologic unit polygon",
-        unit: props.lex || props.map_code || null,
-        unit_description: props.lex_d || null,
-        rock_type: props.rcs_d || props.rock_d || null,
-        rock_type_detail: props.lex_rcs_d || null,
-        description: props.rcs_d || props.bgstype || null,
-        origin: layer.credit || layer.name || null,
-        dimension: props.max_period && props.min_period
-          ? (props.max_period === props.min_period ? props.max_period
-            : `${props.min_period} – ${props.max_period}`)
+        unit: val(props.lex, props.map_code),
+        // The card's meta line is "description · name", and with the lithology
+        // blank both halves came from the same column: "ALLUVIUM  ·  ALLUVIUM".
+        unit_description: val(props.lex_d) === name ? null : val(props.lex_d),
+        rock_type: val(props.rcs_d, props.rock_d),
+        rock_type_detail: val(props.lex_rcs_d),
+        description: val(props.rcs_d, props.bgstype),
+        origin: val(layer.credit, layer.name),
+        dimension: val(props.max_period) && val(props.min_period)
+          ? (props.max_period === props.min_period ? val(props.max_period)
+            : `${val(props.min_period)} – ${val(props.max_period)}`)
           : null,
         mapped_area_km2: km2 > 0 ? Number(km2.toFixed(1)) : null,
         polygons,
