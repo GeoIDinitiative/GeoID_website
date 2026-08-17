@@ -20,7 +20,7 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-f57d1df";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-e690b05";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital

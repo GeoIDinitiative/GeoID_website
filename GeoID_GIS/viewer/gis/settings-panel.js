@@ -196,8 +196,27 @@ function refresh() {
       : "Not configured. Earth Engine needs a Client ID and a project; neither is a secret.");
 }
 
+/**
+ * Settings sits at the foot of the sidebar, after everything about the work.
+ *
+ * It is last in `panels.js`, but several groups are MOVED into hosts after
+ * render (`toolbox.js` MOVES), which can leave it above the group it should
+ * follow. Asserting the position here is cheaper and steadier than making the
+ * markup order survive every future move: configuration belongs below the
+ * data, the analysis and the provenance, not among them.
+ */
+function sendToBottom() {
+  const group = document.getElementById("gis-group-settings");
+  const parent = group?.parentElement;
+  if (!group || !parent || parent.lastElementChild === group) return;
+  parent.appendChild(group);
+}
+
 export function init() {
   if (!byId("gis-settings-keys")) return;
+  sendToBottom();
+  // The moves run after this module does, so once more when the page settles.
+  setTimeout(sendToBottom, 600);
   byId("gis-settings-refresh")?.addEventListener("click", refresh);
   refresh();
 }
