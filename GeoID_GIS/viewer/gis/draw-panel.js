@@ -23,7 +23,7 @@
  * instead of a study area (`captureDrawnLine`), which is what a transect is.
  */
 
-import { regularPolygonVertices, lineVertices } from "./draw-area.js?v=20260817-e4c0259";
+import { regularPolygonVertices, lineVertices } from "./draw-area.js?v=20260817-718e756";
 
 /* ── The shapes ──────────────────────────────────────────────────────────────
  *
@@ -366,7 +366,7 @@ function buildCard() {
   shut.textContent = "×";
   shut.setAttribute("aria-label", "Close draw options");
   Object.assign(shut.style, { padding: "0 0.45rem", minWidth: "0", lineHeight: "1" });
-  shut.addEventListener("click", () => close());
+  shut.addEventListener("click", dismiss);
   head.append(title, shut);
 
   const body = document.createElement("div");
@@ -549,6 +549,26 @@ function close() {
   document.getElementById("tool-rail")?.classList.remove("has-draw-card");
 }
 
+/**
+ * Dismissing the card puts the tool down with it.
+ *
+ * `close()` alone left the rail button filled -- the solid accent that means
+ * "you are holding this" -- with no card and the globe still armed for a
+ * polygon. It also cost a click: the button was already ON, so the next press
+ * of Draw disarmed it rather than bringing the card back, which reads as a
+ * button that does nothing.
+ *
+ * The measure mode belongs to the viewer, so this asks the rail button for it
+ * rather than reaching into that state: the click toggles the tool off, which
+ * clears `is-active`, and the button's own listener then calls `close()`. The
+ * direct `close()` below is for the case where the tool is already down.
+ */
+function dismiss() {
+  const button = document.getElementById("tool-rail-area");
+  if (button?.classList.contains("is-active")) button.click();
+  close();
+}
+
 export function init() {
   const button = document.getElementById("tool-rail-area");
   if (!button) return false;
@@ -562,7 +582,10 @@ export function init() {
       if (button.classList.contains("is-active")) open(); else close();
     }, 80);
   });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  // Escape is the same dismissal as the x, so it puts the tool down too --
+  // leaving one of them armed and the other not would be a difference nobody
+  // could predict.
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") dismiss(); });
   return true;
 }
 
