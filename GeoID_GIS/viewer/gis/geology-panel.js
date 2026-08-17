@@ -28,8 +28,8 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-99e21e8";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-99e21e8";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-9325eb2";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-9325eb2";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
