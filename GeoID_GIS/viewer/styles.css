@@ -1554,7 +1554,15 @@
         0 0 0 1px rgba(var(--nav-accent-rgb), 0.1),
         0 0 20px rgba(var(--nav-accent-rgb), 0.08);
       color: var(--text);
-      pointer-events: auto;
+      /* The card floats OVER the map, 320 x 210 directly above the point you
+         clicked, and while it swallowed the pointer everything under it was
+         unclickable. Measured with one card open at the middle of a framed
+         Northern Ireland: **28% of the visible map** could not be clicked, in a
+         block as wide as the island itself — and because the block follows your
+         last click, the dead zone moved around and read as "some polygons are
+         not interactive". The card is a readout; only its close button is a
+         control, so only the close button takes the pointer. */
+      pointer-events: none;
       transform: translate(-50%, calc(-100% - 1.6rem));
       max-height: min(46vh, 30rem);
       overflow-y: auto;
@@ -1563,6 +1571,8 @@
     .geo-popup[hidden] { display: none; }
     .geo-popup-close {
       position: absolute;
+      /* The one control on a card that otherwise lets the pointer through. */
+      pointer-events: auto;
       top: 0.45rem;
       right: 0.45rem;
       width: 1.5rem;
