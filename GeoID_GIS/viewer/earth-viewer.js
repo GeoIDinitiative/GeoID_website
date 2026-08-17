@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260818-ea8a679";
+  from "./gis/geo-utils.js?v=20260818-55a4fdb";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -18933,8 +18933,27 @@ uniform float uViewportWidth;`,
            * `vectorToLatLon` reads the baseline frame the texture is laid out
            * in. Verified against the readout: 54.73 / 353.61 east, exact.
            */
-          const localHit = globe.worldToLocal(surfaceHit.point.clone());
-          const basePoint = new THREE.Vector3(-localHit.x, localHit.y, -localHit.z);
+          /**
+           * Un-rotated by whatever is PAINTING the geology, not by the globe.
+           *
+           * When the catalogue comes from imported layers those polygons hang
+           * off `GeoID-ImportedGeoLayers`, and that group's rotation is the one
+           * they were drawn with. Undoing the globe's rotation instead assumes
+           * the two are identical, and at 3 degrees a second any daylight
+           * between them is kilometres of ground. Converting through the group
+           * cancels its rotation exactly, whatever it happens to be, so the
+           * polygon under the cursor is the polygon the pick answers with.
+           *
+           * Nothing changes for a world whose geology comes from a manifest:
+           * there is no such group, and the globe is what painted it.
+           */
+          const paintFrame = scene.getObjectByName("GeoID-ImportedGeoLayers");
+          const localHit = paintFrame && geologyInteractiveState?.fromImportedLayers
+            ? paintFrame.worldToLocal(surfaceHit.point.clone())
+            : globe.worldToLocal(surfaceHit.point.clone());
+          const basePoint = paintFrame && geologyInteractiveState?.fromImportedLayers
+            ? localHit
+            : new THREE.Vector3(-localHit.x, localHit.y, -localHit.z);
           const geologyFeature = getGeologyFeatureAtPoint(basePoint, geologyInteractiveState);
           if (geologyFeature) {
             openGeoPopup(geologyFeature, surfaceHit.point, clickSpinDelta);
@@ -19394,6 +19413,12 @@ uniform float uViewportWidth;`,
             geologyInteractiveState.datasetCount = new Set(
               geologyInteractiveState.featureList.map((f) => f.source_layer || ""),
             ).size || 1;
+            // A catalogue built from imported layers is PAINTED by the imported
+            // layer group, so that group's rotation -- not the globe's -- is
+            // what a click has to be un-rotated by. `source_layer` is what only
+            // those carry.
+            geologyInteractiveState.fromImportedLayers = geologyInteractiveState
+              .featureList.some((f) => f.source_layer);
           }
           // The click path is gated on the geology toggle, which is hidden on
           // this page now that the relief overlay it used to drive has moved to

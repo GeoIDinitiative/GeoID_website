@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260818-ea8a679";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260818-ea8a679";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260818-ea8a679";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260818-ea8a679";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260818-ea8a679";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260818-ea8a679";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260818-ea8a679";
-import { loadMshFile } from "./msh-adapter.js?v=20260818-ea8a679";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260818-ea8a679";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260818-55a4fdb";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260818-55a4fdb";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260818-55a4fdb";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260818-55a4fdb";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260818-55a4fdb";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260818-55a4fdb";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260818-55a4fdb";
+import { loadMshFile } from "./msh-adapter.js?v=20260818-55a4fdb";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260818-55a4fdb";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -94,10 +94,25 @@ function getBaseName(fileName) {
  * laid out -- while the globe turns with simulated UTC. The scene group these
  * layers hang from applies no spin, so a coastline placed from its own
  * coordinates sat however far the planet had turned since midnight, drifting
- * further as the day went on. Held every frame rather than set once, because
- * the globe keeps turning while a layer is loaded.
+ * further as the day went on.
+ *
+ * **This is synced from the renderer's own frame, not from a rAF of our own,
+ * and the difference is not academic.** The simulation runs a 16-day cycle, so
+ * the globe turns at **3 degrees a second** -- 193 km of ground a second at
+ * Northern Ireland's latitude. A callback in a separate rAF cannot be ordered
+ * against the viewer's render loop, so it copied the rotation the globe had on
+ * the PREVIOUS frame: measured, that is 0.05 degrees at 60 fps and 0.2 degrees
+ * at 15 fps, which is **3.2 to 12.9 km** of ground. The geology was painted
+ * that far from where the pick believed it was, the median BGS polygon is
+ * 1.4 km2, and the error changed from frame to frame -- so a polygon could be
+ * clickable, unclickable, or answer as its neighbour on consecutive clicks.
+ *
+ * `scene.onBeforeRender` is called by WebGLRenderer.render at the top of the
+ * frame being drawn, so the group is placed with the same rotation the globe
+ * is about to be drawn with. Zero lag by construction rather than by tolerance.
+ * Any handler already on the scene is kept and called.
  */
-function holdSpin() {
+function syncSpin(scene) {
   const step = () => {
     const viewer = getViewer();
     // Taken from the globe's own rotation rather than recomputed from the
@@ -108,9 +123,22 @@ function holdSpin() {
     if (geoGroup && Number.isFinite(globeY)) {
       geoGroup.rotation.y = globeY - Math.PI;
     }
-    window.requestAnimationFrame(step);
   };
-  window.requestAnimationFrame(step);
+  if (scene && typeof scene.onBeforeRender === "function") {
+    const previous = scene.onBeforeRender.bind(scene);
+    scene.onBeforeRender = function chained(...args) {
+      step();
+      previous(...args);
+    };
+    return;
+  }
+  if (scene) {
+    scene.onBeforeRender = step;
+    return;
+  }
+  // No scene to hang it on: keep the old behaviour rather than no behaviour.
+  const loop = () => { step(); window.requestAnimationFrame(loop); };
+  window.requestAnimationFrame(loop);
 }
 
 function ensureGroups() {
@@ -122,7 +150,7 @@ function ensureGroups() {
     geoGroup = new THREE.Group();
     geoGroup.name = "GeoID-ImportedGeoLayers";
     (viewer.earthSceneGroup || viewer.scene).add(geoGroup);
-    holdSpin();
+    syncSpin(viewer.scene);
   }
   if (!localGroup) {
     localGroup = new THREE.Group();
