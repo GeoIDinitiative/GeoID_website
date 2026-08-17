@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260817-13c2be6";
-import { currentBody } from "./bodies.js?v=20260817-13c2be6";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260817-13c2be6";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260817-d542f72";
+import { currentBody } from "./bodies.js?v=20260817-d542f72";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260817-d542f72";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -99,6 +99,13 @@ const TAB_ORDER = [
   "modelled-data-section",
   "gis-group-export",
   "gis-group-metadata",
+  // Settings last: configuration goes below the data, the analysis and the
+  // provenance. It has to be an entry here rather than a position in the
+  // markup, because this list is what decides the column -- every other group
+  // is APPENDED into the toolbox and a group left out stays behind in
+  // `gis-panel-host`, which is the toolbox's first child. That is why Settings
+  // read as pinned to the top: it was the one panel nothing moved.
+  "gis-group-settings",
 ];
 
 /**

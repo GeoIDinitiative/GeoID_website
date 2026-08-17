@@ -3,8 +3,8 @@ import {
   rowsToCsv,
   rowsToGeoJson,
   downloadText,
-} from "./extraction.js?v=20260817-13c2be6";
-import { rectangleVertices } from "./draw-area.js?v=20260817-13c2be6";
+} from "./extraction.js?v=20260817-d542f72";
+import { rectangleVertices } from "./draw-area.js?v=20260817-d542f72";
 
 let lastResult = null;
 
@@ -212,100 +212,6 @@ function exportAs(kind) {
   }
 }
 
-/**
- * A small card, beside the rail button, holding the Draw tool's own settings.
- *
- * The controls are MOVED rather than cloned, and that is not a detail: they are
- * already wired by id, and a clone would put a second #gis-box-draw on the page
- * — the exact duplicate-id fault that once had the extraction dialog's Run
- * button silently driving the panel's. A comment node marks where they came
- * from so putting the tool down returns them to the panel, which therefore
- * stays complete for anyone who goes looking there instead.
- */
-function drawOptionsCard() {
-  let card = null;
-  let home = null;
-  let section = null;
-
-  const place = () => {
-    const anchor = document.getElementById("tool-rail-area");
-    if (!anchor || !card) return;
-    const r = anchor.getBoundingClientRect();
-    card.style.top = Math.round(r.top) + "px";
-    card.style.right = Math.round(window.innerWidth - r.left + 10) + "px";
-  };
-
-  const close = () => {
-    if (!card || card.hidden) return;
-    if (section && home && home.parentNode) home.parentNode.insertBefore(section, home);
-    card.hidden = true;
-    window.removeEventListener("resize", place);
-  };
-
-  const build = () => {
-    card = document.createElement("div");
-    card.id = "gis-draw-options";
-    card.hidden = true;
-    // Above the legend and the hover tooltip, below every popup and modal —
-    // the stacking order in CLAUDE.md, which is numeric because all of these
-    // are siblings under body.
-    Object.assign(card.style, {
-      position: "fixed", zIndex: "15", width: "17rem", maxWidth: "calc(100vw - 2rem)",
-      borderRadius: "10px", overflow: "hidden",
-      background: "rgba(12, 10, 22, 0.96)",
-      border: "1px solid rgba(255, 255, 255, 0.14)",
-      boxShadow: "0 10px 30px rgba(0, 0, 0, 0.45)",
-    });
-
-    const head = document.createElement("div");
-    Object.assign(head.style, {
-      display: "flex", alignItems: "center", justifyContent: "space-between",
-      gap: "0.5rem", padding: "0.45rem 0.6rem",
-      borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-    });
-    const title = document.createElement("span");
-    title.textContent = "Draw options";
-    Object.assign(title.style, {
-      font: "600 0.68rem/1 'Exo 2', sans-serif", letterSpacing: "0.08em",
-      textTransform: "uppercase", opacity: "0.85",
-    });
-    const shut = document.createElement("button");
-    shut.type = "button";
-    shut.className = "button";
-    shut.textContent = "×";
-    shut.setAttribute("aria-label", "Close draw options");
-    Object.assign(shut.style, { padding: "0 0.45rem", minWidth: "0", lineHeight: "1" });
-    shut.addEventListener("click", close);
-    head.append(title, shut);
-
-    const body = document.createElement("div");
-    body.className = "gis-draw-options-body";
-    body.style.padding = "0.5rem 0.6rem 0.6rem";
-
-    card.append(head, body);
-    document.body.appendChild(card);
-    return body;
-  };
-
-  const open = () => {
-    section = section || document.getElementById("gis-box-draw")?.closest("details");
-    if (!section) return;
-    const body = card ? card.querySelector(".gis-draw-options-body") : build();
-    if (!home) {
-      home = document.createComment("draw options live with the tool while it is up");
-      section.parentNode?.insertBefore(home, section);
-    }
-    body.appendChild(section);
-    section.open = true;
-    card.hidden = false;
-    place();
-    window.addEventListener("resize", place);
-  };
-
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
-  return { open, close };
-}
-
 function init() {
   document.getElementById("gis-box-draw")?.addEventListener("click", drawBox);
 
@@ -320,27 +226,6 @@ function init() {
   shape?.addEventListener("change", syncShape);
   syncShape();
 
-  /**
-   * Picking up the Draw tool shows the Draw tool's options — and nothing else.
-   *
-   * Raising the whole Analyse workbench was the old answer to a real problem:
-   * the box presets sat two collapsed <details> deep, so from the rail there
-   * was no sign they existed ("no square preset option"). That answer stopped
-   * being proportionate the moment the workbench grew to forty-six tools —
-   * picking up a pencil should not open the toolbox, and it reads as a bug
-   * because it behaves like one.
-   *
-   * Deferred a tick because the viewer toggles the mode on the same click, and
-   * only opened when the tool ends up ON — otherwise putting it down would
-   * open the card too.
-   */
-  const drawOptions = drawOptionsCard();
-  document.getElementById("tool-rail-area")?.addEventListener("click", () => {
-    setTimeout(() => {
-      const on = document.getElementById("tool-rail-area")?.classList.contains("is-active");
-      if (on) drawOptions.open(); else drawOptions.close();
-    }, 80);
-  });
   const centreMode = document.getElementById("gis-box-centre");
   const manualRow = document.getElementById("gis-box-manual");
   const syncCentreMode = () => {

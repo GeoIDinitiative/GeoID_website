@@ -14,14 +14,14 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260817-13c2be6";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260817-13c2be6";
-import * as EE from "./gee-live.js?v=20260817-13c2be6";
-import { makeRaster } from "./raster-analysis.js?v=20260817-13c2be6";
+} from "./geoid-pipeline.js?v=20260817-d542f72";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260817-d542f72";
+import * as EE from "./gee-live.js?v=20260817-d542f72";
+import { makeRaster } from "./raster-analysis.js?v=20260817-d542f72";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260817-13c2be6";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260817-13c2be6";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260817-d542f72";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260817-d542f72";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -31,9 +31,15 @@ const state = {
   watching: false,
 };
 
+// The bar is a switch, the same size as Events beside it, and it grows a body
+// only while there is a run to report on. So the text and the panel that holds
+// it are set together -- an empty status pane is 24px of padding and a rule
+// saying nothing, and it was showing before the mode had ever been entered.
 function say(text) {
   const node = document.getElementById("geoid-fos-status");
   if (node) node.textContent = text;
+  const body = document.getElementById("geoid-fos-body");
+  if (body) body.hidden = !text;
 }
 
 function layers() {

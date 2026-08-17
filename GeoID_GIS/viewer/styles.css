@@ -2442,6 +2442,23 @@
       display: none;
     }
 
+    /* Until the sidebar has been arranged, its panels are not drawn.
+       `mode-manager.js` is a classic `defer` script and runs ahead of the
+       module tags, `toolbox.js` among them, so its first pass cannot lay the
+       column out -- and what is in the markup at that moment is every panel
+       loose in source order rather than folded into Explorer and the tab bar.
+       Two arrangements used to load, that one and then the real one.
+       `display: none` rather than `visibility: hidden` so the column does not
+       first reserve the wrong height and then collapse to the right one. The
+       brand and the mode switch are untouched: the frame arrives at once and
+       only the panels wait. */
+    body.sidebar-arranging #ui-scroll-body > .control-section,
+    body.sidebar-arranging #ui-scroll-body > .toolbox-group,
+    body.sidebar-arranging #ui-scroll-body > .controls,
+    body.sidebar-arranging #gis-toolbox-panels {
+      display: none;
+    }
+
     .toolbox-group > .section-toggle .section-title {
       letter-spacing: 0.1em;
       text-transform: uppercase;

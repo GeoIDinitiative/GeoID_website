@@ -13,8 +13,8 @@
  * you can operate on, and it should not have to be captured twice.
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20260817-13c2be6";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260817-13c2be6";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260817-d542f72";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260817-d542f72";
 
 let counter = 0;
 
@@ -111,6 +111,63 @@ export function captureDrawn({ name = null, stampedAt = null } = {}) {
   };
 }
 
+/**
+ * A transect is a layer too, and it cannot go through the path above.
+ *
+ * `drawnFeature` builds a Polygon and demands three points, which is right for
+ * every closed shape and wrong for a line: a two-point transect has no interior,
+ * so there is no study area to set and nothing to sample across. Closing it into
+ * a ring instead would double it back on itself and report a length twice what
+ * was asked for. So a line skips `setStudyAreaPolygon` entirely and becomes an
+ * ordinary LineString layer -- which `vector-render.js` already draws, splitting
+ * long spans the same way, and which every tool can take as input.
+ */
+export function captureDrawnLine(vertices, { name = null, stampedAt = null } = {}) {
+  if (!Array.isArray(vertices) || vertices.length < 2) {
+    return { ok: false, message: "A line needs two points." };
+  }
+  const path = vertices.map((v) => {
+    let lon = Number(v.lon);
+    const lat = Number(v.lat);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    // Same conversion the polygon path makes, and for the same reason: the
+    // viewer carries east-positive 0..360 and a file means signed.
+    if (lon > 180) lon -= 360;
+    return [Number(lon.toFixed(6)), Number(lat.toFixed(6))];
+  }).filter(Boolean);
+  if (path.length < 2) return { ok: false, message: "That line has no usable points." };
+
+  counter += 1;
+  const layerName = name || `Transect ${counter}`;
+  const feature = {
+    type: "Feature",
+    properties: {
+      name: layerName,
+      kind: "drawn",
+      vertices: path.length,
+      drawn_at: stampedAt || new Date().toISOString(),
+    },
+    geometry: { type: "LineString", coordinates: path },
+  };
+  const fc = { type: "FeatureCollection", features: [feature] };
+  const built = buildVectorLayerResult(fc, { name: layerName });
+  const layer = window.GeoIDImportManager?.addDerivedLayer?.(layerName, built, "drawn");
+  if (!layer) return { ok: false, message: "The layer could not be added — is the globe ready?" };
+  // Offered to the project on the same terms as every other tool output, and
+  // never allowed to fail the draw when the project is closed.
+  void (async () => {
+    try {
+      const { saveProcessed } = await import(`./research/bridge.js${new URL(import.meta.url).search}`);
+      await saveProcessed(`${layerName.replace(/\s+/g, "_").toLowerCase()}.geojson`,
+        JSON.stringify(fc),
+        { mime: "application/geo+json", provenance: { tool: "draw", inputs: [] } });
+    } catch (error) {
+      /* never fail the draw because the project is closed */
+    }
+  })();
+  return { ok: true, layer, message: `${layerName} added as a line layer.` };
+}
+
 if (typeof window !== "undefined") {
-  window.GeoIDDrawnLayers = { captureDrawn, drawnFeature };
+  window.GeoIDDrawnLayers = { captureDrawn, captureDrawnLine, drawnFeature };
 }

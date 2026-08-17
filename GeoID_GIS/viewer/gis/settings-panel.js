@@ -196,31 +196,15 @@ function refresh() {
       : "Not configured. Earth Engine needs a Client ID and a project; neither is a secret.");
 }
 
-/**
- * Settings sits at the foot of the sidebar, after everything about the work.
- *
- * It is last in `panels.js`, but several groups are MOVED into hosts after
- * render (`toolbox.js` MOVES), which can leave it above the group it should
- * follow. Asserting the position here is cheaper and steadier than making the
- * markup order survive every future move: configuration belongs below the
- * data, the analysis and the provenance, not among them.
- */
-function sendToBottom() {
-  const group = document.getElementById("gis-group-settings");
-  const parent = group?.parentElement;
-  if (!group || !parent || parent.lastElementChild === group) return;
-  parent.appendChild(group);
-}
+// Where this panel sits in the sidebar is decided by TAB_ORDER in toolbox.js,
+// which is the list that builds the column. Two earlier attempts asserted it
+// from here on a timer instead, and both were no-ops that could only ever have
+// made the ordering flicker: this panel's parent is `gis-panel-host`, and by
+// the time the timer fired it was the only child left in it -- everything else
+// having been appended into the toolbox above. Nothing to move, nowhere to
+// move it to.
 
 export function init() {
-  // The position is asserted OUTSIDE the host guard, and that is the whole
-  // fix. `panels.js` renders the sidebar after this module runs, so on the
-  // first pass `gis-settings-keys` does not exist yet, init returned early,
-  // and the move never happened -- while the panel itself appeared later and
-  // looked perfectly fine at the top of the list. A guard for one thing
-  // silently skipped another.
-  sendToBottom();
-  [200, 600, 1500, 3000].forEach((ms) => setTimeout(sendToBottom, ms));
   if (!byId("gis-settings-keys")) return;
   byId("gis-settings-refresh")?.addEventListener("click", refresh);
   refresh();

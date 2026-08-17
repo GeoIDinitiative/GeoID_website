@@ -53,8 +53,30 @@
   // GIS mode restructures the sidebar into a toolbox: the GeoID controls fold
   // into one group and the tool groups stack beneath. GeoID and Model modes get
   // the original flat layout back.
+  /**
+   * The sidebar is not shown until it has been arranged.
+   *
+   * `body.sidebar-arranging` is in the markup, so it is true from the first
+   * byte and there is no window in which the browser could paint the panels in
+   * their markup order. This is what takes it off, and it is deliberately
+   * driven by the layout SUCCEEDING rather than by a moment in the load: the
+   * first `setMode` runs before `toolbox.js` exists and cannot arrange
+   * anything, so revealing on it would show exactly the order being avoided.
+   */
+  function revealPanels() {
+    document.body?.classList.remove("sidebar-arranging");
+  }
+
   function setToolboxLayout(enabled) {
-    window.GeoIDToolbox?.applyToolboxLayout?.(enabled);
+    const apply = window.GeoIDToolbox?.applyToolboxLayout;
+    // Nothing to do yet, and that is expected rather than an error: this is a
+    // classic `defer` script and runs ahead of the module tags on Earth's page,
+    // so the first pass finds no toolbox. The DOMContentLoaded re-apply in
+    // init() is what comes back for it -- measured, that first pass is at
+    // 173ms with no toolbox and the re-apply at 437ms with one.
+    if (typeof apply !== "function") return;
+    apply(enabled);
+    revealPanels();
   }
 
   // Model mode hands the screen to the Meshing Studio, which brings its own
@@ -460,6 +482,29 @@
       /* localStorage unavailable, ignore */
     }
     setMode(initialMode);
+    // That setMode could not lay the sidebar out, and said nothing about it.
+    //
+    // This is a classic `defer` script, so it runs at readyState "interactive"
+    // -- ahead of the module tags that follow it on Earth's page, `toolbox.js`
+    // among them. `setToolboxLayout` is `window.GeoIDToolbox?.…`, so the call
+    // went into the optional chain and the sidebar kept the markup order: every
+    // panel loose in the column instead of folded into Explorer and the tab bar.
+    //
+    // Every deferred and module script has run by DOMContentLoaded, so re-apply
+    // there. The planet pages already do exactly this from `boot.js`, after
+    // their import loop; Earth had no equivalent because it has no boot.js.
+    // Idempotent by design, which is what makes both safe.
+    //
+    // NOT the `pollForViewer` below: that waits on the whole Three.js globe,
+    // measured at 1054ms against toolbox.js's 227ms, and the layout is pure DOM
+    // movement that never touches the viewer. It stays for what does need it --
+    // the spin and the globe's visibility.
+    document.addEventListener("DOMContentLoaded", () => setMode(currentMode), { once: true });
+    // If nothing ever lays the sidebar out -- a module that failed to parse,
+    // a mode that never reaches the toolbox -- the panels must still appear.
+    // A flash of the wrong order is a blemish; a sidebar that never arrives is
+    // a broken page, and `revealPanels` is the difference between them.
+    setTimeout(revealPanels, 4000);
     pollForViewer();
   }
 
