@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260817-edb8bf0";
+  from "./gis/geo-utils.js?v=20260817-311f20e";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -18866,14 +18866,25 @@ uniform float uViewportWidth;`,
         const clickSpinDelta = globe.rotation.y - Math.PI;
         const surfaceHit = geologyToggle.checked ? intersectMarsSurface(event.clientX, event.clientY) : null;
         if (surfaceHit) {
-          // Un-rotate the world-space hit point back to spinDelta=0 space so vectorToLatLon
-          // inside getGeologyFeatureAtPoint gives correct geographic coordinates regardless of rotation.
-          const cosD = Math.cos(clickSpinDelta), sinD = Math.sin(clickSpinDelta);
-          const basePoint = new THREE.Vector3(
-            surfaceHit.point.x * cosD - surfaceHit.point.z * sinD,
-            surfaceHit.point.y,
-            surfaceHit.point.x * sinD + surfaceHit.point.z * cosD,
-          );
+          /**
+           * Into the globe's OWN frame, not a hand-rolled un-spin.
+           *
+           * This undid the spin by rotating the world-space hit about Y and
+           * stopped there -- but on Earth the globe sits inside
+           * `earthSceneGroup`, which carries the 23.44 degree axial tilt, and
+           * that was never undone. Measured at the centre of a view over
+           * Northern Ireland: the cursor readout says 54.73N, this arithmetic
+           * said 31.38N. Off by 23.35 degrees, which is the tilt, so the
+           * derived point fell in the Atlantic and no unit was ever found.
+           *
+           * `worldToLocal` composes every transform between world space and the
+           * mesh, so it cannot miss one the way a hand-written rotation can. It
+           * leaves the globe's own half-turn, which the negation removes --
+           * `vectorToLatLon` reads the baseline frame the texture is laid out
+           * in. Verified against the readout: 54.73 / 353.61 east, exact.
+           */
+          const localHit = globe.worldToLocal(surfaceHit.point.clone());
+          const basePoint = new THREE.Vector3(-localHit.x, localHit.y, -localHit.z);
           const geologyFeature = getGeologyFeatureAtPoint(basePoint, geologyInteractiveState);
           if (geologyFeature) {
             openGeoPopup(geologyFeature, surfaceHit.point, clickSpinDelta);
