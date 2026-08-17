@@ -23,7 +23,7 @@
  * instead of a study area (`captureDrawnLine`), which is what a transect is.
  */
 
-import { regularPolygonVertices, lineVertices } from "./draw-area.js?v=20260817-d542f72";
+import { regularPolygonVertices, lineVertices } from "./draw-area.js?v=20260817-e4c0259";
 
 /* ── The shapes ──────────────────────────────────────────────────────────────
  *
@@ -105,6 +105,15 @@ const shapeById = (id) => SHAPES.find((s) => s.id === id) || SHAPES[0];
  * as hovered.
  */
 const STYLE = `
+/* The card carries an inline display:flex, for the column that scrolls when a
+   short window cannot hold seven shapes -- and an inline style OUTRANKS the
+   hidden attribute, which is only a UA-level display:none. So close() set
+   hidden, the card stayed painted, and neither the x nor putting the tool down
+   appeared to do anything. CLAUDE.md records the same trap against
+   #research-hub; this is the second time it has been paid for.
+   Assert it, and never assert the PROPERTY in a test -- assert the paint. */
+#gis-draw-options[hidden] { display: none !important; }
+
 /* One column. A shape strip reads as a strip -- four across made it a keypad,
    and the eye had to search a grid for a picture it could otherwise walk. */
 #gis-draw-shapes {
