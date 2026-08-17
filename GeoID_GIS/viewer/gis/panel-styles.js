@@ -153,6 +153,49 @@ span.gis-sym-edge.is-fixed { opacity: 0.6; font-size: 0.62rem; }
 .gis-sym-count { opacity: 0.55; }
 .gis-sym-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gis-sym-reset { margin-top: 0.4rem; font-size: 0.6rem; }
+
+/* The name sits on its own line under the numbers: at sidebar width a fifth
+   column left four characters for it, which is not a name. */
+.gis-sym-rows.is-editable .gis-sym-namerow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.3rem;
+  align-items: center;
+  margin: 0 0 0.3rem 1.6rem;
+}
+input.gis-sym-name {
+  width: 100%;
+  min-width: 0;
+  padding: 0.08rem 0.25rem;
+  font: 400 0.63rem/1.35 'Exo 2', sans-serif;
+  color: var(--text, #e8f4ff);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.15rem;
+}
+input.gis-sym-name::placeholder { opacity: 0.4; font-style: italic; }
+input.gis-sym-name:focus {
+  outline: none;
+  border-color: rgba(var(--nav-accent-rgb), 0.8);
+}
+
+/* A classed legend in the layer card: one row per class, its name beside its
+   colour, rather than a gradient that cannot say where a class ends. */
+.legend-classes { display: flex; flex-direction: column; gap: 0.12rem; margin-top: 0.3rem; }
+.legend-class { display: flex; align-items: center; gap: 0.35rem; }
+.legend-class-swatch {
+  flex: 0 0 auto;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 0.12rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+.legend-class-label {
+  font-size: 0.62rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
   border: 1px solid rgba(255,255,255,0.2); }
 
 /* Batch: the layer list is a checklist, not a select — you pick several. */

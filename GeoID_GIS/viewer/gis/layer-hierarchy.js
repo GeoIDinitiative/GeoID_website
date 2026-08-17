@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260817-4861be4";
-import { samplerToRaster } from "./raster-analysis.js?v=20260817-4861be4";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260817-4861be4";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260817-4861be4";
+import { currentBody } from "./bodies.js?v=20260817-a184b6f";
+import { samplerToRaster } from "./raster-analysis.js?v=20260817-a184b6f";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260817-a184b6f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260817-a184b6f";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -679,6 +679,42 @@ function buildLayerCard(layer) {
   // Continuous data carries its ramp and what the ends mean, not just a name:
   // a legend that cannot be read against the map is furniture.
   const info = layer.legendInfo;
+  /**
+   * A classed legend is a list, not a gradient.
+   *
+   * The dock drew every legend as a ramp with its two ends labelled, which is
+   * right for continuous data and wrong the moment the layer has classes: five
+   * named bands rendered as a smooth bar say nothing about where one ends and
+   * the next begins, and a class called "Moderate" had nowhere to appear at all.
+   */
+  if (info?.classed && Array.isArray(info.palette) && info.palette.length) {
+    const block = document.createElement("div");
+    block.className = "legend-classes";
+    const unitText = info.unit ? ` ${info.unit}` : "";
+    info.palette.forEach((colour, i) => {
+      const line = document.createElement("div");
+      line.className = "legend-class";
+      const swatch = document.createElement("span");
+      swatch.className = "legend-class-swatch";
+      swatch.style.background = `#${String(colour).replace("#", "")}`;
+      const text = document.createElement("span");
+      text.className = "legend-class-label";
+      const label = info.labels?.[i];
+      text.textContent = (label === undefined || label === "" ? `Class ${i + 1}` : String(label))
+        + (info.categorical ? "" : unitText);
+      // The numeric range stays reachable even once the class has a name, so a
+      // legend entry can still be checked against the data behind it.
+      const bounds = info.bounds?.[i];
+      const count = info.counts?.[i];
+      text.title = [bounds ? `${bounds[0]} to ${bounds[1]}` : null,
+        count != null ? `${Number(count).toLocaleString()} cells` : null]
+        .filter(Boolean).join(" · ") || text.textContent;
+      line.append(swatch, text);
+      block.appendChild(line);
+    });
+    card.appendChild(block);
+    return card;
+  }
   if (info) {
     const ramp = Array.isArray(info.palette) && info.palette.length
       ? `linear-gradient(to right, ${info.palette.map((c) => `#${c}`).join(", ")})`

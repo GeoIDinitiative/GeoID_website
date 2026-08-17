@@ -15,7 +15,7 @@ import {
   RAMPS,
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
   categoricalSymbology, suggestCategoryField,
-} from "./symbology.js?v=20260817-4861be4";
+} from "./symbology.js?v=20260817-a184b6f";
 
 const HOST_ID = "gis-symbology-host";
 /**
@@ -28,11 +28,48 @@ const HOST_ID = "gis-symbology-host";
  * That is also what QGIS does, and the alternative (silently reassigning) is
  * worse than starting again.
  */
-const state = { layerId: null, last: null, overrides: new Map(), edges: null };
+const state = { layerId: null, last: null, overrides: new Map(), labels: new Map(), edges: null };
 
 function resetChoices() {
   state.overrides = new Map();
+  state.labels = new Map();
   state.edges = null;
+}
+
+/** Anything the user has said about these classes, colour or name. */
+function hasChoices() {
+  return state.overrides.size > 0 || state.labels.size > 0 || Boolean(state.edges);
+}
+
+/** A class's name: the user's, if they gave one, else the computed range. */
+function labelFor(key, fallback) {
+  const given = state.labels.get(String(key));
+  return given === undefined || given === "" ? fallback : given;
+}
+
+/**
+ * A class name you can type.
+ *
+ * "0 – 2" is a fact about the numbers and "Low" is what the map is for; a
+ * legend that can only say the former makes every reader do the translation.
+ * Keyed exactly as the colours are, so a class carries its name and its colour
+ * together and they are discarded together.
+ */
+function labelInput(key, value, onChange) {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "gis-sym-name";
+  input.value = value;
+  input.placeholder = "Name this class";
+  input.title = "The name this class shows in the legend";
+  input.setAttribute("aria-label", `Name for class ${key}`);
+  input.addEventListener("change", () => {
+    const text = input.value.trim();
+    if (text) state.labels.set(String(key), text);
+    else state.labels.delete(String(key));
+    onChange();
+  });
+  return input;
 }
 
 /** A class row's colour: the user's, if they set one, else the ramp's. */
@@ -122,6 +159,8 @@ function previewCategories(sym) {
     // ordered by count, so a new feature can reorder it and an index-keyed
     // colour would jump to a different unit.
     line.append(swatchInput(row.value, colourFor(row.value, row.colour), () => recompute(false)));
+    // The category's own value stays visible as the thing being renamed -- a
+    // row showing only "Basalt" cannot be checked against the attribute table.
     const text = document.createElement("span");
     text.className = "gis-sym-label";
     text.textContent = String(row.value);
@@ -131,13 +170,17 @@ function previewCategories(sym) {
     count.textContent = row.count.toLocaleString();
     line.append(text, count);
     table.appendChild(line);
+    const named = document.createElement("div");
+    named.className = "gis-sym-namerow";
+    named.appendChild(labelInput(row.value, labelFor(row.value, ""), () => recompute(false)));
+    table.appendChild(named);
   });
   host.appendChild(table);
-  if (state.overrides.size) {
+  if (hasChoices()) {
     const reset = document.createElement("button");
     reset.type = "button";
     reset.className = "button secondary gis-sym-reset";
-    reset.textContent = "Reset colours";
+    reset.textContent = "Reset names & colours";
     reset.addEventListener("click", () => { resetChoices(); recompute(false); });
     host.appendChild(reset);
   }
@@ -208,21 +251,30 @@ function preview(symbology) {
     to.textContent = `– ${fmt(row.to)}`;
     line.appendChild(to);
 
+    // The name goes on its own line under the numbers: at sidebar width a fifth
+    // column left four characters for it, which is not a name.
+    const named = document.createElement("div");
+    named.className = "gis-sym-namerow";
+    named.appendChild(labelInput(i, labelFor(i, ""), () => recompute(false)));
     const count = document.createElement("span");
     count.className = "gis-sym-count";
     count.textContent = row.count.toLocaleString();
     count.title = `${row.count.toLocaleString()} cells in this class`;
-    line.appendChild(count);
+    named.appendChild(count);
+
     table.appendChild(line);
+    table.appendChild(named);
   });
   host.appendChild(table);
 
-  const reset = document.createElement("button");
-  reset.type = "button";
-  reset.className = "button secondary gis-sym-reset";
-  reset.textContent = "Reset colours & thresholds";
-  reset.addEventListener("click", () => { resetChoices(); recompute(false); });
-  if (state.overrides.size || state.edges) host.appendChild(reset);
+  if (hasChoices()) {
+    const reset = document.createElement("button");
+    reset.type = "button";
+    reset.className = "button secondary gis-sym-reset";
+    reset.textContent = "Reset names, colours & thresholds";
+    reset.addEventListener("click", () => { resetChoices(); recompute(false); });
+    host.appendChild(reset);
+  }
 }
 
 /**
@@ -316,7 +368,10 @@ function recompute(apply) {
     // `sym.colourOf` closes over a Map built when the symbology was created, so
     // mutating rows alone would recolour the legend and not the layer -- the two
     // disagreeing is precisely what this panel exists to prevent.
-    sym.rows.forEach((r) => { r.colour = colourFor(r.value, r.colour); });
+    sym.rows.forEach((r) => {
+      r.colour = colourFor(r.value, r.colour);
+      r.label = labelFor(r.value, String(r.value));
+    });
     const lookup = new Map(sym.rows.filter((r) => !r.other).map((r) => [r.value, r.colour]));
     const otherColour = sym.rows.find((r) => r.other)?.colour || null;
     const rgbOf = (c) => (c ? [
@@ -347,14 +402,20 @@ function recompute(apply) {
   // A per-class colour is the user's answer and outranks the ramp's, so it goes
   // onto the rows before anything reads them -- the preview, the repaint and the
   // legend then all see the same colours.
-  symbology.rows.forEach((r, i) => { r.colour = colourFor(i, r.colour); });
+  symbology.rows.forEach((r, i) => {
+    r.colour = colourFor(i, r.colour);
+    r.label = labelFor(i, r.label);
+  });
   symbology.palette = symbology.rows.map((r) => r.colour);
   state.last = symbology;
   preview(symbology);
   if (!apply) {
     if (status) {
-      const edited = state.overrides.size
-        ? ` ${state.overrides.size} colour${state.overrides.size === 1 ? "" : "s"} customised.` : "";
+      const bits = [];
+      if (state.overrides.size) bits.push(`${state.overrides.size} recoloured`);
+      if (state.labels.size) bits.push(`${state.labels.size} named`);
+      if (state.edges) bits.push("thresholds edited");
+      const edited = bits.length ? ` ${bits.join(", ")}.` : "";
       status.textContent = `${symbology.rows.length} classes ready — press Apply.${edited}`;
     }
     return;

@@ -172,6 +172,17 @@ export const METHODS = {
   stddev: { label: "Standard deviation", fn: stdDevBreaks },
 };
 
+
+/** A class bound as a legend should show it: comparable at a glance. */
+export function fmtBound(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return String(v ?? "");
+  if (n === 0) return "0";
+  const abs = Math.abs(n);
+  if (abs >= 1000 || abs < 0.01) return n.toPrecision(3);
+  return String(Number(n.toPrecision(4)));
+}
+
 /* ── a full symbology ───────────────────────────────────────────────────── */
 
 /**
@@ -200,7 +211,10 @@ export function buildSymbology(values, {
       ok: true, continuous: true, method: "continuous", ramp, reverse, min, max,
       breaks: [],
       palette: Array.from({ length: 24 }, (_, i) => hex(rampColour(ramp, i / 23, { reverse }))),
-      rows: [{ from: min, to: max, colour: hex(rampColour(ramp, 1, { reverse })), count: v.length }],
+      rows: [{
+        from: min, to: max, colour: hex(rampColour(ramp, 1, { reverse })),
+        count: v.length, label: `${fmtBound(min)} – ${fmtBound(max)}`,
+      }],
     };
   }
   const chosen = METHODS[method] ? method : "jenks";
@@ -221,7 +235,13 @@ export function buildSymbology(values, {
     const to = edges[i + 1];
     const t = edges.length <= 2 ? 1 : i / (edges.length - 2);
     const count = v.filter((x) => (i === edges.length - 2 ? x >= from && x <= to : x >= from && x < to)).length;
-    rows.push({ from, to, colour: hex(rampColour(ramp, t, { reverse })), count });
+    rows.push({
+      from, to, colour: hex(rampColour(ramp, t, { reverse })), count,
+      // The range, formatted, as the label a legend shows until someone gives
+      // the class a name. A class with no label at all forces every legend to
+      // invent one, and they then disagree.
+      label: `${fmtBound(from)} – ${fmtBound(to)}`,
+    });
   }
   return {
     ok: true, continuous: false,
@@ -357,6 +377,17 @@ export function legendInfoFrom(symbology, { unit = null, label = "" } = {}) {
     label,
     breaks: symbology.breaks.map((b) => Number(b.toFixed(4))),
     method: symbology.method,
+    // Classed legends are drawn as rows, one per class, with the label that
+    // class carries -- so "Low / Moderate / High" survives all the way to the
+    // key on the map. A continuous symbology has no classes and says so, and
+    // the dock keeps drawing it as a gradient.
+    classed: !symbology.continuous,
+    labels: symbology.rows.map((r) => r.label
+      || `${fmtBound(r.from)} – ${fmtBound(r.to)}`),
+    // Rounded the way a legend reads them: the raw break was showing as
+    // 3.4000000000000004, which is the same number and unreadable.
+    bounds: symbology.rows.map((r) => [fmtBound(r.from), fmtBound(r.to)]),
+    counts: symbology.rows.map((r) => r.count),
   };
 }
 
@@ -364,6 +395,6 @@ if (typeof window !== "undefined") {
   window.GeoIDSymbology = {
     RAMPS, RAMP_NAMES, METHODS, rampColour, hex, buildSymbology,
     equalIntervalBreaks, quantileBreaks, jenksBreaks, stdDevBreaks,
-    classOf, colourOf, legendInfoFrom,
+    classOf, colourOf, legendInfoFrom, fmtBound,
   };
 }
