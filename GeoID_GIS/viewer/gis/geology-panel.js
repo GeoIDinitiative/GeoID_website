@@ -28,8 +28,8 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-aef6fce";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-aef6fce";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-bdac695";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-bdac695";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -650,6 +650,32 @@ async function loadDefaults() {
   }
 }
 
+/** Is any mapped-geology layer loaded and showing? The tab's tick box asks. */
+export function isActive() {
+  return loadedLayers().some((l) => l.visible !== false);
+}
+
+/**
+ * Turn the mapped geology on or off.
+ *
+ * Loading is done once and then kept: unticking hides rather than removes, so
+ * re-ticking does not re-fetch and re-parse 2.8 MB, and any symbology, renamed
+ * units and hand-picked colours survive being switched off.
+ */
+async function setActive(on) {
+  if (on && !loadedLayers().length) {
+    say("Loading mapped geology…");
+    await loadDefaults();
+  }
+  loadedLayers().forEach((layer) => {
+    layer.visible = on;
+    if (layer.object3D) layer.object3D.visible = on;
+    window.GeoIDLayerHierarchy?.setVisible?.(layer, on);
+  });
+  render();
+  if (!on) say("Mapped geology hidden — tick the box to bring it back.");
+}
+
 export function init() {
   const host = document.getElementById("geology-section");
   if (!host || document.getElementById("gis-geology-panel")) return false;
@@ -711,10 +737,19 @@ export function init() {
 
   window.GeoIDImportManager?.onChange?.(render);
   render();
-  // The defaults arrive on their own. Deferred and sequential: the globe is
-  // still booting when this panel builds, and two 1.4 MB sheets parsed at once
-  // stall the first frames of a page nobody has interacted with yet.
-  setTimeout(() => { void loadDefaults(); }, 2500);
+  /**
+   * The tab's tick box governs the mapped geology, rather than it arriving
+   * whether or not anybody asked.
+   *
+   * Preloading two 1.4 MB sheets on every page open is a decision made for the
+   * user: it costs the first frames of a page nobody has touched, and there was
+   * no way to say no -- unticking did nothing because nothing was listening.
+   * First tick loads; after that it is a visibility switch, so the second tick
+   * is instant and the parse is paid once.
+   */
+  const master = document.getElementById("geology-master-toggle");
+  master?.addEventListener("change", () => { void setActive(master.checked); });
+  if (master?.checked) void setActive(true);
   return true;
 }
 
@@ -739,6 +774,8 @@ if (typeof window !== "undefined") {
     init, render, openSymbology, applyField,
     catalogue: () => CATALOGUE.map((c) => c.id),
     loadDefaults,
+    isActive,
+    setActive,
     globalBase: () => GLOBAL_BASE,
     load: (id) => { const e = entryById(id); return e ? loadDataset(e) : null; },
   };

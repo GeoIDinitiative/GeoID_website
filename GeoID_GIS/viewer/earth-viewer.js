@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260817-aef6fce";
+  from "./gis/geo-utils.js?v=20260817-bdac695";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -17554,7 +17554,12 @@ uniform float uViewportWidth;`,
           geologyToggle.checked ||
           geologyContactsToggle.checked ||
           getActiveGeologyStructureFacets(geologyStructureLayers).length ||
-          mineralSelect.value
+          mineralSelect.value ||
+          // The mapped-geology panel (gis/geology-panel.js) is the tab's real
+          // content now, so the tab's tick box has to count it. Without this
+          // the sync ran on every geology change and cleared a box the user had
+          // just ticked -- the vector layers being on was invisible to it.
+          window.GeoIDGeology?.isActive?.()
         );
         if (geologySection) geologySection.open = geologyMasterToggle.checked;
       }

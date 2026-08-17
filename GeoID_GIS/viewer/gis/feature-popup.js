@@ -20,7 +20,7 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-aef6fce";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-bdac695";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -85,6 +85,15 @@ const STYLE = `
 
 /* The drawn-shape editor. NEVER a backtick in this block -- it is a template
    literal and one ends it; module-css.test.mjs catches that, a browser does not. */
+#gis-feature-popup .gis-fp-beneath {
+  margin-top: 0.5rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font: 600 0.62rem/1.3 'Exo 2', sans-serif;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--skin-data, #7ee7ff);
+}
 #gis-feature-popup .gis-fp-edit {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
@@ -154,6 +163,7 @@ function ensurePopup() {
 
 export function hidePopup() {
   if (popup) popup.hidden = true;
+  clearPin();
 }
 
 /* Attributes worth leading with, in the order a geologist reads them. Anything
@@ -262,6 +272,136 @@ function buildEditor(layerRecord, feature, titleNode) {
 
   wrap.append(save, said);
   return wrap;
+}
+
+
+
+/**
+ * One popup, a section per layer under the point.
+ *
+ * The top hit keeps the title and, for a drawn shape, the editor -- it is the
+ * thing you clicked. Everything beneath is listed under its own heading, so a
+ * click on Northern Ireland answers with the superficial deposit AND the
+ * bedrock under it rather than making you hide a layer to reach the other.
+ */
+function showStack(x, y, hits, at) {
+  const [top, ...beneath] = hits;
+  showPopup(x, y, top.layer.name || "Layer", top.feature, top.layer);
+  const host = ensurePopup();
+  beneath.forEach(({ layer, feature }) => {
+    const head = document.createElement("div");
+    head.className = "gis-fp-beneath";
+    head.textContent = layer.name || "Layer";
+    const list = document.createElement("dl");
+    orderedEntries(feature.properties || {}).slice(0, 8).forEach(([key, value]) => {
+      const dt = document.createElement("dt");
+      dt.textContent = key;
+      const dd = document.createElement("dd");
+      dd.textContent = String(value);
+      list.append(dt, dd);
+    });
+    host.append(head, list);
+  });
+  if (beneath.length) {
+    const note = document.createElement("div");
+    note.className = "gis-fp-more";
+    note.textContent = `${hits.length} layers at this point.`;
+    host.appendChild(note);
+  }
+  // The pin and the outline go on the polygon that answered, which is the top
+  // one -- the same feature the title names.
+  if (at) void showPin(at.lat, at.lon, top.feature);
+  // Re-measure: the stack made the popup taller than showPopup placed it for.
+  const box = host.getBoundingClientRect();
+  host.style.left = `${Math.min(Math.max(8, x + 14), window.innerWidth - box.width - 8)}px`;
+  host.style.top = `${Math.min(Math.max(8, y + 12), window.innerHeight - box.height - 8)}px`;
+}
+
+/* ── The pin, and the outline of what was clicked ────────────────────────────
+ *
+ * What the Mars and Moon geology viewers do, and what this did not: mark the
+ * place and show which polygon answered. Without them a click is a popup that
+ * appeared from nowhere -- on a map of 758 units you cannot tell which one you
+ * hit, or whether the reading belongs to the polygon you meant.
+ *
+ * Both are built from `viewer.surfacePoint(lat, lon, lift)`, never
+ * `radius + offset`: the basemap is displaced by the relief, so a fixed radius
+ * sits under the terrain everywhere (CLAUDE.md, "Draping onto the globe"). They
+ * are parented to the imported-layers group because that group already holds
+ * the globe's spin -- put them in the scene and they slide as the planet turns.
+ */
+let pinState = null;
+
+function markerGroup() {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.scene) return null;
+  return viewer.scene.getObjectByName("GeoID-ImportedGeoLayers") || null;
+}
+
+async function showPin(lat, lon, feature) {
+  const viewer = window.GeoIDViewer;
+  const group = markerGroup();
+  if (!viewer?.surfacePoint || !group) return;
+  const THREE = await import("../vendor/three.module.js");
+
+  clearPin();
+  const holder = new THREE.Group();
+  holder.name = "GeoID-FeaturePin";
+
+  // The pin: a short stem from the ground with a head, so it reads at a glance
+  // and does not vanish into a busy polygon fill.
+  const base = viewer.surfacePoint(lat, lon, 0.001);
+  const top = viewer.surfacePoint(lat, lon, 0.05);
+  const stem = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([base, top]),
+    new THREE.LineBasicMaterial({ color: 0xff2bd6, depthTest: false, transparent: true }),
+  );
+  stem.renderOrder = 240;
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.012, 12, 10),
+    new THREE.MeshBasicMaterial({ color: 0xff2bd6, depthTest: false, transparent: true }),
+  );
+  head.position.copy(top);
+  head.renderOrder = 241;
+  holder.add(stem, head);
+
+  // The outline of the polygon that answered, drawn on the ground. Long edges
+  // are split for the same reason every other surface line is: a straight chord
+  // across 1 degree of arc already dips below the terrain.
+  const rings = feature?.geometry
+    ? (feature.geometry.type === "Polygon" ? feature.geometry.coordinates
+      : feature.geometry.type === "MultiPolygon" ? feature.geometry.coordinates.flat() : [])
+    : [];
+  rings.slice(0, 24).forEach((ring) => {
+    const points = [];
+    for (let i = 0; i < ring.length; i += 1) {
+      const [a, b] = [ring[i], ring[(i + 1) % ring.length]];
+      const steps = Math.max(1, Math.ceil(
+        Math.max(Math.abs(b[1] - a[1]), Math.abs(b[0] - a[0])) / 1,
+      ));
+      for (let k = 0; k < steps; k += 1) {
+        const t = k / steps;
+        points.push(viewer.surfacePoint(a[1] + (b[1] - a[1]) * t, a[0] + (b[0] - a[0]) * t, 0.004));
+      }
+    }
+    if (points.length < 2) return;
+    const loop = new THREE.LineLoop(
+      new THREE.BufferGeometry().setFromPoints(points),
+      new THREE.LineBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true, opacity: 0.9 }),
+    );
+    loop.renderOrder = 239;
+    holder.add(loop);
+  });
+
+  group.add(holder);
+  pinState = holder;
+}
+
+export function clearPin() {
+  if (!pinState) return;
+  pinState.parent?.remove(pinState);
+  pinState.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
+  pinState = null;
 }
 
 function showPopup(x, y, layerName, feature, layerRecord = null) {
@@ -381,35 +521,62 @@ function lineTolerance() {
  * top of the stack down. Exported for the tests and for anything that wants to
  * ask without a click.
  */
-export function featureAt(lat, lon) {
+/**
+ * EVERY layer under a coordinate, topmost first.
+ *
+ * `featureAt` answers with the top hit alone, which is right for a stack of
+ * unrelated imports and wrong for geology: superficial deposits lie over
+ * bedrock by definition, so the top hit is the drift and the rock beneath it is
+ * unreachable. Measured on the BGS sheets: **522 of 758 bedrock polygons could
+ * not be clicked** -- 30.9% reachable -- while every one of them passed the
+ * geometry test. Nothing was wrong with the hit test; the answer was being
+ * thrown away.
+ *
+ * So the popup asks for all of them and shows a section per layer, which is
+ * also what a geologist wants from one click: what is the cover, and what is
+ * under it.
+ */
+export function featuresAt(lat, lon) {
   const layers = window.GeoIDImportManager?.getVectorLayers?.() || [];
   const point = [lon, lat];
   const tolerance = lineTolerance();
-  // Later imports draw over earlier ones, so search the list backwards.
+  const hits = [];
   for (let i = layers.length - 1; i >= 0; i -= 1) {
     const layer = layers[i];
     if (layer.visible === false) continue;
     if (layer.object3D && layer.object3D.visible === false) continue;
-    let nearest = null;
-    for (const feature of layer.features) {
-      const geometry = feature?.geometry;
-      const polys = polygonsOf(geometry);
-      for (const poly of polys) {
-        if (!poly?.length || !inBounds(point, poly[0])) continue;
-        if (pointInPolygon(point, poly)) {
-          return { layer, feature };
-        }
-      }
-      if (polys.length) continue;
-      for (const line of linesOf(geometry)) {
-        if (line.length < 2 || !inBounds(point, line, tolerance / 111000)) continue;
-        const d = distanceToLine(point, line);
-        if (d <= tolerance && (!nearest || d < nearest.d)) nearest = { d, feature };
-      }
-    }
-    if (nearest) return { layer, feature: nearest.feature };
+    const found = featureInLayer(layer, point, tolerance);
+    if (found) hits.push({ layer, feature: found });
   }
-  return null;
+  return hits;
+}
+
+/**
+ * The feature in ONE layer under a point: a polygon that contains it, else the
+ * nearest line within tolerance. Shared by both entry points so the "top hit"
+ * and the "every hit" answers cannot disagree about what a hit is.
+ */
+function featureInLayer(layer, point, tolerance) {
+  let nearest = null;
+  for (const feature of layer.features || []) {
+    const geometry = feature?.geometry;
+    const polys = polygonsOf(geometry);
+    for (const poly of polys) {
+      if (!poly?.length || !inBounds(point, poly[0])) continue;
+      if (pointInPolygon(point, poly)) return feature;
+    }
+    if (polys.length) continue;
+    for (const line of linesOf(geometry)) {
+      if (line.length < 2 || !inBounds(point, line, tolerance / 111000)) continue;
+      const d = distanceToLine(point, line);
+      if (d <= tolerance && (!nearest || d < nearest.d)) nearest = { d, feature };
+    }
+  }
+  return nearest ? nearest.feature : null;
+}
+
+export function featureAt(lat, lon) {
+  return featuresAt(lat, lon)[0] || null;
 }
 
 /* ── wiring ─────────────────────────────────────────────────────────────── */
@@ -473,11 +640,12 @@ function install() {
     if (window.GeoIDViewer?.isMeasuring?.()) return;
     const at = window.GeoIDViewer?.surfaceLatLonAt?.(event.clientX, event.clientY);
     if (!at) { hidePopup(); return; }
-    const hit = featureAt(at.lat, at.lon);
-    if (!hit) { hidePopup(); return; }
-    // The layer record travels too: the editor renames THE LAYER, and the
-    // popup could otherwise only see the feature it was built from.
-    showPopup(event.clientX, event.clientY, hit.layer.name || "Layer", hit.feature, hit.layer);
+    const hits = featuresAt(at.lat, at.lon);
+    if (!hits.length) { hidePopup(); return; }
+    // Every layer under the point, not just the top one -- superficial deposits
+    // lie over bedrock by definition, and answering with only the drift made
+    // 522 of 758 bedrock polygons unclickable.
+    showStack(event.clientX, event.clientY, hits, at);
   });
 
   document.addEventListener("keydown", (event) => {
@@ -502,7 +670,7 @@ function boot() {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDFeaturePopup = { featureAt, hidePopup, suppress };
+  window.GeoIDFeaturePopup = { featureAt, featuresAt, hidePopup, suppress, clearPin };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);
   } else {
