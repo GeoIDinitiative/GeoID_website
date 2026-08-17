@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260817-a5b12a4";
+  from "./gis/geo-utils.js?v=20260817-aef6fce";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -12359,13 +12359,18 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       const labelElevationCache = new Map();
       const popupElevationCache = new Map();
       const HIDDEN_BASE_LAYER_IDS = new Set(["sc-magnetic", "derived-slope"]);
-      const ALLOWED_BASEMAP_IDS = new Set(["blue-marble", "earth-visible", "derived-hillshade", "elevation-dem"]);
+      // The dropdown is an ALLOWLIST, not everything in `manifest.layers` --
+      // so adding a record to the manifest is not enough to make it offered.
+      // `gebco-bathy-context` is the GEBCO 2025 relief overlay that used to sit
+      // in the Geology tab, which it never belonged in: it is bathymetry and
+      // topography, the same derived product as the hillshade beside it.
+      const ALLOWED_BASEMAP_IDS = new Set(["blue-marble", "earth-visible", "derived-hillshade", "elevation-dem", "gebco-bathy-context"]);
       const selectableBaseLayers = baseLayers.filter((l) => ALLOWED_BASEMAP_IDS.has(l.id) && !HIDDEN_BASE_LAYER_IDS.has(l.id));
       const standardLayers = selectableBaseLayers.filter((l) => !l.scGroup);
       // Group standard layers into labelled optgroups
       const BASE_LAYER_GROUPS = [
         { label: "Imagery",  ids: ["blue-marble", "earth-visible"] },
-        { label: "Terrain",  ids: ["derived-hillshade", "elevation-dem"] },
+        { label: "Terrain",  ids: ["derived-hillshade", "elevation-dem", "gebco-bathy-context"] },
       ];
       const assignedIds = new Set(BASE_LAYER_GROUPS.flatMap((g) => g.ids));
       // Any layers not in a group go in first as ungrouped options
@@ -17102,7 +17107,11 @@ uniform float uViewportWidth;`,
       let seaMaterial = null;
       let regionMaskGlobe = null;
       let regionMaskMaterial = null;
-      const initialGeologyTexture = geologyTextures.get(initialGeologyLayer.id) || null;
+      // `geology_layers` may legitimately be empty -- Earth's is, now that the
+      // GEBCO relief context it used to hold is a base layer -- so this must not
+      // assume a selected layer. Unguarded it threw on the first frame and the
+      // whole viewer never finished booting.
+      const initialGeologyTexture = geologyTextures.get(initialGeologyLayer?.id) || null;
       if (initialGeologyTexture) {
         geologyMaterial = new THREE.MeshStandardMaterial({
           map: initialGeologyTexture,
