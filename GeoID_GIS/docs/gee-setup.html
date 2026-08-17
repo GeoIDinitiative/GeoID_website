@@ -1,0 +1,176 @@
+<!doctype html><meta charset=utf-8><title>Connecting Earth Engine to myGeoID</title><style>body{font:11pt/1.5 'DejaVu Sans',sans-serif;color:#111;max-width:44em;margin:2em auto;padding:0 1em}
+h1{font-size:20pt;border-bottom:3px solid #333;padding-bottom:.3em}
+h2{font-size:14pt;margin-top:1.6em;color:#1a3a5c;border-bottom:1px solid #ccc;padding-bottom:.2em}
+h3{font-size:12pt;margin-top:1.2em;color:#333}
+pre{background:#f4f4f4;border-left:3px solid #888;padding:.7em 1em;overflow-x:auto;font-size:9.5pt}
+code{background:#f0f0f0;padding:.1em .3em;border-radius:3px;font-size:9.5pt}
+pre code{background:none;padding:0}
+table{border-collapse:collapse;width:100%;margin:1em 0;font-size:10pt}
+th,td{border:1px solid #bbb;padding:.4em .6em;text-align:left;vertical-align:top}
+th{background:#eaeff5}
+li{margin:.3em 0}p.num{margin:.4em 0 .4em 1.2em}
+hr{border:0;border-top:1px solid #ddd;margin:2em 0}</style><h1>Connecting Earth Engine to myGeoID</h1>
+<p>How the Google Earth Engine connection was fixed, 2026-08-16/17, and what to do</p>
+<p>if it ever breaks again. Every number here was measured, not recalled.</p>
+<hr>
+<h2>The short version</h2>
+<p>Nine faults, in two groups. <strong>Five were in the code</strong> and are fixed. **Four</p>
+<p>were configuration in the Google console**, which no amount of code could</p>
+<p>resolve and which only the account owner can change.</p>
+<p>The single most useful thing learnt: **the error message names which of the two</p>
+<p>groups you are in**, and they are easy to tell apart once you know the list.</p>
+<hr>
+<h2>Part 1 — the Google console</h2>
+<p>Three separate settings must all be right. They live on different pages, and</p>
+<p>getting one wrong produces an error that sounds like one of the others.</p>
+<h3>1. The OAuth client and its JavaScript origins</h3>
+<p>*Google Auth Platform → Clients → your Web client → Authorised JavaScript</p>
+<p>origins.*</p>
+<p>Add the <strong>exact</strong> origin the page is served from:</p>
+<pre><code>
+http://localhost:8100
+http://127.0.0.1:8100
+</code></pre>
+<p>No trailing slash, no path, and <code>http</code> not <code>https</code> — Google matches the string</p>
+<p>verbatim. <code>http://localhost:8100/</code> is a different origin and will be refused.</p>
+<p><strong>This is not the redirect-URI box.</strong> Authorised redirect URIs sit directly</p>
+<p>below and are used by a different flow; entries put there do nothing for a</p>
+<p>browser app and were a genuine source of confusion here.</p>
+<p>Origin changes take <strong>5 minutes to a few hours</strong> to reach all of Google&#x27;s</p>
+<p>front-ends. During that window the authorisation endpoint can accept an origin</p>
+<p>that the sign-in popup still refuses — a real state that looks exactly like a</p>
+<p>mistake.</p>
+<h3>2. The audience — test users</h3>
+<p><em>Google Auth Platform → Audience → Test users.</em></p>
+<p>While the consent screen is in <strong>Testing</strong>, only listed addresses may sign in.</p>
+<p>Everyone else gets <code>403 access_denied</code>, including the project owner.</p>
+<p>Add the signing-in address:</p>
+<pre><code>
+geoid.initiative@gmail.com
+</code></pre>
+<p>Effective immediately, with no propagation delay.</p>
+<p><strong>Do not press &quot;Publish app&quot; instead.</strong> The Earth Engine scope is classed as</p>
+<p>sensitive, so publishing starts Google&#x27;s verification review — weeks of process</p>
+<p>— for something one person needs. Testing mode allows up to 100 test users and</p>
+<p>is the correct route for an internal or in-development app.</p>
+<h3>3. The Cloud project</h3>
+<p>The Earth Engine API must be enabled on the project, and the project id goes in</p>
+<p>the app&#x27;s Settings:</p>
+<pre><code>
+geoid-504623
+</code></pre>
+<hr>
+<h2>Part 2 — tokens, and why there is no API key</h2>
+<p><strong>Earth Engine does not support API keys.</strong> The API accepts only:</p>
+<table><tr><th>method</th><th>credential</th><th>needs a server?</th></tr>
+<tr><td>user OAuth</td><td>the signed-in user</td><td>no</td></tr>
+<tr><td>service account</td><td>a key file</td><td><strong>yes</strong> — a key cannot be served to a page</td></tr>
+</table>
+<p>A page served to a browser cannot hold a secret, so a browser app must use</p>
+<p>OAuth. That is why the origins allowlist matters so much: it is the <em>only</em></p>
+<p>thing protecting a public Client ID.</p>
+<h3>Signing in is once per browser, not once per session</h3>
+<p>After the first consent Google remembers both the session and the grant.</p>
+<p>Later token requests return without user action, and the token refreshes</p>
+<p>itself. You should see the popup once.</p>
+<h3>The temporary access token</h3>
+<p>Settings carries an <strong>Access token (temporary)</strong> field. It exists only as a</p>
+<p>bridge for testing while OAuth is broken:</p>
+<pre><code>
+gcloud auth application-default print-access-token
+</code></pre>
+<p>It lasts about an hour and <strong>takes precedence over sign-in</strong>, so leaving one</p>
+<p>there silently prevents OAuth from ever being exercised. Clear it once sign-in</p>
+<p>works.</p>
+<p>Never paste a token into a chat, an issue or a commit. To revoke one that has</p>
+<p>been exposed:</p>
+<pre><code>
+gcloud auth application-default revoke
+</code></pre>
+<hr>
+<h2>Part 3 — the code faults, and what each looked like</h2>
+<p>All fixed; recorded because each was invisible until a real call was made.</p>
+<p class=num>1. <strong>No quota-project header.</strong> Every call returned <code>403</code> — &quot;requires a quota</p>
+<p>project, which is not set by default&quot;. Fixed by sending</p>
+<p><code>x-goog-user-project</code>.</p>
+<p class=num>2. <strong>An invented request shape.</strong> The client sent a readable object</p>
+<p>(<code>{collection, band, reducer, window, region}</code>). Earth Engine takes a</p>
+<p><strong>serialised expression graph</strong> (<code>{values, result}</code>, each node a</p>
+<p><code>functionInvocationValue</code>) and answered</p>
+<p><code>Unknown name &quot;collection&quot; at &#x27;expression&#x27;: Cannot find field</code>.</p>
+<p class=num>3. <strong>A function that does not exist.</strong> <code>Collection.filterDate</code> is not an EE</p>
+<p>algorithm. The API&#x27;s own list — <code>GET /v1/projects/{p}/algorithms</code>, 985 of</p>
+<p>them — gives <code>Collection.filter</code> + <code>Filter.dateRangeContains</code> + <code>DateRange</code>.</p>
+<p>**Ask the API rather than guessing; it answered in one step what guessing</p>
+<p>had not in several.**</p>
+<p class=num>4. <strong>A band that is not there.</strong> <code>total_precipitation_surface</code> is not on these</p>
+<p>images. <code>precipitation_rate</code> is — and it is better physics: a rate is</p>
+<p>instantaneous, so millimetres per hour is <code>rate × 3600</code>, and a time step</p>
+<p>needs no difference against the run start. The cumulative-within-a-run</p>
+<p>subtraction the pipeline was designed around is not needed at all.</p>
+<p class=num>5. <strong>Two modules claimed one global.</strong> <code>gee.js</code> assigned</p>
+<p><code>window.GeoIDEarthEngine</code> and loaded <em>after</em> <code>gee-live.js</code>, silently</p>
+<p>replacing it. From the page that is indistinguishable from a module that</p>
+<p>failed to load. Both now merge with <code>Object.assign</code>.</p>
+<hr>
+<h2>Part 4 — diagnosing it again</h2>
+<p>Two committed tests. Between them they separate configuration from code, which</p>
+<p>is the distinction that cost the most time here.</p>
+<h3>Is the console right?</h3>
+<pre><code>
+python3 GeoID_GIS/tests/gee-oauth.py &lt;client-id&gt;
+</code></pre>
+<p>Asks Google&#x27;s authorisation endpoint what the client accepts. No credentials</p>
+<p>and no sign-in — it validates the client <em>before</em> authenticating anyone.</p>
+<p>Read the last line, <code>code postmessage</code>, which tests the <strong>JavaScript origins</strong></p>
+<p>list:</p>
+<table><tr><th>result</th><th>meaning</th></tr>
+<tr><td><code>ACCEPTED</code></td><td>the origin is registered</td></tr>
+<tr><td><code>invalid_client</code></td><td>the client has <strong>no</strong> origins registered</td></tr>
+<tr><td><code>redirect_uri_mismatch</code> on that line</td><td>the origin is not among those registered</td></tr>
+</table>
+<p>The ten <code>code</code> lines above it test <em>redirect URIs</em>, which this app does not</p>
+<p>use; mismatches there are expected and correct.</p>
+<h3>Is the API path right?</h3>
+<pre><code>
+python3 GeoID_GIS/tests/gee-live.py
+</code></pre>
+<p>Sends the same request the browser builds, from Python, over a token from your</p>
+<p>gcloud login. Four stages, each failing differently:</p>
+<p class=num>1. auth and quota project</p>
+<p class=num>2. the band the client asks for exists</p>
+<p class=num>3. a real GFS grid over the study area</p>
+<p class=num>4. <strong>consecutive steps differ</strong></p>
+<p>Stage 4 is the important one. A series that repeats a single frame looks alive</p>
+<p>and is exactly the &quot;static map&quot; symptom this project chased for days.</p>
+<p>Measured when it first passed:</p>
+<pre><code>
+2048 cells   max 3.119 mm/h   mean 0.254 mm/h   raining 1109/2048
+00h 0.237 mm/h   06h 0.012 mm/h   12h 0.050 mm/h
+</code></pre>
+<hr>
+<h2>Part 5 — reading the error</h2>
+<p>The failure names the fault. This table is the session&#x27;s hard-won summary.</p>
+<table><tr><th>error</th><th>what it means</th><th>where to fix</th></tr>
+<tr><td><code>400 invalid_request</code></td><td>the origin is one Google refuses over http — e.g. <code>0.0.0.0</code></td><td>serve at <code>localhost</code></td></tr>
+<tr><td><code>401 invalid_client</code> / &quot;no registered origin&quot;</td><td>the client has <strong>no</strong> JavaScript origins at all</td><td>console → Clients</td></tr>
+<tr><td><code>400 origin_mismatch</code></td><td>origins exist; the page&#x27;s address is not among them</td><td>compare <code>location.origin</code></td></tr>
+<tr><td><code>403 access_denied</code></td><td>consent screen is in Testing and you are not a test user</td><td>console → Audience</td></tr>
+<tr><td><code>403</code> quota project</td><td>the request lacks <code>x-goog-user-project</code></td><td>code (fixed)</td></tr>
+<tr><td><code>400 Unknown name …</code></td><td>the expression is not a serialised graph</td><td>code (fixed)</td></tr>
+<tr><td><code>400 Band pattern … did not match</code></td><td>wrong band name</td><td>code (fixed)</td></tr>
+</table>
+<hr>
+<h2>Lessons worth keeping</h2>
+<li><strong>Measure the environment; do not infer it.</strong> Several hours went into</li>
+<p>reasoning about caches, iframes and module wiring when one probe would have</p>
+<p>said the origins list was empty.</p>
+<li><strong><code>location.origin</code> is the whole question</strong> whenever the error mentions an</li>
+<p>origin. It must match the console string character for character.</p>
+<li>**A test written from the same assumption as the code cannot catch that</li>
+<p>assumption.** Nine unit tests passed while pinning a request shape Earth</p>
+<p>Engine rejects on sight — they were checking an invention against itself.</p>
+<li><strong>Ask the API what it offers.</strong> Its algorithm list and its band list each</li>
+<p>resolved in one step what guessing had not.</p>
+<li><strong>Never truncate an error body.</strong> A 400-character cut hid the correct band</li>
+<p>name past the end of a list and manufactured a false failure.</p>
