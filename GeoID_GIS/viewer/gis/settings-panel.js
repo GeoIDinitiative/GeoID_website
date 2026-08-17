@@ -213,10 +213,15 @@ function sendToBottom() {
 }
 
 export function init() {
-  if (!byId("gis-settings-keys")) return;
+  // The position is asserted OUTSIDE the host guard, and that is the whole
+  // fix. `panels.js` renders the sidebar after this module runs, so on the
+  // first pass `gis-settings-keys` does not exist yet, init returned early,
+  // and the move never happened -- while the panel itself appeared later and
+  // looked perfectly fine at the top of the list. A guard for one thing
+  // silently skipped another.
   sendToBottom();
-  // The moves run after this module does, so once more when the page settles.
-  setTimeout(sendToBottom, 600);
+  [200, 600, 1500, 3000].forEach((ms) => setTimeout(sendToBottom, ms));
+  if (!byId("gis-settings-keys")) return;
   byId("gis-settings-refresh")?.addEventListener("click", refresh);
   refresh();
 }
