@@ -20,7 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-b9230ec";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-e80b34d";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260817-e80b34d";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -36,17 +37,21 @@ let suppressUntil = 0;
 /* ── the popup ──────────────────────────────────────────────────────────── */
 
 const STYLE = `
+#gis-feature-popup.geo-popup {
+  /* .geo-popup pulls itself above an anchor on the globe and pulses; this popup
+     is placed beside the pointer, so both are switched off and the paint kept. */
+  transform: none;
+  animation: none;
+}
+/* Geometry and type only. The border, ground, radius and glow come from
+   .geo-popup, and an id beats a class -- restating them here is how this popup
+   kept its own 0.4rem corners while claiming to wear the planetary card. */
 #gis-feature-popup {
   position: fixed;
   z-index: 21;
   max-width: 22rem;
   max-height: 60vh;
   overflow-y: auto;
-  padding: 0.55rem 0.7rem 0.65rem;
-  border: 1px solid rgba(var(--nav-accent-rgb, 255, 60, 172), 0.55);
-  border-radius: 0.4rem;
-  background: rgba(10, 4, 18, 0.94);
-  box-shadow: 0 0.5rem 1.6rem rgba(0, 0, 0, 0.55);
   font-family: "Exo 2", system-ui, sans-serif;
   font-size: 0.72rem;
   color: var(--text, #e8e2f2);
@@ -85,6 +90,7 @@ const STYLE = `
 
 /* The drawn-shape editor. NEVER a backtick in this block -- it is a template
    literal and one ends it; module-css.test.mjs catches that, a browser does not. */
+#gis-feature-popup .gis-fp-detail { margin: 0.5rem 0 0.2rem; }
 #gis-feature-popup .gis-fp-kicker { margin: 0.1rem 0 0; }
 #gis-feature-popup .gis-fp-copy { margin: 0.2rem 0 0.1rem; }
 #gis-feature-popup .gis-fp-copy:empty { display: none; }
@@ -158,6 +164,11 @@ function ensurePopup() {
   }
   popup = document.createElement("div");
   popup.id = "gis-feature-popup";
+  // The planetary geology card's own look -- border, ground, radius, glow --
+  // by wearing its class rather than copying twenty declarations that would
+  // then drift. Only the two rules that assume it is anchored to a point on
+  // the globe are overridden below, because this one places beside the click.
+  popup.classList.add("geo-popup");
   popup.setAttribute("role", "dialog");
   popup.hidden = true;
   document.body.appendChild(popup);
@@ -287,6 +298,60 @@ function buildEditor(layerRecord, feature, titleNode) {
  * click on Northern Ireland answers with the superficial deposit AND the
  * bedrock under it rather than making you hide a layer to reach the other.
  */
+
+/**
+ * The stat strip at the foot of the planetary card -- "AREA  79,335 km2".
+ *
+ * Built with the viewers' own `scene-popup-detail` classes, so the rows line up
+ * and letterspace exactly as they do on Mars. The area is COMPUTED from the ring
+ * rather than read from an attribute: a BGS polygon does not carry one, and the
+ * spherical line-integral form is the same one the Draw tool quotes, so two
+ * numbers for the same shape cannot disagree.
+ */
+function buildDetail(feature, props) {
+  const rows = [];
+  const rings = feature?.geometry?.type === "Polygon" ? feature.geometry.coordinates
+    : feature?.geometry?.type === "MultiPolygon" ? feature.geometry.coordinates.map((p) => p[0]).map((r) => [r])
+      : [];
+  let km2 = 0;
+  rings.forEach((ring) => {
+    const outer = Array.isArray(ring[0]?.[0]) ? ring[0] : ring;
+    // Deliberately NOT wrapped in try/catch. It was, and the catch swallowed a
+    // ReferenceError from an import that had never been added -- the area read
+    // zero, the row vanished, and nothing anywhere said why.
+    if (outer.length >= 3) {
+      km2 += sphericalPolygonAreaKm2(outer.map(([lon, lat]) => ({ lat, lon })));
+    }
+  });
+  if (km2 > 0) rows.push(["Area", `${Math.round(km2).toLocaleString()} km²`]);
+  // The code beside the name, where the survey publishes one -- it is what a
+  // map sheet is keyed by and it is short enough to belong in the strip.
+  const code = props.lex || props.lex_rcs || props.map_code || props.unit || null;
+  if (code) rows.push(["Code", String(code)]);
+  const age = props.max_period && props.min_period
+    ? (props.max_period === props.min_period ? props.max_period
+      : `${props.min_period} – ${props.max_period}`)
+    : props.max_time_d || null;
+  if (age) rows.push(["Age", String(age)]);
+  if (!rows.length) return null;
+
+  const block = document.createElement("div");
+  block.className = "scene-popup-detail gis-fp-detail";
+  rows.forEach(([key, value]) => {
+    const row = document.createElement("div");
+    row.className = "scene-popup-detail-row";
+    const k = document.createElement("span");
+    k.className = "scene-popup-detail-key";
+    k.textContent = key;
+    const v = document.createElement("span");
+    v.className = "scene-popup-detail-val";
+    v.textContent = value;
+    row.append(k, v);
+    block.appendChild(row);
+  });
+  return block;
+}
+
 function showStack(x, y, hits, at) {
   const [top, ...beneath] = hits;
   showPopup(x, y, top.layer.name || "Layer", top.feature, top.layer);
@@ -458,7 +523,10 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
     list.append(dt, dd);
   });
 
-  host.append(head, kicker, layer, copy, list);
+  const detail = buildDetail(feature, props);
+  host.append(head, kicker, layer, copy);
+  if (detail) host.appendChild(detail);
+  host.appendChild(list);
   // A shape you drew is yours to name and annotate; a shapefile somebody else
   // published is a record, and letting this popup rewrite its attributes would
   // be editing the source. So the editor is offered for drawn layers only.

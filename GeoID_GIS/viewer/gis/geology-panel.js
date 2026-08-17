@@ -28,8 +28,9 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-b9230ec";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-b9230ec";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-e80b34d";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-e80b34d";
+import { currentBodyId } from "./bodies.js?v=20260817-e80b34d";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -42,6 +43,10 @@ import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-b9230ec";
 const CATALOGUE = [
   {
     id: "ni-bedrock",
+    // Which WORLD this belongs to. The panel loads from boot.js on all ten, so
+    // without it Northern Ireland's bedrock was offered on Mars and drawn on
+    // it -- a BGS sheet pinned to Martian coordinates, in full colour.
+    body: "earth",
     scope: "regional",
     region: "Northern Ireland",
     label: "Northern Ireland — bedrock",
@@ -55,6 +60,7 @@ const CATALOGUE = [
   },
   {
     id: "ni-superficial",
+    body: "earth",
     scope: "regional",
     region: "Northern Ireland",
     label: "Northern Ireland — superficial",
@@ -79,7 +85,9 @@ const CATALOGUE = [
  */
 const GLOBAL_BASE = null;
 
-const regional = () => CATALOGUE.filter((d) => d.scope === "regional");
+/** This world's datasets. A body with none gets a panel that says so. */
+const forThisBody = () => CATALOGUE.filter((d) => (d.body || "earth") === currentBodyId());
+const regional = () => forThisBody().filter((d) => d.scope === "regional");
 
 const entryById = (id) => CATALOGUE.find((d) => d.id === id) || null;
 
@@ -646,7 +654,7 @@ function render() {
  */
 async function loadDefaults() {
   if (GLOBAL_BASE) await loadDataset(GLOBAL_BASE);
-  for (const entry of CATALOGUE.filter((d) => d.default)) {
+  for (const entry of forThisBody().filter((d) => d.default)) {
     if (!window.GeoIDViewer) return;
     await loadDataset(entry);
   }
@@ -749,6 +757,12 @@ export function init() {
    * First tick loads; after that it is a visibility switch, so the second tick
    * is instant and the parse is paid once.
    */
+  if (!regional().length) {
+    base.textContent = `No mapped geology for ${currentBodyId()} yet.`;
+    pickRow.hidden = true;
+    add.hidden = true;
+  }
+
   const master = document.getElementById("geology-master-toggle");
   master?.addEventListener("change", () => { void setActive(master.checked); });
   if (master?.checked) void setActive(true);
