@@ -28,8 +28,8 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-8517678";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-8517678";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-a5b12a4";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-a5b12a4";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -42,21 +42,44 @@ import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-8517678";
 const CATALOGUE = [
   {
     id: "ni-bedrock",
+    scope: "regional",
+    region: "Northern Ireland",
     label: "Northern Ireland — bedrock",
     path: "/ni-prototype/data/ni_bedrock.geojson",
     name: "NI bedrock geology (BGS 625k).geojson",
     colourBy: "lex_d",
     credit: "BGS 1:625 000 bedrock geology, © UKRI.",
+    // Loaded on open: the tab should show a geological map rather than an empty
+    // dropdown, and until the global base exists this IS the map we have.
+    default: true,
   },
   {
     id: "ni-superficial",
+    scope: "regional",
+    region: "Northern Ireland",
     label: "Northern Ireland — superficial",
     path: "/ni-prototype/data/ni_superficial.geojson",
     name: "NI superficial geology (BGS 625k).geojson",
     colourBy: "lex_d",
     credit: "BGS 1:625 000 superficial deposits, © UKRI.",
+    default: true,
   },
 ];
+
+/**
+ * The global base, when there is one.
+ *
+ * The shape this tab is built for: a merged world geology underneath, and
+ * regional surveys added from the dropdown on top of it — a national sheet is
+ * better than the global compilation over the same ground, and the two should
+ * be stackable rather than alternatives. Nothing fills this yet, so the panel
+ * says what is missing instead of pretending the regional sheets are global
+ * coverage. Adding it is a record here, not a rewrite: it takes the same fields
+ * as a regional entry and `scope: "global"`.
+ */
+const GLOBAL_BASE = null;
+
+const regional = () => CATALOGUE.filter((d) => d.scope === "regional");
 
 const entryById = (id) => CATALOGUE.find((d) => d.id === id) || null;
 
@@ -101,6 +124,12 @@ const STYLE = `
   opacity: 0.8;
 }
 #gis-geology-status:empty { display: none; }
+.gis-geo-base {
+  font: 400 0.6rem/1.35 'Exo 2', sans-serif;
+  opacity: 0.7;
+  padding: 0.25rem 0.35rem;
+  border-left: 2px solid rgba(var(--nav-accent-rgb), 0.5);
+}
 
 /* The symbology dialog: the attribute head, and the column that paints it. */
 #gis-geo-sym-backdrop {
@@ -607,6 +636,20 @@ function render() {
   });
 }
 
+/**
+ * The datasets a fresh page opens with.
+ *
+ * Sequential rather than parallel, and each one skipped if it is already there,
+ * so this is safe to call again and cannot double-load on a re-init.
+ */
+async function loadDefaults() {
+  if (GLOBAL_BASE) await loadDataset(GLOBAL_BASE);
+  for (const entry of CATALOGUE.filter((d) => d.default)) {
+    if (!window.GeoIDViewer) return;
+    await loadDataset(entry);
+  }
+}
+
 export function init() {
   const host = document.getElementById("geology-section");
   if (!host || document.getElementById("gis-geology-panel")) return false;
@@ -622,6 +665,15 @@ export function init() {
   intro.textContent = "Mapped geology as vector units: choose what to colour by, "
     + "and click a polygon to read what it is.";
 
+  // What the base is, stated rather than implied. A tab that silently shows two
+  // Northern Irish sheets invites the reading that this is world coverage.
+  const base = document.createElement("div");
+  base.className = "gis-geo-base";
+  base.textContent = GLOBAL_BASE
+    ? `Base: ${GLOBAL_BASE.label}`
+    : "No global base yet — regional surveys only. "
+      + "A merged world geology will sit under these when it exists.";
+
   const pickRow = document.createElement("div");
   pickRow.className = "row";
   const pickLabel = document.createElement("label");
@@ -630,7 +682,7 @@ export function init() {
   const select = document.createElement("select");
   select.id = "gis-geology-dataset";
   select.className = "input";
-  CATALOGUE.forEach((entry) => {
+  regional().forEach((entry) => {
     const o = document.createElement("option");
     o.value = entry.id;
     o.textContent = entry.label;
@@ -652,13 +704,17 @@ export function init() {
   const status = document.createElement("div");
   status.id = "gis-geology-status";
 
-  panel.append(intro, pickRow, add, loaded, status);
+  panel.append(intro, base, pickRow, add, loaded, status);
   // Above the legacy bathymetry controls: this is what the tab is for now.
   body.insertBefore(panel, body.firstChild);
   nodes = { select, loaded, status };
 
   window.GeoIDImportManager?.onChange?.(render);
   render();
+  // The defaults arrive on their own. Deferred and sequential: the globe is
+  // still booting when this panel builds, and two 1.4 MB sheets parsed at once
+  // stall the first frames of a page nobody has interacted with yet.
+  setTimeout(() => { void loadDefaults(); }, 2500);
   return true;
 }
 
@@ -682,6 +738,8 @@ if (typeof window !== "undefined") {
   window.GeoIDGeology = {
     init, render, openSymbology, applyField,
     catalogue: () => CATALOGUE.map((c) => c.id),
+    loadDefaults,
+    globalBase: () => GLOBAL_BASE,
     load: (id) => { const e = entryById(id); return e ? loadDataset(e) : null; },
   };
 }
