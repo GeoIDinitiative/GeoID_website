@@ -1,5 +1,6 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260817-718e756";
+import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260817-8c77f1d";
+import { readHead, parseRows, validateMapping } from "./delimited.js?v=20260817-8c77f1d";
 
 const MAX_POINTS = 2000000;
 
@@ -34,49 +35,44 @@ function colorForHeight(t) {
   return color;
 }
 
-export async function loadXyzPoints(file) {
+/**
+ * A point cloud or a CSV of readings.
+ *
+ * `options.columns` is the mapping the Add-data dialog collected — which column
+ * is X, which is Y, which is Z, which is magnitude. Without it the file is read
+ * exactly as before, by `readHead`'s proposal: names first, position as a last
+ * resort. The difference is that the guess is now visible before the import
+ * rather than discovered afterwards from a layer in the wrong ocean.
+ */
+export async function loadXyzPoints(file, options = {}) {
   const text = await file.text();
-  const lines = text.split(/\r?\n/);
+  const head = readHead(text);
+  if (!head.mapping) throw new Error("No readable rows were found in this file.");
 
-  let layout = { skip: false, lonIndex: 0, latIndex: 1, elevIndex: 2 };
-  let startLine = 0;
-  for (let i = 0; i < lines.length; i += 1) {
-    const line = lines[i].trim();
-    if (!line || line.startsWith("#") || line.startsWith("//")) {
-      continue;
-    }
-    const detected = detectHeader(line);
-    if (detected) {
-      layout = detected;
-      startLine = i + 1;
-    } else {
-      startLine = i;
-    }
-    break;
-  }
+  const mapping = options.columns || head.mapping;
+  const valid = validateMapping(mapping, head.columns.length);
+  if (!valid.ok) throw new Error(valid.problems.join(" "));
+
+  const { points: parsed, skipped } = parseRows(text, mapping, {
+    delimiter: head.delimiter, hasHeader: head.hasHeader, limit: MAX_POINTS,
+  });
 
   const rawX = [];
   const rawY = [];
   const rawZ = [];
-  let skipped = 0;
-
-  for (let i = startLine; i < lines.length && rawX.length < MAX_POINTS; i += 1) {
-    const line = lines[i];
-    if (!line) continue;
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#") || trimmed.startsWith("//")) continue;
-    const fields = splitFields(trimmed);
-    const x = Number(fields[layout.lonIndex]);
-    const y = Number(fields[layout.latIndex]);
-    const z = layout.elevIndex < fields.length ? Number(fields[layout.elevIndex]) : 0;
-    if (!Number.isFinite(x) || !Number.isFinite(y)) {
-      skipped += 1;
-      continue;
+  // Magnitude is kept alongside Z rather than replacing it: a survey point has
+  // an elevation AND a reading, and colouring by one must not lose the other.
+  const rawMag = [];
+  let hasMagnitude = false;
+  parsed.forEach((point) => {
+    rawX.push(point.x);
+    rawY.push(point.y);
+    rawZ.push(point.z);
+    if (point.magnitude !== undefined) {
+      rawMag.push(point.magnitude);
+      if (point.magnitude !== null) hasMagnitude = true;
     }
-    rawX.push(x);
-    rawY.push(y);
-    rawZ.push(Number.isFinite(z) ? z : 0);
-  }
+  });
 
   if (!rawX.length) {
     throw new Error("No numeric coordinate rows were found.");
@@ -111,14 +107,28 @@ export async function loadXyzPoints(file) {
   const midX = (bounds.minX + bounds.maxX) / 2;
   const midY = (bounds.minY + bounds.maxY) / 2;
 
+  // What the ramp is drawn through. Magnitude is the reason someone chose a
+  // magnitude column, so it wins the colour when it is present.
+  let mMin = Infinity;
+  let mMax = -Infinity;
+  if (hasMagnitude) {
+    rawMag.forEach((m) => {
+      if (m === null) return;
+      if (m < mMin) mMin = m;
+      if (m > mMax) mMax = m;
+    });
+  }
+  const mRange = (mMax - mMin) || 1;
+
   for (let i = 0; i < rawX.length; i += 1) {
-    const t = (rawZ[i] - zMin) / zRange;
+    const height = (rawZ[i] - zMin) / zRange;
+    const t = hasMagnitude && rawMag[i] !== null ? (rawMag[i] - mMin) / mRange : height;
     if (georeferenced) {
       // Elevation is exaggerated the same way as raster DEMs so point clouds
       // and GeoTIFF terrain read consistently against the globe.
-      vertex.copy(latLonToVector3(rawY[i], rawX[i], baseRadius + t * 0.12));
+      vertex.copy(latLonToVector3(rawY[i], rawX[i], baseRadius + height * 0.12));
     } else {
-      vertex.set((rawX[i] - midX) * localScale, t * 1.6, -(rawY[i] - midY) * localScale);
+      vertex.set((rawX[i] - midX) * localScale, height * 1.6, -(rawY[i] - midY) * localScale);
     }
     positions[i * 3] = vertex.x;
     positions[i * 3 + 1] = vertex.y;
@@ -157,6 +167,8 @@ export async function loadXyzPoints(file) {
       min: zMin,
       max: zMax,
       projected: !georeferenced,
+      colouredBy: hasMagnitude ? "magnitude" : "elevation",
+      magnitudeRange: hasMagnitude ? { min: mMin, max: mMax } : null,
       skippedRows: skipped,
       truncated: rawX.length >= MAX_POINTS,
     },

@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260817-718e756";
-import { currentBody } from "./bodies.js?v=20260817-718e756";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260817-718e756";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260817-8c77f1d";
+import { currentBody } from "./bodies.js?v=20260817-8c77f1d";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260817-8c77f1d";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -54,7 +54,6 @@ function geoidPanels() {
 // every globe control first, and these are pulled back out afterwards, so the
 // promotion is expressed here rather than by teaching the collector exceptions.
 const MOVES = [
-  { id: "import-data-section", host: "import-tools-host" },
   { id: "gis-analysis-section", host: "analysis-tools-host" },
   { id: "import-layer-list", host: "layers-tools-host" },
   // Straight into the tab bar, not into shells of their own: each already has
@@ -89,7 +88,6 @@ const TAB_ORDER = [
   // those pages the filter leaves Explorer at the top with nothing to move.
   "gis-group-geoid",
   "geoid-controls-group",
-  "gis-group-import",
   "gis-group-polygons",
   "gis-group-events",
   "basemap-relief-section",
@@ -97,6 +95,10 @@ const TAB_ORDER = [
   "gis-group-modelled",
   "sea-level-section",
   "modelled-data-section",
+  // Meshes are a Model concern rather than a GIS layer, so they sit after the
+  // data tabs and before the outputs. Built by add-data.js, not by the shared
+  // markup -- see that module for why.
+  "gis-group-mesh",
   "gis-group-export",
   "gis-group-metadata",
   // Settings last: configuration goes below the data, the analysis and the

@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260817-718e756";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260817-718e756";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260817-718e756";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260817-718e756";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260817-718e756";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260817-718e756";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260817-718e756";
-import { loadMshFile } from "./msh-adapter.js?v=20260817-718e756";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260817-718e756";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260817-8c77f1d";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260817-8c77f1d";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260817-8c77f1d";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260817-8c77f1d";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260817-8c77f1d";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260817-8c77f1d";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260817-8c77f1d";
+import { loadMshFile } from "./msh-adapter.js?v=20260817-8c77f1d";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260817-8c77f1d";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -25,7 +25,16 @@ const PARSERS = {
   },
   tif: async (file) => loadGeoTiffFromArrayBuffer(await file.arrayBuffer(), { name: file.name }),
   shp: async (file, ctx) => loadShapefile(file, ctx),
-  xyz: async (file) => loadXyzPoints(file),
+  // ctx carries the Add-data dialog's answers -- dropping it, as this line did,
+  // silently discarded the chosen column mapping and re-guessed.
+  //
+  // csv/pts/txt were never registered at all, while the import panel's accept
+  // list advertised .csv -- so choosing one landed a layer marked "unsupported"
+  // and the format was offered but not read. Same reader for all four.
+  xyz: async (file, ctx) => loadXyzPoints(file, ctx),
+  csv: async (file, ctx) => loadXyzPoints(file, ctx),
+  pts: async (file, ctx) => loadXyzPoints(file, ctx),
+  txt: async (file, ctx) => loadXyzPoints(file, ctx),
   msh: async (file, ctx) => loadMshFile(file, ctx),
   obj: async (file) => loadObj(file),
   ply: async (file) => loadPly(file),
@@ -324,11 +333,14 @@ function removeLayer(id) {
  * One logical dataset: a primary file plus any sidecars sharing its base name
  * (shapefiles being the main case).
  */
-async function importDataset(primaryFile, sidecars) {
+async function importDataset(primaryFile, sidecars, options = {}) {
   const ext = getExtension(primaryFile.name);
   const layer = {
     id: nextLayerId++,
-    name: primaryFile.name,
+    name: options.name || primaryFile.name,
+    // Which panel asked for this -- vector, basemap, geology, mesh. Null for a
+    // dropped file, which is still a first-class way in.
+    role: options.role || null,
     ext,
     status: "loading",
     object3D: null,
@@ -374,7 +386,10 @@ async function importDataset(primaryFile, sidecars) {
         ? `Reading ${primaryFile.name}...`
         : `Reading ${primaryFile.name}... ${pct}%`);
     };
-    const result = await parser(primaryFile, { sidecars, onProgress });
+    // The Add-data dialog's answers -- CRS, column mapping, symbology -- reach
+    // the adapter here. An import with none of them behaves exactly as before,
+    // which is what keeps drag-and-drop and the project's restoreLayers working.
+    const result = await parser(primaryFile, { sidecars, onProgress, ...options });
     layer.object3D = result.object3D;
     layer.bounds = result.bounds || null;
     layer.georeferenced = Boolean(result.georeferenced);
@@ -411,7 +426,7 @@ async function importDataset(primaryFile, sidecars) {
   renderLayerList();
 }
 
-async function importFileList(fileList) {
+async function importFileList(fileList, options = {}) {
   const files = Array.from(fileList || []);
   if (!files.length) {
     return;
@@ -436,7 +451,7 @@ async function importFileList(fileList) {
   }
 
   for (const file of primaries) {
-    await importDataset(file, sidecarsByBase.get(getBaseName(file.name)) || []);
+    await importDataset(file, sidecarsByBase.get(getBaseName(file.name)) || [], options);
   }
 }
 

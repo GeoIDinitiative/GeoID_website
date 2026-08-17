@@ -22,9 +22,9 @@
  * therefore means no sidecar engine — stated as such rather than half-tried.
  */
 
-import * as sidecar from "./research/sidecar.js?v=20260817-718e756";
-import { toGeoJson } from "./vector-formats.js?v=20260817-718e756";
-import { writeGeoTiff } from "./geotiff-writer.js?v=20260817-718e756";
+import * as sidecar from "./research/sidecar.js?v=20260817-8c77f1d";
+import { toGeoJson } from "./vector-formats.js?v=20260817-8c77f1d";
+import { writeGeoTiff } from "./geotiff-writer.js?v=20260817-8c77f1d";
 
 /* ── capability probe ─────────────────────────────────────────────────────── */
 
@@ -193,7 +193,7 @@ export async function runSidecarEngine(desc, inputs, params, outputName) {
 
   // Back through the ONE import path, so a sidecar result drapes exactly like
   // a dropped file — no second georeferencing path to keep in step.
-  const bridge = await import("./research/bridge.js?v=20260817-718e756");
+  const bridge = await import("./research/bridge.js?v=20260817-8c77f1d");
   const layer = await bridge.sendToGlobe(outPath);
   return {
     ok: true,

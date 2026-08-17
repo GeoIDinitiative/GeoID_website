@@ -1,0 +1,211 @@
+/**
+ * Reading the head of a delimited file, and choosing what its columns mean.
+ *
+ * `xyz-adapter.js` already guessed: it matched header names against a list
+ * (`lon/long/longitude/x/easting`, and so on) and fell back to column ORDER
+ * when nothing matched. That guess is right often enough to be dangerous —
+ * a file whose first three columns are `id, depth, station` imports silently
+ * as longitude, latitude and elevation, lands somewhere in the Gulf of Guinea,
+ * and looks like a working layer. Nothing about it says it is wrong.
+ *
+ * So the guess stays, as a DEFAULT the user can see and overrule, and this
+ * module is the part that can be tested without a browser: split a line, read
+ * the first few rows, propose a mapping, and say what a chosen mapping will do.
+ * The dialog renders it; the adapter consumes it; neither owns the rule.
+ */
+
+/**
+ * One delimiter for the whole file, chosen from the header.
+ *
+ * Sniffing per line looked more forgiving and was worse: a comma-separated file
+ * with a space inside one quoted field would change delimiter halfway down and
+ * every row after it shifted by a column.
+ */
+export function detectDelimiter(headerLine = "") {
+  const candidates = [
+    { delim: ",", re: /,/g },
+    { delim: "\t", re: /\t/g },
+    { delim: ";", re: /;/g },
+    // Whitespace last: it matches almost anything, so it only wins when no
+    // real separator is present — which is what a .xyz point cloud looks like.
+    { delim: /\s+/, re: /\s+/g },
+  ];
+  let best = { delim: /\s+/, count: 0 };
+  candidates.forEach(({ delim, re }) => {
+    const count = (headerLine.match(re) || []).length;
+    if (count > best.count) best = { delim, count };
+  });
+  return best.delim;
+}
+
+export function splitLine(line, delimiter) {
+  return String(line).trim().split(delimiter)
+    .map((f) => f.trim().replace(/^["']|["']$/g, ""));
+}
+
+/**
+ * A number, where an EMPTY field is not one.
+ *
+ * `Number("")` is 0, so a row with blank coordinates parsed as (0, 0) and
+ * imported as a point in the Gulf of Guinea — accepted, drawn, and counted as a
+ * success. Every numeric read in this file goes through here.
+ */
+function num(field) {
+  const text = String(field ?? "").trim();
+  return text === "" ? NaN : Number(text);
+}
+
+/** A line that carries no data: blank, or one of the two comment forms. */
+const isSkippable = (line) => {
+  const t = String(line).trim();
+  return !t || t.startsWith("#") || t.startsWith("//");
+};
+
+/**
+ * A header is a row that is not all numbers.
+ *
+ * A .xyz point cloud has no header at all and starts with numbers, so treating
+ * the first line as names would eat a point and label every column "0.0".
+ */
+export function looksLikeHeader(fields) {
+  return Array.isArray(fields) && fields.length > 0
+    && !fields.every((f) => Number.isFinite(num(f)));
+}
+
+const LON_KEYS = ["lon", "long", "longitude", "x", "easting", "lng"];
+const LAT_KEYS = ["lat", "latitude", "y", "northing"];
+const ELEV_KEYS = ["z", "elev", "elevation", "height", "alt", "altitude", "depth"];
+const MAG_KEYS = ["mag", "magnitude", "value", "val", "amplitude", "intensity", "m"];
+
+function findKey(names, keys) {
+  return names.findIndex((n) => keys.includes(n));
+}
+
+/**
+ * Read the first rows of a delimited file: the `.head()` the dialog shows.
+ *
+ * Returns the column names (synthesised as "Column 1…" when there is no header
+ * row), a sample of rows, and the mapping that WOULD be used if the user
+ * changed nothing — so the preview and the import cannot disagree.
+ */
+export function readHead(text, { rows = 8 } = {}) {
+  const lines = String(text).split(/\r?\n/);
+  const dataLines = [];
+  let headerFields = null;
+  let delimiter = ",";
+
+  for (let i = 0; i < lines.length; i += 1) {
+    if (isSkippable(lines[i])) continue;
+    if (headerFields === null) {
+      delimiter = detectDelimiter(lines[i]);
+      const fields = splitLine(lines[i], delimiter);
+      if (looksLikeHeader(fields)) {
+        headerFields = fields;
+        continue;
+      }
+      // No header: the first data row still tells us how many columns there are.
+      headerFields = fields.map((_, index) => `Column ${index + 1}`);
+      dataLines.push(fields);
+      continue;
+    }
+    dataLines.push(splitLine(lines[i], delimiter));
+    if (dataLines.length >= rows) break;
+  }
+
+  if (headerFields === null) {
+    return { columns: [], rows: [], delimiter, hasHeader: false, mapping: null };
+  }
+  const hadHeaderRow = !headerFields.every((h, i) => h === `Column ${i + 1}`);
+  return {
+    columns: headerFields,
+    rows: dataLines,
+    delimiter,
+    hasHeader: hadHeaderRow,
+    mapping: proposeMapping(headerFields),
+  };
+}
+
+/**
+ * The default mapping: names first, then position.
+ *
+ * Position is the fallback the old adapter used ALWAYS, and it is kept only as
+ * a last resort — with `guessed: true` so the dialog can say the columns were
+ * assumed rather than read, which is the difference between a default and a
+ * silent decision.
+ */
+export function proposeMapping(columns = []) {
+  const names = columns.map((c) => String(c).toLowerCase());
+  const lon = findKey(names, LON_KEYS);
+  const lat = findKey(names, LAT_KEYS);
+  const elev = findKey(names, ELEV_KEYS);
+  const magnitude = findKey(names, MAG_KEYS);
+  const named = lon !== -1 && lat !== -1;
+  return {
+    lon: named ? lon : 0,
+    lat: named ? lat : 1,
+    elev: elev !== -1 ? elev : (named ? -1 : Math.min(2, columns.length - 1)),
+    magnitude,
+    guessed: !named,
+  };
+}
+
+/**
+ * Is this mapping usable, and what is wrong with it?
+ *
+ * X and Y are the only required pair — a point with no position is not a point.
+ * Z and magnitude are optional and -1 means "none", which is a real choice
+ * rather than a missing answer.
+ */
+export function validateMapping(mapping, columnCount) {
+  const problems = [];
+  const inRange = (i) => Number.isInteger(i) && i >= 0 && i < columnCount;
+  if (!inRange(mapping?.lon)) problems.push("Choose the X / longitude column.");
+  if (!inRange(mapping?.lat)) problems.push("Choose the Y / latitude column.");
+  if (inRange(mapping?.lon) && mapping.lon === mapping.lat) {
+    problems.push("X and Y cannot be the same column.");
+  }
+  [["elev", "Z"], ["magnitude", "Magnitude"]].forEach(([key, label]) => {
+    const value = mapping?.[key];
+    if (value === -1 || value === undefined || value === null) return;
+    if (!inRange(value)) problems.push(`${label} is not a column in this file.`);
+  });
+  return { ok: problems.length === 0, problems };
+}
+
+/**
+ * Apply a mapping to the whole file.
+ *
+ * Rows whose X or Y will not parse are counted rather than thrown on: a survey
+ * export with a trailing total line should not cost you the other 40,000 points,
+ * but you should be told it happened.
+ */
+export function parseRows(text, mapping, { delimiter = ",", hasHeader = true, limit = 2000000 } = {}) {
+  const lines = String(text).split(/\r?\n/);
+  const points = [];
+  let skipped = 0;
+  let seenHeader = !hasHeader;
+  for (let i = 0; i < lines.length && points.length < limit; i += 1) {
+    if (isSkippable(lines[i])) continue;
+    if (!seenHeader) { seenHeader = true; continue; }
+    const fields = splitLine(lines[i], delimiter);
+    const x = num(fields[mapping.lon]);
+    const y = num(fields[mapping.lat]);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) { skipped += 1; continue; }
+    const point = { x, y };
+    if (mapping.elev >= 0) {
+      const z = num(fields[mapping.elev]);
+      point.z = Number.isFinite(z) ? z : 0;
+    } else {
+      point.z = 0;
+    }
+    if (mapping.magnitude >= 0) {
+      const m = num(fields[mapping.magnitude]);
+      // A non-numeric magnitude is null, not zero: zero is a reading and this
+      // is the absence of one, and a ramp drawn through invented zeroes lies
+      // about the bottom of its own scale.
+      point.magnitude = Number.isFinite(m) ? m : null;
+    }
+    points.push(point);
+  }
+  return { points, skipped };
+}
