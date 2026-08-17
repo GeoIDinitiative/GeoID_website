@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260818-55a4fdb";
+  from "./gis/geo-utils.js?v=20260818-f5feae1";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -4639,6 +4639,16 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       }
       return cache.get(key);
     }
+
+    /**
+     * How high an imported vector layer is drawn above the surface.
+     *
+     * The same number as `drape` in `gis/vector-render.js`, which is where the
+     * geometry is built. Written out here rather than imported because this
+     * file loads on nine other worlds that have no GIS module, and a click has
+     * to know the altitude of the thing it is aiming at.
+     */
+    const VECTOR_LAYER_DRAPE = 0.006;
 
     function getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift = 0) {
       const displacement = getCachedElevationNormalized(elevationCache, elevationSampler, latDegrees, lonDegrees) * getTerrainRelief();
@@ -18948,12 +18958,44 @@ uniform float uViewportWidth;`,
            * there is no such group, and the globe is what painted it.
            */
           const paintFrame = scene.getObjectByName("GeoID-ImportedGeoLayers");
-          const localHit = paintFrame && geologyInteractiveState?.fromImportedLayers
-            ? paintFrame.worldToLocal(surfaceHit.point.clone())
-            : globe.worldToLocal(surfaceHit.point.clone());
-          const basePoint = paintFrame && geologyInteractiveState?.fromImportedLayers
-            ? localHit
-            : new THREE.Vector3(-localHit.x, localHit.y, -localHit.z);
+          const drapedGeology = Boolean(paintFrame && geologyInteractiveState?.fromImportedLayers);
+          let basePoint;
+          if (drapedGeology) {
+            /**
+             * Aim at the DRAPE, not at the ground under it.
+             *
+             * Vector layers are built on `surfacePoint(lat, lon, 0.006)` --
+             * clearance the drape needs so the relief does not swallow it, and
+             * 0.006 of a 3.2 radius is **11.9 km of altitude**. An altitude
+             * parallaxes: seen obliquely the polygon is painted to one side of
+             * the ground it describes, so testing the ground point answers with
+             * whatever is under a place you did not click. Measured against the
+             * cursor readout at the framed view: **up to 0.22 degrees of
+             * longitude, 14 km**, growing with distance from the centre of the
+             * screen, where the median BGS polygon is 1.4 km2.
+             *
+             * So the ray is re-intersected with a sphere at the drape's own
+             * radius. Two passes: the first needs a latitude and longitude to
+             * ask how high the drape is there, and the second uses the answer.
+             */
+            const centre = paintFrame.localToWorld(new THREE.Vector3(0, 0, 0));
+            const draped = (lat, lon) => getReliefPoint(3.2, elevationSampler, new Map(),
+              getEffectiveTerrainRelief, lat, lon, VECTOR_LAYER_DRAPE).length();
+            let aim = surfaceHit.point.clone();
+            for (let pass = 0; pass < 2; pass += 1) {
+              const where = vectorToLatLon(paintFrame.worldToLocal(aim.clone()));
+              const radius = draped(where.lat, where.lon);
+              const onDrape = raycaster.ray.intersectSphere(
+                new THREE.Sphere(centre, radius), new THREE.Vector3(),
+              );
+              if (!onDrape) break;
+              aim = onDrape;
+            }
+            basePoint = paintFrame.worldToLocal(aim);
+          } else {
+            const localHit = globe.worldToLocal(surfaceHit.point.clone());
+            basePoint = new THREE.Vector3(-localHit.x, localHit.y, -localHit.z);
+          }
           const geologyFeature = getGeologyFeatureAtPoint(basePoint, geologyInteractiveState);
           if (geologyFeature) {
             openGeoPopup(geologyFeature, surfaceHit.point, clickSpinDelta);
