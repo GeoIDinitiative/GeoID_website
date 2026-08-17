@@ -209,3 +209,69 @@ export function parseRows(text, mapping, { delimiter = ",", hasHeader = true, li
   }
   return { points, skipped };
 }
+
+/* ── Attribute tables ─────────────────────────────────────────────────────── */
+
+/**
+ * The head of a VECTOR layer's attribute table.
+ *
+ * The same `.head()` the CSV importer shows, for data that arrived as geometry
+ * rather than as rows. A BGS bedrock polygon carries **fifty-seven** columns and
+ * only a handful describe the rock, so choosing which one to colour by without
+ * seeing the values is guesswork — `lex_d` and `rcs_d` are the rock, `mslink`
+ * and `objectid` are database plumbing, and nothing about the names says which
+ * is which.
+ *
+ * Columns are ordered by how useful they are to colour by, which is a real
+ * property of the column rather than a preference: a field with one value paints
+ * the layer one colour, and a field with a value per feature paints a legend
+ * nobody can read. `distinct` is what says so, and it is returned rather than
+ * hidden so the picker can show it.
+ */
+export function attributeHead(features, { rows = 6, maxColumns = 80 } = {}) {
+  const list = Array.isArray(features) ? features : [];
+  if (!list.length) return { columns: [], rows: [], count: 0 };
+  const columns = [];
+  const seen = new Set();
+  list.forEach((f) => {
+    Object.keys(f?.properties || {}).forEach((key) => {
+      if (seen.has(key) || seen.size >= maxColumns) return;
+      seen.add(key);
+      columns.push(key);
+    });
+  });
+  const stats = columns.map((key) => {
+    const values = new Set();
+    let filled = 0;
+    list.forEach((f) => {
+      const v = f?.properties?.[key];
+      if (v === undefined || v === null || String(v).trim() === "") return;
+      filled += 1;
+      if (values.size <= 200) values.add(String(v));
+    });
+    return { key, distinct: values.size, filled };
+  });
+  return {
+    count: list.length,
+    columns: stats,
+    rows: list.slice(0, rows).map((f) => columns.map((key) => {
+      const v = f?.properties?.[key];
+      return v === undefined || v === null ? "" : String(v);
+    })),
+  };
+}
+
+/**
+ * Which column is worth colouring by, best first.
+ *
+ * One distinct value is a constant and paints nothing; one per feature is an id
+ * and paints noise. Between those, more classes is more informative, so the
+ * score is the distinct count with both ends refused outright.
+ */
+export function rankColourFields(head, { maxClasses = 60 } = {}) {
+  const total = head?.count || 0;
+  return (head?.columns || [])
+    .filter((c) => c.distinct > 1 && c.distinct <= maxClasses && c.distinct < total)
+    .sort((a, b) => b.distinct - a.distinct)
+    .map((c) => c.key);
+}

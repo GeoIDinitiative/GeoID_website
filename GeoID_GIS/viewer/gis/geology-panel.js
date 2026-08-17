@@ -1,0 +1,650 @@
+/**
+ * The Geology tab, as a geology tab rather than a pair of checkboxes.
+ *
+ * What it replaced: two toggles labelled "NI bedrock geology" and "NI
+ * superficial geology" that loaded a file each. Everything a geological map is
+ * actually for was missing — you could not choose what to colour by, see what
+ * the attributes were, read a legend, or ask a polygon what it was. The BGS
+ * bedrock sheet carries **fifty-seven** columns and the toggle picked none of
+ * them, so the map arrived in one flat colour.
+ *
+ * So: a catalogue you choose from, opacity per layer, and a symbology dialog
+ * that shows the attribute table's head and lets you colour by any column.
+ *
+ * Three things it deliberately does NOT reimplement, because they already work
+ * for every vector layer and a second copy would drift:
+ *
+ * - **Click a polygon and it tells you what it is.** `feature-popup.js` already
+ *   does this, and its `PREFERRED` field order was already tuned for BGS data —
+ *   it leads with `lex_d`, `rcs_d`, `bgstype` and the age columns. This is the
+ *   same pattern the Mars and Moon viewers use for their geology, arrived at
+ *   from the other end: they carry a features JSON beside a raster, and here the
+ *   vector layer IS the features.
+ * - **The legend.** `categoricalSymbology` writes `legendInfo` and the layer
+ *   card draws one row per class with its name and colour. Colouring by a column
+ *   is what makes the legend, rather than something to be kept in step with it.
+ * - **Opacity, visibility, order and removal.** A geology layer is an ordinary
+ *   layer, so the layer list already owns those; the slider here is a shortcut
+ *   to the one the list has, not a second source of truth.
+ */
+
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260817-99e21e8";
+import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260817-99e21e8";
+
+/* ── The catalogue ───────────────────────────────────────────────────────────
+ *
+ * A record per dataset rather than a checkbox per dataset: adding the BGS
+ * 1:50k sheets, or another country's survey, is a row here and nothing else.
+ * `colourBy` is the column that makes the map read as a geological map — the
+ * ranking in `delimited.js` would find something reasonable, but the lithology
+ * column is a fact about BGS data and worth stating.
+ */
+const CATALOGUE = [
+  {
+    id: "ni-bedrock",
+    label: "Northern Ireland — bedrock",
+    path: "/ni-prototype/data/ni_bedrock.geojson",
+    name: "NI bedrock geology (BGS 625k).geojson",
+    colourBy: "lex_d",
+    credit: "BGS 1:625 000 bedrock geology, © UKRI.",
+  },
+  {
+    id: "ni-superficial",
+    label: "Northern Ireland — superficial",
+    path: "/ni-prototype/data/ni_superficial.geojson",
+    name: "NI superficial geology (BGS 625k).geojson",
+    colourBy: "lex_d",
+    credit: "BGS 1:625 000 superficial deposits, © UKRI.",
+  },
+];
+
+const entryById = (id) => CATALOGUE.find((d) => d.id === id) || null;
+
+/* ── Style ───────────────────────────────────────────────────────────────── */
+
+const STYLE = `
+/* NEVER a backtick in this block -- it is a template literal and one ends it.
+   module-css.test.mjs catches that; a browser does not. */
+#gis-geology-panel { display: flex; flex-direction: column; gap: 0.4rem; }
+#gis-geology-panel .row { margin: 0; }
+#gis-geology-loaded {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+.gis-geo-layer {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.35rem;
+  padding: 0.35rem 0.4rem;
+}
+.gis-geo-layer-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.gis-geo-layer-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 500 0.66rem/1.3 'Exo 2', sans-serif;
+}
+.gis-geo-layer-by {
+  font: 400 0.58rem/1.3 'Exo 2', sans-serif;
+  opacity: 0.7;
+}
+.gis-geo-opacity { width: 100%; }
+#gis-geology-status {
+  font: 400 0.62rem/1.35 'Exo 2', sans-serif;
+  opacity: 0.8;
+}
+#gis-geology-status:empty { display: none; }
+
+/* The symbology dialog: the attribute head, and the column that paints it. */
+#gis-geo-sym-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(4, 3, 10, 0.72);
+}
+#gis-geo-sym-backdrop[hidden] { display: none !important; }
+#gis-geo-sym {
+  width: min(46rem, 100%);
+  max-height: calc(100vh - 3rem);
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(12, 10, 22, 0.98);
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.45);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+}
+#gis-geo-sym .sym-head,
+#gis-geo-sym .sym-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.6rem 0.85rem;
+}
+#gis-geo-sym .sym-head { border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+#gis-geo-sym .sym-foot { border-top: 1px solid rgba(255, 255, 255, 0.1); }
+#gis-geo-sym .sym-title {
+  font: 600 0.76rem/1.2 'Exo 2', sans-serif;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+#gis-geo-sym .sym-body { padding: 0.7rem 0.85rem; overflow-y: auto; min-height: 0; }
+#gis-geo-sym .sym-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+#gis-geo-sym .sym-row > label {
+  flex: 0 0 7rem;
+  font: 500 0.66rem/1.25 'Exo 2', sans-serif;
+  color: var(--skin-data, #7ee7ff);
+}
+#gis-geo-head-wrap { overflow: auto; max-height: 14rem; }
+#gis-geo-head-wrap table {
+  border-collapse: collapse;
+  font: 400 0.6rem/1.3 'Exo 2', sans-serif;
+  width: max-content;
+  min-width: 100%;
+}
+#gis-geo-head-wrap th, #gis-geo-head-wrap td {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.18rem 0.4rem;
+  white-space: nowrap;
+  text-align: left;
+  max-width: 14rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#gis-geo-head-wrap th { color: var(--skin-data, #7ee7ff); font-weight: 600; cursor: pointer; }
+#gis-geo-head-wrap th small { display: block; opacity: 0.55; font-weight: 400; }
+/* The column being painted is marked in the table itself, so the head and the
+   picker cannot disagree about which one is in force. */
+#gis-geo-head-wrap .is-colour { background: rgba(var(--nav-accent-rgb), 0.2); }
+#gis-geo-sym-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  margin-top: 0.55rem;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+#gis-geo-sym-preview .geo-class { display: flex; align-items: center; gap: 0.4rem; }
+#gis-geo-sym-preview input[type="color"] {
+  width: 1.3rem;
+  height: 1.05rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.15rem;
+  background: none;
+  cursor: pointer;
+}
+#gis-geo-sym-preview .geo-class-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.63rem;
+}
+#gis-geo-sym-preview .geo-class-count { font-size: 0.6rem; opacity: 0.55; }
+`;
+
+function installStyle() {
+  if (document.getElementById("gis-geology-style")) return;
+  const tag = document.createElement("style");
+  tag.id = "gis-geology-style";
+  tag.textContent = STYLE;
+  document.head.appendChild(tag);
+}
+
+/* ── Panel ───────────────────────────────────────────────────────────────── */
+
+let panel = null;
+let nodes = null;
+
+const say = (message) => { if (nodes?.status) nodes.status.textContent = message || ""; };
+
+const loadedLayers = () => (window.GeoIDImportManager?.getLayers?.() || [])
+  .filter((l) => l.status === "loaded" && l.geologyDataset);
+
+async function loadDataset(entry) {
+  const manager = window.GeoIDImportManager;
+  if (!manager?.importFileList) {
+    say("The globe is still starting — try again in a moment.");
+    return;
+  }
+  const existing = (manager.getLayers?.() || []).find((l) => l.geologyDataset === entry.id);
+  if (existing) {
+    say(`${entry.label} is already loaded.`);
+    return;
+  }
+  say(`Loading ${entry.label}…`);
+  try {
+    const response = await fetch(entry.path);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    const before = new Set((manager.getLayers?.() || []).map((l) => l.id));
+    await manager.importFileList(
+      [new File([blob], entry.name, { type: "application/geo+json" })],
+      { role: "geology", name: entry.label },
+    );
+    const layer = (manager.getLayers?.() || []).find((l) => !before.has(l.id));
+    if (!layer) throw new Error("the layer did not arrive");
+    // Tagged so this panel can find its own layers again without matching on a
+    // name somebody is free to change -- which they now are, from the list.
+    layer.geologyDataset = entry.id;
+    layer.credit = entry.credit;
+    applyField(layer, entry.colourBy);
+    say(`${entry.label} — ${layer.features?.length || 0} polygons. ${entry.credit}`);
+  } catch (error) {
+    say(`${entry.label} did not load: ${error.message}`);
+  }
+  render();
+}
+
+/**
+ * Colour a layer by one of its columns.
+ *
+ * Straight through `categoricalSymbology` and `layer.repaint`, which is the same
+ * path the symbology panel's Apply uses — so the legend the layer card draws is
+ * produced by the act of colouring rather than kept in step with it.
+ */
+async function applyField(layer, field, { ramp = "spectral", overrides = null } = {}) {
+  if (!layer?.features?.length || !field) return null;
+  const { categoricalSymbology } = await import(`./symbology.js${new URL(import.meta.url).search}`);
+  const sym = categoricalSymbology(layer.features, field, { ramp });
+  if (!sym.ok) { say(sym.message); return null; }
+  if (overrides) {
+    sym.rows.forEach((r) => {
+      const chosen = overrides.get(String(r.value));
+      if (chosen) r.colour = chosen;
+    });
+  }
+  const lookup = new Map(sym.rows.filter((r) => !r.other).map((r) => [r.value, r.colour]));
+  const other = sym.rows.find((r) => r.other)?.colour || null;
+  const rgb = (c) => (c ? [
+    parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16),
+  ] : null);
+  layer.repaint?.((feature) => {
+    const value = feature?.properties?.[field];
+    return rgb(lookup.has(value) ? lookup.get(value) : other);
+  });
+  layer.legendInfo = {
+    palette: sym.rows.map((r) => r.colour.replace("#", "")),
+    labels: sym.rows.map((r) => String(r.value)),
+    counts: sym.rows.map((r) => r.count),
+    categorical: true, classed: true, field,
+  };
+  layer.geologyField = field;
+  layer.geologyRamp = ramp;
+  window.GeoIDLayerHierarchy?.render?.();
+  return sym;
+}
+
+/* ── The symbology dialog ────────────────────────────────────────────────── */
+
+let symBackdrop = null;
+
+function openSymbology(layer) {
+  installStyle();
+  if (!symBackdrop) {
+    symBackdrop = document.createElement("div");
+    symBackdrop.id = "gis-geo-sym-backdrop";
+    document.body.appendChild(symBackdrop);
+    symBackdrop.addEventListener("click", (e) => {
+      if (e.target === symBackdrop) symBackdrop.hidden = true;
+    });
+  }
+  symBackdrop.innerHTML = "";
+  symBackdrop.hidden = false;
+
+  const card = document.createElement("div");
+  card.id = "gis-geo-sym";
+  card.addEventListener("click", (e) => e.stopPropagation());
+
+  const head = document.createElement("div");
+  head.className = "sym-head";
+  const title = document.createElement("span");
+  title.className = "sym-title";
+  title.textContent = `Symbology — ${layer.name}`;
+  const shut = document.createElement("button");
+  shut.type = "button";
+  shut.className = "button";
+  shut.textContent = "×";
+  shut.setAttribute("aria-label", "Close");
+  Object.assign(shut.style, { padding: "0 0.45rem", minWidth: "0", lineHeight: "1" });
+  shut.addEventListener("click", () => { symBackdrop.hidden = true; });
+  head.append(title, shut);
+
+  const body = document.createElement("div");
+  body.className = "sym-body";
+
+  const head6 = attributeHead(layer.features, { rows: 6 });
+  const ranked = rankColourFields(head6);
+  const state = {
+    field: layer.geologyField || ranked[0] || head6.columns[0]?.key,
+    ramp: layer.geologyRamp || "spectral",
+    overrides: new Map(),
+  };
+
+  // ── Colour by ──
+  const fieldRow = document.createElement("div");
+  fieldRow.className = "sym-row";
+  const fieldLabel = document.createElement("label");
+  fieldLabel.textContent = "Colour by";
+  const fieldSelect = document.createElement("select");
+  fieldSelect.className = "input";
+  head6.columns.forEach((c) => {
+    const o = document.createElement("option");
+    o.value = c.key;
+    // The class count is the fact that decides whether a column is worth
+    // colouring by, so it is on the option rather than left to be discovered.
+    o.textContent = `${c.key} — ${c.distinct} value${c.distinct === 1 ? "" : "s"}`;
+    o.disabled = c.distinct < 2;
+    if (c.key === state.field) o.selected = true;
+    fieldSelect.appendChild(o);
+  });
+  fieldRow.append(fieldLabel, fieldSelect);
+
+  // ── Ramp ──
+  const rampRow = document.createElement("div");
+  rampRow.className = "sym-row";
+  const rampLabel = document.createElement("label");
+  rampLabel.textContent = "Ramp";
+  const rampSelect = document.createElement("select");
+  rampSelect.className = "input";
+  RAMP_NAMES.forEach((n) => {
+    const o = document.createElement("option");
+    o.value = n;
+    o.textContent = n;
+    if (n === state.ramp) o.selected = true;
+    rampSelect.appendChild(o);
+  });
+  const rampBar = document.createElement("span");
+  rampBar.style.cssText = "flex:0 0 6rem;height:0.7rem;border-radius:0.15rem;";
+  const paintBar = () => {
+    const stops = RAMPS[rampSelect.value].map((c) => `rgb(${c.join(",")})`);
+    rampBar.style.background = `linear-gradient(to right, ${stops.join(", ")})`;
+  };
+  paintBar();
+  rampRow.append(rampLabel, rampSelect, rampBar);
+
+  // ── The attribute head ──
+  const headWrap = document.createElement("div");
+  headWrap.id = "gis-geo-head-wrap";
+  const preview = document.createElement("div");
+  preview.id = "gis-geo-sym-preview";
+
+  const drawHead = () => {
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const hr = document.createElement("tr");
+    head6.columns.forEach((c) => {
+      const th = document.createElement("th");
+      th.textContent = c.key;
+      const small = document.createElement("small");
+      small.textContent = `${c.distinct} value${c.distinct === 1 ? "" : "s"}`;
+      th.appendChild(small);
+      th.title = "Click to colour the map by this column";
+      if (c.key === state.field) th.classList.add("is-colour");
+      // Clicking the column IS choosing it: the head is the natural place to
+      // decide, having just read the values.
+      th.addEventListener("click", () => {
+        if (c.distinct < 2) return;
+        state.field = c.key;
+        state.overrides = new Map();
+        fieldSelect.value = c.key;
+        redraw();
+      });
+      hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    const tbody = document.createElement("tbody");
+    head6.rows.forEach((row) => {
+      const tr = document.createElement("tr");
+      head6.columns.forEach((c, i) => {
+        const td = document.createElement("td");
+        td.textContent = row[i] ?? "";
+        td.title = row[i] ?? "";
+        if (c.key === state.field) td.classList.add("is-colour");
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.append(thead, tbody);
+    headWrap.replaceChildren(table);
+  };
+
+  const drawPreview = async () => {
+    const { categoricalSymbology } = await import(`./symbology.js${new URL(import.meta.url).search}`);
+    const sym = categoricalSymbology(layer.features, state.field, { ramp: state.ramp });
+    preview.replaceChildren();
+    if (!sym.ok) {
+      preview.textContent = sym.message;
+      return;
+    }
+    sym.rows.forEach((r) => {
+      const line = document.createElement("div");
+      line.className = "geo-class";
+      const swatch = document.createElement("input");
+      swatch.type = "color";
+      swatch.value = state.overrides.get(String(r.value)) || r.colour;
+      swatch.title = "Click to recolour this unit";
+      swatch.addEventListener("input", () => {
+        state.overrides.set(String(r.value), swatch.value);
+      });
+      const label = document.createElement("span");
+      label.className = "geo-class-label";
+      label.textContent = String(r.value);
+      label.title = String(r.value);
+      const count = document.createElement("span");
+      count.className = "geo-class-count";
+      count.textContent = r.count.toLocaleString();
+      line.append(swatch, label, count);
+      preview.appendChild(line);
+    });
+  };
+
+  const redraw = () => { drawHead(); void drawPreview(); };
+
+  fieldSelect.addEventListener("change", () => {
+    state.field = fieldSelect.value;
+    state.overrides = new Map();
+    redraw();
+  });
+  rampSelect.addEventListener("change", () => {
+    state.ramp = rampSelect.value;
+    state.overrides = new Map();
+    paintBar();
+    void drawPreview();
+  });
+
+  body.append(fieldRow, rampRow, headWrap, preview);
+
+  const foot = document.createElement("div");
+  foot.className = "sym-foot";
+  const note = document.createElement("span");
+  note.style.cssText = "font:400 0.6rem/1.3 'Exo 2',sans-serif;opacity:0.7;";
+  note.textContent = `${head6.count.toLocaleString()} polygons · ${head6.columns.length} columns`;
+  const apply = document.createElement("button");
+  apply.type = "button";
+  apply.className = "button";
+  apply.textContent = "Apply";
+  apply.addEventListener("click", async () => {
+    const sym = await applyField(layer, state.field,
+      { ramp: state.ramp, overrides: state.overrides });
+    if (sym) {
+      say(`${layer.name} coloured by ${state.field}: ${sym.rows.length} units.`);
+      symBackdrop.hidden = true;
+      render();
+    }
+  });
+  foot.append(note, apply);
+
+  card.append(head, body, foot);
+  symBackdrop.appendChild(card);
+  redraw();
+}
+
+/* ── Rendering the panel ─────────────────────────────────────────────────── */
+
+function render() {
+  if (!nodes?.loaded) return;
+  const layers = loadedLayers();
+  nodes.loaded.replaceChildren();
+  layers.forEach((layer) => {
+    const box = document.createElement("div");
+    box.className = "gis-geo-layer";
+    const row = document.createElement("div");
+    row.className = "gis-geo-layer-head";
+    const eye = document.createElement("input");
+    eye.type = "checkbox";
+    eye.checked = layer.visible !== false;
+    eye.title = "Visible";
+    eye.addEventListener("change", () => {
+      window.GeoIDLayerHierarchy?.setVisible?.(layer, eye.checked);
+      if (layer.object3D) layer.object3D.visible = eye.checked;
+      layer.visible = eye.checked;
+    });
+    const name = document.createElement("span");
+    name.className = "gis-geo-layer-name";
+    name.textContent = layer.name;
+    name.title = layer.credit || layer.name;
+    const sym = document.createElement("button");
+    sym.type = "button";
+    sym.className = "button secondary";
+    sym.textContent = "Symbology…";
+    sym.style.fontSize = "0.6rem";
+    sym.addEventListener("click", () => openSymbology(layer));
+    row.append(eye, name, sym);
+
+    const by = document.createElement("div");
+    by.className = "gis-geo-layer-by";
+    by.textContent = layer.geologyField
+      ? `Coloured by ${layer.geologyField} · ${layer.legendInfo?.labels?.length || 0} units`
+      : "Not coloured yet — open Symbology.";
+
+    const opacity = document.createElement("input");
+    opacity.type = "range";
+    opacity.className = "gis-geo-opacity";
+    opacity.min = "0";
+    opacity.max = "1";
+    opacity.step = "0.05";
+    opacity.value = String(layer.opacity ?? 1);
+    opacity.title = "Opacity";
+    opacity.addEventListener("input", () => {
+      const value = Number(opacity.value);
+      layer.opacity = value;
+      // Through the hierarchy where it exists, so the list's own slider and
+      // this one cannot disagree; the direct traverse is the fallback.
+      if (window.GeoIDLayerHierarchy?.setOpacity) {
+        window.GeoIDLayerHierarchy.setOpacity(layer, value);
+        return;
+      }
+      layer.object3D?.traverse?.((n) => {
+        const materials = Array.isArray(n.material) ? n.material : [n.material];
+        materials.forEach((m) => {
+          if (!m) return;
+          m.transparent = value < 1;
+          m.opacity = value;
+          m.needsUpdate = true;
+        });
+      });
+    });
+
+    box.append(row, by, opacity);
+    nodes.loaded.appendChild(box);
+  });
+}
+
+export function init() {
+  const host = document.getElementById("geology-section");
+  if (!host || document.getElementById("gis-geology-panel")) return false;
+  const body = host.querySelector(".section-body .control-stack") || host.querySelector(".section-body");
+  if (!body) return false;
+  installStyle();
+
+  panel = document.createElement("div");
+  panel.id = "gis-geology-panel";
+
+  const intro = document.createElement("div");
+  intro.className = "section-summary-copy";
+  intro.textContent = "Mapped geology as vector units: choose what to colour by, "
+    + "and click a polygon to read what it is.";
+
+  const pickRow = document.createElement("div");
+  pickRow.className = "row";
+  const pickLabel = document.createElement("label");
+  pickLabel.textContent = "Dataset";
+  pickLabel.setAttribute("for", "gis-geology-dataset");
+  const select = document.createElement("select");
+  select.id = "gis-geology-dataset";
+  select.className = "input";
+  CATALOGUE.forEach((entry) => {
+    const o = document.createElement("option");
+    o.value = entry.id;
+    o.textContent = entry.label;
+    select.appendChild(o);
+  });
+  pickRow.append(pickLabel, select);
+
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "tool-button";
+  add.textContent = "Add to globe";
+  add.addEventListener("click", () => {
+    const entry = entryById(select.value);
+    if (entry) void loadDataset(entry);
+  });
+
+  const loaded = document.createElement("div");
+  loaded.id = "gis-geology-loaded";
+  const status = document.createElement("div");
+  status.id = "gis-geology-status";
+
+  panel.append(intro, pickRow, add, loaded, status);
+  // Above the legacy bathymetry controls: this is what the tab is for now.
+  body.insertBefore(panel, body.firstChild);
+  nodes = { select, loaded, status };
+
+  window.GeoIDImportManager?.onChange?.(render);
+  render();
+  return true;
+}
+
+if (typeof document !== "undefined") {
+  // The section arrives with the markup on Earth and with the shell on a planet
+  // page, and toolbox.js moves it afterwards -- so this retries rather than
+  // assuming a moment, the same shape side-panels.js uses.
+  let tries = 0;
+  const attempt = () => {
+    if (init() || (tries += 1) > 60) return;
+    setTimeout(attempt, 400);
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", attempt);
+  } else {
+    attempt();
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.GeoIDGeology = {
+    init, render, openSymbology, applyField,
+    catalogue: () => CATALOGUE.map((c) => c.id),
+    load: (id) => { const e = entryById(id); return e ? loadDataset(e) : null; },
+  };
+}

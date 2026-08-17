@@ -20,7 +20,7 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-e6905f9";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260817-99e21e8";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -419,9 +419,45 @@ export function featureAt(lat, lon) {
  * drag ends in a click event at the release point, and a globe you cannot
  * turn without popups appearing is worse than no popups.
  */
+/**
+ * The viewer's canvas, not merely the first canvas in the document.
+ *
+ * This page holds EIGHT canvases -- the profile plots, the meshing studio's
+ * quality chart, the CSV plotter, the hemisphere locator -- and every one of
+ * them is in the markup from the start, while the globe's is created by the
+ * viewer's own async boot inside `#app`. `document.querySelector("canvas")`
+ * therefore returned a hidden 0x0 chart, `install()` bound the click listener
+ * to it and set `installed`, and the retry never ran again: clicking the globe
+ * did nothing, for every vector layer, with no error anywhere.
+ *
+ * A zero-sized canvas is refused as well as an absent one, so a chart that
+ * happens to sort first can never win this again.
+ */
+function viewerCanvas() {
+  // Defensive about the document it is given: the unit test stubs a minimal one
+  // with `querySelector` alone, and this module must import there.
+  const all = typeof document.querySelectorAll === "function"
+    ? [...document.querySelectorAll("canvas")] : [];
+  const candidates = [
+    window.GeoIDViewer?.renderer?.domElement,
+    document.querySelector?.("#app canvas"),
+    ...all,
+    document.querySelector?.("canvas"),
+  ];
+  for (const canvas of candidates) {
+    if (!canvas) continue;
+    // A stub with no geometry cannot be measured; taking it is the right answer
+    // in a test and impossible in a browser, where every canvas has a box.
+    if (typeof canvas.getBoundingClientRect !== "function") return canvas;
+    const box = canvas.getBoundingClientRect();
+    if (box.width > 0 && box.height > 0) return canvas;
+  }
+  return null;
+}
+
 function install() {
   if (installed) return;
-  const canvas = document.querySelector("canvas");
+  const canvas = viewerCanvas();
   if (!canvas) return;
   installed = true;
 
@@ -466,7 +502,7 @@ export function suppress(ms = 600) {
 let attempts = 0;
 function boot() {
   install();
-  if (!installed && (attempts += 1) < 40) setTimeout(boot, 400);
+  if (!installed && (attempts += 1) < 90) setTimeout(boot, 400);
 }
 
 if (typeof window !== "undefined") {

@@ -11,6 +11,7 @@
 
 import {
   readHead, proposeMapping, validateMapping, parseRows, detectDelimiter, looksLikeHeader,
+  attributeHead, rankColourFields,
 } from "./delimited.js";
 
 let failures = 0;
@@ -123,6 +124,43 @@ check("a mixed row is a header", looksLikeHeader(["station", "37.75", "1200"]));
   eq("both points survive a headerless file", points.length, 2);
   eq("including the very first line", points[0], { x: 14.99, y: 37.75, z: 1200 });
 }
+
+// ── Attribute tables ─────────────────────────────────────────────────────────
+// A BGS polygon carries 57 columns and only a handful describe the rock. The
+// ranking is what makes the picker usable, and it is a property of the data
+// rather than a preference: a constant column paints one colour, an id column
+// paints one class per feature.
+{
+  const features = [
+    { properties: { lex_d: "Basalt", rcs_d: "Igneous", objectid: 1, sheet: "NI", blank: "" } },
+    { properties: { lex_d: "Sandstone", rcs_d: "Sedimentary", objectid: 2, sheet: "NI", blank: "" } },
+    { properties: { lex_d: "Basalt", rcs_d: "Igneous", objectid: 3, sheet: "NI", blank: "" } },
+    { properties: { lex_d: "Chalk", rcs_d: "Sedimentary", objectid: 4, sheet: "NI", blank: "" } },
+  ];
+  const head = attributeHead(features, { rows: 3 });
+  eq("every column is found", head.columns.map((c) => c.key),
+    ["lex_d", "rcs_d", "objectid", "sheet", "blank"]);
+  eq("the feature count is the whole layer", head.count, 4);
+  eq("only the asked-for rows are previewed", head.rows.length, 3);
+  eq("a row reads across the columns", head.rows[0], ["Basalt", "Igneous", "1", "NI", ""]);
+  const by = Object.fromEntries(head.columns.map((c) => [c.key, c]));
+  eq("distinct values are counted", by.lex_d.distinct, 3);
+  eq("a constant column has one", by.sheet.distinct, 1);
+  eq("an id column has one per feature", by.objectid.distinct, 4);
+  eq("an empty column has none", by.blank.distinct, 0);
+  eq("and is counted as unfilled", by.blank.filled, 0);
+
+  const ranked = rankColourFields(head);
+  check("a constant column is not offered", !ranked.includes("sheet"));
+  check("an id column is not offered", !ranked.includes("objectid"));
+  check("an empty column is not offered", !ranked.includes("blank"));
+  eq("the most informative column leads", ranked[0], "lex_d");
+  eq("and the rest follow by class count", ranked, ["lex_d", "rcs_d"]);
+  // A field with more classes than a legend can show is refused by the cap.
+  eq("the class cap is honoured", rankColourFields(head, { maxClasses: 2 }), ["rcs_d"]);
+}
+check("no features, no head", attributeHead([]).columns.length === 0);
+check("and nothing to rank", rankColourFields(attributeHead([])).length === 0);
 
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");
 process.exit(failures ? 1 : 0);
