@@ -1,4 +1,4 @@
-import { computeBounds2D } from "./geo-utils.js?v=20260817-260d8b2";
+import { computeBounds2D } from "./geo-utils.js?v=20260817-f57d1df";
 
 // Sampling a polygon on a lat/lon grid: the spacing is expressed in km and
 // converted per-row, because a degree of longitude shrinks toward the poles.

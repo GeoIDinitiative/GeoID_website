@@ -29,27 +29,6 @@ const FIELDS = [
     label: "Earth Engine project",
     hint: "The Cloud project Earth Engine is enabled on, e.g. geoid-504623.",
   },
-  /**
-   * A way in that does not depend on the console.
-   *
-   * Earth Engine authenticates with a bearer token, and OAuth is only one way
-   * to obtain one — which matters because the Code Editor works fine while
-   * sign-in from here does not, and the difference is purely which OAuth
-   * client is registered for which origin. Pasting a token proves the account,
-   * the project and every REST call independently of that registration, so the
-   * pipeline can be tested and finished while the console is sorted out.
-   *
-   * It expires in about an hour, by Google's design and not ours: it is a
-   * bridge for testing, not a way to run the app. Say so rather than letting
-   * it look like a second credential worth keeping.
-   */
-  {
-    name: "accessToken",
-    label: "Access token (temporary)",
-    hint: "Optional. Skips sign-in for about an hour — useful while the OAuth "
-      + "origin is being registered. Get one with: gcloud auth application-default "
-      + "print-access-token. Stored in this browser only; clear it when done.",
-  },
 ];
 
 /** A client secret in a page is a published secret; refuse it by shape. */
@@ -75,8 +54,16 @@ const DEFAULTS = {
 
 export function read() {
   try {
-    const stored = JSON.parse(window.localStorage.getItem(STORE_KEY) || "null");
-    return { ...DEFAULTS, ...(stored || {}) };
+    const stored = JSON.parse(window.localStorage.getItem(STORE_KEY) || "null") || {};
+    // The temporary-token field is gone, but a token saved while it existed
+    // would sit in this browser for ever with no UI left to clear it -- and it
+    // used to take precedence over sign-in, so it would silently shadow OAuth
+    // and expire an hour later looking like a new bug. Drop it on read.
+    if (stored.accessToken) {
+      delete stored.accessToken;
+      window.localStorage.setItem(STORE_KEY, JSON.stringify(stored));
+    }
+    return { ...DEFAULTS, ...stored };
   } catch (error) {
     return { ...DEFAULTS };
   }
@@ -115,12 +102,8 @@ function refresh() {
     input.autocomplete = "off";
     input.spellcheck = false;
     input.value = current[field.name] || "";
-    const PLACEHOLDER = {
-      clientId: "…apps.googleusercontent.com",
-      project: "project id",
-      accessToken: "ya29.… (optional, expires in ~1 hour)",
-    };
-    input.placeholder = PLACEHOLDER[field.name] || "";
+    input.placeholder = field.name === "clientId"
+      ? "…apps.googleusercontent.com" : "project id";
     const note = document.createElement("span");
     note.className = "gis-setting-hint";
     note.textContent = field.hint;
@@ -139,7 +122,6 @@ function refresh() {
       const next = write({
         clientId: byId("gis-setting-clientId").value.trim(),
         project: byId("gis-setting-project").value.trim(),
-        accessToken: byId("gis-setting-accessToken")?.value.trim() || "",
       });
       say(next.clientId && next.project
         ? "Saved. Earth Engine will ask you to sign in when a layer needs it — "
@@ -178,10 +160,6 @@ function refresh() {
   signIn.addEventListener("click", async () => {
     const ee = window.GeoIDEarthEngine;
     if (!ee?.token) { say("The Earth Engine client is not loaded on this page."); return; }
-    if (read().accessToken) {
-      say("A pasted token is set, so sign-in is skipped. Clear that field to use Google sign-in.");
-      return;
-    }
     signIn.disabled = true;
     say("Opening Google sign-in…");
     try {
