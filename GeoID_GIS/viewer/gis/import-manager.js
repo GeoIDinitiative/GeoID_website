@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260817-b57b86d";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260817-b57b86d";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260817-b57b86d";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260817-b57b86d";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260817-b57b86d";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260817-b57b86d";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260817-b57b86d";
-import { loadMshFile } from "./msh-adapter.js?v=20260817-b57b86d";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260817-b57b86d";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260817-356ba96";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260817-356ba96";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260817-356ba96";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260817-356ba96";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260817-356ba96";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260817-356ba96";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260817-356ba96";
+import { loadMshFile } from "./msh-adapter.js?v=20260817-356ba96";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260817-356ba96";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -405,15 +405,17 @@ async function importDataset(primaryFile, sidecars, options = {}) {
     // to the material's colour, and a textured drape has none worth reading.
     layer.legendInfo = result.legendInfo || null;
     layer.repaint = result.repaint || null;
-    layer.status = "loaded";
-    (layer.georeferenced ? groups.geoGroup : groups.localGroup).add(result.object3D);
-    placeLocalModel(result.object3D, window.GeoIDModeManager?.getMode?.());
-    frameResult(layer);
     // Symbology chosen in the Add-data dialog, applied through the SAME path the
     // symbology panel's Apply uses -- so a layer looks the same when it lands as
     // it does the moment somebody opens that panel. Imported lazily because the
     // panel is a module that may load after this one, and never allowed to fail
     // the import it is only decorating.
+    //
+    // BEFORE `status = "loaded"`, and that ordering is the point: this step
+    // awaits a dynamic import, so with it afterwards the layer was observably
+    // "loaded" and unstyled for as long as that fetch took. Anything watching
+    // for loaded -- the layer list, the hierarchy, a test -- could act on the
+    // adapter's own colours and see the chosen ramp arrive a moment later.
     if (options.symbology) {
       try {
         const { applyImportSymbology } =
@@ -423,6 +425,10 @@ async function importDataset(primaryFile, sidecars, options = {}) {
         console.warn("[GeoID GIS] symbology could not be applied on import:", error.message);
       }
     }
+    layer.status = "loaded";
+    (layer.georeferenced ? groups.geoGroup : groups.localGroup).add(result.object3D);
+    placeLocalModel(result.object3D, window.GeoIDModeManager?.getMode?.());
+    frameResult(layer);
     setStatus(`Loaded ${primaryFile.name}.`);
     // An import belongs to whatever project is open, so the Research page's
     // repository and the Qt app both see it. Silent when none is open, and
