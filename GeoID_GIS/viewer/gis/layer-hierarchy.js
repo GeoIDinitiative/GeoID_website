@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260818-9a89934";
-import { samplerToRaster } from "./raster-analysis.js?v=20260818-9a89934";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260818-9a89934";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260818-9a89934";
+import { currentBody } from "./bodies.js?v=20260818-f75e7e3";
+import { samplerToRaster } from "./raster-analysis.js?v=20260818-f75e7e3";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260818-f75e7e3";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260818-f75e7e3";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -244,11 +244,26 @@ function setOpacity(layer, value) {
     const materials = Array.isArray(node.material) ? node.material : [node.material];
     materials.forEach((material) => {
       if (!material) return;
-      // Only switch on blending when it is actually needed: transparent
-      // materials are sorted separately and cost more to draw.
-      material.transparent = value < 0.999;
+      /**
+       * Opacity may never move a layer between render passes.
+       *
+       * This used to switch blending off at full opacity -- "transparent
+       * materials are sorted separately and cost more to draw", which is true
+       * and was the bug. **Separately** is the word: the renderer draws every
+       * opaque object first and every transparent one afterwards, and no
+       * `renderOrder` crosses between the two lists. So taking a layer back to
+       * 100% made it opaque, which drew it BEFORE every layer still at 99% or
+       * less -- including the sheet underneath it, which then painted straight
+       * over the top. Dragging the slider up made the layer disappear.
+       *
+       * Blending stays on. It may be switched on when it is needed and never
+       * off again, so a layer's place in the stack is decided by the stack.
+       * `depthWrite` is left exactly as the layer was built: these fills draw
+       * without a depth test on purpose, and writing depth at full opacity let
+       * them occlude whatever was drawn after them.
+       */
+      if (value < 0.999) material.transparent = true;
       material.opacity = value;
-      material.depthWrite = value >= 0.999;
       material.needsUpdate = true;
     });
   });

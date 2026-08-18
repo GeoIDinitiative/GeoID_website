@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-9a89934";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260818-9a89934";
-import { currentBodyId } from "./bodies.js?v=20260818-9a89934";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-9a89934";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-f75e7e3";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260818-f75e7e3";
+import { currentBodyId } from "./bodies.js?v=20260818-f75e7e3";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-f75e7e3";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -845,7 +845,12 @@ function render() {
         const materials = Array.isArray(n.material) ? n.material : [n.material];
         materials.forEach((m) => {
           if (!m) return;
-          m.transparent = value < 1;
+          // Switched on when needed and never off again -- see setOpacity in
+          // layer-hierarchy.js. Turning blending off at full opacity moves the
+          // layer into the opaque pass, which is drawn before every transparent
+          // layer whatever the stack says, so the sheet underneath paints over
+          // it and the layer looks like it vanished.
+          if (value < 1) m.transparent = true;
           m.opacity = value;
           m.needsUpdate = true;
         });
