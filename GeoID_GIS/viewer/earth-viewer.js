@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260818-de79273";
+  from "./gis/geo-utils.js?v=20260818-aeb8657";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -4641,14 +4641,17 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
     }
 
     /**
-     * How high an imported vector layer is drawn above the surface.
+     * How high an imported vector layer's FILL is drawn above the surface.
      *
-     * The same number as `drape` in `gis/vector-render.js`, which is where the
-     * geometry is built. Written out here rather than imported because this
+     * The same number as `FILL_DRAPE` in `gis/vector-render.js`, which is where
+     * the geometry is built. Written out here rather than imported because this
      * file loads on nine other worlds that have no GIS module, and a click has
-     * to know the altitude of the thing it is aiming at.
+     * to know the altitude of the thing it is aiming at. It is zero now -- the
+     * fill sits on the surface -- so the ray refinement below has nothing left
+     * to correct; it stays because the number is the fill's to choose, and a
+     * drape that ever lifts again must not silently take the clicks with it.
      */
-    const VECTOR_LAYER_DRAPE = 0.006;
+    const VECTOR_LAYER_DRAPE = 0;
 
     function getReliefPoint(radius, elevationSampler, elevationCache, getTerrainRelief, latDegrees, lonDegrees, lift = 0) {
       const displacement = getCachedElevationNormalized(elevationCache, elevationSampler, latDegrees, lonDegrees) * getTerrainRelief();

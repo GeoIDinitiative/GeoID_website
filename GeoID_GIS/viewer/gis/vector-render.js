@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-de79273";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-de79273";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-de79273";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-aeb8657";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-aeb8657";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-aeb8657";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -24,6 +24,29 @@ function surfaceAt(lat, lon, drape) {
     ? surfacePoint(lat, lon, drape)
     : latLonToVector3(lat, lon, drapedRadius(drape));
 }
+
+/**
+ * A FILLED polygon sits on the surface, at no altitude at all.
+ *
+ * The clearance above was 0.006, and 0.006 of a 3.2 radius is **11.9 km** --
+ * so flying in, you passed through the geology and left it above you while the
+ * scale bar still read tens of kilometres, and the map you were descending
+ * towards was the basemap alone. Obliquely it also parallaxed: a polygon drawn
+ * 11.9 km up is painted to one side of the ground it describes, measured at up
+ * to 14 km at the framed view.
+ *
+ * It buys nothing, because the fill material already refuses the depth test --
+ * "a flat facet cannot win on depth against displaced terrain, so it does not
+ * compete", exactly as the drapes do -- and it is single-sided, so the far
+ * hemisphere is still culled by winding rather than by height. Sitting the fill
+ * on the surface therefore costs no visibility and makes the layer something
+ * you can descend to metres above and still be under.
+ *
+ * Outlines keep the old clearance: a line has no facing to cull it, so it is
+ * depth-tested to hide the far side, and a depth-tested line at zero clearance
+ * disappears into the relief between its vertices.
+ */
+const FILL_DRAPE = 0;
 
 // A straight line between two points on a sphere is a chord, and a chord sags
 // below the surface. Across 12 degrees of arc -- ordinary for a coarse boundary
@@ -135,8 +158,13 @@ export function renderFeatureCollection(fc, {
       scratch.set(css);
       colour = { r: scratch.r, g: scratch.g, b: scratch.b };
     }
-    if (colour) polygons.forEach((polygon) => fillTriangles(polygon, drape, fill, colour));
-    [...rings, ...lines].forEach((coords) => {
+    if (colour) polygons.forEach((polygon) => fillTriangles(polygon, FILL_DRAPE, fill, colour));
+    // A filled polygon's ring is drawn in the fill's own colour, so it adds
+    // nothing to look at -- and being a line it would have to keep the old
+    // altitude, which is the whole thing being fixed. Rings are still drawn
+    // while the layer has no colours yet, which is the outline-first pass that
+    // puts a layer on the globe before its symbology arrives.
+    [...(colour ? [] : rings), ...lines].forEach((coords) => {
       const before = linePositions.length;
       for (let i = 0; i + 1 < coords.length; i += 1) {
         pushSegment(linePositions, coords[i], coords[i + 1], drape);
