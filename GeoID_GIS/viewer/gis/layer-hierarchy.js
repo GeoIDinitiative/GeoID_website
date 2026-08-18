@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260818-f7ce008";
-import { samplerToRaster } from "./raster-analysis.js?v=20260818-f7ce008";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260818-f7ce008";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260818-f7ce008";
+import { currentBody } from "./bodies.js?v=20260818-67c0478";
+import { samplerToRaster } from "./raster-analysis.js?v=20260818-67c0478";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260818-67c0478";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260818-67c0478";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -269,15 +269,29 @@ function setOpacity(layer, value) {
   });
 }
 
+/**
+ * The ONE place a layer's visibility is written.
+ *
+ * There are three controls for it -- the layer row's eye, the geology tab's,
+ * and the Hide/Show action in a row's options -- and three surfaces that have
+ * to agree afterwards: the rows, the legend over the scene, and the geology
+ * tab's own list. Each control used to do its own writing and refresh whatever
+ * it happened to own, so the other two went stale: switching a sheet off in the
+ * layer list left the geology tab still ticked and its polygons still answering
+ * clicks, and switching it off in the geology tab left it in the key.
+ *
+ * So every control routes here, this writes the state once, redraws what it
+ * owns, and then says so. Anything else that shows visibility listens for that
+ * announcement rather than being called by name -- which is what keeps a fourth
+ * surface from having to be wired into all three.
+ */
 function setVisible(layer, visible) {
   layer.visible = visible;
   if (layer.object3D) layer.object3D.visible = visible;
-  // The legend is built from this stack, so switching a layer off has to reach
-  // it: without this the key went on showing a layer that was no longer drawn,
-  // whichever control did the switching -- the row's own eye, or the geology
-  // tab's. `render()` rebuilds the rows and republishes the cards, and it is
-  // what every other change here already ends with.
   render();
+  window.dispatchEvent(new CustomEvent("geoid-gis:layers-changed", {
+    detail: { layer, visible, reason: "visibility" },
+  }));
 }
 
 function move(id, delta) {

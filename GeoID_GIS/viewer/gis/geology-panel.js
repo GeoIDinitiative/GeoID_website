@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-f7ce008";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260818-f7ce008";
-import { currentBodyId } from "./bodies.js?v=20260818-f7ce008";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-f7ce008";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-67c0478";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260818-67c0478";
+import { currentBodyId } from "./bodies.js?v=20260818-67c0478";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-67c0478";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -518,6 +518,23 @@ function toInteractiveCatalogue(layers) {
 }
 
 /**
+ * Visibility goes through the layer hierarchy, never straight onto the layer.
+ *
+ * It is the single writer: it sets the flag and the object, redraws the rows
+ * and the legend, and announces the change so this panel and the clickable
+ * geology follow. The direct write is only for a page where the hierarchy has
+ * not loaded, so a tick box still does something.
+ */
+function setLayerVisible(layer, visible) {
+  const hierarchy = window.GeoIDLayerHierarchy;
+  if (hierarchy?.setVisible) { hierarchy.setVisible(layer, visible); return; }
+  layer.visible = visible;
+  if (layer.object3D) layer.object3D.visible = visible;
+  render();
+  publishInteractive();
+}
+
+/**
  * Push whatever mapped geology is loaded into the viewer's own click path.
  *
  * **Order is the whole behaviour.** `getGeologyFeatureAtLatLon` takes the FIRST
@@ -801,11 +818,11 @@ function render() {
     eye.type = "checkbox";
     eye.checked = layer.visible !== false;
     eye.title = "Visible";
-    eye.addEventListener("change", () => {
-      window.GeoIDLayerHierarchy?.setVisible?.(layer, eye.checked);
-      if (layer.object3D) layer.object3D.visible = eye.checked;
-      layer.visible = eye.checked;
-    });
+    // Through the hierarchy, which is the one writer -- it sets the state,
+    // redraws the rows and the legend, and announces the change, which brings
+    // this list and the clickable geology back in step. Writing the flag here
+    // as well is what let the surfaces drift apart.
+    eye.addEventListener("change", () => { setLayerVisible(layer, eye.checked); });
     const name = document.createElement("span");
     name.className = "gis-geo-layer-name";
     name.textContent = layer.name;
@@ -929,11 +946,7 @@ async function setActive(on) {
     say("Loading mapped geology…");
     await loadDefaults();
   }
-  loadedLayers().forEach((layer) => {
-    layer.visible = on;
-    if (layer.object3D) layer.object3D.visible = on;
-    window.GeoIDLayerHierarchy?.setVisible?.(layer, on);
-  });
+  loadedLayers().forEach((layer) => { setLayerVisible(layer, on); });
   holdGlobeStill(on);
   render();
   publishInteractive();
@@ -1016,6 +1029,23 @@ export function init() {
     pickRow.hidden = true;
     add.hidden = true;
   }
+
+  /**
+   * Whoever switched a layer, this panel follows it.
+   *
+   * The clickable catalogue is filtered by visibility, so a sheet switched off
+   * in the layer list went on answering clicks until something else happened to
+   * republish it -- the map said one thing and the popup another. The tab's own
+   * tick box is the fourth surface: `isActive()` is "any mapped geology still
+   * showing", so switching the last sheet off anywhere clears it.
+   */
+  window.addEventListener("geoid-gis:layers-changed", (event) => {
+    if (event.detail?.reason !== "visibility") return;
+    render();
+    publishInteractive();
+    const box = document.getElementById("geology-master-toggle");
+    if (box) box.checked = isActive();
+  });
 
   const master = document.getElementById("geology-master-toggle");
   master?.addEventListener("change", () => { void setActive(master.checked); });
