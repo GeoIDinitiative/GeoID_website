@@ -124,6 +124,23 @@ const STYLE = `
 #map-legend-panel .legend-symbol-label { font-size: 0.74rem; }
 #map-legend-panel .legend-symbol-detail { font-size: 0.68rem; }
 #map-legend-panel .legend-entry-image { margin-top: 0.5rem; }
+#map-legend-panel .legend-entry-head {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+/* The caret is the affordance -- a heading that folds has to look like one. */
+#map-legend-panel .legend-entry-head::before {
+  content: "▾";
+  font-size: 0.6rem;
+  opacity: 0.75;
+  transition: transform 0.15s ease;
+}
+#map-legend-panel .legend-entry.is-folded .legend-entry-head::before { transform: rotate(-90deg); }
+#map-legend-panel .legend-entry.is-folded { padding-bottom: 0.45rem; }
+#map-legend-panel .legend-entry-body[hidden] { display: none; }
+
 
 /* A classed legend is a list of swatches, and a swatch needs a SIZE.
    The class swatch is a bare span -- display: inline, so a background
@@ -239,7 +256,7 @@ function ensureDock() {
   const toggle = document.getElementById(TOGGLE_ID);
   if (toggle && !toggle.dataset.legendBound) {
     toggle.dataset.legendBound = "1";
-    toggle.addEventListener("click", () => setOpen(!isOpen()));
+    toggle.addEventListener("click", () => setOpen(!isOpen(), { byUser: true }));
   }
   return dock;
 }
@@ -249,10 +266,23 @@ function isOpen() {
   return Boolean(panel) && !panel.hidden;
 }
 
-function setOpen(open) {
+/**
+ * Closed BY HAND stays closed.
+ *
+ * The dock opens itself when a layer arrives, which is right the first time and
+ * insufferable afterwards: close it, add a layer or switch one off, and it was
+ * open again -- so it could not be dismissed, only postponed. A person closing
+ * it is a decision about the panel rather than about any one layer, so it is
+ * remembered until they open it again. `arrivals()` still decides whether
+ * anything is new; this decides whether we are allowed to act on that.
+ */
+let dismissed = false;
+
+function setOpen(open, { byUser = false } = {}) {
   const panel = document.getElementById(PANEL_ID);
   const toggle = document.getElementById(TOGGLE_ID);
   if (!panel) return;
+  if (byUser) dismissed = !open;
   panel.hidden = !open;
   toggle?.setAttribute("aria-expanded", open ? "true" : "false");
   // The events feed sits beside this and sizes itself from it.
@@ -316,9 +346,74 @@ function render() {
 
   const fresh = arrivals(lastKeys, keys);
   lastKeys = keys;
+  nodes.forEach(makeFoldable);
   if (!nodes.length) { setOpen(false); return; }
-  if (fresh.length) setOpen(true);
+  if (fresh.length && !dismissed) setOpen(true);
   else window.dispatchEvent(new CustomEvent("geoid:legend-changed"));
+}
+
+
+/* ── folding one card ───────────────────────────────────────────────────── */
+
+/**
+ * Which cards are folded, by name, so a re-render does not unfold them.
+ *
+ * The dock is rebuilt from scratch whenever anything publishes, and the cards
+ * are new nodes each time -- state kept on the element would last until the
+ * next layer changed and no longer.
+ */
+const folded = new Set();
+
+/**
+ * Make a legend card fold, from its own heading.
+ *
+ * Two geology sheets are 23 rows of unit names, which fills the drop-down and
+ * buries whatever is under them. Folding is per card because that is the unit
+ * of the question: you are reading one layer's key and want the others out of
+ * the way, not the whole legend gone.
+ *
+ * The heading becomes the control -- there is nowhere else to put one, and it
+ * is the part you are already looking at. Everything after it is wrapped once
+ * and hidden as a block, so this works for any card the dock is handed
+ * whatever built it: layer cards, the viewer's overlays, the interior cutaway.
+ */
+function makeFoldable(card) {
+  if (!card || card.dataset.foldable === "1") return;
+  const badge = card.querySelector(".layer-type-badge, .legend-name");
+  if (!badge) return;
+  card.dataset.foldable = "1";
+  const key = card.dataset.legendKey || badge.textContent.trim();
+
+  const body = document.createElement("div");
+  body.className = "legend-entry-body";
+  let node = badge.nextSibling;
+  while (node) {
+    const next = node.nextSibling;
+    body.appendChild(node);
+    node = next;
+  }
+  card.appendChild(body);
+
+  badge.classList.add("legend-entry-head");
+  badge.setAttribute("role", "button");
+  badge.setAttribute("tabindex", "0");
+  const apply = (isFolded) => {
+    card.classList.toggle("is-folded", isFolded);
+    body.hidden = isFolded;
+    badge.setAttribute("aria-expanded", isFolded ? "false" : "true");
+  };
+  apply(folded.has(key));
+  const flip = () => {
+    const next = !folded.has(key);
+    if (next) folded.add(key); else folded.delete(key);
+    apply(next);
+    // The panel changed height, and the events feed measures it.
+    window.dispatchEvent(new CustomEvent("geoid:legend-changed"));
+  };
+  badge.addEventListener("click", flip);
+  badge.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") { event.preventDefault(); flip(); }
+  });
 }
 
 /* ── overlays: whatever the viewer put in the tab bar's legend panel ────── */

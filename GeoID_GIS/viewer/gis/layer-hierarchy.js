@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260818-576dd58";
-import { samplerToRaster } from "./raster-analysis.js?v=20260818-576dd58";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260818-576dd58";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260818-576dd58";
+import { currentBody } from "./bodies.js?v=20260818-86359b0";
+import { samplerToRaster } from "./raster-analysis.js?v=20260818-86359b0";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260818-86359b0";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260818-86359b0";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -272,6 +272,12 @@ function setOpacity(layer, value) {
 function setVisible(layer, visible) {
   layer.visible = visible;
   if (layer.object3D) layer.object3D.visible = visible;
+  // The legend is built from this stack, so switching a layer off has to reach
+  // it: without this the key went on showing a layer that was no longer drawn,
+  // whichever control did the switching -- the row's own eye, or the geology
+  // tab's. `render()` rebuilds the rows and republishes the cards, and it is
+  // what every other change here already ends with.
+  render();
 }
 
 function move(id, delta) {
