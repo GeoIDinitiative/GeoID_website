@@ -10,10 +10,11 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260818-d95b0ab";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260818-d95b0ab";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260818-d7ebe33";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260818-d7ebe33";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260818-d7ebe33";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260818-d95b0ab";
+  from "./view-extent.js?v=20260818-d7ebe33";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -203,7 +204,12 @@ async function drape(imageUrl, bounds) {
   // off the ground, which read as a shell around the planet rather than an
   // overlay on it.
   const viewer = window.GeoIDViewer;
-  const LIFT = 0.005;
+  // ZERO clearance. 0.005 of a 3.2 radius is 10 km, and a lift IS a floor: the
+  // camera cannot descend through its own overlay, so imagery meant to be flown
+  // down to stopped the approach 10 km up. Nothing is lost by dropping it,
+  // because the material below refuses the depth test outright -- which is the
+  // real answer to the facet-versus-relief problem the clearance never solved.
+  const LIFT = 0;
   const vertex = new THREE.Vector3();
   for (let y = 0; y <= segments; y += 1) {
     const lat = bounds.maxY - (bounds.maxY - bounds.minY) * (y / segments);
@@ -243,7 +249,12 @@ async function drape(imageUrl, bounds) {
     normals.getX(probe), normals.getY(probe), normals.getZ(probe),
   ).dot(outward);
 
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+  // The exaggeration eases off as the camera lands, so a patch built at the
+  // slider's value would hang above a planet that has shrunk under it. Each
+  // vertex carries its direction and displacement instead, and one uniform
+  // places every draped layer at the relief the globe is drawn at.
+  attachReliefAttributes(geometry, LIFT, Number(viewer?.getEffectiveRelief?.() ?? 0));
+  const mesh = new THREE.Mesh(geometry, followRelief(new THREE.MeshBasicMaterial({
     map: texture,
     transparent: true,
     // Single-sided, so the half of the patch on the far side of the planet is
@@ -260,7 +271,7 @@ async function drape(imageUrl, bounds) {
     // finer does not help either: 96 to 384 segments only takes the gap from
     // 0.0267 to 0.0234, because the relief has detail below any grid.
     depthTest: false,
-  }));
+  }), LIFT));
   // A patch can span a hemisphere, where its bounding sphere reaches well past
   // the camera even when most of it is in view.
   mesh.frustumCulled = false;

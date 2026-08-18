@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-d95b0ab";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-d95b0ab";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-d95b0ab";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-d7ebe33";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-d7ebe33";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-d7ebe33";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -82,7 +82,7 @@ function baseRadius() {
  * the relief it was built with gives back the displacement exactly, and a
  * second sampling path could disagree with the first.
  */
-function attachReliefAttributes(geometry, drape, builtRelief) {
+export function attachReliefAttributes(geometry, drape, builtRelief) {
   const position = geometry.attributes.position;
   const base = baseRadius();
   const dir = new Float32Array(position.count * 3);
@@ -102,7 +102,7 @@ function attachReliefAttributes(geometry, drape, builtRelief) {
 }
 
 /** Place the vertex at the CURRENT relief instead of the one it was built at. */
-function followRelief(material, drape) {
+export function followRelief(material, drape) {
   const base = baseRadius();
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRelief = RELIEF_UNIFORM;

@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260818-d95b0ab";
+  from "./gis/geo-utils.js?v=20260818-d7ebe33";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -12045,6 +12045,36 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         return 3.2 + Math.max(0, displacement);
       }
 
+    /**
+       * The surface barrier eases when it can, and snaps when it must.
+       *
+       * The floor is the ground *under the camera* plus ten metres, and the
+       * ground under the camera changes as you move: fly across a ridge at
+       * surface level and the floor steps up by whatever that ridge is. Setting
+       * the radius outright then teleports the camera by the same amount, every
+       * frame it happens, which at low altitude is the whole view jumping.
+       *
+       * So a small violation is closed over a few frames -- fast enough that
+       * nothing is ever seen through the ground, slow enough to read as the
+       * camera riding over the terrain. A large one is still set outright: that
+       * is a jump to a new place rather than a landscape rising, and easing over
+       * kilometres would fly the camera through the planet on the way.
+       */
+      const BARRIER_SNAP = 0.0005;          // about 1 km: beyond this, set outright
+      function liftToBarrier(position, safeMin, frameMs) {
+        const radius = position.length();
+        if (!(safeMin > 0) || radius >= safeMin) return false;
+        const violation = safeMin - radius;
+        if (violation > BARRIER_SNAP) {
+          position.setLength(safeMin);
+          return true;
+        }
+        const dt = Math.min(0.25, Math.max(0.001, (frameMs || 16.7) / 1000));
+        const k = 1 - Math.pow(1 - 0.5, dt * 60);
+        position.setLength(radius + violation * k);
+        return true;
+      }
+
       function computeSafeMinDistance() {
         const maxTerrainDisp = Math.max(0, getTerrainRelief());
         const ctxMode = baseLayerSelect.value === "ctx-mosaic"
@@ -19820,7 +19850,7 @@ ${error && error.message ? error.message : error}`;
             groundRadius: _groundRadius } = computeSafeMinDistance();
           _safeMin = _computedMin;
           // Pre-clamp: push camera out before OrbitControls processes this frame's zoom input
-          if (camera.position.length() < _safeMin) camera.position.setLength(_safeMin);
+          liftToBarrier(camera.position, _safeMin, _rs.lastFrameMs);
           controls.minDistance = _safeMin;
           // Relief is altitude-dependent now, so the displacement uniforms have
           // to follow it rather than only the slider. applyTerrainRelief just
@@ -19942,8 +19972,7 @@ ${error && error.message ? error.message : error}`;
         }
         controls.update();
         // Backstop: clamp again after OrbitControls in case damping still overshot
-        if (_safeMin > 0 && camera.position.length() < _safeMin) {
-          camera.position.setLength(_safeMin);
+        if (liftToBarrier(camera.position, _safeMin, _rs.lastFrameMs)) {
           controls.object.position.copy(camera.position);
         }
         if (!activeMoonViewerFeature) {

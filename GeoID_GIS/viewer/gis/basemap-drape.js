@@ -37,11 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260818-d95b0ab";
-import { isEarth } from "./bodies.js?v=20260818-d95b0ab";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260818-d95b0ab";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260818-d7ebe33";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260818-d7ebe33";
+import { isEarth } from "./bodies.js?v=20260818-d7ebe33";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260818-d7ebe33";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260818-d95b0ab";
+  from "./view-extent.js?v=20260818-d7ebe33";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -427,13 +428,21 @@ export function buildMesh(canvas, bbox, { frame = "geo" } = {}) {
     normals.getX(probe), normals.getY(probe), normals.getZ(probe),
   ).dot(outward);
 
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+  // The globe's terrain exaggeration eases off as the camera lands, and a mesh
+  // built at one exaggeration hangs above a planet that has shrunk under it --
+  // 219 km of it at the slider's default, which is the drift this file's own
+  // note predicted ("a static mesh built at one relief does not shrink with the
+  // terrain"). Same treatment as the vector layers: every vertex carries its
+  // direction and its displacement, and one uniform places the patch at
+  // whatever relief the globe is being drawn at, in the same frame.
+  attachReliefAttributes(geometry, LIFT, Number(viewer?.getEffectiveRelief?.() ?? 0));
+  const mesh = new THREE.Mesh(geometry, followRelief(new THREE.MeshBasicMaterial({
     map: texture,
     transparent: true,
     side: facing >= 0 ? THREE.FrontSide : THREE.BackSide,
     depthWrite: false,
     depthTest: false,
-  }));
+  }), LIFT));
   mesh.frustumCulled = false;
   mesh.name = "GeoID-BasemapDrape";
   return mesh;
