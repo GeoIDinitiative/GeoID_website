@@ -275,6 +275,15 @@ export const QUALITATIVE = [
   "#edc948", "#9c755f", "#bab0ac", "#86bcb6", "#d37295", "#8cd17d",
 ];
 
+/**
+ * The qualitative palette's name, so it can be OFFERED rather than assumed.
+ *
+ * A picker whose options are the sequential ramps, over a function that quietly
+ * ignores them for categories, is a control that does nothing. This is a
+ * selectable ramp like any other and the default one for categories.
+ */
+export const QUALITATIVE_RAMP = "qualitative";
+
 /* ── categories, for vector layers ──────────────────────────────────────── */
 
 /**
@@ -327,7 +336,7 @@ export function suggestCategoryField(features, fields = null) {
  * fifty indistinguishable greys.
  */
 export function categoricalSymbology(features, field, {
-  ramp = "spectral", maxCategories = 12, qualitative = true,
+  ramp = QUALITATIVE_RAMP, maxCategories = 12, qualitative = null,
 } = {}) {
   const counts = new Map();
   (features || []).forEach((f) => {
@@ -340,9 +349,24 @@ export function categoricalSymbology(features, field, {
   const ordered = [...counts.entries()].sort((a, b) => b[1] - a[1]);
   const shown = ordered.slice(0, maxCategories);
   const rest = ordered.slice(maxCategories);
-  // Qualitative unless a ramp is asked for by name, and only while the palette
-  // has a colour left -- past that the ramp is the honest fallback.
-  const useQualitative = qualitative && shown.length <= QUALITATIVE.length;
+  /**
+   * Qualitative unless a ramp is asked for by name — and that is now decided by
+   * the NAME, not by a separate flag.
+   *
+   * It used to be a `qualitative` option defaulting to true, so every caller
+   * that passed `{ ramp: "viridis" }` and nothing else got the qualitative
+   * palette and no error: choosing a ramp in the geology dialog, or in the
+   * symbology panel, changed the swatches in the preview by exactly nothing.
+   * The comment beside it already said "unless a ramp is asked for by name",
+   * which is what this now does.
+   *
+   * `QUALITATIVE_RAMP` is a name in the same list as the others, so a picker
+   * offers it and a saved choice round-trips. The explicit flag still wins when
+   * a caller passes it, since the raster path has its own opinion.
+   */
+  const askedForQualitative = ramp === QUALITATIVE_RAMP || !RAMPS[ramp];
+  const useQualitative = (qualitative === null ? askedForQualitative : qualitative)
+    && shown.length <= QUALITATIVE.length;
   const rows = shown.map(([value, count], i) => ({
     value,
     count,

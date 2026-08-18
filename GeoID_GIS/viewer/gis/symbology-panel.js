@@ -14,8 +14,8 @@
 import {
   RAMPS,
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
-  categoricalSymbology, suggestCategoryField,
-} from "./symbology.js?v=20260818-f5feae1";
+  categoricalSymbology, suggestCategoryField, QUALITATIVE, QUALITATIVE_RAMP,
+} from "./symbology.js?v=20260818-de79273";
 
 const HOST_ID = "gis-symbology-host";
 /**
@@ -293,8 +293,21 @@ function buildRampGallery() {
   gallery.id = "gis-sym-ramp-gallery";
   gallery.setAttribute("role", "radiogroup");
   gallery.setAttribute("aria-label", "Colour ramp");
-  RAMP_NAMES.forEach((name) => {
-    const stops = RAMPS[name].map((rgb) => `rgb(${rgb.join(",")})`);
+  // The qualitative set is a ramp you can choose, and it leads the list because
+  // it is the right one for named categories. It was previously applied to every
+  // categorical layer whatever the picker said, which made the picker furniture.
+  if (!select.querySelector(`option[value="${QUALITATIVE_RAMP}"]`)) {
+    const option = document.createElement("option");
+    option.value = QUALITATIVE_RAMP;
+    option.textContent = "qualitative (distinct hues)";
+    select.insertBefore(option, select.firstChild);
+  }
+  [QUALITATIVE_RAMP, ...RAMP_NAMES].forEach((name) => {
+    const step = 100 / QUALITATIVE.length;
+    const stops = name === QUALITATIVE_RAMP
+      // Hard stops: twelve separate colours, not a gradient between them.
+      ? QUALITATIVE.map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`)
+      : RAMPS[name].map((rgb) => `rgb(${rgb.join(",")})`);
     const button = document.createElement("button");
     button.type = "button";
     button.className = "gis-sym-ramp-option";
@@ -358,7 +371,7 @@ function recompute(apply) {
     const field = byId("gis-sym-field")?.value;
     if (!field) { if (status) status.textContent = "That layer has no attributes."; return; }
     const sym = categoricalSymbology(layer.features, field, {
-      ramp: byId("gis-sym-ramp")?.value || "spectral",
+      ramp: byId("gis-sym-ramp")?.value || QUALITATIVE_RAMP,
     });
     if (!sym.ok) { if (status) status.textContent = sym.message; return; }
     state.last = sym;

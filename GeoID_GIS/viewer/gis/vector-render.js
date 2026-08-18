@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-f5feae1";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-f5feae1";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-f5feae1";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-de79273";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-de79273";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-de79273";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -230,7 +230,10 @@ function defaultSymbology(fc) {
   if (!hasPolygons) return null;
   const field = suggestCategoryField(features);
   if (field) {
-    const sym = categoricalSymbology(features, field, { ramp: "spectral" });
+    // No ramp named: the default is the qualitative set, which is what a list
+    // of named units wants. Asking for "spectral" here used to be ignored and
+    // now would not be -- thirteen units along one ramp is four shades of red.
+    const sym = categoricalSymbology(features, field);
     if (sym.ok) return sym;
   }
   // No attribute worth classifying: one colour, still filled, so the extent of

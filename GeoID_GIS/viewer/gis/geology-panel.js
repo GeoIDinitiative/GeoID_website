@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-f5feae1";
-import { RAMPS, RAMP_NAMES } from "./symbology.js?v=20260818-f5feae1";
-import { currentBodyId } from "./bodies.js?v=20260818-f5feae1";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-f5feae1";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-de79273";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260818-de79273";
+import { currentBodyId } from "./bodies.js?v=20260818-de79273";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-de79273";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -308,7 +308,7 @@ async function loadDataset(entry) {
  * path the symbology panel's Apply uses — so the legend the layer card draws is
  * produced by the act of colouring rather than kept in step with it.
  */
-async function applyField(layer, field, { ramp = "spectral", overrides = null, labels = null } = {}) {
+async function applyField(layer, field, { ramp = QUALITATIVE_RAMP, overrides = null, labels = null } = {}) {
   if (!layer?.features?.length || !field) return null;
   const { categoricalSymbology } = await import(`./symbology.js${new URL(import.meta.url).search}`);
   const sym = categoricalSymbology(layer.features, field, { ramp });
@@ -587,7 +587,7 @@ function openSymbology(layer) {
   const ranked = rankColourFields(head6);
   const state = {
     field: layer.geologyField || ranked[0] || head6.columns[0]?.key,
-    ramp: layer.geologyRamp || "spectral",
+    ramp: layer.geologyRamp || QUALITATIVE_RAMP,
     overrides: new Map(),
     // Keyed by the unit's own value, so a renamed entry survives a reordering
     // of the class list -- which is ordered by count and does reorder.
@@ -621,16 +621,27 @@ function openSymbology(layer) {
   rampLabel.textContent = "Ramp";
   const rampSelect = document.createElement("select");
   rampSelect.className = "input";
-  RAMP_NAMES.forEach((n) => {
+  // The qualitative set leads the list because it is what named units should be
+  // coloured with; the sequential ramps below it are for a column that is
+  // ordered, and now actually take effect when chosen.
+  [QUALITATIVE_RAMP, ...RAMP_NAMES].forEach((n) => {
     const o = document.createElement("option");
     o.value = n;
-    o.textContent = n;
+    o.textContent = n === QUALITATIVE_RAMP ? "qualitative (distinct hues)" : n;
     if (n === state.ramp) o.selected = true;
     rampSelect.appendChild(o);
   });
   const rampBar = document.createElement("span");
   rampBar.style.cssText = "flex:0 0 6rem;height:0.7rem;border-radius:0.15rem;";
   const paintBar = () => {
+    // Hard stops for the qualitative set: it is twelve separate colours, and a
+    // gradient between them would claim an order the categories do not have.
+    if (rampSelect.value === QUALITATIVE_RAMP) {
+      const step = 100 / QUALITATIVE.length;
+      rampBar.style.background = `linear-gradient(to right, ${QUALITATIVE
+        .map((c, i) => `${c} ${i * step}% ${(i + 1) * step}%`).join(", ")})`;
+      return;
+    }
     const stops = RAMPS[rampSelect.value].map((c) => `rgb(${c.join(",")})`);
     rampBar.style.background = `linear-gradient(to right, ${stops.join(", ")})`;
   };
