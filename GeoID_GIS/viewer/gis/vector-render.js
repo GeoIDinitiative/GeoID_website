@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-aeb8657";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-aeb8657";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-aeb8657";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-bb027bd";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-bb027bd";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-bb027bd";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -47,6 +47,78 @@ function surfaceAt(lat, lon, drape) {
  * disappears into the relief between its vertices.
  */
 const FILL_DRAPE = 0;
+
+/* ── Following the relief ──────────────────────────────────────────────────
+ *
+ * A layer is built once, from the terrain exaggeration in force at the time.
+ * The globe's is not fixed: it eases off as the camera comes in to land, so
+ * the ground drops away while a static mesh stays where it was built — and the
+ * geology hangs in the air above a planet that has shrunk under it. At the
+ * slider's default the exaggeration is worth **219 km** of radius, so this is
+ * not a subtle drift; it is the layer floating, and worse the closer you get.
+ *
+ * Rebuilding the geometry per frame is not an option — triangulating the BGS
+ * sheets is seconds of work — so each vertex carries what it needs to be placed
+ * again on the GPU: the direction it lies in, and its displacement as the
+ * fraction of the exaggeration it was built with. One uniform then moves every
+ * imported layer with the globe, for free, every frame.
+ */
+const RELIEF_UNIFORM = { value: 0 };
+
+/** The relief every imported layer is drawn at. Set from the viewer's own. */
+export function setRenderRelief(relief) {
+  RELIEF_UNIFORM.value = Number.isFinite(relief) ? relief : 0;
+}
+
+function baseRadius() {
+  return window.GeoIDViewer?.GLOBE_RADIUS ?? 3.2;
+}
+
+/**
+ * Give a built geometry the two attributes the shader below needs.
+ *
+ * `aDisp` is recovered from the radius rather than sampled a second time: the
+ * vertex is already at `base + displacement * relief + drape`, so dividing out
+ * the relief it was built with gives back the displacement exactly, and a
+ * second sampling path could disagree with the first.
+ */
+function attachReliefAttributes(geometry, drape, builtRelief) {
+  const position = geometry.attributes.position;
+  const base = baseRadius();
+  const dir = new Float32Array(position.count * 3);
+  const disp = new Float32Array(position.count);
+  for (let i = 0; i < position.count; i += 1) {
+    const x = position.getX(i);
+    const y = position.getY(i);
+    const z = position.getZ(i);
+    const r = Math.hypot(x, y, z) || 1;
+    dir[i * 3] = x / r;
+    dir[i * 3 + 1] = y / r;
+    dir[i * 3 + 2] = z / r;
+    disp[i] = builtRelief > 1e-9 ? (r - base - drape) / builtRelief : 0;
+  }
+  geometry.setAttribute("aDir", new THREE.BufferAttribute(dir, 3));
+  geometry.setAttribute("aDisp", new THREE.BufferAttribute(disp, 1));
+}
+
+/** Place the vertex at the CURRENT relief instead of the one it was built at. */
+function followRelief(material, drape) {
+  const base = baseRadius();
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uRelief = RELIEF_UNIFORM;
+    shader.vertexShader = `attribute vec3 aDir;
+attribute float aDisp;
+uniform float uRelief;
+${shader.vertexShader}`.replace(
+      "#include <begin_vertex>",
+      `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + ${drape.toFixed(6)});`,
+    );
+  };
+  // Two materials differing only in their drape must not share a compiled
+  // program, or the second one silently draws at the first one's altitude.
+  material.customProgramCacheKey = () => `geoid-relief-${drape}`;
+  return material;
+}
 
 // A straight line between two points on a sphere is a chord, and a chord sags
 // below the surface. Across 12 degrees of arc -- ordinary for a coarse boundary
@@ -182,19 +254,27 @@ export function renderFeatureCollection(fc, {
   const group = new THREE.Group();
   group.name = name;
 
+  // The exaggeration these vertices were built with, so the shader can undo it
+  // and re-apply whatever the globe is drawn at now.
+  const builtRelief = Number(window.GeoIDViewer?.getEffectiveRelief?.() ?? 0);
   if (fill.positions.length) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(fill.positions, 3));
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(fill.colours, 3));
+    attachReliefAttributes(geometry, FILL_DRAPE, builtRelief);
     geometry.computeBoundingSphere();
-    const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+    const mesh = new THREE.Mesh(geometry, followRelief(new THREE.MeshBasicMaterial({
       vertexColors: true, transparent: true, opacity: fillOpacity,
       // Same rule the drapes follow: a flat facet cannot win on depth against
       // displaced terrain, so it does not compete — it is drawn over, and
       // single-sided so the far hemisphere is still culled.
       depthTest: false, depthWrite: false, side: THREE.FrontSide,
-    }));
+    }), FILL_DRAPE));
     mesh.renderOrder = 1;
+    // The vertices move on the GPU, so the bounding sphere computed above is
+    // the one they had at build time and culling from it would drop the layer
+    // exactly when the relief has moved it most.
+    mesh.frustumCulled = false;
     group.add(mesh);
   }
   if (linePositions.length) {
@@ -207,8 +287,12 @@ export function renderFeatureCollection(fc, {
     } else {
       material.color = lineColor;
     }
-    const segments = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial(material));
+    attachReliefAttributes(geometry, drape, builtRelief);
+    const segments = new THREE.LineSegments(
+      geometry, followRelief(new THREE.LineBasicMaterial(material), drape),
+    );
     segments.renderOrder = 2;
+    segments.frustumCulled = false;
     group.add(segments);
   }
   if (pointPositions.length) {

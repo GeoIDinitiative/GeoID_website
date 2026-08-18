@@ -37,11 +37,11 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260818-aeb8657";
-import { isEarth } from "./bodies.js?v=20260818-aeb8657";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260818-aeb8657";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260818-bb027bd";
+import { isEarth } from "./bodies.js?v=20260818-bb027bd";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260818-bb027bd";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260818-aeb8657";
+  from "./view-extent.js?v=20260818-bb027bd";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -379,12 +379,14 @@ export function buildMesh(canvas, bbox, { frame = "geo" } = {}) {
   const geometry = new THREE.PlaneGeometry(1, 1, segments, segments);
   const position = geometry.attributes.position;
   const viewer = window.GeoIDViewer;
-  // About 1.2 km, not the 10 km the Earth Engine drapes use. Their lift exists
-  // to clear the terrain at a glance from orbit; this imagery is meant to be
-  // flown down to, and a 10 km lift is a 10 km floor -- the camera cannot get
-  // under its own basemap. Safe to shrink because the material does not depth
-  // test, so it cannot lose to the relief between vertices however close it is.
-  const LIFT = 0.0006;
+  // ZERO, where the Earth Engine drapes use 10 km and this used 1.2 km. Their
+  // lift exists to clear the terrain at a glance from orbit; this imagery is
+  // meant to be flown down to, and a lift IS a floor -- the camera cannot get
+  // under its own basemap, so 1.2 km of clearance is 1.2 km you cannot descend
+  // through. Safe at zero because the material does not depth test, so it
+  // cannot lose to the relief between vertices however close it is; the lift
+  // was buying nothing and costing the last kilometre of the approach.
+  const LIFT = 0;
 
   // Rows evenly spaced in Mercator, latitudes from the inverse projection. This
   // is the whole reprojection: the plane's own UVs are linear, the canvas is

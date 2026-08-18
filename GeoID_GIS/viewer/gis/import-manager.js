@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260818-aeb8657";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260818-aeb8657";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260818-aeb8657";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260818-aeb8657";
-import { buildVectorLayerResult } from "./vector-render.js?v=20260818-aeb8657";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260818-aeb8657";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260818-aeb8657";
-import { loadMshFile } from "./msh-adapter.js?v=20260818-aeb8657";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260818-aeb8657";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260818-bb027bd";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260818-bb027bd";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260818-bb027bd";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260818-bb027bd";
+import { buildVectorLayerResult, setRenderRelief } from "./vector-render.js?v=20260818-bb027bd";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260818-bb027bd";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260818-bb027bd";
+import { loadMshFile } from "./msh-adapter.js?v=20260818-bb027bd";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260818-bb027bd";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -123,6 +123,12 @@ function syncSpin(scene) {
     if (geoGroup && Number.isFinite(globeY)) {
       geoGroup.rotation.y = globeY - Math.PI;
     }
+    // The globe's terrain exaggeration eases off as the camera lands, so a
+    // layer built at the slider's value would hang above a planet that has
+    // shrunk under it -- 219 km of it at the default. The vertices carry their
+    // displacement and this is the exaggeration they are drawn at, so every
+    // imported layer follows the ground down in the same frame the ground moves.
+    setRenderRelief(viewer?.getEffectiveRelief?.() ?? 0);
   };
   if (scene && typeof scene.onBeforeRender === "function") {
     const previous = scene.onBeforeRender.bind(scene);

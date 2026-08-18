@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260818-aeb8657";
+  from "./gis/geo-utils.js?v=20260818-bb027bd";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -12050,10 +12050,14 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         const ctxMode = baseLayerSelect.value === "ctx-mosaic"
           || baseLayerSelect.value === "ctx-mosaic-color";
         const drapeMode = !ctxMode && Boolean(window.GeoIDBasemapDrape?.hasDrape?.());
-        // 0.0009 units is about 1.8 km, which clears the drape's own lift with
-        // room to spare. Without close-range imagery the old global-maximum
-        // floor stands: an 8 km/px texture has nothing to show down there.
-        const surfaceMargin = ctxMode ? 0.0005 : (drapeMode ? 0.0009 : 0.092);
+        // 0.000005 units is about **10 metres**: eye height, not 1.8 km. The
+        // old margin existed to clear the drape's own lift, and the drapes have
+        // stopped lifting -- a tile drape and a vector fill both refuse the
+        // depth test, so neither needs to be held above the relief and neither
+        // is anything the camera can get underneath. Without close-range
+        // imagery the old global-maximum floor stands: an 8 km/px texture has
+        // nothing to show down there.
+        const surfaceMargin = ctxMode ? 0.0005 : (drapeMode ? 0.000005 : 0.092);
         const baseMin = ctxMode ? 3.20002 : (drapeMode ? 3.2 : DEFAULT_CONTROL_MIN_DISTANCE);
         const ground = drapeMode ? groundRadiusUnderCamera() : null;
         const floor = (ground ?? (3.2 + maxTerrainDisp)) + surfaceMargin;
@@ -12416,6 +12420,23 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         if (!requested || !window.GeoIDBasemapDrape?.hasDrape?.()) return requested;
         const altitude = Math.max(0, camera.position.length() - 3.2);
         const t = Math.min(1, altitude / RELIEF_TAPER_START);
+        /**
+         * Eased to nothing, deliberately, and here is the case against
+         * changing it.
+         *
+         * Easing to TRUE SCALE instead -- 0.00997, the displacement that draws
+         * the elevation texture's ~19.85 km range at 1:1 -- gives real hills at
+         * the bottom of the approach rather than a smooth sphere, and it was
+         * tried. It also moves the ground **10.9 km off the base sphere** over
+         * Northern Ireland, because the texture is normalised across a range
+         * whose zero is the deepest trench, and every altitude this viewer
+         * reports is measured from that base sphere: the readout, the zoom
+         * pill's bands, the floor, the target the hold compounds on. Landing
+         * would have read 11 km up and the pill would never have said Site.
+         *
+         * Worth doing with those four moved onto the ground under the camera,
+         * which is a change to the zoom context rather than to this line.
+         */
         return requested * (t * t * (3 - 2 * t));      // smoothstep
       };
       const getTerrainRelief = () => getEffectiveTerrainRelief();
@@ -19767,8 +19788,14 @@ ${error && error.message ? error.message : error}`;
           // the near plane can follow it down. Against the global maximum the
           // floor is 0.005 (about 10 km) and everything nearer than that is
           // clipped -- which is the other half of why close zoom looked broken.
+          // 0.0000002 units is about 40 cm. The floor used to be 0.00015 --
+          // 300 m -- which is a fine near plane at a kilometre up and a wall at
+          // ten metres: everything nearer than 300 m is clipped, so landing on
+          // the surface meant landing inside the near frustum. The renderer
+          // runs a logarithmic depth buffer, which is what makes a near plane
+          // this small safe against a far plane at planetary scale.
           _distToMaxSurface = Math.max(
-            _groundRadius == null ? 0.005 : 0.00015,
+            _groundRadius == null ? 0.005 : 0.0000002,
             camera.position.length() - ((_groundRadius ?? (3.2 + _maxTerrainDisp)) + _surfaceMargin),
           );
           // Deliberately NOT _distToMaxSurface. That one carries a floor so the
