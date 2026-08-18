@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-bb027bd";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-bb027bd";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-bb027bd";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-5954f94";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-5954f94";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-5954f94";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -190,7 +190,23 @@ export function renderFeatureCollection(fc, {
   // is drawn in its own colour and polygons are filled — which is the whole
   // difference between "there are polygons here" and a geological map.
   colourFor = null,
-  fillOpacity = 0.55,
+  /**
+   * OPAQUE by default, where this used to be 0.55.
+   *
+   * Two geology sheets at 55% do not read as one over the other: they read as a
+   * blend that matches neither legend, so the map shows a colour that is in
+   * nobody's key and the polygon you think you are clicking is a mixture of two.
+   * Measured by reading the rendered pixel back and matching it against each
+   * layer's own palette: 10 of 19 points over Northern Ireland attributed to the
+   * sheet that was NOT the one the card named, purely because the colour under
+   * the cursor was half of each.
+   *
+   * Opaque, the top sheet hides the one below, its colours are the legend's
+   * exactly, and the card names what is drawn. Seeing through it is what the
+   * per-layer opacity slider is for -- and that slider already read 1 while the
+   * fill was 0.55, so this also makes it tell the truth.
+   */
+  fillOpacity = 1,
 } = {}) {
   const linePositions = [];
   const lineColours = [];
