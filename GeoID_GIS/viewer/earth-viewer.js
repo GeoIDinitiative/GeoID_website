@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260818-f75e7e3";
+  from "./gis/geo-utils.js?v=20260818-d95b0ab";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -12142,7 +12142,16 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         if (!zoomContext) return;
         const ctxMode = baseLayerSelect.value === "ctx-mosaic" || baseLayerSelect.value === "ctx-mosaic-color";
         const moonViewerMode = Boolean(activeMoonViewerFeature);
-        const delta = Number(event.deltaY || 0);
+        /**
+         * A wheel notch and a trackpad swipe are not the same event.
+         *
+         * `deltaMode` says what the number means -- 0 pixels, 1 lines, 2 pages --
+         * and reading `deltaY` raw treats 3 lines as 3 pixels. A mouse sends one
+         * event of 120 pixels per notch; a trackpad sends a burst of small pixel
+         * deltas, dozens a second, and the total is the gesture.
+         */
+        const deltaUnit = event.deltaMode === 1 ? 16 : (event.deltaMode === 2 ? 100 : 1);
+        const delta = Number(event.deltaY || 0) * deltaUnit;
         if (!Number.isFinite(delta) || Math.abs(delta) < 0.01) return;
         event.preventDefault();
 
@@ -12154,7 +12163,21 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         // run stalls short of where the gesture asked for.
         const surfaceDistance = Math.max(0.00001,
           zoomTargetSurfaceDistance ?? (centerDistance - zoomContext.radiusWorld));
-        const normalizedDelta = clamp(Math.abs(delta) / 120, moonViewerMode ? 0.65 : 0.4, 6);
+        /**
+         * The step is proportional to the gesture, with no minimum.
+         *
+         * This used to floor at 0.4 of a notch, which is right for a mouse --
+         * one event, 120 px, nothing smaller exists -- and wrong for everything
+         * else. A trackpad emits a stream of a few pixels each: every one of
+         * them was inflated to 0.4 of a notch, so a gentle two-finger drag of
+         * thirty events asked for **twelve notches** of zoom in a third of a
+         * second, in thirty discrete lurches. That is the jumping, and it is
+         * also why the same gesture overshoots and has to be fought back.
+         *
+         * Only the ceiling is kept, as a guard against a single absurd delta.
+         */
+        const normalizedDelta = Math.min(Math.abs(delta) / 120, 6)
+          * (moonViewerMode ? 1.6 : 1);
         const distanceT = clamp(surfaceDistance / (moonViewerMode ? 0.55 : 1.5), 0, 1);
         const stepStrength = THREE.MathUtils.lerp(
           moonViewerMode ? 0.085 : 0.035,
@@ -12162,9 +12185,21 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
           distanceT,
         ) * normalizedDelta;
         const zoomFactor = Math.exp(Math.sign(delta) * stepStrength);
-        let nextSurfaceDistance = clamp(
-          surfaceDistance * zoomFactor,
-          zoomContext.minSurfaceDistance,
+        /**
+         * The request carries no floor in it. The CEILING is real -- nothing
+         * lifts it -- but the floor of this instant is not: descending lowers
+         * it, because the relief taper shrinks the terrain as the camera comes
+         * in. Clamping here turned "closer" into "as close as the floor happens
+         * to be right now", which the render loop then reads as *arrived* and
+         * forgets, so every scroll stalled a little short and the next one had
+         * to start again. The zoom bar was given this rule and the wheel was
+         * not, which is exactly why holding the bar glided and scrolling fought.
+         *
+         * The render loop still clamps the camera against the floor each frame;
+         * this only says where the gesture is asking to go.
+         */
+        let nextSurfaceDistance = Math.min(
+          Math.max(surfaceDistance * zoomFactor, 0),
           zoomContext.maxSurfaceDistance,
         );
         if (ctxMode && delta < 0) {
@@ -12184,6 +12219,20 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         if (ctxMode && Number.isFinite(nextScaleBarMeters) && nextScaleBarMeters < CTX_MOSAIC_MIN_SCALEBAR_METERS) {
           return;
         }
+        /**
+         * Bounded to a lead ahead of the camera, the same 2.2x the zoom bar
+         * uses. Without a floor in the request, a long trackpad gesture would
+         * otherwise compound a target far below anything reachable and the
+         * camera would go on flying in for seconds after the fingers stopped.
+         * The camera's OWN distance is the anchor, so the lead travels with it.
+         */
+        const cameraSurfaceDistance = Math.max(1e-6, centerDistance - zoomContext.radiusWorld);
+        const ZOOM_LEAD = 2.2;
+        nextSurfaceDistance = clamp(
+          nextSurfaceDistance,
+          cameraSurfaceDistance / ZOOM_LEAD,
+          cameraSurfaceDistance * ZOOM_LEAD,
+        );
         // The render loop closes the distance; this only says where to.
         zoomTargetSurfaceDistance = nextSurfaceDistance;
         if (ctxMode && (!Number.isFinite(nextScaleBarMeters) || nextScaleBarMeters >= CTX_MOSAIC_MIN_SCALEBAR_METERS)) {
