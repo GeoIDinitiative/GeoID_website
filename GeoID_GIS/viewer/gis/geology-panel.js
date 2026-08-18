@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-5954f94";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260818-5954f94";
-import { currentBodyId } from "./bodies.js?v=20260818-5954f94";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-5954f94";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-9a89934";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260818-9a89934";
+import { currentBodyId } from "./bodies.js?v=20260818-9a89934";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-9a89934";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -883,6 +883,42 @@ export function isActive() {
  * re-ticking does not re-fetch and re-parse 2.8 MB, and any symbology, renamed
  * units and hand-picked colours survive being switched off.
  */
+/**
+ * Did WE stop the globe, or was it already stopped?
+ *
+ * Only what this tab paused may this tab restart. Someone who froze the planet
+ * with the corner button or the space bar, then looked at the geology, would
+ * otherwise have it start turning again when they put the geology away.
+ */
+let pausedSpinForGeology = false;
+
+/**
+ * Reading a map is not something you do on a moving planet.
+ *
+ * The globe turns at 3 degrees a second -- 193 km of ground a second at
+ * Northern Ireland's latitude -- so a unit you are looking at crosses the
+ * screen while you read its card, and a polygon you meant to click has moved by
+ * the time you click it. Switching the geology on is a statement that the map
+ * is the thing being used, so the spin stops; switching it off gives it back.
+ *
+ * Through the viewer's own `setSpinPaused`, which is the one thing that stops
+ * the rotation and which keeps the corner button in step -- rather than
+ * freezing the globe here and leaving that button claiming it still turns.
+ */
+function holdGlobeStill(on) {
+  const viewer = window.GeoIDViewer;
+  if (!viewer?.setSpinPaused) return;
+  if (on) {
+    if (viewer.isSpinPaused?.()) return;      // already still, and not ours to resume
+    viewer.setSpinPaused(true);
+    pausedSpinForGeology = true;
+    return;
+  }
+  if (!pausedSpinForGeology) return;
+  pausedSpinForGeology = false;
+  viewer.setSpinPaused(false);
+}
+
 async function setActive(on) {
   if (on && !loadedLayers().length) {
     say("Loading mapped geology…");
@@ -893,6 +929,7 @@ async function setActive(on) {
     if (layer.object3D) layer.object3D.visible = on;
     window.GeoIDLayerHierarchy?.setVisible?.(layer, on);
   });
+  holdGlobeStill(on);
   render();
   publishInteractive();
   if (!on) say("Mapped geology hidden — tick the box to bring it back.");
