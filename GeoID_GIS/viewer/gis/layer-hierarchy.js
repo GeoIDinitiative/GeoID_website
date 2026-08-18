@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260818-86359b0";
-import { samplerToRaster } from "./raster-analysis.js?v=20260818-86359b0";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260818-86359b0";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260818-86359b0";
+import { currentBody } from "./bodies.js?v=20260818-f7ce008";
+import { samplerToRaster } from "./raster-analysis.js?v=20260818-f7ce008";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260818-f7ce008";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260818-f7ce008";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -681,8 +681,14 @@ function basemapRow() {
 
 /**
  * Legend over the scene. Offered only when there is something to describe --
- * an empty legend is just furniture -- and it keeps hidden layers listed but
- * dimmed, so turning one off does not make it vanish from the key as well.
+ * an empty legend is just furniture.
+ *
+ * A layer that is switched off is REMOVED, not dimmed. Dimming was the earlier
+ * answer, on the reasoning that a key should not lose an entry the moment you
+ * glance away from it -- but a legend describes what is on the screen, and a
+ * greyed card describes something that is not: the reader is left working out
+ * which of two Northern Irish sheets they are actually looking at. Switching a
+ * layer back on brings its card back, so nothing is lost by leaving.
  */
 function renderLegend(stack) {
   // The drop-down is shared now -- imported layers are one source in it beside
@@ -691,19 +697,19 @@ function renderLegend(stack) {
   // the dock's to decide once it knows about every source.
   const dock = window.GeoIDLegendDock;
   if (!dock) return;
-  dock.publish("layers", stack.map((layer) => buildLayerCard(layer)));
+  dock.publish("layers", stack.filter((layer) => layer.visible !== false)
+    .map((layer) => buildLayerCard(layer)));
 }
 
 /**
  * One imported layer as a legend card, in the same shape the viewer's overlay
  * legend emits, so the two read as one list rather than two conventions
- * stacked. Hidden layers stay listed but dimmed: switching a layer off should
- * not also delete it from the key.
+ * stacked. Only drawn layers reach here -- see renderLegend.
  */
 function buildLayerCard(layer) {
   const name = layer.name || "layer";
   const card = document.createElement("section");
-  card.className = `legend-entry${layer.visible === false ? " is-hidden" : ""}`;
+  card.className = "legend-entry";
   card.dataset.legendKey = name;
 
   const badge = document.createElement("p");
@@ -734,12 +740,6 @@ function buildLayerCard(layer) {
   label.className = "legend-symbol-label";
   label.textContent = layer.type || "layer";
   copyWrap.appendChild(label);
-  if (layer.visible === false) {
-    const detail = document.createElement("div");
-    detail.className = "legend-symbol-detail";
-    detail.textContent = "hidden";
-    copyWrap.appendChild(detail);
-  }
   row.appendChild(copyWrap);
   list.appendChild(row);
   if (!graded) card.appendChild(list);
