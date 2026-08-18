@@ -1,4 +1,4 @@
-import { ready } from "./shell.js?v=20260818-d7ebe33";
+import { ready } from "./shell.js?v=20260818-576dd58";
 
 /**
  * The GIS layer's entry point on a planet page.
@@ -63,7 +63,7 @@ const MODULES = [
   "./atlas-assistant.js",
 ];
 
-const VERSION = "?v=20260818-d7ebe33";
+const VERSION = "?v=20260818-576dd58";
 
 async function boot() {
   const shell = await ready;

@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260818-d7ebe33";
+  from "./gis/geo-utils.js?v=20260818-576dd58";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -12117,10 +12117,27 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         // The floor comes from computeSafeMinDistance, not from a second copy of
         // the formula -- this is the one that actually stops the wheel.
         const { safeMin } = computeSafeMinDistance();
+        /**
+         * `safeMin` exactly, with no second floor of its own.
+         *
+         * This used to raise it to at least 0.00002 -- **40 metres** -- while
+         * the surface barrier a few hundred lines down enforced `safeMin`
+         * itself, which at the bottom is ten. Two floors thirty metres apart,
+         * and the camera in between: the easing pulled toward 40 while the
+         * barrier permitted 10, so a zoom that arrived at the bottom sat
+         * bouncing inside that band instead of stopping. Traced per frame at
+         * the floor: **29 -> 37 -> 39 -> 29**, for as long as the request was
+         * alive.
+         *
+         * The guard dates from a floor measured in kilometres, where forty
+         * metres was noise. It is the whole disagreement now, so the two
+         * numbers are one number; only a hair remains, to keep a direction
+         * vector from having zero length.
+         */
         return {
           centerWorld: wheelZoomBodyCenter.clone(),
           radiusWorld: 3.2,
-          minSurfaceDistance: Math.max(0.00002, safeMin - 3.2),
+          minSurfaceDistance: Math.max(1e-7, safeMin - 3.2),
           maxSurfaceDistance: Math.max(0.5, controls.maxDistance - 3.2),
         };
       }
