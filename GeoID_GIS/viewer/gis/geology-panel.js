@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-854cb29";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260818-854cb29";
-import { currentBodyId } from "./bodies.js?v=20260818-854cb29";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-854cb29";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260818-ebaf390";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260818-ebaf390";
+import { currentBodyId } from "./bodies.js?v=20260818-ebaf390";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-ebaf390";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -58,6 +58,24 @@ const CATALOGUE = [
     // Loaded on open: the tab should show a geological map rather than an empty
     // dropdown, and until the global base exists this IS the map we have.
     default: true,
+  },
+  {
+    id: "ni-faults",
+    body: "earth",
+    scope: "regional",
+    region: "Northern Ireland",
+    label: "Northern Ireland — faults",
+    path: "/ni-prototype/data/ni_faults.geojson",
+    name: "NI bedrock faults (BGS 625k).geojson",
+    // The only column that distinguishes one line from another: 279 faults at
+    // rockhead and 2 thrusts. Every fault in this sheet is unnamed
+    // (`fltname_d` is blank on all 281), so colouring by name would paint one
+    // class and call it a legend.
+    colourBy: "feature_d",
+    credit: "BGS 1:625 000 bedrock faults, © UKRI.",
+    // Not loaded on open: the two sheets are the map, and faults are an overlay
+    // you ask for on top of it.
+    default: false,
   },
   {
     id: "ni-superficial",

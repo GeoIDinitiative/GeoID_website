@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260818-854cb29";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260818-854cb29";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260818-854cb29";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260818-854cb29";
-import { buildVectorLayerResult, setRenderRelief } from "./vector-render.js?v=20260818-854cb29";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260818-854cb29";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260818-854cb29";
-import { loadMshFile } from "./msh-adapter.js?v=20260818-854cb29";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260818-854cb29";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260818-ebaf390";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260818-ebaf390";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260818-ebaf390";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260818-ebaf390";
+import { buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude } from "./vector-render.js?v=20260818-ebaf390";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260818-ebaf390";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260818-ebaf390";
+import { loadMshFile } from "./msh-adapter.js?v=20260818-ebaf390";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260818-ebaf390";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -129,6 +129,11 @@ function syncSpin(scene) {
     // displacement and this is the exaggeration they are drawn at, so every
     // imported layer follows the ground down in the same frame the ground moves.
     setRenderRelief(viewer?.getEffectiveRelief?.() ?? 0);
+    // A line needs clearance the way a fill does not, and a fixed clearance is
+    // an altitude you fly under. Given the distance to the surface, so a fault
+    // trace is 11.9 km up from orbit and a couple of metres up on the ground.
+    const zoom = viewer?.getZoomAltitudeMetres?.();
+    if (zoom) setLineDrapeFromAltitude((zoom.metres / 6371000) * 3.2);
   };
   if (scene && typeof scene.onBeforeRender === "function") {
     const previous = scene.onBeforeRender.bind(scene);

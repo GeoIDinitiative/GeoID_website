@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-854cb29";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-854cb29";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-854cb29";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260818-ebaf390";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260818-ebaf390";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260818-ebaf390";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -70,6 +70,32 @@ export function setRenderRelief(relief) {
   RELIEF_UNIFORM.value = Number.isFinite(relief) ? relief : 0;
 }
 
+/**
+ * How high a LINE is drawn, which cannot be zero and must not be fixed.
+ *
+ * A filled polygon can sit on the ground because its material refuses the depth
+ * test and its winding culls the far hemisphere. A line has no facing, so it
+ * needs the depth test to hide the half of the planet behind it -- and a
+ * depth-tested line at zero clearance disappears into the relief between its
+ * vertices. It therefore has an altitude, and an altitude parallaxes: fixed at
+ * 0.006 it is **11.9 km**, which reads as a fault system floating above the
+ * country when you come in to look at it.
+ *
+ * So it is a fraction of the distance to the surface, capped at the old value
+ * and floored at a few metres -- the same answer the measure marker arrived at.
+ * The parallax is then a constant small angle at every scale: unchanged from
+ * orbit, about 200 m at 10 km up, a couple of metres on the ground.
+ */
+const LINE_DRAPE_UNIFORM = { value: 0.006 };
+const LINE_DRAPE_MAX = 0.006;
+const LINE_DRAPE_MIN = 0.0000015;          // about 3 m
+
+export function setLineDrapeFromAltitude(surfaceDistanceUnits) {
+  const d = Number(surfaceDistanceUnits);
+  if (!Number.isFinite(d) || d <= 0) return;
+  LINE_DRAPE_UNIFORM.value = Math.min(LINE_DRAPE_MAX, Math.max(LINE_DRAPE_MIN, d * 0.02));
+}
+
 function baseRadius() {
   return window.GeoIDViewer?.GLOBE_RADIUS ?? 3.2;
 }
@@ -101,22 +127,30 @@ export function attachReliefAttributes(geometry, drape, builtRelief) {
   geometry.setAttribute("aDisp", new THREE.BufferAttribute(disp, 1));
 }
 
-/** Place the vertex at the CURRENT relief instead of the one it was built at. */
-export function followRelief(material, drape) {
+/**
+ * Place the vertex at the CURRENT relief instead of the one it was built at.
+ *
+ * `lifted` hands the clearance to the shared line uniform above, so it follows
+ * the camera down; everything else keeps the fixed clearance it was built with.
+ */
+export function followRelief(material, drape, { lifted = false } = {}) {
   const base = baseRadius();
+  const drapeUniform = lifted ? LINE_DRAPE_UNIFORM : { value: drape };
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRelief = RELIEF_UNIFORM;
+    shader.uniforms.uDrape = drapeUniform;
     shader.vertexShader = `attribute vec3 aDir;
 attribute float aDisp;
 uniform float uRelief;
+uniform float uDrape;
 ${shader.vertexShader}`.replace(
       "#include <begin_vertex>",
-      `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + ${drape.toFixed(6)});`,
+      `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + uDrape);`,
     );
   };
-  // Two materials differing only in their drape must not share a compiled
-  // program, or the second one silently draws at the first one's altitude.
-  material.customProgramCacheKey = () => `geoid-relief-${drape}`;
+  // A material drawing at a fixed clearance and one following the camera must
+  // not share a compiled program, or the second silently takes the first's.
+  material.customProgramCacheKey = () => `geoid-relief-${lifted ? "live" : drape}`;
   return material;
 }
 
@@ -305,7 +339,7 @@ export function renderFeatureCollection(fc, {
     }
     attachReliefAttributes(geometry, drape, builtRelief);
     const segments = new THREE.LineSegments(
-      geometry, followRelief(new THREE.LineBasicMaterial(material), drape),
+      geometry, followRelief(new THREE.LineBasicMaterial(material), drape, { lifted: true }),
     );
     segments.renderOrder = 2;
     segments.frustumCulled = false;

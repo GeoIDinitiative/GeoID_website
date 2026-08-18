@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260818-854cb29";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-854cb29";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260818-ebaf390";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260818-ebaf390";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -797,8 +797,14 @@ function install() {
      * load from their manifests, so a click on a unit raises THAT card --
      * anchored to a pin, tracking the point as the globe turns. This popup
      * would otherwise put a second one beside it for the same click.
+     *
+     * Only what that catalogue actually contains, though: it is built from
+     * POLYGONS, so a geology layer of lines -- the BGS fault traces -- is not in
+     * it, and excluding those by their tab alone left a layer nothing could
+     * answer for. A geology layer with no polygons keeps the ordinary card.
      */
-    const hits = featuresAt(at.lat, at.lon).filter((h) => !h.layer.geologyDataset);
+    const hits = featuresAt(at.lat, at.lon)
+      .filter((h) => !(h.layer.geologyDataset && layerHasPolygons(h.layer)));
     if (!hits.length) { hidePopup(); return; }
     // Every layer under the point, not just the top one -- superficial deposits
     // lie over bedrock by definition, and answering with only the drift made
@@ -809,6 +815,17 @@ function install() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") hidePopup();
   });
+}
+
+/** Does this layer contribute polygons to the viewer's geology catalogue? */
+function layerHasPolygons(layer) {
+  if (layer._hasPolygons === undefined) {
+    layer._hasPolygons = (layer.features || []).some((f) => {
+      const t = f?.geometry?.type;
+      return t === "Polygon" || t === "MultiPolygon";
+    });
+  }
+  return layer._hasPolygons;
 }
 
 /** Ignore clicks for a moment — used by anything that takes over the canvas. */
