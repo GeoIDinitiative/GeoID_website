@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260818-ebaf390";
+  from "./gis/geo-utils.js?v=20260819-7521410";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -977,6 +977,16 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
     let moonLayer = null;
     let gisBases = [];
     const saturnViewModeSelect = null; // Earth has no tilted/untilted toggle
+    /**
+     * The view mode this page starts in, and returns to.
+     *
+     * Written once so nothing can assert a mode it did not choose: the basemap
+     * change handler used to call `applyPlanetViewMode("tilted")` on every
+     * switch, which quietly re-tilted the globe a moment after boot set it
+     * upright -- the default was correct for exactly as long as it took to
+     * apply the initial layer. Saturn's real select still decides its own.
+     */
+    const defaultViewMode = () => (saturnViewModeSelect ? saturnViewModeSelect.value : "untilted");
     let spinPaused = false;
     let spinPauseStart = 0;
     let spinOffset = 0;
@@ -5480,7 +5490,21 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
     function reloadToDefaultGlobalView(camera, controls) {
       resumeSpin();
       resetExploreView(camera, controls);
-      applyPlanetViewMode(saturnViewModeSelect ? saturnViewModeSelect.value : "tilted");
+      /**
+       * UPRIGHT by default.
+       *
+       * The 23.44 degrees is true of the planet and unhelpful for the map: it
+       * puts north off-vertical on screen, so a country sits at an angle, a
+       * study-area box looks skewed, and every drag has a rotation in it that
+       * nobody asked for. This is a GIS on a globe before it is an orrery, and
+       * the tilt is what the seasons and the sun angle are drawn from -- both
+       * of which read from the same group, so nothing else has to change.
+       *
+       * `applyPlanetViewMode("tilted")` restores it, and the nine planet pages
+       * are untouched: each has its own copy of this call, and Saturn's actual
+       * select still drives its own.
+       */
+      applyPlanetViewMode(defaultViewMode());
       controls.saveState();
     }
 
@@ -13027,7 +13051,21 @@ uniform float uViewportWidth;`,
           controls.update();
         }
       };
-      applyPlanetViewMode(saturnViewModeSelect ? saturnViewModeSelect.value : "tilted");
+      /**
+       * UPRIGHT by default.
+       *
+       * The 23.44 degrees is true of the planet and unhelpful for the map: it
+       * puts north off-vertical on screen, so a country sits at an angle, a
+       * study-area box looks skewed, and every drag has a rotation in it that
+       * nobody asked for. This is a GIS on a globe before it is an orrery, and
+       * the tilt is what the seasons and the sun angle are drawn from -- both
+       * of which read from the same group, so nothing else has to change.
+       *
+       * `applyPlanetViewMode("tilted")` restores it, and the nine planet pages
+       * are untouched: each has its own copy of this call, and Saturn's actual
+       * select still drives its own.
+       */
+      applyPlanetViewMode(defaultViewMode());
 
       const GIS_BOOKMARK_STORAGE_KEY = "earth-gis-bookmarks-v1";
       const GIS_STUDY_AREA_STORAGE_KEY = "earth-gis-study-areas-v1";
@@ -17635,7 +17673,10 @@ uniform float uViewportWidth;`,
           ctxStreamer.activate();
           ctxFocusGlobe.visible = false;
         } else {
-          applyPlanetViewMode("tilted");
+          // Back to the page's own mode, not to "tilted": the CTX mosaic forces
+          // untilted because its projection needs it, and everything else
+          // should leave the globe as the page set it up.
+          applyPlanetViewMode(defaultViewMode());
           ctxStreamer.deactivate();
           ctxDetailStreamer.deactivate();
           ctxFocusGlobe.visible = false;

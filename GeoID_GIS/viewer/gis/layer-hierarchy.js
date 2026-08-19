@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260818-ebaf390";
-import { samplerToRaster } from "./raster-analysis.js?v=20260818-ebaf390";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260818-ebaf390";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260818-ebaf390";
+import { currentBody } from "./bodies.js?v=20260819-7521410";
+import { samplerToRaster } from "./raster-analysis.js?v=20260819-7521410";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260819-7521410";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260819-7521410";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -651,6 +651,34 @@ export function render() {
 }
 
 /**
+ * Which basemap is actually on the globe, and what to say about it.
+ *
+ * The row used to read "<Body> basemap / default" whatever was selected, which
+ * is only true until someone changes it -- pick Esri satellite or OpenStreetMap
+ * and the stack still claimed the default was drawn. The dropdown IS the state
+ * (the viewer's `getBaseLayerId` reads it), so the name comes from the option
+ * that is selected and the credit from whichever registry knows that id: the
+ * tile sources for a streamed basemap, the manifest for a shipped texture.
+ */
+function activeBasemap() {
+  const viewer = window.GeoIDViewer;
+  const id = viewer?.getBaseLayerId?.() || "";
+  const select = document.getElementById("base-layer-select");
+  const option = select ? [...select.options].find((o) => o.value === id) : null;
+  const label = option?.textContent?.trim();
+  const tiles = window.GeoIDBasemapDrape;
+  const source = tiles?.tileBasemapSource?.();
+  const tileEntry = source && tiles?.TILE_SOURCES ? tiles.TILE_SOURCES[source] : null;
+  const manifestEntry = (viewer?.manifest?.layers || []).find((l) => l.id === id);
+  return {
+    id,
+    label: label || `${currentBody()?.name || "Earth"} basemap`,
+    credit: tileEntry?.licence || tileEntry?.attribution || manifestEntry?.description || "",
+    streamed: Boolean(tileEntry),
+  };
+}
+
+/**
  * The globe's own imagery, as the floor of the layer stack.
  *
  * Named from the body registry rather than fixed at Earth: this box appears on
@@ -662,13 +690,14 @@ function basemapRow() {
   const node = document.createElement("div");
   node.className = "layer-row layer-row-basemap";
   const visible = viewer?.globe?.visible !== false;
+  const base = activeBasemap();
   node.innerHTML = `
     <span class="layer-grip" aria-hidden="true"></span>
     <label class="layer-eye" title="Visible">
       <input type="checkbox" ${visible ? "checked" : ""} data-role="visible">
     </label>
-    <span class="layer-name">${currentBody()?.name || "Earth"} basemap</span>
-    <span class="layer-kind">default</span>`;
+    <span class="layer-name" title="${base.credit || base.label}">${base.label}</span>
+    <span class="layer-kind">${base.streamed ? "tiles" : "basemap"}</span>`;
   node.querySelector('[data-role="visible"]').addEventListener("change", (e) => {
     // The imported imagery hangs off the globe so it turns with it, which means
     // hiding the globe object would hide the imagery too -- the opposite of
@@ -711,8 +740,65 @@ function renderLegend(stack) {
   // the dock's to decide once it knows about every source.
   const dock = window.GeoIDLegendDock;
   if (!dock) return;
-  dock.publish("layers", stack.filter((layer) => layer.visible !== false)
-    .map((layer) => buildLayerCard(layer)));
+  const cards = stack.filter((layer) => layer.visible !== false)
+    .map((layer) => buildLayerCard(layer));
+  // The basemap last, because it is the floor of the stack -- the legend then
+  // reads top-down exactly as the layer list does.
+  const base = basemapCard();
+  if (base) cards.push(base);
+  dock.publish("layers", cards);
+}
+
+/**
+ * The basemap as a legend card.
+ *
+ * It is the one thing on the globe that had no entry: every imported layer was
+ * described and the imagery under all of them was not, so a reader could not
+ * tell whether they were looking at Blue Marble, a hillshade or live Esri
+ * satellite -- and for the streamed sources the licence line, which they are
+ * free only on condition of, appeared nowhere at all. Not offered when the
+ * globe's imagery is switched off, since then it is not what you are looking at.
+ */
+function basemapCard() {
+  const viewer = window.GeoIDViewer;
+  if (viewer?.globe?.visible === false) return null;
+  const base = activeBasemap();
+  if (!base.id && !base.label) return null;
+  const card = document.createElement("section");
+  card.className = "legend-entry";
+  card.dataset.legendKey = base.label;
+
+  const badge = document.createElement("p");
+  badge.className = "layer-type-badge";
+  badge.textContent = base.label;
+  card.appendChild(badge);
+
+  const list = document.createElement("div");
+  list.className = "legend-symbol-list";
+  const row = document.createElement("div");
+  row.className = "legend-symbol-row";
+  const swatch = document.createElement("span");
+  swatch.className = "legend-swatch";
+  // A basemap is a picture rather than a colour, so the swatch says so instead
+  // of claiming one of its colours stands for the whole thing.
+  swatch.style.background =
+    "linear-gradient(135deg, #1b3b5a 0%, #2f6d4f 45%, #b7a06a 75%, #f2f2f2 100%)";
+  const copy = document.createElement("div");
+  copy.className = "legend-symbol-copy";
+  const label = document.createElement("div");
+  label.className = "legend-symbol-label";
+  label.textContent = base.streamed ? "streamed tiles" : "basemap";
+  copy.appendChild(label);
+  if (base.credit) {
+    const detail = document.createElement("div");
+    detail.className = "legend-symbol-detail";
+    detail.textContent = base.credit;
+    copy.appendChild(detail);
+  }
+  row.append(swatch, copy);
+  list.appendChild(row);
+  card.appendChild(list);
+  return card;
 }
 
 /**
@@ -1004,6 +1090,17 @@ function init() {
   // The import manager announces changes; fall back to a light poll so layers
   // added by other paths (the studio, extraction results) still show up.
   window.addEventListener("geoid-gis:layers-changed", render);
+  // Choosing a different basemap changes the row's name and the legend's card,
+  // so the list follows the dropdown as it follows everything else. The
+  // viewer's own listener is registered first and swaps the texture; this only
+  // redraws the description of what it did.
+  // A timeout, not requestAnimationFrame: the viewer's own change listener runs
+  // first and swaps the texture, and this only has to land after it. rAF would
+  // do that too until the tab stops compositing, at which point the row silently
+  // stops following the dropdown -- which is exactly how it was caught.
+  document.getElementById("base-layer-select")?.addEventListener("change", () => {
+    setTimeout(render, 0);
+  });
   let lastCount = -1;
   const poll = () => {
     const n = layers().length;
