@@ -274,7 +274,7 @@ function ensureDock() {
   const toggle = document.getElementById(TOGGLE_ID);
   if (toggle && !toggle.dataset.legendBound) {
     toggle.dataset.legendBound = "1";
-    toggle.addEventListener("click", () => setOpen(!isOpen(), { byUser: true }));
+    toggle.addEventListener("click", () => setOpen(!isOpen()));
   }
   return dock;
 }
@@ -285,22 +285,24 @@ function isOpen() {
 }
 
 /**
- * Closed BY HAND stays closed.
+ * Closing it by hand no longer suppresses the next arrival.
  *
- * The dock opens itself when a layer arrives, which is right the first time and
- * insufferable afterwards: close it, add a layer or switch one off, and it was
- * open again -- so it could not be dismissed, only postponed. A person closing
- * it is a decision about the panel rather than about any one layer, so it is
- * remembered until they open it again. `arrivals()` still decides whether
- * anything is new; this decides whether we are allowed to act on that.
+ * There used to be a sticky `dismissed` flag here, added when the panel
+ * "could not be collapsed" -- which was never true: the CSS above was
+ * overriding the hidden attribute, so nothing this function did was visible at
+ * all. The flag was treating a symptom that had a different cause, and with the
+ * cause fixed it does real harm: close the panel once and switching a layer on
+ * could never open it again, which is the opposite of what a legend is for.
+ *
+ * So closing means closed, and activating a layer means open. Both are the
+ * user's action and each gets its plain answer; `arrivals()` is still what
+ * decides that something genuinely new is on the globe, and the basemap card
+ * still opts out of counting as one.
  */
-let dismissed = false;
-
-function setOpen(open, { byUser = false } = {}) {
+function setOpen(open) {
   const panel = document.getElementById(PANEL_ID);
   const toggle = document.getElementById(TOGGLE_ID);
   if (!panel) return;
-  if (byUser) dismissed = !open;
   panel.hidden = !open;
   toggle?.setAttribute("aria-expanded", open ? "true" : "false");
   // The events feed sits beside this and sizes itself from it.
@@ -376,7 +378,7 @@ function render() {
   lastKeys = keys;
   nodes.forEach(makeFoldable);
   if (!nodes.length) { setOpen(false); return; }
-  if (fresh.length && !dismissed) setOpen(true);
+  if (fresh.length) setOpen(true);
   else window.dispatchEvent(new CustomEvent("geoid:legend-changed"));
 }
 
