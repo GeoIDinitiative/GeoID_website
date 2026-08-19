@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260819-7521410";
-import { samplerToRaster } from "./raster-analysis.js?v=20260819-7521410";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260819-7521410";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260819-7521410";
+import { currentBody } from "./bodies.js?v=20260819-2bfbcc7";
+import { samplerToRaster } from "./raster-analysis.js?v=20260819-2bfbcc7";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260819-2bfbcc7";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260819-2bfbcc7";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -616,9 +616,22 @@ function propertiesPanel(layer) {
   return panel;
 }
 
+/**
+ * Has a render ever actually landed?
+ *
+ * `render()` gives up when its host is not on the page yet, and the toolbox
+ * moves these panels about during boot -- so the first call routinely finds
+ * nothing. The poll below used to retry only when the layer COUNT changed,
+ * which with no layers loaded is never: the list and the legend stayed empty,
+ * and the basemap card that should always be in the key was missing until an
+ * import happened to arrive.
+ */
+let mounted = false;
+
 export function render() {
   const host = document.getElementById(HOST_ID);
   if (!host) return;
+  mounted = true;
   let panel = host.querySelector(".layer-stack");
   if (!panel) {
     panel = document.createElement("div");
@@ -740,13 +753,12 @@ function renderLegend(stack) {
   // the dock's to decide once it knows about every source.
   const dock = window.GeoIDLegendDock;
   if (!dock) return;
-  const cards = stack.filter((layer) => layer.visible !== false)
-    .map((layer) => buildLayerCard(layer));
-  // The basemap last, because it is the floor of the stack -- the legend then
-  // reads top-down exactly as the layer list does.
-  const base = basemapCard();
-  if (base) cards.push(base);
-  dock.publish("layers", cards);
+  dock.publish("layers", stack.filter((layer) => layer.visible !== false)
+    .map((layer) => buildLayerCard(layer)));
+  // Its own source rather than the tail of this one, so it sits below every
+  // other source the dock collects -- the overlays and the interior cutaway
+  // included -- rather than merely below the imported layers.
+  dock.publish("basemap", [basemapCard()].filter(Boolean));
 }
 
 /**
@@ -767,6 +779,21 @@ function basemapCard() {
   const card = document.createElement("section");
   card.className = "legend-entry";
   card.dataset.legendKey = base.label;
+  /**
+   * Present, folded, and never a reason to open the drop-down.
+   *
+   * There is always a basemap, so its card is always in the key -- but it is
+   * the thing you are least often asking about, and two sheets of geology
+   * should not be pushed down the panel by it. Folded, it is one line naming
+   * what the globe is wearing, and its licence is one click away.
+   *
+   * And switching basemap makes this a different card -- a new key, which the
+   * auto-open rule reads as an arrival and springs the panel open for. Choosing
+   * a basemap is deliberate and its effect is on the globe in front of you; it
+   * does not need the legend thrown open as well.
+   */
+  card.dataset.legendFold = "collapsed";
+  card.dataset.legendAutoOpen = "never";
 
   const badge = document.createElement("p");
   badge.className = "layer-type-badge";
@@ -1101,10 +1128,15 @@ function init() {
   document.getElementById("base-layer-select")?.addEventListener("change", () => {
     setTimeout(render, 0);
   });
-  let lastCount = -1;
+  // Watched: how many layers there are, which basemap is drawn, and whether a
+  // render has managed to land at all. The basemap is in there because the
+  // viewer boots after this module and its first answer arrives without any
+  // event -- the row would otherwise sit on the fallback name until something
+  // else happened to redraw it.
+  let lastSignature = null;
   const poll = () => {
-    const n = layers().length;
-    if (n !== lastCount) { lastCount = n; render(); }
+    const signature = `${layers().length}|${window.GeoIDViewer?.getBaseLayerId?.() || ""}`;
+    if (signature !== lastSignature || !mounted) { lastSignature = signature; render(); }
     window.setTimeout(poll, 700);
   };
   poll();

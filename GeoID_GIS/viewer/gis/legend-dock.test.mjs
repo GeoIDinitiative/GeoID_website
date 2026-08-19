@@ -52,8 +52,10 @@ eq("undeclared sources come in a stable order",
   mergeSources({ zulu: [{ title: "Z" }], alpha: [{ title: "A" }] }).map((e) => e.title),
   ["A", "Z"]);
 
-check("the declared order is the three real sources",
-  JSON.stringify(SOURCE_ORDER) === JSON.stringify(["layers", "overlays", "core"]));
+// The basemap is last on purpose: it is the floor everything else is drawn on,
+// so the legend reads down the stack the way the layer list does.
+check("the declared order ends with the basemap, under every other source",
+  JSON.stringify(SOURCE_ORDER) === JSON.stringify(["layers", "overlays", "core", "basemap"]));
 
 /* ── identity ── */
 

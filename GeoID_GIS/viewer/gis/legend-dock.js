@@ -28,9 +28,12 @@ const TOGGLE_ID = "map-legend-toggle";
 /**
  * Render order. Imported layers first because they are the user's own work and
  * the reason they opened a GIS; the viewer's overlays next; the interior
- * cutaway last, since it describes the globe rather than anything on it.
+ * cutaway after them, since it describes the globe rather than anything on it;
+ * and the basemap last of all, because it is the floor everything else is drawn
+ * on top of -- the legend then reads down the stack exactly as the layer list
+ * does.
  */
-export const SOURCE_ORDER = ["layers", "overlays", "core"];
+export const SOURCE_ORDER = ["layers", "overlays", "core", "basemap"];
 
 /** Flatten the published sources into one ordered list. */
 export function mergeSources(bySource, order = SOURCE_ORDER) {
@@ -335,7 +338,17 @@ function render() {
   const merged = dedupe(mergeSources(bySource()));
   // Keyed after deduping, so a card that loses a collision does not count as an
   // arrival and spring the panel open for something that is not shown.
-  const keys = merged.map(entryKey);
+  /**
+   * What may spring the panel open.
+   *
+   * The auto-open rule is "something arrived", and switching basemap makes the
+   * basemap card a different card -- a new key, an arrival, the drop-down in
+   * your face for something you did on purpose and can see on the globe. A card
+   * can opt out of counting as an arrival; it is still rendered, still keyed,
+   * still deduped, it just never argues for opening the panel.
+   */
+  const keys = merged.filter((entry) => entry.node?.dataset?.legendAutoOpen !== "never")
+    .map(entryKey);
   const nodes = merged.map((entry) => entry.node).filter(Boolean);
 
   panel.replaceChildren(...nodes);
@@ -363,6 +376,9 @@ function render() {
  * next layer changed and no longer.
  */
 const folded = new Set();
+
+/** Keys whose start-folded default has already been applied. */
+const seenFold = new Set();
 
 /**
  * Make a legend card fold, from its own heading.
@@ -402,6 +418,17 @@ function makeFoldable(card) {
     body.hidden = isFolded;
     badge.setAttribute("aria-expanded", isFolded ? "false" : "true");
   };
+  /**
+   * A card may ask to start folded, once.
+   *
+   * "Once" is the whole of it: the default applies the first time a key is
+   * seen, and after that the user's own folding is what decides -- otherwise
+   * every re-render would slam it shut again while somebody was reading it.
+   */
+  if (!seenFold.has(key)) {
+    seenFold.add(key);
+    if (card.dataset.legendFold === "collapsed") folded.add(key);
+  }
   apply(folded.has(key));
   const flip = () => {
     const next = !folded.has(key);
