@@ -121,6 +121,21 @@ const STYLE = `
 }
 #map-legend-panel .legend-entry + .legend-entry { margin-top: 0.45rem; border-top-width: 1px; }
 #map-legend-panel { width: 17.5rem; max-height: min(62vh, 34rem); display: block; }
+/* ...and the one rule that makes the hidden attribute mean anything here.
+   NO BACKTICKS in this block -- it is a template literal and one ends it.
+
+   The attribute is only a UA-level display:none, and the line above sets
+   display from an ID selector, which outranks it -- so the panel was painted
+   whatever the attribute said. Every open and close in this file set it
+   faithfully and nothing moved: the drop-down stood open from boot, the toggle
+   looked dead, and the auto-open rule that was tuned three times over had no
+   visible effect at all. !important, because the ID rule would otherwise win
+   again on specificity alone.
+
+   Measured before: panel.hidden was true while getComputedStyle(panel).display
+   was "block" and the box was a real size on screen. Assert the PAINT, never
+   the property -- the property was right the whole time. */
+#map-legend-panel[hidden] { display: none !important; }
 #map-legend-panel .layer-type-badge { margin: 0 0 0.3rem; }
 #map-legend-panel .metadata-section-copy { margin: 0 0 0.35rem; font-size: 0.72rem; line-height: 1.45; }
 #map-legend-panel .legend-symbol-list { margin-top: 0.45rem; gap: 0.4rem; }
