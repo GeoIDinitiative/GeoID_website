@@ -1,6 +1,6 @@
 import * as THREE from "../vendor/three.module.js";
-import { placeLocalModel, placeGeoreferencedModel } from "./geo-utils.js?v=20260820-7c152ed";
-import { CRS_OPTIONS, projectedToLatLon } from "./projection.js?v=20260820-7c152ed";
+import { placeLocalModel, placeGeoreferencedModel } from "./geo-utils.js?v=20260820-3c6add6";
+import { CRS_OPTIONS, projectedToLatLon } from "./projection.js?v=20260820-3c6add6";
 
 // Derived from ETNA_3_chambers/station_data.txt (summit station at local
 // 50000,50000) against Etna's true summit at 37.751N 14.993E.
@@ -285,29 +285,30 @@ function buildGeorefControls(layer) {
   return wrap;
 }
 
-/** Builds the property controls appropriate to the layer's kind. */
+/**
+ * Builds the property controls appropriate to the layer's kind.
+ *
+ * Three that used to be here are gone, because each was the second copy of a
+ * control that lives somewhere better:
+ *
+ * - **Opacity** is on the layer's own row, a slider away from the eye it
+ *   belongs beside, and two sliders for one value is a question about which one
+ *   is the truth.
+ * - **Colour** is the symbology panel's whole subject -- a flat colour picker
+ *   beside a classified legend can only disagree with it.
+ * - **Drape lift** described a decision nothing takes any more: a filled layer
+ *   sits on the surface, and a line's clearance follows the camera down. Left
+ *   here it offered to lift a layer off the ground that had just been given
+ *   to it.
+ *
+ * What stays is what nothing else offers: wireframe, and placing an
+ * ungeoreferenced model by coordinate, scale and rotation. A layer with none of
+ * those gets NO panel rather than an empty drawer.
+ */
 export function buildLayerProperties(layer) {
   const host = document.createElement("div");
   host.className = "layer-prop-panel";
   const style = layer.style || {};
-
-  host.appendChild(row("Opacity", slider(0.05, 1, 0.05, style.opacity ?? 1,
-    (value) => setLayerOpacity(layer, value))));
-
-  const hasTexture = (() => {
-    let textured = false;
-    eachMaterial(layer.object3D, (material) => { if (material.map) textured = true; });
-    return textured;
-  })();
-
-  if (!hasTexture) {
-    const colorInput = document.createElement("input");
-    colorInput.type = "color";
-    colorInput.className = "layer-prop-color";
-    colorInput.value = style.color || "#d8dee9";
-    colorInput.addEventListener("input", () => setLayerColor(layer, colorInput.value));
-    host.appendChild(row("Colour", colorInput));
-  }
 
   const isMesh = layer.object3D.isMesh || layer.object3D.type === "Mesh";
   if (isMesh) {
@@ -324,12 +325,12 @@ export function buildLayerProperties(layer) {
     host.appendChild(row("Rotate", slider(0, 360, 5, style.rotationDeg ?? 0,
       (value) => setModelRotation(layer, value))));
     host.appendChild(buildGeorefControls(layer));
-  } else if (layer.georeferenced) {
-    host.appendChild(row("Drape lift", slider(0, 0.1, 0.002, style.drapeOffset ?? 0,
-      (value) => setDrapeOffset(layer, value))));
   }
 
-  return host;
+  // Nothing to set is not a panel. A draped vector or raster now falls through
+  // every branch above, and an empty drawer under its row would be a control
+  // surface promising something.
+  return host.childElementCount ? host : null;
 }
 
 // Reached from the layer hierarchy's row drawer, which is the only place these
