@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260820-9a5639e";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260820-9a5639e";
-import { currentBodyId } from "./bodies.js?v=20260820-9a5639e";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260820-9a5639e";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260820-1432d34";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260820-1432d34";
+import { currentBodyId } from "./bodies.js?v=20260820-1432d34";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260820-1432d34";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -280,6 +280,9 @@ let nodes = null;
 
 const say = (message) => { if (nodes?.status) nodes.status.textContent = message || ""; };
 
+/** Datasets already downloaded this session, by path. */
+const fetched = new Map();
+
 const loadedLayers = () => (window.GeoIDImportManager?.getLayers?.() || [])
   .filter((l) => l.status === "loaded" && l.geologyDataset);
 
@@ -296,9 +299,16 @@ async function loadDataset(entry) {
   }
   say(`Loading ${entry.label}…`);
   try {
-    const response = await fetch(entry.path);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const blob = await response.blob();
+    // Kept from the first load, because unticking the tab now REMOVES these
+    // layers and ticking it again rebuilds them. The parse and the triangulation
+    // have to happen again either way; the download does not.
+    let blob = fetched.get(entry.path);
+    if (!blob) {
+      const response = await fetch(entry.path);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      blob = await response.blob();
+      fetched.set(entry.path, blob);
+    }
     const before = new Set((manager.getLayers?.() || []).map((l) => l.id));
     await manager.importFileList(
       [new File([blob], entry.name, { type: "application/geo+json" })],
@@ -959,16 +969,34 @@ function holdGlobeStill(on) {
   viewer.setSpinPaused(false);
 }
 
+/**
+ * Turning the tab off REMOVES its layers, rather than leaving them unticked.
+ *
+ * Hiding them was the cheaper answer -- the parse is paid once and the second
+ * tick is instant -- but it left the sheets sitting in the layer list, in the
+ * metadata and in the stack, belonging to a tab that says it is off. The list
+ * is what is on the globe; a row for something the tab has put away is a claim
+ * nobody made.
+ *
+ * The download is still paid once (see `fetched`), so ticking it again is a
+ * rebuild rather than a round trip.
+ */
 async function setActive(on) {
-  if (on && !loadedLayers().length) {
-    say("Loading mapped geology…");
-    await loadDefaults();
+  if (on) {
+    if (!loadedLayers().length) {
+      say("Loading mapped geology…");
+      await loadDefaults();
+    } else {
+      loadedLayers().forEach((layer) => { setLayerVisible(layer, true); });
+    }
+  } else {
+    const manager = window.GeoIDImportManager;
+    loadedLayers().forEach((layer) => { manager?.removeLayer?.(layer.id); });
   }
-  loadedLayers().forEach((layer) => { setLayerVisible(layer, on); });
   holdGlobeStill(on);
   render();
   publishInteractive();
-  if (!on) say("Mapped geology hidden — tick the box to bring it back.");
+  if (!on) say("Mapped geology put away — tick the box to bring it back.");
 }
 
 export function init() {
