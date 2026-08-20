@@ -34,12 +34,17 @@
     });
   }
 
-  function setImportPanelVisible(visible) {
-    const node = document.getElementById("import-data-section");
-    if (node) {
-      node.hidden = !visible;
-    }
-  }
+  /**
+   * There is no import panel any more, and this must not un-hide its remains.
+   *
+   * `import-data-section` is now a hidden box holding the file inputs, the
+   * import status line and the layer list that `toolbox.js` moves into the
+   * Layers tab. Showing it would put two loose file inputs and a stray status
+   * line at the bottom of the sidebar. The calls are kept -- each mode still
+   * says whether importing belongs to it -- so restoring a panel here is
+   * writing one, not remembering to call this again.
+   */
+  function setImportPanelVisible() {}
 
   // Extraction combines the GeoID basemap with imported layers, so it belongs
   // to GIS mode only.

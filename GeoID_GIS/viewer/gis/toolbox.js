@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260820-1432d34";
-import { currentBody } from "./bodies.js?v=20260820-1432d34";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260820-1432d34";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260820-83192ab";
+import { currentBody } from "./bodies.js?v=20260820-83192ab";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260820-83192ab";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -39,6 +39,8 @@ function geoidPanels() {
     return [];
   }
   const ours = new Set([
+    // `import-data-section` is no longer a panel -- it is a hidden box holding
+    // the file inputs and the layer list, and must not be collected as one.
     "geoid-controls-group", "import-data-section", "gis-analysis-section",
     "gis-toolbox-panels", "gis-group-geoid", "gis-group-events",
   ]);
