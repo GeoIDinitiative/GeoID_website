@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260820-5c0ad6f";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260820-5c0ad6f";
-import { currentBodyId } from "./bodies.js?v=20260820-5c0ad6f";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260820-5c0ad6f";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260820-c68527c";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260820-c68527c";
+import { currentBodyId } from "./bodies.js?v=20260820-c68527c";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260820-c68527c";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *

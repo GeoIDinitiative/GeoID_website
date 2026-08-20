@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260820-5c0ad6f";
+  from "./gis/geo-utils.js?v=20260820-c68527c";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -5803,6 +5803,23 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
           row.className = "scene-popup-detail-row";
           row.innerHTML = `<span class="scene-popup-detail-key">Area</span>`
                         + `<span class="scene-popup-detail-val">${Number(feature.mapped_area_km2).toLocaleString()} km²</span>`;
+          geoPopupDetail.appendChild(row);
+          hasDetail = true;
+        }
+        /**
+         * A layer's own attributes, for a feature that is not a geologic unit.
+         *
+         * The imported-vector popup used to be a second card with its own
+         * heading, its own list and its own magenta marker; it is this card
+         * now, so it needs somewhere to put what it knows. Rows first, then the
+         * stack, because these describe THIS feature and the stack describes
+         * what else is under the same point.
+         */
+        for (const [key, value] of feature.rows || []) {
+          const row = document.createElement("div");
+          row.className = "scene-popup-detail-row";
+          row.innerHTML = `<span class="scene-popup-detail-key">${key}</span>`
+                        + `<span class="scene-popup-detail-val">${value}</span>`;
           geoPopupDetail.appendChild(row);
           hasDetail = true;
         }
@@ -19490,6 +19507,24 @@ uniform float uViewportWidth;`,
          * on what. Returns signed longitude (-180..180), because every caller
          * of this one is comparing against GeoJSON, and null off the globe.
          */
+        /**
+         * Raise the viewer's own feature card for an imported layer.
+         *
+         * One card for everything on the globe: geology already used it, and
+         * the GIS layers had a second one that looked nothing like it. The
+         * frames stay in here -- the caller has a latitude and longitude and
+         * this turns them into the anchored point that tracks the globe, which
+         * is the part that was worth not writing twice.
+         */
+        showFeatureCard(feature, lat, lon) {
+          if (!feature || !Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+          const spin = globe.rotation.y - Math.PI;
+          const local = getReliefPoint(3.2, elevationSampler, new Map(),
+            getEffectiveTerrainRelief, lat, lon, 0.0008)
+            .applyEuler(new THREE.Euler(0, spin, 0));
+          openGeoPopup(feature, marsGroup.localToWorld(local), spin);
+          return true;
+        },
         surfaceLatLonAt: (clientX, clientY) => {
           const hit = intersectAnySurface(clientX, clientY);
           if (!hit) return null;

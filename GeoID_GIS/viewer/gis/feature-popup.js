@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260820-5c0ad6f";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260820-5c0ad6f";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260820-c68527c";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260820-c68527c";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -193,9 +193,9 @@ function ensurePopup() {
   return popup;
 }
 
-export function hidePopup() {
+export function hidePopup({ keepOutline = false } = {}) {
   if (popup) popup.hidden = true;
-  clearPin();
+  if (!keepOutline) clearPin();
 }
 
 /* Attributes worth leading with, in the order a geologist reads them. Anything
@@ -206,17 +206,58 @@ const PREFERRED = [
   "waterway", "value", "class", "unit", "description",
 ];
 
-function titleOf(props) {
-  for (const key of ["lex_d", "name", "NAME", "Name", "lex_rcs_d", "rcs_d", "id"]) {
+/** The first of these columns that has anything in it. */
+function firstOf(props, keys) {
+  for (const key of keys) {
     const v = props?.[key];
-    if (v != null && String(v).trim()) return String(v);
+    if (v != null && String(v).trim()) return String(v).trim();
   }
-  return "Feature";
+  return "";
 }
+
+/** What this feature is CALLED, if the data names it at all. */
+function nameOf(props) {
+  return firstOf(props, ["name", "NAME", "Name", "name_en", "lex_d", "label", "title"]);
+}
+
+/**
+ * What this feature IS, where it has no name.
+ *
+ * A BGS fault carries no name -- `fltname_d` is blank on all 281 -- but it does
+ * say `feature_d`, "Fault at rockhead", which is the useful thing to head the
+ * card with. The old title fell back to the literal string "Feature", which is
+ * the one word on the card that could not be wrong and could not help.
+ */
+function kindOf(props) {
+  return firstOf(props, [
+    "feature_d", "featurecla", "rcs_d", "lex_rcs_d", "description", "type",
+    "TYPE", "class", "CLASS", "waterway", "highway", "landuse", "natural",
+  ]);
+}
+
+function titleOf(props) {
+  return nameOf(props) || kindOf(props) || "Feature";
+}
+
+/**
+ * Columns that describe the RECORD rather than the thing.
+ *
+ * Every survey ships them and none of them tells you anything about the fault
+ * you just clicked: a row id, a database link, an internal version. They still
+ * show -- nothing is hidden -- but after everything that describes the feature,
+ * so they are the ones a cap cuts rather than the ones it keeps.
+ */
+const PLUMBING = new Set([
+  "objectid", "OBJECTID", "id", "ID", "fid", "FID", "gid", "mslink", "MSLINK",
+  "version", "released", "nom_scale", "nom_os_yr", "nom_bgs_yr", "sheet",
+  "shape_leng", "shape_area", "min_zoom", "min_label", "scalerank", "dissolve",
+  "rivernum", "note",
+]);
 
 function orderedEntries(props) {
   const seen = new Set();
   const rows = [];
+  const tail = [];
   PREFERRED.forEach((key) => {
     if (props[key] != null && String(props[key]).trim() && !seen.has(key)) {
       seen.add(key);
@@ -228,9 +269,9 @@ function orderedEntries(props) {
     const v = props[key];
     if (v == null || !String(v).trim() || String(v) === "0") return;
     seen.add(key);
-    rows.push([key, v]);
+    (PLUMBING.has(key) ? tail : rows).push([key, v]);
   });
-  return rows;
+  return rows.concat(tail);
 }
 
 
@@ -378,37 +419,122 @@ function buildDetail(feature, props) {
   return block;
 }
 
-function showStack(x, y, hits, at) {
-  const [top, ...beneath] = hits;
-  showPopup(x, y, top.layer.name || "Layer", top.feature, top.layer);
-  const host = ensurePopup();
-  beneath.forEach(({ layer, feature }) => {
-    const head = document.createElement("div");
-    head.className = "gis-fp-beneath";
-    head.textContent = layer.name || "Layer";
-    const list = document.createElement("dl");
-    orderedEntries(feature.properties || {}).slice(0, 8).forEach(([key, value]) => {
-      const dt = document.createElement("dt");
-      dt.textContent = key;
-      const dd = document.createElement("dd");
-      dd.textContent = String(value);
-      list.append(dt, dd);
-    });
-    host.append(head, list);
+/** What kind of thing was clicked, from its own geometry. */
+function featureKind(feature) {
+  const type = feature?.geometry?.type || "";
+  if (type.includes("Polygon")) return "Mapped area";
+  if (type.includes("LineString")) return "Mapped line";
+  if (type.includes("Point")) return "Mapped point";
+  return "Mapped feature";
+}
+
+/** Length along a line, in kilometres, for the card's detail strip. */
+function lineLengthKm(feature) {
+  const parts = linesOf(feature?.geometry || {});
+  if (!parts.length) return 0;
+  const R = 6371;
+  const rad = Math.PI / 180;
+  let km = 0;
+  parts.forEach((line) => {
+    for (let i = 1; i < line.length; i += 1) {
+      const [lon1, lat1] = line[i - 1];
+      const [lon2, lat2] = line[i];
+      const dLat = (lat2 - lat1) * rad;
+      const dLon = (lon2 - lon1) * rad;
+      const a = Math.sin(dLat / 2) ** 2
+        + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+      km += 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+    }
   });
-  if (beneath.length) {
-    const note = document.createElement("div");
-    note.className = "gis-fp-more";
-    note.textContent = `${hits.length} layers at this point.`;
-    host.appendChild(note);
+  return km;
+}
+
+/**
+ * One card for everything on the globe.
+ *
+ * This module used to draw its own: a box titled SELECTED FEATURE with the file
+ * name under it and a folded "all N attributes" list, beside a magenta sphere
+ * on the surface. The geology click already had the card this should have been
+ * -- kicker, title, the source, a detail strip, anchored to a pin that tracks
+ * the globe as it turns -- so the feature is handed to THAT, in the shape it
+ * reads, rather than a second card being kept in step with it by hand.
+ *
+ * The attributes travel as `rows`, and the layers under the top one as `stack`,
+ * which is what the geology card already does for bedrock beneath superficial.
+ */
+function showViewerCard(hits, at) {
+  const viewer = window.GeoIDViewer;
+  const [top, ...beneath] = hits;
+  const props = top.feature?.properties || {};
+  const name = nameOf(props);
+  const kind = kindOf(props);
+  const km2 = polygonAreaKm2(top.feature);
+  const km = km2 > 0 ? 0 : lineLengthKm(top.feature);
+  // Whatever is already on the card as the title or the line under it does not
+  // also belong in the attribute rows.
+  const shown = new Set([name, kind].filter(Boolean));
+  const rows = orderedEntries(props)
+    .filter(([, value]) => !shown.has(String(value).trim()))
+    .slice(0, 8)
+    .map(([key, value]) => [key, String(value)]);
+  const feature = {
+    type: featureKind(top.feature),
+    /**
+     * The card reads `rock_type` for its heading and `name` for the line
+     * under it, so both are set from here rather than left to fall through:
+     * heading is what the thing is CALLED, or what it IS when the data never
+     * names it (a BGS fault has no name and does say "Fault at rockhead"), or
+     * failing both its geometry. The line under it carries the kind only when
+     * the heading is a name, or the card says the same words twice.
+     */
+    rock_type: name || kind || featureKind(top.feature),
+    name: null,
+    description: name && kind ? kind : null,
+    origin: top.layer.name || null,
+    mapped_area_km2: km2 > 0 ? Number(km2.toFixed(km2 >= 100 ? 0 : 2)) : null,
+    length_km: km > 0 ? Number(km.toFixed(km >= 100 ? 0 : 2)) : null,
+    rows,
+    stack: beneath.map(({ layer, feature: f }) => ({
+      label: layer.name || "Layer",
+      unit: titleOf(f.properties || {}) || featureKind(f),
+    })),
+  };
+  if (!viewer?.showFeatureCard?.(feature, at?.lat, at?.lon)) return false;
+  // The outline stays: on a map of hundreds of polygons the card alone cannot
+  // say WHICH one answered. The pin does not -- the card brings its own.
+  if (at) void showOutline(top.feature);
+  return true;
+}
+
+function showStack(x, y, hits, at) {
+  const [top] = hits;
+  // A drawn shape opens the editor instead: it is where you rename it and give
+  // it metadata, which is a form rather than a readout, and the viewer's card
+  // has nowhere to type.
+  if (top.layer?.drawn) {
+    showPopup(x, y, top.layer.name || "Layer", top.feature, top.layer);
+    if (at) void showOutline(top.feature);
+    return;
   }
-  // The pin and the outline go on the polygon that answered, which is the top
-  // one -- the same feature the title names.
-  if (at) void showPin(at.lat, at.lon, top.feature);
-  // Re-measure: the stack made the popup taller than showPopup placed it for.
-  const box = host.getBoundingClientRect();
-  host.style.left = `${Math.min(Math.max(8, x + 14), window.innerWidth - box.width - 8)}px`;
-  host.style.top = `${Math.min(Math.max(8, y + 12), window.innerHeight - box.height - 8)}px`;
+  if (showViewerCard(hits, at)) { hidePopup({ keepOutline: true }); return; }
+  // No viewer seam (an older page): the local card is still better than
+  // nothing, and it is the only reason this fallback exists.
+  showPopup(x, y, top.layer.name || "Layer", top.feature, top.layer);
+  if (at) void showOutline(top.feature);
+}
+
+/** Area of a polygon feature in km2, or 0 for anything else. */
+function polygonAreaKm2(feature) {
+  const rings = feature?.geometry?.type === "Polygon" ? [feature.geometry.coordinates]
+    : feature?.geometry?.type === "MultiPolygon" ? feature.geometry.coordinates : [];
+  let km2 = 0;
+  rings.forEach((poly) => {
+    const outer = poly[0];
+    if (Array.isArray(outer) && outer.length >= 3) {
+      km2 += sphericalPolygonAreaKm2(outer.map(([lon, lat]) => ({ lat, lon })));
+    }
+  });
+  return km2;
 }
 
 /* ── The pin, and the outline of what was clicked ────────────────────────────
@@ -432,7 +558,19 @@ function markerGroup() {
   return viewer.scene.getObjectByName("GeoID-ImportedGeoLayers") || null;
 }
 
-async function showPin(lat, lon, feature) {
+/**
+ * The outline of what answered -- and nothing else on the surface.
+ *
+ * There used to be a marker here too: a sphere sized from the view distance,
+ * which is the right way to size a thing in scene units and the wrong thing to
+ * have at all. The viewer's card carries its own anchor and stem, drawn in the
+ * page and tracking the point as the globe turns, so a second marker was a
+ * magenta disc painted over the map it was pointing at.
+ *
+ * The outline stays, because the card cannot say WHICH polygon answered on a
+ * map of hundreds of them.
+ */
+async function showOutline(feature) {
   const viewer = window.GeoIDViewer;
   const group = markerGroup();
   if (!viewer?.surfacePoint || !group) return;
@@ -440,47 +578,9 @@ async function showPin(lat, lon, feature) {
 
   clearPin();
   const holder = new THREE.Group();
-  holder.name = "GeoID-FeaturePin";
+  holder.name = "GeoID-FeatureOutline";
 
-  /**
-   * The pin is sized from the VIEW, not in scene units.
-   *
-   * A fixed 0.012 radius is 0.4% of the globe, which is about 48 km across --
-   * from orbit an invisible speck and over Northern Ireland a magenta blob a
-   * third the width of the country, painted over the map it was meant to point
-   * at. Same class of mistake as the measure marker's fixed lift that CLAUDE.md
-   * records: a constant in scene units is a different thing at every altitude.
-   *
-   * Sized as a fraction of the distance from the camera to the point, it
-   * subtends a constant small angle and therefore looks the same at every zoom.
-   */
-  const anchor = viewer.surfacePoint(lat, lon, 0.001);
-  const viewDistance = viewer.camera
-    ? Math.max(0.02, viewer.camera.position.distanceTo(anchor)) : 1;
-  // No upper cap: a ceiling in scene units is the very thing being fixed, and
-  // it re-broke the far view -- clamped at 0.012 the pin subtended a tenth of
-  // the angle from orbit that it did up close. 0.006 of the view distance is
-  // about 0.7 degrees across, roughly fourteen pixels, at every altitude. The
-  // floor only stops it vanishing when the camera is almost on the ground.
-  const headRadius = Math.max(0.0004, viewDistance * 0.006);
-  const stemLength = headRadius * 4;
-
-  const base = viewer.surfacePoint(lat, lon, 0.001);
-  const top = viewer.surfacePoint(lat, lon, 0.001 + stemLength);
-  const stem = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints([base, top]),
-    new THREE.LineBasicMaterial({ color: 0xff2bd6, depthTest: false, transparent: true }),
-  );
-  stem.renderOrder = 240;
-  const head = new THREE.Mesh(
-    new THREE.SphereGeometry(headRadius, 12, 10),
-    new THREE.MeshBasicMaterial({ color: 0xff2bd6, depthTest: false, transparent: true }),
-  );
-  head.position.copy(top);
-  head.renderOrder = 241;
-  holder.add(stem, head);
-
-  // The outline of the polygon that answered, drawn on the ground. Long edges
+  // Long edges
   // are split for the same reason every other surface line is: a straight chord
   // across 1 degree of arc already dips below the terrain.
   const rings = feature?.geometry
