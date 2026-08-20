@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260820-83192ab";
+  from "./gis/geo-utils.js?v=20260820-5c0ad6f";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -16696,27 +16696,62 @@ uniform float uViewportWidth;`,
           };
         }
         /**
-         * Reproject onto the DEM-sampled surface, keeping the coarse hit's
-         * direction and correcting only its radius.
+         * Solve for where the RAY meets the DEM surface, not where the coarse
+         * hit's radius does.
          *
-         * This is an approximation and a known source of error: the raycast
-         * meets an *undisplaced* sphere, so its direction is not quite the
-         * direction of the terrain on screen, and moving the point along its own
-         * radius cannot recover that. It shows as a radial spread from the
-         * middle of the view that grows with obliquity — measured at 4 km
-         * altitude, ~20 px near the edges of the canvas and 0 px dead centre.
+         * The raycast meets an undisplaced sphere, so its direction is not the
+         * direction of the terrain on screen. The old correction moved the point
+         * along its own radius, which cannot recover a wrong direction -- it
+         * showed as a radial spread from the middle of the view that grows with
+         * obliquity: measured, 0 px dead centre at every altitude and a median
+         * of 11 to 73 px off-centre, worst 152 px at 150 km.
          *
-         * A ray-march against the DEM was tried and reverted: it measured 0 px
-         * at 4 km and 150 km on one run and 14–155 px on the next, because the
-         * relief taper moves the ground while drape tiles arrive, so the surface
-         * being solved against changes underneath the solver. Fixing it properly
-         * means raycasting geometry that is actually displaced, not iterating
-         * against a moving sampler.
+         * Re-intersecting the ray with a sphere at the LOCAL ground radius
+         * moves the point along the ray instead, so the direction changes with
+         * it, and the sampled radius then describes a different place, which is
+         * the next iterate. Three or four passes is a fixed point: the point on
+         * the ray whose distance from the centre equals the ground radius under
+         * it, which is the intersection being asked for.
+         *
+         * This is not the ray-march that was tried and reverted. That one
+         * stepped along the ray against a sampler that was moving underneath it
+         * as drape tiles arrived, and an unconverged walk lands worse than where
+         * it began. This solves a fixed point against the relief of THIS
+         * instant, in closed form per pass, and stops when it stops moving --
+         * and it is the same iteration the geology click already uses to aim at
+         * a drape, where it took agreement from 13/40 to 39/45.
          */
-        const refinedPoint = sampleMeasureSurfacePoint(latLon.lat, latLon.lon, 0, context);
+        const rayOrigin = normalizeMeasureHitLocalPoint(
+          marsGroup.worldToLocal(camera.position.clone()), context,
+        );
+        const rayDir = bodyPoint.clone().sub(rayOrigin).normalize();
+        let point = bodyPoint;
+        let where = latLon;
+        // Six, because the first pass crosses most of the error and the rest is
+        // geometric: measured at 995 km, where the relief is at full
+        // exaggeration and the terrain changes fastest per pixel, the passes
+        // move 143 km, 29 km, 5 km, 1.2 km -- four left one sample 121 m off the
+        // ray, six leave none. Each pass is a dot product and a square root.
+        for (let pass = 0; pass < 6; pass += 1) {
+          const radius = measureSurfaceRadius(where.lat, where.lon, 0, context);
+          // |origin + t*dir| = radius, near root: the front of the planet.
+          const b = rayOrigin.dot(rayDir);
+          const c = rayOrigin.lengthSq() - radius * radius;
+          const disc = b * b - c;
+          if (!(disc >= 0)) break;                     // grazing: keep what we have
+          const t = -b - Math.sqrt(disc);
+          if (!(t > 0)) break;
+          const next = rayOrigin.clone().addScaledVector(rayDir, t);
+          const moved = next.distanceTo(point);
+          point = next;
+          where = vectorToLatLonInMeasureContext(point, context);
+          if (moved < 1e-7) break;                     // about 0.2 mm on the ground
+        }
         return {
-          localPoint: refinedPoint,
-          latLon,
+          // Placed by the same sampler the overlay draws with, so the marker and
+          // the answer cannot be two different points.
+          localPoint: sampleMeasureSurfacePoint(where.lat, where.lon, 0, context),
+          latLon: where,
         };
       }
 
