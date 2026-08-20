@@ -23,7 +23,7 @@
  * fraction of the cost. Do not reintroduce a mesh per tile.
  */
 
-import { TILE_SOURCES, tileUrl } from "./tile-sources.js?v=20260820-58765c0";
+import { TILE_SOURCES, tileUrl } from "./tile-sources.js?v=20260820-9a5639e";
 
 /** Six at a time: HTTP/1.1 gives about that per host, and it is polite. */
 const MAX_INFLIGHT = 6;

@@ -375,9 +375,28 @@ function render() {
   document.body.dataset.legend = nodes.length ? "true" : "false";
 
   const fresh = arrivals(lastKeys, keys);
+  const wasDescribing = lastKeys.length;
   lastKeys = keys;
   nodes.forEach(makeFoldable);
   if (!nodes.length) { setOpen(false); return; }
+  /**
+   * The last real layer leaving closes the panel.
+   *
+   * `nodes.length === 0` used to be the test, and it stopped being reachable
+   * when the basemap card became permanent -- switch every layer off and the
+   * legend stayed open on a single folded line naming the imagery. `keys` is
+   * already the cards that count as arrivals, which is exactly the same set:
+   * everything except the basemap.
+   *
+   * On the TRANSITION to none, not on every render with none, or opening the
+   * panel to read the basemap card would slam it shut again on the next
+   * publish.
+   */
+  if (!keys.length) {
+    if (wasDescribing) setOpen(false);
+    else window.dispatchEvent(new CustomEvent("geoid:legend-changed"));
+    return;
+  }
   if (fresh.length) setOpen(true);
   else window.dispatchEvent(new CustomEvent("geoid:legend-changed"));
 }
