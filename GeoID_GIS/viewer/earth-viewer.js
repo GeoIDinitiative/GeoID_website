@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260820-3c6add6";
+  from "./gis/geo-utils.js?v=20260820-58765c0";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -1018,7 +1018,26 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       if (!viewerControls) return;
       viewerControls.enabled = !freezeViewActive;
       viewerControls.enableRotate = !freezeViewActive;
-      viewerControls.enableZoom = !freezeViewActive;
+      /**
+       * OrbitControls NEVER zooms the globe -- and this line is why it did.
+       *
+       * `controls.enableZoom = false` is set deliberately at setup, and this
+       * function ran four lines later and turned it straight back on, because
+       * "not frozen" was being read as "everything on". So the dolly has been
+       * live all along, running a SECOND zoom against the custom wheel handler
+       * on the same camera: measured on a trackpad-shaped burst, our target
+       * says 20 m while the dolly puts the camera at 10 m, and a few pixels of
+       * the opposite sign at the end of a gesture fling it back out to 3 km.
+       * That is the resisting and the bouncing, and it is not in our own zoom
+       * arithmetic at all.
+       *
+       * Model mode is the exception: there is no globe there, the wheel handler
+       * returns early, and OrbitControls dollying towards the orbit target is
+       * exactly what is wanted -- so it keeps the freeze-driven behaviour.
+       */
+      viewerControls.enableZoom = document.body.dataset.viewMode === "model"
+        ? !freezeViewActive
+        : false;
       viewerControls.enablePan = !freezeViewActive;
       if (freezeViewToggleBtn) {
         freezeViewToggleBtn.classList.toggle("is-active", freezeViewActive);
@@ -12249,12 +12268,23 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
          */
         const normalizedDelta = Math.min(Math.abs(delta) / 120, 6)
           * (moonViewerMode ? 1.6 : 1);
-        const distanceT = clamp(surfaceDistance / (moonViewerMode ? 0.55 : 1.5), 0, 1);
-        const stepStrength = THREE.MathUtils.lerp(
-          moonViewerMode ? 0.085 : 0.035,
-          moonViewerMode ? 0.3 : 0.20,
-          distanceT,
-        ) * normalizedDelta;
+        /**
+         * One rate at every scale, because the zoom is multiplicative.
+         *
+         * This used to ramp from 0.035 to 0.20 with `surfaceDistance / 1.5` --
+         * and 1.5 units is 2,986 km, so anywhere below about 300 km the ramp
+         * sat on its minimum: **3.5% of your altitude per notch**, which is
+         * imperceptible when you are trying to come down the last few
+         * kilometres. It went unnoticed because OrbitControls' own dolly was
+         * live at the same time and supplying most of the movement (see
+         * `applyFreezeViewState`); with that turned off, what is left is the
+         * true feel of this handler and it was far too weak.
+         *
+         * A constant e-fold per notch is what "zoom" means on a globe: the same
+         * fraction of the remaining distance wherever you are, which is exactly
+         * what the render loop's geometric easing already assumes.
+         */
+        const stepStrength = (moonViewerMode ? 0.2 : 0.15) * normalizedDelta;
         const zoomFactor = Math.exp(Math.sign(delta) * stepStrength);
         /**
          * The request carries no floor in it. The CEILING is real -- nothing
@@ -12274,7 +12304,10 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
           zoomContext.maxSurfaceDistance,
         );
         if (ctxMode && delta < 0) {
-          const maxStepInFraction = THREE.MathUtils.lerp(0.18, 0.32, distanceT);
+          // The CTX mosaic caps how far one notch may take you in, so a step
+          // cannot cross more tile levels than the streamer can follow. A flat
+          // cap now that the step itself no longer ramps with distance.
+          const maxStepInFraction = 0.25;
           const minStepSurfaceDistance = Math.max(
             zoomContext.minSurfaceDistance,
             surfaceDistance * (1 - maxStepInFraction),
