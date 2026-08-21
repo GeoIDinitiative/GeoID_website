@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-6d9d021";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-6d9d021";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-6d9d021";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-431f8a8";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-431f8a8";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-431f8a8";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -133,7 +133,7 @@ export function attachReliefAttributes(geometry, drape, builtRelief) {
  * `lifted` hands the clearance to the shared line uniform above, so it follows
  * the camera down; everything else keeps the fixed clearance it was built with.
  */
-export function followRelief(material, drape, { lifted = false } = {}) {
+export function followRelief(material, drape, { lifted = false, cullFarSide = false } = {}) {
   const base = baseRadius();
   const drapeUniform = lifted ? LINE_DRAPE_UNIFORM : { value: drape };
   material.onBeforeCompile = (shader) => {
@@ -143,14 +143,47 @@ export function followRelief(material, drape, { lifted = false } = {}) {
 attribute float aDisp;
 uniform float uRelief;
 uniform float uDrape;
+${cullFarSide ? "varying float vFacing;" : ""}
 ${shader.vertexShader}`.replace(
       "#include <begin_vertex>",
-      `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + uDrape);`,
+      `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + uDrape);`
+      + (cullFarSide
+        ? `
+  {
+    vec4 geoidView = modelViewMatrix * vec4(transformed, 1.0);
+    vec3 geoidNormal = normalize(normalMatrix * aDir);
+    vFacing = dot(geoidNormal, normalize(-geoidView.xyz));
+  }`
+        : ""),
     );
+    /**
+     * BACKFACE CULLING, FOR SOMETHING THAT HAS NO FACES.
+     *
+     * A fill can skip the depth test because `side: FrontSide` culls the far
+     * hemisphere for it. A LINE has no facing, so nothing culls it, and the
+     * same trick drew Australia's outline across the Atlantic — reported as
+     * "some lines fail the depth test". Lifting it and depth-testing it works
+     * from orbit and fails up close: the lift is 0.02 of the altitude (600 m
+     * at 30 km up), and at a grazing angle a line 600 m above its own polygon
+     * slides off the hairline it was drawn to cover.
+     *
+     * So the seam hugs the fill exactly and this discards the half of it
+     * facing away from the camera. On a sphere every vertex's outward normal
+     * IS its own direction, which the geometry already carries as `aDir`.
+     */
+    if (cullFarSide) {
+      shader.fragmentShader = `varying float vFacing;
+${shader.fragmentShader}`.replace(
+        "#include <clipping_planes_fragment>",
+        `if (vFacing <= 0.0) discard;
+  #include <clipping_planes_fragment>`,
+      );
+    }
   };
   // A material drawing at a fixed clearance and one following the camera must
   // not share a compiled program, or the second silently takes the first's.
-  material.customProgramCacheKey = () => `geoid-relief-${lifted ? "live" : drape}`;
+  material.customProgramCacheKey = () =>
+    `geoid-relief-${lifted ? "live" : drape}${cullFarSide ? "-cull" : ""}`;
   return material;
 }
 
@@ -273,8 +306,10 @@ export function renderFeatureCollection(fc, {
   const lineColours = [];
   const pointPositions = [];
   const fill = { positions: [], colours: [] };
+  const seal = { positions: [], colours: [] };
   /**
-   * The seal: every filled polygon's own boundary, drawn in its own colour.
+   * The seal: every filled polygon's own boundary, drawn in its own colour,
+   * in the LINE buffer — which is depth tested, and that is the whole point.
    *
    * Neighbouring units do not share their boundary exactly. Each survey — and
    * then each tile generalisation — simplifies a polygon on its own, so the
@@ -292,9 +327,18 @@ export function renderFeatureCollection(fc, {
    *
    * Stroking each polygon's own outline in its own fill colour covers that
    * hairline without changing what the map says: the line is the polygon's
-   * own edge, in the polygon's own colour, at the fill's own height.
+   * own edge, in the polygon's own colour.
+   *
+   * It goes in the line buffer rather than beside the fill, because a LINE HAS
+   * NO FACING. The fills can skip the depth test because `side: FrontSide`
+   * culls the far hemisphere for them; nothing culls a line, so a seam drawn
+   * that way showed straight through the planet — Australia's outline over the
+   * Atlantic. Lines therefore keep the depth test and the altitude-scaled
+   * clearance that lets them pass it (`LINE_DRAPE`, 12 km from orbit down to
+   * about 3 m at the ground), which is the arrangement the line path already
+   * had and the reason it never had this fault.
    */
-  const seal = { positions: [], colours: [] };
+
   const scratch = new THREE.Color();
   let truncated = false;
 
@@ -331,6 +375,7 @@ export function renderFeatureCollection(fc, {
     }
     if (colour) {
       polygons.forEach((polygon) => fillTriangles(polygon, FILL_DRAPE, fill, colour));
+      // The seam, at the fill's own height. See the note on `seal` above.
       rings.forEach((coords) => {
         const before = seal.positions.length;
         for (let i = 0; i + 1 < coords.length; i += 1) {
@@ -341,11 +386,10 @@ export function renderFeatureCollection(fc, {
         }
       });
     }
-    // A filled polygon's ring is drawn in the fill's own colour, so it adds
-    // nothing to look at -- and being a line it would have to keep the old
-    // altitude, which is the whole thing being fixed. Rings are still drawn
-    // while the layer has no colours yet, which is the outline-first pass that
-    // puts a layer on the globe before its symbology arrives.
+    // A coloured polygon's rings went into the seal above, at the fill's own
+    // height. What is left here is the outline-first pass -- a layer on the
+    // globe before its symbology arrives -- and any LineString features, both
+    // of which keep the lifted, depth-tested treatment lines have always had.
     [...(colour ? [] : rings), ...lines].forEach((coords) => {
       const before = linePositions.length;
       for (let i = 0; i + 1 < coords.length; i += 1) {
@@ -392,13 +436,10 @@ export function renderFeatureCollection(fc, {
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(seal.positions, 3));
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(seal.colours, 3));
     attachReliefAttributes(geometry, FILL_DRAPE, builtRelief);
-    // At the fill's own height, not the line layer's: a lifted seam would
-    // parallax off its own polygon at a grazing angle, which is the fault this
-    // is fixing wearing a different hat.
     const segments = new THREE.LineSegments(geometry, followRelief(new THREE.LineBasicMaterial({
       vertexColors: true, transparent: true, opacity: 1,
       depthTest: false, depthWrite: false,
-    }), FILL_DRAPE));
+    }), FILL_DRAPE, { cullFarSide: true }));
     segments.renderOrder = 2;
     segments.frustumCulled = false;
     group.add(segments);
