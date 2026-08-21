@@ -1,4 +1,5 @@
-import { describeCollection } from "./vector-render.js?v=20260820-c68527c";
+import { describeCollection } from "./vector-render.js?v=20260821-47f2220";
+import { addDataset, grouped } from "./global-data.js?v=20260821-47f2220";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -72,10 +73,41 @@ function render() {
   overlays().forEach((layer) => host.appendChild(row(layer)));
 }
 
+function say(message) {
+  const node = byId("polygon-status");
+  if (node) node.textContent = message;
+}
+
 function init() {
   const input = byId("polygon-file");
   const browse = byId("polygon-browse");
   if (input) input.setAttribute("accept", ACCEPT);
+
+  const catalogue = byId("polygon-catalogue");
+  if (catalogue) {
+    // Grouped, because a picker of nine flat entries hides the fact that the
+    // first four are one idea: what the world looks like, before anyone's
+    // borders are drawn on it.
+    grouped().forEach(({ group, entries }) => {
+      const box = document.createElement("optgroup");
+      box.label = group;
+      entries.forEach((entry) => {
+        const option = document.createElement("option");
+        option.value = entry.id;
+        option.textContent = entry.label;
+        option.title = `${entry.summary} — ${entry.licence}`;
+        box.appendChild(option);
+      });
+      catalogue.appendChild(box);
+    });
+    // Back to the placeholder afterwards: the select is a way of adding a
+    // layer, not a record of which one is showing — the list below is that.
+    catalogue.addEventListener("change", async () => {
+      const chosen = catalogue.value;
+      catalogue.value = "";
+      if (chosen) await addDataset(chosen, say);
+    });
+  }
 
   browse?.addEventListener("click", () => input?.click());
   input?.addEventListener("change", async () => {

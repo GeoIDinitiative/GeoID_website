@@ -1,0 +1,181 @@
+/**
+ * The global vector catalogue — coastlines, rivers, lakes, borders, plates,
+ * faults — as datasets anyone can put on the globe in one press.
+ *
+ * Two kinds of entry, and the difference is a licence rather than a technical
+ * one:
+ *
+ * - **Shipped.** Natural Earth is public domain, so those layers are converted
+ *   once (shapefile -> GeoJSON, 4 decimal places, the attributes worth keeping)
+ *   and served with the site from `/data/global/`. They work offline, they load
+ *   in one round trip, and nobody has to find them.
+ * - **Live.** The tectonics layers are under their authors' own terms, so they
+ *   are fetched from the canonical source at the moment they are asked for,
+ *   with the credit shown beside them. That is also honest about freshness: an
+ *   active-fault compilation is edited, and a copy taken today is a copy of
+ *   today. Every one of these sources answers with `Access-Control-Allow-Origin:
+ *   *`, which is what makes fetching them from a page possible at all.
+ *
+ * Both go in through the SAME `importFileList` a dropped file uses, so a
+ * catalogue layer is an ordinary layer the moment it lands: the layer box, the
+ * legend, opacity, extraction, export and the feature card all work on it with
+ * nothing added.
+ *
+ * The conversion is written down in `data/global/README.md` — the ogr2ogr
+ * commands, the source URLs and each licence — so the shipped files can be
+ * rebuilt or updated without guessing what was done to them.
+ */
+
+/** Order the groups read in, coarse to specific. */
+export const GROUPS = ["Physical", "Boundaries", "Tectonics", "Regional"];
+
+export const DATASETS = [
+  {
+    id: "coastline-10m",
+    group: "Physical",
+    label: "Coastlines — global (Natural Earth 1:10m)",
+    path: "/data/global/coastline_10m.geojson",
+    name: "Global coastlines (Natural Earth 10m).geojson",
+    summary: "4,133 lines, 410,957 vertices",
+    licence: "Natural Earth — public domain",
+  },
+  {
+    id: "rivers-10m",
+    group: "Physical",
+    label: "Rivers and lake centrelines — global (Natural Earth 1:10m)",
+    path: "/data/global/rivers_10m.geojson",
+    name: "Global rivers (Natural Earth 10m).geojson",
+    summary: "4,224 lines, 260,393 vertices",
+    licence: "Natural Earth — public domain",
+  },
+  {
+    id: "lakes-10m",
+    group: "Physical",
+    label: "Lakes — global (Natural Earth 1:10m)",
+    path: "/data/global/lakes_10m.geojson",
+    name: "Global lakes (Natural Earth 10m).geojson",
+    summary: "1,355 polygons",
+    licence: "Natural Earth — public domain",
+  },
+  {
+    id: "geographic-lines",
+    group: "Physical",
+    label: "Equator, tropics and polar circles",
+    path: "/data/global/graticule_lines.geojson",
+    name: "Geographic lines (Natural Earth 10m).geojson",
+    summary: "6 lines",
+    licence: "Natural Earth — public domain",
+  },
+  {
+    id: "boundaries-10m",
+    group: "Boundaries",
+    label: "Country borders — global (Natural Earth 1:10m)",
+    path: "/data/global/boundaries_10m.geojson",
+    name: "Country borders (Natural Earth 10m).geojson",
+    summary: "515 lines",
+    licence: "Natural Earth — public domain",
+  },
+  {
+    id: "countries-50m",
+    group: "Boundaries",
+    label: "Countries as polygons (Natural Earth 1:50m)",
+    path: "/data/global/countries_50m.geojson",
+    name: "Countries (Natural Earth 50m).geojson",
+    summary: "242 polygons — the coarser scale on purpose: this one is for "
+      + "clipping and attribution, and 1:10m polygons cost 12 MB to say the "
+      + "same thing",
+    licence: "Natural Earth — public domain",
+  },
+  {
+    id: "plate-boundaries",
+    group: "Tectonics",
+    label: "Plate boundaries — global (Bird 2003)",
+    url: "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json",
+    name: "Plate boundaries (Bird 2003).geojson",
+    summary: "241 boundary segments, named by the two plates they separate",
+    licence: "Bird (2003), PB2002 — cite the paper; redistributed via "
+      + "fraxen/tectonicplates, which states no licence of its own",
+    live: true,
+  },
+  {
+    id: "active-faults",
+    group: "Tectonics",
+    label: "Active faults — global (GEM)",
+    url: "https://raw.githubusercontent.com/GEMScienceTools/gem-global-active-faults"
+      + "/master/geojson/gem_active_faults_harmonized.geojson",
+    name: "Active faults (GEM global).geojson",
+    summary: "13,696 faults with slip type, rate and dip where known",
+    licence: "GEM Global Active Faults — CC BY-SA 4.0",
+    live: true,
+  },
+  {
+    id: "ni-rivers",
+    group: "Regional",
+    label: "Rivers — Northern Ireland (OpenStreetMap)",
+    path: "/ni-prototype/data/ni_rivers.geojson",
+    name: "NI rivers (OpenStreetMap).geojson",
+    summary: "8,101 lines",
+    licence: "OpenStreetMap contributors — ODbL",
+  },
+];
+
+export function datasetById(id) {
+  return DATASETS.find((entry) => entry.id === id) || null;
+}
+
+/** Datasets in group order, for building a grouped picker. */
+export function grouped() {
+  return GROUPS
+    .map((group) => ({ group, entries: DATASETS.filter((d) => d.group === group) }))
+    .filter((g) => g.entries.length);
+}
+
+function loadedLayer(entry) {
+  return (window.GeoIDImportManager?.getLayers?.() || [])
+    .find((layer) => layer.name === entry.name) || null;
+}
+
+/**
+ * Put one catalogue dataset on the globe.
+ *
+ * `onStatus` is called with every step rather than the module owning a status
+ * node: the same catalogue is offered from more than one panel, and each has
+ * its own place to say what is happening.
+ */
+export async function addDataset(id, onStatus = () => {}) {
+  const entry = datasetById(id);
+  if (!entry) return { ok: false, message: `No dataset called "${id}".` };
+  const manager = window.GeoIDImportManager;
+  if (!manager?.importFileList) {
+    return { ok: false, message: "The GIS layer is still starting — try again in a moment." };
+  }
+  if (loadedLayer(entry)) {
+    const message = `${entry.label} is already on the globe.`;
+    onStatus(message);
+    return { ok: true, already: true, message };
+  }
+  const source = entry.path || entry.url;
+  try {
+    // A big one takes a few seconds to build geometry, so say so first: the
+    // press has no other feedback until the layer appears.
+    onStatus(`Loading ${entry.label}…`);
+    const response = await fetch(source);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    await manager.importFileList([
+      new File([blob], entry.name, { type: "application/geo+json" }),
+    ]);
+  } catch (error) {
+    const message = `${entry.label} did not load: ${error.message}`;
+    onStatus(message);
+    return { ok: false, message };
+  }
+  const layer = loadedLayer(entry);
+  const message = `${entry.label} added. ${entry.licence}.`;
+  onStatus(message);
+  return { ok: true, layer, message };
+}
+
+if (typeof window !== "undefined") {
+  window.GeoIDGlobalData = { DATASETS, GROUPS, grouped, datasetById, addDataset };
+}

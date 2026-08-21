@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260820-c68527c";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260820-c68527c";
-import { currentBodyId } from "./bodies.js?v=20260820-c68527c";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260820-c68527c";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-47f2220";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-47f2220";
+import { currentBodyId } from "./bodies.js?v=20260821-47f2220";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-47f2220";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -78,6 +78,19 @@ const CATALOGUE = [
     default: false,
   },
   {
+    id: "macrostrat-lines",
+    body: "earth",
+    scope: "global",
+    label: "World contacts and faults (Macrostrat)",
+    name: "World contacts and faults (Macrostrat).geojson",
+    // The tiles' other layer: the lines the source maps draw between units —
+    // contacts, thrusts, normal faults, each with the kind it is.
+    dynamic: "lines",
+    colourBy: "type",
+    credit: "Macrostrat Burwell compilation, CC BY 4.0.",
+    default: false,
+  },
+  {
     id: "ni-superficial",
     body: "earth",
     scope: "regional",
@@ -92,23 +105,44 @@ const CATALOGUE = [
 ];
 
 /**
- * The global base, when there is one.
+ * The global base.
  *
- * The shape this tab is built for: a merged world geology underneath, and
- * regional surveys added from the dropdown on top of it — a national sheet is
- * better than the global compilation over the same ground, and the two should
- * be stackable rather than alternatives. Nothing fills this yet, so the panel
- * says what is missing instead of pretending the regional sheets are global
- * coverage. Adding it is a record here, not a rewrite: it takes the same fields
- * as a regional entry and `scope: "global"`.
+ * The shape this tab was built for: a world geology underneath, and regional
+ * surveys added from the dropdown on top of it — a national sheet is better
+ * than the global compilation over the same ground, and the two stack rather
+ * than being alternatives.
+ *
+ * It is `dynamic` because there is no global geological map you can download:
+ * the compilation is served as vector tiles, so what loads is the geology of
+ * the view at the resolution that view deserves — the whole world when you are
+ * looking at the whole world, one survey's detail when you are not. `macrostrat.js`
+ * does the fetching and `mvt.js` the decoding; everything after that is an
+ * ordinary vector layer.
+ *
+ * `sourceColours` says the data brings its own palette: Macrostrat ships the
+ * colour each polygon is drawn in, and repainting it from a ramp of ours would
+ * throw away the one thing that makes a geological map readable at a glance.
  */
-const GLOBAL_BASE = null;
+const GLOBAL_BASE = {
+  id: "macrostrat-units",
+  body: "earth",
+  scope: "global",
+  label: "World geology (Macrostrat)",
+  name: "World geology (Macrostrat).geojson",
+  dynamic: "units",
+  sourceColours: true,
+  colourBy: "name",
+  credit: "Macrostrat Burwell compilation, CC BY 4.0 — each polygon carries the "
+    + "survey that mapped it.",
+};
 
 /** This world's datasets. A body with none gets a panel that says so. */
-const forThisBody = () => CATALOGUE.filter((d) => (d.body || "earth") === currentBodyId());
-const regional = () => forThisBody().filter((d) => d.scope === "regional");
+const forThisBody = () => [GLOBAL_BASE, ...CATALOGUE]
+  .filter((d) => (d.body || "earth") === currentBodyId());
+/** Everything the dropdown offers, the global base included — it is reloadable. */
+const offered = () => forThisBody();
 
-const entryById = (id) => CATALOGUE.find((d) => d.id === id) || null;
+const entryById = (id) => [GLOBAL_BASE, ...CATALOGUE].find((d) => d && d.id === id) || null;
 
 /* ── Style ───────────────────────────────────────────────────────────────── */
 
@@ -283,36 +317,112 @@ const say = (message) => { if (nodes?.status) nodes.status.textContent = message
 /** Datasets already downloaded this session, by path. */
 const fetched = new Map();
 
+/**
+ * A symbology somebody CHOSE, kept against the dataset rather than the layer.
+ *
+ * A tiled layer is rebuilt whenever the view settles, and a rebuild is a new
+ * layer object — so without this, colouring the world geology by age and then
+ * flying anywhere put it back to the source's own colours. Losing a choice
+ * because the map refreshed is the same class of fault as the camera jumping:
+ * the app undoing something the user did.
+ */
+const styleChoice = new Map();
+
 const loadedLayers = () => (window.GeoIDImportManager?.getLayers?.() || [])
   .filter((l) => l.status === "loaded" && l.geologyDataset);
 
-async function loadDataset(entry) {
+/**
+ * `toView` is what tells a tiled dataset to follow the camera.
+ *
+ * The first load of a world layer must be the WORLD — the tab calls it world
+ * geology, and loading only the hemisphere in shot would make that a lie the
+ * first time anyone looked. Measured before this existed: with the camera over
+ * the Atlantic, points in Northern Ireland and Colorado had no geology under
+ * them at all, because those tiles were never asked for. Refreshing is what
+ * narrows it to the view, and that is a press somebody makes.
+ */
+async function loadDataset(entry, { toView = false, replace = false, quiet = false } = {}) {
   const manager = window.GeoIDImportManager;
   if (!manager?.importFileList) {
     say("The globe is still starting — try again in a moment.");
     return;
   }
   const existing = (manager.getLayers?.() || []).find((l) => l.geologyDataset === entry.id);
-  if (existing) {
+  if (existing && !replace) {
     say(`${entry.label} is already loaded.`);
     return;
   }
-  say(`Loading ${entry.label}…`);
+  /**
+   * Replacing keeps the OLD layer on the globe until the new one has arrived.
+   *
+   * Removing first leaves a second or two with no geology at all, which on a
+   * refine reads as the map breaking rather than sharpening -- and if the
+   * fetch then fails, it has taken the map away and put nothing back.
+   */
+  if (!quiet) say(`Loading ${entry.label}…`);
   try {
-    // Kept from the first load, because unticking the tab now REMOVES these
-    // layers and ticking it again rebuilds them. The parse and the triangulation
-    // have to happen again either way; the download does not.
-    let blob = fetched.get(entry.path);
-    if (!blob) {
-      const response = await fetch(entry.path);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      blob = await response.blob();
-      fetched.set(entry.path, blob);
+    let blob;
+    let note = "";
+    let loadedFor = null;
+    if (entry.dynamic) {
+      /**
+       * A tiled dataset has no file to fetch: what it holds depends on where
+       * you are looking, so the layer is built from the tiles covering the
+       * view. Nothing is cached here on purpose — the whole point is that
+       * asking again from somewhere else gives a different, better map.
+       */
+      const { fetchGeology } = await import(`./macrostrat.js${new URL(import.meta.url).search}`);
+      const { WORLD, WORLD_ZOOM } = await import(`./macrostrat.js${new URL(import.meta.url).search}`);
+      const result = await fetchGeology({
+        kind: entry.dynamic,
+        bounds: toView ? null : WORLD,
+        zoom: toView ? null : WORLD_ZOOM,
+        onProgress: (done, total) => {
+          if (!quiet) say(`${entry.label}: tile ${done} of ${total}…`);
+        },
+      });
+      if (!result.collection.features.length) {
+        throw new Error("the tiles came back empty for this view");
+      }
+      blob = new Blob([JSON.stringify(result.collection)], { type: "application/geo+json" });
+      note = ` Zoom ${result.zoom}, ${result.tiles} tile${result.tiles === 1 ? "" : "s"}`
+        + `, ${Math.round(result.bytes / 1024)} KB`
+        + (result.failed ? `, ${result.failed} unavailable` : "") + ".";
+      loadedFor = { zoom: result.zoom, bounds: result.bounds };
+    } else {
+      // Kept from the first load, because unticking the tab now REMOVES these
+      // layers and ticking it again rebuilds them. The parse and the triangulation
+      // have to happen again either way; the download does not.
+      blob = fetched.get(entry.path);
+      if (!blob) {
+        const response = await fetch(entry.path);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        blob = await response.blob();
+        fetched.set(entry.path, blob);
+      }
     }
+    const prior = existing
+      ? { opacity: existing.opacity ?? 1, visible: existing.visible !== false }
+      : null;
     const before = new Set((manager.getLayers?.() || []).map((l) => l.id));
     await manager.importFileList(
       [new File([blob], entry.name, { type: "application/geo+json" })],
-      { role: "geology", name: entry.label },
+      {
+        role: "geology",
+        name: entry.label,
+        /**
+         * The geology tab never moves the camera, and that is a rule rather
+         * than a default.
+         *
+         * A dropped file is framed because somebody just chose it and wants to
+         * see it. Ticking a tab is not that: it added the geology of wherever
+         * you already were, and flying to Northern Ireland because a Northern
+         * Irish sheet happens to be one of the defaults is the app deciding
+         * where you are looking. The layer row's focus button is how you go to
+         * a layer, on purpose, when you want to.
+         */
+        frame: false,
+      },
     );
     const layer = (manager.getLayers?.() || []).find((l) => !before.has(l.id));
     if (!layer) throw new Error("the layer did not arrive");
@@ -320,13 +430,159 @@ async function loadDataset(entry) {
     // name somebody is free to change -- which they now are, from the list.
     layer.geologyDataset = entry.id;
     layer.credit = entry.credit;
-    applyField(layer, entry.colourBy);
+    layer.dynamicGeology = entry.dynamic || null;
+    // What this layer is a picture OF: the zoom it was built at and the ground
+    // it covers. The watcher compares the view against these rather than
+    // rebuilding whenever the camera twitches.
+    layer.dynamicZoom = loadedFor?.zoom ?? null;
+    layer.dynamicBounds = loadedFor?.bounds || null;
+    if (existing) manager.removeLayer?.(existing.id);
+    if (layer.dynamicGeology) watchView();
+    const chosen = styleChoice.get(entry.id);
+    if (chosen) {
+      await applyField(layer, chosen.field,
+        { ramp: chosen.ramp, overrides: chosen.overrides, labels: chosen.labels });
+    } else if (entry.sourceColours) {
+      await paintFromSource(layer, entry);
+    } else {
+      applyField(layer, entry.colourBy);
+    }
+    // Opacity and visibility belong to the layer somebody set them on, and a
+    // rebuild replaces that object -- so they are carried across, or every
+    // refine quietly turned a half-faded sheet back to solid and a switched-off
+    // one back on.
+    if (prior) {
+      if (Number.isFinite(prior.opacity) && prior.opacity < 1) {
+        window.GeoIDLayerHierarchy?.setOpacity?.(layer, prior.opacity);
+        layer.opacity = prior.opacity;
+      }
+      if (prior.visible === false) window.GeoIDLayerHierarchy?.setVisible?.(layer, false);
+    }
     publishInteractive();
-    say(`${entry.label} — ${layer.features?.length || 0} polygons. ${entry.credit}`);
+    say(`${entry.label} — ${(layer.features?.length || 0).toLocaleString()} features.${note} `
+      + `${entry.credit}`);
   } catch (error) {
     say(`${entry.label} did not load: ${error.message}`);
   }
   render();
+}
+
+/**
+ * Paint a layer in the colours its own source chose.
+ *
+ * A geological map's colours are not decoration and not ours to pick: they
+ * encode lithology and age, and every survey in the compilation has already
+ * made that decision. Macrostrat ships the colour per polygon, so the layer is
+ * painted from `properties.color` and the legend is built by counting which
+ * units are actually on screen.
+ *
+ * That is also why `categoricalSymbology` cannot be used here: it ASSIGNS
+ * colours from a ramp and folds everything past twelve classes into one grey
+ * "other" — which over a global map is most of the world, painted a colour
+ * that means nothing, with a legend that looks right.
+ */
+async function paintFromSource(layer, entry) {
+  const { legendFrom } = await import(`./macrostrat.js${new URL(import.meta.url).search}`);
+  layer.repaint?.((feature) => feature?.properties?.color || null);
+  const field = entry.colourBy || "name";
+  const legend = legendFrom(layer.features, { field });
+  layer.legendInfo = legend;
+  layer.geologyField = field;
+  // Marked so the card can say the key is a summary rather than the whole map.
+  layer.legendIsSummary = legend.total > legend.shown
+    ? `${legend.shown} of ${legend.total} units` : null;
+  window.GeoIDLayerHierarchy?.render?.();
+  return legend;
+}
+
+/**
+ * Rebuild the tiled layers for wherever the camera is now.
+ *
+ * Deliberately a press rather than something that happens as you fly: a
+ * rebuild re-triangulates thousands of polygons, and doing that on every
+ * settle would stutter the flight it was meant to serve. The imagery refine
+ * can be automatic because a texture upload is cheap; this is not.
+ */
+let refreshing = false;
+
+async function refreshDynamic({ quiet = false } = {}) {
+  const live = loadedLayers().filter((l) => l.dynamicGeology);
+  if (!live.length) {
+    if (!quiet) say("Nothing tiled is loaded — add the world geology first.");
+    return;
+  }
+  if (refreshing) return;
+  refreshing = true;
+  try {
+    const entries = live.map((l) => entryById(l.geologyDataset)).filter(Boolean);
+    // Replace rather than remove-then-load: the old map stays up until the new
+    // one is built, so a refine sharpens rather than blinking.
+    for (const entry of entries) {
+      await loadDataset(entry, { toView: true, replace: true, quiet });
+    }
+  } finally {
+    refreshing = false;
+  }
+}
+
+/**
+ * A tiled map must follow the view, or it is a world map being read as a local
+ * one.
+ *
+ * This is the fault that made the geology look "jagged and abstract" close in,
+ * and it was not the drawing: at zoom 1 the compilation's own generalisation
+ * puts a **median 27.6 km between vertices** — a third of the screen at a
+ * 100 km scale bar — so units arrive as shards with black ground between them.
+ * The same place at zoom 8 has 0.70 km between vertices. Nothing is wrong with
+ * the polygons; they are simply the wrong zoom's polygons.
+ *
+ * So the layer refines the way the imagery does: on REST, never per frame, and
+ * only when the view has genuinely changed (`viewChangedEnough`) or the zoom it
+ * deserves has. The check is deliberately in that order — a pan inside the
+ * loaded ground at the same zoom is not a reason to re-triangulate thousands of
+ * polygons, and a rebuild while one is running is refused outright.
+ */
+let watchStop = null;
+
+function watchView() {
+  if (watchStop || typeof window === "undefined") return;
+  let lastBounds = null;
+  Promise.all([
+    import(`./view-extent.js${new URL(import.meta.url).search}`),
+    import(`./macrostrat.js${new URL(import.meta.url).search}`),
+  ]).then(([view, macro]) => {
+    watchStop = view.onViewSettled(window.GeoIDViewer, () => {
+      const live = loadedLayers().filter((l) => l.dynamicGeology);
+      if (!live.length) {
+        stopWatchingView();
+        return;
+      }
+      if (refreshing) return;
+      const box = macro.viewBounds();
+      if (!box) return;
+      const asBounds = {
+        minLon: box.west, maxLon: box.east, minLat: box.south, maxLat: box.north,
+      };
+      const wanted = macro.zoomForBounds(box);
+      const built = live[0].dynamicZoom;
+      const zoomMoved = built == null || wanted !== built;
+      if (!zoomMoved && !view.viewChangedEnough(lastBounds, asBounds)) return;
+      lastBounds = asBounds;
+      void refreshDynamic({ quiet: true }).then(() => {
+        const now = loadedLayers().find((l) => l.dynamicGeology);
+        if (now) {
+          say(`Geology refined for this view — zoom ${now.dynamicZoom}, `
+            + `${(now.features?.length || 0).toLocaleString()} features.`);
+        }
+      });
+    }, { settleMs: 700 });
+  });
+}
+
+function stopWatchingView() {
+  if (!watchStop) return;
+  watchStop();
+  watchStop = null;
 }
 
 /**
@@ -819,6 +1075,12 @@ function openSymbology(layer) {
     const sym = await applyField(layer, state.field,
       { ramp: state.ramp, overrides: state.overrides, labels: state.labels });
     if (sym) {
+      if (layer.geologyDataset) {
+        styleChoice.set(layer.geologyDataset, {
+          field: state.field, ramp: state.ramp,
+          overrides: new Map(state.overrides), labels: new Map(state.labels),
+        });
+      }
       say(`${layer.name} coloured by ${state.field}: ${sym.rows.length} units.`);
       symBackdrop.hidden = true;
       render();
@@ -865,8 +1127,12 @@ function render() {
 
     const by = document.createElement("div");
     by.className = "gis-geo-layer-by";
+    // A source-coloured layer's key lists the commonest units rather than all
+    // of them, so the card says which it is: "12 of 91" is a summary, and
+    // reading it as the whole map is how a global sheet gets misread.
     by.textContent = layer.geologyField
-      ? `Coloured by ${layer.geologyField} · ${layer.legendInfo?.labels?.length || 0} units`
+      ? `Coloured by ${layer.geologyField} · `
+        + (layer.legendIsSummary || `${layer.legendInfo?.labels?.length || 0} units`)
       : "Not coloured yet — open Symbology.";
 
     const opacity = document.createElement("input");
@@ -992,6 +1258,7 @@ async function setActive(on) {
   } else {
     const manager = window.GeoIDImportManager;
     loadedLayers().forEach((layer) => { manager?.removeLayer?.(layer.id); });
+    stopWatchingView();
   }
   holdGlobeStill(on);
   render();
@@ -1019,7 +1286,8 @@ export function init() {
   const base = document.createElement("div");
   base.className = "gis-geo-base";
   base.textContent = GLOBAL_BASE
-    ? `Base: ${GLOBAL_BASE.label}`
+    ? `Base: ${GLOBAL_BASE.label} — tiled, so it follows the view: the world `
+      + "when you are looking at the world, one survey's detail when you fly in."
     : "No global base yet — regional surveys only. "
       + "A merged world geology will sit under these when it exists.";
 
@@ -1031,7 +1299,7 @@ export function init() {
   const select = document.createElement("select");
   select.id = "gis-geology-dataset";
   select.className = "input";
-  regional().forEach((entry) => {
+  offered().forEach((entry) => {
     const o = document.createElement("option");
     o.value = entry.id;
     o.textContent = entry.label;
@@ -1039,6 +1307,8 @@ export function init() {
   });
   pickRow.append(pickLabel, select);
 
+  const buttons = document.createElement("div");
+  buttons.className = "gis-btn-row";
   const add = document.createElement("button");
   add.type = "button";
   add.className = "tool-button";
@@ -1047,13 +1317,21 @@ export function init() {
     const entry = entryById(select.value);
     if (entry) void loadDataset(entry);
   });
+  const refresh = document.createElement("button");
+  refresh.type = "button";
+  refresh.className = "tool-button";
+  refresh.textContent = "Refresh for this view";
+  refresh.title = "Rebuild the tiled world geology now, at the resolution this "
+    + "view deserves — it also does this by itself when the view settles";
+  refresh.addEventListener("click", () => { void refreshDynamic(); });
+  buttons.append(add, refresh);
 
   const loaded = document.createElement("div");
   loaded.id = "gis-geology-loaded";
   const status = document.createElement("div");
   status.id = "gis-geology-status";
 
-  panel.append(intro, base, pickRow, add, loaded, status);
+  panel.append(intro, base, pickRow, buttons, loaded, status);
   // Above the legacy bathymetry controls: this is what the tab is for now.
   body.insertBefore(panel, body.firstChild);
   nodes = { select, loaded, status };
@@ -1070,10 +1348,10 @@ export function init() {
    * First tick loads; after that it is a visibility switch, so the second tick
    * is instant and the parse is paid once.
    */
-  if (!regional().length) {
+  if (!offered().length) {
     base.textContent = `No mapped geology for ${currentBodyId()} yet.`;
     pickRow.hidden = true;
-    add.hidden = true;
+    buttons.hidden = true;
   }
 
   /**

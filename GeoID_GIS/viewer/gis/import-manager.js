@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260820-c68527c";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260820-c68527c";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260820-c68527c";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260820-c68527c";
-import { buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude } from "./vector-render.js?v=20260820-c68527c";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260820-c68527c";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260820-c68527c";
-import { loadMshFile } from "./msh-adapter.js?v=20260820-c68527c";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260820-c68527c";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260821-47f2220";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260821-47f2220";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260821-47f2220";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260821-47f2220";
+import { buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude } from "./vector-render.js?v=20260821-47f2220";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260821-47f2220";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260821-47f2220";
+import { loadMshFile } from "./msh-adapter.js?v=20260821-47f2220";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260821-47f2220";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -467,7 +467,19 @@ async function importDataset(primaryFile, sidecars, options = {}) {
     layer.status = "loaded";
     (layer.georeferenced ? groups.geoGroup : groups.localGroup).add(result.object3D);
     placeLocalModel(result.object3D, window.GeoIDModeManager?.getMode?.());
-    frameResult(layer);
+    /**
+     * An import moves the camera to what arrived — EXCEPT when the caller says
+     * not to, and that exception is load-bearing.
+     *
+     * Framing is right for a file somebody dropped: they want to see it. It is
+     * wrong for a layer that rebuilds itself. The tiled world geology refetches
+     * when the view settles, and each rebuild framed its bounds — the whole
+     * planet — so the camera was thrown back out to a global view, which
+     * changed the view, which settled, which triggered another rebuild. A
+     * feedback loop wearing the clothes of a rendering bug: "mapping is super
+     * unstable, jumps back zoom views".
+     */
+    if (options.frame !== false) frameResult(layer);
     setStatus(`Loaded ${primaryFile.name}.`);
     // An import belongs to whatever project is open, so the Research page's
     // repository and the Qt app both see it. Silent when none is open, and

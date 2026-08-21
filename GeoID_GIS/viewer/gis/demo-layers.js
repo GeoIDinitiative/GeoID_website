@@ -31,28 +31,22 @@ const DEMOS = {
         name: "NI flood susceptibility.tif" },
       { path: "/ni-prototype/data/ni_landslide_susceptibility.tif",
         name: "NI landslide susceptibility (absolute).tif" },
-      // 3-7: what they were made from.
-      { path: "/ni-prototype/data/ni_bedrock.geojson",
+      // 3-7: what they were made from. `input: true` keeps them out of the
+      // prototype tab and out of `load()` -- the tab is the finished maps, and
+      // each input already has a home of its own: the geology sheets in the
+      // Geology panel, the rivers in Vectors & Shapes. They keep their index
+      // so `toggle()` can still reach them, and the paths stay correct.
+      { path: "/ni-prototype/data/ni_bedrock.geojson", input: true,
         name: "NI bedrock geology (BGS 625k).geojson" },
-      { path: "/ni-prototype/data/ni_superficial.geojson",
+      { path: "/ni-prototype/data/ni_superficial.geojson", input: true,
         name: "NI superficial geology (BGS 625k).geojson" },
-      { path: "/ni-prototype/data/ni_dem_100m.tif",
+      { path: "/ni-prototype/data/ni_dem_100m.tif", input: true,
         name: "NI elevation 100 m (Copernicus).tif" },
-      { path: "/ni-prototype/data/ni_rainfall.geojson",
+      { path: "/ni-prototype/data/ni_rainfall.geojson", input: true,
         name: "NI rainfall 1991-2020 (HadUK).geojson" },
-      { path: "/ni-prototype/data/ni_rivers.geojson",
+      { path: "/ni-prototype/data/ni_rivers.geojson", input: true,
         name: "NI rivers (OpenStreetMap).geojson" },
     ],
-    /**
-     * The INPUTS, indexed on from the outputs.
-     *
-     * A prototype that ships only its three finished pictures is a claim, not
-     * a demonstration: the geology, rainfall, drainage and terrain the maps
-     * were made from have to be on the globe too, or nobody can check the
-     * result against what produced it. Geometry is simplified to about 50 m —
-     * well below the 1:625k source's own precision — and the DEM is Int16,
-     * because a 100 m grid carries no sub-metre vertical detail.
-     */
     // Where to look once they are on the globe.
     view: { lat: 54.67, lon: -6.775, spanDeg: 2.9 },
     note: "Susceptibility screening from open BGS, Met Office, Copernicus and "
@@ -89,6 +83,7 @@ export async function load(id = "ni-prototype") {
   const already = new Set((manager.getLayers?.() || []).map((l) => l.name));
   let loaded = 0;
   for (const entry of demo.files) {
+    if (entry.input) continue;
     if (already.has(entry.name)) continue;
     try {
       say(`Loading ${demo.label}: ${entry.name}…`);

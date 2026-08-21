@@ -177,6 +177,92 @@ so provenance fields end up top-level (`record.endpoint`, not
 — so a project scoped to an ocean box correctly returns no earthquakes; test a
 global pull with no study area.
 
+## Global vector data, and world geology from tiles
+
+Two routes, and which one a dataset takes is decided by its **licence**, not by
+convenience. `gis/global-data.js` is the catalogue behind Data · Vectors &
+Shapes:
+
+- **Shipped** — Natural Earth is public domain, so coastlines, rivers, lakes,
+  borders, countries and the geographic lines are converted once into
+  `data/global/*.geojson` (ogr2ogr commands in `data/global/README.md`) and
+  served with the site. 24 MB on disk, about 6 MB over the wire.
+- **Fetched live** — plate boundaries (Bird 2003) and GEM's active faults are
+  under their authors' terms, so they are pulled from their own sources with
+  the credit shown. All the live sources answer `Access-Control-Allow-Origin: *`,
+  which is the only reason a page can fetch them at all.
+
+Everything goes in through the SAME `importFileList` a dropped file uses.
+Measured: coastlines 4,133 lines / 813,648 GPU vertices in one draw object,
+rivers 4,224, GEM faults 13,696, all under the 6M-vertex line cap.
+
+**World geology is vector tiles, and that is not a shortcut.** There is no
+global geological map you can download: the open compilations are hundreds of
+megabytes, and Macrostrat's Burwell — the current global one — is published as
+MVT. `gis/mvt.js` decodes that format (about 200 lines, no protobuf runtime,
+`mvt.test.mjs` encodes tiles against the spec and decodes them back) and
+`gis/macrostrat.js` turns the tiles covering a box into GeoJSON. Downstream
+nothing is special: the click card, the legend, symbology, clipping, sampling,
+extraction and export all already work on a vector layer.
+
+Four things there were measured rather than assumed, and each one is a bug if
+reversed:
+
+- **The world base loads at zoom 1, not zoom 0.** The single z0 tile holds
+  5,792 units and *sounds* like the world, but the tiler generalises so hard
+  that point-in-polygon finds nothing under Northern Ireland or Alice Springs.
+  Four z1 tiles (7,929 units, ~1.6 MB) answer everywhere.
+- **Some Macrostrat tiles are cached WITHOUT their CORS header.** `carto/1/0/0`
+  returns no `Access-Control-Allow-Origin` on a Varnish hit, so the browser
+  blocks it while curl fetches it happily — and that tile is the quarter of the
+  planet holding Ireland and North America. `fetchTile` retries once under a
+  query string (a cache miss, which does carry the header). Never loop: it is
+  somebody else's tile server.
+- **The polygons keep the colours their own survey chose.** Macrostrat ships a
+  `color` per unit; `categoricalSymbology` would assign its own and fold
+  everything past twelve classes into one grey "other" — over a global map that
+  is most of the world painted a colour that means nothing, under a legend that
+  looks right. `paintFromSource` repaints from `properties.color` and builds
+  `legendInfo` by counting units, and the card says "12 of 94 units" so the key
+  is not read as the whole map.
+- **Refresh is a press, not a settle hook.** Rebuilding re-triangulates
+  thousands of polygons; doing that on every view change would stutter the
+  flight it was meant to serve. The imagery refine can be automatic because a
+  texture upload is cheap. This is not.
+
+The first load is the world; the layer then refines **on rest** (`onViewSettled`,
+700 ms) whenever the view or the zoom it deserves has changed, and "Refresh for
+this view" forces it. Measured flying in: z1 → z2 → z3 → z5 → z8 (650 features,
+0.70 km median edge) with one rebuild per settle and no thrash.
+
+**An import frames what arrived, and that is a trap for any self-rebuilding
+layer.** `frameResult` moved the camera on every import, so each refine framed
+the world layer's bounds — the whole planet — throwing the camera back out,
+which changed the view, which settled, which rebuilt again. It presents as
+"mapping is super unstable, jumps back zoom views" and reads like a rendering
+bug. `importFileList` now takes `frame: false`, and the geology tab always
+passes it: ticking a tab is not choosing a file, and flying to Northern Ireland
+because a Northern Irish sheet is a default is the app deciding where you are
+looking. The layer row's focus button is how you go to a layer on purpose.
+
+**The test for this is an IDLE phase.** Dispatch nothing and assert the camera
+does not move by one metre — altitude and view centre sampled at 100 ms.
+Anything else is the app moving itself, and it is the only way to tell a
+feedback loop from ordinary lag. Measured after the fix: 0 m drift and 0
+altitude rises across six idle phases, through load, zoom, drag and tick-off.
+
+**A rebuild is a new layer object, so anything the user chose must be carried
+over**: `styleChoice` keeps a hand-picked field/ramp against the DATASET (not
+the layer) and reapplies it, and opacity and visibility are copied from the
+layer being replaced. Without that, colouring the world geology by age and then
+flying anywhere put it back to source colours, a faded sheet back to solid, and
+a switched-off one back on. Verified: colour by age + 45% opacity survive a
+forced refresh into a new layer id.
+
+Rebuild cost, measured as the longest gap between animation frames on the
+software renderer: 524 ms for the 7,929-polygon world build, 326 ms for a
+view-sized refine against a 246 ms idle median — a refine is not a freeze.
+
 ## Atlas — the assistant
 
 `gis/atlas-assistant.js` puts a fixed launcher bottom-right on **every** page

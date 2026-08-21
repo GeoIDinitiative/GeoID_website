@@ -1,0 +1,218 @@
+/**
+ * Global geology, from Macrostrat's Burwell compilation.
+ *
+ * This is the global base the geology tab was built around and never had. It
+ * is not one downloadable map, and could not be: the compilation stitches
+ * hundreds of national and state surveys, so the best sheet over any ground is
+ * whichever survey mapped it — BGS over Northern Ireland, the USGS over
+ * Montana — and the whole thing is far too large to serve as a file. It is
+ * published as vector tiles instead, which is the same idea as the imagery
+ * basemap: the map at the resolution the view deserves. 713 KB is the whole
+ * world; 2 KB is a valley.
+ *
+ * What arrives is an ordinary GeoJSON layer, so everything the app already
+ * does to geology — the click card, the legend, symbology, clipping, sampling,
+ * extraction, export — works on it with nothing added. `mvt.js` is the only
+ * new machinery, and it is a decoder rather than a special case.
+ *
+ * Licence: CC BY 4.0, plus the credit each source map carries. Every feature
+ * keeps its own `ref_name` / `ref_title` / `ref_url`, so a polygon can always
+ * say which survey mapped it — that is the honest unit of attribution here,
+ * not one line about Macrostrat.
+ */
+
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-47f2220";
+import { visibleBounds } from "./view-extent.js?v=20260821-47f2220";
+import * as THREE from "../vendor/three.module.js";
+
+const TILES = "https://tiles.macrostrat.org/carto";
+
+/** The service's own limit; asking past it returns the deepest it has. */
+const MAX_ZOOM = 13;
+
+/**
+ * Enough tiles to cover a view, few enough not to be a bulk download.
+ *
+ * Sixteen is a full 4x4 ring around a view — the same budget the imagery
+ * refine uses — and at these sizes that is about 1-3 MB.
+ */
+const MAX_TILES = 16;
+
+/**
+ * The zoom whose tiles suit this span.
+ *
+ * One tile spans 360/2^z degrees, so this picks the level where the view is a
+ * couple of tiles across, then steps back out while the cover exceeds the
+ * budget. Stepping out rather than truncating matters: a truncated cover is a
+ * map with a bite out of it, and nothing on screen says why.
+ */
+export function zoomForBounds(bounds, { maxTiles = MAX_TILES, maxZoom = MAX_ZOOM } = {}) {
+  const span = Math.max(
+    0.0001,
+    Math.abs(bounds.east - bounds.west),
+    Math.abs(bounds.north - bounds.south),
+  );
+  let z = Math.max(0, Math.min(maxZoom, Math.floor(Math.log2(360 / span))));
+  while (z > 0 && tilesForBounds(bounds, z).length > maxTiles) z -= 1;
+  return z;
+}
+
+/** The current camera's extent, in the box shape this module speaks. */
+export function viewBounds() {
+  const b = visibleBounds(window.GeoIDViewer, THREE);
+  if (!b) return null;
+  return { west: b.minLon, east: b.maxLon, south: b.minLat, north: b.maxLat };
+}
+
+/** The whole world, for the first load and for a view that cannot be read. */
+export const WORLD = { west: -180, east: 180, south: -85, north: 85 };
+
+/**
+ * The world at zoom ONE, not zero, and this is measured rather than cautious.
+ *
+ * Zoom 0 is one 713 KB tile holding 5,792 units, which sounds like the world
+ * and is not: the tiler generalises hard at that level and drops whole
+ * regions. Point-in-polygon over the decoded tile finds nothing under Northern
+ * Ireland or Alice Springs, while Bern and Boulder answer — so a click on
+ * Ireland reported no geology at all. At zoom 1 (four tiles, about 1.6 MB) all
+ * four answer. The cost is one more second; the alternative is a world map
+ * with holes in it that nothing on screen explains.
+ */
+export const WORLD_ZOOM = 1;
+
+/**
+ * One tile, with a retry that exists for a specific measured reason.
+ *
+ * Some objects in the tile server's Varnish cache were stored WITHOUT their
+ * `Access-Control-Allow-Origin` header, so the browser blocks them — while
+ * curl, which does not care about CORS, fetches them happily. Measured on
+ * `carto/1/0/0`: a cache hit comes back with no such header and the fetch
+ * fails; the identical tile requested under a query string is a cache miss,
+ * carries the header, and loads. That tile is the quarter of the planet
+ * holding Ireland and North America, so the symptom was a world map with the
+ * Atlantic's edges missing and nothing to say why.
+ *
+ * So: one retry, on a URL the cache has not got, and no more than one — this
+ * is somebody else's tile server and a loop against it is an attack.
+ */
+async function fetchTile(tile, only, signal) {
+  const base = `${TILES}/${tile.z}/${tile.x}/${tile.y}.mvt`;
+  let response = null;
+  try {
+    response = await fetch(base, { signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  } catch (error) {
+    if (error?.name === "AbortError") throw error;
+    response = await fetch(`${base}?cors=1`, { signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  }
+  const buffer = await response.arrayBuffer();
+  return { tile, bytes: buffer.byteLength, layers: decodeTile(buffer, { ...tile, only }) };
+}
+
+/**
+ * Fetch the geology covering a box.
+ *
+ * `kind` is "units" (the polygons — the map) or "lines" (contacts and faults).
+ * Tiles are fetched four at a time: the whole point is that the first look at
+ * a region is a couple of seconds, and one at a time makes that eight.
+ *
+ * A tile that fails is skipped rather than fatal — one 500 from a tile server
+ * should cost a corner of the map, not the map.
+ */
+export async function fetchGeology({
+  bounds = null, kind = "units", maxTiles = MAX_TILES, zoom: askedZoom = null,
+  signal = null, onProgress = null,
+} = {}) {
+  const box = bounds || viewBounds() || WORLD;
+  const zoom = askedZoom == null ? zoomForBounds(box, { maxTiles }) : askedZoom;
+  const wanted = tilesForBounds(box, zoom).slice(0, maxTiles);
+  const features = [];
+  let bytes = 0;
+  let failed = 0;
+  let done = 0;
+  const queue = [...wanted];
+  const worker = async () => {
+    for (;;) {
+      const tile = queue.shift();
+      if (!tile) return;
+      try {
+        const result = await fetchTile(tile, [kind], signal);
+        bytes += result.bytes;
+        (result.layers[kind] || []).forEach((f) => features.push(f));
+      } catch (error) {
+        if (error?.name === "AbortError") throw error;
+        failed += 1;
+      }
+      done += 1;
+      onProgress?.(done, wanted.length);
+    }
+  };
+  await Promise.all([0, 1, 2, 3].map(worker));
+  return {
+    collection: { type: "FeatureCollection", features },
+    zoom,
+    tiles: wanted.length,
+    failed,
+    bytes,
+    bounds: box,
+  };
+}
+
+/**
+ * The legend, from the colours the source itself uses.
+ *
+ * Macrostrat ships a `color` per polygon — the colour that map is drawn in,
+ * chosen for its lithology and age — so the layer is painted with those rather
+ * than with a palette of ours. That is also why the legend cannot be built the
+ * usual way: `categoricalSymbology` assigns colours, and here the data has
+ * already assigned them. This counts the units on screen and keys the commonest
+ * `count` of them, each in its own colour.
+ *
+ * A global view holds hundreds of units, so the key is a summary and the caller
+ * says so. Twelve rows of the map's own colours beats fifty of ours.
+ */
+export function legendFrom(features, { field = "name", count = 12 } = {}) {
+  const seen = new Map();
+  (features || []).forEach((f) => {
+    const label = f?.properties?.[field];
+    const colour = f?.properties?.color;
+    if (!label || !colour) return;
+    const row = seen.get(label) || { label, colour, count: 0 };
+    row.count += 1;
+    seen.set(label, row);
+  });
+  const rows = [...seen.values()].sort((a, b) => b.count - a.count).slice(0, count);
+  return {
+    palette: rows.map((r) => String(r.colour).replace("#", "")),
+    labels: rows.map((r) => r.label),
+    values: rows.map((r) => r.label),
+    counts: rows.map((r) => r.count),
+    categorical: true,
+    classed: true,
+    field,
+    shown: rows.length,
+    total: seen.size,
+  };
+}
+
+/**
+ * What a polygon is, at one point, without loading anything.
+ *
+ * The same compilation through its JSON API: one request, one unit, with the
+ * source map's own reference. Useful where a tile is not wanted — a click on
+ * ground the layer is not covering.
+ */
+export async function unitAt(lat, lon, { signal = null } = {}) {
+  const url = `https://macrostrat.org/api/v2/geologic_units/map?lat=${lat}&lng=${lon}`;
+  const response = await fetch(url, { signal });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return body?.success?.data?.[0] || null;
+}
+
+if (typeof window !== "undefined") {
+  window.GeoIDMacrostrat = {
+    fetchGeology, legendFrom, unitAt, viewBounds, zoomForBounds, WORLD, WORLD_ZOOM,
+  };
+}
