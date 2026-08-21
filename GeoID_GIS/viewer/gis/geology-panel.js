@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-4cbbabb";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-4cbbabb";
-import { currentBodyId } from "./bodies.js?v=20260821-4cbbabb";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-4cbbabb";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-94f0d36";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-94f0d36";
+import { currentBodyId } from "./bodies.js?v=20260821-94f0d36";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-94f0d36";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -463,6 +463,7 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
   }
   publishInteractive();
   watchView();
+  watchMask();
   const where = stats.cached === stats.tiles ? "from cache"
     : `${stats.fetched} fetched, ${stats.cached} cached`;
   say(`${entry.label} — ${layer.features.length.toLocaleString()} features at zoom `
@@ -686,6 +687,34 @@ async function refreshDynamic({ quiet = false } = {}) {
  * polygons, and a rebuild while one is running is refused outright.
  */
 let watchStop = null;
+
+let maskTicker = null;
+
+/**
+ * The backdrop mask follows the camera, not the last refine.
+ *
+ * Flipping a `visible` flag on sixteen groups is nothing; rebuilding is
+ * everything. So this runs on a light ticker while a tiled layer is loaded and
+ * the refine stays on rest, which keeps the expensive half where it was.
+ */
+function watchMask() {
+  if (maskTicker || typeof window === "undefined") return;
+  const search = new URL(import.meta.url).search;
+  import(`./macrostrat.js${search}`).then((macro) => {
+    maskTicker = window.setInterval(() => {
+      const live = loadedLayers().filter((l) => l.tiled);
+      if (!live.length) return;
+      const box = macro.viewBounds();
+      live.forEach((layer) => layer.tiled.maskBackdrop?.(box));
+    }, 250);
+  });
+}
+
+function stopWatchingMask() {
+  if (!maskTicker) return;
+  window.clearInterval(maskTicker);
+  maskTicker = null;
+}
 
 function watchView() {
   if (watchStop || typeof window === "undefined") return;
@@ -1406,6 +1435,7 @@ async function setActive(on) {
       manager?.removeLayer?.(layer.id);
     });
     stopWatchingView();
+    stopWatchingMask();
   }
   holdGlobeStill(on);
   render();

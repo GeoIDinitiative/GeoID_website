@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-4cbbabb";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-4cbbabb";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-94f0d36";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-94f0d36";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -110,6 +110,8 @@ export function createTiledVectorLayer({
   const pinned = new Set();
   /** What the last set actually cost, so the next choice can be predicted. */
   let seen = null;
+  /** Which of the visible tiles are the view's own, rather than the backdrop. */
+  let sharpSet = new Set();
   let visible = new Set();
   let generation = 0;
   let inflight = null;
@@ -244,6 +246,42 @@ export function createTiledVectorLayer({
    * the view's tiles take half a step above it, which is above the backdrop
    * and still below whatever layer comes next.
    */
+  /**
+   * Hide the backdrop where the screen is already showing the view's own map.
+   *
+   * A coarse generalisation under a fine one is invisible while the layer is
+   * opaque and WRONG the moment it is not: turn the opacity down and the big
+   * angular shapes of the world map show through the detail, belonging to no
+   * unit on screen.
+   *
+   * It has to follow the camera, not the last refine. Deciding this once per
+   * settle meant a backdrop tile hidden for a small view stayed hidden when
+   * the camera pulled back — a rectangular hole in the world map the size of a
+   * zoom-2 tile, which is precisely the fault it was meant to cure. So this is
+   * cheap on purpose: a handful of bounds tests and a `visible` flag, no
+   * geometry, safe to call several times a second.
+   */
+  function maskBackdrop(viewBox) {
+    if (!sharpSet.size) {
+      pinned.forEach((id) => {
+        const tile = tiles.get(id);
+        if (tile?.node && visible.has(id)) tile.node.visible = true;
+      });
+      return;
+    }
+    pinned.forEach((id) => {
+      const tile = tiles.get(id);
+      if (!tile?.node || !visible.has(id)) return;
+      if (!viewBox) { tile.node.visible = true; return; }
+      const b = tileBounds(tile.z, tile.x, tile.y);
+      const overlaps = b.east > viewBox.west && b.west < viewBox.east
+        && b.north > viewBox.south && b.south < viewBox.north;
+      // Only where the view's own tiles are actually drawing: outside the
+      // screen the backdrop is what the far side is made of.
+      tile.node.visible = !overlaps;
+    });
+  }
+
   /** The lon/lat box a tile covers, for deciding whether the view hides it. */
   function tileBounds(z, x, y) {
     const n = 2 ** z;
@@ -276,21 +314,15 @@ export function createTiledVectorLayer({
       const tile = tiles.get(id);
       if (tile && tile.state === "ready" && tile.features.length) build(tile);
     });
-    const hidesBackdrop = (id) => {
-      if (!viewBox || !sharp || sharp.has(id) || !pinned.has(id)) return false;
-      const tile = tiles.get(id);
-      if (!tile) return false;
-      const b = tileBounds(tile.z, tile.x, tile.y);
-      return b.east > viewBox.west && b.west < viewBox.east
-        && b.north > viewBox.south && b.south < viewBox.north;
-    };
     tiles.forEach((tile, id) => {
       if (!tile.node) return;
-      tile.node.visible = next.has(id) && !hidesBackdrop(id);
+      tile.node.visible = next.has(id);
       const lift = sharp && sharp.has(id) ? 0.5 : 0;
       tile.node.traverse((child) => { child.renderOrder = group.renderOrder + lift; });
     });
     visible = next;
+    sharpSet = sharp ? new Set(sharp) : new Set();
+    maskBackdrop(viewBox);
   }
 
   /** Bounded, least-recently-needed — and the backdrop is never a candidate. */
@@ -461,6 +493,7 @@ export function createTiledVectorLayer({
     group,
     update,
     pin,
+    maskBackdrop,
     setOpacity,
     features,
     featureCount,
