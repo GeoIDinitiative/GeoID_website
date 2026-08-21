@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-8ece60f";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-8ece60f";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-8ece60f";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-6d9d021";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-6d9d021";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-6d9d021";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -273,6 +273,28 @@ export function renderFeatureCollection(fc, {
   const lineColours = [];
   const pointPositions = [];
   const fill = { positions: [], colours: [] };
+  /**
+   * The seal: every filled polygon's own boundary, drawn in its own colour.
+   *
+   * Neighbouring units do not share their boundary exactly. Each survey — and
+   * then each tile generalisation — simplifies a polygon on its own, so the
+   * line two units are supposed to share becomes two lines a few tens of
+   * metres apart. Measured on the tiles over Britain: only 32% of edges at
+   * zoom 4 are used by two polygons, and the strays sit within about 30 m.
+   *
+   * Thirty metres is a fraction of a pixel, which is exactly why this looks
+   * like a rendering bug rather than a data one: with no multisampling a
+   * sub-pixel gap still leaves whole pixels with nothing drawn in them, so the
+   * seam appears as a broken 1px black line following the boundary — reported,
+   * fairly, as "the polygons are not mapped perfectly, see the black scores".
+   * Measured with every unit painted one flat colour, which is what proves it
+   * is a hole rather than a seam between two colours.
+   *
+   * Stroking each polygon's own outline in its own fill colour covers that
+   * hairline without changing what the map says: the line is the polygon's
+   * own edge, in the polygon's own colour, at the fill's own height.
+   */
+  const seal = { positions: [], colours: [] };
   const scratch = new THREE.Color();
   let truncated = false;
 
@@ -307,7 +329,18 @@ export function renderFeatureCollection(fc, {
       scratch.set(css);
       colour = { r: scratch.r, g: scratch.g, b: scratch.b };
     }
-    if (colour) polygons.forEach((polygon) => fillTriangles(polygon, FILL_DRAPE, fill, colour));
+    if (colour) {
+      polygons.forEach((polygon) => fillTriangles(polygon, FILL_DRAPE, fill, colour));
+      rings.forEach((coords) => {
+        const before = seal.positions.length;
+        for (let i = 0; i + 1 < coords.length; i += 1) {
+          pushSegment(seal.positions, coords[i], coords[i + 1], FILL_DRAPE);
+        }
+        for (let i = before; i < seal.positions.length; i += 3) {
+          seal.colours.push(colour.r, colour.g, colour.b);
+        }
+      });
+    }
     // A filled polygon's ring is drawn in the fill's own colour, so it adds
     // nothing to look at -- and being a line it would have to keep the old
     // altitude, which is the whole thing being fixed. Rings are still drawn
@@ -354,6 +387,22 @@ export function renderFeatureCollection(fc, {
     mesh.frustumCulled = false;
     group.add(mesh);
   }
+  if (seal.positions.length) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(seal.positions, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(seal.colours, 3));
+    attachReliefAttributes(geometry, FILL_DRAPE, builtRelief);
+    // At the fill's own height, not the line layer's: a lifted seam would
+    // parallax off its own polygon at a grazing angle, which is the fault this
+    // is fixing wearing a different hat.
+    const segments = new THREE.LineSegments(geometry, followRelief(new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 1,
+      depthTest: false, depthWrite: false,
+    }), FILL_DRAPE));
+    segments.renderOrder = 2;
+    segments.frustumCulled = false;
+    group.add(segments);
+  }
   if (linePositions.length) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(linePositions, 3));
@@ -368,7 +417,7 @@ export function renderFeatureCollection(fc, {
     const segments = new THREE.LineSegments(
       geometry, followRelief(new THREE.LineBasicMaterial(material), drape, { lifted: true }),
     );
-    segments.renderOrder = 2;
+    segments.renderOrder = 3;
     segments.frustumCulled = false;
     group.add(segments);
   }
