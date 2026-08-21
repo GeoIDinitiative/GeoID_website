@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-8123962";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-8123962";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-8123962";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-ac264b1";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-ac264b1";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-ac264b1";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -134,6 +134,8 @@ export function attachReliefAttributes(geometry, drape, builtRelief) {
  * the camera down; everything else keeps the fixed clearance it was built with.
  */
 export function followRelief(material, drape, { lifted = false, cullFarSide = false } = {}) {
+  // `true` means the silhouette itself; a number moves the cut inside it.
+  const facingLimit = cullFarSide === true ? 0 : Number(cullFarSide) || 0;
   const base = baseRadius();
   const drapeUniform = lifted ? LINE_DRAPE_UNIFORM : { value: drape };
   material.onBeforeCompile = (shader) => {
@@ -181,7 +183,7 @@ ${shader.fragmentShader}`.replace(
         // over the Pacific: 53 stray pixels, all of them within a couple of
         // degrees of the horizon, where the seam is edge-on and invisible
         // anyway.
-        `if (vFacing <= 0.02) discard;
+        `if (vFacing <= ${facingLimit.toFixed(3)}) discard;
   #include <clipping_planes_fragment>`,
       );
     }
@@ -189,7 +191,7 @@ ${shader.fragmentShader}`.replace(
   // A material drawing at a fixed clearance and one following the camera must
   // not share a compiled program, or the second silently takes the first's.
   material.customProgramCacheKey = () =>
-    `geoid-relief-${lifted ? "live" : drape}${cullFarSide ? "-cull" : ""}`;
+    `geoid-relief-${lifted ? "live" : drape}${cullFarSide ? `-cull${facingLimit}` : ""}`;
   return material;
 }
 
@@ -447,13 +449,28 @@ export function renderFeatureCollection(fc, {
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(fill.colours, 3));
     attachReliefAttributes(geometry, FILL_DRAPE, builtRelief);
     geometry.computeBoundingSphere();
+    /**
+     * DOUBLE-SIDED, and culled by WHERE a fragment is rather than by winding.
+     *
+     * The fill cannot depth-test — a flat facet never wins against displaced
+     * terrain — so something else has to hide the far hemisphere, and using
+     * `side: FrontSide` for that made the map hostage to ring winding. A
+     * triangle wound the wrong way was then invisible from the near side (a
+     * hole in the map, showing the dark ocean through it) and visible from the
+     * far side (a coloured sliver drawn straight through the planet), which is
+     * exactly how it was reported: "black when near side, coloured on the far
+     * side".
+     *
+     * Turning every triangle outward at build time fixed the instances; this
+     * fixes the class. The shader discards fragments whose own outward normal
+     * faces away from the camera, so a triangle's winding decides nothing at
+     * all, and no source — however its rings are wound — can punch a hole or
+     * bleed through the globe.
+     */
     const mesh = new THREE.Mesh(geometry, followRelief(new THREE.MeshBasicMaterial({
       vertexColors: true, transparent: true, opacity: fillOpacity,
-      // Same rule the drapes follow: a flat facet cannot win on depth against
-      // displaced terrain, so it does not compete — it is drawn over, and
-      // single-sided so the far hemisphere is still culled.
-      depthTest: false, depthWrite: false, side: THREE.FrontSide,
-    }), FILL_DRAPE));
+      depthTest: false, depthWrite: false, side: THREE.DoubleSide,
+    }), FILL_DRAPE, { cullFarSide: true }));
     mesh.renderOrder = 1;
     // The vertices move on the GPU, so the bounding sphere computed above is
     // the one they had at build time and culling from it would drop the layer
