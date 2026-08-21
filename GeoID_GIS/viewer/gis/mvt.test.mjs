@@ -187,6 +187,72 @@ const pair = tile([{
 check("two same-wound rings are a MultiPolygon",
   decodeTile(pair, { z: 2, x: 1, y: 1 }).units[0].geometry.type === "MultiPolygon");
 
+/* ── A hole goes in the ring that holds it, not the one before it ────────── */
+
+// Two separate squares and then a hole that belongs to the FIRST one. Read in
+// arrival order the hole lands in the second square, and ear clipping bridges
+// the two — a triangle stretching between them, which is what the rogue
+// slivers over the ocean were.
+const misordered = tile([{
+  name: "units",
+  keys: ["name"],
+  values: ["stray hole"],
+  features: [{
+    id: 1,
+    type: 3,
+    tags: [0, 0],
+    geometry: [
+      ["move", 200, 200], ["line", [1200, 200], [1200, 1200], [200, 1200]], ["close"],
+      ["move", 2600, 2600], ["line", [3600, 2600], [3600, 3600], [2600, 3600]], ["close"],
+      ["move", 400, 400], ["line", [400, 800], [800, 800], [800, 400]], ["close"],
+    ],
+  }],
+}]);
+const placed = decodeTile(misordered, { z: 2, x: 1, y: 1 }).units[0].geometry;
+check("two squares and a hole decode as a MultiPolygon",
+  placed.type === "MultiPolygon" && placed.coordinates.length === 2,
+  `${placed.type} / ${placed.coordinates.length}`);
+const withHole = placed.coordinates.find((poly) => poly.length === 2);
+check("the hole went to the square that contains it",
+  Boolean(withHole) && Math.abs(withHole[0][0][0] - (-67.5 - 22.5 * (200 / 2048 - 1))) < 90
+    && withHole[1].every(([lon, lat]) => lon > withHole[0][0][0] - 90 && lat < 90),
+  withHole ? `outer starts ${withHole[0][0]}, hole starts ${withHole[1][0]}` : "no polygon has a hole");
+// The decisive form: the hole's first point must be inside its own outer ring.
+const inRing = (point, ring) => {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if ((yi > point[1]) !== (yj > point[1])
+      && point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+};
+check("and it is geometrically inside it",
+  Boolean(withHole) && inRing(withHole[1][0], withHole[0]));
+
+// A ring wound as a hole but lying inside nothing is its own polygon, not a
+// hole in a shape it does not touch.
+const orphan = tile([{
+  name: "units",
+  keys: ["name"],
+  values: ["orphan"],
+  features: [{
+    id: 1,
+    type: 3,
+    tags: [0, 0],
+    geometry: [
+      ["move", 200, 200], ["line", [1200, 200], [1200, 1200], [200, 1200]], ["close"],
+      ["move", 3000, 3000], ["line", [3000, 3400], [3400, 3400], [3400, 3000]], ["close"],
+    ],
+  }],
+}]);
+const orphaned = decodeTile(orphan, { z: 2, x: 1, y: 1 }).units[0].geometry;
+check("a hole inside nothing becomes its own polygon",
+  orphaned.type === "MultiPolygon" && orphaned.coordinates.length === 2
+    && orphaned.coordinates.every((poly) => poly.length === 1),
+  `${orphaned.type} / ${JSON.stringify(orphaned.coordinates.map((p) => p.length))}`);
+
 /* ── Tile cover ──────────────────────────────────────────────────────────── */
 
 check("the world at z0 is one tile", tilesForBounds(

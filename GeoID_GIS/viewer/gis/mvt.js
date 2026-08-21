@@ -145,6 +145,19 @@ function signedArea(ring) {
   return sum / 2;
 }
 
+/** Even-odd crossing test, used to put a hole in the ring that holds it. */
+function pointInRing(point, ring) {
+  if (!point || !ring || ring.length < 3) return false;
+  const [x, y] = point;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
 /**
  * Tile coordinate -> [lon, lat].
  *
@@ -178,28 +191,52 @@ function toGeoJSON(gtype, rings, project) {
   }
   if (gtype === 3) {
     /**
-     * Exterior rings and holes are told apart by winding, and the sign that
-     * means "exterior" is taken from the FIRST ring rather than assumed.
+     * Rings are grouped by CONTAINMENT, not by the order they arrive in.
      *
-     * The spec fixes the winding (exterior clockwise in a y-down space), but
-     * encoders in the wild disagree about it, and a decoder that hard-codes
-     * the sign turns every polygon in such a tile into a hole in nothing —
-     * an empty map with the right feature count, which reads as a rendering
-     * bug rather than a decoding one.
+     * The spec says a polygon's rings come as exterior-then-its-holes, and
+     * mostly they do — but measured on the real tiles, 1-2% of holes are not
+     * inside the ring that order would give them (2 of 301 in one zoom-1 tile,
+     * 1 of 169 at zoom 4). Ear clipping then bridges the outer ring to a hole
+     * lying somewhere else entirely, and the bridge is a triangle stretching
+     * between the two: the bright slivers shooting out across the ocean,
+     * reported as "rogue elements, sharp polygons".
+     *
+     * Winding still decides which rings are candidates to be holes, because
+     * the encoder does mean something by it. Containment decides where each
+     * one goes: the SMALLEST ring that actually contains it, and a ring inside
+     * nothing becomes its own polygon rather than a hole in something it does
+     * not touch.
      */
     const areas = rings.map(signedArea);
     const outerSign = Math.sign(areas.find((a) => a !== 0) || 1);
-    const polygons = [];
-    rings.forEach((r, i) => {
-      const projected = r.map(project);
+    const closeRing = (points) => {
       // A ring must be closed for GeoJSON; ClosePath leaves it implicit.
-      const first = projected[0];
-      const last = projected[projected.length - 1];
+      const first = points[0];
+      const last = points[points.length - 1];
       if (first && last && (first[0] !== last[0] || first[1] !== last[1])) {
-        projected.push([first[0], first[1]]);
+        points.push([first[0], first[1]]);
       }
-      if (Math.sign(areas[i]) === outerSign || !polygons.length) polygons.push([projected]);
-      else polygons[polygons.length - 1].push(projected);
+      return points;
+    };
+    const outers = [];
+    const holes = [];
+    rings.forEach((ring, i) => {
+      const entry = { ring: closeRing(ring.map(project)), area: Math.abs(areas[i]) };
+      if (Math.sign(areas[i]) === outerSign || !outers.length) outers.push(entry);
+      else holes.push(entry);
+    });
+    const polygons = outers.map((outer) => [outer.ring]);
+    holes.forEach((hole) => {
+      let best = -1;
+      let bestArea = Infinity;
+      outers.forEach((outer, i) => {
+        if (outer.area < bestArea && pointInRing(hole.ring[0], outer.ring)) {
+          best = i;
+          bestArea = outer.area;
+        }
+      });
+      if (best >= 0) polygons[best].push(hole.ring);
+      else polygons.push([hole.ring]);
     });
     return polygons.length === 1
       ? { type: "Polygon", coordinates: polygons[0] }

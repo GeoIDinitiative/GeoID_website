@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-c66c54c";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-c66c54c";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-c66c54c";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-8123962";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-8123962";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-8123962";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -229,12 +229,36 @@ function pushSegment(target, a, b, drape) {
  * is a ring with a ring inside it, and filling the outer one alone paints over
  * the unit that is actually there.
  */
+/** Even-odd crossing test, for deciding whether a hole belongs to a ring. */
+function pointInsideRing(point, ring) {
+  if (!point || !ring || ring.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const a = ring[i];
+    const b = ring[j];
+    if ((a.y > point.y) !== (b.y > point.y)
+      && point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x) inside = !inside;
+  }
+  return inside;
+}
+
 function fillTriangles(polygon, drape, out, colour) {
   const outer = polygon[0];
   if (!outer || outer.length < 4) return;
   const toV2 = (ring) => ring.slice(0, -1).map(([x, y]) => new THREE.Vector2(x, y));
   const contour = toV2(outer);
-  const holes = polygon.slice(1).map(toV2).filter((h) => h.length >= 3);
+  /**
+   * A hole that is not inside this ring is not this ring's hole.
+   *
+   * Ear clipping joins each hole to the outer ring with a bridge, and if the
+   * hole lies somewhere else the bridge is a triangle stretching all the way
+   * to it — the bright slivers shooting across the ocean. `mvt.js` now groups
+   * tile rings by containment so they arrive correctly, and this is the same
+   * guarantee for every other source: a GeoJSON whose rings were written in
+   * the wrong order cannot make a bridge either.
+   */
+  const holes = polygon.slice(1).map(toV2)
+    .filter((h) => h.length >= 3 && pointInsideRing(h[0], contour));
   let faces;
   try {
     faces = THREE.ShapeUtils.triangulateShape(contour, holes);
