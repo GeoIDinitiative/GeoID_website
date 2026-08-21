@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-ac264b1";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-ac264b1";
-import { currentBodyId } from "./bodies.js?v=20260821-ac264b1";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-ac264b1";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-ed7a126";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-ed7a126";
+import { currentBodyId } from "./bodies.js?v=20260821-ed7a126";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-ed7a126";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -389,6 +389,25 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
   const box = toView ? (macro.viewBounds() || macro.WORLD) : macro.WORLD;
   const zoom = toView ? macro.zoomForBounds(box) : macro.WORLD_ZOOM;
   if (!quiet) say(`${entry.label}: reading tiles…`);
+  /**
+   * The world goes on FIRST and stays on.
+   *
+   * A view is a hemisphere at best, so a layer that only ever holds the view's
+   * tiles has no geology on the far side of the planet: turn the globe and
+   * half of it is empty until it settles and fetches — "it maps in two halves
+   * with a huge latency between them". Pinning the world at zoom 1 (four
+   * tiles, already on disk) means the far side is always mapped, and the view
+   * only ever adds detail on top.
+   */
+  if (!existing?.tiled) {
+    await controller.pin({
+      bounds: macro.WORLD,
+      zoom: macro.WORLD_ZOOM,
+      onProgress: (done, total) => {
+        if (!quiet) say(`${entry.label}: world tile ${done} of ${total}…`);
+      },
+    });
+  }
   const stats = await controller.update({
     bounds: box,
     zoom,

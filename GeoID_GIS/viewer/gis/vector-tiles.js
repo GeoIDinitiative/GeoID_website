@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-ac264b1";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-ac264b1";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-ed7a126";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-ed7a126";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -93,6 +93,21 @@ export function createTiledVectorLayer({
   const tiles = new Map();
   let paint = colourFor;
   let opacity = 1;
+  /**
+   * The BACKDROP: the whole world at a coarse zoom, pinned on for good.
+   *
+   * Without it the layer showed only what the last view asked for — and a view
+   * is a hemisphere at best, so the far half of the planet simply had no
+   * geology on it until you turned the globe, waited for it to settle, and let
+   * it fetch. That is the "two halves with a huge latency between them": not
+   * slow loading, but a map that had been narrowed to the view and then had to
+   * be fetched back.
+   *
+   * So the world stays underneath at zoom 1 (four tiles, ~1 MB, already on
+   * disk) and the view's tiles are drawn on top of it. Turning the globe now
+   * shows geology immediately, everywhere, and it sharpens where you look.
+   */
+  const pinned = new Set();
   let visible = new Set();
   let generation = 0;
   let inflight = null;
@@ -145,33 +160,12 @@ export function createTiledVectorLayer({
     tile.node = null;
   };
 
-  /** Bounded, least-recently-needed. Visible tiles are never evicted. */
-  const evict = () => {
-    const built = [...tiles.values()].filter((t) => t.node && !visible.has(key(t.z, t.x, t.y)));
-    if (tiles.size <= cacheTiles && built.length <= cacheTiles) return;
-    built.sort((a, b) => a.used - b.used);
-    while (built.length && tiles.size > cacheTiles) {
-      const oldest = built.shift();
-      dropNode(oldest);
-      tiles.delete(key(oldest.z, oldest.x, oldest.y));
-    }
-  };
 
-  /**
-   * Make the tiles for one view ready, then show them all at once.
-   *
-   * Returns what happened, in the terms the panel reports: how many tiles the
-   * view needed, how many were already in hand, and how many could not be had.
-   */
-  async function update({ bounds, zoom, onProgress = null, signal = null } = {}) {
-    const z = Math.max(0, Math.min(maxZoom, Math.round(zoom)));
-    const wanted = tilesForBounds(bounds, z).slice(0, maxTiles);
-    const mine = ++generation;
-    const needed = wanted.map((t) => key(t.z, t.x, t.y));
+  /** Fetch and decode whatever of these tiles is not already in hand. */
+  async function fetchInto(wanted, onProgress, signal) {
     let cached = 0;
     let failed = 0;
     let bytes = 0;
-
     const queue = wanted.filter((t) => {
       const existing = tiles.get(key(t.z, t.x, t.y));
       if (existing && existing.state !== "failed") {
@@ -181,7 +175,6 @@ export function createTiledVectorLayer({
       }
       return true;
     });
-
     let done = 0;
     const worker = async () => {
       for (;;) {
@@ -207,21 +200,81 @@ export function createTiledVectorLayer({
     };
     inflight = Promise.all([0, 1, 2, 3].map(worker));
     await inflight;
+    return { cached, failed, bytes };
+  }
+
+  /**
+   * Show exactly this set, in one pass, with the view's tiles ON TOP.
+   *
+   * `renderOrder` is a float, and that is what makes the two sets stack
+   * without a second layer: `applyStack` gives the layer a whole number and
+   * the view's tiles take half a step above it, which is above the backdrop
+   * and still below whatever layer comes next.
+   */
+  function showTiles(next, sharp = null) {
+    next.forEach((id) => {
+      const tile = tiles.get(id);
+      if (tile && tile.state === "ready" && tile.features.length) build(tile);
+    });
+    tiles.forEach((tile, id) => {
+      if (!tile.node) return;
+      tile.node.visible = next.has(id);
+      const lift = sharp && sharp.has(id) ? 0.5 : 0;
+      tile.node.traverse((child) => { child.renderOrder = group.renderOrder + lift; });
+    });
+    visible = next;
+  }
+
+  /** Bounded, least-recently-needed — and the backdrop is never a candidate. */
+  function evict() {
+    const built = [...tiles.values()].filter((t) => t.node
+      && !visible.has(key(t.z, t.x, t.y)) && !pinned.has(key(t.z, t.x, t.y)));
+    if (tiles.size <= cacheTiles) return;
+    built.sort((a, b) => a.used - b.used);
+    while (built.length && tiles.size > cacheTiles) {
+      const oldest = built.shift();
+      dropNode(oldest);
+      tiles.delete(key(oldest.z, oldest.x, oldest.y));
+    }
+  }
+
+  /**
+   * Load the backdrop set and keep it. Called once, before the first update.
+   */
+  async function pin({ bounds, zoom, onProgress = null, signal = null } = {}) {
+    const z = Math.max(0, Math.min(maxZoom, Math.round(zoom)));
+    const wanted = tilesForBounds(bounds, z);
+    await fetchInto(wanted, onProgress, signal);
+    wanted.forEach((t) => pinned.add(key(t.z, t.x, t.y)));
+    showTiles(new Set([...pinned]));
+    return { zoom: z, tiles: wanted.length, features: featureCount() };
+  }
+
+  /**
+   * Make the tiles for one view ready, then show them all at once.
+   *
+   * Returns what happened, in the terms the panel reports: how many tiles the
+   * view needed, how many were already in hand, and how many could not be had.
+   */
+  async function update({ bounds, zoom, onProgress = null, signal = null } = {}) {
+    const z = Math.max(0, Math.min(maxZoom, Math.round(zoom)));
+    const wanted = tilesForBounds(bounds, z).slice(0, maxTiles);
+    const mine = ++generation;
+    const needed = wanted.map((t) => key(t.z, t.x, t.y));
+    let cached = 0;
+    let failed = 0;
+    let bytes = 0;
+
+    const result = await fetchInto(wanted, onProgress, signal);
+    cached = result.cached;
+    failed = result.failed;
+    bytes = result.bytes;
     // A newer view asked while this one was loading: its tiles are in the cache
     // for whoever wants them, but it must not become the picture.
     if (mine !== generation) return null;
 
-    needed.forEach((id) => {
-      const tile = tiles.get(id);
-      if (tile && tile.state === "ready" && tile.features.length) build(tile);
-    });
-    // The swap: everything the view wants on, everything else off, in one pass.
-    const next = new Set(needed);
-    tiles.forEach((tile, id) => {
-      if (!tile.node) return;
-      tile.node.visible = next.has(id);
-    });
-    visible = next;
+    // The view's tiles AND the backdrop: the world underneath never goes off.
+    showTiles(new Set([...pinned, ...needed]), new Set(needed));
     evict();
 
     return {
@@ -240,9 +293,21 @@ export function createTiledVectorLayer({
     return [...visible].map((id) => tiles.get(id)).filter((t) => t && t.state === "ready");
   }
 
+  /**
+   * What the layer HAS, for the click card, clipping, sampling and export.
+   *
+   * The finest zoom on screen wins: the backdrop and the view's tiles cover
+   * the same ground twice, and handing both to an extraction would count that
+   * ground twice at two different generalisations.
+   */
   function features() {
+    const shown = shownTiles();
+    if (!shown.length) return [];
+    const finest = Math.max(...shown.map((t) => t.z));
     const out = [];
-    shownTiles().forEach((tile) => tile.features.forEach((f) => out.push(f)));
+    shown.filter((t) => t.z === finest).forEach((tile) => {
+      tile.features.forEach((f) => out.push(f));
+    });
     return out;
   }
 
@@ -283,6 +348,7 @@ export function createTiledVectorLayer({
   return {
     group,
     update,
+    pin,
     setOpacity,
     features,
     featureCount,
