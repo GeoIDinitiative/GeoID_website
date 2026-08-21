@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-94f0d36";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-94f0d36";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-94f0d36";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-f491df2";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-f491df2";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-f491df2";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -161,7 +161,9 @@ export function attachReliefAttributes(geometry, drape, builtRelief) {
  * `lifted` hands the clearance to the shared line uniform above, so it follows
  * the camera down; everything else keeps the fixed clearance it was built with.
  */
-export function followRelief(material, drape, { lifted = false, cullFarSide = false } = {}) {
+export function followRelief(material, drape, {
+  lifted = false, cullFarSide = false, hole = null,
+} = {}) {
   // `true` means the silhouette itself; a number moves the cut inside it.
   const facingLimit = cullFarSide === true ? 0 : Number(cullFarSide) || 0;
   const base = baseRadius();
@@ -169,14 +171,22 @@ export function followRelief(material, drape, { lifted = false, cullFarSide = fa
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uRelief = RELIEF_UNIFORM;
     shader.uniforms.uDrape = drapeUniform;
+    if (hole) {
+      shader.uniforms.uHoleOn = hole.on;
+      shader.uniforms.uHoleY = hole.y;
+      shader.uniforms.uHoleW = hole.west;
+      shader.uniforms.uHoleE = hole.east;
+    }
     shader.vertexShader = `attribute vec3 aDir;
 attribute float aDisp;
 uniform float uRelief;
 uniform float uDrape;
 ${cullFarSide ? "varying float vFacing;" : ""}
+${hole ? "varying vec3 vDir;" : ""}
 ${shader.vertexShader}`.replace(
       "#include <begin_vertex>",
       `vec3 transformed = aDir * (${base.toFixed(4)} + aDisp * uRelief + uDrape);`
+      + (hole ? "\n  vDir = normalize(aDir);" : "")
       + (cullFarSide
         ? `
   {
@@ -201,6 +211,34 @@ ${shader.vertexShader}`.replace(
      * facing away from the camera. On a sphere every vertex's outward normal
      * IS its own direction, which the geometry already carries as `aDir`.
      */
+    /**
+     * A WINDOW cut in the backdrop, exactly where the view's own map paints.
+     *
+     * Hiding whole backdrop tiles cannot work: a zoom-2 tile is a thousand
+     * times the area of the view that would replace it, so hiding one leaves a
+     * rectangular hole in the world map and keeping it double-draws the moment
+     * the layer is translucent. Both were reported, in that order.
+     *
+     * So the cut is per fragment and the window is passed as geometry rather
+     * than as longitudes: two latitudes as a range on the direction's y, and
+     * two meridians as plane normals computed on the CPU with the viewer's own
+     * `latLonToVector3`. No angle is reconstructed in the shader, so there is
+     * no convention to get wrong, and moving the window is four uniform
+     * writes — which is why it can follow the camera.
+     */
+    if (hole) {
+      shader.fragmentShader = `varying vec3 vDir;
+uniform float uHoleOn;
+uniform vec2 uHoleY;
+uniform vec3 uHoleW;
+uniform vec3 uHoleE;
+${shader.fragmentShader}`.replace(
+        "#include <clipping_planes_fragment>",
+        `if (uHoleOn > 0.5 && vDir.y > uHoleY.x && vDir.y < uHoleY.y
+    && dot(vDir, uHoleW) > 0.0 && dot(vDir, uHoleE) < 0.0) discard;
+  #include <clipping_planes_fragment>`,
+      );
+    }
     if (cullFarSide) {
       shader.fragmentShader = `varying float vFacing;
 ${shader.fragmentShader}`.replace(
@@ -219,7 +257,8 @@ ${shader.fragmentShader}`.replace(
   // A material drawing at a fixed clearance and one following the camera must
   // not share a compiled program, or the second silently takes the first's.
   material.customProgramCacheKey = () =>
-    `geoid-relief-${lifted ? "live" : drape}${cullFarSide ? `-cull${facingLimit}` : ""}`;
+    `geoid-relief-${lifted ? "live" : drape}${cullFarSide ? `-cull${facingLimit}` : ""}`
+    + `${hole ? "-hole" : ""}`;
   return material;
 }
 
@@ -361,6 +400,8 @@ export function renderFeatureCollection(fc, {
    * fill was 0.55, so this also makes it tell the truth.
    */
   fillOpacity = 1,
+  // Uniforms for the backdrop's window; null for an ordinary layer.
+  hole = null,
 } = {}) {
   surfaceMemo = new Map();
   surfaceHits = 0;
@@ -501,7 +542,7 @@ export function renderFeatureCollection(fc, {
     const mesh = new THREE.Mesh(geometry, followRelief(new THREE.MeshBasicMaterial({
       vertexColors: true, transparent: true, opacity: fillOpacity,
       depthTest: false, depthWrite: false, side: THREE.DoubleSide,
-    }), FILL_DRAPE, { cullFarSide: true }));
+    }), FILL_DRAPE, { cullFarSide: true, hole }));
     mesh.renderOrder = 1;
     // The vertices move on the GPU, so the bounding sphere computed above is
     // the one they had at build time and culling from it would drop the layer
@@ -517,7 +558,7 @@ export function renderFeatureCollection(fc, {
     const segments = new THREE.LineSegments(geometry, followRelief(new THREE.LineBasicMaterial({
       vertexColors: true, transparent: true, opacity: 1,
       depthTest: false, depthWrite: false,
-    }), FILL_DRAPE, { cullFarSide: true }));
+    }), FILL_DRAPE, { cullFarSide: true, hole }));
     // Named, because `applyStack` rewrites renderOrder on every child and a
     // test that looks for this mesh by draw order finds nothing.
     segments.userData.geoidSeam = true;

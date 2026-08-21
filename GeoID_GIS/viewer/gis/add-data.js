@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260821-94f0d36";
-import { readHead, validateMapping } from "./delimited.js?v=20260821-94f0d36";
-import { RAMP_NAMES } from "./symbology.js?v=20260821-94f0d36";
+import { CRS_OPTIONS } from "./projection.js?v=20260821-f491df2";
+import { readHead, validateMapping } from "./delimited.js?v=20260821-f491df2";
+import { RAMP_NAMES } from "./symbology.js?v=20260821-f491df2";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *

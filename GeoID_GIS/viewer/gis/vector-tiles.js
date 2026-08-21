@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-94f0d36";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-94f0d36";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-f491df2";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-f491df2";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -112,6 +112,17 @@ export function createTiledVectorLayer({
   let seen = null;
   /** Which of the visible tiles are the view's own, rather than the backdrop. */
   let sharpSet = new Set();
+  /**
+   * The window cut in the backdrop, shared by every backdrop tile's material.
+   * Two latitudes as a range on the direction's y, two meridians as plane
+   * normals; moving it is four uniform writes and no rebuild.
+   */
+  const hole = {
+    on: { value: 0 },
+    y: { value: new THREE.Vector2(-1, 1) },
+    west: { value: new THREE.Vector3(1, 0, 0) },
+    east: { value: new THREE.Vector3(1, 0, 0) },
+  };
   let visible = new Set();
   let generation = 0;
   let inflight = null;
@@ -120,7 +131,13 @@ export function createTiledVectorLayer({
     if (tile.node) return tile.node;
     const built = renderFeatureCollection(
       { type: "FeatureCollection", features: tile.features },
-      { name: `${name} ${tile.z}/${tile.x}/${tile.y}`, colourFor: paint },
+      {
+        name: `${name} ${tile.z}/${tile.x}/${tile.y}`,
+        colourFor: paint,
+        // Only the backdrop carries the window: the view's own tiles are what
+        // the window exists to show.
+        hole: pinned.has(key(tile.z, tile.x, tile.y)) ? hole : null,
+      },
     );
     tile.node = built.object3D;
     tile.node.visible = false;
@@ -262,24 +279,29 @@ export function createTiledVectorLayer({
    * geometry, safe to call several times a second.
    */
   function maskBackdrop(viewBox) {
-    if (!sharpSet.size) {
-      pinned.forEach((id) => {
-        const tile = tiles.get(id);
-        if (tile?.node && visible.has(id)) tile.node.visible = true;
-      });
+    const toDir = window.GeoIDViewer?.latLonToVector3;
+    const box = sharpSet.size ? viewBox : null;
+    if (!box || !toDir) {
+      hole.on.value = 0;
       return;
     }
-    pinned.forEach((id) => {
-      const tile = tiles.get(id);
-      if (!tile?.node || !visible.has(id)) return;
-      if (!viewBox) { tile.node.visible = true; return; }
-      const b = tileBounds(tile.z, tile.x, tile.y);
-      const overlaps = b.east > viewBox.west && b.west < viewBox.east
-        && b.north > viewBox.south && b.south < viewBox.north;
-      // Only where the view's own tiles are actually drawing: outside the
-      // screen the backdrop is what the far side is made of.
-      tile.node.visible = !overlaps;
-    });
+    const west = box.west;
+    const east = box.east;
+    const span = east - west;
+    // A window wider than a hemisphere is not a window; at that size the view
+    // and the backdrop are the same tiles anyway.
+    if (!(span > 0) || span >= 180) {
+      hole.on.value = 0;
+      return;
+    }
+    const rad = Math.PI / 180;
+    hole.y.value.set(Math.sin(box.south * rad), Math.sin(box.north * rad));
+    // The normal of the meridian plane at L is the direction at (0, L + 90):
+    // everything east of L has a positive dot with it. Taken from the viewer's
+    // own transform, so no convention is being guessed at.
+    hole.west.value.copy(toDir(0, west + 90, 1)).normalize();
+    hole.east.value.copy(toDir(0, east + 90, 1)).normalize();
+    hole.on.value = 1;
   }
 
   /** The lon/lat box a tile covers, for deciding whether the view hides it. */
