@@ -29,3 +29,11 @@ assets/etna_viewer_demo_audio.webm
 
 # GALES solver source tree (placed locally; huge, has its own .git)
 GeoID_GIS/gales/
+
+# Big local media and caches that live beside the site but are not part of it.
+# A bare "git add -A" once swept these into a commit -- a 927 MB video among
+# them -- and GitHub's pre-receive hook declined the push, silently, for days.
+*.avi
+*.mp4
+*.webm
+*.npy
