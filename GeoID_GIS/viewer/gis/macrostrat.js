@@ -21,8 +21,8 @@
  * not one line about Macrostrat.
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-c6ba8b9";
-import { visibleBounds } from "./view-extent.js?v=20260821-c6ba8b9";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-c97c8db";
+import { visibleBounds } from "./view-extent.js?v=20260821-c97c8db";
 import * as THREE from "../vendor/three.module.js";
 
 const TILES = "https://tiles.macrostrat.org/carto";
@@ -37,6 +37,16 @@ const MAX_ZOOM = 13;
  * refine uses — and at these sizes that is about 1-3 MB.
  */
 const MAX_TILES = 16;
+
+/**
+ * How much deeper than the baked copy a view may ask to go.
+ *
+ * The bake stops at zoom 5. Past that every tile is a round trip to somebody
+ * else's server, so the budget stays modest and the depth is only worth it
+ * when the view is small enough to need it — which is exactly when the tiles
+ * themselves are small (2-20 KB).
+ */
+const LIVE_ZOOM_REACH = 5;
 
 /**
  * The zoom whose tiles suit this span.

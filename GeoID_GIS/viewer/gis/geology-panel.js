@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-c6ba8b9";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-c6ba8b9";
-import { currentBodyId } from "./bodies.js?v=20260821-c6ba8b9";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-c6ba8b9";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-c97c8db";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-c97c8db";
+import { currentBodyId } from "./bodies.js?v=20260821-c97c8db";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-c97c8db";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -411,6 +411,9 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
   const stats = await controller.update({
     bounds: box,
     zoom,
+    // Never coarser than the backdrop: below it there is nothing to gain, and
+    // the world underneath is already at that level.
+    minZoom: macro.WORLD_ZOOM,
     onProgress: (done, total) => {
       if (!quiet && done < total) say(`${entry.label}: tile ${done} of ${total}…`);
     },

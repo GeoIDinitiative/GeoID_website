@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-c6ba8b9";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-c6ba8b9";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-c97c8db";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-c97c8db";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -108,6 +108,8 @@ export function createTiledVectorLayer({
    * shows geology immediately, everywhere, and it sharpens where you look.
    */
   const pinned = new Set();
+  /** What the last set actually cost, so the next choice can be predicted. */
+  let seen = null;
   let visible = new Set();
   let generation = 0;
   let inflight = null;
@@ -160,6 +162,34 @@ export function createTiledVectorLayer({
     tile.node = null;
   };
 
+
+/**
+ * How deep to go, bounded by what it will cost to BUILD.
+ *
+ * Detail is not limited by bandwidth here — a baked tile is 20-250 KB off disk
+ * — it is limited by triangulating what is in it. Measured on this machine:
+ * about **60-85 ms per thousand features**, so a view holding 70,000 features
+ * is five seconds of frozen main thread, and that is what taking the deepest
+ * zoom the tile budget allowed actually bought.
+ *
+ * Feature count roughly quadruples per zoom level, so the last set that was
+ * built is a good predictor of the next one: scale it by the change in view
+ * area and by 4^(levels deeper), and step back while that is over budget. It
+ * self-corrects, because every update replaces the estimate with what really
+ * arrived.
+ */
+  function chooseZoom(bounds, asked, budget, floorZoom) {
+    const areaOf = (b) => Math.max(1e-6, Math.abs(b.east - b.west) * Math.abs(b.north - b.south));
+    let z = Math.max(floorZoom, Math.min(maxZoom, Math.round(asked)));
+    if (!seen) return z;
+    const ratio = areaOf(bounds) / areaOf(seen.bounds);
+    while (z > floorZoom) {
+      const predicted = seen.features * ratio * (4 ** (z - seen.zoom));
+      if (predicted <= budget) break;
+      z -= 1;
+    }
+    return z;
+  }
 
   /** Fetch and decode whatever of these tiles is not already in hand. */
   async function fetchInto(wanted, onProgress, signal, onTile = null) {
@@ -259,8 +289,11 @@ export function createTiledVectorLayer({
    * Returns what happened, in the terms the panel reports: how many tiles the
    * view needed, how many were already in hand, and how many could not be had.
    */
-  async function update({ bounds, zoom, onProgress = null, signal = null } = {}) {
-    const z = Math.max(0, Math.min(maxZoom, Math.round(zoom)));
+  async function update({
+    bounds, zoom, onProgress = null, signal = null,
+    featureBudget = 24000, minZoom = 0,
+  } = {}) {
+    const z = chooseZoom(bounds, zoom, featureBudget, minZoom);
     const wanted = tilesForBounds(bounds, z).slice(0, maxTiles);
     const mine = ++generation;
     const needed = wanted.map((t) => key(t.z, t.x, t.y));
@@ -300,9 +333,12 @@ export function createTiledVectorLayer({
     // Then the tidy-up pass: everything the view wants on, everything else off.
     showTiles(new Set([...pinned, ...needed]), new Set(needed));
     evict();
+    // What this view really cost, which is the next prediction's starting point.
+    seen = { zoom: z, bounds, features: featureCount() };
 
     return {
       zoom: z,
+      asked: Math.round(zoom),
       tiles: wanted.length,
       cached,
       fetched: wanted.length - cached - failed,
