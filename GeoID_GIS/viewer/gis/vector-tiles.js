@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-233e441";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-233e441";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-3ef7808";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-3ef7808";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -112,6 +112,8 @@ export function createTiledVectorLayer({
   let seen = null;
   /** Which of the visible tiles are the view's own, rather than the backdrop. */
   let sharpSet = new Set();
+  /** The zoom the backdrop was loaded at, which the density estimate is in. */
+  let baseZoom = null;
   /**
    * The window cut in the backdrop, shared by every backdrop tile's material.
    * Two latitudes as a range on the direction's y, two meridians as plane
@@ -200,13 +202,43 @@ export function createTiledVectorLayer({
   function chooseZoom(bounds, asked, budget, floorZoom) {
     const areaOf = (b) => Math.max(1e-6, Math.abs(b.east - b.west) * Math.abs(b.north - b.south));
     let z = Math.max(floorZoom, Math.min(maxZoom, Math.round(asked)));
-    if (!seen) return z;
-    const ratio = areaOf(bounds) / areaOf(seen.bounds);
-    while (z > floorZoom) {
-      const predicted = seen.features * ratio * (4 ** (z - seen.zoom));
-      if (predicted <= budget) break;
-      z -= 1;
-    }
+
+    /**
+     * Density is LOCAL, so the estimate has to be too.
+     *
+     * The first version scaled the whole world's feature count, and the world
+     * is mostly ocean: over Europe it predicted a few thousand and 49,150
+     * arrived — twenty seconds of building. The backdrop tiles the view sits
+     * on are a far better ruler, because they are the same ground at a known
+     * zoom. Counting only the ones the view overlaps turns "features per
+     * square degree here" into a number, and feature count roughly quadruples
+     * per level from there.
+     */
+    let localFeatures = 0;
+    let localArea = 0;
+    pinned.forEach((id) => {
+      const tile = tiles.get(id);
+      if (!tile || tile.state !== "ready") return;
+      const b = tileBounds(tile.z, tile.x, tile.y);
+      const overlaps = b.east > bounds.west && b.west < bounds.east
+        && b.north > bounds.south && b.south < bounds.north;
+      if (!overlaps) return;
+      localFeatures += tile.features.length;
+      localArea += areaOf(b);
+    });
+
+    const fromBackdrop = localArea > 0 && baseZoom !== null
+      ? (level) => (localFeatures / localArea) * areaOf(bounds) * (4 ** (level - baseZoom))
+      : null;
+    const fromLast = seen
+      ? (level) => seen.features * (areaOf(bounds) / areaOf(seen.bounds))
+        * (4 ** (level - seen.zoom))
+      : null;
+    // The higher of the two: under-guessing costs a frozen second, and the
+    // last view is the better ruler only when it was over this same ground.
+    const predict = (level) => Math.max(fromBackdrop?.(level) ?? 0, fromLast?.(level) ?? 0);
+    if (!fromBackdrop && !fromLast) return z;
+    while (z > floorZoom && predict(z) > budget) z -= 1;
     return z;
   }
 
@@ -387,6 +419,7 @@ export function createTiledVectorLayer({
     const z = Math.max(0, Math.min(maxZoom, Math.round(zoom)));
     const wanted = tilesForBounds(bounds, z);
     await fetchInto(wanted, onProgress, signal);
+    baseZoom = z;
     wanted.forEach((t) => pinned.add(key(t.z, t.x, t.y)));
     showTiles(new Set([...pinned]));
     // The first view has no history to predict from, and without this it took
