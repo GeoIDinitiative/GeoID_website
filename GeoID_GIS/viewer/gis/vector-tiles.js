@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-c97c8db";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-c97c8db";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-2f3d929";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-2f3d929";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -333,8 +333,20 @@ export function createTiledVectorLayer({
     // Then the tidy-up pass: everything the view wants on, everything else off.
     showTiles(new Set([...pinned, ...needed]), new Set(needed));
     evict();
-    // What this view really cost, which is the next prediction's starting point.
-    seen = { zoom: z, bounds, features: featureCount() };
+    /**
+     * What the VIEW cost — not the backdrop.
+     *
+     * `featureCount()` counts everything on screen, and the world underneath is
+     * most of that at a wide view. Feeding it back as the prediction's base
+     * made every next choice look ruinous and the zoom collapsed to the
+     * backdrop's own level: measured, zoom 2 at every altitude from 15,000 km
+     * down to 1,000.
+     */
+    seen = {
+      zoom: z,
+      bounds,
+      features: needed.reduce((n, id) => n + (tiles.get(id)?.features?.length || 0), 0),
+    };
 
     return {
       zoom: z,
