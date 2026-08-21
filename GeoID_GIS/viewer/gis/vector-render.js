@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-431f8a8";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-431f8a8";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-431f8a8";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-3c068fc";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-3c068fc";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-3c068fc";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -440,6 +440,9 @@ export function renderFeatureCollection(fc, {
       vertexColors: true, transparent: true, opacity: 1,
       depthTest: false, depthWrite: false,
     }), FILL_DRAPE, { cullFarSide: true }));
+    // Named, because `applyStack` rewrites renderOrder on every child and a
+    // test that looks for this mesh by draw order finds nothing.
+    segments.userData.geoidSeam = true;
     segments.renderOrder = 2;
     segments.frustumCulled = false;
     group.add(segments);
