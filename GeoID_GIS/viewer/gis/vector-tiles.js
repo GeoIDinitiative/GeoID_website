@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-521ca21";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-521ca21";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-4259a79";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-4259a79";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -239,16 +239,33 @@ export function createTiledVectorLayer({
      * that is where the compilation stops generalising and starts including.
      */
     const FEATURES_PER_KB = 7.2;
-    const fromManifest = (level) => {
-      if (!sources.size) return null;
+    /**
+     * Past the bake there is no manifest to read, so the deepest baked level
+     * is weighed instead and scaled. Measured from the bake's own totals and a
+     * live zoom-6 sample: about 2.5 times the data per level once the source
+     * has stopped generalising. Without this the estimate fell back to the
+     * density rules and let a zoom-6 view through at 69,761 features.
+     */
+    const BEYOND_BAKE_GROWTH = 2.5;
+    const weigh = (level) => {
       let bytes = 0;
       const want = tilesForBounds(bounds, level);
       for (const t of want) {
         const known = sources.size(`${t.z}/${t.x}/${t.y}`);
-        if (known === null) return null;           // past the bake: cannot say
+        if (known === null) return null;
         bytes += known;
       }
       return (bytes / 1024) * FEATURES_PER_KB;
+    };
+    const fromManifest = (level) => {
+      if (!sources.size) return null;
+      const direct = weigh(level);
+      if (direct !== null) return direct;
+      const baked = Number.isFinite(sources.maxZoom) ? sources.maxZoom : null;
+      if (baked === null || level <= baked) return null;
+      const deepest = weigh(baked);
+      if (deepest === null) return null;
+      return deepest * (BEYOND_BAKE_GROWTH ** (level - baked));
     };
 
     const fromBackdrop = localArea > 0 && baseZoom !== null
