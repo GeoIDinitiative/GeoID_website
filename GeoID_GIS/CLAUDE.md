@@ -280,6 +280,33 @@ look at our drawing rather than at Macrostrat:
   along the boundary. Each filled polygon now strokes its own outline in its
   own fill colour at the fill's own height (the `seal` buffer).
 
+**The seam is culled by FACING, not by depth, and that is not interchangeable.**
+A fill can skip the depth test because `side: FrontSide` culls the far
+hemisphere for it. A line has no facing, so nothing culls it: the seam drawn
+that way put Australia's outline across the Atlantic. Depth-testing it instead
+means lifting it clear of the terrain, and the lift is a fraction of the
+altitude (`LINE_DRAPE`, 0.02 x altitude) — 600 m at 30 km up, which at a
+grazing angle slides the seam off the hairline it exists to cover. So the seam
+hugs the fill and `followRelief(..., { cullFarSide: true })` discards the half
+facing away, using `aDir` as the outward normal, a hair inside the silhouette
+(0.02) because at the limb the sign is decided by rounding. Measured over
+Africa: the seam adds 3,613 px, of which 52 are isolated — sub-pixel islands,
+not a continent.
+
+**The marks vanish as you zoom in, and that is the data telling you where they
+came from.** Every level below the source's native scale is generalised, and
+the generalisation is per polygon. Measured with the flat-colour test: at zoom
+4, 280 holes; at zoom 9, **zero, with or without the seam**, because at native
+scale the polygons still share their boundaries.
+
+**Two draw-order faults found by the same hunt.** The streamed imagery patch
+sat at renderOrder 60 — inside the imported band, which starts at 50 — so
+zooming in with a tile basemap buried every imported layer under the map
+(`REFINE_ORDER = 40` now). And `applyStack` stamps a layer's renderOrder onto
+the children that exist when it runs, so a tile built later started at zero,
+under the basemap, at full opacity beside faded neighbours; `vector-tiles.js`
+now copies the group's order and the layer's opacity onto each new tile.
+
 **Paint every unit one flat colour to tell a hole from a seam.** A dark line
 between two colours could be either; with the whole layer magenta, anything
 dark is a hole. That test took the count from **280 dark pixels surrounded by
