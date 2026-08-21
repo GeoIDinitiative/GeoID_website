@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-3ef7808";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-3ef7808";
-import { currentBodyId } from "./bodies.js?v=20260821-3ef7808";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-3ef7808";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-521ca21";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-521ca21";
+import { currentBodyId } from "./bodies.js?v=20260821-521ca21";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-521ca21";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -379,6 +379,7 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
     sources: {
       local: manifest?.base || null,
       has: manifest?.has || (() => false),
+      size: manifest?.size || null,
       remote: "https://tiles.macrostrat.org/carto",
     },
     // Macrostrat ships the colour each polygon is drawn in, so a source-coloured

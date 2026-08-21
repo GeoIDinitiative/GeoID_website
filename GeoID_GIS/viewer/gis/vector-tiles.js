@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-3ef7808";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-3ef7808";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-521ca21";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-521ca21";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -227,6 +227,30 @@ export function createTiledVectorLayer({
       localArea += areaOf(b);
     });
 
+    /**
+     * The manifest knows what every baked tile WEIGHS, and weight predicts
+     * feature count almost exactly.
+     *
+     * Measured across five zooms, from the world tile to a valley: 6.5, 7.4,
+     * 7.5, 6.9 and 8.0 features per kilobyte. So for any zoom inside the bake
+     * the cost of a view can be summed before a byte is fetched — which beats
+     * every scaling rule, and beats them most where the rules were worst: the
+     * jump from zoom 2 to zoom 3 is nine times the data, not four, because
+     * that is where the compilation stops generalising and starts including.
+     */
+    const FEATURES_PER_KB = 7.2;
+    const fromManifest = (level) => {
+      if (!sources.size) return null;
+      let bytes = 0;
+      const want = tilesForBounds(bounds, level);
+      for (const t of want) {
+        const known = sources.size(`${t.z}/${t.x}/${t.y}`);
+        if (known === null) return null;           // past the bake: cannot say
+        bytes += known;
+      }
+      return (bytes / 1024) * FEATURES_PER_KB;
+    };
+
     const fromBackdrop = localArea > 0 && baseZoom !== null
       ? (level) => (localFeatures / localArea) * areaOf(bounds) * (4 ** (level - baseZoom))
       : null;
@@ -236,8 +260,12 @@ export function createTiledVectorLayer({
       : null;
     // The higher of the two: under-guessing costs a frozen second, and the
     // last view is the better ruler only when it was over this same ground.
-    const predict = (level) => Math.max(fromBackdrop?.(level) ?? 0, fromLast?.(level) ?? 0);
-    if (!fromBackdrop && !fromLast) return z;
+    const predict = (level) => {
+      const weighed = fromManifest(level);
+      if (weighed !== null) return weighed;
+      return Math.max(fromBackdrop?.(level) ?? 0, fromLast?.(level) ?? 0);
+    };
+    if (!sources.size && !fromBackdrop && !fromLast) return z;
     while (z > floorZoom && predict(z) > budget) z -= 1;
     return z;
   }
@@ -595,13 +623,16 @@ export async function loadManifest(url) {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const body = await response.json();
-    const index = new Set(Object.keys(body.tiles || {}));
+    const index = body.tiles || {};
     return {
       base: url.replace(/\/manifest\.json.*$/, ""),
       maxZoom: body.max_zoom ?? 0,
-      count: index.size,
+      count: Object.keys(index).length,
       licence: body.licence || null,
-      has: (path) => index.has(path),
+      has: (path) => Object.prototype.hasOwnProperty.call(index, path),
+      // The bytes of a baked tile, which is how the cost of a view is known
+      // before any of it is fetched. `null` means "not baked, cannot say".
+      size: (path) => (Object.prototype.hasOwnProperty.call(index, path) ? index[path] : null),
     };
   } catch {
     return null;
