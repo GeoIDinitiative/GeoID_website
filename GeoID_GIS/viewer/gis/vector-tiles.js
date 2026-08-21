@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-2f3d929";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-2f3d929";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-4deb4f3";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-4deb4f3";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -244,14 +244,49 @@ export function createTiledVectorLayer({
    * the view's tiles take half a step above it, which is above the backdrop
    * and still below whatever layer comes next.
    */
-  function showTiles(next, sharp = null) {
+  /** The lon/lat box a tile covers, for deciding whether the view hides it. */
+  function tileBounds(z, x, y) {
+    const n = 2 ** z;
+    const lat = (yy) => {
+      const t = Math.PI * (1 - (2 * yy) / n);
+      return (Math.atan(Math.sinh(t)) * 180) / Math.PI;
+    };
+    return {
+      west: (x / n) * 360 - 180,
+      east: ((x + 1) / n) * 360 - 180,
+      north: lat(y),
+      south: lat(y + 1),
+    };
+  }
+
+  /**
+   * Show exactly this set, with the view's tiles on top — and the backdrop
+   * only where the view is not.
+   *
+   * The world underneath exists so the far side of the planet is mapped. Where
+   * the view's own tiles cover the same ground it is not just redundant, it is
+   * WRONG the moment the layer is not opaque: a coarse generalisation showing
+   * through a fine one reads as "fragmented polygons not linked to the real
+   * geology" — big angular shapes that belong to no unit on screen. So a
+   * backdrop tile that the view overlaps is switched off; spin the globe and
+   * it comes back for the ground the view has left behind.
+   */
+  function showTiles(next, sharp = null, viewBox = null) {
     next.forEach((id) => {
       const tile = tiles.get(id);
       if (tile && tile.state === "ready" && tile.features.length) build(tile);
     });
+    const hidesBackdrop = (id) => {
+      if (!viewBox || !sharp || sharp.has(id) || !pinned.has(id)) return false;
+      const tile = tiles.get(id);
+      if (!tile) return false;
+      const b = tileBounds(tile.z, tile.x, tile.y);
+      return b.east > viewBox.west && b.west < viewBox.east
+        && b.north > viewBox.south && b.south < viewBox.north;
+    };
     tiles.forEach((tile, id) => {
       if (!tile.node) return;
-      tile.node.visible = next.has(id);
+      tile.node.visible = next.has(id) && !hidesBackdrop(id);
       const lift = sharp && sharp.has(id) ? 0.5 : 0;
       tile.node.traverse((child) => { child.renderOrder = group.renderOrder + lift; });
     });
@@ -280,6 +315,11 @@ export function createTiledVectorLayer({
     await fetchInto(wanted, onProgress, signal);
     wanted.forEach((t) => pinned.add(key(t.z, t.x, t.y)));
     showTiles(new Set([...pinned]));
+    // The first view has no history to predict from, and without this it took
+    // whatever the tile budget allowed: measured, 49,150 features and fifty
+    // seconds. The backdrop is a fair starting point - the whole world at a
+    // known zoom, with a known count.
+    seen = { zoom: z, bounds, features: featureCount() };
     return { zoom: z, tiles: wanted.length, features: featureCount() };
   }
 
@@ -331,7 +371,7 @@ export function createTiledVectorLayer({
     if (mine !== generation) return null;
 
     // Then the tidy-up pass: everything the view wants on, everything else off.
-    showTiles(new Set([...pinned, ...needed]), new Set(needed));
+    showTiles(new Set([...pinned, ...needed]), new Set(needed), bounds);
     evict();
     /**
      * What the VIEW cost — not the backdrop.

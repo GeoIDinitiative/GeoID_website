@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260821-2f3d929";
-import { samplerToRaster } from "./raster-analysis.js?v=20260821-2f3d929";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260821-2f3d929";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260821-2f3d929";
+import { currentBody } from "./bodies.js?v=20260821-4deb4f3";
+import { samplerToRaster } from "./raster-analysis.js?v=20260821-4deb4f3";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260821-4deb4f3";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260821-4deb4f3";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -207,12 +207,29 @@ function layers() {
  * an explicit index is stored on each one the first time it is seen and used
  * from then on.
  */
+/**
+ * Geology is a BASE, so it sorts under everything else that was imported.
+ *
+ * A geological map is the ground a study is about; a shapefile somebody added,
+ * an area they drew, a pulled event feed are all things they put ON that
+ * ground. Ordering them by arrival alone meant the world geology - which
+ * arrives with the tab and covers the planet - painted over a river network or
+ * a set of epicentres somebody had just loaded, and the only way to see them
+ * again was to reorder by hand. Within each band the hand order still holds,
+ * so dragging a layer up or down does what it always did.
+ */
+function bandOf(layer) {
+  return layer?.geologyDataset || layer?.role === "geology" ? 0 : 1;
+}
+
 function ordered() {
   const list = layers();
   list.forEach((layer, i) => {
     if (!Number.isFinite(layer.stackIndex)) layer.stackIndex = i;
   });
-  return [...list].sort((a, b) => b.stackIndex - a.stackIndex);
+  // The list is TOP FIRST -- `applyStack` gives index 0 the highest draw order
+  // -- so the higher band has to sort first, not last.
+  return [...list].sort((a, b) => (bandOf(b) - bandOf(a)) || (b.stackIndex - a.stackIndex));
 }
 
 // Imported layers draw above everything the viewer ships -- its basemap shells
