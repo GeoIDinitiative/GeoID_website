@@ -280,6 +280,42 @@ look at our drawing rather than at Macrostrat:
   along the boundary. Each filled polygon now strokes its own outline in its
   own fill colour at the fill's own height (the `seal` buffer).
 
+**Detail is limited by TRIANGULATION, not by bandwidth.** A baked tile is
+20-250 KB off disk; building it costs **60-85 ms per thousand features**. So
+the zoom is chosen by weighing the view before fetching it: the manifest
+records every baked tile's size, and size predicts feature count almost exactly
+(measured across five zooms: 6.5, 7.4, 7.5, 6.9, 8.0 features per KB). A view
+over budget (24,000 features, about 1.5 s) is refused a level rather than
+freezing the tab. Two traps in that: the step from zoom 2 to zoom 3 is **nine
+times** the data, not four, because that is where the compilation stops
+generalising — any x4 scaling rule walks into 49,000 features — and a tile the
+bake skipped is EMPTY, not unknown, so reading a missing manifest entry as
+unknown threw the estimate away for every view with a coastline in it.
+
+Measured at five altitudes over Europe, before and after: 15,290 km zoom 0 →
+**2** (36 → 22 km between vertices), 7,645 km zoom 1 → 2 (36 → 22), 3,823 km
+zoom 2 → **3** (25 → 10), 2,230 km zoom 3 → **5** (10 → 4.5), 995 km zoom 4 →
+**5** (6.6 → 4.5).
+
+**A tile goes up when it lands**, rather than the view waiting for its slowest
+one — safe only because the backdrop is underneath, so there is nothing for an
+early tile to fight with. And the backdrop is cut away exactly where the view's
+own tiles paint, as a WINDOW in the shader: two latitudes as a range on the
+direction's y, two meridians as plane normals from the viewer's own
+`latLonToVector3`. Per-tile hiding cannot do this — a zoom-2 tile is a thousand
+times the area of the view replacing it, so hiding one leaves a rectangular
+hole and keeping it double-draws the moment the layer is translucent. Both were
+reported, in that order, and the window is the fix for both.
+
+**A layer that gains its geometry late still needs its place in the stack.**
+`applyStack` skips a layer with no `object3D`, and a layer joins the list when
+its import STARTS: the stack was applied while it was an empty row, the count
+never changed again, and it kept renderOrder 0 — under the basemap. The
+hierarchy poll now watches how many layers are drawable, not how many exist.
+And geology sorts under every other imported layer, because a geological map is
+the ground a study is about, not something to put over what somebody just
+loaded.
+
 **The world is PINNED under the view, or the planet has an empty half.**
 `visibleBounds` is a hemisphere at best, so a tiled layer that holds only the
 view's tiles has no geology on the far side: turn the globe and half of it is
