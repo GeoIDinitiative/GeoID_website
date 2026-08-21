@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260821-3c068fc";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260821-3c068fc";
-import { isEarth } from "./bodies.js?v=20260821-3c068fc";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260821-3c068fc";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260821-2f431fd";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260821-2f431fd";
+import { isEarth } from "./bodies.js?v=20260821-2f431fd";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260821-2f431fd";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260821-3c068fc";
+  from "./view-extent.js?v=20260821-2f431fd";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -847,6 +847,20 @@ let refineState = null;
  * already parent; the cost is carrying its half turn, which `buildMesh` does
  * when asked for the "globe" frame.
  */
+/**
+ * The streamed detail patch is IMAGERY, so it draws under the data.
+ *
+ * It used to sit at 60 — inside the imported band, which starts at 50 — so as
+ * soon as the imagery refined for the view it painted over every imported
+ * layer: fly in over Northern Ireland with a tile basemap on and the geology
+ * simply disappeared under the map. Measured: refine patch renderOrder 60
+ * against the geology's 51.
+ *
+ * 40 is the streamed-tile band in the draw-order table: above the basemap
+ * shells (0-7), below anything anybody imported or derived (50+).
+ */
+const REFINE_ORDER = 40;
+
 function refineParent() {
   return window.GeoIDViewer?.globe || null;
 }
@@ -906,7 +920,7 @@ async function refineOnce({ onStatus } = {}) {
       const group = refineParent();
       if (!group) return;
       const mesh = buildMesh(canvas, bbox, { frame: "globe" });
-      mesh.renderOrder = 60;
+      mesh.renderOrder = REFINE_ORDER;
       mesh.name = "GeoID-BasemapRefinePending";
       group.add(mesh);
       live = mesh;
@@ -959,7 +973,7 @@ async function refineOnce({ onStatus } = {}) {
         return null;
       }
       live = buildMesh(result.canvas, bbox, { frame: "globe" });
-      live.renderOrder = 60;               // the imported band, over the sphere
+      live.renderOrder = REFINE_ORDER;
       group.add(live);
     }
     live.name = "GeoID-BasemapRefine";
