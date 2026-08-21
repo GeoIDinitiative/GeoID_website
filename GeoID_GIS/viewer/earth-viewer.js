@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260821-56c33da";
+  from "./gis/geo-utils.js?v=20260821-3dc92af";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -19639,6 +19639,23 @@ uniform float uViewportWidth;`,
         /** What the globe is actually drawn with, so a drape can tell when it
          *  has gone stale and rebuild rather than hang in the air. */
         getEffectiveRelief: () => getEffectiveTerrainRelief(),
+        /**
+         * The terrain's own displacement at a coordinate, BEFORE the slider.
+         *
+         * `surfacePoint` bakes the current exaggeration in, which is right for
+         * placing something now and wrong for building geometry that has to
+         * survive the exaggeration changing. It changes constantly: the relief
+         * tapers to nothing below about 300 km whenever there is close-range
+         * imagery, so anything built down there came out flat and stayed flat
+         * when the camera rose again -- geology sunk into the terrain, which is
+         * exactly what "not touch tight" looks like.
+         *
+         * This returns the normalised elevation instead, so a builder can put
+         * its vertices at a reference exaggeration of its own and let the
+         * shader re-apply whatever the globe is drawn at.
+         */
+        elevationNormalized: (lat, lon) =>
+          sampleElevationNormalized(elevationSampler, lat, lon),
         renderScaleBar(metersPerPixel) {
           if (!Number.isFinite(metersPerPixel) || metersPerPixel <= 0) {
             scaleReadout.hidden = true;

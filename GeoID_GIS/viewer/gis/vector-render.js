@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-56c33da";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-56c33da";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-56c33da";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-3dc92af";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-3dc92af";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-3dc92af";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -35,6 +35,22 @@ let surfaceMemo = null;
 let surfaceHits = 0;
 let surfaceCalls = 0;
 
+/**
+ * The exaggeration geometry is BUILT at, whatever the globe is showing.
+ *
+ * `surfacePoint` bakes in the exaggeration of the moment, and that moment is
+ * not stable: the relief tapers to nothing below about 300 km whenever there
+ * is close-range imagery on the globe. A layer built down there came out flat,
+ * `aDisp` was zero for every vertex — the shader has nothing to scale — and it
+ * stayed flat when the camera rose and the terrain came back, so the map sank
+ * into the ground it belongs to.
+ *
+ * Building at a fixed reference instead means the geometry always carries the
+ * terrain, and the shader re-applies whatever exaggeration is live. The value
+ * is the slider's own default, so nothing changes in the common case.
+ */
+const REFERENCE_RELIEF = 0.11;
+
 function surfaceAt(lat, lon, drape) {
   surfaceCalls += 1;
   const key = surfaceMemo ? `${lat},${lon},${drape}` : null;
@@ -45,10 +61,16 @@ function surfaceAt(lat, lon, drape) {
       return hit.clone();
     }
   }
-  const surfacePoint = window.GeoIDViewer?.surfacePoint;
-  const point = surfacePoint
-    ? surfacePoint(lat, lon, drape)
-    : latLonToVector3(lat, lon, drapedRadius(drape));
+  const viewer = window.GeoIDViewer;
+  let point;
+  if (typeof viewer?.elevationNormalized === "function") {
+    const displaced = viewer.elevationNormalized(lat, lon) * REFERENCE_RELIEF;
+    point = latLonToVector3(lat, lon, drapedRadius(drape) + displaced);
+  } else if (typeof viewer?.surfacePoint === "function") {
+    point = viewer.surfacePoint(lat, lon, drape);
+  } else {
+    point = latLonToVector3(lat, lon, drapedRadius(drape));
+  }
   if (key) surfaceMemo.set(key, point.clone());
   return point;
 }
@@ -514,7 +536,11 @@ export function renderFeatureCollection(fc, {
 
   // The exaggeration these vertices were built with, so the shader can undo it
   // and re-apply whatever the globe is drawn at now.
-  const builtRelief = Number(window.GeoIDViewer?.getEffectiveRelief?.() ?? 0);
+  // The reference the vertices above were built at -- NOT the live value, which
+  // may be zero and would throw the terrain away.
+  const builtRelief = typeof window.GeoIDViewer?.elevationNormalized === "function"
+    ? REFERENCE_RELIEF
+    : Number(window.GeoIDViewer?.getEffectiveRelief?.() ?? 0);
   if (fill.positions.length) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(fill.positions, 3));

@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260821-56c33da";
-import { samplerToRaster } from "./raster-analysis.js?v=20260821-56c33da";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260821-56c33da";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260821-56c33da";
+import { currentBody } from "./bodies.js?v=20260821-3dc92af";
+import { samplerToRaster } from "./raster-analysis.js?v=20260821-3dc92af";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260821-3dc92af";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260821-3dc92af";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -218,8 +218,20 @@ function layers() {
  * again was to reorder by hand. Within each band the hand order still holds,
  * so dragging a layer up or down does what it always did.
  */
+/**
+ * Three bands, bottom to top: IMAGERY, GEOLOGY, everything else.
+ *
+ * A picture of the ground (a tile drape, an Earth Engine snapshot) is a
+ * basemap however it arrived, so the geological map goes over it. The geology
+ * is in turn the ground a study is about, so a shapefile, a drawn area or a
+ * pulled event feed goes over that. Within a band the hand order still holds,
+ * so dragging a layer up or down does what it always did.
+ */
+const IMAGERY_EXT = new Set(["tiles", "gee"]);
+
 function bandOf(layer) {
-  return layer?.geologyDataset || layer?.role === "geology" ? 0 : 1;
+  if (IMAGERY_EXT.has(layer?.ext)) return 0;
+  return layer?.geologyDataset || layer?.role === "geology" ? 1 : 2;
 }
 
 function ordered() {
