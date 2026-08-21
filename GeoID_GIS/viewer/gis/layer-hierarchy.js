@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260821-4deb4f3";
-import { samplerToRaster } from "./raster-analysis.js?v=20260821-4deb4f3";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260821-4deb4f3";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260821-4deb4f3";
+import { currentBody } from "./bodies.js?v=20260821-4cbbabb";
+import { samplerToRaster } from "./raster-analysis.js?v=20260821-4cbbabb";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260821-4cbbabb";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260821-4cbbabb";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -1152,7 +1152,19 @@ function init() {
   // else happened to redraw it.
   let lastSignature = null;
   const poll = () => {
-    const signature = `${layers().length}|${window.GeoIDViewer?.getBaseLayerId?.() || ""}`;
+    /**
+     * The count is not enough: a layer appears in the list the moment the
+     * import starts and gains its `object3D` a second or two later, and
+     * `applyStack` skips a layer that has no object. So the stack was applied
+     * while the new layer was still an empty row, the count never changed
+     * again, and the layer kept `renderOrder` 0 — under the basemap, under
+     * everything. Measured on a freshly added shapefile: geology 51, the
+     * shapefile 0, and it only sorted itself out if something else happened to
+     * redraw. Counting the layers that are actually DRAWABLE catches that
+     * moment.
+     */
+    const built = layers().filter((layer) => layer.object3D).length;
+    const signature = `${layers().length}|${built}|${window.GeoIDViewer?.getBaseLayerId?.() || ""}`;
     if (signature !== lastSignature || !mounted) { lastSignature = signature; render(); }
     window.setTimeout(poll, 700);
   };
