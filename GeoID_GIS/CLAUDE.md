@@ -280,6 +280,24 @@ look at our drawing rather than at Macrostrat:
   along the boundary. Each filled polygon now strokes its own outline in its
   own fill colour at the fill's own height (the `seal` buffer).
 
+**Build vector geometry at a FIXED exaggeration, never at the live one.**
+`surfacePoint` bakes in the relief of the moment, and that moment is not
+stable: `getEffectiveTerrainRelief` tapers to nothing below ~300 km whenever
+there is close-range imagery. A layer built down there came out flat, every
+`aDisp` was zero — the shader then has nothing to scale — and it stayed flat
+when the camera rose and the terrain returned, so the map sank into its own
+ground. The viewer exposes `elevationNormalized(lat, lon)` (the terrain before
+the slider) and `vector-render` builds at `REFERENCE_RELIEF = 0.11`, letting
+the shader re-apply whatever is live. Measured on a square over the Alps:
+vertices sit on the displaced surface to **1 m**, both at the exaggeration they
+were built for and at one they were not (0.02, where the surface span is
+2,662 m rather than 14,639 m).
+
+**Three draw-order bands inside the imported range**: imagery (`ext` of `tiles`
+or `gee` — a tile drape, an Earth Engine snapshot) UNDER geology, geology under
+everything anybody added. Measured: drape 51, world geology 52, a shapefile 53.
+The streamed basemap refine patch sits below all of it at 40.
+
 **Detail is limited by TRIANGULATION, not by bandwidth.** A baked tile is
 20-250 KB off disk; building it costs **60-85 ms per thousand features**. So
 the zoom is chosen by weighing the view before fetching it: the manifest
