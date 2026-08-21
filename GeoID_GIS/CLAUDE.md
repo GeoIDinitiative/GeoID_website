@@ -280,6 +280,19 @@ look at our drawing rather than at Macrostrat:
   along the boundary. Each filled polygon now strokes its own outline in its
   own fill colour at the fill's own height (the `seal` buffer).
 
+**The world is PINNED under the view, or the planet has an empty half.**
+`visibleBounds` is a hemisphere at best, so a tiled layer that holds only the
+view's tiles has no geology on the far side: turn the globe and half of it is
+blank until it settles and fetches, which reads as "it maps in two halves with
+a huge latency between them". The controller keeps the world at `WORLD_ZOOM`
+(four tiles, already baked to disk), never hides or evicts it, and draws the
+view's tiles **half a renderOrder step above** it — renderOrder is a float, so
+the two sets stack inside one layer without needing a second one. `features()`
+returns only the finest zoom on screen, so an extraction never counts the same
+ground twice. Measured: after refining to zoom 3 over Africa, the drawn set is
+`1/0/0 1/0/1 1/1/0 1/1/1 3/3/3 3/4/3` — and it is the same set the instant the
+camera is thrown to 110°E, which draws China immediately.
+
 **A hole belongs to the ring that CONTAINS it, never to the one before it.**
 Ear clipping joins each hole to its outer ring with a bridge, so a hole
 attached to the wrong ring makes a triangle stretching all the way between
