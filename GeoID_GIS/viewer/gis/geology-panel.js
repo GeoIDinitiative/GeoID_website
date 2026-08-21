@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-2f431fd";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-2f431fd";
-import { currentBodyId } from "./bodies.js?v=20260821-2f431fd";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-2f431fd";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-4c3ed8b";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-4c3ed8b";
+import { currentBodyId } from "./bodies.js?v=20260821-4c3ed8b";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-4c3ed8b";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -422,6 +422,11 @@ async function loadTiled(entry, { toView = false, quiet = false } = {}) {
   layer.collection = { type: "FeatureCollection", features: layer.features };
   layer.dynamicZoom = stats.zoom;
   layer.dynamicBounds = box;
+  // Tiles that arrived just now are new children: the stack has to be applied
+  // again or they draw at order zero, under the basemap. The controller keeps
+  // the opacity so the next tile matches the ones already on screen.
+  controller.setOpacity?.(layer.opacity ?? 1);
+  window.GeoIDLayerHierarchy?.render?.();
 
   const chosen = styleChoice.get(entry.id);
   if (chosen) {

@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-2f431fd";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-2f431fd";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-4c3ed8b";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-4c3ed8b";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -92,6 +92,7 @@ export function createTiledVectorLayer({
   /** key -> { z, x, y, features, node, used, state } */
   const tiles = new Map();
   let paint = colourFor;
+  let opacity = 1;
   let visible = new Set();
   let generation = 0;
   let inflight = null;
@@ -104,6 +105,31 @@ export function createTiledVectorLayer({
     );
     tile.node = built.object3D;
     tile.node.visible = false;
+    /**
+     * A tile built AFTER the stack was applied has no draw order of its own.
+     *
+     * `applyStack` walks each layer's object3D once and stamps its renderOrder
+     * onto every child; a tile that arrives later is a new child, and a new
+     * child starts at zero — which is under the basemap, under the streamed
+     * imagery, under everything. Measured: the map came back and the geology
+     * did not, because the tiles it had just built were painted first and then
+     * covered. The group's own order is the layer's, so it is the answer.
+     */
+    tile.node.traverse((child) => { child.renderOrder = group.renderOrder; });
+    // Opacity is a layer-wide setting applied the same way, so a new tile
+    // inherits it from whatever is already on screen rather than arriving at
+    // full strength beside a faded neighbour.
+    if (opacity < 1) {
+      tile.node.traverse((child) => {
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        materials.forEach((m) => {
+          if (!m) return;
+          m.transparent = true;
+          m.opacity = opacity;
+          m.needsUpdate = true;
+        });
+      });
+    }
     group.add(tile.node);
     return tile.node;
   };
@@ -243,6 +269,11 @@ export function createTiledVectorLayer({
     return shown.length > 0;
   }
 
+  /** The layer's opacity, remembered so tiles built later match the rest. */
+  function setOpacity(value) {
+    opacity = Number.isFinite(value) ? value : 1;
+  }
+
   function dispose() {
     tiles.forEach((tile) => dropNode(tile));
     tiles.clear();
@@ -252,6 +283,7 @@ export function createTiledVectorLayer({
   return {
     group,
     update,
+    setOpacity,
     features,
     featureCount,
     repaint,
