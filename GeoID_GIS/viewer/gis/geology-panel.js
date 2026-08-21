@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-47f2220";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-47f2220";
-import { currentBodyId } from "./bodies.js?v=20260821-47f2220";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-47f2220";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-d1e8adb";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-d1e8adb";
+import { currentBodyId } from "./bodies.js?v=20260821-d1e8adb";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-d1e8adb";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -332,6 +332,119 @@ const loadedLayers = () => (window.GeoIDImportManager?.getLayers?.() || [])
   .filter((l) => l.status === "loaded" && l.geologyDataset);
 
 /**
+ * The baked tile index, asked for once.
+ *
+ * The site carries the world's geology to zoom 5 (`data/global/geology`,
+ * ~46 MB, made by `services/bake-geology.py`), so the view everybody opens on
+ * is served from disk: offline, instant, and immune to somebody else's CDN
+ * having cached a tile without its CORS header. Deeper zooms come live from
+ * the source, which is the right way round — the coarse levels are asked for
+ * constantly and never change, the fine ones are asked for rarely and are
+ * where the compilation's own updates land.
+ */
+let manifestOnce = null;
+function bakedTiles() {
+  if (!manifestOnce) {
+    manifestOnce = import(`./vector-tiles.js${new URL(import.meta.url).search}`)
+      .then((m) => m.loadManifest("/data/global/geology/manifest.json"))
+      .catch(() => null);
+  }
+  return manifestOnce;
+}
+
+/**
+ * A tiled dataset, created once and then KEPT.
+ *
+ * This is the whole difference from what it replaced. There is one layer
+ * record and one object3D for the life of the layer; a view change asks the
+ * controller for the tiles that view needs, and the controller already holds
+ * most of them. Nothing is re-imported, so nothing that belongs to the layer —
+ * the symbology somebody chose, the opacity they set, its place in the stack,
+ * its row in the legend — is lost because the camera moved.
+ */
+async function loadTiled(entry, { toView = false, quiet = false } = {}) {
+  const manager = window.GeoIDImportManager;
+  const search = new URL(import.meta.url).search;
+  const [tilesModule, macro, manifest] = await Promise.all([
+    import(`./vector-tiles.js${search}`),
+    import(`./macrostrat.js${search}`),
+    bakedTiles(),
+  ]);
+  const existing = loadedLayers().find((l) => l.geologyDataset === entry.id);
+  const controller = existing?.tiled || tilesModule.createTiledVectorLayer({
+    name: entry.name,
+    kind: entry.dynamic,
+    // Local first, then the source. `has` keeps the client from asking for the
+    // thousands of ocean tiles that were never baked because they are empty.
+    sources: {
+      local: manifest?.base || null,
+      has: manifest?.has || (() => false),
+      remote: "https://tiles.macrostrat.org/carto",
+    },
+    // Macrostrat ships the colour each polygon is drawn in, so a source-coloured
+    // layer is painted as its tiles are built rather than repainted afterwards.
+    colourFor: entry.sourceColours ? (f) => f?.properties?.color || null : null,
+  });
+
+  const box = toView ? (macro.viewBounds() || macro.WORLD) : macro.WORLD;
+  const zoom = toView ? macro.zoomForBounds(box) : macro.WORLD_ZOOM;
+  if (!quiet) say(`${entry.label}: reading tiles…`);
+  const stats = await controller.update({
+    bounds: box,
+    zoom,
+    onProgress: (done, total) => {
+      if (!quiet && done < total) say(`${entry.label}: tile ${done} of ${total}…`);
+    },
+  });
+  // Null means a newer view asked while this one was loading; its tiles are in
+  // the cache for whoever wants them, but it must not become the picture.
+  if (!stats) return;
+
+  let layer = existing;
+  if (!layer) {
+    layer = manager.addDerivedLayer(entry.label, {
+      object3D: controller.group,
+      georeferenced: true,
+      bounds: { minX: box.west, maxX: box.east, minY: box.south, maxY: box.north },
+      features: controller.features(),
+      collection: { type: "FeatureCollection", features: controller.features() },
+      repaint: (colourFn) => controller.repaint(colourFn),
+    }, "geology");
+    if (!layer) { say(`${entry.label} could not be added.`); return; }
+    layer.geologyDataset = entry.id;
+    layer.credit = entry.credit;
+    layer.dynamicGeology = entry.dynamic;
+    layer.tiled = controller;
+  }
+  // The features a tiled layer HAS are the ones in view — which is what makes
+  // extraction, clipping and export mean something when they run on it.
+  layer.features = controller.features();
+  layer.collection = { type: "FeatureCollection", features: layer.features };
+  layer.dynamicZoom = stats.zoom;
+  layer.dynamicBounds = box;
+
+  const chosen = styleChoice.get(entry.id);
+  if (chosen) {
+    await applyField(layer, chosen.field,
+      { ramp: chosen.ramp, overrides: chosen.overrides, labels: chosen.labels });
+  } else if (entry.sourceColours) {
+    // The tiles were built in the source's colours already, so this only draws
+    // the key — repainting would rebuild every tile in view for nothing.
+    await paintFromSource(layer, entry, { repaint: false });
+  } else {
+    await applyField(layer, entry.colourBy);
+  }
+  publishInteractive();
+  watchView();
+  const where = stats.cached === stats.tiles ? "from cache"
+    : `${stats.fetched} fetched, ${stats.cached} cached`;
+  say(`${entry.label} — ${layer.features.length.toLocaleString()} features at zoom `
+    + `${stats.zoom} (${stats.tiles} tiles, ${where}`
+    + `${stats.failed ? `, ${stats.failed} unavailable` : ""}). ${entry.credit}`);
+  render();
+}
+
+/**
  * `toView` is what tells a tiled dataset to follow the camera.
  *
  * The first load of a world layer must be the WORLD — the tab calls it world
@@ -347,6 +460,9 @@ async function loadDataset(entry, { toView = false, replace = false, quiet = fal
     say("The globe is still starting — try again in a moment.");
     return;
   }
+  // A tiled dataset has no file to import: it is a controller over tiles, and
+  // it updates itself in place rather than being loaded again.
+  if (entry.dynamic) return loadTiled(entry, { toView, quiet });
   const existing = (manager.getLayers?.() || []).find((l) => l.geologyDataset === entry.id);
   if (existing && !replace) {
     say(`${entry.label} is already loaded.`);
@@ -481,9 +597,9 @@ async function loadDataset(entry, { toView = false, replace = false, quiet = fal
  * "other" — which over a global map is most of the world, painted a colour
  * that means nothing, with a legend that looks right.
  */
-async function paintFromSource(layer, entry) {
+async function paintFromSource(layer, entry, { repaint = true } = {}) {
   const { legendFrom } = await import(`./macrostrat.js${new URL(import.meta.url).search}`);
-  layer.repaint?.((feature) => feature?.properties?.color || null);
+  if (repaint) layer.repaint?.((feature) => feature?.properties?.color || null);
   const field = entry.colourBy || "name";
   const legend = legendFrom(layer.features, { field });
   layer.legendInfo = legend;
@@ -514,11 +630,11 @@ async function refreshDynamic({ quiet = false } = {}) {
   if (refreshing) return;
   refreshing = true;
   try {
-    const entries = live.map((l) => entryById(l.geologyDataset)).filter(Boolean);
-    // Replace rather than remove-then-load: the old map stays up until the new
-    // one is built, so a refine sharpens rather than blinking.
-    for (const entry of entries) {
-      await loadDataset(entry, { toView: true, replace: true, quiet });
+    for (const layer of live) {
+      const entry = entryById(layer.geologyDataset);
+      // In place: the same controller, the same layer record, the same object
+      // in the scene. Only the tiles in view change.
+      if (entry) await loadTiled(entry, { toView: true, quiet });
     }
   } finally {
     refreshing = false;
@@ -568,13 +684,9 @@ function watchView() {
       const zoomMoved = built == null || wanted !== built;
       if (!zoomMoved && !view.viewChangedEnough(lastBounds, asBounds)) return;
       lastBounds = asBounds;
-      void refreshDynamic({ quiet: true }).then(() => {
-        const now = loadedLayers().find((l) => l.dynamicGeology);
-        if (now) {
-          say(`Geology refined for this view — zoom ${now.dynamicZoom}, `
-            + `${(now.features?.length || 0).toLocaleString()} features.`);
-        }
-      });
+      // `loadTiled` reports what it did, including how much came from cache,
+      // so the watcher does not write a second line over the top of it.
+      void refreshDynamic({ quiet: true });
     }, { settleMs: 700 });
   });
 }
@@ -1257,7 +1369,12 @@ async function setActive(on) {
     }
   } else {
     const manager = window.GeoIDImportManager;
-    loadedLayers().forEach((layer) => { manager?.removeLayer?.(layer.id); });
+    loadedLayers().forEach((layer) => {
+      // A tiled layer holds GPU buffers for every tile it has built, and
+      // removing the record does not free them.
+      layer.tiled?.dispose?.();
+      manager?.removeLayer?.(layer.id);
+    });
     stopWatchingView();
   }
   holdGlobeStill(on);
