@@ -1,13 +1,13 @@
-import * as store from "./project-store.js?v=20260821-4259a79";
-import * as stats from "./stats.js?v=20260821-4259a79";
-import * as dsp from "./dsp.js?v=20260821-4259a79";
-import { parseTable, column } from "./table.js?v=20260821-4259a79";
-import { linePlot, heatmap } from "./plot.js?v=20260821-4259a79";
-import { el, findTables, saveFigure } from "./pages/common.js?v=20260821-4259a79";
-import { createMap, BASEMAPS } from "./map2d.js?v=20260821-4259a79";
-import * as sidecar from "./sidecar.js?v=20260821-4259a79";
-import * as bridge from "./bridge.js?v=20260821-4259a79";
-import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260821-4259a79";
+import * as store from "./project-store.js?v=20260821-56c33da";
+import * as stats from "./stats.js?v=20260821-56c33da";
+import * as dsp from "./dsp.js?v=20260821-56c33da";
+import { parseTable, column } from "./table.js?v=20260821-56c33da";
+import { linePlot, heatmap } from "./plot.js?v=20260821-56c33da";
+import { el, findTables, saveFigure } from "./pages/common.js?v=20260821-56c33da";
+import { createMap, BASEMAPS } from "./map2d.js?v=20260821-56c33da";
+import * as sidecar from "./sidecar.js?v=20260821-56c33da";
+import * as bridge from "./bridge.js?v=20260821-56c33da";
+import { runConnector, studyBbox, CONNECTORS } from "./connectors.js?v=20260821-56c33da";
 
 /**
  * The parts of a page the app builds while it runs.

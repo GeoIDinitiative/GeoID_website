@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-4259a79";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-4259a79";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-56c33da";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-56c33da";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -242,18 +242,21 @@ export function createTiledVectorLayer({
     /**
      * Past the bake there is no manifest to read, so the deepest baked level
      * is weighed instead and scaled. Measured from the bake's own totals and a
-     * live zoom-6 sample: about 2.5 times the data per level once the source
-     * has stopped generalising. Without this the estimate fell back to the
-     * density rules and let a zoom-6 view through at 69,761 features.
+     * live zoom-6 sample: the world is 18.2 MB baked at zoom 5 and about
+     * 150 MB at zoom 6, so roughly eight times the data for that step - which
+     * is where the compilation stops generalising altogether.
      */
-    const BEYOND_BAKE_GROWTH = 2.5;
+    const BEYOND_BAKE_GROWTH = 8;
+    const baked = Number.isFinite(sources.maxZoom) ? sources.maxZoom : null;
     const weigh = (level) => {
+      if (baked === null || level > baked) return null;
       let bytes = 0;
-      const want = tilesForBounds(bounds, level);
-      for (const t of want) {
-        const known = sources.size(`${t.z}/${t.x}/${t.y}`);
-        if (known === null) return null;
-        bytes += known;
+      for (const t of tilesForBounds(bounds, level)) {
+        // A tile the bake skipped is EMPTY, not unknown — ocean, ice, ground
+        // nobody has mapped. Reading it as unknown threw the whole estimate
+        // away for any view with a coastline in it, which is most of them, and
+        // the fallback let a zoom-6 view through at 69,761 features.
+        bytes += sources.size(`${t.z}/${t.x}/${t.y}`) ?? 0;
       }
       return (bytes / 1024) * FEATURES_PER_KB;
     };
@@ -261,8 +264,6 @@ export function createTiledVectorLayer({
       if (!sources.size) return null;
       const direct = weigh(level);
       if (direct !== null) return direct;
-      const baked = Number.isFinite(sources.maxZoom) ? sources.maxZoom : null;
-      if (baked === null || level <= baked) return null;
       const deepest = weigh(baked);
       if (deepest === null) return null;
       return deepest * (BEYOND_BAKE_GROWTH ** (level - baked));
