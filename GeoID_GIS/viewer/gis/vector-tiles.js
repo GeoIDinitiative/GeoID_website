@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-f491df2";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-f491df2";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-233e441";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-233e441";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -278,24 +278,44 @@ export function createTiledVectorLayer({
    * cheap on purpose: a handful of bounds tests and a `visible` flag, no
    * geometry, safe to call several times a second.
    */
-  function maskBackdrop(viewBox) {
+  function maskBackdrop() {
     const toDir = window.GeoIDViewer?.latLonToVector3;
-    const box = sharpSet.size ? viewBox : null;
-    if (!box || !toDir) {
+    /**
+     * The window is the ground the VIEW'S TILES cover — not the camera's box.
+     *
+     * Cutting the camera's box left the backdrop missing wherever the view was
+     * bigger than the tiles that had been fetched for it: a dark wedge across
+     * the planet, the first fault in a new shape. The sharp tiles' own union
+     * is exactly the ground that has a better map on it, so it is exactly what
+     * should be cut away underneath — and it only changes when the view is
+     * refined, not as the camera drifts.
+     */
+    if (!sharpSet.size || !toDir) {
       hole.on.value = 0;
       return;
     }
-    const west = box.west;
-    const east = box.east;
+    let west = 180;
+    let east = -180;
+    let south = 90;
+    let north = -90;
+    sharpSet.forEach((id) => {
+      const tile = tiles.get(id);
+      if (!tile) return;
+      const b = tileBounds(tile.z, tile.x, tile.y);
+      west = Math.min(west, b.west);
+      east = Math.max(east, b.east);
+      south = Math.min(south, b.south);
+      north = Math.max(north, b.north);
+    });
     const span = east - west;
-    // A window wider than a hemisphere is not a window; at that size the view
-    // and the backdrop are the same tiles anyway.
+    // A window wider than a hemisphere is not a window: at that size the view
+    // IS the backdrop's own zoom and there is nothing underneath to hide.
     if (!(span > 0) || span >= 180) {
       hole.on.value = 0;
       return;
     }
     const rad = Math.PI / 180;
-    hole.y.value.set(Math.sin(box.south * rad), Math.sin(box.north * rad));
+    hole.y.value.set(Math.sin(south * rad), Math.sin(north * rad));
     // The normal of the meridian plane at L is the direction at (0, L + 90):
     // everything east of L has a positive dot with it. Taken from the viewer's
     // own transform, so no convention is being guessed at.
@@ -331,7 +351,7 @@ export function createTiledVectorLayer({
    * backdrop tile that the view overlaps is switched off; spin the globe and
    * it comes back for the ground the view has left behind.
    */
-  function showTiles(next, sharp = null, viewBox = null) {
+  function showTiles(next, sharp = null) {
     next.forEach((id) => {
       const tile = tiles.get(id);
       if (tile && tile.state === "ready" && tile.features.length) build(tile);
@@ -344,7 +364,7 @@ export function createTiledVectorLayer({
     });
     visible = next;
     sharpSet = sharp ? new Set(sharp) : new Set();
-    maskBackdrop(viewBox);
+    maskBackdrop();
   }
 
   /** Bounded, least-recently-needed — and the backdrop is never a candidate. */
@@ -425,7 +445,7 @@ export function createTiledVectorLayer({
     if (mine !== generation) return null;
 
     // Then the tidy-up pass: everything the view wants on, everything else off.
-    showTiles(new Set([...pinned, ...needed]), new Set(needed), bounds);
+    showTiles(new Set([...pinned, ...needed]), new Set(needed));
     evict();
     /**
      * What the VIEW cost — not the backdrop.
