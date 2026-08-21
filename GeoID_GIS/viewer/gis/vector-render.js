@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-4c3ed8b";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-4c3ed8b";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-4c3ed8b";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-c66c54c";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-c66c54c";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-c66c54c";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -175,7 +175,13 @@ ${shader.vertexShader}`.replace(
       shader.fragmentShader = `varying float vFacing;
 ${shader.fragmentShader}`.replace(
         "#include <clipping_planes_fragment>",
-        `if (vFacing <= 0.0) discard;
+        // A hair inside the silhouette rather than exactly on it: at the limb
+        // the normal is perpendicular to the view, the sign is decided by
+        // rounding, and a few fragments of the far side get through. Measured
+        // over the Pacific: 53 stray pixels, all of them within a couple of
+        // degrees of the horizon, where the seam is edge-on and invisible
+        // anyway.
+        `if (vFacing <= 0.02) discard;
   #include <clipping_planes_fragment>`,
       );
     }
