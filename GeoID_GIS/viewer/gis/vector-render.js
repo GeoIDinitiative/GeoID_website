@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-ed7a126";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-ed7a126";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-ed7a126";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-c6ba8b9";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-c6ba8b9";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-c6ba8b9";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -18,11 +18,39 @@ const MAX_LINE_VERTICES = 6000000;
  * way a coastline was in the scene, visible, correctly georeferenced, and
  * drawing exactly nothing, because the planet was in front of it.
  */
+/**
+ * One build's memo of surface points, keyed by the coordinate itself.
+ *
+ * `surfacePoint` samples the elevation and does the trig, and the SAME
+ * coordinate is asked for many times over: a vertex shared by six triangles is
+ * transformed six times, and the seam asks for every ring vertex again.
+ * Measured on a zoom-3 view of Europe, 23,793 features: 1.02 million lookups
+ * for 261,000 distinct coordinates — three quarters of the work was repeats.
+ *
+ * The memo lives for one `renderFeatureCollection` call, so it cannot go stale
+ * against a moving relief slider, and it is keyed by the string form of the
+ * pair because the decoder already rounds coordinates to six decimals.
+ */
+let surfaceMemo = null;
+let surfaceHits = 0;
+let surfaceCalls = 0;
+
 function surfaceAt(lat, lon, drape) {
+  surfaceCalls += 1;
+  const key = surfaceMemo ? `${lat},${lon},${drape}` : null;
+  if (key) {
+    const hit = surfaceMemo.get(key);
+    if (hit) {
+      surfaceHits += 1;
+      return hit.clone();
+    }
+  }
   const surfacePoint = window.GeoIDViewer?.surfacePoint;
-  return surfacePoint
+  const point = surfacePoint
     ? surfacePoint(lat, lon, drape)
     : latLonToVector3(lat, lon, drapedRadius(drape));
+  if (key) surfaceMemo.set(key, point.clone());
+  return point;
 }
 
 /**
@@ -334,6 +362,9 @@ export function renderFeatureCollection(fc, {
    */
   fillOpacity = 1,
 } = {}) {
+  surfaceMemo = new Map();
+  surfaceHits = 0;
+  surfaceCalls = 0;
   const linePositions = [];
   const lineColours = [];
   const pointPositions = [];
@@ -520,7 +551,9 @@ export function renderFeatureCollection(fc, {
     })));
   }
 
-  return { object3D: group, truncated };
+  const memo = { calls: surfaceCalls, distinct: surfaceMemo.size, hits: surfaceHits };
+  surfaceMemo = null;
+  return { object3D: group, truncated, memo };
 }
 
 /** Counts geometry kinds, for the layer list summary. */

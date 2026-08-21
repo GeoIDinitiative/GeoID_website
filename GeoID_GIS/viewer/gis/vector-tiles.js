@@ -35,8 +35,8 @@
  */
 
 import * as THREE from "../vendor/three.module.js";
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-ed7a126";
-import { renderFeatureCollection } from "./vector-render.js?v=20260821-ed7a126";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-c6ba8b9";
+import { renderFeatureCollection } from "./vector-render.js?v=20260821-c6ba8b9";
 
 const key = (z, x, y) => `${z}/${x}/${y}`;
 
@@ -162,7 +162,7 @@ export function createTiledVectorLayer({
 
 
   /** Fetch and decode whatever of these tiles is not already in hand. */
-  async function fetchInto(wanted, onProgress, signal) {
+  async function fetchInto(wanted, onProgress, signal, onTile = null) {
     let cached = 0;
     let failed = 0;
     let bytes = 0;
@@ -195,10 +195,13 @@ export function createTiledVectorLayer({
           tiles.set(id, { ...tile, features: [], node: null, used: generation, state: "failed" });
         }
         done += 1;
+        onTile?.(id);
         onProgress?.(done + cached, wanted.length);
       }
     };
-    inflight = Promise.all([0, 1, 2, 3].map(worker));
+    // Six rather than four: the baked tiles come off disk, where the round trip
+    // is short enough that the queue, not the network, was the wait.
+    inflight = Promise.all([0, 1, 2, 3, 4, 5].map(worker));
     await inflight;
     return { cached, failed, bytes };
   }
@@ -265,7 +268,28 @@ export function createTiledVectorLayer({
     let failed = 0;
     let bytes = 0;
 
-    const result = await fetchInto(wanted, onProgress, signal);
+    /**
+     * Each tile goes up the moment it lands, rather than the view waiting for
+     * its slowest tile.
+     *
+     * The atomic swap existed because a half-drawn view meant coarse tiles
+     * fighting fine ones in an order nobody controls. The pinned backdrop
+     * settled that: it is always underneath, the view's tiles always draw
+     * above it, and two tiles at the same zoom never overlap — so there is
+     * nothing left for an early tile to fight with. Measured over Europe: the
+     * first detail lands in about a second instead of after all sixteen.
+     */
+    const early = (id) => {
+      if (mine !== generation) return;
+      const tile = tiles.get(id);
+      if (!tile || tile.state !== "ready" || !tile.features.length) return;
+      if (!needed.includes(id)) return;
+      build(tile);
+      tile.node.visible = true;
+      tile.node.traverse((child) => { child.renderOrder = group.renderOrder + 0.5; });
+      visible.add(id);
+    };
+    const result = await fetchInto(wanted, onProgress, signal, early);
     cached = result.cached;
     failed = result.failed;
     bytes = result.bytes;
@@ -273,7 +297,7 @@ export function createTiledVectorLayer({
     // for whoever wants them, but it must not become the picture.
     if (mine !== generation) return null;
 
-    // The view's tiles AND the backdrop: the world underneath never goes off.
+    // Then the tidy-up pass: everything the view wants on, everything else off.
     showTiles(new Set([...pinned, ...needed]), new Set(needed));
     evict();
 

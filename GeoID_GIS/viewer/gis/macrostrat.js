@@ -21,8 +21,8 @@
  * not one line about Macrostrat.
  */
 
-import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-ed7a126";
-import { visibleBounds } from "./view-extent.js?v=20260821-ed7a126";
+import { decodeTile, tilesForBounds } from "./mvt.js?v=20260821-c6ba8b9";
+import { visibleBounds } from "./view-extent.js?v=20260821-c6ba8b9";
 import * as THREE from "../vendor/three.module.js";
 
 const TILES = "https://tiles.macrostrat.org/carto";
@@ -46,15 +46,25 @@ const MAX_TILES = 16;
  * budget. Stepping out rather than truncating matters: a truncated cover is a
  * map with a bite out of it, and nothing on screen says why.
  */
-export function zoomForBounds(bounds, { maxTiles = MAX_TILES, maxZoom = MAX_ZOOM } = {}) {
-  const span = Math.max(
-    0.0001,
-    Math.abs(bounds.east - bounds.west),
-    Math.abs(bounds.north - bounds.south),
-  );
-  let z = Math.max(0, Math.min(maxZoom, Math.floor(Math.log2(360 / span))));
-  while (z > 0 && tilesForBounds(bounds, z).length > maxTiles) z -= 1;
-  return z;
+export function zoomForBounds(bounds, {
+  maxTiles = MAX_TILES, maxZoom = MAX_ZOOM, minZoom = 0,
+} = {}) {
+  /**
+   * The DEEPEST zoom the budget allows, not the shallowest that covers.
+   *
+   * The old rule picked the level where the view was about one tile across —
+   * which spends a sixteen-tile budget on one tile and hands you the coarsest
+   * generalisation that fits. Measured over Europe: 3,800 km up it chose zoom
+   * 2, a median 25 km between vertices, on a view where a pixel is 3 km. Using
+   * the whole budget instead moves that to zoom 4, about 6 km — the same
+   * request count, four times the detail.
+   */
+  let best = Math.max(0, Math.min(maxZoom, minZoom));
+  for (let z = best; z <= maxZoom; z += 1) {
+    if (tilesForBounds(bounds, z).length > maxTiles) break;
+    best = z;
+  }
+  return best;
 }
 
 /** The current camera's extent, in the box shape this module speaks. */
@@ -74,11 +84,14 @@ export const WORLD = { west: -180, east: 180, south: -85, north: 85 };
  * and is not: the tiler generalises hard at that level and drops whole
  * regions. Point-in-polygon over the decoded tile finds nothing under Northern
  * Ireland or Alice Springs, while Bern and Boulder answer — so a click on
- * Ireland reported no geology at all. At zoom 1 (four tiles, about 1.6 MB) all
- * four answer. The cost is one more second; the alternative is a world map
- * with holes in it that nothing on screen explains.
+ * Ireland reported no geology at all. Zoom 1 answers everywhere.
+ *
+ * Zoom 2 is the backdrop because it is the whole world for 1.3 MB — sixteen
+ * baked tiles, off disk — and it is what the far side of the planet is drawn
+ * from when you spin the globe. Twenty kilometres between vertices rather than
+ * twenty-eight, for a quarter of a second more.
  */
-export const WORLD_ZOOM = 1;
+export const WORLD_ZOOM = 2;
 
 /**
  * One tile, with a retry that exists for a specific measured reason.

@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-ed7a126";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-ed7a126";
-import { currentBodyId } from "./bodies.js?v=20260821-ed7a126";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-ed7a126";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-c6ba8b9";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-c6ba8b9";
+import { currentBodyId } from "./bodies.js?v=20260821-c6ba8b9";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-c6ba8b9";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -711,7 +711,10 @@ function watchView() {
       // `loadTiled` reports what it did, including how much came from cache,
       // so the watcher does not write a second line over the top of it.
       void refreshDynamic({ quiet: true });
-    }, { settleMs: 700 });
+      // 400 ms: long enough that a drag issues one round of tiles at the end
+      // rather than thousands on the way, short enough that letting go and
+      // looking does not feel like waiting for permission.
+    }, { settleMs: 400 });
   });
 }
 
