@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-d1e8adb";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-d1e8adb";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-d1e8adb";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260821-8ece60f";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260821-8ece60f";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260821-8ece60f";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -204,10 +204,37 @@ function fillTriangles(polygon, drape, out, colour) {
   }
   const all = [...contour, ...holes.flat()];
   faces.forEach((face) => {
-    face.forEach((index) => {
+    const points = face.map((index) => {
       const v = all[index];
-      if (!v) return;
-      const p = surfaceAt(v.y, v.x, drape);
+      return v ? surfaceAt(v.y, v.x, drape) : null;
+    });
+    if (points.length !== 3 || points.some((p) => !p)) return;
+    const [a, b, c] = points;
+    /**
+     * Every triangle is turned to face OUTWARD, and this is not tidiness.
+     *
+     * The fill is `side: FrontSide` so the far hemisphere is culled, which is
+     * what lets it skip the depth test. Winding decides which side is front —
+     * and `triangulateShape` inherits its winding from the ring it was given,
+     * while a source's rings are wound however that survey wound them. A
+     * triangle that comes out facing into the globe is therefore not drawn,
+     * and what is left is a hole in the map exactly its own shape.
+     *
+     * Ear clipping makes slivers, so those holes are thin curved scratches
+     * lying along the triangulation — which reads as torn geometry rather
+     * than as backface culling, and is exactly what was reported: "the black
+     * scores". Measured over Britain: 1,087 of 228,990 triangles faced inward,
+     * 0.47% by count and 0.53% by area, every one of them invisible.
+     *
+     * The outward direction on a sphere is the position itself, so the test is
+     * one cross product and a dot: negative means inward, and swapping two
+     * vertices turns it round.
+     */
+    const nx = (b.y - a.y) * (c.z - a.z) - (b.z - a.z) * (c.y - a.y);
+    const ny = (b.z - a.z) * (c.x - a.x) - (b.x - a.x) * (c.z - a.z);
+    const nz = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    const ordered = (nx * a.x + ny * a.y + nz * a.z) >= 0 ? [a, b, c] : [a, c, b];
+    ordered.forEach((p) => {
       out.positions.push(p.x, p.y, p.z);
       out.colours.push(colour.r, colour.g, colour.b);
     });
