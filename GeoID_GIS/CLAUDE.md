@@ -259,6 +259,32 @@ flying anywhere put it back to source colours, a faded sheet back to solid, and
 a switched-off one back on. Verified: colour by age + 45% opacity survive a
 forced refresh into a new layer id.
 
+**Two rendering faults made the polygons look torn, and neither was in the
+data.** An independent rasterisation of the same decoded tiles — matplotlib,
+same rings, same hole grouping — had no scratches at all, which is what said to
+look at our drawing rather than at Macrostrat:
+
+- **Winding.** The fill is `side: FrontSide`, so the far hemisphere is culled
+  without a depth test — and `ShapeUtils.triangulateShape` inherits its winding
+  from the ring it was given, while a survey winds its rings however it likes.
+  A triangle facing into the globe is not drawn, and ear clipping makes
+  slivers, so what is left is a thin curved scratch along the triangulation.
+  Measured over Britain: **1,087 of 228,990 triangles faced inward**, 0.47% by
+  count. `fillTriangles` now turns every triangle outward — one cross product
+  and a dot, since on a sphere the outward direction is the position itself.
+- **Neighbouring units do not share their boundary.** Each survey, then each
+  tile generalisation, simplifies a polygon on its own: only **32% of edges at
+  zoom 4 are used by two polygons**, and the strays sit within about 30 m.
+  Thirty metres is a fraction of a pixel, and with no multisampling a sub-pixel
+  gap still leaves whole pixels with nothing drawn — a broken 1px black line
+  along the boundary. Each filled polygon now strokes its own outline in its
+  own fill colour at the fill's own height (the `seal` buffer).
+
+**Paint every unit one flat colour to tell a hole from a seam.** A dark line
+between two colours could be either; with the whole layer magenta, anything
+dark is a hole. That test took the count from **280 dark pixels surrounded by
+fill to 2**, and is the regression check for both faults.
+
 Rebuild cost, measured as the longest gap between animation frames on the
 software renderer: 524 ms for the 7,929-polygon world build, 326 ms for a
 view-sized refine against a 246 ms idle median — a refine is not a freeze.
