@@ -15,7 +15,7 @@ import {
   RAMPS,
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
   categoricalSymbology, suggestCategoryField, QUALITATIVE, QUALITATIVE_RAMP,
-} from "./symbology.js?v=20260822-e946bec";
+} from "./symbology.js?v=20260822-59e7558";
 
 const HOST_ID = "gis-symbology-host";
 /**
@@ -562,11 +562,20 @@ export function openFor(layer) {
   select.value = id;
   select.dispatchEvent(new Event("change"));
   const host = byId(HOST_ID);
-  // Every panel here lives inside a folded <details>; opening the layer's own
-  // one is the difference between "selected" and "on screen".
+  /**
+   * Selected is not the same as on screen.
+   *
+   * This panel lives several folds deep — inside a `<details>` tool section,
+   * inside a `<details>` group, and the toolbox hides whole groups with the
+   * `hidden` attribute when another tab is showing. Opening the folds is not
+   * enough if an ancestor is hidden outright, so both are cleared on the way
+   * up. Measured before this: the layer was selected and the panel's
+   * `offsetParent` was null — nothing on screen had changed.
+   */
   let node = host;
-  while (node) {
+  while (node && node !== document.body) {
     if (node.tagName === "DETAILS") node.open = true;
+    if (node.hasAttribute?.("hidden")) node.removeAttribute("hidden");
     node = node.parentElement;
   }
   host?.scrollIntoView?.({ behavior: "smooth", block: "center" });
