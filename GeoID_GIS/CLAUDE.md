@@ -484,6 +484,46 @@ keyed by host id: on the element it would not survive being replaced, and the
 dropdown would spring shut under someone working down it. The Earth Engine
 catalogue passes no title because it already sits inside its own disclosure.
 
+**A legend row says what its swatch is a swatch OF, so a layer with a legend
+does not also get the stand-in row.** The stand-in exists for a layer with no
+symbology at all — one swatch and `geometrySummary(features)`, so the dock can
+still say something. The moment a palette exists the classes below carry their
+own swatches and names, and the stand-in becomes "8,101 lines" beside a colour
+it does not describe: the count listed as a legend entry, which is how it was
+reported. It used to be suppressed only past two palette entries, on the
+reasoning that a continuous ramp contradicts a single swatch — as true of one
+class as of three. `paintSingle` labels its one row with the geometry summary
+rather than the layer name, which is already the card's title an inch above.
+
+**A select's POPUP is painted from opaque colours.** `background:
+rgba(255,255,255,0.06)` is a dark control on a dark card and a WHITE list when
+the browser opens it — the popup has no card behind it, so the same rule
+composites over the platform's white and near-white text goes with it. The
+control keeps its translucent fill; `select`, `option` and `optgroup` are given
+a solid `background-color`.
+
+**`hidden` needs `[hidden] { display: none !important }` here too** — the same
+rule the Research Hub needed. The attribute is only a UA-level display:none, so
+`.sym-row { display: flex }` outranks it: the attribute half of the vector form
+was set hidden in One colour mode and went on rendering, with Colour by and
+Ramp sitting under a Style select saying they did not apply. **A probe that
+reads `el.hidden` cannot see this** — it reported `classes_hidden: true` for
+controls that were plainly on screen in the same run's screenshot. Measure the
+computed `display`.
+
+**Data arriving stops the planet.** `holdTheGlobe()` in `import-manager.js`
+runs on every completed import and every `addDerivedLayer`: you add a shapefile
+in order to look at it, and a globe turning at 3°/s walks it off the limb. It
+asks the viewer's own `setSpinPaused` rather than turning the globe from
+outside, so the corner toggle stays truthful (`pauseSpin` syncs it) and there
+is still one rotation and one thing that stops it. **The nine planet viewers
+had `pauseSpin`/`resumeSpin` internally but no seam**, so each gained
+`setSpinPaused`/`isSpinPaused` beside `getSpinDeltaRadians`. It is not a
+one-shot — resuming and then adding another layer means wanting to see that one
+too — and it is safe against the self-rebuilding layers because both the tiled
+geology and the basemap drape call `addDerivedLayer` once and reuse the layer
+afterwards.
+
 **Checking the colour: read the geometry, not the material.** `renderFeatureCollection`
 draws with `vertexColors: true`, so `material.color` is white on a correctly
 painted layer. A probe that reads materials reports "all white" for a map that

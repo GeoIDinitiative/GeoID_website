@@ -6273,6 +6273,14 @@
         // clocks, and the shared modules only need the angle to be truthful,
         // so the planet group's own rotation is the answer.
         getSpinDeltaRadians: () => (marsGroup ? marsGroup.rotation.y : 0),
+        // Adding data holds the planet still so the layer that just landed can
+        // be looked at. The viewer owns its rotation, so this asks it rather
+        // than turning the globe from outside -- one rotation, one thing that
+        // stops it, and the corner toggle follows because pauseSpin syncs it.
+        setSpinPaused(paused) {
+          if (paused) { pauseSpin(); } else { resumeSpin(); }
+        },
+        isSpinPaused: () => spinPaused,
         // One-shot "click a point on the globe", so a Research form can be
         // filled by pointing. Raycasts a sphere at the globe radius and maps the
         // hit into the body-fixed frame (undo the group tilt/spin, then the

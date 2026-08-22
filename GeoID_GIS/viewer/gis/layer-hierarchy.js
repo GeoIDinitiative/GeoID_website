@@ -10,11 +10,11 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260822-654b5ae";
-import { samplerToRaster } from "./raster-analysis.js?v=20260822-654b5ae";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260822-654b5ae";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260822-654b5ae";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260822-654b5ae";
+import { currentBody } from "./bodies.js?v=20260822-6ff535a";
+import { samplerToRaster } from "./raster-analysis.js?v=20260822-6ff535a";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260822-6ff535a";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260822-6ff535a";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260822-6ff535a";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -890,22 +890,8 @@ function basemapCard() {
  */
 function symbolLabel(layer) {
   if (layer.type) return layer.type;
-  const features = layer.collection?.features || layer.features;
-  if (Array.isArray(features) && features.length) {
-    const kinds = { polygon: 0, line: 0, point: 0 };
-    features.forEach((feature) => {
-      const type = feature?.geometry?.type || "";
-      if (type.includes("Polygon")) kinds.polygon += 1;
-      else if (type.includes("LineString")) kinds.line += 1;
-      else if (type.includes("Point")) kinds.point += 1;
-    });
-    const parts = [];
-    const plural = (n, word) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
-    if (kinds.polygon) parts.push(plural(kinds.polygon, "polygon"));
-    if (kinds.line) parts.push(plural(kinds.line, "line"));
-    if (kinds.point) parts.push(plural(kinds.point, "point"));
-    if (parts.length) return parts.join(", ");
-  }
+  const summary = geometrySummary(layer.collection?.features || layer.features);
+  if (summary) return summary;
   if (layer.raster && layer.info?.width && layer.info?.height) {
     return `${layer.info.width} x ${layer.info.height} raster`;
   }
@@ -926,12 +912,21 @@ function buildLayerCard(layer) {
   badge.textContent = name.replace(/\.(tif|tiff|geojson|json|shp|asc|kml|gpx|csv|wkt)$/i, "");
   card.appendChild(badge);
 
-  // A continuous raster's symbology IS its ramp. Drawing a single swatch
-  // beside it says the layer is one colour and then contradicts itself an inch
-  // lower — and the only text that row can carry is the layer's *type*, which
-  // is how the file arrived ("tif") rather than what the map shows. So a layer
-  // with a graded legend gets the ramp alone.
-  const graded = Array.isArray(layer.legendInfo?.palette) && layer.legendInfo.palette.length > 2;
+  /**
+   * A layer that HAS a legend does not also get the stand-in row.
+   *
+   * The stand-in exists for a layer with no symbology at all — one swatch and
+   * whatever the layer is made of, so the dock can still say something. The
+   * moment a palette exists the classes below carry their own swatches and
+   * their own names, and the stand-in becomes a row that says "8,101 lines"
+   * beside a colour it does not describe. Reported as exactly that: the count
+   * listed as a legend entry.
+   *
+   * It used to be suppressed only past two palette entries, on the reasoning
+   * that a continuous ramp contradicts a single swatch — true, and it is just
+   * as true of one class as of three.
+   */
+  const graded = Array.isArray(layer.legendInfo?.palette) && layer.legendInfo.palette.length > 0;
   const list = document.createElement("div");
   list.className = "legend-symbol-list";
   const row = document.createElement("div");

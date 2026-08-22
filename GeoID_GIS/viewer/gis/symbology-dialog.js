@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260822-654b5ae";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260822-6ff535a";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260822-654b5ae";
+} from "./symbology.js?v=20260822-6ff535a";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -78,6 +78,16 @@ const STYLE = `
   flex-direction: column;
   gap: 0.45rem;
 }
+/**
+ * The hidden ATTRIBUTE is only a UA-level display:none, so ANY author rule
+ * that sets display outranks it -- and half the things in this dialog are
+ * flex rows. The attribute half was hidden in One colour mode and went on
+ * rendering anyway: Colour by and Ramp sat under a Style select saying they
+ * did not apply. The same trap the Research Hub hit with a collapsed panel,
+ * and it is invisible to a probe that reads the property rather than the
+ * computed display.
+ */
+#gis-sym-dialog [hidden] { display: none !important; }
 #gis-sym-dialog .sym-row {
   display: flex;
   align-items: center;
@@ -109,6 +119,26 @@ const STYLE = `
   font: 400 0.62rem/1.35 'Exo 2', sans-serif;
   min-width: 0;
 }
+/**
+ * A select's POPUP is painted from opaque colours, and a translucent one is
+ * not opaque.
+ *
+ * The closed control looked right -- 6% white over a dark card is a dark
+ * control -- but the list the browser opens has no card behind it, so the same
+ * rule composites over the platform's white and the near-white text goes with
+ * it. The open menu was white on white and unreadable. The control keeps its
+ * translucent fill; the popup and its options are painted solid.
+ */
+#gis-sym-dialog select {
+  background-color: #1c0a2b;
+  background-image: none;
+}
+#gis-sym-dialog select option,
+#gis-sym-dialog select optgroup {
+  background-color: #1c0a2b;
+  color: #f2e9ff;
+}
+#gis-sym-dialog select option:disabled { color: rgba(242, 233, 255, 0.4); }
 #gis-sym-dialog input[type="text"]:focus,
 #gis-sym-dialog input[type="number"]:focus,
 #gis-sym-dialog select:focus {
@@ -405,6 +435,32 @@ export function paintByField(layer, field, {
 export const DEFAULT_SINGLE = "#8ef6c4";
 
 /**
+ * "8,101 lines", "412 polygons, 2 points" — what a layer is made of.
+ *
+ * Written here rather than in `vector-render.js`, which owns the equivalent
+ * `describeCollection`, only because that module imports three.js and this one
+ * is reached from a Node test. Three places wanted the same sentence — the
+ * legend row, this dialog's one-colour label, and the Polygons tab's list — and
+ * three copies of a counting loop is how they start disagreeing about whether
+ * a MultiPolygon is one polygon or several.
+ */
+export function geometrySummary(features) {
+  const kinds = { polygon: 0, line: 0, point: 0 };
+  (features || []).forEach((feature) => {
+    const type = feature?.geometry?.type || "";
+    if (type.includes("Polygon")) kinds.polygon += 1;
+    else if (type.includes("LineString")) kinds.line += 1;
+    else if (type.includes("Point")) kinds.point += 1;
+  });
+  const plural = (n, word) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
+  const parts = [];
+  if (kinds.polygon) parts.push(plural(kinds.polygon, "polygon"));
+  if (kinds.line) parts.push(plural(kinds.line, "line"));
+  if (kinds.point) parts.push(plural(kinds.point, "point"));
+  return parts.join(", ");
+}
+
+/**
  * Paint a whole vector layer ONE colour.
  *
  * The other half of vector symbology, and for a line layer usually the half
@@ -419,7 +475,10 @@ export function paintSingle(layer, colour = DEFAULT_SINGLE) {
   layer.repaint(() => css);
   layer.legendInfo = {
     palette: [css.replace("#", "")],
-    labels: [layer.name],
+    // A legend row says what its swatch is a swatch OF. The layer's own name is
+    // already the card's title an inch above, so repeating it there is a row
+    // that tells the reader nothing; what the colour covers is the geometry.
+    labels: [geometrySummary(layer.features) || layer.name],
     categorical: true,
     classed: true,
     field: null,

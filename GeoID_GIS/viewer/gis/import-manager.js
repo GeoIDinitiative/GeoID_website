@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260822-654b5ae";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260822-654b5ae";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260822-654b5ae";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260822-654b5ae";
-import { buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude } from "./vector-render.js?v=20260822-654b5ae";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260822-654b5ae";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260822-654b5ae";
-import { loadMshFile } from "./msh-adapter.js?v=20260822-654b5ae";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260822-654b5ae";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260822-6ff535a";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260822-6ff535a";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260822-6ff535a";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260822-6ff535a";
+import { buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude } from "./vector-render.js?v=20260822-6ff535a";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260822-6ff535a";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260822-6ff535a";
+import { loadMshFile } from "./msh-adapter.js?v=20260822-6ff535a";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260822-6ff535a";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -197,6 +197,30 @@ function reapplyPlacement(mode) {
       placeLocalModel(layer.object3D, mode);
     }
   });
+}
+
+/**
+ * Data arriving stops the planet.
+ *
+ * The globe turns off simulated UTC, which is the right idle behaviour and the
+ * wrong one the moment something lands on it: you add a shapefile in order to
+ * LOOK at it, and it immediately walks off the limb. Every world already owns
+ * a pause — it is the toggle in the corner and the space bar — so this asks
+ * the viewer rather than turning the globe from outside, and the toggle stays
+ * truthful because `pauseSpin` syncs it.
+ *
+ * It is not a one-shot: resuming the spin and then adding another layer means
+ * wanting to see that one too. It never fails an import — a viewer that has
+ * not finished booting simply has no seam yet.
+ */
+function holdTheGlobe() {
+  try {
+    const viewer = window.GeoIDViewer;
+    if (viewer?.isSpinPaused?.()) return;
+    viewer?.setSpinPaused?.(true);
+  } catch (error) {
+    console.warn("[GeoID GIS] could not pause the globe:", error.message);
+  }
 }
 
 function frameResult(result) {
@@ -480,6 +504,7 @@ async function importDataset(primaryFile, sidecars, options = {}) {
      * unstable, jumps back zoom views".
      */
     if (options.frame !== false) frameResult(layer);
+    holdTheGlobe();
     setStatus(`Loaded ${primaryFile.name}.`);
     // An import belongs to whatever project is open, so the Research page's
     // repository and the Qt app both see it. Silent when none is open, and
@@ -629,6 +654,9 @@ export function addDerivedLayer(name, result, ext = "derived") {
   layers.push(layer);
   (layer.georeferenced ? groups.geoGroup : groups.localGroup).add(result.object3D);
   placeLocalModel(result.object3D, window.GeoIDModeManager?.getMode?.());
+  // A derived layer is data arriving too — a drawn area, a tool result, an
+  // Earth Engine drape — so it holds the globe exactly as a dropped file does.
+  holdTheGlobe();
   renderLayerList();
   return layer;
 }

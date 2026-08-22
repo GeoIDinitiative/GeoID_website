@@ -1,6 +1,6 @@
-import { describeCollection } from "./vector-render.js?v=20260822-654b5ae";
-import { addDataset, grouped, datasetById } from "./global-data.js?v=20260822-654b5ae";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-654b5ae";
+import { addDataset, grouped, datasetById } from "./global-data.js?v=20260822-6ff535a";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-6ff535a";
+import { geometrySummary } from "./symbology-dialog.js?v=20260822-6ff535a";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -31,13 +31,7 @@ function overlays() {
 
 /** "412 polygons", "1 line", "8 polygons, 2 lines" -- what is actually in it. */
 function summarise(layer) {
-  const counts = describeCollection(layer.collection);
-  const parts = [];
-  const plural = (n, word) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
-  if (counts.polygon) parts.push(plural(counts.polygon, "polygon"));
-  if (counts.line) parts.push(plural(counts.line, "line"));
-  if (counts.point) parts.push(plural(counts.point, "point"));
-  return parts.join(", ") || "no features";
+  return geometrySummary(layer.collection?.features || layer.features) || "no features";
 }
 
 function row(layer) {

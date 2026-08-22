@@ -9,7 +9,9 @@
  * screenshot, which is exactly why it is pinned here.
  */
 
-import { paintByField, paintSingle, DEFAULT_SINGLE } from "./symbology-dialog.js";
+import {
+  paintByField, paintSingle, geometrySummary, DEFAULT_SINGLE,
+} from "./symbology-dialog.js";
 
 let passed = 0;
 const failures = [];
@@ -126,6 +128,24 @@ check("one colour writes a legend of one swatch", () => {
   paintSingle(layer, "#ff4d00");
   eq(layer.legendInfo.palette.join(","), "ff4d00", "palette");
   eq(layer.legendInfo.labels.length, 1, "one row");
+});
+
+check("the geometry summary counts each kind and pluralises it", () => {
+  const geo = (type) => ({ geometry: { type }, properties: {} });
+  eq(geometrySummary([geo("LineString"), geo("MultiLineString")]), "2 lines");
+  eq(geometrySummary([geo("LineString")]), "1 line");
+  eq(geometrySummary([geo("Polygon"), geo("Point"), geo("Point")]),
+    "1 polygon, 2 points");
+  eq(geometrySummary([geo("MultiPolygon")]), "1 polygon", "Multi counts once");
+  eq(geometrySummary([]), "", "nothing to describe");
+});
+
+check("one colour labels its legend row with the geometry, not the layer name", () => {
+  const layer = fakeLayer([{ geometry: { type: "LineString" }, properties: {} }]);
+  layer.name = "NI rivers (OpenStreetMap).geojson";
+  paintSingle(layer, "#ff4d00");
+  // The name is the card's title an inch above; repeating it says nothing.
+  eq(layer.legendInfo.labels[0], "1 line", "row says what the swatch covers");
 });
 
 check("a layer with nothing to colour refuses rather than throwing", () => {

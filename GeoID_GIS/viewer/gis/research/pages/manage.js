@@ -1,11 +1,11 @@
-import { registerPage } from "../stages.js?v=20260822-654b5ae";
-import * as store from "../project-store.js?v=20260822-654b5ae";
-import { STAGES, getPage } from "../stages.js?v=20260822-654b5ae";
+import { registerPage } from "../stages.js?v=20260822-6ff535a";
+import * as store from "../project-store.js?v=20260822-6ff535a";
+import { STAGES, getPage } from "../stages.js?v=20260822-6ff535a";
 import {
   el, card, field, input, textarea, selectOf, button, row, statGrid, statusLine,
   guard, crossPage, findTables, saveTable,
   pageHeader, toolbar, inlineLabel, collapsible, dataTable, console_,
-} from "./common.js?v=20260822-654b5ae";
+} from "./common.js?v=20260822-6ff535a";
 
 /**
  * Dashboard, Project Manager, Pipeline and Data Hub.
