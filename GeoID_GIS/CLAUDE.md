@@ -299,9 +299,11 @@ material and a watcher rewrites their positions when
 Without that they are stranded at whatever exaggeration was live when the feed
 last refreshed: built low they sink into the mountains when the camera rises,
 built high they float when the relief tapers away under close-range imagery.
-Markers sit at renderOrder **230**, above the imported band, so a geological
-map cannot paint over the thing being read — verified by diffing frames with
-the markers on and off over a loaded geology layer.
+Markers sat at renderOrder **230** and were still painted over by a geological
+map, because renderOrder is not what decides it — see **groupOrder beats
+renderOrder** below. The frame diff that appeared to verify this measured the
+whole canvas, where the layer box and legend redraw on a toggle; it was
+counting its own noise.
 
 **Build vector geometry at a FIXED exaggeration, never at the live one.**
 `surfacePoint` bakes in the relief of the moment, and that moment is not
@@ -315,6 +317,30 @@ the shader re-apply whatever is live. Measured on a square over the Alps:
 vertices sit on the displaced surface to **1 m**, both at the exaggeration they
 were built for and at one they were not (0.02, where the surface span is
 2,662 m rather than 14,639 m).
+
+**groupOrder beats renderOrder, and a Group has no material.**
+`reversePainterSortStable` compares **`groupOrder` first**, and `projectObject`
+takes groupOrder from the nearest ancestor that `isGroup`, using that Group's
+own `renderOrder`. `applyStack` stamped only nodes WITH A MATERIAL — and a
+`THREE.Group` has none — so every intermediate group stayed at 0, and a layer
+whose geometry hangs under an inner group sorted at groupOrder 0 whatever its
+meshes said.
+
+That is what buried the event markers: their point clouds sit in a `markers`
+group inside the spin frame, so they sorted at 0, while the geology tiles —
+whose own builder traverses ALL children, groups included — sorted at 51 and
+painted over them. Raising the points to 230 could not fix it and never did.
+
+**Measure this at the markers' own projected pixels, never on the whole
+frame.** Project each marker through the camera, keep the front-facing ones,
+and compare those pixels with the layer toggled — with a control over the plain
+basemap, or the test proves nothing when the visible hemisphere simply has few
+events on it. Two traps in that harness: the canvas box is measured inside the
+IFRAME while the screenshot is of the top page (~72 px of header, and without
+it every sample reads the sky), and `import()` in the top realm cannot resolve
+the viewer's `vendor/three.module.js`. Measured: **19 of 93 markers visible
+over a geological map before, 93 of 93 after; 93 of 93 over the basemap
+throughout.** `applyStack` now stamps every node.
 
 **The events feed is a LAYER, adopted rather than added.** It was the one thing
 on the globe with no row in the list of what is on the globe: no eye, no

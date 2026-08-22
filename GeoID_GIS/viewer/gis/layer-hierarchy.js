@@ -10,11 +10,11 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260822-e644da6";
-import { samplerToRaster } from "./raster-analysis.js?v=20260822-e644da6";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260822-e644da6";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260822-e644da6";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260822-e644da6";
+import { currentBody } from "./bodies.js?v=20260822-0525c9b";
+import { samplerToRaster } from "./raster-analysis.js?v=20260822-0525c9b";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260822-0525c9b";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260822-0525c9b";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260822-0525c9b";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -284,9 +284,27 @@ function applyStack() {
     // Top of the list draws last, so it wins where layers overlap. Held inside
     // the band so a long stack cannot climb into the marker orders.
     object.renderOrder = IMPORTED_BASE + Math.min(stack.length - i, 140);
-    object.traverse?.((node) => {
-      if (node.material) node.renderOrder = object.renderOrder;
-    });
+    /**
+     * EVERY node, not only the ones with a material — and this is the whole
+     * reason "always on top" never worked for the event markers.
+     *
+     * three.js sorts the transparent pass with `reversePainterSortStable`,
+     * which compares **groupOrder before renderOrder**; and `projectObject`
+     * takes groupOrder from the nearest ancestor that `isGroup`, using that
+     * Group's own renderOrder. A `THREE.Group` has no material, so stamping
+     * only material-bearing nodes left every intermediate group at 0 — and a
+     * layer whose geometry hangs under an inner group was therefore sorted at
+     * groupOrder 0 whatever its meshes said.
+     *
+     * That is exactly what happened to the events: their point clouds sit in a
+     * `markers` group inside the spin frame, so they sorted at 0 while the
+     * geology tiles — whose own builder stamps all children, groups included —
+     * sorted at 51 and painted straight over them. Measured at the markers'
+     * own projected pixels: **19 of 93 visible over a geological map, 93 of 93
+     * over the basemap**. Raising the points to renderOrder 230 could not fix
+     * it and never did; groupOrder is decided before renderOrder is read.
+     */
+    object.traverse?.((node) => { node.renderOrder = object.renderOrder; });
   });
 }
 
