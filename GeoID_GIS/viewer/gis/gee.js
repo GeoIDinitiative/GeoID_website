@@ -10,12 +10,12 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260822-ecc8bdf";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260822-ecc8bdf";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260822-ecc8bdf";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260822-e946bec";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260822-e946bec";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260822-e946bec";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260822-ecc8bdf";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-ecc8bdf";
+  from "./view-extent.js?v=20260822-e946bec";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-e946bec";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:

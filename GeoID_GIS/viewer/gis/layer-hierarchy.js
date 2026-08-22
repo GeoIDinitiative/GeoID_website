@@ -10,10 +10,10 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260822-ecc8bdf";
-import { samplerToRaster } from "./raster-analysis.js?v=20260822-ecc8bdf";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260822-ecc8bdf";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260822-ecc8bdf";
+import { currentBody } from "./bodies.js?v=20260822-e946bec";
+import { samplerToRaster } from "./raster-analysis.js?v=20260822-e946bec";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260822-e946bec";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260822-e946bec";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -862,6 +862,43 @@ function basemapCard() {
  * legend emits, so the two read as one list rather than two conventions
  * stacked. Only drawn layers reach here -- see renderLegend.
  */
+/**
+ * What the swatch is a swatch OF — and it has to differ between layers.
+ *
+ * The dock dedupes cards by the labels they carry, because two sources can
+ * publish the same legend and it should appear once. Every unclassified layer
+ * said the same word — "layer" — so coastlines, rivers and a raster all keyed
+ * as `symbols:layer` and collapsed into ONE card: three datasets on the globe,
+ * one line in the legend, and no way to tell which one it was. Measured: four
+ * layers loaded, two legend entries.
+ *
+ * So the label says what the row actually shows: what the layer is made of,
+ * and failing that its own name, which is at least unique.
+ */
+function symbolLabel(layer) {
+  if (layer.type) return layer.type;
+  const features = layer.collection?.features || layer.features;
+  if (Array.isArray(features) && features.length) {
+    const kinds = { polygon: 0, line: 0, point: 0 };
+    features.forEach((feature) => {
+      const type = feature?.geometry?.type || "";
+      if (type.includes("Polygon")) kinds.polygon += 1;
+      else if (type.includes("LineString")) kinds.line += 1;
+      else if (type.includes("Point")) kinds.point += 1;
+    });
+    const parts = [];
+    const plural = (n, word) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
+    if (kinds.polygon) parts.push(plural(kinds.polygon, "polygon"));
+    if (kinds.line) parts.push(plural(kinds.line, "line"));
+    if (kinds.point) parts.push(plural(kinds.point, "point"));
+    if (parts.length) return parts.join(", ");
+  }
+  if (layer.raster && layer.info?.width && layer.info?.height) {
+    return `${layer.info.width} x ${layer.info.height} raster`;
+  }
+  return layer.name || "layer";
+}
+
 function buildLayerCard(layer) {
   const name = layer.name || "layer";
   const card = document.createElement("section");
@@ -894,7 +931,7 @@ function buildLayerCard(layer) {
   copyWrap.className = "legend-symbol-copy";
   const label = document.createElement("div");
   label.className = "legend-symbol-label";
-  label.textContent = layer.type || "layer";
+  label.textContent = symbolLabel(layer);
   copyWrap.appendChild(label);
   row.appendChild(copyWrap);
   list.appendChild(row);
