@@ -280,6 +280,29 @@ look at our drawing rather than at Macrostrat:
   along the boundary. Each filled polygon now strokes its own outline in its
   own fill colour at the fill's own height (the `seal` buffer).
 
+**One EONET request cannot show the world.** `?status=open&limit=200` sounds
+global and is not: the feed returns newest first, and **7,014 of the 7,082 open
+events are wildfires** because US incident reporting posts continuously — so
+the newest two hundred measured as 197 wildfires, **98% of them in North
+America**, with every volcano, iceberg and storm crowded out. Dropping the
+limit is no answer either: the open wildfire list alone is **4.74 MB**, served
+uncompressed. `events.js` therefore asks twice over — once per category (twelve
+small requests; volcanoes are 20 KB) and once per region for wildfires (six
+bboxes, 25 each), merged by id. Measured after: 218 events in 4 categories, the
+wildfires spread 25 to a continent.
+
+**`followRelief` does not work on a `PointsMaterial`.** The points stay
+submitted — `renderer.info.render.points` counts all of them — and nothing is
+drawn, with no shader error logged. Event markers therefore keep the plain
+material and a watcher rewrites their positions when
+`getEffectiveRelief()` changes; two hundred points are nothing to recompute.
+Without that they are stranded at whatever exaggeration was live when the feed
+last refreshed: built low they sink into the mountains when the camera rises,
+built high they float when the relief tapers away under close-range imagery.
+Markers sit at renderOrder **230**, above the imported band, so a geological
+map cannot paint over the thing being read — verified by diffing frames with
+the markers on and off over a loaded geology layer.
+
 **Build vector geometry at a FIXED exaggeration, never at the live one.**
 `surfacePoint` bakes in the relief of the moment, and that moment is not
 stable: `getEffectiveTerrainRelief` tapers to nothing below ~300 km whenever
