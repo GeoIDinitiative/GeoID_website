@@ -85,29 +85,57 @@ const MARKER_LIFT = 0.006;
  * terrain and the relief slider the way the basemap does, rather than on a
  * sphere floating over it.
  */
-/**
- * Built at a FIXED exaggeration, not at the live one.
- *
- * `surfacePoint` bakes in the relief of the moment, and markers are static
- * geometry — they are rebuilt when the feed refreshes, five minutes apart, and
- * never when the terrain slider moves or the relief tapers to nothing on the
- * way down to a drape. Built low they came out flat and then sank into the
- * mountains when the camera rose; built high they floated when it fell. The
- * same fix the vector layers use: build at a reference and let the shader
- * re-apply what is live, through `attachReliefAttributes` / `followRelief`
- * below.
- */
-const REFERENCE_RELIEF = 0.11;
-
 function markerPoint(viewer, lat, lon) {
-  if (typeof viewer.elevationNormalized === "function" && viewer.latLonToVector3) {
-    const radius = (viewer.GLOBE_RADIUS ?? 3.2)
-      + viewer.elevationNormalized(lat, lon) * REFERENCE_RELIEF + MARKER_LIFT;
-    return viewer.latLonToVector3(lat, lon, radius);
-  }
   return viewer.surfacePoint
     ? viewer.surfacePoint(lat, lon, MARKER_LIFT)
     : viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS + MARKER_LIFT);
+}
+
+/**
+ * Markers are rebuilt when the exaggeration changes, not shaded.
+ *
+ * They are static geometry built from `surfacePoint`, which bakes in the
+ * relief of the moment — and the moment is not stable: the slider moves, and
+ * the relief tapers to nothing below ~300 km whenever there is close-range
+ * imagery. Built low they sank into the mountains when the camera rose; built
+ * high they floated when it flattened.
+ *
+ * The vector layers solve this in the shader, and that was tried here first:
+ * `followRelief` on a `PointsMaterial` leaves the points submitted (the
+ * renderer still counts them) and invisible. Two hundred markers are nothing
+ * to recompute, so this watches the exaggeration instead and rewrites the
+ * positions in place — no rebuild of the scene, no shader.
+ */
+let reliefWatch = null;
+let lastRelief = null;
+
+function watchRelief() {
+  if (reliefWatch || typeof window === "undefined") return;
+  reliefWatch = window.setInterval(() => {
+    const viewer = window.GeoIDViewer;
+    if (!viewer?.getEffectiveRelief || !markers) return;
+    const relief = viewer.getEffectiveRelief();
+    if (lastRelief !== null && Math.abs(relief - lastRelief) < 1e-4) return;
+    lastRelief = relief;
+    markers.traverse((node) => {
+      const list = node.userData?.events;
+      const position = node.geometry?.attributes?.position;
+      if (!list || !position) return;
+      list.forEach((event, i) => {
+        const v = markerPoint(viewer, event.lat, event.lon);
+        position.setXYZ(i, v.x, v.y, v.z);
+      });
+      position.needsUpdate = true;
+      node.geometry.computeBoundingSphere();
+    });
+  }, 400);
+}
+
+function stopWatchingRelief() {
+  if (!reliefWatch) return;
+  window.clearInterval(reliefWatch);
+  reliefWatch = null;
+  lastRelief = null;
 }
 
 /**
@@ -141,8 +169,6 @@ let markers = null;
 let spun = null;
 let timer = null;
 let THREE = null;
-/** `attachReliefAttributes` / `followRelief`, loaded with three.js. */
-let reliefTools = null;
 
 const byId = (id) => document.getElementById(id);
 
@@ -449,10 +475,6 @@ function renderMarkers() {
     });
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    // The same relief-following the vector layers use, so a marker rides the
-    // terrain slider instead of being stranded at the exaggeration it was
-    // built at. `reliefTools` is loaded once, beside three.js.
-    reliefTools?.attachReliefAttributes(geometry, MARKER_LIFT, REFERENCE_RELIEF);
     const points = new THREE.Points(geometry, new THREE.PointsMaterial({
       color: new THREE.Color(symbolFor(key).colour),
       map: markerTexture(),
@@ -470,7 +492,6 @@ function renderMarkers() {
       transparent: true,
       opacity: 0.95,
     }));
-    if (reliefTools) reliefTools.followRelief(points.material, MARKER_LIFT);
     /**
      * In front of everything anybody can load.
      *
@@ -529,14 +550,12 @@ async function setActive(on) {
     events = [];
     hidePopup();
     renderMarkers();
+    stopWatchingRelief();
     return;
   }
   if (!THREE) THREE = await import("../vendor/three.module.js");
-  if (!reliefTools) {
-    reliefTools = await import(`./vector-render.js${new URL(import.meta.url).search}`)
-      .catch(() => null);
-  }
   installPicking();
+  watchRelief();
   await fetchEvents();
   timer = window.setInterval(fetchEvents, REFRESH_MS);
 }

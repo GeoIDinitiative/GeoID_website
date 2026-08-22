@@ -1,5 +1,5 @@
-import { describeCollection } from "./vector-render.js?v=20260822-4d07a61";
-import { addDataset, grouped } from "./global-data.js?v=20260822-4d07a61";
+import { describeCollection } from "./vector-render.js?v=20260822-f0f6185";
+import { addDataset, grouped } from "./global-data.js?v=20260822-f0f6185";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
