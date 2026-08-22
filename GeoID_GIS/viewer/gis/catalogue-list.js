@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260822-cc374dd";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260822-654b5ae";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -59,6 +59,45 @@ const STYLE = `
   cursor: pointer;
 }
 .gis-catalogue-sym:hover { border-color: rgba(255, 255, 255, 0.5); }
+
+/* A dropdown that scrolls, so a catalogue can grow without taking the panel.
+   The tick boxes are unchanged -- this is a lid over the same list. */
+.gis-catalogue-drop {
+  border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+.gis-catalogue-drop > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.45rem;
+  cursor: pointer;
+  list-style: none;
+  font: 500 0.62rem/1.35 'Exo 2', sans-serif;
+}
+.gis-catalogue-drop > summary::-webkit-details-marker { display: none; }
+.gis-catalogue-drop > summary::after {
+  content: "▾";
+  margin-left: auto;
+  font-size: 0.58rem;
+  opacity: 0.7;
+  transition: transform 0.18s ease;
+}
+.gis-catalogue-drop[open] > summary::after { transform: rotate(180deg); }
+.gis-catalogue-drop > summary:hover { background: rgba(var(--nav-accent-rgb), 0.08); }
+.gis-catalogue-count {
+  font: 400 0.56rem/1.35 'Exo 2', sans-serif;
+  opacity: 0.65;
+}
+/* The scroll lives on the BODY, not on the disclosure: a max-height on the
+   details itself clips the summary too once the list is long. */
+.gis-catalogue-scroll {
+  max-height: 14rem;
+  overflow-y: auto;
+  padding: 0.1rem 0.4rem 0.35rem;
+  border-top: 1px solid rgba(var(--nav-accent-rgb), 0.18);
+}
 `;
 
 let styled = false;
@@ -72,6 +111,17 @@ function installStyle() {
 }
 
 /**
+ * Whether each catalogue's dropdown is open, by host id.
+ *
+ * The list is redrawn on every tick — that is how the ticks stay true when a
+ * layer is removed from somewhere else — and a redraw builds a new `<details>`,
+ * which would spring shut at the exact moment somebody is working down the
+ * list. It is remembered here rather than on the element, which does not
+ * survive being replaced.
+ */
+const openState = new Map();
+
+/**
  * Draw a catalogue into `host`.
  *
  * @param {HTMLElement} host
@@ -81,12 +131,48 @@ function installStyle() {
  * @param {(id: string) => Promise<void>} hooks.add
  * @param {(id: string) => void} hooks.remove
  * @param {(layer: object) => void} [hooks.symbology]
+ * @param {string} [hooks.title]  wrap the list in a dropdown under this name
  */
 export function renderCatalogue(host, entries, hooks) {
   if (!host) return;
   installStyle();
   host.textContent = "";
-  host.className = "gis-catalogue";
+  host.className = "";
+
+  /**
+   * A dropdown when the caller names one, a plain list otherwise.
+   *
+   * The Earth Engine catalogue already sits inside its own disclosure, so a
+   * second lid over it would be two clicks to reach one list. The vector
+   * catalogue does not, and at nine entries with their group headings it was
+   * most of the panel — with the layers it had put on the globe pushed off the
+   * bottom, which is the part you actually work with.
+   */
+  let list = host;
+  if (hooks.title) {
+    const key = host.id || hooks.title;
+    const drop = document.createElement("details");
+    drop.className = "gis-catalogue-drop";
+    drop.open = openState.get(key) ?? false;
+    drop.addEventListener("toggle", () => openState.set(key, drop.open));
+    const summary = document.createElement("summary");
+    const name = document.createElement("span");
+    name.textContent = hooks.title;
+    const count = document.createElement("span");
+    count.className = "gis-catalogue-count";
+    const on = entries.filter((entry) => hooks.layerFor(entry.id)).length;
+    count.textContent = on
+      ? `${on} of ${entries.length} on the globe`
+      : `${entries.length} datasets`;
+    summary.append(name, count);
+    const scroll = document.createElement("div");
+    scroll.className = "gis-catalogue-scroll";
+    drop.append(summary, scroll);
+    host.appendChild(drop);
+    list = scroll;
+  }
+  list.classList.add("gis-catalogue");
+
   let group = null;
   entries.forEach((entry) => {
     if (entry.group && entry.group !== group) {
@@ -94,7 +180,7 @@ export function renderCatalogue(host, entries, hooks) {
       const head = document.createElement("div");
       head.className = "gis-catalogue-group";
       head.textContent = group;
-      host.appendChild(head);
+      list.appendChild(head);
     }
     const layer = hooks.layerFor(entry.id);
     const row = document.createElement("div");
@@ -143,7 +229,7 @@ export function renderCatalogue(host, entries, hooks) {
       sym.addEventListener("click", () => hooks.symbology(layer));
       row.appendChild(sym);
     }
-    host.appendChild(row);
+    list.appendChild(row);
   });
 }
 

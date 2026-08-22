@@ -15,7 +15,7 @@ import {
   RAMPS,
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
   categoricalSymbology, suggestCategoryField, QUALITATIVE, QUALITATIVE_RAMP,
-} from "./symbology.js?v=20260822-cc374dd";
+} from "./symbology.js?v=20260822-654b5ae";
 
 const HOST_ID = "gis-symbology-host";
 /**
@@ -385,7 +385,11 @@ function recompute(apply) {
       r.colour = colourFor(r.value, r.colour);
       r.label = labelFor(r.value, String(r.value));
     });
-    const lookup = new Map(sym.rows.filter((r) => !r.other).map((r) => [r.value, r.colour]));
+    // Keyed by the STRING form, because that is what categoricalSymbology
+    // counts by -- a row's value is "6" where the feature carries the number 6,
+    // and Map.get(6) misses it, so a numeric column painted every feature the
+    // no-value grey under a correct legend. See the note in symbology-dialog.js.
+    const lookup = new Map(sym.rows.filter((r) => !r.other).map((r) => [String(r.value), r.colour]));
     const otherColour = sym.rows.find((r) => r.other)?.colour || null;
     // A CSS string, not [r,g,b]: this is the VECTOR repaint, which passes the
     // value to THREE.Color.set. Rewriting this branch to rebuild the lookup, I
@@ -393,8 +397,9 @@ function recompute(apply) {
     // every polygon went white while the legend stayed right, which is exactly
     // why the legend must never be the thing a paint is verified by.
     const painted = layer.repaint((feature) => {
-      const value = feature?.properties?.[field];
-      return (lookup.has(value) ? lookup.get(value) : otherColour) || null;
+      const raw = feature?.properties?.[field];
+      const key = raw == null ? null : String(raw);
+      return (key != null && lookup.has(key) ? lookup.get(key) : otherColour) || null;
     });
     layer.legendInfo = {
       palette: sym.rows.map((r) => r.colour.replace("#", "")),

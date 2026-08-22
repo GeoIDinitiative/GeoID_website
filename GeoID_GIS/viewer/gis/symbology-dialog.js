@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260822-cc374dd";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260822-654b5ae";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260822-cc374dd";
+} from "./symbology.js?v=20260822-654b5ae";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -357,15 +357,27 @@ export function paintByField(layer, field, {
       if (chosen) row.colour = chosen;
     });
   }
-  const lookup = new Map(sym.rows.filter((r) => !r.other).map((r) => [r.value, r.colour]));
+  /**
+   * Keyed by the STRING form, and looked up the same way.
+   *
+   * `categoricalSymbology` counts values as strings, so a row's value is "6"
+   * where the feature carries the number 6 — and `Map.get(6)` misses "6". On a
+   * layer whose chosen column is numeric that meant EVERY feature fell through
+   * to the no-value grey: measured on Natural Earth coastlines by scalerank,
+   * all 813,648 vertices came out 0x8a8a8a under a seven-class legend that was
+   * itself correct. Long-standing, and invisible on geology because a survey's
+   * unit names are text.
+   */
+  const lookup = new Map(sym.rows.filter((r) => !r.other).map((r) => [String(r.value), r.colour]));
   const other = sym.rows.find((r) => r.other)?.colour || null;
   // A CSS colour STRING. `renderFeatureCollection` does `scratch.set(css)`;
   // hand it the [r, g, b] a raster wants and THREE.Color.set swallows the
   // array, every polygon comes out white, and the legend beside it is
   // perfectly correct. The legend is not evidence that the map was painted.
   layer.repaint?.((feature) => {
-    const value = feature?.properties?.[field];
-    return (lookup.has(value) ? lookup.get(value) : other) || null;
+    const raw = feature?.properties?.[field];
+    const key = raw == null ? null : String(raw);
+    return (key != null && lookup.has(key) ? lookup.get(key) : other) || null;
   });
   layer.legendInfo = {
     palette: sym.rows.map((r) => String(r.colour).replace("#", "")),
@@ -382,19 +394,91 @@ export function paintByField(layer, field, {
   layer.geologyField = field;
   layer.geologyRamp = ramp;
   layer.geologyLabels = labels ? [...labels.entries()] : null;
-  window.GeoIDLayerHierarchy?.render?.();
+  // The two modes are exclusive, so classing clears the single colour and
+  // vice versa — otherwise reopening proposes the mode you just left.
+  layer.symbologySingle = null;
+  if (typeof window !== "undefined") window.GeoIDLayerHierarchy?.render?.();
   return sym;
+}
+
+/** The colour a line layer is drawn in before anybody chooses one. */
+export const DEFAULT_SINGLE = "#8ef6c4";
+
+/**
+ * Paint a whole vector layer ONE colour.
+ *
+ * The other half of vector symbology, and for a line layer usually the half
+ * that is wanted: a coastline is a coastline everywhere, and cutting it into
+ * twelve hues by whichever column happened to rank first says something about
+ * the data that is not true. Classing stays a press away; it is no longer the
+ * only thing Apply can do.
+ */
+export function paintSingle(layer, colour = DEFAULT_SINGLE) {
+  if (!layer?.repaint) return { ok: false, message: "nothing to colour" };
+  const css = String(colour);
+  layer.repaint(() => css);
+  layer.legendInfo = {
+    palette: [css.replace("#", "")],
+    labels: [layer.name],
+    categorical: true,
+    classed: true,
+    field: null,
+  };
+  layer.symbologySingle = css;
+  layer.geologyField = null;
+  if (typeof window !== "undefined") window.GeoIDLayerHierarchy?.render?.();
+  return { ok: true, single: css };
+}
+
+/** Does this layer have any area to fill, or is it only lines and points? */
+function hasAreas(layer) {
+  return (layer?.features || []).some((f) => {
+    const type = f?.geometry?.type;
+    return type === "Polygon" || type === "MultiPolygon";
+  });
 }
 
 function buildVectorForm(layer, body, note, hooks) {
   const head6 = attributeHead(layer.features, { rows: 6 });
   const ranked = rankColourFields(head6);
+  const lines = !hasAreas(layer);
   const state = {
+    /**
+     * A LINE layer opens on single colour; an area layer opens on its columns.
+     *
+     * Which of the two the layer is wearing wins over both — reopening must
+     * not silently propose undoing the last Apply. Failing that, it is the
+     * geometry that decides: rivers and coastlines are one thing drawn many
+     * times, so twelve hues along them is a legend describing an accident of
+     * the attribute table. Polygons are usually a map OF something.
+     */
+    mode: layer.symbologySingle ? "single" : (layer.geologyField ? "field" : (lines ? "single" : "field")),
+    single: layer.symbologySingle || DEFAULT_SINGLE,
     field: layer.geologyField || ranked[0] || head6.columns[0]?.key,
     ramp: layer.geologyRamp || QUALITATIVE_RAMP,
     overrides: new Map(),
     labels: new Map(layer.geologyLabels || []),
   };
+
+  const modeRow = document.createElement("div");
+  modeRow.className = "sym-row";
+  const modeLabel = document.createElement("label");
+  modeLabel.textContent = "Style";
+  const modeSelect = document.createElement("select");
+  [["single", "One colour"], ["field", "By attribute"]].forEach(([value, text]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text;
+    if (value === state.mode) option.selected = true;
+    modeSelect.appendChild(option);
+  });
+  const singleSwatch = document.createElement("input");
+  singleSwatch.type = "color";
+  singleSwatch.value = state.single;
+  singleSwatch.title = "The colour every feature is drawn in";
+  singleSwatch.addEventListener("input", () => { state.single = singleSwatch.value; });
+  modeRow.append(modeLabel, modeSelect, singleSwatch);
+  body.appendChild(modeRow);
 
   const fieldRow = document.createElement("div");
   fieldRow.className = "sym-row";
@@ -513,12 +597,25 @@ function buildVectorForm(layer, body, note, hooks) {
   };
 
   const draw = () => {
+    const single = state.mode === "single";
+    // The whole attribute half is hidden rather than disabled: greyed-out
+    // controls still read as "this is what symbology is, and it is broken".
+    singleSwatch.hidden = !single;
+    [fieldRow, rampRow, headWrap, classes].forEach((node) => { node.hidden = single; });
+    if (single) {
+      note.textContent = `${head6.count.toLocaleString()} features, all one colour`;
+      return;
+    }
     bar.style.background = rampBar(rampSelect.value);
     note.textContent = `${head6.count.toLocaleString()} features · ${head6.columns.length} columns`;
     drawHead();
     drawClasses();
   };
 
+  modeSelect.addEventListener("change", () => {
+    state.mode = modeSelect.value;
+    draw();
+  });
   fieldSelect.addEventListener("change", () => {
     state.field = fieldSelect.value;
     state.overrides = new Map();
@@ -534,6 +631,12 @@ function buildVectorForm(layer, body, note, hooks) {
   return {
     draw,
     apply() {
+      if (state.mode === "single") {
+        const out = paintSingle(layer, state.single);
+        if (!out.ok) return out;
+        hooks.status?.(`${layer.name}: one colour.`);
+        return { ok: true, kind: "vector", single: state.single };
+      }
       const sym = paintByField(layer, state.field, {
         ramp: state.ramp, overrides: state.overrides, labels: state.labels,
       });
@@ -692,7 +795,7 @@ function buildRasterForm(layer, body, note, hooks) {
         classes: Number(count.value) || state.classes,
         ramp: state.ramp,
       };
-      window.GeoIDLayerHierarchy?.render?.();
+      if (typeof window !== "undefined") window.GeoIDLayerHierarchy?.render?.();
       hooks.status?.(`${layer.name}: ${sym.rows.length} classes by `
         + `${METHODS[sym.method]?.label || sym.method}.`);
       return { ok: Boolean(painted), rows: sym.rows, kind: "raster" };

@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260822-cc374dd";
-import { currentBodyId } from "./bodies.js?v=20260822-cc374dd";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260822-cc374dd";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260822-cc374dd";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260822-654b5ae";
+import { currentBodyId } from "./bodies.js?v=20260822-654b5ae";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260822-654b5ae";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260822-654b5ae";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -890,7 +890,9 @@ function openSymbology(layer) {
   return openSymbologyDialog(layer, {
     status: say,
     onApplied: (painted, result) => {
-      if (painted.geologyDataset && result.kind === "vector") {
+      // Only a CLASSED result is a style choice to remember; one flat colour
+      // has no field to reapply to the layer a rebuild puts in its place.
+      if (painted.geologyDataset && result.kind === "vector" && result.field) {
         styleChoice.set(painted.geologyDataset, {
           field: result.field,
           ramp: result.ramp,

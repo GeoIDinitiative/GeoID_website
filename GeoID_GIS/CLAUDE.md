@@ -451,6 +451,39 @@ map was painted. `paintByField()` in this module is now the ONE vector
 implementation — `geology-panel.applyField` calls it too, so the auto-paint on
 load and the Apply button cannot drift apart.
 
+**A numeric column matched nothing, and the legend said otherwise.**
+`categoricalSymbology` counts values as STRINGS, so a row's value is `"6"`
+where the feature carries the number `6` — and a lookup keyed by the raw value
+misses it. Every feature then fell through to the no-value grey while the
+legend beside it named seven classes correctly. Measured on Natural Earth
+coastlines by `scalerank`: **all 813,648 vertices 0x8a8a8a**, seven legend rows.
+Long-standing, in BOTH Apply paths, and invisible on geology because a survey's
+unit names are text. Both now key and look up by `String(value)`, and
+`symbology-dialog.test.mjs` pins it — the paint functions take a fake layer
+whose `repaint` records what each feature was given, so the check is on the
+colours rather than on the legend.
+
+**One colour is a mode, and for a line layer it is the default.** A coastline
+is a coastline everywhere; cutting it into twelve hues by whichever column
+ranked first states something about the data that is not true. The vector form
+opens on **One colour** when the layer has no polygons and has never been
+classed, on **By attribute** otherwise, and on whichever it is currently wearing
+before either. The two are exclusive — `paintSingle` clears `geologyField` and
+`paintByField` clears `symbologySingle` — or reopening proposes undoing the
+Apply you just made. Note this is only the DIALOG's default: an untouched line
+layer already lands in one flat colour, because `defaultSymbology` returns null
+with no polygons and the renderer uses a single material.
+
+**The catalogue is a scrolling dropdown.** Nine datasets under four group
+headings filled the panel and pushed the layers already on the globe off the
+bottom of it, which is the part you work with. `renderCatalogue` takes a
+`title` and wraps the list in a `<details>` with a scrolling body (the
+max-height is on the BODY — on the `<details>` it clips the summary too). The
+list is redrawn on every tick, so the open/shut state is kept in a module Map
+keyed by host id: on the element it would not survive being replaced, and the
+dropdown would spring shut under someone working down it. The Earth Engine
+catalogue passes no title because it already sits inside its own disclosure.
+
 **Checking the colour: read the geometry, not the material.** `renderFeatureCollection`
 draws with `vertexColors: true`, so `material.color` is white on a correctly
 painted layer. A probe that reads materials reports "all white" for a map that

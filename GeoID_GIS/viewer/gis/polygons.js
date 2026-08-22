@@ -1,6 +1,6 @@
-import { describeCollection } from "./vector-render.js?v=20260822-cc374dd";
-import { addDataset, grouped, datasetById } from "./global-data.js?v=20260822-cc374dd";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-cc374dd";
+import { describeCollection } from "./vector-render.js?v=20260822-654b5ae";
+import { addDataset, grouped, datasetById } from "./global-data.js?v=20260822-654b5ae";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-654b5ae";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -123,6 +123,10 @@ function drawCatalogue() {
     title: `${entry.summary} — ${entry.licence}`,
   })));
   renderCatalogue(host, entries, {
+    // A lid over the list: nine datasets with their group headings filled the
+    // panel, and the layers already on the globe — the part you work with —
+    // were pushed off the bottom of it.
+    title: "Global catalogue",
     layerFor: layerForEntry,
     add: (id) => addDataset(id, say),
     remove: (id) => {
