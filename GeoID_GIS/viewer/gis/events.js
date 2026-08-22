@@ -10,7 +10,62 @@
 // schedule. When the mode is on they appear as a drop-down beside the legend and
 // as markers on the globe; when it is off nothing is fetched and nothing drawn.
 
-const API = "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=200";
+const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
+
+/**
+ * ONE request could not show the world, and this is why.
+ *
+ * `?status=open&limit=200` sounds global and is not. EONET returns events
+ * newest first, and right now 7,014 of the 7,082 open events are wildfires
+ * because United States incident reporting posts continuously — so the newest
+ * two hundred were measured as **197 wildfires, 98% of them in North America**.
+ * Every volcano, iceberg and storm on the planet was crowded out by the
+ * truncation, which is exactly what was reported.
+ *
+ * Dropping the limit is not the answer either: the open wildfire list alone is
+ * **4.74 MB** and the server sends it uncompressed.
+ *
+ * So the feed is asked in two ways at once:
+ *
+ * - **Per category**, so the rare ones are never crowded out by the common
+ *   one. Volcanoes are 20 KB, sea and lake ice 130 KB — the whole set of
+ *   twelve costs less than a tenth of the wildfire list.
+ * - **Per region for the bulk category**, because a plain limit on wildfires
+ *   returns the newest, and the newest are wherever it is fire season. Six
+ *   boxes with a small limit each give a spread instead: measured, 25 from
+ *   every continent rather than 200 from one.
+ */
+const CATEGORIES = [
+  "drought", "dustHaze", "earthquakes", "floods", "landslides", "manmade",
+  "seaLakeIce", "severeStorms", "snow", "tempExtremes", "volcanoes", "waterColor",
+];
+
+/** The category that would otherwise drown the rest, sampled by region. */
+const BULK_CATEGORY = "wildfires";
+
+/** west, north, east, south — EONET's bbox order. */
+const REGIONS = [
+  [-170, 72, -50, 10],     // North America
+  [-90, 13, -30, -56],     // South America
+  [-25, 72, 45, 34],       // Europe
+  [-20, 37, 52, -35],      // Africa
+  [45, 78, 150, 5],        // Asia
+  [110, 0, 180, -50],      // Oceania
+];
+
+const PER_CATEGORY = 40;
+const PER_REGION = 25;
+
+function feedUrls() {
+  const urls = CATEGORIES.map(
+    (id) => `${API}?status=open&category=${id}&limit=${PER_CATEGORY}`,
+  );
+  REGIONS.forEach(([w, n, e, s]) => {
+    urls.push(`${API}?status=open&category=${BULK_CATEGORY}`
+      + `&limit=${PER_REGION}&bbox=${w},${n},${e},${s}`);
+  });
+  return urls;
+}
 const REFRESH_MS = 5 * 60 * 1000;
 // How far above the surface the markers float, as a fraction of the globe's
 // radius. The globe is not a bare sphere -- there are shells above it -- so a
@@ -30,7 +85,26 @@ const MARKER_LIFT = 0.006;
  * terrain and the relief slider the way the basemap does, rather than on a
  * sphere floating over it.
  */
+/**
+ * Built at a FIXED exaggeration, not at the live one.
+ *
+ * `surfacePoint` bakes in the relief of the moment, and markers are static
+ * geometry — they are rebuilt when the feed refreshes, five minutes apart, and
+ * never when the terrain slider moves or the relief tapers to nothing on the
+ * way down to a drape. Built low they came out flat and then sank into the
+ * mountains when the camera rose; built high they floated when it fell. The
+ * same fix the vector layers use: build at a reference and let the shader
+ * re-apply what is live, through `attachReliefAttributes` / `followRelief`
+ * below.
+ */
+const REFERENCE_RELIEF = 0.11;
+
 function markerPoint(viewer, lat, lon) {
+  if (typeof viewer.elevationNormalized === "function" && viewer.latLonToVector3) {
+    const radius = (viewer.GLOBE_RADIUS ?? 3.2)
+      + viewer.elevationNormalized(lat, lon) * REFERENCE_RELIEF + MARKER_LIFT;
+    return viewer.latLonToVector3(lat, lon, radius);
+  }
   return viewer.surfacePoint
     ? viewer.surfacePoint(lat, lon, MARKER_LIFT)
     : viewer.latLonToVector3(lat, lon, viewer.GLOBE_RADIUS + MARKER_LIFT);
@@ -67,6 +141,8 @@ let markers = null;
 let spun = null;
 let timer = null;
 let THREE = null;
+/** `attachReliefAttributes` / `followRelief`, loaded with three.js. */
+let reliefTools = null;
 
 const byId = (id) => document.getElementById(id);
 
@@ -90,12 +166,34 @@ function latestPoint(event) {
   return null;
 }
 
+/** How many of the feed's requests did not answer, for the status line. */
+let missingFeeds = 0;
+
 async function fetchEvents() {
   status("Fetching…");
   try {
-    const response = await fetch(API, { cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const urls = feedUrls();
+    const answers = await Promise.all(urls.map(async (url) => {
+      try {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return (await response.json()).events || [];
+      } catch (error) {
+        // One category out is a gap in the map, not the end of it. The count
+        // below says how many answered, so a partial feed is visible as one.
+        return null;
+      }
+    }));
+    const reached = answers.filter(Boolean).length;
+    if (!reached) throw new Error("no part of the feed answered");
+    // Merged by id: a storm can be in two boxes, and the regions overlap at
+    // the edges by design rather than by accident.
+    const merged = new Map();
+    answers.filter(Boolean).flat().forEach((event) => {
+      if (event?.id) merged.set(event.id, event);
+    });
+    const data = { events: [...merged.values()] };
+    missingFeeds = urls.length - reached;
     events = (data.events || []).map((event) => {
       const point = latestPoint(event);
       const category = event.categories?.[0] || {};
@@ -108,7 +206,10 @@ async function fetchEvents() {
         ...point,
       } : null;
     }).filter(Boolean);
-    status(`${events.length} open event(s) · ${new Date().toLocaleTimeString()}`);
+    const categories = new Set(events.map((e) => e.categoryTitle).filter(Boolean));
+    status(`${events.length} open event(s) in ${categories.size} categories · `
+      + `${new Date().toLocaleTimeString()}`
+      + (missingFeeds ? ` · ${missingFeeds} feed(s) unreachable` : ""));
   } catch (error) {
     events = [];
     // Said plainly: an empty list because the feed is unreachable is not the
@@ -348,6 +449,10 @@ function renderMarkers() {
     });
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    // The same relief-following the vector layers use, so a marker rides the
+    // terrain slider instead of being stranded at the exaggeration it was
+    // built at. `reliefTools` is loaded once, beside three.js.
+    reliefTools?.attachReliefAttributes(geometry, MARKER_LIFT, REFERENCE_RELIEF);
     const points = new THREE.Points(geometry, new THREE.PointsMaterial({
       color: new THREE.Color(symbolFor(key).colour),
       map: markerTexture(),
@@ -365,8 +470,16 @@ function renderMarkers() {
       transparent: true,
       opacity: 0.95,
     }));
-    // In front of imported layers, which sit at 50 and up: an event is the
-    // thing being read, not something to be painted over by an overlay.
+    if (reliefTools) reliefTools.followRelief(points.material, MARKER_LIFT);
+    /**
+     * In front of everything anybody can load.
+     *
+     * The imported band runs 50 to 190 and its fills do not depth-test, so
+     * whatever draws last wins there — an event has to be above all of it or a
+     * geological map drawn afterwards paints over the thing being read. 230 is
+     * the marker band in the draw-order table, above imports and below nothing
+     * that matters.
+     */
     points.renderOrder = 230;
     points.name = `eonet-${key}`;
     points.userData.events = list;
@@ -419,6 +532,10 @@ async function setActive(on) {
     return;
   }
   if (!THREE) THREE = await import("../vendor/three.module.js");
+  if (!reliefTools) {
+    reliefTools = await import(`./vector-render.js${new URL(import.meta.url).search}`)
+      .catch(() => null);
+  }
   installPicking();
   await fetchEvents();
   timer = window.setInterval(fetchEvents, REFRESH_MS);
