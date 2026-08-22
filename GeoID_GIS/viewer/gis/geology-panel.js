@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260821-3dc92af";
-import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260821-3dc92af";
-import { currentBodyId } from "./bodies.js?v=20260821-3dc92af";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260821-3dc92af";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260822-a41c9e7";
+import { RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP } from "./symbology.js?v=20260822-a41c9e7";
+import { currentBodyId } from "./bodies.js?v=20260822-a41c9e7";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260822-a41c9e7";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -55,9 +55,19 @@ const CATALOGUE = [
     name: "NI bedrock geology (BGS 625k).geojson",
     colourBy: "lex_d",
     credit: "BGS 1:625 000 bedrock geology, © UKRI.",
-    // Loaded on open: the tab should show a geological map rather than an empty
-    // dropdown, and until the global base exists this IS the map we have.
-    default: true,
+    /**
+     * HIDDEN, because the world map is this sheet.
+     *
+     * Macrostrat's compilation carries BGS DiGMapGB-625 over Northern Ireland
+     * — a click there answers with `source_id` 23 and names the survey — so
+     * offering the same polygons a second time was two rows in the dropdown,
+     * two entries in the legend and two answers to a click, all from one
+     * survey. The record stays: it is still reachable through
+     * `GeoIDGeology.load("ni-bedrock")`, and un-hiding it is one word if a
+     * region ever needs its national sheet above the global one.
+     */
+    hidden: true,
+    default: false,
   },
   {
     id: "ni-faults",
@@ -73,8 +83,9 @@ const CATALOGUE = [
     // class and call it a legend.
     colourBy: "feature_d",
     credit: "BGS 1:625 000 bedrock faults, © UKRI.",
-    // Not loaded on open: the two sheets are the map, and faults are an overlay
-    // you ask for on top of it.
+    // Hidden with the sheets it belongs to: the world contacts and faults layer
+    // covers the same ground from the same compilation.
+    hidden: true,
     default: false,
   },
   {
@@ -100,7 +111,8 @@ const CATALOGUE = [
     name: "NI superficial geology (BGS 625k).geojson",
     colourBy: "lex_d",
     credit: "BGS 1:625 000 superficial deposits, © UKRI.",
-    default: true,
+    hidden: true,
+    default: false,
   },
 ];
 
@@ -139,8 +151,14 @@ const GLOBAL_BASE = {
 /** This world's datasets. A body with none gets a panel that says so. */
 const forThisBody = () => [GLOBAL_BASE, ...CATALOGUE]
   .filter((d) => (d.body || "earth") === currentBodyId());
-/** Everything the dropdown offers, the global base included — it is reloadable. */
-const offered = () => forThisBody();
+/**
+ * What the dropdown offers: this world's datasets, minus the hidden ones.
+ *
+ * Hiding rather than deleting keeps `load()` working for anything that asks by
+ * id — the NI prototype's own tab, a saved project, a link — and makes turning
+ * a sheet back on a one-word change.
+ */
+const offered = () => forThisBody().filter((d) => !d.hidden);
 
 const entryById = (id) => [GLOBAL_BASE, ...CATALOGUE].find((d) => d && d.id === id) || null;
 
