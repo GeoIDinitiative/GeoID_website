@@ -10,10 +10,11 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260822-59e7558";
-import { samplerToRaster } from "./raster-analysis.js?v=20260822-59e7558";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260822-59e7558";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260822-59e7558";
+import { currentBody } from "./bodies.js?v=20260822-cc374dd";
+import { samplerToRaster } from "./raster-analysis.js?v=20260822-cc374dd";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260822-cc374dd";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260822-cc374dd";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260822-cc374dd";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -513,6 +514,18 @@ function optionsTile(layer) {
   // Framing needs the loader's camera maths, which knows how to fit a layer's
   // bounds; only offered once there is something in the scene to frame.
   if (layer.object3D && manager?.frameLayer) act("Focus", () => manager.frameLayer(layer));
+  /**
+   * Recolouring, from the layer itself.
+   *
+   * This is the drawer that means "this layer's controls", and the one control
+   * that was not in it was the one that decides what the layer LOOKS like --
+   * which lived in a panel elsewhere with its own dropdown to find the layer in
+   * again. Offered wherever there is something to recolour: a layer that can
+   * repaint and has either cells or attributes to classify.
+   */
+  if (typeof layer.repaint === "function" && (layer.raster || layer.features?.length)) {
+    act("Symbology", () => openSymbologyDialog(layer));
+  }
   act("Export", () => window.GeoIDLayerExport?.open?.(layer));
 
   /**

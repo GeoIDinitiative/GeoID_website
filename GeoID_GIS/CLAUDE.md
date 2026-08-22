@@ -418,6 +418,64 @@ Rebuild cost, measured as the longest gap between animation frames on the
 software renderer: 524 ms for the 7,929-polygon world build, 326 ms for a
 view-sized refine against a 246 ms idle median — a refine is not a freeze.
 
+## Symbology is a window, and there is one of it
+
+`gis/symbology-dialog.js` — `openSymbologyDialog(layer)` — is the symbology
+control for **every** layer: the global vector catalogue, the Earth Engine
+catalogue, a shapefile somebody dragged in, a derived raster, the world geology.
+It is the geology tab's old modal, lifted out and taught rasters.
+
+It replaced two other ways in, both of which were worse for the same reason.
+The Symbology **panel** is an accordion section down the side of the page: to
+point it at a layer you had to select that layer in its own dropdown, unfold
+whatever it was folded inside and scroll it into view — and revealing it
+mid-stack pushed everything below it down and left a run of half-styled sections
+open behind it (the "white banners"). A modal has none of those problems because
+it is not in the page's flow. The panel still exists and still works; it is
+simply not the way in. The buttons that open the dialog are on the catalogue
+rows (`catalogue-list.js`), the Polygons tab's own rows, the layer box's drawer,
+and the geology tab's layer cards.
+
+**The two branches are not one branch.** A vector has CATEGORIES — a column of
+names, one hue each; the controls are which column and which palette. A raster
+has a RANGE — one variable; the controls are how to cut it and which ramp runs
+across it. Quantiling a list of rock names is meaningless, and asking a rainfall
+grid which column to colour by is asking about something it does not have.
+
+**The repaint trap, stated once more because it is still the easiest way to
+break this.** A VECTOR `layer.repaint` wants a **CSS colour string**; a RASTER
+`layer.repaint` wants **[r, g, b]**. Hand the array to a vector layer and it is
+not an error: `THREE.Color.set` swallows it, every polygon comes out white, and
+the legend beside it is perfectly correct. The legend is not evidence that the
+map was painted. `paintByField()` in this module is now the ONE vector
+implementation — `geology-panel.applyField` calls it too, so the auto-paint on
+load and the Apply button cannot drift apart.
+
+**Checking the colour: read the geometry, not the material.** `renderFeatureCollection`
+draws with `vertexColors: true`, so `material.color` is white on a correctly
+painted layer. A probe that reads materials reports "all white" for a map that
+is fine. Read the geometry's `color` attribute instead — the verification run
+that passed this shows 8 distinct vertex colours for countries-by-continent.
+
+**One dialog on the page, found by id, not held in a variable.** Modules load
+from cache-busted URLs, so a second query string is a second module instance
+with its own top-level state. Held privately, each instance built its own
+backdrop under the same id; `getElementById` answered with whichever came first,
+so opening the dialog from one copy showed the OTHER copy's card, still bearing
+the last layer's name. Measured exactly that way — a raster open that reported
+`opened: true` and a card titled "Countries (Natural Earth 50m)". `theBackdrop()`
+looks the element up.
+
+**Every control in the dialog is painted by element.** A bare input takes the
+browser's white, and against a dark modal a column of class-name boxes is a
+stack of white banners with the map behind them. Text, number and colour inputs
+and the selects are all styled in this module's own STYLE block.
+
+Reopening shows the symbology the layer is WEARING, not the defaults — vectors
+from `layer.geologyField`/`geologyRamp`/`geologyLabels`, rasters from
+`layer.symbologySpec`. Pressing Apply on a dialog that had silently reset to
+five quantiles would undo the classing you came back to adjust.
+
 ## Atlas — the assistant
 
 `gis/atlas-assistant.js` puts a fixed launcher bottom-right on **every** page

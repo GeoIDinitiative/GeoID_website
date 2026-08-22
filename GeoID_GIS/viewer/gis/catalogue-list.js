@@ -18,6 +18,8 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260822-cc374dd";
+
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
 .gis-catalogue { display: flex; flex-direction: column; gap: 0.12rem; }
@@ -146,18 +148,19 @@ export function renderCatalogue(host, entries, hooks) {
 }
 
 /**
- * Open the symbology panel on a layer, wherever it is on the page.
+ * Open symbology on a layer: a window over the map, whatever the layer is.
  *
- * The panel already exists and already handles both rasters and vectors; what
- * was missing was a way to point it at a layer from somewhere else. Falls back
- * to the geology tab's own dialog, which is a modal and needs no scrolling.
+ * It used to reveal the Symbology PANEL instead — select the layer in its
+ * dropdown, unfold whatever it was folded inside, scroll it into view. That
+ * worked in the sense that the controls were reachable, and in no other sense:
+ * the panel is one accordion among a dozen down the side of the page, so
+ * un-hiding it mid-stack pushed everything below it down and left a run of
+ * half-styled sections open behind it. A modal has none of those problems
+ * because it does not live in the page's flow at all.
+ *
+ * The panel is still there and still works; this is simply not the way in.
  */
 export function openSymbologyFor(layer) {
   if (!layer) return false;
-  if (window.GeoIDSymbology?.openFor?.(layer)) return true;
-  if (window.GeoIDGeology?.openSymbology && layer.features?.length) {
-    window.GeoIDGeology.openSymbology(layer);
-    return true;
-  }
-  return false;
+  return openSymbologyDialog(layer);
 }

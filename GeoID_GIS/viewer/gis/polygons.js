@@ -1,6 +1,6 @@
-import { describeCollection } from "./vector-render.js?v=20260822-59e7558";
-import { addDataset, grouped, datasetById } from "./global-data.js?v=20260822-59e7558";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-59e7558";
+import { describeCollection } from "./vector-render.js?v=20260822-cc374dd";
+import { addDataset, grouped, datasetById } from "./global-data.js?v=20260822-cc374dd";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-cc374dd";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -64,6 +64,24 @@ function row(layer) {
   count.textContent = summarise(layer);
 
   node.append(check, name, count);
+
+  // A shapefile somebody dragged in gets the same window as one off the
+  // catalogue — the button was only ever on the catalogue rows, which meant
+  // your own data was the one kind you could not recolour from here.
+  if (typeof layer.repaint === "function" && layer.features?.length) {
+    const sym = document.createElement("button");
+    sym.type = "button";
+    sym.className = "gis-catalogue-sym";
+    sym.textContent = "Symbology…";
+    sym.title = `Colour ${layer.name} by one of its own columns`;
+    // The row is a <label>: a click inside it would otherwise toggle the box.
+    sym.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!openSymbologyFor(layer)) say("This layer cannot be recoloured.");
+    });
+    node.appendChild(sym);
+  }
   return node;
 }
 
@@ -114,7 +132,7 @@ function drawCatalogue() {
       say(`${datasetById(id)?.label || "Dataset"} taken off the globe.`);
     },
     symbology: (layer) => {
-      if (!openSymbologyFor(layer)) say("The symbology panel is not on this page.");
+      if (!openSymbologyFor(layer)) say("This layer cannot be recoloured.");
     },
   });
 }
