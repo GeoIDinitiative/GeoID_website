@@ -14,14 +14,14 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260822-f0f6185";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260822-f0f6185";
-import * as EE from "./gee-live.js?v=20260822-f0f6185";
-import { makeRaster } from "./raster-analysis.js?v=20260822-f0f6185";
+} from "./geoid-pipeline.js?v=20260822-ecc8bdf";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260822-ecc8bdf";
+import * as EE from "./gee-live.js?v=20260822-ecc8bdf";
+import { makeRaster } from "./raster-analysis.js?v=20260822-ecc8bdf";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260822-f0f6185";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260822-f0f6185";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260822-ecc8bdf";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260822-ecc8bdf";
 
 const STAMP = "20260816-6ce8ecd";
 

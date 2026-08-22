@@ -1,5 +1,6 @@
-import { describeCollection } from "./vector-render.js?v=20260822-f0f6185";
-import { addDataset, grouped } from "./global-data.js?v=20260822-f0f6185";
+import { describeCollection } from "./vector-render.js?v=20260822-ecc8bdf";
+import { addDataset, grouped, datasetById } from "./global-data.js?v=20260822-ecc8bdf";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-ecc8bdf";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -78,36 +79,52 @@ function say(message) {
   if (node) node.textContent = message;
 }
 
+/** The layer a catalogue entry is currently loaded as, or null. */
+function layerForEntry(id) {
+  const entry = datasetById(id);
+  if (!entry) return null;
+  return (window.GeoIDImportManager?.getLayers?.() || [])
+    .find((layer) => layer.name === entry.name && layer.status === "loaded") || null;
+}
+
+/**
+ * The catalogue as tick boxes: several datasets at once, on and off.
+ *
+ * It was a dropdown, which says "choose one" — and choosing one was most of
+ * what it could do: no sight of what was already on, and no way to take one
+ * off again without going to the layer box. Coastlines under rivers under
+ * borders is the ordinary case, so the ordinary control is a list of toggles.
+ */
+function drawCatalogue() {
+  const host = byId("polygon-catalogue");
+  if (!host) return;
+  const entries = grouped().flatMap(({ group, entries: list }) => list.map((entry) => ({
+    id: entry.id,
+    group,
+    label: entry.label,
+    title: `${entry.summary} — ${entry.licence}`,
+  })));
+  renderCatalogue(host, entries, {
+    layerFor: layerForEntry,
+    add: (id) => addDataset(id, say),
+    remove: (id) => {
+      const layer = layerForEntry(id);
+      if (!layer) return;
+      window.GeoIDImportManager?.removeLayer?.(layer.id);
+      say(`${datasetById(id)?.label || "Dataset"} taken off the globe.`);
+    },
+    symbology: (layer) => {
+      if (!openSymbologyFor(layer)) say("The symbology panel is not on this page.");
+    },
+  });
+}
+
 function init() {
   const input = byId("polygon-file");
   const browse = byId("polygon-browse");
   if (input) input.setAttribute("accept", ACCEPT);
 
-  const catalogue = byId("polygon-catalogue");
-  if (catalogue) {
-    // Grouped, because a picker of nine flat entries hides the fact that the
-    // first four are one idea: what the world looks like, before anyone's
-    // borders are drawn on it.
-    grouped().forEach(({ group, entries }) => {
-      const box = document.createElement("optgroup");
-      box.label = group;
-      entries.forEach((entry) => {
-        const option = document.createElement("option");
-        option.value = entry.id;
-        option.textContent = entry.label;
-        option.title = `${entry.summary} — ${entry.licence}`;
-        box.appendChild(option);
-      });
-      catalogue.appendChild(box);
-    });
-    // Back to the placeholder afterwards: the select is a way of adding a
-    // layer, not a record of which one is showing — the list below is that.
-    catalogue.addEventListener("change", async () => {
-      const chosen = catalogue.value;
-      catalogue.value = "";
-      if (chosen) await addDataset(chosen, say);
-    });
-  }
+  drawCatalogue();
 
   browse?.addEventListener("click", () => input?.click());
   input?.addEventListener("change", async () => {
@@ -128,7 +145,11 @@ function init() {
       host.prepend(note);
     }
   });
-  window.GeoIDImportManager?.onChange?.(render);
+  window.GeoIDImportManager?.onChange?.(() => {
+    render();
+    // Whoever took it off — this list, the layer box, a tab — the tick follows.
+    drawCatalogue();
+  });
   render();
 }
 

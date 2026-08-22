@@ -10,11 +10,12 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260822-f0f6185";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260822-f0f6185";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260822-f0f6185";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260822-ecc8bdf";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260822-ecc8bdf";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260822-ecc8bdf";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260822-f0f6185";
+  from "./view-extent.js?v=20260822-ecc8bdf";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-ecc8bdf";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -441,6 +442,70 @@ async function request() {
  * because they always work, then anything the live service adds that the cache
  * does not already hold. Rebuilt whenever either source changes.
  */
+/**
+ * The layer a catalogue entry is on the globe as, or null.
+ *
+ * Named by what it is and when: "NASADEM elevation · 2000-02-11–2000-02-22
+ * (cached)". The prefix is the dataset, which is what a tick box is about.
+ */
+function layerForDataset(name) {
+  return (window.GeoIDImportManager?.getLayers?.() || [])
+    .find((layer) => layer.ext === "gee" && layer.status === "loaded"
+      && layer.name.startsWith(`${name} ·`)) || null;
+}
+
+/**
+ * The catalogue as tick boxes rather than a dropdown.
+ *
+ * Rainfall beside elevation beside land surface temperature is the ordinary
+ * way to look at these, and a `<select>` could only ever hold one of them —
+ * with no sight of what was already draped and no way to take one off. The
+ * select is still there, hidden, because it carries the state the live request
+ * path reads (availability, dates, extent); the ticks drive it.
+ */
+function drawCatalogue() {
+  const host = byId("gee-catalogue");
+  const select = byId("gee-dataset");
+  if (!host || !select) return;
+  const entries = [...select.options]
+    .filter((option) => option.value)
+    .map((option) => ({
+      id: option.value,
+      label: option.textContent,
+      group: option.parentElement?.tagName === "OPTGROUP"
+        ? option.parentElement.label : "Catalogue",
+      title: option.dataset.source === "cache"
+        ? "A shipped snapshot: drapes from disk, no key needed"
+        : "Live service: needs a Client ID and a project in Settings",
+      source: option.dataset.source,
+      name: option.textContent,
+    }));
+  renderCatalogue(host, entries, {
+    layerFor: (id) => {
+      const entry = entries.find((e) => e.id === id);
+      return entry ? layerForDataset(entry.name) : null;
+    },
+    add: async (id) => {
+      select.value = id;
+      // The live path reads availability and dates off the select, so it has to
+      // hear the change before the request is made.
+      select.dispatchEvent(new Event("change"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await request();
+    },
+    remove: (id) => {
+      const entry = entries.find((e) => e.id === id);
+      const layer = entry && layerForDataset(entry.name);
+      if (!layer) return;
+      window.GeoIDImportManager?.removeLayer?.(layer.id);
+      status(`${entry.label} taken off the globe.`);
+    },
+    symbology: (layer) => {
+      if (!openSymbologyFor(layer)) status("The symbology panel is not on this page.");
+    },
+  });
+}
+
 function populateSelect() {
   const select = byId("gee-dataset");
   if (!select) return;
@@ -464,6 +529,7 @@ function populateSelect() {
   }
   select.innerHTML = options.join("");
   if (previous) select.value = previous;
+  drawCatalogue();
 }
 
 /** The shipped snapshots, read from disk — no network, no credential. */
@@ -601,6 +667,10 @@ function init() {
     loadCatalogue();
   });
   byId("gee-request")?.addEventListener("click", request);
+  // The ticks follow the layers, whoever removed one: this list, the layer box,
+  // or a tab being switched off.
+  window.GeoIDImportManager?.onChange?.(drawCatalogue);
+  drawCatalogue();
   // Choosing a dataset fetches what it actually holds, states it, and fills the
   // boxes with the last sixty days of availability -- so the offered dates are
   // real ones rather than guesses to be refused later.

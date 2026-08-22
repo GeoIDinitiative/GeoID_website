@@ -15,7 +15,7 @@ import {
   RAMPS,
   buildSymbology, colourOf, legendInfoFrom, METHODS, RAMP_NAMES,
   categoricalSymbology, suggestCategoryField, QUALITATIVE, QUALITATIVE_RAMP,
-} from "./symbology.js?v=20260822-f0f6185";
+} from "./symbology.js?v=20260822-ecc8bdf";
 
 const HOST_ID = "gis-symbology-host";
 /**
@@ -544,6 +544,35 @@ function fillLayers() {
   state.layerId = select.value;
 }
 
+/**
+ * Point this panel at a layer from somewhere else on the page.
+ *
+ * The panel could always symbolise any layer that can repaint; what it could
+ * not do was be *asked* to. A dataset toggled on from a catalogue is three
+ * panels away from here, and telling somebody to go and find the layer in a
+ * dropdown is not wiring it up. This selects the layer, opens whatever the
+ * panel is folded inside, and brings it into view.
+ */
+export function openFor(layer) {
+  const select = byId("gis-sym-layer");
+  if (!select || !layer) return false;
+  const id = String(layer.id ?? layer.name);
+  fillLayers();
+  if (![...select.options].some((o) => o.value === id)) return false;
+  select.value = id;
+  select.dispatchEvent(new Event("change"));
+  const host = byId(HOST_ID);
+  // Every panel here lives inside a folded <details>; opening the layer's own
+  // one is the difference between "selected" and "on screen".
+  let node = host;
+  while (node) {
+    if (node.tagName === "DETAILS") node.open = true;
+    node = node.parentElement;
+  }
+  host?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  return true;
+}
+
 export function init() {
   const host = byId(HOST_ID);
   if (!host || host.dataset.built) return;
@@ -605,6 +634,9 @@ export function init() {
 
 if (typeof window !== "undefined") {
   window.GeoIDSymbologyPanel = { init, recompute };
+  // The name the catalogues look for, so a dataset toggled on three panels away
+  // can still be pointed at this one.
+  window.GeoIDSymbology = { openFor, applyImportSymbology };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
