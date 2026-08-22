@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260822-6ff535a";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260822-da9d1b8";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260822-6ff535a";
+} from "./symbology.js?v=20260822-da9d1b8";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -591,13 +591,19 @@ function buildVectorForm(layer, body, note, hooks) {
       th.title = column.capped
         ? `More than ${column.distinct} distinct values — too many to colour by`
         : "Click to colour the map by this column";
-      if (column.key === state.field) th.classList.add("is-colour");
+      // Nothing is coloured by a column while the layer is one flat colour,
+      // so nothing in the table is marked as the one doing it.
+      if (state.mode !== "single" && column.key === state.field) th.classList.add("is-colour");
       th.addEventListener("click", () => {
         if (column.distinct < 2 || column.capped) return;
         state.field = column.key;
         state.overrides = new Map();
         state.labels = new Map();
         fieldSelect.value = column.key;
+        // Clicking a column IS asking to colour by it. Reading the table is
+        // how the decision gets made, so the table is also where it is taken.
+        state.mode = "field";
+        modeSelect.value = "field";
         draw();
       });
       hr.appendChild(th);
@@ -610,7 +616,7 @@ function buildVectorForm(layer, body, note, hooks) {
         const td = document.createElement("td");
         td.textContent = row[i] ?? "";
         td.title = row[i] ?? "";
-        if (column.key === state.field) td.classList.add("is-colour");
+        if (state.mode !== "single" && column.key === state.field) td.classList.add("is-colour");
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -657,17 +663,27 @@ function buildVectorForm(layer, body, note, hooks) {
 
   const draw = () => {
     const single = state.mode === "single";
-    // The whole attribute half is hidden rather than disabled: greyed-out
+    // The CONTROLS of classing are hidden rather than disabled: greyed-out
     // controls still read as "this is what symbology is, and it is broken".
     singleSwatch.hidden = !single;
-    [fieldRow, rampRow, headWrap, classes].forEach((node) => { node.hidden = single; });
+    [fieldRow, rampRow, classes].forEach((node) => { node.hidden = single; });
+    /**
+     * The attribute table stays up in BOTH modes, because it is not a control.
+     *
+     * It is the first six rows of the dataset, and reading them is how anyone
+     * decides there is anything worth colouring by — which column holds rock
+     * names, which holds an id, whether the layer carries attributes at all.
+     * Hiding it in One colour mode hid the very thing that answers "should I
+     * switch to By attribute?", so the choice had to be made blind and undone.
+     */
+    drawHead();
     if (single) {
-      note.textContent = `${head6.count.toLocaleString()} features, all one colour`;
+      note.textContent = `${head6.count.toLocaleString()} features · `
+        + `${head6.columns.length} columns · all one colour`;
       return;
     }
     bar.style.background = rampBar(rampSelect.value);
     note.textContent = `${head6.count.toLocaleString()} features · ${head6.columns.length} columns`;
-    drawHead();
     drawClasses();
   };
 

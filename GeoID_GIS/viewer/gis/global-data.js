@@ -130,10 +130,38 @@ export function grouped() {
     .filter((g) => g.entries.length);
 }
 
-function loadedLayer(entry) {
-  return (window.GeoIDImportManager?.getLayers?.() || [])
-    .find((layer) => layer.name === entry.name) || null;
+/**
+ * What the layer is CALLED, which is not what the file is called.
+ *
+ * The importer picks its parser from the extension, so the File handed to it
+ * has to be `NI rivers (OpenStreetMap).geojson`. Nothing downstream needs that:
+ * the layer box, the Polygons list, the legend and the symbology dialog are all
+ * showing a dataset somebody ticked, not a file they chose, and ".geojson" in
+ * every row is plumbing on display. Derived rather than a second field, so the
+ * two cannot be edited apart.
+ */
+export function layerNameOf(entry) {
+  return String(entry?.name || "").replace(/\.(geojson|json|shp|kml|gpx|wkt|csv)$/i, "");
 }
+
+/** The layer a catalogue dataset is currently loaded as, or null. */
+export function layerForDataset(id) {
+  const entry = typeof id === "object" ? id : datasetById(id);
+  if (!entry) return null;
+  const display = layerNameOf(entry);
+  return (window.GeoIDImportManager?.getLayers?.() || [])
+    // Either name: the file's while the import is still in flight, the tidied
+    // one from the moment the rename lands.
+    .find((layer) => layer.name === display || layer.name === entry.name) || null;
+}
+
+/** Did this layer come from the catalogue? */
+export function isCatalogueLayer(layer) {
+  if (!layer?.name) return false;
+  return DATASETS.some((entry) => layer.name === entry.name || layer.name === layerNameOf(entry));
+}
+
+const loadedLayer = (entry) => layerForDataset(entry);
 
 /**
  * Put one catalogue dataset on the globe.
@@ -162,9 +190,14 @@ export async function addDataset(id, onStatus = () => {}) {
     const response = await fetch(source);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const blob = await response.blob();
-    await manager.importFileList([
-      new File([blob], entry.name, { type: "application/geo+json" }),
-    ]);
+    // The FILE keeps its extension, because that is what chooses the parser;
+    // the LAYER is named without it. `options.name` is the importer's own
+    // seam for exactly this, so the layer is right from the frame it lands
+    // rather than being renamed a moment later in front of the user.
+    await manager.importFileList(
+      [new File([blob], entry.name, { type: "application/geo+json" })],
+      { name: layerNameOf(entry) },
+    );
   } catch (error) {
     const message = `${entry.label} did not load: ${error.message}`;
     onStatus(message);
@@ -177,5 +210,8 @@ export async function addDataset(id, onStatus = () => {}) {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDGlobalData = { DATASETS, GROUPS, grouped, datasetById, addDataset };
+  window.GeoIDGlobalData = {
+    DATASETS, GROUPS, grouped, datasetById, addDataset,
+    layerNameOf, layerForDataset, isCatalogueLayer,
+  };
 }

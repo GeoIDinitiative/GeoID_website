@@ -1,6 +1,8 @@
-import { addDataset, grouped, datasetById } from "./global-data.js?v=20260822-6ff535a";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-6ff535a";
-import { geometrySummary } from "./symbology-dialog.js?v=20260822-6ff535a";
+import {
+  addDataset, grouped, datasetById, layerForDataset, isCatalogueLayer,
+} from "./global-data.js?v=20260822-da9d1b8";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260822-da9d1b8";
+import { geometrySummary } from "./symbology-dialog.js?v=20260822-da9d1b8";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -21,12 +23,24 @@ function byId(id) {
 }
 
 /**
- * Vector layers only. A shapefile of coastlines belongs here; a GeoTIFF of
- * rainfall does not, even though both arrived through the same importer.
+ * Vector layers this tab is the ONLY home for — the ones somebody brought.
+ *
+ * It used to list every loaded vector layer, catalogue ones included, so a
+ * ticked dataset appeared twice on the same panel: once as its catalogue row
+ * with a Symbology button, and again in a card below the status line with a
+ * second tick, a second Symbology button, and a different name. Two controls
+ * for one layer, disagreeing about what to call it.
+ *
+ * The catalogue row is the better of the two — it is where the layer was turned
+ * on and where its tick means "on the globe" — so a catalogue layer is drawn
+ * there and nowhere else. A shapefile somebody dropped has no row up there and
+ * keeps its card here. A GeoTIFF of rainfall belongs in neither, even though it
+ * arrived through the same importer.
  */
 function overlays() {
   return (window.GeoIDImportManager?.getLayers?.() || [])
-    .filter((layer) => layer.status === "loaded" && layer.collection?.features?.length);
+    .filter((layer) => layer.status === "loaded" && layer.collection?.features?.length)
+    .filter((layer) => !isCatalogueLayer(layer));
 }
 
 /** "412 polygons", "1 line", "8 polygons, 2 lines" -- what is actually in it. */
@@ -91,14 +105,6 @@ function say(message) {
   if (node) node.textContent = message;
 }
 
-/** The layer a catalogue entry is currently loaded as, or null. */
-function layerForEntry(id) {
-  const entry = datasetById(id);
-  if (!entry) return null;
-  return (window.GeoIDImportManager?.getLayers?.() || [])
-    .find((layer) => layer.name === entry.name && layer.status === "loaded") || null;
-}
-
 /**
  * The catalogue as tick boxes: several datasets at once, on and off.
  *
@@ -121,10 +127,12 @@ function drawCatalogue() {
     // panel, and the layers already on the globe — the part you work with —
     // were pushed off the bottom of it.
     title: "Global catalogue",
-    layerFor: layerForEntry,
+    // The catalogue owns this lookup: it knows a dataset is loaded under the
+    // tidied name once the rename lands, and under the file name before it.
+    layerFor: layerForDataset,
     add: (id) => addDataset(id, say),
     remove: (id) => {
-      const layer = layerForEntry(id);
+      const layer = layerForDataset(id);
       if (!layer) return;
       window.GeoIDImportManager?.removeLayer?.(layer.id);
       say(`${datasetById(id)?.label || "Dataset"} taken off the globe.`);

@@ -524,6 +524,35 @@ too — and it is safe against the self-rebuilding layers because both the tiled
 geology and the basemap drape call `addDerivedLayer` once and reuse the layer
 afterwards.
 
+**The file keeps its extension; the layer does not.** The importer picks its
+parser from the extension, so the File `addDataset` builds has to be
+`NI rivers (OpenStreetMap).geojson` — but nothing downstream is showing a file
+somebody chose, it is showing a dataset they ticked, and ".geojson" in every
+row is plumbing on display. `importFileList` already had the seam
+(`options.name`, honoured by `importDataset`), so the layer is named right from
+the frame it lands rather than renamed a moment later in front of the user.
+`layerNameOf(entry)` derives it rather than being a second field, and
+`layerForDataset(id)` matches EITHER name — the file's while the import is in
+flight, the tidied one after.
+
+**One layer, one control.** The Polygons tab listed every loaded vector layer,
+catalogue ones included, so a ticked dataset appeared twice on the same panel:
+its catalogue row with a tick and a Symbology button, and a card below the
+status line with a second tick, a second Symbology button and a different name.
+The second tick was VISIBILITY where the first was on-the-globe, which is why
+unticking one appeared to leave the layer in the layer box — two controls that
+do different things, wearing the same box. `overlays()` now excludes
+`isCatalogueLayer`, so the catalogue row is the only control for a catalogue
+layer and the card is only for a shapefile somebody brought.
+
+**The attribute head is not a control, so it stays up in both symbology
+modes.** It is the first six rows of the dataset, and reading them is how
+anyone decides whether there is anything worth colouring by. Hiding it in One
+colour mode hid the very thing that answers "should I switch to By attribute?".
+Clicking a column header switches to By attribute and selects it, because
+reading the table is where that decision gets made; nothing is marked
+`is-colour` while the layer is one flat colour.
+
 **Checking the colour: read the geometry, not the material.** `renderFeatureCollection`
 draws with `vertexColors: true`, so `material.color` is white on a correctly
 painted layer. A probe that reads materials reports "all white" for a map that
