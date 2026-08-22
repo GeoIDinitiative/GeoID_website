@@ -316,6 +316,31 @@ vertices sit on the displaced surface to **1 m**, both at the exaggeration they
 were built for and at one they were not (0.02, where the surface span is
 2,662 m rather than 14,639 m).
 
+**The events feed is a LAYER, adopted rather than added.** It was the one thing
+on the globe with no row in the list of what is on the globe: no eye, no
+opacity, no place in the draw order anybody could see or change, and its
+markers held above everything by a hard-coded `renderOrder = 230` — the right
+default and the wrong rule, since "always on top" is a decision the layer box
+exists to let somebody take. `adoptLayer(name, object3D, opts)` in
+`import-manager.js` records a layer WITHOUT touching the scene graph, because
+the markers hang in `eonet-spin-frame`, which carries the spin its own way —
+reparenting them into the imported group, which carries it differently, slides
+every marker off its ground. Re-adopting the same name replaces the object, so
+a five-minute refresh keeps the row, its place in the stack and its
+visibility. An adopted layer's geometry is not ours to dispose: `removeLayer`
+calls its `onRemove` instead, which for events turns the feed off.
+
+**Every band is a DEFAULT, and dragging a row overrides it.** Events get a
+fourth band above everything, so a geological map loaded afterwards cannot bury
+what the feed was switched on to show. The first attempt made that band
+conditional on a `stackMoved` flag and fell back to the ordinary band — still
+band 2, above geology's band 1 — so pressing Down on the events row with only
+geology beneath it **moved nothing and looked broken**. A dragged layer now
+takes the BAND OF THE ROW IT DISPLACED (`bandOverride`, read before the splice),
+so it lands where it was dropped and stays there through any redraw. Measured:
+events above geology at 52/51 by default, and 51/52 after one press of Down,
+with the order surviving a re-render.
+
 **Three draw-order bands inside the imported range**: imagery (`ext` of `tiles`
 or `gee` — a tile drape, an Earth Engine snapshot) UNDER geology, geology under
 everything anybody added. Measured: drape 51, world geology 52, a shapefile 53.

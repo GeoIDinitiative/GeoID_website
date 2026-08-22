@@ -10,11 +10,11 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260822-da9d1b8";
-import { samplerToRaster } from "./raster-analysis.js?v=20260822-da9d1b8";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260822-da9d1b8";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260822-da9d1b8";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260822-da9d1b8";
+import { currentBody } from "./bodies.js?v=20260822-e644da6";
+import { samplerToRaster } from "./raster-analysis.js?v=20260822-e644da6";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260822-e644da6";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260822-e644da6";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260822-e644da6";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -230,7 +230,31 @@ function layers() {
  */
 const IMAGERY_EXT = new Set(["tiles", "gee"]);
 
+/**
+ * A fourth band, for things that are being READ rather than mapped — and it is
+ * a DEFAULT, not a rule.
+ *
+ * Event markers are the case: they are what you switched the feed on to look
+ * at, so a geological map loaded afterwards must not bury them, and a layer
+ * that has to be dug out from under something is not "visible when active".
+ * But pinning them there for good takes the layer box's one job away from the
+ * user, who asked to be able to swap them.
+ *
+ * **So every band is a default, and dragging a row overrides it.** That had to
+ * be true of all four, not just this one: the first attempt marked the layer
+ * as hand-moved and let it fall back to the ordinary band, which was still
+ * band 2 — above geology's band 1 — so pressing Down on the events row with
+ * only a geological map beneath it moved nothing and looked broken. A layer
+ * that is dragged past another one **takes that one's band**, so it lands
+ * exactly where it was dropped and stays there. Nothing is unreachable and
+ * nothing has to be dragged twice.
+ */
+const ON_TOP_EXT = new Set(["events"]);
+
 function bandOf(layer) {
+  // Put there by hand, and a hand beats a default.
+  if (Number.isFinite(layer?.bandOverride)) return layer.bandOverride;
+  if (ON_TOP_EXT.has(layer?.ext)) return 3;
   if (IMAGERY_EXT.has(layer?.ext)) return 0;
   return layer?.geologyDataset || layer?.role === "geology" ? 1 : 2;
 }
@@ -329,8 +353,13 @@ function move(id, delta) {
   const from = stack.findIndex((l) => l.id === id);
   const to = from + delta;
   if (from < 0 || to < 0 || to >= stack.length) return;
+  // The band of the row it is taking the place of, read BEFORE the splice:
+  // a layer dropped among geology is geology's neighbour now, whatever its
+  // kind would have said. See `bandOf`.
+  const displaced = stack[to];
   const moved = stack.splice(from, 1)[0];
   stack.splice(to, 0, moved);
+  moved.bandOverride = bandOf(displaced);
   // Rewrite the indices so the array order becomes the stored order.
   stack.forEach((layer, i) => { layer.stackIndex = stack.length - 1 - i; });
   render();
@@ -342,8 +371,10 @@ function reorderTo(sourceId, targetId) {
   const from = stack.findIndex((l) => l.id === sourceId);
   const to = stack.findIndex((l) => l.id === targetId);
   if (from < 0 || to < 0) return;
+  const displaced = stack[to];
   const moved = stack.splice(from, 1)[0];
   stack.splice(to, 0, moved);
+  moved.bandOverride = bandOf(displaced);
   stack.forEach((layer, i) => { layer.stackIndex = stack.length - 1 - i; });
   render();
 }

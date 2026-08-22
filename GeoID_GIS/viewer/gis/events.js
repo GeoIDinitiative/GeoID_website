@@ -67,6 +67,10 @@ function feedUrls() {
   return urls;
 }
 const REFRESH_MS = 5 * 60 * 1000;
+
+/** What the layer box calls the feed. Stable, so a refresh re-adopts the row
+    it already has rather than adding a second one. */
+const LAYER_NAME = "Events (NASA EONET)";
 // How far above the surface the markers float, as a fraction of the globe's
 // radius. The globe is not a bare sphere -- there are shells above it -- so a
 // marker needs to clear those as well as the ground to survive the depth test.
@@ -453,7 +457,11 @@ function renderMarkers() {
     markers.traverse?.((n) => { n.geometry?.dispose?.(); n.material?.dispose?.(); });
     markers = null;
   }
-  if (!active || !events.length) return;
+  if (!active || !events.length) {
+    // Nothing drawn is not a layer, so the row goes with the markers.
+    publishLayer();
+    return;
+  }
 
   // One point cloud per category, so each carries its own colour and the whole
   // feed costs a handful of draw calls rather than one per event.
@@ -493,13 +501,18 @@ function renderMarkers() {
       opacity: 0.95,
     }));
     /**
-     * In front of everything anybody can load.
+     * In front of everything anybody can load — until somebody says otherwise.
      *
      * The imported band runs 50 to 190 and its fills do not depth-test, so
-     * whatever draws last wins there — an event has to be above all of it or a
+     * whatever draws last wins there: an event has to be above all of it or a
      * geological map drawn afterwards paints over the thing being read. 230 is
-     * the marker band in the draw-order table, above imports and below nothing
-     * that matters.
+     * the marker band in the draw-order table.
+     *
+     * It is the value the markers carry between being built and the layer
+     * stack being applied. Once the feed is adopted as a layer, `applyStack`
+     * owns this number — which is what makes the row draggable at all — and
+     * gives it the top of the imported band by default. Both say the same
+     * thing; only one of them can be argued with.
      */
     points.renderOrder = 230;
     points.name = `eonet-${key}`;
@@ -508,6 +521,62 @@ function renderMarkers() {
   });
   (spinFrame() || viewer.earthSceneGroup || viewer.scene).add(markers);
   trackScale();
+  publishLayer();
+}
+
+/** What the layer row says it is: "218 events in 4 categories". */
+function layerSummary() {
+  const kinds = new Set(events.map((event) => event.categoryId || "other"));
+  const n = events.length;
+  return `${n.toLocaleString()} event${n === 1 ? "" : "s"} in `
+    + `${kinds.size} categor${kinds.size === 1 ? "y" : "ies"}`;
+}
+
+/**
+ * The feed as a row in the layer box.
+ *
+ * It had none, which made it the one thing on the globe with no entry in the
+ * list of what is on the globe: no eye to switch it off, no opacity, and no
+ * place in the draw order anybody could see or change. The markers were held
+ * above everything by a hard-coded renderOrder, which is the right DEFAULT and
+ * the wrong rule — "always on top" is a decision the layer box exists to let
+ * somebody take.
+ *
+ * Adopted rather than added: the markers hang in `eonet-spin-frame`, which
+ * carries the spin its own way, so they must not be reparented into the
+ * imported group. The whole frame is handed over — markers and the selection
+ * ring — so switching the row off switches the feed's picture off entirely
+ * while the feed itself keeps running.
+ */
+function publishLayer() {
+  const manager = window.GeoIDImportManager;
+  if (!manager?.adoptLayer) return;
+  if (!active || !events.length || !spun) {
+    manager.releaseLayer?.(LAYER_NAME);
+    return;
+  }
+  const layer = manager.adoptLayer(LAYER_NAME, spun, {
+    ext: "events",
+    role: "events",
+    info: { source: "NASA EONET v3", events: events.length },
+    onRemove: () => setActive(false),
+  });
+  if (layer) {
+    layer.legendInfo = {
+      palette: [...new Set(events.map((e) => e.categoryId || "other"))]
+        .map((key) => String(symbolFor(key).colour).replace("#", "")),
+      labels: [...new Set(events.map((e) => e.categoryId || "other"))]
+        .map((key) => symbolFor(key).label || key),
+      categorical: true,
+      classed: true,
+      field: "category",
+    };
+    layer.info = { source: "NASA EONET v3", summary: layerSummary() };
+  }
+  // The stack has to be re-applied: a refresh builds new point clouds inside a
+  // group whose renderOrder was stamped on the children that existed then, and
+  // a child added afterwards starts at zero -- under the basemap.
+  window.GeoIDLayerHierarchy?.render?.();
 }
 
 async function setActive(on) {
@@ -721,6 +790,18 @@ function setSelection(event) {
     if (!halo) return;
     // Size is held on the dot every frame, so it tracks a zoom as it happens.
     applyHaloScale();
+    /**
+     * The ring follows the dots it is drawn around, half a step above them.
+     *
+     * It used to hold a fixed 231, which was right while the markers held a
+     * fixed 230 and wrong the moment the feed became a layer somebody can drag
+     * down the stack: a selection ring floating over a geological map that has
+     * been deliberately put on top of the events is the ring lying about what
+     * is in front. renderOrder is a float, so half a step is enough to keep it
+     * off its own dots without leaving the layer's place in the stack.
+     */
+    const dots = markers?.children?.[0];
+    if (dots) halo.renderOrder = (dots.renderOrder || 230) + 0.5;
     // The pulse is in brightness alone. Pulsing the size was what took the ring
     // off the dot it is meant to sit on: it can only stay on the circumference
     // if it stays that size.

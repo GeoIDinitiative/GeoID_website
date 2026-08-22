@@ -1,13 +1,13 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260822-da9d1b8";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260822-da9d1b8";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260822-da9d1b8";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260822-da9d1b8";
-import { buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude } from "./vector-render.js?v=20260822-da9d1b8";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260822-da9d1b8";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260822-da9d1b8";
-import { loadMshFile } from "./msh-adapter.js?v=20260822-da9d1b8";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260822-da9d1b8";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260822-e644da6";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260822-e644da6";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260822-e644da6";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260822-e644da6";
+import { buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude } from "./vector-render.js?v=20260822-e644da6";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260822-e644da6";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260822-e644da6";
+import { loadMshFile } from "./msh-adapter.js?v=20260822-e644da6";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260822-e644da6";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -385,11 +385,82 @@ function removeLayer(id) {
     return;
   }
   const [layer] = layers.splice(index, 1);
+  /**
+   * An ADOPTED layer's geometry is not ours to destroy.
+   *
+   * It was built and is owned by whoever adopted it out — the events feed
+   * rebuilds its markers on every refresh — so removing the row hands the
+   * decision back rather than disposing a group its owner still holds a
+   * reference to. Without this, taking Events off the layer list left the feed
+   * pushing points into a disposed buffer.
+   */
+  if (layer.adopted) {
+    try { layer.onRemove?.(layer); } catch (error) {
+      console.warn("[GeoID GIS] adopted layer could not be released:", error.message);
+    }
+    renderLayerList();
+    return;
+  }
   if (layer.object3D) {
     layer.object3D.parent?.remove(layer.object3D);
     disposeObject(layer.object3D);
   }
   renderLayerList();
+}
+
+/**
+ * Take an object ALREADY IN THE SCENE into the layer list.
+ *
+ * `addDerivedLayer` reparents what it is given into the imported group, which
+ * is right for something built to be a layer and wrong for something that is
+ * already somewhere specific. The events feed is the case: its markers hang in
+ * `eonet-spin-frame`, which carries the spin its own way, and moving them into
+ * the imported group — which carries it differently — would slide every marker
+ * off its ground. So this records the layer and touches the scene graph not at
+ * all.
+ *
+ * Re-adopting the same name replaces the object rather than adding a second
+ * row, because the owner may rebuild it: the feed refreshes and hands over a
+ * new group, and the row, its place in the stack and its visibility survive.
+ */
+export function adoptLayer(name, object3D, options = {}) {
+  if (!object3D || !name) return null;
+  const existing = layers.find((layer) => layer.adopted && layer.name === name);
+  if (existing) {
+    existing.object3D = object3D;
+    if (existing.visible === false) object3D.visible = false;
+    renderLayerList();
+    return existing;
+  }
+  const layer = {
+    id: nextLayerId++,
+    name,
+    ext: options.ext || "adopted",
+    role: options.role || null,
+    status: "loaded",
+    object3D,
+    bounds: options.bounds || null,
+    georeferenced: true,
+    info: options.info || null,
+    legendInfo: options.legendInfo || null,
+    adopted: true,
+    onRemove: options.onRemove || null,
+    // Straight to the top of the stack, above everything currently loaded. See
+    // the note on `bandOf` for why it STAYS there until somebody moves it.
+    stackIndex: layers.reduce((n, l) => Math.max(n, l.stackIndex ?? 0), 0) + 1,
+  };
+  layers.push(layer);
+  renderLayerList();
+  return layer;
+}
+
+/** Drop an adopted layer's row without touching its geometry. */
+export function releaseLayer(name) {
+  const index = layers.findIndex((layer) => layer.adopted && layer.name === name);
+  if (index === -1) return false;
+  layers.splice(index, 1);
+  renderLayerList();
+  return true;
 }
 
 /**
@@ -724,6 +795,8 @@ window.GeoIDImportManager = {
   removeLayer,
   registerParser,
   addDerivedLayer,
+  adoptLayer,
+  releaseLayer,
   getLayers: () => layers,
   /** Frame a layer in the view, and say what it is -- both moved to the
       hierarchy row's drop-down, which is where a layer's actions live now. */
