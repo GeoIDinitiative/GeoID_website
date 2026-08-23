@@ -658,6 +658,84 @@ from `layer.geologyField`/`geologyRamp`/`geologyLabels`, rasters from
 `layer.symbologySpec`. Pressing Apply on a dialog that had silently reset to
 five quantiles would undo the classing you came back to adjust.
 
+## Volcanoes, and three services asked about a place
+
+**The Smithsonian catalogue is BAKED** (`services/bake-volcanoes.py` →
+`data/global/volcanoes.geojson`, 2,666 records, 2.8 MB), for the reasons the
+geology tiles are. Three fields in it are ours, and the file says so in
+`_source`: `activity` is a RECENCY BAND from `Last_Eruption_Year` and is
+**never** active/dormant/extinct — GVP declines to publish those terms because
+they have no agreed definition and "extinct" has been wrong often enough to be
+dangerous; `type_group` collapses 28 types to 9 so a twelve-class palette can
+hold them; `summary` is clipped on a sentence boundary from up to 1,776
+characters, with `gvp_url` carrying anyone who wants the rest to the citable
+record.
+
+It is an ordinary catalogue layer, so symbology, the layer box, the legend,
+extraction and export work on it already. A catalogue entry may now name a
+`colourBy` column: `rankColourFields` would have picked `country` for this one
+— a hundred hues saying nothing about volcanoes.
+
+**Two renderer faults it surfaced, both shapes this file has had before.**
+POINTS NEVER TOOK A COLOUR: `colourFor` was consulted for fills and lines and
+skipped for points, so 2,666 volcanoes drew in one flat yellow under a correct
+nine-class legend — zero colour attributes on the geometry. And A CATALOGUE IS
+NOT A POINT CLOUD: `sizeAttenuation` scales a point with distance, so the
+markers were sub-pixel from orbit. Under **20,000 points** a layer is a set of
+places and is sized in screen pixels; above it, world space, or a fixed pixel
+size paints the globe solid at a distance.
+
+### CORS decides which services exist
+
+`earth-data.js` holds SoilGrids, FDSN and WorldPop — pure builders and parsers,
+three `fetch` wrappers at the bottom, tested without a network. Verified before
+anything was written:
+
+- **EarthScope/IRIS sends no `Access-Control-Allow-Origin`.**
+  `service.iris.edu` 307s to `service.earthscope.org` and neither answers a
+  browser, so the largest seismic archive on Earth is unreachable from a page.
+  **GEOFON and ORFEUS both do send it** and are the nodes.
+- **GHSL has no browser-reachable global service.** WorldPop answers the
+  population question instead, and better: people in a POLYGON rather than a
+  picture, and the polygon is the study area somebody drew.
+- **SoilGrids returns INTEGERS and the divisor is in the response**
+  (`unit_measure.d_factor`): clay 212 means 21.2%, bulk density 95 means 0.95.
+  Two different factors in one response, so a remembered constant is wrong for
+  one of them and every number still looks plausible.
+- **WorldPop is a two-step task API, and FINISHED IS NOT SUCCEEDED** — `error`
+  is a separate field, and a Feature instead of a bare geometry returns a task
+  that fails two polls later.
+
+### miniSEED, and why it can be trusted
+
+`mseed.js` reads the fixed header, blockette 1000, the four uncompressed
+encodings and Steim-1/Steim-2. Broadband data is Steim-2 almost everywhere, so
+a reader without it opens the metadata channels and none of the seismograms.
+
+**A Steim frame stores DIFFERENCES**, so one wrong nibble corrupts everything
+after it and the result still plots as a convincing wiggle. The format's own
+answer is that each record carries its first and last sample as plain integers:
+integrating from `x0` must land exactly on `xn`. That check is returned rather
+than hidden, and `mseed.test.mjs` asserts it on a real record — GE.STU BHZ from
+GEOFON over the 2023 Kahramanmaraş M7.8, eight 512-byte records, all eight
+passing independently, plus a bit-flip proving a corrupted record is reported.
+
+Three traps pinned there:
+
+- **The record length is in each record's blockette 1000, not the response
+  size.** Reading a 4,096-byte reply as one record loses seven eighths of the
+  earthquake — which is exactly what the first Python reference decode did,
+  and the JS was right before the test was.
+- **The sample rate is a factor AND a multiplier with four sign cases.** 20 Hz
+  is (20, 1) but 1.85 Hz is (50, −27); reading it as a product gives 1350 Hz
+  and every spectrum is wrong by 729× with the shape unchanged.
+- **`Number("")` is 0, not NaN**, so a station row with a blank latitude came
+  back as a finite station at 0°N 0°E, in the Gulf of Guinea, clickable.
+
+A fetched trace is written to `post_processing/extracted_dofs/` — the folder
+`findTables` lists for the Signal and Spectral pages — so the DSP written for
+FEM probe output works on a real earthquake with nothing added.
+
 ## Atlas — the assistant
 
 `gis/atlas-assistant.js` puts a fixed launcher bottom-right on **every** page
