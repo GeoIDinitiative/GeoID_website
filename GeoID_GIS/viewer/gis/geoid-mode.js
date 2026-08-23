@@ -14,14 +14,14 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260823-c2a002f";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260823-c2a002f";
-import * as EE from "./gee-live.js?v=20260823-c2a002f";
-import { makeRaster } from "./raster-analysis.js?v=20260823-c2a002f";
+} from "./geoid-pipeline.js?v=20260823-ea1ad45";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260823-ea1ad45";
+import * as EE from "./gee-live.js?v=20260823-ea1ad45";
+import { makeRaster } from "./raster-analysis.js?v=20260823-ea1ad45";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260823-c2a002f";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260823-c2a002f";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260823-ea1ad45";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260823-ea1ad45";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -273,7 +273,7 @@ export async function run({ fetchImpl = null, maxCells = 40000 } = {}) {
   const base = await ensureInputs(fetchImpl);
   const dem = base.dem;
   if (!dem?.band) {
-    say("No elevation data — myGeoID takes its slopes from a DEM.");
+    say("No elevation data — myGeoID mode takes its slopes from a DEM.");
     return { ok: false };
   }
   const viewer = window.GeoIDViewer;

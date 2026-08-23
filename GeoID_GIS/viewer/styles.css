@@ -497,6 +497,9 @@
       text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
     }
 
+    /* Unused while the sidebar title is one word ("Earth"). Kept because the
+       two-tone treatment is the site's wordmark idiom and a longer title
+       would want it back. */
     .brand-title-prefix {
       color: var(--nav-accent);
     }
