@@ -42,7 +42,7 @@
       "kicker": "In development",
       "title": "myGeoID prototype",
       "desc": "Personalised dashboards, saved locations and custom alert profiles.",
-      "href": "/myGeoID/",
+      "href": "/geohub/",
       "image": "/assets/opt/mygeoid.webp",
       "alt": "myGeoID"
     },

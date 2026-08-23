@@ -139,6 +139,7 @@
   height: 1px; margin-top: 5px;
   background: var(--nav-accent);
 }
+.site-nav .geohub-prefix,
 .site-nav .mygeoid-prefix { color: var(--nav-accent); }
 
 .site-nav .nav-dropdown-menu { margin-top: 8px; padding: 8px; border-radius: 2px; min-width: 13rem; }

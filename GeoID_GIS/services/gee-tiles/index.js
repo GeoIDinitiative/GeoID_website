@@ -1,5 +1,5 @@
 /**
- * Earth Engine image service for myGeoID.
+ * Earth Engine image service for GeoHUB.
  *
  * The viewer is a static site, so it cannot hold Earth Engine credentials: a
  * service account key shipped to the browser would be readable by anyone. This

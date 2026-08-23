@@ -2,8 +2,8 @@
 
 A first- and third-person ascent of Mount Everest, in the browser, built on the
 same live tile services a GIS uses. Self-contained: it shares the site's fonts
-and the myGeoID viewer skin and nothing else. Nothing here imports from
-`GeoID_GIS/` or `myGeoID/`, and nothing there imports from here.
+and the GeoHUB viewer skin and nothing else. Nothing here imports from
+`GeoID_GIS/` or `geohub/`, and nothing there imports from here.
 
     /everest/index.html          the game
     /everest/dev.html            a harness for the terrain alone
@@ -459,7 +459,7 @@ them existed.
 
 ### Skin
 
-The palette is `/styles/viewer-skin.css` — the myGeoID magenta-and-cyan — and
+The palette is `/styles/viewer-skin.css` — the GeoHUB magenta-and-cyan — and
 the control bar across the top is the shell's: clock, season day, every
 toggle, altitude and standing in one strip. Each button carries the shortcut
 that does the same thing and both come through `Game.tool()`, so a lit button

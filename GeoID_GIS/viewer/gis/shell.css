@@ -604,7 +604,7 @@
 
 .studio-status { font-size: 0.7rem; color: var(--soft-light); }
 
-/* Tiles reuse the myGeoID panel treatment so the studio reads as part of
+/* Tiles reuse the GeoHUB panel treatment so the studio reads as part of
        the same GUI: the same border, layered gradient and outer glow as #ui. */
     .studio-toolbar,
     .studio-dock,
@@ -646,7 +646,7 @@
       padding: 0.4rem 0.6rem;
     }
 
-/* Mode switcher, top-left where it sits on the myGeoID page. */
+/* Mode switcher, top-left where it sits on the GeoHUB page. */
     .studio-modebar {
       position: absolute;
       top: 0.9rem;
@@ -952,7 +952,7 @@
 
 .studio-context button:hover { background: rgba(var(--nav-accent-rgb), 0.16); color: var(--nav-accent); }
 
-/* In the studio the switcher keeps the myGeoID pill styling, just sized to
+/* In the studio the switcher keeps the GeoHUB pill styling, just sized to
        the mode bar rather than the full sidebar width. */
     .view-mode-switch.is-in-studio {
       grid-auto-flow: column;
@@ -1359,9 +1359,9 @@ body[data-hub-armed="true"] .events-overlay {
 /* One rhythm for every tab, whatever kind of section it is. */
     #gis-toolbox-panels > * { margin: 0 0 0.5rem !important; }
 
-/* ── Inside the myGeoID frame ────────────────────────────────────────────────
+/* ── Inside the GeoHUB frame ────────────────────────────────────────────────
  *
- * The planet pages are standalone pages that are ALSO framed by the myGeoID
+ * The planet pages are standalone pages that are ALSO framed by the GeoHUB
  * GUI, and the two want different chrome. Standalone, the Planet Explorer logo
  * and Return Home belong there; framed, the shell already provides both and
  * they are duplicate furniture crowding the corners.

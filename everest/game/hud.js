@@ -6,7 +6,7 @@
  * rather than a stats screen, small-caps notifications low on the screen, and
  * letterbox bars when the game wants a moment.
  *
- * The *palette* is the myGeoID viewer skin — magenta chrome, cyan data,
+ * The *palette* is the GeoHUB viewer skin — magenta chrome, cyan data,
  * purple-black ground, from `styles/viewer-skin.css`. The four cores use a
  * synthwave sunset (pink, yellow, orange) plus cyan for oxygen, which is the
  * one place four colours have to be told apart at a glance.
@@ -251,7 +251,7 @@ export class Hud {
     this.compctx = this.compassCanvas.getContext("2d");
 
     /* ── Control centre ──
-       One bar, the way the myGeoID shell does it: the clock and every toggle
+       One bar, the way the GeoHUB shell does it: the clock and every toggle
        in a single place rather than scattered around the edges of the screen.
        Each button is also a keyboard shortcut and says so, because a player
        who learns the key stops using the bar and that is the point of it.

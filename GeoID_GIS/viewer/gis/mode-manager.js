@@ -209,7 +209,7 @@
    * switched off: Base Builder carries a `hidden` attribute in the markup, and
    * earth-viewer.js force-hides the inspect section and disables "Save As Pin"
    * during init. These are legacy viewer tools, distinct from the Analysis Hub
-   * that the live myGeoID shell provides. They are enabled for GIS mode only,
+   * that the live GeoHUB shell provides. They are enabled for GIS mode only,
    * so GeoID mode keeps parity with the live public viewer.
    */
   function setAnalysisToolsEnabled(enabled) {
@@ -317,7 +317,7 @@
     document.body.dataset.viewMode = mode;
     document.body.dataset.hubArmed = mode === "gis" && hubArmed ? "true" : "false";
 
-    // Let the myGeoID-style shell (when this viewer is embedded) follow the
+    // Let the GeoHUB-style shell (when this viewer is embedded) follow the
     // active mode - the Analysis Hub only applies to the GeoID globe.
     if (window.self !== window.top) {
       try {

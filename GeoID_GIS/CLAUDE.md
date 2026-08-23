@@ -69,13 +69,42 @@ Drops `colorWrite`, not `visible`. A mesh that is not drawn writes no depth and
 the planet stops occluding — the moon's orbit line and far-side event markers
 then show through it.
 
+## The names: GeoHUB, and myGeoID inside it
+
+**GeoHUB is the workspace; myGeoID is a product made in it.** The page at
+`/geohub/` is the whole thing — the GIS globe, the planetary explorers, the
+Mesh Studio and the Research Hub. **myGeoID** is the risk mapping built on that
+GIS page: the Factor-of-Safety pipeline in `geoid-mode.js` and
+`geoid-pipeline.js`, which is why the sidebar section that arms it is named
+myGeoID and the page is not.
+
+What that means when editing copy: a mention of myGeoID that describes a
+personal hazard dashboard, a Factor of Safety, or the funding case is **the
+product** and keeps its name — `about_myGeoID/` is entirely about that and did
+not move. A mention that names the app, the page or the shell is **GeoHUB**. The
+tell is usually the link: text on an `href="/geohub/"` names the workspace.
+
+**The old path still answers.** `/myGeoID/` is a stub that redirects to
+`/geohub/`, carries `rel=canonical` to it and `noindex` on itself, because that
+path is in bookmarks, in shared links and in search results. Internal links all
+point at `/geohub/`. The service-worker cache version had to move with it
+(`geoid-site-v40`) or a returning visitor keeps a precached nav that still says
+myGeoID and still links to the old path.
+
+Internal identifiers were deliberately NOT renamed: `geoid-gis:view-mode`, the
+`geoid` mode id, `#gis-group-geoid`, `geoid-mode.js`. They are storage keys and
+element ids with no user-visible surface, and churning them risks behaviour for
+no gain. The CSS wordmark classes gained `.geohub-word`/`.geohub-prefix`
+alongside the `.mygeoid-*` pair rather than replacing it, since the product may
+still want the same two-tone treatment.
+
 ## Where things actually live
 
 - Runtime manifest: **`earth-manifest.js`** (inline object). `manifest.json` on
   disk is stale and unused.
 - Basemap assets resolve to `/GeoID_Earth/assets/…`, shared with the Earth
   Explorer and Moon viewers — do not delete them when swapping a layer out.
-- The Analysis Hub is in the **shell** (`myGeoID/index.html`), not the viewer.
+- The Analysis Hub is in the **shell** (`geohub/index.html`), not the viewer.
   Opening it shrinks the iframe to ~400px, which trips
   `@media (max-height: 560px) and (orientation: landscape)` in `styles.css` —
   that block restyles `#ui` (narrower, 0.5rem inset, z-index 20) and anything
@@ -753,7 +782,7 @@ Two committed test commands, no dependencies (`GeoID_GIS/tests/`):
 ## Verifying
 
 There is a headless-Chrome + CDP harness (`shoot.py` in the session scratchpad):
-it drives `http://localhost:8125/myGeoID/`, runs a setup script inside the
+it drives `http://localhost:8125/geohub/`, runs a setup script inside the
 iframe, and saves a PNG. Points worth knowing:
 
 - Test the **embedded** page, not the standalone viewer — several code paths
@@ -1333,7 +1362,7 @@ not a gap.
 **Only the Earth page marked itself as framed.** `is-embedded` comes from a
 one-line inline script, and it lived in Earth's index.html alone — so every
 `body.is-embedded` rule was dead on the nine planet pages, which are standalone
-pages that are ALSO framed by the myGeoID GUI. Framed, they now drop the Planet
+pages that are ALSO framed by the GeoHUB GUI. Framed, they now drop the Planet
 Explorer wordmark and Return Home (the shell provides both) and move rotation
 and freeze into the space Return Home had, which is where Earth puts them.
 Hiding the wordmark is also what lifts the Atlas mark and the tool rail:

@@ -1,4 +1,4 @@
-# Connecting Earth Engine to myGeoID
+# Connecting Earth Engine to GeoHUB
 
 How the Google Earth Engine connection was fixed, 2026-08-16/17, and what to do
 if it ever breaks again. Every number here was measured, not recalled.

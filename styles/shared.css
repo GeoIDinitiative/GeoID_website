@@ -184,12 +184,17 @@ body {
     inset 0 0 0 1px rgba(88,198,179,0.28);
 }
 
+/* The app's two-tone wordmark in the header: GeoHUB, with "Geo" carrying the
+   accent. The .mygeoid-* names are kept alongside because the product page
+   still names the risk maps myGeoID and may want the same treatment. */
+.geohub-word,
 .mygeoid-word {
   white-space: nowrap;
   font-size: inherit;
   line-height: inherit;
 }
 
+.geohub-prefix,
 .mygeoid-prefix {
   color: #58c6b3;
   font-size: inherit;

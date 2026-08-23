@@ -3,7 +3,7 @@
 // key assets change significantly — this forces all clients to discard
 // stale cached copies on their next visit.
 
-const STATIC_CACHE = 'geoid-site-v39';  // v39: myGeoID now embeds the GIS viewer
+const STATIC_CACHE = 'geoid-site-v40';  // v40: the app page is GeoHUB, at /geohub/
 
 // Pre-fetched at install time so they are cache-warm on first navigation
 const PRECACHE = [

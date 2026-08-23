@@ -3815,7 +3815,7 @@ canvas {
 
     .studio-status { font-size: 0.7rem; color: var(--soft-light); }
 
-    /* Tiles reuse the myGeoID panel treatment so the studio reads as part of
+    /* Tiles reuse the GeoHUB panel treatment so the studio reads as part of
        the same GUI: the same border, layered gradient and outer glow as #ui. */
     .studio-toolbar,
     .studio-dock,
@@ -3857,7 +3857,7 @@ canvas {
       padding: 0.4rem 0.6rem;
     }
 
-    /* Mode switcher, top-left where it sits on the myGeoID page. */
+    /* Mode switcher, top-left where it sits on the GeoHUB page. */
     .studio-modebar {
       position: absolute;
       top: 0.9rem;
@@ -4169,7 +4169,7 @@ canvas {
 
     .studio-context button:hover { background: rgba(var(--nav-accent-rgb), 0.16); color: var(--nav-accent); }
 
-    /* In the studio the switcher keeps the myGeoID pill styling, just sized to
+    /* In the studio the switcher keeps the GeoHUB pill styling, just sized to
        the mode bar rather than the full sidebar width. */
     .view-mode-switch.is-in-studio {
       grid-auto-flow: column;

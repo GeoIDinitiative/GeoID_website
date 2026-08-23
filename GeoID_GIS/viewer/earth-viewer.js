@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260822-0525c9b";
+  from "./gis/geo-utils.js?v=20260823-c2a002f";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -11929,7 +11929,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
       // Initial zoom: pull back further on portrait viewports (narrow
       // viewport crops the globe at desktop Z), mobile in general, and
-      // when embedded inside myGeoID's iframe.
+      // when embedded inside GeoHUB's iframe.
       const isMobile = window.matchMedia('(max-width: 720px)').matches;
       const isPortrait = window.matchMedia('(orientation: portrait)').matches;
       const isEmbedded = document.body.classList.contains('is-embedded');
@@ -14229,7 +14229,7 @@ uniform float uViewportWidth;`,
 	        window.parent.postMessage({ type: "geoid:pin:clear", source: "geoselector" }, "*");
 	      }
 
-	      // Mirrors myGeoID/index.html buildDummyHazardModel — same realistic
+	      // Mirrors geohub/index.html buildDummyHazardModel — same realistic
 	      // hydrology/geotechnical scaling, same water-surface null state. Keep
 	      // these two implementations in sync if either changes.
 	      function computeGeoSelectorHazardModel(point) {
@@ -14267,7 +14267,7 @@ uniform float uViewportWidth;`,
 	        const baseSoilMoisture = 18 + tropicalFactor * 28 + rand() * 8;
 	        const saturation = Math.min(95, baseSoilMoisture + antecedentRain * 0.15 + rainfall * 0.35);
 
-	        // The rand() stream must stay aligned with myGeoID/index.html so the
+	        // The rand() stream must stay aligned with geohub/index.html so the
 	        // top-right tile matches the Analysis Hub. Advance the stream past
 	        // porePressure and slopeStress even though we don't use them here.
 	        const _porePressure = Math.max(0.5, saturation * 0.45 + rainfall * 0.25 + rand() * 4);
@@ -14280,7 +14280,7 @@ uniform float uViewportWidth;`,
 	                           + Math.max(0, (slope - 8) / 55);
 	        const fos = Math.max(0.85, Math.min(6.5, baseFoS - fosReduction + (rand() - 0.5) * 0.3));
 
-	        // Match myGeoID: displacement (1 rand, both branches), then confidence (1 rand).
+	        // Match geohub/index.html: displacement (1 rand, both branches), then confidence (1 rand).
 	        const _displacement = fos > 1.5
 	          ? rand() * 0.4
 	          : Math.max(0.2, (1.7 - fos) * 12 + rand() * 2);
@@ -14533,7 +14533,7 @@ uniform float uViewportWidth;`,
 	      }
 
 	      function shouldRunEmbeddedGeoSelector(event) {
-	        // The public build only runs GeoSelector inside the myGeoID shell, so
+	        // The public build only runs GeoSelector inside the GeoHUB shell, so
 	        // a standalone viewer had no location picking and an empty hazard
 	        // readout. This GIS build is used standalone as well, so the iframe
 	        // requirement is dropped; emitGeoSelectorPoint still no-ops when

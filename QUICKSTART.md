@@ -9,7 +9,7 @@ install, no build step, no npm.
 python3 serve.py
 ```
 
-Then open the URL it prints — **http://localhost:8125/myGeoID/**.
+Then open the URL it prints — **http://localhost:8125/geohub/**.
 
 That one command starts:
 

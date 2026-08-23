@@ -1,11 +1,11 @@
 import * as THREE from "../vendor/three.module.js";
-import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260822-0525c9b";
-import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260822-0525c9b";
+import { currentBody, getBody, currentBodyId } from "./bodies.js?v=20260823-c2a002f";
+import { PRIMITIVES, buildSurface, buildInside, boundingBoxOf } from "./mesh-primitives.js?v=20260823-c2a002f";
 import {
   latticeTetMesh, tetBoundarySurface, qualityStats, elementCounts, toGmsh22,
-} from "./mesh-volume.js?v=20260822-0525c9b";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260822-0525c9b";
-import { downloadText } from "./extraction.js?v=20260822-0525c9b";
+} from "./mesh-volume.js?v=20260823-c2a002f";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260823-c2a002f";
+import { downloadText } from "./extraction.js?v=20260823-c2a002f";
 
 // Meshing Studio, ported from atlas-ai/services/mesh/meshing_studio.
 //
@@ -108,7 +108,7 @@ function updateStudioContext() {
 }
 
 /**
- * Tell the myGeoID shell what is being worked on.
+ * Tell the GeoHUB shell what is being worked on.
  *
  * The header lives outside the iframe, so it cannot read the project store or
  * the body registry — it is told, over the same postMessage bridge the mode

@@ -77,7 +77,7 @@ different application, and no rule anywhere else was touched.
 time: a change that "did nothing" because the browser served the old module.
 
 Add `services/stamp.py` (or a git pre-commit hook) that rewrites every
-`?v=<stamp>` under `GeoID_GIS/viewer/` and the `myGeoID` iframe src to the
+`?v=<stamp>` under `GeoID_GIS/viewer/` and the `geohub` iframe src to the
 current commit's short hash. One command, run before every test.
 
 **Done when.** Editing a module and running the stamp is enough; no `?v=` is

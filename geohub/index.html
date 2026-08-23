@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- The stamped modules/CSS bust their own cache, but this shell HTML has
+       no stamp on its own URL, so a browser was serving a cached tab with an
+       old iframe stamp -- which read as "nothing changed" after every edit.
+       Always revalidate the shell so it loads the current build. -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="description" content="GeoHUB — the GeoID Initiative workspace: 3D globe GIS, planetary explorers, mesh studio and research hub, with myGeoID risk maps built inside it.">
   <title>GeoID Initiative — GeoHUB</title>
@@ -103,15 +110,23 @@
     /* Globe wrapper — first viewport experience */
     .globe-wrap {
       flex: 0 0 auto;
-      height: calc(100dvh - var(--nav-h) - 40px);
-      height: calc(100dvh - var(--nav-h) - 40px);
+      /* Full height by default. The 40px this used to subtract was reserved
+         for the hub's collapsed strip, which is display:none until a location
+         is picked -- so with GeoID mode off it was 40px of nothing, a black
+         band under every page. The reserve is now made only when the hub is
+         actually showing (below). */
+      height: calc(100dvh - var(--nav-h));
       min-height: 520px;
       position: relative;
       transition: height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
+    /* Hub armed but collapsed: give its strip the 40px back. */
+    .interface-main.is-hub-showing .globe-wrap {
+      height: calc(100dvh - var(--nav-h) - 40px);
+    }
+
     .interface-main.is-hub-expanded .globe-wrap {
-      height: calc(100dvh - var(--nav-h) - 40px - var(--hub-preview-h));
       height: calc(100dvh - var(--nav-h) - 40px - var(--hub-preview-h));
       min-height: 280px;
     }
@@ -199,6 +214,76 @@
       font-size: 0.72rem;
       opacity: 0.65;
     }
+
+    /* Tools panel — the analyses this location supports */
+    /* Two more tabs than this strip was drawn for. It scrolls rather than
+       wrapping, because a wrapped tab row pushes the strip's own height and
+       takes the drawer's space with it. */
+    .hub-tab-list { overflow-x: auto; scrollbar-width: thin; max-width: 100%; }
+    .hub-tab-btn { flex: 0 0 auto; white-space: nowrap; }
+
+    .lt-split { display: grid; grid-template-columns: minmax(14rem, 20rem) 1fr; gap: 1rem; }
+    @media (max-width: 900px) { .lt-split { grid-template-columns: 1fr; } }
+    .lt-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.3rem; }
+    .lt-group { font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase;
+      opacity: 0.55; margin: 0.4rem 0 0.1rem; }
+    .lt-tool { text-align: left; width: 100%; padding: 0.35rem 0.5rem; cursor: pointer;
+      background: rgba(255,255,255,0.04); color: inherit; font: inherit;
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 0.3rem; }
+    .lt-tool:hover { background: rgba(255,60,172,0.16); border-color: rgba(255,60,172,0.5); }
+    .lt-tool[disabled] { opacity: 0.45; cursor: not-allowed; }
+    /* A layer here is called "NI landslide susceptibility (ranked).tif", and a
+       button sized for "Slope" cannot hold that on one line. Everything in
+       these cards wraps: the label, the reason, and the long unbroken names
+       inside them. Nothing is clipped and nothing is given a fixed height. */
+    .lt-tool b { display: block; font-weight: 600; font-size: 0.78rem;
+      white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
+    .lt-tool span { display: block; font-size: 0.66rem; opacity: 0.7;
+      white-space: normal; overflow-wrap: anywhere; line-height: 1.3; margin-top: 0.1rem; }
+    .lt-status { font-size: 0.8rem; margin-bottom: 0.5rem; min-height: 1.2em;
+      overflow-wrap: anywhere; line-height: 1.35; }
+    .lt-value { color: #ff3cac; font-weight: 600; }
+    .lt-profile-row { display: flex; gap: 0.6rem; align-items: end; flex-wrap: wrap;
+      font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase; opacity: 0.8; }
+    .lt-profile-row label { display: flex; flex-direction: column; gap: 0.2rem; }
+    .lt-profile-row select { font: inherit; text-transform: none; letter-spacing: 0;
+      background: rgba(255,255,255,0.06); color: inherit; padding: 0.15rem 0.3rem;
+      border: 1px solid rgba(255,255,255,0.22); border-radius: 0.25rem;
+      max-width: 100%; min-width: 0; text-overflow: ellipsis; }
+    .lt-profile-row label { min-width: 0; max-width: 100%; }
+    #tools-chart svg { width: 100%; height: 140px; display: block; margin-top: 0.5rem; }
+    #tools-log { font-size: 0.7rem; opacity: 0.75; margin-top: 0.5rem;
+      max-height: 90px; overflow-y: auto; }
+    #tools-log div { padding: 0.1rem 0; border-top: 1px solid rgba(255,255,255,0.06); }
+
+    /* Forecast panel — the hub's time axis */
+    .fc-head { display: flex; gap: 1rem; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .fc-status { font-size: 0.78rem; opacity: 0.9; }
+    .fc-pick { font-size: 0.7rem; letter-spacing: 0.06em; text-transform: uppercase;
+      opacity: 0.75; display: flex; gap: 0.4rem; align-items: center; }
+    .fc-pick select { font: inherit; text-transform: none; letter-spacing: 0;
+      background: rgba(255,255,255,0.06); color: inherit;
+      border: 1px solid rgba(255,255,255,0.22); border-radius: 0.25rem; padding: 0.15rem 0.3rem;
+      max-width: min(15rem, 100%); min-width: 0; text-overflow: ellipsis; }
+    .fc-pick { min-width: 0; max-width: 100%; }
+    .fc-status { overflow-wrap: anywhere; line-height: 1.35; }
+    #forecast-chart svg { width: 100%; height: 150px; display: block; }
+    #forecast-chart .fc-day:hover rect { fill: rgba(89,242,255,0.75); }
+    .fc-table { width: 100%; border-collapse: collapse; font-size: 0.72rem; margin-top: 0.5rem; }
+    .fc-table th { text-align: left; font-weight: 500; opacity: 0.65; padding: 0.15rem 0.35rem;
+      position: sticky; top: 0; background: rgba(10,4,18,0.9); }
+    .fc-table td { padding: 0.15rem 0.35rem; border-top: 1px solid rgba(255,255,255,0.06);
+      white-space: nowrap; }
+    /* Five columns of millimetres do not shrink below their digits, so the
+       table scrolls sideways inside its own box rather than pushing the panel
+       wider than the drawer. */
+    .fc-scroll { overflow-x: auto; }
+    .fc-table tr.is-peak td { background: rgba(255,60,172,0.12); }
+    .fc-band { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 0.15rem;
+      margin-right: 0.35rem; vertical-align: -0.05rem; }
+    .fc-scroll { max-height: 220px; overflow-y: auto; }
+    .fc-note { font-size: 0.66rem; opacity: 0.62; line-height: 1.4; margin-top: 0.5rem; }
 
     /* Inspect data (populated by postMessage) */
     .inspect-grid {
@@ -1181,18 +1266,20 @@
       <h2 class="demo-disclaimer-title" id="demo-disclaimer-title">myGeoID risk maps are a UI concept, not a live hazard tool</h2>
       <p class="demo-disclaimer-body">
         The myGeoID risk maps built in GeoHUB are a <strong>visual prototype</strong> — <strong>not
-        connected to any live weather, soil, slope-stability, or flood data, hazard model, or
-        geotechnical engine</strong>. Every value shown is synthetic.
+        connected to any live weather data, hazard model, or geotechnical engine</strong>. Every value
+        shown is synthetic, generated for interface design only.
       </p>
       <ul class="demo-disclaimer-list">
         <li>Not a certified or operational hazard system.</li>
+        <li>No real precipitation, soil, slope-stability, or flood data is consumed.</li>
         <li>Values must not be used for any safety, engineering, planning, or operational decision.</li>
         <li>A design preview of future GeoID products.</li>
       </ul>
       <label class="demo-disclaimer-confirm" for="demo-disclaimer-checkbox">
         <input type="checkbox" id="demo-disclaimer-checkbox">
         <span class="demo-disclaimer-confirm-label">
-          I understand these values are synthetic and must not inform real-world decisions.
+          I understand myGeoID is a UI demonstration, its values are synthetic, and nothing here
+          should inform real-world decisions.
         </span>
       </label>
       <div class="demo-disclaimer-actions">
@@ -1279,7 +1366,7 @@
       <iframe
         id="globe-iframe"
         class="globe-iframe"
-        src="/GeoID_GIS/viewer/?v=gis-20260804b"
+        src="/GeoID_GIS/viewer/?v=gis-20260822-0525c9b"
         title="GeoHUB — interactive 3D globe with surface condition modelling"
         allow="fullscreen"
       ></iframe>
@@ -1293,8 +1380,8 @@
           <div class="hub-panel-col" id="hub-panel-risk">
             <div class="hub-empty" id="risk-empty">
               <span class="hub-empty-icon">◎</span>
-              <span>Select a location on the globe to generate risk plots.</span>
-              <span class="hub-empty-sub">Landslide, flood, saturation, and stability indicators appear here.</span>
+              <span>Select a location on the globe to generate risk tracking plots.</span>
+              <span class="hub-empty-sub">Landslide, flood, saturation and model stability indicators appear here.</span>
             </div>
             <div id="risk-summary" class="risk-summary-groups" hidden></div>
             <div id="risk-grid" class="market-grid" hidden></div>
@@ -1322,6 +1409,61 @@
               <span>Geotechnical plots appear once a location is selected.</span>
             </div>
             <div id="geotechnical-grid" class="market-grid" hidden></div>
+          </div>
+
+          <!-- Tools — what is worth running HERE. Not a catalogue: the pin
+               says which layers have a value at this point, and only the
+               tools that consume one of those are offered, each with the
+               reason it appeared. -->
+          <div class="hub-panel-col" id="hub-panel-tools" hidden>
+            <div class="hub-empty" id="tools-empty">
+              <span class="hub-empty-icon">⚙</span>
+              <span>Click a location to see the analyses its data supports.</span>
+            </div>
+            <div id="tools-body" hidden>
+              <div class="lt-split">
+                <div class="lt-list" id="tools-list"></div>
+                <div class="lt-out">
+                  <div class="lt-status" id="tools-status">Pick an analysis.</div>
+                  <div class="lt-profile-row">
+                    <label>Profile through here
+                      <select id="tools-profile-layer"></select>
+                    </label>
+                    <label>Length
+                      <select id="tools-profile-length">
+                        <option value="2">2 km</option>
+                        <option value="10" selected>10 km</option>
+                        <option value="50">50 km</option>
+                      </select>
+                    </label>
+                    <button type="button" class="hub-action-btn" id="tools-profile-run">Plot</button>
+                  </div>
+                  <div id="tools-chart"></div>
+                  <div id="tools-log"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Forecast — the time axis of the hub. Every other panel answers
+               "what is here"; this one answers "what is coming", which is the
+               question a hazard map on its own can never address. -->
+          <div class="hub-panel-col" id="hub-panel-forecast" hidden>
+            <div class="hub-empty" id="forecast-empty">
+              <span class="hub-empty-icon">◷</span>
+              <span>Click a location to track rainfall and risk over the next 16 days.</span>
+            </div>
+            <div id="forecast-body" hidden>
+              <div class="fc-head">
+                <span class="fc-status" id="forecast-status"></span>
+                <label class="fc-pick">Susceptibility
+                  <select id="forecast-layer"></select>
+                </label>
+              </div>
+              <div id="forecast-chart"></div>
+              <div id="forecast-table"></div>
+              <p class="fc-note" id="forecast-note"></p>
+            </div>
           </div>
 
           <div class="hub-panel-col" id="hub-panel-sources" hidden>
@@ -1355,6 +1497,8 @@
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="all"          aria-controls="hub-panel-all">All Parameters</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="hydrology"    aria-controls="hub-panel-hydrology">Hydrology</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="geotechnical" aria-controls="hub-panel-geotechnical">Geotechnical</button>
+        <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="tools"        aria-controls="hub-panel-tools">Tools</button>
+        <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="forecast"     aria-controls="hub-panel-forecast">Forecast</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="sources"      aria-controls="hub-panel-sources">Data Sources</button>
         <button class="hub-tab-btn"           role="tab" aria-selected="false" data-panel="metadata"     aria-controls="hub-panel-metadata">Metadata</button>
       </div>
@@ -2020,10 +2164,15 @@
           const hubDrawer = document.getElementById("hub-drawer");
           if (hubStrip) hubStrip.hidden = !visible;
           if (hubDrawer) hubDrawer.hidden = !visible;
+          // The globe only gives up height while the hub is actually there.
+          // Announced on the shell so the stylesheet decides the layout rather
+          // than this function reaching into it.
+          shell.classList.toggle("is-hub-showing", visible);
           if (!visible) {
             setDrawerOpen(false);
           }
         };
+
         // The open project, reported by the viewer. The header is outside the
         // iframe and cannot read the store, so it is told.
         //
@@ -2042,11 +2191,28 @@
           return;
         }
 
+        // The FoS run posts its series; the Forecast tab shows the same
+        // numbers the globe is drawn from rather than computing its own.
+        if (msg.type === "geoid:fos") {
+          const node = document.getElementById("forecast-status");
+          if (node && Array.isArray(msg.failing)) {
+            const peak = msg.failing.reduce((a, b) => (b > a ? b : a), 0);
+            const when = msg.dates?.[msg.failing.indexOf(peak)] || "";
+            node.textContent = `Risk forecast: ${(msg.failing[msg.step] * 100).toFixed(1)}% of `
+              + `slopes below FoS 1 today, peaking at ${(peak * 100).toFixed(1)}% on ${when}.`;
+            document.getElementById("forecast-empty").hidden = true;
+            document.getElementById("forecast-body").hidden = false;
+          }
+          return;
+        }
+
         if (msg.type === "geoid:pin") {
           currentPinData = msg;
           updatePinDisplay(msg);
           setSelectionControlsEnabled(true);
           renderRiskDashboard(msg);
+          window.renderGeoIDForecast?.(msg);
+          window.renderGeoIDTools?.(msg);
           selectHubPanel("risk");
           setHubVisible(true);
           setDrawerOpen(true);
@@ -2057,8 +2223,9 @@
           setHubVisible(false);
         }
 
-        // Model and GIS mode have no GeoID location, so the hub is withdrawn
-        // and only returns when a new location is clicked in GeoID mode.
+        // The viewer now offers Model and GIS view modes alongside GeoID. The
+        // Analysis Hub describes a GeoID location, so it withdraws in the other
+        // modes and returns when a location is clicked again in GeoID mode.
         if (msg.type === "geoid:mode") {
           setHubVisible(msg.mode === "geoid" && Boolean(currentPinData));
         }
@@ -2075,6 +2242,471 @@
   </script>
 
 <script src="/scripts/site.js"></script>
-<script src="/styles/nav.js?v=20260516" defer></script>
+<script src="/styles/nav.js?v=20260822-0525c9b" defer></script>
+
+  <!-- ── Forecast panel ────────────────────────────────────────────────────
+       Mapping first, then the location, then the time series. The pin says
+       what is at a place; this says what the next sixteen days do to it.
+
+       It runs in the SHELL rather than the viewer because the Analysis Hub is
+       the shell's, and because the pin message already carries everything it
+       needs — the coordinate, every loaded raster read at that coordinate and
+       its scale. No second sampling path, no asking the iframe twice.
+  -->
+  <script type="module">
+    const forecast = await import("/GeoID_GIS/viewer/gis/forecast.js")
+      .catch((error) => { console.warn("[GeoHUB] forecast module absent", error); return null; });
+    if (forecast) {
+      const BAND = { high: "#d7191c", moderate: "#fdae61", low: "#ffffbf", minimal: "#3d8f4e" };
+      const byId = (id) => document.getElementById(id);
+      let lastPin = null;
+
+      /* A DEM is not a susceptibility, and offering it as one invites a
+         reading that means nothing. Rasters whose legend has no range cannot
+         be normalised either, so they are not offered. */
+      const candidates = (pin) => (pin.layers || [])
+        .filter((l) => !l.isDem && Number.isFinite(l.min) && Number.isFinite(l.max) && l.min !== l.max);
+
+      function fillPicker(pin) {
+        const select = byId("forecast-layer");
+        const held = select.value;
+        select.innerHTML = "";
+        const none = document.createElement("option");
+        none.value = "";
+        none.textContent = "Rain only";
+        select.appendChild(none);
+        candidates(pin).forEach((layer) => {
+          const option = document.createElement("option");
+          option.value = layer.id;
+          option.textContent = layer.name.replace(/\.(tif|tiff|geojson|asc)$/i, "");
+          select.appendChild(option);
+        });
+        // Default to a susceptibility-looking layer, so the common case needs
+        // no choice at all.
+        const guess = candidates(pin).find((l) => /suscept|risk|hazard|flood|landslide/i.test(l.name));
+        select.value = held && [...select.options].some((o) => o.value === held)
+          ? held : (guess ? guess.id : "");
+      }
+
+      function chart(days) {
+        const w = 640, h = 150, pad = { l: 34, r: 8, t: 10, b: 20 };
+        const ns = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        const innerW = w - pad.l - pad.r, innerH = h - pad.t - pad.b;
+        const maxRain = Math.max(1, ...days.map((d) => d.precipMm));
+        const step = innerW / days.length;
+
+        // Rain axis, so the bars are a measurement rather than a shape.
+        [0, maxRain / 2, maxRain].forEach((value) => {
+          const y = pad.t + innerH - (value / maxRain) * innerH;
+          const line = document.createElementNS(ns, "line");
+          line.setAttribute("x1", pad.l); line.setAttribute("x2", w - pad.r);
+          line.setAttribute("y1", y); line.setAttribute("y2", y);
+          line.setAttribute("stroke", "rgba(255,255,255,0.10)");
+          svg.appendChild(line);
+          const label = document.createElementNS(ns, "text");
+          label.setAttribute("x", pad.l - 5); label.setAttribute("y", y + 3);
+          label.setAttribute("text-anchor", "end");
+          label.setAttribute("font-size", "8");
+          label.setAttribute("fill", "rgba(255,255,255,0.5)");
+          label.textContent = `${value.toFixed(0)}mm`;
+          svg.appendChild(label);
+        });
+
+        days.forEach((day, i) => {
+          const group = document.createElementNS(ns, "g");
+          group.setAttribute("class", "fc-day");
+          const barH = (day.precipMm / maxRain) * innerH;
+          const rect = document.createElementNS(ns, "rect");
+          rect.setAttribute("x", pad.l + i * step + step * 0.18);
+          rect.setAttribute("y", pad.t + innerH - barH);
+          rect.setAttribute("width", step * 0.64);
+          rect.setAttribute("height", Math.max(0, barH));
+          rect.setAttribute("fill", "rgba(89,242,255,0.45)");
+          const title = document.createElementNS(ns, "title");
+          title.textContent = `${day.date} — ${day.precipMm} mm`
+            + (Number.isFinite(day.risk) ? `, risk ${day.risk.toFixed(2)} (${day.band})` : "");
+          group.append(rect, title);
+          svg.appendChild(group);
+          if (i % 3 === 0) {
+            const label = document.createElementNS(ns, "text");
+            label.setAttribute("x", pad.l + i * step + step / 2);
+            label.setAttribute("y", h - 6);
+            label.setAttribute("text-anchor", "middle");
+            label.setAttribute("font-size", "8");
+            label.setAttribute("fill", "rgba(255,255,255,0.5)");
+            label.textContent = day.date.slice(5);
+            svg.appendChild(label);
+          }
+        });
+
+        if (days.some((d) => Number.isFinite(d.risk))) {
+          const line = document.createElementNS(ns, "polyline");
+          line.setAttribute("points", days.map((day, i) =>
+            `${pad.l + i * step + step / 2},${pad.t + innerH - day.risk * innerH}`).join(" "));
+          line.setAttribute("fill", "none");
+          line.setAttribute("stroke", "#ff3cac");
+          line.setAttribute("stroke-width", "2");
+          svg.appendChild(line);
+          days.forEach((day, i) => {
+            const dot = document.createElementNS(ns, "circle");
+            dot.setAttribute("cx", pad.l + i * step + step / 2);
+            dot.setAttribute("cy", pad.t + innerH - day.risk * innerH);
+            dot.setAttribute("r", 2.6);
+            dot.setAttribute("fill", BAND[day.band] || "#ff3cac");
+            svg.appendChild(dot);
+          });
+        }
+        return svg;
+      }
+
+      function table(days, peak) {
+        const wrap = document.createElement("div");
+        wrap.className = "fc-scroll";
+        const t = document.createElement("table");
+        t.className = "fc-table";
+        t.innerHTML = "<tr><th>Date</th><th>Rain</th><th>3-day</th><th>15-day before</th><th>Risk</th></tr>";
+        days.forEach((day) => {
+          const row = t.insertRow();
+          if (peak && day.date === peak.date) row.className = "is-peak";
+          row.insertCell().textContent = day.date;
+          row.insertCell().textContent = `${day.precipMm} mm`;
+          row.insertCell().textContent = `${day.burstMm} mm`;
+          row.insertCell().textContent = `${day.antecedentMm} mm`;
+          const cell = row.insertCell();
+          if (Number.isFinite(day.risk)) {
+            const chip = document.createElement("span");
+            chip.className = "fc-band";
+            chip.style.background = BAND[day.band] || "#888";
+            cell.append(chip, document.createTextNode(`${day.risk.toFixed(2)} ${day.band}`));
+          } else cell.textContent = "—";
+        });
+        wrap.appendChild(t);
+        return wrap;
+      }
+
+      async function render(pin) {
+        if (!pin || !Number.isFinite(pin.lat)) return;
+        lastPin = pin;
+        byId("forecast-empty").hidden = true;
+        byId("forecast-body").hidden = false;
+        fillPicker(pin);
+        const status = byId("forecast-status");
+        status.textContent = `Asking ${forecast.SOURCE.name} for 16 days at `
+          + `${pin.lat.toFixed(3)}, ${pin.lon.toFixed(3)}…`;
+        byId("forecast-chart").innerHTML = "";
+        byId("forecast-table").innerHTML = "";
+        try {
+          const raw = await forecast.fetchForecast({ lat: pin.lat, lon: pin.lon });
+          const fromIndex = Math.max(0, raw.days.length - forecast.DEFAULTS.days);
+          const trigger = forecast.triggerIndex(raw.days, { fromIndex });
+          const chosen = candidates(pin).find((l) => l.id === byId("forecast-layer").value);
+          const susceptibility = chosen
+            ? forecast.normalise(chosen.value, chosen.min, chosen.max) : null;
+          const days = susceptibility == null
+            ? trigger.map((d) => ({ ...d, risk: null, band: null }))
+            : forecast.riskEvolution(susceptibility, trigger);
+          const peak = days.reduce((best, d) =>
+            (Number.isFinite(d.risk) && (!best || d.risk > best.risk)) ? d : best, null);
+          const wettest = days.reduce((best, d) => d.precipMm > best.precipMm ? d : best, days[0]);
+          status.textContent = peak
+            ? `${chosen.name.replace(/\.[a-z]+$/i, "")}: ${susceptibility.toFixed(2)} here — `
+              + `peak risk ${peak.risk.toFixed(2)} (${peak.band}) on ${peak.date}.`
+            : `Wettest day ${wettest.date} at ${wettest.precipMm} mm — `
+              + "choose a susceptibility layer to turn rain into risk.";
+          byId("forecast-chart").appendChild(chart(days));
+          byId("forecast-table").appendChild(table(days, peak));
+          byId("forecast-note").textContent =
+            `${forecast.SOURCE.attribution}. Risk = susceptibility x a rainfall trigger `
+            + `(${forecast.DEFAULTS.burstDays}-day and ${forecast.DEFAULTS.antecedentDays}-day `
+            + `windows against ${forecast.DEFAULTS.burstMm} mm and `
+            + `${forecast.DEFAULTS.antecedentMm} mm). Published regional thresholds, not `
+            + "calibrated against an inventory: this ranks the next sixteen days against each "
+            + "other, it does not forecast failures.";
+        } catch (error) {
+          status.textContent = `Forecast unavailable: ${error.message}`;
+        }
+      }
+
+      // Changing the layer re-reads the same forecast rather than re-fetching:
+      // the weather did not change because you picked a different raster.
+      document.addEventListener("change", (event) => {
+        if (event.target?.id === "forecast-layer" && lastPin) render(lastPin);
+      });
+
+      window.renderGeoIDForecast = render;
+    }
+  </script>
+
+  <!-- ── Tools at a location ───────────────────────────────────────────────
+       The hub asks the viewer what this point supports and the viewer
+       answers from its own layer list; running one comes straight back as a
+       value AT the point, and a profile as a plot THROUGH it. The tools stay
+       in the viewer with the data they operate on — this side owns the pin
+       and the presentation, nothing else.
+  -->
+  <script>
+    (() => {
+      const frame = () => document.querySelector(".globe-iframe") || document.querySelector("iframe");
+      const byId = (id) => document.getElementById(id);
+      const pending = new Map();
+      let token = 0;
+      let pin = null;
+
+      function ask(type, payload) {
+        const id = `t${token += 1}`;
+        const target = frame()?.contentWindow;
+        if (!target) return Promise.reject(new Error("the globe is not loaded"));
+        return new Promise((resolve, reject) => {
+          // A request that is never answered must fail rather than hang: the
+          // viewer may be mid-reload, and a spinner with no end is worse than
+          // an error anyone can act on.
+          const timer = setTimeout(() => {
+            pending.delete(id);
+            reject(new Error("the globe did not answer"));
+          }, 30000);
+          pending.set(id, { resolve, timer });
+          target.postMessage({ type, token: id, pin, ...payload }, "*");
+        });
+      }
+
+      window.addEventListener("message", (event) => {
+        const msg = event.data;
+        if (!msg || typeof msg.type !== "string") return;
+        if (!msg.type.startsWith("geoid:tools:")) return;
+        const held = pending.get(msg.token);
+        if (!held) return;
+        clearTimeout(held.timer);
+        pending.delete(msg.token);
+        held.resolve(msg);
+      });
+
+      function log(text) {
+        const host = byId("tools-log");
+        const row = document.createElement("div");
+        row.textContent = text;
+        host.prepend(row);
+      }
+
+      function chart(profile) {
+        const ns = "http://www.w3.org/2000/svg";
+        const w = 640, h = 140, pad = { l: 42, r: 8, t: 10, b: 22 };
+        const svg = document.createElementNS(ns, "svg");
+        svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+        const innerW = w - pad.l - pad.r, innerH = h - pad.t - pad.b;
+        const values = profile.series.map((s) => s.value);
+        const lo = profile.min, hi = profile.max === profile.min ? profile.min + 1 : profile.max;
+        const x = (km) => pad.l + ((km + profile.lengthKm / 2) / profile.lengthKm) * innerW;
+        const y = (v) => pad.t + innerH - ((v - lo) / (hi - lo)) * innerH;
+
+        [lo, (lo + hi) / 2, hi].forEach((value) => {
+          const line = document.createElementNS(ns, "line");
+          line.setAttribute("x1", pad.l); line.setAttribute("x2", w - pad.r);
+          line.setAttribute("y1", y(value)); line.setAttribute("y2", y(value));
+          line.setAttribute("stroke", "rgba(255,255,255,0.10)");
+          svg.appendChild(line);
+          const label = document.createElementNS(ns, "text");
+          label.setAttribute("x", pad.l - 5); label.setAttribute("y", y(value) + 3);
+          label.setAttribute("text-anchor", "end"); label.setAttribute("font-size", "8");
+          label.setAttribute("fill", "rgba(255,255,255,0.5)");
+          label.textContent = value.toFixed(Math.abs(hi - lo) < 10 ? 2 : 0);
+          svg.appendChild(label);
+        });
+
+        const points = profile.series.filter((s) => Number.isFinite(s.value))
+          .map((s) => `${x(s.km).toFixed(1)},${y(s.value).toFixed(1)}`).join(" ");
+        const line = document.createElementNS(ns, "polyline");
+        line.setAttribute("points", points);
+        line.setAttribute("fill", "none");
+        line.setAttribute("stroke", "#59f2ff");
+        line.setAttribute("stroke-width", "2");
+        svg.appendChild(line);
+
+        // The pin is the middle of the transect, and saying so is the whole
+        // point of drawing it here rather than anywhere else.
+        const mark = document.createElementNS(ns, "line");
+        mark.setAttribute("x1", x(0)); mark.setAttribute("x2", x(0));
+        mark.setAttribute("y1", pad.t); mark.setAttribute("y2", pad.t + innerH);
+        mark.setAttribute("stroke", "#ff3cac");
+        mark.setAttribute("stroke-dasharray", "3 3");
+        svg.appendChild(mark);
+
+        [-profile.lengthKm / 2, 0, profile.lengthKm / 2].forEach((km) => {
+          const label = document.createElementNS(ns, "text");
+          label.setAttribute("x", x(km)); label.setAttribute("y", h - 6);
+          label.setAttribute("text-anchor", "middle"); label.setAttribute("font-size", "8");
+          label.setAttribute("fill", "rgba(255,255,255,0.5)");
+          label.textContent = km === 0 ? "pin" : `${km > 0 ? "+" : ""}${km} km`;
+          svg.appendChild(label);
+        });
+        return svg;
+      }
+
+      async function runOne(suggestion, button) {
+        byId("tools-status").textContent = `Running ${suggestion.label} on ${suggestion.inputLayerName}…`;
+        button.disabled = true;
+        try {
+          const { result } = await ask("geoid:tools:run", { request: suggestion });
+          if (!result?.ok) {
+            byId("tools-status").textContent = `${suggestion.label}: ${result?.message || "failed"}`;
+            log(`✗ ${suggestion.label} — ${result?.message || "failed"}`);
+            return;
+          }
+          const value = Number.isFinite(result.value)
+            ? `<span class="lt-value">${result.value.toFixed(2)}${result.unit ? " " + result.unit : ""}</span> here`
+            : "no value at this point";
+          byId("tools-status").innerHTML =
+            `${result.tool}: ${value}${result.layerName ? ` — <em>${result.layerName}</em> is on the globe.` : "."}`;
+          log(`✓ ${result.tool} → ${result.layerName || "result"}`
+            + (Number.isFinite(result.value) ? ` (${result.value.toFixed(2)} at the pin)` : ""));
+        } catch (error) {
+          byId("tools-status").textContent = `${suggestion.label}: ${error.message}`;
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      function renderList(suggestions) {
+        const host = byId("tools-list");
+        host.innerHTML = "";
+        if (!suggestions.length) {
+          host.innerHTML = '<div class="lt-group">Nothing here yet — load a raster or a '
+            + 'vector layer over this area and click again.</div>';
+          return;
+        }
+        let group = null;
+        suggestions.forEach((suggestion) => {
+          if (suggestion.group !== group) {
+            group = suggestion.group;
+            const head = document.createElement("div");
+            head.className = "lt-group";
+            head.textContent = group;
+            host.appendChild(head);
+          }
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "lt-tool";
+          const why = suggestion.why.replace(/\.(tif|tiff|geojson|json|asc|shp)\b/gi, "");
+          button.innerHTML = `<b>${suggestion.label}</b><span>${why}</span>`;
+          if (suggestion.needsSidecar) {
+            button.disabled = true;
+            button.querySelector("span").textContent =
+              `${suggestion.why} — needs the local sidecar`;
+          }
+          button.addEventListener("click", () => runOne(suggestion, button));
+          host.appendChild(button);
+        });
+      }
+
+      async function render(message) {
+        pin = message;
+        byId("tools-empty").hidden = true;
+        byId("tools-body").hidden = false;
+        byId("tools-status").textContent = "Asking the globe what this point supports…";
+        byId("tools-chart").innerHTML = "";
+        try {
+          const answer = await ask("geoid:tools:list", {});
+          renderList(answer.suggestions || []);
+          const select = byId("tools-profile-layer");
+          select.innerHTML = "";
+          (answer.profiles || []).forEach((layer) => {
+            const option = document.createElement("option");
+            option.value = layer.id;
+            option.textContent = layer.name.replace(/\.[a-z]+$/i, "");
+            select.appendChild(option);
+          });
+          const dem = (answer.profiles || []).find((l) => l.isDem);
+          if (dem) select.value = dem.id;
+          byId("tools-status").textContent = (answer.suggestions || []).length
+            ? `${answer.suggestions.length} analyses available at this point.`
+            : "No loaded layer covers this point.";
+        } catch (error) {
+          byId("tools-status").textContent = `Could not reach the globe: ${error.message}`;
+        }
+      }
+
+      byId("tools-profile-run")?.addEventListener("click", async () => {
+        const layerId = byId("tools-profile-layer").value;
+        const lengthKm = Number(byId("tools-profile-length").value);
+        if (!layerId) return;
+        byId("tools-status").textContent = "Sampling the transect…";
+        try {
+          const { result } = await ask("geoid:tools:profile", { request: { layerId, lengthKm } });
+          if (!result?.ok) {
+            byId("tools-status").textContent = result?.message || "the profile came back empty";
+            return;
+          }
+          byId("tools-chart").innerHTML = "";
+          byId("tools-chart").appendChild(chart(result));
+          byId("tools-status").innerHTML = `${result.layerName.replace(/\.[a-z]+$/i, "")} along `
+            + `${result.lengthKm} km: ${result.min.toFixed(2)} to ${result.max.toFixed(2)}`
+            + (Number.isFinite(result.centre)
+              ? `, <span class="lt-value">${result.centre.toFixed(2)}</span> at the pin.` : ".");
+        } catch (error) {
+          byId("tools-status").textContent = `Profile failed: ${error.message}`;
+        }
+      });
+
+      window.renderGeoIDTools = render;
+    })();
+  </script>
+
+  <!-- ── The Earth Engine sign-in broker ───────────────────────────────────
+       Google Identity Services expects a TOP-LEVEL context. The viewer runs
+       in the iframe below, same origin, and a popup opened from there is
+       attributed to the frame — Google answers "no registered origin" for an
+       origin that is registered. So the token is obtained here, in the page,
+       and passed down. It is never stored: it lives in the viewer's memory
+       and expires within the hour.
+  -->
+  <script>
+    (() => {
+      let gsi = null;
+      function loadGsi() {
+        if (window.google?.accounts?.oauth2) return Promise.resolve();
+        if (gsi) return gsi;
+        gsi = new Promise((resolve, reject) => {
+          const tag = document.createElement("script");
+          tag.src = "https://accounts.google.com/gsi/client";
+          tag.async = true;
+          tag.onload = resolve;
+          tag.onerror = () => reject(new Error("Google's sign-in script could not be loaded"));
+          document.head.appendChild(tag);
+        });
+        return gsi;
+      }
+
+      window.addEventListener("message", async (event) => {
+        const msg = event.data;
+        if (!msg || msg.type !== "geoid:gee:token-request") return;
+        const frame = document.getElementById("globe-iframe");
+        const reply = (payload) => frame?.contentWindow?.postMessage(
+          { type: "geoid:gee:token", id: msg.id, ...payload }, "*");
+        try {
+          if (!msg.clientId) throw new Error("no Client ID set in Settings");
+          await loadGsi();
+          const client = window.google.accounts.oauth2.initTokenClient({
+            client_id: msg.clientId,
+            scope: "https://www.googleapis.com/auth/earthengine.readonly",
+            callback: (response) => {
+              if (response?.access_token) {
+                reply({ token: response.access_token, expiresIn: response.expires_in });
+              } else {
+                reply({ error: response?.error_description || response?.error || "no token returned" });
+              }
+            },
+            error_callback: (error) => reply({
+              error: `${error?.type || error?.message || "sign-in failed"} — check that `
+                + `"${window.location.origin}" is an Authorised JavaScript origin for this Client ID`,
+            }),
+          });
+          client.requestAccessToken();
+        } catch (error) {
+          reply({ error: error.message });
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
