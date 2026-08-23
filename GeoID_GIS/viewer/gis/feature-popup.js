@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260823-9a98b82";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260823-9a98b82";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260823-89801a4";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260823-89801a4";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -101,6 +101,19 @@ const STYLE = `
   right: 0;
 }
 #gis-feature-popup .gis-fp-raw { margin-top: 0.45rem; }
+/* A link in the attribute list: the accent, and elided rather than wrapped so
+   one long URL cannot double the height of the popup it sits in. */
+#gis-feature-popup .gis-fp-link {
+  color: rgb(var(--nav-accent-rgb, 255 45 210));
+  text-decoration: none;
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+#gis-feature-popup .gis-fp-link:hover { text-decoration: underline; }
 #gis-feature-popup .gis-fp-raw > summary {
   cursor: pointer;
   font: 500 0.6rem/1.3 'Exo 2', sans-serif;
@@ -203,6 +216,11 @@ export function hidePopup({ keepOutline = false } = {}) {
 const PREFERRED = [
   "name", "NAME", "lex_d", "rcs_d", "lex_rcs_d", "bgstype", "max_time_d",
   "min_time_d", "max_period", "min_period", "max_era", "age_onegl",
+  // Volcanoes (Smithsonian GVP): what it is, when it last erupted and where it
+  // sits tectonically -- the three questions a click on a volcano is asking,
+  // ahead of the country and the region, which the map has already answered.
+  "volcano_type", "activity", "last_eruption", "elevation_m", "tectonic_setting",
+  "rock_type", "landform", "epoch", "summary",
   "waterway", "value", "class", "unit", "description",
 ];
 
@@ -252,6 +270,10 @@ const PLUMBING = new Set([
   "version", "released", "nom_scale", "nom_os_yr", "nom_bgs_yr", "sheet",
   "shape_leng", "shape_area", "min_zoom", "min_label", "scalerank", "dissolve",
   "rivernum", "note",
+  // A record number and a photo credit are true, and they are not what the
+  // click was asking. They go to the tail rather than being dropped: the
+  // number is how you find the record again, and a credit must not be lost.
+  "gvp_number", "type_group", "photo_caption", "photo_credit", "evidence",
 ]);
 
 function orderedEntries(props) {
@@ -666,7 +688,29 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
     const dt = document.createElement("dt");
     dt.textContent = key;
     const dd = document.createElement("dd");
-    dd.textContent = String(value);
+    /**
+     * A value that IS a URL becomes a link, whatever column it came from.
+     *
+     * A record that cites its own source -- the volcano catalogue links every
+     * entry to its GVP page and its photograph -- was printing that source as
+     * unclickable text, which is the one form in which a citation is no use.
+     * Read from the value rather than from a list of known columns, so any
+     * dataset carrying a link gets the same treatment. `rel=noopener` because
+     * these lead off the site; the text is elided by CSS, not by truncating
+     * the href, so what opens is what was published.
+     */
+    const text = String(value);
+    if (/^https?:\/\//i.test(text)) {
+      const a = document.createElement("a");
+      a.href = text;
+      a.textContent = text.replace(/^https?:\/\/(www\.)?/i, "");
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.className = "gis-fp-link";
+      dd.appendChild(a);
+    } else {
+      dd.textContent = text;
+    }
     list.append(dt, dd);
   });
 

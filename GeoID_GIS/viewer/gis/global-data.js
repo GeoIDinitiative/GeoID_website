@@ -27,7 +27,7 @@
  */
 
 /** Order the groups read in, coarse to specific. */
-export const GROUPS = ["Physical", "Boundaries", "Tectonics", "Regional"];
+export const GROUPS = ["Physical", "Boundaries", "Tectonics", "Hazards", "Regional"];
 
 export const DATASETS = [
   {
@@ -107,6 +107,27 @@ export const DATASETS = [
     summary: "13,696 faults with slip type, rate and dip where known",
     licence: "GEM Global Active Faults — CC BY-SA 4.0",
     live: true,
+  },
+  {
+    id: "volcanoes",
+    group: "Hazards",
+    label: "Volcanoes — global (Smithsonian GVP)",
+    path: "/data/global/volcanoes.geojson",
+    name: "World volcanoes (Smithsonian GVP).geojson",
+    summary: "2,666 volcanoes: 1,214 Holocene and 1,452 Pleistocene, with type, "
+      + "last eruption, tectonic setting and a summary each",
+    licence: "Smithsonian Global Volcanism Program — free for non-commercial use "
+      + "with citation",
+    /**
+     * Coloured by `type_group` on arrival rather than by whatever ranks first.
+     *
+     * `rankColourFields` would pick something with a good spread and no
+     * meaning -- country has 100+ values, `gvp_number` is unique per feature.
+     * The two columns anybody actually wants are the landform type and the
+     * eruption recency, and the type is the one that makes the map read as a
+     * map of volcanoes rather than a map of nations.
+     */
+    colourBy: "type_group",
   },
   {
     id: "ni-rivers",
@@ -204,6 +225,24 @@ export async function addDataset(id, onStatus = () => {}) {
     return { ok: false, message };
   }
   const layer = loadedLayer(entry);
+  /**
+   * A dataset that names the column worth colouring by gets it on arrival.
+   *
+   * `defaultSymbology` guesses, which is right for a file somebody dropped and
+   * wrong for a catalogue entry: the guess ranks columns by how well they
+   * spread, and for the volcanoes that is `country` -- a hundred hues saying
+   * nothing about volcanoes. The entry knows better than the ranking, and can
+   * still be recoloured from the Symbology button like anything else.
+   */
+  if (layer && entry.colourBy) {
+    try {
+      const { paintByField } = await import(
+        `./symbology-dialog.js${new URL(import.meta.url).search}`);
+      paintByField(layer, entry.colourBy);
+    } catch (error) {
+      console.warn("[GeoID GIS] default symbology failed:", error.message);
+    }
+  }
   const message = `${entry.label} added. ${entry.licence}.`;
   onStatus(message);
   return { ok: true, layer, message };

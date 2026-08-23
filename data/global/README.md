@@ -95,3 +95,35 @@ All three answer with `Access-Control-Allow-Origin: *`, which is what makes
 fetching them from a page work at all. Fetching rather than copying also keeps
 them current: an active-fault compilation is edited, and a copy taken today is
 a copy of today.
+
+## Baked from a service
+
+| dataset | file | source | licence |
+| --- | --- | --- | --- |
+| Volcanoes of the World | `volcanoes.geojson` | Smithsonian GVP WFS | Smithsonian Institution — free for non-commercial use with citation |
+
+```bash
+python3 GeoID_GIS/services/bake-volcanoes.py
+```
+
+2,666 records — 1,214 Holocene and 1,452 Pleistocene — from
+`webservices.volcano.si.edu`, in one file with an `epoch` field telling them
+apart. Baked rather than fetched live because the catalogue is revised on an
+editorial cycle rather than by the minute, so a copy is a copy of the
+catalogue and not a stale frame of a stream; and because a baked file works
+offline and cannot be taken out by a CORS header going missing on a cache hit.
+
+**Three fields are ours, not GVP's**, and the script says so in `_source`:
+
+- `activity` is a RECENCY BAND derived from `Last_Eruption_Year` — "Erupted
+  since 1980", "Historical (since 1500)", "Holocene, undated". It is not
+  active/dormant/extinct: GVP declines to publish those terms because they
+  have no agreed definition and "extinct" has been wrong often enough to be
+  dangerous. 366 Holocene volcanoes have no dated eruption at all, which is a
+  fact about the record rather than about the volcano.
+- `type_group` collapses 28 primary types to 9, because `categoricalSymbology`
+  folds everything past twelve classes into one grey "other" that would
+  swallow half the map. The raw `Primary_Volcano_Type` is kept beside it.
+- `summary` is clipped to about 460 characters on a sentence boundary. The
+  full text runs to 1,776 and was 39% of the file; `gvp_url` links each record
+  to its own page on volcano.si.edu, which is the citable version.

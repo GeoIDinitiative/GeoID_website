@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260823-9a98b82";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260823-9a98b82";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260823-9a98b82";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260823-89801a4";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260823-89801a4";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260823-89801a4";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -431,6 +431,7 @@ export function renderFeatureCollection(fc, {
   const linePositions = [];
   const lineColours = [];
   const pointPositions = [];
+  const pointColours = [];
   const fill = { positions: [], colours: [] };
   const seal = { positions: [], colours: [] };
   /**
@@ -478,9 +479,26 @@ export function renderFeatureCollection(fc, {
       return;
     }
     if (geometry.type === "Point" || geometry.type === "MultiPoint") {
+      /**
+       * Points carry a colour per feature, like everything else.
+       *
+       * They did not, and nothing said so: `colourFor` was consulted for fills
+       * and for lines and skipped entirely here, so a point layer took one
+       * flat `pointColor` whatever it was symbolised by. Measured on the
+       * Smithsonian volcano catalogue -- 2,666 points, a nine-class legend
+       * with correct counts beside them, and **zero** colour attributes on the
+       * geometry. The legend is not evidence that the map was painted; this is
+       * the third place in this renderer where that has been true.
+       */
+      let dot = null;
+      if (colourFor) {
+        scratch.set(colourFor(feature) || "#8a8a8a");
+        dot = { r: scratch.r, g: scratch.g, b: scratch.b };
+      }
       geometryCoords(geometry).forEach((c) => {
         const v = surfaceAt(c[1], c[0], drape);
         pointPositions.push(v.x, v.y, v.z);
+        if (dot) pointColours.push(dot.r, dot.g, dot.b);
       });
       return;
     }
@@ -613,9 +631,34 @@ export function renderFeatureCollection(fc, {
   if (pointPositions.length) {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(pointPositions, 3));
-    group.add(new THREE.Points(geometry, new THREE.PointsMaterial({
-      color: pointColor, size: pointSize, sizeAttenuation: true, depthWrite: false,
-    })));
+    /**
+     * A CATALOGUE of places is sized in screen pixels; a point CLOUD is not.
+     *
+     * `sizeAttenuation: true` scales a point with distance, which is right for
+     * an XYZ survey where the points ARE a surface and wrong for a set of
+     * markers: 2,666 volcanoes at 0.018 scene units are sub-pixel from orbit,
+     * so the layer loaded, the legend filled in with nine classes, and the
+     * globe showed almost nothing. Measured before this: visible only as a
+     * faint speckle along the Mediterranean.
+     *
+     * The discriminator is density, and it is a threshold rather than a rule,
+     * so it is named. Under 20,000 points a layer is a set of places somebody
+     * wants to see and click, and screen-space sizing keeps every one of them
+     * legible at any zoom. Above it, a fixed pixel size would paint the globe
+     * solid at a distance, so the points stay in world space and read as the
+     * surface they sample.
+     */
+    const asMarkers = pointPositions.length / 3 <= 20000;
+    const material = asMarkers
+      ? { size: 5, sizeAttenuation: false, depthWrite: false }
+      : { size: pointSize, sizeAttenuation: true, depthWrite: false };
+    if (pointColours.length === pointPositions.length) {
+      geometry.setAttribute("color", new THREE.Float32BufferAttribute(pointColours, 3));
+      material.vertexColors = true;
+    } else {
+      material.color = pointColor;
+    }
+    group.add(new THREE.Points(geometry, new THREE.PointsMaterial(material)));
   }
 
   const memo = { calls: surfaceCalls, distinct: surfaceMemo.size, hits: surfaceHits };
@@ -656,7 +699,14 @@ export function describeCollection(fc) {
 function defaultSymbology(fc) {
   const features = fc?.features || [];
   const hasPolygons = features.some((f) => polygonsOf(f.geometry).length);
-  if (!hasPolygons) return null;
+  // Points earn a default too, for the same reason polygons do: a catalogue of
+  // 2,666 volcanoes drawn in one flat yellow is a scatter plot of "somewhere",
+  // and finding the Symbology button is not a step anybody should have to take
+  // to see what kind of thing each dot is. `suggestCategoryField` already
+  // refuses a column with a value per feature, so an XYZ point cloud with an
+  // id column still lands as one colour rather than as noise.
+  const hasPoints = features.some((f) => /Point$/.test(f?.geometry?.type || ""));
+  if (!hasPolygons && !hasPoints) return null;
   const field = suggestCategoryField(features);
   if (field) {
     // No ramp named: the default is the qualitative set, which is what a list
