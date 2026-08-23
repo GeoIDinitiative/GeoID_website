@@ -600,6 +600,14 @@
 
     .footer-social-link:hover { color: var(--cyan); background: var(--cyan-soft); }
 
+    /* Four cards read as 2x2; auto-fit would leave one alone on a second row. */
+    .cards-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.25rem;
+      margin-top: 1.5rem;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 1080px) {
       .split-grid,
@@ -622,6 +630,7 @@
 
     @media (max-width: 640px) {
       .cards-grid-3,
+      .cards-grid-4,
       .vision-stats { grid-template-columns: 1fr; }
       .footer-content { grid-template-columns: 1fr; gap: 2rem; }
       .footer-bottom { flex-direction: column; text-align: center; }
@@ -689,7 +698,8 @@
       " role="note" aria-label="Development status">
         <span style="display:inline-flex;align-items:center;gap:0.35rem;font-family:'Public Sans',sans-serif;font-size:0.68rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#f7bd68;border:1px solid rgba(247,189,104,0.45);padding:0.2rem 0.65rem;border-radius:999px;flex-shrink:0;">⚠ In Development — Not a Live Product</span>
         <p style="margin:0;font-family:'Public Sans',sans-serif;font-size:0.88rem;color:rgba(247,189,104,0.88);line-height:1.55;">
-          myGeoID is a <strong style="color:#f7c87a;">proposed application</strong> — the interface shown is a design concept; no hazard data is currently computed.
+          myGeoID is a <strong style="color:#f7c87a;">working prototype</strong> inside GeoHUB — the Factor of Safety is computed live from NOAA GFS rainfall over a pilot area, with screening-level parameters.
+          It is <strong style="color:#f7c87a;">not a certified or operational warning system</strong> and must not inform safety, engineering or planning decisions.
           Interested in funding or collaborating? Read the <a href="/fund.html" style="color:#f7c87a;text-decoration:underline;">prospectus →</a>
         </p>
       </div>
@@ -705,10 +715,11 @@
         <div class="hero-overlay"></div>
         <div class="hero-content">
           <img class="hero-logo-img" src="/assets/mygeoid_logo.png" alt="myGeoID Logo" loading="lazy" decoding="async">
-          <p class="hero-tagline">A proposed geohazard forecast application — in development, seeking funding and collaboration</p>
-          <p class="hero-desc">Global weather forecasts in; ground response out. Satellite data, best‑practice geomechanics, and AI condensed into a single <strong>Factor of Safety</strong> score.</p>
+          <p class="hero-tagline">Geohazard forecasting, built inside GeoHUB — a working prototype, seeking funding and collaboration</p>
+          <p class="hero-desc">Global weather forecasts in; ground response out. Satellite data and best‑practice geomechanics condensed into a single <strong>Factor of Safety</strong> score — computed on the GeoHUB globe, not in a slide deck.</p>
           <div class="hero-actions">
-            <a class="btn-primary" href="#how">See the Proposed Methodology</a>
+            <a class="btn-primary" href="#how">See how it works</a>
+            <a class="btn-ghost" href="/geohub/">Open it in GeoHUB</a>
             <a class="btn-ghost" href="/fund.html">Funding Prospectus</a>
           </div>
         </div>
@@ -744,9 +755,9 @@
                     <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                   </svg>
                 </div>
-                <h3>Forecast-Driven Risk Computation <small style="font-size:0.7em;font-weight:400;color:rgba(247,189,104,0.75);">(Proposed)</small></h3>
+                <h3>Forecast-Driven Risk Computation <small style="font-size:0.7em;font-weight:400;color:rgba(126,231,255,0.8);">(Running)</small></h3>
               </div>
-              <p>Built on GFS NOAA global forecast data, myGeoID will compute a modelled <strong>Factor of Safety</strong> that anticipates instability before it is visible — earlier alerts, longer lead times.</p>
+              <p>Sixteen days of hourly NOAA GFS rainfall drive an infinite-slope <strong>Factor of Safety</strong> over slope from a DEM and strength from mapped geology. It runs today over the pilot area: a stack of FoS rasters the clock plays through, not one susceptibility picture.</p>
             </article>
             <article class="solution-card">
               <div class="solution-card-header">
@@ -775,6 +786,48 @@
         </div>
       </div>
 
+      <!-- ── Where it runs — the GeoHUB architecture ── -->
+      <div class="cyan-tile" id="geohub">
+        <div class="cyan-tile-content">
+          <span class="tile-label">Where it runs</span>
+          <h2 class="tile-title">Built inside GeoHUB</h2>
+          <div class="tile-desc">
+            <p>myGeoID is not a separate app with its own map. It is a mode of <a href="/geohub/" style="color:var(--cyan);">GeoHUB</a>, the workspace where everything else we build already opens — so the hazard model runs on the same globe, over the same layers, in the same project as the work around it. Arm the mode and the pipeline runs on the ground beneath you; leave it and the globe is a GIS again.</p>
+            <p>That is the architecture, and it is the reason the model can be checked: the DEM, the geology and the forecast it consumes are ordinary layers you can switch on, recolour, click into and export.</p>
+          </div>
+          <div class="cards-grid-4">
+            <article class="solution-card">
+              <div class="solution-card-header">
+                <div class="solution-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18"></path><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"></path></svg></div>
+                <h3>GIS</h3>
+              </div>
+              <p>The globe myGeoID runs on. World geology streams as vector tiles, with coastlines, rivers, boundaries, plate boundaries and active faults shipped alongside — and your own shapefiles, GeoTIFFs, meshes and point tables drop in beside them. Draw a study area, sample every active layer into one table, and take it away as CSV, GeoJSON or shapefile.</p>
+            </article>
+            <article class="solution-card">
+              <div class="solution-card-header">
+                <div class="solution-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"></circle><ellipse cx="12" cy="12" rx="10" ry="4.4" transform="rotate(-24 12 12)"></ellipse></svg></div>
+                <h3>Explorers</h3>
+              </div>
+              <p>Ten worlds in the same window, with the same tools on each: distance and elevation profiles, named-feature search, geology and palaeo sea-level overlays. Earth Explorer's Etna model and the Mars flight simulator are the same lineage seen up close.</p>
+            </article>
+            <article class="solution-card">
+              <div class="solution-card-header">
+                <div class="solution-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7.5v9L12 21l9-4.5v-9L12 3z"></path><path d="M3 7.5 12 12l9-4.5M12 12v9"></path></svg></div>
+                <h3>Mesh Studio</h3>
+              </div>
+              <p>Turn a study area into a mesh — pull the terrain, build the volume, set materials and boundary conditions, and hand it to a finite-element solve. The browser configures the run; the solver runs where it can, locally or on a machine you point it at.</p>
+            </article>
+            <article class="solution-card">
+              <div class="solution-card-header">
+                <div class="solution-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h9l3 3h4v13H4z"></path><path d="M8 13h8M8 17h5"></path></svg></div>
+                <h3>Research Hub</h3>
+              </div>
+              <p>A project is a real folder on disk — ingest, analysis, figures, notes and provenance — in the same layout our desktop application reads, so work moves between the two without export. Signal processing, statistics and event correlation run in the page.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Vision ── -->
       <div class="cyan-tile vision-tile" id="vision">
         <div class="vision-left">
@@ -782,8 +835,8 @@
           <h2 class="tile-title">Democratizing Geohazard Science</h2>
           <p class="tile-desc">Critical hazard data — accessible, portable, and globally distributed.</p>
           <div class="vision-text">
-            <h3>The myGeoID App Experience</h3>
-            <p>A clean map view, locality search, and a single <strong>Factor of Safety</strong> signal turn complex models into a clear, shareable risk readout.</p>
+            <h3>The myGeoID Experience</h3>
+            <p>It opens on the GeoHUB globe rather than in a map of its own: one press arms the mode, the pipeline runs on the ground beneath you, and a single <strong>Factor of Safety</strong> signal turns the model into a clear, shareable readout.</p>
             <p>Market-style time‑series charts show how forecast inputs shift risk ahead of impact — the same evidence base experts use, open to everyone.</p>
             <div class="vision-stats">
               <div class="stat-item">
