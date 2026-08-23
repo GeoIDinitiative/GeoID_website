@@ -14,14 +14,14 @@
 import {
   weatherPoints, weatherUrl, parseWeatherGrid, rainAt, buildCells,
   fosColour, stepForClock,
-} from "./geoid-pipeline.js?v=20260823-ea1ad45";
-import { wetnessSeries, fosSeries } from "./fos.js?v=20260823-ea1ad45";
-import * as EE from "./gee-live.js?v=20260823-ea1ad45";
-import { makeRaster } from "./raster-analysis.js?v=20260823-ea1ad45";
+} from "./geoid-pipeline.js?v=20260823-9a98b82";
+import { wetnessSeries, fosSeries } from "./fos.js?v=20260823-9a98b82";
+import * as EE from "./gee-live.js?v=20260823-9a98b82";
+import { makeRaster } from "./raster-analysis.js?v=20260823-9a98b82";
 // The adapter is a module, not a window seam — reading it off `window` was
 // a guess, and a wrong one: nothing hangs `GeoIDGeoTiff` there.
-import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260823-ea1ad45";
-import { pointInPolygon, boundsOf } from "./geometry.js?v=20260823-ea1ad45";
+import { buildRasterLayer, loadGeoTiffFromArrayBuffer } from "./geotiff-adapter.js?v=20260823-9a98b82";
+import { pointInPolygon, boundsOf } from "./geometry.js?v=20260823-9a98b82";
 
 const STAMP = "20260816-6ce8ecd";
 
@@ -30,6 +30,9 @@ const state = {
   step: -1,
   watching: false,
 };
+
+/** The clock watcher's interval, so `stop()` can end it. */
+let clockTimer = null;
 
 // The bar is a switch, the same size as Events beside it, and it grows a body
 // only while there is a run to report on. So the text and the panel that holds
@@ -139,7 +142,10 @@ function watchClock() {
   state.watching = true;
   let lastSimMs = null;
   let playFrom = Date.now();
-  setInterval(() => {
+  // Held, because leaving the mode has to be able to stop it. Without a handle
+  // this timer outlived the mode: measured after pressing Exit, it was still
+  // scrubbing the layer -- the step had walked from 9 to 2 with the mode off.
+  clockTimer = window.setInterval(() => {
     const run = state.run;
     if (!run) return;
     const ms = window.GeoIDViewer?.getSimulatedUtcMs?.();
@@ -156,6 +162,43 @@ function watchClock() {
     const elapsed = Date.now() - playFrom;
     drawStep(Math.floor(elapsed / PLAY_MS_PER_STEP) % run.steps.length);
   }, 200);
+}
+
+/**
+ * Leaving the mode takes the run with it.
+ *
+ * This used to stop nothing, on the reasoning that coming back would then be
+ * instant. What it actually meant was that Exit exited nothing: measured after
+ * a press, `state.run` was still live, the clock timer was still scrubbing the
+ * layer, the status panel still carried the last step's line, and the draped
+ * FoS raster was still on the globe and in the layer box. The button said
+ * Enter again and that was the only thing that had changed.
+ *
+ * A run is not a document. It is one frame of a 384-step forecast being played
+ * by the simulated clock, so outside the mode it is a stale still of something
+ * that was moving -- there is nothing to keep. What it LOADED to get there (the
+ * DEM, the geology) are ordinary layers and are left alone; somebody may be
+ * working with them.
+ */
+export function stop() {
+  if (clockTimer) {
+    window.clearInterval(clockTimer);
+    clockTimer = null;
+  }
+  state.watching = false;
+  const layer = state.run?.layer;
+  state.run = null;
+  state.step = -1;
+  if (layer) {
+    try {
+      window.GeoIDImportManager?.removeLayer?.(layer.id);
+    } catch (error) {
+      console.warn("[GeoID] the FoS layer could not be removed:", error.message);
+    }
+  }
+  // Empty text folds the panel away -- see `say`. A status line describing a
+  // run that no longer exists is the part that read as "it did not exit".
+  say("");
 }
 
 /**
@@ -443,12 +486,12 @@ function boundsOfGeometry(geometry) {
 }
 
 /**
- * Entering GeoID mode runs the pipeline.
+ * Entering myGeoID mode runs the pipeline; leaving it puts the run away.
  *
  * There was a Run button, which made the mode a thing you enter and then have
  * to remember to start — two steps for one intention, and a mode that does
- * nothing on its own is not a mode. Arming is now the trigger; leaving stops
- * nothing, so coming back is instant.
+ * nothing on its own is not a mode. Arming is the trigger. Disarming is the
+ * other half of that bargain and used to be missing: see `stop`.
  */
 export function init() {
   const armed = () => document.body.dataset.hubArmed === "true";
@@ -460,6 +503,7 @@ export function init() {
       running = true;
       void run().finally(() => { running = false; });
     }
+    if (!now && was) stop();
     was = now;
   }, 400);
   // Already in the mode when this module loads — the same intention.
@@ -467,7 +511,7 @@ export function init() {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDMode = { run, init, inputsFromLayers, lockView, current: () => state };
+  window.GeoIDMode = { run, stop, init, inputsFromLayers, lockView, current: () => state };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
   else init();
 }
