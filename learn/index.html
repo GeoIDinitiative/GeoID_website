@@ -1,382 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="GeoID Resources — coming soon. Educational materials, datasets, and learning pathways for geoscience and geohazard awareness.">
-  <title>GeoID Initiative — Resources</title>
-  <!-- Social / search preview. Without an og:image, search engines pick an
-       arbitrary image off the page — which is why results showed a stray
-       Earth icon instead of the GeoID logo. -->
-  <link rel="canonical" href="https://geoidinitiative.com/learn/">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="GeoID Initiative">
-  <meta property="og:url" content="https://geoidinitiative.com/learn/">
-  <meta property="og:title" content="GeoID Initiative — Resources">
-  <meta property="og:description" content="GeoID Resources — coming soon. Educational materials, datasets, and learning pathways for geoscience and geohazard awareness.">
-  <meta property="og:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="1200">
-  <meta property="og:image:alt" content="GeoID Initiative logo">
-  <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="GeoID Initiative — Resources">
-  <meta name="twitter:description" content="GeoID Resources — coming soon. Educational materials, datasets, and learning pathways for geoscience and geohazard awareness.">
-  <meta name="twitter:image" content="https://geoidinitiative.com/assets/og_geoid.jpg">
-  <link rel="icon" type="image/png" href="/assets/GeoID_logo_icon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/audiowide/v22/l7gdbjpo0cum0ckerWCdlg_O.woff2">
-  <link rel="preload" as="font" type="font/woff2" crossorigin href="https://fonts.gstatic.com/s/chakrapetch/v13/cIf6MapbsEk7TDLdtEz1BwkWn6pg.woff2">
-  <!-- font link consolidated by v2 skin -->
-  <link rel="stylesheet" href="/styles/shared.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Moved to GeoHUB — GeoID Initiative</title>
+  <!--
+    Resources is part of GeoHUB now, at /geohub/, so this page has nothing of
+    its own left to say. The stub stays because the path is in bookmarks, in
+    shared links and in search results, and a removal that breaks those is a
+    removal that loses people: `canonical` points at the new home so the move
+    is legible to a crawler, `noindex` keeps this from competing with it, and
+    the link is there for anyone whose browser will not follow a refresh.
+  -->
+  <link rel="canonical" href="https://geoidinitiative.com/geohub/">
+  <meta http-equiv="refresh" content="0; url=/geohub/">
+  <meta name="robots" content="noindex, follow">
   <style>
-    .page-wrap { padding-top: var(--nav-h); }
-
-    .page-utility {
-      position: sticky;
-      top: var(--nav-h);
-      z-index: 90;
-      border-radius: 0;
-      border-left: none;
-      border-right: none;
-      border-top: none;
-      padding: 0.45rem 1.5rem;
-      margin-bottom: 1.25rem;
-      justify-content: center;
-    }
-
-    .page-jump { justify-content: center; width: 100%; }
-
-    .page-jump a {
-      border: none;
-      background: none;
-      border-radius: 0.5rem;
-      font-family: "Public Sans", sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      letter-spacing: 0;
-      text-transform: none;
-      color: var(--muted);
-      padding: 0.34rem 0.68rem;
-    }
-
-    .page-jump a:hover {
-      color: var(--text);
-      background: rgba(88, 198, 179, 0.08);
-      border-color: transparent;
-    }
-
-    /* ── Under-construction hero ── */
-    .uc-hero {
-      position: relative;
-      overflow: hidden;
-      border: 1px solid var(--line);
-      border-radius: 1.35rem;
-      box-shadow: var(--shadow);
-      min-height: 72dvh;
-      margin-bottom: 1.25rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      background:
-        radial-gradient(ellipse at 70% 25%, rgba(var(--accent-rgb),0.09), transparent 50%),
-        radial-gradient(ellipse at 15% 65%, rgba(88,198,179,0.09), transparent 45%),
-        linear-gradient(160deg, rgba(5,10,20,0.97), rgba(8,15,28,0.94));
-    }
-
-    .uc-bg-img {
-      position: absolute;
-      inset: 0;
-      background-image: url('/assets/opt/hero_iceland2.webp');
-      background-size: cover;
-      background-position: center;
-      opacity: 0.07;
-    }
-
-    .uc-content {
-      position: relative;
-      z-index: 1;
-      max-width: 52rem;
-      padding: 4rem 2.5rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .uc-icon {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      background: rgba(88,198,179,0.10);
-      border: 1px solid rgba(88,198,179,0.28);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--cyan);
-      margin-bottom: 0.5rem;
-      filter: drop-shadow(0 0 18px rgba(88,198,179,0.22));
-    }
-
-    .uc-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.62rem;
-      font-family: "Public Sans", sans-serif;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: #f7bd68;
-      border: 1px solid rgba(247,189,104,0.35);
-      padding: 0.25rem 0.75rem;
-      border-radius: 999px;
-    }
-
-    .uc-badge::before {
-      content: '';
-      width: 6px; height: 6px;
-      background: #f7bd68;
-      border-radius: 50%;
-      box-shadow: 0 0 6px rgba(247,189,104,0.7);
-      flex-shrink: 0;
-    }
-
-    .uc-title {
-      font-family: "Archivo", "Work Sans", sans-serif;
-      font-size: clamp(2.4rem, 6vw, 4rem);
-      font-weight: 700;
-      line-height: 1.1;
-      color: var(--text);
-      letter-spacing: -0.02em;
+    body {
       margin: 0;
-    }
-
-    .uc-title span { color: var(--cyan); }
-
-    .uc-desc {
-      color: var(--muted);
-      font-size: 1rem;
-      line-height: 1.75;
-      max-width: 44rem;
-    }
-
-    .uc-actions {
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-top: 0.75rem;
-    }
-
-    /* ── Footer ── */
-    .site-footer {
-      margin-top: 2.5rem;
-      border-top: 1px solid var(--line);
-      background: rgba(5,10,16,0.7);
-      backdrop-filter: blur(12px);
-      padding: 3rem 0 1.5rem;
-    }
-
-    .footer-inner { max-width: 1840px; margin: 0 auto; padding: 0 1rem; }
-
-    .footer-content {
+      min-height: 100vh;
       display: grid;
-      grid-template-columns: 2fr repeat(3, 1fr);
-      gap: 3rem;
-      padding-bottom: 2.5rem;
-      border-bottom: 1px solid var(--line);
+      place-items: center;
+      background: #07030f;
+      color: #e8dcff;
+      font: 400 1rem/1.6 system-ui, sans-serif;
+      text-align: center;
+      padding: 2rem;
     }
-
-    .footer-brand-logo { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
-    .footer-brand-logo img { height: 32px; width: auto; }
-    .footer-brand p { color: var(--muted); font-size: 0.88rem; line-height: 1.68; }
-    .footer-brand p + p { margin-top: 0.75rem; }
-
-    .footer-section h4 {
-      font-family: "Public Sans", sans-serif;
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 1.1rem;
-    }
-
-    .footer-section ul { list-style: none; padding: 0; margin: 0; }
-    .footer-section li { margin-bottom: 0.6rem; }
-    .footer-section a { color: var(--muted); text-decoration: none; font-size: 0.88rem; transition: color 0.18s; }
-    .footer-section a:hover { color: var(--text); }
-
-    .footer-bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 1rem;
-      padding-top: 1.75rem;
-    }
-
-    .footer-bottom p { color: var(--muted); font-size: 0.82rem; }
-
-    .footer-social-links { display: flex; gap: 0.6rem; }
-
-    .footer-social-link {
-      width: 36px; height: 36px;
-      border-radius: 8px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.03);
-      display: flex; align-items: center; justify-content: center;
-      color: var(--muted); text-decoration: none;
-      transition: color 0.18s, background 0.18s;
-    }
-
-    .footer-social-link:hover { color: var(--cyan); background: var(--cyan-soft); }
-
-    @media (max-width: 1080px) {
-      .footer-content { grid-template-columns: 1fr 1fr; }
-    }
-
-    @media (max-width: 640px) {
-      .footer-content { grid-template-columns: 1fr; gap: 2rem; }
-      .footer-bottom { flex-direction: column; text-align: center; }
-    }
+    a { color: #ff2bd6; }
   </style>
-  <link rel="stylesheet" href="/styles/v2-site.css">
-  <script src="/scripts/v2-site.js" defer></script>
-  <link rel="stylesheet" href="/styles/skins/synthwave.css">
-  <link rel="stylesheet" href="/styles/site-nav.css">
 </head>
 <body>
-  <nav class="site-nav" role="navigation" aria-label="Primary navigation">
-    <a class="nav-wordmark" href="/" aria-label="GeoID Initiative Home">
-      <img class="nav-brand-icon" src="/assets/GeoID_logo_icon.png" alt="">
-      GeoID Initiative
-    </a>
-    <ul class="nav-links">
-      <li><a href="/dashboard/">Dashboard</a></li>
-      <li class="nav-dropdown">
-        <a class="nav-dropdown-toggle active" href="/about/">About</a>
-        <div class="nav-dropdown-menu" aria-label="About pages">
-          <a href="/about/">Overview</a>
-          <a href="/about_myGeoID/">myGeoID App</a>
-          <a href="/team/">Our Team</a>
-          <a href="/research/">Research Hub</a>
-          <a href="/learn/" class="active" aria-current="page">Resources</a>
-          <a href="/get-involved/">Get Involved</a>
-        </div>
-      </li>
-      <li><a href="/geohub/"><span class="geohub-word"><span class="geohub-prefix">Geo</span>HUB</span></a></li>
-      <li><a href="/earth_explorer/">Earth Explorer</a></li>
-      <li><a href="/explorer/">Planet Explorer</a></li>
-      <li><a href="/contact/">Contact</a></li>
-    </ul>
-    <div class="nav-right-logo">
-      <a class="nav-act nav-act-donate" href="https://buy.stripe.com/dRm3cv1Op4903zb858bV600" target="_blank" rel="noopener noreferrer">Donate</a>
-    </div>
-    <button class="nav-toggle" type="button" aria-expanded="false" aria-label="Open navigation menu">☰</button>
-  </nav>
-
-  <div class="page-wrap">
-    <section class="page-utility" aria-label="About section links">
-      <div class="page-jump">
-        <a href="/about/">Overview</a>
-        <a href="/about_myGeoID/">myGeoID App</a>
-        <a href="/team/">Our Team</a>
-        <a href="/research/">Research Hub</a>
-        <a href="/learn/" class="active" aria-current="page">Resources</a>
-        <a href="/get-involved/">Get Involved</a>
-      </div>
-    </section>
-
-    <div class="page-inner">
-      <div class="uc-hero">
-        <div class="uc-bg-img"></div>
-        <div class="uc-content">
-          <div class="uc-icon">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-              <path d="M2 17l10 5 10-5"/>
-              <path d="M2 12l10 5 10-5"/>
-            </svg>
-          </div>
-          <span class="uc-badge">In Development</span>
-          <h1 class="uc-title"><span>Resources</span></h1>
-          <p class="uc-desc">Educational content, curated datasets, and learning pathways for geohazard science at every level.</p>
-          <p class="uc-desc">Contribute material or collaborate — we welcome educators, researchers, and science communicators.</p>
-          <div class="uc-actions">
-            <a class="btn-primary" href="/contact/">Contact Us</a>
-            <a class="btn-ghost" href="/about/">Back to Overview</a>
-          </div>
-        </div>
-      </div>
-
-      <footer class="site-footer">
-        <div class="footer-inner">
-          <div class="footer-content">
-            <div class="footer-brand">
-              <div class="footer-brand-logo">
-                <img src="/GeoID_initiative/photos/logo_title.png" alt="GeoID Logo" loading="lazy" decoding="async">
-              </div>
-              <p>Democratizing geohazard science through physics-based modelling and open data. Explorer viewers live now; forecasting in development.</p>
-              <p>An open initiative committed to transparency and public benefit.</p>
-            </div>
-            <div class="footer-section">              <h4>Navigation</h4>
-              <ul>
-                <li><a href="/about/">Overview</a></li>
-                <li><a href="/geohub/">GeoHUB</a></li>
-                <li><a href="/dashboard/">Dashboard</a></li>
-                <li><a href="/earth_explorer/">Earth Explorer</a></li>
-      <li><a href="/explorer/">Planet Explorer</a></li>
-                <li><a href="/get-involved/">Get Involved</a></li>
-                <li><a href="/team/">Our Team</a></li>
-                <li><a href="/contact/">Contact</a></li>
-              </ul>
-            </div>
-            <div class="footer-section">
-              <h4>Resources</h4>
-              <ul>
-                <li><a href="https://www.copernicus.eu/" target="_blank" rel="noopener">Copernicus Programme</a></li>
-                <li><a href="https://earthdata.nasa.gov/" target="_blank" rel="noopener">NASA Earth Data</a></li>
-                <li><a href="https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gfs.php" target="_blank" rel="noopener">GFS NOAA API</a></li>
-              </ul>
-            </div>
-            <div class="footer-section">
-              <h4>Legal</h4>
-              <ul>
-                <li><a href="/privacy/">Privacy Policy</a></li>
-                <li><a href="/terms/">Terms of Service</a></li>
-                <li><a href="/disclaimer/">Disclaimer</a></li>
-                <li><a href="/refund/">Billing &amp; Refunds</a></li>
-              </ul>
-            </div>
-          </div>
-          <div class="footer-bottom">
-            <p>&copy; 2026 GeoID Initiative. Led by Owen McCluskey. All rights reserved.</p>
-            <div class="footer-social-links">
-              <a href="mailto:geoid.initiative@gmail.com" class="footer-social-link" aria-label="Email">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                  <polyline points="22,6 12,13 2,6"></polyline>
-                </svg>
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
-  </div>
-
-  <div class="status-bar" role="status">
-    <div class="status-item"><span class="status-dot yellow"></span>In Development</div>
-    <span class="status-sep">·</span>
-    <div class="status-item">Resources</div>
-    <div class="status-spacer"></div>
-    <div class="status-item">GeoID Initiative</div>
-  </div>
-
-  <script src="/scripts/site.js"></script>
-<script src="/styles/nav.js?v=20260516" defer></script>
+  <main>
+    <h1>Resources is part of GeoHUB</h1>
+    <p>The datasets and the tools that read them are in the workspace itself.</p>
+    <p><a href="/geohub/">Continue to GeoHUB</a></p>
+  </main>
+  <script>window.location.replace("/geohub/");</script>
 </body>
 </html>

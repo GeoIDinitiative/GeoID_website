@@ -49,11 +49,11 @@
     {
       "status": "research",
       "kicker": "Research",
-      "title": "GeoID Research Hub",
-      "desc": "Datasets, analytical tools and collaborative workflows for researchers.",
-      "href": "/research/",
+      "title": "Research Hub, inside GeoHUB",
+      "desc": "Projects on disk, ingest, analysis and figures — in the same window as the globe.",
+      "href": "/geohub/",
       "image": "/assets/opt/mesh.webp",
-      "alt": "Research Hub"
+      "alt": "Research Hub in GeoHUB"
     }
   ]
 }

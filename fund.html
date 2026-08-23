@@ -115,6 +115,9 @@
     /* ── Grids ── */
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.1rem; }
+    /* Four proof cards read as 2x2; a fixed three-column grid leaves one
+       stranded on a second row. */
+    .grid-4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.1rem; }
 
     .mini {
       border: 1px solid var(--line); border-radius: 1rem;
@@ -218,7 +221,7 @@
 
     /* ── Responsive ── */
     @media (max-width: 960px) {
-      .grid-2, .grid-3, .ask-grid { grid-template-columns: 1fr; }
+      .grid-2, .grid-3, .grid-4, .ask-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 640px) {
       .pi { grid-template-columns: 1fr; }
@@ -243,8 +246,6 @@
           <a href="/about/">Overview</a>
           <a href="/about_myGeoID/">myGeoID App</a>
           <a href="/team/">Our Team</a>
-          <a href="/research/">Research Hub</a>
-          <a href="/learn/">Resources</a>
           <a href="/get-involved/">Get Involved</a>
         </div>
       </li>
@@ -266,18 +267,18 @@
       <header class="page-header">
         <span class="page-header-label">Research &amp; Funding Prospectus</span>
         <h1>The platforms are live. Forecasting is one computational step away.</h1>
-        <p class="lede">Two GeoID platforms are live and in use today. The next goal — physics-based hydrological models driven by live rainfall forecasts, producing a public flood and landslide risk index — needs servers and HPC access.</p>
+        <p class="lede">Three GeoID platforms are live and in use today. The next goal — physics-based hydrological models driven by live rainfall forecasts, producing a public flood and landslide risk index — needs servers and HPC access.</p>
         <div class="status-note" role="note">
-          <p><strong>STATUS:</strong> The Explorer platforms are live. The forecasting system is the funding case, not a live service — the myGeoID prototype demos the intended interface.</p>
+          <p><strong>STATUS:</strong> GeoHUB and the Explorer platforms are live. The forecasting system is the funding case, not a live service — myGeoID mode runs inside GeoHUB as a prototype over one pilot area, and is not a certified or operational warning system.</p>
         </div>
       </header>
 
       <!-- WHAT EXISTS -->
       <section class="panel" id="proof">
         <span class="section-label">What exists today</span>
-        <h2 class="section-title">Two live platforms</h2>
+        <h2 class="section-title">Three live platforms</h2>
         <p style="margin-bottom:1.2rem;">Working, publicly accessible tools built from real scientific datasets — proof GeoID can build and sustain accessible, interactive geoscience.</p>
-        <div class="grid-3">
+        <div class="grid-4">
           <div class="mini">
             <span class="proof-tag proof-live">Live today</span>
             <h3>Planet Explorer</h3>
@@ -287,6 +288,11 @@
             <span class="proof-tag proof-live">Live today</span>
             <h3>Earth Explorer — Etna</h3>
             <p>A 3D geological viewer from published INGV data: seismicity catalogue (2011–2023), fault planes, geological map, magma plumbing, lava flows, interactive cross-section. A research GIS in a browser.</p>
+          </div>
+          <div class="mini">
+            <span class="proof-tag proof-live">Live today</span>
+            <h3>GeoHUB</h3>
+            <p>The workspace the rest opens in: a 3D globe GIS with world geology, Natural Earth vectors and your own data; the ten explorers; a Mesh Studio that hands a study area to a finite-element solve; and a Research Hub whose projects are real folders on disk. myGeoID is a mode of its globe.</p>
           </div>
           <div class="mini">
             <span class="proof-tag proof-live">Ingested</span>
@@ -355,7 +361,7 @@
               <h3>Phase 2 — Scale, public interface, and regional expansion</h3>
               <span class="phase-badge badge-seek">Seeking funding</span>
             </div>
-            <p class="role">Deliver the public myGeoID experience and expand beyond the pilot domain.</p>
+            <p class="role">Deliver the public myGeoID experience inside GeoHUB and expand beyond the pilot domain.</p>
             <ul>
               <li>Personalised risk dashboards with saved locations and alerts (myGeoID)</li>
               <li>Additional pilot regions by partner and funder priority</li>
@@ -436,7 +442,7 @@
                 <li style="margin-bottom:0.6rem;"><a href="/about/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Overview</a></li>
                 <li style="margin-bottom:0.6rem;"><a href="/earth_explorer/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Earth Explorer</a></li>
                 <li style="margin-bottom:0.6rem;"><a href="/explorer/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Planet Explorer</a></li>
-                <li style="margin-bottom:0.6rem;"><a href="/research/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Research Hub</a></li>
+                <li style="margin-bottom:0.6rem;"><a href="/geohub/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">GeoHUB</a></li>
                 <li style="margin-bottom:0.6rem;"><a href="/get-involved/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Get Involved</a></li>
                 <li><a href="/contact/" style="color:var(--muted);text-decoration:none;font-size:0.88rem;">Contact</a></li>
               </ul>
