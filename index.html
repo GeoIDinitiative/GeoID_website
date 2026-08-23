@@ -550,6 +550,42 @@
   .cap-go svg { width: 14px; height: 14px; transition: transform .3s var(--ease); }
   .cap:hover .cap-go svg { transform: translateX(5px); }
 
+  /* ══ GEOHUB — the workspace the tools live in ═══════════════════════ */
+  /* Two columns: what it is on the left, what it looks like on the right.
+     The shot is the argument -- a screenshot of the thing working says more
+     about a workspace than a paragraph can, so it gets the larger half. */
+  .hub-grid {
+    display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: clamp(32px, 4vw, 64px); align-items: center;
+  }
+  .hub-copy { display: flex; flex-direction: column; gap: 22px; }
+  .hub-panes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 20px 26px; }
+  .hub-pane-n { display: block; font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); margin-bottom: 5px; }
+  .hub-pane-d { display: block; font-size: 13px; line-height: 1.55; color: var(--ink-3); }
+  /* The one product built inside, called out rather than listed as a fifth
+     pane -- myGeoID is made ON the GIS globe, it is not a tab beside it. */
+  .hub-note {
+    display: flex; gap: 14px; padding: 18px 20px;
+    border: 1px solid var(--hair); border-left: 2px solid var(--a);
+    background: var(--bg-1);
+    font-size: 13.5px; line-height: 1.6; color: var(--ink-2);
+  }
+  .hub-note strong { color: var(--ink); font-weight: 600; }
+  .hub-shot {
+    position: relative; overflow: hidden;
+    border: 1px solid var(--hair); background: #000;
+  }
+  .hub-shot img { display: block; width: 100%; height: auto; }
+  .hub-shot::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 90px rgba(4,5,7,0.55);
+  }
+  .hub-cap {
+    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    padding: 12px 16px; border-top: 1px solid var(--hair);
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+  }
+
   /* ══ MISSION — full-bleed parallax band ═════════════════════════════ */
   .mission { position: relative; overflow: hidden; }
   .mission-plate { position: absolute; inset: -12% 0; will-change: transform; }
@@ -606,6 +642,7 @@
   /* ══ Responsive ═════════════════════════════════════════════════════ */
   @media (max-width: 1040px) {
     .cap-grid { grid-template-columns: 1fr; }
+    .hub-grid { grid-template-columns: 1fr; }
     .news { grid-template-columns: repeat(2, minmax(0,1fr)); }
     .story--lead { grid-column: span 2; }
     .worlds-detail { grid-template-columns: 1fr; align-items: start; }
@@ -614,6 +651,7 @@
   }
   @media (max-width: 720px) {
     :root { --nav-h: 62px; }
+    .hub-panes { grid-template-columns: 1fr; }
     .hero { height: 100svh; min-height: 560px; }
     .hs-body { padding-bottom: 150px; }
     .hs-scrim { background: linear-gradient(to top, rgba(4,5,7,0.95) 6%, rgba(4,5,7,0.55) 46%, rgba(4,5,7,0.30) 100%); }
@@ -876,6 +914,60 @@
             <span class="cap-go">Preview the concept <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
           </div>
         </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ GEOHUB ══════════ -->
+  <section class="sec" id="geohub" aria-label="GeoHUB">
+    <div class="shell">
+      <div class="sec-head rise">
+        <div class="sec-head-copy">
+          <span class="eyebrow">GeoHUB · free, no account</span>
+          <h2 class="sec-title">One window over the whole planet.</h2>
+          <p class="sec-lede">Every tool we build opens in the same place. Bring your own data or use ours, work on any of ten worlds, and take what you make through to a model and a write-up without leaving the tab.</p>
+        </div>
+        <a class="btn btn-line btn-sm" href="/geohub/">Open GeoHUB</a>
+      </div>
+
+      <div class="hub-grid rise">
+        <div class="hub-copy">
+          <ul class="hub-panes">
+            <li>
+              <span class="hub-pane-n">GIS</span>
+              <span class="hub-pane-d">A 3D globe you can load into. World geology, coastlines, rivers and plate boundaries are shipped with it; drop in your own shapefiles, GeoTIFFs and meshes beside them.</span>
+            </li>
+            <li>
+              <span class="hub-pane-n">Explorers</span>
+              <span class="hub-pane-d">Ten worlds in the same window — switch planet from the strip along the bottom and the tools come with you.</span>
+            </li>
+            <li>
+              <span class="hub-pane-n">Mesh Studio</span>
+              <span class="hub-pane-d">Turn a study area into a mesh: pull the terrain, build the volume, and hand it to a solver.</span>
+            </li>
+            <li>
+              <span class="hub-pane-n">Research Hub</span>
+              <span class="hub-pane-d">A project on disk, with ingest, analysis, figures and notes — the same folder the desktop app reads.</span>
+            </li>
+          </ul>
+          <p class="hub-note">
+            <span><strong>myGeoID</strong> is built here. The personal hazard maps — the modelled Factor of Safety — are made on the GIS globe, which is why they are a mode of it rather than a separate app. That part is a working prototype on synthetic values, and the interface says so before it shows you anything.</span>
+          </p>
+          <div class="hs-actions">
+            <a class="btn btn-solid" href="/geohub/">Open GeoHUB <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+            <a class="btn btn-line" href="/about_myGeoID/">About myGeoID</a>
+          </div>
+        </div>
+
+        <div>
+          <div class="hub-shot">
+            <img src="/assets/opt/geohub.webp" alt="GeoHUB: world geology mapped over the globe, with the layer list and legend beside it" loading="lazy" decoding="async" width="1600" height="828">
+          </div>
+          <div class="hub-cap">
+            <span>World geology · Macrostrat, CC BY 4.0</span>
+            <span>Coastlines · Natural Earth</span>
+          </div>
+        </div>
       </div>
     </div>
   </section>
