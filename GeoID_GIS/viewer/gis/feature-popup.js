@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260823-feb0f36";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260823-feb0f36";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260823-1bc2955";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260823-1bc2955";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -860,6 +860,26 @@ function featureInLayer(layer, point, tolerance) {
       if (pointInPolygon(point, poly)) return feature;
     }
     if (polys.length) continue;
+    /**
+     * POINTS ARE CLICKABLE TOO, and they were not.
+     *
+     * This searched polygons and lines and returned null for anything else, so
+     * every point layer on the globe was inert: the world's volcanoes drew
+     * 2,666 markers, each with a name, a type, an eruption history and a
+     * paragraph of geology, and clicking one did nothing at all. Nothing said
+     * so -- a click on empty ocean and a click on Vesuvius behaved identically.
+     *
+     * A point has no interior to be inside, so the test is distance, and the
+     * tolerance is the same screen-derived one the lines use: a dot is drawn at
+     * a fixed pixel size, so its hit area has to be a fixed pixel size too,
+     * which in ground units means a radius that shrinks as you come in.
+     */
+    const pointCoords = pointsOf(geometry);
+    for (const coord of pointCoords) {
+      const d = haversineMetres(point, coord);
+      if (d <= tolerance && (!nearest || d < nearest.d)) nearest = { d, feature };
+    }
+    if (pointCoords.length) continue;
     for (const line of linesOf(geometry)) {
       if (line.length < 2 || !inBounds(point, line, tolerance / 111000)) continue;
       const d = distanceToLine(point, line);
@@ -867,6 +887,17 @@ function featureInLayer(layer, point, tolerance) {
     }
   }
   return nearest ? nearest.feature : null;
+}
+
+/** Every coordinate of a Point or MultiPoint geometry; nothing for the rest. */
+function pointsOf(geometry) {
+  const type = geometry?.type;
+  if (type === "Point") return [geometry.coordinates];
+  if (type === "MultiPoint") return geometry.coordinates || [];
+  if (type === "GeometryCollection") {
+    return (geometry.geometries || []).flatMap(pointsOf);
+  }
+  return [];
 }
 
 export function featureAt(lat, lon) {

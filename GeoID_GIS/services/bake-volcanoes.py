@@ -118,6 +118,34 @@ def clip(text, limit=460):
     return (cut[:stop + 1] if stop > limit * 0.5 else cut.rstrip() + "\u2026")
 
 
+def label_rank(year, epoch):
+    """How significant a volcano is, for deciding which few get a NAME.
+
+    2,666 labels is a white globe, so a label layer has to choose -- and the
+    choice has to be a fact about the data rather than a taste. Eruption
+    recency is the one the record actually supports: a volcano that erupted
+    this century is the one somebody is looking for, and one whose last known
+    eruption is undated in the Holocene is not. It is not "importance" and does
+    not claim to be; VEI and fatalities live in the eruption catalogue, which
+    is a different file and a different question.
+
+    Higher labels first. 0 never labels.
+    """
+    if epoch != "Holocene":
+        return 0
+    try:
+        y = int(year)
+    except (TypeError, ValueError):
+        return 1
+    if y >= 2000:
+        return 5
+    if y >= 1900:
+        return 4
+    if y >= 1500:
+        return 3
+    return 2
+
+
 def activity_of(year):
     """Recency bands, named for the record rather than for a status."""
     if year in (None, "", "Unknown"):
@@ -165,6 +193,7 @@ def main():
                     "activity": activity_of(year) if epoch == "Holocene"
                                 else "Pleistocene (no Holocene eruption)",
                     "epoch": epoch,
+                    "label_rank": label_rank(year, epoch),
                     "volcano_type": raw_type or None,
                     "landform": p.get("Volcanic_Landform"),
                     "last_eruption": year,

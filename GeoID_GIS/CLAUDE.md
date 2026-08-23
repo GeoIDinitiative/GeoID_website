@@ -672,7 +672,39 @@ characters, with `gvp_url` carrying anyone who wants the rest to the citable
 record.
 
 It is an ordinary catalogue layer, so symbology, the layer box, the legend,
-extraction and export work on it already. A catalogue entry may now name a
+extraction and export work on it already — and, since the fixes below, clicking
+and naming as well.
+
+**POINT FEATURES WERE NOT CLICKABLE, and nothing said so.** `featureInLayer` in
+`feature-popup.js` searched polygons and lines and returned null for anything
+else, so every point layer on the globe was inert: 2,666 volcanoes each with a
+name, a type, an eruption history and a paragraph of geology, and a click on
+Vesuvius behaved exactly like a click on open ocean. A point has no interior,
+so the test is distance against the same screen-derived tolerance the lines
+use. The card that opens is the VIEWER's own (`showFeatureCard`), not
+`#gis-feature-popup` — `showStack` prefers it and hides the local one, which is
+worth knowing before spending an hour probing for the wrong element.
+
+**Labels: `point-labels.js`, and the job is CHOOSING.** 2,666 names is a white
+globe. Two filters, because neither is enough alone: RANK, from a `label_rank`
+property the bake computes (eruption recency — 231 rank-5 volcanoes, and the
+layer never invents significance the record does not support), and ROOM, since
+rank alone still puts 231 names on one hemisphere. A candidate is dropped if a
+higher-ranked one has already claimed the screen space near it, both re-decided
+as the camera moves — so zooming in frees room and the next rank down appears,
+and the density is the same at every scale. Measured: 231 candidates, 37
+labels at a global view, no two overlapping. Any point layer carrying
+`label_rank` gets the control; cities or landforms would need nothing added.
+
+**`sizeAttenuation: false` sizes a sprite in CLIP space, not pixels** — a scale
+of 1 fills the viewport. Taking the scale from world units instead makes the
+type grow as you zoom in, which is the one thing a label must not do.
+
+**One catalogue, two lists, and a control that changes something the import
+manager cannot see.** Ticking already stayed in step because both lists redraw
+on the manager's change event; the Names toggle does not go through the
+manager, so pressing it in Locations left Vectors & Shapes still offering to
+turn labels on. `refreshCatalogues()` redraws every mounted list. A catalogue entry may now name a
 `colourBy` column: `rankColourFields` would have picked `country` for this one
 — a hundred hues saying nothing about volcanoes.
 

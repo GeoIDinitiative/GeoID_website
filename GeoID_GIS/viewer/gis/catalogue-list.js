@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260823-feb0f36";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260823-1bc2955";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -59,6 +59,11 @@ const STYLE = `
   cursor: pointer;
 }
 .gis-catalogue-sym:hover { border-color: rgba(255, 255, 255, 0.5); }
+/* A toggle that is ON says so: the same button, filled. */
+.gis-catalogue-sym.is-on {
+  border-color: rgba(var(--nav-accent-rgb), 0.9);
+  background: rgba(var(--nav-accent-rgb), 0.22);
+}
 
 /* A dropdown that scrolls, so a catalogue can grow without taking the panel.
    The tick boxes are unchanged -- this is a lid over the same list. */
@@ -122,6 +127,25 @@ function installStyle() {
 const openState = new Map();
 
 /**
+ * Every catalogue currently on the page, so one can redraw the others.
+ *
+ * The same catalogue is drawn in two places -- the Vectors & Shapes tab and
+ * Explorer's Locations list -- and a control pressed in one has to be true in
+ * both. Ticking already works, because both lists ask the catalogue on the
+ * import manager's change event. A control that changes something the import
+ * manager does not know about does not: pressing Names in one list left the
+ * other still offering to turn them on.
+ */
+const drawn = new Map();
+
+export function refreshCatalogues() {
+  drawn.forEach(({ entries, hooks }, host) => {
+    if (host.isConnected) renderCatalogue(host, entries, hooks);
+    else drawn.delete(host);
+  });
+}
+
+/**
  * Draw a catalogue into `host`.
  *
  * @param {HTMLElement} host
@@ -135,6 +159,7 @@ const openState = new Map();
  */
 export function renderCatalogue(host, entries, hooks) {
   if (!host) return;
+  drawn.set(host, { entries, hooks });
   installStyle();
   host.textContent = "";
   host.className = "";
@@ -217,6 +242,31 @@ export function renderCatalogue(host, entries, hooks) {
     if (entry.title) name.title = entry.title;
 
     row.append(tick, name);
+
+    /**
+     * A layer whose data says which points are worth naming offers the names.
+     *
+     * Offered from the data rather than from a list of layer ids: any point
+     * dataset carrying `label_rank` gets the control, so cities or named
+     * landforms would need nothing added here. Off by default -- names on a
+     * globe are a choice, and 231 of them uninvited is a worse map.
+     */
+    if (layer && window.GeoIDPointLabels?.canLabel?.(layer)) {
+      const on = window.GeoIDPointLabels.isLabelled(layer);
+      const names = document.createElement("button");
+      names.type = "button";
+      names.className = `gis-catalogue-sym${on ? " is-on" : ""}`;
+      names.textContent = "Names";
+      names.title = on
+        ? `Hide the names on ${entry.label}`
+        : `Name the most significant on ${entry.label}`;
+      names.addEventListener("click", async () => {
+        await window.GeoIDPointLabels.setLabels(layer, !on);
+        // Every list, not this one: the same layer is offered in two places.
+        refreshCatalogues();
+      });
+      row.appendChild(names);
+    }
 
     // Only where there is something to symbolise: a layer that is not on the
     // globe has no attributes to colour by and no legend to write.
