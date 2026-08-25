@@ -32,6 +32,7 @@ export const GROUPS = ["Physical", "Boundaries", "Tectonics", "Hazards", "Region
 export const DATASETS = [
   {
     id: "coastline-10m",
+    featureNoun: "Coastline",
     group: "Physical",
     label: "Coastlines — global (Natural Earth 1:10m)",
     path: "/data/global/coastline_10m.geojson",
@@ -41,6 +42,7 @@ export const DATASETS = [
   },
   {
     id: "rivers-10m",
+    featureNoun: "River",
     group: "Physical",
     label: "Rivers and lake centrelines — global (Natural Earth 1:10m)",
     path: "/data/global/rivers_10m.geojson",
@@ -50,6 +52,7 @@ export const DATASETS = [
   },
   {
     id: "lakes-10m",
+    featureNoun: "Lake",
     group: "Physical",
     label: "Lakes — global (Natural Earth 1:10m)",
     path: "/data/global/lakes_10m.geojson",
@@ -59,6 +62,7 @@ export const DATASETS = [
   },
   {
     id: "geographic-lines",
+    featureNoun: "Geographic line",
     group: "Physical",
     label: "Equator, tropics and polar circles",
     path: "/data/global/graticule_lines.geojson",
@@ -68,6 +72,7 @@ export const DATASETS = [
   },
   {
     id: "boundaries-10m",
+    featureNoun: "Country border",
     group: "Boundaries",
     label: "Country borders — global (Natural Earth 1:10m)",
     path: "/data/global/boundaries_10m.geojson",
@@ -77,6 +82,7 @@ export const DATASETS = [
   },
   {
     id: "countries-50m",
+    featureNoun: "Country",
     group: "Boundaries",
     label: "Countries as polygons (Natural Earth 1:50m)",
     path: "/data/global/countries_50m.geojson",
@@ -88,6 +94,7 @@ export const DATASETS = [
   },
   {
     id: "plate-boundaries",
+    featureNoun: "Plate boundary",
     group: "Tectonics",
     label: "Plate boundaries — global (Bird 2003)",
     url: "https://raw.githubusercontent.com/fraxen/tectonicplates/master/GeoJSON/PB2002_boundaries.json",
@@ -99,6 +106,7 @@ export const DATASETS = [
   },
   {
     id: "active-faults",
+    featureNoun: "Active fault",
     group: "Tectonics",
     label: "Active faults — global (GEM)",
     url: "https://raw.githubusercontent.com/GEMScienceTools/gem-global-active-faults"
@@ -110,6 +118,7 @@ export const DATASETS = [
   },
   {
     id: "stress-vectors",
+    featureNoun: "Stress measurement",
     group: "Tectonics",
     label: "Stress orientations — measurements (World Stress Map)",
     path: "/data/global/stress-vectors.geojson",
@@ -152,6 +161,7 @@ export const DATASETS = [
   },
   {
     id: "volcanoes",
+    featureNoun: "Volcano",
     group: "Hazards",
     label: "Volcanoes — global (Smithsonian GVP)",
     path: "/data/global/volcanoes.geojson",
@@ -173,6 +183,7 @@ export const DATASETS = [
   },
   {
     id: "ni-rivers",
+    featureNoun: "River",
     group: "Regional",
     label: "Rivers — Northern Ireland (OpenStreetMap)",
     path: "/ni-prototype/data/ni_rivers.geojson",
@@ -267,6 +278,24 @@ export async function addDataset(id, onStatus = () => {}) {
     return { ok: false, message };
   }
   const layer = loadedLayer(entry);
+  /**
+   * What ONE of these features is, in words.
+   *
+   * The click card had only the geometry to go on and headed a stress
+   * measurement "Mapped line" — true of a coastline, a river, a fault and a
+   * border alike, and therefore useless on all of them. A catalogue that knows
+   * it is shipping faults can say so, and does; the geometry stays as the
+   * fallback for a file somebody dropped, which really is just a line.
+   */
+  if (layer && entry.featureNoun) layer.featureNoun = entry.featureNoun;
+  // The colours the layer is WEARING, so the symbology dialog opens on them
+  // rather than proposing the generic palette over the top of a published
+  // convention. The FIELD travels with them: the dialog has to know that this
+  // palette belongs to `regime` and not to whichever column is selected, or
+  // exploring by method and coming back would quietly lose it.
+  if (layer && entry.colours) {
+    layer.cataloguePalette = { field: entry.colourBy, colours: entry.colours };
+  }
   /**
    * A dataset that names the column worth colouring by gets it on arrival.
    *

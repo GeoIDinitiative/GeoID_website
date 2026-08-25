@@ -37,6 +37,17 @@ export const RAMPS = {
   "terrain": [[0, 97, 71], [160, 190, 120], [232, 220, 150], [180, 140, 90], [255, 255, 255]],
   "greys": [[255, 255, 255], [189, 189, 189], [115, 115, 115], [37, 37, 37], [0, 0, 0]],
   "spectral": [[158, 1, 66], [244, 109, 67], [255, 255, 191], [102, 194, 165], [94, 79, 162]],
+  /**
+   * A ramp that ENDS WHERE IT STARTED, for angles.
+   *
+   * An orientation is not a quantity: SHmax at 1° and at 179° are two degrees
+   * apart, and every ramp above paints them at opposite ends of the scale, so
+   * the one map the World Stress Map exists to make comes out with a false
+   * seam running through it. Slope aspect and wind direction have the same
+   * shape. The first and last stops are the same colour, so 0 and 180 (or 0
+   * and 360) read as what they are — the same direction.
+   */
+  "cyclic": [[236, 231, 242], [67, 133, 205], [37, 42, 92], [176, 62, 82], [236, 231, 242]],
 };
 
 export const RAMP_NAMES = Object.keys(RAMPS);

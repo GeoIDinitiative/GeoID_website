@@ -112,6 +112,21 @@ METHOD_NAME = {
     "BS": "Borehole slotter",
     "SWB": "Shear wave splitting",
     "PC": "Petal centreline fracture",
+    # Five codes named by their FAMILY, and not further.
+    #
+    # 299 A-C records carry a code this map did not have, and they showed in
+    # the legend as bare abbreviations beside spelled-out neighbours. The WSM's
+    # codes are built on a stem - BO for a breakout, GF for a geological
+    # indicator, HF for a hydraulic test - so the family is certain from the
+    # code itself. What each VARIANT letter stands for is not something this
+    # file should assert from inference: a wrong method name on a scientific
+    # layer is worse than an abbreviation, so the code stays in the label and a
+    # reader can look it up against the WSM documentation.
+    "BOC": "Borehole breakout (BOC)",
+    "BOT": "Borehole breakout (BOT)",
+    "GFS": "Geological fault-slip (GFS)",
+    "GFM": "Geological fault-slip (GFM)",
+    "HFG": "Hydraulic fracturing (HFG)",
 }
 
 SOURCE = {

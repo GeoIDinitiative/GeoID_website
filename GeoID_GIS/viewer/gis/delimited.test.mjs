@@ -175,6 +175,33 @@ check("a mixed row is a header", looksLikeHeader(["station", "37.75", "1200"]));
   eq("the countable one still is", ranked, ["kind"]);
 }
 
+/* ── numbers are not names ────────────────────────────────────────────────
+ *
+ * The distinct count alone cannot tell a magnitude from an identifier, and the
+ * symbology picker needs to: a numeric column with 200+ values is the one most
+ * worth CLASSING, while a text column with 200+ values is an id and worth
+ * nothing. `s1_mpa` (193 readings) and `wsm_id` (32,464) both looked like "too
+ * many to colour by", so a stress magnitude could not be mapped at all.
+ */
+{
+  const rows = [
+    { properties: { depth: 1.5, code: "BO", flag: true, blank: "", mixed: "12" } },
+    { properties: { depth: "40", code: "FMS", flag: false, blank: "", mixed: "x" } },
+    { properties: { depth: -3, code: "OC", flag: true, blank: "", mixed: "7" } },
+  ];
+  const by = Object.fromEntries(attributeHead(rows).columns.map((c) => [c.key, c]));
+  check("a column of numbers says so", by.depth.numeric === true);
+  eq("with the range it covers", [by.depth.min, by.depth.max], [-3, 40]);
+  check("a number written as text still counts", by.depth.numeric === true,
+    "the CSV path hands every value over as a string");
+  check("but one non-number disqualifies the column", by.mixed.numeric === false);
+  check("a column of codes is not numeric", by.code.numeric === false);
+  check("and neither are booleans, whatever Number() says of them",
+    by.flag.numeric === false);
+  check("an empty column claims no range", by.blank.numeric === false);
+  eq("and no bounds either", [by.blank.min, by.blank.max], [null, null]);
+}
+
 check("no features, no head", attributeHead([]).columns.length === 0);
 check("and nothing to rank", rankColourFields(attributeHead([])).length === 0);
 

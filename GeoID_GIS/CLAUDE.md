@@ -602,6 +602,69 @@ convention S1 ≥ S2 ≥ S3, but wsm00025 carries S1 11.5, S2 5.5, S3 6.3 MPa, a
 "intermediate" over a number smaller than the one below it is the app inventing
 an order the record does not have.
 
+## "Mapped line" was the card's answer for everything
+
+The click card had only the geometry to go on, so a stress measurement, a
+coastline, a river, a border and a named fault were all headed **Mapped line** —
+a word that cannot be wrong and cannot help. Two fixes, both small:
+
+- A catalogue entry carries a **`featureNoun`**, put on the layer by
+  `addDataset` and preferred by `featureKind`. The geometry stays as the
+  fallback, because a file somebody dropped on the globe really is just a line
+  until it says otherwise.
+- **`kindOf` learned `slip_type` and `method`** — a GEM fault says how it moves
+  and a WSM record says how it was measured, and both are the answer to "what
+  IS this". Measured: a fault now reads *ACTIVE FAULT / Tazimi Fault / Normal*
+  and a stress record *STRESS MEASUREMENT / Focal mechanism (single event)*.
+
+## Symbology: a column of NUMBERS is not a column of names
+
+The dialog had one vector mode — categories — and it was quietly refusing the
+most interesting half of a scientific layer. `attributeHead` counted distinct
+values and nothing else, so `s1_mpa` (193 readings) came out as twelve
+arbitrary hues plus an "other" holding the rest, and `depth_km` (200+) was
+**disabled outright**: a stress magnitude could not be mapped at all. The
+breaks already existed for the rasters.
+
+- `attributeHead` now reports `numeric` and the column's `min`/`max`. That is
+  the discriminator the count could never be: `s1_mpa` and `wsm_id` are both
+  "too many values" and only one of them wants classes.
+- `paintByRange` is the graduated counterpart to `paintByField`, over the same
+  `buildSymbology` the rasters use, so a vector and a raster cut the same
+  numbers the same way. The picker offers a numeric column by its RANGE
+  ("s1_mpa — -21.5 to 146") rather than by a count of readings.
+- **A feature with no value is left uncoloured.** 249 of the 32,464 stress
+  records carry a magnitude; painting the other 32,215 the bottom class would
+  say they were measured at the low end. The dialog says so in words under the
+  class list.
+
+**An orientation is not a quantity.** SHmax at 1° and at 179° are two degrees
+apart, and every sequential ramp paints them at opposite ends of the scale — a
+false seam through the one map the WSM exists to make. So there is a `cyclic`
+ramp whose first and last stops are the same colour, angular fields default to
+it, and they class by EQUAL INTERVAL rather than quantile: quantile bands would
+depend on how densely each direction happened to be sampled, and two maps of
+the same field over different subsets would disagree about where the classes
+are.
+
+Two traps found by measuring rather than reading:
+
+- **`rampColour` answers for an unknown ramp name with viridis.** So a
+  qualitative ramp asked for on a numeric classing painted a perfectly correct
+  map under a control that said "qualitative" — the map right and the legend
+  lying, which is the worse of the two. Refused explicitly in `paintByRange`
+  now, and the select follows the column.
+- **The dialog proposed throwing the WSM's colours away.** A catalogue entry's
+  palette rides on the layer as `cataloguePalette` (with the field it belongs
+  to) and re-seeds whenever that column is selected — including on the way BACK
+  from exploring another one, which is where it was lost.
+
+Five WSM method codes had no name and showed in the legend as bare
+abbreviations: BOC, BOT, GFS, GFM, HFG, 299 records. They are named by their
+FAMILY and no further — the code's stem is unambiguous, what each variant
+letter means is not something to infer, and a wrong method name on a scientific
+layer is worse than an abbreviation.
+
 ## Basemap and Relief is ONE list
 
 The tab offered one dropdown, and a dropdown says these things are

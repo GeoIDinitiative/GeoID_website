@@ -10,7 +10,8 @@
  */
 
 import {
-  paintByField, paintSingle, geometrySummary, DEFAULT_SINGLE,
+  paintByField, paintByRange, paintSingle, geometrySummary, isAngularField,
+  DEFAULT_SINGLE,
 } from "./symbology-dialog.js";
 
 let passed = 0;
@@ -151,6 +152,76 @@ check("one colour labels its legend row with the geometry, not the layer name", 
 check("a layer with nothing to colour refuses rather than throwing", () => {
   eq(paintByField(fakeLayer([]), "scalerank").ok, false, "no features");
   eq(paintSingle({ name: "x" }).ok, false, "no repaint");
+});
+
+/* ── numbers, in classes ──────────────────────────────────────────────────
+ *
+ * `paintByField` treats every column as a set of names. On `s1_mpa` that gave
+ * twelve arbitrary hues and an "other" holding most of the layer, and on
+ * `depth_km` — over 200 distinct values — the picker refused the column
+ * outright. A measurement wants breaks.
+ */
+const numbered = (values) => values.map((v) => ({
+  geometry: { type: "LineString" },
+  properties: v === null ? {} : { mpa: v },
+}));
+
+check("a numeric column is cut into classes, not listed", () => {
+  const layer = fakeLayer(numbered([1, 2, 3, 4, 10, 20, 30, 40, 100, 200]));
+  const sym = paintByRange(layer, "mpa", { method: "equal", classes: 4 });
+  eq(sym.ok, true, sym.message);
+  eq(sym.rows.length, 4, "four classes asked for");
+  eq(layer.painted.length, 10, "every feature answered");
+  eq(layer.painted[0], sym.rows[0].colour, "the smallest is in the first class");
+  eq(layer.painted[9], sym.rows[3].colour, "the largest in the last");
+});
+
+check("a feature with no value is left uncoloured, not put in the bottom class", () => {
+  // 249 of the 32,464 stress records carry a magnitude. Painting the rest the
+  // low class would say they were measured at the low end.
+  const layer = fakeLayer(numbered([5, null, 50, null, 500]));
+  const sym = paintByRange(layer, "mpa", { classes: 3 });
+  eq(sym.ok, true, sym.message);
+  eq(layer.painted[1], null, "no value, no colour");
+  eq(layer.painted[3], null, "and again");
+  eq(typeof layer.painted[0], "string", "a value still gets one");
+});
+
+check("the legend says which column the classes are of", () => {
+  const layer = fakeLayer(numbered([1, 2, 3, 4, 5, 6]));
+  paintByRange(layer, "mpa", { classes: 3 });
+  eq(layer.legendInfo.field, "mpa", "the quantity, beside its bounds");
+  eq(layer.legendInfo.categorical, false, "and not as a list of names");
+  eq(layer.rangeSpec.field, "mpa", "reopening proposes what it is wearing");
+});
+
+check("a ramp that does not exist is replaced, not silently substituted", () => {
+  // rampColour answers for an unknown name with viridis, so asking for the
+  // qualitative palette here paints a correct map under a legend naming a
+  // palette it is not using.
+  const layer = fakeLayer(numbered([1, 5, 9]));
+  const sym = paintByRange(layer, "mpa", { ramp: "qualitative", classes: 3 });
+  eq(sym.ramp, "viridis", "an ordered column gets an ordered ramp");
+  const angle = fakeLayer([{ geometry: { type: "LineString" }, properties: { azimuth: 10 } },
+    { geometry: { type: "LineString" }, properties: { azimuth: 170 } }]);
+  eq(paintByRange(angle, "azimuth", { ramp: "qualitative", classes: 2 }).ramp, "cyclic",
+    "and an angle gets one that comes back round");
+});
+
+check("angles are recognised by name, because the range cannot say it", () => {
+  // Depth in metres and an azimuth in degrees both live in 0-360; only one of
+  // them wraps.
+  eq(isAngularField("azimuth"), true);
+  eq(isAngularField("SHmax"), true, "case does not matter");
+  eq(isAngularField("aspect"), true);
+  eq(isAngularField("depth_km"), false);
+  eq(isAngularField("s1_mpa"), false);
+});
+
+check("a column with no numbers in it refuses rather than classing nothing", () => {
+  const layer = fakeLayer([{ geometry: { type: "LineString" }, properties: { mpa: "n/a" } }]);
+  eq(paintByRange(layer, "mpa").ok, false, "nothing to classify");
+  eq(paintByRange(fakeLayer([]), "mpa").ok, false, "no features at all");
 });
 
 if (failures.length) process.exitCode = 1;

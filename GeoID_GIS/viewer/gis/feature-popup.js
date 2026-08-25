@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-229a38f";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-229a38f";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-fdbb4e4";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-fdbb4e4";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -315,6 +315,10 @@ function kindOf(props) {
   return firstOf(props, [
     "feature_d", "featurecla", "rcs_d", "lex_rcs_d", "description", "type",
     "TYPE", "class", "CLASS", "waterway", "highway", "landuse", "natural",
+    // A GEM fault says how it moves and a WSM record says how it was measured.
+    // Both are the answer to "what IS this", and without them the card fell
+    // through to the geometry and said "Mapped line" over a named fault.
+    "slip_type", "method",
   ]);
 }
 
@@ -509,8 +513,19 @@ function buildDetail(feature, props) {
   return block;
 }
 
-/** What kind of thing was clicked, from its own geometry. */
-function featureKind(feature) {
+/**
+ * What kind of thing was clicked — from the LAYER first, its geometry after.
+ *
+ * Geometry alone gave "Mapped line", which is equally true of a coastline, a
+ * river, a fault, a border and a stress measurement, and therefore says
+ * nothing about any of them. A shipped dataset knows what it is made of and
+ * declares it (`featureNoun` in the catalogue), so a fault is headed as a
+ * fault. The geometry stays as the fallback, because a file somebody dropped
+ * on the globe really is just a line until it says otherwise.
+ */
+function featureKind(feature, layer = null) {
+  const noun = layer?.featureNoun;
+  if (typeof noun === "string" && noun.trim()) return noun.trim();
   const type = feature?.geometry?.type || "";
   if (type.includes("Polygon")) return "Mapped area";
   if (type.includes("LineString")) return "Mapped line";
@@ -571,7 +586,7 @@ function showViewerCard(hits, at) {
     .slice(0, 10)
     .map(([key, value]) => [fieldLabel(key), fieldValue(key, value)]);
   const feature = {
-    type: featureKind(top.feature),
+    type: featureKind(top.feature, top.layer),
     /**
      * The card reads `rock_type` for its heading and `name` for the line
      * under it, so both are set from here rather than left to fall through:
@@ -580,7 +595,7 @@ function showViewerCard(hits, at) {
      * failing both its geometry. The line under it carries the kind only when
      * the heading is a name, or the card says the same words twice.
      */
-    rock_type: name || kind || featureKind(top.feature),
+    rock_type: name || kind || featureKind(top.feature, top.layer),
     name: null,
     description: name && kind ? kind : null,
     origin: top.layer.name || null,
@@ -589,7 +604,7 @@ function showViewerCard(hits, at) {
     rows,
     stack: beneath.map(({ layer, feature: f }) => ({
       label: layer.name || "Layer",
-      unit: titleOf(f.properties || {}) || featureKind(f),
+      unit: titleOf(f.properties || {}) || featureKind(f, layer),
     })),
   };
   if (!viewer?.showFeatureCard?.(feature, at?.lat, at?.lon)) return false;

@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260826-229a38f";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260826-fdbb4e4";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
-  categoricalSymbology, buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260826-229a38f";
+  categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
+} from "./symbology.js?v=20260826-fdbb4e4";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -204,6 +204,11 @@ const STYLE = `
   gap: 0.4rem;
 }
 #gis-sym-dialog .sym-class input[type="text"] { flex: 1 1 auto; }
+#gis-sym-dialog .sym-class-note {
+  padding: 0.25rem 0.1rem 0;
+  font: 400 0.58rem/1.4 'Exo 2', sans-serif;
+  opacity: 0.7;
+}
 #gis-sym-dialog .sym-class-count {
   flex: 0 0 auto;
   font: 400 0.56rem/1.3 'Exo 2', sans-serif;
@@ -431,6 +436,86 @@ export function paintByField(layer, field, {
   return sym;
 }
 
+/**
+ * Fields that are ANGLES, and want a ramp that comes back round.
+ *
+ * Matched by name because the range cannot say it: depth in metres and an
+ * azimuth in degrees both live in 0–360, and only one of them wraps.
+ */
+const ANGULAR = /^(azimuth|shmax|shmax_deg|aspect|bearing|strike|dip_dir|direction|heading)$/i;
+
+export const isAngularField = (field) => ANGULAR.test(String(field || ""));
+
+/**
+ * Colour a vector layer by a NUMERIC column, in classes.
+ *
+ * `paintByField` treats every column as a set of names, which is right for a
+ * rock unit and wrong for a magnitude: 193 distinct values of `s1_mpa` came out
+ * as twelve arbitrary hues plus an "other" holding most of the layer, and a
+ * column with more than 200 distinct values was refused outright — so `depth_km`
+ * could not be mapped at all. A measurement wants breaks, and the breaks
+ * already exist in `symbology.js` for the rasters.
+ *
+ * The classing is `buildSymbology`'s, so a vector layer and a raster layer cut
+ * the same numbers the same way and their legends agree.
+ *
+ * @returns the symbology, or `{ok: false, message}`
+ */
+export function paintByRange(layer, field, {
+  method = "quantile", classes = 5, ramp = "viridis", reverse = false,
+  overrides = null,
+} = {}) {
+  // `rampColour` answers for an unknown name by returning viridis, which means
+  // a qualitative ramp asked for here paints a correct map under a legend that
+  // names a palette it is not using. Refuse the substitution by making it
+  // explicit instead.
+  if (!RAMPS[ramp]) ramp = isAngularField(field) ? "cyclic" : "viridis";
+  if (!layer?.features?.length || !field) {
+    return { ok: false, message: "nothing to colour" };
+  }
+  const values = layer.features
+    .map((f) => Number(f?.properties?.[field]))
+    .filter((n) => Number.isFinite(n));
+  if (values.length < 2) {
+    return { ok: false, message: `${field} has no numbers to classify` };
+  }
+  const sym = buildSymbology(values, { method, classes, ramp, reverse });
+  if (!sym.ok) return sym;
+  if (overrides) {
+    sym.rows.forEach((row, i) => {
+      const chosen = overrides.get(i);
+      if (chosen) row.colour = chosen;
+    });
+    sym.palette = sym.rows.map((r) => r.colour);
+  }
+  /**
+   * A feature with NO value keeps no colour at all.
+   *
+   * 249 of the 32,464 stress records carry a magnitude. Painting the other
+   * 32,215 the bottom class would say they were measured at the low end, which
+   * is the one thing the database is careful not to claim — so they return
+   * null and stay in the layer's base colour, visibly not part of the scale.
+   */
+  layer.repaint?.((feature) => {
+    const raw = feature?.properties?.[field];
+    const n = raw == null || String(raw).trim() === "" ? NaN : Number(raw);
+    return Number.isFinite(n) ? colourOf(n, sym) : null;
+  });
+  // `field` alongside the legend, the same as the categorical path sets it:
+  // the legend dock and the export both read it to say what the colours are
+  // OF, and a key with bounds and no quantity is half a legend.
+  layer.legendInfo = { ...legendInfoFrom(sym, { label: field }), field, categorical: false };
+  layer.geologyField = field;
+  layer.geologyRamp = ramp;
+  layer.geologyLabels = null;
+  // What the dialog must reopen on, so returning to adjust a classing does not
+  // propose undoing it.
+  layer.rangeSpec = { field, method, classes, ramp, reverse };
+  layer.symbologySingle = null;
+  if (typeof window !== "undefined") window.GeoIDLayerHierarchy?.render?.();
+  return sym;
+}
+
 /** The colour a line layer is drawn in before anybody chooses one. */
 export const DEFAULT_SINGLE = "#8ef6c4";
 
@@ -497,10 +582,61 @@ function hasAreas(layer) {
   });
 }
 
+/**
+ * A column as the picker should offer it.
+ *
+ * "200+ values" is what a picker says when it has only counted. For a
+ * measurement it is also the wrong thing to say: what a reader needs in order
+ * to choose `s1_mpa` is its RANGE, and the count of distinct readings is an
+ * accident of how many boreholes reported to one decimal place.
+ */
+function describeColumn(column) {
+  if (column.numeric && column.distinct > 2) {
+    return `${column.key} — ${fmtBound(column.min)} to ${fmtBound(column.max)}`;
+  }
+  return `${column.key} — ${column.capped ? `${column.distinct}+` : column.distinct} `
+    + `value${column.distinct === 1 ? "" : "s"}`;
+}
+
 function buildVectorForm(layer, body, note, hooks) {
   const head6 = attributeHead(layer.features, { rows: 6 });
   const ranked = rankColourFields(head6);
   const lines = !hasAreas(layer);
+  const columnOf = new Map(head6.columns.map((c) => [c.key, c]));
+  /**
+   * A column of NUMBERS is classed, not listed.
+   *
+   * `rankColourFields` refuses anything with more than sixty distinct values,
+   * which is correct for names and exactly backwards for measurements — it is
+   * the magnitudes and the depths that most want a legend. So the two kinds of
+   * column take two different halves of this form, and which half is decided
+   * here, once.
+   */
+  const isRange = (key) => {
+    const column = columnOf.get(key);
+    return Boolean(column?.numeric && column.distinct > 2);
+  };
+  /**
+   * What a column should be coloured with before anybody says otherwise.
+   *
+   * A graduated legend along a qualitative palette is twelve unrelated hues
+   * over an ordered scale, and a category list along a sequential one is four
+   * consecutive shades of the same blue. An ANGLE wants a third thing again:
+   * a ramp that ends where it started, so 0° and 180° — the same orientation —
+   * are the same colour rather than the two ends of the scale.
+   */
+  const defaultRamp = (key) => {
+    if (!isRange(key)) return QUALITATIVE_RAMP;
+    return isAngularField(key) ? "cyclic" : "viridis";
+  };
+  /**
+   * And how to cut it. Quantile everywhere except an angle, where the bands
+   * would then depend on how densely each direction happens to have been
+   * sampled — two maps of the same field over different subsets would disagree
+   * about where the classes are. Equal bands of degrees are what a rose diagram
+   * has always used, and they mean the same thing on every dataset.
+   */
+  const defaultMethod = (key) => (isAngularField(key) ? "equal" : "quantile");
   const state = {
     /**
      * A LINE layer opens on single colour; an area layer opens on its columns.
@@ -515,9 +651,57 @@ function buildVectorForm(layer, body, note, hooks) {
     single: layer.symbologySingle || DEFAULT_SINGLE,
     field: layer.geologyField || ranked[0] || head6.columns[0]?.key,
     ramp: layer.geologyRamp || QUALITATIVE_RAMP,
+    // The numeric half's own two controls, reopened on what the layer wears.
+    method: layer.rangeSpec?.method || null,
+    classes: layer.rangeSpec?.classes || 5,
+    /**
+     * Set by the ramp CONTROL, not by the layer.
+     *
+     * It was `Boolean(layer.geologyRamp)`, and every catalogue layer arrives
+     * with one — so the flag was true before the dialog opened, the select
+     * never followed the column, and picking a magnitude left it reading
+     * "qualitative" while the classes drew in viridis. (`rampColour` falls back
+     * to viridis for a name it does not know, so the map was right and the
+     * control lied about it, which is the worse of the two.) A ramp the USER
+     * picks is theirs and survives a change of column; otherwise the ramp
+     * follows what the column is.
+     */
+    rampChosen: false,
+    /**
+     * Keyed by VALUE for categories and by class INDEX for ranges, which is
+     * why they are two maps: a category's colour belongs to "Normal faulting"
+     * however the classing changes, and a class's colour belongs to the third
+     * band whatever numbers are in it.
+     */
     overrides: new Map(),
+    rangeOverrides: new Map(),
     labels: new Map(layer.geologyLabels || []),
   };
+  /**
+   * The colours the layer is ALREADY WEARING become the starting point.
+   *
+   * A catalogue entry may name the palette its discipline reads by — the WSM's
+   * red normal / green strike-slip / blue thrust is thirty years of published
+   * maps — and the dialog proposed the generic qualitative ramp over the top of
+   * it. Opening Symbology to change the class COUNT and pressing Apply threw
+   * the convention away, silently, having shown you the new colours in a list
+   * most people scroll past.
+   */
+  const seedPalette = () => {
+    const palette = layer.cataloguePalette;
+    if (!palette?.colours || palette.field !== state.field) return;
+    Object.entries(palette.colours).forEach(([value, colour]) => {
+      state.overrides.set(String(value), colour);
+    });
+  };
+  seedPalette();
+  // Whatever the layer wears, if it cannot mean anything on this column it is
+  // not what the dialog opens on: QUALITATIVE over a set of classes is the
+  // fallback-to-viridis case above.
+  if (isRange(state.field) === (state.ramp === QUALITATIVE_RAMP)) {
+    state.ramp = defaultRamp(state.field);
+  }
+  if (!state.method) state.method = defaultMethod(state.field);
 
   const modeRow = document.createElement("div");
   modeRow.className = "sym-row";
@@ -547,13 +731,36 @@ function buildVectorForm(layer, body, note, hooks) {
   head6.columns.forEach((column) => {
     const option = document.createElement("option");
     option.value = column.key;
-    option.textContent = `${column.key} — ${column.capped ? `${column.distinct}+` : column.distinct} `
-      + `value${column.distinct === 1 ? "" : "s"}`;
-    option.disabled = column.distinct < 2 || column.capped;
+    option.textContent = describeColumn(column);
+    // A numeric column is never refused for having too many values — that is
+    // the reason to CLASS it. `depth_km` was disabled outright at 200+.
+    option.disabled = column.distinct < 2 || (column.capped && !column.numeric);
     if (column.key === state.field) option.selected = true;
     fieldSelect.appendChild(option);
   });
   fieldRow.append(fieldLabel, fieldSelect);
+
+  /* The numeric half's controls: how to cut the range, and into how many. */
+  const methodRow = document.createElement("div");
+  methodRow.className = "sym-row";
+  const methodLabel = document.createElement("label");
+  methodLabel.textContent = "Classes by";
+  const methodSelect = document.createElement("select");
+  Object.entries(METHODS).forEach(([id, method]) => {
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = method.label;
+    if (id === state.method) option.selected = true;
+    methodSelect.appendChild(option);
+  });
+  const countInput = document.createElement("input");
+  countInput.type = "number";
+  countInput.min = "2";
+  countInput.max = "12";
+  countInput.value = String(state.classes);
+  countInput.style.width = "3.5rem";
+  countInput.addEventListener("keydown", (event) => event.stopPropagation());
+  methodRow.append(methodLabel, methodSelect, countInput);
 
   const rampRow = document.createElement("div");
   rampRow.className = "sym-row";
@@ -575,7 +782,7 @@ function buildVectorForm(layer, body, note, hooks) {
   headWrap.className = "sym-head-wrap";
   const classes = document.createElement("div");
   classes.className = "sym-classes";
-  body.append(fieldRow, rampRow, headWrap, classes);
+  body.append(fieldRow, methodRow, rampRow, headWrap, classes);
 
   const drawHead = () => {
     const table = document.createElement("table");
@@ -625,7 +832,67 @@ function buildVectorForm(layer, body, note, hooks) {
     headWrap.replaceChildren(table);
   };
 
+  /** The classing the numeric half is proposing, from the live controls. */
+  const rangeSymbology = () => buildSymbology(
+    layer.features.map((f) => Number(f?.properties?.[state.field]))
+      .filter((n) => Number.isFinite(n)),
+    {
+      method: state.method,
+      classes: Number(countInput.value) || state.classes,
+      ramp: state.ramp,
+    },
+  );
+
+  const drawRangeClasses = () => {
+    const sym = rangeSymbology();
+    classes.replaceChildren();
+    if (!sym.ok) {
+      classes.textContent = sym.message;
+      return;
+    }
+    const withValue = layer.features.filter(
+      (f) => Number.isFinite(Number(f?.properties?.[state.field])),
+    ).length;
+    sym.rows.forEach((row, i) => {
+      const line = document.createElement("div");
+      line.className = "sym-class";
+      const swatch = document.createElement("input");
+      swatch.type = "color";
+      swatch.value = state.rangeOverrides.get(i) || row.colour;
+      swatch.title = "Click to recolour this class";
+      swatch.addEventListener("input", () => state.rangeOverrides.set(i, swatch.value));
+      const label = document.createElement("input");
+      label.type = "text";
+      label.value = row.label;
+      // The bounds are computed, not named: an editable box here would invite
+      // somebody to type a range the renderer is not using.
+      label.readOnly = true;
+      const count = document.createElement("span");
+      count.className = "sym-class-count";
+      count.textContent = row.count.toLocaleString();
+      line.append(swatch, label, count);
+      classes.appendChild(line);
+    });
+    /**
+     * How many features the scale actually covers.
+     *
+     * 249 of the 32,464 stress records carry an S1 magnitude. A legend of five
+     * classes over a layer where 99% of the features have no value is not
+     * wrong, but it is the single most important thing to know before reading
+     * the map — so it is said here rather than left to be discovered.
+     */
+    if (withValue < head6.count) {
+      const missing = document.createElement("div");
+      missing.className = "sym-class-note";
+      missing.textContent = `${withValue.toLocaleString()} of `
+        + `${head6.count.toLocaleString()} features carry a value; the rest are `
+        + "left in the layer's own colour.";
+      classes.appendChild(missing);
+    }
+  };
+
   const drawClasses = () => {
+    if (isRange(state.field)) { drawRangeClasses(); return; }
     const sym = categoricalSymbology(layer.features, state.field, { ramp: state.ramp });
     classes.replaceChildren();
     if (!sym.ok) {
@@ -682,8 +949,12 @@ function buildVectorForm(layer, body, note, hooks) {
         + `${head6.columns.length} columns · all one colour`;
       return;
     }
+    const range = isRange(state.field);
+    methodRow.hidden = !range;
     bar.style.background = rampBar(rampSelect.value);
-    note.textContent = `${head6.count.toLocaleString()} features · ${head6.columns.length} columns`;
+    const column = columnOf.get(state.field);
+    note.textContent = `${head6.count.toLocaleString()} features · ${head6.columns.length} columns`
+      + (range ? ` · ${state.field} runs ${fmtBound(column.min)} to ${fmtBound(column.max)}` : "");
     drawClasses();
   };
 
@@ -694,12 +965,39 @@ function buildVectorForm(layer, body, note, hooks) {
   fieldSelect.addEventListener("change", () => {
     state.field = fieldSelect.value;
     state.overrides = new Map();
+    state.rangeOverrides = new Map();
     state.labels = new Map();
+    // Coming BACK to the column the catalogue named brings its palette with
+    // it. Without this, a look at `method` and a return to `regime` left the
+    // WSM's red/green/blue replaced by the generic ramp, one Apply from being
+    // the map somebody kept.
+    seedPalette();
+    if (!state.rampChosen) {
+      state.ramp = defaultRamp(state.field);
+      rampSelect.value = state.ramp;
+    }
+    if (!state.methodChosen) {
+      state.method = defaultMethod(state.field);
+      methodSelect.value = state.method;
+    }
     draw();
+  });
+  [methodSelect, countInput].forEach((control) => {
+    control.addEventListener("change", () => {
+      state.method = methodSelect.value;
+      state.methodChosen = true;
+      state.classes = Number(countInput.value) || state.classes;
+      // A different cut is different classes; a colour pinned to the old ones
+      // would land on an unrelated band of values.
+      state.rangeOverrides = new Map();
+      draw();
+    });
   });
   rampSelect.addEventListener("change", () => {
     state.ramp = rampSelect.value;
+    state.rampChosen = true;
     state.overrides = new Map();
+    state.rangeOverrides = new Map();
     draw();
   });
 
@@ -711,6 +1009,26 @@ function buildVectorForm(layer, body, note, hooks) {
         if (!out.ok) return out;
         hooks.status?.(`${layer.name}: one colour.`);
         return { ok: true, kind: "vector", single: state.single };
+      }
+      if (isRange(state.field)) {
+        const range = paintByRange(layer, state.field, {
+          method: state.method,
+          classes: Number(countInput.value) || state.classes,
+          ramp: state.ramp,
+          overrides: state.rangeOverrides,
+        });
+        if (!range.ok) return { ok: false, message: range.message };
+        hooks.status?.(`${layer.name} coloured by ${state.field}: `
+          + `${range.rows.length} classes by ${METHODS[range.method]?.label || range.method}.`);
+        return {
+          ok: true,
+          kind: "vector",
+          rows: range.rows,
+          field: state.field,
+          ramp: state.ramp,
+          method: range.method,
+          classes: range.rows.length,
+        };
       }
       const sym = paintByField(layer, state.field, {
         ramp: state.ramp, overrides: state.overrides, labels: state.labels,

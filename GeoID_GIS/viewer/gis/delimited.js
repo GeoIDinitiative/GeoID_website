@@ -249,14 +249,42 @@ export function attributeHead(features, { rows = 6, maxColumns = 80 } = {}) {
     const values = new Set();
     let filled = 0;
     let capped = false;
+    /**
+     * Whether the column is NUMBERS, and the range if it is.
+     *
+     * The distinct count alone cannot tell a magnitude from an identifier:
+     * `s1_mpa` has 193 values and `wsm_id` has 32,464, and both look like "too
+     * many to colour by" to a picker that only counts. One of them is a
+     * measurement that wants classes; the other is a name that wants nothing.
+     * So the type is measured here, once, where the values are already being
+     * walked, rather than each caller sampling a few rows and guessing.
+     */
+    let numeric = true;
+    let min = Infinity;
+    let max = -Infinity;
     list.forEach((f) => {
       const v = f?.properties?.[key];
       if (v === undefined || v === null || String(v).trim() === "") return;
       filled += 1;
       if (values.size < DISTINCT_CAP) values.add(String(v));
       else if (!values.has(String(v))) capped = true;
+      if (!numeric) return;
+      // Number("") is 0 and Number(" 12 ") is 12; the blank case is already
+      // filtered above, and a padded number is still a number.
+      const n = typeof v === "boolean" ? NaN : Number(v);
+      if (!Number.isFinite(n)) { numeric = false; return; }
+      if (n < min) min = n;
+      if (n > max) max = n;
     });
-    return { key, distinct: values.size, filled, capped };
+    return {
+      key,
+      distinct: values.size,
+      filled,
+      capped,
+      numeric: numeric && filled > 0,
+      min: numeric && filled > 0 ? min : null,
+      max: numeric && filled > 0 ? max : null,
+    };
   });
   return {
     count: list.length,
