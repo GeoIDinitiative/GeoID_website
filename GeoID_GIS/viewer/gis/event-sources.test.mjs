@@ -11,7 +11,7 @@
 import {
   SOURCES, FEED_GROUPS, sourceById, sourcesInGroup, activeGroups, groupState,
   defaultEnabled, usgsPoints, magnitudeSize, recencyOpacity,
-  MAGNITUDE_RAMP, magnitudeColour,
+  MAGNITUDE_RAMP, magnitudeColour, restoreSources,
 } from "./event-sources.js";
 
 let pass = 0;
@@ -81,6 +81,40 @@ check("some on is neither", groupState("seismic", (id) => id === seismic[0]),
   { total: 3, on: 1, all: false, none: false, indeterminate: true });
 check("an unknown group is empty rather than an error",
   groupState("nope", () => true), { total: 0, on: 0, all: false, none: true, indeterminate: false });
+
+/* ── restoring a remembered choice ───────────────────────────────────────── */
+
+/**
+ * The bug this section exists for: EONET was ONE row (`"eonet"`) covering every
+ * category, and splitting it into a row per category renamed that id out of
+ * existence. A plain `filter(sourceById)` then dropped it, so anybody who had
+ * used the mode before the split came back with the earthquakes and nothing
+ * else — no error, the panel and the globe agreeing with each other and both
+ * wrong.
+ */
+const eonetIds = SOURCES.filter((s) => s.kind === "eonet").map((s) => s.id);
+
+check("nothing stored gives the defaults",
+  [...restoreSources(null)].sort(), defaultEnabled().sort());
+check("rubbish stored gives the defaults",
+  [...restoreSources("wat")].sort(), defaultEnabled().sort());
+check("a set that leaves nothing on gives the defaults, not an empty map",
+  [...restoreSources(["gone", "also-gone"])].sort(), defaultEnabled().sort());
+check("a current set is kept exactly",
+  [...restoreSources(["quakes-day", "eonet-wildfires"])].sort(),
+  ["eonet-wildfires", "quakes-day"]);
+// The legacy id is EXPANDED, not dropped: it is a positive record of "show me
+// EONET", and every category is what it meant.
+const migrated = restoreSources(["eonet", "quakes-day"]);
+check("the old one-row EONET becomes every category",
+  eonetIds.every((id) => migrated.has(id)), true);
+check("and the feeds beside it are untouched", migrated.has("quakes-day"), true);
+check("the legacy id itself is not kept as a source", migrated.has("eonet"), false);
+// NOT recovered: a set that simply lacks EONET rows is what switching them all
+// off looks like, and putting them back would undo that by hand.
+check("switching every EONET feed off is respected",
+  [...restoreSources(["quakes-day", "quakes-week"])].sort(),
+  ["quakes-day", "quakes-week"]);
 
 /* ── the USGS conversion ──────────────────────────────────────────────────── */
 

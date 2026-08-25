@@ -175,6 +175,42 @@ export function groupState(groupId, isOn) {
 export const defaultEnabled = () => SOURCES.filter((s) => s.defaultOn).map((s) => s.id);
 
 /**
+ * A remembered choice, read back against a list that has since changed shape.
+ *
+ * **This is a migration, and it shipped broken without one.** EONET used to be
+ * ONE row (`"eonet"`) covering every category; splitting it into a row per
+ * category renamed that id out of existence, and the restore was a plain
+ * `filter(sourceById)` — so anybody who had used the mode before the split
+ * came back to a stored set whose only surviving ids were the earthquakes.
+ * Every EONET feed silently off, no error, the panel and the globe agreeing
+ * with each other and both wrong: "activating the events tab only adds the
+ * earthquakes", which is exactly how it was reported.
+ *
+ * Two recoveries, and the difference between them matters:
+ *
+ * - The legacy id is EXPANDED rather than dropped, because it is a positive
+ *   record of an intent — "show me EONET" — and every category is what it
+ *   meant.
+ * - An empty result falls back to the defaults. A stored set that leaves
+ *   nothing on is indistinguishable from a stale one, and a mode that draws
+ *   nothing reads as broken rather than as switched off.
+ *
+ * Deliberately NOT recovered: a set that simply lacks EONET rows. That is what
+ * somebody switching all of them off looks like, and second-guessing it would
+ * put feeds back on that they took off by hand.
+ */
+const LEGACY_EONET_ID = "eonet";
+
+export function restoreSources(saved) {
+  if (!Array.isArray(saved)) return new Set(defaultEnabled());
+  const ids = new Set(saved.filter((id) => sourceById(id)));
+  if (saved.includes(LEGACY_EONET_ID)) {
+    SOURCES.filter((src) => src.kind === "eonet").forEach((src) => ids.add(src.id));
+  }
+  return ids.size ? ids : new Set(defaultEnabled());
+}
+
+/**
  * A USGS summary feed to the marker shape the mode draws.
  *
  * Three things this has to get right, none of them visible afterwards:

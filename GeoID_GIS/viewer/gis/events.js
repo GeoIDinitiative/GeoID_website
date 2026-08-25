@@ -12,8 +12,8 @@
 
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
-  activeGroups, sourcesInGroup, groupState, defaultEnabled,
-} from "./event-sources.js?v=20260825-84cce23";
+  activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources,
+} from "./event-sources.js?v=20260825-eae6510";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -222,8 +222,10 @@ const RECENCY_WINDOW_MS = 7 * 24 * 3600 * 1000;
 const STORE_KEY = "geoid-gis:event-sources";
 let enabled = new Set(defaultEnabled());
 try {
-  const saved = JSON.parse(window.localStorage.getItem(STORE_KEY) || "null");
-  if (Array.isArray(saved)) enabled = new Set(saved.filter(sourceById));
+  // Through `restoreSources`, which knows what the ids used to be: a plain
+  // filter drops anything renamed since, and dropping the id EONET used to be
+  // stored under left returning users with the earthquakes and nothing else.
+  enabled = restoreSources(JSON.parse(window.localStorage.getItem(STORE_KEY) || "null"));
 } catch (error) { /* no storage, keep the defaults */ }
 
 function rememberSources() {

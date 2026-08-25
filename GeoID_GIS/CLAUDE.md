@@ -891,6 +891,26 @@ element: the list is rebuilt on every tick and every refresh, so DOM-held state
 springs shut under somebody working down it. Same reason the catalogue dropdown
 keeps its own.
 
+**Renaming a source id is a MIGRATION, and this one shipped without one.**
+EONET used to be a single row stored as `"eonet"`; splitting it into a row per
+category renamed that id out of existence while the restore was still a plain
+`saved.filter(sourceById)`. Anybody who had used the mode before the split
+therefore came back to a stored set whose only surviving ids were the
+earthquakes — every EONET feed silently off, no error, the panel and the globe
+agreeing with each other and both wrong. Reported exactly as "activating the
+events tab only adds the earthquakes to the map and legend", and reproduced by
+writing the old value into localStorage.
+
+`restoreSources()` is that migration, pure and tested: the legacy id is
+**expanded** rather than dropped, because it is a positive record of an intent
+("show me EONET") and every category is what it meant; an **empty** result
+falls back to the defaults, since a stored set that leaves nothing on is
+indistinguishable from a stale one and a mode drawing nothing reads as broken;
+and a set that simply LACKS EONET rows is left alone, because that is what
+switching them all off looks like and second-guessing it would undo a decision
+somebody made by hand. Verified against the real stale value: 161 earthquakes
+before, 222 natural events in 4 categories plus 161 earthquakes after.
+
 **EONET is one row per CATEGORY**, so turning one off is one fewer request —
 `feedUrls()` is derived from what is ticked rather than from a list in
 `events.js`. EONET's own `earthquakes` category is deliberately absent: it is
