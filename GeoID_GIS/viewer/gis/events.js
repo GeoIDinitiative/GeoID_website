@@ -11,9 +11,9 @@
 // as markers on the globe; when it is off nothing is fetched and nothing drawn.
 
 import {
-  SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity,
+  SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled,
-} from "./event-sources.js?v=20260825-8cb95ab";
+} from "./event-sources.js?v=20260825-4bb8135";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -165,7 +165,11 @@ const SYMBOLS = {
   seaLakeIce: { colour: "#bfe9ff", glyph: "◆", label: "Sea and lake ice" },
   floods: { colour: "#2f6bff", glyph: "▬", label: "Floods" },
   drought: { colour: "#d8b26a", glyph: "▬", label: "Drought" },
-  earthquakes: { colour: "#ffd166", glyph: "✳", label: "Earthquakes" },
+  // The middle of the magnitude ramp, and concentric rings for the glyph, so
+  // the legend and the list say the same thing as the markers do. The colour a
+  // single earthquake wears is `magnitudeColour`; this is what the CATEGORY
+  // looks like where one swatch has to stand for all of them.
+  earthquakes: { colour: "#ff5f3d", glyph: "◎", label: "Earthquakes" },
   landslides: { colour: "#c98b5e", glyph: "▼", label: "Landslides" },
   snow: { colour: "#e8f4ff", glyph: "❄", label: "Snow" },
   dustHaze: { colour: "#c2a878", glyph: "▨", label: "Dust and haze" },
@@ -720,6 +724,21 @@ function globeRadiusPx() {
 }
 
 /**
+ * How much larger an earthquake's rings run than a plain category dot, and how
+ * hard they breathe.
+ *
+ * Three rings inside eight pixels is a smudge; the symbol only means anything
+ * at a size it can be resolved at. The pulse is deliberately shallow -- enough
+ * to catch the eye as movement, not enough to make the map refuse to sit still
+ * while somebody reads it -- and it is slow, at a little under one cycle a
+ * second, because a fast pulse reads as an alarm.
+ */
+const QUAKE_SYMBOL_SCALE = 1.9;
+const PULSE_PERIOD_MS = 1600;
+const PULSE_SIZE = 0.16;
+const PULSE_OPACITY = 0.3;
+
+/**
  * Dot size in pixels: a fixed fraction of the globe, floored so a distant event
  * stays clickable and capped so a close one does not cover what it marks.
  */
@@ -773,9 +792,20 @@ function trackScale() {
     const px = globeRadiusPx();
     if (px > 0 && markers) {
       const size = dotSizePx(px);
+      // One phase for every marker, so a field of earthquakes pulses together
+      // rather than shimmering: per-marker phases read as noise on the screen.
+      const phase = (Math.sin((performance.now() / PULSE_PERIOD_MS) * Math.PI * 2) + 1) / 2;
       markers.children.forEach((points) => {
-        const want = size * (points.userData.sizeScale || 1);
+        const pulsing = points.userData.pulse;
+        const want = size * (points.userData.sizeScale || 1)
+          * (pulsing ? 1 + PULSE_SIZE * phase : 1);
         if (points.material.size !== want) points.material.size = want;
+        if (pulsing) {
+          // The glow, which is the bloom baked into the symbol coming up and
+          // down with it. Opacity rather than emissive anything: a
+          // PointsMaterial has no lighting to make brighter.
+          points.material.opacity = 0.95 - PULSE_OPACITY + PULSE_OPACITY * phase;
+        }
       });
     }
     sizeFrame = window.requestAnimationFrame(step);
@@ -801,6 +831,60 @@ function markerTexture() {
   markerSprite = new THREE.CanvasTexture(canvas);
   return markerSprite;
 }
+
+let quakeSprite = null;
+
+/**
+ * The earthquake symbol: three concentric rings, drawn white.
+ *
+ * A dot says "something is here", which is what every other category needs. An
+ * earthquake is a point source with energy radiating from it, and three rings
+ * say that in the shorthand every seismicity map has used for a century — and,
+ * unlike a dot, it stays legible when a dozen of them overlap along a
+ * subduction zone, because you can see through it to the ones behind.
+ *
+ * Painted WHITE and tinted per point by the vertex colour, so one texture
+ * serves the whole magnitude ramp rather than one canvas per band.
+ *
+ * The soft outer bloom is part of the texture rather than a second cloud: it
+ * is what makes the pulse read as a glow rather than as a marker changing
+ * size, and one texture is one draw call.
+ */
+function quakeTexture() {
+  if (quakeSprite || !THREE) return quakeSprite;
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  const c = size / 2;
+
+  // The bloom first, so the rings sit on top of it.
+  const glow = ctx.createRadialGradient(c, c, size * 0.16, c, c, c);
+  glow.addColorStop(0, "rgba(255,255,255,0.22)");
+  glow.addColorStop(0.6, "rgba(255,255,255,0.10)");
+  glow.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.strokeStyle = "rgba(255,255,255,1)";
+  ctx.lineCap = "round";
+  // Inner rings are drawn heavier: at a marker's real size on screen the outer
+  // ring is a couple of pixels, and an even weight loses the centre entirely
+  // -- which is the part that says where the earthquake was.
+  [[0.17, 0.085], [0.31, 0.062], [0.45, 0.045]].forEach(([r, w]) => {
+    ctx.lineWidth = size * w;
+    ctx.beginPath();
+    ctx.arc(c, c, size * r, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  quakeSprite = new THREE.CanvasTexture(canvas);
+  return quakeSprite;
+}
+
+/** Is this cloud one of the magnitude bands? */
+const isQuakeBand = (key) => String(key).startsWith("quake-");
 
 function renderMarkers() {
   const viewer = window.GeoIDViewer;
@@ -846,7 +930,11 @@ function renderMarkers() {
      * identically is a map of where faults are, which the fault layer already
      * says -- what the feed adds is when.
      */
-    const base = new THREE.Color(symbolFor(key).colour);
+    // Magnitude decides the colour, not the category: one hue for every
+    // earthquake wastes the only channel that carries magnitude at a glance.
+    const base = new THREE.Color(
+      isQuakeBand(key) ? magnitudeColour(bandMagnitude(key)) : symbolFor(key).colour,
+    );
     if (list.some((e) => Number.isFinite(e.timeMs))) {
       const colours = new Float32Array(list.length * 3);
       list.forEach((event, i) => {
@@ -860,7 +948,7 @@ function renderMarkers() {
     const points = new THREE.Points(geometry, new THREE.PointsMaterial({
       color: geometry.attributes.color ? new THREE.Color(0xffffff) : base,
       vertexColors: Boolean(geometry.attributes.color),
-      map: markerTexture(),
+      map: isQuakeBand(key) ? quakeTexture() : markerTexture(),
       // Sized in screen pixels rather than world units: at globe scale a
       // world-sized point is a speck, and it should stay legible at any zoom.
       size: 8,
@@ -895,9 +983,15 @@ function renderMarkers() {
     // The size the view gives every marker, times what this band earns. Held
     // here rather than written into `size`, because the per-frame scaler owns
     // that number and would otherwise flatten every band back to one size.
-    points.userData.sizeScale = String(key).startsWith("quake-")
-      ? magnitudeSize(bandMagnitude(key), 1)
+    // Earthquakes run larger than the flat 1x a category marker takes: three
+    // rings inside eight pixels is a smudge, and the symbol is the point.
+    points.userData.sizeScale = isQuakeBand(key)
+      ? magnitudeSize(bandMagnitude(key), 1) * QUAKE_SYMBOL_SCALE
       : 1;
+    // Only the earthquakes breathe. A pulse on everything is a map that will
+    // not sit still to be read; on the seismicity alone it says which markers
+    // are the live catalogue.
+    points.userData.pulse = isQuakeBand(key);
     markers.add(points);
   });
   (spinFrame() || viewer.earthSceneGroup || viewer.scene).add(markers);
@@ -975,15 +1069,16 @@ async function setActive(on) {
   document.body.dataset.events = active ? "true" : "false";
   const row = byId("gis-group-events");
   if (row) row.classList.toggle("is-armed", active);
-  const button = byId("events-mode-enter");
-  if (button) {
-    button.textContent = active ? "Exit" : "Enter";
-    // `is-armed` is the skin's own class for a live Enter button (the tour and
-    // moon sections wear it); `is-active` was the mode bar's, and the mode bar
-    // is what this section stopped being when it gained a body.
-    button.classList.toggle("is-armed", active);
-    button.classList.toggle("is-active", active);
-  }
+  // The control is a tick box, and it is set rather than read here: the mode
+  // is also entered by ticking a feed, by leaving GIS, and by removing the
+  // layer, and the box has to say what is true after any of those.
+  const box = byId("events-mode-toggle");
+  if (box) box.checked = active;
+  // Entering opens the section, so the feeds that were just switched on are in
+  // front of you instead of behind a fold. Leaving does NOT close it: putting
+  // the controls away the moment somebody switches the view off is the app
+  // deciding they are finished with them.
+  if (active && row) row.open = true;
   const host = byId("events-overlay");
   const panel = byId("events-panel");
   const toggle = byId("events-panel-toggle");
@@ -1277,14 +1372,12 @@ function showPopup(event, x, y) {
 }
 
 function init() {
-  // The mode button sits inside the section's <summary>, so a click on it is
-  // also a click on the summary: without this, entering the mode folds the
-  // panel of feeds you entered it to use.
-  byId("events-mode-enter")?.addEventListener("click", (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void setActive(!active);
-  });
+  // The tick sits inside the section's <summary>, so a click on it is also a
+  // click on the summary: without this, arming the mode folds away the panel
+  // of feeds it just switched on.
+  const modeBox = byId("events-mode-toggle");
+  modeBox?.addEventListener("click", (event) => event.stopPropagation());
+  modeBox?.addEventListener("change", () => { void setActive(modeBox.checked); });
   // The feeds are drawn before anything is fetched: ticking one is the way in.
   renderFeeds();
   const toggle = byId("events-panel-toggle");

@@ -769,6 +769,56 @@ pressing anything short of all-on turns the group on. A group's press moves
 five rows, so `refetchSoon()` debounces to **one** fetch round — measured, 11
 category requests and 1 USGS for a five-row press, not five passes.
 
+**The mode is a TICK BOX, not an Enter button.** Everything under it is a tick
+box and "is the live view on" is the same kind of question; the Enter/Exit pair
+was inherited from the myGeoID mode bar, which this section stopped being when
+it gained a body. It is **set** from `setActive` rather than read there, because
+the mode is also entered by ticking a feed, and left by leaving GIS or removing
+the layer — the box has to say what is true after any of those. Ticking opens
+the section (what it switched on should be in front of you); unticking does not
+close it, since putting the controls away the moment somebody switches the view
+off is the app deciding they are finished with them. Like the group masters it
+needs `stopPropagation`: inside a `<summary>`, a click on it is a click on the
+summary.
+
+### The earthquake symbol
+
+**Three concentric rings, not a dot.** A dot says "something is here", which is
+what every other category needs; an earthquake is a point source with energy
+radiating from it, and three rings say that in the shorthand seismicity maps
+have used for a century. They also survive crowding — a dozen overlapping along
+a subduction zone stay countable, because you can see through them.
+
+One white texture tinted per point by the vertex colour, so one canvas serves
+the whole ramp. Two details in drawing it: **the inner rings are stroked
+heavier** (0.085 / 0.062 / 0.045 of the canvas), because at a marker's real size
+on screen an even weight loses the centre — which is the part that says where
+the earthquake was; and **the soft bloom is baked into the texture** rather than
+being a second cloud, which is what makes the pulse read as a glow instead of a
+marker changing size. Earthquakes also run `QUAKE_SYMBOL_SCALE` (1.9×) larger
+than a category dot: three rings inside eight pixels is a smudge.
+
+**`magnitudeColour` deepens in HUE, not in brightness.** Magnitude drives the
+colour as well as the size, because from orbit an M4 and an M6 differ by a few
+pixels and by three orders of magnitude of energy. The first ramp ended at a
+deep crimson (#820f2e) — the obvious way to say "more" on paper and the wrong
+way on a black globe: multiplied by the recency fade, an older M8 came out
+**#170003**, the largest earthquake on the map drawn nearly invisible. Red now
+runs to 255 and stays there while green and blue fall away, and the test asserts
+exactly that rather than "darker".
+
+**The recency floor moved 0.4 → 0.65** for the same reason. 0.4 was right when
+the only feed was the past 24 hours and everything drawn was recent; with the
+week and month feeds on, most of the map sits at the floor — including every
+significant earthquake — so 0.4 of a colour was dimming the subject. Old is
+quieter, not absent.
+
+**Only the seismicity pulses**, on the rAF loop that already runs for the spin
+and the marker size, with **one phase shared by every cloud**: per-marker phases
+read as shimmer. Shallow (±16% size, ±0.3 opacity) and slow (1.6 s), because a
+map that will not sit still cannot be read and a fast pulse reads as an alarm.
+Measured live: size 17.9 ↔ 20.8 px, opacity 0.65 ↔ 0.95.
+
 **Every subsection arrives FOLDED.** Six open cards is a column of forty tick
 boxes and the tab reads as a wall; folded it reads as six subjects, and the
 master toggle beside each name is enough to work with without opening one at

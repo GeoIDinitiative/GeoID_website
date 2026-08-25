@@ -1,11 +1,11 @@
-import { wirePattern, wire } from "./spec-page.js?v=20260825-8cb95ab";
-import * as store from "./project-store.js?v=20260825-8cb95ab";
-import * as bridge from "./bridge.js?v=20260825-8cb95ab";
-import * as stats from "./stats.js?v=20260825-8cb95ab";
-import * as dsp from "./dsp.js?v=20260825-8cb95ab";
-import { linePlot } from "./plot.js?v=20260825-8cb95ab";
-import { column } from "./table.js?v=20260825-8cb95ab";
-import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260825-8cb95ab";
+import { wirePattern, wire } from "./spec-page.js?v=20260825-4bb8135";
+import * as store from "./project-store.js?v=20260825-4bb8135";
+import * as bridge from "./bridge.js?v=20260825-4bb8135";
+import * as stats from "./stats.js?v=20260825-4bb8135";
+import * as dsp from "./dsp.js?v=20260825-4bb8135";
+import { linePlot } from "./plot.js?v=20260825-4bb8135";
+import { column } from "./table.js?v=20260825-4bb8135";
+import { findTables, loadTable, saveFigure } from "./pages/common.js?v=20260825-4bb8135";
 
 /**
  * Behaviour for the controls the spec brings across.
@@ -350,7 +350,7 @@ async function writeCollection(name, collection, say) {
   say(`${(collection.features || []).length} feature(s) written to ${path}.`);
 }
 
-const geo = () => import(`../geoprocessing.js?v=20260825-8cb95ab`);
+const geo = () => import(`../geoprocessing.js?v=20260825-4bb8135`);
 
 wire("Vector Tools", {
   Buffer: async ({ say }) => {

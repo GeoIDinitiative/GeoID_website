@@ -11,6 +11,7 @@
 import {
   SOURCES, FEED_GROUPS, sourceById, sourcesInGroup, activeGroups, groupState,
   defaultEnabled, usgsPoints, magnitudeSize, recencyOpacity,
+  MAGNITUDE_RAMP, magnitudeColour,
 } from "./event-sources.js";
 
 let pass = 0;
@@ -152,19 +153,52 @@ for (let m = 1; m < 9; m += 0.5) {
 }
 check("size never falls as magnitude rises", monotone, true);
 
+/* ── magnitude as a colour ────────────────────────────────────────────────── */
+
+const rgbOf = (hexColour) => [1, 3, 5].map((i) => parseInt(hexColour.slice(i, i + 2), 16));
+
+check("the ramp is ordered by magnitude",
+  MAGNITUDE_RAMP.every((s, i) => i === 0 || s.m > MAGNITUDE_RAMP[i - 1].m), true);
+check("below the ramp takes its low end", magnitudeColour(0.5), magnitudeColour(2.0));
+check("above it takes the high end", magnitudeColour(11), magnitudeColour(8.0));
+// An undetermined magnitude is usually a small unreviewed event; painting it
+// mid-ramp states something the record does not.
+check("no magnitude takes the low end, not the middle",
+  magnitudeColour(null), magnitudeColour(2.0));
+check("a stop returns itself exactly", magnitudeColour(5.0), "#ff7a3c");
+// Halfway between two stops is halfway between two colours, or the ramp has
+// bands in it rather than a gradient.
+check("it interpolates between stops", magnitudeColour(4.25), "#ff9551");
+check("every value is a six-digit hex",
+  [1, 2, 3.7, 5, 6.2, 7, 9].every((m) => /^#[0-9a-f]{6}$/.test(magnitudeColour(m))), true);
+// Gradational RED: red stays high while green and blue fall away, so the ramp
+// deepens rather than wandering into another hue.
+const ramp = [2, 3.5, 5, 6.5, 8].map((m) => rgbOf(magnitudeColour(m)));
+check("green falls all the way up the ramp",
+  ramp.every((c, i) => i === 0 || c[1] <= ramp[i - 1][1]), true);
+check("and the reddest channel stays the red one",
+  ramp.every((c) => c[0] > c[1] && c[0] > c[2]), true);
+// It deepens in HUE, not in brightness. Ending in a dark crimson is the
+// obvious way to say "more" and the wrong way to say it on a black globe:
+// multiplied by the recency fade, an older M8 came out #170003 -- the largest
+// earthquake on the map, drawn nearly invisible.
+check("red never falls away", ramp.every((c) => c[0] >= 250), true);
+ok("the top of the ramp survives the recency floor",
+  Math.max(...ramp[4].map((v) => v * recencyOpacity(0, 1, 1))) > 120);
+
 /* ── recency ──────────────────────────────────────────────────────────────── */
 
 const now = 1745000000000;
 const day = 24 * 3600 * 1000;
 check("right now is full strength", recencyOpacity(now, now, day), 1);
-check("a full window back is the floor", recencyOpacity(now - day, now, day), 0.4);
+check("a full window back is the floor", recencyOpacity(now - day, now, day), 0.65);
 check("older than the window stays at the floor",
-  recencyOpacity(now - 10 * day, now, day), 0.4);
-check("half a window back is halfway", recencyOpacity(now - day / 2, now, day), 0.7);
+  recencyOpacity(now - 10 * day, now, day), 0.65);
+check("half a window back is halfway", recencyOpacity(now - day / 2, now, day), 0.825);
 // A clock skew must not brighten something past full.
 check("a future timestamp is clamped, not amplified",
   recencyOpacity(now + day, now, day), 1);
-check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.75);
+check("no timestamp gets a sensible middle", recencyOpacity(null, now, day), 0.82);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exitCode = 1;

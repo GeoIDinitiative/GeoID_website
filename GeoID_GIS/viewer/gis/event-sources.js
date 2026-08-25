@@ -235,16 +235,75 @@ export function magnitudeSize(magnitude, base = 6) {
 }
 
 /**
+ * Magnitude as a colour, along one gradational red ramp.
+ *
+ * One hue for every earthquake wastes the only channel that can carry
+ * magnitude at a glance, and size alone does not survive being looked at from
+ * orbit: an M4 and an M6 differ by a few pixels there, and by three orders of
+ * magnitude in released energy. The ramp runs pale through orange into a vivid
+ * red, so a busy plate boundary reads as a gradient rather than as a uniform
+ * scatter, and the top is reserved — an M7 is a colour nothing else on the map
+ * is wearing.
+ *
+ * **It deepens in HUE, not in brightness.** The first version ended at a deep
+ * crimson (#820f2e), which is the obvious way to say "more" on paper and the
+ * wrong way to say it on a black globe: multiplied by the recency fade an
+ * older M8 came out #170003 — the largest earthquake on the map, drawn nearly
+ * invisible. Red goes to 255 and stays there; green and blue fall away.
+ *
+ * Interpolated in plain sRGB, which is not perceptually uniform and does not
+ * need to be: these stops are close in hue, so the shortcut costs nothing a
+ * reader could see, and a colour space conversion here would be machinery for
+ * its own sake.
+ */
+export const MAGNITUDE_RAMP = [
+  { m: 2.0, rgb: [255, 224, 184] },
+  { m: 3.5, rgb: [255, 176, 102] },
+  { m: 5.0, rgb: [255, 122, 60] },
+  { m: 6.5, rgb: [255, 59, 48] },
+  { m: 8.0, rgb: [255, 31, 61] },
+];
+
+const hex = (rgb) => `#${rgb.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
+
+export function magnitudeColour(magnitude) {
+  // An undetermined magnitude takes the low end rather than the middle: it is
+  // usually a small event nobody has reviewed, and painting it as an M5 states
+  // something the record does not.
+  if (!Number.isFinite(magnitude)) return hex(MAGNITUDE_RAMP[0].rgb);
+  const stops = MAGNITUDE_RAMP;
+  if (magnitude <= stops[0].m) return hex(stops[0].rgb);
+  if (magnitude >= stops[stops.length - 1].m) return hex(stops[stops.length - 1].rgb);
+  for (let i = 1; i < stops.length; i += 1) {
+    if (magnitude > stops[i].m) continue;
+    const a = stops[i - 1];
+    const b = stops[i];
+    const t = (magnitude - a.m) / (b.m - a.m);
+    return hex(a.rgb.map((v, k) => v + (b.rgb[k] - v) * t));
+  }
+  return hex(stops[stops.length - 1].rgb);
+}
+
+/**
  * Recent is brighter.
  *
  * A day of earthquakes drawn identically is a map of where faults are, which
  * is a fact you already have from the fault layer. What the feed adds is WHEN,
  * so the last few hours read at full strength and the rest fade back — the
  * difference between a catalogue and a live view.
+ *
+ * **The floor is high on purpose.** It began at 0.4, which was right when the
+ * only feed was the past 24 hours: everything on the map was recent and the
+ * fade separated this morning from last night. With the week and the month
+ * feeds on, most of what is drawn sits at the floor — including every
+ * significant earthquake, which are the ones worth seeing — so 0.4 of a colour
+ * on a black globe was dimming the map's whole subject. Old is quieter, not
+ * absent.
  */
+const FADE_FLOOR = 0.65;
 export function recencyOpacity(timeMs, nowMs = Date.now(), windowMs = 24 * 3600 * 1000) {
-  if (!Number.isFinite(timeMs)) return 0.75;
+  if (!Number.isFinite(timeMs)) return 0.82;
   const age = Math.max(0, nowMs - timeMs);
-  if (age >= windowMs) return 0.4;
-  return 0.4 + 0.6 * (1 - age / windowMs);
+  if (age >= windowMs) return FADE_FLOOR;
+  return FADE_FLOOR + (1 - FADE_FLOOR) * (1 - age / windowMs);
 }
