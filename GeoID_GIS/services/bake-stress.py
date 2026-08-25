@@ -1,0 +1,385 @@
+#!/usr/bin/env python3
+"""Bake the World Stress Map into an interpolated SHmax raster.
+
+    python3 GeoID_GIS/services/bake-stress.py [--csv wsm2016.csv] [--degree 0.5]
+
+Writes ``data/global/stress-shmax.png`` and ``stress-shmax.json``.
+
+WHY A RASTER AT ALL
+-------------------
+The World Stress Map is 42,870 point measurements of the orientation of the
+maximum horizontal compressive stress, SHmax — from earthquake focal
+mechanisms, borehole breakouts, overcoring, hydraulic fracturing. Drawn as
+points it is what it is: forty thousand tick marks, dense along the plate
+boundaries and absent over most of the ocean, and a reader cannot see the
+pattern for the data. The field between them is what people actually want, and
+it is what the WSM's own publications show — smoothed maps of the stress
+orientation, which is a first-order fact about a region and changes slowly
+across it.
+
+THREE THINGS THIS HAS TO GET RIGHT
+----------------------------------
+1. **SHmax is an AXIS, not a vector.** 10° and 190° are the same orientation.
+   Averaging them arithmetically gives 100° — perpendicular to both, which is
+   the worst possible answer and a perfectly plausible-looking number. Every
+   average here is taken on the DOUBLED angle: sum cos(2θ) and sin(2θ), and
+   halve the resulting direction. This is the standard treatment for axial
+   data and there is no shortcut around it.
+
+2. **The interpolation must not invent a field where there are no data.** Most
+   of the Pacific has no measurements at all; a distance-weighted mean happily
+   returns the nearest continent's stress direction for it. Every cell
+   therefore carries a WEIGHT, and a cell whose weight is below a floor — no
+   data close enough — is written transparent. The picture has holes in it
+   because the data have holes in it.
+
+3. **A mean of disagreeing measurements is not a measurement.** The resultant
+   length R (the length of the summed unit vectors over the sum of weights)
+   says how much the data in a cell agree: R near 1 is a coherent field, R near
+   0 is scatter. It is carried into the ALPHA, so a well-constrained region is
+   solid and a contested one fades — rather than both being painted the same
+   confident colour.
+
+METHOD
+------
+Distance-weighted circular mean on a lat/lon grid, computed as two separable
+convolutions of the accumulated sin/cos grids. The longitude kernel widens with
+latitude by 1/cos(lat), so the smoothing radius is in KILOMETRES on the ground
+rather than in degrees — without that a 500 km kernel at 70°N would be three
+times too wide east–west. This is a simplification of the WSM's own
+wavelength-dependent smoothing (Heidbach et al.), which varies the radius with
+the local data density; the fixed radius is stated on the layer.
+
+Data: World Stress Map Database Release 2016, CC BY 4.0.
+Heidbach, O., Rajabi, M., Reiter, K., Ziegler, M., WSM Team (2016).
+https://doi.org/10.5880/WSM.2016.001
+"""
+
+import argparse
+import csv
+import json
+import math
+import pathlib
+import sys
+import urllib.request
+
+import numpy as np
+from PIL import Image
+
+WSM_CSV = ("https://datapub.gfz-potsdam.de/download/10.5880.WSM.2016.001/"
+           "wsm2016.csv")
+OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "viewer" / "data" / "global"
+CACHE_DIR = pathlib.Path(__file__).resolve().parent / ".cache"
+
+# The WSM's own quality classes, and the weights its own maps use: A is
+# +/-15 degrees, B +/-20, C +/-25, and D/E are not reliable enough to
+# interpret. Anything below C is dropped rather than down-weighted -- the
+# database's own documentation says D is "questionable" and E is "no reliable
+# information", and averaging in noise to make a map look fuller is not a
+# service to the reader.
+QUALITY_WEIGHT = {"A": 4.0, "B": 3.0, "C": 2.0}
+
+# Kilometres. Roughly the scale over which SHmax is coherent in an intraplate
+# region; the WSM's smoothed maps use a comparable search radius before their
+# wavelength analysis widens it.
+SEARCH_KM = 450.0
+EARTH_KM = 6371.0
+
+# Effective C-quality measurements a cell must see before it is drawn at all.
+# One is deliberately low: the point is to draw where there IS data, and a
+# single B-quality breakout is a real constraint on the orientation. What it
+# rules out is the tail of the kernel reaching a thousand kilometres into an
+# empty ocean and painting the nearest continent's stress field over it.
+WEIGHT_FLOOR = 1.0
+# And this much agreement among whatever is there. Below it the orientations
+# in range contradict each other and a mean of them says nothing.
+RESULTANT_FLOOR = 0.35
+
+
+def load(path):
+    """The A-C records that carry an SHmax azimuth."""
+    kept = []
+    with open(path, newline="", encoding="utf-8", errors="replace") as handle:
+        for row in csv.DictReader(handle):
+            if row.get("QUALITY") not in QUALITY_WEIGHT:
+                continue
+            azimuth = (row.get("AZI") or "").strip()
+            # 999 is the database's own "not determined".
+            if azimuth in ("", "999"):
+                continue
+            try:
+                lat = float(row["LAT"])
+                lon = float(row["LON"])
+                azi = float(azimuth)
+            except (TypeError, ValueError):
+                continue
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                continue
+            kept.append((lat, lon, azi % 180.0, QUALITY_WEIGHT[row["QUALITY"]],
+                         (row.get("REGIME") or "U").strip()))
+    return kept
+
+
+def gaussian(width_cells):
+    """A normalised Gaussian kernel, truncated at two sigma of useful range."""
+    sigma = max(0.35, width_cells)
+    half = max(1, int(math.ceil(sigma * 2.0)))
+    x = np.arange(-half, half + 1, dtype=float)
+    k = np.exp(-0.5 * (x / sigma) ** 2)
+    return k / k.sum()
+
+
+def convolve_rows_wrapping(grid, kernel):
+    """Along longitude, which WRAPS: the map has no left or right edge."""
+    half = len(kernel) // 2
+    padded = np.concatenate([grid[:, -half:], grid, grid[:, :half]], axis=1)
+    out = np.zeros_like(grid)
+    for i, weight in enumerate(kernel):
+        out += weight * padded[:, i:i + grid.shape[1]]
+    return out
+
+
+def convolve_cols(grid, kernel):
+    """Along latitude, which does NOT wrap: the poles are edges, not seams."""
+    half = len(kernel) // 2
+    padded = np.pad(grid, ((half, half), (0, 0)), mode="edge")
+    out = np.zeros_like(grid)
+    for i, weight in enumerate(kernel):
+        out += weight * padded[i:i + grid.shape[0], :]
+    return out
+
+
+def smooth(grid, lats, degree, radius_km):
+    """Separable smoothing with a longitude kernel that widens toward the poles.
+
+    A kernel measured in DEGREES is a kernel that shrinks on the ground as it
+    moves away from the equator: 4 degrees of longitude is 445 km at the
+    equator and 152 km at 70 degrees north. Smoothing a global grid with one
+    longitude kernel therefore over-smooths the tropics or under-smooths the
+    Arctic, and the Arctic is where a good part of the Scandinavian and
+    Canadian data sit. So longitude is convolved row by row.
+    """
+    deg_km = EARTH_KM * math.pi / 180.0
+    out = np.zeros_like(grid)
+    for row, lat in enumerate(lats):
+        # 1/cos, bounded: at the pole itself the factor is infinite and the
+        # whole row is one place anyway.
+        widen = min(20.0, 1.0 / max(math.cos(math.radians(lat)), 0.05))
+        cells = (radius_km / deg_km) * widen / degree
+        out[row:row + 1, :] = convolve_rows_wrapping(grid[row:row + 1, :], gaussian(cells))
+    return convolve_cols(out, gaussian((radius_km / deg_km) / degree))
+
+
+def hsv_to_rgb(h, s, v):
+    """Vectorised HSV, so the azimuth ramp can be a hue and stay cyclic."""
+    i = np.floor(h * 6.0).astype(int) % 6
+    f = h * 6.0 - np.floor(h * 6.0)
+    p = v * (1 - s)
+    q = v * (1 - f * s)
+    t = v * (1 - (1 - f) * s)
+    r = np.select([i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [v, q, p, p, t, v])
+    g = np.select([i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [t, v, v, q, p, p])
+    b = np.select([i == 0, i == 1, i == 2, i == 3, i == 4, i == 5], [p, p, t, v, v, q])
+    return r, g, b
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--csv", default=None, help="wsm2016.csv (downloaded if absent)")
+    parser.add_argument("--degree", type=float, default=0.5, help="grid step in degrees")
+    parser.add_argument("--radius", type=float, default=SEARCH_KM, help="smoothing radius, km")
+    args = parser.parse_args()
+
+    # NOT into the data directory: that folder is published, and the 9 MB
+    # source csv has no business being served to a browser that only ever
+    # wants the 300 KB raster baked from it.
+    path = pathlib.Path(args.csv) if args.csv else CACHE_DIR / "wsm2016.csv"
+    if not path.exists():
+        print(f"downloading {WSM_CSV}")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        urllib.request.urlretrieve(WSM_CSV, path)
+
+    data = load(path)
+    if not data:
+        sys.exit("no usable records — is that the WSM 2016 csv?")
+    print(f"{len(data)} A-C records with an SHmax azimuth")
+
+    step = args.degree
+    width = int(round(360 / step))
+    height = int(round(180 / step))
+    lats = 90 - (np.arange(height) + 0.5) * step
+
+    # Accumulate the DOUBLED angle. This is the whole trick with axial data:
+    # doubling makes 10 and 190 degrees the same direction, so a vector sum
+    # means what it should, and halving the answer brings it back.
+    sin2 = np.zeros((height, width))
+    cos2 = np.zeros((height, width))
+    weight = np.zeros((height, width))
+    for lat, lon, azi, w, _regime in data:
+        row = min(height - 1, max(0, int((90 - lat) / step)))
+        col = int((lon + 180) / step) % width
+        two = math.radians(2 * azi)
+        sin2[row, col] += w * math.sin(two)
+        cos2[row, col] += w * math.cos(two)
+        weight[row, col] += w
+
+    print(f"smoothing at {args.radius:.0f} km over a {width}x{height} grid")
+    sin_s = smooth(sin2, lats, step, args.radius)
+    cos_s = smooth(cos2, lats, step, args.radius)
+    weight_s = smooth(weight, lats, step, args.radius)
+
+    with np.errstate(invalid="ignore", divide="ignore"):
+        resultant = np.where(weight_s > 0,
+                             np.sqrt(sin_s ** 2 + cos_s ** 2) / np.maximum(weight_s, 1e-12),
+                             0.0)
+        azimuth = (np.degrees(np.arctan2(sin_s, cos_s)) / 2.0) % 180.0
+
+    # The kernel is normalised, so the smoothed weight is a WEIGHTED DENSITY
+    # and not a count -- and a density is a number nobody can put a threshold
+    # on honestly. Undoing the normalisation turns it back into "how many
+    # C-quality measurements this cell effectively sees", which is a sentence
+    # with a meaning. The factor is per ROW, because the longitude kernel
+    # widens toward the poles and a wider kernel is a smaller peak.
+    deg_km = EARTH_KM * math.pi / 180.0
+    sigma_lat = max(0.35, (args.radius / deg_km) / step)
+    row_factor = np.array([
+        2 * math.pi * sigma_lat
+        * max(0.35, sigma_lat * min(20.0, 1.0 / max(math.cos(math.radians(lat)), 0.05)))
+        for lat in lats
+    ]).reshape(-1, 1)
+    coverage = weight_s * row_factor / QUALITY_WEIGHT["C"]
+
+    drawn = (coverage >= WEIGHT_FLOOR) & (resultant >= RESULTANT_FLOOR)
+    print(f"{drawn.sum()} of {drawn.size} cells carry data "
+          f"({100 * drawn.mean():.1f}% of the globe)")
+
+    # Hue runs once round the wheel per 180 degrees of azimuth, which is what
+    # makes the colour cyclic in the same way the quantity is: north-south and
+    # north-south are the same colour whichever way you approach 180.
+    hue = (azimuth / 180.0) % 1.0
+    # Agreement drives saturation as well as alpha, so a contested region reads
+    # as washed out at a glance rather than only in the transparency.
+    sat = np.clip(0.35 + 0.65 * resultant, 0, 1)
+    val = np.full_like(hue, 0.98)
+    r, g, b = hsv_to_rgb(hue, sat, val)
+
+    # Opacity carries BOTH kinds of confidence, and it has to.
+    #
+    # The resultant length says how well the data in a cell agree — but one
+    # measurement agrees with itself perfectly, so agreement alone paints a
+    # lone oceanic focal mechanism as solidly as the San Andreas, where six
+    # hundred records sit within the radius. Measured: the South Pacific gyre
+    # has exactly one record within 450 km and came out at the same opacity as
+    # California. So support (how much data) multiplies agreement (how well it
+    # agrees), with three C-equivalents taken as fully supported.
+    support = np.clip(coverage / 3.0, 0, 1)
+    agreement = np.clip((resultant - RESULTANT_FLOOR) / (1 - RESULTANT_FLOOR), 0, 1)
+    alpha = np.where(drawn, np.clip(agreement * support * 0.92, 0.10, 0.92), 0.0)
+
+    rgba = np.dstack([
+        (r * 255).astype(np.uint8),
+        (g * 255).astype(np.uint8),
+        (b * 255).astype(np.uint8),
+        (alpha * 255).astype(np.uint8),
+    ])
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    png = OUT_DIR / "stress-shmax.png"
+    Image.fromarray(rgba, "RGBA").save(png, optimize=True)
+    print(f"wrote {png} ({png.stat().st_size / 1024:.0f} KB)")
+
+    meta = {
+        "id": "stress-shmax",
+        "title": "SHmax orientation (World Stress Map 2016)",
+        "bounds": {"west": -180, "east": 180, "south": -90, "north": 90},
+        "grid": {"degree": step, "width": width, "height": height},
+        "method": {
+            "interpolation": "distance-weighted circular mean of the doubled azimuth",
+            "radiusKm": args.radius,
+            "qualityWeights": QUALITY_WEIGHT,
+            "weightFloor": WEIGHT_FLOOR,
+            "resultantFloor": RESULTANT_FLOOR,
+            "note": ("SHmax is an axis: every mean is taken on 2*theta and halved. "
+                     "Cells with no data within the radius, or whose data disagree, "
+                     "are transparent rather than filled."),
+        },
+        "records": len(data),
+        "cellsWithData": int(drawn.sum()),
+        "coverage": round(float(drawn.mean()), 4),
+        "colour": {
+            "quantity": "SHmax azimuth, degrees clockwise from north",
+            "cyclic": True,
+            "period": 180,
+            "ramp": "hue = azimuth / 180",
+            "alpha": "resultant length (agreement) of the data in the cell",
+        },
+        "source": {
+            "name": "World Stress Map Database Release 2016",
+            "doi": "https://doi.org/10.5880/WSM.2016.001",
+            "licence": "CC BY 4.0",
+            "citation": ("Heidbach, O., Rajabi, M., Reiter, K., Ziegler, M., WSM Team "
+                         "(2016): World Stress Map Database Release 2016. V. 1.1. "
+                         "GFZ Data Services."),
+        },
+    }
+    (OUT_DIR / "stress-shmax.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    print(f"wrote {OUT_DIR / 'stress-shmax.json'}")
+
+    check(data, azimuth, coverage, resultant, step, width, height)
+
+
+# Places whose stress orientation is not in dispute, and what is known about
+# SHmax there. This is the check that matters: an interpolation can be
+# arithmetically perfect and still be turned inside out by an axial average
+# done wrong — and the result looks like a map either way.
+REFERENCES = [
+    (36.0, -120.0, "San Andreas, California", "N-S to NNE, ~010"),
+    (35.0, 138.0, "central Honshu", "E-W, ~100"),
+    (54.5, -6.5, "Northern Ireland", "NW-SE, ~135 (NW European field)"),
+    (48.0, 8.0, "Upper Rhine Graben", "NW-SE, ~145"),
+    (-24.0, 134.0, "central Australia", "E-W to ENE (Hillis & Reynolds)"),
+]
+
+
+def check(data, azimuth, coverage, resultant, step, width, height):
+    """Compare the interpolated field with the raw records around each place."""
+    print("\ncheck — interpolated against the records within the radius:")
+    lats = np.array([d[0] for d in data])
+    lons = np.array([d[1] for d in data])
+    azis = np.array([d[2] for d in data])
+    weights = np.array([d[3] for d in data])
+    for lat, lon, name, expected in REFERENCES:
+        row = min(height - 1, max(0, int((90 - lat) / step)))
+        col = int((lon + 180) / step) % width
+        d_lat = np.radians(lats - lat)
+        d_lon = np.radians(lons - lon)
+        hav = (np.sin(d_lat / 2) ** 2
+               + math.cos(math.radians(lat)) * np.cos(np.radians(lats))
+               * np.sin(d_lon / 2) ** 2)
+        km = 2 * EARTH_KM * np.arcsin(np.sqrt(np.clip(hav, 0, 1)))
+        # Weighted the way the SMOOTHING weights them, not by a hard cutoff.
+        # The kernel is a Gaussian of sigma = the radius and reaches about
+        # twice that, so a hard 450 km sample is a different quantity and
+        # comparing against it invites the wrong conclusion — measured in
+        # central Australia, where the field rotates across the continent: the
+        # hard sample said 47° and the grid said 92°, and the grid was the one
+        # agreeing with the literature.
+        near = km < SEARCH_KM * 2
+        if near.any():
+            gauss = np.exp(-0.5 * (km[near] / SEARCH_KM) ** 2) * weights[near]
+            two = np.radians(2 * azis[near])
+            direct = math.degrees(math.atan2(
+                float((gauss * np.sin(two)).sum()),
+                float((gauss * np.cos(two)).sum()))) / 2 % 180
+            # Axial difference: 5° and 175° are ten degrees apart, not 170.
+            off = abs(azimuth[row, col] - direct) % 180
+            off = min(off, 180 - off)
+            raw = f"{direct:6.1f}° direct from {int(near.sum()):4d} records (off by {off:4.1f}°)"
+        else:
+            raw = "no records in range"
+        print(f"  {name:26s} grid {azimuth[row, col]:6.1f}°  |  {raw}"
+              f"  |  R={resultant[row, col]:.2f} n≈{coverage[row, col]:.0f}"
+              f"  |  expected {expected}")
+
+
+if __name__ == "__main__":
+    main()

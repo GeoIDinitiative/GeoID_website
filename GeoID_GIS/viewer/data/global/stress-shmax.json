@@ -1,0 +1,43 @@
+{
+  "id": "stress-shmax",
+  "title": "SHmax orientation (World Stress Map 2016)",
+  "bounds": {
+    "west": -180,
+    "east": 180,
+    "south": -90,
+    "north": 90
+  },
+  "grid": {
+    "degree": 0.5,
+    "width": 720,
+    "height": 360
+  },
+  "method": {
+    "interpolation": "distance-weighted circular mean of the doubled azimuth",
+    "radiusKm": 450.0,
+    "qualityWeights": {
+      "A": 4.0,
+      "B": 3.0,
+      "C": 2.0
+    },
+    "weightFloor": 1.0,
+    "resultantFloor": 0.35,
+    "note": "SHmax is an axis: every mean is taken on 2*theta and halved. Cells with no data within the radius, or whose data disagree, are transparent rather than filled."
+  },
+  "records": 32464,
+  "cellsWithData": 159633,
+  "coverage": 0.6159,
+  "colour": {
+    "quantity": "SHmax azimuth, degrees clockwise from north",
+    "cyclic": true,
+    "period": 180,
+    "ramp": "hue = azimuth / 180",
+    "alpha": "resultant length (agreement) of the data in the cell"
+  },
+  "source": {
+    "name": "World Stress Map Database Release 2016",
+    "doi": "https://doi.org/10.5880/WSM.2016.001",
+    "licence": "CC BY 4.0",
+    "citation": "Heidbach, O., Rajabi, M., Reiter, K., Ziegler, M., WSM Team (2016): World Stress Map Database Release 2016. V. 1.1. GFZ Data Services."
+  }
+}

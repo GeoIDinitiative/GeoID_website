@@ -498,6 +498,90 @@ Rebuild cost, measured as the longest gap between animation frames on the
 software renderer: 524 ms for the 7,929-polygon world build, 326 ms for a
 view-sized refine against a 246 ms idle median — a refine is not a freeze.
 
+## The World Stress Map, as a field rather than as points
+
+`services/bake-stress.py` → `data/global/stress-shmax.png` (0.5°, 297 KB) plus
+a JSON stating the method. The WSM is 42,870 point measurements of SHmax
+orientation; drawn as points it is forty thousand tick marks, and the field
+between them is both what people want and what the WSM's own publications
+show. Baked rather than fetched, like the volcanoes: the source is a 9 MB CSV
+from GFZ, **CC BY 4.0**, cached under `services/.cache/` which is gitignored —
+the data directory is published and has no business serving the source of a
+raster baked from it.
+
+Three rules in that script, and each one fails silently:
+
+- **SHmax is an AXIS.** 10° and 190° are the same orientation, and averaging
+  them arithmetically gives 100° — exactly perpendicular to both, and a
+  perfectly plausible number. Every mean is taken on the DOUBLED angle and
+  halved. There is no shortcut round this and no way to see it is wrong from
+  the picture.
+- **No data, no field.** A distance-weighted mean will happily return the
+  nearest continent's stress direction for the middle of the Pacific. A cell
+  that cannot see one effective C-quality measurement within the radius is
+  written transparent, so the map has holes where the data have holes.
+- **Opacity is agreement TIMES support.** The resultant length says how well
+  the records in a cell agree — but one record agrees with itself perfectly,
+  so agreement alone painted a lone oceanic focal mechanism as solidly as the
+  San Andreas, where six hundred sit within the radius. Measured: the South
+  Pacific gyre came out at California's opacity.
+
+The interpolation is two separable convolutions of the accumulated sin/cos
+grids, with the **longitude kernel widened by 1/cos(lat)** so the radius is in
+kilometres on the ground — a degrees-wide kernel is three times too wide
+east–west at 70°N, which is where the Scandinavian and Canadian data are.
+
+**The script checks itself** (`REFERENCES`): the interpolated field against a
+direct Gaussian-weighted circular mean of the raw records, at five places with
+a published answer. Measured: off by **0.3–1.4°** at California (13.6° vs an
+expected NNE), Honshu (117.5°, E–W), Northern Ireland (144.3°, NW–SE), the
+Rhine Graben (159.3°) and central Australia (92.2°, E–W). The comparison must
+use the SAME Gaussian weighting the smoothing does — a hard 450 km sample is a
+different quantity, and in central Australia, where the field rotates across
+the continent, it said 47° against the grid's 92° and the grid was the one
+agreeing with the literature.
+
+**The colour wheel is written twice and pinned by a test.** The bake paints
+hue = azimuth/180 and `map-layers.js` reads the same ramp back for the legend;
+two implementations of one contract in two languages is what drifts, and when
+it drifts the map is one set of colours and the key beside it another, both
+looking right. `map-layers.test.mjs` recomputes the HSV independently and
+checks the wrap: 179° and 1° are two degrees apart, so their colours must be
+neighbours.
+
+## Basemap and Relief stacks now
+
+The tab offered one dropdown, and a dropdown says these things are
+alternatives. The sphere's own texture genuinely is one — that keeps the
+dropdown. Everything else is an OVERLAY, and hillshade under a stress map
+under coastlines is the ordinary way a tectonic map is read, which the dropdown
+made impossible to say. `map-layers.js` is a catalogue of raster overlays drawn
+by the same `renderCatalogue` the vector tabs use, so a tick means the same
+thing in all three and each overlay arrives in the layer box with its own eye,
+opacity and place in the draw order. Five entries: the stress map, three GEBCO
+products and NASA's surface texture — four of which the viewer already shipped
+and could only ever show alone.
+
+**`drape()` is exported from `gee.js` rather than copied.** Every trap of
+putting an image on a displaced sphere is answered in that one function — the
+relief attributes, the single-sided culling that makes turning the depth test
+off safe, the frustum-culling exemption for a patch spanning a hemisphere — and
+a second copy would drift from it the first time either was fixed. Two things
+it needed to serve a global shell: **three.js loaded on demand** (the module
+fetches it lazily when its own flow first runs, so a caller from outside hit
+`THREE is null`), and **bounds in either shape**. That second one cost a whole
+verify loop: Earth Engine answers `{minX, minY, maxX, maxY}` and the rest of
+this app says `{west, south, east, north}`, and handed the wrong one every
+lat/lon came out `undefined`, every vertex NaN, and the layer registered, drew
+its legend, took its row in the layer box and painted **nothing**. It now takes
+either and refuses anything else loudly.
+
+**A module-relative path is one directory too deep.** `import.meta.url` in
+`gis/map-layers.js` is `…/viewer/gis/`, so `data/global/…` resolves inside
+`gis/` and 404s — the same trap the GEE cache hit from the other side, where a
+document-relative path missed because the document is a directory up. Neither
+default is right; say which root is meant.
+
 ## Symbology is a window, and there is one of it
 
 `gis/symbology-dialog.js` — `openSymbologyDialog(layer)` — is the symbology

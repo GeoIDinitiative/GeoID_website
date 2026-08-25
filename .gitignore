@@ -37,3 +37,6 @@ GeoID_GIS/gales/
 *.mp4
 *.webm
 *.npy
+
+# Bake caches: the source data a service script downloads, never served.
+GeoID_GIS/services/.cache/

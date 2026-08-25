@@ -10,12 +10,12 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260825-c3ef9c7";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260825-c3ef9c7";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260825-c3ef9c7";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260825-631d9fa";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260825-631d9fa";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260825-631d9fa";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260825-c3ef9c7";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260825-c3ef9c7";
+  from "./view-extent.js?v=20260825-631d9fa";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260825-631d9fa";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -182,8 +182,27 @@ function resolutionNote(bounds, image, nativeScale) {
       : Number.isFinite(native) ? ` (native ${native} m)` : "");
 }
 
-/** Loads the returned PNG and drapes it across its bounds on the globe. */
-async function drape(imageUrl, bounds) {
+/**
+ * Loads a PNG and drapes it across its bounds on the globe.
+ *
+ * Exported because it is the ONE place the traps of draping an image on a
+ * displaced sphere are answered — the relief attributes, the single-sided
+ * culling that makes turning the depth test off safe, the frustum-culling
+ * exemption for a patch that spans a hemisphere. `map-layers.js` drapes global
+ * rasters through it rather than keeping a second copy that would drift from
+ * this one the first time either was fixed.
+ *
+ * `segments` is the grid the patch is built on: 96 is right for an Earth
+ * Engine snapshot over a study area and too coarse for a shell wrapped round
+ * the whole planet, where each segment is nearly four degrees.
+ */
+export async function drape(imageUrl, bounds, { segments = 96 } = {}) {
+  // Loaded here rather than assumed: this module fetches three.js lazily when
+  // its own flow first runs, and a caller from outside — the map-overlay
+  // catalogue — arrives before any of that has happened. Without this the
+  // first overlay somebody ticks fails on `THREE is null`, which reads as the
+  // image being broken rather than as the module not being warmed up.
+  if (!THREE) THREE = await import("../vendor/three.module.js");
   const texture = await new Promise((resolve, reject) => {
     const loader = new THREE.TextureLoader();
     loader.setCrossOrigin("anonymous");
@@ -195,7 +214,26 @@ async function drape(imageUrl, bounds) {
 
   // Enough segments to follow the curve without being costly; the patch can
   // span a hemisphere, where a flat quad would cut through the planet.
-  const segments = 96;
+  /**
+   * The bounds, in whichever of the two shapes the caller has.
+   *
+   * Earth Engine answers `{minX, minY, maxX, maxY}` and the rest of this app
+   * says `{west, south, east, north}`. Handed the wrong one, every lat and lon
+   * below came out `undefined`, every vertex came out NaN, and the result was
+   * a layer that registered, drew its legend, took its place in the layer box
+   * and painted absolutely nothing — which looks like a missing image rather
+   * than a missing property. Refused loudly instead.
+   */
+  const box = {
+    minX: Number(bounds?.minX ?? bounds?.west),
+    maxX: Number(bounds?.maxX ?? bounds?.east),
+    minY: Number(bounds?.minY ?? bounds?.south),
+    maxY: Number(bounds?.maxY ?? bounds?.north),
+  };
+  if (!Object.values(box).every(Number.isFinite)) {
+    throw new Error("bounds need minX/minY/maxX/maxY (or west/south/east/north)");
+  }
+
   const geometry = new THREE.PlaneGeometry(1, 1, segments, segments);
   const position = geometry.attributes.position;
   // On the terrain, not floating over it. Each vertex sits on the globe's own
@@ -213,9 +251,9 @@ async function drape(imageUrl, bounds) {
   const LIFT = 0;
   const vertex = new THREE.Vector3();
   for (let y = 0; y <= segments; y += 1) {
-    const lat = bounds.maxY - (bounds.maxY - bounds.minY) * (y / segments);
+    const lat = box.maxY - (box.maxY - box.minY) * (y / segments);
     for (let x = 0; x <= segments; x += 1) {
-      const lon = bounds.minX + (bounds.maxX - bounds.minX) * (x / segments);
+      const lon = box.minX + (box.maxX - box.minX) * (x / segments);
       vertex.copy(viewer?.surfacePoint
         ? viewer.surfacePoint(lat, lon, LIFT)
         : latLonToVector3(lat, lon, 3.2 + LIFT));
