@@ -119,6 +119,153 @@ export function displayBand(sampleRate, cap = 25) {
   return Math.max(0, Math.min(nyquist, cap));
 }
 
+/* ── where the waves should arrive, and where one actually did ───────────── */
+
+/**
+ * A crustal velocity model, and a plain statement of what it is not.
+ *
+ * These are rule-of-thumb speeds, not a travel-time model. **Pg** — the direct
+ * P wave through the upper crust — runs at about 6.0 km/s; past roughly 200 km
+ * the first arrival is **Pn**, refracted along the top of the mantle at about
+ * 8.0 km/s, which is why the crossover is here rather than one constant being
+ * used throughout. S is taken as P over √3, the Poisson-solid ratio, which is
+ * good to a few percent in ordinary crust.
+ *
+ * What this CANNOT do is a teleseism: past about 15° the ray turns deep into
+ * the mantle, the speed rises with depth, and a straight-line divide is
+ * nonsense. `arrivalTimes` therefore refuses beyond `MAX_MODEL_KM` rather than
+ * drawing two lines somebody would read as fact.
+ */
+export const VELOCITY = { pgKmS: 6.0, pnKmS: 8.0, crossoverKm: 200, vpOverVs: Math.sqrt(3) };
+export const MAX_MODEL_KM = 1500;
+
+/**
+ * Predicted P and S arrivals, in seconds from the start of the trace.
+ *
+ * Everything here is known independently of the waveform: the origin time and
+ * hypocentre come from the USGS record, the station's position from the FDSN
+ * station list, and the window start from the request that fetched the data.
+ * That is what makes the markers worth drawing — they are a PREDICTION the
+ * picture can be checked against, rather than a restatement of it.
+ */
+export function arrivalTimes({
+  distanceKm, depthKm = 0, originMs, startMs, sampleRate, sampleCount,
+} = {}) {
+  /**
+   * `Number(null)` is 0, not NaN — the same trap a blank station latitude set
+   * once already, and worse here: a missing distance would come back as an
+   * earthquake zero kilometres away, with P and S drawn confidently on top of
+   * the origin time.
+   */
+  const num = (v) => (v === null || v === undefined || v === "" ? NaN : Number(v));
+  const surface = num(distanceKm);
+  const origin = num(originMs);
+  const start = num(startMs);
+  if (!Number.isFinite(surface) || !Number.isFinite(origin) || !Number.isFinite(start)) return null;
+  if (surface > MAX_MODEL_KM) return { tooFar: true, distanceKm: surface };
+  // Hypocentral, not epicentral: a 600 km deep earthquake under a station 100
+  // km away is 608 km of rock, and using the map distance would put the P
+  // arrival most of a minute early.
+  const depth = Math.max(0, Number(depthKm) || 0);
+  const path = Math.sqrt(surface * surface + depth * depth);
+  const vp = path > VELOCITY.crossoverKm ? VELOCITY.pnKmS : VELOCITY.pgKmS;
+  const vs = vp / VELOCITY.vpOverVs;
+  const offset = (origin - start) / 1000;
+  const p = offset + path / vp;
+  const sTime = offset + path / vs;
+  const span = Number.isFinite(sampleRate) && Number.isFinite(sampleCount) && sampleRate > 0
+    ? sampleCount / sampleRate
+    : Infinity;
+  return {
+    p,
+    s: sTime,
+    // Whether they are inside the window that was fetched. Outside it there is
+    // nothing to mark, and a line pinned to the edge of the picture would say
+    // the wave arrived exactly there.
+    inWindow: p >= 0 && p <= span,
+    sInWindow: sTime >= 0 && sTime <= span,
+    path,
+    vp,
+    model: `${vp.toFixed(1)} km/s P, ${vs.toFixed(1)} km/s S`,
+  };
+}
+
+/**
+ * The first onset in the trace, by the classic short-term/long-term average.
+ *
+ * The ratio of energy in a short window to energy in a long one jumps when a
+ * wave arrives and is flat while the ground is merely noisy — which is what
+ * makes it work regardless of how loud the station is. It is the detector every
+ * seismic network has run for fifty years, and it is here because it is the one
+ * thing on the picture MEASURED from the data: the P and S lines are a model,
+ * and a model with nothing to check it against is decoration.
+ *
+ * Returns seconds from the start of the trace, or null when nothing crosses —
+ * which is the honest answer for a trace that is all noise, and better than a
+ * mark placed on the loudest piece of nothing.
+ */
+export function detectOnset(values, sampleRate, {
+  staSeconds = 0.5, ltaSeconds = 10, threshold = 4, holdSeconds = 2, holdFactor = 0.6,
+} = {}) {
+  const fs = Number(sampleRate);
+  const n = values?.length || 0;
+  if (!Number.isFinite(fs) || fs <= 0 || n === 0) return null;
+  const sta = Math.max(2, Math.round(staSeconds * fs));
+  const lta = Math.max(sta * 3, Math.round(ltaSeconds * fs));
+  const hold = Math.max(sta, Math.round(holdSeconds * fs));
+  if (n < lta + sta) return null;
+
+  // Squared deviation from the mean: the detector wants ENERGY, and a trace
+  // sitting on a digitiser offset of forty thousand counts is all offset and
+  // no energy until the mean comes off.
+  const mid = meanOf(values);
+  // Running sums rather than a window per sample: the naive form is O(n·lta),
+  // which on a 30,000-sample trace at 100 Hz is 24 million operations inside a
+  // popup that is meant to open at once.
+  const cumulative = new Float64Array(n + 1);
+  for (let i = 0; i < n; i += 1) {
+    const d = values[i] - mid;
+    cumulative[i + 1] = cumulative[i] + d * d;
+  }
+  const meanOver = (from, to) => (cumulative[to] - cumulative[from]) / (to - from);
+  const ratioAt = (i) => {
+    const longRun = meanOver(i - lta, i);
+    return longRun > 0 ? meanOver(i, i + sta) / longRun : 0;
+  };
+
+  /**
+   * A crossing is not enough on its own, and a real trace is what taught this.
+   *
+   * Measured on GE.MATE over an M4.4 in Albania: the ratio crossed 100 seconds
+   * before the earthquake, on a tick in the station's own noise. STA/LTA is a
+   * RELATIVE measure, so a small glitch in a very quiet minute is a large
+   * ratio, and the first crossing of an ordinary record is routinely something
+   * that is not the event.
+   *
+   * What separates them is DURATION: a tick is a few samples and is over; an
+   * arrival stays elevated for seconds while the coda builds. So a candidate
+   * has to hold most of its ratio across the next couple of seconds. That is
+   * network practice -- trigger on, trigger off, minimum duration -- and it
+   * needs no absolute scale, which matters because the traces this runs on
+   * differ by orders of magnitude in counts.
+   *
+   * An earlier attempt used an absolute floor instead (a fraction of the
+   * loudest short window anywhere in the trace) and was worse than useless: a
+   * single-sample spike sets that floor, and on the same Albanian trace it
+   * pushed the pick to 269 s, into the quiet after the coda had died away.
+   */
+  for (let i = lta; i + sta <= n; i += 1) {
+    if (ratioAt(i) < threshold) continue;
+    let held = true;
+    const step = Math.max(1, Math.floor(sta / 2));
+    for (let j = i; j <= i + hold && j + sta <= n; j += step) {
+      if (ratioAt(j) < threshold * holdFactor) { held = false; break; }
+    }
+    if (held) return i / fs;
+  }
+  return null;
+}
+
 /* ── the drawing, which needs a canvas ────────────────────────────────────── */
 
 /** Sizes a canvas to its own CSS box at the screen's pixel density. */
@@ -134,13 +281,71 @@ function fitCanvas(canvas, cssHeight) {
 }
 
 /**
+ * A vertical mark at a moment, labelled.
+ *
+ * Drawn over both pictures from the same list, because the waveform and the
+ * spectrogram share one time axis and a reader compares them by eye: an S
+ * arrival that lines up on one and not the other is worse than no mark at all.
+ */
+function drawMarks(ctx, marks, { width, height, seconds }) {
+  if (!marks?.length || !(seconds > 0)) return;
+  ctx.save();
+  ctx.font = "600 9px 'Exo 2', system-ui, sans-serif";
+  ctx.textBaseline = "top";
+  /**
+   * Labels take the first row they fit in.
+   *
+   * P, S and the measured onset are routinely seconds apart — at 240 km the
+   * predicted P and S are 22 s apart on a 305 s trace, which is 20 pixels —
+   * so at one height the later label simply paints over the earlier one and an
+   * arrival appears to have no name. Measured on exactly that trace: "onset"
+   * covered "S" completely.
+   */
+  const rows = [];
+  marks.forEach((mark) => {
+    const at = Number(mark.t);
+    if (!Number.isFinite(at) || at < 0 || at > seconds) return;
+    const x = Math.round((at / seconds) * width) + 0.5;
+    ctx.strokeStyle = mark.colour;
+    ctx.lineWidth = 1;
+    // Dashed says PREDICTED and solid says measured, and the caption says which
+    // is which -- two kinds of claim should not look identical.
+    ctx.setLineDash(mark.dashed === false ? [] : [3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+    if (!mark.label) return;
+    ctx.setLineDash([]);
+    const w = ctx.measureText(mark.label).width + 6;
+    // The label flips to the left of its line near the right edge, or the last
+    // arrival in a window has its name off the picture.
+    const boxX = x + w + 2 > width ? x - w - 1 : x + 1;
+    let row = rows.findIndex((used) => boxX > used);
+    if (row === -1) { rows.push(0); row = rows.length - 1; }
+    rows[row] = boxX + w + 2;
+    const y = 1 + row * 12;
+    // Never past the bottom of a short picture: better to overlap than to
+    // write a label where it cannot be seen at all.
+    if (y + 11 > height) return;
+    ctx.fillStyle = "rgba(6, 8, 16, 0.72)";
+    ctx.fillRect(boxX, y, w, 12);
+    ctx.fillStyle = mark.colour;
+    ctx.fillText(mark.label, boxX + 3, y + 1);
+  });
+  ctx.restore();
+}
+
+/**
  * The trace itself: a zero line and the min-max envelope around it.
  *
  * Detrended by its MEAN before anything else, because a channel's counts sit on
  * whatever offset its digitiser has — tens of thousands, often — and a trace
  * plotted raw is a flat line hard against one edge of the box.
  */
-export function drawWaveform(canvas, values, { colour = "#52e4e8", height = 84 } = {}) {
+export function drawWaveform(canvas, values, {
+  colour = "#52e4e8", height = 84, marks = null, sampleRate = null,
+} = {}) {
   const { ctx, width, height: h } = fitCanvas(canvas, height);
   ctx.clearRect(0, 0, width, h);
   if (!values?.length) return;
@@ -178,6 +383,10 @@ export function drawWaveform(canvas, values, { colour = "#52e4e8", height = 84 }
     ctx.lineTo(x, Math.max(bottom, top + 0.6));
   });
   ctx.stroke();
+
+  drawMarks(ctx, marks, {
+    width, height: h, seconds: sampleRate > 0 ? values.length / sampleRate : 0,
+  });
 }
 
 /**
@@ -188,7 +397,9 @@ export function drawWaveform(canvas, values, { colour = "#52e4e8", height = 84 }
  * fills, which is visible as a stutter inside a popup that is supposed to open
  * instantly.
  */
-export function drawSpectrogram(canvas, spec, { sampleRate, height = 92, floorDb = -60 } = {}) {
+export function drawSpectrogram(canvas, spec, {
+  sampleRate, height = 92, floorDb = -60, marks = null, seconds = 0,
+} = {}) {
   const { ctx, width, height: h } = fitCanvas(canvas, height);
   ctx.clearRect(0, 0, width, h);
   const grid = spec?.grid;
@@ -221,5 +432,11 @@ export function drawSpectrogram(canvas, spec, { sampleRate, height = 92, floorDb
   off.getContext("2d").putImageData(image, 0, 0);
   ctx.imageSmoothingEnabled = true;
   ctx.drawImage(off, 0, 0, width, h);
+  // The same marks, on the same axis. The spectrogram's own time axis is a
+  // little shorter than the trace's -- an STFT column is centred inside a
+  // window, so it starts half a window in and ends half a window early -- but
+  // it is DRAWN across the full width, so the marks use the trace's own span
+  // and land where a reader expects them.
+  drawMarks(ctx, marks, { width, height: h, seconds });
   return { band, rows };
 }

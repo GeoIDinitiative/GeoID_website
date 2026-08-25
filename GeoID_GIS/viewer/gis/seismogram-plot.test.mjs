@@ -9,7 +9,10 @@
  * the data.
  */
 
-import { envelope, meanOf, dbColour, DB_RAMP, displayBand } from "./seismogram-plot.js";
+import {
+  envelope, meanOf, dbColour, DB_RAMP, displayBand,
+  arrivalTimes, detectOnset, VELOCITY, MAX_MODEL_KM,
+} from "./seismogram-plot.js";
 
 let pass = 0;
 let fail = 0;
@@ -95,6 +98,123 @@ check("a slow channel shows to its own Nyquist", displayBand(20), 10);
 check("a fast one stops at the cap", displayBand(100), 25);
 check("exactly at the cap", displayBand(50), 25);
 check("a nonsense rate shows nothing rather than NaN", displayBand(undefined), 0);
+
+/* ── predicted arrivals ───────────────────────────────────────────────────── */
+
+const near = (a, b, tol) => Math.abs(a - b) <= tol;
+
+// 120 km away, no depth, window opening exactly at the origin: P at 120/6 = 20 s,
+// S at 120/(6/√3) = 34.6 s.
+const local = arrivalTimes({
+  distanceKm: 120, depthKm: 0, originMs: 1_000_000, startMs: 1_000_000,
+  sampleRate: 100, sampleCount: 30000,
+});
+check("P from the direct crustal speed", near(local.p, 20, 0.01), true);
+check("S from P over root three", near(local.s, 20 * Math.sqrt(3), 0.01), true);
+check("S always follows P", local.s > local.p, true);
+check("both inside a 300 s window", [local.inWindow, local.sInWindow], [true, true]);
+
+// Past the crossover the first arrival is Pn through the mantle, which is why
+// one constant will not do: at 400 km, 6 km/s would be 25 s late.
+const regional = arrivalTimes({
+  distanceKm: 400, originMs: 0, startMs: 0, sampleRate: 100, sampleCount: 60000,
+});
+check("beyond the crossover it is the mantle speed",
+  near(regional.p, 400 / VELOCITY.pnKmS, 0.01), true);
+check("which is earlier than the crustal one would give",
+  regional.p < 400 / VELOCITY.pgKmS, true);
+
+/**
+ * Depth is HYPOCENTRAL, and this is the case that catches it: an earthquake
+ * 600 km down under a station 100 km away is 608 km of rock, not 100.
+ */
+const deep = arrivalTimes({
+  distanceKm: 100, depthKm: 600, originMs: 0, startMs: 0, sampleRate: 100, sampleCount: 60000,
+});
+check("the path is the hypocentral distance", near(deep.path, Math.hypot(100, 600), 0.01), true);
+check("so a deep event is not marked as a near one", deep.p > 60, true);
+
+// A window that opens a minute before the origin puts the arrivals a minute
+// later in the picture.
+const late = arrivalTimes({
+  distanceKm: 120, originMs: 60_000, startMs: 0, sampleRate: 100, sampleCount: 30000,
+});
+check("the window's own start is the zero of the axis", near(late.p, 80, 0.01), true);
+
+// Outside the fetched window there is nothing to mark, and a line pinned to
+// the edge would say the wave arrived exactly there.
+const short = arrivalTimes({
+  distanceKm: 120, originMs: 0, startMs: 0, sampleRate: 100, sampleCount: 500,
+});
+check("an arrival past the end of the trace is flagged, not clamped",
+  [short.inWindow, short.sInWindow], [false, false]);
+
+// A teleseism's ray turns deep into the mantle where the speed rises with
+// depth: a straight-line divide is nonsense and the honest answer is to refuse.
+check("it refuses a distance the model cannot describe",
+  arrivalTimes({ distanceKm: MAX_MODEL_KM + 1, originMs: 0, startMs: 0 }).tooFar, true);
+check("and refuses to guess with nothing to go on",
+  arrivalTimes({ distanceKm: null, originMs: 0, startMs: 0 }), null);
+check("or with no origin time", arrivalTimes({ distanceKm: 100, startMs: 0 }), null);
+
+/* ── the detected onset ───────────────────────────────────────────────────── */
+
+/** Deterministic pseudo-noise: a test that uses Math.random is a test that
+    passes most of the time. */
+function noise(n, amplitude, seed = 7) {
+  const out = new Float64Array(n);
+  let x = seed;
+  for (let i = 0; i < n; i += 1) {
+    x = (x * 1103515245 + 12345) % 2147483648;
+    out[i] = ((x / 2147483648) - 0.5) * 2 * amplitude;
+  }
+  return out;
+}
+
+const fs = 100;
+const quietThenBurst = noise(fs * 40, 1);
+// An arrival at 20 s: fifty times the noise amplitude, decaying like a coda.
+for (let i = 0; i < fs * 10; i += 1) {
+  const at = fs * 20 + i;
+  quietThenBurst[at] += 50 * Math.sin((2 * Math.PI * 5 * i) / fs) * Math.exp(-i / (fs * 3));
+}
+const onset = detectOnset(quietThenBurst, fs);
+ok("an arrival is found", onset !== null);
+check("and it is found where it was planted", near(onset, 20, 0.6), true);
+
+/**
+ * A crossing is not enough on its own, and this case is why.
+ *
+ * Measured on a real trace -- GE.MATE over an M4.4 in Albania -- the ratio
+ * crossed a hundred seconds before the earthquake, on a tick in the station's
+ * own noise: STA/LTA is RELATIVE, so a small glitch in a very quiet minute is a
+ * large ratio. What separates a tick from an arrival is DURATION, and this
+ * plants exactly that tick to prove the rule catches it.
+ */
+const withGlitch = Float64Array.from(quietThenBurst);
+for (let i = 0; i < 8; i += 1) withGlitch[fs * 12 + i] += 8;
+check("a tick in the noise is not an arrival",
+  near(detectOnset(withGlitch, fs), 20, 0.6), true);
+// And the tick IS a large enough ratio to fool a detector that only looks at
+// the crossing -- otherwise the test above proves nothing about the rule.
+check("though its ratio alone would have passed",
+  near(detectOnset(withGlitch, fs, { holdSeconds: 0 }), 12, 0.6), true);
+
+// All noise and no arrival: the honest answer is nothing, not a mark on the
+// loudest piece of nothing.
+check("pure noise gives no onset", detectOnset(noise(fs * 40, 1, 99), fs), null);
+check("a trace shorter than the long window gives none",
+  detectOnset(noise(200, 1), fs), null);
+check("nonsense in, null out", detectOnset([], fs), null);
+check("and a nonsense rate too", detectOnset(quietThenBurst, 0), null);
+
+/**
+ * A digitiser's offset is not energy. Forty thousand counts of DC with the same
+ * arrival on top must be detected in the same place, or every real trace --
+ * which all carry an offset -- fails.
+ */
+const offset = Float64Array.from(quietThenBurst, (v) => v + 40000);
+check("a DC offset changes nothing", near(detectOnset(offset, fs), onset, 1e-9), true);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exitCode = 1;

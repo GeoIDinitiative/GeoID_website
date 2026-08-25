@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources,
-} from "./event-sources.js?v=20260825-45cbd11";
+} from "./event-sources.js?v=20260825-df73608";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1458,7 +1458,77 @@ function placePopup(node, x, y) {
  */
 let tracePass = 0;
 
-async function showTrace(event, button) {
+/**
+ * What each archive answered, kept per event.
+ *
+ * Re-opening a card, or clicking the same earthquake in the list and then on
+ * the globe, must not send a second pair of requests to somebody else's
+ * archive for a trace already in hand. Bounded, because a session that browses
+ * two hundred earthquakes should not hold two hundred traces: each is tens of
+ * thousands of samples.
+ */
+const traceCache = new Map();
+const TRACE_CACHE_MAX = 8;
+
+function rememberTrace(id, out) {
+  traceCache.set(id, out);
+  while (traceCache.size > TRACE_CACHE_MAX) traceCache.delete(traceCache.keys().next().value);
+}
+
+/** P and S as the model puts them, and the onset as the trace shows it. */
+function arrivalMarks(event, out, plot) {
+  const trace = out.trace;
+  const predicted = plot.arrivalTimes({
+    distanceKm: out.station?.km,
+    depthKm: event.depthKm,
+    originMs: event.timeMs,
+    startMs: out.startMs,
+    sampleRate: trace.sampleRate,
+    sampleCount: trace.values.length,
+  });
+  const marks = [];
+  if (predicted && !predicted.tooFar) {
+    if (predicted.inWindow) marks.push({ t: predicted.p, label: "P", colour: "#52e4e8" });
+    if (predicted.sInWindow) marks.push({ t: predicted.s, label: "S", colour: "#ff2bd6" });
+  }
+  const onset = plot.detectOnset(trace.values, trace.sampleRate);
+  if (onset != null) {
+    marks.push({ t: onset, label: "onset", colour: "#ffd166", dashed: false });
+  }
+  return { marks, predicted, onset };
+}
+
+/** What the marks mean, said once under the picture rather than guessed at. */
+function arrivalCaption({ predicted, onset }) {
+  if (!predicted) return "";
+  if (predicted.tooFar) {
+    return "Too far for a crustal model to place the arrivals — the ray turns "
+      + "through the mantle at that distance.";
+  }
+  const parts = [`P and S predicted at ${predicted.model} over `
+    + `${predicted.path.toFixed(0)} km — a rule of thumb, not a travel-time model`];
+  if (onset != null) {
+    const drift = onset - predicted.p;
+    parts.push(`measured onset ${Math.abs(drift) < 0.5 ? "on" : `${drift > 0 ? "+" : ""}${drift.toFixed(1)} s from`} the predicted P`);
+  }
+  return `${parts.join("; ")}.`;
+}
+
+/**
+ * The earthquake, as it was recorded.
+ *
+ * A magnitude and a depth are what an earthquake is filed as; a seismogram is
+ * what it IS — ground moving, over about a minute, at frequencies that say how
+ * far away it happened. That record was three panels and a form away, so
+ * almost nobody saw it. This puts it under the numbers that describe it.
+ *
+ * Two pictures, because neither answers the other's question. The waveform is
+ * WHEN and HOW HARD: the P arrival, the S arrival, the coda dying away. The
+ * spectrogram is AT WHAT FREQUENCIES, which is what separates a local event
+ * from a teleseism — distance is a low-pass filter, so a far earthquake
+ * arrives with its high frequencies stripped off however large it was.
+ */
+async function showTrace(event) {
   const node = byId("event-popup");
   const host = node?.querySelector(".event-trace");
   if (!host) return;
@@ -1469,47 +1539,53 @@ async function showTrace(event, button) {
   // title.
   tracePass += 1;
   const pass = tracePass;
-  // The card stamps the event it is showing, so "is this still the card I was
-  // fetching for" needs no second copy of the selection to fall out of step.
   const stale = () => pass !== tracePass || node.hidden || node.dataset.eventId !== event.id;
 
   host.hidden = false;
   node.classList.add("has-trace");
-  host.innerHTML = '<p class="event-trace-note">Looking for a station that recorded it…</p>';
-  if (button) { button.disabled = true; button.textContent = "Fetching…"; }
 
-  let out = null;
-  try {
-    out = await window.GeoIDEarthData?.seismogramNear?.(
-      event.lat, event.lon, event.timeMs, { focusPanel: false },
-    );
-  } catch (error) {
-    out = { ok: false, message: error.message };
+  let out = traceCache.get(event.id);
+  if (!out) {
+    host.innerHTML = '<p class="event-trace-note">Looking for a station that recorded it…</p>';
+    placePopup(node);
+    try {
+      out = await window.GeoIDEarthData?.seismogramNear?.(
+        event.lat, event.lon, event.timeMs, { focusPanel: false },
+      );
+    } catch (error) {
+      out = { ok: false, message: error.message };
+    }
+    if (out) rememberTrace(event.id, out);
+    if (stale()) return;
   }
-  if (button) { button.disabled = false; button.textContent = "Seismogram near here"; }
-  if (stale()) return;
   if (!out?.ok) {
     host.innerHTML = `<p class="event-trace-note">${out?.message || "No trace available."}</p>`;
+    placePopup(node);
     return;
   }
 
-  const { trace } = out;
-  const [{ drawWaveform, drawSpectrogram, displayBand }, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260825-45cbd11"),
-    import("./research/dsp.js?v=20260825-45cbd11"),
+  const [plot, { spectrogram }] = await Promise.all([
+    import("./seismogram-plot.js?v=20260825-df73608"),
+    import("./research/dsp.js?v=20260825-df73608"),
   ]);
   if (stale()) return;
 
-  const band = displayBand(trace.sampleRate);
+  const { trace } = out;
+  const arrivals = arrivalMarks(event, out, plot);
+  const band = plot.displayBand(trace.sampleRate);
+  const seconds = trace.values.length / trace.sampleRate;
   host.innerHTML = `
     <div class="event-trace-head">
       <strong>${trace.id}</strong>
-      <span>${trace.sampleRate} Hz · ${trace.durationS.toFixed(0)} s</span>
+      <span>${out.station?.km ? `${Math.round(out.station.km)} km · ` : ""}`
+        + `${trace.sampleRate} Hz · ${trace.durationS.toFixed(0)} s</span>
     </div>
     <canvas class="event-trace-wave"></canvas>
     <div class="event-trace-axis"><span>ground motion, counts</span><span>time →</span></div>
     <canvas class="event-trace-spec"></canvas>
     <div class="event-trace-axis"><span>0–${band.toFixed(0)} Hz</span><span>quiet → loud</span></div>
+    ${arrivals.predicted
+    ? `<p class="event-trace-note">${arrivalCaption(arrivals)}</p>` : ""}
     ${out.problems?.length
     ? `<p class="event-trace-note">${out.problems.length} record(s) failed their `
       + "integrity check and were dropped.</p>"
@@ -1518,11 +1594,7 @@ async function showTrace(event, button) {
       + "pages will list it.</p>" : ""}`;
 
   const values = trace.values;
-  drawWaveform(host.querySelector(".event-trace-wave"), values, {
-    // The trace wears its own earthquake's colour, so a card and its marker
-    // are obviously the same event.
-    colour: magnitudeColour(event.magnitude),
-  });
+  drawWave(plot, host, values, trace, event, arrivals.marks);
   /**
    * The window is a compromise this had better state.
    *
@@ -1533,13 +1605,23 @@ async function showTrace(event, button) {
    * is not the place to offer the choice -- the Signal pages are, and the
    * trace is already saved there.
    */
-  drawSpectrogram(
+  plot.drawSpectrogram(
     host.querySelector(".event-trace-spec"),
     spectrogram(Array.from(values), trace.sampleRate, { segment: 256, dB: true }),
-    { sampleRate: trace.sampleRate },
+    { sampleRate: trace.sampleRate, marks: arrivals.marks, seconds },
   );
   // The card is a good deal taller than it was when it was placed.
   placePopup(node);
+}
+
+function drawWave(plot, host, values, trace, event, marks) {
+  plot.drawWaveform(host.querySelector(".event-trace-wave"), values, {
+    // The trace wears its own earthquake's colour, so a card and its marker
+    // are obviously the same event.
+    colour: magnitudeColour(event.magnitude),
+    sampleRate: trace.sampleRate,
+    marks,
+  });
 }
 
 function showPopup(event, x, y) {
@@ -1576,9 +1658,6 @@ function showPopup(event, x, y) {
     ${event.link ? `<a href="${event.link}" target="_blank" rel="noopener">Open the ${source ? "USGS" : "EONET"} record</a>` : ""}
     <div class="event-popup-actions">
       <button type="button" class="button secondary" data-role="fly">Bring into view</button>
-      ${event.sourceId && window.GeoIDEarthData?.seismogramNear
-        ? '<button type="button" class="button secondary" data-role="trace">'
-          + 'Seismogram near here</button>' : ""}
     </div>
     <div class="event-trace" hidden></div>`;
   node.removeAttribute("hidden");
@@ -1588,12 +1667,20 @@ function showPopup(event, x, y) {
   node.querySelector('[data-role="fly"]')?.addEventListener("click", () => {
     focusOn(event.lat, event.lon);
   });
-  // The feed knows where and when; the FDSN card knows how to ask an archive.
-  // Joining them here saves copying an epicentre and a UTC time into a form in
-  // another panel — which is the step at which most people stop.
-  node.querySelector('[data-role="trace"]')?.addEventListener("click", (click) => {
-    void showTrace(event, click.currentTarget);
-  });
+  /**
+   * An earthquake's card fetches its own seismogram, rather than offering to.
+   *
+   * "Seismogram near here" was a button in front of the only thing on the card
+   * that is not already in the title: the magnitude, the depth and the place
+   * are all in the two lines above it, and the record is what somebody opened
+   * an earthquake to see. A button in front of the answer is a button asking
+   * whether you meant it.
+   *
+   * It is polite about the archives all the same: one click is one trace, the
+   * result is cached per event, and nothing is fetched for a card nobody
+   * opened.
+   */
+  if (event.sourceId && window.GeoIDEarthData?.seismogramNear) void showTrace(event);
 }
 
 function init() {

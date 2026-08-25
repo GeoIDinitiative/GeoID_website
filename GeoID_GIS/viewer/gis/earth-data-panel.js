@@ -37,7 +37,7 @@ import {
   fetchSoil, strengthFromTexture,
   fetchStations, fetchWaveform, FDSN_NODES,
   fetchPopulation, SOILGRIDS, WORLDPOP,
-} from "./earth-data.js?v=20260825-45cbd11";
+} from "./earth-data.js?v=20260825-df73608";
 
 const byId = (id) => document.getElementById(id);
 
@@ -208,6 +208,13 @@ async function runStations(at) {
       });
       option.dataset.station = `${s.network}.${s.station}`;
       option.dataset.rate = String(s.sampleRate || 0);
+      // Carried on the option so the fetch can hand it back with the trace:
+      // how far the instrument was from the epicentre is what turns a wiggle
+      // into arrival times, and re-deriving it downstream would mean a second
+      // copy of the station list.
+      option.dataset.km = String(s.km);
+      option.dataset.lat = String(s.lat);
+      option.dataset.lon = String(s.lon);
       option.textContent = `${s.id} · ${s.sampleRate || "?"} Hz · ${Math.round(s.km)} km`;
       option.title = `${s.startTime?.slice(0, 10)} to ${s.endTime?.slice(0, 10) || "open"}`;
       select.appendChild(option);
@@ -239,6 +246,14 @@ async function runWaveform() {
   // trace an hour off is a trace of the wrong thing.
   const start = new Date(`${startField}:00Z`);
   const end = new Date(start.getTime() + minutes * 60000);
+
+  const chosen = byId("earthdata-channel")?.selectedOptions?.[0];
+  const station = chosen ? {
+    id: `${query.net}.${query.sta}`,
+    km: Number(chosen.dataset.km),
+    lat: Number(chosen.dataset.lat),
+    lon: Number(chosen.dataset.lon),
+  } : null;
 
   say("earthdata-seis-out", `Fetching ${query.net}.${query.sta}.${query.cha}…`);
   const out = await fetchWaveform(node, { ...query, start, end });
@@ -305,7 +320,17 @@ async function runWaveform() {
     + saved);
   // The trace itself goes back to the caller: the event popup draws it, and
   // this panel is one of two places it is wanted rather than the only one.
-  return { ok: true, trace, problems: out.problems, message: out.message, saved: Boolean(saved) };
+  return {
+    ok: true,
+    trace,
+    // Where the instrument was and when the window opened: both are needed to
+    // put an arrival time on the picture, and only this side knows them.
+    station,
+    startMs: start.getTime(),
+    problems: out.problems,
+    message: out.message,
+    saved: Boolean(saved),
+  };
 }
 
 /* ── population ───────────────────────────────────────────────────────────── */

@@ -1043,6 +1043,33 @@ painted through **one ImageData** scaled by the canvas rather than a rect per
 cell — a 300-column grid is 30,000 fills, which stutters visibly in a popup
 that is meant to open at once.
 
+**P and S are a MODEL; the onset is a MEASUREMENT; they do not look the
+same.** P and S are drawn dashed, predicted from the hypocentral distance —
+station position from the FDSN list, origin and depth from the USGS record,
+window start from the request — at 6.0 km/s (Pg) below 200 km and 8.0 km/s
+(Pn) beyond it, with Vs = Vp/√3. `arrivalTimes` **refuses past 1500 km**
+rather than drawing two lines somebody would read as fact: past about 15° the
+ray turns through the mantle and a straight-line divide is nonsense. The onset
+is drawn solid, picked from the trace itself by STA/LTA, and the caption states
+the difference between them — which is the point of having both.
+
+**A crossing is not an arrival, and a real trace is what taught it.** On
+GE.MATE over an M4.4 in Albania the ratio crossed **100 s before the
+earthquake**, on a tick in the station's own noise: STA/LTA is relative, so a
+small glitch in a very quiet minute is a large ratio. An absolute floor was
+tried first — a fraction of the loudest short window anywhere in the trace —
+and was worse than useless, because a single-sample spike sets that floor: it
+pushed the pick to 269 s, into the quiet after the coda. What separates a tick
+from an arrival is **duration**, so a candidate must hold most of its ratio
+across the next two seconds, which is network practice and needs no absolute
+scale. Measured after: 139.5 s on that trace, against an energy profile that
+rises at ~144 s — and +14 s on the crude Pn prediction, reported as such.
+
+**Marker labels take the first row they fit in.** At 240 km the predicted P and
+S are 22 s apart, which on a 305 s trace is twenty pixels: at one height the
+later label paints over the earlier one and an arrival appears to have no name.
+Measured on that trace, "onset" covered "S" completely.
+
 **The card is placed twice.** It changes size after it is positioned: the trace
 lands seconds later and roughly doubles its height, so a card opened low would
 hang off the bottom of the window with the spectrogram — the part that was
@@ -1056,11 +1083,14 @@ Measured end to end on an M4.4 near Lushnjë, Albania: GE.MATE HHZ, 100 Hz,
 305 s, both canvases drawn, saved to the project, card 490 px inside a 779 px
 window.
 
-**An earthquake's popup carries "Seismogram near here"**, which is the join the
-feature existed for: the feed knows where and when, the FDSN card knows how to
-ask an archive, and without the button somebody has to copy an epicentre and a
-UTC time into a form three panels away — which is the step at which most people
-stop.
+**An earthquake's card fetches its own seismogram**, and there is no button in
+front of it. "Seismogram near here" stood between a reader and the only thing
+on the card that is not already in the title — the magnitude, depth and place
+are the two lines above it — so it was a button asking whether you meant it.
+It stays polite about the archives all the same: one card is one trace, the
+result is cached per event id (`traceCache`, bounded at 8, since a trace is
+tens of thousands of samples), and nothing is fetched for a card nobody
+opened.
 
 Getting that to actually return a trace took four separate corrections, each
 found by measuring against the 2023 Kahramanmaraş M7.8:
