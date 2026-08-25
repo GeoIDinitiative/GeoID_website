@@ -798,14 +798,47 @@ being a second cloud, which is what makes the pulse read as a glow instead of a
 marker changing size. Earthquakes also run `QUAKE_SYMBOL_SCALE` (1.9×) larger
 than a category dot: three rings inside eight pixels is a smudge.
 
-**`magnitudeColour` deepens in HUE, not in brightness.** Magnitude drives the
-colour as well as the size, because from orbit an M4 and an M6 differ by a few
-pixels and by three orders of magnitude of energy. The first ramp ended at a
-deep crimson (#820f2e) — the obvious way to say "more" on paper and the wrong
-way on a black globe: multiplied by the recency fade, an older M8 came out
-**#170003**, the largest earthquake on the map drawn nearly invisible. Red now
-runs to 255 and stays there while green and blue fall away, and the test asserts
-exactly that rather than "darker".
+**Size is a RATIO per magnitude unit, never a number of pixels.** Magnitude is
+logarithmic, so a linear mapping — the first version — spends most of its range
+on the difference between an M2.5 and an M4, which nobody needs to see, and has
+almost nothing left for M6 to M8, which is the difference between a news item
+and a catastrophe. The physics cannot be drawn at true scale and the file says
+so rather than pretending: moment goes as 10^1.5M, so rupture length goes as
+about 10^0.5M — 3.2× per unit, 560× across the range drawn. The chosen
+compression is **width doubling every three magnitude units** (a thousandfold in
+energy), pinned at both ends: an M2.5 is the base size, an M8.5 is four times
+it, nothing grows past that. Measured at two zooms, the M3→M8 ratio is 3.17
+(= 2^5/3) at both — the law is scale-free, which is the property a linear one
+cannot have.
+
+**The dot cap is capped again for earthquakes.** `dotSizePx` tops out at 16 px,
+right for a dot; an earthquake then multiplies it by up to 4 for magnitude and
+1.9 for the symbol, which put a close-range M8 at **103 px** — a ring wider
+than the island it happened on. `QUAKE_BASE_CAP` (8 px) caps the BASE rather
+than the result, so the magnitude ratios stay exact at every zoom: what stops
+growing on the way in is the whole family together, not the big ones catching
+the small ones up. The far field is untouched — at a global view the dot is
+5.7 px, well under it.
+
+**`magnitudeColour` runs GREEN through yellow into RED**, the reading every
+hazard map has trained people in, so it needs no legend: a green ring is
+something the ground does all day, a red one is not. Two rules the stops answer
+to. It moves in **hue, not brightness** — an earlier ramp ended at a deep
+crimson (#820f2e), the obvious way to say "more" on paper and the wrong way on
+a black globe, since the recency fade then takes the biggest earthquake on the
+map down to #6a0a24. And it goes **through yellow rather than through mud**:
+green interpolated straight to red crosses a dark olive at the midpoint, which
+is exactly where the M5s are, so the middle of the ramp would be its least
+legible part.
+
+**Reading vertex colours back gives LINEAR values, not sRGB.** `THREE.Color`
+converts on `set()` under colour management, so a probe that formats
+`color.array` as hex reports something far more saturated than what is drawn —
+sRGB #ffbe28 reads back as #ff8005. That is what makes a "the colours are
+wrong" reading look convincing when nothing is wrong; convert before comparing,
+or compare ratios rather than hexes. (The 0.65 recency fade is a multiply in
+that same linear space, which is a proper luminance scale rather than a
+sRGB-space fudge.)
 
 **The recency floor moved 0.4 → 0.65** for the same reason. 0.4 was right when
 the only feed was the past 24 hours and everything drawn was recent; with the

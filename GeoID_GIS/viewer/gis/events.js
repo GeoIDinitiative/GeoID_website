@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled,
-} from "./event-sources.js?v=20260825-4769a6e";
+} from "./event-sources.js?v=20260825-84cce23";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -168,9 +168,10 @@ const SYMBOLS = {
   drought: { colour: "#d8b26a", glyph: "▬", label: "Drought" },
   // The middle of the magnitude ramp, and concentric rings for the glyph, so
   // the legend and the list say the same thing as the markers do. The colour a
-  // single earthquake wears is `magnitudeColour`; this is what the CATEGORY
-  // looks like where one swatch has to stand for all of them.
-  earthquakes: { colour: "#ff5f3d", glyph: "◎", label: "Earthquakes" },
+  // single earthquake wears is `magnitudeColour` — green through to red; this
+  // is what the CATEGORY looks like where one swatch has to stand for all of
+  // them, and the middle of a ramp is the only honest choice for that.
+  earthquakes: { colour: "#ffbe28", glyph: "◎", label: "Earthquakes" },
   landslides: { colour: "#c98b5e", glyph: "▼", label: "Landslides" },
   snow: { colour: "#e8f4ff", glyph: "❄", label: "Snow" },
   dustHaze: { colour: "#c2a878", glyph: "▨", label: "Dust and haze" },
@@ -735,6 +736,20 @@ function globeRadiusPx() {
  * second, because a fast pulse reads as an alarm.
  */
 const QUAKE_SYMBOL_SCALE = 1.9;
+/**
+ * The dot size an earthquake's own scaling is applied to, capped.
+ *
+ * `dotSizePx` tops out at 16 px, which is right for a dot -- it is one marker
+ * at one size, and 16 px close in is as much as anything should cover. An
+ * earthquake then multiplies that by up to four for magnitude and 1.9 for the
+ * symbol, so the same cap put a close-range M8 at 103 px, a ring wider than
+ * the island it happened on. Capping the BASE rather than the result keeps the
+ * magnitude ratios exact at every zoom: what stops growing on the way in is
+ * the whole family together, not the big ones catching the small ones up.
+ * Above the cap the far field is unaffected -- at a global view the dot is
+ * 5.7 px, well under it.
+ */
+const QUAKE_BASE_CAP = 8;
 const PULSE_PERIOD_MS = 1600;
 const PULSE_SIZE = 0.16;
 const PULSE_OPACITY = 0.3;
@@ -803,7 +818,8 @@ function trackScale() {
       const phase = (Math.sin((performance.now() / PULSE_PERIOD_MS) * Math.PI * 2) + 1) / 2;
       markers.children.forEach((points) => {
         const pulsing = points.userData.pulse;
-        const want = size * (points.userData.sizeScale || 1)
+        const from = pulsing ? Math.min(size, QUAKE_BASE_CAP) : size;
+        const want = from * (points.userData.sizeScale || 1)
           * (pulsing ? 1 + PULSE_SIZE * phase : 1);
         if (points.material.size !== want) points.material.size = want;
         if (pulsing) {
@@ -998,7 +1014,9 @@ function renderMarkers() {
      * says -- what the feed adds is when.
      */
     // Magnitude decides the colour, not the category: one hue for every
-    // earthquake wastes the only channel that carries magnitude at a glance.
+    // earthquake wastes the only channel that carries magnitude at a glance,
+    // and green-through-red is the reading a hazard map does not have to
+    // explain.
     const base = new THREE.Color(
       isQuakeBand(key) ? magnitudeColour(bandMagnitude(key)) : symbolFor(key).colour,
     );

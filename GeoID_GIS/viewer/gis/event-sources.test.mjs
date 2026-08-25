@@ -141,17 +141,40 @@ check("a payload with no features is too", usgsPoints({}, source), []);
 /* ── marker size ──────────────────────────────────────────────────────────── */
 
 const base = 6;
+const near = (a, b, tol = 1e-9) => Math.abs(a - b) < tol;
+
 check("no magnitude is the base size", magnitudeSize(null, base), base);
 check("nothing is smaller than the base", magnitudeSize(1, base) >= base, true);
+check("an M2.5 — the smallest the day feed publishes — IS the base",
+  magnitudeSize(2.5, base), base);
 check("nothing is more than four times it", magnitudeSize(9.5, base) <= base * 4, true);
+check("and an M8.5 is exactly that", near(magnitudeSize(8.5, base), base * 4), true);
 ok("bigger earthquakes are bigger", magnitudeSize(7, base) > magnitudeSize(4, base));
-ok("and the gap is not a rounding error", magnitudeSize(7, base) - magnitudeSize(4, base) > 2);
+
+/**
+ * The size law, which is the point of this function.
+ *
+ * Magnitude is logarithmic, so an even mapping is a fixed RATIO per magnitude
+ * unit — a fixed number of pixels per unit spends the range on the difference
+ * between an M2.5 and an M4 and has nothing left for M6 to M8. The chosen
+ * compression is a doubling of width every three units.
+ */
+check("width doubles every three magnitude units",
+  near(magnitudeSize(5.5, base) / magnitudeSize(2.5, base), 2), true);
+check("and again for the next three",
+  near(magnitudeSize(8.5, base) / magnitudeSize(5.5, base), 2), true);
+// The ratio is the same wherever it is measured, which a linear law cannot do.
+const ratios = [3, 4, 5, 6, 7].map((m) => magnitudeSize(m + 1, base) / magnitudeSize(m, base));
+check("one step is one ratio, anywhere in the range",
+  ratios.every((r) => near(r, ratios[0], 1e-12)), true);
+check("that ratio is the cube root of two", near(ratios[0], 2 ** (1 / 3)), true);
 // Monotonic across the whole usable range, or two bands could swap.
 let monotone = true;
 for (let m = 1; m < 9; m += 0.5) {
   if (magnitudeSize(m + 0.5, base) < magnitudeSize(m, base)) monotone = false;
 }
 check("size never falls as magnitude rises", monotone, true);
+check("the base scales the whole curve", magnitudeSize(6, 12), magnitudeSize(6, 6) * 2);
 
 /* ── magnitude as a colour ────────────────────────────────────────────────── */
 
@@ -165,26 +188,32 @@ check("above it takes the high end", magnitudeColour(11), magnitudeColour(8.0));
 // mid-ramp states something the record does not.
 check("no magnitude takes the low end, not the middle",
   magnitudeColour(null), magnitudeColour(2.0));
-check("a stop returns itself exactly", magnitudeColour(5.0), "#ff7a3c");
+check("a stop returns itself exactly", magnitudeColour(5.0), "#ffbe28");
 // Halfway between two stops is halfway between two colours, or the ramp has
 // bands in it rather than a gradient.
-check("it interpolates between stops", magnitudeColour(4.25), "#ff9551");
+check("it interpolates between stops", magnitudeColour(4.25), "#d5c82b");
 check("every value is a six-digit hex",
   [1, 2, 3.7, 5, 6.2, 7, 9].every((m) => /^#[0-9a-f]{6}$/.test(magnitudeColour(m))), true);
-// Gradational RED: red stays high while green and blue fall away, so the ramp
-// deepens rather than wandering into another hue.
+// GREEN to RED, the reading every hazard map has trained people in.
 const ramp = [2, 3.5, 5, 6.5, 8].map((m) => rgbOf(magnitudeColour(m)));
-check("green falls all the way up the ramp",
+check("red rises all the way up the ramp",
+  ramp.every((c, i) => i === 0 || c[0] >= ramp[i - 1][0]), true);
+check("and green falls all the way up it",
   ramp.every((c, i) => i === 0 || c[1] <= ramp[i - 1][1]), true);
-check("and the reddest channel stays the red one",
-  ramp.every((c) => c[0] > c[1] && c[0] > c[2]), true);
-// It deepens in HUE, not in brightness. Ending in a dark crimson is the
-// obvious way to say "more" and the wrong way to say it on a black globe:
-// multiplied by the recency fade, an older M8 came out #170003 -- the largest
-// earthquake on the map, drawn nearly invisible.
-check("red never falls away", ramp.every((c) => c[0] >= 250), true);
-ok("the top of the ramp survives the recency floor",
-  Math.max(...ramp[4].map((v) => v * recencyOpacity(0, 1, 1))) > 120);
+check("the small end is unmistakably green", ramp[0][1] > ramp[0][0] && ramp[0][1] > ramp[0][2], true);
+check("the big end is unmistakably red", ramp[4][0] > ramp[4][1] && ramp[4][0] > ramp[4][2], true);
+// The middle must not be mud: interpolating green straight to red crosses a
+// dark olive exactly where the M5s are, so the ramp goes through yellow.
+const middle = rgbOf(magnitudeColour(5));
+check("the middle of the ramp is bright, not olive", middle[0] > 200 && middle[1] > 150, true);
+// It moves in HUE, not in brightness. Ending in a dark crimson is the obvious
+// way to say "more" and the wrong way to say it on a black globe: multiplied
+// by the recency fade, an older M8 came out #170003 -- the largest earthquake
+// on the map, drawn nearly invisible.
+check("every stop stays luminous",
+  ramp.every((c) => Math.max(...c) >= 200), true);
+ok("and survives the recency floor",
+  ramp.every((c) => Math.max(...c) * recencyOpacity(0, 1, 1) > 120));
 
 /* ── recency ──────────────────────────────────────────────────────────────── */
 

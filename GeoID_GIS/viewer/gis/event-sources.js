@@ -223,45 +223,65 @@ export function usgsPoints(payload, source) {
 /**
  * How big a marker an earthquake earns.
  *
- * Magnitude is logarithmic and the marker is not, so plotting the number
- * directly makes an M7 look barely larger than an M4 while releasing about
- * 30,000 times the energy. Scaled so the size roughly tracks the felt effect
- * rather than the number, floored so an M2 is still clickable and capped so an
- * M9 does not cover the country it happened in.
+ * Magnitude is a LOGARITHMIC scale, so the only even way to draw it is
+ * geometrically: a fixed ratio per magnitude unit, never a fixed number of
+ * pixels. A linear mapping — the first version here — spends most of its range
+ * on the difference between an M2.5 and an M4, which is nothing anybody needs
+ * to see, and then has almost nothing left for the difference between an M6
+ * and an M8, which is the difference between a news item and a catastrophe.
+ *
+ * The physics cannot be drawn at true scale, and it is worth saying why rather
+ * than pretending otherwise: seismic moment goes as 10^1.5M, so rupture length
+ * goes as about 10^0.5M — a factor of 3.2 per magnitude unit, and 560 across
+ * the range this draws. No screen holds that. So the compression is a choice
+ * and it is stated: **the marker doubles in width every three magnitude
+ * units**, which is a thousandfold in energy. The range is pinned at both ends
+ * — an M2.5, the smallest the day feed publishes, is the base size; an M8.5 is
+ * four times it; nothing grows past that.
  */
+const REF_MAGNITUDE = 2.5;
+const MAGNITUDES_PER_DOUBLING = 3;
+const MAX_MAGNITUDE_STEPS = 6;
+
 export function magnitudeSize(magnitude, base = 6) {
   if (!Number.isFinite(magnitude)) return base;
-  return Math.max(base, Math.min(base * 4, base * (0.55 + 0.22 * magnitude)));
+  const steps = Math.max(0, Math.min(MAX_MAGNITUDE_STEPS, magnitude - REF_MAGNITUDE));
+  return base * (2 ** (steps / MAGNITUDES_PER_DOUBLING));
 }
 
 /**
- * Magnitude as a colour, along one gradational red ramp.
+ * Magnitude as a colour, along a green-to-red ramp.
  *
  * One hue for every earthquake wastes the only channel that can carry
  * magnitude at a glance, and size alone does not survive being looked at from
  * orbit: an M4 and an M6 differ by a few pixels there, and by three orders of
- * magnitude in released energy. The ramp runs pale through orange into a vivid
- * red, so a busy plate boundary reads as a gradient rather than as a uniform
- * scatter, and the top is reserved — an M7 is a colour nothing else on the map
- * is wearing.
+ * magnitude in released energy. Green through yellow and orange into red is
+ * the reading every hazard map has trained people in, so the ramp needs no
+ * legend to be understood — a green ring is something the ground does all day,
+ * a red one is not.
  *
- * **It deepens in HUE, not in brightness.** The first version ended at a deep
- * crimson (#820f2e), which is the obvious way to say "more" on paper and the
- * wrong way to say it on a black globe: multiplied by the recency fade an
- * older M8 came out #170003 — the largest earthquake on the map, drawn nearly
- * invisible. Red goes to 255 and stays there; green and blue fall away.
+ * Two rules the stops are chosen against, both learnt the hard way:
+ *
+ * - **It moves in HUE, not in brightness.** An earlier ramp ended at a deep
+ *   crimson (#820f2e), which is the obvious way to say "more" on paper and the
+ *   wrong way on a black globe: multiplied by the recency fade, an older M8
+ *   came out #170003 — the largest earthquake on the map, drawn nearly
+ *   invisible. Every stop here stays luminous.
+ * - **It passes through yellow rather than through mud.** Interpolating green
+ *   straight to red crosses a dark olive at the midpoint, which is exactly
+ *   where the M5s are, so the middle of the ramp would be its least legible
+ *   part.
  *
  * Interpolated in plain sRGB, which is not perceptually uniform and does not
- * need to be: these stops are close in hue, so the shortcut costs nothing a
- * reader could see, and a colour space conversion here would be machinery for
- * its own sake.
+ * need to be: the stops are close enough together that the shortcut costs
+ * nothing a reader could see.
  */
 export const MAGNITUDE_RAMP = [
-  { m: 2.0, rgb: [255, 224, 184] },
-  { m: 3.5, rgb: [255, 176, 102] },
-  { m: 5.0, rgb: [255, 122, 60] },
-  { m: 6.5, rgb: [255, 59, 48] },
-  { m: 8.0, rgb: [255, 31, 61] },
+  { m: 2.0, rgb: [46, 220, 120] },
+  { m: 3.5, rgb: [170, 210, 45] },
+  { m: 5.0, rgb: [255, 190, 40] },
+  { m: 6.5, rgb: [255, 120, 30] },
+  { m: 8.0, rgb: [255, 40, 45] },
 ];
 
 const hex = (rgb) => `#${rgb.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`;
