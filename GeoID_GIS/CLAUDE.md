@@ -794,6 +794,23 @@ layer from the box turns the tick off.
 **Ticking a feed arms the mode.** A control that fills a list nobody has opened
 is a control that appears to do nothing.
 
+**One category opens at a time, and the others stay on screen.** The drop-down
+showed twelve rows per category and then "+138 more", which named what it was
+withholding and offered no way to see it; showing everything instead lets one
+busy category (150 wildfires, 172 earthquakes) push every other group off the
+bottom of a 60vh panel, and seeing what KINDS of event are happening is what
+the list is for. So "Show all 150" opens that category into a `max-height: 34vh`
+box of its own and folds the rest to their headers — still listed, still one
+press away, and pressing one of them moves the open list there. **The panel's
+height does not change**: measured 467 px before and after.
+
+Two details that are only visible when they are missing: the scroll position is
+kept across the five-minute refresh (`expandedScroll`), or anybody halfway down
+a hundred and fifty wildfires is thrown to the top by a rebuild they did not
+ask for; and a `<button>` centres its text, so with the label span at `flex: 1`
+the folded headers read centred while the open one read from the left, in a
+column that is otherwise perfectly aligned.
+
 **Magnitude is logarithmic and a marker is not.** A `PointsMaterial` has one
 size for the whole cloud, so seismicity is split into magnitude bands — one
 cloud each, `magnitudeSize` for the scale, which `trackScale` multiplies

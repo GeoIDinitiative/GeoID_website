@@ -1290,6 +1290,53 @@ body[data-hub-armed="true"] .events-overlay {
 
 .event-row.is-selected { background: rgba(82, 228, 232, 0.16); border-radius: 0.25rem; }
 
+/* ── Browsing one category ──────────────────────────────────────────────── */
+/* One group opens into a box that scrolls on its own; the others stay on
+   screen as their headers rather than being pushed off the bottom. The panel's
+   own height is unchanged, which is what keeps this a legend rather than a
+   page. */
+button.event-group-head {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 0.2rem 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  /* A <button> centres its text, and the label span is `flex: 1` -- so the
+     folded headers sat centred while the open one's read from the left, in a
+     column that is otherwise perfectly aligned. */
+  text-align: left;
+  cursor: pointer;
+}
+button.event-group-head:hover { color: var(--nav-accent); }
+.event-group.is-folded { opacity: 0.75; }
+.event-group.is-folded:hover { opacity: 1; }
+.event-group-scroll {
+  /* Short enough that the folded headers above and below it stay in view at
+     the panel's own 60vh, tall enough to be worth scrolling. */
+  max-height: 34vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.15rem;
+}
+.event-group-more {
+  display: block;
+  width: 100%;
+  margin-top: 0.15rem;
+  padding: 0.2rem 0;
+  background: none;
+  border: 0;
+  color: var(--nav-accent);
+  font: inherit;
+  font-size: 0.62rem;
+  letter-spacing: 0.05em;
+  text-align: left;
+  cursor: pointer;
+}
+.event-group-more:hover { text-decoration: underline; }
+
 .event-row.is-selected .event-name { color: var(--nav-accent); }
 
 /* Gradient ramps in the legend, for continuous datasets. */

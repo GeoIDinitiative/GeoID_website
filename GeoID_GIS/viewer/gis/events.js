@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity,
   activeGroups, sourcesInGroup, groupState, defaultEnabled,
-} from "./event-sources.js?v=20260825-8393650";
+} from "./event-sources.js?v=20260825-db3d262";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -556,6 +556,35 @@ function wireSources(panel) {
   });
 }
 
+/** How many rows a category shows before it offers the rest. */
+const SHORT_LIST = 12;
+
+/**
+ * Browsing one category without losing the others.
+ *
+ * The list is grouped by category and each group showed twelve rows and then
+ * "+138 more" — which named what it was withholding and gave no way to see it.
+ * Showing everything instead is worse: one busy category (150 wildfires, 172
+ * earthquakes) pushes every other group off the bottom of a panel that is
+ * 60vh tall, and the thing this list is FOR is seeing what kinds of event are
+ * happening at a glance.
+ *
+ * So one category at a time opens into a scrolling box of its own, and while
+ * it is open the others stay on screen as their headers — still there, still
+ * one press away, not scrolled off. The panel's own height does not change,
+ * which is what keeps it usable rather than becoming a page.
+ */
+let expandedGroup = null;
+/** Where somebody had got to in that list, kept across the 5-minute refresh. */
+let expandedScroll = 0;
+
+function eventRowHtml(event, symbol) {
+  return `<div class="event-row" data-id="${event.id}" title="${event.title}">
+      <span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>
+      <span class="event-name">${event.title}</span>
+    </div>`;
+}
+
 function renderPanel() {
   const panel = byId("events-panel-body");
   if (!panel) return;
@@ -573,23 +602,71 @@ function renderPanel() {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(event);
   });
-  panel.innerHTML = [...groups.entries()]
-    .sort((a, b) => b[1].length - a[1].length)
-    .map(([key, list]) => {
-      const symbol = symbolFor(key);
-      const rows = list.slice(0, 12).map((event) => `
-        <div class="event-row" data-id="${event.id}" title="${event.title}">
-          <span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>
-          <span class="event-name">${event.title}</span>
-        </div>`).join("");
-      const more = list.length > 12 ? `<div class="gis-hint">+${list.length - 12} more</div>` : "";
-      return `<div class="event-group">
+  const ordered = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
+  // A category that has gone quiet since it was opened -- the feed refreshes
+  // itself -- must not leave the panel stuck on a group that no longer exists.
+  const open = groups.has(expandedGroup) ? expandedGroup : null;
+  expandedGroup = open;
+
+  panel.innerHTML = ordered.map(([key, list]) => {
+    const symbol = symbolFor(key);
+    const label = symbol.label !== FALLBACK.label ? symbol.label : (list[0].categoryTitle || "Other");
+    const glyph = `<span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>`;
+
+    // Another category, while one is open: its header only, and pressing it
+    // moves the open list here rather than adding a second one.
+    if (open && key !== open) {
+      return `<div class="event-group is-folded">
+          <button type="button" class="event-group-head" data-expand="${key}"
+            title="Browse the ${list.length} ${label.toLowerCase()}">
+            ${glyph}<span>${label}</span><span class="event-count">${list.length}</span>
+          </button>
+        </div>`;
+    }
+
+    // The open one: all of it, in a box that scrolls on its own.
+    if (open) {
+      return `<div class="event-group is-open">
+          <div class="event-group-head">
+            ${glyph}<span>${label}</span><span class="event-count">${list.length}</span>
+          </div>
+          <div class="event-group-scroll">${list.map((e) => eventRowHtml(e, symbol)).join("")}</div>
+          <button type="button" class="event-group-more" data-collapse>Show less</button>
+        </div>`;
+    }
+
+    // Nothing open: the short list, and a way into the rest.
+    const rows = list.slice(0, SHORT_LIST).map((e) => eventRowHtml(e, symbol)).join("");
+    const more = list.length > SHORT_LIST
+      ? `<button type="button" class="event-group-more" data-expand="${key}">`
+        + `Show all ${list.length}</button>`
+      : "";
+    return `<div class="event-group">
         <div class="event-group-head">
-          <span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>
-          <span>${symbol.label !== FALLBACK.label ? symbol.label : (list[0].categoryTitle || "Other")}</span>
-          <span class="event-count">${list.length}</span>
+          ${glyph}<span>${label}</span><span class="event-count">${list.length}</span>
         </div>${rows}${more}</div>`;
-    }).join("");
+  }).join("");
+
+  panel.querySelectorAll("[data-expand]").forEach((node) => {
+    node.addEventListener("click", () => {
+      expandedGroup = node.dataset.expand;
+      expandedScroll = 0;
+      renderPanel();
+    });
+  });
+  panel.querySelector("[data-collapse]")?.addEventListener("click", () => {
+    expandedGroup = null;
+    renderPanel();
+  });
+
+  // The feed refreshes every five minutes and rebuilds this list; without
+  // carrying the scroll over, anybody halfway down a hundred and fifty
+  // wildfires is thrown back to the top by a refresh they did not ask for.
+  const box = panel.querySelector(".event-group-scroll");
+  if (box) {
+    box.scrollTop = expandedScroll;
+    box.addEventListener("scroll", () => { expandedScroll = box.scrollTop; });
+  }
 
   // A row and its marker are the same event, so clicking either does the same
   // thing: bring it into view, ring it, and open its description.
