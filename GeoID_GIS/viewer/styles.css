@@ -4264,6 +4264,27 @@ canvas {
     .geoid-mode-bar.is-armed .section-title-row { color: var(--nav-accent); }
     .geoid-mode-bar .tour-enter-btn.is-active { background: var(--nav-accent); color: #06070d; }
 
+    /* ── Events: a mode bar that grew a body ────────────────────────────── */
+    /* It used to be a bare Enter bar in the same family as myGeoID mode. The
+       feeds it can show are subjects to switch on and off, which is a control
+       set, and a control set belongs in the sidebar beside every other one --
+       so it folds like Geology and keeps the Enter button in its header. */
+    .events-section > .section-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .events-section .section-toggle-main { flex: 1; min-width: 0; }
+    .events-section.is-armed { border-color: var(--nav-accent); }
+    /* NO colour override on the title: an open section's header is already
+       filled with the accent, so painting the words the accent too makes them
+       vanish into it. That is what the mode bar's rule did here -- it was
+       written for a header with no fill. */
+    /* The section's own feed list is denser than the drop-down's: it sits in a
+       column of other control sections and has to keep their rhythm. */
+    #events-feeds-host .event-sources { margin-bottom: 0.35rem; }
+    #events-feeds-host .event-source-name { font-size: 0.68rem; }
+
     /* Armed, the pointer says the globe is clickable for analysis. */
     body[data-hub-armed="true"] canvas { cursor: crosshair; }
 
@@ -4524,8 +4545,34 @@ canvas {
 
     /* The feeds you can switch on, above the events themselves. Ticking one is
        the control that produces the list below it, so it cannot live inside that
-       list -- with everything off there would be nothing to click on. */
+       list -- with everything off there would be nothing to click on.
+
+       Grouped into folding subsections with a master toggle each, the way the
+       Geology tab groups its own: seventeen tick boxes in one column is a list to
+       be read, six named groups is a thing to be used. */
     .event-sources { margin-bottom: 0.55rem; }
+    .event-feed-group { border-bottom: 1px solid rgba(82, 228, 232, 0.14); }
+    .event-feed-group > summary {
+      display: flex; align-items: center; gap: 0.4rem;
+      padding: 0.28rem 0; cursor: pointer; list-style: none;
+      font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .event-feed-group > summary::-webkit-details-marker { display: none; }
+    /* The fold arrow is drawn rather than left to the platform, which paints a
+       black triangle on a dark panel. */
+    .event-feed-group > summary::before {
+      content: "›"; flex: none; width: 0.7rem;
+      transform: rotate(0deg); transition: transform 0.15s ease;
+      color: var(--soft-light);
+    }
+    .event-feed-group[open] > summary::before { transform: rotate(90deg); }
+    .event-feed-group > summary:hover .event-feed-name { color: var(--nav-accent); }
+    .event-feed-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .event-feed-count {
+      flex: none; color: var(--soft-light); font-size: 0.58rem; letter-spacing: 0;
+    }
+    .event-feed-master { flex: none; margin: 0; accent-color: var(--nav-accent); }
+    .event-feed-rows { padding: 0 0 0.3rem 1.1rem; }
     .event-source {
       display: flex; align-items: center; gap: 0.4rem;
       padding: 0.2rem 0; cursor: pointer;

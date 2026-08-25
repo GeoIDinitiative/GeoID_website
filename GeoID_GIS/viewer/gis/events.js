@@ -12,7 +12,8 @@
 
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity,
-} from "./event-sources.js?v=20260825-b2c8775";
+  activeGroups, sourcesInGroup, groupState, defaultEnabled,
+} from "./event-sources.js?v=20260825-22ff9a4";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -39,10 +40,12 @@ const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
  *   boxes with a small limit each give a spread instead: measured, 25 from
  *   every continent rather than 200 from one.
  */
-const CATEGORIES = [
-  "drought", "dustHaze", "earthquakes", "floods", "landslides", "manmade",
-  "seaLakeIce", "severeStorms", "snow", "tempExtremes", "volcanoes", "waterColor",
-];
+/**
+ * The categories are no longer a list in this file — they are the EONET rows
+ * that are ticked, in `event-sources.js`. Turning one off is one fewer
+ * request, which is the point: somebody watching seismicity has no use for
+ * twelve category requests and the six wildfire regions underneath them.
+ */
 
 /** The category that would otherwise drown the rest, sampled by region. */
 const BULK_CATEGORY = "wildfires";
@@ -61,12 +64,16 @@ const PER_CATEGORY = 40;
 const PER_REGION = 25;
 
 function feedUrls() {
-  const urls = CATEGORIES.map(
-    (id) => `${API}?status=open&category=${id}&limit=${PER_CATEGORY}`,
-  );
-  REGIONS.forEach(([w, n, e, s]) => {
-    urls.push(`${API}?status=open&category=${BULK_CATEGORY}`
-      + `&limit=${PER_REGION}&bbox=${w},${n},${e},${s}`);
+  const urls = [];
+  SOURCES.filter((src) => src.kind === "eonet" && enabled.has(src.id)).forEach((src) => {
+    if (src.category === BULK_CATEGORY) {
+      REGIONS.forEach(([w, n, e, s]) => {
+        urls.push(`${API}?status=open&category=${BULK_CATEGORY}`
+          + `&limit=${PER_REGION}&bbox=${w},${n},${e},${s}`);
+      });
+      return;
+    }
+    urls.push(`${API}?status=open&category=${src.category}&limit=${PER_CATEGORY}`);
   });
   return urls;
 }
@@ -207,7 +214,7 @@ const RECENCY_WINDOW_MS = 7 * 24 * 3600 * 1000;
  * came for earthquakes wants earthquakes the next time too.
  */
 const STORE_KEY = "geoid-gis:event-sources";
-let enabled = new Set(SOURCES.filter((x) => x.defaultOn).map((x) => x.id));
+let enabled = new Set(defaultEnabled());
 try {
   const saved = JSON.parse(window.localStorage.getItem(STORE_KEY) || "null");
   if (Array.isArray(saved)) enabled = new Set(saved.filter(sourceById));
@@ -219,14 +226,84 @@ function rememberSources() {
   } catch (error) { /* no storage, the choice is still live this session */ }
 }
 
-export function setSourceEnabled(id, on) {
-  if (!sourceById(id)) return;
-  if (on) enabled.add(id); else enabled.delete(id);
-  rememberSources();
-  void fetchEvents();
+/**
+ * A LAYER source is not remembered here, because the globe already knows.
+ *
+ * Faults and plate boundaries are ordinary catalogue layers: they have a row
+ * in the layer box, an eye, an opacity and a place in the draw order, and they
+ * can be taken off from there. A second record of whether they are on is a
+ * second answer to one question, and the two drift the first time somebody
+ * removes the layer from the box — the tick here would still say yes. So the
+ * tick READS the globe.
+ */
+const layerOn = (src) => Boolean(window.GeoIDGlobalData?.layerForDataset?.(src.dataset));
+
+async function setLayerSource(src, on) {
+  const data = window.GeoIDGlobalData;
+  if (!data) return;
+  if (on) {
+    if (layerOn(src)) return;
+    status(`Fetching ${src.label}…`);
+    const out = await data.addDataset(src.dataset, () => {});
+    status(out?.ok ? `${src.label} added. ${src.licence}.` : (out?.message || "Could not add it."));
+  } else {
+    const layer = data.layerForDataset(src.dataset);
+    if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+  }
+  renderFeeds();
 }
 
-export const isSourceEnabled = (id) => enabled.has(id);
+/**
+ * One refetch for a burst of ticks.
+ *
+ * A group's master toggle turns five rows on, and each of those is a change:
+ * fetching per change means five overlapping passes over the same feeds, the
+ * last of which wins. The wait is short enough to be invisible to one click
+ * and long enough to collect a programmatic run of them.
+ */
+let refetchTimer = null;
+function refetchSoon() {
+  if (refetchTimer) window.clearTimeout(refetchTimer);
+  refetchTimer = window.setTimeout(() => {
+    refetchTimer = null;
+    void fetchEvents();
+  }, 120);
+}
+
+export function setSourceEnabled(id, on) {
+  const src = sourceById(id);
+  if (!src) return;
+  if (src.kind === "layer") {
+    void setLayerSource(src, on);
+    return;
+  }
+  if (on) enabled.add(id); else enabled.delete(id);
+  rememberSources();
+  renderFeeds();
+  // Ticking a feed is asking to see it, so it arms the mode rather than
+  // filling a list nobody has opened.
+  if (on && !active) { void setActive(true); return; }
+  refetchSoon();
+}
+
+/** Every row in a subsection at once, with one fetch at the end of it. */
+export function setGroupEnabled(groupId, on) {
+  const rows = sourcesInGroup(groupId);
+  rows.filter((src) => src.kind !== "layer").forEach((src) => {
+    if (on) enabled.add(src.id); else enabled.delete(src.id);
+  });
+  rememberSources();
+  rows.filter((src) => src.kind === "layer").forEach((src) => { void setLayerSource(src, on); });
+  renderFeeds();
+  if (on && !active && rows.some((src) => src.kind !== "layer")) { void setActive(true); return; }
+  if (rows.some((src) => src.kind !== "layer")) refetchSoon();
+}
+
+export const isSourceEnabled = (id) => {
+  const src = sourceById(id);
+  if (!src) return false;
+  return src.kind === "layer" ? layerOn(src) : enabled.has(src.id);
+};
 
 let active = false;
 let events = [];
@@ -238,9 +315,19 @@ let THREE = null;
 
 const byId = (id) => document.getElementById(id);
 
+/**
+ * Said in both places, because the two are visible at different times.
+ *
+ * `events-status` is the head of the drop-down, which only exists while the
+ * mode is on; `events-feeds-status` is in the sidebar section, which can be
+ * open with the mode off — and that is exactly when somebody ticks the fault
+ * layer and needs to be told it is being fetched.
+ */
 function status(message) {
-  const node = byId("events-status");
-  if (node) node.textContent = message || "";
+  ["events-status", "events-feeds-status"].forEach((id) => {
+    const node = byId(id);
+    if (node) node.textContent = message || "";
+  });
 }
 
 /** Latest dated point of an event's geometry -- where it is now, not where it began. */
@@ -295,7 +382,7 @@ async function fetchEvents() {
   const seismic = new Map();
   quakes.points.forEach((q) => seismic.set(q.id, q));
 
-  if (!enabled.has("eonet")) {
+  if (!feedUrls().length) {
     events = [...seismic.values()];
     missingFeeds = quakes.asked - quakes.reached;
     reportCounts(quakes);
@@ -378,29 +465,90 @@ function reportCounts(quakes) {
 }
 
 /**
- * The feeds, as rows you tick, at the top of the drop-down.
+ * Which subsections are folded open, kept in the module rather than on the
+ * element: the list is rebuilt on every tick and every refresh, so state held
+ * in the DOM springs shut under somebody working down it. Same reason the
+ * catalogue dropdown keeps its own.
+ */
+const openGroups = new Map();
+
+/**
+ * The feeds, as ticked rows inside named subsections, at the top of the
+ * drop-down.
  *
  * They go at the TOP rather than under the events: with every source off the
  * list below is empty, and a control that only appears once there is something
  * to see cannot be the control that brings something to see. That is the same
  * reason this block is rendered before the early return for an empty feed.
+ *
+ * Subsections rather than one column, because seventeen tick boxes is a list
+ * to be read where six named groups is a thing to be used — and each carries a
+ * master toggle, so "show me seismicity" is one press rather than three.
  */
 function sourcesBlock() {
-  const rows = SOURCES.map((src) => `
-    <label class="event-source" title="${src.note} — ${src.licence}">
-      <input type="checkbox" data-feed="${src.id}"${enabled.has(src.id) ? " checked" : ""}>
-      <span class="event-glyph" style="color:${src.colour}">●</span>
-      <span class="event-source-name">${src.label}</span>
-    </label>`).join("");
   return `<div class="event-sources">
-    <div class="event-group-head"><span class="event-glyph">☰</span><span>Live feeds</span></div>
-    ${rows}
+    ${activeGroups().map((group) => {
+    const state = groupState(group.id, isSourceEnabled);
+    const rows = sourcesInGroup(group.id).map((src) => {
+      const symbol = src.colour ? { colour: src.colour } : symbolFor(src.category);
+      return `<label class="event-source" title="${src.note} — ${src.licence}">
+          <input type="checkbox" data-feed="${src.id}"${isSourceEnabled(src.id) ? " checked" : ""}>
+          <span class="event-glyph" style="color:${symbol.colour}">●</span>
+          <span class="event-source-name">${src.label}</span>
+        </label>`;
+    }).join("");
+    // Open when something in it is on, so arriving shows what is being drawn
+    // and folds away what is not -- and `openGroups` keeps whatever was
+    // opened by hand, because the list is redrawn on every change.
+    const open = openGroups.has(group.id) ? openGroups.get(group.id) : !state.none;
+    return `<details class="event-feed-group"${open ? " open" : ""} data-group="${group.id}">
+        <summary>
+          <span class="event-feed-name">${group.label}</span>
+          <span class="event-feed-count">${state.on}/${state.total}</span>
+          <input type="checkbox" class="event-feed-master" data-group-toggle="${group.id}"
+            ${state.all ? "checked" : ""} title="${group.note}"
+            aria-label="Turn ${group.label} on or off">
+        </summary>
+        <div class="event-feed-rows">${rows}</div>
+      </details>`;
+  }).join("")}
   </div>`;
+}
+
+/**
+ * The feed controls, drawn into the sidebar's Events section.
+ *
+ * They are drawn whether or not the mode is on, because ticking one is how
+ * somebody turns it on: a control that only exists once the thing it controls
+ * is running cannot be the way in.
+ */
+function renderFeeds() {
+  const host = byId("events-feeds-host");
+  if (!host) return;
+  host.innerHTML = sourcesBlock();
+  wireSources(host);
 }
 
 function wireSources(panel) {
   panel.querySelectorAll("[data-feed]").forEach((box) => {
     box.addEventListener("change", () => setSourceEnabled(box.dataset.feed, box.checked));
+  });
+  panel.querySelectorAll("[data-group-toggle]").forEach((box) => {
+    const state = groupState(box.dataset.groupToggle, isSourceEnabled);
+    // The third state: a group with two of five rows on is neither on nor off,
+    // and a box showing "off" over it says something false about the map.
+    box.indeterminate = state.indeterminate;
+    // Inside a <summary>, a click on the box is also a click on the summary,
+    // which folds the section. Toggling a group is not asking to close it.
+    box.addEventListener("click", (event) => event.stopPropagation());
+    box.addEventListener("change", () => {
+      // Anything short of all-on turns the whole group on: that is the answer
+      // that needs no second press.
+      setGroupEnabled(box.dataset.groupToggle, !state.all);
+    });
+  });
+  panel.querySelectorAll("details[data-group]").forEach((node) => {
+    node.addEventListener("toggle", () => openGroups.set(node.dataset.group, node.open));
   });
 }
 
@@ -408,8 +556,11 @@ function renderPanel() {
   const panel = byId("events-panel-body");
   if (!panel) return;
   if (!events.length) {
-    panel.innerHTML = `${sourcesBlock()}<p class="gis-hint">No events to show.</p>`;
-    wireSources(panel);
+    // The feeds themselves are switched on in the sidebar's Events section, so
+    // this says where to go rather than being a second set of the same
+    // controls -- two places to turn a feed on is two answers to one question.
+    panel.innerHTML = '<p class="gis-hint">Nothing from the feeds that are on. '
+      + 'Switch more on under <strong>Events</strong> in the sidebar.</p>';
     return;
   }
   const groups = new Map();
@@ -418,7 +569,7 @@ function renderPanel() {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(event);
   });
-  panel.innerHTML = sourcesBlock() + [...groups.entries()]
+  panel.innerHTML = [...groups.entries()]
     .sort((a, b) => b[1].length - a[1].length)
     .map(([key, list]) => {
       const symbol = symbolFor(key);
@@ -435,8 +586,6 @@ function renderPanel() {
           <span class="event-count">${list.length}</span>
         </div>${rows}${more}</div>`;
     }).join("");
-
-  wireSources(panel);
 
   // A row and its marker are the same event, so clicking either does the same
   // thing: bring it into view, ring it, and open its description.
@@ -783,6 +932,10 @@ async function setActive(on) {
   const button = byId("events-mode-enter");
   if (button) {
     button.textContent = active ? "Exit" : "Enter";
+    // `is-armed` is the skin's own class for a live Enter button (the tour and
+    // moon sections wear it); `is-active` was the mode bar's, and the mode bar
+    // is what this section stopped being when it gained a body.
+    button.classList.toggle("is-armed", active);
     button.classList.toggle("is-active", active);
   }
   const host = byId("events-overlay");
@@ -1078,7 +1231,16 @@ function showPopup(event, x, y) {
 }
 
 function init() {
-  byId("events-mode-enter")?.addEventListener("click", () => setActive(!active));
+  // The mode button sits inside the section's <summary>, so a click on it is
+  // also a click on the summary: without this, entering the mode folds the
+  // panel of feeds you entered it to use.
+  byId("events-mode-enter")?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    void setActive(!active);
+  });
+  // The feeds are drawn before anything is fetched: ticking one is the way in.
+  renderFeeds();
   const toggle = byId("events-panel-toggle");
   toggle?.addEventListener("click", () => {
     const panel = byId("events-panel");
@@ -1100,6 +1262,10 @@ function init() {
     window.requestAnimationFrame(placeOverlay);
   });
   window.addEventListener("resize", placeOverlay);
+  // The fault and plate rows read the globe rather than a stored preference,
+  // so whoever takes that layer off -- this list, the layer box, the Vectors
+  // tab -- the tick follows.
+  window.GeoIDImportManager?.onChange?.(renderFeeds);
   // Escape drops the selection, the way it dismisses the other overlays.
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !byId("event-popup")?.hidden) hidePopup();

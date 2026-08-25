@@ -9,7 +9,8 @@
  */
 
 import {
-  SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity,
+  SOURCES, FEED_GROUPS, sourceById, sourcesInGroup, activeGroups, groupState,
+  defaultEnabled, usgsPoints, magnitudeSize, recencyOpacity,
 } from "./event-sources.js";
 
 let pass = 0;
@@ -35,7 +36,50 @@ check("every usgs source carries a url",
 check("sourceById finds one", sourceById("quakes-day")?.kind, "usgs");
 check("sourceById refuses an unknown id", sourceById("nope"), null);
 // The default must draw something: a mode that opens empty reads as broken.
-ok("something is on by default", SOURCES.some((s) => s.defaultOn));
+ok("something is on by default", defaultEnabled().length > 0);
+ok("seismicity is on by default", defaultEnabled().includes("quakes-day"));
+
+/* ── the subsections ──────────────────────────────────────────────────────── */
+
+check("every source names a group that exists",
+  SOURCES.filter((s) => !FEED_GROUPS.some((g) => g.id === s.group)).length, 0);
+// A group with no rows renders an empty fold, which reads as something broken
+// rather than as something absent.
+check("no group is declared and left empty", activeGroups().length, FEED_GROUPS.length);
+check("every group carries a label and a note",
+  FEED_GROUPS.filter((g) => g.label && g.note).length, FEED_GROUPS.length);
+ok("seismicity holds the three USGS windows",
+  sourcesInGroup("seismic").filter((s) => s.kind === "usgs").length === 3);
+ok("the fault lines are a layer, not an event feed",
+  sourceById("faults")?.kind === "layer" && sourceById("faults")?.dataset === "active-faults");
+ok("so are the plate boundaries",
+  sourceById("plates")?.kind === "layer" && sourceById("plates")?.dataset === "plate-boundaries");
+// A layer source must NOT be a default: it is a fetch of somebody else's file
+// and a row in the layer box, which is a decision rather than a background.
+check("no layer source is on by default",
+  SOURCES.filter((s) => s.kind === "layer" && s.defaultOn).length, 0);
+check("every eonet source names a category",
+  SOURCES.filter((s) => s.kind === "eonet" && !s.category).length, 0);
+// EONET's own earthquakes category is empty almost always and would double
+// every USGS event that it did carry, under a different id.
+check("EONET earthquakes is not offered beside the USGS feeds",
+  SOURCES.some((s) => s.kind === "eonet" && s.category === "earthquakes"), false);
+check("wildfires are still offered",
+  SOURCES.some((s) => s.kind === "eonet" && s.category === "wildfires"), true);
+
+/* ── the master toggle's three states ─────────────────────────────────────── */
+
+const seismic = sourcesInGroup("seismic").map((s) => s.id);
+check("all on", groupState("seismic", (id) => seismic.includes(id)),
+  { total: 3, on: 3, all: true, none: false, indeterminate: false });
+check("all off", groupState("seismic", () => false),
+  { total: 3, on: 0, all: false, none: true, indeterminate: false });
+// The state that matters: a box showing "off" over a group with one of three
+// rows on is saying something false about the map.
+check("some on is neither", groupState("seismic", (id) => id === seismic[0]),
+  { total: 3, on: 1, all: false, none: false, indeterminate: true });
+check("an unknown group is empty rather than an error",
+  groupState("nope", () => true), { total: 0, on: 0, all: false, none: true, indeterminate: false });
 
 /* ── the USGS conversion ──────────────────────────────────────────────────── */
 

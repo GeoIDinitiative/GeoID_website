@@ -736,10 +736,51 @@ earthquake yesterday draws three markers on one epicentre and is counted three
 times. Verified live: `access-control-allow-origin: *`, coordinates
 `[lon, lat, depthKm]`, `properties.time` in epoch **milliseconds**.
 
-**The tick list goes ABOVE the events, and renders even when there are none.**
-With every feed off the list below is empty, and a control that only appears
-once there is something to see cannot be the control that brings something to
-see.
+**The feed controls are the sidebar's Events TAB, not the drop-down.** They
+started in the drop-down beside the legend, which was wrong twice over: that
+overlay exists to list what arrived, and it only exists while the mode is on —
+so the control that turns a feed on lived inside the thing it turns on. The tab
+is now a folding `<details>` like Geology (`events-section` in index.html, body
+filled by `renderFeeds()`), with the Enter button in its summary; the drop-down
+lists events and points at the sidebar when there is nothing to list. **The
+Enter button needs `stopPropagation` + `preventDefault`** — inside a `<summary>`
+a click on it is also a click on the summary, so entering the mode folded away
+the panel of feeds you entered it to use.
+
+**Seventeen tick boxes in one column is a list to be read; seven named
+subsections is a thing to be used.** `FEED_GROUPS` — Seismicity, Tectonic
+structure, Volcanic activity, Wildfires, Ice and snow, Storms and water, Land
+and climate — each folds and carries a **master toggle with three states**:
+`groupState()` returns `indeterminate` for a partial group, because a box
+showing "off" over two-of-five-on says something false about the map, and
+pressing anything short of all-on turns the group on. A group's press moves
+five rows, so `refetchSoon()` debounces to **one** fetch round — measured, 11
+category requests and 1 USGS for a five-row press, not five passes.
+
+**Which subsections are folded open is kept in a module Map**, not on the
+element: the list is rebuilt on every tick and every refresh, so DOM-held state
+springs shut under somebody working down it. Same reason the catalogue dropdown
+keeps its own.
+
+**EONET is one row per CATEGORY**, so turning one off is one fewer request —
+`feedUrls()` is derived from what is ticked rather than from a list in
+`events.js`. EONET's own `earthquakes` category is deliberately absent: it is
+nearly always empty (EONET curates by hand, the USGS publishes within the
+minute) and where it did carry one it would double a USGS event under a
+different id.
+
+**Faults and plate boundaries are `kind: "layer"` sources, and their tick reads
+the GLOBE.** They are not events — they are the lines seismicity is read
+against, which is why they belong in this tab — and they arrive through
+`global-data.js` as ordinary catalogue layers with a row in the layer box, an
+eye and an opacity. A second record of whether they are on would be a second
+answer to one question, and the two drift the moment somebody removes the layer
+from the box; `layerOn()` asks `layerForDataset` instead. Verified both ways:
+ticking here loads 13,696 GEM faults and 241 plate segments, and removing the
+layer from the box turns the tick off.
+
+**Ticking a feed arms the mode.** A control that fills a list nobody has opened
+is a control that appears to do nothing.
 
 **Magnitude is logarithmic and a marker is not.** A `PointsMaterial` has one
 size for the whole cloud, so seismicity is split into magnitude bands — one
@@ -756,7 +797,16 @@ layer already says — what the feed adds is *when*.
 
 The layer row is `Live events` (renamed from `Events (NASA EONET)`, which is no
 longer what it is) and its credit is the deduplicated licence line of whatever
-is on — three USGS feeds are one credit.
+is on — three USGS feeds are one credit. `status()` writes to **both** status
+nodes, the drop-down's and the sidebar's, because the two are visible at
+different times: the sidebar one is what reports a fault layer being fetched
+with the mode off.
+
+**An open section's header is already filled with the accent**, so
+`.is-armed .section-title-row { color: var(--nav-accent) }` — carried over from
+the mode bar, whose header had no fill — painted "Events" magenta on magenta and
+made the title vanish. Measured: `rgb(255,43,214)` text on an
+`rgb(255,43,214)` summary.
 
 ### The three services are filed where their question is asked
 
