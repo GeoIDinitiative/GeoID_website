@@ -159,8 +159,15 @@ def accumulate(data, lats, lons, step, radius_km, classes):
     """
     height = len(lats)
     width = len(lons)
-    sigma_deg = radius_km / (EARTH_KM * math.pi / 180.0)
-    reach_deg = sigma_deg * 2.0
+    # `radius_km` is the SEARCH RADIUS -- the distance beyond which a record is
+    # not used at all -- and sigma is half of it, so the weight is down to 14%
+    # at the edge and the cut is not a visible step. Treating the radius AS
+    # sigma (and cutting at twice it) is what let a cell with no record inside
+    # 450 km be painted from 122 records between 450 and 900: measured at
+    # 20N 40W in the north Atlantic, an effective 33 records where the honest
+    # answer is none.
+    sigma_km = radius_km / 2.0
+    reach_deg = radius_km / (EARTH_KM * math.pi / 180.0)
 
     lat_rad = np.radians(lats)
     cos_lat = np.cos(lat_rad)
@@ -197,10 +204,11 @@ def accumulate(data, lats, lons, step, radius_km, classes):
                + math.cos(phi) * cos_lat[rows][:, None] * np.sin(d_lon / 2) ** 2)
         km = 2 * EARTH_KM * np.arcsin(np.sqrt(np.clip(hav, 0, 1)))
 
-        kernel = np.exp(-0.5 * (km / radius_km) ** 2)
-        # Cut where the kernel is negligible, so the window stays a disc rather
-        # than the rectangle it was computed in.
-        kernel[km > radius_km * 2] = 0.0
+        kernel = np.exp(-0.5 * (km / sigma_km) ** 2)
+        # Cut at the search radius, so the window is a disc rather than the
+        # rectangle it was computed in -- and so "within 450 km" is what the
+        # layer says and what it did.
+        kernel[km > radius_km] = 0.0
         if not kernel.any():
             continue
         contribution = kernel * (w / QUALITY_WEIGHT["C"])
@@ -321,7 +329,7 @@ REGIME_SPLIT = {
 }
 
 
-def regime_image(regime_grids, drawn, coverage):
+def regime_image(regime_grids, has_data, coverage):
     """Which way the crust is failing, as the dominant regime in each cell.
 
     An orientation map answers "which way is SHmax" and cannot answer "so
@@ -343,7 +351,7 @@ def regime_image(regime_grids, drawn, coverage):
     with np.errstate(invalid="ignore", divide="ignore"):
         share = np.where(total > 0, stack.max(axis=0) / np.maximum(total, 1e-12), 0.0)
 
-    height, width = drawn.shape
+    height, width = has_data.shape
     rgb = np.zeros((height, width, 3), dtype=np.uint8)
     for i, key in enumerate(keys):
         for channel in range(3):
@@ -354,7 +362,7 @@ def regime_image(regime_grids, drawn, coverage):
     # drawn as though it had.
     decisive = np.clip((share - 0.34) / 0.5, 0, 1)
     support = np.clip(coverage / 3.0, 0, 1)
-    alpha = np.where(drawn, np.clip(decisive * support * 0.92, 0.08, 0.92), 0.0)
+    alpha = np.where(has_data, np.clip(decisive * support * 0.92, 0.08, 0.92), 0.0)
     return np.dstack([rgb, (alpha * 255).astype(np.uint8)])
 
 
@@ -477,9 +485,22 @@ def main():
                              0.0)
         azimuth = (np.degrees(np.arctan2(sin_s, cos_s)) / 2.0) % 180.0
 
-    drawn = (coverage >= WEIGHT_FLOOR) & (resultant >= RESULTANT_FLOOR)
-    print(f"{drawn.sum()} of {drawn.size} cells carry data "
-          f"({100 * drawn.mean():.1f}% of the globe)")
+    # THREE masks, because the four pictures are asked three questions.
+    #
+    # The orientation and regime maps must not draw a mean of records that
+    # disagree -- that is a number, not a measurement. But the AGREEMENT map
+    # exists to show exactly those cells, and hiding them is self-defeating;
+    # and the DENSITY map answers "is there data here", which does not depend
+    # on whether the data concur. One mask for all four put a hole in the
+    # middle of Australia on a map of HOW MUCH DATA THERE IS -- where what
+    # Australia has is plenty of records and a field that rotates across the
+    # continent, which is a fact about the stress and not about the coverage.
+    has_data = coverage >= WEIGHT_FLOOR
+    drawn = has_data & (resultant >= RESULTANT_FLOOR)
+    shown_any = coverage >= WEIGHT_FLOOR / 2
+    print(f"{drawn.sum()} of {drawn.size} cells carry a usable orientation "
+          f"({100 * drawn.mean():.1f}% of the globe); "
+          f"{100 * has_data.mean():.1f}% carry any data at all")
 
     # Hue runs once round the wheel per 180 degrees of azimuth, which is what
     # makes the colour cyclic in the same way the quantity is: north-south and
@@ -557,12 +578,17 @@ def main():
     # anything here at all (the density). The last two are the map of the map:
     # a reader who cannot see where the data are cannot tell an interpolation
     # from an observation.
-    Image.fromarray(regime_image(regime_grids, drawn, coverage)).save(
+    # Masked by whether there is DATA, not by whether the orientations agree.
+    # A subduction zone mixes SHmax directions -- the Japan trench measures
+    # R = 0.30 -- while agreeing perfectly about the regime: 60% thrust, which
+    # is the least surprising fact in seismology. Using the orientation's mask
+    # here put a hole in the regime map exactly over the trenches.
+    Image.fromarray(regime_image(regime_grids, has_data, coverage)).save(
         OUT_DIR / "stress-regime.png", optimize=True)
     print(f"wrote {OUT_DIR / 'stress-regime.png'}")
 
     Image.fromarray(ramp_image(
-        (resultant - RESULTANT_FLOOR) / (1 - RESULTANT_FLOOR), drawn,
+        (resultant - RESULTANT_FLOOR) / (1 - RESULTANT_FLOOR), has_data,
         [(0.0, (40, 20, 70)), (0.5, (120, 60, 200)), (1.0, (255, 233, 168))],
     )).save(OUT_DIR / "stress-agreement.png", optimize=True)
     print(f"wrote {OUT_DIR / 'stress-agreement.png'}")
@@ -572,7 +598,7 @@ def main():
     # linear ramp everything outside a subduction zone is the same black.
     density = np.log10(np.maximum(coverage, 0.1) + 1) / np.log10(1000)
     Image.fromarray(ramp_image(
-        density, drawn,
+        density, shown_any,
         [(0.0, (12, 30, 50)), (0.5, (40, 160, 190)), (1.0, (255, 255, 220))],
     )).save(OUT_DIR / "stress-density.png", optimize=True)
     print(f"wrote {OUT_DIR / 'stress-density.png'}")
@@ -588,6 +614,7 @@ def main():
 
     write_vectors(data)
     check(data, azimuth, coverage, resultant, step, width, height)
+    check_regimes(data, regime_grids, drawn, step, width, height)
 
 
 # Places whose stress orientation is not in dispute, and what is known about
@@ -601,6 +628,78 @@ REFERENCES = [
     (48.0, 8.0, "Upper Rhine Graben", "NW-SE, ~145"),
     (-24.0, 134.0, "central Australia", "E-W to ENE (Hillis & Reynolds)"),
 ]
+
+
+# Places where the faulting regime is not in dispute either. An orientation can
+# be right while the regime map is inside out -- they are computed differently
+# and only one of them is checked by the azimuth test above.
+REGIME_REFERENCES = [
+    (-2.0, 36.0, "East African rift", "NF"),
+    (40.0, -114.0, "Basin and Range (Utah)", "NF"),
+    (28.0, 85.0, "southern Tibet rifts", "NF"),
+    (36.0, -120.0, "San Andreas", "SS"),
+    (40.5, 31.0, "North Anatolian fault", "SS"),
+    (30.0, 80.0, "western Himalaya", "TF"),
+    (38.5, 142.0, "Japan trench", "TF"),
+    (-1.0, 100.0, "Sumatra", "TF"),
+]
+# Two of these started out wrong and the map was right, which is the failure
+# mode a reference list has: 39N 117W was filed as Basin and Range extension
+# and is in the Walker Lane, where the records are 62% strike-slip; 28N 85E was
+# filed as the Himalayan thrust front and is in southern Tibet, which extends.
+# The grid reproduced the raw records to a percent in both cases. A check that
+# disagrees with the data is a claim about the checker until it is measured.
+
+
+def check_regimes(data, regime_grids, drawn, step, width, height):
+    """The regime map against the raw records, at places with a known style.
+
+    Two comparisons in one line, and they answer different questions. The GRID
+    against the RECORDS is a check on the arithmetic — the same weighting, done
+    twice, must agree. The winner against the EXPECTATION is a check on the
+    geology, and it is the softer of the two: a reference point can be filed
+    under the wrong tectonics, which is exactly what happened twice here.
+    """
+    print("\ncheck — dominant regime, grid against records:")
+    keys = list(REGIME_COLOUR)
+    stack = np.stack([regime_grids[key] for key in keys])
+    lats = np.array([d[0] for d in data])
+    lons = np.array([d[1] for d in data])
+    weights = np.array([d[3] for d in data])
+    codes = [d[4] for d in data]
+    right = 0
+    for lat, lon, name, expected in REGIME_REFERENCES:
+        row = min(height - 1, max(0, int((90 - lat) / step)))
+        col = int((lon + 180) / step) % width
+        column = stack[:, row, col]
+        total = float(column.sum())
+        if total <= 0:
+            print(f"      {name:24s} nothing in range")
+            continue
+        order = np.argsort(column)[::-1]
+        won = keys[order[0]]
+
+        d_lat = np.radians(lats - lat)
+        d_lon = np.radians(lons - lon)
+        hav = (np.sin(d_lat / 2) ** 2
+               + math.cos(math.radians(lat)) * np.cos(np.radians(lats))
+               * np.sin(d_lon / 2) ** 2)
+        km = 2 * EARTH_KM * np.arcsin(np.sqrt(np.clip(hav, 0, 1)))
+        kernel = np.exp(-0.5 * (km / (SEARCH_KM / 2)) ** 2)
+        kernel[km > SEARCH_KM] = 0
+        direct = {key: 0.0 for key in keys}
+        for i in np.nonzero(kernel)[0]:
+            for key, share in REGIME_SPLIT.get(codes[i], {"U": 1.0}).items():
+                direct[key] += kernel[i] * weights[i] * share
+        raw_total = sum(direct.values()) or 1.0
+        raw_top = max(direct, key=direct.get)
+
+        agree = "ok " if won == expected else "OUT"
+        right += won == expected
+        print(f"  {agree} {name:24s} grid {won} {100 * column[order[0]] / total:3.0f}%"
+              f"  |  records {raw_top} {100 * direct[raw_top] / raw_total:3.0f}%"
+              f"  |  expected {expected}  drawn={bool(drawn[row, col])}")
+    print(f"      {right} of {len(REGIME_REFERENCES)} match the expectation")
 
 
 def check(data, azimuth, coverage, resultant, step, width, height):
@@ -619,16 +718,16 @@ def check(data, azimuth, coverage, resultant, step, width, height):
                + math.cos(math.radians(lat)) * np.cos(np.radians(lats))
                * np.sin(d_lon / 2) ** 2)
         km = 2 * EARTH_KM * np.arcsin(np.sqrt(np.clip(hav, 0, 1)))
-        # Weighted the way the SMOOTHING weights them, not by a hard cutoff.
-        # The kernel is a Gaussian of sigma = the radius and reaches about
-        # twice that, so a hard 450 km sample is a different quantity and
-        # comparing against it invites the wrong conclusion — measured in
-        # central Australia, where the field rotates across the continent: the
-        # hard sample said 47° and the grid said 92°, and the grid was the one
-        # agreeing with the literature.
-        near = km < SEARCH_KM * 2
+        # Weighted exactly as the interpolation weights them: a Gaussian of
+        # sigma = HALF the search radius, cut at the radius. This is a check
+        # on the arithmetic, so a differently weighted sample tests nothing —
+        # and it was measuring nothing for a while, because the kernel was
+        # tightened here and not there: the offsets went from under a degree
+        # to sixty-three in Australia, which is the check reporting on two
+        # different questions rather than on an error.
+        near = km < SEARCH_KM
         if near.any():
-            gauss = np.exp(-0.5 * (km[near] / SEARCH_KM) ** 2) * weights[near]
+            gauss = np.exp(-0.5 * (km[near] / (SEARCH_KM / 2)) ** 2) * weights[near]
             two = np.radians(2 * azis[near])
             direct = math.degrees(math.atan2(
                 float((gauss * np.sin(two)).sum()),

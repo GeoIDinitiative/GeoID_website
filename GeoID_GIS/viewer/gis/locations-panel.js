@@ -19,8 +19,8 @@
  * layer, with the same tick, as one ticked there.
  */
 
-import { grouped, addDataset, datasetById, layerForDataset } from "./global-data.js?v=20260825-e3e4927";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260825-e3e4927";
+import { grouped, addDataset, datasetById, layerForDataset } from "./global-data.js?v=20260825-877d84e";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260825-877d84e";
 
 /**
  * Which catalogue groups are "locations".

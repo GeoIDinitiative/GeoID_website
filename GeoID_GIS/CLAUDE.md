@@ -526,6 +526,40 @@ Three rules in that script, and each one fails silently:
   San Andreas, where six hundred sit within the radius. Measured: the South
   Pacific gyre came out at California's opacity.
 
+**The search radius is the CUTOFF, and sigma is half of it.** Using the radius
+as sigma and reaching twice it means a cell with no record inside 450 km is
+painted from records between 450 and 900 — measured at 20°N 40°W in the north
+Atlantic, an effective 33 records where the honest answer is none. With
+`sigma = radius/2` and the cut at the radius, "within 450 km" is what the layer
+claims and what it did, coverage falls from **58% of the globe to 40%**, and
+the ocean gyres go empty because they are.
+
+**Four pictures, THREE masks.** One mask for all of them is wrong in two
+directions at once, and both were shipped:
+
+- the **agreement** map exists to show the cells where records disagree, and
+  was hiding exactly those;
+- the **density** map answers "is there data here", which does not depend on
+  whether the data concur — so the orientation's agreement floor put a hole in
+  the middle of **Australia** on a map of how much data there is, where what
+  Australia has is plenty of records and a field that rotates across the
+  continent;
+- the **regime** map was masked by the orientation's resultant too, which put a
+  hole over every **trench**: a subduction zone scatters SHmax (the Japan
+  trench measures R = 0.30) while agreeing perfectly about the regime — 60%
+  thrust, the least surprising fact in seismology.
+
+**The regime map has its own check, against the raw records** — the same
+weighting done twice must agree — plus an expectation from the literature:
+**8 of 8**, with the grid within two percentage points of the records at every
+one (East African rift NF 80/79, Basin and Range NF 77/78, San Andreas SS
+53/51, western Himalaya TF 59/59, Sumatra TF 72/71). **Two of the references
+were wrong before the map was**: 39°N 117°W was filed as Basin and Range
+extension and is in the Walker Lane, where the records are 62% strike-slip, and
+28°N 85°E was filed as the Himalayan thrust front and is in southern Tibet,
+which extends. A check that disagrees with the data is a claim about the
+checker until it has been measured.
+
 **The interpolation SCATTERS each record onto the sphere; it does not convolve
 the grid.** Two separable passes in lat/lon is the obvious way to smooth a grid
 and is wrong on a sphere — it shipped, and it was reported as the mapping being
