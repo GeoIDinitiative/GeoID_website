@@ -10,6 +10,7 @@
 
 import {
   MAP_LAYERS, GROUPS, grouped, layerById, layerNameOf, azimuthColour, azimuthLegend,
+  variantOf, pathOf,
 } from "./map-layers.js";
 
 let pass = 0;
@@ -41,12 +42,44 @@ check("groups keep their declared order", grouped().map((g) => g.group), GROUPS)
 check("layerById finds one", layerById("stress-shmax")?.group, "Stress and tectonics");
 check("and refuses an unknown id", layerById("nope"), null);
 check("the layer takes the entry's own name",
-  layerNameOf(layerById("stress-shmax")), "SHmax orientation (World Stress Map)");
+  layerNameOf(layerById("stress-shmax")), "Stress field (World Stress Map)");
 
-// An overlay at full opacity is a replacement, not an overlay: the point of
-// the tab is stacking them.
-check("every overlay arrives partly transparent",
-  MAP_LAYERS.filter((e) => e.opacity > 0 && e.opacity <= 0.9).length, MAP_LAYERS.length);
+// An overlay at full opacity is a replacement rather than an overlay -- unless
+// the raster carries its OWN alpha, which the stress field does: it is
+// transparent where the data are thin, and multiplying that by a layer opacity
+// dimmed the map exactly where it was most confident.
+check("an overlay is either translucent or carries its own alpha",
+  MAP_LAYERS.filter((e) => (e.opacity > 0 && e.opacity <= 0.9) || e.variants).length,
+  MAP_LAYERS.length);
+
+/* ── the variants ─────────────────────────────────────────────────────────── */
+
+/**
+ * One field, four questions. An orientation map cannot say what the stress is
+ * DOING -- the same NNE compression is a rift or a thrust belt depending on
+ * which principal stress is vertical -- and neither picture says whether there
+ * is any data underneath it.
+ */
+const stress = layerById("stress-shmax");
+ok("the stress layer offers more than one reading", stress.variants.length >= 4);
+check("variant ids are unique",
+  new Set(stress.variants.map((v) => v.id)).size, stress.variants.length);
+check("every variant has a label, an image and a note",
+  stress.variants.filter((v) => v.label && v.path && v.note).length, stress.variants.length);
+// A variant is a different QUANTITY, so it must bring its own key: reusing the
+// last one would describe the picture before last.
+check("every variant carries a legend or declares itself cyclic",
+  stress.variants.filter((v) => v.legend?.length || v.cyclic).length, stress.variants.length);
+check("the default is the regime map, not the rainbow", variantOf(stress).id, "regime");
+check("a named variant is returned", variantOf(stress, "density").id, "density");
+check("an unknown one falls back to the default rather than to nothing",
+  variantOf(stress, "nope").id, "regime");
+check("pathOf follows the variant", pathOf(stress, "agreement"),
+  "/data/global/stress-agreement.png");
+check("and defaults to the default variant", pathOf(stress), pathOf(stress, "regime"));
+// A layer with no variants still resolves its own single image.
+check("an ordinary overlay has no variants", layerById("map-slope").variants, undefined);
+check("and variantOf says so", variantOf(layerById("map-slope")), null);
 
 /* ── the SHmax colour wheel ───────────────────────────────────────────────── */
 

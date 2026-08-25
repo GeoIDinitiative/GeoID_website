@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260825-7cf92a4";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260825-0151daf";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom,
-} from "./symbology.js?v=20260825-7cf92a4";
+} from "./symbology.js?v=20260825-0151daf";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -88,6 +88,28 @@ const STYLE = `
  * computed display.
  */
 #gis-sym-dialog [hidden] { display: none !important; }
+.sym-variants { display: grid; gap: 0.45rem; }
+.sym-variant {
+  display: grid; grid-template-columns: auto 1fr; gap: 0.5rem;
+  align-items: start; cursor: pointer;
+  padding: 0.45rem 0.5rem; border-radius: 0.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+.sym-variant:hover { border-color: rgba(var(--nav-accent-rgb), 0.5); }
+.sym-variant input { margin: 0.15rem 0 0; accent-color: var(--nav-accent); }
+.sym-variant-name { font-weight: 600; }
+.sym-variant-note { opacity: 0.72; font-size: 0.66rem; line-height: 1.35; margin-top: 0.1rem; }
+.sym-variant-key { display: flex; gap: 0.2rem; margin-top: 0.3rem; }
+.sym-variant-swatch {
+  width: 1.1rem; height: 0.5rem; border-radius: 0.12rem;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+/* A cyclic ramp has no ends to put in a key, so its swatch is the wheel. */
+.sym-variant-swatch.is-wheel {
+  width: 3.4rem;
+  background: linear-gradient(90deg, #fa0000, #fafa00, #00fa00, #00fafa, #0000fa, #fa00fa, #fa0000);
+}
 #gis-sym-dialog .sym-row {
   display: flex;
   align-items: center;
@@ -297,9 +319,96 @@ function rampBar(name) {
  * @param {function} [hooks.onApplied]  (layer, result) after a successful Apply
  * @param {function} [hooks.status]     a line of text for the caller's own panel
  */
+/**
+ * A layer that is one dataset read SEVERAL ways.
+ *
+ * The two branches below are about how to colour ONE quantity — a column of
+ * names, a range of numbers. This is a third thing: the World Stress Map's
+ * raster is four different quantities baked from one set of records, and
+ * choosing between them is not a palette decision, it is a question about what
+ * you want the map to answer. Which way is SHmax; what is that doing to the
+ * crust; do the records agree; is there any data here at all.
+ *
+ * It is in the symbology dialog rather than in the catalogue because it IS the
+ * symbology of that layer — four entries in the list would be four layers
+ * somebody could switch on at once, stacked on top of each other, showing the
+ * same ground four times.
+ */
+function buildVariantForm(layer, body, note, hooks) {
+  const api = window.GeoIDMapLayers;
+  const entry = api?.layerById?.(layer.mapEntryId);
+  const variants = entry?.variants || [];
+  let chosen = layer.mapVariant || api?.variantOf?.(entry)?.id || variants[0]?.id;
+
+  const list = document.createElement("div");
+  list.className = "sym-variants";
+
+  const draw = () => {
+    list.innerHTML = "";
+    variants.forEach((variant) => {
+      const row = document.createElement("label");
+      row.className = "sym-variant";
+      const tick = document.createElement("input");
+      tick.type = "radio";
+      tick.name = "gis-sym-variant";
+      tick.checked = variant.id === chosen;
+      tick.addEventListener("change", () => { chosen = variant.id; draw(); });
+      const text = document.createElement("div");
+      const name = document.createElement("div");
+      name.className = "sym-variant-name";
+      name.textContent = variant.label;
+      const why = document.createElement("div");
+      why.className = "sym-variant-note";
+      why.textContent = variant.note || "";
+      text.append(name, why);
+
+      // The key beside the choice: a variant is a different quantity and its
+      // colours mean something different, which is not obvious from a name.
+      const key = document.createElement("div");
+      key.className = "sym-variant-key";
+      (variant.legend || []).forEach((item) => {
+        const swatch = document.createElement("span");
+        swatch.className = "sym-variant-swatch";
+        swatch.style.background = item.colour;
+        swatch.title = item.label;
+        key.appendChild(swatch);
+      });
+      if (variant.cyclic) {
+        // A cyclic ramp has no ends to show, so the swatch is the wheel.
+        const wheel = document.createElement("span");
+        wheel.className = "sym-variant-swatch is-wheel";
+        wheel.title = "Hue wraps every 180°";
+        key.appendChild(wheel);
+      }
+      text.appendChild(key);
+      row.append(tick, text);
+      list.appendChild(row);
+    });
+  };
+
+  body.appendChild(list);
+  note.textContent = `${variants.length} ways to read the same records.`;
+
+  return {
+    draw,
+    apply: () => {
+      if (chosen === layer.mapVariant) return { ok: true };
+      void api.setMapVariant(layer, chosen).then((out) => {
+        hooks.status?.(out.message);
+      });
+      return { ok: true };
+    },
+  };
+}
+
 export function openSymbologyDialog(layer, hooks = {}) {
   if (!layer || typeof document === "undefined") return false;
-  if (typeof layer.repaint !== "function") {
+  // A raster baked four ways has no `repaint` — there is nothing to recolour,
+  // because each reading is its own picture — so the variant branch is tested
+  // before the guard that turns away layers with no painter.
+  const hasVariants = Boolean(layer.mapEntryId
+    && window.GeoIDMapLayers?.layerById?.(layer.mapEntryId)?.variants?.length);
+  if (!hasVariants && typeof layer.repaint !== "function") {
     hooks.status?.(`${layer.name} cannot be recoloured.`);
     return false;
   }
@@ -338,9 +447,10 @@ export function openSymbologyDialog(layer, hooks = {}) {
   apply.textContent = "Apply";
   foot.append(note, apply);
 
-  const built = isVector(layer)
-    ? buildVectorForm(layer, body, note, hooks)
-    : buildRasterForm(layer, body, note, hooks);
+  let built;
+  if (hasVariants) built = buildVariantForm(layer, body, note, hooks);
+  else if (isVector(layer)) built = buildVectorForm(layer, body, note, hooks);
+  else built = buildRasterForm(layer, body, note, hooks);
 
   apply.addEventListener("click", () => {
     const result = built.apply();

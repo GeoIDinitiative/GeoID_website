@@ -256,6 +256,83 @@ def tick(lat, lon, azimuth, half_km=TICK_HALF_KM):
     ]
 
 
+# The WSM's own regime colours, and the reason to keep them: anybody who has
+# read a stress map has read this key. Red is extension, blue is shortening,
+# green is neither -- and the published maps of the last thirty years all say
+# so, which is worth more than a palette chosen here for looking nice.
+REGIME_COLOUR = {
+    "NF": (226, 68, 74),
+    "SS": (58, 160, 58),
+    "TF": (58, 107, 214),
+    "U": (150, 150, 158),
+}
+# The two mixed classes are counted as half of each of the pair they name,
+# because that is what they mean: a normal-with-strike-slip measurement is
+# evidence for both and it should not be a fourth colour on a three-colour key.
+REGIME_SPLIT = {
+    "NF": {"NF": 1.0},
+    "SS": {"SS": 1.0},
+    "TF": {"TF": 1.0},
+    "NS": {"NF": 0.5, "SS": 0.5},
+    "TS": {"TF": 0.5, "SS": 0.5},
+    "U": {"U": 1.0},
+}
+
+
+def write_regime(data, lats, step, width, height, radius, drawn, coverage):
+    """Which way the crust is failing, as the dominant regime in each cell.
+
+    An orientation map answers "which way is SHmax" and cannot answer "so
+    what" — the same NNE compression means a rift or a thrust belt depending
+    on which principal stress is vertical. This is the other half, and it is
+    the map the WSM itself publishes: red where the crust is pulling apart,
+    blue where it is shortening, green where it is shearing past itself.
+
+    A category cannot be averaged, so nothing here is: each class is
+    accumulated on its own grid, smoothed with the same kernel, and the winner
+    at each cell is the class with the most weight nearby. What the smoothing
+    interpolates is each class's DENSITY, which is a number, and the argmax of
+    densities is a legitimate answer where the mean of category codes is not.
+    """
+    grids = {key: np.zeros((height, width)) for key in REGIME_COLOUR}
+    for lat, lon, _azi, weight, regime, _row in data:
+        row = min(height - 1, max(0, int((90 - lat) / step)))
+        col = int((lon + 180) / step) % width
+        for key, share in REGIME_SPLIT.get(regime, {"U": 1.0}).items():
+            grids[key][row, col] += weight * share
+
+    keys = list(REGIME_COLOUR)
+    stack = np.stack([smooth(grids[key], lats, step, radius) for key in keys])
+    total = stack.sum(axis=0)
+    winner = stack.argmax(axis=0)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        share = np.where(total > 0, stack.max(axis=0) / np.maximum(total, 1e-12), 0.0)
+
+    rgb = np.zeros((height, width, 3), dtype=np.uint8)
+    for i, key in enumerate(keys):
+        for channel in range(3):
+            rgb[:, :, channel] = np.where(winner == i, REGIME_COLOUR[key][channel],
+                                          rgb[:, :, channel])
+    # How clearly it won, times how much data said so: a cell where 40% of the
+    # weight is thrust and 35% is strike-slip has not chosen, and should not be
+    # drawn as though it had.
+    decisive = np.clip((share - 0.34) / 0.5, 0, 1)
+    support = np.clip(coverage / 3.0, 0, 1)
+    alpha = np.where(drawn, np.clip(decisive * support * 0.92, 0.08, 0.92), 0.0)
+    return np.dstack([rgb, (alpha * 255).astype(np.uint8)])
+
+
+def ramp_image(values, drawn, stops):
+    """A single-variable grid as a colour ramp with a transparent mask."""
+    t = np.clip(values, 0, 1)
+    rgb = np.zeros(t.shape + (3,), dtype=float)
+    positions = [p for p, _ in stops]
+    for channel in range(3):
+        rgb[:, :, channel] = np.interp(t, positions, [c[channel] for _, c in stops])
+    alpha = np.where(drawn, 0.9, 0.0)
+    return np.dstack([rgb.astype(np.uint8), (alpha * 255).astype(np.uint8)])
+
+
 def write_vectors(data):
     """The measurements themselves, annotated, as oriented ticks.
 
@@ -457,6 +534,41 @@ def main():
                          "(2016): World Stress Map Database Release 2016. V. 1.1. "
                          "GFZ Data Services."),
         },
+    }
+    # ── the other ways of mapping the same data ─────────────────────────────
+    #
+    # One field, four questions, and no single picture answers more than one of
+    # them. Which way is SHmax (the azimuth), what is that doing to the crust
+    # (the regime), do the measurements agree (the resultant), and is there
+    # anything here at all (the density). The last two are the map of the map:
+    # a reader who cannot see where the data are cannot tell an interpolation
+    # from an observation.
+    Image.fromarray(write_regime(data, lats, step, width, height, args.radius,
+                                 drawn, coverage)).save(
+        OUT_DIR / "stress-regime.png", optimize=True)
+    print(f"wrote {OUT_DIR / 'stress-regime.png'}")
+
+    Image.fromarray(ramp_image(
+        (resultant - RESULTANT_FLOOR) / (1 - RESULTANT_FLOOR), drawn,
+        [(0.0, (40, 20, 70)), (0.5, (120, 60, 200)), (1.0, (255, 233, 168))],
+    )).save(OUT_DIR / "stress-agreement.png", optimize=True)
+    print(f"wrote {OUT_DIR / 'stress-agreement.png'}")
+
+    # Log, because the density spans four orders of magnitude: California has a
+    # thousand effective measurements and the mid-Atlantic has one, and on a
+    # linear ramp everything outside a subduction zone is the same black.
+    density = np.log10(np.maximum(coverage, 0.1) + 1) / np.log10(1000)
+    Image.fromarray(ramp_image(
+        density, drawn,
+        [(0.0, (12, 30, 50)), (0.5, (40, 160, 190)), (1.0, (255, 255, 220))],
+    )).save(OUT_DIR / "stress-density.png", optimize=True)
+    print(f"wrote {OUT_DIR / 'stress-density.png'}")
+
+    meta["variants"] = {
+        "shmax": "orientation of the maximum horizontal stress, hue cyclic over 180°",
+        "regime": "dominant faulting regime — red normal, green strike-slip, blue thrust",
+        "agreement": "resultant length: how consistently the records in a cell agree",
+        "density": "effective C-quality measurements within the radius, log scale",
     }
     (OUT_DIR / "stress-shmax.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"wrote {OUT_DIR / 'stress-shmax.json'}")

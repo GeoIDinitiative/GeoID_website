@@ -39,5 +39,11 @@
     "doi": "https://doi.org/10.5880/WSM.2016.001",
     "licence": "CC BY 4.0",
     "citation": "Heidbach, O., Rajabi, M., Reiter, K., Ziegler, M., WSM Team (2016): World Stress Map Database Release 2016. V. 1.1. GFZ Data Services."
+  },
+  "variants": {
+    "shmax": "orientation of the maximum horizontal stress, hue cyclic over 180\u00b0",
+    "regime": "dominant faulting regime \u2014 red normal, green strike-slip, blue thrust",
+    "agreement": "resultant length: how consistently the records in a cell agree",
+    "density": "effective C-quality measurements within the radius, log scale"
   }
 }

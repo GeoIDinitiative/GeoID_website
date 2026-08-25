@@ -588,6 +588,54 @@ than something interpolated; and the magnitudes are carried on the few hundred
 records that have them and are simply ABSENT elsewhere, because a placeholder
 in a numeric column is a number somebody will average.
 
+### One field, four maps, behind the symbology button
+
+**An orientation rainbow is the obvious map of the WSM and the least useful one
+to arrive at.** It says which way SHmax points and cannot say what that does to
+the crust — the same NNE compression is a rift or a thrust belt depending on
+which principal stress is vertical — and it does not say whether there is any
+data underneath it, which over an ocean is the first thing worth knowing. It
+was reported, fairly, as the mapping looking broken.
+
+So the raster is baked four ways and the choice is the layer's SYMBOLOGY, not
+four entries in the catalogue — four entries would be four layers somebody
+could switch on at once, stacked on the same ground:
+
+| variant | what it answers |
+| --- | --- |
+| **Faulting regime** (default) | what the stress is doing — the WSM's own red/green/blue |
+| SHmax orientation | which way it points, hue cyclic over 180° |
+| Agreement between records | do the measurements in a cell point the same way |
+| How much data | effective records within the radius, log scale — the map OF the map |
+
+**A category cannot be averaged, so nothing averages it.** The regime map
+accumulates each class on its own grid, smooths each one with the same kernel —
+what is interpolated is a DENSITY, which is a number — and takes the argmax per
+cell. The mixed classes (NS, TS) count half to each of the pair they name, or
+they would be a fourth colour on a three-colour key. And where the winner takes
+only 40% against 35% for the runner-up nothing has been chosen, so the cell
+fades rather than being painted as though it had.
+
+**Registration was checked before any of this was changed**, because "broken"
+usually means misplaced: projecting known coordinates and reading the
+framebuffer in the same task as a render (a deferred `readPixels` returns
+black) gave California `#fa8729` in the PNG and `#7e5128` on the globe, the
+Amazon `#3afaca`/`#215d4c`, eastern Canada `#3efa46`/`#184e1a` — the same hue
+each time, darkened by blending. It was placed correctly and read badly.
+
+That measurement did find the dimming, though: **the layer was at 0.7 opacity
+over a raster that already carries its own alpha**, so the two multiplied and a
+well-constrained region came out at 40% of its colour — the map went faint
+exactly where it was most confident. These layers are opacity 1 now and the
+alpha channel does the fading it was baked to do.
+
+`setMapVariant` swaps the texture on the existing material rather than
+rebuilding: the mesh is 32,761 vertices, and a rebuild would throw away the
+layer's place in the stack, its opacity and its row. The old texture is
+disposed explicitly, because a GPU texture is not freed by dropping the
+reference — and the LEGEND is rebuilt with it, since a variant is a different
+quantity and the old key would describe the picture before last.
+
 ### The measurements themselves, annotated
 
 `data/global/stress-vectors.geojson` (9.1 MB raw, **0.9 MB gzipped**, which is
