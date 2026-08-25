@@ -64,7 +64,17 @@ const eonet = (category, group, label, note, defaultOn = true) => ({
 });
 
 export const SOURCES = [
-  /* ── seismicity ───────────────────────────────────────────────────────── */
+  /**
+   * ── seismicity ───────────────────────────────────────────────────────────
+   *
+   * All three are on by default, and they overlap on purpose: they are three
+   * WINDOWS on one catalogue, not three catalogues. The day feed alone is a
+   * quiet map — a typical 24 hours is a few dozen small earthquakes and none
+   * of the ones anybody remembers — so opening on it makes global seismicity
+   * look like something that barely happens. Together they read as what they
+   * are: today's tremors, the week's real events, and the month's significant
+   * ones, merged by USGS id so nothing is drawn or counted twice.
+   */
   {
     id: "quakes-day",
     kind: "usgs",
@@ -85,6 +95,7 @@ export const SOURCES = [
     note: "M4.5+ worldwide, the week at a glance",
     licence: "USGS — public domain",
     url: `${USGS_SUMMARY}/4.5_week.geojson`,
+    defaultOn: true,
   },
   {
     id: "quakes-significant",
@@ -95,6 +106,7 @@ export const SOURCES = [
     note: "the ones that mattered, by the USGS's own significance score",
     licence: "USGS — public domain",
     url: `${USGS_SUMMARY}/significant_month.geojson`,
+    defaultOn: true,
   },
 
   /* ── structure ────────────────────────────────────────────────────────── */

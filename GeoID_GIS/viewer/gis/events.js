@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity,
   activeGroups, sourcesInGroup, groupState, defaultEnabled,
-} from "./event-sources.js?v=20260825-22ff9a4";
+} from "./event-sources.js?v=20260825-4db9294";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -482,8 +482,12 @@ const openGroups = new Map();
  * reason this block is rendered before the early return for an empty feed.
  *
  * Subsections rather than one column, because seventeen tick boxes is a list
- * to be read where six named groups is a thing to be used — and each carries a
- * master toggle, so "show me seismicity" is one press rather than three.
+ * to be read where seven named groups is a thing to be used — and each carries
+ * a master toggle, so "show me seismicity" is one press rather than three.
+ *
+ * Each subsection is a `gis-tool-section`, which is the sidebar's own card:
+ * every other tool in that column is one, so a feed group that invented its
+ * own chrome read as something bolted on beside them.
  */
 function sourcesBlock() {
   return `<div class="event-sources">
@@ -501,15 +505,16 @@ function sourcesBlock() {
     // and folds away what is not -- and `openGroups` keeps whatever was
     // opened by hand, because the list is redrawn on every change.
     const open = openGroups.has(group.id) ? openGroups.get(group.id) : !state.none;
-    return `<details class="event-feed-group"${open ? " open" : ""} data-group="${group.id}">
-        <summary>
+    return `<details class="gis-tool-section event-feed-group"${open ? " open" : ""}
+        data-group="${group.id}">
+        <summary title="${group.note}">
           <span class="event-feed-name">${group.label}</span>
           <span class="event-feed-count">${state.on}/${state.total}</span>
           <input type="checkbox" class="event-feed-master" data-group-toggle="${group.id}"
-            ${state.all ? "checked" : ""} title="${group.note}"
+            ${state.all ? "checked" : ""}
             aria-label="Turn ${group.label} on or off">
         </summary>
-        <div class="event-feed-rows">${rows}</div>
+        <div class="gis-tool-body event-feed-rows">${rows}</div>
       </details>`;
   }).join("")}
   </div>`;

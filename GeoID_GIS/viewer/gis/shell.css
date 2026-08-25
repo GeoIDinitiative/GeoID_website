@@ -1181,45 +1181,65 @@ body[data-hub-armed="true"] .events-overlay {
 
 .event-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* The feeds you can switch on, above the events themselves. Ticking one is
-   the control that produces the list below it, so it cannot live inside that
+/* The feeds you can switch on, in the sidebar's Events tab. Ticking one is the
+   control that produces the list of events, so it cannot live inside that
    list -- with everything off there would be nothing to click on.
 
-   Grouped into folding subsections with a master toggle each, the way the
-   Geology tab groups its own: seventeen tick boxes in one column is a list to
-   be read, six named groups is a thing to be used. */
-.event-sources { margin-bottom: 0.55rem; }
-.event-feed-group { border-bottom: 1px solid rgba(82, 228, 232, 0.14); }
+   Each subject is a `gis-tool-section`, which is the sidebar's own card: every
+   other tool in that column is one, so a feed group with chrome of its own
+   read as something bolted on beside them. What is added here is only what a
+   plain card has no opinion about -- the summary's three-part row, the count,
+   and the fold arrow. */
+.event-sources { display: grid; gap: 0.5rem; }
+/* Layout only. The padding, type, colour and the filled-when-open header all
+   come from `.gis-tool-section > summary`, so these read as the same card as
+   every other tool in the column -- which is the point of using it. */
 .event-feed-group > summary {
-  display: flex; align-items: center; gap: 0.4rem;
-  padding: 0.28rem 0; cursor: pointer; list-style: none;
-  font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
 }
-.event-feed-group > summary::-webkit-details-marker { display: none; }
+.event-feed-group[open] > summary { border-bottom-color: rgba(var(--nav-accent-rgb), 0.18); }
 /* The fold arrow is drawn rather than left to the platform, which paints a
-   black triangle on a dark panel. */
+   black triangle on a dark panel. It takes the summary's own accent, so it
+   reads as part of the card's type rather than as furniture. */
 .event-feed-group > summary::before {
-  content: "›"; flex: none; width: 0.7rem;
-  transform: rotate(0deg); transition: transform 0.15s ease;
-  color: var(--soft-light);
+  content: "\203A";
+  flex: none;
+  width: 0.6rem;
+  transform: rotate(0deg);
+  transition: transform 0.15s ease;
+  opacity: 0.75;
 }
 .event-feed-group[open] > summary::before { transform: rotate(90deg); }
-.event-feed-group > summary:hover .event-feed-name { color: var(--nav-accent); }
+.event-feed-group > summary:hover { color: #ffffff; }
 .event-feed-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .event-feed-count {
-  flex: none; color: var(--soft-light); font-size: 0.58rem; letter-spacing: 0;
+  flex: none;
+  color: var(--soft-light);
+  font-size: 0.6rem;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
 }
-.event-feed-master { flex: none; margin: 0; accent-color: var(--nav-accent); }
-.event-feed-rows { padding: 0 0 0.3rem 1.1rem; }
+.event-feed-master {
+  flex: none; margin: 0; width: 0.85rem; height: 0.85rem;
+  accent-color: var(--nav-accent); cursor: pointer;
+}
+/* A list of rows, not a form: the card body's 0.55rem grid gap is right for
+   fields and far too airy for five tick boxes. */
+.event-feed-rows { gap: 0.05rem; }
 .event-source {
   display: flex; align-items: center; gap: 0.4rem;
   padding: 0.2rem 0; cursor: pointer;
 }
 .event-source:hover .event-source-name { color: var(--nav-accent); }
-.event-source input { flex: none; margin: 0; accent-color: var(--nav-accent); }
+.event-source input {
+  flex: none; margin: 0; width: 0.85rem; height: 0.85rem;
+  accent-color: var(--nav-accent);
+}
 .event-source-name {
   flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
 }
 
 
