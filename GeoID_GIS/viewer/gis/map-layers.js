@@ -20,7 +20,7 @@
  * the viewer already shipped and could only ever show alone.
  */
 
-import { drape } from "./gee.js?v=20260825-877d84e";
+import { drape } from "./gee.js?v=20260825-c9c70e4";
 
 // In the shape the drape and the layer record both read: this app says
 // west/south/east/north in most places and Earth Engine answers
@@ -219,27 +219,35 @@ export function layerForMap(id) {
 /**
  * The SHmax colour wheel, which must agree with the raster it explains.
  *
- * `bake-stress.py` paints hue = azimuth / 180 and this reads the same ramp
- * back for the legend. The two are written out separately in two languages, so
- * the contract is stated here and pinned by a test: an orientation's colour on
- * the map and its swatch in the legend are the same colour or the legend is
- * furniture.
+ * `bake-stress.py` paints these stops and this reads them back for the legend.
+ * Two implementations of one contract in two languages is exactly what drifts,
+ * and when it drifts nothing breaks: the map is one set of colours, the key
+ * beside it is another, and both look right. `map-layers.test.mjs` pins the
+ * stops.
  *
- * It is CYCLIC because the quantity is: 179° and 1° are two degrees apart, so
- * their colours must be adjacent. A linear ramp would put the two ends of the
- * wheel at opposite ends of the key and split one orientation in half.
+ * CYCLIC, because the quantity is: 179° and 1° are two degrees apart, so the
+ * first stop and the last are the same colour. And deliberately unsaturated —
+ * a full-chroma HSV wheel round 180° is the obvious choice and produced a lava
+ * lamp, with every orientation shouting and the basemap underneath gone.
  */
+export const AZIMUTH_RAMP = [
+  { t: 0.00, rgb: [70, 120, 190] },
+  { t: 0.25, rgb: [110, 190, 130] },
+  { t: 0.50, rgb: [225, 190, 90] },
+  { t: 0.75, rgb: [200, 110, 150] },
+  { t: 1.00, rgb: [70, 120, 190] },
+];
+
 export function azimuthColour(degrees) {
-  const hue = (((Number(degrees) || 0) % 180) + 180) % 180 / 180;
-  const i = Math.floor(hue * 6) % 6;
-  const f = hue * 6 - Math.floor(hue * 6);
-  const v = 0.98;
-  const s = 1;
-  const p = v * (1 - s);
-  const q = v * (1 - f * s);
-  const t = v * (1 - (1 - f) * s);
-  const rgb = [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]][i];
-  return `#${rgb.map((c) => Math.round(c * 255).toString(16).padStart(2, "0")).join("")}`;
+  const t = ((((Number(degrees) || 0) % 180) + 180) % 180) / 180;
+  const stops = AZIMUTH_RAMP;
+  let i = 1;
+  while (i < stops.length - 1 && t > stops[i].t) i += 1;
+  const a = stops[i - 1];
+  const b = stops[i];
+  const k = (t - a.t) / (b.t - a.t);
+  const rgb = a.rgb.map((v, j) => Math.round(v + (b.rgb[j] - v) * k));
+  return `#${rgb.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 }
 
 /** Eight compass points, which is as fine as a legend this size can be read. */

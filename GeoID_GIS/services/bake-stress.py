@@ -87,6 +87,10 @@ QUALITY_WEIGHT = {"A": 4.0, "B": 3.0, "C": 2.0}
 # region; the WSM's smoothed maps use a comparable search radius before their
 # wavelength analysis widens it.
 SEARCH_KM = 450.0
+# How far apart the interpolation nodes sit, on the ground, everywhere. 55 km
+# is half a degree at the equator, which is the resolution the published raster
+# ends up at -- so the nodes are as dense as the picture and no denser.
+NODE_KM = 55.0
 EARTH_KM = 6371.0
 
 # Effective C-quality measurements a cell must see before it is drawn at all.
@@ -124,104 +128,185 @@ def load(path):
     return kept
 
 
-def accumulate(data, lats, lons, step, radius_km, classes):
-    """Every record scattered onto the global grid at its GREAT-CIRCLE distance.
+class EqualAreaGrid:
+    """A grid whose cells are the same size everywhere on the sphere.
 
-    This replaces a pair of separable convolutions in lat/lon, which is the
-    obvious way to smooth a grid and is wrong on a sphere — it was reported as
-    the mapping being broken and it was. Three faults, all visible in the
-    picture it produced:
+    A lat/lon grid is not one. At 0.5 degrees its cells are 55 km by 55 km on
+    the equator and 55 by 19 at 70 degrees north, so a global interpolation on
+    it samples the Arctic nine times more densely than the tropics, spends most
+    of its work there, and invites every mistake that comes of confusing a
+    degree with a distance -- which is how the first two versions of this file
+    went wrong.
 
-    * **A kernel measured in degrees is not a kernel measured on the ground.**
-      Widening the longitude pass by 1/cos(lat) is the usual patch and it fails
-      at the top: by 70° the factor is three, by 85° it is eleven, and a single
-      Arctic record was being smeared right around its parallel. That is the
-      pale wash that covered the northern ocean.
-    * **Normalising a widened kernel inflates what it says it saw.** The count
-      of "effective measurements" was scaled by the kernel's own area, so the
-      wider the smear the more data the cell claimed to have — the exact
-      opposite of the truth.
-    * **A truncated separable kernel has square corners.** Two 1-D passes cut
-      at ±2σ make a BOX, not a disc, so the coverage mask came out with
-      rectangular holes and rectangular islands in mid-ocean. No physical field
-      has right angles in it.
+    So the nodes are laid out in ROWS of constant latitude spacing, each row
+    holding as many cells as fit round its own parallel at the same spacing:
+    720 at the equator, 246 at 70 degrees, one at the pole. Every cell is
+    about `spacing_km` across in both directions, every node carries the same
+    weight of evidence, and the smoothing radius means the same thing at every
+    latitude because it is measured in kilometres against nodes that are
+    themselves evenly spread.
 
-    Scattering instead: each record touches the cells within about two sigma of
-    it, weighted by `exp(-d²/2σ²)` on the real great-circle distance, and the
-    weight is in units of "C-quality records", so a cell's total is a number
-    with a meaning — one means one C-quality measurement effectively at hand.
-    Nothing is normalised by area, nothing is stretched by latitude, and the
-    kernel is a disc everywhere because distance is distance.
-
-    Costs about 24 million cell-distance evaluations for the whole database,
-    which numpy does in a few seconds — one call per record over its own
-    window rather than one per cell over the database.
+    The picture that comes out is still equirectangular -- that is what a
+    texture on a sphere has to be -- but it is RESAMPLED from this, rather than
+    computed on it. Along a row that resampling is exact: the row's cells are
+    uniform in longitude, so each output pixel takes the cell it falls in.
     """
-    height = len(lats)
-    width = len(lons)
-    # `radius_km` is the SEARCH RADIUS -- the distance beyond which a record is
-    # not used at all -- and sigma is half of it, so the weight is down to 14%
-    # at the edge and the cut is not a visible step. Treating the radius AS
-    # sigma (and cutting at twice it) is what let a cell with no record inside
-    # 450 km be painted from 122 records between 450 and 900: measured at
-    # 20N 40W in the north Atlantic, an effective 33 records where the honest
-    # answer is none.
-    sigma_km = radius_km / 2.0
-    reach_deg = radius_km / (EARTH_KM * math.pi / 180.0)
 
-    lat_rad = np.radians(lats)
-    cos_lat = np.cos(lat_rad)
-    lon_rad = np.radians(lons)
+    def __init__(self, spacing_km):
+        deg_km = EARTH_KM * math.pi / 180.0
+        self.spacing_km = spacing_km
+        self.d_lat = spacing_km / deg_km
+        self.rows = max(2, int(round(180.0 / self.d_lat)))
+        self.d_lat = 180.0 / self.rows
 
-    sin2 = np.zeros((height, width))
-    cos2 = np.zeros((height, width))
-    weight = np.zeros((height, width))
-    regime = {key: np.zeros((height, width)) for key in classes}
+        self.lats = 90 - (np.arange(self.rows) + 0.5) * self.d_lat
+        # Cells per row, proportional to the length of that parallel. Rounded up
+        # to at least one, because a row that touches the pole is one place.
+        circumference = np.cos(np.radians(self.lats)) * 360.0
+        self.counts = np.maximum(1, np.round(circumference / self.d_lat).astype(int))
+        self.starts = np.concatenate([[0], np.cumsum(self.counts)])
+        self.size = int(self.starts[-1])
 
-    for lat, lon, azi, w, code, _row in data:
-        row0 = max(0, int(math.floor((90 - lat - reach_deg) / step)))
-        row1 = min(height, int(math.ceil((90 - lat + reach_deg) / step)) + 1)
-        if row1 <= row0:
-            continue
-        rows = np.arange(row0, row1)
-        # The widest the window has to be is set by the row NEAREST a pole in
-        # it, where a degree of longitude covers least ground.
-        widest = max(np.max(np.abs(lats[rows])), 0.0)
-        span = math.cos(math.radians(min(widest, 89.5)))
-        d_lon_deg = 180.0 if span <= 0.02 else min(180.0, reach_deg / span)
-        half_cols = int(math.ceil(d_lon_deg / step))
-        centre_col = int(round((lon + 180) / step))
-        cols = (np.arange(centre_col - half_cols, centre_col + half_cols + 1)) % width
+        # Every node's own position, flattened, so the scatter can address them
+        # without a per-row Python loop.
+        self.node_lat = np.repeat(self.lats, self.counts)
+        self.node_lon = np.concatenate([
+            -180 + (np.arange(n) + 0.5) * (360.0 / n) for n in self.counts
+        ])
+        self.node_lat_rad = np.radians(self.node_lat)
+        self.node_lon_rad = np.radians(self.node_lon)
+        self.cos_node_lat = np.cos(self.node_lat_rad)
 
-        # Haversine over the window, in one call: rows down, columns across.
+    def row_of(self, lat):
+        return int(np.clip((90 - lat) / self.d_lat, 0, self.rows - 1))
+
+    def indices_near(self, lat, lon, reach_km):
+        """The nodes within reach of a point, and their distances in km.
+
+        Row-banded rather than tested against every node: a 450 km reach is
+        eight rows at this spacing, and the columns inside those rows are a
+        contiguous run because each row is uniform in longitude. The whole
+        database costs a few million distance evaluations this way.
+        """
+        deg_km = EARTH_KM * math.pi / 180.0
+        reach_deg = reach_km / deg_km
+        row0 = max(0, self.row_of(lat + reach_deg))
+        row1 = min(self.rows - 1, self.row_of(lat - reach_deg))
+        picks = []
+        for row in range(row0, row1 + 1):
+            n = self.counts[row]
+            step = 360.0 / n
+            row_lat = self.lats[row]
+            # How far round this parallel the reach carries, which is further
+            # in longitude the closer the row is to a pole.
+            span = math.cos(math.radians(min(abs(row_lat), 89.9)))
+            if span <= 1e-6:
+                width = n
+            else:
+                width = min(n, int(math.ceil(reach_deg / span / step)) * 2 + 1)
+            if width >= n:
+                cols = np.arange(n)
+            else:
+                centre = int(round((lon + 180) / step))
+                cols = (np.arange(centre - width // 2, centre + width // 2 + 1)) % n
+            picks.append(self.starts[row] + cols)
+        if not picks:
+            return np.empty(0, dtype=int), np.empty(0)
+        idx = np.concatenate(picks)
         phi = math.radians(lat)
-        d_lat = lat_rad[rows][:, None] - phi
-        d_lon = lon_rad[cols][None, :] - math.radians(lon)
-        # Wrapped to the short way round, or a window straddling the
-        # antimeridian measures its own width as most of the planet.
+        d_lat = self.node_lat_rad[idx] - phi
+        d_lon = self.node_lon_rad[idx] - math.radians(lon)
         d_lon = (d_lon + math.pi) % (2 * math.pi) - math.pi
         hav = (np.sin(d_lat / 2) ** 2
-               + math.cos(phi) * cos_lat[rows][:, None] * np.sin(d_lon / 2) ** 2)
+               + math.cos(phi) * self.cos_node_lat[idx] * np.sin(d_lon / 2) ** 2)
         km = 2 * EARTH_KM * np.arcsin(np.sqrt(np.clip(hav, 0, 1)))
+        inside = km <= reach_km
+        return idx[inside], km[inside]
 
-        kernel = np.exp(-0.5 * (km / sigma_km) ** 2)
-        # Cut at the search radius, so the window is a disc rather than the
-        # rectangle it was computed in -- and so "within 450 km" is what the
-        # layer says and what it did.
-        kernel[km > radius_km] = 0.0
-        if not kernel.any():
+    def to_raster(self, values, width, height):
+        """Nodes back onto an equirectangular image, for the drape to wear.
+
+        Nearest node along the row, which for these rows is exact rather than
+        an approximation: the cells are uniform in longitude, so an output
+        pixel falls in exactly one of them. Latitude takes the nearest row for
+        the same reason.
+        """
+        out = np.zeros((height, width))
+        for y in range(height):
+            lat = 90 - (y + 0.5) * (180.0 / height)
+            row = self.row_of(lat)
+            n = self.counts[row]
+            lons = -180 + (np.arange(width) + 0.5) * (360.0 / width)
+            cols = np.floor((lons + 180) / (360.0 / n)).astype(int) % n
+            out[y, :] = values[self.starts[row] + cols]
+        return out
+
+
+def accumulate(data, grid, radius_km, classes):
+    """Every record scattered onto the nodes within reach of it.
+
+    One pass over the database. For each record: find the nodes inside the
+    search radius, weight them by `exp(-d²/2σ²)` on the great-circle distance
+    with σ half the radius, and add the record's DOUBLED angle, its regime
+    class and its weight to each. The doubling is what makes an average of
+    axes mean anything — 10° and 190° are the same orientation, and a plain
+    mean of them is 100°, exactly perpendicular to both.
+
+    The weight is in units of C-quality records, so a node's total is a
+    sentence: "this node effectively has three C-quality measurements within
+    450 km". Nothing is normalised by cell area — the cells are all the same
+    size — and nothing is stretched by latitude, because the nodes are evenly
+    spread and the distances are real.
+    """
+    sigma_km = radius_km / 2.0
+    sin2 = np.zeros(grid.size)
+    cos2 = np.zeros(grid.size)
+    weight = np.zeros(grid.size)
+    regime = {key: np.zeros(grid.size) for key in classes}
+
+    for lat, lon, azi, w, code, _row in data:
+        idx, km = grid.indices_near(lat, lon, radius_km)
+        if idx.size == 0:
             continue
-        contribution = kernel * (w / QUALITY_WEIGHT["C"])
-
+        contribution = np.exp(-0.5 * (km / sigma_km) ** 2) * (w / QUALITY_WEIGHT["C"])
         two = math.radians(2 * azi)
-        block = (slice(row0, row1), cols)
-        sin2[block] += contribution * math.sin(two)
-        cos2[block] += contribution * math.cos(two)
-        weight[block] += contribution
+        # `np.add.at` rather than `+=`: a record near a pole reaches every node
+        # in a row, and buffered addition applies a repeated index ONCE.
+        np.add.at(sin2, idx, contribution * math.sin(two))
+        np.add.at(cos2, idx, contribution * math.cos(two))
+        np.add.at(weight, idx, contribution)
         for key, share in REGIME_SPLIT.get(code, {"U": 1.0}).items():
-            regime[key][block] += contribution * share
+            np.add.at(regime[key], idx, contribution * share)
 
     return sin2, cos2, weight, regime
+
+
+# The cyclic ramp the orientation map is painted in.
+#
+# Full-saturation HSV round the wheel is the obvious choice for a cyclic
+# quantity and it produced a lava lamp: every hue at maximum chroma, so the
+# picture read as noise and the basemap under it was gone. These four stops
+# wrap the same way -- the first and last are the same colour, because 179° and
+# 1° are two degrees apart -- while staying at moderate saturation and roughly
+# even lightness, so no orientation is louder than another and none of them
+# looks like an absence of data.
+AZIMUTH_RAMP = [
+    (0.00, (70, 120, 190)),    # N-S
+    (0.25, (110, 190, 130)),   # NE-SW
+    (0.50, (225, 190, 90)),    # E-W
+    (0.75, (200, 110, 150)),   # NW-SE
+    (1.00, (70, 120, 190)),    # back to N-S
+]
+
+
+def azimuth_rgb(azimuth):
+    """Vectorised lookup along the cyclic ramp, azimuth in degrees."""
+    t = (np.asarray(azimuth) % 180.0) / 180.0
+    positions = [p for p, _ in AZIMUTH_RAMP]
+    out = []
+    for channel in range(3):
+        out.append(np.interp(t, positions, [c[channel] for _, c in AZIMUTH_RAMP]))
+    return out
 
 
 def hsv_to_rgb(h, s, v):
@@ -445,7 +530,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--csv", default=None, help="wsm2016.csv (downloaded if absent)")
     parser.add_argument("--degree", type=float, default=0.5, help="grid step in degrees")
-    parser.add_argument("--radius", type=float, default=SEARCH_KM, help="smoothing radius, km")
+    parser.add_argument("--radius", type=float, default=SEARCH_KM,
+                        help="search radius in km; records beyond it are not used")
+    parser.add_argument("--spacing", type=float, default=NODE_KM,
+                        help="node spacing of the equal-area grid, km")
     args = parser.parse_args()
 
     # NOT into the data directory: that folder is published, and the 9 MB
@@ -465,25 +553,33 @@ def main():
     step = args.degree
     width = int(round(360 / step))
     height = int(round(180 / step))
-    lats = 90 - (np.arange(height) + 0.5) * step
 
-    lons = -180 + (np.arange(width) + 0.5) * step
-
-    # One pass over the records, scattering each onto the cells within reach of
-    # it. The DOUBLED angle is the trick with axial data -- doubling makes 10
-    # and 190 degrees the same direction, so a vector sum means what it should,
-    # and halving the answer brings it back -- and the regime classes ride the
-    # same distances rather than paying for their own pass.
-    print(f"scattering {len(data)} records onto a {width}x{height} grid "
-          f"at {args.radius:.0f} km")
-    sin_s, cos_s, coverage, regime_grids = accumulate(
-        data, lats, lons, step, args.radius, REGIME_COLOUR)
+    # The interpolation happens on nodes that are evenly spread over the
+    # SPHERE, not on a lat/lon mesh: see EqualAreaGrid for why that distinction
+    # is not pedantry. The picture is resampled from it afterwards, because a
+    # texture on a globe has to be equirectangular whatever the maths was done
+    # on.
+    grid = EqualAreaGrid(args.spacing)
+    print(f"{grid.size} nodes at {grid.spacing_km:.0f} km spacing "
+          f"({grid.rows} rows, {grid.counts.max()} cells on the equator, "
+          f"{grid.counts.min()} at the pole)")
+    print(f"scattering {len(data)} records, {args.radius:.0f} km search radius")
+    sin_n, cos_n, cover_n, regime_n = accumulate(data, grid, args.radius, REGIME_COLOUR)
 
     with np.errstate(invalid="ignore", divide="ignore"):
-        resultant = np.where(coverage > 0,
-                             np.sqrt(sin_s ** 2 + cos_s ** 2) / np.maximum(coverage, 1e-12),
-                             0.0)
-        azimuth = (np.degrees(np.arctan2(sin_s, cos_s)) / 2.0) % 180.0
+        resultant_n = np.where(cover_n > 0,
+                               np.sqrt(sin_n ** 2 + cos_n ** 2) / np.maximum(cover_n, 1e-12),
+                               0.0)
+        azimuth_n = (np.degrees(np.arctan2(sin_n, cos_n)) / 2.0) % 180.0
+
+    # Onto the image. Nearest node, which is exact along a row rather than an
+    # approximation -- and it must be nearest rather than an average, because
+    # an azimuth is cyclic and averaging 179 with 1 gives 90.
+    azimuth = grid.to_raster(azimuth_n, width, height)
+    coverage = grid.to_raster(cover_n, width, height)
+    resultant = grid.to_raster(resultant_n, width, height)
+    regime_grids = {key: grid.to_raster(value, width, height)
+                    for key, value in regime_n.items()}
 
     # THREE masks, because the four pictures are asked three questions.
     #
@@ -502,15 +598,19 @@ def main():
           f"({100 * drawn.mean():.1f}% of the globe); "
           f"{100 * has_data.mean():.1f}% carry any data at all")
 
-    # Hue runs once round the wheel per 180 degrees of azimuth, which is what
-    # makes the colour cyclic in the same way the quantity is: north-south and
-    # north-south are the same colour whichever way you approach 180.
-    hue = (azimuth / 180.0) % 1.0
-    # Agreement drives saturation as well as alpha, so a contested region reads
-    # as washed out at a glance rather than only in the transparency.
-    sat = np.clip(0.35 + 0.65 * resultant, 0, 1)
-    val = np.full_like(hue, 0.98)
-    r, g, b = hsv_to_rgb(hue, sat, val)
+    # The ramp runs once round per 180 degrees, which is what makes the colour
+    # cyclic in the same way the quantity is: an orientation approached from
+    # either side of 180 is the same orientation and the same colour.
+    r, g, b = azimuth_rgb(azimuth)
+    r, g, b = r / 255.0, g / 255.0, b / 255.0
+    # Agreement washes the colour toward grey as well as driving the alpha, so
+    # a contested region reads as uncertain at a glance rather than only in the
+    # transparency -- which is invisible over a dark ocean.
+    mix = np.clip(0.35 + 0.65 * resultant, 0, 1)
+    grey = 0.62
+    r = grey + (r - grey) * mix
+    g = grey + (g - grey) * mix
+    b = grey + (b - grey) * mix
 
     # Opacity carries BOTH kinds of confidence, and it has to.
     #

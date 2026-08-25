@@ -10,7 +10,7 @@
 
 import {
   MAP_LAYERS, GROUPS, grouped, layerById, layerNameOf, azimuthColour, azimuthLegend,
-  variantOf, pathOf,
+  variantOf, pathOf, AZIMUTH_RAMP,
 } from "./map-layers.js";
 
 let pass = 0;
@@ -107,28 +107,33 @@ ok("colours either side of the wrap are neighbours", gap(near0, near180) < 60);
 ok("and the opposite orientation is far from both", gap(near0, far) > 150);
 
 /**
- * The contract with `bake-stress.py`: hue = azimuth / 180, full saturation,
- * value 0.98. If that file's ramp changes, this must change with it — the
- * check below is the one that would notice, because it recomputes the same
- * HSV independently rather than trusting the function under test.
+ * The contract with `bake-stress.py`: four stops, linearly interpolated, the
+ * first and the last the same colour. Recomputed here from the stop list
+ * rather than trusting the function under test, so a change to the ramp in one
+ * language and not the other is caught rather than shipped.
  */
-function hsvReference(azimuth) {
-  const h = ((azimuth % 180) + 180) % 180 / 180;
-  const v = 0.98;
-  const i = Math.floor(h * 6) % 6;
-  const f = h * 6 - Math.floor(h * 6);
-  const p = 0;
-  const q = v * (1 - f);
-  const t = v * f;
-  const table = [[v, t, p], [q, v, p], [p, v, t], [p, q, v], [t, p, v], [v, p, q]];
-  return table[i].map((c) => Math.round(c * 255));
+function rampReference(azimuth) {
+  const t = ((((azimuth % 180) + 180) % 180)) / 180;
+  const stops = AZIMUTH_RAMP;
+  let i = 1;
+  while (i < stops.length - 1 && t > stops[i].t) i += 1;
+  const a = stops[i - 1];
+  const b = stops[i];
+  const k = (t - a.t) / (b.t - a.t);
+  return a.rgb.map((v, j) => Math.round(v + (b.rgb[j] - v) * k));
 }
-check("the ramp is hue = azimuth / 180 at full saturation",
-  [0, 30, 60, 90, 120, 150, 175].every((d) => {
+check("the ramp is the stop list, interpolated",
+  [0, 22.5, 45, 90, 133.7, 175].every((d) => {
     const got = rgb(azimuthColour(d));
-    const want = hsvReference(d);
+    const want = rampReference(d);
     return got.every((v, i) => Math.abs(v - want[i]) <= 1);
   }), true);
+// Unsaturated on purpose: a full-chroma wheel round 180 degrees was a lava
+// lamp -- every orientation shouting, and the basemap under it gone.
+check("no stop is fully saturated",
+  AZIMUTH_RAMP.every(({ rgb: c }) => Math.max(...c) - Math.min(...c) < 160), true);
+check("and none of them is black or white",
+  AZIMUTH_RAMP.every(({ rgb: c }) => Math.max(...c) < 250 && Math.min(...c) > 40), true);
 
 /* ── the legend ───────────────────────────────────────────────────────────── */
 

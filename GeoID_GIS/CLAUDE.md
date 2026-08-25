@@ -578,14 +578,32 @@ broken, which it was. Three faults, all of them visible in the picture:
   effective-record count was scaled by the kernel's own area, so the wider the
   smear the more data the cell said it had. Exactly backwards.
 
-Each record now touches the cells within about 2σ of it, weighted by
+**And the nodes it evaluates are uniformly spaced ON THE SPHERE, which a
+lat/lon mesh is not.** At 0.5° its cells are 55 km × 55 km on the equator and
+55 × 19 at 70°N, so a global interpolation on one samples the Arctic nine times
+more densely than the tropics, spends most of its work there, and gives every
+confusion of a degree with a distance somewhere to hide — which is how the
+first two versions of this went wrong. `EqualAreaGrid` lays the nodes out in
+rows at constant latitude spacing, each row holding as many cells as fit round
+its own parallel at that same spacing: **728 at the equator, 3 at the pole,
+168,702 in all, every one about 55 km across in both directions**. The picture
+is RESAMPLED from that afterwards — a texture on a globe has to be
+equirectangular whatever the maths was done on — and along a row the resampling
+is exact, because the row's cells are uniform in longitude. It must also be
+nearest-node rather than an average: an azimuth is cyclic, and averaging 179°
+with 1° gives 90°.
+
+**`np.add.at`, not `+=`.** A record near a pole reaches every node in a row, and
+buffered addition applies a repeated index once.
+
+Each record touches the nodes within the search radius, weighted by
 `exp(-d²/2σ²)` on the **real great-circle distance**, in units of C-quality
 records — so a cell's total is a number with a meaning rather than a density
 nobody can put a threshold on. Nothing is normalised by area, nothing stretches
 with latitude, and the kernel is a disc everywhere because distance is
-distance. One numpy call per record over its own window rather than one per
-cell over the database: **5.6 s for 32,464 records**, and the check against the
-raw data tightened from 0.3–1.4° to **0.1–0.9°**.
+distance. One pass per record over its own neighbourhood rather than
+one per cell over the database: **6 s for 32,464 records**, and the check
+against the raw data lands at **0.4–1.4°** where the coverage is real.
 
 **The script checks itself** (`REFERENCES`): the interpolated field against a
 direct Gaussian-weighted circular mean of the raw records, at five places with
@@ -663,6 +681,15 @@ could switch on at once, stacked on the same ground:
 | SHmax orientation | which way it points, hue cyclic over 180° |
 | Agreement between records | do the measurements in a cell point the same way |
 | How much data | effective records within the radius, log scale — the map OF the map |
+
+**The orientation ramp is four muted stops, not a hue wheel.** Full-chroma HSV
+round 180° is the obvious mapping for a cyclic quantity and it produced a lava
+lamp: every orientation shouting at maximum saturation, the basemap gone
+underneath, and a picture that reads as noise. The stops still WRAP — the first
+and the last are the same colour, because 179° and 1° are two degrees apart —
+but nothing is saturated and nothing is near black or white, so no orientation
+is louder than another and none of them looks like an absence of data. The JS
+legend carries the same stop list and the test recomputes it independently.
 
 **A category cannot be averaged, so nothing averages it.** The regime map
 accumulates each class on its own grid, smooths each one with the same kernel —
