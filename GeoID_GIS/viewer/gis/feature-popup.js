@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260825-9741868";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260825-9741868";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260825-f5a425d";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260825-f5a425d";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -226,7 +226,8 @@ const PREFERRED = [
   // MAGNITUDES. Those are the rarest and most valuable numbers in the
   // database (249 of 32,464), so they go near the front: the eight-row cap on
   // the card would otherwise cut exactly the rows that make a record unusual.
-  "azimuth", "regime", "s1_mpa", "s2_mpa", "s3_mpa", "quality", "method",
+  "azimuth", "shmax_deg", "regime", "regime_share", "s1_mpa", "s2_mpa", "s3_mpa",
+  "quality", "method", "records", "evidence", "nearest_km", "support", "agreement",
   "waterway", "value", "class", "unit", "description",
 ];
 
@@ -241,7 +242,17 @@ const PREFERRED = [
  */
 const FIELD_LABEL = {
   azimuth: "SHmax azimuth",
+  shmax_deg: "SHmax azimuth",
   regime: "Faulting regime",
+  // The columns that describe the EVIDENCE rather than the stress. On an
+  // interpolated cell these are the difference between a measurement and a
+  // guess, so they are named as plainly as the answer they qualify.
+  regime_share: "Share of the weight in range",
+  records: "Records within 450 km",
+  evidence: "Evidence class",
+  nearest_km: "Nearest record",
+  support: "Effective records (C-quality)",
+  agreement: "Agreement between them",
   quality: "WSM quality class",
   method: "Measured by",
   depth_km: "Depth",
@@ -266,6 +277,9 @@ const FIELD_LABEL = {
 
 const FIELD_UNIT = {
   azimuth: "°",
+  shmax_deg: "°",
+  regime_share: "%",
+  nearest_km: " km",
   depth_km: " km",
   s1_mpa: " MPa",
   s2_mpa: " MPa",

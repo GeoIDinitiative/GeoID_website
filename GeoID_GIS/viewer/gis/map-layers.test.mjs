@@ -41,10 +41,6 @@ check("and refuses an unknown id", layerById("nope"), null);
 check("the layer takes the entry's own name",
   layerNameOf(layerById("map-hillshade")), "GEBCO hillshade");
 
-// An overlay at full opacity is a replacement rather than an overlay -- unless
-// the raster carries its OWN alpha, which the stress field does: it is
-// transparent where the data are thin, and multiplying that by a layer opacity
-// dimmed the map exactly where it was most confident.
 // An overlay at full opacity is a replacement, not an overlay: the point of
 // the tab is stacking them.
 check("every overlay arrives partly transparent",

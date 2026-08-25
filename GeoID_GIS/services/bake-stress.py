@@ -298,74 +298,146 @@ def field_at(points, records, radius_km):
             "resultant": math.hypot(s, c) / support,
             "support": support,
             "records": int(near.sum()),
+            # How far the CLOSEST record is. The support number says how much
+            # evidence a cell has; this says how local it is, and the two come
+            # apart exactly where it matters -- a cell can sit on twenty
+            # records that are all four hundred kilometres away.
+            "nearest_km": float(km[near].min()),
             "regime": REGIME_KEYS[top],
             "regime_share": float(mix[top]) / total,
         })
     return out
 
 
-def paint_raster(mesh, cells, width, height, path):
-    """The mesh, painted flat, one colour per cell.
+def ring(north, south, west, east, fill):
+    """One cell as a polygon ring, inset by how well supported it is.
 
-    Every output pixel takes the colour of the cell it falls in — nearest, not
-    interpolated, because the point of a low-resolution mesh is that its
-    resolution is visible. A smoothed picture of a coarse interpolation claims
-    a precision the records do not have.
+    The inset is the confidence, drawn. A cell shrunk to half its slot leaves a
+    visible gap round itself and reads as tentative; a fully supported one
+    fills its square and tiles seamlessly with its neighbours. That is legible
+    over any basemap, which transparency is not — an alpha of 0.2 over a dark
+    ocean is invisible, and it was carrying this same meaning before.
+
+    Edges are subdivided at about a degree. A straight segment across eight
+    degrees of arc — which is what a cell is at seventy north — sags below the
+    globe's surface and the fill disappears into the terrain.
     """
-    rgba = np.zeros((height, width, 4), dtype=np.uint8)
-    d_lat = 180.0 / len(mesh)
-    for y in range(height):
-        lat = 90 - (y + 0.5) * (180.0 / height)
-        row = min(len(mesh) - 1, max(0, int((90 - lat) / d_lat)))
-        count = mesh[row]["count"]
-        found = cells.get(row)
-        if not found:
+    mid_lat = (north + south) / 2
+    mid_lon = (west + east) / 2
+    half_lat = (north - south) / 2 * fill
+    half_lon = (east - west) / 2 * fill
+    n, s2 = mid_lat + half_lat, mid_lat - half_lat
+    w, e = mid_lon - half_lon, mid_lon + half_lon
+
+    def edge(lat0, lon0, lat1, lon1):
+        span = max(abs(lat1 - lat0), abs(lon1 - lon0))
+        steps = max(1, int(math.ceil(span)))
+        return [[round(lon0 + (lon1 - lon0) * i / steps, 3),
+                 round(lat0 + (lat1 - lat0) * i / steps, 3)] for i in range(steps)]
+
+    points = (edge(n, w, n, e) + edge(n, e, s2, e)
+              + edge(s2, e, s2, w) + edge(s2, w, n, w))
+    points.append(points[0])
+    return points
+
+
+# Ordered classes, because "how much evidence is under this cell" is the
+# question the World Stress Map's own coverage forces a reader to ask, and a
+# class somebody can name is more use than a number they have to bin by eye.
+EVIDENCE_CLASSES = [
+    (2, "1–2 records"),
+    (10, "3–10 records"),
+    (30, "11–30 records"),
+    (100, "31–100 records"),
+    (float("inf"), "over 100 records"),
+]
+
+
+def evidence_class(count):
+    for ceiling, label in EVIDENCE_CLASSES:
+        if count <= ceiling:
+            return label
+    return EVIDENCE_CLASSES[-1][1]
+
+
+def write_mesh(mesh, records, radius_km, path):
+    """The interpolated field as CELLS you can click, not a picture of it.
+
+    A raster shows the answer and cannot be asked where it came from. These are
+    ordinary polygons, so every existing part of the app works on them: the
+    click card reads the provenance, the symbology dialog colours by any column
+    including the two that describe the EVIDENCE, and extraction and export
+    take them like any other vector layer.
+
+    That is what makes the sampling bias visible without a second layer or a
+    caveat nobody reads. The World Stress Map is not evenly sampled — 63% of
+    its records lie within 100 km of a plate boundary and the interiors are
+    half empty — so `records` and `nearest_km` ride on every cell, and colouring
+    by either one turns the map into a map of its own coverage.
+    """
+    features = []
+    for row in mesh:
+        # A polar row spans most of the planet in longitude, and a quad that
+        # wide is not a cell, it is a band. There is next to no data there.
+        if row["count"] < 8:
             continue
-        step = 360.0 / count
-        lons = -180 + (np.arange(width) + 0.5) * (360.0 / width)
-        columns = (np.floor((lons + 180) / step).astype(int)) % count
-        for x in range(width):
-            cell = found.get(int(columns[x]))
-            if cell is None:
-                continue
-            rgba[y, x, :3] = REGIME_COLOUR[cell["regime"]]
-            rgba[y, x, 3] = cell["alpha"]
-    Image.fromarray(rgba).save(path, optimize=True)
-    return path.stat().st_size
+        d_lon = 360.0 / row["count"]
+        points = [(row["lat"], lon) for lon in row["centres"]]
+        for cell in field_at(points, records, radius_km):
+            support = cell["support"]
+            fill = 0.45 + 0.55 * min(1.0, support / 3.0)
+            west = cell["lon"] - d_lon / 2
+            features.append({
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [ring(row["north"], row["south"],
+                                         west, west + d_lon, fill)],
+                },
+                "properties": {
+                    "shmax_deg": round(cell["azimuth"], 1),
+                    "regime": REGIME_NAME[cell["regime"]],
+                    "regime_code": cell["regime"],
+                    "regime_share": round(100 * cell["regime_share"]),
+                    "records": cell["records"],
+                    # The same count as a CLASS, because the symbology dialog
+                    # colours a vector by categories: handed a numeric column
+                    # it lists the twelve commonest values and folds the rest
+                    # into "other", which over a range of 1 to 1,030 is not a
+                    # coverage map, it is a histogram of coincidences.
+                    "evidence": evidence_class(cell["records"]),
+                    "support": round(support, 1),
+                    "nearest_km": round(cell["nearest_km"]),
+                    "agreement": round(cell["resultant"], 2),
+                },
+            })
 
-
-def describe(mesh, cells, radius_km, drawn, path):
-    """What the mesh is, beside the picture of it."""
-    meta = {
-        "id": "stress-raster",
-        "title": "Stress field, interpolated (World Stress Map 2016)",
-        "bounds": {"west": -180, "east": 180, "south": -90, "north": 90},
-        "mesh": {
-            "cellKm": MESH_KM,
-            "rows": len(mesh),
-            "cells": sum(row["count"] for row in mesh),
-            "withData": drawn,
-            "note": ("uniform on the sphere: rows of constant latitude spacing, each "
-                     "holding as many cells as fit round its own parallel"),
-        },
-        "method": {
-            "interpolation": "distance-weighted circular mean of the doubled azimuth",
-            "searchRadiusKm": radius_km,
-            "sigmaKm": radius_km / 2,
-            "supportFloor": SUPPORT_FLOOR,
-            "colour": "dominant faulting regime, WSM colours",
-            "note": ("cells are painted flat and not smoothed, so the resolution of "
-                     "the interpolation is visible rather than hidden behind a "
-                     "gradient"),
-        },
-        "legend": [
-            {"code": key, "label": REGIME_NAME[key],
-             "colour": "#%02x%02x%02x" % REGIME_COLOUR[key]}
-            for key in REGIME_KEYS
-        ],
-        "source": SOURCE,
+    collection = {
+        "type": "FeatureCollection",
+        "_source": dict(SOURCE, **{
+            "product": ("the World Stress Map interpolated onto a mesh of cells "
+                        f"about {MESH_KM:.0f} km across, uniform on the sphere"),
+            "method": ("each cell is the distance-weighted circular mean of the "
+                       f"records within {radius_km:.0f} km, sigma half that; the "
+                       "mean is taken on the doubled angle because SHmax is an "
+                       "axis, and the regime is the class with the most weight "
+                       "behind it rather than an average of category codes"),
+            "support": ("`records` counts the measurements in range, `support` "
+                        "weights them by distance and quality in units of "
+                        "C-quality records, and `nearest_km` is how far the "
+                        "closest one is. A cell is drawn INSET in proportion to "
+                        "its support, so a tentative cell leaves a gap round "
+                        "itself and a well-supported one fills its square."),
+            "coverage": ("the WSM is global in extent and not in sampling: 63% of "
+                         "its records lie within 100 km of a plate boundary, and "
+                         "plate interiors — 41% of the surface — have a median "
+                         "537 km to the nearest measurement. Colour by `records` "
+                         "or `nearest_km` to see it."),
+        }),
+        "features": features,
     }
-    path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    path.write_text(json.dumps(collection, separators=(",", ":")), encoding="utf-8")
+    return len(features)
 
 
 def write_records(records, path, half_km=30.0):
@@ -472,8 +544,6 @@ def main():
                         help="search radius in km; records beyond it are not used")
     parser.add_argument("--cell", type=float, default=MESH_KM,
                         help="mesh cell size in km")
-    parser.add_argument("--width", type=int, default=1440,
-                        help="raster width in pixels (height is half)")
     args = parser.parse_args()
 
     # NOT into the data directory: that folder is published, and the 9 MB
@@ -488,46 +558,23 @@ def main():
     records = load(path)
     if not records:
         sys.exit("no usable records — is that the WSM 2016 csv?")
-    print(f"1. {len(records)} A–C records with an SHmax azimuth")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    count = write_records(records, OUT_DIR / "stress-vectors.geojson")
+    print(f"1. {len(records)} A–C records with an SHmax azimuth")
+    bars = write_records(records, OUT_DIR / "stress-vectors.geojson")
     size = (OUT_DIR / "stress-vectors.geojson").stat().st_size / 1024 / 1024
-    print(f"   wrote stress-vectors.geojson — {count} bars, {size:.1f} MB")
+    print(f"   stress-vectors.geojson — {bars} bars, {size:.1f} MB")
 
     mesh = equal_area_mesh(args.cell)
-    total = sum(row["count"] for row in mesh)
-    print(f"2. mesh of {total} cells about {args.cell:.0f} km across "
-          f"({len(mesh)} rows, {mesh[len(mesh) // 2]['count']} on the equator)")
+    total = sum(row["count"] for row in mesh if row["count"] >= 8)
+    print(f"2. mesh of {total} cells about {args.cell:.0f} km across, uniform on "
+          f"the sphere ({len(mesh)} rows, {mesh[len(mesh) // 2]['count']} on the equator)")
 
     print(f"3. interpolating, {args.radius:.0f} km search radius")
-    cells = {}
-    drawn = 0
-    for r, row in enumerate(mesh):
-        points = [(row["lat"], lon) for lon in row["centres"]]
-        found = field_at(points, records, args.radius)
-        by_lon = {}
-        for cell in found:
-            column = int(round((cell["lon"] + 180) / (360.0 / row["count"]) - 0.5))
-            # How clearly the regime won, times how much data said so: a cell
-            # where 40% of the weight is thrust and 35% strike-slip has not
-            # chosen, and must not be painted as though it had.
-            decisive = min(1.0, max(0.0, (cell["regime_share"] - 0.34) / 0.5))
-            support = min(1.0, cell["support"] / 3.0)
-            by_lon[column % row["count"]] = {
-                "regime": cell["regime"],
-                "alpha": int(round(min(0.9, max(0.15, decisive * support * 0.9)) * 255)),
-            }
-        if by_lon:
-            cells[r] = by_lon
-            drawn += len(by_lon)
-    print(f"   {drawn} of {total} cells carry data ({100 * drawn / total:.0f}%)")
-
-    height = args.width // 2
-    size = paint_raster(mesh, cells, args.width, height, OUT_DIR / "stress-raster.png")
-    print(f"   wrote stress-raster.png — {args.width}x{height}, {size / 1024:.0f} KB")
-    describe(mesh, cells, args.radius, drawn, OUT_DIR / "stress-raster.json")
-    print(f"   wrote stress-raster.json")
+    cells = write_mesh(mesh, records, args.radius, OUT_DIR / "stress-mesh.geojson")
+    size = (OUT_DIR / "stress-mesh.geojson").stat().st_size / 1024 / 1024
+    print(f"   stress-mesh.geojson — {cells} cells with data "
+          f"({100 * cells / total:.0f}% of the mesh), {size:.1f} MB")
 
     check(records, args.radius)
 

@@ -498,76 +498,107 @@ Rebuild cost, measured as the longest gap between animation frames on the
 software renderer: 524 ms for the 7,929-polygon world build, 326 ms for a
 view-sized refine against a 246 ms idle median — a refine is not a freeze.
 
-## The World Stress Map: records, a coarse mesh, a raster from it
+## The World Stress Map: records, and a mesh you can interrogate
 
-Three products in order, and the order is the point:
+Two layers, both in Data · Vectors & Shapes under Tectonics:
 
-| step | what |
+| layer | what |
 | --- | --- |
-| 1 | `stress-vectors.geojson` — 32,464 A–C measurements, each a 60 km bar lying along the SHmax it recorded (9 MB raw, **0.9 MB gzipped**) |
-| 2 | a mesh of **5,716 cells about 300 km across**, uniform on the sphere |
-| 3 | `stress-raster.png` — each cell the distance-weighted circular mean of the records within 450 km, painted flat in its dominant regime (**18 KB**) |
+| `stress-vectors.geojson` | 32,464 A–C measurements, each a 60 km bar along the SHmax it recorded (9 MB raw, **0.9 MB gzipped**) |
+| `stress-mesh.geojson` | the field interpolated onto **2,860 cells about 300 km across**, each carrying what it was built from (1.4 MB raw, **179 KB gzipped**) |
 
-**This took five attempts and four of them were the wrong product.** It was
-first a fine-grid raster of SHmax azimuth as a hue, rebuilt three times as the
-interpolation was corrected; then a lattice of bars. What was wrong each time
-was not the arithmetic:
+**It took six attempts and five of them were the wrong product**, none of them
+for want of correct arithmetic:
 
-- **A hue per orientation cannot be read.** It asks somebody to decode an angle
-  from a colour, and across a planet it reads as a lava lamp.
-- **A smooth field hides its own resolution.** A gradient over a 450 km search
-  claims a precision the records do not have.
-- **Bars on a lattice are a texture at global zoom** — thousands of little
-  ticks, which is noise rather than a map.
+- a fine-grid raster of SHmax azimuth as a HUE — asks a reader to decode an
+  angle from a colour, and across a planet it is a lava lamp;
+- the same, rebuilt three times as the interpolation was corrected — a smooth
+  field also hides its own resolution, claiming a precision a 450 km search
+  does not have;
+- bars on a lattice — thousands of ticks at global zoom is a texture, not a
+  map;
+- a flat-celled raster — legible at last, and **a picture cannot be asked where
+  it came from**.
 
-What survives is coarse, flat and honest: **300 km is roughly the scale over
-which SHmax stays coherent**, so the mesh is not finer than the data; the cells
-are painted flat and NOT smoothed, so the resolution is visible; and the colour
-is the faulting regime in the WSM's own red/green/blue, which is a category
-anybody can read without decoding anything.
+The mesh is POLYGONS, so nothing about it is special: the click card reads its
+provenance, the symbology dialog colours it by any column, extraction and
+export take it like any other vector layer. That is also what makes the WSM's
+sampling bias visible without a second layer or a caveat nobody reads.
 
-**The mesh is uniform on the SPHERE, not in lat/lon.** Rows of constant
-latitude spacing, each holding as many cells as fit round its own parallel: 134
-on the equator, one at the pole. A lat/lon mesh's cells are 55 × 55 km on the
-equator and 55 × 19 at 70°N, so the same interpolation would be sampled nine
-times more densely in the Arctic. Measured off the finished picture: flat runs
-of 11 px in 1440 = 2.8° = **305 km**, everywhere.
+### The WSM is global in extent and not in sampling
+
+Measured, because it decides how much this layer should claim:
+
+- **82%** of the usable records are focal mechanisms — they exist only where
+  earthquakes do — and most of the rest are borehole breakouts, which exist
+  only where somebody drilled.
+- **63%** of records lie within 100 km of a plate boundary, 83% within 500 km.
+- Plate margins (<300 km from a boundary, 24% of the surface) are **99%**
+  covered within 450 km. Plate interiors (>1000 km, 41% of the surface) are
+  **42%** covered, with a median **537 km** to the nearest measurement.
+- Globally, only **20%** of the surface is within 100 km of any record; the
+  median is 301 km and the worst tenth is over 930 km from anything.
+
+So every cell carries `records`, `nearest_km`, `support` and `agreement`
+alongside its answer, and clicking one says "SHmax 139°, normal faulting, 91%
+of the weight in range, 12 records within 450 km, nearest 49 km, agreement
+0.9". The layer states its own evidence in the place somebody is already
+looking.
+
+**`evidence` is that count as a CLASS, and it has to be.** The symbology dialog
+colours a vector by CATEGORIES; handed a numeric column it lists the twelve
+commonest values and folds the rest into "other", which over a range of 1 to
+1,030 is a histogram of coincidences rather than a coverage map. Five named
+classes ("1–2 records" … "over 100 records") with a sequential ramp make
+`evidence` the coverage map, through the ordinary symbology button and no new
+machinery. Verified: pale along Europe and the mid-Atlantic ridge, dark in the
+sparse ocean, and the Sahara, central Africa and the Amazon empty.
+
+**Support is drawn as the cell's INSET.** A cell shrunk inside its 300 km slot
+leaves a visible gap and reads as tentative; a well-supported one fills its
+square and tiles seamlessly. Alpha was carrying that meaning before, and an
+alpha of 0.2 over a dark ocean is invisible.
+
+**The colours are the WSM's own, not a palette by frequency.** Red normal,
+green strike-slip, blue thrust — thirty years of published stress maps. A
+catalogue entry may now carry a `colours` map that `addDataset` passes to
+`paintByField` as `overrides`; without it `categoricalSymbology` assigns by how
+common each class is, which put normal faulting in orange and thrust in green.
+One map can hold two vocabularies — the regime names and the evidence classes —
+because a value that is not in it keeps the ramp's own colour.
 
 ### What the arithmetic has to get right
 
-Kept from every earlier attempt, because each was a real fault that fails
-silently:
+Every one of these was a real fault at some point, and each fails silently:
 
 - **SHmax is an AXIS.** 10° and 190° are the same orientation; their arithmetic
   mean is 100°, exactly perpendicular to both. Every mean is on the doubled
   angle.
+- **The mesh is uniform on the SPHERE.** Rows of constant latitude spacing,
+  each holding as many cells as fit round its own parallel — 134 on the
+  equator, and rows with fewer than eight cells are dropped because a quad that
+  wide is a band, not a cell. A lat/lon mesh's cells are 55 × 55 km on the
+  equator and 55 × 19 at 70°N.
 - **The search radius is the CUTOFF and sigma is half of it.** Radius-as-sigma
   reaching twice it painted a cell with no record inside 450 km from records
   between 450 and 900 — measured at 20°N 40°W, an effective 33 records where
   the answer is none.
-- **No data, no cell.** Under one effective C-quality record and the cell stays
-  transparent: 46% of the globe is painted, and the Sahara and the South
-  Pacific gyre are empty.
+- **No data, no cell.** Under one effective C-quality record and the cell is
+  not written at all: 2,860 of 5,710 cells, 50%.
 - **A category is not averaged.** Each regime class is summed with the same
-  weights and the cell takes the one with the most behind it, fading where
-  nothing clearly wins (40% thrust against 35% strike-slip has not chosen).
-- **A bar's east–west half is divided by cos(lat)**, or its bearing shears
-  toward the meridian going north.
+  weights and the cell takes the one with the most behind it.
+- **Cell edges are subdivided at about a degree**, or an 8° edge at 70°N sags
+  below the globe's surface and the fill disappears into the terrain.
 
 ### The check is in the tool, and it has been wrong about the map
 
 `bake-stress.py` recomputes the field at nine places with a published answer:
-**7 of 7 named regimes agree**, and the finished raster reads correctly at
-eight of nine sampled points. The ninth is not an error — the check evaluates
-AT a coordinate while the raster paints a CELL, whose centre can be 150 km
-away, and at 40.5°N 31°E that is the difference between the North Anatolian
-fault and the Aegean.
-
-**Two reference points were wrong before the map was.** 39°N 117°W was filed as
-Basin and Range extension and is in the Walker Lane, where the records are 62%
-strike-slip; 35°N 138°E was filed as subduction thrust and is the Izu collision
-zone, which the records call strike-slip. A check that disagrees with the data
-is a claim about the checker until it has been measured.
+**7 of 7 named regimes agree**. **Two reference points were wrong before the
+map was** — 39°N 117°W was filed as Basin and Range extension and is in the
+Walker Lane, where the records are 62% strike-slip; 28°N 85°E was filed as the
+Himalayan thrust front and is in southern Tibet, which extends. A check that
+disagrees with the data is a claim about the checker until it has been
+measured.
 
 ### Stress is a TENSOR, and what that means for what can be mapped
 
@@ -575,11 +606,12 @@ Stress is not a force — a force is a vector in newtons; stress is force per
 unit area and a second-rank tensor. What can be measured almost anywhere is the
 ORIENTATION of the maximum horizontal component and the REGIME; magnitudes need
 an in-situ borehole test, and the database shows it: **249 of 32,464 A–C
-records carry an S1 magnitude, under 1%**, against 32,464 carrying a regime and
-an azimuth. So the bars carry orientation and regime, the raster carries
-regime, and the magnitudes ride on the few hundred records that have them and
-are ABSENT elsewhere — a placeholder in a numeric column is a number somebody
-will average.
+records carry an S1 magnitude, under 1%**. They ride on the records that have
+them and are ABSENT elsewhere — a placeholder in a numeric column is a number
+somebody will average. The labels do not assert the ranking either: by
+convention S1 ≥ S2 ≥ S3, but wsm00025 carries S1 11.5, S2 5.5, S3 6.3 MPa, and
+"intermediate" over a number smaller than the one below it is the app inventing
+an order the record does not have.
 
 ## Basemap and Relief is ONE list
 
@@ -603,9 +635,10 @@ the same reason the geology toggles are still there. Measured: 15 entries in
 one list, ten of them base textures. `map-layers.js` is a catalogue of raster overlays drawn
 by the same `renderCatalogue` the vector tabs use, so a tick means the same
 thing in all three and each overlay arrives in the layer box with its own eye,
-opacity and place in the draw order. Five entries: the stress map, three GEBCO
-products and NASA's surface texture — four of which the viewer already shipped
-and could only ever show alone.
+opacity and place in the draw order. Four entries: three GEBCO products and
+NASA's surface texture, all of which the viewer already shipped and could only
+ever show alone. (The stress field was briefly a fifth; it is a vector mesh
+now, because a raster cannot be asked where it came from.)
 
 **`drape()` is exported from `gee.js` rather than copied.** Every trap of
 putting an image on a displaced sphere is answered in that one function — the
