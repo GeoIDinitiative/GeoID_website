@@ -602,6 +602,36 @@ convention S1 ≥ S2 ≥ S3, but wsm00025 carries S1 11.5, S2 5.5, S3 6.3 MPa, a
 "intermediate" over a number smaller than the one below it is the app inventing
 an order the record does not have.
 
+## Tectonics is under Geology, and in one list only
+
+Plate boundaries, active faults and stress measurements were filed under Data ·
+Vectors & Shapes beside the coastlines and the country borders, which is a
+statement about the FORMAT they arrive in rather than about what they are.
+Somebody looking for the world's faults looks under Geology.
+
+`tectonics-panel.js` draws the same `renderCatalogue` rows from the same
+`global-data.js` catalogue into a folded subsection of the Geology tab, and
+`polygons.js` filters the group OUT — the move is only a move if the old list
+stops drawing them. Two lists for one dataset is how a tick in one place fails
+to explain the tick already showing in the other, and nothing about it looks
+wrong until both panels are open at once. The group name is exported once and
+imported by the panel that excludes it, because two spellings of "Tectonics" is
+how that quietly stops working; `tectonics-panel.test.mjs` checks the Vectors
+tab excludes exactly one group, so a filter added later without a home for its
+datasets fails the run rather than making them unreachable.
+
+**`.gis-tool-body` was overflowing every tool section, and this is what showed
+it.** The rule was `display: grid` with no `grid-template-columns`, so the
+implicit column is `auto` — which sizes to the MAX-CONTENT of its widest item
+and refuses to shrink below it. Measured: the catalogue laid out 351 px wide
+inside a 291 px content box, and `.gis-tool-section`'s `overflow: hidden`
+clipped the rest — the Symbology button cut to "Sy" and the status line running
+off the panel. `grid-template-columns: minmax(0, 1fr)`, which the
+`.gis-tool-grid` rule immediately below it already carried. It had simply never
+shown, because no tool section had held a label long enough to prove it. Both
+copies fixed (`styles.css` for Earth, `gis/shell.css` for the planet shells);
+after it, no `.gis-tool-section` on the page overflows.
+
 ## "Mapped line" was the card's answer for everything
 
 The click card had only the geometry to go on, so a stress measurement, a

@@ -98,6 +98,14 @@
 
 .gis-tool-body {
       display: grid;
+      /* A grid's implicit column is `auto`, which sizes to the MAX-CONTENT of
+         its widest item and refuses to shrink below it. Every row in a tool
+         section was therefore as wide as its longest unbreakable label, and
+         the section clipped the overflow: the Tectonics catalogue's Symbology
+         button was cut to "Sy" and its status line ran off the panel. The
+         `.gis-tool-grid` rule below already carries this fix; this one had
+         missed it, and only showed once a section held long labels. */
+      grid-template-columns: minmax(0, 1fr);
       gap: 0.55rem;
       padding: 0.72rem 0.78rem 0.8rem;
     }
