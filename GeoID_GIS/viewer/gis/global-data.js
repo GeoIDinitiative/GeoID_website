@@ -134,6 +134,8 @@ export const DATASETS = [
      * nearest measurement.
      */
     colourBy: "regime",
+    // Half-transparent, so it reads as data OVER a map rather than as a map.
+    opacity: 0.55,
     /**
      * The WSM's own colours, not a palette picked by frequency.
      *
@@ -359,6 +361,14 @@ export async function addDataset(id, onStatus = () => {}) {
       // and a palette assigned by frequency instead — blue for normal, orange
       // for thrust — is a map that every reader has to decode from its legend
       // when they already knew the answer.
+      // A layer that covers the whole globe is a BASEMAP unless you can see
+      // through it. The stress mesh fills 2,860 cells of 300 km each; at full
+      // opacity that is an opaque sheet over the planet, and it was reported
+      // as still being a raster basemap when it had been vectors for a day.
+      if (Number.isFinite(entry.opacity)) {
+        window.GeoIDLayerHierarchy?.setOpacity?.(layer, entry.opacity);
+        window.GeoIDLayerHierarchy?.render?.();
+      }
       paintByField(layer, entry.colourBy, entry.colours
         ? { overrides: new Map(Object.entries(entry.colours)) }
         : {});
