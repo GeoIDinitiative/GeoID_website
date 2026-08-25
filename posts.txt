@@ -1,0 +1,128 @@
+I've spent the last few months building something I couldn't find anywhere else — so I built it myself.
+
+GeoID is a geoscience initiative I founded to close the gap between world-class hazard research and the public it's supposed to protect. The science exists. The models exist. The data exists. What hasn't existed is an accessible, honest, no-gatekeeping way for anyone to engage with it.
+
+Two platforms are live today:
+
+🌍 Earth Explorer — a 3D geological viewer for Mount Etna built from published INGV datasets: 12,000+ earthquakes, magma plumbing architecture, fault planes, geological map overlays, and a subsurface cross-section. The kind of tool a research GIS should have been from the start, running entirely in a browser.
+
+🪐 Planet Explorer — an interactive Solar System environment covering all eight planets plus the Moon and Pluto. Real topographic data, scientific overlays, guided tours. If you've ever wanted to navigate the surface of Mars or cross-section Saturn's ring system, it's there.
+
+The longer-term goal is myGeoID — a real-time flood and landslide risk platform that ingests NOAA global forecast data and runs it through a finite-element slope-stability model to produce a continuously updated Factor of Safety index for any location on Earth. The methodology is defined, the data pipelines are built. What it needs is compute infrastructure and the right collaborators.
+
+I'm a computational geoscientist (PhD, University of Pisa / INGV), and this is the project I wish had existed when I started my research. If you work in hazard science, civil protection, open data, or Earth observation — or you know people who do — I'd genuinely love to talk.
+
+🔗 geoidinitiative.com
+
+#Geoscience #OpenScience #NaturalHazards #EarthObservation #ClimateResilience #GeoID
+
+
+
+
+
+
+You can now navigate the surface of every planet in the Solar System from your browser. No software. No training. No institutional login.
+
+Planet Explorer is GeoID's interactive Solar System viewer — ten worlds, real scientific data, and the kind of interface that was previously locked behind professional GIS software or watered down into something that taught you nothing.
+
+Here's what it actually does:
+
+🗺️ Real topographic data — elevation maps sourced from NASA, USGS, and ESA mission archives. Not artist impressions. The terrain you're navigating is the terrain that's there.
+
+🧭 Named feature search — find and fly to any named crater, canyon, volcano, or basin across all ten worlds. Olympus Mons, Valles Marineris, Caloris Basin — locate it in seconds.
+
+📏 Distance and elevation tools — measure surface distances and plot elevation profiles across any path you draw. The same basic function researchers use to characterise terrain.
+
+🌑 Moon viewer, free — the full Moon environment is open to everyone. No account needed.
+
+🔭 Guided tours — thematic tours for each world walk you through the geology, major features, and scientific significance without requiring a background in planetary science.
+
+🪐 The full suite — Mercury through Pluto (plus Earth's Moon), all geological and scientific overlays, and everything above — £19.99/year.
+
+The honest case for it: most people will never get access to a university GIS lab. Most educational tools treat curiosity as something to be managed rather than rewarded. Planet Explorer sits in neither category — it gives you the actual data and trusts you to do something interesting with it.
+
+The Moon viewer is free. Worth five minutes.
+
+🔗 geoidinitiative.com/explorer/
+
+#PlanetExplorer #PlanetaryScience #OpenScience #SpaceEducation #GIS #GeoID
+
+
+
+
+
+
+
+Mount Etna is Europe's most active volcano. I'm currently completing my PhD on it. And I still couldn't find a single public tool that let you actually explore the geology properly — so I built one.
+
+Earth Explorer is GeoID's regional Earth science platform. Where Planet Explorer surveys the Solar System at scale, Earth Explorer goes deep into specific sites — the geology, the structure, the hazard context — at the resolution those places actually deserve.
+
+The first viewer is Mount Etna. Here's what's inside:
+
+🔴 12,000+ earthquake catalogue — every INGV-recorded seismic event beneath Etna from 2011 to 2023, plotted in 3D. Filter by depth, magnitude, and time. Watch the seismicity define the fault architecture in real space.
+
+🌋 Magma plumbing system — the conduit network and shallow magma chambers rendered in three dimensions, positioned against the real topography and fault geometry.
+
+⚡ Fault planes and tectonic structure — regional and volcanic fault systems from published INGV datasets. The structures that govern flank instability and eruption dynamics, not a schematic diagram.
+
+🗺️ Geological map overlays — surface geology and historical lava flow extents draped over the terrain. Toggle units on and off, compare eruption periods, interrogate the volcanic stratigraphy.
+
+✂️ Interactive cross-section — draw a line anywhere across the domain and generate a live subsurface cross-section with labelled geological layers. A standard research tool, running in a browser.
+
+🛰️ 7 m satellite basemap — ESRI World Imagery pre-rendered at 7 m resolution across the full Etna domain. Detailed enough to identify individual lava flow fronts and summit craters.
+
+The data is the same data INGV researchers work with. The difference is that you no longer need an institutional login, a GIS licence, or three months of onboarding to do something useful with it.
+
+Etna is the first environment. Campi Flegrei, the Reykjanes Peninsula, and the Aegean arc are under consideration for future development — each selected for scientific significance and open data availability.
+
+Access is included in the GeoID annual membership.
+
+🔗 geoidinitiative.com/earth_explorer/
+
+#EarthExplorer #Volcanology #Geoscience #OpenScience #MountEtna #GIS #GeoID #NaturalHazards
+
+
+
+
+
+
+
+
+
+Two geoscience platforms are live. A real-time flood and landslide forecasting system is one computational step away. This post is about that step.
+
+GeoID has built and shipped two publicly accessible tools — Planet Explorer and Earth Explorer — from scratch, on no institutional budget. They work. People use them. The scientific data underpinning them is the same data researchers use.
+
+That's the proof of concept. Here's what comes next.
+
+The goal:
+Ingest NOAA GFS global rainfall forecast data — updated every six hours, 0.25° resolution, freely available — and run it through a finite-element hydrological model to produce a continuously updated Factor of Safety index for flood and landslide risk. A single, interpretable value, publicly accessible, computed before the rainfall arrives.
+
+The science behind this is established in the literature. The GFS data pipelines are already built and tested. The FEM solver lineage (GALES multi-physics) is the same framework my PhD research was built on. This is not a speculative idea — it is a technically defined next step.
+
+The constraint is infrastructure, not science.
+
+Specifically two things:
+
+🖥️ Servers — persistent hosting for continuous GFS ingestion, time-series storage, and a public-facing interface. The pipeline has been tested. It is not yet running continuously.
+
+🧮 Compute — finite-element slope-stability and flood-routing models are computationally demanding at useful spatial resolution. Running them continuously across a pilot domain requires HPC allocation or dedicated cluster time. This is the principal cost.
+
+What I'm looking for:
+
+→ University or research institution with HPC availability and interest in a live flood/landslide modelling testbed
+→ Co-applicant on a hazard, climate-resilience, or open-science funding call
+→ Civil protection agency, NGO, or foundation wanting physics-based early-warning capability for a pilot region
+→ Cloud or HPC provider with an in-kind credit programme
+
+The Valencia flooding in October 2024 killed over 200 people. The Chamoli disaster. The Italy floods of 2023. In most of these cases the atmospheric signal was visible hours to days in advance. The gap isn't in the weather forecasting — it's in translating that forecast into ground-level instability in a way that reaches the people who need it.
+
+That is exactly what this system is designed to do.
+
+If any of this is relevant to your work, your institution, or your funding portfolio — I'd welcome a conversation.
+
+🔗 geoidinitiative.com/fund.html
+
+#Geoscience #NaturalHazards #FloodRisk #Landslides #OpenScience #HPC #ResearchFunding #ClimateResilience #GeoID #EarlyWarning
+
+

@@ -1,0 +1,26 @@
+{
+  "description": "Suggested fill colours for etna_geology_classified.shp",
+  "litho_type_colors": {
+    "lava_flow": "#b04b2d",
+    "scoria_tephra": "#d07840",
+    "intrusion": "#8c5e8c",
+    "sediment": "#cfc388",
+    "basement": "#7264b4"
+  },
+  "lava_era_colors": {
+    "post1900": "#da2a0a",
+    "c19": "#ca4c14",
+    "c17c18": "#b4601c",
+    "medieval": "#984822",
+    "ancient": "#76372e",
+    "prehistoric": "#622e1a",
+    "unknown": "#944224"
+  },
+  "contacts": {
+    "lava_flow|scoria_tephra": "#3a1e08",
+    "lava_flow|sediment": "#5a3a1a",
+    "lava_flow|basement": "#2a1a5a",
+    "scoria_tephra|sediment": "#6a4a2a",
+    "sediment|basement": "#4a3a7a"
+  }
+}

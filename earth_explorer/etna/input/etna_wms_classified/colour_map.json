@@ -1,0 +1,194 @@
+[
+  {
+    "hex": "#e0494f",
+    "formation": "Torre del Filosofo Formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "recent"
+  },
+  {
+    "hex": "#ee9a44",
+    "formation": "Pietracannone Formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "historic"
+  },
+  {
+    "hex": "#dce0ef",
+    "formation": "Portella Giumenta formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#c783b3",
+    "formation": "Monte Calvario formation",
+    "litho_type": "scoria_tephra",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#f0cfe0",
+    "formation": "Simeto formation",
+    "litho_type": "sediment",
+    "litho_grp": "fluvial"
+  },
+  {
+    "hex": "#baa9ca",
+    "formation": "Piano Provenzana Formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#aa89ba",
+    "formation": "Pizzi Deneri Formation",
+    "litho_type": "scoria_tephra",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#9f4197",
+    "formation": "Serra delle Concazze Formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#d5ddb4",
+    "formation": "Canalone della Montagnola Formation",
+    "litho_type": "scoria_tephra",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#7b8b18",
+    "formation": "Serra Cuvigghiuni Formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#d6e7c6",
+    "formation": "Acqua della Rocca Formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#b2dbb2",
+    "formation": "Serra del Salifizio Formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#6cbe6c",
+    "formation": "Valle degli Zappini Formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#7ba831",
+    "formation": "Serra Giannicola Grande Formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#a49b00",
+    "formation": "Monte Fior di Cosimo formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#969e54",
+    "formation": "Monte Scorsone Formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#c8e4e1",
+    "formation": "Piano del Trifoglietto formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#7eccc8",
+    "formation": "Rocche formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#00a89c",
+    "formation": "Contrada Passo Cannelli formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#9edbf8",
+    "formation": "Valverde formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#25cbd6",
+    "formation": "Moscarello formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#0189cf",
+    "formation": "Calanna formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#afac93",
+    "formation": "S. Maria degli Ammalati formation",
+    "litho_type": "sediment",
+    "litho_grp": "alluvial"
+  },
+  {
+    "hex": "#6f9be1",
+    "formation": "Timpa formation",
+    "litho_type": "sediment",
+    "litho_grp": "marine"
+  },
+  {
+    "hex": "#1d67b1",
+    "formation": "Timpa di Don Masi formation",
+    "litho_type": "sediment",
+    "litho_grp": "marine"
+  },
+  {
+    "hex": "#f2eae2",
+    "formation": "San Placido Formation",
+    "litho_type": "sediment",
+    "litho_grp": "alluvial"
+  },
+  {
+    "hex": "#9f6d3c",
+    "formation": "S. Maria di Licodia Formation",
+    "litho_type": "sediment",
+    "litho_grp": "alluvial"
+  },
+  {
+    "hex": "#afac93",
+    "formation": "Ghiaie di Monte Tiriti Formation",
+    "litho_type": "sediment",
+    "litho_grp": "alluvial"
+  },
+  {
+    "hex": "#f3d6b9",
+    "formation": "S. Giorgio sands Formation",
+    "litho_type": "sediment",
+    "litho_grp": "marine"
+  },
+  {
+    "hex": "#9b6938",
+    "formation": "Acicastello Formation",
+    "litho_type": "lava_flow",
+    "litho_grp": "prehistoric"
+  },
+  {
+    "hex": "#c7c164",
+    "formation": "Argille grigio-azzurre Formation",
+    "litho_type": "sediment",
+    "litho_grp": "marine"
+  },
+  {
+    "hex": "#d3d7cb",
+    "formation": "NODATA",
+    "litho_type": "nodata",
+    "litho_grp": "nodata"
+  }
+]

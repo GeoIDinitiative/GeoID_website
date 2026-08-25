@@ -109,76 +109,15 @@ export const DATASETS = [
     live: true,
   },
   {
-    id: "stress-mesh",
-    group: "Tectonics",
-    label: "Stress field — 300 km mesh (World Stress Map)",
-    path: "/data/global/stress-mesh.geojson",
-    name: "Stress field mesh (World Stress Map 2016).geojson",
-    summary: "2,860 cells, each the distance-weighted mean of the measurements "
-      + "within 450 km, carrying what it was built from: how many records, how "
-      + "far the nearest one is, and how well they agree. Colour by `evidence` "
-      + "to see the coverage — the WSM is global in extent and not in sampling, "
-      + "with 63% of its records within 100 km of a plate boundary",
-    licence: "World Stress Map 2016 (Heidbach et al.) — CC BY 4.0",
-    /**
-     * Coloured by REGIME, which is what a stress map is coloured by: red where
-     * the crust is pulling apart, blue where it is shortening, green where it
-     * is shearing past itself.
-     *
-     * The other columns are the point of it being a vector layer rather than a
-     * picture. `records` and `nearest_km` describe the EVIDENCE, not the
-     * stress, and colouring by either turns the map into a map of its own
-     * coverage — which the World Stress Map badly needs, because it is global
-     * in extent and not in sampling: 63% of its records lie within 100 km of a
-     * plate boundary, and the plate interiors have a median 537 km to the
-     * nearest measurement.
-     */
-    colourBy: "regime",
-    // Half-transparent, so it reads as data OVER a map rather than as a map.
-    opacity: 0.55,
-    /**
-     * The WSM's own colours, not a palette picked by frequency.
-     *
-     * Red where the crust is pulling apart, blue where it is shortening, green
-     * where it is shearing past itself — the key thirty years of published
-     * stress maps have used. `categoricalSymbology` would otherwise assign by
-     * how common each class is, which put normal faulting in orange and thrust
-     * in green: a map a reader has to decode from its legend when they already
-     * knew what the colours meant.
-     */
-    colours: {
-      "Normal faulting": "#e2444a",
-      "Normal with strike-slip": "#e07a8a",
-      "Strike-slip": "#3aa03a",
-      "Thrust with strike-slip": "#5f8fd0",
-      "Thrust faulting": "#3a6bd6",
-      Undetermined: "#96969e",
-      /**
-       * And the EVIDENCE classes, in one sequential ramp.
-       *
-       * One overrides map can carry two vocabularies: a value that is not in
-       * it keeps the ramp's own colour, so these apply only when somebody
-       * colours by `evidence` and the regime colours only when they colour by
-       * `regime`. An ordered class needs an ordered ramp — a categorical
-       * palette assigns by frequency, which would put "1–2 records" and "over
-       * 100" next to each other in hue and say nothing.
-       */
-      "1–2 records": "#0d2137",
-      "3–10 records": "#17537a",
-      "11–30 records": "#2f8fae",
-      "31–100 records": "#71c9c2",
-      "over 100 records": "#e8f6cf",
-    },
-  },
-  {
     id: "stress-vectors",
     group: "Tectonics",
     label: "Stress orientations — measurements (World Stress Map)",
     path: "/data/global/stress-vectors.geojson",
     name: "Stress orientations (World Stress Map 2016).geojson",
     summary: "32,464 A–C measurements of SHmax, each a 60 km bar along the "
-      + "orientation it recorded, with its method, quality, depth and faulting "
-      + "regime — the records the interpolated raster is built from",
+      + "orientation it recorded, with its method, quality class, depth, "
+      + "faulting regime and — for the few hundred that have any — the "
+      + "principal stress magnitudes",
     licence: "World Stress Map 2016 (Heidbach et al.) — CC BY 4.0",
     /**
      * Coloured by REGIME, which is the half of a stress measurement that an
@@ -209,21 +148,6 @@ export const DATASETS = [
       "Thrust with strike-slip": "#5f8fd0",
       "Thrust faulting": "#3a6bd6",
       Undetermined: "#96969e",
-      /**
-       * And the EVIDENCE classes, in one sequential ramp.
-       *
-       * One overrides map can carry two vocabularies: a value that is not in
-       * it keeps the ramp's own colour, so these apply only when somebody
-       * colours by `evidence` and the regime colours only when they colour by
-       * `regime`. An ordered class needs an ordered ramp — a categorical
-       * palette assigns by frequency, which would put "1–2 records" and "over
-       * 100" next to each other in hue and say nothing.
-       */
-      "1–2 records": "#0d2137",
-      "3–10 records": "#17537a",
-      "11–30 records": "#2f8fae",
-      "31–100 records": "#71c9c2",
-      "over 100 records": "#e8f6cf",
     },
   },
   {

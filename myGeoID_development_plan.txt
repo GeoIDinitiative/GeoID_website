@@ -1,0 +1,1717 @@
+myGeoID: Development Plan v1 
+
+I think **myGeoID is at the exact stage where you should avoid trying to build a full “real-time AI digital twin” immediately**. The fastest path is to create **high-value global hazard layers that look impressive in the 3D viewer, require almost no infrastructure, and prove the concept**.
+
+From what you have already built (Planet Explorer + Earth Explorer + the vision of a live geohazard intelligence platform), the missing piece is not data — it is **turning free Earth observation datasets into interactive decision layers**. ([LinkedIn][1])
+
+The key principle:
+
+> **Do not store raw data. Store processed intelligence layers. Let Google Earth Engine (GEE) do the heavy lifting.**
+
+---
+
+# 1. Current architecture (no money)
+
+Right now you have:
+
+```
+User browser
+     |
+     |
+GitHub Pages
+     |
+     |
+Three.js / Cesium / WebGL viewer
+```
+
+You do NOT want:
+
+```
+Your server
+     |
+Huge datasets
+     |
+Processing pipeline
+     |
+Database
+     |
+Cloud bills
+```
+
+Instead:
+
+```
+Google Earth Engine
+        |
+        |
+Precomputed hazard layers
+        |
+        |
+Cloud Optimised GeoTIFF / XYZ tiles
+        |
+        |
+GitHub Pages viewer
+```
+
+Your costs:
+
+* GitHub Pages: £0
+* GEE: £0 for research/non-commercial use
+* Sentinel/Landsat/NASA data: £0
+* Static hosting: £0
+
+---
+
+# 2. The first killer feature: Global Earth Risk Atlas
+
+I would build a **GeoID Risk Atlas**.
+
+Think:
+
+> "Google Earth meets natural hazard intelligence"
+
+A user clicks Earth and turns on:
+
+🌋 Volcano Risk
+🌊 Flood Risk
+⛰ Landslide Risk
+🔥 Wildfire Risk
+🌡 Climate Stress
+🌾 Drought Risk
+🌊 Coastal Flooding
+🌍 Earthquake Exposure
+
+---
+
+# Quick win #1: Global Landslide Susceptibility
+
+Difficulty: ⭐⭐
+
+Impact: ⭐⭐⭐⭐⭐
+
+Data:
+
+* DEM:
+
+  * SRTM
+  * Copernicus DEM
+
+* Rainfall:
+
+  * CHIRPS
+  * ERA5
+
+* Terrain:
+
+  * slope
+  * curvature
+  * elevation
+
+* Vegetation:
+
+  * Sentinel-2 NDVI
+
+Simple model:
+
+```
+Landslide Index =
+
+0.35 slope
++
+0.25 rainfall anomaly
++
+0.15 soil moisture
++
+0.15 geology
++
+0.10 vegetation loss
+```
+
+Output:
+
+```
+0 = stable
+1 = extreme susceptibility
+```
+
+Then colour it:
+
+Green → Yellow → Red
+
+This alone is commercially interesting.
+
+---
+
+# Quick win #2: Global Flood Nowcast
+
+Difficulty: ⭐⭐
+
+Impact: ⭐⭐⭐⭐⭐
+
+This is probably your strongest first product.
+
+Use:
+
+* Sentinel-1 SAR flooding
+* GPM rainfall
+* ERA5 precipitation
+* river networks
+
+Pipeline:
+
+Every day:
+
+```
+GEE
+ |
+download rainfall anomaly
+ |
+calculate flood probability
+ |
+export raster tiles
+ |
+update viewer
+```
+
+Display:
+
+```
+Current flood probability
+
+0-20%
+20-50%
+50-80%
+80-100%
+```
+
+You could advertise:
+
+> "Global AI flood intelligence updated daily"
+
+---
+
+# Quick win #3: Wildfire Risk Layer
+
+Difficulty: ⭐
+
+Impact: ⭐⭐⭐⭐
+
+Use:
+
+NASA FIRMS:
+
+* active fires
+* thermal anomalies
+
+Combine:
+
+```
+Fire Risk =
+
+temperature
++
+wind
++
+vegetation dryness
++
+soil moisture
++
+historical fires
+```
+
+Output:
+
+Daily global fire danger.
+
+---
+
+# Quick win #4: Volcanic Monitoring
+
+This is your unique advantage.
+
+Nobody else has your background.
+
+Start with:
+
+## Etna Live
+
+Use:
+
+* Sentinel-1 InSAR
+* Sentinel-2 thermal
+* earthquakes
+* deformation
+
+Viewer:
+
+```
+Etna
+ |
+ground deformation
+ |
+seismicity
+ |
+thermal anomalies
+ |
+hazard status
+```
+
+A researcher/civil protection person immediately understands the value.
+
+---
+
+# 3. What should NOT be done yet
+
+Avoid:
+
+## ❌ Full 3D terrain database
+
+Too expensive.
+
+## ❌ Live physics models
+
+Your FEM background makes this tempting, but not scalable initially.
+
+Example:
+
+"real-time landslide factor of safety model"
+
+Sounds amazing.
+
+But:
+
+* requires rainfall forecasts
+* soil parameters
+* hydrology
+* compute
+
+Later.
+
+---
+
+## ❌ Machine learning models
+
+Not initially.
+
+You do not need AI.
+
+A weighted susceptibility index is enough.
+
+Your advantage is:
+
+**scientific interpretation + visualization**
+
+not another black-box AI classifier.
+
+---
+
+# 4. Data storage strategy
+
+You need three layers.
+
+## Layer 1 — Raw data
+
+Do not store.
+
+Example:
+
+Sentinel imagery.
+
+GEE handles this.
+
+---
+
+## Layer 2 — Processed products
+
+Store:
+
+```
+GeoTIFF
+NetCDF
+Vector tiles
+```
+
+Example:
+
+```
+landslide_global_2026.tif
+flood_probability_daily.tif
+fire_risk_weekly.tif
+```
+
+Storage:
+
+GitHub Releases initially.
+
+Later:
+
+* Cloudflare R2
+* AWS S3
+
+---
+
+## Layer 3 — Viewer metadata
+
+Tiny JSON files:
+
+Example:
+
+risk_layers.json
+
+```json
+{
+"name":"Global Landslide Risk",
+"date":"2026-08-05",
+"url":"tiles/landslide.mbtiles",
+"source":"GEE"
+}
+```
+
+Your viewer simply reads this.
+
+---
+
+# 5. Your first 90-day roadmap
+
+## Phase 1 (Weeks 1-4)
+
+### "Make myGeoID alive"
+
+Create:
+
+### Earth Risk Explorer
+
+Layers:
+
+1. Global terrain
+2. Volcanoes
+3. Earthquakes
+4. Flood risk
+5. Landslide risk
+
+No AI.
+
+Just intelligence layers.
+
+---
+
+## Phase 2 (Month 2)
+
+Add:
+
+### Daily updates
+
+Automated:
+
+```
+GitHub Actions
+        |
+        |
+Google Earth Engine API
+        |
+        |
+Generate tiles
+        |
+        |
+Publish
+```
+
+Frequency:
+
+| Product   | Update  |
+| --------- | ------- |
+| Flood     | daily   |
+| Fire      | daily   |
+| Volcano   | weekly  |
+| Landslide | monthly |
+| Climate   | monthly |
+
+---
+
+## Phase 3 (Month 3)
+
+Create:
+
+## GeoID Alerts
+
+Example:
+
+User opens Etna:
+
+"Current volcanic activity"
+
+```
+Seismicity:
+HIGH
+
+Ground deformation:
++18 mm
+
+Thermal anomaly:
+Detected
+
+Risk:
+Elevated
+```
+
+---
+
+# 6. The commercial angle
+
+Do NOT sell maps.
+
+Maps are commodities.
+
+Sell:
+
+## Intelligence.
+
+Example pricing:
+
+### Free
+
+Public explorer
+
+---
+
+### Pro
+
+£19.99/year
+
+Your current model.
+
+Unlock:
+
+* advanced layers
+* historical data
+* planetary explorers
+
+---
+
+### Professional
+
+£500-5000/year
+
+For:
+
+* universities
+* consultants
+* NGOs
+
+Includes:
+
+* API access
+* downloads
+* reports
+
+---
+
+### Enterprise
+
+£20k+/year
+
+For:
+
+* insurers
+* governments
+* infrastructure companies
+
+---
+
+# 7. The first three products I would build
+
+Ranking:
+
+| Product           | Speed | Impact | Commercial |
+| ----------------- | ----- | ------ | ---------- |
+| Global Flood Risk | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐  | ⭐⭐⭐⭐⭐      |
+| Landslide Risk    | ⭐⭐⭐⭐  | ⭐⭐⭐⭐⭐  | ⭐⭐⭐⭐⭐      |
+| Volcano Monitor   | ⭐⭐⭐   | ⭐⭐⭐⭐⭐  | ⭐⭐⭐⭐       |
+| Wildfire Risk     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   | ⭐⭐⭐⭐       |
+| Climate Index     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐    | ⭐⭐⭐        |
+
+---
+
+# My recommended strategic pivot
+
+Your current branding is actually well aligned:
+
+> **GeoID = Earth intelligence platform**
+
+Not:
+
+> "3D geology viewer"
+
+The 3D viewer is the interface.
+
+The product is the intelligence underneath.
+
+The fastest route:
+
+```
+Google Earth Engine
+        ↓
+Global hazard models
+        ↓
+Static intelligent layers
+        ↓
+myGeoID viewer
+        ↓
+Users + credibility
+        ↓
+Funding/customers
+        ↓
+Real-time models
+```
+
+The first milestone I would aim for:
+
+**"GeoID Global Hazard Atlas: 5 billion people mapped against natural hazards, updated automatically."**
+
+That is achievable without servers, employees, or funding.
+
+[1]: https://www.linkedin.com/company/geoid-initiative?utm_source=chatgpt.com "GeoID Initiative | LinkedIn"
+
+
+
+This is an important question because it changes the strategy. The short answer is:
+
+**No — Google Earth Engine (GEE) does not necessarily require you to pay for compute or storage at the stage you are at, but there are important limitations depending on whether GeoID becomes commercial.**
+
+The longer answer:
+
+---
+
+## 1. Google Earth Engine usage costs
+
+### For research / education / non-commercial development
+
+Historically, GEE has been effectively free for:
+
+* academics
+* students
+* scientific research
+* public-interest projects
+
+You can:
+
+✅ Access Sentinel, Landsat, MODIS, ERA5, etc.
+✅ Run processing scripts
+✅ Generate maps
+✅ Export results
+
+without paying for a cloud bill.
+
+Given your PhD/geohazard background, you are exactly the type of user GEE was designed for.
+
+---
+
+## 2. But GeoID changes the situation
+
+The moment you say:
+
+> "GeoID sells subscriptions (£19.99/year)"
+
+you enter a grey area.
+
+Google's current model distinguishes between:
+
+### Research/non-commercial
+
+Free.
+
+Example:
+
+> "A PhD researcher develops a volcano deformation visualisation."
+
+Fine.
+
+---
+
+### Commercial use
+
+Potentially requires:
+
+* Google Cloud project
+* Earth Engine commercial registration
+* billing enabled
+
+Example:
+
+> "GeoID provides paid hazard intelligence products to customers."
+
+This is different.
+
+---
+
+# 3. The trick: don't make GEE your backend
+
+This is the key architectural point.
+
+A lot of people misunderstand GEE.
+
+They think:
+
+```
+User
+ |
+myGeoID
+ |
+Google Earth Engine
+ |
+calculate everything live
+ |
+return map
+```
+
+That can become expensive and slow.
+
+Instead:
+
+```
+Google Earth Engine
+        |
+        |
+Generate products periodically
+        |
+        |
+Store tiny outputs
+        |
+        |
+myGeoID
+```
+
+You use GEE as your **scientific factory**, not your server.
+
+---
+
+# 4. What would storage actually look like?
+
+Take global landslide susceptibility.
+
+You might produce:
+
+Resolution:
+
+1 km
+
+Earth surface:
+
+~510 million km²
+
+A global raster:
+
+GeoTIFF:
+
+Maybe:
+
+```
+500 MB - 2 GB
+```
+
+Compress:
+
+```
+100-500 MB
+```
+
+You do not need petabytes.
+
+---
+
+Your GitHub repository should NOT contain:
+
+```
+❌ Sentinel imagery
+❌ Landsat archive
+❌ DEM data
+```
+
+Only:
+
+```
+✔ metadata
+✔ small tiles
+✔ visual assets
+✔ code
+```
+
+---
+
+# 5. Free/cheap storage options
+
+## Option 1 — GitHub Releases
+
+Free.
+
+Good for:
+
+* prototypes
+* static datasets
+
+Example:
+
+```
+GeoID/
+ |
+ |-- website
+ |
+ |-- layers
+      |
+      landslide_2026.mbtiles
+      flood_global.mbtiles
+```
+
+---
+
+## Option 2 — Cloudflare R2
+
+Probably your future choice.
+
+Costs are tiny.
+
+You might store:
+
+100 GB
+
+and serve:
+
+millions of tiles
+
+for a few pounds/month.
+
+---
+
+## Option 3 — Google Cloud Storage
+
+The native GEE route.
+
+More expensive, but integrates nicely.
+
+---
+
+# 6. But what about continuously updating models?
+
+This is where you need to be careful.
+
+A daily flood model:
+
+```
+Sentinel-1
++
+rainfall
++
+soil moisture
+```
+
+could be:
+
+```
+GEE processing
+        |
+        |
+new raster
+        |
+        |
+replace yesterday's file
+```
+
+Your storage requirement:
+
+not:
+
+365 × dataset
+
+because you overwrite.
+
+Example:
+
+```
+flood_current.tif
+```
+
+Every day:
+
+```
+delete old
+upload new
+```
+
+---
+
+# 7. What I would NOT do with GEE
+
+Avoid:
+
+### Live user queries
+
+Example:
+
+User clicks:
+
+"Calculate landslide risk for this mountain"
+
+then:
+
+```
+Browser
+ |
+GEE
+ |
+run model
+ |
+return answer
+```
+
+Problems:
+
+* slow
+* quotas
+* commercial concerns
+
+---
+
+Instead:
+
+Precompute:
+
+```
+Global landslide map
+Global flood map
+Global wildfire map
+```
+
+Then the viewer just displays them.
+
+---
+
+# 8. Your first realistic zero-budget architecture
+
+I would build:
+
+```
+                FREE
+                 |
+                 v
+
+Google Earth Engine
+(Sentinel/Landsat/NASA)
+
+                 |
+          weekly/monthly jobs
+
+                 |
+                 v
+
+Compressed GeoTIFF / vector tiles
+
+                 |
+                 v
+
+GitHub Releases
+(or Cloudflare R2 later)
+
+                 |
+                 v
+
+myGeoID
+Three.js/Cesium viewer
+```
+
+Cost:
+
+| Component         |      Cost |
+| ----------------- | --------: |
+| GitHub Pages      |        £0 |
+| GEE research      |        £0 |
+| Sentinel data     |        £0 |
+| NASA data         |        £0 |
+| Storage initially |        £0 |
+| Domain            | ~£10/year |
+
+---
+
+# 9. The bigger strategic issue
+
+I would actually avoid making the first version "real-time".
+
+The strongest MVP is:
+
+## GeoID Earth Risk Atlas
+
+A beautiful interactive globe containing:
+
+* Global flood susceptibility
+* Global landslide susceptibility
+* Global wildfire risk
+* Volcano monitoring
+* Earthquake exposure
+* Climate trends
+
+Then add:
+
+"Updated daily/weekly"
+
+rather than:
+
+"live".
+
+---
+
+The irony is that **a static scientifically robust global hazard atlas may be more valuable than a live system**.
+
+Insurance companies, governments, NGOs, and educators often need:
+
+> "Where is risk concentrated?"
+
+more than:
+
+> "What happened 20 seconds ago?"
+
+---
+
+Given your situation (PhD nearly complete, no infrastructure budget), I would aim for:
+
+**6 months: a world-class free GeoID Earth Risk Atlas built entirely on open data.**
+
+Then use that as the proof-of-concept to get:
+
+* grants
+* climate accelerators
+* university partnerships
+* insurance pilots
+* government contracts
+
+The mistake would be spending months building infrastructure before you have the intelligence layer.
+
+Actually, **global coverage is realistic on a £0 budget** — but **not in the way people often imagine**.
+
+The distinction is:
+
+✅ **Global hazard maps and intelligence layers:** realistic
+❌ **A continuously running, high-resolution, real-time global digital twin:** not realistic
+
+For GeoID, the first one is absolutely achievable.
+
+---
+
+## What you can realistically build for £0
+
+A global platform like:
+
+![Image](https://images.openai.com/static-rsc-4/FHJcuVZhOMr8xWn7WpB2N17gN77Sg5daPG80PeeOUJG5Ahe8wCnsuPqXcylk39ihPSYCI8u1LsNMfwKl7UPoBjGWVZsQD8Z_VQmQ9Co-1t7Yrmu4SOTMm8dskTc_FNU19Pf6RONaZVR-ZnSGf8lZd99C3Vk9fDlfgnq7vZaAwis1ss1TCTh-7dheVwdOSu39?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/Ofzc6UbQvHVlD0Pbj3T4yc4ZgpCm7J8a-QynpPYU4i-aDmzClS-ATuGE3ytSVT3Yqta1CQVePgrSEPnLb4AJ1mq95bHcemE9H_JZAdN9hHnfn6fAxm_JSQJd-AU5ONwpzsxawMO5TkjOJ4aYSaouHhctbmRknNLJXVaucH7Viv-f2Vnno9aqdERykEKRN_-m?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/YfHPg62QndIhcvNdY0sTaSg0J00fmg687u-qRel1f2sON70nH2g4XVCi3Fmu4RWuAWcifaP099a7Ie8B_sPLESorFhpQvkd6Nq1uP5lu0cVLJnpuTU43y2r-RpDAFsRVefa6cB4y8m2F9D5W_r91RFNzItzqgbILOGM9n1n9WoRo7xrRt7yloMZEw5s8k8WE?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/IF7SWMYpuQSpQGjj_AB1q428dAi9di_V6pQgJfi9_4_GrFGvzjqCsoV_AS_0ocYolZ_0nUseu7V1fcUBBtE1yi8MNNH1THomJF-DxOunR38fLVgJWa8GF70w7ma9Y5BoOw03qRhR0dWHcdeTh-59FUxNcjX4DqBHNKcjYH21Hgt20rUIk-VpDpAs7aC6oOzO?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/yyRTo3KpqY_jnkWnLADsS1_zuI45K0qPly8Fsn7gtylUah4ylylEuXQWWwvTzeZMo2rMK4qJPLTWVUfbQFFJRKmTIUfFYZMKVpaC8TyYiuw2FaejmkZ-NLickex0UJaQUFDMGJazj3Or2Vtrs9zZViROxMnO5o3JrWpS6ZPmg7282b9ztvhJTeGZXnfbG8gb?purpose=fullsize)
+
+![Image](https://images.openai.com/static-rsc-4/CAa7ZpDUk1ZZZENw6MsY5MGy6r55rrTjXTxQDY1vJ_3Tg8gH3m3XeJehEnQL9sswM5nc6wAWlSscaR6OMt5LSBVvuHmqL3M3Ber34IayvPOaUCgjFdZ0ggZKMOCjB3RK1lfmC5Y8upmriah6gyj5B8CJtgra_Nc7bmYrmT6suf_5JORJEX_Jbx1Tuf_XO-1d?purpose=fullsize)
+
+### 1. Global static hazard layers
+
+Examples:
+
+| Product                    | Global? | Update frequency | Cost |
+| -------------------------- | ------- | ---------------- | ---- |
+| Landslide susceptibility   | ✅ Yes   | One-time/monthly | £0   |
+| Flood hazard               | ✅ Yes   | Daily/weekly     | £0   |
+| Wildfire risk              | ✅ Yes   | Daily            | £0   |
+| Drought stress             | ✅ Yes   | Weekly/monthly   | £0   |
+| Vegetation change          | ✅ Yes   | Monthly          | £0   |
+| Glacier change             | ✅ Yes   | Monthly/yearly   | £0   |
+| Volcano locations/activity | ✅ Yes   | Daily/weekly     | £0   |
+
+These are mostly **analysis problems**, not infrastructure problems.
+
+---
+
+# Why global is actually easier than local
+
+This sounds counterintuitive, but:
+
+A global model:
+
+```
+Earth
+ |
+ |-- Sentinel data
+ |-- Landsat
+ |-- ERA5 climate
+ |-- DEM
+ |
+one standard algorithm
+```
+
+is easier than:
+
+```
+One valley in Ireland
+ |
+ |-- local geology
+ |-- soil properties
+ |-- drainage
+ |-- land use
+ |-- calibration
+```
+
+The global version sacrifices precision but scales beautifully.
+
+---
+
+# The limitation is resolution
+
+This is where the trade-off appears.
+
+## Global free products
+
+Example:
+
+### Landslide susceptibility
+
+Possible:
+
+30 m – 1 km
+
+depending on method.
+
+### Flood risk
+
+Possible:
+
+100 m – 1 km
+
+### Wildfire
+
+Possible:
+
+250 m – 1 km
+
+---
+
+## Not realistic:
+
+"Predict every landslide on Earth at 1 metre resolution every hour."
+
+That requires:
+
+* huge compute
+* storage
+* operational systems
+
+---
+
+# The £0 GeoID architecture
+
+I would structure it like this:
+
+```
+                  Open Data
+
+NASA
+ESA
+USGS
+Copernicus
+NOAA
+
+        |
+        v
+
+Google Earth Engine
+(processing)
+
+        |
+        v
+
+GeoID Intelligence Layers
+
+        |
+        +----------------+
+        |                |
+        v                v
+
+GitHub Pages        Cloud storage later
+(viewer)            (when funded)
+
+        |
+        v
+
+Users
+```
+
+---
+
+# The clever trick: don't store the Earth
+
+You do not need to store:
+
+* Sentinel archive
+* Landsat archive
+* weather models
+* DEMs
+
+Those already exist.
+
+Your product is the **interpretation layer**.
+
+Think:
+
+Google Maps does not own every road photograph.
+
+It owns:
+
+* indexing
+* styling
+* routing
+* user experience
+
+GeoID should own:
+
+* risk models
+* visualisation
+* interpretation
+
+---
+
+# What would break £0?
+
+These things:
+
+## 1. Serving millions of users
+
+A million people loading global tiles:
+
+You need CDN infrastructure.
+
+---
+
+## 2. True live modelling
+
+Example:
+
+"every 5 minutes recalculate global flood risk"
+
+No.
+
+---
+
+## 3. AI model inference globally
+
+Example:
+
+"run a neural network on every Sentinel-2 image daily"
+
+Probably not.
+
+---
+
+# Your realistic £0 MVP
+
+I would aim for:
+
+## Version 1 (3 months)
+
+### GeoID Earth Risk Atlas
+
+Layers:
+
+🌍 Global:
+
+* earthquakes
+* volcanoes
+* floods
+* landslides
+* wildfire
+* drought
+
+Plus:
+
+🚀 Solar System Explorer
+
+Your planetary advantage.
+
+---
+
+## Version 2
+
+Add:
+
+"Near-real-time"
+
+Examples:
+
+* NASA FIRMS fire alerts
+* Sentinel-1 flood detection
+* volcanic thermal anomalies
+
+---
+
+## Version 3
+
+Add:
+
+AI.
+
+Not as the foundation.
+
+As the accelerator:
+
+```
+Historical hazards
+        +
+Earth observation
+        +
+Physics
+        +
+Machine learning
+
+=
+GeoID Risk Intelligence Engine
+```
+
+---
+
+# The bigger opportunity
+
+A £0 global platform is actually a **very strong fundraising asset**.
+
+Imagine approaching:
+
+* climate accelerators
+* ESA programmes
+* insurance companies
+* governments
+
+with:
+
+> "We have already built a global open-data Earth risk intelligence platform. We need funding to operationalise it."
+
+That is much stronger than:
+
+> "We have an idea for a hazard platform."
+
+---
+
+Given your background (volcano deformation modelling, geodesy, planetary GIS), I would **not** compete with Google Earth or ArcGIS.
+
+Your niche is:
+
+> **"The intelligence layer between Earth observation data and human decision-making."**
+
+A global first version is absolutely achievable at £0 — just don't promise real-time centimetre-scale modelling everywhere.
+
+
+
+This is actually the key technical question for turning myGeoID from a viewer into a platform.
+
+The answer is: **you generally do not stream Google Earth Engine maps directly into your public website.** Instead, you have several options depending on whether you want a prototype, an MVP, or a commercial product.
+
+Think of GEE as your **processing engine**, not your map server.
+
+---
+
+# Option 1 — Stream directly from GEE (fastest prototype)
+
+GEE can generate map tiles dynamically.
+
+The workflow:
+
+```
+Google Earth Engine
+        |
+        |
+ee.Image
+        |
+        |
+getMapId()
+        |
+        |
+XYZ tile URL
+        |
+        |
+Cesium / Three.js / Leaflet
+        |
+        |
+myGeoID
+```
+
+Your viewer requests:
+
+```
+https://earthengine.googleapis.com/map/{mapid}/{z}/{x}/{y}
+```
+
+and displays the tiles.
+
+Conceptually:
+
+```javascript
+const layer = {
+  url:
+  "https://earthengine.googleapis.com/map/MAP_ID/{z}/{x}/{y}"
+}
+
+viewer.addLayer(layer)
+```
+
+This is great for:
+
+✅ testing
+✅ demonstrations
+✅ internal tools
+
+But there are issues:
+
+* authentication
+* API quotas
+* not designed as a public map CDN
+* commercial use becomes complicated
+
+---
+
+# Option 2 — Export GEE results as map tiles (what I would recommend)
+
+This is the GeoID architecture.
+
+Instead of:
+
+```
+User
+ |
+ |
+GEE
+ |
+ |
+calculate map
+ |
+ |
+return tiles
+```
+
+you do:
+
+```
+GEE
+
+ |
+ |
+calculate hazard model
+
+ |
+ |
+export tiles
+
+ |
+ |
+tile server
+
+ |
+ |
+myGeoID
+```
+
+Example:
+
+You create:
+
+```
+global_landslide_risk.mbtiles
+```
+
+or:
+
+```
+/tiles/
+   landslide/
+      0/
+      1/
+      2/
+      ...
+```
+
+Your website simply loads:
+
+```
+https://geoidinitiative.com/tiles/landslide/{z}/{x}/{y}.png
+```
+
+This is how most web mapping platforms work.
+
+---
+
+# Option 3 — Export Cloud Optimised GeoTIFFs (COGs)
+
+This is probably the sweet spot.
+
+GEE exports:
+
+```
+landslide_risk_global.tif
+```
+
+but as a:
+
+**Cloud Optimised GeoTIFF**
+
+A COG allows:
+
+* partial downloading
+* tiling
+* streaming only required sections
+
+Architecture:
+
+```
+GeoTIFF
+    |
+    |
+COG
+    |
+    |
+TiTiler / GeoServer
+    |
+    |
+XYZ tiles
+    |
+    |
+Cesium
+```
+
+This is a professional GIS architecture.
+
+---
+
+# Option 4 — Use GEE Apps
+
+GEE also lets you publish interactive apps.
+
+Example:
+
+```
+https://your-earthengine-app.projects.earthengine.app
+```
+
+You could embed this.
+
+Advantages:
+
+* easiest
+* no server
+
+Disadvantages:
+
+* looks like a GEE app
+* not fully integrated into your brand
+* limited UI control
+
+For GeoID, I would avoid this long-term.
+
+---
+
+# What I would do for myGeoID specifically
+
+Your stack appears to be:
+
+* GitHub Pages
+* Three.js/Cesium style 3D globe
+
+So I would do:
+
+```
+                  Google Earth Engine
+
+                         |
+                         |
+             Generate hazard layers
+
+                         |
+                         |
+
+              Cloud Optimised GeoTIFF
+
+                         |
+                         |
+
+                 Lightweight tile service
+
+                         |
+                         |
+
+             Cesium / Three.js globe
+
+                         |
+                         |
+
+                    myGeoID
+```
+
+---
+
+# Example: Global flood layer
+
+GEE script:
+
+```
+Sentinel-1 SAR
++
+rainfall anomaly
++
+DEM
++
+river network
+
+=
+Flood probability
+```
+
+Output:
+
+```
+flood_probability_global.tif
+```
+
+Convert:
+
+```
+GeoTIFF
+      |
+      |
+COG
+      |
+      |
+tiles
+```
+
+Website:
+
+User opens Earth:
+
+```
+Africa
+ |
+zoom
+ |
+Nigeria floods appear
+ |
+zoom
+ |
+river flooding visible
+```
+
+The browser never touches GEE.
+
+---
+
+# Can GitHub Pages alone serve this?
+
+For a demo:
+
+Yes.
+
+You could put:
+
+```
+/assets/
+   volcanoes.geojson
+   flood_tiles/
+   landslide_tiles/
+```
+
+inside your repo.
+
+But GitHub has limits:
+
+* repository size
+* bandwidth
+* large file restrictions
+
+---
+
+# The "zero-cost but scalable" upgrade path
+
+I would do:
+
+## Stage 1 (£0)
+
+```
+GEE
+ |
+export GeoTIFF
+ |
+GitHub Releases
+ |
+myGeoID
+```
+
+Good for demos.
+
+---
+
+## Stage 2 (~£5/month)
+
+```
+GEE
+ |
+COG files
+ |
+Cloudflare R2
+ |
+myGeoID
+```
+
+Now you can handle real users.
+
+---
+
+## Stage 3 (funded)
+
+```
+GEE / AWS / Azure
+ |
+automated pipelines
+ |
+PostGIS
+ |
+AI models
+ |
+API
+ |
+Enterprise dashboard
+```
+
+---
+
+# One important strategic point
+
+Your competitive advantage is **not the map streaming**.
+
+Anyone can stream maps.
+
+The value is:
+
+```
+Satellite observations
+        +
+Geophysical modelling
+        +
+Hazard science
+        +
+AI interpretation
+        +
+3D visualisation
+```
+
+The viewer is the "wow factor".
+
+The intelligence layer is the product.
+
+For GeoID's first impressive demo, I would probably avoid streaming raw GEE layers and instead build:
+
+**"Click anywhere on Earth → receive a multi-hazard risk profile."**
+
+That is much closer to a commercial product and is achievable with your current infrastructure.
+
+

@@ -1,0 +1,21 @@
+#These data are freely available under tha Creative Commons Attribution 4.0 International Licence (CC BY 4.0)
+# when using the data please cite:
+# Petricca, Patrizio (2018): Revised dataset of known faults in Italy. GFZ Data Services. http://doi.org/10.5880/fidgeo.2018.003
+#
+#
+# 46 x 56 cells (=2576)
+   A   B   C   D ----> Z   AA  AB -------> AT
+   |   |   |   |   |   |   |   |   |   |   |
+1  - - - - - - - ------------------------> -
+   |   |   |   |   |   |   |   |   |   |   |
+2  - - - - - - - ----------------------->  -
+   |   |   |   |   |   |   |   |   |   |   |
+3  - - - - - - - ----------------------->  -
+   |   |   |   |   |   |   |   |   |   |   |
+4  - - - - - - - ----------------------->  -
+   |   |   |   |   |   |   |   |   |   |   |
+   |   |   |   |   |   |   |   |   |   |   |
+   |   |   |   |   |   |   |   |   |   |   |
+   |   |   |   |   |   |   |   |   |   |   |
+   |   |   |   |   |   |   |   |   |   |   |
+56 - - - - - - - ----------------------->  -

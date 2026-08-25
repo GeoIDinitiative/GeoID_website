@@ -1,0 +1,65 @@
+List of References for Petricca, Patrizio (2018): Revised dataset of known faults in Italy. GFZ Data Services. http://doi.org/10.5880/fidgeo.2018.003
+
+
+
+Augliera, P., Béthoux, N., Déverchère, J., and Eva, C.: The Ligurian Sea: new seismotectonic evidence, Bollettino di Geofisica Teorica ed Applicata, 36, 363–380, 1994.
+
+Bigi, G., Bonardi, G., Catalano, R., Cosentino, D., Lentini, F., Parotto, M., Sartori, R., Scandone, P., Turco, E., and (Eds.): Structural Model of Italy 1:500,000, C.N.R., Progetto Finalizzato Geodinamica, 1989.
+
+Brogi, A.: Neogene extension in the Northern Apennines (Italy): insights from the southern part of the Mt. Amiata geothermal area, Geodinamica Acta, 19, 33–50, https://doi.org/10.3166/ga.19.33-50, 2006.
+
+Brogi, A.: Fault zone architecture and permeability features in siliceous sedimentary rocks: insights from the Rapolano geothermal area (Northern Apennines, Italy), Journal of Structural Geology, 30, 237–256, https://doi.org/10.1016/j.jsg.2007.10.004, 2008.
+
+Brogi, A.: Bowl-shaped basin related to low-angle detachment during continental extension: the case of the controversial Neogene Siena Basin (central Italy, Northern Apennines), Tectonophysics, 499, 54–76, https://doi.org/10.1016/j.tecto.2010.12.005, 2011.
+
+Brogi, A. and Fabbrini, L.: Extensional and strike-slip tectonics across the Monte Amiata–Monte Cetona transect (Northern Apennines, Italy) and seismotectonic implications, Tectonophysics, 476, 195–209, https://doi.org/10.1016/j.tecto.2009.02.020, 2009.
+
+Brogi, A., Lazzarotto, A., Liotta, D., and Ranalli, G.: Extensional shear zones as imaged by reflection seismic lines: the Larderello geothermal field (central Italy), Tectonophysics, 363, 127–139, https://doi.org/10.1016/S0040-1951(02)00668-6, 2003.
+
+Brogi, A., Lazzarotto, A., and Liotta, D.: Structural features of southern Tuscany and geological interpretation of the CROP 18 Seismic Reflection Survey (Italy), Bollettino della Società Geologica Italiana. Volume speciale, pp. 213–236, 2005.
+
+Capponi, G., Crispini, L., Federico, L., Piazza, M., and Fabbri, B.: Late Alpine tectonics in the Ligurian Alps: constraints from the Tertiary Piedmont Basin conglomerates, Geological Journal, 44, 211–224, https://doi.org/10.1002/gj.1140, 2009.
+
+Castello, B., Selvaggi, G., Chiarabba, C., and Amato, A.: CSI Catalogo della sismicità italiana 1981-2002, versione 1.1., INGV-CNT, Roma, https://doi.org/http://csi.rm.ingv.it/., 2006.
+
+Casula, G., Cherchi, A., Montadert, L., Murru, M., and Sarria, E.: The Cenozoic graben system of Sardinia (Italy): geodynamic evolution from new seismic and field data, Marine and Petroleum Geology, 18, 863–888, https://doi.org/10.1016/S0264-8172(01)00023-X, 2001.
+
+Chiarabba, C., Jovane, L., and DiStefano, R.: A new view of Italian seismicity using 20 years of instrumental recordings, Tectonophysics, 395, 251–268, https://doi.org/10.1016/j.tecto.2004.09.013, 2005.
+
+Christophe, L., Scotti, O., and Ioualalen, M.: Reappraisal of the 1887 Ligurian earthquake (western Mediterranean) from macroseismicity, active tectonics and tsunami modelling, Geophysical Journal International, 190, 87–104, https://doi.org/10.1111/j.1365-246X.2012.05498.x, 2012.
+
+Courboulex, F., Deschamps, A., Cattaneo, M., Costi, F., Deverchere, J., Virieux, J., Augliera, P., Lanza, V., and Spallarossa, D.: Source study and tectonic implications of the 1995 Ventimiglia (border of Italy and France) earthquake (M L= 4.7), Tectonophysics, 290, 245–257, https://doi.org/10.1016/S0040-1951(98)00024-9, 1998.
+
+Cuffaro, M., Riguzzi, F., Scrocca, D., Antonioli, F., Carminati, E., Livani, M., and Doglioni, C.: On the geodynamics of the northern Adriatic plate, Rendiconti Lincei, 21, 253–279, https://doi.org/10.1007/s12210-010-0098-9, 2010.
+
+Del Gaudio, C., Aquino, I., Ricco, C., and Serio, C.: Movimenti verticali del suolo ai Campi Flegrei: risultati della livellazione geometrica di precisione eseguita nel periodo Dicembre 2006-Gennaio 2007, Open File Report, 2007.
+
+Galadini, F., Meletti, C., and Vittori, E.: Stato delle conoscenze sulle faglie attive in Italia: elementi geologici di superficie, Le ricerche del GNDT nel campo della pericolosità sismica (1996–1999), pp. 107–136, 2000.
+
+Larroque, C., Béthoux, N., Calais, E., Courboulex, F., Deschamps, A., Déverchère, J., Stéphan, J., Ritz, J., and Gilli, E.: Active and recent deformation at the Southern Alps-Ligurian basin junction, Geologie en Mijnbouw, 80, 255–272, 2001.
+
+Leonard, M.: Earthquake Fault Scaling: Self-Consistent Relating of Rupture Length, Width, Average Displacement, and Moment Release Earthquake Fault Scaling: Self-Consistent Relating of Rupture Length, Width, Average Displacement, Bulletin of the Seismological Society of America, 100, 1971, https://doi.org/10.1785/0120090189, 2010.
+
+Locati M., Camassi R., Rovida A., Ercolani E., Bernardini F., Castelli V., Caracciolo C.H., Tertulliani A., Rossi A., Azzaro R., D’Amico S., Conte S., Rocchetti E. (2016). DBMI15, the 2015 version of the Italian Macroseismic Database. Istituto Nazionale di Geofisica e Vulcanologia. doi: http://doi.org/10.6092/INGV.IT‐DBMI15.
+
+Michetti, A. M., Serva, L., and Vittori, E.: ITHACA Italy Hazard from Capable Faults: a database of active faults of the Italian onshore territory, CD-Rom Explan. notes, pp. 1–150, 2000.
+
+Rovida A., Locati M., Camassi R., Lolli B., Gasperini P. (eds), 2016. CPTI15, the 2015 version of the Parametric Catalogue of Italian Earthquakes. Istituto Nazionale di Geofisica e Vulcanologia. doi:http://doi.org/10.6092/INGV.IT-CPTI15
+
+Mueller, C., 2010, The influence of maximum magnitude on seismic-hazard estimates in the central and eastern United States: BSSA, 100(2), 699-711, doi:10.1785/0120090114.
+
+Fantoni, R. and Franciosi, R.: Tectono-sedimentary setting of the Po Plain and Adriatic foreland, Rendiconti Lincei, 21, 197–209, https://doi.org/10.1007/s12210-010-0102-4, 2010.
+
+Field, Edward H., et al. "Uniform California earthquake rupture forecast, version 3 (UCERF3)—The time‐independent model." Bulletin of the Seismological Society of America 104.3 (2014): 1122-1180, doi: 10.1785/0120130164.
+
+Patacca, E. and Scandone, P.: The 1627 Gargano earthquake (Southern Italy): identification and characterization of the causative fault, Journal of Seismology, 8, 259–273, https://doi.org/10.1023/B:JOSE.0000021393.77543.1e, 2004.
+
+Polonia, A., Torelli, L., Artoni, A., Carlini, M., Faccenna, C., Ferranti, L., Gasperini, L., Govers, R., Klaeschen, D., Monaco, C., et al.: The Ionian and Alfeo–Etna fault zones: New segments of an evolving plate boundary in the central Mediterranean Sea?, Tectonophysics, 675, 69–90, https://doi.org/10.1016/j.tecto.2016.03.016, 2016.
+
+Sanchez, G., Rolland, Y., Schreiber, D., Giannerini, G., Corsini, M., and Lardeaux, J.-M.: The active fault system of SW Alps, Journal of Geodynamics, 49, 296–302, https://doi.org/10.1016/j.jog.2009.11.009, 2010.
+
+Scrocca, D.: Thrust front segmentation induced by differential slab retreat in the Apennines (Italy), Terra Nova, 18, 154–161, https://doi.org/10.1111/j.1365-3121.2006.00675.x, 2006.
+
+Sue, C., Delacou, B., Champagnac, J.-D., Allanic, C., Tricart, P., and Burkhard, M.: Extensional neotectonics around the bend of the Western/Central Alps: an overview, International Journal of Earth Sciences, 96, 1101–1129, https://doi.org/10.1007/s00531-007-0181-3, 2007.
+
+Turino, C., Scafidi, D., Eva, E., and Solarino, S.: Inferences on active faults at the Southern Alps–Liguria basin junction from accurate analysis of low energy seismicity, Tectonophysics, 475, 470–479, https://doi.org/10.1016/j.tecto.2009.06.007, 2009.

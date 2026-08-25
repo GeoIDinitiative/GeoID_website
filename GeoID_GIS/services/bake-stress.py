@@ -1,55 +1,35 @@
 #!/usr/bin/env python3
-"""Bake the World Stress Map: the measurements, and a mesh raster from them.
+"""Bake the World Stress Map into a layer of oriented measurements.
 
     python3 GeoID_GIS/services/bake-stress.py [--csv wsm2016.csv]
 
-Writes into ``data/global/``:
+Writes ``data/global/stress-vectors.geojson``: every A–C record with a
+determined azimuth, drawn as a bar lying along the SHmax it recorded and
+carrying its method, quality class, depth, faulting regime and — for the few
+hundred that have any — its principal stress magnitudes.
 
-    stress-vectors.geojson   32,464 measurements, each an oriented bar
-    stress-raster.png        the interpolated field on a low-resolution mesh
-    stress-raster.json       what that mesh is and how it was made
+WHAT THIS FILE NO LONGER DOES, AND WHY
+--------------------------------------
+It interpolated. Five times, in five presentations: a fine hue raster of SHmax
+azimuth, the same rebuilt three times as the arithmetic was corrected, bars on
+a regular lattice, a flat-celled raster, and finally a mesh of clickable
+polygons carrying their own provenance. The arithmetic ended up right —
+uniform cells on the sphere, great-circle distances, the doubled angle, the
+search radius as a cutoff — and it was still the wrong thing to publish:
 
-THREE STEPS, IN THIS ORDER
---------------------------
-1. **The measurements.** Every A-C record with a determined azimuth, drawn as
-   a bar lying along the SHmax it recorded and carrying its method, quality,
-   depth and faulting regime. This is the World Stress Map as the WSM
-   publishes it, and it is the evidence for everything below.
+* Whatever it was made of, a field of filled cells over half the planet reads
+  as a basemap, and it covers the map somebody is reading it against.
+* The World Stress Map is global in EXTENT and not in SAMPLING: 82% of its
+  records are focal mechanisms, 63% of them lie within 100 km of a plate
+  boundary, and plate interiors have a median 537 km to the nearest
+  measurement. An interpolated surface over that is mostly a picture of the
+  search radius.
+* The measurements do not need it. A bar per record IS the World Stress Map —
+  it is how the WSM itself publishes — and every one of them is a thing
+  somebody measured rather than something this file inferred.
 
-2. **A uniformly spaced, LOW RESOLUTION mesh.** Cells about 300 km across,
-   everywhere -- rows of constant latitude spacing, each holding as many cells
-   as fit round its own parallel, so a cell in the Arctic is the same size as
-   one on the equator. Low resolution on purpose: 300 km is roughly the scale
-   over which SHmax is coherent, and a finer mesh would be inventing structure
-   the records cannot support. Because it is coarse and uniform, the mesh is
-   VISIBLE in the picture, which is the point -- a reader can see the
-   resolution of the thing they are being shown.
-
-3. **The raster.** Each cell takes the distance-weighted circular mean of the
-   records within the search radius, and is painted flat in its dominant
-   faulting regime. Cells with too little data are left transparent.
-
-Earlier versions of this file interpolated onto a fine grid and painted a
-smooth hue field of SHmax azimuth. That asks a reader to decode an angle from
-a colour, produces a lava lamp across a planet, and hides the resolution of the
-interpolation behind a smooth gradient. A coarse mesh of flat cells says what
-it knows and, just as importantly, at what scale it knows it.
-
-WHAT THE ARITHMETIC HAS TO GET RIGHT
-------------------------------------
-* **SHmax is an AXIS.** 10 and 190 degrees are the same orientation, and their
-  arithmetic mean is 100 -- exactly perpendicular to both, and a perfectly
-  plausible-looking number. Every mean is taken on the DOUBLED angle.
-* **The cells are uniform on the SPHERE.** A lat/lon mesh is not: at half a
-  degree its cells are 55 km by 55 on the equator and 55 by 19 at 70 north.
-* **The search radius is a cutoff, and sigma is half of it.** Using the radius
-  as sigma and reaching twice it paints a cell with no record inside 450 km
-  from records between 450 and 900.
-* **No data, no cell.** Under one effective C-quality record within the radius
-  and the cell stays transparent, so the map is empty where the data are.
-* **A category cannot be averaged**, so the regime is not averaged: each class
-  is summed with the same weights and the cell takes the one with the most
-  behind it, fading where nothing clearly wins.
+The check below stays: it is what proves the records were read correctly, and
+it costs nothing.
 
 Data: World Stress Map Database Release 2016, CC BY 4.0.
 Heidbach, O., Rajabi, M., Reiter, K., Ziegler, M., WSM Team (2016).
@@ -85,13 +65,6 @@ QUALITY_WEIGHT = {"A": 4.0, "B": 3.0, "C": 2.0}
 SEARCH_KM = 450.0
 # Effective C-quality records a node needs before it gets a bar at all.
 SUPPORT_FLOOR = 1.0
-# How wide a mesh cell is, on the ground, everywhere. Low resolution on
-# purpose: 300 km is roughly the scale over which SHmax stays coherent, and a
-# finer mesh would be inventing structure the records cannot support. It is
-# also coarse enough to SEE, which is what lets a reader judge the resolution
-# of what they are looking at rather than being shown a smooth gradient.
-MESH_KM = 300.0
-
 # The WSM's own regime colours: red where the crust is pulling apart, blue
 # where it is shortening, green where it is shearing past itself. Anybody who
 # has read a stress map has read this key.
@@ -209,37 +182,6 @@ def bar(lat, lon, azimuth, half_km):
     ]
 
 
-def equal_area_mesh(cell_km):
-    """A mesh of roughly square cells, the same size everywhere on the sphere.
-
-    Rows of constant latitude spacing; each row holds as many cells as fit
-    round its own parallel at that same spacing — 133 on the equator, one at
-    the pole. A lat/lon mesh is the obvious alternative and its cells shrink
-    toward the poles, so the same interpolation would be sampled nine times
-    more densely in the Arctic than in the tropics.
-
-    Returns the rows, each a list of `(lat, lon)` centres, plus the latitude
-    bounds of the row — everything the raster needs to paint flat cells.
-    """
-    deg_km = EARTH_KM * math.pi / 180.0
-    rows = max(2, int(round(180.0 / (cell_km / deg_km))))
-    d_lat = 180.0 / rows
-    mesh = []
-    for r in range(rows):
-        north = 90 - r * d_lat
-        south = north - d_lat
-        lat = (north + south) / 2
-        count = max(1, int(round(math.cos(math.radians(lat)) * 360.0 / d_lat)))
-        mesh.append({
-            "lat": lat,
-            "north": north,
-            "south": south,
-            "count": count,
-            "centres": [(-180 + (i + 0.5) * (360.0 / count)) for i in range(count)],
-        })
-    return mesh
-
-
 def field_at(points, records, radius_km):
     """The distance-weighted axial mean of the records around each point.
 
@@ -307,137 +249,6 @@ def field_at(points, records, radius_km):
             "regime_share": float(mix[top]) / total,
         })
     return out
-
-
-def ring(north, south, west, east, fill):
-    """One cell as a polygon ring, inset by how well supported it is.
-
-    The inset is the confidence, drawn. A cell shrunk to half its slot leaves a
-    visible gap round itself and reads as tentative; a fully supported one
-    fills its square and tiles seamlessly with its neighbours. That is legible
-    over any basemap, which transparency is not — an alpha of 0.2 over a dark
-    ocean is invisible, and it was carrying this same meaning before.
-
-    Edges are subdivided at about a degree. A straight segment across eight
-    degrees of arc — which is what a cell is at seventy north — sags below the
-    globe's surface and the fill disappears into the terrain.
-    """
-    mid_lat = (north + south) / 2
-    mid_lon = (west + east) / 2
-    half_lat = (north - south) / 2 * fill
-    half_lon = (east - west) / 2 * fill
-    n, s2 = mid_lat + half_lat, mid_lat - half_lat
-    w, e = mid_lon - half_lon, mid_lon + half_lon
-
-    def edge(lat0, lon0, lat1, lon1):
-        span = max(abs(lat1 - lat0), abs(lon1 - lon0))
-        steps = max(1, int(math.ceil(span)))
-        return [[round(lon0 + (lon1 - lon0) * i / steps, 3),
-                 round(lat0 + (lat1 - lat0) * i / steps, 3)] for i in range(steps)]
-
-    points = (edge(n, w, n, e) + edge(n, e, s2, e)
-              + edge(s2, e, s2, w) + edge(s2, w, n, w))
-    points.append(points[0])
-    return points
-
-
-# Ordered classes, because "how much evidence is under this cell" is the
-# question the World Stress Map's own coverage forces a reader to ask, and a
-# class somebody can name is more use than a number they have to bin by eye.
-EVIDENCE_CLASSES = [
-    (2, "1–2 records"),
-    (10, "3–10 records"),
-    (30, "11–30 records"),
-    (100, "31–100 records"),
-    (float("inf"), "over 100 records"),
-]
-
-
-def evidence_class(count):
-    for ceiling, label in EVIDENCE_CLASSES:
-        if count <= ceiling:
-            return label
-    return EVIDENCE_CLASSES[-1][1]
-
-
-def write_mesh(mesh, records, radius_km, path):
-    """The interpolated field as CELLS you can click, not a picture of it.
-
-    A raster shows the answer and cannot be asked where it came from. These are
-    ordinary polygons, so every existing part of the app works on them: the
-    click card reads the provenance, the symbology dialog colours by any column
-    including the two that describe the EVIDENCE, and extraction and export
-    take them like any other vector layer.
-
-    That is what makes the sampling bias visible without a second layer or a
-    caveat nobody reads. The World Stress Map is not evenly sampled — 63% of
-    its records lie within 100 km of a plate boundary and the interiors are
-    half empty — so `records` and `nearest_km` ride on every cell, and colouring
-    by either one turns the map into a map of its own coverage.
-    """
-    features = []
-    for row in mesh:
-        # A polar row spans most of the planet in longitude, and a quad that
-        # wide is not a cell, it is a band. There is next to no data there.
-        if row["count"] < 8:
-            continue
-        d_lon = 360.0 / row["count"]
-        points = [(row["lat"], lon) for lon in row["centres"]]
-        for cell in field_at(points, records, radius_km):
-            support = cell["support"]
-            fill = 0.45 + 0.55 * min(1.0, support / 3.0)
-            west = cell["lon"] - d_lon / 2
-            features.append({
-                "type": "Feature",
-                "geometry": {
-                    "type": "Polygon",
-                    "coordinates": [ring(row["north"], row["south"],
-                                         west, west + d_lon, fill)],
-                },
-                "properties": {
-                    "shmax_deg": round(cell["azimuth"], 1),
-                    "regime": REGIME_NAME[cell["regime"]],
-                    "regime_code": cell["regime"],
-                    "regime_share": round(100 * cell["regime_share"]),
-                    "records": cell["records"],
-                    # The same count as a CLASS, because the symbology dialog
-                    # colours a vector by categories: handed a numeric column
-                    # it lists the twelve commonest values and folds the rest
-                    # into "other", which over a range of 1 to 1,030 is not a
-                    # coverage map, it is a histogram of coincidences.
-                    "evidence": evidence_class(cell["records"]),
-                    "support": round(support, 1),
-                    "nearest_km": round(cell["nearest_km"]),
-                    "agreement": round(cell["resultant"], 2),
-                },
-            })
-
-    collection = {
-        "type": "FeatureCollection",
-        "_source": dict(SOURCE, **{
-            "product": ("the World Stress Map interpolated onto a mesh of cells "
-                        f"about {MESH_KM:.0f} km across, uniform on the sphere"),
-            "method": ("each cell is the distance-weighted circular mean of the "
-                       f"records within {radius_km:.0f} km, sigma half that; the "
-                       "mean is taken on the doubled angle because SHmax is an "
-                       "axis, and the regime is the class with the most weight "
-                       "behind it rather than an average of category codes"),
-            "support": ("`records` counts the measurements in range, `support` "
-                        "weights them by distance and quality in units of "
-                        "C-quality records, and `nearest_km` is how far the "
-                        "closest one is. A cell is drawn INSET in proportion to "
-                        "its support, so a tentative cell leaves a gap round "
-                        "itself and a well-supported one fills its square."),
-            "coverage": ("the WSM is global in extent and not in sampling: 63% of "
-                         "its records lie within 100 km of a plate boundary, and "
-                         "plate interiors — 41% of the surface — have a median "
-                         "537 km to the nearest measurement. Colour by `records` "
-                         "or `nearest_km` to see it."),
-        }),
-        "features": features,
-    }
-    path.write_text(json.dumps(collection, separators=(",", ":")), encoding="utf-8")
-    return len(features)
 
 
 def write_records(records, path, half_km=30.0):
@@ -541,14 +352,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--csv", default=None, help="wsm2016.csv (downloaded if absent)")
     parser.add_argument("--radius", type=float, default=SEARCH_KM,
-                        help="search radius in km; records beyond it are not used")
-    parser.add_argument("--cell", type=float, default=MESH_KM,
-                        help="mesh cell size in km")
+                        help="search radius the CHECK uses, km")
     args = parser.parse_args()
 
     # NOT into the data directory: that folder is published, and the 9 MB
     # source csv has no business being served to a browser that only wants the
-    # layers baked from it.
+    # layer baked from it.
     path = pathlib.Path(args.csv) if args.csv else CACHE_DIR / "wsm2016.csv"
     if not path.exists():
         print(f"downloading {WSM_CSV}")
@@ -560,21 +369,10 @@ def main():
         sys.exit("no usable records — is that the WSM 2016 csv?")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    print(f"1. {len(records)} A–C records with an SHmax azimuth")
+    print(f"{len(records)} A–C records with an SHmax azimuth")
     bars = write_records(records, OUT_DIR / "stress-vectors.geojson")
     size = (OUT_DIR / "stress-vectors.geojson").stat().st_size / 1024 / 1024
-    print(f"   stress-vectors.geojson — {bars} bars, {size:.1f} MB")
-
-    mesh = equal_area_mesh(args.cell)
-    total = sum(row["count"] for row in mesh if row["count"] >= 8)
-    print(f"2. mesh of {total} cells about {args.cell:.0f} km across, uniform on "
-          f"the sphere ({len(mesh)} rows, {mesh[len(mesh) // 2]['count']} on the equator)")
-
-    print(f"3. interpolating, {args.radius:.0f} km search radius")
-    cells = write_mesh(mesh, records, args.radius, OUT_DIR / "stress-mesh.geojson")
-    size = (OUT_DIR / "stress-mesh.geojson").stat().st_size / 1024 / 1024
-    print(f"   stress-mesh.geojson — {cells} cells with data "
-          f"({100 * cells / total:.0f}% of the mesh), {size:.1f} MB")
+    print(f"wrote stress-vectors.geojson — {bars} bars, {size:.1f} MB")
 
     check(records, args.radius)
 
