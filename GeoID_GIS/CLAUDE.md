@@ -547,6 +547,26 @@ catalogue entry may now carry a `colours` map that `addDataset` passes to
 `paintByField` as `overrides`; without it `categoricalSymbology` assigns by how
 common each class is, which put normal faulting in orange and thrust in green.
 
+### The bars must stay ON THE MAP, and that is not a detail
+
+A 60 km bar drawn either side of a record near the antimeridian walks off the
+end of the coordinate system: the file shipped `minX = -180.6028` and
+`maxX = 180.5904`. `looksLikeGeographic` allows ±180.5 for rounding, so six
+tenths of a degree failed it, `import-manager` filed the layer as NOT
+georeferenced, and it went to the local-models group instead of
+`GeoID-ImportedGeoLayers` — **the group that is turned to the globe's rotation
+every frame**. The whole map then sat 38.8° west of the planet: the Iberian
+records out in the Atlantic, and the shape of Iberia still legible in them,
+which is how it was spotted.
+
+Nothing was logged, and nothing should have been: the guard exists to catch a
+shapefile in UTM metres, and a silent answer is right for that. The fix is on
+both sides — the bake wraps its own longitudes and splits the 31 bars that
+cross the seam into two pieces meeting at ±180, and
+`global-data-bounds.test.mjs` now checks every shipped `.geojson` against the
+viewer's own rule, so a bake that leaves the map fails in the test run rather
+than in somebody's screenshot.
+
 ### What the arithmetic still has to get right
 
 - **SHmax is an AXIS.** 10° and 190° are the same orientation; their arithmetic
@@ -554,6 +574,9 @@ common each class is, which put normal faulting in orange and thrust in green.
   angle. This survives the mesh because the bake's own check still averages.
 - **A bar is 60 km on the GROUND.** The east–west half-length is divided by
   cos(latitude), or a bar at 70°N is a third the length of one on the equator.
+- **The seam is cut in the UNWRAPPED frame.** Read off the wrapped endpoints a
+  bar across the antimeridian is 359° long, and the cut lands hundreds of
+  degrees from where it belongs.
 
 ### The check is in the tool, and it has been wrong about the map
 

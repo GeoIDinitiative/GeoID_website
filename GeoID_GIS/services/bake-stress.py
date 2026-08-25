@@ -166,19 +166,69 @@ def number(row, field):
     return None if value == 999 else value
 
 
+def wrap_lon(lon):
+    """Longitude back onto the map.
+
+    A bar is drawn by stepping east and west from its site, and near the
+    antimeridian that step walks off the end of the coordinate system: the
+    easternmost record in the WSM produced 180.5904 and the westernmost
+    -180.6028. Six tenths of a degree over the edge, and the viewer's
+    `looksLikeGeographic` — which allows ±180.5 for rounding — read the whole
+    file as a projected CRS rather than degrees, filed the layer as NOT
+    georeferenced, and hung it in the frame that carries no spin. The entire
+    map then sat 38.8° west of the planet it describes.
+
+    So the bake keeps its own coordinates legal. The guard is right to be
+    strict; a layer that leaves the map is the thing that was wrong.
+    """
+    return ((lon + 180.0) % 360.0) - 180.0
+
+
 def bar(lat, lon, azimuth, half_km):
     """A short segment centred on a point and lying along an orientation.
 
     The east–west half is divided by cos(lat) so the bar keeps its BEARING on
     the ground rather than being sheared toward the meridian as it goes north:
     without it a NE-trending measurement in Svalbard is drawn nearly north.
+
+    Returns a LIST OF SEGMENTS, because a bar that spans the antimeridian is
+    two of them. Wrapping alone would leave a two-point line whose ends are
+    ~359° apart, which draws as a stripe right round the planet.
     """
     deg = half_km / (EARTH_KM * math.pi / 180.0)
     d_north = deg * math.cos(math.radians(azimuth))
     d_east = deg * math.sin(math.radians(azimuth)) / max(math.cos(math.radians(lat)), 0.05)
+    # The poles are 30 km closer than the bar is long only above 89.7°, and the
+    # WSM's northernmost record is at 86.5. Clamping rather than reflecting
+    # over the pole keeps the geometry on the sphere without inventing a case
+    # this database does not contain.
+    south = max(-90.0, min(90.0, lat - d_north))
+    north = max(-90.0, min(90.0, lat + d_north))
+    west_lon = lon - d_east
+    east_lon = lon + d_east
+    west = [round(wrap_lon(west_lon), 4), round(south, 4)]
+    east = [round(wrap_lon(east_lon), 4), round(north, 4)]
+    if abs(east[0] - west[0]) <= 180.0:
+        return [[west, east]]
+    # Across the seam: cut where the UNWRAPPED longitude passes ±180 and give
+    # each half the latitude the bar actually has there, so the two pieces meet
+    # at the same point on the globe. The crossing is found in the unwrapped
+    # frame because that is the only one in which the bar is still a straight
+    # short line — read off the wrapped ends it is 359° long and the cut lands
+    # hundreds of degrees away.
+    span = east_lon - west_lon
+    low, high = min(west_lon, east_lon), max(west_lon, east_lon)
+    seam = next((s for s in (-180.0, 180.0) if low < s < high), None)
+    if seam is None or span == 0:
+        # Not actually a seam crossing: a bar this long is a bug, not a map.
+        return [[west, east]]
+    t = (seam - west_lon) / span
+    seam_lat = round(south + t * (north - south), 4)
+    # Each half ends at the ±180 on ITS OWN side of the map.
+    west_edge = 180.0 if west[0] > 0 else -180.0
     return [
-        [round(lon - d_east, 4), round(lat - d_north, 4)],
-        [round(lon + d_east, 4), round(lat + d_north, 4)],
+        [west, [west_edge, seam_lat]],
+        [[-west_edge, seam_lat], east],
     ]
 
 
@@ -275,12 +325,15 @@ def write_records(records, path, half_km=30.0):
             value = number(row, field)
             if value is not None:
                 props[name] = value
+        # One segment nearly always; two for a bar that spans the antimeridian.
+        # MultiLineString only where it is needed, so 32,461 of the features
+        # stay the simplest thing that describes them.
+        parts = bar(record["lat"], record["lon"], record["azi"], half_km)
+        geometry = ({"type": "LineString", "coordinates": parts[0]} if len(parts) == 1
+                    else {"type": "MultiLineString", "coordinates": parts})
         features.append({
             "type": "Feature",
-            "geometry": {
-                "type": "LineString",
-                "coordinates": bar(record["lat"], record["lon"], record["azi"], half_km),
-            },
+            "geometry": geometry,
             "properties": {k: v for k, v in props.items() if v is not None},
         })
     collection = {
@@ -296,8 +349,26 @@ def write_records(records, path, half_km=30.0):
         }),
         "features": features,
     }
+    # The bounds are CHECKED, because the viewer decides whether a file is
+    # georeferenced by looking at them and says nothing when it decides no.
+    # `looksLikeGeographic` allows ±180.5 for rounding; a layer that fails it is
+    # placed in the frame that carries no spin, which is a whole map in the
+    # wrong place with no error anywhere. It went unnoticed for a commit.
+    lons = [c[0] for f in features for part in geometry_parts(f["geometry"]) for c in part]
+    lats = [c[1] for f in features for part in geometry_parts(f["geometry"]) for c in part]
+    span = (min(lons), max(lons), min(lats), max(lats))
+    if span[0] < -180.0 or span[1] > 180.0 or span[2] < -90.0 or span[3] > 90.0:
+        sys.exit(f"coordinates leave the map: lon {span[0]}..{span[1]}, lat {span[2]}..{span[3]}")
     path.write_text(json.dumps(collection, separators=(",", ":")), encoding="utf-8")
+    print(f"  bounds lon {span[0]:.4f}..{span[1]:.4f}  lat {span[2]:.4f}..{span[3]:.4f}")
     return len(features)
+
+
+def geometry_parts(geometry):
+    """The line(s) in a geometry, whichever of the two shapes it took."""
+    if geometry["type"] == "LineString":
+        return [geometry["coordinates"]]
+    return geometry["coordinates"]
 
 
 # Places whose stress orientation and faulting style are not in dispute. An
