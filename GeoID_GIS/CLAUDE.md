@@ -813,6 +813,34 @@ week and month feeds on, most of the map sits at the floor — including every
 significant earthquake — so 0.4 of a colour was dimming the subject. Old is
 quieter, not absent.
 
+**A point sprite is cut by the GROUND, not by the sphere, and that is a depth
+fact rather than a geometry one.** Every fragment of a point sprite carries the
+CENTRE's depth, so a depth-tested marker is sliced wherever the terrain in
+front of it is nearer the camera than its own centre — which, on a sphere seen
+obliquely, is most of the ground around it. A five-pixel dot got away with that
+for years because five pixels of quad is five pixels of ground; a thirty-pixel
+ring came out with bites taken out of it along the curve, and so did the
+selection halo, which is the widest sprite the feed draws.
+
+Lifting the markers higher trades the cut for parallax — a marker standing tens
+of kilometres off its own epicentre at close range, which is the lesson the
+measure marker already cost. So the depth test comes OFF and
+`cullBehindGlobe()` works out the horizon instead: a point is in front of the
+limb when **`p · camera ≥ R²`**, the tangent-plane condition for a sphere,
+exact rather than a fudge, computed in the marker's own frame because the spin
+frame is turning. Anything behind it is moved to `OVER_THE_HORIZON` (1e9) and
+clipped by the frustum — a `PointsMaterial` has no per-point size or alpha, so
+hiding a point means moving it, and the clouds carry `frustumCulled = false` so
+they are not culled for the bounding sphere those strays drag out with them.
+
+The positions as built are kept in `userData.truePositions`; the geometry holds
+those minus whatever is round the back, rewritten per frame and uploaded only
+when something moved. The relief watcher writes the TRUTH rather than the
+geometry for the same reason. Measured over Indonesia: 144 markers drawn, 248
+hidden, every ring whole. A side effect worth having: far-side markers no
+longer depend on the planet writing depth, so switching the basemap off (which
+drops `colorWrite`) stops showing them through the globe.
+
 **Only the seismicity pulses**, on the rAF loop that already runs for the spin
 and the marker size, with **one phase shared by every cloud**: per-marker phases
 read as shimmer. Shallow (±16% size, ±0.3 opacity) and slow (1.6 s), because a

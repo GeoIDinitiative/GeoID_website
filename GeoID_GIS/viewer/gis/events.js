@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled,
-} from "./event-sources.js?v=20260825-4bb8135";
+} from "./event-sources.js?v=20260825-4769a6e";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -134,14 +134,15 @@ function watchRelief() {
     lastRelief = relief;
     markers.traverse((node) => {
       const list = node.userData?.events;
-      const position = node.geometry?.attributes?.position;
-      if (!list || !position) return;
+      const truth = node.userData?.truePositions;
+      if (!list || !truth) return;
+      // Into the TRUTH rather than into the geometry: what the geometry holds
+      // is the truth minus whatever is round the back, and the cull rewrites
+      // it from here on the next frame.
       list.forEach((event, i) => {
         const v = markerPoint(viewer, event.lat, event.lon);
-        position.setXYZ(i, v.x, v.y, v.z);
+        truth[i * 3] = v.x; truth[i * 3 + 1] = v.y; truth[i * 3 + 2] = v.z;
       });
-      position.needsUpdate = true;
-      node.geometry.computeBoundingSphere();
     });
   }, 400);
 }
@@ -789,6 +790,11 @@ function trackScale() {
     // is open, and a marker placed correctly at fetch time would walk off its
     // ground within the minute.
     syncSpin();
+    // Before the sizing, and not inside its `px > 0` guard: what is round the
+    // back must be hidden in every frame the markers are drawn in, including
+    // the ones where the globe's projected size cannot be measured.
+    const camera = window.GeoIDViewer?.camera;
+    if (markers && camera) markers.children.forEach((p) => cullBehindGlobe(p, camera));
     const px = globeRadiusPx();
     if (px > 0 && markers) {
       const size = dotSizePx(px);
@@ -886,6 +892,67 @@ function quakeTexture() {
 /** Is this cloud one of the magnitude bands? */
 const isQuakeBand = (key) => String(key).startsWith("quake-");
 
+/**
+ * Somewhere no camera will look, for a marker that is round the back.
+ *
+ * A point whose clip position is this far out is discarded by the frustum, and
+ * that is the whole mechanism: there is no per-point size or alpha on a
+ * `PointsMaterial`, so hiding one means moving it.
+ */
+const OVER_THE_HORIZON = 1e9;
+
+/**
+ * The planet stops occluding the markers, so this does it instead.
+ *
+ * A point sprite is a screen-space quad and every fragment of it carries the
+ * CENTRE's depth, so a depth-tested marker is cut wherever the ground in front
+ * of it is nearer the camera than its own centre — which, on a sphere seen
+ * obliquely, is most of the ground around it. That is why the rings came out
+ * sliced along the curve: nothing was wrong with the symbol, the terrain was
+ * simply winning the depth test across half the quad. A dot got away with it
+ * because five pixels of quad is five pixels of ground; a thirty-pixel ring
+ * does not.
+ *
+ * Lifting the markers higher would trade the cut for parallax — a marker
+ * standing tens of kilometres off its own epicentre at close range — so the
+ * depth test comes off and the horizon is worked out here instead: a point at
+ * `p` is in front of the limb when `p · camera ≥ R²`, the tangent-plane
+ * condition for a sphere, and that is exact rather than a fudge.
+ *
+ * The same fix serves the selection halo, which is one point drawn the same
+ * way and was cut the same way.
+ */
+function cullBehindGlobe(points, camera) {
+  const truth = points.userData?.truePositions;
+  const attr = points.geometry?.getAttribute("position");
+  if (!truth || !attr) return;
+  points.updateMatrixWorld();
+  // The camera in the marker's own frame: the clouds hang in the spin frame,
+  // which is turning, so a world-space comparison drifts through the day.
+  const cam = points.worldToLocal(camera.position.clone());
+  const radius = window.GeoIDViewer?.GLOBE_RADIUS || 3.2;
+  const horizon = radius * radius;
+  const out = attr.array;
+  let changed = false;
+  for (let i = 0; i < truth.length; i += 3) {
+    const visible = truth[i] * cam.x + truth[i + 1] * cam.y + truth[i + 2] * cam.z >= horizon;
+    const x = visible ? truth[i] : OVER_THE_HORIZON;
+    const y = visible ? truth[i + 1] : OVER_THE_HORIZON;
+    const z = visible ? truth[i + 2] : OVER_THE_HORIZON;
+    // All three compared, not just the first: the relief watcher rewrites the
+    // truth as the exaggeration changes, and a marker can move in one axis
+    // alone.
+    if (out[i] === x && out[i + 1] === y && out[i + 2] === z) continue;
+    out[i] = x;
+    out[i + 1] = y;
+    out[i + 2] = z;
+    changed = true;
+  }
+  // The upload is the cost here, so it happens only when something moved --
+  // which, with the camera still, is nothing at all.
+  if (changed) attr.needsUpdate = true;
+}
+
 function renderMarkers() {
   const viewer = window.GeoIDViewer;
   if (!viewer?.scene || !THREE) return;
@@ -954,12 +1021,12 @@ function renderMarkers() {
       size: 8,
       sizeAttenuation: false,
       depthWrite: false,
-      // Depth tested, so events on the far side are hidden by the planet rather
-      // than showing through it. They sit slightly proud of the surface, which
-      // is what keeps the near-side ones from being swallowed by it -- turning
-      // the test off did that too, but at the cost of seeing straight through
-      // the globe.
-      depthTest: true,
+      // NOT depth tested: see `cullBehindGlobe`. Every fragment of a point
+      // sprite carries the centre's depth, so the ground in front of a marker
+      // cuts the quad in half rather than occluding the marker. The far side
+      // is hidden by the horizon test instead, which is what the depth test
+      // was really being asked for.
+      depthTest: false,
       transparent: true,
       opacity: 0.95,
     }));
@@ -980,6 +1047,12 @@ function renderMarkers() {
     points.renderOrder = 230;
     points.name = `eonet-${key}`;
     points.userData.events = list;
+    // The positions as built. What the geometry holds is these with whatever is
+    // round the back moved out of the frustum, rewritten every frame.
+    points.userData.truePositions = Float32Array.from(positions);
+    // Points leave the frustum on purpose here, so the cloud must not be
+    // culled for the bounding sphere that follows them out.
+    points.frustumCulled = false;
     // The size the view gives every marker, times what this band earns. Held
     // here rather than written into `size`, because the per-frame scaler owns
     // that number and would otherwise flatten every band back to one size.
@@ -1261,7 +1334,10 @@ function setSelection(event) {
     map: ringTexture(),
     sizeAttenuation: false,
     depthWrite: false,
-    depthTest: true,
+    // Not depth tested, and hidden past the limb by `cullBehindGlobe` instead:
+    // it is the widest sprite the feed draws, so it was the most obviously cut
+    // of all of them.
+    depthTest: false,
     transparent: true,
     // Added rather than blended, so it lifts off whatever it is over instead of
     // washing into it -- the ring was legible against the sea and lost over
@@ -1270,6 +1346,8 @@ function setSelection(event) {
   }));
   halo.name = "eonet-selection";
   halo.renderOrder = 231;
+  halo.userData.truePositions = Float32Array.from([position.x, position.y, position.z]);
+  halo.frustumCulled = false;
   // Sized before it is added, not on the first animation frame: left at unit
   // scale the ring is the radius of the globe, which showed as a huge flash.
   applyHaloScale();
@@ -1280,6 +1358,9 @@ function setSelection(event) {
     if (!halo) return;
     // Size is held on the dot every frame, so it tracks a zoom as it happens.
     applyHaloScale();
+    // And it goes round the back with the marker it is drawn around.
+    const camera = window.GeoIDViewer?.camera;
+    if (camera) cullBehindGlobe(halo, camera);
     /**
      * The ring follows the dots it is drawn around, half a step above them.
      *
