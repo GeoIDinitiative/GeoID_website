@@ -549,6 +549,28 @@ looking right. `map-layers.test.mjs` recomputes the HSV independently and
 checks the wrap: 179° and 1° are two degrees apart, so their colours must be
 neighbours.
 
+### The click card names what this app owns, and nothing else
+
+`FIELD_LABEL`/`FIELD_UNIT` in `feature-popup.js` turn `s1_mpa 48.5` into
+`S1 magnitude 48.5 MPa`. Deliberately narrow: only the columns THIS app
+generates are renamed, because inventing a friendly label for a column somebody
+else defined is how you end up mislabelling it — every other survey's field
+still shows exactly as that survey wrote it.
+
+**The labels do not assert the ranking.** By convention S1 ≥ S2 ≥ S3, and the
+obvious labels ("greatest", "intermediate", "least") would say so — but the
+WSM's published values do not always honour it: wsm00025, a Swedish mini-frac,
+carries S1 11.5, S2 5.5, S3 6.3 MPa. Whether that is a transcription in the
+original or a site-specific convention is not something this app can decide,
+and a label reading "intermediate" over a number smaller than the one below it
+is the app inventing an order the record does not have.
+
+**The row cap was cutting the rarest data.** The viewer's card shows the first
+eight fields; a stress record carries nine before its magnitudes, so the three
+numbers that make one record in a hundred and thirty worth clicking never
+appeared. They are near the front of `PREFERRED` now and the cap is ten, with
+the regime code and country pushed to the tail.
+
 ### Stress is a TENSOR, and what that means for what can be mapped
 
 Worth writing down because it decides the whole shape of these two layers.
@@ -598,13 +620,26 @@ site-root convention `global-data.js` uses. They were briefly written under
 happened to sit near them; two homes for shipped data is one more than anybody
 can keep in step.
 
-## Basemap and Relief stacks now
+## Basemap and Relief is ONE list
 
 The tab offered one dropdown, and a dropdown says these things are
-alternatives. The sphere's own texture genuinely is one — that keeps the
-dropdown. Everything else is an OVERLAY, and hillshade under a stress map
-under coastlines is the ordinary way a tectonic map is read, which the dropdown
-made impossible to say. `map-layers.js` is a catalogue of raster overlays drawn
+alternatives. Everything except the sphere's own texture is an OVERLAY, and
+hillshade under a stress map under coastlines is the ordinary way a tectonic
+map is read, which the dropdown made impossible to say.
+
+**A dropdown beside a tick list is two kinds of control for one question**, so
+the base textures are now the FIRST GROUP of the same catalogue: ticking one
+swaps it and unticks the last, which is exactly what a radio group is — and it
+falls out of `layerFor` rather than being enforced, since only one id can match
+the select's value. The entries are read from the `<select>` **live**, not from
+the manifest, because `basemap-drape.js` registers OpenStreetMap, CartoDB and
+Esri into it at runtime and a manifest-built list would be missing precisely
+what somebody went looking for. Unticking the base is refused with a sentence
+(a sphere always wears a texture) rather than left to snap back looking broken.
+**The `<select>` stays in the page, hidden**: `earth-viewer`, `layer-hierarchy`
+and `basemap-drape` all read it, and deleting it throws on the first frame —
+the same reason the geology toggles are still there. Measured: 15 entries in
+one list, ten of them base textures. `map-layers.js` is a catalogue of raster overlays drawn
 by the same `renderCatalogue` the vector tabs use, so a tick means the same
 thing in all three and each overlay arrives in the layer box with its own eye,
 opacity and place in the draw order. Five entries: the stress map, three GEBCO

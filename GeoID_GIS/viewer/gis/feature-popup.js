@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260825-01dbcd7";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260825-01dbcd7";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260825-7cf92a4";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260825-7cf92a4";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -221,8 +221,73 @@ const PREFERRED = [
   // ahead of the country and the region, which the map has already answered.
   "volcano_type", "activity", "last_eruption", "elevation_m", "tectonic_setting",
   "rock_type", "landform", "epoch", "summary",
+  // World Stress Map: what was measured, how well, by what method, and -- for
+  // the few hundred records that carry them -- the principal stress
+  // MAGNITUDES. Those are the rarest and most valuable numbers in the
+  // database (249 of 32,464), so they go near the front: the eight-row cap on
+  // the card would otherwise cut exactly the rows that make a record unusual.
+  "azimuth", "regime", "s1_mpa", "s2_mpa", "s3_mpa", "quality", "method",
   "waterway", "value", "class", "unit", "description",
 ];
+
+/**
+ * Columns whose names are for machines, and the units they are missing.
+ *
+ * A card that says `s1_mpa 48.5` has told you the number and left you to know
+ * what it is. These are the ones this app ships and can therefore name
+ * properly; everything else still shows exactly as its own survey wrote it,
+ * because inventing a friendly label for a column somebody else defined is how
+ * you end up mislabelling it.
+ */
+const FIELD_LABEL = {
+  azimuth: "SHmax azimuth",
+  regime: "Faulting regime",
+  quality: "WSM quality class",
+  method: "Measured by",
+  depth_km: "Depth",
+  // Named WITHOUT asserting the ranking, on purpose. By convention
+  // S1 >= S2 >= S3, and the obvious labels would say so — but the database's
+  // published values do not always honour it: wsm00025, a Swedish mini-frac,
+  // carries S1 11.5, S2 5.5, S3 6.3 MPa. Whether that is a transcription in
+  // the original or a different convention at that site is not something this
+  // app can decide, and a label reading "intermediate" over a number smaller
+  // than the one below it is the app inventing an order the record does not
+  // have. The values are shown as published.
+  s1_mpa: "S1 magnitude",
+  s2_mpa: "S2 magnitude",
+  s3_mpa: "S3 magnitude",
+  regime_code: "WSM regime code",
+  wsm_id: "WSM record",
+  elevation_m: "Elevation",
+  last_eruption: "Last eruption",
+  volcano_type: "Type",
+  tectonic_setting: "Tectonic setting",
+};
+
+const FIELD_UNIT = {
+  azimuth: "°",
+  depth_km: " km",
+  s1_mpa: " MPa",
+  s2_mpa: " MPa",
+  s3_mpa: " MPa",
+  elevation_m: " m",
+};
+
+/** A column's own name, or the plain-English one where this app owns it. */
+export const fieldLabel = (key) => FIELD_LABEL[key] || key;
+
+/**
+ * The value with its unit, and the unit only where the number is one.
+ *
+ * `48.5 MPa` is a stress; `48.5` is a number in a column. But a unit welded on
+ * to something that is not numeric -- a survey writing "not determined" into a
+ * depth column, which they do -- reads as "not determined km".
+ */
+export function fieldValue(key, value) {
+  const unit = FIELD_UNIT[key];
+  const text = String(value);
+  return unit && Number.isFinite(Number(text)) ? `${text}${unit}` : text;
+}
 
 /** The first of these columns that has anything in it. */
 function firstOf(props, keys) {
@@ -266,6 +331,9 @@ function titleOf(props) {
  * so they are the ones a cap cuts rather than the ones it keeps.
  */
 const PLUMBING = new Set([
+  // The WSM's own two-letter regime code, which the row above it already
+  // spells out, and the country, which the map has answered by being a map.
+  "regime_code", "country", "site",
   "objectid", "OBJECTID", "id", "ID", "fid", "FID", "gid", "mslink", "MSLINK",
   "version", "released", "nom_scale", "nom_os_yr", "nom_bgs_yr", "sheet",
   "shape_leng", "shape_area", "min_zoom", "min_label", "scalerank", "dissolve",
@@ -497,8 +565,11 @@ function showViewerCard(hits, at) {
   const shown = new Set([name, kind].filter(Boolean));
   const rows = orderedEntries(props)
     .filter(([, value]) => !shown.has(String(value).trim()))
-    .slice(0, 8)
-    .map(([key, value]) => [key, String(value)]);
+    // Ten rather than eight: a stress record carries nine columns before its
+    // magnitudes, and the cap was cutting the three numbers that make one
+    // record in a hundred and thirty worth clicking on.
+    .slice(0, 10)
+    .map(([key, value]) => [fieldLabel(key), fieldValue(key, value)]);
   const feature = {
     type: featureKind(top.feature),
     /**
@@ -686,7 +757,7 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
   const rows = orderedEntries(props);
   rows.slice(0, 24).forEach(([key, value]) => {
     const dt = document.createElement("dt");
-    dt.textContent = key;
+    dt.textContent = fieldLabel(key);
     const dd = document.createElement("dd");
     /**
      * A value that IS a URL becomes a link, whatever column it came from.
@@ -699,7 +770,7 @@ function showPopup(x, y, layerName, feature, layerRecord = null) {
      * these lead off the site; the text is elided by CSS, not by truncating
      * the href, so what opens is what was published.
      */
-    const text = String(value);
+    const text = fieldValue(key, value);
     if (/^https?:\/\//i.test(text)) {
       const a = document.createElement("a");
       a.href = text;
