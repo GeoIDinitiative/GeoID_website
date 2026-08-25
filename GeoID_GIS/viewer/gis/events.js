@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity,
   activeGroups, sourcesInGroup, groupState, defaultEnabled,
-} from "./event-sources.js?v=20260825-4db9294";
+} from "./event-sources.js?v=20260825-8393650";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -509,7 +509,6 @@ function sourcesBlock() {
         data-group="${group.id}">
         <summary title="${group.note}">
           <span class="event-feed-name">${group.label}</span>
-          <span class="event-feed-count">${state.on}/${state.total}</span>
           <input type="checkbox" class="event-feed-master" data-group-toggle="${group.id}"
             ${state.all ? "checked" : ""}
             aria-label="Turn ${group.label} on or off">

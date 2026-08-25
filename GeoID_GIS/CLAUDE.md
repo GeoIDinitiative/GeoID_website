@@ -760,8 +760,9 @@ that column already is, so its padding, type, accent and filled-when-open
 header come from the theme rather than from rules of its own (measured
 identical: 11.2/12.48 px padding, 12.16 px Exo 2, dark ink on `#ff2bd6` open,
 near-white closed). The first version invented hairline rows and read as
-something bolted on beside them. Each carries a **master toggle with three
-states**:
+something bolted on beside them, and carried an "on/total" count that was
+noise on a header whose own tick boxes are one scroll away. Each carries a
+**master toggle with three states**:
 `groupState()` returns `indeterminate` for a partial group, because a box
 showing "off" over two-of-five-on says something false about the map, and
 pressing anything short of all-on turns the group on. A group's press moves

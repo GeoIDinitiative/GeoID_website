@@ -4575,13 +4575,6 @@ canvas {
     .event-feed-group[open] > summary::before { transform: rotate(90deg); }
     .event-feed-group > summary:hover { color: #ffffff; }
     .event-feed-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .event-feed-count {
-      flex: none;
-      color: var(--soft-light);
-      font-size: 0.6rem;
-      letter-spacing: 0;
-      font-variant-numeric: tabular-nums;
-    }
     .event-feed-master {
       flex: none; margin: 0; width: 0.85rem; height: 0.85rem;
       accent-color: var(--nav-accent); cursor: pointer;
