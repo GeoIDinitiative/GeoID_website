@@ -1043,15 +1043,19 @@ painted through **one ImageData** scaled by the canvas rather than a rect per
 cell — a 300-column grid is 30,000 fills, which stutters visibly in a popup
 that is meant to open at once.
 
-**P and S are a MODEL; the onset is a MEASUREMENT; they do not look the
-same.** P and S are drawn dashed, predicted from the hypocentral distance —
-station position from the FDSN list, origin and depth from the USGS record,
-window start from the request — at 6.0 km/s (Pg) below 200 km and 8.0 km/s
-(Pn) beyond it, with Vs = Vp/√3. `arrivalTimes` **refuses past 1500 km**
-rather than drawing two lines somebody would read as fact: past about 15° the
-ray turns through the mantle and a straight-line divide is nonsense. The onset
-is drawn solid, picked from the trace itself by STA/LTA, and the caption states
-the difference between them — which is the point of having both.
+**The trace is asked before the model, and the two never look alike.** The
+first version drew PREDICTED P and S — hypocentral distance, 6.0 km/s Pg below
+200 km, 8.0 km/s Pn beyond, Vs = Vp/√3 — and they were reported as looking
+wrong, because they are: a straight line at a crustal velocity takes no account
+of the ray travelling down through the crust and back, so at 240 km the model
+ran **fourteen seconds early** against a pick anybody could see on the picture.
+
+So both marks are now picked from the trace where they can be — **solid means
+read off this record, dashed means where a rule of thumb says it should have
+been** — and the model is kept for the fallback and for bounding the search.
+`arrivalTimes` still **refuses past 1500 km** rather than drawing two lines
+somebody would read as fact: past about 15° the ray turns through the mantle
+and a straight-line divide is nonsense.
 
 **A crossing is not an arrival, and a real trace is what taught it.** On
 GE.MATE over an M4.4 in Albania the ratio crossed **100 s before the
@@ -1064,6 +1068,34 @@ from an arrival is **duration**, so a candidate must hold most of its ratio
 across the next two seconds, which is network practice and needs no absolute
 scale. Measured after: 139.5 s on that trace, against an energy profile that
 rises at ~144 s — and +14 s on the crude Pn prediction, reported as such.
+
+**S needs its own detector, and this is why.** S is not "louder than the
+noise" — it is louder than the **coda already running**, and `detectOnset`'s
+long-term average is the quiet *before* the earthquake, which everything after
+P clears. Pointed at the seconds after P it triggers immediately on the P coda
+still ramping up: measured on the Albanian trace, 142.5 s — three seconds after
+P and twenty-six before the real S. `detectSecondary` takes its reference from
+the early coda itself and picks the first place the energy holds at twice that
+for six seconds.
+
+**A wide window looks ahead, so the crossing is early.** Four seconds of energy
+held for six is a sound test for an arrival and a bad estimate of when it
+started: the window crosses the bar as soon as its leading edge touches the
+onset, which on a planted S at 50.0 s gave a coarse pick of 46.3. The crossing
+says roughly where; a half-second window walked forward from it says exactly
+where.
+
+**The search is BOUNDED by the model, not answered by it** — a quarter to three
+times the S−P the known distance predicts — which is what lets one detector
+serve a local event four seconds out and a regional one thirty seconds out.
+
+**S−P is the card's own distance measurement**, and the point of showing it is
+that it is INDEPENDENT: one second of separation is about 8.2 km
+(`1/(1/Vs − 1/Vp)` for the crustal pair), needing no origin time, no network
+and no model of where the earthquake was — so it is a check on the USGS
+location made from the picture in front of you. Measured on GE.MATE over the
+Albanian M4.4: **S−P 29.7 s → about 243 km, against a station 239 km from the
+epicentre.**
 
 **Marker labels take the first row they fit in.** At 240 km the predicted P and
 S are 22 s apart, which on a 305 s trace is twenty pixels: at one height the

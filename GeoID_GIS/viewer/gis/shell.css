@@ -1315,6 +1315,16 @@ body[data-hub-armed="true"] .events-overlay {
 }
 .event-trace-note { margin: 0.35rem 0 0; font-size: 0.6rem; color: var(--soft-light); }
 
+/* The S−P readout is a MEASUREMENT sitting among axis labels, so it is given
+   the data colour and the room to be read as one. */
+.event-trace-axis.is-measure {
+  margin: 0.25rem 0 0.1rem;
+  font-size: 0.62rem;
+  color: var(--nav-accent);
+  letter-spacing: 0.02em;
+}
+.event-trace-axis.is-measure strong { color: #ffffff; }
+
 .event-row.is-selected { background: rgba(82, 228, 232, 0.16); border-radius: 0.25rem; }
 
 /* ── Browsing one category ──────────────────────────────────────────────── */

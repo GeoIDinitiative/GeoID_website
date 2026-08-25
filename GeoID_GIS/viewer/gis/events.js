@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources,
-} from "./event-sources.js?v=20260825-df73608";
+} from "./event-sources.js?v=20260825-c3ef9c7";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1475,43 +1475,109 @@ function rememberTrace(id, out) {
   while (traceCache.size > TRACE_CACHE_MAX) traceCache.delete(traceCache.keys().next().value);
 }
 
-/** P and S as the model puts them, and the onset as the trace shows it. */
+/**
+ * The arrivals: measured from the trace where they can be, predicted where
+ * they cannot, and never the two looking alike.
+ *
+ * The predicted times were what the card drew first, and they were reported as
+ * wrong because they ARE: a crustal velocity and a straight line take no
+ * account of the ray's path down through the crust and back, so at 240 km the
+ * model ran fourteen seconds early against a pick anybody could see. The trace
+ * knows better than the model, so the trace is asked first — a solid mark is
+ * something read off this record, a dashed one is where a rule of thumb says
+ * it should have been.
+ */
 function arrivalMarks(event, out, plot) {
   const trace = out.trace;
+  const values = trace.values;
+  const fs = trace.sampleRate;
+  const stationKm = Number(out.station?.km);
+  const expectedGap = plot.expectedSP(stationKm);
   const predicted = plot.arrivalTimes({
     distanceKm: out.station?.km,
     depthKm: event.depthKm,
     originMs: event.timeMs,
     startMs: out.startMs,
-    sampleRate: trace.sampleRate,
-    sampleCount: trace.values.length,
+    sampleRate: fs,
+    sampleCount: values.length,
   });
+
+  const p = plot.detectOnset(values, fs);
+  const sPicked = p == null ? null : plot.detectSecondary(values, fs, {
+    afterSeconds: p, expectedGapSeconds: expectedGap,
+  });
+
   const marks = [];
-  if (predicted && !predicted.tooFar) {
-    if (predicted.inWindow) marks.push({ t: predicted.p, label: "P", colour: "#52e4e8" });
-    if (predicted.sInWindow) marks.push({ t: predicted.s, label: "S", colour: "#ff2bd6" });
+  const span = values.length / fs;
+  const inWindow = (t) => t != null && t >= 0 && t <= span;
+
+  let pAt = null;
+  if (p != null) {
+    pAt = p;
+    marks.push({ t: p, label: "P", colour: "#52e4e8", dashed: false });
+  } else if (predicted?.inWindow) {
+    pAt = predicted.p;
+    marks.push({ t: predicted.p, label: "P", colour: "#52e4e8" });
   }
-  const onset = plot.detectOnset(trace.values, trace.sampleRate);
-  if (onset != null) {
-    marks.push({ t: onset, label: "onset", colour: "#ffd166", dashed: false });
+
+  let sAt = null;
+  let sMeasured = false;
+  if (sPicked != null) {
+    sAt = sPicked;
+    sMeasured = true;
+    marks.push({ t: sPicked, label: "S", colour: "#ff2bd6", dashed: false });
+  } else if (pAt != null && expectedGap && inWindow(pAt + expectedGap)) {
+    // Anchored to the P that was actually read, not to the model's own P:
+    // relative timing survives everything absolute timing gets wrong.
+    sAt = pAt + expectedGap;
+    marks.push({ t: sAt, label: "S", colour: "#ff2bd6" });
+  } else if (predicted?.sInWindow) {
+    sAt = predicted.s;
+    marks.push({ t: predicted.s, label: "S", colour: "#ff2bd6" });
   }
-  return { marks, predicted, onset };
+
+  const sp = p != null && sMeasured ? sAt - pAt : null;
+  return {
+    marks,
+    predicted,
+    pMeasured: p != null,
+    sMeasured,
+    sp,
+    spKm: plot.distanceFromSP(sp),
+    stationKm: Number.isFinite(stationKm) ? stationKm : null,
+    expectedGap,
+    kmPerSecond: plot.SP_KM_PER_SECOND,
+  };
+}
+
+/** The S−P readout: the oldest distance measurement there is, and its check. */
+function spReadout(a) {
+  if (a.sp == null) return "";
+  const check = a.stationKm != null
+    ? `<span>station ${Math.round(a.stationKm)} km away</span>` : "<span></span>";
+  return `<div class="event-trace-axis is-measure">
+      <span><strong>S−P ${a.sp.toFixed(1)} s</strong> → about `
+    + `${Math.round(a.spKm)} km</span>${check}</div>`;
 }
 
 /** What the marks mean, said once under the picture rather than guessed at. */
-function arrivalCaption({ predicted, onset }) {
-  if (!predicted) return "";
-  if (predicted.tooFar) {
-    return "Too far for a crustal model to place the arrivals — the ray turns "
-      + "through the mantle at that distance.";
+function arrivalCaption(a) {
+  const parts = [];
+  if (a.sp != null) {
+    parts.push(`P and S read from the trace: one second of S−P is about `
+      + `${a.kmPerSecond.toFixed(1)} km, which is a single station's own way of `
+      + "saying how far away the earthquake was");
+  } else if (a.pMeasured) {
+    parts.push("P read from the trace; S was not picked, so the dashed S is where "
+      + "the crustal model puts it after that P");
+  } else if (a.predicted?.tooFar) {
+    parts.push("Too far for a crustal model to place the arrivals — the ray turns "
+      + "through the mantle at that distance");
+  } else if (a.predicted) {
+    parts.push(`No arrival stood out of the noise, so both marks are the model's: `
+      + `${a.predicted.model} over ${a.predicted.path.toFixed(0)} km`);
   }
-  const parts = [`P and S predicted at ${predicted.model} over `
-    + `${predicted.path.toFixed(0)} km — a rule of thumb, not a travel-time model`];
-  if (onset != null) {
-    const drift = onset - predicted.p;
-    parts.push(`measured onset ${Math.abs(drift) < 0.5 ? "on" : `${drift > 0 ? "+" : ""}${drift.toFixed(1)} s from`} the predicted P`);
-  }
-  return `${parts.join("; ")}.`;
+  return parts.length ? `${parts.join("")}.` : "";
 }
 
 /**
@@ -1565,8 +1631,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260825-df73608"),
-    import("./research/dsp.js?v=20260825-df73608"),
+    import("./seismogram-plot.js?v=20260825-c3ef9c7"),
+    import("./research/dsp.js?v=20260825-c3ef9c7"),
   ]);
   if (stale()) return;
 
@@ -1582,9 +1648,10 @@ async function showTrace(event) {
     </div>
     <canvas class="event-trace-wave"></canvas>
     <div class="event-trace-axis"><span>ground motion, counts</span><span>time →</span></div>
+    ${spReadout(arrivals)}
     <canvas class="event-trace-spec"></canvas>
     <div class="event-trace-axis"><span>0–${band.toFixed(0)} Hz</span><span>quiet → loud</span></div>
-    ${arrivals.predicted
+    ${arrivalCaption(arrivals)
     ? `<p class="event-trace-note">${arrivalCaption(arrivals)}</p>` : ""}
     ${out.problems?.length
     ? `<p class="event-trace-note">${out.problems.length} record(s) failed their `

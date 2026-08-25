@@ -266,6 +266,117 @@ export function detectOnset(values, sampleRate, {
   return null;
 }
 
+/**
+ * The S−P interval, and the distance it implies.
+ *
+ * This is the oldest measurement in seismology and still the most useful thing
+ * a single station can say: P and S leave together and travel at different
+ * speeds, so the gap between them grows with distance and nothing else. One
+ * second of separation is about eight kilometres — `1 / (1/Vs − 1/Vp)` for the
+ * crustal pair, 8.2 km/s — and it needs no origin time, no network and no
+ * model of where the earthquake was.
+ *
+ * That independence is the point of putting it on the card. The station's
+ * distance from the epicentre is already known from the USGS location; a
+ * distance derived from the trace's OWN arrival times is a check on it, made
+ * from the picture in front of you.
+ */
+export const SP_KM_PER_SECOND = 1 / (1 / (VELOCITY.pgKmS / VELOCITY.vpOverVs)
+  - 1 / VELOCITY.pgKmS);
+
+export const distanceFromSP = (spSeconds) => (
+  Number.isFinite(spSeconds) && spSeconds > 0 ? spSeconds * SP_KM_PER_SECOND : null
+);
+
+/** What S−P the crustal pair predicts at a known distance — the search's prior. */
+export const expectedSP = (distanceKm) => (
+  Number.isFinite(distanceKm) && distanceKm > 0 ? distanceKm / SP_KM_PER_SECOND : null
+);
+
+/**
+ * The S arrival: a STEP UP against the P coda, not a crossing against the noise.
+ *
+ * `detectOnset` cannot find S, and the reason is worth stating because the
+ * first attempt tried anyway. Its long-term average is the QUIET before the
+ * earthquake, and once P has arrived everything after it clears that bar — so
+ * pointed at the seconds after P it triggers immediately on the P coda still
+ * ramping up. Measured on the Albanian M4.4: 142.5 s, three seconds after the
+ * P and twenty-six before the S.
+ *
+ * S is not "louder than the noise", it is **louder than the coda already
+ * running**. So the reference is a window taken from the early coda itself,
+ * and the pick is the first place the energy holds at twice that for several
+ * seconds. Measured on the same trace: 168.8 s, S−P 29.3 s, 241 km by the
+ * 8.2 km/s rule against a station 239 km from the epicentre.
+ *
+ * The search is BOUNDED by the model rather than answered by it: it looks from
+ * a quarter to three times the S−P the known distance predicts, which is what
+ * makes one detector work for a local event four seconds out and a regional
+ * one thirty seconds out. The pick inside that window is the trace's own.
+ */
+export function detectSecondary(values, sampleRate, {
+  afterSeconds, expectedGapSeconds = null,
+  referenceFrom = 2, referenceTo = 12, windowSeconds = 4,
+  step = 2, holdSeconds = 6, holdFactor = 0.8,
+} = {}) {
+  const fs = Number(sampleRate);
+  const n = values?.length || 0;
+  if (!Number.isFinite(fs) || fs <= 0 || !Number.isFinite(afterSeconds)) return null;
+
+  const mid = meanOf(values);
+  const cumulative = new Float64Array(n + 1);
+  for (let i = 0; i < n; i += 1) {
+    const d = values[i] - mid;
+    cumulative[i + 1] = cumulative[i] + d * d;
+  }
+  const meanOver = (from, to) => (to > from ? (cumulative[to] - cumulative[from]) / (to - from) : 0);
+
+  const at = (seconds) => Math.round(seconds * fs);
+  const refFrom = at(afterSeconds + referenceFrom);
+  const refTo = Math.min(n, at(afterSeconds + referenceTo));
+  if (refTo - refFrom < fs) return null;
+  const reference = meanOver(refFrom, refTo);
+  if (!(reference > 0)) return null;
+
+  const gap = Number.isFinite(expectedGapSeconds) && expectedGapSeconds > 0
+    ? expectedGapSeconds : null;
+  const from = at(afterSeconds + (gap ? Math.max(2, gap * 0.25) : 8));
+  const until = gap ? at(afterSeconds + gap * 3) : n;
+  const win = Math.max(2, at(windowSeconds));
+  const hold = at(holdSeconds);
+  const bar = reference * step;
+
+  /**
+   * Found with a wide window, then refined with a narrow one.
+   *
+   * The wide window is what makes the test robust — four seconds of energy
+   * held for six is an arrival and not a wobble — but it also LOOKS AHEAD, so
+   * it crosses the bar as soon as its leading edge touches the arrival. On a
+   * sharp onset that is up to a whole window early: measured on a planted S at
+   * 50.0 s, the coarse pick came in at 46.3.
+   *
+   * So the crossing says roughly where, and a half-second window walked
+   * forward from it says exactly where — the first moment the energy itself is
+   * over the bar rather than a four-second average of it. If that never
+   * happens the coarse pick stands, which is the right answer for a step so
+   * gradual that only a long average can see it.
+   */
+  const fine = Math.max(2, Math.round(0.5 * fs));
+  for (let i = Math.max(refTo, from); i + win <= Math.min(n, until); i += 1) {
+    if (meanOver(i, i + win) < bar) continue;
+    let held = true;
+    for (let j = i; j <= i + hold && j + win <= n; j += Math.max(1, win >> 1)) {
+      if (meanOver(j, j + win) < bar * holdFactor) { held = false; break; }
+    }
+    if (!held) continue;
+    for (let j = i; j <= i + win && j + fine <= n; j += 1) {
+      if (meanOver(j, j + fine) >= bar) return j / fs;
+    }
+    return i / fs;
+  }
+  return null;
+}
+
 /* ── the drawing, which needs a canvas ────────────────────────────────────── */
 
 /** Sizes a canvas to its own CSS box at the screen's pixel density. */

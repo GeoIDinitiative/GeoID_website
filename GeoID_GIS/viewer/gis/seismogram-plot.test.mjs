@@ -11,7 +11,8 @@
 
 import {
   envelope, meanOf, dbColour, DB_RAMP, displayBand,
-  arrivalTimes, detectOnset, VELOCITY, MAX_MODEL_KM,
+  arrivalTimes, detectOnset, detectSecondary, VELOCITY, MAX_MODEL_KM,
+  SP_KM_PER_SECOND, distanceFromSP, expectedSP,
 } from "./seismogram-plot.js";
 
 let pass = 0;
@@ -215,6 +216,67 @@ check("and a nonsense rate too", detectOnset(quietThenBurst, 0), null);
  */
 const offset = Float64Array.from(quietThenBurst, (v) => v + 40000);
 check("a DC offset changes nothing", near(detectOnset(offset, fs), onset, 1e-9), true);
+
+/* ── S−P, and the distance it gives ──────────────────────────────────────── */
+
+// One second of S−P is about eight kilometres: the oldest measurement in
+// seismology, and the reason a single station can say anything about distance.
+check("the rule is about eight kilometres a second",
+  near(SP_KM_PER_SECOND, 8.2, 0.1), true);
+check("it is derived from the crustal pair, not typed in",
+  near(SP_KM_PER_SECOND, 1 / (VELOCITY.vpOverVs / VELOCITY.pgKmS - 1 / VELOCITY.pgKmS), 1e-9),
+  true);
+check("ten seconds is about eighty kilometres", Math.round(distanceFromSP(10)), 82);
+check("the two directions agree", near(distanceFromSP(expectedSP(239)), 239, 0.001), true);
+check("no interval, no distance", distanceFromSP(null), null);
+check("and a negative one is not a distance", distanceFromSP(-4), null);
+check("nor is a distance of nothing", expectedSP(0), null);
+
+/* ── picking S ────────────────────────────────────────────────────────────── */
+
+/**
+ * S is not "louder than the noise", it is louder than the CODA already running.
+ *
+ * This is the case that killed the first attempt: pointing the P detector at
+ * the seconds after P triggers instantly, because everything after P clears a
+ * bar set by the quiet before it. Measured on a real trace, that gave an S
+ * three seconds after the P and twenty-six before the real one.
+ */
+const twoArrivals = noise(fs * 120, 1);
+for (let i = 0; i < fs * 60; i += 1) {
+  // P at 20 s, decaying; S at 50 s, four times the size.
+  const t = i / fs;
+  const p = 20 * Math.sin((2 * Math.PI * 6 * i) / fs) * Math.exp(-t / 25);
+  twoArrivals[fs * 20 + i] += p;
+  if (i < fs * 40) {
+    twoArrivals[fs * 50 + i] += 80 * Math.sin((2 * Math.PI * 3 * i) / fs) * Math.exp(-t / 20);
+  }
+}
+const pPick = detectOnset(twoArrivals, fs);
+check("the P is where it was planted", near(pPick, 20, 0.6), true);
+const sPick = detectSecondary(twoArrivals, fs, {
+  afterSeconds: pPick, expectedGapSeconds: 30,
+});
+ok("an S is found", sPick !== null);
+check("and it is the second arrival, not the first coda",
+  near(sPick, 50, 2), true);
+check("so S−P comes out near the true gap", near(sPick - pPick, 30, 2), true);
+
+// One arrival and nothing after it: no step, no S, and no invented one.
+const onlyP = noise(fs * 120, 1);
+for (let i = 0; i < fs * 60; i += 1) {
+  onlyP[fs * 20 + i] += 20 * Math.sin((2 * Math.PI * 6 * i) / fs) * Math.exp(-i / (fs * 25));
+}
+check("a coda with no second arrival gives no S",
+  detectSecondary(onlyP, fs, { afterSeconds: 20, expectedGapSeconds: 30 }), null);
+check("and nonsense in gives null", detectSecondary([], fs, { afterSeconds: 1 }), null);
+check("as does no P to search after",
+  detectSecondary(twoArrivals, fs, { afterSeconds: NaN }), null);
+
+// The search is BOUNDED by the model rather than answered by it: an S three
+// times further out than the distance predicts is not this earthquake's S.
+check("it does not look past three times the expected gap",
+  detectSecondary(twoArrivals, fs, { afterSeconds: pPick, expectedGapSeconds: 5 }), null);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 if (fail) process.exitCode = 1;
