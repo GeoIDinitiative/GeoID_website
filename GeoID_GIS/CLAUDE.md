@@ -549,6 +549,55 @@ looking right. `map-layers.test.mjs` recomputes the HSV independently and
 checks the wrap: 179° and 1° are two degrees apart, so their colours must be
 neighbours.
 
+### Stress is a TENSOR, and what that means for what can be mapped
+
+Worth writing down because it decides the whole shape of these two layers.
+Stress is not a force — a force is a vector in newtons; stress is force per
+unit area and a second-rank tensor, three principal magnitudes with three
+orientations. What can be measured almost anywhere is the ORIENTATION of the
+maximum horizontal component and the REGIME (which principal stress is
+vertical). Magnitudes need an in-situ test in a borehole, and the database
+shows it: **249 of 32,464 A–C records carry an S1 magnitude — under 1%** —
+against 32,464 carrying a regime and an azimuth.
+
+So the raster maps orientation, because that is the field that exists; the
+regime lives on the vectors, where it is a fact about one measurement rather
+than something interpolated; and the magnitudes are carried on the few hundred
+records that have them and are simply ABSENT elsewhere, because a placeholder
+in a numeric column is a number somebody will average.
+
+### The measurements themselves, annotated
+
+`data/global/stress-vectors.geojson` (9.1 MB raw, **0.9 MB gzipped**, which is
+what a browser actually fetches) is every A–C record as a **60 km LineString
+centred on its site and oriented along SHmax** — the symbol every stress map
+has used for fifty years, and drawn as a line it needs no new rendering: the
+layer that draws a coastline draws this. Clicking one gives the record —
+azimuth, regime, quality class, method, depth, country, the WSM id, and the
+principal magnitudes where they exist.
+
+Two details in the geometry. The east–west half of each tick is divided by
+**cos(lat)** or the bearing shears toward the meridian as it goes north — a
+NE-trending measurement in Svalbard would be drawn nearly north. And the ticks
+are one LENGTH: the WSM's own maps scale the symbol by quality, but forty
+thousand segments at four lengths is a texture rather than a map, so quality is
+a column to colour or filter by instead.
+
+**Coloured by regime, not by azimuth.** Colour by orientation and the map is a
+rainbow of directions restating the geometry already on screen; colour by
+regime and it says what the ground is doing — normal where the vertical stress
+is greatest and the crust is pulling apart, thrust where it is least and the
+crust is shortening, strike-slip in between. Verified over Anatolia: orange
+strike-slip along the North Anatolian Fault, green normal faulting through the
+Aegean, which is the tectonics that region is known for.
+
+**Both products live in the repo's own `data/global/`**, with every other
+shipped global dataset, and are addressed as `/data/global/…` — the same
+site-root convention `global-data.js` uses. They were briefly written under
+`GeoID_GIS/viewer/data/`, which worked only because the module resolving them
+happened to sit near them; two homes for shipped data is one more than anybody
+can keep in step.
+
 ## Basemap and Relief stacks now
 
 The tab offered one dropdown, and a dropdown says these things are

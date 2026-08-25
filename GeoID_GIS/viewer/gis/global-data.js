@@ -109,6 +109,29 @@ export const DATASETS = [
     live: true,
   },
   {
+    id: "stress-vectors",
+    group: "Tectonics",
+    label: "Stress orientations — global (World Stress Map)",
+    path: "/data/global/stress-vectors.geojson",
+    name: "Stress orientations (World Stress Map 2016).geojson",
+    summary: "32,464 A–C measurements of SHmax, each drawn as a 60 km tick along "
+      + "the orientation it recorded, with its method, quality, depth and "
+      + "faulting regime",
+    licence: "World Stress Map 2016 (Heidbach et al.) — CC BY 4.0",
+    /**
+     * Coloured by REGIME, which is the half of a stress measurement that an
+     * orientation alone does not carry.
+     *
+     * SHmax says which way the crust is being squeezed; the regime says what
+     * that does to it — normal faulting where the vertical stress is the
+     * largest and the crust is pulling apart, thrust where it is the smallest
+     * and the crust is shortening, strike-slip where it is in between. Colour
+     * by azimuth and the map is a rainbow of directions; colour by regime and
+     * it is a map of what the ground is doing.
+     */
+    colourBy: "regime",
+  },
+  {
     id: "volcanoes",
     group: "Hazards",
     label: "Volcanoes — global (Smithsonian GVP)",

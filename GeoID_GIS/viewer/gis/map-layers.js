@@ -20,7 +20,7 @@
  * the viewer already shipped and could only ever show alone.
  */
 
-import { drape } from "./gee.js?v=20260825-631d9fa";
+import { drape } from "./gee.js?v=20260825-01dbcd7";
 
 // In the shape the drape and the layer record both read: this app says
 // west/south/east/north in most places and Earth Engine answers
@@ -40,8 +40,8 @@ export const MAP_LAYERS = [
     id: "stress-shmax",
     group: "Stress and tectonics",
     label: "SHmax orientation (World Stress Map)",
-    path: "data/global/stress-shmax.png",
-    meta: "data/global/stress-shmax.json",
+    path: "/data/global/stress-shmax.png",
+    meta: "/data/global/stress-shmax.json",
     summary: "32,464 A–C quality measurements of the maximum horizontal stress "
       + "direction, interpolated to a 0.5° grid at a 450 km radius. Transparent "
       + "where there are no data and faint where the data disagree.",
@@ -114,13 +114,11 @@ export function grouped() {
  * asset moves, and the manifest is what the basemap dropdown reads.
  */
 export function pathOf(entry) {
-  // Anchored to the VIEWER root, which is one level above this module.
-  // `import.meta.url` is `.../viewer/gis/map-layers.js`, so a bare
-  // `data/global/...` resolves inside `gis/` and 404s -- the same trap the GEE
-  // cache hit from the other direction, where a document-relative path missed
-  // because the document is a directory up. Neither default is right; say
-  // which one is meant.
-  if (entry?.path) return new URL(`../${entry.path}`, import.meta.url).href;
+  // Site-root absolute, the same convention `global-data.js` uses for every
+  // shipped dataset — they all live in one `/data/global/` and a relative path
+  // would resolve against whichever directory happened to ask. (`gis/` for a
+  // module URL, `viewer/` for the document: neither is where the data is.)
+  if (entry?.path) return entry.path;
   if (!entry?.manifest) return null;
   const layers = window.__earthViewerManifest?.layers || [];
   return layers.find((layer) => layer.id === entry.manifest)?.path || null;

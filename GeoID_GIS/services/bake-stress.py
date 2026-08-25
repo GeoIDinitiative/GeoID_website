@@ -68,7 +68,11 @@ from PIL import Image
 
 WSM_CSV = ("https://datapub.gfz-potsdam.de/download/10.5880.WSM.2016.001/"
            "wsm2016.csv")
-OUT_DIR = pathlib.Path(__file__).resolve().parents[1] / "viewer" / "data" / "global"
+# The repo root's own data folder, which is where every shipped global dataset
+# already lives (coastlines, countries, volcanoes) and what `/data/global/...`
+# resolves to in a browser. A second copy under the viewer would be a second
+# place to look the next time one of them moved.
+OUT_DIR = pathlib.Path(__file__).resolve().parents[2] / "data" / "global"
 CACHE_DIR = pathlib.Path(__file__).resolve().parent / ".cache"
 
 # The WSM's own quality classes, and the weights its own maps use: A is
@@ -116,7 +120,7 @@ def load(path):
             if not (-90 <= lat <= 90 and -180 <= lon <= 180):
                 continue
             kept.append((lat, lon, azi % 180.0, QUALITY_WEIGHT[row["QUALITY"]],
-                         (row.get("REGIME") or "U").strip()))
+                         (row.get("REGIME") or "U").strip(), row))
     return kept
 
 
@@ -183,6 +187,139 @@ def hsv_to_rgb(h, s, v):
     return r, g, b
 
 
+# What the database's codes mean, spelled out. A layer whose regime column
+# reads "TF" is a layer nobody can read without the manual open beside them.
+REGIME_NAME = {
+    "NF": "Normal faulting",
+    "NS": "Normal with strike-slip",
+    "SS": "Strike-slip",
+    "TS": "Thrust with strike-slip",
+    "TF": "Thrust faulting",
+    "U": "Undetermined",
+}
+
+METHOD_NAME = {
+    "FMS": "Focal mechanism (single event)",
+    "FMA": "Focal mechanism (average)",
+    "FMF": "Focal mechanism (formal inversion)",
+    "BO": "Borehole breakout",
+    "DIF": "Drilling-induced fracture",
+    "OC": "Overcoring",
+    "HF": "Hydraulic fracturing",
+    "HFM": "Hydraulic fracturing (mini-frac)",
+    "HFP": "Hydraulic fracturing (pre-existing fracture)",
+    "GFI": "Geological fault-slip inversion",
+    "GVA": "Volcanic vent alignment",
+    "BS": "Borehole slotter",
+    "SWB": "Shear wave splitting",
+    "PC": "Petal centreline fracture",
+}
+
+# Half-length of the tick drawn for each measurement, in kilometres. The WSM's
+# own maps scale the symbol by quality; here the whole set is one length and
+# quality is a column you can colour or filter by instead, because a global
+# layer of forty thousand segments at four different lengths is a texture
+# rather than a map.
+TICK_HALF_KM = 30.0
+
+
+def number(row, field):
+    """A WSM numeric field, or None. 999 is the database's own 'not given'."""
+    raw = (row.get(field) or "").strip()
+    if raw in ("", "999", "999.0"):
+        return None
+    try:
+        value = float(raw)
+    except ValueError:
+        return None
+    return None if value == 999 else value
+
+
+def tick(lat, lon, azimuth, half_km=TICK_HALF_KM):
+    """A short segment centred on the site and oriented along SHmax.
+
+    A stress measurement is a DIRECTION at a place, so the symbol every stress
+    map has used for fifty years is an oriented tick rather than a dot — and
+    drawn as a LineString it needs no new rendering: the vector layer that
+    draws a coastline draws this.
+
+    The east–west half is divided by cos(lat) so the tick keeps its bearing on
+    the ground rather than being sheared toward the meridian as it goes north;
+    without it a NE-trending measurement in Svalbard is drawn nearly north.
+    """
+    deg = half_km / (EARTH_KM * math.pi / 180.0)
+    d_north = deg * math.cos(math.radians(azimuth))
+    d_east = deg * math.sin(math.radians(azimuth)) / max(math.cos(math.radians(lat)), 0.05)
+    return [
+        [round(lon - d_east, 4), round(lat - d_north, 4)],
+        [round(lon + d_east, 4), round(lat + d_north, 4)],
+    ]
+
+
+def write_vectors(data):
+    """The measurements themselves, annotated, as oriented ticks.
+
+    The raster answers "what is the stress field here"; this answers "who says
+    so" — the method, the quality class, the depth, the faulting regime, and
+    the principal-stress magnitudes for the few hundred records that have any.
+    Both are wanted and neither replaces the other: an interpolated field with
+    no way back to its data is a picture, and a picture is not evidence.
+    """
+    features = []
+    for lat, lon, azi, _w, regime, row in data:
+        props = {
+            "azimuth": round(azi, 1),
+            "regime": REGIME_NAME.get(regime, regime or "Undetermined"),
+            "regime_code": regime,
+            "quality": (row.get("QUALITY") or "").strip(),
+            "method": METHOD_NAME.get((row.get("TYPE") or "").strip(),
+                                      (row.get("TYPE") or "").strip()),
+            "depth_km": number(row, "DEPTH"),
+            "site": (row.get("SITE") or "").strip() or None,
+            "country": (row.get("COUNTRY") or "").strip() or None,
+            "wsm_id": (row.get("ID") or "").strip(),
+        }
+        # The magnitudes exist for well under one per cent of the records, so
+        # they are carried where they are present and simply absent elsewhere.
+        # Filling them with a placeholder would put a number in a column that
+        # a reader would then average.
+        for field, name in (("MAG_INT_S1", "s1_mpa"), ("MAG_INT_S2", "s2_mpa"),
+                            ("MAG_INT_S3", "s3_mpa")):
+            value = number(row, field)
+            if value is not None:
+                props[name] = value
+        features.append({
+            "type": "Feature",
+            "geometry": {"type": "LineString", "coordinates": tick(lat, lon, azi)},
+            "properties": {k: v for k, v in props.items() if v is not None},
+        })
+
+    collection = {
+        "type": "FeatureCollection",
+        "_source": {
+            "name": "World Stress Map Database Release 2016",
+            "doi": "https://doi.org/10.5880/WSM.2016.001",
+            "licence": "CC BY 4.0",
+            "citation": ("Heidbach, O., Rajabi, M., Reiter, K., Ziegler, M., WSM Team "
+                         "(2016): World Stress Map Database Release 2016. V. 1.1. "
+                         "GFZ Data Services."),
+            "selection": "quality A-C with a determined SHmax azimuth",
+            "geometry": (f"each record drawn as a {2 * TICK_HALF_KM:.0f} km segment "
+                         "centred on the site and oriented along SHmax"),
+            "magnitudes": ("s1_mpa/s2_mpa/s3_mpa are present on the few hundred "
+                           "records that carry in-situ magnitudes; stress is a "
+                           "tensor and the database is overwhelmingly a record of "
+                           "its ORIENTATION and regime, not its size"),
+        },
+        "features": features,
+    }
+    path = OUT_DIR / "stress-vectors.geojson"
+    path.write_text(json.dumps(collection, separators=(",", ":")), encoding="utf-8")
+    with_mag = sum(1 for f in features if "s1_mpa" in f["properties"])
+    print(f"wrote {path} ({path.stat().st_size / 1024 / 1024:.1f} MB, "
+          f"{len(features)} ticks, {with_mag} with a magnitude)")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--csv", default=None, help="wsm2016.csv (downloaded if absent)")
@@ -215,7 +352,7 @@ def main():
     sin2 = np.zeros((height, width))
     cos2 = np.zeros((height, width))
     weight = np.zeros((height, width))
-    for lat, lon, azi, w, _regime in data:
+    for lat, lon, azi, w, _regime, _row in data:
         row = min(height - 1, max(0, int((90 - lat) / step)))
         col = int((lon + 180) / step) % width
         two = math.radians(2 * azi)
@@ -324,6 +461,7 @@ def main():
     (OUT_DIR / "stress-shmax.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"wrote {OUT_DIR / 'stress-shmax.json'}")
 
+    write_vectors(data)
     check(data, azimuth, coverage, resultant, step, width, height)
 
 
