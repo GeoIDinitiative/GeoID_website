@@ -123,6 +123,24 @@ check("a station query asks by radius around the point", () => {
   eq(u.includes("latitude=37.7500"), true, "lat");
   eq(u.includes("maxradius=1.5"), true, "radius");
   eq(u.includes("format=text"), true, "text");
+  // No window asked for, none sent: "what is there" is the right question
+  // when nobody has named a moment.
+  eq(u.includes("starttime"), false, "no window by default");
+});
+
+check("a station query can be narrowed to the moment being asked about", () => {
+  const u = stationUrl(FDSN_NODES[0].base, {
+    lat: 37.22,
+    lon: 37.02,
+    start: new Date("2023-02-06T01:16:00Z"),
+    end: new Date("2023-02-06T01:21:00Z"),
+  });
+  // Without this the service returns every instrument that has EVER been near
+  // the point -- around this epicentre the four nearest are an aftershock
+  // deployment installed days after the earthquake, so every waveform request
+  // that follows comes back 204 with nothing to say why.
+  eq(u.includes("starttime=2023-02-06T01%3A16%3A00"), true, "start");
+  eq(u.includes("endtime=2023-02-06T01%3A21%3A00"), true, "end");
 });
 
 check("an empty location becomes --, which is what FDSN means by it", () => {

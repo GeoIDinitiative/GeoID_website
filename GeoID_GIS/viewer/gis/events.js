@@ -10,6 +10,10 @@
 // schedule. When the mode is on they appear as a drop-down beside the legend and
 // as markers on the globe; when it is off nothing is fetched and nothing drawn.
 
+import {
+  SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity,
+} from "./event-sources.js?v=20260825-b2c8775";
+
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
 /**
@@ -70,7 +74,7 @@ const REFRESH_MS = 5 * 60 * 1000;
 
 /** What the layer box calls the feed. Stable, so a refresh re-adopts the row
     it already has rather than adding a second one. */
-const LAYER_NAME = "Events (NASA EONET)";
+const LAYER_NAME = "Live events";
 // How far above the surface the markers float, as a fraction of the globe's
 // radius. The globe is not a bare sphere -- there are shells above it -- so a
 // marker needs to clear those as well as the ground to survive the depth test.
@@ -164,7 +168,65 @@ const SYMBOLS = {
 };
 const FALLBACK = { colour: "#9aa5b1", glyph: "●", label: "Other" };
 
-const symbolFor = (id) => SYMBOLS[id] || FALLBACK;
+const symbolFor = (id) => (
+  String(id).startsWith("quake-") ? SYMBOLS.earthquakes : (SYMBOLS[id] || FALLBACK)
+);
+
+/**
+ * Which point cloud an event is drawn in.
+ *
+ * The panel groups by CATEGORY, because that is how somebody reads a list. The
+ * globe cannot: a PointsMaterial has one size for the whole cloud, so drawing
+ * every earthquake together means drawing an M7 the same size as an M2.5 --
+ * and the M7 released about thirty thousand times the energy. Splitting the
+ * seismicity into magnitude bands gives each band its own material and its own
+ * size without a custom shader, and costs a handful of extra draw calls.
+ */
+function markerKey(event) {
+  if (!event.sourceId) return event.categoryId || "other";
+  const m = Number.isFinite(event.magnitude) ? event.magnitude : 3;
+  return `quake-${Math.max(1, Math.min(8, Math.round(m)))}`;
+}
+
+/** The magnitude a band stands for, back out of its key. */
+const bandMagnitude = (key) => Number(String(key).split("-")[1]);
+
+/** How long ago still counts as "now" for the brightness fade. */
+const RECENCY_WINDOW_MS = 7 * 24 * 3600 * 1000;
+
+/**
+ * Which feeds are on.
+ *
+ * The mode used to be one feed with no choice in it: enter, and you got every
+ * open EONET event whether you came for wildfires or not. Global seismicity in
+ * the last day is a different question, and a mode that answers both at once
+ * answers neither -- so each feed is a row you tick, and what is drawn is the
+ * union of the ones that are on.
+ *
+ * Remembered, because it is a preference rather than a state: somebody who
+ * came for earthquakes wants earthquakes the next time too.
+ */
+const STORE_KEY = "geoid-gis:event-sources";
+let enabled = new Set(SOURCES.filter((x) => x.defaultOn).map((x) => x.id));
+try {
+  const saved = JSON.parse(window.localStorage.getItem(STORE_KEY) || "null");
+  if (Array.isArray(saved)) enabled = new Set(saved.filter(sourceById));
+} catch (error) { /* no storage, keep the defaults */ }
+
+function rememberSources() {
+  try {
+    window.localStorage.setItem(STORE_KEY, JSON.stringify([...enabled]));
+  } catch (error) { /* no storage, the choice is still live this session */ }
+}
+
+export function setSourceEnabled(id, on) {
+  if (!sourceById(id)) return;
+  if (on) enabled.add(id); else enabled.delete(id);
+  rememberSources();
+  void fetchEvents();
+}
+
+export const isSourceEnabled = (id) => enabled.has(id);
 
 let active = false;
 let events = [];
@@ -199,8 +261,49 @@ function latestPoint(event) {
 /** How many of the feed's requests did not answer, for the status line. */
 let missingFeeds = 0;
 
+/** The USGS feeds that are switched on, fetched and converted. */
+async function fetchQuakes() {
+  const wanted = SOURCES.filter((src) => src.kind === "usgs" && enabled.has(src.id));
+  const answers = await Promise.all(wanted.map(async (src) => {
+    try {
+      const response = await fetch(src.url, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return usgsPoints(await response.json(), src);
+    } catch (error) {
+      return null;
+    }
+  }));
+  return {
+    points: answers.filter(Boolean).flat(),
+    asked: wanted.length,
+    reached: answers.filter(Boolean).length,
+  };
+}
+
 async function fetchEvents() {
   status("Fetching…");
+  const quakes = await fetchQuakes();
+  /**
+   * The seismicity feeds overlap ON PURPOSE.
+   *
+   * Past-day M2.5, past-week M4.5 and significant-month are three windows on
+   * one catalogue, so a big earthquake yesterday is in all three -- with the
+   * same USGS id every time, which is what makes merging them safe. Drawing it
+   * three times would put three markers on one epicentre and count it three
+   * times in the panel.
+   */
+  const seismic = new Map();
+  quakes.points.forEach((q) => seismic.set(q.id, q));
+
+  if (!enabled.has("eonet")) {
+    events = [...seismic.values()];
+    missingFeeds = quakes.asked - quakes.reached;
+    reportCounts(quakes);
+    renderPanel();
+    renderMarkers();
+    publishLayer();
+    return;
+  }
   try {
     const urls = feedUrls();
     const answers = await Promise.all(urls.map(async (url) => {
@@ -236,25 +339,77 @@ async function fetchEvents() {
         ...point,
       } : null;
     }).filter(Boolean);
-    const categories = new Set(events.map((e) => e.categoryTitle).filter(Boolean));
-    status(`${events.length} open event(s) in ${categories.size} categories · `
-      + `${new Date().toLocaleTimeString()}`
-      + (missingFeeds ? ` · ${missingFeeds} feed(s) unreachable` : ""));
+    events = [...events, ...seismic.values()];
+    missingFeeds += quakes.asked - quakes.reached;
+    reportCounts(quakes);
   } catch (error) {
-    events = [];
-    // Said plainly: an empty list because the feed is unreachable is not the
-    // same as an empty list because nothing is happening.
-    status(`Feed unavailable (${error.message}). Nothing is being shown.`);
+    // One feed being out is not all of them: whatever seismicity answered is
+    // still worth drawing, and saying "nothing is being shown" over a map with
+    // thirty earthquakes on it would be the report that is wrong.
+    events = [...seismic.values()];
+    status(events.length
+      ? `EONET unavailable (${error.message}). Showing ${events.length} earthquake(s).`
+      : `Feed unavailable (${error.message}). Nothing is being shown.`);
   }
   renderPanel();
   renderMarkers();
+}
+
+/**
+ * What the status line says, now that there is more than one feed in it.
+ *
+ * It used to name EONET's categories, which was the whole story when EONET was
+ * the whole feed. With seismicity on, the useful sentence separates the two --
+ * "218 natural events, 31 earthquakes" -- because they answer different
+ * questions and are counted from different catalogues.
+ */
+function reportCounts(quakes) {
+  const seismic = events.filter((e) => e.sourceId).length;
+  const natural = events.length - seismic;
+  const categories = new Set(
+    events.filter((e) => !e.sourceId).map((e) => e.categoryTitle).filter(Boolean),
+  );
+  const parts = [];
+  if (natural) parts.push(`${natural} natural event(s) in ${categories.size} categories`);
+  if (seismic) parts.push(`${seismic} earthquake(s)`);
+  if (!parts.length) parts.push("nothing from the feeds that are on");
+  status(`${parts.join(" · ")} · ${new Date().toLocaleTimeString()}`
+    + (missingFeeds ? ` · ${missingFeeds} feed(s) unreachable` : ""));
+}
+
+/**
+ * The feeds, as rows you tick, at the top of the drop-down.
+ *
+ * They go at the TOP rather than under the events: with every source off the
+ * list below is empty, and a control that only appears once there is something
+ * to see cannot be the control that brings something to see. That is the same
+ * reason this block is rendered before the early return for an empty feed.
+ */
+function sourcesBlock() {
+  const rows = SOURCES.map((src) => `
+    <label class="event-source" title="${src.note} — ${src.licence}">
+      <input type="checkbox" data-feed="${src.id}"${enabled.has(src.id) ? " checked" : ""}>
+      <span class="event-glyph" style="color:${src.colour}">●</span>
+      <span class="event-source-name">${src.label}</span>
+    </label>`).join("");
+  return `<div class="event-sources">
+    <div class="event-group-head"><span class="event-glyph">☰</span><span>Live feeds</span></div>
+    ${rows}
+  </div>`;
+}
+
+function wireSources(panel) {
+  panel.querySelectorAll("[data-feed]").forEach((box) => {
+    box.addEventListener("change", () => setSourceEnabled(box.dataset.feed, box.checked));
+  });
 }
 
 function renderPanel() {
   const panel = byId("events-panel-body");
   if (!panel) return;
   if (!events.length) {
-    panel.innerHTML = '<p class="gis-hint">No events to show.</p>';
+    panel.innerHTML = `${sourcesBlock()}<p class="gis-hint">No events to show.</p>`;
+    wireSources(panel);
     return;
   }
   const groups = new Map();
@@ -263,7 +418,7 @@ function renderPanel() {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(event);
   });
-  panel.innerHTML = [...groups.entries()]
+  panel.innerHTML = sourcesBlock() + [...groups.entries()]
     .sort((a, b) => b[1].length - a[1].length)
     .map(([key, list]) => {
       const symbol = symbolFor(key);
@@ -280,6 +435,8 @@ function renderPanel() {
           <span class="event-count">${list.length}</span>
         </div>${rows}${more}</div>`;
     }).join("");
+
+  wireSources(panel);
 
   // A row and its marker are the same event, so clicking either does the same
   // thing: bring it into view, ring it, and open its description.
@@ -422,7 +579,8 @@ function trackScale() {
     if (px > 0 && markers) {
       const size = dotSizePx(px);
       markers.children.forEach((points) => {
-        if (points.material.size !== size) points.material.size = size;
+        const want = size * (points.userData.sizeScale || 1);
+        if (points.material.size !== want) points.material.size = want;
       });
     }
     sizeFrame = window.requestAnimationFrame(step);
@@ -469,10 +627,11 @@ function renderMarkers() {
   markers.name = "eonet-events";
   const groups = new Map();
   events.forEach((event) => {
-    const key = event.categoryId || "other";
+    const key = markerKey(event);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(event);
   });
+  const now = Date.now();
   groups.forEach((list, key) => {
     const positions = new Float32Array(list.length * 3);
     // The index of a hit point is all a raycast returns, so the events behind
@@ -483,8 +642,29 @@ function renderMarkers() {
     });
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    /**
+     * Recent is brighter, and it is a COLOUR rather than an opacity.
+     *
+     * Per-point alpha needs a vertex colour with four components, which not
+     * every renderer path here honours; a dimmed hue does the same job in the
+     * one channel that is certain to arrive. A week of earthquakes drawn
+     * identically is a map of where faults are, which the fault layer already
+     * says -- what the feed adds is when.
+     */
+    const base = new THREE.Color(symbolFor(key).colour);
+    if (list.some((e) => Number.isFinite(e.timeMs))) {
+      const colours = new Float32Array(list.length * 3);
+      list.forEach((event, i) => {
+        const k = recencyOpacity(event.timeMs, now, RECENCY_WINDOW_MS);
+        colours[i * 3] = base.r * k;
+        colours[i * 3 + 1] = base.g * k;
+        colours[i * 3 + 2] = base.b * k;
+      });
+      geometry.setAttribute("color", new THREE.BufferAttribute(colours, 3));
+    }
     const points = new THREE.Points(geometry, new THREE.PointsMaterial({
-      color: new THREE.Color(symbolFor(key).colour),
+      color: geometry.attributes.color ? new THREE.Color(0xffffff) : base,
+      vertexColors: Boolean(geometry.attributes.color),
       map: markerTexture(),
       // Sized in screen pixels rather than world units: at globe scale a
       // world-sized point is a speck, and it should stay legible at any zoom.
@@ -517,11 +697,27 @@ function renderMarkers() {
     points.renderOrder = 230;
     points.name = `eonet-${key}`;
     points.userData.events = list;
+    // The size the view gives every marker, times what this band earns. Held
+    // here rather than written into `size`, because the per-frame scaler owns
+    // that number and would otherwise flatten every band back to one size.
+    points.userData.sizeScale = String(key).startsWith("quake-")
+      ? magnitudeSize(bandMagnitude(key), 1)
+      : 1;
     markers.add(points);
   });
   (spinFrame() || viewer.earthSceneGroup || viewer.scene).add(markers);
   trackScale();
   publishLayer();
+}
+
+/** Who the picture on the globe came from — every feed that is on, credited. */
+function sourceCredits() {
+  // Deduplicated: three USGS feeds are one credit, and a row reading
+  // "USGS — public domain · USGS — public domain" says nothing twice.
+  const credits = [...new Set(
+    SOURCES.filter((src) => enabled.has(src.id)).map((src) => src.licence),
+  )];
+  return credits.join(" · ") || "no feed selected";
 }
 
 /** What the layer row says it is: "218 events in 4 categories". */
@@ -558,7 +754,7 @@ function publishLayer() {
   const layer = manager.adoptLayer(LAYER_NAME, spun, {
     ext: "events",
     role: "events",
-    info: { source: "NASA EONET v3", events: events.length },
+    info: { source: sourceCredits(), events: events.length },
     onRemove: () => setActive(false),
   });
   if (layer) {
@@ -571,7 +767,7 @@ function publishLayer() {
       classed: true,
       field: "category",
     };
-    layer.info = { source: "NASA EONET v3", summary: layerSummary() };
+    layer.info = { source: sourceCredits(), summary: layerSummary() };
   }
   // The stack has to be re-applied: a refresh builds new point clouds inside a
   // group whose renderOrder was stamped on the children that existed then, and
@@ -829,7 +1025,19 @@ function showPopup(event, x, y) {
   const node = byId("event-popup");
   if (!node) return;
   const symbol = symbolFor(event.categoryId);
-  const when = event.date ? new Date(event.date).toLocaleString() : "date not given";
+  const source = event.sourceId ? sourceById(event.sourceId) : null;
+  const when = event.date
+    ? new Date(event.date).toLocaleString()
+    : (Number.isFinite(event.timeMs) ? new Date(event.timeMs).toLocaleString() : "date not given");
+  // An earthquake's own numbers, which are the reason to click on one: the
+  // magnitude and how deep it was. A category and a title do not separate a
+  // destructive shallow M6 from a harmless M6 six hundred kilometres down.
+  const seismic = event.sourceId ? `
+      <dt>Magnitude</dt><dd>${Number.isFinite(event.magnitude)
+        ? `M ${event.magnitude.toFixed(1)}` : "undetermined"}</dd>
+      <dt>Depth</dt><dd>${Number.isFinite(event.depthKm)
+        ? `${event.depthKm.toFixed(1)} km` : "not reported"}</dd>
+      ${event.tsunami ? "<dt>Tsunami</dt><dd>flagged by the USGS</dd>" : ""}` : "";
   node.innerHTML = `
     <button type="button" class="event-popup-close" aria-label="Close">×</button>
     <div class="event-popup-head">
@@ -837,14 +1045,17 @@ function showPopup(event, x, y) {
       <span>${event.categoryTitle || symbol.label}</span>
     </div>
     <h3>${event.title}</h3>
-    <dl>
+    <dl>${seismic}
       <dt>Position</dt><dd>${event.lat.toFixed(3)}°, ${event.lon.toFixed(3)}°</dd>
       <dt>Last report</dt><dd>${when}</dd>
-      <dt>Source</dt><dd>NASA EONET · ${event.id}</dd>
+      <dt>Source</dt><dd>${source ? source.licence.split(" — ")[0] : "NASA EONET"} · ${event.id}</dd>
     </dl>
-    ${event.link ? `<a href="${event.link}" target="_blank" rel="noopener">Open in EONET</a>` : ""}
+    ${event.link ? `<a href="${event.link}" target="_blank" rel="noopener">Open the ${source ? "USGS" : "EONET"} record</a>` : ""}
     <div class="event-popup-actions">
       <button type="button" class="button secondary" data-role="fly">Bring into view</button>
+      ${event.sourceId && window.GeoIDEarthData?.seismogramNear
+        ? '<button type="button" class="button secondary" data-role="trace">'
+          + 'Seismogram near here</button>' : ""}
     </div>`;
   node.removeAttribute("hidden");
   setSelection(event);
@@ -857,6 +1068,12 @@ function showPopup(event, x, y) {
   node.querySelector(".event-popup-close")?.addEventListener("click", hidePopup);
   node.querySelector('[data-role="fly"]')?.addEventListener("click", () => {
     focusOn(event.lat, event.lon);
+  });
+  // The feed knows where and when; the FDSN card knows how to ask an archive.
+  // Joining them here saves copying an epicentre and a UTC time into a form in
+  // another panel — which is the step at which most people stop.
+  node.querySelector('[data-role="trace"]')?.addEventListener("click", () => {
+    void window.GeoIDEarthData?.seismogramNear?.(event.lat, event.lon, event.timeMs);
   });
 }
 

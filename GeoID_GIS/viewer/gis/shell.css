@@ -1181,6 +1181,22 @@ body[data-hub-armed="true"] .events-overlay {
 
 .event-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* The feeds you can switch on, above the events themselves. Ticking one is
+   the control that produces the list below it, so it cannot live inside that
+   list -- with everything off there would be nothing to click on. */
+.event-sources { margin-bottom: 0.55rem; }
+.event-source {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding: 0.2rem 0; cursor: pointer;
+}
+.event-source:hover .event-source-name { color: var(--nav-accent); }
+.event-source input { flex: none; margin: 0; accent-color: var(--nav-accent); }
+.event-source-name {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.66rem;
+}
+
+
 /* display:flex on the overlays outranks the hidden attribute, so it has to
        be restated -- otherwise "hidden" only stops them being announced, not
        being drawn, and the Events drop-down showed with the mode switched off. */

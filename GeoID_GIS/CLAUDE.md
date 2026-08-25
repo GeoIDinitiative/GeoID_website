@@ -717,6 +717,100 @@ markers were sub-pixel from orbit. Under **20,000 points** a layer is a set of
 places and is sized in screen pixels; above it, world space, or a fixed pixel
 size paints the globe solid at a distance.
 
+## Events is a list of feeds, and the services are filed where they are asked
+
+**A mode with one feed in it is a mode with no choice in it.** Events used to
+be EONET and nothing else: enter, and you got every open natural event whether
+you came for wildfires or not. `gis/event-sources.js` is the registry —
+one row per feed, each declaring where it fetches from, how to convert the
+answer, and what colour it is — and `events.js` draws the union of the ones
+that are ticked, remembered in `geoid-gis:event-sources` because a feed
+somebody chose is a preference, not a state. Adding a feed is an entry in
+SOURCES and nothing else.
+
+Four are there now: EONET, and the USGS summary feeds for the past day
+(M2.5+), the past week (M4.5+) and the significant month. **They overlap on
+purpose** — three windows on one catalogue — and merging is safe only because
+a USGS event carries the same id in all three; keyed by anything else, a big
+earthquake yesterday draws three markers on one epicentre and is counted three
+times. Verified live: `access-control-allow-origin: *`, coordinates
+`[lon, lat, depthKm]`, `properties.time` in epoch **milliseconds**.
+
+**The tick list goes ABOVE the events, and renders even when there are none.**
+With every feed off the list below is empty, and a control that only appears
+once there is something to see cannot be the control that brings something to
+see.
+
+**Magnitude is logarithmic and a marker is not.** A `PointsMaterial` has one
+size for the whole cloud, so seismicity is split into magnitude bands — one
+cloud each, `magnitudeSize` for the scale, which `trackScale` multiplies
+rather than overwrites. The panel still groups by category, because that is
+how a list reads; only the globe needs the bands. Measured: 6.9 px at M3 up to
+10.7 px at M6 against a base of 5.7.
+
+**Recent is brighter, as a COLOUR rather than an opacity.** Per-point alpha
+needs a four-component vertex colour that not every path here honours; a
+dimmed hue does the same job in the channel that certainly arrives. A week of
+earthquakes drawn identically is a map of where faults are, which the fault
+layer already says — what the feed adds is *when*.
+
+The layer row is `Live events` (renamed from `Events (NASA EONET)`, which is no
+longer what it is) and its credit is the deduplicated licence line of whatever
+is on — three USGS feeds are one credit.
+
+### The three services are filed where their question is asked
+
+**"Data · Earth systems" is gone, and being a tab was the whole fault.** A tab
+is a place you go to do a kind of work, and none of soil, seismograms and
+population is a kind of work: soil is a fact about the ground under the view,
+a seismogram is a time series for the analysis pages, and people in a polygon
+is a number about the study area. Filed together they were a fourth place to
+look for something that belonged beside what it answers, and the last place
+anybody would look.
+
+`earth-data-panel.js` therefore **builds its own cards and mounts each one**
+where its question already is — soil into Geology (`#geology-section`, Earth
+only, which is correct: SoilGrids maps this planet), seismograms into
+Analyse · Tools & Results, population into Extract From Layers beside the study
+area it counts. Two of those hosts are themselves built at runtime, so markup
+in any one file could only ever reach one of them; `whenHost()` polls and stops
+once each card lands.
+
+**An earthquake's popup carries "Seismogram near here"**, which is the join the
+feature existed for: the feed knows where and when, the FDSN card knows how to
+ask an archive, and without the button somebody has to copy an epicentre and a
+UTC time into a form three panels away — which is the step at which most people
+stop.
+
+Getting that to actually return a trace took four separate corrections, each
+found by measuring against the 2023 Kahramanmaraş M7.8:
+
+- **A station service asked with no window returns every instrument that has
+  EVER been there.** The four nearest to that epicentre are an aftershock
+  deployment installed days *after* it — real stations, correctly returned,
+  holding nothing for the minute being asked about, and the waveform request
+  that follows comes back 204 with no hint why. `stationUrl` now takes
+  `start`/`end`.
+- **Two degrees is the right first question and the wrong last one.** With the
+  window applied, *nothing* within 2° of that epicentre was recording. The
+  search widens 2° → 6° → 15° until something answers; a trace from 600 km away
+  is a trace, an empty circle is not.
+- **A station having a RECORD is not an archive having its DATA**, and no
+  metadata distinguishes them. GEOFON lists GE.ARPR and GE.MALT as operating
+  that minute and returns 204 for both. So both nodes are asked in turn —
+  GEOFON carries GE and its partners, ORFEUS routes to Europe's regional and
+  temporary networks — and which one holds a given trace is not something
+  anybody should have to know.
+- **One channel per STATION.** The list holds BHZ, HHZ and VHZ for the same
+  instrument, so walking four *channels* was asking one dead station four
+  times; and a 0.1 Hz very-long-period channel cannot show a body wave. The
+  list is sorted by distance (labelled with it) and the walk takes four
+  distinct stations at ≥1 Hz, one request at a time.
+
+Measured end to end after all four: ORFEUS, **TU.ANDN HHZ at 72 km, 30,199
+samples at 100 Hz over 302 s, 168 records, no integrity failures**, written
+into the project as a CSV the Signal pages list.
+
 ### CORS decides which services exist
 
 `earth-data.js` holds SoilGrids, FDSN and WorldPop — pure builders and parsers,

@@ -176,8 +176,20 @@ export const FDSN_NODES = [
 
 const iso = (t) => (t instanceof Date ? t : new Date(t)).toISOString().replace(/\.\d+Z$/, "");
 
-/** Stations within a radius of a point — the "what recorded this?" question. */
-export function stationUrl(base, { lat, lon, radiusDeg = 2, channel = "?HZ", level = "channel" }) {
+/**
+ * Stations within a radius of a point — the "what recorded this?" question.
+ *
+ * `start`/`end` are the answer to a trap that costs a whole fetch: a station
+ * service asked without a window returns every instrument that has EVER been
+ * at that place. Around the 2023 Kahramanmaras epicentre the nearest four are
+ * an aftershock deployment installed days AFTER the earthquake — real
+ * stations, correctly returned, holding nothing for the moment being asked
+ * about, and the request that follows comes back 204 with no hint why. Passing
+ * the window makes the service drop them.
+ */
+export function stationUrl(base, {
+  lat, lon, radiusDeg = 2, channel = "?HZ", level = "channel", start, end,
+}) {
   const q = new URLSearchParams({
     latitude: Number(lat).toFixed(4),
     longitude: Number(lon).toFixed(4),
@@ -186,6 +198,10 @@ export function stationUrl(base, { lat, lon, radiusDeg = 2, channel = "?HZ", lev
     level,
     format: "text",
   });
+  // Only when asked: without a window the question is "what is there", which
+  // is the right question when nobody has named a moment.
+  if (start) q.set("starttime", iso(start));
+  if (end) q.set("endtime", iso(end));
   return `${base}/station/1/query?${q}`;
 }
 
