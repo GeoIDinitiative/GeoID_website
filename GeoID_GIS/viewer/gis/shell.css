@@ -1288,6 +1288,33 @@ body[data-hub-armed="true"] .events-overlay {
 
 .event-popup-actions .button { width: 100%; }
 
+/* ── The earthquake as it was recorded ──────────────────────────────────── */
+/* The card grows for the plots rather than squeezing them into a column meant
+   for a title and four numbers: a spectrogram 17rem wide is a smear. It grows
+   only when there is something to show, so an ordinary event card is unchanged
+   -- and the width is capped in vw so a narrow window is not overrun. */
+.event-popup.has-trace { width: min(27rem, 88vw); }
+.event-trace { margin-top: 0.5rem; border-top: 1px solid rgba(82, 228, 232, 0.22); padding-top: 0.45rem; }
+.event-trace[hidden] { display: none; }
+.event-trace-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem;
+  font-size: 0.62rem; letter-spacing: 0.04em; margin-bottom: 0.3rem;
+}
+.event-trace-head span { color: var(--soft-light); }
+/* Block, and full width: an inline canvas sits on the text baseline and leaves
+   a gap under it that reads as a broken layout. */
+.event-trace-wave, .event-trace-spec {
+  display: block; width: 100%; border-radius: 0.3rem;
+  background: rgba(0, 0, 0, 0.35);
+}
+.event-trace-spec { margin-top: 0.35rem; }
+.event-trace-axis {
+  display: flex; justify-content: space-between; gap: 0.5rem;
+  margin: 0.15rem 0 0.1rem;
+  font-size: 0.56rem; letter-spacing: 0.04em; color: var(--soft-light);
+}
+.event-trace-note { margin: 0.35rem 0 0; font-size: 0.6rem; color: var(--soft-light); }
+
 .event-row.is-selected { background: rgba(82, 228, 232, 0.16); border-radius: 0.25rem; }
 
 /* ── Browsing one category ──────────────────────────────────────────────── */

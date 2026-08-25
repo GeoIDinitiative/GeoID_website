@@ -1010,6 +1010,52 @@ area it counts. Two of those hosts are themselves built at runtime, so markup
 in any one file could only ever reach one of them; `whenHost()` polls and stops
 once each card lands.
 
+### The seismogram in the card
+
+**A magnitude and a depth are what an earthquake is FILED as; a seismogram is
+what it IS.** That record was three panels and a form away, so almost nobody
+saw it — the popup now draws it under the numbers that describe it.
+
+Two pictures, because neither answers the other's question. The **waveform** is
+when and how hard: the P arrival, the S arrival, the coda dying away. The
+**spectrogram** is at what frequencies, which is what separates a local event
+from a teleseism — distance is a low-pass filter, so a far earthquake arrives
+with its high frequencies stripped off however large it was.
+`gis/seismogram-plot.js` draws both; `research/dsp.js` supplies the STFT
+(`spectrogram(signal, fs, …)` — **fs is positional**), and both modules are
+imported dynamically, since most sessions never open one.
+
+**A decimated trace must keep its peak, and this is the whole reason
+`envelope()` exists.** A 30,000-sample record in a 300-pixel box is 100 samples
+a pixel; taking every hundredth — the obvious thing — is decimation with no
+filter, and on a seismogram it does not merely look wrong, it draws a flat line
+exactly where the P arrival is and looks perfectly convincing. The test plants
+a two-sample spike and asserts that naive subsampling loses it (max 0) while
+the min/max envelope keeps both the peak and the trough, in the same column.
+
+Three more things that are only visible when they are missing: the trace is
+**detrended by its mean** before plotting, because a channel's counts sit on
+whatever offset its digitiser has and a raw plot is a flat line against one
+edge; **most of the dB ramp is dark on purpose** (magenta does not arrive until
+0.78), because spread evenly it painted a station's ordinary background noise
+full magenta and the picture read as "loud everywhere"; and the spectrogram is
+painted through **one ImageData** scaled by the canvas rather than a rect per
+cell — a 300-column grid is 30,000 fills, which stutters visibly in a popup
+that is meant to open at once.
+
+**The card is placed twice.** It changes size after it is positioned: the trace
+lands seconds later and roughly doubles its height, so a card opened low would
+hang off the bottom of the window with the spectrogram — the part that was
+asked for — below the fold. `placePopup` remembers the anchor and re-clamps.
+And every fetch carries a ticket (`tracePass`) checked against the card's
+`dataset.eventId`: a trace takes seconds over two archives, and an answer drawn
+into a card that has moved on is a picture of the wrong earthquake under the
+right title.
+
+Measured end to end on an M4.4 near Lushnjë, Albania: GE.MATE HHZ, 100 Hz,
+305 s, both canvases drawn, saved to the project, card 490 px inside a 779 px
+window.
+
 **An earthquake's popup carries "Seismogram near here"**, which is the join the
 feature existed for: the feed knows where and when, the FDSN card knows how to
 ask an archive, and without the button somebody has to copy an epicentre and a

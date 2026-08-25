@@ -37,7 +37,7 @@ import {
   fetchSoil, strengthFromTexture,
   fetchStations, fetchWaveform, FDSN_NODES,
   fetchPopulation, SOILGRIDS, WORLDPOP,
-} from "./earth-data.js?v=20260825-2171250";
+} from "./earth-data.js?v=20260825-45cbd11";
 
 const byId = (id) => document.getElementById(id);
 
@@ -225,14 +225,14 @@ async function runWaveform() {
   const raw = byId("earthdata-channel")?.value;
   if (!raw) {
     say("earthdata-seis-out", "Find stations first, then pick a channel.");
-    return false;
+    return { ok: false, message: "no channel chosen" };
   }
   const query = JSON.parse(raw);
   const node = byId("earthdata-node")?.value || FDSN_NODES[0].id;
   const startField = byId("earthdata-start")?.value;
   if (!startField) {
     say("earthdata-seis-out", "Set a window start — UTC.");
-    return false;
+    return { ok: false, message: "no window" };
   }
   const minutes = Math.max(1, Math.min(60, Number(byId("earthdata-minutes")?.value) || 5));
   // The field is naive local time in the browser's zone; FDSN wants UTC, and a
@@ -244,7 +244,7 @@ async function runWaveform() {
   const out = await fetchWaveform(node, { ...query, start, end });
   if (!out.ok) {
     say("earthdata-seis-out", out.message);
-    return false;
+    return { ok: false, message: out.message };
   }
   const trace = out.traces[0];
 
@@ -303,7 +303,9 @@ async function runWaveform() {
         + `integrity check and were dropped.</div>`
       : "")
     + saved);
-  return true;
+  // The trace itself goes back to the caller: the event popup draws it, and
+  // this panel is one of two places it is wanted rather than the only one.
+  return { ok: true, trace, problems: out.problems, message: out.message, saved: Boolean(saved) };
 }
 
 /* ── population ───────────────────────────────────────────────────────────── */
@@ -462,13 +464,6 @@ function startFieldValue(timeMs) {
 }
 
 /**
- * "Show me what this earthquake looked like on a seismometer."
- *
- * The events feed knows where and when; this knows how to ask an archive. One
- * button on the popup joins them, rather than leaving somebody to copy an
- * epicentre and a UTC time into a form three panels away.
- */
-/**
  * Walk the station list, one distinct station at a time, until one answers.
  *
  * A station having a RECORD is not the same as an archive having its DATA, and
@@ -496,9 +491,10 @@ async function tryNearest(limit = 4) {
     // eslint-disable-next-line no-await-in-loop -- deliberately one at a time:
     // the first station that answers is the one wanted, and firing four
     // waveform requests at somebody else's archive to discard three is rude.
-    if (await runWaveform()) return true;
+    const out = await runWaveform();
+    if (out?.ok) return out;
   }
-  return false;
+  return { ok: false, message: `nothing from the ${tried} nearest station(s)` };
 }
 
 /**
@@ -513,13 +509,18 @@ async function tryNearest(limit = 4) {
  * its partners, ORFEUS routes to Europe's regional and temporary networks, and
  * the station nearest an epicentre belongs to whichever it belongs to.
  */
-async function seismogramNear(lat, lon, timeMs) {
-  const section = document.getElementById("gis-group-analysis");
-  if (section) section.open = true;
-  const host = byId("earthdata-waveform")?.closest("details.gis-tool-section");
-  if (host) {
-    host.open = true;
-    host.scrollIntoView({ block: "nearest", behavior: "smooth" });
+async function seismogramNear(lat, lon, timeMs, { focusPanel = true } = {}) {
+  // The panel is opened when somebody asked for it there. Called from an event
+  // popup it is NOT: throwing the sidebar to another section is the app
+  // deciding where you were looking, and the popup draws the trace itself.
+  if (focusPanel) {
+    const section = document.getElementById("gis-group-analysis");
+    if (section) section.open = true;
+    const host = byId("earthdata-waveform")?.closest("details.gis-tool-section");
+    if (host) {
+      host.open = true;
+      host.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
   }
   const start = byId("earthdata-start");
   // A minute before it happened, so the trace carries the quiet the arrival
@@ -538,11 +539,13 @@ async function seismogramNear(lat, lon, timeMs) {
     // asked because the first had nothing.
     await runStations({ lat, lon });
     // eslint-disable-next-line no-await-in-loop
-    if (await tryNearest()) return;
+    const out = await tryNearest();
+    if (out?.ok) return out;
   }
-  say("earthdata-seis-out",
-    "Neither archive holds a trace from the nearest stations for that window. "
-    + "Try a wider window, or pick a station further out from the list.");
+  const message = "Neither archive holds a trace from the nearest stations for that "
+    + "window. Try a wider window, or pick a station further out from the list.";
+  say("earthdata-seis-out", message);
+  return { ok: false, message };
 }
 
 /* ── wiring ───────────────────────────────────────────────────────────────── */
