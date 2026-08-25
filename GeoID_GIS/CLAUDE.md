@@ -969,6 +969,16 @@ dimmed hue does the same job in the channel that certainly arrives. A week of
 earthquakes drawn identically is a map of where faults are, which the fault
 layer already says — what the feed adds is *when*.
 
+**The feed is NOT in the legend, because it is already a legend.** Its
+drop-down lists every category being drawn with the same glyph and the same
+colour, so the legend card beside it was that key a second time, in a second
+place, for a reader to keep in step by eye. `layer.legendHidden` is the seam —
+`renderLegend` filters on it — and it is deliberately not the same as being
+invisible: the layer keeps its row in the layer box, its eye, its opacity and
+its place in the draw order, and only the legend card goes. Verified: the
+legend holds the basemap alone while the feed draws 222 events and 161
+earthquakes, and hiding the layer from the box still hides the markers.
+
 The layer row is `Live events` (renamed from `Events (NASA EONET)`, which is no
 longer what it is) and its credit is the deduplicated licence line of whatever
 is on — three USGS feeds are one credit. `status()` writes to **both** status

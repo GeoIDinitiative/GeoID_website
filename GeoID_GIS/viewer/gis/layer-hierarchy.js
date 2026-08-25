@@ -10,11 +10,11 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260825-eae6510";
-import { samplerToRaster } from "./raster-analysis.js?v=20260825-eae6510";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260825-eae6510";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260825-eae6510";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260825-eae6510";
+import { currentBody } from "./bodies.js?v=20260825-2171250";
+import { samplerToRaster } from "./raster-analysis.js?v=20260825-2171250";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260825-2171250";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260825-2171250";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260825-2171250";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -844,7 +844,21 @@ function renderLegend(stack) {
   // the dock's to decide once it knows about every source.
   const dock = window.GeoIDLegendDock;
   if (!dock) return;
-  dock.publish("layers", stack.filter((layer) => layer.visible !== false)
+  /**
+   * A layer that describes itself somewhere else is not described twice.
+   *
+   * `legendHidden` is the seam for that, and the live events feed is what
+   * needed it: its own drop-down lists every category it is drawing, with the
+   * same glyph and the same colour, above the events themselves — so the
+   * legend card beside it was the same key a second time, in a second place,
+   * for a reader to keep in step by eye.
+   *
+   * It is deliberately NOT the same as being invisible: the layer keeps its
+   * row in the layer box, its eye, its opacity and its place in the draw
+   * order. This says only that the legend is not the place it is explained.
+   */
+  dock.publish("layers", stack
+    .filter((layer) => layer.visible !== false && !layer.legendHidden)
     .map((layer) => buildLayerCard(layer)));
   // Its own source rather than the tail of this one, so it sits below every
   // other source the dock collects -- the overlays and the interior cutaway

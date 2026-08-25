@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources,
-} from "./event-sources.js?v=20260825-eae6510";
+} from "./event-sources.js?v=20260825-2171250";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -1140,6 +1140,12 @@ function publishLayer() {
     onRemove: () => setActive(false),
   });
   if (layer) {
+    // Explained in its own drop-down, so not in the legend as well: that panel
+    // already lists every category being drawn, with the same glyph and the
+    // same colour, above the events themselves. `legendInfo` stays because the
+    // layer box's own swatch and anything else reading the layer still want
+    // it; only the legend card is suppressed.
+    layer.legendHidden = true;
     layer.legendInfo = {
       palette: [...new Set(events.map((e) => e.categoryId || "other"))]
         .map((key) => String(symbolFor(key).colour).replace("#", "")),
