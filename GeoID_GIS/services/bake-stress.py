@@ -124,54 +124,96 @@ def load(path):
     return kept
 
 
-def gaussian(width_cells):
-    """A normalised Gaussian kernel, truncated at two sigma of useful range."""
-    sigma = max(0.35, width_cells)
-    half = max(1, int(math.ceil(sigma * 2.0)))
-    x = np.arange(-half, half + 1, dtype=float)
-    k = np.exp(-0.5 * (x / sigma) ** 2)
-    return k / k.sum()
+def accumulate(data, lats, lons, step, radius_km, classes):
+    """Every record scattered onto the global grid at its GREAT-CIRCLE distance.
 
+    This replaces a pair of separable convolutions in lat/lon, which is the
+    obvious way to smooth a grid and is wrong on a sphere — it was reported as
+    the mapping being broken and it was. Three faults, all visible in the
+    picture it produced:
 
-def convolve_rows_wrapping(grid, kernel):
-    """Along longitude, which WRAPS: the map has no left or right edge."""
-    half = len(kernel) // 2
-    padded = np.concatenate([grid[:, -half:], grid, grid[:, :half]], axis=1)
-    out = np.zeros_like(grid)
-    for i, weight in enumerate(kernel):
-        out += weight * padded[:, i:i + grid.shape[1]]
-    return out
+    * **A kernel measured in degrees is not a kernel measured on the ground.**
+      Widening the longitude pass by 1/cos(lat) is the usual patch and it fails
+      at the top: by 70° the factor is three, by 85° it is eleven, and a single
+      Arctic record was being smeared right around its parallel. That is the
+      pale wash that covered the northern ocean.
+    * **Normalising a widened kernel inflates what it says it saw.** The count
+      of "effective measurements" was scaled by the kernel's own area, so the
+      wider the smear the more data the cell claimed to have — the exact
+      opposite of the truth.
+    * **A truncated separable kernel has square corners.** Two 1-D passes cut
+      at ±2σ make a BOX, not a disc, so the coverage mask came out with
+      rectangular holes and rectangular islands in mid-ocean. No physical field
+      has right angles in it.
 
+    Scattering instead: each record touches the cells within about two sigma of
+    it, weighted by `exp(-d²/2σ²)` on the real great-circle distance, and the
+    weight is in units of "C-quality records", so a cell's total is a number
+    with a meaning — one means one C-quality measurement effectively at hand.
+    Nothing is normalised by area, nothing is stretched by latitude, and the
+    kernel is a disc everywhere because distance is distance.
 
-def convolve_cols(grid, kernel):
-    """Along latitude, which does NOT wrap: the poles are edges, not seams."""
-    half = len(kernel) // 2
-    padded = np.pad(grid, ((half, half), (0, 0)), mode="edge")
-    out = np.zeros_like(grid)
-    for i, weight in enumerate(kernel):
-        out += weight * padded[i:i + grid.shape[0], :]
-    return out
-
-
-def smooth(grid, lats, degree, radius_km):
-    """Separable smoothing with a longitude kernel that widens toward the poles.
-
-    A kernel measured in DEGREES is a kernel that shrinks on the ground as it
-    moves away from the equator: 4 degrees of longitude is 445 km at the
-    equator and 152 km at 70 degrees north. Smoothing a global grid with one
-    longitude kernel therefore over-smooths the tropics or under-smooths the
-    Arctic, and the Arctic is where a good part of the Scandinavian and
-    Canadian data sit. So longitude is convolved row by row.
+    Costs about 24 million cell-distance evaluations for the whole database,
+    which numpy does in a few seconds — one call per record over its own
+    window rather than one per cell over the database.
     """
-    deg_km = EARTH_KM * math.pi / 180.0
-    out = np.zeros_like(grid)
-    for row, lat in enumerate(lats):
-        # 1/cos, bounded: at the pole itself the factor is infinite and the
-        # whole row is one place anyway.
-        widen = min(20.0, 1.0 / max(math.cos(math.radians(lat)), 0.05))
-        cells = (radius_km / deg_km) * widen / degree
-        out[row:row + 1, :] = convolve_rows_wrapping(grid[row:row + 1, :], gaussian(cells))
-    return convolve_cols(out, gaussian((radius_km / deg_km) / degree))
+    height = len(lats)
+    width = len(lons)
+    sigma_deg = radius_km / (EARTH_KM * math.pi / 180.0)
+    reach_deg = sigma_deg * 2.0
+
+    lat_rad = np.radians(lats)
+    cos_lat = np.cos(lat_rad)
+    lon_rad = np.radians(lons)
+
+    sin2 = np.zeros((height, width))
+    cos2 = np.zeros((height, width))
+    weight = np.zeros((height, width))
+    regime = {key: np.zeros((height, width)) for key in classes}
+
+    for lat, lon, azi, w, code, _row in data:
+        row0 = max(0, int(math.floor((90 - lat - reach_deg) / step)))
+        row1 = min(height, int(math.ceil((90 - lat + reach_deg) / step)) + 1)
+        if row1 <= row0:
+            continue
+        rows = np.arange(row0, row1)
+        # The widest the window has to be is set by the row NEAREST a pole in
+        # it, where a degree of longitude covers least ground.
+        widest = max(np.max(np.abs(lats[rows])), 0.0)
+        span = math.cos(math.radians(min(widest, 89.5)))
+        d_lon_deg = 180.0 if span <= 0.02 else min(180.0, reach_deg / span)
+        half_cols = int(math.ceil(d_lon_deg / step))
+        centre_col = int(round((lon + 180) / step))
+        cols = (np.arange(centre_col - half_cols, centre_col + half_cols + 1)) % width
+
+        # Haversine over the window, in one call: rows down, columns across.
+        phi = math.radians(lat)
+        d_lat = lat_rad[rows][:, None] - phi
+        d_lon = lon_rad[cols][None, :] - math.radians(lon)
+        # Wrapped to the short way round, or a window straddling the
+        # antimeridian measures its own width as most of the planet.
+        d_lon = (d_lon + math.pi) % (2 * math.pi) - math.pi
+        hav = (np.sin(d_lat / 2) ** 2
+               + math.cos(phi) * cos_lat[rows][:, None] * np.sin(d_lon / 2) ** 2)
+        km = 2 * EARTH_KM * np.arcsin(np.sqrt(np.clip(hav, 0, 1)))
+
+        kernel = np.exp(-0.5 * (km / radius_km) ** 2)
+        # Cut where the kernel is negligible, so the window stays a disc rather
+        # than the rectangle it was computed in.
+        kernel[km > radius_km * 2] = 0.0
+        if not kernel.any():
+            continue
+        contribution = kernel * (w / QUALITY_WEIGHT["C"])
+
+        two = math.radians(2 * azi)
+        block = (slice(row0, row1), cols)
+        sin2[block] += contribution * math.sin(two)
+        cos2[block] += contribution * math.cos(two)
+        weight[block] += contribution
+        for key, share in REGIME_SPLIT.get(code, {"U": 1.0}).items():
+            regime[key][block] += contribution * share
+
+    return sin2, cos2, weight, regime
 
 
 def hsv_to_rgb(h, s, v):
@@ -279,42 +321,36 @@ REGIME_SPLIT = {
 }
 
 
-def write_regime(data, lats, step, width, height, radius, drawn, coverage):
+def regime_image(regime_grids, drawn, coverage):
     """Which way the crust is failing, as the dominant regime in each cell.
 
     An orientation map answers "which way is SHmax" and cannot answer "so
-    what" — the same NNE compression means a rift or a thrust belt depending
-    on which principal stress is vertical. This is the other half, and it is
-    the map the WSM itself publishes: red where the crust is pulling apart,
-    blue where it is shortening, green where it is shearing past itself.
+    what": the same NNE compression means a rift or a thrust belt depending on
+    which principal stress is vertical. This is the other half, and it is the
+    map the WSM itself publishes — red where the crust is pulling apart, blue
+    where it is shortening, green where it is shearing past itself.
 
-    A category cannot be averaged, so nothing here is: each class is
-    accumulated on its own grid, smoothed with the same kernel, and the winner
-    at each cell is the class with the most weight nearby. What the smoothing
-    interpolates is each class's DENSITY, which is a number, and the argmax of
-    densities is a legitimate answer where the mean of category codes is not.
+    A category cannot be averaged, and nothing here averages one. Each class
+    was accumulated on its own grid with the same kernel, so what has been
+    interpolated is each class's DENSITY, which is a number; the winner at a
+    cell is the class with the most weight near it. The argmax of densities is
+    a legitimate answer where the mean of category codes is not.
     """
-    grids = {key: np.zeros((height, width)) for key in REGIME_COLOUR}
-    for lat, lon, _azi, weight, regime, _row in data:
-        row = min(height - 1, max(0, int((90 - lat) / step)))
-        col = int((lon + 180) / step) % width
-        for key, share in REGIME_SPLIT.get(regime, {"U": 1.0}).items():
-            grids[key][row, col] += weight * share
-
     keys = list(REGIME_COLOUR)
-    stack = np.stack([smooth(grids[key], lats, step, radius) for key in keys])
+    stack = np.stack([regime_grids[key] for key in keys])
     total = stack.sum(axis=0)
     winner = stack.argmax(axis=0)
     with np.errstate(invalid="ignore", divide="ignore"):
         share = np.where(total > 0, stack.max(axis=0) / np.maximum(total, 1e-12), 0.0)
 
+    height, width = drawn.shape
     rgb = np.zeros((height, width, 3), dtype=np.uint8)
     for i, key in enumerate(keys):
         for channel in range(3):
             rgb[:, :, channel] = np.where(winner == i, REGIME_COLOUR[key][channel],
                                           rgb[:, :, channel])
     # How clearly it won, times how much data said so: a cell where 40% of the
-    # weight is thrust and 35% is strike-slip has not chosen, and should not be
+    # weight is thrust and 35% is strike-slip has not chosen, and must not be
     # drawn as though it had.
     decisive = np.clip((share - 0.34) / 0.5, 0, 1)
     support = np.clip(coverage / 3.0, 0, 1)
@@ -423,45 +459,23 @@ def main():
     height = int(round(180 / step))
     lats = 90 - (np.arange(height) + 0.5) * step
 
-    # Accumulate the DOUBLED angle. This is the whole trick with axial data:
-    # doubling makes 10 and 190 degrees the same direction, so a vector sum
-    # means what it should, and halving the answer brings it back.
-    sin2 = np.zeros((height, width))
-    cos2 = np.zeros((height, width))
-    weight = np.zeros((height, width))
-    for lat, lon, azi, w, _regime, _row in data:
-        row = min(height - 1, max(0, int((90 - lat) / step)))
-        col = int((lon + 180) / step) % width
-        two = math.radians(2 * azi)
-        sin2[row, col] += w * math.sin(two)
-        cos2[row, col] += w * math.cos(two)
-        weight[row, col] += w
+    lons = -180 + (np.arange(width) + 0.5) * step
 
-    print(f"smoothing at {args.radius:.0f} km over a {width}x{height} grid")
-    sin_s = smooth(sin2, lats, step, args.radius)
-    cos_s = smooth(cos2, lats, step, args.radius)
-    weight_s = smooth(weight, lats, step, args.radius)
+    # One pass over the records, scattering each onto the cells within reach of
+    # it. The DOUBLED angle is the trick with axial data -- doubling makes 10
+    # and 190 degrees the same direction, so a vector sum means what it should,
+    # and halving the answer brings it back -- and the regime classes ride the
+    # same distances rather than paying for their own pass.
+    print(f"scattering {len(data)} records onto a {width}x{height} grid "
+          f"at {args.radius:.0f} km")
+    sin_s, cos_s, coverage, regime_grids = accumulate(
+        data, lats, lons, step, args.radius, REGIME_COLOUR)
 
     with np.errstate(invalid="ignore", divide="ignore"):
-        resultant = np.where(weight_s > 0,
-                             np.sqrt(sin_s ** 2 + cos_s ** 2) / np.maximum(weight_s, 1e-12),
+        resultant = np.where(coverage > 0,
+                             np.sqrt(sin_s ** 2 + cos_s ** 2) / np.maximum(coverage, 1e-12),
                              0.0)
         azimuth = (np.degrees(np.arctan2(sin_s, cos_s)) / 2.0) % 180.0
-
-    # The kernel is normalised, so the smoothed weight is a WEIGHTED DENSITY
-    # and not a count -- and a density is a number nobody can put a threshold
-    # on honestly. Undoing the normalisation turns it back into "how many
-    # C-quality measurements this cell effectively sees", which is a sentence
-    # with a meaning. The factor is per ROW, because the longitude kernel
-    # widens toward the poles and a wider kernel is a smaller peak.
-    deg_km = EARTH_KM * math.pi / 180.0
-    sigma_lat = max(0.35, (args.radius / deg_km) / step)
-    row_factor = np.array([
-        2 * math.pi * sigma_lat
-        * max(0.35, sigma_lat * min(20.0, 1.0 / max(math.cos(math.radians(lat)), 0.05)))
-        for lat in lats
-    ]).reshape(-1, 1)
-    coverage = weight_s * row_factor / QUALITY_WEIGHT["C"]
 
     drawn = (coverage >= WEIGHT_FLOOR) & (resultant >= RESULTANT_FLOOR)
     print(f"{drawn.sum()} of {drawn.size} cells carry data "
@@ -543,8 +557,7 @@ def main():
     # anything here at all (the density). The last two are the map of the map:
     # a reader who cannot see where the data are cannot tell an interpolation
     # from an observation.
-    Image.fromarray(write_regime(data, lats, step, width, height, args.radius,
-                                 drawn, coverage)).save(
+    Image.fromarray(regime_image(regime_grids, drawn, coverage)).save(
         OUT_DIR / "stress-regime.png", optimize=True)
     print(f"wrote {OUT_DIR / 'stress-regime.png'}")
 

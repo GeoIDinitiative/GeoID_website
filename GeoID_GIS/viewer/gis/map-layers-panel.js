@@ -7,8 +7,8 @@
  * file knows is only which catalogue to draw and where to put it.
  */
 
-import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260825-0151daf";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260825-0151daf";
+import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260825-e3e4927";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260825-e3e4927";
 
 const byId = (id) => document.getElementById(id);
 

@@ -25,8 +25,8 @@
     "note": "SHmax is an axis: every mean is taken on 2*theta and halved. Cells with no data within the radius, or whose data disagree, are transparent rather than filled."
   },
   "records": 32464,
-  "cellsWithData": 159633,
-  "coverage": 0.6159,
+  "cellsWithData": 151493,
+  "coverage": 0.5845,
   "colour": {
     "quantity": "SHmax azimuth, degrees clockwise from north",
     "cyclic": true,

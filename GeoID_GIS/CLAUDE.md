@@ -526,16 +526,38 @@ Three rules in that script, and each one fails silently:
   San Andreas, where six hundred sit within the radius. Measured: the South
   Pacific gyre came out at California's opacity.
 
-The interpolation is two separable convolutions of the accumulated sin/cos
-grids, with the **longitude kernel widened by 1/cos(lat)** so the radius is in
-kilometres on the ground — a degrees-wide kernel is three times too wide
-east–west at 70°N, which is where the Scandinavian and Canadian data are.
+**The interpolation SCATTERS each record onto the sphere; it does not convolve
+the grid.** Two separable passes in lat/lon is the obvious way to smooth a grid
+and is wrong on a sphere — it shipped, and it was reported as the mapping being
+broken, which it was. Three faults, all of them visible in the picture:
+
+- **A truncated separable kernel has square corners.** Two 1-D passes cut at
+  ±2σ make a BOX, not a disc, so the coverage mask came out with rectangular
+  holes and rectangular islands in mid-ocean. Nothing physical has right angles
+  in it, and that is the tell.
+- **A kernel measured in degrees is not a kernel measured on the ground.**
+  Widening the longitude pass by 1/cos(lat) is the usual patch and it fails at
+  the top: by 70° the factor is three and by 85° eleven, so one Arctic record
+  was smeared right around its parallel — the pale wash over the northern
+  ocean.
+- **Normalising a widened kernel inflates what it claims to have seen.** The
+  effective-record count was scaled by the kernel's own area, so the wider the
+  smear the more data the cell said it had. Exactly backwards.
+
+Each record now touches the cells within about 2σ of it, weighted by
+`exp(-d²/2σ²)` on the **real great-circle distance**, in units of C-quality
+records — so a cell's total is a number with a meaning rather than a density
+nobody can put a threshold on. Nothing is normalised by area, nothing stretches
+with latitude, and the kernel is a disc everywhere because distance is
+distance. One numpy call per record over its own window rather than one per
+cell over the database: **5.6 s for 32,464 records**, and the check against the
+raw data tightened from 0.3–1.4° to **0.1–0.9°**.
 
 **The script checks itself** (`REFERENCES`): the interpolated field against a
 direct Gaussian-weighted circular mean of the raw records, at five places with
-a published answer. Measured: off by **0.3–1.4°** at California (13.6° vs an
-expected NNE), Honshu (117.5°, E–W), Northern Ireland (144.3°, NW–SE), the
-Rhine Graben (159.3°) and central Australia (92.2°, E–W). The comparison must
+a published answer. Measured: off by **0.1–0.9°** at California (13.9° vs an
+expected NNE), Honshu (117.3°, E–W), Northern Ireland (145.6°, NW–SE), the
+Rhine Graben (159.4°) and central Australia (92.5°, E–W). The comparison must
 use the SAME Gaussian weighting the smoothing does — a hard 450 km sample is a
 different quantity, and in central Australia, where the field rotates across
 the continent, it said 47° against the grid's 92° and the grid was the one
