@@ -728,10 +728,15 @@ that are ticked, remembered in `geoid-gis:event-sources` because a feed
 somebody chose is a preference, not a state. Adding a feed is an entry in
 SOURCES and nothing else.
 
-Four are there now: EONET, and the USGS summary feeds for the past day
-(M2.5+), the past week (M4.5+) and the significant month. **They overlap on
-purpose** — three windows on one catalogue — and merging is safe only because
-a USGS event carries the same id in all three; keyed by anything else, a big
+Seventeen are there now: an EONET row per category, three USGS summary feeds,
+and two tectonic layers. **All three seismicity windows — past day, past week,
+significant month — are on by default, and they overlap on purpose.** They are
+three views of one catalogue, not three catalogues; the day feed alone opens on
+a quiet map (a few dozen small earthquakes, none of the ones anybody remembers)
+which makes global seismicity look like something that barely happens. Measured
+on a first visit: **172 earthquakes with all three, 32 with the day feed
+alone.** Merging is safe only because a USGS event carries the same id in all
+three; keyed by anything else, a big
 earthquake yesterday draws three markers on one epicentre and is counted three
 times. Verified live: `access-control-allow-origin: *`, coordinates
 `[lon, lat, depthKm]`, `properties.time` in epoch **milliseconds**.
@@ -750,7 +755,13 @@ the panel of feeds you entered it to use.
 **Seventeen tick boxes in one column is a list to be read; seven named
 subsections is a thing to be used.** `FEED_GROUPS` — Seismicity, Tectonic
 structure, Volcanic activity, Wildfires, Ice and snow, Storms and water, Land
-and climate — each folds and carries a **master toggle with three states**:
+and climate — is a **`gis-tool-section`**, the same card every other tool in
+that column already is, so its padding, type, accent and filled-when-open
+header come from the theme rather than from rules of its own (measured
+identical: 11.2/12.48 px padding, 12.16 px Exo 2, dark ink on `#ff2bd6` open,
+near-white closed). The first version invented hairline rows and read as
+something bolted on beside them. Each carries a **master toggle with three
+states**:
 `groupState()` returns `indeterminate` for a partial group, because a box
 showing "off" over two-of-five-on says something false about the map, and
 pressing anything short of all-on turns the group on. A group's press moves
