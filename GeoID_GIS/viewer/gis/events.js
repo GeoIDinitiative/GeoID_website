@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity,
   activeGroups, sourcesInGroup, groupState, defaultEnabled,
-} from "./event-sources.js?v=20260825-3b1f093";
+} from "./event-sources.js?v=20260825-8cb95ab";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -227,33 +227,6 @@ function rememberSources() {
 }
 
 /**
- * A LAYER source is not remembered here, because the globe already knows.
- *
- * Faults and plate boundaries are ordinary catalogue layers: they have a row
- * in the layer box, an eye, an opacity and a place in the draw order, and they
- * can be taken off from there. A second record of whether they are on is a
- * second answer to one question, and the two drift the first time somebody
- * removes the layer from the box — the tick here would still say yes. So the
- * tick READS the globe.
- */
-const layerOn = (src) => Boolean(window.GeoIDGlobalData?.layerForDataset?.(src.dataset));
-
-async function setLayerSource(src, on) {
-  const data = window.GeoIDGlobalData;
-  if (!data) return;
-  if (on) {
-    if (layerOn(src)) return;
-    status(`Fetching ${src.label}…`);
-    const out = await data.addDataset(src.dataset, () => {});
-    status(out?.ok ? `${src.label} added. ${src.licence}.` : (out?.message || "Could not add it."));
-  } else {
-    const layer = data.layerForDataset(src.dataset);
-    if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
-  }
-  renderFeeds();
-}
-
-/**
  * One refetch for a burst of ticks.
  *
  * A group's master toggle turns five rows on, and each of those is a change:
@@ -273,10 +246,6 @@ function refetchSoon() {
 export function setSourceEnabled(id, on) {
   const src = sourceById(id);
   if (!src) return;
-  if (src.kind === "layer") {
-    void setLayerSource(src, on);
-    return;
-  }
   if (on) enabled.add(id); else enabled.delete(id);
   rememberSources();
   renderFeeds();
@@ -288,22 +257,16 @@ export function setSourceEnabled(id, on) {
 
 /** Every row in a subsection at once, with one fetch at the end of it. */
 export function setGroupEnabled(groupId, on) {
-  const rows = sourcesInGroup(groupId);
-  rows.filter((src) => src.kind !== "layer").forEach((src) => {
+  sourcesInGroup(groupId).forEach((src) => {
     if (on) enabled.add(src.id); else enabled.delete(src.id);
   });
   rememberSources();
-  rows.filter((src) => src.kind === "layer").forEach((src) => { void setLayerSource(src, on); });
   renderFeeds();
-  if (on && !active && rows.some((src) => src.kind !== "layer")) { void setActive(true); return; }
-  if (rows.some((src) => src.kind !== "layer")) refetchSoon();
+  if (on && !active) { void setActive(true); return; }
+  refetchSoon();
 }
 
-export const isSourceEnabled = (id) => {
-  const src = sourceById(id);
-  if (!src) return false;
-  return src.kind === "layer" ? layerOn(src) : enabled.has(src.id);
-};
+export const isSourceEnabled = (id) => enabled.has(id);
 
 let active = false;
 let events = [];
@@ -494,17 +457,19 @@ function sourcesBlock() {
     ${activeGroups().map((group) => {
     const state = groupState(group.id, isSourceEnabled);
     const rows = sourcesInGroup(group.id).map((src) => {
-      const symbol = src.colour ? { colour: src.colour } : symbolFor(src.category);
+      const symbol = symbolFor(src.category);
       return `<label class="event-source" title="${src.note} — ${src.licence}">
           <input type="checkbox" data-feed="${src.id}"${isSourceEnabled(src.id) ? " checked" : ""}>
           <span class="event-glyph" style="color:${symbol.colour}">●</span>
           <span class="event-source-name">${src.label}</span>
         </label>`;
     }).join("");
-    // Open when something in it is on, so arriving shows what is being drawn
-    // and folds away what is not -- and `openGroups` keeps whatever was
-    // opened by hand, because the list is redrawn on every change.
-    const open = openGroups.has(group.id) ? openGroups.get(group.id) : !state.none;
+    // Folded on arrival, all of them. Six open cards is a column of forty tick
+    // boxes and the tab reads as a wall; folded it reads as six subjects, and
+    // the master toggle beside each is enough to work with without opening one
+    // at all. `openGroups` keeps whatever was opened by hand, because the list
+    // is redrawn on every change.
+    const open = openGroups.get(group.id) === true;
     return `<details class="gis-tool-section event-feed-group"${open ? " open" : ""}
         data-group="${group.id}">
         <summary title="${group.note}">
@@ -1343,10 +1308,6 @@ function init() {
     window.requestAnimationFrame(placeOverlay);
   });
   window.addEventListener("resize", placeOverlay);
-  // The fault and plate rows read the globe rather than a stored preference,
-  // so whoever takes that layer off -- this list, the layer box, the Vectors
-  // tab -- the tick follows.
-  window.GeoIDImportManager?.onChange?.(renderFeeds);
   // Escape drops the selection, the way it dismisses the other overlays.
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !byId("event-popup")?.hidden) hidePopup();

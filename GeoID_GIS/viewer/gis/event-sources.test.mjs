@@ -50,16 +50,16 @@ check("every group carries a label and a note",
   FEED_GROUPS.filter((g) => g.label && g.note).length, FEED_GROUPS.length);
 ok("seismicity holds the three USGS windows",
   sourcesInGroup("seismic").filter((s) => s.kind === "usgs").length === 3);
-ok("the fault lines are a layer, not an event feed",
-  sourceById("faults")?.kind === "layer" && sourceById("faults")?.dataset === "active-faults");
-ok("so are the plate boundaries",
-  sourceById("plates")?.kind === "layer" && sourceById("plates")?.dataset === "plate-boundaries");
-// A layer source must NOT be a default: it is a fetch of somebody else's file
-// and a row in the layer box, which is a decision rather than a background.
-check("no layer source is on by default",
-  SOURCES.filter((s) => s.kind === "layer" && s.defaultOn).length, 0);
-check("every eonet source names a category",
-  SOURCES.filter((s) => s.kind === "eonet" && !s.category).length, 0);
+// Everything here HAPPENED, with a time and a place. Faults and plate
+// boundaries were briefly rows in this list; they are permanent features of
+// the ground, so they are vector layers like a coastline is, and they live in
+// global-data.js under Tectonics with every other one.
+check("nothing here is a standing feature rather than an event",
+  SOURCES.filter((s) => !["eonet", "usgs"].includes(s.kind)).length, 0);
+check("faults are not offered as a feed", sourceById("faults"), null);
+check("nor are plate boundaries", sourceById("plates"), null);
+check("every source names a category to colour and group by",
+  SOURCES.filter((s) => !s.category).length, 0);
 // EONET's own earthquakes category is empty almost always and would double
 // every USGS event that it did carry, under a different id.
 check("EONET earthquakes is not offered beside the USGS feeds",

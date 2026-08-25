@@ -10,20 +10,23 @@
  *
  * So a source is a row you switch on, and the rows are **grouped by subject**
  * — seismicity, fire, ice, storms — because that is how somebody arrives at
- * them. Seventeen tick boxes in one column is a list to be read; six named
+ * them. Fifteen tick boxes in one column is a list to be read; six named
  * subsections with a master toggle each is a thing to be used, and it is the
  * same shape the Geology tab uses for the same reason.
  *
- * Three kinds of source, and the difference matters downstream:
+ * Two kinds of source:
  *
  *   eonet   one EONET category, fetched per category (see `events.js` for why
  *           one request cannot show the world)
  *   usgs    a fixed USGS summary feed, converted by `usgsPoints`
- *   layer   NOT an event at all — a catalogue layer from `global-data.js`.
- *           Faults are here because seismicity is read against them: a week of
- *           earthquakes is a scatter until the faults are underneath it. It is
- *           an ordinary layer with its own row in the layer box, so its tick
- *           follows the globe rather than a stored preference.
+ *
+ * **Everything here is something that HAPPENED**, with a time and a place. The
+ * faults and plate boundaries were briefly rows in this list, on the reasoning
+ * that seismicity is read against them — true, and not a reason to file them
+ * here. A fault is a permanent feature of the ground, so it is a vector layer
+ * like a coastline is, and it already lives in `global-data.js` under
+ * Tectonics, offered from Data · Vectors & Shapes with every other one. A
+ * second doorway to the same dataset is a second thing to keep in step.
  *
  * `usgsPoints` is pure and tested: the conversions are where a feed's own
  * conventions bite — USGS puts depth in the third coordinate and magnitude in
@@ -37,13 +40,10 @@ const USGS_SUMMARY = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary"
 /**
  * The subsections, in the order they are drawn.
  *
- * Seismicity first because it is the one most people come for, and structure
- * last because it is context for everything above it rather than a subject of
- * its own.
+ * Seismicity first because it is the one most people come for.
  */
 export const FEED_GROUPS = [
   { id: "seismic", label: "Seismicity", note: "where the ground moved, and how hard" },
-  { id: "structure", label: "Tectonic structure", note: "the faults and plate edges it moved on" },
   { id: "volcanic", label: "Volcanic activity", note: "eruptions and unrest reported now" },
   { id: "fire", label: "Wildfires", note: "open fire incidents worldwide" },
   { id: "ice", label: "Ice and snow", note: "icebergs, sea and lake ice, snow events" },
@@ -109,28 +109,6 @@ export const SOURCES = [
     defaultOn: true,
   },
 
-  /* ── structure ────────────────────────────────────────────────────────── */
-  {
-    id: "faults",
-    kind: "layer",
-    dataset: "active-faults",
-    group: "structure",
-    label: "Active faults — global (GEM)",
-    note: "13,696 faults with slip type, rate and dip where known — the lines "
-      + "the earthquakes above are on",
-    licence: "GEM Global Active Faults — CC BY-SA 4.0",
-    colour: "#ff8a5c",
-  },
-  {
-    id: "plates",
-    kind: "layer",
-    dataset: "plate-boundaries",
-    group: "structure",
-    label: "Plate boundaries (Bird 2003)",
-    note: "241 boundary segments, named by the two plates they separate",
-    licence: "Bird (2003), PB2002 — cite the paper",
-    colour: "#52e4e8",
-  },
 
   /* ── the EONET categories ─────────────────────────────────────────────── */
   eonet("volcanoes", "volcanic", "Volcanic activity (EONET)",

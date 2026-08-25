@@ -728,8 +728,8 @@ that are ticked, remembered in `geoid-gis:event-sources` because a feed
 somebody chose is a preference, not a state. Adding a feed is an entry in
 SOURCES and nothing else.
 
-Seventeen are there now: an EONET row per category, three USGS summary feeds,
-and two tectonic layers. **All three seismicity windows — past day, past week,
+Fifteen are there now: an EONET row per category and three USGS summary
+feeds. **All three seismicity windows — past day, past week,
 significant month — are on by default, and they overlap on purpose.** They are
 three views of one catalogue, not three catalogues; the day feed alone opens on
 a quiet map (a few dozen small earthquakes, none of the ones anybody remembers)
@@ -753,9 +753,9 @@ a click on it is also a click on the summary, so entering the mode folded away
 the panel of feeds you entered it to use.
 
 **Seventeen tick boxes in one column is a list to be read; seven named
-subsections is a thing to be used.** `FEED_GROUPS` — Seismicity, Tectonic
-structure, Volcanic activity, Wildfires, Ice and snow, Storms and water, Land
-and climate — is a **`gis-tool-section`**, the same card every other tool in
+subsections is a thing to be used.** `FEED_GROUPS` — Seismicity, Volcanic
+activity, Wildfires, Ice and snow, Storms and water, Land and climate — is a
+**`gis-tool-section`**, the same card every other tool in
 that column already is, so its padding, type, accent and filled-when-open
 header come from the theme rather than from rules of its own (measured
 identical: 11.2/12.48 px padding, 12.16 px Exo 2, dark ink on `#ff2bd6` open,
@@ -769,6 +769,12 @@ pressing anything short of all-on turns the group on. A group's press moves
 five rows, so `refetchSoon()` debounces to **one** fetch round — measured, 11
 category requests and 1 USGS for a five-row press, not five passes.
 
+**Every subsection arrives FOLDED.** Six open cards is a column of forty tick
+boxes and the tab reads as a wall; folded it reads as six subjects, and the
+master toggle beside each name is enough to work with without opening one at
+all. Opening one on the grounds that something in it is on — the first
+version's rule — meant arriving with five of the six open, which is the wall.
+
 **Which subsections are folded open is kept in a module Map**, not on the
 element: the list is rebuilt on every tick and every refresh, so DOM-held state
 springs shut under somebody working down it. Same reason the catalogue dropdown
@@ -781,15 +787,14 @@ nearly always empty (EONET curates by hand, the USGS publishes within the
 minute) and where it did carry one it would double a USGS event under a
 different id.
 
-**Faults and plate boundaries are `kind: "layer"` sources, and their tick reads
-the GLOBE.** They are not events — they are the lines seismicity is read
-against, which is why they belong in this tab — and they arrive through
-`global-data.js` as ordinary catalogue layers with a row in the layer box, an
-eye and an opacity. A second record of whether they are on would be a second
-answer to one question, and the two drift the moment somebody removes the layer
-from the box; `layerOn()` asks `layerForDataset` instead. Verified both ways:
-ticking here loads 13,696 GEM faults and 241 plate segments, and removing the
-layer from the box turns the tick off.
+**Everything in this list HAPPENED**, with a time and a place. Faults and plate
+boundaries were briefly rows in it, on the reasoning that seismicity is read
+against them — true, and not a reason to file them here: a fault is a permanent
+feature of the ground, so it is a vector layer the way a coastline is. They
+were already in `global-data.js` under Tectonics and offered from Data ·
+Vectors & Shapes, so the Events rows were a second doorway to the same dataset
+and a second thing to keep in step. The `kind: "layer"` machinery went with
+them rather than being left behind unused.
 
 **Ticking a feed arms the mode.** A control that fills a list nobody has opened
 is a control that appears to do nothing.
