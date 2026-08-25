@@ -1,6 +1,6 @@
-import { registerPage } from "../stages.js?v=20260825-db3d262";
-import * as store from "../project-store.js?v=20260825-db3d262";
-import { needProject } from "./common.js?v=20260825-db3d262";
+import { registerPage } from "../stages.js?v=20260825-3b1f093";
+import * as store from "../project-store.js?v=20260825-3b1f093";
+import { needProject } from "./common.js?v=20260825-3b1f093";
 
 /**
  * FEM: Setup, Properties and IC/BC.

@@ -811,6 +811,15 @@ ask for; and a `<button>` centres its text, so with the label span at `flex: 1`
 the folded headers read centred while the open one read from the left, in a
 column that is otherwise perfectly aligned.
 
+**A default scrollbar is the brightest thing on a dark legend**, and there are
+two of them here — the panel's own and the open category's. Both are given the
+panel's cyan, twice over: **Chrome 121+ ignores the `::-webkit-scrollbar`
+pseudo-elements entirely on any element that also sets `scrollbar-width` or
+`scrollbar-color`**, so the standard properties carry modern Chrome and Firefox
+while the pseudos carry Safari and older Chrome, and the two are given matching
+colours so it does not matter which answers. Verified on Chrome 148: computed
+`scrollbar-color: rgba(82, 228, 232, 0.38) transparent` on both.
+
 **Magnitude is logarithmic and a marker is not.** A `PointsMaterial` has one
 size for the whole cloud, so seismicity is split into magnitude bands — one
 cloud each, `magnitudeSize` for the scale, which `trackScale` multiplies

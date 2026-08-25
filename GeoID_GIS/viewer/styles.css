@@ -4671,6 +4671,38 @@ canvas {
       overscroll-behavior: contain;
       padding-right: 0.15rem;
     }
+
+    /* ── The scrollbars, in the panel's own colours ─────────────────────────── */
+    /* A default scrollbar is a white-and-grey platform control, and on a dark
+       translucent legend it is the brightest thing on screen -- brighter than the
+       data it sits beside. Two mechanisms, deliberately, because Chrome 121+
+       IGNORES the ::-webkit-scrollbar pseudo-elements entirely on any element that
+       also sets `scrollbar-width`/`scrollbar-color`: the standard properties carry
+       newer Chrome and Firefox, the pseudos carry Safari and older Chrome, and the
+       two are given matching colours so it does not matter which one answers. */
+    .map-legend-panel,
+    .event-group-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+    }
+    .map-legend-panel::-webkit-scrollbar,
+    .event-group-scroll::-webkit-scrollbar { width: 0.55rem; }
+    .map-legend-panel::-webkit-scrollbar-track,
+    .event-group-scroll::-webkit-scrollbar-track { background: transparent; }
+    .map-legend-panel::-webkit-scrollbar-thumb,
+    .event-group-scroll::-webkit-scrollbar-thumb {
+      background: rgba(82, 228, 232, 0.38);
+      border-radius: 999px;
+      /* The transparent border plus padding-box is what keeps the thumb clear of
+         the panel edge without a track drawn behind it. */
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    .map-legend-panel::-webkit-scrollbar-thumb:hover,
+    .event-group-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(82, 228, 232, 0.62);
+      background-clip: padding-box;
+    }
     .event-group-more {
       display: block;
       width: 100%;

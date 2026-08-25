@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity,
   activeGroups, sourcesInGroup, groupState, defaultEnabled,
-} from "./event-sources.js?v=20260825-db3d262";
+} from "./event-sources.js?v=20260825-3b1f093";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
