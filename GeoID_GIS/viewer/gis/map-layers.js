@@ -20,7 +20,7 @@
  * the viewer already shipped and could only ever show alone.
  */
 
-import { drape } from "./gee.js?v=20260825-17061aa";
+import { drape } from "./gee.js?v=20260825-9741868";
 
 // In the shape the drape and the layer record both read: this app says
 // west/south/east/north in most places and Earth Engine answers
@@ -36,6 +36,24 @@ const GLOBAL_BOUNDS = { minX: -180, maxX: 180, minY: -90, maxY: 90 };
 const GLOBAL_SEGMENTS = 180;
 
 export const MAP_LAYERS = [
+  {
+    id: "stress-raster",
+    group: "Stress and tectonics",
+    label: "Stress field (World Stress Map)",
+    path: "/data/global/stress-raster.png",
+    summary: "The World Stress Map interpolated onto a 300 km mesh and painted by "
+      + "faulting regime. Deliberately coarse: 300 km is about the scale over which "
+      + "the stress field stays coherent, and the cells are left visible so the "
+      + "resolution of the interpolation can be seen rather than smoothed away.",
+    licence: "World Stress Map 2016 (Heidbach et al.) — CC BY 4.0",
+    opacity: 0.8,
+    legend: [
+      { label: "Normal faulting (extension)", colour: "#e2444a" },
+      { label: "Strike-slip", colour: "#3aa03a" },
+      { label: "Thrust faulting (shortening)", colour: "#3a6bd6" },
+      { label: "Undetermined", colour: "#96969e" },
+    ],
+  },
   {
     id: "map-hillshade",
     group: "Terrain",
@@ -77,7 +95,7 @@ export const MAP_LAYERS = [
   },
 ];
 
-export const GROUPS = ["Terrain", "Imagery"];
+export const GROUPS = ["Stress and tectonics", "Terrain", "Imagery"];
 
 export const layerById = (id) => MAP_LAYERS.find((entry) => entry.id === id) || null;
 
@@ -148,6 +166,18 @@ export async function addMapLayer(id, onStatus = () => {}) {
     window.GeoIDLayerHierarchy?.setOpacity?.(layer, entry.opacity ?? 1);
     layer.mapEntryId = entry.id;
     layer.info = { source: entry.licence, summary: entry.summary };
+    // A raster has no columns to classify, so its key is declared on the entry
+    // rather than derived: without it the legend shows one swatch of whatever
+    // colour the dock picks and says nothing about what the picture means.
+    if (entry.legend?.length) {
+      layer.legendInfo = {
+        palette: entry.legend.map((k) => k.colour.replace("#", "")),
+        labels: entry.legend.map((k) => k.label),
+        categorical: true,
+        classed: true,
+        field: "Faulting regime",
+      };
+    }
     window.GeoIDLayerHierarchy?.render?.();
     const message = `${entry.label} added. ${entry.licence}.`;
     onStatus(message);

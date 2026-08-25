@@ -1,59 +1,55 @@
 #!/usr/bin/env python3
-"""Bake the World Stress Map: the records, and the field they imply.
+"""Bake the World Stress Map: the measurements, and a mesh raster from them.
 
     python3 GeoID_GIS/services/bake-stress.py [--csv wsm2016.csv]
 
-Writes two GeoJSON layers into ``data/global/``:
+Writes into ``data/global/``:
 
     stress-vectors.geojson   32,464 measurements, each an oriented bar
-    stress-grid.geojson      the interpolated field, one bar per grid node
+    stress-raster.png        the interpolated field on a low-resolution mesh
+    stress-raster.json       what that mesh is and how it was made
 
-WHY BARS AND NOT A COLOURED RASTER
-----------------------------------
-This was a raster first — a hue per orientation, smoothed and draped over the
-globe — and it was rebuilt three times before the answer turned out to be that
-the PRODUCT was wrong rather than the arithmetic. A colour-filled orientation
-map asks a reader to decode an angle from a hue, which nobody can do; across a
-whole planet it reads as a lava lamp; and it buries the thing a stress map most
-needs to show, which is where the data are and where they are not.
+THREE STEPS, IN THIS ORDER
+--------------------------
+1. **The measurements.** Every A-C record with a determined azimuth, drawn as
+   a bar lying along the SHmax it recorded and carrying its method, quality,
+   depth and faulting regime. This is the World Stress Map as the WSM
+   publishes it, and it is the evidence for everything below.
 
-The World Stress Map's own maps — the database's and the smoothed ones in
-Heidbach et al. — draw stress as **oriented bars**: a line lying along SHmax,
-coloured by the faulting regime. An orientation drawn as an orientation needs
-no key at all. So both layers here are bars:
+2. **A uniformly spaced, LOW RESOLUTION mesh.** Cells about 300 km across,
+   everywhere -- rows of constant latitude spacing, each holding as many cells
+   as fit round its own parallel, so a cell in the Arctic is the same size as
+   one on the equator. Low resolution on purpose: 300 km is roughly the scale
+   over which SHmax is coherent, and a finer mesh would be inventing structure
+   the records cannot support. Because it is coarse and uniform, the mesh is
+   VISIBLE in the picture, which is the point -- a reader can see the
+   resolution of the thing they are being shown.
 
-* the RECORDS layer is one bar per measurement, which is the map the WSM is;
-* the GRID layer is one bar per node of a uniformly spaced global grid, each
-  the distance-weighted mean of the records around it — what the published
-  smoothed maps show. It is a grid rather than a fill because a bar has to be
-  drawn somewhere, and a regular lattice is the honest choice of somewhere.
+3. **The raster.** Each cell takes the distance-weighted circular mean of the
+   records within the search radius, and is painted flat in its dominant
+   faulting regime. Cells with too little data are left transparent.
 
-Everything downstream comes free: both are ordinary vector layers, so the click
-card reads a record, the symbology dialog recolours by any column, and the
-legend, extraction and export already work on them.
+Earlier versions of this file interpolated onto a fine grid and painted a
+smooth hue field of SHmax azimuth. That asks a reader to decode an angle from
+a colour, produces a lava lamp across a planet, and hides the resolution of the
+interpolation behind a smooth gradient. A coarse mesh of flat cells says what
+it knows and, just as importantly, at what scale it knows it.
 
 WHAT THE ARITHMETIC HAS TO GET RIGHT
 ------------------------------------
-1. **SHmax is an AXIS, not a vector.** 10° and 190° are the same orientation,
-   and their arithmetic mean is 100° — exactly perpendicular to both, and a
-   perfectly plausible-looking number. Every mean here is taken on the DOUBLED
-   angle and halved back.
-
-2. **The nodes are evenly spaced on the SPHERE.** A lat/lon mesh is not: at
-   half a degree its cells are 55 km by 55 on the equator and 55 by 19 at 70°N.
-   Rows of constant latitude spacing, each holding as many nodes as fit round
-   its own parallel, keep every node the same distance from its neighbours and
-   the search radius meaning the same thing everywhere.
-
-3. **No data, no bar.** A distance-weighted mean will happily hand the middle
-   of the Pacific the nearest continent's orientation. A node with less than
-   one effective C-quality record inside the search radius gets nothing, so the
-   map is empty where the data are.
-
-4. **A mean of disagreeing records is not a measurement.** The resultant length
-   R says how much the records near a node agree. It rides on every bar as a
-   column, so it can be read, filtered and coloured by — rather than being
-   folded into an opacity nobody can measure by eye.
+* **SHmax is an AXIS.** 10 and 190 degrees are the same orientation, and their
+  arithmetic mean is 100 -- exactly perpendicular to both, and a perfectly
+  plausible-looking number. Every mean is taken on the DOUBLED angle.
+* **The cells are uniform on the SPHERE.** A lat/lon mesh is not: at half a
+  degree its cells are 55 km by 55 on the equator and 55 by 19 at 70 north.
+* **The search radius is a cutoff, and sigma is half of it.** Using the radius
+  as sigma and reaching twice it paints a cell with no record inside 450 km
+  from records between 450 and 900.
+* **No data, no cell.** Under one effective C-quality record within the radius
+  and the cell stays transparent, so the map is empty where the data are.
+* **A category cannot be averaged**, so the regime is not averaged: each class
+  is summed with the same weights and the cell takes the one with the most
+  behind it, fading where nothing clearly wins.
 
 Data: World Stress Map Database Release 2016, CC BY 4.0.
 Heidbach, O., Rajabi, M., Reiter, K., Ziegler, M., WSM Team (2016).
@@ -69,6 +65,7 @@ import sys
 import urllib.request
 
 import numpy as np
+from PIL import Image
 
 WSM_CSV = ("https://datapub.gfz-potsdam.de/download/10.5880.WSM.2016.001/"
            "wsm2016.csv")
@@ -88,10 +85,22 @@ QUALITY_WEIGHT = {"A": 4.0, "B": 3.0, "C": 2.0}
 SEARCH_KM = 450.0
 # Effective C-quality records a node needs before it gets a bar at all.
 SUPPORT_FLOOR = 1.0
-# How far apart the grid nodes sit, on the ground, everywhere. 250 km is about
-# as fine as a global field of bars can be drawn and still be read; the records
-# layer is what anybody wanting to go closer should turn on.
-NODE_KM = 250.0
+# How wide a mesh cell is, on the ground, everywhere. Low resolution on
+# purpose: 300 km is roughly the scale over which SHmax stays coherent, and a
+# finer mesh would be inventing structure the records cannot support. It is
+# also coarse enough to SEE, which is what lets a reader judge the resolution
+# of what they are looking at rather than being shown a smooth gradient.
+MESH_KM = 300.0
+
+# The WSM's own regime colours: red where the crust is pulling apart, blue
+# where it is shortening, green where it is shearing past itself. Anybody who
+# has read a stress map has read this key.
+REGIME_COLOUR = {
+    "NF": (226, 68, 74),
+    "SS": (58, 160, 58),
+    "TF": (58, 107, 214),
+    "U": (150, 150, 158),
+}
 
 REGIME_NAME = {
     "NF": "Normal faulting",
@@ -200,27 +209,35 @@ def bar(lat, lon, azimuth, half_km):
     ]
 
 
-def equal_area_nodes(spacing_km):
-    """Nodes evenly spaced on the sphere, in rows of constant latitude step.
+def equal_area_mesh(cell_km):
+    """A mesh of roughly square cells, the same size everywhere on the sphere.
 
-    A lat/lon mesh is the obvious grid and it is not evenly spaced: its cells
-    shrink toward the poles, so a global field computed on one is sampled far
-    more densely in the Arctic than in the tropics. Here each row holds as many
-    nodes as fit round its own parallel at the same spacing — 160 on the
-    equator, one at the pole — so every node has the same neighbourhood and the
-    search radius means the same thing wherever it is applied.
+    Rows of constant latitude spacing; each row holds as many cells as fit
+    round its own parallel at that same spacing — 133 on the equator, one at
+    the pole. A lat/lon mesh is the obvious alternative and its cells shrink
+    toward the poles, so the same interpolation would be sampled nine times
+    more densely in the Arctic than in the tropics.
+
+    Returns the rows, each a list of `(lat, lon)` centres, plus the latitude
+    bounds of the row — everything the raster needs to paint flat cells.
     """
     deg_km = EARTH_KM * math.pi / 180.0
-    rows = max(2, int(round(180.0 / (spacing_km / deg_km))))
+    rows = max(2, int(round(180.0 / (cell_km / deg_km))))
     d_lat = 180.0 / rows
-    lats = 90 - (np.arange(rows) + 0.5) * d_lat
-    counts = np.maximum(1, np.round(
-        np.cos(np.radians(lats)) * 360.0 / d_lat).astype(int))
-    return [
-        (float(lat), float(-180 + (i + 0.5) * (360.0 / n)))
-        for lat, n in zip(lats, counts)
-        for i in range(int(n))
-    ]
+    mesh = []
+    for r in range(rows):
+        north = 90 - r * d_lat
+        south = north - d_lat
+        lat = (north + south) / 2
+        count = max(1, int(round(math.cos(math.radians(lat)) * 360.0 / d_lat)))
+        mesh.append({
+            "lat": lat,
+            "north": north,
+            "south": south,
+            "count": count,
+            "centres": [(-180 + (i + 0.5) * (360.0 / count)) for i in range(count)],
+        })
+    return mesh
 
 
 def field_at(points, records, radius_km):
@@ -287,45 +304,68 @@ def field_at(points, records, radius_km):
     return out
 
 
-def write_grid(nodes, spacing_km, radius_km, path):
-    """The interpolated field: one bar per node, lying along the mean SHmax."""
-    # A little over a third of the spacing each way, so neighbouring bars read
-    # as a field without touching — at full spacing the lattice closes up into
-    # lines and stops looking like a set of measurements.
-    half = spacing_km * 0.36
-    features = [{
-        "type": "Feature",
-        "geometry": {
-            "type": "LineString",
-            "coordinates": bar(node["lat"], node["lon"], node["azimuth"], half),
+def paint_raster(mesh, cells, width, height, path):
+    """The mesh, painted flat, one colour per cell.
+
+    Every output pixel takes the colour of the cell it falls in — nearest, not
+    interpolated, because the point of a low-resolution mesh is that its
+    resolution is visible. A smoothed picture of a coarse interpolation claims
+    a precision the records do not have.
+    """
+    rgba = np.zeros((height, width, 4), dtype=np.uint8)
+    d_lat = 180.0 / len(mesh)
+    for y in range(height):
+        lat = 90 - (y + 0.5) * (180.0 / height)
+        row = min(len(mesh) - 1, max(0, int((90 - lat) / d_lat)))
+        count = mesh[row]["count"]
+        found = cells.get(row)
+        if not found:
+            continue
+        step = 360.0 / count
+        lons = -180 + (np.arange(width) + 0.5) * (360.0 / width)
+        columns = (np.floor((lons + 180) / step).astype(int)) % count
+        for x in range(width):
+            cell = found.get(int(columns[x]))
+            if cell is None:
+                continue
+            rgba[y, x, :3] = REGIME_COLOUR[cell["regime"]]
+            rgba[y, x, 3] = cell["alpha"]
+    Image.fromarray(rgba).save(path, optimize=True)
+    return path.stat().st_size
+
+
+def describe(mesh, cells, radius_km, drawn, path):
+    """What the mesh is, beside the picture of it."""
+    meta = {
+        "id": "stress-raster",
+        "title": "Stress field, interpolated (World Stress Map 2016)",
+        "bounds": {"west": -180, "east": 180, "south": -90, "north": 90},
+        "mesh": {
+            "cellKm": MESH_KM,
+            "rows": len(mesh),
+            "cells": sum(row["count"] for row in mesh),
+            "withData": drawn,
+            "note": ("uniform on the sphere: rows of constant latitude spacing, each "
+                     "holding as many cells as fit round its own parallel"),
         },
-        "properties": {
-            "azimuth": round(node["azimuth"], 1),
-            "regime": REGIME_NAME.get(node["regime"], node["regime"]),
-            "regime_code": node["regime"],
-            "regime_share": round(node["regime_share"], 2),
-            "agreement": round(node["resultant"], 2),
-            "records": node["records"],
-            "support": round(node["support"], 1),
+        "method": {
+            "interpolation": "distance-weighted circular mean of the doubled azimuth",
+            "searchRadiusKm": radius_km,
+            "sigmaKm": radius_km / 2,
+            "supportFloor": SUPPORT_FLOOR,
+            "colour": "dominant faulting regime, WSM colours",
+            "note": ("cells are painted flat and not smoothed, so the resolution of "
+                     "the interpolation is visible rather than hidden behind a "
+                     "gradient"),
         },
-    } for node in nodes]
-    collection = {
-        "type": "FeatureCollection",
-        "_source": dict(SOURCE, **{
-            "product": ("interpolated field: the distance-weighted circular mean of "
-                        f"the A–C records within {radius_km:.0f} km of each node"),
-            "grid": (f"equal-area nodes about {spacing_km:.0f} km apart, in rows of "
-                     "constant latitude spacing"),
-            "note": ("`azimuth` is the mean SHmax orientation and the bar lies along "
-                     "it; `agreement` is the resultant length of the records behind "
-                     "it — 1 where they all point the same way, 0 where they cancel; "
-                     "`support` is how many C-quality records that is worth. A node "
-                     "with less than one is not drawn at all."),
-        }),
-        "features": features,
+        "legend": [
+            {"code": key, "label": REGIME_NAME[key],
+             "colour": "#%02x%02x%02x" % REGIME_COLOUR[key]}
+            for key in REGIME_KEYS
+        ],
+        "source": SOURCE,
     }
-    path.write_text(json.dumps(collection, separators=(",", ":")), encoding="utf-8")
-    return len(features)
+    path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
 def write_records(records, path, half_km=30.0):
@@ -430,8 +470,10 @@ def main():
     parser.add_argument("--csv", default=None, help="wsm2016.csv (downloaded if absent)")
     parser.add_argument("--radius", type=float, default=SEARCH_KM,
                         help="search radius in km; records beyond it are not used")
-    parser.add_argument("--spacing", type=float, default=NODE_KM,
-                        help="node spacing of the equal-area grid, km")
+    parser.add_argument("--cell", type=float, default=MESH_KM,
+                        help="mesh cell size in km")
+    parser.add_argument("--width", type=int, default=1440,
+                        help="raster width in pixels (height is half)")
     args = parser.parse_args()
 
     # NOT into the data directory: that folder is published, and the 9 MB
@@ -446,22 +488,46 @@ def main():
     records = load(path)
     if not records:
         sys.exit("no usable records — is that the WSM 2016 csv?")
-    print(f"{len(records)} A–C records with an SHmax azimuth")
-
+    print(f"1. {len(records)} A–C records with an SHmax azimuth")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    points = equal_area_nodes(args.spacing)
-    print(f"{len(points)} nodes about {args.spacing:.0f} km apart; "
-          f"searching {args.radius:.0f} km around each")
-    nodes = field_at(points, records, args.radius)
-    written = write_grid(nodes, args.spacing, args.radius, OUT_DIR / "stress-grid.geojson")
-    size = (OUT_DIR / "stress-grid.geojson").stat().st_size / 1024
-    print(f"wrote stress-grid.geojson — {written} of {len(points)} nodes carry data "
-          f"({100 * written / len(points):.0f}%), {size:.0f} KB")
 
     count = write_records(records, OUT_DIR / "stress-vectors.geojson")
     size = (OUT_DIR / "stress-vectors.geojson").stat().st_size / 1024 / 1024
-    print(f"wrote stress-vectors.geojson — {count} measurements, {size:.1f} MB")
+    print(f"   wrote stress-vectors.geojson — {count} bars, {size:.1f} MB")
+
+    mesh = equal_area_mesh(args.cell)
+    total = sum(row["count"] for row in mesh)
+    print(f"2. mesh of {total} cells about {args.cell:.0f} km across "
+          f"({len(mesh)} rows, {mesh[len(mesh) // 2]['count']} on the equator)")
+
+    print(f"3. interpolating, {args.radius:.0f} km search radius")
+    cells = {}
+    drawn = 0
+    for r, row in enumerate(mesh):
+        points = [(row["lat"], lon) for lon in row["centres"]]
+        found = field_at(points, records, args.radius)
+        by_lon = {}
+        for cell in found:
+            column = int(round((cell["lon"] + 180) / (360.0 / row["count"]) - 0.5))
+            # How clearly the regime won, times how much data said so: a cell
+            # where 40% of the weight is thrust and 35% strike-slip has not
+            # chosen, and must not be painted as though it had.
+            decisive = min(1.0, max(0.0, (cell["regime_share"] - 0.34) / 0.5))
+            support = min(1.0, cell["support"] / 3.0)
+            by_lon[column % row["count"]] = {
+                "regime": cell["regime"],
+                "alpha": int(round(min(0.9, max(0.15, decisive * support * 0.9)) * 255)),
+            }
+        if by_lon:
+            cells[r] = by_lon
+            drawn += len(by_lon)
+    print(f"   {drawn} of {total} cells carry data ({100 * drawn / total:.0f}%)")
+
+    height = args.width // 2
+    size = paint_raster(mesh, cells, args.width, height, OUT_DIR / "stress-raster.png")
+    print(f"   wrote stress-raster.png — {args.width}x{height}, {size / 1024:.0f} KB")
+    describe(mesh, cells, args.radius, drawn, OUT_DIR / "stress-raster.json")
+    print(f"   wrote stress-raster.json")
 
     check(records, args.radius)
 
