@@ -498,258 +498,91 @@ Rebuild cost, measured as the longest gap between animation frames on the
 software renderer: 524 ms for the 7,929-polygon world build, 326 ms for a
 view-sized refine against a 246 ms idle median — a refine is not a freeze.
 
-## The World Stress Map, as a field rather than as points
+## The World Stress Map: bars, not a coloured raster
 
-`services/bake-stress.py` → `data/global/stress-shmax.png` (0.5°, 297 KB) plus
-a JSON stating the method. The WSM is 42,870 point measurements of SHmax
-orientation; drawn as points it is forty thousand tick marks, and the field
-between them is both what people want and what the WSM's own publications
-show. Baked rather than fetched, like the volcanoes: the source is a 9 MB CSV
-from GFZ, **CC BY 4.0**, cached under `services/.cache/` which is gitignored —
-the data directory is published and has no business serving the source of a
-raster baked from it.
+**The product was wrong three rebuilds before the arithmetic was.** This
+shipped as an interpolated raster — a hue per SHmax orientation, smoothed,
+draped on the globe — and was reported broken three times running. Each report
+was answered by fixing the interpolation, and the interpolation did have real
+faults (below), but none of them was the reason it looked wrong. A
+colour-filled orientation map asks a reader to decode an ANGLE FROM A HUE,
+which nobody can do; across a whole planet it reads as a lava lamp; and it
+buries the thing a stress map most needs to show, which is where the data are
+and where they are not.
 
-Three rules in that script, and each one fails silently:
+The World Stress Map's own maps — the database's and the smoothed ones in
+Heidbach et al. — draw stress as **oriented bars**: a line lying along SHmax,
+coloured by the faulting regime. An orientation drawn as an orientation needs
+no key at all. So `services/bake-stress.py` now writes two VECTOR layers, both
+in Data · Vectors & Shapes beside every other vector:
 
-- **SHmax is an AXIS.** 10° and 190° are the same orientation, and averaging
-  them arithmetically gives 100° — exactly perpendicular to both, and a
-  perfectly plausible number. Every mean is taken on the DOUBLED angle and
-  halved. There is no shortcut round this and no way to see it is wrong from
-  the picture.
-- **No data, no field.** A distance-weighted mean will happily return the
-  nearest continent's stress direction for the middle of the Pacific. A cell
-  that cannot see one effective C-quality measurement within the radius is
-  written transparent, so the map has holes where the data have holes.
-- **Opacity is agreement TIMES support.** The resultant length says how well
-  the records in a cell agree — but one record agrees with itself perfectly,
-  so agreement alone painted a lone oceanic focal mechanism as solidly as the
-  San Andreas, where six hundred sit within the radius. Measured: the South
-  Pacific gyre came out at California's opacity.
+| layer | what it is |
+| --- | --- |
+| `stress-vectors.geojson` | 32,464 measurements, one 60 km bar each — the map the WSM *is* (9 MB raw, **0.9 MB gzipped**) |
+| `stress-grid.geojson` | the interpolated field: one bar per node of a 250 km equal-area global grid, 4,079 of 8,146 nodes carrying data (974 KB) |
 
-**The search radius is the CUTOFF, and sigma is half of it.** Using the radius
-as sigma and reaching twice it means a cell with no record inside 450 km is
-painted from records between 450 and 900 — measured at 20°N 40°W in the north
-Atlantic, an effective 33 records where the honest answer is none. With
-`sigma = radius/2` and the cut at the radius, "within 450 km" is what the layer
-claims and what it did, coverage falls from **58% of the globe to 40%**, and
-the ocean gyres go empty because they are.
+Everything downstream came free, which is the argument for the shape: they are
+ordinary vector layers, so the click card, the symbology dialog, the legend,
+extraction and export already worked on them. The raster, its four baked
+variants and the variant-picker machinery in `symbology-dialog.js` are all
+gone — the layer is recoloured by any column now, like anything else.
 
-**Four pictures, THREE masks.** One mask for all of them is wrong in two
-directions at once, and both were shipped:
+### What the arithmetic has to get right
 
-- the **agreement** map exists to show the cells where records disagree, and
-  was hiding exactly those;
-- the **density** map answers "is there data here", which does not depend on
-  whether the data concur — so the orientation's agreement floor put a hole in
-  the middle of **Australia** on a map of how much data there is, where what
-  Australia has is plenty of records and a field that rotates across the
-  continent;
-- the **regime** map was masked by the orientation's resultant too, which put a
-  hole over every **trench**: a subduction zone scatters SHmax (the Japan
-  trench measures R = 0.30) while agreeing perfectly about the regime — 60%
-  thrust, the least surprising fact in seismology.
+Kept from the raster attempts, because each of these was a real fault and each
+one fails silently:
 
-**The regime map has its own check, against the raw records** — the same
-weighting done twice must agree — plus an expectation from the literature:
-**8 of 8**, with the grid within two percentage points of the records at every
-one (East African rift NF 80/79, Basin and Range NF 77/78, San Andreas SS
-53/51, western Himalaya TF 59/59, Sumatra TF 72/71). **Two of the references
-were wrong before the map was**: 39°N 117°W was filed as Basin and Range
-extension and is in the Walker Lane, where the records are 62% strike-slip, and
-28°N 85°E was filed as the Himalayan thrust front and is in southern Tibet,
-which extends. A check that disagrees with the data is a claim about the
-checker until it has been measured.
+- **SHmax is an AXIS.** 10° and 190° are the same orientation and their
+  arithmetic mean is 100° — exactly perpendicular to both, and a perfectly
+  plausible number. Every mean is taken on the doubled angle and halved back.
+- **The nodes are evenly spaced on the SPHERE.** A lat/lon mesh is not: at half
+  a degree its cells are 55 × 55 km on the equator and 55 × 19 at 70°N, so a
+  global field computed on one is sampled nine times more densely in the Arctic
+  and every confusion of a degree with a distance has somewhere to hide. Rows
+  of constant latitude spacing, each holding as many nodes as fit round its own
+  parallel, keep the search radius meaning the same thing everywhere.
+- **The search radius is the CUTOFF and sigma is half of it.** Using the radius
+  as sigma and reaching twice it painted a node with no record inside 450 km
+  from records between 450 and 900 — measured at 20°N 40°W, an effective 33
+  records where the honest answer is none.
+- **No data, no bar.** Under one effective C-quality record within the radius
+  and the node is simply not drawn, so the map is empty where the data are.
+- **A mean of disagreeing records is not a measurement**, so the resultant
+  length rides on every bar as a COLUMN (`agreement`, with `records` and
+  `support` beside it) — readable, filterable and colourable, rather than
+  folded into an opacity nobody can measure by eye.
+- **A bar's east–west half is divided by cos(lat)**, or its bearing shears
+  toward the meridian going north: a NE-trending record in Svalbard draws
+  nearly north.
 
-**The interpolation SCATTERS each record onto the sphere; it does not convolve
-the grid.** Two separable passes in lat/lon is the obvious way to smooth a grid
-and is wrong on a sphere — it shipped, and it was reported as the mapping being
-broken, which it was. Three faults, all of them visible in the picture:
+### The check is in the tool
 
-- **A truncated separable kernel has square corners.** Two 1-D passes cut at
-  ±2σ make a BOX, not a disc, so the coverage mask came out with rectangular
-  holes and rectangular islands in mid-ocean. Nothing physical has right angles
-  in it, and that is the tell.
-- **A kernel measured in degrees is not a kernel measured on the ground.**
-  Widening the longitude pass by 1/cos(lat) is the usual patch and it fails at
-  the top: by 70° the factor is three and by 85° eleven, so one Arctic record
-  was smeared right around its parallel — the pale wash over the northern
-  ocean.
-- **Normalising a widened kernel inflates what it claims to have seen.** The
-  effective-record count was scaled by the kernel's own area, so the wider the
-  smear the more data the cell said it had. Exactly backwards.
+`--csv` runs it: the field is recomputed at nine places with a published answer
+and printed against the expectation. Currently **7 of 7 regimes agree**, with
+SHmax NNE on the San Andreas (17°), N–S in the Basin and Range (9°), NNE in the
+western Himalaya (20°), NE off Sumatra (39°) and NW–SE on the North Anatolian
+fault (125°).
 
-**And the nodes it evaluates are uniformly spaced ON THE SPHERE, which a
-lat/lon mesh is not.** At 0.5° its cells are 55 km × 55 km on the equator and
-55 × 19 at 70°N, so a global interpolation on one samples the Arctic nine times
-more densely than the tropics, spends most of its work there, and gives every
-confusion of a degree with a distance somewhere to hide — which is how the
-first two versions of this went wrong. `EqualAreaGrid` lays the nodes out in
-rows at constant latitude spacing, each row holding as many cells as fit round
-its own parallel at that same spacing: **728 at the equator, 3 at the pole,
-168,702 in all, every one about 55 km across in both directions**. The picture
-is RESAMPLED from that afterwards — a texture on a globe has to be
-equirectangular whatever the maths was done on — and along a row the resampling
-is exact, because the row's cells are uniform in longitude. It must also be
-nearest-node rather than an average: an azimuth is cyclic, and averaging 179°
-with 1° gives 90°.
-
-**`np.add.at`, not `+=`.** A record near a pole reaches every node in a row, and
-buffered addition applies a repeated index once.
-
-Each record touches the nodes within the search radius, weighted by
-`exp(-d²/2σ²)` on the **real great-circle distance**, in units of C-quality
-records — so a cell's total is a number with a meaning rather than a density
-nobody can put a threshold on. Nothing is normalised by area, nothing stretches
-with latitude, and the kernel is a disc everywhere because distance is
-distance. One pass per record over its own neighbourhood rather than
-one per cell over the database: **6 s for 32,464 records**, and the check
-against the raw data lands at **0.4–1.4°** where the coverage is real.
-
-**The script checks itself** (`REFERENCES`): the interpolated field against a
-direct Gaussian-weighted circular mean of the raw records, at five places with
-a published answer. Measured: off by **0.1–0.9°** at California (13.9° vs an
-expected NNE), Honshu (117.3°, E–W), Northern Ireland (145.6°, NW–SE), the
-Rhine Graben (159.4°) and central Australia (92.5°, E–W). The comparison must
-use the SAME Gaussian weighting the smoothing does — a hard 450 km sample is a
-different quantity, and in central Australia, where the field rotates across
-the continent, it said 47° against the grid's 92° and the grid was the one
-agreeing with the literature.
-
-**The colour wheel is written twice and pinned by a test.** The bake paints
-hue = azimuth/180 and `map-layers.js` reads the same ramp back for the legend;
-two implementations of one contract in two languages is what drifts, and when
-it drifts the map is one set of colours and the key beside it another, both
-looking right. `map-layers.test.mjs` recomputes the HSV independently and
-checks the wrap: 179° and 1° are two degrees apart, so their colours must be
-neighbours.
-
-### The click card names what this app owns, and nothing else
-
-`FIELD_LABEL`/`FIELD_UNIT` in `feature-popup.js` turn `s1_mpa 48.5` into
-`S1 magnitude 48.5 MPa`. Deliberately narrow: only the columns THIS app
-generates are renamed, because inventing a friendly label for a column somebody
-else defined is how you end up mislabelling it — every other survey's field
-still shows exactly as that survey wrote it.
-
-**The labels do not assert the ranking.** By convention S1 ≥ S2 ≥ S3, and the
-obvious labels ("greatest", "intermediate", "least") would say so — but the
-WSM's published values do not always honour it: wsm00025, a Swedish mini-frac,
-carries S1 11.5, S2 5.5, S3 6.3 MPa. Whether that is a transcription in the
-original or a site-specific convention is not something this app can decide,
-and a label reading "intermediate" over a number smaller than the one below it
-is the app inventing an order the record does not have.
-
-**The row cap was cutting the rarest data.** The viewer's card shows the first
-eight fields; a stress record carries nine before its magnitudes, so the three
-numbers that make one record in a hundred and thirty worth clicking never
-appeared. They are near the front of `PREFERRED` now and the cap is ten, with
-the regime code and country pushed to the tail.
+**Two of the reference points were wrong before the map was**, and that is the
+failure mode a reference list has: 39°N 117°W was filed as Basin and Range
+extension and is in the Walker Lane, where the records are 62% strike-slip;
+35°N 138°E was filed as subduction thrust and is the Izu collision zone, which
+the records call strike-slip. Both now point at places that mean what they say.
+A check that disagrees with the data is a claim about the checker until it has
+been measured.
 
 ### Stress is a TENSOR, and what that means for what can be mapped
 
-Worth writing down because it decides the whole shape of these two layers.
-Stress is not a force — a force is a vector in newtons; stress is force per
-unit area and a second-rank tensor, three principal magnitudes with three
-orientations. What can be measured almost anywhere is the ORIENTATION of the
-maximum horizontal component and the REGIME (which principal stress is
-vertical). Magnitudes need an in-situ test in a borehole, and the database
-shows it: **249 of 32,464 A–C records carry an S1 magnitude — under 1%** —
-against 32,464 carrying a regime and an azimuth.
-
-So the raster maps orientation, because that is the field that exists; the
-regime lives on the vectors, where it is a fact about one measurement rather
-than something interpolated; and the magnitudes are carried on the few hundred
-records that have them and are simply ABSENT elsewhere, because a placeholder
-in a numeric column is a number somebody will average.
-
-### One field, four maps, behind the symbology button
-
-**An orientation rainbow is the obvious map of the WSM and the least useful one
-to arrive at.** It says which way SHmax points and cannot say what that does to
-the crust — the same NNE compression is a rift or a thrust belt depending on
-which principal stress is vertical — and it does not say whether there is any
-data underneath it, which over an ocean is the first thing worth knowing. It
-was reported, fairly, as the mapping looking broken.
-
-So the raster is baked four ways and the choice is the layer's SYMBOLOGY, not
-four entries in the catalogue — four entries would be four layers somebody
-could switch on at once, stacked on the same ground:
-
-| variant | what it answers |
-| --- | --- |
-| **Faulting regime** (default) | what the stress is doing — the WSM's own red/green/blue |
-| SHmax orientation | which way it points, hue cyclic over 180° |
-| Agreement between records | do the measurements in a cell point the same way |
-| How much data | effective records within the radius, log scale — the map OF the map |
-
-**The orientation ramp is four muted stops, not a hue wheel.** Full-chroma HSV
-round 180° is the obvious mapping for a cyclic quantity and it produced a lava
-lamp: every orientation shouting at maximum saturation, the basemap gone
-underneath, and a picture that reads as noise. The stops still WRAP — the first
-and the last are the same colour, because 179° and 1° are two degrees apart —
-but nothing is saturated and nothing is near black or white, so no orientation
-is louder than another and none of them looks like an absence of data. The JS
-legend carries the same stop list and the test recomputes it independently.
-
-**A category cannot be averaged, so nothing averages it.** The regime map
-accumulates each class on its own grid, smooths each one with the same kernel —
-what is interpolated is a DENSITY, which is a number — and takes the argmax per
-cell. The mixed classes (NS, TS) count half to each of the pair they name, or
-they would be a fourth colour on a three-colour key. And where the winner takes
-only 40% against 35% for the runner-up nothing has been chosen, so the cell
-fades rather than being painted as though it had.
-
-**Registration was checked before any of this was changed**, because "broken"
-usually means misplaced: projecting known coordinates and reading the
-framebuffer in the same task as a render (a deferred `readPixels` returns
-black) gave California `#fa8729` in the PNG and `#7e5128` on the globe, the
-Amazon `#3afaca`/`#215d4c`, eastern Canada `#3efa46`/`#184e1a` — the same hue
-each time, darkened by blending. It was placed correctly and read badly.
-
-That measurement did find the dimming, though: **the layer was at 0.7 opacity
-over a raster that already carries its own alpha**, so the two multiplied and a
-well-constrained region came out at 40% of its colour — the map went faint
-exactly where it was most confident. These layers are opacity 1 now and the
-alpha channel does the fading it was baked to do.
-
-`setMapVariant` swaps the texture on the existing material rather than
-rebuilding: the mesh is 32,761 vertices, and a rebuild would throw away the
-layer's place in the stack, its opacity and its row. The old texture is
-disposed explicitly, because a GPU texture is not freed by dropping the
-reference — and the LEGEND is rebuilt with it, since a variant is a different
-quantity and the old key would describe the picture before last.
-
-### The measurements themselves, annotated
-
-`data/global/stress-vectors.geojson` (9.1 MB raw, **0.9 MB gzipped**, which is
-what a browser actually fetches) is every A–C record as a **60 km LineString
-centred on its site and oriented along SHmax** — the symbol every stress map
-has used for fifty years, and drawn as a line it needs no new rendering: the
-layer that draws a coastline draws this. Clicking one gives the record —
-azimuth, regime, quality class, method, depth, country, the WSM id, and the
-principal magnitudes where they exist.
-
-Two details in the geometry. The east–west half of each tick is divided by
-**cos(lat)** or the bearing shears toward the meridian as it goes north — a
-NE-trending measurement in Svalbard would be drawn nearly north. And the ticks
-are one LENGTH: the WSM's own maps scale the symbol by quality, but forty
-thousand segments at four lengths is a texture rather than a map, so quality is
-a column to colour or filter by instead.
-
-**Coloured by regime, not by azimuth.** Colour by orientation and the map is a
-rainbow of directions restating the geometry already on screen; colour by
-regime and it says what the ground is doing — normal where the vertical stress
-is greatest and the crust is pulling apart, thrust where it is least and the
-crust is shortening, strike-slip in between. Verified over Anatolia: orange
-strike-slip along the North Anatolian Fault, green normal faulting through the
-Aegean, which is the tectonics that region is known for.
-
-**Both products live in the repo's own `data/global/`**, with every other
-shipped global dataset, and are addressed as `/data/global/…` — the same
-site-root convention `global-data.js` uses. They were briefly written under
-`GeoID_GIS/viewer/data/`, which worked only because the module resolving them
-happened to sit near them; two homes for shipped data is one more than anybody
-can keep in step.
+Worth writing down because it decides the shape of both layers. Stress is not a
+force — a force is a vector in newtons; stress is force per unit area and a
+second-rank tensor, three principal magnitudes with three orientations. What
+can be measured almost anywhere is the ORIENTATION of the maximum horizontal
+component and the REGIME (which principal stress is vertical). Magnitudes need
+an in-situ test in a borehole, and the database shows it: **249 of 32,464 A–C
+records carry an S1 magnitude — under 1%** — against 32,464 carrying a regime
+and an azimuth. So the bars carry orientation and regime, and the magnitudes
+ride on the few hundred records that have them and are simply ABSENT
+elsewhere: a placeholder in a numeric column is a number somebody will average.
 
 ## Basemap and Relief is ONE list
 

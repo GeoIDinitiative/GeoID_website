@@ -20,7 +20,7 @@
  * the viewer already shipped and could only ever show alone.
  */
 
-import { drape } from "./gee.js?v=20260825-c9c70e4";
+import { drape } from "./gee.js?v=20260825-17061aa";
 
 // In the shape the drape and the layer record both read: this app says
 // west/south/east/north in most places and Earth Engine answers
@@ -36,89 +36,6 @@ const GLOBAL_BOUNDS = { minX: -180, maxX: 180, minY: -90, maxY: 90 };
 const GLOBAL_SEGMENTS = 180;
 
 export const MAP_LAYERS = [
-  {
-    id: "stress-shmax",
-    group: "Stress and tectonics",
-    label: "Stress field (World Stress Map)",
-    path: "/data/global/stress-shmax.png",
-    meta: "/data/global/stress-shmax.json",
-    /**
-     * ONE field, four questions, and no single picture answers more than one.
-     *
-     * A rainbow of orientations is the obvious map and the least useful one to
-     * arrive at: it says which way SHmax points and cannot say what that does
-     * to the crust — the same NNE compression is a rift or a thrust belt
-     * depending on which principal stress is vertical. And neither picture
-     * says whether there is any data underneath it, which over an ocean is the
-     * first thing worth knowing. So the variants are a symbology choice on the
-     * layer rather than four entries in the catalogue: it is the same layer,
-     * read four ways.
-     */
-    variants: [
-      {
-        id: "regime",
-        label: "Faulting regime",
-        path: "/data/global/stress-regime.png",
-        note: "What the stress is doing: red where the crust is pulling apart, "
-          + "blue where it is shortening, green where it is shearing past itself. "
-          + "The WSM's own colours, and the map most people mean.",
-        legend: [
-          { label: "Normal faulting (extension)", colour: "#e2444a" },
-          { label: "Strike-slip", colour: "#3aa03a" },
-          { label: "Thrust faulting (shortening)", colour: "#3a6bd6" },
-          { label: "Undetermined", colour: "#96969e" },
-        ],
-      },
-      {
-        id: "shmax",
-        label: "SHmax orientation",
-        path: "/data/global/stress-shmax.png",
-        note: "Which way the maximum horizontal stress points. The hue wraps "
-          + "every 180° because the quantity does — an orientation is an axis.",
-        cyclic: true,
-      },
-      {
-        id: "agreement",
-        label: "Agreement between records",
-        path: "/data/global/stress-agreement.png",
-        note: "How consistently the measurements in each cell point the same "
-          + "way. Bright is a coherent field; dark is a mean of records that "
-          + "disagree, which is a number rather than a measurement.",
-        legend: [
-          { label: "Records disagree", colour: "#281446" },
-          { label: "Mixed", colour: "#783cc8" },
-          { label: "Consistent", colour: "#ffe9a8" },
-        ],
-      },
-      {
-        id: "density",
-        label: "How much data",
-        path: "/data/global/stress-density.png",
-        note: "Effective measurements within the search radius, on a log scale "
-          + "— the map OF the map. An interpolated field is only as good as "
-          + "what is under it, and over the oceans that is often one record.",
-        legend: [
-          { label: "One or two records", colour: "#0c1e32" },
-          { label: "Tens", colour: "#28a0be" },
-          { label: "Hundreds", colour: "#ffffdc" },
-        ],
-      },
-    ],
-    summary: "32,464 A–C quality measurements of the maximum horizontal stress "
-      + "direction, interpolated to a 0.5° grid at a 450 km radius. Transparent "
-      + "where there are no data and faint where the data disagree.",
-    licence: "World Stress Map 2016 (Heidbach et al.) — CC BY 4.0",
-    /**
-     * FULL opacity, because the raster carries its own.
-     *
-     * Every one of these pictures is already transparent where the data are
-     * thin — that is the whole point of the alpha channel in them — so a layer
-     * opacity of 0.7 multiplied the two together and a well-constrained region
-     * came out at 40% of its colour. The map went dim in exactly the places it
-     * was most confident. The slider is still there to take it down.
-     */
-    opacity: 1,
-  },
   {
     id: "map-hillshade",
     group: "Terrain",
@@ -160,7 +77,7 @@ export const MAP_LAYERS = [
   },
 ];
 
-export const GROUPS = ["Stress and tectonics", "Terrain", "Imagery"];
+export const GROUPS = ["Terrain", "Imagery"];
 
 export const layerById = (id) => MAP_LAYERS.find((entry) => entry.id === id) || null;
 
@@ -179,22 +96,7 @@ export function grouped() {
  * here — a second copy would be a second thing to update the next time an
  * asset moves, and the manifest is what the basemap dropdown reads.
  */
-/**
- * Which reading of the layer this is — the named one, or the first declared.
- *
- * The FIRST is the default on purpose: the regime map leads because it is the
- * one that answers "so what". An orientation rainbow is the obvious picture
- * and the least useful one to arrive at.
- */
-export function variantOf(entry, id = null) {
-  const list = entry?.variants || [];
-  if (!list.length) return null;
-  return list.find((v) => v.id === id) || list[0];
-}
-
-export function pathOf(entry, variantId = null) {
-  const variant = variantOf(entry, variantId);
-  if (variant?.path) return variant.path;
+export function pathOf(entry) {
   // Site-root absolute, the same convention `global-data.js` uses for every
   // shipped dataset — they all live in one `/data/global/` and a relative path
   // would resolve against whichever directory happened to ask. (`gis/` for a
@@ -217,60 +119,17 @@ export function layerForMap(id) {
 }
 
 /**
- * The SHmax colour wheel, which must agree with the raster it explains.
- *
- * `bake-stress.py` paints these stops and this reads them back for the legend.
- * Two implementations of one contract in two languages is exactly what drifts,
- * and when it drifts nothing breaks: the map is one set of colours, the key
- * beside it is another, and both look right. `map-layers.test.mjs` pins the
- * stops.
- *
- * CYCLIC, because the quantity is: 179° and 1° are two degrees apart, so the
- * first stop and the last are the same colour. And deliberately unsaturated —
- * a full-chroma HSV wheel round 180° is the obvious choice and produced a lava
- * lamp, with every orientation shouting and the basemap underneath gone.
- */
-export const AZIMUTH_RAMP = [
-  { t: 0.00, rgb: [70, 120, 190] },
-  { t: 0.25, rgb: [110, 190, 130] },
-  { t: 0.50, rgb: [225, 190, 90] },
-  { t: 0.75, rgb: [200, 110, 150] },
-  { t: 1.00, rgb: [70, 120, 190] },
-];
-
-export function azimuthColour(degrees) {
-  const t = ((((Number(degrees) || 0) % 180) + 180) % 180) / 180;
-  const stops = AZIMUTH_RAMP;
-  let i = 1;
-  while (i < stops.length - 1 && t > stops[i].t) i += 1;
-  const a = stops[i - 1];
-  const b = stops[i];
-  const k = (t - a.t) / (b.t - a.t);
-  const rgb = a.rgb.map((v, j) => Math.round(v + (b.rgb[j] - v) * k));
-  return `#${rgb.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
-}
-
-/** Eight compass points, which is as fine as a legend this size can be read. */
-export function azimuthLegend() {
-  const names = ["N–S", "NNE", "NE", "ENE", "E–W", "WNW", "NW", "NNW"];
-  return names.map((label, i) => {
-    const degrees = i * 22.5;
-    return { degrees, label: `${label} (${degrees.toFixed(0)}°)`, colour: azimuthColour(degrees) };
-  });
-}
-
-/**
  * Put one on the globe.
  *
  * Parented to the GLOBE mesh rather than to the imported group, exactly as the
  * Earth Engine drapes are: the globe carries the spin its own way, and a shell
  * held in the other frame drifts a degree every four minutes.
  */
-export async function addMapLayer(id, onStatus = () => {}, variantId = null) {
+export async function addMapLayer(id, onStatus = () => {}) {
   const entry = layerById(id);
   if (!entry) return { ok: false, message: "No such map layer." };
   if (layerForMap(id)) return { ok: true, message: `${entry.label} is already on the globe.` };
-  const path = pathOf(entry, variantId);
+  const path = pathOf(entry);
   if (!path) return { ok: false, message: `${entry.label} has no image on this build.` };
 
   onStatus(`Draping ${entry.label}…`);
@@ -287,10 +146,8 @@ export async function addMapLayer(id, onStatus = () => {}, variantId = null) {
     object3D.userData.geoidLayer = true;
     window.GeoIDViewer?.globe?.add?.(object3D);
     window.GeoIDLayerHierarchy?.setOpacity?.(layer, entry.opacity ?? 1);
-    // Carried on the layer so the symbology dialog can offer the other
-    // readings of the same field without knowing where they came from.
     layer.mapEntryId = entry.id;
-    applyVariant(layer, entry, variantOf(entry, variantId)?.id || null);
+    layer.info = { source: entry.licence, summary: entry.summary };
     window.GeoIDLayerHierarchy?.render?.();
     const message = `${entry.label} added. ${entry.licence}.`;
     onStatus(message);
@@ -300,76 +157,6 @@ export async function addMapLayer(id, onStatus = () => {}, variantId = null) {
     onStatus(message);
     return { ok: false, message };
   }
-}
-
-/**
- * What the legend says, for whichever reading is on.
- *
- * A variant is not a re-colouring of one quantity — it is a DIFFERENT
- * quantity — so the key has to change with it or it describes the picture
- * before last.
- */
-function legendFor(variant) {
-  if (variant?.cyclic) {
-    const key = azimuthLegend();
-    return {
-      palette: key.map((k) => k.colour.replace("#", "")),
-      labels: key.map((k) => k.label),
-      categorical: true,
-      classed: true,
-      field: "SHmax azimuth",
-    };
-  }
-  if (!variant?.legend?.length) return null;
-  return {
-    palette: variant.legend.map((k) => k.colour.replace("#", "")),
-    labels: variant.legend.map((k) => k.label),
-    categorical: true,
-    classed: true,
-    field: variant.label,
-  };
-}
-
-function applyVariant(layer, entry, variantId) {
-  const variant = variantOf(entry, variantId);
-  layer.mapVariant = variant?.id || null;
-  layer.legendInfo = legendFor(variant);
-  layer.info = { source: entry.licence, summary: variant?.note || entry.summary };
-}
-
-/**
- * Swap the picture without rebuilding the layer.
- *
- * The mesh is 32,761 vertices of sphere, and rebuilding it to change a texture
- * would throw away the layer's place in the stack, its opacity and its row —
- * everything somebody had set. Only the map on the material changes. The old
- * texture is disposed explicitly, because a GPU texture is not freed by
- * dropping the reference to it.
- */
-export async function setMapVariant(layerOrId, variantId) {
-  const layer = typeof layerOrId === "string" ? layerForMap(layerOrId) : layerOrId;
-  const entry = layerById(layer?.mapEntryId
-    || (typeof layerOrId === "string" ? layerOrId : ""));
-  const variant = variantOf(entry, variantId);
-  if (!layer?.object3D || !variant) return { ok: false, message: "No such variant." };
-
-  const THREE = await import("../vendor/three.module.js");
-  const texture = await new Promise((resolve, reject) => {
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin("anonymous");
-    loader.load(variant.path, resolve, undefined,
-      () => reject(new Error("the image could not be loaded")));
-  });
-  texture.colorSpace = THREE.SRGBColorSpace;
-  layer.object3D.traverse?.((node) => {
-    if (!node.material?.map) return;
-    node.material.map.dispose?.();
-    node.material.map = texture;
-    node.material.needsUpdate = true;
-  });
-  applyVariant(layer, entry, variant.id);
-  window.GeoIDLayerHierarchy?.render?.();
-  return { ok: true, message: `${entry.label}: ${variant.label}.`, variant };
 }
 
 export function removeMapLayer(id) {
@@ -382,6 +169,6 @@ export function removeMapLayer(id) {
 if (typeof window !== "undefined") {
   window.GeoIDMapLayers = {
     MAP_LAYERS, grouped, layerById, layerForMap, addMapLayer, removeMapLayer,
-    azimuthColour, azimuthLegend, pathOf, variantOf, setMapVariant,
+    pathOf,
   };
 }

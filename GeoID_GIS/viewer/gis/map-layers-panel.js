@@ -7,8 +7,8 @@
  * file knows is only which catalogue to draw and where to put it.
  */
 
-import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260825-c9c70e4";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260825-c9c70e4";
+import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260825-17061aa";
+import { renderCatalogue } from "./catalogue-list.js?v=20260825-17061aa";
 
 const byId = (id) => document.getElementById(id);
 
@@ -95,11 +95,6 @@ function draw() {
         return;
       }
       if (removeMapLayer(id)) say(`${layerById(id)?.label || "Overlay"} taken off the globe.`);
-    },
-    // The stress field is one dataset read four ways, and choosing between
-    // them is a symbology question rather than four entries in this list.
-    symbology: (layer) => {
-      if (!openSymbologyFor(layer)) say("This layer has one reading only.");
     },
   });
 }

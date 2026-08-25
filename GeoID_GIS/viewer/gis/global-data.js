@@ -109,14 +109,35 @@ export const DATASETS = [
     live: true,
   },
   {
+    id: "stress-grid",
+    group: "Tectonics",
+    label: "Stress field — interpolated grid (World Stress Map)",
+    path: "/data/global/stress-grid.geojson",
+    name: "Stress field grid (World Stress Map 2016).geojson",
+    summary: "4,079 nodes on a 250 km global grid, each a bar along the mean SHmax "
+      + "of the A–C records within 450 km, carrying how well they agree and how "
+      + "many there were",
+    licence: "World Stress Map 2016 (Heidbach et al.) — CC BY 4.0",
+    /**
+     * The FIELD, drawn the way the World Stress Map draws it.
+     *
+     * This was a colour-filled raster through three rebuilds before the fault
+     * turned out to be the product rather than the arithmetic: a hue per
+     * orientation asks a reader to decode an angle from a colour, which nobody
+     * can do, and over a whole planet it reads as a lava lamp. A bar lying
+     * along the orientation needs no key at all.
+     */
+    colourBy: "regime",
+  },
+  {
     id: "stress-vectors",
     group: "Tectonics",
-    label: "Stress orientations — global (World Stress Map)",
+    label: "Stress orientations — measurements (World Stress Map)",
     path: "/data/global/stress-vectors.geojson",
     name: "Stress orientations (World Stress Map 2016).geojson",
-    summary: "32,464 A–C measurements of SHmax, each drawn as a 60 km tick along "
-      + "the orientation it recorded, with its method, quality, depth and "
-      + "faulting regime",
+    summary: "32,464 A–C measurements of SHmax, each a 60 km bar along the "
+      + "orientation it recorded, with its method, quality, depth and faulting "
+      + "regime — the evidence the grid above is interpolated from",
     licence: "World Stress Map 2016 (Heidbach et al.) — CC BY 4.0",
     /**
      * Coloured by REGIME, which is the half of a stress measurement that an
