@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, datasetById, layerForDataset,
-} from "./global-data.js?v=20260826-6a9ffa4";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-6a9ffa4";
+} from "./global-data.js?v=20260826-df51fe2";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-df51fe2";
 
 const byId = (id) => document.getElementById(id);
 
@@ -75,11 +75,44 @@ function drawAll() {
   Object.entries(HOMES).forEach(([home, hostId]) => draw(home, hostId));
 }
 
+/**
+ * The Volcanoes subsection's own control: how deep the labels go.
+ *
+ * The slider is per-DATASET rather than a global label density, because it is
+ * a question about this catalogue: `label_rank` is eruption recency, and the
+ * positions read as its bands ("Erupted since 1900") rather than as abstract
+ * levels. It talks to `point-labels.js`, which rebuilds the label set on the
+ * slider's `change` — moving it before the Names button only records the
+ * choice, so a slider drag does not switch the names on uninvited.
+ */
+function wireVolcanoDetail() {
+  const slider = byId("volcano-detail");
+  const copy = byId("volcano-detail-copy");
+  if (!slider || slider.dataset.wired) return;
+  slider.dataset.wired = "1";
+  const labels = window.GeoIDPointLabels;
+  const caption = () => {
+    if (copy) copy.textContent = labels?.DETAIL_COPY?.[Number(slider.value)] || "";
+  };
+  caption();
+  // The caption tracks the drag; the rebuild waits for the release.
+  slider.addEventListener("input", caption);
+  slider.addEventListener("change", () => {
+    const layer = layerForDataset("volcanoes");
+    if (!layer) { say("volcanoes-catalogue", "Tick the catalogue first — the labels need the layer."); return; }
+    const applied = labels?.setDetailLevel?.(layer, Number(slider.value));
+    if (!applied && !labels?.isLabelled?.(layer)) {
+      say("volcanoes-catalogue", "Level saved — press Names to put the labels up.");
+    }
+  });
+}
+
 function init() {
   // A page with none of the hosts — a planet shell — mounts nothing rather
   // than listening for changes it will never draw.
   if (!Object.values(HOMES).some((hostId) => byId(hostId))) return;
   drawAll();
+  wireVolcanoDetail();
   // Whoever took a layer off — one of these lists or the layer box — the tick
   // follows, because the list asks the catalogue rather than remembering.
   window.GeoIDImportManager?.onChange?.(drawAll);

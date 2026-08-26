@@ -26,15 +26,74 @@
  */
 
 /**
- * How many names one dataset may put up.
+ * How many names one dataset may put up, at the default detail.
  *
  * Every label is a canvas texture on the GPU, built at 4x for crispness: a few
  * hundred is tens of megabytes, and 2,666 would be half a gigabyte for names
- * the declutter would never show anyway. 250 covers every rank-5 volcano with
- * room for the strongest rank-4s, and the LOD spreads them over the zoom
- * range.
+ * the declutter would never show anyway.
  */
 const MAX_ITEMS = 250;
+
+/**
+ * The detail slider's five positions, as what each one MEANS.
+ *
+ * `minRank` reaches deeper into the significance ranking; `max` caps the
+ * texture bill that reaching deeper runs up. The two move together because
+ * either alone lies: a deeper rank under a fixed cap changes nothing (the cap
+ * keeps the top ranks it already had), and a bigger cap at a fixed rank adds
+ * only names the rank already admitted.
+ */
+export const DETAIL_LEVELS = {
+  1: { minRank: 5, max: 120 },
+  2: { minRank: 4, max: 240 },
+  3: { minRank: 3, max: 360 },
+  4: { minRank: 2, max: 480 },
+  5: { minRank: 1, max: 600 },
+};
+export const DEFAULT_DETAIL = 3;
+
+/**
+ * What each position admits — the caption under the slider.
+ *
+ * The words follow `label_rank`'s own bands in bake-volcanoes.py (5: erupted
+ * since 2000, 4: since 1900, 3: since 1500, 2: any dated Holocene eruption,
+ * 1: Holocene undated), so the slider says what the ranking means rather than
+ * inventing a second description of it.
+ */
+export const DETAIL_COPY = {
+  1: "Erupted since 2000",
+  2: "Erupted since 1900",
+  3: "Erupted since 1500",
+  4: "Any dated Holocene eruption",
+  5: "Every Holocene volcano",
+};
+
+/** A legend hex ("4e79a7" or "#4e79a7") as rgba at the given alpha. */
+function rgba(hex, alpha) {
+  const h = String(hex).replace("#", "");
+  const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}
+
+/**
+ * The colour the LAYER'S OWN LEGEND gives this feature.
+ *
+ * The legend beside the map already explains the type colours — blue
+ * stratovolcano, orange shield — so the label wears the same one rather than
+ * a second vocabulary. Read from `legendInfo`, which the symbology paint
+ * writes, and never recomputed: two derivations of the same colours are two
+ * things that can disagree, and the one that would be wrong is the one drawn
+ * on top.
+ */
+function legendColour(legend, properties) {
+  const field = legend?.field;
+  if (!field || !Array.isArray(legend.values) || !Array.isArray(legend.palette)) return null;
+  const raw = properties?.[field];
+  if (raw == null) return null;
+  const i = legend.values.indexOf(String(raw));
+  if (i < 0 || !legend.palette[i]) return null;
+  return `#${String(legend.palette[i]).replace("#", "")}`;
+}
 
 /**
  * A GeoJSON point feature as the item the viewer's label builder reads.
@@ -44,13 +103,14 @@ const MAX_ITEMS = 250;
  * `openFeature` — `type` becomes the card's kicker, `description` its copy,
  * `rock_type` and `region` its detail rows.
  */
-export function toLabelItems(features, { max = MAX_ITEMS } = {}) {
+export function toLabelItems(features, { max = MAX_ITEMS, minRank = 1, legend = null } = {}) {
   return (features || [])
     .map((feature) => {
       const p = feature?.properties || {};
       const rank = Number(p.label_rank) || 0;
       const coords = feature?.geometry?.coordinates;
-      if (rank <= 0 || !coords || !p.name) return null;
+      if (rank < minRank || rank <= 0 || !coords || !p.name) return null;
+      const colour = legendColour(legend, p);
       return {
         name: String(p.name),
         // The kicker: "Stratovolcano", not the generic "Volcanic Feature".
@@ -65,10 +125,32 @@ export function toLabelItems(features, { max = MAX_ITEMS } = {}) {
         // Rank as size: 0.91 at rank 1 up to 1.15 at rank 5. Subtle on
         // purpose — the hierarchy should be readable, not a headline.
         label_scale: 0.85 + rank * 0.06,
+        /**
+         * Close to the dot, because there are hundreds of these.
+         *
+         * The curated default (0.52 world units) was set for ~45 labels read
+         * from orbit, where a long leader declutters a whole hemisphere. At a
+         * continental zoom it is ~600 px — measured: Aira's name at x=-542
+         * for a dot on Kyushu mid-screen, every Japanese label off the left
+         * edge of the canvas while its volcano sat in view. A dense dataset
+         * wants its names AT its dots and leaves the spreading-out to the
+         * engine's fit-and-overlap passes, which already know the screen.
+         */
+        label_distance: 0.14,
         description: p.summary || "",
         elevation_m: Number.isFinite(Number(p.elevation_m)) ? Number(p.elevation_m) : undefined,
         rock_type: p.rock_type || undefined,
         region: p.region || undefined,
+        // The legend's colour for this feature, worn by the marker, the
+        // leader line and the chip's accent bar. Absent, the volcanic theme's
+        // red stands — which is also what the curated labels wear.
+        label_colour: colour || undefined,
+        label_palette: colour ? {
+          bg: "rgba(10, 12, 20, 0.74)",
+          stroke: rgba(colour, 0.55),
+          accent: colour,
+          title: "rgba(245, 247, 252, 0.96)",
+        } : undefined,
         // Not read by the card; carried so the cap below can prefer the most
         // recently active among equal ranks.
         last_eruption: Number(p.last_eruption),
@@ -85,8 +167,17 @@ export function toLabelItems(features, { max = MAX_ITEMS } = {}) {
 
 /* ── wiring one layer to the viewer ──────────────────────────────────────── */
 
-/** layer.id → { handle } — present means the user asked for names. */
+/** layer.id → { handle, level } — present means the user asked for names. */
 const active = new Map();
+
+/** Levels chosen before the Names button was pressed, honoured when it is. */
+const chosenLevel = new Map();
+
+/** The items a layer gets at a detail level, colours from its own legend. */
+function itemsFor(layer, level) {
+  const detail = DETAIL_LEVELS[level] || DETAIL_LEVELS[DEFAULT_DETAIL];
+  return toLabelItems(layer.features, { ...detail, legend: layer.legendInfo });
+}
 
 function viewerSeam() {
   const viewer = window.GeoIDViewer;
@@ -112,7 +203,7 @@ function sync() {
     }
     const shouldShow = layer.status === "loaded" && layer.visible !== false;
     if (shouldShow && !state.handle) {
-      state.handle = viewerSeam()?.addSurfaceLabels(toLabelItems(layer.features)) || null;
+      state.handle = viewerSeam()?.addSurfaceLabels(itemsFor(layer, state.level)) || null;
     } else if (!shouldShow && state.handle) {
       state.handle.remove();
       state.handle = null;
@@ -126,7 +217,7 @@ function sync() {
  * Any point layer carrying `label_rank` can use this; the volcanoes are the
  * first, and cities or named landforms would need nothing added.
  */
-export async function setLabels(layer, on) {
+export async function setLabels(layer, on, { level = null } = {}) {
   if (!layer) return false;
   const state = active.get(layer.id);
   if (!on) {
@@ -137,13 +228,43 @@ export async function setLabels(layer, on) {
   if (state) return true;
   const viewer = viewerSeam();
   if (!viewer) return false;
-  const items = toLabelItems(layer.features);
+  const wanted = level ?? chosenLevel.get(layer.id) ?? DEFAULT_DETAIL;
+  const items = itemsFor(layer, wanted);
   if (!items.length) return false;
   const handle = viewer.addSurfaceLabels(items);
   if (!handle) return false;
-  active.set(layer.id, { handle });
+  active.set(layer.id, { handle, level: wanted });
   return true;
 }
+
+/**
+ * Move a labelled layer to another detail level.
+ *
+ * A REBUILD, not a filter: the deeper levels have labels the shallower ones
+ * never built, so the set is taken down and put back with the new one's
+ * items. That is a few hundred canvas textures, which is why this listens to
+ * the slider's `change` and not its `input` — one rebuild per release, not
+ * one per pixel of drag.
+ *
+ * On a layer whose labels are OFF it only records the level, so the slider
+ * can be set before the Names button without turning the names on uninvited.
+ */
+export function setDetailLevel(layer, level) {
+  if (!layer || !DETAIL_LEVELS[level]) return false;
+  chosenLevel.set(layer.id, level);
+  const state = active.get(layer.id);
+  if (!state) return false;
+  if (state.level === level) return true;
+  state.level = level;
+  if (state.handle) {
+    state.handle.remove();
+    state.handle = viewerSeam()?.addSurfaceLabels(itemsFor(layer, level)) || null;
+  }
+  return true;
+}
+
+export const detailLevelOf = (layer) =>
+  active.get(layer?.id)?.level ?? chosenLevel.get(layer?.id) ?? DEFAULT_DETAIL;
 
 export const isLabelled = (layer) => active.has(layer?.id);
 
@@ -154,5 +275,8 @@ export const canLabel = (layer) =>
 if (typeof window !== "undefined") {
   window.GeoIDImportManager?.onChange?.(sync);
   window.addEventListener("geoid-gis:layers-changed", sync);
-  window.GeoIDPointLabels = { setLabels, isLabelled, canLabel, toLabelItems };
+  window.GeoIDPointLabels = {
+    setLabels, setDetailLevel, detailLevelOf, isLabelled, canLabel, toLabelItems,
+    DETAIL_LEVELS, DETAIL_COPY, DEFAULT_DETAIL,
+  };
 }

@@ -644,6 +644,28 @@ texture on the GPU, and 2,666 would be roughly half a gigabyte for names the
 declutter would never show. The adapter also follows the layer: hide it and
 the labels go, show it and they return, remove it and the handle is disposed.
 
+**Two per-item seams the volcano labels drive** (curated items carry neither
+and are untouched): `label_colour`/`label_palette` colour the marker, leader
+and chip accent from the LAYER'S OWN legend (`legendInfo`, never recomputed),
+so a stratovolcano's name wears the stratovolcano blue the legend already
+explains. And `label_distance: 0.14` — the curated default of 0.52 world units
+was set for ~45 labels read from orbit; at a continental zoom it is ~600 px,
+measured as Aira's name off the left edge of the canvas while Kyushu sat in
+view.
+
+**The detail slider** (Geology · Volcanoes) maps to `DETAIL_LEVELS`: minRank
+reaches deeper into `label_rank` and the texture cap grows with it, because
+either alone lies — a deeper rank under a fixed cap changes nothing, a bigger
+cap at a fixed rank adds nothing. The captions are the rank's own bands from
+bake-volcanoes.py ("Erupted since 2000" … "Every Holocene volcano"), and the
+level is a REBUILD on `change`, not a filter on `input`. Set before the Names
+button, it is remembered and does not switch the names on uninvited.
+
+**A dataset label group must live INSIDE `labelLayer.group`.** The render loop
+turns that group to the spin every frame; a sibling group under marsGroup gets
+no such turn, and every label sat ~35° west of its volcano — the whole map
+displaced, growing with the clock, and nothing anywhere said why.
+
 `feature-popup.js` yields the click when `interactiveFeatureAt` says a viewer
 label claimed it — a label and the feature it names occupy the same ground,
 and two cards for one click was the alternative.

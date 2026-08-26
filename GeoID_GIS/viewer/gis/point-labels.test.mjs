@@ -12,7 +12,7 @@
  * with no text and no error anywhere.
  */
 
-import { toLabelItems, canLabel } from "./point-labels.js";
+import { toLabelItems, canLabel, DETAIL_LEVELS, DETAIL_COPY } from "./point-labels.js";
 
 let failures = 0;
 const check = (name, ok, detail = "") => {
@@ -81,6 +81,45 @@ check("canLabel asks for the rank column and nothing else",
   && canLabel({ features: [volcano("Quiet", 0)] }) === false
   && canLabel({ features: [] }) === false
   && canLabel(null) === false);
+
+/* ── the detail slider's positions ────────────────────────────────────────
+ *
+ * minRank filters, and the caps grow with depth — either alone lies (a deeper
+ * rank under a fixed cap changes nothing; a bigger cap at a fixed rank adds
+ * nothing). The captions must follow bake-volcanoes.py's own rank bands.
+ */
+{
+  const spread = [5, 4, 3, 2, 1].map((r) => volcano(`R${r}`, r, { last_eruption: 2000 - r }));
+  const at = (level) => toLabelItems(spread, DETAIL_LEVELS[level]).map((i) => i.name);
+  check("level 1 admits only rank 5", at(1).join() === "R5", at(1).join());
+  check("level 3 reaches rank 3", at(3).join() === "R5,R4,R3", at(3).join());
+  check("level 5 admits every rank", at(5).length === 5);
+  check("deeper levels carry bigger caps",
+    DETAIL_LEVELS[1].max < DETAIL_LEVELS[3].max && DETAIL_LEVELS[3].max < DETAIL_LEVELS[5].max);
+  check("every level has a caption", [1, 2, 3, 4, 5].every((l) => DETAIL_COPY[l]));
+}
+
+/* ── colours come from the layer's own legend ───────────────────────────── */
+{
+  const legend = {
+    field: "type_group",
+    values: ["Stratovolcano", "Shield"],
+    palette: ["4e79a7", "f28e2b"],
+  };
+  const [strato] = toLabelItems([volcano("Etna", 5)], { legend });
+  check("the label wears its legend colour", strato.label_colour === "#4e79a7",
+    String(strato.label_colour));
+  check("as the chip's accent too", strato.label_palette?.accent === "#4e79a7");
+  check("with the stroke derived from it",
+    strato.label_palette?.stroke === "rgba(78, 121, 167, 0.55)",
+    String(strato.label_palette?.stroke));
+  const [other] = toLabelItems([volcano("X", 5, { type_group: "Maar" })], { legend });
+  check("a value the legend does not list keeps the theme's own colours",
+    other.label_colour === undefined && other.label_palette === undefined);
+  const [bare] = toLabelItems([volcano("Y", 5)]);
+  check("and so does a layer with no legend at all",
+    bare.label_colour === undefined);
+}
 
 console.log(failures ? `\n${failures} failed` : "\nall passed");
 process.exit(failures ? 1 : 0);

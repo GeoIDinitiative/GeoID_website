@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-6a9ffa4";
+  from "./gis/geo-utils.js?v=20260826-df51fe2";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -7365,7 +7365,10 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         const style = labelThemeStyle(item.theme);
         const anchor = sampleLabelSurfacePoint(item.lat, item.lon, 0.0);
         const marker = new THREE.Mesh(markerGeometry, new THREE.MeshBasicMaterial({
-          color: style.markerColor,
+          // A dataset item may colour its own marker — the volcano labels take
+          // the type colour the layer's legend already explains. Curated items
+          // carry none and keep their theme's colour.
+          color: item.label_colour ?? style.markerColor,
           transparent: true,
           opacity: 0.92,
           depthTest: false,
@@ -7384,6 +7387,9 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
 
         const label = makeLabelTexture(item, {
           theme: item.theme === "landing" ? "landing" : item.theme,
+          // Same seam makeLabelTexture already offers: a dataset item brings
+          // the palette for its chip, so the accent bar matches its marker.
+          customPalette: item.label_palette || undefined,
         });
         const spriteMaterial = new THREE.SpriteMaterial({
           map: label.texture,
@@ -7420,7 +7426,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
           spritePos.clone(),
         ]);
         const line = new THREE.Line(lineGeometry, new THREE.LineBasicMaterial({
-          color: style.lineColor,
+          color: item.label_colour ?? style.lineColor,
           transparent: true,
           opacity: 0.42,
           depthTest: false,
@@ -19420,13 +19426,21 @@ uniform float uViewportWidth;`,
           if (!Array.isArray(items) || !items.length) return null;
           const extra = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief, items);
           extra.group.visible = true;
-          marsGroup.add(extra.group);
+          /**
+           * INSIDE the label layer's own group, never beside it. The render
+           * loop turns `labelLayer.group.rotation.y = _spinDelta` every
+           * frame — that is how the curated labels ride the planet's spin —
+           * and a sibling group under marsGroup gets no such turn: measured,
+           * every dataset label sat ~35° west of its volcano, Aira's name
+           * 800 px from Kyushu, and the displacement grew with the clock.
+           */
+          labelLayer.group.add(extra.group);
           labelLayer.entries.push(...extra.entries);
           labelLayer.interactiveObjects.push(...extra.interactiveObjects);
           return {
             count: extra.entries.length,
             remove() {
-              marsGroup.remove(extra.group);
+              labelLayer.group.remove(extra.group);
               const gone = new Set(extra.entries);
               labelLayer.entries = labelLayer.entries.filter((e) => !gone.has(e));
               const goneObjects = new Set(extra.interactiveObjects);
