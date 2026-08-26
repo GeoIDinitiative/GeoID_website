@@ -1278,6 +1278,30 @@ from `layer.geologyField`/`geologyRamp`/`geologyLabels`, rasters from
 `layer.symbologySpec`. Pressing Apply on a dialog that had silently reset to
 five quantiles would undo the classing you came back to adjust.
 
+## Earth Engine is filed by SUBJECT, and every tab has a GEE doorway
+
+The Atmosphere tab (the old "Data · Earth Engine") holds only the
+atmospheric datasets now. `GEE_HOMES` in `gee.js` files each dataset by the
+TAB whose subject it is — imagery and both DEMs in Basemap and Relief,
+burned area and NDVI in Geohazards, SMAP in Hydrology, rainfall/LST and
+the anomalies staying in Atmosphere — and `drawCatalogue` renders one tick
+list per home into `gee-home-<home>` hosts (Atmosphere keeps the original
+`#gee-catalogue`). Anything unmapped defaults to atmosphere so a new live
+dataset is never invisible. The themed lists fold under an "Earth Engine"
+dropdown title beside each tab's own catalogue.
+
+Beside each tab's add-data controls sits an **"Add data via GEE…"** button
+(`data-gee-add="<home>"`, an empty value meaning the whole catalogue —
+that one is on Vector & Shapefiles). All of them open ONE dialog
+(`openGeeDialog` in gee.js): dataset (scoped to the tab's subject), date
+range, extent. It drives the SAME hidden form and the same `request()` the
+Atmosphere tab's own controls use — the hidden `#gee-dataset` select still
+carries the state, the dialog's status mirrors `#gee-status` via a
+MutationObserver, and there is deliberately no second request path.
+Verified: the dialog from Geohazards offers exactly NDVI and Burned area,
+requesting drapes the cached snapshot with the honest resolution note, and
+a tick in the relocated Basemap list still drapes NASADEM.
+
 ## Volcanoes, and three services asked about a place
 
 **The Smithsonian catalogue is BAKED** (`services/bake-volcanoes.py` →

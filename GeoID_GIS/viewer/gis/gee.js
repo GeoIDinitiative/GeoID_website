@@ -10,12 +10,12 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260826-b7d1a76";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260826-b7d1a76";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260826-b7d1a76";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260826-9c40c2e";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260826-9c40c2e";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260826-9c40c2e";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260826-b7d1a76";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-b7d1a76";
+  from "./view-extent.js?v=20260826-9c40c2e";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-9c40c2e";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -501,11 +501,38 @@ function layerForDataset(name) {
  * select is still there, hidden, because it carries the state the live request
  * path reads (availability, dates, extent); the ticks drive it.
  */
-function drawCatalogue() {
-  const host = byId("gee-catalogue");
+/**
+ * Where a dataset is OFFERED — the tab whose subject it is, never the
+ * service it comes from. The Atmosphere tab (this catalogue's old home,
+ * back when it was "Data · Earth Engine") keeps only the atmospheric
+ * datasets; imagery and elevation belong to Basemap and Relief; burned
+ * area and vegetation condition to Geohazards. Anything unmapped defaults
+ * to atmosphere, so a new live dataset is never invisible.
+ */
+const GEE_HOMES = {
+  "COPERNICUS/S2_SR_HARMONIZED": "basemap",
+  "LANDSAT/LC09/C02/T1_L2": "basemap",
+  "COPERNICUS/S1_GRD": "basemap",
+  "NASA/NASADEM_HGT/001": "basemap",
+  "COPERNICUS/DEM/GLO30": "basemap",
+  "MODIS/061/MCD64A1": "geohazards",
+  "MODIS/061/MOD13A2": "geohazards",
+  "NASA/SMAP/SPL4SMGP/007": "hydrology",
+};
+const GEE_HOME_HOSTS = {
+  atmosphere: "gee-catalogue",
+  basemap: "gee-home-basemap",
+  geohazards: "gee-home-geohazards",
+  hydrology: "gee-home-hydrology",
+  geology: "gee-home-geology",
+};
+
+function geeHomeOf(id) { return GEE_HOMES[id] || "atmosphere"; }
+
+function catalogueEntries() {
   const select = byId("gee-dataset");
-  if (!host || !select) return;
-  const entries = [...select.options]
+  if (!select) return [];
+  return [...select.options]
     .filter((option) => option.value)
     .map((option) => ({
       id: option.value,
@@ -518,7 +545,11 @@ function drawCatalogue() {
       source: option.dataset.source,
       name: option.textContent,
     }));
-  renderCatalogue(host, entries, {
+}
+
+function catalogueHooks(entries) {
+  const select = byId("gee-dataset");
+  return {
     layerFor: (id) => {
       const entry = entries.find((e) => e.id === id);
       return entry ? layerForDataset(entry.name) : null;
@@ -541,6 +572,140 @@ function drawCatalogue() {
     symbology: (layer) => {
       if (!openSymbologyFor(layer)) status("This layer cannot be recoloured.");
     },
+  };
+}
+
+function drawCatalogue() {
+  const entries = catalogueEntries();
+  if (!entries.length && !byId("gee-catalogue")) return;
+  const hooks = catalogueHooks(entries);
+  Object.entries(GEE_HOME_HOSTS).forEach(([homeName, hostId]) => {
+    const host = byId(hostId);
+    if (!host) return;
+    const subset = entries.filter((entry) => geeHomeOf(entry.id) === homeName);
+    if (!subset.length && homeName !== "atmosphere") { host.textContent = ""; return; }
+    // The themed tabs fold their Earth Engine list under a named dropdown —
+    // it sits beside that tab's own catalogue and must say where it is from.
+    renderCatalogue(host, subset,
+      homeName === "atmosphere" ? hooks : { ...hooks, title: "Earth Engine" });
+  });
+}
+
+/* ── "Add data via GEE": one dialog, opened from every themed tab ─────────
+   The tick lists above cover the shipped snapshots; this is the CONFIGURED
+   path — pick any dataset of the tab's subject, a date range and an extent,
+   and it drives the same hidden form and the same request() the Atmosphere
+   tab's own controls do. One implementation, many doorways. */
+function ensureGeeDialog() {
+  if (byId("gee-add-backdrop")) return;
+  const style = document.createElement("style");
+  style.id = "gee-add-style";
+  style.textContent = [
+    "#gee-add-backdrop { position: fixed; inset: 0; z-index: 80; display: flex;",
+    "  align-items: center; justify-content: center;",
+    "  background: rgba(4, 2, 12, 0.6); backdrop-filter: blur(2px); }",
+    "#gee-add-backdrop[hidden] { display: none !important; }",
+    "#gee-add-card { width: min(24rem, 92vw); padding: 0.9rem 1rem 0.85rem;",
+    "  border-radius: 0.7rem; border: 1px solid rgba(82, 228, 232, 0.35);",
+    "  background: rgba(8, 13, 20, 0.98); box-shadow: 0 18px 44px rgba(0,0,0,0.5);",
+    "  display: flex; flex-direction: column; gap: 0.5rem; color: #dcebf2; }",
+    "#gee-add-card h3 { margin: 0; font-size: 0.8rem; letter-spacing: 0.1em;",
+    "  text-transform: uppercase; color: #bdf3f5; }",
+    "#gee-add-card label { display: flex; flex-direction: column; gap: 0.18rem;",
+    "  font-size: 0.66rem; letter-spacing: 0.06em; }",
+    "#gee-add-card select, #gee-add-card input { background: rgba(16,24,34,0.98);",
+    "  border: 1px solid rgba(255,255,255,0.18); border-radius: 0.4rem;",
+    "  color: #eaf6fb; font-family: inherit; font-size: 0.74rem;",
+    "  padding: 0.3rem 0.4rem; color-scheme: dark; }",
+    "#gee-add-dates { display: flex; gap: 0.45rem; }",
+    "#gee-add-dates label { flex: 1; }",
+    "#gee-add-actions { display: flex; gap: 0.45rem; margin-top: 0.15rem; }",
+    "#gee-add-actions button { flex: 1; }",
+    "#gee-add-status { font-size: 0.66rem; opacity: 0.8; min-height: 1em; }",
+  ].join("\n");
+  document.head.appendChild(style);
+  const backdrop = document.createElement("div");
+  backdrop.id = "gee-add-backdrop";
+  backdrop.hidden = true;
+  backdrop.innerHTML = [
+    '<div id="gee-add-card" role="dialog" aria-label="Add data via Google Earth Engine">',
+    "<h3>Add data via Earth Engine</h3>",
+    '<label>Dataset<select id="gee-add-dataset"></select></label>',
+    '<div id="gee-add-dates">',
+    '<label>From<input id="gee-add-from" type="date"></label>',
+    '<label>To<input id="gee-add-to" type="date"></label>',
+    "</div>",
+    '<label>Extent<select id="gee-add-extent">',
+    '<option value="global">Global</option>',
+    '<option value="view">Current view</option>',
+    '<option value="polygon">Drawn polygon</option>',
+    "</select></label>",
+    '<div id="gee-add-status"></div>',
+    '<div id="gee-add-actions">',
+    '<button id="gee-add-request" class="button primary" type="button">Request</button>',
+    '<button id="gee-add-close" class="button secondary" type="button">Close</button>',
+    "</div></div>",
+  ].join("");
+  document.body.appendChild(backdrop);
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) closeGeeDialog(); });
+  byId("gee-add-close").addEventListener("click", closeGeeDialog);
+  byId("gee-add-request").addEventListener("click", async () => {
+    const dataset = byId("gee-add-dataset").value;
+    if (!dataset) return;
+    const select = byId("gee-dataset");
+    select.value = dataset;
+    select.dispatchEvent(new Event("change"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const from = byId("gee-add-from").value;
+    const to = byId("gee-add-to").value;
+    if (from && byId("gee-date-from")) byId("gee-date-from").value = from;
+    if (to && byId("gee-date-to")) byId("gee-date-to").value = to;
+    const extent = byId("gee-add-extent").value;
+    if (byId("gee-extent")) byId("gee-extent").value = extent;
+    await request();
+  });
+  // The dialog reports through the same status line the form writes; a
+  // mirror keeps one source of truth for what the request is doing.
+  const mirror = new MutationObserver(() => {
+    const node = byId("gee-add-status");
+    if (node && !backdrop.hidden) node.textContent = byId("gee-status")?.textContent || "";
+  });
+  const source = byId("gee-status");
+  if (source) mirror.observe(source, { childList: true, characterData: true, subtree: true });
+}
+
+function closeGeeDialog() {
+  const backdrop = byId("gee-add-backdrop");
+  if (backdrop) backdrop.hidden = true;
+}
+
+function openGeeDialog(homeName) {
+  ensureGeeDialog();
+  const entries = catalogueEntries();
+  const subset = homeName
+    ? entries.filter((entry) => geeHomeOf(entry.id) === homeName)
+    : entries;
+  const offered = subset.length ? subset : entries;
+  const picker = byId("gee-add-dataset");
+  picker.innerHTML = offered
+    .map((entry) => `<option value="${entry.id}">${entry.label}</option>`)
+    .join("");
+  const ff = byId("gee-date-from");
+  const tf = byId("gee-date-to");
+  if (ff?.value) byId("gee-add-from").value = ff.value;
+  if (tf?.value) byId("gee-add-to").value = tf.value;
+  const node = byId("gee-add-status");
+  if (node) node.textContent = "";
+  byId("gee-add-backdrop").hidden = false;
+}
+
+// Every themed tab carries an "Add data via GEE…" button; they all open the
+// one dialog, scoped to that tab's subject. Guarded: the tests import this
+// module in Node for its pure functions, where there is no document.
+if (typeof document !== "undefined") {
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-gee-add]");
+    if (button) openGeeDialog(button.dataset.geeAdd || "");
   });
 }
 
