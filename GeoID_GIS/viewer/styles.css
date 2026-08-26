@@ -2047,23 +2047,6 @@
        of ticks, one column. */
     #gis-group-events > .section-toggle { gap: 0; }
 
-    /* A section that OWNS an active layer says so on its collapsed header:
-       cyan title and a lit dot, cleared while the section is open (the
-       open fill is the accent already). Driven by gis/section-activity.js. */
-    details.control-section.has-active-data:not([open]) > summary .section-title {
-      color: #52e4e8 !important;
-    }
-    details.control-section.has-active-data:not([open]) > summary .section-title-row::after {
-      content: "";
-      display: inline-block;
-      width: 0.34rem;
-      height: 0.34rem;
-      margin-left: 0.4rem;
-      border-radius: 50%;
-      background: #52e4e8;
-      box-shadow: 0 0 7px rgba(82, 228, 232, 0.8);
-      vertical-align: middle;
-    }
     /* Freeze view retired from the corner: the pill owns rotation, the clock
        owns time, and the camera needs no third switch. The element stays in
        the page — the viewer wires and reads it unguarded. */

@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset,
-} from "./global-data.js?v=20260826-baed5fb";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260826-baed5fb";
+} from "./global-data.js?v=20260826-2e5d2d6";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260826-2e5d2d6";
 
 const HOME_SECTION = {
   hydrology: "sea-level-section",
@@ -88,8 +88,38 @@ function refresh() {
   });
 }
 
+/**
+ * The active header wears a SOLID accent fill — the strongest thing a
+ * collapsed header can do, chosen over a quiet tint because the point is
+ * to read across a folded sidebar at a glance. Injected here rather than
+ * written into styles.css, because that file is Earth's alone and the
+ * planet shells load their own; this module runs on all ten worlds and
+ * carries its skin with it. !important throughout: the skin paints
+ * section chrome with !important of its own.
+ */
+function installStyle() {
+  if (document.getElementById("geoid-section-activity-style")) return;
+  const tag = document.createElement("style");
+  tag.id = "geoid-section-activity-style";
+  tag.textContent = [
+    "details.control-section.has-active-data:not([open]) > .section-toggle {",
+    "  background: rgb(var(--nav-accent-rgb, 255, 43, 214)) !important;",
+    "  border-left-color: rgb(var(--nav-accent-rgb, 255, 43, 214)) !important;",
+    "  color: var(--skin-chrome-ink, #2b0030) !important;",
+    "}",
+    "details.control-section.has-active-data:not([open]) > .section-toggle .section-title,",
+    "details.control-section.has-active-data:not([open]) > .section-toggle .section-icon {",
+    "  color: var(--skin-chrome-ink, #2b0030) !important;",
+    "  filter: none !important;",
+    "  text-shadow: none !important;",
+    "}",
+  ].join("\n");
+  document.head.appendChild(tag);
+}
+
 function init() {
   if (!SECTIONS.some((id) => document.getElementById(id))) return;
+  installStyle();
   window.GeoIDImportManager?.onChange?.(refresh);
   document.addEventListener("geoid-gee:catalogue", refresh);
   document.addEventListener("geoid-gis:layers-changed", refresh);
