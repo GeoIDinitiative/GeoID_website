@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-ba1937f";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-ba1937f";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-6a9ffa4";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-6a9ffa4";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1062,6 +1062,16 @@ function install() {
     if (Date.now() < suppressUntil) return;
     // The Draw tool and the measure modes own the click while they are armed.
     if (window.GeoIDViewer?.isMeasuring?.()) return;
+    /**
+     * The viewer's own labels answer first.
+     *
+     * A dataset label and the feature it names occupy the same ground, so a
+     * click on a volcano's name would raise the viewer's scene card AND this
+     * popup's card for the same volcano — two answers to one question. The
+     * viewer's card is the one anchored to its label, so where its raycaster
+     * claims the click, this popup stays quiet.
+     */
+    if (window.GeoIDViewer?.interactiveFeatureAt?.(event.clientX, event.clientY)) return;
     const at = window.GeoIDViewer?.surfaceLatLonAt?.(event.clientX, event.clientY);
     if (!at) { hidePopup(); return; }
     /**
@@ -1102,28 +1112,6 @@ function layerHasPolygons(layer) {
   return layer._hasPolygons;
 }
 
-/**
- * Raise the card for a place, without a click on the globe having produced it.
- *
- * A label is drawn OFF its point — that is what the leader line is for — so
- * clicking the name lands on empty ocean as far as the canvas hit-test is
- * concerned. `point-labels.js` knows which feature the name belongs to and
- * asks here, so a label and its dot answer with the same card, built by the
- * same code, rather than a second card being kept in step with this one.
- *
- * @param {number} lat
- * @param {number} lon
- * @param {object} [at] screen position for the fallback popup; the viewer's
- *   own card anchors itself to the globe and does not need one.
- */
-export function openFeatureCard(lat, lon, at = null) {
-  const hits = featuresAt(lat, lon)
-    .filter((h) => !(h.layer.geologyDataset && layerHasPolygons(h.layer)));
-  if (!hits.length) return false;
-  showStack(at?.x ?? 0, at?.y ?? 0, hits, { lat, lon });
-  return true;
-}
-
 /** Ignore clicks for a moment — used by anything that takes over the canvas. */
 export function suppress(ms = 600) {
   suppressUntil = Date.now() + ms;
@@ -1141,9 +1129,7 @@ function boot() {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDFeaturePopup = {
-    featureAt, featuresAt, openFeatureCard, hidePopup, suppress, clearPin,
-  };
+  window.GeoIDFeaturePopup = { featureAt, featuresAt, hidePopup, suppress, clearPin };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);
   } else {

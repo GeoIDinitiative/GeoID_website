@@ -619,48 +619,34 @@ and explicitly not for offline tile export. As an option somebody picks that is
 their choice; as the default it is every visitor to a public page. Esri's
 supported route is ArcGIS Location Platform with an API key.
 
-### Labels: the chip, not a floating word
+### Labels: the viewer's own engine, not an imitation of it
 
-`point-labels.js` drew a name in one colour at one size. The planet viewers
-have had the full form since the start, and the rest of it carries meaning the
-text cannot:
+`point-labels.js` drew its own labels twice — first a plain name over a dot,
+then a hand-rolled copy of the planet viewers' chip — and both were reported
+as a mess, because they were: chips overflowing the screen edge, names
+overlapping, a different app bolted onto this one. The lesson is the module's
+header now: **an implementation that imitates another one is wrong wherever
+they differ, and they differ everywhere you did not look.**
 
-- **A chip, offset from a dot.** A rounded panel at 14 px radius with a
-  hairline stroke, a 6 px accent bar inside the left edge and Orbitron over it
-  — the Mars and Moon viewers' own proportions, reproduced because their
-  `makeLabelTexture` is a closure inside a 17,000-line module. The chip's
-  bottom-left corner sits on the dot.
-- **Colour from the LAYER'S symbology**, read off `legendInfo` rather than
-  recomputed. Those viewers key the accent to a theme, so every volcano is the
-  same red; here 2,666 volcanoes carry the type colours the legend already
-  explains.
-- **Size by significance.** Five tiers from `label_rank`, 11 px to 15 px of
-  type with the dot and the spacing growing with them.
-- **A card on click.** The name is the affordance, so the name is the target:
-  `openFeatureCard` raises the same card the dot would, with the GVP
-  description in it.
+So the imitation is deleted. `earth-viewer.js` exposes `addSurfaceLabels`,
+which feeds a dataset's items through the SAME `buildLabelLayer` the curated
+labels use — same pill texture, same per-frame declutter with priority sorting
+and LOD density, same hit targets on the same raycaster, same scene card in
+the bottom-right corner on click. `point-labels.js` is now only a translation
+(`toLabelItems`): GVP feature → the item shape the engine reads, where `type`
+becomes the card's kicker, `summary` its copy, `label_rank` the LOD priority
+AND a size (`label_scale`, 0.91→1.15), and `category: "dataset"` a new clause
+in `updateLabelVisibility` that frees these from the Locations checkboxes —
+the Names button that added them is their switch.
 
-Three faults found by measuring, each invisible in a screenshot until named:
+Capped at 250 items (rank first, recency second): every label is a 4x canvas
+texture on the GPU, and 2,666 would be roughly half a gigabyte for names the
+declutter would never show. The adapter also follows the layer: hide it and
+the labels go, show it and they return, remove it and the handle is disposed.
 
-- **A screen-space sprite's two axes have different canvases.** x spans the
-  width and y the height, so a width taken as `height × aspect` is stretched by
-  the viewport's aspect ratio: at 1113 × 851 a 268 px name drew 350 px wide,
-  31% too long. Every label was wide and soft, and it read as "the labels are
-  too big".
-- **A label is a BOX.** A circular claim round each dot let "Campi Flegrei" and
-  "Vesuvius" both through at 46 px apart and the map read "Campi FleVesuvius".
-  The declutter reserves the measured chip rectangle now, with 6 px of air.
-- **The reserved box and the drawn box have to be the same box.** The chip was
-  offset in WORLD space, east and up along the surface, which is not the same
-  direction on screen at every latitude — so the declutter reserved space up
-  and to the right and the chip landed somewhere else. It is placed with
-  `sprite.center` now, in fractions of its own size, and one formula produces
-  the declutter's rectangle, the click target and the draw.
-
-**No leader line, which is the reference implementation's own answer.** A line
-needs both ends in one coordinate system; the dot is on the globe and the chip
-is in screen space, so a world-space line between them is wrong wherever the
-frames disagree. The Moon viewer's labels read fine without one.
+`feature-popup.js` yields the click when `interactiveFeatureAt` says a viewer
+label claimed it — a label and the feature it names occupy the same ground,
+and two cards for one click was the alternative.
 
 ## The catalogue is filed by SUBJECT, not by file format
 

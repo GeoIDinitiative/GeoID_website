@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-ba1937f";
+  from "./gis/geo-utils.js?v=20260826-6a9ffa4";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -7294,7 +7294,10 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       }
     }
 
-    function buildLabelLayer(radius, elevationSampler, elevationCache, getTerrainRelief) {
+    // `items` defaults to the curated labelData; gis/point-labels.js hands the
+    // same machinery the volcano dataset's rows so those labels are THESE
+    // labels — same chip, same declutter, same card — rather than an imitation.
+    function buildLabelLayer(radius, elevationSampler, elevationCache, getTerrainRelief, items = labelData) {
       const group = new THREE.Group();
       const markerGeometry = new THREE.SphereGeometry(0.011, 10, 10);
       const hitGeometry = new THREE.SphereGeometry(0.18, 14, 14);
@@ -7358,7 +7361,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       }
 
       let sortIndex = 0;
-      for (const item of labelData) {
+      for (const item of items) {
         const style = labelThemeStyle(item.theme);
         const anchor = sampleLabelSurfacePoint(item.lat, item.lon, 0.0);
         const marker = new THREE.Mesh(markerGeometry, new THREE.MeshBasicMaterial({
@@ -7390,7 +7393,10 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
           depthWrite: false,
         });
         const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set((label.width / 200) * 0.66, (label.height / 200) * 0.66, 1);
+        // Significance as SIZE: dataset labels carry label_scale from their
+        // rank; the curated items carry none and keep the standard size.
+        const itemScale = item.label_scale || 1;
+        sprite.scale.set((label.width / 200) * 0.66 * itemScale, (label.height / 200) * 0.66 * itemScale, 1);
         const baseSpriteScale = sprite.scale.clone();
         sprite.renderOrder = 201;
         const normal = anchor.clone().normalize();
@@ -7431,8 +7437,10 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
           line,
           surfacePoint: sampleLabelSurfacePoint(item.lat, item.lon, 0),
           item,
-          priority: style.priority,
-          category: style.category,
+          // A dataset item ranks itself (label_rank drives the LOD density);
+          // curated items keep their theme's priority.
+          priority: item.priority ?? style.priority,
+          category: item.category || style.category,
           baseScale: baseSpriteScale,
           labelDistance,
           labelPushUp: item.label_push_up || 0,
@@ -8031,7 +8039,9 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         entry.marker.getWorldPosition(surfaceWorldPosition);
         const normal = surfaceWorldPosition.clone().sub(groupWorldPosition).normalize();
         cameraDirection.copy(camera.position).sub(surfaceWorldPosition).normalize();
-        const categoryEnabled = entry.category === "volcanic"
+        const categoryEnabled = entry.category === "dataset"
+          ? true
+          : entry.category === "volcanic"
           ? volcanicLabelsEnabled
           : entry.category === "landing" || entry.category === "mission"
             ? landingLabelsEnabled
@@ -19388,6 +19398,64 @@ uniform float uViewportWidth;`,
         earthSceneGroup,
         elevationSampler,
         manifest,
+        /**
+         * Put a dataset's names on the globe THROUGH the viewer's own label
+         * machinery — the same buildLabelLayer, the same per-frame declutter,
+         * the same click-to-card — rather than beside it.
+         *
+         * A parallel implementation was tried and looked like a different
+         * app: its own chips, its own spacing, its own click path, each
+         * subtly wrong against the labels an arm's length away on the same
+         * screen. The entries built here are appended to the ONE label
+         * layer, so every rule that governs a curated label — priority,
+         * LOD density, occlusion, the viewport fitting, the card in the
+         * corner — governs these for free, now and after every future edit
+         * to that engine.
+         *
+         * Returns a handle whose `remove()` takes the labels off and
+         * disposes what they own. The caller keeps the handle; the viewer
+         * does not track datasets.
+         */
+        addSurfaceLabels(items) {
+          if (!Array.isArray(items) || !items.length) return null;
+          const extra = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief, items);
+          extra.group.visible = true;
+          marsGroup.add(extra.group);
+          labelLayer.entries.push(...extra.entries);
+          labelLayer.interactiveObjects.push(...extra.interactiveObjects);
+          return {
+            count: extra.entries.length,
+            remove() {
+              marsGroup.remove(extra.group);
+              const gone = new Set(extra.entries);
+              labelLayer.entries = labelLayer.entries.filter((e) => !gone.has(e));
+              const goneObjects = new Set(extra.interactiveObjects);
+              labelLayer.interactiveObjects = labelLayer.interactiveObjects.filter((o) => !goneObjects.has(o));
+              extra.group.traverse((node) => {
+                node.geometry?.dispose?.();
+                if (node.material) {
+                  node.material.map?.dispose?.();
+                  node.material.dispose?.();
+                }
+              });
+            },
+          };
+        },
+        /**
+         * Is one of the viewer's own labels under this pixel?
+         *
+         * For gis/feature-popup.js, which owns the click on vector features:
+         * a label and the feature it names occupy the same ground, and two
+         * cards for one click is the fault this answers. The popup yields
+         * when the viewer's labels claim the click.
+         */
+        interactiveFeatureAt(clientX, clientY) {
+          try {
+            return getInteractiveFeatureHit(clientX, clientY);
+          } catch (error) {
+            return null;
+          }
+        },
         /**
          * Add a basemap the manifest does not ship.
          *
