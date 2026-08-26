@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-0875429";
+  from "./gis/geo-utils.js?v=20260826-3736cd9";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -7919,11 +7919,23 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         const zoomStrength = clamp(1 - ((scaleLog - 1.7) / 4.8), 0, 1);
         const nearStrength = clamp(1 - (distanceToSurface / 2.4), 0, 1);
         const microScaleStrength = clamp(1 - ((scaleLog - 3.1) / 1.6), 0, 1);
-        const stableLabelPx = 36;
+        /**
+         * The label height EASES toward its ground size, instead of jumping.
+         *
+         * 36 px was a constant, tuned for near-ground mosaic work — and the
+         * close layout now engages at the 200 km scale bar, so the moment a
+         * descent crossed that line every chip leapt from the far layout's
+         * ~24 px to a 36–40 px pill that swallowed a coastline ("much too
+         * large at this altitude"). The height now runs 24 px at the 200 km
+         * handoff (matching what the far layout was drawing) up to 36 px by
+         * the ~2 km bar, on the same log scale everything else here uses.
+         */
+        const groundness = clamp((5.3 - scaleLog) / 2.0, 0, 1);
+        const stableLabelPx = 24 + 12 * groundness;
         const closeZoomBoost = clamp(1 - ((scaleLog - 4.4) / 1.8), 0, 1);
         const labelPx = clamp(
           stableLabelPx + closeZoomBoost * 2 + nearStrength * 2,
-          36,
+          22,
           40,
         );
         const markerPx = clamp(
@@ -13250,6 +13262,16 @@ uniform float uViewportWidth;`,
       ]);
       const labelLayer = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief);
       labelLayer.group.visible = true;
+      /**
+       * GROUP order, because groupOrder beats renderOrder.
+       *
+       * The renderer sorts transparent objects by their enclosing Group's
+       * renderOrder BEFORE the object's own — so the label sprites' 201 was
+       * losing to the GIS layers' group band (51), and the volcano triangles
+       * painted straight over the Vesuvius chip. Labels are annotation: they
+       * sit above every data layer, which is what the 199–222 band means.
+       */
+      labelLayer.group.renderOrder = 200;
       marsGroup.add(labelLayer.group);
       let userPinLayer = buildUserPinLayer(initialGisPins, 3.2, elevationSampler, labelElevationCache, getTerrainRelief);
       userPinLayer.group.visible = true;
@@ -19496,6 +19518,10 @@ uniform float uViewportWidth;`,
           if (!Array.isArray(items) || !items.length) return null;
           const extra = buildLabelLayer(3.2, elevationSampler, labelElevationCache, getTerrainRelief, items);
           extra.group.visible = true;
+          // A NESTED group resets groupOrder for its children — the renderer
+          // takes the innermost Group's renderOrder — so the extra group must
+          // restate its parent's, or dataset labels fall back under the data.
+          extra.group.renderOrder = labelLayer.group.renderOrder || 200;
           /**
            * INSIDE the label layer's own group, never beside it. The render
            * loop turns `labelLayer.group.rotation.y = _spinDelta` every
