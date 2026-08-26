@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-18e8825";
+  from "./gis/geo-utils.js?v=20260826-585466e";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -1213,18 +1213,126 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
      * writes a second so a ×720 clock does not stutter visibly.
      */
     const scrubDateEl = timeScrubBtn?.querySelector(".scrub-date");
-    const scrubTimeEl = timeScrubBtn?.querySelector(".scrub-time");
+    const scrubClockCanvas = document.getElementById("scrub-clock-canvas");
+    /**
+     * The face is a DRAWN seven-segment display, not a font — the ASCENT
+     * corner clock's digits (everest/game/hud.js), re-inked in this page's
+     * data cyan: lit segments with a glow, unlit segments ghosted behind
+     * them the way a real LCD shows its whole figure-eight, the panel
+     * skewed like every readout. Redrawn only when the text changes.
+     */
+    let clockShown = "";
+    function drawSevenSegClock(text) {
+      if (!scrubClockCanvas || text === clockShown) return;
+      clockShown = text;
+      const c = scrubClockCanvas.getContext("2d");
+      const W = scrubClockCanvas.width;
+      const H = scrubClockCanvas.height;
+      c.clearRect(0, 0, W, H);
+      const SEGS = {
+        a: [[0.14, 0.04], [0.86, 0.04], [0.72, 0.16], [0.28, 0.16]],
+        b: [[0.88, 0.06], [0.88, 0.48], [0.76, 0.42], [0.76, 0.18]],
+        c: [[0.88, 0.52], [0.88, 0.94], [0.76, 0.82], [0.76, 0.58]],
+        d: [[0.14, 0.96], [0.86, 0.96], [0.72, 0.84], [0.28, 0.84]],
+        e: [[0.12, 0.52], [0.12, 0.94], [0.24, 0.82], [0.24, 0.58]],
+        f: [[0.12, 0.06], [0.12, 0.48], [0.24, 0.42], [0.24, 0.18]],
+        g: [[0.16, 0.50], [0.28, 0.44], [0.72, 0.44], [0.84, 0.50], [0.72, 0.56], [0.28, 0.56]],
+      };
+      const DIGIT = {
+        "0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc",
+        "5": "afgcd", "6": "afgedc", "7": "abc", "8": "abcdefg", "9": "abcfgd",
+      };
+      const dw = 64;
+      const dh = 88;
+      const gap = 14;
+      const colonW = 22;
+      const drawDigit = (x0, y0, lit) => {
+        for (const [name, poly] of Object.entries(SEGS)) {
+          const on = lit.includes(name);
+          c.beginPath();
+          for (let i = 0; i < poly.length; i += 1) {
+            const px = x0 + poly[i][0] * dw;
+            const py = y0 + poly[i][1] * dh;
+            if (i) c.lineTo(px, py); else c.moveTo(px, py);
+          }
+          c.closePath();
+          if (on) {
+            c.shadowColor = "rgba(40, 200, 210, 0.85)";
+            c.shadowBlur = 10;
+            c.fillStyle = "#3fe0e6";
+          } else {
+            c.shadowBlur = 0;
+            c.fillStyle = "rgba(82, 228, 232, 0.10)";
+          }
+          c.fill();
+        }
+        c.shadowBlur = 0;
+      };
+      let x = 8;
+      const y = 4;
+      for (const ch of text) {
+        if (ch === ":") {
+          for (const cy of [0.30, 0.70]) {
+            c.shadowColor = "rgba(40, 200, 210, 0.85)";
+            c.shadowBlur = 8;
+            c.fillStyle = "#3fe0e6";
+            c.beginPath();
+            c.arc(x + colonW / 2, y + cy * dh, 5, 0, Math.PI * 2);
+            c.fill();
+          }
+          c.shadowBlur = 0;
+          x += colonW + gap * 0.5;
+        } else {
+          drawDigit(x, y, DIGIT[ch] ?? "");
+          x += dw + gap;
+        }
+      }
+    }
     function updateCornerClock() {
-      if (!scrubDateEl || !scrubTimeEl) return;
+      if (!scrubDateEl || !scrubClockCanvas) return;
       const d = new Date(getSimulatedUtcMs());
       const pad = (n) => String(n).padStart(2, "0");
       scrubDateEl.textContent = `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/`
         + `${pad(d.getUTCFullYear() % 100)} UTC`;
-      scrubTimeEl.textContent = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+      drawSevenSegClock(`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`);
     }
-    if (scrubTimeEl) {
+    if (scrubClockCanvas) {
       window.setInterval(updateCornerClock, 250);
       updateCornerClock();
+    }
+    /**
+     * The clock folds into the header edge exactly as the planet bar folds
+     * into the footer: a slim caret, the state remembered, restored without
+     * a transition so a collapsed clock loads collapsed rather than
+     * collapsing itself a moment after arriving.
+     */
+    const CLOCK_COLLAPSE_KEY = "geoid:center-clock-collapsed";
+    const clockDock = document.getElementById("top-center-controls");
+    const clockCollapseBtn = document.getElementById("clock-collapse-toggle");
+    function setClockCollapsed(collapsed) {
+      if (!clockDock || !clockCollapseBtn) return;
+      clockDock.classList.toggle("is-collapsed", collapsed);
+      clockCollapseBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+      const label = collapsed ? "Show the clock" : "Hide the clock";
+      clockCollapseBtn.title = label;
+      clockCollapseBtn.setAttribute("aria-label", label);
+      if (collapsed && timeScrubPanel) {
+        timeScrubPanel.hidden = true;
+        timeScrubBtn?.classList.remove("is-active");
+      }
+      try { window.localStorage?.setItem(CLOCK_COLLAPSE_KEY, collapsed ? "1" : "0"); } catch (error) { /* not fatal */ }
+    }
+    clockCollapseBtn?.addEventListener("click", () => {
+      setClockCollapsed(!clockDock?.classList.contains("is-collapsed"));
+    });
+    let storedClockCollapsed = false;
+    try { storedClockCollapsed = window.localStorage?.getItem(CLOCK_COLLAPSE_KEY) === "1"; } catch (error) { /* not fatal */ }
+    if (storedClockCollapsed && timeScrubBtn) {
+      timeScrubBtn.style.transition = "none";
+      setClockCollapsed(true);
+      window.requestAnimationFrame(() => { timeScrubBtn.style.transition = ""; });
+    } else {
+      setClockCollapsed(false);
     }
     document.getElementById("time-scrub-go")?.addEventListener("click", () => {
       // The field is UTC — the clock beside it reads GMT, and a scrub target

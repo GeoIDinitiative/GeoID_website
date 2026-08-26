@@ -848,9 +848,15 @@ reads and writes it unguarded, and the space bar still runs through the
 same `pauseSpin` the pill reports — `pauseSpin`/`resumeSpin` call
 `syncTimeRateBtn`, which looks its element up per call to dodge the TDZ of
 setup-order). The camera "freeze view" snowflake is retired from the
-corner too — hidden, its element and wiring intact. Beside the pill, a
-DIGITAL CLOCK shows the model's moment, ticking at whatever rate the pill
-chose (250 ms writes, so ×720 does not stutter); clicking it opens the
+corner too — hidden, its element and wiring intact. The DIGITAL CLOCK sits top-centre,
+showing the model's moment at whatever rate the pill chose (250 ms
+writes, so ×720 does not stutter). Its face is the ASCENT corner clock's
+DRAWN seven-segment display (everest/game/hud.js), not a font — lit
+segments with a glow over ghosted unlit ones, the canvas skewed −8° —
+re-inked in this page's data cyan, redrawn only when the text changes. A
+slim caret under it folds it into the header edge exactly as the planet
+bar folds into the footer (state in `geoid:center-clock-collapsed`,
+restored without a transition). Clicking the clock opens the
 SCRUBBER: a UTC datetime field with Go/Now, driving `setSimulatedUtcMs(ms)`
 on the seam —
 same rebase as entering real time with an arbitrary target, so the spin

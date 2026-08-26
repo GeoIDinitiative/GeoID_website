@@ -2125,13 +2125,69 @@
     /* The scrub button wears the corner chrome; its panel hangs below the
        control cluster. #top-right-controls is fixed, so the panel anchors
        to it with absolute positioning. */
+    /* A dock like the planet bar's: the clock, then a slim caret that folds
+       it up into the header edge and brings it back. */
     #top-center-controls {
       position: fixed;
-      top: 1rem;
+      top: 0.55rem;
       left: 50%;
       transform: translateX(-50%);
       z-index: 13;
-      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.28rem;
+      pointer-events: none;
+    }
+    #top-center-controls > * { pointer-events: auto; }
+    #top-center-controls #time-scrub-toggle {
+      max-height: 4rem;
+      overflow: hidden;
+      transition: max-height 0.24s ease, opacity 0.16s ease,
+                  padding-top 0.24s ease, padding-bottom 0.24s ease, border-width 0.24s ease;
+    }
+    #top-center-controls.is-collapsed #time-scrub-toggle {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      border-width: 0;
+      pointer-events: none;
+    }
+    #clock-collapse-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.4rem;
+      height: 1.2rem;
+      padding: 0;
+      border: 1px solid rgba(82, 228, 232, 0.38);
+      border-radius: 999px;
+      background: rgba(6, 10, 16, 0.72);
+      backdrop-filter: blur(10px);
+      color: #bdf3f5;
+      font-size: 0.6rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+    #clock-collapse-toggle:hover {
+      border-color: #52e4e8;
+      color: #52e4e8;
+    }
+    #top-center-controls.is-collapsed #clock-collapse-toggle {
+      background: rgba(82, 228, 232, 0.9);
+      border-color: #52e4e8;
+      color: #06222a;
+    }
+    .clock-caret { display: block; transition: transform 0.22s ease; }
+    #top-center-controls.is-collapsed .clock-caret { transform: rotate(180deg); }
+    /* The seven-segment face: a canvas, slanted the way an LCD readout is. */
+    #scrub-clock-canvas {
+      display: block;
+      height: 1.2rem;
+      width: auto;
+      transform: skewX(-8deg);
     }
     #top-center-controls #time-scrub-panel {
       right: auto;
