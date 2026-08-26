@@ -539,7 +539,7 @@ function showOrbitOverlay(overlay, record) {
 const tagTextures = new Map();
 
 function makePillTexture(name, colour) {
-  const key = `v3|${colour}|${name}`;
+  const key = `v4|${colour}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
   /**
    * The viewer's OWN pill, through the seam the volcano labels use — the
@@ -551,7 +551,7 @@ function makePillTexture(name, colour) {
    */
   const make = window.GeoIDViewer?.makeLabelTexture;
   const label = make(name, {
-    backingScale: 2,
+    backingScale: 3,
     customPalette: {
       bg: "rgba(6, 10, 18, 0.82)",
       stroke: `${colour}88`,
@@ -616,9 +616,9 @@ function updateLabels() {
   const camDist = viewer.camera.position.length();
   const far = Math.max(0, Math.min(1, (camDist - 5) / 20));
   // Pill height on screen: the chip is 34 logical px tall, shown at
-  // 15 px easing to 11 as the camera runs out — the location labels'
-  // register, scaled for a HUD that can carry forty of them.
-  const heightPx = 15 - 4 * far;
+  // 18 px easing to 13 as the camera runs out — 15 px was reported
+  // unreadable, and the backing renders at 3x for the minification.
+  const heightPx = 18 - 5 * far;
   const spacingPx = LABEL_SPACING_PX + 66 * far;
   const camDir = viewer.camera.position.clone().normalize();
   const positions = active.geometry.attributes.position;
@@ -1275,10 +1275,20 @@ function init() {
   const syncMaster = () => {
     if (master) master.checked = Boolean(tickBox.checked && orbitsBox?.checked);
   };
+  /**
+   * The failure untick must come from the CURRENT attempt. A slow fetch
+   * invites tick → untick → tick again; the first start is cancelled and
+   * resolves false AFTER the second has drawn its dots — and an
+   * unconditional untick here then switched the box off under a live
+   * layer, which is exactly how "plots the dots then unticks itself" was
+   * reported. The sequence token says whose failure it is.
+   */
+  let tickSeq = 0;
   tickBox.addEventListener("change", async () => {
     if (tickBox.checked) {
+      const seq = ++tickSeq;
       const ok = await start();
-      if (!ok) tickBox.checked = false;
+      if (!ok && seq === tickSeq && !active) tickBox.checked = false;
     } else {
       stop();
     }
@@ -1326,7 +1336,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260827-d4c59fb");
+    const dialog = await import("./symbology-dialog.js?v=20260827-0281be8");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

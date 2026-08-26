@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260827-d4c59fb";
-import { readHead, validateMapping } from "./delimited.js?v=20260827-d4c59fb";
-import { RAMP_NAMES } from "./symbology.js?v=20260827-d4c59fb";
+import { CRS_OPTIONS } from "./projection.js?v=20260827-0281be8";
+import { readHead, validateMapping } from "./delimited.js?v=20260827-0281be8";
+import { RAMP_NAMES } from "./symbology.js?v=20260827-0281be8";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -61,6 +61,13 @@ const ROLES = [
     title: "Add a geology layer",
     hint: "Shapefile or GeoJSON of mapped units, or a classified raster",
     accept: ".shp,.dbf,.shx,.prj,.geojson,.json,.kml,.tif,.tiff",
+  },
+  {
+    id: "hydrology",
+    panel: "sea-level-section",
+    title: "Add a hydrology layer",
+    hint: "Rivers, coastlines, basins — shapefile, GeoJSON, KML, points or a raster",
+    accept: ".shp,.dbf,.shx,.prj,.geojson,.json,.kml,.gpx,.csv,.xyz,.tif,.tiff",
   },
   {
     id: "mesh",
@@ -703,6 +710,7 @@ const GEE_HOME_BY_PANEL = {
   "gis-group-polygons": "",
   "basemap-relief-section": "basemap",
   "geology-section": "geology",
+  "sea-level-section": "hydrology",
 };
 
 function addButtonFor(role) {

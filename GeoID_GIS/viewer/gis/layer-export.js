@@ -21,9 +21,9 @@
  * rather than silently dropping whatever does not fit.
  */
 
-import * as VF from "./vector-formats.js?v=20260827-d4c59fb";
-import { downloadText } from "./extraction.js?v=20260827-d4c59fb";
-import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES } from "./shapefile-writer.js?v=20260827-d4c59fb";
+import * as VF from "./vector-formats.js?v=20260827-0281be8";
+import { downloadText } from "./extraction.js?v=20260827-0281be8";
+import { buildShapefileZip, shapeTypeFor, SHAPE_NAMES } from "./shapefile-writer.js?v=20260827-0281be8";
 
 /**
  * What a layer is, read from its contents rather than its name.
