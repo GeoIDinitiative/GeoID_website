@@ -24,8 +24,8 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-1d64bd9";
-import { currentBodyId } from "./bodies.js?v=20260827-1d64bd9";
+import { drape } from "./gee.js?v=20260827-819e935";
+import { currentBodyId } from "./bodies.js?v=20260827-819e935";
 
 const byId = (id) => document.getElementById(id);
 
@@ -100,7 +100,8 @@ function chosenBounds() {
   const area = window.GeoIDViewer?.getExtractionGeometry?.();
   const vertices = area?.vertices;
   if (!vertices?.length) {
-    return { error: "Draw an area first (the Draw tool or the box preset), or switch to typed bounds." };
+    promptDrawTool();
+    return { error: "Draw the box on the globe, then press Fetch — the Draw tool is now active." };
   }
   const signed = (lon) => (lon > 180 ? lon - 360 : lon);
   const lats = vertices.map((v) => v.lat);
@@ -264,6 +265,17 @@ async function gridCanvas(bounds, source) {
   };
 }
 
+/**
+ * Raise the square-polygon drawer: the tool rail's own Draw button, which
+ * activates area mode and opens the draw card with its box preset — the
+ * same press a hand on the rail would make, so there is one drawer and one
+ * way it is armed.
+ */
+function promptDrawTool() {
+  const button = byId("tool-rail-area");
+  if (button && !button.classList.contains("is-active")) button.click();
+}
+
 /* ── Fetch, drape, register ─────────────────────────────────────────────── */
 
 let busy = false;
@@ -375,7 +387,15 @@ function buildCard() {
     </div>`;
   groupBody.insertBefore(card, groupBody.firstElementChild?.nextElementSibling || null);
   byId("weather-extent").addEventListener("change", () => {
-    byId("weather-bounds-rows").hidden = byId("weather-extent").value !== "bounds";
+    const mode = byId("weather-extent").value;
+    byId("weather-bounds-rows").hidden = mode !== "bounds";
+    // Choosing "the drawn area" with nothing drawn is a dead end unless the
+    // drawer comes to you: the Draw tool activates itself, square preset and
+    // all, and the status says what happens next.
+    if (mode === "drawn" && !window.GeoIDViewer?.getExtractionGeometry?.()?.vertices?.length) {
+      promptDrawTool();
+      say("Draw the box on the globe — the Draw tool is active — then press Fetch.");
+    }
   });
   byId("weather-fetch").addEventListener("click", fetchMap);
   return true;
