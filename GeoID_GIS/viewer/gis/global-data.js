@@ -27,13 +27,34 @@
  */
 
 /** Order the groups read in, coarse to specific. */
-export const GROUPS = ["Physical", "Boundaries", "Tectonics", "Hazards", "Regional"];
+export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics", "Hazards"];
+
+/**
+ * Which PANEL a dataset belongs on, where it is not the Vectors tab.
+ *
+ * Data · Vectors & Shapes began as the one list of everything, which made it a
+ * list sorted by file format: a plate boundary beside a coastline beside a
+ * volcano, because all three arrive as GeoJSON. That is not how anybody looks
+ * for them. So a dataset may name its home, the panel for that home draws it,
+ * and the Vectors tab draws what is left — the shapes that really are just
+ * shapes, plus anything somebody imports.
+ *
+ * Declared here rather than in each panel so that "does this dataset appear
+ * exactly once" is a question about one file. `catalogue-panels.js` mounts
+ * them and its test checks every home named here has a panel and a host.
+ */
+export const HOMES = {
+  hydrology: "hydrology-catalogue",
+  "geology-tectonics": "tectonics-catalogue",
+  "geology-volcanoes": "volcanoes-catalogue",
+};
 
 export const DATASETS = [
   {
     id: "coastline-10m",
+    home: "hydrology",
     featureNoun: "Coastline",
-    group: "Physical",
+    group: "Hydrology",
     label: "Coastlines — global (Natural Earth 1:10m)",
     path: "/data/global/coastline_10m.geojson",
     name: "Global coastlines (Natural Earth 10m).geojson",
@@ -42,8 +63,9 @@ export const DATASETS = [
   },
   {
     id: "rivers-10m",
+    home: "hydrology",
     featureNoun: "River",
-    group: "Physical",
+    group: "Hydrology",
     label: "Rivers and lake centrelines — global (Natural Earth 1:10m)",
     path: "/data/global/rivers_10m.geojson",
     name: "Global rivers (Natural Earth 10m).geojson",
@@ -52,8 +74,9 @@ export const DATASETS = [
   },
   {
     id: "lakes-10m",
+    home: "hydrology",
     featureNoun: "Lake",
-    group: "Physical",
+    group: "Hydrology",
     label: "Lakes — global (Natural Earth 1:10m)",
     path: "/data/global/lakes_10m.geojson",
     name: "Global lakes (Natural Earth 10m).geojson",
@@ -94,6 +117,7 @@ export const DATASETS = [
   },
   {
     id: "plate-boundaries",
+    home: "geology-tectonics",
     featureNoun: "Plate boundary",
     group: "Tectonics",
     label: "Plate boundaries — global (Bird 2003)",
@@ -106,6 +130,7 @@ export const DATASETS = [
   },
   {
     id: "active-faults",
+    home: "geology-tectonics",
     featureNoun: "Active fault",
     group: "Tectonics",
     label: "Active faults — global (GEM)",
@@ -118,6 +143,7 @@ export const DATASETS = [
   },
   {
     id: "stress-vectors",
+    home: "geology-tectonics",
     featureNoun: "Stress measurement",
     group: "Tectonics",
     label: "Stress orientations — measurements (World Stress Map)",
@@ -161,6 +187,7 @@ export const DATASETS = [
   },
   {
     id: "volcanoes",
+    home: "geology-volcanoes",
     featureNoun: "Volcano",
     group: "Hazards",
     label: "Volcanoes — global (Smithsonian GVP)",
@@ -183,8 +210,9 @@ export const DATASETS = [
   },
   {
     id: "ni-rivers",
+    home: "hydrology",
     featureNoun: "River",
-    group: "Regional",
+    group: "Hydrology",
     label: "Rivers — Northern Ireland (OpenStreetMap)",
     path: "/ni-prototype/data/ni_rivers.geojson",
     name: "NI rivers (OpenStreetMap).geojson",

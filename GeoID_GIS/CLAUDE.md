@@ -602,23 +602,47 @@ convention S1 ≥ S2 ≥ S3, but wsm00025 carries S1 11.5, S2 5.5, S3 6.3 MPa, a
 "intermediate" over a number smaller than the one below it is the app inventing
 an order the record does not have.
 
-## Tectonics is under Geology, and in one list only
+## The catalogue is filed by SUBJECT, not by file format
 
-Plate boundaries, active faults and stress measurements were filed under Data ·
-Vectors & Shapes beside the coastlines and the country borders, which is a
-statement about the FORMAT they arrive in rather than about what they are.
-Somebody looking for the world's faults looks under Geology.
+Data · Vectors & Shapes began as the one list of everything, which made it a
+list sorted by what a dataset arrives as: a plate boundary beside a coastline
+beside a volcano, because all three are GeoJSON. Nobody looks for the world's
+faults under "Vectors & Shapes", or for its rivers under a heading that also
+holds country borders.
 
-`tectonics-panel.js` draws the same `renderCatalogue` rows from the same
-`global-data.js` catalogue into a folded subsection of the Geology tab, and
-`polygons.js` filters the group OUT — the move is only a move if the old list
-stops drawing them. Two lists for one dataset is how a tick in one place fails
-to explain the tick already showing in the other, and nothing about it looks
-wrong until both panels are open at once. The group name is exported once and
-imported by the panel that excludes it, because two spellings of "Tectonics" is
-how that quietly stops working; `tectonics-panel.test.mjs` checks the Vectors
-tab excludes exactly one group, so a filter added later without a home for its
-datasets fails the run rather than making them unreachable.
+So a dataset names its **home** in `global-data.js`, `catalogue-panels.js`
+mounts one list per home, and `polygons.js` draws only what has NO home:
+
+| home | where it appears |
+| --- | --- |
+| `hydrology` | Hydrology · Water bodies — coastlines, rivers, lakes |
+| `geology-tectonics` | Geology · Tectonics — plates, faults, stress |
+| `geology-volcanoes` | Geology · Volcanoes — the Smithsonian GVP |
+
+What is left in the Vectors tab is the shapes that really are just shapes — the
+graticule, the borders, the country polygons — beside whatever somebody
+imports, which is what that tab is for.
+
+**The move is only a move if the old list stops drawing them.** Two lists for
+one dataset is how a tick in one place fails to explain the tick already
+showing in the other, and nothing about it looks wrong until both panels are
+open at once. `catalogue-panels.test.mjs` checks that every dataset appears on
+exactly one list, that every home named has a host in the page, and that the
+page loads the module that fills them.
+
+Two casualties, both deliberate. `tectonics-panel.js` was this for one home,
+and the second and third would have been two more copies of the same forty
+lines. `locations-panel.js` and the "Mapped locations" heading held one dataset
+— the volcanoes — and a heading over an empty list is worse than no heading; the
+LABEL layers under Locations stay, because a word on the sphere is not a layer
+you can interrogate.
+
+**Sea Level is Hydrology, and keeps its id.** A coastline is where the sea meets
+the land and the slider moves that line, so they belong in one tab. The id stays
+`sea-level-section` because `toolbox.js` moves the section into the tab bar by
+id and orders the column by id, and `mode-manager.js` lists it among the
+sections a mode shows — three lists to keep in step for a word the user never
+sees, against a heading that is right there in the markup.
 
 **`.gis-tool-body` was overflowing every tool section, and this is what showed
 it.** The rule was `display: grid` with no `grid-template-columns`, so the

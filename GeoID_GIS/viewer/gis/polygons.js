@@ -1,9 +1,8 @@
 import {
   addDataset, grouped, datasetById, layerForDataset, isCatalogueLayer,
-} from "./global-data.js?v=20260826-65b6ce2";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-65b6ce2";
-import { TECTONICS_GROUP } from "./tectonics-panel.js?v=20260826-65b6ce2";
-import { geometrySummary } from "./symbology-dialog.js?v=20260826-65b6ce2";
+} from "./global-data.js?v=20260826-df1070c";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-df1070c";
+import { geometrySummary } from "./symbology-dialog.js?v=20260826-df1070c";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -118,22 +117,27 @@ function drawCatalogue() {
   const host = byId("polygon-catalogue");
   if (!host) return;
   /**
-   * Everything except TECTONICS, which lives under Geology now.
+   * Only the datasets with NO home of their own.
    *
-   * Filing a plate boundary next to a coastline is a statement about its file
-   * format rather than about what it is, and somebody looking for the world's
-   * faults looks under Geology. It is drawn there and not also here: two lists
-   * for one dataset is how a tick in one place fails to explain the tick
-   * already showing in the other.
+   * The tectonics layers are under Geology, the water bodies under Hydrology
+   * and the volcanoes under Geology · Volcanoes, because filing a plate
+   * boundary next to a coastline is a statement about its file format rather
+   * than about what it is. What is left here is the shapes that really are
+   * just shapes — the graticule, the borders, the country polygons — beside
+   * whatever somebody imports, which is what this tab is for.
+   *
+   * Drawn there and NOT also here: two lists for one dataset is how a tick in
+   * one place fails to explain the tick already showing in the other.
    */
   const entries = grouped()
-    .filter(({ group }) => group !== TECTONICS_GROUP)
-    .flatMap(({ group, entries: list }) => list.map((entry) => ({
-      id: entry.id,
-      group,
-      label: entry.label,
-      title: `${entry.summary} — ${entry.licence}`,
-    })));
+    .flatMap(({ group, entries: list }) => list
+      .filter((entry) => !entry.home)
+      .map((entry) => ({
+        id: entry.id,
+        group,
+        label: entry.label,
+        title: `${entry.summary} — ${entry.licence}`,
+      })));
   renderCatalogue(host, entries, {
     // A lid over the list: nine datasets with their group headings filled the
     // panel, and the layers already on the globe — the part you work with —
