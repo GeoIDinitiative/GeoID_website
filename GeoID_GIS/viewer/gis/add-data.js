@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260826-b1f3dc5";
-import { readHead, validateMapping } from "./delimited.js?v=20260826-b1f3dc5";
-import { RAMP_NAMES } from "./symbology.js?v=20260826-b1f3dc5";
+import { CRS_OPTIONS } from "./projection.js?v=20260826-38078b5";
+import { readHead, validateMapping } from "./delimited.js?v=20260826-38078b5";
+import { RAMP_NAMES } from "./symbology.js?v=20260826-38078b5";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -668,7 +668,7 @@ function ensureMeshGroup() {
     + '<span class="section-icon" aria-hidden="true"><svg viewBox="0 0 16 16">'
     + '<path d="M8 2.4 13.4 5.4v5.2L8 13.6 2.6 10.6V5.4Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>'
     + '<path d="M2.6 5.4 8 8.4l5.4-3M8 8.4v5.2" fill="none" stroke="currentColor" stroke-width="1.1"/>'
-    + '</svg></span><span>Model · Meshes</span></span></div></div></div></summary>'
+    + '</svg></span><span>Model Builder</span></span></div></div></div></summary>'
     + '<div class="section-body toolbox-group-body" id="gis-mesh-body"></div>';
   host.appendChild(group);
 }
