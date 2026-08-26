@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260826-b4f7ca0";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260826-b4f7ca0";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260826-b4f7ca0";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260826-0875429";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260826-0875429";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260826-0875429";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -35,25 +35,78 @@ let surfaceMemo = null;
 let surfaceHits = 0;
 let surfaceCalls = 0;
 
-/** One disc for every marker layer: white centre the colour tints, dark ring. */
-let dotTexture = null;
-function markerDotTexture() {
-  if (dotTexture) return dotTexture;
+/**
+ * One TRIANGLE for every marker layer, drawn twice per layer.
+ *
+ * The texture is white and the material multiplies it by the symbology
+ * colour — which is also why the white OUTLINE cannot be drawn into this
+ * texture: it would be tinted with the rest. So each marker layer draws two
+ * Points from the same geometry — a plain-white underlay a few pixels
+ * larger, and the tinted triangle over it — and the outline is the underlay
+ * showing round the edge. Two draw calls for the whole layer, not per point.
+ */
+let triangleTexture = null;
+function markerTriangleTexture() {
+  if (triangleTexture) return triangleTexture;
   const size = 64;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d");
   ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size * 0.34, 0, Math.PI * 2);
+  ctx.moveTo(32, 7);
+  ctx.lineTo(57, 55);
+  ctx.lineTo(7, 55);
+  ctx.closePath();
   ctx.fillStyle = "#ffffff";
   ctx.fill();
-  ctx.lineWidth = size * 0.11;
-  ctx.strokeStyle = "rgba(20, 20, 26, 0.9)";
+  // A stroke in the same white, for rounded corners: a sharp 64px apex
+  // aliases into a grey wisp when the sprite is drawn at ten.
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = "#ffffff";
   ctx.stroke();
-  dotTexture = new THREE.CanvasTexture(canvas);
-  dotTexture.needsUpdate = true;
-  return dotTexture;
+  triangleTexture = new THREE.CanvasTexture(canvas);
+  triangleTexture.needsUpdate = true;
+  return triangleTexture;
+}
+
+/**
+ * Marker size follows the camera down.
+ *
+ * A 7 px sprite is right from orbit and lost against a full-resolution
+ * basemap on the ground — the report was "hard to see zoomed in", over Esri
+ * imagery whose close-range texture is busier than the globe's. The size is
+ * a material property, so one write per frame moves every marker; the hook
+ * is the same altitude callback the line clearance already rides
+ * (import-manager's onBeforeRender step).
+ *
+ * 7 px beyond ~1.2 units to the surface, easing to 12 px on the ground.
+ */
+const MARKER_MATERIALS = new Set();
+const MARKER_OUTLINE_EXTRA = 3.4;
+let markerSize = 7;
+
+function registerMarkerMaterial(material, role) {
+  material.userData.geoidMarkerRole = role;
+  MARKER_MATERIALS.add(material);
+  // Materials announce their own disposal; forgetting them here is what
+  // keeps a session of repaints from growing the set without bound.
+  material.addEventListener("dispose", () => MARKER_MATERIALS.delete(material));
+  material.size = role === "outline" ? markerSize + MARKER_OUTLINE_EXTRA : markerSize;
+  return material;
+}
+
+export function setMarkerSizeFromAltitude(surfaceDistanceUnits) {
+  const d = Number(surfaceDistanceUnits);
+  if (!Number.isFinite(d) || d <= 0) return;
+  const t = Math.max(0, Math.min(1, 1 - d / 1.2));
+  const next = 7 + 5 * t ** 1.2;
+  if (Math.abs(next - markerSize) < 0.1) return;
+  markerSize = next;
+  MARKER_MATERIALS.forEach((m) => {
+    m.size = m.userData.geoidMarkerRole === "outline" ? next + MARKER_OUTLINE_EXTRA : next;
+  });
 }
 
 /**
@@ -678,19 +731,18 @@ export function renderFeatureCollection(fc, {
      */
     const asMarkers = pointPositions.length / 3 <= 20000;
     /**
-     * A marker is a rounded DOT, not the square a bare gl_PointSize paints.
+     * A marker is a TRIANGLE in the symbology colour, on a white underlay.
      *
-     * The viewer's own label markers are discs with a dark ring, and a layer
-     * whose labelled points wore that dot while its unlabelled ones sat as
-     * bare squares read as two different datasets. The disc is a shared
-     * canvas texture the material multiplies by the vertex colour, so the
-     * symbology still paints every dot; the ring is drawn INTO the texture in
-     * dark grey because a pale dot on a pale basemap has no edge otherwise,
-     * and `alphaTest` cuts the square's corners without opening the depth
-     * sorting that `transparent` would.
+     * The triangle because a circle vanished into round terrain features on
+     * imagery basemaps; the white edge because a coloured mark on a coloured
+     * ground needs a neutral separator, and it cannot live in the texture —
+     * the material multiplies the texture by the vertex colour, so anything
+     * white in it would be tinted with the fill (see markerTriangleTexture).
+     * `alphaTest` cuts the sprite's square without opening the depth sorting
+     * that `transparent` alone would.
      */
     const material = asMarkers
-      ? { size: 7, sizeAttenuation: false, depthWrite: false, map: markerDotTexture(), alphaTest: 0.35, transparent: true }
+      ? { sizeAttenuation: false, depthWrite: false, map: markerTriangleTexture(), alphaTest: 0.35, transparent: true }
       : { size: pointSize, sizeAttenuation: true, depthWrite: false };
     if (pointColours.length === pointPositions.length) {
       geometry.setAttribute("color", new THREE.Float32BufferAttribute(pointColours, 3));
@@ -713,12 +765,35 @@ export function renderFeatureCollection(fc, {
      * instead of kilometres — existed one paragraph up, for lines.
      */
     attachReliefAttributes(geometry, drape, builtRelief);
-    const points = new THREE.Points(
-      geometry, followRelief(new THREE.PointsMaterial(material), drape, { lifted: true }),
-    );
-    points.renderOrder = 4;
-    points.frustumCulled = false;
-    group.add(points);
+    if (asMarkers) {
+      // The outline first, the tinted triangle over it. Same geometry, same
+      // relief shader; the underlay ignores the colour attribute and stays
+      // white.
+      const outline = new THREE.Points(geometry, followRelief(
+        registerMarkerMaterial(new THREE.PointsMaterial({
+          sizeAttenuation: false, depthWrite: false, map: markerTriangleTexture(),
+          alphaTest: 0.35, transparent: true, color: 0xffffff,
+        }), "outline"),
+        drape, { lifted: true },
+      ));
+      outline.renderOrder = 4;
+      outline.frustumCulled = false;
+      group.add(outline);
+      const fill = new THREE.Points(geometry, followRelief(
+        registerMarkerMaterial(new THREE.PointsMaterial(material), "fill"),
+        drape, { lifted: true },
+      ));
+      fill.renderOrder = 4.1;
+      fill.frustumCulled = false;
+      group.add(fill);
+    } else {
+      const points = new THREE.Points(
+        geometry, followRelief(new THREE.PointsMaterial(material), drape, { lifted: true }),
+      );
+      points.renderOrder = 4;
+      points.frustumCulled = false;
+      group.add(points);
+    }
   }
 
   const memo = { calls: surfaceCalls, distinct: surfaceMemo.size, hits: surfaceHits };

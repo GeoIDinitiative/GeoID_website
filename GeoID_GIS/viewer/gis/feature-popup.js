@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-b4f7ca0";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-b4f7ca0";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-0875429";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-0875429";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -939,7 +939,9 @@ function lineTolerance() {
 function pointToleranceMetres() {
   const metres = window.GeoIDViewer?.getZoomAltitudeMetres?.()?.metres;
   if (!Number.isFinite(metres)) return LINE_CEILING_M;
-  return Math.max(LINE_FLOOR_M, (metres / 110) * (9 / 8));
+  // 12/8 rather than 9/8: the marker grows to ~12 px near the ground
+  // (setMarkerSizeFromAltitude), and the hit area is the drawn area.
+  return Math.max(LINE_FLOOR_M, (metres / 110) * (12 / 8));
 }
 
 /**

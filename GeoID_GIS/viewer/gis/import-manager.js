@@ -1,13 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260826-b4f7ca0";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260826-b4f7ca0";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260826-b4f7ca0";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260826-b4f7ca0";
-import { buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude } from "./vector-render.js?v=20260826-b4f7ca0";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260826-b4f7ca0";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260826-b4f7ca0";
-import { loadMshFile } from "./msh-adapter.js?v=20260826-b4f7ca0";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260826-b4f7ca0";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260826-0875429";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260826-0875429";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260826-0875429";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260826-0875429";
+import {
+  buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude,
+  setMarkerSizeFromAltitude,
+} from "./vector-render.js?v=20260826-0875429";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260826-0875429";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260826-0875429";
+import { loadMshFile } from "./msh-adapter.js?v=20260826-0875429";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260826-0875429";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -133,7 +136,14 @@ function syncSpin(scene) {
     // an altitude you fly under. Given the distance to the surface, so a fault
     // trace is 11.9 km up from orbit and a couple of metres up on the ground.
     const zoom = viewer?.getZoomAltitudeMetres?.();
-    if (zoom) setLineDrapeFromAltitude((zoom.metres / 6371000) * 3.2);
+    if (zoom) {
+      const units = (zoom.metres / 6371000) * 3.2;
+      setLineDrapeFromAltitude(units);
+      // Marker sprites grow a little as the ground comes up to meet them: a
+      // 7 px triangle is right from orbit and lost against full-resolution
+      // imagery on the ground.
+      setMarkerSizeFromAltitude(units);
+    }
   };
   if (scene && typeof scene.onBeforeRender === "function") {
     const previous = scene.onBeforeRender.bind(scene);
