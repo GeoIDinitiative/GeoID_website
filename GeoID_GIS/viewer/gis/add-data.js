@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260827-0281be8";
-import { readHead, validateMapping } from "./delimited.js?v=20260827-0281be8";
-import { RAMP_NAMES } from "./symbology.js?v=20260827-0281be8";
+import { CRS_OPTIONS } from "./projection.js?v=20260827-71055b6";
+import { readHead, validateMapping } from "./delimited.js?v=20260827-71055b6";
+import { RAMP_NAMES } from "./symbology.js?v=20260827-71055b6";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -68,6 +68,20 @@ const ROLES = [
     title: "Add a hydrology layer",
     hint: "Rivers, coastlines, basins — shapefile, GeoJSON, KML, points or a raster",
     accept: ".shp,.dbf,.shx,.prj,.geojson,.json,.kml,.gpx,.csv,.xyz,.tif,.tiff",
+  },
+  {
+    id: "atmosphere",
+    panel: "gis-group-modelled",
+    title: "Add an atmospheric dataset",
+    hint: "Gridded rasters or station vectors — GeoTIFF, ASCII grid, GeoJSON, CSV",
+    accept: ".tif,.tiff,.asc,.png,.jpg,.jpeg,.prj,.tfw,.geojson,.json,.csv",
+  },
+  {
+    id: "geohazards",
+    panel: "modelled-data-section",
+    title: "Add a hazard layer",
+    hint: "Susceptibility or hazard maps — GeoTIFF, ASCII grid, shapefile or GeoJSON",
+    accept: ".tif,.tiff,.asc,.shp,.dbf,.shx,.prj,.geojson,.json,.kml",
   },
   {
     id: "mesh",
@@ -711,6 +725,8 @@ const GEE_HOME_BY_PANEL = {
   "basemap-relief-section": "basemap",
   "geology-section": "geology",
   "sea-level-section": "hydrology",
+  "gis-group-modelled": "atmosphere",
+  "modelled-data-section": "geohazards",
 };
 
 function addButtonFor(role) {
@@ -749,6 +765,28 @@ function addButtonFor(role) {
   if (role.panel === "gis-group-polygons") {
     const custom = panel.querySelector("#polygon-capture-drawn");
     if (custom) row.appendChild(custom);
+  }
+  // Model Builder gets its own Custom: the drawn area captured as a layer,
+  // which is the shape a mesh starts from. Same amber, same capture.
+  if (role.panel === "gis-group-mesh") {
+    const custom = document.createElement("button");
+    custom.type = "button";
+    custom.className = "button secondary gis-custom-button";
+    custom.textContent = "Custom";
+    custom.title = "Capture the area drawn on the globe as a layer to mesh";
+    custom.addEventListener("click", () => {
+      const out = window.GeoIDDrawnLayers?.captureDrawn?.();
+      if (out && !out.ok) {
+        let note = row.nextElementSibling;
+        if (!note?.classList?.contains("gis-add-note")) {
+          note = document.createElement("div");
+          note.className = "gis-metric gis-add-note";
+          row.after(note);
+        }
+        note.textContent = out.message;
+      }
+    });
+    row.appendChild(custom);
   }
   body.insertBefore(row, body.firstChild);
   return true;

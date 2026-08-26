@@ -10,12 +10,12 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-0281be8";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-0281be8";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-0281be8";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-71055b6";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-71055b6";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-71055b6";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260827-0281be8";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-0281be8";
+  from "./view-extent.js?v=20260827-71055b6";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-71055b6";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -516,7 +516,7 @@ const GEE_HOMES = {
   "NASA/NASADEM_HGT/001": "basemap",
   "COPERNICUS/DEM/GLO30": "basemap",
   "MODIS/061/MCD64A1": "geohazards",
-  "MODIS/061/MOD13A2": "geohazards",
+  "MODIS/061/MOD13A2": "basemap",
   "NASA/SMAP/SPL4SMGP/007": "hydrology",
 };
 function geeHomeOf(id) { return GEE_HOMES[id] || "atmosphere"; }
