@@ -687,6 +687,24 @@ maps the feature through the same `featureToItem` the labels use and
 `feature-popup` hands it to `viewer.openSceneFeature`, so both clicks read the
 same card.
 
+**"Force" is for the curated few, never for a dataset.** The far-range
+layout's force path draws a label anyway when it cannot be fitted — right for
+~45 hand-placed labels in an awkward viewport, and fed a thousand catalogue
+entries it drew every volcano on a subduction arc on top of its neighbours: a
+solid stripe of chips, reported as "no labels at all", which is what an
+unreadable pile is. Dataset labels that cannot be placed cleanly are skipped;
+the rank ordering means what survives is the most significant that fits.
+
+**A dot's hit radius is its drawn size, at any altitude.** The line-pick
+ceiling (20 km) exists so an orbital click cannot select a sub-pixel river
+400 km away — but a marker dot is drawn at a FIXED pixel size, so from orbit
+the dot you can plainly see spans ~100 km of ground and the ceiling left only
+its centre pixel clickable. `pointToleranceMetres` scales with altitude and
+has no ceiling. The dataset label hit-spheres are also scaled to 0.28 of the
+curated ones — 0.18 world units is ~360 km of ground, and a thousand of those
+blanketed the arcs, claiming every click for whichever invisible sphere sat
+closest.
+
 **No count cap on the detail levels.** There was one and it cut Vesuvius:
 level 3 admitted rank ≥ 3 but kept the 360 most recent, and 1944 is old among
 post-1900 eruptions. A level must mean what its caption says; the texture bill

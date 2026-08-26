@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-14a6160";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-14a6160";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-681a6f7";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-681a6f7";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -925,6 +925,24 @@ function lineTolerance() {
 }
 
 /**
+ * A DOT's hit radius is its drawn size, at any altitude — no ceiling.
+ *
+ * The line ceiling exists so an orbital click cannot select a river 400 km
+ * away: a line is drawn at true ground width, so far away it is sub-pixel and
+ * a big tolerance would be selecting the invisible. A marker dot is the
+ * opposite kind of thing — drawn at a FIXED pixel size, so from orbit the dot
+ * you can plainly see spans ~100 km of ground while the 20 km ceiling left
+ * only its centre pixel clickable. Measured at the continental zoom: a 7 px
+ * dot 90 km wide on the ground, a 20 km hit radius, and most of the visible
+ * dot inert. The hit area is the drawn area, scaled a pixel generous.
+ */
+function pointToleranceMetres() {
+  const metres = window.GeoIDViewer?.getZoomAltitudeMetres?.()?.metres;
+  if (!Number.isFinite(metres)) return LINE_CEILING_M;
+  return Math.max(LINE_FLOOR_M, (metres / 110) * (9 / 8));
+}
+
+/**
  * The feature under a coordinate, searching the visible vector layers from the
  * top of the stack down. Exported for the tests and for anything that wants to
  * ask without a click.
@@ -948,12 +966,13 @@ export function featuresAt(lat, lon) {
   const layers = window.GeoIDImportManager?.getVectorLayers?.() || [];
   const point = [lon, lat];
   const tolerance = lineTolerance();
+  const pointTolerance = pointToleranceMetres();
   const hits = [];
   for (let i = layers.length - 1; i >= 0; i -= 1) {
     const layer = layers[i];
     if (layer.visible === false) continue;
     if (layer.object3D && layer.object3D.visible === false) continue;
-    const found = featureInLayer(layer, point, tolerance);
+    const found = featureInLayer(layer, point, tolerance, pointTolerance);
     if (found) hits.push({ layer, feature: found });
   }
   return hits;
@@ -964,7 +983,7 @@ export function featuresAt(lat, lon) {
  * nearest line within tolerance. Shared by both entry points so the "top hit"
  * and the "every hit" answers cannot disagree about what a hit is.
  */
-function featureInLayer(layer, point, tolerance) {
+function featureInLayer(layer, point, tolerance, pointTolerance = tolerance) {
   let nearest = null;
   for (const feature of layer.features || []) {
     const geometry = feature?.geometry;
@@ -991,7 +1010,7 @@ function featureInLayer(layer, point, tolerance) {
     const pointCoords = pointsOf(geometry);
     for (const coord of pointCoords) {
       const d = haversineMetres(point, coord);
-      if (d <= tolerance && (!nearest || d < nearest.d)) nearest = { d, feature };
+      if (d <= pointTolerance && (!nearest || d < nearest.d)) nearest = { d, feature };
     }
     if (pointCoords.length) continue;
     for (const line of linesOf(geometry)) {

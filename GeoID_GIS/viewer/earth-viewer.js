@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-14a6160";
+  from "./gis/geo-utils.js?v=20260826-681a6f7";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -7387,6 +7387,19 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         hitTarget.renderOrder = 202;
         hitTarget.userData.feature = item;
         group.add(hitTarget);
+        /**
+         * Dataset entries at dataset scale. The curated hit sphere is 0.18
+         * world units — ~360 km of ground — which is generous for 45 labels
+         * and, for a thousand, a blanket: any click within an arc's width of
+         * ANY volcano was claimed by whichever invisible sphere sat closest,
+         * and the dot somebody actually clicked never answered. The dot
+         * itself is the vector layer's and has its own pixel-true hit test;
+         * these only need to catch clicks on and around the chip.
+         */
+        if (item.category === "dataset") {
+          marker.scale.setScalar(0.5);
+          hitTarget.scale.setScalar(0.28);
+        }
 
         const label = makeLabelTexture(item, {
           theme: item.theme === "landing" ? "landing" : item.theme,
@@ -8171,9 +8184,21 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
           applyLabelOffset(entry, offsetFactor, 0.22, tempSpritePos, tempLineEnd);
         }
         entry.sprite.getWorldPosition(spriteWorldPosition);
+        /**
+         * "Force" is for the curated few, never for a dataset.
+         *
+         * The force path exists so that ~45 hand-placed labels survive awkward
+         * viewports: if a label cannot be fitted it is drawn anyway. Feed it a
+         * thousand catalogue entries and every volcano on a subduction arc is
+         * drawn on top of its neighbours — measured over Japan as a solid
+         * stripe of chips, reported as "no labels at all", which is what an
+         * unreadable pile is. A dataset label that cannot be placed cleanly
+         * is SKIPPED; the rank ordering above means what survives is the most
+         * significant that fits.
+         */
         const forceLabel = useMosaicCloseLayout
           ? true
-          : entry.marker?.visible && entry.hitTarget?.visible;
+          : entry.category !== "dataset" && entry.marker?.visible && entry.hitTarget?.visible;
         if (!forceLabel && isPointOccludedByAnyMoon(spriteWorldPosition, camera)) {
           entry.marker.visible = false;
           entry.hitTarget.visible = false;
@@ -8383,7 +8408,8 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
           occupiedRects.push(candidate.rect);
           continue;
         }
-        const forceLabel = candidate.entry.marker?.visible && candidate.entry.hitTarget?.visible;
+        const forceLabel = candidate.entry.category !== "dataset"
+          && candidate.entry.marker?.visible && candidate.entry.hitTarget?.visible;
         if (!globalView) {
           const outOfBounds = candidate.rect.left < baseViewportPadding
             || candidate.rect.right > viewportWidth - baseViewportPadding
