@@ -80,7 +80,11 @@ const LABEL_SPACING_PX = 64;
 
 const LAYER_NAME = "Live satellites (CelesTrak)";
 const REFRESH_MS = 1500;
-const RING_SAMPLES = 96;
+const RING_SAMPLES = 160;
+// A single highlighted orbit affords more: the hover/selection overlays
+// sample finer than the mass of rings, because one smooth ring is the whole
+// point of picking it out.
+const SOLO_SAMPLES = 256;
 const KM_TO_UNITS = 3.2 / 6371;
 const TLE_URL = (group) =>
   `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group}&FORMAT=tle`;
@@ -304,7 +308,7 @@ function tick() {
  * Sampled in ECI over each object's own period, converted to the ground
  * frame at ONE shared instant (`gmst0`), coloured by category at the vertex.
  */
-function buildRings() {
+async function buildRings() {
   const satellite = window.satellite;
   const date = new Date();
   const gmst0 = satellite.gstime(date);
@@ -313,9 +317,22 @@ function buildRings() {
   const colour = new THREE.Color();
   const scratch = new THREE.Vector3();
   const segmentOwner = [];
-  active.records.forEach((record) => {
+  /**
+   * In CHUNKS, yielding between them: ~1,000 ringed orbits at 160 samples
+   * is a sixth of a million propagations, and doing them in one task
+   * freezes the frame for seconds — reported once already as the whole app
+   * hitching when the paths came on.
+   */
+  let sinceYield = 0;
+  for (const record of active.records) {
+    if ((sinceYield += 1) % 120 === 0) {
+      say(`Computing orbit paths… ${Math.round((sinceYield / active.records.length) * 100)}%`);
+      await new Promise((resolve) => { setTimeout(resolve, 0); });
+      if (!active) return null;
+    }
     record.ringRange = null;
-    if (record.dead || record.noRings) return;
+    record.soloRing = null;
+    if (record.dead || record.noRings) continue;
     const periodMs = ((2 * Math.PI) / (record.satrec.no_kozai ?? record.satrec.no)) * 60000;
     colour.set(CATEGORY_COLOURS[record.category] || "#8a8a8a");
     const points = [];
@@ -340,7 +357,7 @@ function buildRings() {
       segmentOwner.push(record);
     }
     record.ringRange = { start: startFloats, count: positions.length - startFloats };
-  });
+  }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colours, 3));
@@ -361,7 +378,7 @@ function buildRings() {
   const overlayGeometry = () => {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position",
-      new THREE.Float32BufferAttribute(new Float32Array(RING_SAMPLES * 6), 3));
+      new THREE.Float32BufferAttribute(new Float32Array(SOLO_SAMPLES * 6), 3));
     g.setDrawRange(0, 0);
     return g;
   };
@@ -382,18 +399,54 @@ function buildRings() {
   return rings;
 }
 
-/** Copy one orbit's vertices into an overlay line, or hide it. */
+/**
+ * One satellite's whole orbit, sampled fresh at solo resolution.
+ *
+ * For the constellations that draw no mass rings (OneWeb), and for anything
+ * whose 160-sample ring is being singled out — a chord-y polyline is
+ * acceptable as one thread among a thousand and not as the one line you are
+ * looking at. Cached per record against the rings' own gmst0 frame, so it
+ * costs one propagation pass per satellite per activation.
+ */
+function soloOrbit(record) {
+  if (record.soloRing) return record.soloRing;
+  const satellite = window.satellite;
+  const gmst0 = active.rings.userData.gmst0;
+  const date = new Date();
+  const periodMs = ((2 * Math.PI) / (record.satrec.no_kozai ?? record.satrec.no)) * 60000;
+  const scratch = new THREE.Vector3();
+  const points = [];
+  for (let k = 0; k <= SOLO_SAMPLES; k += 1) {
+    let out;
+    try {
+      out = satellite.propagate(record.satrec,
+        new Date(date.getTime() + (periodMs * k) / SOLO_SAMPLES));
+    } catch (error) { break; }
+    if (!out?.position) break;
+    const ecf = satellite.eciToEcf(out.position, gmst0);
+    points.push(ecfToScene(ecf, scratch).clone());
+  }
+  const array = new Float32Array(Math.max(0, points.length - 1) * 6);
+  for (let k = 0; k + 1 < points.length; k += 1) {
+    array.set([points[k].x, points[k].y, points[k].z,
+      points[k + 1].x, points[k + 1].y, points[k + 1].z], k * 6);
+  }
+  record.soloRing = array;
+  return array;
+}
+
+/** Draw one orbit into an overlay line, or hide it. */
 function showOrbitOverlay(overlay, record) {
-  if (!record?.ringRange || !active?.rings) {
+  if (!record || !active?.rings) {
     overlay.visible = false;
     return;
   }
-  const source = active.rings.geometry.attributes.position.array;
   const target = overlay.geometry.attributes.position;
-  const { start, count } = record.ringRange;
-  target.array.set(source.subarray(start, start + count));
+  const solo = soloOrbit(record);
+  if (!solo.length) { overlay.visible = false; return; }
+  target.array.set(solo);
   target.needsUpdate = true;
-  overlay.geometry.setDrawRange(0, count / 3);
+  overlay.geometry.setDrawRange(0, solo.length / 3);
   overlay.geometry.computeBoundingSphere();
   overlay.visible = true;
 }
@@ -591,13 +644,19 @@ function setLabelLevel(level) {
   updateLabels();
 }
 
-function setRings(on) {
+async function setRings(on) {
   if (!active) return;
-  if (on && !active.rings) {
+  if (on && !active.rings && !active.buildingRings) {
+    active.buildingRings = true;
     say("Computing orbit paths…");
-    active.rings = buildRings();
-    active.group.add(active.rings);
-    say(`${active.records.length} satellites live, orbit paths on.`);
+    const rings = await buildRings();
+    if (!active) return;
+    active.buildingRings = false;
+    if (rings) {
+      active.rings = rings;
+      active.group.add(rings);
+      say(`${active.records.length} satellites live, orbit paths on.`);
+    }
   }
   if (active.rings) active.rings.visible = on;
   // A selection made while the paths were off gains its orbit pulse the
@@ -692,11 +751,20 @@ function onMove(event) {
     if (!canvas || event.target !== canvas) return;
     const cast = castAt(event.clientX, event.clientY);
     if (!cast) return;
-    cast.raycaster.params.Line.threshold = 7 * cast.worldPerPixel;
-    const hit = cast.raycaster.intersectObject(active.rings, false)
-      .sort((a, b) => a.distance - b.distance)[0];
-    const record = hit
-      ? active.rings.userData.segmentOwner?.[Math.floor(hit.index / 2)] : null;
+    // Dots first: a constellation satellite draws no mass ring, and hovering
+    // its DOT is how its orbit becomes visible at all.
+    cast.raycaster.params.Points.threshold = 10 * cast.worldPerPixel;
+    const dotHit = cast.raycaster.intersectObject(active.fill, false)
+      .filter((h) => !active.records[h.index]?.dead)
+      .sort((a, b) => a.distanceToRay - b.distanceToRay)[0];
+    let record = dotHit ? active.records[dotHit.index] : null;
+    if (!record) {
+      cast.raycaster.params.Line.threshold = 7 * cast.worldPerPixel;
+      const hit = cast.raycaster.intersectObject(active.rings, false)
+        .sort((a, b) => a.distance - b.distance)[0];
+      record = hit
+        ? active.rings.userData.segmentOwner?.[Math.floor(hit.index / 2)] : null;
+    }
     if (record !== active.hovered) {
       active.hovered = record || null;
       showOrbitOverlay(active.rings.userData.hover, active.hovered);
