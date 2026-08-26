@@ -7,8 +7,8 @@
  * file knows is only which catalogue to draw and where to put it.
  */
 
-import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260826-8b90f9b";
-import { renderCatalogue } from "./catalogue-list.js?v=20260826-8b90f9b";
+import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260826-d773409";
+import { renderCatalogue } from "./catalogue-list.js?v=20260826-d773409";
 
 const byId = (id) => document.getElementById(id);
 
@@ -86,6 +86,7 @@ function draw() {
       group,
       label: entry.label,
       title: `${entry.summary} — ${entry.licence}`,
+      info: { summary: entry.summary, citation: entry.licence },
     }))),
     ...geeEntries,
   ];

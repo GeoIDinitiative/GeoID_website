@@ -10,12 +10,12 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260826-8b90f9b";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260826-8b90f9b";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260826-8b90f9b";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260826-d773409";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260826-d773409";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260826-d773409";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260826-8b90f9b";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-8b90f9b";
+  from "./view-extent.js?v=20260826-d773409";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-d773409";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -536,6 +536,12 @@ function catalogueEntries() {
         : "Live service: needs a Client ID and a project in Settings",
       source: option.dataset.source,
       name: option.textContent,
+      info: {
+        summary: option.dataset.source === "cache"
+          ? "A rendered snapshot shipped with the site — drapes from disk, no key needed. The live service refines it when connected."
+          : "Requested from the live Earth Engine service — needs a Client ID and a project in Settings.",
+        citation: `Google Earth Engine · ${option.value}`,
+      },
     }));
 }
 

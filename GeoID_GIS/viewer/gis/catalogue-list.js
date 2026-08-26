@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-8b90f9b";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-d773409";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -46,7 +46,7 @@ const STYLE = `
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 400 0.72rem/1.4 'Exo 2', sans-serif;
+  font: 400 0.78rem/1.4 'Exo 2', sans-serif;
   cursor: pointer;
 }
 .gis-catalogue-row.is-busy .gis-catalogue-name { opacity: 0.6; font-style: italic; }
@@ -109,6 +109,57 @@ const STYLE = `
   background: rgba(82, 228, 232, 0.38);
   border-radius: 3px;
 }
+.gis-catalogue-info-btn {
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgba(82, 228, 232, 0.4);
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(82, 228, 232, 0.85);
+  font: 600 0.62rem/1 'Exo 2', sans-serif;
+  cursor: pointer;
+}
+.gis-catalogue-info-btn:hover {
+  border-color: #52e4e8;
+  color: #ffffff;
+  background: rgba(82, 228, 232, 0.14);
+}
+#gis-catalogue-info-pop {
+  position: fixed;
+  z-index: 70;
+  width: min(19rem, calc(100vw - 2rem));
+  padding: 0.6rem 0.75rem 0.65rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(82, 228, 232, 0.45);
+  background: rgba(8, 13, 20, 0.98);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5);
+  color: #dcebf2;
+}
+#gis-catalogue-info-pop[hidden] { display: none !important; }
+#gis-catalogue-info-pop h4 {
+  margin: 0 0 0.3rem;
+  font: 600 0.72rem/1.3 'Exo 2', sans-serif;
+  letter-spacing: 0.05em;
+  color: #bdf3f5;
+}
+#gis-catalogue-info-pop p {
+  margin: 0 0 0.35rem;
+  font: 400 0.68rem/1.45 'Exo 2', sans-serif;
+}
+#gis-catalogue-info-pop .info-citation {
+  margin: 0;
+  font: 400 0.62rem/1.4 'Exo 2', sans-serif;
+  opacity: 0.8;
+}
+#gis-catalogue-info-pop .info-citation b {
+  font-weight: 600;
+  color: #9fe8ec;
+}
 `;
 
 let styled = false;
@@ -163,6 +214,76 @@ export function refreshCatalogues() {
  * @param {(layer: object) => void} [hooks.symbology]
  * @param {string} [hooks.title]  wrap the list in a dropdown under this name
  */
+/** The one info popover, found by id rather than held in a variable. */
+function infoPop() {
+  let pop = document.getElementById("gis-catalogue-info-pop");
+  if (!pop) {
+    pop = document.createElement("div");
+    pop.id = "gis-catalogue-info-pop";
+    pop.hidden = true;
+    document.body.appendChild(pop);
+    document.addEventListener("click", (e) => {
+      if (!pop.hidden && !pop.contains(e.target)
+        && !e.target.closest?.(".gis-catalogue-info-btn")) pop.hidden = true;
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") pop.hidden = true;
+    });
+  }
+  return pop;
+}
+
+/**
+ * The ⓘ beside a dataset's tick: what this is, and the full citation of
+ * where it comes from — on a card, because a title-attribute tooltip
+ * cannot be read on touch and truncates the licence it exists to show.
+ */
+function infoButton(entry) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "gis-catalogue-info-btn";
+  btn.textContent = "i";
+  btn.title = `About ${entry.label}`;
+  btn.setAttribute("aria-label", `About ${entry.label}`);
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const pop = infoPop();
+    const again = !pop.hidden && pop.dataset.entry === entry.id;
+    if (again) { pop.hidden = true; return; }
+    pop.dataset.entry = entry.id;
+    pop.textContent = "";
+    const h = document.createElement("h4");
+    h.textContent = entry.label;
+    pop.appendChild(h);
+    if (entry.info.summary) {
+      const p = document.createElement("p");
+      p.textContent = entry.info.summary;
+      pop.appendChild(p);
+    }
+    if (entry.info.citation) {
+      const cite = document.createElement("p");
+      cite.className = "info-citation";
+      const b = document.createElement("b");
+      b.textContent = "Source: ";
+      cite.append(b, entry.info.citation);
+      pop.appendChild(cite);
+    }
+    pop.hidden = false;
+    // Beside the button, clamped to the viewport, above it if there is no
+    // room below.
+    const r = event.currentTarget.getBoundingClientRect();
+    const w = pop.offsetWidth;
+    const h2 = pop.offsetHeight;
+    let x = Math.min(r.left, window.innerWidth - w - 12);
+    let y = r.bottom + 6;
+    if (y + h2 > window.innerHeight - 8) y = r.top - h2 - 6;
+    pop.style.left = `${Math.max(8, x)}px`;
+    pop.style.top = `${Math.max(8, y)}px`;
+  });
+  return btn;
+}
+
 export function renderCatalogue(host, entries, hooks) {
   if (!host) return;
   drawn.set(host, { entries, hooks });
@@ -248,6 +369,7 @@ export function renderCatalogue(host, entries, hooks) {
     name.htmlFor = tick.id;
     name.textContent = entry.label;
     if (entry.title) name.title = entry.title;
+    const info = entry.info ? infoButton(entry) : null;
 
     // Name first, tick LAST: the ticks line up down the row's right edge,
     // the same side every section header keeps its master toggle.
@@ -271,6 +393,7 @@ export function renderCatalogue(host, entries, hooks) {
       sym.addEventListener("click", () => hooks.symbology(layer));
       row.appendChild(sym);
     }
+    if (info) row.appendChild(info);
     row.appendChild(tick);
     list.appendChild(row);
   });
