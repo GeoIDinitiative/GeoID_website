@@ -65,6 +65,15 @@ const CATEGORY_COLOURS = {
   "OneWeb constellation": "#8b93a3",
 };
 
+/**
+ * The moment to propagate for — the VIEWER'S clock, not the wall clock.
+ * In real time the two agree; in time-lapse the satellites orbit at the
+ * same 720× the globe turns, one clock for everything on it.
+ */
+function simNow() {
+  return new Date(window.GeoIDViewer?.getSimulatedUtcMs?.() ?? Date.now());
+}
+
 /** A record's drawn colour: the symbology dialog's choice, else its category. */
 function colourFor(record) {
   return record.colour || CATEGORY_COLOURS[record.category] || "#8a8a8a";
@@ -296,7 +305,7 @@ function tick() {
   if (!active) return;
   if (!layerOf()) { stop(); return; }
   const satellite = window.satellite;
-  const date = new Date();
+  const date = simNow();
   const gmst = satellite.gstime(date);
   const scratch = new THREE.Vector3();
   const positions = active.geometry.attributes.position;
@@ -348,7 +357,7 @@ function tick() {
  */
 async function buildRings() {
   const satellite = window.satellite;
-  const date = new Date();
+  const date = simNow();
   const gmst0 = satellite.gstime(date);
   const positions = [];
   const colours = [];
@@ -474,7 +483,7 @@ function soloOrbit(record) {
   if (record.soloRing) return record.soloRing;
   const satellite = window.satellite;
   const gmst0 = active.rings.userData.gmst0;
-  const date = new Date();
+  const date = simNow();
   const periodMs = ((2 * Math.PI) / (record.satrec.no_kozai ?? record.satrec.no)) * 60000;
   const scratch = new THREE.Vector3();
   const points = [];
@@ -1120,6 +1129,18 @@ async function start() {
   // A fresh start wears the defaults; the swatches must say so even if a
   // previous session's symbology had repainted them.
   refreshCategorySwatches();
+  /**
+   * Live data deserves a live clock: tracking drops the globe to real time
+   * — true rotation, the terminator where it really is — via the corner
+   * control's own seam, so the pill says LIVE and the user can put the
+   * time-lapse back with one click. Remembered as OURS, so stop() only
+   * restores the showcase spin if nobody chose otherwise in between.
+   */
+  const viewer = window.GeoIDViewer;
+  if (viewer?.getTimeRate?.() === "lapse") {
+    viewer.setTimeRate?.("real");
+    active.autoRealTime = true;
+  }
   return true;
 }
 
@@ -1141,6 +1162,9 @@ function stop() {
   if (viewerCanvas) viewerCanvas.style.cursor = "";
   const layer = layerOf();
   if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+  if (active.autoRealTime && window.GeoIDViewer?.getTimeRate?.() === "real") {
+    window.GeoIDViewer.setTimeRate?.("lapse");
+  }
   active = null;
   say("Satellites off.");
 }
@@ -1209,7 +1233,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260826-52d53fd");
+    const dialog = await import("./symbology-dialog.js?v=20260826-5c5ee89");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

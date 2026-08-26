@@ -840,6 +840,24 @@ assigns by frequency, and filtering changes the frequencies). The type list
 draws on the `symbology` announce event, because the legend it is built from
 lands a beat after the layer registers.
 
+**The globe has a time rate, and the corner pill switches it.** Everything
+temporal — spin delta, simulated UTC, the sun and so the terminator, the
+GMT readout — derives from `getSpinTime()`, so the rate is layered there
+and nowhere else (`timeRateFactor` over the pause-aware wall clock, rebased
+on every switch). "×720" is the showcase: a day every two minutes. "LIVE"
+is real time: the true 15°/hour, and entering it SNAPS the clock to actual
+UTC now (a real rate against a wrong phase still lights the wrong
+hemisphere); leaving it keeps continuity — the clock runs on from where it
+stands, just faster. Seams: `setTimeRate("real"|"lapse")` / `getTimeRate()`
+beside `setSpinPaused`. The satellites propagate at `getSimulatedUtcMs()`
+(via `simNow()`), not the wall clock — one clock for everything, which is
+what forecast playback will hang off (scrub the base, pick a rate).
+Tracking auto-drops to real time and remembers the switch was its own, so
+stop() restores the time-lapse only if nobody chose otherwise meanwhile.
+Verified by measurement: 0.05236 rad/s in lapse and 7.272e-5 in real —
+2π/120 and 2π/86400 exactly — clock snapped to within 0.3 ms of Date.now(),
+pause frozen at zero drift under both rates.
+
 **The satellites open the ordinary symbology dialog.** The tab's Symbology
 button hands the live layer to `openSymbologyDialog`, wired through three
 things on the layer: `features` (the records' own feature objects, whose

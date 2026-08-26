@@ -2046,6 +2046,35 @@
       transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s, transform 0.15s;
     }
 
+    /* The rate pill wears the corner buttons' chrome but carries a word, not
+       a glyph: the state IS the label (×720 time-lapse, LIVE real time). */
+    #time-rate-toggle {
+      flex-shrink: 0;
+      height: 2.55rem;
+      padding: 0 0.55rem;
+      border-radius: 0.62rem;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(10, 16, 23, 0.96);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+      color: #d5e8ee;
+      cursor: pointer;
+      font-family: "Exo 2", "Segoe UI", sans-serif;
+      font-size: 0.66rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+    }
+    #time-rate-toggle:hover {
+      transform: translateY(-1px);
+      background: rgba(14, 21, 30, 0.98);
+      border-color: rgba(var(--instrument-rust-rgb), 0.38);
+      color: #effcff;
+    }
+    #time-rate-toggle.is-live {
+      border-color: rgba(82, 228, 232, 0.55);
+      color: #52e4e8;
+      text-shadow: 0 0 8px rgba(82, 228, 232, 0.45);
+    }
+
     #spin-toggle:hover,
     #freeze-view-toggle:hover {
       transform: translateY(-1px);

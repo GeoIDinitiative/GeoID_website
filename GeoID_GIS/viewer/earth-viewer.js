@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-52d53fd";
+  from "./gis/geo-utils.js?v=20260826-5c5ee89";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -1082,9 +1082,60 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         spinToggleBtn.classList.remove("is-paused");
       }
     }
-    function getSpinTime() {
+    function getRawSpinTime() {
       return spinPaused ? (spinPauseStart - spinOffset) : (performance.now() - spinOffset);
     }
+    /**
+     * The time rate, layered over the pause-aware wall clock.
+     *
+     * Everything temporal — the spin delta, the simulated UTC, the sun and
+     * so the terminator — derives from `getSpinTime()`, so the rate lives
+     * here and nowhere else. Factor 1 is the showcase: one spin-ms per real
+     * ms, a day every two minutes. "Real" scales accumulation down by
+     * PERIOD/DAY so one simulated day takes one real day — the true 15°/hour
+     * — and entering it SNAPS the clock to actual UTC now, because a real
+     * rate against a wrong phase would still light the wrong hemisphere.
+     * Leaving it back to time-lapse keeps continuity instead: the clock
+     * runs on from wherever it stands, just faster.
+     */
+    let timeRateFactor = 1;
+    let spinTimeBase = 0;
+    let spinWallBase = 0;
+    function getSpinTime() {
+      return spinTimeBase + (getRawSpinTime() - spinWallBase) * timeRateFactor;
+    }
+    function getTimeRate() { return timeRateFactor === 1 ? "lapse" : "real"; }
+    function setTimeRate(mode) {
+      const real = mode === "real";
+      if (real === (timeRateFactor !== 1)) { syncTimeRateBtn(); return; }
+      if (real) {
+        const nowMs = Date.now();
+        spinUtcDayStartMs = getUtcMidnightMs(nowMs);
+        spinTimeBase = ((nowMs - spinUtcDayStartMs) / UTC_DAY_MS) * EARTH_ROTATION_PERIOD_MS;
+        spinWallBase = getRawSpinTime();
+        timeRateFactor = EARTH_ROTATION_PERIOD_MS / UTC_DAY_MS;
+      } else {
+        spinTimeBase = getSpinTime();
+        spinWallBase = getRawSpinTime();
+        timeRateFactor = 1;
+      }
+      lastClockBucket = -1; // the GMT readout redraws now, not next bucket
+      syncTimeRateBtn();
+    }
+    const timeRateBtn = document.getElementById("time-rate-toggle");
+    function syncTimeRateBtn() {
+      if (!timeRateBtn) return;
+      const real = timeRateFactor !== 1;
+      timeRateBtn.classList.toggle("is-live", real);
+      timeRateBtn.textContent = real ? "LIVE" : "×720";
+      timeRateBtn.title = real
+        ? "Real time: the globe turns at its true rate, the sun and clock read now. Click for the two-minute time-lapse day."
+        : "Time-lapse: a day every two minutes. Click for real time — true rotation, the terminator where it really is.";
+    }
+    timeRateBtn?.addEventListener("click", () => {
+      setTimeRate(timeRateFactor === 1 ? "real" : "lapse");
+    });
+    syncTimeRateBtn();
     function getSpinDeltaRadians() {
       return getSpinTime() * (2 * Math.PI / EARTH_ROTATION_PERIOD_MS);
     }
@@ -20077,6 +20128,12 @@ uniform float uViewportWidth;`,
           if (paused) { pauseSpin(); } else { resumeSpin(); }
         },
         isSpinPaused: () => spinPaused,
+        // The time rate: "lapse" is the two-minute showcase day, "real" is
+        // the true rotation with the clock snapped to actual UTC. One clock
+        // for everything — the satellites read getSimulatedUtcMs, so they
+        // follow whichever rate is chosen.
+        setTimeRate,
+        getTimeRate,
         hideCursorReadout() {
           cursorReadout.hidden = true;
           cursorReadout.textContent = "";
