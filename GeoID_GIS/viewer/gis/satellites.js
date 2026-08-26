@@ -603,14 +603,14 @@ function updateLabels() {
    *
    * A fixed size reads right when the globe fills the screen and enormous
    * when the whole GNSS shell is in frame and the Earth is a coin — the
-   * tag stays, the world it annotates shrinks. Height eases 12 → 8 px
-   * (bare type, so that is ~9 px letters down to ~6 px) and the declutter
+   * tag stays, the world it annotates shrinks. Height eases 10 → 6.5 px
+   * (bare type, so that is ~7.5 px letters down to ~5 px) and the declutter
    * spacing widens 64 → 130 px as the camera runs out from 5 to 25 units,
    * so a distant view carries fewer, smaller names.
    */
   const camDist = viewer.camera.position.length();
   const far = Math.max(0, Math.min(1, (camDist - 5) / 20));
-  const heightPx = 12 - 4 * far;
+  const heightPx = 10 - 3.5 * far;
   const spacingPx = LABEL_SPACING_PX + 66 * far;
   const camDir = viewer.camera.position.clone().normalize();
   const positions = active.geometry.attributes.position;
