@@ -1,6 +1,6 @@
-import * as store from "../project-store.js?v=20260826-cd9ecce";
-import { parseTable, column } from "../table.js?v=20260826-cd9ecce";
-import { currentBody, currentBodyId } from "../../bodies.js?v=20260826-cd9ecce";
+import * as store from "../project-store.js?v=20260826-422c702";
+import { parseTable, column } from "../table.js?v=20260826-422c702";
+import { currentBody, currentBodyId } from "../../bodies.js?v=20260826-422c702";
 
 /**
  * The furniture every Research page uses.

@@ -537,14 +537,17 @@ function showOrbitOverlay(overlay, record) {
 const tagTextures = new Map();
 
 function makeTagTexture(name, colour) {
-  const key = `${colour}|${name}`;
+  const key = `v2|${colour}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
-  const scale = 3;
+  const scale = 4;
   const text = String(name).toUpperCase();
-  const font = `600 ${10 * scale}px "Exo 2", "Segoe UI", sans-serif`;
+  // 700 over 600 and half the old tracking: at seven rendered pixels a
+  // heavier, tighter letterform survives minification; a tracked light one
+  // reads as stretched smear — which is what was reported.
+  const font = `700 ${10 * scale}px "Exo 2", "Segoe UI", sans-serif`;
   const probe = document.createElement("canvas").getContext("2d");
   probe.font = font;
-  probe.letterSpacing = `${1 * scale}px`;
+  probe.letterSpacing = `${0.5 * scale}px`;
   const textW = Math.ceil(probe.measureText(text).width);
   const dash = 5 * scale;
   const gap = 3 * scale;
@@ -556,7 +559,7 @@ function makeTagTexture(name, colour) {
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   ctx.font = font;
-  ctx.letterSpacing = `${1 * scale}px`;
+  ctx.letterSpacing = `${0.5 * scale}px`;
   ctx.textBaseline = "middle";
   const midY = height / 2;
   // The leader dash, category-coloured — the one piece of chrome kept.
@@ -631,7 +634,7 @@ function updateLabels() {
    */
   const camDist = viewer.camera.position.length();
   const far = Math.max(0, Math.min(1, (camDist - 5) / 20));
-  const heightPx = 10 - 3.5 * far;
+  const heightPx = 11 - 3 * far;
   const spacingPx = LABEL_SPACING_PX + 66 * far;
   const camDir = viewer.camera.position.clone().normalize();
   const positions = active.geometry.attributes.position;
@@ -683,6 +686,7 @@ function updateLabels() {
         sizeAttenuation: false,
       }));
       sprite.userData.aspect = tag.width / tag.height;
+      sprite.userData.record = record;
       active.labelGroup.add(sprite);
       active.labels.set(record.norad, sprite);
     }
@@ -840,7 +844,39 @@ function castAt(clientX, clientY) {
   return { raycaster, worldPerPixel };
 }
 
-/** The satellite under a pointer position: its dot first, then its orbit. */
+/**
+ * The tag under a pointer position, tested in SCREEN space.
+ *
+ * A raycast cannot serve here: the sprites render with
+ * `sizeAttenuation: false`, so their drawn size is a screen fact the
+ * raycaster's world-space math does not see. The same projection that
+ * places a tag answers whether a click landed on it.
+ */
+function tagAt(clientX, clientY) {
+  const viewer = window.GeoIDViewer;
+  const canvas = viewer?.renderer?.domElement;
+  if (!canvas || !active) return null;
+  const rect = canvas.getBoundingClientRect();
+  const world = new THREE.Vector3();
+  for (const sprite of active.labels.values()) {
+    if (!sprite.visible) continue;
+    sprite.getWorldPosition(world).project(viewer.camera);
+    const ax = (world.x * 0.5 + 0.5) * rect.width + rect.left;
+    const ay = (-world.y * 0.5 + 0.5) * rect.height + rect.top;
+    const w = (sprite.scale.x * rect.width) / 2;
+    const h = (sprite.scale.y * rect.height) / 2;
+    // sprite.center is (-0.1, 0.5): the quad's centre sits 0.6 widths
+    // right of the anchor, level with it.
+    const cx = ax + (0.5 - sprite.center.x) * w - w / 2;
+    const cy = ay + (sprite.center.y - 0.5) * h;
+    if (Math.abs(clientX - cx) <= w / 2 + 2 && Math.abs(clientY - cy) <= h / 2 + 2) {
+      return sprite.userData.record || null;
+    }
+  }
+  return null;
+}
+
+/** The satellite under a pointer: its dot, then its tag, then its orbit. */
 function recordAt(clientX, clientY) {
   if (!active) return null;
   const cast = castAt(clientX, clientY);
@@ -851,6 +887,8 @@ function recordAt(clientX, clientY) {
     .filter((h) => !active.records[h.index]?.dead && !active.records[h.index]?.hidden)
     .sort((a, b) => a.distanceToRay - b.distanceToRay)[0];
   if (dotHit) return active.records[dotHit.index];
+  const tagged = tagAt(clientX, clientY);
+  if (tagged) return tagged;
   if (active.rings?.visible) {
     raycaster.params.Line.threshold = 7 * worldPerPixel;
     const meshes = (active.rings.userData.ringMeshes || []).filter((m) => m.visible);
@@ -1289,7 +1327,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260826-cd9ecce");
+    const dialog = await import("./symbology-dialog.js?v=20260826-422c702");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not
