@@ -242,6 +242,15 @@ function stateOf(satellite, record, date, gmst) {
 
 let active = null;
 
+/**
+ * The run token. `start()` spends ten seconds and more in awaited fetches
+ * before `active` exists, and an untick landing in that window found
+ * nothing to stop — `stop()` returned quietly and the layer arrived anyway,
+ * tracked and ticking, under an unticked box. Every await in `start()`
+ * re-checks the token; `stop()` bumps it, which is what cancellation IS.
+ */
+let runId = 0;
+
 function say(message) {
   const node = document.getElementById("satellites-status");
   if (node) node.textContent = message || "";
@@ -924,6 +933,7 @@ function onDown(event) {
 }
 
 async function start() {
+  const id = ++runId;
   say("Fetching orbital elements…");
   let satellite;
   try {
@@ -932,21 +942,26 @@ async function start() {
     say("The propagator failed to load — satellites need vendor/satellite.min.js.");
     return false;
   }
+  if (id !== runId) return false;
   const tleSets = [];
   for (const meta of GROUPS) {
+    if (id !== runId) return false;   // or a cancelled run keeps narrating
     say(`Fetching orbital elements… ${meta.group}`);
     try {
       const response = await fetch(TLE_URL(meta.group));
+      if (id !== runId) return false;
       if (response.ok) tleSets.push({ meta, triples: parseTle(await response.text()) });
     } catch (error) { /* one throttled group must not sink the layer */ }
     // CelesTrak throttles rapid-fire queries into empty 200s; a beat between
     // requests is what keeps `geo` and `science` from arriving blank.
     await new Promise((resolve) => { setTimeout(resolve, 250); });
+    if (id !== runId) return false;
   }
   if (!tleSets.some((set) => set.triples.length)) {
     say("CelesTrak did not answer.");
     return false;
   }
+  if (id !== runId) return false;
   const records = buildRecords(satellite, tleSets);
   if (!records.length) { say("No usable element sets in the answer."); return false; }
   records.forEach((record) => {
@@ -1017,6 +1032,12 @@ async function start() {
     },
   }, "live");
   if (!layer) { say("The layer could not be registered."); return false; }
+  if (id !== runId) {
+    // Cancelled between the registration call and here: the layer exists
+    // and nothing will ever own it — take it straight back out.
+    window.GeoIDImportManager?.removeLayer?.(layer.id);
+    return false;
+  }
   layer.featureNoun = "Satellite";
 
   active = {
@@ -1037,6 +1058,9 @@ async function start() {
 }
 
 function stop() {
+  // Bumped FIRST and unconditionally: a stop with no `active` yet is a
+  // cancellation of the start still in flight.
+  runId += 1;
   if (!active) return;
   window.clearInterval(active.timer);
   active.labels.forEach((sprite) => {
@@ -1089,6 +1113,9 @@ function init() {
       if (on) {
         for (let i = 0; i < 100 && !active; i += 1) {
           await new Promise((resolve) => { setTimeout(resolve, 200); });
+          // The user changed their mind mid-fetch: this handler's plan is
+          // stale, and the newer change event owns the outcome.
+          if (master.checked !== on) return;
         }
       }
     }
