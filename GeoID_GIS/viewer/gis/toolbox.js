@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260826-3fbbbdd";
-import { currentBody } from "./bodies.js?v=20260826-3fbbbdd";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260826-3fbbbdd";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260826-b4f7ca0";
+import { currentBody } from "./bodies.js?v=20260826-b4f7ca0";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260826-b4f7ca0";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -90,8 +90,10 @@ const TAB_ORDER = [
   // those pages the filter leaves Explorer at the top with nothing to move.
   "gis-group-geoid",
   "geoid-controls-group",
-  "gis-group-polygons",
+  // Events before the vector catalogue: the live feeds are the tab people
+  // open daily; the shapefile importer is reference material.
   "gis-group-events",
+  "gis-group-polygons",
   "basemap-relief-section",
   "geology-section",
   "gis-group-modelled",
