@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-df1070c";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-df1070c";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-ba1937f";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-ba1937f";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -242,6 +242,16 @@ const PREFERRED = [
 const FIELD_LABEL = {
   azimuth: "SHmax azimuth",
   regime: "Faulting regime",
+  // The Smithsonian's columns, which read as database headings otherwise --
+  // and `summary` carries the paragraph that is most of the reason to click.
+  summary: "Description",
+  activity: "Activity",
+  epoch: "Epoch",
+  landform: "Landform",
+  rock_type: "Rock type",
+  volcano_type: "Volcano type",
+  tectonic_setting: "Tectonic setting",
+  subregion: "Subregion",
   quality: "WSM quality class",
   method: "Measured by",
   depth_km: "Depth",
@@ -346,6 +356,9 @@ const PLUMBING = new Set([
   // click was asking. They go to the tail rather than being dropped: the
   // number is how you find the record again, and a credit must not be lost.
   "gvp_number", "type_group", "photo_caption", "photo_credit", "evidence",
+  // How the label engine ranks the point: machinery, not a fact about the
+  // volcano, and it was showing on the card as "label_rank 5".
+  "label_rank",
 ]);
 
 function orderedEntries(props) {
@@ -1089,6 +1102,28 @@ function layerHasPolygons(layer) {
   return layer._hasPolygons;
 }
 
+/**
+ * Raise the card for a place, without a click on the globe having produced it.
+ *
+ * A label is drawn OFF its point — that is what the leader line is for — so
+ * clicking the name lands on empty ocean as far as the canvas hit-test is
+ * concerned. `point-labels.js` knows which feature the name belongs to and
+ * asks here, so a label and its dot answer with the same card, built by the
+ * same code, rather than a second card being kept in step with this one.
+ *
+ * @param {number} lat
+ * @param {number} lon
+ * @param {object} [at] screen position for the fallback popup; the viewer's
+ *   own card anchors itself to the globe and does not need one.
+ */
+export function openFeatureCard(lat, lon, at = null) {
+  const hits = featuresAt(lat, lon)
+    .filter((h) => !(h.layer.geologyDataset && layerHasPolygons(h.layer)));
+  if (!hits.length) return false;
+  showStack(at?.x ?? 0, at?.y ?? 0, hits, { lat, lon });
+  return true;
+}
+
 /** Ignore clicks for a moment — used by anything that takes over the canvas. */
 export function suppress(ms = 600) {
   suppressUntil = Date.now() + ms;
@@ -1106,7 +1141,9 @@ function boot() {
 }
 
 if (typeof window !== "undefined") {
-  window.GeoIDFeaturePopup = { featureAt, featuresAt, hidePopup, suppress, clearPin };
+  window.GeoIDFeaturePopup = {
+    featureAt, featuresAt, openFeatureCard, hidePopup, suppress, clearPin,
+  };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", boot);
   } else {

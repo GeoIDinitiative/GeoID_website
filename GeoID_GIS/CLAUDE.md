@@ -602,6 +602,66 @@ convention S1 ≥ S2 ≥ S3, but wsm00025 carries S1 11.5, S2 5.5, S3 6.3 MPa, a
 "intermediate" over a number smaller than the one below it is the app inventing
 an order the record does not have.
 
+## The globe opens on Esri imagery, and the labels are the planet viewers'
+
+**Default basemap.** `blue-marble` still paints the first frame — it ships with
+the site, so it is on the sphere before any network call, and a bare globe for
+the two seconds a tile fetch takes is a worse opening than one that improves.
+`basemap-drape.js` then selects ESRI Satellite once the option exists and the
+watcher is listening, and the watcher holds the old map up until the tiles are
+down. Once only, and only from the shipped default: a user who changed the
+basemap in the first twenty seconds is not overruled.
+
+**Licence, because a default is not the same decision as an option.** Esri's
+World Imagery is free of charge on this endpoint and `tile-sources.js` marks it
+`freeToStream: false` — not licensed for unrestricted or commercial embedding,
+and explicitly not for offline tile export. As an option somebody picks that is
+their choice; as the default it is every visitor to a public page. Esri's
+supported route is ArcGIS Location Platform with an API key.
+
+### Labels: the chip, not a floating word
+
+`point-labels.js` drew a name in one colour at one size. The planet viewers
+have had the full form since the start, and the rest of it carries meaning the
+text cannot:
+
+- **A chip, offset from a dot.** A rounded panel at 14 px radius with a
+  hairline stroke, a 6 px accent bar inside the left edge and Orbitron over it
+  — the Mars and Moon viewers' own proportions, reproduced because their
+  `makeLabelTexture` is a closure inside a 17,000-line module. The chip's
+  bottom-left corner sits on the dot.
+- **Colour from the LAYER'S symbology**, read off `legendInfo` rather than
+  recomputed. Those viewers key the accent to a theme, so every volcano is the
+  same red; here 2,666 volcanoes carry the type colours the legend already
+  explains.
+- **Size by significance.** Five tiers from `label_rank`, 11 px to 15 px of
+  type with the dot and the spacing growing with them.
+- **A card on click.** The name is the affordance, so the name is the target:
+  `openFeatureCard` raises the same card the dot would, with the GVP
+  description in it.
+
+Three faults found by measuring, each invisible in a screenshot until named:
+
+- **A screen-space sprite's two axes have different canvases.** x spans the
+  width and y the height, so a width taken as `height × aspect` is stretched by
+  the viewport's aspect ratio: at 1113 × 851 a 268 px name drew 350 px wide,
+  31% too long. Every label was wide and soft, and it read as "the labels are
+  too big".
+- **A label is a BOX.** A circular claim round each dot let "Campi Flegrei" and
+  "Vesuvius" both through at 46 px apart and the map read "Campi FleVesuvius".
+  The declutter reserves the measured chip rectangle now, with 6 px of air.
+- **The reserved box and the drawn box have to be the same box.** The chip was
+  offset in WORLD space, east and up along the surface, which is not the same
+  direction on screen at every latitude — so the declutter reserved space up
+  and to the right and the chip landed somewhere else. It is placed with
+  `sprite.center` now, in fractions of its own size, and one formula produces
+  the declutter's rectangle, the click target and the draw.
+
+**No leader line, which is the reference implementation's own answer.** A line
+needs both ends in one coordinate system; the dot is on the globe and the chip
+is in screen space, so a world-space line between them is wrong wherever the
+frames disagree. The Moon viewer's labels read fine without one.
+
 ## The catalogue is filed by SUBJECT, not by file format
 
 Data · Vectors & Shapes began as the one list of everything, which made it a

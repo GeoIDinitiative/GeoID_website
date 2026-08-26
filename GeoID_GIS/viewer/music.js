@@ -3,6 +3,7 @@
         "/assets/music/Andromeda.mp3",
         "/assets/music/infinity.mp3",
         "/assets/music/Nebula (1).mp3",
+        "/assets/music/petrichor.mp3",
         "/assets/music/nikitakondrashev-space-440026.mp3",
         "/assets/music/sigmamusicart-space-ambient-background-music-462074.mp3",
         "/assets/music/universfield-ambient-space-background-350710.mp3",

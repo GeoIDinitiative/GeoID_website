@@ -109,5 +109,79 @@ check("a whole hemisphere of volcanoes stays readable", () => {
   }
 });
 
+/* ── the hierarchy has to be visible in the spacing too ───────────────────
+ *
+ * Rank drives the type size, and a bigger name needs more room. A candidate
+ * may therefore carry its OWN claim radius; the pair is separated by the
+ * larger of the two, or a rank-5 name would be held off its neighbours while
+ * a rank-1 was free to sit under its descenders.
+ */
+check("a candidate's own claim outranks the default", () => {
+  const kept = chooseLabels([
+    { rank: 5, x: 100, y: 100, visible: true, fromCentre: 0, claim: 80 },
+    { rank: 4, x: 160, y: 100, visible: true, fromCentre: 1, claim: 40 },
+  ], { max: 10, claim: 40 });
+  eq(kept.length, 1, "60 px apart is inside the big one's 80 px claim");
+});
+
+check("and the LARGER of the two claims is what separates them", () => {
+  // Same pair, the big one second: the small one is kept first and its own
+  // claim is 40, so testing only the kept label's radius would let the big
+  // one in at 60 px.
+  const kept = chooseLabels([
+    { rank: 5, x: 160, y: 100, visible: true, fromCentre: 0, claim: 40 },
+    { rank: 4, x: 100, y: 100, visible: true, fromCentre: 1, claim: 80 },
+  ], { max: 10, claim: 40 });
+  eq(kept.length, 1, "the second candidate's own claim still applies");
+});
+
+check("a candidate with no claim of its own falls back to the option", () => {
+  const near = chooseLabels([
+    { rank: 5, x: 100, y: 100, visible: true, fromCentre: 0 },
+    { rank: 4, x: 140, y: 100, visible: true, fromCentre: 1 },
+  ], { max: 10, claim: 46 });
+  eq(near.length, 1, "40 px apart is inside the 46 px default");
+  const far = chooseLabels([
+    { rank: 5, x: 100, y: 100, visible: true, fromCentre: 0 },
+    { rank: 4, x: 150, y: 100, visible: true, fromCentre: 1 },
+  ], { max: 10, claim: 46 });
+  eq(far.length, 2, "50 px apart is outside it, and both are drawn");
+});
+
+/* ── a label is a BOX ─────────────────────────────────────────────────────
+ *
+ * The chip is up to 110 px wide and its dot is a point. A circular claim round
+ * the dot let "Campi Flegrei" and "Vesuvius" both through at 46 px apart, and
+ * the map read "Campi FleVesuvius". Where both candidates know their box, the
+ * boxes are what is tested.
+ */
+const box = (x, y, w, h = 34) => ({ left: x, right: x + w, top: y - h, bottom: y });
+
+check("two overlapping chips cannot both be drawn", () => {
+  const kept = chooseLabels([
+    { rank: 5, x: 100, y: 100, visible: true, fromCentre: 0, rect: box(118, 82, 110) },
+    { rank: 4, x: 146, y: 100, visible: true, fromCentre: 1, rect: box(164, 82, 90) },
+  ], { max: 10, claim: 46 });
+  eq(kept.length, 1, "46 px between the dots, but the chips overlap by 64 px");
+});
+
+check("and two that clear each other both are", () => {
+  const kept = chooseLabels([
+    { rank: 5, x: 100, y: 100, visible: true, fromCentre: 0, rect: box(118, 82, 110) },
+    { rank: 4, x: 300, y: 100, visible: true, fromCentre: 1, rect: box(318, 82, 90) },
+  ], { max: 10, claim: 46 });
+  eq(kept.length, 2, "boxes apart, both drawn -- even though a 46 px circle would not care");
+});
+
+check("a chip clears a neighbour that is only ABOVE it", () => {
+  // Rectangles, not rows: a name directly overhead is a clash, one to the side
+  // at the same height is not, and a radius cannot tell those apart.
+  const kept = chooseLabels([
+    { rank: 5, x: 100, y: 200, visible: true, fromCentre: 0, rect: box(118, 182, 110) },
+    { rank: 4, x: 100, y: 120, visible: true, fromCentre: 1, rect: box(118, 102, 110) },
+  ], { max: 10, claim: 46 });
+  eq(kept.length, 2, "80 px of vertical clearance is enough for a 34 px chip");
+});
+
 if (failures.length) process.exitCode = 1;
 export const results = { passed, failures };
