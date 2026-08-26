@@ -2122,35 +2122,28 @@
       text-shadow: 0 0 8px rgba(255, 180, 84, 0.35);
     }
 
-    /* The scrub button wears the corner chrome; its panel hangs below the
-       control cluster. #top-right-controls is fixed, so the panel anchors
-       to it with absolute positioning. */
-    /* A dock like the planet bar's: the clock, then a slim caret that folds
-       it up into the header edge and brings it back. */
-    #top-center-controls {
-      position: fixed;
-      top: 0.55rem;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 13;
+    /* Clock over music, one column in the corner cluster; the jump panel
+       hangs beneath the stack. */
+    #time-music-stack {
+      position: relative;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      gap: 0.28rem;
-      pointer-events: none;
+      align-items: stretch;
+      gap: 0.3rem;
     }
-    #top-center-controls > * { pointer-events: auto; }
+    #time-music-stack #time-scrub-panel {
+      position: absolute;
+      top: calc(100% + 0.5rem);
+      left: 0;
+      right: auto;
+      transform: none;
+    }
     /* The seven-segment face: a canvas, slanted the way an LCD readout is. */
     #scrub-clock-canvas {
       display: block;
-      height: 1.2rem;
+      height: 1rem;
       width: auto;
       transform: skewX(-8deg);
-    }
-    #top-center-controls #time-scrub-panel {
-      right: auto;
-      left: 50%;
-      transform: translateX(-50%);
     }
 
     /* Not an icon: a DIGITAL CLOCK showing the model's time, ticking at
@@ -2158,7 +2151,7 @@
     #time-scrub-toggle {
       flex-shrink: 0;
       height: auto;
-      padding: 0.34rem 0.95rem 0.3rem;
+      padding: 0.26rem 0.7rem 0.22rem;
       border-radius: 0.62rem;
       border: 1px solid rgba(82, 228, 232, 0.22);
       background: rgba(8, 13, 20, 0.96);
@@ -2174,7 +2167,7 @@
       font-variant-numeric: tabular-nums;
     }
     #time-scrub-toggle .scrub-date {
-      font-size: 0.64rem;
+      font-size: 0.58rem;
       font-weight: 700;
       letter-spacing: 0.18em;
       /* Centre the tracked text: letter-spacing trails the last glyph. */
@@ -2184,7 +2177,7 @@
       line-height: 1;
     }
     #time-scrub-toggle .scrub-utc {
-      font-size: 0.44rem;
+      font-size: 0.4rem;
       font-weight: 700;
       letter-spacing: 0.34em;
       margin-right: -0.34em;
@@ -2268,8 +2261,12 @@
       left: auto;
       right: auto;
       bottom: auto;
-      height: 2.55rem;
-      border-radius: 0.62rem;
+      height: 1.55rem;
+      width: 100%;
+      justify-content: center;
+      padding: 0.25rem 0.55rem;
+      font-size: 0.6rem;
+      border-radius: 0.5rem;
     }
     body.is-embedded #top-right-controls #music-btn {
       top: auto;
@@ -4359,7 +4356,6 @@ canvas {
     body.studio-open #toolbar,
     body.studio-open #tool-rail,
     body.studio-open #top-right-controls,
-    body.studio-open #top-center-controls,
     body.studio-open #music-btn,
     body.studio-open .hub-link { display: none !important; }
 
