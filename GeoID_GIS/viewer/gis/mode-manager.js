@@ -11,6 +11,7 @@
     "basemap-relief-section",
     "geology-section",
     "sea-level-section",
+    "satellites-section",
     "legend-section",
     "weather-section",
     "modelled-data-section",

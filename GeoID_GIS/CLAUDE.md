@@ -768,6 +768,35 @@ displaced, growing with the clock, and nothing anywhere said why.
 label claimed it — a label and the feature it names occupy the same ground,
 and two cards for one click was the alternative.
 
+## Satellites: a live layer through the ordinary machinery
+
+The Satellites tab (`gis/satellites.js`) fetches TLEs from CelesTrak
+(stations + the ~100 brightest + the navigation constellations, CORS-open)
+and propagates them in the browser with the vendored `satellite.js` (SGP4,
+MIT). Elements-plus-SGP4 IS the live position — nobody streams coordinates
+without a key.
+
+The satellites arrive as an ORDINARY imported point layer on purpose: the
+triangles, the legend, the pixel-true click and the corner card are the same
+machinery every point layer uses. Each dot is the SUB-SATELLITE point; the
+altitude, speed and period ride the card's Dimension row. A 1.5 s tick
+re-propagates and calls `layer.repaint`, so the dots, the relief attributes
+and the click data cannot disagree about where a satellite is.
+
+Three traps, all found by measuring:
+
+- **The import COPIES the collection.** `importFileList` serialises to a File
+  and the layer parses its own copy, so features built before the import are
+  orphans after it — the tick mutated them and the ISS sat bolted in place
+  while claiming to move. Records rebind to the layer's own features by
+  NORAD id after import.
+- **`label_rank: 0` on every feature** is the layer's declaration that its
+  points speak the card contract WITHOUT ever growing labels (which would go
+  stale in 1.5 s). `sceneItemFor`'s gate accepts a layer where the column
+  exists, not only where something ranks above zero; `featureToItem` maps
+  `kind` (the kicker for non-volcano layers) and `dimension`.
+- satellite.js v5 calls the mean motion `no`, not `no_kozai`.
+
 ## The Geology tab is subsections, and dead controls are gone
 
 The tab's top level held a dropdown, an "Add to globe" button, a manual

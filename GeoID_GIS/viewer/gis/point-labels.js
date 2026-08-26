@@ -112,8 +112,11 @@ export function featureToItem(feature, legend = null) {
   const colour = legendColour(legend, p);
   return {
     name: String(p.name),
-    // The kicker: "Stratovolcano", not the generic "Volcanic Feature".
-    type: p.volcano_type || p.type_group || "Volcano",
+    // The kicker: "Stratovolcano", not the generic "Volcanic Feature" — and
+    // `kind` for layers that are not volcanoes at all (the satellites say
+    // "Space station"), because this mapping is the card contract for every
+    // nameable point layer now.
+    type: p.volcano_type || p.type_group || p.kind || "Feature",
     lat: coords[1],
     lon: coords[0],
     theme: "volcanic",
@@ -140,6 +143,9 @@ export function featureToItem(feature, legend = null) {
     elevation_m: Number.isFinite(Number(p.elevation_m)) ? Number(p.elevation_m) : undefined,
     rock_type: p.rock_type || undefined,
     region: p.region || undefined,
+    // The card's Dimension row — the satellites put altitude, speed and
+    // orbital period there.
+    dimension: p.dimension || undefined,
     // The legend's colour for this feature, worn by the marker, the
     // leader line and the chip's accent bar. Absent, the volcanic theme's
     // red stands — which is also what the curated labels wear.
@@ -338,7 +344,19 @@ export const isLabelled = (layer) => active.has(layer?.id);
 export function sceneItemFor(layer, feature) {
   if (!layer || !feature) return null;
   if (!/Point$/.test(feature.geometry?.type || "")) return null;
-  if (!canLabel(layer)) return null;
+  /**
+   * Nameable means the column EXISTS, not that anything ranks above zero.
+   *
+   * The satellites carry `label_rank: 0` on every feature — deliberately, so
+   * a layer that moves every 1.5 s never grows labels that would go stale in
+   * place — and `canLabel` (which asks "is there anything to NAME") said no,
+   * which dropped their clicks back to the old anchored popup. Carrying the
+   * column at all is the layer's declaration that its points speak the card
+   * contract.
+   */
+  const nameable = canLabel(layer)
+    || (layer.features || []).some((f) => f?.properties?.label_rank !== undefined);
+  if (!nameable) return null;
   return featureToItem(feature, layer.legendInfo);
 }
 

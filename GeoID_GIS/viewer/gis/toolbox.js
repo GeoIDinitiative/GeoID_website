@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260826-92d555e";
-import { currentBody } from "./bodies.js?v=20260826-92d555e";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260826-92d555e";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260826-3316f0e";
+import { currentBody } from "./bodies.js?v=20260826-3316f0e";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260826-3316f0e";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -64,6 +64,7 @@ const MOVES = [
   { id: "basemap-relief-section", host: "gis-toolbox-panels", promote: true },
   { id: "geology-section", host: "gis-toolbox-panels", promote: true },
   { id: "sea-level-section", host: "gis-toolbox-panels", promote: true },
+  { id: "satellites-section", host: "gis-toolbox-panels", promote: true },
   { id: "modelled-data-section", host: "gis-toolbox-panels", promote: true },
   // Sources and metadata belong with the layer provenance they sit beside.
   { id: "metadata-section", host: "geoid-metadata-host" },
@@ -93,6 +94,8 @@ const TAB_ORDER = [
   // Events before the vector catalogue: the live feeds are the tab people
   // open daily; the shapefile importer is reference material.
   "gis-group-events",
+  // Satellites beside Events: both are the live layers, read daily.
+  "satellites-section",
   "gis-group-polygons",
   "basemap-relief-section",
   "geology-section",
