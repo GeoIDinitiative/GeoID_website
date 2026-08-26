@@ -24,8 +24,8 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-71055b6";
-import { currentBodyId } from "./bodies.js?v=20260827-71055b6";
+import { drape } from "./gee.js?v=20260827-1d64bd9";
+import { currentBodyId } from "./bodies.js?v=20260827-1d64bd9";
 
 const byId = (id) => document.getElementById(id);
 
@@ -42,9 +42,17 @@ const SOURCES = {
     citation: "Radar data © RainViewer (rainviewer.com), from national weather radar networks",
   },
   precip: {
-    label: "Precipitation rate (Open-Meteo · GFS/ICON)",
+    /**
+     * A 24-hour ACCUMULATION, not the instantaneous rate: "current
+     * precipitation" is the preceding hour, which over any dry box is
+     * legitimately zero everywhere — fetched once, it drew an honest but
+     * useless 0–0 mm map and read as a failed fetch. A day's total is a
+     * real map almost everywhere.
+     */
+    label: "Precipitation · last 24 h (Open-Meteo · GFS/ICON)",
     kind: "grid",
     variable: "precipitation",
+    hourlySum: 24,
     unit: "mm",
     ramp: [[240, 249, 255], [116, 169, 207], [5, 112, 176], [3, 50, 97], [255, 210, 60]],
     citation: "Open-Meteo (open-meteo.com, CC BY 4.0) — NOAA GFS / DWD ICON blend",
@@ -197,13 +205,22 @@ async function gridCanvas(bounds, source) {
       lons.push((bounds.west + ((i + 0.5) / GRID) * (bounds.east - bounds.west)).toFixed(3));
     }
   }
+  const query = source.hourlySum
+    ? `&hourly=${source.variable}&past_hours=${source.hourlySum}&forecast_hours=0`
+    : `&current=${source.variable}`;
   const url = `${OPEN_METEO}?latitude=${lats.join(",")}&longitude=${lons.join(",")}`
-    + `&current=${source.variable}&wind_speed_unit=kmh`;
+    + `${query}&wind_speed_unit=kmh`;
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Open-Meteo returned HTTP ${response.status}`);
   const payload = await response.json();
   const cells = Array.isArray(payload) ? payload : [payload];
-  const values = cells.map((cell) => cell?.current?.[source.variable]);
+  const values = cells.map((cell) => {
+    if (!source.hourlySum) return cell?.current?.[source.variable];
+    const hours = cell?.hourly?.[source.variable];
+    if (!Array.isArray(hours)) return undefined;
+    const finiteHours = hours.filter((v) => Number.isFinite(v));
+    return finiteHours.length ? finiteHours.reduce((a, b) => a + b, 0) : undefined;
+  });
   if (!values.some((v) => Number.isFinite(v))) throw new Error("no values in the answer");
   const finite = values.filter((v) => Number.isFinite(v));
   const min = Math.min(...finite);
@@ -236,9 +253,12 @@ async function gridCanvas(bounds, source) {
     }
   }
   ctx.putImageData(image, 0, 0);
-  const time = cells.find((c) => c?.current?.time)?.current?.time;
+  const time = source.hourlySum
+    ? cells.find((c) => c?.hourly?.time?.length)?.hourly?.time?.at(-1)
+    : cells.find((c) => c?.current?.time)?.current?.time;
   return {
     canvas: out, min, max,
+    flatZero: min === 0 && max === 0,
     time: time ? new Date(time) : new Date(),
     palette: ramp.map((c) => c.map((v) => v.toString(16).padStart(2, "0")).join("")),
   };
@@ -266,6 +286,11 @@ async function fetchMap() {
     const result = source.kind === "radar"
       ? await radarCanvas(bounds)
       : await gridCanvas(bounds, source);
+    if (result.flatZero) {
+      say(`${source.label}: zero everywhere in this box — nothing to map. `
+        + "(The fetch worked; the field is genuinely flat here.)");
+      return;
+    }
     const stampText = `${String(result.time.getUTCHours()).padStart(2, "0")}:`
       + `${String(result.time.getUTCMinutes()).padStart(2, "0")} UTC`;
     const name = `${source.label} · ${stampText}`;
