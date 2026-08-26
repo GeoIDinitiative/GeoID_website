@@ -10,12 +10,12 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260826-05b623b";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260826-05b623b";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260826-05b623b";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260826-baed5fb";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260826-baed5fb";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260826-baed5fb";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260826-05b623b";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-05b623b";
+  from "./view-extent.js?v=20260826-baed5fb";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-baed5fb";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -589,6 +589,11 @@ function geeCatalogueSeam() {
     },
     owns(id) {
       return catalogueEntries().some((entry) => entry.id === id);
+    },
+    // A LAYER name back to its home tab — layers are named "<dataset> · <dates>".
+    homeOfLayerName(name) {
+      const entry = catalogueEntries().find((e) => String(name).startsWith(`${e.name} ·`));
+      return entry ? geeHomeOf(entry.id) : null;
     },
     layerFor(id) {
       const entry = catalogueEntries().find((e) => e.id === id);

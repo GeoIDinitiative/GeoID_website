@@ -1,39 +1,39 @@
-import * as hub from "./hub.js?v=20260826-05b623b";
-import { registeredCount } from "./stages.js?v=20260826-05b623b";
-import * as store from "./project-store.js?v=20260826-05b623b";
-import * as bridge from "./bridge.js?v=20260826-05b623b";
+import * as hub from "./hub.js?v=20260826-baed5fb";
+import { registeredCount } from "./stages.js?v=20260826-baed5fb";
+import * as store from "./project-store.js?v=20260826-baed5fb";
+import * as bridge from "./bridge.js?v=20260826-baed5fb";
 
 // Pages register themselves on import. This list is the only place that has to
 // change when one is added.
-import "./pages/dashboard.js?v=20260826-05b623b";
+import "./pages/dashboard.js?v=20260826-baed5fb";
 // The curated Workspace home replaces the transliterated Dashboard: it registers
 // "Dashboard" second, so its mount wins. Imported here, right after the page it
 // supersedes, so the override is visible rather than buried.
-import "./pages/workspace.js?v=20260826-05b623b";
-import "./pages/projects.js?v=20260826-05b623b";
-import "./pages/repository.js?v=20260826-05b623b";
-import "./pages/notes.js?v=20260826-05b623b";
-import "./pages/plotter.js?v=20260826-05b623b";
-import "./pages/signal.js?v=20260826-05b623b";
-import "./pages/fem.js?v=20260826-05b623b";
-import "./pages/storyboard.js?v=20260826-05b623b";
-import "./pages/docs.js?v=20260826-05b623b";
-import "./pages/builder.js?v=20260826-05b623b";
-import "./pages/notebook.js?v=20260826-05b623b";
+import "./pages/workspace.js?v=20260826-baed5fb";
+import "./pages/projects.js?v=20260826-baed5fb";
+import "./pages/repository.js?v=20260826-baed5fb";
+import "./pages/notes.js?v=20260826-baed5fb";
+import "./pages/plotter.js?v=20260826-baed5fb";
+import "./pages/signal.js?v=20260826-baed5fb";
+import "./pages/fem.js?v=20260826-baed5fb";
+import "./pages/storyboard.js?v=20260826-baed5fb";
+import "./pages/docs.js?v=20260826-baed5fb";
+import "./pages/builder.js?v=20260826-baed5fb";
+import "./pages/notebook.js?v=20260826-baed5fb";
 
 // Imported last on purpose: it wraps whatever each page already does.
-import { completeAllPages } from "./spec-page.js?v=20260826-05b623b";
+import { completeAllPages } from "./spec-page.js?v=20260826-baed5fb";
 // Behaviour for the controls the spec brings across; must load before
 // completion runs so a wired control is never drawn disabled.
-import "./wiring.js?v=20260826-05b623b";
-import "./wiring-pages.js?v=20260826-05b623b";
-import "./wiring-final.js?v=20260826-05b623b";
-import "./pages/ingest.js?v=20260826-05b623b";
-import "./pages/postprocess.js?v=20260826-05b623b";
-import "./pages/prepare.js?v=20260826-05b623b";
-import "./pages/analysis.js?v=20260826-05b623b";
-import "./pages/manage.js?v=20260826-05b623b";
-import "./pages/workbench.js?v=20260826-05b623b";
+import "./wiring.js?v=20260826-baed5fb";
+import "./wiring-pages.js?v=20260826-baed5fb";
+import "./wiring-final.js?v=20260826-baed5fb";
+import "./pages/ingest.js?v=20260826-baed5fb";
+import "./pages/postprocess.js?v=20260826-baed5fb";
+import "./pages/prepare.js?v=20260826-baed5fb";
+import "./pages/analysis.js?v=20260826-baed5fb";
+import "./pages/manage.js?v=20260826-baed5fb";
+import "./pages/workbench.js?v=20260826-baed5fb";
 
 /**
  * Entry point for the Research Hub.
