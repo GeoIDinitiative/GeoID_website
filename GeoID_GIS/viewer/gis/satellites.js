@@ -29,18 +29,54 @@
 
 import * as THREE from "../vendor/three.module.js";
 
+/**
+ * Seven CelesTrak groups now — roughly 1,700 objects. `rings: false` on the
+ * OneWeb constellation: 650 near-identical polar orbits drawn as rings is a
+ * hairball that hides every other orbit, and the constellation's dots
+ * already read as the shell they are. Fetched SEQUENTIALLY, because
+ * CelesTrak throttles rapid-fire parallel queries into empty answers — the
+ * first parallel version read `geo` and `science` as zero satellites.
+ */
 const GROUPS = [
   { group: "stations", kind: "Space station", category: "Space stations" },
+  { group: "science", kind: "Science satellite", category: "Science" },
   { group: "visual", kind: "Satellite", category: "Bright (visual)" },
+  { group: "weather", kind: "Weather satellite", category: "Weather" },
   { group: "gnss", kind: "Navigation satellite", category: "Navigation" },
+  { group: "geo", kind: "Geostationary satellite", category: "Geostationary" },
+  { group: "oneweb", kind: "Constellation satellite", category: "OneWeb constellation", rings: false },
 ];
 
-/** The legend's colours, one per group — cyan, amber, green. */
+/** The legend's colours, one per group. */
 const CATEGORY_COLOURS = {
   "Space stations": "#4ee1ec",
+  "Science": "#c792ea",
   "Bright (visual)": "#ffd166",
+  "Weather": "#6f9dff",
   "Navigation": "#7bdc6f",
+  "Geostationary": "#ff8f7a",
+  "OneWeb constellation": "#9aa4b2",
 };
+
+/** Label priority when the declutter has to choose, most interesting first. */
+const LABEL_PRIORITY = ["Space stations", "Science", "Bright (visual)", "Weather",
+  "Geostationary", "Navigation", "OneWeb constellation"];
+
+/** The Labels slider's stops: which categories may carry a name. */
+const LABEL_LEVELS = {
+  0: [],
+  1: ["Space stations", "Science"],
+  2: ["Space stations", "Science", "Bright (visual)", "Weather"],
+  3: LABEL_PRIORITY,
+};
+const LABEL_LEVEL_COPY = {
+  0: "No names",
+  1: "Stations and science",
+  2: "Adds the bright and weather satellites",
+  3: "Every satellite competes for a name",
+};
+const MAX_LABELS = 40;
+const LABEL_SPACING_PX = 64;
 
 const LAYER_NAME = "Live satellites (CelesTrak)";
 const REFRESH_MS = 1500;
@@ -141,7 +177,11 @@ function buildRecords(satellite, tleSets) {
         const kind = /\bDEB\b/.test(name) ? "Orbital debris"
           : /\bR\/B\b/.test(name) ? "Rocket body"
             : meta.kind;
-        records.push({ name, norad, satrec, kind, category: meta.category });
+        records.push({
+          name, norad, satrec, kind,
+          category: meta.category,
+          noRings: meta.rings === false,
+        });
       } catch (error) { /* one malformed TLE must not sink the layer */ }
     });
   });
@@ -255,6 +295,7 @@ function tick() {
   if (active.rings) {
     active.rings.rotation.y = -(gmst - active.rings.userData.gmst0);
   }
+  updateLabels();
 }
 
 /**
@@ -272,7 +313,7 @@ function buildRings() {
   const colour = new THREE.Color();
   const scratch = new THREE.Vector3();
   active.records.forEach((record) => {
-    if (record.dead) return;
+    if (record.dead || record.noRings) return;
     const periodMs = ((2 * Math.PI) / (record.satrec.no_kozai ?? record.satrec.no)) * 60000;
     colour.set(CATEGORY_COLOURS[record.category] || "#8a8a8a");
     const points = [];
@@ -302,6 +343,117 @@ function buildRings() {
   rings.frustumCulled = false;
   rings.userData.gmst0 = gmst0;
   return rings;
+}
+
+/* ── labels ──────────────────────────────────────────────────────────────── */
+
+/**
+ * Names beside the dots, drawn by this module and looking like everyone
+ * else's.
+ *
+ * The label ENGINE cannot serve here — it anchors chips to surface points at
+ * build time, and a satellite floats at altitude and moves every tick — so
+ * the sprites are ours, but the CHIP is the viewer's own `makeLabelTexture`
+ * through the seam added for exactly this, with the category colour as the
+ * accent. Which dots get a name is the Labels slider (categories) plus a
+ * screen-space declutter: candidates in priority order, each claiming
+ * `LABEL_SPACING_PX` around itself, capped at `MAX_LABELS`. Re-decided every
+ * tick, because the dots moved.
+ */
+function updateLabels() {
+  if (!active) return;
+  const viewer = window.GeoIDViewer;
+  const canvas = viewer?.renderer?.domElement;
+  if (!canvas || !viewer.makeLabelTexture) return;
+  const allowed = new Set(LABEL_LEVELS[active.labelLevel] || []);
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !allowed.size) {
+    active.labels.forEach((sprite) => { sprite.visible = false; });
+    return;
+  }
+  const camDir = viewer.camera.position.clone().normalize();
+  const positions = active.geometry.attributes.position;
+  const world = new THREE.Vector3();
+  active.group.updateMatrixWorld(true);
+
+  const candidates = [];
+  active.records.forEach((record, i) => {
+    if (record.dead || !allowed.has(record.category)) return;
+    world.set(positions.getX(i), positions.getY(i), positions.getZ(i))
+      .applyMatrix4(active.group.matrixWorld);
+    // Near side only — a name for a dot behind the planet is a name for
+    // nothing, and high orbits are visible well past the limb, so the test
+    // is against the CAMERA direction, loosely.
+    if (world.clone().normalize().dot(camDir) < -0.2) return;
+    const p = world.clone().project(viewer.camera);
+    if (p.z > 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) return;
+    candidates.push({
+      record,
+      i,
+      x: (p.x * 0.5 + 0.5) * rect.width,
+      y: (-p.y * 0.5 + 0.5) * rect.height,
+      priority: LABEL_PRIORITY.indexOf(record.category),
+    });
+  });
+  candidates.sort((a, b) => a.priority - b.priority);
+
+  const kept = [];
+  for (const candidate of candidates) {
+    if (kept.length >= MAX_LABELS) break;
+    const clash = kept.some((k) => {
+      const dx = k.x - candidate.x;
+      const dy = k.y - candidate.y;
+      return dx * dx + dy * dy < LABEL_SPACING_PX * LABEL_SPACING_PX;
+    });
+    if (!clash) kept.push(candidate);
+  }
+
+  const wanted = new Set(kept.map((k) => k.record.norad));
+  active.labels.forEach((sprite, norad) => {
+    if (!wanted.has(norad)) sprite.visible = false;
+  });
+  kept.forEach((candidate) => {
+    const { record } = candidate;
+    let sprite = active.labels.get(record.norad);
+    if (!sprite) {
+      const colour = CATEGORY_COLOURS[record.category] || "#8a8a8a";
+      const chip = viewer.makeLabelTexture({ name: record.name }, {
+        backingScale: 2,
+        customPalette: {
+          bg: "rgba(10, 12, 20, 0.74)",
+          stroke: `${colour}8c`,
+          accent: colour,
+          title: "rgba(245, 247, 252, 0.96)",
+        },
+      });
+      sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: chip.texture, transparent: true, depthTest: false, depthWrite: false,
+        sizeAttenuation: false,
+      }));
+      sprite.userData.aspect = chip.width / chip.height;
+      active.group.add(sprite);
+      active.labels.set(record.norad, sprite);
+    }
+    sprite.visible = true;
+    // In the group's own frame, exactly where the dot is; the offset is the
+    // sprite's centre, in fractions of its own size, so it clears the dot by
+    // the same margin at every zoom. Each axis converts against its own
+    // canvas dimension — width against width — or the viewport's aspect
+    // ratio stretches every chip (the fault the volcano labels documented).
+    sprite.position.set(positions.getX(candidate.i), positions.getY(candidate.i),
+      positions.getZ(candidate.i));
+    const heightPx = 20;
+    sprite.scale.set(((heightPx * sprite.userData.aspect) / rect.width) * 2,
+      (heightPx / rect.height) * 2, 1);
+    sprite.center.set(-0.08, 0.5);
+    sprite.renderOrder = 3;
+  });
+}
+
+function setLabelLevel(level) {
+  if (!active) return;
+  active.labelLevel = level;
+  updateLabels();
 }
 
 function setRings(on) {
@@ -370,15 +522,19 @@ async function start() {
     say("The propagator failed to load — satellites need vendor/satellite.min.js.");
     return false;
   }
-  let tleSets;
-  try {
-    tleSets = await Promise.all(GROUPS.map(async (meta) => {
+  const tleSets = [];
+  for (const meta of GROUPS) {
+    say(`Fetching orbital elements… ${meta.group}`);
+    try {
       const response = await fetch(TLE_URL(meta.group));
-      if (!response.ok) throw new Error(`HTTP ${response.status} for ${meta.group}`);
-      return { meta, triples: parseTle(await response.text()) };
-    }));
-  } catch (error) {
-    say(`CelesTrak did not answer: ${error.message}`);
+      if (response.ok) tleSets.push({ meta, triples: parseTle(await response.text()) });
+    } catch (error) { /* one throttled group must not sink the layer */ }
+    // CelesTrak throttles rapid-fire queries into empty 200s; a beat between
+    // requests is what keeps `geo` and `science` from arriving blank.
+    await new Promise((resolve) => { setTimeout(resolve, 250); });
+  }
+  if (!tleSets.some((set) => set.triples.length)) {
+    say("CelesTrak did not answer.");
     return false;
   }
   const records = buildRecords(satellite, tleSets);
@@ -406,11 +562,11 @@ async function start() {
   // disc is tinted by the vertex colour, so a rim inside the texture would
   // be tinted with it.
   const outline = new THREE.Points(geometry, new THREE.PointsMaterial({
-    size: 10.5, sizeAttenuation: false, map: makeDotTexture(), alphaTest: 0.35,
+    size: 7.4, sizeAttenuation: false, map: makeDotTexture(), alphaTest: 0.35,
     transparent: true, depthWrite: false, color: 0xffffff,
   }));
   const fill = new THREE.Points(geometry, new THREE.PointsMaterial({
-    size: 7, sizeAttenuation: false, map: makeDotTexture(), alphaTest: 0.35,
+    size: 5, sizeAttenuation: false, map: makeDotTexture(), alphaTest: 0.35,
     transparent: true, depthWrite: false, vertexColors: true,
   }));
   fill.renderOrder = 1;
@@ -441,7 +597,11 @@ async function start() {
   if (!layer) { say("The layer could not be registered."); return false; }
   layer.featureNoun = "Satellite";
 
-  active = { records, geometry, fill, group, layer, legendInfo, rings: null, downAt: null };
+  active = {
+    records, geometry, fill, group, layer, legendInfo,
+    rings: null, downAt: null, labels: new Map(),
+    labelLevel: Number(document.getElementById("satellites-labels")?.value ?? 1),
+  };
   tick();
   active.timer = window.setInterval(tick, REFRESH_MS);
   window.addEventListener("pointerdown", onDown, true);
@@ -456,6 +616,10 @@ async function start() {
 function stop() {
   if (!active) return;
   window.clearInterval(active.timer);
+  active.labels.forEach((sprite) => {
+    sprite.material.map?.dispose?.();
+    sprite.material.dispose?.();
+  });
   window.removeEventListener("pointerdown", onDown, true);
   window.removeEventListener("click", onClick, true);
   const layer = layerOf();
@@ -479,6 +643,14 @@ function init() {
   document.getElementById("satellites-orbits")?.addEventListener("change", (event) => {
     setRings(event.target.checked);
   });
+  const labelSlider = document.getElementById("satellites-labels");
+  const labelCopy = document.getElementById("satellites-labels-copy");
+  const caption = () => {
+    if (labelCopy) labelCopy.textContent = LABEL_LEVEL_COPY[Number(labelSlider?.value)] || "";
+  };
+  caption();
+  labelSlider?.addEventListener("input", caption);
+  labelSlider?.addEventListener("change", () => setLabelLevel(Number(labelSlider.value)));
   // The layer box can remove the layer without asking: the tracker must not
   // go on ticking a corpse, and the box must not claim a layer that is gone.
   window.GeoIDImportManager?.onChange?.(() => {

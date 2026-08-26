@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-4d6736c";
+  from "./gis/geo-utils.js?v=20260826-d0d9d92";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -19583,6 +19583,17 @@ uniform float uViewportWidth;`,
               });
             },
           };
+        },
+        /**
+         * The label chip texture, for layers that must draw their own labels.
+         *
+         * The satellites float at real altitude and move every 1.5 s — the
+         * label ENGINE anchors chips to surface points at build time, which
+         * is exactly wrong for them — but their chips must still look like
+         * every other chip on the globe. Same function, same pill.
+         */
+        makeLabelTexture(item, options) {
+          return makeLabelTexture(item, options);
         },
         /**
          * The scene popup — the card in the corner — for a caller's own item.

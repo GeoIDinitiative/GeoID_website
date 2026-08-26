@@ -20,7 +20,7 @@
  * the viewer already shipped and could only ever show alone.
  */
 
-import { drape } from "./gee.js?v=20260826-4d6736c";
+import { drape } from "./gee.js?v=20260826-d0d9d92";
 
 // In the shape the drape and the layer record both read: this app says
 // west/south/east/north in most places and Earth Engine answers

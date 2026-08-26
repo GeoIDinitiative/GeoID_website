@@ -792,6 +792,17 @@ build, then the ring group counter-rotates by the sidereal angle per tick,
 because an orbit plane is fixed among the stars: one rotation instead of
 forty thousand re-propagations.
 
+Labels are the module's own sprites wearing the viewer's own chip: the
+label engine anchors to surface points at build time, which is exactly wrong
+for dots that float at altitude and move every tick, so `makeLabelTexture`
+is exposed on the seam and the satellites draw the pill themselves with the
+category colour as the accent. A Labels slider (0–3) picks which categories
+compete; a per-tick screen declutter caps 40. Seven groups now (~1,700
+objects) — fetched SEQUENTIALLY with a beat between requests, because
+CelesTrak throttles rapid parallel queries into empty 200s (`geo` and
+`science` arrived blank until spaced). OneWeb draws no rings: 650
+near-identical polar orbits is a hairball that hides every other orbit.
+
 Three traps, all found by measuring:
 
 - **The import COPIES the collection** (`importFileList` serialises to a
