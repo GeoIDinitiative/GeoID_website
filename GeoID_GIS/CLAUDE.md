@@ -705,6 +705,15 @@ inlined with a unique key drew perfectly). The key now includes
 `material.type`. This is the second silent-cache fault in this file's
 history; treat "compiled but draws nothing" as a cache-key suspect first.
 
+**A dataset label's hit sphere must not reach the raycaster.** A curated
+label is the only presence its feature has, so its whole apparatus is
+clickable. A dataset label stands over a vector dot with a pixel-true hit
+test of its own — give its ~100 km hit sphere to the raycaster and it steals
+every click aimed at a NEIGHBOURING dot: select Vesuvius, click Campi Flegrei
+25 km away, get Vesuvius again — reported as "cannot hop to another volcano".
+Only the chip sprite is raycast for dataset entries, and a click on nothing
+closes the scene card and the temporary label both.
+
 **A labelless dot's selection is a TEMPORARY label.** The pulsing golden halo
 and highlighted chip are built on a label entry, so `openSceneFeature` gives
 an unlabelled volcano one for as long as it is selected — `addSurfaceLabels`

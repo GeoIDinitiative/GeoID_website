@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-ff43a5e";
+  from "./gis/geo-utils.js?v=20260826-837abf5";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -7109,7 +7109,24 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         group.add(line);
 
         const category = isVolcanicMoonFeature(item) ? "volcanic" : "moon";
-        interactiveObjects.push(hitTarget, marker, sprite);
+        /**
+         * What the raycaster may claim, and it differs by provenance.
+         *
+         * A curated label is the ONLY presence its feature has, so its whole
+         * apparatus is clickable — chip, marker and the generous hit sphere.
+         * A dataset label stands OVER a vector layer's own dot, which has a
+         * pixel-true hit test of its own; give its hit sphere to the
+         * raycaster and the sphere (a hundred kilometres of ground) steals
+         * every click aimed at a NEIGHBOURING dot. Measured on the Bay of
+         * Naples: select Vesuvius, click Campi Flegrei 25 km away, and the
+         * selection sphere answers with Vesuvius again — the reported
+         * "cannot hop to another volcano". Only the chip is the viewer's.
+         */
+        if (item.category === "dataset") {
+          interactiveObjects.push(sprite);
+        } else {
+          interactiveObjects.push(hitTarget, marker, sprite);
+        }
         entries.push({ item, parentMoon, moonAnchor, marker, hitTarget, sprite, line, surfacePoint, relMarkerPos, relHitPos, relSurfacePoint, relLabelPos, rel0MarkerPos: relMarkerPos.clone(), rel0HitPos: relHitPos.clone(), rel0SurfacePoint: relSurfacePoint.clone(), rel0LabelPos: relLabelPos.clone(), category, priority: 5 });
       }
 
@@ -19550,6 +19567,10 @@ uniform float uViewportWidth;`,
         /** Take down the temporary selection label, if one is up. */
         clearSceneFlash() {
           clearSceneFlashLabel();
+        },
+        /** Dismiss the scene card — for a click that landed on nothing. */
+        closeSceneFeature() {
+          closeScenePopup();
         },
         /**
          * Is one of the viewer's own labels under this pixel?

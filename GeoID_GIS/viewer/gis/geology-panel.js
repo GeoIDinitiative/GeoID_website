@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260826-ff43a5e";
-import { currentBodyId } from "./bodies.js?v=20260826-ff43a5e";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-ff43a5e";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-ff43a5e";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260826-837abf5";
+import { currentBodyId } from "./bodies.js?v=20260826-837abf5";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-837abf5";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-837abf5";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *

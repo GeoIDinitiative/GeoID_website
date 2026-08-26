@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-ff43a5e";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-ff43a5e";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-837abf5";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-837abf5";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1124,9 +1124,12 @@ function install() {
     const hits = featuresAt(at.lat, at.lon)
       .filter((h) => !(h.layer.geologyDataset && layerHasPolygons(h.layer)));
     if (!hits.length) {
-      // A click on nothing dismisses the selection wholesale — including the
-      // temporary label openSceneFeature raises for a labelless dot.
+      // A click on nothing dismisses the selection wholesale — the card in
+      // the corner, and the temporary label openSceneFeature raises for a
+      // labelless dot. Leaving either standing is the "old popup lingers"
+      // report: a reader clicks away to put a card down.
       window.GeoIDViewer?.clearSceneFlash?.();
+      window.GeoIDViewer?.closeSceneFeature?.();
       hidePopup();
       return;
     }
