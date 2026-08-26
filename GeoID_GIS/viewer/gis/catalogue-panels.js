@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, datasetById, layerForDataset,
-} from "./global-data.js?v=20260826-837abf5";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-837abf5";
+} from "./global-data.js?v=20260826-801fa5e";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-801fa5e";
 
 const byId = (id) => document.getElementById(id);
 
@@ -138,8 +138,8 @@ function drawMacrostratLines() {
  * a question about this catalogue: `label_rank` is eruption recency, and the
  * positions read as its bands ("Erupted since 1900") rather than as abstract
  * levels. It talks to `point-labels.js`, which rebuilds the label set on the
- * slider's `change` — moving it before the Names button only records the
- * choice, so a slider drag does not switch the names on uninvited.
+ * slider's `change`. The labels themselves are automatic — they arrive with
+ * the layer, at the default level — so this slider is the one control.
  */
 function wireVolcanoDetail() {
   const slider = byId("volcano-detail");
@@ -155,11 +155,8 @@ function wireVolcanoDetail() {
   slider.addEventListener("input", caption);
   slider.addEventListener("change", () => {
     const layer = layerForDataset("volcanoes");
-    if (!layer) { say("volcanoes-catalogue", "Tick the catalogue first — the labels need the layer."); return; }
-    const applied = labels?.setDetailLevel?.(layer, Number(slider.value));
-    if (!applied && !labels?.isLabelled?.(layer)) {
-      say("volcanoes-catalogue", "Level saved — press Names to put the labels up.");
-    }
+    if (!layer) { say("volcanoes-catalogue", "Level saved — the labels follow when the layer is ticked on."); return; }
+    labels?.setDetailLevel?.(layer, Number(slider.value));
   });
 }
 

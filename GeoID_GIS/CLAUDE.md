@@ -705,6 +705,15 @@ inlined with a unique key drew perfectly). The key now includes
 `material.type`. This is the second silent-cache fault in this file's
 history; treat "compiled but draws nothing" as a cache-key suspect first.
 
+**Names are automatic, not opt-in.** The Names button is gone: a layer whose
+data ranks its points (`label_rank`) gets its labels the moment it is loaded
+and visible, at the default detail — level 3, the middle of the slider. The
+tick that put the layer on the globe is the decision; a button that toggled
+what the tick implies was a second switch for one choice. The Label detail
+slider is the one remaining control, and the chosen level is remembered by
+layer NAME, not id — a layer unticked and re-ticked is a new id for the same
+dataset, and an id-keyed level evaporated with the old one.
+
 **A dataset label's hit sphere must not reach the raycaster.** A curated
 label is the only presence its feature has, so its whole apparatus is
 clickable. A dataset label stands over a vector dot with a pixel-true hit

@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-837abf5";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-801fa5e";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -243,30 +243,12 @@ export function renderCatalogue(host, entries, hooks) {
 
     row.append(tick, name);
 
-    /**
-     * A layer whose data says which points are worth naming offers the names.
-     *
-     * Offered from the data rather than from a list of layer ids: any point
-     * dataset carrying `label_rank` gets the control, so cities or named
-     * landforms would need nothing added here. Off by default -- names on a
-     * globe are a choice, and 231 of them uninvited is a worse map.
-     */
-    if (layer && window.GeoIDPointLabels?.canLabel?.(layer)) {
-      const on = window.GeoIDPointLabels.isLabelled(layer);
-      const names = document.createElement("button");
-      names.type = "button";
-      names.className = `gis-catalogue-sym${on ? " is-on" : ""}`;
-      names.textContent = "Names";
-      names.title = on
-        ? `Hide the names on ${entry.label}`
-        : `Name the most significant on ${entry.label}`;
-      names.addEventListener("click", async () => {
-        await window.GeoIDPointLabels.setLabels(layer, !on);
-        // Every list, not this one: the same layer is offered in two places.
-        refreshCatalogues();
-      });
-      row.appendChild(names);
-    }
+    // There is no Names button any more: a layer whose data ranks its points
+    // gets names automatically the moment it is on the globe (point-labels.js
+    // turns them on at the default detail), and the Label detail slider in the
+    // layer's own subsection is the control that remains. A button that
+    // toggled what the tick box already implies was a second switch for one
+    // decision.
 
     // Only where there is something to symbolise: a layer that is not on the
     // globe has no attributes to colour by and no legend to write.

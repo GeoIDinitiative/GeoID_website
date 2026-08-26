@@ -117,8 +117,8 @@ export function featureToItem(feature, legend = null) {
     lat: coords[1],
     lon: coords[0],
     theme: "volcanic",
-    // Governed by the Names button that added these, not by the Locations
-    // checkboxes — see the category clause in updateLabelVisibility.
+    // Governed by the layer's own presence, not by the Locations checkboxes —
+    // see the category clause in updateLabelVisibility.
     category: "dataset",
     priority: rank,
     // Rank as size: 0.91 at rank 1 up to 1.15 at rank 5. Subtle on
@@ -180,8 +180,16 @@ export function toLabelItems(features, { max = Infinity, minRank = 1, legend = n
 /** layer.id → { handle, level } — present means the user asked for names. */
 const active = new Map();
 
-/** Levels chosen before the Names button was pressed, honoured when it is. */
+/**
+ * Levels the user chose, keyed by layer NAME rather than id.
+ *
+ * A layer unticked and ticked again is a NEW id for the same dataset, and a
+ * level keyed by id evaporated with the old one: the slider read 1, the
+ * labels came back at 3, and the two disagreed until the slider was touched.
+ * The name is the identity that survives a reload.
+ */
 const chosenLevel = new Map();
+const levelKey = (layer) => layer?.name || layer?.id;
 
 /** The items a layer gets at a detail level, colours from its own legend. */
 function itemsFor(layer, level) {
@@ -204,6 +212,22 @@ function viewerSeam() {
  */
 function sync() {
   const layers = window.GeoIDImportManager?.getLayers?.() || [];
+  /**
+   * Names are AUTOMATIC now, not opt-in.
+   *
+   * The Names button is gone: a layer whose data ranks its points gets its
+   * labels the moment it is loaded and visible, at the default detail
+   * (level 3, the middle of the slider). The tick box that put the layer on
+   * the globe is the decision; a second button that toggled what the tick
+   * already implies was a second switch for one choice. The Label detail
+   * slider remains the control for HOW MANY.
+   */
+  layers.forEach((layer) => {
+    if (active.has(layer.id)) return;
+    if (layer.status !== "loaded" || layer.visible === false) return;
+    if (!canLabel(layer)) return;
+    void setLabels(layer, true);
+  });
   active.forEach((state, layerId) => {
     const layer = layers.find((l) => l.id === layerId);
     if (!layer) {
@@ -238,7 +262,7 @@ export async function setLabels(layer, on, { level = null } = {}) {
   if (state) return true;
   const viewer = viewerSeam();
   if (!viewer) return false;
-  const wanted = level ?? chosenLevel.get(layer.id) ?? DEFAULT_DETAIL;
+  const wanted = level ?? chosenLevel.get(levelKey(layer)) ?? DEFAULT_DETAIL;
   const items = itemsFor(layer, wanted);
   if (!items.length) return false;
   const handle = viewer.addSurfaceLabels(items);
@@ -261,7 +285,7 @@ export async function setLabels(layer, on, { level = null } = {}) {
  */
 export function setDetailLevel(layer, level) {
   if (!layer || !DETAIL_LEVELS[level]) return false;
-  chosenLevel.set(layer.id, level);
+  chosenLevel.set(levelKey(layer), level);
   const state = active.get(layer.id);
   if (!state) return false;
   if (state.level === level) return true;
@@ -274,7 +298,7 @@ export function setDetailLevel(layer, level) {
 }
 
 export const detailLevelOf = (layer) =>
-  active.get(layer?.id)?.level ?? chosenLevel.get(layer?.id) ?? DEFAULT_DETAIL;
+  active.get(layer?.id)?.level ?? chosenLevel.get(levelKey(layer)) ?? DEFAULT_DETAIL;
 
 export const isLabelled = (layer) => active.has(layer?.id);
 
