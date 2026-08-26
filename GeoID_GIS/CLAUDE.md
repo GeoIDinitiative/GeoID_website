@@ -1319,6 +1319,48 @@ Verified: the dialog from Geohazards offers exactly NDVI and Burned area,
 requesting drapes the cached snapshot with the honest resolution note, and
 a tick in the relocated Basemap list still drapes NASADEM.
 
+## Live fetch: the hub's connectors in the catalogues, and weather by extent
+
+**The Research Hub's fetch services are catalogue rows now.** Six of the
+twelve `research/connectors.js` connectors (pure URL builder + converter,
+CORS-verified, unit-tested) are DATASETS entries in `global-data.js` with a
+`connector` field: USGS streamflow (hydrology), OSM places, BGS bedrock +
+superficial 625k (geology-tectonics, group "UK geology (BGS)"), HadUK
+rainfall normals, NWS alerts. `addDataset` routes them through
+`runConnector`, passing the DRAWN study area as the bbox when one exists
+(viewer lon is 0–360 east; every connector API wants signed — convert),
+and writes the returned provenance (endpoint, time, feature count,
+attribution) onto `layer.metadata`. EONET categories and USGS earthquakes
+are deliberately absent: the Events tab already serves them as live feeds.
+When a project is open, the bridge's registerImportedLayer hook records
+these imports into the project registry automatically — that IS the
+GIS↔hub pipeline connection, no extra plumbing.
+
+**"Fetch most recent map by extent" is `gis/weather-maps.js`** — a card in
+the Atmosphere tab (built by the module, Earth-only; the section markup is
+shared with nine worlds that have no weather radar). Extent = the drawn
+area or typed N/S/W/E bounds. Sources are a registry, the seam a Hetzner
+relay (the old continuous-fetch scripts' home) can slot into later:
+
+- **RainViewer radar composite** — `weather-maps.json` names the newest
+  ten-minute frame; its Web Mercator tiles (≤48 per fetch, zoom chosen to
+  fit) are composited then ROW-RESAMPLED to equirectangular before
+  `drape()` — the sphere's UVs are linear in latitude and an unresampled
+  Mercator canvas slides echoes poleward (the basemap's documented trap).
+- **Open-Meteo GFS/ICON fields** (precipitation, 2 m temperature, 10 m
+  wind) — one multi-location call sampling a 16×16 grid over the box,
+  drawn at its own resolution (a coarse field PRESENTED coarse — the
+  interpolated-WSM lesson) with a real legendInfo min/max/unit.
+- **NOMADS GRIB is not CORS-reachable** from a page and never will be —
+  measured; that is what the Hetzner scripts were for, and the relay
+  route is the upgrade path for native-resolution GFS.
+
+A re-fetch REPLACES the source's previous layer (two radar frames stacked
+is a smear). Verified live: a 22:40 UTC radar frame draped over typed UK
+bounds one minute after it was taken; a temperature field 12.8–22.5 °C
+with its legend; HadUK pulling 112 cells with the full ArcGIS endpoint in
+its metadata.
+
 ## Volcanoes, and three services asked about a place
 
 **The Smithsonian catalogue is BAKED** (`services/bake-volcanoes.py` →

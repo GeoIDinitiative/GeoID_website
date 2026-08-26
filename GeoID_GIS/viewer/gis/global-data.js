@@ -26,8 +26,11 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
+import { runConnector } from "./research/connectors.js?v=20260826-820cd84";
+
 /** Order the groups read in, coarse to specific. */
-export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics", "Hazards"];
+export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
+  "UK geology (BGS)", "Hazards", "Live services"];
 
 /**
  * Which PANEL a dataset belongs on, where it is not the Vectors tab.
@@ -219,7 +222,102 @@ export const DATASETS = [
     summary: "8,101 lines",
     licence: "OpenStreetMap contributors — ODbL",
   },
+  /**
+   * CONNECTOR-BACKED entries: the Research Hub's fetch services, offered as
+   * ordinary catalogue rows. `connector` names an entry in
+   * research/connectors.js — a pure URL builder + converter, CORS-verified —
+   * and addDataset routes through runConnector instead of a plain fetch,
+   * passing the drawn study area as the bbox when one exists. Provenance
+   * (endpoint, time, feature count, attribution) lands on the layer's
+   * metadata. EONET categories and USGS earthquakes are deliberately absent:
+   * the Events tab already serves them as live feeds, and a second doorway
+   * to the same data is the filing mistake this catalogue exists to end.
+   */
+  {
+    id: "conn-usgs-streamflow",
+    home: "hydrology",
+    featureNoun: "Stream gauge",
+    group: "Hydrology",
+    label: "Streamflow gauges — live (USGS, US)",
+    connector: "usgs-streamflow",
+    name: "USGS streamflow gauges.geojson",
+    summary: "Latest discharge at active US stream gauges, fetched at this moment. "
+      + "Uses the drawn study area as its search box when one exists.",
+    licence: "U.S. Geological Survey — National Water Information System (public domain)",
+  },
+  {
+    id: "conn-osm-places",
+    featureNoun: "Place",
+    group: "Live services",
+    label: "Places — live (OpenStreetMap)",
+    connector: "osm-places",
+    name: "OSM places.geojson",
+    summary: "Cities and towns from the Overpass API over the drawn study area "
+      + "(a global pull is refused by the service — draw an area first).",
+    licence: "© OpenStreetMap contributors (ODbL)",
+  },
+  {
+    id: "conn-bgs-bedrock",
+    home: "geology-tectonics",
+    featureNoun: "Geological unit",
+    group: "UK geology (BGS)",
+    label: "Bedrock geology — live (BGS 625k, UK)",
+    connector: "bgs-geology-bedrock",
+    name: "BGS bedrock geology 625k.geojson",
+    summary: "UK bedrock at 1:625,000 from the BGS OGC API, clipped to the "
+      + "drawn study area when one exists. United Kingdom only.",
+    licence: "Contains British Geological Survey materials © UKRI",
+  },
+  {
+    id: "conn-bgs-superficial",
+    home: "geology-tectonics",
+    featureNoun: "Geological unit",
+    group: "UK geology (BGS)",
+    label: "Superficial deposits — live (BGS 625k, UK)",
+    connector: "bgs-geology-superficial",
+    name: "BGS superficial geology 625k.geojson",
+    summary: "UK superficial deposits at 1:625,000 from the BGS OGC API, "
+      + "clipped to the drawn study area when one exists. United Kingdom only.",
+    licence: "Contains British Geological Survey materials © UKRI",
+  },
+  {
+    id: "conn-haduk-rainfall",
+    featureNoun: "Rainfall normal",
+    group: "Live services",
+    label: "Rainfall normals — live (HadUK 12km, UK)",
+    connector: "met-rainfall-normals",
+    name: "HadUK rainfall normals.geojson",
+    summary: "1991–2020 annual rainfall normals on the HadUK 12 km grid. "
+      + "United Kingdom only.",
+    licence: "Met Office HadUK-Grid © Crown copyright, licensed under the Open Government Licence",
+  },
+  {
+    id: "conn-nws-alerts",
+    featureNoun: "Weather alert",
+    group: "Live services",
+    label: "Weather alerts — live (NWS, US)",
+    connector: "nws-alerts",
+    name: "NWS active alerts.geojson",
+    summary: "Active US National Weather Service alerts with their polygons, "
+      + "fetched at this moment. United States only.",
+    licence: "NOAA / US National Weather Service (public domain)",
+  },
 ];
+
+/**
+ * The drawn study area as a signed-longitude bbox, or null. The viewer
+ * answers east-positive 0–360; every API the connectors speak wants signed
+ * −180..180 (the WSM's 38.8° lesson, from the other direction).
+ */
+function drawnBbox() {
+  const area = window.GeoIDViewer?.getExtractionGeometry?.();
+  const vertices = area?.vertices;
+  if (!vertices?.length) return null;
+  const signed = (lon) => (lon > 180 ? lon - 360 : lon);
+  const lats = vertices.map((v) => v.lat);
+  const lons = vertices.map((v) => signed(v.lon));
+  return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+}
 
 export function datasetById(id) {
   return DATASETS.find((entry) => entry.id === id) || null;
@@ -289,9 +387,27 @@ export async function addDataset(id, onStatus = () => {}) {
     // A big one takes a few seconds to build geometry, so say so first: the
     // press has no other feedback until the layer appears.
     onStatus(`Loading ${entry.label}…`);
-    const response = await fetch(source);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const blob = await response.blob();
+    let blob;
+    let provenance = null;
+    if (entry.connector) {
+      const bbox = drawnBbox();
+      onStatus(bbox
+        ? `Fetching ${entry.label} over the drawn area…`
+        : `Fetching ${entry.label}…`);
+      const result = await runConnector(entry.connector, bbox ? { bbox } : {});
+      if (!result.geojson.features.length) {
+        const message = `${entry.label}: nothing returned for this area — it `
+          + "may be outside the service's coverage.";
+        onStatus(message);
+        return { ok: false, message };
+      }
+      blob = new Blob([JSON.stringify(result.geojson)]);
+      provenance = result.provenance;
+    } else {
+      const response = await fetch(source);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      blob = await response.blob();
+    }
     // The FILE keeps its extension, because that is what chooses the parser;
     // the LAYER is named without it. `options.name` is the importer's own
     // seam for exactly this, so the layer is right from the frame it lands
@@ -300,6 +416,18 @@ export async function addDataset(id, onStatus = () => {}) {
       [new File([blob], entry.name, { type: "application/geo+json" })],
       { name: layerNameOf(entry) },
     );
+    if (provenance) {
+      const layer = loadedLayer(entry);
+      if (layer) {
+        layer.metadata = {
+          source: provenance.attribution,
+          endpoint: provenance.endpoint,
+          importedAt: provenance.fetched_at,
+          features: provenance.features,
+          citation: entry.licence,
+        };
+      }
+    }
   } catch (error) {
     const message = `${entry.label} did not load: ${error.message}`;
     onStatus(message);
