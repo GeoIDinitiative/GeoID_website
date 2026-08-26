@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-4d8a13c";
+  from "./gis/geo-utils.js?v=20260826-737a9a2";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -5887,7 +5887,13 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       const starCount = 5000;
       const positions = new Float32Array(starCount * 3);
       for (let i = 0; i < starCount; i += 1) {
-        const radius = 140 + Math.random() * 180;
+        // Behind EVERYTHING in the scene. The shell used to run 140-320,
+        // which was deep space until the Moon moved to its real 193 units
+        // and sat embedded in the stars, with the nearer ones floating in
+        // front of it as fat sprites. 600-950 clears the Moon's whole orbit
+        // and stays inside the camera's 1000 far plane; the size scales up
+        // so a star reads the same at three times the distance.
+        const radius = 600 + Math.random() * 350;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos((Math.random() * 2) - 1);
         positions[(i * 3)] = radius * Math.sin(phi) * Math.cos(theta);
@@ -5899,7 +5905,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       geometry.setAttribute("position", new THREERef.BufferAttribute(positions, 3));
       const material = new THREERef.PointsMaterial({
         color: 0xf3f7ff,
-        size: 0.55,
+        size: 1.6,
         sizeAttenuation: true,
       });
       return new THREERef.Points(geometry, material);
