@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-d773409";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-cd9ecce";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -313,10 +313,7 @@ export function renderCatalogue(host, entries, hooks) {
     name.textContent = hooks.title;
     const count = document.createElement("span");
     count.className = "gis-catalogue-count";
-    const on = entries.filter((entry) => hooks.layerFor(entry.id)).length;
-    count.textContent = on
-      ? `${on} of ${entries.length} on the globe`
-      : `${entries.length} datasets`;
+    count.textContent = `${entries.length} datasets`;
     head.append(name, count);
     const scroll = document.createElement("div");
     scroll.className = "gis-catalogue-scroll";
