@@ -504,6 +504,19 @@ function updateLabels() {
     active.labels.forEach((sprite) => { sprite.visible = false; });
     return;
   }
+  /**
+   * The tags shrink and thin out as the camera pulls away.
+   *
+   * A fixed 13 px reads right when the globe fills the screen and enormous
+   * when the whole GNSS shell is in frame and the Earth is a coin — the
+   * tag stays, the world it annotates shrinks. Height eases 13 → 9 px and
+   * the declutter spacing widens 64 → 130 px as the camera runs out from 5
+   * to 25 units, so a distant view carries fewer, smaller names.
+   */
+  const camDist = viewer.camera.position.length();
+  const far = Math.max(0, Math.min(1, (camDist - 5) / 20));
+  const heightPx = 13 - 4 * far;
+  const spacingPx = LABEL_SPACING_PX + 66 * far;
   const camDir = viewer.camera.position.clone().normalize();
   const positions = active.geometry.attributes.position;
   const world = new THREE.Vector3();
@@ -535,7 +548,7 @@ function updateLabels() {
     const clash = kept.some((k) => {
       const dx = k.x - candidate.x;
       const dy = k.y - candidate.y;
-      return dx * dx + dy * dy < LABEL_SPACING_PX * LABEL_SPACING_PX;
+      return dx * dx + dy * dy < spacingPx * spacingPx;
     });
     if (!clash) kept.push(candidate);
   }
@@ -566,7 +579,6 @@ function updateLabels() {
     // ratio stretches every tag (the fault the volcano labels documented).
     sprite.position.set(positions.getX(candidate.i), positions.getY(candidate.i),
       positions.getZ(candidate.i));
-    const heightPx = 13;
     sprite.scale.set(((heightPx * sprite.userData.aspect) / rect.width) * 2,
       (heightPx / rect.height) * 2, 1);
     sprite.center.set(-0.14, 0.42);
@@ -895,6 +907,14 @@ function init() {
   const tickBox = document.getElementById("satellites-toggle");
   if (!tickBox || tickBox.dataset.wired) return;
   tickBox.dataset.wired = "1";
+  const orbitsBox = document.getElementById("satellites-orbits");
+  const master = document.getElementById("satellites-master-toggle");
+  // The header tick means ALL of it: tracking and orbits together. It stays
+  // honest against the children — untick just the orbits and the header
+  // unchecks, because "all" is no longer true.
+  const syncMaster = () => {
+    if (master) master.checked = Boolean(tickBox.checked && orbitsBox?.checked);
+  };
   tickBox.addEventListener("change", async () => {
     if (tickBox.checked) {
       const ok = await start();
@@ -902,6 +922,28 @@ function init() {
     } else {
       stop();
     }
+    syncMaster();
+  });
+  orbitsBox?.addEventListener("change", syncMaster);
+  master?.addEventListener("change", async () => {
+    const on = master.checked;
+    if (tickBox.checked !== on) {
+      tickBox.checked = on;
+      tickBox.dispatchEvent(new Event("change"));
+      // start() is async; the orbits tick below finds `active` because the
+      // change handler above awaited it before returning… it did not — the
+      // dispatch returns immediately. So wait for the tracker to be up.
+      if (on) {
+        for (let i = 0; i < 100 && !active; i += 1) {
+          await new Promise((resolve) => { setTimeout(resolve, 200); });
+        }
+      }
+    }
+    if (orbitsBox && orbitsBox.checked !== on) {
+      orbitsBox.checked = on;
+      orbitsBox.dispatchEvent(new Event("change"));
+    }
+    syncMaster();
   });
   document.getElementById("satellites-orbits")?.addEventListener("change", (event) => {
     setRings(event.target.checked);
