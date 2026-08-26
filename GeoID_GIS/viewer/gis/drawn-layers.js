@@ -13,8 +13,8 @@
  * you can operate on, and it should not have to be captured twice.
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20260826-3316f0e";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-3316f0e";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260826-4d6736c";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-4d6736c";
 
 let counter = 0;
 

@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-3316f0e";
+  from "./gis/geo-utils.js?v=20260826-4d6736c";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -19619,7 +19619,10 @@ uniform float uViewportWidth;`,
            * it is selected. Cleared when another feature opens, when the
            * card is closed, and when a click lands on nothing.
            */
-          sceneFlashHandle = this.addSurfaceLabels([item]);
+          // An item may decline the flash — the satellites do, because their
+          // dots float at real altitude and a ground chip would mark the
+          // wrong place.
+          if (!item.no_flash) sceneFlashHandle = this.addSurfaceLabels([item]);
           openFeature(item, false);
           return true;
         },

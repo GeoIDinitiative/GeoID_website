@@ -72,6 +72,8 @@ const TLE = `ISS (ZARYA)\n${ISS_L1}\n${ISS_L2}\nCSS (TIANHE)\n1 48274U 21035A   
   check("kind becomes the card's kicker field", props.kind === "Space station");
   check("the layer declares itself nameable without ranking anything",
     props.label_rank === 0);
+  check("and declines the ground flash — the dot is at altitude",
+    props.no_flash === true);
   check("the dimension row carries altitude, speed and period",
     /km up · .+ km\/s · 9\d min orbit/.test(props.dimension), props.dimension);
   check("the summary says where the numbers come from",

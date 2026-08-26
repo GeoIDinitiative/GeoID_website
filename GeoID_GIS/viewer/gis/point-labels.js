@@ -146,6 +146,10 @@ export function featureToItem(feature, legend = null) {
     // The card's Dimension row — the satellites put altitude, speed and
     // orbital period there.
     dimension: p.dimension || undefined,
+    // Declines the temporary selection label: a satellite's dot is at real
+    // altitude, and a golden chip at the GROUND point below it would mark
+    // the wrong place.
+    no_flash: p.no_flash || undefined,
     // The legend's colour for this feature, worn by the marker, the
     // leader line and the chip's accent bar. Absent, the volcanic theme's
     // red stands — which is also what the curated labels wear.

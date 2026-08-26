@@ -776,20 +776,28 @@ and propagates them in the browser with the vendored `satellite.js` (SGP4,
 MIT). Elements-plus-SGP4 IS the live position — nobody streams coordinates
 without a key.
 
-The satellites arrive as an ORDINARY imported point layer on purpose: the
-triangles, the legend, the pixel-true click and the corner card are the same
-machinery every point layer uses. Each dot is the SUB-SATELLITE point; the
-altitude, speed and period ride the card's Dimension row. A 1.5 s tick
-re-propagates and calls `layer.repaint`, so the dots, the relief attributes
-and the click data cannot disagree about where a satellite is.
+The satellites are the one thing on this globe genuinely NOT on the surface
+— a GPS satellite orbits three Earth radii up — so the layer draws its own
+round dots at `3.2 × (1 + altitude/6371)`, parented into the imported-geo
+group so the existing per-frame spin sync carries them like a coastline.
+What it keeps of the ordinary machinery: the layer row and eye
+(`addDerivedLayer`), the legend, and the corner card — a raycast pick (the
+one picker in the app that targets true 3D points, because `featuresAt`
+answers ground coordinates and an oblique satellite is nowhere near its
+sub-satellite point on screen) hands the same item to the same
+`openSceneFeature`. Items carry `no_flash`: the temporary golden ground
+label would mark the wrong place. Orbit paths are a togglable single merged
+LineSegments — each orbit sampled once in ECI, frozen to the ground frame at
+build, then the ring group counter-rotates by the sidereal angle per tick,
+because an orbit plane is fixed among the stars: one rotation instead of
+forty thousand re-propagations.
 
 Three traps, all found by measuring:
 
-- **The import COPIES the collection.** `importFileList` serialises to a File
-  and the layer parses its own copy, so features built before the import are
-  orphans after it — the tick mutated them and the ISS sat bolted in place
-  while claiming to move. Records rebind to the layer's own features by
-  NORAD id after import.
+- **The import COPIES the collection** (`importFileList` serialises to a
+  File and the layer parses its own copy) — learned in the first, draped
+  version, and the reason the rewrite keeps its own feature objects and
+  never round-trips them through the importer.
 - **`label_rank: 0` on every feature** is the layer's declaration that its
   points speak the card contract WITHOUT ever growing labels (which would go
   stale in 1.5 s). `sceneItemFor`'s gate accepts a layer where the column
