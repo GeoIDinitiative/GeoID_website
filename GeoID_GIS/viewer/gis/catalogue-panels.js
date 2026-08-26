@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, datasetById, layerForDataset,
-} from "./global-data.js?v=20260826-9a6f617";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-9a6f617";
+} from "./global-data.js?v=20260826-9cdfb51";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-9cdfb51";
 
 const byId = (id) => document.getElementById(id);
 
@@ -42,33 +42,51 @@ function say(hostId, message) {
   if (node) node.textContent = message;
 }
 
+/** Which of this module's homes carries a share of the GEE catalogue. */
+const GEE_SHARE = { hydrology: "hydrology" };
+
 function draw(home, hostId) {
   const host = byId(hostId);
   if (!host) return;
-  const entries = grouped().flatMap(({ group, entries: list }) => list
-    .filter((entry) => entry.home === home)
-    .map((entry) => ({
-      id: entry.id,
-      group,
-      label: entry.label,
-      title: `${entry.summary} — ${entry.licence}`,
-    })));
+  // Earth Engine's share of this subject merges into the SAME list — one
+  // catalogue per tab, the service cited in the row's tooltip and in the
+  // layer's metadata, never a second list of its own.
+  const gee = GEE_SHARE[home] ? window.GeoIDGeeCatalogue : null;
+  const geeEntries = gee?.entriesFor(GEE_SHARE[home]) || [];
+  const entries = [
+    ...grouped().flatMap(({ group, entries: list }) => list
+      .filter((entry) => entry.home === home)
+      .map((entry) => ({
+        id: entry.id,
+        group,
+        label: entry.label,
+        title: `${entry.summary} — ${entry.licence}`,
+      }))),
+    ...geeEntries,
+  ];
   if (!entries.length) return;
   renderCatalogue(host, entries, {
     // No dropdown: each list is a handful of rows inside a subsection that is
     // already folded away. A lid on a lid is one press too many.
-    layerFor: layerForDataset,
-    add: (id) => addDataset(id, (message) => say(hostId, message)),
+    layerFor: (id) => (gee?.owns(id) ? gee.layerFor(id) : layerForDataset(id)),
+    add: (id) => (gee?.owns(id) ? gee.add(id)
+      : addDataset(id, (message) => say(hostId, message))),
     remove: (id) => {
+      if (gee?.owns(id)) return gee.remove(id);
       const layer = layerForDataset(id);
-      if (!layer) return;
+      if (!layer) return undefined;
       window.GeoIDImportManager?.removeLayer?.(layer.id);
       say(hostId, `${datasetById(id)?.label || "Dataset"} taken off the globe.`);
+      return undefined;
     },
     symbology: (layer) => {
       if (!openSymbologyFor(layer)) say(hostId, "This layer cannot be recoloured.");
     },
   });
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("geoid-gee:catalogue", () => drawAll());
 }
 
 function drawAll() {

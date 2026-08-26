@@ -1284,11 +1284,20 @@ The Atmosphere tab (the old "Data · Earth Engine") holds only the
 atmospheric datasets now. `GEE_HOMES` in `gee.js` files each dataset by the
 TAB whose subject it is — imagery and both DEMs in Basemap and Relief,
 burned area and NDVI in Geohazards, SMAP in Hydrology, rainfall/LST and
-the anomalies staying in Atmosphere — and `drawCatalogue` renders one tick
-list per home into `gee-home-<home>` hosts (Atmosphere keeps the original
-`#gee-catalogue`). Anything unmapped defaults to atmosphere so a new live
-dataset is never invisible. The themed lists fold under an "Earth Engine"
-dropdown title beside each tab's own catalogue.
+the anomalies staying in Atmosphere — and the entries MERGE into each
+tab's own catalogue — one list per tab, never a second "Earth Engine"
+dropdown (that existed for an hour and was reported as exactly that).
+`window.GeoIDGeeCatalogue` is the seam: `entriesFor(home)` / `owns(id)` /
+`add` / `remove` / `layerFor`; `map-layers-panel.js` folds the basemap
+share in as an "Earth Engine" GROUP inside Maps and overlays, and
+`catalogue-panels.js` does the same for hydrology (`GEE_SHARE`), both
+routing any id the seam owns back to gee.js — one request path. Both
+redraw on the `geoid-gee:catalogue` event, dispatched when the live
+service grows the list. gee.js itself draws only Atmosphere (its own tab)
+and Geohazards (which had no list). Rows cite "via Google Earth Engine"
+in the tooltip and every GEE layer's `metadata.source` records
+"Google Earth Engine · <dataset>" on import. Anything unmapped defaults
+to atmosphere so a new live dataset is never invisible.
 
 Beside each tab's add-data controls sits an **"Add data via GEE…"** button
 (`data-gee-add="<home>"`, an empty value meaning the whole catalogue —

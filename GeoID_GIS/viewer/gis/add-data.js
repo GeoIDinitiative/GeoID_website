@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260826-9a6f617";
-import { readHead, validateMapping } from "./delimited.js?v=20260826-9a6f617";
-import { RAMP_NAMES } from "./symbology.js?v=20260826-9a6f617";
+import { CRS_OPTIONS } from "./projection.js?v=20260826-9cdfb51";
+import { readHead, validateMapping } from "./delimited.js?v=20260826-9cdfb51";
+import { RAMP_NAMES } from "./symbology.js?v=20260826-9cdfb51";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -209,9 +209,14 @@ const STYLE = `
   gap: 0.3rem;
   margin: 0 0 0.5rem;
 }
-.gis-add-row { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
-.gis-add-row .gis-add-button { margin: 0 0 0.5rem; }
-.gis-add-row .gis-gee-button { margin: 0 0 0.5rem; }
+.gis-add-row { display: flex; gap: 0.4rem; align-items: stretch; margin: 0 0 0.5rem; }
+.gis-add-row .button {
+  flex: 1 1 0;
+  justify-content: center;
+  margin: 0;
+  padding-top: 0.42rem;
+  padding-bottom: 0.42rem;
+}
 `;
 
 function installStyle() {

@@ -7,8 +7,8 @@
  * file knows is only which catalogue to draw and where to put it.
  */
 
-import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260826-9a6f617";
-import { renderCatalogue } from "./catalogue-list.js?v=20260826-9a6f617";
+import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260826-9cdfb51";
+import { renderCatalogue } from "./catalogue-list.js?v=20260826-9cdfb51";
 
 const byId = (id) => document.getElementById(id);
 
@@ -70,6 +70,15 @@ function setBase(id) {
 function draw() {
   const host = byId("basemap-catalogue");
   if (!host) return;
+  /**
+   * ONE list, Earth Engine included. This tab's share of the GEE catalogue
+   * (imagery, both DEMs) merges in as its own group rather than standing
+   * as a second "Earth Engine" dropdown beneath this one — the rows cite
+   * the service in their tooltip, and the hooks route any id the seam owns
+   * back to gee.js, which is the one request path.
+   */
+  const gee = window.GeoIDGeeCatalogue;
+  const geeEntries = gee?.entriesFor("basemap") || [];
   const entries = [
     ...baseEntries(),
     ...grouped().flatMap(({ group, entries: list }) => list.map((entry) => ({
@@ -78,15 +87,23 @@ function draw() {
       label: entry.label,
       title: `${entry.summary} — ${entry.licence}`,
     }))),
+    ...geeEntries,
   ];
   renderCatalogue(host, entries, {
     // A lid, because five overlays and their group headings would push the
     // relief slider — which people reach for constantly — off the bottom of
     // the tab.
     title: "Maps and overlays",
-    layerFor: (id) => (id.startsWith(BASE_PREFIX) ? baseIsOn(id) : layerForMap(id)),
-    add: (id) => (id.startsWith(BASE_PREFIX) ? setBase(id) : addMapLayer(id, say)),
+    layerFor: (id) => {
+      if (gee?.owns(id)) return gee.layerFor(id);
+      return id.startsWith(BASE_PREFIX) ? baseIsOn(id) : layerForMap(id);
+    },
+    add: (id) => {
+      if (gee?.owns(id)) return gee.add(id);
+      return id.startsWith(BASE_PREFIX) ? setBase(id) : addMapLayer(id, say);
+    },
     remove: (id) => {
+      if (gee?.owns(id)) return gee.remove(id);
       // A sphere always has a texture, so unticking the base is not an
       // instruction anybody can carry out — the tick comes back on the redraw
       // and this says why rather than leaving it looking broken.
@@ -95,6 +112,7 @@ function draw() {
         return;
       }
       if (removeMapLayer(id)) say(`${layerById(id)?.label || "Overlay"} taken off the globe.`);
+      return undefined;
     },
   });
 }
@@ -109,6 +127,8 @@ function init() {
   // themselves into that dropdown after the panel is first built, so the list
   // has to be redrawn when its own source grows.
   baseSelect()?.addEventListener("change", draw);
+  // The GEE share of this list grows when the live service answers.
+  document.addEventListener("geoid-gee:catalogue", draw);
   window.setTimeout(draw, 1500);
   window.setTimeout(draw, 4000);
 }

@@ -10,12 +10,12 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260826-9a6f617";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260826-9a6f617";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260826-9a6f617";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260826-9cdfb51";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260826-9cdfb51";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260826-9cdfb51";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260826-9a6f617";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-9a6f617";
+  from "./view-extent.js?v=20260826-9cdfb51";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-9cdfb51";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -519,14 +519,6 @@ const GEE_HOMES = {
   "MODIS/061/MOD13A2": "geohazards",
   "NASA/SMAP/SPL4SMGP/007": "hydrology",
 };
-const GEE_HOME_HOSTS = {
-  atmosphere: "gee-catalogue",
-  basemap: "gee-home-basemap",
-  geohazards: "gee-home-geohazards",
-  hydrology: "gee-home-hydrology",
-  geology: "gee-home-geology",
-};
-
 function geeHomeOf(id) { return GEE_HOMES[id] || "atmosphere"; }
 
 function catalogueEntries() {
@@ -575,20 +567,65 @@ function catalogueHooks(entries) {
   };
 }
 
+/**
+ * NOT one list per service. The themed tabs merge these entries into their
+ * OWN catalogues (a separate "Earth Engine" dropdown per tab was reported
+ * as exactly that and removed) — this seam is what they merge from, and
+ * the rows cite Google Earth Engine in their tooltip while the layer's
+ * metadata records the service as the source on import. gee.js itself
+ * draws only the two lists that ARE their tab's catalogue: Atmosphere
+ * (this catalogue's home) and Geohazards (which had no list of its own).
+ */
+function geeCatalogueSeam() {
+  return {
+    entriesFor(homeName) {
+      return catalogueEntries()
+        .filter((entry) => geeHomeOf(entry.id) === homeName)
+        .map((entry) => ({
+          ...entry,
+          group: "Earth Engine",
+          title: `${entry.title} — via Google Earth Engine`,
+        }));
+    },
+    owns(id) {
+      return catalogueEntries().some((entry) => entry.id === id);
+    },
+    layerFor(id) {
+      const entry = catalogueEntries().find((e) => e.id === id);
+      return entry ? layerForDataset(entry.name) : null;
+    },
+    add(id) { return catalogueHooks(catalogueEntries()).add(id); },
+    remove(id) { return catalogueHooks(catalogueEntries()).remove(id); },
+    symbology(layer) {
+      if (!openSymbologyFor(layer)) status("This layer cannot be recoloured.");
+    },
+  };
+}
+
 function drawCatalogue() {
   const entries = catalogueEntries();
-  if (!entries.length && !byId("gee-catalogue")) return;
   const hooks = catalogueHooks(entries);
-  Object.entries(GEE_HOME_HOSTS).forEach(([homeName, hostId]) => {
-    const host = byId(hostId);
-    if (!host) return;
-    const subset = entries.filter((entry) => geeHomeOf(entry.id) === homeName);
-    if (!subset.length && homeName !== "atmosphere") { host.textContent = ""; return; }
-    // The themed tabs fold their Earth Engine list under a named dropdown —
-    // it sits beside that tab's own catalogue and must say where it is from.
-    renderCatalogue(host, subset,
-      homeName === "atmosphere" ? hooks : { ...hooks, title: "Earth Engine" });
-  });
+  const atmosphereHost = byId("gee-catalogue");
+  if (atmosphereHost) {
+    renderCatalogue(atmosphereHost,
+      entries.filter((entry) => geeHomeOf(entry.id) === "atmosphere"), hooks);
+  }
+  const hazardsHost = byId("gee-home-geohazards");
+  if (hazardsHost) {
+    const subset = entries
+      .filter((entry) => geeHomeOf(entry.id) === "geohazards")
+      .map((entry) => ({ ...entry, group: "Hazard indicators (Earth Engine)" }));
+    if (subset.length) renderCatalogue(hazardsHost, subset, hooks);
+    else hazardsHost.textContent = "";
+  }
+  // The basemap and hydrology tabs merge their share into their own lists.
+  if (typeof document !== "undefined") {
+    document.dispatchEvent(new Event("geoid-gee:catalogue"));
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.GeoIDGeeCatalogue = geeCatalogueSeam();
 }
 
 /* ── "Add data via GEE": one dialog, opened from every themed tab ─────────
