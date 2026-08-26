@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260826-9c40c2e";
-import { readHead, validateMapping } from "./delimited.js?v=20260826-9c40c2e";
-import { RAMP_NAMES } from "./symbology.js?v=20260826-9c40c2e";
+import { CRS_OPTIONS } from "./projection.js?v=20260826-9a6f617";
+import { readHead, validateMapping } from "./delimited.js?v=20260826-9a6f617";
+import { RAMP_NAMES } from "./symbology.js?v=20260826-9a6f617";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -209,6 +209,9 @@ const STYLE = `
   gap: 0.3rem;
   margin: 0 0 0.5rem;
 }
+.gis-add-row { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.gis-add-row .gis-add-button { margin: 0 0 0.5rem; }
+.gis-add-row .gis-gee-button { margin: 0 0 0.5rem; }
 `;
 
 function installStyle() {
@@ -673,12 +676,26 @@ function ensureMeshGroup() {
   host.appendChild(group);
 }
 
+/**
+ * The GEE doorway rides in the same row: "Add data via GEE…" belongs at the
+ * TOP of a tab beside "+ Add data" — one place where data comes in — never
+ * buried between the tab's subsections, which is where it was reported.
+ * The homes are gee.js's (`data-gee-add`; empty string = whole catalogue).
+ */
+const GEE_HOME_BY_PANEL = {
+  "gis-group-polygons": "",
+  "basemap-relief-section": "basemap",
+  "geology-section": "geology",
+};
+
 function addButtonFor(role) {
   const panel = document.getElementById(role.panel);
   if (!panel || panel.querySelector(`[data-add-role="${role.id}"]`)) return false;
   // Into the panel's body, not its summary: a button in a <summary> swallows
   // the click that opens the section, so the panel could never be expanded.
   const body = panel.querySelector(".section-body") || panel;
+  const row = document.createElement("div");
+  row.className = "gis-add-row";
   const button = document.createElement("button");
   button.type = "button";
   button.className = "button gis-add-button";
@@ -690,7 +707,18 @@ function addButtonFor(role) {
     e.stopPropagation();
     open(role.id);
   });
-  body.insertBefore(button, body.firstChild);
+  row.appendChild(button);
+  const geeHome = GEE_HOME_BY_PANEL[role.panel];
+  if (geeHome !== undefined) {
+    const gee = document.createElement("button");
+    gee.type = "button";
+    gee.className = "button secondary gis-gee-button";
+    gee.dataset.geeAdd = geeHome;
+    gee.textContent = "Add via GEE…";
+    gee.title = "Request a Google Earth Engine dataset draped over the globe";
+    row.appendChild(gee);
+  }
+  body.insertBefore(row, body.firstChild);
   return true;
 }
 
