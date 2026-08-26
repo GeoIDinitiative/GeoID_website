@@ -24,8 +24,9 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-819e935";
-import { currentBodyId } from "./bodies.js?v=20260827-819e935";
+import { drape } from "./gee.js?v=20260827-465b851";
+import { currentBodyId } from "./bodies.js?v=20260827-465b851";
+import { rectangleVertices } from "./draw-area.js?v=20260827-465b851";
 
 const byId = (id) => document.getElementById(id);
 
@@ -80,9 +81,43 @@ function say(message) {
   if (node) node.textContent = message || "";
 }
 
+const signedLon = (lon) => ((lon + 540) % 360) - 180;
+
 /** The chosen extent as {west, south, east, north} in signed degrees, or null. */
 function chosenBounds() {
-  const mode = byId("weather-extent")?.value || "drawn";
+  const mode = byId("weather-extent")?.value || "box";
+  if (mode === "box") {
+    /**
+     * The clean path: a box DEFINED here — size in km, centred on the view
+     * or on typed coordinates — built by the same `rectangleVertices` the
+     * Draw tool's presets use and SHOWN on the globe via the same
+     * `setStudyAreaPolygon`, so what will be fetched is visible before the
+     * request goes out. No side quest to another tool.
+     */
+    const widthKm = Number(byId("weather-box-width")?.value) || 500;
+    const heightKm = Number(byId("weather-box-height")?.value) || widthKm;
+    let centre;
+    if (byId("weather-box-centre")?.value === "manual") {
+      const lat = Number(byId("weather-box-lat")?.value);
+      const lon = Number(byId("weather-box-lon")?.value);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        return { error: "Type the centre latitude and longitude (longitude signed, east positive)." };
+      }
+      centre = { lat, lon };
+    } else {
+      centre = window.GeoIDViewer?.getViewCentreLatLon?.();
+      if (!centre) return { error: "The view centre could not be read — try typed coordinates." };
+    }
+    const rect = rectangleVertices({
+      lat: centre.lat, lon: centre.lon, widthKm, heightKm,
+    });
+    if (!rect) return { error: "That size did not make a box — check the kilometres." };
+    window.GeoIDViewer?.setStudyAreaPolygon?.(rect.vertices);
+    return {
+      west: signedLon(rect.bounds.west), south: rect.bounds.south,
+      east: signedLon(rect.bounds.east), north: rect.bounds.north,
+    };
+  }
   if (mode === "bounds") {
     const value = (id) => Number(byId(id)?.value);
     const bounds = {
@@ -103,9 +138,8 @@ function chosenBounds() {
     promptDrawTool();
     return { error: "Draw the box on the globe, then press Fetch — the Draw tool is now active." };
   }
-  const signed = (lon) => (lon > 180 ? lon - 360 : lon);
   const lats = vertices.map((v) => v.lat);
-  const lons = vertices.map((v) => signed(v.lon));
+  const lons = vertices.map((v) => signedLon(v.lon));
   return {
     west: Math.min(...lons), south: Math.min(...lats),
     east: Math.max(...lons), north: Math.max(...lats),
@@ -370,10 +404,25 @@ function buildCard() {
       </label>
       <label class="row"><span>Extent</span>
         <select id="weather-extent" class="input">
-          <option value="drawn">The drawn area</option>
+          <option value="box" selected>Box — size and centre</option>
+          <option value="drawn">An area drawn by hand</option>
           <option value="bounds">Typed bounds</option>
         </select>
       </label>
+      <div id="weather-box-rows">
+        <div class="row"><label for="weather-box-width">Width (km)</label><input id="weather-box-width" class="input" type="number" min="20" step="10" value="500"></div>
+        <div class="row"><label for="weather-box-height">Height (km)</label><input id="weather-box-height" class="input" type="number" min="20" step="10" value="500"></div>
+        <label class="row"><span>Centre</span>
+          <select id="weather-box-centre" class="input">
+            <option value="view" selected>The middle of the view</option>
+            <option value="manual">Typed coordinates</option>
+          </select>
+        </label>
+        <div class="row" id="weather-box-manual" hidden>
+          <input id="weather-box-lat" class="input" type="number" step="0.01" placeholder="lat" aria-label="Centre latitude">
+          <input id="weather-box-lon" class="input" type="number" step="0.01" placeholder="lon (±)" aria-label="Centre longitude, signed">
+        </div>
+      </div>
       <div id="weather-bounds-rows" hidden>
         <div class="row"><label for="weather-north">North</label><input id="weather-north" class="input" type="number" step="0.1" placeholder="55"></div>
         <div class="row"><label for="weather-south">South</label><input id="weather-south" class="input" type="number" step="0.1" placeholder="49"></div>
@@ -389,13 +438,16 @@ function buildCard() {
   byId("weather-extent").addEventListener("change", () => {
     const mode = byId("weather-extent").value;
     byId("weather-bounds-rows").hidden = mode !== "bounds";
-    // Choosing "the drawn area" with nothing drawn is a dead end unless the
-    // drawer comes to you: the Draw tool activates itself, square preset and
-    // all, and the status says what happens next.
+    byId("weather-box-rows").hidden = mode !== "box";
+    // Choosing "an area drawn by hand" with nothing drawn is a dead end
+    // unless the drawer comes to you: the Draw tool activates itself.
     if (mode === "drawn" && !window.GeoIDViewer?.getExtractionGeometry?.()?.vertices?.length) {
       promptDrawTool();
-      say("Draw the box on the globe — the Draw tool is active — then press Fetch.");
+      say("Draw the shape on the globe — the Draw tool is active — then press Fetch.");
     }
+  });
+  byId("weather-box-centre").addEventListener("change", () => {
+    byId("weather-box-manual").hidden = byId("weather-box-centre").value !== "manual";
   });
   byId("weather-fetch").addEventListener("click", fetchMap);
   return true;
