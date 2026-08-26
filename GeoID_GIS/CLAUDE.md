@@ -803,6 +803,18 @@ CelesTrak throttles rapid parallel queries into empty 200s (`geo` and
 `science` arrived blank until spaced). OneWeb draws no rings: 650
 near-identical polar orbits is a hairball that hides every other orbit.
 
+The orbit rings are interactive: the merged mesh records a per-SEGMENT owner
+at build (the raycaster answers with a vertex index; index/2 is the segment),
+so a click on any ring resolves its satellite and opens the same card the dot
+would. Hover copies that orbit's own vertices into a small overlay line
+(brightened, cursor to pointer) — throttled, because a raycast against 30k
+segments per mousemove turns a pan into a slideshow. Selection pulses the dot
+(a one-vertex gold Points overlay) and the orbit (a second overlay) in the
+same gold the label selection wears; both overlays are CHILDREN of the ring
+mesh so they inherit the sidereal counter-rotation, and the pulse loop ends
+itself by polling the scene card's visibility — one boolean a frame against
+wiring into every close path the viewer has.
+
 Three traps, all found by measuring:
 
 - **The import COPIES the collection** (`importFileList` serialises to a

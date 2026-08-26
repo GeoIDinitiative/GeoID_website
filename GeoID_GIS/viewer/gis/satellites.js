@@ -312,7 +312,9 @@ function buildRings() {
   const colours = [];
   const colour = new THREE.Color();
   const scratch = new THREE.Vector3();
+  const segmentOwner = [];
   active.records.forEach((record) => {
+    record.ringRange = null;
     if (record.dead || record.noRings) return;
     const periodMs = ((2 * Math.PI) / (record.satrec.no_kozai ?? record.satrec.no)) * 60000;
     colour.set(CATEGORY_COLOURS[record.category] || "#8a8a8a");
@@ -327,11 +329,17 @@ function buildRings() {
       const ecf = satellite.eciToEcf(out.position, gmst0);
       points.push(ecfToScene(ecf, scratch).clone());
     }
+    const startFloats = positions.length;
     for (let k = 0; k + 1 < points.length; k += 1) {
       positions.push(points[k].x, points[k].y, points[k].z,
         points[k + 1].x, points[k + 1].y, points[k + 1].z);
       colours.push(colour.r, colour.g, colour.b, colour.r, colour.g, colour.b);
+      // One entry per SEGMENT: the raycaster answers with a vertex index,
+      // and index/2 is the segment — this is how a hit on the one merged
+      // mesh finds its satellite.
+      segmentOwner.push(record);
     }
+    record.ringRange = { start: startFloats, count: positions.length - startFloats };
   });
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
@@ -342,7 +350,52 @@ function buildRings() {
   rings.name = "satellite-orbits";
   rings.frustumCulled = false;
   rings.userData.gmst0 = gmst0;
+  rings.userData.segmentOwner = segmentOwner;
+  /**
+   * The hover highlight and the selection pulse are CHILDREN of the ring
+   * mesh: both draw one orbit's own vertices copied into a small overlay,
+   * and living under the mesh means they inherit the sidereal
+   * counter-rotation for free — an overlay parented anywhere else would
+   * drift off its orbit as the planet turned.
+   */
+  const overlayGeometry = () => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position",
+      new THREE.Float32BufferAttribute(new Float32Array(RING_SAMPLES * 6), 3));
+    g.setDrawRange(0, 0);
+    return g;
+  };
+  const hover = new THREE.LineSegments(overlayGeometry(), new THREE.LineBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false,
+  }));
+  hover.visible = false;
+  hover.frustumCulled = false;
+  rings.add(hover);
+  rings.userData.hover = hover;
+  const pulse = new THREE.LineSegments(overlayGeometry(), new THREE.LineBasicMaterial({
+    color: 0xffbf6f, transparent: true, opacity: 0.8, depthWrite: false,
+  }));
+  pulse.visible = false;
+  pulse.frustumCulled = false;
+  rings.add(pulse);
+  rings.userData.pulse = pulse;
   return rings;
+}
+
+/** Copy one orbit's vertices into an overlay line, or hide it. */
+function showOrbitOverlay(overlay, record) {
+  if (!record?.ringRange || !active?.rings) {
+    overlay.visible = false;
+    return;
+  }
+  const source = active.rings.geometry.attributes.position.array;
+  const target = overlay.geometry.attributes.position;
+  const { start, count } = record.ringRange;
+  target.array.set(source.subarray(start, start + count));
+  target.needsUpdate = true;
+  overlay.geometry.setDrawRange(0, count / 3);
+  overlay.geometry.computeBoundingSphere();
+  overlay.visible = true;
 }
 
 /* ── labels ──────────────────────────────────────────────────────────────── */
@@ -465,6 +518,9 @@ function setRings(on) {
     say(`${active.records.length} satellites live, orbit paths on.`);
   }
   if (active.rings) active.rings.visible = on;
+  // A selection made while the paths were off gains its orbit pulse the
+  // moment they come up.
+  if (on && active.selected) showOrbitOverlay(active.rings.userData.pulse, active.selected);
 }
 
 /**
@@ -477,6 +533,46 @@ function setRings(on) {
  * targets true 3D points, and it hands its answer to the SAME card the
  * volcano dots use.
  */
+function castAt(clientX, clientY) {
+  const viewer = window.GeoIDViewer;
+  const canvas = viewer?.renderer?.domElement;
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  const pointer = new THREE.Vector2(
+    ((clientX - rect.left) / rect.width) * 2 - 1,
+    -(((clientY - rect.top) / rect.height) * 2 - 1),
+  );
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(pointer, viewer.camera);
+  const worldPerPixel = (2 * viewer.camera.position.length()
+    * Math.tan((viewer.camera.fov * Math.PI) / 360)) / rect.height;
+  return { raycaster, worldPerPixel };
+}
+
+/** The satellite under a pointer position: its dot first, then its orbit. */
+function recordAt(clientX, clientY) {
+  if (!active) return null;
+  const cast = castAt(clientX, clientY);
+  if (!cast) return null;
+  const { raycaster, worldPerPixel } = cast;
+  raycaster.params.Points.threshold = 12 * worldPerPixel;
+  const dotHit = raycaster.intersectObject(active.fill, false)
+    .filter((h) => !active.records[h.index]?.dead)
+    .sort((a, b) => a.distanceToRay - b.distanceToRay)[0];
+  if (dotHit) return active.records[dotHit.index];
+  if (active.rings?.visible) {
+    raycaster.params.Line.threshold = 7 * worldPerPixel;
+    const ringHit = raycaster.intersectObject(active.rings, false)
+      .sort((a, b) => a.distance - b.distance)[0];
+    if (ringHit) {
+      // A hit on the merged mesh answers with a vertex index; index/2 is the
+      // segment, and the build recorded each segment's owner.
+      return active.rings.userData.segmentOwner?.[Math.floor(ringHit.index / 2)] || null;
+    }
+  }
+  return null;
+}
+
 function onClick(event) {
   if (!active) return;
   const viewer = window.GeoIDViewer;
@@ -486,27 +582,107 @@ function onClick(event) {
     && Math.hypot(event.clientX - active.downAt.x, event.clientY - active.downAt.y) > 4) return;
   const layer = layerOf();
   if (!layer || layer.visible === false) return;
-  const rect = canvas.getBoundingClientRect();
-  const pointer = new THREE.Vector2(
-    ((event.clientX - rect.left) / rect.width) * 2 - 1,
-    -(((event.clientY - rect.top) / rect.height) * 2 - 1),
-  );
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(pointer, viewer.camera);
-  // ~12 px of pick radius, in world units at the camera's range.
-  const worldPerPixel = (2 * viewer.camera.position.length()
-    * Math.tan((viewer.camera.fov * Math.PI) / 360)) / rect.height;
-  raycaster.params.Points.threshold = 12 * worldPerPixel;
-  const hits = raycaster.intersectObject(active.fill, false)
-    .filter((h) => !active.records[h.index]?.dead)
-    .sort((a, b) => a.distanceToRay - b.distanceToRay);
-  const hit = hits[0];
-  if (!hit) return;
-  const record = active.records[hit.index];
+  const record = recordAt(event.clientX, event.clientY);
+  if (!record) return;
   const item = window.GeoIDPointLabels?.featureToItem?.(record.feature, active.legendInfo);
   if (!item || !viewer.openSceneFeature?.(item)) return;
+  select(record);
   window.GeoIDFeaturePopup?.suppress?.(500);
   event.stopPropagation();
+}
+
+/**
+ * Hover finds the orbit under the pointer and brightens it — one merged mesh
+ * is one colour-blur of hundreds of rings, and without this there is no
+ * telling which ring the pointer is over before committing a click.
+ * Throttled: a raycast against 30k segments per mousemove event is how a
+ * smooth pan becomes a slideshow.
+ */
+let hoverPending = false;
+function onMove(event) {
+  if (!active?.rings?.visible || hoverPending) return;
+  hoverPending = true;
+  window.setTimeout(() => {
+    hoverPending = false;
+    if (!active?.rings?.visible) return;
+    const viewer = window.GeoIDViewer;
+    const canvas = viewer?.renderer?.domElement;
+    if (!canvas || event.target !== canvas) return;
+    const cast = castAt(event.clientX, event.clientY);
+    if (!cast) return;
+    cast.raycaster.params.Line.threshold = 7 * cast.worldPerPixel;
+    const hit = cast.raycaster.intersectObject(active.rings, false)
+      .sort((a, b) => a.distance - b.distance)[0];
+    const record = hit
+      ? active.rings.userData.segmentOwner?.[Math.floor(hit.index / 2)] : null;
+    if (record !== active.hovered) {
+      active.hovered = record || null;
+      showOrbitOverlay(active.rings.userData.hover, active.hovered);
+      canvas.style.cursor = record ? "pointer" : "";
+    }
+  }, 70);
+}
+
+/* ── selection pulse ─────────────────────────────────────────────────────── */
+
+/**
+ * The selected satellite pulses — its dot always, its orbit when the rings
+ * are up — in the same gold the label selection ring wears everywhere else.
+ * A rAF loop runs only while something is selected, and the selection ends
+ * itself when the scene card closes, however it was closed: polling the
+ * card's visibility is one boolean a frame against wiring into every close
+ * path the viewer has.
+ */
+function select(record) {
+  if (!active) return;
+  active.selected = record;
+  if (!active.pulseDot) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(3), 3));
+    active.pulseDot = new THREE.Points(g, new THREE.PointsMaterial({
+      size: 14, sizeAttenuation: false, map: makeDotTexture(), alphaTest: 0.2,
+      transparent: true, depthWrite: false, color: 0xffbf6f, opacity: 0.9,
+    }));
+    active.pulseDot.frustumCulled = false;
+    active.pulseDot.renderOrder = 2;
+    active.group.add(active.pulseDot);
+  }
+  if (active.rings) showOrbitOverlay(active.rings.userData.pulse, record);
+  if (!active.pulseFrame) pulseLoop();
+}
+
+function deselect() {
+  if (!active) return;
+  active.selected = null;
+  if (active.pulseDot) active.pulseDot.visible = false;
+  if (active.rings?.userData.pulse) active.rings.userData.pulse.visible = false;
+}
+
+function pulseLoop() {
+  if (!active) return;
+  if (!active.selected) { active.pulseFrame = null; return; }
+  const kicker = document.querySelector("#scene-popup-kicker, [class*=\"scene-popup-kicker\"]");
+  if (kicker && kicker.offsetParent === null) {
+    deselect();
+    active.pulseFrame = null;
+    return;
+  }
+  const t = performance.now() * 0.004;
+  const pulse = (Math.sin(t) + 1) * 0.5;
+  const record = active.selected;
+  const i = active.records.indexOf(record);
+  if (active.pulseDot && i >= 0 && !record.dead) {
+    const positions = active.geometry.attributes.position;
+    const target = active.pulseDot.geometry.attributes.position;
+    target.setXYZ(0, positions.getX(i), positions.getY(i), positions.getZ(i));
+    target.needsUpdate = true;
+    active.pulseDot.visible = true;
+    active.pulseDot.material.size = 11 + pulse * 6;
+    active.pulseDot.material.opacity = 0.5 + pulse * 0.45;
+  }
+  const ringPulse = active.rings?.userData.pulse;
+  if (ringPulse?.visible) ringPulse.material.opacity = 0.35 + pulse * 0.6;
+  active.pulseFrame = window.requestAnimationFrame(pulseLoop);
 }
 
 function onDown(event) {
@@ -606,6 +782,7 @@ async function start() {
   active.timer = window.setInterval(tick, REFRESH_MS);
   window.addEventListener("pointerdown", onDown, true);
   window.addEventListener("click", onClick, true);
+  window.addEventListener("pointermove", onMove, true);
   window.GeoIDLayerHierarchy?.render?.();
   say(`${records.length} satellites live at their real altitudes — refreshing `
     + `every ${REFRESH_MS / 1000} s.`);
@@ -622,6 +799,10 @@ function stop() {
   });
   window.removeEventListener("pointerdown", onDown, true);
   window.removeEventListener("click", onClick, true);
+  window.removeEventListener("pointermove", onMove, true);
+  if (active.pulseFrame) window.cancelAnimationFrame(active.pulseFrame);
+  const viewerCanvas = window.GeoIDViewer?.renderer?.domElement;
+  if (viewerCanvas) viewerCanvas.style.cursor = "";
   const layer = layerOf();
   if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
   active = null;
