@@ -504,60 +504,51 @@ function showOrbitOverlay(overlay, record) {
 /* ── labels ──────────────────────────────────────────────────────────────── */
 
 /**
- * The satellite tag: a HUD strip, deliberately NOT the planetary pill.
+ * The satellite tag: bare type, no box.
  *
- * Ground labels wear the rounded chip; satellites are a different kind of
- * thing and read best in a different register — a squared translucent strip
- * with a chamfered corner, a 2 px category tick, uppercase tracked type and
- * a hairline underline in the category colour. Smaller than the ground
- * chips on purpose: there can be forty of these over one hemisphere.
+ * The strip version — translucent backing, chamfer, underline — read as
+ * forty dark plaques stuck over the planet at a global view. What a tracker
+ * HUD actually needs is the NAME and nothing else: micro uppercase type
+ * with a tight dark halo for legibility over stars and orbit lines, and a
+ * short leader dash in the category colour tying it to its dot. The ink is
+ * a fraction of the strip's, so the same count of labels reads far quieter.
  */
 const tagTextures = new Map();
 
 function makeTagTexture(name, colour) {
   const key = `${colour}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
-  const scale = 2;
+  const scale = 3;
   const text = String(name).toUpperCase();
   const font = `600 ${10 * scale}px "Exo 2", "Segoe UI", sans-serif`;
   const probe = document.createElement("canvas").getContext("2d");
   probe.font = font;
-  probe.letterSpacing = `${1.2 * scale}px`;
+  probe.letterSpacing = `${1 * scale}px`;
   const textW = Math.ceil(probe.measureText(text).width);
-  const padX = 7 * scale;
-  const tick = 2.5 * scale;
-  const width = textW + padX * 2 + tick + 4 * scale;
-  const height = 17 * scale;
-  const chamfer = 6 * scale;
+  const dash = 5 * scale;
+  const gap = 3 * scale;
+  const pad = 2 * scale;   // room for the halo to breathe at the edges
+  const width = pad + dash + gap + textW + pad;
+  const height = 13 * scale;
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext("2d");
-  // The strip, squared, with one chamfered corner top-right.
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(width - chamfer, 0);
-  ctx.lineTo(width, chamfer);
-  ctx.lineTo(width, height);
-  ctx.lineTo(0, height);
-  ctx.closePath();
-  ctx.fillStyle = "rgba(5, 9, 18, 0.62)";
-  ctx.fill();
-  // Category tick at the left edge, full height.
-  ctx.fillStyle = colour;
-  ctx.fillRect(0, 0, tick, height);
-  // Hairline underline in the category colour, fading out to the right.
-  const line = ctx.createLinearGradient(0, 0, width, 0);
-  line.addColorStop(0, colour);
-  line.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = line;
-  ctx.fillRect(tick, height - scale, width - tick, scale);
-  // The name, tracked uppercase.
   ctx.font = font;
-  ctx.letterSpacing = `${1.2 * scale}px`;
+  ctx.letterSpacing = `${1 * scale}px`;
   ctx.textBaseline = "middle";
-  ctx.fillStyle = "rgba(238, 244, 252, 0.96)";
-  ctx.fillText(text, tick + padX, height / 2 - scale * 0.5);
+  const midY = height / 2;
+  // The leader dash, category-coloured — the one piece of chrome kept.
+  ctx.fillStyle = colour;
+  ctx.fillRect(pad, midY - scale * 0.75, dash, scale * 1.5);
+  // Halo first, then the type: a round-joined stroke is a crisper halo than
+  // shadow blur at sizes this small, where blur just greys the letterforms.
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = "rgba(3, 6, 14, 0.9)";
+  ctx.lineWidth = 3 * scale;
+  ctx.strokeText(text, pad + dash + gap, midY);
+  ctx.fillStyle = "rgba(240, 246, 252, 0.98)";
+  ctx.fillText(text, pad + dash + gap, midY);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.generateMipmaps = true;
@@ -610,15 +601,16 @@ function updateLabels() {
   /**
    * The tags shrink and thin out as the camera pulls away.
    *
-   * A fixed 13 px reads right when the globe fills the screen and enormous
+   * A fixed size reads right when the globe fills the screen and enormous
    * when the whole GNSS shell is in frame and the Earth is a coin — the
-   * tag stays, the world it annotates shrinks. Height eases 13 → 9 px and
-   * the declutter spacing widens 64 → 130 px as the camera runs out from 5
-   * to 25 units, so a distant view carries fewer, smaller names.
+   * tag stays, the world it annotates shrinks. Height eases 12 → 8 px
+   * (bare type, so that is ~9 px letters down to ~6 px) and the declutter
+   * spacing widens 64 → 130 px as the camera runs out from 5 to 25 units,
+   * so a distant view carries fewer, smaller names.
    */
   const camDist = viewer.camera.position.length();
   const far = Math.max(0, Math.min(1, (camDist - 5) / 20));
-  const heightPx = 13 - 4 * far;
+  const heightPx = 12 - 4 * far;
   const spacingPx = LABEL_SPACING_PX + 66 * far;
   const camDir = viewer.camera.position.clone().normalize();
   const positions = active.geometry.attributes.position;
@@ -684,7 +676,7 @@ function updateLabels() {
       positions.getZ(candidate.i));
     sprite.scale.set(((heightPx * sprite.userData.aspect) / rect.width) * 2,
       (heightPx / rect.height) * 2, 1);
-    sprite.center.set(-0.14, 0.42);
+    sprite.center.set(-0.1, 0.5);
   });
 }
 

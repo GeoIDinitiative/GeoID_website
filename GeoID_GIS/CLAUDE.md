@@ -792,10 +792,13 @@ build, then the ring group counter-rotates by the sidereal angle per tick,
 because an orbit plane is fixed among the stars: one rotation instead of
 forty thousand re-propagations.
 
-Satellite labels wear their OWN theme — a HUD tag, not the planetary pill:
-squared translucent strip with a chamfered corner, 2 px category tick,
-uppercase tracked type, hairline underline in the category colour, 13 px
-tall. Deliberately a different register: a satellite is not a place. The
+Satellite labels wear their OWN theme — bare micro-type, not the planetary
+pill and not a box: uppercase tracked type with a tight dark stroke-halo
+(a round-joined stroke, because shadow blur just greys letterforms this
+small) and a short leader dash in the category colour, ~9 px letters easing
+to ~6 px as the camera runs out. The strip version before it — translucent
+backing, chamfer, underline — read as forty dark plaques at a global view.
+Deliberately a different register: a satellite is not a place. The
 tags render depth-test-OFF in a nested group with renderOrder 206 — the
 nested-group groupOrder reset, used deliberately this time, lifts them out
 of the data band the hierarchy stamps on the layer, or every orbit line
