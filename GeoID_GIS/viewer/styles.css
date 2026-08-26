@@ -2051,6 +2051,10 @@
        viewer reads and writes it unguarded, and the space bar still runs
        through the same pauseSpin the pill reports. */
     #spin-toggle { display: none !important; }
+    /* Freeze view retired from the corner: the pill owns rotation, the clock
+       owns time, and the camera needs no third switch. The element stays in
+       the page — the viewer wires and reads it unguarded. */
+    #freeze-view-toggle { display: none !important; }
 
     /* The rate pill wears the corner buttons' chrome but carries a word, not
        a glyph: the state IS the label (LIVE, ×720, PAUSED). */
@@ -2089,10 +2093,12 @@
     /* The scrub button wears the corner chrome; its panel hangs below the
        control cluster. #top-right-controls is fixed, so the panel anchors
        to it with absolute positioning. */
+    /* Not an icon: a DIGITAL CLOCK showing the model's time, ticking at
+       whatever rate the pill has chosen. Clicking it opens the jump panel. */
     #time-scrub-toggle {
       flex-shrink: 0;
-      width: 2.55rem;
       height: 2.55rem;
+      padding: 0.28rem 0.62rem;
       border-radius: 0.62rem;
       border: 1px solid rgba(255, 255, 255, 0.14);
       background: rgba(10, 16, 23, 0.96);
@@ -2100,8 +2106,23 @@
       color: #d5e8ee;
       cursor: pointer;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 0.08rem;
+      font-variant-numeric: tabular-nums;
+    }
+    #time-scrub-toggle .scrub-date {
+      font-size: 0.5rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: rgba(190, 214, 226, 0.75);
+    }
+    #time-scrub-toggle .scrub-time {
+      font-size: 0.84rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      line-height: 1;
     }
     #time-scrub-toggle:hover {
       transform: translateY(-1px);

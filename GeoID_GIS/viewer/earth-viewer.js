@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-a473366";
+  from "./gis/geo-utils.js?v=20260826-57a9875";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -1196,6 +1196,26 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       timeScrubBtn.classList.toggle("is-active", !timeScrubPanel.hidden);
       if (!timeScrubPanel.hidden) fillScrubInput();
     });
+    /**
+     * The button IS a digital clock: the model's moment, ticking at
+     * whatever rate the pill has chosen — seconds crawl in LIVE and whirl
+     * in ×720, which is the readout saying what the rate means. Four
+     * writes a second so a ×720 clock does not stutter visibly.
+     */
+    const scrubDateEl = timeScrubBtn?.querySelector(".scrub-date");
+    const scrubTimeEl = timeScrubBtn?.querySelector(".scrub-time");
+    function updateCornerClock() {
+      if (!scrubDateEl || !scrubTimeEl) return;
+      const d = new Date(getSimulatedUtcMs());
+      const pad = (n) => String(n).padStart(2, "0");
+      scrubDateEl.textContent = `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/`
+        + `${pad(d.getUTCFullYear() % 100)} UTC`;
+      scrubTimeEl.textContent = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+    }
+    if (scrubTimeEl) {
+      window.setInterval(updateCornerClock, 250);
+      updateCornerClock();
+    }
     document.getElementById("time-scrub-go")?.addEventListener("click", () => {
       // The field is UTC — the clock beside it reads GMT, and a scrub target
       // in local time would land an hour or six off the readout.
