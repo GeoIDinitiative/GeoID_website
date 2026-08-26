@@ -197,6 +197,23 @@ function itemsFor(layer, level) {
   return toLabelItems(layer.features, { ...detail, legend: layer.legendInfo });
 }
 
+/**
+ * What the labels' colours were built FROM, cheap enough to compare per sync.
+ *
+ * Labels arrive automatically now, and automatically means EARLY: the first
+ * layer-change event fires before the catalogue's default paint has written
+ * `legendInfo`, so the first build has no colours to wear and every chip came
+ * out theme-red. The fingerprint is how a later sync notices the legend has
+ * arrived — or changed under a re-symbolise — and rebuilds the labels to
+ * match the map they annotate.
+ */
+const legendFingerprint = (layer) => {
+  const legend = layer?.legendInfo;
+  return legend?.field
+    ? `${legend.field}|${(legend.palette || []).join(",")}`
+    : "";
+};
+
 function viewerSeam() {
   const viewer = window.GeoIDViewer;
   return typeof viewer?.addSurfaceLabels === "function" ? viewer : null;
@@ -238,9 +255,15 @@ function sync() {
     const shouldShow = layer.status === "loaded" && layer.visible !== false;
     if (shouldShow && !state.handle) {
       state.handle = viewerSeam()?.addSurfaceLabels(itemsFor(layer, state.level)) || null;
+      state.legend = legendFingerprint(layer);
     } else if (!shouldShow && state.handle) {
       state.handle.remove();
       state.handle = null;
+    } else if (state.handle && legendFingerprint(layer) !== state.legend) {
+      // The map was repainted under the labels: rebuild them in its colours.
+      state.handle.remove();
+      state.handle = viewerSeam()?.addSurfaceLabels(itemsFor(layer, state.level)) || null;
+      state.legend = legendFingerprint(layer);
     }
   });
 }
@@ -267,7 +290,7 @@ export async function setLabels(layer, on, { level = null } = {}) {
   if (!items.length) return false;
   const handle = viewer.addSurfaceLabels(items);
   if (!handle) return false;
-  active.set(layer.id, { handle, level: wanted });
+  active.set(layer.id, { handle, level: wanted, legend: legendFingerprint(layer) });
   return true;
 }
 
@@ -293,6 +316,7 @@ export function setDetailLevel(layer, level) {
   if (state.handle) {
     state.handle.remove();
     state.handle = viewerSeam()?.addSurfaceLabels(itemsFor(layer, level)) || null;
+    state.legend = legendFingerprint(layer);
   }
   return true;
 }

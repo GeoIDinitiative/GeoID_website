@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260826-801fa5e";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260826-b1f3dc5";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260826-801fa5e";
+} from "./symbology.js?v=20260826-b1f3dc5";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -378,6 +378,22 @@ export function openSymbologyDialog(layer, hooks = {}) {
  * @param {object} [options] ramp name, colour overrides by value, class labels
  * @returns the symbology, or `{ok: false, message}`
  */
+/**
+ * Tell the page a layer's colours changed.
+ *
+ * The point labels wear the legend's colours, and they are built from
+ * `legendInfo` at the moment they are added — which, now that labels arrive
+ * automatically with the layer, is usually a beat BEFORE the catalogue's
+ * default paint has written it. Without this event nothing ever told them the
+ * colours had arrived, and every chip wore the theme's red. The same event
+ * covers a user re-symbolising from the dialog: the labels follow the map.
+ */
+function announceSymbology() {
+  window.dispatchEvent(new CustomEvent("geoid-gis:layers-changed", {
+    detail: { reason: "symbology" },
+  }));
+}
+
 export function paintByField(layer, field, {
   ramp = QUALITATIVE_RAMP, overrides = null, labels = null,
 } = {}) {
@@ -432,7 +448,10 @@ export function paintByField(layer, field, {
   // The two modes are exclusive, so classing clears the single colour and
   // vice versa — otherwise reopening proposes the mode you just left.
   layer.symbologySingle = null;
-  if (typeof window !== "undefined") window.GeoIDLayerHierarchy?.render?.();
+  if (typeof window !== "undefined") {
+    window.GeoIDLayerHierarchy?.render?.();
+    announceSymbology();
+  }
   return sym;
 }
 
@@ -512,7 +531,10 @@ export function paintByRange(layer, field, {
   // propose undoing it.
   layer.rangeSpec = { field, method, classes, ramp, reverse };
   layer.symbologySingle = null;
-  if (typeof window !== "undefined") window.GeoIDLayerHierarchy?.render?.();
+  if (typeof window !== "undefined") {
+    window.GeoIDLayerHierarchy?.render?.();
+    announceSymbology();
+  }
   return sym;
 }
 

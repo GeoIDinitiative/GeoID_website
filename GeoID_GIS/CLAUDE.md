@@ -705,6 +705,17 @@ inlined with a unique key drew perfectly). The key now includes
 `material.type`. This is the second silent-cache fault in this file's
 history; treat "compiled but draws nothing" as a cache-key suspect first.
 
+**The labels' colours race the symbology, and the symbology now announces
+itself.** Labels arrive automatically, which means EARLY: the first
+layer-change event fires before the catalogue's default paint has written
+`legendInfo`, so the first build had no colours to read and every chip wore
+the volcanic theme's red — reported with a screenshot full of red accent
+bars beside a nine-colour legend. `paintByField` and `paintByRange` dispatch
+`geoid-gis:layers-changed` (reason "symbology") when they finish, and
+`point-labels.js` keeps a fingerprint of the legend each label set was built
+from (`field|palette`), rebuilding the set when they differ. The same
+mechanism makes labels follow a user re-symbolising from the dialog.
+
 **Names are automatic, not opt-in.** The Names button is gone: a layer whose
 data ranks its points (`label_rank`) gets its labels the moment it is loaded
 and visible, at the default detail — level 3, the middle of the slider. The
