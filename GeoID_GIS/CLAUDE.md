@@ -695,6 +695,25 @@ solid stripe of chips, reported as "no labels at all", which is what an
 unreadable pile is. Dataset labels that cannot be placed cleanly are skipped;
 the rank ordering means what survives is the most significant that fits.
 
+**A program cache key must name the material type.** `followRelief` stamps
+every lifted material `geoid-relief-live`, and the vendored three does not
+fully disambiguate beyond it: the volcano dots' PointsMaterial silently took
+the LINES' compiled program and rendered nothing — no error, no warning, an
+entire layer invisible while its geometry, its visibility flags and its
+legend were all correct. Found by bisection (the same shader injection
+inlined with a unique key drew perfectly). The key now includes
+`material.type`. This is the second silent-cache fault in this file's
+history; treat "compiled but draws nothing" as a cache-key suspect first.
+
+**A labelless dot's selection is a TEMPORARY label.** The pulsing golden halo
+and highlighted chip are built on a label entry, so `openSceneFeature` gives
+an unlabelled volcano one for as long as it is selected — `addSurfaceLabels`
+with just that item, cleared when another feature opens, when the card
+closes, and when a click lands on nothing. Where the same volcano already
+wears a label, that entry's OWN item is opened instead, because
+`selectedLabelEntry` matches by object identity and a fresh object naming the
+same place would open the card and leave the label unpulsed.
+
 **A dot's hit radius is its drawn size, at any altitude.** The line-pick
 ceiling (20 km) exists so an orbital click cannot select a sub-pixel river
 400 km away — but a marker dot is drawn at a FIXED pixel size, so from orbit

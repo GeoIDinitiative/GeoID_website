@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-681a6f7";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-681a6f7";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-148456a";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-148456a";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -1123,7 +1123,13 @@ function install() {
      */
     const hits = featuresAt(at.lat, at.lon)
       .filter((h) => !(h.layer.geologyDataset && layerHasPolygons(h.layer)));
-    if (!hits.length) { hidePopup(); return; }
+    if (!hits.length) {
+      // A click on nothing dismisses the selection wholesale — including the
+      // temporary label openSceneFeature raises for a labelless dot.
+      window.GeoIDViewer?.clearSceneFlash?.();
+      hidePopup();
+      return;
+    }
     // Every layer under the point, not just the top one -- superficial deposits
     // lie over bedrock by definition, and answering with only the drift made
     // 522 of 758 bedrock polygons unclickable.

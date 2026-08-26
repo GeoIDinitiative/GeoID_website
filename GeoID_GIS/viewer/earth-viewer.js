@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-681a6f7";
+  from "./gis/geo-utils.js?v=20260826-148456a";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -5549,6 +5549,9 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       scenePopup.hidden = true;
       scenePopupAnchor.hidden = true;
       activePopupFeature = null;
+      // The temporary selection label (openSceneFeature) has no life beyond
+      // the card it decorates.
+      window.GeoIDViewer?.clearSceneFlash?.();
       hoverTooltip.hidden = true;
       syncScenePopupSelectionStyle(null);
       syncMoonViewerPopup(null, false);
@@ -19438,6 +19441,13 @@ uniform float uViewportWidth;`,
         },
       };
 
+      let sceneFlashHandle = null;
+      function clearSceneFlashLabel() {
+        if (!sceneFlashHandle) return;
+        sceneFlashHandle.remove();
+        sceneFlashHandle = null;
+      }
+
       window.GeoIDViewer = {
         scene,
         camera,
@@ -19510,8 +19520,36 @@ uniform float uViewportWidth;`,
          */
         openSceneFeature(item) {
           if (!item || !item.name) return false;
+          clearSceneFlashLabel();
+          /**
+           * Where the same place already wears a label, that ENTRY's item is
+           * the one opened — `selectedLabelEntry` is found by object identity
+           * (`e.item === activePopupFeature`), so a fresh object naming the
+           * same volcano would open the card and leave the label unpulsed.
+           */
+          const existing = labelLayer.entries.find((e) => e.item
+            && e.item.category === "dataset"
+            && e.item.name === item.name
+            && Math.abs((e.item.lat ?? 999) - item.lat) < 1e-6);
+          if (existing) {
+            openFeature(existing.item, false);
+            return true;
+          }
+          /**
+           * A dot with no label gets a TEMPORARY one — the pulsing golden
+           * halo, the highlighted chip, everything selection means here, is
+           * built on a label entry, so the honest way to give a labelless
+           * volcano the same treatment is to give it a label for as long as
+           * it is selected. Cleared when another feature opens, when the
+           * card is closed, and when a click lands on nothing.
+           */
+          sceneFlashHandle = this.addSurfaceLabels([item]);
           openFeature(item, false);
           return true;
+        },
+        /** Take down the temporary selection label, if one is up. */
+        clearSceneFlash() {
+          clearSceneFlashLabel();
         },
         /**
          * Is one of the viewer's own labels under this pixel?

@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260826-681a6f7";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260826-681a6f7";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260826-681a6f7";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260826-148456a";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260826-148456a";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260826-148456a";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -299,9 +299,16 @@ ${shader.fragmentShader}`.replace(
   };
   // A material drawing at a fixed clearance and one following the camera must
   // not share a compiled program, or the second silently takes the first's.
+  //
+  // The MATERIAL TYPE is part of the key, and it was not: a PointsMaterial
+  // handed `geoid-relief-live` took the LineBasicMaterial program compiled
+  // under the same name, and every marker dot on the globe rendered nothing —
+  // no error, no warning, a program that simply is not a points program.
+  // Found by bisection: the same injection inlined with a unique key drew
+  // perfectly.
   material.customProgramCacheKey = () =>
-    `geoid-relief-${lifted ? "live" : drape}${cullFarSide ? `-cull${facingLimit}` : ""}`
-    + `${hole ? "-hole" : ""}`;
+    `geoid-relief-${material.type}-${lifted ? "live" : drape}`
+    + `${cullFarSide ? `-cull${facingLimit}` : ""}${hole ? "-hole" : ""}`;
   return material;
 }
 
