@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-3736cd9";
+  from "./gis/geo-utils.js?v=20260826-92d555e";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -7417,7 +7417,16 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
          * these only need to catch clicks on and around the chip.
          */
         if (item.category === "dataset") {
-          marker.scale.setScalar(0.5);
+          /**
+           * NO marker dot at all for a dataset label: the vector layer
+           * already draws this point as its triangle, and the label's sphere
+           * sat beside it as a second, rounder dot — reported at Vesuvius's
+           * crater as "the dot remains". The OBJECT stays, because the
+           * engine anchors on it (the selection ring's position, the mosaic
+           * placement, the facing test all read the marker); only the
+           * material declines to render.
+           */
+          marker.material.visible = false;
           hitTarget.scale.setScalar(0.28);
         }
 
@@ -7931,12 +7940,16 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
          * the ~2 km bar, on the same log scale everything else here uses.
          */
         const groundness = clamp((5.3 - scaleLog) / 2.0, 0, 1);
-        const stableLabelPx = 24 + 12 * groundness;
+        // 20 px at the 200 km handoff to 30 px by the ~2 km bar. The first
+        // pass ran 24→36 with two 2 px boosts on top and still read as
+        // banners at the 50 km bar — a rank-5 name multiplies by 1.15, so
+        // the curve has to leave that headroom under ~32 px.
+        const stableLabelPx = 20 + 10 * groundness;
         const closeZoomBoost = clamp(1 - ((scaleLog - 4.4) / 1.8), 0, 1);
         const labelPx = clamp(
-          stableLabelPx + closeZoomBoost * 2 + nearStrength * 2,
-          22,
-          40,
+          stableLabelPx + closeZoomBoost + nearStrength,
+          18,
+          32,
         );
         const markerPx = clamp(
           labelPx * (0.055 - microScaleStrength * 0.02 + nearStrength * 0.004),
@@ -8150,6 +8163,26 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
           const worldUnitsPerPixel = 1 / Math.max(pixelsPerWorldUnit, 1e-6);
           let labelScale = 0.12 + (1.35 - 0.12) * easedT;
           let scaleFactor = 0.03 + (1.35 - 0.03) * easedT;
+          /**
+           * Capped in PIXELS, because the eased world scale is not a size.
+           *
+           * The factor eases with distance but the pixels-per-world-unit
+           * grows faster as the camera closes, so between the global view
+           * (~28 px) and the mosaic handoff the same formula passes through
+           * ~45 px — reported as "massive at the 500 km bar". The cap is the
+           * chip's pixel height; `label_scale` (rank, on dataset items) rides
+           * on top so the hierarchy survives the cap.
+           */
+          const labelPxCap = 24 * (entry.item?.label_scale || 1);
+          // Against the SPRITE'S distance, not the anchor's: the label rides
+          // 0.22 world units of normal lift toward the camera, which at a
+          // continental range is a third of the way — a cap computed at the
+          // anchor let the chip land half again larger on screen.
+          const spritePxPerUnit = fovScale / Math.max(distanceToSurface - 0.24, 0.05);
+          labelScale = Math.min(
+            labelScale,
+            labelPxCap / Math.max(baseScale.y * spritePxPerUnit, 1e-6),
+          );
           const standardLabelPx = baseScale.y * pixelsPerWorldUnit * labelScale;
           const standardMarkerPx = ((entry.markerRadiusWorld || 1) * (entry.markerBaseScale?.x || 1) * pixelsPerWorldUnit) * scaleFactor;
           if (useMosaicCloseLayout) {
