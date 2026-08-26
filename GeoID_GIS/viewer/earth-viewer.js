@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-df51fe2";
+  from "./gis/geo-utils.js?v=20260826-14a6160";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -6694,7 +6694,10 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       const theme = options.theme || (isObject ? labelInput.theme : "") || "standard";
       const canvas = document.createElement("canvas");
       const context = canvas.getContext("2d");
-      const backingScale = 4;
+      // 4x for the curated few; a dataset with a thousand names asks for 2x
+      // (still double the drawn size, and mipmapped) or the textures alone
+      // are half a gigabyte.
+      const backingScale = options.backingScale || 4;
       const paddingX = 14;
       const accentWidth = 6;
       const bodyLeft = paddingX + accentWidth + 7;
@@ -7390,6 +7393,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
           // Same seam makeLabelTexture already offers: a dataset item brings
           // the palette for its chip, so the accent bar matches its marker.
           customPalette: item.label_palette || undefined,
+          backingScale: item.label_backing || undefined,
         });
         const spriteMaterial = new THREE.SpriteMaterial({
           map: label.texture,
@@ -7832,7 +7836,20 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
             : (mosaicMode ? 50000 : null));
       const hasScaleBar = Number.isFinite(resolvedScaleBarMeters);
       const scaleBarMeters = hasScaleBar ? resolvedScaleBarMeters : null;
-      const useMosaicCloseLayout = mosaicMode && hasScaleBar && scaleBarMeters <= 200000;
+      /**
+       * The close-range layout is a fact about ALTITUDE, not about the CTX
+       * basemap that happened to introduce it.
+       *
+       * Below a ~200 km scale bar the far-range placement stops working: its
+       * offsets are WORLD units (0.52 along the surface, 0.22 of normal
+       * lift — 440 km of altitude), so a label's sprite lands off-screen or
+       * behind the camera and the name simply vanishes as you descend. The
+       * mosaic layout is the fix the planet viewers already ship — screen-
+       * space placement against the anchor, altitude clamped to metres — and
+       * gating it on `mosaicMode` meant Earth, which never shows a CTX
+       * mosaic, lost every label on the way down to the ground.
+       */
+      const useMosaicCloseLayout = hasScaleBar && scaleBarMeters <= 200000;
       const baseViewportPadding = 12;
 
       const overlapsRect = (a, b, gapX = 3, gapY = 2) => (
@@ -19454,6 +19471,21 @@ uniform float uViewportWidth;`,
               });
             },
           };
+        },
+        /**
+         * The scene popup — the card in the corner — for a caller's own item.
+         *
+         * Clicking a LABELLED volcano goes through the label's hit target and
+         * lands in `openFeature`; clicking an unlabelled dot of the same
+         * dataset landed in the GIS feature popup instead, and the two cards
+         * for two dots of one layer read as two applications. This lets
+         * `gis/feature-popup.js` hand such a click to the same card, built
+         * from the same item shape the labels carry.
+         */
+        openSceneFeature(item) {
+          if (!item || !item.name) return false;
+          openFeature(item, false);
+          return true;
         },
         /**
          * Is one of the viewer's own labels under this pixel?

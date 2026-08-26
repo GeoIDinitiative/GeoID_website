@@ -26,29 +26,23 @@
  */
 
 /**
- * How many names one dataset may put up, at the default detail.
- *
- * Every label is a canvas texture on the GPU, built at 4x for crispness: a few
- * hundred is tens of megabytes, and 2,666 would be half a gigabyte for names
- * the declutter would never show anyway.
- */
-const MAX_ITEMS = 250;
-
-/**
  * The detail slider's five positions, as what each one MEANS.
  *
- * `minRank` reaches deeper into the significance ranking; `max` caps the
- * texture bill that reaching deeper runs up. The two move together because
- * either alone lies: a deeper rank under a fixed cap changes nothing (the cap
- * keeps the top ranks it already had), and a bigger cap at a fixed rank adds
- * only names the rank already admitted.
+ * Rank only, no count cap. There WAS a cap, and it cut Vesuvius: level 3
+ * admitted rank ≥ 3 but kept the 360 most recent, and 1944 is old among the
+ * volcanoes that erupted since 1900 — so the one volcano somebody flew to
+ * Naples for had no label while Whakaari did. A level must mean what its
+ * caption says. The texture bill this used to bound is paid instead by
+ * `label_backing: 2` on the items: half the backing store is a quarter of
+ * the memory, and a chip drawn at 34 px from a 68 px mipmapped texture is
+ * still sharp.
  */
 export const DETAIL_LEVELS = {
-  1: { minRank: 5, max: 120 },
-  2: { minRank: 4, max: 240 },
-  3: { minRank: 3, max: 360 },
-  4: { minRank: 2, max: 480 },
-  5: { minRank: 1, max: 600 },
+  1: { minRank: 5 },
+  2: { minRank: 4 },
+  3: { minRank: 3 },
+  4: { minRank: 2 },
+  5: { minRank: 1 },
 };
 export const DEFAULT_DETAIL = 3;
 
@@ -103,58 +97,74 @@ function legendColour(legend, properties) {
  * `openFeature` — `type` becomes the card's kicker, `description` its copy,
  * `rock_type` and `region` its detail rows.
  */
-export function toLabelItems(features, { max = MAX_ITEMS, minRank = 1, legend = null } = {}) {
+/**
+ * One feature as the item the viewer's card and label builder read.
+ *
+ * Shared by the labels (which filter by rank first) and by the click on an
+ * UNLABELLED dot (which does not): both must produce the same card for the
+ * same volcano, so both go through the same mapping.
+ */
+export function featureToItem(feature, legend = null) {
+  const p = feature?.properties || {};
+  const coords = feature?.geometry?.coordinates;
+  if (!coords || !p.name) return null;
+  const rank = Number(p.label_rank) || 0;
+  const colour = legendColour(legend, p);
+  return {
+    name: String(p.name),
+    // The kicker: "Stratovolcano", not the generic "Volcanic Feature".
+    type: p.volcano_type || p.type_group || "Volcano",
+    lat: coords[1],
+    lon: coords[0],
+    theme: "volcanic",
+    // Governed by the Names button that added these, not by the Locations
+    // checkboxes — see the category clause in updateLabelVisibility.
+    category: "dataset",
+    priority: rank,
+    // Rank as size: 0.91 at rank 1 up to 1.15 at rank 5. Subtle on
+    // purpose — the hierarchy should be readable, not a headline.
+    label_scale: 0.85 + rank * 0.06,
+    /**
+     * Close to the dot, because there are hundreds of these.
+     *
+     * The curated default (0.52 world units) was set for ~45 labels read
+     * from orbit, where a long leader declutters a whole hemisphere. At a
+     * continental zoom it is ~600 px — measured: Aira's name at x=-542
+     * for a dot on Kyushu mid-screen, every Japanese label off the left
+     * edge of the canvas while its volcano sat in view. A dense dataset
+     * wants its names AT its dots and leaves the spreading-out to the
+     * engine's fit-and-overlap passes, which already know the screen.
+     */
+    label_distance: 0.14,
+    description: p.summary || "",
+    elevation_m: Number.isFinite(Number(p.elevation_m)) ? Number(p.elevation_m) : undefined,
+    rock_type: p.rock_type || undefined,
+    region: p.region || undefined,
+    // The legend's colour for this feature, worn by the marker, the
+    // leader line and the chip's accent bar. Absent, the volcanic theme's
+    // red stands — which is also what the curated labels wear.
+    label_colour: colour || undefined,
+    label_palette: colour ? {
+      bg: "rgba(10, 12, 20, 0.74)",
+      stroke: rgba(colour, 0.55),
+      accent: colour,
+      title: "rgba(245, 247, 252, 0.96)",
+    } : undefined,
+    // Half the curated backing store: see DETAIL_LEVELS on why the count is
+    // unbounded and the memory is bounded here instead.
+    label_backing: 2,
+    // Not read by the card; carried so a caller's cap can prefer the most
+    // recently active among equal ranks.
+    last_eruption: Number(p.last_eruption),
+  };
+}
+
+export function toLabelItems(features, { max = Infinity, minRank = 1, legend = null } = {}) {
   return (features || [])
     .map((feature) => {
-      const p = feature?.properties || {};
-      const rank = Number(p.label_rank) || 0;
-      const coords = feature?.geometry?.coordinates;
-      if (rank < minRank || rank <= 0 || !coords || !p.name) return null;
-      const colour = legendColour(legend, p);
-      return {
-        name: String(p.name),
-        // The kicker: "Stratovolcano", not the generic "Volcanic Feature".
-        type: p.volcano_type || p.type_group || "Volcano",
-        lat: coords[1],
-        lon: coords[0],
-        theme: "volcanic",
-        // Governed by the Names button that added these, not by the Locations
-        // checkboxes — see the category clause in updateLabelVisibility.
-        category: "dataset",
-        priority: rank,
-        // Rank as size: 0.91 at rank 1 up to 1.15 at rank 5. Subtle on
-        // purpose — the hierarchy should be readable, not a headline.
-        label_scale: 0.85 + rank * 0.06,
-        /**
-         * Close to the dot, because there are hundreds of these.
-         *
-         * The curated default (0.52 world units) was set for ~45 labels read
-         * from orbit, where a long leader declutters a whole hemisphere. At a
-         * continental zoom it is ~600 px — measured: Aira's name at x=-542
-         * for a dot on Kyushu mid-screen, every Japanese label off the left
-         * edge of the canvas while its volcano sat in view. A dense dataset
-         * wants its names AT its dots and leaves the spreading-out to the
-         * engine's fit-and-overlap passes, which already know the screen.
-         */
-        label_distance: 0.14,
-        description: p.summary || "",
-        elevation_m: Number.isFinite(Number(p.elevation_m)) ? Number(p.elevation_m) : undefined,
-        rock_type: p.rock_type || undefined,
-        region: p.region || undefined,
-        // The legend's colour for this feature, worn by the marker, the
-        // leader line and the chip's accent bar. Absent, the volcanic theme's
-        // red stands — which is also what the curated labels wear.
-        label_colour: colour || undefined,
-        label_palette: colour ? {
-          bg: "rgba(10, 12, 20, 0.74)",
-          stroke: rgba(colour, 0.55),
-          accent: colour,
-          title: "rgba(245, 247, 252, 0.96)",
-        } : undefined,
-        // Not read by the card; carried so the cap below can prefer the most
-        // recently active among equal ranks.
-        last_eruption: Number(p.last_eruption),
-      };
+      const rank = Number(feature?.properties?.label_rank) || 0;
+      if (rank < minRank || rank <= 0) return null;
+      return featureToItem(feature, legend);
     })
     .filter(Boolean)
     // The cap keeps the MOST significant: rank first, then the most recently
@@ -268,6 +278,22 @@ export const detailLevelOf = (layer) =>
 
 export const isLabelled = (layer) => active.has(layer?.id);
 
+/**
+ * The scene-card item for a clicked feature, if this layer is the kind whose
+ * points get one.
+ *
+ * "The kind" is decided by the DATA — a layer whose features carry
+ * `label_rank` is a catalogue of nameable places — and not by whether this
+ * particular point ranked high enough for a label: the click on a Pleistocene
+ * volcano deserves the same card as the click on Vesuvius.
+ */
+export function sceneItemFor(layer, feature) {
+  if (!layer || !feature) return null;
+  if (!/Point$/.test(feature.geometry?.type || "")) return null;
+  if (!canLabel(layer)) return null;
+  return featureToItem(feature, layer.legendInfo);
+}
+
 /** Whether a layer has anything to label at all — for offering the control. */
 export const canLabel = (layer) =>
   (layer?.features || []).some((f) => Number(f?.properties?.label_rank) > 0);
@@ -276,7 +302,8 @@ if (typeof window !== "undefined") {
   window.GeoIDImportManager?.onChange?.(sync);
   window.addEventListener("geoid-gis:layers-changed", sync);
   window.GeoIDPointLabels = {
-    setLabels, setDetailLevel, detailLevelOf, isLabelled, canLabel, toLabelItems,
+    setLabels, setDetailLevel, detailLevelOf, isLabelled, canLabel,
+    toLabelItems, featureToItem, sceneItemFor,
     DETAIL_LEVELS, DETAIL_COPY, DEFAULT_DETAIL,
   };
 }

@@ -661,6 +661,38 @@ bake-volcanoes.py ("Erupted since 2000" … "Every Holocene volcano"), and the
 level is a REBUILD on `change`, not a filter on `input`. Set before the Names
 button, it is remembered and does not switch the names on uninvited.
 
+**Close zoom belongs to the mosaic layout, whatever the basemap.** Below a
+~200 km scale bar the far-range placement stops working — its offsets are
+WORLD units (0.52 along the surface, 0.22 of lift = 440 km), so labels vanish
+exactly as you descend toward the thing you meant to read. The screen-space
+close layout existed and was gated on the CTX mosaic basemap, which Earth
+never shows; `useMosaicCloseLayout` is now a fact about altitude. Verified: the
+Vesuvius chip sits beside the crater at 157 m.
+
+**Points follow the relief the way lines always did.** `surfaceAt` bakes the
+reference exaggeration into the vertex and the elevation is normalised over
+the full GEBCO range, so sea level is ~0.6 of it: every coastal dot carried
+~130 km of baked altitude (Vesuvius's at local radius 3.2691 on a 3.2 globe).
+Invisible from orbit; at 14 km up the whole layer was overhead and gone. The
+Points now get `attachReliefAttributes` + `followRelief(lifted)`, the same
+paragraph the lines were already using, and marker points draw as round dots
+(shared disc texture, `alphaTest` for the corners) so labelled and unlabelled
+volcanoes wear one symbol.
+
+**Clicking ANY dot of a nameable catalogue opens the scene card.** A labelled
+volcano answered through its label's hit target and the corner card; an
+unlabelled dot of the same layer got the GIS anchored card — two card styles
+decided by which dot happened to rank a name. `sceneItemFor` (point-labels)
+maps the feature through the same `featureToItem` the labels use and
+`feature-popup` hands it to `viewer.openSceneFeature`, so both clicks read the
+same card.
+
+**No count cap on the detail levels.** There was one and it cut Vesuvius:
+level 3 admitted rank ≥ 3 but kept the 360 most recent, and 1944 is old among
+post-1900 eruptions. A level must mean what its caption says; the texture bill
+is bounded by `label_backing: 2` on dataset chips instead (half the backing,
+a quarter of the memory, still 2× the drawn size).
+
 **A dataset label group must live INSIDE `labelLayer.group`.** The render loop
 turns that group to the spin every frame; a sibling group under marsGroup gets
 no such turn, and every label sat ~35° west of its volcano — the whole map

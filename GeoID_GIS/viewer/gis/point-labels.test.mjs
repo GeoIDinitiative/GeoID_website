@@ -94,8 +94,11 @@ check("canLabel asks for the rank column and nothing else",
   check("level 1 admits only rank 5", at(1).join() === "R5", at(1).join());
   check("level 3 reaches rank 3", at(3).join() === "R5,R4,R3", at(3).join());
   check("level 5 admits every rank", at(5).length === 5);
-  check("deeper levels carry bigger caps",
-    DETAIL_LEVELS[1].max < DETAIL_LEVELS[3].max && DETAIL_LEVELS[3].max < DETAIL_LEVELS[5].max);
+  check("no level carries a count cap — a level must mean its caption",
+    [1, 2, 3, 4, 5].every((l) => DETAIL_LEVELS[l].max === undefined),
+    "a cap cut Vesuvius from level 3 while its caption promised rank >= 3");
+  check("the memory is bounded by the backing store instead",
+    toLabelItems([volcano("Etna", 5)])[0].label_backing === 2);
   check("every level has a caption", [1, 2, 3, 4, 5].every((l) => DETAIL_COPY[l]));
 }
 

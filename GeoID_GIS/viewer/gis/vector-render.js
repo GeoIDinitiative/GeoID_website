@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260826-df51fe2";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260826-df51fe2";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260826-df51fe2";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260826-14a6160";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260826-14a6160";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260826-14a6160";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -34,6 +34,27 @@ const MAX_LINE_VERTICES = 6000000;
 let surfaceMemo = null;
 let surfaceHits = 0;
 let surfaceCalls = 0;
+
+/** One disc for every marker layer: white centre the colour tints, dark ring. */
+let dotTexture = null;
+function markerDotTexture() {
+  if (dotTexture) return dotTexture;
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size * 0.34, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.lineWidth = size * 0.11;
+  ctx.strokeStyle = "rgba(20, 20, 26, 0.9)";
+  ctx.stroke();
+  dotTexture = new THREE.CanvasTexture(canvas);
+  dotTexture.needsUpdate = true;
+  return dotTexture;
+}
 
 /**
  * The exaggeration geometry is BUILT at, whatever the globe is showing.
@@ -649,8 +670,20 @@ export function renderFeatureCollection(fc, {
      * surface they sample.
      */
     const asMarkers = pointPositions.length / 3 <= 20000;
+    /**
+     * A marker is a rounded DOT, not the square a bare gl_PointSize paints.
+     *
+     * The viewer's own label markers are discs with a dark ring, and a layer
+     * whose labelled points wore that dot while its unlabelled ones sat as
+     * bare squares read as two different datasets. The disc is a shared
+     * canvas texture the material multiplies by the vertex colour, so the
+     * symbology still paints every dot; the ring is drawn INTO the texture in
+     * dark grey because a pale dot on a pale basemap has no edge otherwise,
+     * and `alphaTest` cuts the square's corners without opening the depth
+     * sorting that `transparent` would.
+     */
     const material = asMarkers
-      ? { size: 5, sizeAttenuation: false, depthWrite: false }
+      ? { size: 7, sizeAttenuation: false, depthWrite: false, map: markerDotTexture(), alphaTest: 0.35, transparent: true }
       : { size: pointSize, sizeAttenuation: true, depthWrite: false };
     if (pointColours.length === pointPositions.length) {
       geometry.setAttribute("color", new THREE.Float32BufferAttribute(pointColours, 3));
@@ -658,7 +691,27 @@ export function renderFeatureCollection(fc, {
     } else {
       material.color = pointColor;
     }
-    group.add(new THREE.Points(geometry, new THREE.PointsMaterial(material)));
+    /**
+     * Points follow the relief the same way the lines above do — they did
+     * not, and it went unseen for exactly as long as nobody flew in.
+     *
+     * `surfaceAt` bakes the REFERENCE exaggeration into the vertex, and the
+     * elevation is normalised over the full GEBCO range, so sea level is
+     * ~0.6 of it: every coastal point carried ~130 km of baked altitude
+     * (measured: Vesuvius's dot at local radius 3.2691 against a 3.2 globe).
+     * From orbit that is nothing; at 14 km up the whole layer is overhead and
+     * behind the projection, and the volcanoes vanish exactly when you go to
+     * look at one. The shader that re-applies the LIVE relief — and the
+     * altitude-scaled clearance that keeps a marker metres above the ground
+     * instead of kilometres — existed one paragraph up, for lines.
+     */
+    attachReliefAttributes(geometry, drape, builtRelief);
+    const points = new THREE.Points(
+      geometry, followRelief(new THREE.PointsMaterial(material), drape, { lifted: true }),
+    );
+    points.renderOrder = 4;
+    points.frustumCulled = false;
+    group.add(points);
   }
 
   const memo = { calls: surfaceCalls, distinct: surfaceMemo.size, hits: surfaceHits };

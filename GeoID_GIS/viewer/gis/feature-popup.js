@@ -20,8 +20,8 @@
  * the same order the eye reads, so the answer is the polygon you clicked.
  */
 
-import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-df51fe2";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-df51fe2";
+import { pointInPolygon, boundsOf, haversineMetres } from "./geometry.js?v=20260826-14a6160";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-14a6160";
 
 /* A line has no interior, so it is picked by proximity. Scaled to the view:
    8 px worth of ground at the current altitude, floored so a click at orbital
@@ -629,6 +629,21 @@ function showViewerCard(hits, at) {
 
 function showStack(x, y, hits, at) {
   const [top] = hits;
+  /**
+   * A point from a nameable catalogue gets the VIEWER'S card, labelled or not.
+   *
+   * A labelled volcano already answers through its label's hit target and the
+   * scene popup in the corner; an unlabelled dot of the same layer landed
+   * here and got this module's anchored card instead — two card styles for
+   * two dots of one dataset, decided by which happened to rank a name. The
+   * mapping is `point-labels.js`'s own (`sceneItemFor`), so both clicks build
+   * the same item and read the same card.
+   */
+  const item = window.GeoIDPointLabels?.sceneItemFor?.(top.layer, top.feature);
+  if (item && window.GeoIDViewer?.openSceneFeature?.(item)) {
+    hidePopup({ keepOutline: false });
+    return;
+  }
   // A drawn shape opens the editor instead: it is where you rename it and give
   // it metadata, which is a form rather than a readout, and the viewer's card
   // has nowhere to type.
