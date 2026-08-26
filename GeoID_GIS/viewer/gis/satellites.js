@@ -401,6 +401,86 @@ function showOrbitOverlay(overlay, record) {
 /* ── labels ──────────────────────────────────────────────────────────────── */
 
 /**
+ * The satellite tag: a HUD strip, deliberately NOT the planetary pill.
+ *
+ * Ground labels wear the rounded chip; satellites are a different kind of
+ * thing and read best in a different register — a squared translucent strip
+ * with a chamfered corner, a 2 px category tick, uppercase tracked type and
+ * a hairline underline in the category colour. Smaller than the ground
+ * chips on purpose: there can be forty of these over one hemisphere.
+ */
+const tagTextures = new Map();
+
+function makeTagTexture(name, colour) {
+  const key = `${colour}|${name}`;
+  if (tagTextures.has(key)) return tagTextures.get(key);
+  const scale = 2;
+  const text = String(name).toUpperCase();
+  const font = `600 ${10 * scale}px "Exo 2", "Segoe UI", sans-serif`;
+  const probe = document.createElement("canvas").getContext("2d");
+  probe.font = font;
+  probe.letterSpacing = `${1.2 * scale}px`;
+  const textW = Math.ceil(probe.measureText(text).width);
+  const padX = 7 * scale;
+  const tick = 2.5 * scale;
+  const width = textW + padX * 2 + tick + 4 * scale;
+  const height = 17 * scale;
+  const chamfer = 6 * scale;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  // The strip, squared, with one chamfered corner top-right.
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(width - chamfer, 0);
+  ctx.lineTo(width, chamfer);
+  ctx.lineTo(width, height);
+  ctx.lineTo(0, height);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(5, 9, 18, 0.62)";
+  ctx.fill();
+  // Category tick at the left edge, full height.
+  ctx.fillStyle = colour;
+  ctx.fillRect(0, 0, tick, height);
+  // Hairline underline in the category colour, fading out to the right.
+  const line = ctx.createLinearGradient(0, 0, width, 0);
+  line.addColorStop(0, colour);
+  line.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = line;
+  ctx.fillRect(tick, height - scale, width - tick, scale);
+  // The name, tracked uppercase.
+  ctx.font = font;
+  ctx.letterSpacing = `${1.2 * scale}px`;
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "rgba(238, 244, 252, 0.96)";
+  ctx.fillText(text, tick + padX, height / 2 - scale * 0.5);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  const record = { texture, width: width / scale, height: height / scale };
+  tagTextures.set(key, record);
+  return record;
+}
+
+/**
+ * Is a point hidden behind the planet from this camera? The labels render
+ * with the depth test OFF — they must beat the orbit spaghetti — so the
+ * occlusion the depth buffer would have done is answered here instead.
+ */
+function occludedByGlobe(point, camera) {
+  const toPoint = point.clone().sub(camera.position);
+  const span = toPoint.length();
+  toPoint.divideScalar(span || 1);
+  const t = -camera.position.dot(toPoint);
+  if (t <= 0 || t >= span) return false;
+  const closest = camera.position.clone().addScaledVector(toPoint, t);
+  return closest.length() < 3.15;
+}
+
+/**
  * Names beside the dots, drawn by this module and looking like everyone
  * else's.
  *
@@ -434,10 +514,9 @@ function updateLabels() {
     if (record.dead || !allowed.has(record.category)) return;
     world.set(positions.getX(i), positions.getY(i), positions.getZ(i))
       .applyMatrix4(active.group.matrixWorld);
-    // Near side only — a name for a dot behind the planet is a name for
-    // nothing, and high orbits are visible well past the limb, so the test
-    // is against the CAMERA direction, loosely.
-    if (world.clone().normalize().dot(camDir) < -0.2) return;
+    // The tags draw with the depth test off (they must beat the orbit
+    // spaghetti), so the planet's occlusion is answered geometrically.
+    if (occludedByGlobe(world, viewer.camera)) return;
     const p = world.clone().project(viewer.camera);
     if (p.z > 1 || Math.abs(p.x) > 1 || Math.abs(p.y) > 1) return;
     candidates.push({
@@ -470,21 +549,13 @@ function updateLabels() {
     let sprite = active.labels.get(record.norad);
     if (!sprite) {
       const colour = CATEGORY_COLOURS[record.category] || "#8a8a8a";
-      const chip = viewer.makeLabelTexture({ name: record.name }, {
-        backingScale: 2,
-        customPalette: {
-          bg: "rgba(10, 12, 20, 0.74)",
-          stroke: `${colour}8c`,
-          accent: colour,
-          title: "rgba(245, 247, 252, 0.96)",
-        },
-      });
+      const tag = makeTagTexture(record.name, colour);
       sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: chip.texture, transparent: true, depthTest: false, depthWrite: false,
+        map: tag.texture, transparent: true, depthTest: false, depthWrite: false,
         sizeAttenuation: false,
       }));
-      sprite.userData.aspect = chip.width / chip.height;
-      active.group.add(sprite);
+      sprite.userData.aspect = tag.width / tag.height;
+      active.labelGroup.add(sprite);
       active.labels.set(record.norad, sprite);
     }
     sprite.visible = true;
@@ -492,14 +563,13 @@ function updateLabels() {
     // sprite's centre, in fractions of its own size, so it clears the dot by
     // the same margin at every zoom. Each axis converts against its own
     // canvas dimension — width against width — or the viewport's aspect
-    // ratio stretches every chip (the fault the volcano labels documented).
+    // ratio stretches every tag (the fault the volcano labels documented).
     sprite.position.set(positions.getX(candidate.i), positions.getY(candidate.i),
       positions.getZ(candidate.i));
-    const heightPx = 20;
+    const heightPx = 13;
     sprite.scale.set(((heightPx * sprite.userData.aspect) / rect.width) * 2,
       (heightPx / rect.height) * 2, 1);
-    sprite.center.set(-0.08, 0.5);
-    sprite.renderOrder = 3;
+    sprite.center.set(-0.14, 0.42);
   });
 }
 
@@ -749,6 +819,18 @@ async function start() {
   const group = new THREE.Group();
   group.name = "satellites-live";
   group.add(outline, fill);
+  /**
+   * The tags live in a NESTED group with its own renderOrder, because a
+   * nested group resets groupOrder for its children — the trap that once
+   * buried the volcano labels, used deliberately here: the satellite layer's
+   * group is stamped into the data band (~51) by the hierarchy, and the tags
+   * must sort with the annotation band (200s) or every orbit line draws
+   * over them.
+   */
+  const labelGroup = new THREE.Group();
+  labelGroup.name = "satellite-tags";
+  labelGroup.renderOrder = 206;
+  group.add(labelGroup);
 
   const legendInfo = {
     palette: Object.values(CATEGORY_COLOURS).map((c) => c.replace("#", "")),
@@ -774,7 +856,7 @@ async function start() {
   layer.featureNoun = "Satellite";
 
   active = {
-    records, geometry, fill, group, layer, legendInfo,
+    records, geometry, fill, group, labelGroup, layer, legendInfo,
     rings: null, downAt: null, labels: new Map(),
     labelLevel: Number(document.getElementById("satellites-labels")?.value ?? 1),
   };

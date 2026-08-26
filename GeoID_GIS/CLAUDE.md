@@ -792,7 +792,17 @@ build, then the ring group counter-rotates by the sidereal angle per tick,
 because an orbit plane is fixed among the stars: one rotation instead of
 forty thousand re-propagations.
 
-Labels are the module's own sprites wearing the viewer's own chip: the
+Satellite labels wear their OWN theme — a HUD tag, not the planetary pill:
+squared translucent strip with a chamfered corner, 2 px category tick,
+uppercase tracked type, hairline underline in the category colour, 13 px
+tall. Deliberately a different register: a satellite is not a place. The
+tags render depth-test-OFF in a nested group with renderOrder 206 — the
+nested-group groupOrder reset, used deliberately this time, lifts them out
+of the data band the hierarchy stamps on the layer, or every orbit line
+draws over them — and the occlusion the depth buffer would have done is
+answered geometrically (`occludedByGlobe`), so far-side satellites carry no
+tags. Earlier the labels were the module's own sprites wearing the viewer's
+own chip: the
 label engine anchors to surface points at build time, which is exactly wrong
 for dots that float at altitude and move every tick, so `makeLabelTexture`
 is exposed on the seam and the satellites draw the pill themselves with the
