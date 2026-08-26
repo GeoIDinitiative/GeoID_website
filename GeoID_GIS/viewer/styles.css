@@ -2215,10 +2215,19 @@
       font-variant-numeric: tabular-nums;
     }
     #time-scrub-toggle .scrub-date {
-      font-size: 0.5rem;
+      font-size: 0.66rem;
       font-weight: 700;
-      letter-spacing: 0.14em;
-      color: rgba(190, 214, 226, 0.75);
+      letter-spacing: 0.16em;
+      color: rgba(228, 244, 250, 0.95);
+      font-variant-numeric: tabular-nums;
+    }
+    #time-scrub-toggle .scrub-utc {
+      font-size: 0.46rem;
+      font-weight: 700;
+      letter-spacing: 0.32em;
+      /* Centre the tracked text: letter-spacing trails the last glyph. */
+      margin-right: -0.32em;
+      color: rgba(150, 205, 215, 0.7);
     }
     #time-scrub-toggle .scrub-time {
       font-size: 0.84rem;
