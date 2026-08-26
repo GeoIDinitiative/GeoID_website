@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-585466e";
+  from "./gis/geo-utils.js?v=20260826-c6a5f33";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -1293,7 +1293,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       const d = new Date(getSimulatedUtcMs());
       const pad = (n) => String(n).padStart(2, "0");
       scrubDateEl.textContent = `${pad(d.getUTCDate())}/${pad(d.getUTCMonth() + 1)}/`
-        + `${pad(d.getUTCFullYear() % 100)} UTC`;
+        + `${pad(d.getUTCFullYear() % 100)}`;
       drawSevenSegClock(`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`);
     }
     if (scrubClockCanvas) {
