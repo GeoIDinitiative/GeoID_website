@@ -840,6 +840,29 @@ assigns by frequency, and filtering changes the frequencies). The type list
 draws on the `symbology` announce event, because the legend it is built from
 lands a beat after the layer registers.
 
+**The rotation control is ONE pill in a three-state loop** — LIVE (real
+rate, clock snapped to now; the BOOT DEFAULT) → ×720 (the two-minute
+showcase day) → PAUSED (rotation held) → LIVE. It absorbed the old
+`#spin-toggle` pause button, which stays in the page hidden (the viewer
+reads and writes it unguarded, and the space bar still runs through the
+same `pauseSpin` the pill reports — `pauseSpin`/`resumeSpin` call
+`syncTimeRateBtn`, which looks its element up per call to dodge the TDZ of
+setup-order). The camera "freeze view" snowflake is a DIFFERENT control
+and remains. Beside the pill, a clock button opens the SCRUBBER: a UTC
+datetime field with Go/Now, driving `setSimulatedUtcMs(ms)` on the seam —
+same rebase as entering real time with an arbitrary target, so the spin
+phase, sun, readout and satellites land on that moment together (verified:
+scrub +1 day re-propagated all dots, none dead). Scrubbed away from now at
+the real rate the pill reads ×1, because LIVE claims "now".
+
+**TLEs are cached in localStorage per group** (`geoid-tle-<group>`, 5-day
+shelf life): a successful fetch saves the raw text, a failed or empty one
+falls back to the stored copy, and the status SAYS so with the age ("7 of
+7 groups from stored elements (3 h old) — CelesTrak is rate-limiting")
+rather than letting stored data pass as fresh. Only when there is neither
+an answer nor a cache does the tracker give up, and that message now
+explains the rate-limiting instead of the bare "CelesTrak did not answer."
+
 **The globe has a time rate, and the corner pill switches it.** Everything
 temporal — spin delta, simulated UTC, the sun and so the terminator, the
 GMT readout — derives from `getSpinTime()`, so the rate is layered there

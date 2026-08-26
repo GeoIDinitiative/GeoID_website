@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-5c5ee89";
+  from "./gis/geo-utils.js?v=20260826-a473366";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -1122,20 +1122,90 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       lastClockBucket = -1; // the GMT readout redraws now, not next bucket
       syncTimeRateBtn();
     }
-    const timeRateBtn = document.getElementById("time-rate-toggle");
+    /**
+     * ONE rotation control, three states in a loop: LIVE (real rate, clock
+     * at now) → ×720 (the two-minute showcase day) → PAUSED (rotation held)
+     * → LIVE again. It absorbs the old pause button — the pill is looked up
+     * per call because pauseSpin/resumeSpin sync it and they run from every
+     * corner of setup, including before this block's consts would exist.
+     */
     function syncTimeRateBtn() {
-      if (!timeRateBtn) return;
+      const btn = document.getElementById("time-rate-toggle");
+      if (!btn) return;
+      if (spinPaused) {
+        btn.classList.remove("is-live");
+        btn.classList.add("is-paused");
+        btn.textContent = "PAUSED";
+        btn.title = "Rotation paused. Click for real time — true rotation, the clock at now.";
+        return;
+      }
+      btn.classList.remove("is-paused");
       const real = timeRateFactor !== 1;
-      timeRateBtn.classList.toggle("is-live", real);
-      timeRateBtn.textContent = real ? "LIVE" : "×720";
-      timeRateBtn.title = real
-        ? "Real time: the globe turns at its true rate, the sun and clock read now. Click for the two-minute time-lapse day."
-        : "Time-lapse: a day every two minutes. Click for real time — true rotation, the terminator where it really is.";
+      // LIVE claims "now". Scrubbed away from now at the real rate, the pill
+      // says ×1 instead — the rate is true, the moment is not this one.
+      const atNow = Math.abs(getSimulatedUtcMs() - Date.now()) < 60000;
+      btn.classList.toggle("is-live", real && atNow);
+      btn.textContent = real ? (atNow ? "LIVE" : "×1") : "×720";
+      btn.title = real
+        ? (atNow
+          ? "Real time: the globe turns at its true rate, the sun and clock read now. Click for the two-minute time-lapse day."
+          : "Real rate at a scrubbed moment. Click for time-lapse; a second click snaps back to live.")
+        : "Time-lapse: a day every two minutes. Click to pause the rotation; a second click returns to live.";
     }
-    timeRateBtn?.addEventListener("click", () => {
-      setTimeRate(timeRateFactor === 1 ? "real" : "lapse");
+    document.getElementById("time-rate-toggle")?.addEventListener("click", () => {
+      if (spinPaused) {
+        resumeSpin();
+        // "Reverts to live" means NOW, not wherever the clock froze.
+        if (timeRateFactor !== 1) setSimulatedUtcMs(Date.now());
+        else setTimeRate("real");
+        syncTimeRateBtn();
+        return;
+      }
+      if (timeRateFactor !== 1) { setTimeRate("lapse"); return; }
+      pauseSpin();
+      syncTimeRateBtn();
     });
     syncTimeRateBtn();
+    /**
+     * The scrubber: jump the one clock to any moment, keeping the current
+     * rate. Same rebase as entering real time, with an arbitrary target —
+     * the spin phase, the sun, the readout and the satellites (which
+     * propagate at this clock) all land on that moment together.
+     */
+    function setSimulatedUtcMs(targetMs) {
+      if (!Number.isFinite(targetMs)) return;
+      spinUtcDayStartMs = getUtcMidnightMs(targetMs);
+      spinTimeBase = ((targetMs - spinUtcDayStartMs) / UTC_DAY_MS) * EARTH_ROTATION_PERIOD_MS;
+      spinWallBase = getRawSpinTime();
+      lastClockBucket = -1;
+      syncTimeRateBtn();
+    }
+    const timeScrubBtn = document.getElementById("time-scrub-toggle");
+    const timeScrubPanel = document.getElementById("time-scrub-panel");
+    const timeScrubInput = document.getElementById("time-scrub-input");
+    function fillScrubInput() {
+      if (!timeScrubInput) return;
+      const d = new Date(getSimulatedUtcMs());
+      const pad = (n) => String(n).padStart(2, "0");
+      timeScrubInput.value = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-`
+        + `${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`;
+    }
+    timeScrubBtn?.addEventListener("click", () => {
+      if (!timeScrubPanel) return;
+      timeScrubPanel.hidden = !timeScrubPanel.hidden;
+      timeScrubBtn.classList.toggle("is-active", !timeScrubPanel.hidden);
+      if (!timeScrubPanel.hidden) fillScrubInput();
+    });
+    document.getElementById("time-scrub-go")?.addEventListener("click", () => {
+      // The field is UTC — the clock beside it reads GMT, and a scrub target
+      // in local time would land an hour or six off the readout.
+      const parsed = Date.parse(`${timeScrubInput?.value}:00Z`);
+      setSimulatedUtcMs(parsed);
+    });
+    document.getElementById("time-scrub-now")?.addEventListener("click", () => {
+      setSimulatedUtcMs(Date.now());
+      fillScrubInput();
+    });
     function getSpinDeltaRadians() {
       return getSpinTime() * (2 * Math.PI / EARTH_ROTATION_PERIOD_MS);
     }
@@ -1179,6 +1249,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         spinPaused = true;
         spinPauseStart = performance.now();
         syncSpinToggleBtn();
+        syncTimeRateBtn();
       }
     }
     function resumeSpin() {
@@ -1186,6 +1257,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         spinOffset += performance.now() - spinPauseStart;
         spinPaused = false;
         syncSpinToggleBtn();
+        syncTimeRateBtn();
       }
     }
     if (spinToggleBtn) {
@@ -20134,6 +20206,10 @@ uniform float uViewportWidth;`,
         // follow whichever rate is chosen.
         setTimeRate,
         getTimeRate,
+        // Jump the one clock to any moment (ms UTC), keeping the current
+        // rate — the scrubber's own seam, and the door forecast playback
+        // will come through.
+        setSimulatedUtcMs,
         hideCursorReadout() {
           cursorReadout.hidden = true;
           cursorReadout.textContent = "";
@@ -21063,6 +21139,9 @@ ${error && error.message ? error.message : error}`;
         runQueue().catch(() => {});
       })();
       spinOffset = performance.now() - initialSpinMs;
+      // The globe opens LIVE: true rotation, the sun and clock at actual
+      // now. The pill cycles to the showcase day and to paused from there.
+      setTimeRate("real");
       positionCameraOverPrimeMeridian(camera, controls);
       updateGmtClock();
       if (new URLSearchParams(window.location.search).get('transit') === '1') {

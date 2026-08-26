@@ -991,6 +991,39 @@ function onDown(event) {
   if (active) active.downAt = { x: event.clientX, y: event.clientY };
 }
 
+/**
+ * The last good elements, kept in localStorage per group.
+ *
+ * CelesTrak escalates from throttling to a flat 403 for a busy IP, and an
+ * element set is valid for DAYS around its epoch — so the last successful
+ * fetch is an honest fallback, and the status says when it is being used
+ * and how old it is rather than letting stored data pass as fresh.
+ */
+const TLE_CACHE_PREFIX = "geoid-tle-";
+const TLE_CACHE_MAX_AGE_MS = 5 * 24 * 3600 * 1000;
+
+function saveTleCache(group, text) {
+  try {
+    localStorage.setItem(TLE_CACHE_PREFIX + group, JSON.stringify({ t: Date.now(), text }));
+  } catch (error) { /* a full store must not sink the layer */ }
+}
+
+function readTleCache(group) {
+  try {
+    const raw = localStorage.getItem(TLE_CACHE_PREFIX + group);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (!entry?.text || (Date.now() - entry.t) > TLE_CACHE_MAX_AGE_MS) return null;
+    return entry;
+  } catch (error) { return null; }
+}
+
+function ageCopy(ms) {
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 90) return `${minutes} min`;
+  return `${Math.round(minutes / 60)} h`;
+}
+
 async function start() {
   const id = ++runId;
   say("Fetching orbital elements…");
@@ -1003,21 +1036,40 @@ async function start() {
   }
   if (id !== runId) return false;
   const tleSets = [];
+  let cachedGroups = 0;
+  let oldestCacheMs = 0;
   for (const meta of GROUPS) {
     if (id !== runId) return false;   // or a cancelled run keeps narrating
     say(`Fetching orbital elements… ${meta.group}`);
+    let triples = [];
     try {
       const response = await fetch(TLE_URL(meta.group));
       if (id !== runId) return false;
-      if (response.ok) tleSets.push({ meta, triples: parseTle(await response.text()) });
+      if (response.ok) {
+        const text = await response.text();
+        triples = parseTle(text);
+        if (triples.length) saveTleCache(meta.group, text);
+      }
     } catch (error) { /* one throttled group must not sink the layer */ }
+    if (!triples.length) {
+      const cached = readTleCache(meta.group);
+      if (cached) {
+        triples = parseTle(cached.text);
+        if (triples.length) {
+          cachedGroups += 1;
+          oldestCacheMs = Math.max(oldestCacheMs, Date.now() - cached.t);
+        }
+      }
+    }
+    if (triples.length) tleSets.push({ meta, triples });
     // CelesTrak throttles rapid-fire queries into empty 200s; a beat between
     // requests is what keeps `geo` and `science` from arriving blank.
     await new Promise((resolve) => { setTimeout(resolve, 250); });
     if (id !== runId) return false;
   }
-  if (!tleSets.some((set) => set.triples.length)) {
-    say("CelesTrak did not answer.");
+  if (!tleSets.length) {
+    say("CelesTrak is not answering (it rate-limits busy connections, sometimes "
+      + "for hours) and no stored elements exist here yet — try again later.");
     return false;
   }
   if (id !== runId) return false;
@@ -1123,8 +1175,12 @@ async function start() {
   window.addEventListener("click", onClick, true);
   window.addEventListener("pointermove", onMove, true);
   window.GeoIDLayerHierarchy?.render?.();
+  const cacheNote = cachedGroups
+    ? ` ${cachedGroups} of ${GROUPS.length} groups from stored elements `
+      + `(${ageCopy(oldestCacheMs)} old) — CelesTrak is rate-limiting.`
+    : "";
   say(`${records.length} satellites live at their real altitudes — refreshing `
-    + `every ${REFRESH_MS / 1000} s.`);
+    + `every ${REFRESH_MS / 1000} s.${cacheNote}`);
   if (document.getElementById("satellites-orbits")?.checked) setRings(true);
   // A fresh start wears the defaults; the swatches must say so even if a
   // previous session's symbology had repainted them.
@@ -1233,7 +1289,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260826-5c5ee89");
+    const dialog = await import("./symbology-dialog.js?v=20260826-a473366");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

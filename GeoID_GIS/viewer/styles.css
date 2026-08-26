@@ -2046,8 +2046,14 @@
       transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s, transform 0.15s;
     }
 
+    /* The rotation control is ONE pill now — LIVE, ×720 or PAUSED — so the
+       old pause button stands down. The element stays in the page: the
+       viewer reads and writes it unguarded, and the space bar still runs
+       through the same pauseSpin the pill reports. */
+    #spin-toggle { display: none !important; }
+
     /* The rate pill wears the corner buttons' chrome but carries a word, not
-       a glyph: the state IS the label (×720 time-lapse, LIVE real time). */
+       a glyph: the state IS the label (LIVE, ×720, PAUSED). */
     #time-rate-toggle {
       flex-shrink: 0;
       height: 2.55rem;
@@ -2073,6 +2079,89 @@
       border-color: rgba(82, 228, 232, 0.55);
       color: #52e4e8;
       text-shadow: 0 0 8px rgba(82, 228, 232, 0.45);
+    }
+    #time-rate-toggle.is-paused {
+      border-color: rgba(255, 180, 84, 0.5);
+      color: #ffb454;
+      text-shadow: 0 0 8px rgba(255, 180, 84, 0.35);
+    }
+
+    /* The scrub button wears the corner chrome; its panel hangs below the
+       control cluster. #top-right-controls is fixed, so the panel anchors
+       to it with absolute positioning. */
+    #time-scrub-toggle {
+      flex-shrink: 0;
+      width: 2.55rem;
+      height: 2.55rem;
+      border-radius: 0.62rem;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(10, 16, 23, 0.96);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+      color: #d5e8ee;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #time-scrub-toggle:hover {
+      transform: translateY(-1px);
+      background: rgba(14, 21, 30, 0.98);
+      border-color: rgba(var(--instrument-rust-rgb), 0.38);
+      color: #effcff;
+    }
+    #time-scrub-toggle.is-active {
+      border-color: rgba(82, 228, 232, 0.55);
+      color: #52e4e8;
+    }
+    #time-scrub-panel {
+      position: absolute;
+      top: calc(100% + 0.5rem);
+      right: 0;
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      padding: 0.7rem 0.8rem;
+      border-radius: 0.62rem;
+      border: 1px solid rgba(82, 228, 232, 0.3);
+      background: rgba(8, 13, 20, 0.97);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+    }
+    #time-scrub-panel[hidden] { display: none !important; }
+    #time-scrub-panel label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(190, 214, 226, 0.85);
+    }
+    #time-scrub-panel input {
+      background: rgba(16, 24, 34, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 0.4rem;
+      color: #eaf6fb;
+      font-family: inherit;
+      font-size: 0.78rem;
+      padding: 0.3rem 0.45rem;
+      color-scheme: dark;
+    }
+    .time-scrub-actions { display: flex; gap: 0.45rem; }
+    .time-scrub-actions button {
+      flex: 1;
+      padding: 0.32rem 0;
+      border-radius: 0.4rem;
+      border: 1px solid rgba(82, 228, 232, 0.4);
+      background: rgba(82, 228, 232, 0.12);
+      color: #bdf3f5;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .time-scrub-actions button:hover {
+      background: rgba(82, 228, 232, 0.24);
+      color: #ffffff;
     }
 
     #spin-toggle:hover,
