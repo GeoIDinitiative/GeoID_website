@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260826-00e2b22";
-import { readHead, validateMapping } from "./delimited.js?v=20260826-00e2b22";
-import { RAMP_NAMES } from "./symbology.js?v=20260826-00e2b22";
+import { CRS_OPTIONS } from "./projection.js?v=20260826-04a17e4";
+import { readHead, validateMapping } from "./delimited.js?v=20260826-04a17e4";
+import { RAMP_NAMES } from "./symbology.js?v=20260826-04a17e4";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -215,6 +215,19 @@ const STYLE = `
   justify-content: center;
   margin: 0;
   padding: 0.42rem 0.6rem;
+}
+/* The third doorway wears its own colour — amber, against the magenta add
+   and the cyan GEE — with !important because the skin paints .button's
+   border and colour with !important of its own. */
+.gis-add-row .gis-custom-button {
+  border-color: rgba(255, 180, 84, 0.55) !important;
+  color: #ffb454 !important;
+  background: rgba(255, 180, 84, 0.08);
+}
+.gis-add-row .gis-custom-button:hover {
+  border-color: #ffb454 !important;
+  color: #ffd9a8 !important;
+  box-shadow: 0 0 14px -2px rgba(255, 180, 84, 0.55) !important;
 }
 `;
 
@@ -721,6 +734,13 @@ function addButtonFor(role) {
     gee.textContent = "Add via GEE…";
     gee.title = "Request a Google Earth Engine dataset draped over the globe";
     row.appendChild(gee);
+  }
+  // The vector tab's third doorway: capturing the drawn area. The button
+  // lives in the shared markup (polygons.js wires it there) and is ADOPTED
+  // into this row, so the three ways data arrives sit side by side.
+  if (role.panel === "gis-group-polygons") {
+    const custom = panel.querySelector("#polygon-capture-drawn");
+    if (custom) row.appendChild(custom);
   }
   body.insertBefore(row, body.firstChild);
   return true;
