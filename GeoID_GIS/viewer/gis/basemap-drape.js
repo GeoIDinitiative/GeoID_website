@@ -768,6 +768,45 @@ function buildPanel() {
  * So: keep trying until both have happened, then stop.
  */
 let selectionWatched = false;
+let defaultApplied = false;
+
+/**
+ * The basemap the globe settles on, once it can.
+ *
+ * `blue-marble` still paints the FIRST frame and that is deliberate: it ships
+ * with the site, so it is on the sphere before any network call, and a globe
+ * that is bare or sandy for the two seconds a tile fetch takes is a worse
+ * first impression than one that improves. So the shipped texture opens and
+ * this swaps to the streamed imagery the moment the option exists and the
+ * watcher is listening — the watcher does the fetching, holding the old map up
+ * until the tiles are there, which is the whole reason it exists.
+ *
+ * Once only. `initWhenReady` retries up to forty times, and re-selecting on
+ * every attempt would fight a user who changed the basemap in the first
+ * twenty seconds.
+ *
+ * LICENCE, because a default is not the same decision as an option. Esri's
+ * World Imagery is free of charge on this endpoint and is NOT licensed for
+ * unrestricted or commercial embedding — `tile-sources.js` carries the detail
+ * and marks it `freeToStream: false`. As an option somebody picks, that is
+ * their choice; as the default it is every visitor to a public page. Esri's
+ * supported route is ArcGIS Location Platform with an API key and a metered
+ * free tier.
+ */
+const DEFAULT_TILE_SOURCE = "ESRI Satellite";
+
+function applyDefaultBasemap() {
+  if (defaultApplied) return;
+  const select = document.getElementById("base-layer-select");
+  const id = baseLayerIdFor(DEFAULT_TILE_SOURCE);
+  if (!select || !select.querySelector(`option[value="${id}"]`)) return;
+  // Only from the shipped default. If the value is anything else the user has
+  // already chosen, and a default must not overrule a choice.
+  if (select.value !== "blue-marble") { defaultApplied = true; return; }
+  defaultApplied = true;
+  select.value = id;
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+}
 
 function initWhenReady() {
   let tries = 0;
@@ -786,6 +825,9 @@ function initWhenReady() {
       });
       selectionWatched = true;
     }
+    // After the watcher, never before: selecting a tile layer nothing is
+    // listening for is how the planet goes bare.
+    if (selectionWatched) applyDefaultBasemap();
     const inDropdown = document.querySelector('#base-layer-select option[value^="tiles-"]');
     if ((selectionWatched && inDropdown) || (tries += 1) > 40) return;
     setTimeout(attempt, 500);

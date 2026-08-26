@@ -82,7 +82,18 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
     const moonViewerSection = document.getElementById("moon-viewer-section");
     const legendSection = document.getElementById("legend-section");
     function openLegendSection() { if (legendSection) legendSection.open = true; }
-    const DEFAULT_NAVIGATE_BASE_LAYER_ID = "blue-marble";
+    /**
+     * What Navigate and Tour put back under a feature.
+     *
+     * The streamed Esri imagery, matching the default the page opens on --
+     * with `blue-marble` as the fallback, because that is the one that ships
+     * and the tiles option only exists once `basemap-drape.js` has registered
+     * it. `ensureNavigateBasemap` returns early when the option is missing, so
+     * on a page without the drape (or before it has run) nothing happens and
+     * whatever is showing stays.
+     */
+    const DEFAULT_NAVIGATE_BASE_LAYER_ID = "tiles-esri-satellite";
+    const FALLBACK_NAVIGATE_BASE_LAYER_ID = "blue-marble";
     const moonViewerControls = document.getElementById("moon-viewer-controls");
     const moonViewerSelect = document.getElementById("moon-viewer-select");
     const moonViewerPrev = document.getElementById("moon-viewer-prev");
@@ -5134,14 +5145,21 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
     }
 
     function ensureNavigateBasemap() {
-      if (!baseLayerSelect || baseLayerSelect.value === DEFAULT_NAVIGATE_BASE_LAYER_ID) {
+      if (!baseLayerSelect) {
         return;
       }
-      const targetOption = baseLayerSelect.querySelector(`option[value="${DEFAULT_NAVIGATE_BASE_LAYER_ID}"]`);
+      // The streamed imagery if it is registered, the shipped texture if not.
+      const wanted = baseLayerSelect.querySelector(`option[value="${DEFAULT_NAVIGATE_BASE_LAYER_ID}"]`)
+        ? DEFAULT_NAVIGATE_BASE_LAYER_ID
+        : FALLBACK_NAVIGATE_BASE_LAYER_ID;
+      if (baseLayerSelect.value === wanted) {
+        return;
+      }
+      const targetOption = baseLayerSelect.querySelector(`option[value="${wanted}"]`);
       if (!targetOption) {
         return;
       }
-      baseLayerSelect.value = DEFAULT_NAVIGATE_BASE_LAYER_ID;
+      baseLayerSelect.value = wanted;
       baseLayerSelect.dispatchEvent(new Event("change", { bubbles: true }));
     }
 
@@ -12716,7 +12734,16 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
         option.textContent = layer.label;
         mineralSelect.appendChild(option);
       }
-      const initialLayer = baseLayers.find((layer) => layer.id === DEFAULT_NAVIGATE_BASE_LAYER_ID)
+      /**
+       * The first frame is painted by a texture that SHIPS.
+       *
+       * Not the navigate default any more: that is the streamed Esri imagery,
+       * which is not in `baseLayers` at this point -- `basemap-drape.js`
+       * registers it later and swaps to it once the tiles are down. Falling
+       * through to `baseLayers[0]` would hand the opening frame to whichever
+       * record happens to be first in the manifest.
+       */
+      const initialLayer = baseLayers.find((layer) => layer.id === FALLBACK_NAVIGATE_BASE_LAYER_ID)
         || baseLayers.find((layer) => layer.default)
         || baseLayers[0];
       baseLayerSelect.value = initialLayer.id;
