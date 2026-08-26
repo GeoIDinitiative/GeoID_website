@@ -18,7 +18,7 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-b0d008f";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-8b90f9b";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -67,47 +67,47 @@ const STYLE = `
   background: rgba(var(--nav-accent-rgb), 0.22);
 }
 
-/* A dropdown that scrolls, so a catalogue can grow without taking the panel.
-   The tick boxes are unchanged -- this is a lid over the same list. */
-.gis-catalogue-drop {
+/* Not a disclosure any more: the catalogue is ALWAYS open — a fixed header
+   over a window about five rows tall that scrolls. A lid that could close
+   was reported twice as underdeveloped; a list you can always see, capped
+   by a scrollbar, is the developed form. */
+.gis-catalogue-box {
   border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
   border-radius: 0.35rem;
   background: rgba(255, 255, 255, 0.02);
 }
-.gis-catalogue-drop > summary {
+.gis-catalogue-head {
   display: flex;
   align-items: center;
   gap: 0.45rem;
   padding: 0.38rem 0.55rem;
-  cursor: pointer;
-  list-style: none;
   font: 600 0.68rem/1.35 'Exo 2', sans-serif;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.gis-catalogue-drop > summary::-webkit-details-marker { display: none; }
-.gis-catalogue-drop > summary::after {
-  content: "▾";
-  margin-left: auto;
-  font-size: 0.58rem;
-  opacity: 0.7;
-  transition: transform 0.18s ease;
-}
-.gis-catalogue-drop[open] > summary::after { transform: rotate(180deg); }
-.gis-catalogue-drop > summary:hover { background: rgba(var(--nav-accent-rgb), 0.08); }
 .gis-catalogue-count {
+  margin-left: auto;
   font: 400 0.6rem/1.35 'Exo 2', sans-serif;
   letter-spacing: 0;
   text-transform: none;
   opacity: 0.65;
 }
-/* The scroll lives on the BODY, not on the disclosure: a max-height on the
-   details itself clips the summary too once the list is long. */
+/* About five rows before the scrollbar takes over. The scrollbar wears the
+   panel's cyan both ways round — the standard properties for modern Chrome
+   and Firefox, the pseudo-elements for Safari (Chrome 121+ ignores the
+   pseudos entirely once the standard properties are set). */
 .gis-catalogue-scroll {
-  max-height: 14rem;
+  max-height: 8.6rem;
   overflow-y: auto;
   padding: 0.1rem 0.4rem 0.35rem;
   border-top: 1px solid rgba(var(--nav-accent-rgb), 0.18);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(82, 228, 232, 0.38) transparent;
+}
+.gis-catalogue-scroll::-webkit-scrollbar { width: 6px; }
+.gis-catalogue-scroll::-webkit-scrollbar-thumb {
+  background: rgba(82, 228, 232, 0.38);
+  border-radius: 3px;
 }
 `;
 
@@ -167,6 +167,9 @@ export function renderCatalogue(host, entries, hooks) {
   if (!host) return;
   drawn.set(host, { entries, hooks });
   installStyle();
+  // Captured before the clear: a redraw (every tick causes one) must not
+  // throw the reader back to the top of a list they were halfway down.
+  const priorScroll = host.querySelector(".gis-catalogue-scroll")?.scrollTop || 0;
   host.textContent = "";
   host.className = "";
 
@@ -181,12 +184,10 @@ export function renderCatalogue(host, entries, hooks) {
    */
   let list = host;
   if (hooks.title) {
-    const key = host.id || hooks.title;
-    const drop = document.createElement("details");
-    drop.className = "gis-catalogue-drop";
-    drop.open = openState.get(key) ?? true;
-    drop.addEventListener("toggle", () => openState.set(key, drop.open));
-    const summary = document.createElement("summary");
+    const box = document.createElement("div");
+    box.className = "gis-catalogue-box";
+    const head = document.createElement("div");
+    head.className = "gis-catalogue-head";
     const name = document.createElement("span");
     name.textContent = hooks.title;
     const count = document.createElement("span");
@@ -195,12 +196,13 @@ export function renderCatalogue(host, entries, hooks) {
     count.textContent = on
       ? `${on} of ${entries.length} on the globe`
       : `${entries.length} datasets`;
-    summary.append(name, count);
+    head.append(name, count);
     const scroll = document.createElement("div");
     scroll.className = "gis-catalogue-scroll";
-    drop.append(summary, scroll);
-    host.appendChild(drop);
+    box.append(head, scroll);
+    host.appendChild(box);
     list = scroll;
+    if (priorScroll) window.requestAnimationFrame(() => { scroll.scrollTop = priorScroll; });
   }
   list.classList.add("gis-catalogue");
 
