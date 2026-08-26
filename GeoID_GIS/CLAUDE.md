@@ -825,6 +825,18 @@ mesh so they inherit the sidereal counter-rotation, and the pulse loop ends
 itself by polling the scene card's visibility — one boolean a frame against
 wiring into every close path the viewer has.
 
+Per-category toggles (the Locations pattern): a checklist with legend
+swatches hides a category's dots (parked at the planet's centre, like
+decayed objects, with `hidden` excluding them from pickers and tags), its
+ring mesh — the merged ring buffer became ONE MESH PER CATEGORY so a toggle
+is a visibility flip, not a rebuild — and its selection. The volcano layer
+got the same: type toggles filter `layer.features` against a kept master
+list so dots, picks and labels answer from one filtered set, with colours
+looked up from the WORN legend rather than re-derived (`categoricalSymbology`
+assigns by frequency, and filtering changes the frequencies). The type list
+draws on the `symbology` announce event, because the legend it is built from
+lands a beat after the layer registers.
+
 Three traps, all found by measuring:
 
 - **The import COPIES the collection** (`importFileList` serialises to a

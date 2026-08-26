@@ -63,6 +63,14 @@ const LABEL_PRIORITY = ["Space stations", "Science", "Bright (visual)", "Weather
   "Geostationary", "Navigation", "OneWeb constellation"];
 
 /** The Labels slider's stops: which categories may carry a name. */
+/**
+ * Which categories are showing — module-level so the choice survives the
+ * tracker being switched off and on. A disabled category hides its dots
+ * (parked at the planet's centre, the same trick as decayed objects), its
+ * ring mesh, its tags and its picks, all from this one set.
+ */
+const enabledCategories = new Set(Object.keys(CATEGORY_COLOURS));
+
 const LABEL_LEVELS = {
   0: [],
   1: ["Space stations", "Science"],
@@ -272,6 +280,15 @@ function tick() {
   const scratch = new THREE.Vector3();
   const positions = active.geometry.attributes.position;
   active.records.forEach((record, i) => {
+    if (!enabledCategories.has(record.category)) {
+      // A switched-off category parks its dots at the planet's centre —
+      // the same trick as decayed objects — and `hidden` keeps them out of
+      // the pickers and the tags.
+      positions.setXYZ(i, 0, 0, 0);
+      record.hidden = true;
+      return;
+    }
+    record.hidden = false;
     const state = stateOf(satellite, record, date, gmst);
     if (!state) {
       // A decayed object parks at the planet's centre, where the depth test
@@ -330,7 +347,6 @@ async function buildRings() {
       await new Promise((resolve) => { setTimeout(resolve, 0); });
       if (!active) return null;
     }
-    record.ringRange = null;
     record.soloRing = null;
     if (record.dead || record.noRings) continue;
     const periodMs = ((2 * Math.PI) / (record.satrec.no_kozai ?? record.satrec.no)) * 60000;
@@ -346,28 +362,53 @@ async function buildRings() {
       const ecf = satellite.eciToEcf(out.position, gmst0);
       points.push(ecfToScene(ecf, scratch).clone());
     }
-    const startFloats = positions.length;
     for (let k = 0; k + 1 < points.length; k += 1) {
       positions.push(points[k].x, points[k].y, points[k].z,
         points[k + 1].x, points[k + 1].y, points[k + 1].z);
       colours.push(colour.r, colour.g, colour.b, colour.r, colour.g, colour.b);
       // One entry per SEGMENT: the raycaster answers with a vertex index,
-      // and index/2 is the segment — this is how a hit on the one merged
-      // mesh finds its satellite.
+      // and index/2 is the segment — this is how a line hit finds its
+      // satellite.
       segmentOwner.push(record);
     }
-    record.ringRange = { start: startFloats, count: positions.length - startFloats };
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colours, 3));
-  const rings = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({
-    vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false,
-  }));
+  /**
+   * ONE MESH PER CATEGORY under one group — seven draw calls instead of
+   * one, bought deliberately: the category toggles need to hide a whole
+   * constellation's rings, and a visibility flip on a small mesh beats
+   * rebuilding a merged buffer every time a box is ticked.
+   */
+  const rings = new THREE.Group();
   rings.name = "satellite-orbits";
-  rings.frustumCulled = false;
   rings.userData.gmst0 = gmst0;
-  rings.userData.segmentOwner = segmentOwner;
+  rings.userData.ringMeshes = [];
+  Object.keys(CATEGORY_COLOURS).forEach((category) => {
+    const catPositions = [];
+    const catColours = [];
+    const catOwner = [];
+    segmentOwner.forEach((owner, seg) => {
+      if (owner.category !== category) return;
+      for (let f = 0; f < 6; f += 1) {
+        catPositions.push(positions[seg * 6 + f]);
+        catColours.push(colours[seg * 6 + f]);
+      }
+      catOwner.push(owner);
+    });
+    if (!catOwner.length) return;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(catPositions, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(catColours, 3));
+    const mesh = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({
+      vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false,
+    }));
+    mesh.frustumCulled = false;
+    mesh.userData.segmentOwner = catOwner;
+    mesh.userData.isRingMesh = true;
+    mesh.userData.category = category;
+    mesh.visible = enabledCategories.has(category);
+    rings.add(mesh);
+    rings.userData.ringMeshes.push(mesh);
+  });
   /**
    * The hover highlight and the selection pulse are CHILDREN of the ring
    * mesh: both draw one orbit's own vertices copied into a small overlay,
@@ -577,7 +618,7 @@ function updateLabels() {
 
   const candidates = [];
   active.records.forEach((record, i) => {
-    if (record.dead || !allowed.has(record.category)) return;
+    if (record.dead || record.hidden || !allowed.has(record.category)) return;
     world.set(positions.getX(i), positions.getY(i), positions.getZ(i))
       .applyMatrix4(active.group.matrixWorld);
     // The tags draw with the depth test off (they must beat the orbit
@@ -635,6 +676,47 @@ function updateLabels() {
     sprite.scale.set(((heightPx * sprite.userData.aspect) / rect.width) * 2,
       (heightPx / rect.height) * 2, 1);
     sprite.center.set(-0.14, 0.42);
+  });
+}
+
+/** Apply the category set: ring meshes flip, dots re-park on the next tick. */
+function setCategoryEnabled(category, on) {
+  if (on) enabledCategories.add(category);
+  else enabledCategories.delete(category);
+  if (!active) return;
+  (active.rings?.userData.ringMeshes || []).forEach((mesh) => {
+    if (mesh.userData.category === category) mesh.visible = on;
+  });
+  // A selection in a category that just vanished must not go on pulsing.
+  if (!on && active.selected?.category === category) deselect();
+  tick();
+}
+
+/**
+ * The category checklist, one row per legend class — the same pattern the
+ * Locations label toggles use: a coloured swatch, a name, a tick.
+ */
+function buildCategoryList() {
+  const host = document.getElementById("satellites-categories");
+  if (!host || host.dataset.built) return;
+  host.dataset.built = "1";
+  Object.entries(CATEGORY_COLOURS).forEach(([category, colour]) => {
+    const row = document.createElement("div");
+    row.className = "gis-catalogue-row";
+    const tick = document.createElement("input");
+    tick.type = "checkbox";
+    tick.checked = enabledCategories.has(category);
+    tick.id = `satellites-cat-${category.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+    const swatch = document.createElement("span");
+    swatch.style.cssText = `flex:0 0 auto;width:0.55rem;height:0.55rem;`
+      + `border-radius:0.12rem;background:${colour};`;
+    const name = document.createElement("label");
+    name.className = "gis-catalogue-name";
+    name.htmlFor = tick.id;
+    name.textContent = category;
+    tick.addEventListener("change", () => setCategoryEnabled(category, tick.checked));
+    row.append(tick, swatch, name);
+    host.appendChild(row);
   });
 }
 
@@ -698,17 +780,18 @@ function recordAt(clientX, clientY) {
   const { raycaster, worldPerPixel } = cast;
   raycaster.params.Points.threshold = 12 * worldPerPixel;
   const dotHit = raycaster.intersectObject(active.fill, false)
-    .filter((h) => !active.records[h.index]?.dead)
+    .filter((h) => !active.records[h.index]?.dead && !active.records[h.index]?.hidden)
     .sort((a, b) => a.distanceToRay - b.distanceToRay)[0];
   if (dotHit) return active.records[dotHit.index];
   if (active.rings?.visible) {
     raycaster.params.Line.threshold = 7 * worldPerPixel;
-    const ringHit = raycaster.intersectObject(active.rings, false)
+    const meshes = (active.rings.userData.ringMeshes || []).filter((m) => m.visible);
+    const ringHit = raycaster.intersectObjects(meshes, false)
       .sort((a, b) => a.distance - b.distance)[0];
     if (ringHit) {
-      // A hit on the merged mesh answers with a vertex index; index/2 is the
-      // segment, and the build recorded each segment's owner.
-      return active.rings.userData.segmentOwner?.[Math.floor(ringHit.index / 2)] || null;
+      // A line hit answers with a vertex index; index/2 is the segment, and
+      // each category mesh carries its own segment-owner table.
+      return ringHit.object.userData.segmentOwner?.[Math.floor(ringHit.index / 2)] || null;
     }
   }
   return null;
@@ -755,15 +838,16 @@ function onMove(event) {
     // its DOT is how its orbit becomes visible at all.
     cast.raycaster.params.Points.threshold = 10 * cast.worldPerPixel;
     const dotHit = cast.raycaster.intersectObject(active.fill, false)
-      .filter((h) => !active.records[h.index]?.dead)
+      .filter((h) => !active.records[h.index]?.dead && !active.records[h.index]?.hidden)
       .sort((a, b) => a.distanceToRay - b.distanceToRay)[0];
     let record = dotHit ? active.records[dotHit.index] : null;
     if (!record) {
       cast.raycaster.params.Line.threshold = 7 * cast.worldPerPixel;
-      const hit = cast.raycaster.intersectObject(active.rings, false)
+      const meshes = (active.rings.userData.ringMeshes || []).filter((m) => m.visible);
+      const hit = cast.raycaster.intersectObjects(meshes, false)
         .sort((a, b) => a.distance - b.distance)[0];
       record = hit
-        ? active.rings.userData.segmentOwner?.[Math.floor(hit.index / 2)] : null;
+        ? hit.object.userData.segmentOwner?.[Math.floor(hit.index / 2)] : null;
     }
     if (record !== active.hovered) {
       active.hovered = record || null;
@@ -975,6 +1059,7 @@ function init() {
   const tickBox = document.getElementById("satellites-toggle");
   if (!tickBox || tickBox.dataset.wired) return;
   tickBox.dataset.wired = "1";
+  buildCategoryList();
   const orbitsBox = document.getElementById("satellites-orbits");
   const master = document.getElementById("satellites-master-toggle");
   // The header tick means ALL of it: tracking and orbits together. It stays

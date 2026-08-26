@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, datasetById, layerForDataset,
-} from "./global-data.js?v=20260826-71c164f";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-71c164f";
+} from "./global-data.js?v=20260826-21fe36a";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-21fe36a";
 
 const byId = (id) => document.getElementById(id);
 
@@ -74,6 +74,82 @@ function draw(home, hostId) {
 function drawAll() {
   Object.entries(HOMES).forEach(([home, hostId]) => draw(home, hostId));
   drawMacrostratLines();
+  drawVolcanoTypes();
+}
+
+/**
+ * Per-type toggles for the volcano layer — the satellite categories'
+ * pattern applied to an ordinary vector layer.
+ *
+ * The toggle FILTERS `layer.features` (and the collection the renderer
+ * reads) against a kept master list, so the dots, the click pick, and the
+ * labels all answer from the same filtered set — a type switched off
+ * cannot be clicked and cannot keep a label. Colours must NOT be re-derived
+ * on repaint: `categoricalSymbology` assigns by frequency, and filtering
+ * changes the frequencies, so the lookup is taken once from the legend the
+ * layer already wears and the legend itself is left untouched — the
+ * swatches beside these ticks stay meaningful while a class is hidden.
+ */
+const volcanoTypesOff = new Set();
+
+function volcanoLayerBits() {
+  const layer = layerForDataset("volcanoes");
+  const legend = layer?.legendInfo;
+  if (!layer || legend?.field !== "type_group") return null;
+  return { layer, legend };
+}
+
+function applyVolcanoTypes() {
+  const bits = volcanoLayerBits();
+  if (!bits) return;
+  const { layer, legend } = bits;
+  if (!layer._allFeatures) layer._allFeatures = layer.features;
+  const filtered = volcanoTypesOff.size
+    ? layer._allFeatures.filter((f) => !volcanoTypesOff.has(String(f?.properties?.type_group)))
+    : layer._allFeatures;
+  layer.features = filtered;
+  if (layer.collection) layer.collection.features = filtered;
+  const lookup = new Map(legend.values.map((value, i) => [value, `#${legend.palette[i]}`]));
+  layer.repaint?.((feature) =>
+    lookup.get(String(feature?.properties?.type_group)) || "#8a8a8a");
+  // The labels rebuild from the filtered features; off-then-on keeps the
+  // chosen detail level because point-labels remembers it by layer name.
+  const labels = window.GeoIDPointLabels;
+  if (labels?.isLabelled?.(layer)) {
+    void labels.setLabels(layer, false);
+    void labels.setLabels(layer, true);
+  }
+}
+
+function drawVolcanoTypes() {
+  const host = byId("volcano-types");
+  if (!host) return;
+  const bits = volcanoLayerBits();
+  host.replaceChildren();
+  if (!bits) return;
+  const { legend } = bits;
+  legend.values.forEach((value, i) => {
+    const row = document.createElement("div");
+    row.className = "gis-catalogue-row";
+    const tick = document.createElement("input");
+    tick.type = "checkbox";
+    tick.checked = !volcanoTypesOff.has(value);
+    tick.id = `volcano-type-${value.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+    const swatch = document.createElement("span");
+    swatch.style.cssText = `flex:0 0 auto;width:0.55rem;height:0.55rem;`
+      + `border-radius:0.12rem;background:#${legend.palette[i]};`;
+    const name = document.createElement("label");
+    name.className = "gis-catalogue-name";
+    name.htmlFor = tick.id;
+    name.textContent = value;
+    tick.addEventListener("change", () => {
+      if (tick.checked) volcanoTypesOff.delete(value);
+      else volcanoTypesOff.add(value);
+      applyVolcanoTypes();
+    });
+    row.append(tick, swatch, name);
+    host.appendChild(row);
+  });
 }
 
 /**
@@ -169,6 +245,12 @@ function init() {
   // Whoever took a layer off — one of these lists or the layer box — the tick
   // follows, because the list asks the catalogue rather than remembering.
   window.GeoIDImportManager?.onChange?.(drawAll);
+  // The volcano type list is built FROM the legend, and the legend lands a
+  // beat after the layer registers — the symbology announces itself on this
+  // event, which is the moment the swatches exist to draw.
+  window.addEventListener("geoid-gis:layers-changed", (event) => {
+    if (event.detail?.reason === "symbology") drawVolcanoTypes();
+  });
 }
 
 if (typeof document !== "undefined") {
