@@ -410,6 +410,8 @@ async function buildRings() {
    */
   const rings = new THREE.Group();
   rings.name = "satellite-orbits";
+  rings.renderOrder = 199;
+  rings.userData.keepRenderOrder = true;
   rings.userData.gmst0 = gmst0;
   rings.userData.ringMeshes = [];
   Object.keys(CATEGORY_COLOURS).forEach((category) => {
@@ -536,49 +538,28 @@ function showOrbitOverlay(overlay, record) {
  */
 const tagTextures = new Map();
 
-function makeTagTexture(name, colour) {
-  const key = `v2|${colour}|${name}`;
+function makePillTexture(name, colour) {
+  const key = `v3|${colour}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
-  const scale = 4;
-  const text = String(name).toUpperCase();
-  // 700 over 600 and half the old tracking: at seven rendered pixels a
-  // heavier, tighter letterform survives minification; a tracked light one
-  // reads as stretched smear — which is what was reported.
-  const font = `700 ${10 * scale}px "Exo 2", "Segoe UI", sans-serif`;
-  const probe = document.createElement("canvas").getContext("2d");
-  probe.font = font;
-  probe.letterSpacing = `${0.5 * scale}px`;
-  const textW = Math.ceil(probe.measureText(text).width);
-  const dash = 5 * scale;
-  const gap = 3 * scale;
-  const pad = 2 * scale;   // room for the halo to breathe at the edges
-  const width = pad + dash + gap + textW + pad;
-  const height = 13 * scale;
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  ctx.font = font;
-  ctx.letterSpacing = `${0.5 * scale}px`;
-  ctx.textBaseline = "middle";
-  const midY = height / 2;
-  // The leader dash, category-coloured — the one piece of chrome kept.
-  ctx.fillStyle = colour;
-  ctx.fillRect(pad, midY - scale * 0.75, dash, scale * 1.5);
-  // Halo first, then the type: a round-joined stroke is a crisper halo than
-  // shadow blur at sizes this small, where blur just greys the letterforms.
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = "rgba(3, 6, 14, 0.9)";
-  ctx.lineWidth = 3 * scale;
-  ctx.strokeText(text, pad + dash + gap, midY);
-  ctx.fillStyle = "rgba(240, 246, 252, 0.98)";
-  ctx.fillText(text, pad + dash + gap, midY);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  const record = { texture, width: width / scale, height: height / scale };
+  /**
+   * The viewer's OWN pill, through the seam the volcano labels use — the
+   * bespoke bare-type tag before it was reported twice: not interactive
+   * enough, and its type smearing. `makeLabelTexture` is the engine every
+   * other location label goes through, so the satellites finally wear the
+   * same chip, with the category colour as the accent bar and a darker
+   * space-HUD backing. backingScale 2: forty names, not four.
+   */
+  const make = window.GeoIDViewer?.makeLabelTexture;
+  const label = make(name, {
+    backingScale: 2,
+    customPalette: {
+      bg: "rgba(6, 10, 18, 0.82)",
+      stroke: `${colour}88`,
+      accent: colour,
+      title: "rgba(240, 246, 252, 0.97)",
+    },
+  });
+  const record = { texture: label.texture, width: label.width, height: label.height };
   tagTextures.set(key, record);
   return record;
 }
@@ -634,7 +615,10 @@ function updateLabels() {
    */
   const camDist = viewer.camera.position.length();
   const far = Math.max(0, Math.min(1, (camDist - 5) / 20));
-  const heightPx = 11 - 3 * far;
+  // Pill height on screen: the chip is 34 logical px tall, shown at
+  // 15 px easing to 11 as the camera runs out — the location labels'
+  // register, scaled for a HUD that can carry forty of them.
+  const heightPx = 15 - 4 * far;
   const spacingPx = LABEL_SPACING_PX + 66 * far;
   const camDir = viewer.camera.position.clone().normalize();
   const positions = active.geometry.attributes.position;
@@ -680,7 +664,7 @@ function updateLabels() {
     const { record } = candidate;
     let sprite = active.labels.get(record.norad);
     if (!sprite) {
-      const tag = makeTagTexture(record.name, colourFor(record));
+      const tag = makePillTexture(record.name, colourFor(record));
       sprite = new THREE.Sprite(new THREE.SpriteMaterial({
         map: tag.texture, transparent: true, depthTest: false, depthWrite: false,
         sizeAttenuation: false,
@@ -869,7 +853,7 @@ function tagAt(clientX, clientY) {
     // right of the anchor, level with it.
     const cx = ax + (0.5 - sprite.center.x) * w - w / 2;
     const cy = ay + (sprite.center.y - 0.5) * h;
-    if (Math.abs(clientX - cx) <= w / 2 + 2 && Math.abs(clientY - cy) <= h / 2 + 2) {
+    if (Math.abs(clientX - cx) <= w / 2 + 4 && Math.abs(clientY - cy) <= h / 2 + 4) {
       return sprite.userData.record || null;
     }
   }
@@ -1146,7 +1130,21 @@ async function start() {
   fill.renderOrder = 1;
   const group = new THREE.Group();
   group.name = "satellites-live";
-  group.add(outline, fill);
+  /**
+   * Dots in a NESTED band-198 group: the hierarchy stamps the layer's own
+   * group into the data band (~51), and a streamed basemap patch drawn
+   * with the depth test off paints over anything sorted there — measured
+   * as the Esri tiles erasing dots and orbits at close zoom. A nested
+   * group resets groupOrder (the trap the volcano labels documented, used
+   * deliberately here as with the tags), so the dots sort at 198 and the
+   * rings at 199: above every drape, below the label band at 200.
+   */
+  const dotsGroup = new THREE.Group();
+  dotsGroup.name = "satellite-dots";
+  dotsGroup.renderOrder = 198;
+  dotsGroup.userData.keepRenderOrder = true;
+  dotsGroup.add(outline, fill);
+  group.add(dotsGroup);
   /**
    * The tags live in a NESTED group with its own renderOrder, because a
    * nested group resets groupOrder for its children — the trap that once
@@ -1158,6 +1156,7 @@ async function start() {
   const labelGroup = new THREE.Group();
   labelGroup.name = "satellite-tags";
   labelGroup.renderOrder = 206;
+  labelGroup.userData.keepRenderOrder = true;
   group.add(labelGroup);
 
   const legendInfo = {
@@ -1327,7 +1326,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260826-422c702");
+    const dialog = await import("./symbology-dialog.js?v=20260826-4b7dfdc");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

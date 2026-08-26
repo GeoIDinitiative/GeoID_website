@@ -10,11 +10,11 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260826-422c702";
-import { samplerToRaster } from "./raster-analysis.js?v=20260826-422c702";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260826-422c702";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260826-422c702";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260826-422c702";
+import { currentBody } from "./bodies.js?v=20260826-4b7dfdc";
+import { samplerToRaster } from "./raster-analysis.js?v=20260826-4b7dfdc";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260826-4b7dfdc";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260826-4b7dfdc";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260826-4b7dfdc";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -304,7 +304,18 @@ function applyStack() {
      * over the basemap**. Raising the points to renderOrder 230 could not fix
      * it and never did; groupOrder is decided before renderOrder is read.
      */
-    object.traverse?.((node) => { node.renderOrder = object.renderOrder; });
+    object.traverse?.((node) => {
+      /**
+       * A node may OPT OUT: the satellite layer's dot/ring/tag groups are
+       * nested bands (198/199/206) that must beat the tile drapes and meet
+       * the label band, and this stamp was silently flattening them back
+       * into the data band on every hierarchy change. The flag is for
+       * deliberate nested bands only — a layer's ordinary geometry must
+       * keep taking the stack's order or dragging rows stops working.
+       */
+      if (node.userData?.keepRenderOrder) return;
+      node.renderOrder = object.renderOrder;
+    });
   });
 }
 
