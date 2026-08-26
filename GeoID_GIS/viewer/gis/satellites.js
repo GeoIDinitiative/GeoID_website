@@ -48,15 +48,27 @@ const GROUPS = [
 ];
 
 /** The legend's colours, one per group. */
+/**
+ * Vivid on purpose: the first palette was pastel, and against a starfield of
+ * hundreds of dots the categories were reported as indistinguishable. OneWeb
+ * stays deliberately muted — 650 near-identical dots would flood any hue they
+ * were given. These are only the DEFAULTS: the Symbology button hands the
+ * layer to the ordinary dialog, and `colourFor` prefers what it painted.
+ */
 const CATEGORY_COLOURS = {
-  "Space stations": "#4ee1ec",
-  "Science": "#c792ea",
-  "Bright (visual)": "#ffd166",
-  "Weather": "#6f9dff",
-  "Navigation": "#7bdc6f",
-  "Geostationary": "#ff8f7a",
-  "OneWeb constellation": "#9aa4b2",
+  "Space stations": "#00e5ff",
+  "Science": "#c26bff",
+  "Bright (visual)": "#ffc400",
+  "Weather": "#3f8cff",
+  "Navigation": "#2ee06a",
+  "Geostationary": "#ff5c4d",
+  "OneWeb constellation": "#8b93a3",
 };
+
+/** A record's drawn colour: the symbology dialog's choice, else its category. */
+function colourFor(record) {
+  return record.colour || CATEGORY_COLOURS[record.category] || "#8a8a8a";
+}
 
 /** Label priority when the declutter has to choose, most interesting first. */
 const LABEL_PRIORITY = ["Space stations", "Science", "Bright (visual)", "Weather",
@@ -359,7 +371,7 @@ async function buildRings() {
     record.soloRing = null;
     if (record.dead || record.noRings) continue;
     const periodMs = ((2 * Math.PI) / (record.satrec.no_kozai ?? record.satrec.no)) * 60000;
-    colour.set(CATEGORY_COLOURS[record.category] || "#8a8a8a");
+    colour.set(colourFor(record));
     const points = [];
     for (let k = 0; k <= RING_SAMPLES; k += 1) {
       let out;
@@ -656,8 +668,7 @@ function updateLabels() {
     const { record } = candidate;
     let sprite = active.labels.get(record.norad);
     if (!sprite) {
-      const colour = CATEGORY_COLOURS[record.category] || "#8a8a8a";
-      const tag = makeTagTexture(record.name, colour);
+      const tag = makeTagTexture(record.name, colourFor(record));
       sprite = new THREE.Sprite(new THREE.SpriteMaterial({
         map: tag.texture, transparent: true, depthTest: false, depthWrite: false,
         sizeAttenuation: false,
@@ -709,6 +720,7 @@ function buildCategoryList() {
     tick.checked = enabledCategories.has(category);
     tick.id = `satellites-cat-${category.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
     const swatch = document.createElement("span");
+    swatch.dataset.catSwatch = category;
     swatch.style.cssText = `flex:0 0 auto;width:0.55rem;height:0.55rem;`
       + `border-radius:0.12rem;background:${colour};`;
     const name = document.createElement("label");
@@ -724,6 +736,52 @@ function buildCategoryList() {
 function setLabelLevel(level) {
   if (!active) return;
   active.labelLevel = level;
+  updateLabels();
+}
+
+/** The tab's category swatches follow whatever the dots are wearing now. */
+function refreshCategorySwatches() {
+  const host = document.getElementById("satellites-categories");
+  if (!host) return;
+  host.querySelectorAll("[data-cat-swatch]").forEach((el) => {
+    const category = el.dataset.catSwatch;
+    const record = active?.records.find((r) => r.category === category);
+    el.style.background = record ? colourFor(record) : (CATEGORY_COLOURS[category] || "#8a8a8a");
+  });
+}
+
+/**
+ * Re-ink everything that carries a colour, from `colourFor`'s current answer:
+ * the dot vertex colours, every ring mesh's per-segment colours, the baked
+ * tag textures (dropped; the next `updateLabels` redraws them under their new
+ * colour) and the tab's category swatches. This is what `layer.repaint` calls
+ * after the symbology dialog has written each record's choice.
+ */
+function recolourAll() {
+  if (!active) return;
+  const colour = new THREE.Color();
+  const dotColours = active.geometry.attributes.color;
+  active.records.forEach((record, i) => {
+    colour.set(colourFor(record));
+    dotColours.setXYZ(i, colour.r, colour.g, colour.b);
+  });
+  dotColours.needsUpdate = true;
+  (active.rings?.userData.ringMeshes || []).forEach((mesh) => {
+    const attr = mesh.geometry.attributes.color;
+    (mesh.userData.segmentOwner || []).forEach((owner, seg) => {
+      colour.set(colourFor(owner));
+      attr.setXYZ(seg * 2, colour.r, colour.g, colour.b);
+      attr.setXYZ(seg * 2 + 1, colour.r, colour.g, colour.b);
+    });
+    attr.needsUpdate = true;
+  });
+  active.labels.forEach((sprite) => {
+    sprite.material.map?.dispose?.();
+    sprite.material.dispose?.();
+    active.labelGroup.remove(sprite);
+  });
+  active.labels.clear();
+  refreshCategorySwatches();
   updateLabels();
 }
 
@@ -970,7 +1028,7 @@ async function start() {
   const colour = new THREE.Color();
   const colours = new Float32Array(records.length * 3);
   records.forEach((record, i) => {
-    colour.set(CATEGORY_COLOURS[record.category] || "#8a8a8a");
+    colour.set(colourFor(record));
     colours.set([colour.r, colour.g, colour.b], i * 3);
   });
   geometry.setAttribute("color", new THREE.Float32BufferAttribute(colours, 3));
@@ -1031,6 +1089,19 @@ async function start() {
     return false;
   }
   layer.featureNoun = "Satellite";
+  /**
+   * The seam the symbology dialog speaks: `features` to read columns from,
+   * `repaint` taking a colour-of-feature function (a CSS string per feature,
+   * the vector contract), and `cataloguePalette` so opening the dialog on
+   * the category column proposes the colours the layer already wears rather
+   * than the generic qualitative ramp.
+   */
+  layer.features = records.map((record) => record.feature);
+  layer.repaint = (colourOf) => {
+    records.forEach((record) => { record.colour = colourOf(record.feature) || null; });
+    recolourAll();
+  };
+  layer.cataloguePalette = { field: "category", colours: { ...CATEGORY_COLOURS } };
 
   active = {
     records, geometry, fill, group, labelGroup, layer, legendInfo,
@@ -1046,6 +1117,9 @@ async function start() {
   say(`${records.length} satellites live at their real altitudes — refreshing `
     + `every ${REFRESH_MS / 1000} s.`);
   if (document.getElementById("satellites-orbits")?.checked) setRings(true);
+  // A fresh start wears the defaults; the swatches must say so even if a
+  // previous session's symbology had repainted them.
+  refreshCategorySwatches();
   return true;
 }
 
@@ -1128,6 +1202,16 @@ function init() {
   caption();
   labelSlider?.addEventListener("input", caption);
   labelSlider?.addEventListener("change", () => setLabelLevel(Number(labelSlider.value)));
+  // The same dialog every catalogue layer opens, pointed at the live layer.
+  document.getElementById("satellites-symbology")?.addEventListener("click", async () => {
+    const layer = layerOf();
+    if (!layer) {
+      say("Turn the tracker on first — symbology colours the live layer.");
+      return;
+    }
+    const dialog = await import("./symbology-dialog.js?v=20260826-52d53fd");
+    dialog.openSymbologyDialog(layer);
+  });
   // The layer box can remove the layer without asking: the tracker must not
   // go on ticking a corpse, and the box must not claim a layer that is gone.
   window.GeoIDImportManager?.onChange?.(() => {

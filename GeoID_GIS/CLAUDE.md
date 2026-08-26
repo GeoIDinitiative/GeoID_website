@@ -840,6 +840,30 @@ assigns by frequency, and filtering changes the frequencies). The type list
 draws on the `symbology` announce event, because the legend it is built from
 lands a beat after the layer registers.
 
+**The satellites open the ordinary symbology dialog.** The tab's Symbology
+button hands the live layer to `openSymbologyDialog`, wired through three
+things on the layer: `features` (the records' own feature objects, whose
+properties tick() refreshes), `repaint` (the vector contract — a
+colour-of-feature function returning a CSS string — which writes each
+record's `colour` and calls `recolourAll()`: dot vertex colours, every ring
+mesh's per-segment colours, the baked tag textures dropped for redraw, and
+the tab's category swatches), and `cataloguePalette` so opening on the
+category column proposes the colours the layer already wears. Everything
+that inks a colour goes through `colourFor(record)` — the dialog's choice,
+else `CATEGORY_COLOURS` — so rings built after a paint inherit it and rings
+built before are rewritten in place. The default palette is VIVID on
+purpose (the pastel first draft was reported as indistinguishable);
+OneWeb stays muted because 650 identical dots flood any hue.
+
+**CelesTrak escalates from throttle to 403.** Rapid parallel queries get
+empty 200s; sustained volume (a day of testing) gets **403 Forbidden for
+the whole IP**, curl and browser alike, lasting hours. The tab reports it
+as "CelesTrak did not answer." — that status is the diagnosis, not a bug.
+To verify satellite features while blocked, snapshot or synthesise TLEs
+(vary catalog number + RAAN off a known-good line, recompute the mod-10
+digit-sum checksum), serve them locally and monkeypatch `window.fetch` for
+celestrak URLs in the page.
+
 Three traps, all found by measuring:
 
 - **The import COPIES the collection** (`importFileList` serialises to a
