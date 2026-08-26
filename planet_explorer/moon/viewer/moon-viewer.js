@@ -198,10 +198,14 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
     const ringLabelData = [];
     // Earth–Moon system: Moon orbits Earth at world origin.
     // Earth radius is 3.6745× Moon's. Moon globe is 3.2 scene units → Earth = 11.76.
-    // Real distance ratio is ~221× Moon radii (>700 scene units); we use a
-    // representative compressed distance of 70 so both bodies stay in frame.
+    // At the REAL distance: 384,400 km is ~221 Moon radii, 708 scene units.
+    // It was compressed to 70 "so both bodies stay in frame", and the Earth
+    // page has since moved ITS Moon to the true separation — the two viewers
+    // describing the same pair of bodies at different distances is the kind
+    // of disagreement somebody eventually screenshots. From the Moon, Earth
+    // now subtends ~1.9°, which is what an astronaut actually sees.
     const EARTH_SCENE_RADIUS = 11.76;
-    const EARTH_MOON_ORBIT_DIST = 70;
+    const EARTH_MOON_ORBIT_DIST = 708;
     const moonData = [];
     const EARTH_SYSTEM_FEATURE = Object.freeze({
       name: "Earth",
@@ -6401,11 +6405,12 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       const starCount = 5000;
       const positions = new Float32Array(starCount * 3);
       // Matches the other planet viewers (radius range + sizeAttenuation) but
-      // scaled out by the Earth–Moon system size so the camera never enters the
-      // star volume. Other viewers use 140–320 with max camera ≈80 (ratio ≈1.75×);
-      // here max camera reach is ≈320, so we keep the same ratio with 700–1500.
+      // scaled out past the WHOLE Earth–Moon system: Earth sits at its real
+      // 708 units now, and a shell starting at 700 embedded it in the stars —
+      // the exact fault the Earth page fixed the day its Moon moved out.
+      // 1150–1900 clears Earth and stays inside the 2000 far plane.
       for (let i = 0; i < starCount; i += 1) {
-        const radius = 700 + Math.random() * 800;
+        const radius = 1150 + Math.random() * 750;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos((Math.random() * 2) - 1);
         positions[(i * 3)] = radius * Math.sin(phi) * Math.cos(theta);
@@ -6417,7 +6422,7 @@ import { moonLatLonToVector3, makeLabelTexture, isVolcanicMoonFeature, isCraterM
       geometry.setAttribute("position", new THREERef.BufferAttribute(positions, 3));
       const material = new THREERef.PointsMaterial({
         color: 0xf3f7ff,
-        size: 2.8,
+        size: 4.4,
         sizeAttenuation: true,
         depthWrite: false,
       });
