@@ -739,6 +739,32 @@ displaced, growing with the clock, and nothing anywhere said why.
 label claimed it — a label and the feature it names occupy the same ground,
 and two cards for one click was the alternative.
 
+## The Geology tab is subsections, and dead controls are gone
+
+The tab's top level held a dropdown, an "Add to globe" button, a manual
+"Refresh for this view", a permanently greyed "Structures and faults" row and
+an unimplemented mineral-map pair. What remains is three subsections —
+**Geology** (one tick: the Macrostrat tiled world geology, which loads on
+tick, refines itself when the view settles, and unloads on untick),
+**Tectonics** and **Volcanoes**.
+
+- The dropdown was a list of one once its other entries found homes: the
+  Macrostrat **contacts-and-faults line layer is a row in Tectonics** now
+  (appended by `catalogue-panels.js` after `renderCatalogue`, because it is a
+  tile service driven by `geology-panel.js`'s machinery, not a file
+  `global-data.js` could list). Its row matches the layer by dataset id AND
+  name — `geologyDataset` is stamped a beat after the layer registers, and
+  the redraw fires in between.
+- The subsection tick and the header master box answer DIFFERENT questions:
+  the tick is "is the world geology on the globe" and unloads only the units
+  layer — unticking it must not take the contacts-and-faults out of the
+  Tectonics list where somebody else put it on. The header box keeps its
+  all-mapped-geology meaning.
+- The greyed structures row and the mineral controls are removed from view;
+  their INPUTS stay in the page hidden, because `earth-viewer.js` reads
+  `geology-structures-toggle`, `mineral-select` and `mineral-opacity`
+  unguarded at boot — the same trap `geology-toggle` documents.
+
 ## The catalogue is filed by SUBJECT, not by file format
 
 Data · Vectors & Shapes began as the one list of everything, which made it a

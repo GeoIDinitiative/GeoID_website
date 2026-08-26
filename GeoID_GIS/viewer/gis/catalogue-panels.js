@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, datasetById, layerForDataset,
-} from "./global-data.js?v=20260826-148456a";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-148456a";
+} from "./global-data.js?v=20260826-ff43a5e";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-ff43a5e";
 
 const byId = (id) => document.getElementById(id);
 
@@ -73,6 +73,62 @@ function draw(home, hostId) {
 
 function drawAll() {
   Object.entries(HOMES).forEach(([home, hostId]) => draw(home, hostId));
+  drawMacrostratLines();
+}
+
+/**
+ * The Macrostrat contacts-and-faults layer, as a row in Tectonics.
+ *
+ * It lived in the Geology dropdown, which is gone — a fault trace belongs
+ * beside the plate boundaries and the GEM faults, not behind a picker on
+ * another subsection. It cannot be a `global-data.js` entry because it is not
+ * a file: it is the tile service's line layer, loaded and refreshed by
+ * `geology-panel.js`'s own machinery, so the row talks to that module and is
+ * appended after `renderCatalogue` has drawn the ordinary rows (which
+ * replaces the host's children, so this runs on every redraw).
+ */
+const MACROSTRAT_LINES = "macrostrat-lines";
+
+function drawMacrostratLines() {
+  const host = byId("tectonics-catalogue");
+  const geo = window.GeoIDGeology;
+  if (!host || !geo?.load) return;
+  // By dataset id AND by name: `geologyDataset` is stamped a beat after the
+  // layer registers, and the layer-change event that redraws this row fires
+  // in between — matched by id alone, the fresh row read "not loaded" for a
+  // layer that was, and the tick unchecked itself while the lines drew.
+  const layerOf = () => (window.GeoIDImportManager?.getLayers?.() || [])
+    .find((l) => l.geologyDataset === MACROSTRAT_LINES
+      || l.name === "World contacts and faults (Macrostrat)");
+  const row = document.createElement("div");
+  row.className = "gis-catalogue-row";
+  const tick = document.createElement("input");
+  tick.type = "checkbox";
+  tick.id = "gis-cat-macrostrat-lines";
+  tick.checked = Boolean(layerOf());
+  const name = document.createElement("label");
+  name.className = "gis-catalogue-name";
+  name.htmlFor = tick.id;
+  name.textContent = "World contacts and faults (Macrostrat)";
+  name.title = "The lines the source maps draw between units — contacts, thrusts, "
+    + "normal faults — from the Macrostrat Burwell compilation, CC BY 4.0. "
+    + "Tiled: follows the view like the world geology does.";
+  tick.addEventListener("change", async () => {
+    if (tick.checked) {
+      say("tectonics-catalogue", "Loading contacts and faults…");
+      await geo.load(MACROSTRAT_LINES);
+      say("tectonics-catalogue", "World contacts and faults added. Macrostrat, CC BY 4.0.");
+    } else {
+      const layer = layerOf();
+      // A tiled layer holds GPU buffers for every tile it has built, and
+      // removing the record does not free them.
+      layer?.tiled?.dispose?.();
+      if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+      say("tectonics-catalogue", "Contacts and faults taken off the globe.");
+    }
+  });
+  row.append(tick, name);
+  host.appendChild(row);
 }
 
 /**

@@ -28,10 +28,10 @@
  *   to the one the list has, not a second source of truth.
  */
 
-import { QUALITATIVE_RAMP } from "./symbology.js?v=20260826-148456a";
-import { currentBodyId } from "./bodies.js?v=20260826-148456a";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-148456a";
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-148456a";
+import { QUALITATIVE_RAMP } from "./symbology.js?v=20260826-ff43a5e";
+import { currentBodyId } from "./bodies.js?v=20260826-ff43a5e";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260826-ff43a5e";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-ff43a5e";
 
 /* ── The catalogue ───────────────────────────────────────────────────────────
  *
@@ -1085,113 +1085,114 @@ async function setActive(on) {
 }
 
 export function init() {
-  const host = document.getElementById("geology-section");
+  /**
+   * One tick, in the tab's own "Geology" subsection.
+   *
+   * The panel used to be a dropdown, an "Add to globe" button and a manual
+   * "Refresh for this view" — three controls for a layer whose whole design
+   * is that it needs none of them: the Macrostrat base is TILED, so it loads
+   * whole on tick, refines itself when the view settles, and unloads on
+   * untick. The dropdown's other entries have their own homes now (the
+   * Macrostrat contacts-and-faults line layer is a row in the Tectonics
+   * subsection; the NI sheets load by id from the NI prototype tab), so what
+   * remained here was a list of one — and a list of one is a tick box.
+   */
+  const host = document.getElementById("geology-world-body");
   if (!host || document.getElementById("gis-geology-panel")) return false;
-  const body = host.querySelector(".section-body .control-stack") || host.querySelector(".section-body");
-  if (!body) return false;
   installStyle();
 
   panel = document.createElement("div");
   panel.id = "gis-geology-panel";
 
-  const intro = document.createElement("div");
-  intro.className = "section-summary-copy";
-  intro.textContent = "Mapped geology as vector units: choose what to colour by, "
-    + "and click a polygon to read what it is.";
+  const row = document.createElement("div");
+  row.className = "gis-catalogue-row";
+  const tick = document.createElement("input");
+  tick.type = "checkbox";
+  tick.id = "gis-cat-macrostrat-units";
+  const name = document.createElement("label");
+  name.className = "gis-catalogue-name";
+  name.htmlFor = tick.id;
+  name.textContent = GLOBAL_BASE?.label || "World geology";
+  if (GLOBAL_BASE?.credit) name.title = GLOBAL_BASE.credit;
+  row.append(tick, name);
 
-  // What the base is, stated rather than implied. A tab that silently shows two
-  // Northern Irish sheets invites the reading that this is world coverage.
   const base = document.createElement("div");
   base.className = "gis-geo-base";
   base.textContent = GLOBAL_BASE
-    ? `Base: ${GLOBAL_BASE.label} — tiled, so it follows the view: the world `
-      + "when you are looking at the world, one survey's detail when you fly in."
-    : "No global base yet — regional surveys only. "
-      + "A merged world geology will sit under these when it exists.";
-
-  const pickRow = document.createElement("div");
-  pickRow.className = "row";
-  const pickLabel = document.createElement("label");
-  pickLabel.textContent = "Dataset";
-  pickLabel.setAttribute("for", "gis-geology-dataset");
-  const select = document.createElement("select");
-  select.id = "gis-geology-dataset";
-  select.className = "input";
-  offered().forEach((entry) => {
-    const o = document.createElement("option");
-    o.value = entry.id;
-    o.textContent = entry.label;
-    select.appendChild(o);
-  });
-  pickRow.append(pickLabel, select);
-
-  const buttons = document.createElement("div");
-  buttons.className = "gis-btn-row";
-  const add = document.createElement("button");
-  add.type = "button";
-  add.className = "tool-button";
-  add.textContent = "Add to globe";
-  add.addEventListener("click", () => {
-    const entry = entryById(select.value);
-    if (entry) void loadDataset(entry);
-  });
-  const refresh = document.createElement("button");
-  refresh.type = "button";
-  refresh.className = "tool-button";
-  refresh.textContent = "Refresh for this view";
-  refresh.title = "Rebuild the tiled world geology now, at the resolution this "
-    + "view deserves — it also does this by itself when the view settles";
-  refresh.addEventListener("click", () => { void refreshDynamic(); });
-  buttons.append(add, refresh);
+    ? "Tiled, so it follows the view by itself: the world when you are looking "
+      + "at the world, one survey's detail when you fly in. Click a polygon to "
+      + "read what it is."
+    : `No mapped geology for ${currentBodyId()} yet.`;
 
   const loaded = document.createElement("div");
   loaded.id = "gis-geology-loaded";
   const status = document.createElement("div");
   status.id = "gis-geology-status";
 
-  panel.append(intro, base, pickRow, buttons, loaded, status);
-  // Above the legacy bathymetry controls: this is what the tab is for now.
-  body.insertBefore(panel, body.firstChild);
-  nodes = { select, loaded, status };
+  panel.append(row, base, loaded, status);
+  host.appendChild(panel);
+  nodes = { loaded, status };
 
   window.GeoIDImportManager?.onChange?.(render);
   render();
-  /**
-   * The tab's tick box governs the mapped geology, rather than it arriving
-   * whether or not anybody asked.
-   *
-   * Preloading two 1.4 MB sheets on every page open is a decision made for the
-   * user: it costs the first frames of a page nobody has touched, and there was
-   * no way to say no -- unticking did nothing because nothing was listening.
-   * First tick loads; after that it is a visibility switch, so the second tick
-   * is instant and the parse is paid once.
-   */
-  if (!offered().length) {
-    base.textContent = `No mapped geology for ${currentBodyId()} yet.`;
-    pickRow.hidden = true;
-    buttons.hidden = true;
-  }
 
   /**
    * Whoever switched a layer, this panel follows it.
    *
    * The clickable catalogue is filtered by visibility, so a sheet switched off
    * in the layer list went on answering clicks until something else happened to
-   * republish it -- the map said one thing and the popup another. The tab's own
-   * tick box is the fourth surface: `isActive()` is "any mapped geology still
-   * showing", so switching the last sheet off anywhere clears it.
+   * republish it -- the map said one thing and the popup another. Both tick
+   * boxes — the tab header's and the subsection's — are the same state:
+   * `isActive()` is "any mapped geology still showing", so switching the last
+   * sheet off anywhere clears them.
    */
+  const master = document.getElementById("geology-master-toggle");
+  /**
+   * The two boxes answer two different questions.
+   *
+   * The subsection tick is "is the WORLD GEOLOGY on the globe" — it loads and
+   * unloads only the Macrostrat units layer, because unticking it must not
+   * take the contacts-and-faults layer out of the Tectonics list where
+   * somebody else put it on. The header box is the tab's master switch and
+   * keeps its all-mapped-geology meaning.
+   */
+  const unitsLayer = () => loadedLayers().find((l) => l.geologyDataset === GLOBAL_BASE?.id);
+  const syncTicks = () => {
+    const units = unitsLayer();
+    tick.checked = Boolean(units && units.visible !== false);
+    if (master) master.checked = isActive();
+  };
   window.addEventListener("geoid-gis:layers-changed", (event) => {
     if (event.detail?.reason !== "visibility") return;
     render();
     publishInteractive();
-    const box = document.getElementById("geology-master-toggle");
-    if (box) box.checked = isActive();
+    syncTicks();
   });
 
-  const master = document.getElementById("geology-master-toggle");
-  master?.addEventListener("change", () => { void setActive(master.checked); });
-  if (master?.checked) void setActive(true);
+  tick.addEventListener("change", async () => {
+    if (tick.checked) {
+      if (!GLOBAL_BASE) return;
+      say("Loading mapped geology…");
+      await loadDataset(GLOBAL_BASE);
+      holdGlobeStill(true);
+    } else {
+      const layer = unitsLayer();
+      // A tiled layer holds GPU buffers for every tile it has built, and
+      // removing the record does not free them.
+      layer?.tiled?.dispose?.();
+      if (layer) window.GeoIDImportManager?.removeLayer?.(layer.id);
+      if (!loadedLayers().length) stopWatchingView();
+      say("World geology put away — tick the box to bring it back.");
+    }
+    render();
+    publishInteractive();
+    syncTicks();
+  });
+  master?.addEventListener("change", async () => {
+    await setActive(master.checked);
+    syncTicks();
+  });
+  if (master?.checked) void setActive(true).then(syncTicks);
   return true;
 }
 
