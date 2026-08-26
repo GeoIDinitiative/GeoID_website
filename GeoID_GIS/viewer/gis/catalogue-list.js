@@ -18,12 +18,13 @@
  * in extraction and in export without this file knowing anything about them.
  */
 
-import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-2e5d2d6";
+import { openSymbologyDialog } from "./symbology-dialog.js?v=20260826-b0d008f";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
 .gis-catalogue { display: flex; flex-direction: column; gap: 0.12rem; }
 .gis-catalogue-group {
+  font-size: 0.6rem;
   font: 500 0.56rem/1.4 'Exo 2', sans-serif;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -33,8 +34,8 @@ const STYLE = `
 .gis-catalogue-row {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.12rem 0.15rem;
+  gap: 0.4rem;
+  padding: 0.2rem 0.25rem;
   border-radius: 0.25rem;
 }
 .gis-catalogue-row:hover { background: rgba(255, 255, 255, 0.05); }
@@ -45,7 +46,8 @@ const STYLE = `
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font: 400 0.62rem/1.35 'Exo 2', sans-serif;
+  font: 400 0.72rem/1.4 'Exo 2', sans-serif;
+  cursor: pointer;
 }
 .gis-catalogue-row.is-busy .gis-catalogue-name { opacity: 0.6; font-style: italic; }
 .gis-catalogue-sym {
@@ -75,11 +77,13 @@ const STYLE = `
 .gis-catalogue-drop > summary {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.28rem 0.45rem;
+  gap: 0.45rem;
+  padding: 0.38rem 0.55rem;
   cursor: pointer;
   list-style: none;
-  font: 500 0.62rem/1.35 'Exo 2', sans-serif;
+  font: 600 0.68rem/1.35 'Exo 2', sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 .gis-catalogue-drop > summary::-webkit-details-marker { display: none; }
 .gis-catalogue-drop > summary::after {
@@ -92,7 +96,9 @@ const STYLE = `
 .gis-catalogue-drop[open] > summary::after { transform: rotate(180deg); }
 .gis-catalogue-drop > summary:hover { background: rgba(var(--nav-accent-rgb), 0.08); }
 .gis-catalogue-count {
-  font: 400 0.56rem/1.35 'Exo 2', sans-serif;
+  font: 400 0.6rem/1.35 'Exo 2', sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
   opacity: 0.65;
 }
 /* The scroll lives on the BODY, not on the disclosure: a max-height on the
@@ -178,7 +184,7 @@ export function renderCatalogue(host, entries, hooks) {
     const key = host.id || hooks.title;
     const drop = document.createElement("details");
     drop.className = "gis-catalogue-drop";
-    drop.open = openState.get(key) ?? false;
+    drop.open = openState.get(key) ?? true;
     drop.addEventListener("toggle", () => openState.set(key, drop.open));
     const summary = document.createElement("summary");
     const name = document.createElement("span");
@@ -241,7 +247,9 @@ export function renderCatalogue(host, entries, hooks) {
     name.textContent = entry.label;
     if (entry.title) name.title = entry.title;
 
-    row.append(tick, name);
+    // Name first, tick LAST: the ticks line up down the row's right edge,
+    // the same side every section header keeps its master toggle.
+    row.append(name);
 
     // There is no Names button any more: a layer whose data ranks its points
     // gets names automatically the moment it is on the globe (point-labels.js
@@ -261,6 +269,7 @@ export function renderCatalogue(host, entries, hooks) {
       sym.addEventListener("click", () => hooks.symbology(layer));
       row.appendChild(sym);
     }
+    row.appendChild(tick);
     list.appendChild(row);
   });
 }
