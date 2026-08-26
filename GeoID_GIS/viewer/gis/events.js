@@ -13,7 +13,7 @@
 import {
   SOURCES, sourceById, usgsPoints, magnitudeSize, recencyOpacity, magnitudeColour,
   activeGroups, sourcesInGroup, groupState, defaultEnabled, restoreSources,
-} from "./event-sources.js?v=20260826-820cd84";
+} from "./event-sources.js?v=20260826-3c714bf";
 
 const API = "https://eonet.gsfc.nasa.gov/api/v3/events";
 
@@ -550,6 +550,84 @@ const SHORT_LIST = 12;
 let expandedGroup = null;
 /** Where somebody had got to in that list, kept across the 5-minute refresh. */
 let expandedScroll = 0;
+/**
+ * Which PAGE the drop-down is showing: "categories" is the grouped view
+ * above; "recent" is the live feed — every event in one list, newest
+ * first, each row carrying its icon and how long ago it happened.
+ */
+let panelView = "categories";
+let recentScroll = 0;
+
+/**
+ * "now", "12 min", "3 h", "2 d" — the resolution a live feed reads at.
+ * EONET events carry an ISO `date`; USGS quakes carry epoch-ms `timeMs`.
+ */
+function eventWhenMs(event) {
+  if (Number.isFinite(event.timeMs)) return event.timeMs;
+  const parsed = Date.parse(event.date);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function agoText(ms) {
+  if (!ms) return "";
+  const minutes = Math.round((Date.now() - ms) / 60000);
+  if (!Number.isFinite(minutes) || minutes < 0) return "";
+  if (minutes < 1) return "now";
+  if (minutes < 90) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} h`;
+  return `${Math.round(hours / 24)} d`;
+}
+
+function viewTabsHtml() {
+  const tab = (id, label) => `<button type="button" class="event-view-tab`
+    + `${panelView === id ? " is-active" : ""}" data-view="${id}">${label}</button>`;
+  return `<div class="event-view-tabs">${tab("categories", "By category")}${tab("recent", "Live feed")}</div>`;
+}
+
+function renderRecent(panel) {
+  const sorted = [...events].sort((a, b) => eventWhenMs(b) - eventWhenMs(a));
+  panel.innerHTML = `${viewTabsHtml()}
+    <div class="event-group is-open">
+      <div class="event-group-scroll event-recent-scroll">${sorted.map((event) => {
+        const symbol = symbolFor(event.categoryId || "other");
+        return `<div class="event-row" data-id="${event.id}" title="${event.title}">
+            <span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>
+            <span class="event-name">${event.title}</span>
+            <span class="event-when">${agoText(eventWhenMs(event))}</span>
+          </div>`;
+      }).join("")}</div>
+    </div>`;
+  const box = panel.querySelector(".event-recent-scroll");
+  if (box) {
+    box.scrollTop = recentScroll;
+    box.addEventListener("scroll", () => { recentScroll = box.scrollTop; });
+  }
+}
+
+function wireViewTabs(panel) {
+  panel.querySelectorAll(".event-view-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      if (panelView === tab.dataset.view) return;
+      panelView = tab.dataset.view;
+      renderPanel();
+    });
+  });
+}
+
+function wireRows(panel) {
+  // A row and its marker are the same event, so clicking either does the same
+  // thing: bring it into view, ring it, and open its description.
+  panel.querySelectorAll(".event-row").forEach((row) => {
+    row.addEventListener("click", () => {
+      const event = events.find((e) => e.id === row.dataset.id);
+      if (!event) return;
+      selectEvent(event);
+      panel.querySelectorAll(".event-row").forEach((r) => r.classList.remove("is-selected"));
+      row.classList.add("is-selected");
+    });
+  });
+}
 
 function eventRowHtml(event, symbol) {
   return `<div class="event-row" data-id="${event.id}" title="${event.title}">
@@ -569,6 +647,12 @@ function renderPanel() {
       + 'Switch more on under <strong>Events</strong> in the sidebar.</p>';
     return;
   }
+  if (panelView === "recent") {
+    renderRecent(panel);
+    wireViewTabs(panel);
+    wireRows(panel);
+    return;
+  }
   const groups = new Map();
   events.forEach((event) => {
     const key = event.categoryId || "other";
@@ -581,7 +665,7 @@ function renderPanel() {
   const open = groups.has(expandedGroup) ? expandedGroup : null;
   expandedGroup = open;
 
-  panel.innerHTML = ordered.map(([key, list]) => {
+  panel.innerHTML = viewTabsHtml() + ordered.map(([key, list]) => {
     const symbol = symbolFor(key);
     const label = symbol.label !== FALLBACK.label ? symbol.label : (list[0].categoryTitle || "Other");
     const glyph = `<span class="event-glyph" style="color:${symbol.colour}">${symbol.glyph}</span>`;
@@ -641,17 +725,8 @@ function renderPanel() {
     box.addEventListener("scroll", () => { expandedScroll = box.scrollTop; });
   }
 
-  // A row and its marker are the same event, so clicking either does the same
-  // thing: bring it into view, ring it, and open its description.
-  panel.querySelectorAll(".event-row").forEach((row) => {
-    row.addEventListener("click", () => {
-      const event = events.find((e) => e.id === row.dataset.id);
-      if (!event) return;
-      selectEvent(event);
-      panel.querySelectorAll(".event-row").forEach((r) => r.classList.remove("is-selected"));
-      row.classList.add("is-selected");
-    });
-  });
+  wireViewTabs(panel);
+  wireRows(panel);
 }
 
 /**
@@ -1631,8 +1706,8 @@ async function showTrace(event) {
   }
 
   const [plot, { spectrogram }] = await Promise.all([
-    import("./seismogram-plot.js?v=20260826-820cd84"),
-    import("./research/dsp.js?v=20260826-820cd84"),
+    import("./seismogram-plot.js?v=20260826-3c714bf"),
+    import("./research/dsp.js?v=20260826-3c714bf"),
   ]);
   if (stale()) return;
 

@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260826-820cd84";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260826-820cd84";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260826-820cd84";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260826-820cd84";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260826-3c714bf";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260826-3c714bf";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260826-3c714bf";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260826-3c714bf";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260826-820cd84";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260826-820cd84";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260826-820cd84";
-import { loadMshFile } from "./msh-adapter.js?v=20260826-820cd84";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260826-820cd84";
+} from "./vector-render.js?v=20260826-3c714bf";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260826-3c714bf";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260826-3c714bf";
+import { loadMshFile } from "./msh-adapter.js?v=20260826-3c714bf";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260826-3c714bf";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.

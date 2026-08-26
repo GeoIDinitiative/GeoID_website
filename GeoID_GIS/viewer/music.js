@@ -41,8 +41,8 @@
         audio.play().catch(() => {});
       });
       const btn = document.getElementById("music-btn");
-      audio.addEventListener("play",  () => { btn.textContent = "⏸ MUSIC"; btn.title = "Pause music"; btn.classList.remove("is-paused"); });
-      audio.addEventListener("pause", () => { btn.textContent = "▶ MUSIC"; btn.title = "Play music";  btn.classList.add("is-paused"); });
+      audio.addEventListener("play",  () => { btn.textContent = "⏸"; btn.title = "Pause music"; btn.classList.remove("is-paused"); });
+      audio.addEventListener("pause", () => { btn.textContent = "▶"; btn.title = "Play music";  btn.classList.add("is-paused"); });
       audio.play().catch(() => {
         // Browser blocked autoplay (no prior interaction). Retry on the first user gesture —
         // which happens almost immediately as the user starts exploring the 3D scene.

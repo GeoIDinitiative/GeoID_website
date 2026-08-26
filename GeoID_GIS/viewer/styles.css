@@ -2073,9 +2073,11 @@
       font-weight: 700;
       letter-spacing: 0.12em;
     }
-    /* In the brand row it sits flush right of the title, sized to the row. */
+    /* In the brand row the info button and the pill sit together at the
+       right edge: the info takes the auto margin, the pill rides beside it. */
+    .brand .info-btn { margin-left: auto; }
     .brand #time-rate-toggle {
-      margin-left: auto;
+      margin-left: 0.35rem;
       height: 1.85rem;
       padding: 0 0.5rem;
       font-size: 0.6rem;
@@ -2251,22 +2253,20 @@
        left — so the fixed-position rules written for its old spot must not
        reach it. Two ids outweigh every one of them except the embedded
        rule, overridden by name below. */
-    #top-right-controls #music-btn {
+    .brand-toprow-actions #music-btn,
+    body.is-embedded .brand-toprow-actions #music-btn {
       position: static;
       top: auto;
       left: auto;
       right: auto;
       bottom: auto;
-      height: 1.55rem;
-      width: 100%;
+      height: auto;
+      width: auto;
       justify-content: center;
-      padding: 0.25rem 0.55rem;
-      font-size: 0.6rem;
-      border-radius: 0.5rem;
-    }
-    body.is-embedded #top-right-controls #music-btn {
-      top: auto;
-      left: auto;
+      padding: 0.22rem 0.5rem;
+      font-size: 0.66rem;
+      border-radius: 999px;
+      box-shadow: none;
     }
 
     #spin-toggle:hover,
@@ -4931,6 +4931,37 @@ canvas {
     button.event-group-head:hover { color: var(--nav-accent); }
     .event-group.is-folded { opacity: 0.75; }
     .event-group.is-folded:hover { opacity: 1; }
+    .event-view-tabs {
+      display: flex;
+      gap: 0.3rem;
+      margin: 0 0 0.45rem;
+    }
+    .event-view-tab {
+      flex: 1 1 0;
+      padding: 0.26rem 0;
+      border-radius: 0.35rem;
+      border: 1px solid rgba(var(--nav-accent-rgb), 0.3);
+      background: transparent;
+      color: var(--text);
+      font: 600 0.6rem/1 'Exo 2', sans-serif;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .event-view-tab.is-active {
+      background: rgba(var(--nav-accent-rgb), 0.22);
+      border-color: rgba(var(--nav-accent-rgb), 0.75);
+      color: #ffffff;
+    }
+    .event-when {
+      flex: 0 0 auto;
+      margin-left: auto;
+      font-size: 0.56rem;
+      opacity: 0.6;
+      font-variant-numeric: tabular-nums;
+    }
+    .event-recent-scroll { max-height: 46vh; }
+
     .event-group-scroll {
       /* Short enough that the folded headers above and below it stay in view at
          the panel's own 60vh, tall enough to be worth scrolling. */
