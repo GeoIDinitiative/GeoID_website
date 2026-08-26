@@ -1,4 +1,4 @@
-import { BODIES, currentBodyId } from "./bodies.js?v=20260826-57a9875";
+import { BODIES, currentBodyId } from "./bodies.js?v=20260826-02b987e";
 
 /**
  * The worlds, along the bottom of the GIS page.
@@ -26,11 +26,11 @@ import { BODIES, currentBodyId } from "./bodies.js?v=20260826-57a9875";
 const ORDER = ["mercury", "venus", "earth", "moon", "mars",
   "jupiter", "saturn", "uranus", "neptune", "pluto"];
 
-// Relative sizes, so the strip reads as a solar system rather than a toolbar.
-const SIZES = {
-  mercury: 20, venus: 26, earth: 28, moon: 18, mars: 22,
-  jupiter: 40, saturn: 36, uranus: 30, neptune: 30, pluto: 18,
-};
+// One size for every world. The strip wore relative sizes once — "reads as a
+// solar system, not a toolbar" — and it read as a toolbar with mismatched
+// buttons: Jupiter twice the Moon, targets of different sizes for one kind of
+// action. It IS a toolbar; the icons are equal.
+const ICON_SIZE = 26;
 
 const STRIP_ID = "gis-planet-strip";
 const DOCK_ID = "gis-planet-dock";
@@ -147,7 +147,7 @@ function build() {
       ? body.path
       : `/transit/?destination=${body.id}`;
     node.dataset.planet = body.id;
-    node.style.setProperty("--icon-size", `${SIZES[body.id] || 24}px`);
+    node.style.setProperty("--icon-size", `${ICON_SIZE}px`);
     node.title = body.name;
     node.setAttribute("aria-label", `Open the ${body.name} viewer`);
     if (body.id === here) {
