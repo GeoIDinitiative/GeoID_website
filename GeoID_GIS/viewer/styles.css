@@ -2068,10 +2068,42 @@
       box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
       color: #d5e8ee;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
       font-family: "Exo 2", "Segoe UI", sans-serif;
       font-size: 0.66rem;
       font-weight: 700;
       letter-spacing: 0.12em;
+    }
+    /* In the brand row it sits flush right of the title, sized to the row. */
+    .brand #time-rate-toggle {
+      margin-left: auto;
+      height: 1.85rem;
+      padding: 0 0.5rem;
+      font-size: 0.6rem;
+      box-shadow: none;
+    }
+    /* The broadcast convention: LIVE wears a red pulsing dot. */
+    #time-rate-toggle .live-dot {
+      display: inline-block;
+      width: 0.42rem;
+      height: 0.42rem;
+      border-radius: 50%;
+      background: #ff3b30;
+      box-shadow: 0 0 7px rgba(255, 59, 48, 0.85);
+      animation: geoid-live-pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes geoid-live-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.75); }
+    }
+    /* Paused is a picture, not a word: the old rotation arrows, scored red. */
+    #time-rate-toggle .rate-paused-icon {
+      display: block;
+      width: 1.05rem;
+      height: 1.05rem;
     }
     #time-rate-toggle:hover {
       transform: translateY(-1px);
@@ -2093,6 +2125,20 @@
     /* The scrub button wears the corner chrome; its panel hangs below the
        control cluster. #top-right-controls is fixed, so the panel anchors
        to it with absolute positioning. */
+    #top-center-controls {
+      position: fixed;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 13;
+      pointer-events: auto;
+    }
+    #top-center-controls #time-scrub-panel {
+      right: auto;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
     /* Not an icon: a DIGITAL CLOCK showing the model's time, ticking at
        whatever rate the pill has chosen. Clicking it opens the jump panel. */
     #time-scrub-toggle {
@@ -2183,6 +2229,24 @@
     .time-scrub-actions button:hover {
       background: rgba(82, 228, 232, 0.24);
       color: #ffffff;
+    }
+
+    /* Music lives in the corner cluster now — the space the pill and clock
+       left — so the fixed-position rules written for its old spot must not
+       reach it. Two ids outweigh every one of them except the embedded
+       rule, overridden by name below. */
+    #top-right-controls #music-btn {
+      position: static;
+      top: auto;
+      left: auto;
+      right: auto;
+      bottom: auto;
+      height: 2.55rem;
+      border-radius: 0.62rem;
+    }
+    body.is-embedded #top-right-controls #music-btn {
+      top: auto;
+      left: auto;
     }
 
     #spin-toggle:hover,
@@ -4268,6 +4332,7 @@ canvas {
     body.studio-open #toolbar,
     body.studio-open #tool-rail,
     body.studio-open #top-right-controls,
+    body.studio-open #top-center-controls,
     body.studio-open #music-btn,
     body.studio-open .hub-link { display: none !important; }
 

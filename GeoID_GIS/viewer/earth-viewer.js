@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-02b987e";
+  from "./gis/geo-utils.js?v=20260826-18e8825";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -1129,13 +1129,21 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
      * per call because pauseSpin/resumeSpin sync it and they run from every
      * corner of setup, including before this block's consts would exist.
      */
+    // Paused is a picture, not a word: the rotation arrows the old pause
+    // button wore, with a red score through them.
+    const PAUSED_GLYPH = '<svg class="rate-paused-icon" viewBox="0 0 24 24" aria-hidden="true">'
+      + '<path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46'
+      + 'C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01'
+      + '.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" fill="currentColor"/>'
+      + '<line x1="4.5" y1="19.5" x2="19.5" y2="4.5" stroke="#ff3b30" stroke-width="2.4" stroke-linecap="round"/>'
+      + '</svg>';
     function syncTimeRateBtn() {
       const btn = document.getElementById("time-rate-toggle");
       if (!btn) return;
       if (spinPaused) {
         btn.classList.remove("is-live");
         btn.classList.add("is-paused");
-        btn.textContent = "PAUSED";
+        btn.innerHTML = PAUSED_GLYPH;
         btn.title = "Rotation paused. Click for real time — true rotation, the clock at now.";
         return;
       }
@@ -1145,7 +1153,9 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       // says ×1 instead — the rate is true, the moment is not this one.
       const atNow = Math.abs(getSimulatedUtcMs() - Date.now()) < 60000;
       btn.classList.toggle("is-live", real && atNow);
-      btn.textContent = real ? (atNow ? "LIVE" : "×1") : "×720";
+      btn.innerHTML = real
+        ? (atNow ? '<span class="live-dot"></span><span>LIVE</span>' : "×1")
+        : "×720";
       btn.title = real
         ? (atNow
           ? "Real time: the globe turns at its true rate, the sun and clock read now. Click for the two-minute time-lapse day."
