@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260826-04a17e4";
-import { readHead, validateMapping } from "./delimited.js?v=20260826-04a17e4";
-import { RAMP_NAMES } from "./symbology.js?v=20260826-04a17e4";
+import { CRS_OPTIONS } from "./projection.js?v=20260826-05b623b";
+import { readHead, validateMapping } from "./delimited.js?v=20260826-05b623b";
+import { RAMP_NAMES } from "./symbology.js?v=20260826-05b623b";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -717,7 +717,7 @@ function addButtonFor(role) {
   button.type = "button";
   button.className = "button gis-add-button";
   button.dataset.addRole = role.id;
-  button.textContent = "+ Add data";
+  button.textContent = "+ Data";
   button.title = role.hint;
   button.addEventListener("click", (e) => {
     e.preventDefault();
@@ -731,7 +731,7 @@ function addButtonFor(role) {
     gee.type = "button";
     gee.className = "button secondary gis-gee-button";
     gee.dataset.geeAdd = geeHome;
-    gee.textContent = "Add via GEE…";
+    gee.textContent = "+ GEE";
     gee.title = "Request a Google Earth Engine dataset draped over the globe";
     row.appendChild(gee);
   }
