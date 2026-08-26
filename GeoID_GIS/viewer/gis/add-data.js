@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260826-9cdfb51";
-import { readHead, validateMapping } from "./delimited.js?v=20260826-9cdfb51";
-import { RAMP_NAMES } from "./symbology.js?v=20260826-9cdfb51";
+import { CRS_OPTIONS } from "./projection.js?v=20260826-ee41557";
+import { readHead, validateMapping } from "./delimited.js?v=20260826-ee41557";
+import { RAMP_NAMES } from "./symbology.js?v=20260826-ee41557";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -209,13 +209,12 @@ const STYLE = `
   gap: 0.3rem;
   margin: 0 0 0.5rem;
 }
-.gis-add-row { display: flex; gap: 0.4rem; align-items: stretch; margin: 0 0 0.5rem; }
+.gis-add-row { display: flex; gap: 0.6rem; align-items: stretch; margin: 0.2rem 0 0.7rem; }
 .gis-add-row .button {
   flex: 1 1 0;
   justify-content: center;
   margin: 0;
-  padding-top: 0.42rem;
-  padding-bottom: 0.42rem;
+  padding: 0.42rem 0.6rem;
 }
 `;
 
@@ -728,6 +727,11 @@ function addButtonFor(role) {
 }
 
 export function init() {
+  // The stylesheet used to arrive with the dialog's first open, which left
+  // the add-button ROW unstyled until then: display block, no gap, the two
+  // buttons touching. The buttons are on the page from the start, so their
+  // styles must be too.
+  installStyle();
   ensureMeshGroup();
   const placed = ROLES.map(addButtonFor);
   return placed.some(Boolean);

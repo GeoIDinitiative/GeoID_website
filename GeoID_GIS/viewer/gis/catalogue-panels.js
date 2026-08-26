@@ -29,8 +29,8 @@
 
 import {
   HOMES, grouped, addDataset, datasetById, layerForDataset,
-} from "./global-data.js?v=20260826-9cdfb51";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-9cdfb51";
+} from "./global-data.js?v=20260826-ee41557";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260826-ee41557";
 
 const byId = (id) => document.getElementById(id);
 
