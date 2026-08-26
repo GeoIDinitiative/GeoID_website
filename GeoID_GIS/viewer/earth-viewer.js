@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260826-d76160f";
+  from "./gis/geo-utils.js?v=20260826-0293554";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -1300,40 +1300,7 @@ import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
       window.setInterval(updateCornerClock, 250);
       updateCornerClock();
     }
-    /**
-     * The clock folds into the header edge exactly as the planet bar folds
-     * into the footer: a slim caret, the state remembered, restored without
-     * a transition so a collapsed clock loads collapsed rather than
-     * collapsing itself a moment after arriving.
-     */
-    const CLOCK_COLLAPSE_KEY = "geoid:center-clock-collapsed";
-    const clockDock = document.getElementById("top-center-controls");
-    const clockCollapseBtn = document.getElementById("clock-collapse-toggle");
-    function setClockCollapsed(collapsed) {
-      if (!clockDock || !clockCollapseBtn) return;
-      clockDock.classList.toggle("is-collapsed", collapsed);
-      clockCollapseBtn.setAttribute("aria-expanded", collapsed ? "false" : "true");
-      const label = collapsed ? "Show the clock" : "Hide the clock";
-      clockCollapseBtn.title = label;
-      clockCollapseBtn.setAttribute("aria-label", label);
-      if (collapsed && timeScrubPanel) {
-        timeScrubPanel.hidden = true;
-        timeScrubBtn?.classList.remove("is-active");
-      }
-      try { window.localStorage?.setItem(CLOCK_COLLAPSE_KEY, collapsed ? "1" : "0"); } catch (error) { /* not fatal */ }
-    }
-    clockCollapseBtn?.addEventListener("click", () => {
-      setClockCollapsed(!clockDock?.classList.contains("is-collapsed"));
-    });
-    let storedClockCollapsed = false;
-    try { storedClockCollapsed = window.localStorage?.getItem(CLOCK_COLLAPSE_KEY) === "1"; } catch (error) { /* not fatal */ }
-    if (storedClockCollapsed && timeScrubBtn) {
-      timeScrubBtn.style.transition = "none";
-      setClockCollapsed(true);
-      window.requestAnimationFrame(() => { timeScrubBtn.style.transition = ""; });
-    } else {
-      setClockCollapsed(false);
-    }
+
     document.getElementById("time-scrub-go")?.addEventListener("click", () => {
       // The field is UTC — the clock beside it reads GMT, and a scrub target
       // in local time would land an hour or six off the readout.

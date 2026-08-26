@@ -853,11 +853,11 @@ showing the model's moment at whatever rate the pill chose (250 ms
 writes, so ×720 does not stutter). Its face is the ASCENT corner clock's
 DRAWN seven-segment display (everest/game/hud.js), not a font — lit
 segments with a glow over ghosted unlit ones, the canvas skewed −8° —
-re-inked in this page's data cyan, redrawn only when the text changes. A
-slim caret under it folds it into the header edge exactly as the planet
-bar folds into the footer (state in `geoid:center-clock-collapsed`,
-restored without a transition). Clicking the clock opens the
-SCRUBBER: a UTC datetime field with Go/Now, driving `setSimulatedUtcMs(ms)`
+re-inked in this page's data cyan, redrawn only when the text changes.
+(A collapse caret existed briefly and was removed as clutter — the box is
+date over digits over a small tracked UTC, every row centred, and tracked
+text needs its trailing letter-space pulled back or it sits off-centre.)
+Clicking the clock opens the SCRUBBER: a UTC datetime field with Go/Now, driving `setSimulatedUtcMs(ms)`
 on the seam —
 same rebase as entering real time with an arbitrary target, so the spin
 phase, sun, readout and satellites land on that moment together (verified:

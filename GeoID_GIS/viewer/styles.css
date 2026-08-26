@@ -2140,48 +2140,6 @@
       pointer-events: none;
     }
     #top-center-controls > * { pointer-events: auto; }
-    #top-center-controls #time-scrub-toggle {
-      max-height: 4rem;
-      overflow: hidden;
-      transition: max-height 0.24s ease, opacity 0.16s ease,
-                  padding-top 0.24s ease, padding-bottom 0.24s ease, border-width 0.24s ease;
-    }
-    #top-center-controls.is-collapsed #time-scrub-toggle {
-      max-height: 0;
-      opacity: 0;
-      padding-top: 0;
-      padding-bottom: 0;
-      border-width: 0;
-      pointer-events: none;
-    }
-    #clock-collapse-toggle {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 2.4rem;
-      height: 1.2rem;
-      padding: 0;
-      border: 1px solid rgba(82, 228, 232, 0.38);
-      border-radius: 999px;
-      background: rgba(6, 10, 16, 0.72);
-      backdrop-filter: blur(10px);
-      color: #bdf3f5;
-      font-size: 0.6rem;
-      line-height: 1;
-      cursor: pointer;
-      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-    }
-    #clock-collapse-toggle:hover {
-      border-color: #52e4e8;
-      color: #52e4e8;
-    }
-    #top-center-controls.is-collapsed #clock-collapse-toggle {
-      background: rgba(82, 228, 232, 0.9);
-      border-color: #52e4e8;
-      color: #06222a;
-    }
-    .clock-caret { display: block; transition: transform 0.22s ease; }
-    #top-center-controls.is-collapsed .clock-caret { transform: rotate(180deg); }
     /* The seven-segment face: a canvas, slanted the way an LCD readout is. */
     #scrub-clock-canvas {
       display: block;
@@ -2199,35 +2157,39 @@
        whatever rate the pill has chosen. Clicking it opens the jump panel. */
     #time-scrub-toggle {
       flex-shrink: 0;
-      height: 2.55rem;
-      padding: 0.28rem 0.62rem;
+      height: auto;
+      padding: 0.34rem 0.95rem 0.3rem;
       border-radius: 0.62rem;
-      border: 1px solid rgba(255, 255, 255, 0.14);
-      background: rgba(10, 16, 23, 0.96);
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(82, 228, 232, 0.22);
+      background: rgba(8, 13, 20, 0.96);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28),
+                  inset 0 0 14px rgba(82, 228, 232, 0.05);
       color: #d5e8ee;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.08rem;
+      gap: 0.16rem;
       font-variant-numeric: tabular-nums;
     }
     #time-scrub-toggle .scrub-date {
-      font-size: 0.66rem;
+      font-size: 0.64rem;
       font-weight: 700;
-      letter-spacing: 0.16em;
+      letter-spacing: 0.18em;
+      /* Centre the tracked text: letter-spacing trails the last glyph. */
+      margin-right: -0.18em;
       color: rgba(228, 244, 250, 0.95);
       font-variant-numeric: tabular-nums;
+      line-height: 1;
     }
     #time-scrub-toggle .scrub-utc {
-      font-size: 0.46rem;
+      font-size: 0.44rem;
       font-weight: 700;
-      letter-spacing: 0.32em;
-      /* Centre the tracked text: letter-spacing trails the last glyph. */
-      margin-right: -0.32em;
-      color: rgba(150, 205, 215, 0.7);
+      letter-spacing: 0.34em;
+      margin-right: -0.34em;
+      color: rgba(150, 205, 215, 0.65);
+      line-height: 1;
     }
     #time-scrub-toggle .scrub-time {
       font-size: 0.84rem;
