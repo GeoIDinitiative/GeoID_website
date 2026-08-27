@@ -26,7 +26,7 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260827-80c964b";
+import { runConnector } from "./research/connectors.js?v=20260827-fce9819";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -254,6 +254,25 @@ export const DATASETS = [
     name: "OSM places.geojson",
     summary: "Cities and towns from the Overpass API over the drawn study area "
       + "(a global pull is refused by the service — draw an area first).",
+    licence: "© OpenStreetMap contributors (ODbL)",
+  },
+  {
+    id: "conn-submarine-cables",
+    featureNoun: "Submarine cable",
+    group: "Live services",
+    label: "Submarine cables — live (OpenStreetMap)",
+    connector: "submarine-cables",
+    name: "Submarine cables (OpenStreetMap).geojson",
+    // The cost of the licence-clean source, said where it will be read rather
+    // than discovered: OSM maps 199 named systems against TeleGeography's
+    // roughly 600. submarinecablemap.com is the fuller map and cannot be used
+    // here — it sends no CORS header, so a browser cannot fetch it at all, and
+    // TeleGeography licenses the geocoded data annually (the map itself is
+    // NonCommercial).
+    summary: "The world's named submarine communication cables from the "
+      + "Overpass API — 199 systems, labelled and clickable. Global: a cable "
+      + "is not a thing a study area can usefully clip.",
+    colourBy: "kind",
     licence: "© OpenStreetMap contributors (ODbL)",
   },
   {

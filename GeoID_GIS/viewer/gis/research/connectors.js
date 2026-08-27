@@ -171,6 +171,117 @@ export function usgsWaterToGeoJSON(payload) {
   return { type: "FeatureCollection", features };
 }
 
+// ── Submarine communication cables (OpenStreetMap via Overpass) ───────────────
+/**
+ * The world's submarine cables, from OpenStreetMap.
+ *
+ * NOT from submarinecablemap.com, and both reasons are hard blocks. That
+ * service answers with **no `Access-Control-Allow-Origin` header** — measured,
+ * 200 and 739 KB to curl, unreadable to a browser — so a page cannot fetch it
+ * whatever the licence said. And the licence does not permit it either:
+ * TeleGeography sells an annual licence for the geocoded map data, and the map
+ * is published CC BY-NC-SA (NonCommercial). The public forks of their old repo
+ * are stale (2013–2022) and carry no licence at all, which would be shipping
+ * years-old data scraped from a NonCommercial source.
+ *
+ * OSM is ODbL: free, commercial use included, attribution required. The cost
+ * is coverage, and it is worth stating plainly — measured globally, 656 ways
+ * making **199 named cable systems**, against TeleGeography's roughly 600. So
+ * this is the well-mapped third of the world's cables, not all of them.
+ *
+ * Global rather than bbox-scoped, unlike the other Overpass connector here: a
+ * cable is thousands of kilometres long and clipping it to a study area cuts
+ * the very thing that makes it legible. 656 ways is small enough to ask for.
+ */
+export function submarineCablesUrl() {
+  const query = '[out:json][timeout:180];'
+    + 'way["communication"="line"]["submarine"="yes"];'
+    + "out geom qt;";
+  return `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+}
+
+/**
+ * Ways to one feature per cable SYSTEM.
+ *
+ * A system is mapped as several ways — measured, 656 ways for 199 names, with
+ * MAYA-1 alone appearing three times — so one feature per way would write the
+ * same name on the map three times and count one cable as three. Grouped by
+ * name into a MultiLineString, each system is one feature, one label, one row
+ * in the attribute table and one click.
+ *
+ * `label_rank` is LENGTH, banded: a transoceanic trunk is more significant
+ * than a harbour crossing and its own geometry says so, which keeps the rule
+ * "never invent significance the record does not support". Unnamed ways are
+ * kept — they are real cable on the seabed — at rank 0, so they draw without
+ * ever competing for a name.
+ */
+export function submarineCablesToGeoJSON(payload) {
+  const R = 6371;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const spanKm = (line) => {
+    let km = 0;
+    for (let i = 1; i < line.length; i += 1) {
+      const [x1, y1] = line[i - 1];
+      const [x2, y2] = line[i];
+      const dLat = toRad(y2 - y1);
+      const dLon = toRad(x2 - x1);
+      const a = Math.sin(dLat / 2) ** 2
+        + Math.cos(toRad(y1)) * Math.cos(toRad(y2)) * Math.sin(dLon / 2) ** 2;
+      km += 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+    }
+    return km;
+  };
+
+  const systems = new Map();
+  const unnamed = [];
+  (payload?.elements || []).forEach((el) => {
+    const line = (el?.geometry || [])
+      .filter((n) => Number.isFinite(n?.lon) && Number.isFinite(n?.lat))
+      .map((n) => [n.lon, n.lat]);
+    if (line.length < 2) return;
+    const tags = el.tags || {};
+    const name = (tags.name || "").trim();
+    if (!name) { unnamed.push({ line, tags }); return; }
+    if (!systems.has(name)) systems.set(name, { lines: [], tags });
+    systems.get(name).lines.push(line);
+  });
+
+  const features = [];
+  systems.forEach(({ lines, tags }, name) => {
+    const km = lines.reduce((sum, line) => sum + spanKm(line), 0);
+    // Bands, not a continuous scale: the label engine reads rank 1-5 and the
+    // thresholds are round numbers a reader could check.
+    const rank = km >= 5000 ? 5 : km >= 2000 ? 4 : km >= 500 ? 3 : km >= 100 ? 2 : 1;
+    features.push({
+      type: "Feature",
+      geometry: { type: "MultiLineString", coordinates: lines },
+      properties: {
+        name,
+        kind: "Submarine cable",
+        operator: tags.operator || "",
+        length_km: Number(km.toFixed(1)),
+        segments: lines.length,
+        label_rank: rank,
+      },
+    });
+  });
+  unnamed.forEach(({ line, tags }) => {
+    features.push({
+      type: "Feature",
+      geometry: { type: "LineString", coordinates: line },
+      properties: {
+        name: "",
+        kind: "Submarine cable",
+        operator: tags.operator || "",
+        length_km: Number(spanKm(line).toFixed(1)),
+        segments: 1,
+        label_rank: 0,
+      },
+    });
+  });
+  return { type: "FeatureCollection", features };
+}
+
 // ── OpenStreetMap places (Overpass API) ───────────────────────────────────────
 // Cities, towns and villages in an area. CORS-open, no key. Needs a bbox, so it
 // requires a study area (a global Overpass query would time out).
@@ -340,6 +451,14 @@ export const CONNECTORS = {
     toGeoJSON: usgsWaterToGeoJSON,
     filename: () => "usgs_streamflow.geojson",
     defaults: {},
+  },
+  "submarine-cables": {
+    label: "Submarine cables (OpenStreetMap)",
+    kind: "vector",
+    url: submarineCablesUrl,
+    toGeoJSON: submarineCablesToGeoJSON,
+    filename: () => "submarine_cables.geojson",
+    attribution: "© OpenStreetMap contributors (ODbL)",
   },
   "osm-places": {
     label: "OSM places",

@@ -104,9 +104,40 @@ function legendColour(legend, properties) {
  * UNLABELLED dot (which does not): both must produce the same card for the
  * same volcano, so both go through the same mapping.
  */
+/**
+ * Where a feature's name goes — which for a LINE is not its coordinates.
+ *
+ * A point's anchor is itself. A line's is the middle vertex of its longest
+ * part: a submarine cable is thousands of kilometres of polyline, and reading
+ * `coordinates[0]` off it puts the name at one landfall (and reading
+ * `coordinates[1]` off it, as this did, hands a POSITION ARRAY to something
+ * expecting a number — every label at NaN, and nothing anywhere to say so).
+ *
+ * The MIDDLE rather than the start because a name at the end of a line looks
+ * like it belongs to whatever else is at that coast, and the longest part
+ * rather than the first because a system is often mapped as several ways with
+ * a stub among them.
+ */
+export function labelAnchor(geometry) {
+  const type = geometry?.type;
+  const coords = geometry?.coordinates;
+  if (!Array.isArray(coords)) return null;
+  if (type === "Point") {
+    return Number.isFinite(coords[0]) && Number.isFinite(coords[1]) ? coords : null;
+  }
+  const parts = type === "LineString" ? [coords]
+    : (type === "MultiLineString" ? coords : null);
+  if (!parts?.length) return null;
+  const longest = parts.reduce((best, part) => (
+    Array.isArray(part) && part.length > (best?.length || 0) ? part : best), null);
+  if (!longest?.length) return null;
+  const mid = longest[Math.floor(longest.length / 2)];
+  return Number.isFinite(mid?.[0]) && Number.isFinite(mid?.[1]) ? mid : null;
+}
+
 export function featureToItem(feature, legend = null) {
   const p = feature?.properties || {};
-  const coords = feature?.geometry?.coordinates;
+  const coords = labelAnchor(feature?.geometry);
   if (!coords || !p.name) return null;
   const rank = Number(p.label_rank) || 0;
   const colour = legendColour(legend, p);

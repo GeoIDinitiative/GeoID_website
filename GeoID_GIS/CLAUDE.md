@@ -1665,6 +1665,53 @@ on layers-changed) — measured, not assumed. The layer drawer's tile is
 `.layer-options` opened from the ROW; a probe that greps page-wide
 buttons reads the catalogue's Symbology and misses the drawer entirely.
 
+## Submarine cables, and why NOT from submarinecablemap.com
+
+Asked for TeleGeography's map; shipped OpenStreetMap's, because that request
+is blocked twice over and either block alone is fatal:
+
+- **No CORS.** `submarinecablemap.com/api/v3/cable/cable-geo.json` answers 200
+  with 739 KB to curl and sends **no `Access-Control-Allow-Origin` header**, so
+  a browser cannot read it whatever the licence says. Same wall as
+  EarthScope/IRIS and NOMADS GRIB.
+- **Licence.** TeleGeography sells an annual licence for the geocoded map data;
+  the map itself is CC BY-NC-SA — NonCommercial. The public forks of their old
+  repo are stale (2013–2022) and carry NO licence, so using one would be
+  shipping years-old data scraped from a NonCommercial source.
+
+OSM is ODbL — free, commercial use included, attribution required — and
+Overpass is already a service here. The cost is coverage and it is stated in
+the catalogue row rather than left to be discovered: **199 named systems
+against TeleGeography's roughly 600**, the well-mapped third of the world's
+cables. The tagging is `communication=line` + `submarine=yes` (656 ways);
+`man_made=submarine_cable` exists but is 195 objects with one name among them.
+
+**Global, not bbox-scoped** — unlike the other Overpass connector here, which
+refuses without a study area. A cable is thousands of kilometres long and
+clipping it to a drawn box cuts the very thing that makes it legible; 656 ways
+is small enough to ask for whole (766 KB as GeoJSON).
+
+**One feature per SYSTEM, not per way.** 656 ways carry 199 names — MAYA-1
+alone is three ways — so one feature per way writes the same name on the map
+three times and counts one cable as three. Grouped by name into a
+MultiLineString: one feature, one label, one row, one click. Unnamed ways are
+kept at `label_rank: 0` — real cable on the seabed, never competing for a name.
+`label_rank` is LENGTH in bands, which is significance the geometry itself
+supports: measured, Seabras-1 9,986 km, Southeast Asia-Japan 8,815 km over 6
+parts.
+
+**A LINE's label anchor is not its coordinates.** `featureToItem` read
+`coordinates[1]` as a latitude, which for a LineString is a POSITION ARRAY —
+every label at NaN, silently. `labelAnchor` takes the middle vertex of the
+longest part: the MIDDLE because a name at a line's end reads as belonging to
+whatever else is at that coast, the LONGEST part because a system is often a
+trunk plus a stub and the stub must not claim the name. That one helper is
+what makes labelled polylines work through the engine the volcanoes already
+use — same pill, same declutter, same card — rather than a second one.
+Verified live: 199 label items, every anchor finite, 112 chips surviving the
+declutter, and a click on a cable opening "Submarine cable / Atlantic Crossing
+1 (AC1) Seg.A".
+
 ## Volcanoes, and three services asked about a place
 
 **The Smithsonian catalogue is BAKED** (`services/bake-volcanoes.py` →
