@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260827-465b851";
+  from "./gis/geo-utils.js?v=20260827-bfdcca0";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -17220,6 +17220,155 @@ uniform float uViewportWidth;`,
         const latLon = refinedHit.latLon;
         return { ...hit, localPoint, lat: latLon.lat, lon: latLon.lon, context };
       }
+
+      /* ── Study-area rectangle editing ─────────────────────────────────
+         A drawn box is REVISED in place: drag a corner to resize about the
+         opposite corner, drag an edge to move the whole rectangle. Ground
+         raycasts do all the geometry — the same intersectMeasurementSurface
+         every measure click uses — so there is no second screen-space
+         convention to keep honest. Non-rectangular polygons are left alone:
+         a hand-drawn shape has no corners a rectangle rule may move. */
+      let studyDrag = null;
+      let studyDragLast = 0;
+
+      function rectFromMeasurePoints() {
+        if (measureMode !== "area" || measurePoints.length < 8) return null;
+        const lats = measurePoints.map((p) => p.lat);
+        const lons = measurePoints.map((p) => p.lon);
+        const south = Math.min(...lats);
+        const north = Math.max(...lats);
+        const west = Math.min(...lons);
+        const east = Math.max(...lons);
+        if (east - west > 350) return null;   // wraps the seam; leave it be
+        const epsLat = (north - south) * 0.03 + 1e-6;
+        const epsLon = (east - west) * 0.03 + 1e-6;
+        const onEdge = measurePoints.every((point) =>
+          Math.abs(point.lat - south) < epsLat || Math.abs(point.lat - north) < epsLat
+          || Math.abs(point.lon - west) < epsLon || Math.abs(point.lon - east) < epsLon);
+        return onEdge ? { south, north, west, east } : null;
+      }
+
+      /** Wrapped longitude distance: 359° and 1° are two degrees apart. */
+      function lonDelta(a, b) {
+        return Math.abs((((a - b) % 360) + 540) % 360 - 180);
+      }
+
+      function rebuildStudyRect(bounds) {
+        const south = Math.max(-85, Math.min(bounds.south, bounds.north));
+        const north = Math.min(85, Math.max(bounds.south, bounds.north));
+        let west = Math.min(bounds.west, bounds.east);
+        let east = Math.max(bounds.west, bounds.east);
+        // Translations walk a box across the 0/360 seam; unnormalised it
+        // strands the hit tests, which compare against raycast longitudes
+        // in 0-360. Bring west home and let east ride above it.
+        const home = ((west % 360) + 360) % 360;
+        east += home - west;
+        west = home;
+        if (north - south < 0.05 || east - west < 0.05) return;
+        const corners = [
+          { lat: south, lon: west }, { lat: south, lon: east },
+          { lat: north, lon: east }, { lat: north, lon: west },
+        ];
+        const vertices = [];
+        for (let i = 0; i < 4; i += 1) {
+          const a = corners[i];
+          const b = corners[(i + 1) % 4];
+          const steps = Math.max(1, Math.ceil(Math.max(
+            Math.abs(b.lat - a.lat), Math.abs(b.lon - a.lon))));
+          for (let step = 0; step < steps; step += 1) {
+            vertices.push({
+              lat: a.lat + ((b.lat - a.lat) * step) / steps,
+              lon: a.lon + ((b.lon - a.lon) * step) / steps,
+            });
+          }
+        }
+        activateStudyArea(vertices);
+      }
+
+      /** Pixels as degrees of ground at the current camera height. */
+      function studyDegTolerance(px) {
+        const box = renderer.domElement.getBoundingClientRect();
+        const dist = Math.max(0.05, camera.position.length() - 3.2);
+        const worldPerPixel = (2 * dist * Math.tan((camera.fov * Math.PI) / 360)) / box.height;
+        return (worldPerPixel / 3.2) * (180 / Math.PI) * px;
+      }
+
+      function studyPointerDown(event) {
+        if (event.button !== 0 || measureDrawActive || studyDrag) return;
+        const bounds = rectFromMeasurePoints();
+        if (!bounds) return;
+        const hit = intersectMeasurementSurface(event.clientX, event.clientY);
+        if (!hit) return;
+        const tol = studyDegTolerance(14);
+        const corners = [
+          { lat: bounds.south, lon: bounds.west }, { lat: bounds.south, lon: bounds.east },
+          { lat: bounds.north, lon: bounds.east }, { lat: bounds.north, lon: bounds.west },
+        ];
+        const corner = corners.findIndex((c) =>
+          Math.abs(hit.lat - c.lat) < tol && lonDelta(hit.lon, c.lon) < tol * 1.6);
+        const nearLat = Math.abs(hit.lat - bounds.south) < tol || Math.abs(hit.lat - bounds.north) < tol;
+        const nearLon = lonDelta(hit.lon, bounds.west) < tol || lonDelta(hit.lon, bounds.east) < tol;
+        const withinLat = hit.lat > bounds.south - tol && hit.lat < bounds.north + tol;
+        const withinLon = lonDelta(hit.lon, (bounds.west + bounds.east) / 2)
+          < (bounds.east - bounds.west) / 2 + tol;
+        const onEdge = (nearLat && withinLon) || (nearLon && withinLat);
+        if (corner === -1 && !onEdge) return;
+        studyDrag = {
+          kind: corner >= 0 ? "corner" : "move",
+          corner,
+          start: { lat: hit.lat, lon: hit.lon },
+          orig: { ...bounds },
+        };
+        if (viewerControls) viewerControls.enabled = false;
+        event.preventDefault();
+        event.stopPropagation();
+      }
+
+      function studyPointerMove(event) {
+        if (!studyDrag) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const now = performance.now();
+        if (now - studyDragLast < 60) return;   // a rebuild per frame is enough
+        studyDragLast = now;
+        const hit = intersectMeasurementSurface(event.clientX, event.clientY);
+        if (!hit) return;
+        const o = studyDrag.orig;
+        if (studyDrag.kind === "move") {
+          const dLat = hit.lat - studyDrag.start.lat;
+          // Wrapped: a drag across the seam is a small step, not a lap.
+          const dLon = ((hit.lon - studyDrag.start.lon + 540) % 360) - 180;
+          rebuildStudyRect({
+            south: o.south + dLat, north: o.north + dLat,
+            west: o.west + dLon, east: o.east + dLon,
+          });
+        } else {
+          // The grabbed corner follows the pointer; its opposite holds still.
+          const oppLat = studyDrag.corner < 2 ? o.north : o.south;
+          const oppLon = (studyDrag.corner === 1 || studyDrag.corner === 2) ? o.west : o.east;
+          // The hit longitude in the box's own frame, seam and all.
+          const hitLon = oppLon + (((hit.lon - oppLon + 540) % 360) - 180);
+          rebuildStudyRect({
+            south: Math.min(hit.lat, oppLat), north: Math.max(hit.lat, oppLat),
+            west: Math.min(hitLon, oppLon), east: Math.max(hitLon, oppLon),
+          });
+        }
+      }
+
+      function studyPointerUp(event) {
+        if (!studyDrag) return;
+        studyDrag = null;
+        if (viewerControls) viewerControls.enabled = true;
+        event.preventDefault();
+        event.stopPropagation();
+        // Whoever drew the box (the weather card syncs its size inputs from
+        // this) hears that it changed.
+        document.dispatchEvent(new Event("geoid-study-area-edited"));
+      }
+
+      renderer.domElement.addEventListener("pointerdown", studyPointerDown, true);
+      window.addEventListener("pointermove", studyPointerMove, true);
+      window.addEventListener("pointerup", studyPointerUp, true);
 
       function getMeasurePointContext(pointLike) {
         if (pointLike?.context) {

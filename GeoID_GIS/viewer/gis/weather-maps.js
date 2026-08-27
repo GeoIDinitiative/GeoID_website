@@ -24,9 +24,9 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-465b851";
-import { currentBodyId } from "./bodies.js?v=20260827-465b851";
-import { rectangleVertices } from "./draw-area.js?v=20260827-465b851";
+import { drape } from "./gee.js?v=20260827-bfdcca0";
+import { currentBodyId } from "./bodies.js?v=20260827-bfdcca0";
+import { rectangleVertices } from "./draw-area.js?v=20260827-bfdcca0";
 
 const byId = (id) => document.getElementById(id);
 
@@ -87,6 +87,18 @@ const signedLon = (lon) => ((lon + 540) % 360) - 180;
 function chosenBounds() {
   const mode = byId("weather-extent")?.value || "box";
   if (mode === "box") {
+    // A box already on the globe — dragged, resized, or just drawn — is the
+    // truth; the inputs are how one is created or replaced.
+    const drawn = window.GeoIDViewer?.getExtractionGeometry?.();
+    if (drawn?.vertices?.length && !chosenBounds.forceRebuild) {
+      const lats = drawn.vertices.map((v) => v.lat);
+      const lons = drawn.vertices.map((v) => signedLon(v.lon));
+      return {
+        west: Math.min(...lons), south: Math.min(...lats),
+        east: Math.max(...lons), north: Math.max(...lats),
+      };
+    }
+    chosenBounds.forceRebuild = false;
     /**
      * The clean path: a box DEFINED here — size in km, centred on the view
      * or on typed coordinates — built by the same `rectangleVertices` the
@@ -166,7 +178,9 @@ function tileRange(bounds, zoom) {
 
 /** The finest zoom whose tile count over the box stays inside the budget. */
 function zoomFor(bounds) {
-  for (let zoom = 10; zoom >= 2; zoom -= 1) {
+  // 7 is RainViewer's LAST REAL zoom: measured, every tile from 8 up is one
+  // identical "zoom not supported" placeholder whatever the ground below.
+  for (let zoom = 7; zoom >= 2; zoom -= 1) {
     const r = tileRange(bounds, zoom);
     const count = (r.x1 - r.x0 + 1) * (r.y1 - r.y0 + 1);
     if (count <= MAX_TILES) return zoom;
@@ -448,6 +462,32 @@ function buildCard() {
   });
   byId("weather-box-centre").addEventListener("change", () => {
     byId("weather-box-manual").hidden = byId("weather-box-centre").value !== "manual";
+  });
+  // Changing a size or centre REDRAWS the box at once — the input is the
+  // control, the polygon on the globe is the state, and Fetch reads the
+  // polygon (so a corner-dragged box is fetched as dragged).
+  ["weather-box-width", "weather-box-height", "weather-box-centre",
+    "weather-box-lat", "weather-box-lon"].forEach((id) => {
+    byId(id)?.addEventListener("change", () => {
+      if (byId("weather-extent").value !== "box") return;
+      chosenBounds.forceRebuild = true;
+      const bounds = chosenBounds();
+      if (bounds?.error) say(bounds.error);
+      else say("Box drawn — drag its corners to resize, its edges to move, then Fetch.");
+    });
+  });
+  // A corner drag reports the new size back into the inputs.
+  document.addEventListener("geoid-study-area-edited", () => {
+    const drawn = window.GeoIDViewer?.getExtractionGeometry?.();
+    if (!drawn?.vertices?.length) return;
+    const lats = drawn.vertices.map((v) => v.lat);
+    const lons = drawn.vertices.map((v) => v.lon);
+    const midLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+    const heightKm = (Math.max(...lats) - Math.min(...lats)) * 111.32;
+    const widthKm = (Math.max(...lons) - Math.min(...lons)) * 111.32
+      * Math.cos((midLat * Math.PI) / 180);
+    if (byId("weather-box-width")) byId("weather-box-width").value = Math.round(widthKm);
+    if (byId("weather-box-height")) byId("weather-box-height").value = Math.round(heightKm);
   });
   byId("weather-fetch").addEventListener("click", fetchMap);
   return true;
