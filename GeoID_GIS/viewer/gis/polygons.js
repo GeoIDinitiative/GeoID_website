@@ -1,8 +1,8 @@
 import {
   addDataset, grouped, datasetById, layerForDataset, isCatalogueLayer,
-} from "./global-data.js?v=20260827-b8725c5";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-b8725c5";
-import { geometrySummary } from "./symbology-dialog.js?v=20260827-b8725c5";
+} from "./global-data.js?v=20260827-a703d7f";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-a703d7f";
+import { geometrySummary } from "./symbology-dialog.js?v=20260827-a703d7f";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -148,7 +148,7 @@ function drawCatalogue() {
     // A lid over the list: nine datasets with their group headings filled the
     // panel, and the layers already on the globe — the part you work with —
     // were pushed off the bottom of it.
-    title: "Global catalogue",
+    title: "Overlays",
     // The catalogue owns this lookup: it knows a dataset is loaded under the
     // tidied name once the rename lands, and under the file name before it.
     layerFor: layerForDataset,

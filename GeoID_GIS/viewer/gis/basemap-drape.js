@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260827-b8725c5";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-b8725c5";
-import { isEarth } from "./bodies.js?v=20260827-b8725c5";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260827-b8725c5";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260827-a703d7f";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-a703d7f";
+import { isEarth } from "./bodies.js?v=20260827-a703d7f";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260827-a703d7f";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260827-b8725c5";
+  from "./view-extent.js?v=20260827-a703d7f";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -608,37 +608,38 @@ function buildPanel() {
   // point of them being basemaps.
   listBaseLayerOptions();
 
-  const box = document.createElement("details");
+  /**
+   * A FOOTER under the Basemaps catalogue, not a section of its own.
+   *
+   * This box used to be a "Street map & satellite imagery" collapsible with
+   * a Source select and a whole-globe path — which, once the base-texture
+   * catalogue listed every tile service as a tickable radio, was the same
+   * choice offered twice on one panel and was reported as exactly that.
+   * What survives is only what the catalogue cannot do: the STUDY-AREA
+   * drape (full detail as its own layer), the sharpen-on-zoom toggle, and
+   * the credit + licence lines that track whatever basemap is actually on
+   * the sphere. The whole-globe path lives on in the catalogue tick, which
+   * runs through `watchBaseLayerSelection` and the same `installBaseLayer`.
+   */
+  const box = document.createElement("div");
   box.id = "basemap-drape-tool";
-  box.className = "gis-tool-section";
   box.innerHTML = `
-    <summary>Street map &amp; satellite imagery</summary>
-    <div class="gis-tool-body">
-      <p class="tool-copy">The shipped basemap is one fixed texture at about 8&nbsp;km per pixel.
-        These are live services: OpenStreetMap streets, current Esri satellite imagery.
-        Over the whole globe they are a basemap; over a study area they go down to
-        metres per pixel.</p>
       <div class="row">
-        <label for="basemap-drape-source">Source</label>
+        <label for="basemap-drape-source">Detail from</label>
         <select id="basemap-drape-source" class="mini-select"></select>
-      </div>
-      <div class="row">
-        <label for="basemap-drape-extent">Cover</label>
-        <select id="basemap-drape-extent" class="mini-select">
-          <option value="globe">Whole globe (becomes the basemap)</option>
-          <option value="study">Study area (full detail, as a layer)</option>
-        </select>
       </div>
       <label class="row" for="basemap-drape-refine" style="gap:0.4rem;">
         <input id="basemap-drape-refine" type="checkbox" checked>
         <span>Sharpen as I zoom in</span>
       </label>
-      <button id="basemap-drape-run" class="tool-button" type="button">Add to globe</button>
-      <div id="basemap-drape-status" class="gis-metric">Whole globe becomes the basemap; a study area is added as a layer.</div>
+      <button id="basemap-drape-run" class="tool-button" type="button">Full detail over study area</button>
+      <div id="basemap-drape-status" class="gis-metric">Draws the study area at metres per pixel, as its own layer.</div>
       <div id="basemap-drape-credit" class="gis-metric" hidden></div>
-      <div id="basemap-drape-licence" class="gis-metric" hidden></div>
-    </div>`;
-  host.appendChild(box);
+      <div id="basemap-drape-licence" class="gis-metric" hidden></div>`;
+  // Directly under the catalogue it de-duplicates, above the contour rows.
+  const catalogueStatus = document.getElementById("basemap-catalogue-status");
+  if (catalogueStatus) catalogueStatus.after(box);
+  else host.appendChild(box);
 
   const select = box.querySelector("#basemap-drape-source");
   Object.keys(TILE_SOURCES).forEach((name) => {
@@ -649,7 +650,6 @@ function buildPanel() {
   });
   select.value = DEFAULT_SOURCE;
 
-  const extent = box.querySelector("#basemap-drape-extent");
   const status = box.querySelector("#basemap-drape-status");
   const credit = box.querySelector("#basemap-drape-credit");
   const run = box.querySelector("#basemap-drape-run");
@@ -693,27 +693,12 @@ function buildPanel() {
     const progress = (done, total) => { status.textContent = `Fetching tiles ${done}/${total}…`; };
     status.textContent = "Working out the zoom…";
     try {
-      if (extent.value === "globe") {
-        // A basemap: onto the sphere itself, selected in the dropdown above.
-        const out = await installBaseLayer(source, { onProgress: progress });
-        const viewer = window.GeoIDViewer;
-        const select2 = document.getElementById("base-layer-select");
-        if (select2) {
-          select2.value = out.id;
-          select2.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-        status.textContent = `${source} is now the basemap — ${out.drawn}/${out.tiles} tiles `
-          + `at zoom ${out.zoom} (${showResolution(out)}).`;
-        showCredit(TILE_SOURCES[source].credit);
-        // A basemap texture is one resolution; this is what makes flying in
-        // mean something. Off by default would hide the whole point.
-        if (refine.checked) startRefining({ onStatus: (m) => { status.textContent = m; } });
-      } else {
-        const out = await drapeStudyArea({ source, extent: "study", onProgress: progress });
-        status.textContent = `${out.drawn}/${out.tiles} tiles at zoom ${out.zoom} `
-          + `(${showResolution(out)}). It is in Active Layers.`;
-        showCredit("");   // a study-area drape carries its own credit in the image
-      }
+      // The study-area drape is the one job this footer still owns; making a
+      // source the whole-globe basemap is the catalogue tick above it.
+      const out = await drapeStudyArea({ source, extent: "study", onProgress: progress });
+      status.textContent = `${out.drawn}/${out.tiles} tiles at zoom ${out.zoom} `
+        + `(${showResolution(out)}). It is in Active Layers.`;
+      showCredit("");   // a study-area drape carries its own credit in the image
     } catch (error) {
       status.textContent = error.message;
     } finally {

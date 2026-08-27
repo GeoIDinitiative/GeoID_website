@@ -1071,7 +1071,17 @@ DEM share), **My Data** (Vector & Shapefiles renamed — imports and drawn
 shapes only: the homeless global catalogue of reference shapes, graticule,
 borders, countries and the submarine cables, mounts in Basemaps now via
 the `#polygon-catalogue` host moved into Earth's markup, which also stops
-Earth reference shapes being offered on Mars), then Meshes and Metadata. The
+Earth reference shapes being offered on Mars), then Meshes and Metadata.
+Inside the Basemaps tab the two catalogues are titled for what they hold —
+**Basemaps** (the base-texture radio plus raster overlays, from
+map-layers-panel) over **Overlays** (the vector reference shapes, from
+polygons.js) — and the old "Street map & satellite imagery" collapsible is
+GONE: its whole-globe path was the catalogue tick said twice. What
+survives is a plain FOOTER under the Basemaps catalogue holding only what
+the catalogue cannot do — the study-area detail drape, the sharpen-on-zoom
+toggle, and the credit + licence lines that track `base-layer-select`
+(the attribution discipline lives there; do not remove the footer without
+rehoming those lines). The
 rule that filed it: Live holds what HAPPENED (timestamped feeds), Hazards
 what COULD, Geology what the ground IS — one dataset, one home. Metadata
 stays a single tab on purpose: provenance is a property of a layer, not a

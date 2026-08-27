@@ -1,6 +1,6 @@
-import * as store from "./research/project-store.js?v=20260827-b8725c5";
-import { currentBodyId, currentBody } from "./bodies.js?v=20260827-b8725c5";
-import { ready as shellReady } from "./shell.js?v=20260827-b8725c5";
+import * as store from "./research/project-store.js?v=20260827-a703d7f";
+import { currentBodyId, currentBody } from "./bodies.js?v=20260827-a703d7f";
+import { ready as shellReady } from "./shell.js?v=20260827-a703d7f";
 
 /**
  * The folder button in the sidebar header.

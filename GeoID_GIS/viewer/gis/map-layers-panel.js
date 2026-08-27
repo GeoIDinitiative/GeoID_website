@@ -7,8 +7,8 @@
  * file knows is only which catalogue to draw and where to put it.
  */
 
-import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260827-b8725c5";
-import { renderCatalogue } from "./catalogue-list.js?v=20260827-b8725c5";
+import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260827-a703d7f";
+import { renderCatalogue } from "./catalogue-list.js?v=20260827-a703d7f";
 
 const byId = (id) => document.getElementById(id);
 
@@ -94,7 +94,7 @@ function draw() {
     // A lid, because five overlays and their group headings would push the
     // relief slider — which people reach for constantly — off the bottom of
     // the tab.
-    title: "Maps and overlays",
+    title: "Basemaps",
     layerFor: (id) => {
       if (gee?.owns(id)) return gee.layerFor(id);
       return id.startsWith(BASE_PREFIX) ? baseIsOn(id) : layerForMap(id);
