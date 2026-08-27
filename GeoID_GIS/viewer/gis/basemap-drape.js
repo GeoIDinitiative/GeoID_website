@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260827-d109bf1";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-d109bf1";
-import { isEarth } from "./bodies.js?v=20260827-d109bf1";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260827-d109bf1";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260827-d6f34f0";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-d6f34f0";
+import { isEarth } from "./bodies.js?v=20260827-d6f34f0";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260827-d6f34f0";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260827-d109bf1";
+  from "./view-extent.js?v=20260827-d6f34f0";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -679,13 +679,13 @@ function buildPanel() {
    * for unrestricted embedding — a distinction invisible at the point of
    * clicking it, which is exactly where it matters.
    */
-  const showLicence = () => {
-    const src = TILE_SOURCES[select.value];
+  const showLicence = (sourceName = select.value) => {
+    const src = TILE_SOURCES[sourceName];
     licence.textContent = src?.licence || "";
     licence.hidden = !src?.licence;
-    licence.classList.toggle("is-warn", src && src.freeToStream === false);
+    licence.classList.toggle("is-warn", Boolean(src) && src.freeToStream === false);
   };
-  select.addEventListener("change", showLicence);
+  select.addEventListener("change", () => showLicence());
 
   run.addEventListener("click", async () => {
     run.disabled = true;
@@ -730,11 +730,25 @@ function buildPanel() {
    * not on screen would be wrong in the other direction, so it tracks the actual
    * selection both ways.
    */
-  const creditForId = (id) => Object.entries(TILE_SOURCES)
-    .find(([name]) => baseLayerIdFor(name) === id)?.[1]?.credit || "";
+  const sourceForId = (id) => Object.entries(TILE_SOURCES)
+    .find(([name]) => baseLayerIdFor(name) === id)?.[0] || "";
   document.getElementById("base-layer-select")?.addEventListener("change", (event) => {
     const id = event.target.value || "";
-    showCredit(creditForId(id));
+    /**
+     * The credit and the licence must name the SAME map.
+     *
+     * The credit followed this dropdown — what is actually on the globe — and
+     * the licence followed only the drape tool's own source select beside it,
+     * so choosing a basemap here left the two describing different services.
+     * Measured with Sentinel-2 selected: EOX's credit above OpenStreetMap's
+     * "ODbL. Free to use with attribution", which tells a reader that
+     * NonCommercial imagery is free to use commercially. A wrong licence line
+     * is worse than none, and it read as authoritative because the credit
+     * beside it was right.
+     */
+    const name = sourceForId(id);
+    showCredit(name ? TILE_SOURCES[name].credit : "");
+    showLicence(name);
     // Refinement belongs to the tile basemap. Left running under Blue Marble it
     // would keep fetching tiles for a basemap nobody is looking at.
     if (id.startsWith("tiles-")) {
