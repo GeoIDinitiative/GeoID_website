@@ -1665,6 +1665,61 @@ on layers-changed) — measured, not assumed. The layer drawer's tile is
 `.layer-options` opened from the ROW; a probe that greps page-wide
 buttons reads the catalogue's Symbology and misses the drawer entirely.
 
+## Active fires: FIRMS through GIBS vector tiles, not through FIRMS
+
+The Events tab's EONET wildfires do NOT cover this, and the two are different
+kinds of thing. EONET is curated NAMED EVENTS — measured on one day, **496 of
+500 open wildfires in North America**, so it will essentially never show a fire
+in Northern Ireland or the Congo. FIRMS is raw observation: every pixel that
+looked hot, with its intensity. Both belong; neither replaces the other.
+
+**FIRMS' own routes are closed to a browser.** The bulk CSVs answer 200 to
+curl and send **no `Access-Control-Allow-Origin` header** (and VIIRS is
+17.7 MB a day); the API and WFS are CORS-open but need a MAP_KEY, and a
+browser cannot hold a secret. **GIBS publishes the same detections as Mapbox
+Vector Tiles** — keyless, CORS `*` — and `gis/mvt.js`, written for Macrostrat,
+already decodes them.
+
+Four things there are measured and each is a bug reversed:
+
+- **The world is TWO tiles.** EPSG:4326 is 2x1 at zoom zero, so `0/0/0` and
+  `0/0/1`. Fetching one returns the western hemisphere and calls it global.
+- **The matrix set is the 4326 endpoint's own** — `1km` for MODIS, `500m` for
+  VIIRS — NOT the `GoogleMapsCompatible_Level7/8` names the 3857 capabilities
+  document lists. Asking for `1km` on a VIIRS layer is a 400.
+- **The two tiles OVERLAP**: 16,905 raw features deduplicated to 13,720, so
+  19% were carried twice. Keyed on FIRMS' own `UID` plus position and time.
+- **The tiles are gzipped.** `fetch` undoes it transparently; curl hands back
+  the compressed bytes and the decoder reports "unsupported wire type 7",
+  which reads as a corrupt tile and is a testing artefact.
+
+MODIS and VIIRS name the same measurements differently — `BRIGHTNESS` vs
+`BRIGHT_TI4`, confidence 0-100 vs `l`/`n`/`h` — so a converter written against
+one gives the other a column of nulls under a correct-looking legend.
+`confidenceBand` is one vocabulary across both (FIRMS' own thresholds), which
+is why `colourBy` can be `confidence` and the two layers share a legend. FRP
+is the more interesting variable and is one click away in Symbology, which
+classes numeric columns. `label_rank: 0` on every detection: ninety thousand
+names is a white planet, and a thermal anomaly has no name.
+
+`runConnector` gained a **`load`** branch. The existing shape — one URL,
+`res.json()`, one pure converter — covers everything that speaks JSON over a
+single request, which was all of them; binary vector tiles over two requests
+would have meant a fetch wrapper returning something other than what it
+fetched.
+
+**`registerMarkerMaterial` on a non-marker cloud cost 52 fps.** It writes the
+shared marker size — 7, in SCREEN pixels, which is what that means for
+`sizeAttenuation: false`. Applied to the >20,000-point path, which attenuates
+and sizes in WORLD units, every point became seven units across on a globe of
+radius 3.2: more than twice the planet each. Measured on the 90,987-point
+VIIRS layer, **60 fps to 6**, and the diagnosis is FILL RATE rather than
+vertex count — a tenth of the points at that size ran at 50 fps while all of
+them at a twentieth of the size ran at 61. The registration is gated on
+`asMarkers` now. Introduced by the far-side-cull change one commit earlier,
+which is the shape to watch for: a helper that sets a property as a side
+effect, reused on a path that means something else by it.
+
 ## Submarine cables, and why NOT from submarinecablemap.com
 
 **The source is Greg's Cable Map**, served as an ArcGIS FeatureServer that
