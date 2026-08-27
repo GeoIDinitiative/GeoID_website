@@ -7,8 +7,8 @@
  * file knows is only which catalogue to draw and where to put it.
  */
 
-import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260827-4a02f87";
-import { renderCatalogue } from "./catalogue-list.js?v=20260827-4a02f87";
+import { grouped, addMapLayer, removeMapLayer, layerForMap, layerById } from "./map-layers.js?v=20260827-5faa79d";
+import { renderCatalogue } from "./catalogue-list.js?v=20260827-5faa79d";
 
 const byId = (id) => document.getElementById(id);
 

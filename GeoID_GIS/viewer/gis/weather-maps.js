@@ -24,9 +24,9 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-4a02f87";
-import { currentBodyId } from "./bodies.js?v=20260827-4a02f87";
-import { rectangleVertices } from "./draw-area.js?v=20260827-4a02f87";
+import { drape } from "./gee.js?v=20260827-5faa79d";
+import { currentBodyId } from "./bodies.js?v=20260827-5faa79d";
+import { rectangleVertices } from "./draw-area.js?v=20260827-5faa79d";
 
 const byId = (id) => document.getElementById(id);
 
@@ -86,6 +86,11 @@ const signedLon = (lon) => ((lon + 540) % 360) - 180;
 /** The chosen extent as {west, south, east, north} in signed degrees, or null. */
 function chosenBounds() {
   const mode = byId("weather-extent")?.value || "box";
+  if (mode.startsWith("layer:")) {
+    const layer = drawnPolygonLayers().find((l) => String(l.id) === mode.slice(6));
+    if (!layer) return { error: "That polygon is no longer on the globe — pick another extent." };
+    return layerBounds(layer);
+  }
   if (mode === "box") {
     // A box already on the globe — dragged, resized, or just drawn — is the
     // truth; the inputs are how one is created or replaced. With no live
@@ -330,19 +335,22 @@ async function gridCanvas(bounds, source) {
 }
 
 /**
- * The newest visible DRAWN-POLYGON layer's bounds, signed, or null — any of
- * them, not only the ones this module captured: a box saved by the Custom
- * button, a Fetch extent from an earlier pull, a drawn area restored with a
- * project. That is what "reuse the polygon" has to mean, or a layer sitting
- * in plain sight in Layer Visibility refuses to serve.
+ * Every drawn-polygon layer on the globe — a box saved by the Custom
+ * button, a Fetch extent from an earlier pull, a drawn area restored with
+ * a project. These are what the Extent select lists by name, so reusing
+ * "Fetch Polygon 1" is a CHOICE rather than a guess about which one the
+ * fallback would take.
  */
-function capturedExtentBounds() {
-  const layers = (window.GeoIDImportManager?.getLayers?.() || [])
-    .filter((layer) => layer.visible !== false && (
+function drawnPolygonLayers() {
+  return (window.GeoIDImportManager?.getLayers?.() || [])
+    .filter((layer) => (
       layer.weatherExtent
       || layer.ext === "drawn"
-      || layer.collection?.features?.[0]?.properties?.drawn_at));
-  const layer = layers[layers.length - 1];
+      || layer.collection?.features?.[0]?.properties?.drawn_at)
+      && layer.collection?.features?.[0]?.geometry?.coordinates?.[0]?.length);
+}
+
+function layerBounds(layer) {
   const ring = layer?.collection?.features?.[0]?.geometry?.coordinates?.[0];
   if (!ring?.length) return null;
   const lons = ring.map((c) => c[0]);
@@ -352,6 +360,12 @@ function capturedExtentBounds() {
     east: Math.max(...lons), north: Math.max(...lats),
     reusedFrom: layer.name,
   };
+}
+
+/** The newest VISIBLE drawn polygon's bounds — the no-overlay fallback. */
+function capturedExtentBounds() {
+  const layers = drawnPolygonLayers().filter((layer) => layer.visible !== false);
+  return layers.length ? layerBounds(layers[layers.length - 1]) : null;
 }
 
 /**
@@ -588,10 +602,34 @@ function buildCard() {
       <div id="weather-maps-status" class="gis-metric">Radar frames are ~10 minutes apart; forecast fields refresh hourly.</div>
     </div>`;
   groupBody.insertBefore(card, groupBody.firstElementChild?.nextElementSibling || null);
+  const refreshExtentOptions = () => {
+    const select = byId("weather-extent");
+    if (!select) return;
+    const chosen = select.value;
+    select.querySelectorAll("option[data-polygon]").forEach((option) => option.remove());
+    drawnPolygonLayers().forEach((layer) => {
+      const option = document.createElement("option");
+      option.value = `layer:${layer.id}`;
+      option.dataset.polygon = "1";
+      option.textContent = `▱ ${layer.name}`;
+      select.appendChild(option);
+    });
+    // A choice that vanished with its layer falls back to the box.
+    if (![...select.options].some((option) => option.value === chosen)) select.value = "box";
+    else select.value = chosen;
+  };
+  refreshExtentOptions();
+  window.GeoIDImportManager?.onChange?.(refreshExtentOptions);
+
   byId("weather-extent").addEventListener("change", () => {
     const mode = byId("weather-extent").value;
     byId("weather-bounds-rows").hidden = mode !== "bounds";
     byId("weather-box-rows").hidden = mode !== "box";
+    if (mode.startsWith("layer:")) {
+      const layer = drawnPolygonLayers().find((l) => String(l.id) === mode.slice(6));
+      if (layer) say(`Fetches will use "${layer.name}".`);
+      return;
+    }
     // Choosing "an area drawn by hand" with nothing drawn is a dead end
     // unless the drawer comes to you: the Draw tool activates itself.
     if (mode === "drawn" && !window.GeoIDViewer?.getExtractionGeometry?.()?.vertices?.length) {
