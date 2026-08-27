@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260827-5e51d5b";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260827-5e51d5b";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260827-5e51d5b";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260827-3508b68";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260827-3508b68";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260827-3508b68";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -835,16 +835,30 @@ export function renderFeatureCollection(fc, {
       fill.frustumCulled = false;
       group.add(fill);
     } else {
+      /**
+       * Only a MARKER is registered as one, and this cost 52 fps.
+       *
+       * `registerMarkerMaterial` writes the shared marker size — 7, in SCREEN
+       * pixels, which is what it means for `sizeAttenuation: false`. Applied
+       * to the >20,000-point path, which attenuates and sizes in WORLD units,
+       * it made every point seven units across on a globe of radius 3.2: each
+       * one more than twice the planet. Measured on a 90,987-point VIIRS fire
+       * layer, 60 fps to 6, and the diagnosis is fill rate rather than vertex
+       * count — a tenth of the points at that size ran at 50 fps, all of them
+       * at a twentieth of the size ran at 61.
+       */
+      const pointMaterial = asMarkers
+        ? registerMarkerMaterial(new THREE.PointsMaterial(material), "mark")
+        : new THREE.PointsMaterial(material);
       const points = new THREE.Points(
         geometry,
-        followRelief(
-          registerMarkerMaterial(new THREE.PointsMaterial(material), "mark"),
-          drape,
-          // Culled by facing, for the same reason the ring above is: with the
-          // depth test off, the far hemisphere's marks would otherwise show
-          // straight through the planet.
-          { lifted: true, cullFarSide: asMarkers },
-        ),
+        followRelief(pointMaterial, drape, {
+          lifted: true,
+          // Culled by facing only where the depth test is off — which is the
+          // marker path. A world-space cloud keeps its depth test and needs no
+          // help from the shader.
+          cullFarSide: asMarkers,
+        }),
       );
       points.renderOrder = 4;
       points.frustumCulled = false;
