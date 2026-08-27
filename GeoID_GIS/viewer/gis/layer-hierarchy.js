@@ -10,12 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260827-90bd2a2";
-import { samplerToRaster } from "./raster-analysis.js?v=20260827-90bd2a2";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260827-90bd2a2";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260827-90bd2a2";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260827-90bd2a2";
-import { chipHtml, typeSelect, applyTag, descriptionOf } from "./data-tags.js?v=20260827-90bd2a2";
+import { currentBody } from "./bodies.js?v=20260828-8a780da";
+import { samplerToRaster } from "./raster-analysis.js?v=20260828-8a780da";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260828-8a780da";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260828-8a780da";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260828-8a780da";
+import { chipHtml, typeSelect, applyTag, descriptionOf, isUserInput } from "./data-tags.js?v=20260828-8a780da";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -84,6 +84,12 @@ const STYLE = `
 }
 .layer-grip { letter-spacing: -0.08em; }
 
+/* The classification line: full width under the buttons, fields sharing it. */
+.layer-options .data-tag-row {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
 .layer-disclose {
   display: inline-flex;
   align-items: center;
@@ -114,11 +120,11 @@ const STYLE = `
 .layer-disclose[aria-expanded="true"] span { display: block; transform: rotate(180deg); }
 
 .layer-options {
-  /* One line: the detail, then the actions. A wrapped tile pushed the rows
-     below it down every time one was opened, which made a list of layers jump
-     about while you were reading it. */
+  /* The detail and the actions share the first line; the ONLY thing allowed
+     to wrap is the data-tag row below, which claims a full line of its own —
+     jammed into the nowrap line, the note field was crushed to nothing. */
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
@@ -548,10 +554,14 @@ function optionsTile(layer) {
   }
 
   /**
-   * The tag, editable forever: the same type select the arrival card
-   * offers, and the free-text note beside it. Committed on change — a
-   * classification is not something to press Apply for.
+   * The tag, editable forever — but ONLY on the user's own inputs. A
+   * prebuilt dataset (catalogue tick, GEE pull, live feed, tile basemap)
+   * is classified by where it came from, and re-filing it by hand would
+   * put the chip and the catalogue in disagreement; its row chip states
+   * the class and the drawer offers nothing to change. Committed on
+   * change — a classification is not something to press Apply for.
    */
+  const editableTag = isUserInput(layer);
   const tagRow = document.createElement("div");
   tagRow.className = "data-tag-row";
   tagRow.style.cssText = "display:flex;gap:0.35rem;align-items:center;margin:0.15rem 0 0.3rem;";
@@ -566,7 +576,6 @@ function optionsTile(layer) {
   tagNote.style.cssText = "flex:1;min-width:0;";
   tagNote.addEventListener("change", () => applyTag(layer, { description: tagNote.value.trim() }));
   tagRow.append(tagSelect, tagNote);
-  tile.appendChild(tagRow);
 
   const actions = document.createElement("div");
   actions.className = "layer-options-actions";
@@ -737,6 +746,9 @@ function optionsTile(layer) {
   actions.appendChild(remove);
 
   tile.appendChild(actions);
+  // The tag row LAST, on its own full-width line (the CSS wraps it) — and
+  // only for user inputs; see the note where it is built.
+  if (editableTag) tile.appendChild(tagRow);
   note();
   return tile;
 }

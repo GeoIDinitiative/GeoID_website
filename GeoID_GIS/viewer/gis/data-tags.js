@@ -19,8 +19,11 @@
  *     nothing downstream waits for it. Fetched and catalogue layers are
  *     classified silently: they already said what they are by where they
  *     were ticked.
- *  3. **The tag is never locked.** The layer drawer carries the same type
- *     select and note field for any layer, any time.
+ *  3. **A USER input's tag is never locked** — its drawer carries the same
+ *     type select and note field forever. A PREBUILT dataset's is: it was
+ *     classified by where it came from, and re-filing it by hand would put
+ *     the chip and the catalogue in disagreement (`isUserInput` is the
+ *     gate, for the card and the drawer both).
  *
  * Where it lives on the layer: `layer.dataType` / `layer.description`,
  * mirrored into `layer.metadata` (the provenance surface the registry and
@@ -189,12 +192,15 @@ function injectStyle() {
 }
 
 /**
- * Which arrivals deserve the question. Uploads and drawn captures are the
- * user's own inputs, named by files and gestures that say little — they get
- * the card. Everything ticked or fetched from a catalogue already declared
- * its subject by where it was ticked, so it is tagged silently.
+ * Which layers are the USER'S OWN inputs — uploads and drawn captures,
+ * named by files and gestures that say little. They get the arrival card
+ * AND the editable type/note controls in the drawer. Everything ticked or
+ * fetched from a catalogue already declared its subject by where it was
+ * ticked: it is tagged silently and its classification is FIXED — a
+ * prebuilt dataset re-filed by hand would put the chip and the catalogue
+ * in disagreement about what the data is.
  */
-function wantsCard(layer) {
+export function isUserInput(layer) {
   if (window.GeoIDGlobalData?.isCatalogueLayer?.(layer)) return false;
   if (["gee", "tiles"].includes(layer.ext)) return false;
   if (/^live /i.test(layer.name || "")) return false;
@@ -273,7 +279,7 @@ function watchArrivals() {
       // Tag every arrival in real time, silently…
       applyTag(layer, {});
       // …and ask only about the user's own inputs.
-      if (wantsCard(layer)) arrivalCard(layer);
+      if (isUserInput(layer)) arrivalCard(layer);
     });
   });
 }

@@ -1152,7 +1152,14 @@ data-tags.test.mjs); every layer wears its type as a coloured chip in the
 hierarchy row (replacing the old `layer-kind` column); a small card under
 the add-row asks — optionally, never blocking — when a user's own upload
 or drawn capture lands, with a type select and a free-text note; the
-drawer carries the same controls forever. Tags mirror into
+drawer carries the same controls forever — but ONLY for user inputs:
+prebuilt datasets (catalogue ticks, GEE pulls, live feeds, tile basemaps)
+are classified by where they came from, and `isUserInput` gates both the
+card and the drawer controls, so their chip is fixed — re-filing a
+prebuilt dataset by hand would put the chip and the catalogue in
+disagreement. The tag row also claims a full-width WRAPPED line in the
+drawer: jammed into the drawer's nowrap flex line, the note field was
+crushed to nothing. Tags mirror into
 `layer.metadata` (dataType, description) and, for layers that own their
 GeoJSON, into the first feature's properties (`data_type`, `data_note`) —
 so drawn shapes bring their classification back with the project. Three
