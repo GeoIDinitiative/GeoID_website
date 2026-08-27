@@ -873,9 +873,23 @@ PAINT order: tags render at 206 above the dot cloud, but dots were tried
 first with a 12 px threshold, so a dot near a pill's face stole its click —
 measured, a click on FREGAT DEB's pill opened ONEWEB-0085's card. Tags
 first now; a bare dot still answers through the dot path since its own pill
-sits beside it, not over it. Also the pill FONT: Orbitron at pill sizes
-minifies to mush; `makeLabelTexture` takes a `titleFont` option and the
-satellites pass Chakra Petch at full backingScale 4 (cache key v5).
+sits beside it, not over it. Also the pill FONT — and the blur was
+ARITHMETIC, not (only) the face. The engine bakes a 34-logical-px pill; at
+backingScale 4 that is a 136 px texture drawn at 13–18 px — a 7.5×
+minification whose mip chain softens ANY font. Crisp HUD text is baked AT
+its drawn size: backingScale = ceil(devicePixelRatio), `generateMipmaps =
+false`, plain LinearFilter. Measured after: 34 px texture at 16.4 px drawn,
+2.08× — the crisp zone. The face is **'Exo 2'** — which viewer-skin serves
+as Chakra Petch glyphs; there is NO family loaded under the name "Chakra
+Petch", so naming it first fell through the stack while looking like a
+choice (my own first fix did exactly that, and "the labels are unchanged"
+was the report). `makeLabelTexture` takes `titleFont`; cache key v6.
+
+**The pill pulses with its dot and its orbit** — one selection, one rhythm.
+The declutter writes only `userData.baseScale`; the pulse loop multiplies
+it (±14%, opacity 0.78–1.0) and deselect restores it, so the two never
+fight over the live number. Measured: 13.8% swing on a clicked pill while
+its card stands.
 Verified: 4 of 4 clicks on pill right-thirds open that pill's own card.
 
 **The rotation control is ONE pill in a three-state loop** — LIVE (real

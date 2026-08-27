@@ -539,7 +539,7 @@ function showOrbitOverlay(overlay, record) {
 const tagTextures = new Map();
 
 function makePillTexture(name, colour) {
-  const key = `v5|${colour}|${name}`;
+  const key = `v6|${colour}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
   /**
    * The viewer's OWN pill, through the seam the volcano labels use — the
@@ -550,16 +550,24 @@ function makePillTexture(name, colour) {
    * space-HUD backing. backingScale 2: forty names, not four.
    */
   const make = window.GeoIDViewer?.makeLabelTexture;
+  /**
+   * THE BLUR WAS ARITHMETIC, not (only) the face. The engine bakes a
+   * 34-logical-px pill; at backingScale 4 that is a 136 px texture drawn at
+   * 13–18 px on screen — a 7.5× minification whose mip chain softens any
+   * font into mush. Crisp HUD text is baked AT the size it is shown:
+   * backing chosen so the texture is ~2× the drawn height in DEVICE pixels
+   * (ceil of devicePixelRatio; 1 at DPR 1, 2 at DPR 2), and sampled with
+   * plain linear filtering, no mipmaps — at a ≤2× ratio the mip chain only
+   * blurs, it cannot help.
+   *
+   * The face: 'Exo 2' — which viewer-skin serves as Chakra Petch glyphs,
+   * square-cornered and legible at HUD sizes. There is NO family loaded
+   * under the name "Chakra Petch", so naming it first resolved through to
+   * the same fallback while looking like a choice.
+   */
   const label = make(name, {
-    /**
-     * Full backing (the engine's own 4), and a face that survives 10 px.
-     * Orbitron is the viewer's display face and reads as mush at pill
-     * sizes — wide techno glyphs blur into each other under minification,
-     * which is the "blurry" report. Chakra Petch is the page's own body
-     * face: narrow, square-cornered, legible at HUD sizes.
-     */
-    backingScale: 4,
-    titleFont: "600 15px 'Chakra Petch', 'Exo 2', sans-serif",
+    backingScale: Math.max(1, Math.ceil(window.devicePixelRatio || 1)),
+    titleFont: "700 15px 'Exo 2', sans-serif",
     customPalette: {
       bg: "rgba(6, 10, 18, 0.82)",
       stroke: `${colour}88`,
@@ -567,6 +575,12 @@ function makePillTexture(name, colour) {
       title: "rgba(240, 246, 252, 0.97)",
     },
   });
+  // No mip chain: at ~2x-and-under the texture is effectively at display
+  // resolution, and trilinear sampling only softens what the canvas
+  // rasteriser drew sharp.
+  label.texture.generateMipmaps = false;
+  label.texture.minFilter = THREE.LinearFilter;
+  label.texture.needsUpdate = true;
   const record = { texture: label.texture, width: label.width, height: label.height };
   tagTextures.set(key, record);
   return record;
@@ -690,8 +704,14 @@ function updateLabels() {
     // ratio stretches every tag (the fault the volcano labels documented).
     sprite.position.set(positions.getX(candidate.i), positions.getY(candidate.i),
       positions.getZ(candidate.i));
-    sprite.scale.set(((heightPx * sprite.userData.aspect) / rect.width) * 2,
-      (heightPx / rect.height) * 2, 1);
+    // The BASE scale, kept for the selection pulse: the pulse multiplies
+    // this each frame and deselect restores it, so the declutter pass and
+    // the pulse never fight over one number.
+    sprite.userData.baseScale = {
+      x: ((heightPx * sprite.userData.aspect) / rect.width) * 2,
+      y: (heightPx / rect.height) * 2,
+    };
+    sprite.scale.set(sprite.userData.baseScale.x, sprite.userData.baseScale.y, 1);
     sprite.center.set(-0.1, 0.5);
   });
 }
@@ -999,9 +1019,17 @@ function select(record) {
 
 function deselect() {
   if (!active) return;
+  const was = active.selected;
   active.selected = null;
   if (active.pulseDot) active.pulseDot.visible = false;
   if (active.rings?.userData.pulse) active.rings.userData.pulse.visible = false;
+  // The pill goes back to rest — mid-breath scale and opacity must not
+  // survive the selection they belonged to.
+  const tag = was ? active.labels.get(was.norad) : null;
+  if (tag?.userData.baseScale) {
+    tag.scale.set(tag.userData.baseScale.x, tag.userData.baseScale.y, 1);
+    tag.material.opacity = 1;
+  }
 }
 
 function pulseLoop() {
@@ -1028,6 +1056,18 @@ function pulseLoop() {
   }
   const ringPulse = active.rings?.userData.pulse;
   if (ringPulse?.visible) ringPulse.material.opacity = 0.35 + pulse * 0.6;
+  /**
+   * The PILL pulses with its dot and its orbit — one selection, one rhythm.
+   * Scale about the base the declutter recorded (breathing, ±14%) and a
+   * lifted opacity floor; the declutter pass writes only `baseScale`, so
+   * the two never fight over the live number.
+   */
+  const tag = active.labels.get(record.norad);
+  if (tag?.visible && tag.userData.baseScale) {
+    const grow = 1 + 0.14 * pulse;
+    tag.scale.set(tag.userData.baseScale.x * grow, tag.userData.baseScale.y * grow, 1);
+    tag.material.opacity = 0.78 + 0.22 * pulse;
+  }
   active.pulseFrame = window.requestAnimationFrame(pulseLoop);
 }
 
@@ -1375,7 +1415,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260827-5caec2a");
+    const dialog = await import("./symbology-dialog.js?v=20260827-504d610");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not
