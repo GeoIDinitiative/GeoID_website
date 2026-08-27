@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260827-636ce9c";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260827-636ce9c";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260827-636ce9c";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260827-636ce9c";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260827-c752b05";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260827-c752b05";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260827-c752b05";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260827-c752b05";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260827-636ce9c";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260827-636ce9c";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260827-636ce9c";
-import { loadMshFile } from "./msh-adapter.js?v=20260827-636ce9c";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260827-636ce9c";
+} from "./vector-render.js?v=20260827-c752b05";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260827-c752b05";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260827-c752b05";
+import { loadMshFile } from "./msh-adapter.js?v=20260827-c752b05";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260827-c752b05";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -730,6 +730,12 @@ export function addDerivedLayer(name, result, ext = "derived") {
     legendInfo: result.legendInfo || null,
     // Carried so a layer can be re-classified without re-importing it.
     repaint: result.repaint || null,
+    // Filled or outlined, and which it is now. Absent on rasters and on
+    // anything with no polygons — which is exactly the test the symbology
+    // dialog makes before offering the control, so a layer with no fill to
+    // switch off is never given a control that does nothing.
+    setFillMode: result.setFillMode || null,
+    getFillMode: result.getFillMode || null,
     derived: true,
   };
   layers.push(layer);
