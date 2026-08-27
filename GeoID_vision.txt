@@ -1,0 +1,1028 @@
+GeoID Vision: 
+
+Absolutely. For GeoID, I would **not** just build a collection of map layers. I would build a **planetary geodata operating system**: a unified interface that can discover, stream, analyse, compare and visualise Earth-system data.
+
+The opportunity is huge because much of the world's best geoscience data is already free/open, but fragmented across hundreds of agencies, APIs, WMS/WMTS services, STAC catalogues and shapefile repositories.
+
+NASA EONET alone provides continuously updated natural-event metadata, while USGS exposes APIs covering earthquakes, volcanoes, water, geomagnetism, satellite data and more. Copernicus now exposes Sentinel data and processing through APIs including STAC and openEO. ([eonet.gsfc.nasa.gov][1])
+
+## My vision: GeoID GeoHUB
+
+```text
+                         GEOID
+                   ┌───── GEOHUB ─────┐
+                   │                  │
+             LIVE EARTH           EARTH ARCHIVE
+                   │                  │
+        ┌──────────┼──────────┐       │
+        │          │          │       │
+    HAZARDS    WEATHER     SPACE    GEOLOGY
+        │          │          │       │
+        └──────────┴──────────┴───────┘
+                   │
+            UNIFIED GEOENGINE
+                   │
+      ┌────────────┼────────────┐
+      │            │            │
+    2D GIS       3D Globe    AI GEOAGENT
+      │            │            │
+      └────────────┼────────────┘
+                   │
+             USER WORKSPACE
+```
+
+The critical idea is: **users should not need to know where the data came from**.
+
+They should be able to type:
+
+> "Show me every M5+ earthquake, active volcano, wildfire, flood and major storm in the last 7 days."
+
+GeoID queries multiple sources, normalises them and displays one coherent answer.
+
+---
+
+# 1. LIVE EARTH — highest priority
+
+These should be the core of the GeoID landing experience.
+
+## 🌍 Earthquakes & seismology
+
+### Essential sources
+
+* [USGS Earthquake Web Services](https://earthquake.usgs.gov/ws/?utm_source=chatgpt.com)
+* USGS ComCat
+* FDSN event services
+* International Seismological Centre (ISC)
+* EMSC
+* GFZ GEOFON
+* IRIS/SAGE
+* Raspberry Shake community stations
+* Strong-motion networks
+* FDSN Station services
+* FDSN Dataselect/waveform services
+
+The USGS earthquake catalogue supports detailed machine queries, while USGS recommends its real-time GeoJSON feeds for live display applications. ([USGS Earthquake Hazards][2])
+
+### GeoID features
+
+**Live Earthquake Globe**
+
+* last hour
+* 24 hours
+* 7 days
+* 30 days
+* historical catalogue
+* animated propagation
+* magnitude-scaled markers
+* depth cross-sections
+* focal mechanisms/beachballs
+* moment tensors
+* ShakeMaps
+* aftershock sequences
+* tectonic plate context
+* nearest faults
+* population exposure
+
+### Killer feature: Earthquake Replay
+
+Click an earthquake and:
+
+```text
+EVENT OCCURS
+     ↓
+Locate on 3D Earth
+     ↓
+Show tectonic setting
+     ↓
+Show fault geometry
+     ↓
+Animate P-wave propagation
+     ↓
+Animate S-wave propagation
+     ↓
+Show ShakeMap
+     ↓
+Show historical earthquakes nearby
+     ↓
+Show population/infrastructure exposed
+```
+
+That would be phenomenal for students.
+
+---
+
+# 2. 🌋 VOLCANOES — make this a GeoID speciality
+
+Given your PhD/research background, I think volcanology should be one of GeoID's strongest differentiators.
+
+### Data layers
+
+* Smithsonian Global Volcanism Program
+* USGS volcano feeds and alert systems
+* Smithsonian Holocene volcano database
+* WOVOdat
+* VONA aviation notices where accessible
+* VAAC ash advisories
+* NASA FIRMS thermal anomalies
+* MODIS/VIIRS hotspots
+* Sentinel-2 imagery
+* Sentinel-1 InSAR-compatible data
+* SO₂ from Sentinel-5P
+* thermal imagery
+* deformation products
+* seismic stations
+* GNSS stations
+* webcams where openly accessible
+* volcanic hazard zones
+* historical eruptions
+* lava flows
+* pyroclastic flow deposits
+* lahars
+* calderas
+* vents and cones
+
+USGS explicitly lists volcano APIs among its public APIs. ([US Geological Survey][3])
+
+### GeoID Volcano Dashboard
+
+For each volcano:
+
+```text
+VOLCANO PROFILE
+├── Status
+├── Alert level
+├── Latest earthquakes
+├── Thermal anomalies
+├── SO₂
+├── Satellite imagery
+├── Deformation
+├── Historical eruptions
+├── Hazard zones
+├── Population exposure
+├── Monitoring stations
+├── 3D terrain model
+└── AI summary
+```
+
+Imagine clicking Etna and getting a **digital twin-style monitoring page**.
+
+---
+
+# 3. 🔥 WILDFIRES
+
+This is extremely visual and perfect for your 3D platform.
+
+### Integrate
+
+* NASA FIRMS
+* VIIRS active fires
+* MODIS active fires
+* NASA EONET wildfire events
+* Copernicus Emergency Management
+* Global Wildfire Information System
+* US/European/national fire feeds
+* Fire Weather Index
+* drought indices
+* vegetation dryness
+* land cover
+* population exposure
+* wind forecasts
+
+NASA EONET's current API is designed for curated, continuously updated natural events and supports filtering by category, source, status, time and bounding box. ([eonet.gsfc.nasa.gov][1])
+
+### Killer visual
+
+**Fire growth timeline**
+
+Drag:
+
+```text
+DAY 1 ───── DAY 2 ───── DAY 3 ───── TODAY
+```
+
+And watch the fire footprint grow across the 3D terrain while overlaying:
+
+* wind
+* temperature
+* slope
+* vegetation
+* settlements
+
+---
+
+# 4. 🌊 FLOODS, RIVERS & WATER
+
+This could become a gigantic GeoID category.
+
+### Global hydrography
+
+* HydroSHEDS
+* HydroRIVERS
+* HydroBASINS
+* HydroATLAS
+* MERIT Hydro
+* GRDC
+* JRC Global Surface Water
+* OpenStreetMap waterways
+* Global Lakes and Wetlands Database
+
+### Live data
+
+* USGS Water Data
+* NOAA river systems
+* Environment Agency feeds
+* national river gauge APIs
+* Copernicus Emergency flood products
+* Global Flood Awareness System
+* Dartmouth Flood Observatory
+* GloFAS
+* NASA EONET floods
+
+USGS now also exposes water data through STAC-based APIs, which is particularly useful for a GeoID catalogue/discovery architecture. ([api.waterdata.usgs.gov][4])
+
+### Visualisations
+
+* live river gauges
+* discharge
+* river height
+* flood extent
+* historical flood extent
+* flood recurrence
+* catchment boundaries
+* upstream/downstream navigation
+
+**Click any point → "What catchment am I in?"**
+
+Then:
+
+```text
+RAIN → STREAM → RIVER → CATCHMENT → SEA
+```
+
+GeoID could automatically trace the drainage pathway.
+
+---
+
+# 5. 🌪️ WEATHER & ATMOSPHERE
+
+This should be a major real-time layer stack.
+
+## Weather
+
+* Open-Meteo
+* NOAA/NWS
+* NOAA GFS
+* ECMWF open data
+* DWD Open Data
+* Met Office open datasets where licensing/access permits
+* EUMETSAT
+* OpenWeather where free tier is sufficient
+* WeatherAPI free tier where appropriate
+
+## Forecast layers
+
+* temperature
+* precipitation
+* snow
+* wind
+* wind gusts
+* pressure
+* humidity
+* cloud cover
+* CAPE
+* lightning
+* visibility
+* freezing level
+* UV
+* wave height
+* ocean currents
+
+## Make it visual
+
+Instead of static weather layers:
+
+### GeoID Atmosphere Mode
+
+```text
+Altitude
+
+15 km ─ Jet stream
+10 km ─ Clouds / winds
+ 5 km ─ Weather systems
+ 0 km ─ Surface conditions
+```
+
+Allow the user to **drag through the atmosphere vertically**.
+
+This would be an amazing use of your 3D environment.
+
+NOAA's NCEI exposes programmatic climate and geospatial services, including JSON APIs, OGC services, OPeNDAP and formats such as Shapefile, KMZ and NetCDF. ([NCEI][5])
+
+---
+
+# 6. 🌀 TROPICAL CYCLONES, STORMS & SEVERE WEATHER
+
+Include:
+
+* IBTrACS historical storms
+* NOAA hurricane data
+* JTWC
+* NHC
+* GDACS
+* NASA EONET
+* lightning networks
+* tornado datasets
+* severe weather reports
+* hail
+* storm tracks
+* storm surge
+* rainfall accumulation
+
+### GeoID Storm Replay
+
+Select Hurricane Katrina, Haiyan or another storm:
+
+```text
+FORMATION
+   ↓
+TRACK
+   ↓
+INTENSIFICATION
+   ↓
+LANDFALL
+   ↓
+RAINFALL
+   ↓
+FLOODING
+   ↓
+IMPACTS
+```
+
+Overlay satellite imagery and population.
+
+That turns GeoID into an **interactive Earth history platform**.
+
+---
+
+# 7. 🪨 GEOLOGY — a MASSIVE opportunity
+
+I would build a dedicated **GeoID Geology Explorer**.
+
+## Global layers
+
+* OneGeology
+* Macrostrat
+* USGS geologic maps
+* BGS OpenGeoscience
+* national geological surveys
+* GLiM lithology
+* tectonic plates
+* faults
+* fold belts
+* rifts
+* subduction zones
+* cratons
+* terranes
+* sedimentary basins
+* impact craters
+
+## Macrostrat-style geological time explorer
+
+Click anywhere:
+
+```text
+LOCATION: 54.6°N, 5.9°W
+
+SURFACE:
+Quaternary sediments
+
+↓ 100 m
+Pleistocene
+
+↓ 1 km
+Carboniferous
+
+↓ 5 km
+Older basement
+```
+
+Then add a **time slider**:
+
+```text
+NOW ←─────────────── 4.5 BILLION YEARS AGO
+```
+
+Watch continents, oceans and geological environments change.
+
+---
+
+# 8. 🏔️ TOPOGRAPHY & LANDFORMS
+
+This is one of the biggest things I would add.
+
+Don't just show DEMs.
+
+Create a **Global Landform Database**.
+
+### Layers
+
+* peaks
+* mountains
+* volcanoes
+* valleys
+* glaciers
+* lakes
+* rivers
+* waterfalls
+* caves
+* canyons
+* plateaus
+* deserts
+* dunes
+* fjords
+* islands
+* peninsulas
+* capes
+* bays
+* trenches
+* ridges
+* seamounts
+* submarine canyons
+
+### Data
+
+* Natural Earth
+* OpenStreetMap
+* GeoNames
+* Wikidata geospatial entities
+* OpenTopography
+* GEBCO
+* SRTM
+* Copernicus DEM
+* NASADEM
+* TanDEM-X-derived open products where available
+
+### My favourite feature:
+
+**"Landform Lens"**
+
+Click a mountain:
+
+> Mount Everest
+> Mountain / Himalayan orogeny
+> Elevation: X
+> Prominence: X
+> Parent range: Himalaya
+> Tectonic setting: India-Eurasia collision
+> Rock types: ...
+> Age: ...
+> Glacial features: ...
+> Hazards: avalanches, earthquakes, landslides
+
+Essentially: **Wikipedia meets GIS meets Google Earth**.
+
+---
+
+# 9. ❄️ CRYOSPHERE
+
+You should definitely include this given your GLOF research.
+
+### Sources
+
+* NSIDC
+* GLIMS
+* Randolph Glacier Inventory
+* NASA Worldview
+* MODIS snow cover
+* Sentinel imagery
+* ESA CCI glaciers
+* ICESat-2 products
+* CryoSat
+* ArcticDEM
+* REMA Antarctica DEM
+* Greenland DEM products
+* glacier lakes
+* proglacial lakes
+* glacier velocity
+* glacier mass change
+* snow cover
+* sea ice
+
+### GLOF-specific system
+
+```text
+GLACIER
+  ↓
+GLACIAL LAKE
+  ↓
+MORAINE DAM
+  ↓
+DOWNSTREAM FLOW PATH
+  ↓
+EXPOSED SETTLEMENTS
+```
+
+That could connect directly to your own **myGeoID risk products**.
+
+---
+
+# 10. 🌊 OCEANS & MARINE GEOLOGY
+
+Don't neglect the 71% of Earth that most GIS platforms treat poorly.
+
+### Data
+
+* GEBCO bathymetry
+* EMODnet
+* NOAA bathymetry
+* GMRT
+* Seabed 2030
+* Marine Regions
+* Marine ecoregions
+* Argo floats
+* Copernicus Marine
+* sea surface temperature
+* salinity
+* ocean currents
+* waves
+* tides
+* sea level anomalies
+* chlorophyll
+* ocean colour
+
+### 3D ocean mode
+
+Allow the user to:
+
+```text
+SEA SURFACE
+    ↓
+500 m
+    ↓
+1,000 m
+    ↓
+3,000 m
+    ↓
+SEAFLOOR
+```
+
+Reveal:
+
+* submarine volcanoes
+* trenches
+* ridges
+* fracture zones
+* seamounts
+
+**GeoID could have one of the best freely accessible 3D ocean explorers online.**
+
+---
+
+# 11. 🌱 BIOSPHERE & ENVIRONMENT
+
+Add:
+
+### Biodiversity
+
+* GBIF species occurrences
+* iNaturalist
+* IUCN Red List spatial data where licensing permits
+* Protected Planet / WDPA
+* WWF ecoregions
+* Key Biodiversity Areas
+* BirdLife datasets where permitted
+
+### Environmental
+
+* global forest change
+* Global Forest Watch
+* ESA WorldCover
+* Dynamic World
+* MODIS land cover
+* soil databases
+* SoilGrids
+* mangroves
+* wetlands
+* coral reefs
+* desertification
+
+---
+
+# 12. 🏙️ HUMAN GEOGRAPHY & EXPOSURE
+
+This is crucial because hazards become useful when combined with **people and infrastructure**.
+
+### Include
+
+* OpenStreetMap
+* GeoNames
+* Natural Earth
+* GeoBoundaries
+* GADM
+* WorldPop
+* GHSL
+* Humanitarian Data Exchange datasets
+* Humanitarian OpenStreetMap
+* WSF settlement layers
+* schools
+* hospitals
+* roads
+* airports
+* ports
+* railways
+* power infrastructure where openly available
+
+OpenStreetMap and other global open datasets are particularly valuable because GeoID needs a broad, detailed vector foundation rather than relying solely on proprietary basemaps. ([GIS Converter Hub][6])
+
+### This enables:
+
+```text
+HAZARD
+  +
+POPULATION
+  +
+BUILDINGS
+  +
+ROADS
+  +
+HOSPITALS
+  =
+GEOID RISK MAP
+```
+
+This is where your **own proprietary risk products** could begin.
+
+---
+
+# 13. ☄️ SPACE WEATHER & THE SOLAR SYSTEM
+
+This is a major GeoID differentiator.
+
+You already have the Earth + planetary explorer concept, so unify them.
+
+## Earth-space layers
+
+* NASA DONKI
+* solar flares
+* CMEs
+* geomagnetic storms
+* aurora forecasts
+* solar wind
+* magnetosphere
+* ionosphere
+* GOES imagery
+* Sun imagery
+
+## Planetary
+
+### NASA PDS
+
+Add searchable planetary datasets for:
+
+* Mars
+* Moon
+* Venus
+* Mercury
+* Europa
+* Titan
+* Enceladus
+* asteroids
+
+### USGS Astrogeology
+
+* planetary DEMs
+* geological maps
+* imagery
+* nomenclature
+
+### GeoID Solar System
+
+The user should be able to use **the exact same GIS UI** on Earth and Mars.
+
+```text
+GEOID
+ ├── Earth
+ ├── Moon
+ ├── Mars
+ ├── Venus
+ ├── Mercury
+ ├── Europa
+ └── Titan
+```
+
+That is a genuinely distinctive brand proposition.
+
+---
+
+# 14. 🛰️ SATELLITE DATA — build around STAC
+
+This is architecturally one of the most important recommendations.
+
+**Don't build individual integrations for every satellite wherever possible. Build a STAC layer into GeoID.**
+
+STAC is increasingly used as a standard way to catalogue spatiotemporal geospatial assets, with many public API and static catalogues available. ([stacspec.org][7])
+
+GeoID could have:
+
+```text
+GEOID DATA CATALOGUE
+        ↓
+      STAC
+        ↓
+┌───────┼────────┬────────┐
+NASA  Copernicus  AWS   National
+```
+
+Copernicus Data Space provides APIs including STAC, OData, Sentinel Hub APIs, openEO and OGC-compatible services. ([Copernicus Data Space Ecosystem][8])
+
+### Search UI
+
+```text
+DATA SEARCH
+
+Location: [draw AOI]
+Time:     [2024-01-01 → today]
+Sensor:   [Sentinel-2 ▼]
+Cloud:    [< 20%]
+Type:     [Optical ▼]
+
+SEARCH
+```
+
+Results appear directly on the globe.
+
+No download required unless the user requests it.
+
+---
+
+# 15. 🗺️ THE BASEMAP LIBRARY
+
+Give users choices.
+
+## Political
+
+* OpenStreetMap
+* Natural Earth
+* OpenTopoMap
+* humanitarian maps
+
+## Physical
+
+* Blue Marble
+* Natural Earth shaded relief
+* GEBCO bathymetry
+* hillshade
+* terrain
+
+## Satellite
+
+* NASA GIBS
+* Landsat
+* Sentinel-derived services
+* Worldview layers
+
+## Historical
+
+This would be incredible:
+
+* historical maps
+* old satellite imagery
+* palaeogeography
+* historical borders
+* ancient cities
+* geological reconstructions
+
+Then:
+
+```text
+TIME: 2026
+       ↑
+       │
+       ↓
+TIME: 100 MILLION YEARS AGO
+```
+
+---
+
+# 16. 🧠 THE MOST IMPORTANT FEATURE: AI GEOAGENT
+
+This could be the glue holding everything together.
+
+The user should never need to manually find all these APIs.
+
+They ask:
+
+> "Show me areas in Iceland where recent earthquakes overlap with high volcanic hazard."
+
+The AI:
+
+1. detects required datasets
+2. queries earthquake feeds
+3. finds volcanoes
+4. retrieves hazard layers
+5. performs spatial intersections
+6. visualises results
+7. explains methodology
+8. provides source provenance
+
+Another:
+
+> "Find glacier lakes in Nepal above 4,000 m with more than 10,000 people within 50 km downstream."
+
+That is **GIS analysis by natural language**.
+
+---
+
+# 17. The GeoID "Data Registry"
+
+I would create a database something like:
+
+```json
+{
+  "id": "usgs_earthquakes",
+  "name": "USGS Earthquake Feed",
+  "category": "Hazards",
+  "subcategory": "Earthquakes",
+  "format": ["GeoJSON", "CSV"],
+  "access": "REST API",
+  "update": "Real-time",
+  "coverage": "Global",
+  "license": "...",
+  "endpoint": "...",
+  "render": "point",
+  "style": "magnitude_depth",
+  "cache": "5 minutes"
+}
+```
+
+Then GeoID becomes **data-driven**.
+
+Adding a new source doesn't necessarily mean rebuilding the frontend.
+
+You add it to the registry.
+
+---
+
+# 18. I would organise the actual GeoHUB like this
+
+## 🔴 LIVE
+
+* Earthquakes
+* Volcanoes
+* Wildfires
+* Floods
+* Storms
+* Cyclones
+* Landslides
+* Drought
+* Air quality
+* Space weather
+* Active satellites
+
+## 🟠 HAZARDS
+
+* seismic
+* volcanic
+* flood
+* landslide
+* avalanche
+* tsunami
+* wildfire
+* cyclone
+* coastal
+* drought
+* GLOF
+
+## 🟡 EARTH SYSTEM
+
+* atmosphere
+* hydrosphere
+* cryosphere
+* biosphere
+* lithosphere
+* oceans
+
+## 🟢 GEOLOGY
+
+* lithology
+* faults
+* tectonics
+* volcanoes
+* mineral resources
+* boreholes
+* geological maps
+* geochronology
+
+## 🔵 EARTH OBSERVATION
+
+* Sentinel
+* Landsat
+* MODIS
+* VIIRS
+* radar
+* DEMs
+* LiDAR
+* InSAR
+* climate products
+
+## 🟣 HUMAN EARTH
+
+* cities
+* population
+* buildings
+* roads
+* infrastructure
+* land use
+* protected areas
+
+## ⚫ SPACE
+
+* Sun
+* space weather
+* Moon
+* Mars
+* planetary GIS
+* asteroids
+
+## ⭐ GEOID LAB
+
+This is where users can:
+
+* upload GeoJSON
+* upload Shapefile
+* upload GeoTIFF
+* connect WMS
+* connect WMTS
+* connect WFS
+* connect OGC API
+* connect STAC
+* connect ArcGIS REST
+* run spatial analysis
+* save projects
+* publish maps
+
+---
+
+# My top 10 integrations to build FIRST
+
+If resources are limited, I would start here:
+
+| Priority | Integration                   | Why                              |
+| -------- | ----------------------------- | -------------------------------- |
+| **1**    | NASA EONET                    | Instant global live-events map   |
+| **2**    | USGS Earthquake               | Real-time, highly visual         |
+| **3**    | NASA FIRMS                    | Wildfires                        |
+| **4**    | GDACS                         | Multi-hazard disaster context    |
+| **5**    | Open-Meteo                    | Easy weather integration         |
+| **6**    | Copernicus STAC/Data Space    | Gateway to enormous EO data      |
+| **7**    | NASA GIBS/Worldview           | Stunning satellite visualisation |
+| **8**    | OpenStreetMap + Natural Earth | Global vector foundation         |
+| **9**    | GEBCO + global DEM            | 3D Earth/ocean                   |
+| **10**   | STAC universal connector      | Future-proof architecture        |
+
+EONET is especially valuable because it already acts as a curated, near-real-time event layer rather than forcing you to independently build every event feed first. ([eonet.gsfc.nasa.gov][1])
+
+## My strongest recommendation
+
+**Don't try to download and host the world.**
+
+Build GeoID as a **federated geoscience hub**:
+
+```text
+                GEOID UI
+                    │
+              GEOID API LAYER
+                    │
+       ┌────────────┼────────────┐
+       │            │            │
+   LIVE APIs      STAC        OGC SERVICES
+       │            │            │
+       └────────────┼────────────┘
+                    │
+              SOURCE REGISTRY
+                    │
+ ┌──────────────────┼───────────────────┐
+ NASA   USGS   ESA   NOAA   OGC   Universities
+```
+
+That approach is particularly compatible with STAC, OGC services and the APIs increasingly provided by organisations such as Copernicus, USGS and NOAA. ([Copernicus Data Space Ecosystem][8])
+
+**The ultimate GeoID product is not "a map with lots of layers."**
+
+It is:
+
+> **A searchable digital interface to the physical Earth and Solar System — where any user can ask what is happening, what exists at a location, what happened there before, and what the data suggests could happen next.**
+
+For your project specifically, I think the next major step should be to create a **master GeoID Data Universe**: a database of perhaps **300–500 specific APIs, STAC catalogues, WMS/WMTS/WFS services, GeoJSON feeds, DEMs, shapefile repositories and live streams**, categorised by data type, licence, coverage, update frequency, authentication, format and implementation difficulty.
+
+That would give you a genuine **technical blueprint for building the world's most comprehensive open geoscience UI**.
+
+[1]: https://eonet.gsfc.nasa.gov/?utm_source=chatgpt.com "Earth Observatory Natural Event Tracker (EONET) | Welcome"
+[2]: https://earthquake.usgs.gov/fdsnws/event/1/swagger.json?utm_source=chatgpt.com "API Documentation - Earthquake Catalog"
+[3]: https://www.usgs.gov/faqs/does-usgs-have-apis?utm_source=chatgpt.com "Does the USGS have APIs? | U.S. Geological Survey"
+[4]: https://api.waterdata.usgs.gov/docs/stac?utm_source=chatgpt.com "Water Data APIs"
+[5]: https://www.ncei.noaa.gov/cdo-web/webservices?utm_source=chatgpt.com "NCEI Web Services | Climate Data Online (CDO) | National Center for Environmental Information (NCEI)"
+[6]: https://www.gispo.studio/blog/geospatial-data-web-apis-guide?utm_source=chatgpt.com "10 Free Geospatial Data Sources — OSM, Natural Earth, Copernicus & More | GIS Converter Hub"
+[7]: https://stacspec.org/en/about/datasets/?utm_source=chatgpt.com "STAC Datasets"
+[8]: https://dataspace.copernicus.eu/analyse/apis?utm_source=chatgpt.com "APIs | Copernicus Data Space Ecosystem"
+

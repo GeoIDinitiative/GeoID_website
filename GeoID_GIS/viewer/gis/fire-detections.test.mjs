@@ -14,6 +14,7 @@
 
 import {
   fireTileUrls, firesToGeoJSON, confidenceBand, fireSensorIds, fireSensor, fireDate,
+  firePerimetersUrl, firePerimetersToGeoJSON,
 } from "./research/connectors.js";
 
 let failures = 0;
@@ -142,6 +143,57 @@ check("both hemispheres are kept", both.features.length, 2);
 
 check("no tiles is an empty collection", firesToGeoJSON([], "modis").features.length, 0);
 check("a null payload does not throw", firesToGeoJSON(null, "modis").features.length, 0);
+
+// ── Wildfire perimeters: the real mapped polygon ─────────────────────────
+/* A detection is a hot pixel; a perimeter is a surveyed boundary with a name.
+   Where both exist the perimeter is the better answer, and it is the one
+   thing the satellite feeds cannot give. */
+const permUrl = firePerimetersUrl();
+check("asks the NIFC perimeter service",
+  permUrl.includes("WFIGS_Interagency_Perimeters_Current/FeatureServer/0/query"), true);
+check("as GeoJSON in WGS84",
+  permUrl.includes("f=geojson") && permUrl.includes("outSR=4326"), true);
+
+const perims = firePerimetersToGeoJSON({
+  features: [
+    {
+      geometry: { type: "Polygon", coordinates: [[[-120, 44], [-119, 44], [-119, 45], [-120, 44]]] },
+      properties: {
+        poly_IncidentName: "Big Grass", attr_FireCause: "Natural",
+        attr_IncidentSize: 575163, poly_GISAcres: 574000,
+        attr_PercentContained: 93, attr_POOState: "US-OR",
+        // The service reports epoch MILLISECONDS; a bare number is not a date.
+        attr_FireDiscoveryDateTime: 1784937600000,
+      },
+    },
+    // Falls back to the incident name when the polygon has none.
+    {
+      geometry: { type: "MultiPolygon", coordinates: [[[[0, 0], [1, 0], [1, 1], [0, 0]]]] },
+      properties: { attr_IncidentName: "Second", attr_FireCause: "Human" },
+    },
+    { geometry: null, properties: { poly_IncidentName: "no shape" } },
+  ],
+});
+check("a perimeter per mapped fire", perims.features.length, 2);
+check("one with no geometry is dropped",
+  perims.features.some((f) => f.properties.name === "no shape"), false);
+const big = perims.features[0].properties;
+check("named from the polygon record", big.name, "Big Grass");
+check("the incident's own acreage is kept", big.reported_acres, 575163);
+/* Both acreages are kept and both are labelled: the incident's is what the
+   team declared, the polygon's is what was drawn, and they disagree. */
+check("as is the mapped polygon's", big.mapped_acres, 574000);
+check("containment is carried", big.contained_pct, 93);
+check("the state is unprefixed", big.state, "OR");
+check("the cause is carried", big.cause, "Natural");
+check("epoch millis become a readable date", /^\d{4}-\d{2}-\d{2}$/.test(big.discovered), true);
+/* Perimeters are few and named, so unlike the detections they earn labels. */
+check("a perimeter is labelled", big.label_rank, 3);
+check("a detection is not", fc.features[0].properties.label_rank, 0);
+check("the name falls back to the incident record", perims.features[1].properties.name, "Second");
+check("a missing date is blank, not Invalid Date", perims.features[1].properties.discovered, "");
+check("no features is an empty collection",
+  firePerimetersToGeoJSON({ features: [] }).features.length, 0);
 
 if (failures) {
   console.log(`\n${failures} check(s) failed`);

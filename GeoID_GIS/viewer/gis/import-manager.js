@@ -1,16 +1,16 @@
 import * as THREE from "../vendor/three.module.js";
-import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260827-9995827";
-import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260827-9995827";
-import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260827-9995827";
-import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260827-9995827";
+import { loadStlFromArrayBuffer } from "./stl-loader-adapter.js?v=20260827-9217f59";
+import { loadGeoTiffFromArrayBuffer, buildRasterLayer } from "./geotiff-adapter.js?v=20260827-9217f59";
+import { loadObj, loadPly, parseAsciiGrid } from "./mesh-formats.js?v=20260827-9217f59";
+import { parseGeoJson, parseKml, parseGpx, parseWkt } from "./vector-formats.js?v=20260827-9217f59";
 import {
   buildVectorLayerResult, setRenderRelief, setLineDrapeFromAltitude,
   setMarkerSizeFromAltitude,
-} from "./vector-render.js?v=20260827-9995827";
-import { loadShapefile } from "./shapefile-adapter.js?v=20260827-9995827";
-import { loadXyzPoints } from "./xyz-adapter.js?v=20260827-9995827";
-import { loadMshFile } from "./msh-adapter.js?v=20260827-9995827";
-import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260827-9995827";
+} from "./vector-render.js?v=20260827-9217f59";
+import { loadShapefile } from "./shapefile-adapter.js?v=20260827-9217f59";
+import { loadXyzPoints } from "./xyz-adapter.js?v=20260827-9217f59";
+import { loadMshFile } from "./msh-adapter.js?v=20260827-9217f59";
+import { frameGlobeBounds, placeLocalModel } from "./geo-utils.js?v=20260827-9217f59";
 
 // Sidecars are consumed by the parser of their primary file, so they must not
 // each spawn their own layer row.
@@ -41,8 +41,15 @@ const PARSERS = {
   msh: async (file, ctx) => loadMshFile(file, ctx),
   obj: async (file) => loadObj(file),
   ply: async (file) => loadPly(file),
-  geojson: async (file) => buildVectorLayerResult(
-    parseGeoJson(await file.text()), { name: file.name },
+  /**
+   * `ctx.pointStyle` rides in from the caller, because the RENDERER cannot
+   * tell a ninety-thousand-point catalogue from a ninety-thousand-point
+   * cloud and they want opposite treatment — screen-pixel dots for places,
+   * world-space for a surface. Only a caller that knows the dataset knows.
+   */
+  geojson: async (file, ctx) => buildVectorLayerResult(
+    parseGeoJson(await file.text()),
+    { name: file.name, pointStyle: ctx?.pointStyle || "auto" },
   ),
   kml: async (file) => buildVectorLayerResult(parseKml(await file.text()), { name: file.name }),
   gpx: async (file) => buildVectorLayerResult(parseGpx(await file.text()), { name: file.name }),

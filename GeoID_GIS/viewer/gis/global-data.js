@@ -26,7 +26,7 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260827-9995827";
+import { runConnector } from "./research/connectors.js?v=20260827-9217f59";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -257,6 +257,21 @@ export const DATASETS = [
     licence: "© OpenStreetMap contributors (ODbL)",
   },
   {
+    id: "conn-fire-perimeters",
+    featureNoun: "Wildfire perimeter",
+    group: "Live services",
+    label: "Wildfire perimeters — live (NIFC, US)",
+    connector: "fire-perimeters",
+    name: "Wildfire perimeters (NIFC).geojson",
+    summary: "Surveyed boundaries of active US wildfires with name, cause, "
+      + "acreage and containment — the mapped polygon, where the satellite "
+      + "layers give hot pixels. United States only: no browser-reachable "
+      + "service publishes active perimeters globally.",
+    colourBy: "cause",
+    colours: { Human: "#ff7a18", Natural: "#ffd166", Undetermined: "#8a8a8a" },
+    licence: "NIFC / Wildland Fire Interagency Geospatial Services — public domain",
+  },
+  {
     id: "conn-fires-modis",
     featureNoun: "Active fire detection",
     group: "Live services",
@@ -266,12 +281,20 @@ export const DATASETS = [
     summary: "Today's thermal anomalies from Terra and Aqua at 1 km, worldwide "
       + "— about 17,000 a day. Raw detections with intensity, not curated "
       + "events: the Events tab's EONET wildfires are 99% North America.",
-    // Confidence, not FRP: `colourBy` drives the CATEGORICAL paint, and the
-    // band is one vocabulary across both sensors (MODIS reports 0-100, VIIRS
-    // reports l/n/h). Fire radiative power is the more interesting variable
-    // and is one click away in Symbology, which classes numeric columns.
-    colourBy: "confidence",
-    colours: { high: "#ff2d1a", nominal: "#ff9d2e", low: "#ffe066", unknown: "#8a8a8a" },
+    /**
+     * By fire radiative POWER, classed — which is what a fire map is about.
+     *
+     * Confidence answers "is this real"; FRP answers "how big is it", and the
+     * spread is enormous (measured today, 0 to 10,407 MW with a median of
+     * 19.9). Quantile rather than equal interval, because a handful of
+     * enormous fires would otherwise put every ordinary one in the bottom
+     * class and the map would be one colour. The risk ramp reads hot without
+     * a legend.
+     */
+    colourRange: { field: "frp_mw", method: "quantile", classes: 5, ramp: "risk" },
+    // Places, not a point cloud: ninety thousand detections are ninety
+    // thousand PLACES, and world-space sizing draws them sub-pixel.
+    pointStyle: "places",
     licence: "NASA FIRMS via NASA EOSDIS GIBS — NASA open data",
   },
   {
@@ -284,8 +307,9 @@ export const DATASETS = [
     summary: "The same day at 375 m rather than 1 km, so far more of it — "
       + "about 98,000 detections worldwide. Heavier to draw; the detail is "
       + "the point.",
-    colourBy: "confidence",
-    colours: { high: "#ff2d1a", nominal: "#ff9d2e", low: "#ffe066", unknown: "#8a8a8a" },
+    // Same FRP classing and the same reason as the MODIS row above.
+    colourRange: { field: "frp_mw", method: "quantile", classes: 5, ramp: "risk" },
+    pointStyle: "places",
     licence: "NASA FIRMS via NASA EOSDIS GIBS — NASA open data",
   },
   {
@@ -297,8 +321,9 @@ export const DATASETS = [
     name: "Active fires VIIRS NOAA-20 (NASA FIRMS).geojson",
     summary: "A second 375 m VIIRS pass, about ninety minutes from Suomi NPP's "
       + "— two looks at the same day rather than a duplicate of one.",
-    colourBy: "confidence",
-    colours: { high: "#ff2d1a", nominal: "#ff9d2e", low: "#ffe066", unknown: "#8a8a8a" },
+    // Same FRP classing and the same reason as the MODIS row above.
+    colourRange: { field: "frp_mw", method: "quantile", classes: 5, ramp: "risk" },
+    pointStyle: "places",
     licence: "NASA FIRMS via NASA EOSDIS GIBS — NASA open data",
   },
   {
@@ -499,7 +524,9 @@ export async function addDataset(id, onStatus = () => {}) {
     // rather than being renamed a moment later in front of the user.
     await manager.importFileList(
       [new File([blob], entry.name, { type: "application/geo+json" })],
-      { name: layerNameOf(entry) },
+      // `pointStyle` because the renderer cannot tell a large CATALOGUE from a
+      // point CLOUD and they want opposite treatment; only the entry knows.
+      { name: layerNameOf(entry), pointStyle: entry.pointStyle || "auto" },
     );
     if (provenance) {
       const layer = loadedLayer(entry);
@@ -546,7 +573,29 @@ export async function addDataset(id, onStatus = () => {}) {
    * nothing about volcanoes. The entry knows better than the ranking, and can
    * still be recoloured from the Symbology button like anything else.
    */
-  if (layer && entry.colourBy) {
+  /**
+   * A dataset whose interesting column is a NUMBER gets it classed, not listed.
+   *
+   * `colourBy` runs the categorical paint, which is right for rock names and
+   * wrong for fire radiative power: quantiling a list of names is meaningless
+   * and listing a continuous range gives one hue per distinct value. An entry
+   * that names a `colourRange` gets `paintByRange` — the same classing the
+   * rasters use, so a vector and a raster cut the same numbers the same way.
+   */
+  if (layer && entry.colourRange) {
+    try {
+      const { paintByRange } = await import(
+        `./symbology-dialog.js${new URL(import.meta.url).search}`);
+      const spec = entry.colourRange;
+      paintByRange(layer, spec.field, {
+        method: spec.method || "quantile",
+        classes: spec.classes || 5,
+        ramp: spec.ramp || "risk",
+      });
+    } catch (error) {
+      /* the layer stands in its default colours */
+    }
+  } else if (layer && entry.colourBy) {
     try {
       const { paintByField } = await import(
         `./symbology-dialog.js${new URL(import.meta.url).search}`);

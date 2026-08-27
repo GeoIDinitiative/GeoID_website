@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260827-9995827";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260827-9995827";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260827-9995827";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260827-9217f59";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260827-9217f59";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260827-9217f59";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -101,6 +101,9 @@ const MARKER_OUTLINE_EXTRA = 5.2;
 let markerSize = 7;
 
 function registerMarkerMaterial(material, role) {
+  // A null role means "leave my size alone": a dense catalogue picks its own
+  // and must not be rewritten to the shared marker size on every camera move.
+  if (!role) return material;
   material.userData.geoidMarkerRole = role;
   MARKER_MATERIALS.add(material);
   // Materials announce their own disposal; forgetting them here is what
@@ -530,6 +533,23 @@ export function renderFeatureCollection(fc, {
    * them there is nothing for the seal's coplanar trick to seal against.
    */
   outlineOnly = false,
+  /**
+   * Is this layer a set of PLACES or a point CLOUD?
+   *
+   * The count decides by default, and the rule is sound: under 20,000 a layer
+   * is a set of places and is sized in screen pixels; above it, world space,
+   * because a fixed pixel size paints the globe solid at a distance. That is
+   * right for a LiDAR return or an XYZ surface, where the points ARE the
+   * ground.
+   *
+   * It is wrong for a large CATALOGUE. Ninety thousand fire detections are
+   * ninety thousand places, and world-space sizing drew them at 0.018 units —
+   * sub-pixel specks, invisible at every altitude anyone would look from. A
+   * layer that knows it is a catalogue says so, and gets screen-pixel dots at
+   * any count; the size comes down with the count so the planet does not fill
+   * in.
+   */
+  pointStyle = "auto",
   // Uniforms for the backdrop's window; null for an ordinary layer.
   hole = null,
 } = {}) {
@@ -756,7 +776,20 @@ export function renderFeatureCollection(fc, {
      * solid at a distance, so the points stay in world space and read as the
      * surface they sample.
      */
-    const asMarkers = pointPositions.length / 3 <= 20000;
+    const pointCount = pointPositions.length / 3;
+    const asMarkers = pointStyle === "cloud" ? false
+      : (pointStyle === "places" || pointCount <= 20000);
+    /**
+     * A big catalogue gets a smaller dot, and no ring.
+     *
+     * The white underlay is what separates a coloured mark from coloured
+     * ground, and it is worth two draw calls at a few thousand points. At
+     * ninety thousand it doubles the fill for a ring there is no room to see:
+     * below about six pixels the disc and its outline are the same three
+     * pixels of screen. So past the threshold the mark shrinks and stands
+     * alone.
+     */
+    const denseCatalogue = asMarkers && pointCount > 20000;
     /**
      * A marker is a NODE: a disc in the symbology colour inside a heavy
      * white ring.
@@ -791,6 +824,9 @@ export function renderFeatureCollection(fc, {
       ? {
         sizeAttenuation: false, depthWrite: false, depthTest: false,
         map: markerDiscTexture(), alphaTest: 0.35, transparent: true,
+        // A ringed node at a few thousand; a plain dot at ninety thousand,
+        // small enough that the planet does not fill in at a distance.
+        ...(denseCatalogue ? { size: 3.4 } : {}),
       }
       : { size: pointSize, sizeAttenuation: true, depthWrite: false };
     if (pointColours.length === pointPositions.length) {
@@ -817,19 +853,27 @@ export function renderFeatureCollection(fc, {
     if (asMarkers) {
       // The ring first, the tinted disc over it. Same geometry, same relief
       // shader; the underlay ignores the colour attribute and stays white.
-      const outline = new THREE.Points(geometry, followRelief(
+      // Skipped entirely for a dense catalogue -- see `denseCatalogue`.
+      const outline = denseCatalogue ? null : new THREE.Points(geometry, followRelief(
         registerMarkerMaterial(new THREE.PointsMaterial({
           sizeAttenuation: false, depthWrite: false, depthTest: false,
           map: markerDiscTexture(), alphaTest: 0.35, transparent: true, color: 0xffffff,
         }), "outline"),
         drape, { lifted: true, cullFarSide: true },
       ));
-      outline.renderOrder = 4;
-      outline.frustumCulled = false;
-      group.add(outline);
+      if (outline) {
+        outline.renderOrder = 4;
+        outline.frustumCulled = false;
+        group.add(outline);
+      }
       const fill = new THREE.Points(geometry, followRelief(
-        registerMarkerMaterial(new THREE.PointsMaterial(material), "fill"),
-        drape, { lifted: true },
+        registerMarkerMaterial(
+          new THREE.PointsMaterial(material),
+          // A dense catalogue is sized on its own scale, so it must not be
+          // rewritten by the shared marker size as the camera moves.
+          denseCatalogue ? null : "fill",
+        ),
+        drape, { lifted: true, cullFarSide: true },
       ));
       fill.renderOrder = 4.1;
       fill.frustumCulled = false;
@@ -930,7 +974,7 @@ function defaultSymbology(fc) {
 }
 
 export function buildVectorLayerResult(fc, {
-  name, fields = [], drape = 0.006, outlineOnly = false,
+  name, fields = [], drape = 0.006, outlineOnly = false, pointStyle = "auto",
 } = {}) {
   /**
    * The fill mode rides with the LAYER, not with a paint call.
@@ -953,7 +997,7 @@ export function buildVectorLayerResult(fc, {
   // minutes where it used to take seconds. The geometry is the same either
   // way; what changes is that the layer is on the globe immediately and gains
   // its colours a moment later, instead of the user waiting for both.
-  const { object3D, truncated } = renderFeatureCollection(fc, { name, drape });
+  const { object3D, truncated } = renderFeatureCollection(fc, { name, drape, pointStyle });
   let lastColourFor = null;
 
   /**
@@ -967,7 +1011,7 @@ export function buildVectorLayerResult(fc, {
   const repaintVector = (colourFor) => {
     lastColourFor = colourFor;
     const next = renderFeatureCollection(fc, {
-      name, drape, colourFor, outlineOnly: fillMode === "outline",
+      name, drape, colourFor, pointStyle, outlineOnly: fillMode === "outline",
     });
     [...object3D.children].forEach((child) => {
       child.geometry?.dispose?.();

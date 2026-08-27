@@ -484,6 +484,75 @@ export async function loadFireDetections(sensorId, { date = fireDate() } = {}) {
   return { geojson: firesToGeoJSON(decoded, sensorId), endpoint: urls.join(" + "), date };
 }
 
+// ── Wildfire perimeters (NIFC / WFIGS, United States) ────────────────────────
+/**
+ * The real mapped POLYGON — where a fire actually is, not where a pixel was hot.
+ *
+ * A FIRMS detection is a 375 m or 1 km pixel that exceeded a threshold; a
+ * perimeter is a surveyed boundary with a name, a cause and a containment
+ * figure. Where both exist the perimeter is the better answer, and it is the
+ * one thing the satellite feeds cannot give.
+ *
+ * They exist for the UNITED STATES and, as far as a browser can reach, only
+ * there. NIFC's Wildland Fire Interagency Geospatial Services layer is public
+ * ArcGIS with CORS `*` and no key — measured, 234 current perimeters. Europe's
+ * equivalent (EFFIS/GWIS) publishes burnt area rather than active perimeter
+ * and its services are fragmented per country. So this layer is honestly
+ * scoped in its own name rather than presented as global coverage.
+ */
+const NIFC_PERIMETERS = "https://services3.arcgis.com/T4QMspbfLg3qTGWY/arcgis/rest"
+  + "/services/WFIGS_Interagency_Perimeters_Current/FeatureServer/0";
+
+export function firePerimetersUrl() {
+  const params = new URLSearchParams({
+    where: "1=1", outFields: "*", outSR: "4326", f: "geojson",
+  });
+  return `${NIFC_PERIMETERS}/query?${params}`;
+}
+
+/**
+ * NIFC's 119 columns down to the ones a reader asks about.
+ *
+ * The service carries every field the interagency schema defines, most of
+ * them null on most fires. `attr_` is the incident record and `poly_` the
+ * mapped polygon, and the two disagree about size on purpose: the incident's
+ * reported acreage is what the team declared, the polygon's is what was
+ * drawn. Both are kept and both are labelled, rather than picking one and
+ * calling it "size".
+ */
+export function firePerimetersToGeoJSON(payload) {
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : null);
+  const features = (payload?.features || []).map((f) => {
+    const p = f?.properties || {};
+    if (!f?.geometry?.coordinates?.length) return null;
+    const name = String(p.poly_IncidentName || p.attr_IncidentName || "").trim();
+    const discovered = num(p.attr_FireDiscoveryDateTime);
+    return {
+      type: "Feature",
+      geometry: f.geometry,
+      properties: {
+        name,
+        kind: "Wildfire perimeter",
+        cause: String(p.attr_FireCause || "").trim(),
+        // Declared by the incident team.
+        reported_acres: num(p.attr_IncidentSize),
+        // Measured off the drawn polygon.
+        mapped_acres: num(p.poly_GISAcres),
+        contained_pct: num(p.attr_PercentContained),
+        state: String(p.attr_POOState || "").replace(/^US-/, ""),
+        agency: String(p.attr_POOProtectingAgency || "").trim(),
+        // The service reports epoch milliseconds; a bare number in a card is
+        // not a date anybody can read.
+        discovered: discovered ? new Date(discovered).toISOString().slice(0, 10) : "",
+        // Perimeters are few and named, so they earn labels — unlike the
+        // detections, where ninety thousand names is a white planet.
+        label_rank: 3,
+      },
+    };
+  }).filter(Boolean);
+  return { type: "FeatureCollection", features };
+}
+
 // ── OpenStreetMap places (Overpass API) ───────────────────────────────────────
 // Cities, towns and villages in an area. CORS-open, no key. Needs a bbox, so it
 // requires a study area (a global Overpass query would time out).
@@ -653,6 +722,14 @@ export const CONNECTORS = {
     toGeoJSON: usgsWaterToGeoJSON,
     filename: () => "usgs_streamflow.geojson",
     defaults: {},
+  },
+  "fire-perimeters": {
+    label: "Wildfire perimeters (NIFC, United States)",
+    kind: "vector",
+    url: firePerimetersUrl,
+    toGeoJSON: firePerimetersToGeoJSON,
+    filename: () => "wildfire_perimeters_nifc.geojson",
+    attribution: "NIFC / Wildland Fire Interagency Geospatial Services (public domain)",
   },
   "fires-modis": {
     label: 'Active fires — MODIS (Terra + Aqua)',
