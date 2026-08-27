@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260827-5f1a5bb";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260827-5f1a5bb";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260827-5f1a5bb";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260827-636ce9c";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260827-636ce9c";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260827-636ce9c";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -503,6 +503,20 @@ export function renderFeatureCollection(fc, {
    * fill was 0.55, so this also makes it tell the truth.
    */
   fillOpacity = 1,
+  /**
+   * Draw polygons as their OUTLINE, in their own colour, with no fill.
+   *
+   * A filled polygon states what the ground is — that is a geological map.
+   * An outlined one states where a boundary is and leaves the ground
+   * visible, which is what a study area, an extent or anything somebody drew
+   * to look INSIDE of needs. Filling those hides the very thing they were
+   * drawn around.
+   *
+   * The rings then take the same lifted, depth-tested treatment a LineString
+   * gets rather than the fill-height `seal`, because with no fill beneath
+   * them there is nothing for the seal's coplanar trick to seal against.
+   */
+  outlineOnly = false,
   // Uniforms for the backdrop's window; null for an ordinary layer.
   hole = null,
 } = {}) {
@@ -598,7 +612,7 @@ export function renderFeatureCollection(fc, {
       scratch.set(css);
       colour = { r: scratch.r, g: scratch.g, b: scratch.b };
     }
-    if (colour) {
+    if (colour && !outlineOnly) {
       polygons.forEach((polygon) => fillTriangles(polygon, FILL_DRAPE, fill, colour));
       // The seam, at the fill's own height. See the note on `seal` above.
       rings.forEach((coords) => {
@@ -615,7 +629,7 @@ export function renderFeatureCollection(fc, {
     // height. What is left here is the outline-first pass -- a layer on the
     // globe before its symbology arrives -- and any LineString features, both
     // of which keep the lifted, depth-tested treatment lines have always had.
-    [...(colour ? [] : rings), ...lines].forEach((coords) => {
+    [...(colour && !outlineOnly ? [] : rings), ...lines].forEach((coords) => {
       const before = linePositions.length;
       for (let i = 0; i + 1 < coords.length; i += 1) {
         pushSegment(linePositions, coords[i], coords[i + 1], drape);
@@ -859,7 +873,19 @@ function defaultSymbology(fc) {
   };
 }
 
-export function buildVectorLayerResult(fc, { name, fields = [], drape = 0.006 } = {}) {
+export function buildVectorLayerResult(fc, {
+  name, fields = [], drape = 0.006, outlineOnly = false,
+} = {}) {
+  /**
+   * The fill mode rides with the LAYER, not with a paint call.
+   *
+   * `repaint` is called by every symbology path — the default paint on load,
+   * the dialog's Apply, a catalogue's palette — and none of them knows or
+   * should know whether this layer is drawn filled. Holding it here means
+   * choosing "outline only" once survives every later recolour, instead of
+   * the next Apply quietly filling the polygon back in.
+   */
+  let fillMode = outlineOnly ? "outline" : "solid";
   const bounds = collectionBounds(fc);
   const georeferenced = looksLikeGeographic(bounds);
   const symbology = defaultSymbology(fc);
@@ -872,6 +898,7 @@ export function buildVectorLayerResult(fc, { name, fields = [], drape = 0.006 } 
   // way; what changes is that the layer is on the globe immediately and gains
   // its colours a moment later, instead of the user waiting for both.
   const { object3D, truncated } = renderFeatureCollection(fc, { name, drape });
+  let lastColourFor = null;
 
   /**
    * Redraw this layer with a colour per feature.
@@ -882,7 +909,10 @@ export function buildVectorLayerResult(fc, { name, fields = [], drape = 0.006 } 
    * leave it a fixed distance from a turning planet.
    */
   const repaintVector = (colourFor) => {
-    const next = renderFeatureCollection(fc, { name, drape, colourFor });
+    lastColourFor = colourFor;
+    const next = renderFeatureCollection(fc, {
+      name, drape, colourFor, outlineOnly: fillMode === "outline",
+    });
     [...object3D.children].forEach((child) => {
       child.geometry?.dispose?.();
       child.material?.dispose?.();
@@ -918,6 +948,23 @@ export function buildVectorLayerResult(fc, { name, fields = [], drape = 0.006 } 
   return {
     object3D,
     repaint: repaintVector,
+    /**
+     * Switch between a filled polygon and its outline.
+     *
+     * Re-runs the LAST paint rather than asking the caller for the colours
+     * again: the fill mode and the palette are separate choices, and making
+     * a caller re-supply one to change the other is how the two drift.
+     */
+    setFillMode: (mode) => {
+      const next = mode === "outline" ? "outline" : "solid";
+      if (next === fillMode) return fillMode;
+      fillMode = next;
+      // With no paint yet the layer is already drawn as bare outlines, so
+      // there is nothing to redraw until its colours arrive.
+      if (lastColourFor) repaintVector(lastColourFor);
+      return fillMode;
+    },
+    getFillMode: () => fillMode,
     // The legend is derived from the symbology that was actually drawn, never
     // from a second guess about it.
     legendInfo: symbology?.rows?.length

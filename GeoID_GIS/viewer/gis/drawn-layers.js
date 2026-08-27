@@ -13,8 +13,8 @@
  * you can operate on, and it should not have to be captured twice.
  */
 
-import { buildVectorLayerResult } from "./vector-render.js?v=20260827-5f1a5bb";
-import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-5f1a5bb";
+import { buildVectorLayerResult } from "./vector-render.js?v=20260827-636ce9c";
+import { sphericalPolygonAreaKm2 } from "./geo-utils.js?v=20260827-636ce9c";
 
 let counter = 0;
 
@@ -101,7 +101,16 @@ export function captureDrawn({ name = null, stampedAt = null } = {}) {
   counter += 1;
   const layerName = feature.properties.name;
   const fc = { type: "FeatureCollection", features: [feature] };
-  const built = buildVectorLayerResult(fc, { name: layerName });
+  /**
+   * OUTLINE, not fill — you drew this box to look at what is inside it.
+   *
+   * A solid polygon over a study area hides the ground it was drawn around,
+   * which is the opposite of what it is for. A geological unit wants a fill
+   * because the fill IS the statement; an extent wants an edge. The symbology
+   * dialog switches it, and that choice survives every later recolour because
+   * the mode lives on the layer rather than on a paint call.
+   */
+  const built = buildVectorLayerResult(fc, { name: layerName, outlineOnly: true });
   const layer = window.GeoIDImportManager?.addDerivedLayer?.(layerName, built, "drawn");
   if (!layer) return { ok: false, message: "The layer could not be added — is the globe ready?" };
   // Same rule as every tool's output: it is a layer AND it is offered to the

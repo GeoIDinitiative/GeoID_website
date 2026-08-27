@@ -24,11 +24,11 @@
  * polygon comes out white with a perfectly correct legend beside it.
  */
 
-import { attributeHead, rankColourFields } from "./delimited.js?v=20260827-5f1a5bb";
+import { attributeHead, rankColourFields } from "./delimited.js?v=20260827-636ce9c";
 import {
   RAMPS, RAMP_NAMES, QUALITATIVE, QUALITATIVE_RAMP, METHODS,
   categoricalSymbology, buildSymbology, colourOf, legendInfoFrom, fmtBound,
-} from "./symbology.js?v=20260827-5f1a5bb";
+} from "./symbology.js?v=20260827-636ce9c";
 
 const STYLE = `
 /* NEVER a backtick in this block -- it is a template literal and one ends it. */
@@ -624,6 +624,17 @@ function buildVectorForm(layer, body, note, hooks) {
   const head6 = attributeHead(layer.features, { rows: 6 });
   const ranked = rankColourFields(head6);
   const lines = !hasAreas(layer);
+  /**
+   * Is there any column this layer could actually be coloured BY?
+   *
+   * The same test the option list applies, hoisted so the opening mode can
+   * use it: a column needs two distinct values to be worth a palette. A
+   * drawn shape is one feature, so every column holds one value and none of
+   * them qualifies — opening such a layer on "By attribute" showed a picker
+   * in which every entry was disabled.
+   */
+  const classable = head6.columns.some(
+    (column) => column.distinct >= 2 && !(column.capped && !column.numeric));
   const columnOf = new Map(head6.columns.map((c) => [c.key, c]));
   /**
    * A column of NUMBERS is classed, not listed.
@@ -668,8 +679,16 @@ function buildVectorForm(layer, body, note, hooks) {
      * geometry that decides: rivers and coastlines are one thing drawn many
      * times, so twelve hues along them is a legend describing an accident of
      * the attribute table. Polygons are usually a map OF something.
+     *
+     * Unless there is nothing to be a map of. A shape somebody drew is ONE
+     * feature, so every column holds exactly one value and every one of them
+     * is disabled by the rule below — "By attribute" would open with a picker
+     * where nothing can be picked. `classable` is that test, and it puts a
+     * drawn area on One colour, which is also the only mode its swatch means
+     * anything in.
      */
-    mode: layer.symbologySingle ? "single" : (layer.geologyField ? "field" : (lines ? "single" : "field")),
+    mode: layer.symbologySingle ? "single"
+      : (layer.geologyField ? "field" : ((lines || !classable) ? "single" : "field")),
     single: layer.symbologySingle || DEFAULT_SINGLE,
     field: layer.geologyField || ranked[0] || head6.columns[0]?.key,
     ramp: layer.geologyRamp || QUALITATIVE_RAMP,
@@ -744,6 +763,48 @@ function buildVectorForm(layer, body, note, hooks) {
   singleSwatch.addEventListener("input", () => { state.single = singleSwatch.value; });
   modeRow.append(modeLabel, modeSelect, singleSwatch);
   body.appendChild(modeRow);
+
+  /**
+   * Filled, or just the edge.
+   *
+   * A filled polygon states what the ground IS — that is a geological map,
+   * and the fill is the statement. An outlined one states where a boundary
+   * is and leaves the ground visible, which is what a study area or an
+   * extent needs: filling those hides the very thing they were drawn around.
+   * Both are right, for different layers, so it is a control rather than a
+   * rule — and anything somebody drew starts on the outline.
+   *
+   * Only offered where it can mean something. A layer with no polygons has
+   * no fill to switch off, and the row would be a control that does nothing.
+   * It also applies IMMEDIATELY rather than waiting for Apply: the mode is
+   * independent of the palette (it re-runs the last paint), so there is
+   * nothing to hold it back for, and seeing the change is the point.
+   */
+  const hasPolygons = typeof layer.setFillMode === "function";
+  if (hasPolygons) {
+    const fillRow = document.createElement("div");
+    fillRow.className = "sym-row";
+    const fillLabel = document.createElement("label");
+    fillLabel.textContent = "Polygons";
+    const fillSelect = document.createElement("select");
+    const current = layer.getFillMode?.() || "solid";
+    [["outline", "Outline only"], ["solid", "Solid fill"]].forEach(([value, text]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = text;
+      if (value === current) option.selected = true;
+      fillSelect.appendChild(option);
+    });
+    fillSelect.addEventListener("change", () => {
+      layer.setFillMode(fillSelect.value);
+      // The legend swatches describe fills; redrawing keeps the dock honest
+      // about what is actually on the globe.
+      document.dispatchEvent(new CustomEvent("geoid-gis:layers-changed",
+        { detail: { reason: "symbology" } }));
+    });
+    fillRow.append(fillLabel, fillSelect);
+    body.appendChild(fillRow);
+  }
 
   const fieldRow = document.createElement("div");
   fieldRow.className = "sym-row";
