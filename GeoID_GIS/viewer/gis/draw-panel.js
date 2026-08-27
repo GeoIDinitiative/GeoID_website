@@ -23,7 +23,7 @@
  * instead of a study area (`captureDrawnLine`), which is what a transect is.
  */
 
-import { regularPolygonVertices, lineVertices } from "./draw-area.js?v=20260827-170d4fd";
+import { regularPolygonVertices, lineVertices } from "./draw-area.js?v=20260827-2d7acfd";
 
 /* ── The shapes ──────────────────────────────────────────────────────────────
  *
@@ -678,6 +678,24 @@ export function init() {
       if (button.classList.contains("is-active")) open(); else close();
     }, 80);
   });
+  /**
+   * The card lives and dies with the TOOL, not with the button's own
+   * clicks: picking up Distance, Profile, or a workbench takes the area
+   * tool's is-active away without ever clicking the Draw button, and the
+   * card lingered over whatever came next. Watch the state itself — the
+   * button's class for the tool, the rail's class for a workbench opening
+   * — and stand down the moment either says the Draw tool is no longer
+   * what the hand is holding.
+   */
+  new MutationObserver(() => {
+    if (!button.classList.contains("is-active")) close();
+  }).observe(button, { attributes: true, attributeFilter: ["class"] });
+  const rail = document.getElementById("tool-rail");
+  if (rail) {
+    new MutationObserver(() => {
+      if (rail.classList.contains("has-open-panel") && card && !card.hidden) dismiss();
+    }).observe(rail, { attributes: true, attributeFilter: ["class"] });
+  }
   // Escape is the same dismissal as the x, so it puts the tool down too --
   // leaving one of them armed and the other not would be a difference nobody
   // could predict.

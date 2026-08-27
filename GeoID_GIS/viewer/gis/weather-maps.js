@@ -24,9 +24,9 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-170d4fd";
-import { currentBodyId } from "./bodies.js?v=20260827-170d4fd";
-import { rectangleVertices } from "./draw-area.js?v=20260827-170d4fd";
+import { drape } from "./gee.js?v=20260827-2d7acfd";
+import { currentBodyId } from "./bodies.js?v=20260827-2d7acfd";
+import { rectangleVertices } from "./draw-area.js?v=20260827-2d7acfd";
 
 const byId = (id) => document.getElementById(id);
 
