@@ -105,9 +105,17 @@ const LABEL_LEVEL_COPY = {
   3: "Every satellite competes for a name",
 };
 const MAX_LABELS = 40;
-// The pill's on-screen height at close zoom; the texture is baked to match
-// it texel-for-pixel (see makePillTexture).
-const TAG_HEIGHT_PX = 24;
+/**
+ * The pill's on-screen height at close zoom; the texture is baked to match
+ * it texel-for-pixel (see makePillTexture), so this number can be chosen
+ * for LOOK alone — sharpness no longer depends on it.
+ *
+ * 17, to sit beside the curated location labels: those are world-sized
+ * (34/200 x 0.66 = 0.112 units) and measure ~18 px at the default globe
+ * view, which is where the two kinds of chip are seen together. 24 was
+ * tried and reported massive — it read as UI, not annotation.
+ */
+const TAG_HEIGHT_PX = 17;
 const LABEL_SPACING_PX = 64;
 
 const LAYER_NAME = "Live satellites (CelesTrak)";
@@ -542,7 +550,7 @@ function showOrbitOverlay(overlay, record) {
 const tagTextures = new Map();
 
 function makePillTexture(name, colour) {
-  const key = `v8|${colour}|${name}`;
+  const key = `v9|${colour}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
   /**
    * The viewer's OWN pill, through the seam the volcano labels use — the
@@ -1436,7 +1444,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260827-053af40");
+    const dialog = await import("./symbology-dialog.js?v=20260827-70a3cbc");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

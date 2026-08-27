@@ -888,7 +888,14 @@ size, with the engine's mipmaps kept for the far-zoom shrink. Measured:
 77×24 texture drawn at 72.5×22.4 CSS on DPR 1 — 1.07 texels per device
 pixel, aspect matched to 0.8%. And the SIZE was half of every "change the
 font" report: at 18 px pills the title was ~8 px tall, below what any face
-can carry; TAG_HEIGHT_PX is 24, putting the type at ~11 px. The face is **'Exo 2'** — which viewer-skin serves
+can carry; TAG_HEIGHT_PX settled at **17** — 24 was legible
+and reported MASSIVE, reading as UI rather than annotation. The reference is
+the curated location labels, which are world-sized (0.112 units) and measure
+~18 px at the default globe view; 17 puts the two kinds of chip at the same
+visual weight where they are seen together (measured side by side: pills
+15.9 px, curated 13.7 px at one view). The texel-for-pixel baking scales
+WITH the constant, so the size is now a pure look decision — sharpness no
+longer rides on it. The face is **'Exo 2'** — which viewer-skin serves
 as Chakra Petch glyphs; there is NO family loaded under the name "Chakra
 Petch", so naming it first fell through the stack while looking like a
 choice (my own first fix did exactly that, and "the labels are unchanged"
