@@ -1,7 +1,7 @@
 import {
   addDataset, grouped, datasetById, layerForDataset,
-} from "./global-data.js?v=20260828-8a780da";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-8a780da";
+} from "./global-data.js?v=20260828-2b75ce7";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260828-2b75ce7";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -99,6 +99,101 @@ function drawCatalogue() {
       if (!openSymbologyFor(layer)) say("This layer cannot be recoloured.");
     },
   });
+  appendContourRows(host);
+}
+
+/**
+ * The contour overlay, as catalogue rows.
+ *
+ * The three loose "Contour overlay / opacity / color" rows sat between the
+ * two catalogues as furniture nobody filed; an elevation contour is an
+ * OVERLAY, so it lists with the overlays, one row per interval, radio-like
+ * (the viewer draws one interval at a time). The REAL controls stay in the
+ * page hidden (`#contour-controls`) because earth-viewer reads them by id
+ * unguarded — these rows are a face on them, exactly as the base-texture
+ * list is a face on `#base-layer-select`. The Symbology… button unfolds a
+ * shared line of colour + opacity proxies rather than the full dialog: a
+ * contour is not a data layer with columns to classify.
+ *
+ * Rebuilt with the catalogue: `renderCatalogue` wipes the box on every
+ * layer change, so this appends after every draw, reading its ticked state
+ * from the hidden select each time — the select is the state, never the DOM.
+ */
+function appendContourRows(host) {
+  const interval = document.getElementById("contour-interval-select");
+  const colourSrc = document.getElementById("contour-color-select");
+  const opacitySrc = document.getElementById("contour-opacity");
+  const scroll = host.querySelector(".gis-catalogue-scroll");
+  if (!interval || !colourSrc || !opacitySrc || !scroll) return;
+  if (scroll.querySelector("[data-contour-row]")) return;
+
+  const group = document.createElement("div");
+  group.className = "gis-catalogue-group";
+  group.dataset.contourRow = "1";
+  group.textContent = "Terrain";
+  scroll.appendChild(group);
+
+  // One shared symbology line, unfolded under whichever row asked.
+  const symRow = document.createElement("div");
+  symRow.dataset.contourRow = "1";
+  symRow.style.cssText = "display:none;gap:0.4rem;align-items:center;"
+    + "padding:0.2rem 0.5rem 0.35rem;";
+  const colour = document.createElement("select");
+  colour.className = "input";
+  colour.style.cssText = "flex:0 0 7rem;";
+  [...colourSrc.options].forEach((o) => colour.appendChild(o.cloneNode(true)));
+  colour.value = colourSrc.value;
+  colour.addEventListener("change", () => {
+    colourSrc.value = colour.value;
+    colourSrc.dispatchEvent(new Event("change"));
+  });
+  const opacity = document.createElement("input");
+  opacity.type = "range";
+  opacity.className = "slider";
+  opacity.min = "0"; opacity.max = "1"; opacity.step = "0.01";
+  opacity.value = opacitySrc.value;
+  opacity.style.flex = "1";
+  opacity.title = "Contour opacity";
+  opacity.addEventListener("input", () => {
+    opacitySrc.value = opacity.value;
+    opacitySrc.dispatchEvent(new Event("input"));
+    opacitySrc.dispatchEvent(new Event("change"));
+  });
+  symRow.append(colour, opacity);
+
+  const ticks = [];
+  [...interval.options].filter((o) => o.value).forEach((option) => {
+    const row = document.createElement("div");
+    row.className = "gis-catalogue-row";
+    row.dataset.contourRow = "1";
+    const tick = document.createElement("input");
+    tick.type = "checkbox";
+    tick.checked = interval.value === option.value;
+    tick.addEventListener("change", () => {
+      // Radio-like: the viewer draws one interval at a time, so ticking one
+      // stands the others down, and unticking the active one means "None".
+      ticks.forEach((other) => { if (other !== tick) other.checked = false; });
+      interval.value = tick.checked ? option.value : "";
+      interval.dispatchEvent(new Event("change"));
+    });
+    ticks.push(tick);
+    const name = document.createElement("span");
+    name.textContent = `Elevation contours — ${option.textContent}`;
+    name.style.cssText = "flex:1;min-width:0;";
+    const sym = document.createElement("button");
+    sym.type = "button";
+    sym.className = "gis-catalogue-sym";
+    sym.textContent = "Symbology…";
+    sym.title = "Contour colour and opacity";
+    sym.addEventListener("click", () => {
+      const open = symRow.style.display !== "none" && symRow.previousElementSibling === row;
+      row.after(symRow);
+      symRow.style.display = open ? "none" : "flex";
+    });
+    row.append(tick, name, sym);
+    scroll.appendChild(row);
+  });
+  scroll.appendChild(symRow);
 }
 
 function init() {

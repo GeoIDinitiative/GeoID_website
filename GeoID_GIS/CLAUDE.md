@@ -1079,7 +1079,16 @@ holds imports and drawn shapes only: the homeless global catalogue of reference 
 borders, countries and the submarine cables, mounts in Basemaps now via
 the `#polygon-catalogue` host moved into Earth's markup, which also stops
 Earth reference shapes being offered on Mars), then Meshes and Metadata.
-Inside the Basemaps tab the two catalogues are titled for what they hold —
+Inside the Basemaps tab the CONTOUR controls are catalogue rows now: a
+"Terrain" group at the foot of the Overlays list, one row per interval,
+radio-like (the viewer draws one at a time; unticking the active one is
+"None"), each row's Symbology… unfolding a shared line of colour+opacity
+PROXIES. The real `#contour-*` controls stay in the page hidden inside
+`#contour-controls` — earth-viewer reads all three by id unguarded — and
+the rows are re-appended after every `renderCatalogue` wipe, reading
+ticked state from the hidden select each time (the select is the state).
+Only the Terrain relief slider sits between the two catalogues.
+The two catalogues are titled for what they hold —
 **Basemaps** (the base-texture radio plus raster overlays, from
 map-layers-panel) over **Overlays** (the vector reference shapes, from
 polygons.js) — and the old "Street map & satellite imagery" collapsible is
