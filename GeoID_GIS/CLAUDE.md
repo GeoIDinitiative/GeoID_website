@@ -1130,6 +1130,18 @@ beside a hierarchy row was two controls for one layer; their "N polygons"
 count text was noise), and the dock body grew to min(42vh, 20rem) for its
 new contents (both stylesheets).
 
+**The Workspace add row is the ONE doorway for user data.** The per-tab
++ Data / + GEE pairs are gone — `add-data.js` injects only the vector
+role's row, into `#workspace-add-host` — and that role's dialog became
+"Add data" with the UNION of every old role's accept list (vectors,
+rasters, meshes). The per-tab narrowing was the one thing those buttons
+did that the master must not lose, and the mesh role's other job moved
+into `takeFiles`: all-mesh selections flip the CRS default to "none". The
+other ROLES entries survive as dialog configurations (`roleById` still
+resolves them). The fetch-polygon buttons (`#gee-draw-area`, the weather
+card's draw) are NOT add buttons — they choose ground, not files — and
+stay in their cards.
+
 **`gis/data-tags.js` classifies every input AS IT ARRIVES.** `inferType`
 is pure (extension → source → name, in that order of authority; pinned in
 data-tags.test.mjs); every layer wears its type as a coloured chip in the

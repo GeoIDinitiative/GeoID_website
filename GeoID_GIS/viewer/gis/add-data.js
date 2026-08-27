@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260827-b2fc8ce";
-import { readHead, validateMapping } from "./delimited.js?v=20260827-b2fc8ce";
-import { RAMP_NAMES } from "./symbology.js?v=20260827-b2fc8ce";
+import { CRS_OPTIONS } from "./projection.js?v=20260827-c748cb5";
+import { readHead, validateMapping } from "./delimited.js?v=20260827-c748cb5";
+import { RAMP_NAMES } from "./symbology.js?v=20260827-c748cb5";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -42,11 +42,21 @@ import { RAMP_NAMES } from "./symbology.js?v=20260827-b2fc8ce";
  */
 const ROLES = [
   {
+    /**
+     * THE master doorway — the Workspace box's + Data. The per-tab + Data
+     * and + GEE rows are gone (see init): one place where user data comes
+     * in, which is what the Workspace box exists to be. Its accept list is
+     * therefore the UNION of every old role's — the per-tab narrowing was
+     * the one thing those buttons did that this one must not lose — and
+     * `takeFiles` flips the CRS default to "none" when the chosen files
+     * are meshes, which was the mesh role's other job.
+     */
     id: "vector",
     panel: "gis-group-polygons",
-    title: "Add vectors & shapes",
-    hint: "Shapefile, GeoJSON, KML, GPX, CSV or XYZ points",
-    accept: ".shp,.dbf,.shx,.prj,.geojson,.json,.kml,.gpx,.wkt,.csv,.xyz,.pts,.txt",
+    title: "Add data",
+    hint: "Vectors, rasters or meshes — shapefile, GeoJSON, KML, GPX, CSV/XYZ, GeoTIFF, ASCII grid, STL, Gmsh, OBJ, PLY",
+    accept: ".shp,.dbf,.shx,.prj,.geojson,.json,.kml,.gpx,.wkt,.csv,.xyz,.pts,.txt,"
+      + ".tif,.tiff,.asc,.png,.jpg,.jpeg,.tfw,.pgw,.jgw,.stl,.msh,.obj,.ply",
   },
   {
     id: "basemap",
@@ -505,6 +515,14 @@ async function takeFiles(fileList) {
   const files = Array.from(fileList || []);
   if (!files.length) return;
   state.files = files;
+  // The mesh role's old job, done by the FILE now that there is one dialog:
+  // a mesh has no CRS to declare, and defaulting it to EPSG:4326 offered a
+  // georeference the format cannot carry.
+  const MESH_EXT = new Set(["stl", "msh", "obj", "ply"]);
+  if (files.every((f) => MESH_EXT.has(extensionOf(f.name)))) {
+    ui.crs.value = "none";
+    ui.crs.dispatchEvent(new Event("change"));
+  }
   ui.chosen.textContent = files.length === 1
     ? files[0].name
     : `${files.length} files — ${files.map((f) => f.name).join(", ")}`;
@@ -811,7 +829,16 @@ export function init() {
   // styles must be too.
   installStyle();
   ensureMeshGroup();
-  const placed = ROLES.map(addButtonFor);
+  /**
+   * ONLY the Workspace box gets a row. Every tab used to carry its own
+   * + Data / + GEE pair; with the Workspace box as the one doorway they
+   * were seven copies of the same two buttons, and were asked to go. The
+   * fetch-polygon buttons (`#gee-draw-area`, the weather card's draw) are
+   * NOT these — they choose ground, not files — and stay where they are.
+   * The other ROLES entries survive as dialog configurations (`roleById`
+   * still resolves them for anything that opens the dialog by role id).
+   */
+  const placed = [addButtonFor(roleById("vector"))];
   return placed.some(Boolean);
 }
 
