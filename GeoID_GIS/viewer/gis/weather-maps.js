@@ -24,9 +24,9 @@
  * registry is the seam, and nothing else here would change.
  */
 
-import { drape } from "./gee.js?v=20260827-1928668";
-import { currentBodyId } from "./bodies.js?v=20260827-1928668";
-import { rectangleVertices } from "./draw-area.js?v=20260827-1928668";
+import { drape } from "./gee.js?v=20260827-e45d095";
+import { currentBodyId } from "./bodies.js?v=20260827-e45d095";
+import { rectangleVertices } from "./draw-area.js?v=20260827-e45d095";
 
 const byId = (id) => document.getElementById(id);
 
@@ -154,6 +154,8 @@ function chosenBounds() {
   const area = window.GeoIDViewer?.getExtractionGeometry?.();
   const vertices = area?.vertices;
   if (!vertices?.length) {
+    const kept = capturedExtentBounds();
+    if (kept) return kept;
     promptDrawTool();
     return { error: "Draw the box on the globe, then press Fetch — the Draw tool is now active." };
   }
@@ -327,10 +329,19 @@ async function gridCanvas(bounds, source) {
   };
 }
 
-/** The newest captured fetch-extent layer's bounds, signed, or null. */
+/**
+ * The newest visible DRAWN-POLYGON layer's bounds, signed, or null — any of
+ * them, not only the ones this module captured: a box saved by the Custom
+ * button, a Fetch extent from an earlier pull, a drawn area restored with a
+ * project. That is what "reuse the polygon" has to mean, or a layer sitting
+ * in plain sight in Layer Visibility refuses to serve.
+ */
 function capturedExtentBounds() {
   const layers = (window.GeoIDImportManager?.getLayers?.() || [])
-    .filter((layer) => layer.weatherExtent && layer.visible !== false);
+    .filter((layer) => layer.visible !== false && (
+      layer.weatherExtent
+      || layer.ext === "drawn"
+      || layer.collection?.features?.[0]?.properties?.drawn_at));
   const layer = layers[layers.length - 1];
   const ring = layer?.collection?.features?.[0]?.geometry?.coordinates?.[0];
   if (!ring?.length) return null;
@@ -339,6 +350,7 @@ function capturedExtentBounds() {
   return {
     west: Math.min(...lons), south: Math.min(...lats),
     east: Math.max(...lons), north: Math.max(...lats),
+    reusedFrom: layer.name,
   };
 }
 
@@ -401,6 +413,7 @@ async function fetchMap() {
   }
   busy = true;
   hideAreaCard();
+  if (bounds.reusedFrom) say(`Reusing "${bounds.reusedFrom}"…`);
   const button = byId("weather-fetch");
   if (button) button.disabled = true;
   try {
