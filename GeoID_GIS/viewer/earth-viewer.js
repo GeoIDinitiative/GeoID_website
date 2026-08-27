@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260827-70f19c5";
+  from "./gis/geo-utils.js?v=20260827-e09f543";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -18800,13 +18800,15 @@ uniform float uViewportWidth;`,
       }
 
       function syncLocationsMasterToggle() {
+        // The Moons row is deliberately NOT counted: it boots checked (the
+        // moon is visible by default), so counting it showed the master
+        // ticked on a globe with every label layer off.
         locationsMasterToggle.checked = Boolean(
           labelsToggle.checked ||
           volcanicLabelsToggle.checked ||
           landingLabelsToggle.checked ||
           habitationLabelsToggle.checked ||
-          (baseLabelsToggle && baseLabelsToggle.checked) ||
-          (moonToggle && moonToggle.checked)
+          (baseLabelsToggle && baseLabelsToggle.checked)
         );
       }
 
@@ -19084,7 +19086,6 @@ uniform float uViewportWidth;`,
         landingLabelsToggle.checked = on;
         habitationLabelsToggle.checked = on;
         if (baseLabelsToggle) baseLabelsToggle.checked = on;
-        if (moonToggle) moonToggle.checked = on;
         updateLabelVisibility(
           labelLayer.entries,
           marsGroup,

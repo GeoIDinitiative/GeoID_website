@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset,
-} from "./global-data.js?v=20260827-70f19c5";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260827-70f19c5";
+} from "./global-data.js?v=20260827-e09f543";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260827-e09f543";
 
 const HOME_SECTION = {
   hydrology: "sea-level-section",
@@ -32,9 +32,19 @@ const GEE_SECTION = {
   geology: "geology-section",
 };
 const SECTIONS = [
+  "geoid-controls-group",
   "satellites-section", "gis-group-events", "gis-group-polygons",
   "basemap-relief-section", "geology-section", "sea-level-section",
   "gis-group-modelled", "modelled-data-section",
+];
+
+// The Locations label layers are the viewer's own, not import-manager
+// layers, so Explorer's state is read straight from their tick boxes.
+// The Moons row is not one of them: it is on by default, and counting it
+// would light Explorer on every fresh page.
+const LABEL_TOGGLES = [
+  "locations-master-toggle", "labels-toggle", "volcanic-labels-toggle",
+  "landing-labels-toggle", "habitation-labels-toggle",
 ];
 
 const isOn = (layer) => layer && layer.visible !== false && layer.status !== "error";
@@ -74,6 +84,9 @@ function activeSections() {
     if (/susceptibility|flood/i.test(name)) { active.add("modelled-data-section"); return; }
     active.add("gis-group-polygons");
   });
+  if (LABEL_TOGGLES.some((id) => document.getElementById(id)?.checked)) {
+    active.add("geoid-controls-group");
+  }
   return active;
 }
 
@@ -123,6 +136,12 @@ function init() {
   window.GeoIDImportManager?.onChange?.(refresh);
   document.addEventListener("geoid-gee:catalogue", refresh);
   document.addEventListener("geoid-gis:layers-changed", refresh);
+  // Label tick boxes announce nothing a layer listener hears. The bubbled
+  // change lands here AFTER the viewer's own element listener has synced
+  // the sibling boxes, so the read below sees the settled state.
+  document.addEventListener("change", (event) => {
+    if (LABEL_TOGGLES.includes(event.target?.id)) refresh();
+  });
   // A visibility eye or an adopted layer can change without an announcement
   // this module hears; a slow poll keeps the headers honest. Cheap: the set
   // is compared before anything touches the DOM.

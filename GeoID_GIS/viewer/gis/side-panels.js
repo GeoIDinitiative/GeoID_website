@@ -43,7 +43,10 @@ const PANELS = [
     label: "Analysis",
     title: "Analysis",
     hint: "Extraction and analysis",
-    icon: '<path d="M2.6 12.6 5.4 8l2.3 2.6L10.2 5l3.2 5.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" transform="translate(3 3) scale(1.1)"/>',
+    // A bar chart on a baseline: values pulled out of layers. Not a zigzag --
+    // the Profile tool one button up already wears that line.
+    icon: '<path d="M4.4 19.6h15.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'
+      + '<path d="M7.4 19.6v-6.6M12 19.6V5.8M16.6 19.6v-9.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
   },
   {
     // Not a panel: the palette is already the one door to all 46 tools, and it

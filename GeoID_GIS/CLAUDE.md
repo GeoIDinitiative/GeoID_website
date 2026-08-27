@@ -961,6 +961,19 @@ tick, refines itself when the view settles, and unloads on untick),
   `geology-structures-toggle`, `mineral-select` and `mineral-opacity`
   unguarded at boot — the same trap `geology-toggle` documents.
 
+**The Locations master must not count the Moons row.** The master's boot
+sync ORs every box in the section, and Moons boots checked — so a fresh
+page showed the master ticked over a globe with every label layer off,
+and the first click appeared to do nothing (it unticked a lie). The sync
+and the master's set-all both skip the moon toggle now: Moons is a
+visibility choice, not a location-label default. Earth only — the planet
+viewers boot with their labels genuinely on, so their ticked masters are
+truthful. Explorer (`geoid-controls-group`) is also on section-activity's
+status board now, read straight from the label tick boxes (they are the
+viewer's own layers, invisible to the import manager) via a bubbled
+document-level change listener — which lands after the viewer's element
+listener has synced the sibling boxes.
+
 ## The catalogue is filed by SUBJECT, not by file format
 
 Data · Vectors & Shapes began as the one list of everything, which made it a
