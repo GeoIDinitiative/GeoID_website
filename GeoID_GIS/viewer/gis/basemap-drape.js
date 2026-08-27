@@ -37,12 +37,12 @@
 // answers in -- no half-turn to bake in, unlike the Earth Engine drapes which
 // parent to the globe mesh itself.
 
-import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260828-680b893";
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-680b893";
-import { isEarth } from "./bodies.js?v=20260828-680b893";
-import { streamRings, cacheStats } from "./tile-streamer.js?v=20260828-680b893";
+import { TILE_SOURCES, DEFAULT_SOURCE, tileUrl } from "./tile-sources.js?v=20260828-33dc3d8";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260828-33dc3d8";
+import { isEarth } from "./bodies.js?v=20260828-33dc3d8";
+import { streamRings, cacheStats } from "./tile-streamer.js?v=20260828-33dc3d8";
 import { visibleBounds, altitudeUnits, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260828-680b893";
+  from "./view-extent.js?v=20260828-33dc3d8";
 
 const TILE = 256;
 // Web Mercator cannot express the poles; this is where the projection is
@@ -609,29 +609,28 @@ function buildPanel() {
   listBaseLayerOptions();
 
   /**
-   * Attribution in the MAP CORNER, not the panel.
+   * The source line, back UNDER the Basemaps box — reinstated by request
+   * after a spell in the map corner. One compact credit line and a
+   * short-form licence tag (full text in the tooltip), tracking
+   * `base-layer-select` — what is actually on the sphere — both ways; the
+   * NonCommercial warning survives as an amber tint. The attribution
+   * itself is non-negotiable: EOX and Esri license on condition of being
+   * named.
    *
-   * The credit and licence sat in the Basemaps panel and were asked to go —
-   * but EOX's Sentinel-2 mosaic and Esri's imagery are licensed ON
-   * CONDITION of attribution, so a public page showing their tiles must
-   * name them somewhere visible. The corner of the map is where Leaflet,
-   * Mapbox and every other web map put it: one tiny muted line above the
-   * scale bar, tracking `base-layer-select` — what is actually on the
-   * sphere — both ways, licence in short form with the full text in the
-   * tooltip. The NonCommercial warning survives as an amber tint.
-   *
-   * Refinement no longer has a toggle: sharpening on zoom IS the point of
-   * a tile basemap, so it simply runs whenever one is selected.
+   * Refinement has no toggle: sharpening on zoom IS the point of a tile
+   * basemap, so it simply runs whenever one is selected.
    */
   const box = document.createElement("div");
   box.id = "basemap-attribution";
-  box.style.cssText = "position:fixed;right:0.9rem;bottom:3.9rem;z-index:5;"
-    + "max-width:22rem;text-align:right;font:400 0.52rem/1.4 'Exo 2',sans-serif;"
-    + "color:rgba(200,214,224,0.55);pointer-events:auto;text-shadow:0 1px 2px rgba(0,0,0,0.8);";
   box.innerHTML = `
-      <span id="basemap-drape-credit" hidden></span>
-      <span id="basemap-drape-licence" hidden style="margin-left:0.4em;"></span>`;
-  document.body.appendChild(box);
+      <div id="basemap-drape-credit" class="gis-metric" hidden
+        style="font-size:0.56rem;opacity:0.7;line-height:1.35;"></div>
+      <div id="basemap-drape-licence" class="gis-metric" hidden
+        style="font-size:0.56rem;opacity:0.7;"></div>`;
+  // Directly under the catalogue whose choice it credits.
+  const catalogueStatus = document.getElementById("basemap-catalogue-status");
+  if (catalogueStatus) catalogueStatus.after(box);
+  else host.appendChild(box);
 
   const credit = box.querySelector("#basemap-drape-credit");
   const licence = box.querySelector("#basemap-drape-licence");
