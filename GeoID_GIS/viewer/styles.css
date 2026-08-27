@@ -5140,6 +5140,11 @@ canvas {
     /* One rhythm for every tab, whatever kind of section it is. */
     #gis-toolbox-panels > * { margin: 0 0 0.5rem !important; }
 
+/* Breathing room where the two Basemaps catalogues meet: the Overlays box
+   opens clear of the Terrain relief slider above it. Padding, not margin —
+   the one-rhythm rules below strip child margins with !important. */
+#basemap-relief-section .section-body #polygon-catalogue { padding-top: 0.55rem; }
+
 /* ── One rhythm inside every tab ─────────────────────────────────────────
    Sub-cards are spaced by their container's GAP and by nothing else: child
    margins were stacking on top of grid gaps, so the first pair in a tab sat

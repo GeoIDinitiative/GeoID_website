@@ -1097,7 +1097,11 @@ then slimmed AGAIN on report ("what is all this? … remove"): the
 detail-from select, sharpen toggle, study-area drape button and the
 tile-count status are gone — sharpening simply runs whenever a tile
 basemap is selected, and `drapeStudyArea` survives exported but doorless.
-What remains is ONE compact credit line and a short-form licence tag
+The attribution then left
+the panel ALTOGETHER on a further report: it is a tiny muted corner
+OVERLAY now (`#basemap-attribution`, fixed above the scale bar, appended
+to body by basemap-drape.js) — where every web map puts it. What it shows
+is one credit line and a short-form licence tag
 (full text in the tooltip; split on dash or SENTENCE stop — a bare [.]
 split cut "CC BY-NC-SA 4.0" at its own decimal). The attribution CANNOT
 be removed outright: EOX and Esri license on condition of being named,
