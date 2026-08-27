@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-df8fe58";
-import { currentBody } from "./bodies.js?v=20260827-df8fe58";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-df8fe58";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-b2fc8ce";
+import { currentBody } from "./bodies.js?v=20260827-b2fc8ce";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-b2fc8ce";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -98,15 +98,15 @@ const MOVES = [
  */
 const TAB_ORDER = [
   /**
-   * Workspace leads: what you brought, drew and fetched is the working set,
-   * so it opens the column. Then Live (what is happening), Explorer (the
-   * globe itself), Basemaps (what dresses the sphere), Geology, Earth
+   * Workspace is NOT a tab — it is the always-visible corner box
+   * (`#layer-dock`, see dockLayers), which holds the add-data doorways and
+   * the layer hierarchy. The bar reads: Live (what is happening), Explorer
+   * (the globe itself), Basemaps (what dresses the sphere), Geology, Earth
    * System Observation, Hazards. Hydrology, Satellites and the myGeoID bar
-   * are NOT entries: they nest inside Earth System Observation and Hazards
-   * (see MOVES), except on a body where the parent is dropped —
+   * are NOT entries either: they nest inside Earth System Observation and
+   * Hazards (see MOVES), except on a body where the parent is dropped —
    * `tabsForBody` re-lists them there.
    */
-  "gis-group-polygons",
   "gis-group-events",
   "geoid-controls-group",
   "basemap-relief-section",
@@ -185,34 +185,40 @@ function orderTabs(toolbox) {
  * of a list that has to be scrolled past.
  */
 /**
- * The layer hierarchy lives INSIDE the Workspace tab now, not in a corner
- * box of its own. The corner dock was the right answer while Workspace was
- * a list of import cards — a status board visible from any tab — but the
- * cards and the dock rows were two controls for the same imported layer
- * (the exact trap "One layer, one control" documents), and merging them
- * puts the whole data workflow in one place: add, fetch, draw, then see
- * and manage what arrived. The tab column keeps multiple tabs open at
- * once, so visibility is still reachable while working elsewhere. The
- * corner box element STAYS in the page hidden — layer-hierarchy.js
- * observes it for --layer-dock-space, which correctly reads 0 hidden —
- * and the group sheds its toolbox-group class while nested, or it would
- * wear the level-1 tab fill inside the tab that contains it.
+ * The corner box IS the Workspace — always on screen while the nav bar is,
+ * which is the whole point of it: the working set and its controls never
+ * fold away behind a tab. The merger ran the other way around first (the
+ * hierarchy nested into a Workspace TAB) and was rejected in one look:
+ * the box, not the tab, is the thing that must stay visible. So the tab
+ * is GONE from TAB_ORDER, its add-data machinery (+ Data / + GEE /
+ * Custom, status, notes) moves into the box above the layer hierarchy
+ * (add-data.js targets `#workspace-add-host`, first in the dock body),
+ * and the old import cards stay dead — the hierarchy rows carry strictly
+ * more, without the "1 polygon" count text. The emptied
+ * `gis-group-polygons` shell hides, or it would sit pinned at the top of
+ * the column (the trap the TAB_ORDER note documents).
  */
 function dockLayers(enabled) {
-  const host = document.getElementById("workspace-layers-host");
+  const dock = document.getElementById("layer-dock-body");
   const panel = document.getElementById("gis-group-layers");
   const box = document.getElementById("layer-dock");
-  if (box) box.hidden = true;
-  if (!host || !panel) return;
+  const workspace = document.getElementById("gis-group-polygons");
+  const stack = workspace?.querySelector(".control-stack");
+  if (!dock || !panel || !box) return;
   if (enabled) {
+    if (stack) {
+      rememberHome(stack);
+      dock.appendChild(stack);
+    }
     rememberHome(panel);
     panel.open = true;
-    panel.classList.remove("toolbox-group");
-    host.appendChild(panel);
+    dock.appendChild(panel);
   } else {
-    panel.classList.add("toolbox-group");
     restoreHome(panel);
+    if (stack) restoreHome(stack);
   }
+  if (workspace) workspace.hidden = enabled;
+  box.hidden = !enabled;
 }
 
 export function applyToolboxLayout(enabled) {

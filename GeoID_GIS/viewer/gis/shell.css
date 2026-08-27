@@ -1509,7 +1509,7 @@ button.event-group-head:hover { color: var(--nav-accent); }
       padding: 0.45rem 0.65rem 0.55rem;
       /* Grows with what is loaded, then scrolls rather than climbing into the
          panel's space. */
-      max-height: min(28vh, 13rem);
+      max-height: min(42vh, 20rem);
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: rgba(151, 182, 194, 0.32) transparent;

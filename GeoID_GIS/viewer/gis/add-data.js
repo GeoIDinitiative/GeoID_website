@@ -30,9 +30,9 @@
  *   panel and applied to something already drawn wrongly.
  */
 
-import { CRS_OPTIONS } from "./projection.js?v=20260827-df8fe58";
-import { readHead, validateMapping } from "./delimited.js?v=20260827-df8fe58";
-import { RAMP_NAMES } from "./symbology.js?v=20260827-df8fe58";
+import { CRS_OPTIONS } from "./projection.js?v=20260827-b2fc8ce";
+import { readHead, validateMapping } from "./delimited.js?v=20260827-b2fc8ce";
+import { RAMP_NAMES } from "./symbology.js?v=20260827-b2fc8ce";
 
 /* ── Where data belongs ──────────────────────────────────────────────────────
  *
@@ -730,11 +730,21 @@ const GEE_HOME_BY_PANEL = {
 };
 
 function addButtonFor(role) {
+  /**
+   * The vector role's home is the WORKSPACE BOX, not a tab: the corner
+   * dock carries `#workspace-add-host` as the first thing in its body, so
+   * + Data / + GEE / Custom sit above the layer hierarchy they feed. The
+   * duplicate guard searches the DOCUMENT for this role because the row
+   * no longer lives inside the panel it is keyed to.
+   */
+  const dockHost = role.panel === "gis-group-polygons"
+    ? document.getElementById("workspace-add-host") : null;
   const panel = document.getElementById(role.panel);
-  if (!panel || panel.querySelector(`[data-add-role="${role.id}"]`)) return false;
+  if (!panel && !dockHost) return false;
+  if (document.querySelector(`[data-add-role="${role.id}"]`)) return false;
   // Into the panel's body, not its summary: a button in a <summary> swallows
   // the click that opens the section, so the panel could never be expanded.
-  const body = panel.querySelector(".section-body") || panel;
+  const body = dockHost || panel.querySelector(".section-body") || panel;
   const row = document.createElement("div");
   row.className = "gis-add-row";
   const button = document.createElement("button");
@@ -763,7 +773,9 @@ function addButtonFor(role) {
   // lives in the shared markup (polygons.js wires it there) and is ADOPTED
   // into this row, so the three ways data arrives sit side by side.
   if (role.panel === "gis-group-polygons") {
-    const custom = panel.querySelector("#polygon-capture-drawn");
+    // By document, not by panel: the capture button rides the control-stack,
+    // which dockLayers may already have moved into the Workspace box.
+    const custom = document.getElementById("polygon-capture-drawn");
     if (custom) row.appendChild(custom);
   }
   // Model Builder gets its own Custom: the drawn area captured as a layer,

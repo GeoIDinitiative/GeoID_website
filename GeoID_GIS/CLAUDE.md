@@ -1114,22 +1114,40 @@ per-body, and the DOM is the one place that knows which shape this world
 got. Status copy naming the old tab ("Listed in Vectors & Shapes") moved
 with it ("Listed in My Data") in gee.js and gee-live.js.
 
-## Workspace is the whole data workflow, and the corner dock is retired
+## Workspace IS the corner box, and every input wears a data tag
 
-The layer hierarchy (`gis-group-layers`, retitled "Layer visibility")
-nests INSIDE the Workspace tab under the + Data / + GEE / Custom buttons —
-`dockLayers` in toolbox.js moves it into `#workspace-layers-host` instead
-of the corner `#layer-dock` box, shedding its `toolbox-group` class while
-nested so it wears the level-2 styling. The import CARDS that tab used to
-draw are gone with it: a card beside a hierarchy row was two controls for
-one imported layer (the exact "One layer, one control" trap), the rows
-carry strictly more (eye, opacity, reorder, drawer with symbology, rename,
-remove, To Model), and the cards' "N polygons" count text was reported as
-noise. `#polygon-list` stays only as the capture-drawn error note's host.
-The corner `#layer-dock` element STAYS in the page hidden —
-layer-hierarchy.js observes it for `--layer-dock-space`, which correctly
-measures 0 hidden. The tab column keeps several tabs open at once, so
-visibility is still reachable while working in another tab.
+The always-visible corner box (`#layer-dock`, headed "Workspace") holds
+the whole data workflow: `dockLayers` moves the old Workspace tab's
+control-stack (+ Data / + GEE / Custom, status, notes) into the dock body
+after `#workspace-add-host` (which add-data.js targets for the vector
+role — by DOCUMENT lookup, since the row no longer lives in the panel it
+is keyed to), then the layer hierarchy under it; the emptied
+`gis-group-polygons` shell hides and its id left TAB_ORDER. **The merger
+ran the other way first — hierarchy nested into a Workspace TAB — and was
+rejected in one look: the box, not the tab, is the thing that must stay
+visible while the nav bar is open.** The import cards stay dead (a card
+beside a hierarchy row was two controls for one layer; their "N polygons"
+count text was noise), and the dock body grew to min(42vh, 20rem) for its
+new contents (both stylesheets).
+
+**`gis/data-tags.js` classifies every input AS IT ARRIVES.** `inferType`
+is pure (extension → source → name, in that order of authority; pinned in
+data-tags.test.mjs); every layer wears its type as a coloured chip in the
+hierarchy row (replacing the old `layer-kind` column); a small card under
+the add-row asks — optionally, never blocking — when a user's own upload
+or drawn capture lands, with a type select and a free-text note; the
+drawer carries the same controls forever. Tags mirror into
+`layer.metadata` (dataType, description) and, for layers that own their
+GeoJSON, into the first feature's properties (`data_type`, `data_note`) —
+so drawn shapes bring their classification back with the project. Three
+traps this cost: (1) the arrival baseline is taken AT SUBSCRIBE TIME, not
+on the first change event — the first user capture WAS the first event and
+silently primed instead of asking; (2) the card must NOT live in
+`#polygon-list` — polygons.js clears that list on every layer change and
+the card is born on one (measured: added then wiped in the same event);
+it anchors after `#workspace-add-host` instead; (3) the hierarchy bakes
+the chip into its row template and does not hear the tag event —
+`applyTag` calls `GeoIDLayerHierarchy.render()` itself.
 
 ## Workbenches: the rail owns what you pick up and put down
 

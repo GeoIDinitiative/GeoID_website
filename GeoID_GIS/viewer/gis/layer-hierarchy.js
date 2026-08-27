@@ -10,11 +10,12 @@
 // everything below. That is the opposite of three.js renderOrder, so the two are
 // inverted when applied.
 
-import { currentBody } from "./bodies.js?v=20260827-df8fe58";
-import { samplerToRaster } from "./raster-analysis.js?v=20260827-df8fe58";
-import { buildRasterLayer } from "./geotiff-adapter.js?v=20260827-df8fe58";
-import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260827-df8fe58";
-import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260827-df8fe58";
+import { currentBody } from "./bodies.js?v=20260827-b2fc8ce";
+import { samplerToRaster } from "./raster-analysis.js?v=20260827-b2fc8ce";
+import { buildRasterLayer } from "./geotiff-adapter.js?v=20260827-b2fc8ce";
+import { MODEL_MODE_RADIUS } from "./geo-utils.js?v=20260827-b2fc8ce";
+import { openSymbologyDialog, geometrySummary } from "./symbology-dialog.js?v=20260827-b2fc8ce";
+import { chipHtml, typeSelect, applyTag, descriptionOf } from "./data-tags.js?v=20260827-b2fc8ce";
 
 /**
  * The row grew a column and gained a tile, and .layer-row is declared twice --
@@ -429,7 +430,7 @@ function row(layer) {
       <input type="checkbox" ${visible ? "checked" : ""} data-role="visible">
     </label>
     <span class="layer-name" title="Click to rename" tabindex="0" role="button">${layer.name || "layer"}</span>
-    <span class="layer-kind">${layer.type || ""}</span>
+    ${chipHtml(layer)}
     <input class="layer-opacity" type="range" min="0" max="1" step="0.05"
       value="${opacity}" data-role="opacity" title="Transparency">
     <span class="layer-moves">
@@ -545,6 +546,27 @@ function optionsTile(layer) {
     detail.textContent = what;
     tile.appendChild(detail);
   }
+
+  /**
+   * The tag, editable forever: the same type select the arrival card
+   * offers, and the free-text note beside it. Committed on change — a
+   * classification is not something to press Apply for.
+   */
+  const tagRow = document.createElement("div");
+  tagRow.className = "data-tag-row";
+  tagRow.style.cssText = "display:flex;gap:0.35rem;align-items:center;margin:0.15rem 0 0.3rem;";
+  const tagSelect = typeSelect(layer);
+  tagSelect.style.flex = "0 0 8.5rem";
+  tagSelect.addEventListener("change", () => applyTag(layer, { type: tagSelect.value }));
+  const tagNote = document.createElement("input");
+  tagNote.className = "input";
+  tagNote.type = "text";
+  tagNote.placeholder = "Note — what is this input for?";
+  tagNote.value = descriptionOf(layer);
+  tagNote.style.cssText = "flex:1;min-width:0;";
+  tagNote.addEventListener("change", () => applyTag(layer, { description: tagNote.value.trim() }));
+  tagRow.append(tagSelect, tagNote);
+  tile.appendChild(tagRow);
 
   const actions = document.createElement("div");
   actions.className = "layer-options-actions";
