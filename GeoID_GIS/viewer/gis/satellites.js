@@ -549,56 +549,32 @@ function showOrbitOverlay(overlay, record) {
  */
 const tagTextures = new Map();
 
-function makePillTexture(name, colour) {
-  const key = `v9|${colour}|${name}`;
+function makePillTexture(name, variant = "rest") {
+  const key = `v10|${variant}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
   /**
-   * The viewer's OWN pill, through the seam the volcano labels use — the
-   * bespoke bare-type tag before it was reported twice: not interactive
-   * enough, and its type smearing. `makeLabelTexture` is the engine every
-   * other location label goes through, so the satellites finally wear the
-   * same chip, with the category colour as the accent bar and a darker
-   * space-HUD backing. backingScale 2: forty names, not four.
+   * VERBATIM the Explorer location chip — the engine's own default palette,
+   * face and layout, nothing overridden. Every custom look tried here (a
+   * chamfered strip, bare haloed type, a category-coloured space-HUD skin)
+   * was reported as a different app bolted onto this one; the category
+   * colour lives on the dot, the ring and the legend, where it always did.
+   * The one thing kept custom is the SIZE of the baking (texel-for-pixel,
+   * below), which changes sharpness and not looks.
+   *
+   * "gold" is the selection variant: the same chip re-inked in the
+   * selection gold the dot and orbit overlays wear.
    */
   const make = window.GeoIDViewer?.makeLabelTexture;
-  /**
-   * THE BLUR WAS ARITHMETIC, not (only) the face. The engine bakes a
-   * 34-logical-px pill; at backingScale 4 that is a 136 px texture drawn at
-   * 13–18 px on screen — a 7.5× minification whose mip chain softens any
-   * font into mush. Crisp HUD text is baked AT the size it is shown:
-   * backing chosen so the texture is ~2× the drawn height in DEVICE pixels
-   * (ceil of devicePixelRatio; 1 at DPR 1, 2 at DPR 2), and sampled with
-   * plain linear filtering, no mipmaps — at a ≤2× ratio the mip chain only
-   * blurs, it cannot help.
-   *
-   * The face: 'Exo 2' — which viewer-skin serves as Chakra Petch glyphs,
-   * square-cornered and legible at HUD sizes. There is NO family loaded
-   * under the name "Chakra Petch", so naming it first resolved through to
-   * the same fallback while looking like a choice.
-   */
-  /**
-   * Baked at EXACTLY the drawn size, fractional backing and all.
-   *
-   * ceil(devicePixelRatio) was still wrong twice over: at DPR 1 it left a
-   * 2.08× minification, and pairing that with mipmaps OFF undersamples —
-   * thin strokes drop texels and the type reads crunchy and stretched, the
-   * "not clear" report. The layout is 34 logical px and the pill draws at
-   * TAG_HEIGHT_PX, so the backing that puts one texture texel on one device
-   * pixel is (TAG_HEIGHT_PX × DPR) / 34 — the canvas rasteriser then hints
-   * the glyphs at their final size, which is the whole trick. Mipmaps stay
-   * ON (the engine's default): the far-zoom sizes minify a little, and
-   * trilinear at ≤1.4× is smoothing, not mush.
-   */
   const label = make(name, {
     backingScale: (TAG_HEIGHT_PX * (window.devicePixelRatio || 1)) / 34,
-    // No titleFont override: the pill wears the engine's own face, the same
-    // one every other location label uses.
-    customPalette: {
-      bg: "rgba(6, 10, 18, 0.82)",
-      stroke: `${colour}88`,
-      accent: colour,
-      title: "rgba(240, 246, 252, 0.97)",
-    },
+    ...(variant === "gold" ? {
+      customPalette: {
+        bg: "rgba(30, 22, 6, 0.85)",
+        stroke: "rgba(255, 191, 111, 0.9)",
+        accent: "#ffbf6f",
+        title: "rgba(255, 244, 224, 0.98)",
+      },
+    } : {}),
   });
   const record = { texture: label.texture, width: label.width, height: label.height };
   tagTextures.set(key, record);
@@ -712,7 +688,7 @@ function updateLabels() {
     const { record } = candidate;
     let sprite = active.labels.get(record.norad);
     if (!sprite) {
-      const tag = makePillTexture(record.name, colourFor(record));
+      const tag = makePillTexture(record.name);
       sprite = new THREE.Sprite(new THREE.SpriteMaterial({
         map: tag.texture, transparent: true, depthTest: false, depthWrite: false,
         sizeAttenuation: false,
@@ -1043,7 +1019,7 @@ function select(record) {
   const tag = active.labels.get(record.norad);
   if (tag) {
     if (!tag.userData.restMap) tag.userData.restMap = tag.material.map;
-    tag.material.map = makePillTexture(record.name, "#ffbf6f").texture;
+    tag.material.map = makePillTexture(record.name, "gold").texture;
     tag.material.needsUpdate = true;
   }
   if (!active.pulseFrame) pulseLoop();
@@ -1444,7 +1420,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260827-70a3cbc");
+    const dialog = await import("./symbology-dialog.js?v=20260827-00849cb");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

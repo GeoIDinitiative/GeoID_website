@@ -911,9 +911,15 @@ map rides on the sprite; deselect swaps it back. Deselect-on-card-close is
 the pulse loop's own rAF poll, the mechanism the dot and orbit always used
 — which also means NONE of the glow is measurable in a hidden pane, where
 rAF is throttled to ~1 frame/1.5 s (measured); state checks (map swapped,
-scale constant) are the verifiable part there. The pill's FACE is the
-engine's own default again — the same as every other location label — the
-blur having been the minification, not the font.
+scale constant) are the verifiable part there. The pill is the engine's default chip VERBATIM
+now — palette included: the category-coloured space-HUD skin was the last
+custom piece and, like the chamfered strip and the bare haloed type before
+it, it read as a different app beside the Explorer labels. The category
+colour lives on the dot, the ring and the legend, where it always did; the
+gold SELECTION variant is the one re-inked chip that remains, and the only
+custom parameter left is the texel-for-pixel backing, which changes
+sharpness and not looks. Verified side by side in one screenshot: satellite
+chips and curated location chips indistinguishable in design and scale.
 Verified: 4 of 4 clicks on pill right-thirds open that pill's own card.
 
 **The rotation control is ONE pill in a three-state loop** — LIVE (real
