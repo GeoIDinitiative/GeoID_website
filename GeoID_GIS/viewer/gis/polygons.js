@@ -1,8 +1,7 @@
 import {
-  addDataset, grouped, datasetById, layerForDataset, isCatalogueLayer,
-} from "./global-data.js?v=20260827-8fdfe1b";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-8fdfe1b";
-import { geometrySummary } from "./symbology-dialog.js?v=20260827-8fdfe1b";
+  addDataset, grouped, datasetById, layerForDataset,
+} from "./global-data.js?v=20260827-df8fe58";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-df8fe58";
 
 /**
  * Polygons: the register of vector overlays -- coastlines, boundaries, basins,
@@ -23,81 +22,18 @@ function byId(id) {
 }
 
 /**
- * Vector layers this tab is the ONLY home for — the ones somebody brought.
- *
- * It used to list every loaded vector layer, catalogue ones included, so a
- * ticked dataset appeared twice on the same panel: once as its catalogue row
- * with a Symbology button, and again in a card below the status line with a
- * second tick, a second Symbology button, and a different name. Two controls
- * for one layer, disagreeing about what to call it.
- *
- * The catalogue row is the better of the two — it is where the layer was turned
- * on and where its tick means "on the globe" — so a catalogue layer is drawn
- * there and nowhere else. A shapefile somebody dropped has no row up there and
- * keeps its card here. A GeoTIFF of rainfall belongs in neither, even though it
- * arrived through the same importer.
+ * The import CARDS are gone — the Layer visibility hierarchy is nested in
+ * this same tab now (toolbox.js dockLayers), and its rows carry strictly
+ * more than the cards did (eye, opacity, reorder, and a drawer with
+ * symbology, rename, remove and To Model). A card here beside a row there
+ * was two controls for one layer — and the card's "1 polygon" count text
+ * was reported as noise besides. The host div stays: the capture-drawn
+ * error note still prepends into it.
  */
-function overlays() {
-  return (window.GeoIDImportManager?.getLayers?.() || [])
-    .filter((layer) => layer.status === "loaded" && layer.collection?.features?.length)
-    .filter((layer) => !isCatalogueLayer(layer));
-}
-
-/** "412 polygons", "1 line", "8 polygons, 2 lines" -- what is actually in it. */
-function summarise(layer) {
-  return geometrySummary(layer.collection?.features || layer.features) || "no features";
-}
-
-function row(layer) {
-  const node = document.createElement("label");
-  node.className = "polygon-row";
-
-  const check = document.createElement("input");
-  check.type = "checkbox";
-  check.checked = layer.visible !== false;
-  // Through the hierarchy rather than straight onto the object, so the layer
-  // box and this tab always agree about what is showing.
-  check.addEventListener("change", () => {
-    window.GeoIDLayerHierarchy?.setVisible?.(layer, check.checked);
-    window.GeoIDLayerHierarchy?.render?.();
-  });
-
-  const name = document.createElement("span");
-  name.className = "polygon-name";
-  name.textContent = layer.name;
-  name.title = layer.name;
-
-  const count = document.createElement("span");
-  count.className = "polygon-count";
-  count.textContent = summarise(layer);
-
-  node.append(check, name, count);
-
-  // A shapefile somebody dragged in gets the same window as one off the
-  // catalogue — the button was only ever on the catalogue rows, which meant
-  // your own data was the one kind you could not recolour from here.
-  if (typeof layer.repaint === "function" && layer.features?.length) {
-    const sym = document.createElement("button");
-    sym.type = "button";
-    sym.className = "gis-catalogue-sym";
-    sym.textContent = "Symbology…";
-    sym.title = `Colour ${layer.name} by one of its own columns`;
-    // The row is a <label>: a click inside it would otherwise toggle the box.
-    sym.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (!openSymbologyFor(layer)) say("This layer cannot be recoloured.");
-    });
-    node.appendChild(sym);
-  }
-  return node;
-}
-
 function render() {
   const host = byId("polygon-list");
   if (!host) return;
   host.textContent = "";
-  overlays().forEach((layer) => host.appendChild(row(layer)));
 }
 
 function say(message) {

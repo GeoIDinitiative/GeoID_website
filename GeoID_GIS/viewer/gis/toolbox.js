@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-8fdfe1b";
-import { currentBody } from "./bodies.js?v=20260827-8fdfe1b";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-8fdfe1b";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-df8fe58";
+import { currentBody } from "./bodies.js?v=20260827-df8fe58";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-df8fe58";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -184,19 +184,35 @@ function orderTabs(toolbox) {
  * loaded -- so it sits in its own box in the corner rather than at the bottom
  * of a list that has to be scrolled past.
  */
+/**
+ * The layer hierarchy lives INSIDE the Workspace tab now, not in a corner
+ * box of its own. The corner dock was the right answer while Workspace was
+ * a list of import cards — a status board visible from any tab — but the
+ * cards and the dock rows were two controls for the same imported layer
+ * (the exact trap "One layer, one control" documents), and merging them
+ * puts the whole data workflow in one place: add, fetch, draw, then see
+ * and manage what arrived. The tab column keeps multiple tabs open at
+ * once, so visibility is still reachable while working elsewhere. The
+ * corner box element STAYS in the page hidden — layer-hierarchy.js
+ * observes it for --layer-dock-space, which correctly reads 0 hidden —
+ * and the group sheds its toolbox-group class while nested, or it would
+ * wear the level-1 tab fill inside the tab that contains it.
+ */
 function dockLayers(enabled) {
-  const dock = document.getElementById("layer-dock-body");
+  const host = document.getElementById("workspace-layers-host");
   const panel = document.getElementById("gis-group-layers");
   const box = document.getElementById("layer-dock");
-  if (!dock || !panel || !box) return;
+  if (box) box.hidden = true;
+  if (!host || !panel) return;
   if (enabled) {
     rememberHome(panel);
     panel.open = true;
-    dock.appendChild(panel);
+    panel.classList.remove("toolbox-group");
+    host.appendChild(panel);
   } else {
+    panel.classList.add("toolbox-group");
     restoreHome(panel);
   }
-  box.hidden = !enabled;
 }
 
 export function applyToolboxLayout(enabled) {

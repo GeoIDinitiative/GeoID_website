@@ -1114,6 +1114,23 @@ per-body, and the DOM is the one place that knows which shape this world
 got. Status copy naming the old tab ("Listed in Vectors & Shapes") moved
 with it ("Listed in My Data") in gee.js and gee-live.js.
 
+## Workspace is the whole data workflow, and the corner dock is retired
+
+The layer hierarchy (`gis-group-layers`, retitled "Layer visibility")
+nests INSIDE the Workspace tab under the + Data / + GEE / Custom buttons —
+`dockLayers` in toolbox.js moves it into `#workspace-layers-host` instead
+of the corner `#layer-dock` box, shedding its `toolbox-group` class while
+nested so it wears the level-2 styling. The import CARDS that tab used to
+draw are gone with it: a card beside a hierarchy row was two controls for
+one imported layer (the exact "One layer, one control" trap), the rows
+carry strictly more (eye, opacity, reorder, drawer with symbology, rename,
+remove, To Model), and the cards' "N polygons" count text was reported as
+noise. `#polygon-list` stays only as the capture-drawn error note's host.
+The corner `#layer-dock` element STAYS in the page hidden —
+layer-hierarchy.js observes it for `--layer-dock-space`, which correctly
+measures 0 hidden. The tab column keeps several tabs open at once, so
+visibility is still reachable while working in another tab.
+
 ## Workbenches: the rail owns what you pick up and put down
 
 `gis/side-panels.js` moves whole sidebar groups onto the right-hand tool
