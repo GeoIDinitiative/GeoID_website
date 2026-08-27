@@ -30,12 +30,11 @@
 import * as THREE from "../vendor/three.module.js";
 
 /**
- * Seven CelesTrak groups now — roughly 1,700 objects. `rings: false` on the
- * OneWeb constellation: 650 near-identical polar orbits drawn as rings is a
- * hairball that hides every other orbit, and the constellation's dots
- * already read as the shell they are. Fetched SEQUENTIALLY, because
- * CelesTrak throttles rapid-fire parallel queries into empty answers — the
- * first parallel version read `geo` and `science` as zero satellites.
+ * Seven CelesTrak groups now — roughly 1,700 objects. Fetched SEQUENTIALLY,
+ * because CelesTrak throttles rapid-fire parallel queries into empty
+ * answers — the first parallel version read `geo` and `science` as zero
+ * satellites. Every group draws rings (a dot with no line reads as broken);
+ * OneWeb's are faded instead — see RING_OPACITY.
  */
 const GROUPS = [
   { group: "stations", kind: "Space station", category: "Space stations" },
@@ -44,8 +43,18 @@ const GROUPS = [
   { group: "weather", kind: "Weather satellite", category: "Weather" },
   { group: "gnss", kind: "Navigation satellite", category: "Navigation" },
   { group: "geo", kind: "Geostationary satellite", category: "Geostationary" },
-  { group: "oneweb", kind: "Constellation satellite", category: "OneWeb constellation", rings: false },
+  { group: "oneweb", kind: "Constellation satellite", category: "OneWeb constellation" },
 ];
+
+/**
+ * Ring opacity per category. OneWeb used to draw NO rings at all — 650
+ * near-identical polar orbits at full strength are a cage that hides every
+ * other orbit — but a dot with no line reads as broken, not as restraint.
+ * The shell is drawn at a fraction of the strength instead: present,
+ * legible as the lattice it is, and beneath every deliberate orbit.
+ */
+const RING_OPACITY = { "OneWeb constellation": 0.09 };
+const RING_OPACITY_DEFAULT = 0.35;
 
 /** The legend's colours, one per group. */
 /**
@@ -355,6 +364,76 @@ function tick() {
  * Sampled in ECI over each object's own period, converted to the ground
  * frame at ONE shared instant (`gmst0`), coloured by category at the vertex.
  */
+/**
+ * Kepler's equation, M = E − e·sinE, solved for E by Newton's method.
+ * Ten iterations converge to machine precision for any bound orbit; the
+ * ring sampler needs it to place uniform-anomaly samples in time.
+ */
+export function eccentricFromMean(meanAnomaly, eccentricity) {
+  let E = meanAnomaly;
+  for (let i = 0; i < 10; i += 1) {
+    E -= (E - eccentricity * Math.sin(E) - meanAnomaly)
+      / (1 - eccentricity * Math.cos(E));
+  }
+  return E;
+}
+
+/** The Julian date of a JS Date, via satellite.js's own converter. */
+function julianOf(date) {
+  return window.satellite.jday(
+    date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate(),
+    date.getUTCHours(), date.getUTCMinutes(),
+    date.getUTCSeconds() + date.getUTCMilliseconds() / 1000);
+}
+
+/**
+ * One orbit as scene-frame points, closed, sampled uniformly in ECCENTRIC
+ * ANOMALY — both the mass rings and the solo overlays draw from this.
+ *
+ * Uniform time IS uniform mean anomaly, and an eccentric orbit spends
+ * almost none of its period at perigee — Cluster II (e ≈ 0.9) got its
+ * fastest, tightest arc as a handful of 6-unit straight chords slicing
+ * across the whole scene, which is what "broken orbit lines" looks like.
+ * The eccentric anomaly is the ellipse's own parametric angle, so equal
+ * steps of it draw the curve smoothly everywhere — and for a circular
+ * orbit it IS uniform time, so nothing changes for the 95%. The step from
+ * anomaly to a propagation time is Kepler's equation, run from the mean
+ * anomaly the satellite actually has NOW, so the dense samples land on the
+ * true perigee rather than on wherever the ring happened to start.
+ *
+ * A COMPLETE ring is then closed by hand: nodal precession moves the orbit
+ * plane ~0.4° during the very period being sampled, so the last point
+ * never lands on the first — a ~6 px notch in every LEO ring at the
+ * default view, read as a break. The half-degree of physics is invisible;
+ * the gap is not.
+ */
+function sampleOrbitPoints(record, samples, gmst0, date) {
+  const satellite = window.satellite;
+  const meanMotion = record.satrec.no_kozai ?? record.satrec.no; // rad/min
+  const ecc = record.satrec.ecco || 0;
+  const tsinceMin = (julianOf(date) - record.satrec.jdsatepoch) * 1440;
+  const meanNow = record.satrec.mo + meanMotion * tsinceMin;
+  const eccNow = eccentricFromMean(meanNow, ecc);
+  const scratch = new THREE.Vector3();
+  const points = [];
+  for (let k = 0; k <= samples; k += 1) {
+    const E = eccNow + (2 * Math.PI * k) / samples;
+    const M = E - ecc * Math.sin(E);
+    const dtMs = ((M - meanNow) / meanMotion) * 60000;
+    let out;
+    try {
+      out = satellite.propagate(record.satrec, new Date(date.getTime() + dtMs));
+    } catch (error) { break; }
+    if (!out?.position || !isFinite(out.position.x)) break;
+    const ecf = satellite.eciToEcf(out.position, gmst0);
+    points.push(ecfToScene(ecf, scratch).clone());
+  }
+  if (points.length === samples + 1) {
+    points[points.length - 1] = points[0].clone();
+  }
+  return points;
+}
+
 async function buildRings() {
   const satellite = window.satellite;
   const date = simNow();
@@ -362,7 +441,6 @@ async function buildRings() {
   const positions = [];
   const colours = [];
   const colour = new THREE.Color();
-  const scratch = new THREE.Vector3();
   const segmentOwner = [];
   /**
    * In CHUNKS, yielding between them: ~1,000 ringed orbits at 160 samples
@@ -379,19 +457,10 @@ async function buildRings() {
     }
     record.soloRing = null;
     if (record.dead || record.noRings) continue;
-    const periodMs = ((2 * Math.PI) / (record.satrec.no_kozai ?? record.satrec.no)) * 60000;
     colour.set(colourFor(record));
-    const points = [];
-    for (let k = 0; k <= RING_SAMPLES; k += 1) {
-      let out;
-      try {
-        out = satellite.propagate(record.satrec,
-          new Date(date.getTime() + (periodMs * k) / RING_SAMPLES));
-      } catch (error) { break; }
-      if (!out?.position) break;
-      const ecf = satellite.eciToEcf(out.position, gmst0);
-      points.push(ecfToScene(ecf, scratch).clone());
-    }
+    // Uniform-anomaly sampling and the closed seam both live in
+    // sampleOrbitPoints — see its header for why either matters.
+    const points = sampleOrbitPoints(record, RING_SAMPLES, gmst0, date);
     for (let k = 0; k + 1 < points.length; k += 1) {
       positions.push(points[k].x, points[k].y, points[k].z,
         points[k + 1].x, points[k + 1].y, points[k + 1].z);
@@ -431,7 +500,8 @@ async function buildRings() {
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(catPositions, 3));
     geometry.setAttribute("color", new THREE.Float32BufferAttribute(catColours, 3));
     const mesh = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({
-      vertexColors: true, transparent: true, opacity: 0.35, depthWrite: false,
+      vertexColors: true, transparent: true,
+      opacity: RING_OPACITY[category] ?? RING_OPACITY_DEFAULT, depthWrite: false,
     }));
     mesh.frustumCulled = false;
     mesh.userData.segmentOwner = catOwner;
@@ -475,30 +545,15 @@ async function buildRings() {
 /**
  * One satellite's whole orbit, sampled fresh at solo resolution.
  *
- * For the constellations that draw no mass rings (OneWeb), and for anything
- * whose 160-sample ring is being singled out — a chord-y polyline is
- * acceptable as one thread among a thousand and not as the one line you are
- * looking at. Cached per record against the rings' own gmst0 frame, so it
- * costs one propagation pass per satellite per activation.
+ * A 160-sample ring is acceptable as one thread among a thousand and not as
+ * the one line you are looking at, so the hover and selection overlays
+ * resample at SOLO_SAMPLES. Cached per record against the rings' own gmst0
+ * frame, so it costs one propagation pass per satellite per activation.
  */
 function soloOrbit(record) {
   if (record.soloRing) return record.soloRing;
-  const satellite = window.satellite;
   const gmst0 = active.rings.userData.gmst0;
-  const date = simNow();
-  const periodMs = ((2 * Math.PI) / (record.satrec.no_kozai ?? record.satrec.no)) * 60000;
-  const scratch = new THREE.Vector3();
-  const points = [];
-  for (let k = 0; k <= SOLO_SAMPLES; k += 1) {
-    let out;
-    try {
-      out = satellite.propagate(record.satrec,
-        new Date(date.getTime() + (periodMs * k) / SOLO_SAMPLES));
-    } catch (error) { break; }
-    if (!out?.position) break;
-    const ecf = satellite.eciToEcf(out.position, gmst0);
-    points.push(ecfToScene(ecf, scratch).clone());
-  }
+  const points = sampleOrbitPoints(record, SOLO_SAMPLES, gmst0, simNow());
   const array = new Float32Array(Math.max(0, points.length - 1) * 6);
   for (let k = 0; k + 1 < points.length; k += 1) {
     array.set([points[k].x, points[k].y, points[k].z,
@@ -1426,7 +1481,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260827-78af64b");
+    const dialog = await import("./symbology-dialog.js?v=20260827-3ce0c71");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

@@ -11,7 +11,7 @@
  */
 
 import { createRequire } from "node:module";
-import { parseTle, satelliteProperties } from "./satellites.js";
+import { parseTle, satelliteProperties, eccentricFromMean } from "./satellites.js";
 
 const require = createRequire(import.meta.url);
 
@@ -78,6 +78,28 @@ const TLE = `ISS (ZARYA)\n${ISS_L1}\n${ISS_L2}\nCSS (TIANHE)\n1 48274U 21035A   
     /km up · .+ km\/s · 9\d min orbit/.test(props.dimension), props.dimension);
   check("the summary says where the numbers come from",
     /SGP4/.test(props.summary) && /NORAD 25544/.test(props.summary));
+}
+
+/* ── Kepler's equation, for the uniform-anomaly ring sampler ─────────────── */
+/**
+ * The rings sample uniformly in eccentric anomaly so an eccentric orbit's
+ * perigee is drawn as a curve, not as giant straight chords (Cluster II at
+ * e ≈ 0.9 was the reported "broken orbit lines"). The whole scheme rests on
+ * the solver actually inverting M = E − e·sinE.
+ */
+{
+  let worst = 0;
+  for (const e of [0, 0.1, 0.5, 0.74, 0.9]) {
+    for (let i = 0; i < 24; i += 1) {
+      const M = (i / 24) * 2 * Math.PI - Math.PI;
+      const E = eccentricFromMean(M, e);
+      worst = Math.max(worst, Math.abs(E - e * Math.sin(E) - M));
+    }
+  }
+  check("Kepler's equation inverts to machine precision up to e = 0.9",
+    worst < 1e-12, `worst residual ${worst.toExponential(2)}`);
+  check("a circular orbit passes mean anomaly straight through",
+    eccentricFromMean(1.234, 0) === 1.234);
 }
 
 console.log(failures ? `\n${failures} failed` : "\nall passed");

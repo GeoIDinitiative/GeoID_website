@@ -821,8 +821,28 @@ category colour as the accent. A Labels slider (0–3) picks which categories
 compete; a per-tick screen declutter caps 40. Seven groups now (~1,700
 objects) — fetched SEQUENTIALLY with a beat between requests, because
 CelesTrak throttles rapid parallel queries into empty 200s (`geo` and
-`science` arrived blank until spaced). OneWeb draws no rings: 650
-near-identical polar orbits is a hairball that hides every other orbit.
+`science` arrived blank until spaced). Every group draws rings now — a dot
+with no line was reported as broken, whatever the restraint behind it —
+with OneWeb's 651 near-identical polar orbits FADED (per-category ring
+opacity, 0.09 against the 0.35 default) so the shell reads as the lattice
+it is without drowning every other orbit.
+
+**Rings are sampled uniformly in ECCENTRIC ANOMALY, and complete rings are
+closed by hand.** Uniform time IS uniform mean anomaly, so an eccentric
+orbit gets almost no samples at perigee — its fastest, tightest arc.
+Measured: Cluster II (e ≈ 0.9) drew 5.9-unit straight chords against a
+1.05-unit ring mean, slicing across the whole scene — reported as "broken
+orbit lines". `sampleOrbitPoints` steps the eccentric anomaly (the
+ellipse's own parametric angle: smooth chords everywhere, identical to
+uniform time at e = 0) from the satellite's CURRENT mean anomaly through
+Kepler's equation (`eccentricFromMean`, Newton, pinned in the test), so
+the dense samples land on the true perigee. And nodal precession moves the
+plane ~0.4° during the very period sampled, so a ring's last point never
+met its first — a ~6 px notch in every LEO ring at the default view; the
+seam is snapped shut, since the half-degree of physics is invisible and
+the gap is not. Both the mass rings and the solo hover/selection overlays
+draw from this one sampler. Measured after: 1,614 of 1,614 live satellites
+ringed, zero segments over 4× their ring's mean, zero open seams.
 
 The orbit rings are interactive: the merged mesh records a per-SEGMENT owner
 at build (the raycaster answers with a vertex index; index/2 is the segment),
