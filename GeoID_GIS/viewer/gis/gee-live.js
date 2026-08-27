@@ -392,7 +392,7 @@ export async function drawFetchArea() {
   const b = boundsOf(geometry);
   say(`Fetch area set: ${b.minY.toFixed(2)}–${b.maxY.toFixed(2)}°N, `
     + `${b.minX.toFixed(2)}–${b.maxX.toFixed(2)}°E.`
-    + (captured?.ok ? " Listed in Vectors & Shapes." : ""));
+    + (captured?.ok ? " Listed in My Data." : ""));
 }
 
 export async function showOneFrame() {

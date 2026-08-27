@@ -16,8 +16,8 @@
 
 import {
   grouped as globalGrouped, layerForDataset,
-} from "./global-data.js?v=20260827-a2e8ca3";
-import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260827-a2e8ca3";
+} from "./global-data.js?v=20260827-f2f9202";
+import { MAP_LAYERS, layerForMap } from "./map-layers.js?v=20260827-f2f9202";
 
 const HOME_SECTION = {
   hydrology: "sea-level-section",
@@ -87,6 +87,18 @@ function activeSections() {
   if (LABEL_TOGGLES.some((id) => document.getElementById(id)?.checked)) {
     active.add("geoid-controls-group");
   }
+  /**
+   * A NESTED section's state must reach the tab that folds over it —
+   * Satellites lives inside Live now and Hydrology inside Earth System, so
+   * an active satellite layer has to light the Live header the user can
+   * actually see. Read from the DOM rather than from a table: the nesting
+   * is per-body (Mars keeps Hydrology as its own tab) and the DOM is the
+   * one place that already knows which shape this world got.
+   */
+  [...active].forEach((id) => {
+    const parent = document.getElementById(id)?.closest("details.toolbox-group");
+    if (parent?.id && parent.id !== id) active.add(parent.id);
+  });
   return active;
 }
 

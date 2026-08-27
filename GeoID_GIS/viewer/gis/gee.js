@@ -10,15 +10,15 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-a2e8ca3";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-a2e8ca3";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-a2e8ca3";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-f2f9202";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-f2f9202";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-f2f9202";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260827-a2e8ca3";
+  from "./view-extent.js?v=20260827-f2f9202";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
-} from "./extent-picker.js?v=20260827-a2e8ca3";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-a2e8ca3";
+} from "./extent-picker.js?v=20260827-f2f9202";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-f2f9202";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -1048,7 +1048,7 @@ function init() {
     }
     status(`Fetch area set: ${drawn.south.toFixed(2)}–${drawn.north.toFixed(2)}°N, `
       + `${drawn.west.toFixed(2)}–${drawn.east.toFixed(2)}°E.`
-      + (captured?.ok ? " Listed in Vectors & Shapes." : ""));
+      + (captured?.ok ? " Listed in My Data." : ""));
   });
   // The ticks follow the layers, whoever removed one: this list, the layer box,
   // or a tab being switched off. The named extents follow them for the same

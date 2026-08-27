@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260827-a2e8ca3";
-import { readHead, parseRows, validateMapping } from "./delimited.js?v=20260827-a2e8ca3";
-import { rampColour } from "./symbology.js?v=20260827-a2e8ca3";
+import { latLonToVector3, drapedRadius, looksLikeGeographic, computeBounds2D } from "./geo-utils.js?v=20260827-f2f9202";
+import { readHead, parseRows, validateMapping } from "./delimited.js?v=20260827-f2f9202";
+import { rampColour } from "./symbology.js?v=20260827-f2f9202";
 
 const MAX_POINTS = 2000000;
 

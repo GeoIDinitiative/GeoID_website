@@ -1,6 +1,6 @@
-import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-a2e8ca3";
-import { currentBody } from "./bodies.js?v=20260827-a2e8ca3";
-import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-a2e8ca3";
+import { CRS_OPTIONS, transform } from "./projection.js?v=20260827-f2f9202";
+import { currentBody } from "./bodies.js?v=20260827-f2f9202";
+import { rowsToCsv, downloadText } from "./extraction.js?v=20260827-f2f9202";
 
 // GIS mode presents a toolbox rather than a control centre: the whole GeoID
 // control set folds into one group, and the tool groups stack beneath it.
@@ -63,9 +63,21 @@ const MOVES = [
   // and buried the controls a level deeper than they belong.
   { id: "basemap-relief-section", host: "gis-toolbox-panels", promote: true },
   { id: "geology-section", host: "gis-toolbox-panels", promote: true },
-  { id: "sea-level-section", host: "gis-toolbox-panels", promote: true },
-  { id: "satellites-section", host: "gis-toolbox-panels", promote: true },
   { id: "modelled-data-section", host: "gis-toolbox-panels", promote: true },
+  /**
+   * The two-tier bar: Satellites nests under Live (everything with a
+   * timestamp) and Hydrology under Earth System. Nested, not promoted, so
+   * they wear the level-2 styling — a sub-tab inside the tab that owns the
+   * subject.
+   *
+   * `unlessDropped`: on a body whose registry drops the would-be parent
+   * (planets drop the Earth Engine group), the section is NOT nested into a
+   * hidden tab — it stays a top tab of its own, which is how Mars keeps its
+   * sea level reachable. `tabsForBody` makes the matching call on the other
+   * side, re-listing the section as a tab exactly when the nest is skipped.
+   */
+  { id: "satellites-section", host: "live-satellites-host", unlessDropped: "gis-group-events" },
+  { id: "sea-level-section", host: "earth-system-water-host", unlessDropped: "gis-group-modelled" },
   // Sources and metadata belong with the layer provenance they sit beside.
   { id: "metadata-section", host: "geoid-metadata-host" },
 ];
@@ -91,21 +103,28 @@ const TAB_ORDER = [
   // those pages the filter leaves Explorer at the top with nothing to move.
   "gis-group-geoid",
   "geoid-controls-group",
-  // Events before the vector catalogue: the live feeds are the tab people
-  // open daily; the shapefile importer is reference material.
+  /**
+   * Then the subject taxonomy: Live, Hazards, Earth System, Geology, Earth
+   * Observation, My Data — what is happening, what could happen, how the
+   * planet works, what the ground is, what the sensors saw, what you
+   * brought. Satellites and Hydrology are NOT entries: they nest inside
+   * Live and Earth System (see MOVES), except on a body where the parent is
+   * dropped — `tabsForBody` re-lists them there.
+   */
   "gis-group-events",
-  // Satellites beside Events: both are the live layers, read daily.
-  "satellites-section",
-  "gis-group-polygons",
-  "basemap-relief-section",
-  "geology-section",
-  "gis-group-modelled",
-  "sea-level-section",
   "modelled-data-section",
+  "gis-group-modelled",
+  "geology-section",
+  "basemap-relief-section",
+  "gis-group-polygons",
   // Meshes are a Model concern rather than a GIS layer, so they sit after the
   // data tabs and before the outputs. Built by add-data.js, not by the shared
   // markup -- see that module for why.
   "gis-group-mesh",
+  // Metadata stays ONE tab: provenance is a property of a layer, not of a
+  // subject, and each layer's own row and card already carry its source
+  // line — splitting this per tab would be seven filtered copies of one
+  // registry, the two-lists-for-one-dataset trap with a new face.
   "gis-group-metadata",
   // Export and Settings used to close this list; both are rail workbenches
   // now (see the note above the list). The trap their absence leaves behind:
@@ -128,7 +147,20 @@ const TAB_ORDER = [
  */
 function tabsForBody() {
   const drop = new Set(currentBody()?.tabs?.drop || []);
-  return TAB_ORDER.filter((id) => !drop.has(id));
+  const tabs = TAB_ORDER.filter((id) => !drop.has(id));
+  /**
+   * A section whose parent tab is dropped on this body un-nests back into
+   * the bar, at the position its parent would have held — the other half of
+   * MOVES' `unlessDropped`. Without this, Mars's sea level would sit inside
+   * a hidden Earth System tab, reachable by nobody.
+   */
+  MOVES.forEach((move) => {
+    if (!move.unlessDropped || !drop.has(move.unlessDropped)) return;
+    const at = TAB_ORDER.indexOf(move.unlessDropped);
+    const before = TAB_ORDER.slice(at + 1).find((id) => tabs.includes(id));
+    tabs.splice(before ? tabs.indexOf(before) : tabs.length, 0, move.id);
+  });
+  return tabs;
 }
 
 function orderTabs(toolbox) {
@@ -180,8 +212,19 @@ export function applyToolboxLayout(enabled) {
       rememberHome(panel);
       panelsHost.appendChild(panel);
     });
+    const dropped = new Set(currentBody()?.tabs?.drop || []);
     MOVES.forEach((move) => {
       const { id, host } = move;
+      // A nest whose parent tab this body drops is skipped — tabsForBody
+      // re-lists the section as a top tab instead, promoted below.
+      if (move.unlessDropped && dropped.has(move.unlessDropped)) {
+        const element = document.getElementById(id);
+        if (element) {
+          rememberHome(element);
+          element.classList.add("toolbox-group");
+        }
+        return;
+      }
       const element = document.getElementById(id);
       const target = document.getElementById(host);
       if (element && target) {

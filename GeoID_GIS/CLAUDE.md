@@ -1060,6 +1060,34 @@ Three traps, all found by measuring:
   `kind` (the kicker for non-volcano layers) and `dimension`.
 - satellite.js v5 calls the mean motion `no`, not `no_kozai`.
 
+## The nav bar is the subject taxonomy, two tiers deep
+
+The tab column reads: Explorer, then **Live** (the Events group renamed,
+with the whole Satellites section NESTED inside as a level-2 sub-tab),
+**Hazards** (Geohazards renamed), **Earth System** (Atmosphere renamed,
+Hydrology nested), **Geology**, **Earth Observation** (Basemap and Relief
+renamed — it already held the imagery, GEBCO and the GEE DEM share),
+**My Data** (Vector & Shapefiles renamed), then Meshes and Metadata. The
+rule that filed it: Live holds what HAPPENED (timestamped feeds), Hazards
+what COULD, Geology what the ground IS — one dataset, one home. Metadata
+stays a single tab on purpose: provenance is a property of a layer, not a
+subject, and each layer's row already carries its own source line —
+splitting it per tab is seven filtered copies of one registry.
+
+Mechanics worth knowing before touching it: the nests are MOVES entries
+(`satellites-section` → `live-satellites-host`, `sea-level-section` →
+`earth-system-water-host`) carrying **`unlessDropped`** — on a body whose
+registry drops the parent tab, the child is NOT nested into a hidden tab;
+`tabsForBody` re-lists it as a top tab at the parent's own position, which
+is how Mars keeps its Sea Level reachable while Earth folds it into Earth
+System. Section IDS ARE UNCHANGED everywhere (the `sea-level-section`
+lesson: three modules address them by id); only heading text moved.
+`section-activity` propagates a nested section's `has-active-data` to its
+closest `.toolbox-group` ancestor read from the DOM — the nesting is
+per-body, and the DOM is the one place that knows which shape this world
+got. Status copy naming the old tab ("Listed in Vectors & Shapes") moved
+with it ("Listed in My Data") in gee.js and gee-live.js.
+
 ## Workbenches: the rail owns what you pick up and put down
 
 `gis/side-panels.js` moves whole sidebar groups onto the right-hand tool
