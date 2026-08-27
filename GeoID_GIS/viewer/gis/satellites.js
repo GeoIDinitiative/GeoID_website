@@ -550,7 +550,7 @@ function showOrbitOverlay(overlay, record) {
 const tagTextures = new Map();
 
 function makePillTexture(name, variant = "rest") {
-  const key = `v10|${variant}|${name}`;
+  const key = `v11|${variant}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
   /**
    * VERBATIM the Explorer location chip — the engine's own default palette,
@@ -567,6 +567,11 @@ function makePillTexture(name, variant = "rest") {
   const make = window.GeoIDViewer?.makeLabelTexture;
   const label = make(name, {
     backingScale: (TAG_HEIGHT_PX * (window.devicePixelRatio || 1)) / 34,
+    // No minimum width: satellite names run to three letters, and under the
+    // engine's 110 px floor "HST" was a chip mostly made of empty backing.
+    // The chip hugs its text plus the engine's own padding, nothing else
+    // about the layout changed.
+    minWidth: 0,
     ...(variant === "gold" ? {
       customPalette: {
         bg: "rgba(30, 22, 6, 0.85)",
@@ -1420,7 +1425,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260827-00849cb");
+    const dialog = await import("./symbology-dialog.js?v=20260827-4fa9fc3");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

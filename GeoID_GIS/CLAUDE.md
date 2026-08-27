@@ -920,6 +920,15 @@ gold SELECTION variant is the one re-inked chip that remains, and the only
 custom parameter left is the texel-for-pixel backing, which changes
 sharpness and not looks. Verified side by side in one screenshot: satellite
 chips and curated location chips indistinguishable in design and scale.
+One engine constant had to become an option for the marriage to work:
+`makeLabelTexture`'s **110 px minimum width** suits the curated place names
+it was set for and swamps a three-letter satellite name — "HST" was a chip
+mostly made of empty backing, reported as oversized. `minWidth` (default
+110, satellites pass 0) lets short names hug their text: measured, SWAS at
+44 px against the ~70 the floor forced. And a selection-gold coincidence
+worth knowing: Hubble's old CATEGORY colour was #ffc400 amber, a near-match
+for the selection gold #ffbf6f — a selected HST reads as "the old amber
+chip is back" when it is the gold variant doing its job.
 Verified: 4 of 4 clicks on pill right-thirds open that pill's own card.
 
 **The rotation control is ONE pill in a three-state loop** — LIVE (real
