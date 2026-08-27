@@ -114,9 +114,24 @@ export function hideAreaCard() {
 export function resolvePolygonExtent(mode, { arm = true } = {}) {
   if (typeof mode === "string" && mode.startsWith("layer:")) {
     const id = mode.slice(6);
-    const layer = drawnPolygonLayers().find((l) => String(l.id) === id);
-    if (!layer) return { error: "That polygon is no longer on the globe — pick another extent." };
-    return layerBounds(layer);
+    const drawnLayer = drawnPolygonLayers().find((l) => String(l.id) === id);
+    if (drawnLayer) return layerBounds(drawnLayer);
+    /**
+     * Any other loaded layer answers with its BOUNDING BOX. The bounds the
+     * import manager stamps are `{minX..maxY}` in signed degrees (measured:
+     * `collectionBounds` on a UK box returns minX −10); this module speaks
+     * `{west..north}`, so the shape converts here rather than leaking two
+     * bound vocabularies to every caller — the exact trap `drape()` documents.
+     */
+    const layer = (window.GeoIDImportManager?.getLayers?.() || [])
+      .find((l) => String(l.id) === id);
+    const b = layer?.bounds;
+    if (!layer || !b) return { error: "That layer is no longer on the globe — pick another extent." };
+    return {
+      west: Number(b.minX ?? b.west), south: Number(b.minY ?? b.south),
+      east: Number(b.maxX ?? b.east), north: Number(b.maxY ?? b.north),
+      reusedFrom: layer.name,
+    };
   }
   if (mode !== "drawn" && mode !== "polygon") return null;
   const live = drawnOverlayBounds();
@@ -139,17 +154,41 @@ export function resolvePolygonExtent(mode, { arm = true } = {}) {
  * Map. A choice whose layer has since been removed falls back to `fallback`
  * rather than leaving the select pointing at an id nothing answers to.
  */
-export function refreshPolygonOptions(select, fallback = "drawn") {
+export function refreshPolygonOptions(select, fallback = "drawn", { allLayers = false } = {}) {
   if (!select) return;
   const chosen = select.value;
   select.querySelectorAll("option[data-polygon]").forEach((option) => option.remove());
-  drawnPolygonLayers().forEach((layer) => {
+  const drawn = drawnPolygonLayers();
+  drawn.forEach((layer) => {
     const option = document.createElement("option");
     option.value = `layer:${layer.id}`;
     option.dataset.polygon = "1";
     option.textContent = `▱ ${layer.name}`;
     select.appendChild(option);
   });
+  /**
+   * EVERY loaded vector layer as an extent, not only the drawn ones.
+   *
+   * The GFS card's rule, kept when that card went: "a polygon you already
+   * have is the commonest case and was the one with no way to express it".
+   * A coastline, an imported shapefile or a catalogue layer is a perfectly
+   * good answer to "over where?", by its bounding box. The drawn shapes keep
+   * their ▱ and come first — they are the deliberate extents.
+   */
+  if (allLayers) {
+    const drawnIds = new Set(drawn.map((l) => String(l.id)));
+    (window.GeoIDImportManager?.getLayers?.() || [])
+      .filter((l) => l.status === "loaded" && l.bounds
+        && (l.features?.length || l.collection)
+        && !drawnIds.has(String(l.id)))
+      .forEach((layer) => {
+        const option = document.createElement("option");
+        option.value = `layer:${layer.id}`;
+        option.dataset.polygon = "1";
+        option.textContent = layer.name;
+        select.appendChild(option);
+      });
+  }
   select.value = [...select.options].some((option) => option.value === chosen)
     ? chosen : fallback;
 }

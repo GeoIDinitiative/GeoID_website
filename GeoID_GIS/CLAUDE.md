@@ -1386,8 +1386,21 @@ stays for its pure, unit-tested half; its wiring no-ops without the card.
 What the card uniquely had — a DRAW-AREA button — moved to the Atmospheric
 datasets section as `#gee-draw-area`, wired in gee.js: one press arms the
 Draw tool, points `#gee-extent` at "drawn", and the next Request uses the
-shape. The button form of the gesture the extent select's "drawn" option
-already performed, for whoever does not know the option is the way in.
+shape. The button is the GFS card's own TWO-PRESS
+gesture, kept exactly: first press with nothing drawn arms the tool and says
+"press this again to claim it"; second press CAPTURES the shape as a layer
+named "Earth Engine fetch area" (Vectors & Shapes, project-restorable,
+idempotent by shape), points the extent select at that layer by name, and
+reports the bounds to the status line. And the extent select keeps the GFS
+card's other rule — **every loaded vector layer is a possible extent**, not
+only drawn shapes: `refreshPolygonOptions(select, fallback, { allLayers })`
+lists them after the ▱-marked drawn shapes, and `resolvePolygonExtent`
+answers a non-drawn `layer:` id from the layer's own `bounds`, CONVERTING
+`{minX..maxY}` to this module's `{west..north}` there rather than leaking two
+bound vocabularies to callers — the exact trap `drape()` documents. Verified
+live: two presses set "Fetch area set: 8.09–29.49°N… Listed in Vectors &
+Shapes", and a ticked Natural Earth countries layer appears as an extent and
+resolves to its own bounding box.
 
 ## Live fetch: the hub's connectors in the catalogues, and weather by extent
 

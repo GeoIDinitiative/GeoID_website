@@ -10,15 +10,15 @@
 // its own opacity and draw order, is listed in the legend, and carries its
 // source and licence into the metadata panel like anything else imported.
 
-import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-deb1359";
-import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-deb1359";
-import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-deb1359";
+import { attachReliefAttributes, followRelief } from "./vector-render.js?v=20260827-10c08b6";
+import { latLonToVector3, drapedRadius } from "./geo-utils.js?v=20260827-10c08b6";
+import { geeSamplerFromImage, columnName } from "./gee-sample.js?v=20260827-10c08b6";
 import { visibleBounds, viewChangedEnough, onViewSettled }
-  from "./view-extent.js?v=20260827-deb1359";
+  from "./view-extent.js?v=20260827-10c08b6";
 import {
   resolvePolygonExtent, refreshPolygonOptions, promptDrawTool, drawnOverlayBounds,
-} from "./extent-picker.js?v=20260827-deb1359";
-import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-deb1359";
+} from "./extent-picker.js?v=20260827-10c08b6";
+import { renderCatalogue, openSymbologyFor } from "./catalogue-list.js?v=20260827-10c08b6";
 
 /**
  * The deployed service. Shipped with the app rather than configured per browser:
@@ -1003,7 +1003,7 @@ function init() {
    */
   const extentSelect = byId("gee-extent");
   if (extentSelect) {
-    refreshPolygonOptions(extentSelect, "global");
+    refreshPolygonOptions(extentSelect, "global", { allLayers: true });
     extentSelect.addEventListener("change", () => {
       // Choosing "an area drawn by hand" with nothing drawn is a dead end
       // unless the drawer comes to you — the weather card's rule.
@@ -1021,16 +1021,41 @@ function init() {
    * the next Request uses whatever lands on the globe.
    */
   byId("gee-draw-area")?.addEventListener("click", () => {
-    if (extentSelect) extentSelect.value = "drawn";
-    promptDrawTool();
-    status("Draw the area on the globe — box, circle or polygon — then press Request.");
+    /**
+     * Two presses, the GFS card's own gesture kept exactly.
+     *
+     * First press with nothing drawn: arm the tool and say what to do.
+     * Press again with a shape on the globe: CLAIM it — captured as a real
+     * layer named "Earth Engine fetch area" (so it lands in Vectors &
+     * Shapes, restores with the project, and can be clipped or exported
+     * like any drawn shape), the extent select pointed at that layer by
+     * name, and the bounds reported to the same status line the request
+     * writes. `captureDrawn` is idempotent by shape, so pressing twice on
+     * one box never stacks a duplicate.
+     */
+    const drawn = drawnOverlayBounds();
+    if (!drawn) {
+      if (extentSelect) extentSelect.value = "drawn";
+      promptDrawTool();
+      status("Draw the area on the globe — box, circle or polygon — then press this again to claim it.");
+      return;
+    }
+    const captured = window.GeoIDDrawnLayers?.captureDrawn?.({ name: "Earth Engine fetch area" });
+    if (extentSelect) {
+      refreshPolygonOptions(extentSelect, "drawn", { allLayers: true });
+      if (captured?.ok && captured.layer) extentSelect.value = `layer:${captured.layer.id}`;
+      else extentSelect.value = "drawn";
+    }
+    status(`Fetch area set: ${drawn.south.toFixed(2)}–${drawn.north.toFixed(2)}°N, `
+      + `${drawn.west.toFixed(2)}–${drawn.east.toFixed(2)}°E.`
+      + (captured?.ok ? " Listed in Vectors & Shapes." : ""));
   });
   // The ticks follow the layers, whoever removed one: this list, the layer box,
   // or a tab being switched off. The named extents follow them for the same
   // reason: a polygon captured by any fetch should be offerable at once.
   window.GeoIDImportManager?.onChange?.(() => {
     drawCatalogue();
-    refreshPolygonOptions(byId("gee-extent"), "global");
+    refreshPolygonOptions(byId("gee-extent"), "global", { allLayers: true });
   });
   drawCatalogue();
   // Choosing a dataset fetches what it actually holds, states it, and fills the

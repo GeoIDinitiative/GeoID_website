@@ -168,6 +168,41 @@ stale.value = "layer:999";
 refreshPolygonOptions(stale, "global");
 check("a choice whose layer is gone falls back", stale.value, "global");
 
+// ── Any loaded layer as an extent (the GFS card's rule, kept) ────────────
+stubDom({
+  layers: [
+    ringLayer(1, "Fetch Polygon 1", [[-11, 49], [2, 49], [2, 55], [-11, 55]]),
+    { id: 22, name: "NI rivers", status: "loaded", ext: "geojson",
+      bounds: { minX: -8.2, minY: 54.0, maxX: -5.3, maxY: 55.4 },
+      collection: { features: [{ geometry: { coordinates: [[[0, 0]]] } }] } },
+    { id: 23, name: "still importing", status: "loading", bounds: null },
+  ],
+});
+/* The import manager stamps bounds as {minX..maxY}; this module speaks
+   {west..north}. Leaking both vocabularies to callers is the exact trap
+   drape() documents, so the conversion happens HERE. */
+check("an ordinary layer resolves by its bounding box, converted",
+  resolvePolygonExtent("layer:22"),
+  { west: -8.2, south: 54, east: -5.3, north: 55.4, reusedFrom: "NI rivers" });
+check("a drawn polygon still resolves by its ring",
+  resolvePolygonExtent("layer:1").reusedFrom, "Fetch Polygon 1");
+check("a stale ordinary-layer id is an error, not a silent global",
+  Boolean(resolvePolygonExtent("layer:999")?.error), true);
+
+globalThis.document.createElement = () => ({ dataset: {}, value: "", textContent: "" });
+const all = fakeSelect(["global", "view", "drawn"]);
+refreshPolygonOptions(all, "global", { allLayers: true });
+check("allLayers lists the drawn polygon AND the ordinary layer",
+  all.options.length, 5);
+check("the drawn shape keeps its ▱ and comes first",
+  all.options[3].textContent, "▱ Fetch Polygon 1");
+check("the ordinary layer is listed plain", all.options[4].textContent, "NI rivers");
+check("a layer still importing is not offered",
+  all.options.some((o) => o.textContent === "still importing"), false);
+const without = fakeSelect(["global", "view", "drawn"]);
+refreshPolygonOptions(without, "global");
+check("without the flag only drawn shapes are listed", without.options.length, 4);
+
 if (failures) {
   console.log(`\n${failures} check(s) failed`);
   process.exit(1);
