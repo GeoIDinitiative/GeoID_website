@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260827-63219c2";
+  from "./gis/geo-utils.js?v=20260827-184b3d2";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -17510,8 +17510,44 @@ uniform float uViewportWidth;`,
           dot.style.top = `${at.y}px`;
         });
       }
+      function updateRectDims() {
+        let chip = document.getElementById("gis-rect-dims");
+        if (!chip) {
+          chip = document.createElement("div");
+          chip.id = "gis-rect-dims";
+          Object.assign(chip.style, {
+            position: "fixed", zIndex: 13, pointerEvents: "none",
+            padding: "0.14rem 0.45rem", borderRadius: "0.3rem",
+            transform: "translate(-50%, -170%)",
+            border: "1px solid rgba(82,228,232,0.4)",
+            background: "rgba(8,13,20,0.92)", color: "#9fe8ec",
+            font: "600 0.62rem/1.2 'Exo 2', sans-serif",
+            letterSpacing: "0.05em", whiteSpace: "nowrap",
+          });
+          document.body.appendChild(chip);
+        }
+        const bounds = (measureMode === "area" && !measureDrawActive)
+          ? rectFromMeasurePoints() : null;
+        const anchorDot = handleHost?.children[5];
+        if (!bounds || !anchorDot || anchorDot.style.display === "none"
+          || studyDrag || boxDraw) {
+          chip.hidden = true;
+          return;
+        }
+        const midLat = (bounds.south + bounds.north) / 2;
+        const heightKm = (bounds.north - bounds.south) * 111.32;
+        const widthKm = (bounds.east - bounds.west) * 111.32
+          * Math.cos((midLat * Math.PI) / 180);
+        chip.textContent = `${Math.round(widthKm)} × ${Math.round(heightKm)} km`;
+        const box = anchorDot.getBoundingClientRect();
+        chip.style.left = `${box.left + 4.5}px`;
+        chip.style.top = `${box.top}px`;
+        chip.hidden = false;
+      }
+
       (function handleLoop() {
         updateRectHandles();
+        updateRectDims();
         window.requestAnimationFrame(handleLoop);
       }());
 
@@ -17574,6 +17610,9 @@ uniform float uViewportWidth;`,
         studyPointerDown(event);
         if (studyDrag) return;
         if (!measureDrawActive || measureMode !== "area") return;
+        // Polygon mode: taps place vertices and drags stay ORBITS — the
+        // shape is chosen on the Draw HUD, and only box/circle drag-draw.
+        if ((window.GeoIDDrawShape || "box") === "poly") return;
         const hit = intersectMeasurementSurface(event.clientX, event.clientY);
         if (!hit) return;
         // Armed but undecided: a tap stays a polygon vertex, a drag becomes
@@ -17605,6 +17644,29 @@ uniform float uViewportWidth;`,
           if (!hit) return;
           const a = boxDraw.anchor;
           const hitLon = a.lon + (((hit.lon - a.lon + 540) % 360) - 180);
+          if ((window.GeoIDDrawShape || "box") === "circle") {
+            // Press the centre, drag the radius — the other classic gesture.
+            const dLat = hit.lat - a.lat;
+            const dLon = (hitLon - a.lon) * Math.cos((a.lat * Math.PI) / 180);
+            const radiusKm = Math.hypot(dLat, dLon) * 111.32;
+            if (radiusKm > 2) {
+              const ring = [];
+              for (let k = 0; k < 48; k += 1) {
+                const t = (k / 48) * 2 * Math.PI;
+                const lat = a.lat + (radiusKm * Math.cos(t)) / 111.32;
+                const lon = a.lon + (radiusKm * Math.sin(t))
+                  / (111.32 * Math.max(0.05, Math.cos((lat * Math.PI) / 180)));
+                ring.push({ lat: Math.max(-85, Math.min(85, lat)), lon });
+              }
+              activateStudyArea(ring);
+              const chip = studySizeChip();
+              chip.textContent = `⌀ ${Math.round(radiusKm * 2)} km`;
+              chip.style.left = `${event.clientX + 16}px`;
+              chip.style.top = `${event.clientY + 16}px`;
+              chip.hidden = false;
+            }
+            return;
+          }
           const bounds = {
             south: Math.min(a.lat, hit.lat), north: Math.max(a.lat, hit.lat),
             west: Math.min(a.lon, hitLon), east: Math.max(a.lon, hitLon),

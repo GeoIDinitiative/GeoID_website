@@ -1387,6 +1387,20 @@ Three measured traps live in this apparatus:
   `window` never reaches it, which reads as a broken tap and is a broken
   TEST. Target the canvas.
 
+**The Draw HUD** (`gis/draw-hud.js`) is the gesture bar over the canvas
+whenever a drawing tool is armed: Box / Circle / Polygon / Line, Done,
+Cancel, and a hint line that always says the next step. The shape choice
+travels as `window.GeoIDDrawShape` — box and circle drag-draw, "poly"
+leaves drags to the orbit controls so taps place vertices. Circle is
+press-centre-drag-radius (48-segment ring, live "⌀ N km" chip). Done =
+`captureDrawn` → relief-hugging layer + overlay cleared (Enter works);
+Cancel clears and puts the tool away. The HUD polls tool state at 250 ms
+— rail clicks, shortcuts and modules all arm the tool, and polling beats
+wiring into each. A persistent dimensions chip ("W × H km") rides the
+rect's north-mid handle whenever a rect stands un-dragged. The side DRAW
+card stays as the preset/precise path (regular polygons, exact km); the
+HUD is the hands-first one — complementary, not duplicates.
+
 Rect editing is wrap-safe (bounds renormalise on rebuild; corner/edge/
 delta comparisons use wrapped lon distance) and hand-drawn polygons are
 left alone — no corners a rectangle rule may move. The zoom pill's ends
