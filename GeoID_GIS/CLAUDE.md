@@ -3172,6 +3172,47 @@ and the drape's own lift — 10 km down to 1.2 km, because **a 10 km lift IS a
 10 km floor**; the camera cannot get under its own basemap. Safe to shrink
 because the drape material does not depth test.
 
+**Two imagery alternatives sit beside Esri, and their licences are not
+alike.** `Sentinel-2 Cloudless` (EOX, a cloud-free Copernicus mosaic) is the
+nearest thing to Esri's imagery that does not go through Esri — and it is
+**CC BY-NC-SA: NonCommercial**, with commercial use sold separately under
+EOX's own Attribution-RestrictedUse licence. Only the 2016 edition was
+CC BY 4.0 and `s2cloudless-2016` now 404s; the unversioned `s2cloudless_3857`
+answers but cannot be shown to BE that edition, so it is not offered wearing
+a licence we cannot prove. `NASA VIIRS Daily` (GIBS) is the one imagery layer
+with no condition at all — open data, no key, no commercial clause — at the
+cost of stopping at zoom 9.
+
+**A server answering is not the same as the sensor having seen it.** EOX
+serves s2cloudless to zoom 18; Sentinel-2 is a 10 m instrument and zoom 14
+over Etna is already 7.55 m/px. Measured bytes down that ladder — 17,710 at
+z10, 8,553 at z12, 5,226 at z14, then 4,863 / 6,017 / 4,257 / 2,143 — fall to
+noise rather than carrying detail, so its `maxZoom` is the honest 14. Third
+instance of this lesson after RainViewer's placeholder tiles and Earth
+Engine's `scale`.
+
+**GIBS dates its daily layers and TODAY is not ready** — measured, 2026-08-27
+returned 404 while 2026-08-26 returned a JPEG. `GIBS_DATE` resolves to
+yesterday UTC once at module load, so both consumers get a complete template;
+teaching two separate `tileUrl` implementations about a `{time}` placeholder
+is exactly the drift that file's header warns about. Wall clock, never the
+viewer's simulated time: a scrubbed clock pointed at next week would ask for
+a photograph nobody has taken. Expect ~208 of 256 tiles at zoom 4 — the gaps
+are polar night, where the sensor genuinely saw nothing.
+
+**THE CREDIT AND THE LICENCE MUST NAME THE SAME MAP.** They did not. The
+credit line followed `base-layer-select` — what is actually on the globe —
+while the licence line followed only the drape tool's own source select
+beside it, so choosing a basemap from the catalogue left the two describing
+different services. Measured with Sentinel-2 selected: EOX's credit above
+OpenStreetMap's "ODbL. Free to use with attribution", which tells a reader
+that NonCommercial imagery is free to use commercially. It read as
+authoritative precisely because the credit beside it was right. Both now
+derive from one `sourceForId`. `tile-sources.test.mjs` pins the whole
+discipline — every source attributed, every constrained source explaining its
+constraint, and names restricted to characters that slugify cleanly, after
+"NASA VIIRS (yesterday)" produced the id `tiles-nasa-viirs-yesterday-`.
+
 **Esri World Imagery is free of charge and not licensed for this.** Its ArcGIS
 item record puts it under the **Esri Master License Agreement** and states it is
 "not intended for offline tile export" — so no charge and no key on

@@ -146,7 +146,11 @@ export const TILE_SOURCES = {
    * burning and where; this layer shows the smoke leaving it, the cloud over
    * the storm, the dust off the Sahara — the same day, from the same globe.
    */
-  "NASA VIIRS (yesterday)": {
+  // Named without brackets on purpose: `baseLayerIdFor` slugifies this into the
+  // dropdown's option value, and "(yesterday)" left a trailing hyphen on the id
+  // — harmless until something matches ids exactly. The day it is showing is on
+  // the credit line, which is where a reader looks for it anyway.
+  "NASA VIIRS Daily": {
     url: "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best"
       + `/VIIRS_SNPP_CorrectedReflectance_TrueColor/default/${GIBS_DATE}`
       + "/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpg",

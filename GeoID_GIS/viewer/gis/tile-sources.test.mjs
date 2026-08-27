@@ -54,6 +54,13 @@ for (const [name, source] of Object.entries(TILE_SOURCES)) {
   check(`${name} fills its template completely`,
     !/\{[a-zA-Z]+\}/.test(filled), filled);
   check(`${name} is served over TLS`, filled.startsWith("https://"));
+  /* The name is slugified into the basemap dropdown's option value
+     (`baseLayerIdFor`), so punctuation leaks into an id. "NASA VIIRS
+     (yesterday)" produced `tiles-nasa-viirs-yesterday-`, with a trailing
+     hyphen from the closing bracket — harmless until something matches an
+     id exactly, and invisible in the UI either way. Letters, digits,
+     spaces and hyphens only. */
+  check(`${name} slugifies to a clean id`, /^[A-Za-z0-9][A-Za-z0-9 -]*$/.test(name));
 }
 
 // The two derived shapes are what `map2d.js` reads. A source added to the
@@ -101,7 +108,7 @@ if (s2) {
     /Copernicus/.test(s2.credit) && /EOX/.test(s2.credit));
 }
 
-const viirs = TILE_SOURCES["NASA VIIRS (yesterday)"];
+const viirs = TILE_SOURCES["NASA VIIRS Daily"];
 if (viirs) {
   check("VIIRS carries the date it is showing", viirs.credit.includes(GIBS_DATE));
   check("VIIRS asks for the date GIBS actually has", viirs.url.includes(GIBS_DATE));
