@@ -1801,8 +1801,14 @@ a card pinned to the corner of the window and the dimensions as a "W x H km"
 chip clipped to the rect's top edge — so the one thing not near the polygon
 was the number about it, and with two boxes drawn neither box said which card
 was its own. `updateAreaLabel` replaces both with one ANNOTATION at the shape's
-centre: its name, the area as the headline, and beneath that the width x
-height of a rectangle or the perimeter of a free shape.
+centre: its name, the area as the headline, and beneath that the BOUNDING
+width x height — for free shapes as well as rectangles. Perimeter ("N km
+around") was tried on free shapes and reported as noise: a fetch extent's
+size is width by height, whatever the outline's wiggle. The saved-shape
+annotation (area-labels.js) carries the same "W × H km" line, computed
+with km-per-degree off the BODY's own radius, because that module runs on
+the planets and 111.32 is Earth's number and nobody else's (the live
+label's literal is per-body via the porter rewrite instead).
 
 **An annotation, not a card.** A fill and a border sit on top of the polygon
 and hide the ground it was drawn to look at, which is the whole reason for

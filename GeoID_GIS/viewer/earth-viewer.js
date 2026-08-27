@@ -2,7 +2,7 @@ import * as THREE from "./vendor/three.module.js";
 // The polygon-area rule lives in one place, with a test. Stamped by hand
 // once: stamp.py only rewrites a ?v= that already exists.
 import { sphericalPolygonAreaKm2 as sphericalPolygonAreaOnSphere }
-  from "./gis/geo-utils.js?v=20260827-1dc3d92";
+  from "./gis/geo-utils.js?v=20260827-8fdfe1b";
     import { OrbitControls } from "./vendor/OrbitControls.js";
 
     if (!window.__ctxPatchDebug) {
@@ -17697,9 +17697,24 @@ uniform float uViewportWidth;`,
             * Math.cos((midLat * Math.PI) / 180);
           second = `${Math.round(widthKm)} × ${Math.round(heightKm)} km`;
         } else {
-          const perimeterKm = polygonPerimeterKm(measurePoints);
-          second = Number.isFinite(perimeterKm)
-            ? `${areaNumber(perimeterKm)} km around` : "";
+          /**
+           * A free shape wears its BOUNDING dimensions, exactly as a
+           * rectangle does. "N km around" (the perimeter) was tried and
+           * read as noise: "how big is this" means width by height for a
+           * fetch extent, whatever the outline's wiggle. Short way round
+           * the seam, so a shape at the antimeridian does not claim 350°.
+           */
+          const lats = measurePoints.map((p) => p.lat);
+          const lons = measurePoints.map((p) => p.lon);
+          const south = Math.min(...lats);
+          const north = Math.max(...lats);
+          let lonSpan = Math.max(...lons) - Math.min(...lons);
+          if (lonSpan > 180) lonSpan = 360 - lonSpan;
+          const midLat = (south + north) / 2;
+          const heightKm = (north - south) * 111.32;
+          const widthKm = lonSpan * 111.32 * Math.cos((midLat * Math.PI) / 180);
+          second = (Number.isFinite(widthKm) && Number.isFinite(heightKm))
+            ? `${Math.round(widthKm)} × ${Math.round(heightKm)} km` : "";
         }
         const area = areaNumber(areaKm2);
         if (!area) { label.hidden = true; return; }

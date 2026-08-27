@@ -114,14 +114,42 @@ function screenBox(ring) {
   return hits >= 2 ? { minX, maxX, minY, maxY } : null;
 }
 
+/**
+ * The shape's bounding dimensions, "W × H km" — the same second line the
+ * live drawing annotation carries, so a saved fetch extent keeps saying how
+ * big it is. Kilometres per degree comes off the BODY's own radius (the
+ * seam every world carries), because this module runs on the planets too
+ * and 111.32 is Earth's number and nobody else's. Short way round the seam
+ * for a ring at the antimeridian.
+ */
+function dimsFor(layer) {
+  const ring = layer?.collection?.features?.[0]?.geometry?.coordinates?.[0];
+  if (!ring?.length) return "";
+  const lats = ring.map((c) => c[1]);
+  const lons = ring.map((c) => c[0]);
+  const south = Math.min(...lats);
+  const north = Math.max(...lats);
+  let lonSpan = Math.max(...lons) - Math.min(...lons);
+  if (lonSpan > 180) lonSpan = 360 - lonSpan;
+  const kmPerDeg = ((window.GeoIDViewer?.bodyRadiusKm ?? 6371) * Math.PI) / 180;
+  const midLat = (south + north) / 2;
+  const w = Math.round(lonSpan * kmPerDeg * Math.cos((midLat * Math.PI) / 180));
+  const h = Math.round((north - south) * kmPerDeg);
+  return (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0)
+    ? `${w} × ${h} km` : "";
+}
+
 function textFor(layer) {
   const props = layer?.collection?.features?.[0]?.properties || {};
   const area = areaNumber(Number(props.area_km2));
   const name = layer.name || props.name || "";
   if (!area && !name) return "";
+  const dims = dimsFor(layer);
   return `<span style="display:block;font:600 0.56rem/1.3 'Exo 2',sans-serif;`
     + `letter-spacing:0.14em;text-transform:uppercase;opacity:0.8">${name}</span>`
-    + (area ? `<span>${area} km²</span>` : "");
+    + (area ? `<span>${area} km²</span>` : "")
+    + (dims ? `<br><span style="font-weight:500;font-size:0.7em;opacity:0.85;`
+      + `letter-spacing:0.05em">${dims}</span>` : "");
 }
 
 function refresh() {
