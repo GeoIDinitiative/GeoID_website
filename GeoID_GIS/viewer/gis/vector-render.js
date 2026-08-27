@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260827-d5f5495";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260827-d5f5495";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260827-d5f5495";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260827-cf5b909";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260827-cf5b909";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260827-cf5b909";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -770,8 +770,28 @@ export function renderFeatureCollection(fc, {
      * be used at all. `alphaTest` cuts the sprite's square without opening
      * the depth sorting that `transparent` alone would.
      */
+    /**
+     * NO DEPTH TEST — a point sprite is cut by the ground, not by the sphere.
+     *
+     * Every fragment of a point sprite carries the CENTRE's depth, so a
+     * depth-tested marker is sliced wherever the terrain in front of it is
+     * nearer the camera than its own centre — which on a sphere seen
+     * obliquely is most of the ground around it. A small dot got away with it
+     * because a few pixels of quad is a few pixels of ground; a ringed node is
+     * wide enough that the curve takes bites out of it, which is exactly what
+     * the event markers already record and fixed the same way.
+     *
+     * Lifting the marker higher would trade the cut for parallax — a mark
+     * standing off its own coordinate at close range — so the depth test comes
+     * off and the far hemisphere is culled by FACING instead (`cullFarSide`
+     * below), which on a sphere is exact: every vertex's outward normal is its
+     * own direction, and the geometry already carries it as `aDir`.
+     */
     const material = asMarkers
-      ? { sizeAttenuation: false, depthWrite: false, map: markerDiscTexture(), alphaTest: 0.35, transparent: true }
+      ? {
+        sizeAttenuation: false, depthWrite: false, depthTest: false,
+        map: markerDiscTexture(), alphaTest: 0.35, transparent: true,
+      }
       : { size: pointSize, sizeAttenuation: true, depthWrite: false };
     if (pointColours.length === pointPositions.length) {
       geometry.setAttribute("color", new THREE.Float32BufferAttribute(pointColours, 3));
@@ -799,10 +819,10 @@ export function renderFeatureCollection(fc, {
       // shader; the underlay ignores the colour attribute and stays white.
       const outline = new THREE.Points(geometry, followRelief(
         registerMarkerMaterial(new THREE.PointsMaterial({
-          sizeAttenuation: false, depthWrite: false, map: markerDiscTexture(),
-          alphaTest: 0.35, transparent: true, color: 0xffffff,
+          sizeAttenuation: false, depthWrite: false, depthTest: false,
+          map: markerDiscTexture(), alphaTest: 0.35, transparent: true, color: 0xffffff,
         }), "outline"),
-        drape, { lifted: true },
+        drape, { lifted: true, cullFarSide: true },
       ));
       outline.renderOrder = 4;
       outline.frustumCulled = false;
@@ -816,7 +836,15 @@ export function renderFeatureCollection(fc, {
       group.add(fill);
     } else {
       const points = new THREE.Points(
-        geometry, followRelief(new THREE.PointsMaterial(material), drape, { lifted: true }),
+        geometry,
+        followRelief(
+          registerMarkerMaterial(new THREE.PointsMaterial(material), "mark"),
+          drape,
+          // Culled by facing, for the same reason the ring above is: with the
+          // depth test off, the far hemisphere's marks would otherwise show
+          // straight through the planet.
+          { lifted: true, cullFarSide: asMarkers },
+        ),
       );
       points.renderOrder = 4;
       points.frustumCulled = false;

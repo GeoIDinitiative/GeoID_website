@@ -26,7 +26,7 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260827-d5f5495";
+import { runConnector } from "./research/connectors.js?v=20260827-cf5b909";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -278,7 +278,12 @@ export const DATASETS = [
     name: "Cable landing stations (Greg's Cable Map).geojson",
     summary: "737 points where submarine cables come ashore, with country and "
       + "owner. The dots to the cables' paths.",
-    colourBy: "kind",
+    // By COUNTRY, not by `kind` — every one of these is a landing station, so
+    // that column holds one value and paints 737 dots a single colour under a
+    // legend of one class. Country is the facet a reader actually asks a
+    // landing map about, and the palette's twelve-plus-other is the honest
+    // shape of it.
+    colourBy: "country",
     licence: "Greg's Cable Map — GNU GPL",
   },
   {
