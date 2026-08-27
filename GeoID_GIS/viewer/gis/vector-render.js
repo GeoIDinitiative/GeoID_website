@@ -1,7 +1,7 @@
 import * as THREE from "../vendor/three.module.js";
-import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260827-a055e70";
-import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260827-a055e70";
-import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260827-a055e70";
+import { latLonToVector3, drapedRadius, looksLikeGeographic } from "./geo-utils.js?v=20260827-d5f5495";
+import { collectionBounds, geometryCoords, polygonsOf, linesOf } from "./geoprocessing.js?v=20260827-d5f5495";
+import { categoricalSymbology, suggestCategoryField } from "./symbology.js?v=20260827-d5f5495";
 
 // Single renderer for every vector source. Each parser produces a GeoJSON
 // FeatureCollection and this turns it into draped globe geometry, so shapefile,
@@ -36,39 +36,42 @@ let surfaceHits = 0;
 let surfaceCalls = 0;
 
 /**
- * One TRIANGLE for every marker layer, drawn twice per layer.
+ * One DISC for every marker layer, drawn twice per layer.
+ *
+ * A node — a filled dot inside a heavy ring — rather than the triangle this
+ * used to draw. The triangle was chosen because a plain circle vanished into
+ * the round terrain features on imagery basemaps, and that reasoning was
+ * sound about a plain circle: what it lacked was a hard edge. A heavy outline
+ * gives it one, and a ringed dot is what a node looks like on every network
+ * map ever drawn — which is what these are, cable landings and gauges and
+ * stations.
  *
  * The texture is white and the material multiplies it by the symbology
  * colour — which is also why the white OUTLINE cannot be drawn into this
  * texture: it would be tinted with the rest. So each marker layer draws two
- * Points from the same geometry — a plain-white underlay a few pixels
- * larger, and the tinted triangle over it — and the outline is the underlay
- * showing round the edge. Two draw calls for the whole layer, not per point.
+ * Points from the same geometry — a plain-white underlay a few pixels larger,
+ * and the tinted disc over it — and the outline is the underlay showing round
+ * the edge. Two draw calls for the whole layer, not per point.
  */
-let triangleTexture = null;
-function markerTriangleTexture() {
-  if (triangleTexture) return triangleTexture;
+let discTexture = null;
+function markerDiscTexture() {
+  if (discTexture) return discTexture;
   const size = 64;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d");
+  // Short of the full 32 so the sprite's own edge is never the mark's edge:
+  // a disc drawn to the corner of its quad aliases into a square at small
+  // sizes, and `alphaTest` cuts it hard.
   ctx.beginPath();
-  ctx.moveTo(32, 7);
-  ctx.lineTo(57, 55);
-  ctx.lineTo(7, 55);
+  ctx.arc(32, 32, 26, 0, Math.PI * 2);
   ctx.closePath();
   ctx.fillStyle = "#ffffff";
   ctx.fill();
-  // A stroke in the same white, for rounded corners: a sharp 64px apex
-  // aliases into a grey wisp when the sprite is drawn at ten.
-  ctx.lineJoin = "round";
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = "#ffffff";
-  ctx.stroke();
-  triangleTexture = new THREE.CanvasTexture(canvas);
-  triangleTexture.needsUpdate = true;
-  return triangleTexture;
+  discTexture = new THREE.CanvasTexture(canvas);
+  discTexture.needsUpdate = true;
+  return discTexture;
 }
 
 /**
@@ -84,7 +87,17 @@ function markerTriangleTexture() {
  * 7 px beyond ~1.2 units to the surface, easing to 12 px on the ground.
  */
 const MARKER_MATERIALS = new Set();
-const MARKER_OUTLINE_EXTRA = 3.4;
+/**
+ * How much wider the white underlay is than the mark — the ring's weight.
+ *
+ * A disc needs a heavier ring than a triangle did. A triangle carries its own
+ * silhouette and a hair of white was enough to separate it; a circle has no
+ * silhouette to speak of, and a thin edge is exactly what let the earlier
+ * attempt at circular markers vanish into round terrain features on imagery
+ * basemaps. At 5.2 the ring reads as part of the symbol rather than as
+ * anti-aliasing, which is what makes a node a node.
+ */
+const MARKER_OUTLINE_EXTRA = 5.2;
 let markerSize = 7;
 
 function registerMarkerMaterial(material, role) {
@@ -745,18 +758,20 @@ export function renderFeatureCollection(fc, {
      */
     const asMarkers = pointPositions.length / 3 <= 20000;
     /**
-     * A marker is a TRIANGLE in the symbology colour, on a white underlay.
+     * A marker is a NODE: a disc in the symbology colour inside a heavy
+     * white ring.
      *
-     * The triangle because a circle vanished into round terrain features on
-     * imagery basemaps; the white edge because a coloured mark on a coloured
-     * ground needs a neutral separator, and it cannot live in the texture —
-     * the material multiplies the texture by the vertex colour, so anything
-     * white in it would be tinted with the fill (see markerTriangleTexture).
-     * `alphaTest` cuts the sprite's square without opening the depth sorting
-     * that `transparent` alone would.
+     * The ring because a coloured mark on a coloured ground needs a neutral
+     * separator, and it cannot live in the texture — the material multiplies
+     * the texture by the vertex colour, so anything white in it would be
+     * tinted with the fill (see markerDiscTexture). It is HEAVY on purpose:
+     * a thin edge is what let the earlier circle disappear into round terrain
+     * features on imagery, and a heavier one is the whole reason a circle can
+     * be used at all. `alphaTest` cuts the sprite's square without opening
+     * the depth sorting that `transparent` alone would.
      */
     const material = asMarkers
-      ? { sizeAttenuation: false, depthWrite: false, map: markerTriangleTexture(), alphaTest: 0.35, transparent: true }
+      ? { sizeAttenuation: false, depthWrite: false, map: markerDiscTexture(), alphaTest: 0.35, transparent: true }
       : { size: pointSize, sizeAttenuation: true, depthWrite: false };
     if (pointColours.length === pointPositions.length) {
       geometry.setAttribute("color", new THREE.Float32BufferAttribute(pointColours, 3));
@@ -780,12 +795,11 @@ export function renderFeatureCollection(fc, {
      */
     attachReliefAttributes(geometry, drape, builtRelief);
     if (asMarkers) {
-      // The outline first, the tinted triangle over it. Same geometry, same
-      // relief shader; the underlay ignores the colour attribute and stays
-      // white.
+      // The ring first, the tinted disc over it. Same geometry, same relief
+      // shader; the underlay ignores the colour attribute and stays white.
       const outline = new THREE.Points(geometry, followRelief(
         registerMarkerMaterial(new THREE.PointsMaterial({
-          sizeAttenuation: false, depthWrite: false, map: markerTriangleTexture(),
+          sizeAttenuation: false, depthWrite: false, map: markerDiscTexture(),
           alphaTest: 0.35, transparent: true, color: 0xffffff,
         }), "outline"),
         drape, { lifted: true },
