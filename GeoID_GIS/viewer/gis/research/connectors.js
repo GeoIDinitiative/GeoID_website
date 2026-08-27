@@ -299,6 +299,191 @@ export function cableLandingsToGeoJSON(payload) {
   return { type: "FeatureCollection", features };
 }
 
+// ── Active fire detections (NASA FIRMS, via GIBS vector tiles) ───────────────
+/**
+ * Today's thermal anomalies — MODIS and VIIRS — with no key and no proxy.
+ *
+ * This is FIRMS data, and FIRMS' own routes are both closed to a browser:
+ * the bulk CSVs answer 200 to curl and send **no `Access-Control-Allow-Origin`
+ * header** (measured; and VIIRS is 17.7 MB a day), while the API and WFS are
+ * CORS-open but need a MAP_KEY — and a browser cannot hold a secret, which is
+ * the rule the sidecar exists for.
+ *
+ * GIBS publishes the same detections as MAPBOX VECTOR TILES, keyless and
+ * CORS `*`, and `gis/mvt.js` — written for Macrostrat — already decodes them.
+ * The whole world is TWO tiles, because EPSG:4326 is two tiles wide at zoom
+ * zero; fetching only `0/0/0`, as the first attempt did, silently returns the
+ * western hemisphere and calls it global.
+ *
+ * Measured on one day: MODIS combined 16,905 detections over 1.6 MB, VIIRS
+ * S-NPP 97,814 over 8.2 MB. Both are served gzipped — curl hands back the
+ * compressed bytes unless asked otherwise, which looks like a corrupt tile;
+ * `fetch` decompresses transparently, so this is only ever a testing trap.
+ *
+ * NOT the same thing as the Events tab's EONET wildfires, and neither
+ * replaces the other. EONET is curated NAMED EVENTS and measured 496 of 500
+ * in North America — it will never show a fire in Northern Ireland. These are
+ * raw observations: every pixel that looked hot, anywhere, with its intensity.
+ */
+const FIRE_SENSORS = {
+  modis: {
+    label: "Active fires — MODIS (Terra + Aqua)",
+    layer: "MODIS_Combined_Thermal_Anomalies_All",
+    // The 4326 endpoint's own matrix sets, which are NOT the 3857 endpoint's
+    // GoogleMapsCompatible_* names the capabilities document lists first.
+    matrixSet: "1km",
+    resolution: "1 km",
+    // MODIS calls it BRIGHTNESS; VIIRS calls the same measurement BRIGHT_TI4.
+    brightnessKey: "BRIGHTNESS",
+  },
+  "viirs-snpp": {
+    label: "Active fires — VIIRS (Suomi NPP, 375 m)",
+    layer: "VIIRS_SNPP_Thermal_Anomalies_375m_All",
+    matrixSet: "500m",
+    resolution: "375 m",
+    brightnessKey: "BRIGHT_TI4",
+  },
+  "viirs-noaa20": {
+    label: "Active fires — VIIRS (NOAA-20, 375 m)",
+    layer: "VIIRS_NOAA20_Thermal_Anomalies_375m_All",
+    matrixSet: "500m",
+    resolution: "375 m",
+    brightnessKey: "BRIGHT_TI4",
+  },
+};
+
+export const fireSensorIds = () => Object.keys(FIRE_SENSORS);
+export const fireSensor = (id) => FIRE_SENSORS[id] || null;
+
+/** Today, UTC — these layers accumulate through the day and today is served. */
+export function fireDate(now = new Date()) {
+  return now.toISOString().slice(0, 10);
+}
+
+/**
+ * The two tiles that are the whole world.
+ *
+ * EPSG:4326 zoom 0 is a 2x1 matrix — `{z}/{row}/{col}`, so `0/0/0` and
+ * `0/0/1`. One of them is half the planet.
+ */
+export function fireTileUrls(sensorId, date = fireDate()) {
+  const sensor = FIRE_SENSORS[sensorId];
+  if (!sensor) throw new Error(`Unknown fire sensor: ${sensorId}`);
+  const base = "https://gibs.earthdata.nasa.gov/wmts/epsg4326/best";
+  return [0, 1].map((col) =>
+    `${base}/${sensor.layer}/default/${date}/${sensor.matrixSet}/0/0/${col}.mvt`);
+}
+
+/**
+ * Confidence, as one vocabulary across two sensors.
+ *
+ * MODIS reports 0–100; VIIRS reports "l"/"n"/"h". Colouring by the raw column
+ * would give one layer a hundred classes and the other three, and the two
+ * would never share a legend. The thresholds are FIRMS' own published bands.
+ */
+export function confidenceBand(raw) {
+  if (raw == null || raw === "") return "unknown";
+  const text = String(raw).trim().toLowerCase();
+  if (text === "h" || text === "high") return "high";
+  if (text === "n" || text === "nominal") return "nominal";
+  if (text === "l" || text === "low") return "low";
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return "unknown";
+  if (n >= 80) return "high";
+  if (n >= 30) return "nominal";
+  return "low";
+}
+
+/**
+ * Decoded MVT layers to one normalised FeatureCollection.
+ *
+ * The features carry LATITUDE/LONGITUDE as PROPERTIES, so the geometry is
+ * rebuilt from those rather than from the tile's own projected coordinates —
+ * which sidesteps the 4326-vs-3857 tile transform entirely and is exact
+ * rather than quantised to the tile's extent grid.
+ *
+ * `label_rank: 0` on every feature, deliberately: ninety-eight thousand names
+ * is a white planet, and a thermal anomaly has no name to write. The gate in
+ * point-labels reads the COLUMN's presence, so the card contract still works
+ * — a detection is clickable and reads as one.
+ */
+export function firesToGeoJSON(decodedLayers, sensorId) {
+  const sensor = FIRE_SENSORS[sensorId] || FIRE_SENSORS.modis;
+  const features = [];
+  const seen = new Set();
+  (decodedLayers || []).forEach((byLayer) => {
+    Object.values(byLayer || {}).forEach((list) => {
+      (list || []).forEach((f) => {
+        const p = f?.properties || {};
+        const lat = Number(p.LATITUDE);
+        const lon = Number(p.LONGITUDE);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+        // The two world tiles meet at the antimeridian and a detection on the
+        // seam is carried by both; UID is FIRMS' own per-detection id.
+        const key = `${p.UID ?? ""}|${lat.toFixed(5)}|${lon.toFixed(5)}|${p.ACQ_TIME ?? ""}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const frp = Number(p.FRP);
+        features.push({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [lon, lat] },
+          properties: {
+            kind: "Active fire detection",
+            sensor: sensor.resolution === "375 m" ? "VIIRS" : "MODIS",
+            satellite: String(p.SATELLITE || "").trim(),
+            // Kelvin, and named so: a bare "brightness" invites a reader to
+            // take it for a colour value.
+            brightness_k: Number(p[sensor.brightnessKey]) || null,
+            frp_mw: Number.isFinite(frp) ? frp : null,
+            confidence: confidenceBand(p.CONFIDENCE),
+            confidence_raw: p.CONFIDENCE ?? null,
+            acquired: `${p.ACQ_DATE || ""} ${p.ACQ_TIME || ""}`.trim(),
+            daynight: p.DAYNIGHT === "N" ? "Night" : (p.DAYNIGHT === "D" ? "Day" : ""),
+            resolution: sensor.resolution,
+            label_rank: 0,
+          },
+        });
+      });
+    });
+  });
+  return { type: "FeatureCollection", features };
+}
+
+/**
+ * Fetch both world tiles, decode, normalise. The one impure part.
+ *
+ * `mvt.js` is imported lazily: most sessions never ask for fires, and the
+ * decoder is dead weight in every one of them otherwise. A tile that 404s is
+ * an empty hemisphere rather than a failure — GIBS omits a tile with no
+ * detections in it — so one missing half must not lose the other.
+ */
+export async function loadFireDetections(sensorId, { date = fireDate() } = {}) {
+  const sensor = FIRE_SENSORS[sensorId];
+  if (!sensor) throw new Error(`Unknown fire sensor: ${sensorId}`);
+  const { decodeTile } = await import(`../mvt.js${new URL(import.meta.url).search}`);
+  const urls = fireTileUrls(sensorId, date);
+  const decoded = [];
+  let reached = 0;
+  for (let col = 0; col < urls.length; col += 1) {
+    let response;
+    try {
+      response = await fetch(urls[col]);
+    } catch (error) {
+      throw new Error(`Could not reach NASA GIBS for ${sensor.label}.`);
+    }
+    if (response.status === 404) continue;   // that half had no detections
+    if (!response.ok) throw new Error(`GIBS returned HTTP ${response.status}.`);
+    reached += 1;
+    // `fetch` has already undone the gzip GIBS serves these with.
+    const buffer = await response.arrayBuffer();
+    decoded.push(decodeTile(buffer, { z: 0, x: col, y: 0 }));
+  }
+  if (!reached) {
+    throw new Error(`GIBS has no ${sensor.label} tiles for ${date} yet.`);
+  }
+  return { geojson: firesToGeoJSON(decoded, sensorId), endpoint: urls.join(" + "), date };
+}
+
 // ── OpenStreetMap places (Overpass API) ───────────────────────────────────────
 // Cities, towns and villages in an area. CORS-open, no key. Needs a bbox, so it
 // requires a study area (a global Overpass query would time out).
@@ -469,6 +654,27 @@ export const CONNECTORS = {
     filename: () => "usgs_streamflow.geojson",
     defaults: {},
   },
+  "fires-modis": {
+    label: 'Active fires — MODIS (Terra + Aqua)',
+    kind: "vector",
+    load: (opts) => loadFireDetections("modis", opts),
+    filename: () => "active_fires_modis.geojson",
+    attribution: "NASA FIRMS via NASA EOSDIS GIBS",
+  },
+  "fires-viirs-snpp": {
+    label: 'Active fires — VIIRS (Suomi NPP, 375 m)',
+    kind: "vector",
+    load: (opts) => loadFireDetections("viirs-snpp", opts),
+    filename: () => "active_fires_viirs_snpp.geojson",
+    attribution: "NASA FIRMS via NASA EOSDIS GIBS",
+  },
+  "fires-viirs-noaa20": {
+    label: 'Active fires — VIIRS (NOAA-20, 375 m)',
+    kind: "vector",
+    load: (opts) => loadFireDetections("viirs-noaa20", opts),
+    filename: () => "active_fires_viirs_noaa20.geojson",
+    attribution: "NASA FIRMS via NASA EOSDIS GIBS",
+  },
   "submarine-cables": {
     label: "Submarine cables (Greg's Cable Map)",
     kind: "vector",
@@ -527,6 +733,31 @@ export async function runConnector(name, options = {}) {
   const connector = CONNECTORS[name];
   if (!connector) throw new Error(`Unknown connector: ${name}`);
   const opts = { ...connector.defaults, ...options };
+  /**
+   * A connector may bring its own loader.
+   *
+   * The shape below — one URL, `res.json()`, one pure converter — covers every
+   * connector that speaks JSON over a single request, which was all of them.
+   * The fire layers are binary vector tiles over TWO requests, and bending
+   * that into `url` + `toGeoJSON` would mean a fetch wrapper that returns
+   * something other than what it fetched. `load` returns the finished GeoJSON
+   * and the endpoint it came from; everything downstream is unchanged.
+   */
+  if (typeof connector.load === "function") {
+    const loaded = await connector.load(opts);
+    const geojson = loaded?.geojson || { type: "FeatureCollection", features: [] };
+    return {
+      geojson,
+      filename: connector.filename(opts),
+      provider: connector.label,
+      provenance: {
+        endpoint: loaded?.endpoint || connector.label,
+        fetched_at: new Date().toISOString(),
+        features: geojson.features.length,
+        attribution: connector.attribution,
+      },
+    };
+  }
   const url = connector.url(opts);
   let response;
   try {

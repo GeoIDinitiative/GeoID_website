@@ -26,7 +26,7 @@
  * rebuilt or updated without guessing what was done to them.
  */
 
-import { runConnector } from "./research/connectors.js?v=20260827-91112f8";
+import { runConnector } from "./research/connectors.js?v=20260827-5e51d5b";
 
 /** Order the groups read in, coarse to specific. */
 export const GROUPS = ["Physical", "Hydrology", "Boundaries", "Tectonics",
@@ -255,6 +255,51 @@ export const DATASETS = [
     summary: "Cities and towns from the Overpass API over the drawn study area "
       + "(a global pull is refused by the service — draw an area first).",
     licence: "© OpenStreetMap contributors (ODbL)",
+  },
+  {
+    id: "conn-fires-modis",
+    featureNoun: "Active fire detection",
+    group: "Live services",
+    label: "Active fires — MODIS (today)",
+    connector: "fires-modis",
+    name: "Active fires MODIS (NASA FIRMS).geojson",
+    summary: "Today's thermal anomalies from Terra and Aqua at 1 km, worldwide "
+      + "— about 17,000 a day. Raw detections with intensity, not curated "
+      + "events: the Events tab's EONET wildfires are 99% North America.",
+    // Confidence, not FRP: `colourBy` drives the CATEGORICAL paint, and the
+    // band is one vocabulary across both sensors (MODIS reports 0-100, VIIRS
+    // reports l/n/h). Fire radiative power is the more interesting variable
+    // and is one click away in Symbology, which classes numeric columns.
+    colourBy: "confidence",
+    colours: { high: "#ff2d1a", nominal: "#ff9d2e", low: "#ffe066", unknown: "#8a8a8a" },
+    licence: "NASA FIRMS via NASA EOSDIS GIBS — NASA open data",
+  },
+  {
+    id: "conn-fires-viirs-snpp",
+    featureNoun: "Active fire detection",
+    group: "Live services",
+    label: "Active fires — VIIRS Suomi NPP (today)",
+    connector: "fires-viirs-snpp",
+    name: "Active fires VIIRS SNPP (NASA FIRMS).geojson",
+    summary: "The same day at 375 m rather than 1 km, so far more of it — "
+      + "about 98,000 detections worldwide. Heavier to draw; the detail is "
+      + "the point.",
+    colourBy: "confidence",
+    colours: { high: "#ff2d1a", nominal: "#ff9d2e", low: "#ffe066", unknown: "#8a8a8a" },
+    licence: "NASA FIRMS via NASA EOSDIS GIBS — NASA open data",
+  },
+  {
+    id: "conn-fires-viirs-noaa20",
+    featureNoun: "Active fire detection",
+    group: "Live services",
+    label: "Active fires — VIIRS NOAA-20 (today)",
+    connector: "fires-viirs-noaa20",
+    name: "Active fires VIIRS NOAA-20 (NASA FIRMS).geojson",
+    summary: "A second 375 m VIIRS pass, about ninety minutes from Suomi NPP's "
+      + "— two looks at the same day rather than a duplicate of one.",
+    colourBy: "confidence",
+    colours: { high: "#ff2d1a", nominal: "#ff9d2e", low: "#ffe066", unknown: "#8a8a8a" },
+    licence: "NASA FIRMS via NASA EOSDIS GIBS — NASA open data",
   },
   {
     id: "conn-submarine-cables",
