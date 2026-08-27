@@ -105,6 +105,9 @@ const LABEL_LEVEL_COPY = {
   3: "Every satellite competes for a name",
 };
 const MAX_LABELS = 40;
+// The pill's on-screen height at close zoom; the texture is baked to match
+// it texel-for-pixel (see makePillTexture).
+const TAG_HEIGHT_PX = 24;
 const LABEL_SPACING_PX = 64;
 
 const LAYER_NAME = "Live satellites (CelesTrak)";
@@ -539,7 +542,7 @@ function showOrbitOverlay(overlay, record) {
 const tagTextures = new Map();
 
 function makePillTexture(name, colour) {
-  const key = `v7|${colour}|${name}`;
+  const key = `v8|${colour}|${name}`;
   if (tagTextures.has(key)) return tagTextures.get(key);
   /**
    * The viewer's OWN pill, through the seam the volcano labels use — the
@@ -565,11 +568,23 @@ function makePillTexture(name, colour) {
    * under the name "Chakra Petch", so naming it first resolved through to
    * the same fallback while looking like a choice.
    */
+  /**
+   * Baked at EXACTLY the drawn size, fractional backing and all.
+   *
+   * ceil(devicePixelRatio) was still wrong twice over: at DPR 1 it left a
+   * 2.08× minification, and pairing that with mipmaps OFF undersamples —
+   * thin strokes drop texels and the type reads crunchy and stretched, the
+   * "not clear" report. The layout is 34 logical px and the pill draws at
+   * TAG_HEIGHT_PX, so the backing that puts one texture texel on one device
+   * pixel is (TAG_HEIGHT_PX × DPR) / 34 — the canvas rasteriser then hints
+   * the glyphs at their final size, which is the whole trick. Mipmaps stay
+   * ON (the engine's default): the far-zoom sizes minify a little, and
+   * trilinear at ≤1.4× is smoothing, not mush.
+   */
   const label = make(name, {
-    backingScale: Math.max(1, Math.ceil(window.devicePixelRatio || 1)),
+    backingScale: (TAG_HEIGHT_PX * (window.devicePixelRatio || 1)) / 34,
     // No titleFont override: the pill wears the engine's own face, the same
-    // one every other location label uses. The blur was never the face — it
-    // was the 7.5x minification the sharp baking above removed.
+    // one every other location label uses.
     customPalette: {
       bg: "rgba(6, 10, 18, 0.82)",
       stroke: `${colour}88`,
@@ -577,12 +592,6 @@ function makePillTexture(name, colour) {
       title: "rgba(240, 246, 252, 0.97)",
     },
   });
-  // No mip chain: at ~2x-and-under the texture is effectively at display
-  // resolution, and trilinear sampling only softens what the canvas
-  // rasteriser drew sharp.
-  label.texture.generateMipmaps = false;
-  label.texture.minFilter = THREE.LinearFilter;
-  label.texture.needsUpdate = true;
   const record = { texture: label.texture, width: label.width, height: label.height };
   tagTextures.set(key, record);
   return record;
@@ -642,7 +651,14 @@ function updateLabels() {
   // Pill height on screen: the chip is 34 logical px tall, shown at
   // 18 px easing to 13 as the camera runs out — 15 px was reported
   // unreadable, and the backing renders at 3x for the minification.
-  const heightPx = 18 - 5 * far;
+  /**
+   * TAG_HEIGHT_PX near, four fifths of it far. At the old 18 px the title —
+   * 15 of the layout's 34 — came out ~8 px tall, and no face is legible at
+   * 8 px; "change the font" was reported three times and the size was the
+   * fault each time. 24 px puts the type at ~11 px, the small end of what
+   * HUD text can carry.
+   */
+  const heightPx = TAG_HEIGHT_PX - (TAG_HEIGHT_PX / 5) * far;
   const spacingPx = LABEL_SPACING_PX + 66 * far;
   const camDir = viewer.camera.position.clone().normalize();
   const positions = active.geometry.attributes.position;
@@ -1420,7 +1436,7 @@ function init() {
       say("Turn the tracker on first — symbology colours the live layer.");
       return;
     }
-    const dialog = await import("./symbology-dialog.js?v=20260827-9881366");
+    const dialog = await import("./symbology-dialog.js?v=20260827-053af40");
     dialog.openSymbologyDialog(layer);
   });
   // The layer box can remove the layer without asking: the tracker must not

@@ -878,8 +878,17 @@ ARITHMETIC, not (only) the face. The engine bakes a 34-logical-px pill; at
 backingScale 4 that is a 136 px texture drawn at 13–18 px — a 7.5×
 minification whose mip chain softens ANY font. Crisp HUD text is baked AT
 its drawn size: backingScale = ceil(devicePixelRatio), `generateMipmaps =
-false`, plain LinearFilter. Measured after: 34 px texture at 16.4 px drawn,
-2.08× — the crisp zone. The face is **'Exo 2'** — which viewer-skin serves
+false`, plain LinearFilter. Two attempts got this wrong before the number
+was right: backingScale 4 (7.5× minified, mush), then ceil(DPR) with mipmaps
+OFF (2.08× UNDERSAMPLED — thin strokes drop texels, the type reads crunchy
+and vertically stretched; no-mipmap linear is only safe at ≤1.3×). The
+answer is texel-for-pixel: `backingScale = (TAG_HEIGHT_PX × DPR) / 34`,
+fractional and all, so the canvas rasteriser hints the glyphs at their final
+size, with the engine's mipmaps kept for the far-zoom shrink. Measured:
+77×24 texture drawn at 72.5×22.4 CSS on DPR 1 — 1.07 texels per device
+pixel, aspect matched to 0.8%. And the SIZE was half of every "change the
+font" report: at 18 px pills the title was ~8 px tall, below what any face
+can carry; TAG_HEIGHT_PX is 24, putting the type at ~11 px. The face is **'Exo 2'** — which viewer-skin serves
 as Chakra Petch glyphs; there is NO family loaded under the name "Chakra
 Petch", so naming it first fell through the stack while looking like a
 choice (my own first fix did exactly that, and "the labels are unchanged"
