@@ -1062,12 +1062,13 @@ Three traps, all found by measuring:
 
 ## The nav bar is the subject taxonomy, two tiers deep
 
-The tab column reads: Explorer, then **Live** (the Events group renamed,
-with the whole Satellites section NESTED inside as a level-2 sub-tab),
-**Hazards** (Geohazards renamed), **Earth System** (Atmosphere renamed,
-Hydrology nested), **Geology**, **Earth Observation** (Basemap and Relief
-renamed — it already held the imagery, GEBCO and the GEE DEM share),
-**My Data** (Vector & Shapefiles renamed), then Meshes and Metadata. The
+The tab column reads: Explorer, then **Live** (the Events group renamed),
+**Hazards** (Geohazards renamed, the myGeoID mode bar nested at its top),
+**Earth System Observation** (Atmosphere renamed, with Hydrology AND the
+whole Satellites section nested as level-2 sub-tabs), **Geology**,
+**Basemaps** (Basemap and Relief renamed — the imagery, GEBCO and the GEE
+DEM share), **My Data** (Vector & Shapefiles renamed), then Meshes and
+Metadata. The
 rule that filed it: Live holds what HAPPENED (timestamped feeds), Hazards
 what COULD, Geology what the ground IS — one dataset, one home. Metadata
 stays a single tab on purpose: provenance is a property of a layer, not a
@@ -1075,8 +1076,8 @@ subject, and each layer's row already carries its own source line —
 splitting it per tab is seven filtered copies of one registry.
 
 Mechanics worth knowing before touching it: the nests are MOVES entries
-(`satellites-section` → `earth-observation-satellites-host`,
-`sea-level-section` → `earth-system-water-host`, `gis-group-geoid` →
+(`sea-level-section` → `earth-system-water-host`, `satellites-section` →
+`earth-system-satellites-host`, `gis-group-geoid` →
 `hazards-mygeoid-host` — the myGeoID mode bar leads the Hazards tab,
 because the FoS pipeline IS the landslide product, and the tracker lives
 with the sensors it flies) carrying **`unlessDropped`** — on a body whose
